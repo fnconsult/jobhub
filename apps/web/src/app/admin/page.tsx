@@ -6,6 +6,9 @@ import { getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 
 export async function generateMetadata(): Promise<Metadata> {
+  // Metadata renders apart from the page: without this, the 404 shown to
+  // non-Administrators would still carry the back office's title.
+  await requireAdministrator();
   const t = await getServerT();
   return { title: `${t("admin.title")} · ${t("app.name")}`, robots: { index: false } };
 }

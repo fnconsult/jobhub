@@ -125,6 +125,28 @@ export class BillingError extends Error {
 /** Subscription statuses that keep the paid Plan; Stripe retries failed payments while past_due. */
 const PAYING_STATUSES = new Set(["active", "trialing", "past_due"]);
 
+/**
+ * How far along its life a subscription is, by status. Stripe stamps events in
+ * whole seconds and does not guarantee their order, so two events of one
+ * subscription often share a timestamp (a checkout's `created` (incomplete)
+ * and `updated` (active)); the one further along is then the later state.
+ * Statuses that move back and forth (active, past_due) share a stage.
+ */
+const STATUS_STAGES: Record<string, number> = {
+  incomplete: 0,
+  trialing: 1,
+  active: 2,
+  past_due: 2,
+  unpaid: 2,
+  paused: 2,
+  canceled: 3,
+  incomplete_expired: 3,
+};
+const stageOf = (status: string) => STATUS_STAGES[status] ?? 2;
+const STORED_STAGE_SQL = `CASE stripe_status ${Object.entries(STATUS_STAGES)
+  .map(([status, stage]) => `WHEN '${status}' THEN ${stage}`)
+  .join(" ")} ELSE 2 END`;
+
 /** "2026-10": the calendar month in France, which monthly quotas count by. */
 function monthInFrance(date: Date): string {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit" }).formatToParts(date);
@@ -194,10 +216,24 @@ export function createBilling(config: BillingConfig) {
       `UPDATE candidate_plan
        SET plan = $2, stripe_subscription_id = $3, stripe_status = $4, stripe_event_at = to_timestamp($5)
        WHERE stripe_customer_id = $1
-         AND (stripe_event_at IS NULL OR stripe_event_at <= to_timestamp($5))
+         AND (
+           stripe_event_at IS NULL
+           OR stripe_event_at < to_timestamp($5)
+           -- same second: keep whichever state of the subscription is further along
+           OR (stripe_event_at = to_timestamp($5)
+               AND (stripe_subscription_id IS DISTINCT FROM $3 OR ${STORED_STAGE_SQL} <= $7))
+         )
          -- the end of an older subscription does not end the current one
          AND NOT ($6 AND stripe_subscription_id IS NOT NULL AND stripe_subscription_id <> $3)`,
-      [customer, ended ? "free" : paidPlan, subscription.id, subscription.status, event.created, ended],
+      [
+        customer,
+        ended ? "free" : paidPlan,
+        subscription.id,
+        subscription.status,
+        event.created,
+        ended,
+        event.type === "customer.subscription.deleted" ? STATUS_STAGES.canceled : stageOf(subscription.status),
+      ],
     );
   }
 

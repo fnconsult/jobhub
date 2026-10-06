@@ -180,8 +180,12 @@ test.describe("back office", () => {
   test("is hidden from Candidates", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("curious"));
     await expect(page.getByRole("link", { name: fr.account.admin })).toHaveCount(0);
-    const response = await page.goto("/admin/quotas");
-    expect(response?.status()).toBe(404);
+    for (const path of ["/admin", "/admin/quotas"]) {
+      const response = await page.goto(path);
+      expect(response?.status()).toBe(404);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.notFound.title);
+      await expect(page).toHaveTitle(`${fr.notFound.title} · ${fr.app.name}`);
+    }
   });
 
   test("lets an Administrator edit a Plan's quotas, applied at once on the subscription page", async ({ page }) => {

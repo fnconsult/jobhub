@@ -264,6 +264,24 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       expect((await t.billing.entitlements(marie.id)).plan).toBe("premium");
     });
 
+    it.each([
+      ["created (incomplete) after updated (active)", ["updated", "active"], ["created", "incomplete"], "premium"],
+      ["updated (active) after created (incomplete)", ["created", "incomplete"], ["updated", "active"], "premium"],
+      ["updated (active) after deleted (canceled)", ["deleted", "canceled"], ["updated", "active"], "free"],
+    ] as const)(
+      "keeps the later state of a subscription when two of its events share the same second: %s",
+      async (_, [firstType, firstStatus], [secondType, secondStatus], plan) => {
+        const marie = await subscribed("marie.dupont@example.fr");
+        const subscription = { id: "sub_A", customer: marie.customer, price: FAKE_STRIPE_PRICES.premium };
+        const sameSecond = new Date("2026-10-06T19:40:00Z");
+
+        await deliver(subscriptionEvent(`customer.subscription.${firstType}`, { ...subscription, status: firstStatus }, sameSecond));
+        await deliver(subscriptionEvent(`customer.subscription.${secondType}`, { ...subscription, status: secondStatus }, sameSecond));
+
+        expect((await t.billing.entitlements(marie.id)).plan).toBe(plan);
+      },
+    );
+
     it("does not end the current subscription when an older one of the same Candidate ends", async () => {
       const marie = await subscribed("marie.dupont@example.fr");
       const old = { id: "sub_old", customer: marie.customer, price: FAKE_STRIPE_PRICES.standard };

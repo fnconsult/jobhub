@@ -23,6 +23,7 @@ describe("the Plan Quotas form of the back office", () => {
     ["a negative limit", { profiles: "-1" }],
     ["a fractional limit", { matchScores: "2.5" }],
     ["text", { atsScores: "beaucoup" }],
+    ["a limit too large to store", { profiles: "99999999999" }],
     ["an unknown Job Digest frequency", { jobDigest: "hourly" }],
     ["an unknown Plan", { plan: "gold" }],
   ])("refuses %s", (_, override) => {

@@ -1,10 +1,13 @@
 import { JOB_DIGEST_FREQUENCIES, LIMITED_QUOTAS, PLANS, type Plan, type PlanQuotas } from "@jobhub/shared";
 import * as z from "zod";
 
+/** The largest limit the plan_quota table can hold (Postgres `integer`). */
+const MAX_LIMIT = 2_147_483_647;
+
 /** A limit field: a whole number from 0, or empty for unlimited. */
 const limit = z.preprocess(
   (value) => (typeof value === "string" && value.trim() === "" ? null : value),
-  z.union([z.null(), z.string().trim().regex(/^\d+$/).transform(Number)]),
+  z.union([z.null(), z.string().trim().regex(/^\d+$/).transform(Number).pipe(z.number().max(MAX_LIMIT))]),
 );
 
 const schema = z.object({

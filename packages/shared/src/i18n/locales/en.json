@@ -68,10 +68,14 @@
   "profiles": {
     "title": "My profiles",
     "none": "You don't have a profile yet. Upload your CV to create your first one: we turn it into your reference CV and your search criteria.",
-    "create": "Create my profile from my CV"
+    "create": "Create my profile from my CV",
+    "add": "Add a profile",
+    "archivedTitle": "Archived profiles",
+    "copyOf": "{{name}} (copy)",
+    "quotaReached": "You have reached the number of active profiles your plan allows. Archive a profile to add or restore another one."
   },
   "cvUpload": {
-    "title": "Create my profile from my CV",
+    "title": "Create a profile",
     "intro": "Upload your CV. We read it and split it into sections; you check and correct the result before saving it.",
     "fileLabel": "Your CV",
     "fileHint": "PDF or Word (.docx), 10 MB maximum.",
@@ -83,7 +87,9 @@
       "unreadable": "We couldn't open this file. It may be damaged or password-protected.",
       "empty": "We found no text in this file. If it is a scanned CV, upload the original PDF or Word version instead.",
       "unknown": "Something went wrong. Please try again."
-    }
+    },
+    "fromScratchHint": "No CV at hand? Fill in your master CV and search criteria yourself.",
+    "fromScratch": "Start from scratch"
   },
   "cvReview": {
     "title": "Check your CV and your search criteria",
@@ -148,7 +154,8 @@
     "invalid": "Some fields need completing or correcting: {{fields}}.",
     "required": "This field is required.",
     "invalidValue": "This value is not valid.",
-    "error": "Your profile could not be saved. Please try again."
+    "error": "Your profile could not be saved. Please try again.",
+    "scratchIntro": "Fill in your master CV and search criteria, then save your profile."
   },
   "cvEditor": {
     "title": "Edit my Master CV",
@@ -184,5 +191,25 @@
     "backToAccount": "Back to my account",
     "editMasterCv": "Edit my Master CV",
     "versionHistory": "Version history"
+  },
+  "profileSwitcher": {
+    "label": "Profile switcher",
+    "current": "Profile: {{name}}",
+    "choose": "Choose a profile"
+  },
+  "profileActions": {
+    "title": "Manage this profile",
+    "name": "Profile name",
+    "rename": "Rename",
+    "renamed": "Profile renamed.",
+    "duplicateName": "Name of the copy",
+    "duplicateHint": "The copy takes this profile's search criteria and the current version of its master CV.",
+    "duplicate": "Duplicate this profile",
+    "archiveHint": "An archived profile is kept with its master CV, but no longer appears in the profile switcher.",
+    "archive": "Archive this profile",
+    "archivedNotice": "This profile is archived. Restore it to see it in the profile switcher again.",
+    "restore": "Restore this profile",
+    "working": "Saving…",
+    "error": "The change could not be saved. Please try again."
   }
 }

@@ -21,6 +21,7 @@ import {
 import { isDeepStrictEqual } from "node:util";
 import type { Pool, PoolClient } from "pg";
 import * as z from "zod";
+import { PROFILE_NAME_MAX_LENGTH } from "./limits";
 
 export interface Profile {
   id: string;
@@ -116,7 +117,7 @@ const text = z.string().trim();
 const required = z.string().trim().min(1);
 const notBlank = (value: object) => Object.values(value).some((field) => field !== "");
 
-export const PROFILE_NAME_MAX_LENGTH = 120;
+export { PROFILE_NAME_MAX_LENGTH } from "./limits";
 const nameSchema = z.object({ name: required.max(PROFILE_NAME_MAX_LENGTH) });
 
 const masterCvSchema = z.object({

@@ -3,8 +3,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentCandidate } from "@/auth/server";
 import { CvOnboarding } from "@/components/CvOnboarding";
-import { TextSizeControl } from "@/components/TextSizeControl";
+import { WorkspaceHeader } from "@/components/WorkspaceHeader";
 import { getServerT } from "@/i18n/server";
+import { getProfiles } from "@/profiles/server";
 import { routes } from "@/routes";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -12,21 +13,27 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t("cvUpload.title")} · ${t("app.name")}` };
 }
 
-/** Creating a Profile from an uploaded CV (no LinkedIn import of any kind, ADR-0001). */
+/** Creating a Profile from an uploaded CV or from scratch (no LinkedIn import of any kind, ADR-0001). */
 export default async function NewProfilePage() {
-  if (!(await getCurrentCandidate())) redirect(routes.signIn);
+  const candidate = await getCurrentCandidate();
+  if (!candidate) redirect(routes.signIn);
   const t = await getServerT();
+  const canAdd = await getProfiles().canAddProfile(candidate.id);
   return (
     <main className="page">
-      <header className="page-header">
-        <Link className="brand" href={routes.home}>
-          {t("app.name")}
-        </Link>
-        <TextSizeControl />
-      </header>
+      <WorkspaceHeader candidateId={candidate.id} />
       <h1>{t("cvUpload.title")}</h1>
-      <p className="lead">{t("cvUpload.intro")}</p>
-      <CvOnboarding />
+      {canAdd ? (
+        <>
+          <p className="lead">{t("cvUpload.intro")}</p>
+          <CvOnboarding />
+        </>
+      ) : (
+        <>
+          <p className="notice">{t("profiles.quotaReached")}</p>
+          <Link href={routes.account}>{t("profile.backToAccount")}</Link>
+        </>
+      )}
     </main>
   );
 }

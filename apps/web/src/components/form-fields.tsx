@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProfileFieldError } from "@/profiles";
 
+/** A labelled text input (or textarea), with an optional hint and the field error to fix. */
 export function TextField(props: {
   label: string;
   value: string;
@@ -15,6 +16,7 @@ export function TextField(props: {
   type?: "text" | "email" | "tel";
   /** Shows a numeric keypad on phones. */
   numeric?: boolean;
+  maxLength?: number;
 }) {
   const { t } = useTranslation();
   const id = useId();
@@ -24,6 +26,7 @@ export function TextField(props: {
     className: "input",
     value: props.value,
     required: props.required,
+    maxLength: props.maxLength,
     "aria-invalid": props.error ? true : undefined,
     "aria-describedby": described,
   };

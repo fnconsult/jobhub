@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MasterCvView } from "@/components/MasterCvView";
-import { TextSizeControl } from "@/components/TextSizeControl";
+import { ProfileActions } from "@/components/ProfileActions";
+import { WorkspaceHeader } from "@/components/WorkspaceHeader";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { requireOwnProfile } from "@/profiles/server";
 import { routes } from "@/routes";
@@ -9,31 +10,27 @@ import { routes } from "@/routes";
 type Params = { params: Promise<{ id: string }> };
 
 async function currentProfile(id: string) {
-  return (await requireOwnProfile(id)).profile;
+  return requireOwnProfile(id);
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const t = await getServerT();
-  const profile = await currentProfile((await params).id);
+  const { profile } = await currentProfile((await params).id);
   return { title: `${profile.name} · ${t("app.name")}` };
 }
 
-/** One Profile: its Search Criteria and the current version of its Master CV. */
+/** One Profile: its Search Criteria, the current version of its Master CV, and what can be done with it. */
 export default async function ProfilePage({ params }: Params) {
-  const profile = await currentProfile((await params).id);
+  const { candidateId, profile } = await currentProfile((await params).id);
   const t = await getServerT();
   const locale = await getRequestLocale();
   const { searchCriteria: criteria, masterCv } = profile;
   const notSpecified = t("profile.notSpecified");
   return (
     <main className="page">
-      <header className="page-header">
-        <Link className="brand" href={routes.home}>
-          {t("app.name")}
-        </Link>
-        <TextSizeControl />
-      </header>
+      <WorkspaceHeader candidateId={candidateId} currentProfileId={profile.id} />
       <h1>{profile.name}</h1>
+      {profile.archived ? <p className="notice">{t("profileActions.archivedNotice")}</p> : null}
 
       <h2>{t("cvReview.searchCriteria")}</h2>
       <dl>
@@ -64,6 +61,8 @@ export default async function ProfilePage({ params }: Params) {
           {t("profile.versionHistory")}
         </Link>
       </nav>
+
+      <ProfileActions key={profile.id} profile={{ id: profile.id, name: profile.name, archived: profile.archived }} />
 
       <p>
         <Link href={routes.account}>{t("profile.backToAccount")}</Link>

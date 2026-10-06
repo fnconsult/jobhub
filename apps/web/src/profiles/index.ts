@@ -24,6 +24,8 @@ export interface Profile {
   id: string;
   /** Shown to the Candidate to tell their Profiles apart; the target role when created. */
   name: string;
+  /** An archived Profile is kept, but left out of the Profile switcher until restored. */
+  archived: boolean;
   searchCriteria: SearchCriteria;
   /** The current version of the Profile's Master CV. */
   masterCv: { version: number; content: MasterCvContent };
@@ -32,6 +34,7 @@ export interface Profile {
 export interface ProfileSummary {
   id: string;
   name: string;
+  archived: boolean;
 }
 
 /** A field the Candidate must fix, as a dotted path (e.g. "searchCriteria.location"). */
@@ -57,9 +60,15 @@ export type SaveMasterCvResult =
   /** Another save landed since the Candidate opened the editor (`basedOnVersion` is no longer the current one). */
   | { ok: false; conflict: { currentVersion: number } };
 
+/** The outcome of changing an existing Profile. "not_found" also covers someone else's Profile. */
+export type ProfileChangeResult = CreateProfileResult | { ok: false; error: "not_found" };
+
 export interface Profiles {
   /** Saves a reviewed CV draft as a new Profile. `input` is untrusted (it comes from the browser). */
   create(candidateId: string, input: unknown): Promise<CreateProfileResult>;
+  /** Renames a Profile. `input` ({ name }) is untrusted. */
+  rename(candidateId: string, profileId: string, input: unknown): Promise<ProfileChangeResult>;
+  /** Every Profile of the Candidate, archived ones included, oldest first. */
   list(candidateId: string): Promise<ProfileSummary[]>;
   /** The Profile, or null if it does not exist or belongs to someone else. */
   get(candidateId: string, profileId: string): Promise<Profile | null>;
@@ -81,6 +90,9 @@ export interface Profiles {
 const text = z.string().trim();
 const required = z.string().trim().min(1);
 const notBlank = (value: object) => Object.values(value).some((field) => field !== "");
+
+export const PROFILE_NAME_MAX_LENGTH = 120;
+const nameSchema = z.object({ name: required.max(PROFILE_NAME_MAX_LENGTH) });
 
 const masterCvSchema = z.object({
     fullName: text,
@@ -122,6 +134,7 @@ function fieldErrors(error: z.ZodError): ProfileFieldError[] {
 interface ProfileRow {
   id: string;
   name: string;
+  archived: boolean;
   target_role: string;
   location: string;
   min_salary: number | null;
@@ -136,10 +149,13 @@ function profileFrom(row: ProfileRow): Profile {
   if (row.min_salary !== null) searchCriteria.minSalary = row.min_salary;
   if (row.contract_type !== null) searchCriteria.contractType = row.contract_type;
   if (row.remote_work !== null) searchCriteria.remoteWork = row.remote_work;
-  return { id: row.id, name: row.name, searchCriteria, masterCv: { version: row.version, content: row.content } };
+  return { id: row.id, name: row.name, archived: row.archived, searchCriteria, masterCv: { version: row.version, content: row.content } };
 }
 
 const saveInputSchema = z.object({ basedOnVersion: z.number().int().positive(), content: masterCvSchema });
+
+const NOT_FOUND = { ok: false, error: "not_found" } as const;
+const found = (profile: Profile | null): ProfileChangeResult => (profile ? { ok: true, profile } : NOT_FOUND);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -156,7 +172,7 @@ export function createProfiles(database: Pool): Profiles {
   async function get(candidateId: string, profileId: string): Promise<Profile | null> {
     if (!UUID.test(profileId)) return null;
     const { rows } = await database.query<ProfileRow>(
-      `SELECT p.id, p.name, p.target_role, p.location, p.min_salary, p.contract_type, p.remote_work, v.version, v.content
+      `SELECT p.id, p.name, p.archived_at IS NOT NULL AS archived, p.target_role, p.location, p.min_salary, p.contract_type, p.remote_work, v.version, v.content
          FROM profile p
          JOIN master_cv_version v ON v.profile_id = p.id
         WHERE p.id = $1 AND p.candidate_id = $2
@@ -241,7 +257,7 @@ export function createProfiles(database: Pool): Profiles {
         const id = rows[0]!.id;
         await client.query(`INSERT INTO master_cv_version (profile_id, version, content) VALUES ($1, 1, $2)`, [id, masterCv]);
         await client.query("COMMIT");
-        return { ok: true, profile: { id, name: searchCriteria.targetRole, searchCriteria, masterCv: { version: 1, content: masterCv } } };
+        return { ok: true, profile: { id, name: searchCriteria.targetRole, archived: false, searchCriteria, masterCv: { version: 1, content: masterCv } } };
       } catch (error) {
         await client.query("ROLLBACK");
         throw error;
@@ -250,9 +266,21 @@ export function createProfiles(database: Pool): Profiles {
       }
     },
 
+    async rename(candidateId, profileId, input) {
+      const parsed = nameSchema.safeParse(input, { reportInput: true });
+      if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+      if (!UUID.test(profileId)) return NOT_FOUND;
+      const { rowCount } = await database.query(`UPDATE profile SET name = $3 WHERE id = $1 AND candidate_id = $2`, [
+        profileId,
+        candidateId,
+        parsed.data.name,
+      ]);
+      return rowCount ? found(await get(candidateId, profileId)) : NOT_FOUND;
+    },
+
     async list(candidateId) {
       const { rows } = await database.query<ProfileSummary>(
-        `SELECT id, name FROM profile WHERE candidate_id = $1 ORDER BY created_at, id`,
+        `SELECT id, name, archived_at IS NOT NULL AS archived FROM profile WHERE candidate_id = $1 ORDER BY created_at, id`,
         [candidateId],
       );
       return rows;
@@ -274,6 +302,7 @@ export async function migrateProfiles(database: Pool): Promise<void> {
       remote_work text,
       created_at timestamptz NOT NULL DEFAULT now()
     );
+    ALTER TABLE profile ADD COLUMN IF NOT EXISTS archived_at timestamptz;
     CREATE INDEX IF NOT EXISTS profile_candidate_id_idx ON profile (candidate_id);
     CREATE TABLE IF NOT EXISTS master_cv_version (
       profile_id uuid NOT NULL REFERENCES profile (id) ON DELETE CASCADE,

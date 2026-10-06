@@ -16,14 +16,28 @@ const masterCv: MasterCvContent = {
   languages: [{ name: "Anglais", level: "courant" }],
 };
 
+const criteria = { targetRole: "Directrice financière", location: "Lyon" };
+
 describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", () => {
   let testAuth: TestAuth;
+  let database: import("pg").Pool;
   let profiles: Profiles;
   let candidateId: string;
 
+  async function createdProfile(name = "Directrice financière", candidate = candidateId) {
+    const created = await profiles.create(candidate, { masterCv, searchCriteria: { ...criteria, targetRole: name } });
+    if (!created.ok) throw new Error("could not create the Profile");
+    return created.profile;
+  }
+
+  async function otherCandidate() {
+    const cookie = await signInWithMagicLink(testAuth, "jean.martin@example.fr");
+    return (await (await testAuth.request("/api/auth/get-session", { cookie })).json()).user.id as string;
+  }
+
   beforeEach(async () => {
     testAuth = await startTestAuth();
-    const database = (testAuth.auth.options.database as import("pg").Pool);
+    database = testAuth.auth.options.database as import("pg").Pool;
     await migrateProfiles(database);
     profiles = createProfiles(database);
     const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
@@ -44,10 +58,11 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
     expect(await profiles.get(candidateId, created.profile.id)).toEqual({
       id: created.profile.id,
       name: "Directrice financière",
+      archived: false,
       searchCriteria: { targetRole: "Directrice financière", location: "Lyon", minSalary: 120000, contractType: "cdi", remoteWork: "hybrid" },
       masterCv: { version: 1, content: masterCv },
     });
-    expect(await profiles.list(candidateId)).toEqual([{ id: created.profile.id, name: "Directrice financière" }]);
+    expect(await profiles.list(candidateId)).toEqual([{ id: created.profile.id, name: "Directrice financière", archived: false }]);
   });
 
   it("keeps salary, contract type and remote work optional, and trims what the Candidate typed", async () => {
@@ -208,5 +223,34 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
     expect(created.ok && (await profiles.get(otherId, created.profile.id))).toBeNull();
     expect(await profiles.list(otherId)).toEqual([]);
     expect(await profiles.get(candidateId, "not-a-uuid")).toBeNull();
+  });
+
+  describe("renaming", () => {
+    it("renames a Profile, trimming the name, without touching its Search Criteria", async () => {
+      const profile = await createdProfile();
+
+      const renamed = await profiles.rename(candidateId, profile.id, { name: "  DAF industrie  " });
+
+      expect(renamed).toMatchObject({ ok: true, profile: { id: profile.id, name: "DAF industrie" } });
+      expect(await profiles.get(candidateId, profile.id)).toMatchObject({ name: "DAF industrie", searchCriteria: criteria });
+      expect(await profiles.list(candidateId)).toEqual([{ id: profile.id, name: "DAF industrie", archived: false }]);
+    });
+
+    it("needs a name of at most 120 characters", async () => {
+      const profile = await createdProfile();
+
+      expect(await profiles.rename(candidateId, profile.id, { name: "  " })).toEqual({ ok: false, errors: [{ field: "name", code: "required" }] });
+      expect(await profiles.rename(candidateId, profile.id, {})).toEqual({ ok: false, errors: [{ field: "name", code: "required" }] });
+      expect(await profiles.rename(candidateId, profile.id, { name: "x".repeat(121) })).toEqual({ ok: false, errors: [{ field: "name", code: "invalid" }] });
+      expect((await profiles.get(candidateId, profile.id))?.name).toBe("Directrice financière");
+    });
+
+    it("never renames someone else's Profile", async () => {
+      const profile = await createdProfile();
+
+      expect(await profiles.rename(await otherCandidate(), profile.id, { name: "Piraté" })).toEqual({ ok: false, error: "not_found" });
+      expect(await profiles.rename(candidateId, "not-a-uuid", { name: "DAF" })).toEqual({ ok: false, error: "not_found" });
+      expect((await profiles.get(candidateId, profile.id))?.name).toBe("Directrice financière");
+    });
   });
 });

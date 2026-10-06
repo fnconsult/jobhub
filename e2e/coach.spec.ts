@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import pg from "pg";
+import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { catalogueStrings, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
@@ -161,6 +162,48 @@ test.describe("onboarding with the AI Coach", () => {
     await expect(page.getByText("Directrice financière, 25 ans d'expérience dans l'industrie.")).toBeVisible();
   });
 
+  test("the questionnaire and an uploaded CV produce the same Master CV structure", async ({ page }) => {
+    /** Every field of the review form, by its accessible name, in order. */
+    const reviewFields = async () => {
+      await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
+      return page.locator("form").filter({ has: page.getByRole("button", { name: fr.cvReview.save }) })
+        .locator("input:not([type=hidden]), textarea, select")
+        .evaluateAll((els) => els.map((el) => (el as HTMLInputElement).labels?.[0]?.textContent?.trim() || el.getAttribute("aria-label") || ""));
+    };
+
+    await signInWithMagicLink(page, newAddress("same-structure"));
+    await page.goto("/profils/nouveau");
+    await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles({ name: "cv.pdf", mimeType: "application/pdf", buffer: Buffer.from(pdfCv(MARIE_DUPONT_CV)) });
+    await page.getByRole("button", { name: fr.cvUpload.submit }).click();
+    const fromUpload = await reviewFields();
+
+    // One job, one degree, one language: as many entries as the uploaded CV was read into.
+    await page.goto("/profils/nouveau");
+    await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
+    await reply(page, q.fullName, "Marie Dupont");
+    await reply(page, q.targetRole, "Directrice financière");
+    await reply(page, q.location, "Lyon");
+    await reply(page, q.email, "skip");
+    await reply(page, q.phone, "skip");
+    await reply(page, q.jobTitle.replace("{{number}}", "1"), "Directrice financière");
+    await reply(page, q.employer, "Groupe Seb");
+    await reply(page, q.jobLocation, "Lyon");
+    await reply(page, q.period, "2015 – 2024");
+    await reply(page, q.jobDescription, "Pilotage financier.");
+    await reply(page, q.moreExperience, "no");
+    await reply(page, q.degree.replace("{{number}}", "1"), "Master Finance");
+    await reply(page, q.institution, "ESSEC");
+    await reply(page, q.year, "1998");
+    await reply(page, q.moreEducation, "no");
+    await reply(page, q.skills, "Consolidation, IFRS");
+    await reply(page, q.languages, "Anglais : courant");
+    await reply(page, q.summary, "skip");
+    const fromQuestionnaire = await reviewFields();
+
+    expect(fromUpload.length).toBeGreaterThan(10);
+    expect(fromQuestionnaire).toEqual(fromUpload);
+  });
+
   test("the questionnaire uses catalogue strings and meets the ADR-0009 floor", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("questionnaire-floor"));
     await page.goto("/profils/nouveau");
@@ -290,6 +333,11 @@ test.describe("Coach and Action Card endpoints", () => {
     await signInWithMagicLink(otherPage, newAddress("endpoint-other"));
     const peek = await otherPage.request.post("/api/coach", { headers: { origin }, data: { ...conversation, focus: { kind: "profile", id: profileId } } });
     expect(await peek.json()).toEqual({ reply: "Je ne vois aucun profil. (1 message)" });
+    // An Application in view is accepted too; none exists yet, so nothing is in view.
+    const application = await page.request.post("/api/coach", { headers: { origin }, data: { ...conversation, focus: { kind: "application", id: "00000000-0000-4000-8000-000000000000" } } });
+    expect(application.status()).toBe(200);
+    expect(await application.json()).toEqual({ reply: "Je ne vois aucun profil. (1 message)" });
+    expect((await page.request.post("/api/coach", { headers: { origin }, data: { ...conversation, focus: { kind: "offer", id: profileId } } })).status()).toBe(400);
     expect((await otherPage.request.post(`/api/action-cards/${cardId}`, { headers: { origin }, data: { decision: "dismiss" } })).status()).toBe(404);
     await other.close();
 

@@ -253,4 +253,31 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
       expect((await profiles.get(candidateId, profile.id))?.name).toBe("Directrice financière");
     });
   });
+
+  describe("archiving", () => {
+    it("archives a Profile without losing it, and restores it", async () => {
+      const kept = await createdProfile("Directrice financière");
+      const old = await createdProfile("Consultante transformation");
+
+      expect(await profiles.archive(candidateId, old.id)).toMatchObject({ ok: true, profile: { id: old.id, archived: true } });
+      expect(await profiles.list(candidateId)).toEqual([
+        { id: kept.id, name: "Directrice financière", archived: false },
+        { id: old.id, name: "Consultante transformation", archived: true },
+      ]);
+      expect(await profiles.get(candidateId, old.id)).toMatchObject({ archived: true, masterCv: { version: 1, content: masterCv } });
+
+      expect(await profiles.restore(candidateId, old.id)).toMatchObject({ ok: true, profile: { id: old.id, archived: false } });
+      expect((await profiles.list(candidateId)).map((profile) => profile.archived)).toEqual([false, false]);
+    });
+
+    it("never archives or restores someone else's Profile", async () => {
+      const profile = await createdProfile();
+      const other = await otherCandidate();
+
+      expect(await profiles.archive(other, profile.id)).toEqual({ ok: false, error: "not_found" });
+      expect(await profiles.restore(other, profile.id)).toEqual({ ok: false, error: "not_found" });
+      expect(await profiles.archive(candidateId, "not-a-uuid")).toEqual({ ok: false, error: "not_found" });
+      expect((await profiles.get(candidateId, profile.id))?.archived).toBe(false);
+    });
+  });
 });

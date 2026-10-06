@@ -68,6 +68,10 @@ export interface Profiles {
   create(candidateId: string, input: unknown): Promise<CreateProfileResult>;
   /** Renames a Profile. `input` ({ name }) is untrusted. */
   rename(candidateId: string, profileId: string, input: unknown): Promise<ProfileChangeResult>;
+  /** Archives a Profile: kept with its Master CV, but out of the Profile switcher. Archiving twice is harmless. */
+  archive(candidateId: string, profileId: string): Promise<ProfileChangeResult>;
+  /** Brings an archived Profile back. */
+  restore(candidateId: string, profileId: string): Promise<ProfileChangeResult>;
   /** Every Profile of the Candidate, archived ones included, oldest first. */
   list(candidateId: string): Promise<ProfileSummary[]>;
   /** The Profile, or null if it does not exist or belongs to someone else. */
@@ -183,6 +187,15 @@ export function createProfiles(database: Pool): Profiles {
     return rows[0] ? profileFrom(rows[0]) : null;
   }
 
+  async function setArchived(candidateId: string, profileId: string, archived: boolean): Promise<ProfileChangeResult> {
+    if (!UUID.test(profileId)) return NOT_FOUND;
+    const { rowCount } = await database.query(
+      `UPDATE profile SET archived_at = CASE WHEN $3 THEN coalesce(archived_at, now()) END WHERE id = $1 AND candidate_id = $2`,
+      [profileId, candidateId, archived],
+    );
+    return rowCount ? found(await get(candidateId, profileId)) : NOT_FOUND;
+  }
+
   return {
     get,
 
@@ -277,6 +290,9 @@ export function createProfiles(database: Pool): Profiles {
       ]);
       return rowCount ? found(await get(candidateId, profileId)) : NOT_FOUND;
     },
+
+    archive: (candidateId, profileId) => setArchived(candidateId, profileId, true),
+    restore: (candidateId, profileId) => setArchived(candidateId, profileId, false),
 
     async list(candidateId) {
       const { rows } = await database.query<ProfileSummary>(

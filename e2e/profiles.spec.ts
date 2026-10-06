@@ -45,7 +45,8 @@ test.describe("creating the first Profile from a CV", () => {
     const job1 = page.getByRole("group", { name: "Poste 1" });
     await expect(job1.getByLabel(fr.cvReview.employer)).toHaveValue("Groupe Seb");
     await expect(page.getByRole("group", { name: "Formation 1" }).getByLabel(fr.cvReview.institution)).toHaveValue("ESSEC");
-    await expect(page.getByLabel(fr.cvReview.skills, { exact: true })).toHaveValue("Consolidation\nIFRS");
+    await expect(page.getByRole("group", { name: "Compétence 1" }).getByLabel(fr.cvReview.skill)).toHaveValue("Consolidation");
+    await expect(page.getByRole("group", { name: "Compétence 2" }).getByLabel(fr.cvReview.skill)).toHaveValue("IFRS");
     await expect(page.getByRole("group", { name: "Langue 1" }).getByLabel(fr.cvReview.language)).toHaveValue("Anglais");
 
     // Nothing is saved before the Candidate confirms.
@@ -64,7 +65,8 @@ test.describe("creating the first Profile from a CV", () => {
     const job2 = page.getByRole("group", { name: "Poste 2" });
     await job2.getByLabel(fr.cvReview.jobTitle).fill("Contrôleuse de gestion");
     await job2.getByLabel(fr.cvReview.employer).fill("Renault");
-    await page.getByLabel(fr.cvReview.skills, { exact: true }).fill("Consolidation\nIFRS\nSAP");
+    await page.getByRole("button", { name: fr.cvReview.addSkill }).click();
+    await page.getByRole("group", { name: "Compétence 3" }).getByLabel(fr.cvReview.skill).fill("SAP");
     await page.getByRole("button", { name: "Retirer la langue 1" }).click();
     await page.getByRole("button", { name: fr.cvReview.save }).click();
 
@@ -107,7 +109,9 @@ test.describe("creating the first Profile from a CV", () => {
     await expect(page.getByRole("group", { name: "Poste 1" }).getByLabel(fr.cvReview.employer)).toHaveValue("Groupe Seb");
     await expect(page.getByRole("group", { name: "Poste 2" }).getByLabel(fr.cvReview.employer)).toHaveValue("Renault");
     await expect(page.getByRole("group", { name: "Formation 1" }).getByLabel(fr.cvReview.institution)).toHaveValue("ESSEC");
-    await expect(page.getByLabel(fr.cvReview.skills, { exact: true })).toHaveValue(/IFRS/);
+    const skills = page.getByRole("group", { name: fr.cvReview.skills, exact: true }).getByLabel(fr.cvReview.skill, { exact: true });
+    await expect(skills.first()).toBeVisible();
+    expect(await skills.evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value).join("\n"))).toMatch(/IFRS/);
     await expect(page.getByRole("group", { name: "Langue 1" }).getByLabel(fr.cvReview.language)).toHaveValue("Anglais");
     await expect(page.getByRole("group", { name: "Langue 2" }).getByLabel(fr.cvReview.level)).toHaveValue("notions");
   });

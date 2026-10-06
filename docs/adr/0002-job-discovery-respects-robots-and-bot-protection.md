@@ -1,0 +1,3 @@
+# Job discovery respects robots.txt and never bypasses bot protection
+
+The AI Coach finds Job Offers by querying the Perplexity Search API with the Profile's Search Criteria, then reading the pages it finds. The crawler follows robots.txt and each site's terms of use, and never gets around anti-bot measures (CAPTCHA, Cloudflare challenges, login walls). Sites that block crawlers (LinkedIn, Indeed, etc.) are covered only by the browser extension, which captures what the Candidate is already viewing. We chose this over aggressive scraping to stay legally safe under EU law, even though server-side search coverage is smaller.

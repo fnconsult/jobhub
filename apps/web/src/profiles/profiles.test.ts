@@ -319,4 +319,46 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
       expect(await profiles.list(candidateId)).toHaveLength(1);
     });
   });
+
+  describe("Plan Quota for Profiles", () => {
+    it("has no limit while billing does not exist", async () => {
+      for (const name of ["DAF", "Consultante", "Contrôleuse de gestion", "Directrice administrative"]) await createdProfile(name);
+      expect(await profiles.list(candidateId)).toHaveLength(4);
+    });
+
+    it("refuses to create, duplicate or restore a Profile beyond the Plan Quota, counting only active Profiles", async () => {
+      const quotas: Record<string, number> = { [candidateId]: 2 };
+      const limited = createProfiles(database, { profileQuota: async (candidate) => quotas[candidate] ?? null });
+      const first = await createdProfile("DAF");
+      await createdProfile("Consultante");
+      const draft = { masterCv, searchCriteria: criteria };
+
+      expect(await limited.create(candidateId, draft)).toEqual({ ok: false, error: "plan_quota_reached" });
+      expect(await limited.duplicate(candidateId, first.id, { name: "Copie" })).toEqual({ ok: false, error: "plan_quota_reached" });
+      expect(await profiles.list(candidateId)).toHaveLength(2);
+
+      await limited.archive(candidateId, first.id);
+      expect(await limited.duplicate(candidateId, first.id, { name: "Copie" })).toMatchObject({ ok: true });
+      expect(await limited.restore(candidateId, first.id)).toEqual({ ok: false, error: "plan_quota_reached" });
+      expect((await profiles.get(candidateId, first.id))?.archived).toBe(true);
+
+      expect(await limited.create(await otherCandidate(), draft)).toMatchObject({ ok: true });
+    });
+
+    it("lets a full quota be checked before offering to add a Profile", async () => {
+      const limited = createProfiles(database, { profileQuota: async () => 1 });
+      expect(await limited.canAddProfile(candidateId)).toBe(true);
+      const profile = await createdProfile();
+      expect(await limited.canAddProfile(candidateId)).toBe(false);
+      await limited.archive(candidateId, profile.id);
+      expect(await limited.canAddProfile(candidateId)).toBe(true);
+    });
+
+    it("holds when Profiles are created at the same time", async () => {
+      const limited = createProfiles(database, { profileQuota: async () => 1 });
+      const results = await Promise.all([1, 2, 3].map(() => limited.create(candidateId, { masterCv, searchCriteria: criteria })));
+      expect(results.filter((result) => result.ok)).toHaveLength(1);
+      expect(await profiles.list(candidateId)).toHaveLength(1);
+    });
+  });
 });

@@ -50,6 +50,33 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
     expect(draft.searchCriteria).toEqual({ targetRole: "Directrice financière", location: "Lyon (69003)" });
   });
 
+  it("reads a period in brackets, a town on the contact line and an unrecognised last section", async () => {
+    const { ai } = aiReplying("désolé, je ne peux pas");
+    const lines = [
+      "Jean Martin",
+      "Chef de projet SI",
+      "jean.martin@example.fr · 06 98 76 54 32 · Nantes",
+      "Expérience professionnelle",
+      "Chef de projet SI — Airbus, Nantes (2018 – 2024)",
+      "Formation",
+      "Ingénieur informatique — INSA Rennes (2010)",
+      "Langues",
+      "Anglais : courant",
+      "Divers",
+      "Voile, course à pied",
+    ];
+
+    const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(lines) }, { ai, candidateId: "c1" });
+
+    expect(draft.masterCv).toMatchObject({
+      location: "Nantes",
+      experience: [{ title: "Chef de projet SI", employer: "Airbus", location: "Nantes", period: "2018 – 2024", description: "" }],
+      education: [{ degree: "Ingénieur informatique", institution: "INSA Rennes", year: "2010" }],
+      languages: [{ name: "Anglais", level: "courant" }],
+    });
+    expect(draft.searchCriteria).toEqual({ targetRole: "Chef de projet SI", location: "Nantes" });
+  });
+
   it("reads a Word (.docx) CV the same way as a PDF", async () => {
     const { ai } = aiReplying("pas du JSON");
     const fromPdf = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai, candidateId: "c1" });

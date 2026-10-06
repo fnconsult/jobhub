@@ -79,6 +79,16 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
     expect(await profiles.list(candidateId)).toEqual([]);
   });
 
+  it("calls a filled salary that is not a whole number invalid, not missing", async () => {
+    for (const minSalary of ["110,000", "55 000,00", "55k", "abc"]) {
+      const created = await profiles.create(candidateId, {
+        masterCv,
+        searchCriteria: { targetRole: "DAF", location: "Lyon", minSalary },
+      });
+      expect(created).toEqual({ ok: false, errors: [{ field: "searchCriteria.minSalary", code: "invalid" }] });
+    }
+  });
+
   it("refuses something that is not a CV draft at all", async () => {
     expect(await profiles.create(candidateId, "hello")).toMatchObject({ ok: false });
     expect(await profiles.create(candidateId, { searchCriteria: { targetRole: "DAF", location: "Lyon" } })).toMatchObject({

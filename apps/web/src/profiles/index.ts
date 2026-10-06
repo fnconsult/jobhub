@@ -75,6 +75,7 @@ const inputSchema = z.object({
   }),
 });
 
+/** Needs issues parsed with `reportInput: true`: a field is "required" only when nothing was sent for it. */
 function fieldErrors(error: z.ZodError): ProfileFieldError[] {
   return error.issues.map((issue) => ({
     field: issue.path.join("."),
@@ -126,7 +127,9 @@ export function createProfiles(database: Pool): Profiles {
     get,
 
     async create(candidateId, input) {
-      const parsed = inputSchema.safeParse(input);
+      // reportInput: Zod v4 leaves `issue.input` out otherwise, and fieldErrors()
+      // needs it to tell a missing field from a filled but invalid one.
+      const parsed = inputSchema.safeParse(input, { reportInput: true });
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       const { masterCv, searchCriteria } = parsed.data;
 

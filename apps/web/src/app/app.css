@@ -1,3 +1,11 @@
+/* Widths include padding and border, so a `width: 100%` box with padding
+   (a fieldset inside a fieldset, an input) stays inside its parent. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 .page {
   max-width: 44rem;
   margin: 0 auto;

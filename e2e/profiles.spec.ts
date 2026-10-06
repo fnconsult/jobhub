@@ -136,6 +136,32 @@ test.describe("creating the first Profile from a CV", () => {
     await expect(page.getByText(fr.profiles.none)).toBeVisible();
   });
 
+  test("a filled salary that is not a whole number is called invalid, not missing", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("salary"));
+    await uploadCv(page, pdfFile(MARIE_DUPONT_CV));
+    const salary = criteriaOf(page).getByLabel(fr.cvReview.minSalary, { exact: true });
+    await salary.fill("110,000");
+    await page.getByRole("button", { name: fr.cvReview.save }).click();
+
+    await expect(salary).toHaveAttribute("aria-invalid", "true");
+    await expect(salary).toHaveAccessibleDescription(fr.cvReview.invalidValue);
+  });
+
+  test("each job, degree and language box fits inside its section", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("layout"));
+    await uploadCv(page, pdfFile(MARIE_DUPONT_CV));
+
+    for (const [section, entry] of [
+      [fr.cvReview.experience, "Poste 1"],
+      [fr.cvReview.education, "Formation 1"],
+      [fr.cvReview.languages, "Langue 1"],
+    ]) {
+      const outer = (await page.getByRole("group", { name: section, exact: true }).boundingBox())!;
+      const inner = (await page.getByRole("group", { name: entry }).boundingBox())!;
+      expect(inner.x + inner.width, `${entry} inside ${section}`).toBeLessThanOrEqual(outer.x + outer.width);
+    }
+  });
+
   test("only PDF and Word (.docx) files are accepted, with a message the Candidate can act on", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("formats"));
     await uploadCv(page, { name: "cv.doc", mimeType: "application/msword", buffer: Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 1, 2, 3, 4]) });

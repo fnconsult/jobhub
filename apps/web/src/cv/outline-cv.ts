@@ -24,7 +24,31 @@ const HEADINGS: Record<Section, string[]> = {
   education: ["formation", "formations", "diplomes", "etudes", "formation et diplomes", "education"],
   skills: ["competences", "competences cles", "savoir-faire", "skills", "key skills"],
   languages: ["langues", "languages"],
-  other: ["centres d'interet", "loisirs", "interets", "interests", "hobbies", "certifications", "references"],
+  // Recognised only so their lines are not read into the section before them.
+  other: [
+    "centres d'interet",
+    "loisirs",
+    "interets",
+    "divers",
+    "autres",
+    "informations complementaires",
+    "activites",
+    "activites extra-professionnelles",
+    "benevolat",
+    "engagements",
+    "projets",
+    "publications",
+    "certifications",
+    "references",
+    "interests",
+    "hobbies",
+    "miscellaneous",
+    "other",
+    "additional information",
+    "activities",
+    "volunteering",
+    "projects",
+  ],
 };
 
 const normalize = (line: string) =>
@@ -48,6 +72,11 @@ const YEAR = /\b(19|20)\d{2}\b/;
 const PERIOD = /((\d{1,2}\/)?(19|20)\d{2})(\s*[-–—à]\s*((\d{1,2}\/)?(19|20)\d{2}|aujourd'hui|présent|present|ce jour|now|today))?/i;
 const SEPARATORS = /\s+[—–|-]\s+|\s*,\s+/;
 
+/** The line without its period, nor the brackets that held it ("Airbus, Nantes (2018 – 2024)"). */
+function withoutPeriod(line: string, period: string): string {
+  return line.replace(period, "").replace(/[([]\s*[)\]]/g, "");
+}
+
 const splitFields = (line: string) =>
   line
     .split(SEPARATORS)
@@ -56,13 +85,13 @@ const splitFields = (line: string) =>
 
 function experienceFrom(header: string): CvExperience {
   const period = header.match(PERIOD)?.[0] ?? "";
-  const [title = "", employer = "", location = ""] = splitFields(header.replace(period, "")).filter((part) => !/^[-–—]$/.test(part));
+  const [title = "", employer = "", location = ""] = splitFields(withoutPeriod(header, period)).filter((part) => !/^[-–—]$/.test(part));
   return { title, employer, location, period, description: "" };
 }
 
 function educationFrom(line: string): CvEducation {
   const year = line.match(PERIOD)?.[0] ?? "";
-  const [degree = "", institution = ""] = splitFields(line.replace(year, ""));
+  const [degree = "", institution = ""] = splitFields(withoutPeriod(line, year));
   return { degree, institution, year };
 }
 
@@ -76,6 +105,16 @@ const listItems = (lines: string[]) =>
     .flatMap((line) => line.split(/\s*[,;•·|]\s*/))
     .map((item) => item.replace(/^[-*]\s*/, "").trim())
     .filter(Boolean);
+
+/** "marie@example.fr · 06 12 34 56 78 · Nantes" → "Nantes": what is left once the email and phone are taken out. */
+function townOnContactLine(line: string): string {
+  const rest = line.replace(EMAIL, "").replace(PHONE, "");
+  const parts = rest
+    .split(/\s*[·•|]\s*|\s+[—–-]\s+/)
+    .map((part) => part.replace(/^[\s,;]+|[\s,;]+$/g, ""))
+    .filter((part) => /\p{L}/u.test(part) && !/^(https?:|www\.)|linkedin|github/i.test(part));
+  return parts.at(-1) ?? "";
+}
 
 export function outlineCv(text: string): MasterCvContent {
   const sections: Record<Section | "header", string[]> = {
@@ -98,8 +137,9 @@ export function outlineCv(text: string): MasterCvContent {
   const email = header.join(" ").match(EMAIL)?.[0] ?? "";
   const phone = header.join(" ").match(PHONE)?.[0] ?? "";
   const contactLine = (line: string) => EMAIL.test(line) || PHONE.test(line);
-  const location = header.find((line) => !contactLine(line) && POSTCODE.test(line)) ?? "";
-  const [fullName = "", headline = ""] = header.filter((line) => !contactLine(line) && line !== location);
+  const locationLine = header.find((line) => !contactLine(line) && POSTCODE.test(line));
+  const location = locationLine ?? townOnContactLine(header.find(contactLine) ?? "");
+  const [fullName = "", headline = ""] = header.filter((line) => !contactLine(line) && line !== locationLine);
 
   const experience: CvExperience[] = [];
   for (const line of sections.experience) {

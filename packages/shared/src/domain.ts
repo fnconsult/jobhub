@@ -20,6 +20,21 @@ export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 export const PLANS = ["free", "standard", "premium"] as const;
 export type Plan = (typeof PLANS)[number];
 
+/** Plan Quotas that cap a number of things: Profiles held at once, or uses per calendar month. */
+export const LIMITED_QUOTAS = ["profiles", "matchScores", "atsScores", "enrichedContacts"] as const;
+export type LimitedQuota = (typeof LIMITED_QUOTAS)[number];
+
+/** Limited Plan Quotas counted per calendar month (Europe/Paris); the others count what the Candidate holds. */
+export const MONTHLY_QUOTAS = ["matchScores", "atsScores", "enrichedContacts"] as const satisfies readonly LimitedQuota[];
+export type MonthlyQuota = (typeof MONTHLY_QUOTAS)[number];
+
+/** How often a Candidate receives a Job Digest. */
+export const JOB_DIGEST_FREQUENCIES = ["none", "weekly", "daily"] as const;
+export type JobDigestFrequency = (typeof JOB_DIGEST_FREQUENCIES)[number];
+
+/** The Plan Quotas of one Plan. A null limit means unlimited. */
+export type PlanQuotas = { [quota in LimitedQuota]: number | null } & { jobDigest: JobDigestFrequency };
+
 /** Contract types a Candidate can search for (French market). */
 export const CONTRACT_TYPES = ["cdi", "cdd", "freelance", "interim"] as const;
 export type ContractType = (typeof CONTRACT_TYPES)[number];

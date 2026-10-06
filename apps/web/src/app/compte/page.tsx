@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { currentIsAdministrator } from "@/admin/server";
 import { getCurrentCandidate } from "@/auth/server";
 import { AccountSettings } from "@/components/AccountSettings";
 import { WorkspaceHeader } from "@/components/WorkspaceHeader";
@@ -56,6 +57,16 @@ export default async function AccountPage() {
           <ProfileLinks profiles={archived} />
         </section>
       ) : null}
+      <nav className="page-nav">
+        <Link className="button" href={routes.subscription}>
+          {t("account.plan")}
+        </Link>
+        {(await currentIsAdministrator()) ? (
+          <Link className="button" href={routes.admin}>
+            {t("account.admin")}
+          </Link>
+        ) : null}
+      </nav>
       <AccountSettings interfaceLanguage={candidate.interfaceLanguage} />
     </main>
   );

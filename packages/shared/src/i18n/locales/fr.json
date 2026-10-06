@@ -59,7 +59,9 @@
     "email": "Adresse e-mail",
     "interfaceLanguage": "Langue de l'interface",
     "saved": "Enregistré.",
-    "signOut": "Se déconnecter"
+    "signOut": "Se déconnecter",
+    "plan": "Mon abonnement",
+    "admin": "Back office"
   },
   "languages": {
     "fr": "Français",
@@ -284,5 +286,89 @@
     "accepted": "Proposition acceptée.",
     "dismissed": "Proposition ignorée.",
     "error": "Cette proposition n'a pas pu être appliquée. Réessayez ou rechargez la page."
+  },
+  "billing": {
+    "plans": {
+      "free": "Gratuite",
+      "standard": "Standard",
+      "premium": "Premium"
+    },
+    "quotaReached": {
+      "title": "Vous avez atteint la limite de votre offre",
+      "used": {
+        "profiles_one": "L'offre {{plan}} comprend {{count}} profil.",
+        "profiles_other": "L'offre {{plan}} comprend {{count}} profils.",
+        "matchScores_one": "Vous avez utilisé le Match Score compris ce mois-ci dans l'offre {{plan}}.",
+        "matchScores_other": "Vous avez utilisé les {{count}} Match Scores compris ce mois-ci dans l'offre {{plan}}.",
+        "atsScores_one": "Vous avez utilisé l'ATS Score compris ce mois-ci dans l'offre {{plan}}.",
+        "atsScores_other": "Vous avez utilisé les {{count}} ATS Scores compris ce mois-ci dans l'offre {{plan}}.",
+        "enrichedContacts_one": "Vous avez utilisé le contact enrichi compris ce mois-ci dans l'offre {{plan}}.",
+        "enrichedContacts_other": "Vous avez utilisé les {{count}} contacts enrichis compris ce mois-ci dans l'offre {{plan}}."
+      },
+      "notIncluded": {
+        "profiles": "La création de profils n'est pas comprise dans l'offre {{plan}}.",
+        "matchScores": "Les Match Scores ne sont pas compris dans l'offre {{plan}}.",
+        "atsScores": "Les ATS Scores ne sont pas compris dans l'offre {{plan}}.",
+        "enrichedContacts": "Les contacts enrichis ne sont pas compris dans l'offre {{plan}}."
+      },
+      "upgradeCreate": "Avec l'offre {{plan}}, vous pouvez en créer davantage.",
+      "upgradeUse": "Avec l'offre {{plan}}, vous pouvez en faire davantage.",
+      "upgradeIncludes": "L'offre {{plan}} les comprend.",
+      "renews": "Votre quota se renouvelle le 1er du mois.",
+      "noMore": "Vous ne pouvez pas en créer davantage.",
+      "action": "Découvrir l'offre {{plan}}"
+    },
+    "page": {
+      "title": "Mon abonnement",
+      "currentPlan": "Votre offre actuelle : {{plan}}",
+      "checkoutSuccess": "Merci ! Votre paiement est enregistré. Votre nouvelle offre s'affiche ici dès que Stripe nous l'a confirmée, en général en quelques secondes.",
+      "usageTitle": "Votre utilisation ce mois-ci",
+      "usage": "{{used}} sur {{limit}}",
+      "usageUnlimited": "{{used}} (illimité)",
+      "comparisonTitle": "Les offres",
+      "quota": "Ce qui est compris",
+      "unlimited": "Illimité",
+      "notIncluded": "Non compris",
+      "perMonth": "{{count}} par mois",
+      "choose": "Choisir l'offre {{plan}}",
+      "current": "Votre offre",
+      "manage": "Gérer mon abonnement",
+      "manageHelp": "Factures, moyen de paiement, changement d'offre ou résiliation : tout se fait sur la page sécurisée de notre prestataire de paiement, Stripe.",
+      "unavailable": "Le paiement en ligne n'est pas disponible pour le moment. Réessayez plus tard.",
+      "error": "Une erreur est survenue. Veuillez réessayer.",
+      "redirecting": "Redirection vers la page de paiement…"
+    },
+    "quotas": {
+      "profiles": "Profils",
+      "matchScores": "Match Scores",
+      "atsScores": "ATS Scores",
+      "enrichedContacts": "Contacts enrichis",
+      "jobDigest": "Job Digest"
+    },
+    "jobDigest": {
+      "none": "Non compris",
+      "weekly": "Chaque semaine",
+      "daily": "Chaque jour"
+    }
+  },
+  "admin": {
+    "title": "Back office",
+    "intro": "Réservé à l'équipe Jobbbox.",
+    "sections": {
+      "planQuotas": "Quotas des offres",
+      "humanCoaches": "Coachs humains"
+    },
+    "comingSoon": "Bientôt disponible",
+    "planQuotas": {
+      "title": "Quotas des offres",
+      "intro": "Les modifications s'appliquent immédiatement à tous les candidats de l'offre. Laissez un champ vide pour « illimité ».",
+      "plan": "Offre {{plan}}",
+      "limitHelp": "Nombre, ou vide pour illimité",
+      "monthly": "par mois",
+      "save": "Enregistrer l'offre {{plan}}",
+      "saved": "Quotas de l'offre {{plan}} enregistrés.",
+      "invalid": "Vérifiez les valeurs : des nombres entiers positifs, ou vide pour illimité."
+    },
+    "back": "Retour au back office"
   }
 }

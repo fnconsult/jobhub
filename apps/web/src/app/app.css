@@ -371,3 +371,38 @@ textarea.input {
 .page {
   padding-bottom: calc(var(--space-12) + var(--space-12));
 }
+.table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.plan-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.plan-table th,
+.plan-table td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.plan-table th[aria-current="true"] {
+  text-decoration: underline;
+}
+
+.upgrade-prompt h2 {
+  margin: 0;
+  font-size: var(--font-size-h3);
+}
+
+.quota-form fieldset {
+  display: grid;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}

@@ -14,6 +14,10 @@ _Avoid_: User (in domain discussions), applicant, job seeker
 An outplacement firm, APEC or corporate HR department that pays for its beneficiaries' Candidate accounts and whose advisors can follow their progress. Not in the MVP: Candidates pay for themselves first.
 _Avoid_: Company, client, tenant, B2B customer
 
+**Administrator**:
+A member of the Jobbbox team who runs the Back Office. Signs in like a Candidate.
+_Avoid_: Admin user, operator, superuser, staff
+
 **Guest**:
 A person using the browser extension without an account. Their CV and captured Job Offer are temporary.
 _Avoid_: Anonymous user, visitor, lead
@@ -211,5 +215,15 @@ The subscription tier a Candidate is on: Free, Standard or Premium. Coaching Ses
 _Avoid_: Tier, package, offer (ambiguous with Job Offer)
 
 **Plan Quota**:
-A configurable usage limit attached to a Plan (e.g. active Profiles, Match Scores per month, Enriched Contacts per month, Job Digest frequency).
+A configurable usage limit attached to a Plan: Profiles held at once, Match Scores, ATS Scores and Enriched Contacts per calendar month (French time), and the Job Digest frequency. A quota can be unlimited or not included at all. Changed by Administrators; a change applies at once to every Candidate on the Plan.
 _Avoid_: Limit, allowance, credits
+
+**Upgrade Prompt**:
+What a Candidate is shown when a Plan Quota stops them: what they reached and the cheapest Plan that would let them go on, or when the quota renews if no Plan offers more.
+_Avoid_: Paywall, upsell, upgrade popup
+
+### Operations
+
+**Back Office**:
+The internal pages where Administrators manage Plan Quotas and Human Coaches.
+_Avoid_: Admin panel, dashboard, console

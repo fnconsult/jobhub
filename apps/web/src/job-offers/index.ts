@@ -16,14 +16,11 @@ import { createHash } from "node:crypto";
 import { CONTRACT_TYPES, REMOTE_WORK_OPTIONS, type JobOffer } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
+import { fieldErrors, type FieldError } from "../validation";
 
-/** A field the caller must fix, as a dotted path (e.g. "source.url"). */
-export interface JobOfferFieldError {
-  field: string;
-  code: "required" | "invalid";
-}
+export type { FieldError as JobOfferFieldError } from "../validation";
 
-export type CaptureJobOfferResult = { ok: true; jobOffer: JobOffer } | { ok: false; errors: JobOfferFieldError[] };
+export type CaptureJobOfferResult = { ok: true; jobOffer: JobOffer } | { ok: false; errors: FieldError[] };
 
 export interface JobOffers {
   /** Stores a captured posting. `input` is untrusted (it comes from the browser). */
@@ -58,15 +55,6 @@ const inputSchema = z.object({
   requiredExperienceYears: z.number().int().min(0).max(60).optional(),
 });
 
-function fieldErrors(error: z.ZodError): JobOfferFieldError[] {
-  return error.issues.map((issue) => ({
-    field: issue.path.join("."),
-    code:
-      (issue.code === "too_small" && issue.origin === "string") || (issue.code === "invalid_type" && issue.input === undefined)
-        ? "required"
-        : "invalid",
-  }));
-}
 
 interface JobOfferRow {
   id: string;

@@ -22,6 +22,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { Pool, PoolClient } from "pg";
 import * as z from "zod";
 import { PROFILE_NAME_MAX_LENGTH } from "./limits";
+import { fieldErrors, type FieldError } from "../validation";
 
 export interface Profile {
   id: string;
@@ -40,14 +41,9 @@ export interface ProfileSummary {
   archived: boolean;
 }
 
-/** A field the Candidate must fix, as a dotted path (e.g. "searchCriteria.location"). */
-export interface ProfileFieldError {
-  field: string;
-  /** "too_long": over PROFILE_NAME_MAX_LENGTH characters (a Profile name, or the target role that names it). */
-  code: "required" | "too_long" | "invalid";
-}
+export type { FieldError as ProfileFieldError } from "../validation";
 
-type SavedProfile = { ok: true; profile: Profile } | { ok: false; errors: ProfileFieldError[] };
+type SavedProfile = { ok: true; profile: Profile } | { ok: false; errors: FieldError[] };
 
 /** Refused because the Candidate already has as many active Profiles as their Plan Quota allows. */
 export type PlanQuotaReached = { ok: false; error: "plan_quota_reached" };
@@ -65,7 +61,7 @@ export interface MasterCvVersion {
 
 export type SaveMasterCvResult =
   | { ok: true; profile: Profile }
-  | { ok: false; errors: ProfileFieldError[] }
+  | { ok: false; errors: FieldError[] }
   /** Another save landed since the Candidate opened the editor (`basedOnVersion` is no longer the current one). */
   | { ok: false; conflict: { currentVersion: number } };
 
@@ -121,45 +117,33 @@ const notBlank = (value: object) => Object.values(value).some((field) => field !
 export { PROFILE_NAME_MAX_LENGTH } from "./limits";
 const nameSchema = z.object({ name: required.max(PROFILE_NAME_MAX_LENGTH) });
 
-const masterCvSchema = z.object({
-    fullName: text,
-    headline: text,
-    email: text,
-    phone: text,
-    location: text,
-    summary: text,
-    experience: z
-      .array(z.object({ title: text, employer: text, location: text, period: text, description: text }))
-      .transform((items) => items.filter(notBlank)),
-    education: z.array(z.object({ degree: text, institution: text, year: text })).transform((items) => items.filter(notBlank)),
-    skills: z.array(text).transform((items) => items.filter(Boolean)),
-    languages: z.array(z.object({ name: text, level: text })).transform((items) => items.filter(notBlank)),
+/** A CV in sections (Master or Tailored) as the browser sends it: trimmed, blank entries dropped. */
+export const cvContentSchema = z.object({
+  fullName: text,
+  headline: text,
+  email: text,
+  phone: text,
+  location: text,
+  summary: text,
+  experience: z
+    .array(z.object({ title: text, employer: text, location: text, period: text, description: text }))
+    .transform((items) => items.filter(notBlank)),
+  education: z.array(z.object({ degree: text, institution: text, year: text })).transform((items) => items.filter(notBlank)),
+  skills: z.array(text).transform((items) => items.filter(Boolean)),
+  languages: z.array(z.object({ name: text, level: text })).transform((items) => items.filter(notBlank)),
 });
 
-const inputSchema = z.object({
-  masterCv: masterCvSchema,
-  searchCriteria: z.object({
-    // The Profile is named after it, so it obeys the same limit as a Profile name.
-    targetRole: required.max(PROFILE_NAME_MAX_LENGTH),
-    location: required,
-    minSalary: z.number().int().positive().max(10_000_000).optional(),
-    contractType: z.enum(CONTRACT_TYPES).optional(),
-    remoteWork: z.enum(REMOTE_WORK_OPTIONS).optional(),
-  }),
+/** Search Criteria as the browser sends them: a target role and a location at least. */
+export const searchCriteriaSchema = z.object({
+  // The Profile is named after it, so it obeys the same limit as a Profile name.
+  targetRole: required.max(PROFILE_NAME_MAX_LENGTH),
+  location: required,
+  minSalary: z.number().int().positive().max(10_000_000).optional(),
+  contractType: z.enum(CONTRACT_TYPES).optional(),
+  remoteWork: z.enum(REMOTE_WORK_OPTIONS).optional(),
 });
 
-/** Needs issues parsed with `reportInput: true`: a field is "required" only when nothing was sent for it. */
-function fieldErrors(error: z.ZodError): ProfileFieldError[] {
-  return error.issues.map((issue) => ({
-    field: issue.path.join("."),
-    code:
-      (issue.code === "too_small" && issue.origin === "string") || (issue.code === "invalid_type" && issue.input === undefined)
-        ? "required"
-        : issue.code === "too_big" && issue.origin === "string"
-          ? "too_long"
-          : "invalid",
-  }));
-}
+const inputSchema = z.object({ masterCv: cvContentSchema, searchCriteria: searchCriteriaSchema });
 
 interface ProfileRow {
   id: string;
@@ -182,7 +166,7 @@ function profileFrom(row: ProfileRow): Profile {
   return { id: row.id, name: row.name, archived: row.archived, searchCriteria, masterCv: { version: row.version, content: row.content } };
 }
 
-const saveInputSchema = z.object({ basedOnVersion: z.number().int().positive(), content: masterCvSchema });
+const saveInputSchema = z.object({ basedOnVersion: z.number().int().positive(), content: cvContentSchema });
 
 const NOT_FOUND = { ok: false, error: "not_found" } as const;
 const found = (profile: Profile | null): ProfileChangeResult => (profile ? { ok: true, profile } : NOT_FOUND);

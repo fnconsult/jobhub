@@ -96,6 +96,22 @@ test.describe("creating the first Profile from a CV", () => {
     await expect(criteriaOf(page).getByLabel(fr.cvReview.targetRole, { exact: true })).toHaveValue("Directeur des achats (lu par l'IA)");
   });
 
+  test("a Word (.docx) CV is read into experience, education, skills and languages from its own text", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("docx-sections"));
+    // E2E_AI_DOWN makes the fake AI Coach fail, so every section comes from the DOCX text itself.
+    const lines = [...MARIE_DUPONT_CV, "Centres d'intérêt", "E2E_AI_DOWN"];
+    await uploadCv(page, { name: "cv-marie.docx", mimeType: DOCX, buffer: Buffer.from(await docxCv(lines)) });
+
+    await expect(page.getByLabel(fr.cvReview.fullName)).toHaveValue("Marie Dupont");
+    await expect(criteriaOf(page).getByLabel(fr.cvReview.targetRole, { exact: true })).toHaveValue("Directrice financière");
+    await expect(page.getByRole("group", { name: "Poste 1" }).getByLabel(fr.cvReview.employer)).toHaveValue("Groupe Seb");
+    await expect(page.getByRole("group", { name: "Poste 2" }).getByLabel(fr.cvReview.employer)).toHaveValue("Renault");
+    await expect(page.getByRole("group", { name: "Formation 1" }).getByLabel(fr.cvReview.institution)).toHaveValue("ESSEC");
+    await expect(page.getByLabel(fr.cvReview.skills, { exact: true })).toHaveValue(/IFRS/);
+    await expect(page.getByRole("group", { name: "Langue 1" }).getByLabel(fr.cvReview.language)).toHaveValue("Anglais");
+    await expect(page.getByRole("group", { name: "Langue 2" }).getByLabel(fr.cvReview.level)).toHaveValue("notions");
+  });
+
   test("when the AI Coach cannot read the CV, its sections are still read from the text", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("fallback"));
     await uploadCv(page, pdfFile([...MARIE_DUPONT_CV, "Centres d'intérêt", "E2E_AI_DOWN"]));

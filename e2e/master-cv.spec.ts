@@ -101,6 +101,64 @@ test.describe("editing the Master CV", () => {
     await expect(entry(page, "Poste 1").getByLabel(fr.cvReview.employer)).toHaveValue("Renault");
   });
 
+  test("every section supports add, edit, reorder and remove, and the saved version keeps the result", async ({ page }) => {
+    const id = await candidateWithProfile(page, "every-section");
+    await openEditor(page, id);
+
+    // Experience: add, move the new job first, edit it, remove the original.
+    await button(page, fr.cvReview.addExperience).click();
+    await entry(page, "Poste 2").getByLabel(fr.cvReview.jobTitle).fill("Responsable comptable");
+    await entry(page, "Poste 2").getByLabel(fr.cvReview.employer).fill("Michelin");
+    await button(page, "Monter : Poste 2").click();
+    await entry(page, "Poste 1").getByLabel(fr.cvReview.period).fill("2005 – 2015");
+    await button(page, "Retirer le poste 2").click(); // Groupe Seb
+    await expect(entry(page, "Poste 2")).toHaveCount(0);
+
+    // Education: add two, move the original down, edit it, remove the last.
+    await button(page, fr.cvReview.addEducation).click();
+    await entry(page, "Formation 2").getByLabel(fr.cvReview.degree).fill("DSCG");
+    await button(page, fr.cvReview.addEducation).click();
+    await entry(page, "Formation 3").getByLabel(fr.cvReview.degree).fill("Licence AES");
+    await button(page, "Descendre : Formation 1").click();
+    await expect(entry(page, "Formation 1").getByLabel(fr.cvReview.degree)).toHaveValue("DSCG");
+    await entry(page, "Formation 2").getByLabel(fr.cvReview.degree).fill("Master Finance (ESSEC)");
+    await button(page, "Retirer la formation 3").click(); // Licence AES
+
+    // Skills: add, move to the top, edit, remove.
+    await button(page, fr.cvReview.addSkill).click();
+    await entry(page, "Compétence 3").getByLabel(fr.cvReview.skill).fill("Trésorerie");
+    await button(page, "Monter : Compétence 3").click();
+    await button(page, "Monter : Compétence 2").click();
+    await entry(page, "Compétence 3").getByLabel(fr.cvReview.skill).fill("SAP FI");
+    await button(page, "Retirer la compétence 2").click(); // IFRS
+
+    // Languages: add two, move one up, edit, remove.
+    await button(page, fr.cvReview.addLanguage).click();
+    await entry(page, "Langue 2").getByLabel(fr.cvReview.language).fill("Espagnol");
+    await entry(page, "Langue 2").getByLabel(fr.cvReview.level).fill("intermédiaire");
+    await button(page, fr.cvReview.addLanguage).click();
+    await entry(page, "Langue 3").getByLabel(fr.cvReview.language).fill("Italien");
+    await button(page, "Monter : Langue 2").click();
+    await entry(page, "Langue 2").getByLabel(fr.cvReview.level).fill("bilingue"); // Anglais
+    await button(page, "Retirer la langue 3").click(); // Italien
+
+    await button(page, fr.cvEditor.save).click();
+    await expect(page).toHaveURL(`${origin}/profils/${id}`);
+    await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
+    await expect(page.locator(".cv-entry")).toHaveText(["Responsable comptable · Michelin · 2005 – 2015"]);
+    const items = (heading: string) => page.locator(`h3:text-is("${heading}") + ul > li`);
+    await expect(items(fr.cvReview.education)).toHaveText([/^DSCG/, /^Master Finance \(ESSEC\)/]);
+    await expect(items(fr.cvReview.skills)).toHaveText(["Trésorerie", "SAP FI"]);
+    await expect(items(fr.cvReview.languages)).toHaveText(["Espagnol · intermédiaire", "Anglais · bilingue"]);
+
+    // Reopening the editor shows exactly the saved entries, in order.
+    await openEditor(page, id);
+    await expect(entry(page, "Poste 2")).toHaveCount(0);
+    await expect(entry(page, "Formation 3")).toHaveCount(0);
+    await expect(entry(page, "Compétence 1").getByLabel(fr.cvReview.skill)).toHaveValue("Trésorerie");
+    await expect(entry(page, "Langue 1").getByLabel(fr.cvReview.language)).toHaveValue("Espagnol");
+  });
+
   test("the first entry cannot move up and the last cannot move down", async ({ page }) => {
     const id = await candidateWithProfile(page, "reorder-bounds");
     await openEditor(page, id);

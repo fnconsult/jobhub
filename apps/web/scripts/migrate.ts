@@ -1,4 +1,5 @@
 // Creates or upgrades the database tables. Usage: npm run db:migrate
+import { migrateActionCards } from "../src/action-cards/index";
 import { migrateAgentRunLog } from "../src/agent-runs/index";
 import { authConfigFromEnv } from "../src/auth/config";
 import { migrateCandidateAccounts } from "../src/auth/index";
@@ -14,4 +15,6 @@ await migrateProfiles(config.database);
 console.info("[migrate] Profiles are up to date");
 await migrateJobOffers(config.database);
 console.info("[migrate] Job Offers are up to date");
+await migrateActionCards(config.database);
+console.info("[migrate] Action Cards are up to date");
 await config.database.end();

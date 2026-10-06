@@ -48,8 +48,19 @@ export async function startTestAuth(overrides: Partial<AuthConfig> = {}) {
       );
     },
     async stop() {
+      // Pool.end() resolves as soon as its clients are told to close, not once
+      // their connections are gone. Dropping the database WITH (FORCE) at that
+      // point makes Postgres terminate them (57P01), and the pool has already
+      // detached its error listeners, so the errors go unhandled. Wait until
+      // Postgres sees no connection to the database, then drop it.
       await database.end();
-      await admin.query(`DROP DATABASE ${name} WITH (FORCE)`);
+      for (let attempt = 0; ; attempt++) {
+        const { rows } = await admin.query("SELECT count(*)::int AS open FROM pg_stat_activity WHERE datname = $1", [name]);
+        if (rows[0].open === 0) break;
+        if (attempt >= 100) throw new Error(`connections to ${name} still open after teardown`);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      await admin.query(`DROP DATABASE ${name}`);
       await admin.end();
     },
   };

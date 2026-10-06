@@ -51,7 +51,8 @@
     "or": "or",
     "google": "Continue with Google",
     "error": "Something went wrong. Check your email address and try again.",
-    "linkError": "This sign-in link is no longer valid. Ask for a new one below."
+    "linkError": "This sign-in link is no longer valid. Ask for a new one below.",
+    "failed": "Sign-in didn't go through. Try again below, with Google or with a link by email."
   },
   "account": {
     "title": "My account",

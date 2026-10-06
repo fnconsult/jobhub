@@ -26,7 +26,11 @@ export function SignInForm({ googleEnabled }: { googleEnabled: boolean }) {
   }
 
   async function continueWithGoogle() {
-    const { error } = await authClient.signIn.social({ provider: "google", callbackURL: routes.account });
+    const { error } = await authClient.signIn.social({
+      provider: "google",
+      callbackURL: routes.account,
+      errorCallbackURL: routes.signIn,
+    });
     if (error) setStatus("error");
   }
 

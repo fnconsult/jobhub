@@ -51,7 +51,8 @@
     "or": "ou",
     "google": "Continuer avec Google",
     "error": "Une erreur est survenue. Vérifiez votre adresse e-mail et réessayez.",
-    "linkError": "Ce lien de connexion n'est plus valable. Demandez-en un nouveau ci-dessous."
+    "linkError": "Ce lien de connexion n'est plus valable. Demandez-en un nouveau ci-dessous.",
+    "failed": "La connexion n'a pas abouti. Réessayez ci-dessous, avec Google ou en recevant un lien par e-mail."
   },
   "account": {
     "title": "Mon compte",

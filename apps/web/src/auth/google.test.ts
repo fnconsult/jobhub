@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { connectionString, cookiesFrom, signInWithMagicLink, startTestAuth, type TestAuth } from "./test-support";
+import { BASE_URL, connectionString, cookiesFrom, signInWithMagicLink, startTestAuth, type TestAuth } from "./test-support";
 
 const google = { clientId: "test-client.apps.googleusercontent.com", clientSecret: "test-client-secret" };
 
@@ -79,5 +79,32 @@ describe.skipIf(!connectionString)("Google sign-in (needs Postgres: DATABASE_URL
       [magic, viaGoogle].map(async (cookie) => (await testAuth.request("/api/auth/get-session", { cookie })).json()),
     );
     expect(b.user.id).toBe(a.user.id);
+  });
+
+  // Regression: a refused or broken Google sign-in used to land on Better
+  // Auth's own English error page (/api/auth/error) instead of our sign-in page.
+  it("sends a person who refuses at Google back to the sign-in page", async () => {
+    const started = await testAuth.request("/api/auth/sign-in/social", {
+      body: { provider: "google", callbackURL: "/compte" },
+    });
+    const state = new URL((await started.json()).url).searchParams.get("state");
+
+    const callback = await testAuth.request(`/api/auth/callback/google?error=access_denied&state=${state}`, {
+      cookie: cookiesFrom(started),
+    });
+
+    expect(callback.status).toBe(302);
+    const location = new URL(callback.headers.get("location")!, BASE_URL);
+    expect(location.pathname).toBe("/connexion");
+    expect(location.searchParams.get("error")).toBe("access_denied");
+  });
+
+  it("sends a Google callback it cannot match to a sign-in back to the sign-in page", async () => {
+    const callback = await testAuth.request("/api/auth/callback/google?error=access_denied&state=abc");
+
+    expect(callback.status).toBe(302);
+    const location = new URL(callback.headers.get("location")!, BASE_URL);
+    expect(location.origin + location.pathname).toBe(`${BASE_URL}/connexion`);
+    expect(location.searchParams.get("error")).toBeTruthy();
   });
 });

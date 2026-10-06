@@ -47,3 +47,18 @@ export async function approveAtGoogle(page: Page, identity: Record<string, unkno
     await route.fulfill({ status: 302, headers: { location: callback.toString() } });
   });
 }
+
+/**
+ * Plays Google for a person who refuses (or cancels) at Google's consent
+ * screen: Google sends them back to the app with error=access_denied.
+ */
+export async function refuseAtGoogle(page: Page, origin: string) {
+  await fromNewAddress(page);
+  await page.route("https://accounts.google.com/**", async (route) => {
+    const authorize = new URL(route.request().url());
+    const callback = new URL("/api/auth/callback/google", origin);
+    callback.searchParams.set("error", "access_denied");
+    callback.searchParams.set("state", authorize.searchParams.get("state") ?? "");
+    await route.fulfill({ status: 302, headers: { location: callback.toString() } });
+  });
+}

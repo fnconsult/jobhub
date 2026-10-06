@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import { catalogueStrings, renderedTexts } from "./support/accessibility";
-import { approveAtGoogle, signInWithMagicLink } from "./support/candidate";
+import { approveAtGoogle, refuseAtGoogle, signInWithMagicLink } from "./support/candidate";
 import { emailsTo, linkIn, newAddress, waitForEmail } from "./support/mailbox";
 
 // Issue #2: passwordless sign-up / sign-in and the Candidate account, through
@@ -130,6 +130,24 @@ test.describe("Google sign-in", () => {
     const viaGoogle = await (await viaGooglePage.request.get("/api/auth/get-session")).json();
     expect(viaGoogle.user.id).toBe(viaEmail.user.id);
     await other.close();
+  });
+
+  test("a person who cancels at Google comes back to the sign-in page, in French", async ({ page }) => {
+    await refuseAtGoogle(page, origin);
+
+    await page.goto("/connexion");
+    await page.getByRole("button", { name: fr.signIn.google }).click();
+
+    await expect(page).toHaveURL(/\/connexion\?error=access_denied$/);
+    await expect(page.getByRole("alert").filter({ hasText: fr.signIn.failed })).toBeVisible();
+    await expect(page.getByRole("button", { name: fr.signIn.google })).toBeVisible();
+  });
+
+  test("a Google callback that matches no sign-in lands on the sign-in page, not an English error page", async ({ page }) => {
+    await page.goto("/api/auth/callback/google?error=access_denied&state=abc");
+
+    await expect(page).toHaveURL(/\/connexion\?error=/);
+    await expect(page.getByRole("alert").filter({ hasText: fr.signIn.failed })).toBeVisible();
   });
 });
 

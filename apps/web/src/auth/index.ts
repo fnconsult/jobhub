@@ -14,6 +14,7 @@ import { getMigrations } from "better-auth/db/migration";
 import { magicLink } from "better-auth/plugins/magic-link";
 import type { Pool } from "pg";
 import * as z from "zod";
+import { routes } from "../routes";
 
 /** An email ready to send. Plain text keeps it readable in every mail client. */
 export interface MailMessage {
@@ -53,6 +54,10 @@ function authOptions(config: AuthConfig) {
     baseURL: config.baseURL,
     secret: config.secret,
     trustedOrigins: config.extensionOrigins ?? [],
+    // Sign-in failures Better Auth redirects for (a refused Google consent, an
+    // OAuth state it cannot match) come back to our sign-in page, translated,
+    // rather than to its own English /api/auth/error page.
+    onAPIError: { errorURL: new URL(routes.signIn, config.baseURL).toString() },
     // Check request origins everywhere, tests included (Better Auth skips it under NODE_ENV=test).
     advanced: { disableOriginCheck: false },
     socialProviders: config.google

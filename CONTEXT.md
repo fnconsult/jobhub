@@ -51,8 +51,16 @@ One professional positioning of a Candidate (e.g. "Directeur Financier" vs "Cons
 _Avoid_: Account, persona, CV version
 
 **Master CV**:
-The reference CV of a Profile, from which every Tailored CV is derived. Versioned: each accepted change creates a new version.
+The reference CV of a Profile, from which every Tailored CV is derived. Versioned: each accepted change creates a new Master CV Version.
 _Avoid_: Base CV, main CV, original CV
+
+**Master CV Version**:
+One saved state of a Master CV, numbered from 1. Saving without changes creates none.
+_Avoid_: Revision, snapshot, draft
+
+**Restore**:
+Making an earlier Master CV Version current by saving its content as a new version, so the history is kept and nothing is overwritten.
+_Avoid_: Rollback, revert, undo
 
 **CV Template**:
 One of a small set of ATS-safe layouts used to export a CV.

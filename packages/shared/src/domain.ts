@@ -77,3 +77,42 @@ export interface MasterCvContent {
   skills: string[];
   languages: CvLanguage[];
 }
+
+/**
+ * The content of a CV in sections: a Master CV version or a Tailored CV, which
+ * is a copy of the Master CV adapted to one Job Offer and has the same shape.
+ */
+export type CvContent = MasterCvContent;
+
+/** A salary range, gross annual, in euros. Either end may be unknown. */
+export interface SalaryRange {
+  min?: number;
+  max?: number;
+}
+
+/**
+ * What a Job Offer says about the job, as captured from its source. Only the
+ * title and the full content are always known; the rest is filled when the
+ * posting states it.
+ */
+export interface JobOfferDetails {
+  title: string;
+  /** The full text of the posting. */
+  content: string;
+  employer?: string;
+  location?: string;
+  contractType?: ContractType;
+  remoteWork?: RemoteWork;
+  salary?: SalaryRange;
+  /** Skills the posting asks for. */
+  skills?: string[];
+  /** Years of experience the posting asks for. */
+  requiredExperienceYears?: number;
+}
+
+/** A Job Offer as stored: shared by every Candidate and Guest who captures the same posting. */
+export interface JobOffer extends JobOfferDetails {
+  id: string;
+  /** Where the posting was captured: its URL, and the site's name (its host when not given). */
+  source: { url?: string; name?: string };
+}

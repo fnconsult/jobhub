@@ -1,0 +1,32 @@
+{
+  "app": {
+    "name": "Jobbbox",
+    "tagline": "Votre coach pour décrocher votre prochain poste après 40 ans."
+  },
+  "home": {
+    "title": "Bienvenue sur Jobbbox",
+    "intro": "Nous construisons votre positionnement, trouvons les offres d'emploi qui vous correspondent et préparons vos candidatures.",
+    "comingSoon": "L'application est en cours de construction."
+  },
+  "textSize": {
+    "label": "Taille du texte",
+    "standard": "Standard",
+    "large": "Grande",
+    "xlarge": "Très grande"
+  },
+  "notFound": {
+    "title": "Page introuvable",
+    "message": "Cette page n'existe pas ou a été déplacée.",
+    "backHome": "Retour à l'accueil"
+  },
+  "error": {
+    "title": "Une erreur est survenue",
+    "message": "Nous n'avons pas pu afficher cette page. Veuillez réessayer.",
+    "retry": "Réessayer"
+  },
+  "extension": {
+    "title": "Jobbbox",
+    "description": "Capturez une offre d'emploi depuis la page que vous consultez.",
+    "comingSoon": "La capture d'offres arrive bientôt."
+  }
+}

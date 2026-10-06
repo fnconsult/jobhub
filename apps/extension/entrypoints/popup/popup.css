@@ -1,0 +1,16 @@
+.popup {
+  width: 22rem;
+  padding: var(--space-4);
+}
+
+.popup h1 {
+  margin-top: 0;
+  font-size: var(--font-size-h3);
+}
+
+.notice {
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}

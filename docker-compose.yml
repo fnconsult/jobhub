@@ -1,0 +1,36 @@
+# Local development stack: Postgres and the background-job runner (ADR-0008).
+# Start:  docker compose up -d        (or: npm run stack:up)
+# The web app and extension run on the host: npm run dev / npm run dev -w @jobhub/extension
+name: jobhub
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: jobhub
+      POSTGRES_PASSWORD: jobhub
+      POSTGRES_DB: jobhub
+    ports:
+      # 5433 on the host so it never clashes with a locally installed Postgres.
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobhub -d jobhub"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    environment:
+      DATABASE_URL: postgres://jobhub:jobhub@postgres:5432/jobhub
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

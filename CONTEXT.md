@@ -155,6 +155,16 @@ _Avoid_: Suggestion, correction, improvement
 A category of ATS Fix targeting age-related bias (birth date, photo, very old experience, "30 ans d'expérience" phrasing). The Candidate may ignore it.
 _Avoid_: Age fix, anti-discrimination tip
 
+### Preferences
+
+**Interface Language**:
+The language the Jobbbox interface is shown in. French by default. Independent of the Document Language.
+_Avoid_: Locale (in domain discussions), UI language
+
+**Text Size**:
+The Candidate's choice of how large all interface text is shown (Standard, Grande, Très grande). The smallest choice already meets the body-text floor, so it can only enlarge text.
+_Avoid_: Zoom, font setting
+
 ### Billing
 
 **Coaching Session Price**:

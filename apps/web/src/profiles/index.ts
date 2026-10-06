@@ -4,7 +4,9 @@
  * One deep module in front of Postgres. Callers get:
  *  - `createProfiles(database)` — `create` a Profile from a reviewed CV draft
  *    (validated here; field errors come back, never an exception), `list` a
- *    Candidate's Profiles and `get` one. Every read is scoped to the Candidate.
+ *    Candidate's Profiles and `get` one; edit the Master CV (`saveMasterCv`, each
+ *    change a new version), list its versions and restore one. Every read and
+ *    write is scoped to the Candidate.
  *  - `migrateProfiles(database)` — creates / upgrades the tables.
  * Profiles belong to their Candidate and are deleted with the account (ADR-0010).
  */
@@ -40,6 +42,15 @@ export interface ProfileFieldError {
 
 export type CreateProfileResult = { ok: true; profile: Profile } | { ok: false; errors: ProfileFieldError[] };
 
+/** One saved version of a Master CV. */
+export interface MasterCvVersion {
+  version: number;
+  savedAt: Date;
+  /** The earlier version this one restored, or null for an edit (or the first version). */
+  restoredFrom: number | null;
+  content: MasterCvContent;
+}
+
 export type SaveMasterCvResult =
   | { ok: true; profile: Profile }
   | { ok: false; errors: ProfileFieldError[] }
@@ -58,6 +69,13 @@ export interface Profiles {
    * version the Candidate edited. Null if the Profile does not exist or belongs to someone else.
    */
   saveMasterCv(candidateId: string, profileId: string, input: unknown): Promise<SaveMasterCvResult | null>;
+  /** Every version of the Profile's Master CV, newest first. Null like `get`. */
+  masterCvVersions(candidateId: string, profileId: string): Promise<MasterCvVersion[] | null>;
+  /**
+   * Makes an earlier version current again by saving its content as the next version,
+   * so the history is kept. Null if the Profile or the version does not exist.
+   */
+  restoreMasterCv(candidateId: string, profileId: string, version: number): Promise<Profile | null>;
 }
 
 const text = z.string().trim();
@@ -126,6 +144,15 @@ const saveInputSchema = z.object({ basedOnVersion: z.number().int().positive(), 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function createProfiles(database: Pool): Profiles {
+  /** False if `version` is already taken: the primary key (profile_id, version) refuses concurrent saves of the same next version. */
+  async function appendVersion(profileId: string, version: number, content: MasterCvContent, restoredFrom: number | null) {
+    const inserted = await database.query(
+      `INSERT INTO master_cv_version (profile_id, version, content, restored_from) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
+      [profileId, version, content, restoredFrom],
+    );
+    return inserted.rowCount === 1;
+  }
+
   async function get(candidateId: string, profileId: string): Promise<Profile | null> {
     if (!UUID.test(profileId)) return null;
     const { rows } = await database.query<ProfileRow>(
@@ -154,16 +181,38 @@ export function createProfiles(database: Pool): Profiles {
       if (isDeepStrictEqual(content, profile.masterCv.content)) return { ok: true, profile };
 
       const version = basedOnVersion + 1;
-      // The primary key (profile_id, version) refuses a concurrent save of the same next version.
-      const inserted = await database.query(
-        `INSERT INTO master_cv_version (profile_id, version, content) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
-        [profileId, version, content],
-      );
-      if (inserted.rowCount === 0) {
+      if (!(await appendVersion(profileId, version, content, null))) {
         const current = await get(candidateId, profileId);
         return { ok: false, conflict: { currentVersion: current!.masterCv.version } };
       }
       return { ok: true, profile: { ...profile, masterCv: { version, content } } };
+    },
+
+    async masterCvVersions(candidateId, profileId) {
+      if (!(await get(candidateId, profileId))) return null;
+      const { rows } = await database.query<{ version: number; created_at: Date; restored_from: number | null; content: MasterCvContent }>(
+        `SELECT version, created_at, restored_from, content FROM master_cv_version WHERE profile_id = $1 ORDER BY version DESC`,
+        [profileId],
+      );
+      return rows.map((row) => ({ version: row.version, savedAt: row.created_at, restoredFrom: row.restored_from, content: row.content }));
+    },
+
+    async restoreMasterCv(candidateId, profileId, version) {
+      if (!Number.isSafeInteger(version)) return null;
+      for (;;) {
+        const profile = await get(candidateId, profileId);
+        if (!profile) return null;
+        const { rows } = await database.query<{ content: MasterCvContent }>(
+          `SELECT content FROM master_cv_version WHERE profile_id = $1 AND version = $2`,
+          [profileId, version],
+        );
+        if (!rows[0]) return null;
+        const { content } = rows[0];
+        if (isDeepStrictEqual(content, profile.masterCv.content)) return profile;
+        const next = profile.masterCv.version + 1;
+        // Another save took that version number meanwhile: restore on top of it.
+        if (await appendVersion(profileId, next, content, version)) return { ...profile, masterCv: { version: next, content } };
+      }
     },
 
     async create(candidateId, input) {
@@ -233,5 +282,6 @@ export async function migrateProfiles(database: Pool): Promise<void> {
       created_at timestamptz NOT NULL DEFAULT now(),
       PRIMARY KEY (profile_id, version)
     );
+    ALTER TABLE master_cv_version ADD COLUMN IF NOT EXISTS restored_from integer;
   `);
 }

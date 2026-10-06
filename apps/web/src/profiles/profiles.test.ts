@@ -150,6 +150,54 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
       expect(await profiles.saveMasterCv(candidateId, "not-a-uuid", { basedOnVersion: 1, content: masterCv })).toBeNull();
       expect((await profiles.get(candidateId, profile.id))?.masterCv.version).toBe(1);
     });
+
+    it("lists every version of the Master CV, newest first", async () => {
+      const profile = await createProfile();
+      const v2 = { ...masterCv, headline: "DAF" };
+      await profiles.saveMasterCv(candidateId, profile.id, { basedOnVersion: 1, content: v2 });
+
+      const versions = await profiles.masterCvVersions(candidateId, profile.id);
+
+      expect(versions).toEqual([
+        { version: 2, savedAt: expect.any(Date), restoredFrom: null, content: v2 },
+        { version: 1, savedAt: expect.any(Date), restoredFrom: null, content: masterCv },
+      ]);
+    });
+
+    it("restores a previous version as a new version, keeping the history", async () => {
+      const profile = await createProfile();
+      await profiles.saveMasterCv(candidateId, profile.id, { basedOnVersion: 1, content: { ...masterCv, headline: "DAF" } });
+      await profiles.saveMasterCv(candidateId, profile.id, { basedOnVersion: 2, content: { ...masterCv, headline: "DAF groupe" } });
+
+      const restored = await profiles.restoreMasterCv(candidateId, profile.id, 1);
+
+      expect(restored?.masterCv).toEqual({ version: 4, content: masterCv });
+      expect((await profiles.get(candidateId, profile.id))?.masterCv).toEqual({ version: 4, content: masterCv });
+      expect((await profiles.masterCvVersions(candidateId, profile.id))?.map(({ version, restoredFrom }) => [version, restoredFrom])).toEqual([
+        [4, 1],
+        [3, null],
+        [2, null],
+        [1, null],
+      ]);
+    });
+
+    it("restoring the current version changes nothing", async () => {
+      const profile = await createProfile();
+
+      expect(await profiles.restoreMasterCv(candidateId, profile.id, 1)).toEqual(profile);
+      expect(await profiles.masterCvVersions(candidateId, profile.id)).toHaveLength(1);
+    });
+
+    it("never shows or restores the versions of someone else's Profile, nor a version that does not exist", async () => {
+      const profile = await createProfile();
+      const cookie = await signInWithMagicLink(testAuth, "jean.martin@example.fr");
+      const otherId = (await (await testAuth.request("/api/auth/get-session", { cookie })).json()).user.id;
+
+      expect(await profiles.masterCvVersions(otherId, profile.id)).toBeNull();
+      expect(await profiles.restoreMasterCv(otherId, profile.id, 1)).toBeNull();
+      expect(await profiles.restoreMasterCv(candidateId, profile.id, 7)).toBeNull();
+      expect(await profiles.masterCvVersions(candidateId, "not-a-uuid")).toBeNull();
+    });
   });
 
   it("never shows a Candidate someone else's Profile", async () => {

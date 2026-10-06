@@ -38,7 +38,7 @@ export default defineConfig({
   projects: [
     {
       name: "web",
-      testMatch: /(web|auth|profiles|master-cv|match-score)\.spec\.ts/,
+      testMatch: /(web|auth|profiles|master-cv|match-score|coach)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" },
     },
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },

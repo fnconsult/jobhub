@@ -20,6 +20,7 @@ Requires Node 22+ and Docker.
 npm install
 cp .env.example .env
 docker compose up -d          # Postgres (host port 5433) + worker
+npm run db:migrate            # create / upgrade the database tables
 npm run dev                   # web app on http://localhost:3000
 npm run dev -w @jobhub/extension   # extension, with a Chrome dev profile
 ```
@@ -40,4 +41,5 @@ npm run test:e2e    # e2e: built web app, built extension, docker compose stack 
 - **Translations**: every user-facing string lives in `packages/shared/src/i18n/locales/*.json`. French (`fr`) is the default and reference locale; every locale must have the same keys.
 - **Accessibility (ADR-0009)**: colours and type come from `packages/shared/src/design/tokens.ts`. `auditDesignTokens` checks WCAG 2.1 AA contrast, the 16px body-text floor and every text-size setting in the test suite. Light greys are for surfaces and borders only.
 - **AI calls (ADR-0007)**: always through `@jobhub/ai` (`createAiLayerFromEnv()` → `generate` / `searchWeb`), never a provider SDK directly. The provider of each task is set by `AI_<TASK>_PROVIDER` / `AI_<TASK>_MODEL` (see `.env.example`). Tasks that carry personal data refuse non-EU endpoints at start-up and on every call; web search only ever receives a query built from Search Criteria. Every call logs its token usage per Candidate (`ai_usage` JSON lines). Tests use `createFakeProvider` from `@jobhub/ai/testing`, or `AI_FAKE=true`.
+- **Candidate accounts**: passwordless (magic link + Google, ADR-0008) in `apps/web/src/auth` (Better Auth, ADR-0011). Sign in at `/connexion`; in development the magic link is printed in the `npm run dev` log. The extension shares the web app's session through its host permission on `WXT_WEB_ORIGIN`; list the extension's `chrome-extension://<id>` origin in `EXTENSION_ORIGINS`.
 - **Hosting**: EU only, see [`docs/ops/hosting.md`](docs/ops/hosting.md).

@@ -30,6 +30,12 @@ export default defineConfig({
     url: `http://localhost:${webPort}/api/health`,
     reuseExistingServer: false,
     timeout: 60_000,
-    env: { NEXT_TELEMETRY_DISABLED: "1" },
+    env: {
+      NEXT_TELEMETRY_DISABLED: "1",
+      // Candidate accounts in a local production build: sign-in links go to the server log.
+      APP_URL: `http://localhost:${webPort}`,
+      AUTH_SECRET: process.env.AUTH_SECRET ?? "e2e-only-secret-e2e-only-secret-e2e-only",
+      MAIL_TRANSPORT: "console",
+    },
   },
 });

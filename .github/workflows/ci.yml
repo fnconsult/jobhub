@@ -36,5 +36,6 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: npm run db:migrate
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e

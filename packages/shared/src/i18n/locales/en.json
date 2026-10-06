@@ -130,13 +130,18 @@
     "addEducation": "Add education",
     "removeEducation": "Remove education {{number}}",
     "skills": "Skills",
-    "skillsHint": "One skill per line.",
+    "skillItem": "Skill {{number}}",
+    "skill": "Skill",
+    "addSkill": "Add a skill",
+    "removeSkill": "Remove skill {{number}}",
     "languages": "Languages",
     "languageItem": "Language {{number}}",
     "language": "Language",
     "level": "Level",
     "addLanguage": "Add a language",
     "removeLanguage": "Remove language {{number}}",
+    "moveUp": "Move up: {{item}}",
+    "moveDown": "Move down: {{item}}",
     "save": "Save my profile",
     "saving": "Saving…",
     "startOver": "Upload another CV",
@@ -145,11 +150,39 @@
     "invalidValue": "This value is not valid.",
     "error": "Your profile could not be saved. Please try again."
   },
+  "cvEditor": {
+    "title": "Edit my Master CV",
+    "intro": "Add, edit, move or remove the entries of each section. Each save creates a new version: earlier ones stay available and can be restored.",
+    "editingVersion": "You are editing version {{version}}.",
+    "save": "Save as a new version",
+    "saving": "Saving…",
+    "cancel": "Cancel and go back to the profile",
+    "conflict": "Your Master CV was changed elsewhere in the meantime (version {{version}}). Your changes were not saved: reload the page to start again from the latest version.",
+    "invalid": "Some fields are not valid. Check them and try again.",
+    "error": "Your CV could not be saved. Please try again."
+  },
+  "versions": {
+    "title": "Master CV version history",
+    "intro": "Each time you save your Master CV, a version is created. View an earlier version or restore it: it becomes the current version, and the history is kept.",
+    "version": "Version {{version}}",
+    "viewTitle": "Master CV version {{version}}",
+    "savedAt": "Saved on {{date}}",
+    "current": "Current version",
+    "restoredFrom": "Restored from version {{version}}",
+    "view": "View version {{version}}",
+    "restore": "Restore version {{version}}",
+    "restoring": "Restoring…",
+    "restoreError": "This version could not be restored. Please try again.",
+    "backToHistory": "Back to the version history",
+    "backToProfile": "Back to the profile"
+  },
   "profile": {
     "masterCv": "Reference CV",
     "version": "Version {{version}}",
     "notSpecified": "Not specified",
     "salary": "At least €{{amount}} gross per year",
-    "backToAccount": "Back to my account"
+    "backToAccount": "Back to my account",
+    "editMasterCv": "Edit my Master CV",
+    "versionHistory": "Version history"
   }
 }

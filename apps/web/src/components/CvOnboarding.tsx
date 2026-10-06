@@ -1,19 +1,14 @@
 "use client";
 
-import {
-  CONTRACT_TYPES,
-  REMOTE_WORK_OPTIONS,
-  type CvEducation,
-  type CvExperience,
-  type CvLanguage,
-  type MasterCvContent,
-} from "@jobhub/shared";
+import { CONTRACT_TYPES, REMOTE_WORK_OPTIONS, type MasterCvContent } from "@jobhub/shared";
 import { useRouter } from "next/navigation";
-import { useId, useState, type FormEvent, type ReactNode } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { CvDraft, CvFileErrorCode } from "@/cv";
 import type { ProfileFieldError } from "@/profiles";
 import { routes } from "@/routes";
+import { SelectField, TextField } from "./form-fields";
+import { MasterCvFields } from "./MasterCvFields";
 
 /** Search Criteria as the review form holds them: what the inputs show. */
 interface CriteriaFields {
@@ -101,7 +96,6 @@ export function CvOnboarding() {
 
   const review = step;
   const update = (changes: Partial<Extract<Step, { kind: "review" }>>) => setStep({ ...review, ...changes });
-  const setCv = (changes: Partial<MasterCvContent>) => update({ masterCv: { ...review.masterCv, ...changes } });
   const setCriteria = (changes: Partial<CriteriaFields>) => update({ criteria: { ...review.criteria, ...changes } });
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -171,78 +165,7 @@ export function CvOnboarding() {
         />
       </fieldset>
 
-      <fieldset className="fieldset">
-        <legend>{t("cvReview.identity")}</legend>
-        <TextField label={t("cvReview.fullName")} value={review.masterCv.fullName} onChange={(fullName) => setCv({ fullName })} />
-        <TextField label={t("cvReview.headline")} value={review.masterCv.headline} onChange={(headline) => setCv({ headline })} />
-        <TextField label={t("cvReview.email")} value={review.masterCv.email} onChange={(email) => setCv({ email })} type="email" />
-        <TextField label={t("cvReview.phone")} value={review.masterCv.phone} onChange={(phone) => setCv({ phone })} type="tel" />
-        <TextField label={t("cvReview.cvLocation")} value={review.masterCv.location} onChange={(location) => setCv({ location })} />
-        <TextField label={t("cvReview.summary")} value={review.masterCv.summary} onChange={(summary) => setCv({ summary })} multiline />
-      </fieldset>
-
-      <EntryList<CvExperience>
-        legend={t("cvReview.experience")}
-        items={review.masterCv.experience}
-        onChange={(experience) => setCv({ experience })}
-        blank={{ title: "", employer: "", location: "", period: "", description: "" }}
-        itemLabel={(number) => t("cvReview.experienceItem", { number })}
-        addLabel={t("cvReview.addExperience")}
-        removeLabel={(number) => t("cvReview.removeExperience", { number })}
-        render={(item, set) => (
-          <>
-            <TextField label={t("cvReview.jobTitle")} value={item.title} onChange={(title) => set({ title })} />
-            <TextField label={t("cvReview.employer")} value={item.employer} onChange={(employer) => set({ employer })} />
-            <TextField label={t("cvReview.jobLocation")} value={item.location} onChange={(location) => set({ location })} />
-            <TextField label={t("cvReview.period")} value={item.period} onChange={(period) => set({ period })} />
-            <TextField label={t("cvReview.description")} value={item.description} onChange={(description) => set({ description })} multiline />
-          </>
-        )}
-      />
-
-      <EntryList<CvEducation>
-        legend={t("cvReview.education")}
-        items={review.masterCv.education}
-        onChange={(education) => setCv({ education })}
-        blank={{ degree: "", institution: "", year: "" }}
-        itemLabel={(number) => t("cvReview.educationItem", { number })}
-        addLabel={t("cvReview.addEducation")}
-        removeLabel={(number) => t("cvReview.removeEducation", { number })}
-        render={(item, set) => (
-          <>
-            <TextField label={t("cvReview.degree")} value={item.degree} onChange={(degree) => set({ degree })} />
-            <TextField label={t("cvReview.institution")} value={item.institution} onChange={(institution) => set({ institution })} />
-            <TextField label={t("cvReview.year")} value={item.year} onChange={(year) => set({ year })} />
-          </>
-        )}
-      />
-
-      <fieldset className="fieldset">
-        <legend>{t("cvReview.skills")}</legend>
-        <TextField
-          label={t("cvReview.skills")}
-          hint={t("cvReview.skillsHint")}
-          value={review.masterCv.skills.join("\n")}
-          onChange={(skills) => setCv({ skills: skills.split("\n") })}
-          multiline
-        />
-      </fieldset>
-
-      <EntryList<CvLanguage>
-        legend={t("cvReview.languages")}
-        items={review.masterCv.languages}
-        onChange={(languages) => setCv({ languages })}
-        blank={{ name: "", level: "" }}
-        itemLabel={(number) => t("cvReview.languageItem", { number })}
-        addLabel={t("cvReview.addLanguage")}
-        removeLabel={(number) => t("cvReview.removeLanguage", { number })}
-        render={(item, set) => (
-          <>
-            <TextField label={t("cvReview.language")} value={item.name} onChange={(name) => set({ name })} />
-            <TextField label={t("cvReview.level")} value={item.level} onChange={(level) => set({ level })} />
-          </>
-        )}
-      />
+      <MasterCvFields value={review.masterCv} onChange={(masterCv) => update({ masterCv })} />
 
       {invalidFields.length > 0 ? (
         <p className="notice" role="alert">
@@ -263,104 +186,5 @@ export function CvOnboarding() {
         </button>
       </div>
     </form>
-  );
-}
-
-function TextField(props: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  hint?: string;
-  error?: ProfileFieldError | undefined;
-  required?: boolean;
-  multiline?: boolean;
-  type?: "text" | "email" | "tel";
-  /** Shows a numeric keypad on phones. */
-  numeric?: boolean;
-}) {
-  const { t } = useTranslation();
-  const id = useId();
-  const described = [props.hint ? `${id}-hint` : "", props.error ? `${id}-error` : ""].filter(Boolean).join(" ") || undefined;
-  const common = {
-    id,
-    className: "input",
-    value: props.value,
-    required: props.required,
-    "aria-invalid": props.error ? true : undefined,
-    "aria-describedby": described,
-  };
-  return (
-    <div className="field">
-      <label htmlFor={id}>{props.label}</label>
-      {props.hint ? (
-        <p id={`${id}-hint`} className="hint">
-          {props.hint}
-        </p>
-      ) : null}
-      {props.multiline ? (
-        <textarea {...common} rows={4} onChange={(event) => props.onChange(event.target.value)} />
-      ) : (
-        <input {...common} type={props.type ?? "text"} inputMode={props.numeric ? "numeric" : undefined} onChange={(event) => props.onChange(event.target.value)} />
-      )}
-      {props.error ? (
-        <p id={`${id}-error`} className="field-error">
-          {t(props.error.code === "required" ? "cvReview.required" : "cvReview.invalidValue")}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function SelectField(props: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: [string, string][];
-  error?: ProfileFieldError | undefined;
-}) {
-  const { t } = useTranslation();
-  const id = useId();
-  return (
-    <div className="field">
-      <label htmlFor={id}>{props.label}</label>
-      <select id={id} className="input" value={props.value} aria-invalid={props.error ? true : undefined} onChange={(event) => props.onChange(event.target.value)}>
-        <option value="">{t("cvReview.notSpecified")}</option>
-        {props.options.map(([value, label]) => (
-          <option key={value} value={value}>
-            {label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
-function EntryList<T extends object>(props: {
-  legend: string;
-  items: T[];
-  onChange: (items: T[]) => void;
-  blank: T;
-  itemLabel: (number: number) => string;
-  addLabel: string;
-  removeLabel: (number: number) => string;
-  render: (item: T, set: (changes: Partial<T>) => void) => ReactNode;
-}) {
-  const { items, onChange } = props;
-  return (
-    <fieldset className="fieldset">
-      <legend>{props.legend}</legend>
-      {items.map((item, index) => (
-        <fieldset className="fieldset entry" key={index}>
-          <legend>{props.itemLabel(index + 1)}</legend>
-          {props.render(item, (changes) => onChange(items.map((other, i) => (i === index ? { ...other, ...changes } : other))))}
-          <button className="button" type="button" onClick={() => onChange(items.filter((_, i) => i !== index))}>
-            {props.removeLabel(index + 1)}
-          </button>
-        </fieldset>
-      ))}
-      <button className="button" type="button" onClick={() => onChange([...items, { ...props.blank }])}>
-        {props.addLabel}
-      </button>
-    </fieldset>
   );
 }

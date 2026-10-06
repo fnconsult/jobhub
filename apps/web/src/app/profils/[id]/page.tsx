@@ -1,20 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
-import { getCurrentCandidate } from "@/auth/server";
+import { MasterCvView } from "@/components/MasterCvView";
 import { TextSizeControl } from "@/components/TextSizeControl";
 import { getRequestLocale, getServerT } from "@/i18n/server";
-import { getProfiles } from "@/profiles/server";
+import { requireOwnProfile } from "@/profiles/server";
 import { routes } from "@/routes";
 
 type Params = { params: Promise<{ id: string }> };
 
 async function currentProfile(id: string) {
-  const candidate = await getCurrentCandidate();
-  if (!candidate) redirect(routes.signIn);
-  const profile = await getProfiles().get(candidate.id, id);
-  if (!profile) notFound();
-  return profile;
+  return (await requireOwnProfile(id)).profile;
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
@@ -29,7 +24,6 @@ export default async function ProfilePage({ params }: Params) {
   const t = await getServerT();
   const locale = await getRequestLocale();
   const { searchCriteria: criteria, masterCv } = profile;
-  const cv = masterCv.content;
   const notSpecified = t("profile.notSpecified");
   return (
     <main className="page">
@@ -61,59 +55,15 @@ export default async function ProfilePage({ params }: Params) {
 
       <h2>{t("profile.masterCv")}</h2>
       <p>{t("profile.version", { version: masterCv.version })}</p>
-      <section className="cv">
-        {cv.fullName ? <p className="cv-name">{cv.fullName}</p> : null}
-        {cv.headline ? <p>{cv.headline}</p> : null}
-        {[cv.email, cv.phone, cv.location].some(Boolean) ? <p>{[cv.email, cv.phone, cv.location].filter(Boolean).join(" · ")}</p> : null}
-        {cv.summary ? <p className="cv-text">{cv.summary}</p> : null}
-
-        {cv.experience.length > 0 ? (
-          <>
-            <h3>{t("cvReview.experience")}</h3>
-            <ul className="cv-list">
-              {cv.experience.map((job, index) => (
-                <li key={index}>
-                  <p className="cv-entry">{[job.title, job.employer, job.location, job.period].filter(Boolean).join(" · ")}</p>
-                  {job.description ? <p className="cv-text">{job.description}</p> : null}
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : null}
-
-        {cv.education.length > 0 ? (
-          <>
-            <h3>{t("cvReview.education")}</h3>
-            <ul className="cv-list">
-              {cv.education.map((item, index) => (
-                <li key={index}>{[item.degree, item.institution, item.year].filter(Boolean).join(" · ")}</li>
-              ))}
-            </ul>
-          </>
-        ) : null}
-
-        {cv.skills.length > 0 ? (
-          <>
-            <h3>{t("cvReview.skills")}</h3>
-            <ul className="cv-list">
-              {cv.skills.map((skill) => (
-                <li key={skill}>{skill}</li>
-              ))}
-            </ul>
-          </>
-        ) : null}
-
-        {cv.languages.length > 0 ? (
-          <>
-            <h3>{t("cvReview.languages")}</h3>
-            <ul className="cv-list">
-              {cv.languages.map((language, index) => (
-                <li key={index}>{[language.name, language.level].filter(Boolean).join(" · ")}</li>
-              ))}
-            </ul>
-          </>
-        ) : null}
-      </section>
+      <MasterCvView cv={masterCv.content} t={t} />
+      <nav className="actions" aria-label={t("profile.masterCv")}>
+        <Link className="button button-primary" href={routes.editMasterCv(profile.id)}>
+          {t("profile.editMasterCv")}
+        </Link>
+        <Link className="button" href={routes.masterCvVersions(profile.id)}>
+          {t("profile.versionHistory")}
+        </Link>
+      </nav>
 
       <p>
         <Link href={routes.account}>{t("profile.backToAccount")}</Link>

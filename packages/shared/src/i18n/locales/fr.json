@@ -130,13 +130,18 @@
     "addEducation": "Ajouter une formation",
     "removeEducation": "Retirer la formation {{number}}",
     "skills": "Compétences",
-    "skillsHint": "Une compétence par ligne.",
+    "skillItem": "Compétence {{number}}",
+    "skill": "Compétence",
+    "addSkill": "Ajouter une compétence",
+    "removeSkill": "Retirer la compétence {{number}}",
     "languages": "Langues",
     "languageItem": "Langue {{number}}",
     "language": "Langue",
     "level": "Niveau",
     "addLanguage": "Ajouter une langue",
     "removeLanguage": "Retirer la langue {{number}}",
+    "moveUp": "Monter : {{item}}",
+    "moveDown": "Descendre : {{item}}",
     "save": "Enregistrer mon profil",
     "saving": "Enregistrement en cours…",
     "startOver": "Importer un autre CV",
@@ -145,11 +150,39 @@
     "invalidValue": "Cette valeur n'est pas valide.",
     "error": "Votre profil n'a pas pu être enregistré. Veuillez réessayer."
   },
+  "cvEditor": {
+    "title": "Modifier mon CV de référence",
+    "intro": "Ajoutez, modifiez, déplacez ou retirez les éléments de chaque rubrique. Chaque enregistrement crée une nouvelle version : les précédentes restent consultables et peuvent être restaurées.",
+    "editingVersion": "Vous modifiez la version {{version}}.",
+    "save": "Enregistrer une nouvelle version",
+    "saving": "Enregistrement en cours…",
+    "cancel": "Annuler et revenir au profil",
+    "conflict": "Votre CV de référence a été modifié ailleurs entre-temps (version {{version}}). Vos modifications n'ont pas été enregistrées : rechargez la page pour repartir de la dernière version.",
+    "invalid": "Certains champs ne sont pas valides. Vérifiez-les puis réessayez.",
+    "error": "Votre CV n'a pas pu être enregistré. Veuillez réessayer."
+  },
+  "versions": {
+    "title": "Historique des versions du CV de référence",
+    "intro": "Chaque enregistrement de votre CV de référence crée une version. Consultez une version précédente ou restaurez-la : elle devient la version actuelle, et l'historique est conservé.",
+    "version": "Version {{version}}",
+    "viewTitle": "Version {{version}} du CV de référence",
+    "savedAt": "Enregistrée le {{date}}",
+    "current": "Version actuelle",
+    "restoredFrom": "Restaurée depuis la version {{version}}",
+    "view": "Voir la version {{version}}",
+    "restore": "Restaurer la version {{version}}",
+    "restoring": "Restauration en cours…",
+    "restoreError": "Cette version n'a pas pu être restaurée. Veuillez réessayer.",
+    "backToHistory": "Retour à l'historique des versions",
+    "backToProfile": "Retour au profil"
+  },
   "profile": {
     "masterCv": "CV de référence",
     "version": "Version {{version}}",
     "notSpecified": "Non précisé",
     "salary": "{{amount}} € brut par an minimum",
-    "backToAccount": "Retour à mon compte"
+    "backToAccount": "Retour à mon compte",
+    "editMasterCv": "Modifier mon CV de référence",
+    "versionHistory": "Historique des versions"
   }
 }

@@ -83,6 +83,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         ORDER BY from_table, from_column`);
       expect(references.rows).toEqual([
         { from_table: "account", from_column: "userId", to_table: "candidate" },
+        { from_table: "action_card", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "master_cv_version", from_column: "profile_id", to_table: "profile" },
         { from_table: "profile", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "session", from_column: "userId", to_table: "candidate" },

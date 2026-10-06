@@ -17,6 +17,8 @@ export const TEXT_TASKS = {
   writing: { personalData: true },
   /** AI Coach conversation: reads everything about the Candidate. */
   coaching: { personalData: true },
+  /** Reading an uploaded CV into a structured Master CV: reads CVs. */
+  cv_parsing: { personalData: true },
   /** Extracting structured fields from a Job Offer: public posting text only. */
   offer_analysis: { personalData: false },
 } as const satisfies Record<string, { personalData: boolean }>;

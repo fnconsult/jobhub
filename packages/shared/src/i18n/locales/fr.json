@@ -64,5 +64,92 @@
   "languages": {
     "fr": "Français",
     "en": "English"
+  },
+  "profiles": {
+    "title": "Mes profils",
+    "none": "Vous n'avez pas encore de profil. Importez votre CV pour créer le premier : nous en tirons votre CV de référence et vos critères de recherche.",
+    "create": "Créer mon profil à partir de mon CV"
+  },
+  "cvUpload": {
+    "title": "Créer mon profil à partir de mon CV",
+    "intro": "Importez votre CV. Nous le lisons et le découpons en sections ; vous vérifiez et corrigez le résultat avant de l'enregistrer.",
+    "fileLabel": "Votre CV",
+    "fileHint": "Format PDF ou Word (.docx), 10 Mo maximum.",
+    "submit": "Lire mon CV",
+    "reading": "Lecture de votre CV en cours…",
+    "errors": {
+      "unsupported_format": "Ce fichier n'est pas un CV au format PDF ou Word (.docx). Pour un ancien fichier Word (.doc), enregistrez-le d'abord au format .docx ou PDF.",
+      "too_large": "Ce fichier dépasse 10 Mo. Enregistrez votre CV dans un fichier plus léger et réessayez.",
+      "unreadable": "Nous n'avons pas pu ouvrir ce fichier. Il est peut-être endommagé ou protégé par un mot de passe.",
+      "empty": "Nous n'avons trouvé aucun texte dans ce fichier. S'il s'agit d'un CV scanné, importez plutôt la version PDF ou Word d'origine.",
+      "unknown": "Une erreur est survenue. Veuillez réessayer."
+    }
+  },
+  "cvReview": {
+    "title": "Vérifiez votre CV et vos critères de recherche",
+    "intro": "Voici ce que nous avons lu dans votre CV. Corrigez ou complétez chaque champ si besoin, puis enregistrez votre profil.",
+    "searchCriteria": "Critères de recherche",
+    "targetRole": "Poste recherché",
+    "location": "Lieu",
+    "minSalary": "Salaire annuel brut minimum (en euros)",
+    "contractType": "Type de contrat",
+    "remoteWork": "Télétravail",
+    "notSpecified": "Non précisé",
+    "contractTypes": {
+      "cdi": "CDI",
+      "cdd": "CDD",
+      "freelance": "Indépendant (freelance)",
+      "interim": "Intérim"
+    },
+    "remoteWorkOptions": {
+      "on_site": "Sur site",
+      "hybrid": "Hybride",
+      "full_remote": "Télétravail complet"
+    },
+    "identity": "Identité et coordonnées",
+    "fullName": "Nom et prénom",
+    "headline": "Titre du CV",
+    "email": "Adresse e-mail",
+    "phone": "Téléphone",
+    "cvLocation": "Adresse ou ville",
+    "summary": "Profil (résumé)",
+    "experience": "Expérience professionnelle",
+    "experienceItem": "Poste {{number}}",
+    "jobTitle": "Intitulé du poste",
+    "employer": "Employeur",
+    "jobLocation": "Lieu",
+    "period": "Période",
+    "description": "Missions et réalisations",
+    "addExperience": "Ajouter un poste",
+    "removeExperience": "Retirer le poste {{number}}",
+    "education": "Formation",
+    "educationItem": "Formation {{number}}",
+    "degree": "Diplôme ou formation",
+    "institution": "Établissement",
+    "year": "Année",
+    "addEducation": "Ajouter une formation",
+    "removeEducation": "Retirer la formation {{number}}",
+    "skills": "Compétences",
+    "skillsHint": "Une compétence par ligne.",
+    "languages": "Langues",
+    "languageItem": "Langue {{number}}",
+    "language": "Langue",
+    "level": "Niveau",
+    "addLanguage": "Ajouter une langue",
+    "removeLanguage": "Retirer la langue {{number}}",
+    "save": "Enregistrer mon profil",
+    "saving": "Enregistrement en cours…",
+    "startOver": "Importer un autre CV",
+    "invalid": "Certains champs sont à compléter ou à corriger : {{fields}}.",
+    "required": "Ce champ est obligatoire.",
+    "invalidValue": "Cette valeur n'est pas valide.",
+    "error": "Votre profil n'a pas pu être enregistré. Veuillez réessayer."
+  },
+  "profile": {
+    "masterCv": "CV de référence",
+    "version": "Version {{version}}",
+    "notSpecified": "Non précisé",
+    "salary": "{{amount}} € brut par an minimum",
+    "backToAccount": "Retour à mon compte"
   }
 }

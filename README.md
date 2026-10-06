@@ -30,6 +30,8 @@ npm run lint        # includes the "no hard-coded user-facing strings" rule
 npm run typecheck
 npm test            # worker integration tests run when DATABASE_URL is set
 npm run build
+npx playwright install chromium   # once
+npm run test:e2e    # e2e: built web app, built extension, docker compose stack (E2E_SKIP_DOCKER=1 to skip)
 ```
 
 ## Conventions

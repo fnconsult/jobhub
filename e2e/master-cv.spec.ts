@@ -172,6 +172,24 @@ test.describe("editing the Master CV", () => {
     await expect(button(page, "Monter : Poste 2")).toBeFocused();
   });
 
+  test("moving a saved entry to an end keeps the keyboard on it after a full page load", async ({ page }) => {
+    // Saved entries are rendered on the server and hydrated, unlike entries added in the page.
+    const id = await candidateWithProfile(page, "reorder-focus-hydrated");
+    for (const [from, to] of [
+      ["Descendre : Compétence 1", "Monter : Compétence 2"],
+      ["Monter : Compétence 2", "Descendre : Compétence 1"],
+    ]) {
+      // Load the editor twice, so the server has rendered it before this load too.
+      await page.goto(`/profils/${id}/cv`);
+      await page.goto(`/profils/${id}/cv`);
+      await page.waitForLoadState("networkidle");
+      await button(page, from).focus();
+      await page.keyboard.press("Enter");
+      await expect(entry(page, "Compétence 1").getByLabel(fr.cvReview.skill)).toHaveValue("SAP");
+      await expect(button(page, to)).toBeFocused();
+    }
+  });
+
   test("a save made elsewhere in the meantime is not overwritten", async ({ page, browser }) => {
     const id = await candidateWithProfile(page, "conflict");
     const other = await browser.newContext({ baseURL: origin, storageState: await page.context().storageState() });

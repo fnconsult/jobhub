@@ -75,9 +75,6 @@ export function SelectField(props: {
 
 type Direction = "up" | "down";
 
-let lastEntryKey = 0;
-const newEntryKey = () => ++lastEntryKey;
-
 /**
  * The entries of one CV section, each in its own group, that the Candidate can
  * add, edit, move up or down, and remove. After a move the keyboard focus
@@ -96,7 +93,11 @@ export function EntryList<T>(props: {
   const { t } = useTranslation();
   const { items, onChange } = props;
   // Stable React keys, so a moved entry keeps its DOM nodes (and focus) instead of its neighbour's.
-  const [keys, setKeys] = useState(() => items.map(newEntryKey));
+  // They are numbered per list from its first items, never from shared state, so the server and the
+  // client render the same `data-entry` values: hydration keeps the server's attributes as they are.
+  const [keys, setKeys] = useState(() => items.map((_, i) => i + 1));
+  const lastKey = useRef(items.length);
+  const newEntryKey = () => ++lastKey.current;
   // Items replaced from outside this list: fall back to positional keys until the next change here.
   const shownKeys = keys.length === items.length ? keys : items.map((_, i) => -(i + 1));
   const focusAfterMove = useRef<{ key: number; direction: Direction } | null>(null);

@@ -1,0 +1,22 @@
+{
+  "app": {
+    "name": "Jobbbox",
+    "tagline": "Votre coach pour décrocher votre prochain poste après 40 ans."
+  },
+  "home": {
+    "title": "Bienvenue sur Jobbbox",
+    "intro": "Nous construisons votre positionnement, trouvons les offres d'emploi qui vous correspondent et préparons vos candidatures.",
+    "comingSoon": "L'application est en cours de construction."
+  },
+  "textSize": {
+    "label": "Taille du texte",
+    "standard": "Standard",
+    "large": "Grande",
+    "xlarge": "Très grande"
+  },
+  "extension": {
+    "title": "Jobbbox",
+    "description": "Capturez une offre d'emploi depuis la page que vous consultez.",
+    "comingSoon": "La capture d'offres arrive bientôt."
+  }
+}

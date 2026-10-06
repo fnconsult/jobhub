@@ -4,13 +4,13 @@ import { getServerT } from "@/i18n/server";
 
 // Without this file Next serves its built-in English 404 with inline styles,
 // bypassing the French catalogue and the design tokens.
-export function generateMetadata(): Metadata {
-  const t = getServerT();
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT();
   return { title: `${t("notFound.title")} · ${t("app.name")}` };
 }
 
-export default function NotFound() {
-  const t = getServerT();
+export default async function NotFound() {
+  const t = await getServerT();
   return (
     <main className="page">
       <header className="page-header">

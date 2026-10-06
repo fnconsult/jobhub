@@ -27,6 +27,42 @@
   "extension": {
     "title": "Jobbbox",
     "description": "Capture a job offer from the page you are viewing.",
-    "comingSoon": "Job offer capture is coming soon."
+    "comingSoon": "Job offer capture is coming soon.",
+    "signedInAs": "Signed in as {{email}}",
+    "signedOut": "Sign in to Jobbbox to save your job offers.",
+    "signIn": "Sign in",
+    "account": "My account"
+  },
+  "signInEmail": {
+    "subject": "Your Jobbbox sign-in link",
+    "body": "Hello,\n\nClick this link to sign in to Jobbbox:\n{{url}}\n\nThis link is valid for {{minutes}} minutes and works only once.\nIf you did not ask to sign in, simply ignore this message.\n\nThe Jobbbox team"
+  },
+  "nav": {
+    "signIn": "Sign in",
+    "account": "My account"
+  },
+  "signIn": {
+    "title": "Sign in to Jobbbox",
+    "intro": "No password to remember: get a sign-in link by email, or use your Google account. If you don't have an account yet, one will be created.",
+    "emailLabel": "Your email address",
+    "submit": "Send me a sign-in link",
+    "sending": "Sending…",
+    "sent": "Sent! Open the email we just sent you and click the link to sign in.",
+    "or": "or",
+    "google": "Continue with Google",
+    "error": "Something went wrong. Check your email address and try again.",
+    "linkError": "This sign-in link is no longer valid. Ask for a new one below.",
+    "failed": "Sign-in didn't go through. Try again below, with Google or with a link by email."
+  },
+  "account": {
+    "title": "My account",
+    "email": "Email address",
+    "interfaceLanguage": "Interface language",
+    "saved": "Saved.",
+    "signOut": "Sign out"
+  },
+  "languages": {
+    "fr": "Français",
+    "en": "English"
   }
 }

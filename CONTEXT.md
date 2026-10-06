@@ -10,6 +10,10 @@ A coaching platform that helps senior job seekers (40+) in France land a job: it
 A person with an account who is looking for a job. Owns one or more Profiles.
 _Avoid_: User (in domain discussions), applicant, job seeker
 
+**Organisation**:
+An outplacement firm, APEC or corporate HR department that pays for its beneficiaries' Candidate accounts and whose advisors can follow their progress. Not in the MVP: Candidates pay for themselves first.
+_Avoid_: Company, client, tenant, B2B customer
+
 **Guest**:
 A person using the browser extension without an account. Their CV and captured Job Offer are temporary.
 _Avoid_: Anonymous user, visitor, lead

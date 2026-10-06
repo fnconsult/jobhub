@@ -27,6 +27,42 @@
   "extension": {
     "title": "Jobbbox",
     "description": "Capturez une offre d'emploi depuis la page que vous consultez.",
-    "comingSoon": "La capture d'offres arrive bientôt."
+    "comingSoon": "La capture d'offres arrive bientôt.",
+    "signedInAs": "Connecté en tant que {{email}}",
+    "signedOut": "Connectez-vous à Jobbbox pour enregistrer vos offres.",
+    "signIn": "Se connecter",
+    "account": "Mon compte"
+  },
+  "signInEmail": {
+    "subject": "Votre lien de connexion à Jobbbox",
+    "body": "Bonjour,\n\nCliquez sur ce lien pour vous connecter à Jobbbox :\n{{url}}\n\nCe lien est valable {{minutes}} minutes et ne fonctionne qu'une seule fois.\nSi vous n'avez pas demandé à vous connecter, ignorez simplement ce message.\n\nL'équipe Jobbbox"
+  },
+  "nav": {
+    "signIn": "Se connecter",
+    "account": "Mon compte"
+  },
+  "signIn": {
+    "title": "Se connecter à Jobbbox",
+    "intro": "Pas de mot de passe à retenir : recevez un lien de connexion par e-mail, ou utilisez votre compte Google. Si vous n'avez pas encore de compte, il sera créé.",
+    "emailLabel": "Votre adresse e-mail",
+    "submit": "Recevoir mon lien de connexion",
+    "sending": "Envoi en cours…",
+    "sent": "C'est envoyé ! Ouvrez l'e-mail que nous venons de vous adresser et cliquez sur le lien pour vous connecter.",
+    "or": "ou",
+    "google": "Continuer avec Google",
+    "error": "Une erreur est survenue. Vérifiez votre adresse e-mail et réessayez.",
+    "linkError": "Ce lien de connexion n'est plus valable. Demandez-en un nouveau ci-dessous.",
+    "failed": "La connexion n'a pas abouti. Réessayez ci-dessous, avec Google ou en recevant un lien par e-mail."
+  },
+  "account": {
+    "title": "Mon compte",
+    "email": "Adresse e-mail",
+    "interfaceLanguage": "Langue de l'interface",
+    "saved": "Enregistré.",
+    "signOut": "Se déconnecter"
+  },
+  "languages": {
+    "fr": "Français",
+    "en": "English"
   }
 }

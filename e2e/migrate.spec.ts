@@ -50,7 +50,14 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
       const tables = await db.query(
         "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name",
       );
-      expect(tables.rows.map((r) => r.table_name)).toEqual(["account", "candidate", "session", "verification"]);
+      // Plus the Agent Run log (issue #31), which stands apart from Candidate data.
+      expect(tables.rows.map((r) => r.table_name)).toEqual([
+        "account",
+        "candidate",
+        "session",
+        "verification",
+        "workflow_agent_run",
+      ]);
 
       const candidateColumns = await db.query(
         "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'candidate'",

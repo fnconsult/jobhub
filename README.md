@@ -25,6 +25,19 @@ npm run dev                   # web app on http://localhost:3000
 npm run dev -w @jobhub/extension   # extension, with a Chrome dev profile
 ```
 
+## Agent Run log
+
+Delivery workflows (e.g. `wf-dev`) can record each Agent Run in the `workflow_agent_run` table (after `npm run db:migrate`):
+
+```sh
+npm run wf:record -- --issue 31 --workflow-id wf-dev --workflow-ref .claude/workflows/wf-dev.js \
+  --workflow-instance wf_c2d1ad6a-1bc --workflow-date 2026-10-06T08:00:00Z \
+  --agent "wf-dev/#31/implement" --model claude-opus-5-5 --effort high \
+  --time-ms 754000 --round 0 --tokens 182345
+```
+
+`--round` defaults to 0 (first pass). Exits with code 2 and the usage line when a flag is missing or invalid.
+
 ## Checks (also run in CI)
 
 ```sh

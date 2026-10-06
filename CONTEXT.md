@@ -169,6 +169,12 @@ _Avoid_: Locale (in domain discussions), UI language
 The Candidate's choice of how large all interface text is shown (Standard, Grande, Très grande). The smallest choice already meets the body-text floor, so it can only enlarge text.
 _Avoid_: Zoom, font setting
 
+### Delivery
+
+**Agent Run**:
+One run of an AI agent by a delivery workflow (e.g. implementing, testing or reviewing a GitHub issue), recorded with the time, tokens and verification round it used so delivery cost per issue can be followed up. Internal to the team building Jobbbox; unrelated to the AI Coach.
+_Avoid_: Job, task, session, AI call
+
 ### Billing
 
 **Coaching Session Price**:

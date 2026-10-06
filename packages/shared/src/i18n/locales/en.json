@@ -64,5 +64,92 @@
   "languages": {
     "fr": "Français",
     "en": "English"
+  },
+  "profiles": {
+    "title": "My profiles",
+    "none": "You don't have a profile yet. Upload your CV to create your first one: we turn it into your reference CV and your search criteria.",
+    "create": "Create my profile from my CV"
+  },
+  "cvUpload": {
+    "title": "Create my profile from my CV",
+    "intro": "Upload your CV. We read it and split it into sections; you check and correct the result before saving it.",
+    "fileLabel": "Your CV",
+    "fileHint": "PDF or Word (.docx), 10 MB maximum.",
+    "submit": "Read my CV",
+    "reading": "Reading your CV…",
+    "errors": {
+      "unsupported_format": "This file is not a PDF or Word (.docx) CV. For an old Word file (.doc), save it as .docx or PDF first.",
+      "too_large": "This file is larger than 10 MB. Save your CV as a smaller file and try again.",
+      "unreadable": "We couldn't open this file. It may be damaged or password-protected.",
+      "empty": "We found no text in this file. If it is a scanned CV, upload the original PDF or Word version instead.",
+      "unknown": "Something went wrong. Please try again."
+    }
+  },
+  "cvReview": {
+    "title": "Check your CV and your search criteria",
+    "intro": "Here is what we read in your CV. Correct or complete any field if needed, then save your profile.",
+    "searchCriteria": "Search criteria",
+    "targetRole": "Target role",
+    "location": "Location",
+    "minSalary": "Minimum gross annual salary (in euros)",
+    "contractType": "Contract type",
+    "remoteWork": "Remote work",
+    "notSpecified": "Not specified",
+    "contractTypes": {
+      "cdi": "Permanent (CDI)",
+      "cdd": "Fixed-term (CDD)",
+      "freelance": "Freelance",
+      "interim": "Temporary (intérim)"
+    },
+    "remoteWorkOptions": {
+      "on_site": "On site",
+      "hybrid": "Hybrid",
+      "full_remote": "Fully remote"
+    },
+    "identity": "Identity and contact details",
+    "fullName": "Full name",
+    "headline": "CV title",
+    "email": "Email address",
+    "phone": "Phone",
+    "cvLocation": "Address or city",
+    "summary": "Profile (summary)",
+    "experience": "Professional experience",
+    "experienceItem": "Job {{number}}",
+    "jobTitle": "Job title",
+    "employer": "Employer",
+    "jobLocation": "Location",
+    "period": "Period",
+    "description": "Responsibilities and achievements",
+    "addExperience": "Add a job",
+    "removeExperience": "Remove job {{number}}",
+    "education": "Education",
+    "educationItem": "Education {{number}}",
+    "degree": "Degree or training",
+    "institution": "School",
+    "year": "Year",
+    "addEducation": "Add education",
+    "removeEducation": "Remove education {{number}}",
+    "skills": "Skills",
+    "skillsHint": "One skill per line.",
+    "languages": "Languages",
+    "languageItem": "Language {{number}}",
+    "language": "Language",
+    "level": "Level",
+    "addLanguage": "Add a language",
+    "removeLanguage": "Remove language {{number}}",
+    "save": "Save my profile",
+    "saving": "Saving…",
+    "startOver": "Upload another CV",
+    "invalid": "Some fields need completing or correcting: {{fields}}.",
+    "required": "This field is required.",
+    "invalidValue": "This value is not valid.",
+    "error": "Your profile could not be saved. Please try again."
+  },
+  "profile": {
+    "masterCv": "Reference CV",
+    "version": "Version {{version}}",
+    "notSpecified": "Not specified",
+    "salary": "At least €{{amount}} gross per year",
+    "backToAccount": "Back to my account"
   }
 }

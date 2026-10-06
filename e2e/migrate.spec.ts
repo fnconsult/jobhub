@@ -41,6 +41,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     const first = migrate();
     expect(first.status, first.stderr).toBe(0);
     expect(first.stdout).toContain("Candidate accounts are up to date");
+    expect(first.stdout).toContain("Profiles are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 
@@ -54,6 +55,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
       expect(tables.rows.map((r) => r.table_name)).toEqual([
         "account",
         "candidate",
+        "master_cv_version",
+        "profile",
         "session",
         "verification",
         "workflow_agent_run",
@@ -73,9 +76,11 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         JOIN information_schema.key_column_usage kcu ON kcu.constraint_name = tc.constraint_name
         JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name = tc.constraint_name
         WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public'
-        ORDER BY from_table`);
+        ORDER BY from_table, from_column`);
       expect(references.rows).toEqual([
         { from_table: "account", from_column: "userId", to_table: "candidate" },
+        { from_table: "master_cv_version", from_column: "profile_id", to_table: "profile" },
+        { from_table: "profile", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "session", from_column: "userId", to_table: "candidate" },
       ]);
     } finally {

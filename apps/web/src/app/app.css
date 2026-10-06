@@ -107,3 +107,73 @@ dt {
 dd {
   margin: 0 0 var(--space-4);
 }
+
+h2 {
+  margin-top: var(--space-8);
+}
+
+.hint {
+  margin: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.field-error {
+  margin: 0;
+  font-weight: 600;
+  color: var(--color-danger);
+}
+
+.input[aria-invalid="true"] {
+  border-width: 2px;
+}
+
+textarea.input {
+  resize: vertical;
+}
+
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: flex-start;
+  width: 100%;
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.fieldset legend {
+  padding: 0 var(--space-2);
+  font-weight: 600;
+}
+
+.review > h2 {
+  margin-top: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.cv-name {
+  font-size: var(--font-size-h3);
+  font-weight: 600;
+}
+
+.cv-entry {
+  margin-bottom: 0;
+  font-weight: 600;
+}
+
+.cv-text {
+  white-space: pre-line;
+}

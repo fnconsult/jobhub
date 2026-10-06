@@ -12,7 +12,8 @@ import { e2eExtensionDir, unpackedExtensionId } from "./e2e/support/extension";
 // The web server gets its own throwaway database (E2E_DATABASE_URL, derived from
 // DATABASE_URL), migrated with `npm run db:migrate` and dropped afterwards.
 // Sign-in emails land in E2E_SERVER_LOG (MAIL_TRANSPORT=console), and Google's
-// token endpoint is faked inside the server (e2e/support/fake-google.mjs).
+// token endpoint is faked inside the server (e2e/support/fake-google.mjs), and so
+// is Mistral's API, which serves every AI task (e2e/support/fake-mistral.mjs).
 const webPort = Number(process.env.E2E_WEB_PORT ?? 3001);
 const webOrigin = `http://localhost:${webPort}`;
 
@@ -37,7 +38,7 @@ export default defineConfig({
   projects: [
     {
       name: "web",
-      testMatch: /(web|auth)\.spec\.ts/,
+      testMatch: /(web|auth|profiles)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" },
     },
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },
@@ -59,7 +60,18 @@ export default defineConfig({
       GOOGLE_CLIENT_ID: "e2e-client.apps.googleusercontent.com", // see e2e/auth.spec.ts
       GOOGLE_CLIENT_SECRET: "e2e-client-secret",
       EXTENSION_ORIGINS: `chrome-extension://${unpackedExtensionId(e2eExtensionDir)}`,
-      NODE_OPTIONS: `--import=${path.resolve("e2e/support/fake-google.mjs")}`,
+      // AI layer (ADR-0007): every text task on Mistral (EU), faked in-process by e2e/support/fake-mistral.mjs.
+      AI_SCORING_PROVIDER: "mistral",
+      AI_WRITING_PROVIDER: "mistral",
+      AI_COACHING_PROVIDER: "mistral",
+      AI_CV_PARSING_PROVIDER: "mistral",
+      AI_OFFER_ANALYSIS_PROVIDER: "mistral",
+      MISTRAL_API_KEY: "e2e-mistral-key",
+      PERPLEXITY_API_KEY: "e2e-perplexity-key",
+      NODE_OPTIONS: [
+        `--import=${path.resolve("e2e/support/fake-google.mjs")}`,
+        `--import=${path.resolve("e2e/support/fake-mistral.mjs")}`,
+      ].join(" "),
     },
   },
 });

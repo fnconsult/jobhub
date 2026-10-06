@@ -142,7 +142,7 @@ test.describe("AI layer: provider adapters", () => {
   });
 
   test("Anthropic direct API, for a task without personal data", () => {
-    const r = runAi({ ...KEYS, ANTHROPIC_ENDPOINT: "direct", AI_SCORING_PROVIDER: "mistral", AI_WRITING_PROVIDER: "mistral", AI_COACHING_PROVIDER: "mistral" }, [
+    const r = runAi({ ...KEYS, ANTHROPIC_ENDPOINT: "direct", AI_SCORING_PROVIDER: "mistral", AI_WRITING_PROVIDER: "mistral", AI_COACHING_PROVIDER: "mistral", AI_CV_PARSING_PROVIDER: "mistral" }, [
       analyseOffer,
     ]);
     ok(r);

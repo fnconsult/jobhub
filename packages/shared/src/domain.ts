@@ -37,3 +37,43 @@ export interface SearchCriteria {
   contractType?: ContractType;
   remoteWork?: RemoteWork;
 }
+
+/** One job held, as written on a CV. */
+export interface CvExperience {
+  title: string;
+  employer: string;
+  location: string;
+  /** As written on the CV, e.g. "2015 – 2024". */
+  period: string;
+  description: string;
+}
+
+/** One diploma or training, as written on a CV. */
+export interface CvEducation {
+  degree: string;
+  institution: string;
+  year: string;
+}
+
+export interface CvLanguage {
+  name: string;
+  /** As written on the CV, e.g. "courant". */
+  level: string;
+}
+
+/**
+ * The content of one version of a Master CV, in sections. Every text field is
+ * present; an empty string means the CV says nothing about it.
+ */
+export interface MasterCvContent {
+  fullName: string;
+  headline: string;
+  email: string;
+  phone: string;
+  location: string;
+  summary: string;
+  experience: CvExperience[];
+  education: CvEducation[];
+  skills: string[];
+  languages: CvLanguage[];
+}

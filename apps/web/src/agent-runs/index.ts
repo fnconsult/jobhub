@@ -12,11 +12,13 @@ import type { Pool } from "pg";
 import * as z from "zod";
 
 const count = z.number().int().nonnegative();
+/** Largest value a Postgres `integer` column holds. */
+const INT32_MAX = 2_147_483_647;
 const text = z.string().trim().min(1);
 
 const agentRunSchema = z.object({
   /** GitHub issue number the run worked on. */
-  issueId: z.number().int().positive(),
+  issueId: z.number().int().positive().max(INT32_MAX),
   /** Workflow name, e.g. `wf-dev`. */
   workflowId: text,
   /** Script reference: path and/or version of the workflow script. */
@@ -34,7 +36,7 @@ const agentRunSchema = z.object({
   /** Duration of the agent run, in milliseconds. */
   timeUsedMs: count,
   /** Verification/fix round; 0 is the first pass. */
-  roundNumber: count,
+  roundNumber: count.max(INT32_MAX),
   /** Total tokens consumed by the agent. */
   tokensUsed: count,
 });
@@ -105,6 +107,30 @@ export const AGENT_RUN_USAGE = `npm run wf:record -- ${Object.keys(flags)
   .join(" ")}`;
 
 /**
+ * Reads a `--workflow-date`: an ISO 8601 calendar date (`2026-10-06`, taken as
+ * UTC midnight) or date-time with an explicit offset (`…T08:00:00Z`,
+ * `…T10:00:00+02:00`). Anything else, including dates that do not exist
+ * (`2026-02-30`) or times without an offset (read in the machine's local
+ * time), gives an invalid date rather than a silently shifted one.
+ */
+function parseWorkflowDate(raw: string): Date {
+  const value = raw.trim();
+  const match =
+    /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,9})?)?(Z|[+-]\d{2}:\d{2}))?$/.exec(value);
+  if (!match) return new Date(Number.NaN);
+  const [year, month, day, hour, minute, second] = match.slice(1, 7).map((part) => Number(part ?? 0));
+  const fields = new Date(Date.UTC(year!, month! - 1, day!, hour, minute, second));
+  const exists =
+    fields.getUTCFullYear() === year &&
+    fields.getUTCMonth() === month! - 1 &&
+    fields.getUTCDate() === day &&
+    fields.getUTCHours() === hour &&
+    fields.getUTCMinutes() === minute &&
+    fields.getUTCSeconds() === second;
+  return exists ? new Date(match[4] === undefined ? `${value}T00:00:00Z` : value) : new Date(Number.NaN);
+}
+
+/**
  * Reads an Agent Run from command-line flags (`--issue 31` or `--issue=31`).
  * `--round` defaults to 0. Throws naming every missing or invalid flag.
  */
@@ -135,7 +161,7 @@ export function agentRunFromArgs(argv: string[]): AgentRun {
     workflowId: values["workflow-id"],
     workflowReference: values["workflow-ref"],
     workflowInstance: values["workflow-instance"],
-    workflowDate: new Date(values["workflow-date"]!),
+    workflowDate: parseWorkflowDate(values["workflow-date"]!),
     agent: values.agent,
     model: values.model,
     effort: values.effort,

@@ -36,7 +36,7 @@ npm run wf:record -- --issue 31 --workflow-id wf-dev --workflow-ref .claude/work
   --time-ms 754000 --round 0 --tokens 182345
 ```
 
-`--round` defaults to 0 (first pass). Exits with code 2 and the usage line when a flag is missing or invalid.
+`--round` defaults to 0 (first pass). `--workflow-date` is an ISO 8601 date (`2026-10-06`, read as UTC midnight) or a date-time with an explicit offset (`Z` or `+02:00`). Exits with code 2 and the usage line when a flag is missing or invalid.
 
 ## Checks (also run in CI)
 

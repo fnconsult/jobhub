@@ -1,6 +1,6 @@
 // Records one Agent Run of a delivery workflow (run `npm run db:migrate` first).
 // Usage: npm run wf:record -- --issue 31 --workflow-id wf-dev --workflow-ref <script@version>
-//   --workflow-instance wf_… --workflow-date <ISO date> --agent wf-dev/#31/implement
+//   --workflow-instance wf_… --workflow-date <ISO 8601 date, or date-time with Z/offset> --agent wf-dev/#31/implement
 //   --model <model id> --effort high --time-ms 754000 [--round 0] --tokens 182345
 import { Pool } from "pg";
 import { agentRunFromArgs, recordAgentRun } from "../src/agent-runs/index";

@@ -1,6 +1,6 @@
-import { randomUUID } from "node:crypto";
-import { Pool } from "pg";
+import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createThrowawayDatabase, type ThrowawayDatabase } from "../test-support/throwaway-database";
 import { agentRunFromArgs, migrateAgentRunLog, recordAgentRun, type AgentRun } from "./index";
 
 const connectionString = process.env.DATABASE_URL;
@@ -20,23 +20,16 @@ const run: AgentRun = {
 };
 
 describe.skipIf(!connectionString)("Agent Run log (needs Postgres: DATABASE_URL)", () => {
-  let admin: Pool;
+  let throwaway: ThrowawayDatabase;
   let database: Pool;
-  let name: string;
 
   beforeEach(async () => {
-    name = `test_agent_runs_${randomUUID().replaceAll("-", "")}`;
-    admin = new Pool({ connectionString });
-    await admin.query(`CREATE DATABASE ${name}`);
-    const url = new URL(connectionString!);
-    url.pathname = `/${name}`;
-    database = new Pool({ connectionString: url.toString() });
+    throwaway = await createThrowawayDatabase("test_agent_runs");
+    database = throwaway.pool;
     await migrateAgentRunLog(database);
   });
   afterEach(async () => {
-    await database.end();
-    await admin.query(`DROP DATABASE ${name} WITH (FORCE)`);
-    await admin.end();
+    await throwaway.drop();
   });
 
   it("records one Agent Run and stamps when it was recorded", async () => {
@@ -62,6 +55,11 @@ describe.skipIf(!connectionString)("Agent Run log (needs Postgres: DATABASE_URL)
     const next = await recordAgentRun(database, run);
 
     expect(next.id).toBeGreaterThan(recorded.id);
+  });
+
+  it("refuses an issue or round the integer columns cannot hold instead of letting Postgres throw", async () => {
+    await expect(recordAgentRun(database, { ...run, issueId: 3_000_000_000 })).rejects.toThrow(/issueId/);
+    await expect(recordAgentRun(database, { ...run, roundNumber: 3_000_000_000 })).rejects.toThrow(/roundNumber/);
   });
 
   it("refuses an invalid run instead of recording it", async () => {
@@ -103,6 +101,31 @@ describe("agentRunFromArgs (the wf:record command line)", () => {
 
   it("refuses a non-numeric issue", () => {
     expect(() => agentRunFromArgs(argv.map((a) => (a === "31" ? "abc" : a)))).toThrow(/--issue/);
+  });
+
+  it.each(["--issue", "--round"])("refuses %s above what the database can store", (flag) => {
+    const i = argv.indexOf(flag);
+    const args = [...argv.slice(0, i + 1), "3000000000", ...argv.slice(i + 2)];
+    expect(() => agentRunFromArgs(args)).toThrow(new RegExp(`Invalid ${flag}`));
+  });
+
+  it.each(["2026-02-30", "2026-13-01", "1", "2026-10-06T08:00:00", "yesterday", "2026-10-06T25:00:00Z"])(
+    "refuses the impossible or ambiguous --workflow-date %s",
+    (date) => {
+      const i = argv.indexOf("--workflow-date");
+      const args = [...argv.slice(0, i + 1), date, ...argv.slice(i + 2)];
+      expect(() => agentRunFromArgs(args)).toThrow(/Invalid --workflow-date/);
+    },
+  );
+
+  it.each([
+    ["2026-10-06", "2026-10-06T00:00:00.000Z"],
+    ["2026-10-06T10:00:00+02:00", "2026-10-06T08:00:00.000Z"],
+    ["2026-10-06T08:00:00Z", "2026-10-06T08:00:00.000Z"],
+  ])("reads the --workflow-date %s as %s", (date, iso) => {
+    const i = argv.indexOf("--workflow-date");
+    const args = [...argv.slice(0, i + 1), date, ...argv.slice(i + 2)];
+    expect(agentRunFromArgs(args).workflowDate.toISOString()).toBe(iso);
   });
 
   it("refuses an unknown flag", () => {

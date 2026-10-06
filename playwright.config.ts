@@ -42,7 +42,7 @@ export default defineConfig({
     },
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },
     { name: "stack", testMatch: /stack\.spec\.ts/ },
-    { name: "repo", testMatch: /(repo|migrate)\.spec\.ts/ },
+    { name: "repo", testMatch: /(repo|migrate|agent-runs)\.spec\.ts/ },
     { name: "ai", testMatch: /ai\.spec\.ts/ },
   ],
   webServer: {

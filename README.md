@@ -10,6 +10,7 @@ Coaching platform for job seekers aged 40+ in France. Vocabulary: [`CONTEXT.md`]
 | `apps/extension` | Chrome MV3 extension (WXT) |
 | `apps/worker` | Background-job runner (pg-boss on Postgres) |
 | `packages/shared` | Domain types, translations (`@jobhub/shared/i18n`) and design tokens (`@jobhub/shared/design`) |
+| `packages/ai` | Provider-agnostic AI layer (`@jobhub/ai`, server-side only): Anthropic, Mistral, OpenAI, Perplexity; fake provider in `@jobhub/ai/testing` |
 
 ## Getting started
 
@@ -38,4 +39,5 @@ npm run test:e2e    # e2e: built web app, built extension, docker compose stack 
 
 - **Translations**: every user-facing string lives in `packages/shared/src/i18n/locales/*.json`. French (`fr`) is the default and reference locale; every locale must have the same keys.
 - **Accessibility (ADR-0009)**: colours and type come from `packages/shared/src/design/tokens.ts`. `auditDesignTokens` checks WCAG 2.1 AA contrast, the 16px body-text floor and every text-size setting in the test suite. Light greys are for surfaces and borders only.
+- **AI calls (ADR-0007)**: always through `@jobhub/ai` (`createAiLayerFromEnv()` → `generate` / `searchWeb`), never a provider SDK directly. The provider of each task is set by `AI_<TASK>_PROVIDER` / `AI_<TASK>_MODEL` (see `.env.example`). Tasks that carry personal data refuse non-EU endpoints at start-up and on every call; web search only ever receives a query built from Search Criteria. Every call logs its token usage per Candidate (`ai_usage` JSON lines). Tests use `createFakeProvider` from `@jobhub/ai/testing`, or `AI_FAKE=true`.
 - **Hosting**: EU only, see [`docs/ops/hosting.md`](docs/ops/hosting.md).

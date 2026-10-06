@@ -2,7 +2,8 @@ import { defineConfig, devices } from "@playwright/test";
 
 // End-to-end suite (`npm run test:e2e`). Exercises each public entry point:
 // the built web app over HTTP, the built Chrome extension, the local docker
-// compose stack (Postgres + worker) and the repo's CLI/CI tooling.
+// compose stack (Postgres + worker), the repo's CLI/CI tooling and the AI layer
+// (driven in a separate process through its env-configured entry point).
 // Run `npm run build` first: the web and extension projects use the build output.
 const webPort = Number(process.env.E2E_WEB_PORT ?? 3001);
 
@@ -22,6 +23,7 @@ export default defineConfig({
     { name: "extension", testMatch: /extension\.spec\.ts/ },
     { name: "stack", testMatch: /stack\.spec\.ts/ },
     { name: "repo", testMatch: /repo\.spec\.ts/ },
+    { name: "ai", testMatch: /ai\.spec\.ts/ },
   ],
   webServer: {
     command: `npx next start apps/web -p ${webPort}`,

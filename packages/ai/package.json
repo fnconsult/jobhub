@@ -1,0 +1,19 @@
+{
+  "name": "@jobhub/ai",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@anthropic-ai/bedrock-sdk": "^0.34.2",
+    "@anthropic-ai/sdk": "^0.131.0",
+    "@anthropic-ai/vertex-sdk": "^0.20.2",
+    "@jobhub/shared": "*"
+  }
+}

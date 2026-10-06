@@ -45,6 +45,7 @@ export default defineConfig({
     { name: "stack", testMatch: /stack\.spec\.ts/ },
     { name: "repo", testMatch: /(repo|migrate|agent-runs)\.spec\.ts/ },
     { name: "ai", testMatch: /ai\.spec\.ts/ },
+    { name: "root-env", testMatch: /root-env\.spec\.ts/ },
   ],
   webServer: {
     command: "node e2e/support/web-server.mjs",

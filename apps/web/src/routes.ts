@@ -5,4 +5,7 @@ export const routes = {
   account: "/compte",
   newProfile: "/profils/nouveau",
   profile: (id: string) => `/profils/${id}`,
+  editMasterCv: (id: string) => `/profils/${id}/cv`,
+  masterCvVersions: (id: string) => `/profils/${id}/versions`,
+  masterCvVersion: (id: string, version: number) => `/profils/${id}/versions/${version}`,
 } as const;

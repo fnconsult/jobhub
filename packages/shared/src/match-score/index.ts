@@ -89,7 +89,8 @@ function scoreSkills(cv: CvContent, jobOffer: JobOfferDetails): SkillsBreakdown 
   return { status, covered, missing };
 }
 
-const ONGOING = /aujourd|present|actuel|en cours|ce jour|now|current|today/;
+/** A period that runs to today: "2015 – présent", or one that only says when it began ("Depuis 2015", "Since 2015"). */
+const ONGOING = /aujourd|present|actuel|en cours|ce jour|now|current|today|depuis|since/;
 
 function cvYears(cv: CvContent, today: Date): number | undefined {
   const years: number[] = [];

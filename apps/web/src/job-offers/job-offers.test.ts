@@ -50,6 +50,18 @@ describe.skipIf(!connectionString)("Job Offers (needs Postgres: DATABASE_URL)", 
     });
   });
 
+  it("drops NUL characters scraped from the page, which Postgres cannot store", async () => {
+    const captured = await jobOffers.capture({
+      ...posting,
+      source: { url: "https://www.apec.fr/offre/1\u000023" },
+      title: "DAF\u0000 H/F",
+      content: "Poste\u0000 de DAF.", skills: ["IF\u0000RS"],
+    });
+
+    expect(captured.ok && captured.jobOffer).toMatchObject({ source: { url: "https://www.apec.fr/offre/123" }, title: "DAF H/F", content: "Poste de DAF.", skills: ["IFRS"] });
+    expect((await jobOffers.capture({ ...posting, title: "\u0000" })).ok).toBe(false);
+  });
+
   it("returns the same Job Offer when the same posting is captured again from its URL", async () => {
     const first = await jobOffers.capture(posting);
     const again = await jobOffers.capture({

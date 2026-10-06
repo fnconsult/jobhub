@@ -29,14 +29,16 @@ export interface JobOffers {
   get(id: string): Promise<JobOffer | null>;
 }
 
-const text = z.string().trim();
+/** Drops NUL characters: text scraped from a page can carry them, and Postgres cannot store them in text columns. */
+const withoutNul = z.string().overwrite((value) => value.replaceAll("\0", ""));
+const text = withoutNul.trim();
 const optionalText = text.max(500).optional().transform((value) => value || undefined);
 const salary = z.number().int().positive().max(10_000_000).optional();
 
 const inputSchema = z.object({
   source: z
     .object({
-      url: z.url({ protocol: /^https?$/ }).max(2000).optional(),
+      url: withoutNul.pipe(z.url({ protocol: /^https?$/ }).max(2000)).optional(),
       name: optionalText,
     })
     .prefault({}),

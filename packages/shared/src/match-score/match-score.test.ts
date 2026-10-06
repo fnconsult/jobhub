@@ -57,6 +57,17 @@ describe("Match Score", () => {
       expect(scoreMatch({ cv: career, jobOffer: english, today }).breakdown.seniority.requiredYears).toBe(12);
     });
 
+    it("counts a current job written 'Depuis 2015' or 'Since 2015' up to today", () => {
+      for (const period of ["Depuis 2015", "depuis sept. 2015", "Since 2015"]) {
+        const current = { ...cv, experience: [{ ...career.experience[0]!, period }] };
+        expect(scoreMatch({ cv: current, jobOffer: { ...offer, requiredExperienceYears: 5 }, today }).breakdown.seniority).toEqual({
+          status: "match",
+          cvYears: 11,
+          requiredYears: 5,
+        });
+      }
+    });
+
     it("is unknown when the Job Offer does not say, or the CV has no dated experience", () => {
       expect(scoreMatch({ cv: career, jobOffer: offer, today }).breakdown.seniority).toEqual({ status: "unknown", cvYears: 28 });
       const undated = { ...career, experience: [{ ...career.experience[0]!, period: "" }] };

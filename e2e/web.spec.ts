@@ -74,3 +74,34 @@ test.describe("web app", () => {
     expect(await page.evaluate(() => getComputedStyle(document.body).fontSize)).toBe("16px");
   });
 });
+
+test.describe("unknown page (404)", () => {
+  const missing = "/inexistant";
+
+  test("answers 404 in French, from the catalogue, with a way back home", async ({ page }) => {
+    const response = await page.goto(missing);
+    expect(response?.status()).toBe(404);
+    await expect(page.locator("html")).toHaveAttribute("lang", "fr");
+    await expect(page).toHaveTitle(`${frCatalogue.notFound.title} · ${frCatalogue.app.name}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(frCatalogue.notFound.title);
+    await expect(page.getByRole("link", { name: frCatalogue.notFound.backHome })).toHaveAttribute("href", "/");
+
+    const allowed = new Set(catalogueStrings(frCatalogue));
+    const stray = (await renderedTexts(page)).map((t) => t.text).filter((text) => !allowed.has(text));
+    expect(stray).toEqual([]);
+  });
+
+  for (const colorScheme of ["light", "dark"] as const) {
+    test(`meets the ADR-0009 floor with the design tokens (${colorScheme} system theme)`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme });
+      await page.goto(missing);
+      const texts = await renderedTexts(page);
+      expect(texts.length).toBeGreaterThan(1);
+      for (const t of texts) {
+        expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
+        expect.soft(t.contrast, `contrast of "${t.text}" (${t.color} on ${t.background})`).toBeGreaterThanOrEqual(4.5);
+      }
+      expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(255, 255, 255)");
+    });
+  }
+});

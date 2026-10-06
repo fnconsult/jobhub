@@ -14,6 +14,16 @@
     "large": "Large",
     "xlarge": "Extra large"
   },
+  "notFound": {
+    "title": "Page not found",
+    "message": "This page does not exist or has been moved.",
+    "backHome": "Back to the home page"
+  },
+  "error": {
+    "title": "Something went wrong",
+    "message": "We could not display this page. Please try again.",
+    "retry": "Try again"
+  },
   "extension": {
     "title": "Jobbbox",
     "description": "Capture a job offer from the page you are viewing.",

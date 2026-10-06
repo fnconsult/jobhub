@@ -40,6 +40,30 @@ function residencyOf(endpoint: AnthropicEndpoint): Residency {
   }
 }
 
+/**
+ * The host each endpoint reaches. Always passed to the SDK explicitly: left unset, the SDKs read
+ * ANTHROPIC_BASE_URL, ANTHROPIC_BEDROCK_MANTLE_BASE_URL or ANTHROPIC_VERTEX_BASE_URL from the
+ * environment, which would send personal data to a host that `residency` knows nothing about.
+ */
+function baseUrlOf(endpoint: AnthropicEndpoint): string {
+  switch (endpoint.kind) {
+    case "direct":
+      return "https://api.anthropic.com";
+    case "bedrock":
+      return `https://bedrock-mantle.${endpoint.region}.api.aws/anthropic`;
+    case "vertex":
+      switch (endpoint.region) {
+        case "global":
+          return "https://aiplatform.googleapis.com/v1";
+        case "us":
+        case "eu":
+          return `https://aiplatform.${endpoint.region}.rep.googleapis.com/v1`;
+        default:
+          return `https://${endpoint.region}-aiplatform.googleapis.com/v1`;
+      }
+  }
+}
+
 /** The one call the adapter makes; served identically by the direct, Bedrock and Vertex clients. */
 interface MessagesClient {
   messages: { create(params: Anthropic.MessageCreateParamsNonStreaming): Promise<Anthropic.Message> };
@@ -47,14 +71,16 @@ interface MessagesClient {
 
 function clientFor(options: AnthropicProviderOptions): MessagesClient {
   const { endpoint, fetch, maxRetries } = options;
+  const baseURL = baseUrlOf(endpoint);
   switch (endpoint.kind) {
     case "direct":
-      return new Anthropic({ apiKey: endpoint.apiKey, fetch, maxRetries });
+      return new Anthropic({ apiKey: endpoint.apiKey, baseURL, fetch, maxRetries });
     case "bedrock":
-      return new AnthropicBedrockMantle({ awsRegion: endpoint.region, apiKey: endpoint.apiKey, fetch, maxRetries });
+      return new AnthropicBedrockMantle({ awsRegion: endpoint.region, baseURL, apiKey: endpoint.apiKey, fetch, maxRetries });
     case "vertex":
       return new AnthropicVertex({
         region: endpoint.region,
+        baseURL,
         projectId: endpoint.projectId,
         ...(endpoint.authClient ? { authClient: endpoint.authClient } : {}),
         fetch,

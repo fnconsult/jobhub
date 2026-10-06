@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AiProviderError } from "../errors";
 import { createAnthropicProvider } from "./anthropic";
 import { createMistralProvider, createOpenAiProvider, createPerplexityProvider } from "./chat-completions";
@@ -8,6 +8,9 @@ interface Captured {
   headers: Headers;
   body: Record<string, unknown>;
 }
+
+/** A fetch that answers 200 with a body that is not JSON (e.g. a proxy's HTML page). */
+const htmlFetch = (async () => new Response("<html>", { status: 200 })) as typeof globalThis.fetch;
 
 /** A fetch that records the request and answers with a canned JSON body. */
 function fakeFetch(response: unknown, status = 200) {
@@ -94,6 +97,42 @@ describe("Anthropic provider", () => {
     await expect(provider.generate!(textInput)).rejects.toThrow(AiProviderError);
   });
 
+  describe("ignores the SDKs' base-URL environment variables, so data only goes where the endpoint says", () => {
+    afterEach(() => vi.unstubAllEnvs());
+    const elsewhere = "https://us-proxy.example.com/anthropic";
+
+    it("on Bedrock", async () => {
+      vi.stubEnv("ANTHROPIC_BEDROCK_MANTLE_BASE_URL", elsewhere);
+      vi.stubEnv("ANTHROPIC_BEDROCK_BASE_URL", elsewhere);
+      const { fetch, requests } = fakeFetch(anthropicReply);
+      await createAnthropicProvider({ endpoint: { kind: "bedrock", region: "eu-west-3", apiKey: "k" }, fetch }).generate!(textInput);
+      expect(new URL(requests[0]!.url).hostname).toBe("bedrock-mantle.eu-west-3.api.aws");
+    });
+
+    it("on Vertex AI", async () => {
+      vi.stubEnv("ANTHROPIC_VERTEX_BASE_URL", elsewhere);
+      const { fetch, requests } = fakeFetch(anthropicReply);
+      const endpoint = { kind: "vertex" as const, region: "europe-west1", projectId: "jobbbox", authClient: fakeGoogleAuth };
+      await createAnthropicProvider({ endpoint, fetch }).generate!(textInput);
+      expect(new URL(requests[0]!.url).hostname).toBe("europe-west1-aiplatform.googleapis.com");
+    });
+
+    it("on Vertex AI's EU multi-region", async () => {
+      vi.stubEnv("ANTHROPIC_VERTEX_BASE_URL", elsewhere);
+      const { fetch, requests } = fakeFetch(anthropicReply);
+      const endpoint = { kind: "vertex" as const, region: "eu", projectId: "jobbbox", authClient: fakeGoogleAuth };
+      await createAnthropicProvider({ endpoint, fetch }).generate!(textInput);
+      expect(new URL(requests[0]!.url).hostname).toBe("aiplatform.eu.rep.googleapis.com");
+    });
+
+    it("on the direct API", async () => {
+      vi.stubEnv("ANTHROPIC_BASE_URL", elsewhere);
+      const { fetch, requests } = fakeFetch(anthropicReply);
+      await createAnthropicProvider({ endpoint: { kind: "direct", apiKey: "k" }, fetch }).generate!(textInput);
+      expect(new URL(requests[0]!.url).hostname).toBe("api.anthropic.com");
+    });
+  });
+
   it("raises a provider error on an HTTP failure", async () => {
     const { fetch } = fakeFetch({ type: "error", error: { type: "invalid_request_error", message: "bad" } }, 400);
     const provider = createAnthropicProvider({ endpoint: { kind: "direct", apiKey: "k" }, fetch, maxRetries: 0 });
@@ -134,6 +173,21 @@ describe("Mistral provider", () => {
     const { fetch } = fakeFetch({ message: "Unauthorized" }, 401);
     const provider = createMistralProvider({ apiKey: "bad", fetch });
     await expect(provider.generate!(textInput)).rejects.toMatchObject({ name: "AiProviderError", provider: "mistral", status: 401 });
+  });
+});
+
+describe("chat-completions providers", () => {
+  it("raise a provider error when a 200 response is not JSON", async () => {
+    await expect(createMistralProvider({ apiKey: "mk", fetch: htmlFetch }).generate!(textInput)).rejects.toMatchObject({
+      name: "AiProviderError",
+      provider: "mistral",
+      status: 200,
+    });
+    await expect(createPerplexityProvider({ apiKey: "pk", fetch: htmlFetch }).search!("q", {})).rejects.toMatchObject({
+      name: "AiProviderError",
+      provider: "perplexity",
+      status: 200,
+    });
   });
 });
 

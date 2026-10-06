@@ -38,8 +38,13 @@ async function postChat(options: ChatClientOptions, body: Record<string, unknown
     const detail = (await response.text().catch(() => "")).slice(0, 300);
     throw new AiProviderError(options.provider, `HTTP ${response.status} ${detail}`.trim(), response.status);
   }
-  const completion = (await response.json()) as ChatCompletion;
-  if (!completion.choices?.[0]) throw new AiProviderError(options.provider, "response has no choices", response.status);
+  let completion: ChatCompletion;
+  try {
+    completion = (await response.json()) as ChatCompletion;
+  } catch (error) {
+    throw new AiProviderError(options.provider, "response is not valid JSON", response.status, { cause: error });
+  }
+  if (!completion?.choices?.[0]) throw new AiProviderError(options.provider, "response has no choices", response.status);
   return completion;
 }
 

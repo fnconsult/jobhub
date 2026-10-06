@@ -14,6 +14,7 @@ import {
   type MasterCvContent,
   type SearchCriteria,
 } from "@jobhub/shared";
+import { isDeepStrictEqual } from "node:util";
 import type { Pool } from "pg";
 import * as z from "zod";
 
@@ -39,20 +40,31 @@ export interface ProfileFieldError {
 
 export type CreateProfileResult = { ok: true; profile: Profile } | { ok: false; errors: ProfileFieldError[] };
 
+export type SaveMasterCvResult =
+  | { ok: true; profile: Profile }
+  | { ok: false; errors: ProfileFieldError[] }
+  /** Another save landed since the Candidate opened the editor (`basedOnVersion` is no longer the current one). */
+  | { ok: false; conflict: { currentVersion: number } };
+
 export interface Profiles {
   /** Saves a reviewed CV draft as a new Profile. `input` is untrusted (it comes from the browser). */
   create(candidateId: string, input: unknown): Promise<CreateProfileResult>;
   list(candidateId: string): Promise<ProfileSummary[]>;
   /** The Profile, or null if it does not exist or belongs to someone else. */
   get(candidateId: string, profileId: string): Promise<Profile | null>;
+  /**
+   * Saves the Candidate's edits to a Profile's Master CV as its next version.
+   * `input` is untrusted: `{ basedOnVersion, content }`, where `basedOnVersion` is the
+   * version the Candidate edited. Null if the Profile does not exist or belongs to someone else.
+   */
+  saveMasterCv(candidateId: string, profileId: string, input: unknown): Promise<SaveMasterCvResult | null>;
 }
 
 const text = z.string().trim();
 const required = z.string().trim().min(1);
 const notBlank = (value: object) => Object.values(value).some((field) => field !== "");
 
-const inputSchema = z.object({
-  masterCv: z.object({
+const masterCvSchema = z.object({
     fullName: text,
     headline: text,
     email: text,
@@ -65,7 +77,10 @@ const inputSchema = z.object({
     education: z.array(z.object({ degree: text, institution: text, year: text })).transform((items) => items.filter(notBlank)),
     skills: z.array(text).transform((items) => items.filter(Boolean)),
     languages: z.array(z.object({ name: text, level: text })).transform((items) => items.filter(notBlank)),
-  }),
+});
+
+const inputSchema = z.object({
+  masterCv: masterCvSchema,
   searchCriteria: z.object({
     targetRole: required,
     location: required,
@@ -106,6 +121,8 @@ function profileFrom(row: ProfileRow): Profile {
   return { id: row.id, name: row.name, searchCriteria, masterCv: { version: row.version, content: row.content } };
 }
 
+const saveInputSchema = z.object({ basedOnVersion: z.number().int().positive(), content: masterCvSchema });
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function createProfiles(database: Pool): Profiles {
@@ -125,6 +142,29 @@ export function createProfiles(database: Pool): Profiles {
 
   return {
     get,
+
+    async saveMasterCv(candidateId, profileId, input) {
+      const profile = await get(candidateId, profileId);
+      if (!profile) return null;
+      const parsed = saveInputSchema.safeParse(input, { reportInput: true });
+      if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+      const { basedOnVersion, content } = parsed.data;
+      if (basedOnVersion !== profile.masterCv.version) return { ok: false, conflict: { currentVersion: profile.masterCv.version } };
+
+      if (isDeepStrictEqual(content, profile.masterCv.content)) return { ok: true, profile };
+
+      const version = basedOnVersion + 1;
+      // The primary key (profile_id, version) refuses a concurrent save of the same next version.
+      const inserted = await database.query(
+        `INSERT INTO master_cv_version (profile_id, version, content) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+        [profileId, version, content],
+      );
+      if (inserted.rowCount === 0) {
+        const current = await get(candidateId, profileId);
+        return { ok: false, conflict: { currentVersion: current!.masterCv.version } };
+      }
+      return { ok: true, profile: { ...profile, masterCv: { version, content } } };
+    },
 
     async create(candidateId, input) {
       // reportInput: Zod v4 leaves `issue.input` out otherwise, and fieldErrors()

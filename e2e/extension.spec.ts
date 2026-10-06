@@ -1,17 +1,16 @@
-import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
-import { chromium, expect, test, type BrowserContext } from "@playwright/test";
+import { chromium, expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { catalogueStrings, renderedTexts } from "./support/accessibility";
+import { signInWithMagicLink } from "./support/candidate";
+import { e2eExtensionDir, unpackedExtensionId as idOf } from "./support/extension";
+import { newAddress } from "./support/mailbox";
 
 const extensionDir = path.resolve("apps/extension/.output/chrome-mv3");
 const frCatalogue = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 
-/** Chromium derives an unpacked extension's id from the SHA-256 of its absolute path. */
-function unpackedExtensionId(dir: string): string {
-  const hex = createHash("sha256").update(realpathSync(dir)).digest("hex").slice(0, 32);
-  return [...hex].map((c) => String.fromCharCode("a".charCodeAt(0) + parseInt(c, 16))).join("");
-}
+const unpackedExtensionId = (dir: string) => idOf(realpathSync(dir));
 
 test.describe("browser extension", () => {
   let context: BrowserContext;
@@ -66,5 +65,85 @@ test.describe("browser extension", () => {
     // The shared stylesheet honours the text-size setting here too.
     await page.evaluate(() => (document.documentElement.dataset.textSize = "xlarge"));
     expect(await page.evaluate(() => getComputedStyle(document.body).fontSize)).toBe("20px");
+  });
+});
+
+// Issue #2: the extension shares the Candidate's web-app session (needed by
+// Guest conversion). Built against the e2e web server, whose EXTENSION_ORIGINS
+// trusts exactly this build (see playwright.config.ts).
+test.describe("browser extension shares the web app session", () => {
+  const origin = process.env.E2E_WEB_ORIGIN!;
+  const en = JSON.parse(readFileSync("packages/shared/src/i18n/locales/en.json", "utf8"));
+  let context: BrowserContext;
+
+  test.beforeAll(async () => {
+    test.setTimeout(180_000);
+    execFileSync("npx", ["wxt", "build", "--mode", "e2e"], {
+      cwd: "apps/extension",
+      env: { ...process.env, WXT_WEB_ORIGIN: origin },
+      stdio: "pipe",
+    });
+    context = await chromium.launchPersistentContext("", {
+      channel: "chromium",
+      locale: "en-US",
+      baseURL: origin,
+      args: [`--disable-extensions-except=${e2eExtensionDir}`, `--load-extension=${e2eExtensionDir}`],
+    });
+  });
+
+  test.afterAll(async () => {
+    await context?.close();
+  });
+
+  async function openPopup(): Promise<Page> {
+    const popup = await context.newPage();
+    await popup.goto(`chrome-extension://${unpackedExtensionId(e2eExtensionDir)}/popup.html`);
+    await expect(popup.getByRole("heading", { level: 1 })).toBeVisible();
+    return popup;
+  }
+
+  test("is signed out, and points to the web sign-in page, while nobody is signed in", async () => {
+    const popup = await openPopup();
+    await expect(popup.getByText(frCatalogue.extension.signedOut)).toBeVisible();
+    await expect(popup.getByRole("link", { name: frCatalogue.extension.signIn })).toHaveAttribute(
+      "href",
+      `${origin}/connexion`,
+    );
+  });
+
+  test("knows the Candidate signed in on the web app, speaks their language, and may act for them", async () => {
+    const email = newAddress("extension");
+    const web = await context.newPage();
+    await signInWithMagicLink(web, email);
+
+    let popup = await openPopup();
+    await expect(popup.getByText(frCatalogue.extension.signedInAs.replace("{{email}}", email))).toBeVisible();
+    await expect(popup.getByRole("link", { name: frCatalogue.extension.account })).toHaveAttribute(
+      "href",
+      `${origin}/compte`,
+    );
+
+    await web.getByLabel(frCatalogue.account.interfaceLanguage).selectOption("en");
+    await expect(web.locator("html")).toHaveAttribute("lang", "en");
+    popup = await openPopup();
+    await expect(popup.locator("html")).toHaveAttribute("lang", "en");
+    await expect(popup.getByText(en.extension.signedInAs.replace("{{email}}", email))).toBeVisible();
+    await expect(popup.getByRole("link", { name: en.extension.account })).toBeVisible();
+
+    // The extension is a trusted origin: it may act for the Candidate (here, sign out).
+    const status = await popup.evaluate(async (webOrigin) => {
+      const response = await fetch(`${webOrigin}/api/auth/sign-out`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      });
+      return response.status;
+    }, origin);
+    expect(status).toBe(200);
+    await web.goto("/compte");
+    await expect(web).toHaveURL(/\/connexion$/);
+    popup = await openPopup();
+    await expect(popup.getByText(frCatalogue.extension.signedOut)).toBeVisible();
   });
 });

@@ -3,10 +3,11 @@
  *
  * One deep module in front of Postgres. Callers get:
  *  - `createProfiles(database)` — `create` a Profile from a reviewed CV draft
- *    (validated here; field errors come back, never an exception), `list` a
- *    Candidate's Profiles and `get` one; edit the Master CV (`saveMasterCv`, each
- *    change a new version), list its versions and restore one. Every read and
- *    write is scoped to the Candidate.
+ *    (validated here; field errors come back, never an exception), `duplicate`,
+ *    `rename`, `archive` and `restore` one, `list` a Candidate's Profiles and
+ *    `get` one; edit the Master CV (`saveMasterCv`, each change a new version),
+ *    list its versions and restore one (`restoreMasterCv`). Every read and
+ *    change is scoped to the Candidate.
  *  - `migrateProfiles(database)` — creates / upgrades the tables.
  * Profiles belong to their Candidate and are deleted with the account (ADR-0010).
  */
@@ -66,6 +67,11 @@ export type ProfileChangeResult = CreateProfileResult | { ok: false; error: "not
 export interface Profiles {
   /** Saves a reviewed CV draft as a new Profile. `input` is untrusted (it comes from the browser). */
   create(candidateId: string, input: unknown): Promise<CreateProfileResult>;
+  /**
+   * A new Profile under the name in `input` ({ name }, untrusted), with a copy of the
+   * Profile's Search Criteria and of the current version of its Master CV (as version 1).
+   */
+  duplicate(candidateId: string, profileId: string, input: unknown): Promise<ProfileChangeResult>;
   /** Renames a Profile. `input` ({ name }) is untrusted. */
   rename(candidateId: string, profileId: string, input: unknown): Promise<ProfileChangeResult>;
   /** Archives a Profile: kept with its Master CV, but out of the Profile switcher. Archiving twice is harmless. */
@@ -187,6 +193,39 @@ export function createProfiles(database: Pool): Profiles {
     return rows[0] ? profileFrom(rows[0]) : null;
   }
 
+  /** Stores a new Profile with version 1 of its Master CV. */
+  async function insert(
+    candidateId: string,
+    { name, searchCriteria, masterCv }: { name: string; searchCriteria: SearchCriteria; masterCv: MasterCvContent },
+  ): Promise<Profile> {
+    const client = await database.connect();
+    try {
+      await client.query("BEGIN");
+      const { rows } = await client.query<{ id: string }>(
+        `INSERT INTO profile (candidate_id, name, target_role, location, min_salary, contract_type, remote_work)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+        [
+          candidateId,
+          name,
+          searchCriteria.targetRole,
+          searchCriteria.location,
+          searchCriteria.minSalary ?? null,
+          searchCriteria.contractType ?? null,
+          searchCriteria.remoteWork ?? null,
+        ],
+      );
+      const id = rows[0]!.id;
+      await client.query(`INSERT INTO master_cv_version (profile_id, version, content) VALUES ($1, 1, $2)`, [id, masterCv]);
+      await client.query("COMMIT");
+      return { id, name, archived: false, searchCriteria, masterCv: { version: 1, content: masterCv } };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async function setArchived(candidateId: string, profileId: string, archived: boolean): Promise<ProfileChangeResult> {
     if (!UUID.test(profileId)) return NOT_FOUND;
     const { rowCount } = await database.query(
@@ -251,32 +290,16 @@ export function createProfiles(database: Pool): Profiles {
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       const { masterCv, searchCriteria } = parsed.data;
 
-      const client = await database.connect();
-      try {
-        await client.query("BEGIN");
-        const { rows } = await client.query<{ id: string }>(
-          `INSERT INTO profile (candidate_id, name, target_role, location, min_salary, contract_type, remote_work)
-           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-          [
-            candidateId,
-            searchCriteria.targetRole,
-            searchCriteria.targetRole,
-            searchCriteria.location,
-            searchCriteria.minSalary ?? null,
-            searchCriteria.contractType ?? null,
-            searchCriteria.remoteWork ?? null,
-          ],
-        );
-        const id = rows[0]!.id;
-        await client.query(`INSERT INTO master_cv_version (profile_id, version, content) VALUES ($1, 1, $2)`, [id, masterCv]);
-        await client.query("COMMIT");
-        return { ok: true, profile: { id, name: searchCriteria.targetRole, archived: false, searchCriteria, masterCv: { version: 1, content: masterCv } } };
-      } catch (error) {
-        await client.query("ROLLBACK");
-        throw error;
-      } finally {
-        client.release();
-      }
+      return { ok: true, profile: await insert(candidateId, { name: searchCriteria.targetRole, searchCriteria, masterCv }) };
+    },
+
+    async duplicate(candidateId, profileId, input) {
+      const parsed = nameSchema.safeParse(input, { reportInput: true });
+      if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+      const original = await get(candidateId, profileId);
+      if (!original) return NOT_FOUND;
+      const { searchCriteria, masterCv } = original;
+      return { ok: true, profile: await insert(candidateId, { name: parsed.data.name, searchCriteria, masterCv: masterCv.content }) };
     },
 
     async rename(candidateId, profileId, input) {

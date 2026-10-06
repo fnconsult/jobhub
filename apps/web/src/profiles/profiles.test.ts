@@ -280,4 +280,43 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
       expect((await profiles.get(candidateId, profile.id))?.archived).toBe(false);
     });
   });
+
+  describe("duplicating", () => {
+    it("copies the Search Criteria and the current Master CV into a new Profile under the chosen name", async () => {
+      const created = await profiles.create(candidateId, {
+        masterCv,
+        searchCriteria: { ...criteria, minSalary: 120000, contractType: "cdi", remoteWork: "hybrid" },
+      });
+      if (!created.ok) throw new Error("could not create the Profile");
+      const original = created.profile;
+      await database.query(`INSERT INTO master_cv_version (profile_id, version, content) VALUES ($1, 2, $2)`, [
+        original.id,
+        { ...masterCv, summary: "Version revue." },
+      ]);
+
+      const duplicated = await profiles.duplicate(candidateId, original.id, { name: " Consultante transformation " });
+
+      expect(duplicated.ok).toBe(true);
+      if (!duplicated.ok) return;
+      expect(duplicated.profile.id).not.toBe(original.id);
+      expect(await profiles.get(candidateId, duplicated.profile.id)).toEqual({
+        id: duplicated.profile.id,
+        name: "Consultante transformation",
+        archived: false,
+        searchCriteria: { ...criteria, minSalary: 120000, contractType: "cdi", remoteWork: "hybrid" },
+        masterCv: { version: 1, content: { ...masterCv, summary: "Version revue." } },
+      });
+      expect(await profiles.get(candidateId, original.id)).toMatchObject({ name: "Directrice financière", masterCv: { version: 2 } });
+      expect((await profiles.list(candidateId)).map((profile) => profile.name)).toEqual(["Directrice financière", "Consultante transformation"]);
+    });
+
+    it("needs a name, and never duplicates someone else's Profile", async () => {
+      const profile = await createdProfile();
+
+      expect(await profiles.duplicate(candidateId, profile.id, { name: "" })).toEqual({ ok: false, errors: [{ field: "name", code: "required" }] });
+      expect(await profiles.duplicate(await otherCandidate(), profile.id, { name: "Copie" })).toEqual({ ok: false, error: "not_found" });
+      expect(await profiles.duplicate(candidateId, "not-a-uuid", { name: "Copie" })).toEqual({ ok: false, error: "not_found" });
+      expect(await profiles.list(candidateId)).toHaveLength(1);
+    });
+  });
 });

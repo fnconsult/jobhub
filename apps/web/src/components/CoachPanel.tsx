@@ -2,7 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import type { CoachFocus, CoachMessage } from "@/coach";
+import type { CoachFocus } from "@/coach";
+import { recentConversation, type CoachMessage } from "@/coach/conversation";
 
 /** What a page shows, as the Coach Panel tells the Candidate and the AI Coach. */
 export type InView = CoachFocus & { name: string };
@@ -67,7 +68,8 @@ export function CoachPanel({ children }: { children: ReactNode }) {
       const response = await fetch("/api/coach", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ messages: conversation, ...(inView ? { focus: { kind: inView.kind, id: inView.id } } : {}) }),
+        // The AI Coach answers from the recent window; the panel keeps the whole conversation.
+        body: JSON.stringify({ messages: recentConversation(conversation), ...(inView ? { focus: { kind: inView.kind, id: inView.id } } : {}) }),
       });
       const body = await response.json().catch(() => ({}));
       if (response.ok && typeof body.reply === "string") {

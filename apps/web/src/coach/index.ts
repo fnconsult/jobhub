@@ -12,14 +12,12 @@
 import type { AiLayer } from "@jobhub/ai";
 import * as z from "zod";
 import type { Profiles } from "@/profiles";
+import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentConversation } from "./conversation";
 
 /** What the Candidate has in view while talking to the AI Coach. */
 export type CoachFocus = { kind: "profile"; id: string } | { kind: "application"; id: string };
 
-export interface CoachMessage {
-  from: "candidate" | "coach";
-  text: string;
-}
+export { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentConversation, type CoachMessage } from "./conversation";
 
 export type CoachReply = { ok: true; reply: string } | { ok: false; error: "invalid" | "unavailable" };
 
@@ -32,15 +30,18 @@ export interface CoachDeps {
   profiles: Pick<Profiles, "get">;
 }
 
-/** Longest single message, and longest conversation, sent to the AI Coach. */
-export const MAX_MESSAGE_LENGTH = 5000;
-export const MAX_MESSAGES = 40;
+/**
+ * Most messages accepted in one request. The Coach Panel sends only its recent
+ * window (MAX_MESSAGES); anything longer, up to this bound on the payload, is
+ * trimmed to that window rather than refused.
+ */
+const MAX_MESSAGES_ACCEPTED = MAX_MESSAGES * 5;
 
 const inputSchema = z.object({
   messages: z
     .array(z.object({ from: z.enum(["candidate", "coach"]), text: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH) }))
     .min(1)
-    .max(MAX_MESSAGES)
+    .max(MAX_MESSAGES_ACCEPTED)
     .refine((messages) => messages.at(-1)?.from === "candidate"),
   focus: z.object({ kind: z.enum(["profile", "application"]), id: z.string().max(100) }).optional(),
 });
@@ -68,7 +69,8 @@ export function createCoach(deps: CoachDeps): Coach {
     async reply(candidateId, input) {
       const parsed = inputSchema.safeParse(input);
       if (!parsed.success) return { ok: false, error: "invalid" };
-      const { messages, focus } = parsed.data;
+      const { focus } = parsed.data;
+      const messages = recentConversation(parsed.data.messages);
       try {
         const { text } = await deps.ai.generate({
           task: "coaching",

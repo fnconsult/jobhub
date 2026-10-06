@@ -262,6 +262,22 @@ test.describe("the Coach Panel", () => {
     await expect(coachPanel(page).getByLabel(fr.coachPanel.messageLabel)).toHaveValue("Bonjour E2E_AI_DOWN");
   });
 
+  test("keeps answering past MAX_MESSAGES, from the most recent messages, and keeps the whole conversation on screen", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("panel-long"));
+    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    const messages = coachPanel(page).getByRole("list").getByRole("listitem");
+
+    // 20 exchanges reach MAX_MESSAGES (40); the 21st and 22nd still get a reply.
+    for (let n = 1; n <= 22; n++) {
+      await askCoach(page, `message ${n}`);
+      await expect(messages).toHaveCount(1 + 2 * n);
+    }
+    await expect(coachPanel(page).getByRole("alert")).toHaveCount(0);
+    // The AI Coach was sent a window of at most 40 messages, starting with the Candidate's.
+    await expect(messages.last()).toHaveText(/\((39|40) messages\)/);
+    await expect(messages.nth(1)).toContainText("message 1");
+  });
+
   test("is not shown to signed-out visitors", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("button", { name: fr.coachPanel.open, exact: true })).toHaveCount(0);

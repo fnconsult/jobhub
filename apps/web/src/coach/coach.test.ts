@@ -2,7 +2,7 @@ import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import { describe, expect, it } from "vitest";
 import type { Profile } from "@/profiles";
-import { createCoach, type Coach } from "./index";
+import { createCoach, MAX_MESSAGES, recentConversation, type Coach } from "./index";
 
 const profile: Profile = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -86,6 +86,32 @@ describe("talking with the AI Coach in the Coach Panel", () => {
     expect(await coach.reply("marie", { messages: [{ from: "candidate", text: "x".repeat(5001) }] })).toEqual({ ok: false, error: "invalid" });
     expect(await coach.reply("marie", "not a conversation")).toEqual({ ok: false, error: "invalid" });
     expect(provider.calls).toHaveLength(0);
+  });
+
+  it("keeps answering a conversation longer than MAX_MESSAGES, from its most recent messages", async () => {
+    const { coach, provider } = coachWith();
+    // 21 Candidate messages and 20 replies: what the Coach Panel holds after 20 exchanges.
+    const messages = Array.from({ length: 2 * 20 + 1 }, (_, i) => ({ from: i % 2 === 0 ? ("candidate" as const) : ("coach" as const), text: `message ${i + 1}` }));
+
+    const result = await coach.reply("marie", { messages });
+
+    expect(result).toEqual({ ok: true, reply: "Bonjour Marie, que puis-je faire pour vous ?" });
+    const sent = provider.calls[0]!.messages;
+    expect(sent.length).toBeLessThanOrEqual(MAX_MESSAGES);
+    // The window starts with a Candidate message and ends with the latest one.
+    expect(sent[0]).toMatchObject({ role: "user" });
+    expect(sent.at(-1)).toEqual({ role: "user", content: "message 41" });
+  });
+
+  it("windows the Coach Panel's conversation to what the AI Coach accepts, starting with a Candidate message", () => {
+    const messages = Array.from({ length: 101 }, (_, i) => ({ from: i % 2 === 0 ? ("candidate" as const) : ("coach" as const), text: `message ${i + 1}` }));
+
+    const recent = recentConversation(messages);
+
+    expect(recent.length).toBeLessThanOrEqual(MAX_MESSAGES);
+    expect(recent[0]!.from).toBe("candidate");
+    expect(recent.at(-1)).toEqual({ from: "candidate", text: "message 101" });
+    expect(recentConversation(messages.slice(0, 3))).toEqual(messages.slice(0, 3));
   });
 
   it("says the AI Coach is unavailable when the AI provider fails", async () => {

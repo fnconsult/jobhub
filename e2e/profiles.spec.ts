@@ -30,8 +30,8 @@ test.describe("creating the first Profile from a CV", () => {
     await expect(page.getByText(fr.profiles.none)).toBeVisible();
     await page.getByRole("link", { name: fr.profiles.create }).click();
     await expect(page).toHaveURL(`${origin}/profils/nouveau`);
-    await expect(page).toHaveTitle(`${fr.cvUpload.title} · ${fr.app.name}`);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.cvUpload.title);
+    await expect(page).toHaveTitle(`${fr.newProfile.title} · ${fr.app.name}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.newProfile.title);
 
     await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles(pdfFile(MARIE_DUPONT_CV));
     await page.getByRole("button", { name: fr.cvUpload.submit }).click();

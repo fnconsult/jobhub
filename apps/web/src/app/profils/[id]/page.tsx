@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getActionCards } from "@/action-cards/server";
+import { ActionCardList } from "@/components/ActionCardList";
+import { CoachInView } from "@/components/CoachPanel";
 import { MasterCvView } from "@/components/MasterCvView";
 import { ProfileActions } from "@/components/ProfileActions";
 import { WorkspaceHeader } from "@/components/WorkspaceHeader";
@@ -19,10 +22,12 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   return { title: `${profile.name} · ${t("app.name")}` };
 }
 
-/** One Profile: its Search Criteria, the current version of its Master CV, and what can be done with it. */
+/** One Profile: the AI Coach's Action Cards about it, its Search Criteria, the current version of its Master CV, and what can be done with it. */
 export default async function ProfilePage({ params }: Params) {
   const { candidateId, profile } = await currentProfile((await params).id);
   const t = await getServerT();
+  const inView = { kind: "profile", id: profile.id, name: profile.name } as const;
+  const cards = await getActionCards().pending(candidateId, inView);
   const locale = await getRequestLocale();
   const { searchCriteria: criteria, masterCv } = profile;
   const notSpecified = t("profile.notSpecified");
@@ -31,6 +36,8 @@ export default async function ProfilePage({ params }: Params) {
       <WorkspaceHeader candidateId={candidateId} currentProfileId={profile.id} />
       <h1>{profile.name}</h1>
       {profile.archived ? <p className="notice">{t("profileActions.archivedNotice")}</p> : null}
+      <CoachInView {...inView} />
+      <ActionCardList key={profile.id} cards={cards.map(({ id, title, body }) => ({ id, title, body }))} />
 
       <h2>{t("cvReview.searchCriteria")}</h2>
       <dl>

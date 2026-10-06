@@ -40,8 +40,12 @@ _Avoid_: Sharing, permission
 The side panel, available from every page, where the Candidate talks with the AI Coach.
 _Avoid_: Chat, chatbot, sidebar
 
+**In view**:
+The Profile or Application the page the Candidate is on shows. The Coach Panel and AI Coach use it as context, and only if it belongs to the Candidate.
+_Avoid_: Focus, current item, selected
+
 **Action Card**:
-A proposal from the AI Coach placed inside a page (e.g. "3 ATS Fixes proposées", "Relance suggérée") that the Candidate accepts or dismisses.
+A proposal from the AI Coach placed inside a page (e.g. "3 ATS Fixes proposées", "Relance suggérée") that the Candidate accepts or dismisses. Pending until decided, then accepted or dismissed, never decided twice. Accepting it carries out the change it proposes; if that fails, the card stays pending.
 _Avoid_: Notification, suggestion, prompt
 
 ### Positioning
@@ -83,7 +87,7 @@ The job-search parameters of a Profile: target role, location, salary, contract 
 _Avoid_: Filters, preferences
 
 **Onboarding Questionnaire**:
-The guided interview the AI Coach runs to build a Master CV when the Candidate has no CV to upload.
+The guided interview, one question at a time, that builds a Master CV when the Candidate has no CV to upload. Scripted, so it cannot invent facts; its result is reviewed like an uploaded CV.
 _Avoid_: Form, survey
 
 ### Job offers

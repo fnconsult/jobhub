@@ -17,7 +17,7 @@ import type { JobOffer, JobOfferDetails, SearchCriteria } from "@jobhub/shared";
 import { htmlToText, metaRobots } from "./html";
 import { countJobPostings, readJobPosting } from "./job-posting";
 import { extractWithLlm } from "./llm-extraction";
-import { createPoliteFetcher, type RefusalReason } from "./polite-fetch";
+import { createPoliteFetcher, type Clock, type RefusalReason } from "./polite-fetch";
 
 export type { RefusalReason } from "./polite-fetch";
 
@@ -40,6 +40,8 @@ export interface JobDiscoveryOptions {
   forbiddenSites?: readonly string[];
   /** Result pages read per run. Default 10. */
   maxPages?: number;
+  /** For waiting out robots.txt Crawl-delay. Default: real time. */
+  clock?: Clock;
 }
 
 export interface DiscoverRequest {
@@ -82,19 +84,26 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         forbiddenSites: options.forbiddenSites ?? FORBIDDEN_SITES,
         timeoutMs: 15_000,
         maxBytes: 3 * 1024 * 1024,
+        clock: options.clock,
       });
       const search = await options.ai.searchWeb({ candidateId, criteria });
       const sources = [...new Set(search.sources)].slice(0, maxPages);
 
       const found = new Map<string, JobOffer>();
       const skipped: DiscoveryReport["skipped"] = [];
+      const storedAt = (url: string) => options.jobOffers.findBySourceUrl(url).catch(() => null);
       for (const url of sources) {
-        const known = await options.jobOffers.findBySourceUrl(url).catch(() => null);
+        const known = await storedAt(url);
         if (known) {
           found.set(known.id, known);
           continue;
         }
-        const page = await fetcher.page(url);
+        // A result can redirect to a page captured earlier (in this run or before): use that Job Offer.
+        const page = await fetcher.page(url, storedAt);
+        if (page.ok === "known") {
+          found.set(page.known.id, page.known);
+          continue;
+        }
         if (!page.ok) {
           skipped.push({ url, reason: page.reason });
           continue;

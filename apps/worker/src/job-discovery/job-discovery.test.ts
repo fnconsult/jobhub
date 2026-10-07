@@ -18,12 +18,24 @@ interface Page {
   body?: string;
 }
 
+/** Time that passes only when the crawler waits. */
+function fakeClock() {
+  let time = 0;
+  return {
+    now: () => time,
+    sleep: async (ms: number) => {
+      time += ms;
+    },
+  };
+}
+type FakeClock = ReturnType<typeof fakeClock>;
+
 /** A pretend Internet: every URL the crawler may request, and the requests it made. */
-function fakeWeb(pages: Record<string, Page>) {
-  const requests: { url: string; userAgent: string | null }[] = [];
+function fakeWeb(pages: Record<string, Page>, clock: FakeClock) {
+  const requests: { url: string; userAgent: string | null; at: number }[] = [];
   const fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const url = String(input);
-    requests.push({ url, userAgent: new Headers(init?.headers).get("user-agent") });
+    requests.push({ url, userAgent: new Headers(init?.headers).get("user-agent"), at: clock.now() });
     const page = pages[url];
     if (!page) return new Response("introuvable", { status: 404 });
     return new Response(page.body ?? "", {
@@ -61,9 +73,10 @@ function setup(options: { sources: string[]; pages: Record<string, Page>; reply?
     routes: { web_search: "perplexity", offer_analysis: "anthropic" },
     usage: createMemoryUsageLog(),
   });
-  const web = fakeWeb(options.pages);
+  const clock = fakeClock();
+  const web = fakeWeb(options.pages, clock);
   const jobOffers = memoryJobOffers(options.existing);
-  const discovery = createJobDiscovery({ ai, jobOffers, fetch: web.fetch });
+  const discovery = createJobDiscovery({ ai, jobOffers, fetch: web.fetch, clock });
   return { discovery, search, llm, web, jobOffers };
 }
 
@@ -160,6 +173,30 @@ describe("Job discovery", () => {
       expect(web.fetched()).toEqual([ROBOTS, DAF_URL, second]);
     });
 
+    it("waits the Crawl-delay robots.txt asks for between two requests to a site, and skips a site asking too much", async () => {
+      const second = "https://emplois.example.fr/offres/daf-paris";
+      const slow = "https://lent.example.fr/offre/1";
+      const { discovery, web } = setup({
+        sources: [DAF_URL, second, slow],
+        pages: {
+          [ROBOTS]: { body: "User-agent: *\nCrawl-delay: 2\n" },
+          [DAF_URL]: { body: posting },
+          [second]: { body: jobPostingPage({ title: "DAF", description: "Poste à Paris." }) },
+          "https://lent.example.fr/robots.txt": { body: "User-agent: *\nCrawl-delay: 3600\n" },
+          [slow]: { body: posting },
+        },
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      const site = web.requests.filter((request) => request.url.startsWith("https://emplois.example.fr/"));
+      expect(site.map((request) => request.url)).toEqual([ROBOTS, DAF_URL, second]);
+      expect(site[1]!.at - site[0]!.at).toBeGreaterThanOrEqual(2000);
+      expect(site[2]!.at - site[1]!.at).toBeGreaterThanOrEqual(2000);
+      expect(report.skipped).toEqual([{ url: slow, reason: "robots" }]);
+      expect(web.fetched()).not.toContain(slow);
+    });
+
     it("reads a site without robots.txt, but stays out of one whose robots.txt fails", async () => {
       const down = "https://panne.example.fr/offre/1";
       const { discovery, web } = setup({
@@ -216,6 +253,28 @@ describe("Job discovery", () => {
       ]);
       expect(web.fetched().filter((url) => url === cloudflare || url === captcha)).toEqual([cloudflare, captcha]);
       expect(llm.calls).toEqual([]);
+    });
+
+    it("reads a job page that only mentions a CAPTCHA for its apply form, like every Lever page", async () => {
+      const lever = "https://jobs.lever.co/acme/2193db3f";
+      const page = jobPostingPage({ title: "Directeur financier", description: "<p>Vous pilotez la finance du groupe.</p>" })
+        .replace(
+          "<head>",
+          "<head><style>.g-recaptcha div,.h-captcha-spacing {display: block;} .application-form .h-captcha {margin: 0}</style>",
+        )
+        .replace(
+          "</body>",
+          '<form class="application-form"><div class="h-captcha" data-sitekey="x"></div></form>' +
+            '<script src="https://js.hcaptcha.com/1/api.js" async></script>' +
+            // Cloudflare's passive bot-management script, on every page it proxies.
+            '<script>(function(){var a=document.createElement("script");a.src="/cdn-cgi/challenge-platform/scripts/jsd/main.js";})();</script></body>',
+        );
+      const { discovery, jobOffers } = setup({ sources: [lever], pages: { [lever]: { body: page } } });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.skipped).toEqual([]);
+      expect(jobOffers.all.map((offer) => offer.title)).toEqual(["Directeur financier"]);
     });
 
     it("stops at a login wall: a redirect to a sign-in page, a 401 or a password form", async () => {
@@ -362,6 +421,26 @@ describe("Job discovery", () => {
       expect(report.jobOffers).toEqual([stored]);
       expect(web.fetched()).toEqual([]);
       expect(jobOffers.all).toEqual([stored]);
+    });
+
+    it("does not read a page again when another result redirects to it", async () => {
+      const board = "https://boards.example.fr/acme/jobs/42";
+      const { discovery, web, llm, jobOffers } = setup({
+        sources: [DAF_URL, board],
+        pages: {
+          [DAF_URL]: { body: "<html><body><h1>DAF H/F</h1><p>Groupe Seb recrute son DAF.</p></body></html>" },
+          [board]: { status: 302, headers: { location: DAF_URL } },
+        },
+        reply: '{"isJobOffer": true, "title": "DAF H/F", "content": "Groupe Seb recrute son DAF."}',
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers.map((offer) => offer.source.url)).toEqual([DAF_URL]);
+      expect(report.skipped).toEqual([]);
+      expect(web.fetched().filter((url) => url === DAF_URL)).toHaveLength(1);
+      expect(llm.calls).toHaveLength(1);
+      expect(jobOffers.all).toHaveLength(1);
     });
 
     it("lists a posting found on two sites once", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { robotsAllow } from "./robots";
+import { robotsAllow, robotsCrawlDelay } from "./robots";
 
 const BOT = "JobbboxBot";
 
@@ -45,5 +45,12 @@ describe("robots.txt rules", () => {
 
   it("matches percent-encoded and plain paths alike", () => {
     expect(robotsAllow("User-agent: *\nDisallow: /été\n", BOT, "/%C3%A9t%C3%A9/1")).toBe(false);
+  });
+
+  it("reads the Crawl-delay of the group that applies, in seconds", () => {
+    expect(robotsCrawlDelay("User-agent: *\nCrawl-delay: 1\nDisallow: /admin\n", BOT)).toBe(1);
+    expect(robotsCrawlDelay("User-agent: *\nCrawl-delay: 5\n\nUser-agent: JobbboxBot\nCrawl-delay: 0.5\n", BOT)).toBe(0.5);
+    expect(robotsCrawlDelay("User-agent: *\nDisallow: /admin\n", BOT)).toBe(0);
+    expect(robotsCrawlDelay("User-agent: *\nCrawl-delay: bientôt\n", BOT)).toBe(0);
   });
 });

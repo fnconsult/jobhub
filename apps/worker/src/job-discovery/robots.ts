@@ -10,6 +10,8 @@ interface Rule {
 interface Group {
   agents: string[];
   rules: Rule[];
+  /** Seconds between two requests (Crawl-delay: not in RFC 9309, but a site's stated wish). */
+  crawlDelay?: number;
 }
 
 function parse(robotsTxt: string): Group[] {
@@ -33,6 +35,10 @@ function parse(robotsTxt: string): Group[] {
       readingAgents = false;
       // An empty Disallow allows everything: it simply adds no rule.
       if (value) current.rules.push({ allow: field === "allow", pattern: normalise(value) });
+    } else if (field === "crawl-delay" && current) {
+      readingAgents = false;
+      const seconds = Number(value);
+      if (value && Number.isFinite(seconds) && seconds >= 0) current.crawlDelay = Math.max(current.crawlDelay ?? 0, seconds);
     } else {
       readingAgents = false;
     }
@@ -54,6 +60,14 @@ function productToken(userAgent: string): string {
   return userAgent.split(/[/\s]/)[0]!.toLowerCase();
 }
 
+/** The groups for this crawler: those naming it, else the "*" ones. */
+function applicableGroups(robotsTxt: string, userAgent: string): Group[] {
+  const groups = parse(robotsTxt);
+  const token = productToken(userAgent);
+  const named = groups.filter((group) => group.agents.includes(token));
+  return named.length > 0 ? named : groups.filter((group) => group.agents.includes("*"));
+}
+
 function toRegExp(pattern: string): RegExp {
   const anchored = pattern.endsWith("$");
   const body = (anchored ? pattern.slice(0, -1) : pattern)
@@ -69,10 +83,7 @@ function toRegExp(pattern: string): RegExp {
  * rule wins, and Allow wins a tie.
  */
 export function robotsAllow(robotsTxt: string, userAgent: string, path: string): boolean {
-  const groups = parse(robotsTxt);
-  const token = productToken(userAgent);
-  let applicable = groups.filter((group) => group.agents.includes(token));
-  if (applicable.length === 0) applicable = groups.filter((group) => group.agents.includes("*"));
+  const applicable = applicableGroups(robotsTxt, userAgent);
   const target = normalise(path || "/");
 
   let best: Rule | undefined;
@@ -87,4 +98,9 @@ export function robotsAllow(robotsTxt: string, userAgent: string, path: string):
     }
   }
   return best ? best.allow : true;
+}
+
+/** The Crawl-delay robots.txt asks of `userAgent`, in seconds (0 when it asks none). */
+export function robotsCrawlDelay(robotsTxt: string, userAgent: string): number {
+  return Math.max(0, ...applicableGroups(robotsTxt, userAgent).map((group) => group.crawlDelay ?? 0));
 }

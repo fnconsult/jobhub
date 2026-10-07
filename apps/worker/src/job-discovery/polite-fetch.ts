@@ -2,11 +2,13 @@
  * Fetching a page the way ADR-0002 allows: robots.txt first, as ourselves,
  * and giving up (never working around it) at the first sign of bot protection.
  */
-import { robotsAllow } from "./robots";
+import { htmlToText } from "./html";
+import { countJobPostings } from "./job-posting";
+import { robotsAllow, robotsCrawlDelay } from "./robots";
 
 /** Why a page was not read. */
 export type RefusalReason =
-  /** robots.txt (or the page's own robots meta tag) asks crawlers to stay out. */
+  /** robots.txt (or the page's own robots meta tag) asks crawlers to stay out, or to wait longer than we can between requests. */
   | "robots"
   /** The site's terms of use forbid crawling it; only the browser extension covers it. */
   | "site_terms"
@@ -19,7 +21,11 @@ export type RefusalReason =
   /** Down, missing, too slow, too large or not HTML. */
   | "unreachable";
 
-export type PageResult = { ok: true; url: string; html: string } | { ok: false; reason: RefusalReason };
+export type PageResult<Known = never> =
+  | { ok: true; url: string; html: string }
+  | { ok: false; reason: RefusalReason }
+  /** A redirect led to a page the caller already has (see `known`); it was not requested. */
+  | { ok: "known"; url: string; known: Known };
 
 export interface PoliteFetchOptions {
   fetch: typeof globalThis.fetch;
@@ -28,21 +34,48 @@ export interface PoliteFetchOptions {
   forbiddenSites: readonly string[];
   timeoutMs: number;
   maxBytes: number;
+  /** Default: real time. Tests pass a fake one. */
+  clock?: Clock;
 }
+
+export interface Clock {
+  now(): number;
+  sleep(ms: number): Promise<void>;
+}
+
+const realClock: Clock = {
+  now: () => Date.now(),
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+};
+
+/** A site asking for more than this between two requests is skipped rather than waited for. */
+const MAX_CRAWL_DELAY_MS = 10_000;
 
 const MAX_REDIRECTS = 5;
 
-const CHALLENGE_MARKERS = [
-  /challenges\.cloudflare\.com/i,
-  /cf-turnstile/i,
+/** Only a challenge interstitial carries these: the page *is* the challenge. */
+const INTERSTITIAL_MARKERS = [
   /_cf_chl_opt/i,
   /<title>\s*(just a moment|attention required|un instant)/i,
+  /<title>[^<]*captcha/i,
+];
+
+/**
+ * Anti-bot widgets and scripts. Real pages carry them too (e.g. every Lever job
+ * page styles an hCaptcha for its apply form), so they mean a challenge only
+ * when they stand in for the content (see looksLikeChallenge).
+ */
+const WIDGET_MARKERS = [
+  /challenges\.cloudflare\.com/i,
+  /cf-turnstile/i,
   /g-recaptcha|recaptcha\/api\.js/i,
   /h-captcha|hcaptcha\.com/i,
   /captcha-delivery\.com|datadome/i,
   /px-captcha|perimeterx/i,
-  /<title>[^<]*captcha/i,
 ];
+
+/** Below this much readable text, a page showing an anti-bot widget is the widget. */
+const CHALLENGE_MAX_TEXT = 300;
 
 const LOGIN_PATH = /\/(login|log-in|signin|sign-in|connexion|se-connecter|auth|authentification|sso)(\/|$|\?|\.)/i;
 
@@ -69,7 +102,13 @@ function isForbidden(hostname: string, forbiddenSites: readonly string[]): boole
 
 function looksLikeChallenge(response: Response, body: string): boolean {
   if ((response.headers.get("cf-mitigated") ?? "").toLowerCase() === "challenge") return true;
-  return CHALLENGE_MARKERS.some((marker) => marker.test(body));
+  if (INTERSTITIAL_MARKERS.some((marker) => marker.test(body))) return true;
+  // Stylesheets name widget classes without showing a widget.
+  const markup = body.replace(/<style\b[\s\S]*?<\/style\s*>/gi, " ");
+  if (!WIDGET_MARKERS.some((marker) => marker.test(markup))) return false;
+  // A widget on a page with the posting's data or real content is a form on that page, not a challenge.
+  if (countJobPostings(body) > 0) return false;
+  return [403, 429, 503].includes(response.status) || htmlToText(body).length < CHALLENGE_MAX_TEXT;
 }
 
 function looksLikeLoginWall(url: URL, body: string): boolean {
@@ -100,13 +139,24 @@ async function readText(response: Response, maxBytes: number): Promise<string | 
 /** A fetcher for one discovery run: robots.txt is read once per site. */
 export function createPoliteFetcher(options: PoliteFetchOptions) {
   const robotsBySite = new Map<string, Promise<string | null>>();
+  const clock = options.clock ?? realClock;
+  const lastRequestAt = new Map<string, number>();
 
-  const request = (url: URL | string, redirect: "follow" | "manual") =>
-    options.fetch(String(url), {
+  const request = (url: URL | string, redirect: "follow" | "manual") => {
+    lastRequestAt.set(new URL(url).origin, clock.now());
+    return options.fetch(String(url), {
       redirect,
       headers: { "user-agent": options.userAgent, accept: "text/html,application/xhtml+xml" },
       signal: AbortSignal.timeout(options.timeoutMs),
     });
+  };
+
+  /** Waits out the site's Crawl-delay since our last request to it. */
+  const waitTurn = async (origin: string, delayMs: number) => {
+    const last = lastRequestAt.get(origin);
+    const wait = last === undefined ? 0 : last + delayMs - clock.now();
+    if (wait > 0) await clock.sleep(wait);
+  };
 
   /** robots.txt for the site, "" when it has none, or null when it cannot be read (then nothing is allowed). */
   const robotsFor = (origin: string): Promise<string | null> => {
@@ -135,11 +185,21 @@ export function createPoliteFetcher(options: PoliteFetchOptions) {
     if (isForbidden(url.hostname, options.forbiddenSites)) return "site_terms";
     const robots = await robotsFor(url.origin);
     if (robots === null || !robotsAllow(robots, options.userAgent, `${url.pathname}${url.search}`)) return "robots";
+    const delayMs = robotsCrawlDelay(robots, options.userAgent) * 1000;
+    if (delayMs > MAX_CRAWL_DELAY_MS) return "robots";
+    await waitTurn(url.origin, delayMs);
     return null;
   };
 
   return {
-    async page(address: string): Promise<PageResult> {
+    /**
+     * Reads a page, following redirects. `known` is asked about each redirect target
+     * before it is requested: a non-null answer stops there, so a page already handled is not read twice.
+     */
+    async page<Known = never>(
+      address: string,
+      known?: (url: string) => Promise<Known | null>,
+    ): Promise<PageResult<Known>> {
       let url: URL;
       try {
         url = new URL(address);
@@ -163,6 +223,8 @@ export function createPoliteFetcher(options: PoliteFetchOptions) {
           if (!location) return { ok: false, reason: "unreachable" };
           url = new URL(location, url);
           if (LOGIN_PATH.test(url.pathname)) return { ok: false, reason: "login_wall" };
+          const already = known ? await known(url.toString()) : null;
+          if (already !== null) return { ok: "known", url: url.toString(), known: already };
           continue;
         }
 

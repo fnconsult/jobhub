@@ -145,7 +145,9 @@ test.describe("onboarding with the AI Coach", () => {
     await expect(page.getByLabel(fr.cvReview.email)).toHaveValue("marie.dupont@example.fr");
     await expect(page.getByRole("group", { name: "Poste 2" }).getByLabel(fr.cvReview.employer)).toHaveValue("Renault");
     await expect(page.getByRole("group", { name: "Formation 1" }).getByLabel(fr.cvReview.institution)).toHaveValue("ESSEC");
-    await expect(page.getByLabel(fr.cvReview.skills, { exact: true })).toHaveValue("Consolidation\nIFRS\nSAP");
+    const skills = page.getByRole("group", { name: fr.cvReview.skills, exact: true }).getByLabel(fr.cvReview.skill, { exact: true });
+    await expect(skills).toHaveCount(3);
+    expect(await skills.evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value))).toEqual(["Consolidation", "IFRS", "SAP"]);
     await expect(page.getByRole("group", { name: "Langue 2" }).getByLabel(fr.cvReview.level)).toHaveValue("notions");
     await page.getByLabel(fr.cvReview.contractType).selectOption({ label: fr.cvReview.contractTypes.cdi });
     await page.getByRole("button", { name: fr.cvReview.save }).click();

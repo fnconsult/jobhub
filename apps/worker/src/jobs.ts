@@ -1,9 +1,14 @@
 import type { SearchCriteria } from "@jobhub/shared";
+import type { Pool } from "pg";
+import { forgetExpiredGuestCaptures } from "@jobhub/web/job-offers";
 import type { JobDiscovery } from "./job-discovery";
 import type { JobDefinition } from "./job-runner";
 
 /** Queue name: search the web for Job Offers matching one Profile. Data: { candidateId, profileId }. */
 export const JOB_DISCOVERY = "job-discovery.run";
+
+/** Postgres error code for a table that does not exist yet (the web app's migrations have not run). */
+const UNDEFINED_TABLE = "42P01";
 
 /** Job discovery when the worker cannot run it (e.g. no AI keys in local development): why. */
 export interface DiscoveryUnavailable {
@@ -11,6 +16,8 @@ export interface DiscoveryUnavailable {
 }
 
 export interface JobsDeps {
+  database: Pick<Pool, "query">;
+  now?: () => Date;
   discovery: JobDiscovery | DiscoveryUnavailable;
   /** Reads a Profile, scoped to its Candidate. Satisfied by the web app's Profiles module. */
   profiles: {
@@ -57,6 +64,19 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           `[job-discovery] profile ${target.profileId}: ${report.jobOffers.length} Job Offer(s), ` +
             `${report.skipped.length} page(s) skipped${detail ? ` (${detail})` : ""}`,
         );
+      },
+    },
+
+    // Guest data is deleted within 24 hours (ADR-0003); GUEST_RETENTION_HOURS leaves room for this interval.
+    "guests.forget": {
+      cron: "*/15 * * * *",
+      handler: async () => {
+        try {
+          const forgotten = await forgetExpiredGuestCaptures(deps.database, (deps.now ?? (() => new Date()))());
+          if (forgotten) log(`[worker] forgot ${forgotten} Job Offer(s) captured by Guests`);
+        } catch (error) {
+          if ((error as { code?: string }).code !== UNDEFINED_TABLE) throw error;
+        }
       },
     },
   };

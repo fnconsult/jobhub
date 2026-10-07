@@ -28,6 +28,7 @@ function jobDiscovery(): JobsDeps["discovery"] {
 }
 
 const jobs = createJobs({
+  database,
   discovery: jobDiscovery(),
   profiles: createProfiles(database),
 });

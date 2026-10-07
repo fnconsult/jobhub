@@ -14,7 +14,9 @@ import { webPort as e2eWebPort } from "./e2e/support/ports";
 // DATABASE_URL), migrated with `npm run db:migrate` and dropped afterwards.
 // Sign-in emails land in E2E_SERVER_LOG (MAIL_TRANSPORT=console), and Google's
 // token endpoint is faked inside the server (e2e/support/fake-google.mjs), and so
-// is Mistral's API, which serves every AI task (e2e/support/fake-mistral.mjs).
+// is Mistral's API, which serves every AI task (e2e/support/fake-mistral.mjs),
+// and so are the French company register and Perplexity's web search behind
+// Company Dossiers (e2e/support/fake-company-sources.mjs).
 // Stripe is a fake HTTP API (apps/web/src/billing/fake-stripe.ts) on
 // E2E_STRIPE_URL; webhooks are signed with its test secret. ADMIN_EMAILS names
 // the e2e Administrator.
@@ -45,7 +47,7 @@ export default defineConfig({
   projects: [
     {
       name: "web",
-      testMatch: /(web|auth|profiles|master-cv|match-score|coach|billing|applications)\.spec\.ts/,
+      testMatch: /(web|auth|profiles|master-cv|match-score|coach|billing|applications|company-dossier)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" },
     },
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },
@@ -81,6 +83,7 @@ export default defineConfig({
       NODE_OPTIONS: [
         `--import=${path.resolve("e2e/support/fake-google.mjs")}`,
         `--import=${path.resolve("e2e/support/fake-mistral.mjs")}`,
+        `--import=${path.resolve("e2e/support/fake-company-sources.mjs")}`,
       ].join(" "),
       STRIPE_SECRET_KEY: "sk_test_fake",
       STRIPE_WEBHOOK_SECRET: "whsec_test_fake",

@@ -51,6 +51,8 @@ export default defineConfig({
     { name: "stack", testMatch: /stack\.spec\.ts/ },
     { name: "repo", testMatch: /(repo|migrate|agent-runs)\.spec\.ts/ },
     { name: "ai", testMatch: /ai\.spec\.ts/ },
+    // The worker's background jobs, run by `tsx src/main.ts` against the web server's database.
+    { name: "worker", testMatch: /job-discovery\.spec\.ts/ },
     { name: "root-env", testMatch: /root-env\.spec\.ts/ },
   ],
   webServer: {

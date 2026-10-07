@@ -141,4 +141,69 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
       },
     });
   });
+
+  async function captureOffer(title: string) {
+    const captured = await createJobOffers(testAuth.auth.options.database as Pool).capture({ title, content: `${title} : poste à Lyon.` });
+    if (!captured.ok) throw new Error("fixture Job Offer refused");
+    return captured.jobOffer.id;
+  }
+
+  it("lists the Candidate's Applications, newest first, with their Job Offer, Profile and status", async () => {
+    const first = await save({ jobOfferId, profileId });
+    const second = await save({ jobOfferId: await captureOffer("Contrôleur de gestion"), profileId });
+    await save({ jobOfferId, profileId: await createProfile(otherCandidateId, "DAF") }, otherCandidateId);
+
+    const list = await applications.list(candidateId);
+
+    expect(list).toEqual([
+      {
+        id: second.id,
+        status: "to_apply",
+        statusChangedAt: expect.any(Date),
+        jobOffer: { id: second.jobOffer.id, title: "Contrôleur de gestion" },
+        profile: { id: profileId, name: "DAF" },
+        interviews: [],
+      },
+      {
+        id: first.id,
+        status: "to_apply",
+        statusChangedAt: expect.any(Date),
+        jobOffer: { id: jobOfferId, title: "DAF H/F", employer: "Acme Industrie", location: "Lyon" },
+        profile: { id: profileId, name: "DAF" },
+        interviews: [],
+      },
+    ]);
+  });
+
+  it("changes the Application Status when the Candidate says so", async () => {
+    const application = await save({ jobOfferId, profileId });
+
+    const changed = await applications.change(candidateId, application.id, { status: "applied" });
+
+    expect(changed).toMatchObject({ ok: true, application: { status: "applied" } });
+    expect((await applications.get(candidateId, application.id))?.status).toBe("applied");
+    if (changed.ok) expect(changed.application.statusChangedAt.getTime()).toBeGreaterThanOrEqual(application.statusChangedAt.getTime());
+  });
+
+  it("refuses a status that is not an Application Status, and someone else's Application", async () => {
+    const application = await save({ jobOfferId, profileId });
+
+    expect(await applications.change(candidateId, application.id, { status: "hired" })).toEqual({
+      ok: false,
+      errors: [{ field: "status", code: "invalid" }],
+    });
+    expect(await applications.change(otherCandidateId, application.id, { status: "applied" })).toEqual({ ok: false, error: "not_found" });
+    expect((await applications.get(candidateId, application.id))?.status).toBe("to_apply");
+  });
+
+  it("lets the Candidate pick another of their Profiles for the Application, and scores that one", async () => {
+    const application = await save({ jobOfferId, profileId });
+    const otherProfileId = await createProfile(candidateId, "Consultant transformation");
+    const theirProfileId = await createProfile(otherCandidateId, "DAF");
+
+    const changed = await applications.change(candidateId, application.id, { profileId: otherProfileId });
+
+    expect(changed).toMatchObject({ ok: true, application: { profile: { id: otherProfileId, name: "Consultant transformation" } } });
+    expect(await applications.change(candidateId, application.id, { profileId: theirProfileId })).toEqual({ ok: false, error: "not_found" });
+  });
 });

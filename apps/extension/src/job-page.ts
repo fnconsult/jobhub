@@ -57,6 +57,36 @@ export const KNOWN_POSTING_PAGES: readonly RegExp[] = [
   /^https:\/\/[^/]+\.welcomekit\.co\/jobs\//,
 ];
 
+/**
+ * Where the extension watches for postings to show the badge: the sites of
+ * KNOWN_POSTING_PAGES, as match patterns. Elsewhere, Capture is manual (the
+ * popup's "Capturer cette page", with activeTab), so the extension never asks
+ * to read every site the person visits.
+ */
+export const JOB_SITES: readonly string[] = [
+  "https://*.linkedin.com/*",
+  "https://*.indeed.com/*",
+  "https://*.indeed.fr/*",
+  "https://www.welcometothejungle.com/*",
+  "https://www.apec.fr/*",
+  "https://candidat.francetravail.fr/*",
+  "https://www.hellowork.com/*",
+  "https://www.cadremploi.fr/*",
+  "https://*.glassdoor.fr/*",
+  "https://*.glassdoor.com/*",
+  "https://jobs.lever.co/*",
+  "https://boards.greenhouse.io/*",
+  "https://job-boards.greenhouse.io/*",
+  "https://job-boards.eu.greenhouse.io/*",
+  "https://*.teamtailor.com/*",
+  "https://jobs.smartrecruiters.com/*",
+  "https://careers.smartrecruiters.com/*",
+  "https://*.myworkdayjobs.com/*",
+  "https://apply.workable.com/*",
+  "https://*.recruitee.com/*",
+  "https://*.welcomekit.co/*",
+];
+
 /** What a Job Offer can hold (the Job Offers API refuses more). */
 const MAX = { title: 500, content: 100_000, text: 500, skill: 200, skills: 200 } as const;
 

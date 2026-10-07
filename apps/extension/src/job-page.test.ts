@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { readJobPage, type PageSnapshot } from "./job-page";
+import { MatchPattern } from "wxt/utils/match-patterns";
+import { JOB_SITES, readJobPage, type PageSnapshot } from "./job-page";
 
 /** A page as the content script sees it. */
 function page(overrides: Partial<PageSnapshot> = {}): PageSnapshot {
@@ -100,6 +101,8 @@ describe("reading a job page", () => {
     "https://apply.workable.com/example/j/1A2B3C4D5E/",
   ])("detects a job posting on a major job board or career site without structured data: %s", (url) => {
     expect(readJobPage(page({ url })).detected).toBe(true);
+    // ...where the extension watches for postings, to show the badge.
+    expect(JOB_SITES.some((pattern) => new MatchPattern(pattern).includes(url))).toBe(true);
   });
 
   it.each(["https://www.linkedin.com/feed/", "https://fr.indeed.com/jobs?q=daf&l=Lyon", "https://www.lemonde.fr/economie/"])(

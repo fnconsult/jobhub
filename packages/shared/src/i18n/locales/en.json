@@ -184,5 +184,16 @@
     "backToAccount": "Back to my account",
     "editMasterCv": "Edit my Master CV",
     "versionHistory": "Version history"
+  },
+  "cvDocument": {
+    "summary": "Profile",
+    "experience": "Professional experience",
+    "education": "Education",
+    "skills": "Skills",
+    "languages": "Languages",
+    "languageLevel": "{{name}}: {{level}}",
+    "subject": "Subject: {{subject}}",
+    "cvFileName": "CV",
+    "coverLetterFileName": "Cover-letter"
   }
 }

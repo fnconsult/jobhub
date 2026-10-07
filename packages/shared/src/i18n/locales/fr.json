@@ -184,5 +184,16 @@
     "backToAccount": "Retour à mon compte",
     "editMasterCv": "Modifier mon CV de référence",
     "versionHistory": "Historique des versions"
+  },
+  "cvDocument": {
+    "summary": "Profil",
+    "experience": "Expérience professionnelle",
+    "education": "Formation",
+    "skills": "Compétences",
+    "languages": "Langues",
+    "languageLevel": "{{name}} : {{level}}",
+    "subject": "Objet : {{subject}}",
+    "cvFileName": "CV",
+    "coverLetterFileName": "Lettre-de-motivation"
   }
 }

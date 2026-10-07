@@ -6,6 +6,7 @@ import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { CvDraft, CvFileErrorCode } from "@/cv";
 import type { ProfileFieldError } from "@/profiles";
+import { PROFILE_NAME_MAX_LENGTH } from "@/profiles/limits";
 import { routes } from "@/routes";
 import { SelectField, TextField } from "./form-fields";
 import { MasterCvFields } from "./MasterCvFields";
@@ -176,7 +177,7 @@ export function CvOnboarding() {
 
       <fieldset className="fieldset">
         <legend>{t("cvReview.searchCriteria")}</legend>
-        <TextField label={t("cvReview.targetRole")} value={review.criteria.targetRole} onChange={(targetRole) => setCriteria({ targetRole })} error={criteriaError.targetRole} required />
+        <TextField label={t("cvReview.targetRole")} value={review.criteria.targetRole} onChange={(targetRole) => setCriteria({ targetRole })} error={criteriaError.targetRole} maxLength={PROFILE_NAME_MAX_LENGTH} required />
         <TextField label={t("cvReview.location")} value={review.criteria.location} onChange={(location) => setCriteria({ location })} error={criteriaError.location} required />
         <TextField label={t("cvReview.minSalary")} value={review.criteria.minSalary} onChange={(minSalary) => setCriteria({ minSalary })} error={criteriaError.minSalary} numeric />
         <SelectField

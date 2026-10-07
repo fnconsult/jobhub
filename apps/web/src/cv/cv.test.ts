@@ -3,6 +3,7 @@ import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jo
 import { describe, expect, it } from "vitest";
 import { draftFromCv } from "./index";
 import { CvFileError } from "./index";
+import { PROFILE_NAME_MAX_LENGTH } from "../profiles/limits";
 import { docxCv, MARIE_DUPONT_CV, pdfCv } from "./test-support";
 
 function aiReplying(reply: string): { ai: AiLayer; provider: FakeProvider } {
@@ -146,6 +147,16 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
       expect(draft).toEqual(aiReading);
       expect(provider.calls).toHaveLength(1);
       expect(provider.calls[0]!.messages.at(-1)!.content).toContain("Responsable du contrôle de gestion — Renault, Paris — 2005 – 2015");
+    });
+
+    it("shortens a target role too long to name a Profile, at a word boundary", async () => {
+      const longRole = `${"Responsable ".repeat(12)}financier`;
+      const { ai } = aiReplying(JSON.stringify({ ...aiReading, searchCriteria: { targetRole: longRole, location: "Lyon" } }));
+
+      const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai, candidateId: "c1" });
+
+      expect(draft.searchCriteria.targetRole.length).toBeLessThanOrEqual(PROFILE_NAME_MAX_LENGTH);
+      expect(draft.searchCriteria.targetRole).toBe("Responsable ".repeat(10).trim());
     });
 
     it("accepts a reading wrapped in a Markdown code block, and fills what it leaves out with empty fields", async () => {

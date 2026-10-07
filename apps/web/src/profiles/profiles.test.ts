@@ -94,6 +94,18 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
     expect(await profiles.list(candidateId)).toEqual([]);
   });
 
+  it("refuses a target role longer than a Profile name may be, since it names the Profile", async () => {
+    const tooLong = await profiles.create(candidateId, { masterCv, searchCriteria: { targetRole: "R".repeat(121), location: "Lyon" } });
+
+    expect(tooLong).toEqual({ ok: false, errors: [{ field: "searchCriteria.targetRole", code: "too_long" }] });
+    expect(await profiles.list(candidateId)).toEqual([]);
+
+    const longest = await profiles.create(candidateId, { masterCv, searchCriteria: { targetRole: "R".repeat(120), location: "Lyon" } });
+    expect(longest.ok).toBe(true);
+    if (!longest.ok) return;
+    expect(await profiles.rename(candidateId, longest.profile.id, { name: longest.profile.name })).toMatchObject({ ok: true });
+  });
+
   it("calls a filled salary that is not a whole number invalid, not missing", async () => {
     for (const minSalary of ["110,000", "55 000,00", "55k", "abc"]) {
       const created = await profiles.create(candidateId, {
@@ -241,7 +253,7 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
 
       expect(await profiles.rename(candidateId, profile.id, { name: "  " })).toEqual({ ok: false, errors: [{ field: "name", code: "required" }] });
       expect(await profiles.rename(candidateId, profile.id, {})).toEqual({ ok: false, errors: [{ field: "name", code: "required" }] });
-      expect(await profiles.rename(candidateId, profile.id, { name: "x".repeat(121) })).toEqual({ ok: false, errors: [{ field: "name", code: "invalid" }] });
+      expect(await profiles.rename(candidateId, profile.id, { name: "x".repeat(121) })).toEqual({ ok: false, errors: [{ field: "name", code: "too_long" }] });
       expect((await profiles.get(candidateId, profile.id))?.name).toBe("Directrice financière");
     });
 

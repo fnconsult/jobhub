@@ -154,6 +154,7 @@
     "invalid": "Some fields need completing or correcting: {{fields}}.",
     "required": "This field is required.",
     "invalidValue": "This value is not valid.",
+    "tooLong": "This field cannot be longer than {{max}} characters.",
     "error": "Your profile could not be saved. Please try again.",
     "scratchIntro": "Fill in your master CV and search criteria, then save your profile."
   },

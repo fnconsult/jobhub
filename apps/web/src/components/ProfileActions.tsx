@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProfileFieldError } from "@/profiles";
-import { PROFILE_NAME_MAX_LENGTH } from "@/profiles/limits";
+import { copyName, PROFILE_NAME_MAX_LENGTH } from "@/profiles/limits";
 import { routes } from "@/routes";
 import { TextField } from "./form-fields";
 
@@ -16,7 +16,7 @@ export function ProfileActions({ profile }: { profile: { id: string; name: strin
   const { t } = useTranslation();
   const router = useRouter();
   const [name, setName] = useState(profile.name);
-  const [duplicateName, setDuplicateName] = useState(() => t("profiles.copyOf", { name: profile.name }));
+  const [duplicateName, setDuplicateName] = useState(() => copyName(profile.name, (name) => t("profiles.copyOf", { name })));
   const [working, setWorking] = useState<Action | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
 
@@ -42,7 +42,7 @@ export function ProfileActions({ profile }: { profile: { id: string; name: strin
     event.preventDefault();
     if (await send("rename", `/api/profiles/${profile.id}`, "PATCH", { name })) {
       setOutcome({ action: "rename", done: true });
-      setDuplicateName(t("profiles.copyOf", { name: name.trim() }));
+      setDuplicateName(copyName(name, (copied) => t("profiles.copyOf", { name: copied })));
       router.refresh();
     }
   }

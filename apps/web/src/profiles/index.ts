@@ -43,7 +43,8 @@ export interface ProfileSummary {
 /** A field the Candidate must fix, as a dotted path (e.g. "searchCriteria.location"). */
 export interface ProfileFieldError {
   field: string;
-  code: "required" | "invalid";
+  /** "too_long": over PROFILE_NAME_MAX_LENGTH characters (a Profile name, or the target role that names it). */
+  code: "required" | "too_long" | "invalid";
 }
 
 type SavedProfile = { ok: true; profile: Profile } | { ok: false; errors: ProfileFieldError[] };
@@ -138,7 +139,8 @@ const masterCvSchema = z.object({
 const inputSchema = z.object({
   masterCv: masterCvSchema,
   searchCriteria: z.object({
-    targetRole: required,
+    // The Profile is named after it, so it obeys the same limit as a Profile name.
+    targetRole: required.max(PROFILE_NAME_MAX_LENGTH),
     location: required,
     minSalary: z.number().int().positive().max(10_000_000).optional(),
     contractType: z.enum(CONTRACT_TYPES).optional(),
@@ -153,7 +155,9 @@ function fieldErrors(error: z.ZodError): ProfileFieldError[] {
     code:
       (issue.code === "too_small" && issue.origin === "string") || (issue.code === "invalid_type" && issue.input === undefined)
         ? "required"
-        : "invalid",
+        : issue.code === "too_big" && issue.origin === "string"
+          ? "too_long"
+          : "invalid",
   }));
 }
 

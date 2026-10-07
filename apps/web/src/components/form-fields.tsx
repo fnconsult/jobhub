@@ -45,7 +45,9 @@ export function TextField(props: {
       )}
       {props.error ? (
         <p id={`${id}-error`} className="field-error">
-          {t(props.error.code === "required" ? "cvReview.required" : "cvReview.invalidValue")}
+          {props.error.code === "too_long"
+            ? t("cvReview.tooLong", { max: props.maxLength })
+            : t(props.error.code === "required" ? "cvReview.required" : "cvReview.invalidValue")}
         </p>
       ) : null}
     </div>

@@ -74,6 +74,29 @@ test.describe("several Profiles per Candidate", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice financière");
   });
 
+  test("a Profile name never goes over the limit: target role capped, copy name shortened to fit", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("long-name"));
+    const tooLong = await page.request.post("/api/profiles", {
+      headers: { origin },
+      data: { masterCv, searchCriteria: { targetRole: "R".repeat(121), location: "Lyon" } },
+    });
+    expect(tooLong.status()).toBe(400);
+    expect((await tooLong.json()).errors).toEqual([{ field: "searchCriteria.targetRole", code: "too_long" }]);
+
+    await page.goto("/profils/nouveau");
+    await page.getByRole("button", { name: fr.cvUpload.fromScratch }).click();
+    await expect(page.getByLabel(fr.cvReview.targetRole)).toHaveAttribute("maxlength", "120");
+
+    const id = await createProfile(page, "x".repeat(118));
+    await page.goto(`/profils/${id}`);
+    const duplicateName = page.getByLabel(fr.profileActions.duplicateName);
+    const suggested = `${"x".repeat(112)} (copie)`;
+    await expect(duplicateName).toHaveValue(suggested);
+    await page.getByRole("button", { name: fr.profileActions.duplicate }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(suggested);
+    await expect(page).not.toHaveURL(`${origin}/profils/${id}`);
+  });
+
   test("renaming needs a name", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("rename-empty"));
     const id = await createProfile(page, "DAF");

@@ -154,6 +154,7 @@
     "invalid": "Certains champs sont à compléter ou à corriger : {{fields}}.",
     "required": "Ce champ est obligatoire.",
     "invalidValue": "Cette valeur n'est pas valide.",
+    "tooLong": "Ce champ ne peut pas dépasser {{max}} caractères.",
     "error": "Votre profil n'a pas pu être enregistré. Veuillez réessayer.",
     "scratchIntro": "Remplissez votre CV de référence et vos critères de recherche, puis enregistrez votre profil."
   },

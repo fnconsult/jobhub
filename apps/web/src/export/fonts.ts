@@ -6,20 +6,25 @@
  * Anything else (Ł, Ğ, →, ✓, Cyrillic, Greek, CJK, emoji) would come out as
  * garbage. So a document whose text is all WinAnsi keeps the standard fonts,
  * and any other document is drawn in an embedded Unicode font (DejaVu), with
- * Noto Sans SC (CJK), Noto Sans KR (Hangul) and Noto Emoji for the characters
- * DejaVu has no glyph for. WOFF, not WOFF2: fontkit cannot subset some WOFF2
- * glyphs (flags crash it).
+ * DejaVu Sans (Arabic, Hebrew, symbols missing from DejaVu Serif), Noto Sans
+ * Devanagari, Noto Sans Thai, Noto Sans SC (CJK), Noto Sans KR (Hangul) and
+ * Noto Emoji for the characters it has no glyph for. WOFF, not WOFF2: fontkit
+ * cannot subset some WOFF2 glyphs (flags crash it); and the WOFF files are
+ * unpacked here, not by fontkit (see fontBytes).
  * pdfkit subsets embedded fonts and writes a ToUnicode map, so the text stays
  * extractable by ATS parsers.
  *
  * Font files are read from `node_modules` at run time (see
  * `outputFileTracingIncludes` in next.config.ts for the standalone build).
  */
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { inflateSync } from "node:zlib";
 import * as fontkit from "fontkit";
 import koreanSlices from "@fontsource/noto-sans-kr/unicode.json";
 import cjkSlices from "@fontsource/noto-sans-sc/unicode.json";
+import devanagariSlices from "@fontsource/noto-sans-devanagari/unicode.json";
+import thaiSlices from "@fontsource/noto-sans-thai/unicode.json";
 
 /** Characters the standard PDF fonts can draw: WinAnsiEncoding (Windows-1252). */
 const WIN_ANSI_EXTRAS = new Set("€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ");
@@ -32,19 +37,80 @@ export function isWinAnsi(text: string): boolean {
   return true;
 }
 
-/** The directory of an installed package, found from where the server runs (the app, or the repo root in tests). */
-const packageDirs = new Map<string, string>();
-function packageDir(name: string): string {
-  const known = packageDirs.get(name);
-  if (known) return known;
-  for (let dir = process.cwd(); ; dir = path.dirname(dir)) {
-    const candidate = path.join(dir, "node_modules", name);
-    if (existsSync(path.join(candidate, "package.json"))) {
-      packageDirs.set(name, candidate);
-      return candidate;
-    }
-    if (path.dirname(dir) === dir) throw new Error(`Font package ${name} is not installed`);
+/**
+ * The path of `file` inside an installed package, found from `from` (the app,
+ * or the repo root in tests) up to the root. Looks for the file itself: the
+ * standalone build traces font files without their package.json.
+ */
+export function findFontFile(pkg: string, file: string, from = process.cwd()): string {
+  for (let dir = from; ; dir = path.dirname(dir)) {
+    const candidate = path.join(dir, "node_modules", pkg, file);
+    if (existsSync(candidate)) return candidate;
+    if (path.dirname(dir) === dir) throw new Error(`Font file ${pkg}/${file} is not installed`);
   }
+}
+const fontFiles = new Map<string, string>();
+function fontFile(pkg: string, file: string): string {
+  const key = `${pkg}/${file}`;
+  let found = fontFiles.get(key);
+  if (!found) {
+    found = findFontFile(pkg, file);
+    fontFiles.set(key, found);
+  }
+  return found;
+}
+
+/**
+ * The bytes of a font file, as TrueType/OpenType. A WOFF file is unpacked here
+ * with Node's zlib: fontkit's own inflater (tiny-inflate) rejects some valid
+ * WOFF tables (the cmap of Noto Sans SC slice [101]: "Data error").
+ */
+const fontBytesCache = new Map<string, Buffer>();
+export function fontBytes(file: string): Buffer {
+  let bytes = fontBytesCache.get(file);
+  if (!bytes) {
+    const raw = readFileSync(file);
+    bytes = raw.toString("latin1", 0, 4) === "wOFF" ? sfntOfWoff(raw) : raw;
+    fontBytesCache.set(file, bytes);
+  }
+  return bytes;
+}
+
+/** Unpacks a WOFF 1.0 file into the TrueType/OpenType font it wraps (W3C WOFF spec, section 4). */
+function sfntOfWoff(woff: Buffer): Buffer {
+  const count = woff.readUInt16BE(12);
+  const tables = Array.from({ length: count }, (_, i) => {
+    const entry = 44 + i * 20;
+    const [offset, compLength, length] = [woff.readUInt32BE(entry + 4), woff.readUInt32BE(entry + 8), woff.readUInt32BE(entry + 12)];
+    const stored = woff.subarray(offset, offset + compLength);
+    const data = compLength < length ? inflateSync(stored) : stored;
+    if (data.length !== length) throw new Error(`Corrupt WOFF table ${woff.toString("latin1", entry, entry + 4)}`);
+    return { tag: woff.subarray(entry, entry + 4), checksum: woff.readUInt32BE(entry + 16), data };
+  });
+  const headerLength = 12 + count * 16;
+  const sfnt = Buffer.alloc(headerLength + tables.reduce((sum, t) => sum + ((t.data.length + 3) & ~3), 0));
+  let searchRange = 1;
+  let entrySelector = 0;
+  while (searchRange * 2 <= count) {
+    searchRange *= 2;
+    entrySelector++;
+  }
+  sfnt.writeUInt32BE(woff.readUInt32BE(4), 0); // flavor
+  sfnt.writeUInt16BE(count, 4);
+  sfnt.writeUInt16BE(searchRange * 16, 6);
+  sfnt.writeUInt16BE(entrySelector, 8);
+  sfnt.writeUInt16BE(count * 16 - searchRange * 16, 10);
+  let offset = headerLength;
+  tables.forEach((table, i) => {
+    const entry = 12 + i * 16;
+    table.tag.copy(sfnt, entry);
+    sfnt.writeUInt32BE(table.checksum, entry + 4);
+    sfnt.writeUInt32BE(offset, entry + 8);
+    sfnt.writeUInt32BE(table.data.length, entry + 12);
+    table.data.copy(sfnt, offset);
+    offset += (table.data.length + 3) & ~3;
+  });
+  return sfnt;
 }
 
 type Range = [number, number];
@@ -54,43 +120,59 @@ interface Slice {
 }
 
 /** The slices of a Fontsource font, one file per range of characters and per weight (see its unicode.json). */
-function slicesOf(table: Record<string, string>, pkg: string, family: string): Slice[] {
-  return Object.entries(table).map(([key, value]) => {
-    const name = key.replace(/^\[(.*)\]$/, "$1");
-    const ranges = value.split(",").map((range): Range => {
-      const [from = "", to = from] = range.trim().replace(/^U\+/i, "").split("-");
-      return [parseInt(from, 16), parseInt(to, 16)];
+function slicesOf(table: Record<string, string>, pkg: string, family: string, only?: string[]): Slice[] {
+  return Object.entries(table)
+    .filter(([key]) => !only || only.includes(key))
+    .map(([key, value]) => {
+      const name = key.replace(/^\[(.*)\]$/, "$1");
+      const ranges = value.split(",").map((range): Range => {
+        const [from = "", to = from] = range.trim().replace(/^U\+/i, "").split("-");
+        return [parseInt(from, 16), parseInt(to, 16)];
+      });
+      return { ranges, file: (weight) => fontFile(pkg, `files/${family}-${name}-${weight}-normal.woff`) };
     });
-    return {
-      ranges,
-      file: (weight) => path.join(packageDir(pkg), "files", `${family}-${name}-${weight}-normal.woff`),
-    };
-  });
 }
 
-/** Fonts tried in turn for a character DejaVu lacks: each says which file might draw it. */
+/** Fonts tried in turn for a character the template's DejaVu lacks: each says which file might draw it. */
+const DEVANAGARI = slicesOf(devanagariSlices, "@fontsource/noto-sans-devanagari", "noto-sans-devanagari", ["devanagari"]);
+const THAI = slicesOf(thaiSlices, "@fontsource/noto-sans-thai", "noto-sans-thai", ["thai"]);
 const CJK = slicesOf(cjkSlices, "@fontsource/noto-sans-sc", "noto-sans-sc");
 const HANGUL = slicesOf(koreanSlices, "@fontsource/noto-sans-kr", "noto-sans-kr");
+const EMOJI = "files/noto-emoji-emoji-400-normal.woff";
 const sliceFor = (slices: Slice[]) => (code: number, bold: boolean) =>
   slices.find((s) => s.ranges.some(([from, to]) => code >= from && code <= to))?.file(bold ? 700 : 400);
 const FALLBACKS: ((code: number, bold: boolean) => string | undefined)[] = [
+  // DejaVu Serif lacks Arabic, Hebrew and many symbols that DejaVu Sans has.
+  (_, bold) => primaryFile("DejaVuSans", bold),
+  sliceFor(DEVANAGARI),
+  sliceFor(THAI),
   sliceFor(CJK),
   sliceFor(HANGUL),
   // Emoji in one file, in one weight, so that sequences (👩‍💻, flags) find their ligatures.
-  () => path.join(packageDir("@fontsource/noto-emoji"), "files", "noto-emoji-emoji-400-normal.woff"),
+  () => fontFile("@fontsource/noto-emoji", EMOJI),
 ];
+
+/** Every font file a PDF may embed. */
+export function allFontFiles(): string[] {
+  const families: UnicodeFamily[] = ["DejaVuSerif", "DejaVuSans"];
+  return [
+    ...families.flatMap((family) => [primaryFile(family, false), primaryFile(family, true)]),
+    ...[DEVANAGARI, THAI, CJK, HANGUL].flatMap((slices) => slices.flatMap((slice) => [slice.file(400), slice.file(700)])),
+    fontFile("@fontsource/noto-emoji", EMOJI),
+  ];
+}
 
 /** The embedded Unicode font that replaces a template's standard font. */
 export type UnicodeFamily = "DejaVuSerif" | "DejaVuSans";
 function primaryFile(family: UnicodeFamily, bold: boolean): string {
-  return path.join(packageDir("dejavu-fonts-ttf"), "ttf", `${family}${bold ? "-Bold" : ""}.ttf`);
+  return fontFile("dejavu-fonts-ttf", `ttf/${family}${bold ? "-Bold" : ""}.ttf`);
 }
 
 const coverage = new Map<string, fontkit.Font>();
 function hasGlyph(file: string, code: number): boolean {
   let font = coverage.get(file);
   if (!font) {
-    font = fontkit.openSync(file) as fontkit.Font;
+    font = fontkit.create(fontBytes(file)) as fontkit.Font;
     coverage.set(file, font);
   }
   return font.hasGlyphForCodePoint(code);
@@ -124,7 +206,10 @@ export function runsOf(text: string, family: UnicodeFamily | undefined, bold: bo
   for (const char of text) {
     const last = runs.at(-1);
     const attached = last && (isAttached(char.codePointAt(0)!) || last.text.endsWith("\u200d"));
-    const file = attached ? last.file : fontFor(char.codePointAt(0)!, primary, bold);
+    const code = char.codePointAt(0)!;
+    // A space stays in the font of the text before it when that font has one, so that words of one script make one run.
+    const sticky = last && /\s/.test(char) && last.file !== undefined && hasGlyph(last.file, code);
+    const file = attached || sticky ? last.file : fontFor(code, primary, bold);
     if (last && last.file === file) last.text += char;
     else runs.push({ file, text: char });
   }
@@ -139,4 +224,34 @@ function fontFor(code: number, primary: string, bold: boolean): string {
   }
   // No font has it: DejaVu draws its "missing glyph" box.
   return primary;
+}
+
+/** Letters of the scripts written right to left. */
+const RTL = /[\p{Script=Hebrew}\p{Script=Arabic}\p{Script=Syriac}\p{Script=Thaana}\p{Script=Nko}]/u;
+const LTR_LETTER = /(?![\p{Script=Hebrew}\p{Script=Arabic}\p{Script=Syriac}\p{Script=Thaana}\p{Script=Nko}])\p{L}/u;
+export const isRightToLeft = (text: string) => RTL.test(text);
+
+/**
+ * `text` with the words of each right-to-left passage in the order they are
+ * seen, left to right ("محمد علي" becomes "علي محمد"). fontkit already draws
+ * the letters of each word from right to left, but pdfkit places words left to
+ * right, so a name would read backwards. Text extractors (pdf.js, ATS parsers)
+ * put such a passage back in reading order.
+ */
+export function visualOrder(text: string): string {
+  const tokens = text.split(/(\s+)/);
+  const rtl = (token: string | undefined) => token !== undefined && RTL.test(token) && !LTR_LETTER.test(token);
+  const out: string[] = [];
+  for (let i = 0; i < tokens.length; ) {
+    if (!rtl(tokens[i])) {
+      out.push(tokens[i++]!);
+      continue;
+    }
+    // A passage: right-to-left words and the spaces between them.
+    let end = i + 1;
+    while (end + 1 < tokens.length && rtl(tokens[end + 1])) end += 2;
+    out.push(...tokens.slice(i, end).reverse());
+    i = end;
+  }
+  return out.join("");
 }

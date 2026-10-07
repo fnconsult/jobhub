@@ -1,5 +1,5 @@
 import PDFDocument from "pdfkit";
-import { isWinAnsi, runsOf, type Run } from "./fonts";
+import { fontBytes, isRightToLeft, isWinAnsi, runsOf, visualOrder, type Run } from "./fonts";
 import type { Block } from "./layout";
 import type { TemplateStyle } from "./templates";
 
@@ -27,6 +27,7 @@ export function renderPdf(blocks: Block[], style: TemplateStyle, title: string):
 
   const width = pdf.page.width - A4.margin * 2;
   const unicode = blocks.every((block) => block.kind === "gap" || isWinAnsi(block.text)) ? undefined : style.pdfUnicodeFamily;
+  const registered = new Set<string>();
   let gapBefore = false;
   for (const block of blocks) {
     if (block.kind === "gap") {
@@ -41,8 +42,17 @@ export function renderPdf(blocks: Block[], style: TemplateStyle, title: string):
     gapBefore = false;
 
     pdf.fontSize(size).fillColor(block.kind === "heading" ? `#${style.headingColor}` : "#000000");
-    const fontOf = (run: Run) => run.file ?? (bold ? style.pdfFont.bold : style.pdfFont.regular);
-    const runs = runsOf(block.text, unicode, bold);
+    const fontOf = (run: Run) => {
+      if (!run.file) return bold ? style.pdfFont.bold : style.pdfFont.regular;
+      // Registered from its bytes: pdfkit would read a WOFF with fontkit's inflater, which rejects some valid files.
+      if (!registered.has(run.file)) pdf.registerFont(run.file, fontBytes(run.file));
+      registered.add(run.file);
+      return run.file;
+    };
+    // Right-to-left words are drawn one by one: pdfkit lays out a word with its trailing space, and fontkit would move that space in front of the word.
+    const runs = runsOf(unicode ? visualOrder(block.text) : block.text, unicode, bold).flatMap((run) =>
+      isRightToLeft(run.text) ? run.text.split(/(\s+)/).filter(Boolean).map((text) => ({ ...run, text })) : [run],
+    );
     let x = A4.margin;
     let align: "center" | "left" = header && style.headerAlign === "center" ? "center" : "left";
     if (align === "center" && runs.length > 1) {

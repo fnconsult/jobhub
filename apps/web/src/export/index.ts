@@ -69,11 +69,11 @@ export function isExportFormat(value: unknown): value is ExportFormat {
   return typeof value === "string" && (EXPORT_FORMATS as readonly string[]).includes(value);
 }
 
-/** "CV-Marie-Dupont.pdf", "CV-Zoë-Łukasz.pdf", "CV-李明.pdf": letters and digits of any script, joined by dashes. */
+/** "CV-Marie-Dupont.pdf", "CV-Zoë-Łukasz.pdf", "CV-李明.pdf", "CV-राहुल-शर्मा.pdf": letters (with their vowel signs and accents) and digits of any script, joined by dashes. */
 function fileNameOf(document: ExportableDocument, { format, language }: ExportOptions): string {
   const { t } = createI18n(language);
   const prefix = t(document.kind === "cv" ? "cvDocument.cvFileName" : "cvDocument.coverLetterFileName");
-  return `${slug([prefix, document.content.fullName].join(" "), /[^\p{L}\p{N}]+/gu)}.${format}`;
+  return `${slug([prefix, document.content.fullName].join(" "), /[^\p{L}\p{M}\p{N}]+/gu)}.${format}`;
 }
 
 const slug = (text: string, unwanted: RegExp) =>

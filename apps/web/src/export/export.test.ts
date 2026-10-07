@@ -1,9 +1,13 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { createAiLayer } from "@jobhub/ai";
 import JSZip from "jszip";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import type { MasterCvContent } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { draftFromCv } from "../cv";
+import { allFontFiles, findFontFile, fontBytes, visualOrder } from "./fonts";
 import { contentDisposition, CV_TEMPLATES, EXPORT_FORMATS, exportDocument, type CoverLetterContent } from "./index";
 
 const marie: MasterCvContent = {
@@ -169,6 +173,67 @@ describe("exporting text outside the standard PDF fonts (WinAnsi)", () => {
   });
 });
 
+describe("exporting names and symbols in any script", () => {
+  const cvOf = (fullName: string): MasterCvContent => ({ ...marie, fullName, headline: fullName, summary: fullName });
+  const names = [
+    "結城 花子", // Han ideographs in a Noto Sans SC slice that fontkit could not inflate
+    "馬場 健",
+    "李明 ❤",
+    "राहुल मेहता", // Devanagari
+    "สมชาย ใจดี", // Thai
+    "محمد علي", // Arabic, right to left
+    "דוד כהן", // Hebrew, right to left
+    "∞ ☐ ★",
+  ];
+
+  describe.each(CV_TEMPLATES)("with the %s CV Template", (template) => {
+    it.each(names)("writes %s in the PDF as in the DOCX", async (name) => {
+      const pdf = await exportDocument({ kind: "cv", content: cvOf(name) }, { format: "pdf", template, language: "fr" });
+      const docx = await exportDocument({ kind: "cv", content: cvOf(name) }, { format: "docx", template, language: "fr" });
+
+      expect(await wordsOf(docx)).toContain(`${name} ${name}`);
+      expect(await wordsOf(pdf)).toBe(await wordsOf(docx));
+    });
+  });
+
+  it.each(CV_TEMPLATES)("draws a Devanagari name whose letters the font reorders with the %s CV Template", async (template) => {
+    // The reph of "र्मा" is drawn after the "मा" it sits on, so a text extractor reads "शमार्": only the drawing is checked.
+    const pdf = await exportDocument({ kind: "cv", content: cvOf("राहुल शर्मा") }, { format: "pdf", template, language: "fr" });
+
+    expect(await wordsOf(pdf)).toContain("राहुल");
+  });
+
+  it("puts the words of a right-to-left passage in the order they are seen", () => {
+    expect(visualOrder("محمد علي")).toBe("علي محمد");
+    expect(visualOrder("Marie محمد علي Dupont, דוד כהן")).toBe("Marie علي محمد Dupont, כהן דוד");
+    expect(visualOrder("Marie Dupont")).toBe("Marie Dupont");
+  });
+
+  it("can read every font file a PDF may embed", () => {
+    const unreadable = allFontFiles().filter((file) => {
+      try {
+        fontBytes(file);
+        return false;
+      } catch {
+        return true;
+      }
+    });
+
+    expect(unreadable).toEqual([]);
+  });
+});
+
+describe("exporting text with tabs", () => {
+  it.each(CV_TEMPLATES)("writes a tab as a space in the PDF and the DOCX with the %s CV Template", async (template) => {
+    const content = { ...marie, fullName: "Marie\tDupont", summary: "Finance\tet\tcontrôle" };
+    const pdf = await exportDocument({ kind: "cv", content }, { format: "pdf", template, language: "fr" });
+    const docx = await exportDocument({ kind: "cv", content }, { format: "docx", template, language: "fr" });
+
+    expect(await wordsOf(pdf)).toContain("Marie Dupont Directrice financière marie.dupont@example.fr · 06 12 34 56 78 · Lyon Profil Finance et contrôle");
+    expect(await wordsOf(pdf)).toBe(await wordsOf(docx));
+  });
+});
+
 describe("naming an exported file", () => {
   const cvOf = (fullName: string) => ({ kind: "cv" as const, content: { ...marie, fullName } });
 
@@ -178,6 +243,7 @@ describe("naming an exported file", () => {
     expect((await exportDocument(cvOf("Zoë Łukasz-Øster Ğül"), options)).fileName).toBe("CV-Zoë-Łukasz-Øster-Ğül.pdf");
     expect((await exportDocument(cvOf("李明"), options)).fileName).toBe("CV-李明.pdf");
     expect((await exportDocument(cvOf("Marie Dupont / RH"), options)).fileName).toBe("CV-Marie-Dupont-RH.pdf");
+    expect((await exportDocument(cvOf("राहुल शर्मा"), options)).fileName).toBe("CV-राहुल-शर्मा.pdf");
   });
 
   it("downloads under that name, with a plain ASCII name for older browsers", () => {
@@ -186,5 +252,18 @@ describe("naming an exported file", () => {
       `attachment; filename="CV-Zoe-Lukasz-Oster-Gul.pdf"; filename*=UTF-8''${encodeURIComponent("CV-Zoë-Łukasz-Øster-Ğül.pdf")}`,
     );
     expect(contentDisposition("CV-李明.pdf")).toBe(`attachment; filename="CV.pdf"; filename*=UTF-8''${encodeURIComponent("CV-李明.pdf")}`);
+  });
+});
+
+describe("finding the font files", () => {
+  it("finds a font in a package traced without its package.json, as in the standalone build", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "fonts-"));
+    const app = path.join(root, "apps", "web");
+    mkdirSync(path.join(root, "node_modules", "dejavu-fonts-ttf", "ttf"), { recursive: true });
+    mkdirSync(app, { recursive: true });
+    writeFileSync(path.join(root, "node_modules", "dejavu-fonts-ttf", "ttf", "DejaVuSans.ttf"), "");
+
+    expect(findFontFile("dejavu-fonts-ttf", "ttf/DejaVuSans.ttf", app)).toBe(path.join(root, "node_modules", "dejavu-fonts-ttf", "ttf", "DejaVuSans.ttf"));
+    expect(() => findFontFile("dejavu-fonts-ttf", "ttf/DejaVuSerif.ttf", app)).toThrow(/not installed/);
   });
 });

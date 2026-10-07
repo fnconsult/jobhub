@@ -5,10 +5,13 @@ const nextConfig: NextConfig = {
   output: "standalone",
   transpilePackages: ["@jobhub/shared", "@jobhub/ai"],
   // The Unicode fonts a PDF export embeds are read from node_modules at run time (src/export/fonts.ts).
+  // `npm run build` checks they all made it into the standalone output (scripts/check-standalone-fonts.ts).
   outputFileTracingIncludes: {
     "/api/**": [
       "../../node_modules/dejavu-fonts-ttf/ttf/DejaVu{Sans,Serif}{,-Bold}.ttf",
       "../../node_modules/@fontsource/noto-sans-{sc,kr}/files/*-{400,700}-normal.woff",
+      "../../node_modules/@fontsource/noto-sans-devanagari/files/noto-sans-devanagari-devanagari-{400,700}-normal.woff",
+      "../../node_modules/@fontsource/noto-sans-thai/files/noto-sans-thai-thai-{400,700}-normal.woff",
       "../../node_modules/@fontsource/noto-emoji/files/noto-emoji-emoji-400-normal.woff",
     ],
   },

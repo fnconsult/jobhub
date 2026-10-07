@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postbuild": "tsx scripts/check-standalone-fonts.ts",
     "start": "next start",
     "typecheck": "next typegen && tsc -p tsconfig.json",
     "db:migrate": "tsx --env-file-if-exists=../../.env scripts/migrate.ts",
@@ -13,8 +14,10 @@
   },
   "dependencies": {
     "@fontsource/noto-emoji": "^5.3.2",
+    "@fontsource/noto-sans-devanagari": "^5.3.0",
     "@fontsource/noto-sans-kr": "^5.3.0",
     "@fontsource/noto-sans-sc": "^5.3.0",
+    "@fontsource/noto-sans-thai": "^5.3.0",
     "@jobhub/ai": "*",
     "@jobhub/shared": "*",
     "better-auth": "^1.7.7",

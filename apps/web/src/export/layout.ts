@@ -88,5 +88,13 @@ function letterBlocks(letter: CoverLetterContent, language: Locale): Block[] {
 
 /** The blocks of `document`, with headings in `language` (its Document Language). */
 export function layout(document: ExportableDocument, language: Locale): Block[] {
-  return document.kind === "cv" ? cvBlocks(document.content, language) : letterBlocks(document.content, language);
+  const blocks = document.kind === "cv" ? cvBlocks(document.content, language) : letterBlocks(document.content, language);
+  return blocks.map((block) => (block.kind === "gap" ? block : { ...block, text: plainLine(block.text) }));
 }
+
+/**
+ * A line without control characters: a tab (pasted from Word, or read from an
+ * uploaded CV) or any other one becomes a space. No PDF font draws them, and
+ * the standard ones turn a tab into a wrong character and drop the next one.
+ */
+const plainLine = (text: string) => text.replace(/\p{Cc}+/gu, " ").trim();

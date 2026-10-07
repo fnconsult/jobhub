@@ -98,6 +98,19 @@ test.describe("exporting the Master CV", () => {
     expect(pdf.text).toBe(docx.text);
   });
 
+  test("names in Japanese, Thai, Arabic or Hebrew, and pasted tabs, come out the same in the PDF and the Word file", async ({ page }) => {
+    const cv = { ...masterCv, fullName: "結城 花子", headline: "Directrice\tfinancière ❤", summary: "馬場 健 · สมชาย ใจดี · محمد علي · דוד כהן · ☐" };
+    const id = await candidateWithProfile(page, "export-scripts", cv);
+    await page.goto(`/profils/${id}`);
+
+    const pdf = await download(page, fr.cvExport.pdf);
+    const docx = await download(page, fr.cvExport.docx);
+
+    expect(pdf.name).toBe("CV-結城-花子.pdf");
+    expect(pdf.text).toContain("結城 花子 Directrice financière ❤ marie.dupont@example.fr");
+    expect(pdf.text).toBe(docx.text);
+  });
+
   test("only the Profile's Candidate can download its Master CV", async ({ page, browser }) => {
     const id = await candidateWithProfile(page, "export-owner");
     const url = `/api/profiles/${id}/master-cv/export?format=pdf&template=classic`;

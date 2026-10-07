@@ -104,6 +104,13 @@ _Avoid_: Job, posting, ad, vacancy, offer (alone)
 The act of the browser extension turning the job page the person is viewing into a Job Offer, either detected automatically or triggered manually.
 _Avoid_: Scrape, import, clip
 
+**Job discovery**:
+The AI Coach's search of the web for Job Offers matching a Profile's Search Criteria. Contrast with Capture, which starts from a page the person is viewing.
+_Avoid_: Scraping, crawling (alone)
+
+**Forbidden site**:
+A site whose terms forbid crawling (LinkedIn, Indeed, Glassdoor). Job discovery never fetches it; only Capture covers it.
+
 **Expired Job Offer**:
 A Job Offer that is no longer published at its source. Its Applications are flagged, but their Application Status is never changed automatically.
 _Avoid_: Closed, dead, archived offer

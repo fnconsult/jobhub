@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
+import JSZip from "jszip";
 import mammoth from "mammoth";
 import { extractText, getDocumentProxy } from "unpdf";
 import { signInWithMagicLink } from "./support/candidate";
@@ -93,4 +94,55 @@ test.describe("exporting the Master CV", () => {
     expect((await stranger.request.get(url)).status()).toBe(404);
     await stranger.close();
   });
+
+  // Acceptance criteria: 2–3 minimal templates, single column, nothing that
+  // breaks ATS parsing (images, tables, text boxes, headers/footers, columns),
+  // and the PDF and Word file of each template say the same thing.
+  for (const template of ["classic", "modern", "compact"]) {
+    test(`the ${template} CV Template is ATS-safe and says the same thing in PDF and Word`, async ({ page }) => {
+      const id = await candidateWithProfile(page, `export-ats-${template}`);
+      const fetchFile = async (format: string) => {
+        const response = await page.request.get(`/api/profiles/${id}/master-cv/export?format=${format}&template=${template}`);
+        expect(response.status()).toBe(200);
+        return Buffer.from(await response.body());
+      };
+      const pdf = await fetchFile("pdf");
+      const docx = await fetchFile("docx");
+
+      expect(await textOf("cv.pdf", pdf)).toBe(expectedText);
+      expect(await textOf("cv.docx", docx)).toBe(expectedText);
+
+      // PDF: real text in standard (unembedded) fonts, no images, one column.
+      const raw = pdf.toString("latin1");
+      expect(raw).not.toMatch(/\/Subtype\s*\/Image/);
+      expect(raw).not.toMatch(/\/FontFile[23]?\b/);
+      const proxy = await getDocumentProxy(new Uint8Array(pdf));
+      expect(proxy.numPages).toBe(1);
+      const content = await (await proxy.getPage(1)).getTextContent();
+      const runs = (content.items as { str: string; transform: number[]; width: number }[])
+        .filter((item) => item.str.trim() !== "")
+        .map((item) => ({ x: item.transform[4], y: Math.round(item.transform[5]), right: item.transform[4] + item.width }));
+      const lines = new Map<number, typeof runs>();
+      for (const run of runs) lines.set(run.y, [...(lines.get(run.y) ?? []), run]);
+      for (const line of lines.values()) {
+        // Text on one baseline is one continuous run: no second column beside it.
+        const sorted = [...line].sort((a, b) => a.x - b.x);
+        for (let i = 1; i < sorted.length; i++) expect(sorted[i].x - sorted[i - 1].right).toBeLessThan(15);
+      }
+      // Lines read top to bottom in the order of the content (one reading flow).
+      const order = runs.map((run) => run.y);
+      for (let i = 1; i < order.length; i++) expect(order[i]).toBeLessThanOrEqual(order[i - 1]);
+
+      // Word: one section, one column, plain paragraphs only.
+      const zip = await JSZip.loadAsync(docx);
+      const parts = Object.keys(zip.files);
+      expect(parts.filter((part) => /^word\/(media\/|header\d*\.xml|footer\d*\.xml)/.test(part))).toEqual([]);
+      const xml = await zip.file("word/document.xml")!.async("string");
+      for (const forbidden of ["<w:tbl>", "<w:tbl ", "<w:drawing", "<w:pict", "<w:txbxContent", "<w:framePr", "<v:shape", "<w:object"]) {
+        expect(xml, `${template} DOCX contains ${forbidden}`).not.toContain(forbidden);
+      }
+      for (const cols of xml.match(/<w:cols\b[^>]*>/g) ?? []) expect(cols).not.toMatch(/w:num="([2-9]|\d{2,})"/);
+      expect(xml.match(/<w:sectPr\b/g)?.length).toBe(1);
+    });
+  }
 });

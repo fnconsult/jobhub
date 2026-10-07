@@ -2,6 +2,7 @@ import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import pg from "pg";
+import { derivedPort } from "./support/ports";
 
 // Issue #33: the README has developers `cp .env.example .env` at the repo root,
 // then run `npm run db:migrate` and `npm run dev`. The web app (`next dev`,
@@ -14,7 +15,6 @@ import pg from "pg";
 // DATABASE_URL (and, for `next start`, MAIL_TRANSPORT) from the root `.env`.
 // A developer's own `.env` is moved aside for the duration and put back.
 
-const basePort = Number(process.env.E2E_WEB_PORT ?? 3001);
 const rootEnv = ".env";
 const backup = `.env.e2e-backup-${process.pid}`;
 
@@ -143,7 +143,7 @@ test.describe("repo-root .env (issue #33)", () => {
       at = next;
     }
 
-    const port = basePort + 400;
+    const port = derivedPort(400);
     const origin = `http://localhost:${port}`;
     // The only edits a developer makes: their database and their port.
     writeFileSync(rootEnv, exampleWith({ DATABASE_URL: databaseUrl.toString(), APP_URL: origin }));
@@ -161,7 +161,7 @@ test.describe("repo-root .env (issue #33)", () => {
   });
 
   test("next start (production build) reads settings defined only in the root .env", async ({ request }) => {
-    const port = basePort + 500;
+    const port = derivedPort(500);
     const origin = `http://localhost:${port}`;
     writeFileSync(
       rootEnv,
@@ -182,7 +182,7 @@ test.describe("repo-root .env (issue #33)", () => {
   });
 
   test("values already in the environment win over the root .env", async ({ request }) => {
-    const port = basePort + 550;
+    const port = derivedPort(550);
     const shellOrigin = `http://127.0.0.1:${port}`;
     writeFileSync(
       rootEnv,
@@ -208,7 +208,7 @@ test.describe("repo-root .env (issue #33)", () => {
 
   test("starts without a root .env (CI, containers), with settings from the environment only", async ({ request }) => {
     rmSync(rootEnv, { force: true });
-    const port = basePort + 600;
+    const port = derivedPort(600);
 
     // Nothing configured at all: the app still starts; sign-ins report the missing settings.
     const bare = await startWebApp(["npx", "next", "start", "apps/web", "-p", String(port)], port, shellEnv());
@@ -217,7 +217,7 @@ test.describe("repo-root .env (issue #33)", () => {
     await expect.poll(() => bare.output()).toContain("Missing environment variable");
 
     // Configured by the environment, as in CI or a container.
-    const configuredPort = basePort + 650;
+    const configuredPort = derivedPort(650);
     const configuredOrigin = `http://localhost:${configuredPort}`;
     const server = await startWebApp(
       ["npx", "next", "start", "apps/web", "-p", String(configuredPort)],

@@ -1,10 +1,10 @@
-import { createAiLayerFromEnv } from "@jobhub/ai";
+import { AiConfigError, createAiLayerFromEnv } from "@jobhub/ai";
 import { createJobOffers } from "@jobhub/web/job-offers";
 import { createProfiles } from "@jobhub/web/profiles";
 import { Pool } from "pg";
 import { createJobDiscovery } from "./job-discovery";
 import { startJobRunner } from "./job-runner";
-import { createJobs } from "./jobs";
+import { createJobs, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -13,9 +13,22 @@ if (!connectionString) {
 }
 
 const database = new Pool({ connectionString });
-const ai = createAiLayerFromEnv(process.env);
+
+// Job discovery needs the AI layer; the other jobs do not. Without AI configuration
+// (e.g. the local docker-compose stack, which has no keys) the worker still runs,
+// and discovery jobs are skipped with the reason. Production fails loudly instead.
+function jobDiscovery(): JobsDeps["discovery"] {
+  try {
+    return createJobDiscovery({ ai: createAiLayerFromEnv(process.env), jobOffers: createJobOffers(database) });
+  } catch (error) {
+    if (!(error instanceof AiConfigError) || process.env.NODE_ENV === "production") throw error;
+    console.warn(`[worker] Job discovery is unavailable: ${error.message}`);
+    return { unavailable: error.message };
+  }
+}
+
 const jobs = createJobs({
-  discovery: createJobDiscovery({ ai, jobOffers: createJobOffers(database) }),
+  discovery: jobDiscovery(),
   profiles: createProfiles(database),
 });
 

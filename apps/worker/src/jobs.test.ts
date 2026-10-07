@@ -46,3 +46,23 @@ describe("the Job discovery job", () => {
     expect(runs).toEqual([]);
   });
 });
+
+describe("the worker without an AI layer", () => {
+  // The local docker-compose worker has no AI keys: it must still run its other jobs.
+  it("keeps the heartbeat and skips Job discovery, saying why", async () => {
+    const logs: string[] = [];
+    const jobs = createJobs({
+      discovery: { unavailable: "Missing environment variable PERPLEXITY_API_KEY" },
+      profiles: { get: async () => ({ archived: false, searchCriteria: criteria }) },
+      log: (line) => logs.push(line),
+    });
+
+    await jobs["system.heartbeat"]!.handler(undefined);
+    await jobs[JOB_DISCOVERY]!.handler({ candidateId: "candidate-1", profileId: "profile-1" });
+
+    expect(logs[0]).toMatch(/^\[worker\] heartbeat /);
+    expect(logs[1]).toBe(
+      "[job-discovery] profile profile-1: skipped, Job discovery is unavailable (Missing environment variable PERPLEXITY_API_KEY)",
+    );
+  });
+});

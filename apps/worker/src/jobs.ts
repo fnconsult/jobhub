@@ -5,8 +5,13 @@ import type { JobDefinition } from "./job-runner";
 /** Queue name: search the web for Job Offers matching one Profile. Data: { candidateId, profileId }. */
 export const JOB_DISCOVERY = "job-discovery.run";
 
+/** Job discovery when the worker cannot run it (e.g. no AI keys in local development): why. */
+export interface DiscoveryUnavailable {
+  unavailable: string;
+}
+
 export interface JobsDeps {
-  discovery: JobDiscovery;
+  discovery: JobDiscovery | DiscoveryUnavailable;
   /** Reads a Profile, scoped to its Candidate. Satisfied by the web app's Profiles module. */
   profiles: {
     get(candidateId: string, profileId: string): Promise<{ archived: boolean; searchCriteria: SearchCriteria } | null>;
@@ -39,6 +44,11 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         const profile = await deps.profiles.get(target.candidateId, target.profileId);
         if (!profile || profile.archived) return log(`[job-discovery] profile ${target.profileId}: gone or archived, skipped`);
 
+        if ("unavailable" in deps.discovery) {
+          return log(
+            `[job-discovery] profile ${target.profileId}: skipped, Job discovery is unavailable (${deps.discovery.unavailable})`,
+          );
+        }
         const report = await deps.discovery.discover({ candidateId: target.candidateId, criteria: profile.searchCriteria });
         const reasons = new Map<string, number>();
         for (const { reason } of report.skipped) reasons.set(reason, (reasons.get(reason) ?? 0) + 1);

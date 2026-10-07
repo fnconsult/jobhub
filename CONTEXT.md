@@ -22,6 +22,10 @@ _Avoid_: Admin user, operator, superuser, staff
 A person using the browser extension without an account. Their CV and captured Job Offer are temporary.
 _Avoid_: Anonymous user, visitor, lead
 
+**Guest session**:
+The browser-held, time-limited holding of a Guest's captured Job Offer and CV: at most 23 hours, deleted on request.
+_Avoid_: Temporary account, trial
+
 ### Coaching
 
 **AI Coach**:

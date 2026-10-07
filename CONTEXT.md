@@ -131,7 +131,7 @@ _Avoid_: Lead, prospect
 ### Applications
 
 **Application**:
-The link between one Profile and one Job Offer, created when the Candidate saves the offer. A Candidate has at most one Application per Job Offer. Holds the Match Score, the Tailored Documents, the Application Status and the Follow-ups.
+The link between one Profile and one Job Offer, created when the Candidate saves the offer. A Candidate has at most one Application per Job Offer: saving the same offer again returns the existing one. The Candidate can switch its Profile later. Holds the Match Score, the Tailored Documents, the Application Status and the Follow-ups.
 _Avoid_: Job entry, candidature (in code), opportunity
 
 **Application Status**:
@@ -139,7 +139,7 @@ The stage an Application is at: À postuler → Postulée → Relancée → Entr
 _Avoid_: State, stage
 
 **Interview**:
-One dated interview round within an Application in the "Entretien" status.
+One dated interview round within an Application. Added only while the Application is at "Entretien", and kept if it moves on. Times are French time (Europe/Paris).
 _Avoid_: Meeting, call
 
 **Follow-up**:

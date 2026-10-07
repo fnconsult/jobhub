@@ -1,5 +1,6 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { createServer, type IncomingMessage, type Server } from "node:http";
 import path from "node:path";
 import { chromium, expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
@@ -171,9 +172,34 @@ test.describe("Guest Capture and Match Score", () => {
     jobLocation: { "@type": "Place", address: { "@type": "PostalAddress", addressLocality: "Lyon" } },
     skills: "IFRS, Consolidation, Power BI",
   };
-  const jobPageHtml = (jsonLd: object | null) => `<!doctype html><html lang="fr"><head><title>DAF H/F – Groupe Seb</title>
+  const jobPageHtml = (jsonLd: object | null, heading = "Directeur administratif et financier H/F") => `<!doctype html><html lang="fr"><head><title>${heading} – Groupe Seb</title>
     ${jsonLd ? `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>` : ""}</head>
-    <body><main><h1>Directeur administratif et financier H/F</h1><p>Rattaché au DG, vous pilotez la finance du groupe.</p></main></body></html>`;
+    <body><main><h1>${heading}</h1><p>Rattaché au DG, vous pilotez la finance du groupe.</p></main></body></html>`;
+  // Postings on other major job boards and career sites (ATS), recognised by their address alone (no JSON-LD).
+  const boardPages: Record<string, string> = {
+    "https://www.linkedin.com/jobs/view/4012345678/": "LinkedIn",
+    "https://fr.indeed.com/viewjob?jk=8f2c1a9b7e6d5c4b": "Indeed",
+    "https://www.apec.fr/candidat/recherche-emploi.html/emploi/detail-offre/176543210W": "Apec",
+    "https://candidat.francetravail.fr/offres/recherche/detail/190ABCD": "France Travail",
+    "https://jobs.lever.co/doctolib/3f1d2c4b-5a6e-4f70-8a9b-0c1d2e3f4a5b": "Lever",
+    "https://boards.greenhouse.io/alan/jobs/4567890": "Greenhouse",
+    "https://seb.teamtailor.com/jobs/3456789-controleur-de-gestion": "Teamtailor",
+    "https://groupeseb.wd3.myworkdayjobs.com/fr-FR/careers/job/Lyon/DAF_R-12345": "Workday",
+  };
+  const boardPageHtml = `<!doctype html><html lang="fr"><head><title>Contrôleur de gestion H/F</title></head>
+    <body><main><h1>Contrôleur de gestion H/F</h1><p>Vous rejoignez la direction financière à Lyon.</p></main></body></html>`;
+  const careerPosting = {
+    ...posting,
+    title: "Responsable consolidation H/F",
+    description: "<p>Vous pilotez la consolidation IFRS du groupe, à Lyon.</p>",
+    hiringOrganization: { "@type": "Organization", name: "Groupe Seb" },
+  };
+  const careerSitePort = Number(process.env.E2E_WEB_PORT) + 100;
+  const careerSiteUrl = `http://127.0.0.1:${careerSitePort}/carrieres/responsable-consolidation-lyon`;
+  // Not a posting address Jobbbox knows: the page is detected by its schema.org JobPosting.
+  const careerPageUrl = "https://groupeseb.teamtailor.com/fr/carrieres/responsable-consolidation-lyon";
+  const careerSiteVisits: IncomingMessage[] = [];
+  let careerSite: Server;
   const postingUrl = "https://www.welcometothejungle.com/fr/companies/seb/jobs/daf-lyon";
   const articleUrl = "https://www.welcometothejungle.com/fr/articles/bien-negocier-son-salaire";
   const cvFile = { name: "CV Marie Dupont.pdf", mimeType: "application/pdf", buffer: Buffer.from(pdfCv(MARIE_DUPONT_CV)) };
@@ -190,10 +216,22 @@ test.describe("Guest Capture and Match Score", () => {
     // The job board, served locally: the page is read in this browser, never fetched by Jobbbox (ADR-0002).
     await context.route(postingUrl, (route) => route.fulfill({ contentType: "text/html", body: jobPageHtml(posting) }));
     await context.route(articleUrl, (route) => route.fulfill({ contentType: "text/html", body: jobPageHtml(null) }));
+    for (const url of Object.keys(boardPages)) {
+      await context.route(url, (route) => route.fulfill({ contentType: "text/html", body: boardPageHtml }));
+    }
+    // An employer's career site: a real HTTP server, which notes who reads it, behind the site's public address.
+    careerSite = createServer((request, response) => {
+      careerSiteVisits.push(request);
+      response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      response.end(jobPageHtml(careerPosting, careerPosting.title));
+    });
+    await new Promise<void>((resolve) => careerSite.listen(careerSitePort, "127.0.0.1", resolve));
+    await context.route(careerPageUrl, async (route) => route.fulfill({ response: await route.fetch({ url: careerSiteUrl }) }));
   });
 
   test.afterAll(async () => {
     await context?.close();
+    await new Promise((resolve) => careerSite?.close(resolve));
   });
 
   const extensionId = () => unpackedExtensionId(e2eExtensionDir);
@@ -277,4 +315,120 @@ test.describe("Guest Capture and Match Score", () => {
     await expect(analysis.getByLabel(frCatalogue.cvUpload.fileLabel)).toBeVisible();
   });
 
+  test("shows the badge on postings of the other major job boards and career sites, known by their address", async () => {
+    for (const [url, site] of Object.entries(boardPages)) {
+      const boardPage = await context.newPage();
+      await boardPage.goto(url);
+      await expect(boardPage.getByRole("button", { name: fr.badgeLabel }), site).toBeVisible();
+      await boardPage.close();
+    }
+  });
+
+  test("detects a posting on an employer's career site by its JobPosting, read in this browser and never fetched by Jobbbox", async () => {
+    const careerPage = await context.newPage();
+    await careerPage.goto(careerPageUrl);
+    const [analysis] = await Promise.all([
+      context.waitForEvent("page"),
+      careerPage.getByRole("button", { name: fr.badgeLabel }).click(),
+    ]);
+    await expect(analysis.getByText(careerPosting.title, { exact: true })).toBeVisible();
+    await expect(analysis.getByText("— Groupe Seb · Lyon")).toBeVisible();
+    await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
+    await analysis.getByRole("button", { name: fr.analysis.submit }).click();
+    await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toBeVisible();
+
+    // Jobbbox does not scrape (ADR-0002): told only where a posting is, it fetches nothing and captures nothing;
+    // given a posting, it keeps what the browser read and still fetches nothing.
+    const capture = (body: object) =>
+      analysis.evaluate(
+        async ([webOrigin, json]) =>
+          (await fetch(`${webOrigin}/api/job-offers`, { method: "POST", headers: { "content-type": "application/json" }, body: json })).status,
+        [origin, JSON.stringify(body)] as const,
+      );
+    expect(await capture({ source: { url: `${careerSiteUrl}?ref=address-only` } })).toBe(400);
+    expect(await capture({ source: { url: `${careerSiteUrl}?ref=with-text` }, title: "Contrôleur financier H/F", content: "Poste à Lyon." })).toBe(200);
+
+    // The career site was read once, by the person's browser, when they opened the page.
+    expect(careerSiteVisits).toHaveLength(1);
+    expect(careerSiteVisits[0]!.headers["user-agent"]).toMatch(/Chrome\//);
+    await analysis.getByRole("button", { name: fr.analysis.forget }).click();
+    await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
+  });
+
+  test("a Guest's Job Offer is kept for their session and forgotten by the worker within 24 hours, unlike a Candidate's", async ({ page }) => {
+    // A Candidate captures a posting from the web app: theirs is never forgotten.
+    await signInWithMagicLink(page, newAddress("guest-retention"));
+    const kept = await page.request.post(`${origin}/api/job-offers`, {
+      headers: { origin },
+      data: { title: "Trésorier groupe H/F", content: `Poste de trésorier à Lyon (${Date.now()}).` },
+    });
+    expect(kept.status()).toBe(200);
+    const candidateOffer = (await kept.json()) as { id: string };
+
+    // A Guest captures and scores a posting from the badge.
+    const capturedAt = Date.now();
+    const boardPage = await context.newPage();
+    await boardPage.goto(Object.keys(boardPages)[0]!);
+    const [analysis] = await Promise.all([
+      context.waitForEvent("page"),
+      boardPage.getByRole("button", { name: fr.badgeLabel }).click(),
+    ]);
+    await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
+    await analysis.getByRole("button", { name: fr.analysis.submit }).click();
+    await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toBeVisible();
+    const { guestSession: stored } = await guestSession(analysis);
+    const jobOffer = (id: string) => analysis.request.get(`${origin}/api/job-offers/${id}`);
+
+    // The worker's clean-up, run as its schedule would at a later time.
+    const forgetGuestCapturesAt = (time: number) => {
+      const run = spawnSync(path.resolve("node_modules/.bin/tsx"), ["e2e/support/worker-job.ts", "guests.forget", String((time - Date.now()) / 3_600_000)], {
+        env: { ...process.env, DATABASE_URL: process.env.E2E_DATABASE_URL },
+        encoding: "utf8",
+      });
+      expect(run.status, run.stderr).toBe(0);
+    };
+
+    // Within the session, the Guest's Job Offer is kept.
+    forgetGuestCapturesAt(capturedAt + 22 * 3_600_000);
+    expect((await jobOffer(stored.jobOffer.id)).status()).toBe(200);
+
+    // Less than 24 hours after the capture, it is gone; the Candidate's stays.
+    forgetGuestCapturesAt(capturedAt + 23 * 3_600_000 + 60_000);
+    expect((await jobOffer(stored.jobOffer.id)).status()).toBe(404);
+    expect((await jobOffer(candidateOffer.id)).status()).toBe(200);
+    await analysis.reload();
+    await expect(analysis.getByText(fr.analysis.jobOfferGone)).toBeVisible();
+    await analysis.getByRole("button", { name: fr.analysis.forget }).click();
+    await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
+  });
+
+  test("forgets the Guest session in the browser when it expires, even if the Guest never comes back to it", async () => {
+    const jobPage = await context.newPage();
+    await jobPage.goto(postingUrl);
+    const [analysis] = await Promise.all([
+      context.waitForEvent("page"),
+      jobPage.getByRole("button", { name: fr.badgeLabel }).click(),
+    ]);
+    await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
+    await analysis.getByRole("button", { name: fr.analysis.submit }).click();
+    await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toBeVisible();
+    // The notice tells the Guest when their data goes: at most 24 hours from now.
+    await expect(analysis.getByText(/^Vos données seront effacées au plus tard le /)).toBeVisible();
+
+    // Bring the session's end to a few seconds from now, then leave it alone.
+    await analysis.evaluate(async () => {
+      type Storage = { get(key: string): Promise<Record<string, object>>; set(items: object): Promise<void> };
+      const storage = (globalThis as unknown as { chrome: { storage: { session: Storage } } }).chrome.storage.session;
+      const { guestSession } = await storage.get("guestSession");
+      await storage.set({ guestSession: { ...guestSession, expiresAt: Date.now() + 3_000 } });
+    });
+    await analysis.close();
+    const popup = await context.newPage();
+    await popup.goto(`chrome-extension://${extensionId()}/popup.html`);
+    await expect.poll(() => guestSession(popup), { timeout: 30_000 }).toEqual({});
+
+    const later = await context.newPage();
+    await later.goto(`chrome-extension://${extensionId()}/analyse.html`);
+    await expect(later.getByText(fr.analysis.noJobOffer)).toBeVisible();
+  });
 });

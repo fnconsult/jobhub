@@ -43,6 +43,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Candidate accounts are up to date");
     expect(first.stdout).toContain("Profiles are up to date");
     expect(first.stdout).toContain("Job Offers are up to date");
+    expect(first.stdout).toContain("Action Cards are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 
@@ -55,6 +56,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
       // Plus the Agent Run log (issue #31) and the Job Offers (issue #9), which stand apart from Candidate data.
       expect(tables.rows.map((r) => r.table_name)).toEqual([
         "account",
+        "action_card",
         "candidate",
         "job_offer",
         "master_cv_version",
@@ -81,6 +83,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         ORDER BY from_table, from_column`);
       expect(references.rows).toEqual([
         { from_table: "account", from_column: "userId", to_table: "candidate" },
+        { from_table: "action_card", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "master_cv_version", from_column: "profile_id", to_table: "profile" },
         { from_table: "profile", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "session", from_column: "userId", to_table: "candidate" },

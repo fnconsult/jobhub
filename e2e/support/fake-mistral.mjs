@@ -7,6 +7,10 @@
 // fixed Search Criteria the rule-based fallback could never produce, so tests
 // can tell the AI reading was used. A CV containing "E2E_AI_DOWN" gets a 503,
 // so tests can watch the fallback to the rule-based reading.
+//
+// For the AI Coach in the Coach Panel (task coaching), it says which Profile
+// the system prompt put in view, if any, and how many messages it was sent, so
+// tests can check the AI Coach knows what the Candidate is looking at.
 const realFetch = globalThis.fetch;
 
 globalThis.fetch = async (input, init) => {
@@ -17,6 +21,12 @@ globalThis.fetch = async (input, init) => {
   if (prompt.includes("E2E_AI_DOWN")) return new Response("upstream unavailable", { status: 503 });
 
   let content = "fake reply";
+  const system = String(body.messages?.find((message) => message.role === "system")?.content ?? "");
+  if (system.includes("coach Jobbbox")) {
+    const inView = /Le candidat consulte son profil « (.+?) »/.exec(system)?.[1];
+    const turns = body.messages.filter((message) => message.role !== "system").length;
+    content = `${inView ? `Je vois votre profil « ${inView} ».` : "Je ne vois aucun profil."} (${turns} message${turns > 1 ? "s" : ""})`;
+  }
   if (prompt.startsWith("CV :\n")) {
     const [fullName = "", headline = ""] = prompt.slice("CV :\n".length).split("\n");
     content = JSON.stringify({

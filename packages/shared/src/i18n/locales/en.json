@@ -59,7 +59,9 @@
     "email": "Email address",
     "interfaceLanguage": "Interface language",
     "saved": "Saved.",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "plan": "My subscription",
+    "admin": "Back office"
   },
   "languages": {
     "fr": "Français",
@@ -67,15 +69,14 @@
   },
   "profiles": {
     "title": "My profiles",
-    "none": "You don't have a profile yet. Upload your CV to create your first one: we turn it into your reference CV and your search criteria.",
-    "create": "Create my profile from my CV",
+    "none": "You don't have a profile yet. Create your first one from your CV, or by answering your coach's questions: we build your reference CV and search criteria from it.",
+    "create": "Create my first profile",
     "add": "Add a profile",
     "archivedTitle": "Archived profiles",
     "copyOf": "{{name}} (copy)",
     "quotaReached": "You have reached the number of active profiles your plan allows. Archive a profile to add or restore another one."
   },
   "cvUpload": {
-    "title": "Create a profile",
     "intro": "Upload your CV. We read it and split it into sections; you check and correct the result before saving it.",
     "fileLabel": "Your CV",
     "fileHint": "PDF or Word (.docx), 10 MB maximum.",
@@ -212,5 +213,162 @@
     "restore": "Restore this profile",
     "working": "Saving…",
     "error": "The change could not be saved. Please try again."
+  },
+  "newProfile": {
+    "title": "Create a profile",
+    "intro": "Your coach helps you build your reference CV and search criteria. Choose how to start: you can check and correct everything before saving.",
+    "withCv": "I have a CV",
+    "withoutCv": "I don't have an up-to-date CV",
+    "withoutCvIntro": "Your coach asks you about your career, one question at a time. You can skip the ones that don't apply to you. It takes about ten minutes.",
+    "startQuestionnaire": "Answer my coach's questions"
+  },
+  "questionnaire": {
+    "title": "Your coach's questions",
+    "transcript": "Your conversation with the coach",
+    "coach": "Your coach",
+    "you": "You",
+    "welcome": "Hello, I'm your Jobbbox coach. I'm going to ask you a few questions to build your reference CV. Answer in your own words: you can read it all again and correct it at the end.",
+    "questions": {
+      "fullName": "To start with, what is your full name?",
+      "targetRole": "Which position are you looking for? For example: \"Chief Financial Officer\".",
+      "location": "Which city do you live in, or would you like to work in?",
+      "email": "Which email address can recruiters write to?",
+      "phone": "Which phone number can they call you on?",
+      "jobTitle": "Let's talk about your experience. What was the title of job no. {{number}}, starting with the most recent?",
+      "employer": "Which employer did you hold this job with?",
+      "jobLocation": "In which city?",
+      "period": "Over which period? For example: \"2015 – 2024\".",
+      "jobDescription": "What were your main duties and achievements in this job?",
+      "moreExperience": "Have you held another job that should be on your CV?",
+      "degree": "Let's talk about your education. What is your degree or training no. {{number}}?",
+      "institution": "At which institution?",
+      "year": "In which year did you obtain it?",
+      "moreEducation": "Do you have another degree or training to add?",
+      "skills": "What are your main skills? Separate them with commas.",
+      "languages": "Which languages do you speak, and how well? For example: \"English: fluent, German: basic\".",
+      "summary": "Finally, how would you introduce yourself to a recruiter in a few sentences?"
+    },
+    "answerLabel": "Your answer",
+    "answerHint": "You can skip this question.",
+    "send": "Answer",
+    "skip": "Skip this question",
+    "skipped": "(question skipped)",
+    "yes": "Yes",
+    "no": "No",
+    "errors": {
+      "required": "This answer is needed to create your profile.",
+      "yes_or_no": "Please answer yes or no."
+    },
+    "reviewIntro": "Here are your reference CV and search criteria, built from your answers. Correct or complete each field if needed, then save your profile.",
+    "startOver": "Start again"
+  },
+  "coachPanel": {
+    "open": "My coach",
+    "title": "Your coach",
+    "close": "Close",
+    "inView": "You are viewing: {{label}}",
+    "inViewProfile": "the profile \"{{name}}\"",
+    "inViewApplication": "the application \"{{name}}\"",
+    "nothingInView": "Ask your question: your coach answers from what you tell them.",
+    "welcome": "Hello, I'm your coach. How can I help you?",
+    "messageLabel": "Your message",
+    "send": "Send",
+    "thinking": "Your coach is writing a reply…",
+    "errors": {
+      "unavailable": "Your coach can't reply right now. Please try again in a few moments.",
+      "invalid": "This message couldn't be sent. Shorten it and try again."
+    }
+  },
+  "actionCards": {
+    "title": "Your coach's proposals",
+    "accept": "Accept",
+    "dismiss": "Dismiss",
+    "accepted": "Proposal accepted.",
+    "dismissed": "Proposal dismissed.",
+    "error": "This proposal couldn't be applied. Try again or reload the page."
+  },
+  "billing": {
+    "plans": {
+      "free": "Free",
+      "standard": "Standard",
+      "premium": "Premium"
+    },
+    "quotaReached": {
+      "title": "You have reached your Plan's limit",
+      "used": {
+        "profiles_one": "The {{plan}} Plan includes {{count}} Profile.",
+        "profiles_other": "The {{plan}} Plan includes {{count}} Profiles.",
+        "matchScores_one": "You have used the 1 Match Score included this month in the {{plan}} Plan.",
+        "matchScores_other": "You have used the {{count}} Match Scores included this month in the {{plan}} Plan.",
+        "atsScores_one": "You have used the 1 ATS Score included this month in the {{plan}} Plan.",
+        "atsScores_other": "You have used the {{count}} ATS Scores included this month in the {{plan}} Plan.",
+        "enrichedContacts_one": "You have used the 1 Enriched Contact included this month in the {{plan}} Plan.",
+        "enrichedContacts_other": "You have used the {{count}} Enriched Contacts included this month in the {{plan}} Plan."
+      },
+      "notIncluded": {
+        "profiles": "Creating Profiles is not included in the {{plan}} Plan.",
+        "matchScores": "Match Scores are not included in the {{plan}} Plan.",
+        "atsScores": "ATS Scores are not included in the {{plan}} Plan.",
+        "enrichedContacts": "Enriched Contacts are not included in the {{plan}} Plan."
+      },
+      "upgradeCreate": "The {{plan}} Plan lets you create more.",
+      "upgradeUse": "The {{plan}} Plan lets you do more.",
+      "upgradeIncludes": "The {{plan}} Plan includes them.",
+      "renews": "Your quota renews on the 1st of the month.",
+      "noMore": "You cannot create any more.",
+      "action": "See the {{plan}} Plan"
+    },
+    "page": {
+      "title": "My subscription",
+      "currentPlan": "Your current Plan: {{plan}}",
+      "checkoutSuccess": "Thank you! Your payment is recorded. Your new Plan shows here as soon as Stripe confirms it, usually within seconds.",
+      "usageTitle": "Your usage this month",
+      "usage": "{{used}} of {{limit}}",
+      "usageUnlimited": "{{used}} (unlimited)",
+      "comparisonTitle": "Plans",
+      "quota": "What is included",
+      "unlimited": "Unlimited",
+      "notIncluded": "Not included",
+      "perMonth": "{{count}} a month",
+      "choose": "Choose the {{plan}} Plan",
+      "current": "Your Plan",
+      "manage": "Manage my subscription",
+      "manageHelp": "Invoices, payment method, changing or cancelling your Plan: it all happens on the secure page of our payment provider, Stripe.",
+      "unavailable": "Online payment is not available at the moment. Please try again later.",
+      "error": "Something went wrong. Please try again.",
+      "redirecting": "Taking you to the payment page…"
+    },
+    "quotas": {
+      "profiles": "Profiles",
+      "matchScores": "Match Scores",
+      "atsScores": "ATS Scores",
+      "enrichedContacts": "Enriched Contacts",
+      "jobDigest": "Job Digest"
+    },
+    "jobDigest": {
+      "none": "Not included",
+      "weekly": "Weekly",
+      "daily": "Daily"
+    }
+  },
+  "admin": {
+    "title": "Back office",
+    "intro": "For the Jobbbox team only.",
+    "sections": {
+      "planQuotas": "Plan Quotas",
+      "humanCoaches": "Human Coaches"
+    },
+    "comingSoon": "Coming soon",
+    "planQuotas": {
+      "title": "Plan Quotas",
+      "intro": "Changes apply at once to every Candidate on the Plan. Leave a field empty for “unlimited”.",
+      "plan": "{{plan}} Plan",
+      "limitHelp": "A number, or empty for unlimited",
+      "monthly": "a month",
+      "save": "Save the {{plan}} Plan",
+      "saved": "{{plan}} Plan quotas saved.",
+      "invalid": "Check the values: whole numbers from 0, or empty for unlimited."
+    },
+    "back": "Back to the back office"
   }
 }

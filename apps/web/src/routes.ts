@@ -8,4 +8,7 @@ export const routes = {
   editMasterCv: (id: string) => `/profils/${id}/cv`,
   masterCvVersions: (id: string) => `/profils/${id}/versions`,
   masterCvVersion: (id: string, version: number) => `/profils/${id}/versions/${version}`,
+  subscription: "/abonnement",
+  admin: "/admin",
+  adminPlanQuotas: "/admin/quotas",
 } as const;

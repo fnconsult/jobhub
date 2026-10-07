@@ -59,7 +59,9 @@
     "email": "Adresse e-mail",
     "interfaceLanguage": "Langue de l'interface",
     "saved": "Enregistré.",
-    "signOut": "Se déconnecter"
+    "signOut": "Se déconnecter",
+    "plan": "Mon abonnement",
+    "admin": "Back office"
   },
   "languages": {
     "fr": "Français",
@@ -67,15 +69,14 @@
   },
   "profiles": {
     "title": "Mes profils",
-    "none": "Vous n'avez pas encore de profil. Importez votre CV pour créer le premier : nous en tirons votre CV de référence et vos critères de recherche.",
-    "create": "Créer mon profil à partir de mon CV",
+    "none": "Vous n'avez pas encore de profil. Créez le premier à partir de votre CV, ou en répondant aux questions de votre coach : nous en tirons votre CV de référence et vos critères de recherche.",
+    "create": "Créer mon premier profil",
     "add": "Ajouter un profil",
     "archivedTitle": "Profils archivés",
     "copyOf": "{{name}} (copie)",
     "quotaReached": "Vous avez atteint le nombre de profils actifs prévu par votre formule. Archivez un profil pour en ajouter ou en restaurer un autre."
   },
   "cvUpload": {
-    "title": "Créer un profil",
     "intro": "Importez votre CV. Nous le lisons et le découpons en sections ; vous vérifiez et corrigez le résultat avant de l'enregistrer.",
     "fileLabel": "Votre CV",
     "fileHint": "Format PDF ou Word (.docx), 10 Mo maximum.",
@@ -212,5 +213,162 @@
     "restore": "Restaurer ce profil",
     "working": "Enregistrement en cours…",
     "error": "La modification n'a pas pu être enregistrée. Veuillez réessayer."
+  },
+  "newProfile": {
+    "title": "Créer un profil",
+    "intro": "Votre coach vous aide à construire votre CV de référence et vos critères de recherche. Choisissez comment commencer : vous pourrez tout vérifier et corriger avant d'enregistrer.",
+    "withCv": "J'ai un CV",
+    "withoutCv": "Je n'ai pas de CV à jour",
+    "withoutCvIntro": "Votre coach vous pose des questions sur votre parcours, une à la fois. Vous pouvez passer celles qui ne vous concernent pas. Comptez une dizaine de minutes.",
+    "startQuestionnaire": "Répondre aux questions de mon coach"
+  },
+  "questionnaire": {
+    "title": "Les questions de votre coach",
+    "transcript": "Votre échange avec le coach",
+    "coach": "Votre coach",
+    "you": "Vous",
+    "welcome": "Bonjour, je suis votre coach Jobbbox. Je vais vous poser quelques questions pour construire votre CV de référence. Répondez avec vos mots : vous pourrez tout relire et corriger à la fin.",
+    "questions": {
+      "fullName": "Pour commencer, quels sont vos prénom et nom ?",
+      "targetRole": "Quel poste recherchez-vous ? Par exemple : « Directeur financier ».",
+      "location": "Dans quelle ville habitez-vous, ou souhaitez-vous travailler ?",
+      "email": "À quelle adresse e-mail les recruteurs peuvent-ils vous écrire ?",
+      "phone": "À quel numéro de téléphone peuvent-ils vous joindre ?",
+      "jobTitle": "Parlons de votre expérience. Quel est l'intitulé de votre poste n° {{number}}, en commençant par le plus récent ?",
+      "employer": "Chez quel employeur avez-vous occupé ce poste ?",
+      "jobLocation": "Dans quelle ville ?",
+      "period": "Sur quelle période ? Par exemple : « 2015 – 2024 ».",
+      "jobDescription": "Quelles étaient vos principales missions et réalisations dans ce poste ?",
+      "moreExperience": "Avez-vous occupé un autre poste à faire figurer sur votre CV ?",
+      "degree": "Parlons de votre formation. Quel est votre diplôme ou formation n° {{number}} ?",
+      "institution": "Dans quel établissement ?",
+      "year": "En quelle année l'avez-vous obtenu ?",
+      "moreEducation": "Avez-vous un autre diplôme ou une autre formation à ajouter ?",
+      "skills": "Quelles sont vos principales compétences ? Séparez-les par des virgules.",
+      "languages": "Quelles langues parlez-vous, et à quel niveau ? Par exemple : « Anglais : courant, Allemand : notions ».",
+      "summary": "Pour finir, comment vous présenteriez-vous en quelques phrases à un recruteur ?"
+    },
+    "answerLabel": "Votre réponse",
+    "answerHint": "Vous pouvez passer cette question.",
+    "send": "Répondre",
+    "skip": "Passer cette question",
+    "skipped": "(question passée)",
+    "yes": "Oui",
+    "no": "Non",
+    "errors": {
+      "required": "Cette réponse est nécessaire pour créer votre profil.",
+      "yes_or_no": "Répondez par oui ou par non."
+    },
+    "reviewIntro": "Voici votre CV de référence et vos critères de recherche, construits à partir de vos réponses. Corrigez ou complétez chaque champ si besoin, puis enregistrez votre profil.",
+    "startOver": "Recommencer"
+  },
+  "coachPanel": {
+    "open": "Mon coach",
+    "title": "Votre coach",
+    "close": "Fermer",
+    "inView": "Vous consultez : {{label}}",
+    "inViewProfile": "le profil « {{name}} »",
+    "inViewApplication": "la candidature « {{name}} »",
+    "nothingInView": "Posez votre question : votre coach vous répond à partir de ce que vous lui dites.",
+    "welcome": "Bonjour, je suis votre coach. Comment puis-je vous aider ?",
+    "messageLabel": "Votre message",
+    "send": "Envoyer",
+    "thinking": "Votre coach rédige sa réponse…",
+    "errors": {
+      "unavailable": "Votre coach ne peut pas répondre pour le moment. Réessayez dans quelques instants.",
+      "invalid": "Ce message n'a pas pu être envoyé. Raccourcissez-le et réessayez."
+    }
+  },
+  "actionCards": {
+    "title": "Propositions de votre coach",
+    "accept": "Accepter",
+    "dismiss": "Ignorer",
+    "accepted": "Proposition acceptée.",
+    "dismissed": "Proposition ignorée.",
+    "error": "Cette proposition n'a pas pu être appliquée. Réessayez ou rechargez la page."
+  },
+  "billing": {
+    "plans": {
+      "free": "Gratuite",
+      "standard": "Standard",
+      "premium": "Premium"
+    },
+    "quotaReached": {
+      "title": "Vous avez atteint la limite de votre offre",
+      "used": {
+        "profiles_one": "L'offre {{plan}} comprend {{count}} profil.",
+        "profiles_other": "L'offre {{plan}} comprend {{count}} profils.",
+        "matchScores_one": "Vous avez utilisé le Match Score compris ce mois-ci dans l'offre {{plan}}.",
+        "matchScores_other": "Vous avez utilisé les {{count}} Match Scores compris ce mois-ci dans l'offre {{plan}}.",
+        "atsScores_one": "Vous avez utilisé l'ATS Score compris ce mois-ci dans l'offre {{plan}}.",
+        "atsScores_other": "Vous avez utilisé les {{count}} ATS Scores compris ce mois-ci dans l'offre {{plan}}.",
+        "enrichedContacts_one": "Vous avez utilisé le contact enrichi compris ce mois-ci dans l'offre {{plan}}.",
+        "enrichedContacts_other": "Vous avez utilisé les {{count}} contacts enrichis compris ce mois-ci dans l'offre {{plan}}."
+      },
+      "notIncluded": {
+        "profiles": "La création de profils n'est pas comprise dans l'offre {{plan}}.",
+        "matchScores": "Les Match Scores ne sont pas compris dans l'offre {{plan}}.",
+        "atsScores": "Les ATS Scores ne sont pas compris dans l'offre {{plan}}.",
+        "enrichedContacts": "Les contacts enrichis ne sont pas compris dans l'offre {{plan}}."
+      },
+      "upgradeCreate": "Avec l'offre {{plan}}, vous pouvez en créer davantage.",
+      "upgradeUse": "Avec l'offre {{plan}}, vous pouvez en faire davantage.",
+      "upgradeIncludes": "L'offre {{plan}} les comprend.",
+      "renews": "Votre quota se renouvelle le 1er du mois.",
+      "noMore": "Vous ne pouvez pas en créer davantage.",
+      "action": "Découvrir l'offre {{plan}}"
+    },
+    "page": {
+      "title": "Mon abonnement",
+      "currentPlan": "Votre offre actuelle : {{plan}}",
+      "checkoutSuccess": "Merci ! Votre paiement est enregistré. Votre nouvelle offre s'affiche ici dès que Stripe nous l'a confirmée, en général en quelques secondes.",
+      "usageTitle": "Votre utilisation ce mois-ci",
+      "usage": "{{used}} sur {{limit}}",
+      "usageUnlimited": "{{used}} (illimité)",
+      "comparisonTitle": "Les offres",
+      "quota": "Ce qui est compris",
+      "unlimited": "Illimité",
+      "notIncluded": "Non compris",
+      "perMonth": "{{count}} par mois",
+      "choose": "Choisir l'offre {{plan}}",
+      "current": "Votre offre",
+      "manage": "Gérer mon abonnement",
+      "manageHelp": "Factures, moyen de paiement, changement d'offre ou résiliation : tout se fait sur la page sécurisée de notre prestataire de paiement, Stripe.",
+      "unavailable": "Le paiement en ligne n'est pas disponible pour le moment. Réessayez plus tard.",
+      "error": "Une erreur est survenue. Veuillez réessayer.",
+      "redirecting": "Redirection vers la page de paiement…"
+    },
+    "quotas": {
+      "profiles": "Profils",
+      "matchScores": "Match Scores",
+      "atsScores": "ATS Scores",
+      "enrichedContacts": "Contacts enrichis",
+      "jobDigest": "Job Digest"
+    },
+    "jobDigest": {
+      "none": "Non compris",
+      "weekly": "Chaque semaine",
+      "daily": "Chaque jour"
+    }
+  },
+  "admin": {
+    "title": "Back office",
+    "intro": "Réservé à l'équipe Jobbbox.",
+    "sections": {
+      "planQuotas": "Quotas des offres",
+      "humanCoaches": "Coachs humains"
+    },
+    "comingSoon": "Bientôt disponible",
+    "planQuotas": {
+      "title": "Quotas des offres",
+      "intro": "Les modifications s'appliquent immédiatement à tous les candidats de l'offre. Laissez un champ vide pour « illimité ».",
+      "plan": "Offre {{plan}}",
+      "limitHelp": "Nombre, ou vide pour illimité",
+      "monthly": "par mois",
+      "save": "Enregistrer l'offre {{plan}}",
+      "saved": "Quotas de l'offre {{plan}} enregistrés.",
+      "invalid": "Vérifiez les valeurs : des nombres entiers positifs, ou vide pour illimité."
+    },
+    "back": "Retour au back office"
   }
 }

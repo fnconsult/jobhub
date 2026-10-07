@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useId, useRef, useSt
 import { useTranslation } from "react-i18next";
 import type { CoachFocus } from "@/coach";
 import { recentConversation, type CoachMessage } from "@/coach/conversation";
+import { StartJobSearchButton } from "@/components/JobSearchControls";
 
 /** What a page shows, as the Coach Panel tells the Candidate and the AI Coach. */
 export type InView = CoachFocus & { name: string };
@@ -30,6 +31,8 @@ type Status = "idle" | "sending" | "unavailable" | "invalid";
  * The Coach Panel: the side panel, available from every page of a signed-in
  * Candidate, where they talk with the AI Coach. The conversation carries over
  * from page to page; each message goes with what the Candidate has in view.
+ * With a Profile in view, the Candidate can also ask the AI Coach to search
+ * for Job Offers for it.
  */
 export function CoachPanel({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
@@ -106,6 +109,11 @@ export function CoachPanel({ children }: { children: ReactNode }) {
             </button>
           </div>
           <p className="coach-panel-in-view">{inViewLabel}</p>
+          {inView?.kind === "profile" ? (
+            <StartJobSearchButton key={inView.id} profileId={inView.id} label={t("coachPanel.searchJobs")} className="button" />
+          ) : (
+            <p className="hint">{t("coachPanel.searchHint")}</p>
+          )}
           <ol className="chat coach-panel-messages" aria-live="polite">
             <li className="chat-message chat-coach">
               <span className="chat-author">{t("questionnaire.coach")}</span>

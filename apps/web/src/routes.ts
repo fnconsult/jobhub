@@ -11,6 +11,7 @@ export const routes = {
   applicationsBoard: "/candidatures?vue=tableau",
   application: (id: string) => `/candidatures/${id}`,
   jobOffer: (id: string) => `/offres/${id}`,
+  jobSearch: (id: string) => `/recherches/${id}`,
   masterCvVersion: (id: string, version: number) => `/profils/${id}/versions/${version}`,
   subscription: "/abonnement",
   admin: "/admin",

@@ -278,7 +278,9 @@
     "errors": {
       "unavailable": "Your coach can't reply right now. Please try again in a few moments.",
       "invalid": "This message couldn't be sent. Shorten it and try again."
-    }
+    },
+    "searchJobs": "Search for job offers for this profile",
+    "searchHint": "Open one of your profiles: your coach can then search for job offers for it."
   },
   "actionCards": {
     "title": "Your coach's proposals",
@@ -469,5 +471,31 @@
     "offerAndWanted": "Offer: {{offer}} · Wanted: {{wanted}}",
     "salaryOffer": "Offer: {{offer}}",
     "salaryWanted": "Wanted: at least €{{amount}} gross per year"
+  },
+  "jobSearch": {
+    "sectionTitle": "Job search",
+    "startHint": "Your coach searches the web for job offers matching this profile's search criteria, then ranks them by how well your master CV matches.",
+    "start": "Search for job offers",
+    "starting": "Starting the search…",
+    "title": "Job offers found for \"{{profile}}\"",
+    "startedAt": "Search started on {{date}}",
+    "searching": "Your coach is searching for job offers. This can take a minute or two: this page updates by itself.",
+    "failed": "The search did not succeed. Please try again in a few moments.",
+    "noResults": "Your coach found no job offers this time. You can widen this profile's search criteria, then search again.",
+    "resultsIntro_one": "{{count}} job offer found, ranked by how well it matches your master CV.",
+    "resultsIntro_other": "{{count}} job offers found, from the closest to your master CV to the least close.",
+    "matchScore": "Match Score: {{score}} / 100",
+    "seeJobOffer": "Read the job offer",
+    "save": "Save as an application",
+    "saving": "Saving…",
+    "saveError": "Saving failed. Check your connection and try again.",
+    "saved": "Saved in your applications.",
+    "seeApplication": "See my application",
+    "searchAgain": "Search again",
+    "backToProfile": "Back to the profile",
+    "errors": {
+      "archived": "This profile is archived. Restore it to search for job offers.",
+      "generic": "The search could not be started. Check your connection and try again."
+    }
   }
 }

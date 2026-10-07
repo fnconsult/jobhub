@@ -304,13 +304,16 @@
         "atsScores_one": "You have used the 1 ATS Score included this month in the {{plan}} Plan.",
         "atsScores_other": "You have used the {{count}} ATS Scores included this month in the {{plan}} Plan.",
         "enrichedContacts_one": "You have used the 1 Enriched Contact included this month in the {{plan}} Plan.",
-        "enrichedContacts_other": "You have used the {{count}} Enriched Contacts included this month in the {{plan}} Plan."
+        "enrichedContacts_other": "You have used the {{count}} Enriched Contacts included this month in the {{plan}} Plan.",
+        "jobSearches_one": "You have used the 1 job search included this month in the {{plan}} Plan.",
+        "jobSearches_other": "You have used the {{count}} job searches included this month in the {{plan}} Plan."
       },
       "notIncluded": {
         "profiles": "Creating Profiles is not included in the {{plan}} Plan.",
         "matchScores": "Match Scores are not included in the {{plan}} Plan.",
         "atsScores": "ATS Scores are not included in the {{plan}} Plan.",
-        "enrichedContacts": "Enriched Contacts are not included in the {{plan}} Plan."
+        "enrichedContacts": "Enriched Contacts are not included in the {{plan}} Plan.",
+        "jobSearches": "Job searches are not included in the {{plan}} Plan."
       },
       "upgradeCreate": "The {{plan}} Plan lets you create more.",
       "upgradeUse": "The {{plan}} Plan lets you do more.",
@@ -344,7 +347,8 @@
       "matchScores": "Match Scores",
       "atsScores": "ATS Scores",
       "enrichedContacts": "Enriched Contacts",
-      "jobDigest": "Job Digest"
+      "jobDigest": "Job Digest",
+      "jobSearches": "Job searches"
     },
     "jobDigest": {
       "none": "Not included",

@@ -31,6 +31,7 @@ export async function startTestBilling(overrides: Partial<BillingConfig> = {}) {
     billing,
     stripe,
     clock,
+    database: config.database,
     /** Runs the billing migration again, as every deployment does. */
     migrateAgain: () => migrateBilling(config.database),
     /** Signs a new Candidate up; returns who they are. */

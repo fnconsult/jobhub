@@ -45,9 +45,9 @@ export interface StripeConfig {
 
 /** The quotas Jobbbox starts with; Administrators change them in the back office. */
 export const STARTING_PLAN_QUOTAS: Record<Plan, PlanQuotas> = {
-  free: { profiles: 1, matchScores: 3, atsScores: 1, enrichedContacts: 0, jobDigest: "none" },
-  standard: { profiles: 3, matchScores: null, atsScores: null, enrichedContacts: 0, jobDigest: "weekly" },
-  premium: { profiles: null, matchScores: null, atsScores: null, enrichedContacts: 20, jobDigest: "daily" },
+  free: { profiles: 1, matchScores: 3, atsScores: 1, enrichedContacts: 0, jobSearches: 3, jobDigest: "none" },
+  standard: { profiles: 3, matchScores: null, atsScores: null, enrichedContacts: 0, jobSearches: 30, jobDigest: "weekly" },
+  premium: { profiles: null, matchScores: null, atsScores: null, enrichedContacts: 20, jobSearches: null, jobDigest: "daily" },
 };
 
 const COLUMNS = {
@@ -55,6 +55,7 @@ const COLUMNS = {
   matchScores: "match_scores",
   atsScores: "ats_scores",
   enrichedContacts: "enriched_contacts",
+  jobSearches: "job_searches",
   jobDigest: "job_digest",
 } as const satisfies Record<keyof PlanQuotas, string>;
 
@@ -83,6 +84,18 @@ export async function migrateBilling(database: Pool): Promise<void> {
       PRIMARY KEY (candidate_id, quota, month)
     );
   `);
+  // A quota added after the table was created starts at its starting value on every Plan.
+  const { rows: existing } = await database.query<{ column_name: string }>(
+    "SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'plan_quota'",
+  );
+  for (const quota of LIMITED_QUOTAS) {
+    const column = COLUMNS[quota];
+    if (existing.some((row) => row.column_name === column)) continue;
+    await database.query(`ALTER TABLE plan_quota ADD COLUMN IF NOT EXISTS ${column} integer CHECK (${column} >= 0)`);
+    for (const plan of PLANS) {
+      await database.query(`UPDATE plan_quota SET ${column} = $2 WHERE plan = $1`, [plan, STARTING_PLAN_QUOTAS[plan][quota]]);
+    }
+  }
   for (const plan of PLANS) {
     const quotas = STARTING_PLAN_QUOTAS[plan];
     const keys = Object.keys(COLUMNS) as (keyof PlanQuotas)[];

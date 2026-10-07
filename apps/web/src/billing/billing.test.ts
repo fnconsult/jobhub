@@ -23,6 +23,7 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       matchScores: 3,
       atsScores: 1,
       enrichedContacts: 0,
+      jobSearches: 3,
       jobDigest: "none",
     });
   });
@@ -30,9 +31,9 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
   describe("Plan Quotas in the back office", () => {
     it("lists every Plan's quotas, starting with the ones Jobbbox launches with", async () => {
       expect(await t.billing.planQuotas()).toEqual({
-        free: { profiles: 1, matchScores: 3, atsScores: 1, enrichedContacts: 0, jobDigest: "none" },
-        standard: { profiles: 3, matchScores: null, atsScores: null, enrichedContacts: 0, jobDigest: "weekly" },
-        premium: { profiles: null, matchScores: null, atsScores: null, enrichedContacts: 20, jobDigest: "daily" },
+        free: { profiles: 1, matchScores: 3, atsScores: 1, enrichedContacts: 0, jobSearches: 3, jobDigest: "none" },
+        standard: { profiles: 3, matchScores: null, atsScores: null, enrichedContacts: 0, jobSearches: 30, jobDigest: "weekly" },
+        premium: { profiles: null, matchScores: null, atsScores: null, enrichedContacts: 20, jobSearches: null, jobDigest: "daily" },
       });
     });
 
@@ -45,6 +46,14 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
 
       expect((await t.billing.entitlements(marie.id)).quotas).toMatchObject({ matchScores: 1, jobDigest: "weekly" });
       expect(await t.billing.use(marie.id, "matchScores")).toMatchObject({ allowed: false, limit: 1 });
+    });
+
+    it("gives a database migrated before Job Searches had a quota their starting quotas", async () => {
+      await t.database.query("ALTER TABLE plan_quota DROP COLUMN job_searches");
+
+      await t.migrateAgain();
+
+      expect(await t.billing.planQuotas()).toMatchObject({ free: { jobSearches: 3 }, standard: { jobSearches: 30 }, premium: { jobSearches: null } });
     });
   });
 
@@ -91,6 +100,14 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       expect(await t.billing.use(jean.id, "matchScores")).toEqual({ allowed: true, remaining: 2 });
     });
 
+    it("lets a Free Candidate start 3 Job Searches a month, then asks them to upgrade to Standard", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+
+      for (let i = 0; i < 3; i++) expect((await t.billing.use(marie.id, "jobSearches")).allowed).toBe(true);
+
+      expect(await t.billing.use(marie.id, "jobSearches")).toEqual({ allowed: false, quota: "jobSearches", plan: "free", limit: 3, upgradeTo: "standard" });
+    });
+
     it("points a Free Candidate wanting Enriched Contacts to Premium, the first Plan that has any", async () => {
       const marie = await t.signUp("marie.dupont@example.fr");
 
@@ -126,7 +143,7 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
     t.clock.now = new Date("2026-11-02T10:00:00+01:00");
     await t.billing.use(marie.id, "atsScores");
 
-    expect((await t.billing.entitlements(marie.id)).usedThisMonth).toEqual({ matchScores: 0, atsScores: 1, enrichedContacts: 0 });
+    expect((await t.billing.entitlements(marie.id)).usedThisMonth).toEqual({ matchScores: 0, atsScores: 1, enrichedContacts: 0, jobSearches: 0 });
   });
 
   describe("Stripe checkout", () => {
@@ -220,7 +237,7 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
 
       const entitlements = await t.billing.entitlements(marie.id);
       expect(entitlements.plan).toBe("standard");
-      expect(entitlements.quotas).toEqual({ profiles: 3, matchScores: null, atsScores: null, enrichedContacts: 0, jobDigest: "weekly" });
+      expect(entitlements.quotas).toEqual({ profiles: 3, matchScores: null, atsScores: null, enrichedContacts: 0, jobSearches: 30, jobDigest: "weekly" });
     });
 
     it("follows a change of Plan made in the customer portal", async () => {
@@ -231,7 +248,7 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
 
       const entitlements = await t.billing.entitlements(marie.id);
       expect(entitlements.plan).toBe("premium");
-      expect(entitlements.quotas).toEqual({ profiles: null, matchScores: null, atsScores: null, enrichedContacts: 20, jobDigest: "daily" });
+      expect(entitlements.quotas).toEqual({ profiles: null, matchScores: null, atsScores: null, enrichedContacts: 20, jobSearches: null, jobDigest: "daily" });
     });
 
     it("keeps the Plan while Stripe retries a failed payment, and drops to Free once the subscription ends", async () => {

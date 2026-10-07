@@ -304,13 +304,16 @@
         "atsScores_one": "Vous avez utilisé l'ATS Score compris ce mois-ci dans l'offre {{plan}}.",
         "atsScores_other": "Vous avez utilisé les {{count}} ATS Scores compris ce mois-ci dans l'offre {{plan}}.",
         "enrichedContacts_one": "Vous avez utilisé le contact enrichi compris ce mois-ci dans l'offre {{plan}}.",
-        "enrichedContacts_other": "Vous avez utilisé les {{count}} contacts enrichis compris ce mois-ci dans l'offre {{plan}}."
+        "enrichedContacts_other": "Vous avez utilisé les {{count}} contacts enrichis compris ce mois-ci dans l'offre {{plan}}.",
+        "jobSearches_one": "Vous avez utilisé la recherche d'offres comprise ce mois-ci dans l'offre {{plan}}.",
+        "jobSearches_other": "Vous avez utilisé les {{count}} recherches d'offres comprises ce mois-ci dans l'offre {{plan}}."
       },
       "notIncluded": {
         "profiles": "La création de profils n'est pas comprise dans l'offre {{plan}}.",
         "matchScores": "Les Match Scores ne sont pas compris dans l'offre {{plan}}.",
         "atsScores": "Les ATS Scores ne sont pas compris dans l'offre {{plan}}.",
-        "enrichedContacts": "Les contacts enrichis ne sont pas compris dans l'offre {{plan}}."
+        "enrichedContacts": "Les contacts enrichis ne sont pas compris dans l'offre {{plan}}.",
+        "jobSearches": "Les recherches d'offres ne sont pas comprises dans l'offre {{plan}}."
       },
       "upgradeCreate": "Avec l'offre {{plan}}, vous pouvez en créer davantage.",
       "upgradeUse": "Avec l'offre {{plan}}, vous pouvez en faire davantage.",
@@ -344,7 +347,8 @@
       "matchScores": "Match Scores",
       "atsScores": "ATS Scores",
       "enrichedContacts": "Contacts enrichis",
-      "jobDigest": "Job Digest"
+      "jobDigest": "Job Digest",
+      "jobSearches": "Recherches d'offres"
     },
     "jobDigest": {
       "none": "Non compris",

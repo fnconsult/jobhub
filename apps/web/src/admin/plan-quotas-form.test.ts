@@ -11,11 +11,11 @@ describe("the Plan Quotas form of the back office", () => {
   it("reads numbers as limits and empty fields as unlimited", () => {
     expect(
       planQuotasFromForm(
-        form({ plan: "standard", profiles: "5", matchScores: "", atsScores: " ", enrichedContacts: "0", jobDigest: "daily" }),
+        form({ plan: "standard", profiles: "5", matchScores: "", atsScores: " ", enrichedContacts: "0", jobSearches: "10", jobDigest: "daily" }),
       ),
     ).toEqual({
       plan: "standard",
-      quotas: { profiles: 5, matchScores: null, atsScores: null, enrichedContacts: 0, jobDigest: "daily" },
+      quotas: { profiles: 5, matchScores: null, atsScores: null, enrichedContacts: 0, jobSearches: 10, jobDigest: "daily" },
     });
   });
 
@@ -27,7 +27,7 @@ describe("the Plan Quotas form of the back office", () => {
     ["an unknown Job Digest frequency", { jobDigest: "hourly" }],
     ["an unknown Plan", { plan: "gold" }],
   ])("refuses %s", (_, override) => {
-    const fields = { plan: "free", profiles: "1", matchScores: "3", atsScores: "1", enrichedContacts: "0", jobDigest: "none", ...override };
+    const fields = { plan: "free", profiles: "1", matchScores: "3", atsScores: "1", enrichedContacts: "0", jobSearches: "3", jobDigest: "none", ...override };
 
     expect(planQuotasFromForm(form(fields))).toBeNull();
   });

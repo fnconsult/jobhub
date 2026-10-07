@@ -1,7 +1,7 @@
 import { BillingError } from "@/billing";
 import { getBilling } from "@/billing/server";
 
-/** Stripe webhook endpoint: subscriptions created, changed or ended (ADR-0012). */
+/** Stripe webhook endpoint: subscriptions created, changed or ended (ADR-0014). */
 export async function POST(request: Request) {
   const signature = request.headers.get("stripe-signature");
   if (!signature) return Response.json({ error: "missing_signature" }, { status: 400 });

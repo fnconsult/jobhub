@@ -1,5 +1,5 @@
 /**
- * Plans, Stripe billing and Plan Quotas (CONTEXT.md, ADR-0012).
+ * Plans, Stripe billing and Plan Quotas (CONTEXT.md, ADR-0014).
  *
  * One deep module. Callers get `createBilling(config)`, whose methods answer:
  *  - what may this Candidate do?  `entitlements`, `use`, `allowsAnother`

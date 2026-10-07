@@ -2,7 +2,7 @@ type Env = Record<string, string | undefined>;
 
 /**
  * Administrators: Jobbbox team members who run the back office. They sign in
- * like Candidates; their email addresses are listed in ADMIN_EMAILS (ADR-0012).
+ * like Candidates; their email addresses are listed in ADMIN_EMAILS (ADR-0014).
  */
 export function administratorsFromEnv(env: Env) {
   const emails = new Set(

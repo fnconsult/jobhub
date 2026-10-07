@@ -101,8 +101,30 @@ const parseChange = (input: unknown) =>
     ? changeSchema.options[1].safeParse(input, { reportInput: true })
     : changeSchema.options[0].safeParse(input, { reportInput: true });
 
+/** Interviews are in France: a date and time typed without an offset is French time. */
+export const INTERVIEW_TIME_ZONE = "Europe/Paris";
+
+/** Milliseconds `timeZone` is ahead of UTC at `instant`. */
+function offsetAt(instant: number, timeZone: string): number {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-GB", { timeZone, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })
+      .formatToParts(instant)
+      .map((part) => [part.type, Number(part.value)]),
+  );
+  return Date.UTC(parts.year!, parts.month! - 1, parts.day!, parts.hour!, parts.minute!, parts.second!) - (instant - (instant % 1000));
+}
+
+/** The instant a wall-clock time ("2026-11-12T14:30") stands for in `timeZone`. */
+function wallClockIn(local: string, timeZone: string): Date {
+  const asUtc = Date.parse(`${local}Z`);
+  const guess = asUtc - offsetAt(asUtc, timeZone);
+  return new Date(asUtc - offsetAt(guess, timeZone));
+}
+
 const interviewSchema = z.object({
-  scheduledAt: z.iso.datetime({ offset: true }).transform((value) => new Date(value)),
+  scheduledAt: z.iso
+    .datetime({ offset: true, local: true })
+    .transform((value) => (/(Z|[+-]\d{2}:?\d{2})$/.test(value) ? new Date(value) : wallClockIn(value, INTERVIEW_TIME_ZONE))),
   note: z.string().trim().max(500).default(""),
 });
 

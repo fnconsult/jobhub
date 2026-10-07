@@ -232,6 +232,18 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
       expect((await applications.list(candidateId))[0]?.interviews).toHaveLength(2);
     });
 
+    it("reads a date and time without an offset as French time, as the Candidate typed it", async () => {
+      const applicationId = await inInterview();
+
+      await applications.addInterview(candidateId, applicationId, { scheduledAt: "2026-11-12T14:30" }); // winter: UTC+1
+      const added = await applications.addInterview(candidateId, applicationId, { scheduledAt: "2026-06-03T09:00" }); // summer: UTC+2
+
+      expect(added.ok && added.application.interviews.map((interview) => interview.scheduledAt)).toEqual([
+        new Date("2026-06-03T07:00:00.000Z"),
+        new Date("2026-11-12T13:30:00.000Z"),
+      ]);
+    });
+
     it("adds Interviews only to an Application at \"Entretien\"", async () => {
       const application = await save({ jobOfferId, profileId });
 

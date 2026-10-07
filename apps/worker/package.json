@@ -11,7 +11,12 @@
   "dependencies": {
     "@jobhub/ai": "*",
     "@jobhub/shared": "*",
+    "@jobhub/web": "*",
+    "pg": "^8.23.1",
     "pg-boss": "^12.37.0",
     "tsx": "^4.23.15"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1"
   }
 }

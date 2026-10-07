@@ -11,21 +11,33 @@
  * their content (ignoring case and spacing), so one posting seen on two sites
  * is one Job Offer.
  * A Job Offer belongs to no one: Candidates and Guests share it, so it needs no
- * account and is kept when a Candidate deletes theirs (ADR-0010).
+ * account and is kept when a Candidate deletes theirs (ADR-0010). One that only
+ * Guests captured is forgotten within 24 hours (ADR-0003): see
+ * `forgetExpiredGuestCaptures`, which the worker runs on a schedule. A Candidate
+ * capturing it keeps it for good.
  */
 import { createHash } from "node:crypto";
 import { CONTRACT_TYPES, REMOTE_WORK_OPTIONS, type JobOffer } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import { fieldErrors, type FieldError } from "../validation";
+import { GUEST_EXPIRY_SQL } from "./guest-retention";
+
+export { forgetExpiredGuestCaptures } from "./guest-retention";
 
 export type { FieldError as JobOfferFieldError } from "../validation";
 
 export type CaptureJobOfferResult = { ok: true; jobOffer: JobOffer } | { ok: false; errors: FieldError[] };
 
+/** Who captured a posting: a signed-in Candidate, or a Guest (no account). */
+export type Captor = "candidate" | "guest";
+
 export interface JobOffers {
-  /** Stores a captured posting. `input` is untrusted (it comes from the browser). */
-  capture(input: unknown): Promise<CaptureJobOfferResult>;
+  /**
+   * Stores a captured posting. `input` is untrusted (it comes from the browser).
+   * A posting only Guests captured is forgotten within 24 hours.
+   */
+  capture(input: unknown, capturedBy?: Captor): Promise<CaptureJobOfferResult>;
   /** The Job Offer, or null if there is none with this id. */
   get(id: string): Promise<JobOffer | null>;
   /** The Job Offer captured from this source URL (ignoring tracking parameters), or null. */
@@ -121,7 +133,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function createJobOffers(database: Pool): JobOffers {
   return {
-    async capture(input) {
+    async capture(input, capturedBy = "candidate") {
       const parsed = inputSchema.safeParse(input, { reportInput: true });
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       const offer = parsed.data;
@@ -130,8 +142,10 @@ export function createJobOffers(database: Pool): JobOffers {
 
       const { rows } = await database.query<JobOfferRow>(
         `INSERT INTO job_offer (url_key, content_fingerprint, source_url, source_name, title, content, employer, location,
-                                contract_type, remote_work, salary_min, salary_max, skills, required_experience_years)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                                contract_type, remote_work, salary_min, salary_max, skills, required_experience_years,
+                                guest_expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+                 CASE WHEN $15 = 'guest' THEN ${GUEST_EXPIRY_SQL} END)
          ON CONFLICT DO NOTHING
          RETURNING ${COLUMNS}`,
         [
@@ -148,6 +162,7 @@ export function createJobOffers(database: Pool): JobOffers {
           offer.salary?.max ?? null,
           offer.skills ?? null,
           offer.requiredExperienceYears ?? null,
+          capturedBy,
         ],
       );
       if (rows[0]) return { ok: true, jobOffer: jobOfferFrom(rows[0]) };
@@ -160,7 +175,11 @@ export function createJobOffers(database: Pool): JobOffers {
           LIMIT 1`,
         keys,
       );
-      return { ok: true, jobOffer: jobOfferFrom(existing.rows[0]!) };
+      const jobOffer = jobOfferFrom(existing.rows[0]!);
+      if (capturedBy === "candidate") {
+        await database.query(`UPDATE job_offer SET guest_expires_at = NULL WHERE id = $1 AND guest_expires_at IS NOT NULL`, [jobOffer.id]);
+      }
+      return { ok: true, jobOffer };
     },
 
     async get(id) {
@@ -198,5 +217,8 @@ export async function migrateJobOffers(database: Pool): Promise<void> {
       required_experience_years integer,
       created_at timestamptz NOT NULL DEFAULT now()
     );
+    -- Set while only Guests have captured the posting: when to forget it (ADR-0003).
+    ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS guest_expires_at timestamptz;
+    CREATE INDEX IF NOT EXISTS job_offer_guest_expires_at ON job_offer (guest_expires_at) WHERE guest_expires_at IS NOT NULL;
   `);
 }

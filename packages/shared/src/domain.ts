@@ -131,3 +131,10 @@ export interface JobOffer extends JobOfferDetails {
   /** Where the posting was captured: its URL, and the site's name (its host when not given). */
   source: { url?: string; name?: string };
 }
+
+/**
+ * How long a Guest's CV and captured Job Offer are kept, at most, in hours.
+ * ADR-0003 promises deletion within 24 hours; the hour left over is margin for
+ * the clean-up, which runs every 15 minutes.
+ */
+export const GUEST_RETENTION_HOURS = 23;

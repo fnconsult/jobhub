@@ -8,9 +8,43 @@
   font-size: var(--font-size-h3);
 }
 
-.notice {
-  padding: var(--space-3);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+.primary {
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-on-accent);
+  background: var(--color-accent);
+  border: 0;
   border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+}
+
+.primary:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+
+.status:empty {
+  display: none;
+}
+
+.option {
+  margin: var(--space-4) 0;
+}
+
+.checkbox {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.checkbox input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0.15rem 0 0;
+  flex-shrink: 0;
+}
+
+.option .hint {
+  margin: var(--space-2) 0 0;
 }

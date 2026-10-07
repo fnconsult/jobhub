@@ -101,7 +101,7 @@ async function readText(response: Response, maxBytes: number): Promise<string | 
 export function createPoliteFetcher(options: PoliteFetchOptions) {
   const robotsBySite = new Map<string, Promise<string | null>>();
 
-  const request = (url: URL | string, redirect: RequestRedirect) =>
+  const request = (url: URL | string, redirect: "follow" | "manual") =>
     options.fetch(String(url), {
       redirect,
       headers: { "user-agent": options.userAgent, accept: "text/html,application/xhtml+xml" },

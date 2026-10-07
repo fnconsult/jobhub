@@ -118,4 +118,261 @@ describe("Job discovery", () => {
     ]);
     expect(jobOffers.all).toHaveLength(1);
   });
+
+  it("sends the web-search provider nothing but the Search Criteria, whatever the Candidate typed in them", async () => {
+    const { discovery, search } = setup({ sources: [], pages: {} });
+
+    await discovery.discover({
+      candidateId: "candidate-1",
+      criteria: { targetRole: "DAF jean.dupont@mail.fr 06 12 34 56 78", location: "Lyon" },
+    });
+
+    expect(search.queries).toEqual(["Offres d'emploi « DAF » à Lyon"]);
+  });
+
+  describe("reading pages politely (ADR-0002)", () => {
+    const ROBOTS = "https://emplois.example.fr/robots.txt";
+    const posting = jobPostingPage({ title: "DAF", description: "Poste de DAF à Lyon." });
+
+    it("introduces itself and does not request a page its robots.txt disallows", async () => {
+      const { discovery, web } = setup({
+        sources: [DAF_URL],
+        pages: { [ROBOTS]: { body: "User-agent: JobbboxBot\nDisallow: /offres/\n" }, [DAF_URL]: { body: posting } },
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report).toEqual({ jobOffers: [], skipped: [{ url: DAF_URL, reason: "robots" }] });
+      expect(web.fetched()).toEqual([ROBOTS]);
+      expect(web.requests[0]!.userAgent).toMatch(/^JobbboxBot\//);
+    });
+
+    it("reads robots.txt once per site", async () => {
+      const second = "https://emplois.example.fr/offres/daf-paris";
+      const { discovery, web } = setup({
+        sources: [DAF_URL, second],
+        pages: { [ROBOTS]: { body: "" }, [DAF_URL]: { body: posting }, [second]: { body: jobPostingPage({ title: "DAF", description: "Poste à Paris." }) } },
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers).toHaveLength(2);
+      expect(web.fetched()).toEqual([ROBOTS, DAF_URL, second]);
+    });
+
+    it("reads a site without robots.txt, but stays out of one whose robots.txt fails", async () => {
+      const down = "https://panne.example.fr/offre/1";
+      const { discovery, web } = setup({
+        sources: [DAF_URL, down],
+        pages: { [DAF_URL]: { body: posting }, "https://panne.example.fr/robots.txt": { status: 503 }, [down]: { body: posting } },
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers.map((o) => o.source.url)).toEqual([DAF_URL]);
+      expect(report.skipped).toEqual([{ url: down, reason: "robots" }]);
+      expect(web.fetched()).not.toContain(down);
+    });
+
+    it("skips a page whose robots meta tag says noindex", async () => {
+      const { discovery } = setup({
+        sources: [DAF_URL],
+        pages: { [DAF_URL]: { body: posting.replace("<head>", '<head><meta name="robots" content="noindex, nofollow">') } },
+      });
+
+      expect((await discovery.discover({ candidateId: "c", criteria })).skipped).toEqual([{ url: DAF_URL, reason: "robots" }]);
+    });
+
+    it("never requests sites whose terms forbid crawling, such as LinkedIn and Indeed", async () => {
+      const linkedin = "https://fr.linkedin.com/jobs/view/123";
+      const indeed = "https://www.indeed.fr/viewjob?jk=abc";
+      const { discovery, web } = setup({ sources: [linkedin, indeed], pages: {} });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.skipped).toEqual([
+        { url: linkedin, reason: "site_terms" },
+        { url: indeed, reason: "site_terms" },
+      ]);
+      expect(web.fetched()).toEqual([]);
+    });
+
+    it("gives up on a Cloudflare challenge or a CAPTCHA, and never retries it", async () => {
+      const cloudflare = "https://cf.example.fr/offre/1";
+      const captcha = "https://captcha.example.fr/offre/2";
+      const { discovery, web, llm } = setup({
+        sources: [cloudflare, captcha],
+        pages: {
+          [cloudflare]: { status: 403, headers: { "cf-mitigated": "challenge", server: "cloudflare" }, body: "<title>Just a moment...</title>" },
+          [captcha]: { body: '<html><body><div class="g-recaptcha" data-sitekey="x"></div></body></html>' },
+        },
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.skipped).toEqual([
+        { url: cloudflare, reason: "bot_protection" },
+        { url: captcha, reason: "bot_protection" },
+      ]);
+      expect(web.fetched().filter((url) => url === cloudflare || url === captcha)).toEqual([cloudflare, captcha]);
+      expect(llm.calls).toEqual([]);
+    });
+
+    it("stops at a login wall: a redirect to a sign-in page, a 401 or a password form", async () => {
+      const redirected = "https://a.example.fr/offre/1";
+      const unauthorised = "https://b.example.fr/offre/2";
+      const form = "https://c.example.fr/offre/3";
+      const { discovery, web } = setup({
+        sources: [redirected, unauthorised, form],
+        pages: {
+          [redirected]: { status: 302, headers: { location: "/connexion?next=/offre/1" } },
+          [unauthorised]: { status: 401 },
+          [form]: { body: '<form><input name="email"><input type="password" name="pw"></form>' },
+        },
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.skipped.map((s) => s.reason)).toEqual(["login_wall", "login_wall", "login_wall"]);
+      expect(web.fetched()).not.toContain("https://a.example.fr/connexion?next=/offre/1");
+    });
+
+    it("follows a redirect only where robots.txt allows it", async () => {
+      const moved = "https://ancien.example.fr/offre/1";
+      const target = "https://nouveau.example.fr/offre/1";
+      const { discovery, web } = setup({
+        sources: [moved],
+        pages: {
+          [moved]: { status: 301, headers: { location: target } },
+          "https://nouveau.example.fr/robots.txt": { body: "User-agent: *\nDisallow: /\n" },
+          [target]: { body: posting },
+        },
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.skipped).toEqual([{ url: moved, reason: "robots" }]);
+      expect(web.fetched()).not.toContain(target);
+    });
+
+    it("never reaches private network addresses", async () => {
+      const sources = ["http://127.0.0.1/admin", "http://localhost:8080/", "http://192.168.1.1/offre", "http://[::1]/", "ftp://example.fr/offre"];
+      const { discovery, web } = setup({ sources, pages: {} });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.skipped.map((s) => s.reason)).toEqual(["not_public", "not_public", "not_public", "not_public", "not_public"]);
+      expect(web.fetched()).toEqual([]);
+    });
+  });
+
+  describe("reading the posting", () => {
+    it("asks the LLM to read a page without JobPosting data, and captures what it states", async () => {
+      const { discovery, llm } = setup({
+        sources: [DAF_URL],
+        pages: {
+          [DAF_URL]: {
+            body: "<html><head><script>track()</script></head><body><nav>Accueil</nav><h1>DAF H/F</h1><p>Groupe Seb recrute son DAF.</p></body></html>",
+          },
+        },
+        reply:
+          'Voici :\n```json\n{"isJobOffer": true, "title": "DAF H/F", "content": "Groupe Seb recrute son DAF.", "employer": "Groupe Seb", "contractType": "cdi", "remoteWork": "sometimes", "salaryMin": 110000, "skills": ["IFRS", ""]}\n```',
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(llm.calls).toHaveLength(1);
+      expect(llm.calls[0]!.messages[0]!.content).toBe("Accueil\n\nDAF H/F\n\nGroupe Seb recrute son DAF.");
+      expect(report.jobOffers).toEqual([
+        {
+          id: "offer-1",
+          source: { url: DAF_URL },
+          title: "DAF H/F",
+          content: "Groupe Seb recrute son DAF.",
+          employer: "Groupe Seb",
+          contractType: "cdi",
+          salary: { min: 110_000 },
+          skills: ["IFRS"],
+        },
+      ]);
+    });
+
+    it("does not call the LLM when the page has JobPosting data", async () => {
+      const { discovery, llm } = setup({ sources: [DAF_URL], pages: { [DAF_URL]: { body: jobPostingPage({ title: "DAF", description: "Poste." }) } } });
+
+      await discovery.discover({ candidateId: "c", criteria });
+
+      expect(llm.calls).toEqual([]);
+    });
+
+    it("finds a JobPosting inside an @graph and converts a monthly salary to annual", async () => {
+      const body = `<script type="application/ld+json">${JSON.stringify({
+        "@context": "https://schema.org",
+        "@graph": [
+          { "@type": "WebPage", name: "Offre" },
+          {
+            "@type": ["JobPosting"],
+            title: "Contrôleur de gestion",
+            description: "Poste en télétravail.",
+            jobLocationType: "TELECOMMUTE",
+            employmentType: ["FULL_TIME", "FREELANCE"],
+            baseSalary: { currency: "EUR", value: { value: "5 000", unitText: "MONTH" } },
+          },
+        ],
+      })}</script>`;
+      const { discovery } = setup({ sources: [DAF_URL], pages: { [DAF_URL]: { body } } });
+
+      const [offer] = (await discovery.discover({ candidateId: "c", criteria })).jobOffers;
+
+      expect(offer).toMatchObject({ title: "Contrôleur de gestion", remoteWork: "full_remote", contractType: "freelance", salary: { min: 60_000, max: 60_000 } });
+    });
+
+    it("skips a page the LLM says is not one job posting, and a list of several JobPostings", async () => {
+      const list = "https://emplois.example.fr/offres?q=daf";
+      const { discovery, llm } = setup({
+        sources: [DAF_URL, list],
+        pages: {
+          [DAF_URL]: { body: "<p>Nos conseils pour réussir votre entretien.</p>" },
+          [list]: { body: jobPostingPage({ title: "A", description: "a" }) + jobPostingPage({ title: "B", description: "b" }) },
+        },
+        reply: '{"isJobOffer": false}',
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report).toEqual({
+        jobOffers: [],
+        skipped: [
+          { url: DAF_URL, reason: "not_a_job_offer" },
+          { url: list, reason: "not_a_job_offer" },
+        ],
+      });
+      expect(llm.calls).toHaveLength(1);
+    });
+  });
+
+  describe("deduplicating against existing Job Offers", () => {
+    const stored: JobOffer = { id: "stored-1", source: { url: DAF_URL }, title: "DAF", content: "Poste de DAF." };
+
+    it("returns the stored Job Offer for a known URL without fetching the page again", async () => {
+      const { discovery, web, jobOffers } = setup({ sources: [DAF_URL], pages: {}, existing: [stored] });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers).toEqual([stored]);
+      expect(web.fetched()).toEqual([]);
+      expect(jobOffers.all).toEqual([stored]);
+    });
+
+    it("lists a posting found on two sites once", async () => {
+      const mirror = "https://miroir.example.fr/offre/daf";
+      const same = jobPostingPage({ title: "DAF", description: "Poste de DAF." });
+      const { discovery, jobOffers } = setup({ sources: [DAF_URL, mirror, DAF_URL], pages: { [DAF_URL]: { body: same }, [mirror]: { body: same } } });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers).toHaveLength(1);
+      expect(jobOffers.all).toHaveLength(1);
+    });
+  });
 });

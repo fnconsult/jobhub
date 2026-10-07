@@ -80,7 +80,7 @@ function remoteWork(posting: Json): RemoteWork | undefined {
 const PER_YEAR: Record<string, number> = { YEAR: 1, MONTH: 12 };
 
 function amount(value: unknown): number | undefined {
-  const number = typeof value === "string" ? Number(value.replace(/[\s  ]/g, "").replace(",", ".")) : value;
+  const number = typeof value === "string" ? Number(value.replace(/[\s\u00a0\u202f]/g, "").replace(",", ".")) : value;
   return typeof number === "number" && Number.isFinite(number) && number > 0 ? number : undefined;
 }
 

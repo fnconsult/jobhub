@@ -195,5 +195,26 @@
     "subject": "Objet : {{subject}}",
     "cvFileName": "CV",
     "coverLetterFileName": "Lettre-de-motivation"
+  },
+  "cvExport": {
+    "title": "Télécharger mon CV de référence",
+    "intro": "Choisissez un modèle de CV : tous sont conçus pour être bien lus par les logiciels de recrutement (une seule colonne, sans image ni tableau).",
+    "template": "Modèle de CV",
+    "templates": {
+      "classic": {
+        "name": "Classique",
+        "description": "Police à empattements, en-tête centré, titres soulignés."
+      },
+      "modern": {
+        "name": "Moderne",
+        "description": "Police sans empattements, en-tête aligné à gauche, titres en bleu foncé."
+      },
+      "compact": {
+        "name": "Compact",
+        "description": "Plus dense, pour tenir sur moins de pages."
+      }
+    },
+    "pdf": "Télécharger en PDF",
+    "docx": "Télécharger en Word (.docx)"
   }
 }

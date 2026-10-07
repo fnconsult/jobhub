@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CvExportForm } from "@/components/CvExportForm";
 import { MasterCvView } from "@/components/MasterCvView";
 import { TextSizeControl } from "@/components/TextSizeControl";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -64,6 +65,8 @@ export default async function ProfilePage({ params }: Params) {
           {t("profile.versionHistory")}
         </Link>
       </nav>
+
+      <CvExportForm profileId={profile.id} t={t} />
 
       <p>
         <Link href={routes.account}>{t("profile.backToAccount")}</Link>

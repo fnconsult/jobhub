@@ -207,3 +207,25 @@ textarea.input {
 .version-current {
   font-weight: 600;
 }
+
+/* A radio button with its label, and a hint under the label. */
+.choice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: var(--space-3);
+  align-items: center;
+}
+
+.choice input {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: 0;
+}
+
+.choice label {
+  font-weight: 600;
+}
+
+.choice .hint {
+  grid-column: 2;
+}

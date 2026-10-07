@@ -195,5 +195,26 @@
     "subject": "Subject: {{subject}}",
     "cvFileName": "CV",
     "coverLetterFileName": "Cover-letter"
+  },
+  "cvExport": {
+    "title": "Download my Master CV",
+    "intro": "Choose a CV template: all of them are built to be read well by applicant tracking systems (one column, no images or tables).",
+    "template": "CV template",
+    "templates": {
+      "classic": {
+        "name": "Classic",
+        "description": "Serif font, centred header, underlined headings."
+      },
+      "modern": {
+        "name": "Modern",
+        "description": "Sans-serif font, left-aligned header, dark blue headings."
+      },
+      "compact": {
+        "name": "Compact",
+        "description": "Denser, to fit on fewer pages."
+      }
+    },
+    "pdf": "Download as PDF",
+    "docx": "Download as Word (.docx)"
   }
 }

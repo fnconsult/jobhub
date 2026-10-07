@@ -39,7 +39,8 @@
   },
   "nav": {
     "signIn": "Se connecter",
-    "account": "Mon compte"
+    "account": "Mon compte",
+    "applications": "Mes candidatures"
   },
   "signIn": {
     "title": "Se connecter à Jobbbox",
@@ -370,5 +371,99 @@
       "invalid": "Vérifiez les valeurs : des nombres entiers positifs, ou vide pour illimité."
     },
     "back": "Retour au back office"
+  },
+  "applicationStatuses": {
+    "to_apply": "À postuler",
+    "applied": "Postulée",
+    "followed_up": "Relancée",
+    "interview": "Entretien",
+    "offer_received": "Offre reçue",
+    "accepted": "Acceptée",
+    "rejected": "Refusée",
+    "abandoned": "Abandonnée"
+  },
+  "applications": {
+    "title": "Mes candidatures",
+    "viewsLabel": "Affichage des candidatures",
+    "listView": "Liste",
+    "boardView": "Tableau",
+    "none": "Vous n'avez pas encore de candidature. Enregistrez une offre d'emploi pour la suivre ici.",
+    "jobOffer": "Offre",
+    "profile": "Profil",
+    "status": "Statut",
+    "interviews": "Entretiens",
+    "interviewCount": "Entretiens : {{number}}",
+    "emptyColumn": "Aucune candidature",
+    "noInterview": "Aucun"
+  },
+  "application": {
+    "statusLabel": "Statut",
+    "statusSaved": "Statut enregistré",
+    "profileLabel": "Profil utilisé",
+    "profileHint": "Le score de correspondance est calculé avec le CV de référence de ce profil.",
+    "profileSaved": "Profil enregistré",
+    "error": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez.",
+    "savedOn": "Offre enregistrée le {{date}}",
+    "interviewsTitle": "Entretiens",
+    "interviewsNone": "Aucun entretien enregistré pour l'instant.",
+    "interviewsHint": "Vous pourrez noter vos entretiens quand la candidature sera au statut « Entretien ».",
+    "interviewDate": "Date et heure de l'entretien (heure de Paris)",
+    "interviewNote": "Note (facultatif)",
+    "interviewNoteHint": "Par exemple : avec la DRH, en visioconférence.",
+    "addInterview": "Ajouter l'entretien",
+    "removeInterview": "Retirer l'entretien du {{date}}",
+    "working": "Enregistrement…",
+    "backToApplications": "Retour à mes candidatures"
+  },
+  "jobOffer": {
+    "details": "En bref",
+    "contentTitle": "Texte de l'offre",
+    "employer": "Employeur",
+    "location": "Lieu",
+    "contractType": "Type de contrat",
+    "remoteWork": "Télétravail",
+    "salary": "Salaire",
+    "salaryRange": "De {{min}} à {{max}} € brut par an",
+    "salaryFrom": "À partir de {{amount}} € brut par an",
+    "salaryUpTo": "Jusqu'à {{amount}} € brut par an",
+    "experience": "Expérience demandée",
+    "experienceYears": "{{years}} ans",
+    "skills": "Compétences demandées",
+    "source": "Source",
+    "sourceLink": "Voir l'offre sur {{site}}",
+    "saveTitle": "Suivre cette offre",
+    "profileLabel": "Profil à utiliser pour cette candidature",
+    "save": "Enregistrer l'offre",
+    "saving": "Enregistrement…",
+    "error": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez.",
+    "alreadySaved": "Vous suivez déjà cette offre.",
+    "seeApplication": "Voir ma candidature",
+    "signInToSave": "Connectez-vous pour enregistrer cette offre",
+    "createProfileToSave": "Créez un profil pour enregistrer cette offre"
+  },
+  "matchScore": {
+    "title": "Score de correspondance",
+    "score": "{{score}} / 100",
+    "intro": "Le CV de référence du profil « {{profile}} » comparé à cette offre et à vos critères de recherche.",
+    "unknownHint": "Les critères non comparables (l'offre ou vos critères n'en disent rien) ne comptent pas dans le score.",
+    "criteria": {
+      "skills": "Compétences",
+      "seniority": "Expérience",
+      "location": "Lieu",
+      "salary": "Salaire",
+      "contractType": "Type de contrat"
+    },
+    "statuses": {
+      "match": "Correspond",
+      "partial": "En partie",
+      "mismatch": "Ne correspond pas",
+      "unknown": "Non comparable"
+    },
+    "covered": "Présentes sur votre CV",
+    "missing": "Absentes de votre CV",
+    "seniorityDetail": "{{cvYears}} ans sur votre CV, {{requiredYears}} ans demandés",
+    "offerAndWanted": "Offre : {{offer}} · Recherché : {{wanted}}",
+    "salaryOffer": "Offre : {{offer}}",
+    "salaryWanted": "Recherché : {{amount}} € brut par an minimum"
   }
 }

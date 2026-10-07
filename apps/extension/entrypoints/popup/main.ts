@@ -34,19 +34,26 @@ const { t } = i18n;
 document.documentElement.lang = i18n.language;
 document.title = t("extension.title");
 
-/**
- * Manual Capture of the page in the active tab, on any site: the person's click
- * grants activeTab, so the page is read in their own browser (ADR-0002).
- */
+/** The Job Offer the page in a tab describes, read in the person's own browser (ADR-0002). */
+async function readTab(tabId: number): Promise<CapturedJobOffer | null> {
+  // On job sites, the badge content script is already there.
+  const fromContentScript = await browser.tabs
+    .sendMessage<ExtensionMessage, CapturedJobOffer | null>(tabId, { type: "capture" })
+    .catch(() => undefined);
+  if (fromContentScript !== undefined) return fromContentScript;
+  // Anywhere else, the person's click on the toolbar button grants activeTab for this page.
+  try {
+    const [injection] = await browser.scripting.executeScript({ target: { tabId }, files: ["/capture.js"] });
+    return (injection?.result as CapturedJobOffer | null | undefined) ?? null;
+  } catch {
+    return null; // Browser pages, extension stores and the like cannot be read.
+  }
+}
+
+/** Manual Capture of the page in the active tab, on any site. */
 async function captureActiveTab(): Promise<AnalyseReply | { ok: false; error: "impossible" }> {
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-  let jobOffer: CapturedJobOffer | null = null;
-  try {
-    const [injection] = await browser.scripting.executeScript({ target: { tabId: tab!.id! }, files: ["/capture.js"] });
-    jobOffer = (injection?.result as CapturedJobOffer | null | undefined) ?? null;
-  } catch {
-    // Browser pages, extension stores and the like cannot be read.
-  }
+  const jobOffer = tab?.id === undefined ? null : await readTab(tab.id);
   if (!jobOffer) return { ok: false, error: "impossible" };
   return browser.runtime.sendMessage<ExtensionMessage, AnalyseReply>({ type: "analyse", jobOffer });
 }

@@ -55,6 +55,15 @@ export default defineContentScript({
       if (!reply.ok) status.textContent = t(reply.error === "invalid" ? "extension.captureImpossible" : "extension.unreachable");
     });
 
+    // The popup's "Capturer cette page" asks here first on job sites.
+    const onMessage = (message: ExtensionMessage, sender: { id?: string }, reply: (jobOffer: unknown) => void) => {
+      if (sender.id !== browser.runtime.id || message.type !== "capture") return false;
+      reply(readJobPage(snapshotPage(document)).jobOffer);
+      return false;
+    };
+    browser.runtime.onMessage.addListener(onMessage);
+    ctx.onInvalidated(() => browser.runtime.onMessage.removeListener(onMessage));
+
     // Job boards are single-page apps: check again when the URL changes, and once late content has loaded.
     const check = () => {
       const shown = host.isConnected;

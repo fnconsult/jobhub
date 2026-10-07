@@ -21,11 +21,11 @@ describe("a Match Score, as the Guest reads it", () => {
     expect(describeMatchScore(matchScore, t)).toEqual({
       score: "Match Score : 72 / 100",
       criteria: [
-        { label: "Compétences", status: "correspond en partie", details: ["Présentes dans votre CV : IFRS, SAP", "Absentes de votre CV : Power BI"] },
-        { label: "Expérience", status: "correspond", details: ["Votre CV : 25 ans · l'offre : 15 ans"] },
-        { label: "Lieu", status: "correspond", details: ["Lyon"] },
-        { label: "Salaire", status: "non précisé dans l'offre", details: [] },
-        { label: "Type de contrat", status: "non précisé dans l'offre", details: [] },
+        { label: "Compétences", status: "Correspond en partie", details: ["Présentes dans votre CV : IFRS, SAP", "Absentes de votre CV : Power BI"] },
+        { label: "Expérience", status: "Correspond", details: ["Votre CV : 25 ans · l'offre : 15 ans"] },
+        { label: "Lieu", status: "Correspond", details: ["Lyon"] },
+        { label: "Salaire", status: "Non précisé dans l'offre", details: [] },
+        { label: "Type de contrat", status: "Non précisé dans l'offre", details: [] },
       ],
     });
   });

@@ -59,10 +59,10 @@
         "contractType": "Contract type"
       },
       "status": {
-        "match": "matches",
-        "partial": "partly matches",
-        "mismatch": "does not match",
-        "unknown": "not stated in the offer"
+        "match": "Matches",
+        "partial": "Partly matches",
+        "mismatch": "Does not match",
+        "unknown": "Not stated in the offer"
       },
       "covered": "In your CV: {{skills}}",
       "missing": "Missing from your CV: {{skills}}",

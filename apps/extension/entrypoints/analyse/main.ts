@@ -111,7 +111,7 @@ async function matchScore(jobOffer: JobOffer, cv: CvContent): Promise<HTMLElemen
   const list = element("ul", "", "criteria");
   for (const criterion of view.criteria) {
     const item = element("li");
-    item.append(element("strong", `${criterion.label} : `), criterion.status);
+    item.append(element("strong", criterion.label), element("br"), criterion.status);
     for (const detail of criterion.details) item.append(element("br"), detail);
     list.append(item);
   }

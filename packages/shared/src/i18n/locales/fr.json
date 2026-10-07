@@ -59,10 +59,10 @@
         "contractType": "Type de contrat"
       },
       "status": {
-        "match": "correspond",
-        "partial": "correspond en partie",
-        "mismatch": "ne correspond pas",
-        "unknown": "non précisé dans l'offre"
+        "match": "Correspond",
+        "partial": "Correspond en partie",
+        "mismatch": "Ne correspond pas",
+        "unknown": "Non précisé dans l'offre"
       },
       "covered": "Présentes dans votre CV : {{skills}}",
       "missing": "Absentes de votre CV : {{skills}}",

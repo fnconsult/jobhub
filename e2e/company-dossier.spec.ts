@@ -123,6 +123,69 @@ test.describe("Company Dossier", () => {
     await expectNoPrivatePersonNamed(page);
   });
 
+  test("a Presumed Employer stays unlooked-up when the dossier is built again before the Candidate confirms it", async ({ page }) => {
+    const dossier = await openApplication(page, "Cabinet Talents & Co", "Notre client recrute son DAF. Client présumé : Acme Industrie");
+    await dossier.getByRole("button", { name: t.build }).click();
+    await expect(dossier.getByText(t.confirmBeforeLookup)).toBeVisible();
+    const api = `${new URL(page.url()).pathname.replace("/candidatures/", "/api/applications/")}/company-dossier`;
+
+    const rebuilt = await page.request.post(api, { headers: { origin } });
+    expect(rebuilt.status(), await rebuilt.text()).toBe(200);
+    expect(await rebuilt.json()).toMatchObject({ status: "awaiting_confirmation", presumedEmployer: "Acme Industrie" });
+    expect(await rebuilt.text()).not.toContain("552100554");
+
+    const state = await page.request.get(api);
+    expect(state.status()).toBe(200);
+    expect(await state.json()).not.toHaveProperty("dossier");
+
+    await page.reload();
+    const again = page.getByRole("region", { name: t.title });
+    await expect(again.getByText(t.confirmBeforeLookup)).toBeVisible();
+    await expect(again.getByText("552100554")).toHaveCount(0);
+    await expect(again.getByText(t.reliability.official)).toHaveCount(0);
+  });
+
+  test("the Candidate corrects the Presumed Employer before confirming, and the dossier is built for the employer they named", async ({ page }) => {
+    const dossier = await openApplication(page, "Cabinet Talents & Co", "Notre client recrute son DAF. Client présumé : Acme Industrie");
+    await dossier.getByRole("button", { name: t.build }).click();
+    await expect(dossier.getByLabel(t.employerLabel)).toHaveValue("Acme Industrie");
+
+    await dossier.getByLabel(t.employerLabel).fill("Globex Robotics GmbH");
+    await dossier.getByRole("button", { name: t.confirmEmployer }).click();
+
+    await expect(dossier.getByText(t.reliability.less_reliable)).toBeVisible();
+    await expect(dossier.getByText("Robotique industrielle")).toBeVisible();
+    await expect(dossier.getByText("552100554")).toHaveCount(0);
+    await expect(dossier.getByText(t.reliability.official)).toHaveCount(0);
+  });
+
+  test("the dossier's HTTP API names no private person either, for French and foreign employers", async ({ page }) => {
+    for (const employer of ["Acme Industrie", "Globex Robotics GmbH"]) {
+      await page.context().clearCookies(); // a new Candidate for each employer
+      await openApplication(page, employer);
+      const api = `${new URL(page.url()).pathname.replace("/candidatures/", "/api/applications/")}/company-dossier`;
+      const built = await page.request.post(api, { headers: { origin } });
+      expect(built.status(), await built.text()).toBe(200);
+      expect((await built.json()).status).toBe("built");
+      const read = await page.request.get(api);
+      for (const body of [await built.text(), await read.text()]) {
+        expect(body).not.toMatch(/PAULINE|MARTIN|DURAND|Müller|Hans/);
+      }
+    }
+  });
+
+  test("a Candidate cannot read or build another Candidate's Company Dossier", async ({ page, browser }) => {
+    await openApplication(page, "Acme Industrie");
+    const api = `${new URL(page.url()).pathname.replace("/candidatures/", "/api/applications/")}/company-dossier`;
+
+    const other = await browser.newPage({ baseURL: origin });
+    await signInWithMagicLink(other, newAddress("company-dossier-other"));
+    expect((await other.request.get(api)).status()).toBe(404);
+    expect((await other.request.post(api, { headers: { origin } })).status()).toBe(404);
+    expect((await other.request.put(`${api}/employer`, { data: { employer: "Acme Industrie" }, headers: { origin } })).status()).toBe(404);
+    await other.close();
+  });
+
   test("the Candidate names the employer a Job Offer leaves out, by its SIREN", async ({ page }) => {
     const dossier = await openApplication(page, undefined);
     await dossier.getByRole("button", { name: t.build }).click();

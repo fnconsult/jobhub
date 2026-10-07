@@ -50,6 +50,14 @@ _Avoid_: Notification, suggestion, prompt
 One professional positioning of a Candidate (e.g. "Directeur Financier" vs "Consultant transformation"), made of a Master CV and Search Criteria.
 _Avoid_: Account, persona, CV version
 
+**Archived Profile**:
+A Profile the Candidate has set aside: it keeps its Master CV and Search Criteria but no longer appears in the Profile switcher or counts toward the Plan Quota. It can be restored. A Profile that is not archived is active. A duplicated Profile starts from the original's Search Criteria and current Master CV version, which becomes version 1 of the copy.
+_Avoid_: Deleted Profile, inactive Profile
+
+**Profile switcher**:
+The control in the workspace header where the Candidate moves between their active Profiles and, while the Plan Quota allows, adds another.
+_Avoid_: Profile menu, account switcher
+
 **Master CV**:
 The reference CV of a Profile, from which every Tailored CV is derived. Versioned: each accepted change creates a new Master CV Version.
 _Avoid_: Base CV, main CV, original CV
@@ -194,5 +202,5 @@ The subscription tier a Candidate is on: Free, Standard or Premium. Coaching Ses
 _Avoid_: Tier, package, offer (ambiguous with Job Offer)
 
 **Plan Quota**:
-A configurable usage limit attached to a Plan (e.g. Profiles, Match Scores per month, Enriched Contacts per month, Job Digest frequency).
+A configurable usage limit attached to a Plan (e.g. active Profiles, Match Scores per month, Enriched Contacts per month, Job Digest frequency).
 _Avoid_: Limit, allowance, credits

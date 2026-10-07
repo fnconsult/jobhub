@@ -159,6 +159,93 @@ test.describe("Applications", () => {
     await expect(page.getByRole("region", { name: fr.application.interviewsTitle }).getByRole("listitem")).toHaveCount(2);
   });
 
+  test("the Candidate switches the Profile an Application uses, and its Match Score follows", async ({ page, browser }) => {
+    await signInWithMagicLink(page, newAddress("application-profile"));
+    const dafId = await createProfile(page, "DAF");
+    const consultantId = await createProfile(page, "Consultant transformation");
+    const applicationId = await saveApplication(page, await captureOffer(page), dafId);
+
+    await page.goto(`/candidatures/${applicationId}`);
+    const score = page.getByRole("region", { name: fr.matchScore.title });
+    await expect(score).toContainText("« DAF »");
+    await page.getByLabel(fr.application.profileLabel).selectOption({ label: "Consultant transformation" });
+    await expect(page.getByRole("status")).toHaveText(fr.application.profileSaved);
+    await expect(score).toContainText("« Consultant transformation »");
+
+    await page.reload();
+    await expect(page.getByLabel(fr.application.profileLabel)).toHaveValue(consultantId);
+
+    // A Profile that is not the Candidate's cannot be picked.
+    const other = await (await browser.newContext({ baseURL: origin })).newPage();
+    await signInWithMagicLink(other, newAddress("application-profile-other"));
+    const othersProfile = await createProfile(other, "DAF");
+    const refused = await page.request.patch(`/api/applications/${applicationId}`, { data: { profileId: othersProfile }, headers: { origin } });
+    expect(refused.status()).toBe(404);
+    const savedWithOthers = await page.request.post("/api/applications", {
+      data: { jobOfferId: await captureOffer(page), profileId: othersProfile },
+      headers: { origin },
+    });
+    expect(savedWithOthers.status()).toBe(404);
+  });
+
+  test("a status changed in the list is kept, and every Application Status can be chosen", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("application-list"));
+    const profileId = await createProfile(page, "DAF");
+    const applicationId = await saveApplication(page, await captureOffer(page, "Responsable consolidation"), profileId);
+
+    await page.goto("/candidatures");
+    const row = page.getByRole("row", { name: /Responsable consolidation/ });
+    const status = row.getByLabel(fr.application.statusLabel);
+    await expect(status).toHaveValue("to_apply");
+    await expect(status.getByRole("option")).toHaveText(["À postuler", "Postulée", "Relancée", "Entretien", "Offre reçue", "Acceptée", "Refusée", "Abandonnée"]);
+
+    await status.selectOption({ label: fr.applicationStatuses.offer_received });
+    await expect(page.getByRole("status")).toHaveText(fr.application.statusSaved);
+    await page.reload();
+    await expect(page.getByRole("row", { name: /Responsable consolidation/ }).getByLabel(fr.application.statusLabel)).toHaveValue("offer_received");
+    await page.goto("/candidatures?vue=tableau");
+    await expect(page.getByRole("region", { name: fr.applicationStatuses.offer_received }).getByRole("link", { name: /Responsable consolidation/ })).toBeVisible();
+
+    // A status outside the Application Statuses is refused.
+    const refused = await page.request.patch(`/api/applications/${applicationId}`, { data: { status: "hired" }, headers: { origin } });
+    expect(refused.status()).toBe(400);
+  });
+
+  test("Interviews are recorded only at \"Entretien\", can be removed, and are kept when the Application moves on", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("application-interviews-life"));
+    const applicationId = await saveApplication(page, await captureOffer(page), await createProfile(page, "DAF"));
+
+    const early = await page.request.post(`/api/applications/${applicationId}/interviews`, { data: { scheduledAt: "2026-11-12T14:30" }, headers: { origin } });
+    expect(early.status()).toBe(409);
+    expect((await early.json()).error).toBe("not_in_interview");
+
+    await page.goto(`/candidatures/${applicationId}`);
+    await expect(page.getByText(fr.application.interviewsHint)).toBeVisible();
+    await page.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.interview });
+    const interviews = page.getByRole("region", { name: fr.application.interviewsTitle });
+
+    // A date is required.
+    await interviews.getByRole("button", { name: fr.application.addInterview }).click();
+    await expect(interviews.getByLabel(fr.application.interviewDate)).toHaveAttribute("aria-invalid", "true");
+
+    for (const when of ["2026-11-04T09:00", "2026-11-12T14:30"]) {
+      await interviews.getByLabel(fr.application.interviewDate).fill(when);
+      await interviews.getByRole("button", { name: fr.application.addInterview }).click();
+      await expect(interviews.getByLabel(fr.application.interviewDate)).toHaveValue("");
+    }
+    await expect(interviews.getByRole("listitem")).toHaveCount(2);
+
+    await interviews.getByRole("listitem").first().getByRole("button", { name: /4 novembre 2026/ }).click();
+    await expect(interviews.getByRole("listitem")).toHaveCount(1);
+    await expect(interviews.getByRole("listitem")).toContainText("12 novembre 2026");
+
+    // Moving on to "Offre reçue": the Interview stays, no new one can be added.
+    await page.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.offer_received });
+    await expect(interviews.getByRole("button", { name: fr.application.addInterview })).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole("region", { name: fr.application.interviewsTitle }).getByRole("listitem")).toHaveCount(1);
+  });
+
   test("an Application is only ever its Candidate's", async ({ page, browser }) => {
     await signInWithMagicLink(page, newAddress("application-owner"));
     const applicationId = await saveApplication(page, await captureOffer(page), await createProfile(page, "DAF"));

@@ -431,6 +431,14 @@ textarea.input {
   font-weight: 400;
 }
 
+/* A percentage width gives a select no min-content width, so the table would
+   squeeze the status column until the Application Status is cut off. Here the
+   select takes the width of its longest status instead. */
+.application-table .input {
+  width: auto;
+  max-width: none;
+}
+
 .board {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));

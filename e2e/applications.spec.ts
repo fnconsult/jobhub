@@ -133,6 +133,42 @@ test.describe("Applications", () => {
     }
   });
 
+  test("the list view shows every Application Status in full, at every text size", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await signInWithMagicLink(page, newAddress("application-list-width"));
+    const profileId = await createProfile(page, "DAF");
+    await saveApplication(page, await captureOffer(page, "Directeur administratif et financier groupe industriel international (H/F)"), profileId);
+    await saveApplication(page, await captureOffer(page, "Contrôleur de gestion senior"), profileId);
+
+    await page.goto("/candidatures");
+    const selects = page.locator("tbody").getByLabel(fr.application.statusLabel);
+    await expect(selects).toHaveCount(2);
+
+    for (const size of ["standard", "large", "xlarge"]) {
+      await page.evaluate((value) => (document.documentElement.dataset.textSize = value), size);
+      // Each select is at least as wide as its longest Application Status label, plus its padding and arrow.
+      const fits = await selects.evaluateAll((elements) =>
+        (elements as HTMLSelectElement[]).map((select) => {
+          const style = getComputedStyle(select);
+          const probe = document.createElement("span");
+          probe.style.font = style.font;
+          probe.style.position = "absolute";
+          probe.style.whiteSpace = "nowrap";
+          document.body.append(probe);
+          let widest = 0;
+          for (const option of Array.from(select.options)) {
+            probe.textContent = option.text;
+            widest = Math.max(widest, probe.getBoundingClientRect().width);
+          }
+          probe.remove();
+          const room = select.getBoundingClientRect().width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - 20;
+          return { room: Math.round(room), widest: Math.round(widest) };
+        }),
+      );
+      for (const { room, widest } of fits) expect(room, `room for the status at text size ${size}`).toBeGreaterThanOrEqual(widest);
+    }
+  });
+
   test("an Application at \"Entretien\" holds one or more dated Interviews", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("application-interviews"));
     const applicationId = await saveApplication(page, await captureOffer(page), await createProfile(page, "DAF"));

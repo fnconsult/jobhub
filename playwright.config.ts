@@ -14,12 +14,18 @@ import { e2eExtensionDir, unpackedExtensionId } from "./e2e/support/extension";
 // Sign-in emails land in E2E_SERVER_LOG (MAIL_TRANSPORT=console), and Google's
 // token endpoint is faked inside the server (e2e/support/fake-google.mjs), and so
 // is Mistral's API, which serves every AI task (e2e/support/fake-mistral.mjs).
+// Stripe is a fake HTTP API (apps/web/src/billing/fake-stripe.ts) on
+// E2E_STRIPE_URL; webhooks are signed with its test secret. ADMIN_EMAILS names
+// the e2e Administrator.
 const webPort = Number(process.env.E2E_WEB_PORT ?? 3001);
 const webOrigin = `http://localhost:${webPort}`;
+const stripePort = Number(process.env.E2E_STRIPE_PORT ?? webPort + 9000);
 
 // Set once in the main process; Playwright workers inherit them.
 process.env.E2E_WEB_PORT = String(webPort);
 process.env.E2E_WEB_ORIGIN = webOrigin;
+process.env.E2E_STRIPE_PORT = String(stripePort);
+process.env.E2E_STRIPE_URL = `http://127.0.0.1:${stripePort}`;
 process.env.E2E_SERVER_LOG ??= path.join(os.tmpdir(), `jobhub-e2e-${webPort}`, "server.log");
 if (!process.env.E2E_DATABASE_URL) {
   const url = new URL(process.env.DATABASE_URL ?? "postgres://jobhub:jobhub@localhost:5433/jobhub");
@@ -38,7 +44,7 @@ export default defineConfig({
   projects: [
     {
       name: "web",
-      testMatch: /(web|auth|profiles|master-cv|match-score|coach)\.spec\.ts/,
+      testMatch: /(web|auth|profiles|master-cv|match-score|coach|billing)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" },
     },
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },
@@ -73,6 +79,12 @@ export default defineConfig({
         `--import=${path.resolve("e2e/support/fake-google.mjs")}`,
         `--import=${path.resolve("e2e/support/fake-mistral.mjs")}`,
       ].join(" "),
+      STRIPE_SECRET_KEY: "sk_test_fake",
+      STRIPE_WEBHOOK_SECRET: "whsec_test_fake",
+      STRIPE_PRICE_STANDARD: "price_standard_monthly",
+      STRIPE_PRICE_PREMIUM: "price_premium_monthly",
+      STRIPE_API_URL: process.env.E2E_STRIPE_URL,
+      ADMIN_EMAILS: "back-office@e2e.jobbbox.test",
     },
   },
 });

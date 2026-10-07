@@ -27,6 +27,7 @@ export async function startTestAuth(overrides: Partial<AuthConfig> = {}) {
 
   return {
     auth,
+    database,
     mailbox,
     /** Sends a request to the auth HTTP handler, as the browser would. */
     request(path: string, init: { method?: string; body?: unknown; cookie?: string; origin?: string } = {}) {

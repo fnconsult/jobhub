@@ -44,6 +44,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Profiles are up to date");
     expect(first.stdout).toContain("Job Offers are up to date");
     expect(first.stdout).toContain("Action Cards are up to date");
+    expect(first.stdout).toContain("Plans and Plan Quotas are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 
@@ -58,9 +59,12 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "account",
         "action_card",
         "candidate",
+        "candidate_plan", // issue #22: Plans and Plan Quotas
         "job_offer",
         "master_cv_version",
+        "plan_quota",
         "profile",
+        "quota_usage",
         "session",
         "verification",
         "workflow_agent_run",
@@ -80,13 +84,23 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         JOIN information_schema.key_column_usage kcu ON kcu.constraint_name = tc.constraint_name
         JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name = tc.constraint_name
         WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public'
-        ORDER BY from_table, from_column`);
+        ORDER BY from_table, from_column, to_table`);
       expect(references.rows).toEqual([
         { from_table: "account", from_column: "userId", to_table: "candidate" },
         { from_table: "action_card", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "candidate_plan", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "candidate_plan", from_column: "plan", to_table: "plan_quota" },
         { from_table: "master_cv_version", from_column: "profile_id", to_table: "profile" },
         { from_table: "profile", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "quota_usage", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "session", from_column: "userId", to_table: "candidate" },
+      ]);
+      // The Plans start with the quotas of issue #22; re-running keeps them.
+      const quotas = await db.query("SELECT plan, profiles, match_scores, ats_scores, enriched_contacts, job_digest FROM plan_quota ORDER BY profiles NULLS LAST");
+      expect(quotas.rows).toEqual([
+        { plan: "free", profiles: 1, match_scores: 3, ats_scores: 1, enriched_contacts: 0, job_digest: "none" },
+        { plan: "standard", profiles: 3, match_scores: null, ats_scores: null, enriched_contacts: 0, job_digest: "weekly" },
+        { plan: "premium", profiles: null, match_scores: null, ats_scores: null, enriched_contacts: 20, job_digest: "daily" },
       ]);
     } finally {
       await db.end();

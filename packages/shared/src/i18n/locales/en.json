@@ -59,7 +59,9 @@
     "email": "Email address",
     "interfaceLanguage": "Interface language",
     "saved": "Saved.",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "plan": "My subscription",
+    "admin": "Back office"
   },
   "languages": {
     "fr": "Français",
@@ -284,5 +286,89 @@
     "accepted": "Proposal accepted.",
     "dismissed": "Proposal dismissed.",
     "error": "This proposal couldn't be applied. Try again or reload the page."
+  },
+  "billing": {
+    "plans": {
+      "free": "Free",
+      "standard": "Standard",
+      "premium": "Premium"
+    },
+    "quotaReached": {
+      "title": "You have reached your Plan's limit",
+      "used": {
+        "profiles_one": "The {{plan}} Plan includes {{count}} Profile.",
+        "profiles_other": "The {{plan}} Plan includes {{count}} Profiles.",
+        "matchScores_one": "You have used the 1 Match Score included this month in the {{plan}} Plan.",
+        "matchScores_other": "You have used the {{count}} Match Scores included this month in the {{plan}} Plan.",
+        "atsScores_one": "You have used the 1 ATS Score included this month in the {{plan}} Plan.",
+        "atsScores_other": "You have used the {{count}} ATS Scores included this month in the {{plan}} Plan.",
+        "enrichedContacts_one": "You have used the 1 Enriched Contact included this month in the {{plan}} Plan.",
+        "enrichedContacts_other": "You have used the {{count}} Enriched Contacts included this month in the {{plan}} Plan."
+      },
+      "notIncluded": {
+        "profiles": "Creating Profiles is not included in the {{plan}} Plan.",
+        "matchScores": "Match Scores are not included in the {{plan}} Plan.",
+        "atsScores": "ATS Scores are not included in the {{plan}} Plan.",
+        "enrichedContacts": "Enriched Contacts are not included in the {{plan}} Plan."
+      },
+      "upgradeCreate": "The {{plan}} Plan lets you create more.",
+      "upgradeUse": "The {{plan}} Plan lets you do more.",
+      "upgradeIncludes": "The {{plan}} Plan includes them.",
+      "renews": "Your quota renews on the 1st of the month.",
+      "noMore": "You cannot create any more.",
+      "action": "See the {{plan}} Plan"
+    },
+    "page": {
+      "title": "My subscription",
+      "currentPlan": "Your current Plan: {{plan}}",
+      "checkoutSuccess": "Thank you! Your payment is recorded. Your new Plan shows here as soon as Stripe confirms it, usually within seconds.",
+      "usageTitle": "Your usage this month",
+      "usage": "{{used}} of {{limit}}",
+      "usageUnlimited": "{{used}} (unlimited)",
+      "comparisonTitle": "Plans",
+      "quota": "What is included",
+      "unlimited": "Unlimited",
+      "notIncluded": "Not included",
+      "perMonth": "{{count}} a month",
+      "choose": "Choose the {{plan}} Plan",
+      "current": "Your Plan",
+      "manage": "Manage my subscription",
+      "manageHelp": "Invoices, payment method, changing or cancelling your Plan: it all happens on the secure page of our payment provider, Stripe.",
+      "unavailable": "Online payment is not available at the moment. Please try again later.",
+      "error": "Something went wrong. Please try again.",
+      "redirecting": "Taking you to the payment page…"
+    },
+    "quotas": {
+      "profiles": "Profiles",
+      "matchScores": "Match Scores",
+      "atsScores": "ATS Scores",
+      "enrichedContacts": "Enriched Contacts",
+      "jobDigest": "Job Digest"
+    },
+    "jobDigest": {
+      "none": "Not included",
+      "weekly": "Weekly",
+      "daily": "Daily"
+    }
+  },
+  "admin": {
+    "title": "Back office",
+    "intro": "For the Jobbbox team only.",
+    "sections": {
+      "planQuotas": "Plan Quotas",
+      "humanCoaches": "Human Coaches"
+    },
+    "comingSoon": "Coming soon",
+    "planQuotas": {
+      "title": "Plan Quotas",
+      "intro": "Changes apply at once to every Candidate on the Plan. Leave a field empty for “unlimited”.",
+      "plan": "{{plan}} Plan",
+      "limitHelp": "A number, or empty for unlimited",
+      "monthly": "a month",
+      "save": "Save the {{plan}} Plan",
+      "saved": "{{plan}} Plan quotas saved.",
+      "invalid": "Check the values: whole numbers from 0, or empty for unlimited."
+    },
+    "back": "Back to the back office"
   }
 }

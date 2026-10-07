@@ -1,14 +1,17 @@
 /**
  * The CV Templates: how each kind of block looks. Every template is ATS-safe by
- * construction: one column of real text, standard fonts, no images, tables,
+ * construction: one column of real text, standard (or embedded Unicode) fonts, no images, tables,
  * text boxes, headers or footers. Templates only change fonts, sizes, spacing,
  * alignment and a thin rule under section headings.
  */
+import type { UnicodeFamily } from "./fonts";
 import type { CvTemplate } from "./index";
 
 export interface TemplateStyle {
   /** Standard PDF fonts (never embedded, always extractable). */
   pdfFont: { regular: string; bold: string };
+  /** The embedded Unicode font drawn instead when the text has characters the standard fonts lack (see fonts.ts). */
+  pdfUnicodeFamily: UnicodeFamily;
   /** A font every word processor has. */
   docxFont: string;
   /** Sizes in points. */
@@ -26,6 +29,7 @@ export interface TemplateStyle {
 export const TEMPLATE_STYLES: Record<CvTemplate, TemplateStyle> = {
   classic: {
     pdfFont: { regular: "Times-Roman", bold: "Times-Bold" },
+    pdfUnicodeFamily: "DejaVuSerif",
     docxFont: "Times New Roman",
     size: { name: 20, headline: 13, heading: 13, body: 11 },
     space: { beforeHeading: 14, afterLine: 4 },
@@ -35,6 +39,7 @@ export const TEMPLATE_STYLES: Record<CvTemplate, TemplateStyle> = {
   },
   modern: {
     pdfFont: { regular: "Helvetica", bold: "Helvetica-Bold" },
+    pdfUnicodeFamily: "DejaVuSans",
     docxFont: "Arial",
     size: { name: 22, headline: 13, heading: 13, body: 10.5 },
     space: { beforeHeading: 16, afterLine: 4 },
@@ -44,6 +49,7 @@ export const TEMPLATE_STYLES: Record<CvTemplate, TemplateStyle> = {
   },
   compact: {
     pdfFont: { regular: "Helvetica", bold: "Helvetica-Bold" },
+    pdfUnicodeFamily: "DejaVuSans",
     docxFont: "Arial",
     size: { name: 16, headline: 11, heading: 11, body: 9.5 },
     space: { beforeHeading: 9, afterLine: 2 },

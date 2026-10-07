@@ -1,11 +1,15 @@
 import PDFDocument from "pdfkit";
+import { isWinAnsi, runsOf, type Run } from "./fonts";
 import type { Block } from "./layout";
 import type { TemplateStyle } from "./templates";
 
 /** A4, with 2 cm margins (in points). */
 const A4 = { size: [595.28, 841.89] as [number, number], margin: 56.7 };
 
-/** A PDF of real, selectable text: one column, standard fonts, no images. */
+/**
+ * A PDF of real, selectable text: one column, no images. Standard fonts when
+ * every character fits them, embedded Unicode fonts otherwise (see fonts.ts).
+ */
 export function renderPdf(blocks: Block[], style: TemplateStyle, title: string): Promise<Uint8Array> {
   const pdf = new PDFDocument({
     size: A4.size,
@@ -22,6 +26,7 @@ export function renderPdf(blocks: Block[], style: TemplateStyle, title: string):
   });
 
   const width = pdf.page.width - A4.margin * 2;
+  const unicode = blocks.every((block) => block.kind === "gap" || isWinAnsi(block.text)) ? undefined : style.pdfUnicodeFamily;
   let gapBefore = false;
   for (const block of blocks) {
     if (block.kind === "gap") {
@@ -35,15 +40,23 @@ export function renderPdf(blocks: Block[], style: TemplateStyle, title: string):
     else if (gapBefore) pdf.moveDown(1);
     gapBefore = false;
 
-    pdf
-      .font(bold ? style.pdfFont.bold : style.pdfFont.regular)
-      .fontSize(size)
-      .fillColor(block.kind === "heading" ? `#${style.headingColor}` : "#000000")
-      .text(block.text, A4.margin, pdf.y, {
-        width,
-        align: header && style.headerAlign === "center" ? "center" : "left",
-        paragraphGap: style.space.afterLine,
-      });
+    pdf.fontSize(size).fillColor(block.kind === "heading" ? `#${style.headingColor}` : "#000000");
+    const fontOf = (run: Run) => run.file ?? (bold ? style.pdfFont.bold : style.pdfFont.regular);
+    const runs = runsOf(block.text, unicode, bold);
+    let x = A4.margin;
+    let align: "center" | "left" = header && style.headerAlign === "center" ? "center" : "left";
+    if (align === "center" && runs.length > 1) {
+      // pdfkit centres each font run on its own and loses the spaces between them: centre the line by hand.
+      const lineWidth = runs.reduce((sum, run) => sum + pdf.font(fontOf(run)).widthOfString(run.text), 0);
+      if (lineWidth < width) x += (width - lineWidth) / 2;
+      align = "left";
+    }
+    runs.forEach((run, i) => {
+      const options = { width: width - (x - A4.margin), align, paragraphGap: style.space.afterLine, continued: i < runs.length - 1 };
+      pdf.font(fontOf(run));
+      if (i === 0) pdf.text(run.text, x, pdf.y, options);
+      else pdf.text(run.text, options);
+    });
     if (block.kind === "heading" && style.headingRule) {
       const y = pdf.y - style.space.afterLine + 1;
       pdf

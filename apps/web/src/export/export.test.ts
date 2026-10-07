@@ -4,7 +4,7 @@ import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import type { MasterCvContent } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { draftFromCv } from "../cv";
-import { CV_TEMPLATES, EXPORT_FORMATS, exportDocument, type CoverLetterContent } from "./index";
+import { contentDisposition, CV_TEMPLATES, EXPORT_FORMATS, exportDocument, type CoverLetterContent } from "./index";
 
 const marie: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -141,5 +141,50 @@ describe("exporting a Cover Letter", () => {
     expect(docx.fileName).toBe("Lettre-de-motivation-Marie-Dupont.docx");
     expect(await wordsOf(pdf)).toBe(expected);
     expect(await wordsOf(docx)).toBe(expected);
+  });
+});
+
+describe("exporting text outside the standard PDF fonts (WinAnsi)", () => {
+  const zoe: MasterCvContent = {
+    fullName: "Zoë Łukasz-Øster Ğül",
+    headline: "Ingénieure ≥ senior → lead 🚀",
+    email: "zoe@example.pl",
+    phone: "",
+    location: "Kraków / Москва",
+    summary: "Wałęsa, Ćosić, Dvořák, Œuvre — 李明 こんにちは 김민준",
+    experience: [{ title: "Ingénieure", employer: "Žabka", location: "Praha", period: "2020 – 2024", description: "• Puce deux ✓ 👩‍💻 🇫🇷" }],
+    education: [],
+    skills: ["Ελληνικά", "Русский", "中文"],
+    languages: [],
+  };
+
+  describe.each(CV_TEMPLATES)("with the %s CV Template", (template) => {
+    it("writes the same words in the PDF as in the DOCX", async () => {
+      const pdf = await exportDocument({ kind: "cv", content: zoe }, { format: "pdf", template, language: "fr" });
+      const docx = await exportDocument({ kind: "cv", content: zoe }, { format: "docx", template, language: "fr" });
+
+      expect(await wordsOf(pdf)).toBe(await wordsOf(docx));
+      expect(await wordsOf(pdf)).toContain("Zoë Łukasz-Øster Ğül Ingénieure ≥ senior → lead 🚀");
+    });
+  });
+});
+
+describe("naming an exported file", () => {
+  const cvOf = (fullName: string) => ({ kind: "cv" as const, content: { ...marie, fullName } });
+
+  it("keeps every letter of the Candidate's name, in any script", async () => {
+    const options = { format: "pdf", template: "classic", language: "fr" } as const;
+
+    expect((await exportDocument(cvOf("Zoë Łukasz-Øster Ğül"), options)).fileName).toBe("CV-Zoë-Łukasz-Øster-Ğül.pdf");
+    expect((await exportDocument(cvOf("李明"), options)).fileName).toBe("CV-李明.pdf");
+    expect((await exportDocument(cvOf("Marie Dupont / RH"), options)).fileName).toBe("CV-Marie-Dupont-RH.pdf");
+  });
+
+  it("downloads under that name, with a plain ASCII name for older browsers", () => {
+    expect(contentDisposition("CV-Marie-Dupont.pdf")).toBe('attachment; filename="CV-Marie-Dupont.pdf"');
+    expect(contentDisposition("CV-Zoë-Łukasz-Øster-Ğül.pdf")).toBe(
+      `attachment; filename="CV-Zoe-Lukasz-Oster-Gul.pdf"; filename*=UTF-8''${encodeURIComponent("CV-Zoë-Łukasz-Øster-Ğül.pdf")}`,
+    );
+    expect(contentDisposition("CV-李明.pdf")).toBe(`attachment; filename="CV.pdf"; filename*=UTF-8''${encodeURIComponent("CV-李明.pdf")}`);
   });
 });

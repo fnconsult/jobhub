@@ -32,11 +32,11 @@ const expectedText =
   "Compétences IFRS · SAP " +
   "Langues Anglais : courant";
 
-async function candidateWithProfile(page: Page, label: string): Promise<string> {
+async function candidateWithProfile(page: Page, label: string, cv = masterCv): Promise<string> {
   await signInWithMagicLink(page, newAddress(label));
   const created = await page.request.post("/api/profiles", {
     headers: { origin },
-    data: { masterCv, searchCriteria: { targetRole: "Directrice financière", location: "Lyon" } },
+    data: { masterCv: cv, searchCriteria: { targetRole: "Directrice financière", location: "Lyon" } },
   });
   expect(created.status()).toBe(201);
   return (await created.json()).id;
@@ -75,6 +75,27 @@ test.describe("exporting the Master CV", () => {
     expect(docx.name).toBe("CV-Marie-Dupont.docx");
     expect(pdf.text).toBe(expectedText);
     expect(docx.text).toBe(expectedText);
+  });
+
+  test("a name and symbols outside Western European letters come out the same in the PDF and the Word file", async ({ page }) => {
+    const cv = {
+      ...masterCv,
+      fullName: "Zoë Łukasz-Øster Ğül",
+      headline: "Ingénieure ≥ senior → lead 🚀",
+      location: "Kraków / Москва",
+      summary: "李明 · 김민준 · Ελληνικά ✓",
+    };
+    const id = await candidateWithProfile(page, "export-unicode", cv);
+    await page.goto(`/profils/${id}`);
+
+    const pdf = await download(page, fr.cvExport.pdf);
+    const docx = await download(page, fr.cvExport.docx);
+
+    expect(pdf.name).toBe("CV-Zoë-Łukasz-Øster-Ğül.pdf");
+    expect(docx.name).toBe("CV-Zoë-Łukasz-Øster-Ğül.docx");
+    expect(pdf.text).toContain("Zoë Łukasz-Øster Ğül Ingénieure ≥ senior → lead 🚀 marie.dupont@example.fr · 06 12 34 56 78 · Kraków / Москва");
+    expect(pdf.text).toContain("李明 · 김민준 · Ελληνικά ✓");
+    expect(pdf.text).toBe(docx.text);
   });
 
   test("only the Profile's Candidate can download its Master CV", async ({ page, browser }) => {

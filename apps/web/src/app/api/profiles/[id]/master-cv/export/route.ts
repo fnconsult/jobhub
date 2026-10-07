@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentCandidate } from "@/auth/server";
-import { exportDocument, isCvTemplate, isExportFormat } from "@/export";
+import { contentDisposition, exportDocument, isCvTemplate, isExportFormat } from "@/export";
 import { getRequestLocale } from "@/i18n/server";
 import { getProfiles } from "@/profiles/server";
 
@@ -31,7 +31,7 @@ export async function GET(request: Request, { params }: Params) {
   return new Response(new Blob([file.bytes as Uint8Array<ArrayBuffer>]), {
     headers: {
       "content-type": file.contentType,
-      "content-disposition": `attachment; filename="${file.fileName}"`,
+      "content-disposition": contentDisposition(file.fileName),
       "cache-control": "private, no-store",
     },
   });

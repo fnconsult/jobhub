@@ -69,16 +69,42 @@ export function isExportFormat(value: unknown): value is ExportFormat {
   return typeof value === "string" && (EXPORT_FORMATS as readonly string[]).includes(value);
 }
 
-/** "CV-Marie-Dupont.pdf": safe in any file system and in a Content-Disposition header. */
+/** "CV-Marie-Dupont.pdf", "CV-Zoë-Łukasz.pdf", "CV-李明.pdf": letters and digits of any script, joined by dashes. */
 function fileNameOf(document: ExportableDocument, { format, language }: ExportOptions): string {
   const { t } = createI18n(language);
   const prefix = t(document.kind === "cv" ? "cvDocument.cvFileName" : "cvDocument.coverLetterFileName");
-  const name = document.content.fullName
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^A-Za-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-  return `${[prefix, name].filter(Boolean).join("-")}.${format}`;
+  return `${slug([prefix, document.content.fullName].join(" "), /[^\p{L}\p{N}]+/gu)}.${format}`;
+}
+
+const slug = (text: string, unwanted: RegExp) =>
+  text
+    .normalize("NFC")
+    .replace(unwanted, "-")
+    .replace(/^-+|-+$/g, "");
+
+/** Latin letters that are not a base letter plus an accent, so NFD cannot strip them. */
+const ASCII_LETTERS: Record<string, string> = {
+  Ł: "L", ł: "l", Ø: "O", ø: "o", Đ: "D", đ: "d", Ð: "D", ð: "d", Þ: "Th", þ: "th", ß: "ss",
+  Æ: "AE", æ: "ae", Œ: "OE", œ: "oe", ı: "i", Ħ: "H", ħ: "h", Ŋ: "N", ŋ: "n", Ŧ: "T", ŧ: "t",
+};
+
+/**
+ * The Content-Disposition header that downloads a file under `fileName`. HTTP
+ * headers are ASCII, so a name with other letters goes in `filename*` (RFC
+ * 6266), with a transliterated `filename` for older browsers.
+ */
+export function contentDisposition(fileName: string): string {
+  if (/^[ -~]*$/.test(fileName)) return `attachment; filename="${fileName}"`;
+  const dot = fileName.lastIndexOf(".");
+  const ascii = slug(
+    fileName
+      .slice(0, dot)
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .replace(/[^ -~]/g, (letter) => ASCII_LETTERS[letter] ?? "-"),
+    /[^A-Za-z0-9]+/g,
+  );
+  return `attachment; filename="${ascii || "download"}${fileName.slice(dot)}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
 }
 
 export async function exportDocument(document: ExportableDocument, options: ExportOptions): Promise<ExportedFile> {

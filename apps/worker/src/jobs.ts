@@ -1,9 +1,14 @@
 import type { SearchCriteria } from "@jobhub/shared";
+import { JOB_DISCOVERY_QUEUE, type JobSearches } from "@jobhub/web/job-searches";
 import type { JobDiscovery } from "./job-discovery";
 import type { JobDefinition } from "./job-runner";
 
-/** Queue name: search the web for Job Offers matching one Profile. Data: { candidateId, profileId }. */
-export const JOB_DISCOVERY = "job-discovery.run";
+/**
+ * Queue name: search the web for Job Offers matching one Profile.
+ * Data: { candidateId, profileId, jobSearchId? }; with a `jobSearchId` (a Job
+ * Search the Candidate started), the outcome is reported to that Job Search.
+ */
+export const JOB_DISCOVERY = JOB_DISCOVERY_QUEUE;
 
 /** Job discovery when the worker cannot run it (e.g. no AI keys in local development): why. */
 export interface DiscoveryUnavailable {
@@ -16,13 +21,16 @@ export interface JobsDeps {
   profiles: {
     get(candidateId: string, profileId: string): Promise<{ archived: boolean; searchCriteria: SearchCriteria } | null>;
   };
+  /** Where a Job Search started by the Candidate gets its outcome. Satisfied by the web app's Job Searches module. */
+  jobSearches: Pick<JobSearches, "record">;
   log?: (line: string) => void;
 }
 
-function discoveryTarget(data: unknown): { candidateId: string; profileId: string } | null {
+function discoveryTarget(data: unknown): { candidateId: string; profileId: string; jobSearchId?: string } | null {
   if (typeof data !== "object" || data === null) return null;
-  const { candidateId, profileId } = data as Record<string, unknown>;
-  return typeof candidateId === "string" && typeof profileId === "string" ? { candidateId, profileId } : null;
+  const { candidateId, profileId, jobSearchId } = data as Record<string, unknown>;
+  if (typeof candidateId !== "string" || typeof profileId !== "string") return null;
+  return typeof jobSearchId === "string" ? { candidateId, profileId, jobSearchId } : { candidateId, profileId };
 }
 
 /** Every background job the worker runs, by queue name. */
@@ -41,15 +49,32 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
       handler: async (data) => {
         const target = discoveryTarget(data);
         if (!target) return log(`[job-discovery] ignored a malformed job`);
+        const { jobSearchId } = target;
+        const fail = async (reason: string) => {
+          if (jobSearchId) await deps.jobSearches.record(jobSearchId, { failed: reason });
+        };
         const profile = await deps.profiles.get(target.candidateId, target.profileId);
-        if (!profile || profile.archived) return log(`[job-discovery] profile ${target.profileId}: gone or archived, skipped`);
+        if (!profile || profile.archived) {
+          await fail("profile_unavailable");
+          return log(`[job-discovery] profile ${target.profileId}: gone or archived, skipped`);
+        }
 
         if ("unavailable" in deps.discovery) {
+          await fail("unavailable");
           return log(
             `[job-discovery] profile ${target.profileId}: skipped, Job discovery is unavailable (${deps.discovery.unavailable})`,
           );
         }
-        const report = await deps.discovery.discover({ candidateId: target.candidateId, criteria: profile.searchCriteria });
+        let report;
+        try {
+          report = await deps.discovery.discover({ candidateId: target.candidateId, criteria: profile.searchCriteria });
+        } catch (error) {
+          // The Candidate is waiting for this Job Search: say it failed rather than retry it later.
+          if (!jobSearchId) throw error;
+          await fail("discovery_failed");
+          return log(`[job-discovery] profile ${target.profileId}: failed (${error instanceof Error ? error.message : String(error)})`);
+        }
+        if (jobSearchId) await deps.jobSearches.record(jobSearchId, { jobOfferIds: report.jobOffers.map((jobOffer) => jobOffer.id) });
         const reasons = new Map<string, number>();
         for (const { reason } of report.skipped) reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
         const detail = [...reasons].map(([reason, count]) => `${reason}: ${count}`).join(", ");

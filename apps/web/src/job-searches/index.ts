@@ -10,7 +10,8 @@
  *    - `get` one, with its results: each Job Offer found, the Match Score of the
  *      Profile's current Master CV against it, and the Application the Candidate
  *      already has for it, best Match Score first;
- *    - `record` what Job discovery found (or why it could not run): the worker's side.
+ *    - `record` what Job discovery found (or why it could not run): the worker's
+ *      side, also alone as `createJobSearchReports(database)`.
  *  - `migrateJobSearches(database)` creates / upgrades the table.
  * Every read is scoped to the Candidate; `start`'s input is untrusted (it comes
  * from the browser) and problems come back as results, never exceptions. A
@@ -114,6 +115,24 @@ interface JobSearchRow {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const startSchema = z.object({ profileId: z.string().trim().min(1) });
 
+/**
+ * The worker's side of Job Searches alone: recording what Job discovery found.
+ * The same as `createJobSearches(...).record`, without the web app's modules.
+ */
+export function createJobSearchReports(database: Pool, { now = () => new Date() }: { now?: () => Date } = {}): Pick<JobSearches, "record"> {
+  return {
+    async record(jobSearchId, outcome) {
+      if (!UUID.test(jobSearchId)) return;
+      const done = "jobOfferIds" in outcome;
+      await database.query(
+        `UPDATE job_search SET status = $2, job_offer_ids = $3, failure = $4, finished_at = $5
+         WHERE id = $1 AND status = 'searching'`,
+        [jobSearchId, done ? "done" : "failed", done ? outcome.jobOfferIds.filter((id) => UUID.test(id)) : [], done ? null : outcome.failed, now()],
+      );
+    },
+  };
+}
+
 export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSearches {
   const now = deps.now ?? (() => new Date());
 
@@ -152,15 +171,7 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
     return rows[0] ? jobSearchFrom(candidateId, rows[0]) : null;
   }
 
-  async function record(jobSearchId: string, outcome: JobSearchOutcome): Promise<void> {
-    if (!UUID.test(jobSearchId)) return;
-    const done = "jobOfferIds" in outcome;
-    await database.query(
-      `UPDATE job_search SET status = $2, job_offer_ids = $3, failure = $4, finished_at = $5
-       WHERE id = $1 AND status = 'searching'`,
-      [jobSearchId, done ? "done" : "failed", done ? outcome.jobOfferIds.filter((id) => UUID.test(id)) : [], done ? null : outcome.failed, now()],
-    );
-  }
+  const { record } = createJobSearchReports(database, { now });
 
   return {
     async start(candidateId, input) {

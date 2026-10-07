@@ -231,27 +231,51 @@ const RTL = /[\p{Script=Hebrew}\p{Script=Arabic}\p{Script=Syriac}\p{Script=Thaan
 const LTR_LETTER = /(?![\p{Script=Hebrew}\p{Script=Arabic}\p{Script=Syriac}\p{Script=Thaana}\p{Script=Nko}])\p{L}/u;
 export const isRightToLeft = (text: string) => RTL.test(text);
 
+/** A piece of a line: left-to-right text, or a right-to-left passage with its words in the order they are seen. */
+export interface Passage {
+  text: string;
+  rightToLeft: boolean;
+}
+
 /**
- * `text` with the words of each right-to-left passage in the order they are
- * seen, left to right ("محمد علي" becomes "علي محمد"). fontkit already draws
- * the letters of each word from right to left, but pdfkit places words left to
- * right, so a name would read backwards. Text extractors (pdf.js, ATS parsers)
- * put such a passage back in reading order.
+ * `text` cut into left-to-right text and right-to-left passages, each passage
+ * with its words in the order they are seen, left to right ("محمد علي" becomes
+ * "علي محمد"). fontkit already draws the letters of each word from right to
+ * left, but pdfkit places words left to right, so a name would read backwards.
+ * Text extractors (pdf.js, ATS parsers) put such a passage back in reading
+ * order.
+ *
+ * As in the Unicode bidirectional algorithm, in a left-to-right line: a
+ * passage starts at a right-to-left word and runs up to the last right-to-left
+ * word or number before the next left-to-right letter. Numbers inside it
+ * ("محمد 2024 علي") are part of it: they keep their place among its words.
  */
-export function visualOrder(text: string): string {
+export function passagesOf(text: string): Passage[] {
   const tokens = text.split(/(\s+)/);
-  const rtl = (token: string | undefined) => token !== undefined && RTL.test(token) && !LTR_LETTER.test(token);
-  const out: string[] = [];
+  const ltr = (token: string) => LTR_LETTER.test(token);
+  const anchors = (token: string) => !ltr(token) && (RTL.test(token) || /\p{N}/u.test(token));
+  const passages: Passage[] = [];
+  const push = (text: string, rightToLeft: boolean) => {
+    const last = passages.at(-1);
+    if (last && !last.rightToLeft && !rightToLeft) last.text += text;
+    else if (text) passages.push({ text, rightToLeft });
+  };
   for (let i = 0; i < tokens.length; ) {
-    if (!rtl(tokens[i])) {
-      out.push(tokens[i++]!);
+    if (!(RTL.test(tokens[i]!) && !ltr(tokens[i]!))) {
+      push(tokens[i++]!, false);
       continue;
     }
-    // A passage: right-to-left words and the spaces between them.
+    // The passage ends at its last right-to-left word or number before a left-to-right letter.
     let end = i + 1;
-    while (end + 1 < tokens.length && rtl(tokens[end + 1])) end += 2;
-    out.push(...tokens.slice(i, end).reverse());
+    for (let j = i + 2; j < tokens.length && !ltr(tokens[j]!); j += 2) if (anchors(tokens[j]!)) end = j + 1;
+    push(tokens.slice(i, end).reverse().join(""), true);
     i = end;
   }
-  return out.join("");
+  return passages;
 }
+
+/** `text` with its right-to-left passages in the order they are seen (see passagesOf). */
+export const visualOrder = (text: string) =>
+  passagesOf(text)
+    .map((passage) => passage.text)
+    .join("");

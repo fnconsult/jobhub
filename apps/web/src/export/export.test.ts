@@ -8,6 +8,7 @@ import type { MasterCvContent } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { draftFromCv } from "../cv";
 import { allFontFiles, findFontFile, fontBytes, visualOrder } from "./fonts";
+import { logicalReading } from "./logical-text";
 import { contentDisposition, CV_TEMPLATES, EXPORT_FORMATS, exportDocument, type CoverLetterContent } from "./index";
 
 const marie: MasterCvContent = {
@@ -184,6 +185,10 @@ describe("exporting names and symbols in any script", () => {
     "محمد علي", // Arabic, right to left
     "דוד כהן", // Hebrew, right to left
     "∞ ☐ ★",
+    "محمد 2024 علي", // digits inside a right-to-left passage
+    "Ali محمد علي Smith", // right to left inside left-to-right text
+    "राहुल शर्मा", // a reph, drawn after the letters it precedes
+    "विकास", // a vowel sign drawn before the consonant it follows
   ];
 
   describe.each(CV_TEMPLATES)("with the %s CV Template", (template) => {
@@ -196,17 +201,29 @@ describe("exporting names and symbols in any script", () => {
     });
   });
 
-  it.each(CV_TEMPLATES)("draws a Devanagari name whose letters the font reorders with the %s CV Template", async (template) => {
-    // The reph of "र्मा" is drawn after the "मा" it sits on, so a text extractor reads "शमार्": only the drawing is checked.
-    const pdf = await exportDocument({ kind: "cv", content: cvOf("राहुल शर्मा") }, { format: "pdf", template, language: "fr" });
-
-    expect(await wordsOf(pdf)).toContain("राहुल");
-  });
-
   it("puts the words of a right-to-left passage in the order they are seen", () => {
     expect(visualOrder("محمد علي")).toBe("علي محمد");
     expect(visualOrder("Marie محمد علي Dupont, דוד כהן")).toBe("Marie علي محمد Dupont, כהן דוד");
     expect(visualOrder("Marie Dupont")).toBe("Marie Dupont");
+  });
+
+  it("keeps the numbers of a right-to-left passage among its words, as the Unicode bidirectional algorithm does", () => {
+    expect(visualOrder("محمد 2024 علي")).toBe("علي 2024 محمد");
+    expect(visualOrder("محمد علي 2024")).toBe("2024 علي محمد");
+    expect(visualOrder("محمد · 2024 Smith")).toBe("2024 · محمد Smith");
+    expect(visualOrder("2024 محمد علي")).toBe("2024 علي محمد");
+    expect(visualOrder("محمد علي · Smith")).toBe("علي محمد · Smith");
+  });
+
+  it("reads the glyphs of a cluster the font reorders in the order their letters are typed", () => {
+    const codes = (text: string) => Array.from(text, (char) => char.codePointAt(0)!);
+    // "शर्मा" is drawn श, म, ा, then the reph र्.
+    const reading = logicalReading([codes("श"), codes("म"), codes("ा"), codes("र्")], "शर्मा");
+
+    expect(reading[0]).toBeUndefined();
+    expect(String.fromCodePoint(...reading.slice(1).flatMap((chars) => chars!))).toBe("र्मा");
+    // Glyphs drawn in the order of their letters keep their own reading.
+    expect(logicalReading([codes("र"), codes("ा"), codes("हु"), codes("ल")], "राहुल")).toEqual([undefined, undefined, undefined, undefined]);
   });
 
   it("can read every font file a PDF may embed", () => {

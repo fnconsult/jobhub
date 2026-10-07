@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit";
-import { fontBytes, isRightToLeft, isWinAnsi, runsOf, visualOrder, type Run } from "./fonts";
+import { fontBytes, isWinAnsi, passagesOf, runsOf, type Run, type UnicodeFamily } from "./fonts";
+import { readInLogicalOrder } from "./logical-text";
 import type { Block } from "./layout";
 import type { TemplateStyle } from "./templates";
 
@@ -49,10 +50,8 @@ export function renderPdf(blocks: Block[], style: TemplateStyle, title: string):
       registered.add(run.file);
       return run.file;
     };
-    // Right-to-left words are drawn one by one: pdfkit lays out a word with its trailing space, and fontkit would move that space in front of the word.
-    const runs = runsOf(unicode ? visualOrder(block.text) : block.text, unicode, bold).flatMap((run) =>
-      isRightToLeft(run.text) ? run.text.split(/(\s+)/).filter(Boolean).map((text) => ({ ...run, text })) : [run],
-    );
+    const pieces = piecesOf(block.text, unicode, bold);
+    const runs = pieces.map((piece) => piece.run);
     let x = A4.margin;
     let align: "center" | "left" = header && style.headerAlign === "center" ? "center" : "left";
     if (align === "center" && runs.length > 1) {
@@ -61,11 +60,15 @@ export function renderPdf(blocks: Block[], style: TemplateStyle, title: string):
       if (lineWidth < width) x += (width - lineWidth) / 2;
       align = "left";
     }
-    runs.forEach((run, i) => {
-      const options = { width: width - (x - A4.margin), align, paragraphGap: style.space.afterLine, continued: i < runs.length - 1 };
+    pieces.forEach(({ run, opens, closes }, i) => {
+      const options = { width: width - (x - A4.margin), align, paragraphGap: style.space.afterLine, continued: i < pieces.length - 1 };
+      // A right-to-left passage is marked content of its own, so that text extractors read it apart from the left-to-right text around it.
+      if (opens) pdf.markContent("Span", {});
       pdf.font(fontOf(run));
+      readInLogicalOrder(pdf);
       if (i === 0) pdf.text(run.text, x, pdf.y, options);
       else pdf.text(run.text, options);
+      if (closes) pdf.endMarkedContent();
     });
     if (block.kind === "heading" && style.headingRule) {
       const y = pdf.y - style.space.afterLine + 1;
@@ -80,4 +83,32 @@ export function renderPdf(blocks: Block[], style: TemplateStyle, title: string):
   }
   pdf.end();
   return done;
+}
+
+interface Piece {
+  run: Run;
+  /** The first piece of a right-to-left passage. */
+  opens: boolean;
+  /** The last piece of a right-to-left passage. */
+  closes: boolean;
+}
+
+/**
+ * The runs that draw a line, left to right. A right-to-left passage is drawn
+ * in DejaVu Sans (the font of Arabic and Hebrew), spaces and numbers included,
+ * and word by word: pdfkit lays out a word with its trailing space, and fontkit
+ * would move that space in front of the word.
+ */
+function piecesOf(text: string, unicode: UnicodeFamily | undefined, bold: boolean): Piece[] {
+  if (!unicode) return runsOf(text, undefined, bold).map((run) => ({ run, opens: false, closes: false }));
+  return passagesOf(text).flatMap((passage) => {
+    if (!passage.rightToLeft) return runsOf(passage.text, unicode, bold).map((run) => ({ run, opens: false, closes: false }));
+    const runs = runsOf(passage.text, "DejaVuSans", bold).flatMap((run) =>
+      run.text
+        .split(/(\s+)/)
+        .filter(Boolean)
+        .map((text) => ({ ...run, text })),
+    );
+    return runs.map((run, i) => ({ run, opens: i === 0, closes: i === runs.length - 1 }));
+  });
 }

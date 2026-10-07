@@ -43,6 +43,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Candidate accounts are up to date");
     expect(first.stdout).toContain("Profiles are up to date");
     expect(first.stdout).toContain("Job Offers are up to date");
+    expect(first.stdout).toContain("Applications are up to date");
     expect(first.stdout).toContain("Action Cards are up to date");
     expect(first.stdout).toContain("Plans and Plan Quotas are up to date");
     const again = migrate();
@@ -58,8 +59,10 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
       expect(tables.rows.map((r) => r.table_name)).toEqual([
         "account",
         "action_card",
+        "application",
         "candidate",
         "candidate_plan", // issue #22: Plans and Plan Quotas
+        "interview",
         "job_offer",
         "master_cv_version",
         "plan_quota",
@@ -88,8 +91,13 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
       expect(references.rows).toEqual([
         { from_table: "account", from_column: "userId", to_table: "candidate" },
         { from_table: "action_card", from_column: "candidate_id", to_table: "candidate" },
+        // Applications (issue #12) hang off the Candidate and their Profile; their Job Offers are kept (ADR-0010).
+        { from_table: "application", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "application", from_column: "job_offer_id", to_table: "job_offer" },
+        { from_table: "application", from_column: "profile_id", to_table: "profile" },
         { from_table: "candidate_plan", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "candidate_plan", from_column: "plan", to_table: "plan_quota" },
+        { from_table: "interview", from_column: "application_id", to_table: "application" },
         { from_table: "master_cv_version", from_column: "profile_id", to_table: "profile" },
         { from_table: "profile", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "quota_usage", from_column: "candidate_id", to_table: "candidate" },

@@ -10,6 +10,7 @@
  */
 import type { AiLayer } from "@jobhub/ai";
 import type { MasterCvContent } from "@jobhub/shared";
+import { fitProfileName } from "../profiles/limits";
 import { readCvWithAi } from "./ai-reading";
 import { outlineCv } from "./outline-cv";
 import { readCvFile, type CvFile } from "./read-cv-file";
@@ -40,7 +41,8 @@ export async function draftFromCv(file: CvFile, deps: DraftDeps): Promise<CvDraf
   return {
     masterCv,
     searchCriteria: {
-      targetRole: reading?.searchCriteria.targetRole || masterCv.headline || masterCv.experience[0]?.title || "",
+      // It names the Profile, so it is shortened to fit a Profile name.
+      targetRole: fitProfileName(reading?.searchCriteria.targetRole || masterCv.headline || masterCv.experience[0]?.title || ""),
       location: reading?.searchCriteria.location || masterCv.location,
     },
   };

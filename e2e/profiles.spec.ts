@@ -185,8 +185,10 @@ test.describe("creating the first Profile from a CV", () => {
     }
     await page.goto("/profils/nouveau");
     await expect(page.getByLabel(fr.cvUpload.fileLabel)).toHaveAttribute("accept", /^(\.pdf|\.docx|application\/pdf|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document)(,(\.pdf|\.docx|application\/pdf|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document))*$/);
+    // No such endpoint: 404, or 405 now that /api/profiles/:id exists (it only takes PATCH).
     const linkedInImport = await page.request.post("/api/profiles/linkedin", { headers: { origin }, data: {} });
-    expect(linkedInImport.status()).toBe(404);
+    expect([404, 405]).toContain(linkedInImport.status());
+    expect((await page.request.post("/api/linkedin", { headers: { origin }, data: {} })).status()).toBe(404);
   });
 
   test("the upload and review pages use catalogue strings and meet the ADR-0009 floor", async ({ page }) => {

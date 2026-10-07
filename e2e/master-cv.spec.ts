@@ -219,7 +219,7 @@ test.describe("editing the Master CV", () => {
 
     await expect(page).toHaveURL(`${origin}/profils/${id}`);
     await expect(page.getByText("Version 1", { exact: true })).toBeVisible();
-    await expect(page.getByText("Directrice financière", { exact: true }).first()).toBeVisible();
+    await expect(page.locator(".cv").getByText("Directrice financière", { exact: true }).first()).toBeVisible();
   });
 });
 

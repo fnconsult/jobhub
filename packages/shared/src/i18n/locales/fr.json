@@ -68,10 +68,14 @@
   "profiles": {
     "title": "Mes profils",
     "none": "Vous n'avez pas encore de profil. Importez votre CV pour créer le premier : nous en tirons votre CV de référence et vos critères de recherche.",
-    "create": "Créer mon profil à partir de mon CV"
+    "create": "Créer mon profil à partir de mon CV",
+    "add": "Ajouter un profil",
+    "archivedTitle": "Profils archivés",
+    "copyOf": "{{name}} (copie)",
+    "quotaReached": "Vous avez atteint le nombre de profils actifs prévu par votre formule. Archivez un profil pour en ajouter ou en restaurer un autre."
   },
   "cvUpload": {
-    "title": "Créer mon profil à partir de mon CV",
+    "title": "Créer un profil",
     "intro": "Importez votre CV. Nous le lisons et le découpons en sections ; vous vérifiez et corrigez le résultat avant de l'enregistrer.",
     "fileLabel": "Votre CV",
     "fileHint": "Format PDF ou Word (.docx), 10 Mo maximum.",
@@ -83,7 +87,9 @@
       "unreadable": "Nous n'avons pas pu ouvrir ce fichier. Il est peut-être endommagé ou protégé par un mot de passe.",
       "empty": "Nous n'avons trouvé aucun texte dans ce fichier. S'il s'agit d'un CV scanné, importez plutôt la version PDF ou Word d'origine.",
       "unknown": "Une erreur est survenue. Veuillez réessayer."
-    }
+    },
+    "fromScratchHint": "Pas de CV sous la main ? Remplissez vous-même votre CV de référence et vos critères de recherche.",
+    "fromScratch": "Partir de zéro"
   },
   "cvReview": {
     "title": "Vérifiez votre CV et vos critères de recherche",
@@ -148,7 +154,9 @@
     "invalid": "Certains champs sont à compléter ou à corriger : {{fields}}.",
     "required": "Ce champ est obligatoire.",
     "invalidValue": "Cette valeur n'est pas valide.",
-    "error": "Votre profil n'a pas pu être enregistré. Veuillez réessayer."
+    "tooLong": "Ce champ ne peut pas dépasser {{max}} caractères.",
+    "error": "Votre profil n'a pas pu être enregistré. Veuillez réessayer.",
+    "scratchIntro": "Remplissez votre CV de référence et vos critères de recherche, puis enregistrez votre profil."
   },
   "cvEditor": {
     "title": "Modifier mon CV de référence",
@@ -184,5 +192,25 @@
     "backToAccount": "Retour à mon compte",
     "editMasterCv": "Modifier mon CV de référence",
     "versionHistory": "Historique des versions"
+  },
+  "profileSwitcher": {
+    "label": "Sélecteur de profil",
+    "current": "Profil : {{name}}",
+    "choose": "Choisir un profil"
+  },
+  "profileActions": {
+    "title": "Gérer ce profil",
+    "name": "Nom du profil",
+    "rename": "Renommer",
+    "renamed": "Profil renommé.",
+    "duplicateName": "Nom de la copie",
+    "duplicateHint": "La copie reprend les critères de recherche et la version actuelle du CV de référence de ce profil.",
+    "duplicate": "Dupliquer ce profil",
+    "archiveHint": "Un profil archivé est conservé avec son CV de référence, mais n'apparaît plus dans le sélecteur de profil.",
+    "archive": "Archiver ce profil",
+    "archivedNotice": "Ce profil est archivé. Restaurez-le pour le retrouver dans le sélecteur de profil.",
+    "restore": "Restaurer ce profil",
+    "working": "Enregistrement en cours…",
+    "error": "La modification n'a pas pu être enregistrée. Veuillez réessayer."
   }
 }

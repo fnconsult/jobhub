@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./root-env": "./src/env/root-env.ts"
+    "./root-env": "./src/env/root-env.ts",
+    "./job-offers": "./src/job-offers/index.ts",
+    "./profiles": "./src/profiles/index.ts"
   },
   "scripts": {
     "dev": "next dev",

@@ -3,7 +3,8 @@
  *
  * One deep module in front of Postgres. Callers get:
  *  - `createJobOffers(database)` — `capture` a posting (validated here; field
- *    errors come back, never an exception) and `get` one by id.
+ *    errors come back, never an exception), `get` one by id, and
+ *    `findBySourceUrl` (so Job discovery does not fetch a known posting again).
  *  - `migrateJobOffers(database)` — creates / upgrades the table.
  * Capturing a posting already stored returns the stored Job Offer: postings
  * are told apart by their source URL (without tracking parameters) and by
@@ -27,6 +28,8 @@ export interface JobOffers {
   capture(input: unknown): Promise<CaptureJobOfferResult>;
   /** The Job Offer, or null if there is none with this id. */
   get(id: string): Promise<JobOffer | null>;
+  /** The Job Offer captured from this source URL (ignoring tracking parameters), or null. */
+  findBySourceUrl(url: string): Promise<JobOffer | null>;
 }
 
 /** Drops NUL characters: text scraped from a page can carry them, and Postgres cannot store them in text columns. */
@@ -163,6 +166,12 @@ export function createJobOffers(database: Pool): JobOffers {
     async get(id) {
       if (!UUID.test(id)) return null;
       const { rows } = await database.query<JobOfferRow>(`SELECT ${COLUMNS} FROM job_offer WHERE id = $1`, [id]);
+      return rows[0] ? jobOfferFrom(rows[0]) : null;
+    },
+
+    async findBySourceUrl(url) {
+      if (!URL.canParse(url)) return null;
+      const { rows } = await database.query<JobOfferRow>(`SELECT ${COLUMNS} FROM job_offer WHERE url_key = $1`, [urlKey(url)]);
       return rows[0] ? jobOfferFrom(rows[0]) : null;
     },
   };

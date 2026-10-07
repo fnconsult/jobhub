@@ -519,3 +519,27 @@ textarea.input {
 .job-offer-content li {
   line-height: 1.6;
 }
+
+.dossier-facts {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.dossier-facts dt {
+  font-weight: 600;
+}
+
+.dossier-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.company-dossier h3 {
+  margin-bottom: 0;
+}
+
+.company-dossier details summary {
+  cursor: pointer;
+  padding: var(--space-2) 0;
+}

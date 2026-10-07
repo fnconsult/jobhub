@@ -44,10 +44,11 @@ export default defineContentScript({
     shadow.append(style, button, status);
 
     button.addEventListener("click", async () => {
-      const { jobOffer } = readJobPage(snapshotPage(document));
-      if (!jobOffer) return;
-      button.disabled = true;
       status.textContent = "";
+      const { jobOffer } = readJobPage(snapshotPage(document));
+      // A posting's address with nothing to read yet (a page still loading, say): say so, as the popup does.
+      if (!jobOffer) return void (status.textContent = t("extension.captureImpossible"));
+      button.disabled = true;
       const reply = await browser.runtime
         .sendMessage<ExtensionMessage, AnalyseReply>({ type: "analyse", jobOffer })
         .catch((): AnalyseReply => ({ ok: false, error: "unreachable" }));

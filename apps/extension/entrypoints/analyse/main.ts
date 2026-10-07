@@ -54,8 +54,17 @@ function describeJobOffer(jobOffer: JobOffer): HTMLElement {
   return node;
 }
 
-function guestNotice(expiresAt: number | undefined): HTMLElement {
+/**
+ * What happens to the CV and the Job Offer. A Guest's are forgotten within 24
+ * hours (ADR-0003); a signed-in Candidate's Job Offer is kept in their account,
+ * and only the CV stays in this browser.
+ */
+function dataNotice(expiresAt: number | undefined): HTMLElement {
   const notice = element("div", "", "notice");
+  if (candidate.signedIn) {
+    notice.append(element("p", t("extension.analysis.candidateNotice")), button(t("extension.analysis.forgetCv"), forget));
+    return notice;
+  }
   notice.append(element("p", t("extension.analysis.guestNotice")));
   if (expiresAt) {
     const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: "long", timeStyle: "short" }).format(expiresAt);
@@ -79,20 +88,23 @@ function cvForm(): HTMLFormElement {
   submit.type = "submit";
   const progress = element("p");
   progress.setAttribute("role", "status");
-  form.append(label, hint, input, submit, progress);
+  // One place for the latest error: a new attempt replaces the last one's message.
+  const error = element("p", "", "error");
+  error.setAttribute("role", "alert");
+  form.append(label, hint, input, submit, progress, error);
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const file = input.files?.[0];
     if (!file) return;
     submit.disabled = true;
+    error.textContent = "";
     progress.textContent = t("cvUpload.reading");
     const read = await api.readCv(file);
     if (!read.ok) {
       submit.disabled = false;
       progress.textContent = "";
-      const text = read.error === "unreachable" ? t("extension.unreachable") : t(`cvUpload.errors.${read.error}`);
-      form.after(status({ text, error: true }));
+      error.textContent = read.error === "unreachable" ? t("extension.unreachable") : t(`cvUpload.errors.${read.error}`);
       return;
     }
     await session.keepCv(read.cv);
@@ -107,7 +119,7 @@ async function matchScore(jobOffer: JobOffer, cv: CvContent): Promise<HTMLElemen
     const text = scored.error === "job_offer_gone" ? t("extension.analysis.jobOfferGone") : t("extension.unreachable");
     return [status({ text, error: true })];
   }
-  const view = describeMatchScore(scored.matchScore, t);
+  const view = describeMatchScore(scored.matchScore, i18n);
   const list = element("ul", "", "criteria");
   for (const criterion of view.criteria) {
     const item = element("li");
@@ -131,7 +143,7 @@ async function render(message?: Message, changingCv = false) {
   if (!jobOffer) {
     parts.push(element("p", t("extension.analysis.noJobOffer")));
   } else {
-    parts.push(describeJobOffer(jobOffer), guestNotice(expiresAt), element("h2", t("extension.analysis.cvTitle")));
+    parts.push(describeJobOffer(jobOffer), dataNotice(expiresAt), element("h2", t("extension.analysis.cvTitle")));
     if (cv && !changingCv) {
       app.replaceChildren(...parts, status({ text: t("extension.analysis.scoring") }));
       parts.push(...(await matchScore(jobOffer, cv)));

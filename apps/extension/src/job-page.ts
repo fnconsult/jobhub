@@ -5,11 +5,12 @@
  *
  * `readJobPage(snapshot)` is the whole interface. A page is detected when it
  * publishes exactly one schema.org JobPosting, or when its URL is a posting on
- * a major job board or career site (KNOWN_POSTING_PAGES). A Capture uses the
+ * a major job board or career site (KNOWN_POSTING_PAGES, on JOB_SITES). A Capture uses the
  * JobPosting when there is one, and otherwise takes the page as it reads, so a
  * manual Capture works on any page.
  */
 import { CONTRACT_TYPES, type ContractType, type JobOffer, type SalaryRange } from "@jobhub/shared";
+import { MatchPattern } from "wxt/utils/match-patterns";
 
 /** What the content script reads from the page (see `snapshotPage`). */
 export interface PageSnapshot {
@@ -36,7 +37,10 @@ export interface JobPage {
   jobOffer: CapturedJobOffer | null;
 }
 
-/** URLs of a single posting on major job boards and the career sites (ATS) employers use. */
+/**
+ * URLs of a single posting on major job boards and the career sites (ATS)
+ * employers use. A URL counts only on JOB_SITES, where the badge can show.
+ */
 export const KNOWN_POSTING_PAGES: readonly RegExp[] = [
   /^https:\/\/([a-z]+\.)?linkedin\.com\/jobs\/view\//,
   /^https:\/\/([a-z]+\.)?indeed\.[a-z.]+\/(viewjob|rc\/clk|m\/viewjob)\b/,
@@ -67,6 +71,8 @@ export const JOB_SITES: readonly string[] = [
   "https://*.linkedin.com/*",
   "https://*.indeed.com/*",
   "https://*.indeed.fr/*",
+  "https://*.indeed.co.uk/*",
+  "https://*.indeed.de/*",
   "https://www.welcometothejungle.com/*",
   "https://www.apec.fr/*",
   "https://candidat.francetravail.fr/*",
@@ -74,6 +80,10 @@ export const JOB_SITES: readonly string[] = [
   "https://www.cadremploi.fr/*",
   "https://*.glassdoor.fr/*",
   "https://*.glassdoor.com/*",
+  "https://*.glassdoor.co.uk/*",
+  "https://*.glassdoor.de/*",
+  "https://*.glassdoor.be/*",
+  "https://*.glassdoor.ch/*",
   "https://jobs.lever.co/*",
   "https://boards.greenhouse.io/*",
   "https://job-boards.greenhouse.io/*",
@@ -86,6 +96,13 @@ export const JOB_SITES: readonly string[] = [
   "https://*.recruitee.com/*",
   "https://*.welcomekit.co/*",
 ];
+
+const JOB_SITE_PATTERNS = JOB_SITES.map((pattern) => new MatchPattern(pattern));
+
+/** Whether a URL is a posting's address on a site the extension watches. */
+function isKnownPostingPage(url: string): boolean {
+  return KNOWN_POSTING_PAGES.some((pattern) => pattern.test(url)) && JOB_SITE_PATTERNS.some((site) => site.includes(url));
+}
 
 /** What a Job Offer can hold (the Job Offers API refuses more). */
 const MAX = { title: 500, content: 100_000, text: 500, skill: 200, skills: 200 } as const;
@@ -272,7 +289,7 @@ export function readJobPage(page: PageSnapshot): JobPage {
   const postings = jobPostings(page.structuredData);
   const single = postings.length === 1 ? fromJobPosting(postings[0]!, page) : null;
   return {
-    detected: single !== null || KNOWN_POSTING_PAGES.some((pattern) => pattern.test(page.url)),
+    detected: single !== null || isKnownPostingPage(page.url),
     jobOffer: single ?? fromPageText(page),
   };
 }

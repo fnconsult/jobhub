@@ -62,13 +62,28 @@
         "match": "Correspond",
         "partial": "Correspond en partie",
         "mismatch": "Ne correspond pas",
-        "unknown": "Non précisé dans l'offre"
+        "unknown": "Non précisé dans l'offre",
+        "notInCv": "Non trouvé dans votre CV",
+        "noPreference": "Aucune préférence de votre part à comparer"
       },
       "covered": "Présentes dans votre CV : {{skills}}",
       "missing": "Absentes de votre CV : {{skills}}",
       "years": "Votre CV : {{cv}} ans · l'offre : {{required}} ans",
-      "signUp": "Créer un compte pour garder cette offre et votre CV"
-    }
+      "signUp": "Créer un compte pour garder cette offre et votre CV",
+      "offer": "L'offre : {{value}}",
+      "offerYears": "L'offre : {{required}} ans",
+      "salary": {
+        "range": "{{min}} – {{max}} brut par an",
+        "from": "à partir de {{amount}} brut par an",
+        "upTo": "jusqu'à {{amount}} brut par an",
+        "exactly": "{{amount}} brut par an",
+        "wanted": "Votre minimum : {{amount}} brut par an"
+      },
+      "candidateNotice": "Cette offre est enregistrée dans votre compte Jobbbox. Le CV que vous importez ici reste dans ce navigateur le temps de votre session : Jobbbox le lit pour calculer le Match Score sans l'enregistrer.",
+      "forgetCv": "Effacer ce CV de ce navigateur"
+    },
+    "allSites": "Détecter les offres sur tous les sites",
+    "allSitesHint": "Pour voir « Analyser cette offre » aussi sur les sites carrières des employeurs. Votre navigateur vous demandera l'autorisation ; les pages restent lues dans ce navigateur uniquement."
   },
   "signInEmail": {
     "subject": "Votre lien de connexion à Jobbbox",

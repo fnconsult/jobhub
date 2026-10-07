@@ -1,6 +1,7 @@
 import { designTokens, renderDesignCss } from "@jobhub/shared/design";
 import { createI18n } from "@jobhub/shared/i18n";
 import { browser } from "wxt/browser";
+import { ALL_SITES } from "../../src/all-sites-detection";
 import { readCandidateSession } from "../../src/candidate-session";
 import type { CapturedJobOffer } from "../../src/job-page";
 import type { AnalyseReply, ExtensionMessage } from "../../src/messages";
@@ -70,6 +71,33 @@ capture.addEventListener("click", async () => {
   captureStatus.textContent = t(reply.error === "unreachable" ? "extension.unreachable" : "extension.captureImpossible");
 });
 
+/**
+ * The badge on every site, for employers' own career sites: off by default, so
+ * the extension reads no other site until the person grants it, here.
+ */
+async function allSitesOption(): Promise<HTMLElement> {
+  const option = element("div", "", "option");
+  const input = document.createElement("input");
+  Object.assign(input, { type: "checkbox", id: "all-sites", checked: await browser.permissions.contains({ origins: [...ALL_SITES] }) });
+  input.setAttribute("aria-describedby", "all-sites-hint");
+  const label = element("label", t("extension.allSites")) as HTMLLabelElement;
+  label.htmlFor = "all-sites";
+  const hint = element("p", t("extension.allSitesHint"), "hint");
+  hint.id = "all-sites-hint";
+  input.addEventListener("change", async () => {
+    const permissions = { origins: [...ALL_SITES] };
+    // The background registers or removes the badge when the permission changes.
+    const granted = input.checked
+      ? await browser.permissions.request(permissions).catch(() => false)
+      : !(await browser.permissions.remove(permissions).catch(() => false));
+    input.checked = granted;
+  });
+  const row = element("div", "", "checkbox");
+  row.append(input, label);
+  option.append(row, hint);
+  return option;
+}
+
 const account = session.signedIn
   ? [element("p", t("extension.signedInAs", { email: session.candidate.email })), link(t("extension.account"), "/compte")]
   : [element("p", t("extension.signedOut")), link(t("extension.signIn"), "/connexion")];
@@ -81,5 +109,6 @@ document
     element("p", t("extension.description")),
     capture,
     captureStatus,
+    await allSitesOption(),
     ...account,
   );

@@ -1,5 +1,6 @@
 import { browser } from "wxt/browser";
 import { defineBackground } from "wxt/utils/define-background";
+import { createAllSitesDetection } from "../src/all-sites-detection";
 import { readCandidateSession } from "../src/candidate-session";
 import { createGuestSession } from "../src/guest-session";
 import { createJobbboxApi } from "../src/jobbbox-api";
@@ -32,6 +33,13 @@ export default defineBackground(() => {
     }
     return false;
   });
+
+  // The badge on every site, exactly while the person grants it (from the popup).
+  const allSites = createAllSitesDetection({ permissions: browser.permissions, scripting: browser.scripting });
+  const syncAllSites = () => void allSites.sync().catch((error: unknown) => console.error("Jobbbox: badge on every site", error));
+  syncAllSites();
+  browser.permissions.onAdded.addListener(syncAllSites);
+  browser.permissions.onRemoved.addListener(syncAllSites);
 
   // Forget the Guest session when it expires, even if nothing reads it again (ADR-0003).
   browser.storage.session.onChanged.addListener(() => {

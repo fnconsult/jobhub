@@ -171,6 +171,7 @@ test.describe("Guest Capture and Match Score", () => {
     hiringOrganization: { "@type": "Organization", name: "Groupe Seb" },
     jobLocation: { "@type": "Place", address: { "@type": "PostalAddress", addressLocality: "Lyon" } },
     skills: "IFRS, Consolidation, Power BI",
+    baseSalary: { "@type": "MonetaryAmount", currency: "EUR", value: { "@type": "QuantitativeValue", minValue: 90000, maxValue: 110000, unitText: "YEAR" } },
   };
   const jobPageHtml = (jsonLd: object | null, heading = "Directeur administratif et financier H/F") => `<!doctype html><html lang="fr"><head><title>${heading} – Groupe Seb</title>
     ${jsonLd ? `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>` : ""}</head>
@@ -201,6 +202,8 @@ test.describe("Guest Capture and Match Score", () => {
   const careerSiteVisits: IncomingMessage[] = [];
   let careerSite: Server;
   const postingUrl = "https://www.welcometothejungle.com/fr/companies/seb/jobs/daf-lyon";
+  // A posting's address whose page has nothing to read yet (a single-page app still loading).
+  const emptyPostingUrl = "https://www.welcometothejungle.com/fr/companies/seb/jobs/empty";
   const articleUrl = "https://www.welcometothejungle.com/fr/articles/bien-negocier-son-salaire";
   const cvFile = { name: "CV Marie Dupont.pdf", mimeType: "application/pdf", buffer: Buffer.from(pdfCv(MARIE_DUPONT_CV)) };
   let context: BrowserContext;
@@ -211,11 +214,13 @@ test.describe("Guest Capture and Match Score", () => {
     context = await chromium.launchPersistentContext("", {
       channel: "chromium",
       locale: "fr-FR",
+      baseURL: origin,
       args: [`--disable-extensions-except=${e2eExtensionDir}`, `--load-extension=${e2eExtensionDir}`],
     });
     // The job board, served locally: the page is read in this browser, never fetched by Jobbbox (ADR-0002).
     await context.route(postingUrl, (route) => route.fulfill({ contentType: "text/html", body: jobPageHtml(posting) }));
     await context.route(articleUrl, (route) => route.fulfill({ contentType: "text/html", body: jobPageHtml(null) }));
+    await context.route(emptyPostingUrl, (route) => route.fulfill({ contentType: "text/html", body: "<!doctype html><html><head></head><body></body></html>" }));
     for (const url of Object.keys(boardPages)) {
       await context.route(url, (route) => route.fulfill({ contentType: "text/html", body: boardPageHtml }));
     }
@@ -255,6 +260,17 @@ test.describe("Guest Capture and Match Score", () => {
     expect(manifest.host_permissions).toEqual([`${origin}/*`]);
     expect(manifest.content_scripts[0].matches).toContain("https://www.welcometothejungle.com/*");
     expect(JSON.stringify(manifest)).not.toContain("<all_urls>");
+    // Every other site only if the person opts in, from the popup; the badge's script is then registered from the build.
+    expect(manifest.optional_host_permissions).toEqual(["https://*/*"]);
+    expect(manifest.content_scripts[0].js).toEqual(["content-scripts/job-page.js"]);
+  });
+
+  test("offers, unticked, to detect postings on every site, an employer's own career site included", async () => {
+    const popup = await context.newPage();
+    await popup.goto(`chrome-extension://${extensionId()}/popup.html`);
+    const option = popup.getByRole("checkbox", { name: fr.allSites });
+    await expect(option).not.toBeChecked();
+    await expect(option).toHaveAccessibleDescription(fr.allSitesHint);
   });
 
   test("shows the badge on a job posting, captures it, and scores the Guest's CV, keeping it in the browser only", async () => {
@@ -275,6 +291,10 @@ test.describe("Guest Capture and Match Score", () => {
     await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toBeVisible();
     await expect(analysis.getByText(fr.analysis.covered.replace("{{skills}}", "IFRS, Consolidation"))).toBeVisible();
     await expect(analysis.getByText(fr.analysis.missing.replace("{{skills}}", "Power BI"))).toBeVisible();
+    // The offer states its salary: the Guest, who gave no minimum, is told so, not that the offer is silent.
+    const salary = analysis.getByRole("listitem").filter({ hasText: fr.analysis.criteria.salary });
+    await expect(salary).toContainText(fr.analysis.status.noPreference);
+    await expect(salary).toContainText(/L'offre : 90\s000\s€ – 110\s000\s€ brut par an/);
 
     // ADR-0009 floor, and every text from the catalogue but the Job Offer's own.
     const texts = await renderedTexts(analysis);
@@ -313,6 +333,35 @@ test.describe("Guest Capture and Match Score", () => {
     ]);
     await expect(analysis.getByText("Directeur administratif et financier H/F", { exact: true })).toBeVisible();
     await expect(analysis.getByLabel(frCatalogue.cvUpload.fileLabel)).toBeVisible();
+  });
+
+  test("says so when the badge is clicked on a posting's address with nothing to capture", async () => {
+    const jobPage = await context.newPage();
+    await jobPage.goto(emptyPostingUrl);
+    const pages = context.pages().length;
+    await jobPage.getByRole("button", { name: fr.badgeLabel }).click();
+    await expect(jobPage.getByRole("status")).toHaveText(fr.captureImpossible);
+    expect(context.pages()).toHaveLength(pages);
+  });
+
+  test("shows only the latest CV error, however many files were refused", async () => {
+    const jobPage = await context.newPage();
+    await jobPage.goto(postingUrl);
+    const [analysis] = await Promise.all([context.waitForEvent("page"), jobPage.getByRole("button", { name: fr.badgeLabel }).click()]);
+    const file = analysis.getByLabel(frCatalogue.cvUpload.fileLabel);
+    const submit = analysis.getByRole("button", { name: fr.analysis.submit });
+
+    const refuse = async (name: string, mimeType: string) => {
+      await file.setInputFiles({ name, mimeType, buffer: Buffer.from("Mes notes") });
+      await Promise.all([analysis.waitForResponse(`${origin}/api/cv/draft`), submit.click()]);
+      await expect(analysis.getByRole("alert")).toHaveText(frCatalogue.cvUpload.errors.unsupported_format);
+    };
+    await refuse("notes.txt", "text/plain");
+    await refuse("notes.doc", "application/msword");
+    await expect(analysis.getByRole("alert")).toHaveCount(1);
+
+    await analysis.getByRole("button", { name: fr.analysis.forget }).click();
+    await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
   });
 
   test("shows the badge on postings of the other major job boards and career sites, known by their address", async () => {
@@ -430,5 +479,22 @@ test.describe("Guest Capture and Match Score", () => {
     const later = await context.newPage();
     await later.goto(`chrome-extension://${extensionId()}/analyse.html`);
     await expect(later.getByText(fr.analysis.noJobOffer)).toBeVisible();
+  });
+
+  test("tells a signed-in Candidate their Job Offer is kept in their account, not forgotten within 24 hours", async () => {
+    const web = await context.newPage();
+    await signInWithMagicLink(web, newAddress("extension-candidate"));
+    const jobPage = await context.newPage();
+    await jobPage.goto(postingUrl);
+    const [analysis] = await Promise.all([context.waitForEvent("page"), jobPage.getByRole("button", { name: fr.badgeLabel }).click()]);
+
+    await expect(analysis.getByText(fr.analysis.candidateNotice)).toBeVisible();
+    await expect(analysis.getByText(fr.analysis.guestNotice)).toHaveCount(0);
+    await expect(analysis.getByText(/^Vos données seront effacées/)).toHaveCount(0);
+    await expect(analysis.getByRole("link", { name: fr.analysis.signUp })).toHaveCount(0);
+
+    await analysis.getByRole("button", { name: fr.analysis.forgetCv }).click();
+    await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
+    await web.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
   });
 });

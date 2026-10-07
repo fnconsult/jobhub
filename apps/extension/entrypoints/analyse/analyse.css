@@ -78,3 +78,12 @@ button.primary {
 button[disabled] {
   cursor: progress;
 }
+
+.error:empty {
+  display: none;
+}
+
+form .error {
+  flex-basis: 100%;
+  margin: 0;
+}

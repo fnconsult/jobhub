@@ -62,13 +62,28 @@
         "match": "Matches",
         "partial": "Partly matches",
         "mismatch": "Does not match",
-        "unknown": "Not stated in the offer"
+        "unknown": "Not stated in the offer",
+        "notInCv": "Not found in your CV",
+        "noPreference": "No preference of yours to compare with"
       },
       "covered": "In your CV: {{skills}}",
       "missing": "Missing from your CV: {{skills}}",
       "years": "Your CV: {{cv}} years · the offer: {{required}} years",
-      "signUp": "Create an account to keep this job offer and your CV"
-    }
+      "signUp": "Create an account to keep this job offer and your CV",
+      "offer": "The offer: {{value}}",
+      "offerYears": "The offer: {{required}} years",
+      "salary": {
+        "range": "{{min}} – {{max}} gross per year",
+        "from": "from {{amount}} gross per year",
+        "upTo": "up to {{amount}} gross per year",
+        "exactly": "{{amount}} gross per year",
+        "wanted": "Your minimum: {{amount}} gross per year"
+      },
+      "candidateNotice": "This job offer is saved in your Jobbbox account. The CV you upload here stays in this browser for your session only: Jobbbox reads it to compute the Match Score without saving it.",
+      "forgetCv": "Delete this CV from this browser"
+    },
+    "allSites": "Detect job offers on every site",
+    "allSitesHint": "To see “Analyse this offer” on employers' own career sites too. Your browser will ask for your permission; pages are still read in this browser only."
   },
   "signInEmail": {
     "subject": "Your Jobbbox sign-in link",

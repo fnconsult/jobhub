@@ -88,6 +88,12 @@ describe("reading a job page", () => {
   it.each([
     "https://www.linkedin.com/jobs/view/4012345678/",
     "https://fr.indeed.com/viewjob?jk=0123abcd",
+    "https://uk.indeed.com/viewjob?jk=0123abcd",
+    "https://www.indeed.co.uk/viewjob?jk=0123abcd",
+    "https://de.indeed.com/viewjob?jk=0123abcd",
+    "https://www.glassdoor.fr/job-listing/daf-groupe-seb-JV_IC2908_KO0,3_KE4,14.htm?jl=1009876543",
+    "https://www.glassdoor.co.uk/job-listing/finance-director-acme-JV_IC2671300_KO0,16_KE17,21.htm?jl=1009876543",
+    "https://www.glassdoor.de/job-listing/cfo-acme-JV_IC4990924_KO0,3_KE4,8.htm?jl=1009876543",
     "https://www.welcometothejungle.com/fr/companies/seb/jobs/daf-h-f_ecully",
     "https://www.apec.fr/candidat/recherche-emploi.html/emploi/detail-offre/176543210W",
     "https://candidat.francetravail.fr/offres/recherche/detail/123ABCD",
@@ -103,6 +109,14 @@ describe("reading a job page", () => {
     expect(readJobPage(page({ url })).detected).toBe(true);
     // ...where the extension watches for postings, to show the badge.
     expect(JOB_SITES.some((pattern) => new MatchPattern(pattern).includes(url))).toBe(true);
+  });
+
+  it("recognises a posting by its address only where the extension watches for postings", () => {
+    // Indeed's and Glassdoor's address patterns, on a domain outside JOB_SITES: the badge could never show there.
+    for (const url of ["https://www.indeed.example/viewjob?jk=0123abcd", "https://www.glassdoor.example/job-listing/daf-JV_KO0,3.htm"]) {
+      expect(JOB_SITES.some((pattern) => new MatchPattern(pattern).includes(url))).toBe(false);
+      expect(readJobPage(page({ url })).detected, url).toBe(false);
+    }
   });
 
   it.each(["https://www.linkedin.com/feed/", "https://fr.indeed.com/jobs?q=daf&l=Lyon", "https://www.lemonde.fr/economie/"])(

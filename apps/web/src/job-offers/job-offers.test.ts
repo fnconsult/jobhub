@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createThrowawayDatabase } from "../test-support/throwaway-database";
-import { createJobOffers, migrateJobOffers, type JobOffers } from "./index";
+import { createJobOffers, forgetExpiredGuestCaptures, migrateJobOffers, type JobOffers } from "./index";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -118,5 +118,37 @@ describe.skipIf(!connectionString)("Job Offers (needs Postgres: DATABASE_URL)", 
     expect(found).toEqual(captured.ok && captured.jobOffer);
     expect(await jobOffers.findBySourceUrl("https://www.apec.fr/candidat/offre/999")).toBeNull();
     expect(await jobOffers.findBySourceUrl("pas une url")).toBeNull();
+  });
+
+  describe("a Job Offer captured by a Guest (ADR-0003)", () => {
+    const hoursFromNow = (hours: number) => new Date(Date.now() + hours * 3_600_000);
+
+    it("is forgotten within 24 hours", async () => {
+      const captured = await jobOffers.capture(posting, "guest");
+      const id = captured.ok ? captured.jobOffer.id : "";
+
+      await forgetExpiredGuestCaptures(throwaway.pool, hoursFromNow(22));
+      expect(await jobOffers.get(id)).not.toBeNull();
+
+      await forgetExpiredGuestCaptures(throwaway.pool, hoursFromNow(23.5));
+      expect(await jobOffers.get(id)).toBeNull();
+    });
+
+    it("is kept once a Candidate captures the same posting", async () => {
+      const byGuest = await jobOffers.capture(posting, "guest");
+      const byCandidate = await jobOffers.capture(posting, "candidate");
+      expect(byCandidate.ok && byCandidate.jobOffer.id).toBe(byGuest.ok && byGuest.jobOffer.id);
+
+      await forgetExpiredGuestCaptures(throwaway.pool, hoursFromNow(48));
+      expect(await jobOffers.get(byGuest.ok ? byGuest.jobOffer.id : "")).not.toBeNull();
+    });
+
+    it("never takes away a Job Offer a Candidate captured first", async () => {
+      const byCandidate = await jobOffers.capture(posting);
+      await jobOffers.capture(posting, "guest");
+
+      await forgetExpiredGuestCaptures(throwaway.pool, hoursFromNow(48));
+      expect(await jobOffers.get(byCandidate.ok ? byCandidate.jobOffer.id : "")).not.toBeNull();
+    });
   });
 });

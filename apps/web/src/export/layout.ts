@@ -8,7 +8,7 @@
  */
 import type { MasterCvContent } from "@jobhub/shared";
 import { createI18n, type Locale } from "@jobhub/shared/i18n";
-import type { ExportableDocument } from "./index";
+import type { CoverLetterContent, ExportableDocument } from "./index";
 
 export type Block =
   | { kind: "name"; text: string }
@@ -60,7 +60,33 @@ function cvBlocks(cv: MasterCvContent, language: Locale): Block[] {
   return blocks;
 }
 
+/** A French-style letter: sender, recipient, place and date, subject, paragraphs, signature. */
+function letterBlocks(letter: CoverLetterContent, language: Locale): Block[] {
+  const { t } = createI18n(language);
+  const blocks: Block[] = [];
+  const add = (kind: "name" | "contact" | "text", text: string) => {
+    if (text) blocks.push({ kind, text });
+  };
+  const group = (lines: string[]) => {
+    if (lines.length === 0) return;
+    lines.forEach((line) => add("text", line));
+    blocks.push({ kind: "gap" });
+  };
+
+  add("name", letter.fullName);
+  add("contact", joined(" · ", [letter.email, letter.phone, letter.location]));
+  blocks.push({ kind: "gap" });
+  group(linesOf(letter.recipient));
+  group(linesOf(letter.date));
+  if (letter.subject.trim()) {
+    blocks.push({ kind: "entry", text: t("cvDocument.subject", { subject: letter.subject.trim() }) }, { kind: "gap" });
+  }
+  for (const paragraph of letter.body.split(/\n\s*\n/)) group(linesOf(paragraph));
+  add("text", letter.fullName);
+  return blocks;
+}
+
 /** The blocks of `document`, with headings in `language` (its Document Language). */
 export function layout(document: ExportableDocument, language: Locale): Block[] {
-  return cvBlocks(document.content, language);
+  return document.kind === "cv" ? cvBlocks(document.content, language) : letterBlocks(document.content, language);
 }

@@ -4,7 +4,7 @@ import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import type { MasterCvContent } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { draftFromCv } from "../cv";
-import { CV_TEMPLATES, EXPORT_FORMATS, exportDocument } from "./index";
+import { CV_TEMPLATES, EXPORT_FORMATS, exportDocument, type CoverLetterContent } from "./index";
 
 const marie: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -92,4 +92,54 @@ it("writes the template's section headings in the Document Language", async () =
   const body = await (await JSZip.loadAsync(file.bytes)).file("word/document.xml")!.async("string");
   expect(body).toContain("Professional experience");
   expect(body).not.toContain("Expérience professionnelle");
+});
+
+/** The words of an exported file, in order, as a text extractor sees them (line breaks and wrapping ignored). */
+async function wordsOf(file: { fileName: string; bytes: Uint8Array }): Promise<string> {
+  let text: string;
+  if (file.fileName.endsWith(".pdf")) {
+    const { extractText, getDocumentProxy } = await import("unpdf");
+    text = (await extractText(await getDocumentProxy(new Uint8Array(file.bytes)), { mergePages: true })).text;
+  } else {
+    const mammoth = await import("mammoth");
+    text = (await mammoth.extractRawText({ buffer: Buffer.from(file.bytes) })).value;
+  }
+  return text.replace(/\s+/g, " ").trim();
+}
+
+describe("exporting a Cover Letter", () => {
+  const letter: CoverLetterContent = {
+    fullName: "Marie Dupont",
+    email: "marie.dupont@example.fr",
+    phone: "06 12 34 56 78",
+    location: "Lyon",
+    recipient: "Groupe Danone\nDirection des ressources humaines\n17 boulevard Haussmann, 75009 Paris",
+    date: "Lyon, le 7 octobre 2026",
+    subject: "Candidature au poste de Directrice administrative et financière",
+    body:
+      "Madame, Monsieur,\n\n" +
+      "Directrice financière depuis quinze ans dans l'industrie, j'ai piloté la consolidation et le passage aux normes IFRS d'un groupe de 2 000 personnes. Votre offre m'a d'emblée retenue.\n\n" +
+      "Je serais heureuse de vous exposer ma démarche lors d'un entretien.\n\n" +
+      "Je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées.",
+  };
+  const expected =
+    "Marie Dupont marie.dupont@example.fr · 06 12 34 56 78 · Lyon " +
+    "Groupe Danone Direction des ressources humaines 17 boulevard Haussmann, 75009 Paris " +
+    "Lyon, le 7 octobre 2026 " +
+    "Objet : Candidature au poste de Directrice administrative et financière " +
+    "Madame, Monsieur, " +
+    "Directrice financière depuis quinze ans dans l'industrie, j'ai piloté la consolidation et le passage aux normes IFRS d'un groupe de 2 000 personnes. Votre offre m'a d'emblée retenue. " +
+    "Je serais heureuse de vous exposer ma démarche lors d'un entretien. " +
+    "Je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées. " +
+    "Marie Dupont";
+
+  it.each(CV_TEMPLATES)("writes the same letter as a PDF and as a DOCX with the %s CV Template", async (template) => {
+    const pdf = await exportDocument({ kind: "cover_letter", content: letter }, { format: "pdf", template, language: "fr" });
+    const docx = await exportDocument({ kind: "cover_letter", content: letter }, { format: "docx", template, language: "fr" });
+
+    expect(pdf.fileName).toBe("Lettre-de-motivation-Marie-Dupont.pdf");
+    expect(docx.fileName).toBe("Lettre-de-motivation-Marie-Dupont.docx");
+    expect(await wordsOf(pdf)).toBe(expected);
+    expect(await wordsOf(docx)).toBe(expected);
+  });
 });

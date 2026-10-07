@@ -109,4 +109,14 @@ describe.skipIf(!connectionString)("Job Offers (needs Postgres: DATABASE_URL)", 
     expect(await jobOffers.get("not-a-uuid")).toBeNull();
     expect(await jobOffers.get("00000000-0000-4000-8000-000000000000")).toBeNull();
   });
+
+  it("finds the Job Offer captured from a source URL, ignoring tracking parameters, so it is not fetched again", async () => {
+    const captured = await jobOffers.capture(posting);
+
+    const found = await jobOffers.findBySourceUrl("https://welcometothejungle.com/fr/companies/seb/jobs/daf-lyon?utm_campaign=x");
+
+    expect(found).toEqual(captured.ok && captured.jobOffer);
+    expect(await jobOffers.findBySourceUrl("https://www.apec.fr/candidat/offre/999")).toBeNull();
+    expect(await jobOffers.findBySourceUrl("pas une url")).toBeNull();
+  });
 });

@@ -10,7 +10,9 @@
  *    - `list` the Candidate's Applications (newest first) for the list and board views;
  *    - `get` one Application with its Job Offer, Profile, Interviews and the Match
  *      Score of the Profile's current Master CV against the Job Offer;
- *    - `change` its Application Status (only ever by the Candidate) or the Profile it uses.
+ *    - `change` its Application Status (only ever by the Candidate) or the Profile it uses;
+ *    - `addInterview` (only while it is at "Entretien") and `removeInterview`. Interviews
+ *      are kept when the Application moves on.
  * Every read and change is scoped to the Candidate; inputs are untrusted (they
  * come from the browser) and problems come back as results, never exceptions.
  * Applications are deleted with the account (ADR-0010), their Job Offers are kept.
@@ -71,6 +73,9 @@ export type ApplicationChangeResult =
   | { ok: false; errors: FieldError[] }
   | { ok: false; error: "not_found" };
 
+/** Interviews are added only to an Application at "Entretien" (`interview`). */
+export type AddInterviewResult = ApplicationChangeResult | { ok: false; error: "not_in_interview" };
+
 export interface Applications {
   /** Saves a Job Offer as an Application ("À postuler"). `input`: { jobOfferId, profileId }. */
   save(candidateId: string, input: unknown): Promise<SaveApplicationResult>;
@@ -80,6 +85,10 @@ export interface Applications {
   list(candidateId: string): Promise<ApplicationSummary[]>;
   /** Changes the Application Status or the Profile used. `input`: { status } or { profileId }. */
   change(candidateId: string, applicationId: string, input: unknown): Promise<ApplicationChangeResult>;
+  /** Adds a dated Interview. `input`: { scheduledAt (ISO 8601 date and time), note? }. */
+  addInterview(candidateId: string, applicationId: string, input: unknown): Promise<AddInterviewResult>;
+  /** Removes one of the Application's Interviews. */
+  removeInterview(candidateId: string, applicationId: string, interviewId: string): Promise<ApplicationChangeResult>;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -92,7 +101,13 @@ const parseChange = (input: unknown) =>
     ? changeSchema.options[1].safeParse(input, { reportInput: true })
     : changeSchema.options[0].safeParse(input, { reportInput: true });
 
+const interviewSchema = z.object({
+  scheduledAt: z.iso.datetime({ offset: true }).transform((value) => new Date(value)),
+  note: z.string().trim().max(500).default(""),
+});
+
 const NOT_FOUND = { ok: false, error: "not_found" } as const;
+const found = (application: Application | null): ApplicationChangeResult => (application ? { ok: true, application } : NOT_FOUND);
 
 interface ApplicationRow {
   id: string;
@@ -218,8 +233,36 @@ export function createApplications(
           [applicationId, candidateId, change.status],
         );
       }
-      const application = await get(candidateId, applicationId);
-      return application ? { ok: true, application } : NOT_FOUND;
+      return found(await get(candidateId, applicationId));
+    },
+
+    async addInterview(candidateId, applicationId, input) {
+      const parsed = interviewSchema.safeParse(input, { reportInput: true });
+      if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+      if (!UUID.test(applicationId)) return NOT_FOUND;
+      const { rows } = await database.query<{ status: ApplicationStatus }>(
+        `SELECT status FROM application WHERE id = $1 AND candidate_id = $2`,
+        [applicationId, candidateId],
+      );
+      if (!rows[0]) return NOT_FOUND;
+      if (rows[0].status !== "interview") return { ok: false, error: "not_in_interview" };
+      await database.query(`INSERT INTO interview (application_id, scheduled_at, note) VALUES ($1, $2, $3)`, [
+        applicationId,
+        parsed.data.scheduledAt,
+        parsed.data.note,
+      ]);
+      return found(await get(candidateId, applicationId));
+    },
+
+    async removeInterview(candidateId, applicationId, interviewId) {
+      if (!UUID.test(applicationId) || !UUID.test(interviewId)) return NOT_FOUND;
+      const { rowCount } = await database.query(
+        `DELETE FROM interview i USING application a
+          WHERE i.id = $1 AND i.application_id = a.id AND a.id = $2 AND a.candidate_id = $3`,
+        [interviewId, applicationId, candidateId],
+      );
+      if (rowCount === 0) return NOT_FOUND;
+      return found(await get(candidateId, applicationId));
     },
   };
 }

@@ -212,8 +212,10 @@ test.describe("creating the first Profile from a CV", () => {
 
 test.describe("CV and Profile endpoints", () => {
   test("refuse anonymous visitors and other sites, and never show another Candidate's Profile", async ({ page, browser }) => {
-    const anonymous = await page.request.post("/api/cv/draft", { headers: { origin }, multipart: { cv: pdfFile(MARIE_DUPONT_CV) } });
-    expect(anonymous.status()).toBe(401);
+    // A Guest's CV is read (for their Match Score, issue #10), but they cannot keep a Profile.
+    const guest = await page.request.post("/api/cv/draft", { headers: { origin }, multipart: { cv: pdfFile(MARIE_DUPONT_CV) } });
+    expect(guest.status()).toBe(200);
+    expect((await guest.json()).masterCv.fullName).toBe("Marie Dupont");
     expect((await page.request.post("/api/profiles", { headers: { origin }, data: {} })).status()).toBe(401);
 
     await signInWithMagicLink(page, newAddress("owner"));

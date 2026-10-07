@@ -149,6 +149,16 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
       expect(provider.calls[0]!.messages.at(-1)!.content).toContain("Responsable du contrôle de gestion — Renault, Paris — 2005 – 2015");
     });
 
+    it("reads a Guest's CV by rules alone: it is not sent to an AI provider without an account (ADR-0003)", async () => {
+      const { ai, provider } = aiReplying(JSON.stringify(aiReading));
+
+      const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai, candidateId: null });
+
+      expect(provider.calls).toHaveLength(0);
+      expect(draft.masterCv).toMatchObject({ fullName: "Marie Dupont", skills: ["Consolidation", "IFRS", "SAP", "Management d'équipe"] });
+      expect(draft.searchCriteria).toEqual({ targetRole: "Directrice financière", location: "Lyon (69003)" });
+    });
+
     it("shortens a target role too long to name a Profile, at a word boundary", async () => {
       const longRole = `${"Responsable ".repeat(12)}financier`;
       const { ai } = aiReplying(JSON.stringify({ ...aiReading, searchCriteria: { targetRole: longRole, location: "Lyon" } }));

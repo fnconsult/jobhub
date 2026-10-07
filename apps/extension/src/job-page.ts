@@ -150,7 +150,7 @@ function htmlToText(html: string): string {
 function tidy(text: string): string {
   return text
     .split("\n")
-    .map((line) => line.replace(/[\s ]+/g, " ").trim())
+    .map((line) => line.replace(/[\s\u00a0]+/g, " ").trim())
     .filter(Boolean)
     .join("\n");
 }
@@ -195,7 +195,7 @@ function contractType(posting: Json): ContractType | undefined {
 const PER_YEAR: Record<string, number> = { YEAR: 1, MONTH: 12 };
 
 function amount(value: unknown): number | undefined {
-  const number = typeof value === "string" ? Number(value.replace(/[\s ]/g, "").replace(",", ".")) : value;
+  const number = typeof value === "string" ? Number(value.replace(/[\s\u00a0]/g, "").replace(",", ".")) : value;
   return typeof number === "number" && Number.isFinite(number) && number > 0 ? number : undefined;
 }
 

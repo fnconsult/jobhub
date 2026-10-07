@@ -1,0 +1,80 @@
+.analysis {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-4);
+}
+
+.analysis h1 {
+  margin-top: 0;
+  font-size: var(--font-size-h2);
+}
+
+.analysis h2 {
+  font-size: var(--font-size-h3);
+}
+
+.job-offer {
+  font-size: var(--font-size-lead);
+}
+
+.notice {
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.error {
+  color: var(--color-danger);
+}
+
+.score {
+  font-size: var(--font-size-h2);
+  font-weight: 700;
+}
+
+.criteria {
+  padding-left: var(--space-6);
+}
+
+.criteria li + li {
+  margin-top: var(--space-3);
+}
+
+form,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  margin: var(--space-4) 0;
+}
+
+form label {
+  flex-basis: 100%;
+  font-weight: 600;
+}
+
+input[type="file"] {
+  font: inherit;
+}
+
+button {
+  font: inherit;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  color: var(--color-accent);
+  background: var(--color-background);
+  border: 1px solid var(--color-accent);
+}
+
+button.primary {
+  color: var(--color-on-accent);
+  background: var(--color-accent);
+}
+
+button[disabled] {
+  cursor: progress;
+}

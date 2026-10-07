@@ -22,7 +22,7 @@ function webApp(replies: Record<string, Response | (() => Response)>) {
 describe("the Jobbbox API, from the extension", () => {
   it("captures a Job Offer with the browser's session, so a signed-in Candidate keeps it", async () => {
     const app = webApp({ "/api/job-offers": Response.json(jobOffer) });
-    const { id: _, ...captured } = jobOffer;
+    const captured = { source: jobOffer.source, title: jobOffer.title, content: jobOffer.content };
 
     expect(await createJobbboxApi(WEB_ORIGIN, app.fetch).capture(captured)).toEqual({ ok: true, jobOffer });
     expect(app.calls[0]?.init).toMatchObject({ method: "POST", credentials: "include", body: JSON.stringify(captured) });

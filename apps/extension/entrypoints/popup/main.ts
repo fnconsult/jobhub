@@ -1,6 +1,9 @@
 import { designTokens, renderDesignCss } from "@jobhub/shared/design";
 import { createI18n } from "@jobhub/shared/i18n";
+import { browser } from "wxt/browser";
 import { readCandidateSession } from "../../src/candidate-session";
+import type { CapturedJobOffer } from "../../src/job-page";
+import type { AnalyseReply, ExtensionMessage } from "../../src/messages";
 import { WEB_ORIGIN } from "../../src/web-app";
 import "./popup.css";
 
@@ -31,6 +34,35 @@ const { t } = i18n;
 document.documentElement.lang = i18n.language;
 document.title = t("extension.title");
 
+/**
+ * Manual Capture of the page in the active tab, on any site: the person's click
+ * grants activeTab, so the page is read in their own browser (ADR-0002).
+ */
+async function captureActiveTab(): Promise<AnalyseReply | { ok: false; error: "impossible" }> {
+  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+  let jobOffer: CapturedJobOffer | null = null;
+  try {
+    const [injection] = await browser.scripting.executeScript({ target: { tabId: tab!.id! }, files: ["/capture.js"] });
+    jobOffer = (injection?.result as CapturedJobOffer | null | undefined) ?? null;
+  } catch {
+    // Browser pages, extension stores and the like cannot be read.
+  }
+  if (!jobOffer) return { ok: false, error: "impossible" };
+  return browser.runtime.sendMessage<ExtensionMessage, AnalyseReply>({ type: "analyse", jobOffer });
+}
+
+const capture = element("button", t("extension.capturePage"), "primary") as HTMLButtonElement;
+const captureStatus = element("p", "", "status");
+captureStatus.setAttribute("role", "status");
+capture.addEventListener("click", async () => {
+  capture.disabled = true;
+  captureStatus.textContent = t("extension.capturing");
+  const reply = await captureActiveTab().catch((): AnalyseReply => ({ ok: false, error: "unreachable" }));
+  capture.disabled = false;
+  if (reply.ok) return window.close();
+  captureStatus.textContent = t(reply.error === "unreachable" ? "extension.unreachable" : "extension.captureImpossible");
+});
+
 const account = session.signedIn
   ? [element("p", t("extension.signedInAs", { email: session.candidate.email })), link(t("extension.account"), "/compte")]
   : [element("p", t("extension.signedOut")), link(t("extension.signIn"), "/connexion")];
@@ -40,6 +72,7 @@ document
   ?.append(
     element("h1", t("extension.title")),
     element("p", t("extension.description")),
-    element("p", t("extension.comingSoon"), "notice"),
+    capture,
+    captureStatus,
     ...account,
   );

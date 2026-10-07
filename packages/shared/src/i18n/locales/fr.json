@@ -27,11 +27,48 @@
   "extension": {
     "title": "Jobbbox",
     "description": "Capturez une offre d'emploi depuis la page que vous consultez.",
-    "comingSoon": "La capture d'offres arrive bientôt.",
     "signedInAs": "Connecté en tant que {{email}}",
     "signedOut": "Connectez-vous à Jobbbox pour enregistrer vos offres.",
     "signIn": "Se connecter",
-    "account": "Mon compte"
+    "account": "Mon compte",
+    "capturePage": "Capturer cette page",
+    "capturing": "Capture de la page en cours…",
+    "captureImpossible": "Cette page ne peut pas être capturée. Ouvrez la page de l'offre d'emploi et réessayez.",
+    "unreachable": "Jobbbox est injoignable pour le moment. Vérifiez votre connexion et réessayez.",
+    "badge": "Analyser cette offre",
+    "badgeLabel": "Analyser cette offre avec Jobbbox",
+    "analysis": {
+      "title": "Analyse de l'offre",
+      "noJobOffer": "Aucune offre capturée. Ouvrez une offre d'emploi, puis cliquez sur « Analyser cette offre » ou sur « Capturer cette page » dans l'extension Jobbbox.",
+      "jobOfferGone": "Cette offre n'est plus disponible : sans compte, elle est effacée au bout de 24 heures. Capturez-la de nouveau pour l'analyser.",
+      "guestNotice": "Sans compte, votre CV et cette offre restent dans ce navigateur le temps de votre session. Jobbbox lit votre CV pour calculer le Match Score sans l'enregistrer, et tout est effacé au plus tard 24 heures après votre première analyse.",
+      "expiresAt": "Vos données seront effacées au plus tard le {{date}}.",
+      "cvTitle": "Votre CV",
+      "submit": "Calculer mon Match Score",
+      "scoring": "Calcul du Match Score en cours…",
+      "changeCv": "Utiliser un autre CV",
+      "forget": "Effacer mes données maintenant",
+      "forgotten": "Votre CV et l'offre ont été effacés de ce navigateur.",
+      "score": "Match Score : {{score}} / 100",
+      "breakdownTitle": "Détail du Match Score",
+      "criteria": {
+        "skills": "Compétences",
+        "seniority": "Expérience",
+        "location": "Lieu",
+        "salary": "Salaire",
+        "contractType": "Type de contrat"
+      },
+      "status": {
+        "match": "correspond",
+        "partial": "correspond en partie",
+        "mismatch": "ne correspond pas",
+        "unknown": "non précisé dans l'offre"
+      },
+      "covered": "Présentes dans votre CV : {{skills}}",
+      "missing": "Absentes de votre CV : {{skills}}",
+      "years": "Votre CV : {{cv}} ans · l'offre : {{required}} ans",
+      "signUp": "Créer un compte pour garder cette offre et votre CV"
+    }
   },
   "signInEmail": {
     "subject": "Votre lien de connexion à Jobbbox",

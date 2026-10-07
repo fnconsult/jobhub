@@ -371,12 +371,24 @@ textarea.input {
 .page {
   padding-bottom: calc(var(--space-12) + var(--space-12));
 }
+
 .table-scroll {
+  width: 100%;
   max-width: 100%;
   overflow-x: auto;
 }
 
-.plan-table {
+.table-scroll:has(.application-table) {
+  margin-top: var(--space-6);
+}
+
+/* Applications: the list, the board (one column per Application Status) and one Application. */
+.page-wide {
+  max-width: 80rem;
+}
+
+.plan-table,
+.application-table {
   width: 100%;
   border-collapse: collapse;
 }
@@ -384,6 +396,14 @@ textarea.input {
 .plan-table th,
 .plan-table td {
   padding: var(--space-2) var(--space-3);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.application-table th,
+.application-table td {
+  padding: var(--space-3);
   text-align: left;
   vertical-align: top;
   border-bottom: 1px solid var(--color-border);
@@ -405,4 +425,89 @@ textarea.input {
   padding: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+}
+
+.application-table tbody th {
+  font-weight: 400;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+}
+
+.board-column {
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.board-column h2 {
+  margin-top: 0;
+  font-size: var(--font-size-h3);
+}
+
+.board-cards,
+.interview-list,
+.skill-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.board-card,
+.interview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.board-card p,
+.interview p {
+  margin: 0;
+}
+
+.interview-date {
+  font-weight: 600;
+}
+
+.match-score-value {
+  margin: 0;
+  font-size: var(--font-size-h2);
+  font-weight: 600;
+}
+
+.match-score-criterion dd p {
+  margin: 0 0 var(--space-2);
+}
+
+.skill-list {
+  flex-flow: row wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.skill-list li {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.match-status {
+  font-weight: 600;
+}
+
+.job-offer-content p,
+.job-offer-content li {
+  line-height: 1.6;
 }

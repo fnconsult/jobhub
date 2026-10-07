@@ -5,8 +5,8 @@ import { routes } from "@/routes";
 import { TextSizeControl } from "./TextSizeControl";
 
 /**
- * The header of the signed-in Candidate's pages: the brand, the Profile
- * switcher and the Text Size control.
+ * The header of the signed-in Candidate's pages: the brand, the link to their
+ * Applications, the Profile switcher and the Text Size control.
  */
 export async function WorkspaceHeader({ candidateId, currentProfileId }: { candidateId: string; currentProfileId?: string }) {
   const t = await getServerT();
@@ -16,6 +16,7 @@ export async function WorkspaceHeader({ candidateId, currentProfileId }: { candi
         {t("app.name")}
       </Link>
       <div className="page-nav">
+        <Link href={routes.applications}>{t("nav.applications")}</Link>
         <ProfileSwitcher candidateId={candidateId} currentProfileId={currentProfileId} />
         <TextSizeControl />
       </div>

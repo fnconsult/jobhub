@@ -39,7 +39,8 @@
   },
   "nav": {
     "signIn": "Sign in",
-    "account": "My account"
+    "account": "My account",
+    "applications": "My applications"
   },
   "signIn": {
     "title": "Sign in to Jobbbox",
@@ -370,5 +371,99 @@
       "invalid": "Check the values: whole numbers from 0, or empty for unlimited."
     },
     "back": "Back to the back office"
+  },
+  "applicationStatuses": {
+    "to_apply": "To apply",
+    "applied": "Applied",
+    "followed_up": "Followed up",
+    "interview": "Interview",
+    "offer_received": "Offer received",
+    "accepted": "Accepted",
+    "rejected": "Rejected",
+    "abandoned": "Abandoned"
+  },
+  "applications": {
+    "title": "My applications",
+    "viewsLabel": "How applications are shown",
+    "listView": "List",
+    "boardView": "Board",
+    "none": "You have no applications yet. Save a job offer to follow it here.",
+    "jobOffer": "Job offer",
+    "profile": "Profile",
+    "status": "Status",
+    "interviews": "Interviews",
+    "interviewCount": "Interviews: {{number}}",
+    "emptyColumn": "No applications",
+    "noInterview": "None"
+  },
+  "application": {
+    "statusLabel": "Status",
+    "statusSaved": "Status saved",
+    "profileLabel": "Profile used",
+    "profileHint": "The match score uses this profile's master CV.",
+    "profileSaved": "Profile saved",
+    "error": "Saving failed. Check your connection and try again.",
+    "savedOn": "Job offer saved on {{date}}",
+    "interviewsTitle": "Interviews",
+    "interviewsNone": "No interviews recorded yet.",
+    "interviewsHint": "You can record your interviews once the application is at the \"Interview\" status.",
+    "interviewDate": "Interview date and time (Paris time)",
+    "interviewNote": "Note (optional)",
+    "interviewNoteHint": "For example: with the HR director, by video call.",
+    "addInterview": "Add the interview",
+    "removeInterview": "Remove the interview of {{date}}",
+    "working": "Saving…",
+    "backToApplications": "Back to my applications"
+  },
+  "jobOffer": {
+    "details": "At a glance",
+    "contentTitle": "Job offer text",
+    "employer": "Employer",
+    "location": "Location",
+    "contractType": "Contract type",
+    "remoteWork": "Remote work",
+    "salary": "Salary",
+    "salaryRange": "€{{min}} to €{{max}} gross per year",
+    "salaryFrom": "From €{{amount}} gross per year",
+    "salaryUpTo": "Up to €{{amount}} gross per year",
+    "experience": "Experience required",
+    "experienceYears": "{{years}} years",
+    "skills": "Skills required",
+    "source": "Source",
+    "sourceLink": "See the job offer on {{site}}",
+    "saveTitle": "Follow this job offer",
+    "profileLabel": "Profile to use for this application",
+    "save": "Save the job offer",
+    "saving": "Saving…",
+    "error": "Saving failed. Check your connection and try again.",
+    "alreadySaved": "You already follow this job offer.",
+    "seeApplication": "See my application",
+    "signInToSave": "Sign in to save this job offer",
+    "createProfileToSave": "Create a profile to save this job offer"
+  },
+  "matchScore": {
+    "title": "Match score",
+    "score": "{{score}} / 100",
+    "intro": "The master CV of the \"{{profile}}\" profile compared with this job offer and your search criteria.",
+    "unknownHint": "Criteria that cannot be compared (the job offer or your criteria say nothing about them) do not count in the score.",
+    "criteria": {
+      "skills": "Skills",
+      "seniority": "Experience",
+      "location": "Location",
+      "salary": "Salary",
+      "contractType": "Contract type"
+    },
+    "statuses": {
+      "match": "Matches",
+      "partial": "Partly",
+      "mismatch": "Does not match",
+      "unknown": "Not comparable"
+    },
+    "covered": "On your CV",
+    "missing": "Missing from your CV",
+    "seniorityDetail": "{{cvYears}} years on your CV, {{requiredYears}} years required",
+    "offerAndWanted": "Offer: {{offer}} · Wanted: {{wanted}}",
+    "salaryOffer": "Offer: {{offer}}",
+    "salaryWanted": "Wanted: at least €{{amount}} gross per year"
   }
 }

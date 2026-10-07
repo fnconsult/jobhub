@@ -58,6 +58,10 @@ _Avoid_: Deleted Profile, inactive Profile
 The control in the workspace header where the Candidate moves between their active Profiles and, while the Plan Quota allows, adds another.
 _Avoid_: Profile menu, account switcher
 
+**CV**:
+The content of a Master CV or a Tailored CV (summary, jobs, skills, location), as opposed to the stored document that holds it.
+_Avoid_: Resume, document
+
 **Master CV**:
 The reference CV of a Profile, from which every Tailored CV is derived. Versioned: each accepted change creates a new Master CV Version.
 _Avoid_: Base CV, main CV, original CV
@@ -161,6 +165,7 @@ The collective term for an Application's Tailored CV, Cover Letter and Outreach 
 
 **Match Score**:
 A 0–100 measure of how well a CV (Master or Tailored) fits a Job Offer, with an explained breakdown (skills covered/missing, seniority, location, salary, contract type).
+Each breakdown item is a match, partial, mismatch or unknown (the Job Offer or the Search Criteria give nothing to compare); unknown items do not count in the score. Seniority compares the years of experience the Job Offer asks for with the span of dated jobs on the CV.
 _Avoid_: Fit, compatibility, relevance
 
 **ATS Score**:

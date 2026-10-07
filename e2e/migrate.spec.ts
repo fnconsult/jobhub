@@ -42,6 +42,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.status, first.stderr).toBe(0);
     expect(first.stdout).toContain("Candidate accounts are up to date");
     expect(first.stdout).toContain("Profiles are up to date");
+    expect(first.stdout).toContain("Job Offers are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 
@@ -51,10 +52,11 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
       const tables = await db.query(
         "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name",
       );
-      // Plus the Agent Run log (issue #31), which stands apart from Candidate data.
+      // Plus the Agent Run log (issue #31) and the Job Offers (issue #9), which stand apart from Candidate data.
       expect(tables.rows.map((r) => r.table_name)).toEqual([
         "account",
         "candidate",
+        "job_offer",
         "master_cv_version",
         "profile",
         "session",

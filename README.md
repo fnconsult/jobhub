@@ -18,7 +18,7 @@ Requires Node 22+ and Docker.
 
 ```sh
 npm install
-cp .env.example .env
+cp .env.example .env          # repo-root .env, read by `npm run dev`, `build`, `start` and `db:migrate`
 docker compose up -d          # Postgres (host port 5433) + worker
 npm run db:migrate            # create / upgrade the database tables
 npm run dev                   # web app on http://localhost:3000

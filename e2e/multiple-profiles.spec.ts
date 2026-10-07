@@ -132,6 +132,28 @@ test.describe("several Profiles per Candidate", () => {
     await expect(switcher.getByRole("link")).toHaveText(["Directrice financière", "Consultante transformation", fr.profiles.add]);
   });
 
+  // The Plan Quota caps active Profiles once billing exists; until then the app
+  // passes none, so creating, duplicating and restoring are never refused.
+  test("until billing gives a Plan Quota, the number of Profiles is not limited", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("no-quota"));
+    const roles = ["DAF", "Contrôleuse de gestion", "Consultante", "Trésorière", "Auditrice"];
+    const ids: string[] = [];
+    for (const role of roles) ids.push(await createProfile(page, role));
+
+    const duplicate = await page.request.post(`/api/profiles/${ids[0]}/duplicate`, { headers: { origin }, data: { name: "DAF bis" } });
+    expect(duplicate.status()).toBe(201);
+    expect((await page.request.patch(`/api/profiles/${ids[1]}`, { headers: { origin }, data: { archived: true } })).status()).toBe(200);
+    const restore = await page.request.patch(`/api/profiles/${ids[1]}`, { headers: { origin }, data: { archived: false } });
+    expect(restore.status()).toBe(200);
+    expect(await restore.json()).not.toHaveProperty("error");
+
+    await page.goto("/compte");
+    await expect(page.getByText(fr.profiles.quotaReached)).toHaveCount(0);
+    await expect(page.getByRole("link", { name: fr.profiles.add }).first()).toBeVisible();
+    const switcher = await openSwitcher(page);
+    await expect(switcher.getByRole("link")).toHaveText([...roles, "DAF bis", fr.profiles.add]);
+  });
+
   test("the Profile page meets the ADR-0009 floor", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("profile-floor"));
     const id = await createProfile(page, "DAF");

@@ -6,7 +6,8 @@
   "exports": {
     "./root-env": "./src/env/root-env.ts",
     "./job-offers": "./src/job-offers/index.ts",
-    "./profiles": "./src/profiles/index.ts"
+    "./profiles": "./src/profiles/index.ts",
+    "./job-searches": "./src/job-searches/index.ts"
   },
   "scripts": {
     "dev": "next dev",
@@ -24,6 +25,7 @@
     "next": "^16.3.8",
     "nodemailer": "^10.0.15",
     "pg": "^8.23.1",
+    "pg-boss": "^12.37.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-i18next": "^17.0.16",

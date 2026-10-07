@@ -48,4 +48,12 @@ describe("exporting a CV", () => {
     expect(file.fileName).toBe("CV-Marie-Dupont.docx");
     expect(await readBack(file)).toEqual(marie);
   });
+
+  it("writes a PDF that reads back into the same Master CV", async () => {
+    const file = await exportDocument({ kind: "cv", content: marie }, { format: "pdf", template: "classic", language: "fr" });
+
+    expect(file.contentType).toBe("application/pdf");
+    expect(file.fileName).toBe("CV-Marie-Dupont.pdf");
+    expect(await readBack(file)).toEqual(marie);
+  });
 });

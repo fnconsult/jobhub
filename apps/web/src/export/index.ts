@@ -12,6 +12,7 @@ import type { MasterCvContent } from "@jobhub/shared";
 import { createI18n, type Locale } from "@jobhub/shared/i18n";
 import { renderDocx } from "./docx";
 import { layout } from "./layout";
+import { renderPdf } from "./pdf";
 import { TEMPLATE_STYLES } from "./templates";
 
 /** The CV Templates, all ATS-safe. The first one is the default. */
@@ -84,6 +85,7 @@ export async function exportDocument(document: ExportableDocument, options: Expo
   const blocks = layout(document, options.language);
   const style = TEMPLATE_STYLES[options.template];
   const fileName = fileNameOf(document, options);
-  const bytes = await renderDocx(blocks, style, fileName);
+  const render = options.format === "pdf" ? renderPdf : renderDocx;
+  const bytes = await render(blocks, style, fileName);
   return { fileName, contentType: CONTENT_TYPES[options.format], bytes };
 }

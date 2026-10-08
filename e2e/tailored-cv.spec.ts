@@ -29,9 +29,9 @@ const masterCv = {
     { title: "Directrice financière", employer: "Groupe Seb", location: "Lyon", period: "2005 – 2024", description: "Consolidation IFRS." },
     { title: "Contrôleuse de gestion", employer: "Danone", location: "Paris", period: "1995 – 2005", description: "Reporting mensuel." },
   ],
-  education: [],
+  education: [{ degree: "Master Finance", institution: "ESSEC", year: "1994" }],
   skills: ["Consolidation", "IFRS", "SAP"],
-  languages: [],
+  languages: [{ name: "Anglais", level: "courant" }],
 };
 
 const FRENCH = {
@@ -95,7 +95,9 @@ test.describe("Tailored CV with change review", () => {
     await expect(headline.getByText("Directrice financière", { exact: true })).toBeVisible();
     await expect(headline.getByText("Directrice financière (adapté, fr)")).toBeVisible();
     await expect(review.getByText(`${tc.sections.experience} · ${tc.kinds.cut} · Contrôleuse de gestion · Danone · 1995 – 2005`)).toBeVisible();
-    await expect(review.getByText(`${tc.sections.skills} · ${tc.kinds.reordered}`)).toBeVisible();
+    // A reorder shows the order before and after.
+    const reordered = review.getByRole("listitem").filter({ hasText: `${tc.sections.skills} · ${tc.kinds.reordered}` });
+    await expect(reordered.getByRole("definition")).toHaveText(["Consolidation\nIFRS\nSAP", "SAP\nIFRS\nConsolidation"], { useInnerText: true });
     // Never invented (ADR-0006): the figure and the keyword the AI Coach slipped in are left out.
     await expect(review.getByText(/20 ans/)).toHaveCount(0);
     await expect(review.getByText(new RegExp(tc.kinds.added.replace(/[()]/g, "\\$&")))).toHaveCount(0);
@@ -108,7 +110,13 @@ test.describe("Tailored CV with change review", () => {
     await expect(review.getByRole("group", { name: "Management d'équipe" })).toBeVisible();
     await powerBi.getByRole("button", { name: tc.confirm }).click();
     await expect(powerBi.getByRole("button", { name: tc.confirm })).toHaveAttribute("aria-pressed", "true");
-    await review.getByRole("group", { name: "Management d'équipe" }).getByRole("button", { name: tc.decline }).click();
+    const declined = review.getByRole("group", { name: "Management d'équipe" }).getByRole("button", { name: tc.decline });
+    const notChosen = review.getByRole("group", { name: "Management d'équipe" }).getByRole("button", { name: tc.confirm });
+    await declined.click();
+    // The answer shows on screen, not only to assistive technology.
+    await expect(declined).toHaveAttribute("aria-pressed", "true");
+    const look = (button: Locator) => button.evaluate((element) => getComputedStyle(element).backgroundColor);
+    expect(await look(declined)).not.toBe(await look(notChosen));
     await expect(review.getByText(`${tc.sections.skills} · ${tc.kinds.added} · Power BI`)).toBeVisible();
     await expect(review.getByText(`${tc.sections.skills} · ${tc.kinds.added} · Management d'équipe`)).toHaveCount(0);
     const after = await scores(review);
@@ -122,6 +130,8 @@ test.describe("Tailored CV with change review", () => {
     const saved = section(page).getByRole("group", { name: tc.savedTitle });
     await expect(saved.getByText("Directrice financière (adapté, fr)")).toBeVisible();
     await expect(saved.getByText(/Power BI/)).toBeVisible();
+    await expect(saved.getByRole("list", { name: tc.sections.education })).toHaveText("Master Finance · ESSEC · 1994");
+    await expect(saved.getByRole("list", { name: tc.sections.languages })).toHaveText("Anglais · courant");
     expect(await scores(saved)).toEqual(after);
     await expect(proposal(page)).toHaveCount(0);
 
@@ -138,6 +148,9 @@ test.describe("Tailored CV with change review", () => {
     await section(page).getByRole("button", { name: tc.propose }).click();
     await expect(proposal(page).getByText(tc.writtenIn.en)).toBeVisible();
     await expect(proposal(page).getByText("Directrice financière (adapté, en)")).toBeVisible();
+    // Written in English through and through: a language is translated, shown against the Master CV's.
+    const language = proposal(page).getByRole("listitem").filter({ hasText: `${tc.sections.languages} · ${tc.kinds.rephrased} · Anglais · courant` });
+    await expect(language.getByText("English · fluent")).toBeVisible();
 
     await section(page).getByLabel(tc.languageLabel).selectOption({ label: fr.tailoredDocuments.languages.fr });
     await proposal(page).getByRole("button", { name: tc.proposeAgain }).click();
@@ -156,5 +169,24 @@ test.describe("Tailored CV with change review", () => {
 
     await expect(section(page).getByRole("alert")).toHaveText(tc.unavailable);
     await expect(section(page).getByRole("button", { name: tc.propose })).toBeVisible();
+  });
+  test("only the proposal the Candidate reviewed is saved, not one proposed meanwhile in another tab", async ({ page }) => {
+    const id = await openApplication(page, FRENCH);
+    await section(page).getByRole("button", { name: tc.propose }).click();
+    await expect(proposal(page).getByText(tc.writtenIn.fr)).toBeVisible();
+
+    // Another tab proposes again, in English.
+    const elsewhere = await page.request.post(`/api/applications/${id}/tailored-cv`, { data: { language: "en" }, headers: { origin } });
+    expect(elsewhere.status(), await elsewhere.text()).toBe(200);
+    await proposal(page).getByRole("button", { name: tc.save }).click();
+
+    await expect(section(page).getByRole("alert")).toHaveText(tc.proposalChanged);
+    await expect(proposal(page).getByText(tc.writtenIn.en)).toBeVisible();
+    await expect(section(page).getByRole("group", { name: tc.savedTitle })).toHaveCount(0);
+
+    // Once the English one is reviewed, it can be saved.
+    await proposal(page).getByRole("button", { name: tc.save }).click();
+    await expect(section(page).getByRole("status")).toHaveText(tc.saved);
+    await expect(section(page).getByRole("group", { name: tc.savedTitle }).getByText(tc.writtenIn.en)).toBeVisible();
   });
 });

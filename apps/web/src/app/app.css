@@ -606,3 +606,15 @@ textarea.input {
 .tailored-cv-compare dd {
   margin: 0;
 }
+
+/* A toggle button's answer, e.g. to a coach question: pressed is filled and ticked, not only announced. */
+.button[aria-pressed="true"] {
+  font-weight: 600;
+  color: var(--color-background);
+  background: var(--color-text);
+  border-color: var(--color-text);
+}
+
+.button[aria-pressed="true"]::before {
+  content: "✓ ";
+}

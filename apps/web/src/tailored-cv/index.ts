@@ -14,25 +14,28 @@
  *  - A Tailored CV only rephrases, reorders, cuts and emphasises facts of the
  *    Master CV. Whatever the AI Coach writes, the proposal is rebuilt from the
  *    Master CV: identity and contact details are copied, jobs, diplomas,
- *    languages and skills are kept only if the Master CV has them, and a
- *    rephrased text stating a figure or a Job Offer keyword the Master CV
- *    lacks is replaced by the Master CV's.
+ *    languages and skills are kept only if the Master CV has them (each one is
+ *    named by its id in the Master CV, so it can be translated into the
+ *    Document Language), and a rephrased text stating a figure the Master CV
+ *    lacks, or, in the Master CV's own language, a Job Offer keyword it lacks,
+ *    is replaced by the Master CV's. A section the AI Coach leaves out or gets
+ *    wrong is the Master CV's; a reply with no CV in it is no proposal.
  *  - A requirement the Master CV lacks becomes a question to the Candidate, and
  *    is added to the skills only if they confirm it.
  * Every read and change is scoped to the Candidate; inputs are untrusted and
  * problems come back as results. Task `writing`, EU endpoints only (ADR-0007).
  */
 import type { AiLayer } from "@jobhub/ai";
-import { DOCUMENT_LANGUAGES, normalise, scoreMatch, type CvContent, type DocumentLanguage } from "@jobhub/shared";
+import { DOCUMENT_LANGUAGES, jobOfferLanguage, normalise, scoreMatch, type CvContent, type DocumentLanguage } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { Application, Applications } from "../applications";
 import type { Profiles } from "../profiles";
 import { documentLanguageOf, keepDocumentLanguage } from "../tailored-documents/document-language";
 import { fieldErrors, type FieldError } from "../validation";
-import { cvChanges, type CvChange } from "./changes";
+import { cvChanges, type CvChange, type CvOrigins } from "./changes";
 
-export { CV_SECTIONS, type CvChange, type CvSection } from "./changes";
+export { CV_SECTIONS, type CvChange, type CvOrigins, type CvSection } from "./changes";
 
 /**
  * A requirement of the Job Offer the Master CV does not show, asked to the
@@ -49,6 +52,8 @@ export interface TailoredCvQuestion {
 export interface TailoredCvProposal {
   /** The language it is written in. */
   language: DocumentLanguage;
+  /** Names this exact proposal, answers included: the Candidate saves the one they reviewed by it. */
+  revision: string;
   /** The Master CV Version it was derived from, and reviewed against. */
   masterCvVersion: number;
   /** With the confirmed requirements. */
@@ -88,7 +93,9 @@ export type TailoredCvResult =
   /** The AI layer could not write it; nothing was changed. Try again later. */
   | { ok: false; error: "unavailable" }
   /** The Master CV (or the Application's Profile) changed since the proposal: it must be proposed again. */
-  | { ok: false; error: "master_cv_changed" };
+  | { ok: false; error: "master_cv_changed" }
+  /** The proposal was proposed again or answered since the Candidate reviewed it: nothing was saved. */
+  | { ok: false; error: "proposal_changed" };
 
 export interface TailoredCvs {
   /** The Application's Tailored CV, or null if it does not exist or belongs to someone else. */
@@ -103,10 +110,12 @@ export interface TailoredCvs {
   /**
    * The Candidate approves the proposal they reviewed: it becomes the Application's
    * Tailored CV, replacing the one saved before. Unanswered questions add nothing.
-   * "not_found" when there is no proposal; "master_cv_changed" when it was derived
-   * from a Master CV Version that is no longer current.
+   * `input`: { revision } of the proposal they reviewed.
+   * "not_found" when there is no proposal; "proposal_changed" when it is no longer
+   * that revision; "master_cv_changed" when it was derived from a Master CV
+   * Version that is no longer current.
    */
-  save(candidateId: string, applicationId: string): Promise<TailoredCvResult>;
+  save(candidateId: string, applicationId: string, input: unknown): Promise<TailoredCvResult>;
 }
 
 export interface TailoredCvsDeps {
@@ -117,25 +126,53 @@ export interface TailoredCvsDeps {
 
 const proposeSchema = z.object({ language: z.enum(DOCUMENT_LANGUAGES).optional() });
 const answerSchema = z.object({ requirement: z.string().trim().min(1).max(200), confirmed: z.boolean() });
+const saveSchema = z.object({ revision: z.string().min(1).max(64) });
 
 /** Most questions asked about one proposal. */
 const MAX_QUESTIONS = 8;
 
 const NOT_FOUND = { ok: false, error: "not_found" } as const;
 
-/** What the AI Coach replies: its adaptation of the Master CV. Anything it leaves out or gets wrong is taken from the Master CV. */
+/**
+ * What the AI Coach replies: its adaptation of the Master CV. A section it leaves
+ * out or gets wrong (any item of the wrong shape) is undefined, and taken from the
+ * Master CV as it is. Diplomas, languages and skills carry the id the Master CV's
+ * item was given in the prompt (see `referenceCv`).
+ */
+const optional = <T extends z.ZodType>(schema: T) => schema.optional().catch(undefined);
 const text = z.string().catch("");
+const id = z.string().optional().catch(undefined);
 const aiReply = z.object({
-  headline: text,
-  summary: text,
-  experience: z.array(z.object({ employer: text, period: text, title: text, description: text })).catch([]),
-  education: z.array(z.object({ degree: text, institution: text, year: text })).catch([]),
-  skills: z.array(z.string()).catch([]),
-  languages: z.array(z.object({ name: text, level: text })).catch([]),
+  headline: optional(z.string()),
+  summary: optional(z.string()),
+  experience: optional(z.array(z.object({ id, employer: z.string(), period: z.string(), title: text, description: text }))),
+  education: optional(z.array(z.object({ id, degree: z.string(), institution: text, year: text }))),
+  skills: optional(z.array(z.union([z.string().transform((skill) => ({ id: undefined, text: skill })), z.object({ id, text: z.string() })]))),
+  languages: optional(z.array(z.object({ id, name: z.string(), level: text }))),
   /** Requirements of the Job Offer the Master CV does not show. */
   missing: z.array(z.string()).catch([]),
 });
 type AiReply = z.output<typeof aiReply>;
+
+/** Whether a reply has a CV in it at all: else it is no proposal (an empty or truncated reply). */
+const hasCv = (reply: AiReply) => [reply.headline, reply.summary, reply.experience, reply.education, reply.skills, reply.languages].some((section) => section !== undefined);
+
+/** Ids of the Master CV's diplomas, languages and skills in the prompt: e0, l0, s0… */
+const ID_PREFIX = { education: "e", languages: "l", skills: "s" } as const;
+
+/** The Master CV as the AI Coach is handed it: each diploma, language and skill with its id. */
+function referenceCv(master: CvContent) {
+  return {
+    ...master,
+    education: master.education.map((item, index) => ({ id: `${ID_PREFIX.education}${index}`, ...item })),
+    skills: master.skills.map((skill, index) => ({ id: `${ID_PREFIX.skills}${index}`, text: skill })),
+    languages: master.languages.map((item, index) => ({ id: `${ID_PREFIX.languages}${index}`, ...item })),
+  };
+}
+
+/** The language the Master CV is written in, told as for a Job Offer. */
+const cvLanguage = (cv: CvContent): DocumentLanguage =>
+  jobOfferLanguage({ title: cv.headline, content: [cv.summary, ...cv.experience.flatMap((job) => [job.title, job.description]), ...cv.skills].join(" ") });
 
 const same = (a: string, b: string) => normalise(a) === normalise(b);
 
@@ -160,34 +197,67 @@ function invents(rephrased: string, masterText: string, keywords: string[]): boo
 
 /**
  * The proposal rebuilt from the Master CV (ADR-0006): the AI Coach may rephrase
- * the headline, the summary and each job's title and description, reorder and
- * cut jobs, diplomas, languages and skills, and nothing else. A rephrased text
- * that invents (see `invents`) is replaced by the Master CV's. `keywords`: the Job Offer's skills.
+ * (or translate) the headline, the summary, each job's title and description and
+ * each diploma, language and skill, reorder and cut jobs, diplomas, languages and
+ * skills, and nothing else. A rephrased text that invents (see `invents`) is
+ * replaced by the Master CV's. A Job Offer keyword (`keywords`: its skills) can
+ * only be told missing from the Master CV in the Master CV's own language: in
+ * another, only figures are checked, and every rephrased item is shown against
+ * the Master CV's for the Candidate's review.
  */
-function fromMasterCv(master: CvContent, reply: AiReply, keywords: string[]): CvContent {
+function fromMasterCv(master: CvContent, reply: AiReply, keywords: string[], language: DocumentLanguage): { content: CvContent; origins: CvOrigins } {
   const masterText = cvText(master);
-  const rephrased = (proposed: string, original: string) => (proposed.trim() && !invents(proposed, masterText, keywords) ? proposed.trim() : original);
-  const pick = <T>(items: T[], wanted: unknown[], matches: (item: T, wanted: never) => boolean): T[] => {
+  const checked = language === cvLanguage(master) ? keywords : [];
+  const rephrased = (proposed: string | undefined, original: string) => (proposed?.trim() && !invents(proposed, masterText, checked) ? proposed.trim() : original);
+  /** The Master CV's `items` the AI Coach kept, in its order, adapted; each found by its id (`prefix` and index), else by `matches`. */
+  const adapt = <T, W extends { id?: string }>(items: T[], prefix: string, wanted: W[] | undefined, matches: (item: T, wanted: W) => boolean, adapted: (item: T, wanted: W) => T) => {
+    if (!wanted) return { kept: items, origins: items.map((_, index) => index) };
+    const origins: number[] = [];
     const kept: T[] = [];
-    for (const candidate of wanted) {
-      const item = items.find((option) => !kept.includes(option) && matches(option, candidate as never));
-      if (item) kept.push(item);
+    for (const option of wanted) {
+      const byId = new RegExp(`^${prefix}(\\d+)$`).exec(option.id?.trim() ?? "");
+      let index = byId ? Number(byId[1]) : items.findIndex((item, position) => !origins.includes(position) && matches(item, option));
+      if (index >= items.length || origins.includes(index)) index = -1;
+      if (index < 0) continue;
+      origins.push(index);
+      kept.push(adapted(items[index]!, option));
     }
-    return kept;
+    return { kept, origins };
   };
-  type Job = AiReply["experience"][number];
-  const experience = pick(master.experience, reply.experience, (job, wanted: Job) => same(job.employer, wanted.employer) && same(job.period, wanted.period)).map((job) => {
-    const wanted = reply.experience.find((option) => same(job.employer, option.employer) && same(job.period, option.period))!;
-    return { ...job, title: rephrased(wanted.title, job.title), description: rephrased(wanted.description, job.description) };
-  });
+  // A job is named by its employer and period, which the AI Coach keeps as they are.
+  const experience = adapt(
+    master.experience,
+    "j",
+    reply.experience,
+    (job, wanted) => same(job.employer, wanted.employer) && same(job.period, wanted.period),
+    (job, wanted) => ({ ...job, title: rephrased(wanted.title, job.title), description: rephrased(wanted.description, job.description) }),
+  );
+  const education = adapt(
+    master.education,
+    ID_PREFIX.education,
+    reply.education,
+    (item, wanted) => same(item.degree, wanted.degree) && same(item.institution, wanted.institution),
+    (item, wanted) => ({ ...item, degree: rephrased(wanted.degree, item.degree), institution: rephrased(wanted.institution, item.institution) }),
+  );
+  const skills = adapt(master.skills, ID_PREFIX.skills, reply.skills, (skill, wanted) => same(skill, wanted.text), (skill, wanted) => rephrased(wanted.text, skill));
+  const languages = adapt(
+    master.languages,
+    ID_PREFIX.languages,
+    reply.languages,
+    (item, wanted) => same(item.name, wanted.name),
+    (item, wanted) => ({ ...item, name: rephrased(wanted.name, item.name), level: rephrased(wanted.level, item.level) }),
+  );
   return {
-    ...master,
-    headline: rephrased(reply.headline, master.headline),
-    summary: rephrased(reply.summary, master.summary),
-    experience,
-    education: pick(master.education, reply.education, (item, wanted: AiReply["education"][number]) => same(item.degree, wanted.degree) && same(item.institution, wanted.institution)),
-    skills: pick(master.skills, reply.skills, (skill, wanted: string) => same(skill, wanted)),
-    languages: pick(master.languages, reply.languages, (language, wanted: AiReply["languages"][number]) => same(language.name, wanted.name)),
+    content: {
+      ...master,
+      headline: rephrased(reply.headline, master.headline),
+      summary: rephrased(reply.summary, master.summary),
+      experience: experience.kept,
+      education: education.kept,
+      skills: skills.kept,
+      languages: languages.kept,
+    },
+    origins: { education: education.origins, skills: skills.origins, languages: languages.origins },
   };
 }
 
@@ -196,15 +266,15 @@ function systemPrompt(language: DocumentLanguage): string {
     ? `Tu es le coach Jobbbox. Tu adaptes le CV de référence d'un cadre expérimenté à l'offre ci-dessous, en français.
 Règles :
 - Tu peux seulement reformuler, réordonner, couper et mettre en avant ce que dit son CV de référence. N'ajoute jamais de compétence, d'expérience, de diplôme ou de chiffre.
-- Garde l'employeur et la période de chaque poste tels quels.
+- Garde l'employeur et la période de chaque poste tels quels, et l'"id" de chaque diplôme, langue et compétence que tu gardes.
 - Dans "missing", liste les exigences de l'offre que son CV ne montre pas : le candidat dira s'il les a.
-Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experience": [{"employer": "", "period": "", "title": "", "description": ""}], "education": [{"degree": "", "institution": "", "year": ""}], "skills": [""], "languages": [{"name": "", "level": ""}], "missing": [""]}.`
+Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experience": [{"employer": "", "period": "", "title": "", "description": ""}], "education": [{"id": "", "degree": "", "institution": "", "year": ""}], "skills": [{"id": "", "text": ""}], "languages": [{"id": "", "name": "", "level": ""}], "missing": [""]}.`
     : `You are the Jobbbox coach. You adapt an experienced professional's reference CV to the job offer below, in English.
 Rules:
 - You may only rephrase, reorder, cut and emphasise what their reference CV says. Never add a skill, experience, degree or figure.
-- Keep each job's employer and period as they are.
+- Keep each job's employer and period as they are, and the "id" of each degree, language and skill you keep.
 - In "missing", list the job offer's requirements their CV does not show: the candidate will say whether they have them.
-Reply with a JSON object only: {"headline": "", "summary": "", "experience": [{"employer": "", "period": "", "title": "", "description": ""}], "education": [{"degree": "", "institution": "", "year": ""}], "skills": [""], "languages": [{"name": "", "level": ""}], "missing": [""]}.`;
+Reply with a JSON object only: {"headline": "", "summary": "", "experience": [{"employer": "", "period": "", "title": "", "description": ""}], "education": [{"id": "", "degree": "", "institution": "", "year": ""}], "skills": [{"id": "", "text": ""}], "languages": [{"id": "", "name": "", "level": ""}], "missing": [""]}.`;
 }
 
 /** The JSON object in the AI Coach's reply, or null. */
@@ -228,6 +298,8 @@ interface ProposalRow {
   master: CvContent;
   /** The AI Coach's adaptation, before any confirmed requirement. */
   adapted: CvContent;
+  /** Where `adapted`'s diplomas, skills and languages come from in `master`; absent from proposals made before it was kept. */
+  origins?: CvOrigins;
   questions: TailoredCvQuestion[];
   proposedAt: string;
 }
@@ -263,7 +335,10 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
   async function stateOf(candidateId: string, application: Application): Promise<ApplicationTailoredCv> {
     const [documentLanguage, { rows }, profile] = await Promise.all([
       documentLanguageOf(database, application),
-      database.query<{ proposal: ProposalRow | null; saved: SavedRow | null }>(`SELECT proposal, saved FROM tailored_cv WHERE application_id = $1`, [application.id]),
+      database.query<{ proposal: ProposalRow | null; revision: string | null; saved: SavedRow | null }>(
+        `SELECT proposal, md5(proposal::text) AS revision, saved FROM tailored_cv WHERE application_id = $1`,
+        [application.id],
+      ),
       deps.profiles.get(candidateId, application.profile.id),
     ]);
     const score = (cv: CvContent) => scoreMatch({ cv, searchCriteria: profile?.searchCriteria, jobOffer: application.jobOffer }).score;
@@ -273,10 +348,11 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
       const content = withConfirmed(row.adapted, row.questions);
       proposal = {
         language: row.language,
+        revision: rows[0]!.revision!,
         masterCvVersion: row.masterCvVersion,
         content,
         questions: row.questions,
-        changes: cvChanges(row.master, content),
+        changes: cvChanges(row.master, content, row.origins),
         matchScore: { master: score(row.master), tailored: score(content) },
         proposedAt: new Date(row.proposedAt),
       };
@@ -312,7 +388,7 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
       const master = profile.masterCv.content;
       const prompt = [
         `${language === "fr" ? "Offre" : "Job offer"} : ${JSON.stringify({ title: jobOffer.title, employer: jobOffer.employer, content: jobOffer.content, skills: jobOffer.skills })}`,
-        `${language === "fr" ? "CV de référence" : "Reference CV"} : ${JSON.stringify(master)}`,
+        `${language === "fr" ? "CV de référence" : "Reference CV"} : ${JSON.stringify(referenceCv(master))}`,
       ].join("\n\n");
       let reply: AiReply | null;
       try {
@@ -321,14 +397,16 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
         console.warn("[tailored-cv] the AI Coach could not propose a Tailored CV:", error instanceof Error ? error.message : error);
         reply = null;
       }
-      if (!reply) return { ok: false, error: "unavailable" };
+      if (!reply || !hasCv(reply)) return { ok: false, error: "unavailable" };
       if (parsed.data.language) await keepDocumentLanguage(database, application.id, language);
+      const { content: adapted, origins } = fromMasterCv(master, reply, jobOffer.skills ?? [], language);
       const proposal: ProposalRow = {
         language,
         profileId: profile.id,
         masterCvVersion: profile.masterCv.version,
         master,
-        adapted: fromMasterCv(master, reply, jobOffer.skills ?? []),
+        adapted,
+        origins,
         questions: questionsFor(master, application, reply),
         proposedAt: new Date().toISOString(),
       };
@@ -357,12 +435,19 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
       return { ok: true, tailoredCv: await stateOf(candidateId, application) };
     },
 
-    async save(candidateId, applicationId) {
+    async save(candidateId, applicationId, input) {
+      const parsed = saveSchema.safeParse(input ?? {}, { reportInput: true });
+      if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       const application = await deps.applications.get(candidateId, applicationId);
       if (!application) return NOT_FOUND;
-      const { rows } = await database.query<{ proposal: ProposalRow | null }>(`SELECT proposal FROM tailored_cv WHERE application_id = $1`, [application.id]);
+      const { revision } = parsed.data;
+      const { rows } = await database.query<{ proposal: ProposalRow | null; revision: string | null }>(
+        `SELECT proposal, md5(proposal::text) AS revision FROM tailored_cv WHERE application_id = $1`,
+        [application.id],
+      );
       const proposal = rows[0]?.proposal;
       if (!proposal) return NOT_FOUND;
+      if (rows[0]!.revision !== revision) return { ok: false, error: "proposal_changed" };
       const profile = await deps.profiles.get(candidateId, application.profile.id);
       if (!profile || profile.id !== proposal.profileId || profile.masterCv.version !== proposal.masterCvVersion) return { ok: false, error: "master_cv_changed" };
       const saved: SavedRow = {
@@ -372,9 +457,9 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
         content: withConfirmed(proposal.adapted, proposal.questions),
         savedAt: new Date().toISOString(),
       };
-      // Only the proposal reviewed: one proposed or answered meanwhile is not saved unseen.
-      const { rowCount } = await database.query(`UPDATE tailored_cv SET saved = $2, proposal = NULL WHERE application_id = $1 AND proposal = $3`, [application.id, saved, proposal]);
-      if (rowCount === 0) return NOT_FOUND;
+      // Only the revision the Candidate reviewed: one proposed or answered since, even a moment ago, is not saved unseen.
+      const { rowCount } = await database.query(`UPDATE tailored_cv SET saved = $2, proposal = NULL WHERE application_id = $1 AND md5(proposal::text) = $3`, [application.id, saved, revision]);
+      if (rowCount === 0) return { ok: false, error: "proposal_changed" };
       return { ok: true, tailoredCv: await stateOf(candidateId, application) };
     },
   };

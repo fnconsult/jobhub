@@ -5,13 +5,15 @@ import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { CvChange } from "@/tailored-cv/changes";
 
-type Status = "proposing" | "proposed" | "saving" | "saved" | "unavailable" | "masterCvChanged" | "error" | null;
+type Status = "proposing" | "proposed" | "saving" | "saved" | "unavailable" | "masterCvChanged" | "proposalChanged" | "error" | null;
 
 /** The Application's Tailored CV as it comes from the server (dates as strings). */
 interface TailoredCv {
   documentLanguage: DocumentLanguage;
   proposal: {
     language: DocumentLanguage;
+    /** Names this exact proposal: saving sends it, so only the one reviewed is saved. */
+    revision: string;
     content: CvContent;
     questions: { requirement: string; answer: "confirmed" | "declined" | null }[];
     changes: CvChange[];
@@ -25,7 +27,10 @@ async function send(url: string, method: "POST" | "PATCH", body?: object): Promi
     const response = await fetch(url, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body ?? {}) });
     if (response.ok) return { tailoredCv: (await response.json()) as TailoredCv, status: null };
     if (response.status === 503) return { status: "unavailable" };
-    if (response.status === 409) return { status: "masterCvChanged" };
+    if (response.status === 409) {
+      const { error } = (await response.json().catch(() => ({}))) as { error?: string };
+      return { status: error === "proposal_changed" ? "proposalChanged" : "masterCvChanged" };
+    }
     return { status: "error" };
   } catch {
     return { status: "error" };
@@ -58,9 +63,21 @@ export function TailoredCvReview({ applicationId, initial, locale }: { applicati
     return run(send(url, "POST", { language }), "proposed");
   };
   const answer = (requirement: string, confirmed: boolean) => run(send(url, "PATCH", { requirement, confirmed }), null);
-  const save = () => {
+  const save = async () => {
+    if (!proposal) return;
     setStatus("saving");
-    return run(send(`${url}/save`, "POST"), "saved");
+    const result = await send(`${url}/save`, "POST", { revision: proposal.revision });
+    if (result.status === "proposalChanged") {
+      // Proposed again or answered elsewhere: show that proposal, to be reviewed before it is saved.
+      const current = await fetch(url)
+        .then((response) => (response.ok ? (response.json() as Promise<TailoredCv>) : null))
+        .catch(() => null);
+      if (current) setState(current);
+      return setStatus("proposalChanged");
+    }
+    if (!result.tailoredCv) return setStatus(result.status ?? "error");
+    setState(result.tailoredCv);
+    setStatus("saved");
   };
 
   return (
@@ -144,7 +161,7 @@ export function TailoredCvReview({ applicationId, initial, locale }: { applicati
           </p>
           <div className="actions">
             <button className="button button-primary" type="button" onClick={save} disabled={status === "saving"} aria-describedby={`${id}-save-hint`}>
-              {t("tailoredCv.save")}
+              {status === "saving" ? t("tailoredCv.saving") : t("tailoredCv.save")}
             </button>
             <button className="button" type="button" onClick={propose} disabled={status === "proposing"}>
               {status === "proposing" ? t("tailoredCv.proposing") : t("tailoredCv.proposeAgain")}
@@ -179,7 +196,7 @@ function ChangeItem({ change }: { change: CvChange }) {
   return (
     <li className="board-card">
       <p className="cv-entry">{heading}</p>
-      {change.kind === "rephrased" ? (
+      {change.kind === "rephrased" || change.kind === "reordered" ? (
         <dl className="tailored-cv-compare">
           <div>
             <dt>{t("tailoredCv.master")}</dt>
@@ -198,6 +215,7 @@ function ChangeItem({ change }: { change: CvChange }) {
 /** The saved Tailored CV, read-only. */
 function CvSummary({ cv }: { cv: CvContent }) {
   const { t } = useTranslation();
+  const id = useId();
   return (
     <div className="cv">
       {cv.headline ? <p className="cv-name">{cv.headline}</p> : null}
@@ -212,7 +230,31 @@ function CvSummary({ cv }: { cv: CvContent }) {
           ))}
         </ul>
       ) : null}
+      {cv.education.length > 0 ? (
+        <>
+          <p id={`${id}-education`} className="cv-entry">
+            {t("tailoredCv.sections.education")}
+          </p>
+          <ul className="cv-list" aria-labelledby={`${id}-education`}>
+            {cv.education.map((item, index) => (
+              <li key={index}>{[item.degree, item.institution, item.year].filter(Boolean).join(" · ")}</li>
+            ))}
+          </ul>
+        </>
+      ) : null}
       {cv.skills.length > 0 ? <p>{t("tailoredCv.skillsLine", { skills: cv.skills.join(", ") })}</p> : null}
+      {cv.languages.length > 0 ? (
+        <>
+          <p id={`${id}-languages`} className="cv-entry">
+            {t("tailoredCv.sections.languages")}
+          </p>
+          <ul className="cv-list" aria-labelledby={`${id}-languages`}>
+            {cv.languages.map((item, index) => (
+              <li key={index}>{[item.name, item.level].filter(Boolean).join(" · ")}</li>
+            ))}
+          </ul>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -220,7 +262,7 @@ function CvSummary({ cv }: { cv: CvContent }) {
 function StatusMessage({ status }: { status: Status }) {
   const { t } = useTranslation();
   if (status === "proposed" || status === "saved") return <p role="status">{t(`tailoredCv.${status}`)}</p>;
-  if (status === "unavailable" || status === "masterCvChanged" || status === "error")
+  if (status === "unavailable" || status === "masterCvChanged" || status === "proposalChanged" || status === "error")
     return (
       <p className="field-error" role="alert">
         {t(`tailoredCv.${status}`)}

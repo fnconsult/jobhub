@@ -817,6 +817,7 @@
     "skillsLine": "Skills: {{skills}}",
     "unavailable": "The coach could not propose a tailored CV right now. Try again in a few minutes.",
     "masterCvChanged": "Your reference CV changed since this proposal: ask for a new proposal before saving.",
+    "proposalChanged": "This proposal changed since you reviewed it (in another tab?): review it again before saving.",
     "error": "That did not work. Check your connection and try again."
   }
 }

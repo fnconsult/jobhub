@@ -14,6 +14,8 @@
 // job's description "pour « <offer title> »"; it reverses its skills, cuts every
 // job but the first, and tries to slip in "Power BI" and a "20 ans" figure, which
 // the app must drop (ADR-0006). It reports "Management d'équipe" as missing.
+// In English, it translates "Anglais"/"courant" into "English"/"fluent", keeping
+// the language's id, as a real AI Coach writing in the Document Language would.
 //
 // For a CV (task cv_parsing, prompt "CV :\n<text>") it answers like the AI
 // Coach would: the CV's first line as the name, its second as the title, and
@@ -79,7 +81,9 @@ globalThis.fetch = async (input, init) => {
       experience: first ? [{ ...first, description: `${first.description} pour « ${title} »` }] : [],
       education: cv.education ?? [],
       skills: ["Power BI", ...(cv.skills ?? []).toReversed()],
-      languages: cv.languages ?? [],
+      languages: (cv.languages ?? []).map((item) =>
+        language === "en" ? { ...item, name: item.name === "Anglais" ? "English" : item.name, level: item.level === "courant" ? "fluent" : item.level } : item,
+      ),
       missing: ["Management d'équipe"],
     });
   }

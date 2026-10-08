@@ -119,6 +119,27 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
         upgradeTo: "premium",
       });
     });
+    it("says whether one more would be allowed without counting it", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+
+      expect(await t.billing.allows(marie.id, "enrichedContacts")).toEqual({ allowed: false, quota: "enrichedContacts", plan: "free", limit: 0, upgradeTo: "premium" });
+      await t.billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, enrichedContacts: 1 });
+      expect(await t.billing.allows(marie.id, "enrichedContacts")).toEqual({ allowed: true, remaining: 0 });
+      expect(await t.billing.allows(marie.id, "enrichedContacts")).toEqual({ allowed: true, remaining: 0 });
+      expect((await t.billing.entitlements(marie.id)).usedThisMonth.enrichedContacts).toBe(0);
+    });
+
+    it("gives back a use whose work could not be done", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      await t.billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, enrichedContacts: 1 });
+      await t.billing.use(marie.id, "enrichedContacts");
+
+      await t.billing.release(marie.id, "enrichedContacts");
+      await t.billing.release(marie.id, "enrichedContacts");
+
+      expect((await t.billing.entitlements(marie.id)).usedThisMonth.enrichedContacts).toBe(0);
+      expect((await t.billing.use(marie.id, "enrichedContacts")).allowed).toBe(true);
+    });
   });
 
   describe("Profiles", () => {

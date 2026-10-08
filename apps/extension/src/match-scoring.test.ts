@@ -173,7 +173,7 @@ describe("scoring a CV against a Job Offer from the extension", () => {
       },
     };
 
-    expect(await createMatchScoring({ api: forgetMidway, session: session() }).score(jobOffer, cv)).toMatchObject({ ok: true });
+    expect(await createMatchScoring({ api: forgetMidway, session: session(), lock: memoryLock() }).score(jobOffer, cv)).toMatchObject({ ok: true });
 
     expect(await session().read()).toEqual({});
   });
@@ -190,7 +190,7 @@ describe("scoring a CV against a Job Offer from the extension", () => {
       },
     };
 
-    await createMatchScoring({ api: slow, session: session() }).score(jobOffer, cv);
+    await createMatchScoring({ api: slow, session: session(), lock: memoryLock() }).score(jobOffer, cv);
 
     expect(await session().read()).toEqual({});
   });
@@ -207,7 +207,7 @@ describe("scoring a CV against a Job Offer from the extension", () => {
       },
     };
 
-    await createMatchScoring({ api: replaceCvMidway, session: session() }).score(jobOffer, cv);
+    await createMatchScoring({ api: replaceCvMidway, session: session(), lock: memoryLock() }).score(jobOffer, cv);
 
     expect((await session().read()).matchScore).toBeUndefined();
   });

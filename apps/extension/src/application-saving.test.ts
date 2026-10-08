@@ -84,7 +84,7 @@ describe("saving a captured Job Offer as an Application, from the extension", ()
     const session = await guestWork({ jobOffer, cv, searchCriteria });
     const { api, state } = account();
 
-    const saved = await createApplicationSaving({ api, session }).open();
+    const saved = await createApplicationSaving({ api, session, lock: oneAtATime() }).open();
 
     expect(saved).toEqual({ state: "saved", applicationId: "a-1", jobOffer, newProfile: { id: "p-1", name: "Directrice financière" } });
     expect(state.profiles).toEqual([{ id: "p-1", name: "Directrice financière", cv, searchCriteria }]);
@@ -96,9 +96,9 @@ describe("saving a captured Job Offer as an Application, from the extension", ()
   it("shows where the work went to every page opened afterwards", async () => {
     const session = await guestWork({ jobOffer, cv, searchCriteria });
     const { api } = account();
-    const saved = await createApplicationSaving({ api, session }).open();
+    const saved = await createApplicationSaving({ api, session, lock: oneAtATime() }).open();
 
-    expect(await createApplicationSaving({ api, session }).open()).toEqual(saved);
+    expect(await createApplicationSaving({ api, session, lock: oneAtATime() }).open()).toEqual(saved);
   });
 
   it("makes one Profile and one Application when several pages keep the Guest's work at once", async () => {
@@ -116,7 +116,7 @@ describe("saving a captured Job Offer as an Application, from the extension", ()
   it("lets a signed-in Candidate choose the Profile, and creates the Application with it directly", async () => {
     const session = await guestWork({ jobOffer });
     const { api, state } = account({ profiles: [{ id: "p-1", name: "DAF" }, { id: "p-2", name: "Consultante transformation" }] });
-    const saving = createApplicationSaving({ api, session });
+    const saving = createApplicationSaving({ api, session, lock: oneAtATime() });
 
     expect(await saving.open()).toEqual({
       state: "choose",
@@ -131,7 +131,7 @@ describe("saving a captured Job Offer as an Application, from the extension", ()
   it("offers a Candidate who has Profiles to make a new one from the CV in the session", async () => {
     const session = await guestWork({ jobOffer, cv, searchCriteria });
     const { api, state } = account({ profiles: [{ id: "p-1", name: "DAF" }] });
-    const saving = createApplicationSaving({ api, session });
+    const saving = createApplicationSaving({ api, session, lock: oneAtATime() });
 
     expect(await saving.open()).toEqual({ state: "choose", profiles: [{ id: "p-1", name: "DAF" }], fromCv: true });
     expect(await saving.save("new_profile_from_cv")).toMatchObject({ state: "saved", newProfile: { id: "p-2", name: "Directrice financière" } });
@@ -142,7 +142,7 @@ describe("saving a captured Job Offer as an Application, from the extension", ()
     const session = await guestWork({ jobOffer, cv, searchCriteria: { targetRole: "", location: "" } });
     const { api, state } = account();
 
-    await createApplicationSaving({ api, session }).open();
+    await createApplicationSaving({ api, session, lock: oneAtATime() }).open();
 
     expect(state.profiles[0]).toMatchObject({ name: jobOffer.title, searchCriteria: { targetRole: jobOffer.title, location: "Lyon" } });
   });
@@ -151,7 +151,7 @@ describe("saving a captured Job Offer as an Application, from the extension", ()
     const session = await guestWork({ jobOffer: { ...jobOffer, location: undefined }, cv, searchCriteria: { targetRole: "DAF", location: "" } });
     const { api, state } = account();
 
-    expect(await createApplicationSaving({ api, session }).open()).toEqual({ state: "failed", error: "search_criteria_missing" });
+    expect(await createApplicationSaving({ api, session, lock: oneAtATime() }).open()).toEqual({ state: "failed", error: "search_criteria_missing" });
     expect(state.applications).toEqual([]);
     expect(await session.read()).toMatchObject({ cv });
   });
@@ -160,7 +160,7 @@ describe("saving a captured Job Offer as an Application, from the extension", ()
     const session = await guestWork({ jobOffer, cv, searchCriteria });
     const { api } = account({ profiles: [{ id: "p-1", name: "DAF" }], profileQuota: 1 });
 
-    expect(await createApplicationSaving({ api, session }).save("new_profile_from_cv")).toEqual({
+    expect(await createApplicationSaving({ api, session, lock: oneAtATime() }).save("new_profile_from_cv")).toEqual({
       state: "failed",
       error: "plan_quota_reached",
       prompt: { message: "Your Plan includes 1 Profile.", action: "Upgrade", href: "/abonnement" },
@@ -173,14 +173,14 @@ describe("saving a captured Job Offer as an Application, from the extension", ()
     const { api } = account({ profiles: [{ id: "p-1", name: "DAF" }] });
     api.saveApplication = async () => ({ ok: false, error: "not_found" });
 
-    expect(await createApplicationSaving({ api, session }).save({ profileId: "p-1" })).toEqual({ state: "failed", error: "job_offer_gone" });
+    expect(await createApplicationSaving({ api, session, lock: oneAtATime() }).save({ profileId: "p-1" })).toEqual({ state: "failed", error: "job_offer_gone" });
   });
 
   it("has nothing to save without a captured Job Offer", async () => {
     const session = await guestWork({ cv, searchCriteria });
     const { api, state } = account();
 
-    expect(await createApplicationSaving({ api, session }).open()).toEqual({ state: "nothing_to_save" });
+    expect(await createApplicationSaving({ api, session, lock: oneAtATime() }).open()).toEqual({ state: "nothing_to_save" });
     expect(state.profiles).toEqual([]);
   });
 });

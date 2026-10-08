@@ -769,7 +769,8 @@
   "tailoredCv": {
     "title": "CV tailored to the offer",
     "factsOnly": "The coach adapts your reference CV to this offer: it rephrases, reorders, cuts and emphasises what it says, and never invents anything. What the offer asks for and your CV does not show, you are asked about.",
-    "languageHint": "The offer's language by default. A change applies to the next proposal.",
+    "languageLabel": "Tailored CV language",
+    "languageHint": "The offer's language by default. It is also the cover letter's and outreach message's; a change applies to the next proposal.",
     "none": "No tailored CV yet. The coach proposes one, which you check before saving it.",
     "noneSinceSaved": "You can ask for a new proposal: the saved CV stays in place until you save another one.",
     "propose": "Propose a tailored CV",

@@ -81,7 +81,7 @@ export function TailoredCvReview({ applicationId, initial, locale }: { applicati
       ) : null}
 
       <div className="field">
-        <label htmlFor={`${id}-language`}>{t("tailoredDocuments.languageLabel")}</label>
+        <label htmlFor={`${id}-language`}>{t("tailoredCv.languageLabel")}</label>
         <p id={`${id}-language-hint`} className="hint">
           {t("tailoredCv.languageHint")}
         </p>

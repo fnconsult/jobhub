@@ -769,7 +769,8 @@
   "tailoredCv": {
     "title": "CV adapté à l'offre",
     "factsOnly": "Le coach adapte votre CV de référence à cette offre : il reformule, réordonne, coupe et met en avant ce qu'il contient, sans jamais rien inventer. Ce que l'offre demande et que votre CV ne montre pas vous est demandé.",
-    "languageHint": "Par défaut, la langue de l'offre. Le changement s'applique à la prochaine proposition.",
+    "languageLabel": "Langue du CV adapté",
+    "languageHint": "Par défaut, la langue de l'offre. C'est aussi celle de la lettre et du message d'approche ; le changement s'applique à la prochaine proposition.",
     "none": "Aucun CV adapté pour l'instant. Le coach vous en propose un, que vous vérifiez avant de l'enregistrer.",
     "noneSinceSaved": "Vous pouvez demander une nouvelle proposition : le CV enregistré reste en place tant que vous n'en enregistrez pas un autre.",
     "propose": "Proposer un CV adapté",

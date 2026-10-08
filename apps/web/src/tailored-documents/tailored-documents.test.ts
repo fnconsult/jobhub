@@ -197,4 +197,61 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
     expect(lastCall().prompt).not.toContain("Dossier");
     expect(result).toMatchObject({ ok: true, drafts: { outreachMessage: { contactRoles: [] } } });
   });
+
+  it("the Candidate edits a draft; the edit is kept on the Application", async () => {
+    await documents.draft(candidateId, applicationId, { document: "outreach_message" });
+
+    const result = await documents.edit(candidateId, applicationId, { document: "outreach_message", subject: "Ma candidature", text: "  Bonjour Madame,\n\nJe vous écris.  " });
+
+    expect(result).toMatchObject({ ok: true, drafts: { outreachMessage: { subject: "Ma candidature", text: "Bonjour Madame,\n\nJe vous écris.", channel: "email" } } });
+    expect((await documents.get(candidateId, applicationId))?.outreachMessage?.text).toBe("Bonjour Madame,\n\nJe vous écris.");
+  });
+
+  it("a draft cannot be edited to nothing, nor before the AI Coach has written it", async () => {
+    expect(await documents.edit(candidateId, applicationId, { document: "cover_letter", text: "Ma lettre" })).toEqual({ ok: false, error: "not_found" });
+    await documents.draft(candidateId, applicationId, { document: "cover_letter" });
+
+    expect(await documents.edit(candidateId, applicationId, { document: "cover_letter", text: "   " })).toEqual({
+      ok: false,
+      errors: [{ field: "text", code: "required" }],
+    });
+  });
+
+  it("drafting again replaces the stored draft, edits included", async () => {
+    await documents.draft(candidateId, applicationId, { document: "cover_letter" });
+    await documents.edit(candidateId, applicationId, { document: "cover_letter", text: "Ma version" });
+
+    const result = await documents.draft(candidateId, applicationId, { document: "cover_letter" });
+
+    expect(result).toMatchObject({ ok: true, drafts: { coverLetter: { text: "Madame, Monsieur,\n\nVotre offre a retenu toute mon attention." } } });
+  });
+
+  it("another Candidate's Application has no drafts to read, write or edit", async () => {
+    await documents.draft(candidateId, applicationId, { document: "cover_letter" });
+
+    expect(await documents.get(otherCandidateId, applicationId)).toBeNull();
+    expect(await documents.draft(otherCandidateId, applicationId, { document: "cover_letter" })).toEqual({ ok: false, error: "not_found" });
+    expect(await documents.edit(otherCandidateId, applicationId, { document: "cover_letter", text: "Piraté" })).toEqual({ ok: false, error: "not_found" });
+    expect(provider.calls).toHaveLength(1);
+    expect((await documents.get(candidateId, applicationId))?.coverLetter?.text).toContain("Votre offre");
+  });
+
+  it("when the AI Coach cannot write, nothing is changed and the Candidate can try again later", async () => {
+    await documents.draft(candidateId, applicationId, { document: "cover_letter" });
+    await documents.edit(candidateId, applicationId, { document: "cover_letter", text: "Ma version" });
+    provider.generate = async () => {
+      throw new Error("provider down");
+    };
+
+    expect(await documents.draft(candidateId, applicationId, { document: "cover_letter", language: "en" })).toEqual({ ok: false, error: "unavailable" });
+    expect(await documents.get(candidateId, applicationId)).toMatchObject({ documentLanguage: "fr", coverLetter: { text: "Ma version" } });
+  });
+
+  it("an unknown document or channel is refused", async () => {
+    expect(await documents.draft(candidateId, applicationId, { document: "cv" })).toEqual({ ok: false, errors: [{ field: "document", code: "invalid" }] });
+    expect(await documents.draft(candidateId, applicationId, { document: "outreach_message", channel: "sms" })).toEqual({
+      ok: false,
+      errors: [{ field: "channel", code: "invalid" }],
+    });
+  });
 });

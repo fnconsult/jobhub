@@ -92,6 +92,11 @@ export interface TailoredDocuments {
   get(candidateId: string, applicationId: string): Promise<ApplicationDrafts | null>;
   /** Has the AI Coach draft one document, replacing the stored one. `input`: { document, language?, channel? (Outreach Message: "email" by default) }. */
   draft(candidateId: string, applicationId: string, input: unknown): Promise<TailoredDocumentsResult>;
+  /**
+   * The Candidate's edit of a draft the AI Coach wrote. `input`: { document, text, subject? (Outreach Message) }.
+   * "not_found" also when there is no draft yet.
+   */
+  edit(candidateId: string, applicationId: string, input: unknown): Promise<TailoredDocumentsResult>;
 }
 
 export interface TailoredDocumentsDeps {
@@ -106,6 +111,16 @@ const draftSchema = z.object({
   document: z.enum(TAILORED_DOCUMENTS),
   language: z.enum(DOCUMENT_LANGUAGES).optional(),
   channel: z.enum(OUTREACH_CHANNELS).default("email"),
+});
+
+/** Longest text kept for a draft, in characters: a long letter is about 4,000. */
+export const MAX_DRAFT_LENGTH = 10_000;
+export const MAX_SUBJECT_LENGTH = 300;
+
+const editSchema = z.object({
+  document: z.enum(TAILORED_DOCUMENTS),
+  text: z.string().trim().min(1).max(MAX_DRAFT_LENGTH),
+  subject: z.string().trim().max(MAX_SUBJECT_LENGTH).optional(),
 });
 
 const NOT_FOUND = { ok: false, error: "not_found" } as const;
@@ -298,6 +313,20 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
            SET language = $3, channel = $4, subject = $5, contact_roles = $6, text = $7, drafted_at = now(), updated_at = now()`,
         [application.id, document, language, document === "outreach_message" ? channel : null, written.subject, written.contactRoles, written.text],
       );
+      return { ok: true, drafts: await draftsOf(application) };
+    },
+
+    async edit(candidateId, applicationId, input) {
+      const parsed = editSchema.safeParse(input, { reportInput: true });
+      if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+      const application = await deps.applications.get(candidateId, applicationId);
+      if (!application) return NOT_FOUND;
+      const { document, text, subject } = parsed.data;
+      const { rowCount } = await database.query(
+        `UPDATE tailored_document SET text = $3, subject = COALESCE($4, subject), updated_at = now() WHERE application_id = $1 AND kind = $2`,
+        [application.id, document, text, document === "outreach_message" ? (subject ?? null) : null],
+      );
+      if (rowCount === 0) return NOT_FOUND;
       return { ok: true, drafts: await draftsOf(application) };
     },
   };

@@ -77,6 +77,21 @@ export function JobOfferView({ jobOffer, t, locale }: { jobOffer: JobOffer; t: T
   );
 }
 
+/**
+ * Says the Job Offer is an Expired Job Offer, and since when; nothing when it is
+ * still published. `children` adds what it means for the page it is on.
+ */
+export function ExpiredJobOfferNotice({ jobOffer, t, locale, children }: { jobOffer: JobOffer; t: T; locale: string; children?: React.ReactNode }) {
+  if (!jobOffer.expiredAt) return null;
+  const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(jobOffer.expiredAt);
+  return (
+    <div className="notice notice-expired" role="status">
+      <p>{t("jobOffer.expired", { date })}</p>
+      {children ? <p>{children}</p> : null}
+    </div>
+  );
+}
+
 function Detail({ term, children }: { term: string; children: React.ReactNode }) {
   return (
     <>

@@ -8,7 +8,7 @@ import { AddInterviewForm, ApplicationProfileSelect, ApplicationStatusSelect, Re
 import { CoachInView } from "@/components/CoachPanel";
 import { CompanyDossierView } from "@/components/CompanyDossierView";
 import { getCompanyDossiers } from "@/company-dossiers/server";
-import { JobOfferView } from "@/components/JobOfferView";
+import { ExpiredJobOfferNotice, JobOfferView } from "@/components/JobOfferView";
 import { MatchScoreView } from "@/components/MatchScoreView";
 import { TailoredDocumentsEditor } from "@/components/TailoredDocumentsEditor";
 import { WorkspaceHeader } from "@/components/WorkspaceHeader";
@@ -53,6 +53,9 @@ export default async function ApplicationPage({ params }: Params) {
       <h1>{jobOffer.title}</h1>
       {jobOffer.employer ? <p className="lead">{jobOffer.employer}</p> : null}
       <p>{t("application.savedOn", { date: date.format(application.createdAt) })}</p>
+      <ExpiredJobOfferNotice jobOffer={jobOffer} t={t} locale={locale}>
+        {t("application.expiredNotice")}
+      </ExpiredJobOfferNotice>
       <CoachInView {...inView} />
       <ActionCardList key={application.id} cards={cards.map(({ id, title, body }) => ({ id, title, body }))} />
 

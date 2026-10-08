@@ -452,7 +452,8 @@
     "interviews": "Interviews",
     "interviewCount": "Interviews: {{number}}",
     "emptyColumn": "No applications",
-    "noInterview": "None"
+    "noInterview": "None",
+    "expired": "Expired job offer"
   },
   "application": {
     "statusLabel": "Status",
@@ -471,7 +472,8 @@
     "addInterview": "Add the interview",
     "removeInterview": "Remove the interview of {{date}}",
     "working": "Saving…",
-    "backToApplications": "Back to my applications"
+    "backToApplications": "Back to my applications",
+    "expiredNotice": "Your application and its status stay as they are: you decide what happens next."
   },
   "jobOffer": {
     "details": "At a glance",
@@ -497,7 +499,8 @@
     "alreadySaved": "You already follow this job offer.",
     "seeApplication": "See my application",
     "signInToSave": "Sign in to save this job offer",
-    "createProfileToSave": "Create a profile to save this job offer"
+    "createProfileToSave": "Create a profile to save this job offer",
+    "expired": "Expired job offer: no longer published on its original site since {{date}}."
   },
   "matchScore": {
     "title": "Match score",

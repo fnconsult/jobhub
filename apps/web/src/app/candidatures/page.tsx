@@ -53,6 +53,11 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
 const jobOfferLabel = (application: ApplicationSummary) =>
   [application.jobOffer.title, application.jobOffer.employer, application.jobOffer.location].filter(Boolean).join(" · ");
 
+/** Flags an Application on an Expired Job Offer, in words (its status is left as the Candidate set it). */
+function ExpiredFlag({ application, t }: { application: ApplicationSummary; t: T }) {
+  return application.jobOffer.expiredAt ? <span className="expired-flag">{t("applications.expired")}</span> : null;
+}
+
 function List({ applications, t, formatDate }: { applications: ApplicationSummary[]; t: T; formatDate: (value: Date) => string }) {
   return (
     <div className="table-scroll">
@@ -70,6 +75,7 @@ function List({ applications, t, formatDate }: { applications: ApplicationSummar
             <tr key={application.id}>
               <th scope="row">
                 <Link href={routes.application(application.id)}>{jobOfferLabel(application)}</Link>
+                <ExpiredFlag application={application} t={t} />
               </th>
               <td>{application.profile.name}</td>
               <td>
@@ -103,6 +109,7 @@ function Board({ applications, t }: { applications: ApplicationSummary[]; t: T }
                 {inColumn.map((application) => (
                   <li key={application.id} className="board-card">
                     <Link href={routes.application(application.id)}>{jobOfferLabel(application)}</Link>
+                    <ExpiredFlag application={application} t={t} />
                     <p>{application.profile.name}</p>
                     {application.interviews.length > 0 ? <p>{t("applications.interviewCount", { number: application.interviews.length })}</p> : null}
                     <ApplicationStatusSelect applicationId={application.id} status={application.status} />

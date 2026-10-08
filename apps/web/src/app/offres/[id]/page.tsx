@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { getApplications } from "@/applications/server";
 import { getCurrentCandidate } from "@/auth/server";
 import { SaveJobOfferForm } from "@/components/ApplicationControls";
-import { JobOfferView } from "@/components/JobOfferView";
+import { ExpiredJobOfferNotice, JobOfferView } from "@/components/JobOfferView";
 import { TextSizeControl } from "@/components/TextSizeControl";
 import { WorkspaceHeader } from "@/components/WorkspaceHeader";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -49,6 +49,7 @@ export default async function JobOfferPage({ params }: Params) {
         </header>
       )}
       <h1>{jobOffer.title}</h1>
+      <ExpiredJobOfferNotice jobOffer={jobOffer} t={t} locale={locale} />
       <section className="stack" aria-labelledby="save-job-offer">
         <h2 id="save-job-offer">{t("jobOffer.saveTitle")}</h2>
         {candidate ? <SaveOrSeeApplication candidateId={candidate.id} jobOfferId={jobOffer.id} /> : (

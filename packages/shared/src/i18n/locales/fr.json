@@ -80,7 +80,20 @@
         "wanted": "Votre minimum : {{amount}} brut par an"
       },
       "candidateNotice": "Cette offre est enregistrée dans votre compte Jobbbox. Le CV que vous importez ici reste dans ce navigateur le temps de votre session : Jobbbox le lit pour calculer le Match Score sans l'enregistrer.",
-      "forgetCv": "Effacer ce CV de ce navigateur"
+      "forgetCv": "Effacer ce CV de ce navigateur",
+      "signUpHint": "Une fois votre compte créé ou après vous être connecté, revenez sur cette page : votre CV deviendra votre premier profil et cette offre votre première candidature.",
+      "saveTitle": "Enregistrer dans mes candidatures",
+      "profileLabel": "Profil utilisé pour cette candidature",
+      "newProfileFromCv": "Un nouveau profil, à partir de ce CV",
+      "save": "Enregistrer la candidature",
+      "saving": "Enregistrement en cours…",
+      "firstProfileHint": "Importez votre CV ci-dessous : il deviendra votre premier profil, et cette offre votre première candidature.",
+      "saved": "Cette offre est enregistrée dans vos candidatures, au statut « À postuler ».",
+      "profileCreated": "Votre CV est devenu votre profil « {{name}} ».",
+      "openApplication": "Voir ma candidature",
+      "searchCriteriaMissing": "Nous n'avons trouvé ni dans votre CV ni dans l'offre le poste visé et le lieu de votre recherche. Créez votre profil sur Jobbbox, puis enregistrez de nouveau cette offre.",
+      "createProfile": "Créer mon profil sur Jobbbox",
+      "profileQuotaReached": "Votre formule ne permet pas de créer un autre profil. Choisissez l'un de vos profils."
     },
     "allSites": "Détecter les offres sur tous les sites",
     "allSitesHint": "Pour voir « Analyser cette offre » aussi sur les sites carrières des employeurs. Votre navigateur vous demandera l'autorisation ; les pages restent lues dans ce navigateur uniquement."

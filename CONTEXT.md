@@ -207,6 +207,9 @@ A 0–100 measure of how well a CV (Master or Tailored) fits a Job Offer, with a
 Each breakdown item is a match, partial, mismatch or unknown (the Job Offer or the Search Criteria give nothing to compare); unknown items do not count in the score. Seniority compares the years of experience the Job Offer asks for with the span of dated jobs on the CV.
 _Avoid_: Fit, compatibility, relevance
 
+**Kept Match Score**:
+The last Match Score of a Guest, held in the Guest session with the Job Offer and CV it was computed for. Shown again, not recomputed, until the CV or the Job Offer changes or the Guest asks to rescore; forgotten with the Guest session. A refused score is never kept.
+
 **ATS Score**:
 A 0–100 measure of how well a Master CV would pass applicant tracking systems, combining Readability and keyword coverage for the Profile's target role. Independent of any Job Offer.
 _Avoid_: CV score, parse score

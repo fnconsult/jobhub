@@ -47,6 +47,7 @@
       "submit": "Compute my Match Score",
       "scoring": "Computing the Match Score…",
       "changeCv": "Use another CV",
+      "rescore": "Rescore",
       "forget": "Delete my data now",
       "forgotten": "Your CV and the job offer have been deleted from this browser.",
       "score": "Match Score: {{score}} / 100",

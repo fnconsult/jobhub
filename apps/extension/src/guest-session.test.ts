@@ -1,6 +1,6 @@
 import type { CvContent, JobOffer } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { createGuestSession, type SessionStorage } from "./guest-session";
+import { createGuestSession, type KeptMatchScore, type SessionStorage } from "./guest-session";
 
 /** The browser's session storage (chrome.storage.session): in memory, gone when the browser closes. */
 function memoryStorage(): SessionStorage & { items: Record<string, unknown> } {
@@ -80,6 +80,36 @@ describe("a Guest session", () => {
     await session.forget();
 
     expect(await session.read()).toEqual({});
+    expect(storage.items).toEqual({});
+  });
+
+  it("drops the kept Match Score once the CV or the Job Offer it was computed for is replaced", async () => {
+    const session = createGuestSession(memoryStorage(), () => 0);
+    await session.keepJobOffer(jobOffer);
+    await session.keepCv(cv);
+    const matchScore = { jobOfferId: "jo-1", cv, matchScore: { score: 70 } } as KeptMatchScore;
+
+    await session.keepMatchScore(matchScore);
+    await session.keepJobOffer(jobOffer);
+    expect((await session.read()).matchScore).toEqual(matchScore);
+
+    await session.keepJobOffer({ ...jobOffer, id: "jo-2" });
+    expect((await session.read()).matchScore).toBeUndefined();
+
+    await session.keepMatchScore({ ...matchScore, jobOfferId: "jo-2" });
+    await session.keepCv({ ...cv, skills: ["SAP"] });
+    expect((await session.read()).matchScore).toBeUndefined();
+  });
+
+  it("never brings a forgotten session back to keep a Match Score in it (ADR-0003)", async () => {
+    const storage = memoryStorage();
+    const session = createGuestSession(storage, () => 0);
+    await session.keepJobOffer(jobOffer);
+    await session.keepCv(cv);
+    await session.forget();
+
+    await session.keepMatchScore({ jobOfferId: jobOffer.id, cv, matchScore: { score: 70 } } as KeptMatchScore);
+
     expect(storage.items).toEqual({});
   });
 });

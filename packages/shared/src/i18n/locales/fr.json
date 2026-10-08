@@ -47,6 +47,7 @@
       "submit": "Calculer mon Match Score",
       "scoring": "Calcul du Match Score en cours…",
       "changeCv": "Utiliser un autre CV",
+      "rescore": "Recalculer le Match Score",
       "forget": "Effacer mes données maintenant",
       "forgotten": "Votre CV et l'offre ont été effacés de ce navigateur.",
       "score": "Match Score : {{score}} / 100",

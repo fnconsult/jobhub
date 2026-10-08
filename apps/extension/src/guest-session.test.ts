@@ -59,6 +59,19 @@ describe("a Guest session", () => {
     expect(await session.read()).toEqual({ cv, searchCriteria, expiresAt: 23 * HOUR });
   });
 
+  it("once the work is saved in an account, keeps only where it went, until another Job Offer is captured", async () => {
+    const session = createGuestSession(memoryStorage(), () => 0);
+    await session.keepJobOffer(jobOffer);
+    await session.keepCv(cv, searchCriteria);
+    const saved = { applicationId: "a-1", jobOffer, newProfile: { id: "p-1", name: "DAF" } };
+
+    await session.keepSaved(saved);
+    expect(await session.read()).toEqual({ saved, expiresAt: 23 * HOUR });
+
+    await session.keepJobOffer({ ...jobOffer, id: "jo-2" });
+    expect(await session.read()).toEqual({ jobOffer: { ...jobOffer, id: "jo-2" }, expiresAt: 23 * HOUR });
+  });
+
   it("forgets everything when the Guest asks", async () => {
     const storage = memoryStorage();
     const session = createGuestSession(storage, () => 0);

@@ -62,6 +62,16 @@ function account({ profiles = [] as { id: string; name: string }[], profileQuota
   return { api, state };
 }
 
+/** Runs one piece of work at a time, as the browser's Web Locks do across the extension's pages. */
+function oneAtATime() {
+  let queue: Promise<unknown> = Promise.resolve();
+  return <T>(work: () => Promise<T>): Promise<T> => {
+    const run = queue.then(work);
+    queue = run.catch(() => undefined);
+    return run;
+  };
+}
+
 async function guestWork(work: { jobOffer?: JobOffer; cv?: CvContent; searchCriteria?: typeof searchCriteria }) {
   const session = createGuestSession(memoryStorage());
   if (work.jobOffer) await session.keepJobOffer(work.jobOffer);
@@ -80,7 +90,27 @@ describe("saving a captured Job Offer as an Application, from the extension", ()
     expect(state.profiles).toEqual([{ id: "p-1", name: "Directrice financière", cv, searchCriteria }]);
     expect(state.applications).toEqual([{ id: "a-1", jobOfferId: "jo-1", profileId: "p-1" }]);
     // Now kept in the Candidate's account, the Guest's work leaves the browser (ADR-0003).
-    expect(await session.read()).toEqual({});
+    expect(await session.read()).not.toHaveProperty("cv");
+  });
+
+  it("shows where the work went to every page opened afterwards", async () => {
+    const session = await guestWork({ jobOffer, cv, searchCriteria });
+    const { api } = account();
+    const saved = await createApplicationSaving({ api, session }).open();
+
+    expect(await createApplicationSaving({ api, session }).open()).toEqual(saved);
+  });
+
+  it("makes one Profile and one Application when several pages keep the Guest's work at once", async () => {
+    const session = await guestWork({ jobOffer, cv, searchCriteria });
+    const { api, state } = account();
+    const lock = oneAtATime();
+
+    const opened = await Promise.all([1, 2, 3].map(() => createApplicationSaving({ api, session, lock }).open()));
+
+    expect(state.profiles).toHaveLength(1);
+    expect(state.applications).toHaveLength(1);
+    expect(new Set(opened.map((page) => JSON.stringify(page))).size).toBe(1);
   });
 
   it("lets a signed-in Candidate choose the Profile, and creates the Application with it directly", async () => {

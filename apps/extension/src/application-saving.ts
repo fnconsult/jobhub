@@ -9,9 +9,12 @@
  *    first Application ("À postuler");
  *  - otherwise the Candidate chooses the Profile: one of theirs or, when a CV is
  *    in the session, a new one made from it;
- *  - once saved, the session is forgotten: what it held is in the Candidate's
- *    account now, and a Guest's CV must not outlive its use (ADR-0003). Until
- *    then (a refusal, the web app out of reach) it is kept, to try again.
+ *  - once saved, the CV and the Job Offer leave the session: they are in the
+ *    Candidate's account now, and a Guest's CV must not outlive its use
+ *    (ADR-0003). Only where they went is kept, so every page shows it. Until
+ *    then (a refusal, the web app out of reach) they are kept, to try again;
+ *  - the extension's pages share the session, so they save one at a time
+ *    (`lock`): several pages open at sign-up still make one Profile.
  * Problems come back as results, never exceptions.
  */
 import { fitProfileName, type JobOffer } from "@jobhub/shared";
@@ -47,9 +50,15 @@ export interface ApplicationSaving {
 
 type Api = Pick<JobbboxApi, "profiles" | "createProfile" | "saveApplication">;
 
+/** Runs `work` while no other page of the extension saves. */
+export type Lock = <T>(work: () => Promise<T>) => Promise<T>;
+
+/** The browser's Web Locks, shared by every page of the extension (one origin). */
+const webLock: Lock = (work) => navigator.locks.request("jobbbox-application-saving", work);
+
 const failed = (error: Exclude<SavingFailure["error"], "plan_quota_reached">): SavingFailure => ({ state: "failed", error });
 
-export function createApplicationSaving({ api, session }: { api: Api; session: GuestSession }): ApplicationSaving {
+export function createApplicationSaving({ api, session, lock = webLock }: { api: Api; session: GuestSession; lock?: Lock }): ApplicationSaving {
   async function save(choice: ProfileChoice, work: GuestSessionContent): Promise<SavingState | SavingFailure> {
     const { jobOffer, cv, searchCriteria } = work;
     if (!jobOffer) return { state: "nothing_to_save" };
@@ -76,21 +85,27 @@ export function createApplicationSaving({ api, session }: { api: Api; session: G
 
     const saved = await api.saveApplication(jobOffer.id, profileId);
     if (!saved.ok) return failed(saved.error === "not_found" ? "job_offer_gone" : saved.error === "signed_out" ? "signed_out" : "unreachable");
-    await session.forget();
-    return { state: "saved", applicationId: saved.applicationId, jobOffer, newProfile };
+    const kept = { applicationId: saved.applicationId, jobOffer, newProfile };
+    await session.keepSaved(kept);
+    return { state: "saved", ...kept };
   }
 
   return {
-    async open() {
-      const work = await session.read();
-      if (!work.jobOffer) return { state: "nothing_to_save" };
-      const listed = await api.profiles();
-      if (!listed.ok) return failed(listed.error);
-      if (listed.profiles.length === 0 && work.cv) return save("new_profile_from_cv", work);
-      return { state: "choose", profiles: listed.profiles, fromCv: Boolean(work.cv) };
-    },
-    async save(choice) {
-      return save(choice, await session.read());
-    },
+    open: () =>
+      lock(async () => {
+        const work = await session.read();
+        if (!work.jobOffer) return work.saved ? { state: "saved", ...work.saved } : { state: "nothing_to_save" };
+        const listed = await api.profiles();
+        if (!listed.ok) return failed(listed.error);
+        if (listed.profiles.length === 0 && work.cv) return save("new_profile_from_cv", work);
+        return { state: "choose", profiles: listed.profiles, fromCv: Boolean(work.cv) };
+      }),
+    save: (choice) =>
+      lock(async () => {
+        const work = await session.read();
+        // Another page saved it meanwhile.
+        if (!work.jobOffer && work.saved) return { state: "saved", ...work.saved };
+        return save(choice, work);
+      }),
   };
 }

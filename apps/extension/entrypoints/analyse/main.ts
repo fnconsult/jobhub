@@ -158,6 +158,7 @@ function savingFailure(failure: SavingFailure): HTMLElement {
 
 /** The Job Offer saved as an Application: where to follow it, and the Profile made from the CV, if one was. */
 function savedNotice(saved: Extract<SavingState, { state: "saved" }>): HTMLElement {
+  // Every page of the extension shows it, until another Job Offer is captured.
   const node = element("div", "", "notice");
   node.setAttribute("role", "status");
   node.append(element("p", t("extension.analysis.saved")));
@@ -282,9 +283,13 @@ await render();
 // Interface Language; on sign-up, the Guest's work is kept at once. Checked when the page comes
 // back into view and, as a tab switch is not the only way back, every few seconds while it is in view.
 const SESSION_CHECK_MS = 3_000;
+let reloading = false;
 async function checkSession() {
-  if (document.visibilityState !== "visible") return;
-  if ((await readCandidateSession(WEB_ORIGIN)).signedIn !== candidate.signedIn) location.reload();
+  if (reloading || document.visibilityState !== "visible") return;
+  const current = await readCandidateSession(WEB_ORIGIN);
+  if (reloading || current.signedIn === candidate.signedIn) return;
+  reloading = true;
+  location.reload();
 }
 document.addEventListener("visibilitychange", () => void checkSession());
 setInterval(() => void checkSession(), SESSION_CHECK_MS);

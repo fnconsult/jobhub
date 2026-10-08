@@ -532,8 +532,10 @@ test.describe("Guest Capture and Match Score", () => {
     expect(application.jobOffer.title).toBe("Directeur administratif et financier H/F");
     const profiles = await (await web.request.get(`${origin}/api/profiles`)).json();
     expect(profiles).toEqual([{ id: application.profile.id, name: application.profile.name }]);
-    // Now in the Candidate's account, nothing of it is left in the browser (ADR-0003).
-    expect(await guestSession(analysis)).toEqual({});
+    // Now in the Candidate's account, the CV and the Job Offer leave the browser (ADR-0003).
+    const { guestSession: left } = await guestSession(analysis);
+    expect(left).not.toHaveProperty("cv");
+    expect(left).not.toHaveProperty("jobOffer");
 
     // The web app shows it among the Candidate's Applications, "À postuler".
     await web.goto("/candidatures");

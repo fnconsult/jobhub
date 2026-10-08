@@ -158,3 +158,18 @@ export function readJobPosting(html: string): JobOfferDetails | null {
 export function countJobPostings(html: string): number {
   return jobPostingNodes(html).length;
 }
+
+/**
+ * When the page's single `JobPosting` stops being valid (its `validThrough`),
+ * or null when it states none we can read. A date without a time means the end
+ * of that day.
+ */
+export function jobPostingValidThrough(html: string): Date | null {
+  const nodes = jobPostingNodes(html);
+  if (nodes.length !== 1) return null;
+  const value = text(nodes[0]!.validThrough);
+  if (!value) return null;
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const instant = Date.parse(dateOnly ? `${value}T23:59:59` : value);
+  return Number.isNaN(instant) ? null : new Date(instant);
+}

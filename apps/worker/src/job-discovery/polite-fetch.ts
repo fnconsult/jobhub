@@ -18,7 +18,9 @@ export type RefusalReason =
   | "login_wall"
   /** Not a public web page (private network address, unusual scheme). */
   | "not_public"
-  /** Down, missing, too slow, too large or not HTML. */
+  /** The page no longer exists: the site answers 404 Not Found or 410 Gone. */
+  | "gone"
+  /** Down, too slow, too large or not HTML. */
   | "unreachable";
 
 export type PageResult<Known = never> =
@@ -232,6 +234,7 @@ export function createPoliteFetcher(options: PoliteFetchOptions) {
         if (body === null) return { ok: false, reason: "unreachable" };
         if (looksLikeChallenge(response, body)) return { ok: false, reason: "bot_protection" };
         if (response.status === 401 || (response.status === 403 && looksLikeLoginWall(url, body))) return { ok: false, reason: "login_wall" };
+        if (response.status === 404 || response.status === 410) return { ok: false, reason: "gone" };
         if (!response.ok) return { ok: false, reason: "unreachable" };
         if (!/html/i.test(response.headers.get("content-type") ?? "")) return { ok: false, reason: "unreachable" };
         if (looksLikeLoginWall(url, body)) return { ok: false, reason: "login_wall" };

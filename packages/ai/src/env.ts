@@ -13,6 +13,7 @@ const DEFAULT_PROVIDER: Record<AiTask, ProviderId> = {
   scoring: "anthropic",
   writing: "anthropic",
   coaching: "anthropic",
+  cv_parsing: "anthropic",
   offer_analysis: "anthropic",
   web_search: "perplexity",
 };

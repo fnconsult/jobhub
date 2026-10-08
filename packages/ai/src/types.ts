@@ -17,12 +17,14 @@ export const TEXT_TASKS = {
   writing: { personalData: true },
   /** AI Coach conversation: reads everything about the Candidate. */
   coaching: { personalData: true },
+  /** Reading an uploaded CV into a structured Master CV: reads CVs. */
+  cv_parsing: { personalData: true },
   /** Extracting structured fields from a Job Offer: public posting text only. */
   offer_analysis: { personalData: false },
 } as const satisfies Record<string, { personalData: boolean }>;
 export type TextTask = keyof typeof TEXT_TASKS;
 
-/** The web-search task. Only ever receives a query built from Search Criteria. */
+/** The web-search task. Only ever receives a query built from Search Criteria, or from an employer's name for a Company Dossier. */
 export const SEARCH_TASK = "web_search";
 export type SearchTask = typeof SEARCH_TASK;
 export type AiTask = TextTask | SearchTask;

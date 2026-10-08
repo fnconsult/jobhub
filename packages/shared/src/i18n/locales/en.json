@@ -27,11 +27,63 @@
   "extension": {
     "title": "Jobbbox",
     "description": "Capture a job offer from the page you are viewing.",
-    "comingSoon": "Job offer capture is coming soon.",
     "signedInAs": "Signed in as {{email}}",
     "signedOut": "Sign in to Jobbbox to save your job offers.",
     "signIn": "Sign in",
-    "account": "My account"
+    "account": "My account",
+    "capturePage": "Capture this page",
+    "capturing": "Capturing the page…",
+    "captureImpossible": "This page cannot be captured. Open the job offer's page and try again.",
+    "unreachable": "Jobbbox cannot be reached right now. Check your connection and try again.",
+    "badge": "Analyse this offer",
+    "badgeLabel": "Analyse this job offer with Jobbbox",
+    "analysis": {
+      "title": "Job offer analysis",
+      "noJobOffer": "No job offer captured yet. Open a job offer, then click “Analyse this offer” or “Capture this page” in the Jobbbox extension.",
+      "jobOfferGone": "This job offer is no longer available: without an account, it is deleted after 24 hours. Capture it again to analyse it.",
+      "guestNotice": "Without an account, your CV and this job offer stay in this browser for your session only. Jobbbox reads your CV to compute the Match Score without saving it, and everything is deleted at the latest 24 hours after your first analysis.",
+      "expiresAt": "Your data will be deleted by {{date}} at the latest.",
+      "cvTitle": "Your CV",
+      "submit": "Compute my Match Score",
+      "scoring": "Computing the Match Score…",
+      "changeCv": "Use another CV",
+      "forget": "Delete my data now",
+      "forgotten": "Your CV and the job offer have been deleted from this browser.",
+      "score": "Match Score: {{score}} / 100",
+      "breakdownTitle": "Match Score breakdown",
+      "criteria": {
+        "skills": "Skills",
+        "seniority": "Experience",
+        "location": "Location",
+        "salary": "Salary",
+        "contractType": "Contract type"
+      },
+      "status": {
+        "match": "Matches",
+        "partial": "Partly matches",
+        "mismatch": "Does not match",
+        "unknown": "Not stated in the offer",
+        "notInCv": "Not found in your CV",
+        "noPreference": "No preference of yours to compare with"
+      },
+      "covered": "In your CV: {{skills}}",
+      "missing": "Missing from your CV: {{skills}}",
+      "years": "Your CV: {{cv}} years · the offer: {{required}} years",
+      "signUp": "Create an account to keep this job offer and your CV",
+      "offer": "The offer: {{value}}",
+      "offerYears": "The offer: {{required}} years",
+      "salary": {
+        "range": "{{min}} – {{max}} gross per year",
+        "from": "from {{amount}} gross per year",
+        "upTo": "up to {{amount}} gross per year",
+        "exactly": "{{amount}} gross per year",
+        "wanted": "Your minimum: {{amount}} gross per year"
+      },
+      "candidateNotice": "This job offer is saved in your Jobbbox account. The CV you upload here stays in this browser for your session only: Jobbbox reads it to compute the Match Score without saving it.",
+      "forgetCv": "Delete this CV from this browser"
+    },
+    "allSites": "Detect job offers on every site",
+    "allSitesHint": "To see “Analyse this offer” on employers' own career sites too. Your browser will ask for your permission; pages are still read in this browser only."
   },
   "signInEmail": {
     "subject": "Your Jobbbox sign-in link",
@@ -39,7 +91,8 @@
   },
   "nav": {
     "signIn": "Sign in",
-    "account": "My account"
+    "account": "My account",
+    "applications": "My applications"
   },
   "signIn": {
     "title": "Sign in to Jobbbox",
@@ -59,10 +112,612 @@
     "email": "Email address",
     "interfaceLanguage": "Interface language",
     "saved": "Saved.",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "plan": "My subscription",
+    "admin": "Back office"
   },
   "languages": {
     "fr": "Français",
     "en": "English"
+  },
+  "profiles": {
+    "title": "My profiles",
+    "none": "You don't have a profile yet. Create your first one from your CV, or by answering your coach's questions: we build your reference CV and search criteria from it.",
+    "create": "Create my first profile",
+    "add": "Add a profile",
+    "archivedTitle": "Archived profiles",
+    "copyOf": "{{name}} (copy)",
+    "quotaReached": "You have reached the number of active profiles your plan allows. Archive a profile to add or restore another one."
+  },
+  "cvUpload": {
+    "intro": "Upload your CV. We read it and split it into sections; you check and correct the result before saving it.",
+    "fileLabel": "Your CV",
+    "fileHint": "PDF or Word (.docx), 10 MB maximum.",
+    "submit": "Read my CV",
+    "reading": "Reading your CV…",
+    "errors": {
+      "unsupported_format": "This file is not a PDF or Word (.docx) CV. For an old Word file (.doc), save it as .docx or PDF first.",
+      "too_large": "This file is larger than 10 MB. Save your CV as a smaller file and try again.",
+      "unreadable": "We couldn't open this file. It may be damaged or password-protected.",
+      "empty": "We found no text in this file. If it is a scanned CV, upload the original PDF or Word version instead.",
+      "unknown": "Something went wrong. Please try again."
+    },
+    "fromScratchHint": "No CV at hand? Fill in your master CV and search criteria yourself.",
+    "fromScratch": "Start from scratch"
+  },
+  "cvReview": {
+    "title": "Check your CV and your search criteria",
+    "intro": "Here is what we read in your CV. Correct or complete any field if needed, then save your profile.",
+    "searchCriteria": "Search criteria",
+    "targetRole": "Target role",
+    "location": "Location",
+    "minSalary": "Minimum gross annual salary (in euros)",
+    "contractType": "Contract type",
+    "remoteWork": "Remote work",
+    "notSpecified": "Not specified",
+    "contractTypes": {
+      "cdi": "Permanent (CDI)",
+      "cdd": "Fixed-term (CDD)",
+      "freelance": "Freelance",
+      "interim": "Temporary (intérim)"
+    },
+    "remoteWorkOptions": {
+      "on_site": "On site",
+      "hybrid": "Hybrid",
+      "full_remote": "Fully remote"
+    },
+    "identity": "Identity and contact details",
+    "fullName": "Full name",
+    "headline": "CV title",
+    "email": "Email address",
+    "phone": "Phone",
+    "cvLocation": "Address or city",
+    "summary": "Profile (summary)",
+    "experience": "Professional experience",
+    "experienceItem": "Job {{number}}",
+    "jobTitle": "Job title",
+    "employer": "Employer",
+    "jobLocation": "Location",
+    "period": "Period",
+    "description": "Responsibilities and achievements",
+    "addExperience": "Add a job",
+    "removeExperience": "Remove job {{number}}",
+    "education": "Education",
+    "educationItem": "Education {{number}}",
+    "degree": "Degree or training",
+    "institution": "School",
+    "year": "Year",
+    "addEducation": "Add education",
+    "removeEducation": "Remove education {{number}}",
+    "skills": "Skills",
+    "skillItem": "Skill {{number}}",
+    "skill": "Skill",
+    "addSkill": "Add a skill",
+    "removeSkill": "Remove skill {{number}}",
+    "languages": "Languages",
+    "languageItem": "Language {{number}}",
+    "language": "Language",
+    "level": "Level",
+    "addLanguage": "Add a language",
+    "removeLanguage": "Remove language {{number}}",
+    "moveUp": "Move up: {{item}}",
+    "moveDown": "Move down: {{item}}",
+    "save": "Save my profile",
+    "saving": "Saving…",
+    "startOver": "Upload another CV",
+    "invalid": "Some fields need completing or correcting: {{fields}}.",
+    "required": "This field is required.",
+    "invalidValue": "This value is not valid.",
+    "tooLong": "This field cannot be longer than {{max}} characters.",
+    "error": "Your profile could not be saved. Please try again.",
+    "scratchIntro": "Fill in your master CV and search criteria, then save your profile."
+  },
+  "cvEditor": {
+    "title": "Edit my Master CV",
+    "intro": "Add, edit, move or remove the entries of each section. Each save creates a new version: earlier ones stay available and can be restored.",
+    "editingVersion": "You are editing version {{version}}.",
+    "save": "Save as a new version",
+    "saving": "Saving…",
+    "cancel": "Cancel and go back to the profile",
+    "conflict": "Your Master CV was changed elsewhere in the meantime (version {{version}}). Your changes were not saved: reload the page to start again from the latest version.",
+    "invalid": "Some fields are not valid. Check them and try again.",
+    "error": "Your CV could not be saved. Please try again."
+  },
+  "versions": {
+    "title": "Master CV version history",
+    "intro": "Each time you save your Master CV, a version is created. View an earlier version or restore it: it becomes the current version, and the history is kept.",
+    "version": "Version {{version}}",
+    "viewTitle": "Master CV version {{version}}",
+    "savedAt": "Saved on {{date}}",
+    "current": "Current version",
+    "restoredFrom": "Restored from version {{version}}",
+    "view": "View version {{version}}",
+    "restore": "Restore version {{version}}",
+    "restoring": "Restoring…",
+    "restoreError": "This version could not be restored. Please try again.",
+    "backToHistory": "Back to the version history",
+    "backToProfile": "Back to the profile"
+  },
+  "profile": {
+    "masterCv": "Reference CV",
+    "version": "Version {{version}}",
+    "notSpecified": "Not specified",
+    "salary": "At least €{{amount}} gross per year",
+    "backToAccount": "Back to my account",
+    "editMasterCv": "Edit my Master CV",
+    "versionHistory": "Version history"
+  },
+  "profileSwitcher": {
+    "label": "Profile switcher",
+    "current": "Profile: {{name}}",
+    "choose": "Choose a profile"
+  },
+  "profileActions": {
+    "title": "Manage this profile",
+    "name": "Profile name",
+    "rename": "Rename",
+    "renamed": "Profile renamed.",
+    "duplicateName": "Name of the copy",
+    "duplicateHint": "The copy takes this profile's search criteria and the current version of its master CV.",
+    "duplicate": "Duplicate this profile",
+    "archiveHint": "An archived profile is kept with its master CV, but no longer appears in the profile switcher.",
+    "archive": "Archive this profile",
+    "archivedNotice": "This profile is archived. Restore it to see it in the profile switcher again.",
+    "restore": "Restore this profile",
+    "working": "Saving…",
+    "error": "The change could not be saved. Please try again."
+  },
+  "newProfile": {
+    "title": "Create a profile",
+    "intro": "Your coach helps you build your reference CV and search criteria. Choose how to start: you can check and correct everything before saving.",
+    "withCv": "I have a CV",
+    "withoutCv": "I don't have an up-to-date CV",
+    "withoutCvIntro": "Your coach asks you about your career, one question at a time. You can skip the ones that don't apply to you. It takes about ten minutes.",
+    "startQuestionnaire": "Answer my coach's questions"
+  },
+  "questionnaire": {
+    "title": "Your coach's questions",
+    "transcript": "Your conversation with the coach",
+    "coach": "Your coach",
+    "you": "You",
+    "welcome": "Hello, I'm your Jobbbox coach. I'm going to ask you a few questions to build your reference CV. Answer in your own words: you can read it all again and correct it at the end.",
+    "questions": {
+      "fullName": "To start with, what is your full name?",
+      "targetRole": "Which position are you looking for? For example: \"Chief Financial Officer\".",
+      "location": "Which city do you live in, or would you like to work in?",
+      "email": "Which email address can recruiters write to?",
+      "phone": "Which phone number can they call you on?",
+      "jobTitle": "Let's talk about your experience. What was the title of job no. {{number}}, starting with the most recent?",
+      "employer": "Which employer did you hold this job with?",
+      "jobLocation": "In which city?",
+      "period": "Over which period? For example: \"2015 – 2024\".",
+      "jobDescription": "What were your main duties and achievements in this job?",
+      "moreExperience": "Have you held another job that should be on your CV?",
+      "degree": "Let's talk about your education. What is your degree or training no. {{number}}?",
+      "institution": "At which institution?",
+      "year": "In which year did you obtain it?",
+      "moreEducation": "Do you have another degree or training to add?",
+      "skills": "What are your main skills? Separate them with commas.",
+      "languages": "Which languages do you speak, and how well? For example: \"English: fluent, German: basic\".",
+      "summary": "Finally, how would you introduce yourself to a recruiter in a few sentences?"
+    },
+    "answerLabel": "Your answer",
+    "answerHint": "You can skip this question.",
+    "send": "Answer",
+    "skip": "Skip this question",
+    "skipped": "(question skipped)",
+    "yes": "Yes",
+    "no": "No",
+    "errors": {
+      "required": "This answer is needed to create your profile.",
+      "yes_or_no": "Please answer yes or no."
+    },
+    "reviewIntro": "Here are your reference CV and search criteria, built from your answers. Correct or complete each field if needed, then save your profile.",
+    "startOver": "Start again"
+  },
+  "coachPanel": {
+    "open": "My coach",
+    "title": "Your coach",
+    "close": "Close",
+    "inView": "You are viewing: {{label}}",
+    "inViewProfile": "the profile \"{{name}}\"",
+    "inViewApplication": "the application \"{{name}}\"",
+    "nothingInView": "Ask your question: your coach answers from what you tell them.",
+    "welcome": "Hello, I'm your coach. How can I help you?",
+    "messageLabel": "Your message",
+    "send": "Send",
+    "thinking": "Your coach is writing a reply…",
+    "errors": {
+      "unavailable": "Your coach can't reply right now. Please try again in a few moments.",
+      "invalid": "This message couldn't be sent. Shorten it and try again."
+    },
+    "searchJobs": "Search for job offers for this profile",
+    "searchHint": "Open one of your profiles: your coach can then search for job offers for it."
+  },
+  "actionCards": {
+    "title": "Your coach's proposals",
+    "accept": "Accept",
+    "dismiss": "Dismiss",
+    "accepted": "Proposal accepted.",
+    "dismissed": "Proposal dismissed.",
+    "error": "This proposal couldn't be applied. Try again or reload the page."
+  },
+  "billing": {
+    "plans": {
+      "free": "Free",
+      "standard": "Standard",
+      "premium": "Premium"
+    },
+    "quotaReached": {
+      "title": "You have reached your Plan's limit",
+      "used": {
+        "profiles_one": "The {{plan}} Plan includes {{count}} Profile.",
+        "profiles_other": "The {{plan}} Plan includes {{count}} Profiles.",
+        "matchScores_one": "You have used the 1 Match Score included this month in the {{plan}} Plan.",
+        "matchScores_other": "You have used the {{count}} Match Scores included this month in the {{plan}} Plan.",
+        "atsScores_one": "You have used the 1 ATS Score included this month in the {{plan}} Plan.",
+        "atsScores_other": "You have used the {{count}} ATS Scores included this month in the {{plan}} Plan.",
+        "enrichedContacts_one": "You have used the 1 Enriched Contact included this month in the {{plan}} Plan.",
+        "enrichedContacts_other": "You have used the {{count}} Enriched Contacts included this month in the {{plan}} Plan.",
+        "jobSearches_one": "You have used the 1 job search included this month in the {{plan}} Plan.",
+        "jobSearches_other": "You have used the {{count}} job searches included this month in the {{plan}} Plan."
+      },
+      "notIncluded": {
+        "profiles": "Creating Profiles is not included in the {{plan}} Plan.",
+        "matchScores": "Match Scores are not included in the {{plan}} Plan.",
+        "atsScores": "ATS Scores are not included in the {{plan}} Plan.",
+        "enrichedContacts": "Enriched Contacts are not included in the {{plan}} Plan.",
+        "jobSearches": "Job searches are not included in the {{plan}} Plan."
+      },
+      "upgradeCreate": "The {{plan}} Plan lets you create more.",
+      "upgradeUse": "The {{plan}} Plan lets you do more.",
+      "upgradeIncludes": "The {{plan}} Plan includes them.",
+      "renews": "Your quota renews on the 1st of the month.",
+      "noMore": "You cannot create any more.",
+      "action": "See the {{plan}} Plan"
+    },
+    "page": {
+      "title": "My subscription",
+      "currentPlan": "Your current Plan: {{plan}}",
+      "checkoutSuccess": "Thank you! Your payment is recorded. Your new Plan shows here as soon as Stripe confirms it, usually within seconds.",
+      "usageTitle": "Your usage this month",
+      "usage": "{{used}} of {{limit}}",
+      "usageUnlimited": "{{used}} (unlimited)",
+      "comparisonTitle": "Plans",
+      "quota": "What is included",
+      "unlimited": "Unlimited",
+      "notIncluded": "Not included",
+      "perMonth": "{{count}} a month",
+      "choose": "Choose the {{plan}} Plan",
+      "current": "Your Plan",
+      "manage": "Manage my subscription",
+      "manageHelp": "Invoices, payment method, changing or cancelling your Plan: it all happens on the secure page of our payment provider, Stripe.",
+      "unavailable": "Online payment is not available at the moment. Please try again later.",
+      "error": "Something went wrong. Please try again.",
+      "redirecting": "Taking you to the payment page…"
+    },
+    "quotas": {
+      "profiles": "Profiles",
+      "matchScores": "Match Scores",
+      "atsScores": "ATS Scores",
+      "enrichedContacts": "Enriched Contacts",
+      "jobDigest": "Job Digest",
+      "jobSearches": "Job searches"
+    },
+    "jobDigest": {
+      "none": "Not included",
+      "weekly": "Weekly",
+      "daily": "Daily"
+    }
+  },
+  "admin": {
+    "title": "Back office",
+    "intro": "For the Jobbbox team only.",
+    "sections": {
+      "planQuotas": "Plan Quotas",
+      "humanCoaches": "Human Coaches"
+    },
+    "comingSoon": "Coming soon",
+    "planQuotas": {
+      "title": "Plan Quotas",
+      "intro": "Changes apply at once to every Candidate on the Plan. Leave a field empty for “unlimited”.",
+      "plan": "{{plan}} Plan",
+      "limitHelp": "A number, or empty for unlimited",
+      "monthly": "a month",
+      "save": "Save the {{plan}} Plan",
+      "saved": "{{plan}} Plan quotas saved.",
+      "invalid": "Check the values: whole numbers from 0, or empty for unlimited."
+    },
+    "back": "Back to the back office"
+  },
+  "applicationStatuses": {
+    "to_apply": "To apply",
+    "applied": "Applied",
+    "followed_up": "Followed up",
+    "interview": "Interview",
+    "offer_received": "Offer received",
+    "accepted": "Accepted",
+    "rejected": "Rejected",
+    "abandoned": "Abandoned"
+  },
+  "applications": {
+    "title": "My applications",
+    "viewsLabel": "How applications are shown",
+    "listView": "List",
+    "boardView": "Board",
+    "none": "You have no applications yet. Save a job offer to follow it here.",
+    "jobOffer": "Job offer",
+    "profile": "Profile",
+    "status": "Status",
+    "interviews": "Interviews",
+    "interviewCount": "Interviews: {{number}}",
+    "emptyColumn": "No applications",
+    "noInterview": "None"
+  },
+  "application": {
+    "statusLabel": "Status",
+    "statusSaved": "Status saved",
+    "profileLabel": "Profile used",
+    "profileHint": "The match score uses this profile's master CV.",
+    "profileSaved": "Profile saved",
+    "error": "Saving failed. Check your connection and try again.",
+    "savedOn": "Job offer saved on {{date}}",
+    "interviewsTitle": "Interviews",
+    "interviewsNone": "No interviews recorded yet.",
+    "interviewsHint": "You can record your interviews once the application is at the \"Interview\" status.",
+    "interviewDate": "Interview date and time (Paris time)",
+    "interviewNote": "Note (optional)",
+    "interviewNoteHint": "For example: with the HR director, by video call.",
+    "addInterview": "Add the interview",
+    "removeInterview": "Remove the interview of {{date}}",
+    "working": "Saving…",
+    "backToApplications": "Back to my applications"
+  },
+  "jobOffer": {
+    "details": "At a glance",
+    "contentTitle": "Job offer text",
+    "employer": "Employer",
+    "location": "Location",
+    "contractType": "Contract type",
+    "remoteWork": "Remote work",
+    "salary": "Salary",
+    "salaryRange": "€{{min}} to €{{max}} gross per year",
+    "salaryFrom": "From €{{amount}} gross per year",
+    "salaryUpTo": "Up to €{{amount}} gross per year",
+    "experience": "Experience required",
+    "experienceYears": "{{years}} years",
+    "skills": "Skills required",
+    "source": "Source",
+    "sourceLink": "See the job offer on {{site}}",
+    "saveTitle": "Follow this job offer",
+    "profileLabel": "Profile to use for this application",
+    "save": "Save the job offer",
+    "saving": "Saving…",
+    "error": "Saving failed. Check your connection and try again.",
+    "alreadySaved": "You already follow this job offer.",
+    "seeApplication": "See my application",
+    "signInToSave": "Sign in to save this job offer",
+    "createProfileToSave": "Create a profile to save this job offer"
+  },
+  "matchScore": {
+    "title": "Match score",
+    "score": "{{score}} / 100",
+    "intro": "The master CV of the \"{{profile}}\" profile compared with this job offer and your search criteria.",
+    "unknownHint": "Criteria that cannot be compared (the job offer or your criteria say nothing about them) do not count in the score.",
+    "criteria": {
+      "skills": "Skills",
+      "seniority": "Experience",
+      "location": "Location",
+      "salary": "Salary",
+      "contractType": "Contract type"
+    },
+    "statuses": {
+      "match": "Matches",
+      "partial": "Partly",
+      "mismatch": "Does not match",
+      "unknown": "Not comparable"
+    },
+    "covered": "On your CV",
+    "missing": "Missing from your CV",
+    "seniorityDetail": "{{cvYears}} years on your CV, {{requiredYears}} years required",
+    "offerAndWanted": "Offer: {{offer}} · Wanted: {{wanted}}",
+    "salaryOffer": "Offer: {{offer}}",
+    "salaryWanted": "Wanted: at least €{{amount}} gross per year"
+  },
+  "jobSearch": {
+    "sectionTitle": "Job search",
+    "startHint": "Your coach searches the web for job offers matching this profile's search criteria, then ranks them by how well your master CV matches.",
+    "start": "Search for job offers",
+    "starting": "Starting the search…",
+    "title": "Job offers found for \"{{profile}}\"",
+    "startedAt": "Search started on {{date}}",
+    "searching": "Your coach is searching for job offers. This can take a minute or two: this page updates by itself.",
+    "failed": "The search did not succeed. Please try again in a few moments.",
+    "noResults": "Your coach found no job offers this time. You can widen this profile's search criteria, then search again.",
+    "resultsIntro_one": "{{count}} job offer found, ranked by how well it matches your master CV.",
+    "resultsIntro_other": "{{count}} job offers found, from the closest to your master CV to the least close.",
+    "matchScore": "Match Score: {{score}} / 100",
+    "seeJobOffer": "Read the job offer",
+    "save": "Save as an application",
+    "saving": "Saving…",
+    "saveError": "Saving failed. Check your connection and try again.",
+    "saved": "Saved in your applications.",
+    "seeApplication": "See my application",
+    "searchAgain": "Search again",
+    "backToProfile": "Back to the profile",
+    "errors": {
+      "archived": "This profile is archived. Restore it to search for job offers.",
+      "generic": "The search could not be started. Check your connection and try again."
+    }
+  },
+  "companyDossier": {
+    "title": "Company dossier",
+    "intro": "Gather public information about the employer: identity, address, key figures and roles to contact.",
+    "build": "Build the company dossier",
+    "rebuild": "Update the dossier",
+    "working": "Searching…",
+    "unavailable": "The sources are unavailable right now. Try again in a few minutes.",
+    "notACompany": "This name or SIREN is not a company: a sole trader is a private person, and nothing is looked up about them. Enter the name of the hiring company.",
+    "employerUnknown": "The offer does not name the employer. Name it to build the dossier.",
+    "postedByAgency": "This offer is posted by a recruiting agency ({{agency}}).",
+    "postedByAgencyUnnamed": "This offer is posted by a recruiting agency.",
+    "presumedEmployer": "The real employer may be: {{employer}}.",
+    "noPresumedEmployer": "The real employer could not be guessed.",
+    "confirmBeforeLookup": "Confirm the employer or name the right one: nothing is looked up before you confirm.",
+    "employerLabel": "Employer",
+    "employerHint": "The company's name, or its SIREN number if you know it.",
+    "confirmEmployer": "Confirm the employer",
+    "nameEmployer": "Build the dossier for this employer",
+    "notInRegister": "A French company the register did not find under this name? Enter its SIREN below (“Not the right employer?”) to get its official data.",
+    "wrongEmployer": "Not the right employer?",
+    "reliability": {
+      "official": "Official source.",
+      "less_reliable": "Web sources, less reliable."
+    },
+    "reliabilityDetail": {
+      "official": "Data from the French company register (API Recherche d'entreprises).",
+      "less_reliable": "This information comes from websites and may be wrong or out of date: check it."
+    },
+    "facts": {
+      "name": "Name",
+      "siren": "SIREN",
+      "legalForm": "Legal form",
+      "activity": "Activity (NAF code)",
+      "address": "Head office address",
+      "headcount": "Headcount",
+      "country": "Country",
+      "industry": "Industry",
+      "revenue": "Revenue",
+      "website": "Website"
+    },
+    "headcountRange": "{{min}} to {{max}} employees",
+    "headcountFrom": "{{min}} employees or more",
+    "financialsTitle": "Key figures",
+    "year": "Year",
+    "revenue": "Revenue",
+    "netIncome": "Net income",
+    "noFinancials": "The company does not publish financial figures.",
+    "executivesTitle": "Executive roles in the register",
+    "executivesHint": "Only roles are shown, never people's names.",
+    "contactRolesTitle": "Roles to contact",
+    "contactRolesHint": "Look for the people holding these roles at the employer. Named contacts are part of the Premium plan.",
+    "contactRoles": {
+      "hiring_manager": "The future manager of the role",
+      "talent_acquisition": "Recruitment lead (Talent Acquisition)",
+      "hr_director": "HR director (DRH)",
+      "hr_manager": "HR manager (RRH)",
+      "chief_executive": "Head of the company (gérant, président, CEO)"
+    },
+    "sourcesTitle": "Sources",
+    "builtOn": "Dossier built on {{date}} for “{{employer}}”."
+  },
+  "atsScore": {
+    "title": "ATS Score",
+    "intro": "How applicant tracking systems (ATS) read your Master CV for the role “{{role}}”.",
+    "score": "{{score}}/100",
+    "scoreLabel": "ATS Score: {{score}} out of 100",
+    "readability": "Readability",
+    "keywords": "Keywords",
+    "checks": {
+      "contact": "Email and phone given",
+      "headline": "A headline at the top of the CV",
+      "summary": "A profile summary",
+      "datedExperience": "Every job is dated",
+      "skillsList": "At least 3 skills, one per line",
+      "plainText": "No emoji or decorative symbols"
+    },
+    "passed": "Yes",
+    "failed": "To improve",
+    "listed": "Well placed (headline or skills)",
+    "mentioned": "Only mentioned in the text",
+    "missing": "Not on the CV",
+    "missingHint": "Add them yourself, only if they match your real experience.",
+    "none": "None",
+    "computedOn": "Computed on version {{version}} of your Master CV.",
+    "outdated": "Your Master CV has changed since: recompute to see your up-to-date score.",
+    "notYet": "Measure your Master CV: the coach will propose fixes, to accept or reject one by one.",
+    "compute": "Compute my ATS Score",
+    "recompute": "Recompute my ATS Score",
+    "computing": "Computing…",
+    "error": "The score could not be computed. Try again."
+  },
+  "atsFixes": {
+    "seniorAdvice": "Senior Advice",
+    "seniorAdviceOptional": "This advice is optional: you may ignore it.",
+    "dismissAdvice": "Ignore this advice",
+    "reasons": {
+      "headline_missing": {
+        "title": "Add a headline to your CV",
+        "body": "ATS read the CV's headline first. It will become “{{headline}}”, the role you are aiming for."
+      },
+      "skills_on_one_line": {
+        "title": "Split your skills",
+        "body": "“{{skill}}” will become {{count}} skills: {{into}}. ATS read one skill per line better."
+      },
+      "decorations": {
+        "title": "Remove decorative symbols",
+        "body": "ATS misread emoji and symbols (★, ✓, ►…). They will be removed; the rest of the text stays the same."
+      },
+      "headline_without_role": {
+        "title": "Put your target role in the headline",
+        "body": "Your headline “{{current}}” does not name the role you are aiming for. It will become “{{headline}}”."
+      },
+      "keyword_not_listed": {
+        "title": "Add “{{skill}}” to your skills",
+        "body": "Your CV already mentions “{{skill}}”, but not in your skills, where ATS look for it first."
+      },
+      "age": {
+        "title": "Senior Advice: remove your age",
+        "body": "“{{from}}” will be removed. Age has no place on a CV and can count against your application."
+      },
+      "birth_date": {
+        "title": "Senior Advice: remove your birth date",
+        "body": "“{{from}}” will be removed. A birth date has no place on a CV and can count against your application."
+      },
+      "experience_years": {
+        "title": "Senior Advice: write “{{to}}”",
+        "body": "“{{from}}” will become “{{to}}”. Beyond 15 years, the number of years puts age forward rather than expertise."
+      },
+      "old_experience": {
+        "title": "Senior Advice: remove an old job",
+        "body": "“{{title}}” at {{employer}} ({{period}}) will be removed from the CV. Recruiters mostly look at the last 15 to 20 years."
+      },
+      "photo": {
+        "title": "Senior Advice: leave out your photo",
+        "body": "Your CV shows a photo. Leave it out of the file you send: ATS cannot read it, and it puts age forward rather than expertise."
+      }
+    }
+  },
+  "cvDocument": {
+    "summary": "Profile",
+    "experience": "Professional experience",
+    "education": "Education",
+    "skills": "Skills",
+    "languages": "Languages",
+    "languageLevel": "{{name}}: {{level}}",
+    "subject": "Subject: {{subject}}",
+    "cvFileName": "CV",
+    "coverLetterFileName": "Cover-letter"
+  },
+  "cvExport": {
+    "title": "Download my Master CV",
+    "intro": "Choose a CV template: all of them are built to be read well by applicant tracking systems (one column, no images or tables).",
+    "template": "CV template",
+    "templates": {
+      "classic": {
+        "name": "Classic",
+        "description": "Serif font, centred header, underlined headings."
+      },
+      "modern": {
+        "name": "Modern",
+        "description": "Sans-serif font, left-aligned header, dark blue headings."
+      },
+      "compact": {
+        "name": "Compact",
+        "description": "Denser, to fit on fewer pages."
+      }
+    },
+    "pdf": "Download as PDF",
+    "docx": "Download as Word (.docx)"
   }
 }

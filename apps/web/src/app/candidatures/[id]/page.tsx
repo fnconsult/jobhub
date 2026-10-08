@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import type { ActionCard } from "@/action-cards";
 import { getActionCards } from "@/action-cards/server";
 import { INTERVIEW_TIME_ZONE } from "@/applications";
 import { requireOwnApplication } from "@/applications/server";
-import { ActionCardList } from "@/components/ActionCardList";
+import { ActionCardList, type ActionCardView } from "@/components/ActionCardList";
 import { AddInterviewForm, ApplicationProfileSelect, ApplicationStatusSelect, RemoveInterviewButton } from "@/components/ApplicationControls";
 import { CoachInView } from "@/components/CoachPanel";
 import { CompanyDossierView } from "@/components/CompanyDossierView";
@@ -13,6 +14,7 @@ import { MatchScoreView } from "@/components/MatchScoreView";
 import { TailoredCvReview } from "@/components/TailoredCvReview";
 import { TailoredDocumentsEditor } from "@/components/TailoredDocumentsEditor";
 import { WorkspaceHeader } from "@/components/WorkspaceHeader";
+import { ABANDON_CARD, FOLLOW_UP_CARD, type FollowUpPayload } from "@/follow-ups";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getProfiles } from "@/profiles/server";
 import { routes } from "@/routes";
@@ -20,6 +22,24 @@ import { getTailoredCvs } from "@/tailored-cv/server";
 import { getTailoredDocuments } from "@/tailored-documents/server";
 
 type Params = { params: Promise<{ id: string }> };
+type T = Awaited<ReturnType<typeof getServerT>>;
+
+/** How an Action Card on an Application shows: a Follow-up draft is to send, then mark as sent (drafts only, ADR-0005). */
+function cardView({ id, kind, title, body, payload }: ActionCard, t: T): ActionCardView {
+  if (kind === FOLLOW_UP_CARD) {
+    const { subject } = (payload ?? {}) as Partial<FollowUpPayload>;
+    return {
+      id,
+      title,
+      body: subject ? `${t("followUps.subject", { subject })}\n\n${body}` : body,
+      label: t("followUps.cardLabel"),
+      acceptLabel: t("followUps.markSent"),
+      hint: t("followUps.sentHint"),
+    };
+  }
+  if (kind === ABANDON_CARD) return { id, title, body, label: t("followUps.abandonLabel"), acceptLabel: t("followUps.abandonAccept") };
+  return { id, title, body };
+}
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const t = await getServerT();
@@ -58,7 +78,7 @@ export default async function ApplicationPage({ params }: Params) {
       {jobOffer.employer ? <p className="lead">{jobOffer.employer}</p> : null}
       <p>{t("application.savedOn", { date: date.format(application.createdAt) })}</p>
       <CoachInView {...inView} />
-      <ActionCardList key={application.id} cards={cards.map(({ id, title, body }) => ({ id, title, body }))} />
+      <ActionCardList key={application.id} cards={cards.map((card) => cardView(card, t))} />
 
       <div className="stack">
         <ApplicationStatusSelect applicationId={application.id} status={application.status} />

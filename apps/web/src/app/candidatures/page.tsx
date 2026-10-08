@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { INTERVIEW_TIME_ZONE, type ApplicationSummary } from "@/applications";
 import { getApplications } from "@/applications/server";
 import { getCurrentCandidate } from "@/auth/server";
+import { FOLLOW_UP_CARD, type FollowUpNotice } from "@/follow-ups";
+import { getFollowUps } from "@/follow-ups/server";
 import { ApplicationStatusSelect } from "@/components/ApplicationControls";
 import { WorkspaceHeader } from "@/components/WorkspaceHeader";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -24,13 +26,20 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ApplicationsPage({ searchParams }: { searchParams: Promise<{ vue?: string }> }) {
   const candidate = await getCurrentCandidate();
   if (!candidate) redirect(routes.signIn);
-  const [t, locale, applications, { vue }] = await Promise.all([getServerT(), getRequestLocale(), getApplications().list(candidate.id), searchParams]);
+  const [t, locale, applications, notices, { vue }] = await Promise.all([
+    getServerT(),
+    getRequestLocale(),
+    getApplications().list(candidate.id),
+    getFollowUps().notices(candidate.id),
+    searchParams,
+  ]);
   const board = vue === "tableau";
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: INTERVIEW_TIME_ZONE });
   return (
     <main className={board ? "page page-wide" : "page"}>
       <WorkspaceHeader candidateId={candidate.id} />
       <h1>{t("applications.title")}</h1>
+      <FollowUpNotices notices={notices} t={t} />
       <nav className="actions" aria-label={t("applications.viewsLabel")}>
         <Link className="button" href={routes.applications} aria-current={board ? undefined : CURRENT}>
           {t("applications.listView")}
@@ -47,6 +56,25 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
         <List applications={applications} t={t} formatDate={(value) => date.format(value)} />
       )}
     </main>
+  );
+}
+
+/** The in-app notice: Applications with a Follow-up or an "Abandonnée" suggestion waiting for the Candidate. */
+function FollowUpNotices({ notices, t }: { notices: FollowUpNotice[]; t: T }) {
+  if (notices.length === 0) return null;
+  return (
+    <section className="notice stack" aria-labelledby="follow-up-notices-title">
+      <h2 id="follow-up-notices-title">{t("followUps.noticesTitle")}</h2>
+      <ul>
+        {notices.map((notice) => (
+          <li key={notice.applicationId}>
+            <Link href={routes.application(notice.applicationId)}>
+              {t(notice.kind === FOLLOW_UP_CARD ? "followUps.noticeFollowUp" : "followUps.noticeAbandon", { title: notice.jobTitle })}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

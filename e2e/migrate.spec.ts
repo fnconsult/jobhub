@@ -69,6 +69,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "candidate",
         "candidate_plan", // issue #22: Plans and Plan Quotas
         "company_dossier", // issue #17
+        "enriched_contact", // issue #23: Enriched Contacts, with their source provider and retrieval date
         "follow_up_delay", // issue #21: each Candidate's Follow-up Delays
         "follow_up_sent", // issue #21: the Follow-ups marked as sent
         "interview",
@@ -112,6 +113,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "candidate_plan", from_column: "plan", to_table: "plan_quota" },
         // A Company Dossier (issue #17) goes with its Application.
         { from_table: "company_dossier", from_column: "application_id", to_table: "application" },
+        // Enriched Contacts (issue #23) go with their Application.
+        { from_table: "enriched_contact", from_column: "application_id", to_table: "application" },
         // Follow-up Delays (issue #21) go with their Candidate, Follow-ups sent with their Application.
         { from_table: "follow_up_delay", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "follow_up_sent", from_column: "application_id", to_table: "application" },

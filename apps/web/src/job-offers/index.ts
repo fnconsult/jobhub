@@ -15,6 +15,9 @@
  * Guests captured is forgotten within 24 hours (ADR-0003): see
  * `forgetExpiredGuestCaptures`, which the worker runs on a schedule. A Candidate
  * capturing it keeps it for good.
+ * Every few days the worker re-checks a Job Offer's source (`createSourceChecks`
+ * schedules and records it); one no longer published there becomes an Expired
+ * Job Offer (`expiredAt`). Nothing else about it, or its Applications, changes.
  */
 import { createHash } from "node:crypto";
 import { CONTRACT_TYPES, REMOTE_WORK_OPTIONS, type JobOffer } from "@jobhub/shared";
@@ -24,6 +27,7 @@ import { fieldErrors, type FieldError } from "../validation";
 import { GUEST_EXPIRY_SQL } from "./guest-retention";
 
 export { forgetExpiredGuestCaptures } from "./guest-retention";
+export { createSourceChecks, RECHECK_INTERVAL_DAYS, type SourceCheckOutcome, type SourceChecks } from "./source-checks";
 
 export type { FieldError as JobOfferFieldError } from "../validation";
 
@@ -87,10 +91,11 @@ interface JobOfferRow {
   salary_max: number | null;
   skills: string[] | null;
   required_experience_years: number | null;
+  expired_at: Date | null;
 }
 
 const COLUMNS = `id, source_url, source_name, title, content, employer, location, contract_type, remote_work,
-  salary_min, salary_max, skills, required_experience_years`;
+  salary_min, salary_max, skills, required_experience_years, expired_at`;
 
 function jobOfferFrom(row: JobOfferRow): JobOffer {
   const jobOffer: JobOffer = { id: row.id, source: {}, title: row.title, content: row.content };
@@ -107,6 +112,7 @@ function jobOfferFrom(row: JobOfferRow): JobOffer {
   }
   if (row.skills !== null) jobOffer.skills = row.skills;
   if (row.required_experience_years !== null) jobOffer.requiredExperienceYears = row.required_experience_years;
+  if (row.expired_at !== null) jobOffer.expiredAt = row.expired_at;
   return jobOffer;
 }
 
@@ -220,5 +226,8 @@ export async function migrateJobOffers(database: Pool): Promise<void> {
     -- Set while only Guests have captured the posting: when to forget it (ADR-0003).
     ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS guest_expires_at timestamptz;
     CREATE INDEX IF NOT EXISTS job_offer_guest_expires_at ON job_offer (guest_expires_at) WHERE guest_expires_at IS NOT NULL;
+    -- Source re-checks (Expired Job Offers): when the source was last read, and when it was found no longer publishing the posting.
+    ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS source_checked_at timestamptz;
+    ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS expired_at timestamptz;
   `);
 }

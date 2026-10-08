@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createThrowawayDatabase } from "../test-support/throwaway-database";
-import { createJobOffers, forgetExpiredGuestCaptures, migrateJobOffers, type JobOffers } from "./index";
+import { createJobOffers, createSourceChecks, forgetExpiredGuestCaptures, migrateJobOffers, type JobOffers } from "./index";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -149,6 +149,64 @@ describe.skipIf(!connectionString)("Job Offers (needs Postgres: DATABASE_URL)", 
 
       await forgetExpiredGuestCaptures(throwaway.pool, hoursFromNow(48));
       expect(await jobOffers.get(byCandidate.ok ? byCandidate.jobOffer.id : "")).not.toBeNull();
+    });
+  });
+
+  describe("re-checking a Job Offer's source (Expired Job Offers)", () => {
+    const daysFromNow = (days: number) => new Date(Date.now() + days * 86_400_000);
+    const idOf = (result: Awaited<ReturnType<JobOffers["capture"]>>) => (result.ok ? result.jobOffer.id : "");
+
+    it("is due every few days: three days after capture, then three days after each re-check", async () => {
+      const id = idOf(await jobOffers.capture(posting));
+      const sourceChecks = createSourceChecks(throwaway.pool);
+
+      expect(await sourceChecks.dueForRecheck(daysFromNow(2), 10)).toEqual([]);
+      expect(await sourceChecks.dueForRecheck(daysFromNow(3.1), 10)).toEqual([{ id, sourceUrl: posting.source.url }]);
+
+      await sourceChecks.record(id, "published", daysFromNow(3.1));
+      expect(await sourceChecks.dueForRecheck(daysFromNow(5), 10)).toEqual([]);
+      expect(await sourceChecks.dueForRecheck(daysFromNow(6.2), 10)).toEqual([{ id, sourceUrl: posting.source.url }]);
+    });
+
+    it("is never due without a source URL, while only Guests captured it, or once expired", async () => {
+      await jobOffers.capture({ title: "DAF", content: "Poste sans URL." });
+      await jobOffers.capture({ source: { url: "https://www.apec.fr/offre/guest" }, title: "DAF", content: "Poste vu par un Guest." }, "guest");
+      const expired = idOf(await jobOffers.capture(posting));
+      const sourceChecks = createSourceChecks(throwaway.pool);
+
+      await sourceChecks.record(expired, "expired", daysFromNow(4));
+
+      expect(await sourceChecks.dueForRecheck(daysFromNow(30), 10)).toEqual([]);
+    });
+
+    it("re-checks the longest unchecked first, a batch at a time", async () => {
+      const first = idOf(await jobOffers.capture(posting));
+      const second = idOf(await jobOffers.capture({ source: { url: "https://www.apec.fr/offre/2" }, title: "DAF", content: "Poste 2." }));
+      const sourceChecks = createSourceChecks(throwaway.pool);
+      await sourceChecks.record(first, "unknown", daysFromNow(4));
+
+      expect((await sourceChecks.dueForRecheck(daysFromNow(8), 1)).map((due) => due.id)).toEqual([second]);
+      expect((await sourceChecks.dueForRecheck(daysFromNow(8), 10)).map((due) => due.id)).toEqual([second, first]);
+    });
+
+    it("marks the Job Offer expired, with the date its source was found no longer publishing it", async () => {
+      const id = idOf(await jobOffers.capture(posting));
+      const foundAt = daysFromNow(3.5);
+
+      await createSourceChecks(throwaway.pool).record(id, "expired", foundAt);
+
+      expect(await jobOffers.get(id)).toMatchObject({ id, expiredAt: foundAt });
+      expect(await jobOffers.findBySourceUrl(posting.source.url)).toMatchObject({ expiredAt: foundAt });
+    });
+
+    it("keeps a Job Offer not expired when its source could not be read or still publishes it", async () => {
+      const id = idOf(await jobOffers.capture(posting));
+      const sourceChecks = createSourceChecks(throwaway.pool);
+
+      await sourceChecks.record(id, "unknown", daysFromNow(3.5));
+      await sourceChecks.record(id, "published", daysFromNow(7));
+
+      expect(await jobOffers.get(id)).not.toHaveProperty("expiredAt");
     });
   });
 });

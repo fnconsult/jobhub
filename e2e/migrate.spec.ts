@@ -50,6 +50,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("ATS Scores are up to date");
     expect(first.stdout).toContain("Plans and Plan Quotas are up to date");
     expect(first.stdout).toContain("Job Searches are up to date");
+    expect(first.stdout).toContain("Job Digests are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 
@@ -69,6 +70,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "candidate_plan", // issue #22: Plans and Plan Quotas
         "company_dossier", // issue #17
         "interview",
+        "job_digest", // issue #15: the Job Digests sent for each Profile
+        "job_digest_subscription", // issue #15: opt-in per Profile
         "job_offer",
         "job_search", // issue #14: on-demand AI Coach job search
         "master_cv_version",
@@ -109,6 +112,11 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // A Company Dossier (issue #17) goes with its Application.
         { from_table: "company_dossier", from_column: "application_id", to_table: "application" },
         { from_table: "interview", from_column: "application_id", to_table: "application" },
+        // Job Digests and their opt-ins (issue #15) go with their Profile (ADR-0010).
+        { from_table: "job_digest", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "job_digest", from_column: "profile_id", to_table: "profile" },
+        { from_table: "job_digest_subscription", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "job_digest_subscription", from_column: "profile_id", to_table: "profile" },
         // Job Searches (issue #14) hang off the Candidate and the Profile they search for.
         { from_table: "job_search", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "job_search", from_column: "profile_id", to_table: "profile" },

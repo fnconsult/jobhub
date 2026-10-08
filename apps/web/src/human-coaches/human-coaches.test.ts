@@ -194,4 +194,63 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
       expect(await coaches.grantAccess(marie.id, "not-a-coach")).toBe(false);
     });
   });
+
+  describe("reviewing Tailored Documents", () => {
+    const now = new Date("2026-10-09T10:00:00Z");
+    const coverLetter = { language: "fr" as const, text: "Madame, Monsieur, …", draftedAt: now, updatedAt: now };
+
+    async function coachedApplication() {
+      const sophie = await addCoach();
+      const marie = await candidateWithApplication("marie.dupont@example.fr");
+      await coaches.grantAccess(marie.id, sophie.id);
+      return { sophie, marie };
+    }
+
+    it("a Human Coach reads the Application's saved Tailored CV, Cover Letter and Outreach Message", async () => {
+      const { sophie, marie } = await coachedApplication();
+      drafts.set(marie.applicationId, { documentLanguage: "fr", coverLetter, outreachMessage: null });
+      const saved = { language: "fr" as const, masterCvVersion: 1, content: masterCv, matchScore: { master: 60, tailored: 75 }, savedAt: now };
+      tailoredCvs.set(marie.applicationId, { documentLanguage: "fr", proposal: null, saved });
+
+      const read = await coaches.application(sophie.id, marie.id, marie.applicationId);
+
+      expect(read).toMatchObject({ tailoredCv: saved, coverLetter, outreachMessage: null, reviews: [] });
+    });
+
+    it("a Human Coach's Coach Review of a Tailored Document reaches the Candidate on the Application", async () => {
+      const { sophie, marie } = await coachedApplication();
+      drafts.set(marie.applicationId, { documentLanguage: "fr", coverLetter, outreachMessage: null });
+
+      const reviewed = await coaches.review(sophie.id, marie.id, marie.applicationId, { document: "cover_letter", text: "  Ouvrez sur votre dernier poste. " });
+
+      const review = { coach: { id: sophie.id, name: SOPHIE.name }, document: "cover_letter", text: "Ouvrez sur votre dernier poste." };
+      expect(reviewed).toMatchObject({ ok: true, review });
+      expect(await coaches.reviews(marie.id, marie.applicationId)).toMatchObject([review]);
+      expect((await coaches.application(sophie.id, marie.id, marie.applicationId))?.reviews).toMatchObject([review]);
+    });
+
+    it("only a Tailored Document the Application has can be reviewed, with some text", async () => {
+      const { sophie, marie } = await coachedApplication();
+
+      expect(await coaches.review(sophie.id, marie.id, marie.applicationId, { document: "tailored_cv", text: "Bien." })).toEqual({ ok: false, error: "not_found" });
+      drafts.set(marie.applicationId, { documentLanguage: "fr", coverLetter, outreachMessage: null });
+      expect(await coaches.review(sophie.id, marie.id, marie.applicationId, { document: "cover_letter", text: " " })).toEqual({
+        ok: false,
+        errors: [{ field: "text", code: "required" }],
+      });
+      expect(await coaches.review(sophie.id, marie.id, marie.applicationId, { document: "cv", text: "Bien." })).toMatchObject({ ok: false, errors: [{ field: "document" }] });
+    });
+
+    it("needs Coach Access, and the Candidate keeps the Coach Reviews after revoking it", async () => {
+      const { sophie, marie } = await coachedApplication();
+      drafts.set(marie.applicationId, { documentLanguage: "fr", coverLetter, outreachMessage: null });
+      await coaches.review(sophie.id, marie.id, marie.applicationId, { document: "cover_letter", text: "Bien." });
+
+      await coaches.revokeAccess(marie.id, sophie.id);
+
+      expect(await coaches.review(sophie.id, marie.id, marie.applicationId, { document: "cover_letter", text: "Encore." })).toEqual({ ok: false, error: "not_found" });
+      expect(await coaches.reviews(marie.id, marie.applicationId)).toHaveLength(1);
+      expect(await coaches.reviews("someone-else", marie.applicationId)).toEqual([]);
+    });
+  });
 });

@@ -15,6 +15,9 @@ import type { Profile, Profiles } from "../profiles";
 import type { SavedTailoredCv, TailoredCvs } from "../tailored-cv";
 import type { CoverLetter, OutreachMessage, TailoredDocuments } from "../tailored-documents";
 import { fieldErrors, type FieldError } from "../validation";
+import { MAX_REVIEW_LENGTH, REVIEWED_DOCUMENTS, type ReviewedDocument } from "./kinds";
+
+export { MAX_REVIEW_LENGTH, REVIEWED_DOCUMENTS, type ReviewedDocument } from "./kinds";
 
 export interface HumanCoach {
   id: string;
@@ -57,7 +60,24 @@ export interface CoachedApplication {
   tailoredCv: SavedTailoredCv | null;
   coverLetter: CoverLetter | null;
   outreachMessage: OutreachMessage | null;
+  /** Every Coach Review of the Application, oldest first, whichever Human Coach gave it. */
+  reviews: CoachReview[];
 }
+
+/** A Human Coach's feedback on one Tailored Document of an Application, for the Candidate. */
+export interface CoachReview {
+  id: string;
+  coach: { id: string; name: string };
+  document: ReviewedDocument;
+  text: string;
+  createdAt: Date;
+}
+
+export type CoachReviewResult =
+  | { ok: true; review: CoachReview }
+  | { ok: false; errors: FieldError[] }
+  /** No Coach Access, no such Application, or no such Tailored Document on it yet. */
+  | { ok: false; error: "not_found" };
 
 export interface HumanCoachesDeps {
   profiles: Pick<Profiles, "list" | "get">;
@@ -89,6 +109,13 @@ export interface HumanCoaches {
   candidateFile(coachId: string, candidateId: string): Promise<CandidateFile | null>;
   /** One of the Candidate's Applications with its Tailored Documents, or null without Coach Access (or no such Application). Read only. */
   application(coachId: string, candidateId: string, applicationId: string): Promise<CoachedApplication | null>;
+  /**
+   * A Human Coach with Coach Access reviews one of the Application's Tailored Documents.
+   * `input` is untrusted: { document, text }. The document must exist (a saved Tailored CV, a drafted letter or message).
+   */
+  review(coachId: string, candidateId: string, applicationId: string, input: unknown): Promise<CoachReviewResult>;
+  /** The Coach Reviews of the Candidate's Application, oldest first; kept after Coach Access is revoked. */
+  reviews(candidateId: string, applicationId: string): Promise<CoachReview[]>;
 }
 
 /** Cal.com's hosted sites (cal.com, its EU instance cal.eu, and their subdomains). */
@@ -120,6 +147,28 @@ interface CoachRow {
   bio: string;
 }
 
+const reviewSchema = z.object({
+  document: z.enum(REVIEWED_DOCUMENTS),
+  text: z.string().trim().min(1).max(MAX_REVIEW_LENGTH),
+});
+
+interface ReviewRow {
+  id: string;
+  coach_id: string;
+  coach_name: string;
+  document: ReviewedDocument;
+  text: string;
+  created_at: Date;
+}
+
+const reviewFrom = (row: ReviewRow): CoachReview => ({
+  id: row.id,
+  coach: { id: row.coach_id, name: row.coach_name },
+  document: row.document,
+  text: row.text,
+  createdAt: row.created_at,
+});
+
 const COACH_COLUMNS = "id, name, email, booking_url, bio";
 const coachFrom = (row: CoachRow): HumanCoach => ({ id: row.id, name: row.name, email: row.email, bookingUrl: row.booking_url, bio: row.bio });
 
@@ -137,6 +186,38 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
     );
     return rows[0] ?? null;
   }
+
+  async function reviewsOf(candidateId: string, applicationId: string): Promise<CoachReview[]> {
+    if (!UUID.test(applicationId)) return [];
+    const { rows } = await database.query<ReviewRow>(
+      `SELECT r.id, r.coach_id, h.name AS coach_name, r.document, r.text, r.created_at
+       FROM coach_review r JOIN human_coach h ON h.id = r.coach_id
+       WHERE r.candidate_id = $1 AND r.application_id = $2 ORDER BY r.created_at, r.id`,
+      [candidateId, applicationId],
+    );
+    return rows.map(reviewFrom);
+  }
+
+  /** The Application as the Human Coach may read it, or null. */
+  async function coachedApplication(coachId: string, candidateId: string, applicationId: string): Promise<CoachedApplication | null> {
+    if (!(await coachedCandidate(coachId, candidateId))) return null;
+    const application = await deps.applications.get(candidateId, applicationId);
+    if (!application) return null;
+    const [drafts, tailoredCv, reviews] = await Promise.all([
+      deps.tailoredDocuments.get(candidateId, applicationId),
+      deps.tailoredCvs.get(candidateId, applicationId),
+      reviewsOf(candidateId, applicationId),
+    ]);
+    return {
+      application,
+      tailoredCv: tailoredCv?.saved ?? null,
+      coverLetter: drafts?.coverLetter ?? null,
+      outreachMessage: drafts?.outreachMessage ?? null,
+      reviews,
+    };
+  }
+
+  const DOCUMENT_OF = { tailored_cv: "tailoredCv", cover_letter: "coverLetter", outreach_message: "outreachMessage" } as const;
 
   return {
     async add(input) {
@@ -219,25 +300,30 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       return { candidate, profiles, applications };
     },
 
-    async application(coachId, candidateId, applicationId) {
-      if (!(await coachedCandidate(coachId, candidateId))) return null;
-      const application = await deps.applications.get(candidateId, applicationId);
-      if (!application) return null;
-      const [drafts, tailoredCv] = await Promise.all([
-        deps.tailoredDocuments.get(candidateId, applicationId),
-        deps.tailoredCvs.get(candidateId, applicationId),
-      ]);
-      return {
-        application,
-        tailoredCv: tailoredCv?.saved ?? null,
-        coverLetter: drafts?.coverLetter ?? null,
-        outreachMessage: drafts?.outreachMessage ?? null,
-      };
+    application: coachedApplication,
+
+    async review(coachId, candidateId, applicationId, input) {
+      const parsed = reviewSchema.safeParse(input, { reportInput: true });
+      if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+      const { document, text } = parsed.data;
+      const application = await coachedApplication(coachId, candidateId, applicationId);
+      if (!application?.[DOCUMENT_OF[document]]) return { ok: false, error: "not_found" };
+      const { rows } = await database.query<ReviewRow>(
+        `WITH inserted AS (
+           INSERT INTO coach_review (candidate_id, application_id, coach_id, document, text) VALUES ($1, $2, $3, $4, $5)
+           RETURNING id, coach_id, document, text, created_at
+         )
+         SELECT inserted.*, h.name AS coach_name FROM inserted JOIN human_coach h ON h.id = inserted.coach_id`,
+        [candidateId, applicationId, coachId, document, text],
+      );
+      return { ok: true, review: reviewFrom(rows[0]!) };
     },
+
+    reviews: reviewsOf,
   };
 }
 
-/** Creates or upgrades the Human Coach tables. Run after the Candidate accounts' migration. Safe to run repeatedly. */
+/** Creates or upgrades the Human Coach tables. Run after the Candidate and Application tables. Safe to run repeatedly. */
 export async function migrateHumanCoaches(database: Pool): Promise<void> {
   await database.query(`
     CREATE TABLE IF NOT EXISTS human_coach (
@@ -257,5 +343,15 @@ export async function migrateHumanCoaches(database: Pool): Promise<void> {
       PRIMARY KEY (candidate_id, coach_id)
     );
     CREATE INDEX IF NOT EXISTS coach_access_coach_id_idx ON coach_access (coach_id);
+    CREATE TABLE IF NOT EXISTS coach_review (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      candidate_id text NOT NULL REFERENCES candidate (id) ON DELETE CASCADE,
+      application_id uuid NOT NULL REFERENCES application (id) ON DELETE CASCADE,
+      coach_id uuid NOT NULL REFERENCES human_coach (id),
+      document text NOT NULL CHECK (document IN (${REVIEWED_DOCUMENTS.map((kind) => `'${kind}'`).join(", ")})),
+      text text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT clock_timestamp()
+    );
+    CREATE INDEX IF NOT EXISTS coach_review_application_id_idx ON coach_review (application_id);
   `);
 }

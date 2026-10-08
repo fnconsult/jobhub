@@ -5,6 +5,7 @@
  * Guest is not. Problems come back as results, never exceptions.
  */
 import type { CvContent, JobOffer, MatchScore } from "@jobhub/shared";
+import type { SearchCriteriaDraft } from "./guest-session";
 import type { CapturedJobOffer } from "./job-page";
 
 /** Why a CV file could not be read (the web app's CV file error codes), or the web app could not be reached. */
@@ -23,8 +24,8 @@ export interface UpgradePrompt {
 export interface JobbboxApi {
   /** Stores the captured Job Offer, or returns the one already stored for this posting. */
   capture(jobOffer: CapturedJobOffer): Promise<Result<{ jobOffer: JobOffer }, "invalid" | "unreachable">>;
-  /** Reads a CV file (PDF or .docx). The web app keeps nothing. */
-  readCv(file: File): Promise<Result<{ cv: CvContent }, ReadCvError>>;
+  /** Reads a CV file (PDF or .docx), and the Search Criteria it suggests. The web app keeps nothing. */
+  readCv(file: File): Promise<Result<{ cv: CvContent; searchCriteria: SearchCriteriaDraft }, ReadCvError>>;
   /**
    * The Match Score of a CV against a Job Offer. "job_offer_gone": it has been forgotten since.
    * "quota_exceeded": the signed-in Candidate's Plan allows no more Match Scores this month.
@@ -80,7 +81,9 @@ export function createJobbboxApi(webOrigin: string, fetchImpl: Fetch = (url, ini
         const code = String(reply.body.error);
         return { ok: false, error: CV_ERRORS.has(code) ? (code as ReadCvError) : "unreadable" };
       }
-      return { ok: true, cv: reply.body.masterCv as CvContent };
+      const criteria = (reply.body.searchCriteria ?? {}) as Partial<SearchCriteriaDraft>;
+      const searchCriteria = { targetRole: String(criteria.targetRole ?? ""), location: String(criteria.location ?? "") };
+      return { ok: true, cv: reply.body.masterCv as CvContent, searchCriteria };
     },
 
     async score(jobOfferId, cv) {

@@ -35,7 +35,7 @@ describe("the Jobbbox API, from the extension", () => {
     });
     const api = createJobbboxApi(WEB_ORIGIN, app.fetch);
 
-    expect(await api.readCv(new File(["%PDF"], "cv.pdf"))).toEqual({ ok: true, cv });
+    expect(await api.readCv(new File(["%PDF"], "cv.pdf"))).toEqual({ ok: true, cv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
     expect((app.calls[0]?.init.body as FormData).get("cv")).toBeInstanceOf(File);
     expect(await api.score("jo-1", cv)).toEqual({ ok: true, matchScore });
     expect(JSON.parse(String(app.calls[1]?.init.body))).toEqual({ jobOfferId: "jo-1", cv });

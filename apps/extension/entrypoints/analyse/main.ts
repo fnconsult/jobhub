@@ -107,7 +107,7 @@ function cvForm(): HTMLFormElement {
       error.textContent = read.error === "unreachable" ? t("extension.unreachable") : t(`cvUpload.errors.${read.error}`);
       return;
     }
-    await session.keepCv(read.cv);
+    await session.keepCv(read.cv, read.searchCriteria);
     await render();
   });
   return form;

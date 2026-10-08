@@ -15,9 +15,16 @@ export interface SessionStorage {
   remove(key: string): Promise<void>;
 }
 
+/** The Search Criteria read from a CV with it: the Profile the CV becomes if the Guest signs up starts from them. */
+export interface SearchCriteriaDraft {
+  targetRole: string;
+  location: string;
+}
+
 export interface GuestSessionContent {
   jobOffer?: JobOffer;
   cv?: CvContent;
+  searchCriteria?: SearchCriteriaDraft;
   /** When everything here is forgotten (ms since the epoch). */
   expiresAt?: number;
 }
@@ -26,7 +33,8 @@ export interface GuestSession {
   /** What the session holds; empty once it has expired. */
   read(): Promise<GuestSessionContent>;
   keepJobOffer(jobOffer: JobOffer): Promise<void>;
-  keepCv(cv: CvContent): Promise<void>;
+  /** Keeps the CV, with the Search Criteria read from it (replacing any earlier CV's). */
+  keepCv(cv: CvContent, searchCriteria?: SearchCriteriaDraft): Promise<void>;
   /** Forgets everything now. */
   forget(): Promise<void>;
 }
@@ -45,7 +53,7 @@ export function createGuestSession(storage: SessionStorage, now: () => number = 
     return stored;
   }
 
-  async function keep(change: Pick<GuestSessionContent, "jobOffer" | "cv">) {
+  async function keep(change: Pick<GuestSessionContent, "jobOffer" | "cv" | "searchCriteria">) {
     const current = await read();
     await storage.set({ [KEY]: { ...current, ...change, expiresAt: current.expiresAt ?? now() + RETENTION_MS } });
   }
@@ -53,7 +61,7 @@ export function createGuestSession(storage: SessionStorage, now: () => number = 
   return {
     read,
     keepJobOffer: (jobOffer) => keep({ jobOffer }),
-    keepCv: (cv) => keep({ cv }),
+    keepCv: (cv, searchCriteria) => keep({ cv, searchCriteria }),
     forget: () => storage.remove(KEY),
   };
 }

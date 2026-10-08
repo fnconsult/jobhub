@@ -22,6 +22,7 @@ function memoryStorage(): SessionStorage & { items: Record<string, unknown> } {
 const HOUR = 3_600_000;
 const jobOffer: JobOffer = { id: "jo-1", source: { url: "https://www.apec.fr/offre/1" }, title: "DAF", content: "Poste de DAF." };
 const cv = { fullName: "Marie Dupont", skills: ["IFRS"] } as CvContent;
+const searchCriteria = { targetRole: "Directrice financière", location: "Lyon" };
 
 describe("a Guest session", () => {
   it("keeps the captured Job Offer and the Guest's CV in the browser's session storage", async () => {
@@ -48,6 +49,14 @@ describe("a Guest session", () => {
 
     await session.keepJobOffer(jobOffer);
     expect(await session.read()).toEqual({ jobOffer, expiresAt: 46 * HOUR });
+  });
+
+  it("keeps the Search Criteria read from the Guest's CV with it, for the Profile it may become", async () => {
+    const session = createGuestSession(memoryStorage(), () => 0);
+
+    await session.keepCv(cv, searchCriteria);
+
+    expect(await session.read()).toEqual({ cv, searchCriteria, expiresAt: 23 * HOUR });
   });
 
   it("forgets everything when the Guest asks", async () => {

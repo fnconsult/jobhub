@@ -68,14 +68,23 @@ function ownContent(html: string): string {
   return html.replace(/<(header|nav|footer|aside|a)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ");
 }
 
-/** A notice in a conditional ("si cette offre n'est plus disponible", "if this job is no longer available") is not a notice. */
-const CONDITIONAL = /\b(si|s['’]|lorsque|quand|if|when|once)\s+(\S+\s+){0,2}$/i;
+/**
+ * A notice in a conditional ("si cette offre n'est plus disponible", "quand
+ * l'offre est pourvue", "s'il s'avère que cette offre…", "if this job is no
+ * longer available") is not a notice: the conjunction, then up to five words
+ * of the same clause (elided ones like "l'" or "s'" included), right before it.
+ */
+const CONDITIONAL = /(?<!\p{L})(si\s+|s['’]|lorsque\s+|lorsqu['’]|quand\s+|if\s+|when\s+|once\s+)([^\s,;:.!?'’]+(['’]\s*|\s+)){0,5}$/iu;
+/** Nor is a question ("Cette offre n'est plus disponible ? Signalez-le-nous."). */
+const QUESTION = /^\s*\?/;
 
 function saysExpired(text: string): boolean {
   return EXPIRY_NOTICES.some((notice) => {
     const global = new RegExp(notice.source, notice.flags.includes("g") ? notice.flags : `${notice.flags}g`);
     for (const match of text.matchAll(global)) {
-      if (!CONDITIONAL.test(text.slice(Math.max(0, match.index - 40), match.index))) return true;
+      const before = text.slice(Math.max(0, match.index - 60), match.index);
+      const after = text.slice(match.index + match[0].length);
+      if (!CONDITIONAL.test(before) && !QUESTION.test(after)) return true;
     }
     return false;
   });

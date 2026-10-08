@@ -246,7 +246,7 @@ test.describe("Expired Job Offers (worker job job-offers.recheck-sources)", () =
     for (const name of ["published", ...expiredOnFirstRecheck] as Source[]) expect(after[name], name).toBe(before[name]);
   });
 
-  test("it is re-checked again every few days, and an Expired Job Offer is never re-checked", async () => {
+  test("it is re-checked again every few days, and an Expired Job Offer not before two weeks", async () => {
     const before = fetchCounts();
     // The still-published posting is now gone (410).
     recheckSourcesAt(6 * 24 + 2, "later");

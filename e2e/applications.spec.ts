@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { subscribe } from "./support/plan";
 
 // Issue #12: saving a Job Offer creates an Application ("À postuler") on one
 // of the Candidate's Profiles, at most one per Job Offer. The Candidate follows
@@ -64,7 +65,10 @@ async function saveApplication(page: Page, jobOfferId: string, profileId: string
 
 test.describe("Applications", () => {
   test("the Candidate saves a Job Offer with the Profile they pick, and reads it on the Application page", async ({ page }) => {
-    await signInWithMagicLink(page, newAddress("application-save"));
+    // Two Profiles: more than the Free Plan holds.
+    const email = newAddress("application-save");
+    await signInWithMagicLink(page, email);
+    await subscribe(page, email, "standard");
     await createProfile(page, "DAF");
     const consultantId = await createProfile(page, "Consultant transformation");
     const jobOfferId = await captureOffer(page);
@@ -196,7 +200,10 @@ test.describe("Applications", () => {
   });
 
   test("the Candidate switches the Profile an Application uses, and its Match Score follows", async ({ page, browser }) => {
-    await signInWithMagicLink(page, newAddress("application-profile"));
+    // Two Profiles: more than the Free Plan holds.
+    const email = newAddress("application-profile");
+    await signInWithMagicLink(page, email);
+    await subscribe(page, email, "standard");
     const dafId = await createProfile(page, "DAF");
     const consultantId = await createProfile(page, "Consultant transformation");
     const applicationId = await saveApplication(page, await captureOffer(page), dafId);

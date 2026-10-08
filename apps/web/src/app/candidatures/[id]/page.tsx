@@ -6,6 +6,8 @@ import { requireOwnApplication } from "@/applications/server";
 import { ActionCardList } from "@/components/ActionCardList";
 import { AddInterviewForm, ApplicationProfileSelect, ApplicationStatusSelect, RemoveInterviewButton } from "@/components/ApplicationControls";
 import { CoachInView } from "@/components/CoachPanel";
+import { CompanyDossierView } from "@/components/CompanyDossierView";
+import { getCompanyDossiers } from "@/company-dossiers/server";
 import { JobOfferView } from "@/components/JobOfferView";
 import { MatchScoreView } from "@/components/MatchScoreView";
 import { WorkspaceHeader } from "@/components/WorkspaceHeader";
@@ -23,13 +25,17 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 /**
  * One Application: its status and Profile (both changed by hand), its Interviews,
- * the Match Score with its breakdown, and the full Job Offer.
+ * the Match Score with its breakdown, the Company Dossier and the full Job Offer.
  */
 export default async function ApplicationPage({ params }: Params) {
   const { candidateId, application } = await requireOwnApplication((await params).id);
   const [t, locale] = await Promise.all([getServerT(), getRequestLocale()]);
   const inView = { kind: "application", id: application.id, name: application.jobOffer.title } as const;
-  const [cards, profiles] = await Promise.all([getActionCards().pending(candidateId, inView), getProfiles().list(candidateId)]);
+  const [cards, profiles, companyDossier] = await Promise.all([
+    getActionCards().pending(candidateId, inView),
+    getProfiles().list(candidateId),
+    getCompanyDossiers().get(candidateId, application.id),
+  ]);
   // Active Profiles to pick from, and the one in use even if it was archived since.
   const choices = profiles.filter((profile) => !profile.archived || profile.id === application.profile.id).map(({ id, name }) => ({ id, name }));
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: INTERVIEW_TIME_ZONE });
@@ -74,6 +80,7 @@ export default async function ApplicationPage({ params }: Params) {
       </section>
 
       <MatchScoreView matchScore={application.matchScore} profileName={application.profile.name} t={t} locale={locale} />
+      <CompanyDossierView applicationId={application.id} state={companyDossier} t={t} locale={locale} />
       <JobOfferView jobOffer={jobOffer} t={t} locale={locale} />
     </main>
   );

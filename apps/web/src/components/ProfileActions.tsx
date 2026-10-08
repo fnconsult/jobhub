@@ -3,13 +3,22 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import type { UpgradePrompt as Prompt } from "@/billing/upgrade-prompt";
 import type { ProfileFieldError } from "@/profiles";
 import { copyName, PROFILE_NAME_MAX_LENGTH } from "@/profiles/limits";
 import { routes } from "@/routes";
 import { TextField } from "./form-fields";
+import { UpgradePrompt, upgradePromptIn } from "./UpgradePrompt";
 
 type Action = "rename" | "duplicate" | "archive";
-type Outcome = { action: Action; errors?: ProfileFieldError[]; problem?: "plan_quota_reached" | "failed"; done?: boolean };
+type Outcome = {
+  action: Action;
+  errors?: ProfileFieldError[];
+  problem?: "plan_quota_reached" | "failed";
+  /** When the Plan Quota refused: what the Plan allows and which Plan allows more. */
+  upgradePrompt?: Prompt | null;
+  done?: boolean;
+};
 
 /** Rename, duplicate, archive or restore one Profile. */
 export function ProfileActions({ profile }: { profile: { id: string; name: string; archived: boolean } }) {
@@ -29,7 +38,8 @@ export function ProfileActions({ profile }: { profile: { id: string; name: strin
       const result = await response.json().catch(() => ({}));
       if (response.ok) return result;
       if (Array.isArray(result.errors)) setOutcome({ action, errors: result.errors });
-      else setOutcome({ action, problem: result.error === "plan_quota_reached" ? "plan_quota_reached" : "failed" });
+      else if (result.error === "plan_quota_reached") setOutcome({ action, problem: "plan_quota_reached", upgradePrompt: upgradePromptIn(result) });
+      else setOutcome({ action, problem: "failed" });
     } catch {
       setOutcome({ action, problem: "failed" });
     } finally {
@@ -59,7 +69,9 @@ export function ProfileActions({ profile }: { profile: { id: string; name: strin
 
   const nameError = (action: Action) => (outcome?.action === action ? outcome.errors?.find((error) => error.field === "name") : undefined);
   const problem = (action: Action) =>
-    outcome?.action === action && outcome.problem ? (
+    outcome?.action === action && outcome.upgradePrompt ? (
+      <UpgradePrompt prompt={outcome.upgradePrompt} />
+    ) : outcome?.action === action && outcome.problem ? (
       <p className="notice" role="alert">
         {t(outcome.problem === "plan_quota_reached" ? "profiles.quotaReached" : "profileActions.error")}
       </p>

@@ -54,6 +54,33 @@ describe("the Jobbbox API, from the extension", () => {
     expect(await api.score("jo-gone", cv)).toEqual({ ok: false, error: "job_offer_gone" });
   });
 
+  it("passes on the Upgrade Prompt when the Candidate's Plan allows no more Match Scores this month", async () => {
+    const prompt = {
+      title: "You have reached your Plan's limit",
+      message: "You have used the 3 Match Scores included this month in the Free Plan. Upgrade to Standard to use more.",
+      upgradeTo: "standard",
+      action: "Upgrade to Standard",
+      href: "/abonnement",
+    };
+    const api = createJobbboxApi(
+      WEB_ORIGIN,
+      webApp({ "/api/match-score": () => Response.json({ error: "quota_exceeded", quota: "matchScores", prompt }, { status: 402 }) }).fetch,
+    );
+
+    expect(await api.score("jo-1", cv)).toEqual({
+      ok: false,
+      error: "quota_exceeded",
+      prompt: { message: prompt.message, action: "Upgrade to Standard", href: "/abonnement" },
+    });
+  });
+
+  it("passes on a prompt without an action when no Plan offers more", async () => {
+    const prompt = { title: "Limit", message: "No Plan includes more.", upgradeTo: null, action: null, href: "/abonnement" };
+    const api = createJobbboxApi(WEB_ORIGIN, webApp({ "/api/match-score": () => Response.json({ error: "quota_exceeded", prompt }, { status: 402 }) }).fetch);
+
+    expect(await api.score("jo-1", cv)).toEqual({ ok: false, error: "quota_exceeded", prompt: { message: "No Plan includes more.", action: null, href: "/abonnement" } });
+  });
+
   it("says when the web app cannot be reached", async () => {
     const api = createJobbboxApi(WEB_ORIGIN, webApp({}).fetch);
 

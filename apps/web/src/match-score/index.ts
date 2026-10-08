@@ -9,10 +9,15 @@
  *  - `{ jobOfferId, cv, searchCriteria? }` — a CV sent with the request: a
  *    Guest's CV (no account needed) or a Tailored CV.
  * A CV sent with the request is scored and forgotten, never stored (ADR-0003).
+ * Each Match Score a signed-in Candidate gets counts against their Plan Quota
+ * (`matchScoreQuota`, asked once the request names a Job Offer and a CV it can
+ * score, before scoring); a Guest's are not counted (ADR-0014).
  * Problems come back as results, never exceptions.
  */
 import { scoreMatch, type MatchScore } from "@jobhub/shared";
 import * as z from "zod";
+import type { QuotaDecision } from "../billing";
+import type { QuotaRefusal } from "../billing/upgrade-prompt";
 import type { JobOffers } from "../job-offers";
 import { cvContentSchema, searchCriteriaSchema, type Profiles } from "../profiles";
 import { fieldErrors, type FieldError } from "../validation";
@@ -23,7 +28,15 @@ export type MatchScoreResult =
   /** The Profile needs a signed-in Candidate. */
   | { ok: false; error: "unauthorized" }
   /** No such Job Offer, or no such Profile for this Candidate. */
-  | { ok: false; error: "not_found" };
+  | { ok: false; error: "not_found" }
+  /** The Candidate's Plan Quota allows no more Match Scores this month. */
+  | { ok: false; error: "quota_exceeded"; refusal: QuotaRefusal };
+
+/**
+ * Records one Match Score for the Candidate if their Plan allows it (billing's
+ * `use(candidateId, "matchScores")`). Without one, nothing is counted.
+ */
+export type MatchScoreQuota = (candidateId: string) => Promise<QuotaDecision>;
 
 export interface MatchScoring {
   /** `candidateId` is the signed-in Candidate, or null for a Guest. */
@@ -40,7 +53,22 @@ const parse = (input: unknown) =>
     ? profileRequest.safeParse(input, { reportInput: true })
     : cvRequest.safeParse(input, { reportInput: true });
 
-export function createMatchScoring({ jobOffers, profiles }: { jobOffers: JobOffers; profiles: Profiles }): MatchScoring {
+export function createMatchScoring({
+  jobOffers,
+  profiles,
+  matchScoreQuota = async () => ({ allowed: true, remaining: null }),
+}: {
+  jobOffers: JobOffers;
+  profiles: Profiles;
+  matchScoreQuota?: MatchScoreQuota;
+}): MatchScoring {
+  /** Null when the Match Score may go ahead; a Guest's always may. */
+  async function refused(candidateId: string | null): Promise<MatchScoreResult | null> {
+    if (!candidateId) return null;
+    const decision = await matchScoreQuota(candidateId);
+    return decision.allowed ? null : { ok: false, error: "quota_exceeded", refusal: decision };
+  }
+
   return {
     async score(candidateId, input) {
       const parsed = parse(input);
@@ -54,8 +82,12 @@ export function createMatchScoring({ jobOffers, profiles }: { jobOffers: JobOffe
         if (!candidateId) return { ok: false, error: "unauthorized" };
         const profile = await profiles.get(candidateId, request.profileId);
         if (!profile) return { ok: false, error: "not_found" };
+        const refusal = await refused(candidateId);
+        if (refusal) return refusal;
         return { ok: true, matchScore: scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer }) };
       }
+      const refusal = await refused(candidateId);
+      if (refusal) return refusal;
       return { ok: true, matchScore: scoreMatch({ cv: request.cv, searchCriteria: request.searchCriteria, jobOffer }) };
     },
   };

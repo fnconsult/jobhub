@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { fakeCustomerId, FAKE_STRIPE_PRICES, signedEvent, subscriptionEvent } from "../apps/web/src/billing/fake-stripe";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { subscribe } from "./support/plan";
 
 // Issue #22: Plans, Stripe billing (checkout, customer portal, webhooks) and
 // Plan Quotas edited in the back office. Stripe is the fake API on E2E_STRIPE_URL.
@@ -173,6 +174,76 @@ test.describe("Plans and Stripe billing", () => {
   test("the subscription page is for signed-in Candidates only", async ({ page }) => {
     await page.goto("/abonnement");
     await expect(page).toHaveURL(/\/connexion$/);
+  });
+});
+
+// In this file because the back office tests briefly change the Free Plan's Match Score quota.
+test.describe("Plan Quotas on Match Scores", () => {
+  const cv = {
+    fullName: "Marie Dupont",
+    headline: "Directrice financière",
+    email: "marie.dupont@example.fr",
+    phone: "",
+    location: "Lyon",
+    summary: "",
+    experience: [{ title: "Directrice financière", employer: "Groupe Seb", location: "Lyon", period: "2005 – 2024", description: "" }],
+    education: [],
+    skills: ["IFRS", "SAP"],
+    languages: [],
+  };
+
+  async function captureOffer(page: Page, origin: string): Promise<string> {
+    const tag = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const captured = await page.request.post("/api/job-offers", {
+      data: { source: { url: `https://www.apec.fr/offres/daf-${tag}` }, title: "DAF H/F", content: `DAF pour un groupe industriel (réf. ${tag}).`, location: "Lyon" },
+      headers: { origin },
+    });
+    expect(captured.status(), await captured.text()).toBe(200);
+    return (await captured.json()).id;
+  }
+
+  test("a Free Candidate gets 3 Match Scores a month, then a 402 with the Upgrade Prompt; Standard lifts the limit", async ({ page, baseURL }) => {
+    const email = newAddress("match-quota");
+    await signInWithMagicLink(page, email);
+    const jobOfferId = await captureOffer(page, baseURL!);
+    const score = (data: object) => page.request.post("/api/match-score", { data, headers: { origin: baseURL! } });
+
+    // Requests that cannot be scored use nothing.
+    expect((await score({ jobOfferId: "00000000-0000-4000-8000-000000000000", cv })).status()).toBe(404);
+    expect((await score({ jobOfferId })).status()).toBe(400);
+
+    for (let i = 0; i < 3; i++) expect((await score({ jobOfferId, cv })).status()).toBe(200);
+    const refused = await score({ jobOfferId, cv });
+    expect(refused.status()).toBe(402);
+    expect(await refused.json()).toEqual({
+      error: "quota_exceeded",
+      quota: "matchScores",
+      plan: "free",
+      limit: 3,
+      upgradeTo: "standard",
+      prompt: {
+        title: fr.billing.quotaReached.title,
+        message: "Vous avez utilisé les 3 Match Scores compris ce mois-ci dans l'offre Gratuite. Avec l'offre Standard, vous pouvez en faire davantage.",
+        upgradeTo: "standard",
+        action: "Découvrir l'offre Standard",
+        href: "/abonnement",
+      },
+    });
+    await page.goto("/abonnement");
+    await expect(page.locator("dl div").filter({ hasText: "Match Scores" }).locator("dd")).toHaveText("3 sur 3");
+
+    await subscribe(page, email, "standard");
+    expect((await score({ jobOfferId, cv })).status()).toBe(200);
+  });
+
+  test("a Guest's Match Scores are not counted against any Plan", async ({ playwright, page, baseURL }) => {
+    await signInWithMagicLink(page, newAddress("match-quota-capture"));
+    const jobOfferId = await captureOffer(page, baseURL!);
+    const guest = await playwright.request.newContext({ baseURL });
+    for (let i = 0; i < 4; i++) {
+      expect((await guest.post("/api/match-score", { data: { jobOfferId, cv }, headers: { origin: baseURL! } })).status()).toBe(200);
+    }
+    await guest.dispose();
   });
 });
 

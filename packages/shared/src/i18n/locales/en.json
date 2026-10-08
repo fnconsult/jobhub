@@ -549,5 +549,66 @@
       "archived": "This profile is archived. Restore it to search for job offers.",
       "generic": "The search could not be started. Check your connection and try again."
     }
+  },
+  "companyDossier": {
+    "title": "Company dossier",
+    "intro": "Gather public information about the employer: identity, address, key figures and roles to contact.",
+    "build": "Build the company dossier",
+    "rebuild": "Update the dossier",
+    "working": "Searching…",
+    "unavailable": "The sources are unavailable right now. Try again in a few minutes.",
+    "notACompany": "This name or SIREN is not a company: a sole trader is a private person, and nothing is looked up about them. Enter the name of the hiring company.",
+    "employerUnknown": "The offer does not name the employer. Name it to build the dossier.",
+    "postedByAgency": "This offer is posted by a recruiting agency ({{agency}}).",
+    "postedByAgencyUnnamed": "This offer is posted by a recruiting agency.",
+    "presumedEmployer": "The real employer may be: {{employer}}.",
+    "noPresumedEmployer": "The real employer could not be guessed.",
+    "confirmBeforeLookup": "Confirm the employer or name the right one: nothing is looked up before you confirm.",
+    "employerLabel": "Employer",
+    "employerHint": "The company's name, or its SIREN number if you know it.",
+    "confirmEmployer": "Confirm the employer",
+    "nameEmployer": "Build the dossier for this employer",
+    "notInRegister": "A French company the register did not find under this name? Enter its SIREN below (“Not the right employer?”) to get its official data.",
+    "wrongEmployer": "Not the right employer?",
+    "reliability": {
+      "official": "Official source.",
+      "less_reliable": "Web sources, less reliable."
+    },
+    "reliabilityDetail": {
+      "official": "Data from the French company register (API Recherche d'entreprises).",
+      "less_reliable": "This information comes from websites and may be wrong or out of date: check it."
+    },
+    "facts": {
+      "name": "Name",
+      "siren": "SIREN",
+      "legalForm": "Legal form",
+      "activity": "Activity (NAF code)",
+      "address": "Head office address",
+      "headcount": "Headcount",
+      "country": "Country",
+      "industry": "Industry",
+      "revenue": "Revenue",
+      "website": "Website"
+    },
+    "headcountRange": "{{min}} to {{max}} employees",
+    "headcountFrom": "{{min}} employees or more",
+    "financialsTitle": "Key figures",
+    "year": "Year",
+    "revenue": "Revenue",
+    "netIncome": "Net income",
+    "noFinancials": "The company does not publish financial figures.",
+    "executivesTitle": "Executive roles in the register",
+    "executivesHint": "Only roles are shown, never people's names.",
+    "contactRolesTitle": "Roles to contact",
+    "contactRolesHint": "Look for the people holding these roles at the employer. Named contacts are part of the Premium plan.",
+    "contactRoles": {
+      "hiring_manager": "The future manager of the role",
+      "talent_acquisition": "Recruitment lead (Talent Acquisition)",
+      "hr_director": "HR director (DRH)",
+      "hr_manager": "HR manager (RRH)",
+      "chief_executive": "Head of the company (gérant, président, CEO)"
+    },
+    "sourcesTitle": "Sources",
+    "builtOn": "Dossier built on {{date}} for “{{employer}}”."
   }
 }

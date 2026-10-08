@@ -4,6 +4,8 @@
  * extension's Guest flow compute it the same way, without an account.
  */
 import type { ContractType, CvContent, JobOfferDetails, SalaryRange, SearchCriteria } from "../domain";
+import { normalise } from "../text";
+
 
 export type CriterionStatus = "match" | "partial" | "mismatch" | "unknown";
 
@@ -55,16 +57,6 @@ export interface MatchInput {
   searchCriteria?: SearchCriteria;
   /** For a current job ("2015 – aujourd'hui"). Defaults to now. */
   today?: Date;
-}
-
-/** Lower case, without accents or punctuation, single-spaced: "Trésorerie" → "tresorerie". */
-function normalise(text: string): string {
-  return ` ${text
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}+#]+/gu, " ")
-    .trim()} `;
 }
 
 function cvText(cv: CvContent): string {

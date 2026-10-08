@@ -40,9 +40,12 @@ export interface DraftDeps {
 }
 
 export async function draftFromCv(file: CvFile, deps: DraftDeps): Promise<CvDraft> {
-  const text = await readCvFile(file);
+  const { text, photo } = await readCvFile(file);
   const reading = deps.candidateId === null ? null : await readCvWithAi(text, deps.ai, deps.candidateId);
-  const masterCv = reading?.masterCv ?? outlineCv(text);
+  // Only the file tells whether the CV shows a photo: neither reading of its text can.
+  const read: MasterCvContent = { ...(reading?.masterCv ?? outlineCv(text)) };
+  delete read.photo;
+  const masterCv: MasterCvContent = photo ? { ...read, photo } : read;
   return {
     masterCv,
     searchCriteria: {

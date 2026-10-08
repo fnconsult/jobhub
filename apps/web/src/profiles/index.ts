@@ -131,6 +131,7 @@ export const cvContentSchema = z.object({
   education: z.array(z.object({ degree: text, institution: text, year: text })).transform((items) => items.filter(notBlank)),
   skills: z.array(text).transform((items) => items.filter(Boolean)),
   languages: z.array(z.object({ name: text, level: text })).transform((items) => items.filter(notBlank)),
+  photo: z.boolean().optional(),
 });
 
 /** Search Criteria as the browser sends them: a target role and a location at least. */

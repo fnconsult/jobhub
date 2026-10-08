@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -8,17 +9,25 @@ export interface ActionCardView {
   id: string;
   title: string;
   body: string;
+  /** Shown above the title, e.g. "Conseil senior". */
+  label?: string;
+  /** In place of the usual "Ignorer", e.g. "Ignorer ce conseil". */
+  dismissLabel?: string;
 }
 
 type Outcome = { kind: "accepted" | "dismissed" } | { kind: "error"; cardId: string };
 
 /**
  * The AI Coach's pending Action Cards for what this page shows. The Candidate
- * accepts or dismisses each one; a decided card leaves the page.
+ * accepts or dismisses each one; a decided card leaves the page. Accepting one
+ * changes what the page shows, so the page is then refreshed (new cards the
+ * page receives appear).
  */
-export function ActionCardList({ cards: initial }: { cards: ActionCardView[] }) {
+export function ActionCardList({ cards: shown }: { cards: ActionCardView[] }) {
   const { t } = useTranslation();
-  const [cards, setCards] = useState(initial);
+  const router = useRouter();
+  const [decided, setDecided] = useState<ReadonlySet<string>>(new Set());
+  const cards = shown.filter((card) => !decided.has(card.id));
   const [busy, setBusy] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
 
@@ -33,8 +42,9 @@ export function ActionCardList({ cards: initial }: { cards: ActionCardView[] }) 
       });
       // Already decided elsewhere (another tab): it is off the page either way.
       if (response.ok || response.status === 409 || response.status === 404) {
-        setCards((current) => current.filter((other) => other.id !== card.id));
+        setDecided((current) => new Set(current).add(card.id));
         if (response.ok) setOutcome({ kind: decision === "accept" ? "accepted" : "dismissed" });
+        if (response.ok && decision === "accept") router.refresh();
       } else {
         setOutcome({ kind: "error", cardId: card.id });
       }
@@ -56,6 +66,7 @@ export function ActionCardList({ cards: initial }: { cards: ActionCardView[] }) 
       ) : null}
       {cards.map((card) => (
         <article key={card.id} className="action-card" aria-labelledby={`action-card-${card.id}`}>
+          {card.label ? <p className="action-card-label">{card.label}</p> : null}
           <h3 id={`action-card-${card.id}`}>{card.title}</h3>
           <p className="cv-text">{card.body}</p>
           {outcome?.kind === "error" && outcome.cardId === card.id ? (
@@ -68,7 +79,7 @@ export function ActionCardList({ cards: initial }: { cards: ActionCardView[] }) 
               {t("actionCards.accept")}
             </button>
             <button className="button" type="button" disabled={busy === card.id} onClick={() => decide(card, "dismiss")}>
-              {t("actionCards.dismiss")}
+              {card.dismissLabel ?? t("actionCards.dismiss")}
             </button>
           </div>
         </article>

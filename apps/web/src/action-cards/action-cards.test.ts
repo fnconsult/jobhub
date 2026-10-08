@@ -68,6 +68,19 @@ describe.skipIf(!connectionString)("Action Cards (needs Postgres: DATABASE_URL)"
     expect(await cards.pending(marie, PROFILE)).toEqual([]);
   });
 
+  it("remembers the cards the Candidate dismissed on a page, so the same proposal is not made again", async () => {
+    const cards = createActionCards(database);
+    const dismissed = await cards.propose(marie, proposal);
+    const accepted = await cards.propose(marie, { ...proposal, payload: { skill: "SAP" } });
+    await cards.propose(marie, { ...proposal, payload: { skill: "ERP" } });
+    await cards.decide(marie, dismissed.id, "dismiss");
+    await cards.decide(marie, accepted.id, "accept");
+
+    expect(await cards.dismissed(marie, PROFILE)).toEqual([{ ...dismissed, status: "dismissed" }]);
+    expect(await cards.dismissed(marie, OTHER_PROFILE)).toEqual([]);
+    expect(await cards.dismissed(jean, PROFILE)).toEqual([]);
+  });
+
   it("decides a card only once", async () => {
     let applied = 0;
     const cards = createActionCards(database, { onAccept: { ats_fix: async () => void applied++ } });

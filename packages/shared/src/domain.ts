@@ -136,6 +136,11 @@ export interface JobOffer extends JobOfferDetails {
   id: string;
   /** Where the posting was captured: its URL, and the site's name (its host when not given). */
   source: { url?: string; name?: string };
+  /**
+   * Set once it is an Expired Job Offer: when a re-check found its source no
+   * longer publishing it. Its Applications are flagged, never changed.
+   */
+  expiredAt?: Date;
 }
 
 /**

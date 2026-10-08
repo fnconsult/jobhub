@@ -115,4 +115,42 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       expect.objectContaining({ name: "Consultant transformation", archived: true, masterCvVersions: [expect.objectContaining({ version: 1 })] }),
     ]);
   });
+
+  it("the export holds every Application with its Job Offer, Interviews and Tailored Documents", async () => {
+    const profileId = await createProfile(candidateId, "DAF");
+    const application = await saveApplication(candidateId, profileId);
+    await applications.change(candidateId, application.id, { status: "interview" });
+    await applications.addInterview(candidateId, application.id, { scheduledAt: "2026-11-12T14:30", note: "avec la DRH" });
+    const proposed = await tailoredCvs.propose(candidateId, application.id, {});
+    if (!proposed.ok) throw new Error(`fixture Tailored CV refused: ${JSON.stringify(proposed)}`);
+    await tailoredCvs.save(candidateId, application.id, { revision: proposed.tailoredCv.proposal!.revision });
+    await tailoredDocuments.draft(candidateId, application.id, { document: "cover_letter" });
+    await tailoredDocuments.edit(candidateId, application.id, { document: "cover_letter", text: "Madame, Monsieur, je postule." });
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.applications).toEqual([
+      expect.objectContaining({
+        id: application.id,
+        status: "interview",
+        profile: { id: profileId, name: "DAF" },
+        jobOffer: expect.objectContaining({ title: "DAF H/F", employer: "Acme Industrie" }),
+        interviews: [expect.objectContaining({ note: "avec la DRH", scheduledAt: new Date("2026-11-12T13:30:00Z") })],
+        tailoredDocuments: {
+          documentLanguage: "fr",
+          tailoredCv: expect.objectContaining({ content: expect.objectContaining({ headline: "DAF groupe industriel" }) }),
+          tailoredCvProposal: null,
+          coverLetter: expect.objectContaining({ text: "Madame, Monsieur, je postule." }),
+          outreachMessage: null,
+        },
+      }),
+    ]);
+  });
+
+  it("the export holds nothing of another Candidate", async () => {
+    const other = await signIn("paul.martin@example.fr");
+    await saveApplication(other, await createProfile(other, "DSI"));
+
+    expect(await candidateData.export(candidateId)).toMatchObject({ profiles: [], applications: [] });
+  });
 });

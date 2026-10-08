@@ -133,4 +133,32 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
     expect(result).toMatchObject({ ok: true, drafts: { documentLanguage: "en", coverLetter: { language: "en" } } });
     expect(lastCall().system).toContain("in English");
   });
+
+  it("the AI Coach drafts an Outreach Message as an email by default, with its subject, stored on the Application", async () => {
+    const result = await documents.draft(candidateId, applicationId, { document: "outreach_message" });
+
+    expect(result).toMatchObject({
+      ok: true,
+      drafts: { outreachMessage: { channel: "email", subject: "Candidature DAF", text: "Bonjour, je me permets de vous contacter.", language: "fr" } },
+    });
+    expect((await documents.get(candidateId, applicationId))?.outreachMessage).toMatchObject({ channel: "email", subject: "Candidature DAF" });
+  });
+
+  it("an Outreach Message can be drafted as a LinkedIn InMail, kept short", async () => {
+    const result = await documents.draft(candidateId, applicationId, { document: "outreach_message", channel: "inmail" });
+
+    expect(result).toMatchObject({ ok: true, drafts: { outreachMessage: { channel: "inmail" } } });
+    expect(lastCall().system).toContain("InMail");
+  });
+
+  it("a reply the AI Coach did not shape as asked still gives an Outreach Message, with no subject", async () => {
+    provider = createFakeProvider({ id: "mistral", reply: "Bonjour, je me permets de vous écrire." });
+    const ai = createAiLayer({ providers: [provider], routes: { writing: "mistral" }, usage: createMemoryUsageLog() });
+    const database = testAuth.auth.options.database as Pool;
+    documents = createTailoredDocuments(database, { applications: createApplications(database, { jobOffers, profiles }), profiles, ai });
+
+    const result = await documents.draft(candidateId, applicationId, { document: "outreach_message" });
+
+    expect(result).toMatchObject({ ok: true, drafts: { outreachMessage: { subject: "", text: "Bonjour, je me permets de vous écrire." } } });
+  });
 });

@@ -30,6 +30,10 @@ import { fieldErrors, type FieldError } from "../validation";
 export const TAILORED_DOCUMENTS = ["cover_letter", "outreach_message"] as const;
 export type TailoredDocumentKind = (typeof TAILORED_DOCUMENTS)[number];
 
+/** How an Outreach Message reaches the contact: an email, or a LinkedIn InMail the Candidate sends themselves (ADR-0001). */
+export const OUTREACH_CHANNELS = ["email", "inmail"] as const;
+export type OutreachChannel = (typeof OUTREACH_CHANNELS)[number];
+
 interface Draft {
   /** The language it was written in. */
   language: DocumentLanguage;
@@ -42,10 +46,16 @@ interface Draft {
 
 export type CoverLetter = Draft;
 
+export interface OutreachMessage extends Draft {
+  channel: OutreachChannel;
+  /** Empty when there is none. */
+  subject: string;
+}
+
 export interface ApplicationDrafts {
   documentLanguage: DocumentLanguage;
   coverLetter: CoverLetter | null;
-  outreachMessage: null;
+  outreachMessage: OutreachMessage | null;
 }
 
 /**
@@ -75,7 +85,7 @@ export type TailoredDocumentsResult =
 export interface TailoredDocuments {
   /** The Application's drafts, or null if it does not exist or belongs to someone else. */
   get(candidateId: string, applicationId: string): Promise<ApplicationDrafts | null>;
-  /** Has the AI Coach draft one document, replacing the stored one. `input`: { document, language? }. */
+  /** Has the AI Coach draft one document, replacing the stored one. `input`: { document, language?, channel? (Outreach Message: "email" by default) }. */
   draft(candidateId: string, applicationId: string, input: unknown): Promise<TailoredDocumentsResult>;
 }
 
@@ -87,32 +97,87 @@ export interface TailoredDocumentsDeps {
   companyDossiers?: CompanyDossierSource;
 }
 
-const draftSchema = z.object({ document: z.enum(TAILORED_DOCUMENTS), language: z.enum(DOCUMENT_LANGUAGES).optional() });
+const draftSchema = z.object({
+  document: z.enum(TAILORED_DOCUMENTS),
+  language: z.enum(DOCUMENT_LANGUAGES).optional(),
+  channel: z.enum(OUTREACH_CHANNELS).default("email"),
+});
 
 const NOT_FOUND = { ok: false, error: "not_found" } as const;
 
 interface DraftRow {
   kind: TailoredDocumentKind;
   language: DocumentLanguage;
+  channel: OutreachChannel | null;
+  subject: string;
   text: string;
   drafted_at: Date;
   updated_at: Date;
 }
 
-const SYSTEM: Record<DocumentLanguage, string> = {
-  fr: `Tu es le coach Jobbbox. Tu rédiges une lettre de motivation en français pour un cadre expérimenté qui postule à l'offre ci-dessous.
-Règles :
+/** What to write, per document (and channel), in each Document Language. */
+const WHAT: Record<DocumentLanguage, Record<TailoredDocumentKind | OutreachChannel, string>> = {
+  fr: {
+    cover_letter: "une lettre de motivation en français",
+    outreach_message: "un message d'approche en français",
+    email: "un e-mail d'approche en français, court (150 mots au plus), à un contact chez l'employeur",
+    inmail: "un InMail LinkedIn d'approche en français, très court (100 mots au plus), à un contact chez l'employeur",
+  },
+  en: {
+    cover_letter: "a cover letter in English",
+    outreach_message: "an outreach message in English",
+    email: "a short outreach email in English (150 words at most) to a contact at the employer",
+    inmail: "a very short LinkedIn InMail in English (100 words at most) to a contact at the employer",
+  },
+};
+
+const RULES: Record<DocumentLanguage, string> = {
+  fr: `Règles :
 - Appuie-toi uniquement sur son CV de référence, l'offre et, s'il y en a, le dossier sur l'entreprise. N'invente jamais d'expérience, de diplôme ou de chiffre.
 - Ne nomme aucune personne de l'entreprise.
-- Une page au plus, ton sobre et concret, sans formule creuse.
-Réponds uniquement avec le texte de la lettre, sans commentaire.`,
-  en: `You are the Jobbbox coach. You write a cover letter in English for an experienced professional applying to the job offer below.
-Rules:
+- Ton sobre et concret, sans formule creuse.`,
+  en: `Rules:
 - Draw only on their reference CV, the job offer and, if any, the company dossier. Never invent experience, degrees or figures.
 - Do not name anyone at the company.
-- One page at most, plain and concrete, no empty phrases.
-Reply with the letter's text only, no comment.`,
+- Plain and concrete, no empty phrases.`,
 };
+
+const FORMAT: Record<DocumentLanguage, Record<TailoredDocumentKind, string>> = {
+  fr: {
+    cover_letter: "Une page au plus. Réponds uniquement avec le texte de la lettre, sans commentaire.",
+    outreach_message: 'Réponds uniquement avec un objet JSON : {"subject": "objet du message", "text": "texte du message"}.',
+  },
+  en: {
+    cover_letter: "One page at most. Reply with the letter's text only, no comment.",
+    outreach_message: 'Reply with a JSON object only: {"subject": "the message subject", "text": "the message text"}.',
+  },
+};
+
+function systemPrompt(language: DocumentLanguage, document: TailoredDocumentKind, channel: OutreachChannel): string {
+  const what = WHAT[language][document === "outreach_message" ? channel : document];
+  const intro =
+    language === "fr"
+      ? `Tu es le coach Jobbbox. Tu rédiges ${what} pour un cadre expérimenté qui postule à l'offre ci-dessous.`
+      : `You are the Jobbbox coach. You write ${what} for an experienced professional applying to the job offer below.`;
+  return [intro, RULES[language], FORMAT[language][document]].join("\n");
+}
+
+const outreachReply = z.object({ subject: z.string().catch(""), text: z.string() });
+
+/** The subject and text of an Outreach Message reply: its JSON object, or else the whole reply as the text. */
+function outreachIn(reply: string): { subject: string; text: string } {
+  const start = reply.indexOf("{");
+  const end = reply.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    try {
+      const parsed = outreachReply.safeParse(JSON.parse(reply.slice(start, end + 1)));
+      if (parsed.success && parsed.data.text.trim()) return { subject: parsed.data.subject.trim(), text: parsed.data.text.trim() };
+    } catch {
+      // Not JSON after all: the reply is the message.
+    }
+  }
+  return { subject: "", text: reply.trim() };
+}
 
 export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsDeps): TailoredDocuments {
   async function storedLanguage(applicationId: string): Promise<DocumentLanguage | null> {
@@ -123,17 +188,22 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
   async function draftsOf(application: Application): Promise<ApplicationDrafts> {
     const [language, { rows }] = await Promise.all([
       storedLanguage(application.id),
-      database.query<DraftRow>(`SELECT kind, language, text, drafted_at, updated_at FROM tailored_document WHERE application_id = $1`, [application.id]),
+      database.query<DraftRow>(`SELECT kind, language, channel, subject, text, drafted_at, updated_at FROM tailored_document WHERE application_id = $1`, [application.id]),
     ]);
-    const row = rows.find((candidate) => candidate.kind === "cover_letter");
+    const draft = (row: DraftRow): Draft => ({ language: row.language, text: row.text, draftedAt: row.drafted_at, updatedAt: row.updated_at });
+    const letter = rows.find((row) => row.kind === "cover_letter");
+    const message = rows.find((row) => row.kind === "outreach_message");
     return {
       documentLanguage: language ?? jobOfferLanguage(application.jobOffer),
-      coverLetter: row ? { language: row.language, text: row.text, draftedAt: row.drafted_at, updatedAt: row.updated_at } : null,
-      outreachMessage: null,
+      coverLetter: letter ? draft(letter) : null,
+      outreachMessage: message ? { ...draft(message), channel: message.channel ?? "email", subject: message.subject } : null,
     };
   }
 
-  async function write(candidateId: string, application: Application, language: DocumentLanguage): Promise<string | null> {
+  type Request = z.output<typeof draftSchema> & { language: DocumentLanguage };
+
+  /** The AI Coach's draft, or null when it could not write one. */
+  async function write(candidateId: string, application: Application, request: Request): Promise<{ subject: string; text: string } | null> {
     const profile = await deps.profiles.get(candidateId, application.profile.id);
     if (!profile) return null;
     const { jobOffer } = application;
@@ -142,8 +212,10 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
       `CV de référence : ${JSON.stringify(profile.masterCv.content)}`,
     ].join("\n\n");
     try {
-      const { text } = await deps.ai.generate({ task: "writing", candidateId, system: SYSTEM[language], prompt });
-      return text.trim() || null;
+      const { language, document, channel } = request;
+      const { text } = await deps.ai.generate({ task: "writing", candidateId, system: systemPrompt(language, document, channel), prompt });
+      const written = document === "outreach_message" ? outreachIn(text) : { subject: "", text: text.trim() };
+      return written.text ? written : null;
     } catch (error) {
       console.warn("[tailored-documents] the AI Coach could not write a draft:", error instanceof Error ? error.message : error);
       return null;
@@ -162,13 +234,15 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
       const application = await deps.applications.get(candidateId, applicationId);
       if (!application) return NOT_FOUND;
       const language = parsed.data.language ?? (await draftsOf(application)).documentLanguage;
-      const text = await write(candidateId, application, language);
-      if (text === null) return { ok: false, error: "unavailable" };
+      const { document, channel } = parsed.data;
+      const written = await write(candidateId, application, { ...parsed.data, language });
+      if (!written) return { ok: false, error: "unavailable" };
       if (parsed.data.language) await database.query(`UPDATE application SET document_language = $2 WHERE id = $1`, [application.id, language]);
       await database.query(
-        `INSERT INTO tailored_document (application_id, kind, language, text) VALUES ($1, $2, $3, $4)
-         ON CONFLICT (application_id, kind) DO UPDATE SET language = $3, text = $4, drafted_at = now(), updated_at = now()`,
-        [application.id, parsed.data.document, language, text],
+        `INSERT INTO tailored_document (application_id, kind, language, channel, subject, text) VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (application_id, kind) DO UPDATE
+           SET language = $3, channel = $4, subject = $5, text = $6, drafted_at = now(), updated_at = now()`,
+        [application.id, document, language, document === "outreach_message" ? channel : null, written.subject, written.text],
       );
       return { ok: true, drafts: await draftsOf(application) };
     },
@@ -178,6 +252,7 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
 /** Creates or upgrades the Tailored Document table and the Application's Document Language. Run after the Application table. Safe to run repeatedly. */
 export async function migrateTailoredDocuments(database: Pool): Promise<void> {
   const kinds = TAILORED_DOCUMENTS.map((kind) => `'${kind}'`).join(", ");
+  const channels = OUTREACH_CHANNELS.map((channel) => `'${channel}'`).join(", ");
   const languages = DOCUMENT_LANGUAGES.map((language) => `'${language}'`).join(", ");
   await database.query(`
     ALTER TABLE application ADD COLUMN IF NOT EXISTS document_language text CHECK (document_language IN (${languages}));
@@ -185,6 +260,9 @@ export async function migrateTailoredDocuments(database: Pool): Promise<void> {
       application_id uuid NOT NULL REFERENCES application (id) ON DELETE CASCADE,
       kind text NOT NULL CHECK (kind IN (${kinds})),
       language text NOT NULL CHECK (language IN (${languages})),
+      -- Outreach Messages only.
+      channel text CHECK (channel IN (${channels})),
+      subject text NOT NULL DEFAULT '',
       text text NOT NULL,
       drafted_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now(),

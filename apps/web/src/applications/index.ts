@@ -144,7 +144,7 @@ const COLUMNS = "id, job_offer_id, profile_id, status, status_changed_at, create
 
 export function createApplications(
   database: Pool,
-  { jobOffers, profiles }: { jobOffers: Pick<JobOffers, "get">; profiles: Pick<Profiles, "get"> },
+  { jobOffers, profiles }: { jobOffers: Pick<JobOffers, "get" | "keepForCandidate">; profiles: Pick<Profiles, "get"> },
 ): Applications {
   /** The Interviews of each Application, oldest first. */
   async function interviewsOf(applicationIds: string[]): Promise<Map<string, Interview[]>> {
@@ -191,8 +191,12 @@ export function createApplications(
       const parsed = saveSchema.safeParse(input, { reportInput: true });
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       const { jobOfferId, profileId } = parsed.data;
-      const [jobOffer, profile] = await Promise.all([jobOffers.get(jobOfferId), profiles.get(candidateId, profileId)]);
-      if (!jobOffer || !profile) return { ok: false, error: "not_found" };
+      const profile = await profiles.get(candidateId, profileId);
+      if (!profile) return { ok: false, error: "not_found" };
+      // An Application holds on to its Job Offer: one a Guest captured must lose
+      // its Guest expiry (ADR-0003), or the Guest clean-up would try to delete it.
+      const jobOffer = await jobOffers.keepForCandidate(jobOfferId);
+      if (!jobOffer) return { ok: false, error: "not_found" };
 
       const inserted = await database.query<ApplicationRow>(
         `INSERT INTO application (candidate_id, job_offer_id, profile_id) VALUES ($1, $2, $3)

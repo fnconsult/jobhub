@@ -2,7 +2,7 @@ import type { MasterCvContent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
-import { createJobOffers, migrateJobOffers } from "../job-offers";
+import { createJobOffers, forgetExpiredGuestCaptures, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import { createApplications, migrateApplications, type Applications } from "./index";
 
@@ -23,6 +23,8 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
   let testAuth: TestAuth;
   let profiles: Profiles;
   let applications: Applications;
+  let jobOffers: JobOffers;
+  let database: Pool;
   let candidateId: string;
   let otherCandidateId: string;
   let jobOfferId: string;
@@ -47,12 +49,12 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
 
   beforeEach(async () => {
     testAuth = await startTestAuth();
-    const database = testAuth.auth.options.database as Pool;
+    database = testAuth.auth.options.database as Pool;
     await migrateProfiles(database);
     await migrateJobOffers(database);
     await migrateApplications(database);
     profiles = createProfiles(database);
-    const jobOffers = createJobOffers(database);
+    jobOffers = createJobOffers(database);
     applications = createApplications(database, { jobOffers, profiles });
     candidateId = await signIn("marie.dupont@example.fr");
     otherCandidateId = await signIn("paul.martin@example.fr");
@@ -99,6 +101,24 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
     const theirs = await save({ jobOfferId, profileId: theirProfileId }, otherCandidateId);
 
     expect(theirs.id).not.toBe(mine.id);
+  });
+
+  it("keeps a Job Offer a Guest captured once it is saved as an Application, and still forgets the other Guest captures (ADR-0003)", async () => {
+    const hoursFromNow = (hours: number) => new Date(Date.now() + hours * 3_600_000);
+    const capture = async (url: string) => {
+      const captured = await jobOffers.capture({ source: { url }, title: "DAF H/F", content: `Offre ${url}` }, "guest");
+      if (!captured.ok) throw new Error("fixture Job Offer refused");
+      return captured.jobOffer.id;
+    };
+    const savedByGuest = await capture("https://www.apec.fr/offre/guest-then-candidate");
+    const leftByGuest = await capture("https://www.apec.fr/offre/guest-only");
+    const application = await save({ jobOfferId: savedByGuest, profileId });
+
+    expect(await forgetExpiredGuestCaptures(database, hoursFromNow(48))).toBe(1);
+
+    expect(await jobOffers.get(leftByGuest)).toBeNull();
+    expect(await jobOffers.get(savedByGuest)).not.toBeNull();
+    expect(await applications.get(candidateId, application.id)).not.toBeNull();
   });
 
   it("refuses a Profile that is not the Candidate's, and a Job Offer that does not exist", async () => {

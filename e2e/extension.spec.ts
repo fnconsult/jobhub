@@ -405,6 +405,15 @@ test.describe("Guest Capture and Match Score", () => {
     await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
   });
 
+  /** The worker's clean-up of Guest captures (ADR-0003), run as its schedule would at a later time. */
+  const forgetGuestCapturesAt = (time: number) => {
+    const run = spawnSync(path.resolve("node_modules/.bin/tsx"), ["e2e/support/worker-job.ts", "guests.forget", String((time - Date.now()) / 3_600_000)], {
+      env: { ...process.env, DATABASE_URL: process.env.E2E_DATABASE_URL },
+      encoding: "utf8",
+    });
+    expect(run.status, run.stderr).toBe(0);
+  };
+
   test("a Guest's Job Offer is kept for their session and forgotten by the worker within 24 hours, unlike a Candidate's", async ({ page }) => {
     // A Candidate captures a posting from the web app: theirs is never forgotten.
     await signInWithMagicLink(page, newAddress("guest-retention"));
@@ -428,15 +437,6 @@ test.describe("Guest Capture and Match Score", () => {
     await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toBeVisible();
     const { guestSession: stored } = await guestSession(analysis);
     const jobOffer = (id: string) => analysis.request.get(`${origin}/api/job-offers/${id}`);
-
-    // The worker's clean-up, run as its schedule would at a later time.
-    const forgetGuestCapturesAt = (time: number) => {
-      const run = spawnSync(path.resolve("node_modules/.bin/tsx"), ["e2e/support/worker-job.ts", "guests.forget", String((time - Date.now()) / 3_600_000)], {
-        env: { ...process.env, DATABASE_URL: process.env.E2E_DATABASE_URL },
-        encoding: "utf8",
-      });
-      expect(run.status, run.stderr).toBe(0);
-    };
 
     // Within the session, the Guest's Job Offer is kept.
     forgetGuestCapturesAt(capturedAt + 22 * 3_600_000);
@@ -541,6 +541,10 @@ test.describe("Guest Capture and Match Score", () => {
     await web.goto("/candidatures");
     await expect(web.getByText("Directeur administratif et financier H/F").first()).toBeVisible();
     await expectSavedInWebApp(web, (await link.getAttribute("href"))!, application.profile.id);
+
+    // The Job Offer the Guest captured is now the Candidate's: the worker's clean-up of Guest captures, a day later, leaves it alone.
+    forgetGuestCapturesAt(Date.now() + 25 * 3_600_000);
+    expect((await applicationIn(web, (await link.getAttribute("href"))!)).jobOffer.title).toBe("Directeur administratif et financier H/F");
     await web.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
   });
 

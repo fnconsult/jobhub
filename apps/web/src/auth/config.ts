@@ -1,6 +1,6 @@
 import { Pool } from "pg";
 import type { AuthConfig } from "./index";
-import { consoleMailer, smtpMailer } from "./mailers";
+import { mailerFromEnv } from "./mailers";
 
 type Env = Record<string, string | undefined>;
 
@@ -20,8 +20,7 @@ export function authConfigFromEnv(env: Env): AuthConfig {
 
   // MAIL_TRANSPORT=console prints emails, sign-in links included, to the server log:
   // the default in development, an explicit opt-in for local production builds (e2e).
-  const consoleMail = env.MAIL_TRANSPORT === "console" || (!production && !env.SMTP_URL);
-  const smtpUrl = consoleMail ? undefined : required("SMTP_URL");
+  const mailer = mailerFromEnv(env);
   const google =
     env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
       ? { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET }
@@ -31,7 +30,7 @@ export function authConfigFromEnv(env: Env): AuthConfig {
     database: new Pool({ connectionString: required("DATABASE_URL") }),
     baseURL: required("APP_URL", "http://localhost:3000"),
     secret: required("AUTH_SECRET", DEV_SECRET),
-    mailer: smtpUrl ? smtpMailer(smtpUrl, required("MAIL_FROM", "Jobbbox <bonjour@localhost>")) : consoleMailer(),
+    mailer,
     google,
     extensionOrigins: (env.EXTENSION_ORIGINS ?? "")
       .split(",")

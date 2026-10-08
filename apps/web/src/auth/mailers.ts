@@ -19,3 +19,17 @@ export function consoleMailer(): Mailer {
     },
   };
 }
+
+/**
+ * The mailer the environment names (see .env.example): SMTP_URL in production;
+ * the console in development without it, or with MAIL_TRANSPORT=console (local
+ * production builds, e2e). Fails fast in production when SMTP_URL is missing.
+ */
+export function mailerFromEnv(env: Record<string, string | undefined>): Mailer {
+  const production = env.NODE_ENV === "production";
+  if (env.MAIL_TRANSPORT === "console" || (!production && !env.SMTP_URL)) return consoleMailer();
+  if (!env.SMTP_URL) throw new Error("Missing environment variable SMTP_URL");
+  const from = env.MAIL_FROM || (production ? undefined : "Jobbbox <bonjour@localhost>");
+  if (!from) throw new Error("Missing environment variable MAIL_FROM");
+  return smtpMailer(env.SMTP_URL, from);
+}

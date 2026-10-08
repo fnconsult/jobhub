@@ -35,7 +35,7 @@ describe("the Jobbbox API, from the extension", () => {
     });
     const api = createJobbboxApi(WEB_ORIGIN, app.fetch);
 
-    expect(await api.readCv(new File(["%PDF"], "cv.pdf"))).toEqual({ ok: true, cv });
+    expect(await api.readCv(new File(["%PDF"], "cv.pdf"))).toEqual({ ok: true, cv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
     expect((app.calls[0]?.init.body as FormData).get("cv")).toBeInstanceOf(File);
     expect(await api.score("jo-1", cv)).toEqual({ ok: true, matchScore });
     expect(JSON.parse(String(app.calls[1]?.init.body))).toEqual({ jobOfferId: "jo-1", cv });
@@ -81,11 +81,69 @@ describe("the Jobbbox API, from the extension", () => {
     expect(await api.score("jo-1", cv)).toEqual({ ok: false, error: "quota_exceeded", prompt: { message: "No Plan includes more.", action: null, href: "/abonnement" } });
   });
 
+  it("lists the signed-in Candidate's active Profiles, to choose the one an Application uses", async () => {
+    const profiles = [{ id: "p-1", name: "DAF" }, { id: "p-2", name: "Consultante transformation" }];
+    const app = webApp({ "/api/profiles": Response.json(profiles) });
+
+    expect(await createJobbboxApi(WEB_ORIGIN, app.fetch).profiles()).toEqual({ ok: true, profiles });
+    expect(app.calls[0]?.init).toMatchObject({ credentials: "include" });
+  });
+
+  it("is told nobody is signed in any more when the web session has ended", async () => {
+    const api = createJobbboxApi(WEB_ORIGIN, webApp({ "/api/profiles": () => Response.json({ error: "unauthorized" }, { status: 401 }) }).fetch);
+
+    expect(await api.profiles()).toEqual({ ok: false, error: "signed_out" });
+  });
+
+  it("creates a Profile from a CV and its Search Criteria, then saves a Job Offer as an Application with it", async () => {
+    const app = webApp({
+      "/api/profiles": () => Response.json({ id: "p-1" }, { status: 201 }),
+      "/api/applications": () => Response.json({ id: "a-1" }, { status: 201 }),
+    });
+    const api = createJobbboxApi(WEB_ORIGIN, app.fetch);
+    const searchCriteria = { targetRole: "DAF", location: "Lyon" };
+
+    expect(await api.createProfile(cv, searchCriteria)).toEqual({ ok: true, profileId: "p-1" });
+    expect(app.calls[0]?.init).toMatchObject({ method: "POST", credentials: "include", body: JSON.stringify({ masterCv: cv, searchCriteria }) });
+    expect(await api.saveApplication("jo-1", "p-1")).toEqual({ ok: true, applicationId: "a-1" });
+    expect(app.calls[1]?.init).toMatchObject({ method: "POST", body: JSON.stringify({ jobOfferId: "jo-1", profileId: "p-1" }) });
+  });
+
+  it("passes on the Upgrade Prompt when the Candidate's Plan allows no more Profiles", async () => {
+    const prompt = { title: "Limit", message: "Your Plan includes 1 Profile.", upgradeTo: "standard", action: "Upgrade to Standard", href: "/abonnement" };
+    const api = createJobbboxApi(
+      WEB_ORIGIN,
+      webApp({ "/api/profiles": () => Response.json({ error: "plan_quota_reached", prompt }, { status: 409 }) }).fetch,
+    );
+
+    expect(await api.createProfile(cv, { targetRole: "DAF", location: "Lyon" })).toEqual({
+      ok: false,
+      error: "plan_quota_reached",
+      prompt: { message: prompt.message, action: "Upgrade to Standard", href: "/abonnement" },
+    });
+  });
+
+  it("says why a Profile or an Application could not be saved", async () => {
+    const api = createJobbboxApi(
+      WEB_ORIGIN,
+      webApp({
+        "/api/profiles": () => Response.json({ errors: [{ field: "searchCriteria.location", code: "too_small" }] }, { status: 400 }),
+        "/api/applications": () => Response.json({ error: "not_found" }, { status: 404 }),
+      }).fetch,
+    );
+
+    expect(await api.createProfile(cv, { targetRole: "DAF", location: "" })).toEqual({ ok: false, error: "invalid" });
+    expect(await api.saveApplication("jo-gone", "p-1")).toEqual({ ok: false, error: "not_found" });
+  });
+
   it("says when the web app cannot be reached", async () => {
     const api = createJobbboxApi(WEB_ORIGIN, webApp({}).fetch);
 
     expect(await api.capture({ source: {}, title: "DAF", content: "Poste." })).toEqual({ ok: false, error: "unreachable" });
     expect(await api.readCv(new File(["%PDF"], "cv.pdf"))).toEqual({ ok: false, error: "unreachable" });
     expect(await api.score("jo-1", cv)).toEqual({ ok: false, error: "unreachable" });
+    expect(await api.profiles()).toEqual({ ok: false, error: "unreachable" });
+    expect(await api.createProfile(cv, { targetRole: "DAF", location: "Lyon" })).toEqual({ ok: false, error: "unreachable" });
+    expect(await api.saveApplication("jo-1", "p-1")).toEqual({ ok: false, error: "unreachable" });
   });
 });

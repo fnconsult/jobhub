@@ -8,6 +8,7 @@ import { catalogueStrings, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { e2eExtensionDir, unpackedExtensionId as idOf } from "./support/extension";
 import { newAddress } from "./support/mailbox";
+import { subscribe } from "./support/plan";
 
 const extensionDir = path.resolve("apps/extension/.output/chrome-mv3");
 const frCatalogue = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
@@ -404,6 +405,15 @@ test.describe("Guest Capture and Match Score", () => {
     await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
   });
 
+  /** The worker's clean-up of Guest captures (ADR-0003), run as its schedule would at a later time. */
+  const forgetGuestCapturesAt = (time: number) => {
+    const run = spawnSync(path.resolve("node_modules/.bin/tsx"), ["e2e/support/worker-job.ts", "guests.forget", String((time - Date.now()) / 3_600_000)], {
+      env: { ...process.env, DATABASE_URL: process.env.E2E_DATABASE_URL },
+      encoding: "utf8",
+    });
+    expect(run.status, run.stderr).toBe(0);
+  };
+
   test("a Guest's Job Offer is kept for their session and forgotten by the worker within 24 hours, unlike a Candidate's", async ({ page }) => {
     // A Candidate captures a posting from the web app: theirs is never forgotten.
     await signInWithMagicLink(page, newAddress("guest-retention"));
@@ -427,15 +437,6 @@ test.describe("Guest Capture and Match Score", () => {
     await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toBeVisible();
     const { guestSession: stored } = await guestSession(analysis);
     const jobOffer = (id: string) => analysis.request.get(`${origin}/api/job-offers/${id}`);
-
-    // The worker's clean-up, run as its schedule would at a later time.
-    const forgetGuestCapturesAt = (time: number) => {
-      const run = spawnSync(path.resolve("node_modules/.bin/tsx"), ["e2e/support/worker-job.ts", "guests.forget", String((time - Date.now()) / 3_600_000)], {
-        env: { ...process.env, DATABASE_URL: process.env.E2E_DATABASE_URL },
-        encoding: "utf8",
-      });
-      expect(run.status, run.stderr).toBe(0);
-    };
 
     // Within the session, the Guest's Job Offer is kept.
     forgetGuestCapturesAt(capturedAt + 22 * 3_600_000);
@@ -495,6 +496,151 @@ test.describe("Guest Capture and Match Score", () => {
 
     await analysis.getByRole("button", { name: fr.analysis.forgetCv }).click();
     await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
+    await web.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
+  });
+
+  // Issue #11: from the extension, a Guest signs up (or in) on the web app and keeps their work;
+  // a signed-in Candidate captures straight into an Application on the Profile they choose.
+  const applicationIn = async (page: Page, link: string) => {
+    const id = new URL(link).pathname.split("/").pop()!;
+    const response = await page.request.get(`${origin}/api/applications/${id}`);
+    expect(response.status()).toBe(200);
+    return (await response.json()) as { status: string; profile: { id: string; name: string }; jobOffer: { title: string } };
+  };
+
+  test("a Guest who signs up from the extension keeps their work: their CV becomes their first Profile, the Job Offer their first Application", async () => {
+    const jobPage = await context.newPage();
+    await jobPage.goto(postingUrl);
+    const [analysis] = await Promise.all([context.waitForEvent("page"), jobPage.getByRole("button", { name: fr.badgeLabel }).click()]);
+    await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
+    await analysis.getByRole("button", { name: fr.analysis.submit }).click();
+    await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toBeVisible();
+    await expect(analysis.getByText(fr.analysis.signUpHint)).toBeVisible();
+
+    // Signing up happens on the web app, whose session the extension shares (ADR-0011).
+    const [web] = await Promise.all([context.waitForEvent("page"), analysis.getByRole("link", { name: fr.analysis.signUp }).click()]);
+    await expect(web).toHaveURL(`${origin}/connexion`);
+    await signInWithMagicLink(web, newAddress("guest-sign-up"));
+
+    // Back on the analysis page, the Guest's work is kept at once.
+    await analysis.bringToFront();
+    await expect(analysis.getByText(fr.analysis.saved)).toBeVisible({ timeout: 15_000 });
+    await expect(analysis.getByText(/^Votre CV est devenu votre profil « .+ »\.$/)).toBeVisible();
+    const link = analysis.getByRole("link", { name: fr.analysis.openApplication });
+    const application = await applicationIn(web, (await link.getAttribute("href"))!);
+    expect(application.status).toBe("to_apply");
+    expect(application.jobOffer.title).toBe("Directeur administratif et financier H/F");
+    const profiles = await (await web.request.get(`${origin}/api/profiles`)).json();
+    expect(profiles).toEqual([{ id: application.profile.id, name: application.profile.name }]);
+    // Now in the Candidate's account, the CV and the Job Offer leave the browser (ADR-0003).
+    const { guestSession: left } = await guestSession(analysis);
+    expect(left).not.toHaveProperty("cv");
+    expect(left).not.toHaveProperty("jobOffer");
+
+    // The web app shows it among the Candidate's Applications, "À postuler".
+    await web.goto("/candidatures");
+    await expect(web.getByText("Directeur administratif et financier H/F").first()).toBeVisible();
+    await expectSavedInWebApp(web, (await link.getAttribute("href"))!, application.profile.id);
+
+    // The Job Offer the Guest captured is now the Candidate's: the worker's clean-up of Guest captures, a day later, leaves it alone.
+    forgetGuestCapturesAt(Date.now() + 25 * 3_600_000);
+    expect((await applicationIn(web, (await link.getAttribute("href"))!)).jobOffer.title).toBe("Directeur administratif et financier H/F");
+    await web.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
+  });
+
+  /** The web app shows the Application "À postuler", and the Profile's Master CV, version 1, read from the Guest's CV. */
+  const expectSavedInWebApp = async (web: Page, applicationLink: string, profileId: string) => {
+    await web.goto(new URL(applicationLink).pathname);
+    await expect(web.getByRole("heading", { level: 1 })).toContainText("Directeur administratif et financier H/F");
+    await expect(web.getByLabel(frCatalogue.application.statusLabel)).toHaveValue("to_apply");
+    await expect(web.getByLabel(frCatalogue.application.statusLabel).locator("option:checked")).toHaveText(frCatalogue.applicationStatuses.to_apply);
+    await web.goto(`/profils/${profileId}/cv`);
+    await expect(web.getByText("Vous modifiez la version 1.")).toBeVisible();
+    await expect(web.getByLabel(frCatalogue.cvReview.fullName)).toHaveValue("Marie Dupont");
+    await expect(web.getByLabel(frCatalogue.cvReview.headline)).toHaveValue("Directrice financière");
+    await expect(web.getByLabel(frCatalogue.cvReview.employer).first()).toHaveValue("Groupe Seb");
+  };
+
+  test("a Guest who signs in to their existing account from the extension can turn their CV into a new Profile and the Job Offer into an Application", async () => {
+    test.slow(); // two magic-link sign-ins, a subscription and a Profile before the Capture even starts
+    // An existing Candidate with one Profile, on a Plan allowing more, who is signed out.
+    const web = await context.newPage();
+    const email = newAddress("guest-sign-in");
+    await signInWithMagicLink(web, email);
+    await subscribe(web, email, "standard");
+    const masterCv = {
+      fullName: "Marie Dupont", headline: "Contrôleuse de gestion", email: "", phone: "", location: "Lyon", summary: "",
+      experience: [], education: [], skills: [], languages: [],
+    };
+    const existing = await web.request.post(`${origin}/api/profiles`, { headers: { origin }, data: { masterCv, searchCriteria: { targetRole: "Contrôleuse de gestion", location: "Lyon" } } });
+    expect(existing.status(), await existing.text()).toBe(201);
+    const existingId = (await existing.json()).id as string;
+    await web.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
+
+    // As a Guest, they capture a posting and score their CV.
+    const jobPage = await context.newPage();
+    await jobPage.goto(postingUrl);
+    const [analysis] = await Promise.all([context.waitForEvent("page"), jobPage.getByRole("button", { name: fr.badgeLabel }).click()]);
+    await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
+    await analysis.getByRole("button", { name: fr.analysis.submit }).click();
+    await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toBeVisible();
+
+    // They sign in on the web app, from the extension's link; the extension shares that session.
+    const [signIn] = await Promise.all([context.waitForEvent("page"), analysis.getByRole("link", { name: fr.analysis.signUp }).click()]);
+    await expect(signIn).toHaveURL(`${origin}/connexion`);
+    await signInWithMagicLink(signIn, email);
+    await analysis.bringToFront();
+
+    // Having a Profile already, they choose: theirs, or a new one from this CV.
+    const profile = analysis.getByLabel(fr.analysis.profileLabel);
+    await expect(profile.getByRole("option")).toHaveText(["Contrôleuse de gestion", fr.analysis.newProfileFromCv], { timeout: 15_000 });
+    await profile.selectOption({ label: fr.analysis.newProfileFromCv });
+    await analysis.getByRole("button", { name: fr.analysis.save }).click();
+
+    await expect(analysis.getByText(fr.analysis.saved)).toBeVisible();
+    await expect(analysis.getByText(/^Votre CV est devenu votre profil « .+ »\.$/)).toBeVisible();
+    const link = (await analysis.getByRole("link", { name: fr.analysis.openApplication }).getAttribute("href"))!;
+    const application = await applicationIn(signIn, link);
+    expect(application.status).toBe("to_apply");
+    expect(application.profile.id).not.toBe(existingId);
+    const profiles = (await (await signIn.request.get(`${origin}/api/profiles`)).json()) as { id: string }[];
+    expect(profiles.map((p) => p.id)).toEqual([existingId, application.profile.id]);
+    const { guestSession: left } = await guestSession(analysis);
+    expect(left).not.toHaveProperty("cv");
+    expect(left).not.toHaveProperty("jobOffer");
+
+    await expectSavedInWebApp(signIn, link, application.profile.id);
+    await signIn.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
+  });
+
+  test("a signed-in Candidate chooses the Profile and the captured Job Offer becomes an Application directly", async () => {
+    const web = await context.newPage();
+    const email = newAddress("extension-profiles");
+    await signInWithMagicLink(web, email);
+    await subscribe(web, email, "standard"); // more than the Free Plan's one Profile
+    const masterCv = {
+      fullName: "Marie Dupont", headline: "Directrice financière", email: "", phone: "", location: "Lyon", summary: "",
+      experience: [], education: [], skills: ["IFRS"], languages: [],
+    };
+    const profileIds: string[] = [];
+    for (const targetRole of ["Directrice financière", "Consultante transformation"]) {
+      const created = await web.request.post(`${origin}/api/profiles`, { headers: { origin }, data: { masterCv, searchCriteria: { targetRole, location: "Lyon" } } });
+      expect(created.status(), await created.text()).toBe(201);
+      profileIds.push((await created.json()).id);
+    }
+
+    const jobPage = await context.newPage();
+    await jobPage.goto(postingUrl);
+    const [analysis] = await Promise.all([context.waitForEvent("page"), jobPage.getByRole("button", { name: fr.badgeLabel }).click()]);
+    const profile = analysis.getByLabel(fr.analysis.profileLabel);
+    await expect(profile.getByRole("option")).toHaveText(["Directrice financière", "Consultante transformation"]);
+    await profile.selectOption({ label: "Consultante transformation" });
+    await analysis.getByRole("button", { name: fr.analysis.save }).click();
+
+    await expect(analysis.getByText(fr.analysis.saved)).toBeVisible();
+    await expect(analysis.getByText(/^Votre CV est devenu/)).toHaveCount(0);
+    const application = await applicationIn(web, (await analysis.getByRole("link", { name: fr.analysis.openApplication }).getAttribute("href"))!);
+    expect(application).toMatchObject({ status: "to_apply", profile: { id: profileIds[1], name: "Consultante transformation" } });
     await web.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
   });
 });

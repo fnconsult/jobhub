@@ -15,9 +15,25 @@ export interface SessionStorage {
   remove(key: string): Promise<void>;
 }
 
+/** The Search Criteria read from a CV with it: the Profile the CV becomes if the Guest signs up starts from them. */
+export interface SearchCriteriaDraft {
+  targetRole: string;
+  location: string;
+}
+
+/** Where the work went once saved in the Candidate's account: the Application, and the Profile made from the CV, if one was. */
+export interface SavedWork {
+  applicationId: string;
+  jobOffer: JobOffer;
+  newProfile: { id: string; name: string } | null;
+}
+
 export interface GuestSessionContent {
   jobOffer?: JobOffer;
   cv?: CvContent;
+  searchCriteria?: SearchCriteriaDraft;
+  /** Set once the work is saved in an account (it is then all that is left), until another Job Offer is captured. */
+  saved?: SavedWork;
   /** When everything here is forgotten (ms since the epoch). */
   expiresAt?: number;
 }
@@ -26,7 +42,10 @@ export interface GuestSession {
   /** What the session holds; empty once it has expired. */
   read(): Promise<GuestSessionContent>;
   keepJobOffer(jobOffer: JobOffer): Promise<void>;
-  keepCv(cv: CvContent): Promise<void>;
+  /** Keeps the CV, with the Search Criteria read from it (replacing any earlier CV's). */
+  keepCv(cv: CvContent, searchCriteria?: SearchCriteriaDraft): Promise<void>;
+  /** The work is saved in the Candidate's account: forgets the CV and the Job Offer, keeping only where they went. */
+  keepSaved(saved: SavedWork): Promise<void>;
   /** Forgets everything now. */
   forget(): Promise<void>;
 }
@@ -45,15 +64,17 @@ export function createGuestSession(storage: SessionStorage, now: () => number = 
     return stored;
   }
 
-  async function keep(change: Pick<GuestSessionContent, "jobOffer" | "cv">) {
+  async function keep(change: Omit<GuestSessionContent, "expiresAt">, { replace = false } = {}) {
     const current = await read();
-    await storage.set({ [KEY]: { ...current, ...change, expiresAt: current.expiresAt ?? now() + RETENTION_MS } });
+    const kept = replace ? {} : current;
+    await storage.set({ [KEY]: { ...kept, ...change, expiresAt: current.expiresAt ?? now() + RETENTION_MS } });
   }
 
   return {
     read,
-    keepJobOffer: (jobOffer) => keep({ jobOffer }),
-    keepCv: (cv) => keep({ cv }),
+    keepJobOffer: (jobOffer) => keep({ jobOffer, saved: undefined }),
+    keepCv: (cv, searchCriteria) => keep({ cv, searchCriteria }),
+    keepSaved: (saved) => keep({ saved }, { replace: true }),
     forget: () => storage.remove(KEY),
   };
 }

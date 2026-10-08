@@ -87,3 +87,22 @@ form .error {
   flex-basis: 100%;
   margin: 0;
 }
+
+select {
+  font: inherit;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text);
+  background: var(--color-background);
+  border: 1px solid var(--color-border-strong, var(--color-border));
+  border-radius: var(--radius-md);
+}
+
+form p[role="status"] {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+form p[role="status"]:empty {
+  display: none;
+}

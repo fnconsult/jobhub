@@ -23,7 +23,7 @@ A person using the browser extension without an account. Their CV and captured J
 _Avoid_: Anonymous user, visitor, lead
 
 **Guest session**:
-The browser-held, time-limited holding of a Guest's captured Job Offer and CV: at most 23 hours, deleted on request.
+The browser-held, time-limited holding of a Guest's captured Job Offer and CV: at most 23 hours, deleted on request. When the Guest creates an account or signs in, the CV becomes a Profile and the Job Offer an Application, then both leave the session.
 _Avoid_: Temporary account, trial
 
 ### Coaching

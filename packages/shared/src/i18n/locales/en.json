@@ -80,7 +80,20 @@
         "wanted": "Your minimum: {{amount}} gross per year"
       },
       "candidateNotice": "This job offer is saved in your Jobbbox account. The CV you upload here stays in this browser for your session only: Jobbbox reads it to compute the Match Score without saving it.",
-      "forgetCv": "Delete this CV from this browser"
+      "forgetCv": "Delete this CV from this browser",
+      "signUpHint": "Once you have created your account or signed in, come back to this page: your CV will become your first profile and this job offer your first application.",
+      "saveTitle": "Save to my applications",
+      "profileLabel": "Profile used for this application",
+      "newProfileFromCv": "A new profile, from this CV",
+      "save": "Save the application",
+      "saving": "Saving…",
+      "firstProfileHint": "Upload your CV below: it will become your first profile, and this job offer your first application.",
+      "saved": "This job offer is saved in your applications, as “To apply”.",
+      "profileCreated": "Your CV has become your profile “{{name}}”.",
+      "openApplication": "See my application",
+      "searchCriteriaMissing": "Neither your CV nor the job offer gives the role you are looking for and where. Create your profile on Jobbbox, then save this job offer again.",
+      "createProfile": "Create my profile on Jobbbox",
+      "profileQuotaReached": "Your plan does not allow another profile. Choose one of your profiles."
     },
     "allSites": "Detect job offers on every site",
     "allSitesHint": "To see “Analyse this offer” on employers' own career sites too. Your browser will ask for your permission; pages are still read in this browser only."

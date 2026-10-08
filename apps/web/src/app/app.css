@@ -543,3 +543,17 @@ textarea.input {
   cursor: pointer;
   padding: var(--space-2) 0;
 }
+
+/* A category shown above an Action Card's title, e.g. Senior Advice. */
+.action-card-label {
+  display: inline-block;
+  margin: 0 0 var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  font-weight: 600;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.ats-checks li {
+  margin-bottom: var(--space-1);
+}

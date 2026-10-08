@@ -107,6 +107,7 @@ test.describe("Company Dossier", () => {
     await expect(dossier.getByText("Robotique industrielle")).toBeVisible();
     await expect(dossier.getByRole("link", { name: "https://globex-robotics.example/about" })).toBeVisible();
     await expect(dossier.getByText(t.reliability.official)).toHaveCount(0);
+    await expect(dossier.getByText(t.notInRegister)).toBeVisible();
     await expectNoPrivatePersonNamed(page);
   });
 
@@ -212,6 +213,17 @@ test.describe("Company Dossier", () => {
     await expect(dossier.getByText("552100556", { exact: true })).toBeVisible();
   });
 
+  test("a large French employer known by another name than its registered one is matched by the SIREN the web search gives", async ({ page }) => {
+    const dossier = await openApplication(page, "Bibendum");
+
+    await dossier.getByRole("button", { name: t.build }).click();
+
+    await expect(dossier.getByText(t.reliability.official)).toBeVisible();
+    await expect(dossier.getByText("552100557", { exact: true })).toBeVisible();
+    await expect(dossier.getByText("COMPAGNIE GENERALE DES ETABLISSEMENTS BIBENDUM", { exact: true })).toBeVisible();
+    await expect(dossier.getByText(t.reliability.less_reliable)).toHaveCount(0);
+  });
+
   test("a web dossier shows no person's name, home address or profile, even when the web search gives them", async ({ page }) => {
     const dossier = await openApplication(page, "PersonLeak Inc");
 
@@ -232,6 +244,19 @@ test.describe("Company Dossier", () => {
     await dossier.getByRole("button", { name: t.nameEmployer }).click();
 
     await expect(dossier.getByRole("alert")).toHaveText(t.notACompany);
+    await expect(dossier.getByText(t.reliability.less_reliable)).toHaveCount(0);
+  });
+
+  test("a SIREN the register answers with an empty record is refused, not shown as an official dossier", async ({ page }) => {
+    const dossier = await openApplication(page, undefined);
+    await dossier.getByRole("button", { name: t.build }).click();
+    await expect(dossier.getByText(t.employerUnknown)).toBeVisible();
+
+    await dossier.getByLabel(t.employerLabel).fill("123456789");
+    await dossier.getByRole("button", { name: t.nameEmployer }).click();
+
+    await expect(dossier.getByRole("alert")).toHaveText(t.notACompany);
+    await expect(dossier.getByText(t.reliability.official)).toHaveCount(0);
     await expect(dossier.getByText(t.reliability.less_reliable)).toHaveCount(0);
   });
 

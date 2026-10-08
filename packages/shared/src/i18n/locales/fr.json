@@ -536,6 +536,7 @@
     "employerHint": "Le nom de l'entreprise, ou son numéro SIREN si vous le connaissez.",
     "confirmEmployer": "Confirmer l'employeur",
     "nameEmployer": "Constituer le dossier pour cet employeur",
+    "notInRegister": "Une entreprise française que le registre n'a pas retrouvée sous ce nom ? Indiquez son SIREN ci-dessous (« Ce n'est pas le bon employeur ? ») pour obtenir ses données officielles.",
     "wrongEmployer": "Ce n'est pas le bon employeur ?",
     "reliability": {
       "official": "Source officielle.",

@@ -14,12 +14,16 @@
  *    company under that exact name (or that SIREN). When several share the name,
  *    the one large company (GE or ETI) among them is taken: a large employer's
  *    name is always also borne by small companies. A fuzzy match, or a choice
- *    between companies of the same size, is never made. The dossier then shows
- *    the register's identity, address, headcount and, when published, financials.
+ *    between companies of the same size, is never made. A large employer known by
+ *    another name than its registered one (Michelin, BlaBlaCar) is matched by the
+ *    SIREN the web search gives, once the register lists that SIREN under a name
+ *    that is, or bears, the employer's (its acronym or shop sign counting). The
+ *    dossier then shows the register's identity, address, headcount and, when
+ *    published, financials.
  *  - Any other employer (foreign, or not found in the register) gets a dossier
  *    from web sources, labelled less reliable. Only short facts of the expected
  *    shape are kept from it (no street address, nothing naming a person), and
- *    only web pages as sources, never a person's profile.
+ *    only web pages as sources or website, never a person's profile.
  *  - A sole trader's name or an unknown SIREN is never searched on the web: it is
  *    a private person, or nothing. The Candidate is asked to name the employer.
  *  - A posting from a recruiting agency only yields a Presumed Employer: no
@@ -139,6 +143,20 @@ function matchIn(companies: RegisteredCompany[], employer: string): RegisteredCo
   if (matches.length === 1) return matches[0]!;
   const large = matches.filter(isLarge);
   return large.length === 1 ? large[0]! : null;
+}
+
+/**
+ * Is `company`, found in the register under a SIREN from the web, the employer? Only when it is
+ * active and its registered name, acronym or a shop sign is the employer's name, or, for a large
+ * company, its registered name holds the employer's as whole words (COMPAGNIE GENERALE DES
+ * ETABLISSEMENTS MICHELIN for Michelin). A wrong SIREN from the web is never taken for the employer.
+ */
+function bearsName(company: RegisteredCompany, employer: string): boolean {
+  const key = nameKey(employer);
+  if (!key || !company.active) return false;
+  const names = [company.name, company.acronym, ...(company.shopSigns ?? [])].filter((name): name is string => !!name);
+  if (names.some((name) => nameKey(name) === key)) return true;
+  return isLarge(company) && ` ${nameKey(company.name)} `.includes(` ${key} `);
 }
 
 /** Who to look for, by the employer's size: large employers have recruiters and an HR director, small ones are run by their head. */
@@ -264,10 +282,17 @@ function webDossier(employer: string, answer: string, sources: string[], builtAt
     dossier[fact] = text;
   }
   if (dossier.website && !/^https?:\/\//i.test(dossier.website)) dossier.website = `https://${dossier.website}`;
-  if (dossier.website && !URL.canParse(dossier.website)) delete dossier.website;
+  // A website is a page like any source: never a person's profile (a LinkedIn /in/ page names a private person).
+  if (dossier.website && !isPublicPage(dossier.website)) delete dossier.website;
   const employees = Number(/\d[\d\s.,]*/.exec(dossier.headcount ?? "")?.[0]?.replace(/[\s.,]/g, ""));
   dossier.suggestedContactRoles = contactRolesFor(Number.isFinite(employees) && employees > 0 ? { min: employees } : undefined);
   return dossier;
+}
+
+/** The SIREN the web search's answer gives for the employer, if any. */
+function webSirenIn(answer: string): string | null {
+  const siren = jsonIn(answer)?.siren;
+  return typeof siren === "string" || typeof siren === "number" ? sirenIn(String(siren)) : null;
 }
 
 const ANALYSIS_SYSTEM =
@@ -338,6 +363,11 @@ export function createCompanyDossiers(
     if (match) return registerDossier(employer, match, builtAt);
     if (soleTraderNamed || sirenIn(employer)) return null;
     const found = await ai.searchCompany({ candidateId, employer });
+    const webSiren = webSirenIn(found.answer);
+    if (webSiren) {
+      const listed = (await register.search(webSiren)).companies.find((company) => company.siren === webSiren);
+      if (listed && bearsName(listed, employer)) return registerDossier(employer, listed, builtAt);
+    }
     return webDossier(employer, found.answer, found.sources, builtAt);
   }
 

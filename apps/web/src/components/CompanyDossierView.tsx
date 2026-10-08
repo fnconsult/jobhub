@@ -160,6 +160,7 @@ function Dossier({ applicationId, dossier, t, locale }: { applicationId: string;
         </>
       ) : null}
 
+      {dossier.source === "web" ? <p className="hint">{t("companyDossier.notInRegister")}</p> : null}
       <p className="hint">{t("companyDossier.builtOn", { date: date.format(dossier.builtAt), employer: dossier.employer })}</p>
       <BuildCompanyDossierButton applicationId={applicationId} label={t("companyDossier.rebuild")} />
       <details>

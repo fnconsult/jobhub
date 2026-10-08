@@ -48,18 +48,26 @@ const smallHomonym: RegisteredCompany = {
   executiveRoles: [],
 };
 
-/** A register that answers every query with the same companies, and records the queries. */
+/** A register that answers every query with the same companies (or, for a SIREN in `bySiren`, with that one), and records the queries. */
 function fakeRegister(companies: RegisteredCompany[] = []) {
   const queries: string[] = [];
-  const register: CompanyRegister & { queries: string[]; companies: RegisteredCompany[]; soleTraderNamed: boolean; down: boolean } = {
+  const register: CompanyRegister & {
+    queries: string[];
+    companies: RegisteredCompany[];
+    bySiren: Record<string, RegisteredCompany>;
+    soleTraderNamed: boolean;
+    down: boolean;
+  } = {
     queries,
     companies,
+    bySiren: {},
     soleTraderNamed: false,
     down: false,
     async search(query) {
       queries.push(query);
       if (register.down) throw new CompanyRegisterUnavailable("down");
-      return { companies: register.companies, soleTraderNamed: register.soleTraderNamed };
+      const listed = register.bySiren[query.replace(/\s/g, "")];
+      return { companies: listed ? [listed] : register.companies, soleTraderNamed: register.soleTraderNamed };
     },
   };
   return register;
@@ -229,6 +237,60 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
       expect(french).toMatchObject({ ok: true, state: { dossier: { source: "french_register", siren: "814000003" } } });
     });
 
+    describe("known by another name than the registered one (Michelin, BlaBlaCar)", () => {
+      /** The group, registered under a longer name than it is known by; homonyms hold the short name. */
+      const group: RegisteredCompany = { ...acme, siren: "855200887", name: "COMPAGNIE GENERALE DES ETABLISSEMENTS ACME", acronym: "CGEA", category: "GE" };
+
+      it("takes the SIREN the web search gives once the register lists it under a name bearing the employer's", async () => {
+        register.companies = [smallHomonym];
+        register.bySiren = { [group.siren]: group };
+        webAnswer = JSON.stringify({ country: "France", siren: "855 200 887", website: "acme.example" });
+        const applicationId = await applicationFor({ employer: "Acme" });
+
+        const result = await dossiers.build(candidateId, applicationId);
+
+        expect(result).toMatchObject({
+          ok: true,
+          state: { dossier: { source: "french_register", reliability: "official", employer: "Acme", siren: "855200887", name: group.name } },
+        });
+        expect(register.queries).toEqual(["Acme", "855200887"]);
+      });
+
+      it("takes it when the employer's name is the company's shop sign", async () => {
+        register.companies = [];
+        register.bySiren = { "491904546": { ...acme, siren: "491904546", name: "COMUTO", acronym: undefined, shopSigns: ["ACMECAR"] } };
+        webAnswer = JSON.stringify({ country: "France", siren: "491904546" });
+        const applicationId = await applicationFor({ employer: "AcmeCar" });
+
+        const result = await dossiers.build(candidateId, applicationId);
+
+        expect(result).toMatchObject({ ok: true, state: { dossier: { source: "french_register", siren: "491904546", name: "COMUTO" } } });
+      });
+
+      it("keeps the web dossier when the SIREN given is listed under a name that does not bear the employer's", async () => {
+        register.companies = [];
+        register.bySiren = { "521724336": { ...acme, siren: "521724336", name: "LBC FRANCE", acronym: undefined } };
+        webAnswer = JSON.stringify({ country: "France", siren: "521724336" });
+        const applicationId = await applicationFor({ employer: "Acmecoin" });
+
+        const result = await dossiers.build(candidateId, applicationId);
+
+        expect(result).toMatchObject({ ok: true, state: { dossier: { source: "web", reliability: "less_reliable", country: "France" } } });
+        expect(JSON.stringify(result)).not.toContain("521724336");
+      });
+
+      it("keeps the web dossier when the SIREN given is only a small company's whose name holds the employer's among other words", async () => {
+        register.companies = [];
+        register.bySiren = { [group.siren]: { ...group, category: "PME" } };
+        webAnswer = JSON.stringify({ siren: group.siren });
+        const applicationId = await applicationFor({ employer: "Acme" });
+
+        const result = await dossiers.build(candidateId, applicationId);
+
+        expect(result).toMatchObject({ ok: true, state: { dossier: { source: "web" } } });
+      });
+    });
+
     it("matches the SIREN the Candidate gives as the employer", async () => {
       register.companies = [acme, { ...acme, siren: "999888777" }];
       const applicationId = await applicationFor({ employer: "Acme Industrie" });
@@ -323,6 +385,29 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
       expect(result).toMatchObject({ ok: true, state: { dossier: { source: "web", country: "États-Unis", revenue: "2 M$" } } });
       const dossier = JSON.stringify(result);
       expect(dossier).not.toMatch(/Smith|Doe|Elm/);
+    });
+
+    it("never gives a person's profile as the company's website", async () => {
+      register.companies = [];
+      for (const website of ["https://www.linkedin.com/in/sarah-connor", "facebook.com/sarah.connor", "javascript:alert(1)"]) {
+        webAnswer = JSON.stringify({ country: "United Kingdom", headcount: "about 40 employees", website });
+        const applicationId = await applicationFor({ employer: "Leaky Consulting Ltd" });
+
+        const result = await dossiers.build(candidateId, applicationId);
+
+        expect(result).toMatchObject({ ok: true, state: { dossier: { source: "web", country: "United Kingdom" } } });
+        expect(JSON.stringify(result)).not.toMatch(/connor|javascript/i);
+      }
+    });
+
+    it("keeps a LinkedIn company page as the website", async () => {
+      register.companies = [];
+      webAnswer = JSON.stringify({ website: "https://www.linkedin.com/company/leaky-consulting" });
+      const applicationId = await applicationFor({ employer: "Leaky Consulting Ltd" });
+
+      const result = await dossiers.build(candidateId, applicationId);
+
+      expect(result).toMatchObject({ ok: true, state: { dossier: { website: "https://www.linkedin.com/company/leaky-consulting" } } });
     });
 
     it("keeps only web pages as sources, never a person's profile", async () => {

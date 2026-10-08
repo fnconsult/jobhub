@@ -116,6 +116,7 @@ describe("company web search", () => {
     expect(perplexity.queries[0]).toContain("« Acme Robotics GmbH contact: »");
     expect(perplexity.queries[0]).not.toMatch(/hr@|1234/);
     expect(perplexity.queries[0]).toMatch(/ne nomme aucune personne/i);
+    expect(perplexity.queries[0]).toMatch(/siren/i);
     expect(usage.entries).toEqual([expect.objectContaining({ candidateId: "cand-1", task: "web_search", provider: "perplexity" })]);
   });
 });

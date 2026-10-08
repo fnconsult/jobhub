@@ -536,6 +536,7 @@
     "employerHint": "The company's name, or its SIREN number if you know it.",
     "confirmEmployer": "Confirm the employer",
     "nameEmployer": "Build the dossier for this employer",
+    "notInRegister": "A French company the register did not find under this name? Enter its SIREN below (“Not the right employer?”) to get its official data.",
     "wrongEmployer": "Not the right employer?",
     "reliability": {
       "official": "Official source.",

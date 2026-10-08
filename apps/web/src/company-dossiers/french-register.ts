@@ -22,8 +22,13 @@ export interface FinancialYear {
 export interface RegisteredCompany {
   siren: string;
   name: string;
-  /** The acronym (sigle) the register lists. Shop signs are left out: franchisees and subsidiaries trade under the group's. */
+  /** The acronym (sigle) the register lists. */
   acronym?: string;
+  /**
+   * The head office's shop signs (enseignes), e.g. BLABLACAR for COMUTO. Not a name to search
+   * by (franchisees and subsidiaries trade under the group's), only to confirm a SIREN found elsewhere.
+   */
+  shopSigns?: string[];
   /** False once the company has ceased trading. */
   active: boolean;
   /** e.g. "SAS", when the register's legal category is a common one. */
@@ -117,10 +122,13 @@ interface ApiCompany {
   complements?: { est_entrepreneur_individuel?: boolean | null } | null;
 }
 
+/** The registered name; empty for a SIREN the register holds no company under, which it answers with an all-null record. */
+const nameOf = (company: ApiCompany) => (company.nom_raison_sociale || company.nom_complet || "").trim();
+
 const isSoleTrader = (company: ApiCompany) => company.complements?.est_entrepreneur_individuel === true || company.nature_juridique === "1000";
 
 function companyFrom(company: ApiCompany): RegisteredCompany {
-  const name = (company.nom_raison_sociale || company.nom_complet || "").trim();
+  const name = nameOf(company);
   const result: RegisteredCompany = {
     siren: company.siren,
     name,
@@ -147,6 +155,8 @@ function companyFrom(company: ApiCompany): RegisteredCompany {
   if (acronym && acronym !== name) result.acronym = acronym;
   const legalForm = legalFormOf(company.nature_juridique);
   if (legalForm) result.legalForm = legalForm;
+  const shopSigns = [...new Set((company.siege?.liste_enseignes ?? []).map((sign) => sign?.trim()).filter((sign): sign is string => !!sign))];
+  if (shopSigns.length > 0) result.shopSigns = shopSigns;
   if (company.activite_principale) result.activity = company.activite_principale;
   if (company.siege?.adresse) result.address = company.siege.adresse;
   const headcount = HEADCOUNTS[company.tranche_effectif_salarie ?? ""];
@@ -186,7 +196,8 @@ export function createFrenchRegister(options: FrenchRegisterOptions = {}): Compa
       }
       if (!response.ok) throw new CompanyRegisterUnavailable(`The French company register answered ${response.status}`);
       const body = (await response.json().catch(() => null)) as { results?: ApiCompany[] } | null;
-      const results = (body?.results ?? []).filter((company) => company?.siren);
+      // A record with no name is no company: the register answers an unknown SIREN with one.
+      const results = (body?.results ?? []).filter((company) => company?.siren && nameOf(company));
       const siren = sirenIn(q);
       const key = nameKey(q);
       const named = (company: ApiCompany) =>

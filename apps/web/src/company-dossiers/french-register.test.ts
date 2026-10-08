@@ -75,6 +75,7 @@ describe("French company register (API Recherche d'Entreprises)", () => {
           { year: 2023, revenue: 41_000_000, netIncome: 1_200_000 },
         ],
         executiveRoles: ["Président de SAS", "Directeur Général"],
+        shopSigns: ["ACME LYON"],
       },
     ]);
   });
@@ -108,6 +109,14 @@ describe("French company register (API Recherche d'Entreprises)", () => {
     expect(bySiren.soleTraderNamed).toBe(true);
     expect(otherName.soleTraderNamed).toBe(false);
     expect(JSON.stringify(byName)).not.toMatch(/PAULINE|MARTIN|812345678/);
+  });
+
+  it("leaves out a SIREN the register holds no company under: an empty record, with no name", async () => {
+    // As the live register answers q=123456789: one result, every field null.
+    const stub = { siren: "123456789", nom_complet: null, nom_raison_sociale: null, sigle: null, siege: {}, etat_administratif: null, nature_juridique: null, finances: null };
+    const { fetch } = fakeFetch(() => Response.json({ results: [stub] }));
+
+    expect(await createFrenchRegister({ fetch }).search("123456789")).toEqual({ companies: [], soleTraderNamed: false });
   });
 
   it("gives no financials when the register has none", async () => {

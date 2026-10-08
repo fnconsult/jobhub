@@ -21,6 +21,8 @@ export const routes = {
   coachSpaceCandidate: (candidateId: string) => `/espace-coach/${encodeURIComponent(candidateId)}`,
   coachSpaceApplication: (candidateId: string, applicationId: string) => `/espace-coach/${encodeURIComponent(candidateId)}/candidatures/${applicationId}`,
   accountDeleted: "/compte/supprime",
+  /** Where a Job Digest email's unsubscribe link leads (no sign-in needed). */
+  jobDigestUnsubscribe: "/desabonnement",
   admin: "/admin",
   adminPlanQuotas: "/admin/quotas",
   adminHumanCoaches: "/admin/coachs",

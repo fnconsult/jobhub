@@ -562,6 +562,7 @@ test.describe("Guest Capture and Match Score", () => {
   };
 
   test("a Guest who signs in to their existing account from the extension can turn their CV into a new Profile and the Job Offer into an Application", async () => {
+    test.slow(); // two magic-link sign-ins, a subscription and a Profile before the Capture even starts
     // An existing Candidate with one Profile, on a Plan allowing more, who is signed out.
     const web = await context.newPage();
     const email = newAddress("guest-sign-in");

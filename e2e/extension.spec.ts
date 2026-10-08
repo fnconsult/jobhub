@@ -459,7 +459,9 @@ test.describe("Guest Capture and Match Score", () => {
     forgetGuestCapturesAt(capturedAt + 23 * 3_600_000 + 60_000);
     expect((await jobOffer(stored.jobOffer.id)).status()).toBe(404);
     expect((await jobOffer(candidateOffer.id)).status()).toBe(200);
+    // Reopening shows the kept Match Score (#51); a new one cannot be computed for an offer that is gone.
     await analysis.reload();
+    await analysis.getByRole("button", { name: fr.analysis.rescore }).click();
     await expect(analysis.getByText(fr.analysis.jobOfferGone)).toBeVisible();
     await analysis.getByRole("button", { name: fr.analysis.forget }).click();
     await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();

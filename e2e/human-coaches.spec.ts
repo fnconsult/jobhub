@@ -15,7 +15,9 @@ const hc = fr.humanCoaches;
 const space = fr.coachSpace;
 const origin = process.env.E2E_WEB_ORIGIN!;
 const stripeUrl = process.env.E2E_STRIPE_URL!;
-const ADMINISTRATOR = "back-office@e2e.jobbbox.test";
+// Its own Administrator: billing.spec.ts signs "back-office@" in from another worker, and two
+// sign-ins of one address at once can pick up each other's link.
+const ADMINISTRATOR = "coach-office@e2e.jobbbox.test";
 
 const unique = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const tr = (template: string, values: Record<string, string>) => template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
@@ -206,6 +208,68 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     const gone = await coachPage.reload();
     expect(gone?.status()).toBe(404);
     await coachPage.context().close();
+  });
+
+  test("the Back Office lists the Human Coaches it adds and retires them; retired ones can no longer be booked", async ({ page, browser }) => {
+    const admin = await personPage(browser, ADMINISTRATOR);
+    const coach = await addCoach(admin, newAddress("coach"));
+    const active = admin.getByRole("region", { name: fr.admin.humanCoaches.listTitle });
+    await expect(active).toContainText(coach.name);
+    await expect(active.getByRole("link", { name: coach.bookingUrl })).toHaveAttribute("href", coach.bookingUrl);
+
+    await signInWithMagicLink(page, newAddress("retired-coach-candidate"));
+    await page.goto("/coachs");
+    await expect(page.getByRole("button", { name: tr(hc.book, { name: coach.name }) })).toBeVisible();
+
+    await admin.goto("/admin/coachs");
+    await admin.getByRole("button", { name: tr(fr.admin.humanCoaches.retire, { name: coach.name }) }).click();
+    await expect(admin.getByRole("status")).toHaveText(fr.admin.humanCoaches.retired);
+    await expect(admin.getByRole("button", { name: tr(fr.admin.humanCoaches.retire, { name: coach.name }) })).toHaveCount(0);
+    await expect(active).not.toContainText(coach.name);
+
+    await page.reload();
+    await expect(page.getByRole("button", { name: tr(hc.book, { name: coach.name }) })).toHaveCount(0);
+    await admin.context().close();
+  });
+
+  test("the Human Coaches of the Back Office are for Administrators only", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("not-an-admin"));
+    const response = await page.goto("/admin/coachs");
+    expect(response?.status()).toBe(404);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.notFound.title);
+    await expect(page.getByLabel(fr.admin.humanCoaches.bookingUrl)).toHaveCount(0);
+  });
+
+  test("a Coaching Session is not recorded from a webhook Stripe did not sign, and no Human Coach is paid through Stripe", async ({ page, browser }) => {
+    const admin = await personPage(browser, ADMINISTRATOR);
+    const coach = await addCoach(admin, newAddress("coach"));
+    const coachId = await coachIdOf(admin, coach.name);
+    await admin.context().close();
+    await signInWithMagicLink(page, newAddress("forged-session"));
+    const started = await page.request.post("/api/coaching/checkout", { form: { coachId }, headers: { origin }, maxRedirects: 0 });
+    expect(started.status()).toBe(303);
+    const [checkout] = await checkoutsFor(coachId);
+
+    const event = checkoutSessionEvent("checkout.session.completed", {
+      id: `cs_e2e_${unique()}`,
+      candidateId: checkout!["metadata[candidate_id]"]!,
+      coachId,
+      amount: 9000,
+      currency: "eur",
+      paymentStatus: "paid",
+    });
+    const forged = signedEvent(event, "whsec_someone_else");
+    const refused = await page.request.post("/api/billing/webhook", { data: forged.payload, headers: { "stripe-signature": forged.signature, "content-type": "application/json" } });
+    expect(refused.status()).toBe(400);
+
+    await page.goto("/coachs?session=paid");
+    await expect(page.getByRole("status")).toHaveText(hc.paidPending);
+    await expect(page.getByRole("link", { name: tr(hc.pickSlot, { name: coach.name }) })).toHaveCount(0);
+
+    // Human Coaches are paid outside the platform: Jobbbox never asks Stripe for a transfer or payout.
+    const calls: { path: string; params: Record<string, string> }[] = await (await fetch(`${stripeUrl}/__calls`)).json();
+    expect(calls.filter((call) => /\/v1\/(transfers|payouts|accounts)/.test(call.path))).toEqual([]);
+    expect(checkout!["payment_intent_data[transfer_data][destination]"]).toBeUndefined();
   });
 
   test("the coach space is unseen by people who are not Human Coaches", async ({ page }) => {

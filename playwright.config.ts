@@ -96,7 +96,7 @@ export default defineConfig({
       STRIPE_PRICE_COACHING_SESSION: "price_coaching_session",
       STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_coaching_session_premium",
       STRIPE_API_URL: process.env.E2E_STRIPE_URL,
-      ADMIN_EMAILS: "back-office@e2e.jobbbox.test",
+      ADMIN_EMAILS: "back-office@e2e.jobbbox.test,coach-office@e2e.jobbbox.test",
       // Enriched Contacts (#23) on Apollo, faked; the DPA flag stands for the signed agreement.
       CONTACT_ENRICHMENT_PROVIDER: "apollo",
       APOLLO_API_KEY: "e2e-apollo-key",

@@ -132,6 +132,22 @@
     "humanCoaches": "Mes coachs humains",
     "coachSpace": "Mon espace coach"
   },
+  "accountData": {
+    "title": "Mes données",
+    "exportHint": "Téléchargez tout ce que vous avez enregistré dans Jobbbox : vos profils, toutes les versions de vos CV, vos candidatures et leurs documents.",
+    "export": "Télécharger toutes mes données",
+    "deleteTitle": "Supprimer mon compte",
+    "deleteWarning": "Votre compte est fermé tout de suite et vous êtes déconnecté. Vos profils, CV, candidatures, documents, accès accordés aux coachs et notes de séances de coaching sont effacés, définitivement sous 30 jours au plus. Votre abonnement, s'il y en a un, prend fin. Téléchargez vos données avant si vous souhaitez les garder.",
+    "confirmLabel": "Pour confirmer, saisissez votre adresse e-mail",
+    "delete": "Supprimer définitivement mon compte",
+    "confirmMismatch": "Cette adresse ne correspond pas à celle de votre compte. Rien n'a été supprimé.",
+    "deleteError": "La suppression n'a pas pu aboutir. Rien n'a été supprimé : réessayez dans un moment."
+  },
+  "accountDeleted": {
+    "title": "Votre compte est supprimé",
+    "body": "Vos données ont été effacées. Merci d'avoir utilisé Jobbbox, et bonne continuation dans votre recherche.",
+    "home": "Retour à l'accueil"
+  },
   "languages": {
     "fr": "Français",
     "en": "English"

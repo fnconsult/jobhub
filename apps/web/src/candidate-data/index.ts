@@ -105,9 +105,16 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           deps.tailoredDocuments.get(candidateId, id),
         ]);
         if (!application || !tailoredCv || !drafts) return null;
-        const { matchScore: _derived, ...kept } = application;
+        // The Match Score is worked out from the rest, not something the Candidate made.
+        const { status, statusChangedAt, createdAt, jobOffer, profile, interviews } = application;
         return {
-          ...kept,
+          id,
+          status,
+          statusChangedAt,
+          createdAt,
+          jobOffer,
+          profile,
+          interviews,
           tailoredDocuments: {
             documentLanguage: drafts.documentLanguage,
             tailoredCv: tailoredCv.saved,

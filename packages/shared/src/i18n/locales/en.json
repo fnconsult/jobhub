@@ -132,6 +132,22 @@
     "humanCoaches": "My human coaches",
     "coachSpace": "My coach space"
   },
+  "accountData": {
+    "title": "My data",
+    "exportHint": "Download everything you saved in Jobbbox: your profiles, every version of your CVs, your applications and their documents.",
+    "export": "Download all my data",
+    "deleteTitle": "Delete my account",
+    "deleteWarning": "Your account is closed at once and you are signed out. Your profiles, CVs, applications, documents, the access you gave coaches and your coaching session notes are erased, permanently within 30 days at most. Your subscription, if you have one, ends. Download your data first if you want to keep it.",
+    "confirmLabel": "To confirm, type your email address",
+    "delete": "Permanently delete my account",
+    "confirmMismatch": "This address does not match your account's. Nothing was deleted.",
+    "deleteError": "The deletion could not be completed. Nothing was deleted: try again in a moment."
+  },
+  "accountDeleted": {
+    "title": "Your account is deleted",
+    "body": "Your data has been erased. Thank you for using Jobbbox, and good luck with your job search.",
+    "home": "Back to the home page"
+  },
   "languages": {
     "fr": "Français",
     "en": "English"

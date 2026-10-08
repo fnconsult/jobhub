@@ -18,3 +18,15 @@ export async function getCurrentCandidate() {
   const session = await getAuth().api.getSession({ headers: requestHeaders });
   return session?.user ?? null;
 }
+
+/**
+ * Whether a state-changing request comes from the web app itself (or our
+ * extension), not from another site riding on the Candidate's session cookie.
+ */
+export function isFromTrustedOrigin(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+  const { baseURL, trustedOrigins } = getAuth().options;
+  const trusted = [new URL(String(baseURL)).origin, ...(Array.isArray(trustedOrigins) ? trustedOrigins : [])];
+  return trusted.includes(origin);
+}

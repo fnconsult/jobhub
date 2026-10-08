@@ -1,5 +1,4 @@
-import { randomUUID } from "node:crypto";
-import { Pool } from "pg";
+import { createThrowawayDatabase } from "../test-support/throwaway-database";
 import { createAuth, migrateCandidateAccounts, type AuthConfig, type MailMessage } from "./index";
 
 export const connectionString = process.env.DATABASE_URL;
@@ -12,12 +11,8 @@ export const BASE_URL = "http://localhost:3000";
  * records every email instead of sending it.
  */
 export async function startTestAuth(overrides: Partial<AuthConfig> = {}) {
-  const name = `test_auth_${randomUUID().replaceAll("-", "")}`;
-  const admin = new Pool({ connectionString });
-  await admin.query(`CREATE DATABASE ${name}`);
-  const url = new URL(connectionString!);
-  url.pathname = `/${name}`;
-  const database = new Pool({ connectionString: url.toString() });
+  const throwaway = await createThrowawayDatabase("test_auth");
+  const database = throwaway.pool;
 
   const mailbox: MailMessage[] = [];
   const config: AuthConfig = {
@@ -32,6 +27,7 @@ export async function startTestAuth(overrides: Partial<AuthConfig> = {}) {
 
   return {
     auth,
+    database,
     mailbox,
     /** Sends a request to the auth HTTP handler, as the browser would. */
     request(path: string, init: { method?: string; body?: unknown; cookie?: string; origin?: string } = {}) {
@@ -48,20 +44,7 @@ export async function startTestAuth(overrides: Partial<AuthConfig> = {}) {
       );
     },
     async stop() {
-      // Pool.end() resolves as soon as its clients are told to close, not once
-      // their connections are gone. Dropping the database WITH (FORCE) at that
-      // point makes Postgres terminate them (57P01), and the pool has already
-      // detached its error listeners, so the errors go unhandled. Wait until
-      // Postgres sees no connection to the database, then drop it.
-      await database.end();
-      for (let attempt = 0; ; attempt++) {
-        const { rows } = await admin.query("SELECT count(*)::int AS open FROM pg_stat_activity WHERE datname = $1", [name]);
-        if (rows[0].open === 0) break;
-        if (attempt >= 100) throw new Error(`connections to ${name} still open after teardown`);
-        await new Promise((resolve) => setTimeout(resolve, 20));
-      }
-      await admin.query(`DROP DATABASE ${name}`);
-      await admin.end();
+      await throwaway.drop();
     },
   };
 }

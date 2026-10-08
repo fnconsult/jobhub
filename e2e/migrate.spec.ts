@@ -41,6 +41,14 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     const first = migrate();
     expect(first.status, first.stderr).toBe(0);
     expect(first.stdout).toContain("Candidate accounts are up to date");
+    expect(first.stdout).toContain("Profiles are up to date");
+    expect(first.stdout).toContain("Job Offers are up to date");
+    expect(first.stdout).toContain("Applications are up to date");
+    expect(first.stdout).toContain("Company Dossiers are up to date");
+    expect(first.stdout).toContain("Action Cards are up to date");
+    expect(first.stdout).toContain("ATS Scores are up to date");
+    expect(first.stdout).toContain("Plans and Plan Quotas are up to date");
+    expect(first.stdout).toContain("Job Searches are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 
@@ -50,7 +58,26 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
       const tables = await db.query(
         "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name",
       );
-      expect(tables.rows.map((r) => r.table_name)).toEqual(["account", "candidate", "session", "verification"]);
+      // Plus the Agent Run log (issue #31) and the Job Offers (issue #9), which stand apart from Candidate data.
+      expect(tables.rows.map((r) => r.table_name)).toEqual([
+        "account",
+        "action_card",
+        "application",
+        "ats_score", // issue #8: the ATS Score last computed for each Profile
+        "candidate",
+        "candidate_plan", // issue #22: Plans and Plan Quotas
+        "company_dossier", // issue #17
+        "interview",
+        "job_offer",
+        "job_search", // issue #14: on-demand AI Coach job search
+        "master_cv_version",
+        "plan_quota",
+        "profile",
+        "quota_usage",
+        "session",
+        "verification",
+        "workflow_agent_run",
+      ]);
 
       const candidateColumns = await db.query(
         "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'candidate'",
@@ -66,10 +93,36 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         JOIN information_schema.key_column_usage kcu ON kcu.constraint_name = tc.constraint_name
         JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name = tc.constraint_name
         WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public'
-        ORDER BY from_table`);
+        ORDER BY from_table, from_column, to_table`);
       expect(references.rows).toEqual([
         { from_table: "account", from_column: "userId", to_table: "candidate" },
+        { from_table: "action_card", from_column: "candidate_id", to_table: "candidate" },
+        // Applications (issue #12) hang off the Candidate and their Profile; their Job Offers are kept (ADR-0010).
+        { from_table: "application", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "application", from_column: "job_offer_id", to_table: "job_offer" },
+        { from_table: "application", from_column: "profile_id", to_table: "profile" },
+        { from_table: "ats_score", from_column: "profile_id", to_table: "profile" },
+        { from_table: "candidate_plan", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "candidate_plan", from_column: "plan", to_table: "plan_quota" },
+        // A Company Dossier (issue #17) goes with its Application.
+        { from_table: "company_dossier", from_column: "application_id", to_table: "application" },
+        { from_table: "interview", from_column: "application_id", to_table: "application" },
+        // Job Searches (issue #14) hang off the Candidate and the Profile they search for.
+        { from_table: "job_search", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "job_search", from_column: "profile_id", to_table: "profile" },
+        { from_table: "master_cv_version", from_column: "profile_id", to_table: "profile" },
+        { from_table: "profile", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "quota_usage", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "session", from_column: "userId", to_table: "candidate" },
+      ]);
+      // The Plans start with the quotas of issue #22, plus monthly Job Searches (issue #14); re-running keeps them.
+      const quotas = await db.query(
+        "SELECT plan, profiles, match_scores, ats_scores, enriched_contacts, job_searches, job_digest FROM plan_quota ORDER BY profiles NULLS LAST",
+      );
+      expect(quotas.rows).toEqual([
+        { plan: "free", profiles: 1, match_scores: 3, ats_scores: 1, enriched_contacts: 0, job_searches: 3, job_digest: "none" },
+        { plan: "standard", profiles: 3, match_scores: null, ats_scores: null, enriched_contacts: 0, job_searches: 30, job_digest: "weekly" },
+        { plan: "premium", profiles: null, match_scores: null, ats_scores: null, enriched_contacts: 20, job_searches: null, job_digest: "daily" },
       ]);
     } finally {
       await db.end();

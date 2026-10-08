@@ -1,0 +1,3 @@
+# Master CV saves are based on a version
+
+Every edit of a Master CV says which version it was based on. If another save has made that version outdated (a second tab, another device), the save is refused and the Candidate is told which version is current; we never merge. Two saves at the same moment are settled by the database, which lets only one take the next version number. Restoring an old version saves its content as a new version. Merging CV text automatically could silently drop or mix a senior Candidate's facts, and a Master CV is the source of every Tailored CV, so a visible refusal costs less than a wrong merge.

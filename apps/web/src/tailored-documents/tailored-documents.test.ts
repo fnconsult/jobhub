@@ -168,9 +168,13 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
       dossier: {
         employer: "Acme Industrie",
         source: "french_register",
+        reliability: "official",
+        siren: "552100554",
         name: "ACME INDUSTRIE",
         activity: "Fabrication de machines agricoles",
         headcount: { min: 250, max: 499 },
+        financials: [],
+        executiveRoles: ["Président"],
         builtAt: new Date("2026-10-01T10:00:00Z"),
         suggestedContactRoles: ["hr_director", "hiring_manager"],
       },
@@ -190,7 +194,7 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
   });
 
   it("without a built Company Dossier, drafts are written from the Master CV and the Job Offer alone", async () => {
-    dossiers.set(applicationId, { status: "awaiting_confirmation" });
+    dossiers.set(applicationId, { status: "awaiting_confirmation", presumedEmployer: "Acme Industrie" });
 
     const result = await documents.draft(candidateId, applicationId, { document: "outreach_message" });
 

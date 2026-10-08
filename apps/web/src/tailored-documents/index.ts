@@ -24,6 +24,7 @@ import { DOCUMENT_LANGUAGES, jobOfferLanguage, type DocumentLanguage } from "@jo
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { Application, Applications } from "../applications";
+import type { CompanyDossier, CompanyDossiers } from "../company-dossiers";
 import type { Profiles } from "../profiles";
 import { fieldErrors, type FieldError } from "../validation";
 
@@ -64,17 +65,7 @@ export interface ApplicationDrafts {
  * Where Company Dossiers come from (#17), as this module needs them: the
  * dossier state of an Application, scoped to the Candidate, or null.
  */
-export interface CompanyDossierSource {
-  get(candidateId: string, applicationId: string): Promise<{ status: string; dossier?: CompanyDossierFacts } | null>;
-}
-
-/** The parts of a built Company Dossier a draft can draw on. */
-export interface CompanyDossierFacts {
-  employer: string;
-  /** Codes such as "hr_director": job titles, never people. */
-  suggestedContactRoles: readonly string[];
-  [fact: string]: unknown;
-}
+export type CompanyDossierSource = Pick<CompanyDossiers, "get">;
 
 export type TailoredDocumentsResult =
   | { ok: true; drafts: ApplicationDrafts }
@@ -245,7 +236,7 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
   type Request = z.output<typeof draftSchema> & { language: DocumentLanguage };
 
   /** The built Company Dossier of the Application, if any. A dossier that cannot be read is done without. */
-  async function dossierOf(candidateId: string, applicationId: string): Promise<CompanyDossierFacts | null> {
+  async function dossierOf(candidateId: string, applicationId: string): Promise<CompanyDossier | null> {
     try {
       const state = await deps.companyDossiers?.get(candidateId, applicationId);
       return state?.status === "built" && state.dossier ? state.dossier : null;

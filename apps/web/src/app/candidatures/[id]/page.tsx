@@ -84,7 +84,7 @@ export default async function ApplicationPage({ params }: Params) {
 
       <MatchScoreView matchScore={application.matchScore} profileName={application.profile.name} t={t} locale={locale} />
       <CompanyDossierView applicationId={application.id} state={companyDossier} t={t} locale={locale} />
-      {drafts ? <TailoredDocumentsEditor key={application.id} applicationId={application.id} initial={drafts} /> : null}
+      {drafts ? <TailoredDocumentsEditor key={`drafts-${application.id}`} applicationId={application.id} initial={drafts} /> : null}
       <JobOfferView jobOffer={jobOffer} t={t} locale={locale} />
     </main>
   );

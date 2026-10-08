@@ -5,7 +5,11 @@ export type Email = { to: string; subject: string; text: string };
 
 /** Emails the e2e web server printed (MAIL_TRANSPORT=console) to its log, oldest first. */
 export function emailsTo(address: string): Email[] {
-  const log = readFileSync(process.env.E2E_SERVER_LOG!, "utf8");
+  return emailsIn(readFileSync(process.env.E2E_SERVER_LOG!, "utf8"), address);
+}
+
+/** Emails to `address` a process printed to `log` with MAIL_TRANSPORT=console (the worker's output, say), oldest first. */
+export function emailsIn(log: string, address: string): Email[] {
   return log
     .split(/^(?=\[mail\] to )/m)
     .filter((block) => block.startsWith(`[mail] to ${address}: `))

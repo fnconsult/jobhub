@@ -52,6 +52,7 @@ export interface GuestSession {
   keepJobOffer(jobOffer: JobOffer): Promise<void>;
   /** Keeps the CV, with the Search Criteria read from it (replacing any earlier CV's). */
   keepCv(cv: CvContent, searchCriteria?: SearchCriteriaDraft): Promise<void>;
+  /** Keeps the Match Score, only if the session still holds the Job Offer and CV it was computed for. */
   keepMatchScore(kept: KeptMatchScore): Promise<void>;
   /** The work is saved in the Candidate's account: forgets the CV and the Job Offer, keeping only where they went. */
   keepSaved(saved: SavedWork): Promise<void>;
@@ -87,8 +88,19 @@ export function createGuestSession(storage: SessionStorage, now: () => number = 
       await keep({ jobOffer, saved: undefined, ...(matchScore?.jobOfferId === jobOffer.id ? {} : { matchScore: undefined }) });
     },
     keepCv: (cv, searchCriteria) => keep({ cv, searchCriteria, matchScore: undefined }),
-    keepMatchScore: (matchScore) => keep({ matchScore }),
+    // Kept only while the session still holds the Job Offer and CV it was computed for: a score
+    // that comes back after the session was forgotten, expired or moved on never brings it back.
+    async keepMatchScore(matchScore) {
+      const { jobOffer, cv } = await read();
+      if (jobOffer?.id !== matchScore.jobOfferId || !cv || !sameCv(cv, matchScore.cv)) return;
+      await keep({ matchScore });
+    },
     keepSaved: (saved) => keep({ saved }, { replace: true }),
     forget: () => storage.remove(KEY),
   };
+}
+
+/** The CV is kept as read; any change to it (another CV, or the same one read again differently) is another CV. */
+export function sameCv(a: CvContent, b: CvContent): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
 }

@@ -5,7 +5,7 @@
  * computed again until either changes or a new score is asked for (#51).
  */
 import type { CvContent, JobOffer } from "@jobhub/shared";
-import type { GuestSession } from "./guest-session";
+import { sameCv, type GuestSession } from "./guest-session";
 import type { JobbboxApi } from "./jobbbox-api";
 
 export type ScoreOutcome = Awaited<ReturnType<JobbboxApi["score"]>>;
@@ -27,9 +27,4 @@ export function createMatchScoring({ api, session }: { api: Pick<JobbboxApi, "sc
       return scored;
     },
   };
-}
-
-/** The CV is kept as read; any change to it (another CV, or the same one read again differently) is another CV. */
-function sameCv(a: CvContent, b: CvContent): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
 }

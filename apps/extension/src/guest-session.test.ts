@@ -100,5 +100,16 @@ describe("a Guest session", () => {
     await session.keepCv({ ...cv, skills: ["SAP"] });
     expect((await session.read()).matchScore).toBeUndefined();
   });
-});
 
+  it("never brings a forgotten session back to keep a Match Score in it (ADR-0003)", async () => {
+    const storage = memoryStorage();
+    const session = createGuestSession(storage, () => 0);
+    await session.keepJobOffer(jobOffer);
+    await session.keepCv(cv);
+    await session.forget();
+
+    await session.keepMatchScore({ jobOfferId: jobOffer.id, cv, matchScore: { score: 70 } } as KeptMatchScore);
+
+    expect(storage.items).toEqual({});
+  });
+});

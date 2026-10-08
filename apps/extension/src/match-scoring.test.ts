@@ -138,6 +138,57 @@ describe("scoring a CV against a Job Offer from the extension", () => {
     expect(requests).toHaveLength(2);
   });
 
+  it("keeps nothing when the session is forgotten while the Match Score is being computed (ADR-0003)", async () => {
+    const { session } = setUp();
+    await session().keepJobOffer(jobOffer);
+    await session().keepCv(cv);
+    const { api } = matchScoreApi();
+    const forgetMidway: Pick<JobbboxApi, "score"> = {
+      async score(jobOfferId, scoredCv) {
+        await session().forget();
+        return api.score(jobOfferId, scoredCv);
+      },
+    };
+
+    expect(await createMatchScoring({ api: forgetMidway, session: session() }).score(jobOffer, cv)).toMatchObject({ ok: true });
+
+    expect(await session().read()).toEqual({});
+  });
+
+  it("keeps nothing when the session expires while the Match Score is being computed (ADR-0003)", async () => {
+    const { session, clock } = setUp();
+    await session().keepJobOffer(jobOffer);
+    await session().keepCv(cv);
+    const { api } = matchScoreApi();
+    const slow: Pick<JobbboxApi, "score"> = {
+      async score(jobOfferId, scoredCv) {
+        clock.set(23 * HOUR);
+        return api.score(jobOfferId, scoredCv);
+      },
+    };
+
+    await createMatchScoring({ api: slow, session: session() }).score(jobOffer, cv);
+
+    expect(await session().read()).toEqual({});
+  });
+
+  it("keeps no Match Score for a CV replaced while it was being computed", async () => {
+    const { session } = setUp();
+    await session().keepJobOffer(jobOffer);
+    await session().keepCv(cv);
+    const { api } = matchScoreApi();
+    const replaceCvMidway: Pick<JobbboxApi, "score"> = {
+      async score(jobOfferId, scoredCv) {
+        await session().keepCv(otherCv);
+        return api.score(jobOfferId, scoredCv);
+      },
+    };
+
+    await createMatchScoring({ api: replaceCvMidway, session: session() }).score(jobOffer, cv);
+
+    expect((await session().read()).matchScore).toBeUndefined();
+  });
+
   it("keeps no refusal: past the quota, the Upgrade Prompt is shown on every attempt", async () => {
     const { session, scoring, requests } = setUp({ quota: 0 });
     await session().keepJobOffer(jobOffer);

@@ -446,6 +446,43 @@ test.describe("Guest Capture and Match Score", () => {
     scores.stop();
   });
 
+  test("a slow rescore uses one Match Score however often it is clicked, and \"Oublier\" meanwhile keeps nothing once it returns (#51)", async () => {
+    const analysis = await captureFromBadge(postingUrl);
+    await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
+    await analysis.getByRole("button", { name: fr.analysis.submit }).click();
+    await expect(analysis.getByText(scoreLine)).toBeVisible();
+    // /api/match-score answers 1.5 s late; `answered` counts the answers that reached the page.
+    let answered = 0;
+    await context.route("**/api/match-score", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1_500));
+      await route.continue();
+      answered += 1;
+    });
+    const scores = countScoreRequests();
+    try {
+      // A double-click on "Recalculer le Match Score" asks for one Match Score, not two.
+      await analysis.getByRole("button", { name: fr.analysis.rescore }).dblclick();
+      await expect(analysis.getByText(scoreLine)).toBeVisible();
+      await expect.poll(() => answered).toBeGreaterThanOrEqual(1);
+      await analysis.waitForTimeout(2_000);
+      expect(scores.requests).toHaveLength(1);
+
+      // "Oublier" while a Match Score is computed: once it comes back, the session stays forgotten (ADR-0003).
+      await analysis.getByRole("button", { name: fr.analysis.rescore }).click();
+      await expect(analysis.getByText(fr.analysis.scoring)).toBeVisible();
+      await analysis.getByRole("button", { name: fr.analysis.forget }).click();
+      await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
+      await expect.poll(() => answered).toBe(2);
+      await analysis.waitForTimeout(500);
+      expect(await guestSession(analysis)).toEqual({});
+      await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
+      await expect(analysis.getByText(scoreLine)).toHaveCount(0);
+    } finally {
+      scores.stop();
+      await context.unroute("**/api/match-score");
+    }
+  });
+
   test("a signed-in Free Candidate uses no Match Score by reopening the page; past their Plan Quota, the Upgrade Prompt is still shown (#51)", async () => {
     test.slow();
     const web = await context.newPage();

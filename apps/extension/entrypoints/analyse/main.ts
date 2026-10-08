@@ -234,7 +234,9 @@ async function forget() {
  * saving is opened afresh, which keeps a Guest's work at once on sign-up. `rescore`: a new Match
  * Score is asked for, rather than the kept one.
  */
+let renders = 0;
 async function render(message?: Message, changingCv = false, outcome?: SavingState | SavingFailure, rescore = false) {
+  const renderId = ++renders;
   if (candidate.signedIn && !outcome) outcome = await saving.open();
   if (outcome?.state === "saved") {
     app.replaceChildren(element("h1", t("extension.analysis.title")), describeJobOffer(outcome.jobOffer), savedNotice(outcome));
@@ -264,11 +266,16 @@ async function render(message?: Message, changingCv = false, outcome?: SavingSta
     if (cv && !changingCv) {
       app.replaceChildren(...parts, status({ text: t("extension.analysis.scoring") }));
       parts.push(...(await matchScore(jobOffer, cv, rescore)));
+      // Another render ("Oublier", say) began while the Match Score was computed: it has the page now.
+      if (renderId !== renders) return;
       const actions = element("div", "", "actions");
-      actions.append(
-        button(t("extension.analysis.rescore"), () => void render(undefined, false, undefined, true)),
-        button(t("extension.analysis.changeCv"), () => void render(undefined, true)),
-      );
+      // Each rescore uses a Match Score of the Plan Quota: the button asks once, however often it is clicked.
+      const rescoreButton = button(t("extension.analysis.rescore"), () => {
+        if (rescoreButton.disabled) return;
+        rescoreButton.disabled = true;
+        void render(undefined, false, undefined, true);
+      });
+      actions.append(rescoreButton, button(t("extension.analysis.changeCv"), () => void render(undefined, true)));
       parts.push(actions);
     } else {
       parts.push(cvForm());

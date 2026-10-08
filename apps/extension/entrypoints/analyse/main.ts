@@ -279,8 +279,12 @@ async function render(message?: Message, changingCv = false, outcome?: SavingSta
 await render();
 
 // Back from signing up or in (or out) on the web app: start again as the person now is, in their
-// Interface Language; on sign-up, the Guest's work is kept at once.
-document.addEventListener("visibilitychange", async () => {
+// Interface Language; on sign-up, the Guest's work is kept at once. Checked when the page comes
+// back into view and, as a tab switch is not the only way back, every few seconds while it is in view.
+const SESSION_CHECK_MS = 3_000;
+async function checkSession() {
   if (document.visibilityState !== "visible") return;
   if ((await readCandidateSession(WEB_ORIGIN)).signedIn !== candidate.signedIn) location.reload();
-});
+}
+document.addEventListener("visibilitychange", () => void checkSession());
+setInterval(() => void checkSession(), SESSION_CHECK_MS);

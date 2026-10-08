@@ -2,7 +2,7 @@
  * Plans, Stripe billing and Plan Quotas (CONTEXT.md, ADR-0014).
  *
  * One deep module. Callers get `createBilling(config)`, whose methods answer:
- *  - what may this Candidate do?  `entitlements`, `use`, `allowsAnother`
+ *  - what may this Candidate do?  `entitlements`, `use`, `allows`, `release`, `allowsAnother`
  *  - how do they change Plan?     `startCheckout`, `openCustomerPortal`, `handleStripeWebhook`
  *  - what do the Plans allow?     `planQuotas`, `setPlanQuotas` (back office)
  * and `migrateBilling(database)` to create / upgrade its tables. Stripe, the
@@ -294,6 +294,33 @@ export function createBilling(config: BillingConfig) {
       );
       if (rows.length === 0) return refusal(plan, quota, limit!);
       return { allowed: true, remaining: limit === null ? null : limit - (rows[0].used as number) };
+    },
+
+    /**
+     * Whether `use` would allow one more of a monthly quota now. Records nothing:
+     * for asking before work whose cost is only known once done (see `release`).
+     */
+    async allows(candidateId: string, quota: MonthlyQuota): Promise<QuotaDecision> {
+      const plan = await planOf(candidateId);
+      const limit = (await quotasOf(plan))[quota];
+      if (limit === null) return { allowed: true, remaining: null };
+      const { rows } = await database.query("SELECT used FROM quota_usage WHERE candidate_id = $1 AND quota = $2 AND month = $3", [
+        candidateId,
+        quota,
+        monthInFrance(now()),
+      ]);
+      const used = (rows[0]?.used as number | undefined) ?? 0;
+      if (used >= limit) return refusal(plan, quota, limit);
+      return { allowed: true, remaining: limit - used - 1 };
+    },
+
+    /** Gives back one use recorded this month by `use` whose work could not be done. Never below zero. */
+    async release(candidateId: string, quota: MonthlyQuota): Promise<void> {
+      await database.query("UPDATE quota_usage SET used = used - 1 WHERE candidate_id = $1 AND quota = $2 AND month = $3 AND used > 0", [
+        candidateId,
+        quota,
+        monthInFrance(now()),
+      ]);
     },
 
     /**

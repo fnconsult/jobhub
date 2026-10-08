@@ -482,6 +482,7 @@ textarea.input {
 
 .board-cards,
 .interview-list,
+.contact-list,
 .search-results,
 .skill-list {
   display: flex;
@@ -494,6 +495,7 @@ textarea.input {
 
 .board-card,
 .interview,
+.contact,
 .search-result {
   display: flex;
   flex-direction: column;
@@ -505,8 +507,14 @@ textarea.input {
 }
 
 .board-card p,
-.interview p {
+.interview p,
+.contact p,
+.contact dl {
   margin: 0;
+}
+
+.contact dd {
+  margin: 0 0 var(--space-2);
 }
 
 .interview-date {

@@ -8,7 +8,9 @@ import { ActionCardList, type ActionCardView } from "@/components/ActionCardList
 import { AddInterviewForm, ApplicationProfileSelect, ApplicationStatusSelect, RemoveInterviewButton } from "@/components/ApplicationControls";
 import { CoachInView } from "@/components/CoachPanel";
 import { CompanyDossierView } from "@/components/CompanyDossierView";
+import { EnrichedContactsPanel } from "@/components/EnrichedContactsPanel";
 import { getCompanyDossiers } from "@/company-dossiers/server";
+import { getEnrichedContacts } from "@/enriched-contacts/server";
 import { JobOfferView } from "@/components/JobOfferView";
 import { MatchScoreView } from "@/components/MatchScoreView";
 import { TailoredCvReview } from "@/components/TailoredCvReview";
@@ -50,16 +52,17 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 /**
  * One Application: its status and Profile (both changed by hand), its Interviews,
  * the Match Score with its breakdown, its Tailored CV under review or saved, its Cover Letter and Outreach Message drafts,
- * the Company Dossier and the full Job Offer.
+ * the Company Dossier, its Enriched Contacts (when a contact-data provider is on) and the full Job Offer.
  */
 export default async function ApplicationPage({ params }: Params) {
   const { candidateId, application } = await requireOwnApplication((await params).id);
   const [t, locale] = await Promise.all([getServerT(), getRequestLocale()]);
   const inView = { kind: "application", id: application.id, name: application.jobOffer.title } as const;
-  const [cards, profiles, companyDossier, tailoredCv, drafts] = await Promise.all([
+  const [cards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts] = await Promise.all([
     getActionCards().pending(candidateId, inView),
     getProfiles().list(candidateId),
     getCompanyDossiers().get(candidateId, application.id),
+    getEnrichedContacts().get(candidateId, application.id),
     getTailoredCvs().get(candidateId, application.id),
     getTailoredDocuments().get(candidateId, application.id),
   ]);
@@ -68,6 +71,7 @@ export default async function ApplicationPage({ params }: Params) {
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: INTERVIEW_TIME_ZONE });
   const dateTime = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
   const { jobOffer, interviews } = application;
+  const recipients = (enrichedContacts?.contacts ?? []).map(({ id, name, jobTitle, emails }) => ({ id, name, ...(jobTitle && { jobTitle }), ...(emails[0] && { email: emails[0] }) }));
   return (
     <main className="page">
       <WorkspaceHeader candidateId={candidateId} />
@@ -108,8 +112,17 @@ export default async function ApplicationPage({ params }: Params) {
 
       <MatchScoreView matchScore={application.matchScore} profileName={application.profile.name} t={t} locale={locale} />
       <CompanyDossierView applicationId={application.id} state={companyDossier} t={t} locale={locale} />
+      {enrichedContacts && (enrichedContacts.enabled || enrichedContacts.contacts.length > 0) ? (
+        <EnrichedContactsPanel
+          key={`enriched-contacts-${application.id}`}
+          applicationId={application.id}
+          initial={enrichedContacts}
+          hasDossier={companyDossier?.status === "built"}
+          locale={locale}
+        />
+      ) : null}
       {tailoredCv ? <TailoredCvReview key={`tailored-cv-${application.id}`} applicationId={application.id} initial={tailoredCv} locale={locale} /> : null}
-      {drafts ? <TailoredDocumentsEditor key={`drafts-${application.id}`} applicationId={application.id} initial={drafts} /> : null}
+      {drafts ? <TailoredDocumentsEditor key={`drafts-${application.id}`} applicationId={application.id} initial={drafts} recipients={recipients} /> : null}
       <JobOfferView jobOffer={jobOffer} t={t} locale={locale} />
     </main>
   );

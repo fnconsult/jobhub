@@ -624,6 +624,35 @@
     "sourcesTitle": "Sources",
     "builtOn": "Dossier built on {{date}} for “{{employer}}”."
   },
+  "enrichedContacts": {
+    "title": "Enriched Contacts",
+    "intro": "Find the people holding the roles to contact at the employer, then get their contact details from a licensed data provider. Each contact whose details you get counts toward your monthly quota.",
+    "needsDossier": "Build the company dossier first: it tells which roles to look for.",
+    "searchUnsupported": "The current data provider cannot search for people by role.",
+    "find": "Find contacts",
+    "findAgain": "Search again",
+    "working": "Searching…",
+    "foundTitle": "People found",
+    "foundNone": "No one found yet.",
+    "reveal": "Get contact details",
+    "revealFor": "Get {{name}}'s contact details",
+    "revealHint": "Each request for contact details counts as one Enriched Contact in this month's quota. Nothing is counted if the provider has none.",
+    "revealing": "Requesting…",
+    "contactsTitle": "Your Enriched Contacts",
+    "email": "Email",
+    "phone": "Phone",
+    "source": "Source: {{provider}}, details retrieved on {{date}}.",
+    "personalData": "This personal data comes from a licensed provider. Use it only for this application.",
+    "useInOutreach": "You can address your outreach message to one of these contacts.",
+    "noDetails": "The provider has no contact details for this person. Nothing was counted.",
+    "unavailable": "The data provider is not answering right now. Nothing was counted. Try again in a few minutes.",
+    "error": "The request failed. Check your connection and try again.",
+    "providers": {
+      "lusha": "Lusha",
+      "kaspr": "Kaspr",
+      "apollo": "Apollo"
+    }
+  },
   "atsScore": {
     "title": "ATS Score",
     "intro": "How applicant tracking systems (ATS) read your Master CV for the role “{{role}}”.",
@@ -760,7 +789,11 @@
       "contactRoles": "Address it to:",
       "subjectLabel": "Subject",
       "textLabel": "Message text",
-      "openInMail": "Open in my mail app"
+      "openInMail": "Open in my mail app",
+      "recipientLabel": "Recipient",
+      "recipientNone": "No one in particular (the roles to contact)",
+      "addressedTo": "Addressed to {{name}}",
+      "notAContact": "This contact is no longer available. Choose another one."
     },
     "writtenIn": {
       "fr": "Written in French.",

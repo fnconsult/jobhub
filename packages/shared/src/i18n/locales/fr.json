@@ -624,6 +624,35 @@
     "sourcesTitle": "Sources",
     "builtOn": "Dossier constitué le {{date}} pour « {{employer}} »."
   },
+  "enrichedContacts": {
+    "title": "Contacts enrichis",
+    "intro": "Trouvez les personnes qui occupent les fonctions à contacter chez l'employeur, puis obtenez leurs coordonnées auprès d'un fournisseur de données sous licence. Chaque contact dont vous obtenez les coordonnées compte dans votre quota mensuel.",
+    "needsDossier": "Constituez d'abord le dossier entreprise : il indique les fonctions à rechercher.",
+    "searchUnsupported": "Le fournisseur de données actuel ne permet pas de rechercher des personnes par fonction.",
+    "find": "Rechercher des contacts",
+    "findAgain": "Rechercher à nouveau",
+    "working": "Recherche en cours…",
+    "foundTitle": "Personnes trouvées",
+    "foundNone": "Aucune personne trouvée pour l'instant.",
+    "reveal": "Obtenir les coordonnées",
+    "revealFor": "Obtenir les coordonnées de {{name}}",
+    "revealHint": "Chaque demande de coordonnées compte pour un contact enrichi dans votre quota du mois. Rien n'est décompté si le fournisseur n'en a pas.",
+    "revealing": "Demande en cours…",
+    "contactsTitle": "Vos contacts enrichis",
+    "email": "E-mail",
+    "phone": "Téléphone",
+    "source": "Source : {{provider}}, coordonnées obtenues le {{date}}.",
+    "personalData": "Ces données personnelles viennent d'un fournisseur sous licence. Utilisez-les uniquement pour cette candidature.",
+    "useInOutreach": "Vous pouvez adresser votre message d'approche à l'un de ces contacts.",
+    "noDetails": "Le fournisseur n'a pas de coordonnées pour cette personne. Rien n'a été décompté.",
+    "unavailable": "Le fournisseur de données ne répond pas pour le moment. Rien n'a été décompté. Réessayez dans quelques minutes.",
+    "error": "La demande a échoué. Vérifiez votre connexion et réessayez.",
+    "providers": {
+      "lusha": "Lusha",
+      "kaspr": "Kaspr",
+      "apollo": "Apollo"
+    }
+  },
   "atsScore": {
     "title": "ATS Score",
     "intro": "Comment les logiciels de recrutement (ATS) lisent votre CV de référence pour le poste « {{role}} ».",
@@ -760,7 +789,11 @@
       "contactRoles": "À adresser à :",
       "subjectLabel": "Objet",
       "textLabel": "Texte du message",
-      "openInMail": "Ouvrir dans ma messagerie"
+      "openInMail": "Ouvrir dans ma messagerie",
+      "recipientLabel": "Destinataire",
+      "recipientNone": "Personne en particulier (les fonctions à contacter)",
+      "addressedTo": "Adressé à {{name}}",
+      "notAContact": "Ce contact n'est plus disponible. Choisissez-en un autre."
     },
     "writtenIn": {
       "fr": "Rédigé en français.",

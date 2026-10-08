@@ -2,7 +2,7 @@ import type { MasterCvContent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
-import { createJobOffers, migrateJobOffers } from "../job-offers";
+import { createJobOffers, createSourceChecks, migrateJobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import { createApplications, migrateApplications, type Applications } from "./index";
 
@@ -27,6 +27,7 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
   let otherCandidateId: string;
   let jobOfferId: string;
   let profileId: string;
+  let database: Pool;
 
   async function signIn(email: string) {
     const cookie = await signInWithMagicLink(testAuth, email);
@@ -47,7 +48,7 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
 
   beforeEach(async () => {
     testAuth = await startTestAuth();
-    const database = testAuth.auth.options.database as Pool;
+    database = testAuth.auth.options.database as Pool;
     await migrateProfiles(database);
     await migrateJobOffers(database);
     await migrateApplications(database);
@@ -289,6 +290,38 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
 
       expect(removed).toMatchObject({ ok: true, application: { interviews: [] } });
       expect(await applications.removeInterview(candidateId, applicationId, interviewId)).toEqual({ ok: false, error: "not_found" });
+    });
+  });
+
+  describe("on an Expired Job Offer", () => {
+    it("is flagged, in the list and on its page, and keeps the Application Status the Candidate gave it", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+      await applications.change(candidateId, id, { status: "applied" });
+      const before = await applications.get(candidateId, id);
+      const foundAt = new Date(Date.now() + 4 * 86_400_000);
+
+      await createSourceChecks(database).record(jobOfferId, "expired", foundAt);
+
+      const after = await applications.get(candidateId, id);
+      expect(after).toMatchObject({ status: "applied", statusChangedAt: before!.statusChangedAt, jobOffer: { expiredAt: foundAt } });
+      expect(await applications.list(candidateId)).toMatchObject([
+        { id, status: "applied", statusChangedAt: before!.statusChangedAt, jobOffer: { id: jobOfferId, expiredAt: foundAt } },
+      ]);
+    });
+
+    it("is not flagged while its Job Offer is still published", async () => {
+      await save({ jobOfferId, profileId });
+
+      const [summary] = await applications.list(candidateId);
+
+      expect(summary!.jobOffer).not.toHaveProperty("expiredAt");
+    });
+
+    it("can still be moved on by the Candidate", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+      await createSourceChecks(database).record(jobOfferId, "expired", new Date());
+
+      expect(await applications.change(candidateId, id, { status: "abandoned" })).toMatchObject({ ok: true, application: { status: "abandoned" } });
     });
   });
 });

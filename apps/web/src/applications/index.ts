@@ -10,7 +10,9 @@
  *    - `list` the Candidate's Applications (newest first) for the list and board views;
  *    - `get` one Application with its Job Offer, Profile, Interviews and the Match
  *      Score of the Profile's current Master CV against the Job Offer;
- *    - `change` its Application Status (only ever by the Candidate) or the Profile it uses;
+ *    - `change` its Application Status (only ever by the Candidate) or the Profile it uses.
+ *      An Application on an Expired Job Offer is flagged (its Job Offer's `expiredAt`)
+ *      and keeps its status: nothing changes it automatically;
  *    - `addInterview` (only while it is at "Entretien") and `removeInterview`. Interviews
  *      are kept when the Application moves on.
  * Every read and change is scoped to the Candidate; inputs are untrusted (they
@@ -61,7 +63,8 @@ export interface ApplicationSummary {
   id: string;
   status: ApplicationStatus;
   statusChangedAt: Date;
-  jobOffer: Pick<JobOffer, "id" | "title" | "employer" | "location">;
+  /** `expiredAt` flags an Application on an Expired Job Offer; its status is left to the Candidate. */
+  jobOffer: Pick<JobOffer, "id" | "title" | "employer" | "location" | "expiredAt">;
   profile: { id: string; name: string };
   /** Oldest first. */
   interviews: Interview[];
@@ -212,10 +215,10 @@ export function createApplications(
 
     async list(candidateId) {
       const { rows } = await database.query<
-        ApplicationRow & { title: string; employer: string | null; location: string | null; profile_name: string }
+        ApplicationRow & { title: string; employer: string | null; location: string | null; expired_at: Date | null; profile_name: string }
       >(
         `SELECT a.id, a.job_offer_id, a.profile_id, a.status, a.status_changed_at, a.created_at,
-                o.title, o.employer, o.location, p.name AS profile_name
+                o.title, o.employer, o.location, o.expired_at, p.name AS profile_name
            FROM application a
            JOIN job_offer o ON o.id = a.job_offer_id
            JOIN profile p ON p.id = a.profile_id
@@ -228,6 +231,7 @@ export function createApplications(
         const jobOffer: ApplicationSummary["jobOffer"] = { id: row.job_offer_id, title: row.title };
         if (row.employer !== null) jobOffer.employer = row.employer;
         if (row.location !== null) jobOffer.location = row.location;
+        if (row.expired_at !== null) jobOffer.expiredAt = row.expired_at;
         return {
           id: row.id,
           status: row.status,

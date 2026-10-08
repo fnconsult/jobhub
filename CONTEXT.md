@@ -120,7 +120,7 @@ A Job Offer that is no longer published at its source. Its Applications are flag
 _Avoid_: Closed, dead, archived offer
 
 **Presumed Employer**:
-The AI Coach's guess at the real employer behind a Job Offer posted by a recruiting agency. It becomes the employer only once the Candidate confirms it.
+The AI Coach's guess at the real employer behind a Job Offer posted by a recruiting agency. It becomes the employer, and gets a Company Dossier, only once the Candidate confirms it.
 _Avoid_: Hidden employer, client
 
 **Job Digest**:
@@ -128,7 +128,7 @@ A recurring email and in-app summary of new Job Offers matching a Profile's Sear
 _Avoid_: Alert, newsletter, feed
 
 **Company Dossier**:
-The research compiled about the employer behind a Job Offer: legal identity, address, financials and, depending on the Plan, contacts.
+The research compiled about the employer behind a Job Offer from public data only: legal identity, address, financials and Suggested Contact Roles. Built from the French company register for a French employer; for a foreign one, from the web and marked less reliable. Never names a private person. Built only for a confirmed employer, and refused when the employer is not a company (e.g. a sole trader), in which case the Candidate is asked to name the hiring company.
 _Avoid_: Company info, company profile
 
 **Suggested Contact Role**:

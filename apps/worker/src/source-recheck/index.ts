@@ -13,7 +13,7 @@
 import { createPoliteFetcher, type Clock, type RefusalReason } from "../job-discovery/polite-fetch";
 import { DEFAULT_USER_AGENT, FORBIDDEN_SITES } from "../job-discovery";
 import { htmlToText } from "../job-discovery/html";
-import { jobPostingValidThrough } from "../job-discovery/job-posting";
+import { jobPostingValidThrough, readJobPosting } from "../job-discovery/job-posting";
 
 /** What a re-check learnt: still published, no longer published, or nothing (not read). */
 export type SourceCheckOutcome = "published" | "expired" | "unknown";
@@ -58,14 +58,39 @@ const EXPIRY_NOTICES = [
   /\b(job|position|posting|vacancy)\b[^.!?\n]{0,30}\b(is no longer (available|active|open|accepting)|has (expired|been filled|closed))/i,
 ];
 
+/**
+ * The page's own content, without what every page of the site repeats: its
+ * header, navigation, footer, side panels and links. "Signalez-nous si cette
+ * offre n'est plus disponible" in a footer or a report link says nothing about
+ * this posting.
+ */
+function ownContent(html: string): string {
+  return html.replace(/<(header|nav|footer|aside|a)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ");
+}
+
+/** A notice in a conditional ("si cette offre n'est plus disponible", "if this job is no longer available") is not a notice. */
+const CONDITIONAL = /\b(si|s['’]|lorsque|quand|if|when|once)\s+(\S+\s+){0,2}$/i;
+
+function saysExpired(text: string): boolean {
+  return EXPIRY_NOTICES.some((notice) => {
+    const global = new RegExp(notice.source, notice.flags.includes("g") ? notice.flags : `${notice.flags}g`);
+    for (const match of text.matchAll(global)) {
+      if (!CONDITIONAL.test(text.slice(Math.max(0, match.index - 40), match.index))) return true;
+    }
+    return false;
+  });
+}
+
 /** What a page we could read says about the posting it stood for. */
 function pageOutcome(sourceUrl: string, page: { url: string; html: string }, now: Date): SourceCheckOutcome {
   const validThrough = jobPostingValidThrough(page.html);
   if (validThrough && validThrough < now) return "expired";
   // Sent to the site's home page: the posting's own page is no more.
   if (new URL(page.url).pathname === "/" && new URL(sourceUrl).pathname !== "/") return "expired";
-  const text = htmlToText(page.html);
-  return EXPIRY_NOTICES.some((notice) => notice.test(text)) ? "expired" : "published";
+  // The page still states the posting as structured data, and it is not past its closing date:
+  // the site publishes it, whatever its text says elsewhere.
+  if (readJobPosting(page.html)) return "published";
+  return saysExpired(htmlToText(ownContent(page.html))) ? "expired" : "published";
 }
 
 export function createSourceRecheck(options: SourceRecheckOptions): SourceRecheck {

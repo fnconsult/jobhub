@@ -76,6 +76,62 @@ test.describe("exporting my data and deleting my account", () => {
     ]);
   });
 
+  test("the export holds every Profile (archived ones too), every Master CV Version, and every Tailored Document, and nothing of another Candidate", async ({ page, browser }) => {
+    const email = newAddress("account-export-full");
+    const { profileId, applicationId } = await candidateWithData(page, email);
+    await subscribe(page, email, "standard");
+
+    // A second Profile (the Standard Plan allows more than one), archived.
+    const second = await page.request.post("/api/profiles", { data: { masterCv: { ...masterCv, headline: "DAF de transition" }, searchCriteria: { targetRole: "DAF de transition", location: "Paris" } }, headers: { origin } });
+    expect(second.status(), await second.text()).toBe(201);
+    const archivedId = (await second.json()).id as string;
+    const archived = await page.request.patch(`/api/profiles/${archivedId}`, { data: { archived: true }, headers: { origin } });
+    expect(archived.ok(), await archived.text()).toBe(true);
+    // A third Master CV Version on the first Profile.
+    const edited = await page.request.put(`/api/profiles/${profileId}/master-cv`, {
+      data: { basedOnVersion: 2, content: { ...masterCv, summary: "25 ans de finance, dont 10 en groupe coté." } },
+      headers: { origin },
+    });
+    expect(edited.ok(), await edited.text()).toBe(true);
+    // The other Tailored Documents: a saved Tailored CV and an Outreach Message.
+    const proposed = await page.request.post(`/api/applications/${applicationId}/tailored-cv`, { data: { language: "fr" }, headers: { origin } });
+    expect(proposed.ok(), await proposed.text()).toBe(true);
+    const savedCv = await page.request.post(`/api/applications/${applicationId}/tailored-cv/save`, {
+      data: { revision: (await proposed.json()).proposal.revision },
+      headers: { origin },
+    });
+    expect(savedCv.ok(), await savedCv.text()).toBe(true);
+    const outreach = await page.request.post(`/api/applications/${applicationId}/tailored-documents`, { data: { document: "outreach_message", channel: "email" }, headers: { origin } });
+    expect(outreach.ok(), await outreach.text()).toBe(true);
+
+    // Another Candidate's data never shows in this export.
+    const other = await browser.newPage();
+    const { profileId: otherProfileId, applicationId: otherApplicationId } = await candidateWithData(other, newAddress("account-export-other"));
+    await other.close();
+
+    await page.goto("/compte");
+    const section = page.getByRole("region", { name: fr.accountData.title });
+    const [file] = await Promise.all([page.waitForEvent("download"), section.getByRole("link", { name: fr.accountData.export }).click()]);
+    const exported = JSON.parse(readFileSync((await file.path())!, "utf8"));
+
+    expect(exported.profiles.map((p: { id: string }) => p.id).sort()).toEqual([profileId, archivedId].sort());
+    const first = exported.profiles.find((p: { id: string }) => p.id === profileId);
+    expect(first.masterCvVersions.map((v: { version: number }) => v.version)).toEqual([3, 2, 1]);
+    expect(first.searchCriteria).toMatchObject({ targetRole: "DAF", location: "Lyon" });
+    expect(exported.profiles.find((p: { id: string }) => p.id === archivedId)).toMatchObject({ archived: true, masterCvVersions: [expect.objectContaining({ version: 1 })] });
+
+    expect(exported.applications).toHaveLength(1);
+    expect(exported.applications[0].tailoredDocuments).toMatchObject({
+      tailoredCv: expect.objectContaining({ language: "fr", content: expect.objectContaining({ fullName: "Marie Dupont" }) }),
+      coverLetter: expect.objectContaining({ text: expect.any(String) }),
+      outreachMessage: expect.objectContaining({ text: expect.any(String) }),
+    });
+
+    const raw = JSON.stringify(exported);
+    expect(raw).not.toContain(otherProfileId);
+    expect(raw).not.toContain(otherApplicationId);
+  });
+
   test("only a signed-in Candidate can download their data", async ({ request }) => {
     expect((await request.get("/api/account/export")).status()).toBe(401);
   });
@@ -113,6 +169,35 @@ test.describe("exporting my data and deleting my account", () => {
     // Signing up again with the same email starts an empty account.
     await signInWithMagicLink(page, email);
     await expect(page.getByText(fr.profiles.none)).toBeVisible();
+  });
+
+  test("deletion takes effect at once: every session is signed out and nothing of the Candidate's data can be reached again", async ({ page, browser }) => {
+    const email = newAddress("account-delete-everything");
+    const { profileId, applicationId, jobOfferId } = await candidateWithData(page, email);
+    // The same Candidate, signed in on another device.
+    const elsewhere = await browser.newPage();
+    await signInWithMagicLink(elsewhere, email);
+    expect((await elsewhere.request.get(`/api/applications/${applicationId}`)).status()).toBe(200);
+
+    const deleted = await page.request.delete("/api/account", { data: { email: email.toUpperCase() }, headers: { origin } });
+    expect(deleted.status(), await deleted.text()).toBe(204);
+
+    // Signed out everywhere, at once (not merely scheduled for later).
+    expect((await elsewhere.request.get("/api/profiles")).status()).toBe(401);
+    expect((await elsewhere.request.get("/api/account/export")).status()).toBe(401);
+    await elsewhere.close();
+
+    // Signing up again with the same email finds nothing of the old account.
+    await signInWithMagicLink(page, email);
+    expect((await page.request.get(`/api/profiles/${profileId}/master-cv/export?format=pdf&template=classic`)).status()).toBe(404);
+    expect((await page.request.get(`/api/applications/${applicationId}`)).status()).toBe(404);
+    expect((await page.request.get(`/api/applications/${applicationId}/tailored-cv`)).status()).toBe(404);
+    const fresh = await page.request.get("/api/account/export");
+    expect(fresh.status()).toBe(200);
+    expect(await fresh.json()).toMatchObject({ account: { email }, profiles: [], applications: [] });
+    // The shared Job Offer is still there.
+    await page.goto(`/offres/${jobOfferId}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("DAF H/F");
   });
 
   test("deleting an account needs the Candidate's own email, from the app itself", async ({ page }) => {

@@ -373,6 +373,7 @@
       "upgradeCreate": "Avec l'offre {{plan}}, vous pouvez en créer davantage.",
       "upgradeUse": "Avec l'offre {{plan}}, vous pouvez en faire davantage.",
       "upgradeIncludes": "L'offre {{plan}} les comprend.",
+      "upgradeIncludesIt": "L'offre {{plan}} la comprend.",
       "renews": "Votre quota se renouvelle le 1er du mois.",
       "noMore": "Vous ne pouvez pas en créer davantage.",
       "action": "Découvrir l'offre {{plan}}"

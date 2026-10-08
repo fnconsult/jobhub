@@ -204,7 +204,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       expect(unsubscribeUrl).toBeDefined();
       expect(email.headers?.["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
       const token = new URL(unsubscribeUrl!).searchParams.get("token")!;
-      expect(email.text).toContain(`https://app.jobbbox.fr/desabonnement?token=${token}`);
+      expect(email.text).toContain(`https://app.jobbbox.fr/desabonnement?token=${token}&lang=en`);
 
       expect(await jobDigests.unsubscribeByToken(token)).toBe(true);
       expect(await jobDigests.settings(candidateId, profileId)).toMatchObject({ subscribed: false });

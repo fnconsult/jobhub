@@ -373,6 +373,7 @@
       "upgradeCreate": "The {{plan}} Plan lets you create more.",
       "upgradeUse": "The {{plan}} Plan lets you do more.",
       "upgradeIncludes": "The {{plan}} Plan includes them.",
+      "upgradeIncludesIt": "The {{plan}} Plan includes it.",
       "renews": "Your quota renews on the 1st of the month.",
       "noMore": "You cannot create any more.",
       "action": "See the {{plan}} Plan"

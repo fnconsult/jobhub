@@ -21,7 +21,7 @@
  * they list are kept.
  */
 import { PLANS, scoreMatch, type JobDigestFrequency, type JobOffer, type MatchScore, type Plan } from "@jobhub/shared";
-import { createI18n } from "@jobhub/shared/i18n";
+import { createI18n, type Locale } from "@jobhub/shared/i18n";
 import { randomBytes } from "node:crypto";
 import type { Pool } from "pg";
 import type { Applications } from "../applications";
@@ -150,9 +150,9 @@ function newToken(): string {
   return randomBytes(32).toString("base64url");
 }
 
-/** The page an email's unsubscribe link opens (it asks before unsubscribing). */
-export function unsubscribePageURL(baseURL: string, token: string): string {
-  return new URL(`${routes.jobDigestUnsubscribe}?token=${token}`, baseURL).toString();
+/** The page an email's unsubscribe link opens, in the email's language (it asks before unsubscribing). */
+export function unsubscribePageURL(baseURL: string, token: string, locale: Locale): string {
+  return new URL(`${routes.jobDigestUnsubscribe}?token=${token}&lang=${locale}`, baseURL).toString();
 }
 
 /** The one-click endpoint of the List-Unsubscribe header (RFC 8058): a POST unsubscribes at once. */
@@ -229,7 +229,8 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
     );
     const candidate = rows[0];
     if (!candidate) return;
-    const { t } = createI18n(candidate.interfaceLanguage);
+    const i18n = createI18n(candidate.interfaceLanguage);
+    const { t } = i18n;
     const count = digest.results.length;
     const items = digest.results.map(({ jobOffer, matchScore }) => {
       const where = [jobOffer.employer, jobOffer.location].filter(Boolean).join(", ");
@@ -245,7 +246,7 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
       t("jobDigest.email.seeOnProfile", { url: new URL(routes.profile(profile.id), deps.baseURL).toString() }),
       t("jobDigest.email.signature"),
       "--",
-      t("jobDigest.email.unsubscribe", { url: unsubscribePageURL(deps.baseURL, token) }),
+      t("jobDigest.email.unsubscribe", { url: unsubscribePageURL(deps.baseURL, token, i18n.language as Locale) }),
     ].join("\n\n");
     await deps.mailer.send({
       to: candidate.email,

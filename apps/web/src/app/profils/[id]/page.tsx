@@ -46,7 +46,7 @@ export default async function ProfilePage({ params }: Params) {
       {profile.archived ? <p className="notice">{t("profileActions.archivedNotice")}</p> : null}
       <CoachInView {...inView} />
       <ActionCardList
-        key={profile.id}
+        key={`action-cards-${profile.id}`}
         cards={cards.map(({ id, title, body, kind, payload }): ActionCardView => {
           const seniorAdvice = atsFixOf({ kind, payload })?.category === "senior_advice";
           return seniorAdvice ? { id, title, body, label: t("atsFixes.seniorAdvice"), dismissLabel: t("atsFixes.dismissAdvice") } : { id, title, body };

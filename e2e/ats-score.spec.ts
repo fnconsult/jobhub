@@ -100,7 +100,7 @@ test.describe("ATS Score", () => {
 
     // The Free Plan's one ATS Score of the month was the first computation: recomputing after fixes did not use it.
     await section.getByRole("button", { name: fr.atsScore.recompute }).click();
-    await expect(page.getByRole("alert")).toContainText(fr.billing.quotaReached.title);
+    await expect(section.getByRole("alert")).toContainText(fr.billing.quotaReached.title);
   });
 });
 

@@ -6,7 +6,8 @@
  * One deep module in front of Postgres and the AI layer. Callers get
  * `createTailoredCvs(database, { applications, profiles, ai })`:
  *  - `get` the Application's Document Language, the proposal under review and the saved Tailored CV;
- *  - `propose` (or propose again) a Tailored CV: it replaces the proposal under review, never the saved one.
+ *  - `propose` (or propose again) a Tailored CV: it replaces the proposal under review, never the saved one;
+ *  - `answer` the proposal's questions: the Job Offer's requirements the Master CV does not show.
  *
  * Rules kept here (ADR-0006):
  *  - A Tailored CV only rephrases, reorders, cuts and emphasises facts of the
@@ -15,11 +16,13 @@
  *    languages and skills are kept only if the Master CV has them, and a
  *    rephrased text stating a figure or a Job Offer keyword the Master CV
  *    lacks is replaced by the Master CV's.
+ *  - A requirement the Master CV lacks becomes a question to the Candidate, and
+ *    is added to the skills only if they confirm it.
  * Every read and change is scoped to the Candidate; inputs are untrusted and
  * problems come back as results. Task `writing`, EU endpoints only (ADR-0007).
  */
 import type { AiLayer } from "@jobhub/ai";
-import { DOCUMENT_LANGUAGES, normalise, type CvContent, type DocumentLanguage } from "@jobhub/shared";
+import { DOCUMENT_LANGUAGES, normalise, scoreMatch, type CvContent, type DocumentLanguage } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { Application, Applications } from "../applications";
@@ -27,13 +30,26 @@ import type { Profiles } from "../profiles";
 import { documentLanguageOf, keepDocumentLanguage } from "../tailored-documents/document-language";
 import { fieldErrors, type FieldError } from "../validation";
 
+/**
+ * A requirement of the Job Offer the Master CV does not show, asked to the
+ * Candidate. Once confirmed, it is added to the Tailored CV's skills.
+ */
+export interface TailoredCvQuestion {
+  /** As the Job Offer words it, e.g. "Power BI". */
+  requirement: string;
+  /** Null until the Candidate answers. */
+  answer: "confirmed" | "declined" | null;
+}
+
 /** A Tailored CV the AI Coach proposed, under the Candidate's review. */
 export interface TailoredCvProposal {
   /** The language it is written in. */
   language: DocumentLanguage;
   /** The Master CV Version it was derived from, and reviewed against. */
   masterCvVersion: number;
+  /** With the confirmed requirements. */
   content: CvContent;
+  questions: TailoredCvQuestion[];
   proposedAt: Date;
 }
 
@@ -58,6 +74,11 @@ export interface TailoredCvs {
   get(candidateId: string, applicationId: string): Promise<ApplicationTailoredCv | null>;
   /** Has the AI Coach propose a Tailored CV, replacing the proposal under review. `input`: { language? }. */
   propose(candidateId: string, applicationId: string, input: unknown): Promise<TailoredCvResult>;
+  /**
+   * The Candidate's answer to one question of the proposal: `input` { requirement, confirmed }.
+   * Can be changed until the proposal is saved. "not_found" also when the proposal asks no such question.
+   */
+  answer(candidateId: string, applicationId: string, input: unknown): Promise<TailoredCvResult>;
 }
 
 export interface TailoredCvsDeps {
@@ -67,6 +88,10 @@ export interface TailoredCvsDeps {
 }
 
 const proposeSchema = z.object({ language: z.enum(DOCUMENT_LANGUAGES).optional() });
+const answerSchema = z.object({ requirement: z.string().trim().min(1).max(200), confirmed: z.boolean() });
+
+/** Most questions asked about one proposal. */
+const MAX_QUESTIONS = 8;
 
 const NOT_FOUND = { ok: false, error: "not_found" } as const;
 
@@ -79,6 +104,8 @@ const aiReply = z.object({
   education: z.array(z.object({ degree: text, institution: text, year: text })).catch([]),
   skills: z.array(z.string()).catch([]),
   languages: z.array(z.object({ name: text, level: text })).catch([]),
+  /** Requirements of the Job Offer the Master CV does not show. */
+  missing: z.array(z.string()).catch([]),
 });
 type AiReply = z.output<typeof aiReply>;
 
@@ -142,12 +169,14 @@ function systemPrompt(language: DocumentLanguage): string {
 Règles :
 - Tu peux seulement reformuler, réordonner, couper et mettre en avant ce que dit son CV de référence. N'ajoute jamais de compétence, d'expérience, de diplôme ou de chiffre.
 - Garde l'employeur et la période de chaque poste tels quels.
-Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experience": [{"employer": "", "period": "", "title": "", "description": ""}], "education": [{"degree": "", "institution": "", "year": ""}], "skills": [""], "languages": [{"name": "", "level": ""}]}.`
+- Dans "missing", liste les exigences de l'offre que son CV ne montre pas : le candidat dira s'il les a.
+Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experience": [{"employer": "", "period": "", "title": "", "description": ""}], "education": [{"degree": "", "institution": "", "year": ""}], "skills": [""], "languages": [{"name": "", "level": ""}], "missing": [""]}.`
     : `You are the Jobbbox coach. You adapt an experienced professional's reference CV to the job offer below, in English.
 Rules:
 - You may only rephrase, reorder, cut and emphasise what their reference CV says. Never add a skill, experience, degree or figure.
 - Keep each job's employer and period as they are.
-Reply with a JSON object only: {"headline": "", "summary": "", "experience": [{"employer": "", "period": "", "title": "", "description": ""}], "education": [{"degree": "", "institution": "", "year": ""}], "skills": [""], "languages": [{"name": "", "level": ""}]}.`;
+- In "missing", list the job offer's requirements their CV does not show: the candidate will say whether they have them.
+Reply with a JSON object only: {"headline": "", "summary": "", "experience": [{"employer": "", "period": "", "title": "", "description": ""}], "education": [{"degree": "", "institution": "", "year": ""}], "skills": [""], "languages": [{"name": "", "level": ""}], "missing": [""]}.`;
 }
 
 /** The JSON object in the AI Coach's reply, or null. */
@@ -166,8 +195,29 @@ function replyIn(reply: string): AiReply | null {
 interface ProposalRow {
   language: DocumentLanguage;
   masterCvVersion: number;
-  content: CvContent;
+  /** The AI Coach's adaptation, before any confirmed requirement. */
+  adapted: CvContent;
+  questions: TailoredCvQuestion[];
   proposedAt: string;
+}
+
+/** The Job Offer's requirements the Master CV does not show: its skills, then what the AI Coach found in its text. */
+function questionsFor(master: CvContent, application: Application, reply: AiReply): TailoredCvQuestion[] {
+  const masterText = cvText(master);
+  const offerSkills = scoreMatch({ cv: master, jobOffer: application.jobOffer }).breakdown.skills.missing;
+  const requirements: string[] = [];
+  for (const requirement of [...offerSkills, ...reply.missing].map((item) => item.trim())) {
+    if (!requirement || requirement.length > 200 || masterText.includes(normalise(requirement))) continue;
+    if (requirements.some((asked) => same(asked, requirement))) continue;
+    requirements.push(requirement);
+  }
+  return requirements.slice(0, MAX_QUESTIONS).map((requirement) => ({ requirement, answer: null }));
+}
+
+/** The proposal's content: the adaptation plus the requirements the Candidate confirmed. */
+function withConfirmed(adapted: CvContent, questions: TailoredCvQuestion[]): CvContent {
+  const confirmed = questions.filter((question) => question.answer === "confirmed").map((question) => question.requirement);
+  return { ...adapted, skills: [...adapted.skills, ...confirmed.filter((skill) => !adapted.skills.some((kept) => same(kept, skill)))] };
 }
 
 export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): TailoredCvs {
@@ -176,8 +226,11 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
       documentLanguageOf(database, application),
       database.query<{ proposal: ProposalRow | null }>(`SELECT proposal FROM tailored_cv WHERE application_id = $1`, [application.id]),
     ]);
-    const proposal = rows[0]?.proposal ?? null;
-    return { documentLanguage, proposal: proposal ? { ...proposal, proposedAt: new Date(proposal.proposedAt) } : null, saved: null };
+    const row = rows[0]?.proposal ?? null;
+    const proposal: TailoredCvProposal | null = row
+      ? { language: row.language, masterCvVersion: row.masterCvVersion, content: withConfirmed(row.adapted, row.questions), questions: row.questions, proposedAt: new Date(row.proposedAt) }
+      : null;
+    return { documentLanguage, proposal, saved: null };
   }
 
   return {
@@ -209,11 +262,35 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
       }
       if (!reply) return { ok: false, error: "unavailable" };
       if (parsed.data.language) await keepDocumentLanguage(database, application.id, language);
-      const proposal: ProposalRow = { language, masterCvVersion: profile.masterCv.version, content: fromMasterCv(master, reply, jobOffer.skills ?? []), proposedAt: new Date().toISOString() };
+      const proposal: ProposalRow = {
+        language,
+        masterCvVersion: profile.masterCv.version,
+        adapted: fromMasterCv(master, reply, jobOffer.skills ?? []),
+        questions: questionsFor(master, application, reply),
+        proposedAt: new Date().toISOString(),
+      };
       await database.query(
         `INSERT INTO tailored_cv (application_id, proposal) VALUES ($1, $2) ON CONFLICT (application_id) DO UPDATE SET proposal = $2`,
         [application.id, proposal],
       );
+      return { ok: true, tailoredCv: await stateOf(application) };
+    },
+
+    async answer(candidateId, applicationId, input) {
+      const parsed = answerSchema.safeParse(input, { reportInput: true });
+      if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+      const application = await deps.applications.get(candidateId, applicationId);
+      if (!application) return NOT_FOUND;
+      const { requirement, confirmed } = parsed.data;
+      // In one statement, so two answers given at once both count.
+      const { rowCount } = await database.query(
+        `UPDATE tailored_cv SET proposal = jsonb_set(proposal, '{questions}', (
+           SELECT jsonb_agg(CASE WHEN question->>'requirement' = $2 THEN jsonb_set(question, '{answer}', to_jsonb($3::text)) ELSE question END ORDER BY position)
+           FROM jsonb_array_elements(proposal->'questions') WITH ORDINALITY AS asked (question, position)))
+         WHERE application_id = $1 AND proposal->'questions' @> jsonb_build_array(jsonb_build_object('requirement', $2::text))`,
+        [application.id, requirement, confirmed ? "confirmed" : "declined"],
+      );
+      if (rowCount === 0) return NOT_FOUND;
       return { ok: true, tailoredCv: await stateOf(application) };
     },
   };

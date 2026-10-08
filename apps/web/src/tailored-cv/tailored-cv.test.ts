@@ -165,4 +165,40 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
       },
     });
   });
+
+  it("the Job Offer's requirements the Master CV lacks become questions to the Candidate, added only if confirmed", async () => {
+    reply = { ...PROPOSAL, missing: ["Management d'équipe", "consolidation IFRS"] };
+    const proposed = await tailoredCvs.propose(candidateId, applicationId, {});
+    expect(proposed).toMatchObject({
+      ok: true,
+      tailoredCv: {
+        proposal: {
+          questions: [
+            { requirement: "Power BI", answer: null },
+            { requirement: "Management d'équipe", answer: null },
+          ],
+          content: { skills: ["IFRS", "SAP", "Reporting"] },
+        },
+      },
+    });
+
+    await tailoredCvs.answer(candidateId, applicationId, { requirement: "Power BI", confirmed: true });
+    const answered = await tailoredCvs.answer(candidateId, applicationId, { requirement: "Management d'équipe", confirmed: false });
+
+    expect(answered).toMatchObject({
+      ok: true,
+      tailoredCv: {
+        proposal: {
+          questions: [
+            { requirement: "Power BI", answer: "confirmed" },
+            { requirement: "Management d'équipe", answer: "declined" },
+          ],
+          content: { skills: ["IFRS", "SAP", "Reporting", "Power BI"] },
+        },
+      },
+    });
+    const changedMind = await tailoredCvs.answer(candidateId, applicationId, { requirement: "Power BI", confirmed: false });
+    expect(changedMind).toMatchObject({ ok: true, tailoredCv: { proposal: { content: { skills: ["IFRS", "SAP", "Reporting"] } } } });
+    expect(await tailoredCvs.answer(candidateId, applicationId, { requirement: "Excel", confirmed: true })).toEqual({ ok: false, error: "not_found" });
+  });
 });

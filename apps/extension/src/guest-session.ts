@@ -6,7 +6,7 @@
  * The CV never leaves the browser except to be read and scored, and the server
  * keeps neither (ADR-0003); this session is the only place it is kept.
  */
-import { GUEST_RETENTION_HOURS, type CvContent, type JobOffer } from "@jobhub/shared";
+import { GUEST_RETENTION_HOURS, type CvContent, type JobOffer, type MatchScore } from "@jobhub/shared";
 
 /** The part of chrome.storage.session this module uses. */
 export interface SessionStorage {
@@ -28,10 +28,18 @@ export interface SavedWork {
   newProfile: { id: string; name: string } | null;
 }
 
+/** The last Match Score, with the Job Offer and CV it was computed for: shown again rather than computed again. */
+export interface KeptMatchScore {
+  jobOfferId: string;
+  cv: CvContent;
+  matchScore: MatchScore;
+}
+
 export interface GuestSessionContent {
   jobOffer?: JobOffer;
   cv?: CvContent;
   searchCriteria?: SearchCriteriaDraft;
+  matchScore?: KeptMatchScore;
   /** Set once the work is saved in an account (it is then all that is left), until another Job Offer is captured. */
   saved?: SavedWork;
   /** When everything here is forgotten (ms since the epoch). */
@@ -44,6 +52,7 @@ export interface GuestSession {
   keepJobOffer(jobOffer: JobOffer): Promise<void>;
   /** Keeps the CV, with the Search Criteria read from it (replacing any earlier CV's). */
   keepCv(cv: CvContent, searchCriteria?: SearchCriteriaDraft): Promise<void>;
+  keepMatchScore(kept: KeptMatchScore): Promise<void>;
   /** The work is saved in the Candidate's account: forgets the CV and the Job Offer, keeping only where they went. */
   keepSaved(saved: SavedWork): Promise<void>;
   /** Forgets everything now. */
@@ -74,6 +83,7 @@ export function createGuestSession(storage: SessionStorage, now: () => number = 
     read,
     keepJobOffer: (jobOffer) => keep({ jobOffer, saved: undefined }),
     keepCv: (cv, searchCriteria) => keep({ cv, searchCriteria }),
+    keepMatchScore: (matchScore) => keep({ matchScore }),
     keepSaved: (saved) => keep({ saved }, { replace: true }),
     forget: () => storage.remove(KEY),
   };

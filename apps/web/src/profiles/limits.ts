@@ -1,17 +1,10 @@
 /**
- * Profile name limits (kept apart from the module so the browser bundle can use them).
+ * Profile name limits (kept apart from the module so the browser bundle can use them; the limit itself is in @jobhub/shared).
  * A Profile is named after its target role when created, so the target role obeys the same limit.
  */
-export const PROFILE_NAME_MAX_LENGTH = 120;
+import { fitProfileName, PROFILE_NAME_MAX_LENGTH } from "@jobhub/shared";
 
-/** `name`, trimmed and, if too long, shortened to the limit at a word boundary when there is one. */
-export function fitProfileName(name: string, maxLength = PROFILE_NAME_MAX_LENGTH): string {
-  const trimmed = name.trim();
-  if (trimmed.length <= maxLength) return trimmed;
-  const cut = trimmed.slice(0, maxLength + 1);
-  const lastSpace = cut.lastIndexOf(" ");
-  return (lastSpace > 0 ? cut.slice(0, lastSpace) : trimmed.slice(0, maxLength)).trimEnd();
-}
+export { fitProfileName, PROFILE_NAME_MAX_LENGTH };
 
 /**
  * The name suggested for a copy of the Profile `name`, e.g. "DAF (copie)": `format` adds the

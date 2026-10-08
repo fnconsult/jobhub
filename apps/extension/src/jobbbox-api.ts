@@ -1,6 +1,6 @@
 /**
- * The web app's API as the extension uses it for a Capture and a Guest's Match
- * Score. Every request carries the browser's session cookie (the extension's
+ * The web app's API as the extension uses it for a Capture, a Match Score and
+ * saving the captured Job Offer as an Application. Every request carries the browser's session cookie (the extension's
  * host permission on the web app), so a signed-in Candidate is recognised and a
  * Guest is not. Problems come back as results, never exceptions.
  */
@@ -37,6 +37,31 @@ export interface JobbboxApi {
     | Result<{ matchScore: MatchScore }, "job_offer_gone" | "failed" | "unreachable">
     | { ok: false; error: "quota_exceeded"; prompt: UpgradePrompt }
   >;
+  /** The signed-in Candidate's active Profiles, oldest first. "signed_out": nobody is signed in on the web app. */
+  profiles(): Promise<Result<{ profiles: ProfileOption[] }, "signed_out" | "unreachable">>;
+  /**
+   * Saves a CV and its Search Criteria as a new Profile of the signed-in Candidate.
+   * "invalid": the Search Criteria lack a target role or a location.
+   * "plan_quota_reached": their Plan allows no more Profiles (with the Upgrade Prompt, if a Plan allows more).
+   */
+  createProfile(
+    cv: CvContent,
+    searchCriteria: SearchCriteriaDraft,
+  ): Promise<
+    | Result<{ profileId: string }, "invalid" | "signed_out" | "failed" | "unreachable">
+    | { ok: false; error: "plan_quota_reached"; prompt: UpgradePrompt | null }
+  >;
+  /**
+   * Saves a Job Offer as an Application ("À postuler") with one of the Candidate's Profiles,
+   * or returns the one they already have for it. "not_found": the Job Offer or the Profile is gone.
+   */
+  saveApplication(jobOfferId: string, profileId: string): Promise<Result<{ applicationId: string }, "not_found" | "signed_out" | "failed" | "unreachable">>;
+}
+
+/** One of the Candidate's Profiles, as offered to choose from. */
+export interface ProfileOption {
+  id: string;
+  name: string;
 }
 
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
@@ -96,6 +121,33 @@ export function createJobbboxApi(webOrigin: string, fetchImpl: Fetch = (url, ini
       }
       if (reply.status !== 200) return { ok: false, error: "failed" };
       return { ok: true, matchScore: reply.body as unknown as MatchScore };
+    },
+
+    async profiles() {
+      const reply = await request("/api/profiles", { method: "GET" });
+      if (!reply) return { ok: false, error: "unreachable" };
+      if (reply.status === 401) return { ok: false, error: "signed_out" };
+      if (reply.status !== 200 || !Array.isArray(reply.body)) return { ok: false, error: "unreachable" };
+      return { ok: true, profiles: (reply.body as ProfileOption[]).map(({ id, name }) => ({ id, name })) };
+    },
+
+    async createProfile(cv, searchCriteria) {
+      const reply = await postJson("/api/profiles", { masterCv: cv, searchCriteria });
+      if (!reply) return { ok: false, error: "unreachable" };
+      if (reply.status === 201) return { ok: true, profileId: String(reply.body.id) };
+      if (reply.status === 400) return { ok: false, error: "invalid" };
+      if (reply.status === 401) return { ok: false, error: "signed_out" };
+      if (reply.status === 409) return { ok: false, error: "plan_quota_reached", prompt: upgradePromptIn(reply.body) };
+      return { ok: false, error: "failed" };
+    },
+
+    async saveApplication(jobOfferId, profileId) {
+      const reply = await postJson("/api/applications", { jobOfferId, profileId });
+      if (!reply) return { ok: false, error: "unreachable" };
+      if (reply.status === 200 || reply.status === 201) return { ok: true, applicationId: String(reply.body.id) };
+      if (reply.status === 401) return { ok: false, error: "signed_out" };
+      if (reply.status === 404) return { ok: false, error: "not_found" };
+      return { ok: false, error: "failed" };
     },
   };
 }

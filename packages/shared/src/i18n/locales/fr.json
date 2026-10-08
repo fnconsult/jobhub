@@ -128,7 +128,9 @@
     "saved": "Enregistré.",
     "signOut": "Se déconnecter",
     "plan": "Mon abonnement",
-    "admin": "Back office"
+    "admin": "Back office",
+    "humanCoaches": "Mes coachs humains",
+    "coachSpace": "Mon espace coach"
   },
   "languages": {
     "fr": "Français",
@@ -431,7 +433,6 @@
       "planQuotas": "Quotas des offres",
       "humanCoaches": "Coachs humains"
     },
-    "comingSoon": "Bientôt disponible",
     "planQuotas": {
       "title": "Quotas des offres",
       "intro": "Les modifications s'appliquent immédiatement à tous les candidats de l'offre. Laissez un champ vide pour « illimité ».",
@@ -442,7 +443,25 @@
       "saved": "Quotas de l'offre {{plan}} enregistrés.",
       "invalid": "Vérifiez les valeurs : des nombres entiers positifs, ou vide pour illimité."
     },
-    "back": "Retour au back office"
+    "back": "Retour au back office",
+    "humanCoaches": {
+      "title": "Coachs humains",
+      "intro": "Les coachs que les candidats peuvent réserver. Ils se connectent avec l'adresse e-mail indiquée ici. Jobbbox les rémunère en dehors de la plateforme.",
+      "addTitle": "Ajouter un coach",
+      "name": "Nom",
+      "email": "Adresse e-mail de connexion",
+      "bookingUrl": "Lien de réservation Cal.com",
+      "bookingUrlHelp": "Par exemple https://cal.com/prenom-nom/seance",
+      "bio": "Présentation (facultatif)",
+      "add": "Ajouter le coach",
+      "added": "Coach {{name}} ajouté.",
+      "invalid": "Vérifiez les champs : un nom, une adresse e-mail valide et un lien de réservation Cal.com en https.",
+      "emailTaken": "Un coach utilise déjà cette adresse e-mail.",
+      "listTitle": "Coachs actifs",
+      "none": "Aucun coach pour l'instant.",
+      "retire": "Retirer {{name}}",
+      "retired": "Coach retiré. Ses séances passées sont conservées."
+    }
   },
   "applicationStatuses": {
     "to_apply": "À postuler",
@@ -897,5 +916,61 @@
     "delaysSaved": "Délais enregistrés.",
     "delaysInvalid": "Indiquez un nombre entier de jours ouvrés, de 1 à {{max}}.",
     "delaysError": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez."
+  },
+  "humanCoaches": {
+    "title": "Mes coachs humains",
+    "intro": "En plus de votre coach IA, réservez une séance en visio avec un professionnel RH sélectionné par Jobbbox.",
+    "price": "Prix d'une séance : {{price}}",
+    "premiumPrice": "Prix d'une séance avec votre offre Premium : {{price}} au lieu de {{regular}}",
+    "premiumHint": "Les abonnés Premium bénéficient d'un prix réduit sur les séances.",
+    "unavailable": "Le paiement des séances n'est pas encore disponible.",
+    "book": "Réserver une séance avec {{name}}",
+    "none": "Aucun coach n'est disponible pour le moment.",
+    "paid": "Paiement reçu. Choisissez maintenant le créneau de votre séance.",
+    "paidPending": "Paiement en cours de confirmation. Rechargez la page dans quelques instants pour choisir votre créneau.",
+    "error": "Le paiement n'a pas pu démarrer. Veuillez réessayer.",
+    "sessionsTitle": "Mes séances payées",
+    "sessionPaidOn": "Séance avec {{name}}, payée le {{date}}",
+    "pickSlot": "Choisir mon créneau avec {{name}} sur Cal.com",
+    "accessIntro": "Avec votre accord, un coach peut lire vos profils et vos candidatures, et commenter vos documents de candidature. Il ne peut rien modifier. Vous pouvez retirer cet accès à tout moment.",
+    "accessGranted": "{{name}} a accès à vos profils et candidatures.",
+    "accessNotGranted": "{{name}} n'a pas accès à vos profils et candidatures.",
+    "grant": "Donner l'accès à {{name}}",
+    "revoke": "Retirer l'accès à {{name}}",
+    "listTitle": "Choisir un coach"
+  },
+  "coachReviews": {
+    "title": "Avis de vos coachs",
+    "by": "{{name}}, le {{date}}",
+    "documents": {
+      "tailored_cv": "CV adapté",
+      "cover_letter": "Lettre de motivation",
+      "outreach_message": "Message d'approche"
+    }
+  },
+  "coachSpace": {
+    "title": "Mon espace coach",
+    "intro": "Les candidats qui vous ont donné l'accès coach. Vous lisez leurs profils et candidatures sans pouvoir les modifier.",
+    "none": "Aucun candidat ne vous a encore donné l'accès.",
+    "back": "Retour à mes candidats",
+    "backToCandidate": "Retour au dossier du candidat",
+    "readOnly": "Lecture seule : seul le candidat peut modifier ses profils et candidatures.",
+    "profilesTitle": "Profils",
+    "archived": "(archivé)",
+    "targetRole": "Poste visé : {{role}}",
+    "applicationsTitle": "Candidatures",
+    "applicationsNone": "Aucune candidature pour l'instant.",
+    "documentsTitle": "Documents de candidature",
+    "noDocument": "Pas encore rédigé.",
+    "subject": "Objet : {{subject}}",
+    "reviewTitle": "Votre avis",
+    "reviewDocument": "Document commenté",
+    "reviewText": "Votre avis pour le candidat",
+    "reviewSubmit": "Envoyer l'avis",
+    "reviewSaved": "Avis envoyé au candidat.",
+    "reviewInvalid": "Choisissez un document déjà rédigé et écrivez votre avis.",
+    "reviewNothing": "Le candidat n'a encore aucun document de candidature à commenter.",
+    "status": "Statut : {{status}}",
+    "applicationStatus": "({{status}}, depuis le {{date}})"
   }
 }

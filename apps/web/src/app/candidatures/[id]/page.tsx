@@ -7,10 +7,12 @@ import { requireOwnApplication } from "@/applications/server";
 import { ActionCardList, type ActionCardView } from "@/components/ActionCardList";
 import { AddInterviewForm, ApplicationProfileSelect, ApplicationStatusSelect, RemoveInterviewButton } from "@/components/ApplicationControls";
 import { CoachInView } from "@/components/CoachPanel";
+import { CoachReviewList } from "@/components/CoachReviewList";
 import { CompanyDossierView } from "@/components/CompanyDossierView";
 import { EnrichedContactsPanel } from "@/components/EnrichedContactsPanel";
 import { getCompanyDossiers } from "@/company-dossiers/server";
 import { getEnrichedContacts } from "@/enriched-contacts/server";
+import { getHumanCoaches } from "@/human-coaches/server";
 import { JobOfferView } from "@/components/JobOfferView";
 import { MatchScoreView } from "@/components/MatchScoreView";
 import { TailoredCvReview } from "@/components/TailoredCvReview";
@@ -52,19 +54,20 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 /**
  * One Application: its status and Profile (both changed by hand), its Interviews,
  * the Match Score with its breakdown, its Tailored CV under review or saved, its Cover Letter and Outreach Message drafts,
- * the Company Dossier, its Enriched Contacts (when a contact-data provider is on) and the full Job Offer.
+ * the Human Coaches' Coach Reviews of them, the Company Dossier, its Enriched Contacts (when a contact-data provider is on) and the full Job Offer.
  */
 export default async function ApplicationPage({ params }: Params) {
   const { candidateId, application } = await requireOwnApplication((await params).id);
   const [t, locale] = await Promise.all([getServerT(), getRequestLocale()]);
   const inView = { kind: "application", id: application.id, name: application.jobOffer.title } as const;
-  const [cards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts] = await Promise.all([
+  const [cards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts, coachReviews] = await Promise.all([
     getActionCards().pending(candidateId, inView),
     getProfiles().list(candidateId),
     getCompanyDossiers().get(candidateId, application.id),
     getEnrichedContacts().get(candidateId, application.id),
     getTailoredCvs().get(candidateId, application.id),
     getTailoredDocuments().get(candidateId, application.id),
+    getHumanCoaches().reviews(candidateId, application.id),
   ]);
   // Active Profiles to pick from, and the one in use even if it was archived since.
   const choices = profiles.filter((profile) => !profile.archived || profile.id === application.profile.id).map(({ id, name }) => ({ id, name }));
@@ -123,6 +126,7 @@ export default async function ApplicationPage({ params }: Params) {
       ) : null}
       {tailoredCv ? <TailoredCvReview key={`tailored-cv-${application.id}`} applicationId={application.id} initial={tailoredCv} locale={locale} /> : null}
       {drafts ? <TailoredDocumentsEditor key={`drafts-${application.id}`} applicationId={application.id} initial={drafts} recipients={recipients} /> : null}
+      <CoachReviewList reviews={coachReviews} />
       <JobOfferView jobOffer={jobOffer} t={t} locale={locale} />
     </main>
   );

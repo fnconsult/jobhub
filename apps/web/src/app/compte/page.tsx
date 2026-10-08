@@ -8,6 +8,7 @@ import { FollowUpDelaysForm } from "@/components/FollowUpDelaysForm";
 import { WorkspaceHeader } from "@/components/WorkspaceHeader";
 import { MAX_FOLLOW_UP_DELAY } from "@/follow-ups";
 import { getFollowUps } from "@/follow-ups/server";
+import { currentHumanCoach } from "@/human-coaches/server";
 import { getServerT } from "@/i18n/server";
 import { getProfiles } from "@/profiles/server";
 import { routes } from "@/routes";
@@ -69,6 +70,14 @@ export default async function AccountPage() {
         <Link className="button" href={routes.subscription}>
           {t("account.plan")}
         </Link>
+        <Link className="button" href={routes.coaching}>
+          {t("account.humanCoaches")}
+        </Link>
+        {(await currentHumanCoach()) ? (
+          <Link className="button" href={routes.coachSpace}>
+            {t("account.coachSpace")}
+          </Link>
+        ) : null}
         {(await currentIsAdministrator()) ? (
           <Link className="button" href={routes.admin}>
             {t("account.admin")}

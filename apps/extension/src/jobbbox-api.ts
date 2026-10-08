@@ -12,18 +12,41 @@ export type ReadCvError = "unsupported_format" | "too_large" | "unreadable" | "e
 
 export type Result<T, E extends string> = ({ ok: true } & T) | { ok: false; error: E };
 
+/** What the web app tells a Candidate whose Plan Quota is used up: the message, and the link to a Plan that allows more (no action when none does). */
+export interface UpgradePrompt {
+  message: string;
+  action: string | null;
+  /** Path on the web app (the subscription page). */
+  href: string;
+}
+
 export interface JobbboxApi {
   /** Stores the captured Job Offer, or returns the one already stored for this posting. */
   capture(jobOffer: CapturedJobOffer): Promise<Result<{ jobOffer: JobOffer }, "invalid" | "unreachable">>;
   /** Reads a CV file (PDF or .docx). The web app keeps nothing. */
   readCv(file: File): Promise<Result<{ cv: CvContent }, ReadCvError>>;
-  /** The Match Score of a CV against a Job Offer. "job_offer_gone": it has been forgotten since. */
-  score(jobOfferId: string, cv: CvContent): Promise<Result<{ matchScore: MatchScore }, "job_offer_gone" | "failed" | "unreachable">>;
+  /**
+   * The Match Score of a CV against a Job Offer. "job_offer_gone": it has been forgotten since.
+   * "quota_exceeded": the signed-in Candidate's Plan allows no more Match Scores this month.
+   */
+  score(
+    jobOfferId: string,
+    cv: CvContent,
+  ): Promise<
+    | Result<{ matchScore: MatchScore }, "job_offer_gone" | "failed" | "unreachable">
+    | { ok: false; error: "quota_exceeded"; prompt: UpgradePrompt }
+  >;
 }
 
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
 
 const CV_ERRORS = new Set<string>(["unsupported_format", "too_large", "unreadable", "empty"]);
+
+function upgradePromptIn(body: Record<string, unknown>): UpgradePrompt | null {
+  const prompt = body.prompt as Record<string, unknown> | undefined;
+  if (typeof prompt?.message !== "string" || typeof prompt.href !== "string") return null;
+  return { message: prompt.message, action: typeof prompt.action === "string" ? prompt.action : null, href: prompt.href };
+}
 
 export function createJobbboxApi(webOrigin: string, fetchImpl: Fetch = (url, init) => fetch(url, init)): JobbboxApi {
   /** The JSON reply and its status, or null when the web app cannot be reached. */
@@ -64,6 +87,10 @@ export function createJobbboxApi(webOrigin: string, fetchImpl: Fetch = (url, ini
       const reply = await postJson("/api/match-score", { jobOfferId, cv });
       if (!reply) return { ok: false, error: "unreachable" };
       if (reply.status === 404) return { ok: false, error: "job_offer_gone" };
+      if (reply.status === 402) {
+        const prompt = upgradePromptIn(reply.body);
+        if (prompt) return { ok: false, error: "quota_exceeded", prompt };
+      }
       if (reply.status !== 200) return { ok: false, error: "failed" };
       return { ok: true, matchScore: reply.body as unknown as MatchScore };
     },

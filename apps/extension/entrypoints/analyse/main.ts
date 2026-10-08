@@ -4,7 +4,7 @@ import type { CvContent, JobOffer } from "@jobhub/shared";
 import { browser } from "wxt/browser";
 import { readCandidateSession } from "../../src/candidate-session";
 import { createGuestSession } from "../../src/guest-session";
-import { createJobbboxApi } from "../../src/jobbbox-api";
+import { createJobbboxApi, type UpgradePrompt } from "../../src/jobbbox-api";
 import { describeMatchScore } from "../../src/match-score-view";
 import { WEB_ORIGIN } from "../../src/web-app";
 import "./analyse.css";
@@ -113,8 +113,22 @@ function cvForm(): HTMLFormElement {
   return form;
 }
 
+/** The signed-in Candidate's Plan allows no more Match Scores: what they reached, and a link to the Plan that allows more. */
+function upgradePrompt(prompt: UpgradePrompt): HTMLElement {
+  const node = element("div", "", "notice");
+  node.setAttribute("role", "alert");
+  node.append(element("p", prompt.message));
+  if (prompt.action) {
+    const link = element("a", prompt.action);
+    Object.assign(link, { href: `${WEB_ORIGIN}${prompt.href}`, target: "_blank", rel: "noopener" });
+    node.append(link);
+  }
+  return node;
+}
+
 async function matchScore(jobOffer: JobOffer, cv: CvContent): Promise<HTMLElement[]> {
   const scored = await api.score(jobOffer.id, cv);
+  if (!scored.ok && scored.error === "quota_exceeded") return [upgradePrompt(scored.prompt)];
   if (!scored.ok) {
     const text = scored.error === "job_offer_gone" ? t("extension.analysis.jobOfferGone") : t("extension.unreachable");
     return [status({ text, error: true })];

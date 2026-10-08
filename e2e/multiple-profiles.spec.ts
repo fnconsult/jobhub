@@ -3,10 +3,12 @@ import { expect, test, type Page } from "@playwright/test";
 import { renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { subscribe } from "./support/plan";
 
 // Issue #7: a Candidate has several Profiles (positionings). They create one
 // from scratch or from a CV, duplicate, rename and archive them, and move
-// between them with the Profile switcher.
+// between them with the Profile switcher. A Free Candidate holds one active
+// Profile (Plan Quota, issue #22): tests that need more subscribe first.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
 
@@ -22,6 +24,13 @@ const masterCv = {
   skills: ["IFRS"],
   languages: [],
 };
+
+/** Signs a new Candidate in and puts them on `plan`, which allows several active Profiles. */
+async function signInOn(page: Page, label: string, plan: "standard" | "premium" = "standard") {
+  const email = newAddress(label);
+  await signInWithMagicLink(page, email);
+  await subscribe(page, email, plan);
+}
 
 /** Saves a Profile the way the review form does, and returns its id. */
 async function createProfile(page: Page, targetRole: string): Promise<string> {
@@ -43,7 +52,7 @@ async function openSwitcher(page: Page) {
 
 test.describe("several Profiles per Candidate", () => {
   test("a Candidate duplicates a Profile, renames the copy and switches between them", async ({ page }) => {
-    await signInWithMagicLink(page, newAddress("duplicate"));
+    await signInOn(page, "duplicate");
     const firstId = await createProfile(page, "Directrice financière");
     await page.goto(`/profils/${firstId}`);
     await expect(switcherOf(page).locator("summary")).toHaveText(fr.profileSwitcher.current.replace("{{name}}", "Directrice financière"));
@@ -75,7 +84,7 @@ test.describe("several Profiles per Candidate", () => {
   });
 
   test("a Profile name never goes over the limit: target role capped, copy name shortened to fit", async ({ page }) => {
-    await signInWithMagicLink(page, newAddress("long-name"));
+    await signInOn(page, "long-name");
     const tooLong = await page.request.post("/api/profiles", {
       headers: { origin },
       data: { masterCv, searchCriteria: { targetRole: "R".repeat(121), location: "Lyon" } },
@@ -112,7 +121,7 @@ test.describe("several Profiles per Candidate", () => {
   });
 
   test("archiving takes a Profile out of the switcher without losing it, and restoring brings it back", async ({ page }) => {
-    await signInWithMagicLink(page, newAddress("archive"));
+    await signInOn(page, "archive");
     await createProfile(page, "Directrice financière");
     const oldId = await createProfile(page, "Contrôleuse de gestion");
     await page.goto(`/profils/${oldId}`);
@@ -134,7 +143,7 @@ test.describe("several Profiles per Candidate", () => {
   });
 
   test("a Candidate who has a Profile can add another, from scratch, without a CV", async ({ page }) => {
-    await signInWithMagicLink(page, newAddress("scratch"));
+    await signInOn(page, "scratch");
     await createProfile(page, "Directrice financière");
     await page.goto("/compte");
     await page.getByRole("link", { name: fr.profiles.add }).click();
@@ -155,10 +164,9 @@ test.describe("several Profiles per Candidate", () => {
     await expect(switcher.getByRole("link")).toHaveText(["Directrice financière", "Consultante transformation", fr.profiles.add]);
   });
 
-  // The Plan Quota caps active Profiles once billing exists; until then the app
-  // passes none, so creating, duplicating and restoring are never refused.
-  test("until billing gives a Plan Quota, the number of Profiles is not limited", async ({ page }) => {
-    await signInWithMagicLink(page, newAddress("no-quota"));
+  // Premium's Profile quota is unlimited: creating, duplicating and restoring are never refused.
+  test("on Premium, the number of Profiles is not limited", async ({ page }) => {
+    await signInOn(page, "no-quota", "premium");
     const roles = ["DAF", "Contrôleuse de gestion", "Consultante", "Trésorière", "Auditrice"];
     const ids: string[] = [];
     for (const role of roles) ids.push(await createProfile(page, role));
@@ -175,6 +183,47 @@ test.describe("several Profiles per Candidate", () => {
     await expect(page.getByRole("link", { name: fr.profiles.add }).first()).toBeVisible();
     const switcher = await openSwitcher(page);
     await expect(switcher.getByRole("link")).toHaveText([...roles, "DAF bis", fr.profiles.add]);
+  });
+
+  test("a Free Candidate holds one active Profile: a second one is refused with an Upgrade Prompt to Standard", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("free-profiles"));
+    const firstId = await createProfile(page, "Directrice financière");
+    const upgrade = {
+      message: "L'offre Gratuite comprend 1 profil. Avec l'offre Standard, vous pouvez en créer davantage.",
+      action: "Découvrir l'offre Standard",
+    };
+
+    // The API refuses, and says what to show.
+    const refused = await page.request.post("/api/profiles", {
+      headers: { origin },
+      data: { masterCv, searchCriteria: { targetRole: "Consultante", location: "Lyon" } },
+    });
+    expect(refused.status()).toBe(409);
+    expect(await refused.json()).toMatchObject({
+      error: "plan_quota_reached",
+      prompt: { title: fr.billing.quotaReached.title, message: upgrade.message, upgradeTo: "standard", action: upgrade.action, href: "/abonnement" },
+    });
+
+    // Duplicating from the Profile page shows the Upgrade Prompt.
+    await page.goto(`/profils/${firstId}`);
+    await page.getByRole("button", { name: fr.profileActions.duplicate }).click();
+    const prompt = page.getByRole("alert").filter({ hasText: fr.billing.quotaReached.title });
+    await expect(prompt).toContainText(upgrade.message);
+    await expect(prompt.getByRole("link", { name: upgrade.action })).toHaveAttribute("href", "/abonnement");
+    await expect(page).toHaveURL(`${origin}/profils/${firstId}`);
+
+    // So does the new Profile page, instead of the forms.
+    await page.goto("/profils/nouveau");
+    await expect(page.getByRole("button", { name: fr.cvUpload.fromScratch })).toHaveCount(0);
+    await page.getByRole("alert").filter({ hasText: upgrade.message }).getByRole("link", { name: upgrade.action }).click();
+    await expect(page).toHaveURL(`${origin}/abonnement`);
+
+    // Archiving makes room for another; restoring the archived one is then refused too.
+    expect((await page.request.patch(`/api/profiles/${firstId}`, { headers: { origin }, data: { archived: true } })).status()).toBe(200);
+    await createProfile(page, "Consultante");
+    const restore = await page.request.patch(`/api/profiles/${firstId}`, { headers: { origin }, data: { archived: false } });
+    expect(restore.status()).toBe(409);
+    expect(await restore.json()).toMatchObject({ error: "plan_quota_reached", prompt: { upgradeTo: "standard", href: "/abonnement" } });
   });
 
   test("the Profile page meets the ADR-0009 floor", async ({ page }) => {

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createJobOffers, migrateJobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
+import type { QuotaDecision } from "../billing";
 import { createMatchScoring, type MatchScoring } from "./index";
 
 const masterCv: MasterCvContent = {
@@ -25,6 +26,22 @@ describe.skipIf(!connectionString)("Match Scoring (needs Postgres: DATABASE_URL)
   let scoring: MatchScoring;
   let candidateId: string;
   let jobOfferId: string;
+  let jobOffers: ReturnType<typeof createJobOffers>;
+
+  /** Match Scoring whose Plan Quota answers `decision`, recording who it was asked for. */
+  function meteredScoring(decision: QuotaDecision) {
+    const asked: string[] = [];
+    const metered = createMatchScoring({
+      jobOffers,
+      profiles,
+      matchScoreQuota: async (id) => {
+        asked.push(id);
+        return decision;
+      },
+    });
+    return { metered, asked };
+  }
+  const REFUSED: QuotaDecision = { allowed: false, quota: "matchScores", plan: "free", limit: 3, upgradeTo: "standard" };
 
   beforeEach(async () => {
     testAuth = await startTestAuth();
@@ -32,7 +49,7 @@ describe.skipIf(!connectionString)("Match Scoring (needs Postgres: DATABASE_URL)
     await migrateProfiles(database);
     await migrateJobOffers(database);
     profiles = createProfiles(database);
-    const jobOffers = createJobOffers(database);
+    jobOffers = createJobOffers(database);
     scoring = createMatchScoring({ jobOffers, profiles });
     const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
     candidateId = (await (await testAuth.request("/api/auth/get-session", { cookie })).json()).user.id;
@@ -114,5 +131,42 @@ describe.skipIf(!connectionString)("Match Scoring (needs Postgres: DATABASE_URL)
     expect(await scoring.score(null, { cv: masterCv })).toEqual({ ok: false, error: "invalid", errors: [{ field: "jobOfferId", code: "required" }] });
     expect(await scoring.score(null, { jobOfferId })).toEqual({ ok: false, error: "invalid", errors: [{ field: "cv", code: "required" }] });
     expect(await scoring.score(null, "hello")).toMatchObject({ ok: false, error: "invalid" });
+  });
+
+  it("counts one Match Score against the signed-in Candidate's Plan Quota, for a Profile or a CV sent with the request", async () => {
+    const created = await profiles.create(candidateId, { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
+    if (!created.ok) throw new Error("fixture Profile refused");
+    const { metered, asked } = meteredScoring({ allowed: true, remaining: 2 });
+
+    expect(await metered.score(candidateId, { jobOfferId, profileId: created.profile.id })).toMatchObject({ ok: true });
+    expect(await metered.score(candidateId, { jobOfferId, cv: masterCv })).toMatchObject({ ok: true });
+
+    expect(asked).toEqual([candidateId, candidateId]);
+  });
+
+  it("refuses a Match Score the Candidate's Plan Quota does not allow, without scoring", async () => {
+    const created = await profiles.create(candidateId, { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
+    if (!created.ok) throw new Error("fixture Profile refused");
+    const { metered } = meteredScoring(REFUSED);
+
+    expect(await metered.score(candidateId, { jobOfferId, profileId: created.profile.id })).toEqual({ ok: false, error: "quota_exceeded", refusal: REFUSED });
+    expect(await metered.score(candidateId, { jobOfferId, cv: masterCv })).toEqual({ ok: false, error: "quota_exceeded", refusal: REFUSED });
+  });
+
+  it("does not count a Guest's Match Scores: Guests have no Plan", async () => {
+    const { metered, asked } = meteredScoring(REFUSED);
+
+    expect(await metered.score(null, { jobOfferId, cv: masterCv })).toMatchObject({ ok: true, matchScore: { score: 82 } });
+    expect(asked).toEqual([]);
+  });
+
+  it("does not count requests it cannot score: invalid, unknown Job Offer, unknown Profile", async () => {
+    const { metered, asked } = meteredScoring({ allowed: true, remaining: 2 });
+
+    expect(await metered.score(candidateId, { cv: masterCv })).toMatchObject({ ok: false, error: "invalid" });
+    expect(await metered.score(candidateId, { jobOfferId: "00000000-0000-4000-8000-000000000000", cv: masterCv })).toEqual({ ok: false, error: "not_found" });
+    expect(await metered.score(candidateId, { jobOfferId, profileId: "00000000-0000-4000-8000-000000000000" })).toEqual({ ok: false, error: "not_found" });
+
+    expect(asked).toEqual([]);
   });
 });

@@ -29,6 +29,9 @@ import type { Application, Applications } from "../applications";
 import type { Profiles } from "../profiles";
 import { documentLanguageOf, keepDocumentLanguage } from "../tailored-documents/document-language";
 import { fieldErrors, type FieldError } from "../validation";
+import { cvChanges, type CvChange } from "./changes";
+
+export { CV_SECTIONS, type CvChange, type CvSection } from "./changes";
 
 /**
  * A requirement of the Job Offer the Master CV does not show, asked to the
@@ -50,6 +53,10 @@ export interface TailoredCvProposal {
   /** With the confirmed requirements. */
   content: CvContent;
   questions: TailoredCvQuestion[];
+  /** What it changes in the Master CV it was derived from. */
+  changes: CvChange[];
+  /** Match Scores against the Job Offer, with the Profile's Search Criteria: that Master CV's, and this content's. */
+  matchScore: { master: number; tailored: number };
   proposedAt: Date;
 }
 
@@ -195,6 +202,8 @@ function replyIn(reply: string): AiReply | null {
 interface ProposalRow {
   language: DocumentLanguage;
   masterCvVersion: number;
+  /** That version's content, to review the changes against. */
+  master: CvContent;
   /** The AI Coach's adaptation, before any confirmed requirement. */
   adapted: CvContent;
   questions: TailoredCvQuestion[];
@@ -221,22 +230,34 @@ function withConfirmed(adapted: CvContent, questions: TailoredCvQuestion[]): CvC
 }
 
 export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): TailoredCvs {
-  async function stateOf(application: Application): Promise<ApplicationTailoredCv> {
-    const [documentLanguage, { rows }] = await Promise.all([
+  async function stateOf(candidateId: string, application: Application): Promise<ApplicationTailoredCv> {
+    const [documentLanguage, { rows }, profile] = await Promise.all([
       documentLanguageOf(database, application),
       database.query<{ proposal: ProposalRow | null }>(`SELECT proposal FROM tailored_cv WHERE application_id = $1`, [application.id]),
+      deps.profiles.get(candidateId, application.profile.id),
     ]);
+    const score = (cv: CvContent) => scoreMatch({ cv, searchCriteria: profile?.searchCriteria, jobOffer: application.jobOffer }).score;
     const row = rows[0]?.proposal ?? null;
-    const proposal: TailoredCvProposal | null = row
-      ? { language: row.language, masterCvVersion: row.masterCvVersion, content: withConfirmed(row.adapted, row.questions), questions: row.questions, proposedAt: new Date(row.proposedAt) }
-      : null;
+    let proposal: TailoredCvProposal | null = null;
+    if (row) {
+      const content = withConfirmed(row.adapted, row.questions);
+      proposal = {
+        language: row.language,
+        masterCvVersion: row.masterCvVersion,
+        content,
+        questions: row.questions,
+        changes: cvChanges(row.master, content),
+        matchScore: { master: score(row.master), tailored: score(content) },
+        proposedAt: new Date(row.proposedAt),
+      };
+    }
     return { documentLanguage, proposal, saved: null };
   }
 
   return {
     async get(candidateId, applicationId) {
       const application = await deps.applications.get(candidateId, applicationId);
-      return application ? stateOf(application) : null;
+      return application ? stateOf(candidateId, application) : null;
     },
 
     async propose(candidateId, applicationId, input) {
@@ -265,6 +286,7 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
       const proposal: ProposalRow = {
         language,
         masterCvVersion: profile.masterCv.version,
+        master,
         adapted: fromMasterCv(master, reply, jobOffer.skills ?? []),
         questions: questionsFor(master, application, reply),
         proposedAt: new Date().toISOString(),
@@ -273,7 +295,7 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
         `INSERT INTO tailored_cv (application_id, proposal) VALUES ($1, $2) ON CONFLICT (application_id) DO UPDATE SET proposal = $2`,
         [application.id, proposal],
       );
-      return { ok: true, tailoredCv: await stateOf(application) };
+      return { ok: true, tailoredCv: await stateOf(candidateId, application) };
     },
 
     async answer(candidateId, applicationId, input) {
@@ -291,7 +313,7 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
         [application.id, requirement, confirmed ? "confirmed" : "declined"],
       );
       if (rowCount === 0) return NOT_FOUND;
-      return { ok: true, tailoredCv: await stateOf(application) };
+      return { ok: true, tailoredCv: await stateOf(candidateId, application) };
     },
   };
 }

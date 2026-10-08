@@ -201,4 +201,38 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
     expect(changedMind).toMatchObject({ ok: true, tailoredCv: { proposal: { content: { skills: ["IFRS", "SAP", "Reporting"] } } } });
     expect(await tailoredCvs.answer(candidateId, applicationId, { requirement: "Excel", confirmed: true })).toEqual({ ok: false, error: "not_found" });
   });
+
+  it("the Candidate reviews each change against the Master CV: rephrased, reordered, cut or added once confirmed", async () => {
+    await tailoredCvs.propose(candidateId, applicationId, {});
+    const result = await tailoredCvs.answer(candidateId, applicationId, { requirement: "Power BI", confirmed: true });
+
+    expect(result.ok && result.tailoredCv.proposal?.changes).toEqual([
+      { section: "headline", kind: "rephrased", master: "Directrice financière", tailored: "Directrice administrative et financière" },
+      { section: "summary", kind: "rephrased", master: masterCv.summary, tailored: PROPOSAL.summary },
+      {
+        section: "experience",
+        kind: "rephrased",
+        item: "Directrice financière · Groupe Seb · 2005 – 2024",
+        master: "Directrice financière\nConsolidation IFRS de 12 filiales.",
+        tailored: "Directrice financière\nPilotage de la consolidation IFRS de 12 filiales.",
+      },
+      { section: "experience", kind: "cut", item: "Contrôleuse de gestion · Danone · 1995 – 2005" },
+      { section: "skills", kind: "reordered" },
+      { section: "skills", kind: "added", item: "Power BI" },
+    ]);
+  });
+
+  it("shows the Match Score of the Master CV against the Tailored CV's", async () => {
+    const application = await createApplications(database, { jobOffers, profiles }).get(candidateId, applicationId);
+    await tailoredCvs.propose(candidateId, applicationId, {});
+    const unchanged = await tailoredCvs.get(candidateId, applicationId);
+    expect(unchanged?.proposal?.matchScore).toEqual({ master: application!.matchScore.score, tailored: application!.matchScore.score });
+
+    const result = await tailoredCvs.answer(candidateId, applicationId, { requirement: "Power BI", confirmed: true });
+
+    if (!result.ok || !result.tailoredCv.proposal) throw new Error("no proposal");
+    const { master, tailored } = result.tailoredCv.proposal.matchScore;
+    expect(master).toBe(application!.matchScore.score);
+    expect(tailored).toBeGreaterThan(master);
+  });
 });

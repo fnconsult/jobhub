@@ -15,7 +15,7 @@
  * account (ADR-0010). Each kind (ATS Fix, Follow-up…) brings its own handler.
  */
 import type { Pool } from "pg";
-import type { CoachFocus } from "@/coach";
+import type { CoachFocus } from "../coach";
 
 export type ActionCardStatus = "pending" | "accepted" | "dismissed";
 

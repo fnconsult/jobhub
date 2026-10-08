@@ -149,6 +149,34 @@ describe("re-checking a Job Offer at its source", () => {
     expect(store.recorded.get("offer-1")).toBe("published");
   });
 
+  it.each([
+    `<div class="site-footer">Une erreur ? Signalez-nous si l'offre n'est plus disponible.</div>`,
+    "<p>Si l'offre n'est plus disponible, vous serez prévenu.</p>",
+    `<div class="site-footer">Cette offre n'est plus disponible ? Signalez-le-nous.</div>`,
+    "<p>Nous retirons l'annonce quand l'offre est pourvue.</p>",
+    "<p>Nous retirons l'annonce lorsque l’offre a expiré.</p>",
+    "<p>Contactez-nous s'il s'avère que cette offre n'est plus disponible.</p>",
+  ])("leaves a page without structured data published when it only asks about or supposes expiry: %s", async (aside) => {
+    const page = `<html><head><title>DAF H/F</title></head><body><main><h1>DAF</h1><p>Description complète du poste.</p></main>${aside}</body></html>`;
+    const { recheck, store } = setup({ [OFFER]: { body: page } });
+
+    await recheck.run(NOW);
+
+    expect(store.recorded.get("offer-1")).toBe("published");
+  });
+
+  it.each([
+    "<p>Si vous avez postulé, sachez que cette offre n'est plus disponible.</p>",
+    "<p>Désolé : l'offre n'est plus disponible.</p>",
+  ])("still marks it expired when its page states expiry after another clause: %s", async (notice) => {
+    const page = `<html><head><title>DAF H/F</title></head><body><h1>DAF</h1>${notice}</body></html>`;
+    const { recheck, store } = setup({ [OFFER]: { body: page } });
+
+    await recheck.run(NOW);
+
+    expect(store.recorded.get("offer-1")).toBe("expired");
+  });
+
   it("leaves it published while its closing date is still ahead", async () => {
     const { recheck, store } = setup({ [OFFER]: { body: posting({ validThrough: "2026-12-31" }) } });
 

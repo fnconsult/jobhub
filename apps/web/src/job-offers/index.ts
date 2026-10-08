@@ -18,6 +18,8 @@
  * Every few days the worker re-checks a Job Offer's source (`createSourceChecks`
  * schedules and records it); one no longer published there becomes an Expired
  * Job Offer (`expiredAt`). Nothing else about it, or its Applications, changes.
+ * Expiry is not for good: a later re-check finding it published, or capturing
+ * its source page again, makes it a published Job Offer again.
  */
 import { createHash } from "node:crypto";
 import { CONTRACT_TYPES, REMOTE_WORK_OPTIONS, type JobOffer } from "@jobhub/shared";
@@ -27,7 +29,7 @@ import { fieldErrors, type FieldError } from "../validation";
 import { GUEST_EXPIRY_SQL } from "./guest-retention";
 
 export { forgetExpiredGuestCaptures } from "./guest-retention";
-export { createSourceChecks, RECHECK_INTERVAL_DAYS, type SourceCheckOutcome, type SourceChecks } from "./source-checks";
+export { createSourceChecks, EXPIRED_RECHECK_INTERVAL_DAYS, RECHECK_INTERVAL_DAYS, type SourceCheckOutcome, type SourceChecks } from "./source-checks";
 
 export type { FieldError as JobOfferFieldError } from "../validation";
 
@@ -181,11 +183,19 @@ export function createJobOffers(database: Pool): JobOffers {
           LIMIT 1`,
         keys,
       );
-      const jobOffer = jobOfferFrom(existing.rows[0]!);
+      const row = existing.rows[0]!;
       if (capturedBy === "candidate") {
-        await database.query(`UPDATE job_offer SET guest_expires_at = NULL WHERE id = $1 AND guest_expires_at IS NOT NULL`, [jobOffer.id]);
+        await database.query(`UPDATE job_offer SET guest_expires_at = NULL WHERE id = $1 AND guest_expires_at IS NOT NULL`, [row.id]);
       }
-      return { ok: true, jobOffer };
+      // Captured again from its own source page: that page publishes it, so it is not expired.
+      if (row.expired_at !== null && keys[0] !== null) {
+        const revived = await database.query(
+          `UPDATE job_offer SET expired_at = NULL WHERE id = $1 AND url_key = $2 AND expired_at IS NOT NULL`,
+          [row.id, keys[0]],
+        );
+        if (revived.rowCount) row.expired_at = null;
+      }
+      return { ok: true, jobOffer: jobOfferFrom(row) };
     },
 
     async get(id) {

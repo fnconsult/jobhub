@@ -1,6 +1,7 @@
 /**
  * Tailored Documents of an Application: its Cover Letter and Outreach Message,
- * drafted by the AI Coach, then edited by the Candidate. (The Tailored CV is #18.)
+ * drafted by the AI Coach, then edited by the Candidate. (The Tailored CV is
+ * `../tailored-cv`.)
  *
  * One deep module in front of Postgres and the AI layer. Callers get
  * `createTailoredDocuments(database, { applications, profiles, ai, companyDossiers? })`:
@@ -20,13 +21,14 @@
  * problems come back as results. Task `writing`, EU endpoints only (ADR-0007).
  */
 import type { AiLayer } from "@jobhub/ai";
-import { DOCUMENT_LANGUAGES, jobOfferLanguage, type DocumentLanguage } from "@jobhub/shared";
+import { DOCUMENT_LANGUAGES, type DocumentLanguage } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { Application, Applications } from "../applications";
 import type { CompanyDossier, CompanyDossiers } from "../company-dossiers";
 import type { Profiles } from "../profiles";
 import { fieldErrors, type FieldError } from "../validation";
+import { documentLanguageOf, keepDocumentLanguage } from "./document-language";
 
 import { OUTREACH_CHANNELS, TAILORED_DOCUMENTS, type OutreachChannel, type TailoredDocumentKind } from "./kinds";
 
@@ -213,21 +215,16 @@ function outreachIn(reply: string): { subject: string; text: string } {
 }
 
 export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsDeps): TailoredDocuments {
-  async function storedLanguage(applicationId: string): Promise<DocumentLanguage | null> {
-    const { rows } = await database.query<{ document_language: DocumentLanguage | null }>(`SELECT document_language FROM application WHERE id = $1`, [applicationId]);
-    return rows[0]?.document_language ?? null;
-  }
-
   async function draftsOf(application: Application): Promise<ApplicationDrafts> {
     const [language, { rows }] = await Promise.all([
-      storedLanguage(application.id),
+      documentLanguageOf(database, application),
       database.query<DraftRow>(`SELECT kind, language, channel, subject, contact_roles, text, drafted_at, updated_at FROM tailored_document WHERE application_id = $1`, [application.id]),
     ]);
     const draft = (row: DraftRow): Draft => ({ language: row.language, text: row.text, draftedAt: row.drafted_at, updatedAt: row.updated_at });
     const letter = rows.find((row) => row.kind === "cover_letter");
     const message = rows.find((row) => row.kind === "outreach_message");
     return {
-      documentLanguage: language ?? jobOfferLanguage(application.jobOffer),
+      documentLanguage: language,
       coverLetter: letter ? draft(letter) : null,
       outreachMessage: message ? { ...draft(message), channel: message.channel ?? "email", subject: message.subject, contactRoles: message.contact_roles } : null,
     };
@@ -294,7 +291,7 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
       const { document, channel } = parsed.data;
       const written = await write(candidateId, application, { ...parsed.data, language });
       if (!written) return { ok: false, error: "unavailable" };
-      if (parsed.data.language) await database.query(`UPDATE application SET document_language = $2 WHERE id = $1`, [application.id, language]);
+      if (parsed.data.language) await keepDocumentLanguage(database, application.id, language);
       await database.query(
         `INSERT INTO tailored_document (application_id, kind, language, channel, subject, contact_roles, text) VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (application_id, kind) DO UPDATE

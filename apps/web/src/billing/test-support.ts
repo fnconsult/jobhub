@@ -29,6 +29,8 @@ export async function startTestBilling(overrides: Partial<BillingConfig> = {}) {
 
   return {
     billing,
+    /** The database the billing tables (and the Candidate accounts) live in, for modules that hang off them. */
+    database: config.database,
     stripe,
     clock,
     /** Runs the billing migration again, as every deployment does. */

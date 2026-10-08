@@ -4,12 +4,14 @@ import { CONTRACT_TYPES, REMOTE_WORK_OPTIONS, type MasterCvContent } from "@jobh
 import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import type { UpgradePrompt as Prompt } from "@/billing/upgrade-prompt";
 import type { CvDraft, CvFileErrorCode } from "@/cv";
 import type { ProfileFieldError } from "@/profiles";
 import { PROFILE_NAME_MAX_LENGTH } from "@/profiles/limits";
 import { routes } from "@/routes";
 import { SelectField, TextField } from "./form-fields";
 import { MasterCvFields } from "./MasterCvFields";
+import { UpgradePrompt, upgradePromptIn } from "./UpgradePrompt";
 
 /** Search Criteria as the review form holds them: what the inputs show. */
 interface CriteriaFields {
@@ -100,6 +102,8 @@ interface ReviewState {
   errors: ProfileFieldError[];
   failed: boolean;
   quotaReached: boolean;
+  /** What the Candidate's Plan allows and which Plan allows more, when the Plan Quota refused the Profile. */
+  upgradePrompt: Prompt | null;
 }
 
 /**
@@ -117,6 +121,7 @@ export function CvReview(props: { draft: CvDraft; intro: string; startOverLabel:
     errors: [],
     failed: false,
     quotaReached: false,
+    upgradePrompt: null,
   }));
   const update = (changes: Partial<ReviewState>) => setReview((current) => ({ ...current, ...changes }));
   const setCriteria = (changes: Partial<CriteriaFields>) => setReview((current) => ({ ...current, criteria: { ...current.criteria, ...changes } }));
@@ -132,7 +137,7 @@ export function CvReview(props: { draft: CvDraft; intro: string; startOverLabel:
       ...(criteria.contractType ? { contractType: criteria.contractType } : {}),
       ...(criteria.remoteWork ? { remoteWork: criteria.remoteWork } : {}),
     };
-    update({ saving: true, failed: false, quotaReached: false });
+    update({ saving: true, failed: false, quotaReached: false, upgradePrompt: null });
     try {
       const response = await fetch("/api/profiles", {
         method: "POST",
@@ -145,7 +150,13 @@ export function CvReview(props: { draft: CvDraft; intro: string; startOverLabel:
         return;
       }
       const quotaReached = body.error === "plan_quota_reached";
-      update({ saving: false, errors: Array.isArray(body.errors) ? body.errors : [], failed: !Array.isArray(body.errors) && !quotaReached, quotaReached });
+      update({
+        saving: false,
+        errors: Array.isArray(body.errors) ? body.errors : [],
+        failed: !Array.isArray(body.errors) && !quotaReached,
+        quotaReached,
+        upgradePrompt: quotaReached ? upgradePromptIn(body) : null,
+      });
     } catch {
       update({ saving: false, failed: true });
     }
@@ -196,7 +207,9 @@ export function CvReview(props: { draft: CvDraft; intro: string; startOverLabel:
           {t("cvReview.invalid", { fields: invalidFields.join(", ") })}
         </p>
       ) : null}
-      {review.quotaReached ? (
+      {review.upgradePrompt ? (
+        <UpgradePrompt prompt={review.upgradePrompt} />
+      ) : review.quotaReached ? (
         <p className="notice" role="alert">
           {t("profiles.quotaReached")}
         </p>

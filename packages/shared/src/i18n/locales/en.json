@@ -367,7 +367,8 @@
         "matchScores": "Match Scores are not included in the {{plan}} Plan.",
         "atsScores": "ATS Scores are not included in the {{plan}} Plan.",
         "enrichedContacts": "Enriched Contacts are not included in the {{plan}} Plan.",
-        "jobSearches": "Job searches are not included in the {{plan}} Plan."
+        "jobSearches": "Job searches are not included in the {{plan}} Plan.",
+        "jobDigest": "The Job Digest is not included in the {{plan}} Plan."
       },
       "upgradeCreate": "The {{plan}} Plan lets you create more.",
       "upgradeUse": "The {{plan}} Plan lets you do more.",
@@ -765,5 +766,38 @@
     "required": "The text cannot be empty.",
     "unavailable": "The coach could not draft this text right now. Try again in a few minutes.",
     "error": "Saving failed. Check your connection and try again."
+  },
+  "jobDigest": {
+    "sectionTitle": "Job Digest",
+    "hint": "Get the new job offers matching this profile's search criteria by email, and find them here too. Only offers you have not seen yet are sent.",
+    "frequency": {
+      "weekly": "Your Plan includes one Job Digest a week.",
+      "daily": "Your Plan includes one Job Digest a day."
+    },
+    "subscribed": "You receive this profile's Job Digest.",
+    "subscribe": "Receive the Job Digest",
+    "unsubscribe": "Stop the Job Digest",
+    "saving": "Saving…",
+    "error": "The change could not be saved. Check your connection and try again.",
+    "archived": "This profile is archived. Restore it to receive its Job Digest.",
+    "latestTitle": "Latest Job Digests",
+    "sentAt": "Sent on {{date}}",
+    "email": {
+      "subject_one": "Job Digest “{{profile}}”: {{count}} new job offer",
+      "subject_other": "Job Digest “{{profile}}”: {{count}} new job offers",
+      "intro_one": "Hello,\n\nYour coach found {{count}} new job offer for your profile “{{profile}}”:",
+      "intro_other": "Hello,\n\nYour coach found {{count}} new job offers for your profile “{{profile}}”, closest to your master CV first:",
+      "matchScore": "match score: {{score}} / 100",
+      "seeOnProfile": "Find these offers on your profile:\n{{url}}",
+      "unsubscribe": "Stop receiving this profile's Job Digest:\n{{url}}",
+      "signature": "The Jobbbox team"
+    },
+    "unsubscribePage": {
+      "title": "Unsubscribe from the Job Digest",
+      "confirm": "You will no longer receive this profile's Job Digest by email. You can turn it back on at any time from the profile page.",
+      "action": "Unsubscribe",
+      "done": "Done: you will no longer receive this Job Digest.",
+      "invalid": "This unsubscribe link is no longer valid. You may already be unsubscribed; otherwise, sign in and turn the Job Digest off from the profile page."
+    }
   }
 }

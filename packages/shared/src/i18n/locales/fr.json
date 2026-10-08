@@ -367,7 +367,8 @@
         "matchScores": "Les Match Scores ne sont pas compris dans l'offre {{plan}}.",
         "atsScores": "Les ATS Scores ne sont pas compris dans l'offre {{plan}}.",
         "enrichedContacts": "Les contacts enrichis ne sont pas compris dans l'offre {{plan}}.",
-        "jobSearches": "Les recherches d'offres ne sont pas comprises dans l'offre {{plan}}."
+        "jobSearches": "Les recherches d'offres ne sont pas comprises dans l'offre {{plan}}.",
+        "jobDigest": "La réception du Job Digest n'est pas comprise dans l'offre {{plan}}."
       },
       "upgradeCreate": "Avec l'offre {{plan}}, vous pouvez en créer davantage.",
       "upgradeUse": "Avec l'offre {{plan}}, vous pouvez en faire davantage.",
@@ -765,5 +766,38 @@
     "required": "Le texte ne peut pas être vide.",
     "unavailable": "Le coach n'a pas pu rédiger ce texte pour l'instant. Réessayez dans quelques minutes.",
     "error": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez."
+  },
+  "jobDigest": {
+    "sectionTitle": "Job Digest",
+    "hint": "Recevez par email, et retrouvez ici, les nouvelles offres qui correspondent aux critères de recherche de ce profil. Seules les offres que vous n'avez pas encore vues vous sont envoyées.",
+    "frequency": {
+      "weekly": "Votre offre comprend un Job Digest par semaine.",
+      "daily": "Votre offre comprend un Job Digest par jour."
+    },
+    "subscribed": "Vous recevez le Job Digest de ce profil.",
+    "subscribe": "Recevoir le Job Digest",
+    "unsubscribe": "Ne plus recevoir le Job Digest",
+    "saving": "Enregistrement…",
+    "error": "La modification n'a pas pu être enregistrée. Vérifiez votre connexion et réessayez.",
+    "archived": "Ce profil est archivé. Restaurez-le pour recevoir son Job Digest.",
+    "latestTitle": "Derniers Job Digests",
+    "sentAt": "Envoyé le {{date}}",
+    "email": {
+      "subject_one": "Job Digest « {{profile}} » : {{count}} nouvelle offre",
+      "subject_other": "Job Digest « {{profile}} » : {{count}} nouvelles offres",
+      "intro_one": "Bonjour,\n\nVotre coach a trouvé {{count}} nouvelle offre pour votre profil « {{profile}} » :",
+      "intro_other": "Bonjour,\n\nVotre coach a trouvé {{count}} nouvelles offres pour votre profil « {{profile}} », de la plus proche à la moins proche de votre CV de référence :",
+      "matchScore": "score de correspondance : {{score}} / 100",
+      "seeOnProfile": "Retrouvez ces offres sur votre profil :\n{{url}}",
+      "unsubscribe": "Ne plus recevoir le Job Digest de ce profil :\n{{url}}",
+      "signature": "L'équipe Jobbbox"
+    },
+    "unsubscribePage": {
+      "title": "Se désabonner du Job Digest",
+      "confirm": "Vous ne recevrez plus le Job Digest de ce profil par email. Vous pourrez le réactiver à tout moment depuis la page du profil.",
+      "action": "Me désabonner",
+      "done": "C'est fait : vous ne recevrez plus ce Job Digest.",
+      "invalid": "Ce lien de désabonnement n'est plus valable. Vous êtes peut-être déjà désabonné ; sinon, connectez-vous et désactivez le Job Digest depuis la page du profil."
+    }
   }
 }

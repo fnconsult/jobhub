@@ -6,7 +6,7 @@ export function smtpMailer(smtpUrl: string, from: string): Mailer {
   const transport = nodemailer.createTransport(smtpUrl);
   return {
     async send(message: MailMessage) {
-      await transport.sendMail({ from, to: message.to, subject: message.subject, text: message.text });
+      await transport.sendMail({ from, to: message.to, subject: message.subject, text: message.text, headers: message.headers });
     },
   };
 }

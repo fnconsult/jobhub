@@ -14,6 +14,8 @@ export const routes = {
   jobSearch: (id: string) => `/recherches/${id}`,
   masterCvVersion: (id: string, version: number) => `/profils/${id}/versions/${version}`,
   subscription: "/abonnement",
+  /** Where a Job Digest email's unsubscribe link leads (no sign-in needed). */
+  jobDigestUnsubscribe: "/desabonnement",
   admin: "/admin",
   adminPlanQuotas: "/admin/quotas",
 } as const;

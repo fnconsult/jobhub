@@ -1,5 +1,6 @@
 import { AiConfigError, createAiLayerFromEnv } from "@jobhub/ai";
 import { createJobOffers } from "@jobhub/web/job-offers";
+import { createJobSearchReports } from "@jobhub/web/job-searches";
 import { createProfiles } from "@jobhub/web/profiles";
 import { Pool } from "pg";
 import { createJobDiscovery } from "./job-discovery";
@@ -31,6 +32,7 @@ const jobs = createJobs({
   database,
   discovery: jobDiscovery(),
   profiles: createProfiles(database),
+  jobSearches: createJobSearchReports(database),
 });
 
 const runner = await startJobRunner({ connectionString, jobs });

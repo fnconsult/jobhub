@@ -7,19 +7,20 @@ describe.skipIf(!connectionString)("job runner (needs Postgres: DATABASE_URL)", 
   let runner: JobRunner | undefined;
   afterEach(async () => {
     await runner?.stop();
+    runner = undefined;
   });
 
   it("runs an enqueued job through its registered handler", async () => {
-    const received = new Promise<unknown>((resolve) => {
-      void startJobRunner({
-        connectionString: connectionString!,
-        pollingIntervalSeconds: 0.5,
-        jobs: { "test.echo": { handler: async (data) => resolve(data) } },
-      }).then(async (started) => {
-        runner = started;
-        await started.enqueue("test.echo", { hello: "monde" });
-      });
+    // A runner that fails to start (or to enqueue) fails the test with its
+    // own error, instead of leaving `received` pending until the timeout.
+    let deliver!: (data: unknown) => void;
+    const received = new Promise<unknown>((resolve) => (deliver = resolve));
+    runner = await startJobRunner({
+      connectionString: connectionString!,
+      pollingIntervalSeconds: 0.5,
+      jobs: { "test.echo": { handler: async (data) => deliver(data) } },
     });
+    await runner.enqueue("test.echo", { hello: "monde" });
 
     await expect(received).resolves.toEqual({ hello: "monde" });
   }, 20_000);

@@ -7,6 +7,7 @@ import { ActionCardList, type ActionCardView } from "@/components/ActionCardList
 import { AtsScoreView } from "@/components/AtsScoreView";
 import { CoachInView } from "@/components/CoachPanel";
 import { CvExportForm } from "@/components/CvExportForm";
+import { StartJobSearchButton } from "@/components/JobSearchControls";
 import { MasterCvView } from "@/components/MasterCvView";
 import { ProfileActions } from "@/components/ProfileActions";
 import { WorkspaceHeader } from "@/components/WorkspaceHeader";
@@ -28,8 +29,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 /**
  * One Profile: the AI Coach's Action Cards about it (ATS Fixes among them,
- * Senior Advice labelled), its Search Criteria, its ATS Score, the current
- * version of its Master CV, and what can be done with it.
+ * Senior Advice labelled), a Job Search for it, its Search Criteria, its ATS
+ * Score, the current version of its Master CV, and what can be done with it.
  */
 export default async function ProfilePage({ params }: Params) {
   const { candidateId, profile } = await currentProfile((await params).id);
@@ -53,6 +54,14 @@ export default async function ProfilePage({ params }: Params) {
           return seniorAdvice ? { id, title, body, label: t("atsFixes.seniorAdvice"), dismissLabel: t("atsFixes.dismissAdvice") } : { id, title, body };
         })}
       />
+
+      {profile.archived ? null : (
+        <section className="stack" aria-labelledby="job-search-title">
+          <h2 id="job-search-title">{t("jobSearch.sectionTitle")}</h2>
+          <p>{t("jobSearch.startHint")}</p>
+          <StartJobSearchButton key={profile.id} profileId={profile.id} />
+        </section>
+      )}
 
       <h2>{t("cvReview.searchCriteria")}</h2>
       <dl>

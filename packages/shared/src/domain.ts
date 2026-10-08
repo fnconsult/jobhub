@@ -21,11 +21,11 @@ export const PLANS = ["free", "standard", "premium"] as const;
 export type Plan = (typeof PLANS)[number];
 
 /** Plan Quotas that cap a number of things: Profiles held at once, or uses per calendar month. */
-export const LIMITED_QUOTAS = ["profiles", "matchScores", "atsScores", "enrichedContacts"] as const;
+export const LIMITED_QUOTAS = ["profiles", "matchScores", "atsScores", "enrichedContacts", "jobSearches"] as const;
 export type LimitedQuota = (typeof LIMITED_QUOTAS)[number];
 
 /** Limited Plan Quotas counted per calendar month (Europe/Paris); the others count what the Candidate holds. */
-export const MONTHLY_QUOTAS = ["matchScores", "atsScores", "enrichedContacts"] as const satisfies readonly LimitedQuota[];
+export const MONTHLY_QUOTAS = ["matchScores", "atsScores", "enrichedContacts", "jobSearches"] as const satisfies readonly LimitedQuota[];
 export type MonthlyQuota = (typeof MONTHLY_QUOTAS)[number];
 
 /** How often a Candidate receives a Job Digest. */

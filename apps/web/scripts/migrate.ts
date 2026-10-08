@@ -7,6 +7,7 @@ import { authConfigFromEnv } from "../src/auth/config";
 import { migrateCandidateAccounts } from "../src/auth/index";
 import { migrateCompanyDossiers } from "../src/company-dossiers/index";
 import { migrateJobOffers } from "../src/job-offers/index";
+import { migrateJobSearches } from "../src/job-searches/index";
 import { migrateProfiles } from "../src/profiles/index";
 import { migrateBilling } from "../src/billing/index";
 
@@ -29,4 +30,6 @@ await migrateAtsScores(config.database);
 console.info("[migrate] ATS Scores are up to date");
 await migrateBilling(config.database);
 console.info("[migrate] Plans and Plan Quotas are up to date");
+await migrateJobSearches(config.database);
+console.info("[migrate] Job Searches are up to date");
 await config.database.end();

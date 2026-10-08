@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createThrowawayDatabase } from "./throwaway-database";
+import { createThrowawayDatabase, dropLeftoverThrowawayDatabases } from "./throwaway-database";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -30,5 +30,36 @@ describe.skipIf(!connectionString)("throwaway test database", () => {
     const { rows } = await admin.query("SELECT 1 FROM pg_database WHERE datname = $1", [database.name]);
     await admin.end();
     expect(rows).toEqual([]);
+  });
+});
+
+describe.skipIf(!connectionString)("throwaway test databases a test never dropped", () => {
+  async function exists(name: string) {
+    const { Pool } = await import("pg");
+    const admin = new Pool({ connectionString });
+    const { rows } = await admin.query("SELECT 1 FROM pg_database WHERE datname = $1", [name]);
+    await admin.end();
+    return rows.length === 1;
+  }
+
+  // Regression: when a beforeEach timed out on a loaded Postgres, the
+  // database it was still creating was never dropped (afterEach had nothing,
+  // or the previous test's database, to drop), and 150+ of them piled up on
+  // the server, slowing every later run down.
+  it("are dropped once the test file is done, including one still being created", async () => {
+    const forgotten = await createThrowawayDatabase("test_throwaway");
+    const stillCreating = createThrowawayDatabase("test_throwaway");
+
+    await dropLeftoverThrowawayDatabases();
+
+    expect(await exists(forgotten.name)).toBe(false);
+    expect(await exists((await stillCreating).name)).toBe(false);
+  });
+
+  it("can be dropped again without failing", async () => {
+    const database = await createThrowawayDatabase("test_throwaway");
+    await database.drop();
+    await expect(database.drop()).resolves.toBeUndefined();
+    await expect(dropLeftoverThrowawayDatabases()).resolves.toBeUndefined();
   });
 });

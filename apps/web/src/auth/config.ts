@@ -1,25 +1,12 @@
 import { sharedPool } from "../database/pool";
-import type { AuthConfig, Mailer } from "./index";
-import { consoleMailer, smtpMailer } from "./mailers";
+import type { AuthConfig } from "./index";
+import { mailerFromEnv } from "./mailers";
+
+export { mailerFromEnv };
 
 type Env = Record<string, string | undefined>;
 
 const DEV_SECRET = "development-only-secret-do-not-use-in-production";
-
-/**
- * The outgoing mailer from environment variables (see .env.example): SMTP, or
- * the server log. Fails fast in production when SMTP is not configured.
- */
-export function mailerFromEnv(env: Env): Mailer {
-  const production = env.NODE_ENV === "production";
-  // MAIL_TRANSPORT=console prints emails, sign-in links included, to the server log:
-  // the default in development, an explicit opt-in for local production builds (e2e).
-  if (env.MAIL_TRANSPORT === "console" || (!production && !env.SMTP_URL)) return consoleMailer();
-  if (!env.SMTP_URL) throw new Error("Missing environment variable SMTP_URL");
-  const from = env.MAIL_FROM || (production ? undefined : "Jobbbox <bonjour@localhost>");
-  if (!from) throw new Error("Missing environment variable MAIL_FROM");
-  return smtpMailer(env.SMTP_URL, from);
-}
 
 /**
  * Reads the Candidate-accounts configuration from environment variables

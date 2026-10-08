@@ -1,12 +1,15 @@
 import { AiConfigError, createAiLayerFromEnv, type AiLayer } from "@jobhub/ai";
+import { createApplications } from "@jobhub/web/applications";
 import { createBilling } from "@jobhub/web/billing";
 import { followUpsFromEnv } from "@jobhub/web/follow-ups/env";
+import { createJobDigests } from "@jobhub/web/job-digests";
 import { createJobOffers } from "@jobhub/web/job-offers";
 import { createJobSearchReports } from "@jobhub/web/job-searches";
+import { mailerFromEnv } from "@jobhub/web/mailers";
 import { createProfiles } from "@jobhub/web/profiles";
 import { Pool } from "pg";
 import { createJobDiscovery } from "./job-discovery";
-import { startJobRunner } from "./job-runner";
+import { startJobRunner, type JobRunner } from "./job-runner";
 import { createJobs } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
@@ -32,16 +35,40 @@ function aiLayer(): AiLayer | { unavailable: string } {
 }
 const ai = aiLayer();
 
+const baseURL = process.env.APP_URL || (process.env.NODE_ENV === "production" ? undefined : "http://localhost:3000");
+if (!baseURL) {
+  console.error("[worker] APP_URL is not set (see .env.example): Job Digest emails link to the web app");
+  process.exit(1);
+}
+
+const profiles = createProfiles(database);
+const jobOffers = createJobOffers(database);
+const billing = createBilling({ database, baseURL });
+// The Job Digest schedule queues jobs on the runner, which starts once the jobs exist.
+const started: { runner?: JobRunner } = {};
 const jobs = createJobs({
   database,
-  discovery: "unavailable" in ai ? ai : createJobDiscovery({ ai, jobOffers: createJobOffers(database) }),
-  profiles: createProfiles(database),
+  discovery: "unavailable" in ai ? ai : createJobDiscovery({ ai, jobOffers }),
+  profiles,
   // A failed Job Search gives its Plan Quota use back. Releasing needs no Stripe, only the quota table.
-  jobSearches: createJobSearchReports(database, { quotas: createBilling({ database, baseURL: process.env.APP_URL || "http://localhost:3000" }) }),
+  jobSearches: createJobSearchReports(database, { quotas: billing }),
   followUps: followUpsFromEnv(database, process.env, "unavailable" in ai ? undefined : ai),
+  jobDigests: createJobDigests(database, {
+    profiles,
+    jobOffers,
+    applications: createApplications(database, { jobOffers, profiles }),
+    billing,
+    mailer: mailerFromEnv(process.env),
+    baseURL,
+  }),
+  enqueue: async (name, data) => {
+    if (!started.runner) throw new Error("the job runner has not started yet");
+    await started.runner.enqueue(name, data);
+  },
 });
 
 const runner = await startJobRunner({ connectionString, jobs });
+started.runner = runner;
 await runner.enqueue("system.heartbeat");
 console.info(`[worker] running ${Object.keys(jobs).length} job(s)`);
 

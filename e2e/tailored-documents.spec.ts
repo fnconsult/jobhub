@@ -143,9 +143,8 @@ test.describe("Cover Letter and Outreach Message drafts", () => {
   });
 
   test("without a Company Dossier, both drafts are written from the Master CV and the Job Offer alone, addressed to no Suggested Contact Role", async ({ page }) => {
-    // Company Dossiers (#17) are not built yet: no Application has one, so the
-    // AI Coach is never handed a dossier and the message names no contact roles.
-    // Drawing on a built dossier is covered by the module's integration test.
+    // No Company Dossier is built for this Application: the AI Coach is handed
+    // none, and the message names no contact roles.
     await openApplication(page, FRENCH);
 
     await coverLetter(page).getByRole("button", { name: td.coverLetter.draft }).click();
@@ -157,6 +156,33 @@ test.describe("Cover Letter and Outreach Message drafts", () => {
     await page.reload();
     await expect(outreachMessage(page).getByLabel(td.outreachMessage.textLabel)).toHaveValue(`Message d'approche (fr, email) pour « ${FRENCH.title} ».`);
     await expect(page.getByText(td.outreachMessage.contactRoles)).toHaveCount(0);
+  });
+
+  test("with a Company Dossier built, both drafts draw on it and the Outreach Message is addressed to its Suggested Contact Roles", async ({ page }) => {
+    test.slow(); // building the dossier calls the (faked) register and web search
+    await openApplication(page, FRENCH);
+    await page.waitForLoadState("networkidle");
+    const dossier = page.getByRole("region", { name: fr.companyDossier.title });
+    await dossier.getByRole("button", { name: fr.companyDossier.build }).click();
+    await expect(dossier.getByText("552100554", { exact: true })).toBeVisible({ timeout: 15_000 });
+
+    await coverLetter(page).getByRole("button", { name: td.coverLetter.draft }).click();
+    await expect(coverLetter(page).getByLabel(td.coverLetter.textLabel)).toHaveValue(
+      `Lettre de motivation (fr) pour « ${FRENCH.title} ». Dossier : Acme Industrie (SIREN 552100554).`,
+    );
+
+    // Acme Industrie has 250 to 499 employees: the hiring manager, talent acquisition and the HR director.
+    const roles = ["Responsable du poste à pourvoir", "Responsable du recrutement", "Directeur ou directrice des ressources humaines"];
+    await outreachMessage(page).getByRole("button", { name: td.outreachMessage.draft }).click();
+    await expect(outreachMessage(page).getByLabel(td.outreachMessage.textLabel)).toHaveValue(
+      `Message d'approche (fr, email) pour « ${FRENCH.title} ». Dossier : Acme Industrie (SIREN 552100554). Contacts : ${roles.join(" ; ")}.`,
+    );
+    await expect(outreachMessage(page).getByText(td.outreachMessage.contactRoles)).toBeVisible();
+    await expect(outreachMessage(page).getByRole("listitem")).toHaveText(roles);
+
+    // Kept on the Application, contact roles included.
+    await page.reload();
+    await expect(outreachMessage(page).getByRole("listitem")).toHaveText(roles);
   });
 
   test("when the AI Coach cannot write, the Candidate is told to try again later", async ({ page }) => {

@@ -5,7 +5,9 @@
 // For a Cover Letter or an Outreach Message (task writing), it says which
 // language and Job Offer it was asked to write for, and, for an Outreach
 // Message, by which channel, so tests can check the Document Language and the
-// drafting request reached the AI Coach.
+// drafting request reached the AI Coach. When it was handed a Company Dossier,
+// it says whose (and its SIREN), and, for an Outreach Message, the Suggested
+// Contact Roles it was asked to address, so tests can check both reached it.
 //
 // For a CV (task cv_parsing, prompt "CV :\n<text>") it answers like the AI
 // Coach would: the CV's first line as the name, its second as the title, and
@@ -49,6 +51,16 @@ globalThis.fetch = async (input, init) => {
       const channel = system.includes("InMail") ? "inmail" : "email";
       content = JSON.stringify({ subject: `Candidature (${language}) : ${title}`, text: `Message d'approche (${language}, ${channel}) pour « ${title} ».` });
     } else content = `Lettre de motivation (${language}) pour « ${title} ».`;
+    const dossier = /^(?:Dossier sur l'entreprise|Company dossier) : (.+)$/m.exec(prompt)?.[1];
+    if (dossier) {
+      const facts = JSON.parse(dossier);
+      const contacts = /^(?:Contacts à viser|Contacts to address)[^:]*: (.+)$/m.exec(prompt)?.[1];
+      const extra = ` Dossier : ${facts.employer}${facts.siren ? ` (SIREN ${facts.siren})` : ""}.${contacts ? ` Contacts : ${contacts}.` : ""}`;
+      if (system.includes('"subject"')) {
+        const reply = JSON.parse(content);
+        content = JSON.stringify({ ...reply, text: reply.text + extra });
+      } else content += extra;
+    }
   }
   if (prompt.startsWith("CV :\n")) {
     const [fullName = "", headline = ""] = prompt.slice("CV :\n".length).split("\n");

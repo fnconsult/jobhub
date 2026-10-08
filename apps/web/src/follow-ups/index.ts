@@ -14,6 +14,9 @@
  *  - `delays` / `setDelays` — the Candidate's Follow-up Delay.
  *  - `notices(candidateId)` — the in-app notice: the Candidate's Applications
  *    with a Follow-up or suggestion waiting for them.
+ *  - `followUpCardApplies(card, status)` — whether a pending card still applies:
+ *    once the Application leaves "Postulée"/"Relancée", its Follow-up and
+ *    suggestion are withdrawn (hidden, and accepting them changes nothing).
  *
  * Rules kept here:
  *  - The wait is counted in French working days from the last change: the
@@ -106,6 +109,19 @@ const delaysSchema = z.object({ afterApplied: delay, afterFollowUp: delay });
 
 const KINDS = [FOLLOW_UP_CARD, ABANDON_CARD] as const;
 
+/** The statuses an Application waits in for a Follow-up: "Postulée" and "Relancée". */
+const WAITING_STATUSES: readonly ApplicationStatus[] = ["applied", "followed_up"];
+
+/**
+ * Whether a card still applies to its Application at this status. A Follow-up or
+ * "Abandonnée" suggestion only ends a wait at "Postulée" or "Relancée": once the
+ * Candidate moves the Application on (e.g. "Entretien"), it is withdrawn — not shown,
+ * not in the notice, and accepting it changes nothing. Other kinds of card always apply.
+ */
+export function followUpCardApplies(card: Pick<ActionCard, "kind">, status: ApplicationStatus): boolean {
+  return !(KINDS as readonly string[]).includes(card.kind) || WAITING_STATUSES.includes(status);
+}
+
 interface WaitingRow {
   id: string;
   candidate_id: string;
@@ -182,8 +198,21 @@ export function createFollowUps(database: Pool, deps: FollowUpsDeps): FollowUps 
     return true;
   }
 
-  async function moveTo(card: ActionCard, candidateId: string, status: ApplicationStatus) {
+  /** Throws (the card stays pending) unless the card still applies to its Application. */
+  async function waitingStatus(card: ActionCard, candidateId: string) {
     if (card.focus.kind !== "application") throw new Error("not a card on an Application");
+    const { rows } = await database.query<{ status: ApplicationStatus; status_changed_at: Date; last_sent_at: Date | null }>(
+      `SELECT a.status, a.status_changed_at, (SELECT max(sent_at) FROM follow_up_sent s WHERE s.application_id = a.id) AS last_sent_at
+         FROM application a WHERE a.id = $1 AND a.candidate_id = $2`,
+      [card.focus.id, candidateId],
+    );
+    const before = rows[0];
+    if (!before) throw new Error("no such Application");
+    if (!followUpCardApplies(card, before.status)) throw new Error(`the Application has moved on to "${before.status}"`);
+    return before;
+  }
+
+  async function moveTo(card: ActionCard, candidateId: string, status: ApplicationStatus) {
     const changed = await deps.applications.change(candidateId, card.focus.id, { status });
     if (!changed.ok) throw new Error("the Application could not be changed");
   }
@@ -200,8 +229,9 @@ export function createFollowUps(database: Pool, deps: FollowUpsDeps): FollowUps 
            JOIN job_offer o ON o.id = a.job_offer_id
            JOIN candidate c ON c.id = a.candidate_id
            LEFT JOIN follow_up_delay d ON d.candidate_id = a.candidate_id
-          WHERE a.status IN ('applied', 'followed_up')
+          WHERE a.status = ANY($1::text[])
           ORDER BY a.status_changed_at, a.id`,
+        [WAITING_STATUSES],
       );
       for (const row of rows) {
         try {
@@ -215,15 +245,10 @@ export function createFollowUps(database: Pool, deps: FollowUpsDeps): FollowUps 
 
     onAccept: {
       [FOLLOW_UP_CARD]: async (card, candidateId) => {
-        const { rows } = await database.query<{ status: ApplicationStatus; status_changed_at: Date; last_sent_at: Date | null }>(
-          `SELECT a.status, a.status_changed_at, (SELECT max(sent_at) FROM follow_up_sent s WHERE s.application_id = a.id) AS last_sent_at
-             FROM application a WHERE a.id = $1 AND a.candidate_id = $2`,
-          [card.focus.id, candidateId],
-        );
-        const before = rows[0];
+        const before = await waitingStatus(card, candidateId);
         await moveTo(card, candidateId, "followed_up");
         // A "Relancée" set by hand before this Follow-up still counts as one sent.
-        if (before?.status === "followed_up" && (!before.last_sent_at || before.status_changed_at > before.last_sent_at)) {
+        if (before.status === "followed_up" && (!before.last_sent_at || before.status_changed_at > before.last_sent_at)) {
           await database.query(`INSERT INTO follow_up_sent (application_id, sent_at) VALUES ($1, $2)`, [card.focus.id, before.status_changed_at]);
         }
         // Never before the status change it caused, so it is not taken for a "Relancée" set by hand.
@@ -232,7 +257,10 @@ export function createFollowUps(database: Pool, deps: FollowUpsDeps): FollowUps 
           [card.focus.id, now()],
         );
       },
-      [ABANDON_CARD]: (card, candidateId) => moveTo(card, candidateId, "abandoned"),
+      [ABANDON_CARD]: async (card, candidateId) => {
+        await waitingStatus(card, candidateId);
+        await moveTo(card, candidateId, "abandoned");
+      },
     },
 
     delays,
@@ -250,9 +278,17 @@ export function createFollowUps(database: Pool, deps: FollowUpsDeps): FollowUps 
     },
 
     async notices(candidateId) {
-      const cards = await deps.actionCards.pendingOfKinds(candidateId, [...KINDS]);
+      const cards = (await deps.actionCards.pendingOfKinds(candidateId, [...KINDS])).filter((card) => card.focus.kind === "application");
+      const { rows } = await database.query<{ id: string; status: ApplicationStatus }>(
+        `SELECT id::text, status FROM application WHERE candidate_id = $1 AND id::text = ANY($2::text[])`,
+        [candidateId, cards.map((card) => card.focus.id)],
+      );
+      const statuses = new Map(rows.map((row) => [row.id, row.status]));
       return cards
-        .filter((card) => card.focus.kind === "application")
+        .filter((card) => {
+          const status = statuses.get(card.focus.id);
+          return status !== undefined && followUpCardApplies(card, status);
+        })
         .map((card) => ({ applicationId: card.focus.id, jobTitle: payloadOf(card).jobTitle ?? "", kind: card.kind as FollowUpNotice["kind"] }));
     },
   };

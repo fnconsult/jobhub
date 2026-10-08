@@ -7,7 +7,7 @@ import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } f
 import { createJobOffers, migrateJobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles } from "../profiles";
 import { migrateTailoredDocuments } from "../tailored-documents";
-import { ABANDON_CARD, FOLLOW_UP_CARD, createFollowUps, migrateFollowUps, type FollowUps } from "./index";
+import { ABANDON_CARD, FOLLOW_UP_CARD, createFollowUps, followUpCardApplies, migrateFollowUps, type FollowUps } from "./index";
 
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -181,6 +181,39 @@ describe.skipIf(!connectionString)("Follow-ups (needs Postgres: DATABASE_URL)", 
     await followUps.proposeDue(day("2027-01-04"));
 
     expect(await pendingCards()).toEqual([]);
+  });
+
+  it("withdraws a pending Follow-up once the Candidate moves the Application on: no notice, and marking it as sent never takes the status back", async () => {
+    await setStatus("applied", day("2026-11-02"));
+    await followUps.proposeDue(day("2026-11-12"));
+    const [card] = await pendingCards();
+    expect(card).toMatchObject({ kind: FOLLOW_UP_CARD });
+    expect(followUpCardApplies(card!, "applied")).toBe(true);
+
+    await setStatus("interview", day("2026-11-13"));
+
+    expect(followUpCardApplies(card!, "interview")).toBe(false);
+    expect(await followUps.notices(candidateId)).toEqual([]);
+    expect(await actionCards.decide(candidateId, card!.id, "accept")).toEqual({ ok: false, error: "failed" });
+    expect((await applications.get(candidateId, applicationId))?.status).toBe("interview");
+    const { rows } = await database.query(`SELECT 1 FROM follow_up_sent WHERE application_id = $1`, [applicationId]);
+    expect(rows).toEqual([]);
+  });
+
+  it("never lets an « Abandonnée » suggestion overwrite a status the Application has moved on to (e.g. « Offre reçue »)", async () => {
+    await setStatus("followed_up", day("2026-11-12"));
+    await followUps.proposeDue(day("2026-11-26"));
+    await markSentOn(day("2026-11-26"));
+    await followUps.proposeDue(day("2026-12-10"));
+    const [card] = await pendingCards();
+    expect(card).toMatchObject({ kind: ABANDON_CARD });
+
+    await setStatus("offer_received", day("2026-12-11"));
+
+    expect(followUpCardApplies(card!, "offer_received")).toBe(false);
+    expect(await followUps.notices(candidateId)).toEqual([]);
+    expect(await actionCards.decide(candidateId, card!.id, "accept")).toEqual({ ok: false, error: "failed" });
+    expect((await applications.get(candidateId, applicationId))?.status).toBe("offer_received");
   });
 
   it("waits the Follow-up Delays the Candidate chose, and refuses delays that are not whole working days from 1 to 60", async () => {

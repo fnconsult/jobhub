@@ -14,7 +14,7 @@ import { MatchScoreView } from "@/components/MatchScoreView";
 import { TailoredCvReview } from "@/components/TailoredCvReview";
 import { TailoredDocumentsEditor } from "@/components/TailoredDocumentsEditor";
 import { WorkspaceHeader } from "@/components/WorkspaceHeader";
-import { ABANDON_CARD, FOLLOW_UP_CARD, type FollowUpPayload } from "@/follow-ups";
+import { ABANDON_CARD, FOLLOW_UP_CARD, followUpCardApplies, type FollowUpPayload } from "@/follow-ups";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getProfiles } from "@/profiles/server";
 import { routes } from "@/routes";
@@ -78,7 +78,7 @@ export default async function ApplicationPage({ params }: Params) {
       {jobOffer.employer ? <p className="lead">{jobOffer.employer}</p> : null}
       <p>{t("application.savedOn", { date: date.format(application.createdAt) })}</p>
       <CoachInView {...inView} />
-      <ActionCardList key={application.id} cards={cards.map((card) => cardView(card, t))} />
+      <ActionCardList key={application.id} cards={cards.filter((card) => followUpCardApplies(card, application.status)).map((card) => cardView(card, t))} />
 
       <div className="stack">
         <ApplicationStatusSelect applicationId={application.id} status={application.status} />

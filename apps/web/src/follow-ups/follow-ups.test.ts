@@ -182,4 +182,81 @@ describe.skipIf(!connectionString)("Follow-ups (needs Postgres: DATABASE_URL)", 
 
     expect(await pendingCards()).toEqual([]);
   });
+
+  it("waits the Follow-up Delays the Candidate chose, and refuses delays that are not whole working days from 1 to 60", async () => {
+    expect(await followUps.delays(candidateId)).toEqual({ afterApplied: 7, afterFollowUp: 10 });
+    expect(await followUps.setDelays(candidateId, { afterApplied: 3, afterFollowUp: 5 })).toEqual({ ok: true, delays: { afterApplied: 3, afterFollowUp: 5 } });
+    expect(await followUps.setDelays(candidateId, { afterApplied: 0, afterFollowUp: 2.5 })).toMatchObject({
+      ok: false,
+      errors: [{ field: "afterApplied" }, { field: "afterFollowUp" }],
+    });
+    expect(await followUps.delays(candidateId)).toEqual({ afterApplied: 3, afterFollowUp: 5 });
+    expect(await followUps.delays(otherCandidateId)).toEqual({ afterApplied: 7, afterFollowUp: 10 });
+
+    // 3 working days after Monday 2 November: Thursday 5 November.
+    await setStatus("applied", day("2026-11-02"));
+    await followUps.proposeDue(day("2026-11-04"));
+    expect(await pendingCards()).toEqual([]);
+    await followUps.proposeDue(day("2026-11-05"));
+    expect(await pendingCards()).toHaveLength(1);
+  });
+
+  it("tells the Candidate by email and in the app, without ever writing to the employer (drafts only)", async () => {
+    await setStatus("applied", day("2026-11-02"));
+    const mailed = testAuth.mailbox.length;
+
+    await followUps.proposeDue(day("2026-11-12"));
+    await followUps.proposeDue(day("2026-11-13"));
+
+    const sent = testAuth.mailbox.slice(mailed);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ to: "marie.dupont@example.fr" });
+    expect(sent[0]!.subject).toContain("DAF H/F");
+    expect(sent[0]!.text).toContain(`https://app.jobbbox.test/candidatures/${applicationId}`);
+    expect(await followUps.notices(candidateId)).toEqual([{ applicationId, jobTitle: "DAF H/F", kind: FOLLOW_UP_CARD }]);
+    expect(await followUps.notices(otherCandidateId)).toEqual([]);
+
+    const [card] = await pendingCards();
+    expect(card!.payload).toMatchObject({ subject: expect.any(String), text: expect.stringContaining("DAF H/F") });
+    await markSentOn(day("2026-11-13"));
+    expect(await followUps.notices(candidateId)).toEqual([]);
+    expect(testAuth.mailbox.slice(mailed)).toHaveLength(1);
+  });
+
+  it("drafts the Follow-up with the AI Coach in the Application's Document Language, and from a template when it fails", async () => {
+    const prompts: string[] = [];
+    const ai = {
+      generate: async ({ system }: { system: string }) => {
+        prompts.push(system);
+        if (prompts.length > 1) throw new Error("AI layer down");
+        return { text: '{"subject": "Ma candidature DAF", "text": "Bonjour, je reviens vers vous."}' };
+      },
+    } as unknown as NonNullable<Parameters<typeof createFollowUps>[1]["ai"]>;
+    const withAi = createFollowUps(database, {
+      actionCards: createActionCards(database),
+      applications,
+      mailer: { send: async () => {} },
+      appUrl: "https://app.jobbbox.test",
+      ai,
+    });
+    await setStatus("applied", day("2026-11-02"));
+
+    await withAi.proposeDue(day("2026-11-12"));
+    expect((await pendingCards())[0]!.payload).toMatchObject({ subject: "Ma candidature DAF", text: "Bonjour, je reviens vers vous." });
+    expect(prompts[0]).toContain("français");
+
+    await markSentOn(day("2026-11-12"));
+    await withAi.proposeDue(day("2026-11-26"));
+    expect((await pendingCards())[0]!.payload).toMatchObject({ subject: expect.stringContaining("DAF H/F"), text: expect.stringContaining("Bonjour") });
+  });
+
+  it("never proposes on, or lets anyone else act on, a Candidate's Application", async () => {
+    await setStatus("applied", day("2026-11-02"));
+    await followUps.proposeDue(day("2026-11-12"));
+    const [card] = await pendingCards();
+
+    expect(await pendingCards(otherCandidateId)).toEqual([]);
+    expect(await actionCards.decide(otherCandidateId, card!.id, "accept")).toEqual({ ok: false, error: "not_found" });
+    expect((await applications.get(candidateId, applicationId))?.status).toBe("applied");
+  });
 });

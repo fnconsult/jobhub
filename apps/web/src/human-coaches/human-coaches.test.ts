@@ -1,7 +1,26 @@
+import type { MasterCvContent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createApplications, migrateApplications, type Applications } from "../applications";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
-import { createHumanCoaches, migrateHumanCoaches, type HumanCoaches } from "./index";
+import { createJobOffers, migrateJobOffers } from "../job-offers";
+import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
+import type { ApplicationTailoredCv } from "../tailored-cv";
+import type { ApplicationDrafts } from "../tailored-documents";
+import { createHumanCoaches, migrateHumanCoaches, type HumanCoach, type HumanCoaches } from "./index";
+
+const masterCv: MasterCvContent = {
+  fullName: "Marie Dupont",
+  headline: "Directrice financière",
+  email: "marie.dupont@example.fr",
+  phone: "",
+  location: "Lyon",
+  summary: "",
+  experience: [{ title: "Directrice financière", employer: "Groupe Seb", location: "Lyon", period: "2005 – 2024", description: "Consolidation IFRS." }],
+  education: [],
+  skills: ["IFRS", "SAP"],
+  languages: [],
+};
 
 const SOPHIE = { name: "Sophie Martin", email: "sophie.martin@rh-conseil.fr", bookingUrl: "https://cal.com/sophie-martin/seance" };
 
@@ -9,6 +28,11 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
   let testAuth: TestAuth;
   let database: Pool;
   let coaches: HumanCoaches;
+  let profiles: Profiles;
+  let applications: Applications;
+  /** The Tailored Documents of each Application, as their modules would give them to the Candidate. */
+  let drafts: Map<string, ApplicationDrafts>;
+  let tailoredCvs: Map<string, ApplicationTailoredCv>;
 
   async function signUp(email: string) {
     const cookie = await signInWithMagicLink(testAuth, email);
@@ -18,12 +42,48 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
   beforeEach(async () => {
     testAuth = await startTestAuth();
     database = testAuth.auth.options.database as Pool;
+    await migrateProfiles(database);
+    await migrateJobOffers(database);
+    await migrateApplications(database);
     await migrateHumanCoaches(database);
-    coaches = createHumanCoaches(database);
-  });
+    profiles = createProfiles(database);
+    const jobOffers = createJobOffers(database);
+    applications = createApplications(database, { jobOffers, profiles });
+    drafts = new Map();
+    tailoredCvs = new Map();
+    coaches = createHumanCoaches(database, {
+      profiles,
+      applications,
+      tailoredDocuments: { get: async (owner, id) => ((await applications.get(owner, id)) ? (drafts.get(id) ?? null) : null) },
+      tailoredCvs: { get: async (owner, id) => ((await applications.get(owner, id)) ? (tailoredCvs.get(id) ?? null) : null) },
+    });
+    jobOfferId = async () => {
+      const captured = await jobOffers.capture({ source: { url: "https://www.apec.fr/offre/1" }, title: "DAF H/F", content: "Nous recherchons un DAF pour un groupe industriel à Lyon, avec 15 ans d'expérience.", employer: "Acme Industrie" });
+      if (!captured.ok) throw new Error("fixture refused");
+      return captured.jobOffer.id;
+    };
+  }, 60_000);
   afterEach(async () => {
     await testAuth.stop();
-  });
+  }, 60_000);
+
+  let jobOfferId: () => Promise<string>;
+
+  /** A Candidate with one Profile and one Application. */
+  async function candidateWithApplication(email: string) {
+    const id = await signUp(email);
+    const profile = await profiles.create(id, { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
+    if (!profile.ok) throw new Error("fixture refused");
+    const saved = await applications.save(id, { jobOfferId: await jobOfferId(), profileId: profile.profile.id });
+    if (!saved.ok) throw new Error("fixture refused");
+    return { id, profileId: profile.profile.id, applicationId: saved.application.id };
+  }
+
+  async function addCoach(coach = SOPHIE): Promise<HumanCoach> {
+    const added = await coaches.add(coach);
+    if (!added.ok) throw new Error("fixture refused");
+    return added.coach;
+  }
 
   describe("in the Back Office", () => {
     it("adds a Human Coach with their Cal.com booking link", async () => {
@@ -59,6 +119,79 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
       await coaches.retire(added.coach.id);
 
       expect(await coaches.list()).toEqual([]);
+    });
+  });
+
+  describe("Coach Access", () => {
+    it("a Human Coach signs in with the email the Back Office gave them", async () => {
+      const sophie = await addCoach();
+
+      expect(await coaches.coachSignedIn({ email: "Sophie.Martin@rh-conseil.fr", emailVerified: true })).toEqual(sophie);
+      expect(await coaches.coachSignedIn({ email: SOPHIE.email, emailVerified: false })).toBeNull();
+      expect(await coaches.coachSignedIn({ email: "marie.dupont@example.fr", emailVerified: true })).toBeNull();
+      await coaches.retire(sophie.id);
+      expect(await coaches.coachSignedIn({ email: SOPHIE.email, emailVerified: true })).toBeNull();
+    });
+
+    it("a Human Coach reads nothing of a Candidate who has not granted them Coach Access", async () => {
+      const sophie = await addCoach();
+      const marie = await candidateWithApplication("marie.dupont@example.fr");
+
+      expect(await coaches.candidates(sophie.id)).toEqual([]);
+      expect(await coaches.candidateFile(sophie.id, marie.id)).toBeNull();
+      expect(await coaches.application(sophie.id, marie.id, marie.applicationId)).toBeNull();
+    });
+
+    it("once granted, the Human Coach reads the Candidate's Profiles and Applications", async () => {
+      const sophie = await addCoach();
+      const marie = await candidateWithApplication("marie.dupont@example.fr");
+
+      expect(await coaches.grantAccess(marie.id, sophie.id)).toBe(true);
+
+      expect(await coaches.accessGranted(marie.id)).toEqual([sophie.id]);
+      expect(await coaches.candidates(sophie.id)).toEqual([{ id: marie.id, name: "", email: "marie.dupont@example.fr" }]);
+      const file = await coaches.candidateFile(sophie.id, marie.id);
+      expect(file?.profiles).toMatchObject([{ id: marie.profileId, masterCv: { content: masterCv } }]);
+      expect(file?.applications).toMatchObject([{ id: marie.applicationId, jobOffer: { title: "DAF H/F" } }]);
+      expect((await coaches.application(sophie.id, marie.id, marie.applicationId))?.application).toMatchObject({ id: marie.applicationId });
+    });
+
+    it("Coach Access is per Human Coach and per Candidate", async () => {
+      const sophie = await addCoach();
+      const luc = await addCoach({ ...SOPHIE, name: "Luc Bernard", email: "luc@rh.fr" });
+      const marie = await candidateWithApplication("marie.dupont@example.fr");
+      const paul = await candidateWithApplication("paul.martin@example.fr");
+      await coaches.grantAccess(marie.id, sophie.id);
+
+      expect(await coaches.candidateFile(luc.id, marie.id)).toBeNull();
+      expect(await coaches.candidateFile(sophie.id, paul.id)).toBeNull();
+      expect(await coaches.application(sophie.id, marie.id, paul.applicationId)).toBeNull();
+      expect(await coaches.application(sophie.id, paul.id, paul.applicationId)).toBeNull();
+    });
+
+    it("granting twice is harmless, and revoking ends the access at once", async () => {
+      const sophie = await addCoach();
+      const marie = await candidateWithApplication("marie.dupont@example.fr");
+      await coaches.grantAccess(marie.id, sophie.id);
+      await coaches.grantAccess(marie.id, sophie.id);
+
+      await coaches.revokeAccess(marie.id, sophie.id);
+
+      expect(await coaches.accessGranted(marie.id)).toEqual([]);
+      expect(await coaches.candidateFile(sophie.id, marie.id)).toBeNull();
+    });
+
+    it("cannot be granted to an unknown or retired Human Coach, and a retired one reads nothing", async () => {
+      const sophie = await addCoach();
+      const marie = await candidateWithApplication("marie.dupont@example.fr");
+      await coaches.grantAccess(marie.id, sophie.id);
+
+      await coaches.retire(sophie.id);
+
+      expect(await coaches.candidateFile(sophie.id, marie.id)).toBeNull();
+      expect(await coaches.accessGranted(marie.id)).toEqual([]);
+      expect(await coaches.grantAccess(marie.id, sophie.id)).toBe(false);
+      expect(await coaches.grantAccess(marie.id, "not-a-coach")).toBe(false);
     });
   });
 });

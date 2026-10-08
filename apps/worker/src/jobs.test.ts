@@ -1,8 +1,19 @@
 import type { SearchCriteria } from "@jobhub/shared";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createJobOffers, migrateJobOffers } from "@jobhub/web/job-offers";
+import { createThrowawayDatabase } from "../../web/src/test-support/throwaway-database";
 import type { DiscoverRequest, DiscoveryReport } from "./job-discovery";
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
-import { createJobs, JOB_DISCOVERY } from "./jobs";
+import { createJobs, JOB_DISCOVERY, type JobsDeps } from "./jobs";
+
+const connectionString = process.env.DATABASE_URL;
+
+/** For the jobs that never touch the database. */
+const noDatabase: JobsDeps["database"] = {
+  query: async () => {
+    throw new Error("unexpected query");
+  },
+};
 
 const criteria: SearchCriteria = { targetRole: "Directeur financier", location: "Lyon" };
 
@@ -16,6 +27,7 @@ function setup(discover?: (request: DiscoverRequest) => Promise<DiscoveryReport>
   const logs: string[] = [];
   const recorded: [string, JobSearchOutcome][] = [];
   const jobs = createJobs({
+    database: noDatabase,
     discovery: {
       async discover(request): Promise<DiscoveryReport> {
         runs.push(request);
@@ -93,6 +105,7 @@ describe("the worker without an AI layer", () => {
     const logs: string[] = [];
     const recorded: [string, JobSearchOutcome][] = [];
     const jobs = createJobs({
+      database: noDatabase,
       discovery: { unavailable: "Missing environment variable PERPLEXITY_API_KEY" },
       profiles: { get: async () => ({ archived: false, searchCriteria: criteria }) },
       jobSearches: { record: async (id, outcome) => void recorded.push([id, outcome]) },
@@ -109,5 +122,44 @@ describe("the worker without an AI layer", () => {
 
     await jobs[JOB_DISCOVERY]!.handler({ candidateId: "candidate-1", profileId: "profile-1", jobSearchId: "search-1" });
     expect(recorded).toEqual([["search-1", { failed: "unavailable" }]]);
+  });
+});
+
+const otherDeps = {
+  discovery: { unavailable: "not under test" },
+  profiles: { get: async () => null },
+  jobSearches: { record: async () => {} },
+  log: () => {},
+};
+
+describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)", () => {
+  let throwaway: Awaited<ReturnType<typeof createThrowawayDatabase>>;
+  beforeEach(async () => {
+    throwaway = await createThrowawayDatabase("test_worker_jobs");
+    await migrateJobOffers(throwaway.pool);
+  });
+  afterEach(async () => {
+    await throwaway.drop();
+  });
+
+  it("forgets, every 15 minutes, the Job Offers Guests captured more than 23 hours ago (ADR-0003)", async () => {
+    const jobOffers = createJobOffers(throwaway.pool);
+    const captured = await jobOffers.capture({ title: "DAF", content: "Poste de DAF à Lyon." }, "guest");
+    const tomorrow = new Date(Date.now() + 24 * 3_600_000);
+
+    const job = createJobs({ ...otherDeps, database: throwaway.pool, now: () => tomorrow })["guests.forget"];
+
+    expect(job?.cron).toBe("*/15 * * * *");
+    await job!.handler({});
+    expect(await jobOffers.get(captured.ok ? captured.jobOffer.id : "")).toBeNull();
+  });
+
+  it("has nothing to forget before the web app has created its tables", async () => {
+    const empty = await createThrowawayDatabase("test_worker_jobs_empty");
+    try {
+      await expect(createJobs({ ...otherDeps, database: empty.pool })["guests.forget"]!.handler({})).resolves.toBeUndefined();
+    } finally {
+      await empty.drop();
+    }
   });
 });

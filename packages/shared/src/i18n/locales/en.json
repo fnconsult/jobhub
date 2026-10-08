@@ -27,11 +27,63 @@
   "extension": {
     "title": "Jobbbox",
     "description": "Capture a job offer from the page you are viewing.",
-    "comingSoon": "Job offer capture is coming soon.",
     "signedInAs": "Signed in as {{email}}",
     "signedOut": "Sign in to Jobbbox to save your job offers.",
     "signIn": "Sign in",
-    "account": "My account"
+    "account": "My account",
+    "capturePage": "Capture this page",
+    "capturing": "Capturing the page…",
+    "captureImpossible": "This page cannot be captured. Open the job offer's page and try again.",
+    "unreachable": "Jobbbox cannot be reached right now. Check your connection and try again.",
+    "badge": "Analyse this offer",
+    "badgeLabel": "Analyse this job offer with Jobbbox",
+    "analysis": {
+      "title": "Job offer analysis",
+      "noJobOffer": "No job offer captured yet. Open a job offer, then click “Analyse this offer” or “Capture this page” in the Jobbbox extension.",
+      "jobOfferGone": "This job offer is no longer available: without an account, it is deleted after 24 hours. Capture it again to analyse it.",
+      "guestNotice": "Without an account, your CV and this job offer stay in this browser for your session only. Jobbbox reads your CV to compute the Match Score without saving it, and everything is deleted at the latest 24 hours after your first analysis.",
+      "expiresAt": "Your data will be deleted by {{date}} at the latest.",
+      "cvTitle": "Your CV",
+      "submit": "Compute my Match Score",
+      "scoring": "Computing the Match Score…",
+      "changeCv": "Use another CV",
+      "forget": "Delete my data now",
+      "forgotten": "Your CV and the job offer have been deleted from this browser.",
+      "score": "Match Score: {{score}} / 100",
+      "breakdownTitle": "Match Score breakdown",
+      "criteria": {
+        "skills": "Skills",
+        "seniority": "Experience",
+        "location": "Location",
+        "salary": "Salary",
+        "contractType": "Contract type"
+      },
+      "status": {
+        "match": "Matches",
+        "partial": "Partly matches",
+        "mismatch": "Does not match",
+        "unknown": "Not stated in the offer",
+        "notInCv": "Not found in your CV",
+        "noPreference": "No preference of yours to compare with"
+      },
+      "covered": "In your CV: {{skills}}",
+      "missing": "Missing from your CV: {{skills}}",
+      "years": "Your CV: {{cv}} years · the offer: {{required}} years",
+      "signUp": "Create an account to keep this job offer and your CV",
+      "offer": "The offer: {{value}}",
+      "offerYears": "The offer: {{required}} years",
+      "salary": {
+        "range": "{{min}} – {{max}} gross per year",
+        "from": "from {{amount}} gross per year",
+        "upTo": "up to {{amount}} gross per year",
+        "exactly": "{{amount}} gross per year",
+        "wanted": "Your minimum: {{amount}} gross per year"
+      },
+      "candidateNotice": "This job offer is saved in your Jobbbox account. The CV you upload here stays in this browser for your session only: Jobbbox reads it to compute the Match Score without saving it.",
+      "forgetCv": "Delete this CV from this browser"
+    },
+    "allSites": "Detect job offers on every site",
+    "allSitesHint": "To see “Analyse this offer” on employers' own career sites too. Your browser will ask for your permission; pages are still read in this browser only."
   },
   "signInEmail": {
     "subject": "Your Jobbbox sign-in link",

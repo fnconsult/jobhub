@@ -6,7 +6,8 @@
  * accepts PDF and Word (.docx) files and throws `CvFileError` (with a `code`)
  * for anything it cannot read. File formats, the AI Coach's reading of the CV
  * and the rule-based fallback when that reading fails all stay behind it.
- * Nothing is saved here: saving the reviewed draft is the Profiles module's job.
+ * Nothing is saved here: saving the reviewed draft is the Profiles module's job,
+ * and a Guest's CV is never saved at all (ADR-0003).
  */
 import type { AiLayer } from "@jobhub/ai";
 import type { MasterCvContent } from "@jobhub/shared";
@@ -30,13 +31,17 @@ export interface CvDraft {
 
 export interface DraftDeps {
   ai: AiLayer;
-  /** The Candidate uploading the CV (AI usage is counted against them). */
-  candidateId: string;
+  /**
+   * The Candidate uploading the CV (AI usage is counted against them), or null
+   * for a Guest, whose CV is read by rules alone: it is not sent to an AI
+   * provider without an account (ADR-0003).
+   */
+  candidateId: string | null;
 }
 
 export async function draftFromCv(file: CvFile, deps: DraftDeps): Promise<CvDraft> {
   const text = await readCvFile(file);
-  const reading = await readCvWithAi(text, deps.ai, deps.candidateId);
+  const reading = deps.candidateId === null ? null : await readCvWithAi(text, deps.ai, deps.candidateId);
   const masterCv = reading?.masterCv ?? outlineCv(text);
   return {
     masterCv,

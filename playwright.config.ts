@@ -48,7 +48,7 @@ export default defineConfig({
   projects: [
     {
       name: "web",
-      testMatch: /(web|auth|profiles|master-cv|match-score|ats-score|coach|billing|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv)\.spec\.ts/,
+      testMatch: /(web|auth|profiles|master-cv|match-score|ats-score|coach|billing|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|human-coaches)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" },
     },
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },
@@ -92,6 +92,9 @@ export default defineConfig({
       STRIPE_WEBHOOK_SECRET: "whsec_test_fake",
       STRIPE_PRICE_STANDARD: "price_standard_monthly",
       STRIPE_PRICE_PREMIUM: "price_premium_monthly",
+      // Coaching Sessions (#24): 90 €, 72 € on Premium (FAKE_STRIPE_COACHING_SESSION_PRICES).
+      STRIPE_PRICE_COACHING_SESSION: "price_coaching_session",
+      STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_coaching_session_premium",
       STRIPE_API_URL: process.env.E2E_STRIPE_URL,
       ADMIN_EMAILS: "back-office@e2e.jobbbox.test",
       // Enriched Contacts (#23) on Apollo, faked; the DPA flag stands for the signed agreement.

@@ -51,6 +51,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Follow-ups are up to date");
     expect(first.stdout).toContain("Plans and Plan Quotas are up to date");
     expect(first.stdout).toContain("Job Searches are up to date");
+    expect(first.stdout).toContain("Human Coaches, Coach Access and Coaching Sessions are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 
@@ -68,10 +69,14 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "ats_score", // issue #8: the ATS Score last computed for each Profile
         "candidate",
         "candidate_plan", // issue #22: Plans and Plan Quotas
+        "coach_access", // issue #24: the Human Coaches each Candidate granted Coach Access to
+        "coach_review", // issue #24: Coach Reviews of Tailored Documents
+        "coaching_session", // issue #24: Coaching Sessions paid through Stripe
         "company_dossier", // issue #17
         "enriched_contact", // issue #23: Enriched Contacts, with their source provider and retrieval date
         "follow_up_delay", // issue #21: each Candidate's Follow-up Delays
         "follow_up_sent", // issue #21: the Follow-ups marked as sent
+        "human_coach", // issue #24: Human Coaches and their Cal.com booking links
         "interview",
         "job_offer",
         "job_search", // issue #14: on-demand AI Coach job search
@@ -111,6 +116,14 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "ats_score", from_column: "profile_id", to_table: "profile" },
         { from_table: "candidate_plan", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "candidate_plan", from_column: "plan", to_table: "plan_quota" },
+        // Coach Access, Coach Reviews and Coaching Sessions (issue #24) go with their Candidate (and Application).
+        { from_table: "coach_access", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "coach_access", from_column: "coach_id", to_table: "human_coach" },
+        { from_table: "coach_review", from_column: "application_id", to_table: "application" },
+        { from_table: "coach_review", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "coach_review", from_column: "coach_id", to_table: "human_coach" },
+        { from_table: "coaching_session", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "coaching_session", from_column: "coach_id", to_table: "human_coach" },
         // A Company Dossier (issue #17) goes with its Application.
         { from_table: "company_dossier", from_column: "application_id", to_table: "application" },
         // Enriched Contacts (issue #23) go with their Application.

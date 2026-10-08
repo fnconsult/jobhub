@@ -15,8 +15,10 @@
  *      Interface Language, the Job Offers found that this Profile was never
  *      shown before).
  *  - `migrateJobDigests(database)` creates / upgrades the tables.
- * A Job Offer counts as shown once it was in a Job Digest of the Profile, or
- * once the Candidate saved it as an Application. Opt-ins and Job Digests
+ * A Job Offer counts as shown once it was in a Job Digest or a Job Search of
+ * the Profile, or once the Candidate saved it as an Application. Opting out
+ * keeps when the Job Digest last ran, so opting in again does not make it due
+ * sooner than the Plan's frequency. Opt-ins and Job Digests
  * belong to their Profile and are deleted with it (ADR-0010); the Job Offers
  * they list are kept.
  */
@@ -46,7 +48,7 @@ export interface JobDigest {
 }
 
 export interface JobDigestSettings {
-  /** Whether the Candidate opted in to the Job Digest of this Profile. */
+  /** Whether the Candidate receives the Job Digest of this Profile: opted in, and their Plan includes it. */
   subscribed: boolean;
   /** How often the Candidate's Plan sends it; "none" when the Plan does not include it. */
   frequency: JobDigestFrequency;
@@ -121,7 +123,7 @@ const PERIOD_MS: Record<Exclude<JobDigestFrequency, "none">, number> = { daily: 
  */
 const SCHEDULE_SLACK_MS = HOUR_MS;
 
-/** Creates or upgrades the Job Digest tables. Run after the Profiles' and Job Offers' migrations. */
+/** Creates or upgrades the Job Digest tables. Run after the Profiles', Job Offers' and Job Searches' migrations. */
 export async function migrateJobDigests(database: Pool): Promise<void> {
   await database.query(`
     CREATE TABLE IF NOT EXISTS job_digest_subscription (
@@ -131,6 +133,8 @@ export async function migrateJobDigests(database: Pool): Promise<void> {
       subscribed_at timestamptz NOT NULL,
       last_run_at timestamptz
     );
+    -- Set while opted out: the row stays so last_run_at survives opting in again.
+    ALTER TABLE job_digest_subscription ADD COLUMN IF NOT EXISTS unsubscribed_at timestamptz;
     CREATE TABLE IF NOT EXISTS job_digest (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       profile_id uuid NOT NULL REFERENCES profile (id) ON DELETE CASCADE,
@@ -196,7 +200,10 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
   async function settingsOf(candidateId: string, profile: Profile): Promise<JobDigestSettings> {
     const [{ plan, frequency }, subscription, latest] = await Promise.all([
       planOf(candidateId),
-      database.query("SELECT 1 FROM job_digest_subscription WHERE profile_id = $1 AND candidate_id = $2", [profile.id, candidateId]),
+      database.query("SELECT 1 FROM job_digest_subscription WHERE profile_id = $1 AND candidate_id = $2 AND unsubscribed_at IS NULL", [
+        profile.id,
+        candidateId,
+      ]),
       database.query<DigestRow>(
         "SELECT id, job_offer_ids, sent_at FROM job_digest WHERE profile_id = $1 AND candidate_id = $2 ORDER BY sent_at DESC LIMIT $3",
         [profile.id, candidateId, LATEST_DIGESTS],
@@ -206,17 +213,21 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
       latest.rows.map(async (row) => ({ id: row.id, sentAt: row.sent_at, results: await resultsFor(profile, row.job_offer_ids) })),
     );
     return {
-      subscribed: subscription.rows.length > 0,
+      subscribed: subscription.rows.length > 0 && frequency !== "none",
       frequency,
       upgradeTo: frequency === "none" ? await upgradeFor(plan) : null,
       digests: digests.filter((digest) => digest.results.length > 0),
     };
   }
 
-  /** The Job Offers this Profile was already shown: in its Job Digests, or saved by the Candidate. */
+  /** The Job Offers this Profile was already shown: in its Job Digests or Job Searches, or saved by the Candidate. */
   async function shownTo(candidateId: string, profileId: string): Promise<Set<string>> {
     const [{ rows }, saved] = await Promise.all([
-      database.query<{ id: string }>("SELECT DISTINCT unnest(job_offer_ids) AS id FROM job_digest WHERE profile_id = $1", [profileId]),
+      database.query<{ id: string }>(
+        `SELECT unnest(job_offer_ids) AS id FROM job_digest WHERE profile_id = $1 AND candidate_id = $2
+         UNION SELECT unnest(job_offer_ids) FROM job_search WHERE profile_id = $1 AND candidate_id = $2 AND status = 'done'`,
+        [profileId, candidateId],
+      ),
       deps.applications.list(candidateId),
     ]);
     return new Set([...rows.map((row) => row.id), ...saved.map((application) => application.jobOffer.id)]);
@@ -273,7 +284,8 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
       if (frequency === "none") return { ok: false, error: "not_included", plan, upgradeTo: await upgradeFor(plan) };
       await database.query(
         `INSERT INTO job_digest_subscription (profile_id, candidate_id, unsubscribe_token, subscribed_at) VALUES ($1, $2, $3, $4)
-         ON CONFLICT (profile_id) DO NOTHING`,
+         ON CONFLICT (profile_id) DO UPDATE SET unsubscribed_at = NULL
+         WHERE job_digest_subscription.unsubscribed_at IS NOT NULL`,
         [profile.id, candidateId, newToken(), now()],
       );
       return { ok: true, settings: await settingsOf(candidateId, profile) };
@@ -281,12 +293,18 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
 
     async unsubscribe(candidateId, profileId) {
       if (!UUID.test(profileId)) return;
-      await database.query("DELETE FROM job_digest_subscription WHERE profile_id = $1 AND candidate_id = $2", [profileId, candidateId]);
+      await database.query(
+        "UPDATE job_digest_subscription SET unsubscribed_at = $3 WHERE profile_id = $1 AND candidate_id = $2 AND unsubscribed_at IS NULL",
+        [profileId, candidateId, now()],
+      );
     },
 
     async unsubscribeByToken(token) {
       if (!TOKEN.test(token)) return false;
-      const { rowCount } = await database.query("DELETE FROM job_digest_subscription WHERE unsubscribe_token = $1", [token]);
+      const { rowCount } = await database.query(
+        "UPDATE job_digest_subscription SET unsubscribed_at = $2 WHERE unsubscribe_token = $1 AND unsubscribed_at IS NULL",
+        [token, now()],
+      );
       return (rowCount ?? 0) > 0;
     },
 
@@ -295,7 +313,7 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
       const shortestPeriod = Math.min(...Object.values(PERIOD_MS));
       const { rows } = await database.query<{ profile_id: string; candidate_id: string }>(
         `SELECT profile_id, candidate_id FROM job_digest_subscription
-         WHERE last_run_at IS NULL OR last_run_at <= $1 ORDER BY last_run_at NULLS FIRST`,
+         WHERE unsubscribed_at IS NULL AND (last_run_at IS NULL OR last_run_at <= $1) ORDER BY last_run_at NULLS FIRST`,
         [new Date(at.getTime() - shortestPeriod + SCHEDULE_SLACK_MS)],
       );
       const frequencies = new Map<string, JobDigestFrequency>();
@@ -308,7 +326,7 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
         if (!profile || profile.archived) continue;
         const claimed = await database.query(
           `UPDATE job_digest_subscription SET last_run_at = $2
-           WHERE profile_id = $1 AND (last_run_at IS NULL OR last_run_at <= $3)`,
+           WHERE profile_id = $1 AND unsubscribed_at IS NULL AND (last_run_at IS NULL OR last_run_at <= $3)`,
           [row.profile_id, at, new Date(at.getTime() - PERIOD_MS[frequency] + SCHEDULE_SLACK_MS)],
         );
         if (claimed.rowCount) due.push({ candidateId: row.candidate_id, profileId: row.profile_id });
@@ -320,7 +338,7 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
       const profile = await ownProfile(candidateId, profileId);
       if (!profile || profile.archived) return null;
       const { rows } = await database.query<{ unsubscribe_token: string }>(
-        "SELECT unsubscribe_token FROM job_digest_subscription WHERE profile_id = $1 AND candidate_id = $2",
+        "SELECT unsubscribe_token FROM job_digest_subscription WHERE profile_id = $1 AND candidate_id = $2 AND unsubscribed_at IS NULL",
         [profile.id, candidateId],
       );
       const token = rows[0]?.unsubscribe_token;

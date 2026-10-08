@@ -228,6 +228,7 @@ test.describe("Job Digest", () => {
     try {
       await visitor.goto(unsubscribeLink.toString());
       await expect(visitor.getByRole("heading", { level: 1 })).toHaveText(fr.jobDigest.unsubscribePage.title);
+      await expect(visitor.locator("html")).toHaveAttribute("lang", "fr");
       await visitor.getByRole("button", { name: fr.jobDigest.unsubscribePage.action }).click();
       await expect(visitor.getByRole("status")).toHaveText(fr.jobDigest.unsubscribePage.done);
       // Used again, it says it no longer works.
@@ -275,6 +276,8 @@ test.describe("Job Digest", () => {
     try {
       await visitor.goto(unsubscribeLink.toString());
       await expect(visitor.getByRole("heading", { level: 1 })).toHaveText(en.jobDigest.unsubscribePage.title);
+      // Screen readers read it in English too.
+      await expect(visitor.locator("html")).toHaveAttribute("lang", "en");
     } finally {
       await visitor.close();
     }
@@ -295,16 +298,18 @@ test.describe("Job Digest", () => {
     await expect(section.getByRole("button", { name: en.jobDigest.subscribe, exact: true })).toBeVisible();
   });
 
-  test("only sends Job Offers the Profile was never shown: not one saved as an Application, and not one in an earlier Job Digest", async ({ page }) => {
+  test("only sends Job Offers the Profile was never shown: not one its Job Search listed, saved as an Application or not; opting out and back in does not make it come sooner", async ({ page }) => {
     const address = await signIn(page, "digest-new-only", "standard");
     const profileId = await createProfile(page);
+    const otherProfileId = await createProfile(page, "Responsable financière");
 
-    // The Candidate already found and saved the DAF Job Offer through a Job Search.
+    // The Candidate ran a Job Search for the Profile: it listed both Job Offers, and they saved the DAF one.
     await page.goto(`/profils/${profileId}`);
     await page.getByRole("button", { name: "Chercher des offres", exact: true }).click();
     await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
     const daf = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2, name: DAF }) });
     await expect(daf, workerOutput).toHaveCount(1, { timeout: 90_000 });
+    await expect(page.getByRole("heading", { level: 2, name: RESPONSABLE })).toBeVisible();
     await daf.getByRole("button", { name: "Enregistrer en candidature" }).click();
     await expect(daf.getByText("Enregistrée dans vos candidatures.")).toBeVisible();
 
@@ -314,25 +319,22 @@ test.describe("Job Digest", () => {
     await expect(section.getByRole("status")).toHaveText(fr.jobDigest.subscribed);
     await scheduleTick();
 
-    expect(await waitForDigestRun(profileId, 1)).toBe(`[job-digest] profile ${profileId}: 2 Job Offer(s) found, Job Digest sent`);
-    await expect.poll(() => emailsTo(address).length).toBe(1);
-    const [email] = emailsTo(address);
-    expect(email!.subject).toBe("Job Digest « Directrice administrative et financière » : 1 nouvelle offre");
-    expect(email!.text).toContain(RESPONSABLE);
-    expect(email!.text).not.toContain(DAF);
-    await page.reload();
-    await expect(section.getByRole("link", { name: RESPONSABLE })).toBeVisible();
-    await expect(section.getByRole("link", { name: DAF })).toHaveCount(0);
+    // Job discovery finds the same two Job Offers: the Candidate saw both in the Job Search.
+    expect(await waitForDigestRun(profileId, 1)).toBe(`[job-digest] profile ${profileId}: 2 Job Offer(s) found, nothing new to send`);
+    expect(emailsTo(address)).toEqual([]);
 
-    // Opting out and back in makes it due again at once; Job discovery finds the
-    // same two Job Offers, both already shown, so nothing is sent.
+    // Opting out and back in keeps the weekly Plan Quota: not due again before the week is over.
     await section.getByRole("button", { name: fr.jobDigest.unsubscribe }).click();
     await expect(section.getByRole("button", { name: fr.jobDigest.subscribe, exact: true })).toBeVisible();
     await section.getByRole("button", { name: fr.jobDigest.subscribe, exact: true }).click();
     await expect(section.getByRole("status")).toHaveText(fr.jobDigest.subscribed);
+    // Another Profile, opted in for the first time, is due on the same tick: once it ran, the tick is over.
+    await page.goto(`/profils/${otherProfileId}`);
+    await section.getByRole("button", { name: fr.jobDigest.subscribe, exact: true }).click();
+    await expect(section.getByRole("status")).toHaveText(fr.jobDigest.subscribed);
     await scheduleTick();
 
-    expect(await waitForDigestRun(profileId, 2)).toBe(`[job-digest] profile ${profileId}: 2 Job Offer(s) found, nothing new to send`);
-    expect(emailsTo(address)).toHaveLength(1);
+    await waitForDigestRun(otherProfileId, 1);
+    expect(digestReports(profileId)).toHaveLength(1);
   });
 });

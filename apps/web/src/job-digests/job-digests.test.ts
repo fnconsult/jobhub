@@ -6,6 +6,7 @@ import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } f
 import type { MailMessage } from "../auth";
 import { createBilling, migrateBilling, type Billing } from "../billing";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
+import { createJobSearches, migrateJobSearches, type JobSearches } from "../job-searches";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import { createJobDigests, migrateJobDigests, type JobDigests } from "./index";
 
@@ -31,6 +32,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
   let jobOffers: JobOffers;
   let applications: Applications;
   let billing: Billing;
+  let jobSearches: JobSearches;
   let jobDigests: JobDigests;
   let outbox: MailMessage[];
   let clock: { now: Date };
@@ -68,6 +70,11 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
     if (!result.ok) throw new Error(`fixture subscription refused: ${JSON.stringify(result)}`);
   }
 
+  async function deliverOne(): Promise<MailMessage> {
+    await jobDigests.deliver(candidateId, profileId, [await capture(`DAF ${outbox.length}`, { location: "Lyon" })]);
+    return outbox.at(-1)!;
+  }
+
   const later = (hours: number) => (clock.now = new Date(clock.now.getTime() + hours * HOUR));
 
   beforeEach(async () => {
@@ -77,12 +84,21 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
     await migrateJobOffers(database);
     await migrateApplications(database);
     await migrateBilling(database);
+    await migrateJobSearches(database);
     await migrateJobDigests(database);
     clock = { now: new Date("2026-10-15T08:00:00+02:00") };
     profiles = createProfiles(database);
     jobOffers = createJobOffers(database);
     applications = createApplications(database, { jobOffers, profiles });
     billing = createBilling({ database, baseURL: "http://localhost:3000", now: () => clock.now });
+    jobSearches = createJobSearches(database, {
+      profiles,
+      jobOffers,
+      applications,
+      quotas: billing,
+      queue: { send: async () => {} },
+      now: () => clock.now,
+    });
     outbox = [];
     jobDigests = createJobDigests(database, {
       profiles,
@@ -137,6 +153,16 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       expect(await jobDigests.subscribe(candidateId, profileId)).toEqual({ ok: false, error: "archived" });
     });
 
+    it("is not received any more once the Candidate's Plan no longer includes it", async () => {
+      await subscribed();
+
+      await onPlan(candidateId, "free");
+
+      expect(await jobDigests.settings(candidateId, profileId)).toMatchObject({ subscribed: false, frequency: "none", upgradeTo: "standard" });
+      await onPlan(candidateId, "standard");
+      expect(await jobDigests.settings(candidateId, profileId)).toMatchObject({ subscribed: true, frequency: "weekly" });
+    });
+
     it("can be undone from the app", async () => {
       await subscribed();
 
@@ -177,6 +203,19 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       expect(digest?.results.map((result) => result.jobOffer.id)).toEqual([fresh]);
       expect(await jobDigests.deliver(candidateId, profileId, [first, saved, fresh])).toBeNull();
       expect(outbox).toHaveLength(2);
+    });
+
+    it("does not list again the Job Offers a Job Search of the Profile already showed the Candidate", async () => {
+      const seen = await capture("DAF H/F", { location: "Lyon" });
+      const fresh = await capture("Responsable financier", { location: "Lyon" });
+      await subscribed();
+      const started = await jobSearches.start(candidateId, { profileId });
+      if (!started.ok) throw new Error("fixture Job Search refused");
+      await jobSearches.record(started.jobSearch.id, { jobOfferIds: [seen] });
+
+      const digest = await jobDigests.deliver(candidateId, profileId, [seen, fresh]);
+
+      expect(digest?.results.map((result) => result.jobOffer.id)).toEqual([fresh]);
     });
 
     it("sends nothing when nothing is new, the Candidate did not opt in, or their Plan no longer includes it", async () => {
@@ -236,6 +275,26 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       expect(await jobDigests.claimDue()).toEqual([{ candidateId, profileId }]);
       later(12);
       expect(await jobDigests.claimDue()).toEqual([]);
+    });
+
+    it("is not due again sooner by opting out and in again", async () => {
+      await subscribed();
+      expect(await jobDigests.claimDue()).toEqual([{ candidateId, profileId }]);
+      later(1);
+
+      await jobDigests.unsubscribe(candidateId, profileId);
+      await subscribed();
+      expect(await jobDigests.claimDue()).toEqual([]);
+
+      const token = new URL((await deliverOne()).headers!["List-Unsubscribe"]!.slice(1, -1)).searchParams.get("token")!;
+      await jobDigests.unsubscribeByToken(token);
+      await subscribed();
+      expect(await jobDigests.claimDue()).toEqual([]);
+
+      later(6 * 24 + 21);
+      expect(await jobDigests.claimDue()).toEqual([]);
+      later(1);
+      expect(await jobDigests.claimDue()).toEqual([{ candidateId, profileId }]);
     });
 
     it("skips Profiles whose Plan no longer includes the Job Digest, or that were archived", async () => {

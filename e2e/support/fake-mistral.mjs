@@ -2,6 +2,11 @@
 // Mistral's EU API (api.mistral.ai), the provider every AI task is routed to in
 // the suite. Nothing ever reaches a real provider.
 //
+// For a Cover Letter or an Outreach Message (task writing), it says which
+// language and Job Offer it was asked to write for, and, for an Outreach
+// Message, by which channel, so tests can check the Document Language and the
+// drafting request reached the AI Coach.
+//
 // For a CV (task cv_parsing, prompt "CV :\n<text>") it answers like the AI
 // Coach would: the CV's first line as the name, its second as the title, and
 // fixed Search Criteria the rule-based fallback could never produce, so tests
@@ -35,6 +40,15 @@ globalThis.fetch = async (input, init) => {
     const agency = /^Employeur affiché : Cabinet/m.test(prompt);
     const presumed = /Client présumé : (.+)/.exec(prompt)?.[1]?.trim() ?? null;
     content = JSON.stringify({ recruitingAgency: agency, presumedEmployer: agency ? presumed : null });
+  }
+  const writing = /^(?:Tu es le coach Jobbbox\. Tu rédiges|You are the Jobbbox coach\. You write)/.test(system);
+  if (writing) {
+    const language = system.startsWith("Tu es") ? "fr" : "en";
+    const title = /"title":"([^"]*)"/.exec(prompt)?.[1] ?? "?";
+    if (system.includes('"subject"')) {
+      const channel = system.includes("InMail") ? "inmail" : "email";
+      content = JSON.stringify({ subject: `Candidature (${language}) : ${title}`, text: `Message d'approche (${language}, ${channel}) pour « ${title} ».` });
+    } else content = `Lettre de motivation (${language}) pour « ${title} ».`;
   }
   if (prompt.startsWith("CV :\n")) {
     const [fullName = "", headline = ""] = prompt.slice("CV :\n".length).split("\n");

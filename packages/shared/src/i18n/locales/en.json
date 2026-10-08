@@ -749,7 +749,10 @@
       "textLabel": "Message text",
       "openInMail": "Open in my mail app"
     },
-    "writtenIn": "Written in {{language}}.",
+    "writtenIn": {
+      "fr": "Written in French.",
+      "en": "Written in English."
+    },
     "save": "Save my changes",
     "saved": "Changes saved",
     "copy": "Copy the text",

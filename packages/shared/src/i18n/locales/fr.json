@@ -749,7 +749,10 @@
       "textLabel": "Texte du message",
       "openInMail": "Ouvrir dans ma messagerie"
     },
-    "writtenIn": "Rédigé en {{language}}.",
+    "writtenIn": {
+      "fr": "Rédigé en français.",
+      "en": "Rédigé en anglais."
+    },
     "save": "Enregistrer mes modifications",
     "saved": "Modifications enregistrées",
     "copy": "Copier le texte",

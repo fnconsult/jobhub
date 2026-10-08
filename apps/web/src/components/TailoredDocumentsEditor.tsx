@@ -37,7 +37,7 @@ export function TailoredDocumentsEditor({ applicationId, initial }: { applicatio
   const id = useId();
   const [language, setLanguage] = useState(initial.documentLanguage);
   return (
-    <section className="stack tailored-documents" aria-labelledby={`${id}-title`}>
+    <section className="stack" aria-labelledby={`${id}-title`}>
       <h2 id={`${id}-title`}>{t("tailoredDocuments.title")}</h2>
       <p className="notice">{t("tailoredDocuments.draftsOnly")}</p>
       <div className="field">
@@ -134,7 +134,7 @@ function DraftEditor({ applicationId, document, language, initial }: { applicati
         </>
       ) : (
         <>
-          <p className="hint">{t("tailoredDocuments.writtenIn", { language: t(`tailoredDocuments.languages.${draft.language}`) })}</p>
+          <p className="hint">{t(`tailoredDocuments.writtenIn.${draft.language}`)}</p>
           {contactRoles.length > 0 ? (
             <div>
               <p className="hint">{t("tailoredDocuments.outreachMessage.contactRoles")}</p>
@@ -155,7 +155,7 @@ function DraftEditor({ applicationId, document, language, initial }: { applicati
             <label htmlFor={`${id}-text`}>{t(`${keys}.textLabel`)}</label>
             <textarea
               id={`${id}-text`}
-              className="input draft-text"
+              className="input"
               rows={isOutreach ? 8 : 16}
               maxLength={10_000}
               value={text}

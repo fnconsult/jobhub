@@ -12,7 +12,9 @@
  *  - A Tailored CV only rephrases, reorders, cuts and emphasises facts of the
  *    Master CV. Whatever the AI Coach writes, the proposal is rebuilt from the
  *    Master CV: identity and contact details are copied, jobs, diplomas,
- *    languages and skills are kept only if the Master CV has them.
+ *    languages and skills are kept only if the Master CV has them, and a
+ *    rephrased text stating a figure or a Job Offer keyword the Master CV
+ *    lacks is replaced by the Master CV's.
  * Every read and change is scoped to the Candidate; inputs are untrusted and
  * problems come back as results. Task `writing`, EU endpoints only (ADR-0007).
  */
@@ -82,12 +84,34 @@ type AiReply = z.output<typeof aiReply>;
 
 const same = (a: string, b: string) => normalise(a) === normalise(b);
 
+/** Every text of a CV, normalised, as one string. */
+function cvText(cv: CvContent): string {
+  return normalise(
+    [cv.headline, cv.summary, ...cv.skills, ...cv.experience.flatMap((job) => Object.values(job)), ...cv.education.flatMap((item) => Object.values(item)), ...cv.languages.flatMap((item) => Object.values(item))].join(" | "),
+  );
+}
+
+const numbersIn = (text: string) => normalise(text).match(/\d+/g) ?? [];
+
+/**
+ * Whether a rephrased text states what the Master CV does not: a figure, or one
+ * of the Job Offer's keywords (the usual way to push a Match Score up).
+ */
+function invents(rephrased: string, masterText: string, keywords: string[]): boolean {
+  const said = normalise(rephrased);
+  if (numbersIn(rephrased).some((number) => !masterText.includes(` ${number} `))) return true;
+  return keywords.some((keyword) => said.includes(normalise(keyword)) && !masterText.includes(normalise(keyword)));
+}
+
 /**
  * The proposal rebuilt from the Master CV (ADR-0006): the AI Coach may rephrase
  * the headline, the summary and each job's title and description, reorder and
- * cut jobs, diplomas, languages and skills, and nothing else.
+ * cut jobs, diplomas, languages and skills, and nothing else. A rephrased text
+ * that invents (see `invents`) is replaced by the Master CV's. `keywords`: the Job Offer's skills.
  */
-function fromMasterCv(master: CvContent, reply: AiReply): CvContent {
+function fromMasterCv(master: CvContent, reply: AiReply, keywords: string[]): CvContent {
+  const masterText = cvText(master);
+  const rephrased = (proposed: string, original: string) => (proposed.trim() && !invents(proposed, masterText, keywords) ? proposed.trim() : original);
   const pick = <T>(items: T[], wanted: unknown[], matches: (item: T, wanted: never) => boolean): T[] => {
     const kept: T[] = [];
     for (const candidate of wanted) {
@@ -99,12 +123,12 @@ function fromMasterCv(master: CvContent, reply: AiReply): CvContent {
   type Job = AiReply["experience"][number];
   const experience = pick(master.experience, reply.experience, (job, wanted: Job) => same(job.employer, wanted.employer) && same(job.period, wanted.period)).map((job) => {
     const wanted = reply.experience.find((option) => same(job.employer, option.employer) && same(job.period, option.period))!;
-    return { ...job, title: wanted.title.trim() || job.title, description: wanted.description.trim() || job.description };
+    return { ...job, title: rephrased(wanted.title, job.title), description: rephrased(wanted.description, job.description) };
   });
   return {
     ...master,
-    headline: reply.headline.trim() || master.headline,
-    summary: reply.summary.trim() || master.summary,
+    headline: rephrased(reply.headline, master.headline),
+    summary: rephrased(reply.summary, master.summary),
     experience,
     education: pick(master.education, reply.education, (item, wanted: AiReply["education"][number]) => same(item.degree, wanted.degree) && same(item.institution, wanted.institution)),
     skills: pick(master.skills, reply.skills, (skill, wanted: string) => same(skill, wanted)),
@@ -185,7 +209,7 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
       }
       if (!reply) return { ok: false, error: "unavailable" };
       if (parsed.data.language) await keepDocumentLanguage(database, application.id, language);
-      const proposal: ProposalRow = { language, masterCvVersion: profile.masterCv.version, content: fromMasterCv(master, reply), proposedAt: new Date().toISOString() };
+      const proposal: ProposalRow = { language, masterCvVersion: profile.masterCv.version, content: fromMasterCv(master, reply, jobOffer.skills ?? []), proposedAt: new Date().toISOString() };
       await database.query(
         `INSERT INTO tailored_cv (application_id, proposal) VALUES ($1, $2) ON CONFLICT (application_id) DO UPDATE SET proposal = $2`,
         [application.id, proposal],

@@ -128,4 +128,41 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
     expect(prompt).toContain("DAF H/F");
     expect((await tailoredCvs.get(candidateId, applicationId))?.proposal?.content.headline).toBe(PROPOSAL.headline);
   });
+
+  it("whatever the AI Coach invents is left out: jobs, diplomas, skills, figures and the Job Offer's keywords the Master CV does not have", async () => {
+    reply = {
+      ...PROPOSAL,
+      fullName: "Marie Durand",
+      headline: "DAF experte Power BI",
+      summary: "Directrice financière depuis 2005, 20 filiales consolidées.",
+      experience: [
+        { employer: "Groupe Seb", period: "2005 – 2024", title: "DAF Groupe", description: "Consolidation IFRS de 12 filiales et tableaux de bord Power BI." },
+        { employer: "Acme Industrie", period: "2024 – aujourd'hui", title: "DAF", description: "Direction financière." },
+        { employer: "Danone", period: "1995 – 2005", title: "Contrôleuse de gestion", description: "Budget et reporting mensuel de 40 sites." },
+      ],
+      education: [{ degree: "MBA", institution: "INSEAD", year: "2010" }, ...PROPOSAL.education],
+      skills: ["Power BI", "IFRS", "SAP", "Reporting"],
+    };
+
+    const result = await tailoredCvs.propose(candidateId, applicationId, {});
+
+    expect(result).toMatchObject({
+      ok: true,
+      tailoredCv: {
+        proposal: {
+          content: {
+            fullName: "Marie Dupont",
+            headline: masterCv.headline,
+            summary: masterCv.summary,
+            experience: [
+              { ...masterCv.experience[0], title: "DAF Groupe" },
+              masterCv.experience[1],
+            ],
+            education: masterCv.education,
+            skills: ["IFRS", "SAP", "Reporting"],
+          },
+        },
+      },
+    });
+  });
 });

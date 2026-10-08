@@ -136,8 +136,18 @@ A job title the Candidate should look for and contact at the employer (e.g. "DRH
 _Avoid_: Lead, target
 
 **Enriched Contact**:
-A named person at the employer, with contact details, obtained from a licensed data provider. Premium Plan only.
+A named person at the employer, with contact details, obtained from a licensed data provider. Premium Plan only. It exists once a found person has been revealed.
 _Avoid_: Lead, prospect
+
+**Found person**:
+A person a contact-enrichment provider found at the employer, from the Company Dossier's Suggested Contact Roles, before any contact details. Finding is not counted and is not yet an Enriched Contact.
+_Avoid_: Lead, prospect
+
+**Reveal**:
+Getting a found person's contact details, which makes them an Enriched Contact and counts one against the Plan Quota. Revealing the same person again is free; a reveal that fails or brings back nothing is not counted.
+
+**Contact-enrichment provider**:
+The licensed data provider (Lusha, Kaspr or Apollo) that supplies Enriched Contacts. Chosen by configuration and enabled only once its data-processing agreement is signed.
 
 ### Applications
 
@@ -184,7 +194,7 @@ A motivation letter written for one Job Offer, stored on its Application.
 _Avoid_: Motivation letter, lettre (in code)
 
 **Outreach Message**:
-A short email or LinkedIn InMail draft to a contact at the employer, stored on its Application.
+A short email or LinkedIn InMail draft to a contact at the employer, stored on its Application. It may name one chosen Enriched Contact as recipient; the other Tailored Documents name no one.
 _Avoid_: Mail, InMail, message (alone)
 
 **Tailored Documents**:

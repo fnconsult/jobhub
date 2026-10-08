@@ -517,5 +517,66 @@
     "offerAndWanted": "Offre : {{offer}} · Recherché : {{wanted}}",
     "salaryOffer": "Offre : {{offer}}",
     "salaryWanted": "Recherché : {{amount}} € brut par an minimum"
+  },
+  "companyDossier": {
+    "title": "Dossier entreprise",
+    "intro": "Rassemblez les informations publiques sur l'employeur : identité, adresse, chiffres clés et fonctions à contacter.",
+    "build": "Constituer le dossier entreprise",
+    "rebuild": "Mettre à jour le dossier",
+    "working": "Recherche en cours…",
+    "unavailable": "Les sources sont indisponibles pour le moment. Réessayez dans quelques minutes.",
+    "notACompany": "Ce nom ou ce SIREN ne désigne pas une entreprise : un entrepreneur individuel est une personne privée, et aucune recherche n'est faite sur lui. Indiquez le nom de l'entreprise qui recrute.",
+    "employerUnknown": "L'offre ne nomme pas l'employeur. Indiquez-le pour constituer le dossier.",
+    "postedByAgency": "Cette offre est publiée par un cabinet de recrutement ({{agency}}).",
+    "postedByAgencyUnnamed": "Cette offre est publiée par un cabinet de recrutement.",
+    "presumedEmployer": "L'employeur réel est peut-être : {{employer}}.",
+    "noPresumedEmployer": "L'employeur réel n'a pas pu être deviné.",
+    "confirmBeforeLookup": "Confirmez l'employeur ou indiquez le bon : aucune recherche n'est faite avant votre confirmation.",
+    "employerLabel": "Employeur",
+    "employerHint": "Le nom de l'entreprise, ou son numéro SIREN si vous le connaissez.",
+    "confirmEmployer": "Confirmer l'employeur",
+    "nameEmployer": "Constituer le dossier pour cet employeur",
+    "notInRegister": "Une entreprise française que le registre n'a pas retrouvée sous ce nom ? Indiquez son SIREN ci-dessous (« Ce n'est pas le bon employeur ? ») pour obtenir ses données officielles.",
+    "wrongEmployer": "Ce n'est pas le bon employeur ?",
+    "reliability": {
+      "official": "Source officielle.",
+      "less_reliable": "Sources web, fiabilité moindre."
+    },
+    "reliabilityDetail": {
+      "official": "Données du registre des entreprises françaises (API Recherche d'entreprises).",
+      "less_reliable": "Ces informations viennent de sites web et peuvent être inexactes ou datées : vérifiez-les."
+    },
+    "facts": {
+      "name": "Nom",
+      "siren": "SIREN",
+      "legalForm": "Forme juridique",
+      "activity": "Activité (code NAF)",
+      "address": "Adresse du siège",
+      "headcount": "Effectif",
+      "country": "Pays",
+      "industry": "Secteur",
+      "revenue": "Chiffre d'affaires",
+      "website": "Site web"
+    },
+    "headcountRange": "{{min}} à {{max}} salariés",
+    "headcountFrom": "{{min}} salariés et plus",
+    "financialsTitle": "Chiffres clés",
+    "year": "Année",
+    "revenue": "Chiffre d'affaires",
+    "netIncome": "Résultat net",
+    "noFinancials": "L'entreprise ne publie pas de chiffres financiers.",
+    "executivesTitle": "Fonctions des dirigeants au registre",
+    "executivesHint": "Seules les fonctions sont indiquées, jamais le nom des personnes.",
+    "contactRolesTitle": "Fonctions à contacter",
+    "contactRolesHint": "Recherchez les personnes qui occupent ces fonctions chez l'employeur. Les contacts nominatifs font partie de l'offre Premium.",
+    "contactRoles": {
+      "hiring_manager": "Le futur responsable du poste (N+1)",
+      "talent_acquisition": "Responsable du recrutement (Talent Acquisition)",
+      "hr_director": "Directeur ou directrice des ressources humaines (DRH)",
+      "hr_manager": "Responsable des ressources humaines (RRH)",
+      "chief_executive": "Dirigeant ou dirigeante (gérant, président, directeur général)"
+    },
+    "sourcesTitle": "Sources",
+    "builtOn": "Dossier constitué le {{date}} pour « {{employer}} »."
   }
 }

@@ -70,8 +70,8 @@ export type ProfileChangeResult = CreateProfileResult | { ok: false; error: "not
 
 /**
  * How many active (not archived) Profiles the Candidate's Plan allows, or null
- * for no limit. Plans do not exist yet, so the app has no limit until billing
- * provides this.
+ * for no limit. The app takes it from billing (`profilePlanQuota`); without
+ * one, there is no limit.
  */
 export type ProfileQuota = (candidateId: string) => Promise<number | null>;
 

@@ -9,6 +9,14 @@
 // it says whose (and its SIREN), and, for an Outreach Message, the Suggested
 // Contact Roles it was asked to address, so tests can check both reached it.
 //
+// For a Tailored CV (task writing, "Tu adaptes" / "You adapt"), it rephrases the
+// reference CV it was handed: its headline gets "(adapté, <language>)", its first
+// job's description "pour « <offer title> »"; it reverses its skills, cuts every
+// job but the first, and tries to slip in "Power BI" and a "20 ans" figure, which
+// the app must drop (ADR-0006). It reports "Management d'équipe" as missing.
+// In English, it translates "Anglais"/"courant" into "English"/"fluent", keeping
+// the language's id, as a real AI Coach writing in the Document Language would.
+//
 // For a CV (task cv_parsing, prompt "CV :\n<text>") it answers like the AI
 // Coach would: the CV's first line as the name, its second as the title, and
 // fixed Search Criteria the rule-based fallback could never produce, so tests
@@ -61,6 +69,23 @@ globalThis.fetch = async (input, init) => {
         content = JSON.stringify({ ...reply, text: reply.text + extra });
       } else content += extra;
     }
+  }
+  if (/^(?:Tu es le coach Jobbbox\. Tu adaptes|You are the Jobbbox coach\. You adapt)/.test(system)) {
+    const language = system.startsWith("Tu es") ? "fr" : "en";
+    const title = /"title":"([^"]*)"/.exec(prompt)?.[1] ?? "?";
+    const cv = JSON.parse(/^(?:CV de référence|Reference CV) : (.+)$/m.exec(prompt)?.[1] ?? "{}");
+    const [first] = cv.experience ?? [];
+    content = JSON.stringify({
+      headline: `${cv.headline} (adapté, ${language})`,
+      summary: "20 ans d'expérience en finance.",
+      experience: first ? [{ ...first, description: `${first.description} pour « ${title} »` }] : [],
+      education: cv.education ?? [],
+      skills: ["Power BI", ...(cv.skills ?? []).toReversed()],
+      languages: (cv.languages ?? []).map((item) =>
+        language === "en" ? { ...item, name: item.name === "Anglais" ? "English" : item.name, level: item.level === "courant" ? "fluent" : item.level } : item,
+      ),
+      missing: ["Management d'équipe"],
+    });
   }
   if (prompt.startsWith("CV :\n")) {
     const [fullName = "", headline = ""] = prompt.slice("CV :\n".length).split("\n");

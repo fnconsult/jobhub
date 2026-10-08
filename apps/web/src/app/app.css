@@ -590,3 +590,31 @@ textarea.input {
 .ats-checks li {
   margin-bottom: var(--space-1);
 }
+
+/* Tailored CV review: the Master CV's text beside the Tailored CV's. */
+.tailored-cv-compare {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.tailored-cv-compare dt {
+  font-weight: 600;
+}
+
+.tailored-cv-compare dd {
+  margin: 0;
+}
+
+/* A toggle button's answer, e.g. to a coach question: pressed is filled and ticked, not only announced. */
+.button[aria-pressed="true"] {
+  font-weight: 600;
+  color: var(--color-background);
+  background: var(--color-text);
+  border-color: var(--color-text);
+}
+
+.button[aria-pressed="true"]::before {
+  content: "✓ ";
+}

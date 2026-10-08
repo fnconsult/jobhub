@@ -165,6 +165,10 @@ _Avoid_: Timeout, reminder interval
 A copy of a Profile's Master CV adapted to one Job Offer, stored on its Application. Contains only facts present in the Master CV or confirmed by the Candidate.
 _Avoid_: Custom CV, adapted CV
 
+**Tailored CV Review**:
+The step where the Candidate checks a Tailored CV proposed by the AI Coach before it is saved: its questions about requirements the Master CV does not cover, its changes against the Master CV, and the Match Score of both. Until saved, the Tailored CV is only a proposal; a requirement is added only if the Candidate confirms it.
+_Avoid_: Preview, approval, diff
+
 **Document Language**:
 The language Tailored Documents are written in. Defaults to the Job Offer's language, independent of the Candidate's interface language.
 _Avoid_: Locale (for documents)

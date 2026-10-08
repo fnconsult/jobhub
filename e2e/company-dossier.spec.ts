@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { expect, test, type Page } from "@playwright/test";
+import { expect as baseExpect, test, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
@@ -10,6 +10,10 @@ import { newAddress } from "./support/mailbox";
 // Candidate confirms it; no private person is ever named.
 // The register, the web search and the offer analysis are faked in the web
 // server (e2e/support/fake-company-sources.mjs, e2e/support/fake-mistral.mjs).
+// Building a dossier calls the (faked) register and web search, then refreshes the
+// page: allow it more than the default 5 s when the machine is busy.
+const expect = baseExpect.configure({ timeout: 15_000 });
+
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
 const t = fr.companyDossier;
@@ -48,6 +52,8 @@ async function openApplication(page: Page, employer: string | undefined, content
   });
   expect(application.ok(), await application.text()).toBe(true);
   await page.goto(`/candidatures/${(await application.json()).id}`);
+  // The dossier's buttons only act once the page is hydrated.
+  await page.waitForLoadState("networkidle");
   return page.getByRole("region", { name: t.title });
 }
 

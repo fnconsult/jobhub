@@ -50,14 +50,25 @@ function matchScoreApi({ quota = Infinity } = {}) {
   return { api, requests };
 }
 
+/** The browser's Web Locks (navigator.locks): one holder at a time across every page of the extension. */
+function memoryLock() {
+  let last: Promise<unknown> = Promise.resolve();
+  return <T>(work: () => Promise<T>): Promise<T> => {
+    const turn = last.then(work, work);
+    last = turn.catch(() => undefined);
+    return turn;
+  };
+}
+
 function setUp({ quota = Infinity } = {}) {
   const storage = memoryStorage();
+  const lock = memoryLock();
   let now = 0;
   const clock = { set: (ms: number) => (now = ms) };
   const session = () => createGuestSession(storage, () => now);
   const { api, requests } = matchScoreApi({ quota });
   // A new scoring per page load, as the analysis page creates on each open.
-  const scoring = () => createMatchScoring({ api, session: session() });
+  const scoring = () => createMatchScoring({ api, session: session(), lock });
   return { session, scoring, requests, clock };
 }
 
@@ -73,6 +84,18 @@ describe("scoring a CV against a Job Offer from the extension", () => {
     expect(requests).toHaveLength(1);
     expect(reopened).toEqual(first);
     expect(first).toMatchObject({ ok: true, matchScore: { score: 51 } });
+  });
+
+  it("computes one Match Score when two analysis pages show the same Job Offer and CV at once, before any is kept", async () => {
+    const { session, scoring, requests } = setUp();
+    await session().keepJobOffer(jobOffer);
+    await session().keepCv(cv);
+
+    // A tab reloading on sign-in while another one scores: both find no kept Match Score.
+    const [first, second] = await Promise.all([scoring().score(jobOffer, cv), scoring().score(jobOffer, cv)]);
+
+    expect(requests).toHaveLength(1);
+    expect(second).toEqual(first);
   });
 
   it("computes a new Match Score for another CV, and keeps that one instead", async () => {

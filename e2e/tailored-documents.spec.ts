@@ -142,6 +142,23 @@ test.describe("Cover Letter and Outreach Message drafts", () => {
     }
   });
 
+  test("without a Company Dossier, both drafts are written from the Master CV and the Job Offer alone, addressed to no Suggested Contact Role", async ({ page }) => {
+    // Company Dossiers (#17) are not built yet: no Application has one, so the
+    // AI Coach is never handed a dossier and the message names no contact roles.
+    // Drawing on a built dossier is covered by the module's integration test.
+    await openApplication(page, FRENCH);
+
+    await coverLetter(page).getByRole("button", { name: td.coverLetter.draft }).click();
+    await expect(coverLetter(page).getByLabel(td.coverLetter.textLabel)).toHaveValue(`Lettre de motivation (fr) pour « ${FRENCH.title} ».`);
+    await outreachMessage(page).getByRole("button", { name: td.outreachMessage.draft }).click();
+    await expect(outreachMessage(page).getByLabel(td.outreachMessage.textLabel)).toHaveValue(`Message d'approche (fr, email) pour « ${FRENCH.title} ».`);
+
+    await expect(page.getByText(td.outreachMessage.contactRoles)).toHaveCount(0);
+    await page.reload();
+    await expect(outreachMessage(page).getByLabel(td.outreachMessage.textLabel)).toHaveValue(`Message d'approche (fr, email) pour « ${FRENCH.title} ».`);
+    await expect(page.getByText(td.outreachMessage.contactRoles)).toHaveCount(0);
+  });
+
   test("when the AI Coach cannot write, the Candidate is told to try again later", async ({ page }) => {
     await openApplication(page, { title: "DAF (H/F)", content: "Vous pilotez la finance. E2E_AI_DOWN" });
 

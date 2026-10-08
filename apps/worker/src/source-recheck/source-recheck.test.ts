@@ -116,6 +116,39 @@ describe("re-checking a Job Offer at its source", () => {
     expect(store.recorded.get("offer-1")).toBe("published");
   });
 
+  it("leaves it published when its live posting's footer asks to report an offer no longer available", async () => {
+    const page = posting().replace(
+      "</body>",
+      `<footer><a href="/signaler">Une erreur ? Signalez-nous si cette offre n'est plus disponible.</a></footer></body>`,
+    );
+    const { recheck, store } = setup({ [OFFER]: { body: page } });
+
+    const report = await recheck.run(NOW);
+
+    expect(store.recorded.get("offer-1")).toBe("published");
+    expect(report.expired).toEqual([]);
+  });
+
+  it("leaves it published when a page without structured data only mentions expiry in its footer or a link", async () => {
+    const page = `<html><head><title>DAF H/F</title></head><body><main><h1>DAF H/F</h1><p>Rattaché au Directeur général, vous pilotez la finance du groupe.</p></main>
+<p><a href="/signaler">Signalez-nous si cette offre n'est plus disponible</a></p>
+<footer>Une erreur ? Prévenez-nous si cette offre n'est plus disponible.</footer></body></html>`;
+    const { recheck, store } = setup({ [OFFER]: { body: page } });
+
+    await recheck.run(NOW);
+
+    expect(store.recorded.get("offer-1")).toBe("published");
+  });
+
+  it("leaves it published when its text only says what happens if the offer is no longer available", async () => {
+    const page = `<html><head><title>DAF H/F</title></head><body><h1>DAF H/F</h1><p>Vous pilotez la finance du groupe.</p><p>Si cette offre n'est plus disponible, nous vous proposerons des postes proches.</p></body></html>`;
+    const { recheck, store } = setup({ [OFFER]: { body: page } });
+
+    await recheck.run(NOW);
+
+    expect(store.recorded.get("offer-1")).toBe("published");
+  });
+
   it("leaves it published while its closing date is still ahead", async () => {
     const { recheck, store } = setup({ [OFFER]: { body: posting({ validThrough: "2026-12-31" }) } });
 

@@ -4,7 +4,7 @@ import { createJobOffers, migrateJobOffers } from "@jobhub/web/job-offers";
 import { createThrowawayDatabase } from "../../web/src/test-support/throwaway-database";
 import type { DiscoverRequest, DiscoveryReport } from "./job-discovery";
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
-import { createJobs, JOB_DISCOVERY, type JobsDeps } from "./jobs";
+import { createJobs, JOB_DISCOVERY, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -158,6 +158,32 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
     const empty = await createThrowawayDatabase("test_worker_jobs_empty");
     try {
       await expect(createJobs({ ...otherDeps, database: empty.pool })["guests.forget"]!.handler({})).resolves.toBeUndefined();
+    } finally {
+      await empty.drop();
+    }
+  });
+
+  it("re-checks every day the Job Offers due, and marks those gone at their source expired", async () => {
+    const jobOffers = createJobOffers(throwaway.pool);
+    const captured = await jobOffers.capture({ source: { url: "https://emploi.example.fr/offres/daf" }, title: "DAF", content: "Poste de DAF à Lyon." });
+    const id = captured.ok ? captured.jobOffer.id : "";
+    const inFourDays = new Date(Date.now() + 4 * 86_400_000);
+    const logs: string[] = [];
+    const fetch = (async (input: string) =>
+      String(input).endsWith("/robots.txt") ? new Response("", { status: 404 }) : new Response("", { status: 410 })) as typeof globalThis.fetch;
+
+    const job = createJobs({ ...otherDeps, database: throwaway.pool, now: () => inFourDays, fetch, log: (line) => logs.push(line) })[SOURCE_RECHECK];
+
+    expect(job?.cron).toBe("0 4 * * *");
+    await job!.handler({});
+    expect(await jobOffers.get(id)).toMatchObject({ expiredAt: inFourDays });
+    expect(logs).toEqual(["[source-recheck] 1 Job Offer(s) re-checked, 1 expired, 0 unread"]);
+  });
+
+  it("has nothing to re-check before the web app has created its tables", async () => {
+    const empty = await createThrowawayDatabase("test_worker_jobs_empty");
+    try {
+      await expect(createJobs({ ...otherDeps, database: empty.pool })[SOURCE_RECHECK]!.handler({})).resolves.toBeUndefined();
     } finally {
       await empty.drop();
     }

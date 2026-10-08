@@ -76,6 +76,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "profile",
         "quota_usage",
         "session",
+        "tailored_cv", // issue #18: Tailored CV proposals and saved Tailored CVs
         "tailored_document", // issue #19: Cover Letters and Outreach Messages
         "verification",
         "workflow_agent_run",
@@ -116,6 +117,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "profile", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "quota_usage", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "session", from_column: "userId", to_table: "candidate" },
+        // A Tailored CV (issue #18) goes with its Application.
+        { from_table: "tailored_cv", from_column: "application_id", to_table: "application" },
         { from_table: "tailored_document", from_column: "application_id", to_table: "application" },
       ]);
       // The Plans start with the quotas of issue #22, plus monthly Job Searches (issue #14); re-running keeps them.

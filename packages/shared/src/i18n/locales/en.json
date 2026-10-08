@@ -765,5 +765,57 @@
     "required": "The text cannot be empty.",
     "unavailable": "The coach could not draft this text right now. Try again in a few minutes.",
     "error": "Saving failed. Check your connection and try again."
+  },
+  "tailoredCv": {
+    "title": "CV tailored to the offer",
+    "factsOnly": "The coach adapts your reference CV to this offer: it rephrases, reorders, cuts and emphasises what it says, and never invents anything. What the offer asks for and your CV does not show, you are asked about.",
+    "languageHint": "The offer's language by default. A change applies to the next proposal.",
+    "none": "No tailored CV yet. The coach proposes one, which you check before saving it.",
+    "noneSinceSaved": "You can ask for a new proposal: the saved CV stays in place until you save another one.",
+    "propose": "Propose a tailored CV",
+    "proposeAgain": "Propose again",
+    "proposing": "Proposing…",
+    "proposed": "Proposal ready: check the changes before saving.",
+    "proposalTitle": "Proposal to check",
+    "writtenIn": {
+      "fr": "Written in French.",
+      "en": "Written in English."
+    },
+    "score": "Match Score: {{master}} → {{tailored}}",
+    "scoreLabel": "Match Score: {{master}} out of 100 with the reference CV, {{tailored}} out of 100 with the tailored CV",
+    "questionsTitle": "The coach's questions",
+    "questionsIntro": "The offer asks for these, which your reference CV does not show. They are added only if you confirm you have them.",
+    "question": "Do you have this skill or experience: {{requirement}}?",
+    "confirm": "Yes, I have it",
+    "decline": "No",
+    "changesTitle": "Changes from the reference CV",
+    "noChanges": "No changes: the tailored CV is your reference CV as it is.",
+    "sections": {
+      "headline": "Headline",
+      "summary": "Summary",
+      "experience": "Experience",
+      "education": "Education",
+      "skills": "Skills",
+      "languages": "Languages"
+    },
+    "kinds": {
+      "rephrased": "rephrased",
+      "reordered": "reordered",
+      "cut": "removed",
+      "added": "added (confirmed by you)"
+    },
+    "master": "Reference CV",
+    "tailored": "Tailored CV",
+    "empty": "(empty)",
+    "saveHint": "Saving replaces the tailored CV already saved for this application, if any.",
+    "save": "Save the tailored CV",
+    "saving": "Saving…",
+    "saved": "Tailored CV saved on the application.",
+    "savedTitle": "Saved tailored CV",
+    "savedOn": "Saved on {{date}}.",
+    "skillsLine": "Skills: {{skills}}",
+    "unavailable": "The coach could not propose a tailored CV right now. Try again in a few minutes.",
+    "masterCvChanged": "Your reference CV changed since this proposal: ask for a new proposal before saving.",
+    "error": "That did not work. Check your connection and try again."
   }
 }

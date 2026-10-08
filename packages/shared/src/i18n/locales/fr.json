@@ -765,5 +765,57 @@
     "required": "Le texte ne peut pas être vide.",
     "unavailable": "Le coach n'a pas pu rédiger ce texte pour l'instant. Réessayez dans quelques minutes.",
     "error": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez."
+  },
+  "tailoredCv": {
+    "title": "CV adapté à l'offre",
+    "factsOnly": "Le coach adapte votre CV de référence à cette offre : il reformule, réordonne, coupe et met en avant ce qu'il contient, sans jamais rien inventer. Ce que l'offre demande et que votre CV ne montre pas vous est demandé.",
+    "languageHint": "Par défaut, la langue de l'offre. Le changement s'applique à la prochaine proposition.",
+    "none": "Aucun CV adapté pour l'instant. Le coach vous en propose un, que vous vérifiez avant de l'enregistrer.",
+    "noneSinceSaved": "Vous pouvez demander une nouvelle proposition : le CV enregistré reste en place tant que vous n'en enregistrez pas un autre.",
+    "propose": "Proposer un CV adapté",
+    "proposeAgain": "Proposer à nouveau",
+    "proposing": "Proposition en cours…",
+    "proposed": "Proposition prête : vérifiez les changements avant d'enregistrer.",
+    "proposalTitle": "Proposition à vérifier",
+    "writtenIn": {
+      "fr": "Rédigé en français.",
+      "en": "Rédigé en anglais."
+    },
+    "score": "Score de correspondance : {{master}} → {{tailored}}",
+    "scoreLabel": "Score de correspondance : {{master}} sur 100 avec le CV de référence, {{tailored}} sur 100 avec le CV adapté",
+    "questionsTitle": "Questions du coach",
+    "questionsIntro": "L'offre demande ces points, que votre CV de référence ne montre pas. Ils ne sont ajoutés que si vous confirmez les avoir.",
+    "question": "Avez-vous cette compétence ou cette expérience : {{requirement}} ?",
+    "confirm": "Oui, je l'ai",
+    "decline": "Non",
+    "changesTitle": "Changements par rapport au CV de référence",
+    "noChanges": "Aucun changement : le CV adapté reprend votre CV de référence tel quel.",
+    "sections": {
+      "headline": "Titre",
+      "summary": "Résumé",
+      "experience": "Expérience",
+      "education": "Formation",
+      "skills": "Compétences",
+      "languages": "Langues"
+    },
+    "kinds": {
+      "rephrased": "reformulé",
+      "reordered": "réordonné",
+      "cut": "retiré",
+      "added": "ajouté (confirmé par vous)"
+    },
+    "master": "CV de référence",
+    "tailored": "CV adapté",
+    "empty": "(vide)",
+    "saveHint": "Enregistrer remplace le CV adapté déjà enregistré pour cette candidature, s'il y en a un.",
+    "save": "Enregistrer le CV adapté",
+    "saving": "Enregistrement…",
+    "saved": "CV adapté enregistré sur la candidature.",
+    "savedTitle": "CV adapté enregistré",
+    "savedOn": "Enregistré le {{date}}.",
+    "skillsLine": "Compétences : {{skills}}",
+    "unavailable": "Le coach n'a pas pu proposer de CV adapté pour l'instant. Réessayez dans quelques minutes.",
+    "masterCvChanged": "Votre CV de référence a changé depuis cette proposition : demandez une nouvelle proposition avant d'enregistrer.",
+    "error": "L'opération a échoué. Vérifiez votre connexion et réessayez."
   }
 }

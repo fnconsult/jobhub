@@ -313,6 +313,19 @@ test.describe("Guest Capture and Match Score", () => {
     // The Job Offer is stored once, for everyone, and found by its id.
     expect((await analysis.request.get(`${origin}/api/job-offers/${stored.jobOffer.id}`)).status()).toBe(200);
 
+    // Reopening the page shows the same Match Score without computing it again (#51); a rescore computes it anew.
+    const scoreRequests: string[] = [];
+    analysis.on("request", (request) => {
+      if (new URL(request.url()).pathname === "/api/match-score") scoreRequests.push(request.url());
+    });
+    const shown = await analysis.getByText(/^Match Score : \d+ \/ 100$/).textContent();
+    await analysis.reload();
+    await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toHaveText(shown!);
+    expect(scoreRequests).toEqual([]);
+    await analysis.getByRole("button", { name: fr.analysis.rescore }).click();
+    await expect.poll(() => scoreRequests.length).toBe(1);
+    await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toBeVisible();
+
     await analysis.getByRole("button", { name: fr.analysis.forget }).click();
     await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
     expect(await guestSession(analysis)).toEqual({});

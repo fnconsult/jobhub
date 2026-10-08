@@ -7,6 +7,7 @@ import { readCandidateSession } from "../../src/candidate-session";
 import { createGuestSession } from "../../src/guest-session";
 import { createJobbboxApi, type UpgradePrompt } from "../../src/jobbbox-api";
 import { describeMatchScore } from "../../src/match-score-view";
+import { createMatchScoring } from "../../src/match-scoring";
 import { WEB_ORIGIN } from "../../src/web-app";
 import "./analyse.css";
 
@@ -27,6 +28,8 @@ document.title = `${t("extension.analysis.title")} – Jobbbox`;
 const session = createGuestSession(browser.storage.session);
 const api = createJobbboxApi(WEB_ORIGIN);
 const saving = createApplicationSaving({ api, session });
+// Shown again on reopen rather than computed again: each Match Score uses the Candidate's Plan Quota (#51).
+const scoring = createMatchScoring({ api, session });
 const app = document.querySelector<HTMLElement>("#app")!;
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, text = "", className?: string): HTMLElementTagNameMap[K] {
@@ -203,8 +206,8 @@ function saveForm(choice: Extract<SavingState, { state: "choose" }>, failure?: S
   return failure ? [title, savingFailure(failure), form] : [title, form];
 }
 
-async function matchScore(jobOffer: JobOffer, cv: CvContent): Promise<HTMLElement[]> {
-  const scored = await api.score(jobOffer.id, cv);
+async function matchScore(jobOffer: JobOffer, cv: CvContent, rescore: boolean): Promise<HTMLElement[]> {
+  const scored = await scoring.score(jobOffer, cv, { rescore });
   if (!scored.ok && scored.error === "quota_exceeded") return [upgradePrompt(scored.prompt)];
   if (!scored.ok) {
     const text = scored.error === "job_offer_gone" ? t("extension.analysis.jobOfferGone") : t("extension.unreachable");
@@ -228,9 +231,10 @@ async function forget() {
 
 /**
  * `outcome`: what saving the Job Offer last came to. Without one, a signed-in Candidate's
- * saving is opened afresh, which keeps a Guest's work at once on sign-up.
+ * saving is opened afresh, which keeps a Guest's work at once on sign-up. `rescore`: a new Match
+ * Score is asked for, rather than the kept one.
  */
-async function render(message?: Message, changingCv = false, outcome?: SavingState | SavingFailure) {
+async function render(message?: Message, changingCv = false, outcome?: SavingState | SavingFailure, rescore = false) {
   if (candidate.signedIn && !outcome) outcome = await saving.open();
   if (outcome?.state === "saved") {
     app.replaceChildren(element("h1", t("extension.analysis.title")), describeJobOffer(outcome.jobOffer), savedNotice(outcome));
@@ -259,9 +263,12 @@ async function render(message?: Message, changingCv = false, outcome?: SavingSta
     parts.push(dataNotice(expiresAt), element("h2", t("extension.analysis.cvTitle")));
     if (cv && !changingCv) {
       app.replaceChildren(...parts, status({ text: t("extension.analysis.scoring") }));
-      parts.push(...(await matchScore(jobOffer, cv)));
+      parts.push(...(await matchScore(jobOffer, cv, rescore)));
       const actions = element("div", "", "actions");
-      actions.append(button(t("extension.analysis.changeCv"), () => void render(undefined, true)));
+      actions.append(
+        button(t("extension.analysis.rescore"), () => void render(undefined, false, undefined, true)),
+        button(t("extension.analysis.changeCv"), () => void render(undefined, true)),
+      );
       parts.push(actions);
     } else {
       parts.push(cvForm());

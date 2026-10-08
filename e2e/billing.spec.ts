@@ -24,6 +24,8 @@ async function formRedirect(page: Page, path: string, button: string) {
     page.getByRole("button", { name: button }).click(),
   ]);
   expect(response.status()).toBe(303);
+  // Let the browser finish following the redirect, or it interrupts the test's next page.goto.
+  await page.waitForURL((url) => url.hostname.endsWith(".stripe.test") || url.protocol === "chrome-error:");
   return response.headers().location;
 }
 

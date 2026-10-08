@@ -46,6 +46,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Applications are up to date");
     expect(first.stdout).toContain("Action Cards are up to date");
     expect(first.stdout).toContain("Plans and Plan Quotas are up to date");
+    expect(first.stdout).toContain("Job Searches are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 
@@ -64,6 +65,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "candidate_plan", // issue #22: Plans and Plan Quotas
         "interview",
         "job_offer",
+        "job_search", // issue #14: on-demand AI Coach job search
         "master_cv_version",
         "plan_quota",
         "profile",
@@ -98,17 +100,22 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "candidate_plan", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "candidate_plan", from_column: "plan", to_table: "plan_quota" },
         { from_table: "interview", from_column: "application_id", to_table: "application" },
+        // Job Searches (issue #14) hang off the Candidate and the Profile they search for.
+        { from_table: "job_search", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "job_search", from_column: "profile_id", to_table: "profile" },
         { from_table: "master_cv_version", from_column: "profile_id", to_table: "profile" },
         { from_table: "profile", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "quota_usage", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "session", from_column: "userId", to_table: "candidate" },
       ]);
-      // The Plans start with the quotas of issue #22; re-running keeps them.
-      const quotas = await db.query("SELECT plan, profiles, match_scores, ats_scores, enriched_contacts, job_digest FROM plan_quota ORDER BY profiles NULLS LAST");
+      // The Plans start with the quotas of issue #22, plus monthly Job Searches (issue #14); re-running keeps them.
+      const quotas = await db.query(
+        "SELECT plan, profiles, match_scores, ats_scores, enriched_contacts, job_searches, job_digest FROM plan_quota ORDER BY profiles NULLS LAST",
+      );
       expect(quotas.rows).toEqual([
-        { plan: "free", profiles: 1, match_scores: 3, ats_scores: 1, enriched_contacts: 0, job_digest: "none" },
-        { plan: "standard", profiles: 3, match_scores: null, ats_scores: null, enriched_contacts: 0, job_digest: "weekly" },
-        { plan: "premium", profiles: null, match_scores: null, ats_scores: null, enriched_contacts: 20, job_digest: "daily" },
+        { plan: "free", profiles: 1, match_scores: 3, ats_scores: 1, enriched_contacts: 0, job_searches: 3, job_digest: "none" },
+        { plan: "standard", profiles: 3, match_scores: null, ats_scores: null, enriched_contacts: 0, job_searches: 30, job_digest: "weekly" },
+        { plan: "premium", profiles: null, match_scores: null, ats_scores: null, enriched_contacts: 20, job_searches: null, job_digest: "daily" },
       ]);
     } finally {
       await db.end();

@@ -832,5 +832,36 @@
     "masterCvChanged": "Your reference CV changed since this proposal: ask for a new proposal before saving.",
     "proposalChanged": "This proposal changed since you reviewed it (in another tab?): review it again before saving.",
     "error": "That did not work. Check your connection and try again."
+  },
+  "followUps": {
+    "cardLabel": "Follow-up suggested",
+    "cardTitle": "Follow up with the employer about \"{{title}}\"",
+    "subject": "Subject: {{subject}}",
+    "markSent": "Mark as sent",
+    "sentHint": "Send this draft from your own mailbox, then mark it as sent: the application moves to \"Followed up\".",
+    "abandonLabel": "Coach suggestion",
+    "abandonTitle": "Mark \"{{title}}\" as abandoned?",
+    "abandonBody_one": "Your follow-up got no answer. You can mark this application as \"Abandoned\" and focus your energy on the others.",
+    "abandonBody_other": "Your {{count}} follow-ups got no answer. You can mark this application as \"Abandoned\" and focus your energy on the others.",
+    "abandonAccept": "Mark as abandoned",
+    "email": {
+      "subject": "A follow-up is waiting for you: {{title}}",
+      "body": "Hello,\n\nYour application \"{{title}}\" has had no answer. Your Jobbbox coach has drafted a follow-up for you: read it, send it from your own mailbox, then mark it as sent.\n\n{{url}}\n\nThe Jobbbox team"
+    },
+    "abandonEmail": {
+      "subject": "Still no answer: {{title}}",
+      "body": "Hello,\n\nYour follow-ups for \"{{title}}\" have had no answer. Your Jobbbox coach suggests marking this application as abandoned.\n\n{{url}}\n\nThe Jobbbox team"
+    },
+    "noticesTitle": "Follow-ups to do",
+    "noticeFollowUp": "Follow-up ready: {{title}}",
+    "noticeAbandon": "Still no answer: {{title}}",
+    "delaysTitle": "Follow-up delays",
+    "delaysHint": "In working days (weekends and public holidays excluded), from 1 to {{max}}.",
+    "afterApplied": "First follow-up, after \"Applied\"",
+    "afterFollowUp": "Next follow-up, after a follow-up",
+    "saveDelays": "Save delays",
+    "delaysSaved": "Delays saved.",
+    "delaysInvalid": "Enter a whole number of working days, from 1 to {{max}}.",
+    "delaysError": "Saving failed. Check your connection and try again."
   }
 }

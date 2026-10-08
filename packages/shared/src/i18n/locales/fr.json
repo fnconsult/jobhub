@@ -832,5 +832,36 @@
     "masterCvChanged": "Votre CV de référence a changé depuis cette proposition : demandez une nouvelle proposition avant d'enregistrer.",
     "proposalChanged": "Cette proposition a changé depuis que vous l'avez vérifiée (dans un autre onglet ?) : vérifiez-la à nouveau avant d'enregistrer.",
     "error": "L'opération a échoué. Vérifiez votre connexion et réessayez."
+  },
+  "followUps": {
+    "cardLabel": "Relance suggérée",
+    "cardTitle": "Relancer l'employeur pour « {{title}} »",
+    "subject": "Objet : {{subject}}",
+    "markSent": "Marquer comme envoyée",
+    "sentHint": "Envoyez ce brouillon depuis votre messagerie, puis marquez-le comme envoyé : la candidature passe à « Relancée ».",
+    "abandonLabel": "Suggestion du coach",
+    "abandonTitle": "Classer « {{title}} » comme abandonnée ?",
+    "abandonBody_one": "Votre relance est restée sans réponse. Vous pouvez classer cette candidature comme « Abandonnée » et concentrer votre énergie sur les autres.",
+    "abandonBody_other": "Vos {{count}} relances sont restées sans réponse. Vous pouvez classer cette candidature comme « Abandonnée » et concentrer votre énergie sur les autres.",
+    "abandonAccept": "Classer comme abandonnée",
+    "email": {
+      "subject": "Une relance vous attend : {{title}}",
+      "body": "Bonjour,\n\nVotre candidature « {{title}} » est restée sans réponse. Votre coach Jobbbox vous a préparé un brouillon de relance : relisez-le, envoyez-le depuis votre messagerie, puis marquez-le comme envoyé.\n\n{{url}}\n\nL'équipe Jobbbox"
+    },
+    "abandonEmail": {
+      "subject": "Toujours sans réponse : {{title}}",
+      "body": "Bonjour,\n\nVos relances pour « {{title}} » sont restées sans réponse. Votre coach Jobbbox vous suggère de classer cette candidature comme abandonnée.\n\n{{url}}\n\nL'équipe Jobbbox"
+    },
+    "noticesTitle": "Relances à faire",
+    "noticeFollowUp": "Relance prête : {{title}}",
+    "noticeAbandon": "Toujours sans réponse : {{title}}",
+    "delaysTitle": "Délais de relance",
+    "delaysHint": "En jours ouvrés (hors week-ends et jours fériés), de 1 à {{max}}.",
+    "afterApplied": "Première relance, après « Postulée »",
+    "afterFollowUp": "Relance suivante, après une relance",
+    "saveDelays": "Enregistrer les délais",
+    "delaysSaved": "Délais enregistrés.",
+    "delaysInvalid": "Indiquez un nombre entier de jours ouvrés, de 1 à {{max}}.",
+    "delaysError": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez."
   }
 }

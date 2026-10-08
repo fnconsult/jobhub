@@ -56,7 +56,7 @@ export default defineConfig({
     { name: "ai", testMatch: /ai\.spec\.ts/ },
     // The worker's background jobs, run by `tsx src/main.ts` against the web server's database.
     // One spec at a time: each starts its own worker on the same queue, which would take the other's jobs.
-    { name: "worker", testMatch: /job-(discovery|search)\.spec\.ts/, workers: 1 },
+    { name: "worker", testMatch: /(job-(discovery|search)|follow-ups)\.spec\.ts/, workers: 1 },
     { name: "root-env", testMatch: /root-env\.spec\.ts/ },
   ],
   webServer: {

@@ -4,7 +4,10 @@ import { redirect } from "next/navigation";
 import { currentIsAdministrator } from "@/admin/server";
 import { getCurrentCandidate } from "@/auth/server";
 import { AccountSettings } from "@/components/AccountSettings";
+import { FollowUpDelaysForm } from "@/components/FollowUpDelaysForm";
 import { WorkspaceHeader } from "@/components/WorkspaceHeader";
+import { MAX_FOLLOW_UP_DELAY } from "@/follow-ups";
+import { getFollowUps } from "@/follow-ups/server";
 import { getServerT } from "@/i18n/server";
 import { getProfiles } from "@/profiles/server";
 import { routes } from "@/routes";
@@ -18,7 +21,11 @@ export default async function AccountPage() {
   const candidate = await getCurrentCandidate();
   if (!candidate) redirect(routes.signIn);
   const t = await getServerT();
-  const [profiles, canAdd] = await Promise.all([getProfiles().list(candidate.id), getProfiles().canAddProfile(candidate.id)]);
+  const [profiles, canAdd, followUpDelays] = await Promise.all([
+    getProfiles().list(candidate.id),
+    getProfiles().canAddProfile(candidate.id),
+    getFollowUps().delays(candidate.id),
+  ]);
   const active = profiles.filter((profile) => !profile.archived);
   const archived = profiles.filter((profile) => profile.archived);
   return (
@@ -57,6 +64,7 @@ export default async function AccountPage() {
           <ProfileLinks profiles={archived} />
         </section>
       ) : null}
+      <FollowUpDelaysForm initial={followUpDelays} max={MAX_FOLLOW_UP_DELAY} />
       <nav className="page-nav">
         <Link className="button" href={routes.subscription}>
           {t("account.plan")}

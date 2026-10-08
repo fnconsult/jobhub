@@ -11,8 +11,12 @@ export interface ActionCardView {
   body: string;
   /** Shown above the title, e.g. "Conseil senior". */
   label?: string;
+  /** In place of the usual "Accepter", e.g. "Marquer comme envoyée". */
+  acceptLabel?: string;
   /** In place of the usual "Ignorer", e.g. "Ignorer ce conseil". */
   dismissLabel?: string;
+  /** Shown below the body, e.g. what accepting does. */
+  hint?: string;
 }
 
 type Outcome = { kind: "accepted" | "dismissed" } | { kind: "error"; cardId: string };
@@ -69,6 +73,7 @@ export function ActionCardList({ cards: shown }: { cards: ActionCardView[] }) {
           {card.label ? <p className="action-card-label">{card.label}</p> : null}
           <h3 id={`action-card-${card.id}`}>{card.title}</h3>
           <p className="cv-text">{card.body}</p>
+          {card.hint ? <p className="hint">{card.hint}</p> : null}
           {outcome?.kind === "error" && outcome.cardId === card.id ? (
             <p className="field-error" role="alert">
               {t("actionCards.error")}
@@ -76,7 +81,7 @@ export function ActionCardList({ cards: shown }: { cards: ActionCardView[] }) {
           ) : null}
           <div className="actions">
             <button className="button button-primary" type="button" disabled={busy === card.id} onClick={() => decide(card, "accept")}>
-              {t("actionCards.accept")}
+              {card.acceptLabel ?? t("actionCards.accept")}
             </button>
             <button className="button" type="button" disabled={busy === card.id} onClick={() => decide(card, "dismiss")}>
               {card.dismissLabel ?? t("actionCards.dismiss")}

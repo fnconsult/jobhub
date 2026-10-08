@@ -154,11 +154,17 @@ One dated interview round within an Application. Added only while the Applicatio
 _Avoid_: Meeting, call
 
 **Follow-up**:
-A follow-up email draft the AI Coach proposes when an Application has stayed "Postulée" or "Relancée" too long without change. Sending one moves the Application to "Relancée".
+A follow-up email draft the AI Coach proposes when an Application has stayed "Postulée" or "Relancée" too long without change. Sending one moves the Application to "Relancée". Nothing is sent to the employer (ADR-0005): the Candidate sends it themselves and marks it as sent; the only email Jobbbox sends is a notice to the Candidate.
 _Avoid_: Reminder, relance (in code), nudge
 
+**Follow-up sent**:
+A Follow-up the Candidate marked as sent. A "Relancée" status set by hand counts as one. At most two per Application.
+
+**Abandonnée suggestion**:
+The AI Coach's Action Card proposing "Abandonnée" after two Follow-ups sent without an answer.
+
 **Follow-up Delay**:
-How long an Application must stay unchanged before a Follow-up is proposed (by default 7 working days, then 10 more), adjustable per Candidate.
+How long an Application must stay unchanged before a Follow-up is proposed (by default 7 working days after "Postulée", then 10 more after each Follow-up sent), adjustable per Candidate from 1 to 60 working days. Working days are French ones: weekends and public holidays excluded.
 _Avoid_: Timeout, reminder interval
 
 **Tailored CV**:

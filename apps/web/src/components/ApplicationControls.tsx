@@ -30,6 +30,12 @@ export function ApplicationStatusSelect({ applicationId, status }: { application
   const id = useId();
   const [value, setValue] = useState(status);
   const [outcome, setOutcome] = useState<Outcome>(null);
+  // The status can change elsewhere (e.g. marking a Follow-up as sent): show the one the page now has.
+  const [shown, setShown] = useState(status);
+  if (status !== shown) {
+    setShown(status);
+    setValue(status);
+  }
 
   async function change(next: ApplicationStatus) {
     setValue(next);

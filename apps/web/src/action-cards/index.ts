@@ -5,7 +5,7 @@
  * One deep module in front of Postgres. Callers get:
  *  - `createActionCards(database, { onAccept })`:
  *    - `propose` a card about what a page shows (its `focus`: a Profile or an Application);
- *    - `pending` cards for that page, oldest first;
+ *    - `pending` cards for that page, oldest first (`pendingOfKinds`: across pages);
  *    - `decide` a card once: "accept" runs its kind's `onAccept` handler and
  *      records the decision in one transaction (a failing handler leaves the
  *      card pending), "dismiss" only records it. Never throws for a card that
@@ -15,7 +15,7 @@
  * account (ADR-0010). Each kind (ATS Fix, Follow-up…) brings its own handler.
  */
 import type { Pool } from "pg";
-import type { CoachFocus } from "@/coach";
+import type { CoachFocus } from "../coach";
 
 export type ActionCardStatus = "pending" | "accepted" | "dismissed";
 
@@ -46,6 +46,8 @@ export interface ActionCards {
   pending(candidateId: string, focus: CoachFocus): Promise<ActionCard[]>;
   /** The cards the Candidate dismissed on that page, oldest first. */
   dismissed(candidateId: string, focus: CoachFocus): Promise<ActionCard[]>;
+  /** The Candidate's pending cards of these kinds, whatever page they are on, oldest first. */
+  pendingOfKinds(candidateId: string, kinds: string[]): Promise<ActionCard[]>;
   decide(candidateId: string, cardId: string, decision: ActionCardDecision): Promise<DecideResult>;
 }
 
@@ -101,6 +103,14 @@ export function createActionCards(database: Pool, options: { onAccept?: Record<s
 
     pending: (candidateId, focus) => withStatus(candidateId, focus, "pending"),
     dismissed: (candidateId, focus) => withStatus(candidateId, focus, "dismissed"),
+
+    async pendingOfKinds(candidateId, kinds) {
+      const { rows } = await database.query<CardRow>(
+        `SELECT ${COLUMNS} FROM action_card WHERE candidate_id = $1 AND status = 'pending' AND kind = ANY($2::text[]) ORDER BY created_at, id`,
+        [candidateId, kinds],
+      );
+      return rows.map(cardFrom);
+    },
 
     async decide(candidateId, cardId, decision) {
       if (!UUID.test(cardId)) return { ok: false, error: "not_found" };

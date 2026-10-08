@@ -48,6 +48,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Cover Letters and Outreach Messages are up to date");
     expect(first.stdout).toContain("Action Cards are up to date");
     expect(first.stdout).toContain("ATS Scores are up to date");
+    expect(first.stdout).toContain("Follow-ups are up to date");
     expect(first.stdout).toContain("Plans and Plan Quotas are up to date");
     expect(first.stdout).toContain("Job Searches are up to date");
     const again = migrate();
@@ -68,6 +69,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "candidate",
         "candidate_plan", // issue #22: Plans and Plan Quotas
         "company_dossier", // issue #17
+        "follow_up_delay", // issue #21: each Candidate's Follow-up Delays
+        "follow_up_sent", // issue #21: the Follow-ups marked as sent
         "interview",
         "job_offer",
         "job_search", // issue #14: on-demand AI Coach job search
@@ -109,6 +112,9 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "candidate_plan", from_column: "plan", to_table: "plan_quota" },
         // A Company Dossier (issue #17) goes with its Application.
         { from_table: "company_dossier", from_column: "application_id", to_table: "application" },
+        // Follow-up Delays (issue #21) go with their Candidate, Follow-ups sent with their Application.
+        { from_table: "follow_up_delay", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "follow_up_sent", from_column: "application_id", to_table: "application" },
         { from_table: "interview", from_column: "application_id", to_table: "application" },
         // Job Searches (issue #14) hang off the Candidate and the Profile they search for.
         { from_table: "job_search", from_column: "candidate_id", to_table: "candidate" },

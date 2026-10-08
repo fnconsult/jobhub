@@ -232,7 +232,10 @@ test.describe("Company Dossier", () => {
     await expect(dossier.getByText(t.reliability.less_reliable)).toBeVisible();
     await expect(dossier.getByText("États-Unis")).toBeVisible();
     await expect(dossier.getByRole("link", { name: "https://personleak.example/about" })).toBeVisible();
-    await expect(page.locator("body")).not.toContainText(/Smith|Doe|Elm St|linkedin|javascript/i);
+    await expect(dossier).not.toContainText(/Smith|Doe|Elm St|linkedin|javascript/i);
+    // Nowhere else on the page either. The drafts section names "InMail LinkedIn"
+    // as a channel, so the page is checked for the leaked profile's URL instead.
+    await expect(page.locator("body")).not.toContainText(/Smith|Doe|Elm St|linkedin\.com|javascript/i);
   });
 
   test("a SIREN that is not a company's is refused, and nothing is looked up for it", async ({ page }) => {

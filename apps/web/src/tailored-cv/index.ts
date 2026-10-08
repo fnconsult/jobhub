@@ -7,7 +7,8 @@
  * `createTailoredCvs(database, { applications, profiles, ai })`:
  *  - `get` the Application's Document Language, the proposal under review and the saved Tailored CV;
  *  - `propose` (or propose again) a Tailored CV: it replaces the proposal under review, never the saved one;
- *  - `answer` the proposal's questions: the Job Offer's requirements the Master CV does not show.
+ *  - `answer` the proposal's questions: the Job Offer's requirements the Master CV does not show;
+ *  - `save` the proposal once reviewed: it becomes the Application's Tailored CV.
  *
  * Rules kept here (ADR-0006):
  *  - A Tailored CV only rephrases, reorders, cuts and emphasises facts of the
@@ -60,12 +61,23 @@ export interface TailoredCvProposal {
   proposedAt: Date;
 }
 
+/** The Tailored CV the Candidate saved on the Application, once reviewed. */
+export interface SavedTailoredCv {
+  language: DocumentLanguage;
+  /** The Master CV Version it was derived from. */
+  masterCvVersion: number;
+  content: CvContent;
+  /** As for the proposal it was. */
+  matchScore: { master: number; tailored: number };
+  savedAt: Date;
+}
+
 export interface ApplicationTailoredCv {
   documentLanguage: DocumentLanguage;
   /** The proposal under review, or null. */
   proposal: TailoredCvProposal | null;
-  /** The Tailored CV saved on the Application, or null. */
-  saved: null;
+  /** The Tailored CV saved on the Application, or null. A new proposal leaves it until it is saved in turn. */
+  saved: SavedTailoredCv | null;
 }
 
 export type TailoredCvResult =
@@ -74,7 +86,9 @@ export type TailoredCvResult =
   /** No such Application for this Candidate. */
   | { ok: false; error: "not_found" }
   /** The AI layer could not write it; nothing was changed. Try again later. */
-  | { ok: false; error: "unavailable" };
+  | { ok: false; error: "unavailable" }
+  /** The Master CV (or the Application's Profile) changed since the proposal: it must be proposed again. */
+  | { ok: false; error: "master_cv_changed" };
 
 export interface TailoredCvs {
   /** The Application's Tailored CV, or null if it does not exist or belongs to someone else. */
@@ -86,6 +100,13 @@ export interface TailoredCvs {
    * Can be changed until the proposal is saved. "not_found" also when the proposal asks no such question.
    */
   answer(candidateId: string, applicationId: string, input: unknown): Promise<TailoredCvResult>;
+  /**
+   * The Candidate approves the proposal they reviewed: it becomes the Application's
+   * Tailored CV, replacing the one saved before. Unanswered questions add nothing.
+   * "not_found" when there is no proposal; "master_cv_changed" when it was derived
+   * from a Master CV Version that is no longer current.
+   */
+  save(candidateId: string, applicationId: string): Promise<TailoredCvResult>;
 }
 
 export interface TailoredCvsDeps {
@@ -201,6 +222,7 @@ function replyIn(reply: string): AiReply | null {
 
 interface ProposalRow {
   language: DocumentLanguage;
+  profileId: string;
   masterCvVersion: number;
   /** That version's content, to review the changes against. */
   master: CvContent;
@@ -208,6 +230,14 @@ interface ProposalRow {
   adapted: CvContent;
   questions: TailoredCvQuestion[];
   proposedAt: string;
+}
+
+interface SavedRow {
+  language: DocumentLanguage;
+  masterCvVersion: number;
+  master: CvContent;
+  content: CvContent;
+  savedAt: string;
 }
 
 /** The Job Offer's requirements the Master CV does not show: its skills, then what the AI Coach found in its text. */
@@ -233,7 +263,7 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
   async function stateOf(candidateId: string, application: Application): Promise<ApplicationTailoredCv> {
     const [documentLanguage, { rows }, profile] = await Promise.all([
       documentLanguageOf(database, application),
-      database.query<{ proposal: ProposalRow | null }>(`SELECT proposal FROM tailored_cv WHERE application_id = $1`, [application.id]),
+      database.query<{ proposal: ProposalRow | null; saved: SavedRow | null }>(`SELECT proposal, saved FROM tailored_cv WHERE application_id = $1`, [application.id]),
       deps.profiles.get(candidateId, application.profile.id),
     ]);
     const score = (cv: CvContent) => scoreMatch({ cv, searchCriteria: profile?.searchCriteria, jobOffer: application.jobOffer }).score;
@@ -251,7 +281,17 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
         proposedAt: new Date(row.proposedAt),
       };
     }
-    return { documentLanguage, proposal, saved: null };
+    const kept = rows[0]?.saved ?? null;
+    const saved: SavedTailoredCv | null = kept
+      ? {
+          language: kept.language,
+          masterCvVersion: kept.masterCvVersion,
+          content: kept.content,
+          matchScore: { master: score(kept.master), tailored: score(kept.content) },
+          savedAt: new Date(kept.savedAt),
+        }
+      : null;
+    return { documentLanguage, proposal, saved };
   }
 
   return {
@@ -285,6 +325,7 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
       if (parsed.data.language) await keepDocumentLanguage(database, application.id, language);
       const proposal: ProposalRow = {
         language,
+        profileId: profile.id,
         masterCvVersion: profile.masterCv.version,
         master,
         adapted: fromMasterCv(master, reply, jobOffer.skills ?? []),
@@ -315,6 +356,27 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
       if (rowCount === 0) return NOT_FOUND;
       return { ok: true, tailoredCv: await stateOf(candidateId, application) };
     },
+
+    async save(candidateId, applicationId) {
+      const application = await deps.applications.get(candidateId, applicationId);
+      if (!application) return NOT_FOUND;
+      const { rows } = await database.query<{ proposal: ProposalRow | null }>(`SELECT proposal FROM tailored_cv WHERE application_id = $1`, [application.id]);
+      const proposal = rows[0]?.proposal;
+      if (!proposal) return NOT_FOUND;
+      const profile = await deps.profiles.get(candidateId, application.profile.id);
+      if (!profile || profile.id !== proposal.profileId || profile.masterCv.version !== proposal.masterCvVersion) return { ok: false, error: "master_cv_changed" };
+      const saved: SavedRow = {
+        language: proposal.language,
+        masterCvVersion: proposal.masterCvVersion,
+        master: proposal.master,
+        content: withConfirmed(proposal.adapted, proposal.questions),
+        savedAt: new Date().toISOString(),
+      };
+      // Only the proposal reviewed: one proposed or answered meanwhile is not saved unseen.
+      const { rowCount } = await database.query(`UPDATE tailored_cv SET saved = $2, proposal = NULL WHERE application_id = $1 AND proposal = $3`, [application.id, saved, proposal]);
+      if (rowCount === 0) return NOT_FOUND;
+      return { ok: true, tailoredCv: await stateOf(candidateId, application) };
+    },
   };
 }
 
@@ -326,5 +388,7 @@ export async function migrateTailoredCvs(database: Pool): Promise<void> {
       -- The proposal under the Candidate's review, if any.
       proposal jsonb
     );
+    -- The Tailored CV the Candidate saved, if any.
+    ALTER TABLE tailored_cv ADD COLUMN IF NOT EXISTS saved jsonb;
   `);
 }

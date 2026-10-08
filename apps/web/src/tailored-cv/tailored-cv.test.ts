@@ -235,4 +235,67 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
     expect(master).toBe(application!.matchScore.score);
     expect(tailored).toBeGreaterThan(master);
   });
+
+  it("is written in the Job Offer's language by default", async () => {
+    const english = await saveApplication(ENGLISH_OFFER);
+
+    const result = await tailoredCvs.propose(candidateId, english, {});
+
+    expect(result).toMatchObject({ ok: true, tailoredCv: { documentLanguage: "en", proposal: { language: "en" } } });
+    expect(provider.calls.at(-1)!.system).toContain("in English");
+  });
+
+  it("the Candidate can choose another Document Language, which the Application keeps for its next Tailored Documents", async () => {
+    await tailoredCvs.propose(candidateId, applicationId, { language: "en" });
+    expect(provider.calls.at(-1)!.system).toContain("in English");
+
+    const result = await tailoredCvs.propose(candidateId, applicationId, {});
+
+    expect(result).toMatchObject({ ok: true, tailoredCv: { documentLanguage: "en", proposal: { language: "en" } } });
+    expect(provider.calls.at(-1)!.system).toContain("in English");
+    expect(await tailoredCvs.propose(candidateId, applicationId, { language: "de" })).toMatchObject({ ok: false, errors: [{ field: "language" }] });
+  });
+
+  it("once reviewed, the Candidate saves the Tailored CV on the Application; proposing again leaves it until the next save", async () => {
+    await tailoredCvs.propose(candidateId, applicationId, {});
+    await tailoredCvs.answer(candidateId, applicationId, { requirement: "Power BI", confirmed: true });
+    const reviewed = await tailoredCvs.get(candidateId, applicationId);
+
+    const result = await tailoredCvs.save(candidateId, applicationId);
+
+    expect(result).toMatchObject({
+      ok: true,
+      tailoredCv: {
+        proposal: null,
+        saved: { language: "fr", masterCvVersion: 1, content: reviewed!.proposal!.content, matchScore: reviewed!.proposal!.matchScore },
+      },
+    });
+    reply = { ...PROPOSAL, headline: "Directrice financière groupe" };
+    await tailoredCvs.propose(candidateId, applicationId, {});
+    const state = await tailoredCvs.get(candidateId, applicationId);
+    expect(state?.saved?.content).toEqual(reviewed!.proposal!.content);
+    expect(state?.proposal?.content.headline).toBe("Directrice financière groupe");
+  });
+
+  it("there is nothing to save without a proposal, nor once the Master CV changed since it was proposed", async () => {
+    expect(await tailoredCvs.save(candidateId, applicationId)).toEqual({ ok: false, error: "not_found" });
+    await tailoredCvs.propose(candidateId, applicationId, {});
+    const application = await createApplications(database, { jobOffers, profiles }).get(candidateId, applicationId);
+    await profiles.saveMasterCv(candidateId, application!.profile.id, { basedOnVersion: 1, content: { ...masterCv, headline: "DAF" } });
+
+    expect(await tailoredCvs.save(candidateId, applicationId)).toEqual({ ok: false, error: "master_cv_changed" });
+    expect((await tailoredCvs.get(candidateId, applicationId))?.saved).toBeNull();
+  });
+
+  it("someone else's Application has no Tailored CV, and nothing changes when the AI Coach cannot write one", async () => {
+    const otherCandidateId = await signIn("paul.martin@example.fr");
+    expect(await tailoredCvs.get(otherCandidateId, applicationId)).toBeNull();
+    expect(await tailoredCvs.propose(otherCandidateId, applicationId, {})).toEqual({ ok: false, error: "not_found" });
+    expect(await tailoredCvs.save(otherCandidateId, applicationId)).toEqual({ ok: false, error: "not_found" });
+
+    await tailoredCvs.propose(candidateId, applicationId, {});
+    reply = "Désolé, je ne peux pas.";
+    expect(await tailoredCvs.propose(candidateId, applicationId, { language: "en" })).toEqual({ ok: false, error: "unavailable" });
+    expect(await tailoredCvs.get(candidateId, applicationId)).toMatchObject({ documentLanguage: "fr", proposal: { content: { headline: PROPOSAL.headline } } });
+  });
 });

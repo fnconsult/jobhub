@@ -525,6 +525,7 @@
     "rebuild": "Mettre à jour le dossier",
     "working": "Recherche en cours…",
     "unavailable": "Les sources sont indisponibles pour le moment. Réessayez dans quelques minutes.",
+    "notACompany": "Ce nom ou ce SIREN ne désigne pas une entreprise : un entrepreneur individuel est une personne privée, et aucune recherche n'est faite sur lui. Indiquez le nom de l'entreprise qui recrute.",
     "employerUnknown": "L'offre ne nomme pas l'employeur. Indiquez-le pour constituer le dossier.",
     "postedByAgency": "Cette offre est publiée par un cabinet de recrutement ({{agency}}).",
     "postedByAgencyUnnamed": "Cette offre est publiée par un cabinet de recrutement.",

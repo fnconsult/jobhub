@@ -8,6 +8,8 @@
  * Nothing about a person is ever stored or shown from here.
  */
 
+import { nameKey, sirenIn } from "./company-names";
+
 export interface FinancialYear {
   year: number;
   /** Turnover (chiffre d'affaires), in euros. */
@@ -20,8 +22,8 @@ export interface FinancialYear {
 export interface RegisteredCompany {
   siren: string;
   name: string;
-  /** Acronym and trading names, as the register lists them. */
-  otherNames: string[];
+  /** The acronym (sigle) the register lists. Shop signs are left out: franchisees and subsidiaries trade under the group's. */
+  acronym?: string;
   /** False once the company has ceased trading. */
   active: boolean;
   /** e.g. "SAS", when the register's legal category is a common one. */
@@ -40,9 +42,19 @@ export interface RegisteredCompany {
   executiveRoles: string[];
 }
 
+export interface RegisterSearch {
+  /** Companies matching the query, in the register's order of relevance. Sole traders are left out. */
+  companies: RegisteredCompany[];
+  /**
+   * A sole trader is registered under exactly the queried name or SIREN: the query
+   * names a private person. Only this yes/no leaves the adapter, never the person.
+   */
+  soleTraderNamed: boolean;
+}
+
 export interface CompanyRegister {
-  /** Companies matching `query` (a name or a SIREN), in the register's order of relevance. */
-  search(query: string): Promise<RegisteredCompany[]>;
+  /** What the register lists under `query` (a name or a SIREN). */
+  search(query: string): Promise<RegisterSearch>;
 }
 
 /** The register could not answer (rate limit, outage, timeout). Try again later. */
@@ -109,13 +121,9 @@ const isSoleTrader = (company: ApiCompany) => company.complements?.est_entrepren
 
 function companyFrom(company: ApiCompany): RegisteredCompany {
   const name = (company.nom_raison_sociale || company.nom_complet || "").trim();
-  const otherNames = [company.sigle, ...(company.siege?.liste_enseignes ?? [])].filter(
-    (other): other is string => !!other && other.trim() !== "" && other !== name,
-  );
   const result: RegisteredCompany = {
     siren: company.siren,
     name,
-    otherNames: [...new Set(otherNames)],
     active: company.etat_administratif !== "C",
     financials: Object.entries(company.finances ?? {})
       .map(([year, figures]) => {
@@ -135,6 +143,8 @@ function companyFrom(company: ApiCompany): RegisteredCompany {
       ),
     ],
   };
+  const acronym = company.sigle?.trim();
+  if (acronym && acronym !== name) result.acronym = acronym;
   const legalForm = legalFormOf(company.nature_juridique);
   if (legalForm) result.legalForm = legalForm;
   if (company.activite_principale) result.activity = company.activite_principale;
@@ -164,7 +174,7 @@ export function createFrenchRegister(options: FrenchRegisterOptions = {}): Compa
   return {
     async search(query) {
       const q = query.trim();
-      if (q.length < MIN_QUERY_LENGTH) return [];
+      if (q.length < MIN_QUERY_LENGTH) return { companies: [], soleTraderNamed: false };
       const url = new URL("/search", baseUrl);
       url.searchParams.set("q", q);
       url.searchParams.set("per_page", "10");
@@ -176,7 +186,15 @@ export function createFrenchRegister(options: FrenchRegisterOptions = {}): Compa
       }
       if (!response.ok) throw new CompanyRegisterUnavailable(`The French company register answered ${response.status}`);
       const body = (await response.json().catch(() => null)) as { results?: ApiCompany[] } | null;
-      return (body?.results ?? []).filter((company) => company?.siren && !isSoleTrader(company)).map(companyFrom);
+      const results = (body?.results ?? []).filter((company) => company?.siren);
+      const siren = sirenIn(q);
+      const key = nameKey(q);
+      const named = (company: ApiCompany) =>
+        siren ? company.siren === siren : [company.nom_raison_sociale, company.nom_complet].some((name) => !!name && nameKey(name) === key);
+      return {
+        companies: results.filter((company) => !isSoleTrader(company)).map(companyFrom),
+        soleTraderNamed: results.some((company) => isSoleTrader(company) && named(company)),
+      };
     },
   };
 }

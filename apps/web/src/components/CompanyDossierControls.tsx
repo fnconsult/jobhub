@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 
-type Failure = "unavailable" | "failed" | "required" | null;
+type Failure = "unavailable" | "failed" | "required" | "notACompany" | null;
 
 /** Sends one Company Dossier request; the failure to show, or null when it worked. */
 async function send(url: string, method: "POST" | "PUT", body?: object): Promise<Failure> {
@@ -16,7 +16,10 @@ async function send(url: string, method: "POST" | "PUT", body?: object): Promise
     });
     if (response.ok) return null;
     if (response.status === 503) return "unavailable";
-    if (response.status === 400) return "required";
+    if (response.status === 400) {
+      const body = (await response.json().catch(() => null)) as { errors?: { code?: string }[] } | null;
+      return body?.errors?.some((error) => error.code === "not_a_company") ? "notACompany" : "required";
+    }
     return "failed";
   } catch {
     return "failed";
@@ -28,7 +31,15 @@ function FailureMessage({ failure, id }: { failure: Failure; id?: string }) {
   if (!failure) return null;
   return (
     <p id={id} className="field-error" role="alert">
-      {t(failure === "unavailable" ? "companyDossier.unavailable" : failure === "required" ? "cvReview.required" : "application.error")}
+      {t(
+        failure === "unavailable"
+          ? "companyDossier.unavailable"
+          : failure === "notACompany"
+            ? "companyDossier.notACompany"
+            : failure === "required"
+              ? "cvReview.required"
+              : "application.error",
+      )}
     </p>
   );
 }
@@ -94,7 +105,7 @@ export function ConfirmEmployerForm(props: { applicationId: string; presumedEmpl
           required
           maxLength={200}
           value={employer}
-          aria-invalid={failure === "required" ? true : undefined}
+          aria-invalid={failure === "required" || failure === "notACompany" ? true : undefined}
           aria-describedby={failure ? `${id}-hint ${id}-error` : `${id}-hint`}
           onChange={(event) => setEmployer(event.target.value)}
         />

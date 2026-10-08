@@ -27,7 +27,7 @@ const masterCv: MasterCvContent = {
 const acme: RegisteredCompany = {
   siren: "552100554",
   name: "ACME INDUSTRIE",
-  otherNames: ["ACME"],
+  acronym: "ACME",
   active: true,
   legalForm: "SAS",
   activity: "28.29B",
@@ -38,17 +38,28 @@ const acme: RegisteredCompany = {
   executiveRoles: ["Président de SAS", "Directeur Général"],
 };
 
+/** Another company registered under ACME INDUSTRIE: a small one, as homonyms of large employers are. */
+const smallHomonym: RegisteredCompany = {
+  siren: "814000001",
+  name: "ACME INDUSTRIE",
+  active: true,
+  category: "PME",
+  financials: [],
+  executiveRoles: [],
+};
+
 /** A register that answers every query with the same companies, and records the queries. */
 function fakeRegister(companies: RegisteredCompany[] = []) {
   const queries: string[] = [];
-  const register: CompanyRegister & { queries: string[]; companies: RegisteredCompany[]; down: boolean } = {
+  const register: CompanyRegister & { queries: string[]; companies: RegisteredCompany[]; soleTraderNamed: boolean; down: boolean } = {
     queries,
     companies,
+    soleTraderNamed: false,
     down: false,
     async search(query) {
       queries.push(query);
       if (register.down) throw new CompanyRegisterUnavailable("down");
-      return register.companies;
+      return { companies: register.companies, soleTraderNamed: register.soleTraderNamed };
     },
   };
   return register;
@@ -69,6 +80,7 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
   /** What the offer analysis answers: is the posting from a recruiting agency, and for whom. */
   let analysis: { recruitingAgency: boolean; presumedEmployer: string | null } | string;
   let webAnswer: string;
+  let webSources: string[];
 
   async function signIn(email: string) {
     const cookie = await signInWithMagicLink(testAuth, email);
@@ -102,11 +114,12 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
     register = fakeRegister([acme]);
     analysis = { recruitingAgency: false, presumedEmployer: null };
     webAnswer = "{}";
+    webSources = ["https://example.com/about"];
     mistral = createFakeProvider({ id: "mistral", reply: () => (typeof analysis === "string" ? analysis : JSON.stringify(analysis)) });
     perplexity = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: ["https://example.com/about"] });
     perplexity.search = async (query) => {
       perplexity.queries.push(query);
-      return { answer: webAnswer, sources: ["https://example.com/about"], model: "fake", usage: { inputTokens: 1, outputTokens: 1 } };
+      return { answer: webAnswer, sources: webSources, model: "fake", usage: { inputTokens: 1, outputTokens: 1 } };
     };
     ai = createAiLayer({ providers: [mistral, perplexity], routes: { offer_analysis: "mistral", web_search: "perplexity" }, usage: createMemoryUsageLog() });
     dossiers = createCompanyDossiers(database, { applications, register, ai });
@@ -158,7 +171,7 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
     });
 
     it("never takes a fuzzy match: a company with another name is not the employer", async () => {
-      register.companies = [{ ...acme, name: "ACME INDUSTRIE SERVICES", otherNames: [] }];
+      register.companies = [{ ...acme, name: "ACME INDUSTRIE SERVICES", acronym: undefined }];
       const applicationId = await applicationFor({ employer: "Acme Industrie" });
 
       const result = await dossiers.build(candidateId, applicationId);
@@ -174,6 +187,46 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
       const result = await dossiers.build(candidateId, applicationId);
 
       expect(result).toMatchObject({ ok: true, state: { status: "built", dossier: { source: "web" } } });
+    });
+
+    it("takes the one large company among the small ones registered under the employer's name", async () => {
+      register.companies = [smallHomonym, acme, { ...smallHomonym, siren: "814000002", category: undefined }];
+      const applicationId = await applicationFor({ employer: "Acme Industrie" });
+
+      const result = await dossiers.build(candidateId, applicationId);
+
+      expect(result).toMatchObject({ ok: true, state: { status: "built", dossier: { source: "french_register", siren: "552100554" } } });
+      expect(perplexity.queries).toEqual([]);
+    });
+
+    it("prefers the company registered under the employer's name to one whose acronym it is", async () => {
+      const store: RegisteredCompany = { ...acme, siren: "814000004", name: "ACME HYPERMARCHES", acronym: "ACME INDUSTRIE", category: "GE" };
+      register.companies = [smallHomonym, acme, store];
+      const applicationId = await applicationFor({ employer: "Acme Industrie" });
+
+      const result = await dossiers.build(candidateId, applicationId);
+
+      expect(result).toMatchObject({ ok: true, state: { dossier: { source: "french_register", siren: "552100554" } } });
+    });
+
+    it("never picks between small companies registered under the employer's name", async () => {
+      register.companies = [{ ...smallHomonym, headcount: { min: 20, max: 49 } }, { ...smallHomonym, siren: "814000002" }];
+      const applicationId = await applicationFor({ employer: "Acme Industrie" });
+
+      const result = await dossiers.build(candidateId, applicationId);
+
+      expect(result).toMatchObject({ ok: true, state: { status: "built", dossier: { source: "web" } } });
+    });
+
+    it("tells the employer apart from its French subsidiary", async () => {
+      const subsidiary: RegisteredCompany = { ...acme, siren: "814000003", name: "ACME INDUSTRIE FRANCE", acronym: undefined };
+      register.companies = [acme, subsidiary];
+
+      const parent = await dossiers.build(candidateId, await applicationFor({ employer: "Acme Industrie" }));
+      const french = await dossiers.build(candidateId, await applicationFor({ employer: "Acme Industrie France" }));
+
+      expect(parent).toMatchObject({ ok: true, state: { dossier: { source: "french_register", siren: "552100554" } } });
+      expect(french).toMatchObject({ ok: true, state: { dossier: { source: "french_register", siren: "814000003" } } });
     });
 
     it("matches the SIREN the Candidate gives as the employer", async () => {
@@ -252,6 +305,45 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
       });
       expect(perplexity.queries[0]).toContain("« Acme Robotics GmbH »");
       expect(JSON.stringify(result)).not.toContain("Müller");
+    });
+
+    it("drops web facts that name a person or give a street address", async () => {
+      register.companies = [];
+      webAnswer = JSON.stringify({
+        country: "États-Unis",
+        headquarters: "Home office of John Smith, 12 Elm St, Austin",
+        industry: "Software, founded by Jane Doe",
+        headcount: "Jane Doe and 3 employees",
+        revenue: "2 M$",
+      });
+      const applicationId = await applicationFor({ employer: "PersonLeak Inc" });
+
+      const result = await dossiers.build(candidateId, applicationId);
+
+      expect(result).toMatchObject({ ok: true, state: { dossier: { source: "web", country: "États-Unis", revenue: "2 M$" } } });
+      const dossier = JSON.stringify(result);
+      expect(dossier).not.toMatch(/Smith|Doe|Elm/);
+    });
+
+    it("keeps only web pages as sources, never a person's profile", async () => {
+      register.companies = [];
+      webSources = [
+        "https://www.linkedin.com/in/john-smith-austin",
+        "https://fr.linkedin.com/pub/jane-doe/1/2/3",
+        "https://www.facebook.com/john.smith",
+        "javascript:alert(1)",
+        "not a url",
+        "https://www.linkedin.com/company/personleak",
+        "https://personleak.example/about",
+      ];
+      const applicationId = await applicationFor({ employer: "PersonLeak Inc" });
+
+      const result = await dossiers.build(candidateId, applicationId);
+
+      expect(result).toMatchObject({
+        ok: true,
+        state: { dossier: { sources: ["https://www.linkedin.com/company/personleak", "https://personleak.example/about"] } },
+      });
     });
 
     it("still gives a labelled dossier with its sources when the web answer is not readable", async () => {
@@ -334,6 +426,37 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
       const applicationId = await applicationFor({ employer: "Acme Industrie" });
 
       expect(await dossiers.build(candidateId, applicationId)).toMatchObject({ ok: true, state: { status: "built", dossier: { siren: "552100554" } } });
+    });
+
+    it("refuses a SIREN the register lists no company under, without searching the web", async () => {
+      register.companies = [];
+      const applicationId = await applicationFor({});
+
+      const result = await dossiers.confirmEmployer(candidateId, applicationId, { employer: "988 402 277" });
+
+      expect(result).toEqual({ ok: false, errors: [{ field: "employer", code: "not_a_company" }] });
+      expect(perplexity.queries).toEqual([]);
+      expect(await dossiers.get(candidateId, applicationId)).toEqual({ status: "not_built" });
+    });
+
+    it("refuses a sole trader's name, a private person's, without searching the web", async () => {
+      register.companies = [];
+      register.soleTraderNamed = true;
+      const applicationId = await applicationFor({});
+
+      const result = await dossiers.confirmEmployer(candidateId, applicationId, { employer: "Damien Dupont" });
+
+      expect(result).toEqual({ ok: false, errors: [{ field: "employer", code: "not_a_company" }] });
+      expect(perplexity.queries).toEqual([]);
+    });
+
+    it("asks the Candidate to name the employer when the Job Offer's employer is a sole trader", async () => {
+      register.companies = [];
+      register.soleTraderNamed = true;
+      const applicationId = await applicationFor({ employer: "Damien Dupont" });
+
+      expect(await dossiers.build(candidateId, applicationId)).toEqual({ ok: true, state: { status: "employer_unknown" } });
+      expect(perplexity.queries).toEqual([]);
     });
 
     it("names the missing employer", async () => {

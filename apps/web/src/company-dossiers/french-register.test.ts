@@ -55,7 +55,7 @@ describe("French company register (API Recherche d'Entreprises)", () => {
     const { fetch, urls } = fakeFetch(() => Response.json({ results: [acme], total_results: 1 }));
     const register = createFrenchRegister({ fetch });
 
-    const companies = await register.search("Acme Industrie");
+    const { companies } = await register.search("Acme Industrie");
 
     expect(urls[0]!.origin).toBe("https://recherche-entreprises.api.gouv.fr");
     expect(urls[0]!.searchParams.get("q")).toBe("Acme Industrie");
@@ -63,7 +63,7 @@ describe("French company register (API Recherche d'Entreprises)", () => {
       {
         siren: "552100554",
         name: "ACME INDUSTRIE",
-        otherNames: ["ACME", "ACME LYON"],
+        acronym: "ACME",
         active: true,
         legalForm: "SAS",
         activity: "28.29B",
@@ -82,7 +82,7 @@ describe("French company register (API Recherche d'Entreprises)", () => {
   it("never lets a private person's name or birth date out: executives come back as roles only", async () => {
     const { fetch } = fakeFetch(() => Response.json({ results: [acme] }));
 
-    const companies = await createFrenchRegister({ fetch }).search("Acme");
+    const { companies } = await createFrenchRegister({ fetch }).search("Acme");
 
     const text = JSON.stringify(companies);
     expect(text).not.toMatch(/MARTIN|PAULINE|DURAND|LUC\b|1968|1970/);
@@ -91,15 +91,29 @@ describe("French company register (API Recherche d'Entreprises)", () => {
   it("leaves sole traders out, since their name is a private person's", async () => {
     const { fetch } = fakeFetch(() => Response.json({ results: [soleTrader, acme] }));
 
-    const companies = await createFrenchRegister({ fetch }).search("Martin");
+    const { companies } = await createFrenchRegister({ fetch }).search("Martin");
 
     expect(companies.map((company) => company.siren)).toEqual(["552100554"]);
+  });
+
+  it("says when a sole trader is registered under exactly the name or SIREN asked for, without naming them", async () => {
+    const { fetch } = fakeFetch(() => Response.json({ results: [soleTrader, acme] }));
+    const register = createFrenchRegister({ fetch });
+
+    const byName = await register.search("Pauline Martin");
+    const bySiren = await register.search("812 345 678");
+    const otherName = await register.search("Martin");
+
+    expect(byName.soleTraderNamed).toBe(true);
+    expect(bySiren.soleTraderNamed).toBe(true);
+    expect(otherName.soleTraderNamed).toBe(false);
+    expect(JSON.stringify(byName)).not.toMatch(/PAULINE|MARTIN|812345678/);
   });
 
   it("gives no financials when the register has none", async () => {
     const { fetch } = fakeFetch(() => Response.json({ results: [{ ...acme, finances: null }] }));
 
-    const [company] = await createFrenchRegister({ fetch }).search("Acme");
+    const [company] = (await createFrenchRegister({ fetch }).search("Acme")).companies;
 
     expect(company!.financials).toEqual([]);
   });
@@ -107,7 +121,7 @@ describe("French company register (API Recherche d'Entreprises)", () => {
   it("does not call the register for a name shorter than it accepts", async () => {
     const { fetch, urls } = fakeFetch(() => Response.json({ results: [] }));
 
-    expect(await createFrenchRegister({ fetch }).search(" AB ")).toEqual([]);
+    expect(await createFrenchRegister({ fetch }).search(" AB ")).toEqual({ companies: [], soleTraderNamed: false });
     expect(urls).toHaveLength(0);
   });
 

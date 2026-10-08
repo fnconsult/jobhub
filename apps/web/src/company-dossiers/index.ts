@@ -11,11 +11,17 @@
  *
  * Rules kept here:
  *  - A French employer is matched to a SIREN only when the register lists a
- *    company under that exact name (or that SIREN) and no other: a fuzzy or
- *    ambiguous match is never taken. The dossier then shows the register's
- *    identity, address, headcount and, when published, financials.
+ *    company under that exact name (or that SIREN). When several share the name,
+ *    the one large company (GE or ETI) among them is taken: a large employer's
+ *    name is always also borne by small companies. A fuzzy match, or a choice
+ *    between companies of the same size, is never made. The dossier then shows
+ *    the register's identity, address, headcount and, when published, financials.
  *  - Any other employer (foreign, or not found in the register) gets a dossier
- *    from web sources, labelled less reliable.
+ *    from web sources, labelled less reliable. Only short facts of the expected
+ *    shape are kept from it (no street address, nothing naming a person), and
+ *    only web pages as sources, never a person's profile.
+ *  - A sole trader's name or an unknown SIREN is never searched on the web: it is
+ *    a private person, or nothing. The Candidate is asked to name the employer.
  *  - A posting from a recruiting agency only yields a Presumed Employer: no
  *    register or web lookup is made for it until the Candidate confirms it.
  *  - No private person is ever named: executives are kept as roles, and contacts
@@ -27,9 +33,10 @@ import type { Pool } from "pg";
 import * as z from "zod";
 import type { Application, Applications } from "../applications";
 import { fieldErrors, type FieldError } from "../validation";
+import { nameKey, sirenIn } from "./company-names";
 import { CompanyRegisterUnavailable, type CompanyRegister, type FinancialYear, type RegisteredCompany } from "./french-register";
 
-export type { CompanyRegister, FinancialYear, RegisteredCompany } from "./french-register";
+export type { CompanyRegister, FinancialYear, RegisterSearch, RegisteredCompany } from "./french-register";
 
 /** Job titles to look for at the employer, never a person. Translated in the interface. */
 export const SUGGESTED_CONTACT_ROLES = ["hiring_manager", "talent_acquisition", "hr_director", "hr_manager", "chief_executive"] as const;
@@ -84,9 +91,15 @@ export type CompanyDossierState =
   | { status: "awaiting_confirmation"; presumedEmployer: string | null; agency?: string }
   | { status: "built"; dossier: CompanyDossier };
 
+/** The employer the Candidate named is not a company: a sole trader (a private person), or a SIREN the register does not list. */
+export interface NotACompany {
+  field: "employer";
+  code: "not_a_company";
+}
+
 export type CompanyDossierResult =
   | { ok: true; state: CompanyDossierState }
-  | { ok: false; errors: FieldError[] }
+  | { ok: false; errors: (FieldError | NotACompany)[] }
   /** No such Application for this Candidate. */
   | { ok: false; error: "not_found" }
   /** The register or the AI layer could not answer; nothing was changed. Try again later. */
@@ -104,39 +117,28 @@ export interface CompanyDossiers {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NOT_FOUND = { ok: false, error: "not_found" } as const;
 const UNAVAILABLE = { ok: false, error: "unavailable" } as const;
+const NOT_A_COMPANY = { ok: false, errors: [{ field: "employer", code: "not_a_company" }] } satisfies CompanyDossierResult;
 
 const confirmSchema = z.object({ employer: z.string().trim().min(1).max(200) });
 
-/** Words that decorate a company's name without telling companies apart. */
-const DECORATIONS = new Set(["sa", "sas", "sasu", "sarl", "eurl", "sca", "snc", "se", "groupe", "group", "france"]);
+const isLarge = (company: RegisteredCompany) => company.category === "GE" || company.category === "ETI";
 
-/** A company name compared without case, accents, punctuation or legal-form words. */
-function nameKey(name: string): string {
-  return name
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase()
-    .replace(/&/g, " et ")
-    .replace(/\([^)]*\)/g, " ")
-    .split(/[^\p{L}\p{N}]+/u)
-    .filter((word) => word && !DECORATIONS.has(word))
-    .join(" ");
-}
-
-/** A SIREN (9 digits) or SIRET (14 digits, whose first 9 are the SIREN) typed as the employer. */
-function sirenIn(employer: string): string | null {
-  const digits = employer.replace(/[\s.]/g, "");
-  return /^\d{9}$/.test(digits) ? digits : /^\d{14}$/.test(digits) ? digits.slice(0, 9) : null;
-}
-
-/** The one active company the register lists under exactly this name or SIREN, or null when none or several do. */
+/**
+ * The company the register lists under exactly this name or SIREN, or null. Companies
+ * registered under the name come before those whose acronym it is.
+ * Among several active companies of that name, the only large one; null when there is none, or several.
+ */
 function matchIn(companies: RegisteredCompany[], employer: string): RegisteredCompany | null {
   const siren = sirenIn(employer);
   if (siren) return companies.find((company) => company.siren === siren) ?? null;
   const key = nameKey(employer);
   if (!key) return null;
-  const matches = companies.filter((company) => company.active && [company.name, ...company.otherNames].some((name) => nameKey(name) === key));
-  return matches.length === 1 ? matches[0]! : null;
+  const active = companies.filter((company) => company.active);
+  const registered = active.filter((company) => nameKey(company.name) === key);
+  const matches = registered.length > 0 ? registered : active.filter((company) => !!company.acronym && nameKey(company.acronym) === key);
+  if (matches.length === 1) return matches[0]!;
+  const large = matches.filter(isLarge);
+  return large.length === 1 ? large[0]! : null;
 }
 
 /** Who to look for, by the employer's size: large employers have recruiters and an HR director, small ones are run by their head. */
@@ -190,17 +192,76 @@ const WEB_KEYS: Record<(typeof WEB_FACTS)[number], string> = {
   website: "website",
 };
 
+/** Words and phrases that tell a fact is about a person (founder, head, home), in French or English. */
+const PERSON_WORDS = new RegExp(
+  "(?<![\\p{L}])(" +
+    [
+      "(founded|led|managed|owned|run|created|started) by",
+      "(fond[ée]e?s?|cr[ée][ée]e?s?|dirig[ée]e?s?|g[ée]r[ée]e?s?|d[ée]tenue?s?) par",
+      "home (of|office)",
+      "co-?founders?|founders?|fondat(eur|rice)s?|cofondat(eur|rice)s?",
+      "ceo|cfo|coo|pdg|chairman|chairwoman|owner|propri[ée]taire|pr[ée]sidente?|directeur|directrice|g[ée]rante?",
+      "domicile|mr|mrs|ms|mme|mlle|dr",
+    ].join("|") +
+    ")(?![\\p{L}])",
+  "iu",
+);
+
+/** The only words a headcount or a revenue may hold besides figures. */
+const FIGURE_WORDS = new Set(
+  (
+    "k m md mds mrd mrds bn b million millions milliard milliards billion billions thousand thousands mille " +
+    "salarié salariés employé employés employee employees personnes people collaborateurs " +
+    "eur euro euros usd dollar dollars gbp chf environ env about approx approximately around plus de more than over en in fy ca"
+  ).split(" "),
+);
+
+/** Is this the shape of a headcount or a revenue: figures, units, currencies, nothing else? */
+const isFigure = (text: string) => /\d/.test(text) && !text.toLowerCase().replace(/\p{L}+/gu, (word) => (FIGURE_WORDS.has(word) ? "" : word)).match(/\p{L}/u);
+
+/** How each web fact must look to be kept. A headquarters is a town and country only: no street address comes from the web. */
+const WEB_FACT_SHAPES: Record<Exclude<(typeof WEB_FACTS)[number], "website">, (text: string) => boolean> = {
+  country: (text) => text.length <= 60 && !/\d/.test(text),
+  address: (text) => text.length <= 80 && !/\d/.test(text),
+  industry: (text) => text.length <= 80,
+  headcount: (text) => text.length <= 40 && isFigure(text),
+  revenue: (text) => text.length <= 40 && isFigure(text),
+};
+
+/** Social networks, where a page is a person's profile; LinkedIn company pages excepted. */
+const PROFILE_HOSTS = ["linkedin.com", "facebook.com", "instagram.com", "twitter.com", "x.com", "tiktok.com", "threads.net", "viadeo.com"];
+
+/** A web page fit to cite as a source: http(s), and not a person's profile. */
+function isPublicPage(source: string): boolean {
+  if (!URL.canParse(source)) return false;
+  const url = new URL(source);
+  if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+  const host = url.hostname.toLowerCase();
+  const network = PROFILE_HOSTS.find((profileHost) => host === profileHost || host.endsWith(`.${profileHost}`));
+  if (!network) return true;
+  return network === "linkedin.com" && url.pathname.startsWith("/company/");
+}
+
 /**
- * A dossier from the web search's answer. Only short facts under the keys asked
- * for are kept; any other text the answer holds (where a person could be named) is dropped.
+ * A dossier from the web search's answer. Only short facts of the expected shape,
+ * under the keys asked for, are kept: any other text (where a person could be named) is dropped.
  */
 function webDossier(employer: string, answer: string, sources: string[], builtAt: Date): WebDossier {
   const facts = jsonIn(answer) ?? {};
-  const dossier: WebDossier = { source: "web", reliability: "less_reliable", employer, builtAt, sources: sources.slice(0, 10), suggestedContactRoles: [] };
+  const dossier: WebDossier = {
+    source: "web",
+    reliability: "less_reliable",
+    employer,
+    builtAt,
+    sources: sources.filter(isPublicPage).slice(0, 10),
+    suggestedContactRoles: [],
+  };
   for (const fact of WEB_FACTS) {
     const value = facts[WEB_KEYS[fact]];
     const text = typeof value === "number" ? String(value) : typeof value === "string" ? value.trim() : "";
-    if (text && text.length <= 200 && !/^(null|inconnu|unknown|n\/a)$/i.test(text)) dossier[fact] = text;
+    if (!text || text.length > 200 || /^(null|inconnu|unknown|n\/a)$/i.test(text)) continue;
+    if (fact !== "website" && (PERSON_WORDS.test(text) || !WEB_FACT_SHAPES[fact](text))) continue;
+    dossier[fact] = text;
   }
   if (dossier.website && !/^https?:\/\//i.test(dossier.website)) dossier.website = `https://${dossier.website}`;
   if (dossier.website && !URL.canParse(dossier.website)) delete dossier.website;
@@ -266,11 +327,16 @@ export function createCompanyDossiers(
     return stateFrom((await rowOf(applicationId))!);
   }
 
-  /** The dossier for `employer`: from the register when it lists exactly one company under that name, else from the web. */
-  async function dossierFor(candidateId: string, employer: string): Promise<CompanyDossier> {
+  /**
+   * The dossier for `employer`: from the register when it lists the company, else from the web.
+   * Null when `employer` is not a company (a sole trader, or a SIREN the register does not list): nothing is searched for it.
+   */
+  async function dossierFor(candidateId: string, employer: string): Promise<CompanyDossier | null> {
     const builtAt = now();
-    const match = matchIn(await register.search(employer), employer);
+    const { companies, soleTraderNamed } = await register.search(employer);
+    const match = matchIn(companies, employer);
     if (match) return registerDossier(employer, match, builtAt);
+    if (soleTraderNamed || sirenIn(employer)) return null;
     const found = await ai.searchCompany({ candidateId, employer });
     return webDossier(employer, found.answer, found.sources, builtAt);
   }
@@ -295,9 +361,10 @@ export function createCompanyDossiers(
   }
 
   /** Runs a build step; a register or AI outage leaves everything as it was. */
-  async function attempt(step: () => Promise<CompanyDossierState>): Promise<CompanyDossierResult> {
+  async function attempt(step: () => Promise<CompanyDossierState | CompanyDossierResult>): Promise<CompanyDossierResult> {
     try {
-      return { ok: true, state: await step() };
+      const outcome = await step();
+      return "ok" in outcome ? outcome : { ok: true, state: outcome };
     } catch (error) {
       if (error instanceof CompanyRegisterUnavailable || error instanceof AiProviderError || error instanceof AiConfigError) return UNAVAILABLE;
       throw error;
@@ -322,8 +389,9 @@ export function createCompanyDossiers(
           return save(applicationId, { awaiting_confirmation: true, presumed_employer: presumedEmployer, agency: application.jobOffer.employer ?? null });
         }
         const employer = application.jobOffer.employer;
-        if (!employer) return save(applicationId, { awaiting_confirmation: false, presumed_employer: null, agency: null });
-        return save(applicationId, { awaiting_confirmation: false, presumed_employer: null, agency: null, dossier: await dossierFor(candidateId, employer) });
+        // No employer named, or not a company: the Candidate is asked to name it.
+        const dossier = employer ? await dossierFor(candidateId, employer) : null;
+        return save(applicationId, { awaiting_confirmation: false, presumed_employer: null, agency: null, dossier });
       });
     },
 
@@ -332,7 +400,11 @@ export function createCompanyDossiers(
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       if (!(await ownApplication(candidateId, applicationId))) return NOT_FOUND;
       const employer = parsed.data.employer;
-      return attempt(async () => save(applicationId, { awaiting_confirmation: false, confirmed_employer: employer, dossier: await dossierFor(candidateId, employer) }));
+      return attempt(async () => {
+        const dossier = await dossierFor(candidateId, employer);
+        if (!dossier) return NOT_A_COMPANY;
+        return save(applicationId, { awaiting_confirmation: false, confirmed_employer: employer, dossier });
+      });
     },
   };
 }

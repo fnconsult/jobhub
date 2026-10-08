@@ -525,6 +525,7 @@
     "rebuild": "Update the dossier",
     "working": "Searching…",
     "unavailable": "The sources are unavailable right now. Try again in a few minutes.",
+    "notACompany": "This name or SIREN is not a company: a sole trader is a private person, and nothing is looked up about them. Enter the name of the hiring company.",
     "employerUnknown": "The offer does not name the employer. Name it to build the dossier.",
     "postedByAgency": "This offer is posted by a recruiting agency ({{agency}}).",
     "postedByAgencyUnnamed": "This offer is posted by a recruiting agency.",

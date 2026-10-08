@@ -197,6 +197,38 @@ test.describe("Company Dossier", () => {
     await expect(dossier.getByText("552100554", { exact: true })).toBeVisible();
   });
 
+  test("a large French employer is matched among the small companies and the subsidiary that share its name", async ({ page }) => {
+    const dossier = await openApplication(page, "Grande Marque");
+
+    await dossier.getByRole("button", { name: t.build }).click();
+
+    await expect(dossier.getByText(t.reliability.official)).toBeVisible();
+    await expect(dossier.getByText("552100556", { exact: true })).toBeVisible();
+  });
+
+  test("a web dossier shows no person's name, home address or profile, even when the web search gives them", async ({ page }) => {
+    const dossier = await openApplication(page, "PersonLeak Inc");
+
+    await dossier.getByRole("button", { name: t.build }).click();
+
+    await expect(dossier.getByText(t.reliability.less_reliable)).toBeVisible();
+    await expect(dossier.getByText("États-Unis")).toBeVisible();
+    await expect(dossier.getByRole("link", { name: "https://personleak.example/about" })).toBeVisible();
+    await expect(page.locator("body")).not.toContainText(/Smith|Doe|Elm St|linkedin|javascript/i);
+  });
+
+  test("a SIREN that is not a company's is refused, and nothing is looked up for it", async ({ page }) => {
+    const dossier = await openApplication(page, undefined);
+    await dossier.getByRole("button", { name: t.build }).click();
+    await expect(dossier.getByText(t.employerUnknown)).toBeVisible();
+
+    await dossier.getByLabel(t.employerLabel).fill("988 402 277");
+    await dossier.getByRole("button", { name: t.nameEmployer }).click();
+
+    await expect(dossier.getByRole("alert")).toHaveText(t.notACompany);
+    await expect(dossier.getByText(t.reliability.less_reliable)).toHaveCount(0);
+  });
+
   test("tells the Candidate to try later when the register is unavailable", async ({ page }) => {
     const dossier = await openApplication(page, "E2E_REGISTER_DOWN Industrie");
 

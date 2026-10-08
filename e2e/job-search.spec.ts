@@ -132,7 +132,7 @@ test.describe("On-demand AI Coach job search", () => {
 
     await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Offres trouvées pour « ${searchCriteria.targetRole} »`);
-    await expect(page.getByText(/^Score de correspondance : \d+ \/ 100$/).first()).toBeVisible({ timeout: 90_000 });
+    await expect(page.getByText(/^Score de correspondance : \d+ \/ 100$/).first(), workerOutput).toBeVisible({ timeout: 90_000 });
   });
 
   test("stops a Free Candidate at the Plan Quota of Job Searches with an Upgrade Prompt, without searching", async ({ page }) => {

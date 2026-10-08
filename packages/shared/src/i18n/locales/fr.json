@@ -578,5 +578,78 @@
     },
     "sourcesTitle": "Sources",
     "builtOn": "Dossier constitué le {{date}} pour « {{employer}} »."
+  },
+  "atsScore": {
+    "title": "ATS Score",
+    "intro": "Comment les logiciels de recrutement (ATS) lisent votre CV de référence pour le poste « {{role}} ».",
+    "score": "{{score}}/100",
+    "scoreLabel": "ATS Score : {{score}} sur 100",
+    "readability": "Lisibilité",
+    "keywords": "Mots-clés",
+    "checks": {
+      "contact": "E-mail et téléphone indiqués",
+      "headline": "Un titre en tête du CV",
+      "summary": "Un résumé de profil",
+      "datedExperience": "Chaque expérience est datée",
+      "skillsList": "Au moins 3 compétences, une par ligne",
+      "plainText": "Pas d'émojis ni de symboles décoratifs"
+    },
+    "passed": "Oui",
+    "failed": "À améliorer",
+    "listed": "Bien placés (titre ou compétences)",
+    "mentioned": "Seulement cités dans le texte",
+    "missing": "Absents du CV",
+    "missingHint": "Ajoutez-les vous-même, seulement s'ils correspondent à votre expérience réelle.",
+    "none": "Aucun",
+    "computedOn": "Calculé sur la version {{version}} de votre CV de référence.",
+    "outdated": "Votre CV de référence a changé depuis : recalculez pour voir votre score à jour.",
+    "notYet": "Mesurez votre CV de référence : le coach vous proposera des corrections, à accepter ou refuser une par une.",
+    "compute": "Calculer mon ATS Score",
+    "recompute": "Recalculer mon ATS Score",
+    "computing": "Calcul en cours…",
+    "error": "Le score n'a pas pu être calculé. Réessayez."
+  },
+  "atsFixes": {
+    "seniorAdvice": "Conseil senior",
+    "seniorAdviceOptional": "Ce conseil est facultatif : vous pouvez l'ignorer.",
+    "dismissAdvice": "Ignorer ce conseil",
+    "reasons": {
+      "headline_missing": {
+        "title": "Ajoutez un titre à votre CV",
+        "body": "Les ATS lisent d'abord le titre du CV. Il deviendra « {{headline}} », le poste que vous visez."
+      },
+      "skills_on_one_line": {
+        "title": "Séparez vos compétences",
+        "body": "« {{skill}} » deviendra {{count}} compétences : {{into}}. Les ATS lisent mieux une compétence par ligne."
+      },
+      "decorations": {
+        "title": "Retirez les symboles décoratifs",
+        "body": "Les ATS lisent mal les émojis et symboles (★, ✓, ►…). Ils seront retirés, le reste du texte ne change pas."
+      },
+      "headline_without_role": {
+        "title": "Mettez votre poste cible en titre",
+        "body": "Votre titre « {{current}} » ne cite pas le poste que vous visez. Il deviendra « {{headline}} »."
+      },
+      "keyword_not_listed": {
+        "title": "Ajoutez « {{skill}} » à vos compétences",
+        "body": "Votre CV cite déjà « {{skill}} », mais pas dans vos compétences, où les ATS le cherchent en premier."
+      },
+      "age": {
+        "title": "Conseil senior : retirez votre âge",
+        "body": "« {{from}} » sera retiré. L'âge n'a pas sa place sur un CV et peut desservir votre candidature."
+      },
+      "birth_date": {
+        "title": "Conseil senior : retirez votre date de naissance",
+        "body": "« {{from}} » sera retiré. La date de naissance n'a pas sa place sur un CV et peut desservir votre candidature."
+      },
+      "experience_years": {
+        "title": "Conseil senior : écrivez « {{to}} »",
+        "body": "« {{from}} » deviendra « {{to}} ». Au-delà de 15 ans, le nombre d'années met en avant l'âge plutôt que l'expertise."
+      },
+      "old_experience": {
+        "title": "Conseil senior : retirez une expérience ancienne",
+        "body": "« {{title}} » chez {{employer}} ({{period}}) sera retiré du CV. Les recruteurs regardent surtout les 15 à 20 dernières années."
+      }
+    }
   }
 }

@@ -46,6 +46,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Applications are up to date");
     expect(first.stdout).toContain("Company Dossiers are up to date");
     expect(first.stdout).toContain("Action Cards are up to date");
+    expect(first.stdout).toContain("ATS Scores are up to date");
     expect(first.stdout).toContain("Plans and Plan Quotas are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
@@ -61,6 +62,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "account",
         "action_card",
         "application",
+        "ats_score", // issue #8: the ATS Score last computed for each Profile
         "candidate",
         "candidate_plan", // issue #22: Plans and Plan Quotas
         "company_dossier", // issue #17
@@ -97,6 +99,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "application", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "application", from_column: "job_offer_id", to_table: "job_offer" },
         { from_table: "application", from_column: "profile_id", to_table: "profile" },
+        { from_table: "ats_score", from_column: "profile_id", to_table: "profile" },
         { from_table: "candidate_plan", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "candidate_plan", from_column: "plan", to_table: "plan_quota" },
         // A Company Dossier (issue #17) goes with its Application.

@@ -14,6 +14,13 @@ export default tseslint.config(
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
   },
   {
+    // Claude Code workflow scripts: the Workflow runtime provides these globals.
+    files: [".claude/workflows/**/*.js"],
+    languageOptions: {
+      globals: { args: "readonly", agent: "readonly", parallel: "readonly", pipeline: "readonly", phase: "readonly", log: "readonly" },
+    },
+  },
+  {
     files: ["**/*.tsx"],
     plugins: { "react-hooks": reactHooks },
     rules: reactHooks.configs.recommended.rules,

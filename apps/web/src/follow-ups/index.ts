@@ -97,6 +97,8 @@ export interface FollowUpsDeps {
   appUrl: string;
   /** Optional: without it (or when it fails), the Follow-up is drafted from a plain template. */
   ai?: AiLayer;
+  /** The clock a Follow-up is marked as sent by. Defaults to the real time. */
+  now?: () => Date;
 }
 
 const delay = z.coerce.number().int().min(1).max(MAX_FOLLOW_UP_DELAY);
@@ -126,6 +128,7 @@ function payloadOf(card: Pick<ActionCard, "payload">): Partial<FollowUpPayload> 
 }
 
 export function createFollowUps(database: Pool, deps: FollowUpsDeps): FollowUps {
+  const now = deps.now ?? (() => new Date());
   async function delays(candidateId: string): Promise<FollowUpDelays> {
     const { rows } = await database.query<{ after_applied: number; after_follow_up: number }>(
       `SELECT after_applied, after_follow_up FROM follow_up_delay WHERE candidate_id = $1`,
@@ -146,14 +149,17 @@ export function createFollowUps(database: Pool, deps: FollowUpsDeps): FollowUps 
     const focus = { kind: "application", id: row.id } as const;
     const [pending, dismissed] = await Promise.all([deps.actionCards.pending(row.candidate_id, focus), deps.actionCards.dismissed(row.candidate_id, focus)]);
     if (pending.some((card) => (KINDS as readonly string[]).includes(card.kind))) return false;
-    const kind = row.sent >= MAX_FOLLOW_UPS ? ABANDON_CARD : FOLLOW_UP_CARD;
+    // A "Relancée" the Candidate set by hand (after the last Follow-up marked as sent, if any) counts as one sent.
+    const byHand = row.status === "followed_up" && (!row.last_sent_at || row.status_changed_at > row.last_sent_at) ? 1 : 0;
+    const sent = row.sent + byHand;
+    const kind = sent >= MAX_FOLLOW_UPS ? ABANDON_CARD : FOLLOW_UP_CARD;
     if (dismissed.some((card) => card.kind === kind && payloadOf(card).since === since.toISOString())) return false;
 
     const { t } = createI18n(row.interface_language);
     const payload: FollowUpPayload = { since: since.toISOString(), jobTitle: row.title };
     if (kind === FOLLOW_UP_CARD) {
       const language = row.document_language ?? jobOfferLanguage({ title: row.title, content: row.content });
-      const draft = await followUpDraft({ ai: deps.ai, candidateId: row.candidate_id, language, jobOffer: row, followUpNumber: row.sent + 1 });
+      const draft = await followUpDraft({ ai: deps.ai, candidateId: row.candidate_id, language, jobOffer: row, followUpNumber: sent + 1 });
       Object.assign(payload, draft);
       await deps.actionCards.propose(row.candidate_id, { kind, focus, payload, title: t("followUps.cardTitle", { title: row.title }), body: draft.text });
     } else {
@@ -162,7 +168,7 @@ export function createFollowUps(database: Pool, deps: FollowUpsDeps): FollowUps 
         focus,
         payload,
         title: t("followUps.abandonTitle", { title: row.title }),
-        body: t("followUps.abandonBody", { count: row.sent }),
+        body: t("followUps.abandonBody", { count: sent }),
       });
     }
     const url = new URL(routes.application(row.id), deps.appUrl).toString();
@@ -178,10 +184,9 @@ export function createFollowUps(database: Pool, deps: FollowUpsDeps): FollowUps 
 
   async function moveTo(card: ActionCard, candidateId: string, status: ApplicationStatus) {
     if (card.focus.kind !== "application") throw new Error("not a card on an Application");
-    const changed = await applications().change(candidateId, card.focus.id, { status });
+    const changed = await deps.applications.change(candidateId, card.focus.id, { status });
     if (!changed.ok) throw new Error("the Application could not be changed");
   }
-  const applications = () => deps.applications;
 
   return {
     async proposeDue(now) {
@@ -210,8 +215,22 @@ export function createFollowUps(database: Pool, deps: FollowUpsDeps): FollowUps 
 
     onAccept: {
       [FOLLOW_UP_CARD]: async (card, candidateId) => {
+        const { rows } = await database.query<{ status: ApplicationStatus; status_changed_at: Date; last_sent_at: Date | null }>(
+          `SELECT a.status, a.status_changed_at, (SELECT max(sent_at) FROM follow_up_sent s WHERE s.application_id = a.id) AS last_sent_at
+             FROM application a WHERE a.id = $1 AND a.candidate_id = $2`,
+          [card.focus.id, candidateId],
+        );
+        const before = rows[0];
         await moveTo(card, candidateId, "followed_up");
-        await database.query(`INSERT INTO follow_up_sent (application_id) VALUES ($1)`, [card.focus.id]);
+        // A "Relancée" set by hand before this Follow-up still counts as one sent.
+        if (before?.status === "followed_up" && (!before.last_sent_at || before.status_changed_at > before.last_sent_at)) {
+          await database.query(`INSERT INTO follow_up_sent (application_id, sent_at) VALUES ($1, $2)`, [card.focus.id, before.status_changed_at]);
+        }
+        // Never before the status change it caused, so it is not taken for a "Relancée" set by hand.
+        await database.query(
+          `INSERT INTO follow_up_sent (application_id, sent_at) SELECT id, greatest($2::timestamptz, status_changed_at) FROM application WHERE id = $1`,
+          [card.focus.id, now()],
+        );
       },
       [ABANDON_CARD]: (card, candidateId) => moveTo(card, candidateId, "abandoned"),
     },

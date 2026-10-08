@@ -34,6 +34,7 @@ describe.skipIf(!connectionString)("Follow-ups (needs Postgres: DATABASE_URL)", 
   let candidateId: string;
   let otherCandidateId: string;
   let applicationId: string;
+  let clock: Date;
 
   async function signIn(email: string) {
     const cookie = await signInWithMagicLink(testAuth, email);
@@ -47,10 +48,22 @@ describe.skipIf(!connectionString)("Follow-ups (needs Postgres: DATABASE_URL)", 
     await database.query(`UPDATE application SET status_changed_at = $2 WHERE id = $1`, [id, on]);
   }
 
+  /** The Candidate marks the pending Follow-up as sent on that day. */
+  async function markSentOn(on: Date) {
+    const [card] = await pendingCards();
+    if (!card || card.kind !== FOLLOW_UP_CARD) throw new Error("no Follow-up pending");
+    const statusBefore = (await applications.get(candidateId, applicationId))?.status;
+    clock = on;
+    expect(await actionCards.decide(candidateId, card.id, "accept")).toMatchObject({ ok: true });
+    // Arrange only: the Applications module stamps a status change with the real time.
+    if (statusBefore !== "followed_up") await database.query(`UPDATE application SET status_changed_at = $2 WHERE id = $1`, [applicationId, on]);
+  }
+
   const followUpFocus = () => ({ kind: "application", id: applicationId }) as const;
   const pendingCards = (owner = candidateId) => actionCards.pending(owner, followUpFocus());
 
   beforeEach(async () => {
+    clock = new Date();
     testAuth = await startTestAuth();
     database = testAuth.auth.options.database as Pool;
     await migrateProfiles(database);
@@ -68,6 +81,7 @@ describe.skipIf(!connectionString)("Follow-ups (needs Postgres: DATABASE_URL)", 
       applications,
       mailer: { send: async (message) => void testAuth.mailbox.push(message) },
       appUrl: "https://app.jobbbox.test",
+      now: () => clock,
     });
     actionCards = createActionCards(database, { onAccept: followUps.onAccept });
     candidateId = await signIn("marie.dupont@example.fr");
@@ -102,5 +116,70 @@ describe.skipIf(!connectionString)("Follow-ups (needs Postgres: DATABASE_URL)", 
     expect(cards[0]).toMatchObject({ kind: FOLLOW_UP_CARD, focus: followUpFocus() });
     expect(cards[0]!.title).toContain("DAF H/F");
     expect(cards[0]!.body).not.toBe("");
+  });
+
+  it("moves the Application to « Relancée » when the Candidate marks the Follow-up as sent, then proposes the next one 10 working days later", async () => {
+    await setStatus("applied", day("2026-11-02"));
+    await followUps.proposeDue(day("2026-11-12"));
+
+    await markSentOn(day("2026-11-12"));
+    expect((await applications.get(candidateId, applicationId))?.status).toBe("followed_up");
+    expect(await pendingCards()).toEqual([]);
+
+    // 10 working days after Thursday 12 November: Thursday 26 November.
+    await followUps.proposeDue(day("2026-11-25"));
+    expect(await pendingCards()).toEqual([]);
+    await followUps.proposeDue(day("2026-11-26"));
+    expect(await pendingCards()).toMatchObject([{ kind: FOLLOW_UP_CARD }]);
+  });
+
+  it("suggests « Abandonnée » once the second Follow-up has stayed unanswered as long, and abandons the Application if the Candidate accepts", async () => {
+    await setStatus("applied", day("2026-11-02"));
+    await followUps.proposeDue(day("2026-11-12"));
+    await markSentOn(day("2026-11-12"));
+    await followUps.proposeDue(day("2026-11-26"));
+    await markSentOn(day("2026-11-26"));
+
+    await followUps.proposeDue(day("2026-12-10"));
+    const [card] = await pendingCards();
+    expect(card).toMatchObject({ kind: ABANDON_CARD });
+    expect((await applications.get(candidateId, applicationId))?.status).toBe("followed_up");
+
+    await actionCards.decide(candidateId, card!.id, "accept");
+    expect((await applications.get(candidateId, applicationId))?.status).toBe("abandoned");
+  });
+
+  it("proposes each Follow-up once: not again while it is pending, nor after the Candidate dismissed it", async () => {
+    await setStatus("applied", day("2026-11-02"));
+    await followUps.proposeDue(day("2026-11-12"));
+    await followUps.proposeDue(day("2026-11-13"));
+    const cards = await pendingCards();
+    expect(cards).toHaveLength(1);
+
+    await actionCards.decide(candidateId, cards[0]!.id, "dismiss");
+    await followUps.proposeDue(day("2026-11-20"));
+    expect(await pendingCards()).toEqual([]);
+    expect((await applications.get(candidateId, applicationId))?.status).toBe("applied");
+  });
+
+  it("counts a « Relancée » the Candidate set by hand as a Follow-up sent, waiting 10 working days from it", async () => {
+    await setStatus("followed_up", day("2026-11-12"));
+
+    await followUps.proposeDue(day("2026-11-25"));
+    expect(await pendingCards()).toEqual([]);
+    await followUps.proposeDue(day("2026-11-26"));
+    expect(await pendingCards()).toMatchObject([{ kind: FOLLOW_UP_CARD }]);
+    await markSentOn(day("2026-11-26"));
+
+    await followUps.proposeDue(day("2026-12-10"));
+    expect(await pendingCards()).toMatchObject([{ kind: ABANDON_CARD }]);
+  });
+
+  it("proposes nothing once the Application has moved on (e.g. « Entretien »)", async () => {
+    await setStatus("interview", day("2026-11-02"));
+
+    await followUps.proposeDue(day("2027-01-04"));
+
+    expect(await pendingCards()).toEqual([]);
   });
 });

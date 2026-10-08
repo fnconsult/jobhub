@@ -87,6 +87,37 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
     expect(fromDocx).toEqual(fromPdf);
   });
 
+  describe("a photo on the CV, for Senior Advice", () => {
+    const portrait = { width: 300, height: 400 };
+
+    it("notes a picture on a PDF CV, an icon aside", async () => {
+      const { ai } = aiReplying("pas du JSON");
+      const read = async (picture?: { width: number; height: number }) =>
+        (await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV, { picture }) }, { ai, candidateId: "c1" })).masterCv;
+
+      expect((await read(portrait)).photo).toBe(true);
+      expect((await read({ width: 16, height: 16 })).photo).toBeUndefined();
+      expect(await read()).not.toHaveProperty("photo");
+    });
+
+    it("notes a picture in a Word CV", async () => {
+      const { ai } = aiReplying("pas du JSON");
+
+      const draft = await draftFromCv({ name: "cv.docx", bytes: await docxCv(MARIE_DUPONT_CV, { photo: true }) }, { ai, candidateId: "c1" });
+
+      expect(draft.masterCv.photo).toBe(true);
+      expect(draft.masterCv.fullName).toBe("Marie Dupont");
+    });
+
+    it("notes it whether the AI Coach or the rules read the CV", async () => {
+      const { ai } = aiReplying(JSON.stringify({ masterCv: { fullName: "Marie Dupont", photo: false } }));
+
+      const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV, { picture: portrait }) }, { ai, candidateId: "c1" });
+
+      expect(draft.masterCv).toMatchObject({ fullName: "Marie Dupont", photo: true });
+    });
+  });
+
   it.each([
     ["an old Word .doc file", "cv.doc", new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 1, 2, 3])],
     ["an image", "cv.png", new Uint8Array([0x89, 0x50, 0x4e, 0x47])],

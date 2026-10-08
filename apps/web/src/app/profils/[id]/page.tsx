@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getActionCards } from "@/action-cards/server";
-import { ActionCardList } from "@/components/ActionCardList";
+import { atsFixOf } from "@/ats-score";
+import { getAtsScoring } from "@/ats-score/server";
+import { ActionCardList, type ActionCardView } from "@/components/ActionCardList";
+import { AtsScoreView } from "@/components/AtsScoreView";
 import { CoachInView } from "@/components/CoachPanel";
 import { StartJobSearchButton } from "@/components/JobSearchControls";
 import { MasterCvView } from "@/components/MasterCvView";
@@ -23,12 +26,17 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   return { title: `${profile.name} · ${t("app.name")}` };
 }
 
-/** One Profile: the AI Coach's Action Cards about it, a Job Search for it, its Search Criteria, the current version of its Master CV, and what can be done with it. */
+/**
+ * One Profile: the AI Coach's Action Cards about it (ATS Fixes among them,
+ * Senior Advice labelled), a Job Search for it, its Search Criteria, its ATS
+ * Score, the current version of its Master CV, and what can be done with it.
+ */
 export default async function ProfilePage({ params }: Params) {
   const { candidateId, profile } = await currentProfile((await params).id);
   const t = await getServerT();
   const inView = { kind: "profile", id: profile.id, name: profile.name } as const;
   const cards = await getActionCards().pending(candidateId, inView);
+  const atsScore = await getAtsScoring().latest(candidateId, profile.id);
   const locale = await getRequestLocale();
   const { searchCriteria: criteria, masterCv } = profile;
   const notSpecified = t("profile.notSpecified");
@@ -38,7 +46,13 @@ export default async function ProfilePage({ params }: Params) {
       <h1>{profile.name}</h1>
       {profile.archived ? <p className="notice">{t("profileActions.archivedNotice")}</p> : null}
       <CoachInView {...inView} />
-      <ActionCardList key={profile.id} cards={cards.map(({ id, title, body }) => ({ id, title, body }))} />
+      <ActionCardList
+        key={`action-cards-${profile.id}`}
+        cards={cards.map(({ id, title, body, kind, payload }): ActionCardView => {
+          const seniorAdvice = atsFixOf({ kind, payload })?.category === "senior_advice";
+          return seniorAdvice ? { id, title, body, label: t("atsFixes.seniorAdvice"), dismissLabel: t("atsFixes.dismissAdvice") } : { id, title, body };
+        })}
+      />
 
       {profile.archived ? null : (
         <section className="stack" aria-labelledby="job-search-title">
@@ -65,6 +79,14 @@ export default async function ProfilePage({ params }: Params) {
         <dt>{t("cvReview.remoteWork")}</dt>
         <dd>{criteria.remoteWork ? t(`cvReview.remoteWorkOptions.${criteria.remoteWork}`) : notSpecified}</dd>
       </dl>
+
+      <AtsScoreView
+        profileId={profile.id}
+        targetRole={criteria.targetRole}
+        currentVersion={masterCv.version}
+        atsScore={atsScore}
+        t={t}
+      />
 
       <h2>{t("profile.masterCv")}</h2>
       <p>{t("profile.version", { version: masterCv.version })}</p>

@@ -91,6 +91,12 @@ export interface MasterCvContent {
   education: CvEducation[];
   skills: string[];
   languages: CvLanguage[];
+  /**
+   * True when the CV shows a picture, most likely the Candidate's photo: found
+   * in the uploaded file, or set by the Candidate. Absent means no photo.
+   * The Master CV keeps no picture itself, only this fact (Senior Advice).
+   */
+  photo?: boolean;
 }
 
 /**

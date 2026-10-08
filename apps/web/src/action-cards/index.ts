@@ -44,6 +44,8 @@ export type AcceptHandler = (card: ActionCard, candidateId: string) => Promise<v
 export interface ActionCards {
   propose(candidateId: string, proposal: ActionCardProposal): Promise<ActionCard>;
   pending(candidateId: string, focus: CoachFocus): Promise<ActionCard[]>;
+  /** The cards the Candidate dismissed on that page, oldest first. */
+  dismissed(candidateId: string, focus: CoachFocus): Promise<ActionCard[]>;
   decide(candidateId: string, cardId: string, decision: ActionCardDecision): Promise<DecideResult>;
 }
 
@@ -77,6 +79,16 @@ function cardFrom(row: CardRow): ActionCard {
 
 export function createActionCards(database: Pool, options: { onAccept?: Record<string, AcceptHandler> } = {}): ActionCards {
   const handlers = options.onAccept ?? {};
+
+  async function withStatus(candidateId: string, focus: CoachFocus, status: ActionCardStatus): Promise<ActionCard[]> {
+    const { rows } = await database.query<CardRow>(
+      `SELECT ${COLUMNS} FROM action_card
+        WHERE candidate_id = $1 AND focus_kind = $2 AND focus_id = $3 AND status = $4
+        ORDER BY created_at, id`,
+      [candidateId, focus.kind, focus.id, status],
+    );
+    return rows.map(cardFrom);
+  }
   return {
     async propose(candidateId, proposal) {
       const { rows } = await database.query<CardRow>(
@@ -87,15 +99,8 @@ export function createActionCards(database: Pool, options: { onAccept?: Record<s
       return cardFrom(rows[0]!);
     },
 
-    async pending(candidateId, focus) {
-      const { rows } = await database.query<CardRow>(
-        `SELECT ${COLUMNS} FROM action_card
-          WHERE candidate_id = $1 AND focus_kind = $2 AND focus_id = $3 AND status = 'pending'
-          ORDER BY created_at, id`,
-        [candidateId, focus.kind, focus.id],
-      );
-      return rows.map(cardFrom);
-    },
+    pending: (candidateId, focus) => withStatus(candidateId, focus, "pending"),
+    dismissed: (candidateId, focus) => withStatus(candidateId, focus, "dismissed"),
 
     async decide(candidateId, cardId, decision) {
       if (!UUID.test(cardId)) return { ok: false, error: "not_found" };

@@ -2,6 +2,7 @@
 import { migrateActionCards } from "../src/action-cards/index";
 import { migrateAgentRunLog } from "../src/agent-runs/index";
 import { migrateApplications } from "../src/applications/index";
+import { migrateAtsScores } from "../src/ats-score/index";
 import { authConfigFromEnv } from "../src/auth/config";
 import { migrateCandidateAccounts } from "../src/auth/index";
 import { migrateCompanyDossiers } from "../src/company-dossiers/index";
@@ -25,6 +26,8 @@ await migrateCompanyDossiers(config.database);
 console.info("[migrate] Company Dossiers are up to date");
 await migrateActionCards(config.database);
 console.info("[migrate] Action Cards are up to date");
+await migrateAtsScores(config.database);
+console.info("[migrate] ATS Scores are up to date");
 await migrateBilling(config.database);
 console.info("[migrate] Plans and Plan Quotas are up to date");
 await migrateJobSearches(config.database);

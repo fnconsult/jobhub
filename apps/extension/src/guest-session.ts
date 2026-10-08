@@ -81,8 +81,12 @@ export function createGuestSession(storage: SessionStorage, now: () => number = 
 
   return {
     read,
-    keepJobOffer: (jobOffer) => keep({ jobOffer, saved: undefined }),
-    keepCv: (cv, searchCriteria) => keep({ cv, searchCriteria }),
+    // A kept Match Score goes with the Job Offer and CV it was computed for.
+    async keepJobOffer(jobOffer) {
+      const { matchScore } = await read();
+      await keep({ jobOffer, saved: undefined, ...(matchScore?.jobOfferId === jobOffer.id ? {} : { matchScore: undefined }) });
+    },
+    keepCv: (cv, searchCriteria) => keep({ cv, searchCriteria, matchScore: undefined }),
     keepMatchScore: (matchScore) => keep({ matchScore }),
     keepSaved: (saved) => keep({ saved }, { replace: true }),
     forget: () => storage.remove(KEY),

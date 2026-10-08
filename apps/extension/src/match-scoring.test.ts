@@ -74,4 +74,89 @@ describe("scoring a CV against a Job Offer from the extension", () => {
     expect(reopened).toEqual(first);
     expect(first).toMatchObject({ ok: true, matchScore: { score: 51 } });
   });
+
+  it("computes a new Match Score for another CV, and keeps that one instead", async () => {
+    const { session, scoring, requests } = setUp();
+    await session().keepJobOffer(jobOffer);
+    await session().keepCv(cv);
+    await scoring().score(jobOffer, cv);
+
+    await session().keepCv(otherCv);
+    expect(await scoring().score(jobOffer, otherCv)).toMatchObject({ ok: true, matchScore: { score: 52 } });
+    expect(await scoring().score(jobOffer, otherCv)).toMatchObject({ ok: true, matchScore: { score: 52 } });
+
+    expect(requests).toEqual([{ jobOfferId: "jo-1", cv }, { jobOfferId: "jo-1", cv: otherCv }]);
+  });
+
+  it("computes a new Match Score for another captured Job Offer", async () => {
+    const { session, scoring, requests } = setUp();
+    await session().keepJobOffer(jobOffer);
+    await session().keepCv(cv);
+    await scoring().score(jobOffer, cv);
+
+    await session().keepJobOffer(otherJobOffer);
+    expect(await scoring().score(otherJobOffer, cv)).toMatchObject({ ok: true, matchScore: { score: 52 } });
+
+    expect(requests.map((request) => request.jobOfferId)).toEqual(["jo-1", "jo-2"]);
+  });
+
+  it("computes a new Match Score when one is asked for, and keeps it", async () => {
+    const { session, scoring, requests } = setUp();
+    await session().keepJobOffer(jobOffer);
+    await session().keepCv(cv);
+    await scoring().score(jobOffer, cv);
+
+    expect(await scoring().score(jobOffer, cv, { rescore: true })).toMatchObject({ ok: true, matchScore: { score: 52 } });
+    expect(await scoring().score(jobOffer, cv)).toMatchObject({ ok: true, matchScore: { score: 52 } });
+
+    expect(requests).toHaveLength(2);
+  });
+
+  it("forgets the kept Match Score with the rest of the session, when asked", async () => {
+    const { session, scoring, requests } = setUp();
+    await session().keepJobOffer(jobOffer);
+    await session().keepCv(cv);
+    await scoring().score(jobOffer, cv);
+
+    await session().forget();
+
+    expect(await session().read()).toEqual({});
+    await scoring().score(jobOffer, cv);
+    expect(requests).toHaveLength(2);
+  });
+
+  it("forgets the kept Match Score with the rest of the session, 23 hours after it began (ADR-0003)", async () => {
+    const { session, scoring, requests, clock } = setUp();
+    await session().keepJobOffer(jobOffer);
+    await session().keepCv(cv);
+    clock.set(22 * HOUR);
+    await scoring().score(jobOffer, cv);
+
+    clock.set(23 * HOUR);
+    expect(await session().read()).toEqual({});
+    await scoring().score(jobOffer, cv);
+    expect(requests).toHaveLength(2);
+  });
+
+  it("keeps no refusal: past the quota, the Upgrade Prompt is shown on every attempt", async () => {
+    const { session, scoring, requests } = setUp({ quota: 0 });
+    await session().keepJobOffer(jobOffer);
+    await session().keepCv(cv);
+
+    expect(await scoring().score(jobOffer, cv)).toEqual({ ok: false, error: "quota_exceeded", prompt });
+    expect(await scoring().score(jobOffer, cv)).toEqual({ ok: false, error: "quota_exceeded", prompt });
+
+    expect(requests).toHaveLength(2);
+    expect((await session().read()).matchScore).toBeUndefined();
+  });
+
+  it("keeps the last Match Score while a rescore past the quota shows the Upgrade Prompt", async () => {
+    const { session, scoring } = setUp({ quota: 1 });
+    await session().keepJobOffer(jobOffer);
+    await session().keepCv(cv);
+    await scoring().score(jobOffer, cv);
+
+    expect(await scoring().score(jobOffer, cv, { rescore: true })).toMatchObject({ ok: false, error: "quota_exceeded" });
+    expect(await scoring().score(jobOffer, cv)).toMatchObject({ ok: true, matchScore: { score: 51 } });
+  });
 });

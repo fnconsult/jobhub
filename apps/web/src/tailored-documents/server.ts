@@ -1,4 +1,4 @@
-import { Pool } from "pg";
+import { sharedPool } from "@/database/pool";
 import { getAi } from "@/ai/server";
 import { getApplications } from "@/applications/server";
 import { getCompanyDossiers } from "@/company-dossiers/server";
@@ -15,7 +15,7 @@ let instance: TailoredDocuments | undefined;
  * An Outreach Message can be addressed to one of the Application's Enriched Contacts (#23).
  */
 export function getTailoredDocuments(): TailoredDocuments {
-  instance ??= createTailoredDocuments(new Pool({ connectionString: process.env.DATABASE_URL }), {
+  instance ??= createTailoredDocuments(sharedPool(), {
     applications: getApplications(),
     profiles: getProfiles(),
     ai: getAi(),

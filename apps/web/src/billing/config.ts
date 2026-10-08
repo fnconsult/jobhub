@@ -1,4 +1,4 @@
-import { Pool } from "pg";
+import { sharedPool } from "../database/pool";
 import type { BillingConfig, StripeConfig } from "./index";
 
 type Env = Record<string, string | undefined>;
@@ -38,7 +38,7 @@ export function billingConfigFromEnv(env: Env): BillingConfig {
   }
 
   return {
-    database: new Pool({ connectionString: env.DATABASE_URL }),
+    database: sharedPool(env),
     baseURL: env.APP_URL || (production ? missingAppUrl() : "http://localhost:3000"),
     stripe,
   };

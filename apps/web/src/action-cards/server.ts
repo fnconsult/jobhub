@@ -1,4 +1,4 @@
-import { Pool } from "pg";
+import { sharedPool } from "@/database/pool";
 import { ATS_FIX_CARD } from "../ats-score";
 import { getAtsScoring } from "../ats-score/server";
 import { ABANDON_CARD, FOLLOW_UP_CARD } from "../follow-ups";
@@ -14,7 +14,7 @@ let instance: ActionCards | undefined;
  * ATS Scoring and Follow-ups are reached lazily: they propose cards here too.
  */
 export function getActionCards(): ActionCards {
-  instance ??= createActionCards(new Pool({ connectionString: process.env.DATABASE_URL }), {
+  instance ??= createActionCards(sharedPool(), {
     onAccept: {
       [ATS_FIX_CARD]: (card, candidateId) => getAtsScoring().acceptFix(card, candidateId),
       // Marking a Follow-up as sent moves the Application to "Relancée"; accepting the suggestion, to "Abandonnée".

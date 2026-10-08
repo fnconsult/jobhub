@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { Pool } from "pg";
+import { sharedPool } from "@/database/pool";
 import { getApplications } from "@/applications/server";
 import { getCurrentCandidate } from "@/auth/server";
 import { getBilling } from "@/billing/server";
@@ -13,7 +13,7 @@ let instance: JobSearches | undefined;
 
 /** The app's Job Searches module, on the database named by DATABASE_URL and the worker's queue. */
 export function getJobSearches(): JobSearches {
-  instance ??= createJobSearches(new Pool({ connectionString: process.env.DATABASE_URL }), {
+  instance ??= createJobSearches(sharedPool(), {
     profiles: getProfiles(),
     jobOffers: getJobOffers(),
     applications: getApplications(),

@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { Pool } from "pg";
+import { sharedPool } from "@/database/pool";
 import { getCurrentCandidate } from "@/auth/server";
 import { getBilling } from "@/billing/server";
 import type { UpgradePrompt } from "@/billing/upgrade-prompt";
@@ -12,7 +12,7 @@ let instance: Profiles | undefined;
 
 /** The app's Profiles module, on the database named by DATABASE_URL, within the Candidates' Plan Quotas. */
 export function getProfiles(): Profiles {
-  instance ??= createProfiles(new Pool({ connectionString: process.env.DATABASE_URL }), { profileQuota: profilePlanQuota(getBilling()) });
+  instance ??= createProfiles(sharedPool(), { profileQuota: profilePlanQuota(getBilling()) });
   return instance;
 }
 

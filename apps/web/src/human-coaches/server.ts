@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { Pool } from "pg";
+import { sharedPool } from "@/database/pool";
 import { getApplications } from "@/applications/server";
 import { getCurrentCandidate } from "@/auth/server";
 import { getProfiles } from "@/profiles/server";
@@ -12,7 +12,7 @@ let instance: HumanCoaches | undefined;
 
 /** The app's Human Coaches module, on the database named by DATABASE_URL. */
 export function getHumanCoaches(): HumanCoaches {
-  instance ??= createHumanCoaches(new Pool({ connectionString: process.env.DATABASE_URL }), {
+  instance ??= createHumanCoaches(sharedPool(), {
     profiles: getProfiles(),
     applications: getApplications(),
     tailoredDocuments: getTailoredDocuments(),

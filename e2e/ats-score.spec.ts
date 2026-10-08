@@ -104,6 +104,80 @@ test.describe("ATS Score", () => {
   });
 });
 
+/** Lists its skills on one line, decorates them, and counts its years of experience: readability fixes and Senior Advice. */
+const clutteredCv = {
+  ...masterCv,
+  headline: "Directrice financière",
+  summary: "Plus de 30 ans d'expérience en finance d'entreprise.",
+  skills: ["IFRS, SAP, Budget, Consolidation", "★ Reporting", "Contrôle de gestion", "Clôture", "ERP", "Trésorerie"],
+};
+
+const SPLIT_FIX = "Séparez vos compétences";
+const DECORATIONS_FIX = "Retirez les symboles décoratifs";
+const YEARS_ADVICE = "Conseil senior : écrivez « Plus de 15 ans d'expérience »";
+
+/** The ATS Score the page shows, read from its accessible label. */
+async function shownScore(page: Page): Promise<number> {
+  const label = await atsSection(page).getByLabel(/^ATS Score : \d+ sur 100$/).getAttribute("aria-label");
+  return Number(label!.match(/(\d+) sur 100/)![1]);
+}
+
+test.describe("ATS Fixes, one by one", () => {
+  test("rejecting a fix keeps the Master CV and the score; accepting another creates a version and raises the score", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("ats-one-by-one"));
+    const created = await page.request.post("/api/profiles", {
+      headers: { origin },
+      data: { masterCv: clutteredCv, searchCriteria: { targetRole: "Directrice financière", location: "Lyon" } },
+    });
+    expect(created.status()).toBe(201);
+    await page.goto(`/profils/${(await created.json()).id}`);
+
+    const section = atsSection(page);
+    await section.getByRole("button", { name: fr.atsScore.compute }).click();
+    await expect(section.getByRole("term")).toHaveText([fr.atsScore.readability, fr.atsScore.keywords]);
+    const before = await shownScore(page);
+    expect(before).toBeLessThan(100);
+    await expect(section.getByRole("listitem").filter({ hasText: fr.atsScore.checks.skillsList })).toContainText(fr.atsScore.failed);
+
+    // Readability fixes are ordinary Action Cards; only the Senior Advice says it is one.
+    const split = cards(page).getByRole("article", { name: SPLIT_FIX });
+    const decorations = cards(page).getByRole("article", { name: DECORATIONS_FIX });
+    const years = cards(page).getByRole("article", { name: YEARS_ADVICE });
+    await expect(split).toContainText("« IFRS, SAP, Budget, Consolidation » deviendra 4 compétences");
+    await expect(decorations).toBeVisible();
+    await expect(years).toContainText(fr.atsFixes.seniorAdvice);
+    await expect(split).not.toContainText(fr.atsFixes.seniorAdvice);
+    await expect(decorations).not.toContainText(fr.atsFixes.seniorAdvice);
+
+    // Reject one: nothing else moves.
+    await decorations.getByRole("button", { name: fr.actionCards.dismiss }).click();
+    await expect(cards(page).getByRole("status")).toHaveText(fr.actionCards.dismissed);
+    await expect(decorations).toHaveCount(0);
+    await expect(split).toBeVisible();
+    await expect(years).toBeVisible();
+    await expect(page.getByText("Version 1", { exact: true })).toBeVisible();
+    await expect(page.getByText("Version 2", { exact: true })).toHaveCount(0);
+    expect(await shownScore(page)).toBe(before);
+
+    // Accept another: a new Master CV version, and the score is recomputed on it.
+    await split.getByRole("button", { name: fr.actionCards.accept }).click();
+    await expect(cards(page).getByRole("status")).toHaveText(fr.actionCards.accepted);
+    await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
+    await expect(section).toContainText("Calculé sur la version 2 de votre CV de référence.");
+    await expect(section.getByRole("listitem").filter({ hasText: fr.atsScore.checks.skillsList })).toContainText(fr.atsScore.passed);
+    await expect.poll(() => shownScore(page)).toBeGreaterThan(before);
+    await expect(split).toHaveCount(0);
+    await expect(years).toBeVisible();
+
+    // The rejected fix stays rejected; the Senior Advice is still the Candidate's to decide.
+    await page.reload();
+    await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
+    await expect(cards(page).getByRole("article", { name: DECORATIONS_FIX })).toHaveCount(0);
+    await expect(cards(page).getByRole("article", { name: YEARS_ADVICE })).toBeVisible();
+    await expect(page.getByRole("main")).toContainText("★ Reporting");
+  });
+});
+
 test.describe("ATS Score endpoint", () => {
   test("refuses anonymous visitors, other sites and someone else's Profile", async ({ page, browser }) => {
     const id = await openProfile(page, "ats-owner");

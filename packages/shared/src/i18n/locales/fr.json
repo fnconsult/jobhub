@@ -719,5 +719,48 @@
     },
     "pdf": "Télécharger en PDF",
     "docx": "Télécharger en Word (.docx)"
+  },
+  "tailoredDocuments": {
+    "title": "Lettre de motivation et message d'approche",
+    "draftsOnly": "Jobbbox n'envoie rien à votre place : copiez le texte ou ouvrez-le dans votre messagerie, puis envoyez-le vous-même.",
+    "languageLabel": "Langue des documents",
+    "languageHint": "Par défaut, la langue de l'offre. Le changement s'applique à la prochaine rédaction.",
+    "languages": {
+      "fr": "Français",
+      "en": "Anglais"
+    },
+    "coverLetter": {
+      "title": "Lettre de motivation",
+      "none": "Le coach rédige une lettre à partir de votre CV de référence et de l'offre. Vous pourrez la modifier.",
+      "draft": "Rédiger la lettre",
+      "textLabel": "Texte de la lettre"
+    },
+    "outreachMessage": {
+      "title": "Message d'approche",
+      "none": "Un message court à un contact chez l'employeur, par e-mail ou par InMail LinkedIn. Vous pourrez le modifier.",
+      "draft": "Rédiger le message",
+      "channelLabel": "Envoyé par",
+      "channels": {
+        "email": "E-mail",
+        "inmail": "InMail LinkedIn"
+      },
+      "contactRoles": "À adresser à :",
+      "subjectLabel": "Objet",
+      "textLabel": "Texte du message",
+      "openInMail": "Ouvrir dans ma messagerie"
+    },
+    "writtenIn": "Rédigé en {{language}}.",
+    "save": "Enregistrer mes modifications",
+    "saved": "Modifications enregistrées",
+    "copy": "Copier le texte",
+    "copied": "Texte copié",
+    "copyFailed": "La copie a échoué : sélectionnez le texte et copiez-le vous-même.",
+    "redraft": "Rédiger à nouveau",
+    "redraftHint": "Une nouvelle rédaction remplace le texte actuel, vos modifications comprises.",
+    "drafting": "Rédaction en cours…",
+    "drafted": "Brouillon prêt",
+    "required": "Le texte ne peut pas être vide.",
+    "unavailable": "Le coach n'a pas pu rédiger ce texte pour l'instant. Réessayez dans quelques minutes.",
+    "error": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez."
   }
 }

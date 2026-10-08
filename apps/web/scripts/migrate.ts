@@ -10,6 +10,7 @@ import { migrateJobOffers } from "../src/job-offers/index";
 import { migrateJobSearches } from "../src/job-searches/index";
 import { migrateProfiles } from "../src/profiles/index";
 import { migrateBilling } from "../src/billing/index";
+import { migrateTailoredDocuments } from "../src/tailored-documents/index";
 
 const config = authConfigFromEnv(process.env);
 await migrateCandidateAccounts(config);
@@ -24,6 +25,8 @@ await migrateApplications(config.database);
 console.info("[migrate] Applications are up to date");
 await migrateCompanyDossiers(config.database);
 console.info("[migrate] Company Dossiers are up to date");
+await migrateTailoredDocuments(config.database);
+console.info("[migrate] Cover Letters and Outreach Messages are up to date");
 await migrateActionCards(config.database);
 console.info("[migrate] Action Cards are up to date");
 await migrateAtsScores(config.database);

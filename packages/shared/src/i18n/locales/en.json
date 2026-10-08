@@ -719,5 +719,48 @@
     },
     "pdf": "Download as PDF",
     "docx": "Download as Word (.docx)"
+  },
+  "tailoredDocuments": {
+    "title": "Cover letter and outreach message",
+    "draftsOnly": "Jobbbox never sends anything for you: copy the text or open it in your mail app, then send it yourself.",
+    "languageLabel": "Document language",
+    "languageHint": "By default, the job offer's language. A change applies to the next draft.",
+    "languages": {
+      "fr": "French",
+      "en": "English"
+    },
+    "coverLetter": {
+      "title": "Cover letter",
+      "none": "The coach drafts a letter from your reference CV and the job offer. You can edit it.",
+      "draft": "Draft the letter",
+      "textLabel": "Letter text"
+    },
+    "outreachMessage": {
+      "title": "Outreach message",
+      "none": "A short message to a contact at the employer, by email or LinkedIn InMail. You can edit it.",
+      "draft": "Draft the message",
+      "channelLabel": "Sent by",
+      "channels": {
+        "email": "Email",
+        "inmail": "LinkedIn InMail"
+      },
+      "contactRoles": "Address it to:",
+      "subjectLabel": "Subject",
+      "textLabel": "Message text",
+      "openInMail": "Open in my mail app"
+    },
+    "writtenIn": "Written in {{language}}.",
+    "save": "Save my changes",
+    "saved": "Changes saved",
+    "copy": "Copy the text",
+    "copied": "Text copied",
+    "copyFailed": "Copying failed: select the text and copy it yourself.",
+    "redraft": "Draft again",
+    "redraftHint": "A new draft replaces the current text, your changes included.",
+    "drafting": "Drafting…",
+    "drafted": "Draft ready",
+    "required": "The text cannot be empty.",
+    "unavailable": "The coach could not draft this text right now. Try again in a few minutes.",
+    "error": "Saving failed. Check your connection and try again."
   }
 }

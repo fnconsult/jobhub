@@ -27,12 +27,9 @@ import type { Application, Applications } from "../applications";
 import type { Profiles } from "../profiles";
 import { fieldErrors, type FieldError } from "../validation";
 
-export const TAILORED_DOCUMENTS = ["cover_letter", "outreach_message"] as const;
-export type TailoredDocumentKind = (typeof TAILORED_DOCUMENTS)[number];
+import { OUTREACH_CHANNELS, TAILORED_DOCUMENTS, type OutreachChannel, type TailoredDocumentKind } from "./kinds";
 
-/** How an Outreach Message reaches the contact: an email, or a LinkedIn InMail the Candidate sends themselves (ADR-0001). */
-export const OUTREACH_CHANNELS = ["email", "inmail"] as const;
-export type OutreachChannel = (typeof OUTREACH_CHANNELS)[number];
+export { OUTREACH_CHANNELS, TAILORED_DOCUMENTS, type OutreachChannel, type TailoredDocumentKind } from "./kinds";
 
 interface Draft {
   /** The language it was written in. */
@@ -276,7 +273,7 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
     ];
     if (dossier) {
       // When it was built and where it came from tell the AI Coach nothing about the company.
-      const { builtAt: _builtAt, sources: _sources, suggestedContactRoles: _roles, ...facts } = dossier;
+      const facts = Object.fromEntries(Object.entries(dossier).filter(([key]) => !["builtAt", "sources", "suggestedContactRoles"].includes(key)));
       parts.push(`${label.dossier} : ${JSON.stringify(facts)}`);
       if (document === "outreach_message" && contactRoles.length > 0) parts.push(`${label.contacts} : ${contactRoles.join(" ; ")}`);
     }

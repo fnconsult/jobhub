@@ -48,6 +48,24 @@ describe("billing configuration from the environment", () => {
     ).toThrow(/live/);
   });
 
+  it("takes the Coaching Session Prices, regular and Premium, when both are set", async () => {
+    const config = billingConfigFromEnv({
+      DATABASE_URL: "postgres://localhost/x",
+      ...stripeEnv,
+      STRIPE_PRICE_COACHING_SESSION: "price_session",
+      STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_session_premium",
+    });
+
+    expect(config.stripe?.coachingSessionPrices).toEqual({ regular: "price_session", premium: "price_session_premium" });
+    await config.database.end();
+  });
+
+  it("refuses only one of the two Coaching Session Prices", () => {
+    expect(() => billingConfigFromEnv({ DATABASE_URL: "postgres://localhost/x", ...stripeEnv, STRIPE_PRICE_COACHING_SESSION: "price_session" })).toThrow(
+      /STRIPE_PRICE_COACHING_SESSION_PREMIUM/,
+    );
+  });
+
   it("can point at another Stripe API origin, for the e2e suite", async () => {
     const config = billingConfigFromEnv({ DATABASE_URL: "postgres://localhost/x", ...stripeEnv, STRIPE_API_URL: "http://127.0.0.1:12111" });
 

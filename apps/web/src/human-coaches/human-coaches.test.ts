@@ -253,4 +253,46 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
       expect(await coaches.reviews("someone-else", marie.applicationId)).toEqual([]);
     });
   });
+
+  describe("Coaching Sessions", () => {
+    const payment = { amount: 9000, currency: "eur" };
+
+    it("a paid Coaching Session gives the Candidate the Human Coach's booking link", async () => {
+      const sophie = await addCoach();
+      const marie = await signUp("marie.dupont@example.fr");
+      expect(await coaches.sessions(marie)).toEqual([]);
+
+      expect(await coaches.recordPaidSession({ checkoutSessionId: "cs_1", candidateId: marie, coachId: sophie.id, ...payment })).toBe(true);
+
+      expect(await coaches.sessions(marie)).toMatchObject([{ coach: { id: sophie.id, name: SOPHIE.name, bookingUrl: SOPHIE.bookingUrl }, ...payment }]);
+    });
+
+    it("records a payment once, however often it is reported", async () => {
+      const sophie = await addCoach();
+      const marie = await signUp("marie.dupont@example.fr");
+
+      await Promise.all([1, 2, 3].map(() => coaches.recordPaidSession({ checkoutSessionId: "cs_1", candidateId: marie, coachId: sophie.id, ...payment })));
+
+      expect(await coaches.sessions(marie)).toHaveLength(1);
+    });
+
+    it("ignores a payment for an unknown Human Coach or Candidate", async () => {
+      const sophie = await addCoach();
+      const marie = await signUp("marie.dupont@example.fr");
+
+      expect(await coaches.recordPaidSession({ checkoutSessionId: "cs_1", candidateId: marie, coachId: "not-a-coach", ...payment })).toBe(false);
+      expect(await coaches.recordPaidSession({ checkoutSessionId: "cs_2", candidateId: "nobody", coachId: sophie.id, ...payment })).toBe(false);
+      expect(await coaches.sessions(marie)).toEqual([]);
+    });
+
+    it("keeps a paid Coaching Session with a Human Coach retired since", async () => {
+      const sophie = await addCoach();
+      const marie = await signUp("marie.dupont@example.fr");
+      await coaches.recordPaidSession({ checkoutSessionId: "cs_1", candidateId: marie, coachId: sophie.id, ...payment });
+
+      await coaches.retire(sophie.id);
+
+      expect(await coaches.sessions(marie)).toHaveLength(1);
+    });
+  });
 });

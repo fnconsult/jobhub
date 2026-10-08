@@ -73,6 +73,27 @@ export interface CoachReview {
   createdAt: Date;
 }
 
+/** A Coaching Session the Candidate paid for (ADR-0014 style: recorded from Stripe's signed webhook only). */
+export interface CoachingSession {
+  id: string;
+  /** With their booking link, where the Candidate picks the session's time on Cal.com. */
+  coach: HumanCoach;
+  /** What was paid, in the currency's smallest unit (cents). */
+  amount: number;
+  currency: string;
+  paidAt: Date;
+}
+
+/** A Coaching Session payment Stripe confirmed. */
+export interface PaidCoachingSession {
+  /** The Stripe Checkout Session it was paid through: one Coaching Session per Checkout Session. */
+  checkoutSessionId: string;
+  candidateId: string;
+  coachId: string;
+  amount: number;
+  currency: string;
+}
+
 export type CoachReviewResult =
   | { ok: true; review: CoachReview }
   | { ok: false; errors: FieldError[] }
@@ -116,6 +137,14 @@ export interface HumanCoaches {
   review(coachId: string, candidateId: string, applicationId: string, input: unknown): Promise<CoachReviewResult>;
   /** The Coach Reviews of the Candidate's Application, oldest first; kept after Coach Access is revoked. */
   reviews(candidateId: string, applicationId: string): Promise<CoachReview[]>;
+
+  /**
+   * Records a Coaching Session Stripe confirmed as paid. Idempotent per Checkout Session, safe
+   * under concurrent deliveries. False (nothing recorded) for an unknown Human Coach or Candidate.
+   */
+  recordPaidSession(paid: PaidCoachingSession): Promise<boolean>;
+  /** The Candidate's paid Coaching Sessions, newest first, retired Human Coaches included. */
+  sessions(candidateId: string): Promise<CoachingSession[]>;
 }
 
 /** Cal.com's hosted sites (cal.com, its EU instance cal.eu, and their subdomains). */
@@ -320,6 +349,28 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
     },
 
     reviews: reviewsOf,
+
+    async recordPaidSession({ checkoutSessionId, candidateId, coachId, amount, currency }) {
+      if (!UUID.test(coachId)) return false;
+      const { rows } = await database.query(
+        `INSERT INTO coaching_session (stripe_checkout_session_id, candidate_id, coach_id, amount, currency)
+         SELECT $1, c.id, h.id, $4, $5 FROM candidate c, human_coach h WHERE c.id = $2 AND h.id = $3
+         ON CONFLICT (stripe_checkout_session_id) DO UPDATE SET stripe_checkout_session_id = EXCLUDED.stripe_checkout_session_id
+         RETURNING id`,
+        [checkoutSessionId, candidateId, coachId, amount, currency.toLowerCase()],
+      );
+      return rows.length > 0;
+    },
+
+    async sessions(candidateId) {
+      const { rows } = await database.query<CoachRow & { session_id: string; amount: number; currency: string; paid_at: Date }>(
+        `SELECT s.id AS session_id, s.amount, s.currency, s.paid_at, h.id, h.name, h.email, h.booking_url, h.bio
+         FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id
+         WHERE s.candidate_id = $1 ORDER BY s.paid_at DESC, s.id`,
+        [candidateId],
+      );
+      return rows.map((row) => ({ id: row.session_id, coach: coachFrom(row), amount: row.amount, currency: row.currency, paidAt: row.paid_at }));
+    },
   };
 }
 
@@ -353,5 +404,15 @@ export async function migrateHumanCoaches(database: Pool): Promise<void> {
       created_at timestamptz NOT NULL DEFAULT clock_timestamp()
     );
     CREATE INDEX IF NOT EXISTS coach_review_application_id_idx ON coach_review (application_id);
+    CREATE TABLE IF NOT EXISTS coaching_session (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      stripe_checkout_session_id text NOT NULL UNIQUE,
+      candidate_id text NOT NULL REFERENCES candidate (id) ON DELETE CASCADE,
+      coach_id uuid NOT NULL REFERENCES human_coach (id),
+      amount integer NOT NULL CHECK (amount >= 0),
+      currency text NOT NULL,
+      paid_at timestamptz NOT NULL DEFAULT clock_timestamp()
+    );
+    CREATE INDEX IF NOT EXISTS coaching_session_candidate_id_idx ON coaching_session (candidate_id);
   `);
 }

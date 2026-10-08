@@ -147,6 +147,48 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     ]);
   });
 
+  it("deleting the account removes the Candidate and everything of theirs, signs them out, and keeps the Job Offers", async () => {
+    const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+    const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));
+    await tailoredDocuments.draft(candidateId, application.id, { document: "cover_letter" });
+    const other = await signIn("paul.martin@example.fr");
+    const othersApplication = await saveApplication(other, await createProfile(other, "DSI"));
+
+    await candidateData.delete(candidateId);
+
+    expect(await candidateData.export(candidateId)).toMatchObject({ profiles: [], applications: [] });
+    expect(await (await testAuth.request("/api/auth/get-session", { cookie })).json()).toBeNull();
+    expect(await jobOffers.get(application.jobOffer.id)).toMatchObject({ title: "DAF H/F" });
+    expect(await applications.get(other, othersApplication.id)).toMatchObject({ jobOffer: { id: application.jobOffer.id } });
+    const { rows } = await database.query("SELECT 1 FROM candidate WHERE id = $1", [candidateId]);
+    expect(rows).toEqual([]);
+  });
+
+  it("signing up again with the same email after deletion starts an empty account", async () => {
+    await createProfile(candidateId, "DAF");
+    await candidateData.delete(candidateId);
+
+    const again = await signIn("marie.dupont@example.fr");
+
+    expect(again).not.toBe(candidateId);
+    expect(await candidateData.export(again)).toMatchObject({ profiles: [], applications: [] });
+  });
+
+  it("the account is not deleted when its billing cannot be closed, so a paying Candidate is never left charged without an account", async () => {
+    const refusing = createCandidateData(database, {
+      profiles,
+      applications,
+      tailoredCvs,
+      tailoredDocuments,
+      billing: { closeAccount: async () => Promise.reject(new Error("Stripe is down")) },
+    });
+    await createProfile(candidateId, "DAF");
+
+    await expect(refusing.delete(candidateId)).rejects.toThrow("Stripe is down");
+
+    expect((await candidateData.export(candidateId)).profiles).toHaveLength(1);
+  });
+
   it("the export holds nothing of another Candidate", async () => {
     const other = await signIn("paul.martin@example.fr");
     await saveApplication(other, await createProfile(other, "DSI"));

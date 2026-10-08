@@ -7,6 +7,12 @@
  *    every Master CV Version), their Applications (with their Job Offer and
  *    Interviews) and those Applications' Tailored Documents. Each item is read
  *    through the module that owns it, so the export shows what the app shows.
+ *  - `delete` the Candidate's account at once and for good: their billing is
+ *    closed first (no paid Plan outlives the account), then the Candidate goes,
+ *    and with them everything tied to them (every table holding their data
+ *    hangs off theirs with ON DELETE CASCADE: Profiles, CVs, Applications,
+ *    Tailored Documents, sessions...). Job Offers are not personal data and may
+ *    be referenced by other Candidates: they are kept.
  */
 import type { SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
@@ -49,6 +55,12 @@ export interface CandidateDataExport {
 export interface CandidateData {
   /** All the Candidate's data. */
   export(candidateId: string): Promise<CandidateDataExport>;
+  /**
+   * Deletes the Candidate's account and everything tied to it, signing them out
+   * everywhere. Throws, deleting nothing, if their billing could not be closed.
+   * Deleting an account that no longer exists does nothing.
+   */
+  delete(candidateId: string): Promise<void>;
 }
 
 export interface CandidateDataDeps {
@@ -56,9 +68,11 @@ export interface CandidateDataDeps {
   applications: Pick<Applications, "list" | "get">;
   tailoredCvs: Pick<TailoredCvs, "get">;
   tailoredDocuments: Pick<TailoredDocuments, "get">;
+  /** Ends the Candidate's paid Plan, if any, before the account goes. Without it, there is nothing to close. */
+  billing?: { closeAccount(candidateId: string): Promise<void> };
 }
 
-export function createCandidateData(_database: Pool, deps: CandidateDataDeps): CandidateData {
+export function createCandidateData(database: Pool, deps: CandidateDataDeps): CandidateData {
   async function exportProfiles(candidateId: string): Promise<ExportedProfile[]> {
     const summaries = await deps.profiles.list(candidateId);
     const exported = await Promise.all(
@@ -101,6 +115,11 @@ export function createCandidateData(_database: Pool, deps: CandidateDataDeps): C
     async export(candidateId) {
       const [profiles, applications] = await Promise.all([exportProfiles(candidateId), exportApplications(candidateId)]);
       return { exportedAt: new Date(), profiles, applications };
+    },
+
+    async delete(candidateId) {
+      await deps.billing?.closeAccount(candidateId);
+      await database.query(`DELETE FROM candidate WHERE id = $1`, [candidateId]);
     },
   };
 }

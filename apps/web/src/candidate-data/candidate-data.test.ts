@@ -93,6 +93,15 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     await testAuth.stop();
   }, 60_000);
 
+  it("the export holds the Candidate's account: email address and Interface Language", async () => {
+    expect((await candidateData.export(candidateId)).account).toEqual({
+      email: "marie.dupont@example.fr",
+      name: expect.any(String),
+      interfaceLanguage: "fr",
+      createdAt: expect.any(Date),
+    });
+  });
+
   it("the export holds every Profile with its Search Criteria and every version of its Master CV", async () => {
     const profileId = await createProfile(candidateId, "DAF");
     const edited = await profiles.saveMasterCv(candidateId, profileId, { basedOnVersion: 1, content: { ...masterCv, summary: "20 ans de finance." } });
@@ -156,7 +165,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
 
     await candidateData.delete(candidateId);
 
-    expect(await candidateData.export(candidateId)).toMatchObject({ profiles: [], applications: [] });
+    expect(await candidateData.export(candidateId)).toMatchObject({ account: null, profiles: [], applications: [] });
     expect(await (await testAuth.request("/api/auth/get-session", { cookie })).json()).toBeNull();
     expect(await jobOffers.get(application.jobOffer.id)).toMatchObject({ title: "DAF H/F" });
     expect(await applications.get(other, othersApplication.id)).toMatchObject({ jobOffer: { id: application.jobOffer.id } });

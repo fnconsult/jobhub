@@ -3,7 +3,7 @@
  * deleted with their account.
  *
  * One deep module. Callers get `createCandidateData(database, deps)`:
- *  - `export` everything the Candidate made: their Profiles (Search Criteria and
+ *  - `export` everything the Candidate made: their account, their Profiles (Search Criteria and
  *    every Master CV Version), their Applications (with their Job Offer and
  *    Interviews) and those Applications' Tailored Documents. Each item is read
  *    through the module that owns it, so the export shows what the app shows.
@@ -30,6 +30,14 @@ export interface ExportedProfile {
   masterCvVersions: MasterCvVersion[];
 }
 
+/** The Candidate's account itself. */
+export interface ExportedAccount {
+  email: string;
+  name: string;
+  interfaceLanguage: string;
+  createdAt: Date;
+}
+
 /** An Application as the Candidate keeps it: its Job Offer, Interviews and Tailored Documents. */
 export interface ExportedApplication extends Omit<Application, "matchScore"> {
   tailoredDocuments: {
@@ -46,6 +54,8 @@ export interface ExportedApplication extends Omit<Application, "matchScore"> {
 /** Everything the Candidate made in Jobbbox, ready to be written out as JSON. */
 export interface CandidateDataExport {
   exportedAt: Date;
+  /** Null once the account is deleted. */
+  account: ExportedAccount | null;
   /** Oldest first, archived ones included. */
   profiles: ExportedProfile[];
   /** Newest first. */
@@ -111,10 +121,18 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
     return exported.filter((application) => application !== null);
   }
 
+  async function exportAccount(candidateId: string): Promise<ExportedAccount | null> {
+    const { rows } = await database.query<ExportedAccount>(
+      `SELECT email, name, "interfaceLanguage", "createdAt" FROM candidate WHERE id = $1`,
+      [candidateId],
+    );
+    return rows[0] ?? null;
+  }
+
   return {
     async export(candidateId) {
-      const [profiles, applications] = await Promise.all([exportProfiles(candidateId), exportApplications(candidateId)]);
-      return { exportedAt: new Date(), profiles, applications };
+      const [account, profiles, applications] = await Promise.all([exportAccount(candidateId), exportProfiles(candidateId), exportApplications(candidateId)]);
+      return { exportedAt: new Date(), account, profiles, applications };
     },
 
     async delete(candidateId) {

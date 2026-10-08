@@ -50,6 +50,11 @@ export interface OutreachMessage extends Draft {
   channel: OutreachChannel;
   /** Empty when there is none. */
   subject: string;
+  /**
+   * Who to send it to: the Company Dossier's Suggested Contact Roles when it was
+   * drafted, as job titles in its language. Empty when there was no dossier.
+   */
+  contactRoles: string[];
 }
 
 export interface ApplicationDrafts {
@@ -110,6 +115,7 @@ interface DraftRow {
   language: DocumentLanguage;
   channel: OutreachChannel | null;
   subject: string;
+  contact_roles: string[];
   text: string;
   drafted_at: Date;
   updated_at: Date;
@@ -162,6 +168,30 @@ function systemPrompt(language: DocumentLanguage, document: TailoredDocumentKind
   return [intro, RULES[language], FORMAT[language][document]].join("\n");
 }
 
+/** Suggested Contact Roles (#17) as job titles. A role not listed here is written as given. */
+const CONTACT_ROLES: Record<DocumentLanguage, Record<string, string>> = {
+  fr: {
+    hiring_manager: "Responsable du poste à pourvoir",
+    talent_acquisition: "Responsable du recrutement",
+    hr_director: "Directeur ou directrice des ressources humaines",
+    hr_manager: "Responsable des ressources humaines",
+    chief_executive: "Dirigeant ou dirigeante de l'entreprise",
+  },
+  en: {
+    hiring_manager: "Hiring manager",
+    talent_acquisition: "Talent acquisition lead",
+    hr_director: "HR director",
+    hr_manager: "HR manager",
+    chief_executive: "Chief executive",
+  },
+};
+
+/** Labels for the facts a prompt is made of, in each Document Language. */
+const LABELS: Record<DocumentLanguage, { offer: string; cv: string; dossier: string; contacts: string }> = {
+  fr: { offer: "Offre", cv: "CV de référence", dossier: "Dossier sur l'entreprise", contacts: "Contacts à viser (des fonctions, jamais des personnes)" },
+  en: { offer: "Job offer", cv: "Reference CV", dossier: "Company dossier", contacts: "Contacts to address (job titles, never people)" },
+};
+
 const outreachReply = z.object({ subject: z.string().catch(""), text: z.string() });
 
 /** The subject and text of an Outreach Message reply: its JSON object, or else the whole reply as the text. */
@@ -188,7 +218,7 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
   async function draftsOf(application: Application): Promise<ApplicationDrafts> {
     const [language, { rows }] = await Promise.all([
       storedLanguage(application.id),
-      database.query<DraftRow>(`SELECT kind, language, channel, subject, text, drafted_at, updated_at FROM tailored_document WHERE application_id = $1`, [application.id]),
+      database.query<DraftRow>(`SELECT kind, language, channel, subject, contact_roles, text, drafted_at, updated_at FROM tailored_document WHERE application_id = $1`, [application.id]),
     ]);
     const draft = (row: DraftRow): Draft => ({ language: row.language, text: row.text, draftedAt: row.drafted_at, updatedAt: row.updated_at });
     const letter = rows.find((row) => row.kind === "cover_letter");
@@ -196,26 +226,50 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
     return {
       documentLanguage: language ?? jobOfferLanguage(application.jobOffer),
       coverLetter: letter ? draft(letter) : null,
-      outreachMessage: message ? { ...draft(message), channel: message.channel ?? "email", subject: message.subject } : null,
+      outreachMessage: message ? { ...draft(message), channel: message.channel ?? "email", subject: message.subject, contactRoles: message.contact_roles } : null,
     };
   }
 
   type Request = z.output<typeof draftSchema> & { language: DocumentLanguage };
 
-  /** The AI Coach's draft, or null when it could not write one. */
-  async function write(candidateId: string, application: Application, request: Request): Promise<{ subject: string; text: string } | null> {
-    const profile = await deps.profiles.get(candidateId, application.profile.id);
-    if (!profile) return null;
-    const { jobOffer } = application;
-    const prompt = [
-      `Offre : ${JSON.stringify({ title: jobOffer.title, employer: jobOffer.employer, location: jobOffer.location, content: jobOffer.content })}`,
-      `CV de référence : ${JSON.stringify(profile.masterCv.content)}`,
-    ].join("\n\n");
+  /** The built Company Dossier of the Application, if any. A dossier that cannot be read is done without. */
+  async function dossierOf(candidateId: string, applicationId: string): Promise<CompanyDossierFacts | null> {
     try {
-      const { language, document, channel } = request;
+      const state = await deps.companyDossiers?.get(candidateId, applicationId);
+      return state?.status === "built" && state.dossier ? state.dossier : null;
+    } catch (error) {
+      console.warn("[tailored-documents] the Company Dossier could not be read:", error instanceof Error ? error.message : error);
+      return null;
+    }
+  }
+
+  /** The AI Coach's draft, or null when it could not write one. */
+  async function write(
+    candidateId: string,
+    application: Application,
+    request: Request,
+  ): Promise<{ subject: string; text: string; contactRoles: string[] } | null> {
+    const [profile, dossier] = await Promise.all([deps.profiles.get(candidateId, application.profile.id), dossierOf(candidateId, application.id)]);
+    if (!profile) return null;
+    const { language, document, channel } = request;
+    const { jobOffer } = application;
+    const label = LABELS[language];
+    const contactRoles = (dossier?.suggestedContactRoles ?? []).map((role) => CONTACT_ROLES[language][role] ?? role);
+    const parts = [
+      `${label.offer} : ${JSON.stringify({ title: jobOffer.title, employer: jobOffer.employer, location: jobOffer.location, content: jobOffer.content })}`,
+      `${label.cv} : ${JSON.stringify(profile.masterCv.content)}`,
+    ];
+    if (dossier) {
+      // When it was built and where it came from tell the AI Coach nothing about the company.
+      const { builtAt: _builtAt, sources: _sources, suggestedContactRoles: _roles, ...facts } = dossier;
+      parts.push(`${label.dossier} : ${JSON.stringify(facts)}`);
+      if (document === "outreach_message" && contactRoles.length > 0) parts.push(`${label.contacts} : ${contactRoles.join(" ; ")}`);
+    }
+    const prompt = parts.join("\n\n");
+    try {
       const { text } = await deps.ai.generate({ task: "writing", candidateId, system: systemPrompt(language, document, channel), prompt });
       const written = document === "outreach_message" ? outreachIn(text) : { subject: "", text: text.trim() };
-      return written.text ? written : null;
+      return written.text ? { ...written, contactRoles: document === "outreach_message" ? contactRoles : [] } : null;
     } catch (error) {
       console.warn("[tailored-documents] the AI Coach could not write a draft:", error instanceof Error ? error.message : error);
       return null;
@@ -239,10 +293,10 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
       if (!written) return { ok: false, error: "unavailable" };
       if (parsed.data.language) await database.query(`UPDATE application SET document_language = $2 WHERE id = $1`, [application.id, language]);
       await database.query(
-        `INSERT INTO tailored_document (application_id, kind, language, channel, subject, text) VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO tailored_document (application_id, kind, language, channel, subject, contact_roles, text) VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (application_id, kind) DO UPDATE
-           SET language = $3, channel = $4, subject = $5, text = $6, drafted_at = now(), updated_at = now()`,
-        [application.id, document, language, document === "outreach_message" ? channel : null, written.subject, written.text],
+           SET language = $3, channel = $4, subject = $5, contact_roles = $6, text = $7, drafted_at = now(), updated_at = now()`,
+        [application.id, document, language, document === "outreach_message" ? channel : null, written.subject, written.contactRoles, written.text],
       );
       return { ok: true, drafts: await draftsOf(application) };
     },
@@ -263,6 +317,7 @@ export async function migrateTailoredDocuments(database: Pool): Promise<void> {
       -- Outreach Messages only.
       channel text CHECK (channel IN (${channels})),
       subject text NOT NULL DEFAULT '',
+      contact_roles text[] NOT NULL DEFAULT '{}',
       text text NOT NULL,
       drafted_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now(),

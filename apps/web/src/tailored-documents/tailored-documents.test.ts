@@ -92,10 +92,10 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
     candidateId = await signIn("marie.dupont@example.fr");
     otherCandidateId = await signIn("paul.martin@example.fr");
     applicationId = await saveApplication(FRENCH_OFFER);
-  });
+  }, 60_000); // A throwaway database each time: slow when the machine is busy.
   afterEach(async () => {
     await testAuth.stop();
-  });
+  }, 60_000);
 
   it("an Application has no drafts until the AI Coach writes them", async () => {
     expect(await documents.get(candidateId, applicationId)).toEqual({ documentLanguage: "fr", coverLetter: null, outreachMessage: null });
@@ -160,5 +160,41 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
     const result = await documents.draft(candidateId, applicationId, { document: "outreach_message" });
 
     expect(result).toMatchObject({ ok: true, drafts: { outreachMessage: { subject: "", text: "Bonjour, je me permets de vous écrire." } } });
+  });
+
+  it("drafts draw on the Company Dossier and address the Outreach Message to its Suggested Contact Roles when one is built", async () => {
+    dossiers.set(applicationId, {
+      status: "built",
+      dossier: {
+        employer: "Acme Industrie",
+        source: "french_register",
+        name: "ACME INDUSTRIE",
+        activity: "Fabrication de machines agricoles",
+        headcount: { min: 250, max: 499 },
+        builtAt: new Date("2026-10-01T10:00:00Z"),
+        suggestedContactRoles: ["hr_director", "hiring_manager"],
+      },
+    });
+
+    const letter = await documents.draft(candidateId, applicationId, { document: "cover_letter" });
+    expect(lastCall().prompt).toContain("Fabrication de machines agricoles");
+
+    const message = await documents.draft(candidateId, applicationId, { document: "outreach_message" });
+    expect(lastCall().prompt).toContain("Fabrication de machines agricoles");
+    expect(lastCall().prompt).toContain("Directeur ou directrice des ressources humaines");
+    expect(letter.ok && message.ok).toBe(true);
+    expect(message).toMatchObject({
+      ok: true,
+      drafts: { outreachMessage: { contactRoles: ["Directeur ou directrice des ressources humaines", "Responsable du poste à pourvoir"] } },
+    });
+  });
+
+  it("without a built Company Dossier, drafts are written from the Master CV and the Job Offer alone", async () => {
+    dossiers.set(applicationId, { status: "awaiting_confirmation" });
+
+    const result = await documents.draft(candidateId, applicationId, { document: "outreach_message" });
+
+    expect(lastCall().prompt).not.toContain("Dossier");
+    expect(result).toMatchObject({ ok: true, drafts: { outreachMessage: { contactRoles: [] } } });
   });
 });

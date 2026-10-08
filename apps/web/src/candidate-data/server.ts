@@ -1,4 +1,4 @@
-import { Pool } from "pg";
+import { sharedPool } from "@/database/pool";
 import { getApplications } from "@/applications/server";
 import { getBilling } from "@/billing/server";
 import { getProfiles } from "@/profiles/server";
@@ -10,7 +10,7 @@ let instance: CandidateData | undefined;
 
 /** The app's Candidate data module (export and account deletion), on the database named by DATABASE_URL. */
 export function getCandidateData(): CandidateData {
-  instance ??= createCandidateData(new Pool({ connectionString: process.env.DATABASE_URL }), {
+  instance ??= createCandidateData(sharedPool(), {
     profiles: getProfiles(),
     applications: getApplications(),
     tailoredCvs: getTailoredCvs(),

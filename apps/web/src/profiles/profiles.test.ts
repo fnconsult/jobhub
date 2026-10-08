@@ -159,6 +159,17 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
       expect((await profiles.get(candidateId, profile.id))?.masterCv.content.headline).toBe("DAF");
     });
 
+    it("keeps whether the CV shows a photo, which only the uploaded file could tell", async () => {
+      const created = await profiles.create(candidateId, { masterCv: { ...masterCv, photo: true }, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
+      if (!created.ok) throw new Error("could not create the Profile");
+      expect(created.profile.masterCv.content.photo).toBe(true);
+
+      const saved = await profiles.saveMasterCv(candidateId, created.profile.id, { basedOnVersion: 1, content: { ...masterCv, photo: false } });
+
+      expect(saved).toMatchObject({ ok: true, profile: { masterCv: { version: 2, content: { photo: false } } } });
+      expect(await profiles.saveMasterCv(candidateId, created.profile.id, { basedOnVersion: 2, content: { ...masterCv, photo: "oui" } })).toMatchObject({ ok: false });
+    });
+
     it("does not create a version when nothing changed", async () => {
       const profile = await createProfile();
 

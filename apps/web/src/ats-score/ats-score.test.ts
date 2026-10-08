@@ -101,6 +101,24 @@ describe.skipIf(!connectionString)("ATS Scoring (needs Postgres: DATABASE_URL)",
     ]);
   });
 
+  it("advises leaving out the photo of a CV that shows one, in either language, and records it once accepted", async () => {
+    const withPhoto = { masterCv: { ...masterCv, photo: true }, searchCriteria: { targetRole: "Directrice financière", location: "Lyon" } };
+    const english = await profiles.create(marie, withPhoto);
+    if (!english.ok) throw new Error("fixture Profile refused");
+    await scoring.analyse(marie, english.profile.id, "en");
+    expect((await actionCards.pending(marie, { kind: "profile", id: english.profile.id })).map((card) => card.title)).toContain(
+      "Senior Advice: leave out your photo",
+    );
+
+    await profiles.saveMasterCv(marie, profileId, { basedOnVersion: 1, content: withPhoto.masterCv });
+    await scoring.analyse(marie, profileId, "fr");
+    const card = (await actionCards.pending(marie, page())).find((pending) => pending.title === "Conseil senior : retirez votre photo");
+    expect(card?.body).toMatch(/facultatif/);
+
+    expect(await actionCards.decide(marie, card!.id, "accept")).toMatchObject({ ok: true });
+    expect((await profiles.get(marie, profileId))!.masterCv).toMatchObject({ version: 3, content: { photo: false } });
+  });
+
   it("applies an accepted fix as a new Master CV version and recomputes the score, without counting it", async () => {
     await scoring.analyse(marie, profileId, "fr");
     const [keywordFix] = await actionCards.pending(marie, page());

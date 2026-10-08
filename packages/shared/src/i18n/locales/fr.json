@@ -649,6 +649,10 @@
       "old_experience": {
         "title": "Conseil senior : retirez une expérience ancienne",
         "body": "« {{title}} » chez {{employer}} ({{period}}) sera retiré du CV. Les recruteurs regardent surtout les 15 à 20 dernières années."
+      },
+      "photo": {
+        "title": "Conseil senior : retirez votre photo",
+        "body": "Votre CV montre une photo. Retirez-la du fichier que vous envoyez : les ATS ne la lisent pas, et elle met en avant l'âge plutôt que l'expertise."
       }
     }
   }

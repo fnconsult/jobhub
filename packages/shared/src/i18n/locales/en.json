@@ -649,6 +649,10 @@
       "old_experience": {
         "title": "Senior Advice: remove an old job",
         "body": "“{{title}}” at {{employer}} ({{period}}) will be removed from the CV. Recruiters mostly look at the last 15 to 20 years."
+      },
+      "photo": {
+        "title": "Senior Advice: leave out your photo",
+        "body": "Your CV shows a photo. Leave it out of the file you send: ATS cannot read it, and it puts age forward rather than expertise."
       }
     }
   }

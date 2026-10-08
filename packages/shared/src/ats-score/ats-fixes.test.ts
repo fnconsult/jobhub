@@ -135,6 +135,17 @@ describe("ATS Fixes", () => {
       expect(fixesFor({ ...withSkills, summary: "12 ans d'expérience en finance." })).toEqual([]);
     });
 
+    it("proposes leaving out the photo of a CV that shows one", () => {
+      const content = { ...withSkills, photo: true };
+      const fixes = fixesFor(content);
+
+      expect(fixes).toEqual([{ id: "remove_photo", category: "senior_advice", reason: "photo", change: { type: "remove_photo" } }]);
+      expect(applyAtsFix(content, fixes[0]!)).toEqual({ ...content, photo: false });
+      expect(fixesFor({ ...content, photo: false })).toEqual([]);
+      expect(fixesFor(withSkills)).toEqual([]);
+      expect(applyAtsFix({ ...content, photo: false }, fixes[0]!)).toBeNull();
+    });
+
     it("proposes leaving out a job that ended more than 20 years ago", () => {
       const old = { title: "Comptable", employer: "Fiduciaire Rhône", location: "Lyon", period: "1988 – 1995", description: "" };
       const content = { ...withSkills, experience: [...withSkills.experience, old] };

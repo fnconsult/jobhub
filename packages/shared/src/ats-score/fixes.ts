@@ -21,7 +21,8 @@ export type AtsFixReason =
   | "age"
   | "birth_date"
   | "experience_years"
-  | "old_experience";
+  | "old_experience"
+  | "photo";
 
 export type AtsFixChange =
   | { type: "set_headline"; headline: string }
@@ -30,7 +31,9 @@ export type AtsFixChange =
   | { type: "remove_decorations" }
   /** Replaces `from` wherever the headline, the summary or a job's title or description says it. */
   | { type: "replace_text"; from: string; to: string }
-  | { type: "remove_experience"; experience: Pick<CvExperience, "title" | "employer" | "period"> };
+  | { type: "remove_experience"; experience: Pick<CvExperience, "title" | "employer" | "period"> }
+  /** Records that the CV no longer shows a photo. */
+  | { type: "remove_photo" };
 
 export interface AtsFix {
   /** The same fix proposed twice has the same id. */
@@ -73,6 +76,7 @@ function idOf(change: AtsFixChange): string {
   switch (change.type) {
     case "set_headline":
     case "remove_decorations":
+    case "remove_photo":
       return change.type;
     case "list_skill":
     case "split_skill":
@@ -111,6 +115,7 @@ function cappedExperience(match: RegExpMatchArray, atSentenceStart: boolean): st
 
 function seniorAdvice(cv: CvContent, today: Date): AtsFix[] {
   const fixes: AtsFix[] = [];
+  if (cv.photo) fixes.push(fix("senior_advice", "photo", { type: "remove_photo" }));
   for (const text of [cv.headline, cv.summary, ...cv.experience.map((job) => job.description)]) {
     for (const pattern of AGE) {
       const match = text.match(pattern);
@@ -235,6 +240,8 @@ function applyChange(cv: CvContent, change: AtsFixChange): CvContent | null {
       const index = cv.experience.findIndex((job) => job.title === title && job.employer === employer && job.period === period);
       return index === -1 ? null : { ...cv, experience: cv.experience.filter((_, at) => at !== index) };
     }
+    case "remove_photo":
+      return cv.photo ? { ...cv, photo: false } : null;
   }
 }
 

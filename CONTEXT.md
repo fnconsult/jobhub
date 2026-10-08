@@ -10,6 +10,14 @@ A coaching platform that helps senior job seekers (40+) in France land a job: it
 A person with an account who is looking for a job. Owns one or more Profiles.
 _Avoid_: User (in domain discussions), applicant, job seeker
 
+**Account deletion**:
+The Candidate deletes their own account, confirmed by typing their email address. It takes effect at once and ends any paid subscription first. Everything tied to the Candidate goes; Job Offers stay.
+_Avoid_: Account closure, deactivation
+
+**Data export**:
+One JSON file the Candidate downloads with their account, Profiles with every Master CV Version, Applications and Tailored Documents.
+_Avoid_: Backup, data dump
+
 **Organisation**:
 An outplacement firm, APEC or corporate HR department that pays for its beneficiaries' Candidate accounts and whose advisors can follow their progress. Not in the MVP: Candidates pay for themselves first.
 _Avoid_: Company, client, tenant, B2B customer

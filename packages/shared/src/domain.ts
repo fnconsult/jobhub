@@ -20,6 +20,21 @@ export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 export const PLANS = ["free", "standard", "premium"] as const;
 export type Plan = (typeof PLANS)[number];
 
+/** Plan Quotas that cap a number of things: Profiles held at once, or uses per calendar month. */
+export const LIMITED_QUOTAS = ["profiles", "matchScores", "atsScores", "enrichedContacts"] as const;
+export type LimitedQuota = (typeof LIMITED_QUOTAS)[number];
+
+/** Limited Plan Quotas counted per calendar month (Europe/Paris); the others count what the Candidate holds. */
+export const MONTHLY_QUOTAS = ["matchScores", "atsScores", "enrichedContacts"] as const satisfies readonly LimitedQuota[];
+export type MonthlyQuota = (typeof MONTHLY_QUOTAS)[number];
+
+/** How often a Candidate receives a Job Digest. */
+export const JOB_DIGEST_FREQUENCIES = ["none", "weekly", "daily"] as const;
+export type JobDigestFrequency = (typeof JOB_DIGEST_FREQUENCIES)[number];
+
+/** The Plan Quotas of one Plan. A null limit means unlimited. */
+export type PlanQuotas = { [quota in LimitedQuota]: number | null } & { jobDigest: JobDigestFrequency };
+
 /** Contract types a Candidate can search for (French market). */
 export const CONTRACT_TYPES = ["cdi", "cdd", "freelance", "interim"] as const;
 export type ContractType = (typeof CONTRACT_TYPES)[number];
@@ -76,4 +91,56 @@ export interface MasterCvContent {
   education: CvEducation[];
   skills: string[];
   languages: CvLanguage[];
+  /**
+   * True when the CV shows a picture, most likely the Candidate's photo: found
+   * in the uploaded file, or set by the Candidate. Absent means no photo.
+   * The Master CV keeps no picture itself, only this fact (Senior Advice).
+   */
+  photo?: boolean;
 }
+
+/**
+ * The content of a CV in sections: a Master CV version or a Tailored CV, which
+ * is a copy of the Master CV adapted to one Job Offer and has the same shape.
+ */
+export type CvContent = MasterCvContent;
+
+/** A salary range, gross annual, in euros. Either end may be unknown. */
+export interface SalaryRange {
+  min?: number;
+  max?: number;
+}
+
+/**
+ * What a Job Offer says about the job, as captured from its source. Only the
+ * title and the full content are always known; the rest is filled when the
+ * posting states it.
+ */
+export interface JobOfferDetails {
+  title: string;
+  /** The full text of the posting. */
+  content: string;
+  employer?: string;
+  location?: string;
+  contractType?: ContractType;
+  remoteWork?: RemoteWork;
+  salary?: SalaryRange;
+  /** Skills the posting asks for. */
+  skills?: string[];
+  /** Years of experience the posting asks for. */
+  requiredExperienceYears?: number;
+}
+
+/** A Job Offer as stored: shared by every Candidate and Guest who captures the same posting. */
+export interface JobOffer extends JobOfferDetails {
+  id: string;
+  /** Where the posting was captured: its URL, and the site's name (its host when not given). */
+  source: { url?: string; name?: string };
+}
+
+/**
+ * How long a Guest's CV and captured Job Offer are kept, at most, in hours.
+ * ADR-0003 promises deletion within 24 hours; the hour left over is margin for
+ * the clean-up, which runs every 15 minutes.
+ */
+export const GUEST_RETENTION_HOURS = 23;

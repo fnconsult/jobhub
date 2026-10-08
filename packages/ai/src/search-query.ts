@@ -37,3 +37,19 @@ export function buildSearchQuery(criteria: SearchCriteria): string {
   }
   return parts.join(", ");
 }
+
+/** The keys a company web search is asked to answer with. */
+export const COMPANY_FACTS = ["country", "headquarters", "industry", "headcount", "revenue", "website", "siren"] as const;
+
+/**
+ * The only text ever sent to the web-search provider for a Company Dossier: built
+ * from the employer's name alone (a company, not a person), cleaned like Search
+ * Criteria. It asks for company facts as JSON and for no person to be named.
+ */
+export function buildCompanyQuery(employer: string): string {
+  return (
+    `Fiche d'entreprise de « ${clean(employer)} » : pays, adresse du siège, secteur d'activité, effectif, chiffre d'affaires, site web, numéro SIREN si elle est française. ` +
+    `Réponds uniquement par un objet JSON avec les clés ${COMPANY_FACTS.join(", ")} (texte court, null si inconnu). ` +
+    `Ne nomme aucune personne.`
+  );
+}

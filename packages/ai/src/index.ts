@@ -5,16 +5,17 @@
  *   const ai = createAiLayerFromEnv();
  *   await ai.generate({ task: "scoring", candidateId, system, prompt });
  *   await ai.searchWeb({ candidateId, criteria });
+ *   await ai.searchCompany({ candidateId, employer });
  */
 export { createAiLayer } from "./ai-layer";
-export type { AiLayer, AiLayerOptions, GenerateRequest, GenerateResult, Route, SearchRequest, SearchResult } from "./ai-layer";
+export type { AiLayer, AiLayerOptions, CompanySearchRequest, GenerateRequest, GenerateResult, Route, SearchRequest, SearchResult } from "./ai-layer";
 export { AI_ENV_KEYS, createAiLayerFromEnv } from "./env";
 export type { AiLayerDeps } from "./env";
 export { AiConfigError, AiProviderError, DataResidencyError } from "./errors";
 export { createAnthropicProvider } from "./providers/anthropic";
 export type { AnthropicEndpoint, AnthropicProviderOptions } from "./providers/anthropic";
 export { createMistralProvider, createOpenAiProvider, createPerplexityProvider } from "./providers/chat-completions";
-export { buildSearchQuery } from "./search-query";
+export { buildCompanyQuery, buildSearchQuery, COMPANY_FACTS } from "./search-query";
 export { PROVIDER_IDS, SEARCH_TASK, TEXT_TASKS } from "./types";
 export type * from "./types";
 export { createConsoleUsageLog } from "./usage";

@@ -7,6 +7,14 @@
 // fixed Search Criteria the rule-based fallback could never produce, so tests
 // can tell the AI reading was used. A CV containing "E2E_AI_DOWN" gets a 503,
 // so tests can watch the fallback to the rule-based reading.
+//
+// For the AI Coach in the Coach Panel (task coaching), it says which Profile
+// the system prompt put in view, if any, and how many messages it was sent, so
+// tests can check the AI Coach knows what the Candidate is looking at.
+//
+// For the offer analysis behind a Company Dossier (task offer_analysis), a posting
+// whose displayed employer starts with "Cabinet" is a recruiting agency's, and its
+// Presumed Employer is the name after "Client présumé : " in the posting.
 const realFetch = globalThis.fetch;
 
 globalThis.fetch = async (input, init) => {
@@ -17,6 +25,17 @@ globalThis.fetch = async (input, init) => {
   if (prompt.includes("E2E_AI_DOWN")) return new Response("upstream unavailable", { status: 503 });
 
   let content = "fake reply";
+  const system = String(body.messages?.find((message) => message.role === "system")?.content ?? "");
+  if (system.includes("coach Jobbbox")) {
+    const inView = /Le candidat consulte son profil « (.+?) »/.exec(system)?.[1];
+    const turns = body.messages.filter((message) => message.role !== "system").length;
+    content = `${inView ? `Je vois votre profil « ${inView} ».` : "Je ne vois aucun profil."} (${turns} message${turns > 1 ? "s" : ""})`;
+  }
+  if (system.includes("cabinet de recrutement")) {
+    const agency = /^Employeur affiché : Cabinet/m.test(prompt);
+    const presumed = /Client présumé : (.+)/.exec(prompt)?.[1]?.trim() ?? null;
+    content = JSON.stringify({ recruitingAgency: agency, presumedEmployer: agency ? presumed : null });
+  }
   if (prompt.startsWith("CV :\n")) {
     const [fullName = "", headline = ""] = prompt.slice("CV :\n".length).split("\n");
     content = JSON.stringify({

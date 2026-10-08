@@ -1,15 +1,24 @@
 import { notFound, redirect } from "next/navigation";
 import { Pool } from "pg";
 import { getCurrentCandidate } from "@/auth/server";
+import { getBilling } from "@/billing/server";
+import type { UpgradePrompt } from "@/billing/upgrade-prompt";
+import { localeOf } from "@/i18n/server";
 import { routes } from "@/routes";
 import { createProfiles, type Profile, type Profiles } from "./index";
+import { profilePlanQuota, profileUpgradePrompt } from "./plan-quota";
 
 let instance: Profiles | undefined;
 
-/** The app's Profiles module, on the database named by DATABASE_URL. */
+/** The app's Profiles module, on the database named by DATABASE_URL, within the Candidates' Plan Quotas. */
 export function getProfiles(): Profiles {
-  instance ??= createProfiles(new Pool({ connectionString: process.env.DATABASE_URL }));
+  instance ??= createProfiles(new Pool({ connectionString: process.env.DATABASE_URL }), { profileQuota: profilePlanQuota(getBilling()) });
   return instance;
+}
+
+/** The Upgrade Prompt, in the Candidate's Interface Language, if their Plan allows no more active Profiles; otherwise null. */
+export function profileUpgradePromptFor(candidate: { id: string; interfaceLanguage?: unknown }): Promise<UpgradePrompt | null> {
+  return profileUpgradePrompt(getBilling(), getProfiles(), candidate.id, localeOf(candidate));
 }
 
 /**

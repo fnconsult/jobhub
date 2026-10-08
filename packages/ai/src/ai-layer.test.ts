@@ -102,3 +102,21 @@ describe("web search", () => {
     );
   });
 });
+
+describe("company web search", () => {
+  it("sends the search provider a query built only from the employer's name, and logs its usage", async () => {
+    const perplexity = createFakeProvider({ id: "perplexity", residency: "outside_eu", answer: "{}", sources: ["https://acme.example/about"] });
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [perplexity], routes: { web_search: "perplexity" }, usage });
+
+    const result = await ai.searchCompany({ candidateId: "cand-1", employer: "Acme Robotics GmbH contact: hr@acme.example +49 30 1234 5678" });
+
+    expect(result).toMatchObject({ answer: "{}", sources: ["https://acme.example/about"], provider: "perplexity" });
+    expect(perplexity.queries).toHaveLength(1);
+    expect(perplexity.queries[0]).toContain("« Acme Robotics GmbH contact: »");
+    expect(perplexity.queries[0]).not.toMatch(/hr@|1234/);
+    expect(perplexity.queries[0]).toMatch(/ne nomme aucune personne/i);
+    expect(perplexity.queries[0]).toMatch(/siren/i);
+    expect(usage.entries).toEqual([expect.objectContaining({ candidateId: "cand-1", task: "web_search", provider: "perplexity" })]);
+  });
+});

@@ -1,5 +1,5 @@
 import type { SearchCriteria } from "@jobhub/shared";
-import { buildSearchQuery } from "./search-query";
+import { buildCompanyQuery, buildSearchQuery } from "./search-query";
 import { AiConfigError, DataResidencyError } from "./errors";
 import { SEARCH_TASK, TEXT_TASKS } from "./types";
 import type { AiProvider, AiTask, Message, ProviderId, TextTask, TokenUsage, UsageEntry, UsageLog } from "./types";
@@ -29,6 +29,12 @@ export interface SearchRequest {
   criteria: SearchCriteria;
 }
 
+export interface CompanySearchRequest {
+  candidateId: string | null;
+  /** The only input: the employer's name, as the Job Offer or the Candidate gives it. Never a person. */
+  employer: string;
+}
+
 export interface SearchResult {
   answer: string;
   sources: string[];
@@ -41,6 +47,8 @@ export interface SearchResult {
 export interface AiLayer {
   generate(request: GenerateRequest): Promise<GenerateResult>;
   searchWeb(request: SearchRequest): Promise<SearchResult>;
+  /** Searches the web for public facts about an employer, for a Company Dossier. */
+  searchCompany(request: CompanySearchRequest): Promise<SearchResult>;
 }
 
 export interface Route {
@@ -92,6 +100,16 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
 
   const log = (entry: Omit<UsageEntry, "at">) => options.usage.record({ ...entry, at: now() });
 
+  /** `query` must be built by search-query.ts: nothing else ever reaches the search provider. */
+  async function search(candidateId: string | null, query: string): Promise<SearchResult> {
+    const route = routeFor(SEARCH_TASK);
+    const provider = providerFor(route);
+    if (!provider.search) throw new AiConfigError(`AI provider "${provider.id}" cannot search the web`);
+    const output = await provider.search(query, { model: route.model });
+    await log({ candidateId, task: SEARCH_TASK, provider: provider.id, endpoint: provider.endpoint, model: output.model, ...output.usage });
+    return { answer: output.answer, sources: output.sources, provider: provider.id, model: output.model, usage: output.usage };
+  }
+
   return {
     async generate(request) {
       const route = routeFor(request.task);
@@ -116,20 +134,12 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       return { text: output.text, provider: provider.id, model: output.model, usage: output.usage };
     },
 
-    async searchWeb(request) {
-      const route = routeFor(SEARCH_TASK);
-      const provider = providerFor(route);
-      if (!provider.search) throw new AiConfigError(`AI provider "${provider.id}" cannot search the web`);
-      const output = await provider.search(buildSearchQuery(request.criteria), { model: route.model });
-      await log({
-        candidateId: request.candidateId,
-        task: SEARCH_TASK,
-        provider: provider.id,
-        endpoint: provider.endpoint,
-        model: output.model,
-        ...output.usage,
-      });
-      return { answer: output.answer, sources: output.sources, provider: provider.id, model: output.model, usage: output.usage };
+    searchWeb(request) {
+      return search(request.candidateId, buildSearchQuery(request.criteria));
+    },
+
+    searchCompany(request) {
+      return search(request.candidateId, buildCompanyQuery(request.employer));
     },
   };
 }

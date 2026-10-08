@@ -3,6 +3,7 @@ import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jo
 import { describe, expect, it } from "vitest";
 import { draftFromCv } from "./index";
 import { CvFileError } from "./index";
+import { PROFILE_NAME_MAX_LENGTH } from "../profiles/limits";
 import { docxCv, MARIE_DUPONT_CV, pdfCv } from "./test-support";
 
 function aiReplying(reply: string): { ai: AiLayer; provider: FakeProvider } {
@@ -86,6 +87,37 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
     expect(fromDocx).toEqual(fromPdf);
   });
 
+  describe("a photo on the CV, for Senior Advice", () => {
+    const portrait = { width: 300, height: 400 };
+
+    it("notes a picture on a PDF CV, an icon aside", async () => {
+      const { ai } = aiReplying("pas du JSON");
+      const read = async (picture?: { width: number; height: number }) =>
+        (await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV, { picture }) }, { ai, candidateId: "c1" })).masterCv;
+
+      expect((await read(portrait)).photo).toBe(true);
+      expect((await read({ width: 16, height: 16 })).photo).toBeUndefined();
+      expect(await read()).not.toHaveProperty("photo");
+    });
+
+    it("notes a picture in a Word CV", async () => {
+      const { ai } = aiReplying("pas du JSON");
+
+      const draft = await draftFromCv({ name: "cv.docx", bytes: await docxCv(MARIE_DUPONT_CV, { photo: true }) }, { ai, candidateId: "c1" });
+
+      expect(draft.masterCv.photo).toBe(true);
+      expect(draft.masterCv.fullName).toBe("Marie Dupont");
+    });
+
+    it("notes it whether the AI Coach or the rules read the CV", async () => {
+      const { ai } = aiReplying(JSON.stringify({ masterCv: { fullName: "Marie Dupont", photo: false } }));
+
+      const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV, { picture: portrait }) }, { ai, candidateId: "c1" });
+
+      expect(draft.masterCv).toMatchObject({ fullName: "Marie Dupont", photo: true });
+    });
+  });
+
   it.each([
     ["an old Word .doc file", "cv.doc", new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 1, 2, 3])],
     ["an image", "cv.png", new Uint8Array([0x89, 0x50, 0x4e, 0x47])],
@@ -146,6 +178,26 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
       expect(draft).toEqual(aiReading);
       expect(provider.calls).toHaveLength(1);
       expect(provider.calls[0]!.messages.at(-1)!.content).toContain("Responsable du contrôle de gestion — Renault, Paris — 2005 – 2015");
+    });
+
+    it("reads a Guest's CV by rules alone: it is not sent to an AI provider without an account (ADR-0003)", async () => {
+      const { ai, provider } = aiReplying(JSON.stringify(aiReading));
+
+      const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai, candidateId: null });
+
+      expect(provider.calls).toHaveLength(0);
+      expect(draft.masterCv).toMatchObject({ fullName: "Marie Dupont", skills: ["Consolidation", "IFRS", "SAP", "Management d'équipe"] });
+      expect(draft.searchCriteria).toEqual({ targetRole: "Directrice financière", location: "Lyon (69003)" });
+    });
+
+    it("shortens a target role too long to name a Profile, at a word boundary", async () => {
+      const longRole = `${"Responsable ".repeat(12)}financier`;
+      const { ai } = aiReplying(JSON.stringify({ ...aiReading, searchCriteria: { targetRole: longRole, location: "Lyon" } }));
+
+      const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai, candidateId: "c1" });
+
+      expect(draft.searchCriteria.targetRole.length).toBeLessThanOrEqual(PROFILE_NAME_MAX_LENGTH);
+      expect(draft.searchCriteria.targetRole).toBe("Responsable ".repeat(10).trim());
     });
 
     it("accepts a reading wrapped in a Markdown code block, and fills what it leaves out with empty fields", async () => {

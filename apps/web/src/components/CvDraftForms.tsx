@@ -4,11 +4,14 @@ import { CONTRACT_TYPES, REMOTE_WORK_OPTIONS, type MasterCvContent } from "@jobh
 import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import type { UpgradePrompt as Prompt } from "@/billing/upgrade-prompt";
 import type { CvDraft, CvFileErrorCode } from "@/cv";
 import type { ProfileFieldError } from "@/profiles";
+import { PROFILE_NAME_MAX_LENGTH } from "@/profiles/limits";
 import { routes } from "@/routes";
 import { SelectField, TextField } from "./form-fields";
 import { MasterCvFields } from "./MasterCvFields";
+import { UpgradePrompt, upgradePromptIn } from "./UpgradePrompt";
 
 /** Search Criteria as the review form holds them: what the inputs show. */
 interface CriteriaFields {
@@ -19,84 +22,109 @@ interface CriteriaFields {
   remoteWork: string;
 }
 
-type Step =
-  | { kind: "upload"; reading: boolean; error?: CvFileErrorCode | "unknown" }
-  | { kind: "review"; masterCv: MasterCvContent; criteria: CriteriaFields; saving: boolean; errors: ProfileFieldError[]; failed: boolean };
+const BLANK_MASTER_CV: MasterCvContent = {
+  fullName: "",
+  headline: "",
+  email: "",
+  phone: "",
+  location: "",
+  summary: "",
+  experience: [],
+  education: [],
+  skills: [],
+  languages: [],
+};
+
+/** The draft a Candidate starts from when they start from scratch: the review form left blank. */
+export const BLANK_DRAFT: CvDraft = { masterCv: BLANK_MASTER_CV, searchCriteria: { targetRole: "", location: "" } };
 
 const FILE_ERRORS = new Set<string>(["unsupported_format", "too_large", "unreadable", "empty"]);
 
-/**
- * Creating a Profile from a CV: the Candidate uploads a PDF or Word CV, then
- * reviews and corrects the Master CV and Search Criteria read from it before
- * anything is saved.
- */
-export function CvOnboarding() {
+/** Uploading a PDF or Word CV and reading it into a draft. Saves nothing. */
+export function CvUpload({ onDraft }: { onDraft: (draft: CvDraft) => void }) {
   const { t } = useTranslation();
-  const router = useRouter();
   const fileId = useId();
-  const [step, setStep] = useState<Step>({ kind: "upload", reading: false });
+  const [state, setState] = useState<{ reading: boolean; error?: CvFileErrorCode | "unknown" }>({ reading: false });
 
   async function readCv(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    setStep({ kind: "upload", reading: true });
+    setState({ reading: true });
     try {
       const response = await fetch("/api/cv/draft", { method: "POST", body: form });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setStep({ kind: "upload", reading: false, error: FILE_ERRORS.has(body.error) ? body.error : "unknown" });
+        setState({ reading: false, error: FILE_ERRORS.has(body.error) ? body.error : "unknown" });
         return;
       }
-      const draft = body as CvDraft;
-      setStep({
-        kind: "review",
-        masterCv: draft.masterCv,
-        criteria: { ...draft.searchCriteria, minSalary: "", contractType: "", remoteWork: "" },
-        saving: false,
-        errors: [],
-        failed: false,
-      });
+      onDraft(body as CvDraft);
     } catch {
-      setStep({ kind: "upload", reading: false, error: "unknown" });
+      setState({ reading: false, error: "unknown" });
     }
   }
 
-  if (step.kind === "upload") {
-    return (
-      <form className="stack" onSubmit={readCv}>
-        <label htmlFor={fileId}>{t("cvUpload.fileLabel")}</label>
-        <p id={`${fileId}-hint`} className="hint">
-          {t("cvUpload.fileHint")}
+  return (
+    <form className="stack" onSubmit={readCv}>
+      <label htmlFor={fileId}>{t("cvUpload.fileLabel")}</label>
+      <p id={`${fileId}-hint`} className="hint">
+        {t("cvUpload.fileHint")}
+      </p>
+      <input
+        id={fileId}
+        className="input"
+        name="cv"
+        type="file"
+        required
+        aria-describedby={`${fileId}-hint`}
+        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      />
+      <button className="button button-primary" type="submit" disabled={state.reading}>
+        {state.reading ? t("cvUpload.reading") : t("cvUpload.submit")}
+      </button>
+      {state.reading ? (
+        <p className="notice" role="status">
+          {t("cvUpload.reading")}
         </p>
-        <input
-          id={fileId}
-          className="input"
-          name="cv"
-          type="file"
-          required
-          aria-describedby={`${fileId}-hint`}
-          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        />
-        <button className="button button-primary" type="submit" disabled={step.reading}>
-          {step.reading ? t("cvUpload.reading") : t("cvUpload.submit")}
-        </button>
-        {step.reading ? (
-          <p className="notice" role="status">
-            {t("cvUpload.reading")}
-          </p>
-        ) : null}
-        {step.error ? (
-          <p className="notice" role="alert">
-            {t(`cvUpload.errors.${step.error}`)}
-          </p>
-        ) : null}
-      </form>
-    );
-  }
+      ) : null}
+      {state.error ? (
+        <p className="notice" role="alert">
+          {t(`cvUpload.errors.${state.error}`)}
+        </p>
+      ) : null}
+    </form>
+  );
+}
 
-  const review = step;
-  const update = (changes: Partial<Extract<Step, { kind: "review" }>>) => setStep({ ...review, ...changes });
-  const setCriteria = (changes: Partial<CriteriaFields>) => update({ criteria: { ...review.criteria, ...changes } });
+interface ReviewState {
+  masterCv: MasterCvContent;
+  criteria: CriteriaFields;
+  saving: boolean;
+  errors: ProfileFieldError[];
+  failed: boolean;
+  quotaReached: boolean;
+  /** What the Candidate's Plan allows and which Plan allows more, when the Plan Quota refused the Profile. */
+  upgradePrompt: Prompt | null;
+}
+
+/**
+ * Reviewing a draft Master CV and Search Criteria, whether read from an uploaded
+ * CV, built by the Onboarding Questionnaire or left blank to start from scratch,
+ * then saving it as a Profile.
+ */
+export function CvReview(props: { draft: CvDraft; intro: string; startOverLabel: string; onStartOver: () => void }) {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const [review, setReview] = useState<ReviewState>(() => ({
+    masterCv: props.draft.masterCv,
+    criteria: { targetRole: props.draft.searchCriteria.targetRole, location: props.draft.searchCriteria.location, minSalary: "", contractType: "", remoteWork: "" },
+    saving: false,
+    errors: [],
+    failed: false,
+    quotaReached: false,
+    upgradePrompt: null,
+  }));
+  const update = (changes: Partial<ReviewState>) => setReview((current) => ({ ...current, ...changes }));
+  const setCriteria = (changes: Partial<CriteriaFields>) => setReview((current) => ({ ...current, criteria: { ...current.criteria, ...changes } }));
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -109,7 +137,7 @@ export function CvOnboarding() {
       ...(criteria.contractType ? { contractType: criteria.contractType } : {}),
       ...(criteria.remoteWork ? { remoteWork: criteria.remoteWork } : {}),
     };
-    update({ saving: true, failed: false });
+    update({ saving: true, failed: false, quotaReached: false, upgradePrompt: null });
     try {
       const response = await fetch("/api/profiles", {
         method: "POST",
@@ -121,7 +149,14 @@ export function CvOnboarding() {
         router.push(routes.profile(body.id));
         return;
       }
-      update({ saving: false, errors: Array.isArray(body.errors) ? body.errors : [], failed: !Array.isArray(body.errors) });
+      const quotaReached = body.error === "plan_quota_reached";
+      update({
+        saving: false,
+        errors: Array.isArray(body.errors) ? body.errors : [],
+        failed: !Array.isArray(body.errors) && !quotaReached,
+        quotaReached,
+        upgradePrompt: quotaReached ? upgradePromptIn(body) : null,
+      });
     } catch {
       update({ saving: false, failed: true });
     }
@@ -142,11 +177,11 @@ export function CvOnboarding() {
   return (
     <form className="stack review" onSubmit={save} noValidate>
       <h2>{t("cvReview.title")}</h2>
-      <p>{t("cvReview.intro")}</p>
+      <p>{props.intro}</p>
 
       <fieldset className="fieldset">
         <legend>{t("cvReview.searchCriteria")}</legend>
-        <TextField label={t("cvReview.targetRole")} value={review.criteria.targetRole} onChange={(targetRole) => setCriteria({ targetRole })} error={criteriaError.targetRole} required />
+        <TextField label={t("cvReview.targetRole")} value={review.criteria.targetRole} onChange={(targetRole) => setCriteria({ targetRole })} error={criteriaError.targetRole} maxLength={PROFILE_NAME_MAX_LENGTH} required />
         <TextField label={t("cvReview.location")} value={review.criteria.location} onChange={(location) => setCriteria({ location })} error={criteriaError.location} required />
         <TextField label={t("cvReview.minSalary")} value={review.criteria.minSalary} onChange={(minSalary) => setCriteria({ minSalary })} error={criteriaError.minSalary} numeric />
         <SelectField
@@ -172,6 +207,13 @@ export function CvOnboarding() {
           {t("cvReview.invalid", { fields: invalidFields.join(", ") })}
         </p>
       ) : null}
+      {review.upgradePrompt ? (
+        <UpgradePrompt prompt={review.upgradePrompt} />
+      ) : review.quotaReached ? (
+        <p className="notice" role="alert">
+          {t("profiles.quotaReached")}
+        </p>
+      ) : null}
       {review.failed ? (
         <p className="notice" role="alert">
           {t("cvReview.error")}
@@ -181,8 +223,8 @@ export function CvOnboarding() {
         <button className="button button-primary" type="submit" disabled={review.saving}>
           {review.saving ? t("cvReview.saving") : t("cvReview.save")}
         </button>
-        <button className="button" type="button" onClick={() => setStep({ kind: "upload", reading: false })}>
-          {t("cvReview.startOver")}
+        <button className="button" type="button" onClick={props.onStartOver}>
+          {props.startOverLabel}
         </button>
       </div>
     </form>

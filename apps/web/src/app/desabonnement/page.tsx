@@ -1,17 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { isSupportedLocale } from "@jobhub/shared/i18n";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 
-type Props = { searchParams: Promise<{ token?: string; done?: string; lang?: string }> };
+type Props = { searchParams: Promise<{ token?: string; done?: string }> };
 
-async function pageLocale(lang: string | undefined) {
-  return isSupportedLocale(lang) ? lang : getRequestLocale();
-}
-
-export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
-  const t = await getServerT(await pageLocale((await searchParams).lang));
+export async function generateMetadata(): Promise<Metadata> {
+  // In the language the URL's `lang` chose (src/proxy.ts), like <html lang>.
+  const t = await getServerT();
   return { title: `${t("jobDigest.unsubscribePage.title")} · ${t("app.name")}` };
 }
 
@@ -20,8 +16,8 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
  * before unsubscribing (mail scanners open links), then says it is done.
  */
 export default async function JobDigestUnsubscribePage({ searchParams }: Props) {
-  const { token, done, lang } = await searchParams;
-  const locale = await pageLocale(lang);
+  const { token, done } = await searchParams;
+  const locale = await getRequestLocale();
   const t = await getServerT(locale);
   const action = `/api/job-digests/unsubscribe?${new URLSearchParams({ token: token ?? "", lang: locale })}`;
   return (

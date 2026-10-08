@@ -27,6 +27,12 @@ describe("upgrade prompts", () => {
     );
   });
 
+  it("explains that the Plan does not include the Job Digest, and which Plan does", () => {
+    expect(upgradePrompt({ quota: "jobDigest", plan: "free", limit: 0, upgradeTo: "standard" }, "fr").message).toBe(
+      "La réception du Job Digest n'est pas comprise dans l'offre Gratuite. L'offre Standard la comprend.",
+    );
+  });
+
   it("tells a Candidate on the top Plan when the quota comes back, with nothing to buy", () => {
     const prompt = upgradePrompt({ allowed: false, quota: "enrichedContacts", plan: "premium", limit: 20, upgradeTo: null }, "fr");
 

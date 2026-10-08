@@ -10,6 +10,11 @@ import type { QuotaDecision } from "./index";
 
 export type QuotaRefusal = Extract<QuotaDecision, { allowed: false }>;
 
+/** What an Upgrade Prompt is about: a refused quota, or the Job Digest a Plan does not include. */
+export type PromptReason =
+  | QuotaRefusal
+  | { quota: "jobDigest"; plan: Plan; limit: 0; upgradeTo: Plan | null };
+
 export interface UpgradePrompt {
   title: string;
   message: string;
@@ -19,25 +24,32 @@ export interface UpgradePrompt {
   href: string;
 }
 
-export function upgradePrompt(refusal: QuotaRefusal, locale: Locale): UpgradePrompt {
+export function upgradePrompt(refusal: PromptReason, locale: Locale): UpgradePrompt {
   const { t } = createI18n(locale);
   const planName = (plan: Plan) => t(`billing.plans.${plan}`);
   const { quota, limit, upgradeTo } = refusal;
   const plan = planName(refusal.plan);
 
-  const reached =
-    limit === 0
-      ? t(`billing.quotaReached.notIncluded.${quota}`, { plan })
-      : t(`billing.quotaReached.used.${quota}`, { plan, count: limit });
-  const next = upgradeTo
-    ? t(limit === 0 ? "billing.quotaReached.upgradeIncludes" : quota === "profiles" ? "billing.quotaReached.upgradeCreate" : "billing.quotaReached.upgradeUse", {
-        plan: planName(upgradeTo),
-      })
-    : t(quota === "profiles" ? "billing.quotaReached.noMore" : "billing.quotaReached.renews");
+  let message: string;
+  if (quota === "jobDigest") {
+    const reached = t("billing.quotaReached.notIncluded.jobDigest", { plan });
+    message = upgradeTo ? `${reached} ${t("billing.quotaReached.upgradeIncludesIt", { plan: planName(upgradeTo) })}` : reached;
+  } else {
+    const reached =
+      limit === 0
+        ? t(`billing.quotaReached.notIncluded.${quota}`, { plan })
+        : t(`billing.quotaReached.used.${quota}`, { plan, count: limit });
+    const next = upgradeTo
+      ? t(limit === 0 ? "billing.quotaReached.upgradeIncludes" : quota === "profiles" ? "billing.quotaReached.upgradeCreate" : "billing.quotaReached.upgradeUse", {
+          plan: planName(upgradeTo),
+        })
+      : t(quota === "profiles" ? "billing.quotaReached.noMore" : "billing.quotaReached.renews");
+    message = `${reached} ${next}`;
+  }
 
   return {
     title: t("billing.quotaReached.title"),
-    message: `${reached} ${next}`,
+    message,
     upgradeTo,
     action: upgradeTo ? t("billing.quotaReached.action", { plan: planName(upgradeTo) }) : null,
     href: routes.subscription,

@@ -13,6 +13,7 @@ import { migrateCompanyDossiers } from "./company-dossiers/index";
 import { migrateEnrichedContacts } from "./enriched-contacts/index";
 import { migrateFollowUps } from "./follow-ups/index";
 import { migrateHumanCoaches } from "./human-coaches/index";
+import { migrateJobDigests } from "./job-digests/index";
 import { migrateJobOffers } from "./job-offers/index";
 import { migrateJobSearches } from "./job-searches/index";
 import { migrateProfiles } from "./profiles/index";
@@ -37,6 +38,7 @@ export async function migrateDatabase(config: AuthConfig, onMigrated: (done: str
     ["Follow-ups are up to date", () => migrateFollowUps(database)],
     ["Plans and Plan Quotas are up to date", () => migrateBilling(database)],
     ["Job Searches are up to date", () => migrateJobSearches(database)],
+    ["Job Digests are up to date", () => migrateJobDigests(database)],
     ["Human Coaches, Coach Access and Coaching Sessions are up to date", () => migrateHumanCoaches(database)],
   ];
   for (const [done, migrate] of steps) {

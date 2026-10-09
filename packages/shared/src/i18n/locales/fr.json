@@ -804,6 +804,16 @@
     "pdf": "Télécharger en PDF",
     "docx": "Télécharger en Word (.docx)"
   },
+  "applicationExport": {
+    "tailoredCv": {
+      "title": "Télécharger ce CV adapté",
+      "intro": "Dans la langue où il est écrit. Choisissez un modèle de CV, puis un format."
+    },
+    "coverLetter": {
+      "title": "Télécharger cette lettre de motivation",
+      "intro": "Le texte enregistré, dans la langue où il est écrit, signé avec les coordonnées de votre CV de référence. Choisissez un modèle, puis un format."
+    }
+  },
   "tailoredDocuments": {
     "title": "Lettre de motivation et message d'approche",
     "draftsOnly": "Jobbbox n'envoie rien à votre place : copiez le texte ou ouvrez-le dans votre messagerie, puis envoyez-le vous-même.",

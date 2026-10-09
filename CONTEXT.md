@@ -110,6 +110,10 @@ _Avoid_: Rollback, revert, undo
 One of a small set of ATS-safe layouts used to export a CV.
 _Avoid_: Theme, design, model
 
+**Application export**:
+Downloading an Application's saved Tailored CV or Cover Letter as a PDF or Word file, using a CV Template. Only saved documents are exported, never a proposal or unsaved edits. A Cover Letter is signed with the Master CV's contact details and addressed to the employer.
+_Avoid_: Download, print
+
 **Search Criteria**:
 The job-search parameters of a Profile: target role, location, salary, contract type, remote work. The Candidate can change them on an active Profile; this never renames the Profile, and Match Scores and Tailored CVs already kept are not recomputed. An Archived Profile's Search Criteria are read-only until it is restored.
 _Avoid_: Filters, preferences

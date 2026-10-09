@@ -263,6 +263,13 @@ describe("naming an exported file", () => {
     expect((await exportDocument(cvOf("राहुल शर्मा"), options)).fileName).toBe("CV-राहुल-शर्मा.pdf");
   });
 
+  it("names the employer of a Tailored CV or a Cover Letter after the Candidate", async () => {
+    const options = { format: "docx", template: "classic", language: "fr", employer: "Groupe Danone / RH" } as const;
+
+    expect((await exportDocument(cvOf("Marie Dupont"), options)).fileName).toBe("CV-Marie-Dupont-Groupe-Danone-RH.docx");
+    expect((await exportDocument(cvOf("Marie Dupont"), { ...options, language: "en", employer: "" })).fileName).toBe("CV-Marie-Dupont.docx");
+  });
+
   it("downloads under that name, with a plain ASCII name for older browsers", () => {
     expect(contentDisposition("CV-Marie-Dupont.pdf")).toBe('attachment; filename="CV-Marie-Dupont.pdf"');
     expect(contentDisposition("CV-Zoë-Łukasz-Øster-Ğül.pdf")).toBe(

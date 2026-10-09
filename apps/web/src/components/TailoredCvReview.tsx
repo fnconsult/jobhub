@@ -3,7 +3,9 @@
 import { DOCUMENT_LANGUAGES, type CvContent, type DocumentLanguage } from "@jobhub/shared";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { APPLICATION_EXPORTS } from "@/application-exports/kinds";
 import type { CvChange } from "@/tailored-cv/changes";
+import { ApplicationExportForm } from "./ApplicationExportForm";
 
 type Status = "proposing" | "proposed" | "saving" | "saved" | "unavailable" | "masterCvChanged" | "proposalChanged" | "error" | null;
 
@@ -94,6 +96,7 @@ export function TailoredCvReview({ applicationId, initial, locale }: { applicati
           </p>
           <ScoreComparison score={saved.matchScore} />
           <CvSummary cv={saved.content} />
+          <ApplicationExportForm applicationId={applicationId} document={APPLICATION_EXPORTS[0]} />
         </div>
       ) : null}
 

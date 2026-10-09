@@ -1,7 +1,8 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
+import config from "../playwright.config";
 
 const read = (file: string) => readFileSync(file, "utf8");
 
@@ -48,6 +49,23 @@ test.describe("monorepo tooling", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  // Next.js runs one `next dev` per app directory and refuses a second ("Another next dev
+  // server is already running"), so the specs that start it must never run at the same time:
+  // all in one project, one spec at a time. Two projects run in parallel with each other (#71).
+  test("the e2e specs that start `npm run dev` share one serial project", () => {
+    const startsNextDev = readdirSync("e2e")
+      .filter((file) => file.endsWith(".spec.ts"))
+      .filter((file) => /\[\s*(?:"npm",\s*)?"run",\s*"dev"\s*\]/.test(read(path.join("e2e", file))));
+    expect(startsNextDev.length).toBeGreaterThan(1);
+
+    const projects = (config.projects ?? []).filter((project) =>
+      startsNextDev.some((file) => (project.testMatch as RegExp).test(file)),
+    );
+    expect(projects.map((project) => project.name)).toHaveLength(1);
+    for (const file of startsNextDev) expect(file).toMatch(projects[0].testMatch as RegExp);
+    expect(projects[0].workers).toBe(1);
   });
 
   test("EU hosting target is documented (ADR-0007)", () => {

@@ -299,6 +299,12 @@
     "working": "Enregistrement en cours…",
     "error": "La modification n'a pas pu être enregistrée. Veuillez réessayer."
   },
+  "searchCriteriaEditor": {
+    "hint": "Jobbbox s'en sert pour le Match Score, le mot-clé cible de l'ATS Score et la recherche d'offres. Le nom du profil ne change pas : renommez-le plus bas si besoin.",
+    "save": "Enregistrer les critères",
+    "saved": "Critères de recherche enregistrés.",
+    "archived": "Ce profil est archivé : restaurez-le pour modifier ses critères de recherche."
+  },
   "newProfile": {
     "title": "Créer un profil",
     "intro": "Votre coach vous aide à construire votre CV de référence et vos critères de recherche. Choisissez comment commencer : vous pourrez tout vérifier et corriger avant d'enregistrer.",

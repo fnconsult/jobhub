@@ -190,6 +190,29 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
       expect(draft.searchCriteria).toEqual({ targetRole: "Directrice financière", location: "Lyon (69003)" });
     });
 
+    it("drafts a Guest's CV without ever building the AI layer, so a Guest needs no AI configuration", async () => {
+      const ai = vi.fn((): AiLayer => {
+        throw new AiConfigError("Missing environment variable MISTRAL_API_KEY");
+      });
+
+      const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai, candidateId: null });
+
+      expect(ai).not.toHaveBeenCalled();
+      expect(draft.masterCv.fullName).toBe("Marie Dupont");
+    });
+
+    it("still refuses an unreadable file with its CvFileError when the AI configuration is invalid", async () => {
+      const ai = vi.fn((): AiLayer => {
+        throw new AiConfigError("Missing environment variable MISTRAL_API_KEY");
+      });
+
+      const drafting = draftFromCv({ name: "cv.png", bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47]) }, { ai, candidateId: "c1" });
+
+      await expect(drafting).rejects.toThrow(CvFileError);
+      await expect(drafting).rejects.toMatchObject({ code: "unsupported_format" });
+      expect(ai).not.toHaveBeenCalled();
+    });
+
     it("shortens a target role too long to name a Profile, at a word boundary", async () => {
       const longRole = `${"Responsable ".repeat(12)}financier`;
       const { ai } = aiReplying(JSON.stringify({ ...aiReading, searchCriteria: { targetRole: longRole, location: "Lyon" } }));

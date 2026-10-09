@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
@@ -94,4 +94,20 @@ test.describe("Stripe setup wizards", () => {
     expect(run.written).toContain("STRIPE_PRICE_COACHING_SESSION_PREMIUM=price_session_premium_e2e\n");
     expect(run.written).not.toContain("prod_session");
   });
+});
+
+// Every wizard's header says the library above the "STAGES" marker must not be
+// hand-edited: wizard-specific helpers (like ask_price) belong in the stages section.
+test("every setup wizard keeps the wizard library above STAGES identical", () => {
+  const dirPath = "scripts/setup";
+  const wizards = readdirSync(dirPath).filter((f) => f.endsWith(".sh"));
+  expect(wizards.length).toBeGreaterThan(1);
+  const library = (file: string) => {
+    const text = readFileSync(path.join(dirPath, file), "utf8");
+    const marker = text.indexOf("\n# STAGES");
+    expect(marker, `${file} has no STAGES marker`).toBeGreaterThan(0);
+    return text.slice(0, marker);
+  };
+  const [first, ...rest] = wizards;
+  for (const file of rest) expect(library(file), `${file} vs ${first}`).toBe(library(first));
 });

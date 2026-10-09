@@ -1,16 +1,17 @@
 /**
- * Scoring a CV against a Job Offer from the extension. Each Match Score a signed-in
+ * Scoring a Job Offer from the extension, against one of the signed-in Candidate's Profiles
+ * or against a CV (with the Search Criteria read from it, #75). Each Match Score a signed-in
  * Candidate requests uses their Plan Quota, so the last one is kept in the Guest
- * session with the Job Offer and CV it belongs to, and shown again rather than
+ * session with the Job Offer and the Profile or CV it belongs to, and shown again rather than
  * computed again until either changes or a new score is asked for (#51). Every
  * analysis page scores one at a time, under one lock, so two pages open on the same
  * Job Offer and CV (one reloading on sign-in, say) compute one Match Score, not two.
  * A Match Score that does not come within SCORE_TIMEOUT_MS, waiting on another page's
  * or on the web app, is given up as "unreachable", so it can be tried again (#66).
  */
-import type { CvContent, JobOffer } from "@jobhub/shared";
-import { sameCv, type GuestSession } from "./guest-session";
-import type { JobbboxApi } from "./jobbbox-api";
+import type { JobOffer } from "@jobhub/shared";
+import { sameCv, type GuestSession, type GuestSessionContent, type KeptMatchScore } from "./guest-session";
+import type { JobbboxApi, ScoreAgainst } from "./jobbbox-api";
 
 export type ScoreOutcome = Awaited<ReturnType<JobbboxApi["score"]>>;
 
@@ -18,8 +19,11 @@ export type ScoreOutcome = Awaited<ReturnType<JobbboxApi["score"]>>;
 export const SCORE_TIMEOUT_MS = 90_000;
 
 export interface MatchScoring {
-  /** The Match Score of `cv` against `jobOffer`: the kept one if it is theirs, unless `rescore` asks for a new one. */
-  score(jobOffer: JobOffer, cv: CvContent, options?: { rescore?: boolean }): Promise<ScoreOutcome>;
+  /**
+   * The Match Score of `jobOffer` against a Profile or a CV: the kept one if it is theirs, unless `rescore`
+   * asks for a new one. A CV is scored with the Search Criteria the session read with it.
+   */
+  score(jobOffer: JobOffer, against: ScoreAgainst, options?: { rescore?: boolean }): Promise<ScoreOutcome>;
 }
 
 /** Runs `work` while no other page of the extension runs work under the same lock. */
@@ -30,7 +34,7 @@ export const webLock: ScoringLock = (work) => navigator.locks.request("jobbbox-m
 
 export function createMatchScoring({ api, session, lock = webLock }: { api: Pick<JobbboxApi, "score">; session: GuestSession; lock?: ScoringLock }): MatchScoring {
   return {
-    score(jobOffer, cv, { rescore = false } = {}) {
+    score(jobOffer, against, { rescore = false } = {}) {
       let givenUp = false;
       let giveUp!: (outcome: ScoreOutcome) => void;
       const timedOut = new Promise<ScoreOutcome>((resolve) => (giveUp = resolve));
@@ -45,15 +49,31 @@ export function createMatchScoring({ api, session, lock = webLock }: { api: Pick
         return Promise.race([timedOut, scoreUnderLock()]);
       });
       async function scoreUnderLock(): Promise<ScoreOutcome> {
-        const { matchScore: kept } = await session.read();
-        if (!rescore && kept && kept.jobOfferId === jobOffer.id && sameCv(kept.cv, cv)) {
+        const content = await session.read();
+        const { matchScore: kept } = content;
+        if (!rescore && kept && kept.jobOfferId === jobOffer.id && keptFor(kept, against)) {
           return { ok: true, matchScore: kept.matchScore };
         }
-        const outcome = await api.score(jobOffer.id, cv);
-        if (outcome.ok && !givenUp) await session.keepMatchScore({ jobOfferId: jobOffer.id, cv, matchScore: outcome.matchScore });
+        const outcome = await api.score(jobOffer.id, withSearchCriteria(against, content));
+        if (outcome.ok && !givenUp) {
+          const scoredFor = "profileId" in against ? { profileId: against.profileId } : { cv: against.cv };
+          await session.keepMatchScore({ jobOfferId: jobOffer.id, matchScore: outcome.matchScore, ...scoredFor });
+        }
         return outcome;
       }
       return Promise.race([timedOut, scored]).finally(() => clearTimeout(timer));
     },
   };
+}
+
+/** Whether the kept Match Score was computed for this Profile, or this CV. */
+function keptFor(kept: KeptMatchScore, against: ScoreAgainst): boolean {
+  if ("profileId" in against) return "profileId" in kept && kept.profileId === against.profileId;
+  return "cv" in kept && sameCv(kept.cv, against.cv);
+}
+
+/** A CV goes with the Search Criteria read from it, which the session keeps beside it. */
+function withSearchCriteria(against: ScoreAgainst, { cv, searchCriteria }: GuestSessionContent): ScoreAgainst {
+  if ("profileId" in against || against.searchCriteria || !searchCriteria || !cv || !sameCv(cv, against.cv)) return against;
+  return { cv: against.cv, searchCriteria };
 }

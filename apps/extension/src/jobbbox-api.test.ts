@@ -37,7 +37,7 @@ describe("the Jobbbox API, from the extension", () => {
 
     expect(await api.readCv(new File(["%PDF"], "cv.pdf"))).toEqual({ ok: true, cv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
     expect((app.calls[0]?.init.body as FormData).get("cv")).toBeInstanceOf(File);
-    expect(await api.score("jo-1", cv)).toEqual({ ok: true, matchScore });
+    expect(await api.score("jo-1", { cv })).toEqual({ ok: true, matchScore });
     expect(JSON.parse(String(app.calls[1]?.init.body))).toEqual({ jobOfferId: "jo-1", cv });
   });
 
@@ -51,7 +51,35 @@ describe("the Jobbbox API, from the extension", () => {
     );
 
     expect(await api.readCv(new File([""], "scan.pdf"))).toEqual({ ok: false, error: "empty" });
-    expect(await api.score("jo-gone", cv)).toEqual({ ok: false, error: "job_offer_gone" });
+    expect(await api.score("jo-gone", { cv })).toEqual({ ok: false, error: "job_offer_gone" });
+  });
+
+  it("scores a CV with the Search Criteria read from it, only when they name a target role and a location", async () => {
+    const app = webApp({ "/api/match-score": () => Response.json(matchScore) });
+    const api = createJobbboxApi(WEB_ORIGIN, app.fetch);
+
+    await api.score("jo-1", { cv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
+    await api.score("jo-1", { cv, searchCriteria: { targetRole: "DAF", location: "" } });
+
+    expect(JSON.parse(String(app.calls[0]?.init.body))).toEqual({ jobOfferId: "jo-1", cv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
+    expect(JSON.parse(String(app.calls[1]?.init.body))).toEqual({ jobOfferId: "jo-1", cv });
+  });
+
+  it("scores one of the signed-in Candidate's Profiles against a Job Offer, without sending a CV", async () => {
+    const app = webApp({ "/api/match-score": () => Response.json(matchScore) });
+    const api = createJobbboxApi(WEB_ORIGIN, app.fetch);
+
+    expect(await api.score("jo-1", { profileId: "p-1" })).toEqual({ ok: true, matchScore });
+    expect(app.calls[0]?.init).toMatchObject({ method: "POST", credentials: "include" });
+    expect(JSON.parse(String(app.calls[0]?.init.body))).toEqual({ jobOfferId: "jo-1", profileId: "p-1" });
+  });
+
+  it("says when the Job Offer or the Profile scored is gone, or nobody is signed in any more", async () => {
+    const replies = [Response.json({ error: "not_found" }, { status: 404 }), Response.json({ error: "unauthorized" }, { status: 401 })];
+    const api = createJobbboxApi(WEB_ORIGIN, webApp({ "/api/match-score": () => replies.shift()! }).fetch);
+
+    expect(await api.score("jo-1", { profileId: "p-gone" })).toEqual({ ok: false, error: "not_found" });
+    expect(await api.score("jo-1", { profileId: "p-1" })).toEqual({ ok: false, error: "signed_out" });
   });
 
   it("passes on the Upgrade Prompt when the Candidate's Plan allows no more Match Scores this month", async () => {
@@ -67,7 +95,7 @@ describe("the Jobbbox API, from the extension", () => {
       webApp({ "/api/match-score": () => Response.json({ error: "quota_exceeded", quota: "matchScores", prompt }, { status: 402 }) }).fetch,
     );
 
-    expect(await api.score("jo-1", cv)).toEqual({
+    expect(await api.score("jo-1", { cv })).toEqual({
       ok: false,
       error: "quota_exceeded",
       prompt: { message: prompt.message, action: "Upgrade to Standard", href: "/abonnement" },
@@ -78,7 +106,7 @@ describe("the Jobbbox API, from the extension", () => {
     const prompt = { title: "Limit", message: "No Plan includes more.", upgradeTo: null, action: null, href: "/abonnement" };
     const api = createJobbboxApi(WEB_ORIGIN, webApp({ "/api/match-score": () => Response.json({ error: "quota_exceeded", prompt }, { status: 402 }) }).fetch);
 
-    expect(await api.score("jo-1", cv)).toEqual({ ok: false, error: "quota_exceeded", prompt: { message: "No Plan includes more.", action: null, href: "/abonnement" } });
+    expect(await api.score("jo-1", { cv })).toEqual({ ok: false, error: "quota_exceeded", prompt: { message: "No Plan includes more.", action: null, href: "/abonnement" } });
   });
 
   it("lists the signed-in Candidate's active Profiles, to choose the one an Application uses", async () => {
@@ -141,7 +169,7 @@ describe("the Jobbbox API, from the extension", () => {
 
     expect(await api.capture({ source: {}, title: "DAF", content: "Poste." })).toEqual({ ok: false, error: "unreachable" });
     expect(await api.readCv(new File(["%PDF"], "cv.pdf"))).toEqual({ ok: false, error: "unreachable" });
-    expect(await api.score("jo-1", cv)).toEqual({ ok: false, error: "unreachable" });
+    expect(await api.score("jo-1", { cv })).toEqual({ ok: false, error: "unreachable" });
     expect(await api.profiles()).toEqual({ ok: false, error: "unreachable" });
     expect(await api.createProfile(cv, { targetRole: "DAF", location: "Lyon" })).toEqual({ ok: false, error: "unreachable" });
     expect(await api.saveApplication("jo-1", "p-1")).toEqual({ ok: false, error: "unreachable" });

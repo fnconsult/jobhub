@@ -101,6 +101,21 @@ describe("a Guest session", () => {
     expect((await session.read()).matchScore).toBeUndefined();
   });
 
+  it("keeps a Profile's Match Score while it holds its Job Offer, whatever CV comes and goes", async () => {
+    const session = createGuestSession(memoryStorage(), () => 0);
+    await session.keepJobOffer(jobOffer);
+    const matchScore = { jobOfferId: "jo-1", profileId: "p-1", matchScore: { score: 70 } } as KeptMatchScore;
+
+    await session.keepMatchScore(matchScore);
+    await session.keepCv(cv);
+    expect((await session.read()).matchScore).toEqual(matchScore);
+
+    await session.keepJobOffer({ ...jobOffer, id: "jo-2" });
+    expect((await session.read()).matchScore).toBeUndefined();
+    await session.keepMatchScore(matchScore);
+    expect((await session.read()).matchScore).toBeUndefined();
+  });
+
   it("never brings a forgotten session back to keep a Match Score in it (ADR-0003)", async () => {
     const storage = memoryStorage();
     const session = createGuestSession(storage, () => 0);

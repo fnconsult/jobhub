@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { expect as baseExpect, test, type Page } from "@playwright/test";
 import { derivedPort } from "./support/ports";
@@ -213,6 +214,84 @@ test.describe("Enriched Contacts configuration", () => {
       }
     });
   }
+
+  // Issue #77: Lusha's v3 API, faked as strictly as the real one (e2e/support/fake-contact-provider.mjs):
+  // a Prospecting request with a property v3 does not define (the old top-level `excludeDnc`) is refused
+  // with 400, which the Candidate would see as "unavailable". QA #63 case 6.2, minus the real credits.
+  // What the fake Lusha logged of each request the server sent it.
+  type LushaRequest = {
+    path: string;
+    body: {
+      ids?: string[];
+      options: { excludeDnc?: boolean };
+      pagination: { size: number };
+      filters: { contacts: { include: { jobTitles: string[] } }; companies: { include: unknown } };
+    };
+  };
+  test("on Lusha, a Premium Candidate finds people at a French register company and reveals one's email and phone", async ({ page }) => {
+    const { id } = await openApplication(page, { plan: "premium" });
+    const requestLog = path.join(mkdtempSync(path.join(os.tmpdir(), "jobhub-e2e-lusha-")), "requests.jsonl");
+    const server = await startConfiguredServer(760, {
+      CONTACT_ENRICHMENT_PROVIDER: "lusha",
+      LUSHA_API_KEY: "e2e-lusha-key",
+      CONTACT_ENRICHMENT_DPA_SIGNED: "true",
+      E2E_LUSHA_REQUESTS: requestLog,
+    });
+    const lushaRequests = () =>
+      existsSync(requestLog)
+        ? readFileSync(requestLog, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line) as LushaRequest)
+        : [];
+    try {
+      await page.goto(`${server.origin}/candidatures/${id}`);
+      await page.waitForLoadState("networkidle");
+      const section = page.getByRole("region", { name: t.title });
+      await section.getByRole("button", { name: t.find }).click();
+
+      // People come from v3 `results[]`, named from firstName/lastName, titled from jobTitle.title;
+      // the result Lusha could not give (error) and the one without an id are left out.
+      const found = section.getByRole("group", { name: t.foundTitle });
+      await expect(found.getByText("Sophie Lambert · DRH")).toBeVisible();
+      await expect(found.getByText("Thomas Moreau · Responsable recrutement")).toBeVisible();
+      await expect(found.getByRole("listitem")).toHaveCount(2);
+      await expect(found.getByText("Léa Roux")).toHaveCount(0);
+      await expect(found.getByText("Paul Durand")).toHaveCount(0);
+      await expect(section.getByRole("alert")).toHaveCount(0);
+
+      // The Prospecting request Lusha accepted: do-not-contact exclusion under options, none at the top level.
+      const prospecting = lushaRequests().filter((r) => r.path === "/v3/contacts/prospecting");
+      expect(prospecting).toHaveLength(1);
+      const body = prospecting[0]!.body;
+      expect(body.options.excludeDnc).toBe(true);
+      expect(body).not.toHaveProperty("excludeDnc");
+      expect(body.pagination.size).toBeGreaterThanOrEqual(10);
+      expect(body.pagination.size).toBeLessThanOrEqual(100);
+      expect(body.filters.contacts.include.jobTitles.length).toBeGreaterThan(0);
+      expect(body.filters.companies.include).toBeTruthy();
+
+      // Revealing Sophie goes through v3 Enrich Contacts and shows her email and phone,
+      // not the number Lusha flags do-not-call.
+      await found.getByRole("button", { name: t.revealFor.replace("{{name}}", "Sophie Lambert") }).click();
+      const contacts = section.getByRole("group", { name: t.contactsTitle });
+      await expect(contacts.getByRole("link", { name: "sophie.lambert@acme-industrie.example" })).toBeVisible();
+      await expect(contacts.getByRole("link", { name: "+33 4 72 10 20 30" })).toHaveAttribute("href", "tel:+33472102030");
+      await expect(contacts.getByText("+33 6 99 99 99 99")).toHaveCount(0);
+      await expect(contacts.getByText(/Source : Lusha, coordonnées obtenues le \d+/)).toBeVisible();
+      const enrich = lushaRequests().filter((r) => r.path === "/v3/contacts/enrich");
+      expect(enrich.map((r) => r.body.ids)).toEqual([["e2e-lusha-sophie"]]);
+
+      // Lusha has neither email nor phone for Thomas: nothing counted, he stays among the people found.
+      await found.getByRole("button", { name: t.revealFor.replace("{{name}}", "Thomas Moreau") }).click();
+      await expect(section.getByRole("alert")).toHaveText(t.noDetails);
+      await expect(found.getByText("Thomas Moreau · Responsable recrutement")).toBeVisible();
+
+      const state = await (await page.request.get(`${server.origin}/api/applications/${id}/enriched-contacts`)).json();
+      expect(state.contacts).toEqual([
+        expect.objectContaining({ name: "Sophie Lambert", jobTitle: "DRH", emails: ["sophie.lambert@acme-industrie.example"], phones: ["+33 4 72 10 20 30"], source: expect.objectContaining({ provider: "lusha" }) }),
+      ]);
+    } finally {
+      server.stop();
+    }
+  });
 
   test("the provider is the one configured: on Kaspr, which cannot search by role, the search is not offered", async ({ page }) => {
     const { id } = await openApplication(page, { plan: "premium" });

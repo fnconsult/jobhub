@@ -11,6 +11,7 @@
  *
  * Prints usage lines (from the AI layer) and finally one line `AI_HARNESS_RESULT <json>`.
  */
+import { readFileSync } from "node:fs";
 import { createAiLayerFromEnv } from "@jobhub/ai";
 
 export type HarnessCall =
@@ -47,6 +48,9 @@ function answer(url: URL, body: string): Response {
   // Lets a test simulate a provider outage.
   if (body.includes("E2E_PROVIDER_DOWN")) return new Response("upstream unavailable", { status: 503 });
   if (host === "api.perplexity.ai" && url.pathname === "/v1/responses") {
+    // E2E_PERPLEXITY_REPLY: a recorded Agent API response (JSON file) to answer with instead.
+    const recorded = process.env.E2E_PERPLEXITY_REPLY;
+    if (recorded) return json(JSON.parse(readFileSync(recorded, "utf8")));
     return json({
       id: "resp_e2e",
       object: "response",

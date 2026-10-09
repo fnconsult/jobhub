@@ -12,10 +12,12 @@
 // Every request the worker sends is appended, as one JSON line
 // { url, method, headers, body }, to E2E_DISCOVERY_LOG, so the test can check
 // what left the worker and what was never requested. Nothing reaches the network.
-import { appendFileSync } from "node:fs";
+import { appendFileSync, existsSync } from "node:fs";
 
 const tag = process.env.E2E_DISCOVERY_TAG ?? "local";
 const logFile = process.env.E2E_DISCOVERY_LOG;
+// While this file exists, Perplexity is down: every web search fails (HTTP 503).
+const searchDownFlag = process.env.E2E_SEARCH_DOWN_FLAG;
 
 /** The posting the careers site publishes as JobPosting JSON-LD (and the mirror site copies). */
 const jsonLdPosting = {
@@ -167,7 +169,10 @@ globalThis.fetch = async (input, init = {}) => {
     );
   }
 
-  if (url.origin === "https://api.perplexity.ai") return perplexity();
+  if (url.origin === "https://api.perplexity.ai") {
+    if (searchDownFlag && existsSync(searchDownFlag)) return Response.json({ error: { message: "e2e: Perplexity is down" } }, { status: 503 });
+    return perplexity();
+  }
   if (url.origin === "https://api.mistral.ai") return mistral(JSON.parse(body || "{}"));
 
   const site = sites[url.hostname];

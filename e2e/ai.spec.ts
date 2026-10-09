@@ -258,6 +258,43 @@ test.describe("AI layer: keys come from the environment", () => {
   });
 });
 
+test.describe("AI layer: Perplexity's Agent API (issue #74)", () => {
+  const recorded = path.resolve("packages/ai/src/providers/fixtures/perplexity-responses-search.json");
+
+  test("a web search answered with a recorded /v1/responses reply returns the answer, sources and usage", () => {
+    const r = runAi({ ...KEYS, E2E_PERPLEXITY_REPLY: recorded, AI_WEB_SEARCH_MODEL: "perplexity/sonar" }, [search("cand-74")]);
+    ok(r);
+    expect(r.requests.map((req) => req.url)).toEqual(["https://api.perplexity.ai/v1/responses"]);
+    expect(r.requests[0]!.authorization).toBe("Bearer test-perplexity-key");
+    expect(JSON.parse(r.requests[0]!.body)).toMatchObject({ model: "perplexity/sonar", tools: [{ type: "web_search" }] });
+
+    expect(r.outcomes[0]).toMatchObject({
+      ok: true,
+      value: {
+        provider: "perplexity",
+        answer:
+          "Deux offres de DAF en CDI à Lyon : Acme Industrie [1] et un groupe industriel [2]. Les deux sont publiées depuis moins de deux semaines.",
+        // Search results, then the cited pages, each once.
+        sources: [
+          "https://carrieres.acme-industrie.example/offres/daf-lyon",
+          "https://www.cadremploi.example/emploi/daf-lyon-123",
+          "https://www.apec.example/offre/daf-lyon-456",
+        ],
+      },
+    });
+    expect(r.usage).toEqual([
+      expect.objectContaining({ candidateId: "cand-74", task: "web_search", provider: "perplexity", inputTokens: 812, outputTokens: 64 }),
+    ]);
+  });
+
+  test("a search Perplexity fails surfaces as an error, with no usage logged", () => {
+    const r = runAi({ ...KEYS }, [{ ...search(), criteria: { ...search().criteria, targetRole: "E2E_PROVIDER_DOWN" } } as HarnessCall]);
+    expect(r.startup).toEqual({ ok: true });
+    expect(r.outcomes[0]).toMatchObject({ ok: false });
+    expect(r.usage).toEqual([]);
+  });
+});
+
 test.describe("AI layer: token usage is logged per Candidate", () => {
   test("every call writes one ai_usage line with the Candidate, task, provider and tokens", () => {
     const r = runAi({ ...KEYS, AI_WRITING_PROVIDER: "mistral" }, [score("cand-1"), write("cand-1"), search("cand-2"), score(null)]);

@@ -299,6 +299,12 @@
     "working": "Saving…",
     "error": "The change could not be saved. Please try again."
   },
+  "searchCriteriaEditor": {
+    "hint": "Jobbbox uses them for the Match Score, the ATS Score's target keyword and the job search. The profile's name does not change: rename it below if needed.",
+    "save": "Save criteria",
+    "saved": "Search criteria saved.",
+    "archived": "This profile is archived: restore it to change its search criteria."
+  },
   "newProfile": {
     "title": "Create a profile",
     "intro": "Your coach helps you build your reference CV and search criteria. Choose how to start: you can check and correct everything before saving.",

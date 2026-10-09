@@ -277,6 +277,60 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
     });
   });
 
+  describe("changing the Search Criteria", () => {
+    it("saves new Search Criteria, trimmed, and keeps the Profile's name", async () => {
+      const profile = await createdProfile();
+
+      const changed = await profiles.changeSearchCriteria(candidateId, profile.id, {
+        searchCriteria: { targetRole: "  DAF industrie ", location: "Paris", minSalary: 130000, contractType: "cdi", remoteWork: "hybrid" },
+      });
+
+      const searchCriteria = { targetRole: "DAF industrie", location: "Paris", minSalary: 130000, contractType: "cdi", remoteWork: "hybrid" };
+      expect(changed).toMatchObject({ ok: true, profile: { id: profile.id, name: "Directrice financière", searchCriteria } });
+      expect(await profiles.get(candidateId, profile.id)).toMatchObject({ name: "Directrice financière", searchCriteria });
+    });
+
+    it("refuses invalid Search Criteria, naming the fields to fix, and changes nothing", async () => {
+      const profile = await createdProfile();
+
+      expect(
+        await profiles.changeSearchCriteria(candidateId, profile.id, { searchCriteria: { targetRole: " ", location: "Lyon", minSalary: 12.5 } }),
+      ).toEqual({
+        ok: false,
+        errors: [
+          { field: "searchCriteria.targetRole", code: "required" },
+          { field: "searchCriteria.minSalary", code: "invalid" },
+        ],
+      });
+      expect(await profiles.changeSearchCriteria(candidateId, profile.id, { searchCriteria: { targetRole: "DAF", location: "Lyon", contractType: "stage" } })).toEqual({
+        ok: false,
+        errors: [{ field: "searchCriteria.contractType", code: "invalid" }],
+      });
+      expect((await profiles.get(candidateId, profile.id))?.searchCriteria).toEqual(criteria);
+    });
+
+    it("never changes someone else's Profile", async () => {
+      const profile = await createdProfile();
+      const input = { searchCriteria: { targetRole: "Piraté", location: "Paris" } };
+
+      expect(await profiles.changeSearchCriteria(await otherCandidate(), profile.id, input)).toEqual({ ok: false, error: "not_found" });
+      expect(await profiles.changeSearchCriteria(candidateId, "not-a-uuid", input)).toEqual({ ok: false, error: "not_found" });
+      expect((await profiles.get(candidateId, profile.id))?.searchCriteria).toEqual(criteria);
+    });
+
+    it("refuses to change an archived Profile, which is read-only until restored", async () => {
+      const profile = await createdProfile();
+      await profiles.archive(candidateId, profile.id);
+      const input = { searchCriteria: { targetRole: "DAF", location: "Paris" } };
+
+      expect(await profiles.changeSearchCriteria(candidateId, profile.id, input)).toEqual({ ok: false, error: "archived" });
+      expect((await profiles.get(candidateId, profile.id))?.searchCriteria).toEqual(criteria);
+
+      await profiles.restore(candidateId, profile.id);
+      expect(await profiles.changeSearchCriteria(candidateId, profile.id, input)).toMatchObject({ ok: true });
+    });
+  });
+
   describe("archiving", () => {
     it("archives a Profile without losing it, and restores it", async () => {
       const kept = await createdProfile("Directrice financière");

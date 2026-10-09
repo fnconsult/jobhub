@@ -111,7 +111,7 @@ One of a small set of ATS-safe layouts used to export a CV.
 _Avoid_: Theme, design, model
 
 **Search Criteria**:
-The job-search parameters of a Profile: target role, location, salary, contract type, remote work.
+The job-search parameters of a Profile: target role, location, salary, contract type, remote work. The Candidate can change them on an active Profile; this never renames the Profile, and Match Scores and Tailored CVs already kept are not recomputed. An Archived Profile's Search Criteria are read-only until it is restored.
 _Avoid_: Filters, preferences
 
 **Onboarding Questionnaire**:

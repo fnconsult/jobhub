@@ -20,6 +20,7 @@ export const routes = {
   coachSpace: "/espace-coach",
   coachSpaceCandidate: (candidateId: string) => `/espace-coach/${encodeURIComponent(candidateId)}`,
   coachSpaceApplication: (candidateId: string, applicationId: string) => `/espace-coach/${encodeURIComponent(candidateId)}/candidatures/${applicationId}`,
+  accountDeleted: "/compte/supprime",
   admin: "/admin",
   adminPlanQuotas: "/admin/quotas",
   adminHumanCoaches: "/admin/coachs",

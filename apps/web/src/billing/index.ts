@@ -6,6 +6,7 @@
  *  - how do they change Plan?     `startCheckout`, `openCustomerPortal`, `handleStripeWebhook`
  *  - how do they pay a Coaching Session?  `coachingSessionPrice`, `startCoachingSessionCheckout`
  *    (the signed webhook reports it paid through `onCoachingSessionPaid`)
+ *  - how do they stop paying?     `closeAccount`, when they delete their account
  *  - what do the Plans allow?     `planQuotas`, `setPlanQuotas` (back office)
  * and `migrateBilling(database)` to create / upgrade its tables. Stripe, the
  * tables and month boundaries stay behind this seam.
@@ -362,6 +363,24 @@ export function createBilling(config: BillingConfig) {
       );
       if (rows.length === 0) return refusal(plan, quota, limit!);
       return { allowed: true, remaining: limit === null ? null : limit - (rows[0].used as number) };
+    },
+
+    /**
+     * Closes the Candidate's billing before their account is deleted (ADR-0010):
+     * deletes their Stripe customer, which cancels any subscription at once, so
+     * they are never charged again. Nothing to do for a Candidate who never went
+     * to Stripe; a customer Stripe no longer has counts as closed. Throws if
+     * Stripe could not be reached, so the account is not deleted while still paying.
+     */
+    async closeAccount(candidateId: string): Promise<void> {
+      const customer = (await stripeAccountOf(candidateId))?.stripe_customer_id;
+      if (!customer) return;
+      try {
+        await stripe().client.customers.del(customer);
+      } catch (error) {
+        if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") return;
+        throw error;
+      }
     },
 
     /**

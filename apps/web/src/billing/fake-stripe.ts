@@ -37,6 +37,7 @@ export function fakeCustomerId(email: string): string {
 /** Starts the fake on `port` (any free port by default). */
 export async function startFakeStripe(port = 0) {
   const calls: StripeCall[] = [];
+  const forgotten = new Set<string>();
   let sequence = 0;
   const server: Server = createServer((request, response) => {
     let body = "";
@@ -52,6 +53,15 @@ export async function startFakeStripe(port = 0) {
       };
       if (request.method === "POST" && path === "/v1/customers") {
         return reply(200, { id: fakeCustomerId(params.get("email") ?? ""), object: "customer", email: params.get("email") });
+      }
+      const customerPath = path.match(/^\/v1\/customers\/([^/]+)$/);
+      if (request.method === "DELETE" && customerPath) {
+        const customer = decodeURIComponent(customerPath[1]!);
+        if (forgotten.has(customer)) {
+          return reply(404, { error: { type: "invalid_request_error", code: "resource_missing", message: `No such customer: '${customer}'` } });
+        }
+        forgotten.add(customer);
+        return reply(200, { id: customer, object: "customer", deleted: true });
       }
       if (request.method === "POST" && path === "/v1/checkout/sessions") {
         return reply(200, { id: `cs_fake${id}`, object: "checkout.session", url: `https://checkout.stripe.test/cs_fake${id}` });
@@ -73,6 +83,8 @@ export async function startFakeStripe(port = 0) {
   return {
     url: `http://127.0.0.1:${address.port}`,
     calls,
+    /** Makes the fake answer as if the customer had been deleted on Stripe's side. */
+    forgetCustomer: (customer: string) => void forgotten.add(customer),
     /** Calls made to one endpoint, e.g. "/v1/checkout/sessions". */
     callsTo: (path: string) => calls.filter((call) => call.path === path),
     stop: () => new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve()))),

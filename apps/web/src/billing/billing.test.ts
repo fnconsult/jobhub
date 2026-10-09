@@ -244,6 +244,38 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
     });
   });
 
+  describe("closing a Candidate's billing when they delete their account", () => {
+    it("deletes their Stripe customer, which ends any subscription at once, so they are never charged again", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      await t.billing.startCheckout(marie, "standard");
+
+      await t.billing.closeAccount(marie.id);
+
+      expect(t.stripe.callsTo(`/v1/customers/${fakeCustomerId(marie.email)}`)).toEqual([expect.objectContaining({ method: "DELETE" })]);
+    });
+
+    it("has nothing to close for a Candidate who never went to Stripe, even without Stripe configured", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      const withoutStripe = await startTestBilling({ stripe: undefined });
+      try {
+        await t.billing.closeAccount(marie.id);
+        await withoutStripe.billing.closeAccount((await withoutStripe.signUp("paul.martin@example.fr")).id);
+      } finally {
+        await withoutStripe.stop();
+      }
+
+      expect(t.stripe.calls.filter((call) => call.method === "DELETE")).toEqual([]);
+    });
+
+    it("counts a customer Stripe already deleted as closed", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      await t.billing.startCheckout(marie, "standard");
+      t.stripe.forgetCustomer(fakeCustomerId(marie.email));
+
+      await expect(t.billing.closeAccount(marie.id)).resolves.toBeUndefined();
+    });
+  });
+
   describe("Stripe webhooks", () => {
     async function subscribed(email: string, plan: "standard" | "premium" = "standard") {
       const candidate = await t.signUp(email);

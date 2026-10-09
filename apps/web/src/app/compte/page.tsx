@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentIsAdministrator } from "@/admin/server";
 import { getCurrentCandidate } from "@/auth/server";
+import { AccountDataSection } from "@/components/AccountDataSection";
 import { AccountSettings } from "@/components/AccountSettings";
 import { FollowUpDelaysForm } from "@/components/FollowUpDelaysForm";
 import { WorkspaceHeader } from "@/components/WorkspaceHeader";
@@ -85,6 +86,7 @@ export default async function AccountPage() {
         ) : null}
       </nav>
       <AccountSettings interfaceLanguage={candidate.interfaceLanguage} />
+      <AccountDataSection />
     </main>
   );
 }

@@ -104,6 +104,13 @@ a.button {
   font-weight: 600;
 }
 
+/* An action that cannot be undone, such as deleting the account. */
+.button-danger {
+  font-weight: 600;
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
 .separator {
   margin: 0;
 }

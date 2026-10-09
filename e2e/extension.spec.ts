@@ -848,6 +848,10 @@ test.describe("Guest Capture and Match Score", () => {
       await context.unroute("**/api/match-score");
       await Promise.all(stalled.map((route) => route.abort().catch(() => {})));
     }
+    // The next tests start from no Guest session.
+    await analysis.getByRole("button", { name: fr.analysis.forget }).click();
+    await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
+    await analysis.close();
   });
 
   /** The web app shows the Application "À postuler", and the Profile's Master CV, version 1, read from the Guest's CV. */

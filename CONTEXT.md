@@ -205,6 +205,10 @@ _Avoid_: Custom CV, adapted CV
 The step where the Candidate checks a Tailored CV proposed by the AI Coach before it is saved: its questions about requirements the Master CV does not cover, its changes against the Master CV, and the Match Score of both. Until saved, the Tailored CV is only a proposal; a requirement is added only if the Candidate confirms it.
 _Avoid_: Preview, approval, diff
 
+**Refusal Reason**:
+Why an AI Coach reply is not a usable proposal: no JSON in it, unreadable JSON, the wrong shape, or no CV in it. A refused Tailored CV reply is retried once before the Candidate is told the proposal is unavailable. Logged with the reply's length and the provider and model, never its content.
+_Avoid_: Parse error
+
 **Document Language**:
 The language Tailored Documents are written in. Defaults to the Job Offer's language, independent of the Candidate's interface language.
 _Avoid_: Locale (for documents)

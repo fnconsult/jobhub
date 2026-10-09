@@ -16,6 +16,12 @@
 // the app must drop (ADR-0006). It reports "Management d'équipe" as missing.
 // In English, it translates "Anglais"/"courant" into "English"/"fluent", keeping
 // the language's id, as a real AI Coach writing in the Document Language would.
+// A Job Offer holding "E2E_CV_REPLIES=<kind>,<kind>…@<id>" scripts its replies
+// instead, one kind per call for that id (the last one repeats): "prose" (the CV
+// retold in prose, no JSON), "truncated" (the JSON cut short), "bad_json" (a JSON
+// object that does not parse) or "valid" (the reply above). Each such call prints
+// "[fake-mistral] tailored-cv reply <n> for <id>: <kind>" to the server log, so
+// tests can count how often the AI Coach was asked.
 //
 // For a CV (task cv_parsing, prompt "CV :\n<text>") it answers like the AI
 // Coach would: the CV's first line as the name, its second as the title, and
@@ -31,6 +37,8 @@
 // whose displayed employer starts with "Cabinet" is a recruiting agency's, and its
 // Presumed Employer is the name after "Client présumé : " in the posting.
 const realFetch = globalThis.fetch;
+/** Calls so far per scripted Tailored CV id (E2E_CV_REPLIES). */
+const scriptedCalls = new Map();
 
 globalThis.fetch = async (input, init) => {
   const url = input instanceof Request ? input.url : String(input);
@@ -86,6 +94,17 @@ globalThis.fetch = async (input, init) => {
       ),
       missing: ["Management d'équipe"],
     });
+    const script = /E2E_CV_REPLIES=([a-z_,]+)@([\w-]+)/.exec(prompt);
+    if (script) {
+      const kinds = script[1].split(",");
+      const n = (scriptedCalls.get(script[2]) ?? 0) + 1;
+      scriptedCalls.set(script[2], n);
+      const kind = kinds[Math.min(n, kinds.length) - 1];
+      console.log(`[fake-mistral] tailored-cv reply ${n} for ${script[2]}: ${kind}`);
+      if (kind === "prose") content = `Voici le CV adapté : ${cv.headline}, ${first?.employer ?? ""}. ${first?.description ?? ""} J'espère qu'il vous plaira.`;
+      else if (kind === "truncated") content = content.slice(0, 60);
+      else if (kind === "bad_json") content = `{"headline": "${cv.headline}", "summary": "${first?.description ?? ""}", }`;
+    }
   }
   if (prompt.startsWith("CV :\n")) {
     const [fullName = "", headline = ""] = prompt.slice("CV :\n".length).split("\n");

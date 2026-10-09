@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
@@ -46,10 +46,10 @@ const ENGLISH = {
 };
 
 /** Signs a new Candidate in and opens a new Application on a Job Offer. */
-async function openApplication(page: Page, offer: { title: string; content: string; skills: string[] }): Promise<string> {
+async function openApplication(page: Page, offer: { title: string; content: string; skills: string[] }, cv = masterCv): Promise<string> {
   await signInWithMagicLink(page, newAddress("tailored-cv"));
   const profile = await page.request.post("/api/profiles", {
-    data: { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } },
+    data: { masterCv: cv, searchCriteria: { targetRole: "DAF", location: "Lyon" } },
     headers: { origin },
   });
   expect(profile.status(), await profile.text()).toBe(201);
@@ -188,5 +188,115 @@ test.describe("Tailored CV with change review", () => {
     await proposal(page).getByRole("button", { name: tc.save }).click();
     await expect(section(page).getByRole("status")).toHaveText(tc.saved);
     await expect(section(page).getByRole("group", { name: tc.savedTitle }).getByText(tc.writtenIn.en)).toBeVisible();
+  });
+});
+
+// Issue #65: a Tailored CV reply the AI Coach gets wrong (prose, cut short, not
+// JSON) used to end in a silent 503. Now the server logs why it refused the reply
+// (never the CV or the Job Offer) and asks the AI Coach once more before telling
+// the Candidate it is unavailable. The fake Mistral scripts the replies
+// (E2E_CV_REPLIES) and logs each call, so the server log shows how often the AI
+// Coach was asked.
+test.describe("Tailored CV: a refused AI Coach reply is logged and asked for once more", () => {
+  const log = () => readFileSync(process.env.E2E_SERVER_LOG!, "utf8");
+
+  /** The server log written from now on, as lines. */
+  function logFromNow(): () => string[] {
+    const from = statSync(process.env.E2E_SERVER_LOG!).size;
+    return () => Buffer.from(log(), "utf8").subarray(from).toString("utf8").split("\n");
+  }
+
+  /** A Master CV and Job Offer that only this test uses, and the Job Offer's scripted replies. */
+  function scripted(kinds: string[]) {
+    const id = unique();
+    const secret = `CV-SECRET-${id}`;
+    const cv = {
+      ...masterCv,
+      headline: `Directrice financière ${secret}`,
+      experience: [{ ...masterCv.experience[0]!, description: `Consolidation IFRS ${secret}.` }, masterCv.experience[1]!],
+    };
+    const offer = { title: "DAF (H/F)", content: `Vous pilotez la finance. OFFER-SECRET-${id} E2E_CV_REPLIES=${kinds.join(",")}@${id}`, skills: [] };
+    const calls = (lines: string[]) => lines.filter((line) => line.startsWith(`[fake-mistral] tailored-cv reply `) && line.includes(` for ${id}: `));
+    const refusals = (lines: string[]) => lines.filter((line) => line.includes("[tailored-cv] refused the AI Coach's Tailored CV reply"));
+    return { id, secret, cv, offer, calls, refusals };
+  }
+
+  /** No line of `lines` holds the Candidate's CV or the Job Offer. */
+  function expectNoCvIn(lines: string[], id: string) {
+    for (const line of lines) {
+      expect(line, "a server log line holds the CV").not.toContain(`CV-SECRET-${id}`);
+      expect(line, "a server log line holds the Job Offer").not.toContain(`OFFER-SECRET-${id}`);
+    }
+  }
+
+  for (const [kind, reason] of [
+    ["prose", "no_json"],
+    ["truncated", "no_json"],
+  ] as const) {
+    test(`a reply ${kind === "prose" ? "wrapped in prose" : "cut short"} is logged with why, and the AI Coach is asked exactly once more`, async ({ page }) => {
+      const s = scripted([kind, "valid"]);
+      await openApplication(page, s.offer, s.cv);
+      const lines = logFromNow();
+
+      await section(page).getByRole("button", { name: tc.propose }).click();
+
+      await expect(section(page).getByRole("status")).toHaveText(tc.proposed);
+      await expect.poll(() => s.calls(lines()).length).toBe(2);
+      expect(s.calls(lines())).toEqual([`[fake-mistral] tailored-cv reply 1 for ${s.id}: ${kind}`, `[fake-mistral] tailored-cv reply 2 for ${s.id}: valid`]);
+      const refused = s.refusals(lines());
+      expect(refused).toHaveLength(1);
+      expect(refused[0]).toContain(`reason=${reason}`);
+      expect(refused[0]).toMatch(/length=\d+/);
+      expect(refused[0]).toContain("provider=mistral");
+      expect(refused[0]).toMatch(/model=\S+/);
+      expectNoCvIn(lines(), s.id);
+    });
+  }
+
+  test("a valid reply on the retry is the proposal the Candidate reviews", async ({ page }) => {
+    const s = scripted(["prose", "valid"]);
+    await openApplication(page, s.offer, s.cv);
+    const lines = logFromNow();
+
+    const proposed = page.waitForResponse((response) => response.url().endsWith("/tailored-cv") && response.request().method() === "POST");
+    await section(page).getByRole("button", { name: tc.propose }).click();
+
+    expect((await proposed).status()).toBe(200);
+    await expect(section(page).getByRole("status")).toHaveText(tc.proposed);
+    // The retry's reply is the one proposed: it cuts every job but the first.
+    await expect(proposal(page).getByText(`${tc.sections.experience} · ${tc.kinds.cut} · Contrôleuse de gestion · Danone · 1995 – 2005`)).toBeVisible();
+    await expect(section(page).getByRole("alert")).toHaveCount(0);
+    expect(s.calls(lines())).toHaveLength(2);
+  });
+
+  test("two refused replies tell the Candidate to try again later, with two warnings and no third ask", async ({ page }) => {
+    const s = scripted(["prose", "truncated", "valid"]);
+    await openApplication(page, s.offer, s.cv);
+    const lines = logFromNow();
+
+    const proposed = page.waitForResponse((response) => response.url().endsWith("/tailored-cv") && response.request().method() === "POST");
+    await section(page).getByRole("button", { name: tc.propose }).click();
+
+    expect((await proposed).status()).toBe(503);
+    await expect(section(page).getByRole("alert")).toHaveText(tc.unavailable);
+    await expect(section(page).getByRole("button", { name: tc.propose })).toBeVisible();
+    await expect.poll(() => s.refusals(lines()).length).toBe(2);
+    expect(s.calls(lines())).toHaveLength(2);
+    expect(s.refusals(lines())[0]).toContain("attempt 1/2");
+    expect(s.refusals(lines())[1]).toContain("attempt 2/2");
+    expectNoCvIn(lines(), s.id);
+  });
+
+  test("a reply that is not valid JSON is logged as such, never with the CV text it holds", async ({ page }) => {
+    const s = scripted(["bad_json"]);
+    await openApplication(page, s.offer, s.cv);
+    const lines = logFromNow();
+
+    await section(page).getByRole("button", { name: tc.propose }).click();
+
+    await expect(section(page).getByRole("alert")).toHaveText(tc.unavailable);
+    await expect.poll(() => s.refusals(lines()).length).toBe(2);
+    for (const line of s.refusals(lines())) expect(line).toContain("reason=bad_json");
+    expectNoCvIn(lines(), s.id);
   });
 });

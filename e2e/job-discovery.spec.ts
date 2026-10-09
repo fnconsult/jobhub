@@ -60,7 +60,9 @@ let worker: ChildProcess | undefined;
 let workerOutput = "";
 
 function startWorker() {
-  worker = spawn("npx", ["tsx", "src/main.ts"], {
+  // tsx itself, not `npx tsx`: on Linux npx does not pass SIGTERM on, so afterAll would
+  // leave this worker running, taking the next spec's jobs from the same queue.
+  worker = spawn(path.resolve("node_modules/.bin/tsx"), ["src/main.ts"], {
     cwd: path.resolve("apps/worker"),
     env: {
       ...process.env,

@@ -29,21 +29,25 @@ const PROSPECTING_ANSWER = {
   billing: { creditsCharged: 3, resultsReturned: 3 },
 };
 
-/** The Enrich Contacts answer (schema UNCONFIRMED, see docs/research/issue-23.md): details under `data`. */
+/** Shaped like the v3 example at https://docs.lusha.com/api-reference/enrich/enrich-contacts (names made up). */
 const ENRICH_ANSWER = {
-  contacts: [
+  results: [
     {
       id: "lusha-101",
-      isSuccess: true,
-      data: {
-        firstName: "Claire",
-        lastName: "Martin",
-        jobTitle: "DRH",
-        emailAddresses: [{ email: "c.martin@acme-industrie.fr", emailType: "work" }],
-        phoneNumbers: [{ number: "+33 4 72 00 00 00", phoneType: "direct" }],
-      },
+      firstName: "Claire",
+      lastName: "Martin",
+      fullName: "Claire Martin",
+      jobTitle: { title: "DRH", departments: ["Human Resources"], seniority: "Director" },
+      location: { country: "France", isEuContact: true },
+      company: { id: "c-1", name: "Acme Industrie", domain: "acme-industrie.fr" },
+      emails: [{ email: "c.martin@acme-industrie.fr", type: "work", confidence: "A", updateDate: "2026-09-01" }],
+      phones: [
+        { number: "+33 4 72 00 00 00", type: "direct", doNotCall: false, updateDate: "2026-09-01" },
+        { number: "+33 6 00 00 00 00", type: "mobile", doNotCall: true, updateDate: "2026-09-01" },
+      ],
     },
   ],
+  billing: { creditsCharged: 2, resultsReturned: 1 },
 };
 
 describe("Lusha adapter", () => {
@@ -89,7 +93,7 @@ describe("Lusha adapter", () => {
     expect(api.requests[0]!.body).toMatchObject({ filters: { companies: { include: { names: ["Acme Industrie"] } } } });
   });
 
-  it("reveals a found person's emails and phones by their Lusha id", async () => {
+  it("reveals a found person's emails and phones by their Lusha id, leaving out do-not-call numbers", async () => {
     const api = recordedFetch({ body: ENRICH_ANSWER });
     const lusha = createLushaProvider({ apiKey: "lusha-test-key", fetch: api.fetch });
 
@@ -101,11 +105,11 @@ describe("Lusha adapter", () => {
       phones: ["+33 4 72 00 00 00"],
     });
     expect(api.requests[0]!.url).toBe("https://api.lusha.com/v3/contacts/enrich");
-    expect(api.requests[0]!.body).toEqual({ contactIds: ["lusha-101"] });
+    expect(api.requests[0]!.body).toEqual({ ids: ["lusha-101"], reveal: ["emails", "phones"] });
   });
 
   it("gives null when Lusha could not enrich the person", async () => {
-    const lusha = createLushaProvider({ apiKey: "k", fetch: recordedFetch({ body: { contacts: [{ id: "lusha-9", isSuccess: false }] } }).fetch });
+    const lusha = createLushaProvider({ apiKey: "k", fetch: recordedFetch({ body: { results: [{ id: "lusha-9", error: { code: "NOT_FOUND", message: "Not found" } }] } }).fetch });
     expect(await lusha.getContactDetails({ providerPersonId: "lusha-9" })).toBeNull();
   });
 

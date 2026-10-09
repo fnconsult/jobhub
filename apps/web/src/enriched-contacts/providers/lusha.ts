@@ -1,10 +1,10 @@
 /**
- * Lusha (https://docs.lusha.com, API v3): Prospecting finds people by job title
- * at a company (each result costs credits, so the page is kept small), then
- * Enrich Contacts reveals one person's emails and phones.
- * Do-not-contact people are left out of searches (`excludeDnc`).
- * The Enrich Contacts schema is UNCONFIRMED (docs/research/issue-23.md): check it
- * against the live API before going live.
+ * Lusha (https://docs.lusha.com, API v3, checked 2026-10-09: docs/research/issue-77.md).
+ * Prospecting (`POST /v3/contacts/prospecting`) finds people by job title at a
+ * company; each result costs credits, so the page and the contacts per company
+ * are kept to what is shown. Do-not-contact people are left out (`options.excludeDnc`).
+ * Enrich Contacts (`POST /v3/contacts/enrich`) then reveals one person's emails
+ * and phones; numbers flagged do-not-call are left out.
  */
 import { requestJson, texts, type ContactDetails, type ContactEnrichmentProvider, type Fetch, type FoundPerson } from "./types";
 
@@ -23,8 +23,10 @@ interface LushaPerson {
   jobTitle?: { title?: unknown } | null;
   /** Set when Lusha could not give this result (e.g. COMPLIANCE_RESTRICTED). */
   error?: unknown;
-  emailAddresses?: { email?: unknown }[];
-  phoneNumbers?: { number?: unknown }[];
+  /** Enrich Contacts only. */
+  emails?: { email?: unknown }[];
+  /** Enrich Contacts only; numbers flagged `doNotCall` are left out. */
+  phones?: { number?: unknown; doNotCall?: unknown }[];
 }
 
 const text = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : typeof value === "number" ? String(value) : undefined);
@@ -63,20 +65,20 @@ export function createLushaProvider({ apiKey, fetch: fetchFn = fetch, baseUrl = 
     },
 
     async getContactDetails({ providerPersonId }) {
-      const answer = (await requestJson("lusha", fetchFn, `${baseUrl}/contacts/enrich`, { headers, body: { contactIds: [providerPersonId] } })) as {
-        contacts?: (LushaPerson & { isSuccess?: boolean; data?: LushaPerson })[];
-      } | null;
-      const contact = answer?.contacts?.find((entry) => text(entry.id) === providerPersonId) ?? answer?.contacts?.[0];
-      if (!contact || contact.isSuccess === false) return null;
-      const person = { ...contact, ...contact.data };
+      const answer = (await requestJson("lusha", fetchFn, `${baseUrl}/contacts/enrich`, {
+        headers,
+        body: { ids: [providerPersonId], reveal: ["emails", "phones"] },
+      })) as { results?: LushaPerson[] } | null;
+      const person = answer?.results?.find((entry) => text(entry.id) === providerPersonId);
+      if (!person || person.error) return null;
       const details: ContactDetails = {
         providerPersonId,
         name: nameOf(person),
-        emails: texts((person.emailAddresses ?? []).map((entry) => entry.email)),
-        phones: texts((person.phoneNumbers ?? []).map((entry) => entry.number)),
+        emails: texts((person.emails ?? []).map((entry) => entry.email)),
+        phones: texts((person.phones ?? []).filter((entry) => entry.doNotCall !== true).map((entry) => entry.number)),
       };
       if (!details.name) return null;
-      const jobTitle = text(person.jobTitle);
+      const jobTitle = jobTitleOf(person);
       if (jobTitle) details.jobTitle = jobTitle;
       return details;
     },

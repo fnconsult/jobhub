@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import mammoth from "mammoth";
+import { extractText, getDocumentProxy } from "unpdf";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
@@ -69,6 +70,10 @@ async function saveTailoredCv(page: Page, id: string) {
 async function draftCoverLetter(page: Page, id: string) {
   const drafted = await page.request.post(`/api/applications/${id}/tailored-documents`, { data: { document: "cover_letter" }, headers: { origin } });
   expect(drafted.status(), await drafted.text()).toBe(200);
+}
+
+async function pdfText(bytes: Buffer): Promise<string> {
+  return (await extractText(await getDocumentProxy(new Uint8Array(bytes)), { mergePages: true })).text.replace(/\s+/g, " ").trim();
 }
 
 const exportUrl = (id: string, document: "tailored-cv" | "cover-letter", format: string, template = "classic") =>
@@ -146,5 +151,76 @@ test.describe("exporting the Tailored CV and the Cover Letter", () => {
     expect(file.suggestedFilename()).toBe("CV-Marie-Dupont-Acme-Industrie.pdf");
     const [letter] = await Promise.all([page.waitForEvent("download"), letterDownload.getByRole("button", { name: fr.cvExport.docx }).click()]);
     expect(letter.suggestedFilename()).toBe("Lettre-de-motivation-Marie-Dupont-Acme-Industrie.docx");
+  });
+
+  test("the Tailored CV exports the saved tailored content, not the Master CV, in both formats", async ({ page }) => {
+    const id = await openApplication(page, "application-export-content");
+    await saveTailoredCv(page, id);
+
+    const pdf = await pdfText(await (await page.request.get(exportUrl(id, "tailored-cv", "pdf"))).body());
+    const docx = (await mammoth.extractRawText({ buffer: await (await page.request.get(exportUrl(id, "tailored-cv", "docx"))).body() })).value.replace(/\s+/g, " ").trim();
+    for (const text of [pdf, docx]) {
+      expect(text).toContain("Marie Dupont");
+      expect(text).toContain("Directrice financière (adapté");
+      expect(text).toContain("Consolidation IFRS. pour « Directeur administratif et financier (H/F) »");
+    }
+    expect(pdf).toBe(docx);
+  });
+
+  test("each document is downloadable on its own: a saved Tailored CV without a Cover Letter, and a Cover Letter without a saved Tailored CV", async ({ page }) => {
+    const cvOnly = await openApplication(page, "application-export-cv-only");
+    await saveTailoredCv(page, cvOnly);
+    for (const format of ["pdf", "docx"] as const) {
+      expect((await page.request.get(exportUrl(cvOnly, "tailored-cv", format))).status(), `tailored-cv ${format}`).toBe(200);
+      expect((await page.request.get(exportUrl(cvOnly, "cover-letter", format))).status(), `cover-letter ${format}`).toBe(404);
+    }
+    await page.goto(`/candidatures/${cvOnly}`);
+    await expect(page.getByRole("region", { name: fr.tailoredCv.title }).getByRole("group", { name: fr.applicationExport.tailoredCv.title })).toBeVisible();
+    await expect(page.getByRole("region", { name: fr.tailoredDocuments.title }).getByRole("group", { name: fr.applicationExport.coverLetter.title })).toHaveCount(0);
+
+    // A second Application of the same Candidate, with only a Cover Letter.
+    const profileId = (await (await page.request.get(`/api/applications/${cvOnly}`)).json()).profile?.id;
+    const captured = await page.request.post("/api/job-offers", {
+      data: { source: { url: `https://www.apec.fr/offres/${unique()}` }, title: "DAF (H/F)", content: "Acme Industrie recrute son DAF.", skills: ["IFRS"], employer: "Acme Industrie", location: "Lyon" },
+      headers: { origin },
+    });
+    expect(captured.status(), await captured.text()).toBe(200);
+    const created = await page.request.post("/api/applications", { data: { jobOfferId: (await captured.json()).id, profileId }, headers: { origin } });
+    expect(created.ok(), await created.text()).toBe(true);
+    const letterOnly = (await created.json()).id as string;
+    await draftCoverLetter(page, letterOnly);
+    for (const format of ["pdf", "docx"] as const) {
+      expect((await page.request.get(exportUrl(letterOnly, "cover-letter", format))).status(), `cover-letter ${format}`).toBe(200);
+      expect((await page.request.get(exportUrl(letterOnly, "tailored-cv", format))).status(), `tailored-cv ${format}`).toBe(404);
+    }
+    await page.goto(`/candidatures/${letterOnly}`);
+    await expect(page.getByRole("region", { name: fr.tailoredDocuments.title }).getByRole("group", { name: fr.applicationExport.coverLetter.title })).toBeVisible();
+    await expect(page.getByRole("region", { name: fr.tailoredCv.title }).getByRole("group", { name: fr.applicationExport.tailoredCv.title })).toHaveCount(0);
+  });
+
+  test("an unknown Application returns 404", async ({ page }) => {
+    await openApplication(page, "application-export-unknown");
+    for (const document of ["tailored-cv", "cover-letter"] as const) {
+      expect((await page.request.get(exportUrl("00000000-0000-4000-8000-000000000000", document, "pdf"))).status(), document).toBe(404);
+    }
+  });
+
+  test("the Master CV export is unchanged once the Candidate has a saved Tailored CV: the Master CV, named without an employer", async ({ page }) => {
+    const id = await openApplication(page, "application-export-master");
+    await saveTailoredCv(page, id);
+    const profileId = (await (await page.request.get(`/api/applications/${id}`)).json()).profile?.id;
+    expect(profileId).toBeTruthy();
+
+    const response = await page.request.get(`/api/profiles/${profileId}/master-cv/export?format=pdf&template=classic`);
+    expect(response.status()).toBe(200);
+    expect(response.headers()["content-type"]).toBe(CONTENT_TYPES.pdf);
+    expect(response.headers()["content-disposition"]).toBe(`attachment; filename="CV-Marie-Dupont.pdf"`);
+    const text = await pdfText(await response.body());
+    expect(text).toContain("Marie Dupont Directrice financière marie.dupont@example.fr");
+    expect(text).not.toContain("adapté");
+
+    await page.goto(`/profils/${profileId}`);
+    const [file] = await Promise.all([page.waitForEvent("download"), page.getByRole("region", { name: fr.cvExport.title }).getByRole("button", { name: fr.cvExport.docx }).click()]);
+    expect(file.suggestedFilename()).toBe("CV-Marie-Dupont.docx");
   });
 });

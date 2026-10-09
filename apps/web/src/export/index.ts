@@ -48,6 +48,8 @@ export interface ExportOptions {
   template: CvTemplate;
   /** The Document Language: section headings and the file name are written in it. */
   language: Locale;
+  /** The employer a Tailored CV or a Cover Letter is for: named in the file name after the Candidate. */
+  employer?: string;
 }
 
 export interface ExportedFile {
@@ -69,11 +71,14 @@ export function isExportFormat(value: unknown): value is ExportFormat {
   return typeof value === "string" && (EXPORT_FORMATS as readonly string[]).includes(value);
 }
 
-/** "CV-Marie-Dupont.pdf", "CV-Zoë-Łukasz.pdf", "CV-李明.pdf", "CV-राहुल-शर्मा.pdf": letters (with their vowel signs and accents) and digits of any script, joined by dashes. */
-function fileNameOf(document: ExportableDocument, { format, language }: ExportOptions): string {
+/**
+ * "CV-Marie-Dupont.pdf", "CV-Zoë-Łukasz.pdf", "CV-李明.pdf", "CV-राहुल-शर्मा.pdf": letters (with their vowel signs and accents) and digits of any script, joined by dashes.
+ * With the employer after the Candidate's name: "Lettre-de-motivation-Marie-Dupont-Groupe-Danone.pdf".
+ */
+function fileNameOf(document: ExportableDocument, { format, language, employer = "" }: ExportOptions): string {
   const { t } = createI18n(language);
   const prefix = t(document.kind === "cv" ? "cvDocument.cvFileName" : "cvDocument.coverLetterFileName");
-  return `${slug([prefix, document.content.fullName].join(" "), /[^\p{L}\p{M}\p{N}]+/gu)}.${format}`;
+  return `${slug([prefix, document.content.fullName, employer].join(" "), /[^\p{L}\p{M}\p{N}]+/gu)}.${format}`;
 }
 
 const slug = (text: string, unwanted: RegExp) =>

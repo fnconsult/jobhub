@@ -27,14 +27,17 @@ export interface JobbboxApi {
   /** Reads a CV file (PDF or .docx), and the Search Criteria it suggests. The web app keeps nothing. */
   readCv(file: File): Promise<Result<{ cv: CvContent; searchCriteria: SearchCriteriaDraft }, ReadCvError>>;
   /**
-   * The Match Score of a CV against a Job Offer. "job_offer_gone": it has been forgotten since.
+   * The Match Score of a Job Offer against one of the signed-in Candidate's Profiles (its Master CV and
+   * Search Criteria), or against a CV and the Search Criteria read from it.
+   * "job_offer_gone" (a CV): the Job Offer has been forgotten since. "not_found" (a Profile): the Job Offer
+   * or the Profile is gone. "signed_out" (a Profile): nobody is signed in any more.
    * "quota_exceeded": the signed-in Candidate's Plan allows no more Match Scores this month.
    */
   score(
     jobOfferId: string,
-    cv: CvContent,
+    against: ScoreAgainst,
   ): Promise<
-    | Result<{ matchScore: MatchScore }, "job_offer_gone" | "failed" | "unreachable">
+    | Result<{ matchScore: MatchScore }, "job_offer_gone" | "not_found" | "signed_out" | "failed" | "unreachable">
     | { ok: false; error: "quota_exceeded"; prompt: UpgradePrompt }
   >;
   /** The signed-in Candidate's active Profiles, oldest first. "signed_out": nobody is signed in on the web app. */
@@ -58,6 +61,9 @@ export interface JobbboxApi {
   saveApplication(jobOfferId: string, profileId: string): Promise<Result<{ applicationId: string }, "not_found" | "signed_out" | "failed" | "unreachable">>;
 }
 
+/** What a Job Offer is scored against: one of the signed-in Candidate's Profiles, or a CV (with the Search Criteria read from it). */
+export type ScoreAgainst = { profileId: string } | { cv: CvContent; searchCriteria?: SearchCriteriaDraft };
+
 /** One of the Candidate's Profiles, as offered to choose from. */
 export interface ProfileOption {
   id: string;
@@ -72,6 +78,13 @@ function upgradePromptIn(body: Record<string, unknown>): UpgradePrompt | null {
   const prompt = body.prompt as Record<string, unknown> | undefined;
   if (typeof prompt?.message !== "string" || typeof prompt.href !== "string") return null;
   return { message: prompt.message, action: typeof prompt.action === "string" ? prompt.action : null, href: prompt.href };
+}
+
+/** The web app requires both a target role and a location in Search Criteria: those read from a CV are sent only then. */
+function scoreRequest(against: ScoreAgainst) {
+  if ("profileId" in against) return { profileId: against.profileId };
+  const { cv, searchCriteria } = against;
+  return searchCriteria?.targetRole.trim() && searchCriteria.location.trim() ? { cv, searchCriteria } : { cv };
 }
 
 export function createJobbboxApi(webOrigin: string, fetchImpl: Fetch = (url, init) => fetch(url, init)): JobbboxApi {
@@ -111,10 +124,11 @@ export function createJobbboxApi(webOrigin: string, fetchImpl: Fetch = (url, ini
       return { ok: true, cv: reply.body.masterCv as CvContent, searchCriteria };
     },
 
-    async score(jobOfferId, cv) {
-      const reply = await postJson("/api/match-score", { jobOfferId, cv });
+    async score(jobOfferId, against) {
+      const reply = await postJson("/api/match-score", { jobOfferId, ...scoreRequest(against) });
       if (!reply) return { ok: false, error: "unreachable" };
-      if (reply.status === 404) return { ok: false, error: "job_offer_gone" };
+      if (reply.status === 404) return { ok: false, error: "profileId" in against ? "not_found" : "job_offer_gone" };
+      if (reply.status === 401) return { ok: false, error: "signed_out" };
       if (reply.status === 402) {
         const prompt = upgradePromptIn(reply.body);
         if (prompt) return { ok: false, error: "quota_exceeded", prompt };

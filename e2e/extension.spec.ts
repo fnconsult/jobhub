@@ -333,14 +333,17 @@ test.describe("Guest Capture and Match Score", () => {
 
   // Issue #51: a Match Score uses the Candidate's Plan Quota, so the extension scores once per Job Offer and CV.
   const scoreLine = /^Match Score : \d+ \/ 100$/;
-  /** Every request any page of the context makes to /api/match-score, from now on. */
+  /** Every request any page of the context makes to /api/match-score, from now on, and what each sent. */
   const countScoreRequests = () => {
     const requests: string[] = [];
-    const listener = (request: { url(): string }) => {
-      if (new URL(request.url()).pathname === "/api/match-score") requests.push(request.url());
+    const bodies: Record<string, unknown>[] = [];
+    const listener = (request: { url(): string; postData(): string | null }) => {
+      if (new URL(request.url()).pathname !== "/api/match-score") return;
+      requests.push(request.url());
+      bodies.push(JSON.parse(request.postData() ?? "{}"));
     };
     context.on("request", listener);
-    return { requests, stop: () => context.off("request", listener) };
+    return { requests, bodies, stop: () => context.off("request", listener) };
   };
   const reopenAnalysis = async () => {
     const page = await context.newPage();
@@ -370,6 +373,10 @@ test.describe("Guest Capture and Match Score", () => {
     await expect(analysis.getByText(fr.analysis.missing.replace("{{skills}}", "Power BI"))).toBeVisible();
     await expect.poll(() => scores.requests.length).toBe(1);
     const shown = await analysis.getByText(scoreLine).textContent();
+    // The Guest's CV goes with the Search Criteria read from it (#75), as kept in the Guest session.
+    const { guestSession: kept } = await guestSession(analysis);
+    expect(scores.bodies[0]).toEqual({ jobOfferId: kept.jobOffer.id, cv: kept.cv, searchCriteria: kept.searchCriteria });
+    expect(scores.bodies[0]).not.toHaveProperty("profileId");
 
     // Reloading, or opening the analysis page again, shows the same Match Score without asking for one.
     await analysis.reload();
@@ -483,28 +490,30 @@ test.describe("Guest Capture and Match Score", () => {
     }
   });
 
-  test("a signed-in Free Candidate uses no Match Score by reopening the page; past their Plan Quota, the Upgrade Prompt is still shown (#51)", async () => {
+  test("a signed-in Free Candidate's new Job Offer is scored against their Profile, no CV asked; reopening uses no Match Score; past their Plan Quota, the Upgrade Prompt (#51, #75)", async () => {
     test.slow();
     const web = await context.newPage();
     await signInWithMagicLink(web, newAddress("extension-score-quota"));
-    // With a Profile already, the analysis page offers to choose one, beside the Match Score.
     const masterCv = {
       fullName: "Marie Dupont", headline: "Directrice financière", email: "", phone: "", location: "Lyon", summary: "",
       experience: [], education: [], skills: ["IFRS"], languages: [],
     };
     const created = await web.request.post(`${origin}/api/profiles`, { headers: { origin }, data: { masterCv, searchCriteria: { targetRole: "Directrice financière", location: "Lyon" } } });
     expect(created.status(), await created.text()).toBe(201);
+    const profileId = (await created.json()).id as string;
     const used = async () => {
       await web.goto("/abonnement");
       return web.locator("dl div").filter({ hasText: "Match Scores" }).locator("dd").textContent();
     };
 
+    // A new Job Offer is scored against their Profile at once: no CV is asked for.
+    const scores = countScoreRequests();
     const analysis = await captureFromBadge(postingUrl);
     await expect(analysis.getByText(fr.analysis.candidateNotice)).toBeVisible();
-    const scores = countScoreRequests();
-    await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
-    await analysis.getByRole("button", { name: fr.analysis.submit }).click();
     await expect(analysis.getByText(scoreLine)).toBeVisible();
+    await expect(analysis.getByLabel(fr.analysis.scoreProfileLabel)).toHaveValue(profileId);
+    await expect(analysis.getByLabel(frCatalogue.cvUpload.fileLabel)).toHaveCount(0);
+    expect(scores.bodies).toEqual([{ jobOfferId: expect.any(String), profileId }]);
     const shown = await analysis.getByText(scoreLine).textContent();
     expect(await used()).toBe("1 sur 3");
 
@@ -519,7 +528,7 @@ test.describe("Guest Capture and Match Score", () => {
     expect(scores.requests).toHaveLength(1);
     expect(await used()).toBe("1 sur 3");
 
-    // Asking for new Match Scores uses the Plan Quota, up to its limit; then the Upgrade Prompt.
+    // Asking for new Match Scores uses the Plan Quota, up to its limit; then the Upgrade Prompt (QA case 11.3).
     for (let i = 0; i < 2; i++) {
       await analysis.getByRole("button", { name: fr.analysis.rescore }).click();
       await expect.poll(() => scores.requests.length).toBe(2 + i);
@@ -537,6 +546,12 @@ test.describe("Guest Capture and Match Score", () => {
     await expect(analysis.getByText(scoreLine)).toBeVisible();
     expect(scores.requests).toHaveLength(4);
     scores.stop();
+
+    // Another CV can still be scored instead, and the Profile chosen again.
+    await analysis.getByRole("button", { name: fr.analysis.changeCv }).click();
+    await expect(analysis.getByLabel(frCatalogue.cvUpload.fileLabel)).toBeVisible();
+    await analysis.getByRole("button", { name: fr.analysis.useProfile }).click();
+    await expect(analysis.getByText(scoreLine)).toHaveText(shown!);
     await analysis.getByRole("button", { name: fr.analysis.forgetCv }).click();
     await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
     await web.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
@@ -929,15 +944,37 @@ test.describe("Guest Capture and Match Score", () => {
       experience: [], education: [], skills: ["IFRS"], languages: [],
     };
     const profileIds: string[] = [];
-    for (const targetRole of ["Directrice financière", "Consultante transformation"]) {
-      const created = await web.request.post(`${origin}/api/profiles`, { headers: { origin }, data: { masterCv, searchCriteria: { targetRole, location: "Lyon" } } });
+    // Two Profiles whose Master CVs match the posting's skills differently, so their Match Scores differ.
+    for (const [targetRole, skills] of [["Directrice financière", ["IFRS", "Consolidation", "Power BI"]], ["Consultante transformation", []]] as const) {
+      const data = { masterCv: { ...masterCv, skills }, searchCriteria: { targetRole, location: "Lyon" } };
+      const created = await web.request.post(`${origin}/api/profiles`, { headers: { origin }, data });
       expect(created.status(), await created.text()).toBe(201);
       profileIds.push((await created.json()).id);
     }
 
+    const scores = countScoreRequests();
     const jobPage = await context.newPage();
     await jobPage.goto(postingUrl);
     const [analysis] = await Promise.all([context.waitForEvent("page"), jobPage.getByRole("button", { name: fr.badgeLabel }).click()]);
+
+    // Scored against their first Profile at once; switching the Profile scores the Job Offer against that one (#75).
+    const scoredWith = analysis.getByLabel(fr.analysis.scoreProfileLabel);
+    await expect(scoredWith.getByRole("option")).toHaveText(["Directrice financière", "Consultante transformation"]);
+    await expect(analysis.getByText(fr.analysis.covered.replace("{{skills}}", "IFRS, Consolidation, Power BI"))).toBeVisible();
+    const first = await analysis.getByText(scoreLine).textContent();
+    await scoredWith.selectOption({ label: "Consultante transformation" });
+    await expect(analysis.getByText(fr.analysis.covered.replace("{{skills}}", "IFRS, Consolidation, Power BI"))).toHaveCount(0);
+    await expect(analysis.getByText(scoreLine)).not.toHaveText(first!);
+    expect(scores.bodies.map((body) => body.profileId)).toEqual(profileIds);
+    // Reopened, the page shows the Match Score kept for the Profile chosen, without asking for one.
+    const second = await analysis.getByText(scoreLine).textContent();
+    const reopened = await reopenAnalysis();
+    await expect(reopened.getByLabel(fr.analysis.scoreProfileLabel)).toHaveValue(profileIds[1]!);
+    await expect(reopened.getByText(scoreLine)).toHaveText(second!);
+    await reopened.close();
+    expect(scores.requests).toHaveLength(2);
+    scores.stop();
+
     const profile = analysis.getByLabel(fr.analysis.profileLabel);
     await expect(profile.getByRole("option")).toHaveText(["Directrice financière", "Consultante transformation"]);
     await profile.selectOption({ label: "Consultante transformation" });

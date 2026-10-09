@@ -1,19 +1,19 @@
 import { designTokens, renderDesignCss } from "@jobhub/shared/design";
 import { createI18n } from "@jobhub/shared/i18n";
-import type { CvContent, JobOffer } from "@jobhub/shared";
+import type { JobOffer } from "@jobhub/shared";
 import { browser } from "wxt/browser";
 import { createApplicationSaving, type ProfileChoice, type SavingFailure, type SavingState } from "../../src/application-saving";
 import { openAnalysisPage } from "../../src/analysis-page";
 import { readCandidateSession } from "../../src/candidate-session";
 import { createGuestSession } from "../../src/guest-session";
-import { createJobbboxApi, type UpgradePrompt } from "../../src/jobbbox-api";
+import { createJobbboxApi, type ProfileOption, type ScoreAgainst, type UpgradePrompt } from "../../src/jobbbox-api";
 import { describeMatchScore } from "../../src/match-score-view";
-import { createMatchScoring } from "../../src/match-scoring";
+import { chooseScoreAgainst, createMatchScoring, type ScoringChoice } from "../../src/match-scoring";
 import { WEB_ORIGIN } from "../../src/web-app";
 import "./analyse.css";
 
-// The analysis page: the captured Job Offer, the Guest's CV and their Match Score;
-// for a signed-in Candidate, saving the Job Offer as an Application.
+// The analysis page: the captured Job Offer and its Match Score, against the Guest's CV or, for a
+// signed-in Candidate, one of their Profiles (#75); for a signed-in Candidate, saving the Job Offer as an Application.
 const style = document.createElement("style");
 style.textContent = renderDesignCss(designTokens);
 document.head.append(style);
@@ -172,7 +172,7 @@ function savedNotice(saved: Extract<SavingState, { state: "saved" }>): HTMLEleme
 }
 
 /** The signed-in Candidate chooses the Profile the Application uses, then it is saved. */
-function saveForm(choice: Extract<SavingState, { state: "choose" }>, failure?: SavingFailure): HTMLElement[] {
+function saveForm(choice: Extract<SavingState, { state: "choose" }>, scoredProfileId: string | undefined, failure?: SavingFailure): HTMLElement[] {
   const title = element("h2", t("extension.analysis.saveTitle"));
   if (choice.profiles.length === 0 && !choice.fromCv) return [title, element("p", t("extension.analysis.firstProfileHint"))];
 
@@ -184,6 +184,8 @@ function saveForm(choice: Extract<SavingState, { state: "choose" }>, failure?: S
   for (const profile of choice.profiles) {
     const option = element("option", profile.name);
     option.value = profile.id;
+    // The Profile the Job Offer is scored against is the one it is most likely saved with.
+    option.selected = profile.id === scoredProfileId;
     select.append(option);
   }
   if (choice.fromCv) {
@@ -207,11 +209,17 @@ function saveForm(choice: Extract<SavingState, { state: "choose" }>, failure?: S
   return failure ? [title, savingFailure(failure), form] : [title, form];
 }
 
-async function matchScore(jobOffer: JobOffer, cv: CvContent, rescore: boolean): Promise<HTMLElement[]> {
-  const scored = await scoring.score(jobOffer, cv, { rescore });
+async function matchScore(jobOffer: JobOffer, against: ScoreAgainst, rescore: boolean): Promise<HTMLElement[]> {
+  const scored = await scoring.score(jobOffer, against, { rescore });
   if (!scored.ok && scored.error === "quota_exceeded") return [upgradePrompt(scored.prompt)];
   if (!scored.ok) {
-    const text = scored.error === "job_offer_gone" ? t("extension.analysis.jobOfferGone") : t("extension.unreachable");
+    const text = {
+      job_offer_gone: t("extension.analysis.jobOfferGone"),
+      not_found: t("extension.analysis.scoreNotFound"),
+      signed_out: t("extension.signedOut"),
+      failed: t("extension.unreachable"),
+      unreachable: t("extension.unreachable"),
+    }[scored.error];
     return [status({ text, error: true })];
   }
   const view = describeMatchScore(scored.matchScore, i18n);
@@ -223,6 +231,31 @@ async function matchScore(jobOffer: JobOffer, cv: CvContent, rescore: boolean): 
     list.append(item);
   }
   return [element("p", view.score, "score"), element("h2", t("extension.analysis.breakdownTitle")), list];
+}
+
+/** What was chosen on this page to score against, if anything: a Profile from the select, or "Utiliser un autre CV". */
+let scoringWith: ScoringChoice | undefined;
+
+/** The signed-in Candidate chooses the Profile the Job Offer is scored against: it is scored again. */
+function scoreProfileSelect(profiles: ProfileOption[], profileId: string): HTMLElement {
+  const field = element("p");
+  const label = element("label", t("extension.analysis.scoreProfileLabel"));
+  label.htmlFor = "score-profile";
+  const select = element("select");
+  select.id = "score-profile";
+  for (const profile of profiles) {
+    const option = element("option", profile.name);
+    option.value = profile.id;
+    option.selected = profile.id === profileId;
+    select.append(option);
+  }
+  select.addEventListener("change", async () => {
+    scoringWith = { profileId: select.value };
+    await session.chooseProfile(select.value);
+    await render();
+  });
+  field.append(label, select);
+  return field;
 }
 
 async function forget() {
@@ -244,29 +277,43 @@ async function render(message?: Message, changingCv = false, outcome?: SavingSta
     return;
   }
 
-  const { jobOffer, cv, expiresAt } = await session.read();
+  const content = await session.read();
+  const { jobOffer, expiresAt } = content;
   const parts: (HTMLElement | string)[] = [element("h1", t("extension.analysis.title"))];
   if (message) parts.push(status(message));
 
+  // The latest attempt's refusal, if any, is shown with the choice to try again.
+  const failure = outcome?.state === "failed" ? outcome : undefined;
+  const reopened = failure && failure.error !== "signed_out" ? await saving.open() : undefined;
+  const choice = outcome?.state === "choose" ? outcome : reopened?.state === "choose" ? reopened : undefined;
+  // A signed-in Candidate's Job Offer is scored against one of their Profiles, no CV needed (#75).
+  const profiles = candidate.signedIn ? (choice?.profiles ?? []) : [];
+  const against = chooseScoreAgainst(profiles, content, scoringWith);
+  const scoredProfileId = against && "profileId" in against ? against.profileId : undefined;
+
   if (jobOffer && candidate.signedIn && outcome) {
     parts.push(describeJobOffer(jobOffer));
-    if (outcome.state === "choose") {
-      // The latest attempt's refusal, if any, is shown with the choice to try again.
-      parts.push(...saveForm(outcome));
-    } else if (outcome.state === "failed") {
-      const reopened = outcome.error === "signed_out" ? null : await saving.open();
-      parts.push(...(reopened?.state === "choose" ? saveForm(reopened, outcome) : [savingFailure(outcome)]));
-    }
+    if (choice) parts.push(...saveForm(choice, scoredProfileId, failure));
+    else if (failure) parts.push(savingFailure(failure));
   }
 
   if (!jobOffer) {
     parts.push(element("p", t("extension.analysis.noJobOffer")));
   } else {
     if (!candidate.signedIn) parts.push(describeJobOffer(jobOffer));
-    parts.push(dataNotice(expiresAt), element("h2", t("extension.analysis.cvTitle")));
-    if (cv && !changingCv) {
+    parts.push(dataNotice(expiresAt));
+    const useProfile = () => {
+      scoringWith = chooseScoreAgainst(profiles, { jobOffer, profileId: content.profileId }) as { profileId: string };
+      void render();
+    };
+    if (scoredProfileId) {
+      parts.push(element("h2", t("extension.analysis.profileTitle")), scoreProfileSelect(profiles, scoredProfileId));
+    } else {
+      parts.push(element("h2", t("extension.analysis.cvTitle")));
+    }
+    if (against && !changingCv) {
       app.replaceChildren(...parts, status({ text: t("extension.analysis.scoring") }));
-      parts.push(...(await matchScore(jobOffer, cv, rescore)));
+      parts.push(...(await matchScore(jobOffer, against, rescore)));
       // Another render ("Oublier", say) began while the Match Score was computed: it has the page now.
       if (renderId !== renders) return;
       const actions = element("div", "", "actions");
@@ -276,10 +323,16 @@ async function render(message?: Message, changingCv = false, outcome?: SavingSta
         rescoreButton.disabled = true;
         void render(undefined, false, undefined, true);
       });
-      actions.append(rescoreButton, button(t("extension.analysis.changeCv"), () => void render(undefined, true)));
+      const changeCv = () => {
+        scoringWith = "cv";
+        void render(undefined, true);
+      };
+      actions.append(rescoreButton, button(t("extension.analysis.changeCv"), changeCv));
+      if ("cv" in against && profiles.length > 0) actions.append(button(t("extension.analysis.useProfile"), useProfile));
       parts.push(actions);
     } else {
       parts.push(cvForm());
+      if (profiles.length > 0) parts.push(button(t("extension.analysis.useProfile"), useProfile));
     }
   }
 

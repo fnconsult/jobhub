@@ -117,4 +117,16 @@ describe("Lusha adapter", () => {
     const lusha = createLushaProvider({ apiKey: "k", fetch: recordedFetch({ status: 402, body: { message: "Insufficient credits" } }).fetch });
     await expect(lusha.getContactDetails({ providerPersonId: "lusha-101" })).rejects.toMatchObject({ provider: "lusha", reason: "out_of_credits" });
   });
+
+  it("explains a refused request with Lusha's own message", async () => {
+    const lusha = createLushaProvider({
+      apiKey: "k",
+      fetch: recordedFetch({ status: 400, body: { statusCode: 400, message: "property excludeDnc should not exist" } }).fetch,
+    });
+    await expect(lusha.findPeople!({ companyName: "Acme Industrie", jobTitles: ["DRH"], limit: 10 })).rejects.toMatchObject({
+      provider: "lusha",
+      reason: "failed",
+      message: "lusha: HTTP 400: property excludeDnc should not exist",
+    });
+  });
 });

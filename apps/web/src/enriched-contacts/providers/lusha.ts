@@ -33,8 +33,24 @@ const text = (value: unknown) => (typeof value === "string" && value.trim() ? va
 const nameOf = (person: LushaPerson) => texts([person.firstName, person.lastName]).join(" ") || text(person.fullName) || "";
 const jobTitleOf = (person: LushaPerson) => (person.jobTitle && typeof person.jobTitle === "object" ? text(person.jobTitle.title) : undefined);
 
-export function createLushaProvider({ apiKey, fetch: fetchFn = fetch, baseUrl = BASE_URL }: { apiKey: string; fetch?: Fetch; baseUrl?: string }): ContactEnrichmentProvider {
+/**
+ * `fetchFn`, except that a 400 fails with Lusha's own `message` (e.g. a schema
+ * complaint) so the log says what Lusha refused. Only that message is kept,
+ * never the request or anything else from the answer, so no personal data.
+ */
+function explainingBadRequests(fetchFn: Fetch): Fetch {
+  return async (url, init) => {
+    const response = await fetchFn(url, init);
+    if (response.status !== 400) return response;
+    const answer = (await response.json().catch(() => null)) as { message?: unknown } | null;
+    const message = text(answer?.message);
+    throw new Error(message ? `HTTP 400: ${message.slice(0, 200)}` : "HTTP 400");
+  };
+}
+
+export function createLushaProvider({ apiKey, fetch: rawFetch = fetch, baseUrl = BASE_URL }: { apiKey: string; fetch?: Fetch; baseUrl?: string }): ContactEnrichmentProvider {
   const headers = { api_key: apiKey };
+  const fetchFn = explainingBadRequests(rawFetch);
   return {
     id: "lusha",
 

@@ -2,15 +2,31 @@ import { describe, expect, it } from "vitest";
 import { createLushaProvider } from "./lusha";
 import { recordedFetch } from "./recorded-fetch";
 
-/** Shaped like https://docs.lusha.com/api-reference/prospecting/prospecting-contacts (names made up). */
+/** Shaped like the v3 example at https://docs.lusha.com/api-reference/prospecting/prospecting-contacts (names made up). */
 const PROSPECTING_ANSWER = {
-  requestId: "req-1",
-  data: [
-    { id: "lusha-101", firstName: "Claire", lastName: "Martin", jobTitle: "DRH", company: { name: "Acme Industrie" }, canReveal: { email: 1 } },
-    { id: "lusha-102", firstName: "Hugo", lastName: "Bernard", jobTitle: "Responsable recrutement", company: { name: "Acme Industrie" } },
-    { id: "lusha-103", firstName: "Inès", lastName: "Petit", jobTitle: "HR Business Partner", company: { name: "Acme Industrie" } },
+  results: [
+    {
+      id: "lusha-101",
+      firstName: "Claire",
+      lastName: "Martin",
+      jobTitle: { title: "DRH", departments: ["Human Resources"], seniority: "Director" },
+      company: { id: "c-1", name: "Acme Industrie", domain: "acme-industrie.fr" },
+      has: ["emails", "phones"],
+      canReveal: [{ field: "emails", credits: 1 }, { field: "phones", credits: 5 }],
+    },
+    { id: "lusha-104", firstName: "Lea", lastName: "Roux", jobTitle: { title: "DRH" }, error: { code: "COMPLIANCE_RESTRICTED", message: "Restricted" } },
+    { firstName: "Paul", lastName: "Durand", jobTitle: { title: "DRH" } },
+    {
+      id: "lusha-102",
+      firstName: "Hugo",
+      lastName: "Bernard",
+      jobTitle: { title: "Responsable recrutement", departments: ["Human Resources"], seniority: "Manager" },
+      company: { id: "c-1", name: "Acme Industrie", domain: "acme-industrie.fr" },
+    },
+    { id: "lusha-103", firstName: "Inès", lastName: "Petit", jobTitle: { title: "HR Business Partner" } },
   ],
-  billing: { creditsCharged: 3 },
+  pagination: { page: 0, size: 10, total: 4, totalGuaranteed: true },
+  billing: { creditsCharged: 3, resultsReturned: 3 },
 };
 
 /** The Enrich Contacts answer (schema UNCONFIRMED, see docs/research/issue-23.md): details under `data`. */
@@ -31,7 +47,7 @@ const ENRICH_ANSWER = {
 };
 
 describe("Lusha adapter", () => {
-  it("prospects people by job title at the company's domain, leaving out do-not-contact people", async () => {
+  it("prospects people by job title at the company's domain, skipping results Lusha could not give", async () => {
     const api = recordedFetch({ body: PROSPECTING_ANSWER });
     const lusha = createLushaProvider({ apiKey: "lusha-test-key", fetch: api.fetch });
 
@@ -66,7 +82,7 @@ describe("Lusha adapter", () => {
   });
 
   it("searches by company name when the domain is unknown", async () => {
-    const api = recordedFetch({ body: { data: [] } });
+    const api = recordedFetch({ body: { results: [] } });
     const lusha = createLushaProvider({ apiKey: "k", fetch: api.fetch });
 
     await lusha.findPeople!({ companyName: "Acme Industrie", jobTitles: ["DRH"], limit: 5 });

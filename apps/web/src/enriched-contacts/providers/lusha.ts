@@ -19,13 +19,17 @@ interface LushaPerson {
   firstName?: unknown;
   lastName?: unknown;
   fullName?: unknown;
-  jobTitle?: unknown;
+  /** v3: `{ title, departments, seniority }`. */
+  jobTitle?: { title?: unknown } | null;
+  /** Set when Lusha could not give this result (e.g. COMPLIANCE_RESTRICTED). */
+  error?: unknown;
   emailAddresses?: { email?: unknown }[];
   phoneNumbers?: { number?: unknown }[];
 }
 
 const text = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : typeof value === "number" ? String(value) : undefined);
-const nameOf = (person: LushaPerson) => text(person.fullName) ?? texts([person.firstName, person.lastName]).join(" ");
+const nameOf = (person: LushaPerson) => texts([person.firstName, person.lastName]).join(" ") || text(person.fullName) || "";
+const jobTitleOf = (person: LushaPerson) => (person.jobTitle && typeof person.jobTitle === "object" ? text(person.jobTitle.title) : undefined);
 
 export function createLushaProvider({ apiKey, fetch: fetchFn = fetch, baseUrl = BASE_URL }: { apiKey: string; fetch?: Fetch; baseUrl?: string }): ContactEnrichmentProvider {
   const headers = { api_key: apiKey };
@@ -43,14 +47,15 @@ export function createLushaProvider({ apiKey, fetch: fetchFn = fetch, baseUrl = 
           },
           options: { excludeDnc: true, maxContactsPerCompany: Math.min(MAX_CONTACTS_PER_COMPANY, Math.max(1, limit)) },
         },
-      })) as { data?: LushaPerson[] } | null;
+      })) as { results?: LushaPerson[] } | null;
       const people: FoundPerson[] = [];
-      for (const person of answer?.data ?? []) {
+      for (const person of answer?.results ?? []) {
+        if (person.error) continue;
         const id = text(person.id);
         const name = nameOf(person);
         if (!id || !name) continue;
         const found: FoundPerson = { providerPersonId: id, name };
-        const jobTitle = text(person.jobTitle);
+        const jobTitle = jobTitleOf(person);
         if (jobTitle) found.jobTitle = jobTitle;
         people.push(found);
       }

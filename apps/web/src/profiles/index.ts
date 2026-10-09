@@ -364,6 +364,8 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
     async changeSearchCriteria(candidateId, profileId, input) {
       const parsed = changeCriteriaSchema.safeParse(input, { reportInput: true });
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+      const profile = await get(candidateId, profileId);
+      if (!profile) return NOT_FOUND;
       const { searchCriteria } = parsed.data;
       await database.query(
         `UPDATE profile SET target_role = $3, location = $4, min_salary = $5, contract_type = $6, remote_work = $7
@@ -378,7 +380,7 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
           searchCriteria.remoteWork ?? null,
         ],
       );
-      return found(await get(candidateId, profileId)) as ChangeSearchCriteriaResult;
+      return { ok: true, profile: { ...profile, searchCriteria } };
     },
 
     canAddProfile: (candidateId) => roomForOneMore(candidateId),

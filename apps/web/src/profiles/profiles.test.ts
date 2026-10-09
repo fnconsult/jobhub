@@ -308,6 +308,15 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
       });
       expect((await profiles.get(candidateId, profile.id))?.searchCriteria).toEqual(criteria);
     });
+
+    it("never changes someone else's Profile", async () => {
+      const profile = await createdProfile();
+      const input = { searchCriteria: { targetRole: "Piraté", location: "Paris" } };
+
+      expect(await profiles.changeSearchCriteria(await otherCandidate(), profile.id, input)).toEqual({ ok: false, error: "not_found" });
+      expect(await profiles.changeSearchCriteria(candidateId, "not-a-uuid", input)).toEqual({ ok: false, error: "not_found" });
+      expect((await profiles.get(candidateId, profile.id))?.searchCriteria).toEqual(criteria);
+    });
   });
 
   describe("archiving", () => {

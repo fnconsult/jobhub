@@ -317,6 +317,18 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
       expect(await profiles.changeSearchCriteria(candidateId, "not-a-uuid", input)).toEqual({ ok: false, error: "not_found" });
       expect((await profiles.get(candidateId, profile.id))?.searchCriteria).toEqual(criteria);
     });
+
+    it("refuses to change an archived Profile, which is read-only until restored", async () => {
+      const profile = await createdProfile();
+      await profiles.archive(candidateId, profile.id);
+      const input = { searchCriteria: { targetRole: "DAF", location: "Paris" } };
+
+      expect(await profiles.changeSearchCriteria(candidateId, profile.id, input)).toEqual({ ok: false, error: "archived" });
+      expect((await profiles.get(candidateId, profile.id))?.searchCriteria).toEqual(criteria);
+
+      await profiles.restore(candidateId, profile.id);
+      expect(await profiles.changeSearchCriteria(candidateId, profile.id, input)).toMatchObject({ ok: true });
+    });
   });
 
   describe("archiving", () => {

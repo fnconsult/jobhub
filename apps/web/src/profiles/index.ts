@@ -6,8 +6,8 @@
  *    (validated here; field errors come back, never an exception), `duplicate`,
  *    `rename`, `archive` and `restore` one, `list` a Candidate's Profiles and
  *    `get` one; edit the Master CV (`saveMasterCv`, each change a new version),
- *    list its versions and restore one (`restoreMasterCv`). Every read and
- *    change is scoped to the Candidate.
+ *    list its versions and restore one (`restoreMasterCv`); change the Search
+ *    Criteria of an active Profile (`changeSearchCriteria`). Every read and change is scoped to the Candidate.
  *    The number of active Profiles respects the Plan Quota (`profileQuota`).
  *  - `migrateProfiles(database)` — creates / upgrades the tables.
  * Profiles belong to their Candidate and are deleted with the account (ADR-0010).
@@ -68,8 +68,11 @@ export type SaveMasterCvResult =
 /** The outcome of changing an existing Profile. "not_found" also covers someone else's Profile. */
 export type ProfileChangeResult = CreateProfileResult | { ok: false; error: "not_found" };
 
-/** The outcome of changing a Profile's Search Criteria. */
-export type ChangeSearchCriteriaResult = SavedProfile | { ok: false; error: "not_found" };
+/** Refused because the Profile is archived: it is read-only until restored. */
+export type ProfileArchived = { ok: false; error: "archived" };
+
+/** The outcome of changing a Profile's Search Criteria. "not_found" also covers someone else's Profile. */
+export type ChangeSearchCriteriaResult = SavedProfile | { ok: false; error: "not_found" } | ProfileArchived;
 
 /**
  * How many active (not archived) Profiles the Candidate's Plan allows, or null
@@ -183,6 +186,8 @@ const NOT_FOUND = { ok: false, error: "not_found" } as const;
 const found = (profile: Profile | null): ProfileChangeResult => (profile ? { ok: true, profile } : NOT_FOUND);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const ARCHIVED: ProfileArchived = { ok: false, error: "archived" };
 
 const QUOTA_REACHED: PlanQuotaReached = { ok: false, error: "plan_quota_reached" };
 
@@ -366,10 +371,12 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       const profile = await get(candidateId, profileId);
       if (!profile) return NOT_FOUND;
+      if (profile.archived) return ARCHIVED;
       const { searchCriteria } = parsed.data;
-      await database.query(
+      // archived_at IS NULL: an archive landing meanwhile wins.
+      const { rowCount } = await database.query(
         `UPDATE profile SET target_role = $3, location = $4, min_salary = $5, contract_type = $6, remote_work = $7
-          WHERE id = $1 AND candidate_id = $2`,
+          WHERE id = $1 AND candidate_id = $2 AND archived_at IS NULL`,
         [
           profileId,
           candidateId,
@@ -380,7 +387,7 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
           searchCriteria.remoteWork ?? null,
         ],
       );
-      return { ok: true, profile: { ...profile, searchCriteria } };
+      return rowCount ? { ok: true, profile: { ...profile, searchCriteria } } : ARCHIVED;
     },
 
     canAddProfile: (candidateId) => roomForOneMore(candidateId),

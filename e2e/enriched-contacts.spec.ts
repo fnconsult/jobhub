@@ -218,6 +218,16 @@ test.describe("Enriched Contacts configuration", () => {
   // Issue #77: Lusha's v3 API, faked as strictly as the real one (e2e/support/fake-contact-provider.mjs):
   // a Prospecting request with a property v3 does not define (the old top-level `excludeDnc`) is refused
   // with 400, which the Candidate would see as "unavailable". QA #63 case 6.2, minus the real credits.
+  // What the fake Lusha logged of each request the server sent it.
+  type LushaRequest = {
+    path: string;
+    body: {
+      ids?: string[];
+      options: { excludeDnc?: boolean };
+      pagination: { size: number };
+      filters: { contacts: { include: { jobTitles: string[] } }; companies: { include: unknown } };
+    };
+  };
   test("on Lusha, a Premium Candidate finds people at a French register company and reveals one's email and phone", async ({ page }) => {
     const { id } = await openApplication(page, { plan: "premium" });
     const requestLog = path.join(mkdtempSync(path.join(os.tmpdir(), "jobhub-e2e-lusha-")), "requests.jsonl");
@@ -229,7 +239,7 @@ test.describe("Enriched Contacts configuration", () => {
     });
     const lushaRequests = () =>
       existsSync(requestLog)
-        ? readFileSync(requestLog, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line) as { path: string; body: Record<string, any> })
+        ? readFileSync(requestLog, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line) as LushaRequest)
         : [];
     try {
       await page.goto(`${server.origin}/candidatures/${id}`);

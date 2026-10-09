@@ -236,7 +236,10 @@ Each breakdown item is a match, partial, mismatch or unknown (the Job Offer or t
 _Avoid_: Fit, compatibility, relevance
 
 **Kept Match Score**:
-The last Match Score of a Guest, held in the Guest session with the Job Offer and CV it was computed for. Shown again, not recomputed, until the CV or the Job Offer changes or the Guest asks to rescore; forgotten with the Guest session. A refused score is never kept.
+The last Match Score held in the extension's session, with the Job Offer and the Profile (signed-in Candidate) or CV (Guest) it was computed for. Shown again, not recomputed, until the Job Offer changes, the Candidate chooses another Profile or CV, or asks to rescore; forgotten with the session. A refused score is never kept.
+
+**Chosen Profile**:
+The Profile a signed-in Candidate last chose in the extension to score Job Offers against. It is used for the next offers while it stays active; otherwise the first active Profile is used. Separate from the Profile switcher, which follows the open Profile page.
 
 **ATS Score**:
 A 0–100 measure of how well a Master CV would pass applicant tracking systems, combining Readability and keyword coverage for the Profile's target role. Independent of any Job Offer.

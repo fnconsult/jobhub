@@ -2,7 +2,7 @@ import type { CvContent, JobOffer, MatchScore } from "@jobhub/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createGuestSession, type SessionStorage } from "./guest-session";
 import type { JobbboxApi, ScoreAgainst, UpgradePrompt } from "./jobbbox-api";
-import { createMatchScoring, SCORE_TIMEOUT_MS } from "./match-scoring";
+import { createMatchScoring, firstScoreAgainst, SCORE_TIMEOUT_MS } from "./match-scoring";
 
 /** The browser's session storage (chrome.storage.session): in memory, gone when the browser closes. */
 function memoryStorage(): SessionStorage {
@@ -338,5 +338,29 @@ describe("scoring a CV against a Job Offer from the extension", () => {
       expect(await waiting).toEqual({ ok: false, error: "unreachable" });
       expect(requests).toHaveLength(0);
     });
+  });
+});
+
+describe("what the analysis page scores a Job Offer against first", () => {
+  const profiles = [{ id: "p-1", name: "DAF" }, { id: "p-2", name: "Consultante transformation" }];
+  const matchScore = { score: 70 } as MatchScore;
+
+  it("a signed-in Candidate's first active Profile, rather than asking for a CV", () => {
+    expect(firstScoreAgainst(profiles, { jobOffer })).toEqual({ profileId: "p-1" });
+  });
+
+  it("the Profile they last chose, while it is still active", () => {
+    expect(firstScoreAgainst(profiles, { jobOffer, profileId: "p-2" })).toEqual({ profileId: "p-2" });
+    expect(firstScoreAgainst(profiles, { jobOffer, profileId: "p-archived" })).toEqual({ profileId: "p-1" });
+  });
+
+  it("the CV whose Match Score is kept for this Job Offer, so reopening shows it again", () => {
+    expect(firstScoreAgainst(profiles, { jobOffer, cv, matchScore: { jobOfferId: "jo-1", cv, matchScore } })).toEqual({ cv });
+    expect(firstScoreAgainst(profiles, { jobOffer, cv, matchScore: { jobOfferId: "jo-1", profileId: "p-2", matchScore } })).toEqual({ profileId: "p-2" });
+  });
+
+  it("without Profiles (a Guest, or a Candidate with none), the CV in the session, or nothing: the CV is asked for", () => {
+    expect(firstScoreAgainst([], { jobOffer, cv })).toEqual({ cv });
+    expect(firstScoreAgainst([], { jobOffer })).toBeNull();
   });
 });

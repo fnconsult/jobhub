@@ -11,7 +11,7 @@
  */
 import type { JobOffer } from "@jobhub/shared";
 import { sameCv, type GuestSession, type GuestSessionContent, type KeptMatchScore } from "./guest-session";
-import type { JobbboxApi, ScoreAgainst } from "./jobbbox-api";
+import type { JobbboxApi, ProfileOption, ScoreAgainst } from "./jobbbox-api";
 
 export type ScoreOutcome = Awaited<ReturnType<JobbboxApi["score"]>>;
 
@@ -76,4 +76,20 @@ function keptFor(kept: KeptMatchScore, against: ScoreAgainst): boolean {
 function withSearchCriteria(against: ScoreAgainst, { cv, searchCriteria }: GuestSessionContent): ScoreAgainst {
   if ("profileId" in against || against.searchCriteria || !searchCriteria || !cv || !sameCv(cv, against.cv)) return against;
   return { cv: against.cv, searchCriteria };
+}
+
+/**
+ * What the analysis page scores the session's Job Offer against first, given the signed-in Candidate's
+ * active Profiles (none for a Guest): the Profile or CV whose Match Score is kept for it, so reopening
+ * shows it again; else the Profile last chosen, or the first one. Without Profiles, the CV in the
+ * session; null when there is none, and the CV is asked for.
+ */
+export function firstScoreAgainst(profiles: ProfileOption[], { jobOffer, cv, matchScore: kept, profileId }: GuestSessionContent): ScoreAgainst | null {
+  const active = (id: string | undefined) => profiles.some((profile) => profile.id === id);
+  if (kept && kept.jobOfferId === jobOffer?.id) {
+    if ("cv" in kept && cv && sameCv(kept.cv, cv)) return { cv };
+    if ("profileId" in kept && active(kept.profileId)) return { profileId: kept.profileId };
+  }
+  if (profiles.length === 0) return cv ? { cv } : null;
+  return { profileId: active(profileId) ? profileId! : profiles[0]!.id };
 }

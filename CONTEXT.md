@@ -44,6 +44,18 @@ _Avoid_: Appointment, call, meeting
 The Candidate's explicit consent allowing a Human Coach to read their Profiles and Applications.
 _Avoid_: Sharing, permission
 
+**Coach Review**:
+A Human Coach's feedback on one Tailored Document of an Application. The Candidate keeps it even after revoking Coach Access.
+_Avoid_: Comment, annotation
+
+**Coach space**:
+A Human Coach's read-only pages: the Candidates who granted Coach Access, their Profiles and Applications, and the form for Coach Reviews.
+_Avoid_: Coach dashboard
+
+**Retired Human Coach**:
+A Human Coach no longer listed to Candidates and who can no longer read anything. Past Coaching Sessions and Coach Reviews are kept.
+_Avoid_: Deleted coach
+
 **Coach Panel**:
 The side panel, available from every page, where the Candidate talks with the AI Coach.
 _Avoid_: Chat, chatbot, sidebar

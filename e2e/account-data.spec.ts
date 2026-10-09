@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
-import { expect, test, type Page } from "@playwright/test";
-import { fakeCustomerId } from "../apps/web/src/billing/fake-stripe";
+import { expect, test, type Browser, type Page } from "@playwright/test";
+import { checkoutSessionEvent, fakeCustomerId, signedEvent } from "../apps/web/src/billing/fake-stripe";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
@@ -11,6 +11,10 @@ import { subscribe } from "./support/plan";
 // Offers stay.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
+
+// Its own Administrator: two sign-ins of one address at once, from other spec files, can pick up each other's link.
+const ADMINISTRATOR = "account-office@e2e.jobbbox.test";
+const tr = (template: string, values: Record<string, string>) => template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
 
 const unique = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -50,6 +54,27 @@ async function candidateWithData(page: Page, email: string) {
   const drafted = await page.request.post(`/api/applications/${applicationId}/tailored-documents`, { data: { document: "cover_letter" }, headers: { origin } });
   expect(drafted.ok(), await drafted.text()).toBe(true);
   return { profileId, jobOfferId, applicationId };
+}
+
+/** A signed-in page of its own (cookies apart), as for another person on another computer. */
+async function personPage(browser: Browser, email: string): Promise<Page> {
+  const context = await browser.newContext({ baseURL: origin, locale: "en-US" });
+  const page = await context.newPage();
+  await signInWithMagicLink(page, email);
+  return page;
+}
+
+/** The Administrator adds a Human Coach in the Back Office; returns their name and id. */
+async function addCoach(admin: Page, email: string): Promise<{ name: string; id: string }> {
+  const name = `Sophie Martin ${unique()}`;
+  await admin.goto("/admin/coachs");
+  await admin.getByLabel(fr.admin.humanCoaches.name).fill(name);
+  await admin.getByLabel(fr.admin.humanCoaches.email).fill(email);
+  await admin.getByLabel(fr.admin.humanCoaches.bookingUrl).fill(`https://cal.com/sophie-${unique()}/seance`);
+  await admin.getByRole("button", { name: fr.admin.humanCoaches.add }).click();
+  await expect(admin.getByRole("status")).toHaveText(tr(fr.admin.humanCoaches.added, { name }));
+  const form = admin.locator("form").filter({ has: admin.getByRole("button", { name: tr(fr.admin.humanCoaches.retire, { name }) }) });
+  return { name, id: await form.locator('input[name="coachId"]').inputValue() };
 }
 
 test.describe("exporting my data and deleting my account", () => {
@@ -198,6 +223,76 @@ test.describe("exporting my data and deleting my account", () => {
     // The shared Job Offer is still there.
     await page.goto(`/offres/${jobOfferId}`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("DAF H/F");
+  });
+
+  test("deletion removes the Candidate's Coach Access, Coach Reviews and Coaching Sessions; the Human Coach keeps their own account", async ({ page, browser }) => {
+    const admin = await personPage(browser, ADMINISTRATOR);
+    const coachEmail = newAddress("account-delete-coach");
+    const coach = await addCoach(admin, coachEmail);
+    await admin.context().close();
+
+    const email = newAddress("account-delete-coached");
+    const { applicationId, jobOfferId } = await candidateWithData(page, email);
+
+    // Coach Access, granted from the Candidate's Human Coaches page.
+    await page.goto("/coachs");
+    await page.getByRole("button", { name: tr(fr.humanCoaches.grant, { name: coach.name }) }).click();
+    await expect(page.getByText(tr(fr.humanCoaches.accessGranted, { name: coach.name }))).toBeVisible();
+
+    // A paid Coaching Session, recorded from Stripe's signed webhook.
+    const started = await page.request.post("/api/coaching/checkout", { form: { coachId: coach.id }, headers: { origin }, maxRedirects: 0 });
+    expect(started.status()).toBe(303);
+    const calls: { path: string; params: Record<string, string> }[] = await (await fetch(`${process.env.E2E_STRIPE_URL}/__calls`)).json();
+    const checkout = calls.filter((call) => call.path === "/v1/checkout/sessions" && call.params["metadata[coach_id]"] === coach.id).at(-1)!;
+    const candidateId = checkout.params["metadata[candidate_id]"]!;
+    const { payload, signature } = signedEvent(
+      checkoutSessionEvent("checkout.session.completed", { id: `cs_e2e_${unique()}`, candidateId, coachId: coach.id, amount: 9000, currency: "eur", paymentStatus: "paid" }),
+    );
+    const delivered = await page.request.post("/api/billing/webhook", { data: payload, headers: { "stripe-signature": signature, "content-type": "application/json" } });
+    expect(delivered.status()).toBe(200);
+    await page.goto("/coachs?session=paid");
+    await expect(page.getByRole("link", { name: tr(fr.humanCoaches.pickSlot, { name: coach.name }) })).toHaveCount(1);
+
+    // The Human Coach reads the Candidate's file and leaves a Coach Review (a Coaching Session note).
+    const coachPage = await personPage(browser, coachEmail);
+    await coachPage.goto("/espace-coach");
+    await coachPage.getByRole("link", { name: email }).click();
+    await coachPage.getByRole("link", { name: "DAF H/F · Acme Industrie" }).click();
+    await coachPage.getByLabel(fr.coachSpace.reviewDocument).selectOption({ label: fr.coachReviews.documents.cover_letter });
+    await coachPage.getByLabel(fr.coachSpace.reviewText).fill("Ouvrez sur votre dernier poste de DAF.");
+    await coachPage.getByRole("button", { name: fr.coachSpace.reviewSubmit }).click();
+    await expect(coachPage.getByRole("status")).toHaveText(fr.coachSpace.reviewSaved);
+    await page.goto(`/candidatures/${applicationId}`);
+    await expect(page.getByRole("region", { name: fr.coachReviews.title })).toContainText("Ouvrez sur votre dernier poste de DAF.");
+
+    // The Candidate deletes their account from their account page.
+    await page.goto("/compte");
+    const section = page.getByRole("region", { name: fr.accountData.title });
+    await section.getByLabel(fr.accountData.confirmLabel).fill(email);
+    await section.getByRole("button", { name: fr.accountData.delete }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.accountDeleted.title);
+
+    // The Human Coach no longer has access: the Candidate is gone from their coach space, their file and Application cannot be reached.
+    await coachPage.goto("/espace-coach");
+    await expect(coachPage.getByRole("heading", { level: 1 })).toHaveText(fr.coachSpace.title);
+    await expect(coachPage.getByRole("link", { name: email })).toHaveCount(0);
+    expect((await coachPage.goto(`/espace-coach/${encodeURIComponent(candidateId)}`))?.status()).toBe(404);
+    expect((await coachPage.goto(`/espace-coach/${encodeURIComponent(candidateId)}/candidatures/${applicationId}`))?.status()).toBe(404);
+    // The Human Coach's own account stays, and so does the shared Job Offer.
+    await coachPage.goto(`/offres/${jobOfferId}`);
+    await expect(coachPage.getByRole("heading", { level: 1 })).toHaveText("DAF H/F");
+    await coachPage.context().close();
+
+    // Signing up again with the same email: no Coach Access, no paid Coaching Session, nothing in the export.
+    await signInWithMagicLink(page, email);
+    await page.goto("/coachs?session=paid");
+    await expect(page.getByText(tr(fr.humanCoaches.accessNotGranted, { name: coach.name }))).toBeVisible();
+    await expect(page.getByRole("link", { name: tr(fr.humanCoaches.pickSlot, { name: coach.name }) })).toHaveCount(0);
+    const fresh = await page.request.get("/api/account/export");
+    expect(fresh.status()).toBe(200);
+    const raw = await fresh.text();
+    expect(raw).not.toContain("Ouvrez sur votre dernier poste de DAF.");
+    expect(raw).not.toContain(applicationId);
   });
 
   test("deleting an account needs the Candidate's own email, from the app itself", async ({ page }) => {

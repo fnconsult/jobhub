@@ -1,4 +1,5 @@
 import { AiConfigError, createAiLayerFromEnv, type AiLayer } from "@jobhub/ai";
+import { createBilling } from "@jobhub/web/billing";
 import { followUpsFromEnv } from "@jobhub/web/follow-ups/env";
 import { createJobOffers } from "@jobhub/web/job-offers";
 import { createJobSearchReports } from "@jobhub/web/job-searches";
@@ -35,7 +36,8 @@ const jobs = createJobs({
   database,
   discovery: "unavailable" in ai ? ai : createJobDiscovery({ ai, jobOffers: createJobOffers(database) }),
   profiles: createProfiles(database),
-  jobSearches: createJobSearchReports(database),
+  // A failed Job Search gives its Plan Quota use back. Releasing needs no Stripe, only the quota table.
+  jobSearches: createJobSearchReports(database, { quotas: createBilling({ database, baseURL: process.env.APP_URL || "http://localhost:3000" }) }),
   followUps: followUpsFromEnv(database, process.env, "unavailable" in ai ? undefined : ai),
 });
 

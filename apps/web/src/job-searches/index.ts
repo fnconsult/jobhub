@@ -6,12 +6,12 @@
  *  - `createJobSearches(database, deps)`:
  *    - `start` a Job Search for a Profile (from the Profile page or the Coach
  *      Panel). It counts against the Plan Quota first, then queues Job discovery
- *      for the worker;
+ *      for the worker. A Job Search that ends failed gives its use back;
  *    - `get` one, with its results: each Job Offer found, the Match Score of the
  *      Profile's current Master CV against it, and the Application the Candidate
  *      already has for it, best Match Score first;
  *    - `record` what Job discovery found (or why it could not run): the worker's
- *      side, also alone as `createJobSearchReports(database)`.
+ *      side, also alone as `createJobSearchReports(database, { quotas })`.
  *  - `migrateJobSearches(database)` creates / upgrades the table.
  * Every read is scoped to the Candidate; `start`'s input is untrusted (it comes
  * from the browser) and problems come back as results, never exceptions. A
@@ -72,7 +72,10 @@ export interface JobSearches {
   start(candidateId: string, input: unknown): Promise<StartJobSearchResult>;
   /** The Job Search, or null if it does not exist or belongs to someone else. */
   get(candidateId: string, jobSearchId: string): Promise<JobSearch | null>;
-  /** Records the outcome of Job discovery for a Job Search still searching; later reports are ignored. */
+  /**
+   * Records the outcome of Job discovery for a Job Search still searching; later reports are ignored.
+   * A failure gives the Job Search's Plan Quota use back, at most once per Job Search.
+   */
   record(jobSearchId: string, outcome: JobSearchOutcome): Promise<void>;
 }
 
@@ -81,10 +84,16 @@ export interface JobSearchesDeps {
   jobOffers: Pick<JobOffers, "get">;
   applications: Pick<Applications, "list">;
   /** The billing module's monthly quotas. */
-  quotas: { use(candidateId: string, quota: MonthlyQuota): Promise<QuotaDecision> };
+  quotas: JobSearchQuotas;
   /** Where background jobs are queued for the worker. */
   queue: { send(name: string, data: object): Promise<void> };
   now?: () => Date;
+}
+
+/** What Job Searches need of the billing module's monthly quotas: use one to start, give it back on failure. */
+export interface JobSearchQuotas {
+  use(candidateId: string, quota: MonthlyQuota): Promise<QuotaDecision>;
+  release(candidateId: string, quota: MonthlyQuota): Promise<void>;
 }
 
 /** Creates or upgrades the Job Search table. Run after the Profiles' and Job Offers' migrations. */
@@ -119,16 +128,22 @@ const startSchema = z.object({ profileId: z.string().trim().min(1) });
  * The worker's side of Job Searches alone: recording what Job discovery found.
  * The same as `createJobSearches(...).record`, without the web app's modules.
  */
-export function createJobSearchReports(database: Pool, { now = () => new Date() }: { now?: () => Date } = {}): Pick<JobSearches, "record"> {
+export function createJobSearchReports(
+  database: Pool,
+  { quotas, now = () => new Date() }: { quotas: Pick<JobSearchQuotas, "release">; now?: () => Date },
+): Pick<JobSearches, "record"> {
   return {
     async record(jobSearchId, outcome) {
       if (!UUID.test(jobSearchId)) return;
       const done = "jobOfferIds" in outcome;
-      await database.query(
+      // Only the one report that moves the Job Search out of 'searching' gets a row back.
+      const { rows } = await database.query<{ candidate_id: string }>(
         `UPDATE job_search SET status = $2, job_offer_ids = $3, failure = $4, finished_at = $5
-         WHERE id = $1 AND status = 'searching'`,
+         WHERE id = $1 AND status = 'searching'
+         RETURNING candidate_id`,
         [jobSearchId, done ? "done" : "failed", done ? outcome.jobOfferIds.filter((id) => UUID.test(id)) : [], done ? null : outcome.failed, now()],
       );
+      if (!done && rows[0]) await quotas.release(rows[0].candidate_id, "jobSearches");
     },
   };
 }
@@ -171,7 +186,7 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
     return rows[0] ? jobSearchFrom(candidateId, rows[0]) : null;
   }
 
-  const { record } = createJobSearchReports(database, { now });
+  const { record } = createJobSearchReports(database, { quotas: deps.quotas, now });
 
   return {
     async start(candidateId, input) {

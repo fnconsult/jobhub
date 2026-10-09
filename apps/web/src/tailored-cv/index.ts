@@ -19,7 +19,8 @@
  *    Document Language), and a rephrased text stating a figure the Master CV
  *    lacks, or, in the Master CV's own language, a Job Offer keyword it lacks,
  *    is replaced by the Master CV's. A section the AI Coach leaves out or gets
- *    wrong is the Master CV's; a reply with no CV in it is no proposal.
+ *    wrong is the Master CV's; a reply with no CV in it is no proposal, and
+ *    is asked for once more before the AI Coach is told unavailable.
  *  - A requirement the Master CV lacks becomes a question to the Candidate, and
  *    is added to the skills only if they confirm it.
  * Every read and change is scoped to the Candidate; inputs are untrusted and
@@ -34,6 +35,7 @@ import type { Profiles } from "../profiles";
 import { documentLanguageOf, keepDocumentLanguage } from "../tailored-documents/document-language";
 import { fieldErrors, type FieldError } from "../validation";
 import { cvChanges, type CvChange, type CvOrigins } from "./changes";
+import { askForTailoredCv, type AiReply } from "./reply";
 
 export { CV_SECTIONS, type CvChange, type CvOrigins, type CvSection } from "./changes";
 
@@ -132,30 +134,6 @@ const saveSchema = z.object({ revision: z.string().min(1).max(64) });
 const MAX_QUESTIONS = 8;
 
 const NOT_FOUND = { ok: false, error: "not_found" } as const;
-
-/**
- * What the AI Coach replies: its adaptation of the Master CV. A section it leaves
- * out or gets wrong (any item of the wrong shape) is undefined, and taken from the
- * Master CV as it is. Diplomas, languages and skills carry the id the Master CV's
- * item was given in the prompt (see `referenceCv`).
- */
-const optional = <T extends z.ZodType>(schema: T) => schema.optional().catch(undefined);
-const text = z.string().catch("");
-const id = z.string().optional().catch(undefined);
-const aiReply = z.object({
-  headline: optional(z.string()),
-  summary: optional(z.string()),
-  experience: optional(z.array(z.object({ id, employer: z.string(), period: z.string(), title: text, description: text }))),
-  education: optional(z.array(z.object({ id, degree: z.string(), institution: text, year: text }))),
-  skills: optional(z.array(z.union([z.string().transform((skill) => ({ id: undefined, text: skill })), z.object({ id, text: z.string() })]))),
-  languages: optional(z.array(z.object({ id, name: z.string(), level: text }))),
-  /** Requirements of the Job Offer the Master CV does not show. */
-  missing: z.array(z.string()).catch([]),
-});
-type AiReply = z.output<typeof aiReply>;
-
-/** Whether a reply has a CV in it at all: else it is no proposal (an empty or truncated reply). */
-const hasCv = (reply: AiReply) => [reply.headline, reply.summary, reply.experience, reply.education, reply.skills, reply.languages].some((section) => section !== undefined);
 
 /** Ids of the Master CV's diplomas, languages and skills in the prompt: e0, l0, s0… */
 const ID_PREFIX = { education: "e", languages: "l", skills: "s" } as const;
@@ -277,19 +255,6 @@ Rules:
 Reply with a JSON object only: {"headline": "", "summary": "", "experience": [{"employer": "", "period": "", "title": "", "description": ""}], "education": [{"id": "", "degree": "", "institution": "", "year": ""}], "skills": [{"id": "", "text": ""}], "languages": [{"id": "", "name": "", "level": ""}], "missing": [""]}.`;
 }
 
-/** The JSON object in the AI Coach's reply, or null. */
-function replyIn(reply: string): AiReply | null {
-  const start = reply.indexOf("{");
-  const end = reply.lastIndexOf("}");
-  if (start < 0 || end <= start) return null;
-  try {
-    const parsed = aiReply.safeParse(JSON.parse(reply.slice(start, end + 1)));
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
-}
-
 interface ProposalRow {
   language: DocumentLanguage;
   profileId: string;
@@ -390,14 +355,8 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
         `${language === "fr" ? "Offre" : "Job offer"} : ${JSON.stringify({ title: jobOffer.title, employer: jobOffer.employer, content: jobOffer.content, skills: jobOffer.skills })}`,
         `${language === "fr" ? "CV de référence" : "Reference CV"} : ${JSON.stringify(referenceCv(master))}`,
       ].join("\n\n");
-      let reply: AiReply | null;
-      try {
-        reply = replyIn((await deps.ai.generate({ task: "writing", candidateId, system: systemPrompt(language), prompt })).text);
-      } catch (error) {
-        console.warn("[tailored-cv] the AI Coach could not propose a Tailored CV:", error instanceof Error ? error.message : error);
-        reply = null;
-      }
-      if (!reply || !hasCv(reply)) return { ok: false, error: "unavailable" };
+      const reply = await askForTailoredCv(deps.ai, { task: "writing", candidateId, system: systemPrompt(language), prompt });
+      if (!reply) return { ok: false, error: "unavailable" };
       if (parsed.data.language) await keepDocumentLanguage(database, application.id, language);
       const { content: adapted, origins } = fromMasterCv(master, reply, jobOffer.skills ?? [], language);
       const proposal: ProposalRow = {

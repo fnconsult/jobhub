@@ -2,7 +2,7 @@ import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import type { MasterCvContent } from "@jobhub/shared";
 import type { Pool } from "pg";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApplications, migrateApplications } from "../applications";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
@@ -60,6 +60,9 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
   let jobOffers: JobOffers;
   let provider: FakeProvider;
   let reply: object | string;
+  /** Replies given first, one per call, before `reply`. */
+  let replies: (object | string)[];
+  let usage: ReturnType<typeof createMemoryUsageLog>;
   let tailoredCvs: TailoredCvs;
   let candidateId: string;
   let applicationId: string;
@@ -90,8 +93,16 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
     profiles = createProfiles(database);
     jobOffers = createJobOffers(database);
     reply = PROPOSAL;
-    provider = createFakeProvider({ id: "mistral", reply: () => (typeof reply === "string" ? reply : "```json\n" + JSON.stringify(reply) + "\n```") });
-    const ai = createAiLayer({ providers: [provider], routes: { writing: "mistral" }, usage: createMemoryUsageLog() });
+    replies = [];
+    provider = createFakeProvider({
+      id: "mistral",
+      reply: () => {
+        const next = replies.shift() ?? reply;
+        return typeof next === "string" ? next : "```json\n" + JSON.stringify(next) + "\n```";
+      },
+    });
+    usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [provider], routes: { writing: "mistral" }, usage });
     tailoredCvs = createTailoredCvs(database, { applications: createApplications(database, { jobOffers, profiles }), profiles, ai });
     candidateId = await signIn("marie.dupont@example.fr");
     applicationId = await saveApplication(FRENCH_OFFER);
@@ -392,5 +403,21 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
       expect(await tailoredCvs.propose(candidateId, applicationId, { language: "en" })).toEqual({ ok: false, error: "unavailable" });
     }
     expect(await tailoredCvs.get(candidateId, applicationId)).toMatchObject({ documentLanguage: "fr", proposal: { content: { headline: PROPOSAL.headline, experience: masterCv.experience } } });
+  });
+
+  it("a refused reply is asked for once more: the second reply is the proposal, and each attempt counts in usage", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      replies = ["Voici le CV adapté de Marie Dupont, directrice financière chez Groupe Seb."];
+
+      const result = await tailoredCvs.propose(candidateId, applicationId, {});
+
+      expect(result).toMatchObject({ ok: true, tailoredCv: { proposal: { content: { headline: PROPOSAL.headline } } } });
+      expect(usage.entries).toHaveLength(2);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls.flat().join(" ")).not.toMatch(/Marie|Groupe Seb|IFRS/);
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

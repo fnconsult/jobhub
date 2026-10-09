@@ -1,6 +1,6 @@
 import { signInWithMagicLink, startTestAuth } from "../auth/test-support";
-import { FAKE_STRIPE_PRICES, FAKE_STRIPE_SECRET_KEY, FAKE_STRIPE_WEBHOOK_SECRET, startFakeStripe } from "./fake-stripe";
-import { createBilling, migrateBilling, type BillingConfig } from "./index";
+import { FAKE_STRIPE_COACHING_SESSION_PRICES, FAKE_STRIPE_PRICES, FAKE_STRIPE_SECRET_KEY, FAKE_STRIPE_WEBHOOK_SECRET, startFakeStripe } from "./fake-stripe";
+import { createBilling, migrateBilling, type BillingConfig, type PaidCoachingSession } from "./index";
 
 export { connectionString } from "../auth/test-support";
 
@@ -12,6 +12,7 @@ export async function startTestBilling(overrides: Partial<BillingConfig> = {}) {
   const testAuth = await startTestAuth();
   const stripe = await startFakeStripe();
   const clock = { now: new Date("2026-10-15T10:00:00+02:00") };
+  const coachingSessionsPaid: PaidCoachingSession[] = [];
   const config: BillingConfig = {
     database: testAuth.database,
     baseURL: "http://localhost:3000",
@@ -19,8 +20,10 @@ export async function startTestBilling(overrides: Partial<BillingConfig> = {}) {
       secretKey: FAKE_STRIPE_SECRET_KEY,
       webhookSecret: FAKE_STRIPE_WEBHOOK_SECRET,
       prices: FAKE_STRIPE_PRICES,
+      coachingSessionPrices: FAKE_STRIPE_COACHING_SESSION_PRICES,
       apiUrl: stripe.url,
     },
+    onCoachingSessionPaid: async (paid) => void coachingSessionsPaid.push(paid),
     now: () => clock.now,
     ...overrides,
   };
@@ -29,6 +32,9 @@ export async function startTestBilling(overrides: Partial<BillingConfig> = {}) {
 
   return {
     billing,
+    config,
+    /** What the billing module reported as paid Coaching Sessions, in order. */
+    coachingSessionsPaid,
     /** The database the billing tables (and the Candidate accounts) live in, for modules that hang off them. */
     database: config.database,
     stripe,

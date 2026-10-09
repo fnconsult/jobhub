@@ -16,7 +16,7 @@ export function getJobQueue(): JobQueue {
   return {
     async send(name, data) {
       started ??= (async () => {
-        const boss = new PgBoss({ connectionString: process.env.DATABASE_URL, supervise: false, schedule: false });
+        const boss = new PgBoss({ connectionString: process.env.DATABASE_URL, supervise: false, schedule: false, max: 2 });
         boss.on("error", (error) => console.error("[job-queue]", error));
         await boss.start();
         return boss;

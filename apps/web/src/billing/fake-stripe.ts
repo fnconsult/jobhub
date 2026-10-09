@@ -20,6 +20,14 @@ export interface StripeCall {
 export const FAKE_STRIPE_SECRET_KEY = "sk_test_fake";
 export const FAKE_STRIPE_WEBHOOK_SECRET = "whsec_test_fake";
 export const FAKE_STRIPE_PRICES = { standard: "price_standard_monthly", premium: "price_premium_monthly" } as const;
+/** One-off Prices of a Coaching Session: 90 € (regular) and 72 € (Premium Plan). */
+export const FAKE_STRIPE_COACHING_SESSION_PRICES = { regular: "price_coaching_session", premium: "price_coaching_session_premium" } as const;
+const FAKE_UNIT_AMOUNTS: Record<string, number> = {
+  [FAKE_STRIPE_COACHING_SESSION_PRICES.regular]: 9000,
+  [FAKE_STRIPE_COACHING_SESSION_PRICES.premium]: 7200,
+  [FAKE_STRIPE_PRICES.standard]: 1900,
+  [FAKE_STRIPE_PRICES.premium]: 3900,
+};
 
 /** The Stripe customer id the fake gives the person with this email, so tests can address webhooks to them. */
 export function fakeCustomerId(email: string): string {
@@ -50,6 +58,10 @@ export async function startFakeStripe(port = 0) {
       }
       if (request.method === "POST" && path === "/v1/billing_portal/sessions") {
         return reply(200, { id: `bps_fake${id}`, object: "billing_portal.session", url: `https://billing.stripe.test/bps_fake${id}` });
+      }
+      const price = request.method === "GET" && path.match(/^\/v1\/prices\/([^/]+)$/)?.[1];
+      if (price && FAKE_UNIT_AMOUNTS[price] !== undefined) {
+        return reply(200, { id: price, object: "price", unit_amount: FAKE_UNIT_AMOUNTS[price], currency: "eur" });
       }
       if (request.method === "GET" && path === "/__calls") return reply(200, calls.map((call) => ({ ...call, params: Object.fromEntries(call.params) })));
       reply(404, { error: { type: "invalid_request_error", message: `fake Stripe has no ${request.method} ${path}` } });
@@ -90,6 +102,42 @@ export function subscriptionEvent(
         customer: subscription.customer,
         status: subscription.status,
         items: { object: "list", data: [{ id: `si_fake${eventSequence}`, price: { id: subscription.price } }] },
+      },
+    },
+  };
+}
+
+/** A `checkout.session.*` event as Stripe sends it, reduced to the fields that matter. A Coaching Session's unless `mode` says otherwise. */
+export function checkoutSessionEvent(
+  type: "checkout.session.completed" | "checkout.session.async_payment_succeeded",
+  session: {
+    id: string;
+    candidateId: string;
+    coachId?: string;
+    amount: number;
+    currency: string;
+    paymentStatus: "paid" | "unpaid" | "no_payment_required";
+    mode?: "payment" | "subscription";
+  },
+  createdAt: Date = new Date(),
+) {
+  eventSequence += 1;
+  const mode = session.mode ?? "payment";
+  return {
+    id: `evt_fake${eventSequence}`,
+    object: "event",
+    type,
+    created: Math.floor(createdAt.getTime() / 1000),
+    data: {
+      object: {
+        id: session.id,
+        object: "checkout.session",
+        mode,
+        client_reference_id: session.candidateId,
+        payment_status: session.paymentStatus,
+        amount_total: session.amount,
+        currency: session.currency,
+        metadata: mode === "payment" ? { purpose: "coaching_session", coach_id: session.coachId ?? "", candidate_id: session.candidateId } : {},
       },
     },
   };

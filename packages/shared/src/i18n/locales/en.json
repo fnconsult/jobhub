@@ -128,7 +128,9 @@
     "saved": "Saved.",
     "signOut": "Sign out",
     "plan": "My subscription",
-    "admin": "Back office"
+    "admin": "Back office",
+    "humanCoaches": "My human coaches",
+    "coachSpace": "My coach space"
   },
   "languages": {
     "fr": "Français",
@@ -431,7 +433,6 @@
       "planQuotas": "Plan Quotas",
       "humanCoaches": "Human Coaches"
     },
-    "comingSoon": "Coming soon",
     "planQuotas": {
       "title": "Plan Quotas",
       "intro": "Changes apply at once to every Candidate on the Plan. Leave a field empty for “unlimited”.",
@@ -442,7 +443,25 @@
       "saved": "{{plan}} Plan quotas saved.",
       "invalid": "Check the values: whole numbers from 0, or empty for unlimited."
     },
-    "back": "Back to the back office"
+    "back": "Back to the back office",
+    "humanCoaches": {
+      "title": "Human coaches",
+      "intro": "The coaches Candidates can book. They sign in with the email address given here. Jobbbox pays them outside the platform.",
+      "addTitle": "Add a coach",
+      "name": "Name",
+      "email": "Sign-in email address",
+      "bookingUrl": "Cal.com booking link",
+      "bookingUrlHelp": "For example https://cal.com/first-last/session",
+      "bio": "Introduction (optional)",
+      "add": "Add the coach",
+      "added": "Coach {{name}} added.",
+      "invalid": "Check the fields: a name, a valid email address and an https Cal.com booking link.",
+      "emailTaken": "A coach already uses this email address.",
+      "listTitle": "Active coaches",
+      "none": "No coaches yet.",
+      "retire": "Retire {{name}}",
+      "retired": "Coach retired. Their past sessions are kept."
+    }
   },
   "applicationStatuses": {
     "to_apply": "To apply",
@@ -897,5 +916,61 @@
     "delaysSaved": "Delays saved.",
     "delaysInvalid": "Enter a whole number of working days, from 1 to {{max}}.",
     "delaysError": "Saving failed. Check your connection and try again."
+  },
+  "humanCoaches": {
+    "title": "My human coaches",
+    "intro": "On top of your AI coach, book a video session with an HR professional selected by Jobbbox.",
+    "price": "Price of a session: {{price}}",
+    "premiumPrice": "Price of a session on your Premium plan: {{price}} instead of {{regular}}",
+    "premiumHint": "Premium subscribers get a reduced price on sessions.",
+    "unavailable": "Paying for sessions is not available yet.",
+    "book": "Book a session with {{name}}",
+    "none": "No coach is available at the moment.",
+    "paid": "Payment received. Now pick the time of your session.",
+    "paidPending": "Your payment is being confirmed. Reload the page in a few moments to pick your time.",
+    "error": "The payment could not start. Please try again.",
+    "sessionsTitle": "My paid sessions",
+    "sessionPaidOn": "Session with {{name}}, paid on {{date}}",
+    "pickSlot": "Pick my time with {{name}} on Cal.com",
+    "accessIntro": "With your consent, a coach can read your profiles and applications, and comment on your application documents. They cannot change anything. You can withdraw this access at any time.",
+    "accessGranted": "{{name}} has access to your profiles and applications.",
+    "accessNotGranted": "{{name}} has no access to your profiles and applications.",
+    "grant": "Give {{name}} access",
+    "revoke": "Withdraw {{name}}'s access",
+    "listTitle": "Choose a coach"
+  },
+  "coachReviews": {
+    "title": "Your coaches' reviews",
+    "by": "{{name}}, on {{date}}",
+    "documents": {
+      "tailored_cv": "Tailored CV",
+      "cover_letter": "Cover letter",
+      "outreach_message": "Outreach message"
+    }
+  },
+  "coachSpace": {
+    "title": "My coach space",
+    "intro": "The candidates who gave you coach access. You read their profiles and applications without being able to change them.",
+    "none": "No candidate has given you access yet.",
+    "back": "Back to my candidates",
+    "backToCandidate": "Back to the candidate's file",
+    "readOnly": "Read only: only the candidate can change their profiles and applications.",
+    "profilesTitle": "Profiles",
+    "archived": "(archived)",
+    "targetRole": "Target role: {{role}}",
+    "applicationsTitle": "Applications",
+    "applicationsNone": "No applications yet.",
+    "documentsTitle": "Application documents",
+    "noDocument": "Not written yet.",
+    "subject": "Subject: {{subject}}",
+    "reviewTitle": "Your review",
+    "reviewDocument": "Document reviewed",
+    "reviewText": "Your review for the candidate",
+    "reviewSubmit": "Send the review",
+    "reviewSaved": "Review sent to the candidate.",
+    "reviewInvalid": "Choose a document already written and write your review.",
+    "reviewNothing": "The candidate has no application documents to review yet.",
+    "status": "Status: {{status}}",
+    "applicationStatus": "({{status}}, since {{date}})"
   }
 }

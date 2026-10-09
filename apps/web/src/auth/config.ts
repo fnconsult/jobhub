@@ -1,4 +1,4 @@
-import { Pool } from "pg";
+import { sharedPool } from "../database/pool";
 import type { AuthConfig, Mailer } from "./index";
 import { consoleMailer, smtpMailer } from "./mailers";
 
@@ -39,7 +39,7 @@ export function authConfigFromEnv(env: Env): AuthConfig {
       : undefined;
 
   return {
-    database: new Pool({ connectionString: required("DATABASE_URL") }),
+    database: sharedPool(env),
     baseURL: required("APP_URL", "http://localhost:3000"),
     secret: required("AUTH_SECRET", DEV_SECRET),
     mailer: mailerFromEnv(env),

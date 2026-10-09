@@ -1,4 +1,4 @@
-import { Pool } from "pg";
+import { sharedPool } from "@/database/pool";
 import { getAi } from "@/ai/server";
 import { getApplications } from "@/applications/server";
 import { mailerFromEnv } from "@/auth/config";
@@ -14,7 +14,7 @@ let instance: FollowUps | undefined;
  */
 export function getFollowUps(): FollowUps {
   instance ??= (() => {
-    const database = new Pool({ connectionString: process.env.DATABASE_URL });
+    const database = sharedPool();
     return createFollowUps(database, {
       // Proposing only: deciding goes through the app's Action Cards, which call `onAccept`.
       actionCards: createActionCards(database),

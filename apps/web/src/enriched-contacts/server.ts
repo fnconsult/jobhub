@@ -1,4 +1,4 @@
-import { Pool } from "pg";
+import { sharedPool } from "@/database/pool";
 import { getApplications } from "@/applications/server";
 import { getBilling } from "@/billing/server";
 import { getCompanyDossiers } from "@/company-dossiers/server";
@@ -16,7 +16,7 @@ export function getEnrichedContacts(): EnrichedContacts {
   if (!instance) {
     const config = contactEnrichmentFromEnv(process.env);
     if (!config.provider) console.info(`[enriched-contacts] off: ${config.disabledBecause}`);
-    instance = createEnrichedContacts(new Pool({ connectionString: process.env.DATABASE_URL }), {
+    instance = createEnrichedContacts(sharedPool(), {
       applications: getApplications(),
       companyDossiers: getCompanyDossiers(),
       quota: {

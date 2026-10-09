@@ -68,6 +68,9 @@ export type SaveMasterCvResult =
 /** The outcome of changing an existing Profile. "not_found" also covers someone else's Profile. */
 export type ProfileChangeResult = CreateProfileResult | { ok: false; error: "not_found" };
 
+/** The outcome of changing a Profile's Search Criteria. */
+export type ChangeSearchCriteriaResult = SavedProfile | { ok: false; error: "not_found" };
+
 /**
  * How many active (not archived) Profiles the Candidate's Plan allows, or null
  * for no limit. The app takes it from billing (`profilePlanQuota`); without
@@ -85,6 +88,11 @@ export interface Profiles {
   duplicate(candidateId: string, profileId: string, input: unknown): Promise<ProfileChangeResult>;
   /** Renames a Profile. `input` ({ name }) is untrusted. */
   rename(candidateId: string, profileId: string, input: unknown): Promise<ProfileChangeResult>;
+  /**
+   * Replaces a Profile's Search Criteria. `input` ({ searchCriteria }) is untrusted and
+   * validated like the onboarding criteria. The Profile keeps its name.
+   */
+  changeSearchCriteria(candidateId: string, profileId: string, input: unknown): Promise<ChangeSearchCriteriaResult>;
   /** Whether the Plan Quota leaves room for one more active Profile (to offer creating or duplicating one). */
   canAddProfile(candidateId: string): Promise<boolean>;
   /** Archives a Profile: kept with its Master CV, but out of the Profile switcher. Archiving twice is harmless. */
@@ -143,6 +151,8 @@ export const searchCriteriaSchema = z.object({
   contractType: z.enum(CONTRACT_TYPES).optional(),
   remoteWork: z.enum(REMOTE_WORK_OPTIONS).optional(),
 });
+
+const changeCriteriaSchema = z.object({ searchCriteria: searchCriteriaSchema });
 
 const inputSchema = z.object({ masterCv: cvContentSchema, searchCriteria: searchCriteriaSchema });
 
@@ -349,6 +359,26 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
         parsed.data.name,
       ]);
       return rowCount ? found(await get(candidateId, profileId)) : NOT_FOUND;
+    },
+
+    async changeSearchCriteria(candidateId, profileId, input) {
+      const parsed = changeCriteriaSchema.safeParse(input, { reportInput: true });
+      if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+      const { searchCriteria } = parsed.data;
+      await database.query(
+        `UPDATE profile SET target_role = $3, location = $4, min_salary = $5, contract_type = $6, remote_work = $7
+          WHERE id = $1 AND candidate_id = $2`,
+        [
+          profileId,
+          candidateId,
+          searchCriteria.targetRole,
+          searchCriteria.location,
+          searchCriteria.minSalary ?? null,
+          searchCriteria.contractType ?? null,
+          searchCriteria.remoteWork ?? null,
+        ],
+      );
+      return found(await get(candidateId, profileId)) as ChangeSearchCriteriaResult;
     },
 
     canAddProfile: (candidateId) => roomForOneMore(candidateId),

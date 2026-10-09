@@ -6,15 +6,12 @@ import { afterEach, describe, expect, it } from "vitest";
 
 const extensionRoot = fileURLToPath(new URL("..", import.meta.url));
 
-// The port wxt.config.ts asks for, as WXT resolves it. strictPort here only stops WXT
-// from probing the machine and swapping in a random free port when 3100 is busy (a
-// running `npm run dev -w @jobhub/extension`, a sibling worktree), so the verdict is
-// about the config alone; wxt.config.ts itself is untouched.
+// The port the extension's dev server gets, as WXT resolves it from wxt.config.ts alone.
+// WXT only probes the machine for a free port when strictPort is off, so with the
+// config's strictPort this is 3100 whatever else is running; were 3100 busy (another
+// checkout's dev server) and strictPort off, WXT would silently move to a random port.
 async function configuredDevServerPort() {
-  const server = await createServer({
-    root: extensionRoot,
-    dev: { server: { strictPort: true } },
-  });
+  const server = await createServer({ root: extensionRoot });
   return server.port;
 }
 
@@ -43,7 +40,8 @@ describe("extension dev server", () => {
     expect(await configuredDevServerPort()).toBe(3100);
   });
 
-  it("is configured for 3100 even while 3100 is already in use", async () => {
+  // Fails loudly instead (WXT's "port already in use") rather than silently taking a random port.
+  it("keeps 3100 even while 3100 is already in use", async () => {
     holder = await occupy(3100);
 
     expect(await configuredDevServerPort()).toBe(3100);

@@ -239,12 +239,30 @@ test.describe("several Profiles per Candidate", () => {
 });
 
 test.describe("editing a Profile's Search Criteria (issue #70)", () => {
-  test("a Candidate changes the target role and location; the Profile keeps its name and the Match Score uses the new criteria", async ({ page }) => {
+  test("a Candidate changes \"Poste recherché\" and the location; after a reload the new values show, the Profile keeps its name, and the Match Score on an Application of that Profile uses them", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("edit-criteria"));
     const id = await createProfile(page, "Directrice financière");
-    await page.goto(`/profils/${id}`);
 
+    // An Application of that Profile, saved before the change: its Match Score compares the offer with the old criteria.
+    const offer = await page.request.post("/api/job-offers", {
+      headers: { origin },
+      data: { source: { url: `https://example.fr/offres/daf-${Date.now()}` }, title: "DAF (H/F)", content: `DAF à Paris (${Date.now()}).`, location: "Paris" },
+    });
+    expect(offer.status(), await offer.text()).toBe(200);
+    const saved = await page.request.post("/api/applications", { headers: { origin }, data: { jobOfferId: (await offer.json()).id, profileId: id } });
+    expect(saved.ok(), await saved.text()).toBe(true);
+    const applicationId = (await saved.json()).id;
+    const locationScore = () =>
+      page.getByRole("region", { name: fr.matchScore.title }).locator(".match-score-criterion").filter({ hasText: fr.matchScore.criteria.location });
+    const offerAndWanted = (wanted: string) => fr.matchScore.offerAndWanted.replace("{{offer}}", "Paris").replace("{{wanted}}", wanted);
+
+    await page.goto(`/candidatures/${applicationId}`);
+    await expect(locationScore()).toContainText(offerAndWanted("Lyon"));
+    await expect(locationScore().locator(".match-status")).toHaveText(fr.matchScore.statuses.mismatch);
+
+    await page.goto(`/profils/${id}`);
     const criteria = page.getByRole("form", { name: fr.cvReview.searchCriteria });
+    await expect(criteria.getByLabel(fr.cvReview.targetRole)).toHaveValue("Directrice financière");
     await criteria.getByLabel(fr.cvReview.targetRole).fill("Directrice administrative et financière");
     await criteria.getByLabel(fr.cvReview.location, { exact: true }).fill("Paris");
     await criteria.getByRole("button", { name: fr.searchCriteriaEditor.save }).click();
@@ -253,17 +271,14 @@ test.describe("editing a Profile's Search Criteria (issue #70)", () => {
     await page.reload();
     await expect(criteria.getByLabel(fr.cvReview.targetRole)).toHaveValue("Directrice administrative et financière");
     await expect(criteria.getByLabel(fr.cvReview.location, { exact: true })).toHaveValue("Paris");
+    await expect(criteria.getByLabel(fr.cvReview.contractType)).toHaveValue("cdi");
+    // The name is not tied to the target role: the Candidate renames the Profile separately.
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice financière");
     await expect(page.getByText(fr.atsScore.intro.replace("{{role}}", "Directrice administrative et financière"))).toBeVisible();
 
-    const offer = await page.request.post("/api/job-offers", {
-      headers: { origin },
-      data: { source: { url: `https://example.fr/offres/daf-${Date.now()}` }, title: "DAF (H/F)", content: `DAF à Lyon (${Date.now()}).`, location: "Lyon" },
-    });
-    expect(offer.status(), await offer.text()).toBe(200);
-    const scored = await page.request.post("/api/match-score", { headers: { origin }, data: { jobOfferId: (await offer.json()).id, profileId: id } });
-    expect(scored.status()).toBe(200);
-    expect((await scored.json()).breakdown.location).toMatchObject({ offer: "Lyon", wanted: "Paris" });
+    await page.goto(`/candidatures/${applicationId}`);
+    await expect(locationScore()).toContainText(offerAndWanted("Paris"));
+    await expect(locationScore().locator(".match-status")).toHaveText(fr.matchScore.statuses.match);
   });
 
   test("invalid criteria name the fields to fix; another Candidate's Profile is not found; an archived Profile is read-only", async ({ page, browser }) => {

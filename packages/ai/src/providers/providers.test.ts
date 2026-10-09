@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import { AiProviderError } from "../errors";
 import { createAnthropicProvider } from "./anthropic";
-import { createMistralProvider, createOpenAiProvider, createPerplexityProvider } from "./chat-completions";
+import { createMistralProvider, createOpenAiProvider } from "./chat-completions";
+import { createPerplexityProvider } from "./perplexity";
 
 interface Captured {
   url: string;
@@ -183,11 +185,6 @@ describe("chat-completions providers", () => {
       provider: "mistral",
       status: 200,
     });
-    await expect(createPerplexityProvider({ apiKey: "pk", fetch: htmlFetch }).search!("q", {})).rejects.toMatchObject({
-      name: "AiProviderError",
-      provider: "perplexity",
-      status: 200,
-    });
   });
 });
 
@@ -214,30 +211,71 @@ describe("OpenAI provider", () => {
   });
 });
 
+/** A Perplexity Agent API (`POST /v1/responses`) answer to a web search, in the documented shape. */
+const perplexityReply = JSON.parse(readFileSync(new URL("./fixtures/perplexity-responses-search.json", import.meta.url), "utf8"));
+
 describe("Perplexity provider", () => {
-  it("searches the web with nothing but the query, and returns the answer with its sources", async () => {
-    const { fetch, requests } = fakeFetch(
-      chatReply("Trois offres trouvées", { search_results: [{ title: "DAF", url: "https://example.fr/offre/1" }] }),
-    );
+  it("searches the web through the Agent API with nothing but the query", async () => {
+    const { fetch, requests } = fakeFetch(perplexityReply);
     const provider = createPerplexityProvider({ apiKey: "pk", fetch });
 
-    const output = await provider.search!("Offres d'emploi « DAF » à Lyon", {});
+    await provider.search!("Offres d'emploi « DAF » à Lyon", {});
 
     expect(provider.residency).toBe("outside_eu");
     expect(provider.generate).toBeUndefined();
-    expect(requests[0]!.url).toBe("https://api.perplexity.ai/chat/completions");
-    expect(requests[0]!.body).toEqual({ model: "sonar", messages: [{ role: "user", content: "Offres d'emploi « DAF » à Lyon" }] });
-    expect(output).toEqual({
-      answer: "Trois offres trouvées",
-      sources: ["https://example.fr/offre/1"],
-      model: "served-model",
-      usage: { inputTokens: 50, outputTokens: 20 },
+    expect(requests[0]!.url).toBe("https://api.perplexity.ai/v1/responses");
+    expect(requests[0]!.headers.get("authorization")).toBe("Bearer pk");
+    expect(requests[0]!.body).toEqual({
+      preset: "fast",
+      input: "Offres d'emploi « DAF » à Lyon",
+      tools: [{ type: "web_search" }],
+      max_output_tokens: 2048,
+      store: false,
     });
   });
 
-  it("reads sources from the older citations field too", async () => {
-    const { fetch } = fakeFetch(chatReply("ok", { citations: ["https://example.fr/a"] }));
+  it("returns the answer, its sources (search results, then cited pages, each once) and the token usage", async () => {
+    const { fetch } = fakeFetch(perplexityReply);
+
     const output = await createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", {});
-    expect(output.sources).toEqual(["https://example.fr/a"]);
+
+    expect(output).toEqual({
+      answer: "Deux offres de DAF en CDI à Lyon : Acme Industrie [1] et un groupe industriel [2]. Les deux sont publiées depuis moins de deux semaines.",
+      sources: [
+        "https://carrieres.acme-industrie.example/offres/daf-lyon",
+        "https://www.cadremploi.example/emploi/daf-lyon-123",
+        "https://www.apec.example/offre/daf-lyon-456",
+      ],
+      model: "openai/gpt-6-luna",
+      usage: { inputTokens: 812, outputTokens: 64 },
+    });
+  });
+
+  it("uses the configured model (provider/model) on top of the preset", async () => {
+    const { fetch, requests } = fakeFetch(perplexityReply);
+    await createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", { model: "perplexity/sonar" });
+    expect(requests[0]!.body).toMatchObject({ preset: "fast", model: "perplexity/sonar" });
+  });
+
+  it("raises a provider error when the search did not complete, even on HTTP 200", async () => {
+    const { fetch } = fakeFetch({ ...perplexityReply, status: "failed", output: [], error: { code: "search_failed", message: "Search failed" } });
+    await expect(createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", {})).rejects.toMatchObject({
+      name: "AiProviderError",
+      provider: "perplexity",
+      message: expect.stringContaining("Search failed"),
+    });
+  });
+
+  it("raises a provider error on an HTTP failure, such as the retired endpoint's 403", async () => {
+    const { fetch } = fakeFetch({ error: { code: "chat_completions_not_available", message: "Use /v1/responses" } }, 403);
+    await expect(createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", {})).rejects.toMatchObject({ provider: "perplexity", status: 403 });
+  });
+
+  it("raises a provider error when a 200 response is not JSON", async () => {
+    await expect(createPerplexityProvider({ apiKey: "pk", fetch: htmlFetch }).search!("q", {})).rejects.toMatchObject({
+      name: "AiProviderError",
+      provider: "perplexity",
+      status: 200,
+    });
   });
 });

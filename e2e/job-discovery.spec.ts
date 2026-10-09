@@ -174,7 +174,7 @@ test.describe("Job discovery (worker job job-discovery.run)", () => {
     const searches = requests().filter((r) => r.url.startsWith("https://api.perplexity.ai/"));
     expect(searches).toHaveLength(1);
     const { body } = searches[0]!;
-    const query: string = JSON.parse(body).messages.at(-1).content;
+    const query: string = JSON.parse(body).input;
 
     // The Search Criteria are all there…
     expect(query).toContain("Directrice administrative et financière");

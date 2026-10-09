@@ -20,6 +20,21 @@
 // it gives the group's SIREN.
 const realFetch = globalThis.fetch;
 
+/** Perplexity's Agent API (POST /v1/responses): `text` as the answer, `sources` as its search results. */
+function perplexityAnswer(text, sources) {
+  return Response.json({
+    id: "resp_e2e",
+    object: "response",
+    status: "completed",
+    model: "openai/gpt-6-luna",
+    output: [
+      { type: "search_results", queries: ["e2e"], results: sources.map(({ url }, id) => ({ id, url, title: "", snippet: "" })) },
+      { type: "message", role: "assistant", status: "completed", content: [{ type: "output_text", text, annotations: [] }] },
+    ],
+    usage: { input_tokens: 20, output_tokens: 40, total_tokens: 60 },
+  });
+}
+
 const acme = {
   siren: "552100554",
   nom_complet: "ACME INDUSTRIE",
@@ -93,22 +108,10 @@ globalThis.fetch = async (input, init) => {
         headcount: "12 salariés",
         website: "https://www.linkedin.com/in/john-smith-austin",
       });
-      return Response.json({
-        id: "cmpl_e2e_leak",
-        model: "sonar",
-        choices: [{ index: 0, message: { role: "assistant", content: leak }, finish_reason: "stop" }],
-        search_results: [{ url: "https://www.linkedin.com/in/john-smith-austin" }, { url: "javascript:alert(1)" }, { url: "https://personleak.example/about" }],
-        usage: { prompt_tokens: 20, completion_tokens: 40 },
-      });
+      return perplexityAnswer(leak, [{ url: "https://www.linkedin.com/in/john-smith-austin" }, { url: "javascript:alert(1)" }, { url: "https://personleak.example/about" }]);
     }
     if (query.includes("Bibendum")) {
-      return Response.json({
-        id: "cmpl_e2e_siren",
-        model: "sonar",
-        choices: [{ index: 0, message: { role: "assistant", content: JSON.stringify({ country: "France", siren: "552 100 557" }) }, finish_reason: "stop" }],
-        search_results: [{ url: "https://bibendum.example/groupe" }],
-        usage: { prompt_tokens: 20, completion_tokens: 40 },
-      });
+      return perplexityAnswer(JSON.stringify({ country: "France", siren: "552 100 557" }), [{ url: "https://bibendum.example/groupe" }]);
     }
     const answer = JSON.stringify({
       country: "Allemagne",
@@ -119,13 +122,7 @@ globalThis.fetch = async (input, init) => {
       website: "globex-robotics.example",
       ceo: "Hans Müller",
     });
-    return Response.json({
-      id: "cmpl_e2e_search",
-      model: "sonar",
-      choices: [{ index: 0, message: { role: "assistant", content: answer }, finish_reason: "stop" }],
-      search_results: [{ url: "https://globex-robotics.example/about" }],
-      usage: { prompt_tokens: 20, completion_tokens: 40 },
-    });
+    return perplexityAnswer(answer, [{ url: "https://globex-robotics.example/about" }]);
   }
   return realFetch(input, init);
 };

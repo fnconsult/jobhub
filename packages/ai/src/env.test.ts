@@ -12,7 +12,9 @@ function recordingFetch() {
     hosts.push(url.hostname);
     const body = url.hostname.includes("bedrock") || url.hostname.includes("anthropic")
       ? { id: "m", type: "message", role: "assistant", model: "claude", content: [{ type: "text", text: "ok" }], stop_reason: "end_turn", usage: { input_tokens: 3, output_tokens: 2 } }
-      : { model: "m", choices: [{ message: { content: "ok" } }], usage: { prompt_tokens: 3, completion_tokens: 2 } };
+      : url.hostname === "api.perplexity.ai"
+        ? { status: "completed", model: "m", output: [{ type: "message", content: [{ type: "output_text", text: "ok" }] }], usage: { input_tokens: 3, output_tokens: 2 } }
+        : { model: "m", choices: [{ message: { content: "ok" } }], usage: { prompt_tokens: 3, completion_tokens: 2 } };
     return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
   };
   return { fetch: fetch as typeof globalThis.fetch, hosts };

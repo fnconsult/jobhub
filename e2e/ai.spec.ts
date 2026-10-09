@@ -101,7 +101,7 @@ test.describe("AI layer: one module hides the provider, routing is configuration
         AI_WRITING_PROVIDER: "openai",
         AI_OFFER_ANALYSIS_PROVIDER: "anthropic",
         AI_WEB_SEARCH_PROVIDER: "perplexity",
-        AI_WEB_SEARCH_MODEL: "sonar-pro",
+        AI_WEB_SEARCH_MODEL: "perplexity/sonar",
       },
       [score(), write(), analyseOffer, search()],
     );
@@ -113,7 +113,7 @@ test.describe("AI layer: one module hides the provider, routing is configuration
       "api.perplexity.ai",
     ]);
     expect(JSON.parse(r.requests[0]!.body).model).toBe("mistral-small-latest");
-    expect(JSON.parse(r.requests[3]!.body).model).toBe("sonar-pro");
+    expect(JSON.parse(r.requests[3]!.body).model).toBe("perplexity/sonar");
     expect(r.outcomes.map((o) => (o.ok ? o.value.provider : o.error.name))).toEqual(["mistral", "openai", "anthropic", "perplexity"]);
   });
 
@@ -150,13 +150,13 @@ test.describe("AI layer: provider adapters", () => {
     expect(r.requests[0]!.apiKeyHeader).toBe("test-anthropic-key");
   });
 
-  test("Mistral, OpenAI (EU residency) and Perplexity over their chat-completions APIs", () => {
+  test("Mistral and OpenAI (EU residency) over their chat-completions APIs, Perplexity over its Agent API", () => {
     const r = runAi({ ...KEYS, AI_SCORING_PROVIDER: "mistral", AI_WRITING_PROVIDER: "openai" }, [score(), write(), search()]);
     ok(r);
     expect(r.requests.map((req) => req.url)).toEqual([
       "https://api.mistral.ai/v1/chat/completions",
       "https://eu.api.openai.com/v1/chat/completions",
-      "https://api.perplexity.ai/chat/completions",
+      "https://api.perplexity.ai/v1/responses",
     ]);
     expect(JSON.parse(r.requests[0]!.body).messages[0]).toEqual({ role: "system", content: "Score this CV against the offer." });
     expect(r.outcomes[2]).toMatchObject({ ok: true, value: { answer: "reply from api.perplexity.ai", sources: ["https://jobs.example/offre-1"] } });
@@ -195,15 +195,14 @@ test.describe("AI layer: personal data only reaches EU-resident endpoints", () =
     ok(r);
     expect(r.requests).toHaveLength(1);
     const body = JSON.parse(r.requests[0]!.body);
-    expect(body.messages).toHaveLength(1);
-    const query: string = body.messages[0].content;
+    const query: string = body.input;
     expect(query).toContain("Développeur TypeScript");
     expect(query).toContain("Paris");
     expect(query).toContain("CDI");
     expect(query).toMatch(/55.000 €/);
     expect(query).not.toMatch(/@|jean|dupont|12 34|\+33/i);
-    // Nothing but the model and that single message goes out.
-    expect(Object.keys(body).sort()).toEqual(["messages", "model"]);
+    // Nothing but that query and the search settings goes out: no instructions, no other input.
+    expect(Object.keys(body).sort()).toEqual(["input", "max_output_tokens", "preset", "store", "tools"]);
   });
 });
 

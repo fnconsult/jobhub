@@ -121,13 +121,18 @@ export const RESULT_PAGES = [
   `https://miroir-e2e.example/offre/daf-${tag}`,
 ];
 
+/** Perplexity's Agent API (POST /v1/responses) answering a web search. */
 function perplexity() {
   return Response.json({
     id: "pplx_e2e",
-    model: "sonar",
-    choices: [{ index: 0, message: { role: "assistant", content: "Voici des offres." }, finish_reason: "stop" }],
-    search_results: RESULT_PAGES.map((url) => ({ url, title: "Offre" })),
-    usage: { prompt_tokens: 20, completion_tokens: 40 },
+    object: "response",
+    status: "completed",
+    model: "openai/gpt-6-luna",
+    output: [
+      { type: "search_results", queries: ["e2e"], results: RESULT_PAGES.map((url, id) => ({ id, url, title: "Offre", snippet: "" })) },
+      { type: "message", role: "assistant", status: "completed", content: [{ type: "output_text", text: "Voici des offres.", annotations: [] }] },
+    ],
+    usage: { input_tokens: 20, output_tokens: 40, total_tokens: 60 },
   });
 }
 

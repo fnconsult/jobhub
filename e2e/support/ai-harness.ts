@@ -46,6 +46,19 @@ function answer(url: URL, body: string): Response {
   const host = url.hostname;
   // Lets a test simulate a provider outage.
   if (body.includes("E2E_PROVIDER_DOWN")) return new Response("upstream unavailable", { status: 503 });
+  if (host === "api.perplexity.ai" && url.pathname === "/v1/responses") {
+    return json({
+      id: "resp_e2e",
+      object: "response",
+      status: "completed",
+      model: parsed.model ?? "openai/gpt-6-luna",
+      output: [
+        { type: "search_results", queries: ["e2e"], results: [{ id: 1, url: "https://jobs.example/offre-1", title: "Offre", snippet: "" }] },
+        { type: "message", role: "assistant", status: "completed", content: [{ type: "output_text", text: `reply from ${host}`, annotations: [] }] },
+      ],
+      usage: { input_tokens: 120, output_tokens: 30, total_tokens: 150 },
+    });
+  }
   if (url.pathname.endsWith("/chat/completions")) {
     const reply = `reply from ${host}`;
     return json({
@@ -53,7 +66,6 @@ function answer(url: URL, body: string): Response {
       model: parsed.model ?? "unknown",
       choices: [{ index: 0, message: { role: "assistant", content: reply }, finish_reason: "stop" }],
       usage: { prompt_tokens: 120, completion_tokens: 30, total_tokens: 150 },
-      ...(host === "api.perplexity.ai" ? { search_results: [{ url: "https://jobs.example/offre-1" }] } : {}),
     });
   }
   if (url.pathname.includes("/messages")) {

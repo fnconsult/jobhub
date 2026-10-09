@@ -11,6 +11,8 @@ import { requestJson, texts, type ContactDetails, type ContactEnrichmentProvider
 const BASE_URL = "https://api.lusha.com/v3";
 /** Lusha pages hold 10 to 100 results. */
 const PAGE_SIZE = { min: 10, max: 100 };
+/** Prospecting caps the contacts it returns per company at 1 to 20. */
+const MAX_CONTACTS_PER_COMPANY = 20;
 
 interface LushaPerson {
   id?: unknown;
@@ -39,7 +41,7 @@ export function createLushaProvider({ apiKey, fetch: fetchFn = fetch, baseUrl = 
             contacts: { include: { jobTitles } },
             companies: { include: companyDomain ? { domains: [companyDomain] } : { names: [companyName] } },
           },
-          excludeDnc: true,
+          options: { excludeDnc: true, maxContactsPerCompany: Math.min(MAX_CONTACTS_PER_COMPANY, Math.max(1, limit)) },
         },
       })) as { data?: LushaPerson[] } | null;
       const people: FoundPerson[] = [];

@@ -50,8 +50,19 @@ describe("Lusha adapter", () => {
         contacts: { include: { jobTitles: ["DRH", "Responsable recrutement"] } },
         companies: { include: { domains: ["acme-industrie.fr"] } },
       },
-      excludeDnc: true,
     });
+  });
+
+  it("leaves out do-not-contact people the way the v3 Prospecting schema accepts it", async () => {
+    const api = recordedFetch({ body: { results: [] } });
+    const lusha = createLushaProvider({ apiKey: "k", fetch: api.fetch });
+
+    await lusha.findPeople!({ companyName: "Acme Industrie", jobTitles: ["DRH"], limit: 10 });
+
+    const body = api.requests[0]!.body as { options?: { excludeDnc?: unknown; maxContactsPerCompany?: unknown }; excludeDnc?: unknown };
+    expect(body.options?.excludeDnc).toBe(true);
+    expect(body).not.toHaveProperty("excludeDnc");
+    expect(body.options?.maxContactsPerCompany).toBe(10);
   });
 
   it("searches by company name when the domain is unknown", async () => {

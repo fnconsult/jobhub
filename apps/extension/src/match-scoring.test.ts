@@ -2,7 +2,7 @@ import type { CvContent, JobOffer, MatchScore } from "@jobhub/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createGuestSession, type SessionStorage } from "./guest-session";
 import type { JobbboxApi, ScoreAgainst, UpgradePrompt } from "./jobbbox-api";
-import { createMatchScoring, firstScoreAgainst, SCORE_TIMEOUT_MS } from "./match-scoring";
+import { createMatchScoring, chooseScoreAgainst, SCORE_TIMEOUT_MS } from "./match-scoring";
 
 /** The browser's session storage (chrome.storage.session): in memory, gone when the browser closes. */
 function memoryStorage(): SessionStorage {
@@ -341,26 +341,34 @@ describe("scoring a CV against a Job Offer from the extension", () => {
   });
 });
 
-describe("what the analysis page scores a Job Offer against first", () => {
+describe("what the analysis page scores a Job Offer against", () => {
   const profiles = [{ id: "p-1", name: "DAF" }, { id: "p-2", name: "Consultante transformation" }];
   const matchScore = { score: 70 } as MatchScore;
 
   it("a signed-in Candidate's first active Profile, rather than asking for a CV", () => {
-    expect(firstScoreAgainst(profiles, { jobOffer })).toEqual({ profileId: "p-1" });
+    expect(chooseScoreAgainst(profiles, { jobOffer })).toEqual({ profileId: "p-1" });
   });
 
   it("the Profile they last chose, while it is still active", () => {
-    expect(firstScoreAgainst(profiles, { jobOffer, profileId: "p-2" })).toEqual({ profileId: "p-2" });
-    expect(firstScoreAgainst(profiles, { jobOffer, profileId: "p-archived" })).toEqual({ profileId: "p-1" });
+    expect(chooseScoreAgainst(profiles, { jobOffer, profileId: "p-2" })).toEqual({ profileId: "p-2" });
+    expect(chooseScoreAgainst(profiles, { jobOffer, profileId: "p-archived" })).toEqual({ profileId: "p-1" });
   });
 
   it("the CV whose Match Score is kept for this Job Offer, so reopening shows it again", () => {
-    expect(firstScoreAgainst(profiles, { jobOffer, cv, matchScore: { jobOfferId: "jo-1", cv, matchScore } })).toEqual({ cv });
-    expect(firstScoreAgainst(profiles, { jobOffer, cv, matchScore: { jobOfferId: "jo-1", profileId: "p-2", matchScore } })).toEqual({ profileId: "p-2" });
+    expect(chooseScoreAgainst(profiles, { jobOffer, cv, matchScore: { jobOfferId: "jo-1", cv, matchScore } })).toEqual({ cv });
+    expect(chooseScoreAgainst(profiles, { jobOffer, cv, matchScore: { jobOfferId: "jo-1", profileId: "p-2", matchScore } })).toEqual({ profileId: "p-2" });
+  });
+
+  it("what was chosen on the page: an active Profile, or the CV (\"Utiliser un autre CV\"), if there is one", () => {
+    const keptForCv = { jobOffer, cv, matchScore: { jobOfferId: "jo-1", cv, matchScore } };
+    expect(chooseScoreAgainst(profiles, keptForCv, { profileId: "p-2" })).toEqual({ profileId: "p-2" });
+    expect(chooseScoreAgainst(profiles, keptForCv, { profileId: "p-archived" })).toEqual({ cv });
+    expect(chooseScoreAgainst(profiles, { jobOffer, cv }, "cv")).toEqual({ cv });
+    expect(chooseScoreAgainst(profiles, { jobOffer }, "cv")).toBeNull();
   });
 
   it("without Profiles (a Guest, or a Candidate with none), the CV in the session, or nothing: the CV is asked for", () => {
-    expect(firstScoreAgainst([], { jobOffer, cv })).toEqual({ cv });
-    expect(firstScoreAgainst([], { jobOffer })).toBeNull();
+    expect(chooseScoreAgainst([], { jobOffer, cv })).toEqual({ cv });
+    expect(chooseScoreAgainst([], { jobOffer })).toBeNull();
   });
 });

@@ -78,18 +78,28 @@ function withSearchCriteria(against: ScoreAgainst, { cv, searchCriteria }: Guest
   return { cv: against.cv, searchCriteria };
 }
 
+/** What was chosen on the analysis page to score against: one of the Profiles, or the CV ("Utiliser un autre CV"). */
+export type ScoringChoice = { profileId: string } | "cv";
+
 /**
- * What the analysis page scores the session's Job Offer against first, given the signed-in Candidate's
- * active Profiles (none for a Guest): the Profile or CV whose Match Score is kept for it, so reopening
- * shows it again; else the Profile last chosen, or the first one. Without Profiles, the CV in the
- * session; null when there is none, and the CV is asked for.
+ * What the analysis page scores the session's Job Offer against, given the signed-in Candidate's active
+ * Profiles (none for a Guest) and what was chosen on the page, if anything. Chosen: that active Profile,
+ * or the CV in the session. Otherwise the Profile or CV whose Match Score is kept for the Job Offer, so
+ * reopening shows it again; else the Profile last chosen, or the first one. Without Profiles, the CV in
+ * the session. null: there is no CV to score, and the CV is asked for.
  */
-export function firstScoreAgainst(profiles: ProfileOption[], { jobOffer, cv, matchScore: kept, profileId }: GuestSessionContent): ScoreAgainst | null {
+export function chooseScoreAgainst(
+  profiles: ProfileOption[],
+  { jobOffer, cv, matchScore: kept, profileId }: GuestSessionContent,
+  chosen?: ScoringChoice,
+): ScoreAgainst | null {
   const active = (id: string | undefined) => profiles.some((profile) => profile.id === id);
+  const theCv = cv ? { cv } : null;
+  if (profiles.length === 0 || chosen === "cv") return theCv;
+  if (chosen && active(chosen.profileId)) return { profileId: chosen.profileId };
   if (kept && kept.jobOfferId === jobOffer?.id) {
-    if ("cv" in kept && cv && sameCv(kept.cv, cv)) return { cv };
+    if ("cv" in kept && cv && sameCv(kept.cv, cv)) return theCv;
     if ("profileId" in kept && active(kept.profileId)) return { profileId: kept.profileId };
   }
-  if (profiles.length === 0) return cv ? { cv } : null;
   return { profileId: active(profileId) ? profileId! : profiles[0]!.id };
 }

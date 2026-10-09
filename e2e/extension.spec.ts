@@ -809,6 +809,47 @@ test.describe("Guest Capture and Match Score", () => {
     }
   });
 
+  test("a Match Score request that never answers is given up after a bounded time, and can be tried again (#66)", async () => {
+    const captured = await captureFromBadge(postingUrl);
+    await captured.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
+    await captured.getByRole("button", { name: fr.analysis.submit }).click();
+    await expect(captured.getByText(scoreLine)).toBeVisible();
+    await captured.close();
+
+    // The analysis page, opened again, on a clock the test moves forward.
+    const analysis = await context.newPage();
+    await analysis.clock.install();
+    await analysis.goto(`chrome-extension://${extensionId()}/analyse.html`);
+    await expect(analysis.getByText(scoreLine)).toBeVisible();
+
+    // The web app takes the next Match Score request and never answers it.
+    const stalled: { abort(): Promise<void> }[] = [];
+    await context.route("**/api/match-score", async (route) => {
+      if (stalled.length === 0) stalled.push(route);
+      else await route.continue();
+    });
+    try {
+      await analysis.getByRole("button", { name: fr.analysis.rescore }).click();
+      await expect(analysis.getByText(fr.analysis.scoring)).toBeVisible();
+      await expect.poll(() => stalled.length).toBe(1);
+
+      // A minute on, it is still waited for; past the bound, it is given up with the usual retry state.
+      await analysis.clock.fastForward("01:00");
+      await expect(analysis.getByText(fr.analysis.scoring)).toBeVisible();
+      await analysis.clock.fastForward("02:00");
+      await expect(analysis.getByRole("alert").filter({ hasText: fr.unreachable })).toBeVisible();
+      await expect(analysis.getByText(fr.analysis.scoring)).toHaveCount(0);
+
+      // Tried again while the stalled request is still open: the page waits on nothing left behind.
+      await analysis.getByRole("button", { name: fr.analysis.rescore }).click();
+      await expect(analysis.getByText(scoreLine)).toBeVisible();
+      await expect(analysis.getByText(fr.unreachable)).toHaveCount(0);
+    } finally {
+      await context.unroute("**/api/match-score");
+      await Promise.all(stalled.map((route) => route.abort().catch(() => {})));
+    }
+  });
+
   /** The web app shows the Application "À postuler", and the Profile's Master CV, version 1, read from the Guest's CV. */
   const expectSavedInWebApp = async (web: Page, applicationLink: string, profileId: string) => {
     await web.goto(new URL(applicationLink).pathname);

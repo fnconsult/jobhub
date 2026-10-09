@@ -15,12 +15,9 @@ import { layout } from "./layout";
 import { renderPdf } from "./pdf";
 import { TEMPLATE_STYLES } from "./templates";
 
-/** The CV Templates, all ATS-safe. The first one is the default. */
-export const CV_TEMPLATES = ["classic", "modern", "compact"] as const;
-export type CvTemplate = (typeof CV_TEMPLATES)[number];
+import { CV_TEMPLATES, EXPORT_FORMATS, type CvTemplate, type ExportFormat } from "./kinds";
 
-export const EXPORT_FORMATS = ["pdf", "docx"] as const;
-export type ExportFormat = (typeof EXPORT_FORMATS)[number];
+export { CV_TEMPLATES, EXPORT_FORMATS, type CvTemplate, type ExportFormat } from "./kinds";
 
 /** What a Cover Letter says, as the Candidate would sign it. Empty strings are left out. */
 export interface CoverLetterContent {

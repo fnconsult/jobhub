@@ -24,7 +24,7 @@ const tailored: MasterCvContent = {
   ...masterCv,
   headline: "Chief Financial Officer",
   summary: "25 years in industry.",
-  experience: [{ ...masterCv.experience[0], title: "Chief Financial Officer", description: "Financial management." }],
+  experience: [{ title: "Chief Financial Officer", employer: "Groupe Seb", location: "Lyon", period: "2015 – 2024", description: "Financial management." }],
   education: [{ degree: "Master's in Finance", institution: "ESSEC", year: "1998" }],
   languages: [{ name: "English", level: "fluent" }],
 };

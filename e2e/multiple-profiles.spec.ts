@@ -64,7 +64,7 @@ test.describe("several Profiles per Candidate", () => {
 
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Consultante transformation");
     await expect(page).not.toHaveURL(`${origin}/profils/${firstId}`);
-    await expect(page.getByText(fr.cvReview.contractTypes.cdi, { exact: true })).toBeVisible();
+    await expect(page.getByRole("form", { name: fr.cvReview.searchCriteria }).getByLabel(fr.cvReview.contractType)).toHaveValue("cdi");
     await expect(page.getByText("Directrice financière · Groupe Seb · Lyon · 2015 – 2024")).toBeVisible();
     await expect(page.getByText("Version 1")).toBeVisible();
 
@@ -235,6 +235,70 @@ test.describe("several Profiles per Candidate", () => {
       expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
       expect.soft(t.contrast, `contrast of "${t.text}"`).toBeGreaterThanOrEqual(4.5);
     }
+  });
+});
+
+test.describe("editing a Profile's Search Criteria (issue #70)", () => {
+  test("a Candidate changes the target role and location; the Profile keeps its name and the Match Score uses the new criteria", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("edit-criteria"));
+    const id = await createProfile(page, "Directrice financière");
+    await page.goto(`/profils/${id}`);
+
+    const criteria = page.getByRole("form", { name: fr.cvReview.searchCriteria });
+    await criteria.getByLabel(fr.cvReview.targetRole).fill("Directrice administrative et financière");
+    await criteria.getByLabel(fr.cvReview.location, { exact: true }).fill("Paris");
+    await criteria.getByRole("button", { name: fr.searchCriteriaEditor.save }).click();
+    await expect(page.getByRole("status").filter({ hasText: fr.searchCriteriaEditor.saved })).toBeVisible();
+
+    await page.reload();
+    await expect(criteria.getByLabel(fr.cvReview.targetRole)).toHaveValue("Directrice administrative et financière");
+    await expect(criteria.getByLabel(fr.cvReview.location, { exact: true })).toHaveValue("Paris");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice financière");
+    await expect(page.getByText(fr.atsScore.intro.replace("{{role}}", "Directrice administrative et financière"))).toBeVisible();
+
+    const offer = await page.request.post("/api/job-offers", {
+      headers: { origin },
+      data: { source: { url: `https://example.fr/offres/daf-${Date.now()}` }, title: "DAF (H/F)", content: `DAF à Lyon (${Date.now()}).`, location: "Lyon" },
+    });
+    expect(offer.status(), await offer.text()).toBe(200);
+    const scored = await page.request.post("/api/match-score", { headers: { origin }, data: { jobOfferId: (await offer.json()).id, profileId: id } });
+    expect(scored.status()).toBe(200);
+    expect((await scored.json()).breakdown.location).toMatchObject({ offer: "Lyon", wanted: "Paris" });
+  });
+
+  test("invalid criteria name the fields to fix; another Candidate's Profile is not found; an archived Profile is read-only", async ({ page, browser }) => {
+    await signInOn(page, "edit-criteria-refused");
+    const id = await createProfile(page, "DAF");
+    const patch = (data: object, on = page) => on.request.patch(`/api/profiles/${id}`, { headers: { origin }, data });
+
+    const invalid = await patch({ searchCriteria: { targetRole: "", location: "Lyon", contractType: "stage" } });
+    expect(invalid.status()).toBe(400);
+    expect((await invalid.json()).errors).toEqual(
+      expect.arrayContaining([
+        { field: "searchCriteria.targetRole", code: "required" },
+        { field: "searchCriteria.contractType", code: "invalid" },
+      ]),
+    );
+
+    const other = await browser.newContext({ baseURL: origin });
+    const otherPage = await other.newPage();
+    await signInWithMagicLink(otherPage, newAddress("edit-criteria-other"));
+    expect((await patch({ searchCriteria: { targetRole: "Piraté", location: "Paris" } }, otherPage)).status()).toBe(404);
+    await other.close();
+
+    expect((await patch({ archived: true })).status()).toBe(200);
+    const archived = await patch({ searchCriteria: { targetRole: "DAF", location: "Paris" } });
+    expect(archived.status()).toBe(409);
+    expect(await archived.json()).toEqual({ error: "archived" });
+    await page.goto(`/profils/${id}`);
+    await expect(page.getByRole("form", { name: fr.cvReview.searchCriteria })).toHaveCount(0);
+    await expect(page.getByRole("term").filter({ hasText: fr.cvReview.targetRole })).toBeVisible();
+
+    expect((await patch({ archived: false })).status()).toBe(200);
+    expect((await patch({ name: "DAF industrie" })).status()).toBe(200);
+    await page.goto(`/profils/${id}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("DAF industrie");
+    await expect(page.getByRole("form", { name: fr.cvReview.searchCriteria }).getByLabel(fr.cvReview.location, { exact: true })).toHaveValue("Lyon");
   });
 });
 

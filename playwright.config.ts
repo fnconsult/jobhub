@@ -55,6 +55,8 @@ export default defineConfig({
     { name: "stack", testMatch: /stack\.spec\.ts/ },
     { name: "repo", testMatch: /(repo|migrate|agent-runs)\.spec\.ts/ },
     { name: "ai", testMatch: /ai\.spec\.ts/ },
+    // `npm run dev` and the extension's dev server, started in either order (#71): one at a time, they share ports.
+    { name: "dev-servers", testMatch: /dev-servers\.spec\.ts/, workers: 1 },
     // The worker's background jobs, run by `tsx src/main.ts` against the web server's database.
     // One spec at a time: each starts its own worker on the same queue, which would take the other's jobs.
     { name: "worker", testMatch: /(job-(discovery|search)|follow-ups)\.spec\.ts/, workers: 1 },

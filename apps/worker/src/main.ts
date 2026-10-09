@@ -17,9 +17,9 @@ if (!connectionString) {
 const database = new Pool({ connectionString });
 
 // Job discovery needs the AI layer; the other jobs do not (Follow-ups fall back to
-// a template). Without AI configuration (e.g. the local docker-compose stack, which
-// has no keys) the worker still runs, and discovery jobs are skipped with the
-// reason. Production fails loudly instead.
+// a template). Without AI configuration (e.g. the local docker-compose stack with no
+// repo-root .env, or one without keys) the worker still runs, and discovery jobs are
+// skipped with the reason. Production fails loudly instead.
 function aiLayer(): AiLayer | { unavailable: string } {
   try {
     return createAiLayerFromEnv(process.env);

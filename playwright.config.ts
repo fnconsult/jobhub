@@ -48,12 +48,12 @@ export default defineConfig({
   projects: [
     {
       name: "web",
-      testMatch: /(web|database-connections|auth|account-data|profiles|master-cv|match-score|ats-score|coach|billing|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|human-coaches|cv-draft-ai-config)\.spec\.ts/,
+      testMatch: /(web|database-connections|auth|account-data|profiles|master-cv|match-score|ats-score|coach|billing|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|human-coaches|cv-draft-ai-config|stripe-price-ids)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" },
     },
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },
     { name: "stack", testMatch: /stack\.spec\.ts/ },
-    { name: "repo", testMatch: /(repo|migrate|agent-runs)\.spec\.ts/ },
+    { name: "repo", testMatch: /(repo|migrate|agent-runs|setup-wizards)\.spec\.ts/ },
     { name: "ai", testMatch: /ai\.spec\.ts/ },
     // The worker's background jobs, run by `tsx src/main.ts` against the web server's database.
     // One spec at a time: each starts its own worker on the same queue, which would take the other's jobs.

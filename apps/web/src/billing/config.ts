@@ -22,10 +22,12 @@ export function billingConfigFromEnv(env: Env): BillingConfig {
     if (!production && env.STRIPE_SECRET_KEY!.startsWith("sk_live_")) {
       throw new Error("A live Stripe key is only allowed in production; use a test-mode key (sk_test_…)");
     }
+    requirePriceIds(env, ["STRIPE_PRICE_STANDARD", "STRIPE_PRICE_PREMIUM"]);
     let coachingSessionPrices: StripeConfig["coachingSessionPrices"];
     if (COACHING_SESSION_PRICE_VARIABLES.some((name) => env[name])) {
       const missingPrice = COACHING_SESSION_PRICE_VARIABLES.filter((name) => !env[name]);
       if (missingPrice.length) throw new Error(`Missing environment variable ${missingPrice.join(", ")}`);
+      requirePriceIds(env, COACHING_SESSION_PRICE_VARIABLES);
       coachingSessionPrices = { regular: env.STRIPE_PRICE_COACHING_SESSION!, premium: env.STRIPE_PRICE_COACHING_SESSION_PREMIUM! };
     }
     stripe = {
@@ -42,6 +44,21 @@ export function billingConfigFromEnv(env: Env): BillingConfig {
     baseURL: env.APP_URL || (production ? missingAppUrl() : "http://localhost:3000"),
     stripe,
   };
+}
+
+/**
+ * Stripe Price IDs start with `price_`. A product ID (`prod_…`) is the usual
+ * mix-up, and Stripe would only reject it at the first checkout.
+ */
+function requirePriceIds(env: Env, names: readonly string[]): void {
+  for (const name of names) {
+    const value = env[name]!;
+    if (value.startsWith("price_")) continue;
+    const hint = value.startsWith("prod_")
+      ? " That is a Stripe product ID (prod_…); open the product in Stripe and copy its price's ID instead."
+      : "";
+    throw new Error(`Environment variable ${name} must be a Stripe price ID (starts price_).${hint}`);
+  }
 }
 
 function missingAppUrl(): never {

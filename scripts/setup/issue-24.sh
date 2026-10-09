@@ -184,6 +184,26 @@ finish() {
 # Replace the example below. Set TOTAL_STAGES to match the stages you write.
 # ──────────────────────────────────────────────────────────────────────────
 
+# ask_price KEY "Prompt" is like ask, for a Stripe price ID: it re-asks until
+# the value starts with price_ (or is left empty), and explains the usual
+# mix-up with a product ID (prod_…). Gives up after a few tries.
+ask_price() {
+  local key="$1" prompt="$2" value tries=0
+  while :; do
+    ask "$key" "$prompt"
+    value="${!key}"
+    [[ -z "$value" || "$value" == price_* ]] && return 0
+    if [[ "$value" == prod_* ]]; then
+      warn "That is a product ID (prod_…), not a price ID. A product can have several prices;"
+      warn "open the product in Stripe, click its price, and copy the ID that starts with price_."
+    else
+      warn "A Stripe price ID starts with price_. Copy it from the price's page in Stripe."
+    fi
+    tries=$((tries + 1))
+    (( tries < 5 )) || { warn "No price ID entered; re-run the wizard when you have it."; exit 1; }
+  done
+}
+
 TOTAL_STAGES=3
 
 banner "Jobbbox: Human Coach sessions (issue #24)"
@@ -194,9 +214,9 @@ say "Run scripts/setup/issue-22.sh first if Stripe is not set up yet (secret key
 open_url "https://dashboard.stripe.com/test/products/create"
 step "Create a product named 'Jobbbox Coaching Session' with a ONE-OFF price (not recurring), in EUR."
 step "Save it, open the price and copy its ID (starts price_)."
-ask STRIPE_PRICE_COACHING_SESSION "Paste the regular Coaching Session price ID:"
+ask_price STRIPE_PRICE_COACHING_SESSION "Paste the regular Coaching Session price ID:"
 step "On the same product, add a second one-off EUR price: the discounted Premium amount. Copy its ID."
-ask STRIPE_PRICE_COACHING_SESSION_PREMIUM "Paste the Premium Coaching Session price ID:"
+ask_price STRIPE_PRICE_COACHING_SESSION_PREMIUM "Paste the Premium Coaching Session price ID:"
 if [[ -z "$STRIPE_PRICE_COACHING_SESSION" || -z "$STRIPE_PRICE_COACHING_SESSION_PREMIUM" ]]; then
   warn "Both prices are needed (both or neither); Candidates cannot pay for Coaching Sessions without them."
   SKIPPED+=("STRIPE_PRICE_COACHING_SESSION / STRIPE_PRICE_COACHING_SESSION_PREMIUM in $ENV_FILE")

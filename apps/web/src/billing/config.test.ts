@@ -48,6 +48,26 @@ describe("billing configuration from the environment", () => {
     ).toThrow(/live/);
   });
 
+  it("refuses a Stripe product ID where a price ID is expected, naming the variable", () => {
+    expect(() => billingConfigFromEnv({ DATABASE_URL: "postgres://localhost/x", ...stripeEnv, STRIPE_PRICE_STANDARD: "prod_x" })).toThrow(
+      /STRIPE_PRICE_STANDARD/,
+    );
+  });
+
+  it.each(["STRIPE_PRICE_PREMIUM", "STRIPE_PRICE_COACHING_SESSION", "STRIPE_PRICE_COACHING_SESSION_PREMIUM"])(
+    "refuses a %s that is not a price ID",
+    (variable) => {
+      const env = {
+        DATABASE_URL: "postgres://localhost/x",
+        ...stripeEnv,
+        STRIPE_PRICE_COACHING_SESSION: "price_session",
+        STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_session_premium",
+        [variable]: "prod_x",
+      };
+      expect(() => billingConfigFromEnv(env)).toThrow(new RegExp(`${variable}\\b`));
+    },
+  );
+
   it("takes the Coaching Session Prices, regular and Premium, when both are set", async () => {
     const config = billingConfigFromEnv({
       DATABASE_URL: "postgres://localhost/x",

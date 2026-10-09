@@ -5,6 +5,9 @@ const webOrigin = process.env.WXT_WEB_ORIGIN || "http://localhost:3000";
 
 // One MV3 build for Chrome and Microsoft Edge: only APIs and manifest keys both support.
 export default defineConfig({
+  // Its own dev server port: WXT otherwise prefers 3000, the web app's (webOrigin above),
+  // and whichever dev server started first would take it (#71).
+  dev: { server: { port: 3100 } },
   manifestVersion: 3,
   manifest: {
     name: "__MSG_extName__",

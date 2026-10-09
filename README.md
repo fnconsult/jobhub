@@ -22,7 +22,7 @@ cp .env.example .env          # repo-root .env, read by `npm run dev`, `build`, 
 docker compose up -d          # Postgres (host port 5433) + worker
 npm run db:migrate            # create / upgrade the database tables
 npm run dev                   # web app on http://localhost:3000
-npm run dev -w @jobhub/extension   # extension, with a Chrome dev profile
+npm run dev -w @jobhub/extension   # extension, with a Chrome dev profile; its dev server is on http://localhost:3100
 ```
 
 The `worker` container reads the same repo-root `.env` (AI layer keys and providers, `APP_URL`, …), so Job Searches and job discovery work locally. Its `DATABASE_URL` is overridden to `postgres:5432` inside the compose network. The `.env` is optional: without it the stack still starts, and job discovery is skipped with the reason in the worker log. After editing `.env`, run `docker compose up -d` again to recreate the worker with the new values.

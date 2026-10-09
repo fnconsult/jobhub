@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import type { ApplicationDrafts } from "@/tailored-documents";
 import { OUTREACH_CHANNELS, TAILORED_DOCUMENTS, type OutreachChannel, type TailoredDocumentKind } from "@/tailored-documents/kinds";
 import { mailLink } from "@/tailored-documents/mail-link";
+import { ApplicationExportForm } from "./ApplicationExportForm";
 
 type Status = "drafting" | "drafted" | "saved" | "copied" | "copyFailed" | "required" | "unavailable" | "notAContact" | "error" | null;
 
@@ -217,6 +218,7 @@ function DraftEditor({
               </a>
             ) : null}
           </div>
+          {document === "cover_letter" ? <ApplicationExportForm applicationId={applicationId} document={document} /> : null}
           {channelSelect}
           <p id={`${id}-redraft-hint`} className="hint">
             {t("tailoredDocuments.redraftHint")}

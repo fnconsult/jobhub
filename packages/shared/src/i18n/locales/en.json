@@ -804,6 +804,16 @@
     "pdf": "Download as PDF",
     "docx": "Download as Word (.docx)"
   },
+  "applicationExport": {
+    "tailoredCv": {
+      "title": "Download this tailored CV",
+      "intro": "In the language it is written in. Choose a CV template, then a format."
+    },
+    "coverLetter": {
+      "title": "Download this cover letter",
+      "intro": "The saved text, in the language it is written in, signed with your reference CV's contact details. Choose a template, then a format."
+    }
+  },
   "tailoredDocuments": {
     "title": "Cover letter and outreach message",
     "draftsOnly": "Jobbbox never sends anything for you: copy the text or open it in your mail app, then send it yourself.",

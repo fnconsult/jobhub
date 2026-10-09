@@ -1,8 +1,8 @@
 import type { CvContent, JobOffer, MatchScore } from "@jobhub/shared";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createGuestSession, type SessionStorage } from "./guest-session";
 import type { JobbboxApi, UpgradePrompt } from "./jobbbox-api";
-import { createMatchScoring } from "./match-scoring";
+import { createMatchScoring, SCORE_TIMEOUT_MS } from "./match-scoring";
 
 /** The browser's session storage (chrome.storage.session): in memory, gone when the browser closes. */
 function memoryStorage(): SessionStorage {
@@ -232,5 +232,56 @@ describe("scoring a CV against a Job Offer from the extension", () => {
 
     expect(await scoring().score(jobOffer, cv, { rescore: true })).toMatchObject({ ok: false, error: "quota_exceeded" });
     expect(await scoring().score(jobOffer, cv)).toMatchObject({ ok: true, matchScore: { score: 51 } });
+  });
+
+  describe("when a Match Score never comes", () => {
+    afterEach(() => void vi.useRealTimers());
+    const stalled: Pick<JobbboxApi, "score"> = { score: () => new Promise(() => {}) };
+
+    it("stops waiting for a score request that never answers, after a bounded time, so it can be tried again", async () => {
+      vi.useFakeTimers();
+      const { session } = setUp();
+      await session().keepJobOffer(jobOffer);
+      await session().keepCv(cv);
+      const scored = createMatchScoring({ api: stalled, session: session(), lock: memoryLock() }).score(jobOffer, cv);
+
+      await vi.advanceTimersByTimeAsync(SCORE_TIMEOUT_MS);
+
+      expect(await scored).toEqual({ ok: false, error: "unreachable" });
+    });
+
+    it("lets another page score once a stalled request was given up", async () => {
+      vi.useFakeTimers();
+      const { session } = setUp();
+      await session().keepJobOffer(jobOffer);
+      await session().keepCv(cv);
+      const lock = memoryLock();
+      const givenUp = createMatchScoring({ api: stalled, session: session(), lock }).score(jobOffer, cv);
+      await vi.advanceTimersByTimeAsync(SCORE_TIMEOUT_MS);
+      await givenUp;
+
+      const { api } = matchScoreApi();
+      const next = createMatchScoring({ api, session: session(), lock }).score(jobOffer, cv);
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(await next).toMatchObject({ ok: true, matchScore: { score: 51 } });
+    });
+
+    it("stops waiting for another page's Match Score that never finishes, after a bounded time", async () => {
+      vi.useFakeTimers();
+      const { session } = setUp();
+      await session().keepJobOffer(jobOffer);
+      await session().keepCv(cv);
+      const { api, requests } = matchScoreApi();
+      // Another analysis page holds the lock and never lets it go.
+      const lock = memoryLock();
+      void lock(() => new Promise(() => {}));
+      const waiting = createMatchScoring({ api, session: session(), lock }).score(jobOffer, cv);
+
+      await vi.advanceTimersByTimeAsync(SCORE_TIMEOUT_MS);
+
+      expect(await waiting).toEqual({ ok: false, error: "unreachable" });
+      expect(requests).toHaveLength(0);
+    });
   });
 });

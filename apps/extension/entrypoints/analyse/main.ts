@@ -3,6 +3,7 @@ import { createI18n } from "@jobhub/shared/i18n";
 import type { CvContent, JobOffer } from "@jobhub/shared";
 import { browser } from "wxt/browser";
 import { createApplicationSaving, type ProfileChoice, type SavingFailure, type SavingState } from "../../src/application-saving";
+import { openAnalysisPage } from "../../src/analysis-page";
 import { readCandidateSession } from "../../src/candidate-session";
 import { createGuestSession } from "../../src/guest-session";
 import { createJobbboxApi, type UpgradePrompt } from "../../src/jobbbox-api";
@@ -291,19 +292,12 @@ async function render(message?: Message, changingCv = false, outcome?: SavingSta
   app.replaceChildren(...parts);
 }
 
-await render();
-
-// Back from signing up or in (or out) on the web app: start again as the person now is, in their
-// Interface Language; on sign-up, the Guest's work is kept at once. Checked when the page comes
-// back into view and, as a tab switch is not the only way back, every few seconds while it is in view.
-const SESSION_CHECK_MS = 3_000;
-let reloading = false;
-async function checkSession() {
-  if (reloading || document.visibilityState !== "visible") return;
-  const current = await readCandidateSession(WEB_ORIGIN);
-  if (reloading || current.signedIn === candidate.signedIn) return;
-  reloading = true;
-  location.reload();
-}
-document.addEventListener("visibilitychange", () => void checkSession());
-setInterval(() => void checkSession(), SESSION_CHECK_MS);
+// The session is watched before the first render, which a Match Score waiting on another page's can hold up (#66).
+await openAnalysisPage({
+  signedIn: candidate.signedIn,
+  readSession: () => readCandidateSession(WEB_ORIGIN),
+  reload: () => location.reload(),
+  render: () => render(),
+  document,
+  window,
+});

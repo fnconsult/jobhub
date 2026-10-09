@@ -4,7 +4,7 @@ import { createJobOffers, migrateJobOffers } from "@jobhub/web/job-offers";
 import { createThrowawayDatabase } from "../../web/src/test-support/throwaway-database";
 import type { DiscoverRequest, DiscoveryReport } from "./job-discovery";
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
-import { createJobs, FOLLOW_UPS, JOB_DISCOVERY, type JobsDeps } from "./jobs";
+import { createJobs, FOLLOW_UPS, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -35,7 +35,7 @@ function setup(discover?: (request: DiscoverRequest) => Promise<DiscoveryReport>
         return { jobOffers: [], skipped: [{ url: "https://fr.linkedin.com/jobs/1", reason: "site_terms" }] };
       },
     },
-    jobSearches: { record: async (id, outcome) => void recorded.push([id, outcome]) },
+    jobSearches: { record: async (id, outcome) => void recorded.push([id, outcome]), expireTimedOut: async () => 0 },
     followUps: { proposeDue: async () => {} },
     profiles: {
       async get(candidateId, profileId) {
@@ -109,7 +109,7 @@ describe("the worker without an AI layer", () => {
       database: noDatabase,
       discovery: { unavailable: "Missing environment variable PERPLEXITY_API_KEY" },
       profiles: { get: async () => ({ archived: false, searchCriteria: criteria }) },
-      jobSearches: { record: async (id, outcome) => void recorded.push([id, outcome]) },
+      jobSearches: { record: async (id, outcome) => void recorded.push([id, outcome]), expireTimedOut: async () => 0 },
       followUps: { proposeDue: async () => {} },
       log: (line) => logs.push(line),
     });
@@ -130,7 +130,7 @@ describe("the worker without an AI layer", () => {
 const otherDeps = {
   discovery: { unavailable: "not under test" },
   profiles: { get: async () => null },
-  jobSearches: { record: async () => {} },
+  jobSearches: { record: async () => {}, expireTimedOut: async () => 0 },
   followUps: { proposeDue: async () => {} },
   log: () => {},
 };
@@ -144,6 +144,34 @@ describe("the Follow-ups job", () => {
     expect(job?.cron).toBe("0 6 * * 1-5");
     await job!.handler({});
     expect(runs).toEqual([now]);
+  });
+});
+
+describe("the Job Search timeouts job", () => {
+  it("fails, every 5 minutes, the Job Searches the worker never answered, so they give their use back", async () => {
+    let expired = 0;
+    const logs: string[] = [];
+    const job = createJobs({
+      ...otherDeps,
+      database: noDatabase,
+      jobSearches: { record: async () => {}, expireTimedOut: async () => ++expired },
+      log: (line) => void logs.push(line),
+    })[JOB_SEARCH_TIMEOUTS];
+
+    expect(job?.cron).toBe("*/5 * * * *");
+    await job!.handler({});
+    expect(expired).toBe(1);
+    expect(logs).toEqual(["[job-searches] 1 Job Search(es) timed out, their use given back"]);
+  });
+
+  it("has nothing to expire before the web app has created its tables", async () => {
+    const job = createJobs({
+      ...otherDeps,
+      database: noDatabase,
+      jobSearches: { record: async () => {}, expireTimedOut: async () => Promise.reject(Object.assign(new Error("no table"), { code: "42P01" })) },
+    })[JOB_SEARCH_TIMEOUTS];
+
+    await expect(job!.handler({})).resolves.toBeUndefined();
   });
 });
 

@@ -220,6 +220,33 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       expect(await used()).toBe(1);
     });
 
+    it("a Job Search the worker never answered gives its use back once it is shown as failed", async () => {
+      await started();
+      const forgotten = await started();
+      clock.now = new Date(clock.now.getTime() + 16 * 60 * 1000);
+
+      expect((await jobSearches.get(candidateId, forgotten.id))?.status).toBe("failed");
+      await jobSearches.get(candidateId, forgotten.id);
+
+      expect(await used()).toBe(1);
+    });
+
+    it("Job Searches the worker never answered give their use back when expired, even unseen, once", async () => {
+      const reports = createJobSearchReports(testAuth.auth.options.database as Pool, { quotas: billing, now: () => clock.now });
+      const forgotten = await started();
+      clock.now = new Date(clock.now.getTime() + 10 * 60 * 1000);
+      const recent = await started();
+      clock.now = new Date(clock.now.getTime() + 6 * 60 * 1000);
+
+      expect(await reports.expireTimedOut()).toBe(1);
+      expect(await reports.expireTimedOut()).toBe(0);
+      await reports.record(forgotten.id, { failed: "discovery_failed" });
+
+      expect(await used()).toBe(1);
+      expect((await jobSearches.get(candidateId, forgotten.id))?.status).toBe("failed");
+      expect((await jobSearches.get(candidateId, recent.id))?.status).toBe("searching");
+    });
+
     it("a Job Search already done keeps its use when a failure is reported after", async () => {
       const jobSearch = await started();
       await jobSearches.record(jobSearch.id, { jobOfferIds: [] });

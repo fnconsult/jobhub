@@ -11,11 +11,13 @@
  *      Profile's current Master CV against it, and the Application the Candidate
  *      already has for it, best Match Score first;
  *    - `record` what Job discovery found (or why it could not run): the worker's
- *      side, also alone as `createJobSearchReports(database, { quotas })`.
+ *      side, also alone as `createJobSearchReports(database, { quotas })`, with
+ *      `expireTimedOut`, which the worker runs on a schedule.
  *  - `migrateJobSearches(database)` creates / upgrades the table.
  * Every read is scoped to the Candidate; `start`'s input is untrusted (it comes
  * from the browser) and problems come back as results, never exceptions. A
- * search the worker never answered is shown as failed after SEARCH_TIMEOUT_MS.
+ * search the worker never answered fails ('timeout') after SEARCH_TIMEOUT_MS,
+ * when it is next read or expired, whichever comes first, and gives its use back.
  * Job Searches belong to their Profile and are deleted with it (ADR-0010); the
  * Job Offers they found are kept.
  */
@@ -79,6 +81,15 @@ export interface JobSearches {
   record(jobSearchId: string, outcome: JobSearchOutcome): Promise<void>;
 }
 
+/** The worker's side of Job Searches: Job discovery's reports, and the searches it never answered. */
+export interface JobSearchReports extends Pick<JobSearches, "record"> {
+  /**
+   * Fails ('timeout') every Job Search still searching after SEARCH_TIMEOUT_MS and
+   * gives each one's Plan Quota use back. Returns how many it failed.
+   */
+  expireTimedOut(): Promise<number>;
+}
+
 export interface JobSearchesDeps {
   profiles: Pick<Profiles, "get">;
   jobOffers: Pick<JobOffers, "get">;
@@ -131,7 +142,7 @@ const startSchema = z.object({ profileId: z.string().trim().min(1) });
 export function createJobSearchReports(
   database: Pool,
   { quotas, now = () => new Date() }: { quotas: Pick<JobSearchQuotas, "release">; now?: () => Date },
-): Pick<JobSearches, "record"> {
+): JobSearchReports {
   return {
     async record(jobSearchId, outcome) {
       if (!UUID.test(jobSearchId)) return;
@@ -145,16 +156,30 @@ export function createJobSearchReports(
       );
       if (!done && rows[0]) await quotas.release(rows[0].candidate_id, "jobSearches");
     },
+    async expireTimedOut() {
+      const { rows } = await database.query<{ candidate_id: string }>(
+        `UPDATE job_search SET status = 'failed', failure = 'timeout', finished_at = $1
+         WHERE status = 'searching' AND started_at < $2
+         RETURNING candidate_id`,
+        [now(), new Date(now().getTime() - SEARCH_TIMEOUT_MS)],
+      );
+      for (const { candidate_id } of rows) await quotas.release(candidate_id, "jobSearches");
+      return rows.length;
+    },
   };
 }
 
 export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSearches {
   const now = deps.now ?? (() => new Date());
+  const { record } = createJobSearchReports(database, { quotas: deps.quotas, now });
+
 
   async function jobSearchFrom(candidateId: string, row: JobSearchRow): Promise<JobSearch | null> {
     const profile = await deps.profiles.get(candidateId, row.profile_id);
     if (!profile) return null;
     const timedOut = row.status === "searching" && now().getTime() - row.started_at.getTime() > SEARCH_TIMEOUT_MS;
+    // Failing it for real (not only showing it failed) is what gives its Plan Quota use back.
+    if (timedOut) await record(row.id, { failed: "timeout" });
     const status = timedOut ? "failed" : row.status;
 
     let results: JobSearchResult[] = [];
@@ -185,8 +210,6 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
     );
     return rows[0] ? jobSearchFrom(candidateId, rows[0]) : null;
   }
-
-  const { record } = createJobSearchReports(database, { quotas: deps.quotas, now });
 
   return {
     async start(candidateId, input) {

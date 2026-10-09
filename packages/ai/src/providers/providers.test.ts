@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { AiProviderError } from "../errors";
 import { createAnthropicProvider } from "./anthropic";
 import { createMistralProvider, createOpenAiProvider } from "./chat-completions";
@@ -211,8 +211,13 @@ describe("OpenAI provider", () => {
   });
 });
 
-/** A Perplexity Agent API (`POST /v1/responses`) answer to a web search, in the documented shape. */
+/**
+ * A Perplexity Agent API (`POST /v1/responses`) answer to a web search. HAND-WRITTEN
+ * from the API reference and the 'fast' preset's documented model, not recorded:
+ * perplexity.live.test.ts records a real one (…recorded.json), checked below when present.
+ */
 const perplexityReply = JSON.parse(readFileSync(new URL("./fixtures/perplexity-responses-search.json", import.meta.url), "utf8"));
+const recordedReplyUrl = new URL("./fixtures/perplexity-responses-search.recorded.json", import.meta.url);
 
 describe("Perplexity provider", () => {
   it("searches the web through the Agent API with nothing but the query", async () => {
@@ -269,6 +274,17 @@ describe("Perplexity provider", () => {
   it("raises a provider error on an HTTP failure, such as the retired endpoint's 403", async () => {
     const { fetch } = fakeFetch({ error: { code: "chat_completions_not_available", message: "Use /v1/responses" } }, 403);
     await expect(createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", {})).rejects.toMatchObject({ provider: "perplexity", status: 403 });
+  });
+
+  it.skipIf(!existsSync(recordedReplyUrl))("reads the answer, sources and usage of a reply recorded from the live API", async () => {
+    const { fetch } = fakeFetch(JSON.parse(readFileSync(recordedReplyUrl, "utf8")));
+
+    const output = await createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", {});
+
+    expect(output.answer.trim()).not.toBe("");
+    expect(output.sources.length).toBeGreaterThan(0);
+    expect(output.usage.inputTokens).toBeGreaterThan(0);
+    expect(output.usage.outputTokens).toBeGreaterThan(0);
   });
 
   it("raises a provider error when a 200 response is not JSON", async () => {

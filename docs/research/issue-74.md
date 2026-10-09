@@ -25,6 +25,17 @@ Source: https://docs.perplexity.ai/api-reference/responses-post
 - Check `status` is `completed` (HTTP 200 can still carry `failed`/`incomplete`); treat others as search failure.
 - Errors: 400 body `{ "error": { "code", "message", "type" } }`.
 
-## Not verified
-- Exact rate limits, default model recommendation, and whether `max_steps: 1` still performs a search. Confirm with one live call using a real key (acceptance check in the issue).
-- Exact fixture bytes: record a real `/v1/agent` response rather than hand-writing one.
+## Presets
+Source: https://docs.perplexity.ai/docs/agent-api/presets (fetched 2026-10-09)
+- `fast`: model `openai/gpt-6-luna`, `web_search` (`search_type: "fast"`), no other tool, `max_steps` 1. So the preset itself is a web-search setup; the fixture's `model` matches it.
+- Fields passed alongside a preset override its defaults (`model`, `max_steps`, `max_output_tokens`). `tools` merge per tool: our `[{ "type": "web_search" }]` keeps the preset's web search, it does not replace the set.
+
+## Checked against the live API
+- 2026-10-09, with an invalid key: `POST https://api.perplexity.ai/v1/responses` answers 401 `invalid_api_key` (the route exists; the live test goes red on any 4xx).
+
+## Not verified (needs a real key)
+- That `preset: "fast"` + our request completes with `status: "completed"` and real sources, and which `AI_WEB_SEARCH_MODEL` values are accepted. Run the live contract test:
+  `PERPLEXITY_LIVE=1 PERPLEXITY_API_KEY=... npx vitest run packages/ai/src/providers/perplexity.live.test.ts`
+  (add `AI_WEB_SEARCH_MODEL=provider/model` to check a configured model). It sends exactly what `searchWeb` sends.
+- Exact fixture bytes: `fixtures/perplexity-responses-search.json` is hand-written from the reference. The live test saves the real reply as `fixtures/perplexity-responses-search.recorded.json`, which `providers.test.ts` then also parses; commit it.
+- Exact rate limits.

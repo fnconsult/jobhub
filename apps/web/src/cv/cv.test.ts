@@ -1,6 +1,6 @@
-import { createAiLayer, type AiLayer } from "@jobhub/ai";
+import { AiConfigError, createAiLayer, type AiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { draftFromCv } from "./index";
 import { CvFileError } from "./index";
 import { PROFILE_NAME_MAX_LENGTH } from "../profiles/limits";
@@ -16,7 +16,7 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
   it("reads a PDF CV into sections when the AI reply is unusable", async () => {
     const { ai } = aiReplying("désolé, je ne peux pas");
 
-    const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai, candidateId: "c1" });
+    const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai: () => ai, candidateId: "c1" });
 
     expect(draft.masterCv).toMatchObject({
       fullName: "Marie Dupont",
@@ -67,7 +67,7 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
       "Voile, course à pied",
     ];
 
-    const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(lines) }, { ai, candidateId: "c1" });
+    const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(lines) }, { ai: () => ai, candidateId: "c1" });
 
     expect(draft.masterCv).toMatchObject({
       location: "Nantes",
@@ -80,9 +80,9 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
 
   it("reads a Word (.docx) CV the same way as a PDF", async () => {
     const { ai } = aiReplying("pas du JSON");
-    const fromPdf = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai, candidateId: "c1" });
+    const fromPdf = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai: () => ai, candidateId: "c1" });
 
-    const fromDocx = await draftFromCv({ name: "Mon CV.DOCX", bytes: await docxCv(MARIE_DUPONT_CV) }, { ai, candidateId: "c1" });
+    const fromDocx = await draftFromCv({ name: "Mon CV.DOCX", bytes: await docxCv(MARIE_DUPONT_CV) }, { ai: () => ai, candidateId: "c1" });
 
     expect(fromDocx).toEqual(fromPdf);
   });
@@ -93,7 +93,7 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
     it("notes a picture on a PDF CV, an icon aside", async () => {
       const { ai } = aiReplying("pas du JSON");
       const read = async (picture?: { width: number; height: number }) =>
-        (await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV, { picture }) }, { ai, candidateId: "c1" })).masterCv;
+        (await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV, { picture }) }, { ai: () => ai, candidateId: "c1" })).masterCv;
 
       expect((await read(portrait)).photo).toBe(true);
       expect((await read({ width: 16, height: 16 })).photo).toBeUndefined();
@@ -103,7 +103,7 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
     it("notes a picture in a Word CV", async () => {
       const { ai } = aiReplying("pas du JSON");
 
-      const draft = await draftFromCv({ name: "cv.docx", bytes: await docxCv(MARIE_DUPONT_CV, { photo: true }) }, { ai, candidateId: "c1" });
+      const draft = await draftFromCv({ name: "cv.docx", bytes: await docxCv(MARIE_DUPONT_CV, { photo: true }) }, { ai: () => ai, candidateId: "c1" });
 
       expect(draft.masterCv.photo).toBe(true);
       expect(draft.masterCv.fullName).toBe("Marie Dupont");
@@ -112,7 +112,7 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
     it("notes it whether the AI Coach or the rules read the CV", async () => {
       const { ai } = aiReplying(JSON.stringify({ masterCv: { fullName: "Marie Dupont", photo: false } }));
 
-      const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV, { picture: portrait }) }, { ai, candidateId: "c1" });
+      const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV, { picture: portrait }) }, { ai: () => ai, candidateId: "c1" });
 
       expect(draft.masterCv).toMatchObject({ fullName: "Marie Dupont", photo: true });
     });
@@ -125,7 +125,7 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
   ])("refuses %s as an unsupported format", async (_, name, bytes) => {
     const { ai, provider } = aiReplying("{}");
 
-    const drafting = draftFromCv({ name, bytes }, { ai, candidateId: "c1" });
+    const drafting = draftFromCv({ name, bytes }, { ai: () => ai, candidateId: "c1" });
 
     await expect(drafting).rejects.toThrow(CvFileError);
     await expect(drafting).rejects.toMatchObject({ code: "unsupported_format" });
@@ -136,13 +136,13 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
     const { ai } = aiReplying("{}");
     const damaged = pdfCv(MARIE_DUPONT_CV).slice(0, 40);
 
-    await expect(draftFromCv({ name: "cv.pdf", bytes: damaged }, { ai, candidateId: "c1" })).rejects.toMatchObject({ code: "unreadable" });
+    await expect(draftFromCv({ name: "cv.pdf", bytes: damaged }, { ai: () => ai, candidateId: "c1" })).rejects.toMatchObject({ code: "unreadable" });
   });
 
   it("refuses a PDF with no text (a scanned CV) as empty", async () => {
     const { ai } = aiReplying("{}");
 
-    await expect(draftFromCv({ name: "scan.pdf", bytes: pdfCv([]) }, { ai, candidateId: "c1" })).rejects.toMatchObject({ code: "empty" });
+    await expect(draftFromCv({ name: "scan.pdf", bytes: pdfCv([]) }, { ai: () => ai, candidateId: "c1" })).rejects.toMatchObject({ code: "empty" });
   });
 
   it("refuses a file over 10 MB", async () => {
@@ -150,7 +150,7 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
     const huge = new Uint8Array(10 * 1024 * 1024 + 1);
     huge.set([0x25, 0x50, 0x44, 0x46]);
 
-    await expect(draftFromCv({ name: "cv.pdf", bytes: huge }, { ai, candidateId: "c1" })).rejects.toMatchObject({ code: "too_large" });
+    await expect(draftFromCv({ name: "cv.pdf", bytes: huge }, { ai: () => ai, candidateId: "c1" })).rejects.toMatchObject({ code: "too_large" });
   });
 
   describe("read by the AI Coach", () => {
@@ -173,7 +173,7 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
     it("uses the AI Coach's reading of the CV, sent through the cv_parsing task for the Candidate", async () => {
       const { ai, provider } = aiReplying(JSON.stringify(aiReading));
 
-      const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai, candidateId: "cand-42" });
+      const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai: () => ai, candidateId: "cand-42" });
 
       expect(draft).toEqual(aiReading);
       expect(provider.calls).toHaveLength(1);
@@ -183,7 +183,7 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
     it("reads a Guest's CV by rules alone: it is not sent to an AI provider without an account (ADR-0003)", async () => {
       const { ai, provider } = aiReplying(JSON.stringify(aiReading));
 
-      const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai, candidateId: null });
+      const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai: () => ai, candidateId: null });
 
       expect(provider.calls).toHaveLength(0);
       expect(draft.masterCv).toMatchObject({ fullName: "Marie Dupont", skills: ["Consolidation", "IFRS", "SAP", "Management d'équipe"] });
@@ -194,7 +194,7 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
       const longRole = `${"Responsable ".repeat(12)}financier`;
       const { ai } = aiReplying(JSON.stringify({ ...aiReading, searchCriteria: { targetRole: longRole, location: "Lyon" } }));
 
-      const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai, candidateId: "c1" });
+      const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai: () => ai, candidateId: "c1" });
 
       expect(draft.searchCriteria.targetRole.length).toBeLessThanOrEqual(PROFILE_NAME_MAX_LENGTH);
       expect(draft.searchCriteria.targetRole).toBe("Responsable ".repeat(10).trim());
@@ -203,7 +203,7 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
     it("accepts a reading wrapped in a Markdown code block, and fills what it leaves out with empty fields", async () => {
       const { ai } = aiReplying('Voici le CV :\n```json\n{"masterCv": {"fullName": "Marie Dupont", "skills": ["IFRS", 3]}}\n```');
 
-      const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai, candidateId: "c1" });
+      const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai: () => ai, candidateId: "c1" });
 
       expect(draft).toEqual({
         masterCv: {
@@ -229,10 +229,28 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
       };
       const ai = createAiLayer({ providers: [provider], routes: { cv_parsing: "anthropic" }, usage: createMemoryUsageLog() });
 
-      const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai, candidateId: "c1" });
+      const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai: () => ai, candidateId: "c1" });
 
       expect(draft.masterCv.fullName).toBe("Marie Dupont");
       expect(draft.masterCv.experience).toHaveLength(2);
+    });
+
+    it("falls back to the rule-based reading, with one warning naming the missing setting, when the AI configuration is invalid", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const ai = () => {
+        throw new AiConfigError("Missing environment variable MISTRAL_API_KEY");
+      };
+
+      try {
+        const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai, candidateId: "c1" });
+
+        expect(draft.masterCv.fullName).toBe("Marie Dupont");
+        expect(draft.masterCv.experience).toHaveLength(2);
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(String(warn.mock.calls[0])).toContain("MISTRAL_API_KEY");
+      } finally {
+        warn.mockRestore();
+      }
     });
   });
 });

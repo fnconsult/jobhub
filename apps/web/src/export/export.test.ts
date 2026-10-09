@@ -43,7 +43,7 @@ async function readBack(file: { fileName: string; bytes: Uint8Array }): Promise<
     routes: { cv_parsing: "anthropic" },
     usage: createMemoryUsageLog(),
   });
-  return (await draftFromCv({ name: file.fileName, bytes: file.bytes }, { ai, candidateId: "c1" })).masterCv;
+  return (await draftFromCv({ name: file.fileName, bytes: file.bytes }, { ai: () => ai, candidateId: "c1" })).masterCv;
 }
 
 describe("exporting a CV", () => {

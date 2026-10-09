@@ -774,6 +774,41 @@ test.describe("Guest Capture and Match Score", () => {
     await web.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
   });
 
+  test("a Guest who signs up in another tab while the analysis page is still waiting on a Match Score keeps their work, without reopening it (#66)", async () => {
+    const analysis = await captureFromBadge(postingUrl);
+    await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
+    await analysis.getByRole("button", { name: fr.analysis.submit }).click();
+    await expect(analysis.getByText(scoreLine)).toBeVisible();
+
+    // Another page of the extension holds the Match Score's lock and never lets it go: the analysis
+    // page, opened again, never finishes its first render.
+    const holder = await context.newPage();
+    await holder.goto(`chrome-extension://${extensionId()}/popup.html`);
+    await holder.evaluate(() => {
+      void navigator.locks.request("jobbbox-match-score", () => new Promise(() => {}));
+    });
+    await analysis.reload();
+    await expect(analysis.getByText(fr.analysis.scoring)).toBeVisible();
+
+    try {
+      // The page shows no sign-up link yet: the Guest signs up on the web app, in another tab.
+      const web = await context.newPage();
+      await web.goto(`${origin}/connexion`);
+      await signInWithMagicLink(web, newAddress("guest-sign-up-stalled"));
+
+      await analysis.bringToFront();
+      await expect(analysis.getByText(fr.analysis.saved)).toBeVisible({ timeout: 15_000 });
+      const link = analysis.getByRole("link", { name: fr.analysis.openApplication });
+      const application = await applicationIn(web, (await link.getAttribute("href"))!);
+      expect(application.status).toBe("to_apply");
+      const profiles = await (await web.request.get(`${origin}/api/profiles`)).json();
+      expect(profiles).toEqual([{ id: application.profile.id, name: application.profile.name }]);
+      await web.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
+    } finally {
+      await holder.close();
+    }
+  });
+
   /** The web app shows the Application "À postuler", and the Profile's Master CV, version 1, read from the Guest's CV. */
   const expectSavedInWebApp = async (web: Page, applicationLink: string, profileId: string) => {
     await web.goto(new URL(applicationLink).pathname);

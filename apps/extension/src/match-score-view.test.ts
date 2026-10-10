@@ -1,7 +1,7 @@
 import type { MatchScore } from "@jobhub/shared";
 import { createI18n } from "@jobhub/shared/i18n";
 import { describe, expect, it } from "vitest";
-import { describeMatchScore } from "./match-score-view";
+import { describeMatchScore, describeRescore } from "./match-score-view";
 
 /** Plain spaces for the narrow no-break spaces Intl puts in amounts ("90 000 €"). */
 const plain = <T>(value: T): T => JSON.parse(JSON.stringify(value).replace(/[\u202f\u00a0]/g, " "));
@@ -70,5 +70,25 @@ describe("a Match Score, as the Guest reads it", () => {
       status: "Ne correspond pas",
       details: ["L'offre : à partir de 60 000 € brut par an", "Votre minimum : 80 000 € brut par an"],
     });
+  });
+});
+
+describe("a rescore, as the Candidate is told of it (#76)", () => {
+  const at = new Date(2026, 9, 10, 14, 32);
+
+  it("confirms when the Match Score was computed again, and that it did not change", () => {
+    expect(describeRescore({ previous: matchScore, current: matchScore, at }, createI18n("fr"))).toBe("Match Score recalculé à 14:32 : inchangé.");
+  });
+
+  it("confirms when the Match Score was computed again, and what it was before", () => {
+    expect(describeRescore({ previous: matchScore, current: { ...matchScore, score: 80 }, at }, createI18n("fr"))).toBe("Match Score recalculé à 14:32 (avant : 72 / 100).");
+  });
+
+  it("confirms the rescore when there was no Match Score to compare with", () => {
+    expect(describeRescore({ current: matchScore, at }, createI18n("fr"))).toBe("Match Score recalculé à 14:32.");
+  });
+
+  it("speaks the Interface Language", () => {
+    expect(describeRescore({ previous: matchScore, current: matchScore, at }, createI18n("en"))).toBe("Match Score recalculated at 2:32 PM: unchanged.");
   });
 });

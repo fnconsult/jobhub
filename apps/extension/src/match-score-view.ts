@@ -64,3 +64,14 @@ export function describeMatchScore(matchScore: MatchScore, { t, language }: I18n
     }),
   };
 }
+
+/**
+ * What a rescore came to, so the Candidate sees it happened even when the value is the same (#76):
+ * when it was computed, and whether the score changed from the one shown before, if any.
+ */
+export function describeRescore({ previous, current, at }: { previous?: MatchScore; current: MatchScore; at: Date }, { t, language }: I18n): string {
+  const time = new Intl.DateTimeFormat(language, { timeStyle: "short" }).format(at);
+  if (!previous) return t("extension.analysis.rescored", { time });
+  if (previous.score === current.score) return t("extension.analysis.rescoredUnchanged", { time });
+  return t("extension.analysis.rescoredFrom", { time, score: previous.score });
+}

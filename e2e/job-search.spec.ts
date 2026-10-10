@@ -1,8 +1,10 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdirSync, rmSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
+import pg from "pg";
+import { PgBoss } from "pg-boss";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
@@ -16,6 +18,8 @@ const origin = process.env.E2E_WEB_ORIGIN!;
 const databaseUrl = process.env.E2E_DATABASE_URL!;
 const tag = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const workDir = path.join(os.tmpdir(), `jobhub-e2e-job-search-${tag}`);
+/** While this file exists, the faked Perplexity fails every web search (e2e/support/fake-job-sites.mjs). */
+const searchDownFlag = path.join(workDir, "perplexity-down");
 
 const masterCv = {
   fullName: "Bérénice Castafiore",
@@ -56,6 +60,7 @@ function startWorker() {
       PERPLEXITY_API_KEY: "e2e-perplexity-key",
       E2E_DISCOVERY_TAG: tag,
       E2E_DISCOVERY_LOG: path.join(workDir, "requests.jsonl"),
+      E2E_SEARCH_DOWN_FLAG: searchDownFlag,
       NODE_OPTIONS: `--import=${path.resolve("e2e/support/fake-job-sites.mjs")}`,
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -69,6 +74,27 @@ async function signInWithProfile(page: Page): Promise<string> {
   expect(created.status(), await created.text()).toBe(201);
   return (await created.json()).id as string;
 }
+
+async function candidateIdOf(page: Page): Promise<string> {
+  return (await (await page.request.get("/api/auth/get-session")).json()).user.id as string;
+}
+
+/** This month's Job Searches as /abonnement shows them, e.g. "1 sur 3". */
+async function jobSearchesUsed(page: Page): Promise<string> {
+  await page.goto("/abonnement");
+  return (await page.locator("dl > div").filter({ has: page.getByText("Recherches d'offres", { exact: true }) }).locator("dd").innerText()).trim();
+}
+
+/** Clicks "Chercher des offres" on the Profile page and returns the Job Search's id once on its page. */
+async function searchFromProfile(page: Page, profileId: string): Promise<string> {
+  await page.goto(`/profils/${profileId}`);
+  await page.getByRole("button", { name: "Chercher des offres", exact: true }).click();
+  await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
+  return new URL(page.url()).pathname.split("/").pop()!;
+}
+
+/** The worker's "failed" report lines for this Profile's Job discovery runs. */
+const failedRuns = (profileId: string) => workerOutput.split("\n").filter((line) => line.startsWith(`[job-discovery] profile ${profileId}: failed`)).length;
 
 /** The Match Scores shown on a Job Search page, top to bottom. */
 async function shownScores(page: Page): Promise<number[]> {
@@ -135,6 +161,80 @@ test.describe("On-demand AI Coach job search", () => {
     await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Offres trouvées pour « ${searchCriteria.targetRole} »`);
     await expect(page.getByText(/^Score de correspondance : \d+ \/ 100$/).first()).toBeVisible({ timeout: 90_000 });
+  });
+
+  // Issue #74: only a Job Search that can run counts against the Plan Quota.
+  test("a Job Search that finds Job Offers uses one Job Search of the Plan Quota", async ({ page }) => {
+    const profileId = await signInWithProfile(page);
+    expect(await jobSearchesUsed(page)).toBe("0 sur 3");
+
+    await searchFromProfile(page, profileId);
+    const results = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2 }) });
+    await expect(results, workerOutput).toHaveCount(2, { timeout: 90_000 });
+
+    expect(await jobSearchesUsed(page)).toBe("1 sur 3");
+  });
+
+  test("a Job Search the worker records as failed gives its use back, once, even if reported failed again", async ({ page }) => {
+    const profileId = await signInWithProfile(page);
+    const candidateId = await candidateIdOf(page);
+    // One search that works, so the count has something to lose if a failure were given back twice.
+    await searchFromProfile(page, profileId);
+    await expect(page.getByText(/^Score de correspondance : \d+ \/ 100$/).first(), workerOutput).toBeVisible({ timeout: 90_000 });
+    expect(await jobSearchesUsed(page)).toBe("1 sur 3");
+
+    writeFileSync(searchDownFlag, "");
+    try {
+      const jobSearchId = await searchFromProfile(page, profileId);
+      await expect(page.getByText("La recherche n'a pas abouti. Réessayez dans quelques instants."), workerOutput).toBeVisible({ timeout: 90_000 });
+      await expect.poll(() => failedRuns(profileId), { message: workerOutput }).toBe(1);
+      expect(await jobSearchesUsed(page)).toBe("1 sur 3");
+
+      // The same Job discovery runs again (a redelivered job) and fails again: nothing more is given back.
+      const boss = new PgBoss({ connectionString: databaseUrl });
+      await boss.start();
+      try {
+        await boss.send("job-discovery.run", { candidateId, profileId, jobSearchId });
+      } finally {
+        await boss.stop({ graceful: false });
+      }
+      await expect.poll(() => failedRuns(profileId), { timeout: 60_000, message: workerOutput }).toBe(2);
+      expect(await jobSearchesUsed(page)).toBe("1 sur 3");
+      await page.goto(`/recherches/${jobSearchId}`);
+      await expect(page.getByText("La recherche n'a pas abouti. Réessayez dans quelques instants.")).toBeVisible();
+    } finally {
+      rmSync(searchDownFlag, { force: true });
+    }
+  });
+
+  test("a Job Search that cannot be queued for the worker shows as failed and leaves the Plan Quota unchanged", async ({ page }) => {
+    const profileId = await signInWithProfile(page);
+    const candidateId = await candidateIdOf(page);
+    expect(await jobSearchesUsed(page)).toBe("0 sur 3");
+
+    // The job queue refuses this Candidate's Job discovery, as an unreachable queue would.
+    const trigger = `e2e_refuse_${tag}`;
+    const client = new pg.Client({ connectionString: databaseUrl });
+    await client.connect();
+    try {
+      await client.query(`
+        CREATE FUNCTION pgboss.${trigger}() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN
+          IF NEW.name = 'job-discovery.run' AND NEW.data->>'candidateId' = '${candidateId}' THEN
+            RAISE EXCEPTION 'e2e: job queue unavailable';
+          END IF;
+          RETURN NEW;
+        END $$;
+        CREATE TRIGGER ${trigger} BEFORE INSERT ON pgboss.job FOR EACH ROW EXECUTE FUNCTION pgboss.${trigger}();
+      `);
+
+      await searchFromProfile(page, profileId);
+      await expect(page.getByText("La recherche n'a pas abouti. Réessayez dans quelques instants.")).toBeVisible();
+      expect(await jobSearchesUsed(page)).toBe("0 sur 3");
+    } finally {
+      await client.query(`DROP TRIGGER IF EXISTS ${trigger} ON pgboss.job; DROP FUNCTION IF EXISTS pgboss.${trigger}();`);
+      await client.end();
+    }
   });
 
   test("stops a Free Candidate at the Plan Quota of Job Searches with an Upgrade Prompt, without searching", async ({ page }) => {

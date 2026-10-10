@@ -136,6 +136,10 @@ _Avoid_: Scrape, import, clip
 The AI Coach's search of the web for Job Offers matching a Profile's Search Criteria. Contrast with Capture, which starts from a page the person is viewing.
 _Avoid_: Scraping, crawling (alone)
 
+**Job Search**:
+One run of Job discovery that a Candidate starts for a Profile, and its outcome: searching, done or failed. It counts one against the Plan Quota, and the use is given back if the search fails or times out. A search nobody has finished after 15 minutes is failed.
+_Avoid_: Search (alone, ambiguous with Search Criteria)
+
 **Forbidden site**:
 A site whose terms forbid crawling (LinkedIn, Indeed, Glassdoor). Job discovery never fetches it; only Capture covers it.
 

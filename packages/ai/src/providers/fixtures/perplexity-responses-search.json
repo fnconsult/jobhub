@@ -1,0 +1,79 @@
+{
+  "id": "resp_0c6f7a1e-5b0d-4e8b-9a43-2f1d8c9e7b10",
+  "object": "response",
+  "created_at": 1791547200,
+  "completed_at": 1791547206,
+  "status": "completed",
+  "model": "openai/gpt-6-luna",
+  "error": null,
+  "output": [
+    {
+      "type": "search_results",
+      "queries": ["Offres d'emploi DAF Lyon CDI"],
+      "results": [
+        {
+          "id": 1,
+          "url": "https://carrieres.acme-industrie.example/offres/daf-lyon",
+          "title": "Directeur administratif et financier (H/F) - Lyon",
+          "snippet": "Acme Industrie recrute son DAF en CDI, poste basé à Lyon.",
+          "date": "2026-10-02",
+          "last_updated": "2026-10-05",
+          "source": "web"
+        },
+        {
+          "id": 2,
+          "url": "https://www.cadremploi.example/emploi/daf-lyon-123",
+          "title": "DAF groupe industriel - Lyon (69)",
+          "snippet": "Groupe industriel lyonnais, 500 salariés, recherche son DAF.",
+          "date": "2026-09-28",
+          "last_updated": "2026-09-30",
+          "source": "web"
+        },
+        {
+          "id": 3,
+          "url": "https://carrieres.acme-industrie.example/offres/daf-lyon",
+          "title": "Directeur administratif et financier (H/F) - Lyon",
+          "snippet": "Acme Industrie recrute son DAF en CDI.",
+          "date": "2026-10-02",
+          "last_updated": "2026-10-05",
+          "source": "web"
+        }
+      ]
+    },
+    {
+      "type": "message",
+      "id": "msg_7d2b0c4a",
+      "status": "completed",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "Deux offres de DAF en CDI à Lyon : Acme Industrie [1] et un groupe industriel [2].",
+          "annotations": [
+            { "type": "url_citation", "url": "https://carrieres.acme-industrie.example/offres/daf-lyon", "title": "Directeur administratif et financier (H/F) - Lyon", "start_index": 51, "end_index": 54 },
+            { "type": "url_citation", "url": "https://www.apec.example/offre/daf-lyon-456", "title": "DAF - Lyon", "start_index": 78, "end_index": 81 }
+          ]
+        },
+        {
+          "type": "output_text",
+          "text": " Les deux sont publiées depuis moins de deux semaines.",
+          "annotations": []
+        }
+      ]
+    }
+  ],
+  "usage": {
+    "input_tokens": 812,
+    "output_tokens": 64,
+    "total_tokens": 876,
+    "input_tokens_details": { "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0 },
+    "cost": {
+      "input_cost": 0.0000812,
+      "output_cost": 0.000032,
+      "tool_calls_cost": 0.001,
+      "total_cost": 0.0011132,
+      "currency": "USD"
+    },
+    "tool_calls_details": { "web_search": { "invocation": 1, "cost_usd": 0.001 } }
+  }
+}

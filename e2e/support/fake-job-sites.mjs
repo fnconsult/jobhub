@@ -12,10 +12,12 @@
 // Every request the worker sends is appended, as one JSON line
 // { url, method, headers, body }, to E2E_DISCOVERY_LOG, so the test can check
 // what left the worker and what was never requested. Nothing reaches the network.
-import { appendFileSync } from "node:fs";
+import { appendFileSync, existsSync } from "node:fs";
 
 const tag = process.env.E2E_DISCOVERY_TAG ?? "local";
 const logFile = process.env.E2E_DISCOVERY_LOG;
+// While this file exists, Perplexity is down: every web search fails (HTTP 503).
+const searchDownFlag = process.env.E2E_SEARCH_DOWN_FLAG;
 
 /** The posting the careers site publishes as JobPosting JSON-LD (and the mirror site copies). */
 const jsonLdPosting = {
@@ -121,13 +123,18 @@ export const RESULT_PAGES = [
   `https://miroir-e2e.example/offre/daf-${tag}`,
 ];
 
+/** Perplexity's Agent API (POST /v1/responses) answering a web search. */
 function perplexity() {
   return Response.json({
     id: "pplx_e2e",
-    model: "sonar",
-    choices: [{ index: 0, message: { role: "assistant", content: "Voici des offres." }, finish_reason: "stop" }],
-    search_results: RESULT_PAGES.map((url) => ({ url, title: "Offre" })),
-    usage: { prompt_tokens: 20, completion_tokens: 40 },
+    object: "response",
+    status: "completed",
+    model: "openai/gpt-6-luna",
+    output: [
+      { type: "search_results", queries: ["e2e"], results: RESULT_PAGES.map((url, id) => ({ id, url, title: "Offre", snippet: "" })) },
+      { type: "message", role: "assistant", status: "completed", content: [{ type: "output_text", text: "Voici des offres.", annotations: [] }] },
+    ],
+    usage: { input_tokens: 20, output_tokens: 40, total_tokens: 60 },
   });
 }
 
@@ -162,7 +169,10 @@ globalThis.fetch = async (input, init = {}) => {
     );
   }
 
-  if (url.origin === "https://api.perplexity.ai") return perplexity();
+  if (url.origin === "https://api.perplexity.ai") {
+    if (searchDownFlag && existsSync(searchDownFlag)) return Response.json({ error: { message: "e2e: Perplexity is down" } }, { status: 503 });
+    return perplexity();
+  }
   if (url.origin === "https://api.mistral.ai") return mistral(JSON.parse(body || "{}"));
 
   const site = sites[url.hostname];

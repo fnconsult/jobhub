@@ -1,18 +1,15 @@
 /**
- * Mistral, OpenAI and Perplexity all speak the chat-completions wire format,
- * so one small fetch client serves the three adapters.
+ * Mistral and OpenAI both speak the chat-completions wire format,
+ * so one small fetch client serves the two adapters.
  */
 import { AiProviderError } from "../errors";
-import type { AiProvider, ProviderId, SearchOutput, TextInput, TextOutput, TokenUsage } from "../types";
+import type { AiProvider, ProviderId, TextInput, TextOutput, TokenUsage } from "../types";
+import { postJson } from "./http";
 
 interface ChatCompletion {
   model: string;
   choices: { message: { content: string | null } }[];
   usage?: { prompt_tokens?: number; completion_tokens?: number };
-  /** Perplexity: current shape. */
-  search_results?: { url: string }[];
-  /** Perplexity: older shape. */
-  citations?: string[];
 }
 
 interface ChatClientOptions {
@@ -23,28 +20,8 @@ interface ChatClientOptions {
 }
 
 async function postChat(options: ChatClientOptions, body: Record<string, unknown>): Promise<ChatCompletion> {
-  const fetch = options.fetch ?? globalThis.fetch;
-  let response: Response;
-  try {
-    response = await fetch(`${options.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${options.apiKey}` },
-      body: JSON.stringify(body),
-    });
-  } catch (error) {
-    throw new AiProviderError(options.provider, "network error", undefined, { cause: error });
-  }
-  if (!response.ok) {
-    const detail = (await response.text().catch(() => "")).slice(0, 300);
-    throw new AiProviderError(options.provider, `HTTP ${response.status} ${detail}`.trim(), response.status);
-  }
-  let completion: ChatCompletion;
-  try {
-    completion = (await response.json()) as ChatCompletion;
-  } catch (error) {
-    throw new AiProviderError(options.provider, "response is not valid JSON", response.status, { cause: error });
-  }
-  if (!completion?.choices?.[0]) throw new AiProviderError(options.provider, "response has no choices", response.status);
+  const completion = await postJson<ChatCompletion>(options, `${options.baseUrl}/chat/completions`, body);
+  if (!completion?.choices?.[0]) throw new AiProviderError(options.provider, "response has no choices", 200);
   return completion;
 }
 
@@ -102,22 +79,6 @@ export function createOpenAiProvider(options: OpenAiProviderOptions): AiProvider
         messages: chatMessages(input),
       });
       return { text: completion.choices[0]!.message.content ?? "", model: completion.model, usage: usageOf(completion) };
-    },
-  };
-}
-
-/** Perplexity: web search only (ADR-0002, ADR-0007). It has no text generation on purpose. */
-export function createPerplexityProvider(options: TextProviderOptions): AiProvider {
-  const client = { provider: "perplexity" as const, baseUrl: "https://api.perplexity.ai", apiKey: options.apiKey, fetch: options.fetch };
-  const defaultModel = options.defaultModel ?? "sonar";
-  return {
-    id: "perplexity",
-    endpoint: "api.perplexity.ai",
-    residency: "outside_eu",
-    async search(query, { model }): Promise<SearchOutput> {
-      const completion = await postChat(client, { model: model ?? defaultModel, messages: [{ role: "user", content: query }] });
-      const sources = completion.search_results?.map((result) => result.url) ?? completion.citations ?? [];
-      return { answer: completion.choices[0]!.message.content ?? "", sources, model: completion.model, usage: usageOf(completion) };
     },
   };
 }

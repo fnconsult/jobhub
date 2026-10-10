@@ -6,7 +6,7 @@ import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } f
 import { createBilling, migrateBilling, STARTING_PLAN_QUOTAS, type Billing } from "../billing";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
-import { createJobSearches, JOB_DISCOVERY_QUEUE, migrateJobSearches, type JobSearches } from "./index";
+import { createJobSearchReports, createJobSearches, JOB_DISCOVERY_QUEUE, migrateJobSearches, type JobSearches } from "./index";
 
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -180,5 +180,80 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     const result = await searches.start(candidateId, { profileId });
 
     expect(result).toMatchObject({ ok: true, jobSearch: { status: "failed" } });
+  });
+  describe("the Plan Quota of Job Searches", () => {
+    const used = async () => (await billing.entitlements(candidateId)).usedThisMonth.jobSearches;
+
+    it("a successful Job Search uses one", async () => {
+      const jobOfferId = await capture("DAF H/F", { location: "Lyon" });
+      const jobSearch = await started();
+      await jobSearches.record(jobSearch.id, { jobOfferIds: [jobOfferId] });
+
+      expect(await used()).toBe(1);
+    });
+
+    it("a Job Search that cannot be queued leaves it unchanged", async () => {
+      const searches = createJobSearches(testAuth.auth.options.database as Pool, {
+        profiles,
+        jobOffers,
+        applications,
+        quotas: billing,
+        queue: { send: async () => Promise.reject(new Error("connection refused")) },
+        now: () => clock.now,
+      });
+      await started();
+
+      expect(await searches.start(candidateId, { profileId })).toMatchObject({ ok: true, jobSearch: { status: "failed" } });
+
+      expect(await used()).toBe(1);
+    });
+
+    it("a Job Search the worker records as failed gives its use back, once", async () => {
+      const reports = createJobSearchReports(testAuth.auth.options.database as Pool, { quotas: billing, now: () => clock.now });
+      await started();
+      const failed = await started();
+
+      await reports.record(failed.id, { failed: "discovery_failed" });
+      await reports.record(failed.id, { failed: "discovery_failed" });
+      await jobSearches.record(failed.id, { failed: "unavailable" });
+
+      expect(await used()).toBe(1);
+    });
+
+    it("a Job Search the worker never answered gives its use back once it is shown as failed", async () => {
+      await started();
+      const forgotten = await started();
+      clock.now = new Date(clock.now.getTime() + 16 * 60 * 1000);
+
+      expect((await jobSearches.get(candidateId, forgotten.id))?.status).toBe("failed");
+      await jobSearches.get(candidateId, forgotten.id);
+
+      expect(await used()).toBe(1);
+    });
+
+    it("Job Searches the worker never answered give their use back when expired, even unseen, once", async () => {
+      const reports = createJobSearchReports(testAuth.auth.options.database as Pool, { quotas: billing, now: () => clock.now });
+      const forgotten = await started();
+      clock.now = new Date(clock.now.getTime() + 10 * 60 * 1000);
+      const recent = await started();
+      clock.now = new Date(clock.now.getTime() + 6 * 60 * 1000);
+
+      expect(await reports.expireTimedOut()).toBe(1);
+      expect(await reports.expireTimedOut()).toBe(0);
+      await reports.record(forgotten.id, { failed: "discovery_failed" });
+
+      expect(await used()).toBe(1);
+      expect((await jobSearches.get(candidateId, forgotten.id))?.status).toBe("failed");
+      expect((await jobSearches.get(candidateId, recent.id))?.status).toBe("searching");
+    });
+
+    it("a Job Search already done keeps its use when a failure is reported after", async () => {
+      const jobSearch = await started();
+      await jobSearches.record(jobSearch.id, { jobOfferIds: [] });
+
+      await jobSearches.record(jobSearch.id, { failed: "unavailable" });
+
+      expect(await used()).toBe(1);
+    });
   });
 });

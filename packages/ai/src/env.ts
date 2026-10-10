@@ -1,7 +1,8 @@
 import { createAiLayer, type AiLayer, type Route } from "./ai-layer";
 import { AiConfigError } from "./errors";
 import { createAnthropicProvider } from "./providers/anthropic";
-import { createMistralProvider, createOpenAiProvider, createPerplexityProvider } from "./providers/chat-completions";
+import { createMistralProvider, createOpenAiProvider } from "./providers/chat-completions";
+import { createPerplexityProvider } from "./providers/perplexity";
 import { createFakeProvider } from "./testing";
 import { PROVIDER_IDS, SEARCH_TASK, TEXT_TASKS, type AiProvider, type AiTask, type ProviderId, type UsageLog } from "./types";
 import { createConsoleUsageLog } from "./usage";

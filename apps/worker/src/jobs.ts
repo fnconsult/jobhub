@@ -2,7 +2,7 @@ import type { SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type { FollowUps } from "@jobhub/web/follow-ups";
 import { forgetExpiredGuestCaptures } from "@jobhub/web/job-offers";
-import { JOB_DISCOVERY_QUEUE, type JobSearches } from "@jobhub/web/job-searches";
+import { JOB_DISCOVERY_QUEUE, type JobSearchReports } from "@jobhub/web/job-searches";
 import type { JobDiscovery } from "./job-discovery";
 import type { JobDefinition } from "./job-runner";
 
@@ -12,6 +12,9 @@ import type { JobDefinition } from "./job-runner";
  * Search the Candidate started), the outcome is reported to that Job Search.
  */
 export const JOB_DISCOVERY = JOB_DISCOVERY_QUEUE;
+
+/** Queue name: fail the Job Searches the worker never answered, giving their Plan Quota use back. */
+export const JOB_SEARCH_TIMEOUTS = "job-searches.expire";
 
 /** Queue name: propose the Follow-ups (and "Abandonnée" suggestions) now due, and tell each Candidate. */
 export const FOLLOW_UPS = "follow-ups.propose";
@@ -32,8 +35,11 @@ export interface JobsDeps {
   profiles: {
     get(candidateId: string, profileId: string): Promise<{ archived: boolean; searchCriteria: SearchCriteria } | null>;
   };
-  /** Where a Job Search started by the Candidate gets its outcome. Satisfied by the web app's Job Searches module. */
-  jobSearches: Pick<JobSearches, "record">;
+  /**
+   * Where a Job Search started by the Candidate gets its outcome, and where the ones
+   * never answered time out. Satisfied by the web app's Job Searches module.
+   */
+  jobSearches: JobSearchReports;
   /** Satisfied by the web app's Follow-ups module. */
   followUps: Pick<FollowUps, "proposeDue">;
   log?: (line: string) => void;
@@ -95,6 +101,20 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           `[job-discovery] profile ${target.profileId}: ${report.jobOffers.length} Job Offer(s), ` +
             `${report.skipped.length} page(s) skipped${detail ? ` (${detail})` : ""}`,
         );
+      },
+    },
+
+    // A Job Search whose discovery job was lost (worker down, job dropped) must not keep its use
+    // until the Candidate happens to look at it again. Safe to run again.
+    [JOB_SEARCH_TIMEOUTS]: {
+      cron: "*/5 * * * *",
+      handler: async () => {
+        try {
+          const expired = await deps.jobSearches.expireTimedOut();
+          if (expired) log(`[job-searches] ${expired} Job Search(es) timed out, their use given back`);
+        } catch (error) {
+          if ((error as { code?: string }).code !== UNDEFINED_TABLE) throw error;
+        }
       },
     },
 

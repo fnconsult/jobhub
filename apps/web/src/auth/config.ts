@@ -1,6 +1,8 @@
-import { Pool } from "pg";
+import { sharedPool } from "../database/pool";
 import type { AuthConfig } from "./index";
 import { mailerFromEnv } from "./mailers";
+
+export { mailerFromEnv };
 
 type Env = Record<string, string | undefined>;
 
@@ -18,19 +20,16 @@ export function authConfigFromEnv(env: Env): AuthConfig {
     return value;
   };
 
-  // MAIL_TRANSPORT=console prints emails, sign-in links included, to the server log:
-  // the default in development, an explicit opt-in for local production builds (e2e).
-  const mailer = mailerFromEnv(env);
   const google =
     env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
       ? { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET }
       : undefined;
 
   return {
-    database: new Pool({ connectionString: required("DATABASE_URL") }),
+    database: sharedPool(env),
     baseURL: required("APP_URL", "http://localhost:3000"),
     secret: required("AUTH_SECRET", DEV_SECRET),
-    mailer,
+    mailer: mailerFromEnv(env),
     google,
     extensionOrigins: (env.EXTENSION_ORIGINS ?? "")
       .split(",")

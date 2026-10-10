@@ -48,8 +48,10 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Cover Letters and Outreach Messages are up to date");
     expect(first.stdout).toContain("Action Cards are up to date");
     expect(first.stdout).toContain("ATS Scores are up to date");
+    expect(first.stdout).toContain("Follow-ups are up to date");
     expect(first.stdout).toContain("Plans and Plan Quotas are up to date");
     expect(first.stdout).toContain("Job Searches are up to date");
+    expect(first.stdout).toContain("Human Coaches, Coach Access and Coaching Sessions are up to date");
     expect(first.stdout).toContain("Job Digests are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
@@ -68,7 +70,14 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "ats_score", // issue #8: the ATS Score last computed for each Profile
         "candidate",
         "candidate_plan", // issue #22: Plans and Plan Quotas
+        "coach_access", // issue #24: the Human Coaches each Candidate granted Coach Access to
+        "coach_review", // issue #24: Coach Reviews of Tailored Documents
+        "coaching_session", // issue #24: Coaching Sessions paid through Stripe
         "company_dossier", // issue #17
+        "enriched_contact", // issue #23: Enriched Contacts, with their source provider and retrieval date
+        "follow_up_delay", // issue #21: each Candidate's Follow-up Delays
+        "follow_up_sent", // issue #21: the Follow-ups marked as sent
+        "human_coach", // issue #24: Human Coaches and their Cal.com booking links
         "interview",
         "job_digest", // issue #15: the Job Digests sent for each Profile
         "job_digest_subscription", // issue #15: opt-in per Profile
@@ -79,6 +88,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "profile",
         "quota_usage",
         "session",
+        "tailored_cv", // issue #18: Tailored CV proposals and saved Tailored CVs
         "tailored_document", // issue #19: Cover Letters and Outreach Messages
         "verification",
         "workflow_agent_run",
@@ -109,8 +119,21 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "ats_score", from_column: "profile_id", to_table: "profile" },
         { from_table: "candidate_plan", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "candidate_plan", from_column: "plan", to_table: "plan_quota" },
+        // Coach Access, Coach Reviews and Coaching Sessions (issue #24) go with their Candidate (and Application).
+        { from_table: "coach_access", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "coach_access", from_column: "coach_id", to_table: "human_coach" },
+        { from_table: "coach_review", from_column: "application_id", to_table: "application" },
+        { from_table: "coach_review", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "coach_review", from_column: "coach_id", to_table: "human_coach" },
+        { from_table: "coaching_session", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "coaching_session", from_column: "coach_id", to_table: "human_coach" },
         // A Company Dossier (issue #17) goes with its Application.
         { from_table: "company_dossier", from_column: "application_id", to_table: "application" },
+        // Enriched Contacts (issue #23) go with their Application.
+        { from_table: "enriched_contact", from_column: "application_id", to_table: "application" },
+        // Follow-up Delays (issue #21) go with their Candidate, Follow-ups sent with their Application.
+        { from_table: "follow_up_delay", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "follow_up_sent", from_column: "application_id", to_table: "application" },
         { from_table: "interview", from_column: "application_id", to_table: "application" },
         // Job Digests and their opt-ins (issue #15) go with their Profile (ADR-0010).
         { from_table: "job_digest", from_column: "candidate_id", to_table: "candidate" },
@@ -124,6 +147,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "profile", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "quota_usage", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "session", from_column: "userId", to_table: "candidate" },
+        // A Tailored CV (issue #18) goes with its Application.
+        { from_table: "tailored_cv", from_column: "application_id", to_table: "application" },
         { from_table: "tailored_document", from_column: "application_id", to_table: "application" },
       ]);
       // The Plans start with the quotas of issue #22, plus monthly Job Searches (issue #14); re-running keeps them.

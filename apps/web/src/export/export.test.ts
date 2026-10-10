@@ -43,7 +43,7 @@ async function readBack(file: { fileName: string; bytes: Uint8Array }): Promise<
     routes: { cv_parsing: "anthropic" },
     usage: createMemoryUsageLog(),
   });
-  return (await draftFromCv({ name: file.fileName, bytes: file.bytes }, { ai, candidateId: "c1" })).masterCv;
+  return (await draftFromCv({ name: file.fileName, bytes: file.bytes }, { ai: () => ai, candidateId: "c1" })).masterCv;
 }
 
 describe("exporting a CV", () => {
@@ -261,6 +261,13 @@ describe("naming an exported file", () => {
     expect((await exportDocument(cvOf("李明"), options)).fileName).toBe("CV-李明.pdf");
     expect((await exportDocument(cvOf("Marie Dupont / RH"), options)).fileName).toBe("CV-Marie-Dupont-RH.pdf");
     expect((await exportDocument(cvOf("राहुल शर्मा"), options)).fileName).toBe("CV-राहुल-शर्मा.pdf");
+  });
+
+  it("names the employer of a Tailored CV or a Cover Letter after the Candidate", async () => {
+    const options = { format: "docx", template: "classic", language: "fr", employer: "Groupe Danone / RH" } as const;
+
+    expect((await exportDocument(cvOf("Marie Dupont"), options)).fileName).toBe("CV-Marie-Dupont-Groupe-Danone-RH.docx");
+    expect((await exportDocument(cvOf("Marie Dupont"), { ...options, language: "en", employer: "" })).fileName).toBe("CV-Marie-Dupont.docx");
   });
 
   it("downloads under that name, with a plain ASCII name for older browsers", () => {

@@ -7,7 +7,8 @@ import { createApplications, migrateApplications } from "../applications";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
-import { createTailoredDocuments, migrateTailoredDocuments, type CompanyDossierSource, type TailoredDocuments } from "./index";
+import type { EnrichedContact } from "../enriched-contacts";
+import { createTailoredDocuments, migrateTailoredDocuments, type CompanyDossierSource, type EnrichedContactSource, type TailoredDocuments } from "./index";
 
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -49,6 +50,7 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
   let provider: FakeProvider;
   let dossiers: Map<string, Awaited<ReturnType<CompanyDossierSource["get"]>>>;
   let documents: TailoredDocuments;
+  let enriched: Map<string, EnrichedContact>;
   let candidateId: string;
   let otherCandidateId: string;
   let applicationId: string;
@@ -88,7 +90,9 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
     dossiers = new Map();
     const companyDossiers: CompanyDossierSource = { get: async (owner, id) => (owner === candidateId ? (dossiers.get(id) ?? null) : null) };
     const applications = createApplications(database, { jobOffers, profiles });
-    documents = createTailoredDocuments(database, { applications, profiles, ai, companyDossiers });
+    enriched = new Map();
+    const enrichedContacts: EnrichedContactSource = { contact: async (owner, id, contactId) => (owner === candidateId && id === applicationId ? (enriched.get(contactId) ?? null) : null) };
+    documents = createTailoredDocuments(database, { applications, profiles, ai, companyDossiers, enrichedContacts });
     candidateId = await signIn("marie.dupont@example.fr");
     otherCandidateId = await signIn("paul.martin@example.fr");
     applicationId = await saveApplication(FRENCH_OFFER);
@@ -191,6 +195,43 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
       ok: true,
       drafts: { outreachMessage: { contactRoles: ["Directeur ou directrice des ressources humaines", "Responsable du poste à pourvoir"] } },
     });
+  });
+
+  it("an Outreach Message can be addressed to an Enriched Contact the Candidate picked, named in the draft", async () => {
+    const claire: EnrichedContact = {
+      id: "6f1c1d0e-8a51-4f7e-9d43-0d6a2c1f9b10",
+      name: "Claire Martin",
+      jobTitle: "DRH",
+      emails: ["claire.martin@acme-industrie.fr"],
+      phones: [],
+      source: { provider: "apollo", providerPersonId: "p-claire", foundAt: new Date(), retrievedAt: new Date() },
+    };
+    enriched.set(claire.id, claire);
+
+    const result = await documents.draft(candidateId, applicationId, { document: "outreach_message", contactId: claire.id });
+
+    expect(result).toMatchObject({
+      ok: true,
+      drafts: { outreachMessage: { contact: { id: claire.id, name: "Claire Martin", jobTitle: "DRH", email: "claire.martin@acme-industrie.fr" } } },
+    });
+    const { system, prompt } = lastCall();
+    expect(prompt).toContain("Claire Martin");
+    expect(prompt).toContain("DRH");
+    expect(system).not.toContain("Ne nomme aucune personne de l'entreprise.");
+    // The provider's data stays out of the prompt: only who the message is for.
+    expect(prompt).not.toContain("claire.martin@acme-industrie.fr");
+    expect(prompt).not.toContain("apollo");
+    expect((await documents.get(candidateId, applicationId))?.outreachMessage?.contact).toMatchObject({ name: "Claire Martin" });
+  });
+
+  it("an Outreach Message cannot be addressed to someone who is not one of the Application's Enriched Contacts", async () => {
+    expect(await documents.draft(candidateId, applicationId, { document: "outreach_message", contactId: "6f1c1d0e-8a51-4f7e-9d43-0d6a2c1f9b10" })).toEqual({ ok: false, error: "not_found" });
+    expect(provider.calls).toHaveLength(0);
+  });
+
+  it("an Outreach Message drafted without a contact is addressed to no one in particular", async () => {
+    const result = await documents.draft(candidateId, applicationId, { document: "outreach_message" });
+    expect(result).toMatchObject({ ok: true, drafts: { outreachMessage: { contact: null } } });
   });
 
   it("without a built Company Dossier, drafts are written from the Master CV and the Job Offer alone", async () => {

@@ -5,7 +5,7 @@ import { createThrowawayDatabase } from "../../web/src/test-support/throwaway-da
 import type { DiscoverRequest, DiscoveryReport } from "./job-discovery";
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
 import type { DueJobDigest } from "@jobhub/web/job-digests";
-import { createJobs, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, type JobsDeps } from "./jobs";
+import { createJobs, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -45,6 +45,7 @@ function setup(discover?: (request: DiscoverRequest) => Promise<DiscoveryReport>
       },
     },
     jobSearches: { record: async (id, outcome) => void recorded.push([id, outcome]) },
+    followUps: { proposeDue: async () => {} },
     profiles: {
       async get(candidateId, profileId) {
         if (candidateId !== "candidate-1" || !["profile-1", "archived-1"].includes(profileId)) return null;
@@ -164,6 +165,7 @@ describe("the worker without an AI layer", () => {
       jobSearches: { record: async (id, outcome) => void recorded.push([id, outcome]) },
       jobDigests: noJobDigests,
       enqueue: async () => {},
+      followUps: { proposeDue: async () => {} },
       log: (line) => logs.push(line),
     });
 
@@ -189,8 +191,21 @@ const otherDeps = {
   jobSearches: { record: async () => {} },
   jobDigests: noJobDigests,
   enqueue: async () => {},
+  followUps: { proposeDue: async () => {} },
   log: () => {},
 };
+
+describe("the Follow-ups job", () => {
+  it("proposes, every working morning, the Follow-ups now due", async () => {
+    const runs: Date[] = [];
+    const now = new Date("2026-11-12T06:00:00Z");
+    const job = createJobs({ ...otherDeps, database: noDatabase, now: () => now, followUps: { proposeDue: async (at) => void runs.push(at) } })[FOLLOW_UPS];
+
+    expect(job?.cron).toBe("0 6 * * 1-5");
+    await job!.handler({});
+    expect(runs).toEqual([now]);
+  });
+});
 
 describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)", () => {
   let throwaway: Awaited<ReturnType<typeof createThrowawayDatabase>>;

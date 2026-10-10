@@ -16,7 +16,8 @@ import { webPort as e2eWebPort } from "./e2e/support/ports";
 // token endpoint is faked inside the server (e2e/support/fake-google.mjs), and so
 // is Mistral's API, which serves every AI task (e2e/support/fake-mistral.mjs),
 // and so are the French company register and Perplexity's web search behind
-// Company Dossiers (e2e/support/fake-company-sources.mjs).
+// Company Dossiers (e2e/support/fake-company-sources.mjs), and so is Apollo, the
+// contact-data provider behind Enriched Contacts (e2e/support/fake-contact-provider.mjs).
 // Stripe is a fake HTTP API (apps/web/src/billing/fake-stripe.ts) on
 // E2E_STRIPE_URL; webhooks are signed with its test secret. ADMIN_EMAILS names
 // the e2e Administrator.
@@ -47,17 +48,21 @@ export default defineConfig({
   projects: [
     {
       name: "web",
-      testMatch: /(web|auth|profiles|master-cv|match-score|ats-score|coach|billing|applications|company-dossier|export|tailored-documents)\.spec\.ts/,
+      testMatch: /(web|database-connections|auth|account-data|profiles|master-cv|match-score|ats-score|coach|billing|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|human-coaches|cv-draft-ai-config|stripe-price-ids)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" },
     },
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },
     { name: "stack", testMatch: /stack\.spec\.ts/ },
-    { name: "repo", testMatch: /(repo|migrate|agent-runs)\.spec\.ts/ },
+    { name: "repo", testMatch: /(repo|migrate|agent-runs|setup-wizards)\.spec\.ts/ },
     { name: "ai", testMatch: /ai\.spec\.ts/ },
     // The worker's background jobs, run by `tsx src/main.ts` against the web server's database.
     // One spec at a time: each starts its own worker on the same queue, which would take the other's jobs.
-    { name: "worker", testMatch: /job-(discovery|search|digest)\.spec\.ts/, workers: 1 },
-    { name: "root-env", testMatch: /root-env\.spec\.ts/ },
+    { name: "worker", testMatch: /(job-(discovery|search|digest)|follow-ups)\.spec\.ts/, workers: 1 },
+    // One spec at a time: root-env and worker-env both write the repo-root .env (the compose
+    // worker reads it, #64); root-env and dev-servers (the web app's and the extension's dev
+    // servers started in either order, #71) both run `npm run dev`, and Next.js refuses a second
+    // `next dev` in apps/web. Projects run in parallel with each other, so they share this one.
+    { name: "root-env", testMatch: /(root-env|worker-env|dev-servers)\.spec\.ts/, workers: 1 },
   ],
   webServer: {
     command: "node e2e/support/web-server.mjs",
@@ -85,13 +90,21 @@ export default defineConfig({
         `--import=${path.resolve("e2e/support/fake-google.mjs")}`,
         `--import=${path.resolve("e2e/support/fake-mistral.mjs")}`,
         `--import=${path.resolve("e2e/support/fake-company-sources.mjs")}`,
+        `--import=${path.resolve("e2e/support/fake-contact-provider.mjs")}`,
       ].join(" "),
       STRIPE_SECRET_KEY: "sk_test_fake",
       STRIPE_WEBHOOK_SECRET: "whsec_test_fake",
       STRIPE_PRICE_STANDARD: "price_standard_monthly",
       STRIPE_PRICE_PREMIUM: "price_premium_monthly",
+      // Coaching Sessions (#24): 90 €, 72 € on Premium (FAKE_STRIPE_COACHING_SESSION_PRICES).
+      STRIPE_PRICE_COACHING_SESSION: "price_coaching_session",
+      STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_coaching_session_premium",
       STRIPE_API_URL: process.env.E2E_STRIPE_URL,
-      ADMIN_EMAILS: "back-office@e2e.jobbbox.test",
+      ADMIN_EMAILS: "back-office@e2e.jobbbox.test,coach-office@e2e.jobbbox.test,account-office@e2e.jobbbox.test",
+      // Enriched Contacts (#23) on Apollo, faked; the DPA flag stands for the signed agreement.
+      CONTACT_ENRICHMENT_PROVIDER: "apollo",
+      APOLLO_API_KEY: "e2e-apollo-key",
+      CONTACT_ENRICHMENT_DPA_SIGNED: "true",
     },
   },
 });

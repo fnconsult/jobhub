@@ -11,7 +11,7 @@
  */
 import type { AiLayer } from "@jobhub/ai";
 import * as z from "zod";
-import type { Profiles } from "@/profiles";
+import type { Profiles } from "../profiles";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentConversation } from "./conversation";
 
 /** What the Candidate has in view while talking to the AI Coach. */

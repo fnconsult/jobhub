@@ -1,6 +1,7 @@
 /**
  * Tailored Documents of an Application: its Cover Letter and Outreach Message,
- * drafted by the AI Coach, then edited by the Candidate. (The Tailored CV is #18.)
+ * drafted by the AI Coach, then edited by the Candidate. (The Tailored CV is
+ * `../tailored-cv`.)
  *
  * One deep module in front of Postgres and the AI layer. Callers get
  * `createTailoredDocuments(database, { applications, profiles, ai, companyDossiers? })`:
@@ -14,19 +15,23 @@
  *    language unless the Candidate chose another when drafting.
  *  - They draw only on the Profile's Master CV and the Job Offer, plus the Company
  *    Dossier and its Suggested Contact Roles when one is built. No experience or
- *    figure is invented, and no private person is named.
+ *    figure is invented, and no private person is named, but for the Enriched
+ *    Contact (Premium) the Candidate addresses an Outreach Message to: only their
+ *    name and job title reach the AI Coach.
  *  - Drafts only (ADR-0005): nothing here sends anything.
  * Every read and change is scoped to the Candidate; inputs are untrusted and
  * problems come back as results. Task `writing`, EU endpoints only (ADR-0007).
  */
 import type { AiLayer } from "@jobhub/ai";
-import { DOCUMENT_LANGUAGES, jobOfferLanguage, type DocumentLanguage } from "@jobhub/shared";
+import { DOCUMENT_LANGUAGES, type DocumentLanguage } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { Application, Applications } from "../applications";
 import type { CompanyDossier, CompanyDossiers } from "../company-dossiers";
+import type { EnrichedContact, EnrichedContacts } from "../enriched-contacts";
 import type { Profiles } from "../profiles";
 import { fieldErrors, type FieldError } from "../validation";
+import { documentLanguageOf, keepDocumentLanguage } from "./document-language";
 
 import { OUTREACH_CHANNELS, TAILORED_DOCUMENTS, type OutreachChannel, type TailoredDocumentKind } from "./kinds";
 
@@ -53,6 +58,16 @@ export interface OutreachMessage extends Draft {
    * drafted, as job titles in its language. Empty when there was no dossier.
    */
   contactRoles: string[];
+  /** The Enriched Contact it is addressed to, as when it was drafted; null when to no one in particular. */
+  contact: OutreachContact | null;
+}
+
+/** Who an Outreach Message is for: an Enriched Contact's name, job title and first email. */
+export interface OutreachContact {
+  id: string;
+  name: string;
+  jobTitle?: string;
+  email?: string;
 }
 
 export interface ApplicationDrafts {
@@ -67,6 +82,9 @@ export interface ApplicationDrafts {
  */
 export type CompanyDossierSource = Pick<CompanyDossiers, "get">;
 
+/** Where Enriched Contacts come from (#23): one revealed contact of an Application, scoped to the Candidate, or null. */
+export type EnrichedContactSource = Pick<EnrichedContacts, "contact">;
+
 export type TailoredDocumentsResult =
   | { ok: true; drafts: ApplicationDrafts }
   | { ok: false; errors: FieldError[] }
@@ -78,7 +96,10 @@ export type TailoredDocumentsResult =
 export interface TailoredDocuments {
   /** The Application's drafts, or null if it does not exist or belongs to someone else. */
   get(candidateId: string, applicationId: string): Promise<ApplicationDrafts | null>;
-  /** Has the AI Coach draft one document, replacing the stored one. `input`: { document, language?, channel? (Outreach Message: "email" by default) }. */
+  /**
+   * Has the AI Coach draft one document, replacing the stored one. `input`: { document, language?, channel? (Outreach Message: "email"
+   * by default), contactId? (Outreach Message: the Enriched Contact it is for; "not_found" if not one of the Application's) }.
+   */
   draft(candidateId: string, applicationId: string, input: unknown): Promise<TailoredDocumentsResult>;
   /**
    * The Candidate's edit of a draft the AI Coach wrote. `input`: { document, text, subject? (Outreach Message) }.
@@ -93,12 +114,15 @@ export interface TailoredDocumentsDeps {
   ai: AiLayer;
   /** Optional: without it, drafts are written from the Master CV and the Job Offer alone. */
   companyDossiers?: CompanyDossierSource;
+  /** Optional: without it, Outreach Messages are addressed to no one in particular. */
+  enrichedContacts?: EnrichedContactSource;
 }
 
 const draftSchema = z.object({
   document: z.enum(TAILORED_DOCUMENTS),
   language: z.enum(DOCUMENT_LANGUAGES).optional(),
   channel: z.enum(OUTREACH_CHANNELS).default("email"),
+  contactId: z.uuid().optional(),
 });
 
 /** Longest text kept for a draft, in characters: a long letter is about 4,000. */
@@ -119,6 +143,7 @@ interface DraftRow {
   channel: OutreachChannel | null;
   subject: string;
   contact_roles: string[];
+  contact: OutreachContact | null;
   text: string;
   drafted_at: Date;
   updated_at: Date;
@@ -143,11 +168,11 @@ const WHAT: Record<DocumentLanguage, Record<TailoredDocumentKind | OutreachChann
 const RULES: Record<DocumentLanguage, string> = {
   fr: `Règles :
 - Appuie-toi uniquement sur son CV de référence, l'offre et, s'il y en a, le dossier sur l'entreprise. N'invente jamais d'expérience, de diplôme ou de chiffre.
-- Ne nomme aucune personne de l'entreprise.
+- {{people}}
 - Ton sobre et concret, sans formule creuse.`,
   en: `Rules:
 - Draw only on their reference CV, the job offer and, if any, the company dossier. Never invent experience, degrees or figures.
-- Do not name anyone at the company.
+- {{people}}
 - Plain and concrete, no empty phrases.`,
 };
 
@@ -162,13 +187,26 @@ const FORMAT: Record<DocumentLanguage, Record<TailoredDocumentKind, string>> = {
   },
 };
 
-function systemPrompt(language: DocumentLanguage, document: TailoredDocumentKind, channel: OutreachChannel): string {
+/** Who may be named: no one at the company, or only the Enriched Contact the message is addressed to. */
+const PEOPLE: Record<DocumentLanguage, { nobody: string; recipientOnly: string }> = {
+  fr: {
+    nobody: "Ne nomme aucune personne de l'entreprise.",
+    recipientOnly: "Adresse le message au destinataire indiqué, par son nom. Ne nomme aucune autre personne de l'entreprise.",
+  },
+  en: {
+    nobody: "Do not name anyone at the company.",
+    recipientOnly: "Address the message to the recipient given, by name. Do not name anyone else at the company.",
+  },
+};
+
+function systemPrompt(language: DocumentLanguage, document: TailoredDocumentKind, channel: OutreachChannel, addressed: boolean): string {
   const what = WHAT[language][document === "outreach_message" ? channel : document];
   const intro =
     language === "fr"
       ? `Tu es le coach Jobbbox. Tu rédiges ${what} pour un cadre expérimenté qui postule à l'offre ci-dessous.`
       : `You are the Jobbbox coach. You write ${what} for an experienced professional applying to the job offer below.`;
-  return [intro, RULES[language], FORMAT[language][document]].join("\n");
+  const rules = RULES[language].replace("{{people}}", PEOPLE[language][addressed ? "recipientOnly" : "nobody"]);
+  return [intro, rules, FORMAT[language][document]].join("\n");
 }
 
 /** Suggested Contact Roles (#17) as job titles. A role not listed here is written as given. */
@@ -190,10 +228,24 @@ const CONTACT_ROLES: Record<DocumentLanguage, Record<string, string>> = {
 };
 
 /** Labels for the facts a prompt is made of, in each Document Language. */
-const LABELS: Record<DocumentLanguage, { offer: string; cv: string; dossier: string; contacts: string }> = {
-  fr: { offer: "Offre", cv: "CV de référence", dossier: "Dossier sur l'entreprise", contacts: "Contacts à viser (des fonctions, jamais des personnes)" },
-  en: { offer: "Job offer", cv: "Reference CV", dossier: "Company dossier", contacts: "Contacts to address (job titles, never people)" },
+const LABELS: Record<DocumentLanguage, { offer: string; cv: string; dossier: string; contacts: string; recipient: string }> = {
+  fr: {
+    offer: "Offre",
+    cv: "CV de référence",
+    dossier: "Dossier sur l'entreprise",
+    contacts: "Contacts à viser (des fonctions, jamais des personnes)",
+    recipient: "Destinataire",
+  },
+  en: { offer: "Job offer", cv: "Reference CV", dossier: "Company dossier", contacts: "Contacts to address (job titles, never people)", recipient: "Recipient" },
 };
+
+/** What an Outreach Message keeps of the Enriched Contact it is for. */
+function outreachContactOf(contact: EnrichedContact): OutreachContact {
+  const kept: OutreachContact = { id: contact.id, name: contact.name };
+  if (contact.jobTitle) kept.jobTitle = contact.jobTitle;
+  if (contact.emails[0]) kept.email = contact.emails[0];
+  return kept;
+}
 
 const outreachReply = z.object({ subject: z.string().catch(""), text: z.string() });
 
@@ -213,27 +265,22 @@ function outreachIn(reply: string): { subject: string; text: string } {
 }
 
 export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsDeps): TailoredDocuments {
-  async function storedLanguage(applicationId: string): Promise<DocumentLanguage | null> {
-    const { rows } = await database.query<{ document_language: DocumentLanguage | null }>(`SELECT document_language FROM application WHERE id = $1`, [applicationId]);
-    return rows[0]?.document_language ?? null;
-  }
-
   async function draftsOf(application: Application): Promise<ApplicationDrafts> {
     const [language, { rows }] = await Promise.all([
-      storedLanguage(application.id),
-      database.query<DraftRow>(`SELECT kind, language, channel, subject, contact_roles, text, drafted_at, updated_at FROM tailored_document WHERE application_id = $1`, [application.id]),
+      documentLanguageOf(database, application),
+      database.query<DraftRow>(`SELECT kind, language, channel, subject, contact_roles, contact, text, drafted_at, updated_at FROM tailored_document WHERE application_id = $1`, [application.id]),
     ]);
     const draft = (row: DraftRow): Draft => ({ language: row.language, text: row.text, draftedAt: row.drafted_at, updatedAt: row.updated_at });
     const letter = rows.find((row) => row.kind === "cover_letter");
     const message = rows.find((row) => row.kind === "outreach_message");
     return {
-      documentLanguage: language ?? jobOfferLanguage(application.jobOffer),
+      documentLanguage: language,
       coverLetter: letter ? draft(letter) : null,
-      outreachMessage: message ? { ...draft(message), channel: message.channel ?? "email", subject: message.subject, contactRoles: message.contact_roles } : null,
+      outreachMessage: message ? { ...draft(message), channel: message.channel ?? "email", subject: message.subject, contactRoles: message.contact_roles, contact: message.contact } : null,
     };
   }
 
-  type Request = z.output<typeof draftSchema> & { language: DocumentLanguage };
+  type Request = z.output<typeof draftSchema> & { language: DocumentLanguage; contact: OutreachContact | null };
 
   /** The built Company Dossier of the Application, if any. A dossier that cannot be read is done without. */
   async function dossierOf(candidateId: string, applicationId: string): Promise<CompanyDossier | null> {
@@ -254,7 +301,7 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
   ): Promise<{ subject: string; text: string; contactRoles: string[] } | null> {
     const [profile, dossier] = await Promise.all([deps.profiles.get(candidateId, application.profile.id), dossierOf(candidateId, application.id)]);
     if (!profile) return null;
-    const { language, document, channel } = request;
+    const { language, document, channel, contact } = request;
     const { jobOffer } = application;
     const label = LABELS[language];
     const contactRoles = (dossier?.suggestedContactRoles ?? []).map((role) => CONTACT_ROLES[language][role] ?? role);
@@ -268,9 +315,11 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
       parts.push(`${label.dossier} : ${JSON.stringify(facts)}`);
       if (document === "outreach_message" && contactRoles.length > 0) parts.push(`${label.contacts} : ${contactRoles.join(" ; ")}`);
     }
+    // Only who the message is for: the provider's data (emails, phones, source) never reaches the AI Coach.
+    if (document === "outreach_message" && contact) parts.push(`${label.recipient} : ${[contact.name, contact.jobTitle].filter(Boolean).join(", ")}`);
     const prompt = parts.join("\n\n");
     try {
-      const { text } = await deps.ai.generate({ task: "writing", candidateId, system: systemPrompt(language, document, channel), prompt });
+      const { text } = await deps.ai.generate({ task: "writing", candidateId, system: systemPrompt(language, document, channel, document === "outreach_message" && !!contact), prompt });
       const written = document === "outreach_message" ? outreachIn(text) : { subject: "", text: text.trim() };
       return written.text ? { ...written, contactRoles: document === "outreach_message" ? contactRoles : [] } : null;
     } catch (error) {
@@ -291,15 +340,30 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
       const application = await deps.applications.get(candidateId, applicationId);
       if (!application) return NOT_FOUND;
       const language = parsed.data.language ?? (await draftsOf(application)).documentLanguage;
-      const { document, channel } = parsed.data;
-      const written = await write(candidateId, application, { ...parsed.data, language });
+      const { document, channel, contactId } = parsed.data;
+      let contact: OutreachContact | null = null;
+      if (document === "outreach_message" && contactId) {
+        const enriched = await deps.enrichedContacts?.contact(candidateId, application.id, contactId);
+        if (!enriched) return NOT_FOUND;
+        contact = outreachContactOf(enriched);
+      }
+      const written = await write(candidateId, application, { ...parsed.data, language, contact });
       if (!written) return { ok: false, error: "unavailable" };
-      if (parsed.data.language) await database.query(`UPDATE application SET document_language = $2 WHERE id = $1`, [application.id, language]);
+      if (parsed.data.language) await keepDocumentLanguage(database, application.id, language);
       await database.query(
-        `INSERT INTO tailored_document (application_id, kind, language, channel, subject, contact_roles, text) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO tailored_document (application_id, kind, language, channel, subject, contact_roles, contact, text) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          ON CONFLICT (application_id, kind) DO UPDATE
-           SET language = $3, channel = $4, subject = $5, contact_roles = $6, text = $7, drafted_at = now(), updated_at = now()`,
-        [application.id, document, language, document === "outreach_message" ? channel : null, written.subject, written.contactRoles, written.text],
+           SET language = $3, channel = $4, subject = $5, contact_roles = $6, contact = $7, text = $8, drafted_at = now(), updated_at = now()`,
+        [
+          application.id,
+          document,
+          language,
+          document === "outreach_message" ? channel : null,
+          written.subject,
+          written.contactRoles,
+          contact ? JSON.stringify(contact) : null,
+          written.text,
+        ],
       );
       return { ok: true, drafts: await draftsOf(application) };
     },
@@ -340,5 +404,7 @@ export async function migrateTailoredDocuments(database: Pool): Promise<void> {
       updated_at timestamptz NOT NULL DEFAULT now(),
       PRIMARY KEY (application_id, kind)
     );
+    -- Outreach Messages only: the Enriched Contact it is addressed to (#23).
+    ALTER TABLE tailored_document ADD COLUMN IF NOT EXISTS contact jsonb;
   `);
 }

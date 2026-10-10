@@ -1,6 +1,7 @@
 import type { SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type { JobDigests } from "@jobhub/web/job-digests";
+import type { FollowUps } from "@jobhub/web/follow-ups";
 import { forgetExpiredGuestCaptures } from "@jobhub/web/job-offers";
 import { JOB_DISCOVERY_QUEUE, type JobSearches } from "@jobhub/web/job-searches";
 import type { JobDiscovery } from "./job-discovery";
@@ -22,6 +23,9 @@ export const JOB_DIGEST_SCHEDULE = "job-digest.schedule";
  * Offers found that the Profile was never shown before are kept and emailed.
  */
 export const JOB_DIGEST_RUN = "job-digest.run";
+
+/** Queue name: propose the Follow-ups (and "Abandonnée" suggestions) now due, and tell each Candidate. */
+export const FOLLOW_UPS = "follow-ups.propose";
 
 /** Postgres error code for a table that does not exist yet (the web app's migrations have not run). */
 const UNDEFINED_TABLE = "42P01";
@@ -45,6 +49,8 @@ export interface JobsDeps {
   jobDigests: Pick<JobDigests, "claimDue" | "deliver">;
   /** Queues another job of this worker. */
   enqueue: (name: string, data: object) => Promise<void>;
+  /** Satisfied by the web app's Follow-ups module. */
+  followUps: Pick<FollowUps, "proposeDue">;
   log?: (line: string) => void;
 }
 
@@ -130,6 +136,18 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           `[job-digest] profile ${target.profileId}: ${found.length} Job Offer(s) found, ` +
             (digest ? "Job Digest sent" : "nothing new to send"),
         );
+      },
+    },
+
+    // Working mornings, 6:00 UTC (7:00 or 8:00 in France): the notice emails arrive with the day. Safe to run again.
+    [FOLLOW_UPS]: {
+      cron: "0 6 * * 1-5",
+      handler: async () => {
+        try {
+          await deps.followUps.proposeDue((deps.now ?? (() => new Date()))());
+        } catch (error) {
+          if ((error as { code?: string }).code !== UNDEFINED_TABLE) throw error;
+        }
       },
     },
 

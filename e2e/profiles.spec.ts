@@ -74,9 +74,10 @@ test.describe("creating the first Profile from a CV", () => {
     await expect(page).toHaveURL(/\/profils\/[0-9a-f-]{36}$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice administrative et financière");
     await expect(page).toHaveTitle(`Directrice administrative et financière · ${fr.app.name}`);
-    await expect(page.getByText(/^110\s000 € brut par an minimum$/)).toBeVisible();
-    await expect(page.getByText(fr.cvReview.contractTypes.cdi, { exact: true })).toBeVisible();
-    await expect(page.getByText(fr.cvReview.remoteWorkOptions.hybrid, { exact: true })).toBeVisible();
+    const savedCriteria = page.getByRole("form", { name: fr.cvReview.searchCriteria });
+    await expect(savedCriteria.getByLabel(fr.cvReview.minSalary)).toHaveValue("110000");
+    await expect(savedCriteria.getByLabel(fr.cvReview.contractType)).toHaveValue("cdi");
+    await expect(savedCriteria.getByLabel(fr.cvReview.remoteWork)).toHaveValue("hybrid");
     await expect(page.getByText("Version 1")).toBeVisible();
     await expect(page.getByText("Directrice financière · Groupe Seb · Lyon · 2015 – 2025")).toBeVisible();
     await expect(page.getByText("Contrôleuse de gestion · Renault")).toBeVisible();

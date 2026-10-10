@@ -6,13 +6,22 @@ import { useTranslation } from "react-i18next";
 import type { ApplicationDrafts } from "@/tailored-documents";
 import { OUTREACH_CHANNELS, TAILORED_DOCUMENTS, type OutreachChannel, type TailoredDocumentKind } from "@/tailored-documents/kinds";
 import { mailLink } from "@/tailored-documents/mail-link";
+import { ApplicationExportForm } from "./ApplicationExportForm";
 
-type Status = "drafting" | "drafted" | "saved" | "copied" | "copyFailed" | "required" | "unavailable" | "error" | null;
+type Status = "drafting" | "drafted" | "saved" | "copied" | "copyFailed" | "required" | "unavailable" | "notAContact" | "error" | null;
+
+/** An Enriched Contact an Outreach Message can be addressed to. */
+export interface Recipient {
+  id: string;
+  name: string;
+  jobTitle?: string;
+  email?: string;
+}
 
 /** Drafts as they come from the server: dates are not needed here. */
 type Drafts = Pick<ApplicationDrafts, "documentLanguage"> & {
   coverLetter: { language: DocumentLanguage; text: string } | null;
-  outreachMessage: { language: DocumentLanguage; text: string; subject: string; channel: OutreachChannel; contactRoles: string[] } | null;
+  outreachMessage: { language: DocumentLanguage; text: string; subject: string; channel: OutreachChannel; contactRoles: string[]; contact: Recipient | null } | null;
 };
 
 async function send(url: string, method: "POST" | "PATCH", body: object): Promise<{ drafts?: Drafts; status: Status }> {
@@ -21,6 +30,7 @@ async function send(url: string, method: "POST" | "PATCH", body: object): Promis
     if (response.ok) return { drafts: (await response.json()) as Drafts, status: null };
     if (response.status === 503) return { status: "unavailable" };
     if (response.status === 400) return { status: "required" };
+    if (response.status === 404 && method === "POST") return { status: "notAContact" };
     return { status: "error" };
   } catch {
     return { status: "error" };
@@ -31,8 +41,9 @@ async function send(url: string, method: "POST" | "PATCH", body: object): Promis
  * An Application's Cover Letter and Outreach Message: drafted by the AI Coach in
  * the Document Language, edited by the Candidate, drafted again on request.
  * Drafts only (ADR-0005): the Candidate copies the text or opens it in their mail client.
+ * The Outreach Message can be addressed to one of the Application's Enriched Contacts (`recipients`).
  */
-export function TailoredDocumentsEditor({ applicationId, initial }: { applicationId: string; initial: Drafts }) {
+export function TailoredDocumentsEditor({ applicationId, initial, recipients = [] }: { applicationId: string; initial: Drafts; recipients?: Recipient[] }) {
   const { t } = useTranslation();
   const id = useId();
   const [language, setLanguage] = useState(initial.documentLanguage);
@@ -60,14 +71,26 @@ export function TailoredDocumentsEditor({ applicationId, initial }: { applicatio
         </select>
       </div>
       <DraftEditor applicationId={applicationId} document={TAILORED_DOCUMENTS[0]} language={language} initial={initial.coverLetter} />
-      <DraftEditor applicationId={applicationId} document={TAILORED_DOCUMENTS[1]} language={language} initial={initial.outreachMessage} />
+      <DraftEditor applicationId={applicationId} document={TAILORED_DOCUMENTS[1]} language={language} initial={initial.outreachMessage} recipients={recipients} />
     </section>
   );
 }
 
 type Initial = Drafts["coverLetter"] | Drafts["outreachMessage"];
 
-function DraftEditor({ applicationId, document, language, initial }: { applicationId: string; document: TailoredDocumentKind; language: DocumentLanguage; initial: Initial }) {
+function DraftEditor({
+  applicationId,
+  document,
+  language,
+  initial,
+  recipients = [],
+}: {
+  applicationId: string;
+  document: TailoredDocumentKind;
+  language: DocumentLanguage;
+  initial: Initial;
+  recipients?: Recipient[];
+}) {
   const { t } = useTranslation();
   const id = useId();
   const url = `/api/applications/${applicationId}/tailored-documents`;
@@ -77,6 +100,7 @@ function DraftEditor({ applicationId, document, language, initial }: { applicati
   const [text, setText] = useState(initial?.text ?? "");
   const [subject, setSubject] = useState(outreach?.subject ?? "");
   const [channel, setChannel] = useState<OutreachChannel>(outreach?.channel ?? "email");
+  const [recipientId, setRecipientId] = useState(outreach?.contact && recipients.some((r) => r.id === outreach.contact?.id) ? outreach.contact.id : "");
   const [status, setStatus] = useState<Status>(null);
   const isOutreach = document === "outreach_message";
   const drafted = draft && "channel" in draft ? draft : null;
@@ -84,7 +108,7 @@ function DraftEditor({ applicationId, document, language, initial }: { applicati
 
   async function write() {
     setStatus("drafting");
-    const result = await send(url, "POST", isOutreach ? { document, language, channel } : { document, language });
+    const result = await send(url, "POST", isOutreach ? { document, language, channel, ...(recipientId && { contactId: recipientId }) } : { document, language });
     const next = result.drafts?.[document === "cover_letter" ? "coverLetter" : "outreachMessage"];
     if (!next) return setStatus(result.status ?? "error");
     setDraft(next);
@@ -109,16 +133,31 @@ function DraftEditor({ applicationId, document, language, initial }: { applicati
   }
 
   const channelSelect = isOutreach ? (
-    <div className="field">
-      <label htmlFor={`${id}-channel`}>{t("tailoredDocuments.outreachMessage.channelLabel")}</label>
-      <select id={`${id}-channel`} className="input" value={channel} onChange={(event) => setChannel(event.target.value as OutreachChannel)}>
-        {OUTREACH_CHANNELS.map((option) => (
-          <option key={option} value={option}>
-            {t(`tailoredDocuments.outreachMessage.channels.${option}`)}
-          </option>
-        ))}
-      </select>
-    </div>
+    <>
+      {recipients.length > 0 ? (
+        <div className="field">
+          <label htmlFor={`${id}-recipient`}>{t("tailoredDocuments.outreachMessage.recipientLabel")}</label>
+          <select id={`${id}-recipient`} className="input" value={recipientId} onChange={(event) => setRecipientId(event.target.value)}>
+            <option value="">{t("tailoredDocuments.outreachMessage.recipientNone")}</option>
+            {recipients.map((recipient) => (
+              <option key={recipient.id} value={recipient.id}>
+                {recipient.jobTitle ? `${recipient.name} · ${recipient.jobTitle}` : recipient.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+      <div className="field">
+        <label htmlFor={`${id}-channel`}>{t("tailoredDocuments.outreachMessage.channelLabel")}</label>
+        <select id={`${id}-channel`} className="input" value={channel} onChange={(event) => setChannel(event.target.value as OutreachChannel)}>
+          {OUTREACH_CHANNELS.map((option) => (
+            <option key={option} value={option}>
+              {t(`tailoredDocuments.outreachMessage.channels.${option}`)}
+            </option>
+          ))}
+        </select>
+      </div>
+    </>
   ) : null;
 
   return (
@@ -135,7 +174,10 @@ function DraftEditor({ applicationId, document, language, initial }: { applicati
       ) : (
         <>
           <p className="hint">{t(`tailoredDocuments.writtenIn.${draft.language}`)}</p>
-          {contactRoles.length > 0 ? (
+          {drafted?.contact ? (
+            <p>{t("tailoredDocuments.outreachMessage.addressedTo", { name: drafted.contact.jobTitle ? `${drafted.contact.name} (${drafted.contact.jobTitle})` : drafted.contact.name })}</p>
+          ) : null}
+          {contactRoles.length > 0 && !drafted?.contact ? (
             <div>
               <p className="hint">{t("tailoredDocuments.outreachMessage.contactRoles")}</p>
               <ul>
@@ -171,11 +213,12 @@ function DraftEditor({ applicationId, document, language, initial }: { applicati
               {t("tailoredDocuments.copy")}
             </button>
             {drafted?.channel === "email" ? (
-              <a className="button" href={mailLink({ subject, text })}>
+              <a className="button" href={mailLink({ to: drafted.contact?.email, subject, text })}>
                 {t("tailoredDocuments.outreachMessage.openInMail")}
               </a>
             ) : null}
           </div>
+          {document === "cover_letter" ? <ApplicationExportForm applicationId={applicationId} document={document} /> : null}
           {channelSelect}
           <p id={`${id}-redraft-hint`} className="hint">
             {t("tailoredDocuments.redraftHint")}
@@ -193,6 +236,12 @@ function DraftEditor({ applicationId, document, language, initial }: { applicati
 function StatusMessage({ status }: { status: Status }) {
   const { t } = useTranslation();
   if (status === "drafted" || status === "saved" || status === "copied") return <p role="status">{t(`tailoredDocuments.${status}`)}</p>;
+  if (status === "notAContact")
+    return (
+      <p className="field-error" role="alert">
+        {t("tailoredDocuments.outreachMessage.notAContact")}
+      </p>
+    );
   if (status === "required" || status === "unavailable" || status === "error" || status === "copyFailed")
     return (
       <p className="field-error" role="alert">

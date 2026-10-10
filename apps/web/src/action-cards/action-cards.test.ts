@@ -106,6 +106,20 @@ describe.skipIf(!connectionString)("Action Cards (needs Postgres: DATABASE_URL)"
     expect(await cards.pending(marie, PROFILE)).toMatchObject([{ id, status: "pending" }]);
   });
 
+  it("lists a Candidate's pending cards of some kinds, across pages, oldest first", async () => {
+    const cards = createActionCards(database);
+    const APPLICATION = { kind: "application", id: "33333333-3333-4333-8333-333333333333" } as const;
+    const first = await cards.propose(marie, { ...proposal, kind: "follow_up", focus: APPLICATION });
+    await cards.propose(marie, proposal);
+    const decided = await cards.propose(marie, { ...proposal, kind: "follow_up", focus: APPLICATION });
+    const second = await cards.propose(marie, { ...proposal, kind: "abandon_suggestion", focus: OTHER_PROFILE });
+    await cards.propose(jean, { ...proposal, kind: "follow_up", focus: APPLICATION });
+    await cards.decide(marie, decided.id, "dismiss");
+
+    expect(await cards.pendingOfKinds(marie, ["follow_up", "abandon_suggestion"])).toEqual([first, second]);
+    expect(await cards.pendingOfKinds(marie, [])).toEqual([]);
+  });
+
   it("never shows or lets anyone else decide a Candidate's cards", async () => {
     const cards = createActionCards(database);
     const { id } = await cards.propose(marie, proposal);

@@ -7,8 +7,10 @@ type Context = { params: Promise<{ id: string }> };
 
 /**
  * Changes one of the Candidate's Profiles.
- * Body: { name } renames it · { archived: true | false } archives or restores it.
- * 200 { id } · 400 { errors: ProfileFieldError[] } · 401 · 403 · 404 · 409 { error: "plan_quota_reached", prompt }
+ * Body: { name } renames it · { archived: true | false } archives or restores it ·
+ * { searchCriteria } changes its Search Criteria (not its name; refused while archived).
+ * 200 { id } · 400 { errors: ProfileFieldError[] } · 401 · 403 · 404 ·
+ * 409 { error: "plan_quota_reached", prompt } · 409 { error: "archived" }
  */
 export async function PATCH(request: Request, { params }: Context) {
   if (!isFromTrustedOrigin(request)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
@@ -22,6 +24,9 @@ export async function PATCH(request: Request, { params }: Context) {
     const { archived } = body;
     if (typeof archived !== "boolean") return NextResponse.json({ errors: [{ field: "archived", code: "invalid" }] }, { status: 400 });
     return profileResponse(await (archived ? profiles.archive(candidate.id, id) : profiles.restore(candidate.id, id)), candidate);
+  }
+  if (body && typeof body === "object" && "searchCriteria" in body) {
+    return profileResponse(await profiles.changeSearchCriteria(candidate.id, id, body), candidate);
   }
   return profileResponse(await profiles.rename(candidate.id, id, body), candidate);
 }

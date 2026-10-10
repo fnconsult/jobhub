@@ -11,7 +11,9 @@
     "./job-digests": "./src/job-digests/index.ts",
     "./applications": "./src/applications/index.ts",
     "./billing": "./src/billing/index.ts",
-    "./mailers": "./src/auth/mailers.ts"
+    "./mailers": "./src/auth/mailers.ts",
+    "./follow-ups": "./src/follow-ups/index.ts",
+    "./follow-ups/env": "./src/follow-ups/env.ts"
   },
   "scripts": {
     "dev": "next dev",

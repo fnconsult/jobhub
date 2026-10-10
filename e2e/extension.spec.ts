@@ -8,6 +8,7 @@ import { catalogueStrings, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { e2eExtensionDir, unpackedExtensionId as idOf } from "./support/extension";
 import { newAddress } from "./support/mailbox";
+import { subscribe } from "./support/plan";
 
 const extensionDir = path.resolve("apps/extension/.output/chrome-mv3");
 const frCatalogue = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
@@ -312,9 +313,248 @@ test.describe("Guest Capture and Match Score", () => {
     // The Job Offer is stored once, for everyone, and found by its id.
     expect((await analysis.request.get(`${origin}/api/job-offers/${stored.jobOffer.id}`)).status()).toBe(200);
 
+    // Reopening the page shows the same Match Score without computing it again (#51); a rescore computes it anew.
+    const scoreRequests: string[] = [];
+    analysis.on("request", (request) => {
+      if (new URL(request.url()).pathname === "/api/match-score") scoreRequests.push(request.url());
+    });
+    const shown = await analysis.getByText(/^Match Score : \d+ \/ 100$/).textContent();
+    await analysis.reload();
+    await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toHaveText(shown!);
+    expect(scoreRequests).toEqual([]);
+    await analysis.getByRole("button", { name: fr.analysis.rescore }).click();
+    await expect.poll(() => scoreRequests.length).toBe(1);
+    await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toBeVisible();
+
     await analysis.getByRole("button", { name: fr.analysis.forget }).click();
     await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
     expect(await guestSession(analysis)).toEqual({});
+  });
+
+  // Issue #51: a Match Score uses the Candidate's Plan Quota, so the extension scores once per Job Offer and CV.
+  const scoreLine = /^Match Score : \d+ \/ 100$/;
+  /** Every request any page of the context makes to /api/match-score, from now on, and what each sent. */
+  const countScoreRequests = () => {
+    const requests: string[] = [];
+    const bodies: Record<string, unknown>[] = [];
+    const listener = (request: { url(): string; postData(): string | null }) => {
+      if (new URL(request.url()).pathname !== "/api/match-score") return;
+      requests.push(request.url());
+      bodies.push(JSON.parse(request.postData() ?? "{}"));
+    };
+    context.on("request", listener);
+    return { requests, bodies, stop: () => context.off("request", listener) };
+  };
+  const reopenAnalysis = async () => {
+    const page = await context.newPage();
+    await page.goto(`chrome-extension://${extensionId()}/analyse.html`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.analysis.title);
+    return page;
+  };
+  const captureFromBadge = async (url: string) => {
+    const jobPage = await context.newPage();
+    await jobPage.goto(url);
+    const [analysis] = await Promise.all([context.waitForEvent("page"), jobPage.getByRole("button", { name: fr.badgeLabel }).click()]);
+    await expect(analysis.getByRole("heading", { level: 1 })).toHaveText(fr.analysis.title);
+    return analysis;
+  };
+  const otherCvFile = {
+    name: "CV Marie Dupont 2026.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from(pdfCv(MARIE_DUPONT_CV.map((line) => (line.startsWith("Consolidation,") ? "Consolidation, IFRS, Power BI, SAP" : line)))),
+  };
+
+  test("a Guest's Match Score is kept for its Job Offer and CV: reopened without scoring again, scored anew for another CV or Job Offer (#51)", async () => {
+    const analysis = await captureFromBadge(postingUrl);
+    const scores = countScoreRequests();
+    await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
+    await analysis.getByRole("button", { name: fr.analysis.submit }).click();
+    await expect(analysis.getByText(scoreLine)).toBeVisible();
+    await expect(analysis.getByText(fr.analysis.missing.replace("{{skills}}", "Power BI"))).toBeVisible();
+    await expect.poll(() => scores.requests.length).toBe(1);
+    const shown = await analysis.getByText(scoreLine).textContent();
+    // The Guest's CV goes with the Search Criteria read from it (#75), as kept in the Guest session.
+    const { guestSession: kept } = await guestSession(analysis);
+    expect(scores.bodies[0]).toEqual({ jobOfferId: kept.jobOffer.id, cv: kept.cv, searchCriteria: kept.searchCriteria });
+    expect(scores.bodies[0]).not.toHaveProperty("profileId");
+
+    // Reloading, or opening the analysis page again, shows the same Match Score without asking for one.
+    await analysis.reload();
+    await expect(analysis.getByText(scoreLine)).toHaveText(shown!);
+    const reopened = await reopenAnalysis();
+    await expect(reopened.getByText(scoreLine)).toHaveText(shown!);
+    await expect(reopened.getByText(fr.analysis.missing.replace("{{skills}}", "Power BI"))).toBeVisible();
+    await reopened.close();
+    expect(scores.requests).toHaveLength(1);
+
+    // Another CV is scored anew, and that score is the one kept.
+    await analysis.getByRole("button", { name: fr.analysis.changeCv }).click();
+    await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(otherCvFile);
+    await analysis.getByRole("button", { name: fr.analysis.submit }).click();
+    await expect(analysis.getByText(fr.analysis.covered.replace("{{skills}}", "IFRS, Consolidation, Power BI"))).toBeVisible();
+    await expect.poll(() => scores.requests.length).toBe(2);
+    await analysis.reload();
+    await expect(analysis.getByText(fr.analysis.covered.replace("{{skills}}", "IFRS, Consolidation, Power BI"))).toBeVisible();
+    expect(scores.requests).toHaveLength(2);
+
+    // Another Job Offer captured is scored anew with the kept CV, then kept in turn.
+    const other = await captureFromBadge(Object.keys(boardPages)[4]!);
+    await expect(other.getByText(/^Contr.+leur de gestion H\/F$/)).toBeVisible();
+    await expect(other.getByText(scoreLine)).toBeVisible();
+    await expect.poll(() => scores.requests.length).toBe(3);
+    await other.reload();
+    await expect(other.getByText(scoreLine)).toBeVisible();
+    await expect(other.getByText(/^Contr.+leur de gestion H\/F$/)).toBeVisible();
+    expect(scores.requests).toHaveLength(3);
+
+    // "Recalculer le Match Score" asks for one, whatever is kept.
+    await other.getByRole("button", { name: fr.analysis.rescore }).click();
+    await expect.poll(() => scores.requests.length).toBe(4);
+    await expect(other.getByText(scoreLine)).toBeVisible();
+    scores.stop();
+    await other.getByRole("button", { name: fr.analysis.forget }).click();
+    await expect(other.getByText(fr.analysis.forgotten)).toBeVisible();
+  });
+
+  test("the kept Match Score is forgotten with the rest of the Guest session, by \"Oublier\" or at its end (#51)", async () => {
+    const scores = countScoreRequests();
+    // "Oublier": reopening the page shows no Match Score, and asks for none.
+    let analysis = await captureFromBadge(postingUrl);
+    await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
+    await analysis.getByRole("button", { name: fr.analysis.submit }).click();
+    await expect(analysis.getByText(scoreLine)).toBeVisible();
+    expect((await guestSession(analysis)).guestSession).toHaveProperty("matchScore");
+    await analysis.getByRole("button", { name: fr.analysis.forget }).click();
+    await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
+    expect(await guestSession(analysis)).toEqual({});
+    let reopened = await reopenAnalysis();
+    await expect(reopened.getByText(fr.analysis.noJobOffer)).toBeVisible();
+    await expect(reopened.getByText(scoreLine)).toHaveCount(0);
+    await reopened.close();
+    await expect.poll(() => scores.requests.length).toBe(1);
+
+    // The session's end (24 hours at most, ADR-0003) takes the kept Match Score with it.
+    analysis = await captureFromBadge(postingUrl);
+    await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
+    await analysis.getByRole("button", { name: fr.analysis.submit }).click();
+    await expect(analysis.getByText(scoreLine)).toBeVisible();
+    await expect.poll(() => scores.requests.length).toBe(2);
+    await analysis.evaluate(async () => {
+      type Storage = { get(key: string): Promise<Record<string, object>>; set(items: object): Promise<void> };
+      const storage = (globalThis as unknown as { chrome: { storage: { session: Storage } } }).chrome.storage.session;
+      const { guestSession } = await storage.get("guestSession");
+      await storage.set({ guestSession: { ...guestSession, expiresAt: Date.now() - 1_000 } });
+    });
+    reopened = await reopenAnalysis();
+    await expect(reopened.getByText(fr.analysis.noJobOffer)).toBeVisible();
+    await expect(reopened.getByText(scoreLine)).toHaveCount(0);
+    expect(await guestSession(reopened)).toEqual({});
+    expect(scores.requests).toHaveLength(2);
+    scores.stop();
+  });
+
+  test("a slow rescore uses one Match Score however often it is clicked, and \"Oublier\" meanwhile keeps nothing once it returns (#51)", async () => {
+    const analysis = await captureFromBadge(postingUrl);
+    await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
+    await analysis.getByRole("button", { name: fr.analysis.submit }).click();
+    await expect(analysis.getByText(scoreLine)).toBeVisible();
+    // /api/match-score answers 1.5 s late; `answered` counts the answers that reached the page.
+    let answered = 0;
+    await context.route("**/api/match-score", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1_500));
+      await route.continue();
+      answered += 1;
+    });
+    const scores = countScoreRequests();
+    try {
+      // A double-click on "Recalculer le Match Score" asks for one Match Score, not two.
+      await analysis.getByRole("button", { name: fr.analysis.rescore }).dblclick();
+      await expect(analysis.getByText(scoreLine)).toBeVisible();
+      await expect.poll(() => answered).toBeGreaterThanOrEqual(1);
+      await analysis.waitForTimeout(2_000);
+      expect(scores.requests).toHaveLength(1);
+
+      // "Oublier" while a Match Score is computed: once it comes back, the session stays forgotten (ADR-0003).
+      await analysis.getByRole("button", { name: fr.analysis.rescore }).click();
+      await expect(analysis.getByText(fr.analysis.scoring)).toBeVisible();
+      await analysis.getByRole("button", { name: fr.analysis.forget }).click();
+      await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
+      await expect.poll(() => answered).toBe(2);
+      await analysis.waitForTimeout(500);
+      expect(await guestSession(analysis)).toEqual({});
+      await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
+      await expect(analysis.getByText(scoreLine)).toHaveCount(0);
+    } finally {
+      scores.stop();
+      await context.unroute("**/api/match-score");
+    }
+  });
+
+  test("a signed-in Free Candidate's new Job Offer is scored against their Profile, no CV asked; reopening uses no Match Score; past their Plan Quota, the Upgrade Prompt (#51, #75)", async () => {
+    test.slow();
+    const web = await context.newPage();
+    await signInWithMagicLink(web, newAddress("extension-score-quota"));
+    const masterCv = {
+      fullName: "Marie Dupont", headline: "Directrice financière", email: "", phone: "", location: "Lyon", summary: "",
+      experience: [], education: [], skills: ["IFRS"], languages: [],
+    };
+    const created = await web.request.post(`${origin}/api/profiles`, { headers: { origin }, data: { masterCv, searchCriteria: { targetRole: "Directrice financière", location: "Lyon" } } });
+    expect(created.status(), await created.text()).toBe(201);
+    const profileId = (await created.json()).id as string;
+    const used = async () => {
+      await web.goto("/abonnement");
+      return web.locator("dl div").filter({ hasText: "Match Scores" }).locator("dd").textContent();
+    };
+
+    // A new Job Offer is scored against their Profile at once: no CV is asked for.
+    const scores = countScoreRequests();
+    const analysis = await captureFromBadge(postingUrl);
+    await expect(analysis.getByText(fr.analysis.candidateNotice)).toBeVisible();
+    await expect(analysis.getByText(scoreLine)).toBeVisible();
+    await expect(analysis.getByLabel(fr.analysis.scoreProfileLabel)).toHaveValue(profileId);
+    await expect(analysis.getByLabel(frCatalogue.cvUpload.fileLabel)).toHaveCount(0);
+    expect(scores.bodies).toEqual([{ jobOfferId: expect.any(String), profileId }]);
+    const shown = await analysis.getByText(scoreLine).textContent();
+    expect(await used()).toBe("1 sur 3");
+
+    // Reopening and reloading the page, again and again, shows the kept Match Score and uses none of the Plan Quota.
+    for (let i = 0; i < 3; i++) {
+      await analysis.reload();
+      await expect(analysis.getByText(scoreLine)).toHaveText(shown!);
+    }
+    const reopened = await reopenAnalysis();
+    await expect(reopened.getByText(scoreLine)).toHaveText(shown!);
+    await reopened.close();
+    expect(scores.requests).toHaveLength(1);
+    expect(await used()).toBe("1 sur 3");
+
+    // Asking for new Match Scores uses the Plan Quota, up to its limit; then the Upgrade Prompt (QA case 11.3).
+    for (let i = 0; i < 2; i++) {
+      await analysis.getByRole("button", { name: fr.analysis.rescore }).click();
+      await expect.poll(() => scores.requests.length).toBe(2 + i);
+      await expect(analysis.getByText(scoreLine)).toBeVisible();
+    }
+    expect(await used()).toBe("3 sur 3");
+    await analysis.getByRole("button", { name: fr.analysis.rescore }).click();
+    const prompt = analysis.getByRole("alert").filter({ hasText: "Vous avez utilisé les 3 Match Scores compris ce mois-ci" });
+    await expect(prompt).toBeVisible();
+    await expect(prompt.getByRole("link", { name: "Découvrir l'offre Standard" })).toHaveAttribute("href", `${origin}/abonnement`);
+    expect(scores.requests).toHaveLength(4);
+
+    // The kept Match Score is still shown on reopen, past the quota, without asking for one.
+    await analysis.reload();
+    await expect(analysis.getByText(scoreLine)).toBeVisible();
+    expect(scores.requests).toHaveLength(4);
+    scores.stop();
+
+    // Another CV can still be scored instead, and the Profile chosen again.
+    await analysis.getByRole("button", { name: fr.analysis.changeCv }).click();
+    await expect(analysis.getByLabel(frCatalogue.cvUpload.fileLabel)).toBeVisible();
+    await analysis.getByRole("button", { name: fr.analysis.useProfile }).click();
+    await expect(analysis.getByText(scoreLine)).toHaveText(shown!);
+    await analysis.getByRole("button", { name: fr.analysis.forgetCv }).click();
+    await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
+    await web.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
   });
 
   test("shows no badge on a page that is not a job posting, where Capture is still possible by hand", async () => {
@@ -404,6 +644,15 @@ test.describe("Guest Capture and Match Score", () => {
     await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
   });
 
+  /** The worker's clean-up of Guest captures (ADR-0003), run as its schedule would at a later time. */
+  const forgetGuestCapturesAt = (time: number) => {
+    const run = spawnSync(path.resolve("node_modules/.bin/tsx"), ["e2e/support/worker-job.ts", "guests.forget", String((time - Date.now()) / 3_600_000)], {
+      env: { ...process.env, DATABASE_URL: process.env.E2E_DATABASE_URL },
+      encoding: "utf8",
+    });
+    expect(run.status, run.stderr).toBe(0);
+  };
+
   test("a Guest's Job Offer is kept for their session and forgotten by the worker within 24 hours, unlike a Candidate's", async ({ page }) => {
     // A Candidate captures a posting from the web app: theirs is never forgotten.
     await signInWithMagicLink(page, newAddress("guest-retention"));
@@ -428,15 +677,6 @@ test.describe("Guest Capture and Match Score", () => {
     const { guestSession: stored } = await guestSession(analysis);
     const jobOffer = (id: string) => analysis.request.get(`${origin}/api/job-offers/${id}`);
 
-    // The worker's clean-up, run as its schedule would at a later time.
-    const forgetGuestCapturesAt = (time: number) => {
-      const run = spawnSync(path.resolve("node_modules/.bin/tsx"), ["e2e/support/worker-job.ts", "guests.forget", String((time - Date.now()) / 3_600_000)], {
-        env: { ...process.env, DATABASE_URL: process.env.E2E_DATABASE_URL },
-        encoding: "utf8",
-      });
-      expect(run.status, run.stderr).toBe(0);
-    };
-
     // Within the session, the Guest's Job Offer is kept.
     forgetGuestCapturesAt(capturedAt + 22 * 3_600_000);
     expect((await jobOffer(stored.jobOffer.id)).status()).toBe(200);
@@ -445,7 +685,9 @@ test.describe("Guest Capture and Match Score", () => {
     forgetGuestCapturesAt(capturedAt + 23 * 3_600_000 + 60_000);
     expect((await jobOffer(stored.jobOffer.id)).status()).toBe(404);
     expect((await jobOffer(candidateOffer.id)).status()).toBe(200);
+    // Reopening shows the kept Match Score (#51); a new one cannot be computed for an offer that is gone.
     await analysis.reload();
+    await analysis.getByRole("button", { name: fr.analysis.rescore }).click();
     await expect(analysis.getByText(fr.analysis.jobOfferGone)).toBeVisible();
     await analysis.getByRole("button", { name: fr.analysis.forget }).click();
     await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
@@ -495,6 +737,253 @@ test.describe("Guest Capture and Match Score", () => {
 
     await analysis.getByRole("button", { name: fr.analysis.forgetCv }).click();
     await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
+    await web.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
+  });
+
+  // Issue #11: from the extension, a Guest signs up (or in) on the web app and keeps their work;
+  // a signed-in Candidate captures straight into an Application on the Profile they choose.
+  const applicationIn = async (page: Page, link: string) => {
+    const id = new URL(link).pathname.split("/").pop()!;
+    const response = await page.request.get(`${origin}/api/applications/${id}`);
+    expect(response.status()).toBe(200);
+    return (await response.json()) as { status: string; profile: { id: string; name: string }; jobOffer: { title: string } };
+  };
+
+  test("a Guest who signs up from the extension keeps their work: their CV becomes their first Profile, the Job Offer their first Application", async () => {
+    const jobPage = await context.newPage();
+    await jobPage.goto(postingUrl);
+    const [analysis] = await Promise.all([context.waitForEvent("page"), jobPage.getByRole("button", { name: fr.badgeLabel }).click()]);
+    await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
+    await analysis.getByRole("button", { name: fr.analysis.submit }).click();
+    await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toBeVisible();
+    await expect(analysis.getByText(fr.analysis.signUpHint)).toBeVisible();
+
+    // Signing up happens on the web app, whose session the extension shares (ADR-0011).
+    const [web] = await Promise.all([context.waitForEvent("page"), analysis.getByRole("link", { name: fr.analysis.signUp }).click()]);
+    await expect(web).toHaveURL(`${origin}/connexion`);
+    await signInWithMagicLink(web, newAddress("guest-sign-up"));
+
+    // Back on the analysis page, the Guest's work is kept at once.
+    await analysis.bringToFront();
+    await expect(analysis.getByText(fr.analysis.saved)).toBeVisible({ timeout: 15_000 });
+    await expect(analysis.getByText(/^Votre CV est devenu votre profil « .+ »\.$/)).toBeVisible();
+    const link = analysis.getByRole("link", { name: fr.analysis.openApplication });
+    const application = await applicationIn(web, (await link.getAttribute("href"))!);
+    expect(application.status).toBe("to_apply");
+    expect(application.jobOffer.title).toBe("Directeur administratif et financier H/F");
+    const profiles = await (await web.request.get(`${origin}/api/profiles`)).json();
+    expect(profiles).toEqual([{ id: application.profile.id, name: application.profile.name }]);
+    // Now in the Candidate's account, the CV and the Job Offer leave the browser (ADR-0003).
+    const { guestSession: left } = await guestSession(analysis);
+    expect(left).not.toHaveProperty("cv");
+    expect(left).not.toHaveProperty("jobOffer");
+
+    // The web app shows it among the Candidate's Applications, "À postuler".
+    await web.goto("/candidatures");
+    await expect(web.getByText("Directeur administratif et financier H/F").first()).toBeVisible();
+    await expectSavedInWebApp(web, (await link.getAttribute("href"))!, application.profile.id);
+
+    // The Job Offer the Guest captured is now the Candidate's: the worker's clean-up of Guest captures, a day later, leaves it alone.
+    forgetGuestCapturesAt(Date.now() + 25 * 3_600_000);
+    expect((await applicationIn(web, (await link.getAttribute("href"))!)).jobOffer.title).toBe("Directeur administratif et financier H/F");
+    await web.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
+  });
+
+  test("a Guest who signs up in another tab while the analysis page is still waiting on a Match Score keeps their work, without reopening it (#66)", async () => {
+    const analysis = await captureFromBadge(postingUrl);
+    await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
+    await analysis.getByRole("button", { name: fr.analysis.submit }).click();
+    await expect(analysis.getByText(scoreLine)).toBeVisible();
+
+    // Another page of the extension holds the Match Score's lock and never lets it go: the analysis
+    // page, opened again, never finishes its first render.
+    const holder = await context.newPage();
+    await holder.goto(`chrome-extension://${extensionId()}/popup.html`);
+    await holder.evaluate(() => {
+      void navigator.locks.request("jobbbox-match-score", () => new Promise(() => {}));
+    });
+    await analysis.reload();
+    await expect(analysis.getByText(fr.analysis.scoring)).toBeVisible();
+
+    try {
+      // The page shows no sign-up link yet: the Guest signs up on the web app, in another tab.
+      const web = await context.newPage();
+      await web.goto(`${origin}/connexion`);
+      await signInWithMagicLink(web, newAddress("guest-sign-up-stalled"));
+
+      await analysis.bringToFront();
+      await expect(analysis.getByText(fr.analysis.saved)).toBeVisible({ timeout: 15_000 });
+      const link = analysis.getByRole("link", { name: fr.analysis.openApplication });
+      const application = await applicationIn(web, (await link.getAttribute("href"))!);
+      expect(application.status).toBe("to_apply");
+      const profiles = await (await web.request.get(`${origin}/api/profiles`)).json();
+      expect(profiles).toEqual([{ id: application.profile.id, name: application.profile.name }]);
+      await web.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
+    } finally {
+      await holder.close();
+    }
+  });
+
+  test("a Match Score request that never answers is given up after a bounded time, and can be tried again (#66)", async () => {
+    const captured = await captureFromBadge(postingUrl);
+    await captured.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
+    await captured.getByRole("button", { name: fr.analysis.submit }).click();
+    await expect(captured.getByText(scoreLine)).toBeVisible();
+    await captured.close();
+
+    // The analysis page, opened again, on a clock the test moves forward.
+    const analysis = await context.newPage();
+    await analysis.clock.install();
+    await analysis.goto(`chrome-extension://${extensionId()}/analyse.html`);
+    await expect(analysis.getByText(scoreLine)).toBeVisible();
+
+    // The web app takes the next Match Score request and never answers it.
+    const stalled: { abort(): Promise<void> }[] = [];
+    await context.route("**/api/match-score", async (route) => {
+      if (stalled.length === 0) stalled.push(route);
+      else await route.continue();
+    });
+    try {
+      await analysis.getByRole("button", { name: fr.analysis.rescore }).click();
+      await expect(analysis.getByText(fr.analysis.scoring)).toBeVisible();
+      await expect.poll(() => stalled.length).toBe(1);
+
+      // A minute on, it is still waited for; past the bound, it is given up with the usual retry state.
+      await analysis.clock.fastForward("01:00");
+      await expect(analysis.getByText(fr.analysis.scoring)).toBeVisible();
+      await analysis.clock.fastForward("02:00");
+      await expect(analysis.getByRole("alert").filter({ hasText: fr.unreachable })).toBeVisible();
+      await expect(analysis.getByText(fr.analysis.scoring)).toHaveCount(0);
+
+      // Tried again while the stalled request is still open: the page waits on nothing left behind.
+      await analysis.getByRole("button", { name: fr.analysis.rescore }).click();
+      await expect(analysis.getByText(scoreLine)).toBeVisible();
+      await expect(analysis.getByText(fr.unreachable)).toHaveCount(0);
+    } finally {
+      await context.unroute("**/api/match-score");
+      await Promise.all(stalled.map((route) => route.abort().catch(() => {})));
+    }
+    // The next tests start from no Guest session.
+    await analysis.getByRole("button", { name: fr.analysis.forget }).click();
+    await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
+    await analysis.close();
+  });
+
+  /** The web app shows the Application "À postuler", and the Profile's Master CV, version 1, read from the Guest's CV. */
+  const expectSavedInWebApp = async (web: Page, applicationLink: string, profileId: string) => {
+    await web.goto(new URL(applicationLink).pathname);
+    await expect(web.getByRole("heading", { level: 1 })).toContainText("Directeur administratif et financier H/F");
+    await expect(web.getByLabel(frCatalogue.application.statusLabel)).toHaveValue("to_apply");
+    await expect(web.getByLabel(frCatalogue.application.statusLabel).locator("option:checked")).toHaveText(frCatalogue.applicationStatuses.to_apply);
+    await web.goto(`/profils/${profileId}/cv`);
+    await expect(web.getByText("Vous modifiez la version 1.")).toBeVisible();
+    await expect(web.getByLabel(frCatalogue.cvReview.fullName)).toHaveValue("Marie Dupont");
+    await expect(web.getByLabel(frCatalogue.cvReview.headline)).toHaveValue("Directrice financière");
+    await expect(web.getByLabel(frCatalogue.cvReview.employer).first()).toHaveValue("Groupe Seb");
+  };
+
+  test("a Guest who signs in to their existing account from the extension can turn their CV into a new Profile and the Job Offer into an Application", async () => {
+    test.slow(); // two magic-link sign-ins, a subscription and a Profile before the Capture even starts
+    // An existing Candidate with one Profile, on a Plan allowing more, who is signed out.
+    const web = await context.newPage();
+    const email = newAddress("guest-sign-in");
+    await signInWithMagicLink(web, email);
+    await subscribe(web, email, "standard");
+    const masterCv = {
+      fullName: "Marie Dupont", headline: "Contrôleuse de gestion", email: "", phone: "", location: "Lyon", summary: "",
+      experience: [], education: [], skills: [], languages: [],
+    };
+    const existing = await web.request.post(`${origin}/api/profiles`, { headers: { origin }, data: { masterCv, searchCriteria: { targetRole: "Contrôleuse de gestion", location: "Lyon" } } });
+    expect(existing.status(), await existing.text()).toBe(201);
+    const existingId = (await existing.json()).id as string;
+    await web.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
+
+    // As a Guest, they capture a posting and score their CV.
+    const jobPage = await context.newPage();
+    await jobPage.goto(postingUrl);
+    const [analysis] = await Promise.all([context.waitForEvent("page"), jobPage.getByRole("button", { name: fr.badgeLabel }).click()]);
+    await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
+    await analysis.getByRole("button", { name: fr.analysis.submit }).click();
+    await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toBeVisible();
+
+    // They sign in on the web app, from the extension's link; the extension shares that session.
+    const [signIn] = await Promise.all([context.waitForEvent("page"), analysis.getByRole("link", { name: fr.analysis.signUp }).click()]);
+    await expect(signIn).toHaveURL(`${origin}/connexion`);
+    await signInWithMagicLink(signIn, email);
+    await analysis.bringToFront();
+
+    // Having a Profile already, they choose: theirs, or a new one from this CV.
+    const profile = analysis.getByLabel(fr.analysis.profileLabel);
+    await expect(profile.getByRole("option")).toHaveText(["Contrôleuse de gestion", fr.analysis.newProfileFromCv], { timeout: 15_000 });
+    await profile.selectOption({ label: fr.analysis.newProfileFromCv });
+    await analysis.getByRole("button", { name: fr.analysis.save }).click();
+
+    await expect(analysis.getByText(fr.analysis.saved)).toBeVisible();
+    await expect(analysis.getByText(/^Votre CV est devenu votre profil « .+ »\.$/)).toBeVisible();
+    const link = (await analysis.getByRole("link", { name: fr.analysis.openApplication }).getAttribute("href"))!;
+    const application = await applicationIn(signIn, link);
+    expect(application.status).toBe("to_apply");
+    expect(application.profile.id).not.toBe(existingId);
+    const profiles = (await (await signIn.request.get(`${origin}/api/profiles`)).json()) as { id: string }[];
+    expect(profiles.map((p) => p.id)).toEqual([existingId, application.profile.id]);
+    const { guestSession: left } = await guestSession(analysis);
+    expect(left).not.toHaveProperty("cv");
+    expect(left).not.toHaveProperty("jobOffer");
+
+    await expectSavedInWebApp(signIn, link, application.profile.id);
+    await signIn.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
+  });
+
+  test("a signed-in Candidate chooses the Profile and the captured Job Offer becomes an Application directly", async () => {
+    const web = await context.newPage();
+    const email = newAddress("extension-profiles");
+    await signInWithMagicLink(web, email);
+    await subscribe(web, email, "standard"); // more than the Free Plan's one Profile
+    const masterCv = {
+      fullName: "Marie Dupont", headline: "Directrice financière", email: "", phone: "", location: "Lyon", summary: "",
+      experience: [], education: [], skills: ["IFRS"], languages: [],
+    };
+    const profileIds: string[] = [];
+    // Two Profiles whose Master CVs match the posting's skills differently, so their Match Scores differ.
+    for (const [targetRole, skills] of [["Directrice financière", ["IFRS", "Consolidation", "Power BI"]], ["Consultante transformation", []]] as const) {
+      const data = { masterCv: { ...masterCv, skills }, searchCriteria: { targetRole, location: "Lyon" } };
+      const created = await web.request.post(`${origin}/api/profiles`, { headers: { origin }, data });
+      expect(created.status(), await created.text()).toBe(201);
+      profileIds.push((await created.json()).id);
+    }
+
+    const scores = countScoreRequests();
+    const jobPage = await context.newPage();
+    await jobPage.goto(postingUrl);
+    const [analysis] = await Promise.all([context.waitForEvent("page"), jobPage.getByRole("button", { name: fr.badgeLabel }).click()]);
+
+    // Scored against their first Profile at once; switching the Profile scores the Job Offer against that one (#75).
+    const scoredWith = analysis.getByLabel(fr.analysis.scoreProfileLabel);
+    await expect(scoredWith.getByRole("option")).toHaveText(["Directrice financière", "Consultante transformation"]);
+    await expect(analysis.getByText(fr.analysis.covered.replace("{{skills}}", "IFRS, Consolidation, Power BI"))).toBeVisible();
+    const first = await analysis.getByText(scoreLine).textContent();
+    await scoredWith.selectOption({ label: "Consultante transformation" });
+    await expect(analysis.getByText(fr.analysis.covered.replace("{{skills}}", "IFRS, Consolidation, Power BI"))).toHaveCount(0);
+    await expect(analysis.getByText(scoreLine)).not.toHaveText(first!);
+    expect(scores.bodies.map((body) => body.profileId)).toEqual(profileIds);
+    // Reopened, the page shows the Match Score kept for the Profile chosen, without asking for one.
+    const second = await analysis.getByText(scoreLine).textContent();
+    const reopened = await reopenAnalysis();
+    await expect(reopened.getByLabel(fr.analysis.scoreProfileLabel)).toHaveValue(profileIds[1]!);
+    await expect(reopened.getByText(scoreLine)).toHaveText(second!);
+    await reopened.close();
+    expect(scores.requests).toHaveLength(2);
+    scores.stop();
+
+    const profile = analysis.getByLabel(fr.analysis.profileLabel);
+    await expect(profile.getByRole("option")).toHaveText(["Directrice financière", "Consultante transformation"]);
+    await profile.selectOption({ label: "Consultante transformation" });
+    await analysis.getByRole("button", { name: fr.analysis.save }).click();
+
+    await expect(analysis.getByText(fr.analysis.saved)).toBeVisible();
+    await expect(analysis.getByText(/^Votre CV est devenu/)).toHaveCount(0);
+    const application = await applicationIn(web, (await analysis.getByRole("link", { name: fr.analysis.openApplication }).getAttribute("href"))!);
+    expect(application).toMatchObject({ status: "to_apply", profile: { id: profileIds[1], name: "Consultante transformation" } });
     await web.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
   });
 });

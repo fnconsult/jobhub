@@ -11,6 +11,7 @@ import { JobDigestToggle } from "@/components/JobDigestControls";
 import { StartJobSearchButton } from "@/components/JobSearchControls";
 import { MasterCvView } from "@/components/MasterCvView";
 import { ProfileActions } from "@/components/ProfileActions";
+import { SearchCriteriaEditor } from "@/components/SearchCriteriaEditor";
 import { WorkspaceHeader } from "@/components/WorkspaceHeader";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getJobDigests } from "@/job-digests/server";
@@ -31,8 +32,9 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 /**
  * One Profile: the AI Coach's Action Cards about it (ATS Fixes among them,
- * Senior Advice labelled), a Job Search for it, its Job Digest, its Search Criteria, its ATS
- * Score, the current version of its Master CV, and what can be done with it.
+ * Senior Advice labelled), a Job Search for it, its Job Digest, its Search Criteria
+ * (editable while the Profile is active), its ATS Score, the current version of its
+ * Master CV, and what can be done with it.
  */
 export default async function ProfilePage({ params }: Params) {
   const { candidateId, profile } = await currentProfile((await params).id);
@@ -101,23 +103,29 @@ export default async function ProfilePage({ params }: Params) {
         </section>
       ) : null}
 
-      <h2>{t("cvReview.searchCriteria")}</h2>
-      <dl>
-        <dt>{t("cvReview.targetRole")}</dt>
-        <dd>{criteria.targetRole}</dd>
-        <dt>{t("cvReview.location")}</dt>
-        <dd>{criteria.location}</dd>
-        <dt>{t("cvReview.minSalary")}</dt>
-        <dd>
-          {criteria.minSalary === undefined
-            ? notSpecified
-            : t("profile.salary", { amount: new Intl.NumberFormat(locale).format(criteria.minSalary) })}
-        </dd>
-        <dt>{t("cvReview.contractType")}</dt>
-        <dd>{criteria.contractType ? t(`cvReview.contractTypes.${criteria.contractType}`) : notSpecified}</dd>
-        <dt>{t("cvReview.remoteWork")}</dt>
-        <dd>{criteria.remoteWork ? t(`cvReview.remoteWorkOptions.${criteria.remoteWork}`) : notSpecified}</dd>
-      </dl>
+      {profile.archived ? (
+        <>
+          <h2>{t("cvReview.searchCriteria")}</h2>
+          <dl>
+            <dt>{t("cvReview.targetRole")}</dt>
+            <dd>{criteria.targetRole}</dd>
+            <dt>{t("cvReview.location")}</dt>
+            <dd>{criteria.location}</dd>
+            <dt>{t("cvReview.minSalary")}</dt>
+            <dd>
+              {criteria.minSalary === undefined
+                ? notSpecified
+                : t("profile.salary", { amount: new Intl.NumberFormat(locale).format(criteria.minSalary) })}
+            </dd>
+            <dt>{t("cvReview.contractType")}</dt>
+            <dd>{criteria.contractType ? t(`cvReview.contractTypes.${criteria.contractType}`) : notSpecified}</dd>
+            <dt>{t("cvReview.remoteWork")}</dt>
+            <dd>{criteria.remoteWork ? t(`cvReview.remoteWorkOptions.${criteria.remoteWork}`) : notSpecified}</dd>
+          </dl>
+        </>
+      ) : (
+        <SearchCriteriaEditor key={`criteria-${profile.id}`} profileId={profile.id} searchCriteria={criteria} />
+      )}
 
       <AtsScoreView
         profileId={profile.id}

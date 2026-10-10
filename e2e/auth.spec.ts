@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
-import { catalogueStrings, renderedTexts } from "./support/accessibility";
+import { fromCatalogue, renderedTexts } from "./support/accessibility";
 import { approveAtGoogle, refuseAtGoogle, signInWithMagicLink } from "./support/candidate";
 import { emailsTo, linkIn, newAddress, waitForEmail } from "./support/mailbox";
 
@@ -42,7 +42,8 @@ test.describe("magic-link sign-up and sign-in", () => {
   });
 
   test("the sign-in and account pages use only catalogue strings and meet the ADR-0009 floor", async ({ page }) => {
-    const allowed = new Set(catalogueStrings(fr));
+    // Some account-page strings carry a value, e.g. the Follow-up Delays hint (issue #21).
+    const allowed = { has: fromCatalogue(fr) };
     const email = newAddress("floor");
     await page.goto("/connexion");
     for (const t of await renderedTexts(page)) {

@@ -47,6 +47,11 @@
       "submit": "Calculer mon Match Score",
       "scoring": "Calcul du Match Score en cours…",
       "changeCv": "Utiliser un autre CV",
+      "profileTitle": "Votre profil",
+      "scoreProfileLabel": "Profil comparé à cette offre",
+      "useProfile": "Utiliser l'un de mes profils",
+      "scoreNotFound": "Cette offre ou ce profil n'est plus disponible. Choisissez un autre profil ou capturez l'offre de nouveau.",
+      "rescore": "Recalculer le Match Score",
       "forget": "Effacer mes données maintenant",
       "forgotten": "Votre CV et l'offre ont été effacés de ce navigateur.",
       "score": "Match Score : {{score}} / 100",
@@ -80,7 +85,20 @@
         "wanted": "Votre minimum : {{amount}} brut par an"
       },
       "candidateNotice": "Cette offre est enregistrée dans votre compte Jobbbox. Le CV que vous importez ici reste dans ce navigateur le temps de votre session : Jobbbox le lit pour calculer le Match Score sans l'enregistrer.",
-      "forgetCv": "Effacer ce CV de ce navigateur"
+      "forgetCv": "Effacer ce CV de ce navigateur",
+      "signUpHint": "Une fois votre compte créé ou après vous être connecté, revenez sur cette page : votre CV deviendra votre premier profil et cette offre votre première candidature.",
+      "saveTitle": "Enregistrer dans mes candidatures",
+      "profileLabel": "Profil utilisé pour cette candidature",
+      "newProfileFromCv": "Un nouveau profil, à partir de ce CV",
+      "save": "Enregistrer la candidature",
+      "saving": "Enregistrement en cours…",
+      "firstProfileHint": "Importez votre CV ci-dessous : il deviendra votre premier profil, et cette offre votre première candidature.",
+      "saved": "Cette offre est enregistrée dans vos candidatures, au statut « À postuler ».",
+      "profileCreated": "Votre CV est devenu votre profil « {{name}} ».",
+      "openApplication": "Voir ma candidature",
+      "searchCriteriaMissing": "Nous n'avons trouvé ni dans votre CV ni dans l'offre le poste visé et le lieu de votre recherche. Créez votre profil sur Jobbbox, puis enregistrez de nouveau cette offre.",
+      "createProfile": "Créer mon profil sur Jobbbox",
+      "profileQuotaReached": "Votre formule ne permet pas de créer un autre profil. Choisissez l'un de vos profils."
     },
     "allSites": "Détecter les offres sur tous les sites",
     "allSitesHint": "Pour voir « Analyser cette offre » aussi sur les sites carrières des employeurs. Votre navigateur vous demandera l'autorisation ; les pages restent lues dans ce navigateur uniquement."
@@ -114,7 +132,25 @@
     "saved": "Enregistré.",
     "signOut": "Se déconnecter",
     "plan": "Mon abonnement",
-    "admin": "Back office"
+    "admin": "Back office",
+    "humanCoaches": "Mes coachs humains",
+    "coachSpace": "Mon espace coach"
+  },
+  "accountData": {
+    "title": "Mes données",
+    "exportHint": "Téléchargez tout ce que vous avez enregistré dans Jobbbox : vos profils, toutes les versions de vos CV, vos candidatures et leurs documents.",
+    "export": "Télécharger toutes mes données",
+    "deleteTitle": "Supprimer mon compte",
+    "deleteWarning": "Votre compte est fermé tout de suite et vous êtes déconnecté. Vos profils, CV, candidatures, documents, accès accordés aux coachs et notes de séances de coaching sont effacés, définitivement sous 30 jours au plus. Votre abonnement, s'il y en a un, prend fin. Téléchargez vos données avant si vous souhaitez les garder.",
+    "confirmLabel": "Pour confirmer, saisissez votre adresse e-mail",
+    "delete": "Supprimer définitivement mon compte",
+    "confirmMismatch": "Cette adresse ne correspond pas à celle de votre compte. Rien n'a été supprimé.",
+    "deleteError": "La suppression n'a pas pu aboutir. Rien n'a été supprimé : réessayez dans un moment."
+  },
+  "accountDeleted": {
+    "title": "Votre compte est supprimé",
+    "body": "Vos données ont été effacées. Merci d'avoir utilisé Jobbbox, et bonne continuation dans votre recherche.",
+    "home": "Retour à l'accueil"
   },
   "languages": {
     "fr": "Français",
@@ -266,6 +302,12 @@
     "restore": "Restaurer ce profil",
     "working": "Enregistrement en cours…",
     "error": "La modification n'a pas pu être enregistrée. Veuillez réessayer."
+  },
+  "searchCriteriaEditor": {
+    "hint": "Jobbbox s'en sert pour le Match Score, le mot-clé cible de l'ATS Score et la recherche d'offres. Le nom du profil ne change pas : renommez-le plus bas si besoin.",
+    "save": "Enregistrer les critères",
+    "saved": "Critères de recherche enregistrés.",
+    "archived": "Ce profil est archivé : restaurez-le pour modifier ses critères de recherche."
   },
   "newProfile": {
     "title": "Créer un profil",
@@ -419,7 +461,6 @@
       "planQuotas": "Quotas des offres",
       "humanCoaches": "Coachs humains"
     },
-    "comingSoon": "Bientôt disponible",
     "planQuotas": {
       "title": "Quotas des offres",
       "intro": "Les modifications s'appliquent immédiatement à tous les candidats de l'offre. Laissez un champ vide pour « illimité ».",
@@ -430,7 +471,25 @@
       "saved": "Quotas de l'offre {{plan}} enregistrés.",
       "invalid": "Vérifiez les valeurs : des nombres entiers positifs, ou vide pour illimité."
     },
-    "back": "Retour au back office"
+    "back": "Retour au back office",
+    "humanCoaches": {
+      "title": "Coachs humains",
+      "intro": "Les coachs que les candidats peuvent réserver. Ils se connectent avec l'adresse e-mail indiquée ici. Jobbbox les rémunère en dehors de la plateforme.",
+      "addTitle": "Ajouter un coach",
+      "name": "Nom",
+      "email": "Adresse e-mail de connexion",
+      "bookingUrl": "Lien de réservation Cal.com",
+      "bookingUrlHelp": "Par exemple https://cal.com/prenom-nom/seance",
+      "bio": "Présentation (facultatif)",
+      "add": "Ajouter le coach",
+      "added": "Coach {{name}} ajouté.",
+      "invalid": "Vérifiez les champs : un nom, une adresse e-mail valide et un lien de réservation Cal.com en https.",
+      "emailTaken": "Un coach utilise déjà cette adresse e-mail.",
+      "listTitle": "Coachs actifs",
+      "none": "Aucun coach pour l'instant.",
+      "retire": "Retirer {{name}}",
+      "retired": "Coach retiré. Ses séances passées sont conservées."
+    }
   },
   "applicationStatuses": {
     "to_apply": "À postuler",
@@ -613,6 +672,35 @@
     "sourcesTitle": "Sources",
     "builtOn": "Dossier constitué le {{date}} pour « {{employer}} »."
   },
+  "enrichedContacts": {
+    "title": "Contacts enrichis",
+    "intro": "Trouvez les personnes qui occupent les fonctions à contacter chez l'employeur, puis obtenez leurs coordonnées auprès d'un fournisseur de données sous licence. Chaque contact dont vous obtenez les coordonnées compte dans votre quota mensuel.",
+    "needsDossier": "Constituez d'abord le dossier entreprise : il indique les fonctions à rechercher.",
+    "searchUnsupported": "Le fournisseur de données actuel ne permet pas de rechercher des personnes par fonction.",
+    "find": "Rechercher des contacts",
+    "findAgain": "Rechercher à nouveau",
+    "working": "Recherche en cours…",
+    "foundTitle": "Personnes trouvées",
+    "foundNone": "Aucune personne trouvée pour l'instant.",
+    "reveal": "Obtenir les coordonnées",
+    "revealFor": "Obtenir les coordonnées de {{name}}",
+    "revealHint": "Chaque demande de coordonnées compte pour un contact enrichi dans votre quota du mois. Rien n'est décompté si le fournisseur n'en a pas.",
+    "revealing": "Demande en cours…",
+    "contactsTitle": "Vos contacts enrichis",
+    "email": "E-mail",
+    "phone": "Téléphone",
+    "source": "Source : {{provider}}, coordonnées obtenues le {{date}}.",
+    "personalData": "Ces données personnelles viennent d'un fournisseur sous licence. Utilisez-les uniquement pour cette candidature.",
+    "useInOutreach": "Vous pouvez adresser votre message d'approche à l'un de ces contacts.",
+    "noDetails": "Le fournisseur n'a pas de coordonnées pour cette personne. Rien n'a été décompté.",
+    "unavailable": "Le fournisseur de données ne répond pas pour le moment. Rien n'a été décompté. Réessayez dans quelques minutes.",
+    "error": "La demande a échoué. Vérifiez votre connexion et réessayez.",
+    "providers": {
+      "lusha": "Lusha",
+      "kaspr": "Kaspr",
+      "apollo": "Apollo"
+    }
+  },
   "atsScore": {
     "title": "ATS Score",
     "intro": "Comment les logiciels de recrutement (ATS) lisent votre CV de référence pour le poste « {{role}} ».",
@@ -722,6 +810,16 @@
     "pdf": "Télécharger en PDF",
     "docx": "Télécharger en Word (.docx)"
   },
+  "applicationExport": {
+    "tailoredCv": {
+      "title": "Télécharger ce CV adapté",
+      "intro": "Dans la langue où il est écrit. Choisissez un modèle de CV, puis un format."
+    },
+    "coverLetter": {
+      "title": "Télécharger cette lettre de motivation",
+      "intro": "Le texte enregistré, dans la langue où il est écrit, signé avec les coordonnées de votre CV de référence. Choisissez un modèle, puis un format."
+    }
+  },
   "tailoredDocuments": {
     "title": "Lettre de motivation et message d'approche",
     "draftsOnly": "Jobbbox n'envoie rien à votre place : copiez le texte ou ouvrez-le dans votre messagerie, puis envoyez-le vous-même.",
@@ -749,7 +847,11 @@
       "contactRoles": "À adresser à :",
       "subjectLabel": "Objet",
       "textLabel": "Texte du message",
-      "openInMail": "Ouvrir dans ma messagerie"
+      "openInMail": "Ouvrir dans ma messagerie",
+      "recipientLabel": "Destinataire",
+      "recipientNone": "Personne en particulier (les fonctions à contacter)",
+      "addressedTo": "Adressé à {{name}}",
+      "notAContact": "Ce contact n'est plus disponible. Choisissez-en un autre."
     },
     "writtenIn": {
       "fr": "Rédigé en français.",
@@ -800,5 +902,146 @@
       "done": "C'est fait : vous ne recevrez plus ce Job Digest.",
       "invalid": "Ce lien de désabonnement n'est plus valable. Vous êtes peut-être déjà désabonné ; sinon, connectez-vous et désactivez le Job Digest depuis la page du profil."
     }
+  },
+  "tailoredCv": {
+    "title": "CV adapté à l'offre",
+    "factsOnly": "Le coach adapte votre CV de référence à cette offre : il reformule, réordonne, coupe et met en avant ce qu'il contient, sans jamais rien inventer. Ce que l'offre demande et que votre CV ne montre pas vous est demandé.",
+    "languageLabel": "Langue du CV adapté",
+    "languageHint": "Par défaut, la langue de l'offre. C'est aussi celle de la lettre et du message d'approche ; le changement s'applique à la prochaine proposition.",
+    "none": "Aucun CV adapté pour l'instant. Le coach vous en propose un, que vous vérifiez avant de l'enregistrer.",
+    "noneSinceSaved": "Vous pouvez demander une nouvelle proposition : le CV enregistré reste en place tant que vous n'en enregistrez pas un autre.",
+    "propose": "Proposer un CV adapté",
+    "proposeAgain": "Proposer à nouveau",
+    "proposing": "Proposition en cours…",
+    "proposed": "Proposition prête : vérifiez les changements avant d'enregistrer.",
+    "proposalTitle": "Proposition à vérifier",
+    "writtenIn": {
+      "fr": "Rédigé en français.",
+      "en": "Rédigé en anglais."
+    },
+    "score": "Score de correspondance : {{master}} → {{tailored}}",
+    "scoreLabel": "Score de correspondance : {{master}} sur 100 avec le CV de référence, {{tailored}} sur 100 avec le CV adapté",
+    "questionsTitle": "Questions du coach",
+    "questionsIntro": "L'offre demande ces points, que votre CV de référence ne montre pas. Ils ne sont ajoutés que si vous confirmez les avoir.",
+    "question": "Avez-vous cette compétence ou cette expérience : {{requirement}} ?",
+    "confirm": "Oui, je l'ai",
+    "decline": "Non",
+    "changesTitle": "Changements par rapport au CV de référence",
+    "noChanges": "Aucun changement : le CV adapté reprend votre CV de référence tel quel.",
+    "sections": {
+      "headline": "Titre",
+      "summary": "Résumé",
+      "experience": "Expérience",
+      "education": "Formation",
+      "skills": "Compétences",
+      "languages": "Langues"
+    },
+    "kinds": {
+      "rephrased": "reformulé",
+      "reordered": "réordonné",
+      "cut": "retiré",
+      "added": "ajouté (confirmé par vous)"
+    },
+    "master": "CV de référence",
+    "tailored": "CV adapté",
+    "empty": "(vide)",
+    "saveHint": "Enregistrer remplace le CV adapté déjà enregistré pour cette candidature, s'il y en a un.",
+    "save": "Enregistrer le CV adapté",
+    "saving": "Enregistrement…",
+    "saved": "CV adapté enregistré sur la candidature.",
+    "savedTitle": "CV adapté enregistré",
+    "savedOn": "Enregistré le {{date}}.",
+    "skillsLine": "Compétences : {{skills}}",
+    "unavailable": "Le coach n'a pas pu proposer de CV adapté pour l'instant. Réessayez dans quelques minutes.",
+    "masterCvChanged": "Votre CV de référence a changé depuis cette proposition : demandez une nouvelle proposition avant d'enregistrer.",
+    "proposalChanged": "Cette proposition a changé depuis que vous l'avez vérifiée (dans un autre onglet ?) : vérifiez-la à nouveau avant d'enregistrer.",
+    "error": "L'opération a échoué. Vérifiez votre connexion et réessayez."
+  },
+  "followUps": {
+    "cardLabel": "Relance suggérée",
+    "cardTitle": "Relancer l'employeur pour « {{title}} »",
+    "subject": "Objet : {{subject}}",
+    "markSent": "Marquer comme envoyée",
+    "sentHint": "Envoyez ce brouillon depuis votre messagerie, puis marquez-le comme envoyé : la candidature passe à « Relancée ».",
+    "abandonLabel": "Suggestion du coach",
+    "abandonTitle": "Classer « {{title}} » comme abandonnée ?",
+    "abandonBody_one": "Votre relance est restée sans réponse. Vous pouvez classer cette candidature comme « Abandonnée » et concentrer votre énergie sur les autres.",
+    "abandonBody_other": "Vos {{count}} relances sont restées sans réponse. Vous pouvez classer cette candidature comme « Abandonnée » et concentrer votre énergie sur les autres.",
+    "abandonAccept": "Classer comme abandonnée",
+    "email": {
+      "subject": "Une relance vous attend : {{title}}",
+      "body": "Bonjour,\n\nVotre candidature « {{title}} » est restée sans réponse. Votre coach Jobbbox vous a préparé un brouillon de relance : relisez-le, envoyez-le depuis votre messagerie, puis marquez-le comme envoyé.\n\n{{url}}\n\nL'équipe Jobbbox"
+    },
+    "abandonEmail": {
+      "subject": "Toujours sans réponse : {{title}}",
+      "body": "Bonjour,\n\nVos relances pour « {{title}} » sont restées sans réponse. Votre coach Jobbbox vous suggère de classer cette candidature comme abandonnée.\n\n{{url}}\n\nL'équipe Jobbbox"
+    },
+    "noticesTitle": "Relances à faire",
+    "noticeFollowUp": "Relance prête : {{title}}",
+    "noticeAbandon": "Toujours sans réponse : {{title}}",
+    "delaysTitle": "Délais de relance",
+    "delaysHint": "En jours ouvrés (hors week-ends et jours fériés), de 1 à {{max}}.",
+    "afterApplied": "Première relance, après « Postulée »",
+    "afterFollowUp": "Relance suivante, après une relance",
+    "saveDelays": "Enregistrer les délais",
+    "delaysSaved": "Délais enregistrés.",
+    "delaysInvalid": "Indiquez un nombre entier de jours ouvrés, de 1 à {{max}}.",
+    "delaysError": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez."
+  },
+  "humanCoaches": {
+    "title": "Mes coachs humains",
+    "intro": "En plus de votre coach IA, réservez une séance en visio avec un professionnel RH sélectionné par Jobbbox.",
+    "price": "Prix d'une séance : {{price}}",
+    "premiumPrice": "Prix d'une séance avec votre offre Premium : {{price}} au lieu de {{regular}}",
+    "premiumHint": "Les abonnés Premium bénéficient d'un prix réduit sur les séances.",
+    "unavailable": "Le paiement des séances n'est pas encore disponible.",
+    "book": "Réserver une séance avec {{name}}",
+    "none": "Aucun coach n'est disponible pour le moment.",
+    "paid": "Paiement reçu. Choisissez maintenant le créneau de votre séance.",
+    "paidPending": "Paiement en cours de confirmation. Rechargez la page dans quelques instants pour choisir votre créneau.",
+    "error": "Le paiement n'a pas pu démarrer. Veuillez réessayer.",
+    "sessionsTitle": "Mes séances payées",
+    "sessionPaidOn": "Séance avec {{name}}, payée le {{date}}",
+    "pickSlot": "Choisir mon créneau avec {{name}} sur Cal.com",
+    "accessIntro": "Avec votre accord, un coach peut lire vos profils et vos candidatures, et commenter vos documents de candidature. Il ne peut rien modifier. Vous pouvez retirer cet accès à tout moment.",
+    "accessGranted": "{{name}} a accès à vos profils et candidatures.",
+    "accessNotGranted": "{{name}} n'a pas accès à vos profils et candidatures.",
+    "grant": "Donner l'accès à {{name}}",
+    "revoke": "Retirer l'accès à {{name}}",
+    "listTitle": "Choisir un coach"
+  },
+  "coachReviews": {
+    "title": "Avis de vos coachs",
+    "by": "{{name}}, le {{date}}",
+    "documents": {
+      "tailored_cv": "CV adapté",
+      "cover_letter": "Lettre de motivation",
+      "outreach_message": "Message d'approche"
+    }
+  },
+  "coachSpace": {
+    "title": "Mon espace coach",
+    "intro": "Les candidats qui vous ont donné l'accès coach. Vous lisez leurs profils et candidatures sans pouvoir les modifier.",
+    "none": "Aucun candidat ne vous a encore donné l'accès.",
+    "back": "Retour à mes candidats",
+    "backToCandidate": "Retour au dossier du candidat",
+    "readOnly": "Lecture seule : seul le candidat peut modifier ses profils et candidatures.",
+    "profilesTitle": "Profils",
+    "archived": "(archivé)",
+    "targetRole": "Poste visé : {{role}}",
+    "applicationsTitle": "Candidatures",
+    "applicationsNone": "Aucune candidature pour l'instant.",
+    "documentsTitle": "Documents de candidature",
+    "noDocument": "Pas encore rédigé.",
+    "subject": "Objet : {{subject}}",
+    "reviewTitle": "Votre avis",
+    "reviewDocument": "Document commenté",
+    "reviewText": "Votre avis pour le candidat",
+    "reviewSubmit": "Envoyer l'avis",
+    "reviewSaved": "Avis envoyé au candidat.",
+    "reviewInvalid": "Choisissez un document déjà rédigé et écrivez votre avis.",
+    "reviewNothing": "Le candidat n'a encore aucun document de candidature à commenter.",
+    "status": "Statut : {{status}}",
+    "applicationStatus": "({{status}}, depuis le {{date}})"
   }
 }

@@ -29,7 +29,6 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
   let otherCandidateId: string;
   let jobOfferId: string;
   let profileId: string;
-  let database: Pool;
 
   async function signIn(email: string) {
     const cookie = await signInWithMagicLink(testAuth, email);

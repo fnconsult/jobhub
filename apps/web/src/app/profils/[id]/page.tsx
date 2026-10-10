@@ -7,12 +7,14 @@ import { ActionCardList, type ActionCardView } from "@/components/ActionCardList
 import { AtsScoreView } from "@/components/AtsScoreView";
 import { CoachInView } from "@/components/CoachPanel";
 import { CvExportForm } from "@/components/CvExportForm";
+import { JobDigestToggle } from "@/components/JobDigestControls";
 import { StartJobSearchButton } from "@/components/JobSearchControls";
 import { MasterCvView } from "@/components/MasterCvView";
 import { ProfileActions } from "@/components/ProfileActions";
 import { SearchCriteriaEditor } from "@/components/SearchCriteriaEditor";
 import { WorkspaceHeader } from "@/components/WorkspaceHeader";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { getJobDigests } from "@/job-digests/server";
 import { requireOwnProfile } from "@/profiles/server";
 import { routes } from "@/routes";
 
@@ -30,8 +32,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 /**
  * One Profile: the AI Coach's Action Cards about it (ATS Fixes among them,
- * Senior Advice labelled), a Job Search for it, its Search Criteria (editable
- * while the Profile is active), its ATS Score, the current version of its
+ * Senior Advice labelled), a Job Search for it, its Job Digest, its Search Criteria
+ * (editable while the Profile is active), its ATS Score, the current version of its
  * Master CV, and what can be done with it.
  */
 export default async function ProfilePage({ params }: Params) {
@@ -40,6 +42,7 @@ export default async function ProfilePage({ params }: Params) {
   const inView = { kind: "profile", id: profile.id, name: profile.name } as const;
   const cards = await getActionCards().pending(candidateId, inView);
   const atsScore = await getAtsScoring().latest(candidateId, profile.id);
+  const jobDigest = await getJobDigests().settings(candidateId, profile.id);
   const locale = await getRequestLocale();
   const { searchCriteria: criteria, masterCv } = profile;
   const notSpecified = t("profile.notSpecified");
@@ -64,6 +67,41 @@ export default async function ProfilePage({ params }: Params) {
           <StartJobSearchButton key={profile.id} profileId={profile.id} />
         </section>
       )}
+
+      {jobDigest && !profile.archived ? (
+        <section className="stack" aria-labelledby="job-digest-title">
+          <h2 id="job-digest-title">{t("jobDigest.sectionTitle")}</h2>
+          <p>{t("jobDigest.hint")}</p>
+          {jobDigest.frequency !== "none" ? <p>{t(`jobDigest.frequency.${jobDigest.frequency}`)}</p> : null}
+          {jobDigest.subscribed ? (
+            <p className="notice" role="status">
+              {t("jobDigest.subscribed")}
+            </p>
+          ) : null}
+          <JobDigestToggle key={profile.id} profileId={profile.id} subscribed={jobDigest.subscribed} />
+          {jobDigest.digests.length > 0 ? (
+            <>
+              <h3>{t("jobDigest.latestTitle")}</h3>
+              {jobDigest.digests.map((digest) => (
+                <section key={digest.id} className="stack" aria-label={t("jobDigest.sentAt", { date: formatDate(digest.sentAt, locale) })}>
+                  <p>{t("jobDigest.sentAt", { date: formatDate(digest.sentAt, locale) })}</p>
+                  <ul>
+                    {digest.results.map(({ jobOffer, matchScore }) => (
+                      <li key={jobOffer.id}>
+                        <Link href={routes.jobOffer(jobOffer.id)}>{jobOffer.title}</Link>
+                        {[jobOffer.employer, jobOffer.location].filter(Boolean).length > 0
+                          ? ` (${[jobOffer.employer, jobOffer.location].filter(Boolean).join(", ")})`
+                          : null}{" "}
+                        — {t("jobSearch.matchScore", { score: matchScore.score })}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </>
+          ) : null}
+        </section>
+      ) : null}
 
       {profile.archived ? (
         <>
@@ -118,4 +156,8 @@ export default async function ProfilePage({ params }: Params) {
       </p>
     </main>
   );
+}
+
+function formatDate(date: Date, locale: string): string {
+  return new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(date);
 }

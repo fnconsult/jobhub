@@ -57,7 +57,7 @@ export default defineConfig({
     { name: "ai", testMatch: /ai\.spec\.ts/ },
     // The worker's background jobs, run by `tsx src/main.ts` against the web server's database.
     // One spec at a time: each starts its own worker on the same queue, which would take the other's jobs.
-    { name: "worker", testMatch: /(job-(discovery|search)|follow-ups)\.spec\.ts/, workers: 1 },
+    { name: "worker", testMatch: /(job-(discovery|search|digest)|follow-ups)\.spec\.ts/, workers: 1 },
     // One spec at a time: root-env and worker-env both write the repo-root .env (the compose
     // worker reads it, #64); root-env and dev-servers (the web app's and the extension's dev
     // servers started in either order, #71) both run `npm run dev`, and Next.js refuses a second

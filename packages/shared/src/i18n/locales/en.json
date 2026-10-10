@@ -899,6 +899,8 @@
     "decline": "No",
     "changesTitle": "Changes from the reference CV",
     "noChanges": "No changes: the tailored CV is your reference CV as it is.",
+    "fromOffer": "Taken from the offer, not in your reference CV: {{words}}. Keep it only if it is true.",
+    "offerWordingTranslated": "Your reference CV is in another language: words taken from the offer were found through an automatic translation, which may miss some or flag some wrongly.",
     "sections": {
       "headline": "Headline",
       "summary": "Summary",

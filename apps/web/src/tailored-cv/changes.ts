@@ -1,5 +1,5 @@
 /** What a Tailored CV changes in its Master CV, section by section, for the Candidate's review. Safe to use in the browser. */
-import type { CvContent, CvEducation, CvExperience, CvLanguage } from "@jobhub/shared";
+import { normalise, type CvContent, type CvEducation, type CvExperience, type CvLanguage } from "@jobhub/shared";
 
 export const CV_SECTIONS = ["headline", "summary", "experience", "education", "skills", "languages"] as const;
 export type CvSection = (typeof CV_SECTIONS)[number];
@@ -12,6 +12,8 @@ export type CvSection = (typeof CV_SECTIONS)[number];
  *  - "cut": `item` is left out;
  *  - "added": `item` is a requirement the Candidate confirmed.
  * `item` names a job, diploma, skill or language as the Master CV writes it.
+ * `fromOffer`: the words a rephrasing takes from the Job Offer that the Master CV does not say, for the
+ * Candidate to check (ADR-0006, #68); absent when there are none.
  */
 export interface CvChange {
   section: CvSection;
@@ -19,6 +21,39 @@ export interface CvChange {
   item?: string;
   master?: string;
   tailored?: string;
+  fromOffer?: string[];
+}
+
+/** Words shorter than this, and these common ones, say nothing a CV could invent. */
+const MIN_WORD = 5;
+const COMMON = new Set(
+  "avoir etre faire votre notre leurs nous vous comme entre toute toutes tous dans avec pour sans sous chez plus moins tres aussi ainsi alors apres avant depuis selon cette celle ceux celles leur dont mais donc about after before their there these those which where while would could should other being within without through under your yours with from have that this will they them than then also into over such more most very each".split(" "),
+);
+
+/** A word's stem, so "omnicanal" and "omnicanales" are one word. */
+export const stemOf = (word: string) => word.slice(0, 7);
+
+/** The meaningful words of a text, normalised (lower case, no accents), each once. */
+export function wordsOf(text: string): string[] {
+  return [...new Set(normalise(text).split(" ").filter((word) => word.length >= MIN_WORD && !COMMON.has(word)))];
+}
+
+/** Each rephrasing with the words it takes from `offerStems` (the stems of the Job Offer's words the Master CV lacks). */
+export function flagOfferWording(changes: CvChange[], offerStems: string[]): CvChange[] {
+  if (offerStems.length === 0) return changes;
+  const offer = new Set(offerStems);
+  return changes.map((change) => {
+    if (change.kind !== "rephrased" || !change.tailored) return change;
+    // As the rephrasing writes them, each once.
+    const seen = new Set<string>();
+    const fromOffer = (change.tailored.match(/[\p{L}\p{N}]+/gu) ?? []).filter((token) => {
+      const [word] = wordsOf(token);
+      if (!word || seen.has(word) || !offer.has(stemOf(word))) return false;
+      seen.add(word);
+      return true;
+    });
+    return fromOffer.length ? { ...change, fromOffer } : change;
+  });
 }
 
 /** Where each diploma, skill and language of a Tailored CV comes from: its index in the Master CV. One beyond them is added. */

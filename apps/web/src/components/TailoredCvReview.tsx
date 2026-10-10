@@ -19,6 +19,8 @@ interface TailoredCv {
     content: CvContent;
     questions: { requirement: string; answer: "confirmed" | "declined" | null }[];
     changes: CvChange[];
+    /** The Job Offer's words were checked against the Master CV through a translation. */
+    offerWordingTranslated?: boolean;
     matchScore: { master: number; tailored: number };
   } | null;
   saved: { language: DocumentLanguage; content: CvContent; matchScore: { master: number; tailored: number }; savedAt: string | Date } | null;
@@ -149,6 +151,7 @@ export function TailoredCvReview({ applicationId, initial, locale }: { applicati
           ) : null}
 
           <h4>{t("tailoredCv.changesTitle")}</h4>
+          {proposal.offerWordingTranslated ? <p className="hint">{t("tailoredCv.offerWordingTranslated")}</p> : null}
           {proposal.changes.length > 0 ? (
             <ul className="stack tailored-cv-changes">
               {proposal.changes.map((change, index) => (
@@ -210,6 +213,12 @@ function ChangeItem({ change }: { change: CvChange }) {
             <dd className="cv-text">{change.tailored || t("tailoredCv.empty")}</dd>
           </div>
         </dl>
+      ) : null}
+      {change.fromOffer?.length ? (
+        // Kept as written, for the Candidate to check (ADR-0006, #68): the Master CV does not say it.
+        <p className="error" role="note">
+          {t("tailoredCv.fromOffer", { words: change.fromOffer.join(", ") })}
+        </p>
       ) : null}
     </li>
   );

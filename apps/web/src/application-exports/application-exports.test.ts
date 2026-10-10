@@ -104,7 +104,7 @@ describe("exporting an Application's saved documents", () => {
 
   it("exports nothing before the document is saved, not even a proposal under review", async () => {
     const unsaved = exportsWith({
-      tailoredCv: { ...savedCv, saved: null, proposal: { ...savedCv.saved!, revision: "r1", questions: [], changes: [], proposedAt: new Date() } },
+      tailoredCv: { ...savedCv, saved: null, proposal: { ...savedCv.saved!, revision: "r1", questions: [], changes: [], offerWordingTranslated: false, proposedAt: new Date() } },
       drafts: { ...drafts, coverLetter: null },
     });
 

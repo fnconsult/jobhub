@@ -16,6 +16,7 @@
 // the app must drop (ADR-0006). It reports "Management d'équipe" as missing.
 // In English, it translates "Anglais"/"courant" into "English"/"fluent", keeping
 // the language's id, as a real AI Coach writing in the Document Language would.
+// Asked to translate the Job Offer's words (#68), it gives each word back as it is.
 // A Job Offer holding "E2E_CV_REPLIES=<kind>,<kind>…@<id>" scripts its replies
 // instead, one kind per call for that id (the last one repeats): "prose" (the CV
 // retold in prose, no JSON), "truncated" (the JSON cut short), "bad_json" (a JSON
@@ -77,6 +78,10 @@ globalThis.fetch = async (input, init) => {
         content = JSON.stringify({ ...reply, text: reply.text + extra });
       } else content += extra;
     }
+  }
+  // The Job Offer's words, "translated" for the Tailored CV's check (#68): each one as it is.
+  if (system.startsWith("Translate each word of the list")) {
+    content = JSON.stringify(Object.fromEntries(JSON.parse(prompt).map((word) => [word, word])));
   }
   if (/^(?:Tu es le coach Jobbbox\. Tu adaptes|You are the Jobbbox coach\. You adapt)/.test(system)) {
     const language = system.startsWith("Tu es") ? "fr" : "en";

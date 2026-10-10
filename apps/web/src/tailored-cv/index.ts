@@ -21,6 +21,10 @@
  *    is replaced by the Master CV's. A section the AI Coach leaves out or gets
  *    wrong is the Master CV's; a reply with no CV in it is no proposal, and
  *    is asked for once more before the AI Coach is told unavailable.
+ *  - A rephrasing that brings in words of the Job Offer's title or text the
+ *    Master CV does not say is kept, but flagged in the review for the Candidate
+ *    to check (#68). In another Document Language, those words are found through
+ *    an AI translation into the Master CV's language, and the Candidate is told so.
  *  - A requirement the Master CV lacks becomes a question to the Candidate, and
  *    is added to the skills only if they confirm it.
  * Every read and change is scoped to the Candidate; inputs are untrusted and
@@ -34,7 +38,7 @@ import type { Application, Applications } from "../applications";
 import type { Profiles } from "../profiles";
 import { documentLanguageOf, keepDocumentLanguage } from "../tailored-documents/document-language";
 import { fieldErrors, type FieldError } from "../validation";
-import { cvChanges, type CvChange, type CvOrigins } from "./changes";
+import { cvChanges, flagOfferWording, stemOf, wordsOf, type CvChange, type CvOrigins } from "./changes";
 import { askForTailoredCv, type AiReply } from "./reply";
 
 export { CV_SECTIONS, type CvChange, type CvOrigins, type CvSection } from "./changes";
@@ -61,8 +65,10 @@ export interface TailoredCvProposal {
   /** With the confirmed requirements. */
   content: CvContent;
   questions: TailoredCvQuestion[];
-  /** What it changes in the Master CV it was derived from. */
+  /** What it changes in the Master CV it was derived from, each rephrasing with the Job Offer's words it adds. */
   changes: CvChange[];
+  /** Whether the Job Offer's words were checked against the Master CV through a translation (another Document Language, #68). */
+  offerWordingTranslated: boolean;
   /** Match Scores against the Job Offer, with the Profile's Search Criteria: that Master CV's, and this content's. */
   matchScore: { master: number; tailored: number };
   proposedAt: Date;
@@ -266,6 +272,9 @@ interface ProposalRow {
   /** Where `adapted`'s diplomas, skills and languages come from in `master`; absent from proposals made before it was kept. */
   origins?: CvOrigins;
   questions: TailoredCvQuestion[];
+  /** Stems of the Job Offer's words the Master CV does not say (#68); absent from proposals made before it was kept. */
+  offerWording?: string[];
+  offerWordingTranslated?: boolean;
   proposedAt: string;
 }
 
@@ -288,6 +297,51 @@ function questionsFor(master: CvContent, application: Application, reply: AiRepl
     requirements.push(requirement);
   }
   return requirements.slice(0, MAX_QUESTIONS).map((requirement) => ({ requirement, answer: null }));
+}
+
+/** Most of the Job Offer's words sent for translation. */
+const MAX_TRANSLATED_WORDS = 80;
+
+/**
+ * The stems of the Job Offer's words (its title and text) that the Master CV does not say, which a
+ * rephrasing may only bring in for the Candidate to check (ADR-0006, #68). In another Document
+ * Language than the Master CV's, the offer's words the adaptation uses are translated into the Master
+ * CV's language by the AI Coach first, and kept when no word of their translation is in the Master CV;
+ * when no translation comes, they all are.
+ */
+async function offerWording(ai: AiLayer, candidateId: string, master: CvContent, adapted: CvContent, application: Application, language: DocumentLanguage) {
+  const masterStems = new Set(wordsOf(cvText(master)).map(stemOf));
+  const offerWords = wordsOf(`${application.jobOffer.title} ${application.jobOffer.content}`);
+  const masterLanguage = cvLanguage(master);
+  if (language === masterLanguage) {
+    return { offerWording: [...new Set(offerWords.map(stemOf))].filter((stem) => !masterStems.has(stem)), offerWordingTranslated: false };
+  }
+  const adaptedStems = new Set(wordsOf(cvText(adapted)).map(stemOf));
+  const used = offerWords.filter((word) => adaptedStems.has(stemOf(word))).slice(0, MAX_TRANSLATED_WORDS);
+  const translations = used.length ? await translateWords(ai, candidateId, used, masterLanguage) : {};
+  const inMaster = (word: string) => {
+    const translation = translations[word];
+    return typeof translation === "string" && wordsOf(translation).some((translated) => masterStems.has(stemOf(translated)));
+  };
+  return { offerWording: [...new Set(used.filter((word) => !inMaster(word)).map(stemOf))], offerWordingTranslated: true };
+}
+
+/** `words` translated into `language` by the AI Coach, word by word; {} when it gives no usable reply. */
+async function translateWords(ai: AiLayer, candidateId: string, words: string[], language: DocumentLanguage): Promise<Record<string, unknown>> {
+  const into = language === "fr" ? "French" : "English";
+  try {
+    const { text } = await ai.generate({
+      task: "writing",
+      candidateId,
+      system: `Translate each word of the list into ${into}, as used in a job offer. Reply with a JSON object only, each word of the list as a key and its translation as the value.`,
+      prompt: JSON.stringify(words),
+    });
+    const json: unknown = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
+    return json && typeof json === "object" && !Array.isArray(json) ? (json as Record<string, unknown>) : {};
+  } catch (error) {
+    console.warn("[tailored-cv] the Job Offer's words could not be translated:", error instanceof Error ? error.message : error);
+    return {};
+  }
 }
 
 /** The proposal's content: the adaptation plus the requirements the Candidate confirmed. */
@@ -317,7 +371,8 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
         masterCvVersion: row.masterCvVersion,
         content,
         questions: row.questions,
-        changes: cvChanges(row.master, content, row.origins),
+        changes: flagOfferWording(cvChanges(row.master, content, row.origins), row.offerWording ?? []),
+        offerWordingTranslated: row.offerWordingTranslated ?? false,
         matchScore: { master: score(row.master), tailored: score(content) },
         proposedAt: new Date(row.proposedAt),
       };
@@ -367,6 +422,7 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
         adapted,
         origins,
         questions: questionsFor(master, application, reply),
+        ...(await offerWording(deps.ai, candidateId, master, adapted, application, language)),
         proposedAt: new Date().toISOString(),
       };
       await database.query(

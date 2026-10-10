@@ -14,7 +14,9 @@ export async function GET(_request: Request, { params }: RouteContext<"/api/appl
 
 /**
  * Changes one of the Candidate's Applications, by hand.
- * Body: { status } (an Application Status) · { profileId } (another of their Profiles).
+ * Body: { status } (an Application Status) · { profileId } (another of their Profiles) ·
+ * { reportedUnavailable } (true: the Candidate reports its Job Offer no longer published,
+ * on this Application only; false: undoes it).
  * 200 { id } · 400 { errors } · 401 · 403 · 404
  */
 export async function PATCH(request: Request, { params }: RouteContext<"/api/applications/[id]">) {

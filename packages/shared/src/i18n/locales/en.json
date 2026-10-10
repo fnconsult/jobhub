@@ -522,7 +522,8 @@
     "interviewCount": "Interviews: {{number}}",
     "emptyColumn": "No applications",
     "noInterview": "None",
-    "expired": "Expired job offer"
+    "expired": "Expired job offer",
+    "reportedByYou": "Reported by you"
   },
   "application": {
     "statusLabel": "Status",
@@ -542,7 +543,11 @@
     "removeInterview": "Remove the interview of {{date}}",
     "working": "Saving…",
     "backToApplications": "Back to my applications",
-    "expiredNotice": "Your application and its status stay as they are: you decide what happens next."
+    "expiredNotice": "Your application and its status stay as they are: you decide what happens next.",
+    "reportUnavailable": "Report this job offer as no longer published",
+    "reportUnavailableHint": "For you only: the job offer does not change for anyone else, and your application keeps its status.",
+    "undoReport": "Undo the report",
+    "reportedNotice": "On {{date}} you reported this job offer as no longer published. Your application and its status stay as they are: you decide what happens next."
   },
   "jobOffer": {
     "details": "At a glance",

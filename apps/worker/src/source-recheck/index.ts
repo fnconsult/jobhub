@@ -6,24 +6,26 @@
  *
  * One run reads the source page of each Job Offer due a re-check (the store
  * decides which, and how often) the way ADR-0002 allows: robots.txt first, as
- * ourselves, never a Forbidden site, never around bot protection. A Job Offer
- * is expired only when its source says so; a page we may not or cannot read
- * tells us nothing, and the Job Offer stays as it is until the next re-check.
+ * ourselves, never a Forbidden site, never around bot protection. Each read
+ * tells whether the source still publishes the posting or it is gone; the store
+ * decides what that makes of the Job Offer (two gone checks in a row expire it).
+ * A page we may not or cannot read tells us nothing, and the Job Offer stays as
+ * it is until the next re-check.
  */
 import { createPoliteFetcher, type Clock, type RefusalReason } from "../job-discovery/polite-fetch";
 import { DEFAULT_USER_AGENT, FORBIDDEN_SITES } from "../job-discovery";
 import { htmlToText } from "../job-discovery/html";
 import { jobPostingValidThrough, readJobPosting } from "../job-discovery/job-posting";
 
-/** What a re-check learnt: still published, no longer published, or nothing (not read). */
-export type SourceCheckOutcome = "published" | "expired" | "unknown";
+/** What one re-check learnt: still published, no longer published ("gone"), or nothing (not read). */
+export type SourceCheckOutcome = "published" | "gone" | "unknown";
 
 /** Where re-checks are scheduled and recorded. Satisfied by the web app's Job Offers module. */
 export interface SourceCheckStore {
   /** Up to `limit` Job Offers whose source is due a re-check at `now`, longest unchecked first. */
   dueForRecheck(now: Date, limit: number): Promise<{ id: string; sourceUrl: string }[]>;
-  /** Records the outcome of a re-check made at `now`; "expired" makes it an Expired Job Offer. */
-  record(id: string, outcome: SourceCheckOutcome, now: Date): Promise<void>;
+  /** Records the outcome of a re-check made at `now`, and says whether the Job Offer is now an Expired Job Offer. */
+  record(id: string, outcome: SourceCheckOutcome, now: Date): Promise<{ expired: boolean }>;
 }
 
 export interface SourceRecheckOptions {
@@ -40,7 +42,9 @@ export interface SourceRecheckOptions {
 
 export interface SourceRecheckReport {
   checked: number;
-  /** Job Offers found expired in this run. */
+  /** Job Offers whose source no longer publishes the posting, in this run. */
+  gone: string[];
+  /** Job Offers that are Expired Job Offers after this run's check (this gone check confirmed an earlier one, or they already were). */
   expired: string[];
   /** Job Offers whose source could not be read, and why. */
   unknown: { id: string; reason: RefusalReason }[];
@@ -93,13 +97,13 @@ function saysExpired(text: string): boolean {
 /** What a page we could read says about the posting it stood for. */
 function pageOutcome(sourceUrl: string, page: { url: string; html: string }, now: Date): SourceCheckOutcome {
   const validThrough = jobPostingValidThrough(page.html);
-  if (validThrough && validThrough < now) return "expired";
+  if (validThrough && validThrough < now) return "gone";
   // Sent to the site's home page: the posting's own page is no more.
-  if (new URL(page.url).pathname === "/" && new URL(sourceUrl).pathname !== "/") return "expired";
+  if (new URL(page.url).pathname === "/" && new URL(sourceUrl).pathname !== "/") return "gone";
   // The page still states the posting as structured data, and it is not past its closing date:
   // the site publishes it, whatever its text says elsewhere.
   if (readJobPosting(page.html)) return "published";
-  return saysExpired(htmlToText(ownContent(page.html))) ? "expired" : "published";
+  return saysExpired(htmlToText(ownContent(page.html))) ? "gone" : "published";
 }
 
 export function createSourceRecheck(options: SourceRecheckOptions): SourceRecheck {
@@ -114,14 +118,15 @@ export function createSourceRecheck(options: SourceRecheckOptions): SourceRechec
         clock: options.clock,
       });
       const due = await options.store.dueForRecheck(now, options.batchSize ?? 100);
-      const report: SourceRecheckReport = { checked: 0, expired: [], unknown: [] };
+      const report: SourceRecheckReport = { checked: 0, gone: [], expired: [], unknown: [] };
       for (const { id, sourceUrl } of due) {
         const page = await fetcher.page(sourceUrl);
-        const outcome = page.ok === true ? pageOutcome(sourceUrl, page, now) : page.ok === false && page.reason === "gone" ? "expired" : "unknown";
+        const outcome = page.ok === true ? pageOutcome(sourceUrl, page, now) : page.ok === false && page.reason === "gone" ? "gone" : "unknown";
         if (outcome === "unknown") report.unknown.push({ id, reason: page.ok === false ? page.reason : "unreachable" });
-        await options.store.record(id, outcome, now);
+        if (outcome === "gone") report.gone.push(id);
+        const { expired } = await options.store.record(id, outcome, now);
         report.checked++;
-        if (outcome === "expired") report.expired.push(id);
+        if (expired) report.expired.push(id);
       }
       return report;
     },

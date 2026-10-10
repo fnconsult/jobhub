@@ -5,7 +5,13 @@ import { getActionCards } from "@/action-cards/server";
 import { INTERVIEW_TIME_ZONE } from "@/applications";
 import { requireOwnApplication } from "@/applications/server";
 import { ActionCardList, type ActionCardView } from "@/components/ActionCardList";
-import { AddInterviewForm, ApplicationProfileSelect, ApplicationStatusSelect, RemoveInterviewButton } from "@/components/ApplicationControls";
+import {
+  AddInterviewForm,
+  ApplicationProfileSelect,
+  ApplicationStatusSelect,
+  RemoveInterviewButton,
+  ReportUnavailableButton,
+} from "@/components/ApplicationControls";
 import { CoachInView } from "@/components/CoachPanel";
 import { CoachReviewList } from "@/components/CoachReviewList";
 import { CompanyDossierView } from "@/components/CompanyDossierView";
@@ -52,7 +58,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 /**
- * One Application: its status and Profile (both changed by hand), its Interviews,
+ * One Application: its status and Profile (both changed by hand), whether its Job Offer is
+ * expired or Reported Unavailable by the Candidate (who can report it, and undo that), its Interviews,
  * the Match Score with its breakdown, its Tailored CV under review or saved, its Cover Letter and Outreach Message drafts,
  * the Human Coaches' Coach Reviews of them, the Company Dossier, its Enriched Contacts (when a contact-data provider is on) and the full Job Offer.
  */
@@ -87,6 +94,19 @@ export default async function ApplicationPage({ params }: Params) {
       <ExpiredJobOfferNotice jobOffer={jobOffer} t={t} locale={locale}>
         {t("application.expiredNotice")}
       </ExpiredJobOfferNotice>
+      {application.reportedUnavailableAt ? (
+        <div className="notice notice-expired" role="status">
+          <p>
+            <span className="expired-flag">{t("applications.expired")}</span>
+            <span className="reported-flag">{t("applications.reportedByYou")}</span>
+          </p>
+          <p>{t("application.reportedNotice", { date: date.format(application.reportedUnavailableAt) })}</p>
+        </div>
+      ) : null}
+      {/* Reported Unavailable: for an offer not (yet) found expired, or to undo a report. */}
+      {!jobOffer.expiredAt || application.reportedUnavailableAt ? (
+        <ReportUnavailableButton applicationId={application.id} reported={Boolean(application.reportedUnavailableAt)} />
+      ) : null}
       <CoachInView {...inView} />
       <ActionCardList key={application.id} cards={cards.filter((card) => followUpCardApplies(card, application.status)).map((card) => cardView(card, t))} />
 

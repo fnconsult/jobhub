@@ -16,6 +16,12 @@ export const APPLICATION_STATUSES = [
 ] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
+/**
+ * Application Statuses at which the Candidate is no longer applying: the end
+ * states, and Acceptée (the Candidate took the job). Any other is ongoing.
+ */
+export const FINAL_APPLICATION_STATUSES = ["accepted", "rejected", "abandoned"] as const satisfies readonly ApplicationStatus[];
+
 /** The subscription tier a Candidate is on. */
 export const PLANS = ["free", "standard", "premium"] as const;
 export type Plan = (typeof PLANS)[number];

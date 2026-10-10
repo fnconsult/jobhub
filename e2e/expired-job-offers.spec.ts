@@ -8,10 +8,12 @@ import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
 // Issue #16: Expired Job Offers. Every few days the worker re-checks the source
-// page of each Job Offer a Candidate kept, within ADR-0002's rules (robots.txt
-// first, never a Forbidden site, never around bot protection), and marks the
-// ones no longer published there as Expired Job Offers. Applications on them
-// are flagged; their Application Status is never changed automatically.
+// page of each Job Offer a Candidate is applying to (an ongoing Application),
+// within ADR-0002's rules (robots.txt first, never a Forbidden site, never
+// around bot protection), and marks the ones found no longer published there
+// twice in a row as Expired Job Offers. Applications on them are flagged; their
+// Application Status is never changed automatically. The rules on confirmation
+// and on which Job Offers are read: e2e/expired-job-offers-confirmation.spec.ts.
 //
 // Driven through the public entry points: the worker (its schedule, and its
 // "job-offers.recheck-sources" job run as that schedule would, with the clock
@@ -28,7 +30,7 @@ const requestLog = path.join(workDir, "requests.jsonl");
 const SOURCE_RECHECK = "job-offers.recheck-sources";
 const HOUR = 3_600_000;
 
-/** The source pages of the Job Offers the Candidate keeps, by what the source says on the first re-check. */
+/** The source pages of the Job Offers the Candidate applies to, by what the source says on the first re-checks. */
 const source = {
   published: `https://encore-e2e.example/offre/${tag}`,
   notFound: `https://disparue-e2e.example/offre/${tag}`,
@@ -41,7 +43,8 @@ const source = {
   linkedIn: `https://www.linkedin.com/jobs/view/${tag}`,
 } as const;
 type Source = keyof typeof source;
-const expiredOnFirstRecheck: Source[] = ["notFound", "gone", "pastValidThrough", "noticeOnPage", "sentHome"];
+/** Each says the posting is gone: a gone check every time. */
+const goneAtSource: Source[] = ["notFound", "gone", "pastValidThrough", "noticeOnPage", "sentHome"];
 const unreadable: Source[] = ["robotsBlocked", "cloudflare", "linkedIn"];
 
 type LoggedRequest = { url: string; method: string; headers: Record<string, string> };
@@ -104,8 +107,8 @@ test.describe("Expired Job Offers (worker job job-offers.recheck-sources)", () =
 
   let page: Page;
   const offerIds = {} as Record<Source, string>;
-  /** Applications the Candidate made, and the status each was left at by hand. */
-  const applications = {} as Record<"published" | "notFound" | "noticeOnPage", { id: string; status: string }>;
+  /** Applications the Candidate made, one per Job Offer, and the status each was left at by hand (all ongoing). */
+  const applications = {} as Record<Source, { id: string; status: string }>;
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(120_000);
@@ -143,8 +146,11 @@ test.describe("Expired Job Offers (worker job job-offers.recheck-sources)", () =
       offerIds[name] = (await captured.json()).id;
     }
 
-    // Applications at different Application Statuses, set by hand.
-    for (const [name, status] of [["published", "applied"], ["notFound", "interview"], ["noticeOnPage", "followed_up"]] as const) {
+    // An ongoing Application on each Job Offer, at different Application Statuses set by hand:
+    // only Job Offers a Candidate is applying to are re-checked.
+    const statuses: Partial<Record<Source, string>> = { published: "applied", notFound: "interview", noticeOnPage: "followed_up" };
+    for (const name of Object.keys(source) as Source[]) {
+      const status = statuses[name] ?? "applied";
       const saved = await page.request.post("/api/applications", { headers: { origin }, data: { jobOfferId: offerIds[name], profileId } });
       expect(saved.ok(), await saved.text()).toBe(true);
       const id: string = (await saved.json()).id;
@@ -201,23 +207,17 @@ test.describe("Expired Job Offers (worker job job-offers.recheck-sources)", () =
     for (const id of Object.values(offerIds)) expect((await jobOffer(page.request, id)).expiredAt).toBeUndefined();
   });
 
-  test("a few days later the re-check marks the Job Offers no longer published at their source as expired", async () => {
+  test("a few days later the re-check reads each source, and one gone check does not expire a Job Offer", async () => {
     recheckSourcesAt(3 * 24 + 1);
 
-    for (const name of ["published", ...expiredOnFirstRecheck] as Source[]) expect(fetchesOf(source[name]), name).toHaveLength(1);
-    for (const name of expiredOnFirstRecheck) {
-      const offer = await jobOffer(page.request, offerIds[name]);
-      expect(offer.expiredAt, `${name} expired`).toBeDefined();
-      // Expired as of the re-check that found it (the worker's clock), not before the capture.
-      expect(Date.parse(offer.expiredAt!)).toBeGreaterThan(capturedAt + 3 * 24 * HOUR);
-    }
-    // Still published (valid until next year): not expired.
-    expect((await jobOffer(page.request, offerIds.published)).expiredAt).toBeUndefined();
+    for (const name of ["published", ...goneAtSource] as Source[]) expect(fetchesOf(source[name]), name).toHaveLength(1);
+    // 404, 410, past validThrough, an expiry notice, sent to the home page: each a gone check, but only one so far.
+    for (const name of Object.keys(source) as Source[]) expect((await jobOffer(page.request, offerIds[name])).expiredAt, name).toBeUndefined();
   });
 
   test("the re-check stays within ADR-0002: robots.txt first, no Forbidden site, nothing around bot protection", async () => {
     const urls = requests().map((r) => r.url);
-    for (const name of ["published", ...expiredOnFirstRecheck, "cloudflare"] as Source[]) {
+    for (const name of ["published", ...goneAtSource, "cloudflare"] as Source[]) {
       const robots = `${new URL(source[name]).origin}/robots.txt`;
       expect(urls.indexOf(robots), `robots.txt read before ${name}`).toBeGreaterThanOrEqual(0);
       expect(urls.indexOf(robots)).toBeLessThan(urls.indexOf(source[name]));
@@ -243,27 +243,49 @@ test.describe("Expired Job Offers (worker job job-offers.recheck-sources)", () =
     const before = fetchCounts();
     recheckSourcesAt(4 * 24 + 1);
     const after = fetchCounts();
-    for (const name of ["published", ...expiredOnFirstRecheck] as Source[]) expect(after[name], name).toBe(before[name]);
+    for (const name of ["published", ...goneAtSource] as Source[]) expect(after[name], name).toBe(before[name]);
+  });
+
+  test("a few days later still, a second gone check in a row makes them Expired Job Offers", async () => {
+    recheckSourcesAt(6 * 24 + 2);
+
+    for (const name of ["published", ...goneAtSource] as Source[]) expect(fetchesOf(source[name]), name).toHaveLength(2);
+    for (const name of goneAtSource) {
+      const offer = await jobOffer(page.request, offerIds[name]);
+      expect(offer.expiredAt, `${name} expired`).toBeDefined();
+      // Expired as of the re-check that confirmed it (the worker's clock), not before.
+      expect(Date.parse(offer.expiredAt!)).toBeGreaterThan(capturedAt + 6 * 24 * HOUR);
+    }
+    // Still published (valid until next year), or never read: not expired.
+    for (const name of ["published", ...unreadable] as Source[]) expect((await jobOffer(page.request, offerIds[name])).expiredAt, name).toBeUndefined();
   });
 
   test("it is re-checked again every few days, and an Expired Job Offer not before two weeks", async () => {
     const before = fetchCounts();
-    // The still-published posting is now gone (410).
-    recheckSourcesAt(6 * 24 + 2, "later");
+    // The still-published posting is now gone (410): a first gone check.
+    recheckSourcesAt(9 * 24 + 3, "later");
     const after = fetchCounts();
 
     expect(after.published).toBe(before.published + 1);
+    expect((await jobOffer(page.request, offerIds.published)).expiredAt).toBeUndefined();
+    for (const name of goneAtSource) expect(after[name], name).toBe(before[name]);
+
+    // Gone again three days later: a second gone check in a row expires it.
+    recheckSourcesAt(12 * 24 + 4, "later");
+    const later = fetchCounts();
+    expect(later.published).toBe(before.published + 2);
     expect((await jobOffer(page.request, offerIds.published)).expiredAt).toBeDefined();
-    for (const name of expiredOnFirstRecheck) expect(after[name], name).toBe(before[name]);
+    for (const name of goneAtSource) expect(later[name], name).toBe(before[name]);
     // Still never past robots.txt or a Forbidden site's terms.
-    expect(after.robotsBlocked).toBe(0);
-    expect(after.linkedIn).toBe(0);
+    expect(later.robotsBlocked).toBe(0);
+    expect(later.linkedIn).toBe(0);
     expect((await jobOffer(page.request, offerIds.robotsBlocked)).expiredAt).toBeUndefined();
   });
 
   test("Applications on an Expired Job Offer are flagged and keep the Application Status the Candidate set", async () => {
+    const onExpired = (["published", "notFound", "noticeOnPage"] as const).map((name) => [name, applications[name]] as const);
     // Over the HTTP API: flagged through their Job Offer, status untouched.
-    for (const { id, status } of Object.values(applications)) {
+    for (const [, { id, status }] of onExpired) {
       const read = await application(page, id);
       expect(read.status).toBe(status);
       expect(read.jobOffer.expiredAt).toBeDefined();
@@ -271,7 +293,7 @@ test.describe("Expired Job Offers (worker job job-offers.recheck-sources)", () =
 
     // In the list: each one flagged in words, its status as the Candidate left it.
     await page.goto("/candidatures");
-    for (const [name, { status }] of Object.entries(applications)) {
+    for (const [name, { status }] of onExpired) {
       const row = page.getByRole("row", { name: new RegExp(`Offre ${name} – réf. ${tag}`) });
       await expect(row.getByText(fr.applications.expired, { exact: true })).toBeVisible();
       await expect(row.getByLabel(fr.application.statusLabel)).toHaveValue(status);
@@ -292,7 +314,7 @@ test.describe("Expired Job Offers (worker job job-offers.recheck-sources)", () =
     // The Candidate still changes it by hand, and the next re-check leaves it.
     await page.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.abandoned });
     await expect(page.getByRole("status").filter({ hasText: fr.application.statusSaved })).toBeVisible();
-    recheckSourcesAt(9 * 24 + 3, "later");
+    recheckSourcesAt(15 * 24 + 5, "later");
     expect((await application(page, applications.notFound.id)).status).toBe("abandoned");
     expect((await application(page, applications.published.id)).status).toBe("applied");
     expect((await application(page, applications.noticeOnPage.id)).status).toBe("followed_up");

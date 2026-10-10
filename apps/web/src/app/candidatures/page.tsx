@@ -81,9 +81,18 @@ function FollowUpNotices({ notices, t }: { notices: FollowUpNotice[]; t: T }) {
 const jobOfferLabel = (application: ApplicationSummary) =>
   [application.jobOffer.title, application.jobOffer.employer, application.jobOffer.location].filter(Boolean).join(" · ");
 
-/** Flags an Application on an Expired Job Offer, in words (its status is left as the Candidate set it). */
+/**
+ * Flags an Application on an Expired Job Offer, or one the Candidate reported
+ * unavailable (Reported Unavailable), in words; its status is left as the Candidate set it.
+ */
 function ExpiredFlag({ application, t }: { application: ApplicationSummary; t: T }) {
-  return application.jobOffer.expiredAt ? <span className="expired-flag">{t("applications.expired")}</span> : null;
+  if (!application.jobOffer.expiredAt && !application.reportedUnavailableAt) return null;
+  return (
+    <>
+      <span className="expired-flag">{t("applications.expired")}</span>
+      {application.reportedUnavailableAt ? <span className="reported-flag">{t("applications.reportedByYou")}</span> : null}
+    </>
+  );
 }
 
 function List({ applications, t, formatDate }: { applications: ApplicationSummary[]; t: T; formatDate: (value: Date) => string }) {

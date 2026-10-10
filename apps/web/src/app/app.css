@@ -652,3 +652,9 @@ textarea.input {
   color: var(--color-danger);
   font-weight: 600;
 }
+
+/* Reported Unavailable: who said it, under the flag. */
+.reported-flag {
+  display: block;
+  font-style: italic;
+}

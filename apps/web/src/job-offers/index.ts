@@ -16,9 +16,10 @@
  * `forgetExpiredGuestCaptures`, which the worker runs on a schedule. A Candidate
  * capturing it, or saving it as an Application (`keepForCandidate`), keeps it
  * for good.
- * Every few days the worker re-checks a Job Offer's source (`createSourceChecks`
- * schedules and records it); one no longer published there becomes an Expired
- * Job Offer (`expiredAt`). Nothing else about it, or its Applications, changes.
+ * Every few days the worker re-checks the source of each Job Offer an ongoing
+ * Application follows (`createSourceChecks` schedules and records it); one found
+ * no longer published there twice in a row becomes an Expired Job Offer
+ * (`expiredAt`). Nothing else about it, or its Applications, changes.
  * Expiry is not for good: a later re-check finding it published, or capturing
  * its source page again, makes it a published Job Offer again.
  */
@@ -30,7 +31,14 @@ import { fieldErrors, type FieldError } from "../validation";
 import { GUEST_EXPIRY_SQL } from "./guest-retention";
 
 export { forgetExpiredGuestCaptures } from "./guest-retention";
-export { createSourceChecks, EXPIRED_RECHECK_INTERVAL_DAYS, RECHECK_INTERVAL_DAYS, type SourceCheckOutcome, type SourceChecks } from "./source-checks";
+export {
+  createSourceChecks,
+  EXPIRED_RECHECK_INTERVAL_DAYS,
+  GONE_CHECKS_TO_EXPIRE,
+  RECHECK_INTERVAL_DAYS,
+  type SourceCheckOutcome,
+  type SourceChecks,
+} from "./source-checks";
 
 export type { FieldError as JobOfferFieldError } from "../validation";
 
@@ -194,10 +202,12 @@ export function createJobOffers(database: Pool): JobOffers {
       if (capturedBy === "candidate") {
         await database.query(`UPDATE job_offer SET guest_expires_at = NULL WHERE id = $1 AND guest_expires_at IS NOT NULL`, [row.id]);
       }
-      // Captured again from its own source page: that page publishes it, so it is not expired.
-      if (row.expired_at !== null && keys[0] !== null) {
+      // Captured again from its own source page: that page publishes it, so it is not expired,
+      // and the gone checks so far no longer count (as after a live re-check).
+      if (keys[0] !== null) {
         const revived = await database.query(
-          `UPDATE job_offer SET expired_at = NULL WHERE id = $1 AND url_key = $2 AND expired_at IS NOT NULL`,
+          `UPDATE job_offer SET expired_at = NULL, gone_checks = 0
+            WHERE id = $1 AND url_key = $2 AND (expired_at IS NOT NULL OR gone_checks > 0)`,
           [row.id, keys[0]],
         );
         if (revived.rowCount) row.expired_at = null;
@@ -255,5 +265,7 @@ export async function migrateJobOffers(database: Pool): Promise<void> {
     -- Source re-checks (Expired Job Offers): when the source was last read, and when it was found no longer publishing the posting.
     ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS source_checked_at timestamptz;
     ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS expired_at timestamptz;
+    -- Gone checks in a row: GONE_CHECKS_TO_EXPIRE of them make it expired, a live check resets it.
+    ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS gone_checks integer NOT NULL DEFAULT 0;
   `);
 }

@@ -36,7 +36,7 @@ export const JOB_DIGEST_SCHEDULE = "job-digest.schedule";
  */
 export const JOB_DIGEST_RUN = "job-digest.run";
 
-/** Queue name: re-check the sources of the Job Offers due, to find Expired Job Offers. Runs daily. */
+/** Queue name: re-check the sources of the Job Offers due (those Candidates are applying to), to find Expired Job Offers. Runs daily. */
 export const SOURCE_RECHECK = "job-offers.recheck-sources";
 
 /** Postgres error code for a table that does not exist yet (the web app's migrations have not run). */
@@ -207,7 +207,8 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         }),
     },
 
-    // Daily, for the Job Offers whose source was last read RECHECK_INTERVAL_DAYS ago or more (ADR-0002 rules).
+    // Daily, for the Job Offers an ongoing Application follows whose source was last read
+    // RECHECK_INTERVAL_DAYS ago or more (ADR-0002 rules); two gone checks in a row expire one.
     [SOURCE_RECHECK]: {
       cron: "0 4 * * *",
       handler: () =>
@@ -215,7 +216,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           const recheck = createSourceRecheck({ store: createSourceChecks(deps.database), fetch: deps.fetch });
           const report = await recheck.run(now());
           log(
-            `[source-recheck] ${report.checked} Job Offer(s) re-checked, ${report.expired.length} expired, ${report.unknown.length} unread`,
+            `[source-recheck] ${report.checked} Job Offer(s) re-checked, ${report.gone.length} gone, ${report.expired.length} expired, ${report.unknown.length} unread`,
           );
         }),
     },

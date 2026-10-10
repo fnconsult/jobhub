@@ -10,9 +10,12 @@
  *    - `list` the Candidate's Applications (newest first) for the list and board views;
  *    - `get` one Application with its Job Offer, Profile, Interviews and the Match
  *      Score of the Profile's current Master CV against the Job Offer;
- *    - `change` its Application Status (only ever by the Candidate) or the Profile it uses.
- *      An Application on an Expired Job Offer is flagged (its Job Offer's `expiredAt`)
- *      and keeps its status: nothing changes it automatically;
+ *    - `change` its Application Status (only ever by the Candidate) or the Profile it uses,
+ *      or report its Job Offer no longer published (Reported Unavailable), and undo it.
+ *      An Application on an Expired Job Offer is flagged (its Job Offer's `expiredAt`),
+ *      and so is one Reported Unavailable (`reportedUnavailableAt`, that Application
+ *      only, never the shared Job Offer); either keeps its status: nothing changes
+ *      it automatically;
  *    - `addInterview` (only while it is at "Entretien") and `removeInterview`. Interviews
  *      are kept when the Application moves on.
  * Every read and change is scoped to the Candidate; inputs are untrusted (they
@@ -49,6 +52,8 @@ export interface Application {
   interviews: Interview[];
   /** The Profile's current Master CV, scored against the Job Offer and the Profile's Search Criteria. */
   matchScore: MatchScore;
+  /** Set while the Candidate reports its Job Offer no longer published (Reported Unavailable): since when. */
+  reportedUnavailableAt?: Date;
 }
 
 export type SaveApplicationResult =
@@ -68,6 +73,8 @@ export interface ApplicationSummary {
   profile: { id: string; name: string };
   /** Oldest first. */
   interviews: Interview[];
+  /** Set while the Candidate reports its Job Offer no longer published (Reported Unavailable). */
+  reportedUnavailableAt?: Date;
 }
 
 /** The outcome of changing an Application. "not_found" also covers someone else's Application (or Profile). */
@@ -86,7 +93,11 @@ export interface Applications {
   get(candidateId: string, applicationId: string): Promise<Application | null>;
   /** Every Application of the Candidate, newest first. */
   list(candidateId: string): Promise<ApplicationSummary[]>;
-  /** Changes the Application Status or the Profile used. `input`: { status } or { profileId }. */
+  /**
+   * Changes the Application Status or the Profile used, or reports its Job Offer
+   * no longer published (true) and undoes it (false).
+   * `input`: { status }, { profileId } or { reportedUnavailable }.
+   */
   change(candidateId: string, applicationId: string, input: unknown): Promise<ApplicationChangeResult>;
   /** Adds a dated Interview. `input`: { scheduledAt (ISO 8601 date and time), note? }. */
   addInterview(candidateId: string, applicationId: string, input: unknown): Promise<AddInterviewResult>;
@@ -97,12 +108,16 @@ export interface Applications {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const id = z.string().trim().min(1);
 const saveSchema = z.object({ jobOfferId: id, profileId: id });
-const changeSchema = z.union([z.object({ status: z.enum(APPLICATION_STATUSES) }), z.object({ profileId: id })]);
-/** Told apart by `profileId`, so field errors name the field the caller meant. */
-const parseChange = (input: unknown) =>
-  typeof input === "object" && input !== null && "profileId" in input
-    ? changeSchema.options[1].safeParse(input, { reportInput: true })
-    : changeSchema.options[0].safeParse(input, { reportInput: true });
+const statusChange = z.object({ status: z.enum(APPLICATION_STATUSES) });
+const profileChange = z.object({ profileId: id });
+const reportChange = z.object({ reportedUnavailable: z.boolean() });
+/** Told apart by `profileId` or `reportedUnavailable`, so field errors name the field the caller meant. */
+const parseChange = (input: unknown) => {
+  const has = (key: string) => typeof input === "object" && input !== null && key in input;
+  if (has("profileId")) return profileChange.safeParse(input, { reportInput: true });
+  if (has("reportedUnavailable")) return reportChange.safeParse(input, { reportInput: true });
+  return statusChange.safeParse(input, { reportInput: true });
+};
 
 /** Interviews are in France: a date and time typed without an offset is French time. */
 export const INTERVIEW_TIME_ZONE = "Europe/Paris";
@@ -141,9 +156,10 @@ interface ApplicationRow {
   status: ApplicationStatus;
   status_changed_at: Date;
   created_at: Date;
+  reported_unavailable_at: Date | null;
 }
 
-const COLUMNS = "id, job_offer_id, profile_id, status, status_changed_at, created_at";
+const COLUMNS = "id, job_offer_id, profile_id, status, status_changed_at, created_at, reported_unavailable_at";
 
 export function createApplications(
   database: Pool,
@@ -168,7 +184,7 @@ export function createApplications(
     ]);
     // Both are kept as long as the Application: Job Offers are never deleted, Profiles only with the account.
     if (!jobOffer || !profile) throw new Error(`Application ${row.id} lost its Job Offer or Profile`);
-    return {
+    const application: Application = {
       id: row.id,
       status: row.status,
       statusChangedAt: row.status_changed_at,
@@ -178,6 +194,8 @@ export function createApplications(
       interviews: interviews.get(row.id)!,
       matchScore: scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer }),
     };
+    if (row.reported_unavailable_at !== null) application.reportedUnavailableAt = row.reported_unavailable_at;
+    return application;
   }
 
   async function get(candidateId: string, applicationId: string): Promise<Application | null> {
@@ -221,7 +239,7 @@ export function createApplications(
       const { rows } = await database.query<
         ApplicationRow & { title: string; employer: string | null; location: string | null; expired_at: Date | null; profile_name: string }
       >(
-        `SELECT a.id, a.job_offer_id, a.profile_id, a.status, a.status_changed_at, a.created_at,
+        `SELECT a.id, a.job_offer_id, a.profile_id, a.status, a.status_changed_at, a.created_at, a.reported_unavailable_at,
                 o.title, o.employer, o.location, o.expired_at, p.name AS profile_name
            FROM application a
            JOIN job_offer o ON o.id = a.job_offer_id
@@ -236,7 +254,7 @@ export function createApplications(
         if (row.employer !== null) jobOffer.employer = row.employer;
         if (row.location !== null) jobOffer.location = row.location;
         if (row.expired_at !== null) jobOffer.expiredAt = row.expired_at;
-        return {
+        const summary: ApplicationSummary = {
           id: row.id,
           status: row.status,
           statusChangedAt: row.status_changed_at,
@@ -244,6 +262,8 @@ export function createApplications(
           profile: { id: row.profile_id, name: row.profile_name },
           interviews: interviews.get(row.id)!,
         };
+        if (row.reported_unavailable_at !== null) summary.reportedUnavailableAt = row.reported_unavailable_at;
+        return summary;
       });
     },
 
@@ -256,6 +276,13 @@ export function createApplications(
         const profile = await profiles.get(candidateId, change.profileId);
         if (!profile) return NOT_FOUND;
         await database.query(`UPDATE application SET profile_id = $3 WHERE id = $1 AND candidate_id = $2`, [applicationId, candidateId, profile.id]);
+      } else if ("reportedUnavailable" in change) {
+        // Reported again, it keeps the date it was first reported.
+        await database.query(
+          `UPDATE application SET reported_unavailable_at = CASE WHEN $3 THEN COALESCE(reported_unavailable_at, now()) END
+            WHERE id = $1 AND candidate_id = $2`,
+          [applicationId, candidateId, change.reportedUnavailable],
+        );
       } else {
         // Choosing the status it already has changes nothing, so its date is kept.
         await database.query(
@@ -319,5 +346,7 @@ export async function migrateApplications(database: Pool): Promise<void> {
       created_at timestamptz NOT NULL DEFAULT now()
     );
     CREATE INDEX IF NOT EXISTS interview_application_id_idx ON interview (application_id);
+    -- Reported Unavailable: since when the Candidate reports its Job Offer no longer published (this Application only).
+    ALTER TABLE application ADD COLUMN IF NOT EXISTS reported_unavailable_at timestamptz;
   `);
 }

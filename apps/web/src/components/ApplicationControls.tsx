@@ -192,6 +192,41 @@ export function RemoveInterviewButton({ applicationId, interviewId, label }: { a
   );
 }
 
+/**
+ * Reported Unavailable: the Candidate reports the Job Offer no longer published,
+ * on this Application only, or undoes it. The Application keeps its status.
+ */
+export function ReportUnavailableButton({ applicationId, reported }: { applicationId: string; reported: boolean }) {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const id = useId();
+  const [working, setWorking] = useState(false);
+  const [outcome, setOutcome] = useState<Outcome>(null);
+
+  async function toggle() {
+    setWorking(true);
+    setOutcome(null);
+    const { ok } = await send(`/api/applications/${applicationId}`, "PATCH", { reportedUnavailable: !reported });
+    setWorking(false);
+    if (ok) router.refresh();
+    else setOutcome("failed");
+  }
+
+  return (
+    <div className="field">
+      {reported ? null : (
+        <p id={`${id}-hint`} className="hint">
+          {t("application.reportUnavailableHint")}
+        </p>
+      )}
+      <button className="button" type="button" onClick={toggle} disabled={working} aria-describedby={reported ? undefined : `${id}-hint`}>
+        {reported ? t("application.undoReport") : t("application.reportUnavailable")}
+      </button>
+      <Outcome outcome={outcome} saved="" />
+    </div>
+  );
+}
+
 /** Saves a Job Offer as an Application with the Profile the Candidate picks, then opens it. */
 export function SaveJobOfferForm({ jobOfferId, profiles }: { jobOfferId: string; profiles: { id: string; name: string }[] }) {
   const { t } = useTranslation();

@@ -23,9 +23,13 @@ function fakeWeb(pages: Record<string, Page>) {
   return { fetch: fetch as typeof globalThis.fetch, requests };
 }
 
-/** Job Offers due a re-check, and what each re-check recorded. */
-function memoryStore(due: { id: string; sourceUrl: string }[]): SourceCheckStore & { recorded: Map<string, SourceCheckOutcome> } {
+/**
+ * Job Offers due a re-check, and what each re-check recorded. Like the real
+ * store, two gone checks in a row expire a Job Offer, and a live one resets the count.
+ */
+function memoryStore(due: { id: string; sourceUrl: string }[], goneBefore: Record<string, number> = {}): SourceCheckStore & { recorded: Map<string, SourceCheckOutcome> } {
   const recorded = new Map<string, SourceCheckOutcome>();
+  const gone = new Map(Object.entries(goneBefore));
   return {
     recorded,
     async dueForRecheck(_now, limit) {
@@ -33,6 +37,9 @@ function memoryStore(due: { id: string; sourceUrl: string }[]): SourceCheckStore
     },
     async record(id, outcome) {
       recorded.set(id, outcome);
+      if (outcome === "gone") gone.set(id, (gone.get(id) ?? 0) + 1);
+      if (outcome === "published") gone.set(id, 0);
+      return { expired: (gone.get(id) ?? 0) >= 2 };
     },
   };
 }
@@ -44,21 +51,30 @@ const posting = (extra: Record<string, unknown> = {}) => `<html><head><title>DAF
 <script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "JobPosting", title: "DAF H/F", description: "Vous pilotez la finance du groupe.", ...extra })}</script>
 </head><body><h1>DAF H/F</h1><p>Rattaché au Directeur général, vous pilotez la finance du groupe industriel, la consolidation IFRS et la trésorerie.</p></body></html>`;
 
-function setup(pages: Record<string, Page>, due = [{ id: "offer-1", sourceUrl: OFFER }]) {
+function setup(pages: Record<string, Page>, due = [{ id: "offer-1", sourceUrl: OFFER }], goneBefore: Record<string, number> = {}) {
   const web = fakeWeb({ "https://emploi.example.fr/robots.txt": { body: "User-agent: *\nAllow: /", headers: { "content-type": "text/plain" } }, ...pages });
-  const store = memoryStore(due);
+  const store = memoryStore(due, goneBefore);
   const recheck = createSourceRecheck({ store, fetch: web.fetch });
   return { recheck, store, web };
 }
 
 describe("re-checking a Job Offer at its source", () => {
-  it("marks it expired when its page is gone (404 or 410)", async () => {
-    const { recheck, store } = setup({ [OFFER]: { status: 410, body: "Offre supprimée" } });
+  it.each([404, 410])("counts a gone check when its page answers %i", async (status) => {
+    const { recheck, store } = setup({ [OFFER]: { status, body: "Offre supprimée" } });
 
     const report = await recheck.run(NOW);
 
-    expect(store.recorded.get("offer-1")).toBe("expired");
-    expect(report.expired).toEqual(["offer-1"]);
+    expect(store.recorded.get("offer-1")).toBe("gone");
+    expect(report).toEqual({ checked: 1, gone: ["offer-1"], expired: [], unknown: [] });
+  });
+
+  it("reports it expired when the store says this gone check confirmed the one before", async () => {
+    const { recheck, store } = setup({ [OFFER]: { status: 404 } }, undefined, { "offer-1": 1 });
+
+    const report = await recheck.run(NOW);
+
+    expect(store.recorded.get("offer-1")).toBe("gone");
+    expect(report).toEqual({ checked: 1, gone: ["offer-1"], expired: ["offer-1"], unknown: [] });
   });
 
   it("leaves it published when its page still shows the posting", async () => {
@@ -67,15 +83,15 @@ describe("re-checking a Job Offer at its source", () => {
     const report = await recheck.run(NOW);
 
     expect(store.recorded.get("offer-1")).toBe("published");
-    expect(report).toEqual({ checked: 1, expired: [], unknown: [] });
+    expect(report).toEqual({ checked: 1, gone: [], expired: [], unknown: [] });
   });
 
-  it("marks it expired when the posting's own closing date (JobPosting validThrough) has passed", async () => {
+  it("counts a gone check when the posting's own closing date (JobPosting validThrough) has passed", async () => {
     const { recheck, store } = setup({ [OFFER]: { body: posting({ validThrough: "2026-09-30T23:59" }) } });
 
     await recheck.run(NOW);
 
-    expect(store.recorded.get("offer-1")).toBe("expired");
+    expect(store.recorded.get("offer-1")).toBe("gone");
   });
 
   it.each([
@@ -84,16 +100,16 @@ describe("re-checking a Job Offer at its source", () => {
     "Le poste a été pourvu.",
     "This job is no longer available",
     "This position has been filled.",
-  ])("marks it expired when its page says so: %s", async (notice) => {
+  ])("counts a gone check when its page says so: %s", async (notice) => {
     const page = `<html><head><title>Offre</title></head><body><h1>DAF H/F</h1><p>${notice}</p><a href="/offres">Voir les autres offres</a></body></html>`;
     const { recheck, store } = setup({ [OFFER]: { body: page } });
 
     await recheck.run(NOW);
 
-    expect(store.recorded.get("offer-1")).toBe("expired");
+    expect(store.recorded.get("offer-1")).toBe("gone");
   });
 
-  it("marks it expired when its page now sends visitors to the site's home page", async () => {
+  it("counts a gone check when its page now sends visitors to the site's home page", async () => {
     const { recheck, store } = setup({
       [OFFER]: { status: 301, headers: { location: "https://emploi.example.fr/" } },
       "https://emploi.example.fr/": { body: "<html><body><h1>Bienvenue</h1><p>Nos offres d'emploi en France.</p></body></html>" },
@@ -101,7 +117,7 @@ describe("re-checking a Job Offer at its source", () => {
 
     await recheck.run(NOW);
 
-    expect(store.recorded.get("offer-1")).toBe("expired");
+    expect(store.recorded.get("offer-1")).toBe("gone");
   });
 
   it("leaves it published when it moved to another address that still shows the posting", async () => {
@@ -126,7 +142,7 @@ describe("re-checking a Job Offer at its source", () => {
     const report = await recheck.run(NOW);
 
     expect(store.recorded.get("offer-1")).toBe("published");
-    expect(report.expired).toEqual([]);
+    expect(report.gone).toEqual([]);
   });
 
   it("leaves it published when a page without structured data only mentions expiry in its footer or a link", async () => {
@@ -168,13 +184,13 @@ describe("re-checking a Job Offer at its source", () => {
   it.each([
     "<p>Si vous avez postulé, sachez que cette offre n'est plus disponible.</p>",
     "<p>Désolé : l'offre n'est plus disponible.</p>",
-  ])("still marks it expired when its page states expiry after another clause: %s", async (notice) => {
+  ])("still counts a gone check when its page states expiry after another clause: %s", async (notice) => {
     const page = `<html><head><title>DAF H/F</title></head><body><h1>DAF</h1>${notice}</body></html>`;
     const { recheck, store } = setup({ [OFFER]: { body: page } });
 
     await recheck.run(NOW);
 
-    expect(store.recorded.get("offer-1")).toBe("expired");
+    expect(store.recorded.get("offer-1")).toBe("gone");
   });
 
   it("leaves it published while its closing date is still ahead", async () => {
@@ -218,6 +234,32 @@ describe("re-checking within ADR-0002 rules", () => {
 
     expect(store.recorded.get("offer-1")).toBe("unknown");
     expect(report.unknown).toEqual([{ id: "offer-1", reason: "bot_protection" }]);
+  });
+
+  it.each([
+    ["a login wall", 401, "login_wall"],
+    ["a server error", 503, "unreachable"],
+    ["another server error", 500, "unreachable"],
+  ] as const)("takes %s for nothing: not a gone check", async (_name, status, reason) => {
+    const { recheck, store } = setup({ [OFFER]: { status, body: "<html><body>Erreur</body></html>" } }, undefined, { "offer-1": 1 });
+
+    const report = await recheck.run(NOW);
+
+    expect(store.recorded.get("offer-1")).toBe("unknown");
+    expect(report).toEqual({ checked: 1, gone: [], expired: [], unknown: [{ id: "offer-1", reason }] });
+  });
+
+  it("takes a network failure for nothing: not a gone check", async () => {
+    const store = memoryStore([{ id: "offer-1", sourceUrl: OFFER }], { "offer-1": 1 });
+    const fetch = (async (input: string) => {
+      if (String(input).endsWith("/robots.txt")) return new Response("", { status: 404 });
+      throw new TypeError("fetch failed");
+    }) as typeof globalThis.fetch;
+
+    const report = await createSourceRecheck({ store, fetch }).run(NOW);
+
+    expect(store.recorded.get("offer-1")).toBe("unknown");
+    expect(report.expired).toEqual([]);
   });
 
   it("introduces itself as the Jobbbox crawler", async () => {

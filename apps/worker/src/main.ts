@@ -1,11 +1,12 @@
-import { AiConfigError, createAiLayerFromEnv } from "@jobhub/ai";
+import { AiConfigError, createAiLayerFromEnv, type AiLayer } from "@jobhub/ai";
+import { followUpsFromEnv } from "@jobhub/web/follow-ups/env";
 import { createJobOffers } from "@jobhub/web/job-offers";
 import { createJobSearchReports } from "@jobhub/web/job-searches";
 import { createProfiles } from "@jobhub/web/profiles";
 import { Pool } from "pg";
 import { createJobDiscovery } from "./job-discovery";
 import { startJobRunner } from "./job-runner";
-import { createJobs, type JobsDeps } from "./jobs";
+import { createJobs } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -15,24 +16,27 @@ if (!connectionString) {
 
 const database = new Pool({ connectionString });
 
-// Job discovery needs the AI layer; the other jobs do not. Without AI configuration
-// (e.g. the local docker-compose stack, which has no keys) the worker still runs,
-// and discovery jobs are skipped with the reason. Production fails loudly instead.
-function jobDiscovery(): JobsDeps["discovery"] {
+// Job discovery needs the AI layer; the other jobs do not (Follow-ups fall back to
+// a template). Without AI configuration (e.g. the local docker-compose stack with no
+// repo-root .env, or one without keys) the worker still runs, and discovery jobs are
+// skipped with the reason. Production fails loudly instead.
+function aiLayer(): AiLayer | { unavailable: string } {
   try {
-    return createJobDiscovery({ ai: createAiLayerFromEnv(process.env), jobOffers: createJobOffers(database) });
+    return createAiLayerFromEnv(process.env);
   } catch (error) {
     if (!(error instanceof AiConfigError) || process.env.NODE_ENV === "production") throw error;
     console.warn(`[worker] Job discovery is unavailable: ${error.message}`);
     return { unavailable: error.message };
   }
 }
+const ai = aiLayer();
 
 const jobs = createJobs({
   database,
-  discovery: jobDiscovery(),
+  discovery: "unavailable" in ai ? ai : createJobDiscovery({ ai, jobOffers: createJobOffers(database) }),
   profiles: createProfiles(database),
   jobSearches: createJobSearchReports(database),
+  followUps: followUpsFromEnv(database, process.env, "unavailable" in ai ? undefined : ai),
 });
 
 const runner = await startJobRunner({ connectionString, jobs });

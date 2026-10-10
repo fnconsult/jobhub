@@ -11,4 +11,8 @@ describe("opening an Outreach Message in the Candidate's own mail client", () =>
   it("leaves the subject out when there is none", () => {
     expect(mailLink({ subject: "", text: "Bonjour" })).toBe("mailto:?body=Bonjour");
   });
+
+  it("is addressed to the Enriched Contact's email when the message is for one", () => {
+    expect(mailLink({ to: "claire.martin@acme-industrie.fr", subject: "", text: "Bonjour" })).toBe("mailto:claire.martin@acme-industrie.fr?body=Bonjour");
+  });
 });

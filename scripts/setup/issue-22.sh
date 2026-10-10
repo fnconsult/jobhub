@@ -188,6 +188,26 @@ finish() {
 # values in the production environment instead of .env.
 # ──────────────────────────────────────────────────────────────────────────
 
+# ask_price KEY "Prompt" is like ask, for a Stripe price ID: it re-asks until
+# the value starts with price_ (or is left empty), and explains the usual
+# mix-up with a product ID (prod_…). Gives up after a few tries.
+ask_price() {
+  local key="$1" prompt="$2" value tries=0
+  while :; do
+    ask "$key" "$prompt"
+    value="${!key}"
+    [[ -z "$value" || "$value" == price_* ]] && return 0
+    if [[ "$value" == prod_* ]]; then
+      warn "That is a product ID (prod_…), not a price ID. A product can have several prices;"
+      warn "open the product in Stripe, click its price, and copy the ID that starts with price_."
+    else
+      warn "A Stripe price ID starts with price_. Copy it from the price's page in Stripe."
+    fi
+    tries=$((tries + 1))
+    (( tries < 5 )) || { warn "No price ID entered; re-run the wizard when you have it."; exit 1; }
+  done
+}
+
 TOTAL_STAGES=6
 
 banner "Jobbbox: Stripe billing and back-office setup (issue #22)"
@@ -214,10 +234,10 @@ stage "Stripe: the Standard and Premium Prices"
 open_url "https://dashboard.stripe.com/test/products/create"
 step "Create a product named 'Jobbbox Standard' with a recurring, monthly price."
 step "Save it, open the price and copy its ID (starts price_)."
-ask STRIPE_PRICE_STANDARD "Paste the Standard monthly price ID:"
+ask_price STRIPE_PRICE_STANDARD "Paste the Standard monthly price ID:"
 write_env STRIPE_PRICE_STANDARD "$STRIPE_PRICE_STANDARD"
 step "Create a second product, 'Jobbbox Premium', with a recurring monthly price, and copy its price ID."
-ask STRIPE_PRICE_PREMIUM "Paste the Premium monthly price ID:"
+ask_price STRIPE_PRICE_PREMIUM "Paste the Premium monthly price ID:"
 write_env STRIPE_PRICE_PREMIUM "$STRIPE_PRICE_PREMIUM"
 note "The amounts are a business decision: Jobbbox reads the Plan from the price ID only."
 

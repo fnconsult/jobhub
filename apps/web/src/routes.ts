@@ -14,6 +14,14 @@ export const routes = {
   jobSearch: (id: string) => `/recherches/${id}`,
   masterCvVersion: (id: string, version: number) => `/profils/${id}/versions/${version}`,
   subscription: "/abonnement",
+  /** The Candidate's Human Coaches: Coaching Sessions and Coach Access. */
+  coaching: "/coachs",
+  /** A Human Coach's own pages: the Candidates who granted them Coach Access. */
+  coachSpace: "/espace-coach",
+  coachSpaceCandidate: (candidateId: string) => `/espace-coach/${encodeURIComponent(candidateId)}`,
+  coachSpaceApplication: (candidateId: string, applicationId: string) => `/espace-coach/${encodeURIComponent(candidateId)}/candidatures/${applicationId}`,
+  accountDeleted: "/compte/supprime",
   admin: "/admin",
   adminPlanQuotas: "/admin/quotas",
+  adminHumanCoaches: "/admin/coachs",
 } as const;

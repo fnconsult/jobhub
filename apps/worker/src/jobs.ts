@@ -1,5 +1,6 @@
 import type { SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
+import type { FollowUps } from "@jobhub/web/follow-ups";
 import { createSourceChecks, forgetExpiredGuestCaptures } from "@jobhub/web/job-offers";
 import { JOB_DISCOVERY_QUEUE, type JobSearches } from "@jobhub/web/job-searches";
 import type { JobDiscovery } from "./job-discovery";
@@ -15,6 +16,8 @@ export const JOB_DISCOVERY = JOB_DISCOVERY_QUEUE;
 
 /** Queue name: re-check the sources of the Job Offers due, to find Expired Job Offers. Runs daily. */
 export const SOURCE_RECHECK = "job-offers.recheck-sources";
+/** Queue name: propose the Follow-ups (and "Abandonnée" suggestions) now due, and tell each Candidate. */
+export const FOLLOW_UPS = "follow-ups.propose";
 
 /** Postgres error code for a table that does not exist yet (the web app's migrations have not run). */
 const UNDEFINED_TABLE = "42P01";
@@ -34,6 +37,8 @@ export interface JobsDeps {
   };
   /** Where a Job Search started by the Candidate gets its outcome. Satisfied by the web app's Job Searches module. */
   jobSearches: Pick<JobSearches, "record">;
+  /** Satisfied by the web app's Follow-ups module. */
+  followUps: Pick<FollowUps, "proposeDue">;
   log?: (line: string) => void;
   /** How the worker reaches job sites. Default: the global fetch. */
   fetch?: typeof globalThis.fetch;
@@ -104,6 +109,18 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           `[job-discovery] profile ${target.profileId}: ${report.jobOffers.length} Job Offer(s), ` +
             `${report.skipped.length} page(s) skipped${detail ? ` (${detail})` : ""}`,
         );
+      },
+    },
+
+    // Working mornings, 6:00 UTC (7:00 or 8:00 in France): the notice emails arrive with the day. Safe to run again.
+    [FOLLOW_UPS]: {
+      cron: "0 6 * * 1-5",
+      handler: async () => {
+        try {
+          await deps.followUps.proposeDue((deps.now ?? (() => new Date()))());
+        } catch (error) {
+          if ((error as { code?: string }).code !== UNDEFINED_TABLE) throw error;
+        }
       },
     },
 

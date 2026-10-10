@@ -10,6 +10,14 @@ A coaching platform that helps senior job seekers (40+) in France land a job: it
 A person with an account who is looking for a job. Owns one or more Profiles.
 _Avoid_: User (in domain discussions), applicant, job seeker
 
+**Account deletion**:
+The Candidate deletes their own account, confirmed by typing their email address. It takes effect at once and ends any paid subscription first. Everything tied to the Candidate goes; Job Offers stay.
+_Avoid_: Account closure, deactivation
+
+**Data export**:
+One JSON file the Candidate downloads with their account, Profiles with every Master CV Version, Applications and Tailored Documents.
+_Avoid_: Backup, data dump
+
 **Organisation**:
 An outplacement firm, APEC or corporate HR department that pays for its beneficiaries' Candidate accounts and whose advisors can follow their progress. Not in the MVP: Candidates pay for themselves first.
 _Avoid_: Company, client, tenant, B2B customer
@@ -23,7 +31,7 @@ A person using the browser extension without an account. Their CV and captured J
 _Avoid_: Anonymous user, visitor, lead
 
 **Guest session**:
-The browser-held, time-limited holding of a Guest's captured Job Offer and CV: at most 23 hours, deleted on request.
+The browser-held, time-limited holding of a Guest's captured Job Offer and CV: at most 23 hours, deleted on request. When the Guest creates an account or signs in, the CV becomes a Profile and the Job Offer an Application, then both leave the session.
 _Avoid_: Temporary account, trial
 
 ### Coaching
@@ -43,6 +51,18 @@ _Avoid_: Appointment, call, meeting
 **Coach Access**:
 The Candidate's explicit consent allowing a Human Coach to read their Profiles and Applications.
 _Avoid_: Sharing, permission
+
+**Coach Review**:
+A Human Coach's feedback on one Tailored Document of an Application. The Candidate keeps it even after revoking Coach Access.
+_Avoid_: Comment, annotation
+
+**Coach space**:
+A Human Coach's read-only pages: the Candidates who granted Coach Access, their Profiles and Applications, and the form for Coach Reviews.
+_Avoid_: Coach dashboard
+
+**Retired Human Coach**:
+A Human Coach no longer listed to Candidates and who can no longer read anything. Past Coaching Sessions and Coach Reviews are kept.
+_Avoid_: Deleted coach
 
 **Coach Panel**:
 The side panel, available from every page, where the Candidate talks with the AI Coach.
@@ -90,8 +110,12 @@ _Avoid_: Rollback, revert, undo
 One of a small set of ATS-safe layouts used to export a CV.
 _Avoid_: Theme, design, model
 
+**Application export**:
+Downloading an Application's saved Tailored CV or Cover Letter as a PDF or Word file, using a CV Template. Only saved documents are exported, never a proposal or unsaved edits. A Cover Letter is signed with the Master CV's contact details and addressed to the employer.
+_Avoid_: Download, print
+
 **Search Criteria**:
-The job-search parameters of a Profile: target role, location, salary, contract type, remote work.
+The job-search parameters of a Profile: target role, location, salary, contract type, remote work. The Candidate can change them on an active Profile; this never renames the Profile, and Match Scores and Tailored CVs already kept are not recomputed. An Archived Profile's Search Criteria are read-only until it is restored.
 _Avoid_: Filters, preferences
 
 **Onboarding Questionnaire**:
@@ -136,8 +160,18 @@ A job title the Candidate should look for and contact at the employer (e.g. "DRH
 _Avoid_: Lead, target
 
 **Enriched Contact**:
-A named person at the employer, with contact details, obtained from a licensed data provider. Premium Plan only.
+A named person at the employer, with contact details, obtained from a licensed data provider. Premium Plan only. It exists once a found person has been revealed.
 _Avoid_: Lead, prospect
+
+**Found person**:
+A person a contact-enrichment provider found at the employer, from the Company Dossier's Suggested Contact Roles, before any contact details. Finding is not counted and is not yet an Enriched Contact.
+_Avoid_: Lead, prospect
+
+**Reveal**:
+Getting a found person's contact details, which makes them an Enriched Contact and counts one against the Plan Quota. Revealing the same person again is free; a reveal that fails or brings back nothing is not counted.
+
+**Contact-enrichment provider**:
+The licensed data provider (Lusha, Kaspr or Apollo) that supplies Enriched Contacts. Chosen by configuration and enabled only once its data-processing agreement is signed.
 
 ### Applications
 
@@ -154,16 +188,30 @@ One dated interview round within an Application. Added only while the Applicatio
 _Avoid_: Meeting, call
 
 **Follow-up**:
-A follow-up email draft the AI Coach proposes when an Application has stayed "Postulée" or "Relancée" too long without change. Sending one moves the Application to "Relancée".
+A follow-up email draft the AI Coach proposes when an Application has stayed "Postulée" or "Relancée" too long without change. Sending one moves the Application to "Relancée". Nothing is sent to the employer (ADR-0005): the Candidate sends it themselves and marks it as sent; the only email Jobbbox sends is a notice to the Candidate.
 _Avoid_: Reminder, relance (in code), nudge
 
+**Follow-up sent**:
+A Follow-up the Candidate marked as sent. A "Relancée" status set by hand counts as one. At most two per Application.
+
+**Abandonnée suggestion**:
+The AI Coach's Action Card proposing "Abandonnée" after two Follow-ups sent without an answer.
+
 **Follow-up Delay**:
-How long an Application must stay unchanged before a Follow-up is proposed (by default 7 working days, then 10 more), adjustable per Candidate.
+How long an Application must stay unchanged before a Follow-up is proposed (by default 7 working days after "Postulée", then 10 more after each Follow-up sent), adjustable per Candidate from 1 to 60 working days. Working days are French ones: weekends and public holidays excluded.
 _Avoid_: Timeout, reminder interval
 
 **Tailored CV**:
 A copy of a Profile's Master CV adapted to one Job Offer, stored on its Application. Contains only facts present in the Master CV or confirmed by the Candidate.
 _Avoid_: Custom CV, adapted CV
+
+**Tailored CV Review**:
+The step where the Candidate checks a Tailored CV proposed by the AI Coach before it is saved: its questions about requirements the Master CV does not cover, its changes against the Master CV, and the Match Score of both. Until saved, the Tailored CV is only a proposal; a requirement is added only if the Candidate confirms it.
+_Avoid_: Preview, approval, diff
+
+**Refusal Reason**:
+Why an AI Coach reply is not a usable proposal: no JSON in it, unreadable JSON, the wrong shape, or no CV in it. A refused Tailored CV reply is retried once before the Candidate is told the proposal is unavailable. Logged with the reply's length and the provider and model, never its content.
+_Avoid_: Parse error
 
 **Document Language**:
 The language Tailored Documents are written in. Defaults to the Job Offer's language, independent of the Candidate's interface language.
@@ -174,7 +222,7 @@ A motivation letter written for one Job Offer, stored on its Application.
 _Avoid_: Motivation letter, lettre (in code)
 
 **Outreach Message**:
-A short email or LinkedIn InMail draft to a contact at the employer, stored on its Application.
+A short email or LinkedIn InMail draft to a contact at the employer, stored on its Application. It may name one chosen Enriched Contact as recipient; the other Tailored Documents name no one.
 _Avoid_: Mail, InMail, message (alone)
 
 **Tailored Documents**:
@@ -186,6 +234,12 @@ The collective term for an Application's Tailored CV, Cover Letter and Outreach 
 A 0–100 measure of how well a CV (Master or Tailored) fits a Job Offer, with an explained breakdown (skills covered/missing, seniority, location, salary, contract type).
 Each breakdown item is a match, partial, mismatch or unknown (the Job Offer or the Search Criteria give nothing to compare); unknown items do not count in the score. Seniority compares the years of experience the Job Offer asks for with the span of dated jobs on the CV.
 _Avoid_: Fit, compatibility, relevance
+
+**Kept Match Score**:
+The last Match Score held in the extension's session, with the Job Offer and the Profile (signed-in Candidate) or CV (Guest) it was computed for. Shown again, not recomputed, until the Job Offer changes, the Candidate chooses another Profile or CV, or asks to rescore; forgotten with the session. A refused score is never kept.
+
+**Chosen Profile**:
+The Profile a signed-in Candidate last chose in the extension to score Job Offers against. It is used for the next offers while it stays active; otherwise the first active Profile is used. Separate from the Profile switcher, which follows the open Profile page.
 
 **ATS Score**:
 A 0–100 measure of how well a Master CV would pass applicant tracking systems, combining Readability and keyword coverage for the Profile's target role. Independent of any Job Offer.

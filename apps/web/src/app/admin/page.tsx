@@ -27,7 +27,7 @@ export default async function BackOfficePage() {
           <Link href={routes.adminPlanQuotas}>{t("admin.sections.planQuotas")}</Link>
         </li>
         <li>
-          {t("admin.sections.humanCoaches")} ({t("admin.comingSoon")})
+          <Link href={routes.adminHumanCoaches}>{t("admin.sections.humanCoaches")}</Link>
         </li>
       </ul>
     </main>

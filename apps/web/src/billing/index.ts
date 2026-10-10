@@ -2,8 +2,11 @@
  * Plans, Stripe billing and Plan Quotas (CONTEXT.md, ADR-0014).
  *
  * One deep module. Callers get `createBilling(config)`, whose methods answer:
- *  - what may this Candidate do?  `entitlements`, `use`, `allowsAnother`
+ *  - what may this Candidate do?  `entitlements`, `use`, `allows`, `release`, `allowsAnother`
  *  - how do they change Plan?     `startCheckout`, `openCustomerPortal`, `handleStripeWebhook`
+ *  - how do they pay a Coaching Session?  `coachingSessionPrice`, `startCoachingSessionCheckout`
+ *    (the signed webhook reports it paid through `onCoachingSessionPaid`)
+ *  - how do they stop paying?     `closeAccount`, when they delete their account
  *  - what do the Plans allow?     `planQuotas`, `setPlanQuotas` (back office)
  * and `migrateBilling(database)` to create / upgrade its tables. Stripe, the
  * tables and month boundaries stay behind this seam.
@@ -32,6 +35,31 @@ export interface BillingConfig {
   stripe?: StripeConfig | undefined;
   /** The current time. Tests move it; month boundaries are taken in Europe/Paris. */
   now?: () => Date;
+  /**
+   * Told of each Coaching Session Stripe confirms as paid, from its signed webhook
+   * (the Human Coaches module records it). Stripe may report one payment more than
+   * once, even concurrently: it must be idempotent per Checkout Session. If it
+   * throws, the webhook fails and Stripe retries the delivery.
+   */
+  onCoachingSessionPaid?: (paid: PaidCoachingSession) => Promise<unknown>;
+}
+
+/** A Coaching Session payment Stripe confirmed. */
+export interface PaidCoachingSession {
+  checkoutSessionId: string;
+  candidateId: string;
+  coachId: string;
+  /** In the currency's smallest unit (cents). */
+  amount: number;
+  currency: string;
+}
+
+/** What a Coaching Session costs a Candidate, in the currency's smallest unit (cents). */
+export interface CoachingSessionPrice {
+  amount: number;
+  currency: string;
+  /** What it costs without the Premium discount; equal to `amount` off Premium. */
+  regularAmount: number;
 }
 
 export interface StripeConfig {
@@ -39,6 +67,11 @@ export interface StripeConfig {
   webhookSecret: string;
   /** Stripe Price ids of the paid Plans' subscriptions. */
   prices: { standard: string; premium: string };
+  /**
+   * Stripe Price ids of the one-off Coaching Session Price: the regular one, and the
+   * discounted one for the Premium Plan. Without them, Coaching Sessions cannot be paid.
+   */
+  coachingSessionPrices?: { regular: string; premium: string } | undefined;
   /** Another Stripe API origin (a fake one in tests and e2e). */
   apiUrl?: string | undefined;
 }
@@ -127,7 +160,7 @@ export type QuotaDecision =
 /** Why a billing request could not be served. `message` is for logs, not for Candidates. */
 export class BillingError extends Error {
   constructor(
-    readonly code: "stripe_not_configured" | "no_checkout_for_free_plan" | "invalid_webhook_signature",
+    readonly code: "stripe_not_configured" | "coaching_sessions_not_configured" | "no_checkout_for_free_plan" | "invalid_webhook_signature",
     message: string = code,
   ) {
     super(message);
@@ -185,6 +218,42 @@ export function createBilling(config: BillingConfig) {
   }
 
   const pageURL = (query = "") => new URL(routes.subscription + query, config.baseURL).toString();
+  const coachingPageURL = (query = "") => new URL(routes.coaching + query, config.baseURL).toString();
+
+  /** The Coaching Session Prices, or a BillingError when Stripe or the Prices are not configured. */
+  function coachingSessionPrices(): { regular: string; premium: string } {
+    const prices = stripe().config.coachingSessionPrices;
+    if (!prices) throw new BillingError("coaching_sessions_not_configured");
+    return prices;
+  }
+
+  /** Stripe Prices' amounts, kept a few minutes: Jobbbox sets them in Stripe and rarely changes them. */
+  const priceCache = new Map<string, { at: number; amount: number; currency: string }>();
+  async function amountOf(priceId: string): Promise<{ amount: number; currency: string }> {
+    const cached = priceCache.get(priceId);
+    if (cached && now().getTime() - cached.at < 10 * 60_000) return cached;
+    const price = await stripe().client.prices.retrieve(priceId);
+    if (price.unit_amount === null) throw new Error(`Stripe Price ${priceId} has no fixed amount`);
+    const fetched = { at: now().getTime(), amount: price.unit_amount, currency: price.currency };
+    priceCache.set(priceId, fetched);
+    return fetched;
+  }
+
+  /** Reports a paid Coaching Session from a checkout.session.* event; ignores any other checkout. */
+  async function applyCheckout(session: Stripe.Checkout.Session) {
+    if (session.mode !== "payment" || session.metadata?.purpose !== "coaching_session") return;
+    if (session.payment_status === "unpaid") return; // async payment methods: wait for async_payment_succeeded
+    const candidateId = session.metadata.candidate_id ?? session.client_reference_id;
+    const coachId = session.metadata.coach_id;
+    if (!candidateId || !coachId) return;
+    await config.onCoachingSessionPaid?.({
+      checkoutSessionId: session.id,
+      candidateId,
+      coachId,
+      amount: session.amount_total ?? 0,
+      currency: session.currency ?? "eur",
+    });
+  }
 
   async function stripeAccountOf(candidateId: string) {
     const { rows } = await database.query(
@@ -297,6 +366,51 @@ export function createBilling(config: BillingConfig) {
     },
 
     /**
+     * Closes the Candidate's billing before their account is deleted (ADR-0010):
+     * deletes their Stripe customer, which cancels any subscription at once, so
+     * they are never charged again. Nothing to do for a Candidate who never went
+     * to Stripe; a customer Stripe no longer has counts as closed. Throws if
+     * Stripe could not be reached, so the account is not deleted while still paying.
+     */
+    async closeAccount(candidateId: string): Promise<void> {
+      const customer = (await stripeAccountOf(candidateId))?.stripe_customer_id;
+      if (!customer) return;
+      try {
+        await stripe().client.customers.del(customer);
+      } catch (error) {
+        if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") return;
+        throw error;
+      }
+    },
+
+    /**
+     * Whether `use` would allow one more of a monthly quota now. Records nothing:
+     * for asking before work whose cost is only known once done (see `release`).
+     */
+    async allows(candidateId: string, quota: MonthlyQuota): Promise<QuotaDecision> {
+      const plan = await planOf(candidateId);
+      const limit = (await quotasOf(plan))[quota];
+      if (limit === null) return { allowed: true, remaining: null };
+      const { rows } = await database.query("SELECT used FROM quota_usage WHERE candidate_id = $1 AND quota = $2 AND month = $3", [
+        candidateId,
+        quota,
+        monthInFrance(now()),
+      ]);
+      const used = (rows[0]?.used as number | undefined) ?? 0;
+      if (used >= limit) return refusal(plan, quota, limit);
+      return { allowed: true, remaining: limit - used - 1 };
+    },
+
+    /** Gives back one use recorded this month by `use` whose work could not be done. Never below zero. */
+    async release(candidateId: string, quota: MonthlyQuota): Promise<void> {
+      await database.query("UPDATE quota_usage SET used = used - 1 WHERE candidate_id = $1 AND quota = $2 AND month = $3 AND used > 0", [
+        candidateId,
+        quota,
+        monthInFrance(now()),
+      ]);
+    },
+
+    /**
      * Whether a Candidate who already holds `held` of something (Profiles) may
      * create one more. Records nothing: what they hold is the count.
      */
@@ -334,6 +448,40 @@ export function createBilling(config: BillingConfig) {
       return session.url;
     },
 
+    /** What a Coaching Session costs the Candidate on their Plan, or null when Coaching Sessions cannot be paid yet. */
+    async coachingSessionPrice(candidateId: string): Promise<CoachingSessionPrice | null> {
+      if (!config.stripe?.coachingSessionPrices) return null;
+      const prices = coachingSessionPrices();
+      const premium = (await planOf(candidateId)) === "premium";
+      const regular = await amountOf(prices.regular);
+      const charged = premium ? await amountOf(prices.premium) : regular;
+      return { amount: charged.amount, currency: charged.currency, regularAmount: regular.amount };
+    },
+
+    /**
+     * Where to send a Candidate who books a Coaching Session with a Human Coach: a one-off
+     * Stripe Checkout at their Plan's Coaching Session Price (discounted on Premium). The
+     * Coaching Session exists only once the signed webhook confirms the payment.
+     * Throws a BillingError("coaching_sessions_not_configured") without the Prices.
+     */
+    async startCoachingSessionCheckout(candidate: { id: string; email: string }, coachId: string, locale: Locale = "fr"): Promise<string> {
+      const prices = coachingSessionPrices();
+      const customer = await stripeCustomerFor(candidate);
+      const premium = (await planOf(candidate.id)) === "premium";
+      const session = await stripe().client.checkout.sessions.create({
+        mode: "payment",
+        customer,
+        client_reference_id: candidate.id,
+        line_items: [{ price: premium ? prices.premium : prices.regular, quantity: 1 }],
+        metadata: { purpose: "coaching_session", coach_id: coachId, candidate_id: candidate.id },
+        locale,
+        success_url: coachingPageURL("?session=paid"),
+        cancel_url: coachingPageURL(),
+      });
+      if (!session.url) throw new Error("Stripe returned a checkout session without a URL");
+      return session.url;
+    },
+
     /** The Stripe customer portal (invoices, payment method, change or cancel Plan), or null if they never subscribed. */
     async openCustomerPortal(candidateId: string, locale: Locale = "fr"): Promise<string | null> {
       const customer = (await stripeAccountOf(candidateId))?.stripe_customer_id;
@@ -359,6 +507,9 @@ export function createBilling(config: BillingConfig) {
         event.type === "customer.subscription.deleted"
       ) {
         await applySubscription(event, event.data.object);
+      }
+      if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
+        await applyCheckout(event.data.object);
       }
     },
 

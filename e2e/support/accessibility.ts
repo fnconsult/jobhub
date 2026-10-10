@@ -83,3 +83,17 @@ export function catalogueStrings(catalogue: unknown): string[] {
   if (catalogue && typeof catalogue === "object") return Object.values(catalogue).flatMap(catalogueStrings);
   return [];
 }
+
+/**
+ * Whether `text` is one of the catalogue's strings, its {{placeholders}} filled
+ * in (e.g. "de 1 à {{max}}" rendered as "de 1 à 60").
+ */
+export function fromCatalogue(catalogue: unknown): (text: string) => boolean {
+  const strings = catalogueStrings(catalogue);
+  const exact = new Set(strings);
+  const templates = strings
+    // Templates with too little text of their own (e.g. "{{name}} : {{level}}") would let anything through.
+    .filter((entry) => /\{\{\s*\w+\s*\}\}/.test(entry) && entry.replace(/\{\{\s*\w+\s*\}\}/g, "").trim().length >= 10)
+    .map((entry) => new RegExp(`^${entry.split(/\{\{\s*\w+\s*\}\}/).map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".+")}$`, "s"));
+  return (text) => exact.has(text) || templates.some((template) => template.test(text));
+}

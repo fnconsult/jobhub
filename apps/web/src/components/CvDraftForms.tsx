@@ -1,26 +1,16 @@
 "use client";
 
-import { CONTRACT_TYPES, REMOTE_WORK_OPTIONS, type MasterCvContent } from "@jobhub/shared";
+import type { MasterCvContent } from "@jobhub/shared";
 import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { UpgradePrompt as Prompt } from "@/billing/upgrade-prompt";
 import type { CvDraft, CvFileErrorCode } from "@/cv";
 import type { ProfileFieldError } from "@/profiles";
-import { PROFILE_NAME_MAX_LENGTH } from "@/profiles/limits";
 import { routes } from "@/routes";
-import { SelectField, TextField } from "./form-fields";
 import { MasterCvFields } from "./MasterCvFields";
+import { criteriaFieldsOf, SearchCriteriaFields, searchCriteriaInput, useSearchCriteriaLabels, type CriteriaFields } from "./SearchCriteriaFields";
 import { UpgradePrompt, upgradePromptIn } from "./UpgradePrompt";
-
-/** Search Criteria as the review form holds them: what the inputs show. */
-interface CriteriaFields {
-  targetRole: string;
-  location: string;
-  minSalary: string;
-  contractType: string;
-  remoteWork: string;
-}
 
 const BLANK_MASTER_CV: MasterCvContent = {
   fullName: "",
@@ -116,7 +106,7 @@ export function CvReview(props: { draft: CvDraft; intro: string; startOverLabel:
   const router = useRouter();
   const [review, setReview] = useState<ReviewState>(() => ({
     masterCv: props.draft.masterCv,
-    criteria: { targetRole: props.draft.searchCriteria.targetRole, location: props.draft.searchCriteria.location, minSalary: "", contractType: "", remoteWork: "" },
+    criteria: criteriaFieldsOf({ targetRole: props.draft.searchCriteria.targetRole, location: props.draft.searchCriteria.location }),
     saving: false,
     errors: [],
     failed: false,
@@ -129,14 +119,7 @@ export function CvReview(props: { draft: CvDraft; intro: string; startOverLabel:
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const { criteria, masterCv } = review;
-    const salary = criteria.minSalary.replace(/[\s.]/g, "");
-    const searchCriteria = {
-      targetRole: criteria.targetRole,
-      location: criteria.location,
-      ...(salary ? { minSalary: /^\d+$/.test(salary) ? Number(salary) : salary } : {}),
-      ...(criteria.contractType ? { contractType: criteria.contractType } : {}),
-      ...(criteria.remoteWork ? { remoteWork: criteria.remoteWork } : {}),
-    };
+    const searchCriteria = searchCriteriaInput(criteria);
     update({ saving: true, failed: false, quotaReached: false, upgradePrompt: null });
     try {
       const response = await fetch("/api/profiles", {
@@ -162,16 +145,7 @@ export function CvReview(props: { draft: CvDraft; intro: string; startOverLabel:
     }
   }
 
-  const criteriaError = Object.fromEntries(
-    review.errors.flatMap((error) => (error.field.startsWith("searchCriteria.") ? [[error.field.slice("searchCriteria.".length), error]] : [])),
-  ) as Partial<Record<keyof CriteriaFields, ProfileFieldError>>;
-  const fieldLabels: Record<string, string> = {
-    "searchCriteria.targetRole": t("cvReview.targetRole"),
-    "searchCriteria.location": t("cvReview.location"),
-    "searchCriteria.minSalary": t("cvReview.minSalary"),
-    "searchCriteria.contractType": t("cvReview.contractType"),
-    "searchCriteria.remoteWork": t("cvReview.remoteWork"),
-  };
+  const fieldLabels = useSearchCriteriaLabels();
   const invalidFields = [...new Set(review.errors.map((error) => fieldLabels[error.field] ?? error.field))];
 
   return (
@@ -181,23 +155,7 @@ export function CvReview(props: { draft: CvDraft; intro: string; startOverLabel:
 
       <fieldset className="fieldset">
         <legend>{t("cvReview.searchCriteria")}</legend>
-        <TextField label={t("cvReview.targetRole")} value={review.criteria.targetRole} onChange={(targetRole) => setCriteria({ targetRole })} error={criteriaError.targetRole} maxLength={PROFILE_NAME_MAX_LENGTH} required />
-        <TextField label={t("cvReview.location")} value={review.criteria.location} onChange={(location) => setCriteria({ location })} error={criteriaError.location} required />
-        <TextField label={t("cvReview.minSalary")} value={review.criteria.minSalary} onChange={(minSalary) => setCriteria({ minSalary })} error={criteriaError.minSalary} numeric />
-        <SelectField
-          label={t("cvReview.contractType")}
-          value={review.criteria.contractType}
-          onChange={(contractType) => setCriteria({ contractType })}
-          options={CONTRACT_TYPES.map((value) => [value, t(`cvReview.contractTypes.${value}`)])}
-          error={criteriaError.contractType}
-        />
-        <SelectField
-          label={t("cvReview.remoteWork")}
-          value={review.criteria.remoteWork}
-          onChange={(remoteWork) => setCriteria({ remoteWork })}
-          options={REMOTE_WORK_OPTIONS.map((value) => [value, t(`cvReview.remoteWorkOptions.${value}`)])}
-          error={criteriaError.remoteWork}
-        />
+        <SearchCriteriaFields value={review.criteria} onChange={setCriteria} errors={review.errors} />
       </fieldset>
 
       <MasterCvFields value={review.masterCv} onChange={(masterCv) => update({ masterCv })} />

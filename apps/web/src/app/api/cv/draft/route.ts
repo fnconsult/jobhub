@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   if (!(file instanceof File)) return NextResponse.json({ error: "unsupported_format" }, { status: 400 });
 
   try {
-    const draft = await draftFromCv({ name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) }, { ai: getAi(), candidateId: candidate?.id ?? null });
+    const draft = await draftFromCv({ name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) }, { ai: getAi, candidateId: candidate?.id ?? null });
     return NextResponse.json(draft);
   } catch (error) {
     if (error instanceof CvFileError) return NextResponse.json({ error: error.code }, { status: 400 });

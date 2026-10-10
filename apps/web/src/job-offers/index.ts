@@ -14,7 +14,8 @@
  * account and is kept when a Candidate deletes theirs (ADR-0010). One that only
  * Guests captured is forgotten within 24 hours (ADR-0003): see
  * `forgetExpiredGuestCaptures`, which the worker runs on a schedule. A Candidate
- * capturing it keeps it for good.
+ * capturing it, or saving it as an Application (`keepForCandidate`), keeps it
+ * for good.
  * Every few days the worker re-checks a Job Offer's source (`createSourceChecks`
  * schedules and records it); one no longer published there becomes an Expired
  * Job Offer (`expiredAt`). Nothing else about it, or its Applications, changes.
@@ -44,6 +45,12 @@ export interface JobOffers {
    * A posting only Guests captured is forgotten within 24 hours.
    */
   capture(input: unknown, capturedBy?: Captor): Promise<CaptureJobOfferResult>;
+  /**
+   * A Candidate now holds on to this Job Offer (they saved it as an Application,
+   * perhaps from what they did as a Guest), so it is never forgotten as a Guest
+   * capture. Returns it, or null if there is none with this id.
+   */
+  keepForCandidate(id: string): Promise<JobOffer | null>;
   /** The Job Offer, or null if there is none with this id. */
   get(id: string): Promise<JobOffer | null>;
   /** The Job Offer captured from this source URL (ignoring tracking parameters), or null. */
@@ -196,6 +203,15 @@ export function createJobOffers(database: Pool): JobOffers {
         if (revived.rowCount) row.expired_at = null;
       }
       return { ok: true, jobOffer: jobOfferFrom(row) };
+    },
+
+    async keepForCandidate(id) {
+      if (!UUID.test(id)) return null;
+      const { rows } = await database.query<JobOfferRow>(
+        `UPDATE job_offer SET guest_expires_at = NULL WHERE id = $1 RETURNING ${COLUMNS}`,
+        [id],
+      );
+      return rows[0] ? jobOfferFrom(rows[0]) : null;
     },
 
     async get(id) {

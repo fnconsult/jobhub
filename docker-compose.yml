@@ -25,6 +25,12 @@ services:
     build:
       context: .
       dockerfile: apps/worker/Dockerfile
+    # The same repo-root .env as the web app (AI keys, providers). Optional, so
+    # `docker compose up` still works without one.
+    env_file:
+      - path: .env
+        required: false
+    # Overrides the .env value: inside the compose network Postgres is postgres:5432.
     environment:
       DATABASE_URL: postgres://jobhub:jobhub@postgres:5432/jobhub
     depends_on:

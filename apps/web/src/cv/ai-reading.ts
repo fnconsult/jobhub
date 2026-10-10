@@ -59,10 +59,15 @@ function jsonIn(reply: string): unknown {
   }
 }
 
-export async function readCvWithAi(cvText: string, ai: AiLayer, candidateId: string): Promise<CvDraft | null> {
+/**
+ * `ai` is resolved here, inside the fallback: an invalid AI configuration
+ * (`AiConfigError`, whose message names the missing setting, never its value)
+ * falls back to the rule-based outline like any other AI failure.
+ */
+export async function readCvWithAi(cvText: string, ai: () => AiLayer, candidateId: string): Promise<CvDraft | null> {
   let reply: string;
   try {
-    ({ text: reply } = await ai.generate({ task: "cv_parsing", candidateId, system: SYSTEM, prompt: `CV :\n${cvText}` }));
+    ({ text: reply } = await ai().generate({ task: "cv_parsing", candidateId, system: SYSTEM, prompt: `CV :\n${cvText}` }));
   } catch (error) {
     console.warn("[cv] AI reading of a CV failed, using the rule-based outline:", error instanceof Error ? error.message : error);
     return null;

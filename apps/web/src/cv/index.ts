@@ -30,7 +30,12 @@ export interface CvDraft {
 }
 
 export interface DraftDeps {
-  ai: AiLayer;
+  /**
+   * The AI layer, built only when a Candidate's CV is read by the AI Coach. An
+   * invalid AI configuration (`AiConfigError`) is then treated like any AI
+   * failure: the rule-based outline is used. A Guest's draft never calls it.
+   */
+  ai: () => AiLayer;
   /**
    * The Candidate uploading the CV (AI usage is counted against them), or null
    * for a Guest, whose CV is read by rules alone: it is not sent to an AI

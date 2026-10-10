@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { FAKE_STRIPE_PRICES, fakeCustomerId, signedEvent, subscriptionEvent } from "./fake-stripe";
-import { BillingError, STARTING_PLAN_QUOTAS } from "./index";
+import { checkoutSessionEvent, FAKE_STRIPE_COACHING_SESSION_PRICES, FAKE_STRIPE_PRICES, fakeCustomerId, signedEvent, subscriptionEvent } from "./fake-stripe";
+import { BillingError, createBilling, STARTING_PLAN_QUOTAS } from "./index";
 import { connectionString, startTestBilling, type TestBilling } from "./test-support";
 
 describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATABASE_URL)", () => {
@@ -119,6 +119,27 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
         upgradeTo: "premium",
       });
     });
+    it("says whether one more would be allowed without counting it", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+
+      expect(await t.billing.allows(marie.id, "enrichedContacts")).toEqual({ allowed: false, quota: "enrichedContacts", plan: "free", limit: 0, upgradeTo: "premium" });
+      await t.billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, enrichedContacts: 1 });
+      expect(await t.billing.allows(marie.id, "enrichedContacts")).toEqual({ allowed: true, remaining: 0 });
+      expect(await t.billing.allows(marie.id, "enrichedContacts")).toEqual({ allowed: true, remaining: 0 });
+      expect((await t.billing.entitlements(marie.id)).usedThisMonth.enrichedContacts).toBe(0);
+    });
+
+    it("gives back a use whose work could not be done", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      await t.billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, enrichedContacts: 1 });
+      await t.billing.use(marie.id, "enrichedContacts");
+
+      await t.billing.release(marie.id, "enrichedContacts");
+      await t.billing.release(marie.id, "enrichedContacts");
+
+      expect((await t.billing.entitlements(marie.id)).usedThisMonth.enrichedContacts).toBe(0);
+      expect((await t.billing.use(marie.id, "enrichedContacts")).allowed).toBe(true);
+    });
   });
 
   describe("Profiles", () => {
@@ -220,6 +241,38 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       const marie = await t.signUp("marie.dupont@example.fr");
 
       expect(await t.billing.openCustomerPortal(marie.id, "fr")).toBeNull();
+    });
+  });
+
+  describe("closing a Candidate's billing when they delete their account", () => {
+    it("deletes their Stripe customer, which ends any subscription at once, so they are never charged again", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      await t.billing.startCheckout(marie, "standard");
+
+      await t.billing.closeAccount(marie.id);
+
+      expect(t.stripe.callsTo(`/v1/customers/${fakeCustomerId(marie.email)}`)).toEqual([expect.objectContaining({ method: "DELETE" })]);
+    });
+
+    it("has nothing to close for a Candidate who never went to Stripe, even without Stripe configured", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      const withoutStripe = await startTestBilling({ stripe: undefined });
+      try {
+        await t.billing.closeAccount(marie.id);
+        await withoutStripe.billing.closeAccount((await withoutStripe.signUp("paul.martin@example.fr")).id);
+      } finally {
+        await withoutStripe.stop();
+      }
+
+      expect(t.stripe.calls.filter((call) => call.method === "DELETE")).toEqual([]);
+    });
+
+    it("counts a customer Stripe already deleted as closed", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      await t.billing.startCheckout(marie, "standard");
+      t.stripe.forgetCustomer(fakeCustomerId(marie.email));
+
+      await expect(t.billing.closeAccount(marie.id)).resolves.toBeUndefined();
     });
   });
 
@@ -344,6 +397,81 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
         limit: 20,
         upgradeTo: null,
       });
+    });
+  });
+
+  describe("Coaching Sessions", () => {
+    async function onPlan(email: string, plan: "standard" | "premium") {
+      const candidate = await t.signUp(email);
+      await t.billing.startCheckout(candidate, plan);
+      await deliver(subscriptionEvent("customer.subscription.created", { customer: fakeCustomerId(email), price: FAKE_STRIPE_PRICES[plan], status: "active" }));
+      return candidate;
+    }
+
+    it("has a single Coaching Session Price, discounted on the Premium Plan", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      const paul = await onPlan("paul.martin@example.fr", "standard");
+      const lea = await onPlan("lea.moreau@example.fr", "premium");
+
+      expect(await t.billing.coachingSessionPrice(marie.id)).toEqual({ amount: 9000, currency: "eur", regularAmount: 9000 });
+      expect(await t.billing.coachingSessionPrice(paul.id)).toEqual({ amount: 9000, currency: "eur", regularAmount: 9000 });
+      expect(await t.billing.coachingSessionPrice(lea.id)).toEqual({ amount: 7200, currency: "eur", regularAmount: 9000 });
+    });
+
+    it("sends the Candidate to a one-off Stripe Checkout at their Plan's Coaching Session Price", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      const lea = await onPlan("lea.moreau@example.fr", "premium");
+
+      const url = await t.billing.startCoachingSessionCheckout(marie, "coach-1", "en");
+      await t.billing.startCoachingSessionCheckout(lea, "coach-1");
+
+      expect(url).toMatch(/^https:\/\/checkout\.stripe\.test\//);
+      const [regular, premium] = t.stripe.callsTo("/v1/checkout/sessions").filter((call) => call.params.get("mode") === "payment");
+      expect(Object.fromEntries(regular!.params)).toMatchObject({
+        mode: "payment",
+        customer: fakeCustomerId(marie.email),
+        client_reference_id: marie.id,
+        "line_items[0][price]": FAKE_STRIPE_COACHING_SESSION_PRICES.regular,
+        "line_items[0][quantity]": "1",
+        "metadata[purpose]": "coaching_session",
+        "metadata[coach_id]": "coach-1",
+        "metadata[candidate_id]": marie.id,
+        locale: "en",
+        success_url: "http://localhost:3000/coachs?session=paid",
+        cancel_url: "http://localhost:3000/coachs",
+      });
+      expect(premium?.params.get("line_items[0][price]")).toBe(FAKE_STRIPE_COACHING_SESSION_PRICES.premium);
+    });
+
+    it("reports a Coaching Session as paid only from Stripe's signed webhook, once paid", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      const session = { id: "cs_coaching_1", candidateId: marie.id, coachId: "coach-1", amount: 9000, currency: "eur" };
+
+      await deliver(checkoutSessionEvent("checkout.session.completed", { ...session, paymentStatus: "unpaid" }));
+      expect(t.coachingSessionsPaid).toEqual([]);
+
+      await deliver(checkoutSessionEvent("checkout.session.async_payment_succeeded", { ...session, paymentStatus: "paid" }));
+      await deliver(checkoutSessionEvent("checkout.session.completed", { ...session, paymentStatus: "paid" }));
+
+      const reported = { checkoutSessionId: "cs_coaching_1", candidateId: marie.id, coachId: "coach-1", amount: 9000, currency: "eur" };
+      expect(t.coachingSessionsPaid).toEqual([reported, reported]); // The Human Coaches module records it once.
+    });
+
+    it("ignores a completed checkout that is not for a Coaching Session", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+
+      await deliver(checkoutSessionEvent("checkout.session.completed", { id: "cs_sub", candidateId: marie.id, amount: 1900, currency: "eur", paymentStatus: "paid", mode: "subscription" }));
+
+      expect(t.coachingSessionsPaid).toEqual([]);
+    });
+
+    it("cannot take payment for Coaching Sessions until their Prices are configured", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      const withoutPrices = createBilling({ ...t.config, stripe: { ...t.config.stripe!, coachingSessionPrices: undefined } });
+
+      expect(await withoutPrices.coachingSessionPrice(marie.id)).toBeNull();
+      await expect(withoutPrices.startCoachingSessionCheckout(marie, "coach-1")).rejects.toMatchObject({ code: "coaching_sessions_not_configured" });
+      expect(await withoutPrices.startCheckout(marie, "standard")).toMatch(/checkout\.stripe\.test/); // Plans still work.
     });
   });
 

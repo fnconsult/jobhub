@@ -6,8 +6,8 @@
  *    (validated here; field errors come back, never an exception), `duplicate`,
  *    `rename`, `archive` and `restore` one, `list` a Candidate's Profiles and
  *    `get` one; edit the Master CV (`saveMasterCv`, each change a new version),
- *    list its versions and restore one (`restoreMasterCv`). Every read and
- *    change is scoped to the Candidate.
+ *    list its versions and restore one (`restoreMasterCv`); change the Search
+ *    Criteria of an active Profile (`changeSearchCriteria`). Every read and change is scoped to the Candidate.
  *    The number of active Profiles respects the Plan Quota (`profileQuota`).
  *  - `migrateProfiles(database)` — creates / upgrades the tables.
  * Profiles belong to their Candidate and are deleted with the account (ADR-0010).
@@ -68,6 +68,12 @@ export type SaveMasterCvResult =
 /** The outcome of changing an existing Profile. "not_found" also covers someone else's Profile. */
 export type ProfileChangeResult = CreateProfileResult | { ok: false; error: "not_found" };
 
+/** Refused because the Profile is archived: it is read-only until restored. */
+export type ProfileArchived = { ok: false; error: "archived" };
+
+/** The outcome of changing a Profile's Search Criteria. "not_found" also covers someone else's Profile. */
+export type ChangeSearchCriteriaResult = SavedProfile | { ok: false; error: "not_found" } | ProfileArchived;
+
 /**
  * How many active (not archived) Profiles the Candidate's Plan allows, or null
  * for no limit. The app takes it from billing (`profilePlanQuota`); without
@@ -85,6 +91,11 @@ export interface Profiles {
   duplicate(candidateId: string, profileId: string, input: unknown): Promise<ProfileChangeResult>;
   /** Renames a Profile. `input` ({ name }) is untrusted. */
   rename(candidateId: string, profileId: string, input: unknown): Promise<ProfileChangeResult>;
+  /**
+   * Replaces a Profile's Search Criteria. `input` ({ searchCriteria }) is untrusted and
+   * validated like the onboarding criteria. The Profile keeps its name.
+   */
+  changeSearchCriteria(candidateId: string, profileId: string, input: unknown): Promise<ChangeSearchCriteriaResult>;
   /** Whether the Plan Quota leaves room for one more active Profile (to offer creating or duplicating one). */
   canAddProfile(candidateId: string): Promise<boolean>;
   /** Archives a Profile: kept with its Master CV, but out of the Profile switcher. Archiving twice is harmless. */
@@ -144,6 +155,8 @@ export const searchCriteriaSchema = z.object({
   remoteWork: z.enum(REMOTE_WORK_OPTIONS).optional(),
 });
 
+const changeCriteriaSchema = z.object({ searchCriteria: searchCriteriaSchema });
+
 const inputSchema = z.object({ masterCv: cvContentSchema, searchCriteria: searchCriteriaSchema });
 
 interface ProfileRow {
@@ -173,6 +186,8 @@ const NOT_FOUND = { ok: false, error: "not_found" } as const;
 const found = (profile: Profile | null): ProfileChangeResult => (profile ? { ok: true, profile } : NOT_FOUND);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const ARCHIVED: ProfileArchived = { ok: false, error: "archived" };
 
 const QUOTA_REACHED: PlanQuotaReached = { ok: false, error: "plan_quota_reached" };
 
@@ -349,6 +364,30 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
         parsed.data.name,
       ]);
       return rowCount ? found(await get(candidateId, profileId)) : NOT_FOUND;
+    },
+
+    async changeSearchCriteria(candidateId, profileId, input) {
+      const parsed = changeCriteriaSchema.safeParse(input, { reportInput: true });
+      if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+      const profile = await get(candidateId, profileId);
+      if (!profile) return NOT_FOUND;
+      if (profile.archived) return ARCHIVED;
+      const { searchCriteria } = parsed.data;
+      // archived_at IS NULL: an archive landing meanwhile wins.
+      const { rowCount } = await database.query(
+        `UPDATE profile SET target_role = $3, location = $4, min_salary = $5, contract_type = $6, remote_work = $7
+          WHERE id = $1 AND candidate_id = $2 AND archived_at IS NULL`,
+        [
+          profileId,
+          candidateId,
+          searchCriteria.targetRole,
+          searchCriteria.location,
+          searchCriteria.minSalary ?? null,
+          searchCriteria.contractType ?? null,
+          searchCriteria.remoteWork ?? null,
+        ],
+      );
+      return rowCount ? { ok: true, profile: { ...profile, searchCriteria } } : ARCHIVED;
     },
 
     canAddProfile: (candidateId) => roomForOneMore(candidateId),

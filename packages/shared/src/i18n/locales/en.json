@@ -47,6 +47,11 @@
       "submit": "Compute my Match Score",
       "scoring": "Computing the Match Score…",
       "changeCv": "Use another CV",
+      "profileTitle": "Your profile",
+      "scoreProfileLabel": "Profile compared with this job offer",
+      "useProfile": "Use one of my profiles",
+      "scoreNotFound": "This job offer or this profile is no longer available. Choose another profile or capture the job offer again.",
+      "rescore": "Rescore",
       "forget": "Delete my data now",
       "forgotten": "Your CV and the job offer have been deleted from this browser.",
       "score": "Match Score: {{score}} / 100",
@@ -80,7 +85,20 @@
         "wanted": "Your minimum: {{amount}} gross per year"
       },
       "candidateNotice": "This job offer is saved in your Jobbbox account. The CV you upload here stays in this browser for your session only: Jobbbox reads it to compute the Match Score without saving it.",
-      "forgetCv": "Delete this CV from this browser"
+      "forgetCv": "Delete this CV from this browser",
+      "signUpHint": "Once you have created your account or signed in, come back to this page: your CV will become your first profile and this job offer your first application.",
+      "saveTitle": "Save to my applications",
+      "profileLabel": "Profile used for this application",
+      "newProfileFromCv": "A new profile, from this CV",
+      "save": "Save the application",
+      "saving": "Saving…",
+      "firstProfileHint": "Upload your CV below: it will become your first profile, and this job offer your first application.",
+      "saved": "This job offer is saved in your applications, as “To apply”.",
+      "profileCreated": "Your CV has become your profile “{{name}}”.",
+      "openApplication": "See my application",
+      "searchCriteriaMissing": "Neither your CV nor the job offer gives the role you are looking for and where. Create your profile on Jobbbox, then save this job offer again.",
+      "createProfile": "Create my profile on Jobbbox",
+      "profileQuotaReached": "Your plan does not allow another profile. Choose one of your profiles."
     },
     "allSites": "Detect job offers on every site",
     "allSitesHint": "To see “Analyse this offer” on employers' own career sites too. Your browser will ask for your permission; pages are still read in this browser only."
@@ -114,7 +132,25 @@
     "saved": "Saved.",
     "signOut": "Sign out",
     "plan": "My subscription",
-    "admin": "Back office"
+    "admin": "Back office",
+    "humanCoaches": "My human coaches",
+    "coachSpace": "My coach space"
+  },
+  "accountData": {
+    "title": "My data",
+    "exportHint": "Download everything you saved in Jobbbox: your profiles, every version of your CVs, your applications and their documents.",
+    "export": "Download all my data",
+    "deleteTitle": "Delete my account",
+    "deleteWarning": "Your account is closed at once and you are signed out. Your profiles, CVs, applications, documents, the access you gave coaches and your coaching session notes are erased, permanently within 30 days at most. Your subscription, if you have one, ends. Download your data first if you want to keep it.",
+    "confirmLabel": "To confirm, type your email address",
+    "delete": "Permanently delete my account",
+    "confirmMismatch": "This address does not match your account's. Nothing was deleted.",
+    "deleteError": "The deletion could not be completed. Nothing was deleted: try again in a moment."
+  },
+  "accountDeleted": {
+    "title": "Your account is deleted",
+    "body": "Your data has been erased. Thank you for using Jobbbox, and good luck with your job search.",
+    "home": "Back to the home page"
   },
   "languages": {
     "fr": "Français",
@@ -267,6 +303,12 @@
     "working": "Saving…",
     "error": "The change could not be saved. Please try again."
   },
+  "searchCriteriaEditor": {
+    "hint": "Jobbbox uses them for the Match Score, the ATS Score's target keyword and the job search. The profile's name does not change: rename it below if needed.",
+    "save": "Save criteria",
+    "saved": "Search criteria saved.",
+    "archived": "This profile is archived: restore it to change its search criteria."
+  },
   "newProfile": {
     "title": "Create a profile",
     "intro": "Your coach helps you build your reference CV and search criteria. Choose how to start: you can check and correct everything before saving.",
@@ -417,7 +459,6 @@
       "planQuotas": "Plan Quotas",
       "humanCoaches": "Human Coaches"
     },
-    "comingSoon": "Coming soon",
     "planQuotas": {
       "title": "Plan Quotas",
       "intro": "Changes apply at once to every Candidate on the Plan. Leave a field empty for “unlimited”.",
@@ -428,7 +469,25 @@
       "saved": "{{plan}} Plan quotas saved.",
       "invalid": "Check the values: whole numbers from 0, or empty for unlimited."
     },
-    "back": "Back to the back office"
+    "back": "Back to the back office",
+    "humanCoaches": {
+      "title": "Human coaches",
+      "intro": "The coaches Candidates can book. They sign in with the email address given here. Jobbbox pays them outside the platform.",
+      "addTitle": "Add a coach",
+      "name": "Name",
+      "email": "Sign-in email address",
+      "bookingUrl": "Cal.com booking link",
+      "bookingUrlHelp": "For example https://cal.com/first-last/session",
+      "bio": "Introduction (optional)",
+      "add": "Add the coach",
+      "added": "Coach {{name}} added.",
+      "invalid": "Check the fields: a name, a valid email address and an https Cal.com booking link.",
+      "emailTaken": "A coach already uses this email address.",
+      "listTitle": "Active coaches",
+      "none": "No coaches yet.",
+      "retire": "Retire {{name}}",
+      "retired": "Coach retired. Their past sessions are kept."
+    }
   },
   "applicationStatuses": {
     "to_apply": "To apply",
@@ -614,6 +673,35 @@
     "sourcesTitle": "Sources",
     "builtOn": "Dossier built on {{date}} for “{{employer}}”."
   },
+  "enrichedContacts": {
+    "title": "Enriched Contacts",
+    "intro": "Find the people holding the roles to contact at the employer, then get their contact details from a licensed data provider. Each contact whose details you get counts toward your monthly quota.",
+    "needsDossier": "Build the company dossier first: it tells which roles to look for.",
+    "searchUnsupported": "The current data provider cannot search for people by role.",
+    "find": "Find contacts",
+    "findAgain": "Search again",
+    "working": "Searching…",
+    "foundTitle": "People found",
+    "foundNone": "No one found yet.",
+    "reveal": "Get contact details",
+    "revealFor": "Get {{name}}'s contact details",
+    "revealHint": "Each request for contact details counts as one Enriched Contact in this month's quota. Nothing is counted if the provider has none.",
+    "revealing": "Requesting…",
+    "contactsTitle": "Your Enriched Contacts",
+    "email": "Email",
+    "phone": "Phone",
+    "source": "Source: {{provider}}, details retrieved on {{date}}.",
+    "personalData": "This personal data comes from a licensed provider. Use it only for this application.",
+    "useInOutreach": "You can address your outreach message to one of these contacts.",
+    "noDetails": "The provider has no contact details for this person. Nothing was counted.",
+    "unavailable": "The data provider is not answering right now. Nothing was counted. Try again in a few minutes.",
+    "error": "The request failed. Check your connection and try again.",
+    "providers": {
+      "lusha": "Lusha",
+      "kaspr": "Kaspr",
+      "apollo": "Apollo"
+    }
+  },
   "atsScore": {
     "title": "ATS Score",
     "intro": "How applicant tracking systems (ATS) read your Master CV for the role “{{role}}”.",
@@ -723,6 +811,16 @@
     "pdf": "Download as PDF",
     "docx": "Download as Word (.docx)"
   },
+  "applicationExport": {
+    "tailoredCv": {
+      "title": "Download this tailored CV",
+      "intro": "In the language it is written in. Choose a CV template, then a format."
+    },
+    "coverLetter": {
+      "title": "Download this cover letter",
+      "intro": "The saved text, in the language it is written in, signed with your reference CV's contact details. Choose a template, then a format."
+    }
+  },
   "tailoredDocuments": {
     "title": "Cover letter and outreach message",
     "draftsOnly": "Jobbbox never sends anything for you: copy the text or open it in your mail app, then send it yourself.",
@@ -750,7 +848,11 @@
       "contactRoles": "Address it to:",
       "subjectLabel": "Subject",
       "textLabel": "Message text",
-      "openInMail": "Open in my mail app"
+      "openInMail": "Open in my mail app",
+      "recipientLabel": "Recipient",
+      "recipientNone": "No one in particular (the roles to contact)",
+      "addressedTo": "Addressed to {{name}}",
+      "notAContact": "This contact is no longer available. Choose another one."
     },
     "writtenIn": {
       "fr": "Written in French.",
@@ -768,5 +870,146 @@
     "required": "The text cannot be empty.",
     "unavailable": "The coach could not draft this text right now. Try again in a few minutes.",
     "error": "Saving failed. Check your connection and try again."
+  },
+  "tailoredCv": {
+    "title": "CV tailored to the offer",
+    "factsOnly": "The coach adapts your reference CV to this offer: it rephrases, reorders, cuts and emphasises what it says, and never invents anything. What the offer asks for and your CV does not show, you are asked about.",
+    "languageLabel": "Tailored CV language",
+    "languageHint": "The offer's language by default. It is also the cover letter's and outreach message's; a change applies to the next proposal.",
+    "none": "No tailored CV yet. The coach proposes one, which you check before saving it.",
+    "noneSinceSaved": "You can ask for a new proposal: the saved CV stays in place until you save another one.",
+    "propose": "Propose a tailored CV",
+    "proposeAgain": "Propose again",
+    "proposing": "Proposing…",
+    "proposed": "Proposal ready: check the changes before saving.",
+    "proposalTitle": "Proposal to check",
+    "writtenIn": {
+      "fr": "Written in French.",
+      "en": "Written in English."
+    },
+    "score": "Match Score: {{master}} → {{tailored}}",
+    "scoreLabel": "Match Score: {{master}} out of 100 with the reference CV, {{tailored}} out of 100 with the tailored CV",
+    "questionsTitle": "The coach's questions",
+    "questionsIntro": "The offer asks for these, which your reference CV does not show. They are added only if you confirm you have them.",
+    "question": "Do you have this skill or experience: {{requirement}}?",
+    "confirm": "Yes, I have it",
+    "decline": "No",
+    "changesTitle": "Changes from the reference CV",
+    "noChanges": "No changes: the tailored CV is your reference CV as it is.",
+    "sections": {
+      "headline": "Headline",
+      "summary": "Summary",
+      "experience": "Experience",
+      "education": "Education",
+      "skills": "Skills",
+      "languages": "Languages"
+    },
+    "kinds": {
+      "rephrased": "rephrased",
+      "reordered": "reordered",
+      "cut": "removed",
+      "added": "added (confirmed by you)"
+    },
+    "master": "Reference CV",
+    "tailored": "Tailored CV",
+    "empty": "(empty)",
+    "saveHint": "Saving replaces the tailored CV already saved for this application, if any.",
+    "save": "Save the tailored CV",
+    "saving": "Saving…",
+    "saved": "Tailored CV saved on the application.",
+    "savedTitle": "Saved tailored CV",
+    "savedOn": "Saved on {{date}}.",
+    "skillsLine": "Skills: {{skills}}",
+    "unavailable": "The coach could not propose a tailored CV right now. Try again in a few minutes.",
+    "masterCvChanged": "Your reference CV changed since this proposal: ask for a new proposal before saving.",
+    "proposalChanged": "This proposal changed since you reviewed it (in another tab?): review it again before saving.",
+    "error": "That did not work. Check your connection and try again."
+  },
+  "followUps": {
+    "cardLabel": "Follow-up suggested",
+    "cardTitle": "Follow up with the employer about \"{{title}}\"",
+    "subject": "Subject: {{subject}}",
+    "markSent": "Mark as sent",
+    "sentHint": "Send this draft from your own mailbox, then mark it as sent: the application moves to \"Followed up\".",
+    "abandonLabel": "Coach suggestion",
+    "abandonTitle": "Mark \"{{title}}\" as abandoned?",
+    "abandonBody_one": "Your follow-up got no answer. You can mark this application as \"Abandoned\" and focus your energy on the others.",
+    "abandonBody_other": "Your {{count}} follow-ups got no answer. You can mark this application as \"Abandoned\" and focus your energy on the others.",
+    "abandonAccept": "Mark as abandoned",
+    "email": {
+      "subject": "A follow-up is waiting for you: {{title}}",
+      "body": "Hello,\n\nYour application \"{{title}}\" has had no answer. Your Jobbbox coach has drafted a follow-up for you: read it, send it from your own mailbox, then mark it as sent.\n\n{{url}}\n\nThe Jobbbox team"
+    },
+    "abandonEmail": {
+      "subject": "Still no answer: {{title}}",
+      "body": "Hello,\n\nYour follow-ups for \"{{title}}\" have had no answer. Your Jobbbox coach suggests marking this application as abandoned.\n\n{{url}}\n\nThe Jobbbox team"
+    },
+    "noticesTitle": "Follow-ups to do",
+    "noticeFollowUp": "Follow-up ready: {{title}}",
+    "noticeAbandon": "Still no answer: {{title}}",
+    "delaysTitle": "Follow-up delays",
+    "delaysHint": "In working days (weekends and public holidays excluded), from 1 to {{max}}.",
+    "afterApplied": "First follow-up, after \"Applied\"",
+    "afterFollowUp": "Next follow-up, after a follow-up",
+    "saveDelays": "Save delays",
+    "delaysSaved": "Delays saved.",
+    "delaysInvalid": "Enter a whole number of working days, from 1 to {{max}}.",
+    "delaysError": "Saving failed. Check your connection and try again."
+  },
+  "humanCoaches": {
+    "title": "My human coaches",
+    "intro": "On top of your AI coach, book a video session with an HR professional selected by Jobbbox.",
+    "price": "Price of a session: {{price}}",
+    "premiumPrice": "Price of a session on your Premium plan: {{price}} instead of {{regular}}",
+    "premiumHint": "Premium subscribers get a reduced price on sessions.",
+    "unavailable": "Paying for sessions is not available yet.",
+    "book": "Book a session with {{name}}",
+    "none": "No coach is available at the moment.",
+    "paid": "Payment received. Now pick the time of your session.",
+    "paidPending": "Your payment is being confirmed. Reload the page in a few moments to pick your time.",
+    "error": "The payment could not start. Please try again.",
+    "sessionsTitle": "My paid sessions",
+    "sessionPaidOn": "Session with {{name}}, paid on {{date}}",
+    "pickSlot": "Pick my time with {{name}} on Cal.com",
+    "accessIntro": "With your consent, a coach can read your profiles and applications, and comment on your application documents. They cannot change anything. You can withdraw this access at any time.",
+    "accessGranted": "{{name}} has access to your profiles and applications.",
+    "accessNotGranted": "{{name}} has no access to your profiles and applications.",
+    "grant": "Give {{name}} access",
+    "revoke": "Withdraw {{name}}'s access",
+    "listTitle": "Choose a coach"
+  },
+  "coachReviews": {
+    "title": "Your coaches' reviews",
+    "by": "{{name}}, on {{date}}",
+    "documents": {
+      "tailored_cv": "Tailored CV",
+      "cover_letter": "Cover letter",
+      "outreach_message": "Outreach message"
+    }
+  },
+  "coachSpace": {
+    "title": "My coach space",
+    "intro": "The candidates who gave you coach access. You read their profiles and applications without being able to change them.",
+    "none": "No candidate has given you access yet.",
+    "back": "Back to my candidates",
+    "backToCandidate": "Back to the candidate's file",
+    "readOnly": "Read only: only the candidate can change their profiles and applications.",
+    "profilesTitle": "Profiles",
+    "archived": "(archived)",
+    "targetRole": "Target role: {{role}}",
+    "applicationsTitle": "Applications",
+    "applicationsNone": "No applications yet.",
+    "documentsTitle": "Application documents",
+    "noDocument": "Not written yet.",
+    "subject": "Subject: {{subject}}",
+    "reviewTitle": "Your review",
+    "reviewDocument": "Document reviewed",
+    "reviewText": "Your review for the candidate",
+    "reviewSubmit": "Send the review",
+    "reviewSaved": "Review sent to the candidate.",
+    "reviewInvalid": "Choose a document already written and write your review.",
+    "reviewNothing": "The candidate has no application documents to review yet.",
+    "status": "Status: {{status}}",
+    "applicationStatus": "({{status}}, since {{date}})"
   }
 }

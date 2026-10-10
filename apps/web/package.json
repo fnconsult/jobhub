@@ -7,7 +7,9 @@
     "./root-env": "./src/env/root-env.ts",
     "./job-offers": "./src/job-offers/index.ts",
     "./profiles": "./src/profiles/index.ts",
-    "./job-searches": "./src/job-searches/index.ts"
+    "./job-searches": "./src/job-searches/index.ts",
+    "./follow-ups": "./src/follow-ups/index.ts",
+    "./follow-ups/env": "./src/follow-ups/env.ts"
   },
   "scripts": {
     "dev": "next dev",

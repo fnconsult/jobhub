@@ -1,13 +1,13 @@
 import { designTokens, renderDesignCss } from "@jobhub/shared/design";
 import { createI18n } from "@jobhub/shared/i18n";
-import type { JobOffer } from "@jobhub/shared";
+import type { JobOffer, MatchScore } from "@jobhub/shared";
 import { browser } from "wxt/browser";
 import { createApplicationSaving, type ProfileChoice, type SavingFailure, type SavingState } from "../../src/application-saving";
 import { openAnalysisPage } from "../../src/analysis-page";
 import { readCandidateSession } from "../../src/candidate-session";
 import { createGuestSession } from "../../src/guest-session";
 import { createJobbboxApi, type ProfileOption, type ScoreAgainst, type UpgradePrompt } from "../../src/jobbbox-api";
-import { describeMatchScore } from "../../src/match-score-view";
+import { describeMatchScore, describeRescore } from "../../src/match-score-view";
 import { chooseScoreAgainst, createMatchScoring, type ScoringChoice } from "../../src/match-scoring";
 import { WEB_ORIGIN } from "../../src/web-app";
 import "./analyse.css";
@@ -209,7 +209,11 @@ function saveForm(choice: Extract<SavingState, { state: "choose" }>, scoredProfi
   return failure ? [title, savingFailure(failure), form] : [title, form];
 }
 
+/** The Match Score last shown on this page, which a rescore is compared with (#76). */
+let shownMatchScore: MatchScore | undefined;
+
 async function matchScore(jobOffer: JobOffer, against: ScoreAgainst, rescore: boolean): Promise<HTMLElement[]> {
+  const previous = shownMatchScore;
   const scored = await scoring.score(jobOffer, against, { rescore });
   if (!scored.ok && scored.error === "quota_exceeded") return [upgradePrompt(scored.prompt)];
   if (!scored.ok) {
@@ -222,6 +226,7 @@ async function matchScore(jobOffer: JobOffer, against: ScoreAgainst, rescore: bo
     }[scored.error];
     return [status({ text, error: true })];
   }
+  shownMatchScore = scored.matchScore;
   const view = describeMatchScore(scored.matchScore, i18n);
   const list = element("ul", "", "criteria");
   for (const criterion of view.criteria) {
@@ -230,7 +235,10 @@ async function matchScore(jobOffer: JobOffer, against: ScoreAgainst, rescore: bo
     for (const detail of criterion.details) item.append(element("br"), detail);
     list.append(item);
   }
-  return [element("p", view.score, "score"), element("h2", t("extension.analysis.breakdownTitle")), list];
+  const shown = [element("p", view.score, "score"), element("h2", t("extension.analysis.breakdownTitle")), list];
+  // Said even when the value is the same, so the Candidate sees the rescore happened (#76).
+  if (rescore) shown.unshift(status({ text: describeRescore({ previous, current: scored.matchScore, at: new Date() }, i18n) }));
+  return shown;
 }
 
 /** What was chosen on this page to score against, if anything: a Profile from the select, or "Utiliser un autre CV". */
@@ -260,6 +268,7 @@ function scoreProfileSelect(profiles: ProfileOption[], profileId: string): HTMLE
 
 async function forget() {
   await session.forget();
+  shownMatchScore = undefined;
   await render({ text: t("extension.analysis.forgotten") });
 }
 
@@ -317,12 +326,22 @@ async function render(message?: Message, changingCv = false, outcome?: SavingSta
       // Another render ("Oublier", say) began while the Match Score was computed: it has the page now.
       if (renderId !== renders) return;
       const actions = element("div", "", "actions");
-      // Each rescore uses a Match Score of the Plan Quota: the button asks once, however often it is clicked.
-      const rescoreButton = button(t("extension.analysis.rescore"), () => {
-        if (rescoreButton.disabled) return;
-        rescoreButton.disabled = true;
+      // A rescore asks once, however often it is clicked.
+      const scoreAgain = (trigger: HTMLButtonElement) => {
+        if (trigger.disabled) return;
+        trigger.disabled = true;
         void render(undefined, false, undefined, true);
-      });
+      };
+      // A signed-in Candidate's rescore uses a Match Score of their Plan Quota: it is confirmed first (#76).
+      const confirmRescore = () => {
+        const confirmation = element("div", "", "notice");
+        const confirm = button(t("extension.analysis.rescoreConfirmAction"), () => scoreAgain(confirm), "primary");
+        const cancel = button(t("extension.analysis.rescoreCancel"), () => confirmation.replaceWith(actions));
+        confirmation.append(element("p", t("extension.analysis.rescoreConfirm")), confirm, cancel);
+        actions.replaceWith(confirmation);
+        confirm.focus();
+      };
+      const rescoreButton = button(t("extension.analysis.rescore"), () => (candidate.signedIn ? confirmRescore() : scoreAgain(rescoreButton)));
       const changeCv = () => {
         scoringWith = "cv";
         void render(undefined, true);

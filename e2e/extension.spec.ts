@@ -322,9 +322,11 @@ test.describe("Guest Capture and Match Score", () => {
     await analysis.reload();
     await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toHaveText(shown!);
     expect(scoreRequests).toEqual([]);
+    // A Guest's Match Scores use no Plan Quota: no confirmation, but the page says the rescore happened (#76).
     await analysis.getByRole("button", { name: fr.analysis.rescore }).click();
     await expect.poll(() => scoreRequests.length).toBe(1);
     await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toBeVisible();
+    await expect(analysis.getByRole("status").filter({ hasText: /^Match Score recalculé à \d{2}:\d{2} : inchangé\.$/ })).toBeVisible();
 
     await analysis.getByRole("button", { name: fr.analysis.forget }).click();
     await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
@@ -528,14 +530,26 @@ test.describe("Guest Capture and Match Score", () => {
     expect(scores.requests).toHaveLength(1);
     expect(await used()).toBe("1 sur 3");
 
-    // Asking for new Match Scores uses the Plan Quota, up to its limit; then the Upgrade Prompt (QA case 11.3).
+    // A rescore uses the Plan Quota, so it is confirmed first: cancelled, it asks for nothing (#76).
+    await analysis.getByRole("button", { name: fr.analysis.rescore }).click();
+    await expect(analysis.getByText(fr.analysis.rescoreConfirm)).toBeVisible();
+    await analysis.getByRole("button", { name: fr.analysis.rescoreCancel }).click();
+    await expect(analysis.getByText(fr.analysis.rescoreConfirm)).toHaveCount(0);
+    await expect(analysis.getByRole("button", { name: fr.analysis.rescore })).toBeVisible();
+    expect(scores.requests).toHaveLength(1);
+
+    // Confirmed, each one uses the Plan Quota, up to its limit, and says when it was computed, even
+    // when the value did not change; then the Upgrade Prompt (QA case 11.3).
     for (let i = 0; i < 2; i++) {
       await analysis.getByRole("button", { name: fr.analysis.rescore }).click();
+      await analysis.getByRole("button", { name: fr.analysis.rescoreConfirmAction }).click();
       await expect.poll(() => scores.requests.length).toBe(2 + i);
       await expect(analysis.getByText(scoreLine)).toBeVisible();
+      await expect(analysis.getByRole("status").filter({ hasText: /^Match Score recalculé à \d{2}:\d{2} : inchangé\.$/ })).toBeVisible();
     }
     expect(await used()).toBe("3 sur 3");
     await analysis.getByRole("button", { name: fr.analysis.rescore }).click();
+    await analysis.getByRole("button", { name: fr.analysis.rescoreConfirmAction }).click();
     const prompt = analysis.getByRole("alert").filter({ hasText: "Vous avez utilisé les 3 Match Scores compris ce mois-ci" });
     await expect(prompt).toBeVisible();
     await expect(prompt.getByRole("link", { name: "Découvrir l'offre Standard" })).toHaveAttribute("href", `${origin}/abonnement`);

@@ -1,0 +1,176 @@
+{
+  "background": false,
+  "completed_at": 1791624818,
+  "created_at": 1791624818,
+  "error": null,
+  "frequency_penalty": 0,
+  "id": "resp_03f6295b-3dd6-4050-87db-edd111819748",
+  "incomplete_details": null,
+  "instructions": null,
+  "max_output_tokens": 2048,
+  "max_tool_calls": null,
+  "metadata": {},
+  "model": "openai/gpt-6-luna",
+  "object": "response",
+  "output": [
+    {
+      "queries": [
+        "Offres d'emploi « Directeur administratif et financier » CDI à Lyon"
+      ],
+      "results": [
+        {
+          "id": 1,
+          "last_updated": "2026-10-08",
+          "snippet": "Emploi Directeur administratif et financier Lyon (69000) - Plus de 20 Offres - 8 octobre 2026 | Hellowork\n...\n# Emploi Directeur administratif et financier Lyon\n## 22 offres d'emploi Directeur administratif et financier Lyon\n- Directeur Administratif et Financier H/F\nEquans France\nLyon 7e - 69\nCDI\n...\n- Directeur Administratif Financier Indépendant H/F\nDAF-ACTIVE\nLyon 1er - 69\nFranchise\n30 000 - 110 000 € / an\nTélétravail partiel\n...\nil y a 5 jours\n- Directeur Administratif et Financier H/F\nLegrandvallet\nSuper recruteur\nLyon - 69\nCDI\n90 000 - 120 000 € / an\nTélétravail occasionnel\n...\nEn moyenne, un CV est consulté par 30 recruteurs !\n- Directeur Administratif et Financier H/F\nTalenance\nLyon 1er - 69\nCDI\n...\n- Directeur Administratif et Financier H/F\nEndrix\nLyon 3e - 69\nCDI\n...\nplus de 1 mois\n- Directeur Administratif et Financier H/F\nCette entreprise souhaite rester anonyme\nVilleurbanne - 69\nCDI\n70 000 - 90 000 € / an\n...\n- Directeur Administratif et Financier Groupe H/F\nMindquest France\nVilleurbanne - 69\nCDI\n66 000 € / an\n...\n- Directeur Administratif et Financier H/F\nEc-Rh\nVilleurbanne - 69\nCDI\n80 000 - 100 000 € / an\n...\nMutual Logistics\nSaint-Priest - 69\nCDI\n...\nEndrix Rhr\nVilleurbanne - 69\nCDI\n...\nLyon 1er - 69\n...\nLight Scientists Group\nDardilly - 69\nCDI",
+          "source": "web",
+          "title": "Offres d'emploi Directeur administratif et financier Lyon",
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-administratif-et-financier-ville_lyon-69000.html"
+        },
+        {
+          "date": "2026-09-11",
+          "id": 2,
+          "last_updated": "2026-09-11",
+          "snippet": "# Directeur Administratif et Financier H/F Legrandvallet\n- Lyon - 69\n- CDI\n- - - Télétravail occasionnel\n- Bac +5\n- Services aux Entreprises\n- Exp.\n10 ans\n...\n## Les missions du poste\nNotre partenaire est un groupe de services en fort développement, soutenu par un fonds d'investissement, engagé dans une dynamique active de croissance externe.\nDans le cadre du renforcement de sa fonction financière, le groupe recherche son (sa) :\n**Directeur Administratif et Financier (H/F)**\nVéritable Business Partner du Président, vous accompagnez la Direction Générale dans le développement du Groupe, sous LBO, et dans sa stratégie financière et budgétaire.\nA ce titre, vous avez pour principales responsabilités :\n- Superviser la fonction financière et comptable,\n- Piloter la production des états financiers et assurer la qualité du reporting destiné à la Direction et aux investisseurs,\n- Structurer et animer le processus budgétaire ainsi que les exercices de Forecast / Reforecast,\n- Assurer la gestion de la trésorerie consolidée et le pilotage du besoin en fonds de roulement,\n- Développer les outils de reporting et de contrôle de gestion,\n- Simplifier et fiabiliser les flux financiers et les mécanismes de refacturation interne,\n- Contribuer à l'évolution des outils de gestion et de reporting,\n- Accompagner la Direction dans les opérations de croissance externe et piloter l'intégration des structures acquises,\n- Assurer la relation avec les partenaires financiers (banques, auditeurs, conseils, investisseurs...).\nD'une manière générale, vous contribuez à l'analyse et à la communication des données financières, participez aux prises de décisions stratégiques et prenez en charge la mise en place et le suivi des plans d'actions entérinés par la Direction du Groupe, le tout dans un environnement LBO qui nécessite précision, organisation et communication.\n...\n## Le profil recherché\nDe formation Bac +4/5 type Grande Ecole de Commerce ou Universitaire (ESC, Master CCA, DSCG, ...), avec une majeure en finance et comptabilité, vous justifiez d'une expérience de 10 ans minimum acquise en tout ou partie dans des fonctions similaires dans un environnement multi-sociétés, idéalement dans le domaine des services et dans un groupe sous LBO.",
+          "source": "web",
+          "title": "Offre Emploi CDI Directeur Administratif et Financier Lyon (69)",
+          "url": "https://www.hellowork.com/fr-fr/emplois/83292693.html"
+        },
+        {
+          "id": 3,
+          "last_updated": "2026-09-19",
+          "snippet": "## Directeur Financier Groupe - CFO F/H\nEQUANS\n## Directeur Administratif et Financier F/H\nDirecteur Administratif et Financier H/F Basé à Lyon 7e Rattaché au Directeur Général d’Axima Nucléaire et membre de son Comité de Direction, vous prenez en responsabilité le suivi administratif et financier de l’entité Axima Nucléaire et de ses filiales ou succursales (5...\n- A négocier\n- CDI\n- Lyon 07 - 69\n- 03/09/2026",
+          "source": "web",
+          "title": "Offres d'emploi Directeur Administratif et Financier, CFO",
+          "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Directeur%20Administratif%20et%20Financier,%20CFO"
+        },
+        {
+          "id": 4,
+          "last_updated": "2026-10-08",
+          "snippet": "## Filtrer parmi 74 offres d'emploi\n...\n### Directeur Administratif et Financier H/F (CDI)\nLyon CDI Personae Recrutement Directeur administratif financier\n3 octobre - Notre client, société leader dans son secteur, recherche son « **Directeur** **Administratif** et **Financier** F/H » pour accompagner …\n### Directeur Administratif et Financier H/F (CDI)\nLyon CDI TALENANCE Directeur administratif financier\n3 octobre - Rattaché(e) à la Direction Générale et membre du Comité de Direction, le/la **Directeur**(trice) **Administratif**(ve) et …\n...\nLyon CDI TALENANCE Directeur administratif financier\n...\n### DIRECTEUR /DIRECTRICE ADMINISTRATIF ET FINANCIER\nLyon Bras Droit Des Dirigeants Directeur administratif financier\n...\n### Directeur Administratif et Financier H/F\nLyon CDI Legrandvallet Directeur administratif financier\nDe 90 000 € à 120 000 € par an\nTélétravail occasionnel\n26 septembre - Dans le cadre du renforcement de sa fonction **financière**, le groupe recherche son (sa) : **Directeur** **Administratif** et …\n### Directeur Administratif et Financier H/F\nLyon CDI Equans Directeur administratif financier\n22 septembre - Description de l'emploi: **Directeur** **Administratif** et **Financier** H/F Enraciné dans une histoire plus que centenaire, Equans, …\n...\nLyon 7ème CDI Equans Directeur administratif financier\n22 septembre - **Directeur** **Administratif** et **Financier** H/F Enraciné dans une histoire plus que centenaire, Equans, société du groupe …\n...\nLyon CDI TALENANCE Directeur administratif financier\n...\nJobijoba vous propose 74 offres pour le métier Directeur administratif financier.",
+          "source": "web",
+          "title": "Emploi Directeur administratif financier à Lyon",
+          "url": "https://www.jobijoba.com/fr/emploi/Directeur+administratif+financier/Lyon"
+        },
+        {
+          "date": "2026-02-05",
+          "id": 5,
+          "last_updated": "2026-02-06",
+          "snippet": "Directeur Administratif et Financier F/H (H/F) 69 - Lyon 6e ArrondissementPostuler à l'offre Directeur Administratif et Financier F/H (H/F)\nOffre n° 202WQVJ\nDirecteur Administratif et Financier F/H (H/F)\n69 - Lyon 6e Arrondissement - Localiser avec Mappy\nActualisé le 05 février 2026\nVotre objectif : Responsable de la gestion administrative, comptable et financière de l'association, vous pilotez l'élaboration et le suivi des budgets, définissez et veillez à l'application des procédures, et mettez en place des outils de gestion et de contrôle en cohérence avec la stratégie.\nVous managez une équipe de 3 collaborateurs Membre du comité de Direction, rattaché directement au Directeur général.\n...\nVotre cadre de travail * CDI - forfait jour * 16.5 jour de repos forfait jour (en 2026) * 27.5 congé payé par an * Rémunération de 55 à 60k/an (selon profil) * Tickets restaurant (pris en charge à 60 %) * Mutuelle d'entreprise + prévoyance + prise en charge à 50% de l'abonnement transport * 13ième mois (dans le cadre de l'évolution de la convention collective, horizon 2027)\n- Type de contrat\nCDI\nContrat travail\n- Durée du travail\n35H/semaine\nTravail en journée\n...\n- Salaire brut : Annuel de 55000.0 Euros à 60000.0 Euros sur 12.0 mois\n...\nGROUPE EMPLOIS INNOVATIONS METROPOLE - 69 - LYON 09\n...\nCAPEB RHONE ET GRAND LYON - 69 - LYON 09\n...\n## Directeur administratif et financier / Directrice administrative et financière -DAF- (H/F)\nTRIANGLE GENERATION HUMANITAIRE - 69 - LYON\nOrientation et pilotage stratégiques Management et coordination Pilotage financier de l'Association Contrôle de Gestion Comptabilité générale Trésorerie, relations bancaires et financières Relations...\nCDI - Temps plein\nPublié il y a 24 jours",
+          "source": "web",
+          "title": "Offre n° 202WQVJ Directeur Administratif et Financier F/H (H/F)",
+          "url": "https://candidat.francetravail.fr/offres/recherche/detail/202WQVJ"
+        },
+        {
+          "id": 6,
+          "last_updated": "2026-10-04",
+          "snippet": "## Filtrer parmi 248 offres d'emploi\nDirecteur administratif financier\nMaître d'oeuvre d'exécution\nResponsable grands comptes\n...\n### Directeur Financier H/F\nLyon CDI Co-Efficience Directeur financier\nDe 80 000 € à 100 000 € par an\nPas de télétravail\n...\n### Chief Financial Officer CFO H/F\nLyon CDI FoxGroup Directeur financier\nDe 90 000 € à 110 000 € par an\nTélétravail partiel\n...\n### Directeur financier H/F (CDI)\nLyon CDI Co-Efficience Directeur financier\n3 octobre - Ici, vous ne reprendrez pas une Direction **Financière**.\nVous allez la construire.\n...\nIl y a 11 h - Dynaren, basé à Lyon, recherche un **Directeur** **financier** expérimenté pour piloter l’ensemble des activités administratives et …\n...\nLyon Digital Virgo Directeur financier\nDe 120 000 € à 140 000 € par an\n...\n### Directeur Financier h/f\nLyon CDI Directeur financier\n...\nLyon Indépendant DAF-ACTIVE Directeur administratif financier\nDe 30 000 € à 110 000 € par an\n...\nDirecteur Administratif et Financier H/F (CDI)\nLyon CDI Personae Recrutement Directeur administratif financier\n3 octobre - Notre client, société leader dans son secteur, recherche son « **Directeur** Administratif et **Financier** F/H » pour accompagner sa croissance.\n…\n...\nLyon CDI TALENANCE Directeur administratif financier\n...\nJobijoba vous propose 248 offres pour le métier Directeur financier.",
+          "source": "web",
+          "title": "Lyon",
+          "url": "https://www.jobijoba.com/fr/emploi/Directeur+financier/Lyon"
+        },
+        {
+          "id": 7,
+          "last_updated": "2026-09-19",
+          "snippet": "FED FINANCE\n## Directeur Administratif et financier F/H\nVous souhaitez rejoindre un groupe en pleine structuration et contribuer à un projet de développement ambitieux ? Je recherche un Directeur Financier Groupe pour accompagner la croissance de l'entreprise.\nRattaché au Dirigeant, vous pilotez l'ensemble de la fonction finance...\n- 70 - 100 k€ brut annuel\n- CDI\n- Eybens - 38\n- 27/08/2026\nEC-RH\n## Directeur Administratif et Financier F/H\nNous recrutons pour notre client un Directeur Administratif et Financier Groupe également membre du Comité Exécutif.\nDans un contexte de développement et de structuration, le/la DAF accompagnera le Président, le COMEX et l’actionnaire dans le pilotage financier du Groupe,...\n- 100 - 110 k€ brut annuel\n- CDI\n- Plaisir - 78\n- 17/09/2026\nHellowork\n## Directeur Administratif et Financier F/H\nNotre partenaire est un groupe de services en fort développement, soutenu par un fonds d'investissement, engagé dans une dynamique active de croissance externe.\nDans le cadre du renforcement de sa fonction financière, le groupe recherche son (sa) : Directeur Administratif et...\n- 90 - 120 k€ brut annuel\n- CDI\n- Lyon 01 - 69\n- 14/09/2026\nSKAELIA\n## Directeur Administratif et Financier Groupe F/H\nNotre client, une entreprise internationale de services numériques et d'ingénierie, recherche un(e) Directeur Administratif et Financier Groupe (H/F).\nL'entreprise compte entre 10 000 et 20 000 collaborateurs.\nDans un contexte de croissance sous actionnariat LBO, la fonction...\n- A partir de 170 k€ brut annuel\n- CDI\n- Puteaux - 92\n- 18/09/2026\nIDEE BLANCHE\n## DAF BU industrielle F/H\nVOTRE MISSION Sous la responsabilité du Directeur des filiales, vous serez le garant de la bonne gestion financière de la BU.\nVous contrôlez la bonne exécution de la stratégie et des procédures définies avec la direction générale et coordonnez les services dont vous avez la...\n- 80 - 90 k€ brut annuel\n- CDI\n- Brive-la-Gaillarde - 19\n...\n## Directeur Administratif et Financier F/H\nRattaché(e) directement au CEO , vous serez le/la pilote stratégique de la fonction financière, RH, SI & administrative de l’entreprise.\nVotre mission : garantir la performance économique, la conformité et l’alignement des opérations avec la vision long terme , dans un contexte...\n- A négocier\n- CDI\n- Signes - 83\n...\n## Directeur Administratif & Financier F/H\nEn postulant à cette offre, vous aurez l'opportunité de rejoindre un groupe multi-activités (construction / menuiserie, lavage automobile, pare-brise, services, immobilier) en pleine structuration et en forte croissance, implanté en Martinique et en Guadeloupe.\nNotre client...\n- A négocier\n- CDI\n- Le Lamentin - 972",
+          "source": "web",
+          "title": "Offres d'emploi Directeur Financier sous LBO",
+          "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Directeur%20Financier%20sous%20LBO"
+        },
+        {
+          "date": "2026-09-28",
+          "id": 8,
+          "last_updated": "2026-10-09",
+          "snippet": "Emploi Directeur Administratif et Financier H/F - Lyon (69000) sur Figaro Emploi\n# Directeur Administratif et Financier H/F\n**Personae Recrutement**\nLyon\nCDI\n80K € à 90K € annuels\n...\nAvec l’appui d’une équipe composée d’une vingtaine de personnes, votre rôle est de superviser la comptabilité.\nVous participez à l’établissement des comptes annuels, tout en prenant de la hauteur sur les résultats financiers.\nDans un environnement en croissance, vous êtes force de proposition pour structurer le contrôle de gestion et améliorer les outils.\nVous pilotez la performance à travers l’optimisation des marges, des stocks et de l’ensemble des indicateurs nécessaires au suivi de l’activité.\nVous réalisez les budgets, les forecasts, les tableaux de bord et le reporting pour la maison mère.\nVous gérez les projets de transformation, de croissance externe et vous aidez à piloter les déploiements organisationnels, digitaux et informatiques…\nVous vous assurez de l’optimisation des flux de trésorerie et des flux de marchandises.\nVous travaillez sur les aspects de crédit client en restant proche du terrain.\nVous êtes moteur lors des opérations de croissance externe, puis vous veillez à la bonne intégration des nouvelles sociétés.\n...\nVous assurez une veille permanente sur l’évolution des normes fiscales et comptables, et vous mettez en place les ajustements nécessaires.\n...\nIssu(e) d’une formation supérieure en Comptabilité/Finance (DEC, DSCG, ESC, Master 2…), vous disposez d’une expérience d’au moins 8 ans dans une fonction de DAF au sein d'une ETI ou de la filiale d’un groupe.\nDe plus, une solide maîtrise de la comptabilité est requise pour réussir ; une expérience en audit ou en expertise comptable est un vrai plus.\n...\nL’entreprise ne propose pas de télétravail.\nDes déplacements hebdomadaires sont à prévoir.\n...\nNotre client, société leader dans son secteur, recherche son « Directeur Administratif et Financier F/H » pour accompagner sa croissance.\nAu sein d’un environnement multi-sites, la société réalise un chiffre d'affaires de 300 millions d'euros.\nNous recherchons le business partner du Directeur Général, qui aura la charge de l’ensemble du périmètre financier, comptable, bancaire et juridique.",
+          "source": "web",
+          "title": "Emploi Directeur Administratif et Financier H/F - Lyon (69000) sur Figaro Emploi",
+          "url": "https://emploi.lefigaro.fr/offres-emploi/156550320694944515"
+        },
+        {
+          "id": 9,
+          "last_updated": "2026-09-25",
+          "snippet": "# 5 offres d'emploi Directeur financier - Lyon (69) +20km\n...\n## Directeur Administratif et Financier H/F\nLyon\nCDI\nNotre client est une PME dynamique réalisant environ 180 M€ de chiffre d’affaires, évoluant dans un environnement exigeant, marqué par des investissements significatifs, des actifs opérationnels critiques et de forts enjeux de performance.\n...\n## Directeur Administratif et Financier H/F\nLyon\nCDI\n80K€ - 90K€\nAvec l’appui d’une équipe composée d’une vingtaine de personnes, votre rôle est de superviser la comptabilité.\nVous participez à l’établissement des comptes annuels, tout en prenant de la hauteur sur les résultats financiers.\nDans un environnement en croissance, vous ...## Directeur Administratif et financier (H/F)\nVilleurbanne\nCDI\n## Directeur Administratif et financier (H/F)\n34K€ - 80K€",
+          "source": "web",
+          "title": "Emploi directeur financier - Lyon (69) | Septembre 2026 - Cadremploi",
+          "url": "https://www.cadremploi.fr/emploi/liste_offres?motscles=directeur+financier&ville=lyon-69"
+        },
+        {
+          "id": 10,
+          "last_updated": "2026-10-08",
+          "snippet": "## Directeur Administratif et Financier H/F\nLyon\nCDI\nNotre client est une PME dynamique réalisant environ 180 M€ de chiffre d’affaires, évoluant dans un environnement exigeant, marqué par des investissements significatifs, des actifs opérationnels critiques et de forts enjeux de performance.\nRattaché(e) à la Dir...## Directeur Administratif et Financier H/F\nLyon\nCDI\n80K€ - 90K€\nAvec l’appui d’une équipe composée d’une vingtaine de personnes, votre rôle est de superviser la comptabilité.\nVous participez à l’établissement des comptes annuels, tout en prenant de la hauteur sur les résultats financiers.\nDans un environnement en croissance, vous ...Lyon",
+          "source": "web",
+          "title": "16 offres d'emploi administratif - Rhône (69) - Cadremploi",
+          "url": "https://www.cadremploi.fr/emploi/liste_offres?dep=69&motscles=administratif"
+        }
+      ],
+      "type": "search_results"
+    },
+    {
+      "content": [
+        {
+          "annotations": [],
+          "text": "Voici quelques offres en **CDI** de Directeur administratif et financier à Lyon et dans la métropole, recensées début octobre 2026 :\n\n- **Equans France — Lyon 7e** : DAF d’Axima Nucléaire et de ses filiales, poste rattaché au directeur général. CDI, rémunération à négocier.[3]\n- **Legrandvallet — Lyon** : groupe de services en croissance sous LBO ; pilotage financier, reporting, trésorerie et accompagnement des acquisitions. CDI, **90 000 à 120 000 € brut/an**, télétravail occasionnel ; 10 ans d’expérience demandés.[2]\n- **Personae Recrutement — Lyon** : supervision comptable et pilotage de la performance dans une entreprise en croissance. CDI, **80 000 à 90 000 € brut/an**.[8]\n- **TALENANCE — Lyon** : DAF rattaché à la direction générale, membre du comité de direction. CDI.[4]\n- **Autres pistes dans la métropole** : des postes sont aussi répertoriés à Villeurbanne, notamment chez Ec-Rh (**80 000 à 100 000 €**) et Mindquest France (**66 000 €**), ainsi qu’à Saint-Priest et Dardilly.[1]\n\nLes annonces pouvant être retirées ou modifiées, vérifiez leur disponibilité avant de postuler. Hellowork répertorie actuellement **22 offres** correspondant à ce métier dans le secteur lyonnais.[1]",
+          "type": "output_text"
+        }
+      ],
+      "id": "msg_880055b3-c3c1-4b2e-9f2d-c7f87c696042",
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "presence_penalty": 0,
+  "previous_response_id": null,
+  "prompt_cache_key": null,
+  "reasoning": null,
+  "safety_identifier": null,
+  "service_tier": "fast",
+  "status": "completed",
+  "store": false,
+  "temperature": 1,
+  "text": {
+    "format": {
+      "type": "text"
+    }
+  },
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "type": "web_search"
+    }
+  ],
+  "top_logprobs": 0,
+  "top_p": 1,
+  "truncation": "",
+  "usage": {
+    "cost": {
+      "cache_creation_cost": 0.00076,
+      "currency": "USD",
+      "input_cost": 0,
+      "output_cost": 0.00016,
+      "tool_calls_cost": 0.001,
+      "tool_calls_cost_details": {
+        "search_web": 0.001
+      },
+      "total_cost": 0.00192
+    },
+    "input_tokens": 6122,
+    "input_tokens_details": {
+      "cache_creation_input_tokens": 6119,
+      "cache_read_input_tokens": 0,
+      "cached_tokens": 0
+    },
+    "output_tokens": 324,
+    "output_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "tool_calls_details": {
+      "search_web": {
+        "cost_usd": 0.001,
+        "invocation": 1
+      }
+    },
+    "total_tokens": 6446
+  },
+  "user": null
+}

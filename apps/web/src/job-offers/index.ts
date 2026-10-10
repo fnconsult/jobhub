@@ -16,6 +16,11 @@
  * `forgetExpiredGuestCaptures`, which the worker runs on a schedule. A Candidate
  * capturing it, or saving it as an Application (`keepForCandidate`), keeps it
  * for good.
+ * Every few days the worker re-checks a Job Offer's source (`createSourceChecks`
+ * schedules and records it); one no longer published there becomes an Expired
+ * Job Offer (`expiredAt`). Nothing else about it, or its Applications, changes.
+ * Expiry is not for good: a later re-check finding it published, or capturing
+ * its source page again, makes it a published Job Offer again.
  */
 import { createHash } from "node:crypto";
 import { CONTRACT_TYPES, REMOTE_WORK_OPTIONS, type JobOffer } from "@jobhub/shared";
@@ -25,6 +30,7 @@ import { fieldErrors, type FieldError } from "../validation";
 import { GUEST_EXPIRY_SQL } from "./guest-retention";
 
 export { forgetExpiredGuestCaptures } from "./guest-retention";
+export { createSourceChecks, EXPIRED_RECHECK_INTERVAL_DAYS, RECHECK_INTERVAL_DAYS, type SourceCheckOutcome, type SourceChecks } from "./source-checks";
 
 export type { FieldError as JobOfferFieldError } from "../validation";
 
@@ -94,10 +100,11 @@ interface JobOfferRow {
   salary_max: number | null;
   skills: string[] | null;
   required_experience_years: number | null;
+  expired_at: Date | null;
 }
 
 const COLUMNS = `id, source_url, source_name, title, content, employer, location, contract_type, remote_work,
-  salary_min, salary_max, skills, required_experience_years`;
+  salary_min, salary_max, skills, required_experience_years, expired_at`;
 
 function jobOfferFrom(row: JobOfferRow): JobOffer {
   const jobOffer: JobOffer = { id: row.id, source: {}, title: row.title, content: row.content };
@@ -114,6 +121,7 @@ function jobOfferFrom(row: JobOfferRow): JobOffer {
   }
   if (row.skills !== null) jobOffer.skills = row.skills;
   if (row.required_experience_years !== null) jobOffer.requiredExperienceYears = row.required_experience_years;
+  if (row.expired_at !== null) jobOffer.expiredAt = row.expired_at;
   return jobOffer;
 }
 
@@ -182,11 +190,19 @@ export function createJobOffers(database: Pool): JobOffers {
           LIMIT 1`,
         keys,
       );
-      const jobOffer = jobOfferFrom(existing.rows[0]!);
+      const row = existing.rows[0]!;
       if (capturedBy === "candidate") {
-        await database.query(`UPDATE job_offer SET guest_expires_at = NULL WHERE id = $1 AND guest_expires_at IS NOT NULL`, [jobOffer.id]);
+        await database.query(`UPDATE job_offer SET guest_expires_at = NULL WHERE id = $1 AND guest_expires_at IS NOT NULL`, [row.id]);
       }
-      return { ok: true, jobOffer };
+      // Captured again from its own source page: that page publishes it, so it is not expired.
+      if (row.expired_at !== null && keys[0] !== null) {
+        const revived = await database.query(
+          `UPDATE job_offer SET expired_at = NULL WHERE id = $1 AND url_key = $2 AND expired_at IS NOT NULL`,
+          [row.id, keys[0]],
+        );
+        if (revived.rowCount) row.expired_at = null;
+      }
+      return { ok: true, jobOffer: jobOfferFrom(row) };
     },
 
     async keepForCandidate(id) {
@@ -236,5 +252,8 @@ export async function migrateJobOffers(database: Pool): Promise<void> {
     -- Set while only Guests have captured the posting: when to forget it (ADR-0003).
     ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS guest_expires_at timestamptz;
     CREATE INDEX IF NOT EXISTS job_offer_guest_expires_at ON job_offer (guest_expires_at) WHERE guest_expires_at IS NOT NULL;
+    -- Source re-checks (Expired Job Offers): when the source was last read, and when it was found no longer publishing the posting.
+    ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS source_checked_at timestamptz;
+    ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS expired_at timestamptz;
   `);
 }

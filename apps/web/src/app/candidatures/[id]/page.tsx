@@ -13,7 +13,7 @@ import { EnrichedContactsPanel } from "@/components/EnrichedContactsPanel";
 import { getCompanyDossiers } from "@/company-dossiers/server";
 import { getEnrichedContacts } from "@/enriched-contacts/server";
 import { getHumanCoaches } from "@/human-coaches/server";
-import { JobOfferView } from "@/components/JobOfferView";
+import { ExpiredJobOfferNotice, JobOfferView } from "@/components/JobOfferView";
 import { MatchScoreView } from "@/components/MatchScoreView";
 import { TailoredCvReview } from "@/components/TailoredCvReview";
 import { TailoredDocumentsEditor } from "@/components/TailoredDocumentsEditor";
@@ -84,6 +84,9 @@ export default async function ApplicationPage({ params }: Params) {
       <h1>{jobOffer.title}</h1>
       {jobOffer.employer ? <p className="lead">{jobOffer.employer}</p> : null}
       <p>{t("application.savedOn", { date: date.format(application.createdAt) })}</p>
+      <ExpiredJobOfferNotice jobOffer={jobOffer} t={t} locale={locale}>
+        {t("application.expiredNotice")}
+      </ExpiredJobOfferNotice>
       <CoachInView {...inView} />
       <ActionCardList key={application.id} cards={cards.filter((card) => followUpCardApplies(card, application.status)).map((card) => cardView(card, t))} />
 

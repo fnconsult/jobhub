@@ -24,6 +24,10 @@ const MAX_ISSUES = opts.maxIssues ?? 1000
 const MERGE = opts.merge ?? true
 const MAX_FIX_LOOPS = opts.maxFixLoops ?? 3
 const DOC_MODEL = opts.docModel ?? 'sonnet' // document-writing agents use the latest Sonnet
+// Token budget (2026-10-10): mechanical steps on Haiku, checks on Sonnet, judgement on Opus.
+const CHEAP = { model: 'haiku', effort: 'low' }
+const CHECKER = { model: 'sonnet', effort: 'medium' }
+const BUILDER = { model: 'opus', effort: 'high' }
 const RESUME = opts.resume ?? []
 
 // ---------- schemas ----------
@@ -136,7 +140,7 @@ const pickNext = (count, exclude) => agent(
 6. Prefer issues that don't obviously touch the same area as each other, so they can be built in parallel without conflicts.
 
 Return at most ${count}. Read only — change nothing.`,
-  { label: 'select', phase: 'Select', schema: PICK, effort: 'low' },
+  { label: 'select', phase: 'Select', schema: PICK, ...CHEAP },
 )
 
 const INTERRUPTED = '\nA previous run was interrupted mid-task in this worktree: inspect `git status` / `git log` first and continue from any uncommitted or in-progress work (including an unfinished rebase) instead of starting over.'
@@ -144,7 +148,7 @@ const INTERRUPTED = '\nA previous run was interrupted mid-task in this worktree:
 // Rebuilds the implementation summary for an issue resumed past Implement.
 const recover = (n, pr) => issueAgent(n, `wf-dev/#${n}/recover`,
   `An interrupted run already implemented ${spec(n)} in PR #${pr.prNumber} (worktree \`${pr.worktree}\`, branch \`${pr.branch}\`, since \`${pr.baseRef}\`). Read the issue, the PR body and \`git log ${pr.baseRef}..HEAD\` and return: a summary of what was built (including new domain terms/decisions), the acceptance criteria verbatim from the issue, and howToRun (install, start the app, unit and e2e test commands, from README/package.json). Read only — change nothing. ok=true.`,
-  { phase: 'Implement', schema: IMPL, effort: 'low' },
+  { phase: 'Implement', schema: IMPL, ...BUILDER },
 )
 
 // ---------- one issue, end to end ----------
@@ -158,7 +162,7 @@ const runIssue = async (n, resumed) => {
 3. In the worktree: \`git commit --allow-empty -m "Start #${n}: <issue title>"\`, then \`git push -u origin <branch>\`.
 4. \`gh pr create --draft --base main --head <branch>\` with the issue title, a body that has "Closes #${n}", the acceptance criteria as a task list (\`- [ ]\`), and ends with:\n${FOOT}
 Write no code. Return the worktree path, branch, baseRef and the PR number/url.`,
-    { phase: 'Open PR', schema: SETUP, effort: 'low' },
+    { phase: 'Open PR', schema: SETUP, ...CHEAP },
   )
   if (!pr || !pr.ok) return { issue: n, status: 'failed-open-pr', pr }
 
@@ -178,7 +182,7 @@ Use the Skill tool to load and follow:
 - \`mattpocock-skills:tdd\` — test-first, red-green-refactor.
 
 Commit in small steps (messages reference #${n}) and push to the branch as you go. Tick the acceptance-criteria task list in the PR body (\`gh pr edit ${pr.prNumber} --body ...\`) as items are done. Use the issue's acceptance criteria verbatim. Return ok=false only if you could not produce a working implementation.`,
-    { phase: 'Implement', schema: IMPL },
+    { phase: 'Implement', schema: IMPL, ...BUILDER },
   )
   if (!built || !built.ok) return { issue: n, status: 'failed-implement', pr: pr.prUrl, impl: built }
   const impl = { ...pr, ...built }
@@ -190,7 +194,7 @@ Commit in small steps (messages reference #${n}) and push to the branch as you g
       `Bring the branch of ${spec(n)} up to date with main before it is verified.
 ${where(impl)}
 \`git fetch origin\`. If \`origin/main\` is not an ancestor of HEAD, rebase onto it (finish any rebase already in progress first). On conflicts, load \`mattpocock-skills:resolving-merge-conflicts\` via the Skill tool and follow it, keeping the intent of both sides; renumber this branch's ADR if its number is now taken on main. Run \`npm ci\` if package-lock.json changed, then typecheck and lint. Push: \`git push --force-with-lease origin ${impl.branch}\` if you rebased, else \`git push origin ${impl.branch}\`, following the pushing rule above. Change nothing else; never touch other worktrees. Return a one-line summary (up to date / rebased, conflicts resolved).`,
-      { phase: 'Verify', effort: 'low' },
+      { phase: 'Verify', ...CHEAP },
     )
     const retest = loop > 0 ? `\nThis is re-verification round ${loop} after fixes; re-check these earlier failures first:\n${JSON.stringify(failures, null, 2)}` : ''
 
@@ -207,7 +211,7 @@ Use the Skill tool to load \`mattpocock-skills:tdd\` (integration-test guidance)
           ? ' Write e2e tests covering every acceptance criterion through the public entry point (UI, HTTP API, extension or CLI); set up e2e tooling if the repo has none. Commit them.'
           : ' The e2e tests exist; never weaken or delete them to get green.'}
 Run the e2e suite and the full existing test suite. pass=true only if everything is green. Every failure needs real output as evidence.${retest}`,
-        { phase: 'Verify', schema: CHECK },
+        { phase: 'Verify', schema: CHECK, ...CHECKER },
       ),
       () => issueAgent(n, `wf-dev/#${n}/qa${loop ? `-r${loop}` : ''}`,
         `You are QA for ${spec(n)}
@@ -218,7 +222,7 @@ Acceptance criteria:
 ${criteria(impl)}
 
 Use the Skill tool to load the \`run\` skill and launch the real app. Exercise it like a user: every acceptance criterion, then edge cases (empty/invalid input, errors, permissions, repeated actions, FR/EN i18n where relevant), then regressions in nearby features. Do NOT edit or commit anything. pass=true (go) only if every criterion holds and no significant defect exists; each failure needs repro steps and evidence.${retest}`,
-        { phase: 'Verify', schema: CHECK },
+        { phase: 'Verify', schema: CHECK, ...CHECKER },
       ),
       () => issueAgent(n, `wf-dev/#${n}/review${loop ? `-r${loop}` : ''}`,
         `Use the Skill tool to load \`mattpocock-skills:code-review\` and follow it: review pull request #${impl.prNumber} (branch \`${impl.branch}\` since \`${impl.baseRef}\`) against ${spec(n)}
@@ -226,7 +230,7 @@ ${where(impl)}
 
 Do NOT edit code. pass=true only if there are no blocking (must-fix-before-merge) findings on either axis (Standards, Spec). List each blocking finding as a failure with file and evidence; put non-blocking remarks in notes.
 Before returning, record the review on the PR: \`gh pr review ${impl.prNumber} --comment --body "<verdict: no blocking findings | N blocking findings>, then the Standards and Spec results, blocking findings with file:line, non-blocking remarks>"\`. Start the body with "Code review (round ${loop}):".${retest}`,
-        { phase: 'Verify', schema: CHECK },
+        { phase: 'Verify', schema: CHECK, ...BUILDER },
       ),
     ])
 
@@ -248,7 +252,7 @@ Fix every one of these (E2E failures, QA defects, blocking review findings):
 ${JSON.stringify(failures, null, 2)}
 
 Find root causes, not symptoms. Add a regression test per \`mattpocock-skills:tdd\` where it makes sense. Never weaken tests. Commit and push to the PR branch. Return a short summary.`,
-      { phase: 'Fix' },
+      { phase: 'Fix', ...BUILDER },
     )
   }
 
@@ -291,7 +295,7 @@ Remaining failures:
 ${JSON.stringify(failures, null, 2)}
 
 Push the branch. Keep PR #${impl.prNumber} as a draft; add a PR comment (\`gh pr comment ${impl.prNumber}\`) with the remaining failures and what was tried. Swap the issue's labels (\`--remove-label ready-for-agent --add-label ready-for-human\`) and unassign yourself. Keep the worktree. merged=false.`,
-    { phase: 'Ship', schema: SHIP },
+    { phase: 'Ship', schema: SHIP, ...CHEAP },
   ))
 
   return {

@@ -98,6 +98,10 @@ test.describe("Tailored CV with change review", () => {
     // A reorder shows the order before and after.
     const reordered = review.getByRole("listitem").filter({ hasText: `${tc.sections.skills} · ${tc.kinds.reordered}` });
     await expect(reordered.getByRole("definition")).toHaveText(["Consolidation\nIFRS\nSAP", "SAP\nIFRS\nConsolidation"], { useInnerText: true });
+    // Wording taken from the Job Offer that the Master CV lacks is kept, but flagged for the Candidate to check (#68).
+    const job = review.getByRole("listitem").filter({ hasText: `${tc.sections.experience} · ${tc.kinds.rephrased}` });
+    await expect(job.getByRole("note")).toHaveText(tc.fromOffer.replace("{{words}}", "Directeur, administratif"));
+    await expect(review.getByText(tc.offerWordingTranslated)).toHaveCount(0);
     // Never invented (ADR-0006): the figure and the keyword the AI Coach slipped in are left out.
     await expect(review.getByText(/20 ans/)).toHaveCount(0);
     await expect(review.getByText(new RegExp(tc.kinds.added.replace(/[()]/g, "\\$&")))).toHaveCount(0);
@@ -148,6 +152,8 @@ test.describe("Tailored CV with change review", () => {
     await section(page).getByRole("button", { name: tc.propose }).click();
     await expect(proposal(page).getByText(tc.writtenIn.en)).toBeVisible();
     await expect(proposal(page).getByText("Directrice financière (adapté, en)")).toBeVisible();
+    // The Master CV is in French: the Job Offer's words were checked through a translation, and the Candidate is told (#68).
+    await expect(proposal(page).getByText(tc.offerWordingTranslated)).toBeVisible();
     // Written in English through and through: a language is translated, shown against the Master CV's.
     const language = proposal(page).getByRole("listitem").filter({ hasText: `${tc.sections.languages} · ${tc.kinds.rephrased} · Anglais · courant` });
     await expect(language.getByText("English · fluent")).toBeVisible();

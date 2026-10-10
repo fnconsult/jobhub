@@ -893,6 +893,8 @@
     "decline": "Non",
     "changesTitle": "Changements par rapport au CV de référence",
     "noChanges": "Aucun changement : le CV adapté reprend votre CV de référence tel quel.",
+    "fromOffer": "Repris de l'offre, absent de votre CV de référence : {{words}}. Gardez-le seulement si c'est exact.",
+    "offerWordingTranslated": "Votre CV de référence est dans une autre langue : les mots repris de l'offre ont été repérés au moyen d'une traduction automatique, qui peut en oublier ou en signaler à tort.",
     "sections": {
       "headline": "Titre",
       "summary": "Résumé",

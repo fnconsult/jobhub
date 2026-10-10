@@ -67,6 +67,9 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
   let candidateId: string;
   let applicationId: string;
 
+  /** The last call asking the AI Coach for a Tailored CV, not for a translation of the Job Offer's words. */
+  const coachCall = () => provider.calls.filter((call) => !call.system?.startsWith("Translate")).at(-1)!;
+
   async function signIn(email: string) {
     const cookie = await signInWithMagicLink(testAuth, email);
     return (await (await testAuth.request("/api/auth/get-session", { cookie })).json()).user.id as string;
@@ -134,7 +137,7 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
         },
       },
     });
-    const prompt = provider.calls.at(-1)!.messages.map((message) => message.content).join("\n");
+    const prompt = coachCall().messages.map((message) => message.content).join("\n");
     expect(prompt).toContain("Consolidation IFRS de 12 filiales.");
     expect(prompt).toContain("DAF H/F");
     expect((await tailoredCvs.get(candidateId, applicationId))?.proposal?.content.headline).toBe(PROPOSAL.headline);
@@ -175,6 +178,55 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
         },
       },
     });
+  });
+
+  it("wording taken from the Job Offer's text that the Master CV lacks is kept, but flagged as an addition in the review (#68)", async () => {
+    const offer = await saveApplication({
+      ...FRENCH_OFFER,
+      source: { url: "https://www.apec.fr/offre/daf-omnicanal" },
+      content: `${FRENCH_OFFER.content} Vous accompagnez les clients dans l'adoption de solutions omnicanales et animez des revues stratégiques avec des interlocuteurs C-level.`,
+    });
+    const summary = "Directrice financière depuis 2005, solutions omnicanales et revues stratégiques avec des interlocuteurs C-level.";
+    reply = { ...PROPOSAL, summary };
+
+    const result = await tailoredCvs.propose(candidateId, offer, {});
+
+    const proposal = result.ok ? result.tailoredCv.proposal! : null;
+    expect(proposal?.content.summary).toBe(summary);
+    const flagged = proposal?.changes.find((change) => change.section === "summary");
+    expect(flagged).toMatchObject({ kind: "rephrased", tailored: summary });
+    expect(flagged?.fromOffer).toEqual(expect.arrayContaining(["omnicanales", "revues", "stratégiques", "interlocuteurs", "level"]));
+    expect(proposal?.offerWordingTranslated).toBe(false);
+  });
+
+  it("in another Document Language, the Job Offer's words are checked against the Master CV through a translation, and the Candidate is told so (#68)", async () => {
+    const english = await saveApplication({
+      ...ENGLISH_OFFER,
+      source: { url: "https://jobs.example.com/cfo-omnichannel" },
+      content: `${ENGLISH_OFFER.content} You drive omnichannel solutions and strategic reviews with C-level executives.`,
+    });
+    const summary = "Chief Financial Officer since 2005, omnichannel solutions with C-level executives.";
+    replies = [{ ...PROPOSAL, headline: "Chief Financial Officer", summary }];
+    // The AI Coach's translation of the Job Offer's words into the Master CV's language (French).
+    reply = { chief: "directrice", financial: "financière", officer: "directrice", omnichannel: "omnicanal", solutions: "solutions", level: "niveau", executives: "dirigeants" };
+
+    const result = await tailoredCvs.propose(candidateId, english, { language: "en" });
+
+    const proposal = result.ok ? result.tailoredCv.proposal! : null;
+    expect(proposal?.content.summary).toBe(summary);
+    expect(proposal?.offerWordingTranslated).toBe(true);
+    const fromOffer = proposal?.changes.find((change) => change.section === "summary")?.fromOffer ?? [];
+    expect(fromOffer).toEqual(expect.arrayContaining(["omnichannel", "executives"]));
+    expect(fromOffer).not.toContain("financial");
+    expect(fromOffer).not.toContain("chief");
+  });
+
+  it("rephrasings that only reuse the Master CV's words are not flagged (#68)", async () => {
+    const result = await tailoredCvs.propose(candidateId, applicationId, {});
+
+    const changes = result.ok ? result.tailoredCv.proposal!.changes : [];
+    expect(changes.filter((change) => change.kind === "rephrased").length).toBeGreaterThan(0);
+    expect(changes.filter((change) => change.fromOffer)).toEqual([]);
   });
 
   it("the Job Offer's requirements the Master CV lacks become questions to the Candidate, added only if confirmed", async () => {
@@ -253,17 +305,17 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
     const result = await tailoredCvs.propose(candidateId, english, {});
 
     expect(result).toMatchObject({ ok: true, tailoredCv: { documentLanguage: "en", proposal: { language: "en" } } });
-    expect(provider.calls.at(-1)!.system).toContain("in English");
+    expect(coachCall().system).toContain("in English");
   });
 
   it("the Candidate can choose another Document Language, which the Application keeps for its next Tailored Documents", async () => {
     await tailoredCvs.propose(candidateId, applicationId, { language: "en" });
-    expect(provider.calls.at(-1)!.system).toContain("in English");
+    expect(coachCall().system).toContain("in English");
 
     const result = await tailoredCvs.propose(candidateId, applicationId, {});
 
     expect(result).toMatchObject({ ok: true, tailoredCv: { documentLanguage: "en", proposal: { language: "en" } } });
-    expect(provider.calls.at(-1)!.system).toContain("in English");
+    expect(coachCall().system).toContain("in English");
     expect(await tailoredCvs.propose(candidateId, applicationId, { language: "de" })).toMatchObject({ ok: false, errors: [{ field: "language" }] });
   });
 
@@ -332,7 +384,7 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
 
   it("in another Document Language, diplomas, languages and skills are written in it, each shown against the Master CV's", async () => {
     const english = await saveApplication({ ...ENGLISH_OFFER, skills: ["IFRS", "SAP", "Financial reporting"] });
-    reply = {
+    replies = [{
       headline: "Chief Financial Officer",
       summary: "Chief Financial Officer since 2005, 12 subsidiaries consolidated.",
       experience: [{ employer: "Groupe Seb", period: "2005 – 2024", title: "Chief Financial Officer", description: "IFRS consolidation of 12 subsidiaries and financial reporting." }],
@@ -340,11 +392,13 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
       skills: [{ id: "s1", text: "IFRS" }, { id: "s0", text: "Financial reporting" }, { id: "s2", text: "SAP" }],
       languages: [{ id: "l0", name: "English", level: "fluent" }],
       missing: [],
-    };
+    }];
+    // Then the Job Offer's words, translated into the Master CV's language.
+    reply = { chief: "directrice", financial: "financière", finance: "finance", officer: "directrice", subsidiaries: "filiales", consolidated: "consolidées", consolidation: "consolidation", reporting: "reporting" };
 
     const result = await tailoredCvs.propose(candidateId, english, {});
 
-    expect(provider.calls.at(-1)!.messages.map((message) => message.content).join("\n")).toContain('"id":"e0"');
+    expect(coachCall().messages.map((message) => message.content).join("\n")).toContain('"id":"e0"');
     expect(result).toMatchObject({
       ok: true,
       tailoredCv: {

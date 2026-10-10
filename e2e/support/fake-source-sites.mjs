@@ -87,6 +87,29 @@ const sites = {
         ),
     },
   },
+  // Used by e2e/expired-job-offers-confirmation.spec.ts, which moves E2E_RECHECK_PHASE through
+  // first, second, third, fourth and live:
+  //  - always published;
+  "stable-e2e.example": {
+    robots: "",
+    pages: { [`/offre/${tag}`]: () => html(page("DAF – Acme", "<h1>DAF</h1>", jsonLd(posting("DAF", nextYear)))) },
+  },
+  //  - published in the "second" phase only (410 Gone otherwise);
+  "intermittent-e2e.example": {
+    robots: "",
+    pages: {
+      [`/offre/${tag}`]: () =>
+        phase === "second" ? html(page("DAF – Acme", "<h1>DAF</h1>", jsonLd(posting("DAF", nextYear)))) : html(page("Retirée", "<p>Gone</p>"), { status: 410 }),
+    },
+  },
+  //  - published again in the "live" phase only (410 Gone otherwise).
+  "revenue-e2e.example": {
+    robots: "",
+    pages: {
+      [`/offre/${tag}`]: () =>
+        phase === "live" ? html(page("DAF – Acme", "<h1>DAF</h1>", jsonLd(posting("DAF", nextYear)))) : html(page("Retirée", "<p>Gone</p>"), { status: 410 }),
+    },
+  },
   "www.linkedin.com": {
     robots: "",
     pages: { [`/jobs/view/${tag}`]: () => html(page("LinkedIn", "<p>Ne devrait jamais être lu.</p>"), { status: 404 }) },

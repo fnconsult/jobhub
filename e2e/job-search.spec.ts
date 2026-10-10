@@ -260,4 +260,30 @@ test.describe("On-demand AI Coach job search", () => {
     await expect(prompt.getByRole("link", { name: "Découvrir l'offre Standard" })).toHaveAttribute("href", "/abonnement");
     await expect(page).toHaveURL(new RegExp(`/profils/${profileId}$`));
   });
+
+  // Issue #16: a Job Offer no longer published at its source is left out of Job Search results.
+  test("leaves Expired Job Offers out of the results", async ({ page }) => {
+    const profileId = await signInWithProfile(page);
+    await searchFromProfile(page, profileId);
+    const results = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2 }) });
+    await expect(results, workerOutput).toHaveCount(2, { timeout: 90_000 });
+    const expiredTitle = `Directeur administratif et financier (H/F) – réf. ${tag}`;
+
+    // The worker's re-check found the posting gone, twice in a row (e2e/expired-job-offers.spec.ts drives that path).
+    const client = new pg.Client({ connectionString: databaseUrl });
+    await client.connect();
+    try {
+      const marked = await client.query("UPDATE job_offer SET expired_at = now() WHERE title = $1", [expiredTitle]);
+      expect(marked.rowCount).toBeGreaterThan(0);
+      try {
+        await searchFromProfile(page, profileId);
+        await expect(results, workerOutput).toHaveCount(1, { timeout: 90_000 });
+        await expect(page.getByRole("heading", { level: 2, name: expiredTitle })).toHaveCount(0);
+      } finally {
+        await client.query("UPDATE job_offer SET expired_at = NULL WHERE title = $1", [expiredTitle]);
+      }
+    } finally {
+      await client.end();
+    }
+  });
 });

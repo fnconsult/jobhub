@@ -7,7 +7,7 @@ import { ActionCardList, type ActionCardView } from "@/components/ActionCardList
 import { AtsScoreView } from "@/components/AtsScoreView";
 import { CoachInView } from "@/components/CoachPanel";
 import { CvExportForm } from "@/components/CvExportForm";
-import { JobDigestToggle } from "@/components/JobDigestControls";
+import { JobDigestControls } from "@/components/JobDigestControls";
 import { StartJobSearchButton } from "@/components/JobSearchControls";
 import { MasterCvView } from "@/components/MasterCvView";
 import { ProfileActions } from "@/components/ProfileActions";
@@ -72,32 +72,35 @@ export default async function ProfilePage({ params }: Params) {
         <section className="stack" aria-labelledby="job-digest-title">
           <h2 id="job-digest-title">{t("jobDigest.sectionTitle")}</h2>
           <p>{t("jobDigest.hint")}</p>
-          {jobDigest.frequency !== "none" ? <p>{t(`jobDigest.frequency.${jobDigest.frequency}`)}</p> : null}
+          {jobDigest.planFrequency !== "none" ? <p>{t(`jobDigest.frequency.${jobDigest.planFrequency}`)}</p> : null}
           {jobDigest.subscribed ? (
-            <p className="notice" role="status">
-              {t("jobDigest.subscribed")}
-            </p>
+            <>
+              <p className="notice" role="status">
+                {t("jobDigest.subscribed")}
+              </p>
+              {jobDigest.frequency !== "none" ? <p>{t(`jobDigest.schedule.${jobDigest.frequency}`)}</p> : null}
+              {jobDigest.chosenFrequency !== jobDigest.frequency ? <p>{t("jobDigest.cappedToPlan")}</p> : null}
+            </>
           ) : null}
-          <JobDigestToggle key={profile.id} profileId={profile.id} subscribed={jobDigest.subscribed} />
+          <JobDigestControls
+            key={profile.id}
+            profileId={profile.id}
+            subscribed={jobDigest.subscribed}
+            chosenFrequency={jobDigest.chosenFrequency}
+            planFrequency={jobDigest.planFrequency}
+          />
           {jobDigest.digests.length > 0 ? (
             <>
               <h3>{t("jobDigest.latestTitle")}</h3>
-              {jobDigest.digests.map((digest) => (
-                <section key={digest.id} className="stack" aria-label={t("jobDigest.sentAt", { date: formatDate(digest.sentAt, locale) })}>
-                  <p>{t("jobDigest.sentAt", { date: formatDate(digest.sentAt, locale) })}</p>
-                  <ul>
-                    {digest.results.map(({ jobOffer, matchScore }) => (
-                      <li key={jobOffer.id}>
-                        <Link href={routes.jobOffer(jobOffer.id)}>{jobOffer.title}</Link>
-                        {[jobOffer.employer, jobOffer.location].filter(Boolean).length > 0
-                          ? ` (${[jobOffer.employer, jobOffer.location].filter(Boolean).join(", ")})`
-                          : null}{" "}
-                        — {t("jobSearch.matchScore", { score: matchScore.score })}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ))}
+              <ul>
+                {jobDigest.digests.map((digest) => (
+                  <li key={digest.id}>
+                    <Link href={routes.jobDigest(digest.id)}>
+                      {t("jobDigest.digestLink", { date: formatDate(digest.sentAt, locale), count: digest.count })}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </>
           ) : null}
         </section>

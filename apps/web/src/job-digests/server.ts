@@ -1,11 +1,13 @@
-import { Pool } from "pg";
+import { notFound, redirect } from "next/navigation";
 import { getApplications } from "@/applications/server";
 import { mailerFromEnv } from "@/auth/mailers";
-import { getAuth } from "@/auth/server";
+import { getAuth, getCurrentCandidate } from "@/auth/server";
 import { getBilling } from "@/billing/server";
+import { sharedPool } from "@/database/pool";
 import { getJobOffers } from "@/job-offers/server";
 import { getProfiles } from "@/profiles/server";
-import { createJobDigests, type JobDigests } from "./index";
+import { routes } from "@/routes";
+import { createJobDigests, jobDigestsConfigFromEnv, type JobDigest, type JobDigests } from "./index";
 
 let instance: JobDigests | undefined;
 
@@ -15,13 +17,26 @@ let instance: JobDigests | undefined;
  * (apps/worker) makes and emails them.
  */
 export function getJobDigests(): JobDigests {
-  instance ??= createJobDigests(new Pool({ connectionString: process.env.DATABASE_URL }), {
+  instance ??= createJobDigests(sharedPool(), {
     profiles: getProfiles(),
     jobOffers: getJobOffers(),
     applications: getApplications(),
     billing: getBilling(),
     mailer: mailerFromEnv(process.env),
     baseURL: String(getAuth().options.baseURL),
+    ...jobDigestsConfigFromEnv(process.env),
   });
   return instance;
+}
+
+/**
+ * For a Job Digest's page: the signed-in Candidate and their Job Digest `id`.
+ * Sends anonymous visitors to sign in, and answers 404 for a Job Digest that is not theirs.
+ */
+export async function requireOwnJobDigest(id: string): Promise<{ candidateId: string; jobDigest: JobDigest }> {
+  const candidate = await getCurrentCandidate();
+  if (!candidate) redirect(routes.signIn);
+  const jobDigest = await getJobDigests().get(candidate.id, id);
+  if (!jobDigest) notFound();
+  return { candidateId: candidate.id, jobDigest };
 }

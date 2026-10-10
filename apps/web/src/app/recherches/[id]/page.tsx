@@ -1,16 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CoachInView } from "@/components/CoachPanel";
-import { RefreshWhileSearching, SaveSearchResultButton, StartJobSearchButton } from "@/components/JobSearchControls";
-import { jobOfferSalary, jobOfferSite } from "@/components/JobOfferView";
+import { JobOfferResults } from "@/components/JobOfferResults";
+import { RefreshWhileSearching, StartJobSearchButton } from "@/components/JobSearchControls";
 import { WorkspaceHeader } from "@/components/WorkspaceHeader";
 import { getRequestLocale, getServerT } from "@/i18n/server";
-import type { JobSearchResult } from "@/job-searches";
 import { requireOwnJobSearch } from "@/job-searches/server";
 import { routes } from "@/routes";
 
 type Params = { params: Promise<{ id: string }> };
-type T = Awaited<ReturnType<typeof getServerT>>;
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const t = await getServerT();
@@ -57,11 +55,7 @@ export default async function JobSearchPage({ params }: Params) {
       {results.length > 0 ? (
         <>
           <p>{t("jobSearch.resultsIntro", { count: results.length })}</p>
-          <ol className="search-results">
-            {results.map((result) => (
-              <SearchResult key={result.jobOffer.id} result={result} profileId={profile.id} t={t} locale={locale} />
-            ))}
-          </ol>
+          <JobOfferResults results={results} profileId={profile.id} t={t} locale={locale} />
         </>
       ) : null}
 
@@ -71,50 +65,5 @@ export default async function JobSearchPage({ params }: Params) {
         </section>
       ) : null}
     </main>
-  );
-}
-
-function SearchResult({ result, profileId, t, locale }: { result: JobSearchResult; profileId: string; t: T; locale: string }) {
-  const { jobOffer, matchScore, applicationId } = result;
-  const salary = jobOfferSalary(jobOffer, t, locale);
-  const site = jobOfferSite(jobOffer);
-  const titleId = `search-result-${jobOffer.id}`;
-  return (
-    <li className="search-result">
-      <h2 id={titleId}>{jobOffer.title}</h2>
-      <p className="match-score-value">{t("jobSearch.matchScore", { score: matchScore.score })}</p>
-      <dl className="job-offer-details">
-        {jobOffer.employer ? <Fact term={t("jobOffer.employer")}>{jobOffer.employer}</Fact> : null}
-        {jobOffer.location ? <Fact term={t("jobOffer.location")}>{jobOffer.location}</Fact> : null}
-        {jobOffer.contractType ? <Fact term={t("jobOffer.contractType")}>{t(`cvReview.contractTypes.${jobOffer.contractType}`)}</Fact> : null}
-        {jobOffer.remoteWork ? <Fact term={t("jobOffer.remoteWork")}>{t(`cvReview.remoteWorkOptions.${jobOffer.remoteWork}`)}</Fact> : null}
-        {salary ? <Fact term={t("jobOffer.salary")}>{salary}</Fact> : null}
-        {site ? <Fact term={t("jobOffer.source")}>{site}</Fact> : null}
-      </dl>
-      <div className="actions">
-        {applicationId ? (
-          <>
-            <p>{t("jobSearch.saved")}</p>
-            <Link className="button button-primary" href={routes.application(applicationId)} aria-describedby={titleId}>
-              {t("jobSearch.seeApplication")}
-            </Link>
-          </>
-        ) : (
-          <SaveSearchResultButton jobOfferId={jobOffer.id} profileId={profileId} describedBy={titleId} />
-        )}
-        <Link className="button" href={routes.jobOffer(jobOffer.id)} aria-describedby={titleId}>
-          {t("jobSearch.seeJobOffer")}
-        </Link>
-      </div>
-    </li>
-  );
-}
-
-function Fact({ term, children }: { term: string; children: React.ReactNode }) {
-  return (
-    <>
-      <dt>{term}</dt>
-      <dd>{children}</dd>
-    </>
   );
 }

@@ -10,10 +10,13 @@ import type { QuotaDecision } from "./index";
 
 export type QuotaRefusal = Extract<QuotaDecision, { allowed: false }>;
 
-/** What an Upgrade Prompt is about: a refused quota, or the Job Digest a Plan does not include. */
+/**
+ * What an Upgrade Prompt is about: a refused quota, or the Job Digest a Plan
+ * does not include (at all, or as often as `frequency`).
+ */
 export type PromptReason =
   | QuotaRefusal
-  | { quota: "jobDigest"; plan: Plan; limit: 0; upgradeTo: Plan | null };
+  | { quota: "jobDigest"; plan: Plan; limit: 0; upgradeTo: Plan | null; frequency?: "daily" };
 
 export interface UpgradePrompt {
   title: string;
@@ -32,8 +35,10 @@ export function upgradePrompt(refusal: PromptReason, locale: Locale): UpgradePro
 
   let message: string;
   if (quota === "jobDigest") {
-    const reached = t("billing.quotaReached.notIncluded.jobDigest", { plan });
-    message = upgradeTo ? `${reached} ${t("billing.quotaReached.upgradeIncludesIt", { plan: planName(upgradeTo) })}` : reached;
+    const daily = "frequency" in refusal && refusal.frequency === "daily";
+    const reached = t(daily ? "billing.quotaReached.notIncluded.jobDigestDaily" : "billing.quotaReached.notIncluded.jobDigest", { plan });
+    const next = daily ? "billing.quotaReached.upgradeIncludesDailyDigest" : "billing.quotaReached.upgradeIncludesIt";
+    message = upgradeTo ? `${reached} ${t(next, { plan: planName(upgradeTo) })}` : reached;
   } else {
     const reached =
       limit === 0

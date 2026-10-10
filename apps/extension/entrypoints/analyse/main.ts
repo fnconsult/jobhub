@@ -235,7 +235,7 @@ async function matchScore(jobOffer: JobOffer, against: ScoreAgainst, rescore: bo
     for (const detail of criterion.details) item.append(element("br"), detail);
     list.append(item);
   }
-  const shown = [element("p", view.score, "score"), element("h2", t("extension.analysis.breakdownTitle")), list];
+  const shown: HTMLElement[] = [element("p", view.score, "score"), element("h2", t("extension.analysis.breakdownTitle")), list];
   // Said even when the value is the same, so the Candidate sees the rescore happened (#76).
   if (rescore) shown.unshift(status({ text: describeRescore({ previous, current: scored.matchScore, at: new Date() }, i18n) }));
   return shown;

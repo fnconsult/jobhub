@@ -416,7 +416,8 @@
         "atsScores": "ATS Scores are not included in the {{plan}} Plan.",
         "enrichedContacts": "Enriched Contacts are not included in the {{plan}} Plan.",
         "jobSearches": "Job searches are not included in the {{plan}} Plan.",
-        "jobDigest": "The Job Digest is not included in the {{plan}} Plan."
+        "jobDigest": "The Job Digest is not included in the {{plan}} Plan.",
+        "jobDigestDaily": "The daily Job Digest is not included in the {{plan}} Plan."
       },
       "upgradeCreate": "The {{plan}} Plan lets you create more.",
       "upgradeUse": "The {{plan}} Plan lets you do more.",
@@ -424,7 +425,8 @@
       "upgradeIncludesIt": "The {{plan}} Plan includes it.",
       "renews": "Your quota renews on the 1st of the month.",
       "noMore": "You cannot create any more.",
-      "action": "See the {{plan}} Plan"
+      "action": "See the {{plan}} Plan",
+      "upgradeIncludesDailyDigest": "The {{plan}} Plan includes it."
     },
     "page": {
       "title": "My subscription",
@@ -1026,21 +1028,41 @@
       "weekly": "Your Plan includes one Job Digest a week.",
       "daily": "Your Plan includes one Job Digest a day."
     },
+    "frequencyLegend": "Frequency",
+    "frequencyOptions": {
+      "weekly": "Every week, on Monday at 7 am",
+      "daily": "Every day at 7 am"
+    },
     "subscribed": "You receive this profile's Job Digest.",
+    "schedule": {
+      "weekly": "It arrives every Monday at 7 am (Paris time).",
+      "daily": "It arrives every day at 7 am (Paris time)."
+    },
+    "cappedToPlan": "Your current Plan includes one Job Digest a week: you receive it on Mondays.",
     "subscribe": "Receive the Job Digest",
+    "saveFrequency": "Save the frequency",
     "unsubscribe": "Stop the Job Digest",
     "saving": "Saving…",
     "error": "The change could not be saved. Check your connection and try again.",
     "archived": "This profile is archived. Restore it to receive its Job Digest.",
     "latestTitle": "Latest Job Digests",
+    "digestLink_one": "Job Digest of {{date}}: {{count}} job offer",
+    "digestLink_other": "Job Digest of {{date}}: {{count}} job offers",
     "sentAt": "Sent on {{date}}",
+    "page": {
+      "title": "Job Digest “{{profile}}”",
+      "intro_one": "{{count}} new job offer for this profile:",
+      "intro_other": "{{count}} new job offers for this profile, closest to your master CV first:",
+      "backToProfile": "Back to the profile"
+    },
     "email": {
       "subject_one": "Job Digest “{{profile}}”: {{count}} new job offer",
       "subject_other": "Job Digest “{{profile}}”: {{count}} new job offers",
       "intro_one": "Hello,\n\nYour coach found {{count}} new job offer for your profile “{{profile}}”:",
       "intro_other": "Hello,\n\nYour coach found {{count}} new job offers for your profile “{{profile}}”, closest to your master CV first:",
       "matchScore": "match score: {{score}} / 100",
-      "seeOnProfile": "Find these offers on your profile:\n{{url}}",
+      "seeDigest_one": "Find this Job Digest in Jobbbox:\n{{url}}",
+      "seeDigest_other": "Find this Job Digest and its {{count}} job offers in Jobbbox:\n{{url}}",
       "unsubscribe": "Stop receiving this profile's Job Digest:\n{{url}}",
       "signature": "The Jobbbox team"
     },

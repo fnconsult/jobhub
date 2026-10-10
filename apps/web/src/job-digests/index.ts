@@ -4,25 +4,45 @@
  *
  * One deep module in front of Postgres. Callers get:
  *  - `createJobDigests(database, deps)`:
- *    - the Candidate's side, per Profile: `settings` (opted in or not, how
- *      often their Plan sends it, the latest Job Digests), `subscribe` (opt in;
- *      refused when the Plan does not include it) and `unsubscribe`;
+ *    - the Candidate's side, per Profile: `settings` (opted in or not, the
+ *      frequency they picked and the one their Plan allows, the latest Job
+ *      Digests), `subscribe` (opt in, or change the frequency: daily or weekly,
+ *      refused above the Plan's) and `unsubscribe`; `get` one Job Digest for its
+ *      page, its Job Offers ranked by Match Score;
  *    - the email's side: `unsubscribeByToken`, for the unsubscribe link and
  *      the one-click List-Unsubscribe header (RFC 8058). No session needed:
  *      the token names one Profile's opt-in;
- *    - the worker's side: `claimDue` (the opted-in Profiles due now, at their
- *      Plan's frequency) and `deliver` (keep, and email in the Candidate's
- *      Interface Language, the Job Offers found that this Profile was never
- *      shown before).
+ *    - the worker's side: `claimDue` (the opted-in Profiles due now: daily at
+ *      07:00 Europe/Paris, weekly on Monday at 07:00, see ./schedule) and
+ *      `deliver` (select the Job Offers, keep the Job Digest and email it in
+ *      the Candidate's Interface Language).
  *  - `migrateJobDigests(database)` creates / upgrades the tables.
- * A Job Offer counts as shown once it was in a Job Digest or a Job Search of
- * the Profile, or once the Candidate saved it as an Application. Opting out
- * keeps when the Job Digest last ran, so opting in again does not make it due
- * sooner than the Plan's frequency. Opt-ins and Job Digests
- * belong to their Profile and are deleted with it (ADR-0010); the Job Offers
- * they list are kept.
+ *  - `jobDigestsConfigFromEnv(env)`: the Match Score threshold and target count.
+ *
+ * Selecting a Job Digest's Job Offers: the Job Offers stored since the
+ * Profile's previous Job Digest (a week back for the first), whoever stored
+ * them, except Guest-only and Expired ones; scored against the Profile's
+ * current Master CV, kept from the threshold up. Only when they are fewer than
+ * the target count does Job discovery run, its Job Offers scored the same way;
+ * if it fails, what the stored Job Offers gave is sent. A Job Offer counts as
+ * shown, and is never sent, once it was in a Job Digest or a Job Search of the
+ * Profile, or once the Candidate saved it as an Application. Scoring here is
+ * the shared, local Match Score: no Plan Quota is used.
+ * The frequency sent is the Candidate's choice capped by their Plan; a Plan
+ * without the Job Digest sends none, and the choice is kept. Opting out keeps
+ * when the Job Digest last ran, so opting in again does not make it due sooner.
+ * Opt-ins and Job Digests belong to their Profile and are deleted with it
+ * (ADR-0010); the Job Offers they list are kept.
  */
-import { PLANS, scoreMatch, type JobDigestFrequency, type JobOffer, type MatchScore, type Plan } from "@jobhub/shared";
+import {
+  JOB_DIGEST_FREQUENCIES,
+  PLANS,
+  scoreMatch,
+  type JobDigestFrequency,
+  type JobOffer,
+  type MatchScore,
+  type Plan,
+} from "@jobhub/shared";
 import { createI18n, type Locale } from "@jobhub/shared/i18n";
 import { randomBytes } from "node:crypto";
 import type { Pool } from "pg";
@@ -32,30 +52,51 @@ import type { Billing } from "../billing";
 import type { JobOffers } from "../job-offers";
 import type { Profile, Profiles } from "../profiles";
 import { routes } from "../routes";
+import { latestSlot } from "./schedule";
+
+export { DIGEST_HOUR, DIGEST_TIME_ZONE, latestSlot } from "./schedule";
+
+/** How often a Candidate may pick to receive a Job Digest. */
+export type ChosenFrequency = Exclude<JobDigestFrequency, "none">;
 
 /** One Job Offer in a Job Digest. */
 export interface JobDigestResult {
   jobOffer: JobOffer;
   /** The Profile's current Master CV against the Job Offer and the Profile's Search Criteria. */
   matchScore: MatchScore;
+  /** The Candidate's Application for this Job Offer, if they saved it (with any Profile). */
+  applicationId: string | null;
 }
 
 export interface JobDigest {
   id: string;
+  profile: { id: string; name: string };
   sentAt: Date;
-  /** Best Match Score first. Never empty. */
+  /** Best Match Score first. */
   results: JobDigestResult[];
+}
+
+/** A Job Digest as the Profile page lists it. */
+export interface JobDigestSummary {
+  id: string;
+  sentAt: Date;
+  /** How many Job Offers it lists. */
+  count: number;
 }
 
 export interface JobDigestSettings {
   /** Whether the Candidate receives the Job Digest of this Profile: opted in, and their Plan includes it. */
   subscribed: boolean;
-  /** How often the Candidate's Plan sends it; "none" when the Plan does not include it. */
+  /** What the Candidate picked; null while not opted in. Kept when the Plan stops including it. */
+  chosenFrequency: ChosenFrequency | null;
+  /** How often it is sent: the Candidate's choice, capped by their Plan; "none" when it is not sent. */
   frequency: JobDigestFrequency;
+  /** The most the Candidate's Plan allows; "none" when it does not include the Job Digest. */
+  planFrequency: JobDigestFrequency;
   /** The cheapest Plan that includes the Job Digest, when the Candidate's does not. */
   upgradeTo: Plan | null;
   /** The latest Job Digests of the Profile (at most LATEST_DIGESTS), newest first. */
-  digests: JobDigest[];
+  digests: JobDigestSummary[];
 }
 
 export type SubscribeResult =
@@ -64,8 +105,12 @@ export type SubscribeResult =
   | { ok: false; error: "not_found" }
   /** Archived Profiles are set aside: restore it first. */
   | { ok: false; error: "archived" }
+  /** Neither "daily" nor "weekly". */
+  | { ok: false; error: "invalid_frequency" }
   /** The Candidate's Plan has no Job Digest. */
-  | { ok: false; error: "not_included"; plan: Plan; upgradeTo: Plan | null };
+  | { ok: false; error: "not_included"; plan: Plan; upgradeTo: Plan | null }
+  /** The Candidate's Plan sends it less often than asked; `upgradeTo` is the cheapest Plan that allows it. */
+  | { ok: false; error: "above_plan"; plan: Plan; planFrequency: JobDigestFrequency; upgradeTo: Plan | null };
 
 /** An opted-in Profile whose Job Digest is due. */
 export interface DueJobDigest {
@@ -73,55 +118,88 @@ export interface DueJobDigest {
   profileId: string;
 }
 
+/** Runs Job discovery for the Profile's Search Criteria: the ids of the Job Offers it found (and stored). */
+export type JobDigestDiscovery = () => Promise<string[]>;
+
+export interface JobDigestDelivery {
+  /** The Job Digest kept and emailed; null when nothing qualified (or none is due: not opted in, no Plan, archived). */
+  digest: JobDigest | null;
+  /** Whether Job discovery ran: only when the stored Job Offers gave fewer than the target count. */
+  discovery: "not_run" | "ran" | "failed";
+}
+
 export interface JobDigests {
   /** The Job Digest of one of the Candidate's Profiles, or null if the Profile is not theirs. */
   settings(candidateId: string, profileId: string): Promise<JobDigestSettings | null>;
-  /** Opts in to the Job Digest of a Profile. Opting in again changes nothing. */
-  subscribe(candidateId: string, profileId: string): Promise<SubscribeResult>;
+  /**
+   * Opts in to the Job Digest of a Profile at `frequency` ("daily" or
+   * "weekly"; untrusted), or changes it. Refused above the Plan's frequency.
+   */
+  subscribe(candidateId: string, profileId: string, frequency: unknown): Promise<SubscribeResult>;
   /** Opts out of the Job Digest of a Profile. */
   unsubscribe(candidateId: string, profileId: string): Promise<void>;
   /** Opts out with the token of an email's unsubscribe link. False when the token names no opt-in (any more). */
   unsubscribeByToken(token: string): Promise<boolean>;
+  /** One of the Candidate's Job Digests, its Job Offers scored now and ranked; null if it is not theirs. */
+  get(candidateId: string, jobDigestId: string): Promise<JobDigest | null>;
   /**
-   * The opted-in, active Profiles whose Job Digest is due now: never run yet,
-   * or last run one period of the Candidate's Plan ago. Each is claimed: it is
-   * not due again before its next period, so concurrent calls never share one.
+   * The opted-in, active Profiles whose Job Digest is due now: not run since
+   * the latest 07:00 Europe/Paris (Monday's, for weekly ones) that came after
+   * they opted in. Each is claimed: concurrent calls never share one.
    */
   claimDue(): Promise<DueJobDigest[]>;
   /**
-   * Makes the Job Digest of a Profile from the Job Offers Job discovery found:
-   * those never shown before, best Match Score first (at most MAX_RESULTS),
-   * kept for the Profile page and emailed. Null, and nothing sent, when none
-   * is new, or the Profile is not opted in (or not the Candidate's, or
-   * archived), or the Candidate's Plan no longer includes the Job Digest.
+   * Makes the Job Digest of a Profile (see the module comment for how its Job
+   * Offers are selected), keeps it and emails it. `discover` runs only when
+   * the stored Job Offers give fewer than the target count; if it throws,
+   * what they gave is sent. Nothing at all happens, Job discovery included,
+   * when the Profile is not opted in (or not the Candidate's, or archived) or
+   * the Candidate's Plan has no Job Digest.
    */
-  deliver(candidateId: string, profileId: string, jobOfferIds: string[]): Promise<JobDigest | null>;
+  deliver(candidateId: string, profileId: string, discover: JobDigestDiscovery): Promise<JobDigestDelivery>;
 }
 
 export interface JobDigestsDeps {
   profiles: Pick<Profiles, "get">;
   jobOffers: Pick<JobOffers, "get">;
   applications: Pick<Applications, "list">;
+  /** Plans only: a Job Digest uses no Plan Quota. */
   billing: Pick<Billing, "entitlements" | "planQuotas">;
   mailer: Mailer;
   /** Public origin of the web app; the email's links point here. */
   baseURL: string;
+  /** Lowest Match Score a Job Offer needs to be in a Job Digest. Default DEFAULT_MIN_MATCH_SCORE. */
+  minMatchScore?: number;
+  /** How many Job Offers a Job Digest aims for, and holds at most. Default DEFAULT_TARGET_COUNT. */
+  targetCount?: number;
   now?: () => Date;
 }
 
-/** Job Offers in one Job Digest, at most. */
-export const MAX_RESULTS = 10;
-/** Job Digests shown on the Profile page. */
-export const LATEST_DIGESTS = 3;
+export const DEFAULT_MIN_MATCH_SCORE = 60;
+export const DEFAULT_TARGET_COUNT = 10;
+/** Job Offers listed in a Job Digest's email, at most; the page lists them all. */
+export const EMAIL_MAX_RESULTS = 10;
+/** Job Digests listed on the Profile page. */
+export const LATEST_DIGESTS = 5;
+/** How far back the first Job Digest of a Profile looks for stored Job Offers. */
+export const FIRST_LOOK_BACK_MS = 7 * 86_400_000;
+/** Stored Job Offers scored for one Job Digest, at most (the most recent). */
+const POOL_MAX = 1_000;
 
-const HOUR_MS = 3_600_000;
-const PERIOD_MS: Record<Exclude<JobDigestFrequency, "none">, number> = { daily: 24 * HOUR_MS, weekly: 7 * 24 * HOUR_MS };
-/**
- * The worker looks for due Job Digests every hour, and a run starts a little
- * after the hour: a Job Digest is due up to an hour before its period is over,
- * so it keeps going out at the same hour instead of drifting later.
- */
-const SCHEDULE_SLACK_MS = HOUR_MS;
+/** The Match Score threshold and target count, from JOB_DIGEST_MIN_MATCH_SCORE and JOB_DIGEST_TARGET_COUNT. */
+export function jobDigestsConfigFromEnv(env: Record<string, string | undefined>): { minMatchScore: number; targetCount: number } {
+  const read = (name: string, fallback: number, min: number, max: number) => {
+    const raw = env[name]?.trim();
+    if (!raw) return fallback;
+    const value = Number(raw);
+    if (!Number.isInteger(value) || value < min || value > max) throw new Error(`${name} must be a whole number from ${min} to ${max} (got "${raw}")`);
+    return value;
+  };
+  return {
+    minMatchScore: read("JOB_DIGEST_MIN_MATCH_SCORE", DEFAULT_MIN_MATCH_SCORE, 0, 100),
+    targetCount: read("JOB_DIGEST_TARGET_COUNT", DEFAULT_TARGET_COUNT, 1, 100),
+  };
+}
 
 /** Creates or upgrades the Job Digest tables. Run after the Profiles', Job Offers' and Job Searches' migrations. */
 export async function migrateJobDigests(database: Pool): Promise<void> {
@@ -135,6 +213,8 @@ export async function migrateJobDigests(database: Pool): Promise<void> {
     );
     -- Set while opted out: the row stays so last_run_at survives opting in again.
     ALTER TABLE job_digest_subscription ADD COLUMN IF NOT EXISTS unsubscribed_at timestamptz;
+    -- What the Candidate picked; the Plan caps it.
+    ALTER TABLE job_digest_subscription ADD COLUMN IF NOT EXISTS frequency text NOT NULL DEFAULT 'weekly' CHECK (frequency IN ('weekly', 'daily'));
     CREATE TABLE IF NOT EXISTS job_digest (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       profile_id uuid NOT NULL REFERENCES profile (id) ON DELETE CASCADE,
@@ -143,11 +223,21 @@ export async function migrateJobDigests(database: Pool): Promise<void> {
       sent_at timestamptz NOT NULL
     );
     CREATE INDEX IF NOT EXISTS job_digest_profile_idx ON job_digest (profile_id, sent_at DESC);
+    -- The pool of a Job Digest: Job Offers by when they were stored.
+    CREATE INDEX IF NOT EXISTS job_offer_created_at_idx ON job_offer (created_at);
+    -- When a Job Offer was found no longer published at its source (Expired Job Offers, #16, which owns
+    -- the column; created here too so the pool can leave Expired Job Offers out whichever ships first).
+    ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS expired_at timestamptz;
   `);
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
+
+const rank = (frequency: JobDigestFrequency) => JOB_DIGEST_FREQUENCIES.indexOf(frequency);
+const isChosenFrequency = (value: unknown): value is ChosenFrequency => value === "daily" || value === "weekly";
+/** The Candidate's choice, capped by their Plan. */
+const capped = (chosen: ChosenFrequency, plan: JobDigestFrequency): JobDigestFrequency => (rank(chosen) <= rank(plan) ? chosen : plan);
 
 /** An unguessable token for the unsubscribe link (RFC 8058). */
 function newToken(): string {
@@ -166,57 +256,75 @@ export function oneClickUnsubscribeURL(baseURL: string, token: string): string {
 
 interface DigestRow {
   id: string;
+  profile_id: string;
   job_offer_ids: string[];
   sent_at: Date;
 }
 
+interface SubscriptionRow {
+  frequency: ChosenFrequency;
+  unsubscribe_token: string;
+}
+
+type Scored = { jobOffer: JobOffer; matchScore: MatchScore };
+const bestFirst = (a: Scored, b: Scored) => b.matchScore.score - a.matchScore.score;
+
 export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDigests {
   const now = deps.now ?? (() => new Date());
+  const minMatchScore = deps.minMatchScore ?? DEFAULT_MIN_MATCH_SCORE;
+  const targetCount = deps.targetCount ?? DEFAULT_TARGET_COUNT;
 
   async function planOf(candidateId: string): Promise<{ plan: Plan; frequency: JobDigestFrequency }> {
     const { plan, quotas } = await deps.billing.entitlements(candidateId);
     return { plan, frequency: quotas.jobDigest };
   }
 
-  /** The first Plan above `plan` that includes the Job Digest. */
-  async function upgradeFor(plan: Plan): Promise<Plan | null> {
+  /** The first Plan above `plan` whose Job Digest comes at least `frequency`. */
+  async function upgradeFor(plan: Plan, frequency: ChosenFrequency = "weekly"): Promise<Plan | null> {
     const quotas = await deps.billing.planQuotas();
-    return PLANS.slice(PLANS.indexOf(plan) + 1).find((higher) => quotas[higher].jobDigest !== "none") ?? null;
+    return PLANS.slice(PLANS.indexOf(plan) + 1).find((higher) => rank(quotas[higher].jobDigest) >= rank(frequency)) ?? null;
   }
 
   async function ownProfile(candidateId: string, profileId: string): Promise<Profile | null> {
     return UUID.test(profileId) ? deps.profiles.get(candidateId, profileId) : null;
   }
 
+  async function subscriptionOf(candidateId: string, profileId: string): Promise<SubscriptionRow | null> {
+    const { rows } = await database.query<SubscriptionRow>(
+      "SELECT frequency, unsubscribe_token FROM job_digest_subscription WHERE profile_id = $1 AND candidate_id = $2 AND unsubscribed_at IS NULL",
+      [profileId, candidateId],
+    );
+    return rows[0] ?? null;
+  }
+
   /** The Job Offers still stored, scored for the Profile, best Match Score first (stable). */
-  async function resultsFor(profile: Profile, jobOfferIds: string[]): Promise<JobDigestResult[]> {
+  async function scored(profile: Profile, jobOfferIds: string[]): Promise<Scored[]> {
     const found = await Promise.all(jobOfferIds.map((id) => deps.jobOffers.get(id)));
     return found
       .filter((jobOffer): jobOffer is JobOffer => jobOffer !== null)
       .map((jobOffer) => ({ jobOffer, matchScore: scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer }) }))
-      .sort((a, b) => b.matchScore.score - a.matchScore.score);
+      .sort(bestFirst);
   }
 
   async function settingsOf(candidateId: string, profile: Profile): Promise<JobDigestSettings> {
-    const [{ plan, frequency }, subscription, latest] = await Promise.all([
+    const [{ plan, frequency: planFrequency }, subscription, latest] = await Promise.all([
       planOf(candidateId),
-      database.query("SELECT 1 FROM job_digest_subscription WHERE profile_id = $1 AND candidate_id = $2 AND unsubscribed_at IS NULL", [
-        profile.id,
-        candidateId,
-      ]),
-      database.query<DigestRow>(
-        "SELECT id, job_offer_ids, sent_at FROM job_digest WHERE profile_id = $1 AND candidate_id = $2 ORDER BY sent_at DESC LIMIT $3",
+      subscriptionOf(candidateId, profile.id),
+      database.query<{ id: string; sent_at: Date; count: number }>(
+        `SELECT id, sent_at, cardinality(job_offer_ids) AS count FROM job_digest
+          WHERE profile_id = $1 AND candidate_id = $2 ORDER BY sent_at DESC LIMIT $3`,
         [profile.id, candidateId, LATEST_DIGESTS],
       ),
     ]);
-    const digests = await Promise.all(
-      latest.rows.map(async (row) => ({ id: row.id, sentAt: row.sent_at, results: await resultsFor(profile, row.job_offer_ids) })),
-    );
+    const chosenFrequency = subscription?.frequency ?? null;
+    const frequency = chosenFrequency ? capped(chosenFrequency, planFrequency) : "none";
     return {
-      subscribed: subscription.rows.length > 0 && frequency !== "none",
+      subscribed: frequency !== "none",
+      chosenFrequency,
       frequency,
-      upgradeTo: frequency === "none" ? await upgradeFor(plan) : null,
-      digests: digests.filter((digest) => digest.results.length > 0),
+      planFrequency,
+      upgradeTo: planFrequency === "none" ? await upgradeFor(plan) : null,
+      digests: latest.rows.map((row) => ({ id: row.id, sentAt: row.sent_at, count: row.count })),
     };
   }
 
@@ -233,7 +341,41 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
     return new Set([...rows.map((row) => row.id), ...saved.map((application) => application.jobOffer.id)]);
   }
 
-  async function email(candidateId: string, profile: Profile, digest: JobDigest, token: string): Promise<void> {
+  /** The ids of the Job Offers stored since the Profile's previous Job Digest (or the look-back), most recent first. */
+  async function poolOf(candidateId: string, profileId: string, at: Date): Promise<string[]> {
+    const { rows } = await database.query<{ id: string }>(
+      `SELECT id FROM job_offer
+        WHERE created_at > COALESCE((SELECT max(sent_at) FROM job_digest WHERE profile_id = $1 AND candidate_id = $2), $3)
+          AND created_at <= $4 AND guest_expires_at IS NULL AND expired_at IS NULL
+        ORDER BY created_at DESC LIMIT $5`,
+      [profileId, candidateId, new Date(at.getTime() - FIRST_LOOK_BACK_MS), at, POOL_MAX],
+    );
+    return rows.map((row) => row.id);
+  }
+
+  /** Of these Job Offer ids, those neither Guest-only nor expired. */
+  async function eligible(ids: string[]): Promise<string[]> {
+    if (ids.length === 0) return [];
+    const { rows } = await database.query<{ id: string }>(
+      "SELECT id FROM job_offer WHERE id = ANY($1::uuid[]) AND guest_expires_at IS NULL AND expired_at IS NULL",
+      [ids],
+    );
+    const kept = new Set(rows.map((row) => row.id));
+    return ids.filter((id) => kept.has(id));
+  }
+
+  /** Never-shown Job Offers among `ids`, scored for the Profile, from the threshold up. */
+  async function qualifying(profile: Profile, ids: string[], excluded: Set<string>): Promise<Scored[]> {
+    const fresh = [...new Set(ids)].filter((id) => UUID.test(id) && !excluded.has(id));
+    return (await scored(profile, await eligible(fresh))).filter(({ matchScore }) => matchScore.score >= minMatchScore);
+  }
+
+  async function withApplications(candidateId: string, results: Scored[]): Promise<JobDigestResult[]> {
+    const saved = new Map((await deps.applications.list(candidateId)).map((application) => [application.jobOffer.id, application.id]));
+    return results.map((result) => ({ ...result, applicationId: saved.get(result.jobOffer.id) ?? null }));
+  }
+
+  async function email(candidateId: string, digest: JobDigest, token: string): Promise<void> {
     const { rows } = await database.query<{ email: string; interfaceLanguage: string | null }>(
       `SELECT email, "interfaceLanguage" FROM candidate WHERE id = $1`,
       [candidateId],
@@ -243,7 +385,7 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
     const i18n = createI18n(candidate.interfaceLanguage);
     const { t } = i18n;
     const count = digest.results.length;
-    const items = digest.results.map(({ jobOffer, matchScore }) => {
+    const items = digest.results.slice(0, EMAIL_MAX_RESULTS).map(({ jobOffer, matchScore }) => {
       const where = [jobOffer.employer, jobOffer.location].filter(Boolean).join(", ");
       return [
         `- ${jobOffer.title}${where ? ` (${where})` : ""}`,
@@ -252,16 +394,16 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
       ].join("\n");
     });
     const text = [
-      t("jobDigest.email.intro", { count, profile: profile.name }),
+      t("jobDigest.email.intro", { count, profile: digest.profile.name }),
       items.join("\n\n"),
-      t("jobDigest.email.seeOnProfile", { url: new URL(routes.profile(profile.id), deps.baseURL).toString() }),
+      t("jobDigest.email.seeDigest", { count, url: new URL(routes.jobDigest(digest.id), deps.baseURL).toString() }),
       t("jobDigest.email.signature"),
       "--",
       t("jobDigest.email.unsubscribe", { url: unsubscribePageURL(deps.baseURL, token, i18n.language as Locale) }),
     ].join("\n\n");
     await deps.mailer.send({
       to: candidate.email,
-      subject: t("jobDigest.email.subject", { count, profile: profile.name }),
+      subject: t("jobDigest.email.subject", { count, profile: digest.profile.name }),
       text,
       headers: {
         "List-Unsubscribe": `<${oneClickUnsubscribeURL(deps.baseURL, token)}>`,
@@ -276,17 +418,24 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
       return profile ? settingsOf(candidateId, profile) : null;
     },
 
-    async subscribe(candidateId, profileId) {
+    async subscribe(candidateId, profileId, frequency) {
       const profile = await ownProfile(candidateId, profileId);
       if (!profile) return { ok: false, error: "not_found" };
       if (profile.archived) return { ok: false, error: "archived" };
-      const { plan, frequency } = await planOf(candidateId);
-      if (frequency === "none") return { ok: false, error: "not_included", plan, upgradeTo: await upgradeFor(plan) };
+      if (!isChosenFrequency(frequency)) return { ok: false, error: "invalid_frequency" };
+      const { plan, frequency: planFrequency } = await planOf(candidateId);
+      if (planFrequency === "none") return { ok: false, error: "not_included", plan, upgradeTo: await upgradeFor(plan) };
+      if (rank(frequency) > rank(planFrequency)) {
+        return { ok: false, error: "above_plan", plan, planFrequency, upgradeTo: await upgradeFor(plan, frequency) };
+      }
+      // Opting in again counts from now, so it is not due before the next 07:00 that comes after it.
       await database.query(
-        `INSERT INTO job_digest_subscription (profile_id, candidate_id, unsubscribe_token, subscribed_at) VALUES ($1, $2, $3, $4)
-         ON CONFLICT (profile_id) DO UPDATE SET unsubscribed_at = NULL
-         WHERE job_digest_subscription.unsubscribed_at IS NOT NULL`,
-        [profile.id, candidateId, newToken(), now()],
+        `INSERT INTO job_digest_subscription (profile_id, candidate_id, unsubscribe_token, subscribed_at, frequency) VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (profile_id) DO UPDATE SET
+           frequency = EXCLUDED.frequency,
+           subscribed_at = CASE WHEN job_digest_subscription.unsubscribed_at IS NULL THEN job_digest_subscription.subscribed_at ELSE EXCLUDED.subscribed_at END,
+           unsubscribed_at = NULL`,
+        [profile.id, candidateId, newToken(), now(), frequency],
       );
       return { ok: true, settings: await settingsOf(candidateId, profile) };
     },
@@ -308,60 +457,94 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
       return (rowCount ?? 0) > 0;
     },
 
+    async get(candidateId, jobDigestId) {
+      if (!UUID.test(jobDigestId)) return null;
+      const { rows } = await database.query<DigestRow>(
+        "SELECT id, profile_id, job_offer_ids, sent_at FROM job_digest WHERE id = $1 AND candidate_id = $2",
+        [jobDigestId, candidateId],
+      );
+      const row = rows[0];
+      if (!row) return null;
+      const profile = await deps.profiles.get(candidateId, row.profile_id);
+      if (!profile) return null;
+      return {
+        id: row.id,
+        profile: { id: profile.id, name: profile.name },
+        sentAt: row.sent_at,
+        results: await withApplications(candidateId, await scored(profile, row.job_offer_ids)),
+      };
+    },
+
     async claimDue() {
       const at = now();
-      const shortestPeriod = Math.min(...Object.values(PERIOD_MS));
-      const { rows } = await database.query<{ profile_id: string; candidate_id: string }>(
-        `SELECT profile_id, candidate_id FROM job_digest_subscription
-         WHERE unsubscribed_at IS NULL AND (last_run_at IS NULL OR last_run_at <= $1) ORDER BY last_run_at NULLS FIRST`,
-        [new Date(at.getTime() - shortestPeriod + SCHEDULE_SLACK_MS)],
+      // A daily Job Digest's latest slot is never before a weekly one's: only rows not run since it may be due.
+      const { rows } = await database.query<{ profile_id: string; candidate_id: string; frequency: ChosenFrequency }>(
+        `SELECT profile_id, candidate_id, frequency FROM job_digest_subscription
+          WHERE unsubscribed_at IS NULL AND GREATEST(last_run_at, subscribed_at) < $1
+          ORDER BY last_run_at NULLS FIRST`,
+        [latestSlot("daily", at)],
       );
-      const frequencies = new Map<string, JobDigestFrequency>();
+      const planFrequencies = new Map<string, JobDigestFrequency>();
       const due: DueJobDigest[] = [];
       for (const row of rows) {
-        if (!frequencies.has(row.candidate_id)) frequencies.set(row.candidate_id, (await planOf(row.candidate_id)).frequency);
-        const frequency = frequencies.get(row.candidate_id)!;
+        if (!planFrequencies.has(row.candidate_id)) planFrequencies.set(row.candidate_id, (await planOf(row.candidate_id)).frequency);
+        const frequency = capped(row.frequency, planFrequencies.get(row.candidate_id)!);
         if (frequency === "none") continue;
         const profile = await deps.profiles.get(row.candidate_id, row.profile_id);
         if (!profile || profile.archived) continue;
         const claimed = await database.query(
           `UPDATE job_digest_subscription SET last_run_at = $2
-           WHERE profile_id = $1 AND unsubscribed_at IS NULL AND (last_run_at IS NULL OR last_run_at <= $3)`,
-          [row.profile_id, at, new Date(at.getTime() - PERIOD_MS[frequency] + SCHEDULE_SLACK_MS)],
+            WHERE profile_id = $1 AND unsubscribed_at IS NULL AND GREATEST(last_run_at, subscribed_at) < $3`,
+          [row.profile_id, at, latestSlot(frequency, at)],
         );
         if (claimed.rowCount) due.push({ candidateId: row.candidate_id, profileId: row.profile_id });
       }
       return due;
     },
 
-    async deliver(candidateId, profileId, jobOfferIds) {
+    async deliver(candidateId, profileId, discover) {
+      const nothing: JobDigestDelivery = { digest: null, discovery: "not_run" };
       const profile = await ownProfile(candidateId, profileId);
-      if (!profile || profile.archived) return null;
-      const { rows } = await database.query<{ unsubscribe_token: string }>(
-        "SELECT unsubscribe_token FROM job_digest_subscription WHERE profile_id = $1 AND candidate_id = $2 AND unsubscribed_at IS NULL",
-        [profile.id, candidateId],
-      );
-      const token = rows[0]?.unsubscribe_token;
-      if (!token || (await planOf(candidateId)).frequency === "none") return null;
+      if (!profile || profile.archived) return nothing;
+      const subscription = await subscriptionOf(candidateId, profile.id);
+      if (!subscription || (await planOf(candidateId)).frequency === "none") return nothing;
 
+      const at = now();
       const shown = await shownTo(candidateId, profile.id);
-      const fresh = [...new Set(jobOfferIds)].filter((id) => UUID.test(id) && !shown.has(id));
-      const results = (await resultsFor(profile, fresh)).slice(0, MAX_RESULTS);
-      if (results.length === 0) return null;
+      let picked = await qualifying(profile, await poolOf(candidateId, profile.id, at), shown);
+      let discovery: JobDigestDelivery["discovery"] = "not_run";
+      if (picked.length < targetCount) {
+        try {
+          const found = await discover();
+          discovery = "ran";
+          const taken = new Set([...shown, ...picked.map(({ jobOffer }) => jobOffer.id)]);
+          picked = [...picked, ...(await qualifying(profile, found, taken))].sort(bestFirst);
+        } catch (error) {
+          // Not retried: the next scheduled Job Digest runs Job discovery again.
+          discovery = "failed";
+          console.warn("[job-digests] Job discovery failed, sending what the stored Job Offers gave:", error instanceof Error ? error.message : error);
+        }
+      }
+      picked = picked.slice(0, targetCount);
+      if (picked.length === 0) return { digest: null, discovery };
 
-      const sentAt = now();
       const inserted = await database.query<{ id: string }>(
         "INSERT INTO job_digest (profile_id, candidate_id, job_offer_ids, sent_at) VALUES ($1, $2, $3, $4) RETURNING id",
-        [profile.id, candidateId, results.map((result) => result.jobOffer.id), sentAt],
+        [profile.id, candidateId, picked.map((result) => result.jobOffer.id), at],
       );
-      const digest: JobDigest = { id: inserted.rows[0]!.id, sentAt, results };
+      const digest: JobDigest = {
+        id: inserted.rows[0]!.id,
+        profile: { id: profile.id, name: profile.name },
+        sentAt: at,
+        results: await withApplications(candidateId, picked),
+      };
       try {
-        await email(candidateId, profile, digest, token);
+        await email(candidateId, digest, subscription.unsubscribe_token);
       } catch (error) {
-        // The Job Digest stays on the Profile page; the email is not sent twice by a retry.
+        // The Job Digest stays on its page; the email is not sent twice by a retry.
         console.warn("[job-digests] could not email a Job Digest:", error instanceof Error ? error.message : error);
       }
-      return digest;
+      return { digest, discovery };
     },
   };
 }

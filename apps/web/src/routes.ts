@@ -12,6 +12,8 @@ export const routes = {
   application: (id: string) => `/candidatures/${id}`,
   jobOffer: (id: string) => `/offres/${id}`,
   jobSearch: (id: string) => `/recherches/${id}`,
+  /** One Job Digest: its Job Offers ranked by Match Score. */
+  jobDigest: (id: string) => `/job-digests/${id}`,
   masterCvVersion: (id: string, version: number) => `/profils/${id}/versions/${version}`,
   subscription: "/abonnement",
   /** The Candidate's Human Coaches: Coaching Sessions and Coach Access. */

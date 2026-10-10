@@ -416,7 +416,8 @@
         "atsScores": "Les ATS Scores ne sont pas compris dans l'offre {{plan}}.",
         "enrichedContacts": "Les contacts enrichis ne sont pas compris dans l'offre {{plan}}.",
         "jobSearches": "Les recherches d'offres ne sont pas comprises dans l'offre {{plan}}.",
-        "jobDigest": "La réception du Job Digest n'est pas comprise dans l'offre {{plan}}."
+        "jobDigest": "La réception du Job Digest n'est pas comprise dans l'offre {{plan}}.",
+        "jobDigestDaily": "Le Job Digest quotidien n'est pas compris dans l'offre {{plan}}."
       },
       "upgradeCreate": "Avec l'offre {{plan}}, vous pouvez en créer davantage.",
       "upgradeUse": "Avec l'offre {{plan}}, vous pouvez en faire davantage.",
@@ -424,7 +425,8 @@
       "upgradeIncludesIt": "L'offre {{plan}} la comprend.",
       "renews": "Votre quota se renouvelle le 1er du mois.",
       "noMore": "Vous ne pouvez pas en créer davantage.",
-      "action": "Découvrir l'offre {{plan}}"
+      "action": "Découvrir l'offre {{plan}}",
+      "upgradeIncludesDailyDigest": "L'offre {{plan}} le comprend."
     },
     "page": {
       "title": "Mon abonnement",
@@ -1026,21 +1028,41 @@
       "weekly": "Votre offre comprend un Job Digest par semaine.",
       "daily": "Votre offre comprend un Job Digest par jour."
     },
+    "frequencyLegend": "Fréquence",
+    "frequencyOptions": {
+      "weekly": "Chaque semaine, le lundi à 7 h",
+      "daily": "Chaque jour à 7 h"
+    },
     "subscribed": "Vous recevez le Job Digest de ce profil.",
+    "schedule": {
+      "weekly": "Il arrive chaque lundi à 7 h (heure de Paris).",
+      "daily": "Il arrive chaque jour à 7 h (heure de Paris)."
+    },
+    "cappedToPlan": "Votre offre actuelle ne comprend qu'un Job Digest par semaine : vous le recevez le lundi.",
     "subscribe": "Recevoir le Job Digest",
+    "saveFrequency": "Enregistrer la fréquence",
     "unsubscribe": "Ne plus recevoir le Job Digest",
     "saving": "Enregistrement…",
     "error": "La modification n'a pas pu être enregistrée. Vérifiez votre connexion et réessayez.",
     "archived": "Ce profil est archivé. Restaurez-le pour recevoir son Job Digest.",
     "latestTitle": "Derniers Job Digests",
+    "digestLink_one": "Job Digest du {{date}} : {{count}} offre",
+    "digestLink_other": "Job Digest du {{date}} : {{count}} offres",
     "sentAt": "Envoyé le {{date}}",
+    "page": {
+      "title": "Job Digest « {{profile}} »",
+      "intro_one": "{{count}} nouvelle offre pour ce profil :",
+      "intro_other": "{{count}} nouvelles offres pour ce profil, de la plus proche à la moins proche de votre CV de référence :",
+      "backToProfile": "Retour au profil"
+    },
     "email": {
       "subject_one": "Job Digest « {{profile}} » : {{count}} nouvelle offre",
       "subject_other": "Job Digest « {{profile}} » : {{count}} nouvelles offres",
       "intro_one": "Bonjour,\n\nVotre coach a trouvé {{count}} nouvelle offre pour votre profil « {{profile}} » :",
       "intro_other": "Bonjour,\n\nVotre coach a trouvé {{count}} nouvelles offres pour votre profil « {{profile}} », de la plus proche à la moins proche de votre CV de référence :",
       "matchScore": "score de correspondance : {{score}} / 100",
-      "seeOnProfile": "Retrouvez ces offres sur votre profil :\n{{url}}",
+      "seeDigest_one": "Retrouvez ce Job Digest dans Jobbbox :\n{{url}}",
+      "seeDigest_other": "Retrouvez ce Job Digest et ses {{count}} offres dans Jobbbox :\n{{url}}",
       "unsubscribe": "Ne plus recevoir le Job Digest de ce profil :\n{{url}}",
       "signature": "L'équipe Jobbbox"
     },

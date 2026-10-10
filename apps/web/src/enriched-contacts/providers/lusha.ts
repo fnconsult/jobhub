@@ -2,11 +2,12 @@
  * Lusha (https://docs.lusha.com, API v3, checked 2026-10-09: docs/research/issue-77.md).
  * Prospecting (`POST /v3/contacts/prospecting`) finds people by job title at a
  * company; each result costs credits, so the page and the contacts per company
- * are kept to what is shown. Do-not-contact people are left out (`options.excludeDnc`).
+ * are kept to what is shown. `options.excludeDnc` is not sent: Lusha refuses it
+ * (403) on plans without it.
  * Enrich Contacts (`POST /v3/contacts/enrich`) then reveals one person's emails
- * and phones; numbers flagged do-not-call are left out.
+ * and phones; numbers flagged do-not-call are left out, so the DNC rule holds there.
  */
-import { requestJson, texts, type ContactDetails, type ContactEnrichmentProvider, type Fetch, type FoundPerson } from "./types";
+import { ContactProviderError, requestJson, texts, type ContactDetails, type ContactEnrichmentProvider, type Fetch, type FoundPerson } from "./types";
 
 const BASE_URL = "https://api.lusha.com/v3";
 /** Lusha pages hold 10 to 100 results. */
@@ -34,17 +35,19 @@ const nameOf = (person: LushaPerson) => texts([person.firstName, person.lastName
 const jobTitleOf = (person: LushaPerson) => (person.jobTitle && typeof person.jobTitle === "object" ? text(person.jobTitle.title) : undefined);
 
 /**
- * `fetchFn`, except that a 400 fails with Lusha's own `message` (e.g. a schema
- * complaint) so the log says what Lusha refused. Only that message is kept,
- * never the request or anything else from the answer, so no personal data.
+ * `fetchFn`, except that a 400 or 403 fails with Lusha's own `message` (e.g. a
+ * schema complaint, or a feature the plan lacks) so the log says what Lusha
+ * refused. Only that message is kept, never the request or anything else from
+ * the answer, so no personal data.
  */
 function explainingBadRequests(fetchFn: Fetch): Fetch {
   return async (url, init) => {
     const response = await fetchFn(url, init);
-    if (response.status !== 400) return response;
+    if (response.status !== 400 && response.status !== 403) return response;
     const answer = (await response.json().catch(() => null)) as { message?: unknown } | null;
     const message = text(answer?.message);
-    throw new Error(message ? `HTTP 400: ${message.slice(0, 200)}` : "HTTP 400");
+    const status = `HTTP ${response.status}`;
+    throw new ContactProviderError("lusha", response.status === 403 ? "unauthorized" : "failed", message ? `${status}: ${message.slice(0, 200)}` : status);
   };
 }
 
@@ -63,7 +66,7 @@ export function createLushaProvider({ apiKey, fetch: rawFetch = fetch, baseUrl =
             contacts: { include: { jobTitles } },
             companies: { include: companyDomain ? { domains: [companyDomain] } : { names: [companyName] } },
           },
-          options: { excludeDnc: true, maxContactsPerCompany: Math.min(MAX_CONTACTS_PER_COMPANY, Math.max(1, limit)) },
+          options: { maxContactsPerCompany: Math.min(MAX_CONTACTS_PER_COMPANY, Math.max(1, limit)) },
         },
       })) as { results?: LushaPerson[] } | null;
       const people: FoundPerson[] = [];

@@ -76,6 +76,7 @@ export async function requestJson(
       ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
     });
   } catch (error) {
+    if (error instanceof ContactProviderError) throw error;
     throw new ContactProviderError(provider, "failed", error instanceof Error ? error.message : String(error));
   }
   if (response.status === 404) return null;

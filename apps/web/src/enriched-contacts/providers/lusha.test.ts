@@ -73,14 +73,14 @@ describe("Lusha adapter", () => {
     });
   });
 
-  it("leaves out do-not-contact people the way the v3 Prospecting schema accepts it", async () => {
+  it("prospects without the do-not-contact filter, which Lusha refuses on plans without it (do-not-call numbers are left out at reveal)", async () => {
     const api = recordedFetch({ body: { results: [] } });
     const lusha = createLushaProvider({ apiKey: "k", fetch: api.fetch });
 
     await lusha.findPeople!({ companyName: "Acme Industrie", jobTitles: ["DRH"], limit: 10 });
 
     const body = api.requests[0]!.body as { options?: { excludeDnc?: unknown; maxContactsPerCompany?: unknown }; excludeDnc?: unknown };
-    expect(body.options?.excludeDnc).toBe(true);
+    expect(body.options).not.toHaveProperty("excludeDnc");
     expect(body).not.toHaveProperty("excludeDnc");
     expect(body.options?.maxContactsPerCompany).toBe(10);
   });
@@ -127,6 +127,19 @@ describe("Lusha adapter", () => {
       provider: "lusha",
       reason: "failed",
       message: "lusha: HTTP 400: property excludeDnc should not exist",
+    });
+  });
+
+  it("explains a forbidden request with Lusha's own message", async () => {
+    const message = "Exclude DNC is not supported on your current plan. Please contact support or your account manager for assistance.";
+    const lusha = createLushaProvider({
+      apiKey: "k",
+      fetch: recordedFetch({ status: 403, body: { name: "BadRequest", message, code: 403, className: "forbidden" } }).fetch,
+    });
+    await expect(lusha.findPeople!({ companyName: "Acme Industrie", jobTitles: ["DRH"], limit: 10 })).rejects.toMatchObject({
+      provider: "lusha",
+      reason: "unauthorized",
+      message: `lusha: HTTP 403: ${message}`,
     });
   });
 });

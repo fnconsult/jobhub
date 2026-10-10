@@ -257,11 +257,12 @@ test.describe("Enriched Contacts configuration", () => {
       await expect(found.getByText("Paul Durand")).toHaveCount(0);
       await expect(section.getByRole("alert")).toHaveCount(0);
 
-      // The Prospecting request Lusha accepted: do-not-contact exclusion under options, none at the top level.
+      // The Prospecting request Lusha accepted: no do-not-contact exclusion, which plans without it refuse (#77);
+      // do-not-call numbers are left out at reveal instead.
       const prospecting = lushaRequests().filter((r) => r.path === "/v3/contacts/prospecting");
       expect(prospecting).toHaveLength(1);
       const body = prospecting[0]!.body;
-      expect(body.options.excludeDnc).toBe(true);
+      expect(body.options).not.toHaveProperty("excludeDnc");
       expect(body).not.toHaveProperty("excludeDnc");
       expect(body.pagination.size).toBeGreaterThanOrEqual(10);
       expect(body.pagination.size).toBeLessThanOrEqual(100);

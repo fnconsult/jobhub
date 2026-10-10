@@ -24,7 +24,7 @@ const details = {
 // Lusha v3 (https://docs.lusha.com, docs/research/issue-77.md), as strict as the
 // real API about the request: a property the schema does not define is refused
 // with 400 "property X should not exist" (the bug behind #77), and so is a page
-// size outside 10-100. Prospecting answers in `results[]`, with `jobTitle` as an
+// size outside 10-100; `options.excludeDnc` gets 403, as on a plan without it. Prospecting answers in `results[]`, with `jobTitle` as an
 // object, one result Lusha could not give (`error`) and one without an `id`;
 // Enrich Contacts reveals Sophie Lambert's email and phones (one flagged
 // do-not-call) and nothing for Thomas Moreau. Each request body is appended, one
@@ -86,6 +86,13 @@ function answerLusha(url, init) {
     if (!body.filters) return lushaRefusal("filters should not be empty");
     const optionExtra = extraProperty(body.options, ["includePartialProfiles", "excludeDnc", "maxContactsPerCompany"]);
     if (optionExtra) return lushaRefusal(`property options.${optionExtra} should not exist`);
+    // Like the plan Jobbbox is on (#77): excluding do-not-contact people is not part of it.
+    if (body.options && "excludeDnc" in body.options) {
+      return Response.json(
+        { name: "BadRequest", message: "Exclude DNC is not supported on your current plan. Please contact support or your account manager for assistance.", code: 403, className: "forbidden" },
+        { status: 403 },
+      );
+    }
     return Response.json({
       results: lushaResults,
       pagination: { page: body.pagination.page ?? 0, size, total: lushaResults.length, totalGuaranteed: true },

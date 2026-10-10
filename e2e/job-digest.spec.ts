@@ -7,6 +7,7 @@ import { PgBoss } from "pg-boss";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { subscribe as subscribeToPlan } from "./support/plan";
+import { fakeCustomerId, FAKE_STRIPE_PRICES, signedEvent, subscriptionEvent } from "../apps/web/src/billing/fake-stripe";
 
 // Issue #15: the Job Digest. A Candidate opts in per Profile, from the Profile
 // page; their Plan Quota sets how often it comes (none on Free, weekly on
@@ -336,5 +337,49 @@ test.describe("Job Digest", () => {
 
     await waitForDigestRun(otherProfileId, 1);
     expect(digestReports(profileId)).toHaveLength(1);
+  });
+
+  test("stops when the Plan no longer includes it (Premium cancelled) and for an Archived Profile; a Candidate still entitled keeps receiving theirs", async ({ browser }) => {
+    const fresh = async () => (await browser.newContext({ baseURL: origin })).newPage();
+    let page = await fresh();
+    // Candidate whose Premium Plan is cancelled after opting in.
+    const cancelled = await signIn(page, "digest-cancelled", "premium");
+    const cancelledProfile = await createProfile(page);
+    await page.goto(`/profils/${cancelledProfile}`);
+    await jobDigestSection(page).getByRole("button", { name: fr.jobDigest.subscribe, exact: true }).click();
+    await expect(jobDigestSection(page).getByRole("status")).toHaveText(fr.jobDigest.subscribed);
+    const gone = signedEvent(
+      subscriptionEvent("customer.subscription.deleted", { customer: fakeCustomerId(cancelled), price: FAKE_STRIPE_PRICES.premium, status: "canceled" }, new Date(Date.now() + 5_000)),
+    );
+    const webhook = await page.request.post("/api/billing/webhook", { data: gone.payload, headers: { "stripe-signature": gone.signature, "content-type": "application/json" } });
+    expect(webhook.status()).toBe(200);
+
+    // Candidate who archives the opted-in Profile.
+    page = await fresh();
+    const archiver = await signIn(page, "digest-archived", "standard");
+    const archivedProfile = await createProfile(page);
+    await page.goto(`/profils/${archivedProfile}`);
+    await jobDigestSection(page).getByRole("button", { name: fr.jobDigest.subscribe, exact: true }).click();
+    await expect(jobDigestSection(page).getByRole("status")).toHaveText(fr.jobDigest.subscribed);
+    const archived = await page.request.patch(`/api/profiles/${archivedProfile}`, { headers: { origin }, data: { archived: true } });
+    expect(archived.status(), await archived.text()).toBe(200);
+
+    // A Candidate still entitled: their Job Digest tells us the tick is over.
+    page = await fresh();
+    const entitled = await signIn(page, "digest-entitled", "standard");
+    const entitledProfile = await createProfile(page);
+    await page.goto(`/profils/${entitledProfile}`);
+    await jobDigestSection(page).getByRole("button", { name: fr.jobDigest.subscribe, exact: true }).click();
+    await expect(jobDigestSection(page).getByRole("status")).toHaveText(fr.jobDigest.subscribed);
+
+    await scheduleTick();
+    await waitForDigestRun(entitledProfile, 1);
+    await expect.poll(() => emailsTo(entitled).length).toBe(1);
+    await new Promise((resolve) => setTimeout(resolve, 3_000));
+
+    expect(digestReports(cancelledProfile)).toEqual([]);
+    expect(digestReports(archivedProfile)).toEqual([]);
+    expect(emailsTo(cancelled)).toEqual([]);
+    expect(emailsTo(archiver)).toEqual([]);
   });
 });

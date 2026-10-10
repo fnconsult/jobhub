@@ -17,10 +17,11 @@
  *      `deliver` (select the Job Offers, keep the Job Digest and email it in
  *      the Candidate's Interface Language).
  *  - `migrateJobDigests(database)` creates / upgrades the tables.
- *  - `jobDigestsConfigFromEnv(env)`: the Match Score threshold and target count.
+ *  - `jobDigestsConfigFromEnv(env)`: the Match Score threshold, target count
+ *    and how far back the first Job Digest of a Profile looks.
  *
  * Selecting a Job Digest's Job Offers: the Job Offers stored since the
- * Profile's previous Job Digest (a week back for the first), whoever stored
+ * Profile's previous Job Digest (a week back for the first, by default), whoever stored
  * them, except Guest-only and Expired ones; scored against the Profile's
  * current Master CV, kept from the threshold up. Only when they are fewer than
  * the target count does Job discovery run, its Job Offers scored the same way;
@@ -172,6 +173,11 @@ export interface JobDigestsDeps {
   minMatchScore?: number;
   /** How many Job Offers a Job Digest aims for, and holds at most. Default DEFAULT_TARGET_COUNT. */
   targetCount?: number;
+  /**
+   * How many days back the first Job Digest of a Profile looks for stored Job
+   * Offers. Default DEFAULT_FIRST_LOOK_BACK_DAYS; 0: it is what Job discovery finds.
+   */
+  firstLookBackDays?: number;
   now?: () => Date;
 }
 
@@ -181,13 +187,17 @@ export const DEFAULT_TARGET_COUNT = 10;
 export const EMAIL_MAX_RESULTS = 10;
 /** Job Digests listed on the Profile page. */
 export const LATEST_DIGESTS = 5;
-/** How far back the first Job Digest of a Profile looks for stored Job Offers. */
-export const FIRST_LOOK_BACK_MS = 7 * 86_400_000;
+/** How many days back the first Job Digest of a Profile looks for stored Job Offers. */
+export const DEFAULT_FIRST_LOOK_BACK_DAYS = 7;
+const DAY_MS = 86_400_000;
 /** Stored Job Offers scored for one Job Digest, at most (the most recent). */
 const POOL_MAX = 1_000;
 
-/** The Match Score threshold and target count, from JOB_DIGEST_MIN_MATCH_SCORE and JOB_DIGEST_TARGET_COUNT. */
-export function jobDigestsConfigFromEnv(env: Record<string, string | undefined>): { minMatchScore: number; targetCount: number } {
+/**
+ * The Match Score threshold, target count and first look-back, from
+ * JOB_DIGEST_MIN_MATCH_SCORE, JOB_DIGEST_TARGET_COUNT and JOB_DIGEST_FIRST_LOOK_BACK_DAYS.
+ */
+export function jobDigestsConfigFromEnv(env: Record<string, string | undefined>): { minMatchScore: number; targetCount: number; firstLookBackDays: number } {
   const read = (name: string, fallback: number, min: number, max: number) => {
     const raw = env[name]?.trim();
     if (!raw) return fallback;
@@ -198,6 +208,7 @@ export function jobDigestsConfigFromEnv(env: Record<string, string | undefined>)
   return {
     minMatchScore: read("JOB_DIGEST_MIN_MATCH_SCORE", DEFAULT_MIN_MATCH_SCORE, 0, 100),
     targetCount: read("JOB_DIGEST_TARGET_COUNT", DEFAULT_TARGET_COUNT, 1, 100),
+    firstLookBackDays: read("JOB_DIGEST_FIRST_LOOK_BACK_DAYS", DEFAULT_FIRST_LOOK_BACK_DAYS, 0, 90),
   };
 }
 
@@ -273,6 +284,7 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
   const now = deps.now ?? (() => new Date());
   const minMatchScore = deps.minMatchScore ?? DEFAULT_MIN_MATCH_SCORE;
   const targetCount = deps.targetCount ?? DEFAULT_TARGET_COUNT;
+  const firstLookBackMs = (deps.firstLookBackDays ?? DEFAULT_FIRST_LOOK_BACK_DAYS) * DAY_MS;
 
   async function planOf(candidateId: string): Promise<{ plan: Plan; frequency: JobDigestFrequency }> {
     const { plan, quotas } = await deps.billing.entitlements(candidateId);
@@ -348,7 +360,7 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
         WHERE created_at > COALESCE((SELECT max(sent_at) FROM job_digest WHERE profile_id = $1 AND candidate_id = $2), $3)
           AND created_at <= $4 AND guest_expires_at IS NULL AND expired_at IS NULL
         ORDER BY created_at DESC LIMIT $5`,
-      [profileId, candidateId, new Date(at.getTime() - FIRST_LOOK_BACK_MS), at, POOL_MAX],
+      [profileId, candidateId, new Date(at.getTime() - firstLookBackMs), at, POOL_MAX],
     );
     return rows.map((row) => row.id);
   }

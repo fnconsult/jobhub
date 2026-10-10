@@ -88,7 +88,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
     if (!result.ok) throw new Error(`fixture subscription refused: ${JSON.stringify(result)}`);
   }
 
-  function digestsWith(config: Partial<Pick<JobDigestsDeps, "minMatchScore" | "targetCount">>): JobDigests {
+  function digestsWith(config: Partial<Pick<JobDigestsDeps, "minMatchScore" | "targetCount" | "firstLookBackDays">>): JobDigests {
     return createJobDigests(database, {
       profiles,
       jobOffers,
@@ -244,6 +244,19 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       const second = await jobDigests.deliver(candidateId, profileId, async () => []);
 
       expect(second.digest?.results.map((result) => result.jobOffer.id)).toEqual([since]);
+    });
+
+    it("looks back as many days as configured for the first Job Digest: none, and it is what Job discovery finds", async () => {
+      jobDigests = digestsWith({ firstLookBackDays: 0 });
+      // Stored an hour ago, by another Candidate as much as by this one: before the first Job Digest's pool.
+      for (const title of ["DAF 1", "DAF 2", "DAF 3"]) await strong(title, { storedAt: new Date(clock.now.getTime() - HOUR) });
+      await subscribed();
+      const found = await strong("Trouvée par Job discovery");
+
+      const { digest, discovery } = await jobDigests.deliver(candidateId, profileId, async () => [found]);
+
+      expect(discovery).toBe("ran");
+      expect(digest?.results.map((result) => result.jobOffer.id)).toEqual([found]);
     });
 
     it("leaves out Guest-only and Expired Job Offers, and those already shown: in a Job Digest, a Job Search, or saved as an Application", async () => {

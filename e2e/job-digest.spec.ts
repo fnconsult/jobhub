@@ -20,8 +20,11 @@ import { fakeCustomerId, FAKE_STRIPE_PRICES, signedEvent, subscriptionEvent } fr
 // they are too few, and emails the Job Digest in the Candidate's Interface
 // Language, with a link to its page and an unsubscribe link. The worker prints
 // its emails (MAIL_TRANSPORT=console) to its output, read here as the
-// Candidate's mailbox. Other specs store Job Offers in the same database, and a
-// Job Digest may list them too: assertions name this run's Job Offers.
+// Candidate's mailbox. Other specs store Job Offers in the same database, as
+// fitting as this run's (see STORED_ELSEWHERE): with the default week of look-back,
+// a Profile's first Job Digest would be filled with them, Job discovery not
+// needed. So this worker looks back no days (JOB_DIGEST_FIRST_LOOK_BACK_DAYS=0):
+// a first Job Digest lists what Job discovery finds, and assertions name this run's Job Offers.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const en = JSON.parse(readFileSync("packages/shared/src/i18n/locales/en.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
@@ -70,6 +73,7 @@ function startWorker() {
       AI_WEB_SEARCH_PROVIDER: "perplexity",
       MISTRAL_API_KEY: "e2e-mistral-key",
       PERPLEXITY_API_KEY: "e2e-perplexity-key",
+      JOB_DIGEST_FIRST_LOOK_BACK_DAYS: "0",
       E2E_DISCOVERY_TAG: tag,
       E2E_DISCOVERY_LOG: path.join(workDir, "requests.jsonl"),
       NODE_OPTIONS: `--import=${path.resolve("e2e/support/fake-job-sites.mjs")}`,
@@ -101,6 +105,41 @@ async function optedInLastWeek(profileId: string) {
   try {
     const moved = await database.query("UPDATE job_digest_subscription SET subscribed_at = subscribed_at - interval '8 days' WHERE profile_id = $1", [profileId]);
     expect(moved.rowCount).toBe(1);
+  } finally {
+    await database.end();
+  }
+}
+
+/**
+ * What the rest of the suite leaves in the shared database: Job Offers other
+ * Candidates stored an hour ago, that fit this spec's Profiles as well as this
+ * run's own (Match Score 100). There are more than a Job Digest's target count,
+ * so this spec checks that they cannot crowd out the Job Offers it names, even
+ * when it runs alone.
+ */
+const STORED_ELSEWHERE = Array.from({ length: 12 }, (_, index) => `DAF (H/F), stocké par un autre Candidat ${index + 1} – réf. ${tag}`);
+
+async function storeElsewhere() {
+  const database = new Client({ connectionString: databaseUrl });
+  await database.connect();
+  try {
+    for (const [index, title] of STORED_ELSEWHERE.entries()) {
+      await database.query(
+        `INSERT INTO job_offer (url_key, content_fingerprint, source_url, title, content, employer, location, contract_type, created_at)
+         VALUES ($1, $1, $2, $3, $3, 'Ailleurs Industrie', 'Lyon', 'cdi', now() - interval '1 hour')`,
+        [`e2e-job-digest-elsewhere-${tag}-${index}`, `https://ailleurs-e2e.example/offre/${tag}/${index}`, title],
+      );
+    }
+  } finally {
+    await database.end();
+  }
+}
+
+async function forgetStoredElsewhere() {
+  const database = new Client({ connectionString: databaseUrl });
+  await database.connect();
+  try {
+    await database.query("DELETE FROM job_offer WHERE title = ANY($1::text[])", [STORED_ELSEWHERE]);
   } finally {
     await database.end();
   }
@@ -181,6 +220,7 @@ test.describe("Job Digest", () => {
   test.beforeAll(async () => {
     test.setTimeout(120_000);
     mkdirSync(workDir, { recursive: true });
+    await storeElsewhere();
     startWorker();
     await expect.poll(() => workerOutput, { timeout: 90_000 }).toMatch(/\[worker\] running \d+ job\(s\)/);
   });
@@ -193,6 +233,7 @@ test.describe("Job Digest", () => {
       if (worker.exitCode === null) worker.kill("SIGKILL");
     }
     rmSync(workDir, { recursive: true, force: true });
+    await forgetStoredElsewhere();
   });
 
   test("is not included in the Free Plan: opting in shows the Upgrade Prompt, and no Job Digest is made", async ({ page }) => {
@@ -248,7 +289,7 @@ test.describe("Job Digest", () => {
     await optIn(page, justOptedIn);
     await scheduleTick();
 
-    expect(await waitForDigestRun(profileId, 1)).toMatch(new RegExp(`^\\[job-digest\\] profile ${profileId}: Job Digest sent \\(\\d+ Job Offer\\(s\\)\\), Job discovery (ran|not needed)$`));
+    expect(await waitForDigestRun(profileId, 1)).toMatch(new RegExp(`^\\[job-digest\\] profile ${profileId}: Job Digest sent \\(\\d+ Job Offer\\(s\\)\\), Job discovery ran$`));
     await expect.poll(() => emailsTo(address).length).toBe(1);
     const [email] = emailsTo(address);
     expect(email!.subject).toMatch(/^Job Digest « Directrice administrative et financière » : \d+ nouvelles offres$/);

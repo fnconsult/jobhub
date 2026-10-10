@@ -144,15 +144,19 @@ _Avoid_: Search (alone, ambiguous with Search Criteria)
 A site whose terms forbid crawling (LinkedIn, Indeed, Glassdoor). Job discovery never fetches it; only Capture covers it.
 
 **Expired Job Offer**:
-A Job Offer that is no longer published at its source. Its Applications are flagged, but their Application Status is never changed automatically.
+A Job Offer that is no longer published at its source, confirmed by two re-checks in a row. It stops being expired if it is published again. Only Job Offers with an ongoing Application are re-checked, and never on a Forbidden site. Its Applications are flagged, but their Application Status is never changed automatically. Expired Job Offers are left out of Job Digests and Job Search results.
 _Avoid_: Closed, dead, archived offer
+
+**Reported Unavailable**:
+A Candidate's own report, on one of their Applications, that its Job Offer is no longer published. Used where the Job Offer cannot be re-checked (e.g. a Forbidden site). It flags that Application only, never the shared Job Offer, and the Candidate can undo it.
+_Avoid_: Expired (for this), withdrawn offer
 
 **Presumed Employer**:
 The AI Coach's guess at the real employer behind a Job Offer posted by a recruiting agency. It becomes the employer, and gets a Company Dossier, only once the Candidate confirms it.
 _Avoid_: Hidden employer, client
 
 **Job Digest**:
-A recurring email and in-app summary of new Job Offers matching a Profile's Search Criteria.
+A recurring email and in-app summary of new Job Offers matching a Profile's Search Criteria. Opted into per Profile, at a frequency the Candidate picks within the Plan Quota. Only holds Job Offers never shown before for that Profile (in a Job Digest or a Job Search) and without an Application; nothing is sent when there are none. Stops for an Archived Profile; unsubscribing needs no sign-in. Never counts against the Candidate's other Plan Quotas.
 _Avoid_: Alert, newsletter, feed
 
 **Company Dossier**:

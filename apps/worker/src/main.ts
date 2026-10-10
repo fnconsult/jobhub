@@ -2,7 +2,7 @@ import { AiConfigError, createAiLayerFromEnv, type AiLayer } from "@jobhub/ai";
 import { createApplications } from "@jobhub/web/applications";
 import { createBilling } from "@jobhub/web/billing";
 import { followUpsFromEnv } from "@jobhub/web/follow-ups/env";
-import { createJobDigests } from "@jobhub/web/job-digests";
+import { createJobDigests, jobDigestsConfigFromEnv } from "@jobhub/web/job-digests";
 import { createJobOffers } from "@jobhub/web/job-offers";
 import { createJobSearchReports } from "@jobhub/web/job-searches";
 import { mailerFromEnv } from "@jobhub/web/mailers";
@@ -60,6 +60,7 @@ const jobs = createJobs({
     billing,
     mailer: mailerFromEnv(process.env),
     baseURL,
+    ...jobDigestsConfigFromEnv(process.env),
   }),
   enqueue: async (name, data) => {
     if (!started.runner) throw new Error("the job runner has not started yet");

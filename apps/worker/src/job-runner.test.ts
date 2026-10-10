@@ -1,3 +1,4 @@
+import { PgBoss } from "pg-boss";
 import { afterEach, describe, expect, it } from "vitest";
 import { startJobRunner, type JobRunner } from "./job-runner";
 
@@ -23,6 +24,22 @@ describe.skipIf(!connectionString)("job runner (needs Postgres: DATABASE_URL)", 
     await runner.enqueue("test.echo", { hello: "monde" });
 
     await expect(received).resolves.toEqual({ hello: "monde" });
+  }, 20_000);
+
+  it("schedules a cron job in the time zone it names (Job Digests go out at 07:00 in Paris)", async () => {
+    runner = await startJobRunner({
+      connectionString: connectionString!,
+      jobs: { "test.paris": { cron: "0 7 * * *", tz: "Europe/Paris", handler: async () => {} } },
+    });
+    const boss = new PgBoss({ connectionString: connectionString! });
+    await boss.start();
+    try {
+      const [schedule] = await boss.getSchedules("test.paris");
+      expect(schedule).toMatchObject({ cron: "0 7 * * *", options: expect.objectContaining({ tz: "Europe/Paris" }) });
+      await boss.unschedule("test.paris");
+    } finally {
+      await boss.stop({ graceful: false });
+    }
   }, 20_000);
 
   it("refuses to enqueue a job that has no registered handler", async () => {

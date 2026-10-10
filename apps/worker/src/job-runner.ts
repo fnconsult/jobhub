@@ -2,8 +2,10 @@ import { PgBoss } from "pg-boss";
 
 export type JobDefinition = {
   handler: (data: unknown) => Promise<void>;
-  /** Optional cron expression (UTC) to run the job on a schedule. */
+  /** Optional cron expression to run the job on a schedule, in UTC unless `tz` says otherwise. */
   cron?: string;
+  /** IANA time zone the `cron` expression is read in (e.g. "Europe/Paris"); default UTC. */
+  tz?: string;
 };
 
 export type JobRunner = {
@@ -33,7 +35,7 @@ export async function startJobRunner(options: {
     await boss.work(name, { pollingIntervalSeconds: options.pollingIntervalSeconds ?? 2 }, async (batch) => {
       for (const { data } of batch) await job.handler(data);
     });
-    if (job.cron) await boss.schedule(name, job.cron);
+    if (job.cron) await boss.schedule(name, job.cron, null, job.tz ? { tz: job.tz } : {});
   }
 
   return {

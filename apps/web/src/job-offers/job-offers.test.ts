@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createThrowawayDatabase } from "../test-support/throwaway-database";
-import { createJobOffers, forgetExpiredGuestCaptures, migrateJobOffers, type JobOffers } from "./index";
+import { createJobOffers, createSourceChecks, forgetExpiredGuestCaptures, migrateJobOffers, type JobOffers } from "./index";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -149,6 +149,49 @@ describe.skipIf(!connectionString)("Job Offers (needs Postgres: DATABASE_URL)", 
 
       await forgetExpiredGuestCaptures(throwaway.pool, hoursFromNow(48));
       expect(await jobOffers.get(byCandidate.ok ? byCandidate.jobOffer.id : "")).not.toBeNull();
+    });
+  });
+
+  // Which Job Offers are re-checked, and what a re-check makes of them: source-checks.test.ts.
+  describe("an Expired Job Offer captured again (Expired Job Offers)", () => {
+    const daysFromNow = (days: number) => new Date(Date.now() + days * 86_400_000);
+    const idOf = (result: Awaited<ReturnType<JobOffers["capture"]>>) => (result.ok ? result.jobOffer.id : "");
+    /** Two gone checks in a row: what makes it an Expired Job Offer. */
+    async function expire(id: string) {
+      const sourceChecks = createSourceChecks(throwaway.pool);
+      await sourceChecks.record(id, "gone", daysFromNow(3.5));
+      await sourceChecks.record(id, "gone", daysFromNow(7));
+    }
+
+    it("takes it back to published when its source page is captured again", async () => {
+      const id = idOf(await jobOffers.capture(posting));
+      await expire(id);
+      expect(await jobOffers.get(id)).toHaveProperty("expiredAt");
+
+      const recaptured = await jobOffers.capture(posting);
+
+      expect(recaptured.ok && recaptured.jobOffer).toMatchObject({ id });
+      expect(recaptured.ok && recaptured.jobOffer).not.toHaveProperty("expiredAt");
+      expect(await jobOffers.get(id)).not.toHaveProperty("expiredAt");
+    });
+
+    it("takes two gone checks in a row again to expire it after it was captured again", async () => {
+      const id = idOf(await jobOffers.capture(posting));
+      await expire(id);
+      await jobOffers.capture(posting);
+
+      await createSourceChecks(throwaway.pool).record(id, "gone", daysFromNow(10));
+
+      expect(await jobOffers.get(id)).not.toHaveProperty("expiredAt");
+    });
+
+    it("keeps it expired when only the same text is captured from another address", async () => {
+      const id = idOf(await jobOffers.capture(posting));
+      await expire(id);
+
+      await jobOffers.capture({ ...posting, source: { url: "https://www.apec.fr/offre/daf-lyon-copie" } });
+
+      expect(await jobOffers.get(id)).toHaveProperty("expiredAt");
     });
   });
 });

@@ -9,7 +9,8 @@
  *      for the worker. A Job Search that ends failed gives its use back;
  *    - `get` one, with its results: each Job Offer found, the Match Score of the
  *      Profile's current Master CV against it, and the Application the Candidate
- *      already has for it, best Match Score first;
+ *      already has for it, best Match Score first. Expired Job Offers are left out,
+ *      even one that expired after the search;
  *    - `record` what Job discovery found (or why it could not run): the worker's
  *      side, also alone as `createJobSearchReports(database, { quotas })`, with
  *      `expireTimedOut`, which the worker runs on a schedule.
@@ -190,7 +191,8 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
       ]);
       const applicationOf = new Map(saved.map((application) => [application.jobOffer.id, application.id]));
       results = found
-        .filter((jobOffer): jobOffer is JobOffer => jobOffer !== null)
+        // An Expired Job Offer is no longer published at its source: nothing to apply to any more.
+        .filter((jobOffer): jobOffer is JobOffer => jobOffer !== null && !jobOffer.expiredAt)
         .map((jobOffer) => ({
           jobOffer,
           matchScore: scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer }),

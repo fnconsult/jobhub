@@ -1,11 +1,14 @@
-import type { SearchCriteria } from "@jobhub/shared";
+import type { MasterCvContent, SearchCriteria } from "@jobhub/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createJobOffers, migrateJobOffers } from "@jobhub/web/job-offers";
+import { createProfiles, migrateProfiles } from "@jobhub/web/profiles";
+import { createApplications, migrateApplications } from "../../web/src/applications";
+import { signInWithMagicLink, startTestAuth } from "../../web/src/auth/test-support";
 import { createThrowawayDatabase } from "../../web/src/test-support/throwaway-database";
 import type { DiscoverRequest, DiscoveryReport } from "./job-discovery";
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
 import type { DueJobDigest, JobDigestResult } from "@jobhub/web/job-digests";
-import { createJobs, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, type JobsDeps } from "./jobs";
+import { createJobs, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -23,6 +26,19 @@ const noJobDigests: JobsDeps["jobDigests"] = {
 };
 
 const criteria: SearchCriteria = { targetRole: "Directeur financier", location: "Lyon" };
+
+const masterCv: MasterCvContent = {
+  fullName: "Marie Dupont",
+  headline: "Directrice financière",
+  email: "marie.dupont@example.fr",
+  phone: "",
+  location: "Lyon",
+  summary: "",
+  experience: [],
+  education: [],
+  skills: ["IFRS"],
+  languages: [],
+};
 
 const found = [
   { id: "offer-1", source: {}, title: "DAF H/F", content: "DAF à Lyon." },
@@ -300,6 +316,68 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
     const empty = await createThrowawayDatabase("test_worker_jobs_empty");
     try {
       await expect(createJobs({ ...otherDeps, database: empty.pool })["guests.forget"]!.handler({})).resolves.toBeUndefined();
+    } finally {
+      await empty.drop();
+    }
+  });
+
+  it("re-checks every day the Job Offers Candidates are applying to, and expires those gone at their source twice in a row", async () => {
+    // Applications need Candidates: a database with the Candidate accounts too.
+    const testAuth = await startTestAuth();
+    try {
+      const database = testAuth.database;
+      await migrateProfiles(database);
+      await migrateJobOffers(database);
+      await migrateApplications(database);
+      const jobOffers = createJobOffers(database);
+      const profiles = createProfiles(database);
+      const applications = createApplications(database, { jobOffers, profiles });
+      const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+      const session = (await (await testAuth.request("/api/auth/get-session", { cookie })).json()) as { user: { id: string } };
+      const candidateId = session.user.id;
+      const profile = await profiles.create(candidateId, { masterCv, searchCriteria: criteria });
+      const followed = await jobOffers.capture({ source: { url: "https://emploi.example.fr/offres/daf" }, title: "DAF", content: "Poste de DAF à Lyon." });
+      const unfollowed = await jobOffers.capture({ source: { url: "https://emploi.example.fr/offres/autre" }, title: "DAF", content: "Autre poste de DAF." });
+      if (!profile.ok || !followed.ok || !unfollowed.ok) throw new Error("fixture refused");
+      const saved = await applications.save(candidateId, { jobOfferId: followed.jobOffer.id, profileId: profile.profile.id });
+      if (!saved.ok) throw new Error("fixture Application refused");
+      const id = followed.jobOffer.id;
+
+      const requested: string[] = [];
+      const fetch = (async (input: string) => {
+        requested.push(String(input));
+        return String(input).endsWith("/robots.txt") ? new Response("", { status: 404 }) : new Response("", { status: 410 });
+      }) as typeof globalThis.fetch;
+      const logs: string[] = [];
+      const jobAt = (days: number) => {
+        const at = new Date(Date.now() + days * 86_400_000);
+        return { at, job: createJobs({ ...otherDeps, database, now: () => at, fetch, log: (line) => logs.push(line) })[SOURCE_RECHECK]! };
+      };
+
+      const first = jobAt(4);
+      expect(first.job.cron).toBe("0 4 * * *");
+      await first.job.handler({});
+      expect(await jobOffers.get(id)).not.toHaveProperty("expiredAt");
+
+      const second = jobAt(7.5);
+      await second.job.handler({});
+      expect(await jobOffers.get(id)).toMatchObject({ expiredAt: second.at });
+
+      expect(logs).toEqual([
+        "[source-recheck] 1 Job Offer(s) re-checked, 1 gone, 0 expired, 0 unread",
+        "[source-recheck] 1 Job Offer(s) re-checked, 1 gone, 1 expired, 0 unread",
+      ]);
+      expect(requested).not.toContain("https://emploi.example.fr/offres/autre");
+      expect(await jobOffers.get(unfollowed.jobOffer.id)).not.toHaveProperty("expiredAt");
+    } finally {
+      await testAuth.stop();
+    }
+  });
+
+  it("has nothing to re-check before the web app has created its tables", async () => {
+    const empty = await createThrowawayDatabase("test_worker_jobs_empty");
+    try {
+      await expect(createJobs({ ...otherDeps, database: empty.pool })[SOURCE_RECHECK]!.handler({})).resolves.toBeUndefined();
     } finally {
       await empty.drop();
     }

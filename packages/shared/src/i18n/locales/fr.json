@@ -521,7 +521,9 @@
     "interviews": "Entretiens",
     "interviewCount": "Entretiens : {{number}}",
     "emptyColumn": "Aucune candidature",
-    "noInterview": "Aucun"
+    "noInterview": "Aucun",
+    "expired": "Offre expirée",
+    "reportedByYou": "Signalé par vous"
   },
   "application": {
     "statusLabel": "Statut",
@@ -540,7 +542,12 @@
     "addInterview": "Ajouter l'entretien",
     "removeInterview": "Retirer l'entretien du {{date}}",
     "working": "Enregistrement…",
-    "backToApplications": "Retour à mes candidatures"
+    "backToApplications": "Retour à mes candidatures",
+    "expiredNotice": "Votre candidature et son statut restent tels quels : c'est vous qui décidez de la suite.",
+    "reportUnavailable": "Signaler que cette offre n'est plus publiée",
+    "reportUnavailableHint": "Pour vous seulement : l'offre ne change pas pour les autres, et votre candidature garde son statut.",
+    "undoReport": "Annuler le signalement",
+    "reportedNotice": "Vous avez signalé le {{date}} que cette offre n'est plus publiée. Votre candidature et son statut restent tels quels : c'est vous qui décidez de la suite."
   },
   "jobOffer": {
     "details": "En bref",
@@ -566,7 +573,8 @@
     "alreadySaved": "Vous suivez déjà cette offre.",
     "seeApplication": "Voir ma candidature",
     "signInToSave": "Connectez-vous pour enregistrer cette offre",
-    "createProfileToSave": "Créez un profil pour enregistrer cette offre"
+    "createProfileToSave": "Créez un profil pour enregistrer cette offre",
+    "expired": "Offre expirée : elle n'est plus publiée sur son site d'origine depuis le {{date}}."
   },
   "matchScore": {
     "title": "Score de correspondance",

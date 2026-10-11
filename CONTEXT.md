@@ -144,12 +144,12 @@ _Avoid_: Search (alone, ambiguous with Search Criteria)
 A site whose terms forbid crawling (LinkedIn, Indeed, Glassdoor). Job discovery never fetches it; only Capture covers it.
 
 **Expired Job Offer**:
-A Job Offer that is no longer published at its source, confirmed by two re-checks in a row. It stops being expired if it is published again. Only Job Offers with an ongoing Application are re-checked, and never on a Forbidden site. Its Applications are flagged, but their Application Status is never changed automatically. Expired Job Offers are left out of Job Digests and Job Search results.
+A Job Offer that is no longer published at its source: two re-checks in a row found it gone (404/410, past its closing date, or sent away from its page). Only Job Offers an ongoing Application follows (not at Acceptée, Refusée or Abandonnée) are re-checked. A live re-check in between starts the count again, and an expired offer found published again stops being expired. Its Applications are flagged, but their Application Status is never changed automatically. Left out of Job Digests and Job Search results.
 _Avoid_: Closed, dead, archived offer
 
 **Reported Unavailable**:
-A Candidate's own report, on one of their Applications, that its Job Offer is no longer published. Used where the Job Offer cannot be re-checked (e.g. a Forbidden site). It flags that Application only, never the shared Job Offer, and the Candidate can undo it.
-_Avoid_: Expired (for this), withdrawn offer
+An Application whose Candidate reported its Job Offer as no longer published, which they can undo. It flags that Application only, the same way as an Expired Job Offer ("signalé par vous"); the shared Job Offer and other Candidates' Applications are untouched, and the Application Status is kept.
+_Avoid_: Reported expired, closed by the Candidate
 
 **Presumed Employer**:
 The AI Coach's guess at the real employer behind a Job Offer posted by a recruiting agency. It becomes the employer, and gets a Company Dossier, only once the Candidate confirms it.

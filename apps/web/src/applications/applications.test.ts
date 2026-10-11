@@ -2,7 +2,7 @@ import type { MasterCvContent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
-import { createJobOffers, forgetExpiredGuestCaptures, migrateJobOffers, type JobOffers } from "../job-offers";
+import { createJobOffers, createSourceChecks, forgetExpiredGuestCaptures, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import { createApplications, migrateApplications, type Applications } from "./index";
 
@@ -309,6 +309,105 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
 
       expect(removed).toMatchObject({ ok: true, application: { interviews: [] } });
       expect(await applications.removeInterview(candidateId, applicationId, interviewId)).toEqual({ ok: false, error: "not_found" });
+    });
+  });
+
+  describe("on an Expired Job Offer", () => {
+    /** Two gone checks in a row, the second at `confirmedAt`: what makes it an Expired Job Offer. */
+    async function expire(id: string, confirmedAt: Date) {
+      const sourceChecks = createSourceChecks(database);
+      await sourceChecks.record(id, "gone", new Date(confirmedAt.getTime() - 3 * 86_400_000));
+      await sourceChecks.record(id, "gone", confirmedAt);
+    }
+
+    it("is flagged, in the list and on its page, and keeps the Application Status the Candidate gave it", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+      await applications.change(candidateId, id, { status: "applied" });
+      const before = await applications.get(candidateId, id);
+      const foundAt = new Date(Date.now() + 4 * 86_400_000);
+
+      await expire(jobOfferId, foundAt);
+
+      const after = await applications.get(candidateId, id);
+      expect(after).toMatchObject({ status: "applied", statusChangedAt: before!.statusChangedAt, jobOffer: { expiredAt: foundAt } });
+      expect(await applications.list(candidateId)).toMatchObject([
+        { id, status: "applied", statusChangedAt: before!.statusChangedAt, jobOffer: { id: jobOfferId, expiredAt: foundAt } },
+      ]);
+    });
+
+    it("is not flagged while its Job Offer is still published", async () => {
+      await save({ jobOfferId, profileId });
+
+      const [summary] = await applications.list(candidateId);
+
+      expect(summary!.jobOffer).not.toHaveProperty("expiredAt");
+    });
+
+    it("can still be moved on by the Candidate", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+      await expire(jobOfferId, new Date());
+
+      expect(await applications.change(candidateId, id, { status: "abandoned" })).toMatchObject({ ok: true, application: { status: "abandoned" } });
+    });
+  });
+
+  describe("Reported Unavailable", () => {
+    it("the Candidate reports the Job Offer no longer published on their Application, which is flagged and keeps its status", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+      await applications.change(candidateId, id, { status: "applied" });
+      const before = await applications.get(candidateId, id);
+
+      const reported = await applications.change(candidateId, id, { reportedUnavailable: true });
+
+      expect(reported).toMatchObject({ ok: true, application: { status: "applied", statusChangedAt: before!.statusChangedAt } });
+      const reportedAt = reported.ok ? reported.application.reportedUnavailableAt : undefined;
+      expect(reportedAt).toBeInstanceOf(Date);
+      expect(await applications.get(candidateId, id)).toMatchObject({ reportedUnavailableAt: reportedAt });
+      expect(await applications.list(candidateId)).toMatchObject([{ id, status: "applied", reportedUnavailableAt: reportedAt }]);
+    });
+
+    it("can be undone", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+      await applications.change(candidateId, id, { reportedUnavailable: true });
+
+      const undone = await applications.change(candidateId, id, { reportedUnavailable: false });
+
+      expect(undone.ok && undone.application).not.toHaveProperty("reportedUnavailableAt");
+      expect(await applications.get(candidateId, id)).not.toHaveProperty("reportedUnavailableAt");
+      expect((await applications.list(candidateId))[0]).not.toHaveProperty("reportedUnavailableAt");
+    });
+
+    it("keeps the date it was first reported when reported again", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+      const first = await applications.change(candidateId, id, { reportedUnavailable: true });
+
+      const again = await applications.change(candidateId, id, { reportedUnavailable: true });
+
+      expect(again.ok && again.application.reportedUnavailableAt).toEqual(first.ok && first.application.reportedUnavailableAt);
+    });
+
+    it("flags that Candidate's Application only: never the shared Job Offer, nor another Candidate's Application on it", async () => {
+      const mine = await save({ jobOfferId, profileId });
+      const theirs = await save({ jobOfferId, profileId: await createProfile(otherCandidateId, "DAF") }, otherCandidateId);
+
+      await applications.change(candidateId, mine.id, { reportedUnavailable: true });
+
+      expect(await jobOffers.get(jobOfferId)).not.toHaveProperty("expiredAt");
+      expect(await applications.get(otherCandidateId, theirs.id)).not.toHaveProperty("reportedUnavailableAt");
+      expect((await applications.list(otherCandidateId))[0]).not.toHaveProperty("reportedUnavailableAt");
+    });
+
+    it("cannot be reported on someone else's Application", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+
+      expect(await applications.change(otherCandidateId, id, { reportedUnavailable: true })).toEqual({ ok: false, error: "not_found" });
+      expect(await applications.get(candidateId, id)).not.toHaveProperty("reportedUnavailableAt");
+    });
+
+    it("refuses anything but true or false", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+
+      expect(await applications.change(candidateId, id, { reportedUnavailable: "oui" })).toMatchObject({ ok: false, errors: [{ field: "reportedUnavailable" }] });
     });
   });
 });

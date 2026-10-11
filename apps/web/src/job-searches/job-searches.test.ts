@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApplications, migrateApplications, type Applications } from "../applications";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createBilling, migrateBilling, STARTING_PLAN_QUOTAS, type Billing } from "../billing";
-import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
+import { createJobOffers, createSourceChecks, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import { createJobSearchReports, createJobSearches, JOB_DISCOVERY_QUEUE, migrateJobSearches, type JobSearches } from "./index";
 
@@ -113,6 +113,21 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     ]);
     expect(done?.results[0]).toMatchObject({ jobOffer: { employer: "Acme Industrie", location: "Lyon", contractType: "cdi" }, matchScore: { score: 100 } });
     expect(done!.results[0]!.matchScore.score).toBeGreaterThan(done!.results[1]!.matchScore.score);
+  });
+
+  it("leaves Expired Job Offers out of the results", async () => {
+    const expired = await capture("DAF H/F", { location: "Lyon", contractType: "cdi" });
+    const published = await capture("Contrôleur de gestion", { location: "Lyon" });
+    const jobSearch = await started();
+    await jobSearches.record(jobSearch.id, { jobOfferIds: [expired, published] });
+    expect((await jobSearches.get(candidateId, jobSearch.id))?.results).toHaveLength(2);
+
+    // Two gone checks in a row at its source make it an Expired Job Offer.
+    const sourceChecks = createSourceChecks(testAuth.auth.options.database as Pool);
+    await sourceChecks.record(expired, "gone", new Date(Date.now() + 3 * 86_400_000));
+    await sourceChecks.record(expired, "gone", new Date(Date.now() + 6 * 86_400_000));
+
+    expect((await jobSearches.get(candidateId, jobSearch.id))?.results.map((result) => result.jobOffer.id)).toEqual([published]);
   });
 
   it("only searches for the Candidate's own, active Profiles", async () => {

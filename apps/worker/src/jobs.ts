@@ -3,9 +3,10 @@ import type { Pool } from "pg";
 import type { FollowUps } from "@jobhub/web/follow-ups";
 
 import { DIGEST_HOUR, DIGEST_TIME_ZONE, type JobDigests } from "@jobhub/web/job-digests";
-import { forgetExpiredGuestCaptures } from "@jobhub/web/job-offers";
+import { createSourceChecks, forgetExpiredGuestCaptures } from "@jobhub/web/job-offers";
 import { JOB_DISCOVERY_QUEUE, type JobSearchReports } from "@jobhub/web/job-searches";
 import type { JobDiscovery } from "./job-discovery";
+import { createSourceRecheck } from "./source-recheck";
 import type { JobDefinition } from "./job-runner";
 
 /**
@@ -35,6 +36,9 @@ export const JOB_DIGEST_SCHEDULE = "job-digest.schedule";
  */
 export const JOB_DIGEST_RUN = "job-digest.run";
 
+/** Queue name: re-check the sources of the Job Offers due (those Candidates are applying to), to find Expired Job Offers. Runs daily. */
+export const SOURCE_RECHECK = "job-offers.recheck-sources";
+
 /** Postgres error code for a table that does not exist yet (the web app's migrations have not run). */
 const UNDEFINED_TABLE = "42P01";
 
@@ -63,6 +67,8 @@ export interface JobsDeps {
   /** Queues another job of this worker. */
   enqueue: (name: string, data: object) => Promise<void>;
   log?: (line: string) => void;
+  /** How the worker reaches job sites. Default: the global fetch. */
+  fetch?: typeof globalThis.fetch;
 }
 
 function discoveryTarget(data: unknown): { candidateId: string; profileId: string; jobSearchId?: string } | null {
@@ -75,6 +81,15 @@ function discoveryTarget(data: unknown): { candidateId: string; profileId: strin
 /** Every background job the worker runs, by queue name. */
 export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
   const log = deps.log ?? ((line) => console.info(line));
+  const now = deps.now ?? (() => new Date());
+  /** Runs a job that reads the web app's tables: before its migrations have run, there is nothing to do. */
+  const onceTablesExist = async (work: () => Promise<void>) => {
+    try {
+      await work();
+    } catch (error) {
+      if ((error as { code?: string }).code !== UNDEFINED_TABLE) throw error;
+    }
+  };
   return {
     // Proves the runner is alive end to end.
     "system.heartbeat": {
@@ -185,14 +200,25 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
     // Guest data is deleted within 24 hours (ADR-0003); GUEST_RETENTION_HOURS leaves room for this interval.
     "guests.forget": {
       cron: "*/15 * * * *",
-      handler: async () => {
-        try {
-          const forgotten = await forgetExpiredGuestCaptures(deps.database, (deps.now ?? (() => new Date()))());
+      handler: () =>
+        onceTablesExist(async () => {
+          const forgotten = await forgetExpiredGuestCaptures(deps.database, now());
           if (forgotten) log(`[worker] forgot ${forgotten} Job Offer(s) captured by Guests`);
-        } catch (error) {
-          if ((error as { code?: string }).code !== UNDEFINED_TABLE) throw error;
-        }
-      },
+        }),
+    },
+
+    // Daily, for the Job Offers an ongoing Application follows whose source was last read
+    // RECHECK_INTERVAL_DAYS ago or more (ADR-0002 rules); two gone checks in a row expire one.
+    [SOURCE_RECHECK]: {
+      cron: "0 4 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const recheck = createSourceRecheck({ store: createSourceChecks(deps.database), fetch: deps.fetch });
+          const report = await recheck.run(now());
+          log(
+            `[source-recheck] ${report.checked} Job Offer(s) re-checked, ${report.gone.length} gone, ${report.expired.length} expired, ${report.unknown.length} unread`,
+          );
+        }),
     },
   };
 }

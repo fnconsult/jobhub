@@ -4,7 +4,8 @@ import { createJobOffers, migrateJobOffers } from "@jobhub/web/job-offers";
 import { createThrowawayDatabase } from "../../web/src/test-support/throwaway-database";
 import type { DiscoverRequest, DiscoveryReport } from "./job-discovery";
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
-import { createJobs, FOLLOW_UPS, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, type JobsDeps } from "./jobs";
+import type { DueJobDigest, JobDigestResult } from "@jobhub/web/job-digests";
+import { createJobs, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -15,6 +16,12 @@ const noDatabase: JobsDeps["database"] = {
   },
 };
 
+/** For the jobs that never touch Job Digests. */
+const noJobDigests: JobsDeps["jobDigests"] = {
+  claimDue: async () => [],
+  deliver: async () => ({ digest: null, discovery: "not_run" }),
+};
+
 const criteria: SearchCriteria = { targetRole: "Directeur financier", location: "Lyon" };
 
 const found = [
@@ -22,10 +29,19 @@ const found = [
   { id: "offer-2", source: {}, title: "Directeur financier", content: "Directeur financier à Lyon." },
 ];
 
-function setup(discover?: (request: DiscoverRequest) => Promise<DiscoveryReport>) {
+/**
+ * What the fake Job Digests module does with the Job discovery it is handed:
+ * `true` runs it (the stored Job Offers were too few), `false` does not.
+ */
+type DigestPlan = { runsDiscovery: boolean };
+
+function setup(discover?: (request: DiscoverRequest) => Promise<DiscoveryReport>, due: DueJobDigest[] = [], digestPlan: DigestPlan = { runsDiscovery: true }) {
   const runs: DiscoverRequest[] = [];
   const logs: string[] = [];
   const recorded: [string, JobSearchOutcome][] = [];
+  const enqueued: { name: string; data: object }[] = [];
+  /** Per delivery: the Candidate, the Profile, and what Job discovery gave the Job Digest (or how it failed). */
+  const delivered: [string, string, string[] | string | null][] = [];
   const jobs = createJobs({
     database: noDatabase,
     discovery: {
@@ -43,9 +59,29 @@ function setup(discover?: (request: DiscoverRequest) => Promise<DiscoveryReport>
         return { archived: profileId === "archived-1", searchCriteria: criteria };
       },
     },
+    jobDigests: {
+      claimDue: async () => due.splice(0),
+      async deliver(candidateId, profileId, discoverForDigest) {
+        // One stored Job Offer qualified.
+        const digest = { id: "digest-1", profile: { id: profileId, name: "DAF" }, sentAt: new Date(), results: [{} as JobDigestResult] };
+        if (!digestPlan.runsDiscovery) {
+          delivered.push([candidateId, profileId, null]);
+          return { digest, discovery: "not_run" };
+        }
+        try {
+          const found = await discoverForDigest();
+          delivered.push([candidateId, profileId, found]);
+          return { digest, discovery: "ran" };
+        } catch (error) {
+          delivered.push([candidateId, profileId, (error as Error).message]);
+          return { digest, discovery: "failed" };
+        }
+      },
+    },
+    enqueue: async (name, data) => void enqueued.push({ name, data }),
     log: (line) => logs.push(line),
   });
-  return { run: jobs[JOB_DISCOVERY]!.handler, runs, logs, recorded };
+  return { jobs, run: jobs[JOB_DISCOVERY]!.handler, runs, logs, recorded, enqueued, delivered };
 }
 
 describe("the Job discovery job", () => {
@@ -100,6 +136,55 @@ describe("the Job discovery job, for a Job Search the Candidate started", () => 
   });
 });
 
+describe("the Job Digest jobs", () => {
+  it("look, every day at 07:00 Europe/Paris, for the Job Digests due, and run each one on its own", async () => {
+    const due = [
+      { candidateId: "candidate-1", profileId: "profile-1" },
+      { candidateId: "candidate-2", profileId: "profile-2" },
+    ];
+    const { jobs, enqueued } = setup(undefined, [...due]);
+
+    expect(jobs[JOB_DIGEST_SCHEDULE]).toMatchObject({ cron: "0 7 * * *", tz: "Europe/Paris" });
+    await jobs[JOB_DIGEST_SCHEDULE]!.handler({});
+
+    expect(enqueued).toEqual(due.map((data) => ({ name: JOB_DIGEST_RUN, data })));
+  });
+
+  it("hand the Job Digest a Job discovery on the Profile's current Search Criteria, run only if it asks", async () => {
+    const asked = setup(async () => ({ jobOffers: found, skipped: [] }));
+    await asked.jobs[JOB_DIGEST_RUN]!.handler({ candidateId: "candidate-1", profileId: "profile-1" });
+    expect(asked.runs).toEqual([{ candidateId: "candidate-1", criteria }]);
+    expect(asked.delivered).toEqual([["candidate-1", "profile-1", ["offer-1", "offer-2"]]]);
+    expect(asked.logs).toEqual(["[job-digest] profile profile-1: Job Digest sent (1 Job Offer(s)), Job discovery ran"]);
+
+    const enough = setup(async () => ({ jobOffers: found, skipped: [] }), [], { runsDiscovery: false });
+    await enough.jobs[JOB_DIGEST_RUN]!.handler({ candidateId: "candidate-1", profileId: "profile-1" });
+    expect(enough.runs).toEqual([]);
+    expect(enough.delivered).toEqual([["candidate-1", "profile-1", null]]);
+    expect(enough.logs).toEqual(["[job-digest] profile profile-1: Job Digest sent (1 Job Offer(s)), Job discovery not needed"]);
+  });
+
+  it("let a failed Job discovery fail without retrying: the Job Digest sends what it has", async () => {
+    const { jobs, delivered, logs } = setup(async () => Promise.reject(new Error("Perplexity answered 503")));
+
+    await expect(jobs[JOB_DIGEST_RUN]!.handler({ candidateId: "candidate-1", profileId: "profile-1" })).resolves.toBeUndefined();
+
+    expect(delivered).toEqual([["candidate-1", "profile-1", "Perplexity answered 503"]]);
+    expect(logs).toEqual(["[job-digest] profile profile-1: Job Digest sent (1 Job Offer(s)), Job discovery failed"]);
+  });
+
+  it("do nothing for a Profile that is gone or archived, or a malformed job", async () => {
+    const { jobs, runs, delivered } = setup();
+
+    await jobs[JOB_DIGEST_RUN]!.handler({ candidateId: "candidate-1", profileId: "gone" });
+    await jobs[JOB_DIGEST_RUN]!.handler({ candidateId: "candidate-1", profileId: "archived-1" });
+    await jobs[JOB_DIGEST_RUN]!.handler({ profileId: 42 });
+
+    expect(runs).toEqual([]);
+    expect(delivered).toEqual([]);
+  });
+});
+
 describe("the worker without an AI layer", () => {
   // The local docker-compose worker has no AI keys: it must still run its other jobs.
   it("keeps the heartbeat and skips Job discovery, saying why", async () => {
@@ -111,6 +196,14 @@ describe("the worker without an AI layer", () => {
       profiles: { get: async () => ({ archived: false, searchCriteria: criteria }) },
       jobSearches: { record: async (id, outcome) => void recorded.push([id, outcome]), expireTimedOut: async () => 0 },
       followUps: { proposeDue: async () => {} },
+      jobDigests: {
+        claimDue: async () => [],
+        async deliver(_candidateId, _profileId, discover) {
+          await expect(discover()).rejects.toThrow("Job discovery is unavailable (Missing environment variable PERPLEXITY_API_KEY)");
+          return { digest: { id: "digest-1", profile: { id: "profile-1", name: "DAF" }, sentAt: new Date(), results: [{} as JobDigestResult] }, discovery: "failed" };
+        },
+      },
+      enqueue: async () => {},
       log: (line) => logs.push(line),
     });
 
@@ -124,6 +217,10 @@ describe("the worker without an AI layer", () => {
 
     await jobs[JOB_DISCOVERY]!.handler({ candidateId: "candidate-1", profileId: "profile-1", jobSearchId: "search-1" });
     expect(recorded).toEqual([["search-1", { failed: "unavailable" }]]);
+
+    // A Job Digest still sends what the stored Job Offers give.
+    await jobs[JOB_DIGEST_RUN]!.handler({ candidateId: "candidate-1", profileId: "profile-1" });
+    expect(logs.at(-1)).toBe("[job-digest] profile profile-1: Job Digest sent (1 Job Offer(s)), Job discovery failed");
   });
 });
 
@@ -132,6 +229,8 @@ const otherDeps = {
   profiles: { get: async () => null },
   jobSearches: { record: async () => {}, expireTimedOut: async () => 0 },
   followUps: { proposeDue: async () => {} },
+  jobDigests: noJobDigests,
+  enqueue: async () => {},
   log: () => {},
 };
 

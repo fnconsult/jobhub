@@ -21,6 +21,8 @@ export interface MailMessage {
   to: string;
   subject: string;
   text: string;
+  /** Extra headers, e.g. List-Unsubscribe (RFC 8058) on a recurring email. */
+  headers?: Record<string, string>;
 }
 
 /** Delivers emails. Adapters: SMTP in production, console in development, a mailbox in tests. */

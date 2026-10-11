@@ -12,6 +12,8 @@ export const routes = {
   application: (id: string) => `/candidatures/${id}`,
   jobOffer: (id: string) => `/offres/${id}`,
   jobSearch: (id: string) => `/recherches/${id}`,
+  /** One Job Digest: its Job Offers ranked by Match Score. */
+  jobDigest: (id: string) => `/job-digests/${id}`,
   masterCvVersion: (id: string, version: number) => `/profils/${id}/versions/${version}`,
   subscription: "/abonnement",
   /** The Candidate's Human Coaches: Coaching Sessions and Coach Access. */
@@ -21,6 +23,8 @@ export const routes = {
   coachSpaceCandidate: (candidateId: string) => `/espace-coach/${encodeURIComponent(candidateId)}`,
   coachSpaceApplication: (candidateId: string, applicationId: string) => `/espace-coach/${encodeURIComponent(candidateId)}/candidatures/${applicationId}`,
   accountDeleted: "/compte/supprime",
+  /** Where a Job Digest email's unsubscribe link leads (no sign-in needed). */
+  jobDigestUnsubscribe: "/desabonnement",
   admin: "/admin",
   adminPlanQuotas: "/admin/quotas",
   adminHumanCoaches: "/admin/coachs",

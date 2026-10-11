@@ -27,6 +27,21 @@ describe("upgrade prompts", () => {
     );
   });
 
+  it("explains that the Plan does not include the Job Digest, and which Plan does", () => {
+    expect(upgradePrompt({ quota: "jobDigest", plan: "free", limit: 0, upgradeTo: "standard" }, "fr").message).toBe(
+      "La réception du Job Digest n'est pas comprise dans l'offre Gratuite. L'offre Standard la comprend.",
+    );
+  });
+
+  it("explains that the Plan sends the Job Digest less often than daily, and which Plan sends it daily", () => {
+    expect(upgradePrompt({ quota: "jobDigest", plan: "standard", limit: 0, upgradeTo: "premium", frequency: "daily" }, "fr").message).toBe(
+      "Le Job Digest quotidien n'est pas compris dans l'offre Standard. L'offre Premium le comprend.",
+    );
+    expect(upgradePrompt({ quota: "jobDigest", plan: "standard", limit: 0, upgradeTo: "premium", frequency: "daily" }, "en").message).toBe(
+      "The daily Job Digest is not included in the Standard Plan. The Premium Plan includes it.",
+    );
+  });
+
   it("tells a Candidate on the top Plan when the quota comes back, with nothing to buy", () => {
     const prompt = upgradePrompt({ allowed: false, quota: "enrichedContacts", plan: "premium", limit: 20, upgradeTo: null }, "fr");
 

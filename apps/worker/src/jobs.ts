@@ -1,6 +1,8 @@
 import type { SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type { FollowUps } from "@jobhub/web/follow-ups";
+
+import { DIGEST_HOUR, DIGEST_TIME_ZONE, type JobDigests } from "@jobhub/web/job-digests";
 import { forgetExpiredGuestCaptures } from "@jobhub/web/job-offers";
 import { JOB_DISCOVERY_QUEUE, type JobSearchReports } from "@jobhub/web/job-searches";
 import type { JobDiscovery } from "./job-discovery";
@@ -18,6 +20,20 @@ export const JOB_SEARCH_TIMEOUTS = "job-searches.expire";
 
 /** Queue name: propose the Follow-ups (and "Abandonnée" suggestions) now due, and tell each Candidate. */
 export const FOLLOW_UPS = "follow-ups.propose";
+
+/**
+ * Queue name, run every day at 07:00 Europe/Paris: queues a JOB_DIGEST_RUN for
+ * each Profile whose Job Digest is due (daily ones every day, weekly ones on Monday).
+ */
+export const JOB_DIGEST_SCHEDULE = "job-digest.schedule";
+
+/**
+ * Queue name: make one Profile's Job Digest. Data: { candidateId, profileId }.
+ * The Job Digests module selects its Job Offers from those already stored, and
+ * runs Job discovery on the Profile's current Search Criteria only when they
+ * are too few. A failed Job discovery is not retried before the next Job Digest.
+ */
+export const JOB_DIGEST_RUN = "job-digest.run";
 
 /** Postgres error code for a table that does not exist yet (the web app's migrations have not run). */
 const UNDEFINED_TABLE = "42P01";
@@ -42,6 +58,10 @@ export interface JobsDeps {
   jobSearches: JobSearchReports;
   /** Satisfied by the web app's Follow-ups module. */
   followUps: Pick<FollowUps, "proposeDue">;
+  /** The worker's side of Job Digests. Satisfied by the web app's Job Digests module. */
+  jobDigests: Pick<JobDigests, "claimDue" | "deliver">;
+  /** Queues another job of this worker. */
+  enqueue: (name: string, data: object) => Promise<void>;
   log?: (line: string) => void;
 }
 
@@ -127,6 +147,38 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         } catch (error) {
           if ((error as { code?: string }).code !== UNDEFINED_TABLE) throw error;
         }
+      },
+    },
+
+    // Safe to run again: a Job Digest is claimed once per 07:00.
+    [JOB_DIGEST_SCHEDULE]: {
+      cron: `0 ${DIGEST_HOUR} * * *`,
+      tz: DIGEST_TIME_ZONE,
+      handler: async () => {
+        try {
+          for (const due of await deps.jobDigests.claimDue()) await deps.enqueue(JOB_DIGEST_RUN, due);
+        } catch (error) {
+          if ((error as { code?: string }).code !== UNDEFINED_TABLE) throw error;
+        }
+      },
+    },
+
+    [JOB_DIGEST_RUN]: {
+      handler: async (data) => {
+        const target = discoveryTarget(data);
+        if (!target) return log(`[job-digest] ignored a malformed job`);
+        const profile = await deps.profiles.get(target.candidateId, target.profileId);
+        if (!profile || profile.archived) return log(`[job-digest] profile ${target.profileId}: gone or archived, skipped`);
+        const discovery = deps.discovery;
+        const discover = async () => {
+          if ("unavailable" in discovery) throw new Error(`Job discovery is unavailable (${discovery.unavailable})`);
+          const report = await discovery.discover({ candidateId: target.candidateId, criteria: profile.searchCriteria });
+          return report.jobOffers.map((jobOffer) => jobOffer.id);
+        };
+        const delivery = await deps.jobDigests.deliver(target.candidateId, target.profileId, discover);
+        const outcome = delivery.digest ? `Job Digest sent (${delivery.digest.results.length} Job Offer(s))` : "nothing to send";
+        const discovered = { not_run: "Job discovery not needed", ran: "Job discovery ran", failed: "Job discovery failed" }[delivery.discovery];
+        log(`[job-digest] profile ${target.profileId}: ${outcome}, ${discovered}`);
       },
     },
 

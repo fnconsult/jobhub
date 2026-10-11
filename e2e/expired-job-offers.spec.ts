@@ -168,7 +168,9 @@ test.describe("Expired Job Offers (worker job job-offers.recheck-sources)", () =
   test("the worker schedules the re-check of Job Offer sources daily", async () => {
     // The worker's own entry point, as deployed: it registers its schedules on start.
     let output = "";
-    const worker: ChildProcess = spawn("npx", ["tsx", "src/main.ts"], {
+    // tsx itself, not `npx tsx`: on Linux npx does not pass SIGTERM on, so this worker would
+    // keep running and take the next spec's jobs from the same queue.
+    const worker: ChildProcess = spawn(path.resolve("node_modules/.bin/tsx"), ["src/main.ts"], {
       cwd: path.resolve("apps/worker"),
       env: {
         ...process.env,

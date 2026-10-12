@@ -70,6 +70,8 @@ function memoryJobOffers(existing: JobOffer[] = []): JobOfferStore & { all: JobO
 
 function setup(options: {
   sources: string[];
+  /** The search provider's answer text. */
+  answer?: string;
   pages: Record<string, Page>;
   reply?: string | (() => string);
   existing?: JobOffer[];
@@ -77,7 +79,7 @@ function setup(options: {
   /** Tokens each LLM read uses. */
   llmUsage?: { inputTokens: number; outputTokens: number };
 }) {
-  const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources });
+  const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, answer: options.answer });
   const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}', usage: options.llmUsage });
   const ai = createAiLayer({
     providers: [search, llm],
@@ -418,6 +420,154 @@ describe("Job discovery", () => {
         ],
       });
       expect(llm.calls).toHaveLength(1);
+    });
+  });
+
+  describe("reading the job URLs the search provider's answer names", () => {
+    const RAF_URL = "https://autre.example.fr/offre/raf-77";
+    const answer =
+      `Le groupe Seb recrute un DAF à Écully (${DAF_URL}). ` +
+      `Voir aussi [Responsable administratif et financier, 70 k€](${RAF_URL}), et ${DAF_URL}.`;
+
+    it("reads them after the provider's sources, once each", async () => {
+      const ARTICLE = "https://blog.example.fr/marche-daf";
+      const { discovery, web } = setup({
+        sources: [ARTICLE, DAF_URL],
+        answer,
+        pages: { [ARTICLE]: { body: jobPostingPage({ title: "DAF", description: "Poste." }) }, [DAF_URL]: { body: jobPostingPage({ title: "DAF Lyon", description: "Poste à Lyon." }) } },
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(web.fetched().filter((url) => !url.endsWith("/robots.txt"))).toEqual([ARTICLE, DAF_URL, RAF_URL]);
+      expect(report.funnel.providerUrls).toBe(3);
+    });
+
+    it("never makes a Job Offer from the answer text alone", async () => {
+      const { discovery, llm } = setup({ sources: [], answer, pages: { [DAF_URL]: { status: 410 } }, reply: '{"isJobOffer": true, "title": "RAF", "content": "Poste."}' });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers).toEqual([]);
+      expect(report.skipped).toEqual([
+        { url: DAF_URL, reason: "gone" },
+        { url: RAF_URL, reason: "gone" },
+      ]);
+      expect(llm.calls).toEqual([]);
+    });
+  });
+
+  describe("following a listing page to its postings", () => {
+    const LISTING = "https://emplois.example.fr/offres?q=daf";
+    const listing = (paths: string[]) =>
+      `<html><body><h1>Offres DAF</h1><ul>${paths.map((path) => `<li><a href="${path}">Offre</a></li>`).join("")}</ul></body></html>`;
+    const postingAt = (index: number): Page => ({ body: jobPostingPage({ title: `DAF ${index}`, description: `Poste de DAF numéro ${index}.` }) });
+    const at = (path: string) => `https://emplois.example.fr${path}`;
+
+    it("reads the postings a listing page links to, each through the polite-fetch checks, without the LLM reading the listing", async () => {
+      const paths = ["/offres/1-daf-lyon", "/offres/2-daf-paris", "/offres/3-daf-nantes"];
+      const { discovery, web, llm } = setup({
+        sources: [LISTING],
+        pages: {
+          "https://emplois.example.fr/robots.txt": { body: "User-agent: *\nDisallow: /offres/2-\n" },
+          [LISTING]: { body: listing(paths) },
+          [at(paths[0]!)]: postingAt(1),
+          [at(paths[1]!)]: postingAt(2),
+          [at(paths[2]!)]: { status: 403, headers: { "cf-mitigated": "challenge" }, body: "<title>Just a moment...</title>" },
+        },
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers.map((offer) => offer.source.url)).toEqual([at(paths[0]!)]);
+      expect(report.skipped).toEqual([
+        { url: LISTING, reason: "not_a_job_offer" },
+        { url: at(paths[1]!), reason: "robots" },
+        { url: at(paths[2]!), reason: "bot_protection" },
+      ]);
+      expect(web.fetched()).not.toContain(at(paths[1]!));
+      expect(llm.calls).toEqual([]);
+      expect(report.funnel).toEqual({ providerUrls: 1, fetched: 2, extracted: 1, alreadyStored: 0 });
+    });
+
+    it("follows one level only, and does not read a posting again when a later result names it", async () => {
+      const paths = ["/offres/1-daf-lyon", "/offres/2-daf-paris", "/offres/3-tous-les-postes-daf"];
+      const { discovery, web } = setup({
+        sources: [LISTING, at(paths[0]!)],
+        pages: {
+          [LISTING]: { body: listing(paths) },
+          [at(paths[0]!)]: postingAt(1),
+          [at(paths[1]!)]: postingAt(2),
+          [at(paths[2]!)]: { body: listing(["/offres/4-daf-nice", "/offres/5-daf-lille", "/offres/6-daf-metz"]) },
+        },
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers).toHaveLength(2);
+      expect(web.fetched().filter((url) => url === at(paths[0]!))).toHaveLength(1);
+      expect(web.fetched()).not.toContain(at("/offres/4-daf-nice"));
+    });
+
+    it("follows a listing page that asks not to be indexed but lets its links be followed", async () => {
+      const paths = ["/offres/1-daf-lyon", "/offres/2-daf-paris", "/offres/3-daf-nantes"];
+      const { discovery } = setup({
+        sources: [LISTING],
+        pages: {
+          [LISTING]: { body: listing(paths).replace("<body>", '<head><meta name="robots" content="noindex, follow"></head><body>') },
+          [at(paths[0]!)]: postingAt(1),
+          [at(paths[1]!)]: postingAt(2),
+          [at(paths[2]!)]: postingAt(3),
+        },
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers).toHaveLength(3);
+      expect(report.skipped).toEqual([{ url: LISTING, reason: "robots" }]);
+    });
+
+    describe("counting followed links against the budget", () => {
+      const paths = [1, 2, 3, 4, 5].map((index) => `/offres/${index}-daf`);
+      const pages = (posting: (index: number) => Page) => ({
+        [LISTING]: { body: listing(paths) },
+        ...Object.fromEntries(paths.map((path, index) => [at(path), posting(index + 1)])),
+      });
+
+      it("stops following once the run has its Job Offers", async () => {
+        const later = "https://autre.example.fr/offres/42-daf";
+        const { discovery, web } = setup({ sources: [LISTING, later], pages: { ...pages(postingAt), [later]: postingAt(42) }, budget: { jobOffers: 2 } });
+
+        const report = await discovery.discover({ candidateId: "c", criteria });
+
+        expect(report.jobOffers.map((offer) => offer.source.url)).toEqual([at(paths[0]!), at(paths[1]!)]);
+        expect(web.fetched()).not.toContain(at(paths[2]!));
+        expect(web.fetched()).not.toContain(later);
+      });
+
+      it("stops following once the run has lasted its time", async () => {
+        // Each posting takes 40 s to answer: the second starts at 40 s, the third at 80 s, the fourth would at 120 s.
+        const { discovery, web } = setup({ sources: [LISTING], pages: pages((index) => ({ ...postingAt(index), delayMs: 40_000 })) });
+
+        const report = await discovery.discover({ candidateId: "c", criteria });
+
+        expect(report.jobOffers).toHaveLength(3);
+        expect(web.fetched()).not.toContain(at(paths[3]!));
+      });
+
+      it("stops following once the run has spent its money", async () => {
+        // Each LLM read: 10,000 × $5/M = $0.05, €0.043. Search: €0.0022. After two reads, €0.088.
+        const { discovery, llm, web } = setup({
+          sources: [LISTING],
+          pages: pages(() => ({ body: "<html><body><h1>DAF H/F</h1><p>Poste de DAF.</p></body></html>" })),
+          llmUsage: { inputTokens: 10_000, outputTokens: 0 },
+        });
+
+        await discovery.discover({ candidateId: "c", criteria });
+
+        expect(llm.calls).toHaveLength(2);
+        expect(web.fetched()).not.toContain(at(paths[2]!));
+      });
     });
   });
 

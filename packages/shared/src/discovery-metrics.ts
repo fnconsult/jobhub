@@ -24,9 +24,9 @@ export const FUNNEL_MATCH_SCORE = 60;
 export interface DiscoveryMetrics {
   /** How many results reached each stage, in order. */
   funnel: {
-    /** Distinct URLs the web-search provider returned. */
+    /** Distinct URLs the web-search provider returned, as sources or named in its answer. */
     providerUrls: number;
-    /** Result pages read. */
+    /** Result pages read, the postings followed from listing pages included. */
     fetched: number;
     /** Job Offers extracted from the pages read, before deduplication. */
     extracted: number;

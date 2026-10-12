@@ -22,14 +22,14 @@ function hasType(node: Json, type: string): boolean {
   return asArray(node["@type"]).some((t) => typeof t === "string" && t.replace(/^.*[/:]/, "").toLowerCase() === type.toLowerCase());
 }
 
-/** Every JobPosting node in the page's JSON-LD, including inside `@graph` and arrays. */
-function jobPostingNodes(html: string): Json[] {
+/** Every node of this type in the page's JSON-LD, including inside `@graph` and arrays (not inside another node). */
+function structuredNodes(html: string, type: string): Json[] {
   const found: Json[] = [];
   const visit = (node: unknown, depth: number) => {
     if (depth > 6) return;
     for (const item of asArray(node)) {
       if (!isObject(item)) continue;
-      if (hasType(item, "JobPosting")) found.push(item);
+      if (hasType(item, type)) found.push(item);
       else if (item["@graph"]) visit(item["@graph"], depth + 1);
     }
   };
@@ -42,6 +42,9 @@ function jobPostingNodes(html: string): Json[] {
   }
   return found;
 }
+
+/** Every JobPosting node in the page's JSON-LD. */
+const jobPostingNodes = (html: string) => structuredNodes(html, "JobPosting");
 
 function location(posting: Json): string | undefined {
   for (const place of asArray(posting.jobLocation)) {
@@ -172,4 +175,27 @@ export function jobPostingValidThrough(html: string): Date | null {
   const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
   const instant = Date.parse(dateOnly ? `${value}T23:59:59` : value);
   return Number.isNaN(instant) ? null : new Date(instant);
+}
+
+/**
+ * The addresses of the postings the page's structured data lists, as stated
+ * (possibly relative): the `url` of each of several JobPostings, and each
+ * posting of an ItemList. None when the page describes a single posting.
+ */
+export function listedPostingUrls(html: string): string[] {
+  const urls: string[] = [];
+  const postings = jobPostingNodes(html);
+  if (postings.length > 1) for (const posting of postings) if (typeof posting.url === "string") urls.push(posting.url);
+  for (const list of structuredNodes(html, "ItemList")) {
+    for (const element of asArray(list.itemListElement)) {
+      if (typeof element === "string") urls.push(element);
+      if (!isObject(element)) continue;
+      const item = element.item;
+      // A listed item that is something else than a posting (an article, a product) is not followed.
+      if (isObject(item) && !hasType(item, "JobPosting")) continue;
+      const url = isObject(item) ? (item.url ?? item["@id"]) : (element.url ?? item);
+      if (typeof url === "string") urls.push(url);
+    }
+  }
+  return urls;
 }

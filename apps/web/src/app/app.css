@@ -387,6 +387,53 @@ textarea.input {
   margin-top: 0;
 }
 
+.coach-panel-conversation {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The Candidate's saved Coach Conversations, inside the Coach Panel. */
+.coach-conversations h3 {
+  margin: 0;
+}
+
+.coach-conversation-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.coach-conversation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.coach-conversation-title {
+  margin: 0;
+  font-size: inherit;
+}
+
+/* A text button that reads like a link: here, a conversation's name opens it. */
+.link-button {
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  text-align: left;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
 /* Action Cards: the AI Coach's proposals inside a page. */
 .action-card {
   width: 100%;

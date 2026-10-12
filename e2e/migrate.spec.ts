@@ -53,6 +53,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Job Searches are up to date");
     expect(first.stdout).toContain("Human Coaches, Coach Access and Coaching Sessions are up to date");
     expect(first.stdout).toContain("Job Digests are up to date");
+    expect(first.stdout).toContain("Coach Conversations are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 
@@ -71,6 +72,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "candidate",
         "candidate_plan", // issue #22: Plans and Plan Quotas
         "coach_access", // issue #24: the Human Coaches each Candidate granted Coach Access to
+        "coach_conversation", // issue #124: the Candidate's saved Coach Conversations
+        "coach_message", // issue #124: their messages
         "coach_review", // issue #24: Coach Reviews of Tailored Documents
         "coaching_session", // issue #24: Coaching Sessions paid through Stripe
         "company_dossier", // issue #17
@@ -122,6 +125,10 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // Coach Access, Coach Reviews and Coaching Sessions (issue #24) go with their Candidate (and Application).
         { from_table: "coach_access", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coach_access", from_column: "coach_id", to_table: "human_coach" },
+        // Coach Conversations (issue #124) go with their Candidate, and the Profile they started on; their messages with them.
+        { from_table: "coach_conversation", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "coach_conversation", from_column: "profile_id", to_table: "profile" },
+        { from_table: "coach_message", from_column: "conversation_id", to_table: "coach_conversation" },
         { from_table: "coach_review", from_column: "application_id", to_table: "application" },
         { from_table: "coach_review", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coach_review", from_column: "coach_id", to_table: "human_coach" },

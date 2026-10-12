@@ -9,6 +9,7 @@ import { migrateApplications } from "./applications/index";
 import { migrateAtsScores } from "./ats-score/index";
 import { migrateCandidateAccounts, type AuthConfig } from "./auth/index";
 import { migrateBilling } from "./billing/index";
+import { migrateCoachConversations } from "./coach-conversations/index";
 import { migrateCompanyDossiers } from "./company-dossiers/index";
 import { migrateEnrichedContacts } from "./enriched-contacts/index";
 import { migrateFollowUps } from "./follow-ups/index";
@@ -40,6 +41,7 @@ export async function migrateDatabase(config: AuthConfig, onMigrated: (done: str
     ["Job Searches are up to date", () => migrateJobSearches(database)],
     ["Job Digests are up to date", () => migrateJobDigests(database)],
     ["Human Coaches, Coach Access and Coaching Sessions are up to date", () => migrateHumanCoaches(database)],
+    ["Coach Conversations are up to date", () => migrateCoachConversations(database)],
   ];
   for (const [done, migrate] of steps) {
     await migrate();

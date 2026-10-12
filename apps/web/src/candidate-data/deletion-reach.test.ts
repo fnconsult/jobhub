@@ -49,7 +49,7 @@ describe.skipIf(!connectionString)("What deleting a Candidate reaches, across ev
     const blocking = foreignKeys.filter((key) => tablesTiedToCandidate().has(key.references) && key.onDelete !== "cascade");
 
     expect(blocking).toEqual([]);
-    expect([...tablesTiedToCandidate()]).toEqual(expect.arrayContaining(["profile", "master_cv_version", "application", "tailored_cv", "tailored_document", "session"]));
+    expect([...tablesTiedToCandidate()]).toEqual(expect.arrayContaining(["profile", "master_cv_version", "application", "tailored_cv", "tailored_document", "session", "coach_conversation", "coach_message"]));
   });
 
   it("every table naming a Candidate hangs off the Candidate table, so none is forgotten", async () => {

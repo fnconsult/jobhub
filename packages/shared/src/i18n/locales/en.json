@@ -380,7 +380,30 @@
       "invalid": "This message couldn't be sent. Shorten it and try again."
     },
     "searchJobs": "Search for job offers for this profile",
-    "searchHint": "Open one of your profiles: your coach can then search for job offers for it."
+    "searchHint": "Open one of your profiles: your coach can then search for job offers for it.",
+    "messagesLabel": "Your exchanges with your coach",
+    "newConversation": "New conversation",
+    "conversations": "My conversations",
+    "backToConversation": "Back to the conversation",
+    "loading": "Loading the conversation…",
+    "noConversations": "You don't have any conversation with your coach yet.",
+    "retention": "Your conversations are kept for 12 months after their last message, then deleted. Your human coach never sees them.",
+    "startedOnProfile": "Started on the profile \"{{name}}\"",
+    "lastMessage": "Last message on {{date}}",
+    "rename": "Rename",
+    "renameLabel": "Conversation name",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "confirmDelete": "Permanently delete the conversation \"{{title}}\"?",
+    "confirmDeleteButton": "Yes, delete",
+    "renamed": "Conversation renamed.",
+    "deleted": "Conversation deleted.",
+    "listErrors": {
+      "load": "Your conversations couldn't be loaded. Please try again in a few moments.",
+      "action": "This action didn't go through. Please try again in a few moments.",
+      "invalidTitle": "Give the conversation a name of 1 to 80 characters."
+    }
   },
   "actionCards": {
     "title": "Your coach's proposals",

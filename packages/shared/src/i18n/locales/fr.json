@@ -153,6 +153,15 @@
     "confirmMismatch": "Cette adresse ne correspond pas à celle de votre compte. Rien n'a été supprimé.",
     "deleteError": "La suppression n'a pas pu aboutir. Rien n'a été supprimé : réessayez dans un moment."
   },
+  "euAiConsent": {
+    "title": "IA européenne pour vos données d'identité",
+    "explanation": "Avec votre accord, chaque demande à l'IA qui contient vos données d'identité (nom, adresse, téléphone, e-mail ou texte de votre CV) est traitée par Mistral AI, un fournisseur d'IA européen. Les autres demandes, sans vos données d'identité, sont traitées par notre fournisseur habituel. Vous pouvez retirer votre accord à tout moment.",
+    "notGiven": "Vous n'avez pas donné votre accord.",
+    "givenOn": "Accord donné le {{date}}.",
+    "give": "Donner mon accord",
+    "withdraw": "Retirer mon accord",
+    "error": "Une erreur est survenue. Réessayez."
+  },
   "accountDeleted": {
     "title": "Votre compte est supprimé",
     "body": "Vos données ont été effacées. Merci d'avoir utilisé Jobbbox, et bonne continuation dans votre recherche.",

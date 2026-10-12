@@ -5,12 +5,14 @@ import { currentIsAdministrator } from "@/admin/server";
 import { getCurrentCandidate } from "@/auth/server";
 import { AccountDataSection } from "@/components/AccountDataSection";
 import { AccountSettings } from "@/components/AccountSettings";
+import { EuAiConsentForm } from "@/components/EuAiConsentForm";
 import { FollowUpDelaysForm } from "@/components/FollowUpDelaysForm";
 import { WorkspaceHeader } from "@/components/WorkspaceHeader";
 import { MAX_FOLLOW_UP_DELAY } from "@/follow-ups";
 import { getFollowUps } from "@/follow-ups/server";
 import { currentHumanCoach } from "@/human-coaches/server";
-import { getServerT } from "@/i18n/server";
+import { getEuAiConsents } from "@/eu-ai-consent/server";
+import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getProfiles } from "@/profiles/server";
 import { routes } from "@/routes";
 
@@ -23,10 +25,12 @@ export default async function AccountPage() {
   const candidate = await getCurrentCandidate();
   if (!candidate) redirect(routes.signIn);
   const t = await getServerT();
-  const [profiles, canAdd, followUpDelays] = await Promise.all([
+  const [profiles, canAdd, followUpDelays, euAiConsentGivenAt, locale] = await Promise.all([
     getProfiles().list(candidate.id),
     getProfiles().canAddProfile(candidate.id),
     getFollowUps().delays(candidate.id),
+    getEuAiConsents().givenAt(candidate.id),
+    getRequestLocale(),
   ]);
   const active = profiles.filter((profile) => !profile.archived);
   const archived = profiles.filter((profile) => profile.archived);
@@ -67,6 +71,7 @@ export default async function AccountPage() {
         </section>
       ) : null}
       <FollowUpDelaysForm initial={followUpDelays} max={MAX_FOLLOW_UP_DELAY} />
+      <EuAiConsentForm givenAt={euAiConsentGivenAt} locale={locale} />
       <nav className="page-nav">
         <Link className="button" href={routes.subscription}>
           {t("account.plan")}

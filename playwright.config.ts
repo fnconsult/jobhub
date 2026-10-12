@@ -57,6 +57,9 @@ export default defineConfig({
     { name: "ai", testMatch: /ai\.spec\.ts/ },
     // The coach-knowledge package (#128), loaded in a fresh process through its public entry point.
     { name: "coach-knowledge", testMatch: /coach-knowledge\.spec\.ts/ },
+    // The static Notion-like layout prototype (#132), served by the spec itself and driven in Chromium.
+    // Needs no web app: run it alone with E2E_NO_WEB_SERVER=1 npx playwright test --project=prototype.
+    { name: "prototype", testMatch: /notion-layout-prototype\.spec\.ts/, use: { ...devices["Desktop Chrome"], locale: "fr-FR" } },
     // The worker's background jobs, run by `tsx src/main.ts` against the web server's database.
     // One spec at a time: each starts its own worker on the same queue, which would take the other's jobs.
     { name: "worker", testMatch: /(job-(discovery|search|digest)|job-discovery-budget|job-discovery-listing-pages|job-search-metrics|follow-ups|expired-job-offers(-confirmation)?)\.spec\.ts/, workers: 1 },
@@ -67,7 +70,7 @@ export default defineConfig({
     // with each other, so they share this one.
     { name: "root-env", testMatch: /(root-env|worker-env|dev-servers|plan-prices-dev)\.spec\.ts/, workers: 1 },
   ],
-  webServer: {
+  webServer: process.env.E2E_NO_WEB_SERVER ? undefined : {
     command: "node e2e/support/web-server.mjs",
     url: `${webOrigin}/api/health`,
     reuseExistingServer: false,

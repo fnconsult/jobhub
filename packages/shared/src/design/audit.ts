@@ -12,7 +12,8 @@ export type AccessibilityViolation = {
 
 type ColorToken = keyof DesignTokens["color"];
 
-const TEXT_COLORS: ColorToken[] = ["text", "textSecondary", "accent", "danger", "success"];
+/** Colours text may take: each is audited at AA on every surface (onAccent on accent). */
+export const TEXT_COLORS: ColorToken[] = ["text", "textSecondary", "accent", "danger", "success"];
 const SURFACES: ColorToken[] = ["background", "surface", "surfaceHover"];
 
 function channel(hex: string, offset: number): number {

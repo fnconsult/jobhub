@@ -1,6 +1,6 @@
 import type { DesignTokens } from "./tokens";
 
-const kebab = (name: string) => name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+export const kebab = (name: string) => name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 const rem = (px: number, base: number) => `${px / base}rem`;
 
 /**

@@ -222,6 +222,11 @@ const STORED_STAGE_SQL = `CASE stripe_status ${Object.entries(STATUS_STAGES)
   .map(([status, stage]) => `WHEN '${status}' THEN ${stage}`)
   .join(" ")} ELSE 2 END`;
 
+/** How long a page waits on Stripe for the Plan prices before rendering without them. */
+const PLAN_PRICE_TIMEOUT_MS = 2_500;
+/** How long after Stripe failed to give the Plan prices before asking it again. */
+const PLAN_PRICE_RETRY_AFTER_MS = 60_000;
+
 /** "2026-10": the calendar month in France, which monthly quotas count by. */
 function monthInFrance(date: Date): string {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit" }).formatToParts(date);
@@ -259,20 +264,26 @@ export function createBilling(config: BillingConfig) {
   /** Stripe Prices' amounts, kept a few minutes: Jobbbox sets them in Stripe and rarely changes them. */
   /** `interval` is set for a recurring Price charged once each interval (not every 3 months, say). */
   type StripeAmount = { amount: number; currency: string; interval: string | null };
+  /** When Stripe last failed to give the Plan prices: pages render without them for a minute, without asking again. */
+  let planPricesFailedAt: number | undefined;
   const priceCache = new Map<string, StripeAmount & { at: number }>();
-  async function amountOf(priceId: string): Promise<StripeAmount> {
+  async function amountOf(priceId: string, options?: Stripe.RequestOptions): Promise<StripeAmount> {
     const cached = priceCache.get(priceId);
     if (cached && now().getTime() - cached.at < 10 * 60_000) return cached;
-    const price = await stripe().client.prices.retrieve(priceId);
+    const price = await stripe().client.prices.retrieve(priceId, {}, options);
     if (price.unit_amount === null) throw new Error(`Stripe Price ${priceId} has no fixed amount`);
     const fetched = { at: now().getTime(), amount: price.unit_amount, currency: price.currency, interval: price.recurring?.interval_count === 1 ? price.recurring.interval : null };
     priceCache.set(priceId, fetched);
     return fetched;
   }
 
-  /** A paid Plan's subscription Price; it must recur once each day, week, month or year. */
+  /**
+   * A paid Plan's subscription Price; it must recur once each day, week, month or year.
+   * Read while a page renders, so a slow or hanging Stripe is given up on quickly
+   * (the SDK otherwise waits 80 s per try, and tries 3 times).
+   */
   async function subscriptionPrice(priceId: string): Promise<PlanPrice> {
-    const { amount, currency, interval } = await amountOf(priceId);
+    const { amount, currency, interval } = await amountOf(priceId, { timeout: PLAN_PRICE_TIMEOUT_MS, maxNetworkRetries: 0 });
     if (!BILLING_INTERVALS.includes(interval as BillingInterval)) throw new Error(`Stripe Price ${priceId} is not charged once each day, week, month or year`);
     return { amount, currency, interval: interval as BillingInterval };
   }
@@ -572,11 +583,14 @@ export function createBilling(config: BillingConfig) {
      */
     async planPrices(): Promise<Record<Plan, PlanPrice> | null> {
       if (!config.stripe) return null;
+      if (planPricesFailedAt !== undefined && now().getTime() - planPricesFailedAt < PLAN_PRICE_RETRY_AFTER_MS) return null;
       const { prices } = config.stripe;
       try {
         const [standard, premium] = await Promise.all([subscriptionPrice(prices.standard), subscriptionPrice(prices.premium)]);
+        planPricesFailedAt = undefined;
         return { free: { ...standard, amount: 0 }, standard, premium };
       } catch (error) {
+        planPricesFailedAt = now().getTime();
         console.error("[billing] Plan prices unavailable from Stripe", error);
         return null;
       }

@@ -513,6 +513,24 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       expect(await oneOff.planPrices()).toBeNull(); // not a subscription Price
       expect(await unreachable.planPrices()).toBeNull();
     });
+
+    it("gives up on a Stripe that never answers within a few seconds, and does not wait on it again at once", async () => {
+      t.stripe.stopAnswering();
+
+      const started = Date.now();
+      expect(await t.billing.planPrices()).toBeNull();
+      expect(Date.now() - started).toBeLessThan(5_000);
+      expect(t.stripe.callsTo(`/v1/prices/${FAKE_STRIPE_PRICES.standard}`)).toHaveLength(1); // no retry
+
+      const again = Date.now();
+      expect(await t.billing.planPrices()).toBeNull();
+      expect(Date.now() - again).toBeLessThan(100);
+      expect(t.stripe.callsTo(`/v1/prices/${FAKE_STRIPE_PRICES.standard}`)).toHaveLength(1);
+
+      t.clock.now = new Date(t.clock.now.getTime() + 2 * 60_000);
+      await t.billing.planPrices();
+      expect(t.stripe.callsTo(`/v1/prices/${FAKE_STRIPE_PRICES.standard}`)).toHaveLength(2);
+    }, 30_000);
   });
 
   describe("Coaching Sessions", () => {

@@ -38,6 +38,7 @@ export function fakeCustomerId(email: string): string {
 export async function startFakeStripe(port = 0) {
   const calls: StripeCall[] = [];
   const forgotten = new Set<string>();
+  let silent = false;
   let sequence = 0;
   const server: Server = createServer((request, response) => {
     let body = "";
@@ -46,6 +47,7 @@ export async function startFakeStripe(port = 0) {
       const path = new URL(request.url ?? "/", "http://stripe.test").pathname;
       const params = new URLSearchParams(body);
       calls.push({ method: request.method ?? "GET", path, params });
+      if (silent) return; // an outage where Stripe takes the request and never answers
       const id = ++sequence;
       const reply = (status: number, json: unknown) => {
         response.writeHead(status, { "content-type": "application/json", "request-id": `req_${id}` });
@@ -86,9 +88,15 @@ export async function startFakeStripe(port = 0) {
     calls,
     /** Makes the fake answer as if the customer had been deleted on Stripe's side. */
     forgetCustomer: (customer: string) => void forgotten.add(customer),
+    /** Makes the fake take every request from now on and never answer it, as a hanging Stripe does. */
+    stopAnswering: () => void (silent = true),
     /** Calls made to one endpoint, e.g. "/v1/checkout/sessions". */
     callsTo: (path: string) => calls.filter((call) => call.path === path),
-    stop: () => new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve()))),
+    stop: () =>
+      new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+        server.closeAllConnections(); // requests left hanging by stopAnswering
+      }),
   };
 }
 

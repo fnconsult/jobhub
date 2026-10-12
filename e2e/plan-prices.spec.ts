@@ -1,15 +1,17 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
+import { startFakeStripe, type FakeStripe } from "../apps/web/src/billing/fake-stripe";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { derivedPort } from "./support/ports";
 
 // Issue #103: the Plans comparison on /abonnement carries a price row, read from
-// Stripe. When Stripe is not configured or cannot answer, the page still renders,
-// without that row. (The row with prices, in both Interface Languages, is covered
-// in billing.spec.ts against the fake Stripe.) Checked on second builds of the app
-// on the suite's database; the Candidate's session carries over (same AUTH_SECRET).
+// Stripe. When Stripe is not configured, cannot be reached or never answers, the
+// page still renders, quickly, without that row. (The row with prices, in both
+// Interface Languages, is covered in billing.spec.ts against the fake Stripe.)
+// Checked on second builds of the app on the suite's database; the Candidate's
+// session carries over (same AUTH_SECRET).
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 
 async function startServer(offset: number, stripe: Record<string, string | undefined>, command = "start") {
@@ -53,10 +55,23 @@ async function startServer(offset: number, stripe: Record<string, string | undef
 }
 
 const configured = { STRIPE_SECRET_KEY: "sk_test_fake", STRIPE_WEBHOOK_SECRET: "whsec_test_fake", STRIPE_PRICE_STANDARD: "price_standard_monthly", STRIPE_PRICE_PREMIUM: "price_premium_monthly" };
-const variants = [
-  { name: "Stripe cannot be reached", offset: 831, stripe: { ...configured, STRIPE_API_URL: "http://127.0.0.1:9" }, command: "start" },
+type Variant = { name: string; offset: number; stripe: () => Promise<Record<string, string>>; command: string };
+let hangingStripe: FakeStripe | undefined;
+const variants: Variant[] = [
+  { name: "Stripe cannot be reached", offset: 831, stripe: async () => ({ ...configured, STRIPE_API_URL: "http://127.0.0.1:9" }), command: "start" },
+  {
+    // An outage where Stripe takes the request and never answers: the page must not wait on it.
+    name: "Stripe never answers",
+    offset: 832,
+    stripe: async () => {
+      hangingStripe = await startFakeStripe();
+      hangingStripe.stopAnswering();
+      return { ...configured, STRIPE_API_URL: hangingStripe.url };
+    },
+    command: "start",
+  },
   // A production build requires Stripe; only the development server runs without it.
-  { name: "Stripe is not configured (development server)", offset: 830, stripe: {}, command: "dev" },
+  { name: "Stripe is not configured (development server)", offset: 830, stripe: async () => ({}), command: "dev" },
 ];
 
 for (const variant of variants) {
@@ -64,13 +79,19 @@ for (const variant of variants) {
     test.describe.configure({ mode: "serial", timeout: 180_000 });
     let server: Awaited<ReturnType<typeof startServer>>;
     test.beforeAll(async () => {
-      server = await startServer(variant.offset, variant.stripe, variant.command);
+      server = await startServer(variant.offset, await variant.stripe(), variant.command);
     });
-    test.afterAll(() => server?.stop());
+    test.afterAll(async () => {
+      server?.stop();
+      await hangingStripe?.stop();
+      hangingStripe = undefined;
+    });
 
     test("/abonnement still renders its comparison, without the price row", async ({ page }) => {
       await signInWithMagicLink(page, newAddress("plan-prices-down"));
+      const started = Date.now();
       const response = await page.goto(`${server.origin}/abonnement`);
+      expect(Date.now() - started, "/abonnement waits on Stripe for the Plan prices only a few seconds").toBeLessThan(10_000);
       expect(response?.status(), server.output()).toBe(200);
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.billing.page.title);
       await expect(page.getByRole("table").getByRole("columnheader")).toHaveText([fr.billing.page.quota, "Gratuite", "Standard", "Premium"]);

@@ -299,6 +299,10 @@ _Avoid_: Limit, allowance, credits
 What a Candidate is shown when a Plan Quota stops them: what they reached and the cheapest Plan that would let them go on, or when the quota renews if no Plan offers more.
 _Avoid_: Paywall, upsell, upgrade popup
 
+**Payment Failed Notice**:
+What a Candidate is shown while their subscription is past due: Stripe is retrying a failed payment and the Plan is kept. It sends them to the Stripe customer portal to update their payment method, and disappears once payment succeeds.
+_Avoid_: Dunning banner, billing alert
+
 ### Operations
 
 **Back Office**:

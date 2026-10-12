@@ -2,6 +2,7 @@ import { FUNNEL_MATCH_SCORE, noDiscoveryMetrics, scoreMatch, type CvContent, typ
 import type { Pool } from "pg";
 import type { FollowUps } from "@jobhub/web/follow-ups";
 
+import { purgeStaleCoachConversations, RETENTION_MONTHS } from "@jobhub/web/coach-conversations";
 import { DIGEST_HOUR, DIGEST_TIME_ZONE, type JobDigests } from "@jobhub/web/job-digests";
 import { createSourceChecks, forgetExpiredGuestCaptures } from "@jobhub/web/job-offers";
 import { JOB_DISCOVERY_QUEUE, type JobSearchReports } from "@jobhub/web/job-searches";
@@ -38,6 +39,9 @@ export const JOB_DIGEST_RUN = "job-digest.run";
 
 /** Queue name: re-check the sources of the Job Offers due (those Candidates are applying to), to find Expired Job Offers. Runs daily. */
 export const SOURCE_RECHECK = "job-offers.recheck-sources";
+
+/** Queue name: delete the Coach Conversations whose last message is RETENTION_MONTHS old. Runs nightly. */
+export const COACH_CONVERSATIONS_PURGE = "coach-conversations.purge";
 
 /** Postgres error code for a table that does not exist yet (the web app's migrations have not run). */
 const UNDEFINED_TABLE = "42P01";
@@ -250,6 +254,16 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         onceTablesExist(async () => {
           const forgotten = await forgetExpiredGuestCaptures(deps.database, now());
           if (forgotten) log(`[worker] forgot ${forgotten} Job Offer(s) captured by Guests`);
+        }),
+    },
+
+    // Coach Conversations are kept 12 months after their last message. Safe to run again.
+    [COACH_CONVERSATIONS_PURGE]: {
+      cron: "30 3 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const purged = await purgeStaleCoachConversations(deps.database, now());
+          if (purged) log(`[coach-conversations] ${purged} Coach Conversation(s) purged, ${RETENTION_MONTHS} months after their last message`);
         }),
     },
 

@@ -3,12 +3,13 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createJobOffers, migrateJobOffers } from "@jobhub/web/job-offers";
 import { createProfiles, migrateProfiles } from "@jobhub/web/profiles";
 import { createApplications, migrateApplications } from "../../web/src/applications";
+import { createCoachConversations, migrateCoachConversations } from "@jobhub/web/coach-conversations";
 import { signInWithMagicLink, startTestAuth } from "../../web/src/auth/test-support";
 import { createThrowawayDatabase } from "../../web/src/test-support/throwaway-database";
 import { JobDiscoveryError, type DiscoverRequest, type DiscoveryReport } from "./job-discovery";
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
 import type { DueJobDigest, JobDigestResult } from "@jobhub/web/job-digests";
-import { createJobs, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { COACH_CONVERSATIONS_PURGE, createJobs, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -455,6 +456,45 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       expect(await jobOffers.get(unfollowed.jobOffer.id)).not.toHaveProperty("expiredAt");
     } finally {
       await testAuth.stop();
+    }
+  });
+
+  it("purges, every night, the Coach Conversations whose last message is 12 months old", async () => {
+    const testAuth = await startTestAuth();
+    try {
+      const database = testAuth.database;
+      await migrateProfiles(database);
+      await migrateCoachConversations(database);
+      const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+      const session = (await (await testAuth.request("/api/auth/get-session", { cookie })).json()) as { user: { id: string } };
+      const conversations = createCoachConversations(database, {
+        coach: { reply: async () => ({ ok: true, reply: "Bonjour Marie" }) },
+        profiles: createProfiles(database),
+      });
+      const sent = await conversations.send(session.user.id, { message: "Bonjour" });
+      if (!sent.ok) throw new Error("fixture refused");
+      const logs: string[] = [];
+      const jobAt = (days: number) =>
+        createJobs({ ...otherDeps, database, now: () => new Date(Date.now() + days * 86_400_000), log: (line) => logs.push(line) })[COACH_CONVERSATIONS_PURGE]!;
+
+      expect(jobAt(0).cron).toBe("30 3 * * *");
+      await jobAt(360).handler({});
+      expect(await conversations.open(session.user.id, sent.conversation.id)).not.toBeNull();
+
+      await jobAt(370).handler({});
+      expect(await conversations.open(session.user.id, sent.conversation.id)).toBeNull();
+      expect(logs).toEqual(["[coach-conversations] 1 Coach Conversation(s) purged, 12 months after their last message"]);
+    } finally {
+      await testAuth.stop();
+    }
+  });
+
+  it("has nothing to purge before the web app has created its tables", async () => {
+    const empty = await createThrowawayDatabase("test_worker_jobs_empty");
+    try {
+      await expect(createJobs({ ...otherDeps, database: empty.pool })[COACH_CONVERSATIONS_PURGE]!.handler({})).resolves.toBeUndefined();
+    } finally {
+      await empty.drop();
     }
   });
 

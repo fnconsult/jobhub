@@ -13,6 +13,7 @@
     "./follow-ups/env": "./src/follow-ups/env.ts",
     "./job-digests": "./src/job-digests/index.ts",
     "./applications": "./src/applications/index.ts",
+    "./coach-conversations": "./src/coach-conversations/index.ts",
     "./mailers": "./src/auth/mailers.ts"
   },
   "scripts": {

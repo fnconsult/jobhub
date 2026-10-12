@@ -109,6 +109,8 @@ function readDocument(file: string, markdown: string, sources: Map<string, Sourc
   const sourceIds = Array.isArray(frontmatter.sources) ? frontmatter.sources : [];
   const unknown = [...new Set([...sourceIds, ...citedSourceIds(markdown)])].filter((sourceId) => !sources.has(sourceId));
   if (unknown.length > 0) throw new CoachKnowledgeError(`${file} cites sources missing from sources.md: ${unknown.join(", ")}`);
+  const unlisted = citedSourceIds(body).filter((sourceId) => !sourceIds.includes(sourceId));
+  if (unlisted.length > 0) throw new CoachKnowledgeError(`${file} cites sources its frontmatter does not list: ${unlisted.join(", ")}`);
   const status = String(frontmatter.statut ?? "");
   return {
     title,

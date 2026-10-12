@@ -1,7 +1,7 @@
 // Run: npx tsx --test docs/research/job-search-providers/pass-rule.test.ts
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { isSinglePosting } from "./pass-rule";
+import { isSinglePosting, scoreProvider } from "./pass-rule";
 
 describe("isSinglePosting", () => {
   // Real URLs from the Perplexity baseline (#97) and the boards French managers use.
@@ -41,4 +41,35 @@ describe("isSinglePosting", () => {
 
   for (const url of singles) it(`one posting: ${url}`, () => assert.equal(isSinglePosting(url), true));
   for (const url of listings) it(`listing or search page: ${url}`, () => assert.equal(isSinglePosting(url), false));
+});
+
+describe("scoreProvider", () => {
+  const posting = (id: number) => `https://www.hellowork.com/fr-fr/emplois/${id}.html`;
+  const listing = "https://www.hellowork.com/fr-fr/emploi/metier_drh-ville_bordeaux-33000.html";
+
+  it("counts the single postings Job discovery could read, and divides by what the searches cost", () => {
+    const score = scoreProvider([
+      {
+        sources: [posting(1), posting(2), posting(3), posting(4), listing],
+        skipped: [
+          { url: posting(2), reason: "not_a_job_offer" },
+          { url: posting(3), reason: "bot_protection" },
+          { url: posting(4), reason: "gone" },
+          { url: listing, reason: "not_a_job_offer" },
+        ],
+        searchEur: 0.004,
+        costEur: 0.02,
+      },
+      { sources: [posting(5)], skipped: [{ url: posting(5), reason: "login_wall" }], searchEur: 0.004, costEur: 0.005 },
+    ]);
+
+    assert.deepEqual(score, {
+      providerUrls: 6,
+      singlePostings: 5,
+      readableSinglePostings: [posting(1), posting(2)],
+      searchEur: 0.008,
+      costEur: 0.025,
+      perSearchEur: 250,
+    });
+  });
 });

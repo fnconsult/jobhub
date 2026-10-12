@@ -172,7 +172,7 @@ A named person at the employer, with contact details, obtained from a licensed d
 _Avoid_: Lead, prospect
 
 **Found person**:
-A person a contact-enrichment provider found at the employer, from the Company Dossier's Suggested Contact Roles, before any contact details. Finding is not counted and is not yet an Enriched Contact.
+A person a contact-enrichment provider found at the employer, from the Company Dossier's Suggested Contact Roles, before any contact details. Finding is not counted and is not yet an Enriched Contact. The search is narrowed to the job's country: the one named in the Job Offer's location, else France for a Company Dossier from the French register, else anywhere. Never a city.
 _Avoid_: Lead, prospect
 
 **Reveal**:

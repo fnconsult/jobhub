@@ -12,4 +12,4 @@ Complex widgets (dialog, dropdown menu, popover, tabs) are built on unstyled Rad
 
 - Add one `@radix-ui/react-<widget>` package per widget, only when a widget needs it; never the whole `radix-ui` bundle.
 - Radix parts are styled through class names and `data-state` / `data-highlighted` attributes in `app.css`, never with inline styles or another CSS system.
-- The Profile switcher is the first use (a dropdown menu). The browser extension keeps its vanilla TypeScript and only shares the tokens.
+- The Profile switcher is the first use (a dropdown menu). The sidebar drawer below 64rem is the second (`@radix-ui/react-dialog`). The browser extension keeps its vanilla TypeScript and only shares the tokens.

@@ -479,6 +479,60 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
     });
   });
 
+  describe("Plan prices", () => {
+    it("prices the paid Plans from their Stripe Prices, and the Free Plan at 0", async () => {
+      expect(await t.billing.planPrices()).toEqual({
+        free: { amount: 0, currency: "eur", interval: "month" },
+        standard: { amount: 1900, currency: "eur", interval: "month" },
+        premium: { amount: 3900, currency: "eur", interval: "month" },
+      });
+    });
+
+    it("asks Stripe again only after a few minutes", async () => {
+      await t.billing.planPrices();
+      await t.billing.planPrices();
+      expect(t.stripe.callsTo(`/v1/prices/${FAKE_STRIPE_PRICES.standard}`)).toHaveLength(1);
+
+      t.clock.now = new Date(t.clock.now.getTime() + 11 * 60_000);
+      await t.billing.planPrices();
+      expect(t.stripe.callsTo(`/v1/prices/${FAKE_STRIPE_PRICES.standard}`)).toHaveLength(2);
+    });
+
+    it("has no prices without Stripe", async () => {
+      const withoutStripe = createBilling({ ...t.config, stripe: undefined });
+
+      expect(await withoutStripe.planPrices()).toBeNull();
+    });
+
+    it("has no prices while Stripe cannot give them", async () => {
+      const unknownPrice = createBilling({ ...t.config, stripe: { ...t.config.stripe!, prices: { ...FAKE_STRIPE_PRICES, premium: "price_unknown" } } });
+      const oneOff = createBilling({ ...t.config, stripe: { ...t.config.stripe!, prices: { ...FAKE_STRIPE_PRICES, premium: FAKE_STRIPE_COACHING_SESSION_PRICES.regular } } });
+      const unreachable = createBilling({ ...t.config, stripe: { ...t.config.stripe!, apiUrl: "http://127.0.0.1:9" } });
+
+      expect(await unknownPrice.planPrices()).toBeNull();
+      expect(await oneOff.planPrices()).toBeNull(); // not a subscription Price
+      expect(await unreachable.planPrices()).toBeNull();
+    });
+
+    it("gives up on a Stripe that never answers within a few seconds, and does not wait on it again at once", async () => {
+      t.stripe.stopAnswering();
+
+      const started = Date.now();
+      expect(await t.billing.planPrices()).toBeNull();
+      expect(Date.now() - started).toBeLessThan(5_000);
+      expect(t.stripe.callsTo(`/v1/prices/${FAKE_STRIPE_PRICES.standard}`)).toHaveLength(1); // no retry
+
+      const again = Date.now();
+      expect(await t.billing.planPrices()).toBeNull();
+      expect(Date.now() - again).toBeLessThan(100);
+      expect(t.stripe.callsTo(`/v1/prices/${FAKE_STRIPE_PRICES.standard}`)).toHaveLength(1);
+
+      t.clock.now = new Date(t.clock.now.getTime() + 2 * 60_000);
+      await t.billing.planPrices();
+      expect(t.stripe.callsTo(`/v1/prices/${FAKE_STRIPE_PRICES.standard}`)).toHaveLength(2);
+    }, 30_000);
+  });
+
   describe("Coaching Sessions", () => {
     async function onPlan(email: string, plan: "standard" | "premium") {
       const candidate = await t.signUp(email);

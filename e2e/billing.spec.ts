@@ -73,6 +73,21 @@ test.describe("Plans and Stripe billing", () => {
     expect(await formRedirect(page, "/api/billing/portal", fr.billing.page.manage)).toMatch(/^https:\/\/billing\.stripe\.test\//);
   });
 
+  // Issue #103: the comparison prices each Plan from its Stripe Price (the fake's: 19 € and 39 € a month).
+  test("the Plans show what they cost, in the Candidate's Interface Language", async ({ page }) => {
+    const email = newAddress("plan-prices");
+    await signInWithMagicLink(page, email);
+    await page.goto("/abonnement");
+    const prices = async (label: string) => (await planRow(page, label)).map((cell) => cell.replace(/\s/g, " "));
+    expect(await prices(fr.billing.page.price)).toEqual(["0 € / mois", "19 € / mois", "39 € / mois"]);
+
+    await page.goto("/compte");
+    await page.getByLabel(fr.account.interfaceLanguage).selectOption("en");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(en.account.title);
+    await page.goto("/abonnement");
+    expect(await prices(en.billing.page.price)).toEqual(["€0 / month", "€19 / month", "€39 / month"]);
+  });
+
   test("the webhook refuses deliveries Stripe did not sign", async ({ page }) => {
     const event = subscriptionEvent("customer.subscription.created", { customer: "cus_x", price: FAKE_STRIPE_PRICES.premium, status: "active" });
     const forged = signedEvent(event, "whsec_someone_else");

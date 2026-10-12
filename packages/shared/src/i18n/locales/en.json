@@ -452,7 +452,8 @@
       "invoicesHelp": "Download your invoices and update your payment method on the secure page of our payment provider, Stripe.",
       "unavailable": "Online payment is not available at the moment. Please try again later.",
       "error": "Something went wrong. Please try again.",
-      "redirecting": "Taking you to the payment page…"
+      "redirecting": "Taking you to the payment page…",
+      "price": "Price"
     },
     "quotas": {
       "profiles": "Profiles",
@@ -466,6 +467,12 @@
       "none": "Not included",
       "weekly": "Weekly",
       "daily": "Daily"
+    },
+    "pricePer": {
+      "day": "{{price}} / day",
+      "week": "{{price}} / week",
+      "month": "{{price}} / month",
+      "year": "{{price}} / year"
     }
   },
   "admin": {

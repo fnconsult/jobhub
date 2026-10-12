@@ -8,6 +8,7 @@ import { subscribe } from "./support/plan";
 // Issue #22: Plans, Stripe billing (checkout, customer portal, webhooks) and
 // Plan Quotas edited in the back office. Stripe is the fake API on E2E_STRIPE_URL.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
+const en = JSON.parse(readFileSync("packages/shared/src/i18n/locales/en.json", "utf8"));
 const stripeUrl = process.env.E2E_STRIPE_URL!;
 const ADMINISTRATOR = "back-office@e2e.jobbbox.test";
 
@@ -143,6 +144,38 @@ test.describe("Plans and Stripe billing", () => {
     await deliverWebhook(page, subscriptionEvent("customer.subscription.deleted", { ...premium, status: "canceled" }, at(50)));
     await currentPlanIs(page, "Gratuite");
     await expect(page.getByRole("button", { name: "Choisir l'offre Premium" })).toBeVisible();
+  });
+
+  // Issue #104: invoices live in the Stripe customer portal (ADR-0014).
+  test("a Candidate who pays finds their invoices in the Stripe customer portal, and still does once back on Free", async ({ page, baseURL }) => {
+    const email = newAddress("invoices");
+    await signInWithMagicLink(page, email);
+    await page.goto("/abonnement");
+    await expect(page.getByText("Votre offre actuelle : Gratuite")).toBeVisible();
+    // Never charged: nothing to find there.
+    await expect(page.getByRole("button", { name: fr.billing.page.invoices })).toHaveCount(0);
+    await expect(page.getByText(fr.billing.page.invoicesHelp)).toHaveCount(0);
+
+    await subscribe(page, email, "standard");
+    await currentPlanIs(page, "Standard");
+    await expect(page.getByText(fr.billing.page.invoicesHelp)).toBeVisible();
+    expect(await formRedirect(page, "/api/billing/portal", fr.billing.page.invoices)).toMatch(/^https:\/\/billing\.stripe\.test\//);
+    const portal = (await stripeCalls("/v1/billing_portal/sessions")).filter((call) => call.params.customer === fakeCustomerId(email));
+    expect(portal).toHaveLength(1);
+
+    // Cancelled: back on Free, but the invoices already paid are still there.
+    const later = new Date(Date.now() + 60_000);
+    await deliverWebhook(page, subscriptionEvent("customer.subscription.deleted", { customer: fakeCustomerId(email), price: FAKE_STRIPE_PRICES.standard, status: "canceled" }, later));
+    await currentPlanIs(page, "Gratuite");
+    await expect(page.getByRole("button", { name: fr.billing.page.invoices })).toBeVisible();
+    await expect(page.getByRole("button", { name: fr.billing.page.manage })).toHaveCount(0);
+
+    // In English too.
+    const switched = await page.request.post("/api/auth/update-user", { data: { interfaceLanguage: "en" }, headers: { origin: baseURL! } });
+    expect(switched.status()).toBe(200);
+    await page.goto("/abonnement");
+    await expect(page.getByRole("button", { name: en.billing.page.invoices })).toBeVisible();
+    await expect(page.getByText(en.billing.page.invoicesHelp)).toBeVisible();
   });
 
   test("the webhook refuses deliveries without a signature", async ({ page }) => {

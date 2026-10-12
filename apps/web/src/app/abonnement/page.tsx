@@ -16,14 +16,18 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const QUOTA_ROWS = [...LIMITED_QUOTAS, "jobDigest"] as const satisfies readonly (keyof PlanQuotas)[];
 
-/** The Candidate's Plan, this month's usage, the Plans side by side, and the way to Stripe. */
+/** The Candidate's Plan, this month's usage, the Plans side by side, and the way to Stripe (and their invoices there). */
 export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ checkout?: string; error?: string }> }) {
   const candidate = await getCurrentCandidate();
   if (!candidate) redirect(routes.signIn);
   const t = await getServerT();
   const { checkout, error } = await searchParams;
   const billing = getBilling();
-  const [{ plan, quotas, usedThisMonth }, allQuotas] = await Promise.all([billing.entitlements(candidate.id), billing.planQuotas()]);
+  const [{ plan, quotas, usedThisMonth }, allQuotas, hasInvoices] = await Promise.all([
+    billing.entitlements(candidate.id),
+    billing.planQuotas(),
+    billing.hasInvoices(candidate.id),
+  ]);
   const planName = (name: (typeof PLANS)[number]) => t(`billing.plans.${name}`);
 
   return (
@@ -116,6 +120,15 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
           <p>{t("billing.page.manageHelp")}</p>
           <button className="button button-primary" type="submit">
             {t("billing.page.manage")}
+          </button>
+        </form>
+      ) : null}
+
+      {hasInvoices ? (
+        <form className="stack" method="post" action="/api/billing/portal">
+          <p>{t("billing.page.invoicesHelp")}</p>
+          <button className="button" type="submit">
+            {t("billing.page.invoices")}
           </button>
         </form>
       ) : null}

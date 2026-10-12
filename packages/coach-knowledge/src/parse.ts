@@ -5,6 +5,8 @@ export type Frontmatter = Record<string, string | string[]>;
 export type ParsedPlaybook = {
   frontmatter: Frontmatter;
   title: string;
+  /** The Markdown after the frontmatter. */
+  body: string;
   rules: { id: string; title: string; text: string }[];
 };
 
@@ -33,7 +35,7 @@ function unquote(value: string): string {
 export function parsePlaybook(markdown: string): ParsedPlaybook {
   const { frontmatter, body } = parseFrontmatter(markdown);
   const title = /^# (.+)$/m.exec(body)?.[1]?.trim() ?? "";
-  return { frontmatter, title, rules: parseRules(section(body, "Règles")) };
+  return { frontmatter, title, body: body.trim(), rules: parseRules(section(body, "Règles")) };
 }
 
 /** The lines of a `## heading` section, up to the next `## ` heading. */

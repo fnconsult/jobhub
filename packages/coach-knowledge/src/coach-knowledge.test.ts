@@ -66,6 +66,34 @@ describe("loadCoachKnowledge — the imported playbooks", () => {
   });
 });
 
+describe("loadCoachKnowledge — the core digest", () => {
+  const digest = loadCoachKnowledge({ environment: "eval" }).coreDigest();
+
+  it("is about 1k tokens of cross-cutting rules, ready for a system prompt", () => {
+    // ~3.5 characters per token for French prose: 2,800–4,800 characters ≈ 800–1,350 tokens.
+    expect(digest?.text.length).toBeGreaterThan(2800);
+    expect(digest?.text.length).toBeLessThan(4800);
+    expect(digest?.text).not.toMatch(/^---/);
+    expect(digest).toMatchObject({ version: "1.0", humanValidated: false });
+  });
+
+  it("covers the five cross-cutting rules, each grounded in a cited source", () => {
+    expect(digest?.rules.map((rule) => rule.title)).toEqual([
+      expect.stringMatching(/jamais .*résultat/i),
+      expect.stringMatching(/recherche longue.*marché/i),
+      expect.stringMatching(/budget/i),
+      expect.stringMatching(/faits.*résultats/i),
+      expect.stringMatching(/contact humain/i),
+    ]);
+    for (const rule of digest?.rules ?? []) expect(rule.sourceIds.length, rule.id).toBeGreaterThan(0);
+    expect(digest?.sources.map((source) => source.id)).toEqual(expect.arrayContaining(["S24", "S35", "S55"]));
+  });
+
+  it("is not served in production until a human validated it", () => {
+    expect(loadCoachKnowledge({ environment: "production" }).coreDigest()).toBeUndefined();
+  });
+});
+
 describe("loadCoachKnowledge — which playbooks are served", () => {
   const dir = knowledgeDir({
     sources: ["S1"],
@@ -108,6 +136,24 @@ describe("loadCoachKnowledge — a knowledge folder", () => {
     });
 
     expect(() => loadCoachKnowledge({ environment: "eval", dir })).toThrow(/ats-optimization.*S99/);
+  });
+
+  it("refuses a playbook citing a source its frontmatter does not list, so its sources resolve every rule's", () => {
+    const dir = knowledgeDir({
+      sources: ["S1", "S2"],
+      playbooks: { "ats-optimization": playbookMarkdown({ id: "ats-optimization", sources: ["S1"], body: "Texte. [S1][S2]" }) },
+    });
+
+    expect(() => loadCoachKnowledge({ environment: "eval", dir })).toThrow(/ats-optimization.*frontmatter.*S2/);
+  });
+
+  it("refuses a playbook file that is not a known playbook id", () => {
+    const dir = knowledgeDir({
+      sources: ["S1"],
+      playbooks: { "salary-negotiation": playbookMarkdown({ id: "salary-negotiation", sources: ["S1"], body: "[S1]" }) },
+    });
+
+    expect(() => loadCoachKnowledge({ environment: "eval", dir })).toThrow(/salary-negotiation/);
   });
 });
 
@@ -152,6 +198,7 @@ function knowledgeDir({ sources, playbooks }: { sources: string[]; playbooks: Re
       .concat(sources.map((id) => `| ${id} | Titre ${id} | Auteur | 2026 | https://example.org/${id} | publique |`))
       .join("\n"),
   );
+  writeFileSync(path.join(dir, "core-digest.md"), playbookMarkdown({ id: "core-digest", sources: [], body: "Socle." }));
   for (const [id, markdown] of Object.entries(playbooks)) writeFileSync(path.join(dir, "playbooks", `${id}.md`), markdown);
   return dir;
 }

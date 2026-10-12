@@ -30,8 +30,8 @@ export type Source = ParsedSource;
 /** One `Rn` rule of a playbook. `sourceIds` are the `[Sn]` it cites. */
 export type PlaybookRule = { id: string; title: string; text: string; sourceIds: string[] };
 
-export type Playbook = {
-  id: PlaybookId;
+/** What a playbook and the core digest share: a versioned, reviewed set of rules grounded in sources. */
+export type KnowledgeDocument = {
   title: string;
   version: string;
   updated: string;
@@ -42,24 +42,33 @@ export type Playbook = {
   rules: PlaybookRule[];
   /** The frontmatter `sources`, resolved against `sources.md`. */
   sources: Source[];
+  /** The whole Markdown without its frontmatter, ready for a prompt. */
+  text: string;
 };
+
+export type Playbook = KnowledgeDocument & { id: PlaybookId };
+
+/** The ~1k-token cross-cutting rules the AI Coach always follows, whatever the topic. */
+export type CoreDigest = KnowledgeDocument;
 
 export type KnowledgeEnvironment = "production" | "development" | "eval";
 
 /**
- * In "production" only playbooks a human validated are served; "development" and "eval"
- * get every playbook, so unvalidated ones can be tried and measured before they ship.
+ * In "production" only what a human validated is served; "development" and "eval" get
+ * everything, so unvalidated playbooks can be tried and measured before they ship.
  */
 export type CoachKnowledge = {
   /** The playbook, or undefined when it does not exist or is not served in this environment. */
   playbook(id: PlaybookId): Playbook | undefined;
   /** The playbooks served in this environment, by id. */
   playbooks(): Playbook[];
+  /** The core digest, or undefined when it is not served in this environment. */
+  coreDigest(): CoreDigest | undefined;
 };
 
 export type LoadCoachKnowledgeOptions = {
   environment: KnowledgeEnvironment;
-  /** The folder holding `playbooks/` and `sources.md`. Defaults to this package's own. */
+  /** The folder holding `playbooks/`, `core-digest.md` and `sources.md`. Defaults to this package's own. */
   dir?: string;
 };
 
@@ -70,32 +79,47 @@ export class CoachKnowledgeError extends Error {
 
 const packageDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
+/** Reads and checks the knowledge files. Throws `CoachKnowledgeError` when they are inconsistent. */
 export function loadCoachKnowledge({ environment, dir = packageDir }: LoadCoachKnowledgeOptions): CoachKnowledge {
   const sources = new Map(parseSources(readFileSync(path.join(dir, "sources.md"), "utf8")).map((source) => [source.id, source]));
-  const playbooksDir = path.join(dir, "playbooks");
-  const playbooks = new Map<string, Playbook>();
-  for (const file of readdirSync(playbooksDir).filter((name) => name.endsWith(".md")).sort()) {
-    const markdown = readFileSync(path.join(playbooksDir, file), "utf8");
-    const parsed = parsePlaybook(markdown);
-    const { frontmatter } = parsed;
-    const id = String(frontmatter.playbook ?? file.replace(/\.md$/, "")) as PlaybookId;
-    const sourceIds = Array.isArray(frontmatter.sources) ? frontmatter.sources : [];
-    const unknown = [...new Set([...sourceIds, ...citedSourceIds(markdown)])].filter((sourceId) => !sources.has(sourceId));
-    if (unknown.length > 0) throw new CoachKnowledgeError(`Playbook ${id} cites sources missing from sources.md: ${unknown.join(", ")}`);
-    playbooks.set(id, {
-      id,
-      title: parsed.title,
-      version: String(frontmatter.version ?? ""),
-      updated: String(frontmatter.updated ?? ""),
-      status: String(frontmatter.statut ?? ""),
-      humanValidated: isHumanValidated(String(frontmatter.statut ?? "")),
-      rules: parsed.rules.map((rule) => ({ ...rule, sourceIds: citedSourceIds(`${rule.title}\n${rule.text}`) })),
-      sources: sourceIds.map((sourceId) => sources.get(sourceId)!),
-    });
-  }
-  const served = [...playbooks.values()].filter((playbook) => environment !== "production" || playbook.humanValidated);
-  const servedById = new Map(served.map((playbook) => [playbook.id, playbook]));
-  return { playbook: (id) => servedById.get(id), playbooks: () => [...served] };
+  const read = (file: string) => readDocument(file, readFileSync(path.join(dir, file), "utf8"), sources);
+  const served = <T extends KnowledgeDocument>(document: T) => environment !== "production" || document.humanValidated;
+
+  const playbooks = readdirSync(path.join(dir, "playbooks"))
+    .filter((name) => name.endsWith(".md"))
+    .sort()
+    .map((file) => {
+      const id = file.replace(/\.md$/, "");
+      if (!(PLAYBOOK_IDS as readonly string[]).includes(id)) throw new CoachKnowledgeError(`Unknown playbook ${id}`);
+      return { id: id as PlaybookId, ...read(path.join("playbooks", file)) };
+    })
+    .filter(served);
+  const byId = new Map(playbooks.map((playbook) => [playbook.id, playbook]));
+  const digest = read("core-digest.md");
+
+  return {
+    playbook: (id) => byId.get(id),
+    playbooks: () => [...playbooks],
+    coreDigest: () => (served(digest) ? digest : undefined),
+  };
+}
+
+function readDocument(file: string, markdown: string, sources: Map<string, Source>): KnowledgeDocument {
+  const { frontmatter, title, body, rules } = parsePlaybook(markdown);
+  const sourceIds = Array.isArray(frontmatter.sources) ? frontmatter.sources : [];
+  const unknown = [...new Set([...sourceIds, ...citedSourceIds(markdown)])].filter((sourceId) => !sources.has(sourceId));
+  if (unknown.length > 0) throw new CoachKnowledgeError(`${file} cites sources missing from sources.md: ${unknown.join(", ")}`);
+  const status = String(frontmatter.statut ?? "");
+  return {
+    title,
+    version: String(frontmatter.version ?? ""),
+    updated: String(frontmatter.updated ?? ""),
+    status,
+    humanValidated: isHumanValidated(status),
+    rules: rules.map((rule) => ({ ...rule, sourceIds: citedSourceIds(`${rule.title}\n${rule.text}`) })),
+    sources: sourceIds.map((sourceId) => sources.get(sourceId)!),
+    text: body,
+  };
 }
 
 /** "validé (François Nader, 2026-10-10)" is a human validation; "validé (auto-QA Claude, …)" or a draft is not. */

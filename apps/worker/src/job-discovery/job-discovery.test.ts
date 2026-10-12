@@ -2,7 +2,7 @@ import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import type { JobOffer, SearchCriteria } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { createJobDiscovery, type JobOfferStore } from "./index";
+import { createJobDiscovery, JobDiscoveryError, type JobOfferStore } from "./index";
 
 const criteria: SearchCriteria = {
   targetRole: "Directeur financier",
@@ -65,7 +65,7 @@ function memoryJobOffers(existing: JobOffer[] = []): JobOfferStore & { all: JobO
   };
 }
 
-function setup(options: { sources: string[]; pages: Record<string, Page>; reply?: string; existing?: JobOffer[] }) {
+function setup(options: { sources: string[]; pages: Record<string, Page>; reply?: string | (() => string); existing?: JobOffer[] }) {
   const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources });
   const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}' });
   const ai = createAiLayer({
@@ -155,7 +155,7 @@ describe("Job discovery", () => {
 
       const report = await discovery.discover({ candidateId: "c", criteria });
 
-      expect(report).toEqual({ jobOffers: [], skipped: [{ url: DAF_URL, reason: "robots" }] });
+      expect(report).toMatchObject({ jobOffers: [], skipped: [{ url: DAF_URL, reason: "robots" }] });
       expect(web.fetched()).toEqual([ROBOTS]);
       expect(web.requests[0]!.userAgent).toMatch(/^JobbboxBot\//);
     });
@@ -399,7 +399,7 @@ describe("Job discovery", () => {
 
       const report = await discovery.discover({ candidateId: "c", criteria });
 
-      expect(report).toEqual({
+      expect(report).toMatchObject({
         jobOffers: [],
         skipped: [
           { url: DAF_URL, reason: "not_a_job_offer" },
@@ -452,6 +452,66 @@ describe("Job discovery", () => {
 
       expect(report.jobOffers).toHaveLength(1);
       expect(jobOffers.all).toHaveLength(1);
+    });
+  });
+
+  describe("measuring a run", () => {
+    const stored: JobOffer = { id: "stored-1", source: { url: "https://stockee.example.fr/offre" }, title: "DAF", content: "Poste de DAF déjà connu." };
+    const posting = jobPostingPage({ title: "DAF", description: "Poste de DAF à Lyon." });
+    const mirror = "https://miroir.example.fr/offre/daf";
+    const listing = "https://emplois.example.fr/offres?q=daf";
+    const gone = "https://emplois.example.fr/offres/pourvue";
+
+    it("counts each stage of the funnel: provider URLs, pages read, Job Offers extracted, and those already stored", async () => {
+      const { discovery } = setup({
+        sources: [stored.source.url!, gone, DAF_URL, listing, mirror, DAF_URL],
+        pages: { [DAF_URL]: { body: posting }, [mirror]: { body: posting }, [listing]: { body: "<html><body><h1>12 offres DAF</h1></body></html>" } },
+        existing: [stored],
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.funnel).toEqual({ providerUrls: 5, fetched: 3, extracted: 2, alreadyStored: 1 });
+      expect(report.jobOffers.map((offer) => offer.id)).toEqual(["stored-1", "offer-2"]);
+      expect(report.skipped).toEqual([
+        { url: gone, reason: "gone" },
+        { url: listing, reason: "not_a_job_offer" },
+      ]);
+    });
+
+    it("adds up the cost in € of the web search and of each page the LLM read", async () => {
+      const listing2 = "https://emplois.example.fr/offres?q=raf";
+      const { discovery } = setup({
+        sources: [listing, listing2, DAF_URL],
+        pages: { [listing]: { body: "<html><body>Offres</body></html>" }, [listing2]: { body: "<html><body>Offres</body></html>" }, [DAF_URL]: { body: posting } },
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      // Fakes use 10 input and 5 output tokens per call. Search: $0.0025 + 10 × $0.20/M + 5 × $1.20/M;
+      // each LLM read (Anthropic default): 10 × $5/M + 5 × $25/M; at €0.86 per $.
+      expect(report.costEur).toBeCloseTo((0.002508 + 2 * 0.000175) * 0.86, 9);
+    });
+
+    it("keeps what a run measured before it failed", async () => {
+      const { discovery } = setup({
+        sources: [gone, listing],
+        pages: { [listing]: { body: "<html><body>Offres</body></html>" } },
+        reply: () => {
+          throw new Error("LLM down");
+        },
+      });
+
+      const failure = await discovery.discover({ candidateId: "c", criteria }).catch((error: unknown) => error);
+
+      expect(failure).toBeInstanceOf(JobDiscoveryError);
+      expect((failure as JobDiscoveryError).message).toBe("LLM down");
+      expect((failure as JobDiscoveryError).partial).toMatchObject({
+        jobOffers: [],
+        skipped: [{ url: gone, reason: "gone" }],
+        funnel: { providerUrls: 2, fetched: 1, extracted: 0, alreadyStored: 0 },
+      });
+      expect((failure as JobDiscoveryError).partial.costEur).toBeCloseTo(0.002508 * 0.86, 9);
     });
   });
 });

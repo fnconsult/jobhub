@@ -196,6 +196,72 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
 
     expect(result).toMatchObject({ ok: true, jobSearch: { status: "failed" } });
   });
+  describe("what a Job Search measured", () => {
+    const measured = {
+      funnel: { providerUrls: 10, fetched: 4, extracted: 2, alreadyStored: 1, afterDedup: 2, matched: 1 },
+      skipped: { robots: 1, site_terms: 2, bot_protection: 3, login_wall: 0, not_public: 0, gone: 1, unreachable: 0, not_a_job_offer: 2, invalid: 0 },
+      costEur: 0.0142,
+    };
+    const nothing = {
+      funnel: { providerUrls: 0, fetched: 0, extracted: 0, alreadyStored: 0, afterDedup: 0, matched: 0 },
+      skipped: { robots: 0, site_terms: 0, bot_protection: 0, login_wall: 0, not_public: 0, gone: 0, unreachable: 0, not_a_job_offer: 0, invalid: 0 },
+      costEur: 0,
+    };
+    const later = (ms: number) => (clock.now = new Date(clock.now.getTime() + ms));
+
+    it("is unknown while it is searching", async () => {
+      const jobSearch = await started();
+
+      expect((await jobSearches.get(candidateId, jobSearch.id))?.metrics).toBeNull();
+    });
+
+    it("keeps with a finished Job Search its funnel, pages skipped by reason, cost, and how long the Candidate waited", async () => {
+      const jobOfferId = await capture("DAF H/F", { location: "Lyon" });
+      const jobSearch = await started();
+      later(42_500);
+
+      await jobSearches.record(jobSearch.id, { jobOfferIds: [jobOfferId], metrics: measured });
+
+      expect((await jobSearches.get(candidateId, jobSearch.id))?.metrics).toEqual({ ...measured, durationMs: 42_500 });
+    });
+
+    it("keeps with a failed Job Search what Job discovery measured before failing", async () => {
+      const jobSearch = await started();
+      later(8_000);
+
+      await jobSearches.record(jobSearch.id, { failed: "discovery_failed", metrics: measured });
+
+      expect((await jobSearches.get(candidateId, jobSearch.id))?.metrics).toEqual({ ...measured, durationMs: 8_000 });
+    });
+
+    it("counts nothing for a Job Search that failed before Job discovery ran, never answered, or could not be queued", async () => {
+      const unavailable = await started();
+      later(1_000);
+      await jobSearches.record(unavailable.id, { failed: "unavailable" });
+      expect((await jobSearches.get(candidateId, unavailable.id))?.metrics).toEqual({ ...nothing, durationMs: 1_000 });
+
+      const expired = await started();
+      later(20 * 60 * 1000);
+      await createJobSearchReports(testAuth.auth.options.database as Pool, { quotas: billing, now: () => clock.now }).expireTimedOut();
+      expect((await jobSearches.get(candidateId, expired.id))?.metrics).toEqual({ ...nothing, durationMs: 20 * 60 * 1000 });
+
+      const forgotten = await started();
+      later(16 * 60 * 1000);
+      expect(await jobSearches.get(candidateId, forgotten.id)).toMatchObject({ status: "failed", metrics: { ...nothing, durationMs: 16 * 60 * 1000 } });
+
+      const searches = createJobSearches(testAuth.auth.options.database as Pool, {
+        profiles,
+        jobOffers,
+        applications,
+        quotas: billing,
+        queue: { send: async () => Promise.reject(new Error("connection refused")) },
+        now: () => clock.now,
+      });
+      const unqueued = await searches.start(candidateId, { profileId });
+      expect(unqueued.ok && (await jobSearches.get(candidateId, unqueued.jobSearch.id))?.metrics).toEqual({ ...nothing, durationMs: 0 });
+    });
+  });
+
   describe("the Plan Quota of Job Searches", () => {
     const used = async () => (await billing.entitlements(candidateId)).usedThisMonth.jobSearches;
 

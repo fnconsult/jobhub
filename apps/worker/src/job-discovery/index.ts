@@ -11,9 +11,12 @@
  * page. Each posting is captured as a Job Offer; one already stored (same
  * source URL, or same text from another site) is returned, never duplicated,
  * and a known URL is not fetched again.
+ *
+ * Each run is measured (its funnel and cost in €), also when it fails: the
+ * error is then a JobDiscoveryError carrying what the run measured until then.
  */
-import type { AiLayer } from "@jobhub/ai";
-import type { JobOffer, JobOfferDetails, SearchCriteria } from "@jobhub/shared";
+import { costInEur, type AiLayer } from "@jobhub/ai";
+import type { DiscoveryMetrics, JobOffer, JobOfferDetails, SearchCriteria, SkipReason as CountedSkipReason } from "@jobhub/shared";
 import { htmlToText, metaRobots } from "./html";
 import { countJobPostings, readJobPosting } from "./job-posting";
 import { extractWithLlm } from "./llm-extraction";
@@ -52,12 +55,33 @@ export interface DiscoverRequest {
 
 /** Why a result page gave no Job Offer. */
 export type SkipReason = RefusalReason | "not_a_job_offer" | "invalid";
+// The Job discovery metrics count pages by these reasons: the two lists must stay the same.
+const sameSkipReasons: [SkipReason, CountedSkipReason] extends [CountedSkipReason, SkipReason] ? true : never = true;
+void sameSkipReasons;
 
 export interface DiscoveryReport {
   /** The Job Offers found, new or already stored, each once. */
   jobOffers: JobOffer[];
   /** Result pages that gave no Job Offer, and why. */
   skipped: { url: string; reason: SkipReason }[];
+  /** How many results went how far: the stages before deduplication (`jobOffers` is the one after). */
+  funnel: DiscoveryFunnel;
+  /** The estimated cost in € of the run's AI calls: the web search and each page the LLM read. */
+  costEur: number;
+}
+
+/** The funnel's stages up to deduplication. Only the first `maxPages` provider URLs are looked at. */
+export type DiscoveryFunnel = Omit<DiscoveryMetrics["funnel"], "afterDedup" | "matched">;
+
+/** Job discovery failed part-way: `partial` is what the run found and measured until then. */
+export class JobDiscoveryError extends Error {
+  constructor(
+    readonly partial: DiscoveryReport,
+    readonly cause: unknown,
+  ) {
+    super(cause instanceof Error ? cause.message : String(cause));
+    this.name = "JobDiscoveryError";
+  }
 }
 
 export interface JobDiscovery {
@@ -86,44 +110,85 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         maxBytes: 3 * 1024 * 1024,
         clock: options.clock,
       });
-      const search = await options.ai.searchWeb({ candidateId, criteria });
-      const sources = [...new Set(search.sources)].slice(0, maxPages);
-
       const found = new Map<string, JobOffer>();
-      const skipped: DiscoveryReport["skipped"] = [];
+      const report: DiscoveryReport = {
+        jobOffers: [],
+        skipped: [],
+        funnel: { providerUrls: 0, fetched: 0, extracted: 0, alreadyStored: 0 },
+        costEur: 0,
+      };
+      const ai = costing(options.ai, (eur) => (report.costEur += eur));
+      const { funnel, skipped } = report;
       const storedAt = (url: string) => options.jobOffers.findBySourceUrl(url).catch(() => null);
-      for (const url of sources) {
-        const known = await storedAt(url);
-        if (known) {
-          found.set(known.id, known);
-          continue;
+      const alreadyStored = (jobOffer: JobOffer) => {
+        found.set(jobOffer.id, jobOffer);
+        funnel.alreadyStored++;
+      };
+
+      try {
+        const search = await ai.searchWeb({ candidateId, criteria });
+        const distinct = [...new Set(search.sources)];
+        funnel.providerUrls = distinct.length;
+        for (const url of distinct.slice(0, maxPages)) {
+          const known = await storedAt(url);
+          if (known) {
+            alreadyStored(known);
+            continue;
+          }
+          // A result can redirect to a page captured earlier (in this run or before): use that Job Offer.
+          const page = await fetcher.page(url, storedAt);
+          if (page.ok === "known") {
+            alreadyStored(page.known);
+            continue;
+          }
+          if (!page.ok) {
+            skipped.push({ url, reason: page.reason });
+            continue;
+          }
+          funnel.fetched++;
+          if (metaRobots(page.html).some((value) => /\b(noindex|none)\b/.test(value))) {
+            skipped.push({ url, reason: "robots" });
+            continue;
+          }
+          const details =
+            readJobPosting(page.html) ??
+            (countJobPostings(page.html) > 1 ? null : await extractWithLlm(ai, candidateId, htmlToText(page.html)));
+          if (!details) {
+            skipped.push({ url, reason: "not_a_job_offer" });
+            continue;
+          }
+          funnel.extracted++;
+          const captured = await options.jobOffers.capture({ source: { url: page.url }, ...details });
+          if (captured.ok) found.set(captured.jobOffer.id, captured.jobOffer);
+          else skipped.push({ url, reason: "invalid" });
         }
-        // A result can redirect to a page captured earlier (in this run or before): use that Job Offer.
-        const page = await fetcher.page(url, storedAt);
-        if (page.ok === "known") {
-          found.set(page.known.id, page.known);
-          continue;
-        }
-        if (!page.ok) {
-          skipped.push({ url, reason: page.reason });
-          continue;
-        }
-        if (metaRobots(page.html).some((value) => /\b(noindex|none)\b/.test(value))) {
-          skipped.push({ url, reason: "robots" });
-          continue;
-        }
-        const details =
-          readJobPosting(page.html) ??
-          (countJobPostings(page.html) > 1 ? null : await extractWithLlm(options.ai, candidateId, htmlToText(page.html)));
-        if (!details) {
-          skipped.push({ url, reason: "not_a_job_offer" });
-          continue;
-        }
-        const captured = await options.jobOffers.capture({ source: { url: page.url }, ...details });
-        if (captured.ok) found.set(captured.jobOffer.id, captured.jobOffer);
-        else skipped.push({ url, reason: "invalid" });
+      } catch (error) {
+        report.jobOffers = [...found.values()];
+        throw new JobDiscoveryError(report, error);
       }
-      return { jobOffers: [...found.values()], skipped };
+      report.jobOffers = [...found.values()];
+      return report;
+    },
+  };
+}
+
+/** The AI layer, telling `spend` the cost in € of each call made through it. */
+function costing(ai: AiLayer, spend: (eur: number) => void): AiLayer {
+  return {
+    async generate(request) {
+      const result = await ai.generate(request);
+      spend(costInEur(result));
+      return result;
+    },
+    async searchWeb(request) {
+      const result = await ai.searchWeb(request);
+      spend(costInEur(result));
+      return result;
+    },
+    async searchCompany(request) {
+      const result = await ai.searchCompany(request);
+      spend(costInEur(result));
+      return result;
     },
   };
 }

@@ -23,3 +23,5 @@ export { buildCompanyQuery, buildSearchQuery, COMPANY_FACTS } from "./search-que
 export { PROVIDER_IDS, SEARCH_TASK, TEXT_TASKS } from "./types";
 export type * from "./types";
 export { createConsoleUsageLog } from "./usage";
+export { costInEur, EUR_PER_USD } from "./cost";
+export type { PricedCall } from "./cost";

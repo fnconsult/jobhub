@@ -5,7 +5,7 @@ import { createProfiles, migrateProfiles } from "@jobhub/web/profiles";
 import { createApplications, migrateApplications } from "../../web/src/applications";
 import { signInWithMagicLink, startTestAuth } from "../../web/src/auth/test-support";
 import { createThrowawayDatabase } from "../../web/src/test-support/throwaway-database";
-import type { DiscoverRequest, DiscoveryReport } from "./job-discovery";
+import { JobDiscoveryError, type DiscoverRequest, type DiscoveryReport } from "./job-discovery";
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
 import type { DueJobDigest, JobDigestResult } from "@jobhub/web/job-digests";
 import { createJobs, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
@@ -45,13 +45,47 @@ const found = [
   { id: "offer-2", source: {}, title: "Directeur financier", content: "Directeur financier à Lyon." },
 ];
 
+/** What Job discovery reports: the Job Offers found, and what it measured. */
+function discoveryReport(report: Partial<DiscoveryReport> = {}): DiscoveryReport {
+  return { jobOffers: [], skipped: [], funnel: { providerUrls: 0, fetched: 0, extracted: 0, alreadyStored: 0 }, costEur: 0, ...report };
+}
+
+/** One Job Offer the Profile matches (its skill, in its town), one it does not. */
+const strongMatch = { id: "offer-strong", source: {}, title: "Directrice financière", content: "DAF à Lyon, IFRS.", location: "Lyon", skills: ["IFRS"] };
+const weakMatch = { id: "offer-weak", source: {}, title: "Développeur Java", content: "Java à Brest.", location: "Brest", skills: ["Java", "Kubernetes"], contractType: "freelance" as const };
+
+/** A run that read 3 of 6 provider URLs, skipped 4 pages and kept 2 Job Offers. */
+const measuredRun = discoveryReport({
+  jobOffers: [strongMatch, weakMatch],
+  skipped: [
+    { url: "https://fr.linkedin.com/jobs/1", reason: "site_terms" },
+    { url: "https://emplois.example.fr/1", reason: "gone" },
+    { url: "https://emplois.example.fr/2", reason: "gone" },
+    { url: "https://emplois.example.fr/liste", reason: "not_a_job_offer" },
+  ],
+  funnel: { providerUrls: 6, fetched: 3, extracted: 2, alreadyStored: 1 },
+  costEur: 0.0123,
+});
+
+/** What the Job Search or Job Digest keeps of `measuredRun`. */
+const measuredMetrics = {
+  funnel: { providerUrls: 6, fetched: 3, extracted: 2, alreadyStored: 1, afterDedup: 2, matched: 1 },
+  skipped: { robots: 0, site_terms: 1, bot_protection: 0, login_wall: 0, not_public: 0, gone: 2, unreachable: 0, not_a_job_offer: 1, invalid: 0 },
+  costEur: 0.0123,
+};
+
 /**
  * What the fake Job Digests module does with the Job discovery it is handed:
  * `true` runs it (the stored Job Offers were too few), `false` does not.
  */
 type DigestPlan = { runsDiscovery: boolean };
 
-function setup(discover?: (request: DiscoverRequest) => Promise<DiscoveryReport>, due: DueJobDigest[] = [], digestPlan: DigestPlan = { runsDiscovery: true }) {
+function setup(
+  discover?: (request: DiscoverRequest) => Promise<DiscoveryReport>,
+  due: DueJobDigest[] = [],
+  digestPlan: DigestPlan = { runsDiscovery: true },
+  now?: () => Date,
+) {
   const runs: DiscoverRequest[] = [];
   const logs: string[] = [];
   const recorded: [string, JobSearchOutcome][] = [];
@@ -64,7 +98,7 @@ function setup(discover?: (request: DiscoverRequest) => Promise<DiscoveryReport>
       async discover(request): Promise<DiscoveryReport> {
         runs.push(request);
         if (discover) return discover(request);
-        return { jobOffers: [], skipped: [{ url: "https://fr.linkedin.com/jobs/1", reason: "site_terms" }] };
+        return discoveryReport({ skipped: [{ url: "https://fr.linkedin.com/jobs/1", reason: "site_terms" }] });
       },
     },
     jobSearches: { record: async (id, outcome) => void recorded.push([id, outcome]), expireTimedOut: async () => 0 },
@@ -72,7 +106,7 @@ function setup(discover?: (request: DiscoverRequest) => Promise<DiscoveryReport>
     profiles: {
       async get(candidateId, profileId) {
         if (candidateId !== "candidate-1" || !["profile-1", "archived-1"].includes(profileId)) return null;
-        return { archived: profileId === "archived-1", searchCriteria: criteria };
+        return { archived: profileId === "archived-1", searchCriteria: criteria, masterCv: { content: masterCv } };
       },
     },
     jobDigests: {
@@ -96,6 +130,7 @@ function setup(discover?: (request: DiscoverRequest) => Promise<DiscoveryReport>
     },
     enqueue: async (name, data) => void enqueued.push({ name, data }),
     log: (line) => logs.push(line),
+    now,
   });
   return { jobs, run: jobs[JOB_DISCOVERY]!.handler, runs, logs, recorded, enqueued, delivered };
 }
@@ -123,11 +158,35 @@ describe("the Job discovery job", () => {
 
 describe("the Job discovery job, for a Job Search the Candidate started", () => {
   it("reports the Job Offers found to the Job Search", async () => {
-    const { run, recorded } = setup(async () => ({ jobOffers: found, skipped: [] }));
+    const { run, recorded } = setup(async () => discoveryReport({ jobOffers: found }));
 
     await run({ candidateId: "candidate-1", profileId: "profile-1", jobSearchId: "search-1" });
 
-    expect(recorded).toEqual([["search-1", { jobOfferIds: ["offer-1", "offer-2"] }]]);
+    expect(recorded).toEqual([["search-1", expect.objectContaining({ jobOfferIds: ["offer-1", "offer-2"] })]]);
+  });
+
+  it("reports with them the funnel, the pages skipped by reason and the cost in €", async () => {
+    const { run, recorded } = setup(async () => measuredRun);
+
+    await run({ candidateId: "candidate-1", profileId: "profile-1", jobSearchId: "search-1" });
+
+    expect(recorded).toEqual([["search-1", { jobOfferIds: ["offer-strong", "offer-weak"], metrics: measuredMetrics }]]);
+  });
+
+  it("counts in the funnel only the Job Offers with a Match Score of 60 or more against the Profile's Master CV", async () => {
+    const { run, recorded } = setup(async () => discoveryReport({ jobOffers: [strongMatch, strongMatch, weakMatch, weakMatch].map((offer, i) => ({ ...offer, id: `offer-${i}` })) }));
+
+    await run({ candidateId: "candidate-1", profileId: "profile-1", jobSearchId: "search-1" });
+
+    expect(recorded[0]![1]).toMatchObject({ metrics: { funnel: { afterDedup: 4, matched: 2 } } });
+  });
+
+  it("reports what Job discovery measured before it broke", async () => {
+    const { run, recorded } = setup(async () => Promise.reject(new JobDiscoveryError(measuredRun, new Error("LLM down"))));
+
+    await run({ candidateId: "candidate-1", profileId: "profile-1", jobSearchId: "search-1" });
+
+    expect(recorded).toEqual([["search-1", { failed: "discovery_failed", metrics: measuredMetrics }]]);
   });
 
   it("reports the Job Search as failed when its Profile is gone or archived", async () => {
@@ -167,17 +226,17 @@ describe("the Job Digest jobs", () => {
   });
 
   it("hand the Job Digest a Job discovery on the Profile's current Search Criteria, run only if it asks", async () => {
-    const asked = setup(async () => ({ jobOffers: found, skipped: [] }));
+    const asked = setup(async () => discoveryReport({ jobOffers: found }));
     await asked.jobs[JOB_DIGEST_RUN]!.handler({ candidateId: "candidate-1", profileId: "profile-1" });
     expect(asked.runs).toEqual([{ candidateId: "candidate-1", criteria }]);
     expect(asked.delivered).toEqual([["candidate-1", "profile-1", ["offer-1", "offer-2"]]]);
-    expect(asked.logs).toEqual(["[job-digest] profile profile-1: Job Digest sent (1 Job Offer(s)), Job discovery ran"]);
+    expect(asked.logs[0]).toBe("[job-digest] profile profile-1: Job Digest sent (1 Job Offer(s)), Job discovery ran");
 
-    const enough = setup(async () => ({ jobOffers: found, skipped: [] }), [], { runsDiscovery: false });
+    const enough = setup(async () => discoveryReport({ jobOffers: found }), [], { runsDiscovery: false });
     await enough.jobs[JOB_DIGEST_RUN]!.handler({ candidateId: "candidate-1", profileId: "profile-1" });
     expect(enough.runs).toEqual([]);
     expect(enough.delivered).toEqual([["candidate-1", "profile-1", null]]);
-    expect(enough.logs).toEqual(["[job-digest] profile profile-1: Job Digest sent (1 Job Offer(s)), Job discovery not needed"]);
+    expect(enough.logs[0]).toBe("[job-digest] profile profile-1: Job Digest sent (1 Job Offer(s)), Job discovery not needed");
   });
 
   it("let a failed Job discovery fail without retrying: the Job Digest sends what it has", async () => {
@@ -186,7 +245,32 @@ describe("the Job Digest jobs", () => {
     await expect(jobs[JOB_DIGEST_RUN]!.handler({ candidateId: "candidate-1", profileId: "profile-1" })).resolves.toBeUndefined();
 
     expect(delivered).toEqual([["candidate-1", "profile-1", "Perplexity answered 503"]]);
-    expect(logs).toEqual(["[job-digest] profile profile-1: Job Digest sent (1 Job Offer(s)), Job discovery failed"]);
+    expect(logs[0]).toBe("[job-digest] profile profile-1: Job Digest sent (1 Job Offer(s)), Job discovery failed");
+  });
+
+  it("log a record of each run with the same metrics as a Job Search, and how long it took", async () => {
+    let clock = Date.parse("2026-10-12T05:00:00Z");
+    const tick = () => new Date((clock += 1500) - 1500);
+    const { jobs, logs } = setup(async () => measuredRun, [], { runsDiscovery: true }, tick);
+
+    await jobs[JOB_DIGEST_RUN]!.handler({ candidateId: "candidate-1", profileId: "profile-1" });
+
+    expect(logs.slice(1).map((line) => JSON.parse(line))).toEqual([
+      { event: "job_digest_run", profileId: "profile-1", discovery: "ran", sent: 1, metrics: { ...measuredMetrics, durationMs: 1500 } },
+    ]);
+  });
+
+  it("log a run where Job discovery was not needed or broke, with what it measured", async () => {
+    const enough = setup(async () => measuredRun, [], { runsDiscovery: false });
+    await enough.jobs[JOB_DIGEST_RUN]!.handler({ candidateId: "candidate-1", profileId: "profile-1" });
+    expect(JSON.parse(enough.logs[1]!)).toMatchObject({
+      discovery: "not_run",
+      metrics: { funnel: { providerUrls: 0, afterDedup: 0, matched: 0 }, skipped: { gone: 0 }, costEur: 0 },
+    });
+
+    const broke = setup(async () => Promise.reject(new JobDiscoveryError(measuredRun, new Error("LLM down"))));
+    await broke.jobs[JOB_DIGEST_RUN]!.handler({ candidateId: "candidate-1", profileId: "profile-1" });
+    expect(JSON.parse(broke.logs[1]!)).toMatchObject({ discovery: "failed", metrics: measuredMetrics });
   });
 
   it("do nothing for a Profile that is gone or archived, or a malformed job", async () => {
@@ -209,7 +293,7 @@ describe("the worker without an AI layer", () => {
     const jobs = createJobs({
       database: noDatabase,
       discovery: { unavailable: "Missing environment variable PERPLEXITY_API_KEY" },
-      profiles: { get: async () => ({ archived: false, searchCriteria: criteria }) },
+      profiles: { get: async () => ({ archived: false, searchCriteria: criteria, masterCv: { content: masterCv } }) },
       jobSearches: { record: async (id, outcome) => void recorded.push([id, outcome]), expireTimedOut: async () => 0 },
       followUps: { proposeDue: async () => {} },
       jobDigests: {
@@ -236,7 +320,7 @@ describe("the worker without an AI layer", () => {
 
     // A Job Digest still sends what the stored Job Offers give.
     await jobs[JOB_DIGEST_RUN]!.handler({ candidateId: "candidate-1", profileId: "profile-1" });
-    expect(logs.at(-1)).toBe("[job-digest] profile profile-1: Job Digest sent (1 Job Offer(s)), Job discovery failed");
+    expect(logs.at(-2)).toBe("[job-digest] profile profile-1: Job Digest sent (1 Job Offer(s)), Job discovery failed");
   });
 });
 

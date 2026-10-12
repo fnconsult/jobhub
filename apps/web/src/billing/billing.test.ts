@@ -374,6 +374,26 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       expect((await t.billing.entitlements(marie.id)).plan).toBe("free");
     });
 
+    it("tells whether the last payment failed, from the subscription's status, until it is paid again", async () => {
+      const marie = await subscribed("marie.dupont@example.fr");
+      const standard = { customer: marie.customer, price: FAKE_STRIPE_PRICES.standard };
+      expect((await t.billing.entitlements(marie.id)).stripeStatus).toBeNull();
+      await deliver(subscriptionEvent("customer.subscription.created", { ...standard, status: "active" }, new Date("2026-10-01T10:00:00Z")));
+      expect((await t.billing.entitlements(marie.id)).stripeStatus).toBe("active");
+
+      await deliver(subscriptionEvent("customer.subscription.updated", { ...standard, status: "past_due" }, new Date("2026-10-02T10:00:00Z")));
+      expect(await t.billing.entitlements(marie.id)).toMatchObject({ plan: "standard", stripeStatus: "past_due" });
+
+      await deliver(subscriptionEvent("customer.subscription.updated", { ...standard, status: "active" }, new Date("2026-10-03T10:00:00Z")));
+      expect(await t.billing.entitlements(marie.id)).toMatchObject({ plan: "standard", stripeStatus: "active" });
+    });
+
+    it("has no subscription status for a Candidate who never went to Stripe", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+
+      expect((await t.billing.entitlements(marie.id)).stripeStatus).toBeNull();
+    });
+
     it("does not grant a Plan for a checkout whose first payment never went through", async () => {
       const marie = await subscribed("marie.dupont@example.fr");
 

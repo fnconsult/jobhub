@@ -168,6 +168,9 @@ export type QuotaDecision =
   | { allowed: true; /** Left after this one; null when unlimited. */ remaining: number | null }
   | { allowed: false; quota: LimitedQuota; plan: Plan; limit: number; upgradeTo: Plan | null };
 
+/** A Stripe subscription's status, as Stripe last reported it (customer.subscription.* webhooks). */
+export type SubscriptionStatus = Stripe.Subscription.Status;
+
 /** Why a billing request could not be served. `message` is for logs, not for Candidates. */
 export class BillingError extends Error {
   constructor(
@@ -559,9 +562,15 @@ export function createBilling(config: BillingConfig) {
       );
     },
 
-    /** The Candidate's Plan and the Plan Quotas that apply to them. */
+    /**
+     * The Candidate's Plan, the Plan Quotas that apply to them, and the status
+     * Stripe last reported for their subscription (null if they never subscribed):
+     * `past_due` while Stripe retries a failed payment, the Plan still kept.
+     */
     async entitlements(candidateId: string) {
-      const plan = await planOf(candidateId);
+      const account = await stripeAccountOf(candidateId);
+      const plan = account?.plan ?? "free";
+      const stripeStatus = (account?.stripe_status ?? null) as SubscriptionStatus | null;
       const { rows } = await database.query("SELECT quota, used FROM quota_usage WHERE candidate_id = $1 AND month = $2", [
         candidateId,
         monthInFrance(now()),
@@ -569,7 +578,7 @@ export function createBilling(config: BillingConfig) {
       const usedThisMonth = Object.fromEntries(
         MONTHLY_QUOTAS.map((quota) => [quota, (rows.find((row) => row.quota === quota)?.used as number | undefined) ?? 0]),
       ) as Record<MonthlyQuota, number>;
-      return { plan, quotas: await quotasOf(plan), usedThisMonth };
+      return { plan, stripeStatus, quotas: await quotasOf(plan), usedThisMonth };
     },
   };
 }

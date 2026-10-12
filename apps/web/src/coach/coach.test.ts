@@ -6,7 +6,7 @@ import type { Application } from "@/applications";
 import type { JobDigest } from "@/job-digests";
 import type { JobSearch } from "@/job-searches";
 import type { Profile } from "@/profiles";
-import { createCoach, MAX_MESSAGES, recentConversation, type Coach, type CoachDeps, type CoachFocus } from "./index";
+import { createCoach, MAX_MESSAGES, recentConversation, type Coach, type CoachDeps, type CoachFocus, COACH_CONTEXT_MAX_TOKENS, estimateTokens } from "./index";
 
 const profile: Profile = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -388,5 +388,104 @@ describe("the item In view, in full", () => {
       await coach.reply("someone-else", { messages: [{ from: "candidate", text: "Et ça ?" }], focus });
       expect(contextOf(provider)).not.toContain("Acme Industrie");
     }
+  });
+});
+
+describe("the rest, summarised", () => {
+  const offer = (n: number): JobOffer => ({ ...jobOffer, id: `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`, title: `Offre ${n}` });
+  const scored = (n: number, score: number) => ({ jobOffer: offer(n), matchScore: { ...matchScore, score }, applicationId: null });
+
+  it("the 5 latest Applications with their status", async () => {
+    const applications = [1, 2, 3, 4, 5, 6].map((n) => ({ ...application, id: `app-${n}`, jobOffer: offer(n), status: n === 1 ? ("applied" as const) : ("to_apply" as const) }));
+    const { coach, provider } = coachWith({ workspace: { applications } });
+
+    await ask(coach);
+
+    const context = contextOf(provider);
+    expect(context).toContain("Offre 1 chez Acme Industrie (Lyon) : Postulée");
+    expect(context).toContain("Offre 5 chez Acme Industrie (Lyon) : À postuler");
+    expect(context).not.toContain("Offre 6");
+  });
+
+  it("the top 5 Job Offers by Match Score, from the latest Job Search and Job Digest of each active Profile", async () => {
+    const { coach, provider } = coachWith({
+      workspace: {
+        jobSearches: [{ ...jobSearch, results: [scored(1, 90), scored(2, 40), scored(3, 75), scored(4, 20)] }],
+        jobDigests: [{ ...jobDigest, results: [scored(5, 85), scored(6, 60), scored(7, 30)] }],
+      },
+    });
+
+    await ask(coach);
+
+    const context = contextOf(provider);
+    const order = ["Offre 1 ", "Offre 5 ", "Offre 3 ", "Offre 6 ", "Offre 2 "].map((title) => context.indexOf(title));
+    expect(order.every((index) => index >= 0)).toBe(true);
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+    expect(context).toContain("Offre 1 chez Acme Industrie (Lyon) : score 90/100");
+    expect(context).not.toContain("Offre 7");
+    expect(context).not.toContain("Offre 4");
+  });
+
+  it("the onboarding answers: what each active Profile's Master CV says of the Candidate", async () => {
+    const consultant: Profile = {
+      ...profile,
+      id: "77777777-7777-4777-8777-777777777777",
+      name: "Consultante transformation",
+      searchCriteria: { targetRole: "Consultante transformation finance", location: "Paris" },
+      masterCv: { version: 1, content: { ...profile.masterCv.content, headline: "Consultante en transformation finance", summary: "Vingt ans à piloter des projets ERP." } },
+    };
+    const archived: Profile = { ...consultant, id: "88888888-8888-4888-8888-888888888888", name: "Ancien profil", archived: true, masterCv: { version: 1, content: { ...consultant.masterCv.content, headline: "Ancien titre" } } };
+    const { coach, provider } = coachWith({ workspace: { profiles: [profile, consultant, archived] } });
+
+    await ask(coach);
+
+    const context = contextOf(provider);
+    expect(context).toContain("Consultante transformation finance");
+    expect(context).toContain("Vingt ans à piloter des projets ERP.");
+    expect(context).not.toContain("Ancien titre");
+  });
+});
+
+describe("the context's cap: about 12k tokens", () => {
+  /** About `tokens` tokens of words. */
+  const text = (tokens: number, word: string) => `${word} `.repeat(Math.ceil((tokens * 4) / (word.length + 1)));
+  const longProfile = (n: number): Profile => ({
+    ...profile,
+    id: `99999999-9999-4999-8999-${String(n).padStart(12, "0")}`,
+    name: `Profil ${n}`,
+    masterCv: { version: 1, content: { ...profile.masterCv.content, summary: text(3_000, `résumé${n}`) } },
+  });
+
+  it("is about 12k tokens", () => {
+    expect(COACH_CONTEXT_MAX_TOKENS).toBe(12_000);
+  });
+
+  it("trims the summaries first, keeping the Candidate summary and the item In view whole", async () => {
+    const posting = { ...jobOffer, content: text(5_000, "mission") };
+    const { coach, provider } = coachWith({ workspace: { profiles: [profile, longProfile(1), longProfile(2), longProfile(3)], jobOffers: [posting] } });
+
+    await ask(coach, { kind: "job_offer", id: posting.id });
+
+    const system = contextOf(provider);
+    expect(estimateTokens(system)).toBeLessThanOrEqual(12_000);
+    expect(system).toContain(posting.content);
+    expect(system).toContain("« Profil 3 » : poste visé");
+    expect(system).toContain("résumé1");
+    expect(system).not.toContain("résumé3");
+  });
+
+  it("cuts the item In view when it alone is over the cap, still telling the Candidate summary", async () => {
+    const posting = { ...jobOffer, content: `Début de l'offre. ${text(20_000, "mission")}Fin de l'offre.` };
+    const { coach, provider } = coachWith({ workspace: { jobOffers: [posting], memory: ["Vise une PME familiale"] } });
+
+    await ask(coach, { kind: "job_offer", id: posting.id });
+
+    const system = contextOf(provider);
+    expect(estimateTokens(system)).toBeLessThanOrEqual(12_000);
+    expect(estimateTokens(system)).toBeGreaterThan(11_000);
+    expect(system).toContain("Début de l'offre.");
+    expect(system).not.toContain("Fin de l'offre.");
+    expect(system).toContain("Vise une PME familiale");
+    expect(system).toMatch(/19 ans d'expérience/);
   });
 });

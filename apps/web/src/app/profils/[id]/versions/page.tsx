@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CandidateLayout } from "@/components/CandidateLayout";
 import { RestoreVersionButton } from "@/components/RestoreVersionButton";
-import { TextSizeControl } from "@/components/TextSizeControl";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getProfiles, requireOwnProfile } from "@/profiles/server";
 import { routes } from "@/routes";
@@ -21,13 +21,7 @@ export default async function MasterCvVersionsPage({ params }: Params) {
   const t = await getServerT();
   const dateFormat = new Intl.DateTimeFormat(await getRequestLocale(), { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Paris" });
   return (
-    <main className="page">
-      <header className="page-header">
-        <Link className="brand" href={routes.home}>
-          {t("app.name")}
-        </Link>
-        <TextSizeControl />
-      </header>
+    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id}>
       <h1>{t("versions.title")}</h1>
       <p className="lead">{profile.name}</p>
       <p>{t("versions.intro")}</p>
@@ -53,6 +47,6 @@ export default async function MasterCvVersionsPage({ params }: Params) {
       <p>
         <Link href={routes.profile(profile.id)}>{t("versions.backToProfile")}</Link>
       </p>
-    </main>
+    </CandidateLayout>
   );
 }

@@ -5,6 +5,7 @@ import { atsFixOf } from "@/ats-score";
 import { getAtsScoring } from "@/ats-score/server";
 import { ActionCardList, type ActionCardView } from "@/components/ActionCardList";
 import { AtsScoreView } from "@/components/AtsScoreView";
+import { CandidateLayout } from "@/components/CandidateLayout";
 import { CoachInView } from "@/components/CoachPanel";
 import { CvExportForm } from "@/components/CvExportForm";
 import { JobDigestControls } from "@/components/JobDigestControls";
@@ -12,7 +13,6 @@ import { StartJobSearchButton } from "@/components/JobSearchControls";
 import { MasterCvView } from "@/components/MasterCvView";
 import { ProfileActions } from "@/components/ProfileActions";
 import { SearchCriteriaEditor } from "@/components/SearchCriteriaEditor";
-import { WorkspaceHeader } from "@/components/WorkspaceHeader";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getJobDigests } from "@/job-digests/server";
 import { requireOwnProfile } from "@/profiles/server";
@@ -47,8 +47,7 @@ export default async function ProfilePage({ params }: Params) {
   const { searchCriteria: criteria, masterCv } = profile;
   const notSpecified = t("profile.notSpecified");
   return (
-    <main className="page">
-      <WorkspaceHeader candidateId={candidateId} currentProfileId={profile.id} />
+    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id}>
       <h1>{profile.name}</h1>
       {profile.archived ? <p className="notice">{t("profileActions.archivedNotice")}</p> : null}
       <CoachInView {...inView} />
@@ -157,7 +156,7 @@ export default async function ProfilePage({ params }: Params) {
       <p>
         <Link href={routes.account}>{t("profile.backToAccount")}</Link>
       </p>
-    </main>
+    </CandidateLayout>
   );
 }
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentCandidate } from "@/auth/server";
 import { getBilling } from "@/billing/server";
-import { WorkspaceHeader } from "@/components/WorkspaceHeader";
+import { CandidateLayout } from "@/components/CandidateLayout";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
@@ -50,8 +50,7 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" });
 
   return (
-    <main className="page">
-      <WorkspaceHeader candidateId={candidate.id} />
+    <CandidateLayout candidateId={candidate.id}>
       <h1>{t("humanCoaches.title")}</h1>
       <p className="lead">{t("humanCoaches.intro")}</p>
       {session === "paid" ? (
@@ -125,6 +124,6 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
         </ul>
       </section>
 
-    </main>
+    </CandidateLayout>
   );
 }

@@ -36,9 +36,13 @@ test.describe("monorepo tooling", () => {
     const web = JSON.parse(read("apps/web/package.json"));
     const deps = { ...web.dependencies, ...web.devDependencies };
     expect(deps).toHaveProperty(["@radix-ui/react-dropdown-menu"]);
+    // The sidebar's drawer below 64rem (#134) is a Radix dialog.
+    expect(deps).toHaveProperty(["@radix-ui/react-dialog"]);
     expect(Object.keys(deps).filter((n) => /tailwind|shadcn/i.test(n))).toEqual([]);
 
-    expect(read("apps/web/src/components/WorkspaceHeader.tsx")).not.toContain("<details");
+    // The Profile switcher now sits in the sidebar layout (#134), which replaced the workspace header.
+    expect(read("apps/web/src/components/SidebarLayout.tsx")).not.toContain("<details");
+    expect(read("apps/web/src/components/SidebarLayout.tsx")).toContain("@radix-ui/react-dialog");
   });
 
   test("lint rejects a hard-coded user-facing string in the web app", () => {

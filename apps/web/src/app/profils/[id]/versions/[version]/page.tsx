@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CandidateLayout } from "@/components/CandidateLayout";
 import { MasterCvView } from "@/components/MasterCvView";
 import { RestoreVersionButton } from "@/components/RestoreVersionButton";
-import { TextSizeControl } from "@/components/TextSizeControl";
 import { getServerT } from "@/i18n/server";
 import { getProfiles, requireOwnProfile } from "@/profiles/server";
 import { routes } from "@/routes";
@@ -15,7 +15,7 @@ async function currentVersion(params: Params["params"]) {
   const { candidateId, profile } = await requireOwnProfile(id);
   const shown = /^\d+$/.test(version) ? (await getProfiles().masterCvVersions(candidateId, profile.id))?.find((v) => v.version === Number(version)) : undefined;
   if (!shown) notFound();
-  return { profile, shown };
+  return { candidateId, profile, shown };
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
@@ -26,17 +26,11 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 /** One saved version of a Profile's Master CV, read-only, with a way to restore it. */
 export default async function MasterCvVersionPage({ params }: Params) {
-  const { profile, shown } = await currentVersion(params);
+  const { candidateId, profile, shown } = await currentVersion(params);
   const t = await getServerT();
   const current = shown.version === profile.masterCv.version;
   return (
-    <main className="page">
-      <header className="page-header">
-        <Link className="brand" href={routes.home}>
-          {t("app.name")}
-        </Link>
-        <TextSizeControl />
-      </header>
+    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id}>
       <h1>{t("versions.viewTitle", { version: shown.version })}</h1>
       <p className="lead">{profile.name}</p>
       {current ? <p className="version-current">{t("versions.current")}</p> : null}
@@ -48,6 +42,6 @@ export default async function MasterCvVersionPage({ params }: Params) {
           {t("versions.backToHistory")}
         </Link>
       </div>
-    </main>
+    </CandidateLayout>
   );
 }

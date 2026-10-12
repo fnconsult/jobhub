@@ -3,6 +3,7 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
+import { Icons } from "@/components/icons";
 import { routes } from "@/routes";
 
 type SwitcherProfile = { id: string; name: string };
@@ -34,7 +35,9 @@ export function ProfileSwitcherMenu({
     <nav className="profile-switcher" aria-label={t("profileSwitcher.label")}>
       <DropdownMenu.Root>
         <DropdownMenu.Trigger className="profile-switcher-button">
-          {current ? t("profileSwitcher.current", { name: current.name }) : t("profileSwitcher.choose")}
+          <Icons.profile />
+          <span className="profile-switcher-name">{current ? t("profileSwitcher.current", { name: current.name }) : t("profileSwitcher.choose")}</span>
+          <Icons.chevron />
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content className="profile-switcher-menu" align={ALIGN} sideOffset={8} collisionPadding={16}>

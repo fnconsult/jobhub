@@ -1,0 +1,277 @@
+import { mkdirSync, readFileSync } from "node:fs";
+import { expect, test, type Page } from "@playwright/test";
+import { catalogueStrings, renderedTexts } from "./support/accessibility";
+import { signInWithMagicLink } from "./support/candidate";
+import { newAddress } from "./support/mailbox";
+
+// Issue #134: the Candidate's pages sit in the sidebar layout approved in the
+// prototype (#132): a sidebar with the Profile switcher and labelled links,
+// collapsible on wide screens and a drawer below 64rem, a skip link, and the
+// Coach Panel docked on the right from 80rem.
+const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
+const origin = process.env.E2E_WEB_ORIGIN!;
+
+const masterCv = {
+  fullName: "Catherine Morel",
+  headline: "Directrice administrative et financière",
+  email: "",
+  phone: "",
+  location: "Lyon",
+  summary: "",
+  experience: [{ title: "Directrice financière", employer: "Groupe Sorelis", location: "Lyon", period: "2012 – 2026", description: "" }],
+  education: [],
+  skills: ["IFRS"],
+  languages: [],
+};
+
+async function createProfile(page: Page, targetRole: string): Promise<string> {
+  const response = await page.request.post("/api/profiles", {
+    headers: { origin },
+    data: { masterCv: { ...masterCv, headline: targetRole }, searchCriteria: { targetRole, location: "Lyon", contractType: "cdi" } },
+  });
+  expect(response.status()).toBe(201);
+  return (await response.json()).id;
+}
+
+const sidebarNav = (page: Page) => page.getByRole("navigation", { name: fr.sidebar.label });
+const menuButton = (page: Page) => page.getByRole("button", { name: fr.sidebar.menu, exact: true });
+const collapseButton = (page: Page) => page.getByRole("button", { name: fr.sidebar.collapse });
+const coachButton = (page: Page) => page.getByRole("button", { name: fr.coachPanel.open, exact: true });
+const coachPanel = (page: Page) => page.getByRole("complementary", { name: fr.coachPanel.title });
+const drawer = (page: Page) => page.getByRole("dialog", { name: fr.sidebar.menu });
+
+const NAV_LABELS = [fr.nav.applications, fr.sidebar.jobSearches, fr.sidebar.jobDigests, fr.nav.account, fr.sidebar.subscription];
+
+/** What the focused element says: its accessible name as a screen reader would read it, roughly. */
+const focused = (page: Page) =>
+  page.evaluate(() => {
+    const el = document.activeElement as HTMLElement | null;
+    if (!el) return "";
+    if (el instanceof HTMLSelectElement) return el.selectedOptions[0]?.textContent?.trim() ?? "";
+    return (el.getAttribute("aria-label") ?? el.innerText ?? "").replace(/\s+/g, " ").trim() || el.id || el.tagName.toLowerCase();
+  });
+
+test.describe("the sidebar layout of the Candidate's pages", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("every Candidate page sits in it, with the Profile switcher, labelled links and the Text Size control", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("sidebar-pages"));
+    const profileId = await createProfile(page, "Directrice administrative et financière");
+
+    for (const path of ["/compte", "/candidatures", `/profils/${profileId}`, "/profils/nouveau", "/coachs", "/abonnement", `/profils/${profileId}/versions`, `/profils/${profileId}/cv`]) {
+      await page.goto(path);
+      await expect(page.getByRole("heading", { level: 1 }), `heading on ${path}`).toBeVisible();
+      await expect(sidebarNav(page), `sidebar on ${path}`).toBeVisible();
+      await expect(page.getByRole("main"), `one main on ${path}`).toHaveCount(1);
+      await expect(page.locator(".page-header"), `no old header on ${path}`).toHaveCount(0);
+    }
+
+    await page.goto("/compte");
+    const links = sidebarNav(page).getByRole("link");
+    await expect(links).toHaveText(NAV_LABELS);
+    // Every icon comes with its label in words (ADR-0009): the icon is decoration.
+    for (const link of await links.all()) {
+      await expect(link.locator("svg")).toHaveAttribute("aria-hidden", "true");
+      expect((await link.innerText()).trim().length).toBeGreaterThan(0);
+    }
+    await expect(sidebarNav(page).getByRole("link", { name: fr.nav.account })).toHaveAttribute("aria-current", "page");
+    await expect(sidebarNav(page).getByRole("link", { name: fr.sidebar.jobSearches })).toHaveAttribute("href", `/profils/${profileId}#job-search-title`);
+    await expect(page.getByRole("navigation", { name: fr.profileSwitcher.label })).toBeVisible();
+    await expect(page.getByLabel(fr.textSize.label)).toBeVisible();
+
+    // The links lead to their pages.
+    await sidebarNav(page).getByRole("link", { name: fr.nav.applications }).click();
+    await expect(page).toHaveURL(`${origin}/candidatures`);
+    await expect(sidebarNav(page).getByRole("link", { name: fr.nav.applications })).toHaveAttribute("aria-current", "page");
+
+    // Only catalogue strings, at the ADR-0009 floor.
+    const allowed = new Set(catalogueStrings(fr));
+    for (const t of await renderedTexts(page)) {
+      expect.soft(allowed.has(t.text), `"${t.text}" comes from the catalogue`).toBe(true);
+      expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
+      expect.soft(t.contrast, `contrast of "${t.text}"`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  test("the sidebar is collapsible, and stays as the Candidate left it", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("sidebar-collapse"));
+    await expect(sidebarNav(page)).toBeVisible();
+    await expect(menuButton(page)).toBeHidden();
+
+    await collapseButton(page).click();
+    await expect(sidebarNav(page)).toBeHidden();
+    await expect(menuButton(page)).toBeFocused();
+    await expect(menuButton(page)).toHaveAttribute("aria-expanded", "false");
+    // The page takes the room the sidebar left.
+    expect((await page.getByRole("main").boundingBox())!.x).toBeLessThan(400);
+
+    await page.reload();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(sidebarNav(page)).toBeHidden();
+
+    await menuButton(page).click();
+    await expect(sidebarNav(page)).toBeVisible();
+    await expect(collapseButton(page)).toBeFocused();
+    await page.reload();
+    await expect(sidebarNav(page)).toBeVisible();
+  });
+
+  test("a skip link comes first, and focus moves through the sidebar, the top bar, then the page", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("sidebar-focus"));
+    await createProfile(page, "Directrice administrative et financière");
+    await page.goto("/compte");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: fr.sidebar.skipToContent });
+    await expect(skip).toBeFocused();
+    await expect(skip).toBeInViewport();
+
+    const order: string[] = [];
+    for (let i = 0; i < 11; i++) {
+      await page.keyboard.press("Tab");
+      order.push(await focused(page));
+    }
+    expect(order).toEqual([
+      fr.app.name,
+      fr.profileSwitcher.choose,
+      ...NAV_LABELS,
+      // The Text Size select reads as its current choice.
+      fr.textSize.standard,
+      fr.sidebar.collapse,
+      fr.coachPanel.open,
+      order[10],
+    ]);
+    // After the top bar comes the page itself.
+    expect(await page.evaluate(() => !!document.activeElement?.closest("main"))).toBe(true);
+
+    // The skip link jumps past the sidebar to the page.
+    await page.goto("/compte");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("main")).toBeFocused();
+    await page.keyboard.press("Tab");
+    expect(await page.evaluate(() => !!document.activeElement?.closest("main"))).toBe(true);
+  });
+
+  test("the Coach Panel opens from the top bar and docks on the right from 80rem, beside the page", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("sidebar-coach"));
+    await expect(page.getByRole("banner").getByRole("button", { name: fr.coachPanel.open, exact: true })).toBeVisible();
+    await expect(coachButton(page)).toHaveCount(1);
+
+    await coachButton(page).click();
+    const panel = coachPanel(page);
+    await expect(panel.getByLabel(fr.coachPanel.messageLabel)).toBeFocused();
+    const box = (await panel.boundingBox())!;
+    expect(box.x + box.width).toBeCloseTo(1440, 0);
+    expect(box.width).toBeCloseTo(24 * 16, 0);
+    expect(box.height).toBeCloseTo(900, 0);
+    // Docked: the page stays beside it, not under it.
+    const main = (await page.getByRole("main").boundingBox())!;
+    expect(main.x + main.width).toBeLessThanOrEqual(box.x + 1);
+    // The message box stays at the bottom of the panel.
+    const form = (await panel.locator("form").boundingBox())!;
+    expect(form.y + form.height).toBeGreaterThan(900 - 32);
+
+    for (const t of await renderedTexts(page)) {
+      expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
+      expect.soft(t.contrast, `contrast of "${t.text}"`).toBeGreaterThanOrEqual(4.5);
+    }
+
+    await panel.getByRole("button", { name: fr.coachPanel.close }).click();
+    await expect(panel).toHaveCount(0);
+    await expect(coachButton(page)).toBeFocused();
+  });
+
+  test("pages outside the sidebar layout keep their Coach Panel button", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("sidebar-home"));
+    await page.goto("/");
+    await expect(sidebarNav(page)).toHaveCount(0);
+    await coachButton(page).click();
+    await coachPanel(page).getByLabel(fr.coachPanel.messageLabel).press("Escape");
+    await expect(coachButton(page)).toBeFocused();
+  });
+});
+
+test.describe("below 64rem", () => {
+  test.use({ viewport: { width: 1000, height: 800 } });
+
+  test("the sidebar becomes a drawer, opened from the Menu button and closed by Escape or a link", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("sidebar-drawer"));
+    await createProfile(page, "Directrice administrative et financière");
+    await page.reload();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(sidebarNav(page)).toBeHidden();
+    await expect(collapseButton(page)).toBeHidden();
+
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("link", { name: fr.sidebar.skipToContent })).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(menuButton(page)).toBeFocused();
+    await expect(menuButton(page)).toHaveAttribute("aria-expanded", "false");
+
+    await page.keyboard.press("Enter");
+    await expect(drawer(page)).toBeVisible();
+    const nav = drawer(page).getByRole("navigation", { name: fr.sidebar.label });
+    await expect(nav.getByRole("link")).toHaveText(NAV_LABELS);
+    // Focus goes into the drawer, onto the current page's link.
+    await expect(nav.getByRole("link", { name: fr.nav.account })).toBeFocused();
+    // The page behind is out of reach while it is open.
+    await expect(page.getByRole("main")).toHaveCount(0);
+
+    await page.keyboard.press("Escape");
+    await expect(drawer(page)).toHaveCount(0);
+    await expect(menuButton(page)).toBeFocused();
+
+    await menuButton(page).click();
+    await drawer(page).getByRole("button", { name: fr.sidebar.close }).click();
+    await expect(drawer(page)).toHaveCount(0);
+    await expect(menuButton(page)).toBeFocused();
+
+    await menuButton(page).click();
+    await drawer(page).getByRole("link", { name: fr.nav.applications }).click();
+    await expect(page).toHaveURL(`${origin}/candidatures`);
+    await expect(drawer(page)).toHaveCount(0);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.applications.title);
+  });
+
+  test("the Coach Panel opens over the page", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("sidebar-sheet"));
+    await coachButton(page).click();
+    const box = (await coachPanel(page).boundingBox())!;
+    expect(box.x + box.width).toBeCloseTo(1000, 0);
+    expect(box.width).toBeCloseTo(24 * 16, 0);
+  });
+});
+
+test("screenshots at 3 widths", async ({ page }, testInfo) => {
+  await signInWithMagicLink(page, newAddress("sidebar-screens"));
+  const profileId = await createProfile(page, "Directrice administrative et financière");
+  const dir = process.env.SIDEBAR_SCREENSHOTS_DIR;
+  if (dir) mkdirSync(dir, { recursive: true });
+  for (const [width, height] of [
+    [375, 812],
+    [900, 1000],
+    [1440, 900],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    await page.goto(`/profils/${profileId}`);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    // Nothing runs off the side of the screen.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    const shots: [string, () => Promise<void>][] = [["profile", async () => {}]];
+    if (width < 1024) shots.push(["drawer", () => menuButton(page).click()]);
+    shots.push(["coach", async () => {
+      if (width < 1024) await page.keyboard.press("Escape");
+      await coachButton(page).click();
+      await expect(coachPanel(page)).toBeVisible();
+    }]);
+    for (const [name, show] of shots) {
+      await show();
+      const path = dir ? `${dir}/${width}-${name}.png` : testInfo.outputPath(`${width}-${name}.png`);
+      await page.screenshot({ path });
+      await testInfo.attach(`${width}px ${name}`, { path, contentType: "image/png" });
+    }
+  }
+});

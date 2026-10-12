@@ -248,7 +248,8 @@ textarea.input {
 }
 
 .profile-switcher-menu {
-  z-index: 10;
+  /* Above the sidebar's drawer, which it can open from. */
+  z-index: 60;
   min-width: var(--radix-dropdown-menu-trigger-width);
   max-width: min(24rem, calc(100vw - 2 * var(--space-4)));
   padding: var(--space-2) 0;
@@ -330,8 +331,11 @@ textarea.input {
   width: 100%;
 }
 
-/* The Coach Panel: a side panel on wide screens, the whole screen on phones. */
-.coach-panel-toggle {
+/* The Coach Panel (#134, from the prototype #132): a panel on the right, docked
+   beside the page from 80rem and over it below; the whole width on phones. Its
+   button sits in the sidebar layout's top bar; pages outside that layout get a
+   floating one. */
+.coach-panel-toggle-floating {
   position: fixed;
   right: var(--space-4);
   bottom: var(--space-4);
@@ -339,57 +343,135 @@ textarea.input {
   box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
 }
 
-.coach-panel {
-  position: fixed;
-  inset: 0;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4) var(--space-4) calc(var(--space-12) + var(--space-6));
-  overflow-y: auto;
-  background: var(--color-background);
-  border-left: 1px solid var(--color-border);
+body:has(.app-shell) .coach-panel-toggle-floating {
+  display: none;
 }
 
-@media (min-width: 64rem) {
+.coach-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  width: min(var(--coach-width), 100%);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--color-background);
+  border-left: 1px solid var(--color-border);
+  box-shadow: var(--shadow-overlay);
+}
+
+/* Room for the floating button under the message box. */
+body:not(:has(.app-shell)) .coach-panel {
+  padding-bottom: calc(var(--space-12) + var(--space-6));
+}
+
+@media (width >= 80rem) {
   .coach-panel {
-    left: auto;
-    width: 26rem;
+    box-shadow: none;
   }
 
   .with-coach-panel {
-    margin-right: 26rem;
+    margin-right: var(--coach-width);
   }
 }
 
 .coach-panel-header {
   display: flex;
-  gap: var(--space-4);
+  gap: var(--space-2);
   align-items: center;
   justify-content: space-between;
+  min-height: 3.5rem;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .coach-panel-header h2 {
   margin: 0;
+  font-size: var(--font-size-h3);
+}
+
+.coach-panel-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* What the conversation is and what the coach sees, above the messages. */
+.coach-panel-context {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.coach-panel-context .button {
+  background: var(--color-background);
 }
 
 .coach-panel-in-view {
   margin: 0;
-  font-weight: 600;
-}
-
-.coach-panel-messages {
-  flex: 1;
-}
-
-.coach-panel-form {
-  margin-top: 0;
 }
 
 .coach-panel-conversation {
   margin: 0;
+  font-size: var(--font-size-lead);
   overflow-wrap: anywhere;
+}
+
+/* The part that scrolls: the messages (or the saved conversations). */
+.coach-panel-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+  padding: var(--space-4);
+  overflow-y: auto;
+}
+
+.coach-panel .chat-message {
+  max-width: 92%;
+}
+
+/* The coach speaks in the page's voice; the Candidate's own words sit in bubbles. */
+.coach-panel .chat-coach {
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+.coach-panel .chat-candidate {
+  background: var(--color-surface);
+}
+
+/* The message box stays at the bottom of the panel. */
+.coach-panel-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.coach-panel-form label {
+  font-weight: 600;
+}
+
+.coach-panel-form .input {
+  max-width: none;
+  min-height: 4.5rem;
+}
+
+.coach-panel-form .button {
+  align-self: flex-end;
 }
 
 /* The Candidate's saved Coach Conversations, inside the Coach Panel. */
@@ -448,7 +530,7 @@ textarea.input {
   margin-top: 0;
 }
 
-/* Room for the Coach Panel button under the last line of every page. */
+/* Room for the floating Coach Panel button under the last line of every page. */
 .page {
   padding-bottom: calc(var(--space-12) + var(--space-12));
 }
@@ -740,6 +822,290 @@ textarea.input {
   width: calc(100% - 2 * var(--space-4));
   max-width: calc(44rem - 2 * var(--space-4));
   margin: var(--space-4) auto 0;
+}
+
+/* ---------- The sidebar layout of the Candidate's pages (#134, prototype #132) ----------
+   A sidebar (17rem) beside the page, which the Candidate can hide on a wide
+   screen (never a rail of unlabelled icons, ADR-0009), and a drawer over the
+   page below 64rem. Every target is at least 2.75rem high. */
+:root {
+  --sidebar-width: 17rem;
+  --coach-width: 24rem;
+  --control-height: 2.75rem;
+  --scrim: rgb(15 15 15 / 45%);
+  --shadow-overlay: 0 0.75rem 2rem rgb(15 15 15 / 18%), 0 0 0 1px rgb(15 15 15 / 6%);
+}
+
+/* Line icons: decoration beside a label in words. */
+.icon {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.button:has(> .icon) {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* A button that reads from its words alone, in toolbars (sidebar, top bar, Coach Panel). */
+.button-quiet {
+  min-height: var(--control-height);
+  background: transparent;
+  border-color: transparent;
+}
+
+.button-quiet:hover {
+  background: var(--color-surface-hover);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+/* The first thing a keyboard reaches: shown when focused, it jumps past the sidebar. */
+.skip-link {
+  position: absolute;
+  top: -10rem;
+  left: var(--space-4);
+  z-index: 70;
+  padding: var(--space-2) var(--space-4);
+  font-weight: 600;
+  color: var(--color-on-accent);
+  background: var(--color-accent);
+  border-radius: var(--radius-md);
+}
+
+.skip-link:focus {
+  top: var(--space-4);
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  min-height: 100dvh;
+}
+
+html[data-sidebar="closed"] .app-shell {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+html[data-sidebar="closed"] .sidebar-docked {
+  display: none;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-2) var(--space-4);
+  overflow-y: auto;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+}
+
+.sidebar-docked {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+}
+
+.sidebar-head {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+}
+
+.sidebar .profile-switcher-button {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  width: 100%;
+  min-height: 3.25rem;
+  text-align: left;
+}
+
+.sidebar .profile-switcher-button:hover {
+  background: var(--color-surface-hover);
+}
+
+.profile-switcher-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.profile-switcher-button .icon:last-child {
+  margin-left: auto;
+}
+
+.sidebar-nav ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sidebar-link {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text);
+  text-decoration: none;
+  border-radius: var(--radius-md);
+}
+
+.sidebar-link:hover {
+  background: var(--color-surface-hover);
+}
+
+/* The page shown: bold, shaded and marked with a bar, not by colour alone. */
+.sidebar-link[aria-current="page"] {
+  font-weight: 600;
+  background: var(--color-surface-hover);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.sidebar-foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: auto;
+  padding: var(--space-3) var(--space-2) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.sidebar .text-size-control {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.sidebar .text-size-control label {
+  font-weight: 600;
+}
+
+.sidebar .text-size-control select {
+  min-height: var(--control-height);
+}
+
+.sidebar-collapse {
+  align-self: flex-start;
+}
+
+.workspace {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: 3.5rem;
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-background);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.topbar .coach-panel-toggle {
+  min-height: var(--control-height);
+  margin-left: auto;
+}
+
+/* The Menu button brings a hidden sidebar back, or opens the drawer. */
+.topbar .menu-toggle {
+  display: none;
+}
+
+html[data-sidebar="closed"] .topbar .menu-toggle {
+  display: inline-flex;
+}
+
+.workspace > .page {
+  width: 100%;
+  padding-top: var(--space-8);
+}
+
+/* Reached by the skip link: the page itself needs no ring. */
+.workspace > .page:focus {
+  outline: none;
+}
+
+.workspace > .page > h1:first-child,
+.workspace > .page > .payment-failed-banner + h1 {
+  margin-top: 0;
+}
+
+.workspace .payment-failed-banner {
+  width: auto;
+  max-width: none;
+  margin: 0 0 var(--space-6);
+}
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  background: var(--scrim);
+}
+
+.sidebar-drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 40;
+  width: min(var(--sidebar-width), 88%);
+  padding-top: calc(var(--space-3) + env(safe-area-inset-top, 0px));
+  box-shadow: var(--shadow-overlay);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sidebar-drawer[data-state="open"] {
+    animation: drawer-in 0.2s ease;
+  }
+}
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+@media (width < 64rem) {
+  .app-shell,
+  html[data-sidebar="closed"] .app-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar-docked {
+    display: none;
+  }
+
+  .topbar .menu-toggle {
+    display: inline-flex;
+  }
 }
 
 /* Job Search notifications: a finished Job Search, atop every workspace page,

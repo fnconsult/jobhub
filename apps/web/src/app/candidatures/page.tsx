@@ -8,7 +8,7 @@ import { getCurrentCandidate } from "@/auth/server";
 import { FOLLOW_UP_CARD, type FollowUpNotice } from "@/follow-ups";
 import { getFollowUps } from "@/follow-ups/server";
 import { ApplicationStatusSelect } from "@/components/ApplicationControls";
-import { WorkspaceHeader } from "@/components/WorkspaceHeader";
+import { CandidateLayout } from "@/components/CandidateLayout";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 
@@ -36,8 +36,7 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
   const board = vue === "tableau";
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: INTERVIEW_TIME_ZONE });
   return (
-    <main className={board ? "page page-wide" : "page"}>
-      <WorkspaceHeader candidateId={candidate.id} />
+    <CandidateLayout candidateId={candidate.id} wide={board}>
       <h1>{t("applications.title")}</h1>
       <FollowUpNotices notices={notices} t={t} />
       <nav className="actions" aria-label={t("applications.viewsLabel")}>
@@ -55,7 +54,7 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
       ) : (
         <List applications={applications} t={t} formatDate={(value) => date.format(value)} />
       )}
-    </main>
+    </CandidateLayout>
   );
 }
 

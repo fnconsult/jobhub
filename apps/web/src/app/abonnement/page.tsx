@@ -1,14 +1,13 @@
 import { LIMITED_QUOTAS, MONTHLY_QUOTAS, PLANS, type PlanQuotas } from "@jobhub/shared";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentCandidate } from "@/auth/server";
 import { paymentFailedNotice } from "@/billing/payment-failed-notice";
 import { planPriceLabel } from "@/billing/plan-price";
 import { planQuotaValue } from "@/billing/quota-labels";
 import { getBilling } from "@/billing/server";
+import { CandidateLayout } from "@/components/CandidateLayout";
 import { PaymentFailedNotice } from "@/components/PaymentFailedNotice";
-import { TextSizeControl } from "@/components/TextSizeControl";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 
@@ -37,18 +36,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   const paymentFailed = paymentFailedNotice(stripeStatus, locale);
 
   return (
-    <main className="page">
-      <header className="page-header">
-        <Link className="brand" href={routes.home}>
-          {t("app.name")}
-        </Link>
-        <nav className="page-nav">
-          <TextSizeControl />
-          <Link className="button" href={routes.account}>
-            {t("nav.account")}
-          </Link>
-        </nav>
-      </header>
+    <CandidateLayout candidateId={candidate.id}>
       <h1>{t("billing.page.title")}</h1>
       {checkout === "success" ? (
         <p className="notice" role="status">
@@ -147,6 +135,6 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
           </button>
         </form>
       ) : null}
-    </main>
+    </CandidateLayout>
   );
 }

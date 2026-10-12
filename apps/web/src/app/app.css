@@ -658,3 +658,25 @@ textarea.input {
   display: block;
   font-style: italic;
 }
+
+/* The last payment of the subscription failed (past_due): non-blocking, with the way to fix it. */
+.notice-payment-failed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  border-left: 4px solid var(--color-danger);
+}
+
+.notice-payment-failed p {
+  flex: 1 1 20rem;
+  margin: 0;
+}
+
+/* Aligned with the page's content column (.page), at every width. */
+.payment-failed-banner {
+  width: calc(100% - 2 * var(--space-4));
+  max-width: calc(44rem - 2 * var(--space-4));
+  margin: var(--space-4) auto 0;
+}

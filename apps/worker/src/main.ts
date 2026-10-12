@@ -8,7 +8,7 @@ import { createJobSearchReports } from "@jobhub/web/job-searches";
 import { mailerFromEnv } from "@jobhub/web/mailers";
 import { createProfiles } from "@jobhub/web/profiles";
 import { Pool } from "pg";
-import { createJobDiscovery } from "./job-discovery";
+import { createJobDiscovery, jobDiscoveryBudgetFromEnv } from "./job-discovery";
 import { startJobRunner, type JobRunner } from "./job-runner";
 import { createJobs } from "./jobs";
 
@@ -48,7 +48,7 @@ const billing = createBilling({ database, baseURL });
 const started: { runner?: JobRunner } = {};
 const jobs = createJobs({
   database,
-  discovery: "unavailable" in ai ? ai : createJobDiscovery({ ai, jobOffers }),
+  discovery: "unavailable" in ai ? ai : createJobDiscovery({ ai, jobOffers, budget: jobDiscoveryBudgetFromEnv(process.env) }),
   profiles,
   // A failed Job Search gives its Plan Quota use back. Releasing needs no Stripe, only the quota table.
   jobSearches: createJobSearchReports(database, { quotas: billing }),

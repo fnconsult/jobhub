@@ -18,6 +18,17 @@ const tag = process.env.E2E_DISCOVERY_TAG ?? "local";
 const logFile = process.env.E2E_DISCOVERY_LOG;
 // While this file exists, Perplexity is down: every web search fails (HTTP 503).
 const searchDownFlag = process.env.E2E_SEARCH_DOWN_FLAG;
+// Volume mode (e2e/job-discovery-budget.spec.ts, #113): instead of the fixed RESULT_PAGES, the web
+// search returns E2E_DISCOVERY_VOLUME_COUNT postings on volume-e2e.example. "jsonld" ones carry
+// JobPosting structured data (no LLM call); "llm" ones only an LLM can read (one Mistral call each).
+// Each takes E2E_DISCOVERY_VOLUME_DELAY_MS to answer.
+const volume = process.env.E2E_DISCOVERY_VOLUME_COUNT
+  ? {
+      count: Number(process.env.E2E_DISCOVERY_VOLUME_COUNT),
+      kind: process.env.E2E_DISCOVERY_VOLUME_KIND ?? "jsonld",
+      delayMs: Number(process.env.E2E_DISCOVERY_VOLUME_DELAY_MS ?? 0),
+    }
+  : null;
 
 /** The posting the careers site publishes as JobPosting JSON-LD (and the mirror site copies). */
 const jsonLdPosting = {
@@ -109,8 +120,12 @@ const sites = {
   },
 };
 
+const volumePage = (n) => `https://volume-e2e.example/offre/${n}-${tag}`;
+
 /** What the fake web search returns, in order. */
-export const RESULT_PAGES = [
+export const RESULT_PAGES = volume
+  ? Array.from({ length: volume.count }, (_, n) => volumePage(n + 1))
+  : [
   `https://carrieres.acme-e2e.example/offres/daf-lyon-${tag}`,
   `https://emplois.lyon-e2e.example/annonce/${tag}`,
   `https://www.linkedin.com/jobs/view/${tag}`,
@@ -138,9 +153,25 @@ function perplexity() {
   });
 }
 
+/** Volume posting number `n`, distinct in title and text from every other. */
+const volumeText = (n) => `Poste en volume ${n} – réf. ${tag}. Entreprise ${n} recrute à Lyon.`;
+
+async function volumeSite(url) {
+  if (url.pathname === "/robots.txt") return text("");
+  const n = Number(/^\/offre\/(\d+)-/.exec(url.pathname)?.[1]);
+  if (!n || !url.pathname.endsWith(`-${tag}`)) return html(page("Introuvable", "<p>404</p>"), { status: 404 });
+  if (volume.delayMs) await new Promise((resolve) => setTimeout(resolve, volume.delayMs));
+  if (volume.kind === "llm") return html(page(`Poste ${n}`, `<article><p>${volumeText(n)}</p></article>`));
+  const posting = { ...jsonLdPosting, title: `Poste en volume ${n} – réf. ${tag}`, description: `<p>${volumeText(n)}</p>` };
+  return html(page(`Poste ${n}`, "<h1>Offre</h1>", `<script type="application/ld+json">${JSON.stringify(posting)}</script>`));
+}
+
 function mistral(body) {
   const prompt = String(body.messages?.at(-1)?.content ?? "");
-  const reading = prompt.includes(PLAIN_POSTING)
+  const volumeN = /Poste en volume (\d+) – réf\. /.exec(prompt)?.[1];
+  const reading = volumeN
+    ? { isJobOffer: true, title: `Poste en volume ${volumeN} – réf. ${tag}`, content: volumeText(volumeN), employer: `Entreprise ${volumeN}`, location: "Lyon", contractType: "cdi" }
+    : prompt.includes(PLAIN_POSTING)
     ? {
         isJobOffer: true,
         title: `Responsable financier (lu par l'IA) – réf. ${tag}`,
@@ -175,6 +206,7 @@ globalThis.fetch = async (input, init = {}) => {
   }
   if (url.origin === "https://api.mistral.ai") return mistral(JSON.parse(body || "{}"));
 
+  if (volume && url.hostname === "volume-e2e.example") return volumeSite(url);
   const site = sites[url.hostname];
   if (!site) throw new TypeError(`fetch failed: ${url.hostname} is outside the e2e fake web`);
   if (url.pathname === "/robots.txt") return site.robots === null ? text("Not found", 404) : text(site.robots);

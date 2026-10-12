@@ -2,7 +2,7 @@ import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import type { JobOffer, SearchCriteria } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { createJobDiscovery, JobDiscoveryError, type JobOfferStore } from "./index";
+import { createJobDiscovery, JobDiscoveryError, type JobDiscoveryBudget, type JobOfferStore } from "./index";
 
 const criteria: SearchCriteria = {
   targetRole: "Directeur financier",
@@ -13,6 +13,8 @@ const criteria: SearchCriteria = {
 };
 
 interface Page {
+  /** How long the site takes to answer. */
+  delayMs?: number;
   status?: number;
   headers?: Record<string, string>;
   body?: string;
@@ -38,6 +40,7 @@ function fakeWeb(pages: Record<string, Page>, clock: FakeClock) {
     requests.push({ url, userAgent: new Headers(init?.headers).get("user-agent"), at: clock.now() });
     const page = pages[url];
     if (!page) return new Response("introuvable", { status: 404 });
+    if (page.delayMs) await clock.sleep(page.delayMs);
     return new Response(page.body ?? "", {
       status: page.status ?? 200,
       headers: { "content-type": "text/html; charset=utf-8", ...page.headers },
@@ -65,9 +68,17 @@ function memoryJobOffers(existing: JobOffer[] = []): JobOfferStore & { all: JobO
   };
 }
 
-function setup(options: { sources: string[]; pages: Record<string, Page>; reply?: string | (() => string); existing?: JobOffer[] }) {
+function setup(options: {
+  sources: string[];
+  pages: Record<string, Page>;
+  reply?: string | (() => string);
+  existing?: JobOffer[];
+  budget?: Partial<JobDiscoveryBudget>;
+  /** Tokens each LLM read uses. */
+  llmUsage?: { inputTokens: number; outputTokens: number };
+}) {
   const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources });
-  const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}' });
+  const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}', usage: options.llmUsage });
   const ai = createAiLayer({
     providers: [search, llm],
     routes: { web_search: "perplexity", offer_analysis: "anthropic" },
@@ -76,7 +87,7 @@ function setup(options: { sources: string[]; pages: Record<string, Page>; reply?
   const clock = fakeClock();
   const web = fakeWeb(options.pages, clock);
   const jobOffers = memoryJobOffers(options.existing);
-  const discovery = createJobDiscovery({ ai, jobOffers, fetch: web.fetch, clock });
+  const discovery = createJobDiscovery({ ai, jobOffers, fetch: web.fetch, clock, budget: options.budget });
   return { discovery, search, llm, web, jobOffers };
 }
 
@@ -512,6 +523,59 @@ describe("Job discovery", () => {
         funnel: { providerUrls: 2, fetched: 1, extracted: 0, alreadyStored: 0 },
       });
       expect((failure as JobDiscoveryError).partial.costEur).toBeCloseTo(0.002508 * 0.86, 9);
+    });
+  });
+
+  describe("staying within the budget: 30 Job Offers, €0.08 or 90 s, whichever comes first", () => {
+    const postings = (count: number) =>
+      Array.from({ length: count }, (_, index) => `https://emplois.example.fr/offres/${index + 1}`);
+    const pagesFor = (urls: string[], page: (url: string, index: number) => Page) =>
+      Object.fromEntries(urls.map((url, index) => [url, page(url, index)]));
+    const posting = (_url: string, index: number): Page => ({ body: jobPostingPage({ title: `DAF ${index + 1}`, description: `Poste de DAF numéro ${index + 1}.` }) });
+
+    it("reads past 10 results, and stops once it has 30 Job Offers", async () => {
+      const urls = postings(35);
+      const { discovery, web } = setup({ sources: urls, pages: pagesFor(urls, posting) });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers).toHaveLength(30);
+      expect(report.funnel).toMatchObject({ providerUrls: 35, fetched: 30 });
+      expect(web.fetched()).not.toContain(urls[30]);
+    });
+
+    it("stops once the run has spent €0.08", async () => {
+      const urls = postings(5);
+      const { discovery, web, llm } = setup({
+        sources: urls,
+        pages: pagesFor(urls, () => ({ body: "<html><body><h1>Offres DAF</h1></body></html>" })),
+        // Each LLM read: 10,000 × $5/M = $0.05, €0.043. Search: €0.0022. After two reads, €0.088.
+        llmUsage: { inputTokens: 10_000, outputTokens: 0 },
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(llm.calls).toHaveLength(2);
+      expect(report.costEur).toBeCloseTo((0.002508 + 2 * 0.05) * 0.86, 9);
+      expect(web.fetched().filter((url) => urls.includes(url))).toEqual(urls.slice(0, 2));
+    });
+
+    it("stops once the run has lasted 90 s", async () => {
+      const urls = postings(5);
+      // Each page takes 40 s to answer: the third starts at 80 s, the fourth would start at 120 s.
+      const { discovery, web } = setup({ sources: urls, pages: pagesFor(urls, (url, index) => ({ ...posting(url, index), delayMs: 40_000 })) });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers).toHaveLength(3);
+      expect(web.fetched().filter((url) => urls.includes(url))).toEqual(urls.slice(0, 3));
+    });
+
+    it("takes its limits from the configured budget", async () => {
+      const urls = postings(5);
+      const { discovery } = setup({ sources: urls, pages: pagesFor(urls, posting), budget: { jobOffers: 2 } });
+
+      expect((await discovery.discover({ candidateId: "c", criteria })).jobOffers).toHaveLength(2);
     });
   });
 });

@@ -153,8 +153,12 @@ The act of the browser extension turning the job page the person is viewing into
 _Avoid_: Scrape, import, clip
 
 **Job discovery**:
-The AI Coach's search of the web for Job Offers matching a Profile's Search Criteria. Contrast with Capture, which starts from a page the person is viewing.
+The AI Coach's search of the web for Job Offers matching a Profile's Search Criteria. Contrast with Capture, which starts from a page the person is viewing. URLs named in the search provider's answer are read like its sources, but the answer itself never makes a Job Offer.
 _Avoid_: Scraping, crawling (alone)
+
+**Listing page**:
+A result page that lists several postings (a job board's search results, a careers site's openings) rather than describing one. Job discovery reads up to 5 of its postings on the same site, each checked like any result page. It is never a Job Offer itself.
+_Avoid_: Results page, index page
 
 **Job Search**:
 One run of Job discovery that a Candidate starts for a Profile, and its outcome: searching, done or failed. It counts one against the Plan Quota, and the use is given back if the search fails or times out. A search nobody has finished after 15 minutes is failed.

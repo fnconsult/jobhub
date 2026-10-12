@@ -1,11 +1,11 @@
-import type { SearchCriteria } from "@jobhub/shared";
+import { FUNNEL_MATCH_SCORE, noDiscoveryMetrics, scoreMatch, type CvContent, type DiscoveryMetrics, type SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type { FollowUps } from "@jobhub/web/follow-ups";
 
 import { DIGEST_HOUR, DIGEST_TIME_ZONE, type JobDigests } from "@jobhub/web/job-digests";
 import { createSourceChecks, forgetExpiredGuestCaptures } from "@jobhub/web/job-offers";
 import { JOB_DISCOVERY_QUEUE, type JobSearchReports } from "@jobhub/web/job-searches";
-import type { JobDiscovery } from "./job-discovery";
+import { JobDiscoveryError, type DiscoveryReport, type JobDiscovery } from "./job-discovery";
 import { createSourceRecheck } from "./source-recheck";
 import type { JobDefinition } from "./job-runner";
 
@@ -53,7 +53,7 @@ export interface JobsDeps {
   discovery: JobDiscovery | DiscoveryUnavailable;
   /** Reads a Profile, scoped to its Candidate. Satisfied by the web app's Profiles module. */
   profiles: {
-    get(candidateId: string, profileId: string): Promise<{ archived: boolean; searchCriteria: SearchCriteria } | null>;
+    get(candidateId: string, profileId: string): Promise<DiscoveryProfile | null>;
   };
   /**
    * Where a Job Search started by the Candidate gets its outcome, and where the ones
@@ -69,6 +69,29 @@ export interface JobsDeps {
   log?: (line: string) => void;
   /** How the worker reaches job sites. Default: the global fetch. */
   fetch?: typeof globalThis.fetch;
+}
+
+/** What Job discovery needs of a Profile: its Search Criteria to search, its Master CV to score what it found. */
+interface DiscoveryProfile {
+  archived: boolean;
+  searchCriteria: SearchCriteria;
+  masterCv: { content: CvContent };
+}
+
+/**
+ * What a Job discovery run measured, as a Job Search or Job Digest keeps it: its
+ * funnel down to the Job Offers the Profile matches (Match Score of
+ * FUNNEL_MATCH_SCORE or more against its current Master CV), skipped pages by reason, cost.
+ */
+function metricsOf(report: DiscoveryReport, profile: DiscoveryProfile): DiscoveryMetrics {
+  const metrics = noDiscoveryMetrics();
+  const matched = report.jobOffers.filter(
+    (jobOffer) => scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer }).score >= FUNNEL_MATCH_SCORE,
+  );
+  metrics.funnel = { ...report.funnel, afterDedup: report.jobOffers.length, matched: matched.length };
+  for (const { reason } of report.skipped) metrics.skipped[reason]++;
+  metrics.costEur = report.costEur;
+  return metrics;
 }
 
 function discoveryTarget(data: unknown): { candidateId: string; profileId: string; jobSearchId?: string } | null {
@@ -125,13 +148,17 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         } catch (error) {
           // The Candidate is waiting for this Job Search: say it failed rather than retry it later.
           if (!jobSearchId) throw error;
-          await fail("discovery_failed");
+          if (error instanceof JobDiscoveryError) {
+            await deps.jobSearches.record(jobSearchId, { failed: "discovery_failed", metrics: metricsOf(error.partial, profile) });
+          } else await fail("discovery_failed");
           return log(`[job-discovery] profile ${target.profileId}: failed (${error instanceof Error ? error.message : String(error)})`);
         }
-        if (jobSearchId) await deps.jobSearches.record(jobSearchId, { jobOfferIds: report.jobOffers.map((jobOffer) => jobOffer.id) });
-        const reasons = new Map<string, number>();
-        for (const { reason } of report.skipped) reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
-        const detail = [...reasons].map(([reason, count]) => `${reason}: ${count}`).join(", ");
+        const metrics = metricsOf(report, profile);
+        if (jobSearchId) await deps.jobSearches.record(jobSearchId, { jobOfferIds: report.jobOffers.map((jobOffer) => jobOffer.id), metrics });
+        const detail = Object.entries(metrics.skipped)
+          .filter(([, count]) => count > 0)
+          .map(([reason, count]) => `${reason}: ${count}`)
+          .join(", ");
         log(
           `[job-discovery] profile ${target.profileId}: ${report.jobOffers.length} Job Offer(s), ` +
             `${report.skipped.length} page(s) skipped${detail ? ` (${detail})` : ""}`,
@@ -184,16 +211,35 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         if (!target) return log(`[job-digest] ignored a malformed job`);
         const profile = await deps.profiles.get(target.candidateId, target.profileId);
         if (!profile || profile.archived) return log(`[job-digest] profile ${target.profileId}: gone or archived, skipped`);
+        const startedAt = now();
         const discovery = deps.discovery;
+        let metrics = noDiscoveryMetrics();
         const discover = async () => {
           if ("unavailable" in discovery) throw new Error(`Job discovery is unavailable (${discovery.unavailable})`);
-          const report = await discovery.discover({ candidateId: target.candidateId, criteria: profile.searchCriteria });
-          return report.jobOffers.map((jobOffer) => jobOffer.id);
+          try {
+            const report = await discovery.discover({ candidateId: target.candidateId, criteria: profile.searchCriteria });
+            metrics = metricsOf(report, profile);
+            return report.jobOffers.map((jobOffer) => jobOffer.id);
+          } catch (error) {
+            if (error instanceof JobDiscoveryError) metrics = metricsOf(error.partial, profile);
+            throw error;
+          }
         };
         const delivery = await deps.jobDigests.deliver(target.candidateId, target.profileId, discover);
+        const durationMs = now().getTime() - startedAt.getTime();
         const outcome = delivery.digest ? `Job Digest sent (${delivery.digest.results.length} Job Offer(s))` : "nothing to send";
         const discovered = { not_run: "Job discovery not needed", ran: "Job discovery ran", failed: "Job discovery failed" }[delivery.discovery];
         log(`[job-digest] profile ${target.profileId}: ${outcome}, ${discovered}`);
+        // Job Digests keep no record of a run that sent nothing: each run's metrics go to the log.
+        log(
+          JSON.stringify({
+            event: "job_digest_run",
+            profileId: target.profileId,
+            discovery: delivery.discovery,
+            sent: delivery.digest?.results.length ?? 0,
+            metrics: { ...metrics, durationMs },
+          }),
+        );
       },
     },
 

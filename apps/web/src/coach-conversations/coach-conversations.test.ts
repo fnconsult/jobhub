@@ -79,4 +79,41 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
       { from: "candidate", text: "Par où commencer ?" },
     ]);
   });
+
+  it("keeps several conversations per Candidate, most recently active first, each attached to the Profile in view when it started", async () => {
+    const profile = await createProfiles(database).create(marie, { masterCv, searchCriteria: { targetRole: "Directrice financière", location: "Lyon" } });
+    if (!profile.ok) throw new Error("fixture refused");
+    const onProfile = await conversations.send(marie, { message: "Mon CV est-il bon ?", focus: { kind: "profile", id: profile.profile.id } });
+    const elsewhere = await conversations.send(marie, { message: "Comment préparer un entretien ?" });
+    if (!onProfile.ok || !elsewhere.ok) throw new Error("refused");
+    // Talking on another page later does not move the conversation to it.
+    await conversations.send(marie, { conversationId: onProfile.conversation.id, message: "Et ma formation ?" });
+
+    const list = await conversations.list(marie);
+
+    expect(list).toEqual([
+      { id: onProfile.conversation.id, title: "Mon CV est-il bon ?", profile: { id: profile.profile.id, name: "Directrice financière" }, lastMessageAt: expect.any(Date) },
+      { id: elsewhere.conversation.id, title: "Comment préparer un entretien ?", profile: null, lastMessageAt: expect.any(Date) },
+    ]);
+    expect(onProfile.conversation.profile).toEqual({ id: profile.profile.id, name: "Directrice financière" });
+    expect(asked[0]!.input.focus).toEqual({ kind: "profile", id: profile.profile.id });
+    expect(await conversations.list(jean)).toEqual([]);
+  });
+
+  it("does not attach another Candidate's Profile, even when its id is sent", async () => {
+    const profile = await createProfiles(database).create(marie, { masterCv, searchCriteria: { targetRole: "Directrice financière", location: "Lyon" } });
+    if (!profile.ok) throw new Error("fixture refused");
+
+    const sent = await conversations.send(jean, { message: "Et ce profil ?", focus: { kind: "profile", id: profile.profile.id } });
+
+    expect(sent).toMatchObject({ ok: true, conversation: { profile: null } });
+  });
+
+  it("names a new conversation after the start of its first message", async () => {
+    const sent = await conversations.send(marie, { message: `Bonjour,\n\n${"je cherche un poste de directrice financière ".repeat(4)}` });
+
+    if (!sent.ok) throw new Error("refused");
+    expect(sent.conversation.title).toMatch(/^Bonjour, je cherche un poste de directrice financière je cherche.*…$/);
+    expect(sent.conversation.title.length).toBeLessThanOrEqual(80);
+  });
 });

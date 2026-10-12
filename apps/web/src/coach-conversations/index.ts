@@ -41,6 +41,8 @@ export type SendResult =
 
 export interface CoachConversations {
   send(candidateId: string, input: unknown): Promise<SendResult>;
+  /** The Candidate's conversations, most recently active first. */
+  list(candidateId: string): Promise<CoachConversationSummary[]>;
   open(candidateId: string, conversationId: string): Promise<CoachConversation | null>;
 }
 
@@ -143,6 +145,13 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
       } finally {
         client.release();
       }
+    },
+
+    async list(candidateId) {
+      const { rows } = await database.query<ConversationRow>(`${SUMMARY} WHERE c.candidate_id = $1 ORDER BY c.last_message_at DESC, c.created_at DESC`, [
+        candidateId,
+      ]);
+      return rows.map(summaryFrom);
     },
 
     async open(candidateId, conversationId) {

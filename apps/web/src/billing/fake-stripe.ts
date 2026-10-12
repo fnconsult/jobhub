@@ -71,7 +71,8 @@ export async function startFakeStripe(port = 0) {
       }
       const price = request.method === "GET" && path.match(/^\/v1\/prices\/([^/]+)$/)?.[1];
       if (price && FAKE_UNIT_AMOUNTS[price] !== undefined) {
-        return reply(200, { id: price, object: "price", unit_amount: FAKE_UNIT_AMOUNTS[price], currency: "eur" });
+        const recurring = Object.values<string>(FAKE_STRIPE_PRICES).includes(price) ? { interval: "month", interval_count: 1 } : null;
+        return reply(200, { id: price, object: "price", unit_amount: FAKE_UNIT_AMOUNTS[price], currency: "eur", recurring });
       }
       if (request.method === "GET" && path === "/__calls") return reply(200, calls.map((call) => ({ ...call, params: Object.fromEntries(call.params) })));
       reply(404, { error: { type: "invalid_request_error", message: `fake Stripe has no ${request.method} ${path}` } });

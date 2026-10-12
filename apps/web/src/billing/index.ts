@@ -8,6 +8,7 @@
  *    (the signed webhook reports it paid through `onCoachingSessionPaid`)
  *  - how do they stop paying?     `closeAccount`, when they delete their account
  *  - what do the Plans allow?     `planQuotas`, `setPlanQuotas` (back office)
+ *  - what do the Plans cost?      `planPrices`
  * and `migrateBilling(database)` to create / upgrade its tables. Stripe, the
  * tables and month boundaries stay behind this seam.
  */
@@ -52,6 +53,16 @@ export interface PaidCoachingSession {
   /** In the currency's smallest unit (cents). */
   amount: number;
   currency: string;
+}
+
+/** How often a subscription is charged, as Stripe names it. */
+export type BillingInterval = "day" | "week" | "month" | "year";
+
+/** What a Plan costs, in the currency's smallest unit (cents), each `interval`. */
+export interface PlanPrice {
+  amount: number;
+  currency: string;
+  interval: BillingInterval;
 }
 
 /** What a Coaching Session costs a Candidate, in the currency's smallest unit (cents). */
@@ -245,15 +256,23 @@ export function createBilling(config: BillingConfig) {
   }
 
   /** Stripe Prices' amounts, kept a few minutes: Jobbbox sets them in Stripe and rarely changes them. */
-  const priceCache = new Map<string, { at: number; amount: number; currency: string }>();
-  async function amountOf(priceId: string): Promise<{ amount: number; currency: string }> {
+  type StripeAmount = { amount: number; currency: string; interval: BillingInterval | null };
+  const priceCache = new Map<string, StripeAmount & { at: number }>();
+  async function amountOf(priceId: string): Promise<StripeAmount> {
     const cached = priceCache.get(priceId);
     if (cached && now().getTime() - cached.at < 10 * 60_000) return cached;
     const price = await stripe().client.prices.retrieve(priceId);
     if (price.unit_amount === null) throw new Error(`Stripe Price ${priceId} has no fixed amount`);
-    const fetched = { at: now().getTime(), amount: price.unit_amount, currency: price.currency };
+    const fetched = { at: now().getTime(), amount: price.unit_amount, currency: price.currency, interval: price.recurring?.interval ?? null };
     priceCache.set(priceId, fetched);
     return fetched;
+  }
+
+  /** A paid Plan's subscription Price; it must be recurring. */
+  async function subscriptionPrice(priceId: string): Promise<PlanPrice> {
+    const { amount, currency, interval } = await amountOf(priceId);
+    if (!interval) throw new Error(`Stripe Price ${priceId} is not recurring`);
+    return { amount, currency, interval };
   }
 
   /** Reports a paid Coaching Session from a checkout.session.* event; ignores any other checkout. */
@@ -541,6 +560,23 @@ export function createBilling(config: BillingConfig) {
       }
       if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
         await applyCheckout(event.data.object);
+      }
+    },
+
+    /**
+     * What each Plan costs: the paid Plans' configured Stripe Prices, and the Free
+     * Plan at 0 in their currency and interval. Null when Stripe is not configured
+     * or cannot tell (unreachable, or a Price that is not a fixed recurring amount).
+     */
+    async planPrices(): Promise<Record<Plan, PlanPrice> | null> {
+      if (!config.stripe) return null;
+      const { prices } = config.stripe;
+      try {
+        const [standard, premium] = await Promise.all([subscriptionPrice(prices.standard), subscriptionPrice(prices.premium)]);
+        return { free: { ...standard, amount: 0 }, standard, premium };
+      } catch (error) {
+        console.error("[billing] Plan prices unavailable from Stripe", error);
+        return null;
       }
     },
 

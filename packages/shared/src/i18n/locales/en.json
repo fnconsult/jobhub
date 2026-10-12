@@ -443,7 +443,9 @@
       "choose": "Choose the {{plan}} Plan",
       "current": "Your Plan",
       "manage": "Manage my subscription",
-      "manageHelp": "Invoices, payment method, changing or cancelling your Plan: it all happens on the secure page of our payment provider, Stripe.",
+      "manageHelp": "Changing or cancelling your Plan happens on the secure page of our payment provider, Stripe.",
+      "invoices": "Invoices and payment method",
+      "invoicesHelp": "Download your invoices and update your payment method on the secure page of our payment provider, Stripe.",
       "unavailable": "Online payment is not available at the moment. Please try again later.",
       "error": "Something went wrong. Please try again.",
       "redirecting": "Taking you to the payment page…"

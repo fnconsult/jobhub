@@ -107,7 +107,8 @@ export async function migrateBilling(database: Pool): Promise<void> {
       stripe_customer_id text UNIQUE,
       stripe_subscription_id text,
       stripe_status text,
-      stripe_event_at timestamptz
+      stripe_event_at timestamptz,
+      charged boolean NOT NULL DEFAULT false
     );
     CREATE TABLE IF NOT EXISTS quota_usage (
       candidate_id text NOT NULL REFERENCES candidate(id) ON DELETE CASCADE,
@@ -117,6 +118,16 @@ export async function migrateBilling(database: Pool): Promise<void> {
       PRIMARY KEY (candidate_id, quota, month)
     );
   `);
+  // Databases from before `charged`: a subscription Stripe reports paid or since cancelled was charged (Plans have no trial).
+  const { rows: chargedColumn } = await database.query(
+    "SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'candidate_plan' AND column_name = 'charged'",
+  );
+  if (chargedColumn.length === 0) {
+    await database.query(`
+      ALTER TABLE candidate_plan ADD COLUMN IF NOT EXISTS charged boolean NOT NULL DEFAULT false;
+      UPDATE candidate_plan SET charged = true WHERE stripe_status IN (${[...CHARGED_STATUSES, "canceled"].map((status) => `'${status}'`).join(", ")});
+    `);
+  }
   // A quota added after the table was created starts at its starting value on every Plan.
   const { rows: existing } = await database.query<{ column_name: string }>(
     "SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'plan_quota'",
@@ -170,6 +181,9 @@ export class BillingError extends Error {
 
 /** Subscription statuses that keep the paid Plan; Stripe retries failed payments while past_due. */
 const PAYING_STATUSES = new Set(["active", "trialing", "past_due"]);
+
+/** Subscription statuses only reached once Stripe has taken a first payment, so the customer portal holds an invoice. */
+const CHARGED_STATUSES = ["active", "past_due", "unpaid", "paused"];
 
 /**
  * How far along its life a subscription is, by status. Stripe stamps events in
@@ -294,6 +308,10 @@ export function createBilling(config: BillingConfig) {
     if (!paidPlan) return; // Not one of our Plans' prices.
     const customer = typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
     const ended = event.type === "customer.subscription.deleted" || !PAYING_STATUSES.has(subscription.status);
+    if (CHARGED_STATUSES.includes(subscription.status)) {
+      // Whatever order Stripe delivers events in, a payment once taken stays taken.
+      await database.query("UPDATE candidate_plan SET charged = true WHERE stripe_customer_id = $1", [customer]);
+    }
     await database.query(
       `UPDATE candidate_plan
        SET plan = $2, stripe_subscription_id = $3, stripe_status = $4, stripe_event_at = to_timestamp($5)
@@ -486,6 +504,16 @@ export function createBilling(config: BillingConfig) {
     async openCustomerPortal(candidateId: string, locale: Locale = "fr"): Promise<string | null> {
       const customer = (await stripeAccountOf(candidateId))?.stripe_customer_id;
       return customer ? portalFor(customer, locale) : null;
+    },
+
+    /**
+     * Whether the Candidate has invoices to download from the Stripe customer
+     * portal: they pay for a Plan, or Stripe once charged them for one.
+     */
+    async hasInvoices(candidateId: string): Promise<boolean> {
+      const { rows } = await database.query("SELECT plan, charged FROM candidate_plan WHERE candidate_id = $1", [candidateId]);
+      const account = rows[0] as { plan: Plan; charged: boolean } | undefined;
+      return account !== undefined && (account.plan !== "free" || account.charged);
     },
 
     /**

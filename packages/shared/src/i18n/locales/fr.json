@@ -443,7 +443,9 @@
       "choose": "Choisir l'offre {{plan}}",
       "current": "Votre offre",
       "manage": "Gérer mon abonnement",
-      "manageHelp": "Factures, moyen de paiement, changement d'offre ou résiliation : tout se fait sur la page sécurisée de notre prestataire de paiement, Stripe.",
+      "manageHelp": "Changement d'offre ou résiliation : tout se fait sur la page sécurisée de notre prestataire de paiement, Stripe.",
+      "invoices": "Factures et moyen de paiement",
+      "invoicesHelp": "Téléchargez vos factures et changez de moyen de paiement sur la page sécurisée de notre prestataire de paiement, Stripe.",
       "unavailable": "Le paiement en ligne n'est pas disponible pour le moment. Réessayez plus tard.",
       "error": "Une erreur est survenue. Veuillez réessayer.",
       "redirecting": "Redirection vers la page de paiement…"

@@ -3,7 +3,7 @@ import { getBilling } from "@/billing/server";
 import { routes } from "@/routes";
 import { candidatePosting, seeOther, subscriptionPage } from "@/billing/http";
 
-/** The subscription page's "Manage my subscription" form: opens the Stripe customer portal. */
+/** The subscription page's "Manage my subscription" and "Invoices and payment method" forms: open the Stripe customer portal. */
 export async function POST(request: Request) {
   const candidate = await candidatePosting(request);
   if (!candidate) return seeOther(routes.signIn, request);

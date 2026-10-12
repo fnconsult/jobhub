@@ -287,6 +287,10 @@ _Avoid_: Coach rate, fee
 The subscription tier a Candidate is on: Free, Standard or Premium. Coaching Sessions are paid separately, with a Premium discount.
 _Avoid_: Tier, package, offer (ambiguous with Job Offer)
 
+**Paid Plan History**:
+Whether a Candidate has ever been charged for a Plan, even if they are back on Free. It decides whether the invoices entry is offered on the subscription page. A Coaching Session payment alone does not count.
+_Avoid_: Billing history, customer status
+
 **Plan Quota**:
 A configurable usage limit attached to a Plan: Profiles held at once, Match Scores, ATS Scores and Enriched Contacts per calendar month (French time), and the Job Digest frequency. A quota can be unlimited or not included at all. Changed by Administrators; a change applies at once to every Candidate on the Plan.
 _Avoid_: Limit, allowance, credits

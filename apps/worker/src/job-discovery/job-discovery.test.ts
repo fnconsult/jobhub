@@ -559,5 +559,23 @@ describe("Job discovery", () => {
       expect(report.costEur).toBeCloseTo((0.002508 + 2 * 0.05) * 0.86, 9);
       expect(web.fetched().filter((url) => urls.includes(url))).toEqual(urls.slice(0, 2));
     });
+
+    it("stops once the run has lasted 90 s", async () => {
+      const urls = postings(5);
+      // Each page takes 40 s to answer: the third starts at 80 s, the fourth would start at 120 s.
+      const { discovery, web } = setup({ sources: urls, pages: pagesFor(urls, (url, index) => ({ ...posting(url, index), delayMs: 40_000 })) });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers).toHaveLength(3);
+      expect(web.fetched().filter((url) => urls.includes(url))).toEqual(urls.slice(0, 3));
+    });
+
+    it("takes its limits from the configured budget", async () => {
+      const urls = postings(5);
+      const { discovery } = setup({ sources: urls, pages: pagesFor(urls, posting), budget: { jobOffers: 2 } });
+
+      expect((await discovery.discover({ candidateId: "c", criteria })).jobOffers).toHaveLength(2);
+    });
   });
 });

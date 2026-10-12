@@ -20,7 +20,7 @@ import type { DiscoveryMetrics, JobOffer, JobOfferDetails, SearchCriteria, SkipR
 import { htmlToText, metaRobots } from "./html";
 import { countJobPostings, readJobPosting } from "./job-posting";
 import { extractWithLlm } from "./llm-extraction";
-import { createPoliteFetcher, type Clock, type RefusalReason } from "./polite-fetch";
+import { createPoliteFetcher, realClock, type Clock, type RefusalReason } from "./polite-fetch";
 
 export type { RefusalReason } from "./polite-fetch";
 
@@ -114,17 +114,19 @@ export const FORBIDDEN_SITES = ["linkedin.com", "indeed.com", "indeed.fr", "glas
 
 export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
   const budget = { ...DEFAULT_BUDGET, ...options.budget };
+  const clock = options.clock ?? realClock;
   const userAgent = options.userAgent ?? DEFAULT_USER_AGENT;
 
   return {
     async discover({ candidateId, criteria }) {
+      const startedAt = clock.now();
       const fetcher = createPoliteFetcher({
         fetch: options.fetch ?? globalThis.fetch,
         userAgent,
         forbiddenSites: options.forbiddenSites ?? FORBIDDEN_SITES,
         timeoutMs: 15_000,
         maxBytes: 3 * 1024 * 1024,
-        clock: options.clock,
+        clock,
       });
       const found = new Map<string, JobOffer>();
       const report: DiscoveryReport = {
@@ -135,6 +137,8 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
       };
       const ai = costing(options.ai, (eur) => (report.costEur += eur));
       const { funnel, skipped } = report;
+      const budgetSpent = () =>
+        found.size >= budget.jobOffers || report.costEur >= budget.spendEur || clock.now() - startedAt >= budget.seconds * 1000;
       const storedAt = (url: string) => options.jobOffers.findBySourceUrl(url).catch(() => null);
       const alreadyStored = (jobOffer: JobOffer) => {
         found.set(jobOffer.id, jobOffer);
@@ -146,7 +150,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         const distinct = [...new Set(search.sources)];
         funnel.providerUrls = distinct.length;
         for (const url of distinct) {
-          if (found.size >= budget.jobOffers || report.costEur >= budget.spendEur) break;
+          if (budgetSpent()) break;
           const known = await storedAt(url);
           if (known) {
             alreadyStored(known);

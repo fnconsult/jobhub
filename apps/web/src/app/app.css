@@ -237,37 +237,42 @@ textarea.input {
   grid-column: 2;
 }
 
-/* The Profile switcher: a disclosure listing the Candidate's active Profiles. */
-.profile-switcher {
-  position: relative;
-}
-
-.profile-switcher summary {
+/* The Profile switcher: a Radix dropdown menu (ADR-0018), styled with our tokens.
+   The menu is portalled to <body>, so its rules don't sit under .profile-switcher. */
+.profile-switcher-button {
   padding: var(--space-2) var(--space-4);
+  background: var(--color-background);
   border: 1px solid var(--color-text-secondary);
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
-.profile-switcher ul {
-  position: absolute;
-  z-index: 1;
-  min-width: 100%;
+.profile-switcher-menu {
+  z-index: 10;
+  min-width: var(--radix-dropdown-menu-trigger-width);
   max-width: min(24rem, calc(100vw - 2 * var(--space-4)));
-  margin: var(--space-2) 0 0;
   padding: var(--space-2) 0;
-  list-style: none;
   background: var(--color-background);
   border: 1px solid var(--color-text-secondary);
   border-radius: var(--radius-sm);
 }
 
-.profile-switcher a {
+.profile-switcher-menu a {
   display: block;
   padding: var(--space-2) var(--space-4);
 }
 
-.profile-switcher a[aria-current="page"] {
+/* The item under the pointer or keyboard focus. The ring is drawn inside the
+   item so the menu's edge never clips it. */
+.profile-switcher-menu a[data-highlighted] {
+  background: var(--color-surface);
+}
+
+.profile-switcher-menu a:focus-visible {
+  outline-offset: -3px;
+}
+
+.profile-switcher-menu a[aria-current="page"] {
   font-weight: 600;
 }
 

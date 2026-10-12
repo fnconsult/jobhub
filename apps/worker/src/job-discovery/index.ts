@@ -12,16 +12,21 @@
  * source URL, or same text from another site) is returned, never duplicated,
  * and a known URL is not fetched again.
  *
+ * A run reads result pages in order until its budget runs out: 30 Job Offers,
+ * €0.08 or 90 s by default, whichever comes first (see JobDiscoveryBudget).
+ *
  * Each run is measured (its funnel and cost in €), also when it fails: the
  * error is then a JobDiscoveryError carrying what the run measured until then.
  */
 import { costInEur, type AiLayer } from "@jobhub/ai";
 import type { DiscoveryMetrics, JobOffer, JobOfferDetails, SearchCriteria, SkipReason as CountedSkipReason } from "@jobhub/shared";
+import { DEFAULT_BUDGET, type JobDiscoveryBudget } from "./budget";
 import { htmlToText, metaRobots } from "./html";
 import { countJobPostings, readJobPosting } from "./job-posting";
 import { extractWithLlm } from "./llm-extraction";
 import { createPoliteFetcher, realClock, type Clock, type RefusalReason } from "./polite-fetch";
 
+export { DEFAULT_BUDGET, jobDiscoveryBudgetFromEnv, type JobDiscoveryBudget } from "./budget";
 export type { RefusalReason } from "./polite-fetch";
 
 /** Where Job Offers are stored. Satisfied by the web app's Job Offers module. */
@@ -43,25 +48,9 @@ export interface JobDiscoveryOptions {
   forbiddenSites?: readonly string[];
   /** When a run stops reading result pages. Default: DEFAULT_BUDGET. */
   budget?: Partial<JobDiscoveryBudget>;
-  /** For waiting out robots.txt Crawl-delay. Default: real time. */
+  /** For waiting out robots.txt Crawl-delay and timing the budget. Default: real time. */
   clock?: Clock;
 }
-
-/**
- * When a run stops reading result pages: once it has this many Job Offers, has spent
- * this much on AI calls, or has run this long, whichever comes first. It is checked
- * before each page, so the page being read when a limit is reached is finished.
- */
-export interface JobDiscoveryBudget {
-  /** Job Offers found, new or already stored. */
-  jobOffers: number;
-  /** Estimated cost in € of the run's AI calls, the web search included. */
-  spendEur: number;
-  /** Time since the run started, the web search included. */
-  seconds: number;
-}
-
-export const DEFAULT_BUDGET: JobDiscoveryBudget = { jobOffers: 30, spendEur: 0.08, seconds: 90 };
 
 export interface DiscoverRequest {
   /** The Candidate the search runs for (for AI usage and Plan Quotas). */

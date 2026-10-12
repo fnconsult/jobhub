@@ -214,7 +214,12 @@ function scoreSkills(cv: CvContent, jobOffer: JobOfferDetails): SkillsBreakdown 
 /** A period that runs to today: "2015 – présent", or one that only says when it began ("Depuis 2015", "Since 2015"). */
 const ONGOING = /aujourd|present|actuel|en cours|ce jour|now|current|today|depuis|since/;
 
-function cvYears(cv: CvContent, today: Date): number | undefined {
+/**
+ * The Candidate's seniority as the Match Score reads it: the span, in years, of
+ * the dated jobs on the CV (an ongoing one runs to `today`); undefined when no
+ * job is dated.
+ */
+export function yearsOfExperience(cv: CvContent, today: Date = new Date()): number | undefined {
   const years: number[] = [];
   for (const { period } of cv.experience) {
     const text = normalise(period);
@@ -238,7 +243,7 @@ function requiredYears(jobOffer: JobOfferDetails): number | undefined {
 
 function scoreSeniority(cv: CvContent, jobOffer: JobOfferDetails, today: Date): SeniorityBreakdown {
   const breakdown: SeniorityBreakdown = { status: "unknown" };
-  const has = cvYears(cv, today);
+  const has = yearsOfExperience(cv, today);
   const wanted = requiredYears(jobOffer);
   if (has !== undefined) breakdown.cvYears = has;
   if (wanted !== undefined) breakdown.requiredYears = wanted;

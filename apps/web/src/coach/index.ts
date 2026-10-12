@@ -2,22 +2,23 @@
  * The AI Coach's side of the Coach Panel: one reply to the conversation so far,
  * aware of what the Candidate has in view.
  *
- * One deep module. Callers get `createCoach({ ai, profiles }).reply(candidateId, input)`
+ * One deep module. Callers get `createCoach({ ai, ...sources }).reply(candidateId, input)`
  * where `input` is untrusted (it comes from the browser): `{ messages, focus? }`.
  * It never throws for a bad conversation or a failing provider: it answers
- * `{ ok: false, error: "invalid" | "unavailable" }`. The in-view Profile is
- * read here, scoped to the Candidate, so a Profile id from someone else's
- * account adds nothing. Task `coaching`, EU endpoints only (ADR-0007).
+ * `{ ok: false, error: "invalid" | "unavailable" }`. What the AI Coach is told
+ * (the Candidate summary, the Coach Memory, the item In view, the summaries,
+ * within COACH_CONTEXT_MAX_TOKENS and without the Candidate's identity) is read
+ * here from the sources, scoped to the Candidate, so an id from someone else's
+ * account adds nothing: see ./context. Task `coaching`, EU endpoints only (ADR-0007).
  * Each reply says what it cost (`CoachMessageCost`), so it can be recorded with
  * the message: an estimate from list prices, frozen at the time of the reply.
  */
 import { costInEur, type AiLayer, type ProviderId } from "@jobhub/ai";
 import * as z from "zod";
-import type { Profiles } from "../profiles";
+import { COACH_CONTEXT_MAX_TOKENS, COACH_FOCUS_KINDS, coachContext, estimateTokens, type CoachSources } from "./context";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentConversation } from "./conversation";
 
-/** What the Candidate has in view while talking to the AI Coach. */
-export type CoachFocus = { kind: "profile"; id: string } | { kind: "application"; id: string };
+export { COACH_CONTEXT_MAX_TOKENS, COACH_FOCUS_KINDS, estimateTokens, type CoachFocus, type CoachMemorySource, type CoachSources } from "./context";
 
 export { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentConversation, type CoachMessage } from "./conversation";
 
@@ -39,9 +40,8 @@ export interface Coach {
   reply(candidateId: string, input: unknown): Promise<CoachReply>;
 }
 
-export interface CoachDeps {
+export interface CoachDeps extends CoachSources {
   ai: AiLayer;
-  profiles: Pick<Profiles, "get">;
 }
 
 /**
@@ -57,7 +57,7 @@ const inputSchema = z.object({
     .min(1)
     .max(MAX_MESSAGES_ACCEPTED)
     .refine((messages) => messages.at(-1)?.from === "candidate"),
-  focus: z.object({ kind: z.enum(["profile", "application"]), id: z.string().max(100) }).optional(),
+  focus: z.object({ kind: z.enum(COACH_FOCUS_KINDS), id: z.string().max(100) }).optional(),
 });
 
 const PERSONA = `Tu es le coach Jobbbox : un coach emploi bienveillant et concret pour des cadres et professionnels de plus de 40 ans qui cherchent un poste en France.
@@ -67,20 +67,8 @@ Règles :
 - Si tu proposes une modification de son CV, dis précisément quoi changer et pourquoi.`;
 
 export function createCoach(deps: CoachDeps): Coach {
-  /** What the AI Coach is told of the screen; it carries the Candidate's identity when it holds their Master CV (ADR-0007). */
-  async function context(candidateId: string, focus: CoachFocus | undefined): Promise<{ text: string; containsIdentity: boolean }> {
-    const none = { text: "Le candidat ne consulte aucun profil en ce moment.", containsIdentity: false };
-    // Applications do not exist yet: an Application in view adds nothing until they do.
-    if (focus?.kind !== "profile") return none;
-    const profile = await deps.profiles.get(candidateId, focus.id);
-    if (!profile) return none;
-    const text = [
-      `Le candidat consulte son profil « ${profile.name} ».`,
-      `Critères de recherche : ${JSON.stringify(profile.searchCriteria)}`,
-      `CV de référence (version ${profile.masterCv.version}) : ${JSON.stringify(profile.masterCv.content)}`,
-    ].join("\n");
-    return { text, containsIdentity: true };
-  }
+  /** Room left for the context once the persona is in: the whole system prompt stays under the cap. */
+  const contextTokens = COACH_CONTEXT_MAX_TOKENS - estimateTokens(PERSONA) - 1;
 
   return {
     async reply(candidateId, input) {
@@ -89,12 +77,13 @@ export function createCoach(deps: CoachDeps): Coach {
       const { focus } = parsed.data;
       const messages = recentConversation(parsed.data.messages);
       try {
-        const inView = await context(candidateId, focus);
+        const context = await coachContext(deps, candidateId, focus, contextTokens);
         const result = await deps.ai.generate({
           task: "coaching",
           candidateId,
-          system: `${PERSONA}\n\n${inView.text}`,
-          containsIdentity: inView.containsIdentity,
+          system: `${PERSONA}\n\n${context}`,
+          // First name only, the Master CV's identity stripped (#126): the AI layer's scan stays the safety net (#121).
+          containsIdentity: false,
           prompt: messages.map((message) => ({ role: message.from === "candidate" ? ("user" as const) : ("assistant" as const), content: message.text })),
         });
         const { provider, model, usage } = result;

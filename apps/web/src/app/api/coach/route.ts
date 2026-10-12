@@ -6,8 +6,8 @@ const STATUS = { invalid: 400, not_found: 404, unavailable: 503 } as const;
 
 /**
  * The Candidate's next message in a Coach Conversation, and the AI Coach's reply, both saved.
- * Body: { conversationId?, message, focus?: { kind: "profile" | "application", id } };
- * without `conversationId` a new Coach Conversation starts, attached to the Profile in view.
+ * Body: { conversationId?, message, focus?: { kind: "profile" | "application" | "job_offer" | "job_search" | "job_digest", id, profileId? } };
+ * without `conversationId` a new Coach Conversation starts, attached to the Profile in view (or `profileId`, the one the page shows).
  * 200 { conversation, reply } · 400 { error: "invalid" } · 401 · 403 · 404 { error: "not_found" } · 503 { error: "unavailable" }
  */
 export async function POST(request: Request) {

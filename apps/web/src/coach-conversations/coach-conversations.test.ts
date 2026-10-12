@@ -113,6 +113,19 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     expect(await conversations.list(jean)).toEqual([]);
   });
 
+  it("attaches a conversation started on a Job Search, Job Digest or Application page to the Profile shown there, telling the AI Coach what is in view", async () => {
+    const profile = await createProfiles(database).create(marie, { masterCv, searchCriteria: { targetRole: "Directrice financière", location: "Lyon" } });
+    if (!profile.ok) throw new Error("fixture refused");
+    const jobSearchId = "44444444-4444-4444-8444-444444444444";
+
+    const sent = await conversations.send(marie, { message: "Que penser de ces offres ?", focus: { kind: "job_search", id: jobSearchId, profileId: profile.profile.id } });
+    const fromJean = await conversations.send(jean, { message: "Et ces offres ?", focus: { kind: "job_digest", id: jobSearchId, profileId: profile.profile.id } });
+
+    expect(sent).toMatchObject({ ok: true, conversation: { profile: { id: profile.profile.id, name: "Directrice financière" } } });
+    expect(asked[0]!.input.focus).toEqual({ kind: "job_search", id: jobSearchId });
+    expect(fromJean).toMatchObject({ ok: true, conversation: { profile: null } });
+  });
+
   it("does not attach another Candidate's Profile, even when its id is sent", async () => {
     const profile = await createProfiles(database).create(marie, { masterCv, searchCriteria: { targetRole: "Directrice financière", location: "Lyon" } });
     if (!profile.ok) throw new Error("fixture refused");

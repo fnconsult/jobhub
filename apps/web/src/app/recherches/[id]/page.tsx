@@ -37,7 +37,7 @@ export default async function JobSearchPage({ params }: Params) {
   const { profile, status, results } = jobSearch;
   // This page shows how the Job Search ended: no need to notify the Candidate of it any more.
   if (status !== "searching") await getJobSearches().dismissNotification(candidateId, jobSearch.id);
-  const inView = { kind: "profile", id: profile.id, name: profile.name } as const;
+  const inView = { kind: "job_search", id: jobSearch.id, name: profile.name, profileId: profile.id } as const;
   const startedAt = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeStyle: "short", timeZone: "Europe/Paris" }).format(jobSearch.startedAt);
   return (
     <CandidateLayout candidateId={candidateId} currentProfileId={profile.id}>

@@ -291,6 +291,10 @@ _Avoid_: Tier, package, offer (ambiguous with Job Offer)
 Whether a Candidate has ever been charged for a Plan, even if they are back on Free. It decides whether the invoices entry is offered on the subscription page. A Coaching Session payment alone does not count.
 _Avoid_: Billing history, customer status
 
+**Plan Price**:
+What a Plan costs each billing interval, shown in the plan comparison. Read from Stripe, never set by us; Free costs 0. Left out when Stripe cannot give it.
+_Avoid_: Tariff, fee
+
 **Plan Quota**:
 A configurable usage limit attached to a Plan: Profiles held at once, Match Scores, ATS Scores and Enriched Contacts per calendar month (French time), and the Job Digest frequency. A quota can be unlimited or not included at all. Changed by Administrators; a change applies at once to every Candidate on the Plan.
 _Avoid_: Limit, allowance, credits

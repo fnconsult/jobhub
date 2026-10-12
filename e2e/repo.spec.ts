@@ -25,6 +25,22 @@ test.describe("monorepo tooling", () => {
     expect(ci).toMatch(/pull_request/);
   });
 
+  // Issue #133 (ADR-0018): complex widgets sit on unstyled Radix primitives, styled with our tokens.
+  test("complex widgets use unstyled Radix primitives, with no Tailwind or shadcn (ADR-0018)", () => {
+    const adr = read("docs/adr/0018-radix-primitives-for-complex-widgets-only.md");
+    expect(adr).toMatch(/unstyled Radix/i);
+    expect(adr).toMatch(/Tailwind/);
+    expect(adr).toMatch(/shadcn/);
+    expect(adr).toMatch(/ADR-0009/);
+
+    const web = JSON.parse(read("apps/web/package.json"));
+    const deps = { ...web.dependencies, ...web.devDependencies };
+    expect(deps).toHaveProperty(["@radix-ui/react-dropdown-menu"]);
+    expect(Object.keys(deps).filter((n) => /tailwind|shadcn/i.test(n))).toEqual([]);
+
+    expect(read("apps/web/src/components/WorkspaceHeader.tsx")).not.toContain("<details");
+  });
+
   test("lint rejects a hard-coded user-facing string in the web app", () => {
     const dir = mkdtempSync(path.join("apps/web/src", "e2e-lint-"));
     try {

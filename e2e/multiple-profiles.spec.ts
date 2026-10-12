@@ -43,11 +43,16 @@ async function createProfile(page: Page, targetRole: string): Promise<string> {
 }
 
 const switcherOf = (page: Page) => page.getByRole("navigation", { name: fr.profileSwitcher.label });
+/** The button that opens the Profile switcher's menu, named after the Profile being shown. */
+const switcherButtonOf = (page: Page) => switcherOf(page).getByRole("button");
+const currentProfile = (name: string) => fr.profileSwitcher.current.replace("{{name}}", name);
 
+/** Opens the Profile switcher with the mouse and returns its menu. */
 async function openSwitcher(page: Page) {
-  const switcher = switcherOf(page);
-  await switcher.locator("summary").click();
-  return switcher;
+  await switcherButtonOf(page).click();
+  const menu = page.getByRole("menu");
+  await expect(menu).toBeVisible();
+  return menu;
 }
 
 test.describe("several Profiles per Candidate", () => {
@@ -55,7 +60,7 @@ test.describe("several Profiles per Candidate", () => {
     await signInOn(page, "duplicate");
     const firstId = await createProfile(page, "Directrice financière");
     await page.goto(`/profils/${firstId}`);
-    await expect(switcherOf(page).locator("summary")).toHaveText(fr.profileSwitcher.current.replace("{{name}}", "Directrice financière"));
+    await expect(switcherButtonOf(page)).toHaveText(currentProfile("Directrice financière"));
 
     const duplicateName = page.getByLabel(fr.profileActions.duplicateName);
     await expect(duplicateName).toHaveValue("Directrice financière (copie)");
@@ -77,8 +82,8 @@ test.describe("several Profiles per Candidate", () => {
     await expect(page).toHaveTitle(`Consultante en transformation financière · ${fr.app.name}`);
 
     const switcher = await openSwitcher(page);
-    await expect(switcher.getByRole("link", { name: "Consultante en transformation financière" })).toHaveAttribute("aria-current", "page");
-    await switcher.getByRole("link", { name: "Directrice financière" }).click();
+    await expect(switcher.getByRole("menuitem", { name: "Consultante en transformation financière" })).toHaveAttribute("aria-current", "page");
+    await switcher.getByRole("menuitem", { name: "Directrice financière" }).click();
     await expect(page).toHaveURL(`${origin}/profils/${firstId}`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice financière");
   });
@@ -130,8 +135,8 @@ test.describe("several Profiles per Candidate", () => {
     await expect(page.getByText(fr.profileActions.archivedNotice)).toBeVisible();
     await expect(page.getByText("Directrice financière · Groupe Seb · Lyon · 2015 – 2024")).toBeVisible();
     let switcher = await openSwitcher(page);
-    await expect(switcher.getByRole("link", { name: "Contrôleuse de gestion" })).toHaveCount(0);
-    await expect(switcher.getByRole("link", { name: "Directrice financière" })).toBeVisible();
+    await expect(switcher.getByRole("menuitem", { name: "Contrôleuse de gestion" })).toHaveCount(0);
+    await expect(switcher.getByRole("menuitem", { name: "Directrice financière" })).toBeVisible();
 
     await page.goto("/compte");
     const archived = page.getByRole("region", { name: fr.profiles.archivedTitle });
@@ -139,7 +144,7 @@ test.describe("several Profiles per Candidate", () => {
     await page.getByRole("button", { name: fr.profileActions.restore }).click();
     await expect(page.getByText(fr.profileActions.archivedNotice)).toHaveCount(0);
     switcher = await openSwitcher(page);
-    await expect(switcher.getByRole("link", { name: "Contrôleuse de gestion" })).toBeVisible();
+    await expect(switcher.getByRole("menuitem", { name: "Contrôleuse de gestion" })).toBeVisible();
   });
 
   test("a Candidate who has a Profile can add another, from scratch, without a CV", async ({ page }) => {
@@ -161,7 +166,7 @@ test.describe("several Profiles per Candidate", () => {
     await expect(page).toHaveURL(/\/profils\/[0-9a-f-]{36}$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Consultante transformation");
     const switcher = await openSwitcher(page);
-    await expect(switcher.getByRole("link")).toHaveText(["Directrice financière", "Consultante transformation", fr.profiles.add]);
+    await expect(switcher.getByRole("menuitem")).toHaveText(["Directrice financière", "Consultante transformation", fr.profiles.add]);
   });
 
   // Premium's Profile quota is unlimited: creating, duplicating and restoring are never refused.
@@ -182,7 +187,7 @@ test.describe("several Profiles per Candidate", () => {
     await expect(page.getByText(fr.profiles.quotaReached)).toHaveCount(0);
     await expect(page.getByRole("link", { name: fr.profiles.add }).first()).toBeVisible();
     const switcher = await openSwitcher(page);
-    await expect(switcher.getByRole("link")).toHaveText([...roles, "DAF bis", fr.profiles.add]);
+    await expect(switcher.getByRole("menuitem")).toHaveText([...roles, "DAF bis", fr.profiles.add]);
   });
 
   test("a Free Candidate holds one active Profile: a second one is refused with an Upgrade Prompt to Standard", async ({ page }) => {
@@ -224,6 +229,56 @@ test.describe("several Profiles per Candidate", () => {
     const restore = await page.request.patch(`/api/profiles/${firstId}`, { headers: { origin }, data: { archived: false } });
     expect(restore.status()).toBe(409);
     expect(await restore.json()).toMatchObject({ error: "plan_quota_reached", prompt: { upgradeTo: "standard", href: "/abonnement" } });
+  });
+
+  // Issue #133: the switcher is a Radix dropdown menu (ADR-0018), so it follows the WAI-ARIA menu button pattern.
+  test("the Profile switcher is a menu button a Candidate can use with the keyboard and a screen reader", async ({ page }) => {
+    await signInOn(page, "switcher-keyboard");
+    const firstId = await createProfile(page, "Directrice financière");
+    const secondId = await createProfile(page, "Consultante transformation");
+    await page.goto(`/profils/${secondId}`);
+
+    // A screen reader announces a button named after the Profile shown, which opens a menu.
+    const button = switcherOf(page).getByRole("button", { name: currentProfile("Consultante transformation") });
+    await expect(button).toHaveAttribute("aria-haspopup", "menu");
+    await expect(button).toHaveAttribute("aria-expanded", "false");
+
+    // Enter opens it on the first item; the menu is named by its button and marks the Profile shown.
+    await button.focus();
+    await page.keyboard.press("Enter");
+    const menu = page.getByRole("menu", { name: currentProfile("Consultante transformation") });
+    await expect(menu).toBeVisible();
+    // The menu is modal: while it is open, a screen reader reads only the menu (the rest of the page is aria-hidden).
+    await expect(switcherOf(page)).toHaveCount(0);
+    await expect(page.getByRole("button", { name: currentProfile("Consultante transformation"), includeHidden: true })).toHaveAttribute("aria-expanded", "true");
+    const items = menu.getByRole("menuitem");
+    await expect(items).toHaveText(["Directrice financière", "Consultante transformation", fr.profiles.add]);
+    await expect(items.nth(1)).toHaveAttribute("aria-current", "page");
+    await expect(items.nth(0)).not.toHaveAttribute("aria-current");
+    await expect(items.nth(0)).toBeFocused();
+
+    // Arrow keys move between items, with a visible focus ring (ADR-0009); Home and End jump to either end.
+    await page.keyboard.press("ArrowDown");
+    await expect(items.nth(1)).toBeFocused();
+    await expect(items.nth(1)).toHaveCSS("outline-style", "solid");
+    await page.keyboard.press("End");
+    await expect(items.nth(2)).toBeFocused();
+    await page.keyboard.press("Home");
+    await expect(items.nth(0)).toBeFocused();
+
+    // Escape closes it and gives focus back to the button.
+    await page.keyboard.press("Escape");
+    await expect(menu).toBeHidden();
+    await expect(button).toBeFocused();
+    await expect(button).toHaveAttribute("aria-expanded", "false");
+
+    // ArrowDown opens it too, and Enter on an item goes to that Profile.
+    await page.keyboard.press("ArrowDown");
+    await expect(items.nth(0)).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(`${origin}/profils/${firstId}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice financière");
+    await expect(switcherOf(page).getByRole("button", { name: currentProfile("Directrice financière") })).toHaveAttribute("aria-expanded", "false");
   });
 
   test("the Profile page meets the ADR-0009 floor", async ({ page }) => {

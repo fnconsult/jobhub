@@ -140,6 +140,12 @@ _Avoid_: Scraping, crawling (alone)
 One run of Job discovery that a Candidate starts for a Profile, and its outcome: searching, done or failed. It counts one against the Plan Quota, and the use is given back if the search fails or times out. A search nobody has finished after 15 minutes is failed.
 _Avoid_: Search (alone, ambiguous with Search Criteria)
 
+**Discovery metrics**:
+What one run of Job discovery (a Job Search or a Job Digest top-up) measured: how many Job Offers each step kept (provider URLs, pages read, Job Offers extracted, already stored, left after deduplication, with a Match Score of 60 or more), the pages skipped by Skip reason, and the estimated cost in euros. Costs are estimates from list prices, not billed amounts. Duration is the Candidate's wait (start to outcome) for a Job Search, and the worker's run time for a Job Digest.
+
+**Skip reason**:
+Why a result page gave no Job Offer (for example a Forbidden site, robots.txt, or an unreadable page).
+
 **Forbidden site**:
 A site whose terms forbid crawling (LinkedIn, Indeed, Glassdoor). Job discovery never fetches it; only Capture covers it.
 

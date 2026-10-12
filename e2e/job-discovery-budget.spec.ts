@@ -266,6 +266,17 @@ test.describe("Job discovery budget (#113)", () => {
     await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
     const jobSearchId = new URL(page.url()).pathname.split("/").pop()!;
 
+    // Nobody works that queued job, and a later spec's worker must not find it left behind.
+    const dropQueuedDiscovery = async () => {
+      const client = new pg.Client({ connectionString: databaseUrl });
+      await client.connect();
+      try {
+        await client.query("DELETE FROM pgboss.job WHERE name = 'job-discovery.run' AND data->>'profileId' = $1", [timeoutProfileId]);
+      } finally {
+        await client.end();
+      }
+    };
+
     const startedMinutesAgo = async (minutes: number) => {
       const client = new pg.Client({ connectionString: databaseUrl });
       await client.connect();
@@ -277,6 +288,7 @@ test.describe("Job discovery budget (#113)", () => {
     };
     const failure = page.getByText("La recherche n'a pas abouti. Réessayez dans quelques instants.");
 
+    await dropQueuedDiscovery();
     await startedMinutesAgo(10);
     await page.goto(`/recherches/${jobSearchId}`);
     await expect(page.getByText("Votre coach cherche des offres")).toBeVisible();

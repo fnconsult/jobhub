@@ -3,7 +3,7 @@
  * Callers only need `AiLayer`; `AiProvider` is the seam each adapter fills.
  */
 
-export const PROVIDER_IDS = ["anthropic", "mistral", "openai", "perplexity"] as const;
+export const PROVIDER_IDS = ["anthropic", "mistral", "openai", "perplexity", "brave", "tavily", "linkup"] as const;
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 
 /**

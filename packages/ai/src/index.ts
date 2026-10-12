@@ -4,7 +4,7 @@
  *
  *   const ai = createAiLayerFromEnv();
  *   await ai.generate({ task: "scoring", candidateId, system, prompt });
- *   await ai.searchWeb({ candidateId, criteria });
+ *   await ai.searchWeb({ candidateId, criteria, filters: { excludeDomains, maxAgeDays: 30 } });
  *   await ai.searchCompany({ candidateId, employer });
  */
 export { createAiLayer } from "./ai-layer";
@@ -16,6 +16,9 @@ export { createAnthropicProvider } from "./providers/anthropic";
 export type { AnthropicEndpoint, AnthropicProviderOptions } from "./providers/anthropic";
 export { createMistralProvider, createOpenAiProvider } from "./providers/chat-completions";
 export { createPerplexityProvider } from "./providers/perplexity";
+export { createBraveProvider } from "./providers/brave";
+export { createLinkupProvider } from "./providers/linkup";
+export { createTavilyProvider } from "./providers/tavily";
 export { buildCompanyQuery, buildSearchQuery, COMPANY_FACTS } from "./search-query";
 export { PROVIDER_IDS, SEARCH_TASK, TEXT_TASKS } from "./types";
 export type * from "./types";

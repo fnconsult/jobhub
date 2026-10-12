@@ -75,6 +75,20 @@ describe("web search", () => {
     expect(usage.entries).toEqual([expect.objectContaining({ candidateId: "cand-1", task: "web_search", provider: "perplexity" })]);
   });
 
+  it("passes domain and freshness filters to the search provider, with the configured model", async () => {
+    const tavily = createFakeProvider({ id: "tavily", residency: "outside_eu" });
+    const ai = createAiLayer({ providers: [tavily], routes: { web_search: { provider: "tavily", model: "advanced" } }, usage: createMemoryUsageLog() });
+    const filters = { includeDomains: ["apec.fr"], excludeDomains: ["indeed.fr"], maxAgeDays: 30 };
+
+    await ai.searchWeb({ candidateId: "cand-1", criteria, filters });
+    await ai.searchCompany({ candidateId: "cand-1", employer: "Acme" });
+
+    expect(tavily.searches.map(({ model, filters }) => ({ model, filters }))).toEqual([
+      { model: "advanced", filters },
+      { model: "advanced", filters: undefined },
+    ]);
+  });
+
   it("strips e-mail addresses and phone numbers typed into the free-text criteria", async () => {
     const perplexity = createFakeProvider({ id: "perplexity", residency: "outside_eu" });
     const ai = createAiLayer({ providers: [perplexity], routes: { web_search: "perplexity" }, usage: createMemoryUsageLog() });

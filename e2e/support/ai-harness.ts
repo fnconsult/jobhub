@@ -12,11 +12,12 @@
  * Prints usage lines (from the AI layer) and finally one line `AI_HARNESS_RESULT <json>`.
  */
 import { readFileSync } from "node:fs";
+import path from "node:path";
 import { createAiLayerFromEnv } from "@jobhub/ai";
 
 export type HarnessCall =
   | { kind: "generate"; task: string; candidateId: string | null; system?: string; prompt: string }
-  | { kind: "search"; candidateId: string | null; criteria: Record<string, unknown> };
+  | { kind: "search"; candidateId: string | null; criteria: Record<string, unknown>; filters?: Record<string, unknown> };
 
 export interface HarnessRequest {
   url: string;
@@ -46,7 +47,12 @@ function answer(url: URL, body: string): Response {
   const parsed = body ? JSON.parse(body) : {};
   const host = url.hostname;
   // Lets a test simulate a provider outage.
-  if (body.includes("E2E_PROVIDER_DOWN")) return new Response("upstream unavailable", { status: 503 });
+  if (body.includes("E2E_PROVIDER_DOWN") || url.search.includes("E2E_PROVIDER_DOWN")) return new Response("upstream unavailable", { status: 503 });
+  // Search-only providers (#110): answer with the checked-in fixtures of their API replies.
+  const fixture = (name: string) => json(JSON.parse(readFileSync(path.resolve("packages/ai/src/providers/fixtures", `${name}.json`), "utf8")));
+  if (host === "api.search.brave.com" && url.pathname === "/res/v1/web/search") return fixture("brave-web-search");
+  if (host === "api.tavily.com" && url.pathname === "/search") return fixture("tavily-search");
+  if (host === "api.linkup.so" && url.pathname === "/v1/search") return fixture("linkup-search");
   if (host === "api.perplexity.ai" && url.pathname === "/v1/responses") {
     // E2E_PERPLEXITY_REPLY: a recorded Agent API response (JSON file) to answer with instead.
     const recorded = process.env.E2E_PERPLEXITY_REPLY;
@@ -113,7 +119,7 @@ async function main() {
         const value =
           call.kind === "generate"
             ? await ai.generate({ task: call.task as never, candidateId: call.candidateId, system: call.system, prompt: call.prompt })
-            : await ai.searchWeb({ candidateId: call.candidateId, criteria: call.criteria as never });
+            : await ai.searchWeb({ candidateId: call.candidateId, criteria: call.criteria as never, filters: call.filters as never });
         result.outcomes.push({ ok: true, value: value as unknown as Record<string, unknown> });
       } catch (error) {
         result.outcomes.push({ ok: false, error: errorOf(error) });

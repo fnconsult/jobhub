@@ -2,7 +2,10 @@ import { createAiLayer, type AiLayer, type Route } from "./ai-layer";
 import { AiConfigError } from "./errors";
 import { createAnthropicProvider } from "./providers/anthropic";
 import { createMistralProvider, createOpenAiProvider } from "./providers/chat-completions";
+import { createBraveProvider } from "./providers/brave";
+import { createLinkupProvider } from "./providers/linkup";
 import { createPerplexityProvider } from "./providers/perplexity";
+import { createTavilyProvider } from "./providers/tavily";
 import { createFakeProvider } from "./testing";
 import { PROVIDER_IDS, SEARCH_TASK, TEXT_TASKS, type AiProvider, type AiTask, type ProviderId, type UsageLog } from "./types";
 import { createConsoleUsageLog } from "./usage";
@@ -35,6 +38,9 @@ export const AI_ENV_KEYS = [
   "OPENAI_API_KEY",
   "OPENAI_DATA_RESIDENCY",
   "PERPLEXITY_API_KEY",
+  "BRAVE_SEARCH_API_KEY",
+  "TAVILY_API_KEY",
+  "LINKUP_API_KEY",
 ] as const;
 
 export interface AiLayerDeps {
@@ -77,6 +83,12 @@ function buildProvider(id: ProviderId, env: Env, fetch: typeof globalThis.fetch 
       });
     case "perplexity":
       return createPerplexityProvider({ apiKey: required(env, "PERPLEXITY_API_KEY"), fetch });
+    case "brave":
+      return createBraveProvider({ apiKey: required(env, "BRAVE_SEARCH_API_KEY"), fetch });
+    case "tavily":
+      return createTavilyProvider({ apiKey: required(env, "TAVILY_API_KEY"), fetch });
+    case "linkup":
+      return createLinkupProvider({ apiKey: required(env, "LINKUP_API_KEY"), fetch });
   }
 }
 

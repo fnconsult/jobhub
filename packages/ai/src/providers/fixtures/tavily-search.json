@@ -1,0 +1,32 @@
+{
+  "query": "Offres d'emploi « DAF » à Lyon",
+  "answer": null,
+  "images": [],
+  "results": [
+    {
+      "title": "DAF H/F - CDI - Lyon | Acme Industrie",
+      "url": "https://carrieres.acme-industrie.example/offres/daf-lyon",
+      "content": "Acme Industrie recrute son Directeur administratif et financier (H/F) en CDI à Lyon.",
+      "score": 0.91,
+      "raw_content": null,
+      "published_date": "2026-10-02"
+    },
+    {
+      "title": "Directeur financier H/F",
+      "url": "https://www.cadremploi.example/emploi/daf-lyon-123",
+      "content": "Groupe industriel lyonnais, poste de DAF rattaché au Président.",
+      "score": 0.84,
+      "raw_content": null,
+      "published_date": null
+    },
+    {
+      "title": "Doublon de la première offre",
+      "url": "https://carrieres.acme-industrie.example/offres/daf-lyon",
+      "content": "Même page.",
+      "score": 0.5,
+      "raw_content": null
+    }
+  ],
+  "response_time": 1.21,
+  "request_id": "123e4567-e89b-12d3-a456-426614174111"
+}

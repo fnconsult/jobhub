@@ -14,11 +14,15 @@ function recordingFetch() {
       ? { id: "m", type: "message", role: "assistant", model: "claude", content: [{ type: "text", text: "ok" }], stop_reason: "end_turn", usage: { input_tokens: 3, output_tokens: 2 } }
       : url.hostname === "api.perplexity.ai"
         ? { status: "completed", model: "m", output: [{ type: "message", content: [{ type: "output_text", text: "ok" }] }], usage: { input_tokens: 3, output_tokens: 2 } }
-        : { model: "m", choices: [{ message: { content: "ok" } }], usage: { prompt_tokens: 3, completion_tokens: 2 } };
+        : WEB_SEARCH_HOSTS.includes(url.hostname)
+          ? { results: [], web: { results: [] } }
+          : { model: "m", choices: [{ message: { content: "ok" } }], usage: { prompt_tokens: 3, completion_tokens: 2 } };
     return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
   };
   return { fetch: fetch as typeof globalThis.fetch, hosts };
 }
+
+const WEB_SEARCH_HOSTS = ["api.search.brave.com", "api.tavily.com", "api.linkup.so"];
 
 const base = { AWS_BEARER_TOKEN_BEDROCK: "bedrock-key", PERPLEXITY_API_KEY: "pk" };
 
@@ -51,6 +55,25 @@ describe("AI layer configured from the environment", () => {
     ]);
   });
 
+  it.each([
+    ["brave", "BRAVE_SEARCH_API_KEY", "api.search.brave.com"],
+    ["tavily", "TAVILY_API_KEY", "api.tavily.com"],
+    ["linkup", "LINKUP_API_KEY", "api.linkup.so"],
+  ])(
+    "routes web search to %s by AI_WEB_SEARCH_PROVIDER alone, with its own key",
+    async (provider, key, host) => {
+      const { fetch, hosts } = recordingFetch();
+      const usage = createMemoryUsageLog();
+      const env = { AWS_BEARER_TOKEN_BEDROCK: "bedrock-key", AI_WEB_SEARCH_PROVIDER: provider, [key]: "search-key" };
+
+      await createAiLayerFromEnv(env, { fetch, usage }).searchWeb({ candidateId: "c", criteria: { targetRole: "DAF", location: "Lyon" } });
+
+      expect(hosts).toEqual([host]);
+      expect(usage.entries.map((e) => [e.task, e.provider])).toEqual([["web_search", provider]]);
+      expect(() => createAiLayerFromEnv({ ...env, [key]: "" })).toThrow(new RegExp(key));
+    },
+  );
+
   it("refuses to start when personal-data tasks would go to the direct Anthropic API", () => {
     expect(() => createAiLayerFromEnv({ ...base, ANTHROPIC_ENDPOINT: "direct", ANTHROPIC_API_KEY: "sk" })).toThrow(DataResidencyError);
   });
@@ -74,6 +97,10 @@ describe("AI layer configured from the environment", () => {
 
   it("does not need keys of providers no task uses", () => {
     expect(() => createAiLayerFromEnv(base)).not.toThrow();
+  });
+
+  it("refuses to route a text task to a search-only provider", () => {
+    expect(() => createAiLayerFromEnv({ ...base, AI_OFFER_ANALYSIS_PROVIDER: "tavily", TAVILY_API_KEY: "tk" })).toThrow(AiConfigError);
   });
 
   it("rejects an unknown provider name", () => {

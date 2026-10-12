@@ -49,9 +49,10 @@ const score = (candidateId: string | null = "cand-1"): HarnessCall => ({
 });
 const write = (candidateId: string | null = "cand-1"): HarnessCall => ({ kind: "generate", task: "writing", candidateId, prompt: CV });
 const analyseOffer: HarnessCall = { kind: "generate", task: "offer_analysis", candidateId: "cand-1", prompt: "Offre : Développeur TS, Paris, CDI." };
-const search = (candidateId: string | null = "cand-1"): HarnessCall => ({
+const search = (candidateId: string | null = "cand-1", filters?: Record<string, unknown>): HarnessCall => ({
   kind: "search",
   candidateId,
+  filters,
   criteria: {
     targetRole: "Développeur TypeScript jean.dupont@example.fr",
     location: "Paris +33 6 12 34 56 78",
@@ -339,5 +340,134 @@ test.describe("AI layer: fake provider", () => {
   test("AI_FAKE is refused in production", () => {
     const r = runAi({ AI_FAKE: "true", NODE_ENV: "production" });
     expect(r.startup).toMatchObject({ ok: false, error: { name: "AiConfigError" } });
+  });
+});
+
+test.describe("AI layer: pluggable web search providers (issue #110)", () => {
+  const ACME = "https://carrieres.acme-industrie.example/offres/daf-lyon";
+  const CADREMPLOI = "https://www.cadremploi.example/emploi/daf-lyon-123";
+  const SEARCH_KEYS = { BRAVE_SEARCH_API_KEY: "test-brave-key", TAVILY_API_KEY: "test-tavily-key", LINKUP_API_KEY: "test-linkup-key" };
+  const FILTERS = { includeDomains: ["apec.fr", "cadremploi.fr"], excludeDomains: ["indeed.fr"], maxAgeDays: 30 };
+  const route = (provider: string) => ({ ...KEYS, ...SEARCH_KEYS, AI_WEB_SEARCH_PROVIDER: provider });
+  const dayOffset = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+
+  for (const provider of ["brave", "tavily", "linkup"]) {
+    test(`AI_WEB_SEARCH_PROVIDER=${provider} returns the provider's results as sources, and logs usage`, () => {
+      const r = runAi(route(provider), [search("cand-110")]);
+      ok(r);
+      expect(r.requests).toHaveLength(1);
+      expect(r.outcomes[0]).toMatchObject({ ok: true, value: { provider, sources: [ACME, CADREMPLOI] } });
+      expect(r.usage).toEqual([expect.objectContaining({ candidateId: "cand-110", task: "web_search", provider, inputTokens: 0, outputTokens: 0 })]);
+    });
+  }
+
+  test("each adapter calls its own API with its own key", () => {
+    const requestOf = (provider: string) => runAi(route(provider), [search()]).requests[0]!;
+    const brave = requestOf("brave");
+    expect(brave.host).toBe("api.search.brave.com");
+    expect(new URL(brave.url).pathname).toBe("/res/v1/web/search");
+    expect(requestOf("tavily")).toMatchObject({ url: "https://api.tavily.com/search", authorization: "Bearer test-tavily-key" });
+    expect(requestOf("linkup")).toMatchObject({ url: "https://api.linkup.so/v1/search", authorization: "Bearer test-linkup-key" });
+  });
+
+  test("Tavily applies domain and date filters as its own parameters", () => {
+    const r = runAi(route("tavily"), [search("cand-1", FILTERS)]);
+    ok(r);
+    expect(JSON.parse(r.requests[0]!.body)).toMatchObject({
+      include_domains: ["apec.fr", "cadremploi.fr"],
+      exclude_domains: ["indeed.fr"],
+      start_date: dayOffset(30),
+    });
+  });
+
+  test("Linkup applies domain and date filters as its own parameters", () => {
+    const r = runAi(route("linkup"), [search("cand-1", FILTERS)]);
+    ok(r);
+    expect(JSON.parse(r.requests[0]!.body)).toMatchObject({
+      includeDomains: ["apec.fr", "cadremploi.fr"],
+      excludeDomains: ["indeed.fr"],
+      fromDate: dayOffset(30),
+    });
+  });
+
+  test("Brave turns included domains into site: operators and the freshness into a date range", () => {
+    const r = runAi(route("brave"), [search("cand-1", FILTERS)]);
+    ok(r);
+    const params = new URL(r.requests[0]!.url).searchParams;
+    expect(params.get("q")).toMatch(/ site:apec\.fr OR site:cadremploi\.fr$/);
+    expect(params.get("freshness")).toBe(`${dayOffset(30)}to${dayOffset(0)}`);
+  });
+
+  test("the model setting is the search depth for Tavily and Linkup", () => {
+    const tavily = runAi({ ...route("tavily"), AI_WEB_SEARCH_MODEL: "advanced" }, [search()]);
+    expect(JSON.parse(tavily.requests[0]!.body).search_depth).toBe("advanced");
+    const linkup = runAi({ ...route("linkup"), AI_WEB_SEARCH_MODEL: "deep" }, [search()]);
+    expect(JSON.parse(linkup.requests[0]!.body).depth).toBe("deep");
+  });
+
+  for (const provider of ["brave", "tavily", "linkup"]) {
+    test(`${provider} only receives a query built from Search Criteria, with no contact details`, () => {
+      const r = runAi(route(provider), [search()]);
+      ok(r);
+      const request = r.requests[0]!;
+      const sent = decodeURIComponent(request.body + request.url).replace(/\+/g, " ");
+      expect(sent).toContain("Développeur TypeScript");
+      expect(sent).toContain("Paris");
+      expect(sent).not.toMatch(/@|jean|dupont|12 34|\+33/i);
+    });
+
+    test(`${provider} cannot be given a text task (it would receive a CV)`, () => {
+      const r = runAi({ ...route(provider), AI_WRITING_PROVIDER: provider }, [write()]);
+      expect(r.startup).toMatchObject({ ok: false, error: { name: "AiConfigError" } });
+      expect(r.requests).toEqual([]);
+    });
+
+    test(`a failing ${provider} search is reported and not counted`, () => {
+      const r = runAi(route(provider), [{ ...search(), criteria: { ...search().criteria, targetRole: "E2E_PROVIDER_DOWN" } } as HarnessCall]);
+      expect(r.startup).toEqual({ ok: true });
+      expect(r.outcomes[0]).toMatchObject({ ok: false, error: { name: "AiProviderError" } });
+      expect(r.usage).toEqual([]);
+    });
+  }
+
+  for (const [provider, key] of [
+    ["brave", "BRAVE_SEARCH_API_KEY"],
+    ["tavily", "TAVILY_API_KEY"],
+    ["linkup", "LINKUP_API_KEY"],
+  ] as const) {
+    test(`a missing ${key} stops start-up and names the variable`, () => {
+      const env: Record<string, string> = { ...route(provider) };
+      delete env[key];
+      const r = runAi(env);
+      expect(r.startup).toMatchObject({ ok: false, error: { name: "AiConfigError" } });
+      if (!r.startup.ok) expect(r.startup.error.message).toContain(key);
+    });
+  }
+
+  test("a provider's key is only needed when it serves the task", () => {
+    expect(runAi({ ...KEYS }).startup).toEqual({ ok: true });
+  });
+
+  test("AI_ENV_KEYS and .env.example list the three adapter keys, empty", () => {
+    const listed = spawnSync(tsx, ["-e", 'import("@jobhub/ai").then((m) => console.log(JSON.stringify(m.AI_ENV_KEYS)))'], { encoding: "utf8" });
+    const keys = JSON.parse(listed.stdout) as string[];
+    const example = readFileSync(".env.example", "utf8");
+    for (const key of Object.keys(SEARCH_KEYS)) {
+      expect(keys).toContain(key);
+      expect(example).toMatch(new RegExp(`^${key}=$`, "m"));
+    }
+    expect(example).toMatch(/^AI_WEB_SEARCH_PROVIDER=/m);
+  });
+
+  test("the live recorder does nothing without WEB_SEARCH_LIVE, so CI never calls a provider", () => {
+    const result = spawnSync("npx", ["vitest", "run", "packages/ai/src/providers/web-search.live.test.ts"], {
+      env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", BRAVE_SEARCH_API_KEY: "k", TAVILY_API_KEY: "k", LINKUP_API_KEY: "k" },
+      encoding: "utf8",
+      timeout: 55_000,
+    });
+    const out = result.stdout + result.stderr;
+    expect(result.status, out).toBe(0);
+    expect(out).toMatch(/skipped/);
+    expect(out).not.toMatch(/\d+ passed/);
   });
 });

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import type { CoachReply } from "../coach";
 import { createProfiles, migrateProfiles } from "../profiles";
-import { createCoachConversations, migrateCoachConversations, type CoachConversations } from "./index";
+import { createCoachConversations, migrateCoachConversations, purgeStaleCoachConversations, type CoachConversations } from "./index";
 
 const masterCv = {
   fullName: "Marie Dupont",
@@ -166,6 +166,24 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     expect(await conversations.open(marie, deleted.conversation.id)).toBeNull();
     expect(await conversations.list(marie)).toMatchObject([{ id: kept.conversation.id }]);
     expect(await conversations.send(marie, { conversationId: deleted.conversation.id, message: "Encore ?" })).toEqual({ ok: false, error: "not_found" });
+  });
+
+  it("keeps a conversation 12 months after its last message, then the purge deletes it", async () => {
+    const sent = await conversations.send(marie, { message: "Bonjour" });
+    if (!sent.ok) throw new Error("refused");
+    const inMonths = (months: number, days = 0) => {
+      const at = new Date(sent.conversation.lastMessageAt);
+      at.setMonth(at.getMonth() + months);
+      at.setDate(at.getDate() + days);
+      return at;
+    };
+
+    expect(await purgeStaleCoachConversations(database, inMonths(11, 27))).toBe(0);
+    expect(await conversations.open(marie, sent.conversation.id)).not.toBeNull();
+
+    expect(await purgeStaleCoachConversations(database, inMonths(12, 1))).toBe(1);
+    expect(await conversations.open(marie, sent.conversation.id)).toBeNull();
+    expect(await conversations.list(marie)).toEqual([]);
   });
 
   it("names a new conversation after the start of its first message", async () => {

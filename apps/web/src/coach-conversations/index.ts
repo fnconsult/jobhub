@@ -195,6 +195,21 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
   }
 }
 
+/** How long a Coach Conversation is kept after its last message. */
+export const RETENTION_MONTHS = 12;
+
+/**
+ * Deletes the Coach Conversations whose last message is RETENTION_MONTHS old or
+ * more at `now`, with their messages; returns how many. Safe to run again.
+ */
+export async function purgeStaleCoachConversations(database: Pick<Pool, "query">, now: Date): Promise<number> {
+  const { rowCount } = await database.query(`DELETE FROM coach_conversation WHERE last_message_at <= $1::timestamptz - make_interval(months => $2)`, [
+    now,
+    RETENTION_MONTHS,
+  ]);
+  return rowCount ?? 0;
+}
+
 /** Creates or upgrades the Coach Conversation tables. Run after the Profile tables. Safe to run repeatedly. */
 export async function migrateCoachConversations(database: Pool): Promise<void> {
   await database.query(`

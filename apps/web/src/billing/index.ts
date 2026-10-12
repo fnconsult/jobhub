@@ -56,7 +56,8 @@ export interface PaidCoachingSession {
 }
 
 /** How often a subscription is charged, as Stripe names it. */
-export type BillingInterval = "day" | "week" | "month" | "year";
+export const BILLING_INTERVALS = ["day", "week", "month", "year"] as const;
+export type BillingInterval = (typeof BILLING_INTERVALS)[number];
 
 /** What a Plan costs, in the currency's smallest unit (cents), each `interval`. */
 export interface PlanPrice {
@@ -256,23 +257,24 @@ export function createBilling(config: BillingConfig) {
   }
 
   /** Stripe Prices' amounts, kept a few minutes: Jobbbox sets them in Stripe and rarely changes them. */
-  type StripeAmount = { amount: number; currency: string; interval: BillingInterval | null };
+  /** `interval` is set for a recurring Price charged once each interval (not every 3 months, say). */
+  type StripeAmount = { amount: number; currency: string; interval: string | null };
   const priceCache = new Map<string, StripeAmount & { at: number }>();
   async function amountOf(priceId: string): Promise<StripeAmount> {
     const cached = priceCache.get(priceId);
     if (cached && now().getTime() - cached.at < 10 * 60_000) return cached;
     const price = await stripe().client.prices.retrieve(priceId);
     if (price.unit_amount === null) throw new Error(`Stripe Price ${priceId} has no fixed amount`);
-    const fetched = { at: now().getTime(), amount: price.unit_amount, currency: price.currency, interval: price.recurring?.interval ?? null };
+    const fetched = { at: now().getTime(), amount: price.unit_amount, currency: price.currency, interval: price.recurring?.interval_count === 1 ? price.recurring.interval : null };
     priceCache.set(priceId, fetched);
     return fetched;
   }
 
-  /** A paid Plan's subscription Price; it must be recurring. */
+  /** A paid Plan's subscription Price; it must recur once each day, week, month or year. */
   async function subscriptionPrice(priceId: string): Promise<PlanPrice> {
     const { amount, currency, interval } = await amountOf(priceId);
-    if (!interval) throw new Error(`Stripe Price ${priceId} is not recurring`);
-    return { amount, currency, interval };
+    if (!BILLING_INTERVALS.includes(interval as BillingInterval)) throw new Error(`Stripe Price ${priceId} is not charged once each day, week, month or year`);
+    return { amount, currency, interval: interval as BillingInterval };
   }
 
   /** Reports a paid Coaching Session from a checkout.session.* event; ignores any other checkout. */

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentCandidate } from "@/auth/server";
 import { paymentFailedNotice } from "@/billing/payment-failed-notice";
+import { planPriceLabel } from "@/billing/plan-price";
 import { planQuotaValue } from "@/billing/quota-labels";
 import { getBilling } from "@/billing/server";
 import { PaymentFailedNotice } from "@/components/PaymentFailedNotice";
@@ -18,7 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const QUOTA_ROWS = [...LIMITED_QUOTAS, "jobDigest"] as const satisfies readonly (keyof PlanQuotas)[];
 
-/** The Candidate's Plan, this month's usage, the Plans side by side, and the way to Stripe (and their invoices there). */
+/** The Candidate's Plan, this month's usage, the Plans side by side with their prices, and the way to Stripe (and their invoices there). */
 export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ checkout?: string; error?: string }> }) {
   const candidate = await getCurrentCandidate();
   if (!candidate) redirect(routes.signIn);
@@ -26,9 +27,10 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   const t = await getServerT(locale);
   const { checkout, error } = await searchParams;
   const billing = getBilling();
-  const [{ plan, stripeStatus, quotas, usedThisMonth }, allQuotas, hasInvoices] = await Promise.all([
+  const [{ plan, stripeStatus, quotas, usedThisMonth }, allQuotas, prices, hasInvoices] = await Promise.all([
     billing.entitlements(candidate.id),
     billing.planQuotas(),
+    billing.planPrices(),
     billing.hasInvoices(candidate.id),
   ]);
   const planName = (name: (typeof PLANS)[number]) => t(`billing.plans.${name}`);
@@ -89,6 +91,14 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
             </tr>
           </thead>
           <tbody>
+            {prices ? (
+              <tr>
+                <th scope="row">{t("billing.page.price")}</th>
+                {PLANS.map((name) => (
+                  <td key={name}>{planPriceLabel(prices[name], locale)}</td>
+                ))}
+              </tr>
+            ) : null}
             {QUOTA_ROWS.map((quota) => (
               <tr key={quota}>
                 <th scope="row">{t(`billing.quotas.${quota}`)}</th>

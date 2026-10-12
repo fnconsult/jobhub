@@ -27,6 +27,7 @@ const taskKey = (task: AiTask, suffix: "PROVIDER" | "MODEL") => `AI_${task.toUpp
 /** Every environment variable the AI layer reads. `.env.example` must list them all. */
 export const AI_ENV_KEYS = [
   "AI_FAKE",
+  "AI_IDENTITY_MODEL",
   ...TASKS.flatMap((task) => [taskKey(task, "PROVIDER"), taskKey(task, "MODEL")]),
   "ANTHROPIC_ENDPOINT",
   "ANTHROPIC_API_KEY",
@@ -47,6 +48,11 @@ export interface AiLayerDeps {
   fetch?: typeof globalThis.fetch;
   /** Default: one JSON line per call on stdout. */
   usage?: UsageLog;
+  /**
+   * Whether the Candidate gave EU AI consent (ADR-0007 amendment). With it, their identity-bearing
+   * calls go to Mistral (AI_IDENTITY_MODEL). Without this lookup, no Candidate has consented.
+   */
+  euAiConsent?: (candidateId: string) => Promise<boolean>;
 }
 
 function required(env: Env, key: string): string {
@@ -92,6 +98,25 @@ function buildProvider(id: ProviderId, env: Env, fetch: typeof globalThis.fetch 
   }
 }
 
+const IDENTITY_PROVIDER = "mistral" satisfies ProviderId;
+
+/**
+ * Mistral for identity-bearing calls. Its key is not required to start: without it, such a call
+ * fails (naming the key) instead of going to another provider, and every other call still works.
+ */
+function identityProvider(env: Env, fake: boolean, fetch: typeof globalThis.fetch | undefined): AiProvider {
+  if (fake) return createFakeProvider({ id: IDENTITY_PROVIDER });
+  if (env.MISTRAL_API_KEY?.trim()) return buildProvider(IDENTITY_PROVIDER, env, fetch);
+  return {
+    id: IDENTITY_PROVIDER,
+    endpoint: "mistral (not configured)",
+    residency: "eu",
+    generate: async () => {
+      throw new AiConfigError("Missing environment variable MISTRAL_API_KEY: needed for identity-bearing AI calls of Candidates with EU AI consent");
+    },
+  };
+}
+
 /**
  * Builds the AI layer from environment variables (in production, ECS injects them from Secrets Manager).
  * Per task: AI_<TASK>_PROVIDER and AI_<TASK>_MODEL. Only providers some task uses need their keys.
@@ -108,6 +133,13 @@ export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps =
   }
   const used = [...new Set(Object.values(routes).map((route) => route.provider))];
   const providers = used.map((id) => (fake ? createFakeProvider({ id }) : buildProvider(id, env, deps.fetch)));
+  if (deps.euAiConsent && !used.includes(IDENTITY_PROVIDER)) providers.push(identityProvider(env, fake, deps.fetch));
 
-  return createAiLayer({ providers, routes, usage: deps.usage ?? createConsoleUsageLog() });
+  return createAiLayer({
+    providers,
+    routes,
+    identityRoute: { provider: IDENTITY_PROVIDER, model: env.AI_IDENTITY_MODEL?.trim() || undefined },
+    euAiConsent: deps.euAiConsent,
+    usage: deps.usage ?? createConsoleUsageLog(),
+  });
 }

@@ -87,6 +87,49 @@ describe("identity routing under EU AI consent", () => {
       ]);
       expect(JSON.stringify(warnings)).not.toContain("06 12");
     });
+
+    it.each([
+      "06 12 34 56 78",
+      "06.12.34.56.78",
+      "06-12-34-56-78",
+      "0612345678",
+      "079 123 45 67",
+      "+33 6 12 34 56 78",
+      "+33 (0)6 12 34 56 78",
+      "+33612345678",
+      "0033 6 12 34 56 78",
+      "+1 (415) 555-0132",
+    ])("finds the phone number %s", async (phone) => {
+      const { ai, warnings } = setUp();
+
+      const result = await ai.generate({ task: "coaching", candidateId: "cand-consenting", prompt: `Mon numéro : ${phone}, merci.` });
+
+      expect(result.provider).toBe("mistral");
+      expect(warnings).toEqual([expect.objectContaining({ details: expect.objectContaining({ found: ["phone"] }) })]);
+    });
+
+    // Job-offer text is full of long digit runs that are not phone numbers: those calls keep their task's provider, unlogged.
+    it.each([
+      "Posted 2026-10-12 10:30",
+      "Publiée le 05.10.2026 10:30",
+      "Salaire 45000-55000 €",
+      "Salaire 45 000 - 55 000 € brut annuel",
+      "Réf. 2024-123456",
+      "SIREN 552 100 554",
+      "SIRET 552 100 554 00013",
+      "Budget de 1 000 000 000 €",
+      "+30 000 000 visiteurs par mois",
+      "Code postal 69003, 12 rue de la République",
+    ])("does not take %s for a phone number", async (text) => {
+      const { ai, claude, mistral, warnings } = setUp();
+
+      const result = await ai.generate({ task: "offer_analysis", candidateId: "cand-consenting", prompt: `Offre : DAF H/F. ${text}.` });
+
+      expect(result.provider).toBe("anthropic");
+      expect(claude.calls).toHaveLength(1);
+      expect(mistral.calls).toHaveLength(0);
+      expect(warnings).toEqual([]);
+    });
   });
 
   describe("the identity route stays in the EU", () => {

@@ -120,10 +120,33 @@ const sites = {
   },
 };
 
+// Listing mode (e2e/job-discovery-listing-pages.spec.ts, #114): when E2E_DISCOVERY_LISTING is set, the
+// web search returns one listing page (7 postings, and links off its site) followed by one separate posting.
+const listing = Boolean(process.env.E2E_DISCOVERY_LISTING);
+const LISTING_HOST = "listing-e2e.example";
+const LISTING_PAGE = `https://${LISTING_HOST}/offres-emploi?q=daf&ref=${tag}`;
+const LISTING_POSTINGS = [1, 2, 3, 4, 5, 6, 7].map((n) => `https://${LISTING_HOST}/offres-emploi/${n}-daf-${tag}`);
+const LISTING_OFF_SITE = `https://autre-e2e.example/offres-emploi/99-daf-${tag}`;
+const LISTING_LATER = `https://autre-e2e.example/offres-emploi/42-daf-${tag}`;
+
+function listingSite(url) {
+  if (url.pathname === "/robots.txt") return text("");
+  if (url.hostname === LISTING_HOST && url.pathname === "/offres-emploi") {
+    const links = LISTING_POSTINGS.map((href, i) => `<li><a href="${new URL(href).pathname}">Offre ${i + 1}</a></li>`).join("");
+    return html(page("Offres DAF", `<h1>Offres DAF à Lyon</h1><ul>${links}<li><a href="${LISTING_OFF_SITE}">Offre d'un autre site</a></li></ul>`));
+  }
+  const n = Number(/^\/offres-emploi\/(\d+)-daf-/.exec(url.pathname)?.[1]);
+  if (!n || !url.pathname.endsWith(`-${tag}`)) return html(page("Introuvable", "<p>404</p>"), { status: 404 });
+  const posting = { ...jsonLdPosting, title: `DAF listé ${n} – réf. ${tag}`, description: `<p>Poste listé ${n} (réf. ${tag}).</p>` };
+  return html(page(`Poste ${n}`, "<h1>Offre</h1>", `<script type="application/ld+json">${JSON.stringify(posting)}</script>`));
+}
+
 const volumePage = (n) => `https://volume-e2e.example/offre/${n}-${tag}`;
 
 /** What the fake web search returns, in order. */
-export const RESULT_PAGES = volume
+export const RESULT_PAGES = listing
+  ? [LISTING_PAGE, LISTING_LATER]
+  : volume
   ? Array.from({ length: volume.count }, (_, n) => volumePage(n + 1))
   : [
   `https://carrieres.acme-e2e.example/offres/daf-lyon-${tag}`,
@@ -206,6 +229,7 @@ globalThis.fetch = async (input, init = {}) => {
   }
   if (url.origin === "https://api.mistral.ai") return mistral(JSON.parse(body || "{}"));
 
+  if (listing && (url.hostname === LISTING_HOST || url.hostname === "autre-e2e.example")) return listingSite(url);
   if (volume && url.hostname === "volume-e2e.example") return volumeSite(url);
   const site = sites[url.hostname];
   if (!site) throw new TypeError(`fetch failed: ${url.hostname} is outside the e2e fake web`);

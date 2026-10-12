@@ -13,7 +13,9 @@
  *      even one that expired after the search;
  *    - `record` what Job discovery found (or why it could not run): the worker's
  *      side, also alone as `createJobSearchReports(database, { quotas })`, with
- *      `expireTimedOut`, which the worker runs on a schedule.
+ *      `expireTimedOut`, which the worker runs on a schedule. Every finished or
+ *      failed Job Search keeps its metrics: what Job discovery measured (zero
+ *      when it never ran) and how long the Candidate waited.
  *  - `migrateJobSearches(database)` creates / upgrades the table.
  * Every read is scoped to the Candidate; `start`'s input is untrusted (it comes
  * from the browser) and problems come back as results, never exceptions. A
@@ -22,7 +24,7 @@
  * Job Searches belong to their Profile and are deleted with it (ADR-0010); the
  * Job Offers they found are kept.
  */
-import { scoreMatch, type JobOffer, type MatchScore, type MonthlyQuota } from "@jobhub/shared";
+import { noDiscoveryMetrics, scoreMatch, type DiscoveryMetrics, type JobOffer, type MatchScore, type MonthlyQuota } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { Applications } from "../applications";
@@ -48,6 +50,12 @@ export interface JobSearchResult {
   applicationId: string | null;
 }
 
+/** What a finished or failed Job Search measured, to see where Job Offers are lost and what it cost. */
+export interface JobSearchMetrics extends DiscoveryMetrics {
+  /** From the Candidate starting it to its outcome (time to results). */
+  durationMs: number;
+}
+
 export interface JobSearch {
   id: string;
   profile: { id: string; name: string };
@@ -55,6 +63,8 @@ export interface JobSearch {
   startedAt: Date;
   /** Best Match Score first. Empty until the search is done. */
   results: JobSearchResult[];
+  /** Null while it is searching (and for Job Searches finished before metrics were kept). */
+  metrics: JobSearchMetrics | null;
 }
 
 export type StartJobSearchResult =
@@ -67,8 +77,8 @@ export type StartJobSearchResult =
   /** The Plan Quota of Job Searches is used up this month. */
   | { ok: false; error: "quota_exceeded"; refusal: Extract<QuotaDecision, { allowed: false }> };
 
-/** What Job discovery reported for a Job Search. */
-export type JobSearchOutcome = { jobOfferIds: string[] } | { failed: string };
+/** What Job discovery reported for a Job Search, with what it measured (none: it did not run). */
+export type JobSearchOutcome = ({ jobOfferIds: string[] } | { failed: string }) & { metrics?: DiscoveryMetrics };
 
 export interface JobSearches {
   /** Starts a Job Search. `input`: { profileId }. */
@@ -121,6 +131,8 @@ export async function migrateJobSearches(database: Pool): Promise<void> {
       started_at timestamptz NOT NULL,
       finished_at timestamptz
     );
+    -- JobSearchMetrics, set with the outcome.
+    ALTER TABLE job_search ADD COLUMN IF NOT EXISTS metrics jsonb;
     CREATE INDEX IF NOT EXISTS job_search_candidate_profile_idx ON job_search (candidate_id, profile_id, started_at DESC);
   `);
 }
@@ -131,7 +143,12 @@ interface JobSearchRow {
   status: JobSearchStatus;
   job_offer_ids: string[];
   started_at: Date;
+  metrics: JobSearchMetrics | null;
 }
+
+/** The metrics column for an outcome reported at $at: what was measured, and the time since the Job Search started. */
+const METRICS_AT = (measured: string, at: string) =>
+  `${measured}::jsonb || jsonb_build_object('durationMs', round(extract(epoch FROM ${at}::timestamptz - started_at) * 1000))`;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const startSchema = z.object({ profileId: z.string().trim().min(1) });
@@ -150,19 +167,26 @@ export function createJobSearchReports(
       const done = "jobOfferIds" in outcome;
       // Only the one report that moves the Job Search out of 'searching' gets a row back.
       const { rows } = await database.query<{ candidate_id: string }>(
-        `UPDATE job_search SET status = $2, job_offer_ids = $3, failure = $4, finished_at = $5
+        `UPDATE job_search SET status = $2, job_offer_ids = $3, failure = $4, finished_at = $5, metrics = ${METRICS_AT("$6", "$5")}
          WHERE id = $1 AND status = 'searching'
          RETURNING candidate_id`,
-        [jobSearchId, done ? "done" : "failed", done ? outcome.jobOfferIds.filter((id) => UUID.test(id)) : [], done ? null : outcome.failed, now()],
+        [
+          jobSearchId,
+          done ? "done" : "failed",
+          done ? outcome.jobOfferIds.filter((id) => UUID.test(id)) : [],
+          done ? null : outcome.failed,
+          now(),
+          JSON.stringify(outcome.metrics ?? noDiscoveryMetrics()),
+        ],
       );
       if (!done && rows[0]) await quotas.release(rows[0].candidate_id, "jobSearches");
     },
     async expireTimedOut() {
       const { rows } = await database.query<{ candidate_id: string }>(
-        `UPDATE job_search SET status = 'failed', failure = 'timeout', finished_at = $1
+        `UPDATE job_search SET status = 'failed', failure = 'timeout', finished_at = $1, metrics = ${METRICS_AT("$3", "$1")}
          WHERE status = 'searching' AND started_at < $2
          RETURNING candidate_id`,
-        [now(), new Date(now().getTime() - SEARCH_TIMEOUT_MS)],
+        [now(), new Date(now().getTime() - SEARCH_TIMEOUT_MS), JSON.stringify(noDiscoveryMetrics())],
       );
       for (const { candidate_id } of rows) await quotas.release(candidate_id, "jobSearches");
       return rows.length;
@@ -180,8 +204,11 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
     if (!profile) return null;
     const timedOut = row.status === "searching" && now().getTime() - row.started_at.getTime() > SEARCH_TIMEOUT_MS;
     // Failing it for real (not only showing it failed) is what gives its Plan Quota use back.
-    if (timedOut) await record(row.id, { failed: "timeout" });
-    const status = timedOut ? "failed" : row.status;
+    if (timedOut) {
+      await record(row.id, { failed: "timeout" });
+      return get(candidateId, row.id);
+    }
+    const status = row.status;
 
     let results: JobSearchResult[] = [];
     if (status === "done" && row.job_offer_ids.length > 0) {
@@ -201,13 +228,13 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
         // Stable: equal Match Scores keep the order Job discovery found them in.
         .sort((a, b) => b.matchScore.score - a.matchScore.score);
     }
-    return { id: row.id, profile: { id: profile.id, name: profile.name }, status, startedAt: row.started_at, results };
+    return { id: row.id, profile: { id: profile.id, name: profile.name }, status, startedAt: row.started_at, results, metrics: row.metrics };
   }
 
   async function get(candidateId: string, jobSearchId: string): Promise<JobSearch | null> {
     if (!UUID.test(jobSearchId)) return null;
     const { rows } = await database.query<JobSearchRow>(
-      "SELECT id, profile_id, status, job_offer_ids, started_at FROM job_search WHERE id = $1 AND candidate_id = $2",
+      "SELECT id, profile_id, status, job_offer_ids, started_at, metrics FROM job_search WHERE id = $1 AND candidate_id = $2",
       [jobSearchId, candidateId],
     );
     return rows[0] ? jobSearchFrom(candidateId, rows[0]) : null;
@@ -227,7 +254,7 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
 
       const { rows } = await database.query<JobSearchRow>(
         `INSERT INTO job_search (candidate_id, profile_id, started_at) VALUES ($1, $2, $3)
-         RETURNING id, profile_id, status, job_offer_ids, started_at`,
+         RETURNING id, profile_id, status, job_offer_ids, started_at, metrics`,
         [candidateId, profile.id, now()],
       );
       const row = rows[0]!;
@@ -237,8 +264,11 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
         console.warn("[job-searches] could not queue Job discovery:", error instanceof Error ? error.message : error);
         await record(row.id, { failed: "queue_unavailable" });
         row.status = "failed";
+        const failed = await get(candidateId, row.id);
+        if (failed) return { ok: true, jobSearch: failed };
       }
-      return { ok: true, jobSearch: { id: row.id, profile: { id: profile.id, name: profile.name }, status: row.status, startedAt: row.started_at, results: [] } };
+      const { id, status, started_at: startedAt, metrics } = row;
+      return { ok: true, jobSearch: { id, profile: { id: profile.id, name: profile.name }, status, startedAt, results: [], metrics } };
     },
     get,
     record,

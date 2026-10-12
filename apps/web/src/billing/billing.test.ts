@@ -244,6 +244,65 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
     });
   });
 
+  describe("invoices in the Stripe customer portal", () => {
+    it("has them for a Candidate who pays for a Plan", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      await t.billing.startCheckout(marie, "standard");
+      await deliver(subscriptionEvent("customer.subscription.created", { customer: fakeCustomerId(marie.email), price: FAKE_STRIPE_PRICES.standard, status: "active" }));
+
+      expect(await t.billing.hasInvoices(marie.id)).toBe(true);
+    });
+
+    it("has none for a Free Candidate who was never charged, even one who left a checkout unpaid", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      const jean = await t.signUp("jean.martin@example.fr");
+      await t.billing.startCheckout(jean, "premium");
+      await deliver(subscriptionEvent("customer.subscription.created", { customer: fakeCustomerId(jean.email), price: FAKE_STRIPE_PRICES.premium, status: "incomplete" }));
+      await deliver(subscriptionEvent("customer.subscription.updated", { customer: fakeCustomerId(jean.email), price: FAKE_STRIPE_PRICES.premium, status: "incomplete_expired" }));
+
+      expect(await t.billing.hasInvoices(marie.id)).toBe(false);
+      expect(await t.billing.hasInvoices(jean.id)).toBe(false);
+    });
+
+    it("keeps them for a Candidate who paid, then went back to Free", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      await t.billing.startCheckout(marie, "standard");
+      const subscription = { customer: fakeCustomerId(marie.email), price: FAKE_STRIPE_PRICES.standard };
+      await deliver(subscriptionEvent("customer.subscription.created", { ...subscription, status: "active" }, new Date("2026-10-15T10:00:00Z")));
+      await deliver(subscriptionEvent("customer.subscription.deleted", { ...subscription, status: "canceled" }, new Date("2026-10-15T11:00:00Z")));
+
+      expect((await t.billing.entitlements(marie.id)).plan).toBe("free");
+      expect(await t.billing.hasInvoices(marie.id)).toBe(true);
+    });
+
+    it("knows a payment happened even when Stripe reports it after the cancellation", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      await t.billing.startCheckout(marie, "standard");
+      const subscription = { customer: fakeCustomerId(marie.email), price: FAKE_STRIPE_PRICES.standard };
+      await deliver(subscriptionEvent("customer.subscription.deleted", { ...subscription, status: "canceled" }, new Date("2026-10-15T11:00:00Z")));
+      await deliver(subscriptionEvent("customer.subscription.updated", { ...subscription, status: "active" }, new Date("2026-10-15T10:00:00Z")));
+
+      expect((await t.billing.entitlements(marie.id)).plan).toBe("free");
+      expect(await t.billing.hasInvoices(marie.id)).toBe(true);
+    });
+
+    it("finds them for Candidates who paid before the app kept track, on a database migrated earlier", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      const jean = await t.signUp("jean.martin@example.fr");
+      for (const [candidate, status] of [[marie, "canceled"], [jean, "incomplete_expired"]] as const) {
+        await t.billing.startCheckout(candidate, "standard");
+        const event = "customer.subscription.deleted";
+        await deliver(subscriptionEvent(event, { customer: fakeCustomerId(candidate.email), price: FAKE_STRIPE_PRICES.standard, status }));
+      }
+      await t.database.query("ALTER TABLE candidate_plan DROP COLUMN charged");
+
+      await t.migrateAgain();
+
+      expect(await t.billing.hasInvoices(marie.id)).toBe(true);
+      expect(await t.billing.hasInvoices(jean.id)).toBe(false);
+    });
+  });
+
   describe("closing a Candidate's billing when they delete their account", () => {
     it("deletes their Stripe customer, which ends any subscription at once, so they are never charged again", async () => {
       const marie = await t.signUp("marie.dupont@example.fr");

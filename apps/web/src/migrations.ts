@@ -12,6 +12,7 @@ import { migrateBilling } from "./billing/index";
 import { migrateCoachConversations } from "./coach-conversations/index";
 import { migrateCompanyDossiers } from "./company-dossiers/index";
 import { migrateEnrichedContacts } from "./enriched-contacts/index";
+import { migrateEuAiConsents } from "./eu-ai-consent/index";
 import { migrateFollowUps } from "./follow-ups/index";
 import { migrateHumanCoaches } from "./human-coaches/index";
 import { migrateJobDigests } from "./job-digests/index";
@@ -27,6 +28,7 @@ export async function migrateDatabase(config: AuthConfig, onMigrated: (done: str
   const steps: [string, () => Promise<void>][] = [
     ["Candidate accounts are up to date", () => migrateCandidateAccounts(config)],
     ["Agent Run log is up to date", () => migrateAgentRunLog(database)],
+    ["EU AI consents are up to date", () => migrateEuAiConsents(database)],
     ["Profiles are up to date", () => migrateProfiles(database)],
     ["Job Offers are up to date", () => migrateJobOffers(database)],
     ["Applications are up to date", () => migrateApplications(database)],

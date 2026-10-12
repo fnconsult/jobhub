@@ -1,6 +1,7 @@
 import { AiConfigError, createAiLayerFromEnv, type AiLayer } from "@jobhub/ai";
 import { createApplications } from "@jobhub/web/applications";
 import { createBilling } from "@jobhub/web/billing";
+import { createEuAiConsents } from "@jobhub/web/eu-ai-consent";
 import { followUpsFromEnv } from "@jobhub/web/follow-ups/env";
 import { createJobDigests, jobDigestsConfigFromEnv } from "@jobhub/web/job-digests";
 import { createJobOffers } from "@jobhub/web/job-offers";
@@ -19,6 +20,7 @@ if (!connectionString) {
 }
 
 const database = new Pool({ connectionString });
+const euAiConsents = createEuAiConsents(database);
 
 // Job discovery needs the AI layer; the other jobs do not (Follow-ups fall back to
 // a template). Without AI configuration (e.g. the local docker-compose stack with no
@@ -26,7 +28,8 @@ const database = new Pool({ connectionString });
 // skipped with the reason. Production fails loudly instead.
 function aiLayer(): AiLayer | { unavailable: string } {
   try {
-    return createAiLayerFromEnv(process.env);
+    // A Candidate's identity-bearing calls go to Mistral once they gave EU AI consent (ADR-0007).
+    return createAiLayerFromEnv(process.env, { euAiConsent: (candidateId) => euAiConsents.has(candidateId) });
   } catch (error) {
     if (!(error instanceof AiConfigError) || process.env.NODE_ENV === "production") throw error;
     console.warn(`[worker] Job discovery is unavailable: ${error.message}`);

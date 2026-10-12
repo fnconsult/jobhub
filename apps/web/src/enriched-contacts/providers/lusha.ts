@@ -2,7 +2,8 @@
  * Lusha (https://docs.lusha.com, API v3, checked 2026-10-09: docs/research/issue-77.md).
  * Prospecting (`POST /v3/contacts/prospecting`) finds people by job title at a
  * company; each result costs credits, so the page and the contacts per company
- * are kept to what is shown. `options.excludeDnc` is not sent: Lusha refuses it
+ * are kept to what is shown, and only people in the job's country (ISO code,
+ * `contacts.include.countries`) are asked for when it is known. `options.excludeDnc` is not sent: Lusha refuses it
  * (403) on plans without it.
  * Enrich Contacts (`POST /v3/contacts/enrich`) then reveals one person's emails
  * and phones; numbers flagged do-not-call are left out, so the DNC rule holds there.
@@ -57,13 +58,13 @@ export function createLushaProvider({ apiKey, fetch: rawFetch = fetch, baseUrl =
   return {
     id: "lusha",
 
-    async findPeople({ companyName, companyDomain, jobTitles, limit }) {
+    async findPeople({ companyName, companyDomain, country, jobTitles, limit }) {
       const answer = (await requestJson("lusha", fetchFn, `${baseUrl}/contacts/prospecting`, {
         headers,
         body: {
           pagination: { page: 0, size: Math.min(PAGE_SIZE.max, Math.max(PAGE_SIZE.min, limit)) },
           filters: {
-            contacts: { include: { jobTitles } },
+            contacts: { include: { jobTitles, ...(country && { countries: [country] }) } },
             companies: { include: companyDomain ? { domains: [companyDomain] } : { names: [companyName] } },
           },
           options: { maxContactsPerCompany: Math.min(MAX_CONTACTS_PER_COMPANY, Math.max(1, limit)) },

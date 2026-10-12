@@ -93,6 +93,22 @@ describe("Lusha adapter", () => {
     expect(api.requests[0]!.body).toMatchObject({ filters: { companies: { include: { names: ["Acme Industrie"] } } } });
   });
 
+  it("prospects only people in the job's country, so no credits are spent on people elsewhere", async () => {
+    const api = recordedFetch({ body: { results: [] } });
+    const lusha = createLushaProvider({ apiKey: "k", fetch: api.fetch });
+
+    await lusha.findPeople!({ companyName: "CAPGEMINI", country: "FR", jobTitles: ["DRH"], limit: 10 });
+    expect(api.requests[0]!.body).toMatchObject({ filters: { contacts: { include: { jobTitles: ["DRH"], countries: ["FR"] } } } });
+  });
+
+  it("prospects anywhere when the job's country is unknown", async () => {
+    const api = recordedFetch({ body: { results: [] } });
+    const lusha = createLushaProvider({ apiKey: "k", fetch: api.fetch });
+
+    await lusha.findPeople!({ companyName: "Acme Industrie", jobTitles: ["DRH"], limit: 10 });
+    expect((api.requests[0]!.body as { filters: { contacts: { include: object } } }).filters.contacts.include).not.toHaveProperty("countries");
+  });
+
   it("reveals a found person's emails and phones by their Lusha id, leaving out do-not-call numbers", async () => {
     const api = recordedFetch({ body: ENRICH_ANSWER });
     const lusha = createLushaProvider({ apiKey: "lusha-test-key", fetch: api.fetch });

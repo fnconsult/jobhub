@@ -14,6 +14,12 @@ export interface PeopleSearch {
   companyName: string;
   /** The company's web domain (acme.fr), when known: providers match on it more reliably than on a name. */
   companyDomain?: string;
+  /**
+   * The country where the job is, as an ISO 3166-1 alpha-2 code ("FR"), when known:
+   * only people there are looked for. Never a city: the job and the head office
+   * are often in different towns. Unknown: people anywhere.
+   */
+  country?: string;
   /** Job titles to look for, in the words the provider's data uses (e.g. "DRH", "HR Director"). */
   jobTitles: string[];
   /** At most this many people. */

@@ -56,6 +56,7 @@ describe("AI layer configured from the environment", () => {
   });
 
   it.each([
+    ["brave", "BRAVE_SEARCH_API_KEY", "api.search.brave.com"],
     ["tavily", "TAVILY_API_KEY", "api.tavily.com"],
     ["linkup", "LINKUP_API_KEY", "api.linkup.so"],
   ])(
@@ -96,6 +97,10 @@ describe("AI layer configured from the environment", () => {
 
   it("does not need keys of providers no task uses", () => {
     expect(() => createAiLayerFromEnv(base)).not.toThrow();
+  });
+
+  it("refuses to route a text task to a search-only provider", () => {
+    expect(() => createAiLayerFromEnv({ ...base, AI_OFFER_ANALYSIS_PROVIDER: "tavily", TAVILY_API_KEY: "tk" })).toThrow(AiConfigError);
   });
 
   it("rejects an unknown provider name", () => {

@@ -5,6 +5,7 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { createBraveProvider } from "./brave";
 import { createLinkupProvider } from "./linkup";
 import { createTavilyProvider } from "./tavily";
 
@@ -159,6 +160,76 @@ describe("Linkup provider", () => {
   it.skipIf(!existsSync(recordedUrl("linkup-search")))("reads the sources of a reply recorded from the live API", async () => {
     const { fetch } = fakeFetch(fixture("linkup-search.recorded"));
     const output = await createLinkupProvider({ apiKey: "lk", fetch }).search!(query, {});
+    expect(output.sources.length).toBeGreaterThan(0);
+  });
+});
+
+describe("Brave provider", () => {
+  const reply = fixture("brave-web-search");
+
+  it("searches with nothing but the query, its key and the result count", async () => {
+    const { fetch, requests } = fakeFetch(reply);
+    const provider = createBraveProvider({ apiKey: "bk", fetch });
+
+    await provider.search!(query, {});
+
+    expect(provider.id).toBe("brave");
+    expect(provider.residency).toBe("outside_eu");
+    expect(provider.generate).toBeUndefined();
+    expect(requests[0]!.method).toBe("GET");
+    expect(requests[0]!.url.origin + requests[0]!.url.pathname).toBe("https://api.search.brave.com/res/v1/web/search");
+    expect(requests[0]!.headers.get("x-subscription-token")).toBe("bk");
+    expect(requests[0]!.headers.get("authorization")).toBeNull();
+    expect(Object.fromEntries(requests[0]!.url.searchParams)).toEqual({ q: query, count: "20" });
+  });
+
+  it("maps the web results to sources, with their descriptions as plain text in the answer", async () => {
+    const { fetch } = fakeFetch(reply);
+
+    const output = await createBraveProvider({ apiKey: "bk", fetch }).search!(query, {});
+
+    expect(output.sources).toEqual(["https://carrieres.acme-industrie.example/offres/daf-lyon", "https://www.cadremploi.example/emploi/daf-lyon-123"]);
+    expect(output.answer).toContain("Acme Industrie recrute son Directeur administratif et financier (H/F) en CDI à Lyon.");
+    expect(output.model).toBe("web");
+    expect(output.usage).toEqual({ inputTokens: 0, outputTokens: 0 });
+  });
+
+  it("restricts to domains with site: operators in the query, and a freshness window as a date range", async () => {
+    const { fetch, requests } = fakeFetch(reply);
+    const provider = createBraveProvider({ apiKey: "bk", fetch, now: () => new Date("2026-10-12T08:00:00Z") });
+
+    await provider.search!(query, { filters: { includeDomains: ["apec.fr", "cadremploi.fr"], maxAgeDays: 30 } });
+
+    expect(Object.fromEntries(requests[0]!.url.searchParams)).toEqual({
+      q: `${query} site:apec.fr OR site:cadremploi.fr`,
+      count: "20",
+      freshness: "2026-09-12to2026-10-12",
+    });
+  });
+
+  it("has no exclusion filter, so excluded domains are left to the caller's own checks", async () => {
+    const { fetch, requests } = fakeFetch(reply);
+    await createBraveProvider({ apiKey: "bk", fetch }).search!(query, { filters: { excludeDomains: ["indeed.fr"] } });
+    expect(requests[0]!.url.searchParams.get("q")).toBe(query);
+  });
+
+  it("returns no sources when Brave finds no web results", async () => {
+    const { fetch } = fakeFetch({ type: "search", query: { original: query } });
+    await expect(createBraveProvider({ apiKey: "bk", fetch }).search!(query, {})).resolves.toMatchObject({ answer: "", sources: [] });
+  });
+
+  it("raises a provider error on an HTTP failure, such as a bad key (401)", async () => {
+    const { fetch } = fakeFetch({ type: "ErrorResponse", error: { code: "SUBSCRIPTION_TOKEN_INVALID" } }, 401);
+    await expect(createBraveProvider({ apiKey: "bk", fetch }).search!(query, {})).rejects.toMatchObject({
+      name: "AiProviderError",
+      provider: "brave",
+      status: 401,
+    });
+  });
+
+  it.skipIf(!existsSync(recordedUrl("brave-web-search")))("reads the sources of a reply recorded from the live API", async () => {
+    const { fetch } = fakeFetch(fixture("brave-web-search.recorded"));
+    const output = await createBraveProvider({ apiKey: "bk", fetch }).search!(query, {});
     expect(output.sources.length).toBeGreaterThan(0);
   });
 });

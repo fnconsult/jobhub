@@ -527,6 +527,12 @@ test.describe("Coach and Action Card endpoints", () => {
     const application = await page.request.post("/api/coach", { headers: { origin }, data: { ...message, focus: { kind: "application", id: "00000000-0000-4000-8000-000000000000" } } });
     expect(application.status()).toBe(200);
     expect((await application.json()).reply).toBe("Je ne vois aucun profil. (1 message)");
+    // So are a Job Offer, Job Search or Job Digest in view (#126); a page naming its Profile attaches a new conversation to it.
+    for (const kind of ["job_offer", "job_search", "job_digest"]) {
+      const inView = await page.request.post("/api/coach", { headers: { origin }, data: { ...message, focus: { kind, id: "00000000-0000-4000-8000-000000000000", profileId } } });
+      expect(inView.status(), kind).toBe(200);
+      expect((await inView.json()).conversation.profile, kind).toEqual({ id: profileId, name: "Directrice financière" });
+    }
     expect((await page.request.post("/api/coach", { headers: { origin }, data: { ...message, focus: { kind: "offer", id: profileId } } })).status()).toBe(400);
     expect((await otherPage.request.post(`/api/action-cards/${cardId}`, { headers: { origin }, data: { decision: "dismiss" } })).status()).toBe(404);
     await other.close();

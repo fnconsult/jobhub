@@ -66,6 +66,40 @@ describe("loadCoachKnowledge — the imported playbooks", () => {
   });
 });
 
+describe("loadCoachKnowledge — which playbooks are served", () => {
+  const dir = knowledgeDir({
+    sources: ["S1"],
+    playbooks: {
+      "ats-optimization": playbookMarkdown({ id: "ats-optimization", sources: ["S1"], body: "[S1]", statut: "validé (François Nader, 2026-10-10)" }),
+      "cover-letter-writing": playbookMarkdown({ id: "cover-letter-writing", sources: ["S1"], body: "[S1]", statut: "validé (auto-QA Claude, 2026-07-26)" }),
+      "interview-psychology": playbookMarkdown({ id: "interview-psychology", sources: ["S1"], body: "[S1]", statut: "brouillon" }),
+    },
+  });
+
+  it("serves only playbooks a human validated in production", () => {
+    const knowledge = loadCoachKnowledge({ environment: "production", dir });
+
+    expect(knowledge.playbooks().map((playbook) => playbook.id)).toEqual(["ats-optimization"]);
+    expect(knowledge.playbook("ats-optimization")?.humanValidated).toBe(true);
+    expect(knowledge.playbook("cover-letter-writing")).toBeUndefined();
+    expect(knowledge.playbook("interview-psychology")).toBeUndefined();
+  });
+
+  it.each(["development", "eval"] as const)("serves every playbook in %s", (environment) => {
+    const knowledge = loadCoachKnowledge({ environment, dir });
+
+    expect(knowledge.playbooks().map((playbook) => [playbook.id, playbook.humanValidated])).toEqual([
+      ["ats-optimization", true],
+      ["cover-letter-writing", false],
+      ["interview-psychology", false],
+    ]);
+  });
+
+  it("serves none of today's playbooks in production: an AI review is not a human validation", () => {
+    expect(loadCoachKnowledge({ environment: "production" }).playbooks()).toEqual([]);
+  });
+});
+
 describe("loadCoachKnowledge — a knowledge folder", () => {
   it("refuses a playbook citing a source missing from sources.md", () => {
     const dir = knowledgeDir({

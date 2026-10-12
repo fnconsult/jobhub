@@ -37,6 +37,8 @@ export type Playbook = {
   updated: string;
   /** The frontmatter `statut`, verbatim (e.g. "validé (auto-QA Claude, 2026-07-26)"). */
   status: string;
+  /** Whether `status` records a human's validation ("validé (<name>, <date>)"), not an AI review. */
+  humanValidated: boolean;
   rules: PlaybookRule[];
   /** The frontmatter `sources`, resolved against `sources.md`. */
   sources: Source[];
@@ -44,8 +46,15 @@ export type Playbook = {
 
 export type KnowledgeEnvironment = "production" | "development" | "eval";
 
+/**
+ * In "production" only playbooks a human validated are served; "development" and "eval"
+ * get every playbook, so unvalidated ones can be tried and measured before they ship.
+ */
 export type CoachKnowledge = {
+  /** The playbook, or undefined when it does not exist or is not served in this environment. */
   playbook(id: PlaybookId): Playbook | undefined;
+  /** The playbooks served in this environment, by id. */
+  playbooks(): Playbook[];
 };
 
 export type LoadCoachKnowledgeOptions = {
@@ -61,7 +70,7 @@ export class CoachKnowledgeError extends Error {
 
 const packageDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-export function loadCoachKnowledge({ dir = packageDir }: LoadCoachKnowledgeOptions): CoachKnowledge {
+export function loadCoachKnowledge({ environment, dir = packageDir }: LoadCoachKnowledgeOptions): CoachKnowledge {
   const sources = new Map(parseSources(readFileSync(path.join(dir, "sources.md"), "utf8")).map((source) => [source.id, source]));
   const playbooksDir = path.join(dir, "playbooks");
   const playbooks = new Map<string, Playbook>();
@@ -79,9 +88,18 @@ export function loadCoachKnowledge({ dir = packageDir }: LoadCoachKnowledgeOptio
       version: String(frontmatter.version ?? ""),
       updated: String(frontmatter.updated ?? ""),
       status: String(frontmatter.statut ?? ""),
+      humanValidated: isHumanValidated(String(frontmatter.statut ?? "")),
       rules: parsed.rules.map((rule) => ({ ...rule, sourceIds: citedSourceIds(`${rule.title}\n${rule.text}`) })),
       sources: sourceIds.map((sourceId) => sources.get(sourceId)!),
     });
   }
-  return { playbook: (id) => playbooks.get(id) };
+  const served = [...playbooks.values()].filter((playbook) => environment !== "production" || playbook.humanValidated);
+  const servedById = new Map(served.map((playbook) => [playbook.id, playbook]));
+  return { playbook: (id) => servedById.get(id), playbooks: () => [...served] };
+}
+
+/** "validé (François Nader, 2026-10-10)" is a human validation; "validé (auto-QA Claude, …)" or a draft is not. */
+function isHumanValidated(status: string): boolean {
+  const reviewer = /^validée?\s*\((.+)\)\s*$/i.exec(status.trim())?.[1];
+  return reviewer !== undefined && !/auto|claude|\b(?:ia|ai|llm)\b/i.test(reviewer);
 }

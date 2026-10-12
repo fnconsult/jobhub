@@ -267,7 +267,7 @@ test.describe("the Coach Panel", () => {
   test("keeps answering past MAX_MESSAGES, from the most recent messages, and keeps the whole conversation on screen", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("panel-long"));
     await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
-    const messages = coachPanel(page).getByRole("list").getByRole("listitem");
+    const messages = coachPanel(page).getByRole("list", { name: fr.coachPanel.messagesLabel }).getByRole("listitem");
 
     // 20 exchanges reach MAX_MESSAGES (40); the 21st and 22nd still get a reply.
     for (let n = 1; n <= 22; n++) {
@@ -278,6 +278,97 @@ test.describe("the Coach Panel", () => {
     // The AI Coach was sent a window of at most 40 messages, starting with the Candidate's.
     await expect(messages.last()).toHaveText(/\((39|40) messages\)/);
     await expect(messages.nth(1)).toContainText("message 1");
+  });
+
+  test("keeps the conversation after a reload, and lets the Candidate list, reopen, rename and delete conversations", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("panel-saved"));
+    const profileId = await createProfile(page, "Directrice financière");
+    const messages = coachPanel(page).getByRole("list", { name: fr.coachPanel.messagesLabel }).getByRole("listitem");
+
+    // A first conversation, started on the Profile page.
+    await page.goto(`/profils/${profileId}`);
+    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await askCoach(page, "Mon CV est-il bon ?");
+    await expect(messages.last()).toHaveText(/Je vois votre profil « Directrice financière »\. \(1 message\)/);
+
+    // Saved: a reload keeps it.
+    await page.reload();
+    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await expect(coachPanel(page).getByRole("heading", { level: 3, name: "Mon CV est-il bon ?" })).toBeVisible();
+    await expect(messages).toHaveCount(3);
+    await askCoach(page, "Et ma formation ?");
+    await expect(messages.last()).toHaveText(/\(3 messages\)/);
+
+    // A second conversation, started on the account page: no Profile in view.
+    await page.goto("/compte");
+    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await expect(messages).toHaveCount(5);
+    await coachPanel(page).getByRole("button", { name: fr.coachPanel.newConversation }).click();
+    await expect(messages).toHaveCount(1);
+    await expect(coachPanel(page).getByLabel(fr.coachPanel.messageLabel)).toBeFocused();
+    await askCoach(page, "Comment préparer un entretien ?");
+    await expect(messages.last()).toHaveText(/Je ne vois aucun profil\. \(1 message\)/);
+
+    // Both are listed, most recent first, the first one with the Profile it started on.
+    await coachPanel(page).getByRole("button", { name: fr.coachPanel.conversations }).click();
+    const list = coachPanel(page).getByRole("region", { name: fr.coachPanel.conversations });
+    await expect(list.getByRole("heading", { level: 3, name: fr.coachPanel.conversations })).toBeFocused();
+    const items = list.getByRole("article");
+    await expect(items).toHaveCount(2);
+    await expect(items.nth(0)).toContainText("Comment préparer un entretien ?");
+    await expect(items.nth(1)).toContainText("Mon CV est-il bon ?");
+    await expect(items.nth(1)).toContainText("Commencée sur le profil « Directrice financière »");
+
+    // Reopen the first one.
+    await items.nth(1).getByRole("button", { name: "Mon CV est-il bon ?" }).click();
+    await expect(messages).toHaveCount(5);
+    await expect(coachPanel(page).getByLabel(fr.coachPanel.messageLabel)).toBeFocused();
+
+    // Rename it; Escape in the name field cancels without closing the panel.
+    await coachPanel(page).getByRole("button", { name: fr.coachPanel.conversations }).click();
+    const first = list.getByRole("article", { name: "Mon CV est-il bon ?" });
+    await first.getByRole("button", { name: fr.coachPanel.rename }).click();
+    await expect(first.getByLabel(fr.coachPanel.renameLabel)).toBeFocused();
+    await first.getByLabel(fr.coachPanel.renameLabel).press("Escape");
+    await expect(coachPanel(page)).toBeVisible();
+    await expect(first.getByRole("button", { name: fr.coachPanel.rename })).toBeFocused();
+    await first.getByRole("button", { name: fr.coachPanel.rename }).click();
+    await first.getByLabel(fr.coachPanel.renameLabel).fill("Relecture du CV");
+    await first.getByRole("button", { name: fr.coachPanel.save }).click();
+    await expect(list.getByRole("status")).toHaveText(fr.coachPanel.renamed);
+    const renamed = list.getByRole("article", { name: "Relecture du CV" });
+    await expect(renamed.getByRole("button", { name: fr.coachPanel.rename })).toBeFocused();
+
+    // Delete the other one, after confirming.
+    const second = list.getByRole("article", { name: "Comment préparer un entretien ?" });
+    await second.getByRole("button", { name: fr.coachPanel.delete }).click();
+    await expect(second).toContainText(fr.coachPanel.confirmDelete.replace("{{title}}", "Comment préparer un entretien ?"));
+    await second.getByRole("button", { name: fr.coachPanel.confirmDeleteButton }).click();
+    await expect(list.getByRole("status")).toHaveText(fr.coachPanel.deleted);
+    await expect(items).toHaveCount(1);
+
+    // All of it holds after a reload.
+    await page.reload();
+    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await expect(coachPanel(page).getByRole("heading", { level: 3, name: "Relecture du CV" })).toBeVisible();
+    await coachPanel(page).getByRole("button", { name: fr.coachPanel.conversations }).click();
+    await expect(items).toHaveCount(1);
+    await expect(items.first()).toContainText("Relecture du CV");
+  });
+
+  test("the list of conversations meets the ADR-0009 floor", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("panel-list-floor"));
+    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await askCoach(page, "Bonjour");
+    await expect(coachPanel(page).getByRole("list", { name: fr.coachPanel.messagesLabel }).getByRole("listitem")).toHaveCount(3);
+    await coachPanel(page).getByRole("button", { name: fr.coachPanel.conversations }).click();
+    const list = coachPanel(page).getByRole("region", { name: fr.coachPanel.conversations });
+    await list.getByRole("button", { name: fr.coachPanel.delete }).click();
+    await expect(list.getByRole("button", { name: fr.coachPanel.confirmDeleteButton })).toBeVisible();
+    for (const t of await renderedTexts(page)) {
+      expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
+      expect.soft(t.contrast, `contrast of "${t.text}"`).toBeGreaterThanOrEqual(4.5);
+    }
   });
 
   test("is not shown to signed-out visitors", async ({ page }) => {
@@ -333,32 +424,50 @@ test.describe("Action Cards", () => {
 
 test.describe("Coach and Action Card endpoints", () => {
   test("refuse anonymous visitors and other sites, and never use or decide another Candidate's data", async ({ page, browser }) => {
-    const conversation = { messages: [{ from: "candidate", text: "Bonjour" }] };
-    expect((await page.request.post("/api/coach", { headers: { origin }, data: conversation })).status()).toBe(401);
+    const message = { message: "Bonjour" };
+    expect((await page.request.post("/api/coach", { headers: { origin }, data: message })).status()).toBe(401);
+    expect((await page.request.get("/api/coach/conversations")).status()).toBe(401);
     expect((await page.request.post("/api/action-cards/00000000-0000-4000-8000-000000000000", { headers: { origin }, data: { decision: "accept" } })).status()).toBe(401);
 
     const email = newAddress("endpoint-owner");
     await signInWithMagicLink(page, email);
     const profileId = await createProfile(page, "Directrice financière");
     const cardId = await proposeActionCard(email, profileId, "Une proposition", "Détail.");
-    expect((await page.request.post("/api/coach", { headers: { origin: "https://evil.example" }, data: conversation })).status()).toBe(403);
+    expect((await page.request.post("/api/coach", { headers: { origin: "https://evil.example" }, data: message })).status()).toBe(403);
     expect((await page.request.post(`/api/action-cards/${cardId}`, { headers: { origin: "https://evil.example" }, data: { decision: "accept" } })).status()).toBe(403);
-    expect((await page.request.post("/api/coach", { headers: { origin }, data: { messages: [] } })).status()).toBe(400);
+    expect((await page.request.post("/api/coach", { headers: { origin }, data: { message: "  " } })).status()).toBe(400);
     expect((await page.request.post(`/api/action-cards/${cardId}`, { headers: { origin }, data: { decision: "maybe" } })).status()).toBe(400);
+
+    // Marie's conversation, started on her Profile.
+    const started = await page.request.post("/api/coach", { headers: { origin }, data: { ...message, focus: { kind: "profile", id: profileId } } });
+    expect(started.status()).toBe(200);
+    const { conversation, reply } = await started.json();
+    expect(reply).toBe("Je vois votre profil « Directrice financière ». (1 message)");
+    expect(conversation).toMatchObject({ title: "Bonjour", profile: { id: profileId, name: "Directrice financière" } });
+    expect((await page.request.patch(`/api/coach/conversations/${conversation.id}`, { headers: { origin: "https://evil.example" }, data: { title: "X" } })).status()).toBe(403);
+    expect((await page.request.delete(`/api/coach/conversations/${conversation.id}`, { headers: { origin: "https://evil.example" } })).status()).toBe(403);
+    expect((await page.request.patch(`/api/coach/conversations/${conversation.id}`, { headers: { origin }, data: { title: " " } })).status()).toBe(400);
 
     const other = await browser.newContext({ baseURL: origin });
     const otherPage = await other.newPage();
     await signInWithMagicLink(otherPage, newAddress("endpoint-other"));
-    const peek = await otherPage.request.post("/api/coach", { headers: { origin }, data: { ...conversation, focus: { kind: "profile", id: profileId } } });
-    expect(await peek.json()).toEqual({ reply: "Je ne vois aucun profil. (1 message)" });
+    const peek = await otherPage.request.post("/api/coach", { headers: { origin }, data: { ...message, focus: { kind: "profile", id: profileId } } });
+    expect(await peek.json()).toMatchObject({ reply: "Je ne vois aucun profil. (1 message)", conversation: { profile: null } });
+    // Marie's Coach Conversations are hers alone.
+    expect((await otherPage.request.get(`/api/coach/conversations/${conversation.id}`)).status()).toBe(404);
+    expect((await otherPage.request.post("/api/coach", { headers: { origin }, data: { ...message, conversationId: conversation.id } })).status()).toBe(404);
+    expect((await otherPage.request.patch(`/api/coach/conversations/${conversation.id}`, { headers: { origin }, data: { title: "À moi" } })).status()).toBe(404);
+    expect((await otherPage.request.delete(`/api/coach/conversations/${conversation.id}`, { headers: { origin } })).status()).toBe(404);
+    expect((await (await otherPage.request.get("/api/coach/conversations")).json()).conversations).toHaveLength(1);
     // An Application in view is accepted too; none exists yet, so nothing is in view.
-    const application = await page.request.post("/api/coach", { headers: { origin }, data: { ...conversation, focus: { kind: "application", id: "00000000-0000-4000-8000-000000000000" } } });
+    const application = await page.request.post("/api/coach", { headers: { origin }, data: { ...message, focus: { kind: "application", id: "00000000-0000-4000-8000-000000000000" } } });
     expect(application.status()).toBe(200);
-    expect(await application.json()).toEqual({ reply: "Je ne vois aucun profil. (1 message)" });
-    expect((await page.request.post("/api/coach", { headers: { origin }, data: { ...conversation, focus: { kind: "offer", id: profileId } } })).status()).toBe(400);
+    expect((await application.json()).reply).toBe("Je ne vois aucun profil. (1 message)");
+    expect((await page.request.post("/api/coach", { headers: { origin }, data: { ...message, focus: { kind: "offer", id: profileId } } })).status()).toBe(400);
     expect((await otherPage.request.post(`/api/action-cards/${cardId}`, { headers: { origin }, data: { decision: "dismiss" } })).status()).toBe(404);
     await other.close();
 
+    expect((await page.request.get(`/api/coach/conversations/${conversation.id}`)).status()).toBe(200);
     expect((await page.request.post(`/api/action-cards/${cardId}`, { headers: { origin }, data: { decision: "accept" } })).status()).toBe(200);
     expect((await page.request.post(`/api/action-cards/${cardId}`, { headers: { origin }, data: { decision: "accept" } })).status()).toBe(409);
   });

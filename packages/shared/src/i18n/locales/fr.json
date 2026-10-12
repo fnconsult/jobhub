@@ -380,7 +380,30 @@
       "invalid": "Ce message n'a pas pu être envoyé. Raccourcissez-le et réessayez."
     },
     "searchJobs": "Chercher des offres pour ce profil",
-    "searchHint": "Ouvrez l'un de vos profils : votre coach pourra chercher des offres pour lui."
+    "searchHint": "Ouvrez l'un de vos profils : votre coach pourra chercher des offres pour lui.",
+    "messagesLabel": "Vos échanges avec votre coach",
+    "newConversation": "Nouvelle conversation",
+    "conversations": "Mes conversations",
+    "backToConversation": "Revenir à la conversation",
+    "loading": "Chargement de la conversation…",
+    "noConversations": "Vous n'avez pas encore de conversation avec votre coach.",
+    "retention": "Vos conversations sont conservées 12 mois après leur dernier message, puis supprimées. Votre coach humain ne les voit jamais.",
+    "startedOnProfile": "Commencée sur le profil « {{name}} »",
+    "lastMessage": "Dernier message le {{date}}",
+    "rename": "Renommer",
+    "renameLabel": "Nom de la conversation",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "confirmDelete": "Supprimer définitivement la conversation « {{title}} » ?",
+    "confirmDeleteButton": "Oui, supprimer",
+    "renamed": "Conversation renommée.",
+    "deleted": "Conversation supprimée.",
+    "listErrors": {
+      "load": "Vos conversations n'ont pas pu être chargées. Réessayez dans quelques instants.",
+      "action": "Cette action n'a pas abouti. Réessayez dans quelques instants.",
+      "invalidTitle": "Donnez à la conversation un nom de 1 à 80 caractères."
+    }
   },
   "actionCards": {
     "title": "Propositions de votre coach",

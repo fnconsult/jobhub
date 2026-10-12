@@ -1,4 +1,5 @@
 import type { SearchCriteria } from "@jobhub/shared";
+import { findIdentity } from "./identity-scan";
 import { buildCompanyQuery, buildSearchQuery } from "./search-query";
 import { AiConfigError, DataResidencyError } from "./errors";
 import { SEARCH_TASK, TEXT_TASKS } from "./types";
@@ -14,6 +15,12 @@ export interface GenerateRequest {
   /** A single user prompt, or a whole conversation. */
   prompt: string | Message[];
   maxTokens?: number;
+  /**
+   * True when the prompt or system text carries the Candidate's identity: name, postal address,
+   * phone, email, the raw CV text or the Master CV identity block. Declare it from the fields you
+   * inject. With the Candidate's EU AI consent, such a call goes to the identity route (Mistral).
+   */
+  containsIdentity?: boolean;
 }
 
 export interface GenerateResult {
@@ -64,12 +71,23 @@ export interface AiLayerOptions {
   routes: Partial<Record<AiTask, ProviderId | Route>>;
   usage: UsageLog;
   now?: () => Date;
+  /**
+   * Where a call carrying the Candidate's identity goes when they gave EU AI consent
+   * (ADR-0007 amendment). Must be an EU-resident text provider. Default: Mistral.
+   */
+  identityRoute?: Route;
+  /** Whether the Candidate gave EU AI consent. Without it, no Candidate has consented. */
+  euAiConsent?: (candidateId: string) => Promise<boolean>;
+  /** Where a warning goes (e.g. identity found in a call that did not declare it). Default: console.warn. */
+  warn?: (message: string, details: Record<string, unknown>) => void;
 }
 
 const DEFAULT_MAX_TOKENS = 4096;
+const DEFAULT_IDENTITY_ROUTE: Route = { provider: "mistral" };
 
 export function createAiLayer(options: AiLayerOptions): AiLayer {
   const now = options.now ?? (() => new Date());
+  const identityRoute = options.identityRoute ?? DEFAULT_IDENTITY_ROUTE;
   const routeFor = (task: AiTask): Route => {
     const route = options.routes[task];
     if (!route) throw new AiConfigError(`No provider configured for AI task "${task}"`);
@@ -81,9 +99,10 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     return provider;
   };
 
-  const assertAllowed = (task: TextTask, provider: AiProvider) => {
+  /** `identity`: the call carries the Candidate's identity, so it is personal data whatever its task. */
+  const assertAllowed = (task: TextTask, provider: AiProvider, identity = false) => {
     if (!provider.generate) throw new AiConfigError(`AI provider "${provider.id}" cannot generate text (task "${task}")`);
-    if (TEXT_TASKS[task].personalData && provider.residency !== "eu") {
+    if ((identity || TEXT_TASKS[task].personalData) && provider.residency !== "eu") {
       throw new DataResidencyError(
         `AI task "${task}" carries personal data and may only use an EU-resident endpoint, not ${provider.id} (${provider.endpoint})`,
       );
@@ -98,6 +117,31 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     } else {
       assertAllowed(task, provider);
     }
+  }
+  // The identity route needs no provider until a consenting Candidate's call carries identity; when it has one, check it now.
+  const identityProvider = options.euAiConsent && options.providers.find((p) => p.id === identityRoute.provider);
+  if (identityProvider && (!identityProvider.generate || identityProvider.residency !== "eu")) {
+    throw new DataResidencyError(
+      `The identity route carries personal data and must be an EU-resident text provider, not ${identityProvider.id} (${identityProvider.endpoint})`,
+    );
+  }
+
+  const warn = options.warn ?? ((message: string, details: Record<string, unknown>) => console.warn(`[ai] ${message}`, details));
+
+  /**
+   * The identity route when the call carries the Candidate's identity and they gave EU AI consent; else the task's route.
+   * A call that does not declare identity is still scanned for a phone number or email address: a hit
+   * counts as identity and is logged (never the prompt itself), so the call site can be fixed.
+   */
+  async function routeForCall(request: GenerateRequest, messages: Message[]): Promise<{ route: Route; identity: boolean }> {
+    const { candidateId, task } = request;
+    const byTask = () => ({ route: routeFor(task), identity: false });
+    if (candidateId === null || !options.euAiConsent) return byTask();
+    const undeclared = request.containsIdentity ? [] : findIdentity([request.system ?? "", ...messages.map((m) => m.content)]);
+    if (!request.containsIdentity && undeclared.length === 0) return byTask();
+    if (!(await options.euAiConsent(candidateId))) return byTask();
+    if (undeclared.length > 0) warn("Undeclared identity in an AI call: routed as identity-bearing", { task, candidateId, found: undeclared });
+    return { route: identityRoute, identity: true };
   }
 
   const log = (entry: Omit<UsageEntry, "at">) => options.usage.record({ ...entry, at: now() });
@@ -114,11 +158,11 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
 
   return {
     async generate(request) {
-      const route = routeFor(request.task);
+      const messages = typeof request.prompt === "string" ? [{ role: "user" as const, content: request.prompt }] : request.prompt;
+      const { route, identity } = await routeForCall(request, messages);
       const provider = providerFor(route);
       // Checked again per call: the rule must hold even if a provider changes at runtime.
-      assertAllowed(request.task, provider);
-      const messages = typeof request.prompt === "string" ? [{ role: "user" as const, content: request.prompt }] : request.prompt;
+      assertAllowed(request.task, provider, identity);
       const output = await provider.generate!({
         model: route.model,
         system: request.system,

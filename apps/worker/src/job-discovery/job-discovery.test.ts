@@ -543,5 +543,21 @@ describe("Job discovery", () => {
       expect(report.funnel).toMatchObject({ providerUrls: 35, fetched: 30 });
       expect(web.fetched()).not.toContain(urls[30]);
     });
+
+    it("stops once the run has spent €0.08", async () => {
+      const urls = postings(5);
+      const { discovery, web, llm } = setup({
+        sources: urls,
+        pages: pagesFor(urls, () => ({ body: "<html><body><h1>Offres DAF</h1></body></html>" })),
+        // Each LLM read: 10,000 × $5/M = $0.05, €0.043. Search: €0.0022. After two reads, €0.088.
+        llmUsage: { inputTokens: 10_000, outputTokens: 0 },
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(llm.calls).toHaveLength(2);
+      expect(report.costEur).toBeCloseTo((0.002508 + 2 * 0.05) * 0.86, 9);
+      expect(web.fetched().filter((url) => urls.includes(url))).toEqual(urls.slice(0, 2));
+    });
   });
 });

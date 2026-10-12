@@ -146,7 +146,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         const distinct = [...new Set(search.sources)];
         funnel.providerUrls = distinct.length;
         for (const url of distinct) {
-          if (found.size >= budget.jobOffers) break;
+          if (found.size >= budget.jobOffers || report.costEur >= budget.spendEur) break;
           const known = await storedAt(url);
           if (known) {
             alreadyStored(known);

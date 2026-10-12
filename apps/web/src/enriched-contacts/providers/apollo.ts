@@ -1,6 +1,7 @@
 /**
  * Apollo (https://docs.apollo.io): People API Search finds people by title and
- * company domain without spending credits and without contact details; People
+ * company domain (and where they live: `person_locations[]`, the job's country)
+ * without spending credits and without contact details; People
  * Enrichment reveals one person's email (credits). Phones are revealed
  * asynchronously by Apollo (webhook), so they are not asked for.
  * Apollo withholds personal emails of people in GDPR regions: work emails only.
@@ -8,6 +9,8 @@
 import { requestJson, texts, type ContactDetails, type ContactEnrichmentProvider, type Fetch, type FoundPerson } from "./types";
 
 const BASE_URL = "https://api.apollo.io/api/v1";
+/** Apollo's `person_locations[]` takes place names ("France"), not ISO codes. */
+const COUNTRY_NAMES = new Intl.DisplayNames(["en"], { type: "region", fallback: "none" });
 
 interface ApolloPerson {
   id?: unknown;
@@ -30,11 +33,13 @@ export function createApolloProvider({ apiKey, fetch: fetchFn = fetch, baseUrl =
   return {
     id: "apollo",
 
-    async findPeople({ companyName, companyDomain, jobTitles, limit }) {
+    async findPeople({ companyName, companyDomain, country, jobTitles, limit }) {
       const url = new URL(`${baseUrl}/mixed_people/api_search`);
       for (const title of jobTitles) url.searchParams.append("person_titles[]", title);
       if (companyDomain) url.searchParams.append("q_organization_domains_list[]", companyDomain);
       else url.searchParams.set("q_organization_name", companyName);
+      const countryName = country && COUNTRY_NAMES.of(country);
+      if (countryName) url.searchParams.append("person_locations[]", countryName);
       url.searchParams.set("page", "1");
       url.searchParams.set("per_page", String(limit));
       const answer = (await requestJson("apollo", fetchFn, url.toString(), { headers })) as { people?: ApolloPerson[] } | null;

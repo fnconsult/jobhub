@@ -55,6 +55,22 @@ describe("Apollo adapter", () => {
     expect(new URL(api.requests[0]!.url).searchParams.get("q_organization_name")).toBe("Acme Industrie");
   });
 
+  it("finds only people located in the job's country, named as Apollo's locations are", async () => {
+    const api = recordedFetch({ body: { people: [] } });
+    const apollo = createApolloProvider({ apiKey: "k", fetch: api.fetch });
+
+    await apollo.findPeople!({ companyName: "CAPGEMINI", country: "FR", jobTitles: ["DRH"], limit: 5 });
+    expect(new URL(api.requests[0]!.url).searchParams.getAll("person_locations[]")).toEqual(["France"]);
+  });
+
+  it("finds people anywhere when the job's country is unknown", async () => {
+    const api = recordedFetch({ body: { people: [] } });
+    const apollo = createApolloProvider({ apiKey: "k", fetch: api.fetch });
+
+    await apollo.findPeople!({ companyName: "Acme Industrie", jobTitles: ["DRH"], limit: 5 });
+    expect(new URL(api.requests[0]!.url).searchParams.has("person_locations[]")).toBe(false);
+  });
+
   it("reveals a found person's email by their Apollo id (phones are not asked for)", async () => {
     const api = recordedFetch({ body: MATCH_ANSWER });
     const apollo = createApolloProvider({ apiKey: "apollo-test-key", fetch: api.fetch });

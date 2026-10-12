@@ -80,6 +80,22 @@ _Avoid_: Focus, current item, selected
 A proposal from the AI Coach placed inside a page (e.g. "3 ATS Fixes proposées", "Relance suggérée") that the Candidate accepts or dismisses. Pending until decided, then accepted or dismissed, never decided twice. Accepting it carries out the change it proposes; if that fails, the card stays pending.
 _Avoid_: Notification, suggestion, prompt
 
+**Coaching Playbook**:
+A versioned set of coaching rules the AI Coach draws on for one coaching topic, each rule citing its Sources.
+_Avoid_: Guide, script, prompt
+
+**Source**:
+A numbered reference (`[S12]`) to a study or official publication that backs a coaching rule. Listed once, in the Sources list shared by all Coaching Playbooks.
+_Avoid_: Citation, reference, link
+
+**Core Digest**:
+The short set of cross-cutting coaching rules the AI Coach always applies, whatever the topic. Validated like a Coaching Playbook.
+_Avoid_: Summary, system prompt
+
+**Human-validated**:
+A Coaching Playbook or Core Digest a named person has reviewed and approved, with the date. A review by an AI never counts. Only Human-validated coaching knowledge reaches Candidates.
+_Avoid_: Approved, QA'd, reviewed
+
 ### Positioning
 
 **Profile**:

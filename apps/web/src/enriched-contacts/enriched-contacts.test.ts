@@ -34,6 +34,20 @@ const DOSSIER: CompanyDossier = {
   suggestedContactRoles: ["hiring_manager", "hr_director", "talent_acquisition"],
 };
 
+/** Capgemini as the French register gives it (#95): registered office in Paris 17e. */
+const REGISTER_DOSSIER: CompanyDossier = {
+  source: "french_register",
+  reliability: "official",
+  employer: "Capgemini",
+  builtAt: new Date("2026-10-01T10:00:00Z"),
+  siren: "330703844",
+  name: "CAPGEMINI",
+  address: "11 RUE DE TILSITT 75017 PARIS",
+  financials: [],
+  executiveRoles: [],
+  suggestedContactRoles: ["hr_director"],
+};
+
 const CLAIRE: FoundPerson = { providerPersonId: "p-claire", name: "Claire M.", jobTitle: "DRH" };
 const HUGO: FoundPerson = { providerPersonId: "p-hugo", name: "Hugo B.", jobTitle: "Responsable recrutement" };
 const CLAIRE_DETAILS: ContactDetails = { providerPersonId: "p-claire", name: "Claire Martin", jobTitle: "DRH", emails: ["claire.martin@acme-industrie.fr"], phones: [] };
@@ -83,9 +97,9 @@ describe.skipIf(!connectionString)("Enriched Contacts (needs Postgres: DATABASE_
   /** Lets the Free Plan have `count` Enriched Contacts a month, as the Premium Plan does. */
   const includeEnrichedContacts = (count: number | null) => t.billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, enrichedContacts: count });
 
-  async function saveApplication(owner: string) {
+  async function saveApplication(owner: string, offer: Partial<typeof OFFER> = {}) {
     const profile = await profiles.create(owner, { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
-    const captured = await jobOffers.capture(OFFER);
+    const captured = await jobOffers.capture({ ...OFFER, ...offer });
     if (!profile.ok || !captured.ok) throw new Error("fixture refused");
     const saved = await applications.save(owner, { jobOfferId: captured.jobOffer.id, profileId: profile.profile.id });
     if (!saved.ok) throw new Error("fixture Application refused");
@@ -146,6 +160,41 @@ describe.skipIf(!connectionString)("Enriched Contacts (needs Postgres: DATABASE_
     expect(reveals).toEqual([]);
     // Finding people reveals nothing: no Enriched Contact is counted yet.
     expect((await t.billing.entitlements(marie)).usedThisMonth.enrichedContacts).toBe(0);
+  });
+
+  it("looks for people in the country of a Job Offer whose location names one", async () => {
+    const { provider, searches } = fakeProvider();
+    const contacts = contactsWith(provider);
+    await includeEnrichedContacts(20);
+    const londonApplication = await saveApplication(marie, { source: { url: "https://www.apec.fr/offre/43" }, content: "Poste basé à Londres.", location: "London, United Kingdom" });
+    dossiers.set(londonApplication, { status: "built", dossier: REGISTER_DOSSIER });
+
+    await contacts.find(marie, londonApplication);
+
+    expect(searches[0]).toMatchObject({ companyName: "CAPGEMINI", country: "GB" });
+  });
+
+  it("looks for people in France for an employer from the French register when the Job Offer's location names no country", async () => {
+    const { provider, searches } = fakeProvider();
+    const contacts = contactsWith(provider);
+    await includeEnrichedContacts(20);
+    const issyApplication = await saveApplication(marie, { source: { url: "https://www.apec.fr/offre/44" }, content: "Poste basé à Issy.", location: "Issy-les-Moulineaux" });
+    dossiers.set(issyApplication, { status: "built", dossier: REGISTER_DOSSIER });
+
+    await contacts.find(marie, issyApplication);
+
+    // The country only: the registered office (Paris 17e) is not where the job is.
+    expect(searches[0]).toMatchObject({ companyName: "CAPGEMINI", country: "FR" });
+  });
+
+  it("looks for people anywhere when neither the Job Offer nor the Company Dossier gives a country", async () => {
+    const { provider, searches } = fakeProvider();
+    const contacts = contactsWith(provider);
+    await includeEnrichedContacts(20);
+
+    await contacts.find(marie, applicationId);
+
+    expect(searches[0]).not.toHaveProperty("country");
   });
 
   it("is Premium only: a Plan without Enriched Contacts gets the Upgrade Prompt and the provider is not asked", async () => {

@@ -62,6 +62,25 @@ export interface SearchOutput {
   usage: TokenUsage;
 }
 
+/**
+ * Narrows a web search. Each provider applies what its API offers and ignores the rest,
+ * so callers still check every result (e.g. ADR-0002's forbidden sites).
+ * Never built from a Profile or CV: like the query, it is not personal data.
+ */
+export interface SearchFilters {
+  /** Only pages on these sites (domain names such as "apec.fr"). */
+  includeDomains?: string[];
+  /** No pages on these sites. */
+  excludeDomains?: string[];
+  /** Only pages published within this many days. */
+  maxAgeDays?: number;
+}
+
+export interface SearchOptions {
+  model?: string;
+  filters?: SearchFilters;
+}
+
 /** The seam every provider adapter fills. */
 export interface AiProvider {
   readonly id: ProviderId;
@@ -69,7 +88,7 @@ export interface AiProvider {
   readonly endpoint: string;
   readonly residency: Residency;
   generate?(input: TextInput): Promise<TextOutput>;
-  search?(query: string, options: { model?: string }): Promise<SearchOutput>;
+  search?(query: string, options: SearchOptions): Promise<SearchOutput>;
 }
 
 export interface UsageEntry extends TokenUsage {

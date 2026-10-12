@@ -4,7 +4,7 @@
  */
 import type { AiProvider, SearchOutput } from "../types";
 import { postJson } from "./http";
-import { searchOutputOfResults } from "./web-results";
+import { domainsOf, searchOutputOfResults, sinceDateOf } from "./web-results";
 
 interface TavilyResponse {
   results?: { title?: string; url?: string; content?: string }[];
@@ -18,20 +18,29 @@ const MAX_RESULTS = 20;
 export interface TavilyProviderOptions {
   apiKey: string;
   fetch?: typeof globalThis.fetch;
+  /** Today, for freshness windows. */
+  now?: () => Date;
 }
 
 export function createTavilyProvider(options: TavilyProviderOptions): AiProvider {
   const client = { provider: "tavily" as const, apiKey: options.apiKey, fetch: options.fetch };
+  const now = options.now ?? (() => new Date());
   return {
     id: "tavily",
     endpoint: "api.tavily.com",
     residency: "outside_eu",
-    async search(query, { model }): Promise<SearchOutput> {
+    async search(query, { model, filters }): Promise<SearchOutput> {
       const depth = model ?? DEFAULT_DEPTH;
+      const includeDomains = domainsOf(filters?.includeDomains);
+      const excludeDomains = domainsOf(filters?.excludeDomains);
+      const since = sinceDateOf(filters, now());
       const response = await postJson<TavilyResponse>(client, "https://api.tavily.com/search", {
         query,
         search_depth: depth,
         max_results: MAX_RESULTS,
+        ...(includeDomains ? { include_domains: includeDomains } : {}),
+        ...(excludeDomains ? { exclude_domains: excludeDomains } : {}),
+        ...(since ? { start_date: since } : {}),
       });
       const results = (response?.results ?? []).map((r) => ({ title: r.title, url: r.url, snippet: r.content }));
       return searchOutputOfResults(results, depth);

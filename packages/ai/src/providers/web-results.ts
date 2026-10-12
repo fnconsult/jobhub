@@ -3,7 +3,7 @@
  * a ranked list of pages, not a written answer. Each page becomes a source, and the
  * answer lists them (title, URL, snippet) so callers reading the answer see the same pages.
  */
-import type { SearchOutput } from "../types";
+import type { SearchFilters, SearchOutput } from "../types";
 
 export interface WebResult {
   title?: string;
@@ -30,3 +30,20 @@ export function searchOutputOfResults(results: WebResult[], model: string): Sear
     usage: NO_TOKENS,
   };
 }
+
+/** The non-empty domain list of a filter, or undefined when there is none. */
+export function domainsOf(domains: string[] | undefined): string[] | undefined {
+  const kept = (domains ?? []).map((d) => d.trim()).filter(Boolean);
+  return kept.length ? kept : undefined;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The first day (YYYY-MM-DD, UTC) of the freshness window, or undefined when there is none. */
+export function sinceDateOf(filters: SearchFilters | undefined, now: Date): string | undefined {
+  const days = filters?.maxAgeDays;
+  if (typeof days !== "number" || !Number.isFinite(days) || days <= 0) return undefined;
+  return isoDay(new Date(now.getTime() - days * DAY_MS));
+}
+
+export const isoDay = (date: Date) => date.toISOString().slice(0, 10);

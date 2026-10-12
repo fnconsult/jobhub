@@ -63,4 +63,38 @@ describe("Tavily provider", () => {
       usage: { inputTokens: 0, outputTokens: 0 },
     });
   });
+
+  it("applies domain filters and a freshness window as Tavily's own filters", async () => {
+    const { fetch, requests } = fakeFetch(reply);
+    const provider = createTavilyProvider({ apiKey: "k", fetch, now: () => new Date("2026-10-12T08:00:00Z") });
+
+    await provider.search!(query, {
+      model: "advanced",
+      filters: { includeDomains: ["cadremploi.fr", "apec.fr"], excludeDomains: ["indeed.fr"], maxAgeDays: 30 },
+    });
+
+    expect(requests[0]!.body).toEqual({
+      query,
+      search_depth: "advanced",
+      max_results: 20,
+      include_domains: ["cadremploi.fr", "apec.fr"],
+      exclude_domains: ["indeed.fr"],
+      start_date: "2026-09-12",
+    });
+  });
+
+  it("raises a provider error on an HTTP failure, such as a spent plan (432)", async () => {
+    const { fetch } = fakeFetch({ detail: { error: "Plan limit exceeded" } }, 432);
+    await expect(createTavilyProvider({ apiKey: "k", fetch }).search!(query, {})).rejects.toMatchObject({
+      name: "AiProviderError",
+      provider: "tavily",
+      status: 432,
+    });
+  });
+
+  it.skipIf(!existsSync(recordedUrl("tavily-search")))("reads the sources of a reply recorded from the live API", async () => {
+    const { fetch } = fakeFetch(fixture("tavily-search.recorded"));
+    const output = await createTavilyProvider({ apiKey: "k", fetch }).search!(query, {});
+    expect(output.sources.length).toBeGreaterThan(0);
+  });
 });

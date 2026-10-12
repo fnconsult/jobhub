@@ -421,6 +421,40 @@ describe("Job discovery", () => {
     });
   });
 
+  describe("following a listing page to its postings", () => {
+    const LISTING = "https://emplois.example.fr/offres?q=daf";
+    const listing = (paths: string[]) =>
+      `<html><body><h1>Offres DAF</h1><ul>${paths.map((path) => `<li><a href="${path}">Offre</a></li>`).join("")}</ul></body></html>`;
+    const postingAt = (index: number): Page => ({ body: jobPostingPage({ title: `DAF ${index}`, description: `Poste de DAF numéro ${index}.` }) });
+    const at = (path: string) => `https://emplois.example.fr${path}`;
+
+    it("reads the postings a listing page links to, each through the polite-fetch checks, without the LLM reading the listing", async () => {
+      const paths = ["/offres/1-daf-lyon", "/offres/2-daf-paris", "/offres/3-daf-nantes"];
+      const { discovery, web, llm } = setup({
+        sources: [LISTING],
+        pages: {
+          "https://emplois.example.fr/robots.txt": { body: "User-agent: *\nDisallow: /offres/2-\n" },
+          [LISTING]: { body: listing(paths) },
+          [at(paths[0]!)]: postingAt(1),
+          [at(paths[1]!)]: postingAt(2),
+          [at(paths[2]!)]: { status: 403, headers: { "cf-mitigated": "challenge" }, body: "<title>Just a moment...</title>" },
+        },
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers.map((offer) => offer.source.url)).toEqual([at(paths[0]!)]);
+      expect(report.skipped).toEqual([
+        { url: LISTING, reason: "not_a_job_offer" },
+        { url: at(paths[1]!), reason: "robots" },
+        { url: at(paths[2]!), reason: "bot_protection" },
+      ]);
+      expect(web.fetched()).not.toContain(at(paths[1]!));
+      expect(llm.calls).toEqual([]);
+      expect(report.funnel).toEqual({ providerUrls: 1, fetched: 2, extracted: 1, alreadyStored: 0 });
+    });
+  });
+
   describe("deduplicating against existing Job Offers", () => {
     const stored: JobOffer = { id: "stored-1", source: { url: DAF_URL }, title: "DAF", content: "Poste de DAF." };
 

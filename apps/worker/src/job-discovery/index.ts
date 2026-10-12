@@ -23,6 +23,7 @@ import type { DiscoveryMetrics, JobOffer, JobOfferDetails, SearchCriteria, SkipR
 import { DEFAULT_BUDGET, type JobDiscoveryBudget } from "./budget";
 import { htmlToText, metaRobots } from "./html";
 import { countJobPostings, readJobPosting } from "./job-posting";
+import { listingPageLinks } from "./listing-page";
 import { extractWithLlm } from "./llm-extraction";
 import { createPoliteFetcher, realClock, type Clock, type RefusalReason } from "./polite-fetch";
 
@@ -128,10 +129,59 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
       const { funnel, skipped } = report;
       const budgetSpent = () =>
         found.size >= budget.jobOffers || report.costEur >= budget.spendEur || clock.now() - startedAt >= budget.seconds * 1000;
+      /** URLs looked at in this run, so a posting a listing page links to is not read twice. */
+      const seen = new Set<string>();
       const storedAt = (url: string) => options.jobOffers.findBySourceUrl(url).catch(() => null);
       const alreadyStored = (jobOffer: JobOffer) => {
         found.set(jobOffer.id, jobOffer);
         funnel.alreadyStored++;
+      };
+
+      /** Reads one page, and when `follow` and it is a listing page, the postings it links to. */
+      const read = async (url: string, follow: boolean): Promise<void> => {
+        if (seen.has(url)) return;
+        seen.add(url);
+        const known = await storedAt(url);
+        if (known) {
+          alreadyStored(known);
+          return;
+        }
+        // A result can redirect to a page captured earlier (in this run or before): use that Job Offer.
+        const page = await fetcher.page(url, storedAt);
+        if (page.ok === "known") {
+          alreadyStored(page.known);
+          return;
+        }
+        if (!page.ok) {
+          skipped.push({ url, reason: page.reason });
+          return;
+        }
+        funnel.fetched++;
+        if (metaRobots(page.html).some((value) => /\b(noindex|none)\b/.test(value))) {
+          skipped.push({ url, reason: "robots" });
+          return;
+        }
+        let details = readJobPosting(page.html);
+        if (!details) {
+          const links = follow ? listingPageLinks(page) : [];
+          if (links.length > 0) {
+            skipped.push({ url, reason: "not_a_job_offer" });
+            for (const link of links) {
+              if (budgetSpent()) break;
+              await read(link, false);
+            }
+            return;
+          }
+          if (countJobPostings(page.html) <= 1) details = await extractWithLlm(ai, candidateId, htmlToText(page.html));
+        }
+        if (!details) {
+          skipped.push({ url, reason: "not_a_job_offer" });
+          return;
+        }
+        funnel.extracted++;
+        const captured = await options.jobOffers.capture({ source: { url: page.url }, ...details });
+        if (captured.ok) found.set(captured.jobOffer.id, captured.jobOffer);
+        else skipped.push({ url, reason: "invalid" });
       };
 
       try {
@@ -140,37 +190,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         funnel.providerUrls = distinct.length;
         for (const url of distinct) {
           if (budgetSpent()) break;
-          const known = await storedAt(url);
-          if (known) {
-            alreadyStored(known);
-            continue;
-          }
-          // A result can redirect to a page captured earlier (in this run or before): use that Job Offer.
-          const page = await fetcher.page(url, storedAt);
-          if (page.ok === "known") {
-            alreadyStored(page.known);
-            continue;
-          }
-          if (!page.ok) {
-            skipped.push({ url, reason: page.reason });
-            continue;
-          }
-          funnel.fetched++;
-          if (metaRobots(page.html).some((value) => /\b(noindex|none)\b/.test(value))) {
-            skipped.push({ url, reason: "robots" });
-            continue;
-          }
-          const details =
-            readJobPosting(page.html) ??
-            (countJobPostings(page.html) > 1 ? null : await extractWithLlm(ai, candidateId, htmlToText(page.html)));
-          if (!details) {
-            skipped.push({ url, reason: "not_a_job_offer" });
-            continue;
-          }
-          funnel.extracted++;
-          const captured = await options.jobOffers.capture({ source: { url: page.url }, ...details });
-          if (captured.ok) found.set(captured.jobOffer.id, captured.jobOffer);
-          else skipped.push({ url, reason: "invalid" });
+          await read(url, true);
         }
       } catch (error) {
         report.jobOffers = [...found.values()];

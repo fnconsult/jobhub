@@ -10,9 +10,8 @@ const applyTextSize = `try{var s=localStorage.getItem(${JSON.stringify(TEXT_SIZE
 
 /**
  * Design tokens, the remembered text size (ADR-0009) and whether the sidebar
- * was hidden. Every document the
- * app renders, including the root error boundary that replaces the root
- * layout, puts this in its <head>.
+ * was hidden. Every document the app renders, including the root error
+ * boundary that replaces the root layout, puts this in its <head>.
  */
 export function DocumentHead() {
   return (

@@ -118,6 +118,16 @@
     "account": "Mon compte",
     "applications": "Mes candidatures"
   },
+  "sidebar": {
+    "label": "Navigation principale",
+    "skipToContent": "Aller au contenu",
+    "menu": "Menu",
+    "close": "Fermer le menu",
+    "collapse": "Masquer le menu",
+    "jobSearches": "Recherches d'offres",
+    "jobDigests": "Job Digests",
+    "subscription": "Abonnement"
+  },
   "signIn": {
     "title": "Se connecter à Jobbbox",
     "intro": "Pas de mot de passe à retenir : recevez un lien de connexion par e-mail, ou utilisez votre compte Google. Si vous n'avez pas encore de compte, il sera créé.",

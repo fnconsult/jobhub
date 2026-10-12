@@ -118,6 +118,16 @@
     "account": "My account",
     "applications": "My applications"
   },
+  "sidebar": {
+    "label": "Main navigation",
+    "skipToContent": "Skip to content",
+    "menu": "Menu",
+    "close": "Close the menu",
+    "collapse": "Hide the menu",
+    "jobSearches": "Job searches",
+    "jobDigests": "Job Digests",
+    "subscription": "Subscription"
+  },
   "signIn": {
     "title": "Sign in to Jobbbox",
     "intro": "No password to remember: get a sign-in link by email, or use your Google account. If you don't have an account yet, one will be created.",

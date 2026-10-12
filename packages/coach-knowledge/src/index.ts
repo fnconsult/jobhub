@@ -54,6 +54,11 @@ export type LoadCoachKnowledgeOptions = {
   dir?: string;
 };
 
+/** The knowledge files are inconsistent (e.g. a citation missing from `sources.md`). */
+export class CoachKnowledgeError extends Error {
+  override name = "CoachKnowledgeError";
+}
+
 const packageDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 export function loadCoachKnowledge({ dir = packageDir }: LoadCoachKnowledgeOptions): CoachKnowledge {
@@ -61,10 +66,13 @@ export function loadCoachKnowledge({ dir = packageDir }: LoadCoachKnowledgeOptio
   const playbooksDir = path.join(dir, "playbooks");
   const playbooks = new Map<string, Playbook>();
   for (const file of readdirSync(playbooksDir).filter((name) => name.endsWith(".md")).sort()) {
-    const parsed = parsePlaybook(readFileSync(path.join(playbooksDir, file), "utf8"));
+    const markdown = readFileSync(path.join(playbooksDir, file), "utf8");
+    const parsed = parsePlaybook(markdown);
     const { frontmatter } = parsed;
     const id = String(frontmatter.playbook ?? file.replace(/\.md$/, "")) as PlaybookId;
     const sourceIds = Array.isArray(frontmatter.sources) ? frontmatter.sources : [];
+    const unknown = [...new Set([...sourceIds, ...citedSourceIds(markdown)])].filter((sourceId) => !sources.has(sourceId));
+    if (unknown.length > 0) throw new CoachKnowledgeError(`Playbook ${id} cites sources missing from sources.md: ${unknown.join(", ")}`);
     playbooks.set(id, {
       id,
       title: parsed.title,
@@ -72,7 +80,7 @@ export function loadCoachKnowledge({ dir = packageDir }: LoadCoachKnowledgeOptio
       updated: String(frontmatter.updated ?? ""),
       status: String(frontmatter.statut ?? ""),
       rules: parsed.rules.map((rule) => ({ ...rule, sourceIds: citedSourceIds(`${rule.title}\n${rule.text}`) })),
-      sources: sourceIds.flatMap((sourceId) => sources.get(sourceId) ?? []),
+      sources: sourceIds.map((sourceId) => sources.get(sourceId)!),
     });
   }
   return { playbook: (id) => playbooks.get(id) };

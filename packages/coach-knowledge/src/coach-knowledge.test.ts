@@ -1,5 +1,29 @@
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { loadCoachKnowledge } from "./index";
+import { loadCoachKnowledge, PLAYBOOK_IDS } from "./index";
+
+const packageDir = fileURLToPath(new URL("..", import.meta.url));
+
+describe("sources.md", () => {
+  it("lists every [Sn] the playbooks cite", () => {
+    const listed = new Set(
+      [...readFileSync(path.join(packageDir, "sources.md"), "utf8").matchAll(/^\| (S\d+) \|/gm)].map((match) => match[1]),
+    );
+    const playbookFiles = readdirSync(path.join(packageDir, "playbooks"));
+    const cited = playbookFiles.flatMap((file) =>
+      [...readFileSync(path.join(packageDir, "playbooks", file), "utf8").matchAll(/\[(S\d+)\]|\b(S\d+)\b/g)].map(
+        (match) => ({ file, id: match[1] ?? match[2] }),
+      ),
+    );
+
+    expect(playbookFiles).toHaveLength(10);
+    expect(cited.length).toBeGreaterThan(100);
+    expect(cited.filter(({ id }) => !listed.has(id))).toEqual([]);
+  });
+});
 
 describe("loadCoachKnowledge — the imported playbooks", () => {
   const knowledge = loadCoachKnowledge({ environment: "eval" });
@@ -23,4 +47,77 @@ describe("loadCoachKnowledge — the imported playbooks", () => {
     });
     expect(playbook?.rules[1]?.text).toMatch(/^Dans cette même évaluation, l'effet sur l'emploi durable/);
   });
+
+  it("loads all ten playbooks, each with its version, rules and sources", () => {
+    for (const id of PLAYBOOK_IDS) {
+      const playbook = knowledge.playbook(id);
+      expect(playbook, id).toBeDefined();
+      expect(playbook?.version, id).toMatch(/^\d+\.\d+$/);
+      expect(playbook?.updated, id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(playbook?.rules.length, id).toBeGreaterThanOrEqual(9);
+      expect(playbook?.rules.every((rule) => rule.title && rule.text), id).toBe(true);
+      expect(playbook?.sources.length, id).toBeGreaterThanOrEqual(4);
+    }
+    expect(knowledge.playbook("senior-40plus-positioning")?.rules[0]).toMatchObject({
+      id: "R1",
+      title: "Positionnez votre expérience comme une valeur directement utile au poste.",
+      sourceIds: ["S4", "S20"],
+    });
+  });
 });
+
+describe("loadCoachKnowledge — a knowledge folder", () => {
+  it("refuses a playbook citing a source missing from sources.md", () => {
+    const dir = knowledgeDir({
+      sources: ["S1"],
+      playbooks: { "ats-optimization": playbookMarkdown({ id: "ats-optimization", sources: ["S1"], body: "Texte. [S1][S99]" }) },
+    });
+
+    expect(() => loadCoachKnowledge({ environment: "eval", dir })).toThrow(/ats-optimization.*S99/);
+  });
+});
+
+function playbookMarkdown({
+  id,
+  sources,
+  body,
+  statut = "validé (auto-QA Claude, 2026-07-26)",
+}: {
+  id: string;
+  sources: string[];
+  body: string;
+  statut?: string;
+}): string {
+  return [
+    "---",
+    `playbook: ${id}`,
+    'version: "2.0"',
+    'updated: "2026-10-01"',
+    `statut: ${statut}`,
+    `sources: [${sources.join(", ")}]`,
+    "langue: fr",
+    "---",
+    "",
+    `# ${id}`,
+    "",
+    "## Règles",
+    "",
+    "**R1. Une règle.**",
+    "",
+    body,
+    "",
+  ].join("\n");
+}
+
+function knowledgeDir({ sources, playbooks }: { sources: string[]; playbooks: Record<string, string> }): string {
+  const dir = mkdtempSync(path.join(tmpdir(), "coach-knowledge-"));
+  mkdirSync(path.join(dir, "playbooks"));
+  writeFileSync(
+    path.join(dir, "sources.md"),
+    ["| ID | Titre | Auteur | Année | URL | Licence |", "|----|----|----|----|----|----|"]
+      .concat(sources.map((id) => `| ${id} | Titre ${id} | Auteur | 2026 | https://example.org/${id} | publique |`))
+      .join("\n"),
+  );
+  for (const [id, markdown] of Object.entries(playbooks)) writeFileSync(path.join(dir, "playbooks", `${id}.md`), markdown);
+  return dir;
+}

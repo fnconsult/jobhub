@@ -1,0 +1,1355 @@
+<title>Jobbbox Notion Prototype</title>
+<!--
+  Clickable prototype of the Notion-like layout (#132, part of #123).
+  Throwaway: it answers "what should Jobbbox look like?", it is not product code.
+  The "design-tokens" stylesheet is renderDesignCss(designTokens), unchanged, and every
+  stylesheet is held to ADR-0009 by docs/prototypes/notion-layout.test.ts.
+  Single light look on purpose: dark mode is out of scope (#123).
+-->
+<style id="design-tokens">
+:root {
+  --color-background: #ffffff;
+  --color-surface: #f7f7f5;
+  --color-surface-hover: #efeeec;
+  --color-border: #e3e2e0;
+  --color-text: #37352f;
+  --color-text-secondary: #5a5955;
+  --color-accent: #1f5fbf;
+  --color-danger: #b42318;
+  --color-success: #1e6e3a;
+  --color-on-accent: #ffffff;
+  --color-focus-ring: #1f5fbf;
+  --font-size-body: 1rem;
+  --font-size-lead: 1.125rem;
+  --font-size-h3: 1.25rem;
+  --font-size-h2: 1.5rem;
+  --font-size-h1: 2rem;
+  --line-height-body: 1.6;
+  --line-height-heading: 1.25;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+html {
+  font-size: 16px;
+}
+
+html[data-text-size="standard"] {
+  font-size: 16px;
+}
+
+html[data-text-size="large"] {
+  font-size: 18px;
+}
+
+html[data-text-size="xlarge"] {
+  font-size: 20px;
+}
+
+body {
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+h1, h2, h3 {
+  line-height: var(--line-height-heading);
+  color: var(--color-text);
+}
+
+h1 { font-size: var(--font-size-h1); }
+h2 { font-size: var(--font-size-h2); }
+h3 { font-size: var(--font-size-h3); }
+
+a {
+  color: var(--color-accent);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+</style>
+<style id="prototype">
+/* Layout: a sidebar (Profiles first), one centred document column of 44rem,
+   and the Coach Panel on the right. Sidebar becomes a drawer below 64rem; the
+   Coach Panel docks from 80rem and is a sheet over the page below that. */
+:root {
+  color-scheme: light;
+  --sidebar-width: 17rem;
+  --coach-width: 24rem;
+  --content-width: 44rem;
+  --control-height: 2.75rem;
+  --scrim: rgba(15, 15, 15, 0.45);
+  --shadow-overlay: 0 0.75rem 2rem rgba(15, 15, 15, 0.18), 0 0 0 1px rgba(15, 15, 15, 0.06);
+  --shadow-menu: 0 0.5rem 1.5rem rgba(15, 15, 15, 0.14), 0 0 0 1px rgba(15, 15, 15, 0.08);
+}
+
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body { overflow-x: hidden; }
+[hidden] { display: none !important; }
+svg.icon { width: 1.25rem; height: 1.25rem; flex: none; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+p { margin: 0; }
+[id] { scroll-margin-top: 4.5rem; }
+
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.skip-link { position: absolute; left: var(--space-4); top: -4rem; z-index: 50; background: var(--color-accent); color: var(--color-on-accent); padding: var(--space-2) var(--space-4); border-radius: var(--radius-md); }
+.skip-link:focus { top: var(--space-4); }
+
+/* ---------- Frame ---------- */
+.app { display: grid; grid-template-columns: var(--sidebar-width) minmax(0, 1fr); min-height: 100dvh; }
+.app[data-coach="open"] { grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--coach-width); }
+.app[data-sidebar="closed"] { grid-template-columns: minmax(0, 1fr); }
+.app[data-sidebar="closed"][data-coach="open"] { grid-template-columns: minmax(0, 1fr) var(--coach-width); }
+.app[data-sidebar="closed"] .sidebar { display: none; }
+
+/* ---------- Buttons ---------- */
+.btn { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--control-height); padding: var(--space-2) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); background: var(--color-background); color: var(--color-text); cursor: pointer; text-decoration: none; line-height: 1.25; }
+.btn:hover { background: var(--color-surface-hover); }
+.btn-primary { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-on-accent); }
+.btn-primary:hover { background: var(--color-accent); filter: brightness(0.92); }
+.btn-quiet { border-color: transparent; background: transparent; }
+.btn-quiet:hover { background: var(--color-surface-hover); }
+.btn-danger { color: var(--color-danger); }
+.btn-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* ---------- Sidebar ---------- */
+.sidebar { position: sticky; top: 0; height: 100dvh; overflow-y: auto; background: var(--color-surface); border-right: 1px solid var(--color-border); display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-3) var(--space-2) var(--space-4); }
+.sidebar-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: var(--control-height); padding: 0 var(--space-3); }
+.brand { font-weight: 700; letter-spacing: -0.01em; }
+.nav-section { display: flex; flex-direction: column; gap: var(--space-1); }
+.nav-heading { padding: 0 var(--space-3); color: var(--color-text-secondary); font-weight: 600; }
+.nav-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.nav-link { display: flex; align-items: center; gap: var(--space-3); min-height: var(--control-height); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); color: var(--color-text); text-decoration: none; }
+.nav-link:hover { background: var(--color-surface-hover); }
+.nav-link[aria-current="page"] { background: var(--color-surface-hover); font-weight: 600; box-shadow: inset 3px 0 0 var(--color-accent); }
+.nav-link .count { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--color-text-secondary); }
+.sidebar-foot { margin-top: auto; display: flex; flex-direction: column; gap: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-border); }
+
+/* Profile switcher (a menu button; Radix DropdownMenu in the real app, ADR-0018) */
+.switcher { position: relative; }
+.switcher-button { width: 100%; display: flex; align-items: center; gap: var(--space-3); min-height: 3.25rem; padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-background); cursor: pointer; text-align: left; }
+.switcher-button:hover { background: var(--color-surface-hover); }
+.switcher-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.switcher-text .label { color: var(--color-text-secondary); }
+.switcher-text .name { font-weight: 600; overflow-wrap: anywhere; }
+.switcher-button .chevron { margin-left: auto; }
+.menu { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + var(--space-1)); background: var(--color-background); border-radius: var(--radius-md); box-shadow: var(--shadow-menu); padding: var(--space-1); display: flex; flex-direction: column; }
+.menu-label { padding: var(--space-2) var(--space-3) var(--space-1); color: var(--color-text-secondary); font-weight: 600; }
+.menu-item { display: flex; align-items: center; gap: var(--space-3); min-height: var(--control-height); padding: var(--space-2) var(--space-3); border: 0; border-radius: var(--radius-sm); background: transparent; cursor: pointer; text-align: left; text-decoration: none; color: var(--color-text); }
+.menu-item:hover, .menu-item:focus { background: var(--color-surface-hover); outline: none; }
+.menu-item:focus-visible { outline: 3px solid var(--color-focus-ring); outline-offset: -3px; }
+.menu-item .check { width: 1.25rem; flex: none; color: var(--color-accent); }
+.menu-sep { height: 1px; background: var(--color-border); margin: var(--space-1) 0; }
+
+/* Text size control: always visible, labelled in words */
+.text-size { display: flex; flex-direction: column; gap: var(--space-2); padding: 0 var(--space-2); border: 0; margin: 0; }
+.text-size legend { padding: 0; font-weight: 600; }
+.segmented { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--color-text-secondary); border-radius: var(--radius-md); overflow: hidden; }
+.segmented button { min-height: var(--control-height); border: 0; background: var(--color-background); cursor: pointer; padding: var(--space-1); line-height: 1.2; }
+.segmented button + button { border-left: 1px solid var(--color-text-secondary); }
+.segmented button[aria-pressed="true"] { background: var(--color-accent); color: var(--color-on-accent); font-weight: 600; }
+
+/* ---------- Workspace ---------- */
+.workspace { min-width: 0; display: flex; flex-direction: column; }
+.topbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: var(--space-2); min-height: 3.5rem; padding: var(--space-2) var(--space-4); background: var(--color-background); border-bottom: 1px solid var(--color-border); }
+.crumbs { display: flex; align-items: center; gap: var(--space-2); min-width: 0; flex: 1; list-style: none; margin: 0; padding: 0; }
+.crumbs li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crumbs li + li::before { content: "/"; margin-right: var(--space-2); color: var(--color-text-secondary); }
+.crumbs a { color: var(--color-text); text-decoration: none; }
+.crumbs a:hover { text-decoration: underline; }
+.crumbs li:last-child { font-weight: 600; }
+.menu-toggle { display: none; }
+.app[data-sidebar="closed"] .menu-toggle { display: inline-flex; }
+
+main { flex: 1; padding: var(--space-12) var(--space-12) 6rem; }
+.page { max-width: var(--content-width); margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-8); }
+.page-head { display: flex; flex-direction: column; gap: var(--space-3); }
+.eyebrow { color: var(--color-text-secondary); font-weight: 600; }
+.lead { font-size: var(--font-size-lead); }
+.section { display: flex; flex-direction: column; gap: var(--space-4); }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; padding-bottom: var(--space-2); border-bottom: 1px solid var(--color-border); }
+.sample-note { padding: var(--space-3) var(--space-4); background: var(--color-surface); border-radius: var(--radius-md); }
+
+/* Properties: Notion's label/value list. Values that can be edited show a
+   dashed underline in a 3:1 colour (WCAG 1.4.11), so the affordance is visible
+   without hover, which a touch screen does not have. */
+.props { display: grid; grid-template-columns: minmax(9rem, 13rem) minmax(0, 1fr); gap: var(--space-1) var(--space-4); margin: 0; }
+.props dt { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-height); color: var(--color-text-secondary); }
+.props dd { margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); min-height: var(--control-height); min-width: 0; }
+.props .hint { flex-basis: 100%; color: var(--color-text-secondary); }
+.inline-edit { width: 100%; min-height: var(--control-height); padding: var(--space-1) var(--space-2); margin-left: calc(-1 * var(--space-2)); border: 1px solid transparent; border-bottom: 1px dashed var(--color-text-secondary); border-radius: var(--radius-sm); background: transparent; line-height: var(--line-height-body); }
+.inline-edit:hover { background: var(--color-surface-hover); }
+.inline-edit:focus { background: var(--color-background); border: 1px solid var(--color-accent); outline: none; box-shadow: 0 0 0 2px var(--color-focus-ring); }
+select.inline-edit { cursor: pointer; width: auto; min-width: 12rem; }
+textarea.inline-edit { resize: vertical; field-sizing: content; min-height: 5rem; }
+textarea.title-edit { resize: none; min-height: 0; overflow: hidden; }
+.title-edit { font-size: var(--font-size-h1); font-weight: 700; line-height: var(--line-height-heading); border-bottom-style: dashed; }
+.saved-flag { color: var(--color-success); font-weight: 600; }
+
+/* Status pills and scores */
+.pill { display: inline-flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-3); min-height: 2rem; border-radius: 999px; background: var(--color-surface); border: 1px solid var(--color-border); white-space: nowrap; }
+.pill::before { content: ""; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--color-text-secondary); }
+.pill[data-tone="success"] { color: var(--color-success); }
+.pill[data-tone="success"]::before { background: var(--color-success); }
+.pill[data-tone="danger"] { color: var(--color-danger); }
+.pill[data-tone="danger"]::before { background: var(--color-danger); }
+.pill[data-tone="accent"] { color: var(--color-accent); }
+.pill[data-tone="accent"]::before { background: var(--color-accent); }
+.score { display: inline-flex; align-items: baseline; gap: var(--space-1); font-variant-numeric: tabular-nums; }
+.score strong { font-size: var(--font-size-h3); }
+.meter { width: 6rem; height: 0.5rem; border-radius: 999px; background: var(--color-surface-hover); overflow: hidden; }
+.meter span { display: block; height: 100%; background: var(--color-accent); }
+
+/* Action Card: the coach's proposal placed inside the page */
+.action-card { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--color-border); border-left: 4px solid var(--color-accent); border-radius: var(--radius-md); background: var(--color-surface); }
+.action-card .kicker { display: flex; align-items: center; gap: var(--space-2); color: var(--color-accent); font-weight: 600; }
+.draft { padding: var(--space-3) var(--space-4); background: var(--color-background); border: 1px solid var(--color-border); border-radius: var(--radius-md); white-space: pre-line; }
+
+/* Rows: results, applications, searches */
+.rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2) var(--space-4); padding: var(--space-4) 0; border-bottom: 1px solid var(--color-border); }
+.row-title { font-weight: 600; font-size: var(--font-size-lead); line-height: 1.35; }
+.row-title a { color: var(--color-text); text-decoration: none; }
+.row-title a:hover { text-decoration: underline; }
+.row-meta { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); }
+.row-meta span + span::before { content: "·"; margin-right: var(--space-3); }
+.row-side { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); }
+.row-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+details.why summary { cursor: pointer; color: var(--color-accent); min-height: var(--control-height); display: inline-flex; align-items: center; }
+.breakdown { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.breakdown li { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: var(--space-3); align-items: start; }
+.breakdown .verdict { font-weight: 600; }
+.breakdown .verdict[data-tone="success"] { color: var(--color-success); }
+.breakdown .verdict[data-tone="danger"] { color: var(--color-danger); }
+
+/* Tabs (Radix Tabs in the real app, ADR-0018) */
+.tablist { display: flex; gap: var(--space-1); border-bottom: 1px solid var(--color-border); overflow-x: auto; }
+.tab { min-height: var(--control-height); padding: var(--space-2) var(--space-3); border: 0; border-bottom: 3px solid transparent; background: transparent; cursor: pointer; white-space: nowrap; }
+.tab[aria-selected="true"] { border-bottom-color: var(--color-accent); font-weight: 600; }
+.tab:hover { background: var(--color-surface-hover); }
+.tabpanel { padding-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4); }
+
+/* Master CV as a document */
+.doc { display: flex; flex-direction: column; gap: var(--space-6); }
+.doc-block { display: flex; flex-direction: column; gap: var(--space-2); }
+.doc-block > label, .doc-label { font-weight: 600; }
+.job { display: flex; flex-direction: column; gap: var(--space-2); padding-left: var(--space-4); border-left: 2px solid var(--color-border); }
+.job-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-1) var(--space-4); }
+.savebar { position: sticky; bottom: var(--space-4); z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--color-background); border: 1px solid var(--color-accent); border-radius: var(--radius-lg); box-shadow: var(--shadow-menu); }
+.fix { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) 0; border-top: 1px solid var(--color-border); }
+.fix:first-of-type { border-top: 0; }
+.tag { display: inline-flex; align-self: flex-start; padding: 0 var(--space-2); border-radius: var(--radius-sm); background: var(--color-background); border: 1px solid var(--color-text-secondary); }
+
+/* Plain tables (account, subscription) */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: var(--space-3) var(--space-2); border-bottom: 1px solid var(--color-border); vertical-align: top; }
+th { font-weight: 600; }
+
+/* ---------- Coach Panel ---------- */
+.coach { position: sticky; top: 0; height: 100dvh; display: flex; flex-direction: column; background: var(--color-background); border-left: 1px solid var(--color-border); min-width: 0; }
+.coach-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4); min-height: 3.5rem; border-bottom: 1px solid var(--color-border); }
+.coach-head h2 { font-size: var(--font-size-h3); }
+.coach-tools { display: flex; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border); }
+.in-view { padding: var(--space-3) var(--space-4); background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
+.messages { flex: 1; overflow-y: auto; padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4); }
+.msg { display: flex; flex-direction: column; gap: var(--space-1); max-width: 92%; }
+.msg .who { font-weight: 600; }
+.msg-me { align-self: flex-end; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-2) var(--space-3); }
+.composer { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-4) var(--space-4); border-top: 1px solid var(--color-border); }
+.composer textarea { width: 100%; min-height: 4.5rem; padding: var(--space-2) var(--space-3); border: 1px solid var(--color-text-secondary); border-radius: var(--radius-md); resize: vertical; background: var(--color-background); }
+.composer-row { display: flex; justify-content: flex-end; }
+
+.scrim { position: fixed; inset: 0; z-index: 35; background: var(--scrim); }
+.toast { position: fixed; z-index: 60; left: 50%; bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); max-width: calc(100% - 2 * var(--space-4)); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--color-text); color: var(--color-on-accent); box-shadow: var(--shadow-overlay); }
+
+/* Coach Panel as a sheet over the page below 80rem */
+@media (max-width: 80rem) {
+  .app[data-coach="open"] { grid-template-columns: var(--sidebar-width) minmax(0, 1fr); }
+  .app[data-sidebar="closed"][data-coach="open"] { grid-template-columns: minmax(0, 1fr); }
+  .coach { position: fixed; z-index: 40; top: 0; right: 0; bottom: 0; height: auto; width: min(var(--coach-width), 100%); box-shadow: var(--shadow-overlay); padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+}
+
+/* Sidebar as a drawer below 64rem */
+@media (max-width: 64rem) {
+  .app, .app[data-coach="open"], .app[data-sidebar="closed"], .app[data-sidebar="closed"][data-coach="open"] { grid-template-columns: minmax(0, 1fr); }
+  .app .sidebar, .app[data-sidebar="closed"] .sidebar { display: flex; position: fixed; z-index: 40; top: 0; left: 0; bottom: 0; height: auto; width: min(var(--sidebar-width), 88%); transform: translateX(-105%); transition: transform 0.2s ease; box-shadow: none; padding-top: calc(var(--space-3) + env(safe-area-inset-top, 0px)); }
+  .app[data-drawer="open"] .sidebar { transform: none; box-shadow: var(--shadow-overlay); }
+  .menu-toggle, .app[data-sidebar="closed"] .menu-toggle { display: inline-flex; }
+  .collapse-sidebar { display: none; }
+  .close-drawer { display: inline-flex; }
+  main { padding: var(--space-6) var(--space-4) 6rem; }
+  .title-edit { font-size: var(--font-size-h2); }
+  h1 { font-size: var(--font-size-h2); }
+}
+@media (min-width: 64.01rem) { .close-drawer { display: none; } }
+
+@media (max-width: 40rem) {
+  .props { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .props dt { min-height: auto; padding-top: var(--space-3); }
+  .row { grid-template-columns: minmax(0, 1fr); }
+  .row-side { flex-direction: row; align-items: center; justify-content: space-between; }
+  .breakdown li { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .crumbs li:not(:last-child) { display: none; }
+  .crumbs li + li::before { content: none; }
+  .topbar .btn .long { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app .sidebar { transition: none; }
+}
+</style>
+
+<a class="skip-link" href="#main">Aller au contenu</a>
+
+<div class="app" id="app" data-sidebar="open" data-coach="closed" data-drawer="closed">
+
+  <!-- ===================== Sidebar ===================== -->
+  <nav class="sidebar" id="sidebar" aria-label="Navigation principale">
+    <div class="sidebar-head">
+      <span class="brand">Jobbbox</span>
+      <button class="btn btn-quiet close-drawer" type="button" id="close-drawer">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        Fermer
+      </button>
+    </div>
+
+    <div class="nav-section">
+      <span class="nav-heading" id="profiles-heading">Profils</span>
+      <div class="switcher">
+        <button class="switcher-button" type="button" id="switcher-button" aria-haspopup="menu" aria-expanded="false" aria-controls="switcher-menu">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+          <span class="switcher-text"><span class="label">Profil</span><span class="name" data-bind="profile-name">Directrice administrative et financière</span></span>
+          <svg class="icon chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10l4 4 4-4"/></svg>
+        </button>
+        <div class="menu" id="switcher-menu" role="menu" aria-label="Choisir un profil" hidden>
+          <span class="menu-label" aria-hidden="true">Profils actifs</span>
+          <button class="menu-item" type="button" role="menuitemradio" aria-checked="true" data-profile="daf"><span class="check" aria-hidden="true">✓</span>Directrice administrative et financière</button>
+          <button class="menu-item" type="button" role="menuitemradio" aria-checked="false" data-profile="conseil"><span class="check" aria-hidden="true"></span>Consultante transformation finance</button>
+          <div class="menu-sep" role="separator"></div>
+          <button class="menu-item" type="button" role="menuitem" data-toast="Ajout d'un profil : hors prototype. Votre offre en permet encore un (2 sur 3).">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Ajouter un profil
+          </button>
+        </div>
+      </div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="#profil" data-nav="profil">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg>
+          CV et critères de recherche</a></li>
+      </ul>
+    </div>
+
+    <div class="nav-section">
+      <ul class="nav-list">
+        <li><a class="nav-link" href="#candidatures" data-nav="candidatures">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/></svg>
+          Candidatures <span class="count">6</span></a></li>
+        <li><a class="nav-link" href="#recherches" data-nav="recherches">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+          Recherches d'offres</a></li>
+        <li><a class="nav-link" href="#job-digests" data-nav="job-digests">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+          Job Digests</a></li>
+      </ul>
+    </div>
+
+    <div class="nav-section">
+      <ul class="nav-list">
+        <li><a class="nav-link" href="#compte" data-nav="compte">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.5 18.5c1.5-2 3.4-3 5.5-3s4 1 5.5 3"/></svg>
+          Mon compte</a></li>
+        <li><a class="nav-link" href="#abonnement" data-nav="abonnement">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>
+          Abonnement</a></li>
+      </ul>
+    </div>
+
+    <div class="sidebar-foot">
+      <fieldset class="text-size">
+        <legend>Taille du texte</legend>
+        <div class="segmented">
+          <button type="button" data-text-size="standard" aria-pressed="true">Standard</button>
+          <button type="button" data-text-size="large" aria-pressed="false">Grande</button>
+          <button type="button" data-text-size="xlarge" aria-pressed="false">Très grande</button>
+        </div>
+      </fieldset>
+      <button class="btn btn-quiet collapse-sidebar" type="button" id="collapse-sidebar" aria-controls="sidebar">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 10l-2 2 2 2"/></svg>
+        Masquer le menu
+      </button>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="#notes" data-nav="notes">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>
+          Notes du prototype</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- ===================== Workspace ===================== -->
+  <div class="workspace" id="workspace">
+    <header class="topbar">
+      <button class="btn btn-quiet menu-toggle" type="button" id="menu-toggle" aria-controls="sidebar" aria-expanded="false">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        Menu
+      </button>
+      <ol class="crumbs" id="crumbs" aria-label="Fil d'Ariane"></ol>
+      <button class="btn" type="button" id="coach-toggle" aria-controls="coach" aria-expanded="false">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg>
+        Mon coach
+      </button>
+    </header>
+
+    <main id="main" tabindex="-1">
+
+      <!-- ============ Job Search results ============ -->
+      <article class="page" data-view="recherche" hidden>
+        <header class="page-head">
+          <span class="eyebrow">Recherche d'offres</span>
+          <h1 tabindex="-1">Offres trouvées pour « <span data-bind="profile-name">Directrice administrative et financière</span> »</h1>
+          <dl class="props">
+            <dt>Statut</dt><dd><span class="pill" data-tone="success">Terminée</span></dd>
+            <dt>Lancée le</dt><dd>lundi 12 octobre 2026 à 9 h 14</dd>
+            <dt>Critères</dt><dd>Lyon et 50 km · CDI · 85 000 € brut par an minimum · télétravail partiel <a href="#profil">Modifier les critères</a></dd>
+          </dl>
+          <p class="lead">6 offres trouvées, de la plus proche à la moins proche de votre CV de référence.</p>
+        </header>
+
+        <ol class="rows" aria-label="Offres trouvées">
+          <li class="row">
+            <div>
+              <p class="row-title"><a href="#candidature">Directeur administratif et financier (H/F)</a></p>
+              <p class="row-meta"><span>Groupe Ferlac</span><span>Villeurbanne (69)</span><span>CDI</span><span>95 000 – 110 000 €</span></p>
+            </div>
+            <div class="row-side">
+              <span class="score" aria-label="Score de correspondance : 86 sur 100"><strong>86</strong> / 100</span>
+              <span class="meter" aria-hidden="true"><span style="width:86%"></span></span>
+            </div>
+            <div class="row-actions">
+              <a class="btn" href="#candidature">Voir ma candidature</a>
+              <span class="pill" data-tone="accent">Enregistrée</span>
+              <details class="why"><summary>Pourquoi 86 ?</summary>
+                <ul class="breakdown">
+                  <li><span class="verdict" data-tone="success">Correspond</span><span>Compétences : 8 sur 10, dont consolidation IFRS et trésorerie</span></li>
+                  <li><span class="verdict" data-tone="success">Correspond</span><span>Séniorité : 15 ans demandés, 27 ans sur votre CV</span></li>
+                  <li><span class="verdict" data-tone="success">Correspond</span><span>Lieu, salaire et contrat</span></li>
+                </ul>
+              </details>
+            </div>
+          </li>
+          <li class="row">
+            <div>
+              <p class="row-title"><a href="#recherche" data-toast="Lecture de l'offre : hors prototype.">Directrice financière</a></p>
+              <p class="row-meta"><span>Maison Delorme</span><span>Lyon 2e</span><span>CDI</span><span>90 000 €</span></p>
+            </div>
+            <div class="row-side">
+              <span class="score" aria-label="Score de correspondance : 81 sur 100"><strong>81</strong> / 100</span>
+              <span class="meter" aria-hidden="true"><span style="width:81%"></span></span>
+            </div>
+            <div class="row-actions">
+              <button class="btn btn-primary" type="button" data-save-offer>Enregistrer en candidature</button>
+              <a class="btn btn-quiet" href="#recherche" data-toast="Lecture de l'offre : hors prototype.">Lire l'offre</a>
+            </div>
+          </li>
+          <li class="row">
+            <div>
+              <p class="row-title"><a href="#recherche" data-toast="Lecture de l'offre : hors prototype.">Responsable administratif et financier</a></p>
+              <p class="row-meta"><span>Cléance Santé</span><span>Lyon 7e</span><span>CDI</span><span>80 000 – 88 000 €</span></p>
+            </div>
+            <div class="row-side">
+              <span class="score" aria-label="Score de correspondance : 74 sur 100"><strong>74</strong> / 100</span>
+              <span class="meter" aria-hidden="true"><span style="width:74%"></span></span>
+            </div>
+            <div class="row-actions">
+              <button class="btn btn-primary" type="button" data-save-offer>Enregistrer en candidature</button>
+              <a class="btn btn-quiet" href="#recherche" data-toast="Lecture de l'offre : hors prototype.">Lire l'offre</a>
+            </div>
+          </li>
+          <li class="row">
+            <div>
+              <p class="row-title"><a href="#recherche" data-toast="Lecture de l'offre : hors prototype.">DAF groupe</a></p>
+              <p class="row-meta"><span>Atelier Néré</span><span>Lyon 6e</span><span>CDI</span><span>Salaire non précisé</span></p>
+            </div>
+            <div class="row-side">
+              <span class="score" aria-label="Score de correspondance : 71 sur 100"><strong>71</strong> / 100</span>
+              <span class="meter" aria-hidden="true"><span style="width:71%"></span></span>
+            </div>
+            <div class="row-actions">
+              <button class="btn btn-primary" type="button" data-save-offer>Enregistrer en candidature</button>
+              <a class="btn btn-quiet" href="#recherche" data-toast="Lecture de l'offre : hors prototype.">Lire l'offre</a>
+            </div>
+          </li>
+          <li class="row">
+            <div>
+              <p class="row-title"><a href="#recherche" data-toast="Lecture de l'offre : hors prototype.">Directeur financier de transition (6 mois)</a></p>
+              <p class="row-meta"><span>Transports Vialle</span><span>Saint-Priest (69)</span><span>Mission</span><span>750 € par jour</span></p>
+            </div>
+            <div class="row-side">
+              <span class="score" aria-label="Score de correspondance : 63 sur 100"><strong>63</strong> / 100</span>
+              <span class="meter" aria-hidden="true"><span style="width:63%"></span></span>
+            </div>
+            <div class="row-actions">
+              <button class="btn btn-primary" type="button" data-save-offer>Enregistrer en candidature</button>
+              <a class="btn btn-quiet" href="#recherche" data-toast="Lecture de l'offre : hors prototype.">Lire l'offre</a>
+            </div>
+          </li>
+          <li class="row">
+            <div>
+              <p class="row-title"><a href="#recherche" data-toast="Lecture de l'offre : hors prototype.">Contrôleur de gestion senior</a></p>
+              <p class="row-meta"><span>Mobilis Rhône</span><span>Vénissieux (69)</span><span>CDI</span><span>62 000 €</span></p>
+            </div>
+            <div class="row-side">
+              <span class="score" aria-label="Score de correspondance : 48 sur 100"><strong>48</strong> / 100</span>
+              <span class="meter" aria-hidden="true"><span style="width:48%"></span></span>
+            </div>
+            <div class="row-actions">
+              <button class="btn btn-primary" type="button" data-save-offer>Enregistrer en candidature</button>
+              <a class="btn btn-quiet" href="#recherche" data-toast="Lecture de l'offre : hors prototype.">Lire l'offre</a>
+            </div>
+          </li>
+        </ol>
+
+        <div class="btn-row">
+          <button class="btn" type="button" data-toast="Nouvelle recherche lancée (exemple). Elle compte pour une recherche de votre offre.">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3M18 3v4h-4M6 21v-4h4"/></svg>
+            Relancer une recherche</button>
+          <a class="btn btn-quiet" href="#recherches">Toutes les recherches</a>
+        </div>
+      </article>
+
+      <!-- ============ Application ============ -->
+      <article class="page" data-view="candidature" hidden>
+        <header class="page-head">
+          <span class="eyebrow">Candidature</span>
+          <h1 tabindex="-1">Directeur administratif et financier (H/F)</h1>
+          <p class="lead">Groupe Ferlac · Villeurbanne (69) · CDI · 95 000 – 110 000 € brut par an</p>
+          <dl class="props">
+            <dt><label for="app-status">Statut</label></dt>
+            <dd>
+              <select class="inline-edit" id="app-status" data-saved="Statut enregistré">
+                <option value="to_apply">À postuler</option>
+                <option value="applied" selected>Postulée</option>
+                <option value="followed_up">Relancée</option>
+                <option value="interview">Entretien</option>
+                <option value="offer_received">Offre reçue</option>
+                <option value="accepted">Acceptée</option>
+                <option value="rejected">Refusée</option>
+                <option value="abandoned">Abandonnée</option>
+              </select>
+            </dd>
+            <dt><label for="app-profile">Profil utilisé</label></dt>
+            <dd>
+              <select class="inline-edit" id="app-profile" data-saved="Profil enregistré">
+                <option selected>Directrice administrative et financière</option>
+                <option>Consultante transformation finance</option>
+              </select>
+              <span class="hint">Le score de correspondance est calculé avec le CV de référence de ce profil.</span>
+            </dd>
+            <dt>Correspondance</dt>
+            <dd><span class="score"><strong>86</strong> / 100</span> <a href="#score-detail" data-scroll="score-detail">Voir le détail</a></dd>
+            <dt>Enregistrée le</dt><dd>mercredi 30 septembre 2026</dd>
+            <dt>Offre</dt><dd><a href="#candidature" data-toast="Lien vers l'offre : hors prototype.">Lire l'offre sur le site de Groupe Ferlac</a></dd>
+          </dl>
+        </header>
+
+        <section class="action-card" id="followup-card" aria-labelledby="followup-title">
+          <span class="kicker">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>
+            Relance suggérée</span>
+          <h2 id="followup-title" style="font-size: var(--font-size-h3)">Relancer l'employeur pour « Directeur administratif et financier »</h2>
+          <p>Postulée le jeudi 1er octobre, sans nouvelles depuis 7 jours ouvrés. Envoyez ce brouillon depuis votre messagerie, puis marquez-le comme envoyé : la candidature passe à « Relancée ».</p>
+          <div class="draft"><strong>Objet : Candidature au poste de Directeur administratif et financier</strong>
+Madame, Monsieur,
+
+Je me permets de revenir vers vous au sujet de ma candidature du 1er octobre. L'offre insiste sur la consolidation IFRS : j'ai mené ce chantier chez Groupe Sorelis, pour un groupe de 600 salariés. Je serais heureuse d'en parler avec vous.
+
+Bien cordialement,
+Catherine Morel</div>
+          <div class="btn-row">
+            <button class="btn btn-primary" type="button" id="followup-sent">Marquer comme envoyée</button>
+            <button class="btn" type="button" data-copy-draft>Copier le brouillon</button>
+            <button class="btn btn-quiet" type="button" data-dismiss-card="followup-card">Ignorer</button>
+          </div>
+        </section>
+
+        <section class="section" aria-labelledby="docs-title">
+          <div class="section-head"><h2 id="docs-title">Documents adaptés</h2><button class="btn btn-quiet" type="button" data-toast="Export PDF ou Word : hors prototype.">Exporter</button></div>
+          <div class="tablist" role="tablist" aria-label="Documents adaptés">
+            <button class="tab" type="button" role="tab" id="tab-cv" aria-controls="panel-cv" aria-selected="true">CV adapté</button>
+            <button class="tab" type="button" role="tab" id="tab-letter" aria-controls="panel-letter" aria-selected="false" tabindex="-1">Lettre de motivation</button>
+            <button class="tab" type="button" role="tab" id="tab-outreach" aria-controls="panel-outreach" aria-selected="false" tabindex="-1">Message d'approche</button>
+          </div>
+          <div class="tabpanel" role="tabpanel" id="panel-cv" aria-labelledby="tab-cv">
+            <p>Enregistré le 30 septembre, à partir de la version 6 de votre CV de référence. Il ne contient que des faits de votre CV ou que vous avez confirmés.</p>
+            <dl class="props">
+              <dt>Titre</dt><dd>Directrice administrative et financière, consolidation IFRS</dd>
+              <dt>Mis en avant</dt><dd>Refinancement de 45 M€, passage aux normes IFRS, équipe de 14 personnes</dd>
+              <dt>Score du CV adapté</dt><dd><span class="score"><strong>86</strong> / 100</span> (CV de référence : 79)</dd>
+            </dl>
+          </div>
+          <div class="tabpanel" role="tabpanel" id="panel-letter" aria-labelledby="tab-letter" hidden>
+            <label class="doc-label" for="letter-body">Texte de la lettre</label>
+            <textarea class="inline-edit" id="letter-body" rows="9" data-dirty-target="letter-save">Madame, Monsieur,
+
+Directrice administrative et financière depuis onze ans dans un groupe industriel de 600 salariés, j'ai conduit le passage aux normes IFRS, le refinancement de 45 M€ de dette et l'intégration d'une filiale allemande. Le poste que vous proposez chez Groupe Ferlac demande exactement cette expérience.
+
+Je serais heureuse de vous présenter ce que je peux apporter à votre direction financière.
+
+Catherine Morel</textarea>
+            <div class="btn-row" id="letter-save" hidden>
+              <button class="btn btn-primary" type="button" data-save-doc="letter-save" data-message="Lettre enregistrée">Enregistrer la lettre</button>
+              <button class="btn btn-quiet" type="button" data-cancel-doc="letter-body">Annuler les modifications</button>
+            </div>
+          </div>
+          <div class="tabpanel" role="tabpanel" id="panel-outreach" aria-labelledby="tab-outreach" hidden>
+            <p>Pas encore de message d'approche pour cette candidature.</p>
+            <div class="btn-row"><button class="btn" type="button" data-toast="Votre coach rédige un message d'approche (exemple).">Demander un brouillon à mon coach</button></div>
+          </div>
+        </section>
+
+        <section class="section" id="score-detail" aria-labelledby="score-title">
+          <div class="section-head"><h2 id="score-title">Correspondance avec l'offre</h2><span class="score"><strong>86</strong> / 100</span></div>
+          <ul class="breakdown">
+            <li><span class="verdict" data-tone="success">Correspond</span><span>Compétences : 8 sur 10 couvertes (consolidation IFRS, trésorerie, contrôle de gestion, management d'équipe…)</span></li>
+            <li><span class="verdict" data-tone="danger">Manque</span><span>SAP S/4HANA, reporting ESG</span></li>
+            <li><span class="verdict" data-tone="success">Correspond</span><span>Séniorité : 15 ans demandés, 27 ans d'expériences datées sur votre CV</span></li>
+            <li><span class="verdict" data-tone="success">Correspond</span><span>Lieu : Villeurbanne, dans vos 50 km autour de Lyon</span></li>
+            <li><span class="verdict" data-tone="success">Correspond</span><span>Salaire : 95 000 – 110 000 €, au-dessus de vos 85 000 €</span></li>
+            <li><span class="verdict">Inconnu</span><span>Télétravail : l'offre n'en dit rien (non compté)</span></li>
+          </ul>
+        </section>
+
+        <section class="section" aria-labelledby="interviews-title">
+          <div class="section-head"><h2 id="interviews-title">Entretiens</h2></div>
+          <p id="interviews-hint">Vous pourrez noter vos entretiens quand la candidature sera au statut « Entretien ».</p>
+        </section>
+      </article>
+
+      <!-- ============ Profile ============ -->
+      <article class="page" data-view="profil" hidden>
+        <header class="page-head">
+          <span class="eyebrow">Profil</span>
+          <h1 tabindex="-1"><label class="vh" for="profile-title">Nom du profil</label><textarea class="inline-edit title-edit" id="profile-title" rows="1" data-saved="Nom du profil enregistré">Directrice administrative et financière</textarea></h1>
+          <dl class="props" aria-label="Critères de recherche">
+            <dt><label for="crit-role">Poste visé</label></dt><dd><input class="inline-edit" id="crit-role" value="Directrice administrative et financière" data-saved="Critères enregistrés"></dd>
+            <dt><label for="crit-place">Lieu</label></dt><dd><input class="inline-edit" id="crit-place" value="Lyon et 50 km autour" data-saved="Critères enregistrés"></dd>
+            <dt><label for="crit-salary">Salaire minimum</label></dt><dd><input class="inline-edit" id="crit-salary" inputmode="numeric" value="85 000 € brut par an" data-saved="Critères enregistrés"></dd>
+            <dt><label for="crit-contract">Contrat</label></dt><dd><select class="inline-edit" id="crit-contract" data-saved="Critères enregistrés"><option selected>CDI</option><option>CDD</option><option>Mission de transition</option><option>Indifférent</option></select></dd>
+            <dt><label for="crit-remote">Télétravail</label></dt><dd><select class="inline-edit" id="crit-remote" data-saved="Critères enregistrés"><option>Sur site</option><option selected>Partiel (2 jours par semaine)</option><option>Complet</option></select>
+              <span class="hint">Modifier les critères ne renomme pas le profil et ne recalcule pas les scores déjà obtenus.</span></dd>
+          </dl>
+          <div class="btn-row">
+            <a class="btn btn-primary" href="#recherche">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+              Chercher des offres</a>
+            <a class="btn" href="#job-digests">Job Digest : chaque lundi</a>
+          </div>
+        </header>
+
+        <section class="action-card" id="ats-card" aria-labelledby="ats-title">
+          <span class="kicker">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>
+            Propositions de votre coach</span>
+          <h2 id="ats-title" style="font-size: var(--font-size-h3)">ATS Score : <span id="ats-score">74</span>/100 · <span id="fix-count">3</span> ATS Fixes proposées</h2>
+          <div class="fix" data-fix="keyword">
+            <strong>Ajoutez « Tagetik » à vos compétences</strong>
+            <p>Votre CV cite déjà « Tagetik », mais pas dans vos compétences, où les ATS le cherchent en premier.</p>
+            <div class="btn-row"><button class="btn btn-primary" type="button" data-accept-fix="keyword">Accepter</button><button class="btn btn-quiet" type="button" data-dismiss-fix>Ignorer</button></div>
+          </div>
+          <div class="fix" data-fix="split">
+            <strong>Séparez vos compétences</strong>
+            <p>« Excel avancé, Power BI » deviendra 2 compétences : Excel avancé ; Power BI. Les ATS lisent mieux une compétence par ligne.</p>
+            <div class="btn-row"><button class="btn btn-primary" type="button" data-accept-fix="split">Accepter</button><button class="btn btn-quiet" type="button" data-dismiss-fix>Ignorer</button></div>
+          </div>
+          <div class="fix" data-fix="years">
+            <span class="tag">Conseil senior</span>
+            <strong>Écrivez « plus de 15 ans »</strong>
+            <p>« plus de 25 ans » deviendra « plus de 15 ans ». Au-delà de 15 ans, le nombre d'années met en avant l'âge plutôt que l'expérience. Ce conseil est facultatif : vous pouvez l'ignorer.</p>
+            <div class="btn-row"><button class="btn btn-primary" type="button" data-accept-fix="years">Accepter</button><button class="btn btn-quiet" type="button" data-dismiss-fix>Ignorer ce conseil</button></div>
+          </div>
+        </section>
+
+        <section class="section" aria-labelledby="cv-title">
+          <div class="section-head">
+            <h2 id="cv-title">CV de référence</h2>
+            <span>Version <span id="cv-version">7</span> · enregistrée le <span id="cv-date">vendredi 9 octobre</span> · <a href="#profil" data-toast="Historique des versions : hors prototype.">Historique des versions</a></span>
+          </div>
+          <form class="doc" id="cv-form">
+            <div class="doc-block">
+              <label for="cv-headline">Titre</label>
+              <input class="inline-edit" id="cv-headline" value="Directrice administrative et financière">
+            </div>
+            <div class="doc-block">
+              <label for="cv-summary">Résumé</label>
+              <textarea class="inline-edit" id="cv-summary" rows="4">Directrice administrative et financière, plus de 25 ans dans l'industrie et la distribution. J'ai conduit un refinancement de 45 M€, une acquisition en Allemagne et le passage aux normes IFRS d'un groupe de 600 salariés. Je cherche un poste de DAF dans une ETI de la région lyonnaise.</textarea>
+            </div>
+            <div class="doc-block">
+              <span class="doc-label">Expériences</span>
+              <div class="job">
+                <div class="job-head"><strong>Directrice administrative et financière · Groupe Sorelis</strong><span>2015 – 2026 · Lyon</span></div>
+                <label class="vh" for="cv-job1">Description : Directrice administrative et financière, Groupe Sorelis</label>
+                <textarea class="inline-edit" id="cv-job1" rows="4">Direction d'une équipe de 14 personnes (comptabilité, contrôle de gestion, trésorerie, paie).
+Refinancement de 45 M€ de dette et intégration d'un concurrent allemand.
+Passage aux normes IFRS et déploiement de l'outil de consolidation Tagetik.</textarea>
+              </div>
+              <div class="job">
+                <div class="job-head"><strong>Responsable du contrôle de gestion · Distrimag</strong><span>2007 – 2015 · Villeurbanne</span></div>
+                <label class="vh" for="cv-job2">Description : Responsable du contrôle de gestion, Distrimag</label>
+                <textarea class="inline-edit" id="cv-job2" rows="3">Budget et reporting mensuel de 42 magasins.
+Réduction de 9 jours du délai de clôture mensuelle.</textarea>
+              </div>
+              <div class="job">
+                <div class="job-head"><strong>Auditrice puis manager · cabinet d'audit</strong><span>1999 – 2007 · Lyon</span></div>
+                <label class="vh" for="cv-job3">Description : Auditrice puis manager, cabinet d'audit</label>
+                <textarea class="inline-edit" id="cv-job3" rows="2">Commissariat aux comptes de PME et d'ETI industrielles.</textarea>
+              </div>
+            </div>
+            <div class="doc-block">
+              <label for="cv-skills">Compétences, une par ligne</label>
+              <textarea class="inline-edit" id="cv-skills" rows="6">Consolidation IFRS
+Trésorerie et financement
+Contrôle de gestion
+Management d'équipe
+Fusions-acquisitions
+Excel avancé, Power BI</textarea>
+            </div>
+            <div class="savebar" id="cv-savebar" role="region" aria-label="Modifications du CV de référence" hidden>
+              <span>Modifications non enregistrées</span>
+              <div class="btn-row">
+                <button class="btn btn-quiet" type="button" id="cv-cancel">Annuler</button>
+                <button class="btn btn-primary" type="submit">Enregistrer la version <span data-next-version>8</span></button>
+              </div>
+            </div>
+          </form>
+        </section>
+      </article>
+
+      <!-- ============ Applications ============ -->
+      <article class="page" data-view="candidatures" hidden>
+        <header class="page-head">
+          <span class="eyebrow">Tous vos profils</span>
+          <h1 tabindex="-1">Candidatures</h1>
+          <p class="sample-note">Exemple : chaque ligne ouvre la même candidature détaillée.</p>
+        </header>
+        <ul class="rows">
+          <li class="row"><div><p class="row-title"><a href="#candidature">Directeur administratif et financier (H/F)</a></p><p class="row-meta"><span>Groupe Ferlac</span><span>Relance suggérée</span></p></div><div class="row-side"><span class="pill" data-tone="accent" data-bind="app-status">Postulée</span><span class="score"><strong>86</strong> / 100</span></div></li>
+          <li class="row"><div><p class="row-title"><a href="#candidature">Directrice financière</a></p><p class="row-meta"><span>Hôtellerie Lumière</span><span>Entretien le vendredi 16 octobre à 10 h</span></p></div><div class="row-side"><span class="pill" data-tone="success">Entretien</span><span class="score"><strong>79</strong> / 100</span></div></li>
+          <li class="row"><div><p class="row-title"><a href="#candidature">Consultante transformation finance</a></p><p class="row-meta"><span>Kalis Conseil</span><span>Profil : Consultante transformation finance</span></p></div><div class="row-side"><span class="pill" data-tone="success">Offre reçue</span><span class="score"><strong>81</strong> / 100</span></div></li>
+          <li class="row"><div><p class="row-title"><a href="#candidature">Directeur administratif et financier</a></p><p class="row-meta"><span>Coopérative Val de Saône</span><span>Relancée le 5 octobre</span></p></div><div class="row-side"><span class="pill" data-tone="accent">Relancée</span><span class="score"><strong>77</strong> / 100</span></div></li>
+          <li class="row"><div><p class="row-title"><a href="#candidature">Responsable administratif et financier</a></p><p class="row-meta"><span>Cléance Santé</span><span>Offre expirée : elle n'est plus publiée</span></p></div><div class="row-side"><span class="pill">À postuler</span><span class="score"><strong>74</strong> / 100</span></div></li>
+          <li class="row"><div><p class="row-title"><a href="#candidature">Directrice administrative et financière</a></p><p class="row-meta"><span>Fondation Ressources</span></p></div><div class="row-side"><span class="pill" data-tone="danger">Refusée</span><span class="score"><strong>68</strong> / 100</span></div></li>
+        </ul>
+      </article>
+
+      <!-- ============ Job Searches ============ -->
+      <article class="page" data-view="recherches" hidden>
+        <header class="page-head">
+          <span class="eyebrow">Profil · <span data-bind="profile-name">Directrice administrative et financière</span></span>
+          <h1 tabindex="-1">Recherches d'offres</h1>
+          <p>Votre coach cherche sur le web des offres qui correspondent aux critères de recherche de ce profil. Il vous reste 7 recherches ce mois-ci.</p>
+          <div class="btn-row"><a class="btn btn-primary" href="#recherche">Chercher des offres</a></div>
+        </header>
+        <ul class="rows">
+          <li class="row"><div><p class="row-title"><a href="#recherche">Recherche du lundi 12 octobre 2026</a></p><p class="row-meta"><span>6 offres</span><span>1 enregistrée en candidature</span></p></div><div class="row-side"><span class="pill" data-tone="success">Terminée</span></div></li>
+          <li class="row"><div><p class="row-title"><a href="#recherche">Recherche du lundi 28 septembre 2026</a></p><p class="row-meta"><span>9 offres</span><span>3 enregistrées</span></p></div><div class="row-side"><span class="pill" data-tone="success">Terminée</span></div></li>
+          <li class="row"><div><p class="row-title">Recherche du lundi 21 septembre 2026</p><p class="row-meta"><span>N'a pas abouti : elle ne vous a pas été comptée</span></p></div><div class="row-side"><span class="pill" data-tone="danger">Échouée</span></div></li>
+        </ul>
+      </article>
+
+      <!-- ============ Job Digests ============ -->
+      <article class="page" data-view="job-digests" hidden>
+        <header class="page-head">
+          <span class="eyebrow">Profil · <span data-bind="profile-name">Directrice administrative et financière</span></span>
+          <h1 tabindex="-1">Job Digests</h1>
+          <p>Recevez par email, et retrouvez ici, les nouvelles offres qui correspondent aux critères de ce profil.</p>
+        </header>
+        <section class="section" aria-labelledby="digest-freq">
+          <div class="section-head"><h2 id="digest-freq">Fréquence</h2></div>
+          <dl class="props">
+            <dt><label for="digest-frequency">Envoi</label></dt>
+            <dd><select class="inline-edit" id="digest-frequency" data-saved="Fréquence enregistrée"><option selected>Chaque semaine, le lundi à 7 h</option><option>Chaque jour à 7 h</option><option>Ne plus recevoir le Job Digest</option></select>
+              <span class="hint">Heure de Paris. Votre offre comprend un Job Digest par jour.</span></dd>
+          </dl>
+        </section>
+        <section class="section" aria-labelledby="digest-latest">
+          <div class="section-head"><h2 id="digest-latest">Derniers Job Digests</h2></div>
+          <ul class="rows">
+            <li class="row"><div><p class="row-title"><a href="#recherche">Job Digest du lundi 12 octobre : 4 offres</a></p></div><div class="row-side"><span>Envoyé à 7 h</span></div></li>
+            <li class="row"><div><p class="row-title"><a href="#recherche">Job Digest du lundi 5 octobre : 2 offres</a></p></div><div class="row-side"><span>Envoyé à 7 h</span></div></li>
+            <li class="row"><div><p class="row-title"><a href="#recherche">Job Digest du lundi 28 septembre : 3 offres</a></p></div><div class="row-side"><span>Envoyé à 7 h</span></div></li>
+          </ul>
+        </section>
+      </article>
+
+      <!-- ============ Account ============ -->
+      <article class="page" data-view="compte" hidden>
+        <header class="page-head">
+          <h1 tabindex="-1">Mon compte</h1>
+        </header>
+        <dl class="props">
+          <dt>Email</dt><dd>catherine.morel@exemple.fr</dd>
+          <dt><label for="ui-lang">Langue de l'interface</label></dt><dd><select class="inline-edit" id="ui-lang" data-saved="Langue enregistrée"><option selected>Français</option><option>English</option></select></dd>
+          <dt><label for="delay-1">Première relance</label></dt><dd><input class="inline-edit" id="delay-1" value="7 jours ouvrés après « Postulée »" data-saved="Délai enregistré"></dd>
+          <dt><label for="delay-2">Relance suivante</label></dt><dd><input class="inline-edit" id="delay-2" value="10 jours ouvrés après une relance" data-saved="Délai enregistré"></dd>
+        </dl>
+        <section class="section" aria-labelledby="data-title">
+          <div class="section-head"><h2 id="data-title">Vos données</h2></div>
+          <p>Un fichier avec votre compte, vos profils et toutes les versions de vos CV de référence, vos candidatures et vos documents adaptés.</p>
+          <div class="btn-row">
+            <button class="btn" type="button" data-toast="Export de vos données : hors prototype.">Exporter mes données</button>
+            <button class="btn btn-danger" type="button" data-toast="Suppression du compte : hors prototype. Elle se confirme en tapant votre email.">Supprimer mon compte</button>
+          </div>
+        </section>
+      </article>
+
+      <!-- ============ Subscription ============ -->
+      <article class="page" data-view="abonnement" hidden>
+        <header class="page-head">
+          <h1 tabindex="-1">Abonnement</h1>
+          <dl class="props">
+            <dt>Offre</dt><dd><strong>Standard</strong> · 19,90 € par mois</dd>
+            <dt>Prochain paiement</dt><dd>le 2 novembre 2026</dd>
+          </dl>
+        </header>
+        <section class="section" aria-labelledby="quota-title">
+          <div class="section-head"><h2 id="quota-title">Ce mois-ci</h2></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th scope="col">Usage</th><th scope="col">Utilisé</th><th scope="col">Inclus</th></tr></thead>
+              <tbody>
+                <tr><td>Profils actifs</td><td>2</td><td>3</td></tr>
+                <tr><td>Recherches d'offres</td><td>3</td><td>10</td></tr>
+                <tr><td>Scores de correspondance</td><td>23</td><td>60</td></tr>
+                <tr><td>ATS Scores</td><td>4</td><td>10</td></tr>
+                <tr><td>Contacts enrichis</td><td>—</td><td>Offre Premium</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" type="button" data-toast="Comparaison des offres : hors prototype.">Changer d'offre</button>
+            <button class="btn" type="button" data-toast="Factures : hors prototype.">Mes factures</button>
+          </div>
+        </section>
+      </article>
+
+      <!-- ============ Prototype notes ============ -->
+      <article class="page" data-view="notes" hidden>
+        <header class="page-head">
+          <span class="eyebrow">Prototype #132</span>
+          <h1 tabindex="-1">Notes du prototype</h1>
+          <p class="lead">Les choix à valider avant de reconstruire les vraies pages. Toutes les données sont des exemples.</p>
+        </header>
+        <section class="section" aria-labelledby="n-layout">
+          <div class="section-head"><h2 id="n-layout">Mise en page</h2></div>
+          <ul>
+            <li>Barre latérale de 17rem, dans l'ordre : Profils (avec sélecteur), Candidatures, Recherches d'offres, Job Digests, Mon compte, Abonnement. Taille du texte en bas, toujours visible.</li>
+            <li>« Masquer le menu » la retire entièrement : jamais de rail d'icônes sans texte (ADR-0009). Le bouton « Menu » la rouvre.</li>
+            <li>Sous 64rem, la barre devient un tiroir par-dessus la page. Échap, le fond grisé ou un lien la referme.</li>
+            <li>Une colonne de lecture de 44rem, comme aujourd'hui. Le panneau du coach (24rem) s'ancre à droite à partir de 80rem, sinon il s'ouvre par-dessus la page.</li>
+          </ul>
+        </section>
+        <section class="section" aria-labelledby="n-type">
+          <div class="section-head"><h2 id="n-type">Échelle typographique</h2></div>
+          <p>Celle des jetons, sans taille en dessous de 1rem : 16px (texte, libellés, badges), 18px (chapeau, titres de ligne), 20px (titre de section secondaire), 24px (h2), 32px (h1). Gras 600 pour les libellés et l'élément actif, 700 pour le titre de page. Police système.</p>
+        </section>
+        <section class="section" aria-labelledby="n-space">
+          <div class="section-head"><h2 id="n-space">Espacement</h2></div>
+          <ul>
+            <li>Grille de 4px des jetons : 32px entre sections, 16px dans une section, 8px entre contrôles.</li>
+            <li>Toute cible cliquable fait au moins 44px de haut (2,75rem).</li>
+            <li>Marges de page : 48px sur grand écran, 16px sur téléphone.</li>
+          </ul>
+        </section>
+        <section class="section" aria-labelledby="n-edit">
+          <div class="section-head"><h2 id="n-edit">Modification sur place</h2></div>
+          <ul>
+            <li>Un champ modifiable est souligné en tirets, d'une couleur à 3:1 : visible sans survol, donc aussi au doigt.</li>
+            <li>Statut, profil, critères, fréquence : enregistrés dès le changement, avec « … enregistré » à côté.</li>
+            <li>CV de référence : les modifications s'accumulent, puis « Enregistrer la version 8 » crée une version (ADR-0012). Accepter une ATS Fix enregistre aussi une version.</li>
+          </ul>
+        </section>
+        <section class="section" aria-labelledby="n-components">
+          <div class="section-head"><h2 id="n-components">Composants nécessaires</h2></div>
+          <ul>
+            <li>Radix (ADR-0018) : menu déroulant (sélecteur de profil), onglets (documents adaptés), dialogue (tiroir de navigation et panneau du coach sous 80rem).</li>
+            <li>HTML et CSS simples : liste de propriétés, champ modifiable sur place, badge de statut, score, carte d'action, ligne de liste, barre d'enregistrement, contrôle de taille du texte, fil d'Ariane, message bref.</li>
+            <li>Deux jetons à ajouter : le fond grisé derrière un tiroir et l'ombre des éléments superposés.</li>
+          </ul>
+        </section>
+      </article>
+    </main>
+  </div>
+
+  <!-- ===================== Coach Panel ===================== -->
+  <aside class="coach" id="coach" aria-labelledby="coach-title" hidden>
+    <div class="coach-head">
+      <h2 id="coach-title">Votre coach</h2>
+      <button class="btn btn-quiet" type="button" id="coach-close">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        Fermer</button>
+    </div>
+    <div class="coach-tools">
+      <button class="btn btn-quiet" type="button" data-toast="Vos conversations sont conservées 12 mois après leur dernier message.">Mes conversations</button>
+      <button class="btn btn-quiet" type="button" id="coach-new">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        Nouvelle conversation</button>
+    </div>
+    <p class="in-view" id="in-view">Vous consultez : la candidature « Directeur administratif et financier (H/F) »</p>
+    <div class="messages" id="messages" role="log" aria-label="Vos échanges avec votre coach">
+      <div class="msg"><span class="who">Votre coach</span><p>Bonjour Catherine. Votre candidature chez Groupe Ferlac est « Postulée » depuis 7 jours ouvrés. Je vous ai préparé une relance, en haut de la page.</p></div>
+      <div class="msg msg-me"><span class="who">Vous</span><p>Merci. Faut-il citer le projet de consolidation dans la relance ?</p></div>
+      <div class="msg"><span class="who">Votre coach</span><p>Oui, en une phrase : l'offre demande la consolidation IFRS, et vous l'avez menée chez Groupe Sorelis. Je l'ai ajoutée au brouillon. Relisez-le, puis envoyez-le depuis votre messagerie.</p></div>
+    </div>
+    <form class="composer" id="composer">
+      <label for="coach-message">Votre message</label>
+      <textarea id="coach-message" rows="3"></textarea>
+      <div class="composer-row"><button class="btn btn-primary" type="submit">Envoyer</button></div>
+    </form>
+  </aside>
+
+  <div class="scrim" id="scrim" hidden></div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(() => {
+  const app = document.getElementById("app");
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+  const wide = () => window.matchMedia("(min-width: 64.01rem)").matches;
+  const coachDocks = () => window.matchMedia("(min-width: 80.01rem)").matches;
+  const store = {
+    get(key) { try { return localStorage.getItem(key); } catch { return null; } },
+    set(key, value) { try { localStorage.setItem(key, value); } catch { /* per-viewer convenience only */ } },
+  };
+
+  /* ---------- Toast ---------- */
+  const toast = $("#toast");
+  let toastTimer;
+  function say(message) {
+    toast.textContent = message;
+    toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toast.hidden = true; }, 3500);
+  }
+
+  /* ---------- Profiles ---------- */
+  const profiles = {
+    daf: { name: "Directrice administrative et financière", role: "Directrice administrative et financière", place: "Lyon et 50 km autour", salary: "85 000 € brut par an" },
+    conseil: { name: "Consultante transformation finance", role: "Consultante en transformation finance", place: "Lyon ou télétravail complet", salary: "75 000 € brut par an" },
+  };
+  let currentProfile = "daf";
+  function showProfile(key) {
+    currentProfile = key;
+    const p = profiles[key];
+    $$('[data-bind="profile-name"]').forEach((el) => { el.textContent = p.name; });
+    $("#profile-title").value = p.name;
+    $("#crit-role").value = p.role;
+    $("#crit-place").value = p.place;
+    $("#crit-salary").value = p.salary;
+    $$("#switcher-menu [data-profile]").forEach((item) => {
+      const on = item.dataset.profile === key;
+      item.setAttribute("aria-checked", String(on));
+      $(".check", item).textContent = on ? "✓" : "";
+    });
+    updateInView();
+  }
+
+  /* ---------- Routing ---------- */
+  const titles = {
+    recherche: ["Recherches d'offres", "#recherches", "Recherche du 12 octobre"],
+    candidature: ["Candidatures", "#candidatures", "Groupe Ferlac · DAF"],
+    profil: ["Profils", "#profil", null],
+    candidatures: [null, null, "Candidatures"],
+    recherches: [null, null, "Recherches d'offres"],
+    "job-digests": [null, null, "Job Digests"],
+    compte: [null, null, "Mon compte"],
+    abonnement: [null, null, "Abonnement"],
+    notes: [null, null, "Notes du prototype"],
+  };
+  const navFor = { recherche: "recherches", candidature: "candidatures" };
+  let currentView = null;
+
+  function renderCrumbs(view) {
+    const [parent, href, leaf] = titles[view];
+    const crumbs = $("#crumbs");
+    crumbs.textContent = "";
+    if (parent) {
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.href = href; a.textContent = parent;
+      li.append(a); crumbs.append(li);
+    }
+    const last = document.createElement("li");
+    last.textContent = leaf ?? profiles[currentProfile].name;
+    last.setAttribute("aria-current", "page");
+    crumbs.append(last);
+  }
+
+  function updateInView() {
+    const line = $("#in-view");
+    if (currentView === "candidature") line.textContent = "Vous consultez : la candidature « Directeur administratif et financier (H/F) »";
+    else if (currentView === "profil" || currentView === "recherche" || currentView === "recherches" || currentView === "job-digests")
+      line.textContent = `Vous consultez : le profil « ${profiles[currentProfile].name} »`;
+    else line.textContent = "Posez votre question : votre coach vous répond à partir de ce que vous lui dites.";
+  }
+
+  function route(focus) {
+    const hash = location.hash.slice(1);
+    const view = titles[hash] ? hash : currentView ?? "candidature";
+    if (view === currentView && !focus) return;
+    currentView = view;
+    $$("[data-view]").forEach((el) => { el.hidden = el.dataset.view !== view; });
+    const navKey = navFor[view] ?? view;
+    $$("[data-nav]").forEach((a) => {
+      if (a.dataset.nav === navKey) a.setAttribute("aria-current", "page");
+      else a.removeAttribute("aria-current");
+    });
+    renderCrumbs(view);
+    updateInView();
+    closeDrawer(false);
+    window.scrollTo(0, 0);
+    if (focus) $(`[data-view="${view}"] h1`)?.focus({ preventScroll: true });
+  }
+  window.addEventListener("hashchange", () => route(true));
+  document.addEventListener("click", (event) => {
+    const link = event.target.closest('a[href^="#"]');
+    if (!link) return;
+    const target = link.getAttribute("href").slice(1);
+    if (link.dataset.toast) { event.preventDefault(); say(link.dataset.toast); return; }
+    if (link.dataset.scroll || target === "main") {
+      event.preventDefault();
+      const el = document.getElementById(link.dataset.scroll ?? "main");
+      el.setAttribute("tabindex", "-1");
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      el.focus({ preventScroll: true });
+      return;
+    }
+    if (titles[target] && target === currentView) { event.preventDefault(); route(true); }
+  });
+
+  /* ---------- Sidebar: collapse (wide) and drawer (narrow) ---------- */
+  const menuToggle = $("#menu-toggle");
+  const sidebar = $("#sidebar");
+  const scrim = $("#scrim");
+  const workspace = $("#workspace");
+
+  function setSidebar(open) {
+    app.dataset.sidebar = open ? "open" : "closed";
+    store.set("jobbbox.prototype.sidebar", app.dataset.sidebar);
+  }
+  function openDrawer() {
+    app.dataset.drawer = "open";
+    menuToggle.setAttribute("aria-expanded", "true");
+    scrim.hidden = false;
+    workspace.inert = true;
+    $(".nav-link[aria-current]", sidebar)?.focus() ?? $("#switcher-button").focus();
+  }
+  function closeDrawer(returnFocus) {
+    if (app.dataset.drawer !== "open") return;
+    app.dataset.drawer = "closed";
+    menuToggle.setAttribute("aria-expanded", "false");
+    workspace.inert = false;
+    if (app.dataset.coach !== "open" || coachDocks()) scrim.hidden = true;
+    if (returnFocus) menuToggle.focus();
+  }
+  menuToggle.addEventListener("click", () => {
+    if (wide()) { setSidebar(true); $("#collapse-sidebar").focus(); }
+    else openDrawer();
+  });
+  $("#collapse-sidebar").addEventListener("click", () => { setSidebar(false); menuToggle.focus(); });
+  $("#close-drawer").addEventListener("click", () => closeDrawer(true));
+  scrim.addEventListener("click", () => { closeDrawer(true); closeCoach(true); });
+
+  /* ---------- Profile switcher (menu button pattern) ---------- */
+  const switcherButton = $("#switcher-button");
+  const switcherMenu = $("#switcher-menu");
+  const menuItems = () => $$('[role^="menuitem"]', switcherMenu);
+  function openMenu() {
+    switcherMenu.hidden = false;
+    switcherButton.setAttribute("aria-expanded", "true");
+    (menuItems().find((i) => i.getAttribute("aria-checked") === "true") ?? menuItems()[0]).focus();
+  }
+  function closeMenu(returnFocus) {
+    switcherMenu.hidden = true;
+    switcherButton.setAttribute("aria-expanded", "false");
+    if (returnFocus) switcherButton.focus();
+  }
+  switcherButton.addEventListener("click", () => (switcherMenu.hidden ? openMenu() : closeMenu(false)));
+  switcherButton.addEventListener("keydown", (e) => { if (e.key === "ArrowDown") { e.preventDefault(); openMenu(); } });
+  switcherMenu.addEventListener("keydown", (e) => {
+    const items = menuItems();
+    const i = items.indexOf(document.activeElement);
+    if (e.key === "ArrowDown") { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+    else if (e.key === "Home") { e.preventDefault(); items[0].focus(); }
+    else if (e.key === "End") { e.preventDefault(); items[items.length - 1].focus(); }
+    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeMenu(true); }
+    else if (e.key === "Tab") closeMenu(false);
+  });
+  switcherMenu.addEventListener("click", (e) => {
+    const item = e.target.closest('[role^="menuitem"]');
+    if (!item) return;
+    closeMenu(true);
+    if (item.dataset.profile) { showProfile(item.dataset.profile); say(`Profil : ${profiles[item.dataset.profile].name}`); }
+  });
+  document.addEventListener("click", (e) => { if (!switcherMenu.hidden && !e.target.closest(".switcher")) closeMenu(false); });
+
+  /* ---------- Text size ---------- */
+  function setTextSize(setting) {
+    document.documentElement.dataset.textSize = setting;
+    $$("[data-text-size]", sidebar).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.textSize === setting)));
+    store.set("jobbbox.textSize", setting);
+  }
+  $$(".segmented [data-text-size]").forEach((b) => b.addEventListener("click", () => setTextSize(b.dataset.textSize)));
+
+  /* ---------- Coach Panel ---------- */
+  const coach = $("#coach");
+  const coachToggle = $("#coach-toggle");
+  function openCoach(focus) {
+    app.dataset.coach = "open";
+    coach.hidden = false;
+    coachToggle.setAttribute("aria-expanded", "true");
+    if (!coachDocks()) { scrim.hidden = false; workspace.inert = true; }
+    if (focus) $("#coach-message").focus();
+  }
+  function closeCoach(returnFocus) {
+    if (app.dataset.coach !== "open") return;
+    app.dataset.coach = "closed";
+    coach.hidden = true;
+    coachToggle.setAttribute("aria-expanded", "false");
+    if (app.dataset.drawer !== "open") { scrim.hidden = true; workspace.inert = false; }
+    if (returnFocus) coachToggle.focus();
+  }
+  coachToggle.addEventListener("click", () => (app.dataset.coach === "open" ? closeCoach(true) : openCoach(true)));
+  $("#coach-close").addEventListener("click", () => closeCoach(true));
+  $("#coach-new").addEventListener("click", () => {
+    $("#messages").innerHTML = '<div class="msg"><span class="who">Votre coach</span><p>Bonjour, je suis votre coach. Comment puis-je vous aider ?</p></div>';
+    $("#coach-message").focus();
+  });
+  function addMessage(who, text, mine) {
+    const msg = document.createElement("div");
+    msg.className = mine ? "msg msg-me" : "msg";
+    const name = document.createElement("span");
+    name.className = "who"; name.textContent = who;
+    const body = document.createElement("p");
+    body.textContent = text;
+    msg.append(name, body);
+    $("#messages").append(msg);
+    msg.scrollIntoView({ block: "end" });
+    return msg;
+  }
+  $("#composer").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const field = $("#coach-message");
+    const text = field.value.trim();
+    if (!text) { field.focus(); return; }
+    addMessage("Vous", text, true);
+    field.value = "";
+    const pending = addMessage("Votre coach", "Votre coach rédige sa réponse…", false);
+    setTimeout(() => {
+      $("p", pending).textContent = "Ceci est un prototype : dans Jobbbox, votre coach répondrait ici à partir de la page que vous consultez.";
+    }, 900);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (app.dataset.drawer === "open") closeDrawer(true);
+    else if (app.dataset.coach === "open" && !coachDocks()) closeCoach(true);
+  });
+
+  /* ---------- Inline editing: save on change ---------- */
+  function flagSaved(field, message) {
+    const dd = field.closest("dd") ?? field.parentElement;
+    let flag = $(".saved-flag", dd);
+    if (!flag) { flag = document.createElement("span"); flag.className = "saved-flag"; flag.setAttribute("role", "status"); dd.insertBefore(flag, $(".hint", dd)); }
+    flag.textContent = message;
+    setTimeout(() => { flag.textContent = ""; }, 2500);
+  }
+  $$("[data-saved]").forEach((field) => {
+    let before = field.value;
+    field.addEventListener("focus", () => { before = field.value; });
+    field.addEventListener("keydown", (e) => {
+      const singleLine = field.tagName === "INPUT" || field.classList.contains("title-edit");
+      if (e.key === "Enter" && singleLine) { e.preventDefault(); field.blur(); }
+      if (e.key === "Escape" && singleLine) { field.value = before; field.blur(); }
+    });
+    field.addEventListener("change", () => {
+      if (field.value.trim() === "") { field.value = before; return; }
+      before = field.value;
+      flagSaved(field, field.dataset.saved);
+    });
+  });
+
+  /* Application Status changes ripple to the list and the interviews hint */
+  const statusLabels = { to_apply: "À postuler", applied: "Postulée", followed_up: "Relancée", interview: "Entretien", offer_received: "Offre reçue", accepted: "Acceptée", rejected: "Refusée", abandoned: "Abandonnée" };
+  function applyStatus(value) {
+    $('[data-bind="app-status"]').textContent = statusLabels[value];
+    $("#interviews-hint").textContent = value === "interview"
+      ? "Ajoutez la date et l'heure de votre entretien (heure de Paris) : hors prototype."
+      : "Vous pourrez noter vos entretiens quand la candidature sera au statut « Entretien ».";
+  }
+  $("#app-status").addEventListener("change", (e) => applyStatus(e.target.value));
+
+  /* Follow-up Action Card */
+  $("#followup-sent").addEventListener("click", () => {
+    $("#app-status").value = "followed_up";
+    applyStatus("followed_up");
+    $("#followup-card").remove();
+    say("Relance marquée comme envoyée. La candidature passe à « Relancée ».");
+    $('[data-view="candidature"] h1').focus();
+  });
+  $$("[data-dismiss-card]").forEach((b) => b.addEventListener("click", () => {
+    $(`#${b.dataset.dismissCard}`).remove();
+    say("Proposition ignorée.");
+    $('[data-view="candidature"] h1').focus();
+  }));
+  $$("[data-copy-draft]").forEach((b) => b.addEventListener("click", () => {
+    const text = $("#followup-card .draft").innerText;
+    Promise.resolve(navigator.clipboard?.writeText(text)).then(() => say("Brouillon copié."), () => say("Copie impossible : sélectionnez le texte du brouillon."));
+  }));
+
+  /* Saved Job Offers become Applications */
+  $$("[data-save-offer]").forEach((b) => b.addEventListener("click", () => {
+    const actions = b.closest(".row-actions");
+    b.disabled = true; b.textContent = "Enregistrement…";
+    setTimeout(() => {
+      const link = document.createElement("a");
+      link.className = "btn"; link.href = "#candidature"; link.textContent = "Voir ma candidature";
+      const pill = document.createElement("span");
+      pill.className = "pill"; pill.dataset.tone = "accent"; pill.textContent = "Enregistrée";
+      b.replaceWith(link);
+      link.after(pill);
+      say("Enregistrée dans vos candidatures.");
+      link.focus();
+    }, 500);
+  }));
+
+  /* Tabs (roving tabindex, arrow keys) */
+  const tabs = $$('[role="tab"]');
+  function selectTab(tab) {
+    tabs.forEach((t) => {
+      const on = t === tab;
+      t.setAttribute("aria-selected", String(on));
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
+    });
+    tab.focus();
+  }
+  tabs.forEach((t, i) => {
+    t.addEventListener("click", () => selectTab(t));
+    t.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight") selectTab(tabs[(i + 1) % tabs.length]);
+      if (e.key === "ArrowLeft") selectTab(tabs[(i - 1 + tabs.length) % tabs.length]);
+    });
+  });
+
+  /* Tailored document: explicit save */
+  $$("[data-dirty-target]").forEach((field) => {
+    field.dataset.original = field.value;
+    field.addEventListener("input", () => { document.getElementById(field.dataset.dirtyTarget).hidden = field.value === field.dataset.original; });
+  });
+  $$("[data-save-doc]").forEach((b) => b.addEventListener("click", () => {
+    const field = $(`[data-dirty-target="${b.dataset.saveDoc}"]`);
+    field.dataset.original = field.value;
+    document.getElementById(b.dataset.saveDoc).hidden = true;
+    say(b.dataset.message);
+    field.focus();
+  }));
+  $$("[data-cancel-doc]").forEach((b) => b.addEventListener("click", () => {
+    const field = document.getElementById(b.dataset.cancelDoc);
+    field.value = field.dataset.original;
+    document.getElementById(field.dataset.dirtyTarget).hidden = true;
+    field.focus();
+  }));
+
+  /* ---------- Master CV: edits gather into one new version (ADR-0012) ---------- */
+  const cvForm = $("#cv-form");
+  const cvFields = $$("input, textarea", cvForm);
+  const savebar = $("#cv-savebar");
+  let version = 7;
+  const snapshot = () => cvFields.map((f) => f.value);
+  let saved = snapshot();
+  const dirty = () => snapshot().some((v, i) => v !== saved[i]);
+  function refreshSavebar() {
+    savebar.hidden = !dirty();
+    $("[data-next-version]", savebar).textContent = String(version + 1);
+  }
+  function saveVersion(message) {
+    version += 1;
+    saved = snapshot();
+    $("#cv-version").textContent = String(version);
+    $("#cv-date").textContent = "aujourd'hui";
+    refreshSavebar();
+    say(message ?? `Version ${version} de votre CV de référence enregistrée.`);
+  }
+  cvFields.forEach((f) => f.addEventListener("input", refreshSavebar));
+  cvForm.addEventListener("submit", (e) => { e.preventDefault(); if (dirty()) saveVersion(); });
+  $("#cv-cancel").addEventListener("click", () => {
+    cvFields.forEach((f, i) => { f.value = saved[i]; });
+    refreshSavebar();
+    say("Modifications annulées.");
+  });
+
+  /* ATS Fixes: each accepted fix is one minimal change, saved as a version */
+  const fixes = {
+    keyword: () => { $("#cv-skills").value += "\nTagetik"; },
+    split: () => { $("#cv-skills").value = $("#cv-skills").value.replace("Excel avancé, Power BI", "Excel avancé\nPower BI"); },
+    years: () => { $("#cv-summary").value = $("#cv-summary").value.replace("plus de 25 ans", "plus de 15 ans"); },
+  };
+  function settleFix(fix) {
+    fix.remove();
+    const left = $$("#ats-card .fix").length;
+    $("#fix-count").textContent = String(left);
+    if (left === 0) $("#ats-card").remove();
+    $('[data-view="profil"] h1').focus();
+  }
+  $$("[data-accept-fix]").forEach((b) => b.addEventListener("click", () => {
+    if (dirty()) { say("Enregistrez ou annulez d'abord vos modifications du CV."); return; }
+    fixes[b.dataset.acceptFix]();
+    $("#ats-score").textContent = String(Number($("#ats-score").textContent) + 4);
+    saveVersion(`ATS Fix acceptée : version ${version + 1} de votre CV de référence enregistrée.`);
+    settleFix(b.closest(".fix"));
+  }));
+  $$("[data-dismiss-fix]").forEach((b) => b.addEventListener("click", () => { settleFix(b.closest(".fix")); say("Proposition ignorée."); }));
+
+  /* Out-of-prototype buttons */
+  $$("button[data-toast]").forEach((b) => b.addEventListener("click", () => say(b.dataset.toast)));
+
+  /* Textareas grow with their text where field-sizing is unsupported */
+  if (!CSS.supports("field-sizing", "content")) {
+    const fit = (t) => { t.style.height = "auto"; t.style.height = `${t.scrollHeight + 2}px`; };
+    const fitAll = () => $$("textarea.inline-edit").forEach((t) => { if (t.offsetParent) fit(t); });
+    $$("textarea.inline-edit").forEach((t) => t.addEventListener("input", () => fit(t)));
+    window.addEventListener("hashchange", () => requestAnimationFrame(fitAll));
+    window.addEventListener("resize", fitAll);
+    requestAnimationFrame(fitAll);
+  }
+
+  /* ---------- Start ---------- */
+  setTextSize(store.get("jobbbox.textSize") ?? "standard");
+  if (wide() && store.get("jobbbox.prototype.sidebar") === "closed") setSidebar(false);
+  if (coachDocks()) openCoach(false);
+  route(false);
+})();
+</script>

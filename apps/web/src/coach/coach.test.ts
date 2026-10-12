@@ -68,6 +68,20 @@ describe("talking with the AI Coach in the Coach Panel", () => {
     expect(system).toContain("120000");
   });
 
+  it("declares the Master CV in view as the Candidate's identity, so it goes to Mistral under EU AI consent (ADR-0007)", async () => {
+    const claude = createFakeProvider({ id: "anthropic" });
+    const mistral = createFakeProvider({ id: "mistral" });
+    const ai = createAiLayer({ providers: [claude, mistral], routes: { coaching: "anthropic" }, euAiConsent: async () => true, usage: createMemoryUsageLog() });
+    const profiles = { get: async () => profile };
+    const coach = createCoach({ ai, profiles });
+
+    await coach.reply("marie", { messages: [{ from: "candidate", text: "Mon CV est-il bon ?" }], focus: { kind: "profile", id: profile.id } });
+    await coach.reply("marie", { messages: [{ from: "candidate", text: "Par où commencer ?" }] });
+
+    expect(mistral.calls.map((call) => call.messages.at(-1)?.content)).toEqual(["Mon CV est-il bon ?"]);
+    expect(claude.calls.map((call) => call.messages.at(-1)?.content)).toEqual(["Par où commencer ?"]);
+  });
+
   it("never reads another Candidate's Profile, even when its id is sent", async () => {
     const { coach, provider } = coachWith();
 

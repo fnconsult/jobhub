@@ -53,16 +53,19 @@ Règles :
 - Si tu proposes une modification de son CV, dis précisément quoi changer et pourquoi.`;
 
 export function createCoach(deps: CoachDeps): Coach {
-  async function context(candidateId: string, focus: CoachFocus | undefined): Promise<string> {
+  /** What the AI Coach is told of the screen; it carries the Candidate's identity when it holds their Master CV (ADR-0007). */
+  async function context(candidateId: string, focus: CoachFocus | undefined): Promise<{ text: string; containsIdentity: boolean }> {
+    const none = { text: "Le candidat ne consulte aucun profil en ce moment.", containsIdentity: false };
     // Applications do not exist yet: an Application in view adds nothing until they do.
-    if (focus?.kind !== "profile") return "Le candidat ne consulte aucun profil en ce moment.";
+    if (focus?.kind !== "profile") return none;
     const profile = await deps.profiles.get(candidateId, focus.id);
-    if (!profile) return "Le candidat ne consulte aucun profil en ce moment.";
-    return [
+    if (!profile) return none;
+    const text = [
       `Le candidat consulte son profil « ${profile.name} ».`,
       `Critères de recherche : ${JSON.stringify(profile.searchCriteria)}`,
       `CV de référence (version ${profile.masterCv.version}) : ${JSON.stringify(profile.masterCv.content)}`,
     ].join("\n");
+    return { text, containsIdentity: true };
   }
 
   return {
@@ -72,10 +75,12 @@ export function createCoach(deps: CoachDeps): Coach {
       const { focus } = parsed.data;
       const messages = recentConversation(parsed.data.messages);
       try {
+        const inView = await context(candidateId, focus);
         const { text } = await deps.ai.generate({
           task: "coaching",
           candidateId,
-          system: `${PERSONA}\n\n${await context(candidateId, focus)}`,
+          system: `${PERSONA}\n\n${inView.text}`,
+          containsIdentity: inView.containsIdentity,
           prompt: messages.map((message) => ({ role: message.from === "candidate" ? ("user" as const) : ("assistant" as const), content: message.text })),
         });
         return { ok: true, reply: text.trim() };

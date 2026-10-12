@@ -3,10 +3,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentCandidate } from "@/auth/server";
+import { paymentFailedNotice } from "@/billing/payment-failed-notice";
 import { planQuotaValue } from "@/billing/quota-labels";
 import { getBilling } from "@/billing/server";
+import { PaymentFailedNotice } from "@/components/PaymentFailedNotice";
 import { TextSizeControl } from "@/components/TextSizeControl";
-import { getServerT } from "@/i18n/server";
+import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -20,15 +22,17 @@ const QUOTA_ROWS = [...LIMITED_QUOTAS, "jobDigest"] as const satisfies readonly 
 export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ checkout?: string; error?: string }> }) {
   const candidate = await getCurrentCandidate();
   if (!candidate) redirect(routes.signIn);
-  const t = await getServerT();
+  const locale = await getRequestLocale();
+  const t = await getServerT(locale);
   const { checkout, error } = await searchParams;
   const billing = getBilling();
-  const [{ plan, quotas, usedThisMonth }, allQuotas, hasInvoices] = await Promise.all([
+  const [{ plan, stripeStatus, quotas, usedThisMonth }, allQuotas, hasInvoices] = await Promise.all([
     billing.entitlements(candidate.id),
     billing.planQuotas(),
     billing.hasInvoices(candidate.id),
   ]);
   const planName = (name: (typeof PLANS)[number]) => t(`billing.plans.${name}`);
+  const paymentFailed = paymentFailedNotice(stripeStatus, locale);
 
   return (
     <main className="page">
@@ -55,6 +59,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
         </p>
       ) : null}
       <p className="lead">{t("billing.page.currentPlan", { plan: planName(plan) })}</p>
+      {paymentFailed ? <PaymentFailedNotice notice={paymentFailed} /> : null}
 
       <h2>{t("billing.page.usageTitle")}</h2>
       <dl>

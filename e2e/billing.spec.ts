@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { fakeCustomerId, FAKE_STRIPE_PRICES, signedEvent, subscriptionEvent } from "../apps/web/src/billing/fake-stripe";
+import { renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
@@ -176,6 +177,78 @@ test.describe("Plans and Stripe billing", () => {
     await page.goto("/abonnement");
     await expect(page.getByRole("button", { name: en.billing.page.invoices })).toBeVisible();
     await expect(page.getByText(en.billing.page.invoicesHelp)).toBeVisible();
+  });
+
+  test("a Candidate whose payment failed is told so in the workspace and on the subscription page, until it is paid", async ({ page }) => {
+    // Issue #102: past_due keeps the Plan while Stripe retries; the Candidate updates their payment method in the portal.
+    const email = newAddress("past-due");
+    const customer = fakeCustomerId(email);
+    await signInWithMagicLink(page, email);
+    await subscribe(page, email, "standard");
+    const failed = () => page.getByRole("status").filter({ hasText: fr.billing.paymentFailed.message });
+
+    await page.goto("/compte");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(failed()).toHaveCount(0);
+
+    const later = (seconds: number) => new Date(Date.now() + seconds * 1000);
+    const standard = { customer, price: FAKE_STRIPE_PRICES.standard };
+    expect((await deliverWebhook(page, subscriptionEvent("customer.subscription.updated", { ...standard, status: "past_due" }, later(10)))).status()).toBe(200);
+
+    // A banner in the signed-in workspace, which does not stop the Candidate from working.
+    await page.goto("/compte");
+    await expect(failed()).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await page.goto("/candidatures");
+    await expect(failed()).toBeVisible();
+    // The banner's text meets the accessibility floor (ADR-0009), at every width.
+    for (const width of [1280, 375]) {
+      await page.setViewportSize({ width, height: 900 });
+      const texts = (await renderedTexts(page)).filter((t) => [fr.billing.paymentFailed.message, fr.billing.paymentFailed.action].includes(t.text));
+      expect(texts).toHaveLength(2);
+      for (const t of texts) {
+        expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
+        expect.soft(t.contrast, `contrast of "${t.text}"`).toBeGreaterThanOrEqual(4.5);
+      }
+      const banner = await failed().boundingBox();
+      expect(banner!.x).toBeGreaterThanOrEqual(0);
+      expect(banner!.x + banner!.width).toBeLessThanOrEqual(width);
+    }
+
+    // The same message next to the current Plan, once.
+    await page.goto("/abonnement");
+    await expect(page.getByText("Votre offre actuelle : Standard")).toBeVisible();
+    await expect(failed()).toHaveCount(1);
+    await expect(failed().getByRole("button", { name: fr.billing.paymentFailed.action })).toBeVisible();
+
+    // The banner leads to the Stripe customer portal, where the payment method is updated.
+    await page.goto("/compte");
+    expect(await formRedirect(page, "/api/billing/portal", fr.billing.paymentFailed.action)).toMatch(/^https:\/\/billing\.stripe\.test\//);
+    expect((await stripeCalls("/v1/billing_portal/sessions")).filter((call) => call.params.customer === customer)).toHaveLength(1);
+
+    // Paid again: the banner goes.
+    expect((await deliverWebhook(page, subscriptionEvent("customer.subscription.updated", { ...standard, status: "active" }, later(20)))).status()).toBe(200);
+    await page.goto("/compte");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(failed()).toHaveCount(0);
+    await currentPlanIs(page, "Standard");
+    await expect(failed()).toHaveCount(0);
+  });
+
+  test("the payment failed notice is shown in English to a Candidate who chose English", async ({ page }) => {
+    const email = newAddress("past-due-en");
+    await signInWithMagicLink(page, email);
+    await subscribe(page, email, "standard");
+    const event = subscriptionEvent("customer.subscription.updated", { customer: fakeCustomerId(email), price: FAKE_STRIPE_PRICES.standard, status: "past_due" }, new Date(Date.now() + 10_000));
+    expect((await deliverWebhook(page, event)).status()).toBe(200);
+    await page.goto("/compte");
+    await page.getByLabel(fr.account.interfaceLanguage).selectOption("en");
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    const notice = page.getByRole("status").filter({ hasText: en.billing.paymentFailed.message });
+    await expect(notice).toHaveCount(1);
+    await expect(notice.getByRole("button", { name: en.billing.paymentFailed.action })).toBeVisible();
+    await page.goto("/abonnement");
+    await expect(notice).toHaveCount(1);
   });
 
   test("the webhook refuses deliveries without a signature", async ({ page }) => {

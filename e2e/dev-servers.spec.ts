@@ -15,15 +15,33 @@ import { expect, test } from "@playwright/test";
 // clean machine that is 3000; when 3000 is already taken (another checkout's dev
 // server), it is the next free one, and the web app is pointed at it with PORT, the
 // variable `next dev` reads, so the race is the same one.
+//
+// The extension's own port, 3100, can be held too: by another checkout's extension dev
+// server. WXT then refuses to start (strictPort), so the race tests give it the next free
+// port with `--port`, and the README test reads the port from that refusal.
 
 const EXTENSION_DEV_PORT = 3100;
 
-function isFree(port: number): Promise<boolean> {
+function canListen(port: number, host?: string): Promise<boolean> {
   return new Promise((resolve) => {
     const probe = net.createServer();
     probe.once("error", () => resolve(false));
-    probe.listen(port, () => probe.close(() => resolve(true)));
+    probe.listen(port, host, () => probe.close(() => resolve(true)));
   });
+}
+
+/**
+ * Free for both servers: the wildcard address (`next dev`) and localhost (WXT's Vite). A server
+ * bound to localhost only ([::1]) leaves the wildcard bindable on macOS, so one probe is not enough.
+ */
+async function isFree(port: number): Promise<boolean> {
+  return (await canListen(port)) && (await canListen(port, "localhost"));
+}
+
+/** The extension dev server's port: its own, 3100, unless another checkout holds it. */
+async function extensionPort(): Promise<number> {
+  for (let port = EXTENSION_DEV_PORT; port < EXTENSION_DEV_PORT + 100; port++) if (await isFree(port)) return port;
+  throw new Error(`Ports ${EXTENSION_DEV_PORT}–${EXTENSION_DEV_PORT + 99} are all taken: nowhere for the extension's dev server.`);
 }
 
 /** The port WXT would take with no port of its own: 3000, else the first free one up to 3010. */
@@ -32,7 +50,7 @@ async function contestedPort(): Promise<number> {
   throw new Error("Ports 3000–3010 are all taken: nothing for the two dev servers to contest.");
 }
 
-type DevServer = { proc: ChildProcess; output: () => string };
+type DevServer = { proc: ChildProcess; output: () => string; closed: () => boolean };
 
 function start(args: string[], env: NodeJS.ProcessEnv): DevServer {
   // Its own process group, so npm, its shell and the server underneath all stop together.
@@ -40,7 +58,10 @@ function start(args: string[], env: NodeJS.ProcessEnv): DevServer {
   let out = "";
   proc.stdout!.on("data", (chunk) => (out += chunk));
   proc.stderr!.on("data", (chunk) => (out += chunk));
-  return { proc, output: () => stripVTControlCharacters(out) };
+  // "close" comes after the last output, unlike "exit": a server that refuses to start has said why by then.
+  let closed = false;
+  proc.once("close", () => (closed = true));
+  return { proc, output: () => stripVTControlCharacters(out), closed: () => closed };
 }
 
 async function stop(server: DevServer | undefined) {
@@ -64,21 +85,40 @@ async function waitFor(server: DevServer, pattern: RegExp, what: string): Promis
   while (Date.now() < deadline) {
     const match = server.output().match(pattern);
     if (match) return match;
-    if (server.proc.exitCode !== null) break;
+    if (server.closed()) break;
     await new Promise((r) => setTimeout(r, 250));
   }
+  const match = server.output().match(pattern);
+  if (match) return match;
   throw new Error(`${what} never reported ${pattern}. Output:\n${server.output()}`);
 }
 
 let home: string;
 const servers: DevServer[] = [];
 
-/** The extension's dev server, without the Chrome dev profile it would open (`disabled` in a ~/.webextrc). */
-async function startExtension(): Promise<{ server: DevServer; port: number }> {
-  const server = start(["run", "dev", "-w", "@jobhub/extension"], { HOME: home });
+/**
+ * The extension's dev server, without the Chrome dev profile it would open (`disabled` in a ~/.webextrc),
+ * on `port` when it is not its own (WXT's `--port`).
+ */
+function spawnExtension(port = EXTENSION_DEV_PORT): DevServer {
+  const portArgs = port === EXTENSION_DEV_PORT ? [] : ["--", "--port", String(port)];
+  const server = start(["run", "dev", "-w", "@jobhub/extension", ...portArgs], { HOME: home });
   servers.push(server);
-  const [, port] = await waitFor(server, /Started dev server @ http:\/\/localhost:(\d+)/, "The extension's dev server");
-  return { server, port: Number(port) };
+  return server;
+}
+
+async function startExtension(port?: number): Promise<{ server: DevServer; port: number }> {
+  const server = spawnExtension(port);
+  const [, started] = await waitFor(server, /Started dev server @ http:\/\/localhost:(\d+)/, "The extension's dev server");
+  return { server, port: Number(started) };
+}
+
+/** Holds `port` on localhost, as another checkout's extension dev server would, unless something already does. */
+async function holdPort(port: number): Promise<() => Promise<void>> {
+  if (!(await canListen(port, "localhost"))) return async () => {};
+  const holder = net.createServer();
+  await new Promise<void>((resolve) => holder.listen(port, "localhost", resolve));
+  return () => new Promise((resolve) => holder.close(() => resolve()));
 }
 
 /** The web app's dev server, ready once it has answered a request. */
@@ -121,14 +161,15 @@ test.describe("local dev servers (#71)", () => {
 
   test("extension dev server first, then the web app: the web app still gets its port", async () => {
     const webPort = await contestedPort();
+    const extensionDevPort = await extensionPort();
 
-    const extension = await startExtension();
-    expect(extension.port).toBe(EXTENSION_DEV_PORT);
+    const extension = await startExtension(extensionDevPort);
+    expect(extension.port).toBe(extensionDevPort);
 
     const web = await startWebApp(webPort);
     expect(web.port).toBe(webPort);
     expect(await webAppHealth(webPort)).toEqual({ status: "ok" });
-    expect(await webAppHealth(EXTENSION_DEV_PORT, 2_000)).not.toEqual({ status: "ok" });
+    expect(await webAppHealth(extensionDevPort, 2_000)).not.toEqual({ status: "ok" });
   });
 
   test("web app first, then the extension dev server: the same ports", async () => {
@@ -138,13 +179,33 @@ test.describe("local dev servers (#71)", () => {
     expect(web.port).toBe(webPort);
     expect(await webAppHealth(webPort)).toEqual({ status: "ok" });
 
-    const extension = await startExtension();
-    expect(extension.port).toBe(EXTENSION_DEV_PORT);
+    const extensionDevPort = await extensionPort();
+    const extension = await startExtension(extensionDevPort);
+    expect(extension.port).toBe(extensionDevPort);
     expect(await webAppHealth(webPort)).toEqual({ status: "ok" });
   });
 
+  test("its own port taken (another checkout's extension dev server): the extension dev server refuses to move", async () => {
+    const release = await holdPort(EXTENSION_DEV_PORT);
+    try {
+      const server = spawnExtension();
+      await waitFor(server, new RegExp(`Port ${EXTENSION_DEV_PORT} is already in use`), "The extension's dev server");
+      await expect.poll(() => server.proc.exitCode, { timeout: 30_000 }).not.toBeNull();
+      expect(server.proc.exitCode).not.toBe(0);
+      expect(server.output()).not.toMatch(/Started dev server/);
+    } finally {
+      await release();
+    }
+  });
+
   test("the README's dev section gives the extension dev server's port", async () => {
-    const { port } = await startExtension();
+    // Its own port, whether it starts on it or finds another checkout's extension dev server there.
+    const [, started, refused] = await waitFor(
+      spawnExtension(),
+      /Started dev server @ http:\/\/localhost:(\d+)|Port (\d+) is already in use/,
+      "The extension's dev server",
+    );
+    const port = Number(started ?? refused);
 
     const readme = readFileSync("README.md", "utf8");
     const devSection = readme.slice(readme.indexOf("npm run dev"));

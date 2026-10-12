@@ -428,6 +428,10 @@
       "action": "Découvrir l'offre {{plan}}",
       "upgradeIncludesDailyDigest": "L'offre {{plan}} le comprend."
     },
+    "paymentFailed": {
+      "message": "Votre dernier paiement n'a pas abouti. Votre offre reste active pendant que notre prestataire de paiement, Stripe, réessaie : mettez à jour votre moyen de paiement pour la conserver.",
+      "action": "Mettre à jour mon moyen de paiement"
+    },
     "page": {
       "title": "Mon abonnement",
       "currentPlan": "Votre offre actuelle : {{plan}}",

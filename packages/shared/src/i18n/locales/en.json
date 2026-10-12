@@ -428,6 +428,10 @@
       "action": "See the {{plan}} Plan",
       "upgradeIncludesDailyDigest": "The {{plan}} Plan includes it."
     },
+    "paymentFailed": {
+      "message": "Your last payment failed. Your Plan stays active while our payment provider, Stripe, tries again: update your payment method to keep it.",
+      "action": "Update my payment method"
+    },
     "page": {
       "title": "My subscription",
       "currentPlan": "Your current Plan: {{plan}}",

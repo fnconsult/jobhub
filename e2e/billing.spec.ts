@@ -235,6 +235,22 @@ test.describe("Plans and Stripe billing", () => {
     await expect(failed()).toHaveCount(0);
   });
 
+  test("the payment failed notice is shown in English to a Candidate who chose English", async ({ page }) => {
+    const email = newAddress("past-due-en");
+    await signInWithMagicLink(page, email);
+    await subscribe(page, email, "standard");
+    const event = subscriptionEvent("customer.subscription.updated", { customer: fakeCustomerId(email), price: FAKE_STRIPE_PRICES.standard, status: "past_due" }, new Date(Date.now() + 10_000));
+    expect((await deliverWebhook(page, event)).status()).toBe(200);
+    await page.goto("/compte");
+    await page.getByLabel(fr.account.interfaceLanguage).selectOption("en");
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    const notice = page.getByRole("status").filter({ hasText: en.billing.paymentFailed.message });
+    await expect(notice).toHaveCount(1);
+    await expect(notice.getByRole("button", { name: en.billing.paymentFailed.action })).toBeVisible();
+    await page.goto("/abonnement");
+    await expect(notice).toHaveCount(1);
+  });
+
   test("the webhook refuses deliveries without a signature", async ({ page }) => {
     const event = subscriptionEvent("customer.subscription.created", { customer: "cus_x", price: FAKE_STRIPE_PRICES.premium, status: "active" });
     const response = await page.request.post("/api/billing/webhook", { data: JSON.stringify(event), headers: { "content-type": "application/json" } });

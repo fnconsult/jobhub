@@ -1,7 +1,7 @@
 // Run: npx tsx --test docs/research/job-search-providers/pass-rule.test.ts
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { isSinglePosting, scoreProvider } from "./pass-rule";
+import { isSinglePosting, scoreProvider, verdict, type ProviderScore } from "./pass-rule";
 
 describe("isSinglePosting", () => {
   // Real URLs from the Perplexity baseline (#97) and the boards French managers use.
@@ -73,3 +73,48 @@ describe("scoreProvider", () => {
     });
   });
 });
+
+describe("verdict", () => {
+  const score = (perSearchEur: number, ids: number[]): ProviderScore => ({
+    providerUrls: 10,
+    singlePostings: ids.length,
+    readableSinglePostings: ids.map((id) => `https://www.hellowork.com/fr-fr/emplois/${id}.html`),
+    searchEur: 0.01,
+    costEur: 0.1,
+    perSearchEur,
+  });
+
+  it("names no winner while a provider has not been run", () => {
+    assert.deepEqual(verdict({ perplexity: score(100, [1]), brave: null, tavily: score(200, [2, 3]), linkup: null }), {
+      kind: "incomplete",
+      notRun: ["brave", "linkup"],
+    });
+  });
+
+  it("picks the provider with the most readable single postings per € of search", () => {
+    assert.deepEqual(verdict({ perplexity: score(100, [1, 2]), brave: score(400, [1, 2]), tavily: score(250, [1, 2]) }), {
+      kind: "winner",
+      provider: "brave",
+    });
+  });
+
+  it("breaks a tie on per € by the number of readable single postings", () => {
+    assert.deepEqual(verdict({ brave: score(400, [1]), linkup: score(400, [1, 2]) }), { kind: "winner", provider: "linkup" });
+  });
+
+  it("fans out to the top two when the runner-up adds at least half again as many readable single postings", () => {
+    assert.deepEqual(verdict({ brave: score(400, [1, 2, 3, 4]), tavily: score(300, [3, 4, 5, 6]), linkup: score(100, [7]) }), {
+      kind: "fan-out",
+      providers: ["brave", "tavily"],
+    });
+  });
+
+  it("keeps one winner when the runner-up mostly finds the same postings", () => {
+    assert.deepEqual(verdict({ brave: score(400, [1, 2, 3, 4]), tavily: score(300, [1, 2, 3, 5]) }), { kind: "winner", provider: "brave" });
+  });
+
+  it("names no winner when no provider sent a single readable posting", () => {
+    assert.deepEqual(verdict({ perplexity: score(0, []), brave: score(0, []) }), { kind: "none" });
+  });
+});
+

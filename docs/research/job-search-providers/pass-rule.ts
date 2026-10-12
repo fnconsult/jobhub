@@ -79,3 +79,32 @@ export function scoreProvider(runs: CaseRun[]): ProviderScore {
     perSearchEur: searchEur > 0 ? Number((readable.size / searchEur).toFixed(1)) : 0,
   };
 }
+
+export type Verdict =
+  /** Some providers were not run (no API key): no decision yet. */
+  | { kind: "incomplete"; notRun: string[] }
+  /** One provider gives the most readable single postings per €. */
+  | { kind: "winner"; provider: string }
+  /** The runner-up finds enough other readable postings that querying both is worth it. */
+  | { kind: "fan-out"; providers: [string, string] }
+  /** No provider sent a single readable posting: nothing to choose on. */
+  | { kind: "none" };
+
+/** Fan out when the top two together find at least this many times the winner's readable single postings. */
+const FAN_OUT_GAIN = 1.5;
+
+/** The benchmark's outcome from each provider's score (null: not run). */
+export function verdict(scores: Record<string, ProviderScore | null>): Verdict {
+  const notRun = Object.keys(scores).filter((provider) => scores[provider] === null);
+  if (notRun.length > 0) return { kind: "incomplete", notRun };
+  const ranked = Object.entries(scores as Record<string, ProviderScore>).sort(
+    ([, a], [, b]) => b.perSearchEur - a.perSearchEur || b.readableSinglePostings.length - a.readableSinglePostings.length,
+  );
+  const [[winner, best], runnerUp] = ranked as [[string, ProviderScore], ...[string, ProviderScore][]];
+  if (best.readableSinglePostings.length === 0) return { kind: "none" };
+  if (runnerUp) {
+    const together = new Set([...best.readableSinglePostings, ...runnerUp[1].readableSinglePostings]).size;
+    if (together >= FAN_OUT_GAIN * best.readableSinglePostings.length) return { kind: "fan-out", providers: [winner, runnerUp[0]] };
+  }
+  return { kind: "winner", provider: winner };
+}

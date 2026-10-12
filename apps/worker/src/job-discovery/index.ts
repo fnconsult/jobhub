@@ -41,11 +41,27 @@ export interface JobDiscoveryOptions {
   userAgent?: string;
   /** Hosts whose terms of use forbid crawling. Default: FORBIDDEN_SITES. */
   forbiddenSites?: readonly string[];
-  /** Result pages read per run. Default 10. */
-  maxPages?: number;
+  /** When a run stops reading result pages. Default: DEFAULT_BUDGET. */
+  budget?: Partial<JobDiscoveryBudget>;
   /** For waiting out robots.txt Crawl-delay. Default: real time. */
   clock?: Clock;
 }
+
+/**
+ * When a run stops reading result pages: once it has this many Job Offers, has spent
+ * this much on AI calls, or has run this long, whichever comes first. It is checked
+ * before each page, so the page being read when a limit is reached is finished.
+ */
+export interface JobDiscoveryBudget {
+  /** Job Offers found, new or already stored. */
+  jobOffers: number;
+  /** Estimated cost in € of the run's AI calls, the web search included. */
+  spendEur: number;
+  /** Time since the run started, the web search included. */
+  seconds: number;
+}
+
+export const DEFAULT_BUDGET: JobDiscoveryBudget = { jobOffers: 30, spendEur: 0.08, seconds: 90 };
 
 export interface DiscoverRequest {
   /** The Candidate the search runs for (for AI usage and Plan Quotas). */
@@ -70,7 +86,7 @@ export interface DiscoveryReport {
   costEur: number;
 }
 
-/** The funnel's stages up to deduplication. Only the first `maxPages` provider URLs are looked at. */
+/** The funnel's stages up to deduplication. Provider URLs are looked at in order until the budget runs out. */
 export type DiscoveryFunnel = Omit<DiscoveryMetrics["funnel"], "afterDedup" | "matched">;
 
 /** Job discovery failed part-way: `partial` is what the run found and measured until then. */
@@ -97,7 +113,7 @@ export const DEFAULT_USER_AGENT = "JobbboxBot/1.0 (+https://jobbbox.fr/robot)";
 export const FORBIDDEN_SITES = ["linkedin.com", "indeed.com", "indeed.fr", "glassdoor.com", "glassdoor.fr"] as const;
 
 export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
-  const maxPages = options.maxPages ?? 10;
+  const budget = { ...DEFAULT_BUDGET, ...options.budget };
   const userAgent = options.userAgent ?? DEFAULT_USER_AGENT;
 
   return {
@@ -129,7 +145,8 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         const search = await ai.searchWeb({ candidateId, criteria });
         const distinct = [...new Set(search.sources)];
         funnel.providerUrls = distinct.length;
-        for (const url of distinct.slice(0, maxPages)) {
+        for (const url of distinct) {
+          if (found.size >= budget.jobOffers) break;
           const known = await storedAt(url);
           if (known) {
             alreadyStored(known);

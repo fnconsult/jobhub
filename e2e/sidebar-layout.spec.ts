@@ -58,7 +58,16 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     await signInWithMagicLink(page, newAddress("sidebar-pages"));
     const profileId = await createProfile(page, "Directrice administrative et financière");
 
-    for (const path of ["/compte", "/candidatures", `/profils/${profileId}`, "/profils/nouveau", "/coachs", "/abonnement", `/profils/${profileId}/versions`, `/profils/${profileId}/cv`]) {
+    for (const path of [
+      "/compte",
+      "/candidatures",
+      `/profils/${profileId}`,
+      "/profils/nouveau",
+      "/coachs",
+      "/abonnement",
+      `/profils/${profileId}/versions`,
+      `/profils/${profileId}/cv`,
+    ]) {
       await page.goto(path);
       await expect(page.getByRole("heading", { level: 1 }), `heading on ${path}`).toBeVisible();
       await expect(sidebarNav(page), `sidebar on ${path}`).toBeVisible();
@@ -261,14 +270,26 @@ test("screenshots at 3 widths", async ({ page }, testInfo) => {
     // Nothing runs off the side of the screen.
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     const shots: [string, () => Promise<void>][] = [["profile", async () => {}]];
-    if (width < 1024) shots.push(["drawer", () => menuButton(page).click()]);
-    shots.push(["coach", async () => {
-      if (width < 1024) await page.keyboard.press("Escape");
-      await coachButton(page).click();
-      await expect(coachPanel(page)).toBeVisible();
-    }]);
+    if (width < 1024)
+      shots.push([
+        "drawer",
+        async () => {
+          await menuButton(page).click();
+          await expect(drawer(page)).toBeVisible();
+        },
+      ]);
+    shots.push([
+      "coach",
+      async () => {
+        if (width < 1024) await page.keyboard.press("Escape");
+        await coachButton(page).click();
+        await expect(coachPanel(page)).toBeVisible();
+      },
+    ]);
     for (const [name, show] of shots) {
       await show();
+      // Let the drawer finish sliding in.
+      await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
       const path = dir ? `${dir}/${width}-${name}.png` : testInfo.outputPath(`${width}-${name}.png`);
       await page.screenshot({ path });
       await testInfo.attach(`${width}px ${name}`, { path, contentType: "image/png" });

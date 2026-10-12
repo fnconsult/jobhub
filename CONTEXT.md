@@ -18,6 +18,14 @@ _Avoid_: Account closure, deactivation
 One JSON file the Candidate downloads with their account, Profiles with every Master CV Version, Applications and Tailored Documents.
 _Avoid_: Backup, data dump
 
+**EU AI Consent**:
+A Candidate's explicit, dated consent that AI calls carrying their identity go to an EU AI provider (Mistral). They can withdraw it at any time. Without it, such calls use the provider configured for their task.
+_Avoid_: AI opt-in, privacy setting
+
+**Identity block**:
+The part of a CV that identifies the Candidate: name, postal address, phone and email.
+_Avoid_: Contact details, header
+
 **Organisation**:
 An outplacement firm, APEC or corporate HR department that pays for its beneficiaries' Candidate accounts and whose advisors can follow their progress. Not in the MVP: Candidates pay for themselves first.
 _Avoid_: Company, client, tenant, B2B customer

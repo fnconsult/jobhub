@@ -164,7 +164,7 @@ test.describe("Interface Language", () => {
     await select.selectOption("en");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(en.account.title);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
-    await expect(page.getByRole("status")).toHaveText(en.account.saved);
+    await expect(page.getByRole("status").filter({ hasText: en.account.saved })).toHaveText(en.account.saved);
 
     // Stored on the Candidate, not the browser: survives a reload and shows everywhere.
     await page.reload();

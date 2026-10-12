@@ -153,6 +153,15 @@
     "confirmMismatch": "This address does not match your account's. Nothing was deleted.",
     "deleteError": "The deletion could not be completed. Nothing was deleted: try again in a moment."
   },
+  "euAiConsent": {
+    "title": "European AI for your identity data",
+    "explanation": "With your consent, every AI request that contains your identity data (name, address, phone, email or the text of your CV) is processed by Mistral AI, a European AI provider. Other requests, without your identity data, are processed by our usual provider. You can withdraw your consent at any time.",
+    "notGiven": "You have not given your consent.",
+    "givenOn": "Consent given on {{date}}.",
+    "give": "Give my consent",
+    "withdraw": "Withdraw my consent",
+    "error": "Something went wrong. Please try again."
+  },
   "accountDeleted": {
     "title": "Your account is deleted",
     "body": "Your data has been erased. Thank you for using Jobbbox, and good luck with your job search.",

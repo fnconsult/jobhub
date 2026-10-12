@@ -113,6 +113,33 @@ describe("AI layer configured from the environment", () => {
     expect(() => createAiLayerFromEnv({ AI_FAKE: "true", NODE_ENV: "production" })).toThrow(AiConfigError);
   });
 
+  describe("EU AI consent (ADR-0007 amendment)", () => {
+    const consenting = { euAiConsent: async (candidateId: string) => candidateId === "consenting" };
+
+    it("sends a consenting Candidate's identity-bearing call to Mistral, with AI_IDENTITY_MODEL, and other calls to the task's provider", async () => {
+      const { fetch, hosts } = recordingFetch();
+      const usage = createMemoryUsageLog();
+      const ai = createAiLayerFromEnv({ ...base, MISTRAL_API_KEY: "mk", AI_IDENTITY_MODEL: "mistral-large-latest" }, { fetch, usage, ...consenting });
+
+      await ai.generate({ task: "coaching", candidateId: "consenting", containsIdentity: true, prompt: "Je suis Marie Dupont" });
+      await ai.generate({ task: "coaching", candidateId: "consenting", prompt: "Bonjour" });
+      await ai.generate({ task: "coaching", candidateId: "other", containsIdentity: true, prompt: "Je suis Jean Martin" });
+
+      expect(hosts).toEqual(["api.mistral.ai", "bedrock-mantle.eu-west-3.api.aws", "bedrock-mantle.eu-west-3.api.aws"]);
+      expect(usage.entries[0]).toMatchObject({ provider: "mistral", model: "m" });
+    });
+
+    it("starts without a Mistral key, but refuses a consenting Candidate's identity-bearing call rather than send it elsewhere", async () => {
+      const { fetch, hosts } = recordingFetch();
+      const ai = createAiLayerFromEnv(base, { fetch, usage: createMemoryUsageLog(), ...consenting });
+
+      await expect(ai.generate({ task: "coaching", candidateId: "consenting", containsIdentity: true, prompt: "Je suis Marie Dupont" })).rejects.toThrow(
+        /MISTRAL_API_KEY/,
+      );
+      expect(hosts).toEqual([]);
+    });
+  });
+
   it(".env.example lists every key the AI layer reads", () => {
     const example = readFileSync(new URL("../../../.env.example", import.meta.url), "utf8");
     const listed = new Set([...example.matchAll(/^#?\s*([A-Z][A-Z0-9_]*)=/gm)].map((m) => m[1]));

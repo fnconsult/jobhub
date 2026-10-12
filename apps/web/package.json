@@ -14,6 +14,7 @@
     "./job-digests": "./src/job-digests/index.ts",
     "./applications": "./src/applications/index.ts",
     "./coach-conversations": "./src/coach-conversations/index.ts",
+    "./eu-ai-consent": "./src/eu-ai-consent/index.ts",
     "./mailers": "./src/auth/mailers.ts"
   },
   "scripts": {

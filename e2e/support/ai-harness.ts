@@ -16,7 +16,7 @@ import path from "node:path";
 import { createAiLayerFromEnv } from "@jobhub/ai";
 
 export type HarnessCall =
-  | { kind: "generate"; task: string; candidateId: string | null; system?: string; prompt: string }
+  | { kind: "generate"; task: string; candidateId: string | null; system?: string; prompt: string; containsIdentity?: boolean }
   | { kind: "search"; candidateId: string | null; criteria: Record<string, unknown>; filters?: Record<string, unknown> };
 
 export interface HarnessRequest {
@@ -109,7 +109,9 @@ async function main() {
   const result: HarnessResult = { startup: { ok: true }, outcomes: [], requests };
   let ai: ReturnType<typeof createAiLayerFromEnv> | undefined;
   try {
-    ai = createAiLayerFromEnv();
+    // E2E_EU_AI_CONSENT: comma-separated Candidate ids who gave EU AI consent (stands for the account's stored consent).
+    const consenting = (process.env.E2E_EU_AI_CONSENT ?? "").split(",").filter(Boolean);
+    ai = createAiLayerFromEnv(process.env, { euAiConsent: async (candidateId) => consenting.includes(candidateId) });
   } catch (error) {
     result.startup = { ok: false, error: errorOf(error) };
   }
@@ -118,7 +120,7 @@ async function main() {
       try {
         const value =
           call.kind === "generate"
-            ? await ai.generate({ task: call.task as never, candidateId: call.candidateId, system: call.system, prompt: call.prompt })
+            ? await ai.generate({ task: call.task as never, candidateId: call.candidateId, system: call.system, prompt: call.prompt, containsIdentity: call.containsIdentity })
             : await ai.searchWeb({ candidateId: call.candidateId, criteria: call.criteria as never, filters: call.filters as never });
         result.outcomes.push({ ok: true, value: value as unknown as Record<string, unknown> });
       } catch (error) {

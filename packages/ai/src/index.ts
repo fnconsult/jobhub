@@ -4,6 +4,8 @@
  *
  *   const ai = createAiLayerFromEnv();
  *   await ai.generate({ task: "scoring", candidateId, system, prompt });
+ *   // Declare it when the prompt carries the Candidate's identity: with EU AI consent, it goes to Mistral.
+ *   await ai.generate({ task: "writing", candidateId, system, prompt, containsIdentity: true });
  *   await ai.searchWeb({ candidateId, criteria, filters: { excludeDomains, maxAgeDays: 30 } });
  *   await ai.searchCompany({ candidateId, employer });
  */

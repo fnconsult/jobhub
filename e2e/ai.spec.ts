@@ -36,7 +36,7 @@ function runAi(env: Record<string, string>, calls: HarnessCall[] = []) {
   const resultLine = lines.find((line) => line.startsWith("AI_HARNESS_RESULT "));
   if (!resultLine) throw new Error(`AI harness failed (exit ${result.status}):\n${result.stdout}\n${result.stderr}`);
   const usage = lines.filter((line) => line.startsWith("{")).map((line) => JSON.parse(line) as UsageLine).filter((l) => l.event === "ai_usage");
-  return { ...(JSON.parse(resultLine.slice("AI_HARNESS_RESULT ".length)) as HarnessResult), usage };
+  return { stderr: result.stderr, ...(JSON.parse(resultLine.slice("AI_HARNESS_RESULT ".length)) as HarnessResult), usage };
 }
 
 const CV = "Jean Dupont, jean.dupont@example.fr, 06 12 34 56 78. Développeur TypeScript, 8 ans d'expérience.";
@@ -469,5 +469,63 @@ test.describe("AI layer: pluggable web search providers (issue #110)", () => {
     expect(result.status, out).toBe(0);
     expect(out).toMatch(/skipped/);
     expect(out).not.toMatch(/\d+ passed/);
+  });
+});
+
+// Issue #121 (ADR-0007 amendment): identity-bearing AI calls of a Candidate with EU AI consent go to Mistral.
+test.describe("AI layer: identity routing under EU AI consent (issue #121)", () => {
+  const routing = { ...KEYS, AI_WRITING_PROVIDER: "anthropic", AI_COACHING_PROVIDER: "anthropic", E2E_EU_AI_CONSENT: "cand-consenting" };
+  const letter = (candidateId: string, containsIdentity?: boolean, prompt = "Lettre signée Marie Dupont"): HarnessCall => ({
+    kind: "generate",
+    task: "writing",
+    candidateId,
+    prompt,
+    containsIdentity,
+  });
+
+  test("consent and identity: the call goes to Mistral, and usage says so", () => {
+    const r = runAi(routing, [letter("cand-consenting", true)]);
+    ok(r);
+    expect(r.requests.map((req) => req.host)).toEqual(["api.mistral.ai"]);
+    expect(r.usage).toEqual([expect.objectContaining({ candidateId: "cand-consenting", task: "writing", provider: "mistral" })]);
+  });
+
+  test("AI_IDENTITY_MODEL picks the model of the identity route", () => {
+    const r = runAi({ ...routing, AI_IDENTITY_MODEL: "mistral-e2e-model" }, [letter("cand-consenting", true)]);
+    ok(r);
+    expect(JSON.parse(r.requests[0]!.body).model).toBe("mistral-e2e-model");
+  });
+
+  test("consent but no identity: the task's configured provider", () => {
+    const r = runAi(routing, [letter("cand-consenting", false, "Résume cette offre : DAF H/F à Lyon")]);
+    ok(r);
+    expect(r.requests.map((req) => req.host)).toEqual(["bedrock-mantle.eu-west-3.api.aws"]);
+    expect(r.usage[0]).toMatchObject({ provider: "anthropic" });
+  });
+
+  test("no consent: the task's configured provider, even with identity", () => {
+    const r = runAi(routing, [letter("cand-other", true)]);
+    ok(r);
+    expect(r.requests.map((req) => req.host)).toEqual(["bedrock-mantle.eu-west-3.api.aws"]);
+    expect(r.usage[0]).toMatchObject({ provider: "anthropic" });
+  });
+
+  test("an undeclared phone number is found: the call goes to Mistral and the hit is logged without the prompt", () => {
+    const prompt = "Rappelez-moi au 06 12 34 56 78 pour ma candidature";
+    const r = runAi(routing, [{ kind: "generate", task: "coaching", candidateId: "cand-consenting", prompt }]);
+    ok(r);
+    expect(r.requests.map((req) => req.host)).toEqual(["api.mistral.ai"]);
+    expect(r.usage[0]).toMatchObject({ provider: "mistral", task: "coaching" });
+    expect(r.stderr).toMatch(/undeclared identity/i);
+    expect(r.stderr).toContain("cand-consenting");
+    expect(r.stderr).toContain("phone");
+    expect(r.stderr).not.toContain("06 12 34 56 78");
+  });
+
+  test("an undeclared phone number without consent is not rerouted", () => {
+    const r = runAi(routing, [{ kind: "generate", task: "coaching", candidateId: "cand-other", prompt: "Appelez le 06 12 34 56 78" }]);
+    ok(r);
+    expect(r.requests.map((req) => req.host)).toEqual(["bedrock-mantle.eu-west-3.api.aws"]);
+    expect(r.stderr).not.toMatch(/undeclared identity/i);
   });
 });

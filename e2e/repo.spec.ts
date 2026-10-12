@@ -94,3 +94,19 @@ test.describe("monorepo tooling", () => {
     expect(read("README.md")).toMatch(/hosting\.md|ADR-0007/);
   });
 });
+
+// Issue #121: the identity routing rule is a decision on record.
+test.describe("ADR-0007 amendment: identity routing (issue #121)", () => {
+  test("is committed, with the consent, the Mistral route, the declared identity and the safety net", () => {
+    const adr = read(readdirSync("docs/adr").filter((f) => f.startsWith("0007")).map((f) => `docs/adr/${f}`)[0]!);
+    const section = /## Amendment: [^\n]*(identity|EU AI consent)[^\n]*\n([\s\S]*?)(?=\n## |$)/i.exec(adr);
+    expect(section, "an amendment about identity routing").not.toBeNull();
+    const text = section![2]!;
+    expect(text).toMatch(/EU AI consent/);
+    expect(text).toMatch(/Mistral/);
+    expect(text).toMatch(/containsIdentity/);
+    expect(text).toMatch(/phone/i);
+    expect(text).toMatch(/email/i);
+    expect(text).toMatch(/log/i);
+  });
+});

@@ -319,7 +319,14 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
     if (document === "outreach_message" && contact) parts.push(`${label.recipient} : ${[contact.name, contact.jobTitle].filter(Boolean).join(", ")}`);
     const prompt = parts.join("\n\n");
     try {
-      const { text } = await deps.ai.generate({ task: "writing", candidateId, system: systemPrompt(language, document, channel, document === "outreach_message" && !!contact), prompt });
+      const { text } = await deps.ai.generate({
+        task: "writing",
+        candidateId,
+        system: systemPrompt(language, document, channel, document === "outreach_message" && !!contact),
+        prompt,
+        // The Master CV, identity block included: the draft speaks as the Candidate (ADR-0007).
+        containsIdentity: true,
+      });
       const written = document === "outreach_message" ? outreachIn(text) : { subject: "", text: text.trim() };
       return written.text ? { ...written, contactRoles: document === "outreach_message" ? contactRoles : [] } : null;
     } catch (error) {

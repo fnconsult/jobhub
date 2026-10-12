@@ -2,7 +2,7 @@ import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import type { MasterCvContent } from "@jobhub/shared";
 import type { Pool } from "pg";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApplications, migrateApplications } from "../applications";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
@@ -117,6 +117,21 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
     expect(prompt).toContain("Consolidation IFRS.");
     expect(prompt).toContain("DAF H/F");
     expect((await documents.get(candidateId, applicationId))?.coverLetter?.text).toBe("Madame, Monsieur,\n\nVotre offre a retenu toute mon attention.");
+  });
+
+  it("declares the Master CV as the Candidate's identity, so drafts go to Mistral under EU AI consent (ADR-0007)", async () => {
+    const database = testAuth.auth.options.database as Pool;
+    const claude = createFakeProvider({ id: "anthropic", reply: writer });
+    const mistral = createFakeProvider({ id: "mistral", reply: writer });
+    const warn = vi.fn();
+    const ai = createAiLayer({ providers: [claude, mistral], routes: { writing: "anthropic" }, euAiConsent: async (id) => id === candidateId, warn, usage: createMemoryUsageLog() });
+    const consenting = createTailoredDocuments(database, { applications: createApplications(database, { jobOffers, profiles }), profiles, ai });
+
+    await consenting.draft(candidateId, applicationId, { document: "cover_letter" });
+
+    expect(mistral.calls).toHaveLength(1);
+    expect(claude.calls).toHaveLength(0);
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it("drafts are written in the Job Offer's language by default", async () => {

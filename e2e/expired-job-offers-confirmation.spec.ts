@@ -209,7 +209,7 @@ test.describe("Expired Job Offers: confirmation, scope and Reported Unavailable"
       if (language === "en") {
         await page.goto("/compte");
         await page.getByLabel(fr.account.interfaceLanguage).selectOption("en");
-        await expect(page.getByRole("status")).toHaveText(en.account.saved);
+        await expect(page.getByRole("status").filter({ hasText: en.account.saved })).toHaveText(en.account.saved);
       }
       const title = titleOf("twiceGone");
       const noticeStart = t.jobOffer.expired.split("{{date}}")[0];
@@ -235,7 +235,7 @@ test.describe("Expired Job Offers: confirmation, scope and Reported Unavailable"
   test("a Candidate reports a Job Offer unavailable on their Application and undoes it, without touching the other Candidate's", async () => {
     await page.goto("/compte");
     await page.getByLabel(en.account.interfaceLanguage).selectOption("fr");
-    await expect(page.getByRole("status")).toHaveText(fr.account.saved);
+    await expect(page.getByRole("status").filter({ hasText: fr.account.saved })).toHaveText(fr.account.saved);
 
     const mine = `/candidatures/${applications.stable.id}`;
     await page.goto(mine);

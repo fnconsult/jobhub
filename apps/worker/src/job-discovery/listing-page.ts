@@ -4,7 +4,8 @@
  * a few of its links to the individual postings on the same site; each followed
  * link is then read like any result page (ADR-0002).
  */
-import { decodeEntities } from "./html";
+import { decodeEntities, metaRobots } from "./html";
+import { listedPostingUrls } from "./job-posting";
 
 /** How many postings of one listing page are followed. */
 export const MAX_FOLLOWED_LINKS = 5;
@@ -29,26 +30,32 @@ function followableLinks(page: { url: string; html: string }): URL[] {
     const href = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(attributes);
     const value = href?.[1] ?? href?.[2] ?? href?.[3];
     if (!value) continue;
-    try {
-      const url = new URL(decodeEntities(value.trim()), page.url);
-      url.hash = "";
-      links.push(url);
-    } catch {
-      // Not a URL: not a posting either.
-    }
+    const url = resolve(decodeEntities(value), new URL(page.url));
+    if (url) links.push(url);
   }
   return links;
+}
+
+/** The absolute address of a link, without its fragment; null when it is not a web address. */
+function resolve(address: string, base: URL): URL | null {
+  try {
+    const url = new URL(address.trim(), base);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    url.hash = "";
+    return url;
+  } catch {
+    return null;
+  }
 }
 
 const site = (url: URL) => url.hostname.toLowerCase().replace(/^www\./, "");
 
 /** Whether the URL points at one posting: a slug or reference under a job segment ("/offres-emploi/5481237-daf-h-f"). */
 function isPostingUrl(url: URL): boolean {
-  if (url.protocol !== "https:" && url.protocol !== "http:") return false;
   const segments = url.pathname
     .split("/")
     .filter(Boolean)
-    .map((segment) => decodeURIComponent(segment).replace(/\.(html?|php|aspx?)$/i, ""));
+    .map((segment) => segment.replace(/\.(html?|php|aspx?)$/i, ""));
   const last = segments.at(-1);
   if (!last || JOB_SEGMENT.test(last) || PAGINATION.test(last)) return false;
   if (!segments.slice(0, -1).some((segment) => JOB_SEGMENT.test(segment))) return false;
@@ -61,12 +68,16 @@ function isPostingUrl(url: URL): boolean {
  * the page's own site, each once, in the page's order.
  */
 export function listingPageLinks(page: { url: string; html: string }): string[] {
+  if (metaRobots(page.html).some((value) => /\b(nofollow|none)\b/.test(value))) return [];
   const from = new URL(page.url);
   // A posting's own page often links to similar offers: it is still one posting.
   if (isPostingUrl(from)) return [];
-  const found = new Set<string>();
-  for (const link of followableLinks(page)) {
-    if (site(link) === site(from) && isPostingUrl(link)) found.add(link.toString());
-  }
-  return found.size < MIN_LISTED ? [] : [...found].slice(0, MAX_FOLLOWED_LINKS);
+  const sameSite = (links: URL[]) => [...new Set(links.filter((link) => site(link) === site(from)).map(String))];
+
+  // Structured data saying the page lists postings is trusted over the look of its links.
+  const listed = listedPostingUrls(page.html).flatMap((address) => resolve(address, from) ?? []);
+  if (listed.length > 1) return sameSite(listed).slice(0, MAX_FOLLOWED_LINKS);
+
+  const linked = sameSite(followableLinks(page).filter(isPostingUrl));
+  return linked.length < MIN_LISTED ? [] : linked.slice(0, MAX_FOLLOWED_LINKS);
 }

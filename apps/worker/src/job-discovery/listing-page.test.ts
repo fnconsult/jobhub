@@ -18,6 +18,33 @@ describe("Listing pages", () => {
     ]);
   });
 
+  it("follows the postings a careers site lists in its ItemList structured data, on its own site only", () => {
+    const page = saved("careers-site-openings.html", "https://carrieres.acme-industrie.example/fr/offres");
+
+    expect(listingPageLinks(page)).toEqual([
+      "https://carrieres.acme-industrie.example/o/controleur-de-gestion-industriel-h-f",
+      "https://carrieres.acme-industrie.example/o/directeur-financier-adjoint",
+      "https://carrieres.acme-industrie.example/o/responsable-tresorerie-groupe",
+    ]);
+  });
+
+  it("follows the pages of the several JobPostings a page lists", () => {
+    const page = saved("aggregator-several-jobpostings.html", "https://agregateur.example.org/recherche?q=directeur+financier&l=lyon");
+
+    expect(listingPageLinks(page)).toEqual([
+      "https://agregateur.example.org/fiche/a81f3c",
+      "https://agregateur.example.org/fiche/b72e19",
+      "https://agregateur.example.org/fiche/c55d02",
+    ]);
+  });
+
+  it("follows nothing from a listing page whose robots meta tag says nofollow (ADR-0002)", () => {
+    const page = saved("job-board-search-results.html", "https://www.emplois-exemple.fr/offres-emploi?q=directeur+financier&l=Lyon");
+    const html = page.html.replace('content="index, follow"', 'content="index, nofollow"');
+
+    expect(listingPageLinks({ ...page, html })).toEqual([]);
+  });
+
   it("is not a posting page that links to similar offers", () => {
     const page = saved(
       "posting-with-similar-offers.html",

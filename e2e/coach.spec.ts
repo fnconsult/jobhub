@@ -1,4 +1,6 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import pg from "pg";
 import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
@@ -354,6 +356,31 @@ test.describe("the Coach Panel", () => {
     await coachPanel(page).getByRole("button", { name: fr.coachPanel.conversations }).click();
     await expect(items).toHaveCount(1);
     await expect(items.first()).toContainText("Relecture du CV");
+  });
+
+  test("a conversation is kept 12 months after its last message, then the worker's nightly purge deletes it", async ({ page }) => {
+    /** The worker's purge, run as its schedule would `days` from now. */
+    const purgeIn = (days: number) => {
+      const run = spawnSync(path.resolve("node_modules/.bin/tsx"), ["e2e/support/worker-job.ts", "coach-conversations.purge", String(days * 24)], {
+        env: { ...process.env, DATABASE_URL: process.env.E2E_DATABASE_URL },
+        encoding: "utf8",
+      });
+      expect(run.status, run.stderr).toBe(0);
+    };
+    await signInWithMagicLink(page, newAddress("panel-purge"));
+    const sent = await page.request.post("/api/coach", { headers: { origin }, data: { message: "Bonjour" } });
+    const { conversation } = await sent.json();
+
+    purgeIn(360);
+    expect((await page.request.get(`/api/coach/conversations/${conversation.id}`)).status()).toBe(200);
+
+    purgeIn(370);
+    expect((await page.request.get(`/api/coach/conversations/${conversation.id}`)).status()).toBe(404);
+    expect((await (await page.request.get("/api/coach/conversations")).json()).conversations).toEqual([]);
+
+    // The Coach Panel then starts a new conversation.
+    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await expect(coachPanel(page).getByRole("heading", { level: 3, name: fr.coachPanel.newConversation })).toBeVisible();
   });
 
   test("the list of conversations meets the ADR-0009 floor", async ({ page }) => {

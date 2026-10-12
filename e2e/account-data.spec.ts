@@ -165,6 +165,10 @@ test.describe("exporting my data and deleting my account", () => {
     const email = newAddress("account-delete");
     const { jobOfferId } = await candidateWithData(page, email);
     await subscribe(page, email, "standard");
+    // A saved Coach Conversation (#124) goes too.
+    const talked = await page.request.post("/api/coach", { headers: { origin }, data: { message: "Bonjour" } });
+    expect(talked.status()).toBe(200);
+    const conversationId = (await talked.json()).conversation.id;
     const stripe = process.env.E2E_STRIPE_URL!;
     await page.goto("/compte");
 
@@ -194,6 +198,8 @@ test.describe("exporting my data and deleting my account", () => {
     // Signing up again with the same email starts an empty account.
     await signInWithMagicLink(page, email);
     await expect(page.getByText(fr.profiles.none)).toBeVisible();
+    expect((await (await page.request.get("/api/coach/conversations")).json()).conversations).toEqual([]);
+    expect((await page.request.get(`/api/coach/conversations/${conversationId}`)).status()).toBe(404);
   });
 
   test("deletion takes effect at once: every session is signed out and nothing of the Candidate's data can be reached again", async ({ page, browser }) => {

@@ -109,6 +109,65 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     expect(sent).toMatchObject({ ok: true, conversation: { profile: null } });
   });
 
+  it("never lets another Candidate read or continue a conversation", async () => {
+    const sent = await conversations.send(marie, { message: "Bonjour" });
+    if (!sent.ok) throw new Error("refused");
+
+    expect(await conversations.open(jean, sent.conversation.id)).toBeNull();
+    expect(await conversations.send(jean, { conversationId: sent.conversation.id, message: "Je lis ?" })).toEqual({ ok: false, error: "not_found" });
+    expect(await conversations.open(marie, "not-a-uuid")).toBeNull();
+    expect(asked).toHaveLength(1);
+  });
+
+  it("saves nothing when the AI Coach cannot answer, so the Candidate can send again", async () => {
+    const sent = await conversations.send(marie, { message: "Bonjour" });
+    if (!sent.ok) throw new Error("refused");
+    coachReply = () => ({ ok: false, error: "unavailable" });
+
+    expect(await conversations.send(marie, { conversationId: sent.conversation.id, message: "Encore là ?" })).toEqual({ ok: false, error: "unavailable" });
+    expect(await conversations.send(marie, { message: "Une autre question" })).toEqual({ ok: false, error: "unavailable" });
+
+    expect((await conversations.open(marie, sent.conversation.id))?.messages).toHaveLength(2);
+    expect(await conversations.list(marie)).toHaveLength(1);
+  });
+
+  it("refuses an empty or overlong message, or a malformed conversation id, without asking the AI Coach", async () => {
+    expect(await conversations.send(marie, { message: "   " })).toEqual({ ok: false, error: "invalid" });
+    expect(await conversations.send(marie, { message: "x".repeat(5001) })).toEqual({ ok: false, error: "invalid" });
+    expect(await conversations.send(marie, { conversationId: "42", message: "Bonjour" })).toEqual({ ok: false, error: "invalid" });
+    expect(await conversations.send(marie, "Bonjour")).toEqual({ ok: false, error: "invalid" });
+    expect(asked).toHaveLength(0);
+  });
+
+  it("lets the Candidate rename a conversation, but not with an empty or overlong name, nor someone else's", async () => {
+    const sent = await conversations.send(marie, { message: "Bonjour" });
+    if (!sent.ok) throw new Error("refused");
+    const id = sent.conversation.id;
+
+    expect(await conversations.rename(marie, id, "  Préparer l'entretien chez Seb  ")).toMatchObject({ ok: true, conversation: { id, title: "Préparer l'entretien chez Seb" } });
+    expect(await conversations.rename(marie, id, "   ")).toEqual({ ok: false, error: "invalid" });
+    expect(await conversations.rename(marie, id, "x".repeat(81))).toEqual({ ok: false, error: "invalid" });
+    expect(await conversations.rename(marie, id, 42)).toEqual({ ok: false, error: "invalid" });
+    expect(await conversations.rename(jean, id, "À moi")).toEqual({ ok: false, error: "not_found" });
+
+    expect(await conversations.list(marie)).toMatchObject([{ id, title: "Préparer l'entretien chez Seb" }]);
+  });
+
+  it("lets the Candidate delete a conversation with its messages, but not someone else's", async () => {
+    const kept = await conversations.send(marie, { message: "À garder" });
+    const deleted = await conversations.send(marie, { message: "À supprimer" });
+    if (!kept.ok || !deleted.ok) throw new Error("refused");
+
+    expect(await conversations.delete(jean, deleted.conversation.id)).toBe(false);
+    expect(await conversations.delete(marie, deleted.conversation.id)).toBe(true);
+    expect(await conversations.delete(marie, deleted.conversation.id)).toBe(false);
+    expect(await conversations.delete(marie, "not-a-uuid")).toBe(false);
+
+    expect(await conversations.open(marie, deleted.conversation.id)).toBeNull();
+    expect(await conversations.list(marie)).toMatchObject([{ id: kept.conversation.id }]);
+    expect(await conversations.send(marie, { conversationId: deleted.conversation.id, message: "Encore ?" })).toEqual({ ok: false, error: "not_found" });
+  });
+
   it("names a new conversation after the start of its first message", async () => {
     const sent = await conversations.send(marie, { message: `Bonjour,\n\n${"je cherche un poste de directrice financière ".repeat(4)}` });
 

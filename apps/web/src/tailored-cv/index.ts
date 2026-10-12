@@ -31,7 +31,7 @@
  * problems come back as results. Task `writing`, EU endpoints only (ADR-0007).
  */
 import type { AiLayer } from "@jobhub/ai";
-import { DOCUMENT_LANGUAGES, jobOfferLanguage, normalise, scoreMatch, type CvContent, type DocumentLanguage } from "@jobhub/shared";
+import { DOCUMENT_LANGUAGES, jobOfferLanguage, normalise, scoreMatch, withoutIdentity, type CvContent, type DocumentLanguage } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { Application, Applications } from "../applications";
@@ -408,7 +408,8 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
       const master = profile.masterCv.content;
       const prompt = [
         `${language === "fr" ? "Offre" : "Job offer"} : ${JSON.stringify({ title: jobOffer.title, employer: jobOffer.employer, content: jobOffer.content, skills: jobOffer.skills })}`,
-        `${language === "fr" ? "CV de référence" : "Reference CV"} : ${JSON.stringify(referenceCv(master))}`,
+        // Adapting needs the career, not the person: the identity block stays out of the prompt (ADR-0007).
+        `${language === "fr" ? "CV de référence" : "Reference CV"} : ${JSON.stringify(referenceCv(withoutIdentity(master)))}`,
       ].join("\n\n");
       const reply = await askForTailoredCv(deps.ai, { task: "writing", candidateId, system: systemPrompt(language), prompt });
       if (!reply) return { ok: false, error: "unavailable" };

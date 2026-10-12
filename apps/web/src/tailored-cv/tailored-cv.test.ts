@@ -143,6 +143,18 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
     expect((await tailoredCvs.get(candidateId, applicationId))?.proposal?.content.headline).toBe(PROPOSAL.headline);
   });
 
+  it("the AI Coach adapts the career without the Master CV's identity block, which the proposal keeps as it is (ADR-0007)", async () => {
+    const result = await tailoredCvs.propose(candidateId, applicationId, {});
+
+    const sent = [coachCall().system ?? "", ...coachCall().messages.map((message) => message.content)].join("\n");
+    for (const identity of [masterCv.fullName, masterCv.email, masterCv.phone]) expect(sent).not.toContain(identity);
+    expect(sent).toContain("Consolidation IFRS de 12 filiales.");
+    expect(result).toMatchObject({
+      ok: true,
+      tailoredCv: { proposal: { content: { fullName: masterCv.fullName, email: masterCv.email, phone: masterCv.phone, location: masterCv.location } } },
+    });
+  });
+
   it("whatever the AI Coach invents is left out: jobs, diplomas, skills, figures and the Job Offer's keywords the Master CV does not have", async () => {
     reply = {
       ...PROPOSAL,

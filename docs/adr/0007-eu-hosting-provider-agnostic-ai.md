@@ -23,3 +23,12 @@ What keeps it that way:
 - Both `searchWeb` and `searchCompany` go through the single `web_search` route of the AI layer, and the layer builds the query itself: callers pass Search Criteria or an employer's name, never free text. Free-text fields are cleaned (no email or phone) and capped.
 - The only other input is a search filter (domains to include or exclude, a maximum page age), which names websites and a time window, not the Candidate.
 - These adapters can only search. The AI layer refuses at start-up to route a text task to them, so no task that carries personal data can reach them.
+
+## Amendment: identity routing under EU AI consent (issue #121)
+
+A Candidate can give an explicit, recorded EU AI consent, stored with its date and editable on their account page (they can withdraw it at any time). With that consent, any AI call whose prompt contains identifying data (name, postal address, phone, email, the raw CV text or the Master CV identity block) is routed to Mistral (`AI_IDENTITY_MODEL` picks the model), whatever provider is configured for its task. Without consent, or for a call with no identity, the provider configured for the task applies as before.
+
+How a call is recognised:
+- Call sites declare `containsIdentity: true`, from the fields they inject into the prompt.
+- As a safety net, the AI layer scans the prompt for a phone number or an email address. An undeclared hit is routed to Mistral and logged (the task and the kinds found, never the prompt), so the call site can be fixed.
+- The identity block of the CV is stripped before scoring and before any AI re-ranking, so those calls never carry identity.

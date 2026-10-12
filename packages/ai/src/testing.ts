@@ -2,7 +2,18 @@
  * Test doubles for the AI layer: a fake provider that never leaves the process,
  * and an in-memory usage log. Import from "@jobhub/ai/testing".
  */
-import type { AiProvider, ProviderId, Residency, SearchOutput, TextInput, TextOutput, TokenUsage, UsageEntry, UsageLog } from "./types";
+import type {
+  AiProvider,
+  ProviderId,
+  Residency,
+  SearchOptions,
+  SearchOutput,
+  TextInput,
+  TextOutput,
+  TokenUsage,
+  UsageEntry,
+  UsageLog,
+} from "./types";
 
 export interface FakeProviderOptions {
   /** Which real provider this fake stands in for. Default "anthropic". */
@@ -22,6 +33,8 @@ export interface FakeProvider extends AiProvider {
   readonly calls: TextInput[];
   /** Every search query received, in order. */
   readonly queries: string[];
+  /** Every search received, with its options (model, filters), in order. */
+  readonly searches: ({ query: string } & SearchOptions)[];
 }
 
 export function createFakeProvider(options: FakeProviderOptions = {}): FakeProvider {
@@ -29,19 +42,22 @@ export function createFakeProvider(options: FakeProviderOptions = {}): FakeProvi
   const usage = options.usage ?? { inputTokens: 10, outputTokens: 5 };
   const calls: TextInput[] = [];
   const queries: string[] = [];
+  const searches: FakeProvider["searches"] = [];
   return {
     id,
     endpoint: `fake ${id}`,
     residency: options.residency ?? "eu",
     calls,
     queries,
+    searches,
     async generate(input): Promise<TextOutput> {
       calls.push(input);
       const reply = options.reply ?? "fake reply";
       return { text: typeof reply === "function" ? reply(input) : reply, model: input.model ?? `fake-${id}`, usage };
     },
-    async search(query, { model }): Promise<SearchOutput> {
+    async search(query, { model, filters }): Promise<SearchOutput> {
       queries.push(query);
+      searches.push({ query, model, filters });
       return { answer: options.answer ?? "fake answer", sources: options.sources ?? [], model: model ?? `fake-${id}`, usage };
     },
   };

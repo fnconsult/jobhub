@@ -2,7 +2,7 @@ import type { SearchCriteria } from "@jobhub/shared";
 import { buildCompanyQuery, buildSearchQuery } from "./search-query";
 import { AiConfigError, DataResidencyError } from "./errors";
 import { SEARCH_TASK, TEXT_TASKS } from "./types";
-import type { AiProvider, AiTask, Message, ProviderId, TextTask, TokenUsage, UsageEntry, UsageLog } from "./types";
+import type { AiProvider, AiTask, Message, ProviderId, SearchFilters, TextTask, TokenUsage, UsageEntry, UsageLog } from "./types";
 
 export { AiConfigError, DataResidencyError };
 
@@ -27,6 +27,8 @@ export interface SearchRequest {
   candidateId: string | null;
   /** The only input: the provider receives a query built from these fields and nothing else. */
   criteria: SearchCriteria;
+  /** Narrows the search where the provider can (domains, freshness). Results must still be checked. */
+  filters?: SearchFilters;
 }
 
 export interface CompanySearchRequest {
@@ -101,11 +103,11 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
   const log = (entry: Omit<UsageEntry, "at">) => options.usage.record({ ...entry, at: now() });
 
   /** `query` must be built by search-query.ts: nothing else ever reaches the search provider. */
-  async function search(candidateId: string | null, query: string): Promise<SearchResult> {
+  async function search(candidateId: string | null, query: string, filters?: SearchFilters): Promise<SearchResult> {
     const route = routeFor(SEARCH_TASK);
     const provider = providerFor(route);
     if (!provider.search) throw new AiConfigError(`AI provider "${provider.id}" cannot search the web`);
-    const output = await provider.search(query, { model: route.model });
+    const output = await provider.search(query, { model: route.model, filters });
     await log({ candidateId, task: SEARCH_TASK, provider: provider.id, endpoint: provider.endpoint, model: output.model, ...output.usage });
     return { answer: output.answer, sources: output.sources, provider: provider.id, model: output.model, usage: output.usage };
   }
@@ -135,7 +137,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     },
 
     searchWeb(request) {
-      return search(request.candidateId, buildSearchQuery(request.criteria));
+      return search(request.candidateId, buildSearchQuery(request.criteria), request.filters);
     },
 
     searchCompany(request) {

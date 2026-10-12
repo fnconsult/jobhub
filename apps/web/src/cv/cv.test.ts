@@ -180,6 +180,19 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
       expect(provider.calls[0]!.messages.at(-1)!.content).toContain("Responsable du contrôle de gestion — Renault, Paris — 2005 – 2015");
     });
 
+    it("declares the raw CV text as the Candidate's identity, so it goes to Mistral under EU AI consent (ADR-0007)", async () => {
+      const claude = createFakeProvider({ id: "anthropic" });
+      const mistral = createFakeProvider({ id: "mistral", reply: JSON.stringify(aiReading) });
+      const warn = vi.fn();
+      const ai = createAiLayer({ providers: [claude, mistral], routes: { cv_parsing: "anthropic" }, euAiConsent: async () => true, warn, usage: createMemoryUsageLog() });
+
+      await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai: () => ai, candidateId: "cand-42" });
+
+      expect(mistral.calls).toHaveLength(1);
+      expect(claude.calls).toHaveLength(0);
+      expect(warn).not.toHaveBeenCalled();
+    });
+
     it("reads a Guest's CV by rules alone: it is not sent to an AI provider without an account (ADR-0003)", async () => {
       const { ai, provider } = aiReplying(JSON.stringify(aiReading));
 

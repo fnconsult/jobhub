@@ -453,6 +453,49 @@ describe("Job discovery", () => {
       expect(llm.calls).toEqual([]);
       expect(report.funnel).toEqual({ providerUrls: 1, fetched: 2, extracted: 1, alreadyStored: 0 });
     });
+
+    describe("counting followed links against the budget", () => {
+      const paths = [1, 2, 3, 4, 5].map((index) => `/offres/${index}-daf`);
+      const pages = (posting: (index: number) => Page) => ({
+        [LISTING]: { body: listing(paths) },
+        ...Object.fromEntries(paths.map((path, index) => [at(path), posting(index + 1)])),
+      });
+
+      it("stops following once the run has its Job Offers", async () => {
+        const later = "https://autre.example.fr/offres/42-daf";
+        const { discovery, web } = setup({ sources: [LISTING, later], pages: { ...pages(postingAt), [later]: postingAt(42) }, budget: { jobOffers: 2 } });
+
+        const report = await discovery.discover({ candidateId: "c", criteria });
+
+        expect(report.jobOffers.map((offer) => offer.source.url)).toEqual([at(paths[0]!), at(paths[1]!)]);
+        expect(web.fetched()).not.toContain(at(paths[2]!));
+        expect(web.fetched()).not.toContain(later);
+      });
+
+      it("stops following once the run has lasted its time", async () => {
+        // Each posting takes 40 s to answer: the second starts at 40 s, the third at 80 s, the fourth would at 120 s.
+        const { discovery, web } = setup({ sources: [LISTING], pages: pages((index) => ({ ...postingAt(index), delayMs: 40_000 })) });
+
+        const report = await discovery.discover({ candidateId: "c", criteria });
+
+        expect(report.jobOffers).toHaveLength(3);
+        expect(web.fetched()).not.toContain(at(paths[3]!));
+      });
+
+      it("stops following once the run has spent its money", async () => {
+        // Each LLM read: 10,000 × $5/M = $0.05, €0.043. Search: €0.0022. After two reads, €0.088.
+        const { discovery, llm, web } = setup({
+          sources: [LISTING],
+          pages: pages(() => ({ body: "<html><body><h1>DAF H/F</h1><p>Poste de DAF.</p></body></html>" })),
+          llmUsage: { inputTokens: 10_000, outputTokens: 0 },
+        });
+
+        await discovery.discover({ candidateId: "c", criteria });
+
+        expect(llm.calls).toHaveLength(2);
+        expect(web.fetched()).not.toContain(at(paths[2]!));
+      });
+    });
   });
 
   describe("deduplicating against existing Job Offers", () => {

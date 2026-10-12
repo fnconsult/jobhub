@@ -39,11 +39,17 @@ export type SendResult =
   | { ok: true; conversation: CoachConversationSummary; reply: string }
   | { ok: false; error: "invalid" | "not_found" | "unavailable" };
 
+export type RenameResult = { ok: true; conversation: CoachConversationSummary } | { ok: false; error: "invalid" | "not_found" };
+
 export interface CoachConversations {
   send(candidateId: string, input: unknown): Promise<SendResult>;
   /** The Candidate's conversations, most recently active first. */
   list(candidateId: string): Promise<CoachConversationSummary[]>;
   open(candidateId: string, conversationId: string): Promise<CoachConversation | null>;
+  /** `title` is untrusted: trimmed, 1 to MAX_TITLE_LENGTH characters. */
+  rename(candidateId: string, conversationId: string, title: unknown): Promise<RenameResult>;
+  /** Deletes the conversation and its messages; false when there is none of the Candidate's to delete. */
+  delete(candidateId: string, conversationId: string): Promise<boolean>;
 }
 
 export interface CoachConversationsDeps {
@@ -55,6 +61,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Longest conversation title; a new conversation is named after the start of its first message. */
 export const MAX_TITLE_LENGTH = 80;
+
+const titleSchema = z.string().trim().min(1).max(MAX_TITLE_LENGTH);
 
 const sendSchema = z.object({
   conversationId: z.string().regex(UUID).optional(),
@@ -158,6 +166,25 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
       const conversation = await find(candidateId, conversationId);
       if (!conversation) return null;
       return { ...conversation, messages: await lastMessages(conversation.id, null) };
+    },
+
+    async rename(candidateId, conversationId, title) {
+      const parsed = titleSchema.safeParse(title);
+      if (!parsed.success) return { ok: false, error: "invalid" };
+      if (!UUID.test(conversationId)) return { ok: false, error: "not_found" };
+      const { rowCount } = await database.query(`UPDATE coach_conversation SET title = $3 WHERE id = $1 AND candidate_id = $2`, [
+        conversationId,
+        candidateId,
+        parsed.data,
+      ]);
+      const conversation = rowCount ? await find(candidateId, conversationId) : null;
+      return conversation ? { ok: true, conversation } : { ok: false, error: "not_found" };
+    },
+
+    async delete(candidateId, conversationId) {
+      if (!UUID.test(conversationId)) return false;
+      const { rowCount } = await database.query(`DELETE FROM coach_conversation WHERE id = $1 AND candidate_id = $2`, [conversationId, candidateId]);
+      return rowCount === 1;
     },
   };
 

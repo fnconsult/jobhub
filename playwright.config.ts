@@ -55,6 +55,8 @@ export default defineConfig({
     { name: "stack", testMatch: /stack\.spec\.ts/ },
     { name: "repo", testMatch: /(repo|migrate|agent-runs|setup-wizards)\.spec\.ts/ },
     { name: "ai", testMatch: /ai\.spec\.ts/ },
+    // The coach-knowledge package (#128), loaded in a fresh process through its public entry point.
+    { name: "coach-knowledge", testMatch: /coach-knowledge\.spec\.ts/ },
     // The worker's background jobs, run by `tsx src/main.ts` against the web server's database.
     // One spec at a time: each starts its own worker on the same queue, which would take the other's jobs.
     { name: "worker", testMatch: /(job-(discovery|search|digest)|job-discovery-budget|job-search-metrics|follow-ups|expired-job-offers(-confirmation)?)\.spec\.ts/, workers: 1 },

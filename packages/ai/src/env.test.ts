@@ -55,7 +55,10 @@ describe("AI layer configured from the environment", () => {
     ]);
   });
 
-  it.each([["tavily", "TAVILY_API_KEY", "api.tavily.com"]])(
+  it.each([
+    ["tavily", "TAVILY_API_KEY", "api.tavily.com"],
+    ["linkup", "LINKUP_API_KEY", "api.linkup.so"],
+  ])(
     "routes web search to %s by AI_WEB_SEARCH_PROVIDER alone, with its own key",
     async (provider, key, host) => {
       const { fetch, hosts } = recordingFetch();

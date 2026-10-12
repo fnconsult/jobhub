@@ -490,6 +490,43 @@ describe("Job discovery", () => {
       expect(report.funnel).toEqual({ providerUrls: 1, fetched: 2, extracted: 1, alreadyStored: 0 });
     });
 
+    it("follows one level only, and does not read a posting again when a later result names it", async () => {
+      const paths = ["/offres/1-daf-lyon", "/offres/2-daf-paris", "/offres/3-tous-les-postes-daf"];
+      const { discovery, web } = setup({
+        sources: [LISTING, at(paths[0]!)],
+        pages: {
+          [LISTING]: { body: listing(paths) },
+          [at(paths[0]!)]: postingAt(1),
+          [at(paths[1]!)]: postingAt(2),
+          [at(paths[2]!)]: { body: listing(["/offres/4-daf-nice", "/offres/5-daf-lille", "/offres/6-daf-metz"]) },
+        },
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers).toHaveLength(2);
+      expect(web.fetched().filter((url) => url === at(paths[0]!))).toHaveLength(1);
+      expect(web.fetched()).not.toContain(at("/offres/4-daf-nice"));
+    });
+
+    it("follows a listing page that asks not to be indexed but lets its links be followed", async () => {
+      const paths = ["/offres/1-daf-lyon", "/offres/2-daf-paris", "/offres/3-daf-nantes"];
+      const { discovery } = setup({
+        sources: [LISTING],
+        pages: {
+          [LISTING]: { body: listing(paths).replace("<body>", '<head><meta name="robots" content="noindex, follow"></head><body>') },
+          [at(paths[0]!)]: postingAt(1),
+          [at(paths[1]!)]: postingAt(2),
+          [at(paths[2]!)]: postingAt(3),
+        },
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers).toHaveLength(3);
+      expect(report.skipped).toEqual([{ url: LISTING, reason: "robots" }]);
+    });
+
     describe("counting followed links against the budget", () => {
       const paths = [1, 2, 3, 4, 5].map((index) => `/offres/${index}-daf`);
       const pages = (posting: (index: number) => Page) => ({

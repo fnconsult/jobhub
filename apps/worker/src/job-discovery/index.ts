@@ -160,23 +160,27 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           return;
         }
         funnel.fetched++;
+        // The postings of a listing page are read too, one level only, while the budget lasts.
+        const links = follow ? listingPageLinks(page) : [];
+        const followListing = async () => {
+          for (const link of links) {
+            if (budgetSpent()) break;
+            await read(link, false);
+          }
+        };
+        // A page asking not to be indexed is never a Job Offer; its links may still be followed, unless it says nofollow.
         if (metaRobots(page.html).some((value) => /\b(noindex|none)\b/.test(value))) {
           skipped.push({ url, reason: "robots" });
+          await followListing();
           return;
         }
         let details = readJobPosting(page.html);
-        if (!details) {
-          const links = follow ? listingPageLinks(page) : [];
-          if (links.length > 0) {
-            skipped.push({ url, reason: "not_a_job_offer" });
-            for (const link of links) {
-              if (budgetSpent()) break;
-              await read(link, false);
-            }
-            return;
-          }
-          if (countJobPostings(page.html) <= 1) details = await extractWithLlm(ai, candidateId, htmlToText(page.html));
+        if (!details && links.length > 0) {
+          skipped.push({ url, reason: "not_a_job_offer" });
+          await followListing();
+          return;
         }
+        if (!details && countJobPostings(page.html) <= 1) details = await extractWithLlm(ai, candidateId, htmlToText(page.html));
         if (!details) {
           skipped.push({ url, reason: "not_a_job_offer" });
           return;

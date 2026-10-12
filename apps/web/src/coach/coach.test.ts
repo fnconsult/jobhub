@@ -1,7 +1,7 @@
 import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import { describe, expect, it } from "vitest";
-import type { JobOffer } from "@jobhub/shared";
+import { scoreMatch, type JobOffer } from "@jobhub/shared";
 import type { Application } from "@/applications";
 import type { JobDigest } from "@/job-digests";
 import type { JobSearch } from "@/job-searches";
@@ -28,6 +28,45 @@ const profile: Profile = {
       languages: [],
     },
   },
+};
+
+const jobOffer: JobOffer = {
+  id: "22222222-2222-4222-8222-222222222222",
+  title: "DAF H/F",
+  employer: "Acme Industrie",
+  location: "Lyon",
+  contractType: "cdi",
+  skills: ["IFRS", "Power BI"],
+  content: "Rattaché au DG, vous pilotez la clôture mensuelle et le reporting du groupe.",
+  source: { url: "https://carrieres.example.fr/daf" },
+};
+const matchScore = scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer, today: new Date("2026-10-13") });
+
+const application: Application = {
+  id: "33333333-3333-4333-8333-333333333333",
+  status: "interview",
+  statusChangedAt: new Date("2026-10-01T09:00:00Z"),
+  createdAt: new Date("2026-09-20T09:00:00Z"),
+  jobOffer,
+  profile: { id: profile.id, name: profile.name },
+  interviews: [{ id: "i1", scheduledAt: new Date("2026-10-20T14:00:00Z"), note: "avec la DRH" }],
+  matchScore,
+};
+
+const jobSearch: JobSearch = {
+  id: "44444444-4444-4444-8444-444444444444",
+  profile: { id: profile.id, name: profile.name },
+  status: "done",
+  startedAt: new Date("2026-10-10T08:00:00Z"),
+  results: [{ jobOffer, matchScore, applicationId: null }],
+  metrics: null,
+};
+
+const jobDigest: JobDigest = {
+  id: "55555555-5555-4555-8555-555555555555",
+  profile: { id: profile.id, name: profile.name },
+  sentAt: new Date("2026-10-12T05:00:00Z"),
+  results: [{ jobOffer: { ...jobOffer, id: "66666666-6666-4666-8666-666666666666", title: "Directeur administratif et financier" }, matchScore, applicationId: null }],
 };
 
 /** Marie's workspace, as the AI Coach reads it: only Marie can see what is in it. */
@@ -260,5 +299,94 @@ describe("the Candidate's identity: first name only", () => {
 
     expect(mistral.calls).toHaveLength(1);
     expect(claude.calls).toHaveLength(0);
+  });
+});
+
+describe("the Coach Memory", () => {
+  it("tells the AI Coach what the Candidate confirmed it should remember", async () => {
+    const { coach, provider } = coachWith({ workspace: { memory: ["Préfère un poste à moins d'une heure de Lyon", "Ne veut plus travailler dans l'automobile"] } });
+
+    await ask(coach);
+
+    expect(contextOf(provider)).toContain("Préfère un poste à moins d'une heure de Lyon");
+    expect(contextOf(provider)).toContain("Ne veut plus travailler dans l'automobile");
+  });
+
+  it("says nothing of a Coach Memory that has no items", async () => {
+    const { coach, provider } = coachWith();
+
+    await ask(coach);
+
+    expect(contextOf(provider)).not.toMatch(/mémoire/i);
+  });
+});
+
+describe("the item In view, in full", () => {
+  it("a Profile: its Search Criteria and the current version of its Master CV", async () => {
+    const { coach, provider } = coachWith();
+
+    await ask(coach, { kind: "profile", id: profile.id });
+
+    expect(contextOf(provider)).toContain("Directrice financière");
+    expect(contextOf(provider)).toContain("Groupe Seb");
+    expect(contextOf(provider)).toContain("version 2");
+  });
+
+  it("an Application: its status, interviews, Match Score and the whole Job Offer", async () => {
+    const { coach, provider } = coachWith({ workspace: { applications: [application] } });
+
+    await ask(coach, { kind: "application", id: application.id });
+
+    const context = contextOf(provider);
+    expect(context).toContain("Entretien");
+    expect(context).toContain("2026-10-20");
+    expect(context).toContain("avec la DRH");
+    expect(context).toContain(`${matchScore.score}/100`);
+    expect(context).toContain("Power BI");
+    expect(context).toContain("vous pilotez la clôture mensuelle");
+  });
+
+  it("a Job Offer: the whole posting", async () => {
+    const { coach, provider } = coachWith({ workspace: { jobOffers: [jobOffer] } });
+
+    await ask(coach, { kind: "job_offer", id: jobOffer.id });
+
+    const context = contextOf(provider);
+    expect(context).toContain("DAF H/F");
+    expect(context).toContain("Acme Industrie");
+    expect(context).toContain("vous pilotez la clôture mensuelle");
+  });
+
+  it("a Job Search: its Profile, when it ran and every Job Offer found with its Match Score", async () => {
+    const { coach, provider } = coachWith({ workspace: { jobSearches: [jobSearch] } });
+
+    await ask(coach, { kind: "job_search", id: jobSearch.id });
+
+    const context = contextOf(provider);
+    expect(context).toContain("2026-10-10");
+    expect(context).toMatch(new RegExp(`DAF H/F chez Acme Industrie \\(Lyon\\) : score ${matchScore.score}/100`));
+  });
+
+  it("a Job Digest: its Profile, when it was sent and every Job Offer in it with its Match Score", async () => {
+    const { coach, provider } = coachWith({ workspace: { jobDigests: [jobDigest] } });
+
+    await ask(coach, { kind: "job_digest", id: jobDigest.id });
+
+    const context = contextOf(provider);
+    expect(context).toContain("2026-10-12");
+    expect(context).toContain(`Directeur administratif et financier chez Acme Industrie (Lyon) : score ${matchScore.score}/100`);
+  });
+
+  it("nothing of an Application, Job Search or Job Digest that is someone else's", async () => {
+    const { coach, provider } = coachWith({ workspace: { applications: [application], jobSearches: [jobSearch], jobDigests: [jobDigest] } });
+
+    for (const focus of [
+      { kind: "application", id: application.id },
+      { kind: "job_search", id: jobSearch.id },
+      { kind: "job_digest", id: jobDigest.id },
+    ] as const) {
+      await coach.reply("someone-else", { messages: [{ from: "candidate", text: "Et ça ?" }], focus });
+      expect(contextOf(provider)).not.toContain("Acme Industrie");
+    }
   });
 });

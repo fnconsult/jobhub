@@ -452,7 +452,8 @@
       "invoicesHelp": "Téléchargez vos factures et changez de moyen de paiement sur la page sécurisée de notre prestataire de paiement, Stripe.",
       "unavailable": "Le paiement en ligne n'est pas disponible pour le moment. Réessayez plus tard.",
       "error": "Une erreur est survenue. Veuillez réessayer.",
-      "redirecting": "Redirection vers la page de paiement…"
+      "redirecting": "Redirection vers la page de paiement…",
+      "price": "Prix"
     },
     "quotas": {
       "profiles": "Profils",
@@ -466,6 +467,12 @@
       "none": "Non compris",
       "weekly": "Chaque semaine",
       "daily": "Chaque jour"
+    },
+    "pricePer": {
+      "day": "{{price}} / jour",
+      "week": "{{price}} / semaine",
+      "month": "{{price}} / mois",
+      "year": "{{price}} / an"
     }
   },
   "admin": {

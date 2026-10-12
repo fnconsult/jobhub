@@ -70,6 +70,8 @@ function memoryJobOffers(existing: JobOffer[] = []): JobOfferStore & { all: JobO
 
 function setup(options: {
   sources: string[];
+  /** The search provider's answer text. */
+  answer?: string;
   pages: Record<string, Page>;
   reply?: string | (() => string);
   existing?: JobOffer[];
@@ -77,7 +79,7 @@ function setup(options: {
   /** Tokens each LLM read uses. */
   llmUsage?: { inputTokens: number; outputTokens: number };
 }) {
-  const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources });
+  const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, answer: options.answer });
   const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}', usage: options.llmUsage });
   const ai = createAiLayer({
     providers: [search, llm],
@@ -418,6 +420,40 @@ describe("Job discovery", () => {
         ],
       });
       expect(llm.calls).toHaveLength(1);
+    });
+  });
+
+  describe("reading the job URLs the search provider's answer names", () => {
+    const RAF_URL = "https://autre.example.fr/offre/raf-77";
+    const answer =
+      `Le groupe Seb recrute un DAF à Écully (${DAF_URL}). ` +
+      `Voir aussi [Responsable administratif et financier, 70 k€](${RAF_URL}), et ${DAF_URL}.`;
+
+    it("reads them after the provider's sources, once each", async () => {
+      const ARTICLE = "https://blog.example.fr/marche-daf";
+      const { discovery, web } = setup({
+        sources: [ARTICLE, DAF_URL],
+        answer,
+        pages: { [ARTICLE]: { body: jobPostingPage({ title: "DAF", description: "Poste." }) }, [DAF_URL]: { body: jobPostingPage({ title: "DAF Lyon", description: "Poste à Lyon." }) } },
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(web.fetched().filter((url) => !url.endsWith("/robots.txt"))).toEqual([ARTICLE, DAF_URL, RAF_URL]);
+      expect(report.funnel.providerUrls).toBe(3);
+    });
+
+    it("never makes a Job Offer from the answer text alone", async () => {
+      const { discovery, llm } = setup({ sources: [], answer, pages: { [DAF_URL]: { status: 410 } }, reply: '{"isJobOffer": true, "title": "RAF", "content": "Poste."}' });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers).toEqual([]);
+      expect(report.skipped).toEqual([
+        { url: DAF_URL, reason: "gone" },
+        { url: RAF_URL, reason: "gone" },
+      ]);
+      expect(llm.calls).toEqual([]);
     });
   });
 

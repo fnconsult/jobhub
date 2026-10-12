@@ -6,7 +6,10 @@
  *
  * One run: one web search through the AI layer (the query is built from the
  * Search Criteria alone, ADR-0007), then each result page is read politely
- * (robots.txt, site terms, no bot-protection workaround, ADR-0002). A page's
+ * (robots.txt, site terms, no bot-protection workaround, ADR-0002). Result pages
+ * are the provider's sources, then the URLs its answer text names: the answer
+ * itself never makes a Job Offer. A listing page has up to 5 of its postings on
+ * the same site followed and read the same way (see listing-page.ts). A page's
  * `JobPosting` structured data is used first; without it, the LLM reads the
  * page. Each posting is captured as a Job Offer; one already stored (same
  * source URL, or same text from another site) is returned, never duplicated,
@@ -186,7 +189,8 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
 
       try {
         const search = await ai.searchWeb({ candidateId, criteria });
-        const distinct = [...new Set(search.sources)];
+        // The answer text only points at pages to read: a Job Offer always comes from a page read.
+        const distinct = [...new Set([...search.sources, ...urlsIn(search.answer)])];
         funnel.providerUrls = distinct.length;
         for (const url of distinct) {
           if (budgetSpent()) break;
@@ -200,6 +204,11 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
       return report;
     },
   };
+}
+
+/** The web addresses written in a text, in order (a Markdown link's too), without the punctuation that follows them. */
+function urlsIn(text: string): string[] {
+  return (text.match(/https?:\/\/[^\s<>"'`()[\]{}«»]+/g) ?? []).map((url) => url.replace(/[.,;:!?]+$/, ""));
 }
 
 /** The AI layer, telling `spend` the cost in € of each call made through it. */

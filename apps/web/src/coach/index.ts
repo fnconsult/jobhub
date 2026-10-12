@@ -31,9 +31,9 @@ export interface CoachDeps {
 }
 
 /**
- * Most messages accepted in one request. The Coach Panel sends only its recent
- * window (MAX_MESSAGES); anything longer, up to this bound on the payload, is
- * trimmed to that window rather than refused.
+ * Most messages accepted in one call. Coach Conversations send their recent
+ * window (MAX_MESSAGES) plus the new message; anything longer, up to this bound,
+ * is trimmed to that window rather than refused.
  */
 const MAX_MESSAGES_ACCEPTED = MAX_MESSAGES * 5;
 

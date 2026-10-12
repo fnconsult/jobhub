@@ -1,9 +1,9 @@
 /**
  * The conversation window: the AI Coach answers from the most recent messages
- * of the Coach Panel's conversation, however long it has grown. Shared by the
- * Coach Panel (which only sends this window) and the AI Coach (which trims to
- * it rather than refusing a longer conversation). No server-only imports: the
- * Coach Panel bundles it.
+ * of a Coach Conversation, however long it has grown. Coach Conversations read
+ * only this window from the database, and the AI Coach trims to it rather than
+ * refusing a longer conversation. No server-only imports: the Coach Panel and
+ * the worker (which purges Coach Conversations) bundle it.
  */
 
 export interface CoachMessage {

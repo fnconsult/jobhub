@@ -141,10 +141,103 @@ function listingSite(url) {
   return html(page(`Poste ${n}`, "<h1>Offre</h1>", `<script type="application/ld+json">${JSON.stringify(posting)}</script>`));
 }
 
+
+// ATS mode (e2e/job-discovery-ats.spec.ts, #115): when E2E_DISCOVERY_ATS is set, the web search returns
+// Greenhouse, Lever and Ashby posting URLs (fresh, too old, closed), and the ATSs' public JSON APIs answer
+// for them. Their HTML pages and other employers' boards must never be requested.
+const ats = Boolean(process.env.E2E_DISCOVERY_ATS);
+const DAY = 24 * 60 * 60 * 1000;
+const daysAgo = (n) => Date.now() - n * DAY;
+const ghBoard = `acme-gh-${tag}`;
+const leverCo = `acme-lever-${tag}`;
+const ashbyCo = `acme-ashby-${tag}`;
+const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+export const ATS_POSTINGS = {
+  ghFresh: `https://job-boards.greenhouse.io/${ghBoard}/jobs/1001`,
+  ghOld: `https://job-boards.greenhouse.io/${ghBoard}/jobs/1002`,
+  ghClosed: `https://job-boards.greenhouse.io/${ghBoard}/jobs/1003`,
+  ghDeadline: `https://job-boards.greenhouse.io/${ghBoard}/jobs/1004`,
+  leverFresh: `https://jobs.lever.co/${leverCo}/${uuid(1)}`,
+  leverOld: `https://jobs.lever.co/${leverCo}/${uuid(2)}`,
+  ashbyFresh: `https://jobs.ashbyhq.com/${ashbyCo}/${uuid(3)}`,
+  ashbyOld: `https://jobs.ashbyhq.com/${ashbyCo}/${uuid(4)}`,
+  ashbyClosed: `https://jobs.ashbyhq.com/${ashbyCo}/${uuid(5)}`,
+};
+export const ATS_POSTED = { ghFresh: daysAgo(5), leverFresh: daysAgo(3), ashbyFresh: daysAgo(10) };
+const ghPosting = (id, title, publishedMs, deadline = null) => ({
+  id,
+  title,
+  company_name: "Acme GH",
+  location: { name: "Lyon, France" },
+  first_published: new Date(publishedMs).toISOString(),
+  application_deadline: deadline,
+  content: `&lt;p&gt;${title} (r&eacute;f. ${tag}) chez Acme GH.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Piloter le budget&lt;/li&gt;&lt;/ul&gt;`,
+});
+const leverPosting = (id, title, createdMs) => ({
+  id,
+  text: title,
+  createdAt: createdMs,
+  categories: { location: "Lyon" },
+  workplaceType: "hybrid",
+  descriptionPlain: `${title} (réf. ${tag}) chez Acme Lever.\n`,
+  lists: [],
+  additionalPlain: "",
+});
+const ashbyJob = (id, title, publishedMs) => ({
+  id,
+  title,
+  location: "Lyon",
+  publishedAt: new Date(publishedMs).toISOString(),
+  isRemote: false,
+  workplaceType: "OnSite",
+  descriptionPlain: `${title} (réf. ${tag}) chez Acme Ashby.\n`,
+});
+const json = (data, status = 200) => Response.json(data, { status });
+
+function atsSite(url) {
+  if (url.pathname === "/robots.txt") return text("");
+  const path = url.pathname;
+  if (url.hostname === "boards-api.greenhouse.io") {
+    const m = /^\/v1\/boards\/([^/]+)\/jobs\/(\d+)$/.exec(path);
+    if (m?.[1] === ghBoard) {
+      if (m[2] === "1001") return json(ghPosting(1001, `Directeur financier GH – ${tag}`, ATS_POSTED.ghFresh));
+      if (m[2] === "1002") return json(ghPosting(1002, `Ancien poste GH – ${tag}`, daysAgo(45)));
+      if (m[2] === "1004") return json(ghPosting(1004, `Poste GH clos – ${tag}`, daysAgo(2), new Date(daysAgo(1)).toISOString()));
+    }
+    return json({ error: "Job not found" }, 404);
+  }
+  if (url.hostname === "api.lever.co") {
+    const m = /^\/v0\/postings\/([^/]+)\/([^/]+)$/.exec(path);
+    if (m?.[1] === leverCo) {
+      if (m[2] === uuid(1)) return json(leverPosting(uuid(1), `Directeur financier Lever – ${tag}`, ATS_POSTED.leverFresh));
+      if (m[2] === uuid(2)) return json(leverPosting(uuid(2), `Ancien poste Lever – ${tag}`, daysAgo(60)));
+    }
+    return json({ ok: false, error: "Document not found" }, 404);
+  }
+  if (url.hostname === "api.ashbyhq.com") {
+    const m = /^\/posting-api\/job-board\/([^/]+)$/.exec(path);
+    if (m?.[1] === ashbyCo) {
+      return json({
+        apiVersion: "1",
+        jobs: [
+          ashbyJob(uuid(3), `Directeur financier Ashby – ${tag}`, ATS_POSTED.ashbyFresh),
+          ashbyJob(uuid(4), `Ancien poste Ashby – ${tag}`, daysAgo(90)),
+        ],
+      });
+    }
+    return json({ error: "not found" }, 404);
+  }
+  // Anything else (the ATSs' HTML pages, other boards): not part of the e2e fake web.
+  return html(page("Introuvable", "<p>404</p>"), { status: 404 });
+}
+const ATS_HOSTS = ["boards-api.greenhouse.io", "api.lever.co", "api.ashbyhq.com", "job-boards.greenhouse.io", "boards.greenhouse.io", "jobs.lever.co", "jobs.ashbyhq.com"];
+
 const volumePage = (n) => `https://volume-e2e.example/offre/${n}-${tag}`;
 
 /** What the fake web search returns, in order. */
-export const RESULT_PAGES = listing
+export const RESULT_PAGES = ats
+  ? Object.values(ATS_POSTINGS)
+  : listing
   ? [LISTING_PAGE, LISTING_LATER]
   : volume
   ? Array.from({ length: volume.count }, (_, n) => volumePage(n + 1))
@@ -229,6 +322,7 @@ globalThis.fetch = async (input, init = {}) => {
   }
   if (url.origin === "https://api.mistral.ai") return mistral(JSON.parse(body || "{}"));
 
+  if (ats && ATS_HOSTS.includes(url.hostname)) return atsSite(url);
   if (listing && (url.hostname === LISTING_HOST || url.hostname === "autre-e2e.example")) return listingSite(url);
   if (volume && url.hostname === "volume-e2e.example") return volumeSite(url);
   const site = sites[url.hostname];

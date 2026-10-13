@@ -30,6 +30,40 @@ describe("Match Score", () => {
     expect(breakdown.skills).toEqual({ status: "partial", covered: ["ifrs", "Sap", "consolidation", "tresorerie"], missing: ["Power BI"] });
   });
 
+  describe("skills by normalised form and synonyms", () => {
+    it("covers the baseline Job Offer that scored 55 because its skill was not literally on the CV (#97)", () => {
+      // c08 of the Job Search baseline: a relevant Directeur Supply Chain offer in Lille.
+      const supplyChainCv: CvContent = {
+        ...cv,
+        headline: "Directeur Supply Chain – Retail et e-commerce",
+        location: "Lille",
+        summary: "Directeur supply chain, 23 ans en logistique, S&OP, achats et transport dans le retail et l'e-commerce.",
+        experience: [
+          { title: "Directeur supply chain", employer: "RetailNord", location: "Lille", period: "2014 – aujourd'hui", description: "Entrepôts, transport, S&OP, prévisions, WMS." },
+          { title: "Ingénieur logistique", employer: "Distrib", location: "Lille", period: "2001 – 2005", description: "Flux, approvisionnement." },
+        ],
+        skills: ["Supply chain", "Logistique", "S&OP", "Transport", "Achats", "Approvisionnement", "WMS", "SAP", "Lean"],
+      };
+      const jobOffer: JobOfferDetails = {
+        title: "Directeur Supply Chain H/F",
+        content: "Exp. 15 ans min.",
+        location: "Lille - 59",
+        contractType: "cdi",
+        remoteWork: "on_site",
+        salary: { min: 70_000, max: 90_000 },
+        skills: ["Gestion de la chaîne d'approvisionnement"],
+        requiredExperienceYears: 15,
+      };
+      const searchCriteria = { targetRole: "Directeur supply chain", location: "Lille", contractType: "cdi" as const, minSalary: 95_000 };
+
+      const result = scoreMatch({ cv: supplyChainCv, jobOffer, searchCriteria, today: new Date("2026-10-12") });
+
+      expect(result.breakdown.skills).toEqual({ status: "match", covered: ["Gestion de la chaîne d'approvisionnement"], missing: [] });
+      // Skills 40 + seniority 20 + location 15 + salary partial 5 + contract type 15 (was 55 with skills a mismatch).
+      expect(result.score).toBe(95);
+    });
+  });
+
   describe("seniority", () => {
     const today = new Date("2026-10-06");
     const career: CvContent = {

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import pg from "pg";
+import { createJobSearchReports } from "../apps/web/src/job-searches";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
@@ -71,19 +72,22 @@ async function candidateId(page: Page): Promise<string> {
   return (await (await page.request.get("/api/auth/get-session")).json()).user.id;
 }
 
-/** What the worker's Job Search and Job Digest runs leave behind (no public endpoint stores results without a worker). */
+/**
+ * What the worker's Job Search and Job Digest runs leave behind (no public endpoint stores results without a worker).
+ * A Job Search is finished the way the worker finishes it, through its report (createJobSearchReports), so the row
+ * carries metrics like every finished Job Search: the database is shared with e2e/job-search-metrics.spec.ts.
+ */
 async function storeResults(kind: "job_search" | "job_digest", candidate: string, profileId: string, jobOfferIds: string[]): Promise<string> {
-  const db = new pg.Client({ connectionString: process.env.E2E_DATABASE_URL });
-  await db.connect();
+  const db = new pg.Pool({ connectionString: process.env.E2E_DATABASE_URL });
   try {
-    const { rows } =
-      kind === "job_search"
-        ? await db.query(
-            "INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, started_at, finished_at) VALUES ($1, $2, 'done', $3, now(), now()) RETURNING id",
-            [candidate, profileId, jobOfferIds],
-          )
-        : await db.query("INSERT INTO job_digest (candidate_id, profile_id, job_offer_ids, sent_at) VALUES ($1, $2, $3, now()) RETURNING id", [candidate, profileId, jobOfferIds]);
-    return rows[0].id;
+    if (kind === "job_digest") {
+      const { rows } = await db.query("INSERT INTO job_digest (candidate_id, profile_id, job_offer_ids, sent_at) VALUES ($1, $2, $3, now()) RETURNING id", [candidate, profileId, jobOfferIds]);
+      return rows[0].id;
+    }
+    const { rows } = await db.query("INSERT INTO job_search (candidate_id, profile_id, status, started_at) VALUES ($1, $2, 'searching', now()) RETURNING id", [candidate, profileId]);
+    const id: string = rows[0].id;
+    await createJobSearchReports(db, { quotas: { release: async () => {} } }).record(id, { jobOfferIds });
+    return id;
   } finally {
     await db.end();
   }

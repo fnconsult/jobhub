@@ -135,6 +135,12 @@ export interface JobOfferDetails {
   skills?: string[];
   /** Years of experience the posting asks for. */
   requiredExperienceYears?: number;
+  /**
+   * When the source first published the posting, set only when the source
+   * states it in a form we trust (an ATS's own API, e.g. Greenhouse's
+   * `first_published`). Unset means the date is unknown.
+   */
+  postedAt?: Date;
 }
 
 /** A Job Offer as stored: shared by every Candidate and Guest who captures the same posting. */

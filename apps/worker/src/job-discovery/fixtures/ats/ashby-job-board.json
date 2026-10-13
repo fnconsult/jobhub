@@ -1,0 +1,96 @@
+{
+  "jobs": [
+    {
+      "id": "7458d4e9-da2e-47bd-98cb-adfda43d42b2",
+      "title": "Engineering Manager - EU",
+      "department": "Engineering",
+      "team": "EMEA Engineering",
+      "employmentType": "FullTime",
+      "location": "Remote - European Union",
+      "secondaryLocations": [
+        {
+          "location": "Spain",
+          "address": {
+            "postalAddress": {
+              "addressRegion": "Spain",
+              "addressCountry": "Spain",
+              "addressLocality": "Spain"
+            }
+          }
+        },
+        {
+          "location": "Italy",
+          "address": {
+            "postalAddress": {
+              "addressRegion": "",
+              "addressCountry": "Italy",
+              "addressLocality": ""
+            }
+          }
+        }
+      ],
+      "publishedAt": "2024-03-04T14:29:08.532+00:00",
+      "isListed": true,
+      "isRemote": true,
+      "workplaceType": "Remote",
+      "address": {
+        "postalAddress": {
+          "postalCode": "",
+          "addressRegion": "",
+          "addressCountry": "European Union",
+          "addressLocality": ""
+        }
+      },
+      "jobUrl": "https://jobs.ashbyhq.com/ashby/7458d4e9-da2e-47bd-98cb-adfda43d42b2",
+      "applyUrl": "https://jobs.ashbyhq.com/ashby/7458d4e9-da2e-47bd-98cb-adfda43d42b2/application",
+      "descriptionHtml": "<p>We are hiring an Engineering Manager - EU to lead a team of engineers across Europe.</p><ul><li>Coach and grow engineers</li><li>Own delivery</li></ul>",
+      "descriptionPlain": "We are hiring an Engineering Manager - EU to lead a team of engineers across Europe.\n\n- Coach and grow engineers\n- Own delivery\n"
+    },
+    {
+      "id": "86a60834-ba64-484d-9658-afa1bc97a957",
+      "title": "Mid Market Account Executive - EMEA (French Speaking)",
+      "department": "Sales",
+      "team": "Sales",
+      "employmentType": "FullTime",
+      "location": "France",
+      "secondaryLocations": [
+        {
+          "location": "United Kingdom",
+          "address": {
+            "postalAddress": {
+              "addressRegion": "",
+              "addressCountry": "United Kingdom",
+              "addressLocality": ""
+            }
+          }
+        },
+        {
+          "location": "Belgium",
+          "address": {
+            "postalAddress": {
+              "addressRegion": "",
+              "addressCountry": "Belgium",
+              "addressLocality": ""
+            }
+          }
+        }
+      ],
+      "publishedAt": "2026-09-08T16:27:26.694+00:00",
+      "isListed": true,
+      "isRemote": true,
+      "workplaceType": "Remote",
+      "address": {
+        "postalAddress": {
+          "addressRegion": "",
+          "addressCountry": "France",
+          "addressLocality": ""
+        }
+      },
+      "jobUrl": "https://jobs.ashbyhq.com/ashby/86a60834-ba64-484d-9658-afa1bc97a957",
+      "applyUrl": "https://jobs.ashbyhq.com/ashby/86a60834-ba64-484d-9658-afa1bc97a957/application",
+      "descriptionHtml": "<p>We are hiring an Mid Market Account Executive - EMEA (French Speaking) to lead a team of engineers across Europe.</p><ul><li>Coach and grow engineers</li><li>Own delivery</li></ul>",
+      "descriptionPlain": "We are hiring an Mid Market Account Executive - EMEA (French Speaking) to lead a team of engineers across Europe.\n\n- Coach and grow engineers\n- Own delivery\n"
+    }
+  ],
+  "apiVersion": "1"
+}

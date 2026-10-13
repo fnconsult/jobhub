@@ -1,0 +1,110 @@
+/**
+ * Reading a posting hosted by an applicant tracking system (Greenhouse, Lever,
+ * Ashby) through that ATS's public JSON API instead of its HTML page: the API
+ * states the posting date, whether the posting is still open and its deadline.
+ *
+ *   const reading = await readAtsPosting(url, { fetchJson, now });
+ *   // null: not an ATS posting URL, read the page as usual.
+ *
+ * Only the one posting the URL names is asked for, at the employer's own
+ * board: never a list of boards, never another employer's postings.
+ */
+import type { JobOfferDetails } from "@jobhub/shared";
+import { decodeEntities, htmlToText } from "./html";
+import type { RefusalReason } from "./polite-fetch";
+
+/** What an API URL answered: its parsed JSON, or why it could not be read. */
+export type JsonResult = { ok: true; data: unknown } | { ok: false; reason: RefusalReason };
+
+/** Postings first published longer ago than this are dropped. */
+export const MAX_POSTING_AGE_DAYS = 30;
+
+export type AtsReading =
+  | { ok: true; details: JobOfferDetails }
+  /** `gone`: closed (no longer published, or past its deadline); `too_old`: published more than MAX_POSTING_AGE_DAYS ago. */
+  | { ok: false; reason: RefusalReason | "too_old" };
+
+export interface AtsReadOptions {
+  /** Reads an API URL (politely: robots.txt, site terms). */
+  fetchJson: (url: string) => Promise<JsonResult>;
+  now: Date;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+type Json = Record<string, unknown>;
+const isObject = (value: unknown): value is Json => typeof value === "object" && value !== null && !Array.isArray(value);
+const str = (value: unknown): string | undefined => (typeof value === "string" && value.trim() ? value.trim() : undefined);
+
+/** An instant from epoch milliseconds or an ISO date; a date without a time means the end of that day (UTC). */
+function date(value: unknown): Date | undefined {
+  const dateOnly = typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
+  const instant =
+    typeof value === "number" ? value : typeof value === "string" ? Date.parse(dateOnly ? `${value.trim()}T23:59:59.999Z` : value) : NaN;
+  return Number.isFinite(instant) ? new Date(instant) : undefined;
+}
+
+/** What an ATS API says about a posting. */
+interface AtsPosting {
+  details: JobOfferDetails;
+  /** When applications close, when the ATS states it. */
+  closesAt?: Date;
+}
+
+/** One ATS: the API URL for a posting URL it hosts, and how to read the API's answer. */
+interface Ats {
+  /** The API URL of the posting `url` names, or null when `url` is not one of its postings. */
+  apiUrl(url: URL): string | null;
+  /** The posting, or null when the answer does not hold it. */
+  read(data: unknown, url: URL): AtsPosting | null;
+}
+
+const greenhouse: Ats = {
+  apiUrl(url) {
+    if (!/^(job-)?boards\.greenhouse\.io$/i.test(url.hostname)) return null;
+    const match = /^\/([^/]+)\/jobs\/(\d+)\/?$/.exec(url.pathname);
+    if (!match) return null;
+    return `https://boards-api.greenhouse.io/v1/boards/${match[1]}/jobs/${match[2]}`;
+  },
+  read(data) {
+    if (!isObject(data)) return null;
+    const title = str(data.title);
+    const content = typeof data.content === "string" ? htmlToText(decodeEntities(data.content)) : "";
+    if (!title || !content) return null;
+    const details: JobOfferDetails = { title, content };
+    const employer = str(data.company_name);
+    if (employer) details.employer = employer;
+    const location = isObject(data.location) ? str(data.location.name) : undefined;
+    if (location) details.location = location;
+    const postedAt = date(data.first_published);
+    if (postedAt) details.postedAt = postedAt;
+    return { details, closesAt: date(data.application_deadline) };
+  },
+};
+
+const ATS: readonly Ats[] = [greenhouse];
+
+/**
+ * The posting a Greenhouse, Lever or Ashby URL names, read through that ATS's
+ * JSON API, or null when the URL is not such a posting.
+ */
+export async function readAtsPosting(address: string, options: AtsReadOptions): Promise<AtsReading | null> {
+  let url: URL;
+  try {
+    url = new URL(address);
+  } catch {
+    return null;
+  }
+  for (const ats of ATS) {
+    const apiUrl = ats.apiUrl(url);
+    if (!apiUrl) continue;
+    const answer = await options.fetchJson(apiUrl);
+    if (!answer.ok) return answer;
+    const posting = ats.read(answer.data, url);
+    if (!posting || (posting.closesAt && posting.closesAt < options.now)) return { ok: false, reason: "gone" };
+    const { postedAt } = posting.details;
+    if (postedAt && options.now.getTime() - postedAt.getTime() > MAX_POSTING_AGE_DAYS * DAY_MS) return { ok: false, reason: "too_old" };
+    return { ok: true, details: posting.details };
+  }
+  return null;
+}

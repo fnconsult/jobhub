@@ -9,9 +9,12 @@
  * (robots.txt, site terms, no bot-protection workaround, ADR-0002). Result pages
  * are the provider's sources, then the URLs its answer text names: the answer
  * itself never makes a Job Offer. A listing page has up to 5 of its postings on
- * the same site followed and read the same way (see listing-page.ts). A page's
- * `JobPosting` structured data is used first; without it, the LLM reads the
- * page. Each posting is captured as a Job Offer; one already stored (same
+ * the same site followed and read the same way (see listing-page.ts). A
+ * Greenhouse, Lever or Ashby posting is read through its ATS's public JSON API
+ * instead of its page, politely too (see ats.ts): it then carries the posting
+ * date the ATS states, and is dropped when closed or first published more
+ * than 30 days ago. Otherwise a page's `JobPosting` structured data is used
+ * first; without it, the LLM reads the page. Each posting is captured as a Job Offer; one already stored (same
  * source URL, or same text from another site) is returned, never duplicated,
  * and a known URL is not fetched again.
  *

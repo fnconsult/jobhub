@@ -647,6 +647,18 @@ describe("Job discovery", () => {
       expect(web.requests[0]!.userAgent).toMatch(/^JobbboxBot\//);
     });
 
+    it("gives up on an API that does not answer JSON (a challenge page, an error page)", async () => {
+      const { discovery } = setup({
+        sources: [GREENHOUSE],
+        pages: { ...apis, [GREENHOUSE_API]: { body: "<html><body>Maintenance en cours, revenez plus tard.</body></html>" } },
+        now: new Date("2026-10-05T08:00:00Z"),
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.skipped).toEqual([{ url: GREENHOUSE, reason: "unreachable" }]);
+    });
+
     it("never lists an ATS board across employers: one request per posting, at its own employer", async () => {
       const { discovery, web } = setup({ sources: [GREENHOUSE, LEVER, ASHBY], pages: apis, now: new Date("2026-09-05T08:00:00Z") });
 

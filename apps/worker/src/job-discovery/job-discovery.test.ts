@@ -634,29 +634,105 @@ describe("Job discovery", () => {
     });
 
     it("asks the ATS politely: as itself, after robots.txt, never for a URL robots.txt disallows", async () => {
+      // The page is then read under its own site's robots.txt, which here keeps crawlers out too.
+      const disallowAll = { body: "User-agent: *\nDisallow: /\n", headers: { "content-type": "text/plain" } };
       const { discovery, web } = setup({
         sources: [LEVER],
-        pages: { ...apis, "https://api.lever.co/robots.txt": { body: "User-agent: *\nDisallow: /v0/\n", headers: { "content-type": "text/plain" } } },
+        pages: {
+          ...apis,
+          "https://api.lever.co/robots.txt": { body: "User-agent: *\nDisallow: /v0/\n", headers: { "content-type": "text/plain" } },
+          "https://jobs.lever.co/robots.txt": disallowAll,
+        },
         now: new Date("2026-09-05T08:00:00Z"),
       });
 
       const report = await discovery.discover({ candidateId: "c", criteria });
 
       expect(report.skipped).toEqual([{ url: LEVER, reason: "robots" }]);
-      expect(web.fetched()).toEqual(["https://api.lever.co/robots.txt"]);
+      expect(web.fetched()).toEqual(["https://api.lever.co/robots.txt", "https://jobs.lever.co/robots.txt"]);
       expect(web.requests[0]!.userAgent).toMatch(/^JobbboxBot\//);
     });
 
-    it("gives up on an API that does not answer JSON (a challenge page, an error page)", async () => {
-      const { discovery } = setup({
+    it("makes nothing of an API that does not answer JSON (an error page), and reads the posting's page instead", async () => {
+      const { discovery, llm } = setup({
         sources: [GREENHOUSE],
-        pages: { ...apis, [GREENHOUSE_API]: { body: "<html><body>Maintenance en cours, revenez plus tard.</body></html>" } },
+        pages: {
+          ...apis,
+          [GREENHOUSE_API]: { body: "<html><body>Maintenance en cours, revenez plus tard.</body></html>" },
+          [GREENHOUSE]: { body: jobPostingPage({ title: "Account Executive - France", description: "Développer le portefeuille français." }) },
+        },
         now: new Date("2026-10-05T08:00:00Z"),
       });
 
       const report = await discovery.discover({ candidateId: "c", criteria });
 
-      expect(report.skipped).toEqual([{ url: GREENHOUSE, reason: "unreachable" }]);
+      expect(report.skipped).toEqual([]);
+      expect(report.jobOffers.map(({ title, content, postedAt }) => ({ title, content, postedAt }))).toEqual([
+        { title: "Account Executive - France", content: "Développer le portefeuille français.", postedAt: undefined },
+      ]);
+      expect(llm.calls).toEqual([]);
+    });
+
+    describe("when the API cannot be read, reading the posting's page instead", () => {
+      // A large employer's whole Ashby board: OpenAI's weighs 13 MB, past what the crawler downloads (3 MB).
+      const hugeBoard: Page = { body: `{"jobs":[${" ".repeat(3 * 1024 * 1024)}]}`, headers: { "content-type": "application/json" } };
+      const ashbyPage: Page = {
+        body: jobPostingPage({ title: "Mid Market Account Executive", description: "Vendre la plateforme Ashby en France.", hiringOrganization: { name: "Ashby" } }),
+      };
+
+      it("captures from its HTML page a posting whose ATS board is too large to download", async () => {
+        const { discovery, web } = setup({ sources: [ASHBY], pages: { ...apis, [ASHBY_API]: hugeBoard, [ASHBY]: ashbyPage }, now: new Date("2026-10-05T08:00:00Z") });
+
+        const report = await discovery.discover({ candidateId: "c", criteria });
+
+        expect(report.skipped).toEqual([]);
+        expect(report.jobOffers.map(({ source, title, postedAt }) => ({ source, title, postedAt }))).toEqual([
+          { source: { url: ASHBY }, title: "Mid Market Account Executive", postedAt: undefined },
+        ]);
+        expect(web.fetched()).toContain(ASHBY);
+      });
+
+      it("reads the page of a posting whose API robots.txt keeps crawlers out, through the page's own robots.txt", async () => {
+        const { discovery, web } = setup({
+          sources: [ASHBY],
+          pages: {
+            ...apis,
+            "https://api.ashbyhq.com/robots.txt": { body: "User-agent: *\nDisallow: /\n", headers: { "content-type": "text/plain" } },
+            "https://jobs.ashbyhq.com/robots.txt": { body: "User-agent: *\nAllow: /\n", headers: { "content-type": "text/plain" } },
+            [ASHBY]: ashbyPage,
+          },
+          now: new Date("2026-10-05T08:00:00Z"),
+        });
+
+        const report = await discovery.discover({ candidateId: "c", criteria });
+
+        expect(report.jobOffers.map((offer) => offer.title)).toEqual(["Mid Market Account Executive"]);
+        expect(web.fetched()).toEqual(["https://api.ashbyhq.com/robots.txt", "https://jobs.ashbyhq.com/robots.txt", ASHBY]);
+      });
+
+      it("never reads the page of a posting whose ATS answers with a challenge (ADR-0002)", async () => {
+        const challenge: Page = { status: 403, body: "<html><title>Just a moment...</title><body>Checking your browser</body></html>" };
+        const { discovery, web } = setup({ sources: [ASHBY], pages: { ...apis, [ASHBY_API]: challenge, [ASHBY]: ashbyPage }, now: new Date("2026-10-05T08:00:00Z") });
+
+        const report = await discovery.discover({ candidateId: "c", criteria });
+
+        expect(report.skipped).toEqual([{ url: ASHBY, reason: "bot_protection" }]);
+        expect(web.fetched()).not.toContain(ASHBY);
+      });
+
+      it("downloads an employer's Ashby board once per run, however many of its postings the run reads", async () => {
+        const OTHER = "https://jobs.ashbyhq.com/ashby/7458d4e9-da2e-47bd-98cb-adfda43d42b2";
+        const { discovery, web } = setup({
+          sources: [ASHBY, OTHER],
+          pages: { ...apis, [ASHBY_API]: hugeBoard, [ASHBY]: ashbyPage, [OTHER]: { body: jobPostingPage({ title: "Engineering Manager", description: "Encadrer une équipe." }) } },
+          now: new Date("2026-10-05T08:00:00Z"),
+        });
+
+        const report = await discovery.discover({ candidateId: "c", criteria });
+
+        expect(report.jobOffers.map((offer) => offer.title)).toEqual(["Mid Market Account Executive", "Engineering Manager"]);
+        expect(web.fetched().filter((url) => url === ASHBY_API)).toHaveLength(1);
+      });
     });
 
     it("never lists an ATS board across employers: one request per posting, at its own employer", async () => {

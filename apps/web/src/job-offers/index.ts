@@ -56,7 +56,8 @@ export interface TrustedFacts {
   postedAt?: Date;
 }
 
-const postedAtSchema = z.coerce
+// A Date the caller built from what it read, never text to coerce: nothing from a request body reaches it.
+const postedAtSchema = z
   .date()
   .min(new Date("2000-01-01T00:00:00Z"))
   .refine((date) => date.getTime() <= Date.now() + 24 * 60 * 60 * 1000);

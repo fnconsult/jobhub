@@ -4,7 +4,7 @@
  * states the posting date, whether the posting is still open and its deadline.
  *
  *   const reading = await readAtsPosting(url, { fetchJson, now });
- *   // null: not an ATS posting URL, read the page as usual.
+ *   // null: not an ATS posting URL, or its API could not be read: read the page as usual.
  *
  * Only the one posting the URL names is asked for, at the employer's own
  * board: never a list of boards, never another employer's postings.
@@ -20,8 +20,11 @@ export const MAX_POSTING_AGE_DAYS = 30;
 
 export type AtsReading =
   | { ok: true; details: JobOfferDetails }
-  /** `gone`: closed (no longer published, or past its deadline); `too_old`: published more than MAX_POSTING_AGE_DAYS ago. */
-  | { ok: false; reason: RefusalReason | "too_old" };
+  /**
+   * `gone`: closed (no longer published, or past its deadline); `too_old`: published more than MAX_POSTING_AGE_DAYS ago;
+   * `bot_protection`: the ATS answered with an anti-bot check, so its page is not read either (ADR-0002).
+   */
+  | { ok: false; reason: "gone" | "too_old" | Extract<RefusalReason, "bot_protection"> };
 
 export interface AtsReadOptions {
   /** Reads an API URL (politely: robots.txt, site terms). */
@@ -167,7 +170,10 @@ const ATS: readonly Ats[] = [greenhouse, lever, ashby];
 
 /**
  * The posting a Greenhouse, Lever or Ashby URL names, read through that ATS's
- * JSON API, or null when the URL is not such a posting.
+ * JSON API, or null when the URL is not such a posting or the API could not be
+ * read (down, too large, not JSON, or kept out by the API's robots.txt): its
+ * page is then read as any other, under its own site's rules. Only an API
+ * stating the posting is gone, or showing an anti-bot check, ends there.
  */
 export async function readAtsPosting(address: string, options: AtsReadOptions): Promise<AtsReading | null> {
   let url: URL;
@@ -180,7 +186,7 @@ export async function readAtsPosting(address: string, options: AtsReadOptions): 
     const apiUrl = ats.apiUrl(url);
     if (!apiUrl) continue;
     const answer = await options.fetchJson(apiUrl);
-    if (!answer.ok) return answer;
+    if (!answer.ok) return answer.reason === "gone" || answer.reason === "bot_protection" ? { ok: false, reason: answer.reason } : null;
     const posting = ats.read(answer.data, url);
     if (!posting || (posting.closesAt && posting.closesAt < options.now)) return { ok: false, reason: "gone" };
     const { postedAt } = posting.details;

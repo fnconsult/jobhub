@@ -97,6 +97,11 @@ describe.skipIf(!connectionString)("Job Offers (needs Postgres: DATABASE_URL)", 
     const other = { ...posting, source: { url: "https://www.apec.fr/offre/7" }, content: "Poste à Nantes." };
     expect(await jobOffers.capture(other, "candidate", { postedAt: new Date("hier") })).toEqual({ ok: false, errors: [{ field: "postedAt", code: "invalid" }] });
     expect(await jobOffers.capture(other, "candidate", { postedAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) })).toMatchObject({ ok: false });
+    // Only a Date the caller built: text (as a request body would carry) is never coerced into one.
+    expect(await jobOffers.capture(other, "candidate", { postedAt: "2026-10-02T15:31:50Z" as unknown as Date })).toEqual({
+      ok: false,
+      errors: [{ field: "postedAt", code: "invalid" }],
+    });
   });
 
   it("never takes a posting date from the captured posting itself: the browser cannot state a trusted one", async () => {

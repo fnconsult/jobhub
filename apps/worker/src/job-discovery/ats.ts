@@ -134,7 +134,37 @@ const lever: Ats = {
   },
 };
 
-const ATS: readonly Ats[] = [greenhouse, lever];
+/**
+ * Ashby documents no single-posting endpoint: the employer's own job board is
+ * read and the posting picked from it by id. Absent from it means closed.
+ */
+const ashby: Ats = {
+  apiUrl(url) {
+    if (url.hostname.toLowerCase() !== "jobs.ashbyhq.com") return null;
+    const match = /^\/([^/]+)\/([0-9a-f-]{36})(\/application)?\/?$/i.exec(url.pathname);
+    if (!match) return null;
+    return `https://api.ashbyhq.com/posting-api/job-board/${match[1]}`;
+  },
+  read(data, url) {
+    const id = /^\/[^/]+\/([0-9a-f-]{36})/i.exec(url.pathname)?.[1]?.toLowerCase();
+    const jobs = isObject(data) && Array.isArray(data.jobs) ? data.jobs.filter(isObject) : [];
+    const job = jobs.find((candidate) => typeof candidate.id === "string" && candidate.id.toLowerCase() === id);
+    if (!job) return null;
+    const title = str(job.title);
+    const content = str(job.descriptionPlain) ?? (typeof job.descriptionHtml === "string" ? htmlToText(job.descriptionHtml) : undefined);
+    if (!title || !content) return null;
+    const details: JobOfferDetails = { title, content };
+    const location = str(job.location);
+    if (location) details.location = location;
+    const remote = remoteWork(job.workplaceType) ?? (job.isRemote === true ? "full_remote" : undefined);
+    if (remote) details.remoteWork = remote;
+    const postedAt = date(job.publishedAt);
+    if (postedAt) details.postedAt = postedAt;
+    return { details };
+  },
+};
+
+const ATS: readonly Ats[] = [greenhouse, lever, ashby];
 
 /**
  * The posting a Greenhouse, Lever or Ashby URL names, read through that ATS's

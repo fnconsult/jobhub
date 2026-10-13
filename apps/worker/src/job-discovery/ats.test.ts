@@ -131,4 +131,60 @@ describe("Reading a Greenhouse, Lever or Ashby posting through its JSON API", ()
       });
     });
   });
+
+  describe("Ashby", () => {
+    const API = "https://api.ashbyhq.com/posting-api/job-board/ashby";
+    const FRESH = "86a60834-ba64-484d-9658-afa1bc97a957";
+    const OLD = "7458d4e9-da2e-47bd-98cb-adfda43d42b2";
+    const now = new Date("2026-09-20T08:00:00Z");
+
+    it("finds the posting on its employer's job board, with its publication as the posting date", async () => {
+      const apis = fakeApis({ [API]: { ok: true, data: fixture("ashby-job-board.json") } });
+
+      const reading = await readAtsPosting(`https://jobs.ashbyhq.com/ashby/${FRESH}`, { ...apis, now });
+
+      expect(apis.asked).toEqual([API]);
+      expect(reading).toEqual({
+        ok: true,
+        details: {
+          title: "Mid Market Account Executive - EMEA (French Speaking)",
+          content: expect.stringContaining("to lead a team of engineers across Europe"),
+          location: "France",
+          remoteWork: "full_remote",
+          postedAt: new Date("2026-09-08T16:27:26.694Z"),
+        },
+      });
+    });
+
+    it("reads the application page's posting too", async () => {
+      const apis = fakeApis({ [API]: { ok: true, data: fixture("ashby-job-board.json") } });
+
+      expect(await readAtsPosting(`https://jobs.ashbyhq.com/ashby/${FRESH}/application`, { ...apis, now })).toMatchObject({ ok: true });
+    });
+
+    it("drops a posting no longer on the board, or published more than 30 days ago", async () => {
+      const apis = fakeApis({ [API]: { ok: true, data: fixture("ashby-job-board.json") } });
+
+      expect(await readAtsPosting("https://jobs.ashbyhq.com/ashby/00000000-0000-0000-0000-000000000000", { ...apis, now })).toEqual({
+        ok: false,
+        reason: "gone",
+      });
+      expect(await readAtsPosting(`https://jobs.ashbyhq.com/ashby/${OLD}`, { ...apis, now })).toEqual({ ok: false, reason: "too_old" });
+    });
+  });
+
+  describe("other addresses", () => {
+    it("are not ATS postings: a board's own page, another site, or something that is not a URL", async () => {
+      const apis = fakeApis({});
+      const read = (url: string) => readAtsPosting(url, { ...apis, now: new Date() });
+
+      expect(await read("https://job-boards.greenhouse.io/gitlab")).toBeNull();
+      expect(await read("https://jobs.lever.co/leverdemo")).toBeNull();
+      expect(await read("https://jobs.ashbyhq.com/ashby")).toBeNull();
+      expect(await read("https://emplois.example.fr/offres/daf-lyon")).toBeNull();
+      expect(await read("https://evil.example/jobs.lever.co/leverdemo/ad208490-4052-4f91-a57e-433f2d1e484b")).toBeNull();
+      expect(await read("pas une adresse")).toBeNull();
+      expect(apis.asked).toEqual([]);
+    });
+  });
 });

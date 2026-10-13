@@ -11,7 +11,8 @@
 //  - a site whose robots.txt now forbids the page, one behind a Cloudflare
 //    challenge, and LinkedIn (whose terms forbid crawling): none tells us anything.
 // Every request is appended as one JSON line { url, method, headers } to
-// E2E_RECHECK_LOG. Nothing reaches the network: any other host fails as if down.
+// E2E_RECHECK_LOG; one it cannot log fails the run (exit code 1, the cause on stderr).
+// Nothing reaches the network: any other host fails as if down.
 import { appendFileSync } from "node:fs";
 
 const tag = process.env.E2E_RECHECK_TAG ?? "local";
@@ -116,10 +117,27 @@ const sites = {
   },
 };
 
+/**
+ * Logs one request. The specs count requests from this log, and the worker's fetcher takes any
+ * error thrown here for a site it could not read: an "unknown" re-check that still stamps the
+ * source as checked. A request it could not log (a full disk, a missing directory) would then
+ * fail a spec later, on a fetch count or an expiry, as if the re-check were wrong. So the
+ * request is still answered, and the run fails at exit, saying why.
+ */
+function log(request, url) {
+  if (!logFile) return;
+  try {
+    appendFileSync(logFile, JSON.stringify({ url: url.toString(), method: request.method, headers: Object.fromEntries(request.headers) }) + "\n");
+  } catch (error) {
+    process.exitCode = 1;
+    console.error(`[fake-source-sites] could not log ${request.method} ${url} to ${logFile}: ${error.message}`);
+  }
+}
+
 globalThis.fetch = async (input, init = {}) => {
   const request = input instanceof Request ? input : new Request(String(input), init);
   const url = new URL(request.url);
-  if (logFile) appendFileSync(logFile, JSON.stringify({ url: url.toString(), method: request.method, headers: Object.fromEntries(request.headers) }) + "\n");
+  log(request, url);
 
   const site = sites[url.hostname];
   if (!site) throw new TypeError(`fetch failed: ${url.hostname} is outside the e2e fake web`);

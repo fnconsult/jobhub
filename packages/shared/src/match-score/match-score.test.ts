@@ -31,6 +31,58 @@ describe("Match Score", () => {
   });
 
   describe("skills by normalised form and synonyms", () => {
+    const coverage = (offerSkill: string, cvSkill: string) =>
+      scoreMatch({ cv: { ...cv, headline: "", summary: "", experience: [], skills: [cvSkill] }, jobOffer: { ...offer, skills: [offerSkill] } }).breakdown.skills
+        .status;
+
+    it.each([
+      // Normalised form: accents, case, plurals, small words.
+      ["Trésorerie", "TRESORERIE"],
+      ["Gestion des projets", "gestion de projet"],
+      ["Comptes consolidés", "compte consolidé"],
+      ["Canaux de distribution", "canal de distribution"],
+      ["Négociations", "négociation"],
+      // Common French/English equivalents.
+      ["Gestion de projet", "Project management"],
+      ["Project management", "Pilotage de projets"],
+      ["Gestion de la chaîne d'approvisionnement", "Supply chain"],
+      ["Conduite du changement", "Change management"],
+      ["Contrôle de gestion", "Controlling"],
+      ["Achats", "Procurement"],
+      ["Anglais", "English"],
+      // Abbreviations.
+      ["P&L", "Compte de résultat"],
+      ["Comptes de résultats", "P & L"],
+      ["Profit and loss", "P&L"],
+      ["S&OP", "Plan industriel et commercial"],
+      ["Ressources humaines", "RH"],
+      ["KPI", "Indicateurs clés de performance"],
+      ["M&A", "Fusions et acquisitions"],
+    ])("covers %s with a CV that says %s", (offerSkill, cvSkill) => {
+      expect(coverage(offerSkill, cvSkill)).toBe("match");
+    });
+
+    it.each([
+      ["Power BI", "Business intelligence"],
+      ["Gestion de projet agile", "Project management"],
+      ["Comptabilité", "Compte de résultat"],
+      ["SAP", "Sapin"],
+      ["Java", "JavaScript"],
+      ["Supply chain", "Chaîne"],
+    ])("does not cover %s with a CV that only says %s", (offerSkill, cvSkill) => {
+      expect(coverage(offerSkill, cvSkill)).toBe("mismatch");
+    });
+
+    it("still covers a skill written inside a longer wording on the CV", () => {
+      expect(coverage("Management", "Project management")).toBe("match");
+      expect(coverage("Consolidation", "Consolidation des comptes IFRS")).toBe("match");
+    });
+
+    it("does not read a skill across two fields of the CV", () => {
+      const twoSkills = { ...cv, headline: "", summary: "", experience: [], skills: ["Supply", "Chain"] };
+      expect(scoreMatch({ cv: twoSkills, jobOffer: { ...offer, skills: ["Supply chain"] } }).breakdown.skills.status).toBe("mismatch");
+    });
+
     it("covers the baseline Job Offer that scored 55 because its skill was not literally on the CV (#97)", () => {
       // c08 of the Job Search baseline: a relevant Directeur Supply Chain offer in Lille.
       const supplyChainCv: CvContent = {

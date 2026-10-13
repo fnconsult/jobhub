@@ -58,8 +58,8 @@ function memoryJobOffers(existing: JobOffer[] = []): JobOfferStore & { all: JobO
     async findBySourceUrl(url) {
       return all.find((offer) => offer.source.url === url) ?? null;
     },
-    async capture(input) {
-      const offer = input as Omit<JobOffer, "id">;
+    async capture(input, _capturedBy, trusted) {
+      const offer = { ...(input as Omit<JobOffer, "id">), ...trusted };
       const same = all.find((o) => o.source.url === offer.source.url || o.content === offer.content);
       if (same) return { ok: true, jobOffer: same };
       const jobOffer = { id: `offer-${all.length + 1}`, ...offer };

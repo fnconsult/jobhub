@@ -43,7 +43,7 @@ export interface JobOfferStore {
   /** The Job Offer already captured from this source URL (ignoring tracking parameters), or null. */
   findBySourceUrl(url: string): Promise<JobOffer | null>;
   /** Stores a posting, or returns the stored Job Offer for the same posting. */
-  capture(input: { source: { url: string }; } & JobOfferDetails): Promise<{ ok: true; jobOffer: JobOffer } | { ok: false; errors: unknown[] }>;
+  capture(input: { source: { url: string } } & Omit<JobOfferDetails, "postedAt">, capturedBy?: "candidate" | "guest", trusted?: { postedAt?: Date }): Promise<{ ok: true; jobOffer: JobOffer } | { ok: false; errors: unknown[] }>;
 }
 
 export interface JobDiscoveryOptions {
@@ -151,7 +151,9 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
       /** Stores the posting read at `url` as a Job Offer (or finds the one stored for it). */
       const capture = async (url: string, details: JobOfferDetails) => {
         funnel.extracted++;
-        const captured = await options.jobOffers.capture({ source: { url }, ...details });
+        // The posting date is what the ATS stated: trusted, unlike anything else a page says.
+        const { postedAt, ...untrusted } = details;
+        const captured = await options.jobOffers.capture({ source: { url }, ...untrusted }, "candidate", postedAt ? { postedAt } : {});
         if (captured.ok) found.set(captured.jobOffer.id, captured.jobOffer);
         else skipped.push({ url, reason: "invalid" });
       };

@@ -9,7 +9,7 @@
  * Only the one posting the URL names is asked for, at the employer's own
  * board: never a list of boards, never another employer's postings.
  */
-import type { JobOfferDetails } from "@jobhub/shared";
+import type { JobOfferDetails, RemoteWork, SalaryRange } from "@jobhub/shared";
 import { decodeEntities, htmlToText } from "./html";
 import type { RefusalReason } from "./polite-fetch";
 
@@ -82,7 +82,59 @@ const greenhouse: Ats = {
   },
 };
 
-const ATS: readonly Ats[] = [greenhouse];
+/** How much remote work an ATS's workplace type means ("remote", "hybrid", "onsite", any case or spelling). */
+function remoteWork(value: unknown): RemoteWork | undefined {
+  const type = typeof value === "string" ? value.toLowerCase().replace(/[^a-z]/g, "") : "";
+  if (type === "remote") return "full_remote";
+  if (type === "hybrid") return "hybrid";
+  if (type === "onsite") return "on_site";
+  return undefined;
+}
+
+const PER_YEAR: Record<string, number> = { "per-year-salary": 1, "per-month-salary": 12 };
+
+/** A Lever salary range, as a gross annual salary in euros; left out in another currency or per hour or day. */
+function leverSalary(range: unknown): SalaryRange | undefined {
+  if (!isObject(range) || range.currency !== "EUR") return undefined;
+  const factor = PER_YEAR[String(range.interval)];
+  if (!factor) return undefined;
+  const salary: SalaryRange = {};
+  if (typeof range.min === "number" && range.min > 0) salary.min = Math.round(range.min * factor);
+  if (typeof range.max === "number" && range.max > 0) salary.max = Math.round(range.max * factor);
+  return salary.min === undefined && salary.max === undefined ? undefined : salary;
+}
+
+const lever: Ats = {
+  apiUrl(url) {
+    const host = /^jobs\.(eu\.)?lever\.co$/i.exec(url.hostname);
+    if (!host) return null;
+    const match = /^\/([^/]+)\/([0-9a-f-]{36})(\/apply)?\/?$/i.exec(url.pathname);
+    if (!match) return null;
+    return `https://api.${host[1] ?? ""}lever.co/v0/postings/${match[1]}/${match[2]}`;
+  },
+  read(data) {
+    if (!isObject(data)) return null;
+    const title = str(data.text);
+    // The description, then each list under its heading, then the closing text.
+    const lists = (Array.isArray(data.lists) ? data.lists : []).filter(isObject).map((list) =>
+      [str(list.text), typeof list.content === "string" ? htmlToText(list.content) : undefined].filter(Boolean).join("\n\n"),
+    );
+    const content = [str(data.descriptionPlain), ...lists, str(data.additionalPlain)].filter(Boolean).join("\n\n");
+    if (!title || !content) return null;
+    const details: JobOfferDetails = { title, content };
+    const location = isObject(data.categories) ? str(data.categories.location) : undefined;
+    if (location) details.location = location;
+    const remote = remoteWork(data.workplaceType);
+    if (remote) details.remoteWork = remote;
+    const salary = leverSalary(data.salaryRange);
+    if (salary) details.salary = salary;
+    const postedAt = date(data.createdAt);
+    if (postedAt) details.postedAt = postedAt;
+    return { details };
+  },
+};
+
+const ATS: readonly Ats[] = [greenhouse, lever];
 
 /**
  * The posting a Greenhouse, Lever or Ashby URL names, read through that ATS's

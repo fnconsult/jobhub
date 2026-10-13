@@ -83,7 +83,7 @@ interface Metrics {
   costEur: number;
   durationMs: number;
 }
-const SKIP_REASONS = ["robots", "site_terms", "bot_protection", "login_wall", "not_public", "gone", "unreachable", "not_a_job_offer", "invalid"];
+const SKIP_REASONS = ["robots", "site_terms", "bot_protection", "login_wall", "not_public", "gone", "unreachable", "not_a_job_offer", "invalid", "too_old"];
 
 async function query<T extends pg.QueryResultRow>(sql: string, params: unknown[] = []): Promise<T[]> {
   const client = new pg.Client({ connectionString: databaseUrl });
@@ -191,6 +191,7 @@ test.describe("Job Search metrics (#109)", () => {
       unreachable: 0,
       not_a_job_offer: 0,
       invalid: 0,
+      too_old: 0,
     });
     // Every result is accounted for: skipped, already stored, or read.
     const total = Object.values(skipped).reduce((sum, count) => sum + count, 0);
@@ -256,7 +257,7 @@ test.describe("Job Search metrics (#109)", () => {
     expect(run!.metrics.funnel.providerUrls).toBe(10);
     // The pages the sites refuse are refused again on every run.
     expect(run!.metrics.skipped).toEqual({
-      robots: 2, site_terms: 1, bot_protection: 2, login_wall: 1, not_public: 0, gone: 0, unreachable: 0, not_a_job_offer: 0, invalid: 0,
+      robots: 2, site_terms: 1, bot_protection: 2, login_wall: 1, not_public: 0, gone: 0, unreachable: 0, not_a_job_offer: 0, invalid: 0, too_old: 0,
     });
     expect(run!.metrics.funnel.afterDedup).toBeGreaterThanOrEqual(3);
     expect(run!.metrics.funnel.matched).toBeLessThanOrEqual(run!.metrics.funnel.afterDedup);

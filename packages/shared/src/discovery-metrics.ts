@@ -15,6 +15,7 @@ export const SKIP_REASONS = [
   "unreachable",
   "not_a_job_offer",
   "invalid",
+  "too_old",
 ] as const;
 export type SkipReason = (typeof SKIP_REASONS)[number];
 

@@ -6,6 +6,9 @@ import { htmlToText } from "./html";
 import { countJobPostings } from "./job-posting";
 import { robotsAllow, robotsCrawlDelay } from "./robots";
 
+/** What a JSON API URL answered: its parsed JSON, or why it could not be read. */
+export type JsonResult = { ok: true; data: unknown } | { ok: false; reason: RefusalReason };
+
 /** Why a page was not read. */
 export type RefusalReason =
   /** robots.txt (or the page's own robots meta tag) asks crawlers to stay out, or to wait longer than we can between requests. */
@@ -144,11 +147,11 @@ export function createPoliteFetcher(options: PoliteFetchOptions) {
   const clock = options.clock ?? realClock;
   const lastRequestAt = new Map<string, number>();
 
-  const request = (url: URL | string, redirect: "follow" | "manual") => {
+  const request = (url: URL | string, redirect: "follow" | "manual", accept = "text/html,application/xhtml+xml") => {
     lastRequestAt.set(new URL(url).origin, clock.now());
     return options.fetch(String(url), {
       redirect,
-      headers: { "user-agent": options.userAgent, accept: "text/html,application/xhtml+xml" },
+      headers: { "user-agent": options.userAgent, accept },
       signal: AbortSignal.timeout(options.timeoutMs),
     });
   };
@@ -193,6 +196,52 @@ export function createPoliteFetcher(options: PoliteFetchOptions) {
     return null;
   };
 
+  type Fetched<Known> =
+    | { ok: true; url: URL; response: Response; body: string }
+    | { ok: false; reason: RefusalReason }
+    | { ok: "known"; url: string; known: Known };
+
+  /** Requests `address` asking for `accept`, following redirects, each hop checked by mayRequest. */
+  const get = async <Known>(address: string, accept: string, known?: (url: string) => Promise<Known | null>): Promise<Fetched<Known>> => {
+    let url: URL;
+    try {
+      url = new URL(address);
+    } catch {
+      return { ok: false, reason: "not_public" };
+    }
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      const refusal = await mayRequest(url);
+      if (refusal) return { ok: false, reason: refusal };
+
+      let response: Response;
+      try {
+        response = await request(url, "manual", accept);
+      } catch {
+        return { ok: false, reason: "unreachable" };
+      }
+
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get("location");
+        await response.body?.cancel();
+        if (!location) return { ok: false, reason: "unreachable" };
+        url = new URL(location, url);
+        if (LOGIN_PATH.test(url.pathname)) return { ok: false, reason: "login_wall" };
+        const already = known ? await known(url.toString()) : null;
+        if (already !== null) return { ok: "known", url: url.toString(), known: already };
+        continue;
+      }
+
+      const body = await readText(response, options.maxBytes).catch(() => null);
+      if (body === null) return { ok: false, reason: "unreachable" };
+      if (looksLikeChallenge(response, body)) return { ok: false, reason: "bot_protection" };
+      if (response.status === 401 || (response.status === 403 && looksLikeLoginWall(url, body))) return { ok: false, reason: "login_wall" };
+      if (response.status === 404 || response.status === 410) return { ok: false, reason: "gone" };
+      if (!response.ok) return { ok: false, reason: "unreachable" };
+      return { ok: true, url, response, body };
+    }
+    return { ok: false, reason: "unreachable" };
+  };
+
   return {
     /**
      * Reads a page, following redirects. `known` is asked about each redirect target
@@ -202,45 +251,24 @@ export function createPoliteFetcher(options: PoliteFetchOptions) {
       address: string,
       known?: (url: string) => Promise<Known | null>,
     ): Promise<PageResult<Known>> {
-      let url: URL;
+      const fetched = await get(address, "text/html,application/xhtml+xml", known);
+      if (fetched.ok !== true) return fetched;
+      const { url, response, body } = fetched;
+      if (!/html/i.test(response.headers.get("content-type") ?? "")) return { ok: false, reason: "unreachable" };
+      if (looksLikeLoginWall(url, body)) return { ok: false, reason: "login_wall" };
+      return { ok: true, url: url.toString(), html: body };
+    },
+
+    /** Reads a public JSON API URL the same polite way as a page (robots.txt, site terms, no bot-protection workaround). */
+    async json(address: string): Promise<JsonResult> {
+      const fetched = await get(address, "application/json");
+      if (fetched.ok !== true) return fetched.ok === false ? fetched : { ok: false, reason: "unreachable" };
+      if (!/json/i.test(fetched.response.headers.get("content-type") ?? "")) return { ok: false, reason: "unreachable" };
       try {
-        url = new URL(address);
+        return { ok: true, data: JSON.parse(fetched.body) };
       } catch {
-        return { ok: false, reason: "not_public" };
+        return { ok: false, reason: "unreachable" };
       }
-      for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-        const refusal = await mayRequest(url);
-        if (refusal) return { ok: false, reason: refusal };
-
-        let response: Response;
-        try {
-          response = await request(url, "manual");
-        } catch {
-          return { ok: false, reason: "unreachable" };
-        }
-
-        if (response.status >= 300 && response.status < 400) {
-          const location = response.headers.get("location");
-          await response.body?.cancel();
-          if (!location) return { ok: false, reason: "unreachable" };
-          url = new URL(location, url);
-          if (LOGIN_PATH.test(url.pathname)) return { ok: false, reason: "login_wall" };
-          const already = known ? await known(url.toString()) : null;
-          if (already !== null) return { ok: "known", url: url.toString(), known: already };
-          continue;
-        }
-
-        const body = await readText(response, options.maxBytes).catch(() => null);
-        if (body === null) return { ok: false, reason: "unreachable" };
-        if (looksLikeChallenge(response, body)) return { ok: false, reason: "bot_protection" };
-        if (response.status === 401 || (response.status === 403 && looksLikeLoginWall(url, body))) return { ok: false, reason: "login_wall" };
-        if (response.status === 404 || response.status === 410) return { ok: false, reason: "gone" };
-        if (!response.ok) return { ok: false, reason: "unreachable" };
-        if (!/html/i.test(response.headers.get("content-type") ?? "")) return { ok: false, reason: "unreachable" };
-        if (looksLikeLoginWall(url, body)) return { ok: false, reason: "login_wall" };
-        return { ok: true, url: url.toString(), html: body };
-      }
-      return { ok: false, reason: "unreachable" };
     },
   };
 }

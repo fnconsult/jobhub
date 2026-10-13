@@ -11,10 +11,9 @@
  */
 import type { JobOfferDetails, RemoteWork, SalaryRange } from "@jobhub/shared";
 import { decodeEntities, htmlToText } from "./html";
-import type { RefusalReason } from "./polite-fetch";
+import type { JsonResult, RefusalReason } from "./polite-fetch";
 
-/** What an API URL answered: its parsed JSON, or why it could not be read. */
-export type JsonResult = { ok: true; data: unknown } | { ok: false; reason: RefusalReason };
+export type { JsonResult } from "./polite-fetch";
 
 /** Postings first published longer ago than this are dropped. */
 export const MAX_POSTING_AGE_DAYS = 30;

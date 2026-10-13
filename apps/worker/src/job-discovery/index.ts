@@ -23,6 +23,7 @@
  */
 import { costInEur, type AiLayer } from "@jobhub/ai";
 import type { DiscoveryMetrics, JobOffer, JobOfferDetails, SearchCriteria, SkipReason as CountedSkipReason } from "@jobhub/shared";
+import { readAtsPosting } from "./ats";
 import { DEFAULT_BUDGET, type JobDiscoveryBudget } from "./budget";
 import { htmlToText, metaRobots } from "./html";
 import { countJobPostings, readJobPosting } from "./job-posting";
@@ -30,6 +31,7 @@ import { listingPageLinks } from "./listing-page";
 import { extractWithLlm } from "./llm-extraction";
 import { createPoliteFetcher, realClock, type Clock, type RefusalReason } from "./polite-fetch";
 
+export { MAX_POSTING_AGE_DAYS } from "./ats";
 export { DEFAULT_BUDGET, jobDiscoveryBudgetFromEnv, type JobDiscoveryBudget } from "./budget";
 export type { RefusalReason } from "./polite-fetch";
 
@@ -62,8 +64,11 @@ export interface DiscoverRequest {
   criteria: SearchCriteria;
 }
 
-/** Why a result page gave no Job Offer. */
-export type SkipReason = RefusalReason | "not_a_job_offer" | "invalid";
+/**
+ * Why a result page gave no Job Offer. `too_old`: its ATS states it was first
+ * published more than MAX_POSTING_AGE_DAYS ago.
+ */
+export type SkipReason = RefusalReason | "not_a_job_offer" | "invalid" | "too_old";
 // The Job discovery metrics count pages by these reasons: the two lists must stay the same.
 const sameSkipReasons: [SkipReason, CountedSkipReason] extends [CountedSkipReason, SkipReason] ? true : never = true;
 void sameSkipReasons;
@@ -140,6 +145,14 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         funnel.alreadyStored++;
       };
 
+      /** Stores the posting read at `url` as a Job Offer (or finds the one stored for it). */
+      const capture = async (url: string, details: JobOfferDetails) => {
+        funnel.extracted++;
+        const captured = await options.jobOffers.capture({ source: { url }, ...details });
+        if (captured.ok) found.set(captured.jobOffer.id, captured.jobOffer);
+        else skipped.push({ url, reason: "invalid" });
+      };
+
       /** Reads one page, and when `follow` and it is a listing page, the postings it links to. */
       const read = async (url: string, follow: boolean): Promise<void> => {
         if (seen.has(url)) return;
@@ -147,6 +160,17 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         const known = await storedAt(url);
         if (known) {
           alreadyStored(known);
+          return;
+        }
+        // A Greenhouse, Lever or Ashby posting is read through its ATS's JSON API, which states its date and status.
+        const ats = await readAtsPosting(url, { fetchJson: (api) => fetcher.json(api), now: new Date(clock.now()) });
+        if (ats) {
+          if (!ats.ok) {
+            skipped.push({ url, reason: ats.reason });
+            return;
+          }
+          funnel.fetched++;
+          await capture(url, ats.details);
           return;
         }
         // A result can redirect to a page captured earlier (in this run or before): use that Job Offer.
@@ -185,10 +209,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           skipped.push({ url, reason: "not_a_job_offer" });
           return;
         }
-        funnel.extracted++;
-        const captured = await options.jobOffers.capture({ source: { url: page.url }, ...details });
-        if (captured.ok) found.set(captured.jobOffer.id, captured.jobOffer);
-        else skipped.push({ url, reason: "invalid" });
+        await capture(page.url, details);
       };
 
       try {

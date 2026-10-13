@@ -87,6 +87,20 @@ describe.skipIf(!connectionString)("Job Offers (needs Postgres: DATABASE_URL)", 
     expect(other.ok && other.jobOffer.id).not.toBe(first.ok && first.jobOffer.id);
   });
 
+  it("keeps the posting date its source states, and refuses one that is not a date or lies in the future", async () => {
+    const postedAt = new Date("2026-10-02T15:31:50Z");
+    const captured = await jobOffers.capture({ ...posting, postedAt });
+
+    expect(captured.ok && captured.jobOffer.postedAt).toEqual(postedAt);
+    expect(captured.ok && (await jobOffers.get(captured.jobOffer.id))?.postedAt).toEqual(postedAt);
+    // From the browser, the date comes as text.
+    const fromText = await jobOffers.capture({ source: { url: "https://www.apec.fr/offre/7" }, title: "DAF", content: "Poste à Nantes.", postedAt: "2026-10-01T08:00:00Z" });
+    expect(fromText.ok && fromText.jobOffer.postedAt).toEqual(new Date("2026-10-01T08:00:00Z"));
+
+    expect(await jobOffers.capture({ ...posting, postedAt: "hier" })).toEqual({ ok: false, errors: [{ field: "postedAt", code: "invalid" }] });
+    expect(await jobOffers.capture({ ...posting, postedAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) })).toMatchObject({ ok: false });
+  });
+
   it("tells apart two postings on one site that differ only by their query string", async () => {
     const first = await jobOffers.capture({ source: { url: "https://www.indeed.fr/viewjob?jk=abc" }, title: "DAF", content: "Poste A." });
     const second = await jobOffers.capture({ source: { url: "https://www.indeed.fr/viewjob?jk=def" }, title: "DAF", content: "Poste B." });

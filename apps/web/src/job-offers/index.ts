@@ -91,6 +91,12 @@ const inputSchema = z.object({
     .optional()
     .transform((items) => items?.filter(Boolean)),
   requiredExperienceYears: z.number().int().min(0).max(60).optional(),
+  // When the source first published it (a Date in-process, ISO text from the browser): never in the future.
+  postedAt: z.coerce
+    .date()
+    .min(new Date("2000-01-01T00:00:00Z"))
+    .refine((date) => date.getTime() <= Date.now() + 24 * 60 * 60 * 1000)
+    .optional(),
 });
 
 
@@ -108,11 +114,12 @@ interface JobOfferRow {
   salary_max: number | null;
   skills: string[] | null;
   required_experience_years: number | null;
+  posted_at: Date | null;
   expired_at: Date | null;
 }
 
 const COLUMNS = `id, source_url, source_name, title, content, employer, location, contract_type, remote_work,
-  salary_min, salary_max, skills, required_experience_years, expired_at`;
+  salary_min, salary_max, skills, required_experience_years, posted_at, expired_at`;
 
 function jobOfferFrom(row: JobOfferRow): JobOffer {
   const jobOffer: JobOffer = { id: row.id, source: {}, title: row.title, content: row.content };
@@ -129,6 +136,7 @@ function jobOfferFrom(row: JobOfferRow): JobOffer {
   }
   if (row.skills !== null) jobOffer.skills = row.skills;
   if (row.required_experience_years !== null) jobOffer.requiredExperienceYears = row.required_experience_years;
+  if (row.posted_at !== null) jobOffer.postedAt = row.posted_at;
   if (row.expired_at !== null) jobOffer.expiredAt = row.expired_at;
   return jobOffer;
 }
@@ -166,9 +174,9 @@ export function createJobOffers(database: Pool): JobOffers {
       const { rows } = await database.query<JobOfferRow>(
         `INSERT INTO job_offer (url_key, content_fingerprint, source_url, source_name, title, content, employer, location,
                                 contract_type, remote_work, salary_min, salary_max, skills, required_experience_years,
-                                guest_expires_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-                 CASE WHEN $15 = 'guest' THEN ${GUEST_EXPIRY_SQL} END)
+                                posted_at, guest_expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+                 CASE WHEN $16 = 'guest' THEN ${GUEST_EXPIRY_SQL} END)
          ON CONFLICT DO NOTHING
          RETURNING ${COLUMNS}`,
         [
@@ -185,6 +193,7 @@ export function createJobOffers(database: Pool): JobOffers {
           offer.salary?.max ?? null,
           offer.skills ?? null,
           offer.requiredExperienceYears ?? null,
+          offer.postedAt ?? null,
           capturedBy,
         ],
       );
@@ -267,5 +276,7 @@ export async function migrateJobOffers(database: Pool): Promise<void> {
     ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS expired_at timestamptz;
     -- Gone checks in a row: GONE_CHECKS_TO_EXPIRE of them make it expired, a live check resets it.
     ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS gone_checks integer NOT NULL DEFAULT 0;
+    -- When the source first published the posting, when it states it in a form we trust (e.g. an ATS's API).
+    ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS posted_at timestamptz;
   `);
 }

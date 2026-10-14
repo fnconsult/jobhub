@@ -74,6 +74,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "candidate_plan", // issue #22: Plans and Plan Quotas
         "coach_access", // issue #24: the Human Coaches each Candidate granted Coach Access to
         "coach_conversation", // issue #124: the Candidate's saved Coach Conversations
+        "coach_memory_item", // issue #125: the Candidate's Coach Memory
         "coach_message", // issue #124: their messages
         "coach_review", // issue #24: Coach Reviews of Tailored Documents
         "coaching_session", // issue #24: Coaching Sessions paid through Stripe
@@ -130,6 +131,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // Coach Conversations (issue #124) go with their Candidate, and the Profile they started on; their messages with them.
         { from_table: "coach_conversation", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coach_conversation", from_column: "profile_id", to_table: "profile" },
+        // Coach Memory (issue #125) goes with its Candidate.
+        { from_table: "coach_memory_item", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coach_message", from_column: "conversation_id", to_table: "coach_conversation" },
         { from_table: "coach_review", from_column: "application_id", to_table: "application" },
         { from_table: "coach_review", from_column: "candidate_id", to_table: "candidate" },

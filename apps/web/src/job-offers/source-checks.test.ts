@@ -176,6 +176,24 @@ describe.skipIf(!connectionString)("Job Offer source re-checks (needs Postgres: 
       expect(await dueIds(daysFromNow(8), 10)).toEqual([second, first]);
     });
 
+    it("counts the days as elapsed time, whatever the database's time zone and its clock changes", async () => {
+      // A database on Europe/Paris time: its clocks go back an hour on 25 October 2026.
+      // Three calendar days there span 73 hours, three days of elapsed time 72.
+      const client = await database.connect();
+      try {
+        await client.query("SET TIME ZONE 'Europe/Paris'");
+        const checks = createSourceChecks(client);
+        const id = await followed();
+        await checks.record(id, "unknown", new Date("2026-10-23T20:00:00Z"));
+
+        expect(await checks.dueForRecheck(new Date("2026-10-26T19:59:00Z"), 10)).toEqual([]);
+        expect(await checks.dueForRecheck(new Date("2026-10-26T20:30:00Z"), 10)).toEqual([{ id, sourceUrl: posting.source.url }]);
+      } finally {
+        await client.query("RESET TIME ZONE");
+        client.release();
+      }
+    });
+
     it("re-checks an Expired Job Offer too, less often: every two weeks instead of every few days", async () => {
       const id = await followed();
       await sourceChecks.record(id, "gone", daysFromNow(3.5));

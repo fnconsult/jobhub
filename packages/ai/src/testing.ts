@@ -24,7 +24,8 @@ export interface FakeProviderOptions {
   reply?: string | ((input: TextInput) => string);
   /** Fixed search answer. Default "fake answer". */
   answer?: string;
-  sources?: string[];
+  /** Fixed search sources, or a function of the query and its options (e.g. the page). */
+  sources?: string[] | ((query: string, options: SearchOptions) => string[]);
   usage?: TokenUsage;
   /** How many pages of results a search can give. Default: 1. */
   pages?: number;
@@ -61,7 +62,8 @@ export function createFakeProvider(options: FakeProviderOptions = {}): FakeProvi
     async search(query, { model, filters, page }): Promise<SearchOutput> {
       queries.push(query);
       searches.push({ query, model, filters, ...(page ? { page } : {}) });
-      return { answer: options.answer ?? "fake answer", sources: options.sources ?? [], model: model ?? `fake-${id}`, usage };
+      const sources = typeof options.sources === "function" ? options.sources(query, { model, filters, page }) : (options.sources ?? []);
+      return { answer: options.answer ?? "fake answer", sources, model: model ?? `fake-${id}`, usage };
     },
   };
 }

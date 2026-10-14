@@ -84,6 +84,8 @@ export interface SearchFilters {
   excludeDomains?: string[];
   /** Only pages published within this many days. */
   maxAgeDays?: number;
+  /** Favour pages from this country (ISO 3166-1 alpha-2, e.g. "FR"): a preference, not a restriction. */
+  country?: string;
 }
 
 export interface SearchOptions {

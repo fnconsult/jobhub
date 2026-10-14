@@ -9,14 +9,13 @@
  * Only the one posting the URL names is asked for, at the employer's own
  * board: never a list of boards, never another employer's postings.
  */
-import type { JobOfferDetails, RemoteWork, SalaryRange } from "@jobhub/shared";
+import { isPostingTooOld, MAX_POSTING_AGE_DAYS, type JobOfferDetails, type RemoteWork, type SalaryRange } from "@jobhub/shared";
 import { decodeEntities, htmlToText } from "./html";
 import type { JsonResult, RefusalReason } from "./polite-fetch";
 
 export type { JsonResult } from "./polite-fetch";
 
-/** Postings first published longer ago than this are dropped. */
-export const MAX_POSTING_AGE_DAYS = 30;
+export { MAX_POSTING_AGE_DAYS };
 
 export type AtsReading =
   | { ok: true; details: JobOfferDetails }
@@ -31,8 +30,6 @@ export interface AtsReadOptions {
   fetchJson: (url: string) => Promise<JsonResult>;
   now: Date;
 }
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 type Json = Record<string, unknown>;
 const isObject = (value: unknown): value is Json => typeof value === "object" && value !== null && !Array.isArray(value);
@@ -190,7 +187,7 @@ export async function readAtsPosting(address: string, options: AtsReadOptions): 
     const posting = ats.read(answer.data, url);
     if (!posting || (posting.closesAt && posting.closesAt < options.now)) return { ok: false, reason: "gone" };
     const { postedAt } = posting.details;
-    if (postedAt && options.now.getTime() - postedAt.getTime() > MAX_POSTING_AGE_DAYS * DAY_MS) return { ok: false, reason: "too_old" };
+    if (isPostingTooOld(postedAt, options.now)) return { ok: false, reason: "too_old" };
     return { ok: true, details: posting.details };
   }
   return null;

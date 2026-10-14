@@ -72,6 +72,8 @@ function memoryJobOffers(existing: JobOffer[] = []): JobOfferStore & { all: JobO
 
 function setup(options: {
   sources: string[] | ((query: string, options: SearchOptions) => string[]);
+  /** The dates the search provider states for some sources. */
+  sourceDates?: Record<string, Date>;
   /** The job title step's reply. Default: no variants. */
   titles?: string;
   /** How many pages of results the search provider gives a query. Default: 1. */
@@ -87,7 +89,7 @@ function setup(options: {
   /** When the run starts. Default: the epoch. */
   now?: Date;
 }) {
-  const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, answer: options.answer, pages: options.searchPages });
+  const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, sourceDates: options.sourceDates, answer: options.answer, pages: options.searchPages });
   const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}', usage: options.llmUsage });
   const titles = createFakeProvider({ id: "mistral", reply: options.titles ?? "{}" });
   const ai = createAiLayer({
@@ -813,6 +815,129 @@ describe("Job discovery", () => {
 
       const apiRequests = web.fetched().filter((url) => !url.endsWith("/robots.txt"));
       expect(apiRequests).toEqual([GREENHOUSE_API, LEVER_API, ASHBY_API]);
+    });
+  });
+
+  describe("keeping postings of the last 30 days: the freshness rule (#116)", () => {
+    const NOW = new Date("2026-10-14T08:00:00Z");
+    const RECENT = "https://emplois.example.fr/offres/recente";
+    const OLD = "https://emplois.example.fr/offres/ancienne";
+    const UNDATED = "https://emplois.example.fr/offres/sans-date";
+    const posting = (title: string, more: object = {}): Page => ({ body: jobPostingPage({ title, description: `${title} : le poste.`, ...more }) });
+
+    it("keeps a posting dated within 30 days with its Posting date, drops one dated older, and keeps an undated one", async () => {
+      const { discovery } = setup({
+        sources: [RECENT, OLD, UNDATED],
+        pages: {
+          [RECENT]: posting("DAF récent", { datePosted: "2026-09-20" }),
+          [OLD]: posting("DAF ancien", { datePosted: "2026-09-13T09:30:00+02:00" }),
+          [UNDATED]: posting("DAF sans date"),
+        },
+        now: NOW,
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers.map(({ title, postedAt }) => ({ title, postedAt }))).toEqual([
+        { title: "DAF récent", postedAt: new Date("2026-09-20T00:00:00Z") },
+        { title: "DAF sans date", postedAt: undefined },
+      ]);
+      expect(report.skipped).toEqual([{ url: OLD, reason: "too_old" }]);
+    });
+
+    it("takes the search provider's date for a page that states none, after the page's own", async () => {
+      const { discovery } = setup({
+        sources: [RECENT, OLD, UNDATED],
+        sourceDates: {
+          // The page's JobPosting says recent: it wins over the provider's older date.
+          [RECENT]: new Date("2026-08-01T00:00:00Z"),
+          [OLD]: new Date("2026-09-01T00:00:00Z"),
+          [UNDATED]: new Date("2026-10-10T12:00:00Z"),
+        },
+        pages: {
+          [RECENT]: posting("DAF récent", { datePosted: "2026-10-01" }),
+          [OLD]: posting("DAF ancien"),
+          [UNDATED]: posting("DAF daté par le moteur"),
+        },
+        now: NOW,
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers.map(({ title, postedAt }) => ({ title, postedAt }))).toEqual([
+        { title: "DAF récent", postedAt: new Date("2026-10-01T00:00:00Z") },
+        { title: "DAF daté par le moteur", postedAt: new Date("2026-10-10T12:00:00Z") },
+      ]);
+      expect(report.skipped).toEqual([{ url: OLD, reason: "too_old" }]);
+    });
+
+    it("keeps a posting whose date cannot be believed (unreadable, or in the future) as undated", async () => {
+      const { discovery } = setup({
+        sources: [RECENT, UNDATED],
+        pages: {
+          [RECENT]: posting("DAF daté demain", { datePosted: "2026-11-30" }),
+          [UNDATED]: posting("DAF mal daté", { datePosted: "il y a 3 jours" }),
+        },
+        now: NOW,
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers.map(({ title, postedAt }) => ({ title, postedAt }))).toEqual([
+        { title: "DAF daté demain", postedAt: undefined },
+        { title: "DAF mal daté", postedAt: undefined },
+      ]);
+      expect(report.skipped).toEqual([]);
+    });
+
+    describe("a Job Offer stored by an earlier run, found again", () => {
+      // Posted 25 days before an earlier run stored it; now, 7 days later, posted 32 days ago.
+      const staleStored: JobOffer = { id: "stored-old", source: { url: OLD }, title: "DAF ancien", content: "Poste de DAF ancien.", postedAt: new Date("2026-09-12T08:00:00Z") };
+      const freshStored: JobOffer = { id: "stored-recent", source: { url: RECENT }, title: "DAF récent", content: "Poste de DAF récent.", postedAt: new Date("2026-10-01T00:00:00Z") };
+      const undatedStored: JobOffer = { id: "stored-undated", source: { url: UNDATED }, title: "DAF sans date", content: "Poste de DAF sans date." };
+
+      it("drops it once its Posting date is more than 30 days ago, and keeps a recent or undated one", async () => {
+        const { discovery, web } = setup({ sources: [OLD, RECENT, UNDATED], pages: {}, existing: [staleStored, freshStored, undatedStored], now: NOW });
+
+        const report = await discovery.discover({ candidateId: "c", criteria });
+
+        expect(report.jobOffers.map((offer) => offer.id)).toEqual(["stored-recent", "stored-undated"]);
+        expect(report.skipped).toEqual([{ url: OLD, reason: "too_old" }]);
+        expect(report.funnel.alreadyStored).toBe(2);
+        expect(web.fetched()).toEqual([]);
+      });
+
+      it("drops it too when another result redirects to it", async () => {
+        const board = "https://boards.example.fr/acme/jobs/41";
+        const { discovery } = setup({
+          sources: [board],
+          pages: { [board]: { status: 302, headers: { location: OLD } } },
+          existing: [staleStored],
+          now: NOW,
+        });
+
+        const report = await discovery.discover({ candidateId: "c", criteria });
+
+        expect(report.jobOffers).toEqual([]);
+        expect(report.skipped).toEqual([{ url: board, reason: "too_old" }]);
+        expect(report.funnel.alreadyStored).toBe(0);
+      });
+
+      it("drops it too when an undated page elsewhere holds the same text", async () => {
+        const mirror = "https://miroir.example.fr/offre/daf-ancien";
+        const { discovery, jobOffers } = setup({
+          sources: [mirror],
+          pages: { [mirror]: { body: jobPostingPage({ title: staleStored.title, description: staleStored.content }) } },
+          existing: [staleStored],
+          now: NOW,
+        });
+
+        const report = await discovery.discover({ candidateId: "c", criteria });
+
+        expect(jobOffers.all).toEqual([staleStored]);
+        expect(report.jobOffers).toEqual([]);
+        expect(report.skipped).toEqual([{ url: mirror, reason: "too_old" }]);
+      });
     });
   });
 

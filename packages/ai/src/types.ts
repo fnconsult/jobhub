@@ -68,6 +68,11 @@ export interface TextOutput {
 export interface SearchOutput {
   answer: string;
   sources: string[];
+  /**
+   * The date the provider states for some sources (by URL): when it says the page was
+   * published, which may be when it was last updated. Absent when it dates none.
+   */
+  sourceDates?: Record<string, Date>;
   model: string;
   usage: TokenUsage;
 }

@@ -70,6 +70,8 @@ export interface CompanySearchRequest {
 export interface SearchResult {
   answer: string;
   sources: string[];
+  /** The date the provider states for some sources (by URL); may be a last-updated date. Absent when it dates none. */
+  sourceDates?: Record<string, Date>;
   provider: ProviderId;
   model: string;
   usage: TokenUsage;
@@ -194,7 +196,14 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     const { route, provider } = searchProvider();
     const output = await provider.search!(query, { model: route.model, filters, ...(page && page > 1 ? { page } : {}) });
     await log({ candidateId, task: SEARCH_TASK, provider: provider.id, endpoint: provider.endpoint, model: output.model, ...output.usage });
-    return { answer: output.answer, sources: output.sources, provider: provider.id, model: output.model, usage: output.usage };
+    return {
+      answer: output.answer,
+      sources: output.sources,
+      ...(output.sourceDates ? { sourceDates: output.sourceDates } : {}),
+      provider: provider.id,
+      model: output.model,
+      usage: output.usage,
+    };
   }
 
   const layer: AiLayer = {

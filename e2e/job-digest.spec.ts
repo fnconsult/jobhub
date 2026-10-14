@@ -300,6 +300,10 @@ test.describe("Job Digest", () => {
     expect(email!.text).toContain(`- ${DAF} (Acme Industrie, Lyon (69002))`);
     expect(email!.text).toContain(`- ${RESPONSABLE} (Cabinet Lumière, Lyon)`);
     expect(email!.text).toMatch(/score de correspondance : \d+ \/ 100/);
+    // The freshness rule (#116): the careers page's JobPosting dates the DAF; the page only the LLM read states no date.
+    const blockOf = (title: string) => email!.text.split("\n\n").find((block) => block.startsWith(`- ${title}`))!;
+    expect(blockOf(DAF)).toMatch(/publiée le \d{1,2} \S+ \d{4}/);
+    expect(blockOf(RESPONSABLE)).toContain("date de publication : date inconnue");
     expect(email!.text).toContain("L'équipe Jobbbox");
     expect(email!.text).toContain("Ne plus recevoir le Job Digest de ce profil :");
     const unsubscribeLink = unsubscribeLinkIn(email!);
@@ -317,6 +321,10 @@ test.describe("Job Digest", () => {
     await expect(page.getByRole("heading", { level: 2, name: DAF })).toBeVisible();
     const responsable = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2, name: RESPONSABLE }) });
     await expect(responsable).toHaveCount(1);
+    await expect(responsable.getByText("date inconnue", { exact: true })).toBeVisible();
+    const daf = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2, name: DAF }) });
+    await expect(daf).toContainText("Date de publication");
+    await expect(daf).not.toContainText("date inconnue");
     const scores = await matchScoresOn(page);
     expect(scores).toEqual([...scores].sort((a, b) => b - a));
     expect(Math.min(...scores)).toBeGreaterThanOrEqual(60);

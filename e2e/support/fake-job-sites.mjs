@@ -30,11 +30,18 @@ const volume = process.env.E2E_DISCOVERY_VOLUME_COUNT
     }
   : null;
 
-/** The posting the careers site publishes as JobPosting JSON-LD (and the mirror site copies). */
+/** When the careers site says it published its posting: 3 days ago, so it is a Posting date of the last 30 days (#116). */
+const JSON_LD_DATE_POSTED = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+/**
+ * The posting the careers site publishes as JobPosting JSON-LD (and the mirror site copies), dated.
+ * The plain posting only an LLM can read states no date: it is undated.
+ */
 const jsonLdPosting = {
   "@context": "https://schema.org",
   "@type": "JobPosting",
   title: `Directeur administratif et financier (H/F) – réf. ${tag}`,
+  datePosted: JSON_LD_DATE_POSTED,
   description: `<p>Acme Industrie recrute son DAF (réf. ${tag}).</p><p>Vous pilotez la finance du groupe. Poste basé à Lyon.</p>`,
   hiringOrganization: { "@type": "Organization", name: "Acme Industrie" },
   jobLocation: { "@type": "Place", address: { "@type": "PostalAddress", addressLocality: "Lyon", postalCode: "69002" } },
@@ -232,10 +239,37 @@ function atsSite(url) {
 }
 const ATS_HOSTS = ["boards-api.greenhouse.io", "api.lever.co", "api.ashbyhq.com", "job-boards.greenhouse.io", "boards.greenhouse.io", "jobs.lever.co", "jobs.ashbyhq.com"];
 
+// Freshness mode (e2e/job-freshness.spec.ts, #116): when E2E_DISCOVERY_FRESHNESS is set, the web search returns
+// three otherwise identical JobPosting pages: one dated 3 days ago, one dated 45 days ago, one with no date.
+// The undated one comes first, so ranking (not discovery order) has to put the dated one above it.
+const freshness = Boolean(process.env.E2E_DISCOVERY_FRESHNESS);
+const FRESHNESS_HOST = "fraicheur-e2e.example";
+const FRESHNESS_PAGES = { sansDate: null, recente: 3, ancienne: 45 };
+const freshnessUrl = (key) => `https://${FRESHNESS_HOST}/offre/${key}-${tag}`;
+
+function freshnessSite(url) {
+  if (url.pathname === "/robots.txt") return text("");
+  const key = /^\/offre\/(sansDate|recente|ancienne)-/.exec(url.pathname)?.[1];
+  if (!key || !url.pathname.endsWith(`-${tag}`)) return html(page("Introuvable", "<p>404</p>"), { status: 404 });
+  const days = FRESHNESS_PAGES[key];
+  const undated = { ...jsonLdPosting };
+  delete undated.datePosted;
+  const posting = {
+    ...undated,
+    title: `Directeur financier ${key} – réf. ${tag}`,
+    // Not the same text as another posting, or Job discovery folds them into one Job Offer (a mirrored posting).
+    description: `<p>Acme Industrie recrute son directeur financier (${key}, réf. ${tag}).</p><p>Vous pilotez la finance du groupe. Poste basé à Lyon.</p>`,
+    ...(days === null ? {} : { datePosted: new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10) }),
+  };
+  return html(page(`Poste ${key}`, "<h1>Offre</h1>", `<script type="application/ld+json">${JSON.stringify(posting)}</script>`));
+}
+
 const volumePage = (n) => `https://volume-e2e.example/offre/${n}-${tag}`;
 
 /** What the fake web search returns, in order. */
-export const RESULT_PAGES = ats
+export const RESULT_PAGES = freshness
+  ? Object.keys(FRESHNESS_PAGES).map(freshnessUrl)
+  : ats
   ? Object.values(ATS_POSTINGS)
   : listing
   ? [LISTING_PAGE, LISTING_LATER]
@@ -333,6 +367,7 @@ globalThis.fetch = async (input, init = {}) => {
   }
   if (url.origin === "https://api.mistral.ai") return mistral(JSON.parse(body || "{}"));
 
+  if (freshness && url.hostname === FRESHNESS_HOST) return freshnessSite(url);
   if (ats && ATS_HOSTS.includes(url.hostname)) return atsSite(url);
   if (listing && (url.hostname === LISTING_HOST || url.hostname === "autre-e2e.example")) return listingSite(url);
   if (volume && url.hostname === "volume-e2e.example") return volumeSite(url);

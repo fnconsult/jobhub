@@ -57,12 +57,13 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
     return created.profile.id;
   }
 
-  /** A Job Offer stored now (on the test clock), by a Candidate unless `guest`. */
-  async function capture(title: string, details: object = {}, options: { guest?: boolean; storedAt?: Date } = {}) {
+  /** A Job Offer stored now (on the test clock), by a Candidate unless `guest`, with a Posting date if `postedAt`. */
+  async function capture(title: string, details: object = {}, options: { guest?: boolean; storedAt?: Date; postedAt?: Date } = {}) {
     captured++;
     const result = await jobOffers.capture(
       { source: { url: `https://carrieres.example.fr/${encodeURIComponent(title)}/${captured}` }, title, content: `${title} (${captured}). Poste à pourvoir.`, ...details },
       options.guest ? "guest" : "candidate",
+      options.postedAt ? { postedAt: options.postedAt } : {},
     );
     if (!result.ok) throw new Error("fixture Job Offer refused");
     await database.query("UPDATE job_offer SET created_at = $2 WHERE id = $1", [result.jobOffer.id, options.storedAt ?? clock.now]);
@@ -70,7 +71,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
   }
 
   /** A Job Offer that fits the Profile: Match Score 100. */
-  const strong = (title: string, options?: { guest?: boolean; storedAt?: Date }) =>
+  const strong = (title: string, options?: { guest?: boolean; storedAt?: Date; postedAt?: Date }) =>
     capture(title, { employer: "Acme Industrie", location: "Lyon", contractType: "cdi", skills: ["IFRS", "SAP"] }, options);
   /** A Job Offer that does not: Match Score 0. */
   const weak = (title: string) => capture(title, { location: "Marseille", contractType: "cdd", skills: ["Excel"] });
@@ -229,6 +230,22 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       ]);
       // Two qualified, fewer than the target count (10): Job discovery topped up.
       expect(discovery).toBe("ran");
+    });
+
+    it("leaves out a Job Offer posted more than 30 days ago, and ranks an undated one below a dated one with an equal Match Score (#116)", async () => {
+      const daysAgo = (days: number) => new Date(clock.now.getTime() - days * 24 * HOUR);
+      const dated = await strong("DAF H/F – datée", { postedAt: daysAgo(5), storedAt: daysAgo(2) });
+      await strong("DAF H/F – trop ancienne", { postedAt: daysAgo(31), storedAt: daysAgo(1) });
+      const undated = await strong("DAF H/F – sans date");
+      await subscribed();
+
+      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => []);
+
+      expect(digest?.results.map(({ jobOffer, matchScore }) => [jobOffer.id, matchScore.score])).toEqual([
+        [dated, 100],
+        [undated, 100],
+      ]);
+      expect((await jobDigests.get(candidateId, digest!.id))?.results.map(({ jobOffer }) => jobOffer.id)).toEqual([dated, undated]);
     });
 
     it("looks back a week for the first Job Digest, then only at the Job Offers stored since the previous one", async () => {
@@ -414,6 +431,18 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       expect(email.text).toContain(`https://app.jobbbox.fr/offres/${best}`);
       expect(email.text.indexOf("DAF H/F")).toBeLessThan(email.text.indexOf("Responsable financier"));
       expect(email.text).toContain("- DAF H/F (Acme Industrie, Lyon)");
+    });
+
+    it("gives each Job Offer of the email its Posting date, or labels it \"date inconnue\" (#116)", async () => {
+      await strong("DAF H/F – datée", { postedAt: new Date("2026-10-02T09:00:00Z") });
+      await strong("DAF H/F – sans date");
+      await subscribed();
+
+      await jobDigests.deliver(candidateId, profileId, async () => []);
+
+      const [dated, undated] = outbox[0]!.text.split("\n\n").filter((block) => block.startsWith("- DAF H/F"));
+      expect(dated).toContain("publiée le 2 octobre 2026");
+      expect(undated).toContain("date de publication : date inconnue");
     });
 
     it("belongs to its Candidate", async () => {

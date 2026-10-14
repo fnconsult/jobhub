@@ -22,7 +22,10 @@
  * read instead, unless the API showed an anti-bot check. Each API answer is
  * kept for the run, so an employer's Ashby board is downloaded once. On a
  * page read, its `JobPosting` structured data is used first; without it, the
- * LLM reads the page. Each posting is captured as a Job Offer; one already stored (same
+ * LLM reads the page. A posting's Posting date is the one its ATS or its
+ * `JobPosting` (`datePosted`) states, else the search provider's date for the
+ * page; a posting dated more than 30 days ago is dropped, an undated one kept
+ * (the freshness rule, #116). Each posting is captured as a Job Offer; one already stored (same
  * source URL, or same text from another site) is returned, never duplicated,
  * and a known URL is not fetched again.
  *
@@ -33,8 +36,17 @@
  * error is then a JobDiscoveryError carrying what the run measured until then.
  */
 import { costInEur, type AiLayer, type SearchFilters } from "@jobhub/ai";
-import type { DiscoveryMetrics, JobOffer, JobOfferDetails, SearchCriteria, SkipReason as CountedSkipReason } from "@jobhub/shared";
-import { MAX_POSTING_AGE_DAYS, readAtsPosting } from "./ats";
+import {
+  believablePostingDate,
+  isPostingTooOld,
+  MAX_POSTING_AGE_DAYS,
+  type DiscoveryMetrics,
+  type JobOffer,
+  type JobOfferDetails,
+  type SearchCriteria,
+  type SkipReason as CountedSkipReason,
+} from "@jobhub/shared";
+import { readAtsPosting } from "./ats";
 import { DEFAULT_BUDGET, type JobDiscoveryBudget } from "./budget";
 import { htmlToText, metaRobots } from "./html";
 import { countJobPostings, readJobPosting } from "./job-posting";
@@ -43,7 +55,7 @@ import { extractWithLlm } from "./llm-extraction";
 import { searchPages } from "./search-pages";
 import { createPoliteFetcher, realClock, type Clock, type JsonResult, type RefusalReason } from "./polite-fetch";
 
-export { MAX_POSTING_AGE_DAYS } from "./ats";
+export { MAX_POSTING_AGE_DAYS } from "@jobhub/shared";
 export { DEFAULT_BUDGET, jobDiscoveryBudgetFromEnv, type JobDiscoveryBudget } from "./budget";
 export type { RefusalReason } from "./polite-fetch";
 
@@ -77,8 +89,9 @@ export interface DiscoverRequest {
 }
 
 /**
- * Why a result page gave no Job Offer. `too_old`: its ATS states it was first
- * published more than MAX_POSTING_AGE_DAYS ago.
+ * Why a result page gave no Job Offer. `too_old`: its Posting date (stated by
+ * its ATS, its JobPosting data or the search provider, or stored with the Job
+ * Offer it leads to) is more than MAX_POSTING_AGE_DAYS ago.
  */
 export type SkipReason = RefusalReason | "not_a_job_offer" | "invalid" | "too_old";
 // The Job discovery metrics count pages by these reasons: the two lists must stay the same.
@@ -168,28 +181,52 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
       /** URLs looked at in this run, so a posting a listing page links to is not read twice. */
       const seen = new Set<string>();
       const storedAt = (url: string) => options.jobOffers.findBySourceUrl(url).catch(() => null);
-      const alreadyStored = (jobOffer: JobOffer) => {
+      /**
+       * Lists a Job Offer stored by an earlier run (or earlier in this one) that `url` leads to, unless its Posting
+       * date is now more than 30 days ago: the freshness rule holds for every Job Offer a Job Search finds, stored or not.
+       */
+      const alreadyStored = (url: string, jobOffer: JobOffer) => {
+        if (isPostingTooOld(jobOffer.postedAt, new Date(clock.now()))) {
+          skipped.push({ url, reason: "too_old" });
+          return;
+        }
         found.set(jobOffer.id, jobOffer);
         funnel.alreadyStored++;
       };
 
-      /** Stores the posting read at `url` as a Job Offer (or finds the one stored for it). */
-      const capture = async (url: string, details: JobOfferDetails) => {
+      /**
+       * Stores the posting read at `url` as a Job Offer (or finds the one stored for it), unless its Posting date is
+       * more than 30 days ago. That date is the one its ATS or its JobPosting data states, else the search provider's
+       * (`searchDate`, weaker: it may be when the page was last updated); a date in the future is no date.
+       * The store may answer with a Job Offer stored earlier with the same text (a mirror, an aggregator): that one
+       * keeps its own Posting date, so the rule is applied to it too.
+       */
+      const capture = async (url: string, details: JobOfferDetails, searchDate: Date | undefined) => {
+        const now = new Date(clock.now());
+        const { postedAt: stated, ...untrusted } = details;
+        const postedAt = believablePostingDate(stated, now) ?? believablePostingDate(searchDate, now);
+        if (isPostingTooOld(postedAt, now)) {
+          skipped.push({ url, reason: "too_old" });
+          return;
+        }
         funnel.extracted++;
-        // The posting date is what the ATS stated: trusted, unlike anything else a page says.
-        const { postedAt, ...untrusted } = details;
+        // The Posting date is what the worker read from the source itself: trusted, unlike anything a browser sends.
         const captured = await options.jobOffers.capture({ source: { url }, ...untrusted }, "candidate", postedAt ? { postedAt } : {});
-        if (captured.ok) found.set(captured.jobOffer.id, captured.jobOffer);
-        else skipped.push({ url, reason: "invalid" });
+        if (!captured.ok) skipped.push({ url, reason: "invalid" });
+        else if (isPostingTooOld(captured.jobOffer.postedAt, now)) skipped.push({ url, reason: "too_old" });
+        else found.set(captured.jobOffer.id, captured.jobOffer);
       };
 
-      /** Reads one page, and when `follow` and it is a listing page, the postings it links to. */
-      const read = async (url: string, follow: boolean): Promise<void> => {
+      /**
+       * Reads one page, and when `follow` and it is a listing page, the postings it links to.
+       * `searchDate`: the date the search provider states for it.
+       */
+      const read = async (url: string, follow: boolean, searchDate?: Date): Promise<void> => {
         if (seen.has(url)) return;
         seen.add(url);
         const known = await storedAt(url);
         if (known) {
-          alreadyStored(known);
+          alreadyStored(url, known);
           return;
         }
         // A Greenhouse, Lever or Ashby posting is read through its ATS's JSON API, which states its date and status;
@@ -201,13 +238,13 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
             return;
           }
           funnel.fetched++;
-          await capture(url, ats.details);
+          await capture(url, ats.details, searchDate);
           return;
         }
         // A result can redirect to a page captured earlier (in this run or before): use that Job Offer.
         const page = await fetcher.page(url, storedAt);
         if (page.ok === "known") {
-          alreadyStored(page.known);
+          alreadyStored(url, page.known);
           return;
         }
         if (!page.ok) {
@@ -240,7 +277,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           skipped.push({ url, reason: "not_a_job_offer" });
           return;
         }
-        await capture(page.url, details);
+        await capture(page.url, details, searchDate);
       };
 
       try {
@@ -257,7 +294,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           funnel.providerUrls = providerUrls.size;
           for (const url of fresh) {
             if (budgetSpent()) break;
-            await read(url, true);
+            await read(url, true, search.sourceDates?.[url]);
           }
           pager.gave(next, found.size - before);
         }

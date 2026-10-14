@@ -26,6 +26,8 @@ export interface FakeProviderOptions {
   answer?: string;
   /** Fixed search sources, or a function of the query and its options (e.g. the page). */
   sources?: string[] | ((query: string, options: SearchOptions) => string[]);
+  /** The dates the search states for some sources (by URL). Default: none. */
+  sourceDates?: Record<string, Date>;
   usage?: TokenUsage;
   /** How many pages of results a search can give. Default: 1. */
   pages?: number;
@@ -63,7 +65,13 @@ export function createFakeProvider(options: FakeProviderOptions = {}): FakeProvi
       queries.push(query);
       searches.push({ query, model, filters, ...(page ? { page } : {}) });
       const sources = typeof options.sources === "function" ? options.sources(query, { model, filters, page }) : (options.sources ?? []);
-      return { answer: options.answer ?? "fake answer", sources, model: model ?? `fake-${id}`, usage };
+      return {
+        answer: options.answer ?? "fake answer",
+        sources,
+        ...(options.sourceDates ? { sourceDates: options.sourceDates } : {}),
+        model: model ?? `fake-${id}`,
+        usage,
+      };
     },
   };
 }

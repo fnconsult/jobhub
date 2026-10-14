@@ -205,7 +205,7 @@ What one run of Job discovery (a Job Search or a Job Digest top-up) measured: ho
 Why a result page gave no Job Offer (for example a Forbidden site, robots.txt, an unreadable page, a closed posting, or a posting too old).
 
 **Posting date**:
-When a Job Offer was first published, known only when its source states it in a form we trust: today the public JSON API of Greenhouse, Lever or Ashby, which Job discovery reads instead of the page. Unknown otherwise, and never taken from a Candidate or the extension. Job discovery skips a posting first published more than 30 days ago (Skip reason "too old"); one with no known date is kept.
+When a Job Offer was first published, as its source states it. Sources, strongest first: the public JSON API of Greenhouse, Lever or Ashby, the page's JobPosting `datePosted`, then the search provider's date for that page (weakest, as it may be a last-updated date). A date in the future or before 2000 counts as unknown. Never taken from a Candidate or the extension. Job discovery skips a posting first published more than 30 days ago (Skip reason "too old"), including a stored Job Offer found again, and the Job Digest leaves it out. A Job Offer with no known date is kept, labelled "date unknown", and listed after dated offers with an equal Match Score.
 _Avoid_: Publication date (when unknown), created date
 
 **Forbidden site**:

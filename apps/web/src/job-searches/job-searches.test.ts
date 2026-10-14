@@ -45,8 +45,12 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     return created.profile.id;
   }
 
-  async function capture(title: string, details: object) {
-    const captured = await jobOffers.capture({ source: { url: `https://carrieres.example.fr/${encodeURIComponent(title)}` }, title, content: `${title}. Poste à pourvoir.`, ...details });
+  async function capture(title: string, details: object, postedAt?: Date) {
+    const captured = await jobOffers.capture(
+      { source: { url: `https://carrieres.example.fr/${encodeURIComponent(title)}` }, title, content: `${title}. Poste à pourvoir.`, ...details },
+      "candidate",
+      postedAt ? { postedAt } : {},
+    );
     if (!captured.ok) throw new Error("fixture Job Offer refused");
     return captured.jobOffer.id;
   }
@@ -113,6 +117,25 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     ]);
     expect(done?.results[0]).toMatchObject({ jobOffer: { employer: "Acme Industrie", location: "Lyon", contractType: "cdi" }, matchScore: { score: 100 } });
     expect(done!.results[0]!.matchScore.score).toBeGreaterThan(done!.results[1]!.matchScore.score);
+  });
+
+  it("ranks an undated Job Offer below a dated one with an equal Match Score, never above a lower one (#116)", async () => {
+    const lyon = { location: "Lyon", contractType: "cdi", skills: ["IFRS", "SAP"] };
+    const undated = await capture("DAF H/F – A", lyon);
+    const dated = await capture("DAF H/F – B", lyon, new Date("2026-10-01T00:00:00Z"));
+    const weakDated = await capture("Contrôleur de gestion", { location: "Marseille", contractType: "cdd" }, new Date("2026-10-10T00:00:00Z"));
+    const jobSearch = await started();
+
+    await jobSearches.record(jobSearch.id, { jobOfferIds: [weakDated, undated, dated] });
+
+    const results = (await jobSearches.get(candidateId, jobSearch.id))!.results;
+    expect(results.map((result) => [result.jobOffer.id, result.jobOffer.postedAt])).toEqual([
+      [dated, new Date("2026-10-01T00:00:00Z")],
+      [undated, undefined],
+      [weakDated, new Date("2026-10-10T00:00:00Z")],
+    ]);
+    expect(results[0]!.matchScore.score).toBe(results[1]!.matchScore.score);
+    expect(results[1]!.matchScore.score).toBeGreaterThan(results[2]!.matchScore.score);
   });
 
   it("leaves Expired Job Offers out of the results", async () => {

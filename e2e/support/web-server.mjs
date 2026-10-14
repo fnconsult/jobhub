@@ -41,8 +41,21 @@ for (const stream of [server.stdout, server.stderr]) {
     process.stdout.write(chunk);
   });
 }
-for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => server.kill(signal));
-server.on("exit", async (code) => {
+let stopping = false;
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.on(signal, () => {
+    stopping = true;
+    server.kill(signal);
+  });
+}
+server.on("exit", async (code, signal) => {
+  // `next start` ending on its own mid-run (killed from outside, e.g. under memory pressure) fails
+  // every later test with ECONNREFUSED while its own output just stops: say how it ended.
+  if (!stopping) {
+    const ending = `[web-server] next start exited during the run (code ${code}, signal ${signal})\n`;
+    log.write(ending);
+    process.stderr.write(ending);
+  }
   await stripe.stop();
-  process.exit(code ?? 0);
+  process.exit(code ?? (stopping ? 0 : 1));
 });

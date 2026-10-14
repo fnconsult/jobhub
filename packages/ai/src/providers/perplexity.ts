@@ -3,6 +3,7 @@
  * Speaks Perplexity's Agent API (`POST /v1/responses`); its chat-completions endpoint is retired.
  * Filters go on the `web_search` tool (docs/research/issue-112.md): domains, a recency window, a country.
  */
+import { parseStatedDate } from "@jobhub/shared";
 import { AiProviderError } from "../errors";
 import type { AiProvider, SearchFilters, SearchOutput } from "../types";
 import { postJson } from "./http";
@@ -14,7 +15,8 @@ interface AgentResponse {
   model?: string;
   error?: { message?: string } | null;
   output?: (
-    | { type: "search_results"; results?: { url?: string }[] }
+    /** `date`: when the page was published (`last_updated` is not that, and is ignored). */
+    | { type: "search_results"; results?: { url?: string; date?: string | null }[] }
     | { type: "message"; content?: { type: string; text?: string; annotations?: { type: string; url?: string }[] }[] }
     | { type: string }
   )[];
@@ -92,9 +94,15 @@ function searchOutputOf(response: AgentResponse): SearchOutput {
   const answer: string[] = [];
   const found: string[] = [];
   const cited: string[] = [];
+  const sourceDates: Record<string, Date> = {};
   for (const item of response.output ?? []) {
     if (item.type === "search_results" && "results" in item) {
-      for (const result of item.results ?? []) if (result.url) found.push(result.url);
+      for (const result of item.results ?? []) {
+        if (!result.url) continue;
+        found.push(result.url);
+        const published = parseStatedDate(result.date);
+        if (published) sourceDates[result.url] = published;
+      }
     }
     if (item.type === "message" && "content" in item) {
       for (const part of item.content ?? []) {
@@ -107,6 +115,7 @@ function searchOutputOf(response: AgentResponse): SearchOutput {
   return {
     answer: answer.join(""),
     sources: [...new Set([...found, ...cited])],
+    ...(Object.keys(sourceDates).length ? { sourceDates } : {}),
     model: response.model ?? "unknown",
     usage: { inputTokens: response.usage?.input_tokens ?? 0, outputTokens: response.usage?.output_tokens ?? 0 },
   };

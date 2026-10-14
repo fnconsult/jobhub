@@ -7,7 +7,8 @@ import { postJson } from "./http";
 import { domainsOf, searchOutputOfResults, sinceDateOf } from "./web-results";
 
 interface TavilyResponse {
-  results?: { title?: string; url?: string; content?: string }[];
+  /** `published_date`: asked for with `include_published_date`; ISO or RFC 1123, null when unknown; may be a last update. */
+  results?: { title?: string; url?: string; content?: string; published_date?: string | null }[];
 }
 
 /** The cheapest full search: 1 credit per request. */
@@ -38,11 +39,13 @@ export function createTavilyProvider(options: TavilyProviderOptions): AiProvider
         query,
         search_depth: depth,
         max_results: MAX_RESULTS,
+        // Each result's date, for the freshness rule (#116). Undated pages stay: never `filter_by_published_date`.
+        include_published_date: true,
         ...(includeDomains ? { include_domains: includeDomains } : {}),
         ...(excludeDomains ? { exclude_domains: excludeDomains } : {}),
         ...(since ? { start_date: since } : {}),
       });
-      const results = (response?.results ?? []).map((r) => ({ title: r.title, url: r.url, snippet: r.content }));
+      const results = (response?.results ?? []).map((r) => ({ title: r.title, url: r.url, snippet: r.content, published: r.published_date }));
       return searchOutputOfResults(results, depth);
     },
   };

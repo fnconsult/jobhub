@@ -338,6 +338,30 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     });
   });
   describe("Job Search notifications", () => {
+    it("stops telling the Candidate once they dismiss it, and only they can", async () => {
+      const first = await started();
+      await jobSearches.record(first.id, { jobOfferIds: [] });
+      const second = await started();
+      await jobSearches.record(second.id, { failed: "unavailable" });
+
+      await jobSearches.dismissNotification(otherCandidateId, first.id);
+      expect((await jobSearches.notifications(candidateId)).notifications).toHaveLength(2);
+      expect(await jobSearches.notifications(otherCandidateId)).toEqual({ notifications: [], searching: false });
+
+      await jobSearches.dismissNotification(candidateId, first.id);
+      await jobSearches.dismissNotification(candidateId, "not-a-uuid");
+      expect((await jobSearches.notifications(candidateId)).notifications.map((notification) => notification.jobSearchId)).toEqual([second.id]);
+    });
+
+    it("still tells the Candidate when a Job Search finishes, even if dismissed while searching", async () => {
+      const jobSearch = await started();
+      await jobSearches.dismissNotification(candidateId, jobSearch.id);
+
+      await jobSearches.record(jobSearch.id, { jobOfferIds: [] });
+
+      expect((await jobSearches.notifications(candidateId)).notifications).toHaveLength(1);
+    });
+
     it("tells the Candidate a Job Search failed, and why, including one the worker never answered", async () => {
       const failed = await started();
       await jobSearches.record(failed.id, { failed: "discovery_failed" });

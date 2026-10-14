@@ -108,6 +108,11 @@ export interface JobSearches {
    * whether one of their Job Searches is still searching (more may come).
    */
   notifications(candidateId: string): Promise<{ notifications: JobSearchNotification[]; searching: boolean }>;
+  /**
+   * Stops telling the Candidate about their finished Job Search (they closed the
+   * notification, or opened the Job Search). Nothing for anyone else's, or one still searching.
+   */
+  dismissNotification(candidateId: string, jobSearchId: string): Promise<void>;
 }
 
 /** The worker's side of Job Searches: Job discovery's reports, and the searches it never answered. */
@@ -322,6 +327,10 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
           outcome: row.status === "done" ? { status: "done", found: row.found } : { status: "failed", failure: failureOf(row.failure) },
         }));
       return { notifications, searching: rows.some((row) => row.status === "searching") };
+    },
+    async dismissNotification(candidateId, jobSearchId) {
+      if (!UUID.test(jobSearchId)) return;
+      await database.query("UPDATE job_search SET notification_pending = false WHERE id = $1 AND candidate_id = $2", [jobSearchId, candidateId]);
     },
   };
 }

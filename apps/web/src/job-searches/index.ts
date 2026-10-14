@@ -9,7 +9,8 @@
  *      for the worker. A Job Search that ends failed gives its use back;
  *    - `get` one, with its results: each Job Offer found, the Match Score of the
  *      Profile's current Master CV against it, and the Application the Candidate
- *      already has for it, best Match Score first. Expired Job Offers are left out,
+ *      already has for it, best Match Score first (an undated Job Offer after a
+ *      dated one with an equal Match Score). Expired Job Offers are left out,
  *      even one that expired after the search;
  *    - `record` what Job discovery found (or why it could not run): the worker's
  *      side, also alone as `createJobSearchReports(database, { quotas })`, with
@@ -24,7 +25,7 @@
  * Job Searches belong to their Profile and are deleted with it (ADR-0010); the
  * Job Offers they found are kept.
  */
-import { noDiscoveryMetrics, scoreMatch, type DiscoveryMetrics, type JobOffer, type MatchScore, type MonthlyQuota } from "@jobhub/shared";
+import { noDiscoveryMetrics, rankByMatchScore, scoreMatch, type DiscoveryMetrics, type JobOffer, type MatchScore, type MonthlyQuota } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { Applications } from "../applications";
@@ -66,7 +67,10 @@ export interface JobSearch {
   /** Why it failed; null unless it failed. */
   failure: JobSearchFailure | null;
   startedAt: Date;
-  /** Best Match Score first. Empty until the search is done. */
+  /**
+   * Best Match Score first; at an equal one, dated Job Offers before undated ones, then in the order
+   * Job discovery found them. Empty until the search is done.
+   */
   results: JobSearchResult[];
   /** Null while it is searching (and for Job Searches finished before metrics were kept). */
   metrics: JobSearchMetrics | null;
@@ -256,16 +260,16 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
         deps.applications.list(candidateId),
       ]);
       const applicationOf = new Map(saved.map((application) => [application.jobOffer.id, application.id]));
-      results = found
-        // An Expired Job Offer is no longer published at its source: nothing to apply to any more.
-        .filter((jobOffer): jobOffer is JobOffer => jobOffer !== null && !jobOffer.expiredAt)
-        .map((jobOffer) => ({
-          jobOffer,
-          matchScore: scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer }),
-          applicationId: applicationOf.get(jobOffer.id) ?? null,
-        }))
-        // Stable: equal Match Scores keep the order Job discovery found them in.
-        .sort((a, b) => b.matchScore.score - a.matchScore.score);
+      results = rankByMatchScore(
+        found
+          // An Expired Job Offer is no longer published at its source: nothing to apply to any more.
+          .filter((jobOffer): jobOffer is JobOffer => jobOffer !== null && !jobOffer.expiredAt)
+          .map((jobOffer) => ({
+            jobOffer,
+            matchScore: scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer }),
+            applicationId: applicationOf.get(jobOffer.id) ?? null,
+          })),
+      );
     }
     const failure = status === "failed" ? failureOf(row.failure) : null;
     return { id: row.id, profile: { id: profile.id, name: profile.name }, status, failure, startedAt: row.started_at, results, metrics: row.metrics };

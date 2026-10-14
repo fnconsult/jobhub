@@ -636,7 +636,9 @@
     "seeApplication": "Voir ma candidature",
     "signInToSave": "Connectez-vous pour enregistrer cette offre",
     "createProfileToSave": "Créez un profil pour enregistrer cette offre",
-    "expired": "Offre expirée : elle n'est plus publiée sur son site d'origine depuis le {{date}}."
+    "expired": "Offre expirée : elle n'est plus publiée sur son site d'origine depuis le {{date}}.",
+    "postedAt": "Date de publication",
+    "dateUnknown": "date inconnue"
   },
   "matchScore": {
     "title": "Score de correspondance",
@@ -1150,6 +1152,8 @@
       "intro_one": "Bonjour,\n\nVotre coach a trouvé {{count}} nouvelle offre pour votre profil « {{profile}} » :",
       "intro_other": "Bonjour,\n\nVotre coach a trouvé {{count}} nouvelles offres pour votre profil « {{profile}} », de la plus proche à la moins proche de votre CV de référence :",
       "matchScore": "score de correspondance : {{score}} / 100",
+      "postedAt": "publiée le {{date}}",
+      "dateUnknown": "date de publication : date inconnue",
       "seeDigest_one": "Retrouvez ce Job Digest dans Jobbbox :\n{{url}}",
       "seeDigest_other": "Retrouvez ce Job Digest et ses {{count}} offres dans Jobbbox :\n{{url}}",
       "unsubscribe": "Ne plus recevoir le Job Digest de ce profil :\n{{url}}",

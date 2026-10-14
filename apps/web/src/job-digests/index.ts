@@ -22,8 +22,11 @@
  *
  * Selecting a Job Digest's Job Offers: the Job Offers stored since the
  * Profile's previous Job Digest (a week back for the first, by default), whoever stored
- * them, except Guest-only and Expired ones; scored against the Profile's
- * current Master CV, kept from the threshold up. Only when they are fewer than
+ * them, except Guest-only and Expired ones and those whose Posting date is
+ * more than 30 days ago; scored against the Profile's current Master CV, kept
+ * from the threshold up, best first (an undated Job Offer after a dated one
+ * with an equal Match Score). The email gives each its Posting date, or says
+ * "date unknown". Only when they are fewer than
  * the target count does Job discovery run, its Job Offers scored the same way;
  * if it fails, what the stored Job Offers gave is sent. A Job Offer counts as
  * shown, and is never sent, once it was in a Job Digest or a Job Search of the
@@ -37,7 +40,9 @@
  */
 import {
   JOB_DIGEST_FREQUENCIES,
+  MAX_POSTING_AGE_DAYS,
   PLANS,
+  rankByMatchScore,
   scoreMatch,
   type JobDigestFrequency,
   type JobOffer,
@@ -53,7 +58,7 @@ import type { Billing } from "../billing";
 import type { JobOffers } from "../job-offers";
 import type { Profile, Profiles } from "../profiles";
 import { routes } from "../routes";
-import { latestSlot } from "./schedule";
+import { DIGEST_TIME_ZONE, latestSlot } from "./schedule";
 
 export { DIGEST_HOUR, DIGEST_TIME_ZONE, latestSlot } from "./schedule";
 
@@ -278,7 +283,6 @@ interface SubscriptionRow {
 }
 
 type Scored = { jobOffer: JobOffer; matchScore: MatchScore };
-const bestFirst = (a: Scored, b: Scored) => b.matchScore.score - a.matchScore.score;
 
 export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDigests {
   const now = deps.now ?? (() => new Date());
@@ -309,13 +313,14 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
     return rows[0] ?? null;
   }
 
-  /** The Job Offers still stored, scored for the Profile, best Match Score first (stable). */
+  /** The Job Offers still stored, scored for the Profile, best Match Score first (undated after dated at an equal one). */
   async function scored(profile: Profile, jobOfferIds: string[]): Promise<Scored[]> {
     const found = await Promise.all(jobOfferIds.map((id) => deps.jobOffers.get(id)));
-    return found
-      .filter((jobOffer): jobOffer is JobOffer => jobOffer !== null)
-      .map((jobOffer) => ({ jobOffer, matchScore: scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer }) }))
-      .sort(bestFirst);
+    return rankByMatchScore(
+      found
+        .filter((jobOffer): jobOffer is JobOffer => jobOffer !== null)
+        .map((jobOffer) => ({ jobOffer, matchScore: scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer }) })),
+    );
   }
 
   async function settingsOf(candidateId: string, profile: Profile): Promise<JobDigestSettings> {
@@ -365,21 +370,22 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
     return rows.map((row) => row.id);
   }
 
-  /** Of these Job Offer ids, those neither Guest-only nor expired. */
-  async function eligible(ids: string[]): Promise<string[]> {
+  /** Of these Job Offer ids, those neither Guest-only, expired, nor posted more than MAX_POSTING_AGE_DAYS before `at`. */
+  async function eligible(ids: string[], at: Date): Promise<string[]> {
     if (ids.length === 0) return [];
     const { rows } = await database.query<{ id: string }>(
-      "SELECT id FROM job_offer WHERE id = ANY($1::uuid[]) AND guest_expires_at IS NULL AND expired_at IS NULL",
-      [ids],
+      `SELECT id FROM job_offer WHERE id = ANY($1::uuid[]) AND guest_expires_at IS NULL AND expired_at IS NULL
+          AND (posted_at IS NULL OR posted_at >= $2)`,
+      [ids, new Date(at.getTime() - MAX_POSTING_AGE_DAYS * DAY_MS)],
     );
     const kept = new Set(rows.map((row) => row.id));
     return ids.filter((id) => kept.has(id));
   }
 
   /** Never-shown Job Offers among `ids`, scored for the Profile, from the threshold up. */
-  async function qualifying(profile: Profile, ids: string[], excluded: Set<string>): Promise<Scored[]> {
+  async function qualifying(profile: Profile, ids: string[], excluded: Set<string>, at: Date): Promise<Scored[]> {
     const fresh = [...new Set(ids)].filter((id) => UUID.test(id) && !excluded.has(id));
-    return (await scored(profile, await eligible(fresh))).filter(({ matchScore }) => matchScore.score >= minMatchScore);
+    return (await scored(profile, await eligible(fresh, at))).filter(({ matchScore }) => matchScore.score >= minMatchScore);
   }
 
   async function withApplications(candidateId: string, results: Scored[]): Promise<JobDigestResult[]> {
@@ -397,11 +403,13 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
     const i18n = createI18n(candidate.interfaceLanguage);
     const { t } = i18n;
     const count = digest.results.length;
+    const day = new Intl.DateTimeFormat(i18n.language, { dateStyle: "long", timeZone: DIGEST_TIME_ZONE });
     const items = digest.results.slice(0, EMAIL_MAX_RESULTS).map(({ jobOffer, matchScore }) => {
       const where = [jobOffer.employer, jobOffer.location].filter(Boolean).join(", ");
       return [
         `- ${jobOffer.title}${where ? ` (${where})` : ""}`,
         `  ${t("jobDigest.email.matchScore", { score: matchScore.score })}`,
+        `  ${jobOffer.postedAt ? t("jobDigest.email.postedAt", { date: day.format(jobOffer.postedAt) }) : t("jobDigest.email.dateUnknown")}`,
         `  ${new URL(routes.jobOffer(jobOffer.id), deps.baseURL).toString()}`,
       ].join("\n");
     });
@@ -523,14 +531,14 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
 
       const at = now();
       const shown = await shownTo(candidateId, profile.id);
-      let picked = await qualifying(profile, await poolOf(candidateId, profile.id, at), shown);
+      let picked = await qualifying(profile, await poolOf(candidateId, profile.id, at), shown, at);
       let discovery: JobDigestDelivery["discovery"] = "not_run";
       if (picked.length < targetCount) {
         try {
           const found = await discover();
           discovery = "ran";
           const taken = new Set([...shown, ...picked.map(({ jobOffer }) => jobOffer.id)]);
-          picked = [...picked, ...(await qualifying(profile, found, taken))].sort(bestFirst);
+          picked = rankByMatchScore([...picked, ...(await qualifying(profile, found, taken, at))]);
         } catch (error) {
           // Not retried: the next scheduled Job Digest runs Job discovery again.
           discovery = "failed";

@@ -54,6 +54,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Human Coaches, Coach Access and Coaching Sessions are up to date");
     expect(first.stdout).toContain("Job Digests are up to date");
     expect(first.stdout).toContain("Coach Conversations are up to date");
+    expect(first.stdout).toContain("Coach Memory is up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 

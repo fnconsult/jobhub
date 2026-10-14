@@ -50,7 +50,7 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
     const blocking = foreignKeys.filter((key) => tablesTiedToCandidate().has(key.references) && key.onDelete !== "cascade");
 
     expect(blocking).toEqual([]);
-    expect([...tablesTiedToCandidate()]).toEqual(expect.arrayContaining(["profile", "master_cv_version", "application", "tailored_cv", "tailored_document", "session", "coach_conversation", "coach_message"]));
+    expect([...tablesTiedToCandidate()]).toEqual(expect.arrayContaining(["profile", "master_cv_version", "application", "tailored_cv", "tailored_document", "session", "coach_conversation", "coach_message", "coach_memory_item"]));
   });
 
   it("every table naming a Candidate hangs off the Candidate table, so none is forgotten", async () => {

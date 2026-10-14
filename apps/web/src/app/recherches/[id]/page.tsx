@@ -46,9 +46,7 @@ export default async function JobSearchPage({ params }: Params) {
         {status === "failed" ? (
           <div className="notice">
             <p>{t("jobSearch.failed")}</p>
-            <p>
-              {t(`jobSearch.failureReasons.${jobSearch.failure ?? "other"}`)} {t("jobSearch.notCounted")}
-            </p>
+            <p>{`${t(`jobSearch.failureReasons.${jobSearch.failure ?? "other"}`)} ${t("jobSearch.notCounted")}`}</p>
           </div>
         ) : null}
         {status === "done" && results.length === 0 ? <p className="notice">{t("jobSearch.noResults")}</p> : null}

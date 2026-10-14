@@ -91,9 +91,7 @@ function Notification({ notification, onDismiss }: { notification: JobSearchNoti
         ) : (
           <>
             <p>{t("jobSearch.notifications.failed", { profile: profile.name })}</p>
-            <p>
-              {t(`jobSearch.failureReasons.${outcome.failure}`)} {t("jobSearch.notCounted")}
-            </p>
+            <p>{`${t(`jobSearch.failureReasons.${outcome.failure}`)} ${t("jobSearch.notCounted")}`}</p>
           </>
         )}
       </div>

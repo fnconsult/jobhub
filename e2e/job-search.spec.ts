@@ -5,6 +5,7 @@ import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import pg from "pg";
 import { PgBoss } from "pg-boss";
+import { renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
@@ -285,5 +286,89 @@ test.describe("On-demand AI Coach job search", () => {
     } finally {
       await client.end();
     }
+  });
+  // Issue #118: once a Job Search finishes, the Candidate is told so on whatever page they are on.
+  test.describe("Job Search notification", () => {
+    /** Starts a Job Search without leaving the page, as the Coach Panel would in another tab. */
+    async function startInBackground(page: Page, profileId: string): Promise<string> {
+      const started = await page.request.post("/api/job-searches", { headers: { origin }, data: { profileId } });
+      expect(started.status(), await started.text()).toBe(201);
+      return (await started.json()).id as string;
+    }
+
+    /** ADR-0009: the notification's text is at least 16px and in AA contrast. */
+    async function expectReadable(page: Page, texts: string[]) {
+      const rendered = (await renderedTexts(page)).filter((item) => texts.some((text) => item.text.includes(text)));
+      expect(rendered.length).toBeGreaterThanOrEqual(texts.length);
+      for (const item of rendered) {
+        expect(item.fontSizePx, item.text).toBeGreaterThanOrEqual(16);
+        expect(item.contrast, item.text).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+
+    test("tells the Candidate, on another page, how many Job Offers it found, until they open it", async ({ page }) => {
+      const profileId = await signInWithProfile(page);
+      await page.goto(`/profils/${profileId}`);
+      const jobSearchId = await startInBackground(page, profileId);
+
+      // Moving on in the app: the notifications check for the Job Search just started.
+      await page.getByRole("link", { name: "Mes candidatures" }).click();
+      await expect(page).toHaveURL(/\/candidatures$/);
+
+      const message = `Votre recherche d'offres pour « ${searchCriteria.targetRole} » est terminée : 2 offres trouvées.`;
+      const notifications = page.getByRole("status").getByRole("list", { name: "Recherches d'offres terminées" });
+      await expect(notifications.getByText(message), workerOutput).toBeVisible({ timeout: 90_000 });
+      await expectReadable(page, [message]);
+      const see = notifications.getByRole("link", { name: "Voir les offres" });
+      await expect(see).toHaveAccessibleDescription(message);
+      await expect(notifications.getByRole("button", { name: "Fermer" })).toHaveAccessibleDescription(message);
+
+      // It stays from page to page until the Candidate does something about it.
+      await page.goto(`/profils/${profileId}`);
+      await expect(page.getByText(message)).toBeVisible();
+
+      await see.click();
+      await expect(page).toHaveURL(new RegExp(`/recherches/${jobSearchId}$`));
+      await expect(page.getByText("2 offres trouvées, de la plus proche à la moins proche de votre CV de référence.")).toBeVisible();
+      await expect(page.getByText(message)).toHaveCount(0);
+
+      await page.goto(`/profils/${profileId}`);
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      await expect(page.getByText(message)).toHaveCount(0);
+    });
+
+    test("tells the Candidate a Job Search failed, and why in plain words, until they close it", async ({ page }) => {
+      const profileId = await signInWithProfile(page);
+      await page.goto("/candidatures");
+      writeFileSync(searchDownFlag, "");
+      let jobSearchId: string;
+      try {
+        jobSearchId = await startInBackground(page, profileId);
+        await page.reload();
+
+        const notifications = page.getByRole("status").getByRole("list", { name: "Recherches d'offres terminées" });
+        const notification = notifications.getByRole("listitem");
+        await expect(notification.getByText(`Votre recherche d'offres pour « ${searchCriteria.targetRole} » n'a pas abouti.`), workerOutput).toBeVisible({
+          timeout: 90_000,
+        });
+        await expect.poll(() => failedRuns(profileId), { message: workerOutput }).toBe(1);
+      } finally {
+        rmSync(searchDownFlag, { force: true });
+      }
+      const reason = "Les sites d'offres d'emploi n'ont pas pu être consultés. Elle n'est pas comptée dans vos recherches d'offres du mois.";
+      await expect(page.getByText(reason)).toBeVisible();
+      await expectReadable(page, [reason]);
+      await expect(page.getByRole("link", { name: "Voir la recherche" })).toHaveAttribute("href", `/recherches/${jobSearchId}`);
+
+      await page.getByRole("button", { name: "Fermer" }).click();
+      await expect(page.getByText(reason)).toHaveCount(0);
+      await page.reload();
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      await expect(page.getByText(reason)).toHaveCount(0);
+
+      // The Job Search's own page still says why.
+      await page.goto(`/recherches/${jobSearchId}`);
+      await expect(page.getByRole("status").getByText(reason)).toBeVisible();
+    });
   });
 });

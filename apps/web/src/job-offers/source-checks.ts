@@ -52,8 +52,10 @@ export function createSourceChecks(database: Pick<Pool, "query">): SourceChecks 
         `SELECT o.id, o.source_url FROM job_offer o
           WHERE o.source_url IS NOT NULL
             AND EXISTS (SELECT 1 FROM application a WHERE a.job_offer_id = o.id AND a.status NOT IN (${FINAL_STATUSES_SQL}))
-            AND COALESCE(o.source_checked_at, o.created_at) <= $1::timestamptz - make_interval(days =>
-                  CASE WHEN o.expired_at IS NULL THEN ${RECHECK_INTERVAL_DAYS} ELSE ${EXPIRED_RECHECK_INTERVAL_DAYS} END)
+            -- In hours, not days: timestamptz minus a days interval counts calendar days in the
+            -- session's time zone, 71 or 73 hours across a daylight saving change.
+            AND COALESCE(o.source_checked_at, o.created_at) <= $1::timestamptz - make_interval(hours =>
+                  24 * CASE WHEN o.expired_at IS NULL THEN ${RECHECK_INTERVAL_DAYS} ELSE ${EXPIRED_RECHECK_INTERVAL_DAYS} END)
           ORDER BY COALESCE(o.source_checked_at, o.created_at), o.id
           LIMIT $2`,
         [now, limit],

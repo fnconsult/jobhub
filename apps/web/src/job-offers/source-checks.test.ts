@@ -106,6 +106,29 @@ describe.skipIf(!connectionString)("Job Offer source re-checks (needs Postgres: 
       expect(await sourceChecks.dueForRecheck(daysFromNow(6.2), 10)).toEqual([{ id, sourceUrl: posting.source.url }]);
     });
 
+    it("is due RECHECK_INTERVAL_DAYS × 24 hours after the last check, even across a clock change in the database's time zone", async () => {
+      const id = await followed();
+      const hoursAfter = (from: string, hours: number) => new Date(Date.parse(from) + hours * 3_600_000);
+      // A session in a time zone with daylight saving time: a calendar day there is 23 or 25 hours long twice a year.
+      const client = await database.connect();
+      try {
+        await client.query("SET TIME ZONE 'Europe/Paris'");
+        const parisChecks = createSourceChecks(client);
+        const interval = RECHECK_INTERVAL_DAYS * 24;
+        // Clocks go back on 25 October 2026 and forward on 29 March 2026, in Paris.
+        for (const checkedAt of ["2026-10-24T00:00:00+02:00", "2026-03-28T00:00:00+01:00"]) {
+          await parisChecks.record(id, "published", new Date(checkedAt));
+          expect(await parisChecks.dueForRecheck(hoursAfter(checkedAt, interval - 0.5), 10), `${checkedAt} + ${interval - 0.5} h`).toEqual([]);
+          expect(await parisChecks.dueForRecheck(hoursAfter(checkedAt, interval + 0.5), 10), `${checkedAt} + ${interval + 0.5} h`).toEqual([
+            { id, sourceUrl: posting.source.url },
+          ]);
+        }
+      } finally {
+        await client.query("RESET TIME ZONE");
+        client.release();
+      }
+    });
+
     it("only Job Offers an ongoing Application follows: never one no Candidate applies to, nor one whose Applications are all over", async () => {
       const ongoing = await followed();
       await capture({ source: { url: "https://www.apec.fr/offre/sans-candidature" }, title: "DAF", content: "Poste sans candidature." });

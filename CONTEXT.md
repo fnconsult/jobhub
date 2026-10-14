@@ -179,7 +179,7 @@ A result page that lists several postings (a job board's search results, a caree
 _Avoid_: Results page, index page
 
 **Job Search**:
-One run of Job discovery that a Candidate starts for a Profile, and its outcome: searching, done or failed. It counts one against the Plan Quota, and the use is given back if the search fails or times out. A search nobody has finished after 15 minutes is failed.
+One run of Job discovery that a Candidate starts for a Profile, and its outcome: searching, done or failed. It counts one against the Plan Quota, and the use is given back if the search fails or times out. A search nobody has finished after 15 minutes is failed. Its page shows the Match Scores against the Profile's current Search Criteria; a Job Search keeps no copy of the criteria it was run with.
 _Avoid_: Search (alone, ambiguous with Search Criteria)
 
 **Job Search Notification**:
@@ -310,6 +310,9 @@ The collective term for an Application's Tailored CV, Cover Letter and Outreach 
 A 0–100 measure of how well a CV (Master or Tailored) fits a Job Offer, with an explained breakdown (skills covered/missing, seniority, location, salary, contract type).
 Each breakdown item is a match, partial, mismatch or unknown (the Job Offer or the Search Criteria give nothing to compare); unknown items do not count in the score. Seniority compares the years of experience the Job Offer asks for with the span of dated jobs on the CV.
 _Avoid_: Fit, compatibility, relevance
+
+**"Pourquoi N ?"**:
+The reasons behind a Match Score of N, shown on each Job Offer of a Job Search or Job Digest: one line per breakdown item with its verdict.
 
 **Kept Match Score**:
 The last Match Score held in the extension's session, with the Job Offer and the Profile (signed-in Candidate) or CV (Guest) it was computed for. Shown again, not recomputed, until the Job Offer changes, the Candidate chooses another Profile or CV, or asks to rescore; forgotten with the session. A refused score is never kept.

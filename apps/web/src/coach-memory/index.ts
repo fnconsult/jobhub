@@ -39,6 +39,8 @@ export type ProposeResult = { ok: true; proposals: ProposedMemoryItem[] } | { ok
 
 export type ConfirmResult = { ok: true; item: CoachMemoryItem } | { ok: false; error: "invalid" };
 
+export type EditResult = { ok: true; item: CoachMemoryItem } | { ok: false; error: "invalid" | "not_found" };
+
 export interface CoachMemory {
   /** The key facts of the Candidate's conversation worth remembering, not yet in their Coach Memory. Saves nothing. */
   propose(candidateId: string, conversationId: string): Promise<ProposeResult>;
@@ -50,6 +52,10 @@ export interface CoachMemory {
   confirm(candidateId: string, input: unknown): Promise<ConfirmResult>;
   /** The Candidate's Coach Memory, oldest item first. */
   list(candidateId: string): Promise<CoachMemoryItem[]>;
+  /** Replaces an item's kind and words: untrusted `{ kind, text }`, as for `confirm`. */
+  edit(candidateId: string, itemId: string, input: unknown): Promise<EditResult>;
+  /** False when there is no such item of the Candidate's to delete. */
+  delete(candidateId: string, itemId: string): Promise<boolean>;
 }
 
 export interface CoachMemoryDeps {
@@ -59,6 +65,8 @@ export interface CoachMemoryDeps {
 
 /** Longest item, in characters. */
 export const MAX_ITEM_LENGTH = 300;
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const proposalsSchema = z.object({
   items: z.array(z.unknown()),
@@ -134,6 +142,23 @@ export function createCoachMemory(database: Pool, deps: CoachMemoryDeps): CoachM
         [candidateId, kind, text],
       );
       return { ok: true, item: itemFrom(rows[0]!) };
+    },
+
+    async edit(candidateId, itemId, input) {
+      const parsed = itemSchema.safeParse(input);
+      if (!parsed.success) return { ok: false, error: "invalid" };
+      if (!UUID.test(itemId)) return { ok: false, error: "not_found" };
+      const { rows } = await database.query<ItemRow>(
+        `UPDATE coach_memory_item SET kind = $3, text = $4, updated_at = now() WHERE id = $1 AND candidate_id = $2 RETURNING id, kind, text, updated_at`,
+        [itemId, candidateId, parsed.data.kind, parsed.data.text],
+      );
+      return rows[0] ? { ok: true, item: itemFrom(rows[0]) } : { ok: false, error: "not_found" };
+    },
+
+    async delete(candidateId, itemId) {
+      if (!UUID.test(itemId)) return false;
+      const { rowCount } = await database.query(`DELETE FROM coach_memory_item WHERE id = $1 AND candidate_id = $2`, [itemId, candidateId]);
+      return rowCount === 1;
     },
 
     async propose(candidateId, conversationId) {

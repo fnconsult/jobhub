@@ -94,4 +94,31 @@ describe.skipIf(!connectionString)("Coach Memory (needs Postgres: DATABASE_URL)"
     expect(provider.calls[0]!.messages.at(-1)!.content).toContain("Poste de DAF à Lyon");
     expect(await memory.list(marie)).toHaveLength(1);
   });
+
+  it("lets the Candidate edit an item's words and kind, but not empty, overlong or someone else's", async () => {
+    const saved = await memory.confirm(marie, { kind: "goal", text: "Poste de DAF à Lyon" });
+    if (!saved.ok) throw new Error("refused");
+
+    const edited = await memory.edit(marie, saved.item.id, { kind: "decision", text: "Poste de DAF à Lyon ou Grenoble" });
+
+    expect(edited).toEqual({ ok: true, item: { id: saved.item.id, kind: "decision", text: "Poste de DAF à Lyon ou Grenoble", updatedAt: expect.any(Date) } });
+    expect(await memory.edit(marie, saved.item.id, { kind: "goal", text: "  " })).toEqual({ ok: false, error: "invalid" });
+    expect(await memory.edit(marie, saved.item.id, { kind: "goal", text: "x".repeat(301) })).toEqual({ ok: false, error: "invalid" });
+    expect(await memory.edit(marie, saved.item.id, { kind: "wish", text: "Lyon" })).toEqual({ ok: false, error: "invalid" });
+    expect(await memory.edit(jean, saved.item.id, { kind: "goal", text: "Je modifie ?" })).toEqual({ ok: false, error: "not_found" });
+    expect(await memory.edit(marie, "not-a-uuid", { kind: "goal", text: "Lyon" })).toEqual({ ok: false, error: "not_found" });
+    expect(await memory.list(marie)).toMatchObject([{ kind: "decision", text: "Poste de DAF à Lyon ou Grenoble" }]);
+  });
+
+  it("lets the Candidate delete an item, but not someone else's", async () => {
+    const kept = await memory.confirm(marie, { kind: "goal", text: "Poste de DAF à Lyon" });
+    const gone = await memory.confirm(marie, { kind: "decision", text: "Ne plus postuler dans la banque" });
+    if (!kept.ok || !gone.ok) throw new Error("refused");
+
+    expect(await memory.delete(jean, gone.item.id)).toBe(false);
+    expect(await memory.delete(marie, gone.item.id)).toBe(true);
+    expect(await memory.delete(marie, gone.item.id)).toBe(false);
+    expect(await memory.delete(marie, "not-a-uuid")).toBe(false);
+    expect(await memory.list(marie)).toEqual([kept.item]);
+  });
 });

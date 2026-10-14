@@ -244,7 +244,7 @@ describe("Perplexity provider", () => {
     const { fetch, requests } = fakeFetch(perplexityReply);
     const provider = createPerplexityProvider({ apiKey: "pk", fetch });
 
-    await provider.search!("Offres d'emploi « DAF » à Lyon", {});
+    await provider.search!("Offre d'emploi « DAF » à Lyon", {});
 
     expect(provider.residency).toBe("outside_eu");
     expect(provider.generate).toBeUndefined();
@@ -252,7 +252,7 @@ describe("Perplexity provider", () => {
     expect(requests[0]!.headers.get("authorization")).toBe("Bearer pk");
     expect(requests[0]!.body).toEqual({
       preset: "fast",
-      input: "Offres d'emploi « DAF » à Lyon",
+      input: "Offre d'emploi « DAF » à Lyon",
       tools: [{ type: "web_search" }],
       max_output_tokens: 2048,
       store: false,

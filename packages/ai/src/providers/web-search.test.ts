@@ -31,7 +31,7 @@ function fakeFetch(response: unknown, status = 200) {
 const fixture = (name: string) => JSON.parse(readFileSync(new URL(`./fixtures/${name}.json`, import.meta.url), "utf8"));
 const recordedUrl = (name: string) => new URL(`./fixtures/${name}.recorded.json`, import.meta.url);
 
-const query = "Offres d'emploi « DAF » à Lyon";
+const query = "Offre d'emploi « DAF » à Lyon";
 
 describe("Tavily provider", () => {
   const reply = fixture("tavily-search");

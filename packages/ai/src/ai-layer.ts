@@ -1,6 +1,6 @@
 import type { SearchCriteria } from "@jobhub/shared";
 import { findIdentity } from "./identity-scan";
-import { buildCompanyQuery, buildSearchQuery } from "./search-query";
+import { buildCompanyQuery, buildSearchQuery, type JobSearchQuery } from "./search-query";
 import { AiConfigError, DataResidencyError } from "./errors";
 import { SEARCH_TASK, TEXT_TASKS } from "./types";
 import type { AiProvider, AiTask, Message, ProviderId, SearchFilters, TextTask, TokenUsage, UsageEntry, UsageLog } from "./types";
@@ -36,6 +36,8 @@ export interface SearchRequest {
   criteria: SearchCriteria;
   /** Narrows the search where the provider can (domains, freshness). Results must still be checked. */
   filters?: SearchFilters;
+  /** Which job title and language to word the query with. Default: the Search Criteria's own title, in French. */
+  query?: JobSearchQuery;
 }
 
 export interface CompanySearchRequest {
@@ -181,7 +183,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     },
 
     searchWeb(request) {
-      return search(request.candidateId, buildSearchQuery(request.criteria), request.filters);
+      return search(request.candidateId, buildSearchQuery(request.criteria, request.query), request.filters);
     },
 
     searchCompany(request) {

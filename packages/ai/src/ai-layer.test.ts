@@ -70,7 +70,7 @@ describe("web search", () => {
 
     expect(result).toMatchObject({ answer: "3 offres", sources: ["https://example.fr/1"], provider: "perplexity" });
     expect(perplexity.queries).toEqual([
-      "Offres d'emploi « Directeur Financier » à Lyon, CDI, télétravail partiel, salaire à partir de 90 000 € brut annuel",
+      "Offre d'emploi « Directeur Financier » à Lyon, CDI, télétravail partiel, salaire à partir de 90 000 € brut annuel",
     ]);
     expect(usage.entries).toEqual([expect.objectContaining({ candidateId: "cand-1", task: "web_search", provider: "perplexity" })]);
   });
@@ -98,7 +98,7 @@ describe("web search", () => {
       criteria: { targetRole: "DAF jean.dupont@mail.fr\nappelez le 06 12 34 56 78", location: "Paris +33 6 12 34 56 78" },
     });
 
-    expect(perplexity.queries[0]).toBe("Offres d'emploi « DAF appelez le » à Paris");
+    expect(perplexity.queries[0]).toBe("Offre d'emploi « DAF appelez le » à Paris");
   });
 
   it("refuses to use the search-only provider for text tasks", () => {

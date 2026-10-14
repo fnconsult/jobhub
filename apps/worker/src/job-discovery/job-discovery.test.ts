@@ -129,7 +129,7 @@ describe("Job discovery", () => {
     const report = await discovery.discover({ candidateId: "candidate-1", criteria });
 
     expect(search.queries).toEqual([
-      "Offres d'emploi « Directeur financier » à Lyon, CDI, télétravail partiel, salaire à partir de 110 000 € brut annuel",
+      "Offre d'emploi « Directeur financier » à Lyon, CDI, télétravail partiel, salaire à partir de 110 000 € brut annuel",
     ]);
     expect(report.jobOffers).toEqual([
       {
@@ -156,7 +156,7 @@ describe("Job discovery", () => {
       criteria: { targetRole: "DAF jean.dupont@mail.fr 06 12 34 56 78", location: "Lyon" },
     });
 
-    expect(search.queries).toEqual(["Offres d'emploi « DAF » à Lyon"]);
+    expect(search.queries).toEqual(["Offre d'emploi « DAF » à Lyon"]);
   });
 
   describe("reading pages politely (ADR-0002)", () => {

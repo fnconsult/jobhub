@@ -3,7 +3,7 @@
  * https://schema.org/JobPosting — fields are loosely typed in the wild, so every
  * read is defensive: a field we cannot make sense of is left out.
  */
-import type { ContractType, JobOfferDetails, RemoteWork, SalaryRange } from "@jobhub/shared";
+import { parseStatedDate, type ContractType, type JobOfferDetails, type RemoteWork, type SalaryRange } from "@jobhub/shared";
 import { decodeEntities, htmlToText, jsonLdBlocks } from "./html";
 
 type Json = Record<string, unknown>;
@@ -130,6 +130,7 @@ function experienceYears(posting: Json): number | undefined {
 /**
  * The Job Offer details stated by the page's single `JobPosting`, or null when
  * the page has none (or several: a list of postings is not one Job Offer).
+ * `postedAt` is its `datePosted` as stated, believable or not: the caller judges it.
  */
 export function readJobPosting(html: string): JobOfferDetails | null {
   const nodes = jobPostingNodes(html);
@@ -154,6 +155,8 @@ export function readJobPosting(html: string): JobOfferDetails | null {
   if (asked) details.skills = asked;
   const years = experienceYears(posting);
   if (years !== undefined) details.requiredExperienceYears = years;
+  const posted = parseStatedDate(text(posting.datePosted));
+  if (posted) details.postedAt = posted;
   return details;
 }
 

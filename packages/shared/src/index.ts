@@ -5,4 +5,5 @@ export * from "./document-language";
 export { normalise } from "./text";
 export * from "./profile-name";
 export * from "./discovery-metrics";
+export * from "./posting-date";
 export * from "./cv-identity";

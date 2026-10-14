@@ -136,9 +136,10 @@ export interface JobOfferDetails {
   /** Years of experience the posting asks for. */
   requiredExperienceYears?: number;
   /**
-   * When the source first published the posting, set only when the source
-   * states it in a form we trust (an ATS's own API, e.g. Greenhouse's
-   * `first_published`). Unset means the date is unknown.
+   * The Posting date: when the source first published the posting, set only
+   * when Job discovery read it from the source itself (an ATS's own API, e.g.
+   * Greenhouse's `first_published`, the page's JobPosting `datePosted`, or the
+   * search provider's date for the page). Unset means the date is unknown.
    */
   postedAt?: Date;
 }

@@ -2,7 +2,7 @@ import { AnthropicBedrockMantle } from "@anthropic-ai/bedrock-sdk";
 import Anthropic from "@anthropic-ai/sdk";
 import { AnthropicVertex } from "@anthropic-ai/vertex-sdk";
 import { AiProviderError } from "../errors";
-import type { AiProvider, Residency, TextInput, TextOutput } from "../types";
+import type { AiProvider, Residency, TextInput, TextOutput, TokenUsage } from "../types";
 
 /**
  * Where Claude is reached. Only Bedrock and Vertex in an EU region are EU-resident;
@@ -27,6 +27,18 @@ export interface AnthropicProviderOptions {
 }
 
 const DEFAULT_MODEL = "claude-opus-5-5";
+
+/** Claude's `input_tokens` leave out the input read from and written to its prompt cache. */
+function usageOf(usage: Anthropic.Usage): TokenUsage {
+  const cachedInputTokens = usage.cache_read_input_tokens ?? 0;
+  const cacheWriteTokens = usage.cache_creation_input_tokens ?? 0;
+  return {
+    inputTokens: usage.input_tokens + cacheWriteTokens,
+    outputTokens: usage.output_tokens,
+    ...(cachedInputTokens ? { cachedInputTokens } : {}),
+    ...(cacheWriteTokens ? { cacheWriteTokens } : {}),
+  };
+}
 
 /** Bedrock regions are "eu-*"; Vertex EU locations are "europe-*" or the "eu" multi-region. */
 function residencyOf(endpoint: AnthropicEndpoint): Residency {
@@ -118,7 +130,7 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): AiPr
       return {
         text,
         model: message.model,
-        usage: { inputTokens: message.usage.input_tokens, outputTokens: message.usage.output_tokens },
+        usage: usageOf(message.usage),
       };
     },
   };

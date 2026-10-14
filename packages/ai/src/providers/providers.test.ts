@@ -62,6 +62,17 @@ describe("Anthropic provider", () => {
     expect(output).toEqual({ text: "Bonjour", model: "claude-opus-5-5", usage: { inputTokens: 120, outputTokens: 30 } });
   });
 
+  it("reports input read from and written to Claude's prompt cache, apart from the rest of the input", async () => {
+    const usage = { input_tokens: 120, output_tokens: 30, cache_read_input_tokens: 18_000, cache_creation_input_tokens: 2_000 };
+    const { fetch } = fakeFetch({ ...anthropicReply, usage });
+    const provider = createAnthropicProvider({ endpoint: { kind: "bedrock", region: "eu-west-3", apiKey: "k" }, fetch });
+
+    const output = await provider.generate!(textInput);
+
+    // Claude's input_tokens leave out both cache reads and cache writes.
+    expect(output.usage).toEqual({ inputTokens: 2_120, outputTokens: 30, cachedInputTokens: 18_000, cacheWriteTokens: 2_000 });
+  });
+
   it("is not EU-resident on a Bedrock region outside the EU", () => {
     const provider = createAnthropicProvider({ endpoint: { kind: "bedrock", region: "us-east-1", apiKey: "k" } });
     expect(provider.residency).toBe("outside_eu");
@@ -169,6 +180,15 @@ describe("Mistral provider", () => {
       ],
     });
     expect(output).toEqual({ text: "Madame,", model: "served-model", usage: { inputTokens: 50, outputTokens: 20 } });
+  });
+
+  it("reports cached input apart, when Mistral says how much of the prompt came from its cache", async () => {
+    const { fetch } = fakeFetch(chatReply("Madame,", { usage: { prompt_tokens: 50, completion_tokens: 20, total_tokens: 70, prompt_tokens_details: { cached_tokens: 40 } } }));
+
+    const output = await createMistralProvider({ apiKey: "mk", fetch }).generate!(textInput);
+
+    // prompt_tokens include the cached ones.
+    expect(output.usage).toEqual({ inputTokens: 10, outputTokens: 20, cachedInputTokens: 40 });
   });
 
   it("raises a provider error on an HTTP failure", async () => {

@@ -74,6 +74,24 @@ describe.skipIf(!connectionString)("Coach Memory (needs Postgres: DATABASE_URL)"
     });
     expect(provider.calls[0]!.messages.at(-1)!.content).toContain("pas plus de 2 jours de déplacement");
     expect(await memory.list(marie)).toEqual([]);
-    expect(jean).toBeTruthy();
+  });
+
+  it("saves an item only once the Candidate confirms it, in their Coach Memory alone", async () => {
+    const confirmed = await memory.confirm(marie, { kind: "goal", text: "  Poste de DAF à Lyon " });
+
+    expect(confirmed).toEqual({ ok: true, item: { id: expect.any(String), kind: "goal", text: "Poste de DAF à Lyon", updatedAt: expect.any(Date) } });
+    expect(await memory.list(marie)).toEqual([{ id: expect.any(String), kind: "goal", text: "Poste de DAF à Lyon", updatedAt: expect.any(Date) }]);
+    expect(await memory.list(jean)).toEqual([]);
+  });
+
+  it("does not propose again what the Coach Memory already holds, and keeps one copy when confirmed twice", async () => {
+    await memory.confirm(marie, { kind: "goal", text: "Poste de DAF à Lyon" });
+    await memory.confirm(marie, { kind: "goal", text: "poste de DAF  à Lyon" });
+
+    const proposed = await memory.propose(marie, CONVERSATION_ID);
+
+    expect(proposed).toMatchObject({ ok: true, proposals: [{ kind: "constraint" }, { kind: "decision" }] });
+    expect(provider.calls[0]!.messages.at(-1)!.content).toContain("Poste de DAF à Lyon");
+    expect(await memory.list(marie)).toHaveLength(1);
   });
 });

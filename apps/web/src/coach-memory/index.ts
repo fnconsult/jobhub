@@ -37,9 +37,17 @@ export interface CoachMemoryItem extends ProposedMemoryItem {
 
 export type ProposeResult = { ok: true; proposals: ProposedMemoryItem[] } | { ok: false; error: "not_found" | "unavailable" };
 
+export type ConfirmResult = { ok: true; item: CoachMemoryItem } | { ok: false; error: "invalid" };
+
 export interface CoachMemory {
   /** The key facts of the Candidate's conversation worth remembering, not yet in their Coach Memory. Saves nothing. */
   propose(candidateId: string, conversationId: string): Promise<ProposeResult>;
+  /**
+   * Saves one item the Candidate confirmed, a proposal or their own words: untrusted
+   * `{ kind, text }`, text trimmed to 1 to MAX_ITEM_LENGTH characters. An item the Coach
+   * Memory already holds (same words, whatever the case and spacing) is not saved twice.
+   */
+  confirm(candidateId: string, input: unknown): Promise<ConfirmResult>;
   /** The Candidate's Coach Memory, oldest item first. */
   list(candidateId: string): Promise<CoachMemoryItem[]>;
 }
@@ -71,8 +79,18 @@ interface ItemRow {
   updated_at: Date;
 }
 
+/** The same fact, whatever the case and spacing. */
+function sameFact(text: string): string {
+  return text.replace(/\s+/g, " ").trim().toLocaleLowerCase("fr");
+}
+
 function itemFrom(row: ItemRow): CoachMemoryItem {
   return { id: row.id, kind: row.kind, text: row.text, updatedAt: row.updated_at };
+}
+
+function promptFor(transcript: string, remembered: CoachMemoryItem[]): string {
+  const already = remembered.length ? remembered.map((item) => `- ${item.text}`).join("\n") : "(rien)";
+  return `Déjà retenu (ne le propose pas à nouveau) :\n${already}\n\nConversation :\n${transcript}`;
 }
 
 /** The proposals in the AI Coach's answer, or null when it holds no readable JSON. */
@@ -105,14 +123,30 @@ export function createCoachMemory(database: Pool, deps: CoachMemoryDeps): CoachM
   return {
     list,
 
+    async confirm(candidateId, input) {
+      const parsed = itemSchema.safeParse(input);
+      if (!parsed.success) return { ok: false, error: "invalid" };
+      const { kind, text } = parsed.data;
+      const known = (await list(candidateId)).find((item) => sameFact(item.text) === sameFact(text));
+      if (known) return { ok: true, item: known };
+      const { rows } = await database.query<ItemRow>(
+        `INSERT INTO coach_memory_item (candidate_id, kind, text) VALUES ($1, $2, $3) RETURNING id, kind, text, updated_at`,
+        [candidateId, kind, text],
+      );
+      return { ok: true, item: itemFrom(rows[0]!) };
+    },
+
     async propose(candidateId, conversationId) {
       const conversation = await deps.conversations.open(candidateId, conversationId);
       if (!conversation) return { ok: false, error: "not_found" };
+      const remembered = await list(candidateId);
       const transcript = conversation.messages.map((message) => `${message.from === "candidate" ? "Candidat" : "Coach"} : ${message.text}`).join("\n");
       try {
-        const { text } = await deps.ai.generate({ task: "coaching", candidateId, system: PROPOSE_SYSTEM, prompt: `Conversation :\n${transcript}` });
+        const { text } = await deps.ai.generate({ task: "coaching", candidateId, system: PROPOSE_SYSTEM, prompt: promptFor(transcript, remembered) });
         const proposals = proposalsIn(text);
-        return proposals ? { ok: true, proposals } : { ok: false, error: "unavailable" };
+        if (!proposals) return { ok: false, error: "unavailable" };
+        const known = new Set(remembered.map((item) => sameFact(item.text)));
+        return { ok: true, proposals: proposals.filter((item) => !known.has(sameFact(item.text)) && known.add(sameFact(item.text))) };
       } catch (error) {
         console.warn("[coach-memory] the AI Coach could not propose:", error instanceof Error ? error.message : error);
         return { ok: false, error: "unavailable" };

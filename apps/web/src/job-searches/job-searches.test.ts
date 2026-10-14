@@ -199,12 +199,12 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
   describe("what a Job Search measured", () => {
     const measured = {
       funnel: { providerUrls: 10, fetched: 4, extracted: 2, alreadyStored: 1, afterDedup: 2, matched: 1 },
-      skipped: { robots: 1, site_terms: 2, bot_protection: 3, login_wall: 0, not_public: 0, gone: 1, unreachable: 0, not_a_job_offer: 2, invalid: 0 },
+      skipped: { robots: 1, site_terms: 2, bot_protection: 3, login_wall: 0, not_public: 0, gone: 1, unreachable: 0, not_a_job_offer: 2, invalid: 0, too_old: 0 },
       costEur: 0.0142,
     };
     const nothing = {
       funnel: { providerUrls: 0, fetched: 0, extracted: 0, alreadyStored: 0, afterDedup: 0, matched: 0 },
-      skipped: { robots: 0, site_terms: 0, bot_protection: 0, login_wall: 0, not_public: 0, gone: 0, unreachable: 0, not_a_job_offer: 0, invalid: 0 },
+      skipped: { robots: 0, site_terms: 0, bot_protection: 0, login_wall: 0, not_public: 0, gone: 0, unreachable: 0, not_a_job_offer: 0, invalid: 0, too_old: 0 },
       costEur: 0,
     };
     const later = (ms: number) => (clock.now = new Date(clock.now.getTime() + ms));

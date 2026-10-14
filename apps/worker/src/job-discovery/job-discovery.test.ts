@@ -1,6 +1,7 @@
 import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import type { JobOffer, SearchCriteria } from "@jobhub/shared";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { createJobDiscovery, JobDiscoveryError, type JobDiscoveryBudget, type JobOfferStore } from "./index";
 
@@ -20,9 +21,9 @@ interface Page {
   body?: string;
 }
 
-/** Time that passes only when the crawler waits. */
-function fakeClock() {
-  let time = 0;
+/** Time that passes only when the crawler waits, from `start`. */
+function fakeClock(start = 0) {
+  let time = start;
   return {
     now: () => time,
     sleep: async (ms: number) => {
@@ -57,8 +58,8 @@ function memoryJobOffers(existing: JobOffer[] = []): JobOfferStore & { all: JobO
     async findBySourceUrl(url) {
       return all.find((offer) => offer.source.url === url) ?? null;
     },
-    async capture(input) {
-      const offer = input as Omit<JobOffer, "id">;
+    async capture(input, _capturedBy, trusted) {
+      const offer = { ...(input as Omit<JobOffer, "id">), ...trusted };
       const same = all.find((o) => o.source.url === offer.source.url || o.content === offer.content);
       if (same) return { ok: true, jobOffer: same };
       const jobOffer = { id: `offer-${all.length + 1}`, ...offer };
@@ -78,6 +79,8 @@ function setup(options: {
   budget?: Partial<JobDiscoveryBudget>;
   /** Tokens each LLM read uses. */
   llmUsage?: { inputTokens: number; outputTokens: number };
+  /** When the run starts. Default: the epoch. */
+  now?: Date;
 }) {
   const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, answer: options.answer });
   const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}', usage: options.llmUsage });
@@ -86,7 +89,7 @@ function setup(options: {
     routes: { web_search: "perplexity", offer_analysis: "anthropic" },
     usage: createMemoryUsageLog(),
   });
-  const clock = fakeClock();
+  const clock = fakeClock(options.now?.getTime());
   const web = fakeWeb(options.pages, clock);
   const jobOffers = memoryJobOffers(options.existing);
   const discovery = createJobDiscovery({ ai, jobOffers, fetch: web.fetch, clock, budget: options.budget });
@@ -568,6 +571,177 @@ describe("Job discovery", () => {
         expect(llm.calls).toHaveLength(2);
         expect(web.fetched()).not.toContain(at(paths[2]!));
       });
+    });
+  });
+
+  describe("reading Greenhouse, Lever and Ashby postings through their JSON APIs", () => {
+    const GREENHOUSE = "https://job-boards.greenhouse.io/gitlab/jobs/8860302002";
+    const GREENHOUSE_API = "https://boards-api.greenhouse.io/v1/boards/gitlab/jobs/8860302002";
+    const LEVER = "https://jobs.lever.co/leverdemo/ad208490-4052-4f91-a57e-433f2d1e484b";
+    const LEVER_API = "https://api.lever.co/v0/postings/leverdemo/ad208490-4052-4f91-a57e-433f2d1e484b";
+    const ASHBY = "https://jobs.ashbyhq.com/ashby/86a60834-ba64-484d-9658-afa1bc97a957";
+    const ASHBY_API = "https://api.ashbyhq.com/posting-api/job-board/ashby";
+    /** An API's answer: a saved fixture, with some fields changed. */
+    const json = (name: string, changes: object = {}): Page => ({
+      body: JSON.stringify({ ...JSON.parse(readFileSync(new URL(`./fixtures/ats/${name}`, import.meta.url), "utf8")), ...changes }),
+      headers: { "content-type": "application/json; charset=utf-8" },
+    });
+    const apis: Record<string, Page> = {
+      "https://boards-api.greenhouse.io/robots.txt": { body: "User-agent: *\nDisallow: /embed/\n", headers: { "content-type": "text/plain" } },
+      "https://api.lever.co/robots.txt": { body: "User-agent: *\nAllow: /\nCrawl-delay: 1\n", headers: { "content-type": "text/plain" } },
+      "https://api.ashbyhq.com/robots.txt": { status: 401, body: "Unauthorized" },
+      [GREENHOUSE_API]: json("greenhouse-job.json"),
+      [LEVER_API]: json("lever-posting.json"),
+      [ASHBY_API]: json("ashby-job-board.json"),
+    };
+
+    it("captures each posting from its ATS's API, with the posting date the ATS states, never reading its HTML page", async () => {
+      const leverCreatedAt = new Date("2026-09-30T09:00:00Z");
+      const { discovery, web, llm } = setup({
+        sources: [GREENHOUSE, LEVER, ASHBY],
+        pages: { ...apis, [LEVER_API]: json("lever-posting.json", { createdAt: leverCreatedAt.getTime() }) },
+        now: new Date("2026-10-05T08:00:00Z"),
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers.map(({ source, title, postedAt }) => ({ source, title, postedAt }))).toEqual([
+        { source: { url: GREENHOUSE }, title: "Account Executive - France", postedAt: new Date("2026-10-02T15:31:50Z") },
+        { source: { url: LEVER }, title: "Customer Success Manager", postedAt: leverCreatedAt },
+        { source: { url: ASHBY }, title: "Mid Market Account Executive - EMEA (French Speaking)", postedAt: new Date("2026-09-08T16:27:26.694Z") },
+      ]);
+      expect(web.fetched()).not.toContain(GREENHOUSE);
+      expect(web.fetched()).not.toContain(LEVER);
+      expect(web.fetched()).not.toContain(ASHBY);
+      expect(llm.calls).toEqual([]);
+      expect(report.funnel).toMatchObject({ providerUrls: 3, fetched: 3, extracted: 3 });
+    });
+
+    it("drops a closed posting and one first published more than 30 days ago", async () => {
+      const { discovery } = setup({
+        sources: [GREENHOUSE, LEVER, ASHBY],
+        pages: { ...apis, [GREENHOUSE_API]: { status: 404, body: '{"status":404,"error":"Job not found"}', headers: { "content-type": "application/json" } } },
+        now: new Date("2026-10-05T08:00:00Z"),
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers.map((offer) => offer.source.url)).toEqual([ASHBY]);
+      expect(report.skipped).toEqual([
+        { url: GREENHOUSE, reason: "gone" },
+        { url: LEVER, reason: "too_old" },
+      ]);
+    });
+
+    it("asks the ATS politely: as itself, after robots.txt, never for a URL robots.txt disallows", async () => {
+      // The page is then read under its own site's robots.txt, which here keeps crawlers out too.
+      const disallowAll = { body: "User-agent: *\nDisallow: /\n", headers: { "content-type": "text/plain" } };
+      const { discovery, web } = setup({
+        sources: [LEVER],
+        pages: {
+          ...apis,
+          "https://api.lever.co/robots.txt": { body: "User-agent: *\nDisallow: /v0/\n", headers: { "content-type": "text/plain" } },
+          "https://jobs.lever.co/robots.txt": disallowAll,
+        },
+        now: new Date("2026-09-05T08:00:00Z"),
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.skipped).toEqual([{ url: LEVER, reason: "robots" }]);
+      expect(web.fetched()).toEqual(["https://api.lever.co/robots.txt", "https://jobs.lever.co/robots.txt"]);
+      expect(web.requests[0]!.userAgent).toMatch(/^JobbboxBot\//);
+    });
+
+    it("makes nothing of an API that does not answer JSON (an error page), and reads the posting's page instead", async () => {
+      const { discovery, llm } = setup({
+        sources: [GREENHOUSE],
+        pages: {
+          ...apis,
+          [GREENHOUSE_API]: { body: "<html><body>Maintenance en cours, revenez plus tard.</body></html>" },
+          [GREENHOUSE]: { body: jobPostingPage({ title: "Account Executive - France", description: "Développer le portefeuille français." }) },
+        },
+        now: new Date("2026-10-05T08:00:00Z"),
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.skipped).toEqual([]);
+      expect(report.jobOffers.map(({ title, content, postedAt }) => ({ title, content, postedAt }))).toEqual([
+        { title: "Account Executive - France", content: "Développer le portefeuille français.", postedAt: undefined },
+      ]);
+      expect(llm.calls).toEqual([]);
+    });
+
+    describe("when the API cannot be read, reading the posting's page instead", () => {
+      // A large employer's whole Ashby board: OpenAI's weighs 13 MB, past what the crawler downloads (3 MB).
+      const hugeBoard: Page = { body: `{"jobs":[${" ".repeat(3 * 1024 * 1024)}]}`, headers: { "content-type": "application/json" } };
+      const ashbyPage: Page = {
+        body: jobPostingPage({ title: "Mid Market Account Executive", description: "Vendre la plateforme Ashby en France.", hiringOrganization: { name: "Ashby" } }),
+      };
+
+      it("captures from its HTML page a posting whose ATS board is too large to download", async () => {
+        const { discovery, web } = setup({ sources: [ASHBY], pages: { ...apis, [ASHBY_API]: hugeBoard, [ASHBY]: ashbyPage }, now: new Date("2026-10-05T08:00:00Z") });
+
+        const report = await discovery.discover({ candidateId: "c", criteria });
+
+        expect(report.skipped).toEqual([]);
+        expect(report.jobOffers.map(({ source, title, postedAt }) => ({ source, title, postedAt }))).toEqual([
+          { source: { url: ASHBY }, title: "Mid Market Account Executive", postedAt: undefined },
+        ]);
+        expect(web.fetched()).toContain(ASHBY);
+      });
+
+      it("reads the page of a posting whose API robots.txt keeps crawlers out, through the page's own robots.txt", async () => {
+        const { discovery, web } = setup({
+          sources: [ASHBY],
+          pages: {
+            ...apis,
+            "https://api.ashbyhq.com/robots.txt": { body: "User-agent: *\nDisallow: /\n", headers: { "content-type": "text/plain" } },
+            "https://jobs.ashbyhq.com/robots.txt": { body: "User-agent: *\nAllow: /\n", headers: { "content-type": "text/plain" } },
+            [ASHBY]: ashbyPage,
+          },
+          now: new Date("2026-10-05T08:00:00Z"),
+        });
+
+        const report = await discovery.discover({ candidateId: "c", criteria });
+
+        expect(report.jobOffers.map((offer) => offer.title)).toEqual(["Mid Market Account Executive"]);
+        expect(web.fetched()).toEqual(["https://api.ashbyhq.com/robots.txt", "https://jobs.ashbyhq.com/robots.txt", ASHBY]);
+      });
+
+      it("never reads the page of a posting whose ATS answers with a challenge (ADR-0002)", async () => {
+        const challenge: Page = { status: 403, body: "<html><title>Just a moment...</title><body>Checking your browser</body></html>" };
+        const { discovery, web } = setup({ sources: [ASHBY], pages: { ...apis, [ASHBY_API]: challenge, [ASHBY]: ashbyPage }, now: new Date("2026-10-05T08:00:00Z") });
+
+        const report = await discovery.discover({ candidateId: "c", criteria });
+
+        expect(report.skipped).toEqual([{ url: ASHBY, reason: "bot_protection" }]);
+        expect(web.fetched()).not.toContain(ASHBY);
+      });
+
+      it("downloads an employer's Ashby board once per run, however many of its postings the run reads", async () => {
+        const OTHER = "https://jobs.ashbyhq.com/ashby/7458d4e9-da2e-47bd-98cb-adfda43d42b2";
+        const { discovery, web } = setup({
+          sources: [ASHBY, OTHER],
+          pages: { ...apis, [ASHBY_API]: hugeBoard, [ASHBY]: ashbyPage, [OTHER]: { body: jobPostingPage({ title: "Engineering Manager", description: "Encadrer une équipe." }) } },
+          now: new Date("2026-10-05T08:00:00Z"),
+        });
+
+        const report = await discovery.discover({ candidateId: "c", criteria });
+
+        expect(report.jobOffers.map((offer) => offer.title)).toEqual(["Mid Market Account Executive", "Engineering Manager"]);
+        expect(web.fetched().filter((url) => url === ASHBY_API)).toHaveLength(1);
+      });
+    });
+
+    it("never lists an ATS board across employers: one request per posting, at its own employer", async () => {
+      const { discovery, web } = setup({ sources: [GREENHOUSE, LEVER, ASHBY], pages: apis, now: new Date("2026-09-05T08:00:00Z") });
+
+      await discovery.discover({ candidateId: "c", criteria });
+
+      const apiRequests = web.fetched().filter((url) => !url.endsWith("/robots.txt"));
+      expect(apiRequests).toEqual([GREENHOUSE_API, LEVER_API, ASHBY_API]);
     });
   });
 

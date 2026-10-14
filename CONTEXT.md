@@ -179,7 +179,11 @@ The limits that end one run of Job discovery (a Job Search or a Job Digest top-u
 What one run of Job discovery (a Job Search or a Job Digest top-up) measured: how many Job Offers each step kept (provider URLs, pages read, Job Offers extracted, already stored, left after deduplication, with a Match Score of 60 or more), the pages skipped by Skip reason, and the estimated cost in euros. Costs are estimates from list prices, not billed amounts. Duration is the Candidate's wait (start to outcome) for a Job Search, and the worker's run time for a Job Digest.
 
 **Skip reason**:
-Why a result page gave no Job Offer (for example a Forbidden site, robots.txt, or an unreadable page).
+Why a result page gave no Job Offer (for example a Forbidden site, robots.txt, an unreadable page, a closed posting, or a posting too old).
+
+**Posting date**:
+When a Job Offer was first published, known only when its source states it in a form we trust: today the public JSON API of Greenhouse, Lever or Ashby, which Job discovery reads instead of the page. Unknown otherwise, and never taken from a Candidate or the extension. Job discovery skips a posting first published more than 30 days ago (Skip reason "too old"); one with no known date is kept.
+_Avoid_: Publication date (when unknown), created date
 
 **Forbidden site**:
 A site whose terms forbid crawling (LinkedIn, Indeed, Glassdoor). Job discovery never fetches it; only Capture covers it.

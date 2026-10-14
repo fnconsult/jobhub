@@ -87,6 +87,35 @@ describe.skipIf(!connectionString)("Job Offers (needs Postgres: DATABASE_URL)", 
     expect(other.ok && other.jobOffer.id).not.toBe(first.ok && first.jobOffer.id);
   });
 
+  it("keeps the posting date a trusted source states, and refuses one that is not a date or lies in the future", async () => {
+    const postedAt = new Date("2026-10-02T15:31:50Z");
+    const captured = await jobOffers.capture(posting, "candidate", { postedAt });
+
+    expect(captured.ok && captured.jobOffer.postedAt).toEqual(postedAt);
+    expect(captured.ok && (await jobOffers.get(captured.jobOffer.id))?.postedAt).toEqual(postedAt);
+
+    const other = { ...posting, source: { url: "https://www.apec.fr/offre/7" }, content: "Poste à Nantes." };
+    expect(await jobOffers.capture(other, "candidate", { postedAt: new Date("hier") })).toEqual({ ok: false, errors: [{ field: "postedAt", code: "invalid" }] });
+    expect(await jobOffers.capture(other, "candidate", { postedAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) })).toMatchObject({ ok: false });
+    // Only a Date the caller built: text (as a request body would carry) is never coerced into one.
+    expect(await jobOffers.capture(other, "candidate", { postedAt: "2026-10-02T15:31:50Z" as unknown as Date })).toEqual({
+      ok: false,
+      errors: [{ field: "postedAt", code: "invalid" }],
+    });
+  });
+
+  it("never takes a posting date from the captured posting itself: the browser cannot state a trusted one", async () => {
+    // Any client can post to the capture route (Guests need no account), and the first capture of a URL is kept for everyone.
+    for (const postedAt of ["2020-01-01T00:00:00Z", new Date("2020-01-01T00:00:00Z")]) {
+      const captured = await jobOffers.capture({ ...posting, postedAt }, "guest");
+
+      expect(captured.ok).toBe(true);
+      if (!captured.ok) return;
+      expect(captured.jobOffer.postedAt).toBeUndefined();
+      expect((await jobOffers.get(captured.jobOffer.id))?.postedAt).toBeUndefined();
+    }
+  });
+
   it("tells apart two postings on one site that differ only by their query string", async () => {
     const first = await jobOffers.capture({ source: { url: "https://www.indeed.fr/viewjob?jk=abc" }, title: "DAF", content: "Poste A." });
     const second = await jobOffers.capture({ source: { url: "https://www.indeed.fr/viewjob?jk=def" }, title: "DAF", content: "Poste B." });

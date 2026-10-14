@@ -47,12 +47,27 @@ export type CaptureJobOfferResult = { ok: true; jobOffer: JobOffer } | { ok: fal
 /** Who captured a posting: a signed-in Candidate, or a Guest (no account). */
 export type Captor = "candidate" | "guest";
 
+/**
+ * What the caller itself read from the posting's source, as opposed to `input`
+ * (untrusted, from the browser): a posting date in `input` is ignored.
+ */
+export interface TrustedFacts {
+  /** When the source states it first published the posting: never in the future. */
+  postedAt?: Date;
+}
+
+// A Date the caller built from what it read, never text to coerce: nothing from a request body reaches it.
+const postedAtSchema = z
+  .date()
+  .min(new Date("2000-01-01T00:00:00Z"))
+  .refine((date) => date.getTime() <= Date.now() + 24 * 60 * 60 * 1000);
+
 export interface JobOffers {
   /**
    * Stores a captured posting. `input` is untrusted (it comes from the browser).
    * A posting only Guests captured is forgotten within 24 hours.
    */
-  capture(input: unknown, capturedBy?: Captor): Promise<CaptureJobOfferResult>;
+  capture(input: unknown, capturedBy?: Captor, trusted?: TrustedFacts): Promise<CaptureJobOfferResult>;
   /**
    * A Candidate now holds on to this Job Offer (they saved it as an Application,
    * perhaps from what they did as a Guest), so it is never forgotten as a Guest
@@ -108,11 +123,12 @@ interface JobOfferRow {
   salary_max: number | null;
   skills: string[] | null;
   required_experience_years: number | null;
+  posted_at: Date | null;
   expired_at: Date | null;
 }
 
 const COLUMNS = `id, source_url, source_name, title, content, employer, location, contract_type, remote_work,
-  salary_min, salary_max, skills, required_experience_years, expired_at`;
+  salary_min, salary_max, skills, required_experience_years, posted_at, expired_at`;
 
 function jobOfferFrom(row: JobOfferRow): JobOffer {
   const jobOffer: JobOffer = { id: row.id, source: {}, title: row.title, content: row.content };
@@ -129,6 +145,7 @@ function jobOfferFrom(row: JobOfferRow): JobOffer {
   }
   if (row.skills !== null) jobOffer.skills = row.skills;
   if (row.required_experience_years !== null) jobOffer.requiredExperienceYears = row.required_experience_years;
+  if (row.posted_at !== null) jobOffer.postedAt = row.posted_at;
   if (row.expired_at !== null) jobOffer.expiredAt = row.expired_at;
   return jobOffer;
 }
@@ -156,19 +173,25 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function createJobOffers(database: Pool): JobOffers {
   return {
-    async capture(input, capturedBy = "candidate") {
+    async capture(input, capturedBy = "candidate", trusted = {}) {
       const parsed = inputSchema.safeParse(input, { reportInput: true });
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       const offer = parsed.data;
+      let postedAt: Date | undefined;
+      if (trusted.postedAt !== undefined) {
+        const stated = postedAtSchema.safeParse(trusted.postedAt);
+        if (!stated.success) return { ok: false, errors: [{ field: "postedAt", code: "invalid" }] };
+        postedAt = stated.data;
+      }
       const url = offer.source.url;
       const keys = [url ? urlKey(url) : null, contentFingerprint(offer.content)];
 
       const { rows } = await database.query<JobOfferRow>(
         `INSERT INTO job_offer (url_key, content_fingerprint, source_url, source_name, title, content, employer, location,
                                 contract_type, remote_work, salary_min, salary_max, skills, required_experience_years,
-                                guest_expires_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-                 CASE WHEN $15 = 'guest' THEN ${GUEST_EXPIRY_SQL} END)
+                                posted_at, guest_expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+                 CASE WHEN $16 = 'guest' THEN ${GUEST_EXPIRY_SQL} END)
          ON CONFLICT DO NOTHING
          RETURNING ${COLUMNS}`,
         [
@@ -185,6 +208,7 @@ export function createJobOffers(database: Pool): JobOffers {
           offer.salary?.max ?? null,
           offer.skills ?? null,
           offer.requiredExperienceYears ?? null,
+          postedAt ?? null,
           capturedBy,
         ],
       );
@@ -267,5 +291,7 @@ export async function migrateJobOffers(database: Pool): Promise<void> {
     ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS expired_at timestamptz;
     -- Gone checks in a row: GONE_CHECKS_TO_EXPIRE of them make it expired, a live check resets it.
     ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS gone_checks integer NOT NULL DEFAULT 0;
+    -- When the source first published the posting, when it states it in a form we trust (e.g. an ATS's API).
+    ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS posted_at timestamptz;
   `);
 }

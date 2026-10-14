@@ -704,6 +704,30 @@
     "seeApplication": "Voir ma candidature",
     "searchAgain": "Relancer une recherche",
     "backToProfile": "Retour au profil",
+    "status": "Statut",
+    "statuses": {
+      "searching": "En cours",
+      "done": "Terminée",
+      "failed": "N'a pas abouti"
+    },
+    "startedOn": "Lancée le",
+    "criteria": "Critères",
+    "editCriteria": "Modifier les critères",
+    "remoteWork": "Télétravail : {{option}}",
+    "resultsLabel": "Offres trouvées",
+    "scoreLabel": "Score de correspondance : ",
+    "outOf": "/ 100",
+    "why": "Pourquoi {{score}} ?",
+    "savedPill": "Enregistrée",
+    "postedOn": "Publiée le {{date}}",
+    "source": "Source : {{site}}",
+    "reasons": {
+      "skills": "Compétences : {{covered}} sur {{total}} sur votre CV",
+      "skillsWithMissing": "Compétences : {{covered}} sur {{total}} sur votre CV ; absentes : {{missing}}",
+      "seniority": "Expérience : {{requiredYears}} ans demandés, {{cvYears}} ans sur votre CV",
+      "offerAndWanted": "{{criterion}} : {{offer}}, recherché : {{wanted}}",
+      "salary": "Salaire : {{offer}} €, recherché : {{wanted}} € minimum"
+    },
     "errors": {
       "archived": "Ce profil est archivé. Restaurez-le pour chercher des offres.",
       "generic": "La recherche n'a pas pu être lancée. Vérifiez votre connexion et réessayez."

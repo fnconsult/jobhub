@@ -73,6 +73,31 @@ describe("Match Score", () => {
       expect(coverage(offerSkill, cvSkill)).toBe("mismatch");
     });
 
+    describe("abbreviations only in capitals", () => {
+      const fromSummary = (offerSkill: string, summary: string) =>
+        scoreMatch({ cv: { ...cv, headline: "", summary, experience: [], skills: [] }, jobOffer: { ...offer, skills: [offerSkill] } }).breakdown.skills
+          .status;
+
+      it.each([
+        ["Intelligence artificielle", "J'ai dirigé une équipe de 40 personnes."],
+        ["IA", "Ce que j'ai appris en dix ans de direction."],
+        ["S&OP", "Gestion du pic d'activité de Noël."],
+        ["Business intelligence", "Reporting bi-mensuel au comité de direction."],
+        ["Ressources humaines", "Suivi des Rh positifs en laboratoire."],
+      ])("does not cover %s with a CV whose ordinary words only spell an abbreviation: %s", (offerSkill, summary) => {
+        expect(fromSummary(offerSkill, summary)).toBe("mismatch");
+      });
+
+      it.each([
+        ["Intelligence artificielle", "Projets d'IA générative pour la supply chain."],
+        ["IA", "Déploiement de l'AI dans les achats."],
+        ["S&OP", "Animation du PIC mensuel."],
+        ["Business intelligence", "Tableaux de bord BI."],
+      ])("covers %s with a CV that writes the abbreviation in capitals: %s", (offerSkill, summary) => {
+        expect(fromSummary(offerSkill, summary)).toBe("match");
+      });
+    });
+
     it("still covers a skill written inside a longer wording on the CV", () => {
       expect(coverage("Management", "Project management")).toBe("match");
       expect(coverage("Consolidation", "Consolidation des comptes IFRS")).toBe("match");

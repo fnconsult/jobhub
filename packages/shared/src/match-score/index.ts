@@ -63,7 +63,9 @@ export interface MatchInput {
  * Skills that mean the same thing: common French/English equivalents and abbreviations.
  * Each line is one skill; any of its wordings on the CV covers any other in the Job Offer.
  * Wordings are compared in skill form (see `words`), so accents, case, plurals and
- * small words ("de la", "d'", "of the") do not need listing.
+ * small words ("de la", "d'", "of the") do not need listing. A wording written in
+ * capitals is an abbreviation, and only stands for its skill where the text writes it
+ * in capitals too: "IA" is artificial intelligence, the "ai" of "j'ai" is not.
  */
 const SYNONYMS: readonly (readonly string[])[] = [
   ["gestion de projet", "conduite de projet", "pilotage de projet", "management de projet", "project management"],
@@ -117,32 +119,52 @@ function singular(word: string): string {
   return word;
 }
 
+/** A word in skill form, and whether the text wrote it in capitals, as an abbreviation is written ("IA", "S&OP"). */
+interface Word {
+  text: string;
+  capitals: boolean;
+}
+
 /**
  * A text in skill form: normalised words, singular, without small words, with an
  * abbreviation joined by "&" kept as one word ("P&L" → "pl", "S&OP" → "sop").
+ * Each word keeps whether it was written in capitals, which `normalise` alone would lose.
  */
-function words(text: string): string[] {
+function words(text: string): Word[] {
   const joined = text.replace(/(?<!\p{L})(\p{L}{1,2}) ?& ?(\p{L}{1,3})(?!\p{L})/gu, "$1$2");
-  return normalise(joined)
-    .trim()
-    .split(" ")
-    .filter((word) => word && !SMALL_WORDS.has(word))
-    .map(singular);
+  return joined
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .split(/[^\p{L}\p{N}+#]+/u)
+    .map((raw) => ({ text: normalise(raw).trim(), capitals: /^\p{Lu}{2,}$/u.test(raw) }))
+    .filter((word) => word.text && !SMALL_WORDS.has(word.text))
+    .map((word) => ({ ...word, text: singular(word.text) }));
 }
 
-/** Every wording of every synonym, longest first, with the line it belongs to. */
-const WORDINGS = SYNONYMS.flatMap((line, index) => line.map((wording) => ({ words: words(wording), id: `~${index}` }))).sort(
-  (a, b) => b.words.length - a.words.length,
-);
+/** Every wording of every synonym, longest first, with the line it belongs to and whether it is an abbreviation. */
+const WORDINGS = SYNONYMS.flatMap((line, index) =>
+  line.map((wording) => {
+    const list = words(wording);
+    return { words: list.map((word) => word.text), abbreviation: list.every((word) => word.capitals), id: `~${index}` };
+  }),
+).sort((a, b) => b.words.length - a.words.length);
 
 const startsWith = (list: string[], at: number, prefix: string[]) => prefix.every((word, offset) => list[at + offset] === word);
 
-/** The same words with each synonym replaced by its line, so "project management" and "gestion de projets" read alike. */
-function canonical(list: string[]): string[] {
+/**
+ * The same words with each synonym replaced by its line, so "project management" and "gestion de projets"
+ * read alike. An abbreviation only counts where it is written in capitals: "AI", not the "ai" of "j'ai".
+ */
+function canonical(list: Word[]): string[] {
+  const texts = list.map((word) => word.text);
   const result: string[] = [];
   for (let at = 0; at < list.length; ) {
-    const wording = WORDINGS.find((candidate) => startsWith(list, at, candidate.words));
-    result.push(wording ? wording.id : list[at]!);
+    const wording = WORDINGS.find(
+      (candidate) =>
+        startsWith(texts, at, candidate.words) &&
+        (!candidate.abbreviation || list.slice(at, at + candidate.words.length).every((word) => word.capitals)),
+    );
+    result.push(wording ? wording.id : texts[at]!);
     at += wording ? wording.words.length : 1;
   }
   return result;
@@ -158,8 +180,8 @@ interface SkillText {
 }
 
 function skillText(text: string): SkillText {
-  const plain = words(text);
-  return { plain, canonical: canonical(plain) };
+  const list = words(text);
+  return { plain: list.map((word) => word.text), canonical: canonical(list) };
 }
 
 /** Each field of the CV that can show a skill, so a skill is never read across two fields. */

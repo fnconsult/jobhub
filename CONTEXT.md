@@ -86,6 +86,10 @@ The Candidate's first name and, for each active Profile, its target role, Search
 A saved conversation between a Candidate and the AI Coach in the Coach Panel. A Candidate has several, each attached to the Profile in view when it started. The Candidate can name, reopen and delete it. Kept 12 months after its last message, then purged; deleted with the account. Human Coaches never see it. In the Data export with every message, without the Coach Message Cost.
 _Avoid_: Chat, thread, session
 
+**Coach Memory**:
+The key facts (goals, constraints, decisions) the AI Coach keeps about a Candidate across Coach Conversations. The AI Coach proposes them from a Coach Conversation; an item is saved only once the Candidate confirms it, one by one. The Candidate sees, edits and deletes items in the Coach Panel. At most 30 items of 300 characters each. Sent with every AI Coach message. Kept when a Coach Conversation is deleted; deleted with the account. Human Coaches never see it. Not in the Data export.
+_Avoid_: Profile notes, chat history
+
 **Coach Message Cost**:
 What one AI Coach reply cost: provider, model, input, output and cached input tokens, and the estimated cost in euros at list prices, fixed when the reply is saved. Kept with the reply, so it goes when the Coach Conversation does. Seen by Administrators only, as a median and p90 per day, never by Candidates.
 _Avoid_: Bill, price

@@ -3,15 +3,15 @@ import { SEARCH_TIMEOUT_MS } from "@jobhub/web/job-searches";
 /**
  * When a Job discovery run stops reading result pages: once it has this many Job
  * Offers, has spent this much on AI calls, or has run this long, whichever comes
- * first. It is checked before each page, so the page being read when a limit is
+ * first. It is checked before each web search and each page, so the page being read when a limit is
  * reached is finished.
  */
 export interface JobDiscoveryBudget {
   /** Job Offers found, new or already stored. */
   jobOffers: number;
-  /** Estimated cost in € of the run's AI calls, the web search included. */
+  /** Estimated cost in € of the run's AI calls, the web searches included. */
   spendEur: number;
-  /** Time since the run started, the web search included. */
+  /** Time since the run started, the web searches included. */
   seconds: number;
 }
 

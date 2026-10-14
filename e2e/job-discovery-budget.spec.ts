@@ -46,7 +46,7 @@ interface Volume {
   delayMs?: number;
 }
 
-type LoggedRequest = { url: string; method: string };
+type LoggedRequest = { url: string; method: string; body: string };
 
 /** A worker started with `budgetEnv`, and the volume postings the fake web search returns to it. */
 function startWorker(tag: string, volume: Volume, budgetEnv: Record<string, string>) {
@@ -140,7 +140,8 @@ async function discoveryRun(volume: Volume, budgetEnv: Record<string, string>, {
       report: reportLine()!,
       elapsedMs,
       pagesRead: requests.filter((r) => r.url.startsWith("https://volume-e2e.example/offre/")).length,
-      llmCalls: requests.filter((r) => r.url.startsWith("https://api.mistral.ai/")).length,
+      // The LLM reading a page, not the run's job title step (#112).
+      llmCalls: requests.filter((r) => r.url.startsWith("https://api.mistral.ai/") && !r.body.includes("autres intitulés")).length,
       stored: await storedJobOffers(tag),
     };
   } finally {
@@ -184,7 +185,7 @@ test.describe("Job discovery budget (#113)", () => {
   });
 
   test("JOB_DISCOVERY_BUDGET_EUR sets what a run may spend on AI calls before it stops", async () => {
-    // The web search alone costs about EUR 0.0022 and each page the LLM reads about EUR 0.0001.
+    // The web search and the job title step cost about EUR 0.0023 and each page the LLM reads about EUR 0.0001.
     const tight = await discoveryRun({ count: 60, kind: "llm" }, { JOB_DISCOVERY_BUDGET_EUR: "0.0025" });
 
     expect(tight.llmCalls).toBeGreaterThanOrEqual(1);

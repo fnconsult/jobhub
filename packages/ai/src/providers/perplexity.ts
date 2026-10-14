@@ -1,10 +1,12 @@
 /**
  * Perplexity: web search only (ADR-0002, ADR-0007). It has no text generation on purpose.
  * Speaks Perplexity's Agent API (`POST /v1/responses`); its chat-completions endpoint is retired.
+ * Filters go on the `web_search` tool (docs/research/issue-112.md): domains, a recency window, a country.
  */
 import { AiProviderError } from "../errors";
-import type { AiProvider, SearchOutput } from "../types";
+import type { AiProvider, SearchFilters, SearchOutput } from "../types";
 import { postJson } from "./http";
+import { domainsOf } from "./web-results";
 
 /** The parts of an Agent API response a search needs. */
 interface AgentResponse {
@@ -23,6 +25,18 @@ interface AgentResponse {
 const PRESET = "fast";
 /** Room for an answer listing offers; also required by Perplexity for `anthropic/*` models. */
 const MAX_OUTPUT_TOKENS = 2048;
+/** Perplexity's most entries in a domain filter. */
+const MAX_DOMAINS = 20;
+/** Results per page. Perplexity has no offset: page n asks for n pages' worth (its most is 50). */
+const PAGE_SIZE = 10;
+const PAGES = 5;
+/** Perplexity's recency windows, narrowest first, with their length in days. */
+const RECENCY: [days: number, window: string][] = [
+  [1, "day"],
+  [7, "week"],
+  [31, "month"],
+  [366, "year"],
+];
 
 export interface PerplexityProviderOptions {
   apiKey: string;
@@ -35,12 +49,13 @@ export function createPerplexityProvider(options: PerplexityProviderOptions): Ai
     id: "perplexity",
     endpoint: "api.perplexity.ai",
     residency: "outside_eu",
-    async search(query, { model }): Promise<SearchOutput> {
+    searchPages: PAGES,
+    async search(query, { model, filters, page }): Promise<SearchOutput> {
       const response = await postJson<AgentResponse>(client, "https://api.perplexity.ai/v1/responses", {
         preset: PRESET,
         ...(model ? { model } : {}),
         input: query,
-        tools: [{ type: "web_search" }],
+        tools: [webSearchTool(filters, page)],
         max_output_tokens: MAX_OUTPUT_TOKENS,
         store: false,
       });
@@ -51,6 +66,26 @@ export function createPerplexityProvider(options: PerplexityProviderOptions): Ai
       return searchOutputOf(response);
     },
   };
+}
+
+/** The `web_search` tool, with what Perplexity applies of the filters, and the results the page needs. */
+function webSearchTool(filters: SearchFilters | undefined, page = 1): Record<string, unknown> {
+  // Included and excluded domains cannot be mixed: the narrower, included ones win.
+  const included = domainsOf(filters?.includeDomains);
+  const domains = included ?? domainsOf(filters?.excludeDomains)?.map((domain) => `-${domain}`);
+  const days = filters?.maxAgeDays;
+  const recency = typeof days === "number" && days > 0 ? RECENCY.find(([within]) => days <= within)?.[1] : undefined;
+  const country = filters?.country?.trim().toUpperCase();
+  const tool: Record<string, unknown> = { type: "web_search" };
+  if (domains || recency) {
+    tool.filters = {
+      ...(domains ? { search_domain_filter: domains.slice(0, MAX_DOMAINS) } : {}),
+      ...(recency ? { search_recency_filter: recency } : {}),
+    };
+  }
+  if (country) tool.user_location = { country };
+  if (page > 1) tool.max_results = Math.min(page, PAGES) * PAGE_SIZE;
+  return tool;
 }
 
 function searchOutputOf(response: AgentResponse): SearchOutput {

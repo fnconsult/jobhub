@@ -13,7 +13,7 @@ import { createConsoleUsageLog } from "./usage";
 type Env = Record<string, string | undefined>;
 
 const TASKS: AiTask[] = [...(Object.keys(TEXT_TASKS) as AiTask[]), SEARCH_TASK];
-const DEFAULT_PROVIDER: Record<AiTask, ProviderId> = {
+const DEFAULT_PROVIDER: Record<Exclude<AiTask, keyof typeof DEFAULT_TASK>, ProviderId> = {
   scoring: "anthropic",
   writing: "anthropic",
   coaching: "anthropic",
@@ -21,6 +21,11 @@ const DEFAULT_PROVIDER: Record<AiTask, ProviderId> = {
   offer_analysis: "anthropic",
   web_search: "perplexity",
 };
+/**
+ * A task whose provider is not set takes another task's provider, and its model unless one is set:
+ * job titles are public text, like Job Offers.
+ */
+const DEFAULT_TASK = { job_titles: "offer_analysis" } as const satisfies Partial<Record<AiTask, AiTask>>;
 
 const taskKey = (task: AiTask, suffix: "PROVIDER" | "MODEL") => `AI_${task.toUpperCase()}_${suffix}`;
 
@@ -128,8 +133,15 @@ export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps =
 
   const routes: Partial<Record<AiTask, Route>> = {};
   for (const task of TASKS) {
-    const provider = oneOf(env, taskKey(task, "PROVIDER"), PROVIDER_IDS, DEFAULT_PROVIDER[task]);
+    if (task in DEFAULT_TASK) continue;
+    const provider = oneOf(env, taskKey(task, "PROVIDER"), PROVIDER_IDS, DEFAULT_PROVIDER[task as keyof typeof DEFAULT_PROVIDER]);
     routes[task] = { provider, model: env[taskKey(task, "MODEL")]?.trim() || undefined };
+  }
+  for (const [task, fallback] of Object.entries(DEFAULT_TASK) as [AiTask, AiTask][]) {
+    const inherited = routes[fallback]!;
+    const provider = oneOf(env, taskKey(task, "PROVIDER"), PROVIDER_IDS, inherited.provider);
+    const model = env[taskKey(task, "MODEL")]?.trim() || (provider === inherited.provider ? inherited.model : undefined);
+    routes[task] = { provider, model };
   }
   const used = [...new Set(Object.values(routes).map((route) => route.provider))];
   const providers = used.map((id) => (fake ? createFakeProvider({ id }) : buildProvider(id, env, deps.fetch)));

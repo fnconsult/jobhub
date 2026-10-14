@@ -55,6 +55,9 @@ type LoggedRequest = { url: string; method: string; headers: Record<string, stri
 const requests = (): LoggedRequest[] =>
   existsSync(requestLog) ? readFileSync(requestLog, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : [];
 const fetchesOf = (url: string) => requests().filter((r) => r.url === url);
+/** The LLM reading a page; the other Mistral call of a run is its job title step (#112). */
+const llmPageReads = () => requests().filter((r) => r.url.startsWith("https://api.mistral.ai/") && !r.body.includes("autres intitulés"));
+const jobTitleSteps = () => requests().filter((r) => r.url.startsWith("https://api.mistral.ai/") && r.body.includes("autres intitulés"));
 
 let worker: ChildProcess | undefined;
 let workerOutput = "";
@@ -172,19 +175,48 @@ test.describe("Job discovery (worker job job-discovery.run)", () => {
 
   test("searches with the Search Criteria only, never CV content or the Candidate's name (ADR-0007)", () => {
     const searches = requests().filter((r) => r.url.startsWith("https://api.perplexity.ai/"));
-    expect(searches).toHaveLength(1);
-    const { body } = searches[0]!;
-    const query: string = JSON.parse(body).input;
+    const queries: string[] = searches.map((search) => JSON.parse(search.body).input);
 
     // The Search Criteria are all there…
-    expect(query).toContain("Directrice administrative et financière");
-    expect(query).toContain("Lyon");
-    expect(query).toContain("CDI");
-    expect(query).toContain("télétravail partiel");
-    expect(query).toMatch(/110\s000/);
-    // …and nothing from the Master CV, anywhere in what was sent.
-    for (const personal of ["Bérénice", "Castafiore", "berenice", "06 98 76 54 32", "0698765432", "Moulinsart", "Tournesol", "Haddock", "Consolidation", "IFRS", "Italien"]) {
-      expect(body, `"${personal}" sent to the web-search provider`).not.toContain(personal);
+    expect(queries[0]).toContain("Directrice administrative et financière");
+    expect(queries[0]).toContain("Lyon");
+    expect(queries[0]).toContain("CDI");
+    expect(queries[0]).toContain("télétravail partiel");
+    expect(queries[0]).toMatch(/110\s000/);
+    // …and nothing from the Master CV, anywhere in what was sent, nor to the job title step.
+    for (const { body } of [...searches, ...jobTitleSteps()]) {
+      for (const personal of ["Bérénice", "Castafiore", "berenice", "06 98 76 54 32", "0698765432", "Moulinsart", "Tournesol", "Haddock", "Consolidation", "IFRS", "Italien"]) {
+        expect(body, `"${personal}" sent to the web-search provider or the job title step`).not.toContain(personal);
+      }
+    }
+  });
+
+  test("searches each job title variant in French and English, and a further page only while the last one gave a new posting (#112)", () => {
+    // The job title step is given the Search Criteria title alone.
+    expect(jobTitleSteps()).toHaveLength(1);
+    const titleStep = JSON.parse(jobTitleSteps()[0]!.body);
+    expect(titleStep.messages.at(-1).content).toBe("Directrice administrative et financière");
+    expect(jobTitleSteps()[0]!.body).not.toContain("Lyon");
+
+    const searches = requests()
+      .filter((r) => r.url.startsWith("https://api.perplexity.ai/"))
+      .map((r) => JSON.parse(r.body));
+    // The fake web search gives the same results to every query: only the first page of the first query finds Job Offers,
+    // so it alone gets a second page, which finds nothing new.
+    expect(searches.map((search) => search.input.split(",")[0])).toEqual([
+      "Offre d'emploi « Directrice administrative et financière » à Lyon",
+      'Job offer "Chief Financial Officer" in Lyon',
+      "Offre d'emploi « DAF » à Lyon",
+      "Offre d'emploi « Directrice administrative et financière » à Lyon",
+    ]);
+    expect(searches.map((search) => search.tools[0].max_results)).toEqual([undefined, undefined, undefined, 20]);
+    // Each search keeps away from forbidden sites, keeps to the last month and favours France.
+    for (const search of searches) {
+      expect(search.tools[0].filters).toEqual({
+        search_domain_filter: ["-linkedin.com", "-indeed.com", "-indeed.fr", "-glassdoor.com", "-glassdoor.fr"],
+        search_recency_filter: "month",
+      });
+      expect(search.tools[0].user_location).toEqual({ country: "FR" });
     }
   });
 
@@ -254,7 +286,7 @@ test.describe("Job discovery (worker job job-discovery.run)", () => {
     });
 
     // The LLM read exactly one page (the one with no JobPosting), and only its public text.
-    const llmCalls = requests().filter((r) => r.url.startsWith("https://api.mistral.ai/"));
+    const llmCalls = llmPageReads();
     expect(llmCalls).toHaveLength(1);
     expect(llmCalls[0]!.body).toContain("Responsable financier");
     expect(llmCalls[0]!.body).not.toContain("Acme Industrie");
@@ -275,7 +307,7 @@ test.describe("Job discovery (worker job job-discovery.run)", () => {
 
   test("a second run for the same Profile finds the same Job Offers, stores none again and refetches no known page", async () => {
     const before = await storedJobOffers();
-    const fetchedBefore = { jsonLd: fetchesOf(site.jsonLd).length, plain: fetchesOf(site.plain).length, llm: requests().filter((r) => r.url.startsWith("https://api.mistral.ai/")).length };
+    const fetchedBefore = { jsonLd: fetchesOf(site.jsonLd).length, plain: fetchesOf(site.plain).length, llm: llmPageReads().length };
 
     await enqueueDiscovery(candidateId, profileId);
     const secondReport = await waitForReport(profileId, 2);
@@ -284,7 +316,7 @@ test.describe("Job discovery (worker job job-discovery.run)", () => {
     expect(await storedJobOffers()).toEqual(before);
     expect(fetchesOf(site.jsonLd)).toHaveLength(fetchedBefore.jsonLd);
     expect(fetchesOf(site.plain)).toHaveLength(fetchedBefore.plain);
-    expect(requests().filter((r) => r.url.startsWith("https://api.mistral.ai/"))).toHaveLength(fetchedBefore.llm);
+    expect(llmPageReads()).toHaveLength(fetchedBefore.llm);
     // Still never past robots.txt, site terms or bot protection.
     expect(fetchesOf(site.robotsBlocked)).toHaveLength(0);
     expect(requests().filter((r) => new URL(r.url).hostname.endsWith("linkedin.com"))).toHaveLength(0);

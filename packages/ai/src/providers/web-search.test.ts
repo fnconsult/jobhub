@@ -31,7 +31,7 @@ function fakeFetch(response: unknown, status = 200) {
 const fixture = (name: string) => JSON.parse(readFileSync(new URL(`./fixtures/${name}.json`, import.meta.url), "utf8"));
 const recordedUrl = (name: string) => new URL(`./fixtures/${name}.recorded.json`, import.meta.url);
 
-const query = "Offres d'emploi « DAF » à Lyon";
+const query = "Offre d'emploi « DAF » à Lyon";
 
 describe("Tavily provider", () => {
   const reply = fixture("tavily-search");
@@ -205,6 +205,16 @@ describe("Brave provider", () => {
       count: "20",
       freshness: "2026-09-12to2026-10-12",
     });
+  });
+
+  it("favours a country, and gives a further page of results by its offset, up to Brave's 10 pages", async () => {
+    const { fetch, requests } = fakeFetch(reply);
+    const provider = createBraveProvider({ apiKey: "bk", fetch });
+
+    await provider.search!(query, { filters: { country: "fr" }, page: 3 });
+
+    expect(provider.searchPages).toBe(10);
+    expect(Object.fromEntries(requests[0]!.url.searchParams)).toEqual({ q: query, count: "20", country: "FR", offset: "2" });
   });
 
   it("has no exclusion filter, so excluded domains are left to the caller's own checks", async () => {

@@ -1,4 +1,5 @@
 import { createAiLayer } from "@jobhub/ai";
+import type { SearchOptions } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import type { JobOffer, SearchCriteria } from "@jobhub/shared";
 import { readFileSync } from "node:fs";
@@ -70,7 +71,11 @@ function memoryJobOffers(existing: JobOffer[] = []): JobOfferStore & { all: JobO
 }
 
 function setup(options: {
-  sources: string[];
+  sources: string[] | ((query: string, options: SearchOptions) => string[]);
+  /** The job title step's reply. Default: no variants. */
+  titles?: string;
+  /** How many pages of results the search provider gives a query. Default: 1. */
+  searchPages?: number;
   /** The search provider's answer text. */
   answer?: string;
   pages: Record<string, Page>;
@@ -82,18 +87,19 @@ function setup(options: {
   /** When the run starts. Default: the epoch. */
   now?: Date;
 }) {
-  const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, answer: options.answer });
+  const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, answer: options.answer, pages: options.searchPages });
   const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}', usage: options.llmUsage });
+  const titles = createFakeProvider({ id: "mistral", reply: options.titles ?? "{}" });
   const ai = createAiLayer({
-    providers: [search, llm],
-    routes: { web_search: "perplexity", offer_analysis: "anthropic" },
+    providers: [search, llm, titles],
+    routes: { web_search: "perplexity", offer_analysis: "anthropic", job_titles: "mistral" },
     usage: createMemoryUsageLog(),
   });
   const clock = fakeClock(options.now?.getTime());
   const web = fakeWeb(options.pages, clock);
   const jobOffers = memoryJobOffers(options.existing);
   const discovery = createJobDiscovery({ ai, jobOffers, fetch: web.fetch, clock, budget: options.budget });
-  return { discovery, search, llm, web, jobOffers };
+  return { discovery, search, llm, titles, web, jobOffers };
 }
 
 const jobPostingPage = (posting: object) =>
@@ -128,8 +134,10 @@ describe("Job discovery", () => {
 
     const report = await discovery.discover({ candidateId: "candidate-1", criteria });
 
+    // No title variants here: the Search Criteria title, in French then in English.
     expect(search.queries).toEqual([
-      "Offres d'emploi « Directeur financier » à Lyon, CDI, télétravail partiel, salaire à partir de 110 000 € brut annuel",
+      "Offre d'emploi « Directeur financier » à Lyon, CDI, télétravail partiel, salaire à partir de 110 000 € brut annuel",
+      'Job offer "Directeur financier" in Lyon, permanent contract, hybrid remote work, salary from €110,000 gross per year',
     ]);
     expect(report.jobOffers).toEqual([
       {
@@ -149,14 +157,77 @@ describe("Job discovery", () => {
   });
 
   it("sends the web-search provider nothing but the Search Criteria, whatever the Candidate typed in them", async () => {
-    const { discovery, search } = setup({ sources: [], pages: {} });
+    const { discovery, search, titles } = setup({ sources: [], pages: {} });
 
     await discovery.discover({
       candidateId: "candidate-1",
       criteria: { targetRole: "DAF jean.dupont@mail.fr 06 12 34 56 78", location: "Lyon" },
     });
 
-    expect(search.queries).toEqual(["Offres d'emploi « DAF » à Lyon"]);
+    expect(titles.calls.map((call) => call.messages)).toEqual([[{ role: "user", content: "DAF" }]]);
+    expect(search.queries).toEqual(["Offre d'emploi « DAF » à Lyon", 'Job offer "DAF" in Lyon']);
+  });
+
+  describe("searching with job title variants in French and English, page after page (#112)", () => {
+    const posting = (title: string) => ({ body: jobPostingPage({ title, description: `Poste de ${title} à Lyon.` }) });
+    const titles = JSON.stringify({ fr: ["DAF"], en: ["Chief Financial Officer"] });
+
+    it("sends each planned query, given the Search Criteria title alone, and steers it to recent postings outside forbidden sites", async () => {
+      const { discovery, search, titles: titleStep } = setup({ sources: [], pages: {}, titles });
+
+      await discovery.discover({ candidateId: "candidate-1", criteria });
+
+      expect(titleStep.calls.map((call) => call.messages)).toEqual([[{ role: "user", content: "Directeur financier" }]]);
+      expect(search.queries).toEqual([
+        "Offre d'emploi « Directeur financier » à Lyon, CDI, télétravail partiel, salaire à partir de 110 000 € brut annuel",
+        'Job offer "Chief Financial Officer" in Lyon, permanent contract, hybrid remote work, salary from €110,000 gross per year',
+        "Offre d'emploi « DAF » à Lyon, CDI, télétravail partiel, salaire à partir de 110 000 € brut annuel",
+      ]);
+      expect(search.searches.map((s) => s.filters)).toEqual(
+        Array(3).fill({ excludeDomains: ["linkedin.com", "indeed.com", "indeed.fr", "glassdoor.com", "glassdoor.fr"], maxAgeDays: 30, country: "FR" }),
+      );
+    });
+
+    it("searches a query's next page only while its last page gave a new readable posting", async () => {
+      const results: Record<string, string[]> = {
+        "fr 1": ["https://emplois.example.fr/offres/1"],
+        "fr 2": ["https://emplois.example.fr/offres/2", "https://emplois.example.fr/offres/1"],
+        "fr 3": ["https://emplois.example.fr/offres/1", "https://emplois.example.fr/offres/listes"],
+        "en 1": ["https://emplois.example.fr/offres/2"],
+      };
+      const { discovery, search, jobOffers } = setup({
+        searchPages: 5,
+        sources: (query, { page }) => results[`${query.startsWith("Job offer") ? "en" : "fr"} ${page ?? 1}`] ?? [],
+        pages: {
+          "https://emplois.example.fr/offres/1": posting("DAF 1"),
+          "https://emplois.example.fr/offres/2": posting("DAF 2"),
+          "https://emplois.example.fr/offres/listes": { body: "<html><body><h1>12 offres DAF</h1></body></html>" },
+        },
+        titles: JSON.stringify({ en: ["CFO"] }),
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      // fr p1: offer 1, new. en p1: offer 2, new. fr p2: offer 2 again (found by en p1), offer 1 again: nothing new, fr stops.
+      // en p2: nothing. Neither query gets a third page.
+      expect(search.searches.map((s) => `${s.query.startsWith("Job offer") ? "en" : "fr"} ${s.page ?? 1}`)).toEqual(["fr 1", "en 1", "fr 2", "en 2"]);
+      expect(jobOffers.all.map((offer) => offer.title)).toEqual(["DAF 1", "DAF 2"]);
+      expect(report.funnel).toMatchObject({ providerUrls: 2, fetched: 2, extracted: 2 });
+    });
+
+    it("searches no further once the run has its Job Offers", async () => {
+      const { discovery, search } = setup({
+        searchPages: 5,
+        sources: (_query, { page }) => [`https://emplois.example.fr/offres/${page ?? 1}`],
+        pages: { "https://emplois.example.fr/offres/1": posting("DAF 1"), "https://emplois.example.fr/offres/2": posting("DAF 2") },
+        titles,
+        budget: { jobOffers: 1 },
+      });
+
+      await discovery.discover({ candidateId: "c", criteria });
+
+      expect(search.queries).toHaveLength(1);
+    });
   });
 
   describe("reading pages politely (ADR-0002)", () => {
@@ -559,7 +630,7 @@ describe("Job discovery", () => {
       });
 
       it("stops following once the run has spent its money", async () => {
-        // Each LLM read: 10,000 × $5/M = $0.05, €0.043. Search: €0.0022. After two reads, €0.088.
+        // Each LLM read: 10,000 × $5/M = $0.05, €0.043. Job titles and search: €0.0022. After two reads, €0.088.
         const { discovery, llm, web } = setup({
           sources: [LISTING],
           pages: pages(() => ({ body: "<html><body><h1>DAF H/F</h1><p>Poste de DAF.</p></body></html>" })),
@@ -823,9 +894,10 @@ describe("Job discovery", () => {
 
       const report = await discovery.discover({ candidateId: "c", criteria });
 
-      // Fakes use 10 input and 5 output tokens per call. Search: $0.0025 + 10 × $0.20/M + 5 × $1.20/M;
+      // Fakes use 10 input and 5 output tokens per call. Job titles (Mistral default): 10 × $0.50/M + 5 × $1.50/M;
+      // each search (French, then English): $0.0025 + 10 × $0.20/M + 5 × $1.20/M;
       // each LLM read (Anthropic default): 10 × $5/M + 5 × $25/M; at €0.86 per $.
-      expect(report.costEur).toBeCloseTo((0.002508 + 2 * 0.000175) * 0.86, 9);
+      expect(report.costEur).toBeCloseTo((0.0000125 + 2 * 0.002508 + 2 * 0.000175) * 0.86, 9);
     });
 
     it("keeps what a run measured before it failed", async () => {
@@ -846,7 +918,7 @@ describe("Job discovery", () => {
         skipped: [{ url: gone, reason: "gone" }],
         funnel: { providerUrls: 2, fetched: 1, extracted: 0, alreadyStored: 0 },
       });
-      expect((failure as JobDiscoveryError).partial.costEur).toBeCloseTo(0.002508 * 0.86, 9);
+      expect((failure as JobDiscoveryError).partial.costEur).toBeCloseTo((0.0000125 + 0.002508) * 0.86, 9);
     });
   });
 
@@ -880,7 +952,7 @@ describe("Job discovery", () => {
       const report = await discovery.discover({ candidateId: "c", criteria });
 
       expect(llm.calls).toHaveLength(2);
-      expect(report.costEur).toBeCloseTo((0.002508 + 2 * 0.05) * 0.86, 9);
+      expect(report.costEur).toBeCloseTo((0.0000125 + 0.002508 + 2 * 0.05) * 0.86, 9);
       expect(web.fetched().filter((url) => urls.includes(url))).toEqual(urls.slice(0, 2));
     });
 

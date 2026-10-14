@@ -4,11 +4,15 @@
  *   const discovery = createJobDiscovery({ ai, jobOffers });
  *   const report = await discovery.discover({ candidateId, criteria });
  *
- * One run: one web search through the AI layer (the query is built from the
- * Search Criteria alone, ADR-0007), then each result page is read politely
+ * One run: up to 6 web searches through the AI layer, one per query of the Job
+ * Search's plan (the Search Criteria title and up to 2 variants, in French and
+ * English; built from the Search Criteria alone, ADR-0007), each steered away
+ * from forbidden sites and toward postings of the last 30 days. A query's next
+ * page of results is searched only while its last page gave at least one new
+ * readable posting (see search-pages.ts). Each result page is read politely
  * (robots.txt, site terms, no bot-protection workaround, ADR-0002). Result pages
- * are the provider's sources, then the URLs its answer text names: the answer
- * itself never makes a Job Offer. A listing page has up to 5 of its postings on
+ * are the provider's sources, then the URLs its answer text names, each once per
+ * run: the answer itself never makes a Job Offer. A listing page has up to 5 of its postings on
  * the same site followed and read the same way (see listing-page.ts). A
  * Greenhouse, Lever or Ashby posting is read through its ATS's public JSON API
  * instead of its page, politely too (see ats.ts): it then carries the posting
@@ -22,20 +26,21 @@
  * source URL, or same text from another site) is returned, never duplicated,
  * and a known URL is not fetched again.
  *
- * A run reads result pages in order until its budget runs out: 30 Job Offers,
- * €0.08 or 90 s by default, whichever comes first (see JobDiscoveryBudget).
+ * A run searches and reads result pages in order until its budget runs out: 30
+ * Job Offers, €0.08 or 90 s by default, whichever comes first (see JobDiscoveryBudget).
  *
  * Each run is measured (its funnel and cost in €), also when it fails: the
  * error is then a JobDiscoveryError carrying what the run measured until then.
  */
-import { costInEur, type AiLayer } from "@jobhub/ai";
+import { costInEur, type AiLayer, type SearchFilters } from "@jobhub/ai";
 import type { DiscoveryMetrics, JobOffer, JobOfferDetails, SearchCriteria, SkipReason as CountedSkipReason } from "@jobhub/shared";
-import { readAtsPosting } from "./ats";
+import { MAX_POSTING_AGE_DAYS, readAtsPosting } from "./ats";
 import { DEFAULT_BUDGET, type JobDiscoveryBudget } from "./budget";
 import { htmlToText, metaRobots } from "./html";
 import { countJobPostings, readJobPosting } from "./job-posting";
 import { listingPageLinks } from "./listing-page";
 import { extractWithLlm } from "./llm-extraction";
+import { searchPages } from "./search-pages";
 import { createPoliteFetcher, realClock, type Clock, type JsonResult, type RefusalReason } from "./polite-fetch";
 
 export { MAX_POSTING_AGE_DAYS } from "./ats";
@@ -87,7 +92,7 @@ export interface DiscoveryReport {
   skipped: { url: string; reason: SkipReason }[];
   /** How many results went how far: the stages before deduplication (`jobOffers` is the one after). */
   funnel: DiscoveryFunnel;
-  /** The estimated cost in € of the run's AI calls: the web search and each page the LLM read. */
+  /** The estimated cost in € of the run's AI calls: the job title step, each web search and each page the LLM read. */
   costEur: number;
 }
 
@@ -109,6 +114,9 @@ export interface JobDiscovery {
   discover(request: DiscoverRequest): Promise<DiscoveryReport>;
 }
 
+/** Job Searches look for jobs in France: the provider favours French pages. */
+const SEARCH_COUNTRY = "FR";
+
 export const DEFAULT_USER_AGENT = "JobbboxBot/1.0 (+https://jobbbox.fr/robot)";
 
 /**
@@ -121,6 +129,12 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
   const budget = { ...DEFAULT_BUDGET, ...options.budget };
   const clock = options.clock ?? realClock;
   const userAgent = options.userAgent ?? DEFAULT_USER_AGENT;
+  const forbiddenSites = options.forbiddenSites ?? FORBIDDEN_SITES;
+  /**
+   * What each web search asks of the provider, where it can: no forbidden site (none could be read,
+   * and most are listing pages, #105), postings of the last 30 days (older ones are dropped), in France.
+   */
+  const searchFilters: SearchFilters = { excludeDomains: [...forbiddenSites], maxAgeDays: MAX_POSTING_AGE_DAYS, country: SEARCH_COUNTRY };
 
   return {
     async discover({ candidateId, criteria }) {
@@ -128,7 +142,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
       const fetcher = createPoliteFetcher({
         fetch: options.fetch ?? globalThis.fetch,
         userAgent,
-        forbiddenSites: options.forbiddenSites ?? FORBIDDEN_SITES,
+        forbiddenSites,
         timeoutMs: 15_000,
         maxBytes: 3 * 1024 * 1024,
         clock,
@@ -230,13 +244,22 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
       };
 
       try {
-        const search = await ai.searchWeb({ candidateId, criteria });
-        // The answer text only points at pages to read: a Job Offer always comes from a page read.
-        const distinct = [...new Set([...search.sources, ...urlsIn(search.answer)])];
-        funnel.providerUrls = distinct.length;
-        for (const url of distinct) {
-          if (budgetSpent()) break;
-          await read(url, true);
+        const plan = await ai.planJobSearch({ candidateId, criteria });
+        const pager = searchPages(plan.queries, plan.pages);
+        /** URLs the provider gave in this run, each counted once in the funnel. */
+        const providerUrls = new Set<string>();
+        for (let next = pager.next(); next && !budgetSpent(); next = pager.next()) {
+          const before = found.size;
+          const search = await ai.searchWeb({ candidateId, criteria, query: next.query, page: next.page, filters: searchFilters });
+          // The answer text only points at pages to read: a Job Offer always comes from a page read.
+          const fresh = [...new Set([...search.sources, ...urlsIn(search.answer)])].filter((url) => !providerUrls.has(url));
+          for (const url of fresh) providerUrls.add(url);
+          funnel.providerUrls = providerUrls.size;
+          for (const url of fresh) {
+            if (budgetSpent()) break;
+            await read(url, true);
+          }
+          pager.gave(next, found.size - before);
         }
       } catch (error) {
         report.jobOffers = [...found.values()];
@@ -260,6 +283,11 @@ function costing(ai: AiLayer, spend: (eur: number) => void): AiLayer {
       const result = await ai.generate(request);
       spend(costInEur(result));
       return result;
+    },
+    async planJobSearch(request) {
+      const plan = await ai.planJobSearch(request);
+      if (plan.call) spend(costInEur(plan.call));
+      return plan;
     },
     async searchWeb(request) {
       const result = await ai.searchWeb(request);

@@ -282,8 +282,19 @@ async function volumeSite(url) {
   return html(page(`Poste ${n}`, "<h1>Offre</h1>", `<script type="application/ld+json">${JSON.stringify(posting)}</script>`));
 }
 
+/** The job title step of a Job Search (#112): it is given the Search Criteria title alone. */
+const isJobTitleStep = (body) => String(body).includes("autres intitulés");
+
 function mistral(body) {
   const prompt = String(body.messages?.at(-1)?.content ?? "");
+  if (isJobTitleStep(JSON.stringify(body))) {
+    return Response.json({
+      id: "cmpl_e2e_titles",
+      model: body.model ?? "mistral-large-latest",
+      choices: [{ index: 0, message: { role: "assistant", content: JSON.stringify({ fr: ["DAF"], en: ["Chief Financial Officer"] }) }, finish_reason: "stop" }],
+      usage: { prompt_tokens: 100, completion_tokens: 20 },
+    });
+  }
   const volumeN = /Poste en volume (\d+) – réf\. /.exec(prompt)?.[1];
   const reading = volumeN
     ? { isJobOffer: true, title: `Poste en volume ${volumeN} – réf. ${tag}`, content: volumeText(volumeN), employer: `Entreprise ${volumeN}`, location: "Lyon", contractType: "cdi" }

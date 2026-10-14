@@ -1,6 +1,6 @@
 import type { SearchCriteria } from "@jobhub/shared";
 import { findIdentity } from "./identity-scan";
-import { buildCompanyQuery, buildSearchQuery } from "./search-query";
+import { buildCompanyQuery, buildSearchQuery, jobSearchQueries, jobTitlesPrompt, type JobSearchQuery } from "./search-query";
 import { AiConfigError, DataResidencyError } from "./errors";
 import { SEARCH_TASK, TEXT_TASKS } from "./types";
 import type { AiProvider, AiTask, Message, ProviderId, SearchFilters, TextTask, TokenUsage, UsageEntry, UsageLog } from "./types";
@@ -36,6 +36,29 @@ export interface SearchRequest {
   criteria: SearchCriteria;
   /** Narrows the search where the provider can (domains, freshness). Results must still be checked. */
   filters?: SearchFilters;
+  /**
+   * Which job title and language to word the query with: one of the queries `planJobSearch` returned,
+   * as returned (any other, or a copy, is refused). Default: the Search Criteria's own title, in French.
+   */
+  query?: JobSearchQuery;
+  /** Which page of results, from 1 (the default) up to the plan's `pages`. */
+  page?: number;
+}
+
+export interface JobSearchPlanRequest {
+  candidateId: string | null;
+  /** Only their job title reaches the AI step that finds its variants. */
+  criteria: SearchCriteria;
+}
+
+/** What a Job Search sends the web-search provider: its queries, and how far each can be paged. */
+export interface JobSearchPlan {
+  /** Up to 6 queries, in the order to send them: up to 3 job titles, each in French and English. */
+  queries: JobSearchQuery[];
+  /** How many pages of results the web-search provider can give one query (`SearchRequest.page`). */
+  pages: number;
+  /** The job title step's AI call, for its cost; null when it failed (the plan then has the Search Criteria title alone). */
+  call: GenerateResult | null;
 }
 
 export interface CompanySearchRequest {
@@ -55,6 +78,11 @@ export interface SearchResult {
 /** The single entry point for every LLM and AI-search call (ADR-0007). */
 export interface AiLayer {
   generate(request: GenerateRequest): Promise<GenerateResult>;
+  /**
+   * The queries of a Job Search: the Search Criteria title and up to 2 variants (an AI step given
+   * that title alone) × French and English. Never fails: without variants, the title alone.
+   */
+  planJobSearch(request: JobSearchPlanRequest): Promise<JobSearchPlan>;
   searchWeb(request: SearchRequest): Promise<SearchResult>;
   /** Searches the web for public facts about an employer, for a Company Dossier. */
   searchCompany(request: CompanySearchRequest): Promise<SearchResult>;
@@ -83,7 +111,11 @@ export interface AiLayerOptions {
 }
 
 const DEFAULT_MAX_TOKENS = 4096;
+/** Room for a few job titles as JSON. */
+const JOB_TITLES_MAX_TOKENS = 300;
 const DEFAULT_IDENTITY_ROUTE: Route = { provider: "mistral" };
+/** ISO 3166-1 alpha-2, e.g. "FR". */
+const COUNTRY_CODE = /^[A-Z]{2}$/;
 
 export function createAiLayer(options: AiLayerOptions): AiLayer {
   const now = options.now ?? (() => new Date());
@@ -146,17 +178,26 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
 
   const log = (entry: Omit<UsageEntry, "at">) => options.usage.record({ ...entry, at: now() });
 
-  /** `query` must be built by search-query.ts: nothing else ever reaches the search provider. */
-  async function search(candidateId: string | null, query: string, filters?: SearchFilters): Promise<SearchResult> {
+  const searchProvider = (): { route: Route; provider: AiProvider } => {
     const route = routeFor(SEARCH_TASK);
     const provider = providerFor(route);
     if (!provider.search) throw new AiConfigError(`AI provider "${provider.id}" cannot search the web`);
-    const output = await provider.search(query, { model: route.model, filters });
+    return { route, provider };
+  };
+
+  /** `query` must be built by search-query.ts: nothing else ever reaches the search provider. */
+  async function search(candidateId: string | null, query: string, filters?: SearchFilters, page?: number): Promise<SearchResult> {
+    // A filter names websites, a time window and a country (ADR-0007): a country is a code, never free text.
+    if (filters?.country !== undefined && !COUNTRY_CODE.test(filters.country)) {
+      throw new DataResidencyError("A web search's country filter must be a two-letter country code (ISO 3166-1 alpha-2)");
+    }
+    const { route, provider } = searchProvider();
+    const output = await provider.search!(query, { model: route.model, filters, ...(page && page > 1 ? { page } : {}) });
     await log({ candidateId, task: SEARCH_TASK, provider: provider.id, endpoint: provider.endpoint, model: output.model, ...output.usage });
     return { answer: output.answer, sources: output.sources, provider: provider.id, model: output.model, usage: output.usage };
   }
 
-  return {
+  const layer: AiLayer = {
     async generate(request) {
       const messages = typeof request.prompt === "string" ? [{ role: "user" as const, content: request.prompt }] : request.prompt;
       const { route, identity } = await routeForCall(request, messages);
@@ -180,12 +221,28 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       return { text: output.text, provider: provider.id, model: output.model, usage: output.usage };
     },
 
-    searchWeb(request) {
-      return search(request.candidateId, buildSearchQuery(request.criteria), request.filters);
+    async planJobSearch({ candidateId, criteria }) {
+      const pages = Math.max(1, searchProvider().provider.searchPages ?? 1);
+      const { system, prompt } = jobTitlesPrompt(criteria);
+      let call: GenerateResult | null = null;
+      try {
+        call = await layer.generate({ task: "job_titles", candidateId, system, prompt, maxTokens: JOB_TITLES_MAX_TOKENS });
+      } catch (error) {
+        warn("Job title variants unavailable: searching with the Search Criteria title alone", {
+          candidateId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      return { queries: jobSearchQueries(criteria, call?.text ?? null), pages, call };
     },
 
-    searchCompany(request) {
+    async searchWeb(request) {
+      return search(request.candidateId, buildSearchQuery(request.criteria, request.query), request.filters, request.page);
+    },
+
+    async searchCompany(request) {
       return search(request.candidateId, buildCompanyQuery(request.employer));
     },
   };
+  return layer;
 }

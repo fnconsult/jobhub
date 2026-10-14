@@ -198,12 +198,13 @@ test.describe("Job Search metrics (#109)", () => {
     expect(total + search.metrics!.funnel.alreadyStored + search.metrics!.funnel.fetched).toBe(search.metrics!.funnel.providerUrls);
   });
 
-  test("records the cost in € (web search and the LLM reading one page) and the duration", () => {
+  test("records the cost in € (the job title step, the web searches and the LLM reading one page) and the duration", () => {
     const { costEur, durationMs } = search.metrics!;
-    // Perplexity: 20 input + 40 output tokens at 0.2 / 1.2 $ per million, plus 0.0025 $ per search, at 0.86 €/$ = 0.0021947 €.
-    // Mistral reads one page (100 + 50 tokens): at most 0.0001075 € at its dearest list price.
-    expect(costEur).toBeGreaterThanOrEqual(0.0021947 - 1e-6);
-    expect(costEur).toBeLessThanOrEqual(0.0021947 + 0.0001075 + 1e-6);
+    // Each Perplexity search: 20 input + 40 output tokens at 0.2 / 1.2 $ per million, plus 0.0025 $ per search, at 0.86 €/$ = 0.0021947 €.
+    // The fake gives every query the same results: 4 searches (3 queries, then the first query's second page, #112).
+    // Mistral finds the job title variants (100 + 20 tokens) and reads one page (100 + 50 tokens): at most 0.0000688 € and 0.0001075 €.
+    expect(costEur).toBeGreaterThanOrEqual(4 * 0.0021947 - 1e-6);
+    expect(costEur).toBeLessThanOrEqual(4 * 0.0021947 + 0.0000688 + 0.0001075 + 1e-6);
     // From the Candidate starting it to its outcome.
     expect(durationMs).toBeGreaterThan(0);
     expect(Math.abs(durationMs - search.elapsed_ms)).toBeLessThanOrEqual(2);
@@ -222,7 +223,9 @@ test.describe("Job Search metrics (#109)", () => {
     expect(failed.metrics, workerOutput).not.toBeNull();
     expect(failed.metrics!.funnel).toEqual({ providerUrls: 0, fetched: 0, extracted: 0, alreadyStored: 0, afterDedup: 0, matched: 0 });
     expect(failed.metrics!.skipped).toEqual(Object.fromEntries(SKIP_REASONS.map((reason) => [reason, 0])));
-    expect(failed.metrics!.costEur).toBe(0);
+    // Only the job title step (100 + 20 Mistral tokens) was paid for before the web search failed: at most 0.0000688 €.
+    expect(failed.metrics!.costEur).toBeGreaterThan(0);
+    expect(failed.metrics!.costEur).toBeLessThanOrEqual(0.0000688 + 1e-9);
     expect(failed.metrics!.durationMs).toBeGreaterThan(0);
     expect(Math.abs(failed.metrics!.durationMs - failed.elapsed_ms)).toBeLessThanOrEqual(2);
   });

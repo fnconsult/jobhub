@@ -252,7 +252,8 @@ function freshnessSite(url) {
   const key = /^\/offre\/(sansDate|recente|ancienne)-/.exec(url.pathname)?.[1];
   if (!key || !url.pathname.endsWith(`-${tag}`)) return html(page("Introuvable", "<p>404</p>"), { status: 404 });
   const days = FRESHNESS_PAGES[key];
-  const { datePosted: _ignored, ...undated } = jsonLdPosting;
+  const undated = { ...jsonLdPosting };
+  delete undated.datePosted;
   const posting = {
     ...undated,
     title: `Directeur financier ${key} – réf. ${tag}`,

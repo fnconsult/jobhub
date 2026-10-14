@@ -338,6 +338,28 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     });
   });
   describe("Job Search notifications", () => {
+    it("tells the Candidate a Job Search failed, and why, including one the worker never answered", async () => {
+      const failed = await started();
+      await jobSearches.record(failed.id, { failed: "discovery_failed" });
+      const forgotten = await started();
+      clock.now = new Date(clock.now.getTime() + 16 * 60 * 1000);
+
+      expect(await jobSearches.notifications(candidateId)).toEqual({
+        notifications: [
+          { jobSearchId: forgotten.id, profile: { id: profileId, name: "DAF" }, outcome: { status: "failed", failure: "timeout" } },
+          { jobSearchId: failed.id, profile: { id: profileId, name: "DAF" }, outcome: { status: "failed", failure: "discovery_failed" } },
+        ],
+        searching: false,
+      });
+    });
+
+    it("words an unknown failure as 'other'", async () => {
+      const failed = await started();
+      await jobSearches.record(failed.id, { failed: "something new" });
+
+      expect((await jobSearches.notifications(candidateId)).notifications.map((notification) => notification.outcome)).toEqual([{ status: "failed", failure: "other" }]);
+    });
+
     it("tells the Candidate a Job Search is done, with the number of Job Offers found", async () => {
       const daf = await capture("DAF H/F", { location: "Lyon" });
       const controleur = await capture("Contrôleur de gestion", { location: "Lyon" });

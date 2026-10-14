@@ -202,17 +202,27 @@ export function createJobSearchReports(
       );
       if (!done && rows[0]) await quotas.release(rows[0].candidate_id, "jobSearches");
     },
-    async expireTimedOut() {
-      const { rows } = await database.query<{ candidate_id: string }>(
-        `UPDATE job_search SET status = 'failed', failure = 'timeout', finished_at = $1, metrics = ${METRICS_AT("$3", "$1")}, notification_pending = true
-         WHERE status = 'searching' AND started_at < $2
-         RETURNING candidate_id`,
-        [now(), new Date(now().getTime() - SEARCH_TIMEOUT_MS), JSON.stringify(noDiscoveryMetrics())],
-      );
-      for (const { candidate_id } of rows) await quotas.release(candidate_id, "jobSearches");
-      return rows.length;
-    },
+    expireTimedOut: () => expireTimedOut(database, { quotas, now }),
   };
+}
+
+/**
+ * Fails ('timeout') the Job Searches still searching after SEARCH_TIMEOUT_MS, every
+ * Candidate's or only `candidateId`'s, and gives each one's Plan Quota use back.
+ */
+async function expireTimedOut(
+  database: Pool,
+  { quotas, now }: { quotas: Pick<JobSearchQuotas, "release">; now: () => Date },
+  candidateId?: string,
+): Promise<number> {
+  const { rows } = await database.query<{ candidate_id: string }>(
+    `UPDATE job_search SET status = 'failed', failure = 'timeout', finished_at = $1, metrics = ${METRICS_AT("$3", "$1")}, notification_pending = true
+     WHERE status = 'searching' AND started_at < $2 AND ($4::text IS NULL OR candidate_id = $4)
+     RETURNING candidate_id`,
+    [now(), new Date(now().getTime() - SEARCH_TIMEOUT_MS), JSON.stringify(noDiscoveryMetrics()), candidateId ?? null],
+  );
+  for (const { candidate_id } of rows) await quotas.release(candidate_id, "jobSearches");
+  return rows.length;
 }
 
 export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSearches {
@@ -294,6 +304,8 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
     get,
     record,
     async notifications(candidateId) {
+      // A search the worker never answered is over: say so rather than wait on it.
+      await expireTimedOut(database, { quotas: deps.quotas, now }, candidateId);
       const { rows } = await database.query<{ id: string; profile_id: string; profile_name: string; status: JobSearchStatus; failure: string | null; found: number }>(
         `SELECT s.id, s.profile_id, p.name AS profile_name, s.status, s.failure,
                 (SELECT count(*)::int FROM job_offer o WHERE o.id = ANY (s.job_offer_ids) AND o.expired_at IS NULL) AS found

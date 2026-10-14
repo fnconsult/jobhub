@@ -41,6 +41,9 @@ export const SEARCH_TIMEOUT_MS = 15 * 60 * 1000;
 
 export type JobSearchStatus = "searching" | "done" | "failed";
 
+/** Why a Job Search failed. */
+export type JobSearchFailure = "timeout" | "queue_unavailable" | "profile_unavailable" | "unavailable" | "discovery_failed" | "other";
+
 /** One Job Offer a Job Search found. */
 export interface JobSearchResult {
   jobOffer: JobOffer;
@@ -80,6 +83,16 @@ export type StartJobSearchResult =
 /** What Job discovery reported for a Job Search, with what it measured (none: it did not run). */
 export type JobSearchOutcome = ({ jobOfferIds: string[] } | { failed: string }) & { metrics?: DiscoveryMetrics };
 
+/**
+ * What the Candidate is told, on any page, once a Job Search they started has
+ * finished: how many Job Offers it found, or why it failed.
+ */
+export interface JobSearchNotification {
+  jobSearchId: string;
+  profile: { id: string; name: string };
+  outcome: { status: "done"; found: number } | { status: "failed"; failure: JobSearchFailure };
+}
+
 export interface JobSearches {
   /** Starts a Job Search. `input`: { profileId }. */
   start(candidateId: string, input: unknown): Promise<StartJobSearchResult>;
@@ -90,6 +103,11 @@ export interface JobSearches {
    * A failure gives the Job Search's Plan Quota use back, at most once per Job Search.
    */
   record(jobSearchId: string, outcome: JobSearchOutcome): Promise<void>;
+  /**
+   * The Candidate's Job Search notifications not dismissed yet, newest first, and
+   * whether one of their Job Searches is still searching (more may come).
+   */
+  notifications(candidateId: string): Promise<{ notifications: JobSearchNotification[]; searching: boolean }>;
 }
 
 /** The worker's side of Job Searches: Job discovery's reports, and the searches it never answered. */
@@ -133,6 +151,9 @@ export async function migrateJobSearches(database: Pool): Promise<void> {
     );
     -- JobSearchMetrics, set with the outcome.
     ALTER TABLE job_search ADD COLUMN IF NOT EXISTS metrics jsonb;
+    -- Set when it finishes, until the Candidate dismisses its notification (or opens it).
+    -- Job Searches finished before notifications existed have none.
+    ALTER TABLE job_search ADD COLUMN IF NOT EXISTS notification_pending boolean NOT NULL DEFAULT false;
     CREATE INDEX IF NOT EXISTS job_search_candidate_profile_idx ON job_search (candidate_id, profile_id, started_at DESC);
   `);
 }
@@ -167,7 +188,7 @@ export function createJobSearchReports(
       const done = "jobOfferIds" in outcome;
       // Only the one report that moves the Job Search out of 'searching' gets a row back.
       const { rows } = await database.query<{ candidate_id: string }>(
-        `UPDATE job_search SET status = $2, job_offer_ids = $3, failure = $4, finished_at = $5, metrics = ${METRICS_AT("$6", "$5")}
+        `UPDATE job_search SET status = $2, job_offer_ids = $3, failure = $4, finished_at = $5, metrics = ${METRICS_AT("$6", "$5")}, notification_pending = true
          WHERE id = $1 AND status = 'searching'
          RETURNING candidate_id`,
         [
@@ -183,7 +204,7 @@ export function createJobSearchReports(
     },
     async expireTimedOut() {
       const { rows } = await database.query<{ candidate_id: string }>(
-        `UPDATE job_search SET status = 'failed', failure = 'timeout', finished_at = $1, metrics = ${METRICS_AT("$3", "$1")}
+        `UPDATE job_search SET status = 'failed', failure = 'timeout', finished_at = $1, metrics = ${METRICS_AT("$3", "$1")}, notification_pending = true
          WHERE status = 'searching' AND started_at < $2
          RETURNING candidate_id`,
         [now(), new Date(now().getTime() - SEARCH_TIMEOUT_MS), JSON.stringify(noDiscoveryMetrics())],
@@ -272,5 +293,30 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
     },
     get,
     record,
+    async notifications(candidateId) {
+      const { rows } = await database.query<{ id: string; profile_id: string; profile_name: string; status: JobSearchStatus; failure: string | null; found: number }>(
+        `SELECT s.id, s.profile_id, p.name AS profile_name, s.status, s.failure,
+                (SELECT count(*)::int FROM job_offer o WHERE o.id = ANY (s.job_offer_ids) AND o.expired_at IS NULL) AS found
+         FROM job_search s JOIN profile p ON p.id = s.profile_id
+         WHERE s.candidate_id = $1 AND (s.notification_pending OR s.status = 'searching')
+         ORDER BY s.finished_at DESC NULLS FIRST, s.started_at DESC`,
+        [candidateId],
+      );
+      const notifications: JobSearchNotification[] = rows
+        .filter((row) => row.status !== "searching")
+        .map((row) => ({
+          jobSearchId: row.id,
+          profile: { id: row.profile_id, name: row.profile_name },
+          outcome: row.status === "done" ? { status: "done", found: row.found } : { status: "failed", failure: failureOf(row.failure) },
+        }));
+      return { notifications, searching: rows.some((row) => row.status === "searching") };
+    },
   };
+}
+
+const FAILURES: readonly JobSearchFailure[] = ["timeout", "queue_unavailable", "profile_unavailable", "unavailable", "discovery_failed"];
+
+/** The failure Job discovery reported, as one the Candidate can be told about. */
+function failureOf(reported: string | null): JobSearchFailure {
+  return FAILURES.find((failure) => failure === reported) ?? "other";
 }

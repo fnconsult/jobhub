@@ -337,4 +337,19 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       expect(await used()).toBe(1);
     });
   });
+  describe("Job Search notifications", () => {
+    it("tells the Candidate a Job Search is done, with the number of Job Offers found", async () => {
+      const daf = await capture("DAF H/F", { location: "Lyon" });
+      const controleur = await capture("Contrôleur de gestion", { location: "Lyon" });
+      const jobSearch = await started();
+      expect(await jobSearches.notifications(candidateId)).toEqual({ notifications: [], searching: true });
+
+      await jobSearches.record(jobSearch.id, { jobOfferIds: [daf, controleur] });
+
+      expect(await jobSearches.notifications(candidateId)).toEqual({
+        notifications: [{ jobSearchId: jobSearch.id, profile: { id: profileId, name: "DAF" }, outcome: { status: "done", found: 2 } }],
+        searching: false,
+      });
+    });
+  });
 });

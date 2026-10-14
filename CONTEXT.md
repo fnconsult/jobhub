@@ -182,6 +182,15 @@ _Avoid_: Results page, index page
 One run of Job discovery that a Candidate starts for a Profile, and its outcome: searching, done or failed. It counts one against the Plan Quota, and the use is given back if the search fails or times out. A search nobody has finished after 15 minutes is failed.
 _Avoid_: Search (alone, ambiguous with Search Criteria)
 
+**Job Search query**:
+One job title (the Search Criteria title or a Job title variant) worded in French or English; a Job Search has up to 6. Each gets its first page of results, and a next page only while the last gave a New readable posting.
+
+**Job title variant**:
+Another title for the same job, suggested by an AI step given the Search Criteria title only (no other Candidate data). Used to word more Job Search queries.
+
+**New readable posting**:
+A Job Offer a results page gave that the run had not found yet. It is what lets a Job Search query get its next page.
+
 **Job discovery budget**:
 The limits that end one run of Job discovery (a Job Search or a Job Digest top-up), whichever comes first: a number of Job Offers found (new or already stored), an estimated spend in euros, or a duration. Defaults: 30 Job Offers, EUR 0.08, 90 seconds. The result page being read when a limit is reached is finished, so a run can go slightly past it.
 

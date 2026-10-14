@@ -8,8 +8,10 @@
  * `{ ok: false, error: "invalid" | "unavailable" }`. The in-view Profile is
  * read here, scoped to the Candidate, so a Profile id from someone else's
  * account adds nothing. Task `coaching`, EU endpoints only (ADR-0007).
+ * Each reply says what it cost (`CoachMessageCost`), so it can be recorded with
+ * the message: an estimate from list prices, frozen at the time of the reply.
  */
-import type { AiLayer } from "@jobhub/ai";
+import { costInEur, type AiLayer, type ProviderId } from "@jobhub/ai";
 import * as z from "zod";
 import type { Profiles } from "../profiles";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentConversation } from "./conversation";
@@ -19,7 +21,19 @@ export type CoachFocus = { kind: "profile"; id: string } | { kind: "application"
 
 export { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentConversation, type CoachMessage } from "./conversation";
 
-export type CoachReply = { ok: true; reply: string } | { ok: false; error: "invalid" | "unavailable" };
+/** What one AI Coach reply cost: who answered, its tokens, and the estimated cost in € at list prices. */
+export interface CoachMessageCost {
+  provider: ProviderId;
+  model: string;
+  /** Input not read from the provider's prompt cache. */
+  inputTokens: number;
+  outputTokens: number;
+  /** Input read from the provider's prompt cache. */
+  cachedInputTokens: number;
+  eur: number;
+}
+
+export type CoachReply = { ok: true; reply: string; cost: CoachMessageCost } | { ok: false; error: "invalid" | "unavailable" };
 
 export interface Coach {
   reply(candidateId: string, input: unknown): Promise<CoachReply>;
@@ -76,14 +90,23 @@ export function createCoach(deps: CoachDeps): Coach {
       const messages = recentConversation(parsed.data.messages);
       try {
         const inView = await context(candidateId, focus);
-        const { text } = await deps.ai.generate({
+        const result = await deps.ai.generate({
           task: "coaching",
           candidateId,
           system: `${PERSONA}\n\n${inView.text}`,
           containsIdentity: inView.containsIdentity,
           prompt: messages.map((message) => ({ role: message.from === "candidate" ? ("user" as const) : ("assistant" as const), content: message.text })),
         });
-        return { ok: true, reply: text.trim() };
+        const { provider, model, usage } = result;
+        const cost: CoachMessageCost = {
+          provider,
+          model,
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+          cachedInputTokens: usage.cachedInputTokens ?? 0,
+          eur: costInEur(result),
+        };
+        return { ok: true, reply: result.text.trim(), cost };
       } catch (error) {
         console.warn("[coach] the AI Coach could not reply:", error instanceof Error ? error.message : error);
         return { ok: false, error: "unavailable" };

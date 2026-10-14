@@ -47,7 +47,7 @@ describe("talking with the AI Coach in the Coach Panel", () => {
       ],
     });
 
-    expect(result).toEqual({ ok: true, reply: "Bonjour Marie, que puis-je faire pour vous ?" });
+    expect(result).toMatchObject({ ok: true, reply: "Bonjour Marie, que puis-je faire pour vous ?" });
     expect(provider.calls[0]!.messages).toEqual([
       { role: "user", content: "Bonjour" },
       { role: "assistant", content: "Bonjour, je suis votre coach." },
@@ -55,6 +55,19 @@ describe("talking with the AI Coach in the Coach Panel", () => {
     ]);
     expect(provider.calls[0]!.system).toMatch(/coach/i);
     expect(usage.entries).toMatchObject([{ candidateId: "marie", task: "coaching" }]);
+  });
+
+  it("says what its reply cost: the provider and model, the tokens in, out and cached, and the estimated cost in €", async () => {
+    const provider = createFakeProvider({ id: "mistral", reply: "Bonjour", usage: { inputTokens: 1_000, outputTokens: 200, cachedInputTokens: 3_000 } });
+    const ai = createAiLayer({ providers: [provider], routes: { coaching: { provider: "mistral", model: "mistral-large-latest" } }, usage: createMemoryUsageLog() });
+    const coach = createCoach({ ai, profiles: { get: async () => null } });
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "Bonjour" }] });
+
+    if (!result.ok) throw new Error("no reply");
+    expect(result.cost).toMatchObject({ provider: "mistral", model: "mistral-large-latest", inputTokens: 1_000, outputTokens: 200, cachedInputTokens: 3_000 });
+    // Mistral Large: $0.50 in, $0.05 cached, $1.50 out per million tokens, at €0.86 per $.
+    expect(result.cost.eur).toBeCloseTo(((1_000 * 0.5 + 3_000 * 0.05 + 200 * 1.5) / 1_000_000) * 0.86, 9);
   });
 
   it("knows the Profile in view: its Search Criteria and the current version of its Master CV", async () => {
@@ -109,7 +122,7 @@ describe("talking with the AI Coach in the Coach Panel", () => {
 
     const result = await coach.reply("marie", { messages });
 
-    expect(result).toEqual({ ok: true, reply: "Bonjour Marie, que puis-je faire pour vous ?" });
+    expect(result).toMatchObject({ ok: true, reply: "Bonjour Marie, que puis-je faire pour vous ?" });
     const sent = provider.calls[0]!.messages;
     expect(sent.length).toBeLessThanOrEqual(MAX_MESSAGES);
     // The window starts with a Candidate message and ends with the latest one.

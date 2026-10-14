@@ -85,6 +85,18 @@ function sameFact(text: string): string {
   return text.replace(/\s+/g, " ").trim().toLocaleLowerCase("fr");
 }
 
+/** The proposals neither already remembered nor proposed twice, in order. */
+function newFacts(proposals: ProposedMemoryItem[], remembered: CoachMemoryItem[]): ProposedMemoryItem[] {
+  const seen = new Set(remembered.map((item) => sameFact(item.text)));
+  const fresh: ProposedMemoryItem[] = [];
+  for (const proposal of proposals) {
+    if (seen.has(sameFact(proposal.text))) continue;
+    seen.add(sameFact(proposal.text));
+    fresh.push(proposal);
+  }
+  return fresh;
+}
+
 function itemFrom(row: ItemRow): CoachMemoryItem {
   return { id: row.id, kind: row.kind, text: row.text, updatedAt: row.updated_at };
 }
@@ -165,8 +177,7 @@ export function createCoachMemory(database: Pool, deps: CoachMemoryDeps): CoachM
         const { text } = await deps.ai.generate({ task: "coaching", candidateId, system: PROPOSE_SYSTEM, prompt: promptFor(transcript, remembered) });
         const proposals = proposalsIn(text);
         if (!proposals) return { ok: false, error: "unavailable" };
-        const known = new Set(remembered.map((item) => sameFact(item.text)));
-        return { ok: true, proposals: proposals.filter((item) => !known.has(sameFact(item.text)) && known.add(sameFact(item.text))) };
+        return { ok: true, proposals: newFacts(proposals, remembered) };
       } catch (error) {
         console.warn("[coach-memory] the AI Coach could not propose:", error instanceof Error ? error.message : error);
         return { ok: false, error: "unavailable" };

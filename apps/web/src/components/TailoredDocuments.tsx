@@ -1,12 +1,14 @@
 "use client";
 
 import { DOCUMENT_LANGUAGES, type DocumentLanguage } from "@jobhub/shared";
+import * as Tabs from "@radix-ui/react-tabs";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ApplicationDrafts } from "@/tailored-documents";
 import { OUTREACH_CHANNELS, TAILORED_DOCUMENTS, type OutreachChannel, type TailoredDocumentKind } from "@/tailored-documents/kinds";
 import { mailLink } from "@/tailored-documents/mail-link";
 import { ApplicationExportForm } from "./ApplicationExportForm";
+import { TailoredCvReview, type TailoredCv } from "./TailoredCvReview";
 
 type Status = "drafting" | "drafted" | "saved" | "copied" | "copyFailed" | "required" | "unavailable" | "notAContact" | "error" | null;
 
@@ -37,20 +39,46 @@ async function send(url: string, method: "POST" | "PATCH", body: object): Promis
   }
 }
 
+const TAILORED_CV = "tailored_cv" as const;
+const [COVER_LETTER, OUTREACH_MESSAGE] = TAILORED_DOCUMENTS;
+type Tab = typeof TAILORED_CV | TailoredDocumentKind;
+
 /**
- * An Application's Cover Letter and Outreach Message: drafted by the AI Coach in
- * the Document Language, edited by the Candidate, drafted again on request.
- * Drafts only (ADR-0005): the Candidate copies the text or opens it in their mail client.
- * The Outreach Message can be addressed to one of the Application's Enriched Contacts (`recipients`).
+ * An Application's Tailored Documents, one tab each: the Tailored CV (see
+ * TailoredCvReview), the Cover Letter and the Outreach Message. All are written
+ * in the Document Language, chosen once above the tabs for all three. The
+ * Cover Letter and Outreach Message are drafted by the AI Coach, edited by the
+ * Candidate, drafted again on request. Drafts only (ADR-0005): the Candidate
+ * copies the text or opens it in their mail client. The Outreach Message can be
+ * addressed to one of the Application's Enriched Contacts (`recipients`).
+ * Every tab stays mounted, so switching tabs keeps unsaved edits.
  */
-export function TailoredDocumentsEditor({ applicationId, initial, recipients = [] }: { applicationId: string; initial: Drafts; recipients?: Recipient[] }) {
+export function TailoredDocuments({
+  applicationId,
+  documentLanguage,
+  tailoredCv,
+  drafts,
+  recipients = [],
+  locale,
+}: {
+  applicationId: string;
+  documentLanguage: DocumentLanguage;
+  tailoredCv: TailoredCv | null;
+  drafts: Drafts | null;
+  recipients?: Recipient[];
+  locale: string;
+}) {
   const { t } = useTranslation();
   const id = useId();
-  const [language, setLanguage] = useState(initial.documentLanguage);
+  const [language, setLanguage] = useState(documentLanguage);
+  const tabs: Tab[] = [...(tailoredCv ? [TAILORED_CV] : []), ...(drafts ? TAILORED_DOCUMENTS : [])];
+  const [tab, setTab] = useState<string>(tabs[0] ?? TAILORED_CV);
+  const label = { tailored_cv: t("tailoredCv.tailored"), cover_letter: t("tailoredDocuments.coverLetter.title"), outreach_message: t("tailoredDocuments.outreachMessage.title") };
   return (
-    <section className="stack" aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`}>{t("tailoredDocuments.title")}</h2>
-      <p className="notice">{t("tailoredDocuments.draftsOnly")}</p>
+    <section className="section" aria-labelledby={`${id}-title`}>
+      <div className="section-head">
+        <h2 id={`${id}-title`}>{t("application.documentsTitle")}</h2>
+      </div>
       <div className="field">
         <label htmlFor={`${id}-language`}>{t("tailoredDocuments.languageLabel")}</label>
         <p id={`${id}-language-hint`} className="hint">
@@ -70,8 +98,32 @@ export function TailoredDocumentsEditor({ applicationId, initial, recipients = [
           ))}
         </select>
       </div>
-      <DraftEditor applicationId={applicationId} document={TAILORED_DOCUMENTS[0]} language={language} initial={initial.coverLetter} />
-      <DraftEditor applicationId={applicationId} document={TAILORED_DOCUMENTS[1]} language={language} initial={initial.outreachMessage} recipients={recipients} />
+      <Tabs.Root value={tab} onValueChange={setTab}>
+        <Tabs.List className="tablist" aria-label={t("application.documentsTitle")}>
+          {tabs.map((value) => (
+            <Tabs.Trigger key={value} className="tab" value={value}>
+              {label[value]}
+            </Tabs.Trigger>
+          ))}
+        </Tabs.List>
+        {tailoredCv ? (
+          <Tabs.Content className="tabpanel" value={TAILORED_CV} forceMount>
+            <TailoredCvReview applicationId={applicationId} initial={tailoredCv} language={language} locale={locale} />
+          </Tabs.Content>
+        ) : null}
+        {drafts ? (
+          <>
+            <Tabs.Content className="tabpanel" value={COVER_LETTER} forceMount>
+              <p className="notice">{t("tailoredDocuments.draftsOnly")}</p>
+              <DraftEditor applicationId={applicationId} document={COVER_LETTER} language={language} initial={drafts.coverLetter} />
+            </Tabs.Content>
+            <Tabs.Content className="tabpanel" value={OUTREACH_MESSAGE} forceMount>
+              <p className="notice">{t("tailoredDocuments.draftsOnly")}</p>
+              <DraftEditor applicationId={applicationId} document={OUTREACH_MESSAGE} language={language} initial={drafts.outreachMessage} recipients={recipients} />
+            </Tabs.Content>
+          </>
+        ) : null}
+      </Tabs.Root>
     </section>
   );
 }
@@ -161,8 +213,7 @@ function DraftEditor({
   ) : null;
 
   return (
-    <div className="stack" role="group" aria-labelledby={`${id}-title`}>
-      <h3 id={`${id}-title`}>{t(`${keys}.title`)}</h3>
+    <div className="stack">
       {draft === null ? (
         <>
           <p>{t(`${keys}.none`)}</p>

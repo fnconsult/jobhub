@@ -430,7 +430,10 @@
     "dismiss": "Dismiss",
     "accepted": "Proposal accepted.",
     "dismissed": "Proposal dismissed.",
-    "error": "This proposal couldn't be applied. Try again or reload the page."
+    "error": "This proposal couldn't be applied. Try again or reload the page.",
+    "copyDraft": "Copy the draft",
+    "copied": "Draft copied.",
+    "copyFailed": "Copying failed: select the draft's text and copy it yourself."
   },
   "billing": {
     "plans": {
@@ -604,7 +607,6 @@
     "profileHint": "The match score uses this profile's master CV.",
     "profileSaved": "Profile saved",
     "error": "Saving failed. Check your connection and try again.",
-    "savedOn": "Job offer saved on {{date}}",
     "interviewsTitle": "Interviews",
     "interviewsNone": "No interviews recorded yet.",
     "interviewsHint": "You can record your interviews once the application is at the \"Interview\" status.",
@@ -619,7 +621,13 @@
     "reportUnavailable": "Report this job offer as no longer published",
     "reportUnavailableHint": "For you only: the job offer does not change for anyone else, and your application keeps its status.",
     "undoReport": "Undo the report",
-    "reportedNotice": "On {{date}} you reported this job offer as no longer published. Your application and its status stay as they are: you decide what happens next."
+    "reportedNotice": "On {{date}} you reported this job offer as no longer published. Your application and its status stay as they are: you decide what happens next.",
+    "kind": "Application",
+    "savedOnLabel": "Saved on",
+    "matchLabel": "Match",
+    "matchDetail": "See the details",
+    "offerLabel": "Job offer",
+    "documentsTitle": "Tailored documents"
   },
   "jobOffer": {
     "details": "At a glance",
@@ -933,7 +941,7 @@
     "title": "Cover letter and outreach message",
     "draftsOnly": "Jobbbox never sends anything for you: copy the text or open it in your mail app, then send it yourself.",
     "languageLabel": "Document language",
-    "languageHint": "By default, the job offer's language. A change applies to the next draft.",
+    "languageHint": "By default, the job offer's language. It applies to the tailored CV, the cover letter and the outreach message; a change applies to the next proposal or draft.",
     "languages": {
       "fr": "French",
       "en": "English"
@@ -982,8 +990,6 @@
   "tailoredCv": {
     "title": "CV tailored to the offer",
     "factsOnly": "The coach adapts your reference CV to this offer: it rephrases, reorders, cuts and emphasises what it says, and never invents anything. What the offer asks for and your CV does not show, you are asked about.",
-    "languageLabel": "Tailored CV language",
-    "languageHint": "The offer's language by default. It is also the cover letter's and outreach message's; a change applies to the next proposal.",
     "none": "No tailored CV yet. The coach proposes one, which you check before saving it.",
     "noneSinceSaved": "You can ask for a new proposal: the saved CV stays in place until you save another one.",
     "propose": "Propose a tailored CV",

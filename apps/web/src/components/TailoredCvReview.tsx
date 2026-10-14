@@ -1,6 +1,6 @@
 "use client";
 
-import { DOCUMENT_LANGUAGES, type CvContent, type DocumentLanguage } from "@jobhub/shared";
+import type { CvContent, DocumentLanguage } from "@jobhub/shared";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { APPLICATION_EXPORTS } from "@/application-exports/kinds";
@@ -10,7 +10,7 @@ import { ApplicationExportForm } from "./ApplicationExportForm";
 type Status = "proposing" | "proposed" | "saving" | "saved" | "unavailable" | "masterCvChanged" | "proposalChanged" | "error" | null;
 
 /** The Application's Tailored CV as it comes from the server (dates as strings). */
-interface TailoredCv {
+export interface TailoredCv {
   documentLanguage: DocumentLanguage;
   proposal: {
     language: DocumentLanguage;
@@ -43,15 +43,16 @@ async function send(url: string, method: "POST" | "PATCH", body?: object): Promi
 
 /**
  * An Application's Tailored CV: proposed by the AI Coach in the Document
- * Language from the Master CV only (ADR-0006), reviewed by the Candidate change
- * by change against the Master CV, with both Match Scores, then saved on the Application.
+ * Language (`language`, chosen beside it) from the Master CV only (ADR-0006),
+ * reviewed by the Candidate change by change against the Master CV, with both
+ * Match Scores, then saved on the Application. The tab of the Application's
+ * Tailored Documents that holds it names it.
  */
-export function TailoredCvReview({ applicationId, initial, locale }: { applicationId: string; initial: TailoredCv; locale: string }) {
+export function TailoredCvReview({ applicationId, initial, language, locale }: { applicationId: string; initial: TailoredCv; language: DocumentLanguage; locale: string }) {
   const { t } = useTranslation();
   const id = useId();
   const url = `/api/applications/${applicationId}/tailored-cv`;
   const [state, setState] = useState(initial);
-  const [language, setLanguage] = useState(initial.documentLanguage);
   const [status, setStatus] = useState<Status>(null);
   const { proposal, saved } = state;
 
@@ -85,8 +86,7 @@ export function TailoredCvReview({ applicationId, initial, locale }: { applicati
   };
 
   return (
-    <section className="stack" aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`}>{t("tailoredCv.title")}</h2>
+    <div className="stack">
       <p className="notice">{t("tailoredCv.factsOnly")}</p>
 
       {saved ? (
@@ -101,26 +101,6 @@ export function TailoredCvReview({ applicationId, initial, locale }: { applicati
           <ApplicationExportForm applicationId={applicationId} document={APPLICATION_EXPORTS[0]} />
         </div>
       ) : null}
-
-      <div className="field">
-        <label htmlFor={`${id}-language`}>{t("tailoredCv.languageLabel")}</label>
-        <p id={`${id}-language-hint`} className="hint">
-          {t("tailoredCv.languageHint")}
-        </p>
-        <select
-          id={`${id}-language`}
-          className="input"
-          value={language}
-          aria-describedby={`${id}-language-hint`}
-          onChange={(event) => setLanguage(event.target.value as DocumentLanguage)}
-        >
-          {DOCUMENT_LANGUAGES.map((option) => (
-            <option key={option} value={option}>
-              {t(`tailoredDocuments.languages.${option}`)}
-            </option>
-          ))}
-        </select>
-      </div>
 
       {proposal ? (
         <div className="stack" role="group" aria-labelledby={`${id}-proposal`}>
@@ -183,7 +163,7 @@ export function TailoredCvReview({ applicationId, initial, locale }: { applicati
         </>
       )}
       <StatusMessage status={status} />
-    </section>
+    </div>
   );
 }
 

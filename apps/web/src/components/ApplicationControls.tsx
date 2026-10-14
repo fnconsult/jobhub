@@ -23,8 +23,11 @@ async function send(url: string, method: "POST" | "PATCH" | "DELETE", body?: obj
   }
 }
 
-/** The Application Status, changed by hand by the Candidate. Saved as soon as it is chosen. */
-export function ApplicationStatusSelect({ applicationId, status }: { applicationId: string; status: ApplicationStatus }) {
+/**
+ * The Application Status, changed by hand by the Candidate. Saved as soon as it is chosen.
+ * A labelled field, or with `property`, one property of a `<dl className="props">`: its label, then the value edited in place.
+ */
+export function ApplicationStatusSelect({ applicationId, status, property }: { applicationId: string; status: ApplicationStatus; property?: boolean }) {
   const { t } = useTranslation();
   const router = useRouter();
   const id = useId();
@@ -46,22 +49,37 @@ export function ApplicationStatusSelect({ applicationId, status }: { application
     else setValue(status);
   }
 
+  const label = <label htmlFor={id}>{t("application.statusLabel")}</label>;
+  const select = (
+    <select id={id} className={property ? "inline-edit" : "input"} value={value} onChange={(event) => change(event.target.value as ApplicationStatus)}>
+      {APPLICATION_STATUSES.map((option) => (
+        <option key={option} value={option}>
+          {t(`applicationStatuses.${option}`)}
+        </option>
+      ))}
+    </select>
+  );
+  const shownOutcome = <Outcome outcome={outcome} saved={t("application.statusSaved")} />;
+  if (property)
+    return (
+      <div className="prop">
+        <dt>{label}</dt>
+        <dd>
+          {select}
+          {shownOutcome}
+        </dd>
+      </div>
+    );
   return (
     <div className="field">
-      <label htmlFor={id}>{t("application.statusLabel")}</label>
-      <select id={id} className="input" value={value} onChange={(event) => change(event.target.value as ApplicationStatus)}>
-        {APPLICATION_STATUSES.map((option) => (
-          <option key={option} value={option}>
-            {t(`applicationStatuses.${option}`)}
-          </option>
-        ))}
-      </select>
-      <Outcome outcome={outcome} saved={t("application.statusSaved")} />
+      {label}
+      {select}
+      {shownOutcome}
     </div>
   );
 }
 
-/** The Profile the Application uses, picked among the Candidate's active Profiles. */
+/** The Profile the Application uses, picked among the Candidate's active Profiles. A property row, like ApplicationStatusSelect. */
 export function ApplicationProfileSelect(props: { applicationId: string; profileId: string; profiles: { id: string; name: string }[] }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -79,19 +97,23 @@ export function ApplicationProfileSelect(props: { applicationId: string; profile
   }
 
   return (
-    <div className="field">
-      <label htmlFor={id}>{t("application.profileLabel")}</label>
-      <p id={`${id}-hint`} className="hint">
-        {t("application.profileHint")}
-      </p>
-      <select id={id} className="input" value={value} aria-describedby={`${id}-hint`} onChange={(event) => change(event.target.value)}>
-        {props.profiles.map((profile) => (
-          <option key={profile.id} value={profile.id}>
-            {profile.name}
-          </option>
-        ))}
-      </select>
-      <Outcome outcome={outcome} saved={t("application.profileSaved")} />
+    <div className="prop">
+      <dt>
+        <label htmlFor={id}>{t("application.profileLabel")}</label>
+      </dt>
+      <dd>
+        <select id={id} className="inline-edit" value={value} aria-describedby={`${id}-hint`} onChange={(event) => change(event.target.value)}>
+          {props.profiles.map((profile) => (
+            <option key={profile.id} value={profile.id}>
+              {profile.name}
+            </option>
+          ))}
+        </select>
+        <p id={`${id}-hint`} className="hint">
+          {t("application.profileHint")}
+        </p>
+        <Outcome outcome={outcome} saved={t("application.profileSaved")} />
+      </dd>
     </div>
   );
 }

@@ -23,8 +23,9 @@ export function PaymentFailedNotice({ notice, className }: { notice: Notice; cla
 }
 
 /**
- * The notice as a banner atop every page of the signed-in workspace, except the
- * subscription page, which shows it next to the current Plan instead.
+ * The notice as a banner atop every page of the signed-in workspace (the
+ * sidebar layout, CandidateLayout), except the subscription page, which shows
+ * it next to the current Plan instead.
  */
 export function PaymentFailedBanner({ notice }: { notice: Notice }) {
   const pathname = usePathname();

@@ -5,12 +5,50 @@ import { useTranslation } from "react-i18next";
 import type { CoachFocus } from "@/coach";
 import type { CoachMessage } from "@/coach/conversation";
 import { CoachConversationList, type ConversationSummary } from "@/components/CoachConversationList";
+import { Icons } from "@/components/icons";
 import { StartJobSearchButton } from "@/components/JobSearchControls";
 
 /** What a page shows, as the Coach Panel tells the Candidate and the AI Coach. */
 export type InView = CoachFocus & { name: string };
 
 const SetInView = createContext<(inView: InView | null) => void>(() => {});
+
+/** What a Coach Panel button needs: whether the panel is open, and a way to open or close it. */
+type Control = {
+  open: boolean;
+  panelId: string;
+  toggle: () => void;
+  /** Each button registers itself, so closing the panel gives focus back to the one on screen. */
+  register: (button: HTMLButtonElement | null) => (() => void) | undefined;
+};
+
+const CoachPanelControl = createContext<Control | null>(null);
+
+/**
+ * The button that opens and closes the Coach Panel. The sidebar layout puts
+ * one in its top bar; every other page gets the floating one the Coach Panel
+ * renders itself, hidden where a top bar has one (see app.css). Renders
+ * nothing outside a Coach Panel (signed-out pages).
+ */
+export function CoachPanelToggle({ floating = false }: { floating?: boolean }) {
+  const { t } = useTranslation();
+  const control = useContext(CoachPanelControl);
+  if (!control) return null;
+  const { open, panelId, toggle, register } = control;
+  return (
+    <button
+      ref={register}
+      className={floating ? "button button-primary coach-panel-toggle coach-panel-toggle-floating" : "button coach-panel-toggle"}
+      type="button"
+      aria-expanded={open}
+      aria-controls={open ? panelId : undefined}
+      onClick={toggle}
+    >
+      <Icons.coach />
+      {t("coachPanel.open")}
+    </button>
+  );
+}
 
 /**
  * Declares the Profile or Application a page shows, so the Coach Panel (and
@@ -79,7 +117,7 @@ export function CoachPanel({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>("idle");
   const [focusInput, setFocusInput] = useState(0);
   const restored = useRef(false);
-  const toggle = useRef<HTMLButtonElement>(null);
+  const toggles = useRef(new Set<HTMLButtonElement>());
   const input = useRef<HTMLTextAreaElement>(null);
   const setInView = useCallback((next: InView | null) => setInViewState(next), []);
 
@@ -107,8 +145,17 @@ export function CoachPanel({ children }: { children: ReactNode }) {
 
   function close() {
     setOpen(false);
-    toggle.current?.focus();
+    // The button on screen: the top bar's, or the floating one where there is no top bar.
+    [...toggles.current].find((button) => button.getClientRects().length > 0)?.focus();
   }
+
+  const register = useCallback((button: HTMLButtonElement | null) => {
+    if (!button) return undefined;
+    toggles.current.add(button);
+    return () => {
+      toggles.current.delete(button);
+    };
+  }, []);
 
   function onKeyDown(event: KeyboardEvent) {
     if (event.key === "Escape") close();
@@ -201,115 +248,119 @@ export function CoachPanel({ children }: { children: ReactNode }) {
       })
     : t("coachPanel.nothingInView");
 
+  const control: Control = { open, panelId: `${id}-panel`, toggle: () => (open ? close() : openPanel()), register };
+
   return (
     <SetInView.Provider value={setInView}>
-      <div className={open ? "with-coach-panel" : undefined}>{children}</div>
-      {open ? (
-        <aside id={`${id}-panel`} className="coach-panel" aria-labelledby={`${id}-title`} onKeyDown={onKeyDown}>
-          <div className="coach-panel-header">
-            <h2 id={`${id}-title`}>{t("coachPanel.title")}</h2>
-            <button className="button" type="button" onClick={close}>
-              {t("coachPanel.close")}
-            </button>
-          </div>
-          <div className="actions">
-            {view === "chat" ? (
-              <button className="button" type="button" onClick={showList}>
-                {t("coachPanel.conversations")}
+      <CoachPanelControl.Provider value={control}>
+        <div className={open ? "with-coach-panel" : undefined}>{children}</div>
+        {open ? (
+          <aside id={`${id}-panel`} className="coach-panel" aria-labelledby={`${id}-title`} onKeyDown={onKeyDown}>
+            <div className="coach-panel-header">
+              <h2 id={`${id}-title`}>{t("coachPanel.title")}</h2>
+              <button className="button button-quiet" type="button" onClick={close}>
+                <Icons.close />
+                {t("coachPanel.close")}
               </button>
-            ) : (
-              <button className="button" type="button" onClick={showChat}>
-                {t("coachPanel.backToConversation")}
-              </button>
-            )}
-            <button className="button" type="button" onClick={startNewConversation}>
-              {t("coachPanel.newConversation")}
-            </button>
-          </div>
-          {view === "list" ? (
-            <CoachConversationList
-              conversations={conversations}
-              loadFailed={listFailed}
-              onOpen={openConversation}
-              onRenamed={(renamed) => {
-                setConversations((list) => list?.map((item) => (item.id === renamed.id ? renamed : item)) ?? null);
-                if (conversation?.id === renamed.id) setConversation(renamed);
-              }}
-              onDeleted={(deletedId) => {
-                setConversations((list) => list?.filter((item) => item.id !== deletedId) ?? null);
-                if (conversation?.id === deletedId) {
-                  setConversation(null);
-                  setMessages([]);
-                  remember(null);
-                }
-              }}
-            />
-          ) : (
-            <>
-              <h3 className="coach-panel-conversation">{conversation ? conversation.title : t("coachPanel.newConversation")}</h3>
-              <p className="coach-panel-in-view">{inViewLabel}</p>
-              {inView?.kind === "profile" ? (
-                <StartJobSearchButton key={inView.id} profileId={inView.id} label={t("coachPanel.searchJobs")} className="button" />
+            </div>
+            <div className="coach-panel-tools">
+              {view === "chat" ? (
+                <button className="button button-quiet" type="button" onClick={showList}>
+                  <Icons.conversations />
+                  {t("coachPanel.conversations")}
+                </button>
               ) : (
-                <p className="hint">{t("coachPanel.searchHint")}</p>
+                <button className="button button-quiet" type="button" onClick={showChat}>
+                  {t("coachPanel.backToConversation")}
+                </button>
               )}
-              {restoring ? <p role="status">{t("coachPanel.loading")}</p> : null}
-              <ol className="chat coach-panel-messages" aria-label={t("coachPanel.messagesLabel")} aria-live="polite">
-                <li className="chat-message chat-coach">
-                  <span className="chat-author">{t("questionnaire.coach")}</span>
-                  <p>{t("coachPanel.welcome")}</p>
-                </li>
-                {messages.map((message, index) => (
-                  <li key={index} className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}`}>
-                    <span className="chat-author">{message.from === "coach" ? t("questionnaire.coach") : t("questionnaire.you")}</span>
-                    <p>{message.text}</p>
-                  </li>
-                ))}
-              </ol>
-              {status === "sending" ? (
-                <p className="notice" role="status">
-                  {t("coachPanel.thinking")}
-                </p>
-              ) : null}
-              {status === "unavailable" || status === "invalid" ? (
-                <p className="notice" role="alert">
-                  {t(`coachPanel.errors.${status}`)}
-                </p>
-              ) : null}
-              <form className="stack coach-panel-form" onSubmit={send}>
-                <label htmlFor={`${id}-message`}>{t("coachPanel.messageLabel")}</label>
-                <textarea
-                  id={`${id}-message`}
-                  ref={input}
-                  className="input"
-                  rows={3}
-                  value={draft}
-                  onChange={(event) => setDraft(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                      event.preventDefault();
-                      event.currentTarget.form?.requestSubmit();
+              <button className="button button-quiet" type="button" onClick={startNewConversation}>
+                <Icons.add />
+                {t("coachPanel.newConversation")}
+              </button>
+            </div>
+            {view === "list" ? (
+              <div className="coach-panel-body">
+                <CoachConversationList
+                  conversations={conversations}
+                  loadFailed={listFailed}
+                  onOpen={openConversation}
+                  onRenamed={(renamed) => {
+                    setConversations((list) => list?.map((item) => (item.id === renamed.id ? renamed : item)) ?? null);
+                    if (conversation?.id === renamed.id) setConversation(renamed);
+                  }}
+                  onDeleted={(deletedId) => {
+                    setConversations((list) => list?.filter((item) => item.id !== deletedId) ?? null);
+                    if (conversation?.id === deletedId) {
+                      setConversation(null);
+                      setMessages([]);
+                      remember(null);
                     }
                   }}
                 />
-                <button className="button button-primary" type="submit" disabled={status === "sending" || restoring}>
-                  {t("coachPanel.send")}
-                </button>
-              </form>
-            </>
-          )}
-        </aside>
-      ) : null}
-      <button
-        ref={toggle}
-        className="button button-primary coach-panel-toggle"
-        type="button"
-        aria-expanded={open}
-        aria-controls={open ? `${id}-panel` : undefined}
-        onClick={() => (open ? close() : openPanel())}
-      >
-        {t("coachPanel.open")}
-      </button>
+              </div>
+            ) : (
+              <>
+                <div className="coach-panel-context">
+                  <h3 className="coach-panel-conversation">{conversation ? conversation.title : t("coachPanel.newConversation")}</h3>
+                  <p className="coach-panel-in-view">{inViewLabel}</p>
+                  {inView?.kind === "profile" ? (
+                    <StartJobSearchButton key={inView.id} profileId={inView.id} label={t("coachPanel.searchJobs")} className="button" />
+                  ) : (
+                    <p className="hint">{t("coachPanel.searchHint")}</p>
+                  )}
+                </div>
+                <div className="coach-panel-body">
+                  {restoring ? <p role="status">{t("coachPanel.loading")}</p> : null}
+                  <ol className="chat coach-panel-messages" aria-label={t("coachPanel.messagesLabel")} aria-live="polite">
+                    <li className="chat-message chat-coach">
+                      <span className="chat-author">{t("questionnaire.coach")}</span>
+                      <p>{t("coachPanel.welcome")}</p>
+                    </li>
+                    {messages.map((message, index) => (
+                      <li key={index} className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}`}>
+                        <span className="chat-author">{message.from === "coach" ? t("questionnaire.coach") : t("questionnaire.you")}</span>
+                        <p>{message.text}</p>
+                      </li>
+                    ))}
+                  </ol>
+                  {status === "sending" ? (
+                    <p className="notice" role="status">
+                      {t("coachPanel.thinking")}
+                    </p>
+                  ) : null}
+                  {status === "unavailable" || status === "invalid" ? (
+                    <p className="notice" role="alert">
+                      {t(`coachPanel.errors.${status}`)}
+                    </p>
+                  ) : null}
+                </div>
+                <form className="coach-panel-form" onSubmit={send}>
+                  <label htmlFor={`${id}-message`}>{t("coachPanel.messageLabel")}</label>
+                  <textarea
+                    id={`${id}-message`}
+                    ref={input}
+                    className="input"
+                    rows={3}
+                    value={draft}
+                    onChange={(event) => setDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        event.currentTarget.form?.requestSubmit();
+                      }
+                    }}
+                  />
+                  <button className="button button-primary" type="submit" disabled={status === "sending" || restoring}>
+                    {t("coachPanel.send")}
+                  </button>
+                </form>
+              </>
+            )}
+          </aside>
+        ) : null}
+        <CoachPanelToggle floating />
+      </CoachPanelControl.Provider>
     </SetInView.Provider>
   );
 }

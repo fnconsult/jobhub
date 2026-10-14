@@ -12,6 +12,7 @@ import {
   RemoveInterviewButton,
   ReportUnavailableButton,
 } from "@/components/ApplicationControls";
+import { CandidateLayout } from "@/components/CandidateLayout";
 import { CoachInView } from "@/components/CoachPanel";
 import { CoachReviewList } from "@/components/CoachReviewList";
 import { CompanyDossierView } from "@/components/CompanyDossierView";
@@ -23,7 +24,6 @@ import { ExpiredJobOfferNotice, JobOfferView } from "@/components/JobOfferView";
 import { MatchScoreView } from "@/components/MatchScoreView";
 import { TailoredCvReview } from "@/components/TailoredCvReview";
 import { TailoredDocumentsEditor } from "@/components/TailoredDocumentsEditor";
-import { WorkspaceHeader } from "@/components/WorkspaceHeader";
 import { ABANDON_CARD, FOLLOW_UP_CARD, followUpCardApplies, type FollowUpPayload } from "@/follow-ups";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getProfiles } from "@/profiles/server";
@@ -83,8 +83,7 @@ export default async function ApplicationPage({ params }: Params) {
   const { jobOffer, interviews } = application;
   const recipients = (enrichedContacts?.contacts ?? []).map(({ id, name, jobTitle, emails }) => ({ id, name, ...(jobTitle && { jobTitle }), ...(emails[0] && { email: emails[0] }) }));
   return (
-    <main className="page">
-      <WorkspaceHeader candidateId={candidateId} />
+    <CandidateLayout candidateId={candidateId}>
       <p>
         <Link href={routes.applications}>{t("application.backToApplications")}</Link>
       </p>
@@ -151,6 +150,6 @@ export default async function ApplicationPage({ params }: Params) {
       {drafts ? <TailoredDocumentsEditor key={`drafts-${application.id}`} applicationId={application.id} initial={drafts} recipients={recipients} /> : null}
       <CoachReviewList reviews={coachReviews} />
       <JobOfferView jobOffer={jobOffer} t={t} locale={locale} />
-    </main>
+    </CandidateLayout>
   );
 }

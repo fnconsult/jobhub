@@ -125,7 +125,7 @@ A Profile the Candidate has set aside: it keeps its Master CV and Search Criteri
 _Avoid_: Deleted Profile, inactive Profile
 
 **Profile switcher**:
-The control in the workspace header where the Candidate moves between their active Profiles and, while the Plan Quota allows, adds another.
+The control in the sidebar of the Candidate's pages where the Candidate moves between their active Profiles and, while the Plan Quota allows, adds another.
 _Avoid_: Profile menu, account switcher
 
 **CV**:
@@ -339,6 +339,10 @@ _Avoid_: Locale (in domain discussions), UI language
 The Candidate's choice of how large all interface text is shown (Standard, Grande, Très grande). The smallest choice already meets the body-text floor, so it can only enlarge text.
 _Avoid_: Zoom, font setting
 
+**Sidebar**:
+The menu down the side of the Candidate's pages: Profile switcher, links to their sections, Text Size. The Candidate can hide it, and the choice is remembered in that browser. On narrow screens it becomes a drawer opened from the top bar's Menu button.
+_Avoid_: Navigation bar, workspace header
+
 ### Delivery
 
 **Agent Run**:
@@ -372,7 +376,7 @@ What a Candidate is shown when a Plan Quota stops them: what they reached and th
 _Avoid_: Paywall, upsell, upgrade popup
 
 **Payment Failed Notice**:
-What a Candidate is shown while their subscription is past due: Stripe is retrying a failed payment and the Plan is kept. It sends them to the Stripe customer portal to update their payment method, and disappears once payment succeeds.
+What a Candidate is shown while their subscription is past due: Stripe is retrying a failed payment and the Plan is kept. It sends them to the Stripe customer portal to update their payment method, and disappears once payment succeeds. Shown only in the Candidate's sidebar layout.
 _Avoid_: Dunning banner, billing alert
 
 ### Operations

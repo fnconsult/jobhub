@@ -1,4 +1,5 @@
 import { designTokens, renderDesignCss, TEXT_SIZE_SETTINGS, TEXT_SIZE_STORAGE_KEY } from "@jobhub/shared/design";
+import { applySidebarState } from "./sidebar-state";
 
 const designCss = renderDesignCss(designTokens);
 
@@ -8,15 +9,15 @@ const applyTextSize = `try{var s=localStorage.getItem(${JSON.stringify(TEXT_SIZE
 )}.indexOf(s)>-1)document.documentElement.dataset.textSize=s}catch(e){}`;
 
 /**
- * Design tokens and the remembered text size (ADR-0009). Every document the
- * app renders, including the root error boundary that replaces the root
- * layout, puts this in its <head>.
+ * Design tokens, the remembered text size (ADR-0009) and whether the sidebar
+ * was hidden. Every document the app renders, including the root error
+ * boundary that replaces the root layout, puts this in its <head>.
  */
 export function DocumentHead() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: designCss }} />
-      <script dangerouslySetInnerHTML={{ __html: applyTextSize }} />
+      <script dangerouslySetInnerHTML={{ __html: applyTextSize + applySidebarState }} />
     </>
   );
 }

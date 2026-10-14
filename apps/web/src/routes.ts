@@ -5,6 +5,10 @@ export const routes = {
   account: "/compte",
   newProfile: "/profils/nouveau",
   profile: (id: string) => `/profils/${id}`,
+  /** The Job Search section of a Profile's page. */
+  profileJobSearch: (id: string) => `/profils/${id}#job-search-title`,
+  /** The Job Digest section of a Profile's page. */
+  profileJobDigest: (id: string) => `/profils/${id}#job-digest-title`,
   editMasterCv: (id: string) => `/profils/${id}/cv`,
   masterCvVersions: (id: string) => `/profils/${id}/versions`,
   applications: "/candidatures",

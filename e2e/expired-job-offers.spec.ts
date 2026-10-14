@@ -333,3 +333,45 @@ test.describe("Expired Job Offers (worker job job-offers.recheck-sources)", () =
     await expect(page.getByRole("status").filter({ hasText: fr.jobOffer.expired.split("{{date}}")[0] })).toBeVisible();
   });
 });
+
+// The specs above count the requests the worker sends from E2E_RECHECK_LOG. A request the fake job
+// sites failed to log (a full disk, a missing directory) must fail the run with its cause: the
+// worker's fetcher would otherwise take the error for a site it could not read (an "unknown"
+// re-check, the source page still stamped as checked), and the specs would fail later on a fetch
+// count or an expiry that never happened, as if the re-check itself were wrong.
+test("a request the fake job sites cannot log fails the re-check run instead of passing for a site that could not be read", () => {
+  const goneUrl = `https://retiree-e2e.example/offre/${tag}`;
+  const script = `
+    const { createSourceRecheck } = await import(${JSON.stringify(path.resolve("apps/worker/src/source-recheck/index.ts"))});
+    const outcomes = [];
+    const store = {
+      dueForRecheck: async () => [{ id: "offer", sourceUrl: ${JSON.stringify(goneUrl)} }],
+      record: async (_id, outcome) => (outcomes.push(outcome), { expired: false }),
+    };
+    await createSourceRecheck({ store }).run(new Date());
+    console.log("outcomes: " + outcomes.join(","));
+  `;
+  const run = (log: string) =>
+    spawnSync(path.resolve("node_modules/.bin/tsx"), ["--input-type=module", "-e", script], {
+      env: { ...process.env, E2E_RECHECK_TAG: tag, E2E_RECHECK_LOG: log, NODE_OPTIONS: `--import=${path.resolve("e2e/support/fake-source-sites.mjs")}` },
+      encoding: "utf8",
+      timeout: 60_000,
+    });
+
+  const dir = path.join(os.tmpdir(), `jobhub-e2e-recheck-log-${tag}`);
+  mkdirSync(dir, { recursive: true });
+  try {
+    // Logged: the posting reads as gone, and the run succeeds.
+    const logged = run(path.join(dir, "requests.jsonl"));
+    expect(logged.status, logged.stderr + logged.stdout).toBe(0);
+    expect(logged.stdout).toContain("outcomes: gone");
+
+    // Not logged (the log's directory does not exist): the run fails, saying why.
+    const unlogged = path.join(dir, "missing", "requests.jsonl");
+    const failed = run(unlogged);
+    expect(failed.status, failed.stdout).not.toBe(0);
+    expect(failed.stderr).toContain(`could not log GET https://retiree-e2e.example/robots.txt to ${unlogged}`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

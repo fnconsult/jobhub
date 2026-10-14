@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CandidateLayout } from "@/components/CandidateLayout";
 import { CoachInView } from "@/components/CoachPanel";
 import { JobOfferResults } from "@/components/JobOfferResults";
 import { RefreshWhileSearching, StartJobSearchButton } from "@/components/JobSearchControls";
-import { WorkspaceHeader } from "@/components/WorkspaceHeader";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getJobSearches, requireOwnJobSearch } from "@/job-searches/server";
 import { routes } from "@/routes";
@@ -32,8 +32,7 @@ export default async function JobSearchPage({ params }: Params) {
   const inView = { kind: "profile", id: profile.id, name: profile.name } as const;
   const startedAt = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Paris" }).format(jobSearch.startedAt);
   return (
-    <main className="page">
-      <WorkspaceHeader candidateId={candidateId} currentProfileId={profile.id} />
+    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id}>
       <p>
         <Link href={routes.profile(profile.id)}>{t("jobSearch.backToProfile")}</Link>
       </p>
@@ -61,6 +60,6 @@ export default async function JobSearchPage({ params }: Params) {
           <StartJobSearchButton profileId={profile.id} label={t("jobSearch.searchAgain")} className="button" />
         </section>
       ) : null}
-    </main>
+    </CandidateLayout>
   );
 }

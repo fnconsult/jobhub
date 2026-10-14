@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CandidateLayout } from "@/components/CandidateLayout";
 import { CoachInView } from "@/components/CoachPanel";
 import { JobOfferResults } from "@/components/JobOfferResults";
-import { WorkspaceHeader } from "@/components/WorkspaceHeader";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { requireOwnJobDigest } from "@/job-digests/server";
 import { routes } from "@/routes";
@@ -27,8 +27,7 @@ export default async function JobDigestPage({ params }: Params) {
   const inView = { kind: "profile", id: profile.id, name: profile.name } as const;
   const sentAt = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(jobDigest.sentAt);
   return (
-    <main className="page">
-      <WorkspaceHeader candidateId={candidateId} currentProfileId={profile.id} />
+    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id}>
       <p>
         <Link href={routes.profile(profile.id)}>{t("jobDigest.page.backToProfile")}</Link>
       </p>
@@ -37,6 +36,6 @@ export default async function JobDigestPage({ params }: Params) {
       <CoachInView {...inView} />
       <p>{t("jobDigest.page.intro", { count: results.length })}</p>
       <JobOfferResults results={results} profileId={profile.id} t={t} locale={locale} />
-    </main>
+    </CandidateLayout>
   );
 }

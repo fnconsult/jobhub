@@ -5,9 +5,9 @@ import { currentIsAdministrator } from "@/admin/server";
 import { getCurrentCandidate } from "@/auth/server";
 import { AccountDataSection } from "@/components/AccountDataSection";
 import { AccountSettings } from "@/components/AccountSettings";
+import { CandidateLayout } from "@/components/CandidateLayout";
 import { EuAiConsentForm } from "@/components/EuAiConsentForm";
 import { FollowUpDelaysForm } from "@/components/FollowUpDelaysForm";
-import { WorkspaceHeader } from "@/components/WorkspaceHeader";
 import { MAX_FOLLOW_UP_DELAY } from "@/follow-ups";
 import { getFollowUps } from "@/follow-ups/server";
 import { currentHumanCoach } from "@/human-coaches/server";
@@ -35,8 +35,7 @@ export default async function AccountPage() {
   const active = profiles.filter((profile) => !profile.archived);
   const archived = profiles.filter((profile) => profile.archived);
   return (
-    <main className="page">
-      <WorkspaceHeader candidateId={candidate.id} />
+    <CandidateLayout candidateId={candidate.id}>
       <h1>{t("account.title")}</h1>
       <dl>
         <dt>{t("account.email")}</dt>
@@ -92,7 +91,7 @@ export default async function AccountPage() {
       </nav>
       <AccountSettings interfaceLanguage={candidate.interfaceLanguage} />
       <AccountDataSection />
-    </main>
+    </CandidateLayout>
   );
 }
 

@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentCandidate } from "@/auth/server";
+import { CandidateLayout } from "@/components/CandidateLayout";
 import { ProfileOnboarding } from "@/components/ProfileOnboarding";
 import { UpgradePrompt } from "@/components/UpgradePrompt";
-import { WorkspaceHeader } from "@/components/WorkspaceHeader";
 import { getServerT } from "@/i18n/server";
 import { profileUpgradePromptFor } from "@/profiles/server";
 import { routes } from "@/routes";
@@ -21,8 +21,7 @@ export default async function NewProfilePage() {
   const t = await getServerT();
   const upgradePrompt = await profileUpgradePromptFor(candidate);
   return (
-    <main className="page">
-      <WorkspaceHeader candidateId={candidate.id} />
+    <CandidateLayout candidateId={candidate.id}>
       <h1>{t("newProfile.title")}</h1>
       {upgradePrompt ? (
         <>
@@ -35,6 +34,6 @@ export default async function NewProfilePage() {
           <ProfileOnboarding />
         </>
       )}
-    </main>
+    </CandidateLayout>
   );
 }

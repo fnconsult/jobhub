@@ -414,6 +414,41 @@ test.describe("the Coach Panel", () => {
   });
 });
 
+// Issue #127: each AI Coach reply is saved with its tokens and estimated € cost;
+// the back office shows the median and p90 cost per reply, per day (Paris time).
+test.describe("AI Coach cost", () => {
+  // Its own Administrator, so its sign-in never crosses another spec's.
+  const ADMINISTRATOR = "cost-office@e2e.jobbbox.test";
+
+  test("an Administrator sees today's median and p90 cost per AI Coach reply, and who answered", async ({ page, browser }) => {
+    await signInWithMagicLink(page, newAddress("coach-cost"));
+    const sent = await page.request.post("/api/coach", { headers: { origin }, data: { message: "Combien coûte ma question ?" } });
+    expect(sent.status(), await sent.text()).toBe(200);
+    // What the Candidate gets back says nothing of the cost.
+    expect(JSON.stringify(await sent.json())).not.toMatch(/cost|eur|tokens/i);
+
+    const context = await browser.newContext({ baseURL: origin, locale: "en-US" });
+    const admin = await context.newPage();
+    await signInWithMagicLink(admin, ADMINISTRATOR);
+    await admin.goto("/admin");
+    await admin.getByRole("link", { name: fr.admin.sections.coachCost }).click();
+    await expect(admin.getByRole("heading", { level: 1 })).toHaveText(fr.admin.coachCost.title);
+
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date());
+    const row = admin.getByRole("row").filter({ has: admin.locator(`time[datetime="${today}"]`) });
+    await expect(row).toHaveCount(1);
+    await expect(row).toContainText("mistral mistral-large-latest");
+    // The fake Mistral answers with 100 tokens in and 50 out: $0.00012500 at Mistral Large's list price.
+    await expect(row.getByRole("cell").nth(1)).toHaveText(/0,0001\s?€/);
+    await context.close();
+  });
+
+  test("is hidden from Candidates", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("coach-cost-curious"));
+    expect((await page.goto("/admin/cout-coach"))?.status()).toBe(404);
+  });
+});
+
 test.describe("Action Cards", () => {
   test("the Candidate accepts or dismisses the AI Coach's proposals inside the Profile page", async ({ page }) => {
     const email = newAddress("cards");

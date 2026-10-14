@@ -205,6 +205,9 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
   }
 }
 
+/** The most one AI Coach reply should cost, in € (#122). */
+export const COACH_MESSAGE_COST_TARGET_EUR = 0.03;
+
 /** What the AI Coach's replies cost on one day, Paris time. */
 export interface CoachCostDay {
   /** "2026-10-14". */

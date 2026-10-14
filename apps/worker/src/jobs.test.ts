@@ -468,7 +468,13 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
       const session = (await (await testAuth.request("/api/auth/get-session", { cookie })).json()) as { user: { id: string } };
       const conversations = createCoachConversations(database, {
-        coach: { reply: async () => ({ ok: true, reply: "Bonjour Marie" }) },
+        coach: {
+          reply: async () => ({
+            ok: true,
+            reply: "Bonjour Marie",
+            cost: { provider: "mistral", model: "mistral-large-latest", inputTokens: 100, outputTokens: 50, cachedInputTokens: 0, eur: 0.0001 },
+          }),
+        },
         profiles: createProfiles(database),
       });
       const sent = await conversations.send(session.user.id, { message: "Bonjour" });

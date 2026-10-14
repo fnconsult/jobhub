@@ -164,13 +164,13 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
   it("shows a Job Search as failed when Job discovery could not run, or never answered", async () => {
     const failed = await started();
     await jobSearches.record(failed.id, { failed: "unavailable" });
-    expect(await jobSearches.get(candidateId, failed.id)).toMatchObject({ status: "failed", results: [] });
+    expect(await jobSearches.get(candidateId, failed.id)).toMatchObject({ status: "failed", failure: "unavailable", results: [] });
 
     const forgotten = await started();
     clock.now = new Date(clock.now.getTime() + 14 * 60 * 1000);
     expect((await jobSearches.get(candidateId, forgotten.id))?.status).toBe("searching");
     clock.now = new Date(clock.now.getTime() + 2 * 60 * 1000);
-    expect((await jobSearches.get(candidateId, forgotten.id))?.status).toBe("failed");
+    expect(await jobSearches.get(candidateId, forgotten.id)).toMatchObject({ status: "failed", failure: "timeout" });
   });
 
   it("does not change a finished Job Search when Job discovery reports again", async () => {
@@ -335,6 +335,79 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       await jobSearches.record(jobSearch.id, { failed: "unavailable" });
 
       expect(await used()).toBe(1);
+    });
+  });
+  describe("Job Search notifications", () => {
+    it("counts only the Job Offers the Job Search page shows: not Expired ones", async () => {
+      const expired = await capture("DAF H/F", { location: "Lyon" });
+      const published = await capture("Contrôleur de gestion", { location: "Lyon" });
+      const jobSearch = await started();
+      await jobSearches.record(jobSearch.id, { jobOfferIds: [expired, published] });
+      const sourceChecks = createSourceChecks(testAuth.auth.options.database as Pool);
+      await sourceChecks.record(expired, "gone", new Date(Date.now() + 3 * 86_400_000));
+      await sourceChecks.record(expired, "gone", new Date(Date.now() + 6 * 86_400_000));
+
+      expect((await jobSearches.notifications(candidateId)).notifications[0]?.outcome).toEqual({ status: "done", found: 1 });
+    });
+
+    it("stops telling the Candidate once they dismiss it, and only they can", async () => {
+      const first = await started();
+      await jobSearches.record(first.id, { jobOfferIds: [] });
+      const second = await started();
+      await jobSearches.record(second.id, { failed: "unavailable" });
+
+      await jobSearches.dismissNotification(otherCandidateId, first.id);
+      expect((await jobSearches.notifications(candidateId)).notifications).toHaveLength(2);
+      expect(await jobSearches.notifications(otherCandidateId)).toEqual({ notifications: [], searching: false });
+
+      await jobSearches.dismissNotification(candidateId, first.id);
+      await jobSearches.dismissNotification(candidateId, "not-a-uuid");
+      expect((await jobSearches.notifications(candidateId)).notifications.map((notification) => notification.jobSearchId)).toEqual([second.id]);
+    });
+
+    it("still tells the Candidate when a Job Search finishes, even if dismissed while searching", async () => {
+      const jobSearch = await started();
+      await jobSearches.dismissNotification(candidateId, jobSearch.id);
+
+      await jobSearches.record(jobSearch.id, { jobOfferIds: [] });
+
+      expect((await jobSearches.notifications(candidateId)).notifications).toHaveLength(1);
+    });
+
+    it("tells the Candidate a Job Search failed, and why, including one the worker never answered", async () => {
+      const failed = await started();
+      await jobSearches.record(failed.id, { failed: "discovery_failed" });
+      const forgotten = await started();
+      clock.now = new Date(clock.now.getTime() + 16 * 60 * 1000);
+
+      expect(await jobSearches.notifications(candidateId)).toEqual({
+        notifications: [
+          { jobSearchId: forgotten.id, profile: { id: profileId, name: "DAF" }, outcome: { status: "failed", failure: "timeout" } },
+          { jobSearchId: failed.id, profile: { id: profileId, name: "DAF" }, outcome: { status: "failed", failure: "discovery_failed" } },
+        ],
+        searching: false,
+      });
+    });
+
+    it("words an unknown failure as 'other'", async () => {
+      const failed = await started();
+      await jobSearches.record(failed.id, { failed: "something new" });
+
+      expect((await jobSearches.notifications(candidateId)).notifications.map((notification) => notification.outcome)).toEqual([{ status: "failed", failure: "other" }]);
+    });
+
+    it("tells the Candidate a Job Search is done, with the number of Job Offers found", async () => {
+      const daf = await capture("DAF H/F", { location: "Lyon" });
+      const controleur = await capture("Contrôleur de gestion", { location: "Lyon" });
+      const jobSearch = await started();
+      expect(await jobSearches.notifications(candidateId)).toEqual({ notifications: [], searching: true });
+
+      await jobSearches.record(jobSearch.id, { jobOfferIds: [daf, controleur] });
+
+      expect(await jobSearches.notifications(candidateId)).toEqual({
+        notifications: [{ jobSearchId: jobSearch.id, profile: { id: profileId, name: "DAF" }, outcome: { status: "done", found: 2 } }],
+        searching: false,
+      });
     });
   });
 });

@@ -3,10 +3,12 @@ import type { ReactNode } from "react";
 import { getCurrentCandidate } from "@/auth/server";
 import { getPaymentFailedNotice } from "@/billing/server";
 import { CoachPanel } from "@/components/CoachPanel";
+import { JobSearchNotifications } from "@/components/JobSearchNotifications";
 import { PaymentFailedBanner } from "@/components/PaymentFailedNotice";
 import { DocumentHead } from "@/design/document-head";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { getJobSearches } from "@/job-searches/server";
 import "./app.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -19,7 +21,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // The Coach Panel is on every page a signed-in Candidate sees.
   const candidate = await getCurrentCandidate();
   // So is the banner telling them their last payment failed, while it has.
-  const paymentFailed = candidate ? await getPaymentFailedNotice(candidate.id, locale) : null;
+  // And the notifications of their finished Job Searches.
+  const [paymentFailed, jobSearchNotifications] = candidate
+    ? await Promise.all([getPaymentFailedNotice(candidate.id, locale), getJobSearches().notifications(candidate.id)])
+    : [null, null];
   return (
     <html lang={locale} data-text-size="standard" suppressHydrationWarning>
       <head>
@@ -30,6 +35,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           {candidate ? (
             <CoachPanel>
               {paymentFailed ? <PaymentFailedBanner notice={paymentFailed} /> : null}
+              {jobSearchNotifications ? <JobSearchNotifications initial={jobSearchNotifications} /> : null}
               {children}
             </CoachPanel>
           ) : (

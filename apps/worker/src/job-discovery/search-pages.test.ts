@@ -1,12 +1,13 @@
-import type { JobSearchQuery } from "@jobhub/ai";
 import { describe, expect, it } from "vitest";
 import { searchPages, type SearchPage } from "./search-pages";
 
-const fr: JobSearchQuery = { title: "DAF", language: "fr" };
-const en: JobSearchQuery = { title: "CFO", language: "en" };
+/** The pager never looks inside a query: it pages whatever the plan gives it. */
+type Query = { title: string; language: "fr" | "en" };
+const fr: Query = { title: "DAF", language: "fr" };
+const en: Query = { title: "CFO", language: "en" };
 
 /** Runs the pager, each searched page giving the new readable postings `gave` says, and lists the pages searched. */
-function run(queries: JobSearchQuery[], pages: number, gave: (page: SearchPage) => number): string[] {
+function run(queries: Query[], pages: number, gave: (page: SearchPage<Query>) => number): string[] {
   const pager = searchPages(queries, pages);
   const searched: string[] = [];
   for (let page = pager.next(); page; page = pager.next()) {

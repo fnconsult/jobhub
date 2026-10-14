@@ -1,15 +1,29 @@
 import type { ContractType, RemoteWork, SearchCriteria } from "@jobhub/shared";
+import { DataResidencyError } from "./errors";
 
 /** The languages a Job Search words its queries in. */
 export type QueryLanguage = "fr" | "en";
 
+declare const issuedByPlan: unique symbol;
+
 /**
  * One query of a Job Search: the Search Criteria with one job title, worded in one language.
  * The title is the Search Criteria's own or one of its variants (see `planJobSearch`), never anything else.
+ * Opaque: only `jobSearchQueries` makes one, and `buildSearchQuery` refuses any other (ADR-0007).
  */
 export interface JobSearchQuery {
-  title: string;
-  language: QueryLanguage;
+  readonly title: string;
+  readonly language: QueryLanguage;
+  readonly [issuedByPlan]: true;
+}
+
+/** Every query `jobSearchQueries` made: the only ones `buildSearchQuery` words. */
+const issued = new WeakSet<object>();
+
+function issue(title: string, language: QueryLanguage): JobSearchQuery {
+  const query = Object.freeze({ title, language }) as JobSearchQuery;
+  issued.add(query);
+  return query;
 }
 
 interface Wording {
@@ -52,6 +66,9 @@ function clean(text: string): string {
  * title and the language; by default, the Search Criteria's own title in French.
  */
 export function buildSearchQuery(criteria: SearchCriteria, query?: JobSearchQuery): string {
+  if (query !== undefined && !issued.has(query)) {
+    throw new DataResidencyError("A Job Search query must be one planJobSearch issued: no other job title may reach the web-search provider");
+  }
   const wording = WORDING[query?.language ?? "fr"];
   const parts = [wording.offer(clean(query?.title ?? criteria.targetRole), clean(criteria.location))];
   if (criteria.contractType) parts.push(wording.contract[criteria.contractType]);
@@ -93,8 +110,8 @@ export function jobSearchQueries(criteria: SearchCriteria, reply: string | null)
   const en = distinctTitles(variants.en.length ? variants.en : [own]);
   const queries: JobSearchQuery[] = [];
   for (let index = 0; index < TITLES_PER_LANGUAGE; index++) {
-    if (fr[index]) queries.push({ title: fr[index]!, language: "fr" });
-    if (en[index]) queries.push({ title: en[index]!, language: "en" });
+    if (fr[index]) queries.push(issue(fr[index]!, "fr"));
+    if (en[index]) queries.push(issue(en[index]!, "en"));
   }
   return queries;
 }

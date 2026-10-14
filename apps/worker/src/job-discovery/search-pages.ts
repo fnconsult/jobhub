@@ -1,17 +1,17 @@
 import type { JobSearchQuery } from "@jobhub/ai";
 
 /** One web search of a Job Search: a query of its plan, and which page of its results. */
-export interface SearchPage {
-  query: JobSearchQuery;
+export interface SearchPage<Query = JobSearchQuery> {
+  query: Query;
   /** From 1. */
   page: number;
 }
 
-export interface SearchPager {
+export interface SearchPager<Query = JobSearchQuery> {
   /** The next page to search, or undefined when there is none left. */
-  next(): SearchPage | undefined;
+  next(): SearchPage<Query> | undefined;
   /** How many new readable postings a searched page gave: Job Offers the run had not found before it. */
-  gave(searched: SearchPage, newPostings: number): void;
+  gave(searched: SearchPage<Query>, newPostings: number): void;
 }
 
 /**
@@ -21,8 +21,8 @@ export interface SearchPager {
  * so every query gets its first page before any gets a second. The caller still stops when the
  * Job discovery budget runs out.
  */
-export function searchPages(queries: readonly JobSearchQuery[], pages: number): SearchPager {
-  const queue: SearchPage[] = queries.map((query) => ({ query, page: 1 }));
+export function searchPages<Query = JobSearchQuery>(queries: readonly Query[], pages: number): SearchPager<Query> {
+  const queue: SearchPage<Query>[] = queries.map((query) => ({ query, page: 1 }));
   return {
     next: () => queue.shift(),
     gave(searched, newPostings) {

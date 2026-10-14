@@ -1,6 +1,8 @@
 import type { SearchCriteria } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { createAiLayer } from "./ai-layer";
+import { DataResidencyError } from "./errors";
+import type { JobSearchQuery } from "./search-query";
 import { createFakeProvider, createMemoryUsageLog } from "./testing";
 
 const criteria: SearchCriteria = {
@@ -11,17 +13,29 @@ const criteria: SearchCriteria = {
   remoteWork: "hybrid",
 };
 
-function searchLayer() {
+/** A layer whose job title step answers `variants`, so its plan issues queries with those titles. */
+function searchLayer(variants: { fr?: string[]; en?: string[] } = {}) {
   const perplexity = createFakeProvider({ id: "perplexity", residency: "outside_eu" });
-  const ai = createAiLayer({ providers: [perplexity], routes: { web_search: "perplexity" }, usage: createMemoryUsageLog() });
-  return { ai, perplexity };
+  const mistral = createFakeProvider({ id: "mistral", reply: JSON.stringify(variants) });
+  const ai = createAiLayer({
+    providers: [perplexity, mistral],
+    routes: { web_search: "perplexity", job_titles: "mistral" },
+    usage: createMemoryUsageLog(),
+  });
+  /** The plan's query with this title and language. */
+  const planned = async (title: string, language: "fr" | "en") => {
+    const query = (await ai.planJobSearch({ candidateId: "cand-1", criteria })).queries.find((q) => q.title === title && q.language === language);
+    if (!query) throw new Error(`No planned query "${title}" (${language})`);
+    return query;
+  };
+  return { ai, perplexity, planned };
 }
 
 describe("Job Search query variants", () => {
   it("words a query in English for an English variant, with the variant's job title", async () => {
-    const { ai, perplexity } = searchLayer();
+    const { ai, perplexity, planned } = searchLayer({ en: ["Chief Financial Officer"] });
 
-    await ai.searchWeb({ candidateId: "cand-1", criteria, query: { title: "Chief Financial Officer", language: "en" } });
+    await ai.searchWeb({ candidateId: "cand-1", criteria, query: await planned("Chief Financial Officer", "en") });
 
     expect(perplexity.queries).toEqual([
       'Job offer "Chief Financial Officer" in Lyon, permanent contract, hybrid remote work, salary from €90,000 gross per year',
@@ -29,11 +43,33 @@ describe("Job Search query variants", () => {
   });
 
   it("words a French variant like the Search Criteria's own query, with the variant's job title", async () => {
-    const { ai, perplexity } = searchLayer();
+    const { ai, perplexity, planned } = searchLayer({ fr: ["DAF"] });
 
-    await ai.searchWeb({ candidateId: "cand-1", criteria, query: { title: "DAF", language: "fr" } });
+    await ai.searchWeb({ candidateId: "cand-1", criteria, query: await planned("DAF", "fr") });
 
     expect(perplexity.queries).toEqual(["Offre d'emploi « DAF » à Lyon, CDI, télétravail partiel, salaire à partir de 90 000 € brut annuel"]);
+  });
+});
+
+describe("what reaches the web-search provider (ADR-0007)", () => {
+  it("refuses a job title that planJobSearch did not issue, so a caller cannot send free text", async () => {
+    const { ai, perplexity } = searchLayer();
+    const forged = { title: "Jean Dupont 06 12 34 56 78", language: "fr" } as unknown as JobSearchQuery;
+
+    await expect(ai.searchWeb({ candidateId: "cand-1", criteria, query: forged })).rejects.toThrow(DataResidencyError);
+    await expect(ai.searchWeb({ candidateId: "cand-1", criteria, query: { ...(await searchLayer().planned("Directeur Financier", "fr")) } })).rejects.toThrow(
+      DataResidencyError,
+    );
+    expect(perplexity.queries).toEqual([]);
+  });
+
+  it("refuses a country filter that is not a two-letter country code", async () => {
+    const { ai, perplexity } = searchLayer();
+
+    await expect(ai.searchWeb({ candidateId: "cand-1", criteria, filters: { country: "Jean Dupont" } })).rejects.toThrow(DataResidencyError);
+    await ai.searchWeb({ candidateId: "cand-1", criteria, filters: { country: "FR" } });
+
+    expect(perplexity.searches.map((search) => search.filters?.country)).toEqual(["FR"]);
   });
 });
 
@@ -148,10 +184,10 @@ describe("paging a Job Search query", () => {
   });
 
   it("asks the web-search provider for the page wanted", async () => {
-    const { ai, perplexity } = searchLayer();
+    const { ai, perplexity, planned } = searchLayer({ en: ["CFO"] });
 
     await ai.searchWeb({ candidateId: "cand-1", criteria });
-    await ai.searchWeb({ candidateId: "cand-1", criteria, query: { title: "CFO", language: "en" }, page: 2 });
+    await ai.searchWeb({ candidateId: "cand-1", criteria, query: await planned("CFO", "en"), page: 2 });
 
     expect(perplexity.searches.map((search) => search.page)).toEqual([undefined, 2]);
   });

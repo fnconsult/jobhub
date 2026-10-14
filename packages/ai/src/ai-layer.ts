@@ -36,7 +36,10 @@ export interface SearchRequest {
   criteria: SearchCriteria;
   /** Narrows the search where the provider can (domains, freshness). Results must still be checked. */
   filters?: SearchFilters;
-  /** Which job title and language to word the query with: one of `planJobSearch`'s. Default: the Search Criteria's own title, in French. */
+  /**
+   * Which job title and language to word the query with: one of the queries `planJobSearch` returned,
+   * as returned (any other, or a copy, is refused). Default: the Search Criteria's own title, in French.
+   */
   query?: JobSearchQuery;
   /** Which page of results, from 1 (the default) up to the plan's `pages`. */
   page?: number;
@@ -111,6 +114,8 @@ const DEFAULT_MAX_TOKENS = 4096;
 /** Room for a few job titles as JSON. */
 const JOB_TITLES_MAX_TOKENS = 300;
 const DEFAULT_IDENTITY_ROUTE: Route = { provider: "mistral" };
+/** ISO 3166-1 alpha-2, e.g. "FR". */
+const COUNTRY_CODE = /^[A-Z]{2}$/;
 
 export function createAiLayer(options: AiLayerOptions): AiLayer {
   const now = options.now ?? (() => new Date());
@@ -182,6 +187,10 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
 
   /** `query` must be built by search-query.ts: nothing else ever reaches the search provider. */
   async function search(candidateId: string | null, query: string, filters?: SearchFilters, page?: number): Promise<SearchResult> {
+    // A filter names websites, a time window and a country (ADR-0007): a country is a code, never free text.
+    if (filters?.country !== undefined && !COUNTRY_CODE.test(filters.country)) {
+      throw new DataResidencyError("A web search's country filter must be a two-letter country code (ISO 3166-1 alpha-2)");
+    }
     const { route, provider } = searchProvider();
     const output = await provider.search!(query, { model: route.model, filters, ...(page && page > 1 ? { page } : {}) });
     await log({ candidateId, task: SEARCH_TASK, provider: provider.id, endpoint: provider.endpoint, model: output.model, ...output.usage });
@@ -227,11 +236,11 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       return { queries: jobSearchQueries(criteria, call?.text ?? null), pages, call };
     },
 
-    searchWeb(request) {
+    async searchWeb(request) {
       return search(request.candidateId, buildSearchQuery(request.criteria, request.query), request.filters, request.page);
     },
 
-    searchCompany(request) {
+    async searchCompany(request) {
       return search(request.candidateId, buildCompanyQuery(request.employer));
     },
   };

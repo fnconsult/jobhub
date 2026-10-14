@@ -21,6 +21,8 @@ export const TEXT_TASKS = {
   cv_parsing: { personalData: true },
   /** Extracting structured fields from a Job Offer: public posting text only. */
   offer_analysis: { personalData: false },
+  /** Job title variants for a Job Search's queries: given the Search Criteria title alone. */
+  job_titles: { personalData: false },
 } as const satisfies Record<string, { personalData: boolean }>;
 export type TextTask = keyof typeof TEXT_TASKS;
 
@@ -87,6 +89,8 @@ export interface SearchFilters {
 export interface SearchOptions {
   model?: string;
   filters?: SearchFilters;
+  /** Which page of results, from 1 (the default) up to the provider's `searchPages`. */
+  page?: number;
 }
 
 /** The seam every provider adapter fills. */
@@ -97,6 +101,8 @@ export interface AiProvider {
   readonly residency: Residency;
   generate?(input: TextInput): Promise<TextOutput>;
   search?(query: string, options: SearchOptions): Promise<SearchOutput>;
+  /** How many pages of results `search` can give one query (see `SearchOptions.page`). Default: 1. */
+  readonly searchPages?: number;
 }
 
 export interface UsageEntry extends TokenUsage {

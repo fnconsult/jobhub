@@ -261,6 +261,11 @@ function costing(ai: AiLayer, spend: (eur: number) => void): AiLayer {
       spend(costInEur(result));
       return result;
     },
+    async planJobSearch(request) {
+      const plan = await ai.planJobSearch(request);
+      if (plan.call) spend(costInEur(plan.call));
+      return plan;
+    },
     async searchWeb(request) {
       const result = await ai.searchWeb(request);
       spend(costInEur(result));

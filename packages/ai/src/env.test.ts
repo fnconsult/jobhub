@@ -74,6 +74,19 @@ describe("AI layer configured from the environment", () => {
     },
   );
 
+  it("finds job title variants with the Job Offer analysis provider and model unless AI_JOB_TITLES_PROVIDER says otherwise", async () => {
+    const { fetch, hosts } = recordingFetch();
+    const usage = createMemoryUsageLog();
+    const env = { ...base, AI_OFFER_ANALYSIS_PROVIDER: "mistral", AI_OFFER_ANALYSIS_MODEL: "mistral-small-latest", MISTRAL_API_KEY: "mk" };
+    const criteria = { targetRole: "DAF", location: "Lyon" };
+
+    await createAiLayerFromEnv(env, { fetch, usage }).planJobSearch({ candidateId: "c", criteria });
+    await createAiLayerFromEnv({ ...env, AI_JOB_TITLES_PROVIDER: "anthropic" }, { fetch, usage }).planJobSearch({ candidateId: "c", criteria });
+
+    expect(hosts).toEqual(["api.mistral.ai", "bedrock-mantle.eu-west-3.api.aws"]);
+    expect(usage.entries.map((e) => e.task)).toEqual(["job_titles", "job_titles"]);
+  });
+
   it("refuses to start when personal-data tasks would go to the direct Anthropic API", () => {
     expect(() => createAiLayerFromEnv({ ...base, ANTHROPIC_ENDPOINT: "direct", ANTHROPIC_API_KEY: "sk" })).toThrow(DataResidencyError);
   });

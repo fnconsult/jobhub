@@ -182,6 +182,10 @@ _Avoid_: Results page, index page
 One run of Job discovery that a Candidate starts for a Profile, and its outcome: searching, done or failed. It counts one against the Plan Quota, and the use is given back if the search fails or times out. A search nobody has finished after 15 minutes is failed.
 _Avoid_: Search (alone, ambiguous with Search Criteria)
 
+**Job Search Notification**:
+A message shown on every workspace page when a Job Search stops being searching: how many published Job Offers it found, or why it failed (and that it does not count toward the Plan Quota). In-app only, no email. It stays until the Candidate closes it or opens that Job Search, and is hidden on that Job Search's own page.
+_Avoid_: Alert, toast, Action Card
+
 **Job Search query**:
 One job title (the Search Criteria title or a Job title variant) worded in French or English; a Job Search has up to 6. Each gets its first page of results, and a next page only while the last gave a New readable posting.
 

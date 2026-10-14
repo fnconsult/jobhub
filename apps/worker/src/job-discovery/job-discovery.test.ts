@@ -922,6 +922,22 @@ describe("Job discovery", () => {
         expect(report.skipped).toEqual([{ url: board, reason: "too_old" }]);
         expect(report.funnel.alreadyStored).toBe(0);
       });
+
+      it("drops it too when an undated page elsewhere holds the same text", async () => {
+        const mirror = "https://miroir.example.fr/offre/daf-ancien";
+        const { discovery, jobOffers } = setup({
+          sources: [mirror],
+          pages: { [mirror]: { body: jobPostingPage({ title: staleStored.title, description: staleStored.content }) } },
+          existing: [staleStored],
+          now: NOW,
+        });
+
+        const report = await discovery.discover({ candidateId: "c", criteria });
+
+        expect(jobOffers.all).toEqual([staleStored]);
+        expect(report.jobOffers).toEqual([]);
+        expect(report.skipped).toEqual([{ url: mirror, reason: "too_old" }]);
+      });
     });
   });
 

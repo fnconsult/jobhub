@@ -198,6 +198,8 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
        * Stores the posting read at `url` as a Job Offer (or finds the one stored for it), unless its Posting date is
        * more than 30 days ago. That date is the one its ATS or its JobPosting data states, else the search provider's
        * (`searchDate`, weaker: it may be when the page was last updated); a date in the future is no date.
+       * The store may answer with a Job Offer stored earlier with the same text (a mirror, an aggregator): that one
+       * keeps its own Posting date, so the rule is applied to it too.
        */
       const capture = async (url: string, details: JobOfferDetails, searchDate: Date | undefined) => {
         const now = new Date(clock.now());
@@ -210,8 +212,9 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         funnel.extracted++;
         // The Posting date is what the worker read from the source itself: trusted, unlike anything a browser sends.
         const captured = await options.jobOffers.capture({ source: { url }, ...untrusted }, "candidate", postedAt ? { postedAt } : {});
-        if (captured.ok) found.set(captured.jobOffer.id, captured.jobOffer);
-        else skipped.push({ url, reason: "invalid" });
+        if (!captured.ok) skipped.push({ url, reason: "invalid" });
+        else if (isPostingTooOld(captured.jobOffer.postedAt, now)) skipped.push({ url, reason: "too_old" });
+        else found.set(captured.jobOffer.id, captured.jobOffer);
       };
 
       /**

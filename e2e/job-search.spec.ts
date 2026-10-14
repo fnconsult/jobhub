@@ -316,8 +316,10 @@ test.describe("On-demand AI Coach job search", () => {
       await expect(page).toHaveURL(/\/candidatures$/);
 
       const message = `Votre recherche d'offres pour « ${searchCriteria.targetRole} » est terminée : 2 offres trouvées.`;
-      const notifications = page.getByRole("status").getByRole("list", { name: "Recherches d'offres terminées" });
+      const notifications = page.getByRole("list", { name: "Recherches d'offres terminées" });
       await expect(notifications.getByText(message), workerOutput).toBeVisible({ timeout: 90_000 });
+      // A polite live region, there from the start: a screen reader announces it as it comes.
+      await expect(page.locator("[aria-live=polite]").filter({ has: notifications })).toHaveCount(1);
       await expectReadable(page, [message]);
       const see = notifications.getByRole("link", { name: "Voir les offres" });
       await expect(see).toHaveAccessibleDescription(message);
@@ -346,7 +348,7 @@ test.describe("On-demand AI Coach job search", () => {
         jobSearchId = await startInBackground(page, profileId);
         await page.reload();
 
-        const notifications = page.getByRole("status").getByRole("list", { name: "Recherches d'offres terminées" });
+        const notifications = page.locator("[aria-live=polite]").getByRole("list", { name: "Recherches d'offres terminées" });
         const notification = notifications.getByRole("listitem");
         await expect(notification.getByText(`Votre recherche d'offres pour « ${searchCriteria.targetRole} » n'a pas abouti.`), workerOutput).toBeVisible({
           timeout: 90_000,

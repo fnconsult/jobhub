@@ -67,7 +67,8 @@ export function JobSearchNotifications({ initial, everyMs = 5000 }: { initial: J
 
   const shown = state.notifications.filter((notification) => routes.jobSearch(notification.jobSearchId) !== pathname);
   return (
-    <div ref={region} className="job-search-notifications" role="status">
+    // aria-live without role="status": a page's own status message stays the one status on it.
+    <div ref={region} className="job-search-notifications" aria-live="polite">
       {shown.length > 0 ? (
         <ul aria-label={t("jobSearch.notifications.label")}>
           {shown.map((notification) => (

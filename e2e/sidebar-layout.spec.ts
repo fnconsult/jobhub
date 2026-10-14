@@ -226,9 +226,10 @@ test.describe("below 64rem", () => {
     await expect(nav.getByRole("link")).toHaveText(NAV_LABELS);
     // Focus goes into the drawer, onto the current page's link.
     await expect(nav.getByRole("link", { name: fr.nav.account })).toBeFocused();
-    // The page behind is out of reach while it is open.
-    // (Radix hides the page's content, not <main> itself, which holds a live region.)
+    // The page behind is out of reach while it is open: its content and <main> itself,
+    // which holds a live region (the Job Search notifications) that Radix's modal leaves exposed.
     await expect(page.getByRole("heading", { level: 1 })).toHaveCount(0);
+    await expect(page.getByRole("main")).toHaveCount(0);
 
     await page.keyboard.press("Escape");
     await expect(drawer(page)).toHaveCount(0);

@@ -180,7 +180,13 @@ export function SidebarLayout({
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
-      <div className="workspace">
+      {/*
+        While the drawer is open the page behind is inert and hidden. Radix's
+        modal hides everything else with aria-hidden, but it spares live regions
+        and their ancestors, and every page's <main> holds one (the Job Search
+        notifications): without this, <main> stayed in reach behind the drawer.
+      */}
+      <div className="workspace" inert={drawerOpen} aria-hidden={drawerOpen || undefined}>
         <header className="topbar">
           <button ref={menuButton} className="button button-quiet menu-toggle" type="button" aria-expanded={drawerOpen} onClick={showMenu}>
             <Icons.menu />

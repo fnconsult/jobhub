@@ -25,7 +25,7 @@
  * Job Searches belong to their Profile and are deleted with it (ADR-0010); the
  * Job Offers they found are kept.
  */
-import { noDiscoveryMetrics, rankByMatchScore, scoreMatch, type DiscoveryMetrics, type JobOffer, type MatchScore, type MonthlyQuota } from "@jobhub/shared";
+import { noDiscoveryMetrics, rankByMatchScore, scoreMatch, type DiscoveryMetrics, type JobOffer, type MatchScore, type MonthlyQuota, type SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { Applications } from "../applications";
@@ -62,7 +62,8 @@ export interface JobSearchMetrics extends DiscoveryMetrics {
 
 export interface JobSearch {
   id: string;
-  profile: { id: string; name: string };
+  /** The Profile searched for, with the Search Criteria its Match Scores are against: its current ones. */
+  profile: { id: string; name: string; searchCriteria: SearchCriteria };
   status: JobSearchStatus;
   /** Why it failed; null unless it failed. */
   failure: JobSearchFailure | null;
@@ -272,7 +273,15 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
       );
     }
     const failure = status === "failed" ? failureOf(row.failure) : null;
-    return { id: row.id, profile: { id: profile.id, name: profile.name }, status, failure, startedAt: row.started_at, results, metrics: row.metrics };
+    return {
+      id: row.id,
+      profile: { id: profile.id, name: profile.name, searchCriteria: profile.searchCriteria },
+      status,
+      failure,
+      startedAt: row.started_at,
+      results,
+      metrics: row.metrics,
+    };
   }
 
   async function get(candidateId: string, jobSearchId: string): Promise<JobSearch | null> {
@@ -312,7 +321,7 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
         if (failed) return { ok: true, jobSearch: failed };
       }
       const { id, status, started_at: startedAt, metrics } = row;
-      return { ok: true, jobSearch: { id, profile: { id: profile.id, name: profile.name }, status, failure: null, startedAt, results: [], metrics } };
+      return { ok: true, jobSearch: { id, profile: { id: profile.id, name: profile.name, searchCriteria: profile.searchCriteria }, status, failure: null, startedAt, results: [], metrics } };
     },
     get,
     record,

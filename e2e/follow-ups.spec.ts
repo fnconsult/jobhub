@@ -144,6 +144,11 @@ test.describe("Follow-ups", () => {
     await expect(card).toContainText("Je me permets de revenir vers vous au sujet de ma candidature");
     await expect(card).toContainText(fr.followUps.sentHint);
     await expect(page.getByLabel(fr.application.statusLabel)).toHaveValue("applied");
+    // The draft is set apart, ready to copy into the Candidate's own mail client (#136).
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin });
+    await card.getByRole("button", { name: fr.actionCards.copyDraft }).click();
+    await expect(card.getByRole("status")).toHaveText(fr.actionCards.copied);
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toContain(`Objet : Relance de ma candidature : ${title}`);
 
     // The Candidate sent it themselves, and marks it as sent: the Application is "Relancée".
     await card.getByRole("button", { name: fr.followUps.markSent }).click();

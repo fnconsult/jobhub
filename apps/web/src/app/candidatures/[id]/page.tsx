@@ -93,7 +93,7 @@ export default async function ApplicationPage({ params }: Params) {
   const recipients = (enrichedContacts?.contacts ?? []).map(({ id, name, jobTitle, emails }) => ({ id, name, ...(jobTitle && { jobTitle }), ...(emails[0] && { email: emails[0] }) }));
   return (
     <CandidateLayout candidateId={candidateId}>
-      <article className="doc">
+      <div className="doc">
         <header className="page-head">
           <p className="eyebrow">
             <Link href={routes.applications}>{t("application.backToApplications")}</Link>
@@ -195,7 +195,7 @@ export default async function ApplicationPage({ params }: Params) {
           />
         ) : null}
         <JobOfferView jobOffer={jobOffer} t={t} locale={locale} />
-      </article>
+      </div>
     </CandidateLayout>
   );
 }

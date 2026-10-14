@@ -32,6 +32,13 @@ const CONTENT_TYPES = {
 };
 
 /** Signs a new Candidate in and saves an Application on a French Job Offer at "Acme Industrie". */
+/** Opens the tab named `name` of the Application's Tailored Documents (#136) and returns its panel. */
+async function tab(page: Page, name: string) {
+  const documents = page.getByRole("region", { name: fr.application.documentsTitle });
+  await documents.getByRole("tab", { name, exact: true }).click();
+  return documents.getByRole("tabpanel", { name, exact: true });
+}
+
 async function openApplication(page: Page, label: string): Promise<string> {
   await signInWithMagicLink(page, newAddress(label));
   const profile = await page.request.post("/api/profiles", {
@@ -133,22 +140,23 @@ test.describe("exporting the Tailored CV and the Cover Letter", () => {
   test("the application page shows the download controls only once the document is saved", async ({ page }) => {
     const id = await openApplication(page, "application-export-page");
     await page.goto(`/candidatures/${id}`);
-    const cvDownload = page.getByRole("region", { name: fr.tailoredCv.title }).getByRole("group", { name: fr.applicationExport.tailoredCv.title });
-    const letterDownload = page.getByRole("region", { name: fr.tailoredDocuments.title }).getByRole("group", { name: fr.applicationExport.coverLetter.title });
-    await expect(cvDownload).toHaveCount(0);
-    await expect(letterDownload).toHaveCount(0);
+    await expect((await tab(page, fr.tailoredCv.tailored)).getByRole("group", { name: fr.applicationExport.tailoredCv.title })).toHaveCount(0);
+    await expect((await tab(page, fr.tailoredDocuments.coverLetter.title)).getByRole("group", { name: fr.applicationExport.coverLetter.title })).toHaveCount(0);
 
     await saveTailoredCv(page, id);
     await draftCoverLetter(page, id);
     await page.reload();
 
-    for (const download of [cvDownload, letterDownload]) {
-      await expect(download.getByRole("radio", { name: fr.cvExport.templates.classic.name })).toBeChecked();
-      await expect(download.getByRole("button", { name: fr.cvExport.docx })).toBeVisible();
-    }
+    const cvDownload = (await tab(page, fr.tailoredCv.tailored)).getByRole("group", { name: fr.applicationExport.tailoredCv.title });
+    await expect(cvDownload.getByRole("radio", { name: fr.cvExport.templates.classic.name })).toBeChecked();
+    await expect(cvDownload.getByRole("button", { name: fr.cvExport.docx })).toBeVisible();
     await cvDownload.getByRole("radio", { name: fr.cvExport.templates.compact.name }).check();
     const [file] = await Promise.all([page.waitForEvent("download"), cvDownload.getByRole("button", { name: fr.cvExport.pdf }).click()]);
     expect(file.suggestedFilename()).toBe("CV-Marie-Dupont-Acme-Industrie.pdf");
+
+    const letterDownload = (await tab(page, fr.tailoredDocuments.coverLetter.title)).getByRole("group", { name: fr.applicationExport.coverLetter.title });
+    await expect(letterDownload.getByRole("radio", { name: fr.cvExport.templates.classic.name })).toBeChecked();
+    await expect(letterDownload.getByRole("button", { name: fr.cvExport.docx })).toBeVisible();
     const [letter] = await Promise.all([page.waitForEvent("download"), letterDownload.getByRole("button", { name: fr.cvExport.docx }).click()]);
     expect(letter.suggestedFilename()).toBe("Lettre-de-motivation-Marie-Dupont-Acme-Industrie.docx");
   });
@@ -175,8 +183,8 @@ test.describe("exporting the Tailored CV and the Cover Letter", () => {
       expect((await page.request.get(exportUrl(cvOnly, "cover-letter", format))).status(), `cover-letter ${format}`).toBe(404);
     }
     await page.goto(`/candidatures/${cvOnly}`);
-    await expect(page.getByRole("region", { name: fr.tailoredCv.title }).getByRole("group", { name: fr.applicationExport.tailoredCv.title })).toBeVisible();
-    await expect(page.getByRole("region", { name: fr.tailoredDocuments.title }).getByRole("group", { name: fr.applicationExport.coverLetter.title })).toHaveCount(0);
+    await expect((await tab(page, fr.tailoredCv.tailored)).getByRole("group", { name: fr.applicationExport.tailoredCv.title })).toBeVisible();
+    await expect((await tab(page, fr.tailoredDocuments.coverLetter.title)).getByRole("group", { name: fr.applicationExport.coverLetter.title })).toHaveCount(0);
 
     // A second Application of the same Candidate, with only a Cover Letter.
     const profileId = (await (await page.request.get(`/api/applications/${cvOnly}`)).json()).profile?.id;
@@ -194,8 +202,8 @@ test.describe("exporting the Tailored CV and the Cover Letter", () => {
       expect((await page.request.get(exportUrl(letterOnly, "tailored-cv", format))).status(), `tailored-cv ${format}`).toBe(404);
     }
     await page.goto(`/candidatures/${letterOnly}`);
-    await expect(page.getByRole("region", { name: fr.tailoredDocuments.title }).getByRole("group", { name: fr.applicationExport.coverLetter.title })).toBeVisible();
-    await expect(page.getByRole("region", { name: fr.tailoredCv.title }).getByRole("group", { name: fr.applicationExport.tailoredCv.title })).toHaveCount(0);
+    await expect((await tab(page, fr.tailoredDocuments.coverLetter.title)).getByRole("group", { name: fr.applicationExport.coverLetter.title })).toBeVisible();
+    await expect((await tab(page, fr.tailoredCv.tailored)).getByRole("group", { name: fr.applicationExport.tailoredCv.title })).toHaveCount(0);
   });
 
   test("an unknown Application returns 404", async ({ page }) => {

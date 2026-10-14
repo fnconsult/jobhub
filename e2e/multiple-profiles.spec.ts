@@ -308,12 +308,12 @@ test.describe("editing a Profile's Search Criteria (issue #70)", () => {
     expect(saved.ok(), await saved.text()).toBe(true);
     const applicationId = (await saved.json()).id;
     const locationScore = () =>
-      page.getByRole("region", { name: fr.matchScore.title }).locator(".match-score-criterion").filter({ hasText: fr.matchScore.criteria.location });
+      page.getByRole("region", { name: fr.matchScore.title }).getByRole("listitem").filter({ hasText: fr.matchScore.criteria.location });
     const offerAndWanted = (wanted: string) => fr.matchScore.offerAndWanted.replace("{{offer}}", "Paris").replace("{{wanted}}", wanted);
 
     await page.goto(`/candidatures/${applicationId}`);
     await expect(locationScore()).toContainText(offerAndWanted("Lyon"));
-    await expect(locationScore().locator(".match-status")).toHaveText(fr.matchScore.statuses.mismatch);
+    await expect(locationScore().locator(".verdict")).toHaveText(fr.matchScore.statuses.mismatch);
 
     await page.goto(`/profils/${id}`);
     const criteria = page.getByRole("form", { name: fr.cvReview.searchCriteria });
@@ -333,7 +333,7 @@ test.describe("editing a Profile's Search Criteria (issue #70)", () => {
 
     await page.goto(`/candidatures/${applicationId}`);
     await expect(locationScore()).toContainText(offerAndWanted("Paris"));
-    await expect(locationScore().locator(".match-status")).toHaveText(fr.matchScore.statuses.match);
+    await expect(locationScore().locator(".verdict")).toHaveText(fr.matchScore.statuses.match);
   });
 
   test("invalid criteria name the fields to fix; another Candidate's Profile is not found; an archived Profile is read-only", async ({ page, browser }) => {

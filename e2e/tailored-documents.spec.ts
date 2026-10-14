@@ -60,14 +60,22 @@ async function openApplication(page: Page, offer: { title: string; content: stri
   return id;
 }
 
-const coverLetter = (page: Page) => page.getByRole("group", { name: td.coverLetter.title });
-const outreachMessage = (page: Page) => page.getByRole("group", { name: td.outreachMessage.title });
+// The Cover Letter and Outreach Message are tabs of the Application's Tailored Documents (#136).
+const documents = (page: Page) => page.getByRole("region", { name: fr.application.documentsTitle });
+
+/** Opens the tab named `name` and returns its panel. */
+async function tab(page: Page, name: string) {
+  await documents(page).getByRole("tab", { name, exact: true }).click();
+  return documents(page).getByRole("tabpanel", { name, exact: true });
+}
+const coverLetter = (page: Page) => tab(page, td.coverLetter.title);
+const outreachMessage = (page: Page) => tab(page, td.outreachMessage.title);
 
 test.describe("Cover Letter and Outreach Message drafts", () => {
   test("the AI Coach drafts a Cover Letter in the Job Offer's language; the Candidate edits it, copies it, and it is kept on the Application", async ({ page, context }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin });
     await openApplication(page, FRENCH);
-    const letter = coverLetter(page);
+    const letter = await coverLetter(page);
     await expect(page.getByLabel(td.languageLabel)).toHaveValue("fr");
     await expect(letter.getByText(td.coverLetter.none)).toBeVisible();
 
@@ -85,17 +93,17 @@ test.describe("Cover Letter and Outreach Message drafts", () => {
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("Madame, Monsieur,\n\nMa lettre, revue par mes soins.");
 
     await page.reload();
-    await expect(coverLetter(page).getByLabel(td.coverLetter.textLabel)).toHaveValue("Madame, Monsieur,\n\nMa lettre, revue par mes soins.");
+    await expect((await coverLetter(page)).getByLabel(td.coverLetter.textLabel)).toHaveValue("Madame, Monsieur,\n\nMa lettre, revue par mes soins.");
 
     // Drafting again replaces the text, edits included, as the hint warns.
-    await expect(coverLetter(page).getByText(td.redraftHint)).toBeVisible();
-    await coverLetter(page).getByRole("button", { name: td.redraft }).click();
-    await expect(coverLetter(page).getByLabel(td.coverLetter.textLabel)).toHaveValue(`Lettre de motivation (fr) pour « ${FRENCH.title} ».`);
+    await expect((await coverLetter(page)).getByText(td.redraftHint)).toBeVisible();
+    await (await coverLetter(page)).getByRole("button", { name: td.redraft }).click();
+    await expect((await coverLetter(page)).getByLabel(td.coverLetter.textLabel)).toHaveValue(`Lettre de motivation (fr) pour « ${FRENCH.title} ».`);
   });
 
   test("an Outreach Message is drafted as an email to open in the Candidate's mail client, or as an InMail to copy; nothing is sent", async ({ page }) => {
     await openApplication(page, FRENCH);
-    const message = outreachMessage(page);
+    const message = await outreachMessage(page);
 
     await message.getByRole("button", { name: td.outreachMessage.draft }).click();
 
@@ -113,23 +121,23 @@ test.describe("Cover Letter and Outreach Message drafts", () => {
     await expect(message.getByLabel(td.outreachMessage.textLabel)).toHaveValue(`Message d'approche (fr, inmail) pour « ${FRENCH.title} ».`);
     await expect(message.getByRole("link", { name: td.outreachMessage.openInMail })).toHaveCount(0);
     await page.reload();
-    await expect(outreachMessage(page).getByLabel(td.outreachMessage.channelLabel)).toHaveValue("inmail");
+    await expect((await outreachMessage(page)).getByLabel(td.outreachMessage.channelLabel)).toHaveValue("inmail");
 
     // Drafts only (ADR-0005): there is nothing to send them with.
-    await expect(page.getByRole("region", { name: td.title }).getByRole("button", { name: /envoyer|send/i })).toHaveCount(0);
+    await expect(documents(page).getByRole("button", { name: /envoyer|send/i })).toHaveCount(0);
     expect((await page.request.post(`/api/applications/${page.url().split("/").at(-1)}/tailored-documents/send`, { headers: { origin } })).ok()).toBe(false);
   });
 
   test("drafts are written in English for an English Job Offer, and in the Document Language the Candidate chooses", async ({ page }) => {
     await openApplication(page, ENGLISH);
     await expect(page.getByLabel(td.languageLabel)).toHaveValue("en");
-    await coverLetter(page).getByRole("button", { name: td.coverLetter.draft }).click();
-    await expect(coverLetter(page).getByLabel(td.coverLetter.textLabel)).toHaveValue(`Lettre de motivation (en) pour « ${ENGLISH.title} ».`);
-    await expect(coverLetter(page).getByText(td.writtenIn.en)).toBeVisible();
+    await (await coverLetter(page)).getByRole("button", { name: td.coverLetter.draft }).click();
+    await expect((await coverLetter(page)).getByLabel(td.coverLetter.textLabel)).toHaveValue(`Lettre de motivation (en) pour « ${ENGLISH.title} ».`);
+    await expect((await coverLetter(page)).getByText(td.writtenIn.en)).toBeVisible();
 
     await page.getByLabel(td.languageLabel).selectOption({ label: td.languages.fr });
-    await outreachMessage(page).getByRole("button", { name: td.outreachMessage.draft }).click();
-    await expect(outreachMessage(page).getByLabel(td.outreachMessage.textLabel)).toHaveValue(`Message d'approche (fr, email) pour « ${ENGLISH.title} ».`);
+    await (await outreachMessage(page)).getByRole("button", { name: td.outreachMessage.draft }).click();
+    await expect((await outreachMessage(page)).getByLabel(td.outreachMessage.textLabel)).toHaveValue(`Message d'approche (fr, email) pour « ${ENGLISH.title} ».`);
 
     // The Application keeps the language chosen.
     await page.reload();
@@ -147,14 +155,14 @@ test.describe("Cover Letter and Outreach Message drafts", () => {
     // none, and the message names no contact roles.
     await openApplication(page, FRENCH);
 
-    await coverLetter(page).getByRole("button", { name: td.coverLetter.draft }).click();
-    await expect(coverLetter(page).getByLabel(td.coverLetter.textLabel)).toHaveValue(`Lettre de motivation (fr) pour « ${FRENCH.title} ».`);
-    await outreachMessage(page).getByRole("button", { name: td.outreachMessage.draft }).click();
-    await expect(outreachMessage(page).getByLabel(td.outreachMessage.textLabel)).toHaveValue(`Message d'approche (fr, email) pour « ${FRENCH.title} ».`);
+    await (await coverLetter(page)).getByRole("button", { name: td.coverLetter.draft }).click();
+    await expect((await coverLetter(page)).getByLabel(td.coverLetter.textLabel)).toHaveValue(`Lettre de motivation (fr) pour « ${FRENCH.title} ».`);
+    await (await outreachMessage(page)).getByRole("button", { name: td.outreachMessage.draft }).click();
+    await expect((await outreachMessage(page)).getByLabel(td.outreachMessage.textLabel)).toHaveValue(`Message d'approche (fr, email) pour « ${FRENCH.title} ».`);
 
     await expect(page.getByText(td.outreachMessage.contactRoles)).toHaveCount(0);
     await page.reload();
-    await expect(outreachMessage(page).getByLabel(td.outreachMessage.textLabel)).toHaveValue(`Message d'approche (fr, email) pour « ${FRENCH.title} ».`);
+    await expect((await outreachMessage(page)).getByLabel(td.outreachMessage.textLabel)).toHaveValue(`Message d'approche (fr, email) pour « ${FRENCH.title} ».`);
     await expect(page.getByText(td.outreachMessage.contactRoles)).toHaveCount(0);
   });
 
@@ -166,31 +174,31 @@ test.describe("Cover Letter and Outreach Message drafts", () => {
     await dossier.getByRole("button", { name: fr.companyDossier.build }).click();
     await expect(dossier.getByText("552100554", { exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await coverLetter(page).getByRole("button", { name: td.coverLetter.draft }).click();
-    await expect(coverLetter(page).getByLabel(td.coverLetter.textLabel)).toHaveValue(
+    await (await coverLetter(page)).getByRole("button", { name: td.coverLetter.draft }).click();
+    await expect((await coverLetter(page)).getByLabel(td.coverLetter.textLabel)).toHaveValue(
       `Lettre de motivation (fr) pour « ${FRENCH.title} ». Dossier : Acme Industrie (SIREN 552100554).`,
     );
 
     // Acme Industrie has 250 to 499 employees: the hiring manager, talent acquisition and the HR director.
     const roles = ["Responsable du poste à pourvoir", "Responsable du recrutement", "Directeur ou directrice des ressources humaines"];
-    await outreachMessage(page).getByRole("button", { name: td.outreachMessage.draft }).click();
-    await expect(outreachMessage(page).getByLabel(td.outreachMessage.textLabel)).toHaveValue(
+    await (await outreachMessage(page)).getByRole("button", { name: td.outreachMessage.draft }).click();
+    await expect((await outreachMessage(page)).getByLabel(td.outreachMessage.textLabel)).toHaveValue(
       `Message d'approche (fr, email) pour « ${FRENCH.title} ». Dossier : Acme Industrie (SIREN 552100554). Contacts : ${roles.join(" ; ")}.`,
     );
-    await expect(outreachMessage(page).getByText(td.outreachMessage.contactRoles)).toBeVisible();
-    await expect(outreachMessage(page).getByRole("listitem")).toHaveText(roles);
+    await expect((await outreachMessage(page)).getByText(td.outreachMessage.contactRoles)).toBeVisible();
+    await expect((await outreachMessage(page)).getByRole("listitem")).toHaveText(roles);
 
     // Kept on the Application, contact roles included.
     await page.reload();
-    await expect(outreachMessage(page).getByRole("listitem")).toHaveText(roles);
+    await expect((await outreachMessage(page)).getByRole("listitem")).toHaveText(roles);
   });
 
   test("when the AI Coach cannot write, the Candidate is told to try again later", async ({ page }) => {
     await openApplication(page, { title: "DAF (H/F)", content: "Vous pilotez la finance. E2E_AI_DOWN" });
 
-    await coverLetter(page).getByRole("button", { name: td.coverLetter.draft }).click();
+    await (await coverLetter(page)).getByRole("button", { name: td.coverLetter.draft }).click();
 
-    await expect(coverLetter(page).getByRole("alert")).toHaveText(td.unavailable);
-    await expect(coverLetter(page).getByRole("button", { name: td.coverLetter.draft })).toBeVisible();
+    await expect((await coverLetter(page)).getByRole("alert")).toHaveText(td.unavailable);
+    await expect((await coverLetter(page)).getByRole("button", { name: td.coverLetter.draft })).toBeVisible();
   });
 });

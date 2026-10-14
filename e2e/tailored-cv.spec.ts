@@ -69,7 +69,11 @@ async function openApplication(page: Page, offer: { title: string; content: stri
   return id;
 }
 
-const section = (page: Page) => page.getByRole("region", { name: tc.title });
+// The Tailored CV is the first tab of the Application's Tailored Documents (#136),
+// whose Document Language is chosen above the tabs for all of them.
+const documents = (page: Page) => page.getByRole("region", { name: fr.application.documentsTitle });
+const section = (page: Page) => documents(page).getByRole("tabpanel", { name: tc.tailored, exact: true });
+const documentLanguage = (page: Page) => documents(page).getByLabel(fr.tailoredDocuments.languageLabel);
 const proposal = (page: Page) => section(page).getByRole("group", { name: tc.proposalTitle });
 
 /** The Master and Tailored Match Scores shown in `scope`, as "62 → 84". */
@@ -83,7 +87,7 @@ test.describe("Tailored CV with change review", () => {
   test("the Candidate reviews a proposed Tailored CV against the Master CV, answers the coach's questions and saves it on the Application", async ({ page }) => {
     await openApplication(page, FRENCH);
     await expect(section(page).getByText(tc.none)).toBeVisible();
-    await expect(section(page).getByLabel(tc.languageLabel)).toHaveValue("fr");
+    await expect(documentLanguage(page)).toHaveValue("fr");
 
     await section(page).getByRole("button", { name: tc.propose }).click();
 
@@ -148,7 +152,7 @@ test.describe("Tailored CV with change review", () => {
 
   test("a Tailored CV is written in the Job Offer's language by default, or in the Document Language the Candidate chooses", async ({ page }) => {
     await openApplication(page, ENGLISH);
-    await expect(section(page).getByLabel(tc.languageLabel)).toHaveValue("en");
+    await expect(documentLanguage(page)).toHaveValue("en");
     await section(page).getByRole("button", { name: tc.propose }).click();
     await expect(proposal(page).getByText(tc.writtenIn.en)).toBeVisible();
     await expect(proposal(page).getByText("Directrice financière (adapté, en)")).toBeVisible();
@@ -158,14 +162,13 @@ test.describe("Tailored CV with change review", () => {
     const language = proposal(page).getByRole("listitem").filter({ hasText: `${tc.sections.languages} · ${tc.kinds.rephrased} · Anglais · courant` });
     await expect(language.getByText("English · fluent")).toBeVisible();
 
-    await section(page).getByLabel(tc.languageLabel).selectOption({ label: fr.tailoredDocuments.languages.fr });
+    await documentLanguage(page).selectOption({ label: fr.tailoredDocuments.languages.fr });
     await proposal(page).getByRole("button", { name: tc.proposeAgain }).click();
     await expect(proposal(page).getByText("Directrice financière (adapté, fr)")).toBeVisible();
 
     // The Application keeps the language chosen, for all its Tailored Documents.
     await page.reload();
-    await expect(section(page).getByLabel(tc.languageLabel)).toHaveValue("fr");
-    await expect(page.getByLabel(fr.tailoredDocuments.languageLabel)).toHaveValue("fr");
+    await expect(documentLanguage(page)).toHaveValue("fr");
   });
 
   test("when the AI Coach cannot propose one, the Candidate is told to try again later", async ({ page }) => {

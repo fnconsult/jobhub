@@ -4,7 +4,7 @@ import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import type { CoachConversation } from "../coach-conversations";
-import { createCoachMemory, migrateCoachMemory, type CoachMemory } from "./index";
+import { createCoachMemory, MAX_ITEMS, migrateCoachMemory, type CoachMemory } from "./index";
 
 const CONVERSATION_ID = "22222222-2222-4222-8222-222222222222";
 
@@ -84,6 +84,14 @@ describe.skipIf(!connectionString)("Coach Memory (needs Postgres: DATABASE_URL)"
     expect(await memory.list(jean)).toEqual([]);
   });
 
+  it("refuses an empty, overlong or unknown kind of item", async () => {
+    expect(await memory.confirm(marie, { kind: "goal", text: "   " })).toEqual({ ok: false, error: "invalid" });
+    expect(await memory.confirm(marie, { kind: "goal", text: "x".repeat(301) })).toEqual({ ok: false, error: "invalid" });
+    expect(await memory.confirm(marie, { kind: "wish", text: "Lyon" })).toEqual({ ok: false, error: "invalid" });
+    expect(await memory.confirm(marie, null)).toEqual({ ok: false, error: "invalid" });
+    expect(await memory.list(marie)).toEqual([]);
+  });
+
   it("does not propose again what the Coach Memory already holds, and keeps one copy when confirmed twice", async () => {
     await memory.confirm(marie, { kind: "goal", text: "Poste de DAF à Lyon" });
     await memory.confirm(marie, { kind: "goal", text: "poste de DAF  à Lyon" });
@@ -93,6 +101,29 @@ describe.skipIf(!connectionString)("Coach Memory (needs Postgres: DATABASE_URL)"
     expect(proposed).toMatchObject({ ok: true, proposals: [{ kind: "constraint" }, { kind: "decision" }] });
     expect(provider.calls[0]!.messages.at(-1)!.content).toContain("Poste de DAF à Lyon");
     expect(await memory.list(marie)).toHaveLength(1);
+  });
+
+  it("never proposes from another Candidate's conversation, nor asks the AI Coach about it", async () => {
+    expect(await memory.propose(jean, CONVERSATION_ID)).toEqual({ ok: false, error: "not_found" });
+    expect(provider.calls).toEqual([]);
+  });
+
+  it("says the AI Coach is unavailable when its answer cannot be read, and keeps only well-formed proposals otherwise", async () => {
+    aiAnswer = "Je retiens que vous visez Lyon.";
+    expect(await memory.propose(marie, CONVERSATION_ID)).toEqual({ ok: false, error: "unavailable" });
+
+    aiAnswer = JSON.stringify({ items: [{ kind: "wish", text: "Lyon" }, { kind: "goal", text: "" }, { kind: "goal", text: "Poste de DAF à Lyon" }, { kind: "goal", text: "Poste de DAF à Lyon" }] });
+    expect(await memory.propose(marie, CONVERSATION_ID)).toEqual({ ok: true, proposals: [{ kind: "goal", text: "Poste de DAF à Lyon" }] });
+    expect(await memory.list(marie)).toEqual([]);
+  });
+
+  it(`refuses a new item once the Coach Memory holds ${MAX_ITEMS}, until the Candidate deletes one`, async () => {
+    for (let n = 1; n <= MAX_ITEMS; n++) await memory.confirm(marie, { kind: "goal", text: `Objectif ${n}` });
+
+    expect(await memory.confirm(marie, { kind: "goal", text: "Un de trop" })).toEqual({ ok: false, error: "full" });
+    const [first] = await memory.list(marie);
+    await memory.delete(marie, first!.id);
+    expect(await memory.confirm(marie, { kind: "goal", text: "Un de trop" })).toMatchObject({ ok: true });
   });
 
   it("lets the Candidate edit an item's words and kind, but not empty, overlong or someone else's", async () => {

@@ -37,7 +37,7 @@ export interface CoachMemoryItem extends ProposedMemoryItem {
 
 export type ProposeResult = { ok: true; proposals: ProposedMemoryItem[] } | { ok: false; error: "not_found" | "unavailable" };
 
-export type ConfirmResult = { ok: true; item: CoachMemoryItem } | { ok: false; error: "invalid" };
+export type ConfirmResult = { ok: true; item: CoachMemoryItem } | { ok: false; error: "invalid" | "full" };
 
 export type EditResult = { ok: true; item: CoachMemoryItem } | { ok: false; error: "invalid" | "not_found" };
 
@@ -48,6 +48,7 @@ export interface CoachMemory {
    * Saves one item the Candidate confirmed, a proposal or their own words: untrusted
    * `{ kind, text }`, text trimmed to 1 to MAX_ITEM_LENGTH characters. An item the Coach
    * Memory already holds (same words, whatever the case and spacing) is not saved twice.
+   * "full" once the Coach Memory holds MAX_ITEMS items.
    */
   confirm(candidateId: string, input: unknown): Promise<ConfirmResult>;
   /** The Candidate's Coach Memory, oldest item first. */
@@ -65,6 +66,8 @@ export interface CoachMemoryDeps {
 
 /** Longest item, in characters. */
 export const MAX_ITEM_LENGTH = 300;
+/** Most items in one Candidate's Coach Memory: it goes with every AI Coach message, so it stays short. */
+export const MAX_ITEMS = 30;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -135,8 +138,10 @@ export function createCoachMemory(database: Pool, deps: CoachMemoryDeps): CoachM
       const parsed = itemSchema.safeParse(input);
       if (!parsed.success) return { ok: false, error: "invalid" };
       const { kind, text } = parsed.data;
-      const known = (await list(candidateId)).find((item) => sameFact(item.text) === sameFact(text));
+      const items = await list(candidateId);
+      const known = items.find((item) => sameFact(item.text) === sameFact(text));
       if (known) return { ok: true, item: known };
+      if (items.length >= MAX_ITEMS) return { ok: false, error: "full" };
       const { rows } = await database.query<ItemRow>(
         `INSERT INTO coach_memory_item (candidate_id, kind, text) VALUES ($1, $2, $3) RETURNING id, kind, text, updated_at`,
         [candidateId, kind, text],

@@ -452,6 +452,44 @@
       "invalidTitle": "Give the conversation a name of 1 to 80 characters."
     }
   },
+  "coachMemory": {
+    "open": "Coach memory",
+    "title": "Coach memory",
+    "hint": "What your coach remembers about you from one conversation to the next: your goals, constraints and decisions. Nothing is added without your consent, and it is deleted with your account.",
+    "empty": "Your coach has not remembered anything yet. In a conversation, ask what it suggests remembering.",
+    "loading": "Loading coach memory…",
+    "kinds": {
+      "goal": "Goal",
+      "constraint": "Constraint",
+      "decision": "Decision"
+    },
+    "kindLabel": "Type",
+    "textLabel": "What your coach remembers",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "confirmDelete": "Your coach will forget “{{text}}”. Delete it?",
+    "confirmDeleteButton": "Yes, delete",
+    "edited": "Item updated.",
+    "deleted": "Item deleted.",
+    "propose": "What should my coach remember from this conversation?",
+    "proposing": "Your coach is reading the conversation again…",
+    "proposalsTitle": "Your coach suggests remembering",
+    "proposalsHint": "Confirm each item to keep: only the ones you confirm are saved.",
+    "noProposals": "Your coach sees nothing new to remember in this conversation.",
+    "confirm": "Remember",
+    "dismiss": "Ignore",
+    "confirmed": "Remembered: “{{text}}”.",
+    "dismissed": "Ignored: nothing is saved.",
+    "errors": {
+      "load": "Coach memory could not be loaded. Try again in a few moments.",
+      "action": "This did not work. Try again in a few moments.",
+      "invalid": "Write 1 to 300 characters.",
+      "full": "Coach memory is full (30 items). Delete one to add another.",
+      "unavailable": "Your coach cannot make suggestions right now. Try again in a few moments."
+    }
+  },
   "actionCards": {
     "title": "Your coach's proposals",
     "accept": "Accept",

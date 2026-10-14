@@ -19,15 +19,9 @@ import type { AiLayer } from "@jobhub/ai";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { CoachConversations } from "../coach-conversations";
+import { COACH_MEMORY_KINDS, MAX_ITEM_LENGTH, MAX_ITEMS, type CoachMemoryKind, type ProposedMemoryItem } from "./kinds";
 
-export const COACH_MEMORY_KINDS = ["goal", "constraint", "decision"] as const;
-export type CoachMemoryKind = (typeof COACH_MEMORY_KINDS)[number];
-
-/** A key fact the AI Coach may propose, before the Candidate confirms it. */
-export interface ProposedMemoryItem {
-  kind: CoachMemoryKind;
-  text: string;
-}
+export { COACH_MEMORY_KINDS, MAX_ITEM_LENGTH, MAX_ITEMS, type CoachMemoryKind, type ProposedMemoryItem } from "./kinds";
 
 /** A key fact in the Candidate's Coach Memory. */
 export interface CoachMemoryItem extends ProposedMemoryItem {
@@ -64,10 +58,6 @@ export interface CoachMemoryDeps {
   conversations: Pick<CoachConversations, "open">;
 }
 
-/** Longest item, in characters. */
-export const MAX_ITEM_LENGTH = 300;
-/** Most items in one Candidate's Coach Memory: it goes with every AI Coach message, so it stays short. */
-export const MAX_ITEMS = 30;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

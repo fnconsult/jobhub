@@ -452,6 +452,44 @@
       "invalidTitle": "Donnez à la conversation un nom de 1 à 80 caractères."
     }
   },
+  "coachMemory": {
+    "open": "Mémoire du coach",
+    "title": "Mémoire du coach",
+    "hint": "Ce que votre coach retient de vous d'une conversation à l'autre : vos objectifs, vos contraintes, vos décisions. Rien n'y est ajouté sans votre accord, et elle est supprimée avec votre compte.",
+    "empty": "Votre coach n'a encore rien retenu. Dans une conversation, demandez-lui ce qu'il propose de retenir.",
+    "loading": "Chargement de la mémoire du coach…",
+    "kinds": {
+      "goal": "Objectif",
+      "constraint": "Contrainte",
+      "decision": "Décision"
+    },
+    "kindLabel": "Type",
+    "textLabel": "Ce que votre coach retient",
+    "edit": "Modifier",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "confirmDelete": "Votre coach oubliera « {{text}} ». Supprimer ?",
+    "confirmDeleteButton": "Oui, supprimer",
+    "edited": "Élément modifié.",
+    "deleted": "Élément supprimé.",
+    "propose": "Que retenir de cette conversation ?",
+    "proposing": "Votre coach relit la conversation…",
+    "proposalsTitle": "Votre coach propose de retenir",
+    "proposalsHint": "Confirmez chaque élément à garder : seuls ceux que vous confirmez sont enregistrés.",
+    "noProposals": "Votre coach ne voit rien de nouveau à retenir dans cette conversation.",
+    "confirm": "Retenir",
+    "dismiss": "Ignorer",
+    "confirmed": "Retenu : « {{text}} ».",
+    "dismissed": "Ignoré : rien n'est enregistré.",
+    "errors": {
+      "load": "La mémoire du coach n'a pas pu être chargée. Réessayez dans quelques instants.",
+      "action": "Cette action n'a pas abouti. Réessayez dans quelques instants.",
+      "invalid": "Écrivez de 1 à 300 caractères.",
+      "full": "La mémoire du coach est pleine (30 éléments). Supprimez-en un pour en ajouter un autre.",
+      "unavailable": "Votre coach ne peut pas proposer pour le moment. Réessayez dans quelques instants."
+    }
+  },
   "actionCards": {
     "title": "Propositions de votre coach",
     "accept": "Accepter",

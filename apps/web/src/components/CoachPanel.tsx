@@ -6,6 +6,7 @@ import type { CoachFocus } from "@/coach";
 import { coachReplyBlocks, type Inline } from "@/coach/reply-text";
 import type { CoachMessage } from "@/coach/conversation";
 import { CoachConversationList, type ConversationSummary } from "@/components/CoachConversationList";
+import { CoachMemoryProposals, CoachMemoryView } from "@/components/CoachMemory";
 import { Icons } from "@/components/icons";
 import { StartJobSearchButton } from "@/components/JobSearchControls";
 
@@ -165,7 +166,7 @@ export function CoachPanel({ children }: { children: ReactNode }) {
   const [conversation, setConversation] = useState<ConversationSummary | null>(null);
   const [messages, setMessages] = useState<CoachMessage[]>([]);
   const [restoring, setRestoring] = useState(false);
-  const [view, setView] = useState<"chat" | "list">("chat");
+  const [view, setView] = useState<"chat" | "list" | "memory">("chat");
   const [conversations, setConversations] = useState<ConversationSummary[] | null>(null);
   const [listFailed, setListFailed] = useState(false);
   const [draft, setDraft] = useState("");
@@ -336,12 +337,21 @@ export function CoachPanel({ children }: { children: ReactNode }) {
                   {t("coachPanel.backToConversation")}
                 </button>
               )}
+              {view !== "memory" ? (
+                <button className="button button-quiet" type="button" onClick={() => setView("memory")}>
+                  {t("coachMemory.open")}
+                </button>
+              ) : null}
               <button className="button button-quiet" type="button" onClick={startNewConversation}>
                 <Icons.add />
                 {t("coachPanel.newConversation")}
               </button>
             </div>
-            {view === "list" ? (
+            {view === "memory" ? (
+              <div className="coach-panel-body">
+                <CoachMemoryView />
+              </div>
+            ) : view === "list" ? (
               <div className="coach-panel-body">
                 <CoachConversationList
                   conversations={conversations}
@@ -386,6 +396,7 @@ export function CoachPanel({ children }: { children: ReactNode }) {
                       </li>
                     ))}
                   </ol>
+                  {conversation ? <CoachMemoryProposals key={conversation.id} conversationId={conversation.id} /> : null}
                   {status === "sending" ? (
                     <p className="notice" role="status">
                       {t("coachPanel.thinking")}

@@ -30,6 +30,117 @@ describe("Match Score", () => {
     expect(breakdown.skills).toEqual({ status: "partial", covered: ["ifrs", "Sap", "consolidation", "tresorerie"], missing: ["Power BI"] });
   });
 
+  describe("skills by normalised form and synonyms", () => {
+    const coverage = (offerSkill: string, cvSkill: string) =>
+      scoreMatch({ cv: { ...cv, headline: "", summary: "", experience: [], skills: [cvSkill] }, jobOffer: { ...offer, skills: [offerSkill] } }).breakdown.skills
+        .status;
+
+    it.each([
+      // Normalised form: accents, case, plurals, small words.
+      ["Trésorerie", "TRESORERIE"],
+      ["Gestion des projets", "gestion de projet"],
+      ["Comptes consolidés", "compte consolidé"],
+      ["Canaux de distribution", "canal de distribution"],
+      ["Négociations", "négociation"],
+      // Common French/English equivalents.
+      ["Gestion de projet", "Project management"],
+      ["Project management", "Pilotage de projets"],
+      ["Gestion de la chaîne d'approvisionnement", "Supply chain"],
+      ["Conduite du changement", "Change management"],
+      ["Contrôle de gestion", "Controlling"],
+      ["Achats", "Procurement"],
+      ["Anglais", "English"],
+      // Abbreviations.
+      ["P&L", "Compte de résultat"],
+      ["Comptes de résultats", "P & L"],
+      ["Profit and loss", "P&L"],
+      ["S&OP", "Plan industriel et commercial"],
+      ["Ressources humaines", "RH"],
+      ["KPI", "Indicateurs clés de performance"],
+      ["M&A", "Fusions et acquisitions"],
+    ])("covers %s with a CV that says %s", (offerSkill, cvSkill) => {
+      expect(coverage(offerSkill, cvSkill)).toBe("match");
+    });
+
+    it.each([
+      ["Power BI", "Business intelligence"],
+      ["Gestion de projet agile", "Project management"],
+      ["Comptabilité", "Compte de résultat"],
+      ["SAP", "Sapin"],
+      ["Java", "JavaScript"],
+      ["Supply chain", "Chaîne"],
+    ])("does not cover %s with a CV that only says %s", (offerSkill, cvSkill) => {
+      expect(coverage(offerSkill, cvSkill)).toBe("mismatch");
+    });
+
+    describe("abbreviations only in capitals", () => {
+      const fromSummary = (offerSkill: string, summary: string) =>
+        scoreMatch({ cv: { ...cv, headline: "", summary, experience: [], skills: [] }, jobOffer: { ...offer, skills: [offerSkill] } }).breakdown.skills
+          .status;
+
+      it.each([
+        ["Intelligence artificielle", "J'ai dirigé une équipe de 40 personnes."],
+        ["IA", "Ce que j'ai appris en dix ans de direction."],
+        ["S&OP", "Gestion du pic d'activité de Noël."],
+        ["Business intelligence", "Reporting bi-mensuel au comité de direction."],
+        ["Ressources humaines", "Suivi des Rh positifs en laboratoire."],
+      ])("does not cover %s with a CV whose ordinary words only spell an abbreviation: %s", (offerSkill, summary) => {
+        expect(fromSummary(offerSkill, summary)).toBe("mismatch");
+      });
+
+      it.each([
+        ["Intelligence artificielle", "Projets d'IA générative pour la supply chain."],
+        ["IA", "Déploiement de l'AI dans les achats."],
+        ["S&OP", "Animation du PIC mensuel."],
+        ["Business intelligence", "Tableaux de bord BI."],
+      ])("covers %s with a CV that writes the abbreviation in capitals: %s", (offerSkill, summary) => {
+        expect(fromSummary(offerSkill, summary)).toBe("match");
+      });
+    });
+
+    it("still covers a skill written inside a longer wording on the CV", () => {
+      expect(coverage("Management", "Project management")).toBe("match");
+      expect(coverage("Consolidation", "Consolidation des comptes IFRS")).toBe("match");
+    });
+
+    it("does not read a skill across two fields of the CV", () => {
+      const twoSkills = { ...cv, headline: "", summary: "", experience: [], skills: ["Supply", "Chain"] };
+      expect(scoreMatch({ cv: twoSkills, jobOffer: { ...offer, skills: ["Supply chain"] } }).breakdown.skills.status).toBe("mismatch");
+    });
+
+    it("covers the baseline Job Offer that scored 55 because its skill was not literally on the CV (#97)", () => {
+      // c08 of the Job Search baseline: a relevant Directeur Supply Chain offer in Lille.
+      const supplyChainCv: CvContent = {
+        ...cv,
+        headline: "Directeur Supply Chain – Retail et e-commerce",
+        location: "Lille",
+        summary: "Directeur supply chain, 23 ans en logistique, S&OP, achats et transport dans le retail et l'e-commerce.",
+        experience: [
+          { title: "Directeur supply chain", employer: "RetailNord", location: "Lille", period: "2014 – aujourd'hui", description: "Entrepôts, transport, S&OP, prévisions, WMS." },
+          { title: "Ingénieur logistique", employer: "Distrib", location: "Lille", period: "2001 – 2005", description: "Flux, approvisionnement." },
+        ],
+        skills: ["Supply chain", "Logistique", "S&OP", "Transport", "Achats", "Approvisionnement", "WMS", "SAP", "Lean"],
+      };
+      const jobOffer: JobOfferDetails = {
+        title: "Directeur Supply Chain H/F",
+        content: "Exp. 15 ans min.",
+        location: "Lille - 59",
+        contractType: "cdi",
+        remoteWork: "on_site",
+        salary: { min: 70_000, max: 90_000 },
+        skills: ["Gestion de la chaîne d'approvisionnement"],
+        requiredExperienceYears: 15,
+      };
+      const searchCriteria = { targetRole: "Directeur supply chain", location: "Lille", contractType: "cdi" as const, minSalary: 95_000 };
+
+      const result = scoreMatch({ cv: supplyChainCv, jobOffer, searchCriteria, today: new Date("2026-10-12") });
+
+      expect(result.breakdown.skills).toEqual({ status: "match", covered: ["Gestion de la chaîne d'approvisionnement"], missing: [] });
+      // Skills 40 + seniority 20 + location 15 + salary partial 5 + contract type 15 (was 55 with skills a mismatch).
+      expect(result.score).toBe(95);
+    });
+  });
+
   describe("seniority", () => {
     const today = new Date("2026-10-06");
     const career: CvContent = {

@@ -59,22 +59,152 @@ export interface MatchInput {
   today?: Date;
 }
 
-function cvText(cv: CvContent): string {
-  return normalise(
-    [
-      cv.headline,
-      cv.summary,
-      ...cv.skills,
-      ...cv.experience.flatMap((job) => [job.title, job.description]),
-      ...cv.education.map((item) => item.degree),
-    ].join(" | "),
-  );
+/**
+ * Skills that mean the same thing: common French/English equivalents and abbreviations.
+ * Each line is one skill; any of its wordings on the CV covers any other in the Job Offer.
+ * Wordings are compared in skill form (see `words`), so accents, case, plurals and
+ * small words ("de la", "d'", "of the") do not need listing. A wording written in
+ * capitals is an abbreviation, and only stands for its skill where the text writes it
+ * in capitals too: "IA" is artificial intelligence, the "ai" of "j'ai" is not.
+ */
+const SYNONYMS: readonly (readonly string[])[] = [
+  ["gestion de projet", "conduite de projet", "pilotage de projet", "management de projet", "project management"],
+  ["gestion de la chaîne d'approvisionnement", "chaîne d'approvisionnement", "chaîne logistique", "supply chain", "supply chain management", "SCM"],
+  ["P&L", "compte de résultat", "profit and loss", "profit & loss"],
+  ["conduite du changement", "gestion du changement", "accompagnement du changement", "change management"],
+  ["contrôle de gestion", "management control", "controlling"],
+  ["comptabilité", "accounting"],
+  ["trésorerie", "treasury", "cash management"],
+  ["achats", "procurement", "purchasing"],
+  ["logistique", "logistics"],
+  ["entrepôt", "warehouse", "warehousing"],
+  ["prévisions", "prévision des ventes", "forecasting", "demand planning"],
+  ["S&OP", "PIC", "plan industriel et commercial", "sales and operations planning"],
+  ["ressources humaines", "RH", "human resources", "HR"],
+  ["paie", "payroll"],
+  ["recrutement", "recruitment", "recruiting", "talent acquisition"],
+  ["gestion des talents", "talent management"],
+  ["management d'équipe", "encadrement d'équipe", "team management", "people management"],
+  ["gestion budgétaire", "budget management", "budgeting"],
+  ["fusions acquisitions", "fusions et acquisitions", "M&A", "mergers and acquisitions"],
+  ["fiscalité", "tax", "taxation"],
+  ["gestion des risques", "risk management"],
+  ["audit interne", "internal audit"],
+  ["indicateurs de performance", "indicateurs clés de performance", "KPI", "key performance indicators"],
+  ["business intelligence", "BI", "informatique décisionnelle"],
+  ["gestion de la relation client", "CRM", "customer relationship management"],
+  ["service client", "customer service"],
+  ["développement commercial", "business development"],
+  ["négociation", "negotiation"],
+  ["ventes", "sales"],
+  ["marketing digital", "marketing numérique", "digital marketing"],
+  ["transformation digitale", "transformation numérique", "digital transformation"],
+  ["intelligence artificielle", "IA", "artificial intelligence", "AI"],
+  ["amélioration continue", "continuous improvement"],
+  ["RSE", "responsabilité sociétale des entreprises", "responsabilité sociale des entreprises", "CSR", "corporate social responsibility"],
+  ["recherche et développement", "R&D", "research and development"],
+  ["e-commerce", "ecommerce", "commerce en ligne"],
+  ["anglais", "english"],
+  ["français", "french"],
+];
+
+/** Small words that do not change what a skill means: "gestion de la chaîne" is "gestion chaîne". */
+const SMALL_WORDS = new Set(["a", "au", "aux", "d", "de", "des", "du", "en", "et", "l", "la", "le", "les", "and", "for", "in", "of", "the"]);
+
+/** "Comptes" → "compte", "canaux" → "canal": the singular of a plural word of four letters or more. */
+function singular(word: string): string {
+  if (word.length < 4) return word;
+  if (word.endsWith("aux")) return `${word.slice(0, -3)}al`;
+  if (word.endsWith("s") && !word.endsWith("ss")) return word.slice(0, -1);
+  return word;
+}
+
+/** A word in skill form, and whether the text wrote it in capitals, as an abbreviation is written ("IA", "S&OP"). */
+interface Word {
+  text: string;
+  capitals: boolean;
+}
+
+/**
+ * A text in skill form: normalised words, singular, without small words, with an
+ * abbreviation joined by "&" kept as one word ("P&L" → "pl", "S&OP" → "sop").
+ * Each word keeps whether it was written in capitals, which `normalise` alone would lose.
+ */
+function words(text: string): Word[] {
+  const joined = text.replace(/(?<!\p{L})(\p{L}{1,2}) ?& ?(\p{L}{1,3})(?!\p{L})/gu, "$1$2");
+  return joined
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .split(/[^\p{L}\p{N}+#]+/u)
+    .map((raw) => ({ text: normalise(raw).trim(), capitals: /^\p{Lu}{2,}$/u.test(raw) }))
+    .filter((word) => word.text && !SMALL_WORDS.has(word.text))
+    .map((word) => ({ ...word, text: singular(word.text) }));
+}
+
+/** Every wording of every synonym, longest first, with the line it belongs to and whether it is an abbreviation. */
+const WORDINGS = SYNONYMS.flatMap((line, index) =>
+  line.map((wording) => {
+    const list = words(wording);
+    return { words: list.map((word) => word.text), abbreviation: list.every((word) => word.capitals), id: `~${index}` };
+  }),
+).sort((a, b) => b.words.length - a.words.length);
+
+const startsWith = (list: string[], at: number, prefix: string[]) => prefix.every((word, offset) => list[at + offset] === word);
+
+/**
+ * The same words with each synonym replaced by its line, so "project management" and "gestion de projets"
+ * read alike. An abbreviation only counts where it is written in capitals: "AI", not the "ai" of "j'ai".
+ */
+function canonical(list: Word[]): string[] {
+  const texts = list.map((word) => word.text);
+  const result: string[] = [];
+  for (let at = 0; at < list.length; ) {
+    const wording = WORDINGS.find(
+      (candidate) =>
+        startsWith(texts, at, candidate.words) &&
+        (!candidate.abbreviation || list.slice(at, at + candidate.words.length).every((word) => word.capitals)),
+    );
+    result.push(wording ? wording.id : texts[at]!);
+    at += wording ? wording.words.length : 1;
+  }
+  return result;
+}
+
+const contains = (list: string[], phrase: string[]) =>
+  phrase.length > 0 && list.some((_, at) => at + phrase.length <= list.length && startsWith(list, at, phrase));
+
+/** A CV field (or a Job Offer skill) in both forms: its own words, and its words with synonyms resolved. */
+interface SkillText {
+  plain: string[];
+  canonical: string[];
+}
+
+function skillText(text: string): SkillText {
+  const list = words(text);
+  return { plain: list.map((word) => word.text), canonical: canonical(list) };
+}
+
+/** Each field of the CV that can show a skill, so a skill is never read across two fields. */
+function cvFields(cv: CvContent): SkillText[] {
+  return [
+    cv.headline,
+    cv.summary,
+    ...cv.skills,
+    ...cv.experience.flatMap((job) => [job.title, job.description]),
+    ...cv.education.map((item) => item.degree),
+  ].map(skillText);
+}
+
+/** The CV shows a skill when one of its fields holds the skill's words, as written or through a synonym. */
+function shows(fields: SkillText[], skill: string): boolean {
+  const wanted = skillText(skill);
+  return fields.some((field) => contains(field.plain, wanted.plain) || contains(field.canonical, wanted.canonical));
 }
 
 function scoreSkills(cv: CvContent, jobOffer: JobOfferDetails): SkillsBreakdown {
-  const text = cvText(cv);
+  const fields = cvFields(cv);
   const wanted = jobOffer.skills ?? [];
-  const covered = wanted.filter((skill) => text.includes(normalise(skill)));
+  const covered = wanted.filter((skill) => shows(fields, skill));
   const missing = wanted.filter((skill) => !covered.includes(skill));
   const status: CriterionStatus =
     wanted.length === 0 ? "unknown" : missing.length === 0 ? "match" : covered.length === 0 ? "mismatch" : "partial";

@@ -240,3 +240,86 @@ test.describe("Match Score", () => {
     await other.dispose();
   });
 });
+
+// Issue #117: skills are matched by normalised form (accents, case, plurals) and by
+// synonyms (common FR/EN equivalents and abbreviations), not as literal substrings
+// of the CV. Driven through the public HTTP entry point; no AI call is involved.
+test.describe("Match Score: skills by normalised form and synonyms", () => {
+  const skillOffer = (skills: string[]) => ({
+    title: "Responsable",
+    content: `Poste de responsable (réf. ${unique()}).`,
+    skills,
+  });
+  const cvWithSkills = (skills: string[]) => ({ ...masterCv, headline: "", summary: "", experience: [], education: [], skills });
+
+  async function skillsFor(offerSkills: string[], cvSkills: string[]) {
+    const guest = await guestFrom(extensionOrigin);
+    const offer = await capture(guest, skillOffer(offerSkills));
+    const { status, body } = await matchScore(guest, { jobOfferId: offer.id, cv: cvWithSkills(cvSkills) });
+    await guest.dispose();
+    expect(status).toBe(200);
+    return body.breakdown.skills;
+  }
+
+  const covered: [string, string][] = [
+    ["Trésorerie", "TRESORERIE"],
+    ["Gestion des projets", "gestion de projet"],
+    ["Négociations", "négociation"],
+    ["Gestion de projet", "Project management"],
+    ["Project management", "Pilotage de projets"],
+    ["Gestion de la chaîne d'approvisionnement", "Supply chain"],
+    ["P&L", "Compte de résultat"],
+    ["Comptes de résultats", "P & L"],
+    ["Ressources humaines", "RH"],
+    ["KPI", "Indicateurs clés de performance"],
+    ["M&A", "Fusions et acquisitions"],
+  ];
+  for (const [offerSkill, cvSkill] of covered) {
+    test(`"${offerSkill}" is covered by a CV that says "${cvSkill}"`, async () => {
+      expect(await skillsFor([offerSkill], [cvSkill])).toEqual({ status: "match", covered: [offerSkill], missing: [] });
+    });
+  }
+
+  const notCovered: [string, string][] = [
+    ["Power BI", "Business intelligence"],
+    ["SAP", "Sapin"],
+    ["Java", "JavaScript"],
+    ["Gestion de projet agile", "Project management"],
+  ];
+  for (const [offerSkill, cvSkill] of notCovered) {
+    test(`"${offerSkill}" is not covered by a CV that only says "${cvSkill}"`, async () => {
+      expect(await skillsFor([offerSkill], [cvSkill])).toEqual({ status: "mismatch", covered: [], missing: [offerSkill] });
+    });
+  }
+
+  test("the baseline relevant offer no longer scores 55 because its skill is not literally on the CV", async () => {
+    const guest = await guestFrom(extensionOrigin);
+    const supplyChainCv = {
+      ...masterCv,
+      headline: "Directeur Supply Chain – Retail et e-commerce",
+      location: "Lille",
+      summary: "Directeur supply chain, 23 ans en logistique, S&OP, achats et transport dans le retail et l'e-commerce.",
+      experience: [
+        { title: "Directeur supply chain", employer: "RetailNord", location: "Lille", period: "2014 – aujourd'hui", description: "Entrepôts, transport, S&OP, prévisions, WMS." },
+        { title: "Ingénieur logistique", employer: "Distrib", location: "Lille", period: "2001 – 2005", description: "Flux, approvisionnement." },
+      ],
+      skills: ["Supply chain", "Logistique", "S&OP", "Transport", "Achats", "Approvisionnement", "WMS", "SAP", "Lean"],
+    };
+    const offer = await capture(guest, {
+      title: "Directeur Supply Chain H/F",
+      content: `Directeur Supply Chain (réf. ${unique()}).`,
+      location: "Lille - 59",
+      contractType: "cdi",
+      salary: { min: 70_000, max: 90_000 },
+      skills: ["Gestion de la chaîne d'approvisionnement"],
+    });
+    const criteria = { targetRole: "Directeur supply chain", location: "Lille", contractType: "cdi", minSalary: 95_000 };
+    const { status, body } = await matchScore(guest, { jobOfferId: offer.id, cv: supplyChainCv, searchCriteria: criteria });
+
+    expect(status).toBe(200);
+    expect(body.breakdown.skills).toEqual({ status: "match", covered: ["Gestion de la chaîne d'approvisionnement"], missing: [] });
+    // Skills 40, location 15, salary partial 5, contract 15 = 75 of the 80 points known (seniority not stated).
+    expect(body.score).toBe(94);
+    await guest.dispose();
+  });
+});

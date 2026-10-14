@@ -63,6 +63,8 @@ export interface JobSearch {
   id: string;
   profile: { id: string; name: string };
   status: JobSearchStatus;
+  /** Why it failed; null unless it failed. */
+  failure: JobSearchFailure | null;
   startedAt: Date;
   /** Best Match Score first. Empty until the search is done. */
   results: JobSearchResult[];
@@ -167,6 +169,7 @@ interface JobSearchRow {
   id: string;
   profile_id: string;
   status: JobSearchStatus;
+  failure: string | null;
   job_offer_ids: string[];
   started_at: Date;
   metrics: JobSearchMetrics | null;
@@ -264,13 +267,14 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
         // Stable: equal Match Scores keep the order Job discovery found them in.
         .sort((a, b) => b.matchScore.score - a.matchScore.score);
     }
-    return { id: row.id, profile: { id: profile.id, name: profile.name }, status, startedAt: row.started_at, results, metrics: row.metrics };
+    const failure = status === "failed" ? failureOf(row.failure) : null;
+    return { id: row.id, profile: { id: profile.id, name: profile.name }, status, failure, startedAt: row.started_at, results, metrics: row.metrics };
   }
 
   async function get(candidateId: string, jobSearchId: string): Promise<JobSearch | null> {
     if (!UUID.test(jobSearchId)) return null;
     const { rows } = await database.query<JobSearchRow>(
-      "SELECT id, profile_id, status, job_offer_ids, started_at, metrics FROM job_search WHERE id = $1 AND candidate_id = $2",
+      "SELECT id, profile_id, status, failure, job_offer_ids, started_at, metrics FROM job_search WHERE id = $1 AND candidate_id = $2",
       [jobSearchId, candidateId],
     );
     return rows[0] ? jobSearchFrom(candidateId, rows[0]) : null;
@@ -290,7 +294,7 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
 
       const { rows } = await database.query<JobSearchRow>(
         `INSERT INTO job_search (candidate_id, profile_id, started_at) VALUES ($1, $2, $3)
-         RETURNING id, profile_id, status, job_offer_ids, started_at, metrics`,
+         RETURNING id, profile_id, status, failure, job_offer_ids, started_at, metrics`,
         [candidateId, profile.id, now()],
       );
       const row = rows[0]!;
@@ -304,7 +308,7 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
         if (failed) return { ok: true, jobSearch: failed };
       }
       const { id, status, started_at: startedAt, metrics } = row;
-      return { ok: true, jobSearch: { id, profile: { id: profile.id, name: profile.name }, status, startedAt, results: [], metrics } };
+      return { ok: true, jobSearch: { id, profile: { id: profile.id, name: profile.name }, status, failure: null, startedAt, results: [], metrics } };
     },
     get,
     record,

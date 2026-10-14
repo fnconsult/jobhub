@@ -164,13 +164,13 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
   it("shows a Job Search as failed when Job discovery could not run, or never answered", async () => {
     const failed = await started();
     await jobSearches.record(failed.id, { failed: "unavailable" });
-    expect(await jobSearches.get(candidateId, failed.id)).toMatchObject({ status: "failed", results: [] });
+    expect(await jobSearches.get(candidateId, failed.id)).toMatchObject({ status: "failed", failure: "unavailable", results: [] });
 
     const forgotten = await started();
     clock.now = new Date(clock.now.getTime() + 14 * 60 * 1000);
     expect((await jobSearches.get(candidateId, forgotten.id))?.status).toBe("searching");
     clock.now = new Date(clock.now.getTime() + 2 * 60 * 1000);
-    expect((await jobSearches.get(candidateId, forgotten.id))?.status).toBe("failed");
+    expect(await jobSearches.get(candidateId, forgotten.id)).toMatchObject({ status: "failed", failure: "timeout" });
   });
 
   it("does not change a finished Job Search when Job discovery reports again", async () => {
@@ -338,6 +338,18 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     });
   });
   describe("Job Search notifications", () => {
+    it("counts only the Job Offers the Job Search page shows: not Expired ones", async () => {
+      const expired = await capture("DAF H/F", { location: "Lyon" });
+      const published = await capture("Contrôleur de gestion", { location: "Lyon" });
+      const jobSearch = await started();
+      await jobSearches.record(jobSearch.id, { jobOfferIds: [expired, published] });
+      const sourceChecks = createSourceChecks(testAuth.auth.options.database as Pool);
+      await sourceChecks.record(expired, "gone", new Date(Date.now() + 3 * 86_400_000));
+      await sourceChecks.record(expired, "gone", new Date(Date.now() + 6 * 86_400_000));
+
+      expect((await jobSearches.notifications(candidateId)).notifications[0]?.outcome).toEqual({ status: "done", found: 1 });
+    });
+
     it("stops telling the Candidate once they dismiss it, and only they can", async () => {
       const first = await started();
       await jobSearches.record(first.id, { jobOfferIds: [] });

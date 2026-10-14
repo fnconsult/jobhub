@@ -90,8 +90,8 @@ export interface DiscoverRequest {
 
 /**
  * Why a result page gave no Job Offer. `too_old`: its Posting date (stated by
- * its ATS, its JobPosting data or the search provider) is more than
- * MAX_POSTING_AGE_DAYS ago.
+ * its ATS, its JobPosting data or the search provider, or stored with the Job
+ * Offer it leads to) is more than MAX_POSTING_AGE_DAYS ago.
  */
 export type SkipReason = RefusalReason | "not_a_job_offer" | "invalid" | "too_old";
 // The Job discovery metrics count pages by these reasons: the two lists must stay the same.
@@ -181,7 +181,15 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
       /** URLs looked at in this run, so a posting a listing page links to is not read twice. */
       const seen = new Set<string>();
       const storedAt = (url: string) => options.jobOffers.findBySourceUrl(url).catch(() => null);
-      const alreadyStored = (jobOffer: JobOffer) => {
+      /**
+       * Lists a Job Offer stored by an earlier run (or earlier in this one) that `url` leads to, unless its Posting
+       * date is now more than 30 days ago: the freshness rule holds for every Job Offer a Job Search finds, stored or not.
+       */
+      const alreadyStored = (url: string, jobOffer: JobOffer) => {
+        if (isPostingTooOld(jobOffer.postedAt, new Date(clock.now()))) {
+          skipped.push({ url, reason: "too_old" });
+          return;
+        }
         found.set(jobOffer.id, jobOffer);
         funnel.alreadyStored++;
       };
@@ -215,7 +223,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         seen.add(url);
         const known = await storedAt(url);
         if (known) {
-          alreadyStored(known);
+          alreadyStored(url, known);
           return;
         }
         // A Greenhouse, Lever or Ashby posting is read through its ATS's JSON API, which states its date and status;
@@ -233,7 +241,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         // A result can redirect to a page captured earlier (in this run or before): use that Job Offer.
         const page = await fetcher.page(url, storedAt);
         if (page.ok === "known") {
-          alreadyStored(page.known);
+          alreadyStored(url, page.known);
           return;
         }
         if (!page.ok) {

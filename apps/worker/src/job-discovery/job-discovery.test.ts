@@ -889,6 +889,40 @@ describe("Job discovery", () => {
       ]);
       expect(report.skipped).toEqual([]);
     });
+
+    describe("a Job Offer stored by an earlier run, found again", () => {
+      // Posted 25 days before an earlier run stored it; now, 7 days later, posted 32 days ago.
+      const staleStored: JobOffer = { id: "stored-old", source: { url: OLD }, title: "DAF ancien", content: "Poste de DAF ancien.", postedAt: new Date("2026-09-12T08:00:00Z") };
+      const freshStored: JobOffer = { id: "stored-recent", source: { url: RECENT }, title: "DAF récent", content: "Poste de DAF récent.", postedAt: new Date("2026-10-01T00:00:00Z") };
+      const undatedStored: JobOffer = { id: "stored-undated", source: { url: UNDATED }, title: "DAF sans date", content: "Poste de DAF sans date." };
+
+      it("drops it once its Posting date is more than 30 days ago, and keeps a recent or undated one", async () => {
+        const { discovery, web } = setup({ sources: [OLD, RECENT, UNDATED], pages: {}, existing: [staleStored, freshStored, undatedStored], now: NOW });
+
+        const report = await discovery.discover({ candidateId: "c", criteria });
+
+        expect(report.jobOffers.map((offer) => offer.id)).toEqual(["stored-recent", "stored-undated"]);
+        expect(report.skipped).toEqual([{ url: OLD, reason: "too_old" }]);
+        expect(report.funnel.alreadyStored).toBe(2);
+        expect(web.fetched()).toEqual([]);
+      });
+
+      it("drops it too when another result redirects to it", async () => {
+        const board = "https://boards.example.fr/acme/jobs/41";
+        const { discovery } = setup({
+          sources: [board],
+          pages: { [board]: { status: 302, headers: { location: OLD } } },
+          existing: [staleStored],
+          now: NOW,
+        });
+
+        const report = await discovery.discover({ candidateId: "c", criteria });
+
+        expect(report.jobOffers).toEqual([]);
+        expect(report.skipped).toEqual([{ url: board, reason: "too_old" }]);
+        expect(report.funnel.alreadyStored).toBe(0);
+      });
+    });
   });
 
   describe("deduplicating against existing Job Offers", () => {

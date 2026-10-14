@@ -207,6 +207,16 @@ describe("Brave provider", () => {
     });
   });
 
+  it("favours a country, and gives a further page of results by its offset, up to Brave's 10 pages", async () => {
+    const { fetch, requests } = fakeFetch(reply);
+    const provider = createBraveProvider({ apiKey: "bk", fetch });
+
+    await provider.search!(query, { filters: { country: "fr" }, page: 3 });
+
+    expect(provider.searchPages).toBe(10);
+    expect(Object.fromEntries(requests[0]!.url.searchParams)).toEqual({ q: query, count: "20", country: "FR", offset: "2" });
+  });
+
   it("has no exclusion filter, so excluded domains are left to the caller's own checks", async () => {
     const { fetch, requests } = fakeFetch(reply);
     await createBraveProvider({ apiKey: "bk", fetch }).search!(query, { filters: { excludeDomains: ["indeed.fr"] } });

@@ -276,6 +276,63 @@ describe("Perplexity provider", () => {
     });
   });
 
+  describe("narrowing a search with the web_search tool's own filters", () => {
+    const toolOf = async (options: Parameters<NonNullable<ReturnType<typeof createPerplexityProvider>["search"]>>[1]) => {
+      const { fetch, requests } = fakeFetch(perplexityReply);
+      await createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", options);
+      return (requests[0]!.body as { tools: unknown[] }).tools[0];
+    };
+
+    it("excludes domains, keeps to a recency window and favours a country", async () => {
+      expect(await toolOf({ filters: { excludeDomains: ["linkedin.com", " indeed.fr "], maxAgeDays: 30, country: "FR" } })).toEqual({
+        type: "web_search",
+        filters: { search_domain_filter: ["-linkedin.com", "-indeed.fr"], search_recency_filter: "month" },
+        user_location: { country: "FR" },
+      });
+    });
+
+    it("restricts to included domains alone: Perplexity cannot mix them with exclusions", async () => {
+      expect(await toolOf({ filters: { includeDomains: ["apec.fr", "cadremploi.fr"], excludeDomains: ["indeed.fr"] } })).toEqual({
+        type: "web_search",
+        filters: { search_domain_filter: ["apec.fr", "cadremploi.fr"] },
+      });
+    });
+
+    it("keeps to Perplexity's 20 domains", async () => {
+      const domains = Array.from({ length: 25 }, (_, index) => `site${index}.fr`);
+      const tool = (await toolOf({ filters: { excludeDomains: domains } })) as { filters: { search_domain_filter: string[] } };
+      expect(tool.filters.search_domain_filter).toEqual(domains.slice(0, 20).map((domain) => `-${domain}`));
+    });
+
+    it.each([
+      [1, "day"],
+      [7, "week"],
+      [8, "month"],
+      [31, "month"],
+      [200, "year"],
+    ])("widens a %i-day freshness window to Perplexity's %s", async (maxAgeDays, recency) => {
+      expect(await toolOf({ filters: { maxAgeDays } })).toEqual({ type: "web_search", filters: { search_recency_filter: recency } });
+    });
+
+    it("applies no recency filter to a window longer than a year", async () => {
+      expect(await toolOf({ filters: { maxAgeDays: 400 } })).toEqual({ type: "web_search" });
+    });
+  });
+
+  it("gives a further page of results by asking for more of them (it has no offset), up to 5 pages of 10", async () => {
+    const { fetch, requests } = fakeFetch(perplexityReply);
+    const provider = createPerplexityProvider({ apiKey: "pk", fetch });
+
+    await provider.search!("q", { page: 2 });
+    await provider.search!("q", { page: 5 });
+
+    expect(provider.searchPages).toBe(5);
+    expect(requests.map((request) => (request.body as { tools: unknown[] }).tools[0])).toEqual([
+      { type: "web_search", max_results: 20 },
+      { type: "web_search", max_results: 50 },
+    ]);
+  });
+
   it("uses the configured model (provider/model) on top of the preset", async () => {
     const { fetch, requests } = fakeFetch(perplexityReply);
     await createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", { model: "perplexity/sonar" });

@@ -227,7 +227,8 @@ test.describe("below 64rem", () => {
     // Focus goes into the drawer, onto the current page's link.
     await expect(nav.getByRole("link", { name: fr.nav.account })).toBeFocused();
     // The page behind is out of reach while it is open.
-    await expect(page.getByRole("main")).toHaveCount(0);
+    // (Radix hides the page's content, not <main> itself, which holds a live region.)
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(0);
 
     await page.keyboard.press("Escape");
     await expect(drawer(page)).toHaveCount(0);

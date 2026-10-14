@@ -1516,9 +1516,6 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 }
 
 .row-main {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
   min-width: 0;
 }
 
@@ -1530,9 +1527,10 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 }
 
 .row-title a {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--control-height);
+  /* A 2.75rem target that keeps the title close to its facts: the padding is taken back by the margin. */
+  display: inline-block;
+  padding-block: 0.625rem;
+  margin-block: -0.625rem;
   color: var(--color-text);
   text-decoration: none;
   overflow-wrap: anywhere;
@@ -1619,7 +1617,7 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   border-color: transparent;
 }
 
-details.why {
+details.why[open] {
   flex-basis: 100%;
 }
 

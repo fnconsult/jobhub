@@ -208,8 +208,11 @@ test.describe("On-demand AI Coach job search", () => {
       const results = foundJobOffers(page);
       await expect(results, workerOutput).toHaveCount(2, { timeout: 90_000 });
       for (const why of await page.getByText(/^Pourquoi \d+ \?$/).all()) await why.click();
+      // With JOB_SEARCH_SCREENSHOTS_DIR set, the page is also captured at each width (docs/screenshots/job-search-results).
+      const screenshots = process.env.JOB_SEARCH_SCREENSHOTS_DIR;
+      if (screenshots) mkdirSync(screenshots, { recursive: true });
 
-      for (const size of [{ width: 1440, height: 900 }, { width: 375, height: 812 }]) {
+      for (const size of [{ width: 1440, height: 900 }, { width: 900, height: 1000 }, { width: 375, height: 812 }]) {
         await page.setViewportSize(size);
         const main = page.getByRole("main");
         await expect(main.getByRole("heading", { level: 1 })).toBeVisible();
@@ -223,6 +226,8 @@ test.describe("On-demand AI Coach job search", () => {
           expect.soft(box.height, `height of "${await target.innerText()}" at ${size.width}px`).toBeGreaterThanOrEqual(44);
         }
         expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), `sideways scroll at ${size.width}px`).toBe(0);
+        if (screenshots) await page.evaluate(() => window.scrollTo(0, 0));
+        if (screenshots) await page.screenshot({ path: path.join(screenshots, `${size.width}.png`) });
       }
     });
   });

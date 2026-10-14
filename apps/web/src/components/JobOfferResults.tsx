@@ -21,8 +21,9 @@ const VERDICT_TONE: Partial<Record<CriterionStatus, string>> = { match: "success
  * Job Offers found for a Profile, in the order given (best Match Score first),
  * as the rows of the prototype (#132): the title (to the Job Offer), its key
  * facts on one line (its Posting date, or "date inconnue"), the Match Score
- * with a meter, a one-click save as an Application with that Profile (or the
- * Application once saved), and "Pourquoi 86 ?" opening the score's reasons.
+ * with a meter, a one-click save as an Application with that Profile and a
+ * link to read the Job Offer (once saved: the Application, marked "Enregistrée"),
+ * and "Pourquoi 86 ?" opening the score's reasons.
  * The results view of Job Searches and Job Digests.
  */
 export function JobOfferResults({ results, profileId, t, locale }: { results: JobOfferResult[]; profileId: string; t: TFunction; locale: string }) {
@@ -83,11 +84,13 @@ function Result({ result, profileId, t, locale }: { result: JobOfferResult; prof
             </span>
           </>
         ) : (
-          <SaveSearchResultButton jobOfferId={jobOffer.id} profileId={profileId} describedBy={titleId} />
+          <>
+            <SaveSearchResultButton jobOfferId={jobOffer.id} profileId={profileId} describedBy={titleId} />
+            <Link className="button button-quiet" href={routes.jobOffer(jobOffer.id)} aria-describedby={titleId}>
+              {t("jobSearch.seeJobOffer")}
+            </Link>
+          </>
         )}
-        <Link className="button button-quiet" href={routes.jobOffer(jobOffer.id)} aria-describedby={titleId}>
-          {t("jobSearch.seeJobOffer")}
-        </Link>
         <details className="why">
           <summary>{t("jobSearch.why", { score })}</summary>
           <ul className="breakdown">

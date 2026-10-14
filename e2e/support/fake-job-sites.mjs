@@ -30,11 +30,18 @@ const volume = process.env.E2E_DISCOVERY_VOLUME_COUNT
     }
   : null;
 
-/** The posting the careers site publishes as JobPosting JSON-LD (and the mirror site copies). */
+/** When the careers site says it published its posting: 3 days ago, so it is a Posting date of the last 30 days (#116). */
+const JSON_LD_DATE_POSTED = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+/**
+ * The posting the careers site publishes as JobPosting JSON-LD (and the mirror site copies), dated.
+ * The plain posting only an LLM can read states no date: it is undated.
+ */
 const jsonLdPosting = {
   "@context": "https://schema.org",
   "@type": "JobPosting",
   title: `Directeur administratif et financier (H/F) – réf. ${tag}`,
+  datePosted: JSON_LD_DATE_POSTED,
   description: `<p>Acme Industrie recrute son DAF (réf. ${tag}).</p><p>Vous pilotez la finance du groupe. Poste basé à Lyon.</p>`,
   hiringOrganization: { "@type": "Organization", name: "Acme Industrie" },
   jobLocation: { "@type": "Place", address: { "@type": "PostalAddress", addressLocality: "Lyon", postalCode: "69002" } },

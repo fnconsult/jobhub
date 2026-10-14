@@ -143,6 +143,12 @@ test.describe("On-demand AI Coach job search", () => {
     await expect(daf).toContainText("Lyon");
     await expect(daf).toContainText("De 110 000 à 130 000 € brut par an");
     await expect(daf).toContainText("carrieres.acme-e2e.example");
+    // The freshness rule (#116): the careers page's JobPosting dates it; the page only the LLM read states no date.
+    await expect(daf.getByRole("definition").filter({ hasText: /^\d{1,2} \S+ \d{4}$/ })).toHaveCount(1);
+    await expect(daf).toContainText("Date de publication");
+    await expect(daf).not.toContainText("date inconnue");
+    const undated = results.filter({ hasText: `Responsable financier (lu par l'IA) – réf. ${tag}` });
+    await expect(undated.getByText("date inconnue", { exact: true })).toBeVisible();
 
     await daf.getByRole("button", { name: "Enregistrer en candidature" }).click();
     await expect(daf.getByText("Enregistrée dans vos candidatures.")).toBeVisible();

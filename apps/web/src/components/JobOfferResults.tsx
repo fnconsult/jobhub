@@ -15,8 +15,8 @@ export interface JobOfferResult {
 
 /**
  * Job Offers found for a Profile, in the order given (best Match Score first),
- * each with its key facts and a one-click save as an Application with that
- * Profile. The results view of Job Searches and Job Digests.
+ * each with its key facts (its Posting date, or "date unknown") and a one-click
+ * save as an Application with that Profile. The results view of Job Searches and Job Digests.
  */
 export function JobOfferResults({ results, profileId, t, locale }: { results: JobOfferResult[]; profileId: string; t: TFunction; locale: string }) {
   return (
@@ -33,11 +33,15 @@ function Result({ result, profileId, t, locale }: { result: JobOfferResult; prof
   const salary = jobOfferSalary(jobOffer, t, locale);
   const site = jobOfferSite(jobOffer);
   const titleId = `search-result-${jobOffer.id}`;
+  const postedOn = jobOffer.postedAt
+    ? new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(new Date(jobOffer.postedAt))
+    : null;
   return (
     <li className="search-result">
       <h2 id={titleId}>{jobOffer.title}</h2>
       <p className="match-score-value">{t("jobSearch.matchScore", { score: matchScore.score })}</p>
       <dl className="job-offer-details">
+        <Fact term={t("jobOffer.postedAt")}>{postedOn ?? <span className="date-unknown">{t("jobOffer.dateUnknown")}</span>}</Fact>
         {jobOffer.employer ? <Fact term={t("jobOffer.employer")}>{jobOffer.employer}</Fact> : null}
         {jobOffer.location ? <Fact term={t("jobOffer.location")}>{jobOffer.location}</Fact> : null}
         {jobOffer.contractType ? <Fact term={t("jobOffer.contractType")}>{t(`cvReview.contractTypes.${jobOffer.contractType}`)}</Fact> : null}

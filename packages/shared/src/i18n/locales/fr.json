@@ -687,6 +687,25 @@
     "errors": {
       "archived": "Ce profil est archivé. Restaurez-le pour chercher des offres.",
       "generic": "La recherche n'a pas pu être lancée. Vérifiez votre connexion et réessayez."
+    },
+    "failureReasons": {
+      "timeout": "Elle a pris trop de temps et a été interrompue.",
+      "queue_unavailable": "Le service de recherche était momentanément indisponible : elle n'a pas pu démarrer.",
+      "profile_unavailable": "Le profil a été archivé ou supprimé avant le début de la recherche.",
+      "unavailable": "La recherche d'offres est momentanément indisponible.",
+      "discovery_failed": "Les sites d'offres d'emploi n'ont pas pu être consultés.",
+      "other": "Un problème technique l'a interrompue."
+    },
+    "notCounted": "Elle n'est pas comptée dans vos recherches d'offres du mois.",
+    "notifications": {
+      "label": "Recherches d'offres terminées",
+      "done_zero": "Votre recherche d'offres pour « {{profile}} » est terminée : aucune offre trouvée.",
+      "done_one": "Votre recherche d'offres pour « {{profile}} » est terminée : {{count}} offre trouvée.",
+      "done_other": "Votre recherche d'offres pour « {{profile}} » est terminée : {{count}} offres trouvées.",
+      "failed": "Votre recherche d'offres pour « {{profile}} » n'a pas abouti.",
+      "seeResults": "Voir les offres",
+      "seeSearch": "Voir la recherche",
+      "dismiss": "Fermer"
     }
   },
   "companyDossier": {

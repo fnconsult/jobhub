@@ -687,6 +687,25 @@
     "errors": {
       "archived": "This profile is archived. Restore it to search for job offers.",
       "generic": "The search could not be started. Check your connection and try again."
+    },
+    "failureReasons": {
+      "timeout": "It took too long and was stopped.",
+      "queue_unavailable": "The search service was briefly unavailable, so it could not start.",
+      "profile_unavailable": "The profile was archived or deleted before the search began.",
+      "unavailable": "Job search is briefly unavailable.",
+      "discovery_failed": "The job sites could not be reached.",
+      "other": "A technical problem stopped it."
+    },
+    "notCounted": "It does not count toward this month's job searches.",
+    "notifications": {
+      "label": "Finished job searches",
+      "done_zero": "Your job search for \"{{profile}}\" is finished: no job offers found.",
+      "done_one": "Your job search for \"{{profile}}\" is finished: {{count}} job offer found.",
+      "done_other": "Your job search for \"{{profile}}\" is finished: {{count}} job offers found.",
+      "failed": "Your job search for \"{{profile}}\" did not succeed.",
+      "seeResults": "See the job offers",
+      "seeSearch": "See the search",
+      "dismiss": "Close"
     }
   },
   "companyDossier": {

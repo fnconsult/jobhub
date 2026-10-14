@@ -1,9 +1,9 @@
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
-import type { CoachReply } from "../coach";
+import type { CoachMessageCost, CoachReply } from "../coach";
 import { createProfiles, migrateProfiles } from "../profiles";
-import { createCoachConversations, migrateCoachConversations, purgeStaleCoachConversations, type CoachConversations } from "./index";
+import { coachCostPerDay, createCoachConversations, migrateCoachConversations, purgeStaleCoachConversations, type CoachConversations } from "./index";
 
 const masterCv = {
   fullName: "Marie Dupont",
@@ -18,6 +18,17 @@ const masterCv = {
   languages: [],
 };
 
+/** What an AI Coach reply cost, in the tests: Claude unless said otherwise. */
+const cost = (eur: number, overrides: Partial<CoachMessageCost> = {}): CoachMessageCost => ({
+  provider: "anthropic",
+  model: "claude-opus-5-5",
+  inputTokens: 1_200,
+  outputTokens: 300,
+  cachedInputTokens: 0,
+  eur,
+  ...overrides,
+});
+
 /** What the AI Coach was asked, per call: the messages and what was in view. */
 type Asked = { candidateId: string; input: { messages: { from: string; text: string }[]; focus?: unknown } };
 
@@ -29,6 +40,7 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
   let asked: Asked[];
   let coachReply: (n: number) => CoachReply;
   let conversations: CoachConversations;
+  let now: Date;
 
   async function candidate(email: string): Promise<string> {
     const cookie = await signInWithMagicLink(testAuth, email);
@@ -44,14 +56,15 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     marie = await candidate("marie.dupont@example.fr");
     jean = await candidate("jean.martin@example.fr");
     asked = [];
-    coachReply = (n) => ({ ok: true, reply: `Réponse ${n}` });
+    coachReply = (n) => ({ ok: true, reply: `Réponse ${n}`, cost: cost(0.01) });
+    now = new Date();
     const coach = {
       async reply(candidateId: string, input: unknown) {
         asked.push({ candidateId, input: input as Asked["input"] });
         return coachReply(asked.length);
       },
     };
-    conversations = createCoachConversations(database, { coach, profiles: createProfiles(database) });
+    conversations = createCoachConversations(database, { coach, profiles: createProfiles(database), now: () => now });
   });
   afterEach(async () => {
     await testAuth.stop();
@@ -184,6 +197,63 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     expect(await purgeStaleCoachConversations(database, inMonths(12, 1))).toBe(1);
     expect(await conversations.open(marie, sent.conversation.id)).toBeNull();
     expect(await conversations.list(marie)).toEqual([]);
+  });
+
+  it("records each AI Coach reply's tokens and cost, so the median and p90 cost per day (Paris time) can be followed", async () => {
+    // 13 October, Paris time: five replies from Claude, cached input on one of them.
+    const costs = [0.05, 0.01, 0.04, 0.02, 0.03];
+    coachReply = (n) => ({ ok: true, reply: `Réponse ${n}`, cost: cost(costs[n - 1]!, n === 1 ? { inputTokens: 900, cachedInputTokens: 18_000 } : {}) });
+    now = new Date("2026-10-13T08:00:00Z");
+    const first = await conversations.send(marie, { message: "Bonjour" });
+    if (!first.ok) throw new Error("refused");
+    for (const message of ["Mon CV ?", "Et ma lettre ?", "Merci"]) await conversations.send(marie, { conversationId: first.conversation.id, message });
+    now = new Date("2026-10-13T21:59:00Z"); // 23:59 in Paris
+    await conversations.send(jean, { message: "Bonsoir" });
+    // 14 October, Paris time (22:30 UTC on the 13th): one reply from Mistral.
+    coachReply = (n) => ({ ok: true, reply: `Réponse ${n}`, cost: cost(0.002, { provider: "mistral", model: "mistral-large-latest" }) });
+    now = new Date("2026-10-13T22:30:00Z");
+    await conversations.send(marie, { message: "Une question" });
+
+    const days = await coachCostPerDay(database, new Date("2026-10-01T00:00:00Z"));
+
+    // Newest day first. Percentiles are interpolated: the p90 of 0.01 to 0.05 is 0.046.
+    expect(days).toMatchObject([
+      { day: "2026-10-14", messages: 1, medianEur: expect.closeTo(0.002, 9), p90Eur: expect.closeTo(0.002, 9) },
+      { day: "2026-10-13", messages: 5, medianEur: expect.closeTo(0.03, 9), p90Eur: expect.closeTo(0.046, 9) },
+    ]);
+    // Days before `since` are left out.
+    expect(await coachCostPerDay(database, new Date("2026-10-14T00:00:00+02:00"))).toMatchObject([{ day: "2026-10-14" }]);
+  });
+
+  it("adds up each day's tokens in, out and cached, and says which provider and model answered", async () => {
+    now = new Date("2026-10-13T08:00:00Z");
+    coachReply = () => ({ ok: true, reply: "Réponse", cost: cost(0.012, { inputTokens: 900, outputTokens: 250, cachedInputTokens: 18_000 }) });
+    await conversations.send(marie, { message: "Bonjour" });
+    coachReply = () => ({ ok: true, reply: "Réponse", cost: cost(0.002, { provider: "mistral", model: "mistral-large-latest", inputTokens: 4_000, outputTokens: 100 }) });
+    await conversations.send(jean, { message: "Bonjour" });
+    await conversations.send(jean, { message: "Merci" });
+
+    expect(await coachCostPerDay(database, new Date("2026-10-01T00:00:00Z"))).toMatchObject([
+      {
+        day: "2026-10-13",
+        messages: 3,
+        inputTokens: 8_900,
+        outputTokens: 450,
+        cachedInputTokens: 18_000,
+        models: [
+          { provider: "mistral", model: "mistral-large-latest", messages: 2 },
+          { provider: "anthropic", model: "claude-opus-5-5", messages: 1 },
+        ],
+      },
+    ]);
+  });
+
+  it("reports no day until the AI Coach has answered", async () => {
+    // Nothing answered yet: no day to report.
+    expect(await coachCostPerDay(database, new Date(0))).toEqual([]);
+    coachReply = () => ({ ok: false, error: "unavailable" });
+    await conversations.send(marie, { message: "Bonjour" });
+    expect(await coachCostPerDay(database, new Date(0))).toEqual([]);
   });
 
   it("names a new conversation after the start of its first message", async () => {

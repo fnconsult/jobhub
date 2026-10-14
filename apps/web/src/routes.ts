@@ -28,4 +28,6 @@ export const routes = {
   admin: "/admin",
   adminPlanQuotas: "/admin/quotas",
   adminHumanCoaches: "/admin/coachs",
+  /** The AI Coach's cost per reply, per day: median and p90 against the target. */
+  adminCoachCost: "/admin/cout-coach",
 } as const;

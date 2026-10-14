@@ -29,9 +29,17 @@ export const SEARCH_TASK = "web_search";
 export type SearchTask = typeof SEARCH_TASK;
 export type AiTask = TextTask | SearchTask;
 
+/**
+ * The tokens of one AI call. `inputTokens` is the input not read from the provider's prompt cache
+ * (it includes any input written to the cache); cached input is counted apart, as it is priced apart.
+ */
 export interface TokenUsage {
   inputTokens: number;
   outputTokens: number;
+  /** Input read from the provider's prompt cache. Absent or 0 when nothing was. */
+  cachedInputTokens?: number;
+  /** How many of `inputTokens` were written to the provider's prompt cache (Anthropic only). */
+  cacheWriteTokens?: number;
 }
 
 export interface Message {

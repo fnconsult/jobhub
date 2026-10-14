@@ -13,13 +13,16 @@
  *  - `open` one with its messages; `rename` it; `delete` it.
  * Every read and change is scoped to the Candidate: another Candidate's
  * conversation is "not found". Never throws for bad input: an error code comes back.
+ * Each AI Coach message is saved with what it cost (provider, model, tokens in,
+ * out and cached, estimated €); `coachCostPerDay` gives the Administrator the
+ * median and p90 cost per day, to check the €0.03 per message target (#127).
  * Kept RETENTION_MONTHS after their last message (`purgeStaleCoachConversations`,
  * run daily by the worker) and deleted with the account (ADR-0010). Human
  * Coaches never read them: Coach Access covers Profiles and Applications only.
  */
 import type { Pool } from "pg";
 import * as z from "zod";
-import type { Coach, CoachFocus } from "../coach";
+import type { Coach, CoachFocus, CoachMessageCost } from "../coach";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, type CoachMessage } from "../coach/conversation";
 import type { Profiles } from "../profiles";
 
@@ -55,6 +58,8 @@ export interface CoachConversations {
 export interface CoachConversationsDeps {
   coach: Pick<Coach, "reply">;
   profiles: Pick<Profiles, "get">;
+  /** When messages are sent. Default: the system clock. */
+  now?: () => Date;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -96,6 +101,7 @@ function titleFrom(message: string): string {
 }
 
 export function createCoachConversations(database: Pool, deps: CoachConversationsDeps): CoachConversations {
+  const now = deps.now ?? (() => new Date());
   async function find(candidateId: string, conversationId: string): Promise<CoachConversationSummary | null> {
     if (!UUID.test(conversationId)) return null;
     const { rows } = await database.query<ConversationRow>(`${SUMMARY} WHERE c.id = $1 AND c.candidate_id = $2`, [conversationId, candidateId]);
@@ -126,6 +132,8 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
       const answer = await deps.coach.reply(candidateId, { messages: [...history, { from: "candidate", text: message }], ...(focus ? { focus } : {}) });
       if (!answer.ok) return answer;
 
+      const sentAt = now();
+      const { cost } = answer;
       const client = await database.connect();
       try {
         await client.query("BEGIN");
@@ -133,16 +141,18 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
         if (!id) {
           const profileId = await profileInView(candidateId, focus);
           const { rows } = await client.query<{ id: string }>(
-            `INSERT INTO coach_conversation (candidate_id, profile_id, title) VALUES ($1, $2, $3) RETURNING id`,
-            [candidateId, profileId, titleFrom(message)],
+            `INSERT INTO coach_conversation (candidate_id, profile_id, title, created_at, last_message_at) VALUES ($1, $2, $3, $4, $4) RETURNING id`,
+            [candidateId, profileId, titleFrom(message), sentAt],
           );
           id = rows[0]!.id;
         }
+        await client.query(`INSERT INTO coach_message (conversation_id, author, text, created_at) VALUES ($1, 'candidate', $2, $3)`, [id, message, sentAt]);
         await client.query(
-          `INSERT INTO coach_message (conversation_id, author, text) VALUES ($1, 'candidate', $2), ($1, 'coach', $3)`,
-          [id, message, answer.reply],
+          `INSERT INTO coach_message (conversation_id, author, text, created_at, provider, model, input_tokens, output_tokens, cached_input_tokens, cost_eur)
+           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [id, answer.reply, sentAt, cost.provider, cost.model, cost.inputTokens, cost.outputTokens, cost.cachedInputTokens, cost.eur],
         );
-        await client.query(`UPDATE coach_conversation SET last_message_at = now() WHERE id = $1`, [id]);
+        await client.query(`UPDATE coach_conversation SET last_message_at = $2 WHERE id = $1`, [id, sentAt]);
         await client.query("COMMIT");
         const conversation = await find(candidateId, id);
         if (!conversation) return { ok: false, error: "not_found" }; // deleted meanwhile
@@ -195,6 +205,55 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
   }
 }
 
+/** The most one AI Coach reply should cost, in € (#122). */
+export const COACH_MESSAGE_COST_TARGET_EUR = 0.03;
+
+/** What the AI Coach's replies cost on one day, Paris time. */
+export interface CoachCostDay {
+  /** "2026-10-14". */
+  day: string;
+  /** AI Coach replies that day. */
+  messages: number;
+  /** Median and 90th percentile of the estimated cost of one reply, in € (interpolated). */
+  medianEur: number;
+  p90Eur: number;
+  /** Tokens of all that day's replies: input not cached, output, cached input. */
+  inputTokens: number;
+  outputTokens: number;
+  cachedInputTokens: number;
+  /** Who answered, most replies first. */
+  models: { provider: CoachMessageCost["provider"]; model: string; messages: number }[];
+}
+
+/**
+ * The cost of the AI Coach's replies per day (Paris time) from `since` on, newest day first.
+ * Costs are estimates at list prices, frozen when each reply was saved. Replies of deleted
+ * Coach Conversations are gone with them.
+ */
+export async function coachCostPerDay(database: Pick<Pool, "query">, since: Date): Promise<CoachCostDay[]> {
+  const { rows } = await database.query<CoachCostDay>(
+    `WITH costed AS (
+       SELECT to_char(created_at AT TIME ZONE 'Europe/Paris', 'YYYY-MM-DD') AS day, provider, model,
+              input_tokens, output_tokens, cached_input_tokens, cost_eur
+         FROM coach_message WHERE author = 'coach' AND cost_eur IS NOT NULL AND created_at >= $1
+     ), models AS (
+       SELECT day, jsonb_agg(jsonb_build_object('provider', provider, 'model', model, 'messages', messages) ORDER BY messages DESC, provider, model) AS models
+         FROM (SELECT day, provider, model, count(*)::int AS messages FROM costed GROUP BY day, provider, model) per_model
+        GROUP BY day
+     )
+     SELECT c.day, count(*)::int AS messages,
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY c.cost_eur) AS "medianEur",
+            percentile_cont(0.9) WITHIN GROUP (ORDER BY c.cost_eur) AS "p90Eur",
+            sum(c.input_tokens)::float8 AS "inputTokens", sum(c.output_tokens)::float8 AS "outputTokens",
+            sum(c.cached_input_tokens)::float8 AS "cachedInputTokens", m.models
+       FROM costed c JOIN models m USING (day)
+      GROUP BY c.day, m.models
+      ORDER BY c.day DESC`,
+    [since],
+  );
+  return rows;
+}
+
 /** How long a Coach Conversation is kept after its last message. */
 export const RETENTION_MONTHS = 12;
 
@@ -231,5 +290,13 @@ export async function migrateCoachConversations(database: Pool): Promise<void> {
       created_at timestamptz NOT NULL DEFAULT now()
     );
     CREATE INDEX IF NOT EXISTS coach_message_conversation_idx ON coach_message (conversation_id, seq);
+    -- What each AI Coach message cost (#127); null on the Candidate's messages and on replies saved before.
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS provider text;
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS model text;
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS input_tokens integer;
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS output_tokens integer;
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS cached_input_tokens integer;
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS cost_eur double precision;
+    CREATE INDEX IF NOT EXISTS coach_message_costed_idx ON coach_message (created_at) WHERE cost_eur IS NOT NULL;
   `);
 }

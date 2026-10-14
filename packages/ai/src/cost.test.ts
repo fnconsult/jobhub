@@ -17,9 +17,30 @@ describe("the cost in € of an AI call", () => {
   });
 
   it("prices a known model at its own rate, any other at its provider's default", () => {
-    expect(costInEur({ provider: "anthropic", model: "anthropic.claude-opus-5-5", usage: usage(1_000_000, 0) })).toBeCloseTo(4.3, 6);
+    // Opus 5.5: $4 / $20 per million tokens; Sonnet 5.5: $2 / $10 (list prices checked 2026-10-14, #127).
+    expect(costInEur({ provider: "anthropic", model: "anthropic.claude-opus-5-5", usage: usage(1_000_000, 1_000_000) })).toBeCloseTo(24 * 0.86, 6);
+    expect(costInEur({ provider: "anthropic", model: "claude-sonnet-5-5", usage: usage(1_000_000, 1_000_000) })).toBeCloseTo(12 * 0.86, 6);
+    expect(costInEur({ provider: "anthropic", model: "claude-sonnet-4-6", usage: usage(1_000_000, 1_000_000) })).toBeCloseTo(18 * 0.86, 6);
     expect(costInEur({ provider: "anthropic", model: "claude-haiku-4-5", usage: usage(1_000_000, 0) })).toBeCloseTo(0.86, 6);
     expect(costInEur({ provider: "anthropic", model: "fake-anthropic", usage: usage(1_000_000, 0) })).toBeCloseTo(4.3, 6);
+  });
+
+  it("prices input read from the provider's cache at its cache-read rate, and input written to it at the cache-write rate", () => {
+    // Opus 5 ($5 input): cache reads at 0.1x, 5-minute cache writes at 1.25x.
+    const opus5 = { provider: "anthropic" as const, model: "claude-opus-5" };
+    expect(costInEur({ ...opus5, usage: { inputTokens: 0, outputTokens: 0, cachedInputTokens: 1_000_000 } })).toBeCloseTo(0.5 * 0.86, 6);
+    // 1M input tokens, all of them written to the cache: $5 x 1.25.
+    expect(costInEur({ ...opus5, usage: { inputTokens: 1_000_000, outputTokens: 0, cacheWriteTokens: 1_000_000 } })).toBeCloseTo(6.25 * 0.86, 6);
+    // Opus 5.5 and Sonnet 5.5 read the cache at 0.05x.
+    expect(costInEur({ provider: "anthropic", model: "claude-opus-5-5", usage: { inputTokens: 0, outputTokens: 0, cachedInputTokens: 1_000_000 } })).toBeCloseTo(
+      0.2 * 0.86,
+      6,
+    );
+    // Mistral bills cached input at 10% of its input price.
+    expect(costInEur({ provider: "mistral", model: "mistral-large-latest", usage: { inputTokens: 0, outputTokens: 0, cachedInputTokens: 1_000_000 } })).toBeCloseTo(
+      0.05 * 0.86,
+      6,
+    );
   });
 
   it("costs nothing without tokens or searches", () => {

@@ -80,6 +80,16 @@ _Avoid_: Chat, chatbot, sidebar
 A saved conversation between a Candidate and the AI Coach in the Coach Panel. A Candidate has several, each attached to the Profile in view when it started. The Candidate can name, reopen and delete it. Kept 12 months after its last message, then purged; deleted with the account. Human Coaches never see it. Not in the Data export.
 _Avoid_: Chat, thread, session
 
+**Coach Message Cost**:
+What one AI Coach reply cost: provider, model, input, output and cached input tokens, and the estimated cost in euros at list prices, fixed when the reply is saved. Kept with the reply, so it goes when the Coach Conversation does. Seen by Administrators only, as a median and p90 per day, never by Candidates.
+_Avoid_: Bill, price
+
+**Coach cost target**:
+EUR 0.03 per AI Coach reply, judged on the daily median and p90 of the Coach Message Cost.
+
+**Cached input**:
+Input tokens the AI provider reads from its prompt cache rather than processing again; priced apart from the rest of the input.
+
 **In view**:
 The Profile or Application the page the Candidate is on shows. The Coach Panel and AI Coach use it as context, and only if it belongs to the Candidate.
 _Avoid_: Focus, current item, selected

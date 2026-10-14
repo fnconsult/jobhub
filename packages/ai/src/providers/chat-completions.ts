@@ -9,7 +9,8 @@ import { postJson } from "./http";
 interface ChatCompletion {
   model: string;
   choices: { message: { content: string | null } }[];
-  usage?: { prompt_tokens?: number; completion_tokens?: number };
+  /** `prompt_tokens` include the cached ones, when the provider reports them (OpenAI; Mistral not documented, #127). */
+  usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } };
 }
 
 interface ChatClientOptions {
@@ -25,10 +26,14 @@ async function postChat(options: ChatClientOptions, body: Record<string, unknown
   return completion;
 }
 
-const usageOf = (completion: ChatCompletion): TokenUsage => ({
-  inputTokens: completion.usage?.prompt_tokens ?? 0,
-  outputTokens: completion.usage?.completion_tokens ?? 0,
-});
+function usageOf(completion: ChatCompletion): TokenUsage {
+  const cachedInputTokens = completion.usage?.prompt_tokens_details?.cached_tokens ?? 0;
+  return {
+    inputTokens: Math.max(0, (completion.usage?.prompt_tokens ?? 0) - cachedInputTokens),
+    outputTokens: completion.usage?.completion_tokens ?? 0,
+    ...(cachedInputTokens ? { cachedInputTokens } : {}),
+  };
+}
 
 function chatMessages(input: TextInput) {
   return [...(input.system ? [{ role: "system", content: input.system }] : []), ...input.messages];

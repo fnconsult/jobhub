@@ -512,7 +512,8 @@
     "intro": "For the Jobbbox team only.",
     "sections": {
       "planQuotas": "Plan Quotas",
-      "humanCoaches": "Human Coaches"
+      "humanCoaches": "Human Coaches",
+      "coachCost": "AI Coach cost"
     },
     "planQuotas": {
       "title": "Plan Quotas",
@@ -542,6 +543,22 @@
       "none": "No coaches yet.",
       "retire": "Retire {{name}}",
       "retired": "Coach retired. Their past sessions are kept."
+    },
+    "coachCost": {
+      "title": "AI Coach cost",
+      "intro": "Estimated cost of one AI Coach reply, day by day (Paris time), over the last {{days}} days. Target: {{target}} per message.",
+      "estimate": "Estimates at the providers' list prices, in dollars converted at €{{rate}} to $1 (an assumption, not today's rate), frozen when each reply was made. Deleted conversations are no longer counted.",
+      "none": "No AI Coach reply in this period.",
+      "caption": "Cost per AI Coach reply, per day",
+      "day": "Day",
+      "messages": "Replies",
+      "median": "Median",
+      "p90": "90th percentile",
+      "inputTokens": "Input tokens",
+      "cachedInputTokens": "Cached tokens",
+      "outputTokens": "Output tokens",
+      "models": "Models",
+      "overTarget": "above target"
     }
   },
   "applicationStatuses": {

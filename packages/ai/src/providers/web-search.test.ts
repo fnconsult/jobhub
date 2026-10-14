@@ -48,7 +48,7 @@ describe("Tavily provider", () => {
     expect(requests[0]!.method).toBe("POST");
     expect(requests[0]!.url.href).toBe("https://api.tavily.com/search");
     expect(requests[0]!.headers.get("authorization")).toBe("Bearer tvly-key");
-    expect(requests[0]!.body).toEqual({ query, search_depth: "basic", max_results: 20 });
+    expect(requests[0]!.body).toEqual({ query, search_depth: "basic", max_results: 20, include_published_date: true });
   });
 
   it("maps the results to sources (each once) and lists them in the answer", async () => {
@@ -61,6 +61,7 @@ describe("Tavily provider", () => {
         "DAF H/F - CDI - Lyon | Acme Industrie\nhttps://carrieres.acme-industrie.example/offres/daf-lyon\nAcme Industrie recrute son Directeur administratif et financier (H/F) en CDI à Lyon.\n\n" +
         "Directeur financier H/F\nhttps://www.cadremploi.example/emploi/daf-lyon-123\nGroupe industriel lyonnais, poste de DAF rattaché au Président.",
       sources: ["https://carrieres.acme-industrie.example/offres/daf-lyon", "https://www.cadremploi.example/emploi/daf-lyon-123"],
+      sourceDates: { "https://carrieres.acme-industrie.example/offres/daf-lyon": new Date("2026-10-02T00:00:00Z") },
       model: "basic",
       usage: { inputTokens: 0, outputTokens: 0 },
     });
@@ -79,10 +80,24 @@ describe("Tavily provider", () => {
       query,
       search_depth: "advanced",
       max_results: 20,
+      include_published_date: true,
       include_domains: ["cadremploi.fr", "apec.fr"],
       exclude_domains: ["indeed.fr"],
       start_date: "2026-09-12",
     });
+  });
+
+  it("reads Tavily's published dates in their RFC 1123 form too, and never asks it to drop undated pages (#116)", async () => {
+    const results = [
+      { title: "A", url: "https://a.example/offre", content: "a", published_date: "Tue, 06 Oct 2026 17:00:00 GMT" },
+      { title: "B", url: "https://b.example/offre", content: "b", published_date: "la semaine dernière" },
+    ];
+    const { fetch, requests } = fakeFetch({ results });
+
+    const output = await createTavilyProvider({ apiKey: "k", fetch }).search!(query, { filters: { maxAgeDays: 30 } });
+
+    expect(output.sourceDates).toEqual({ "https://a.example/offre": new Date("2026-10-06T17:00:00Z") });
+    expect(requests[0]!.body).not.toHaveProperty("filter_by_published_date");
   });
 
   it("raises a provider error on an HTTP failure, such as a spent plan (432)", async () => {
@@ -192,6 +207,14 @@ describe("Brave provider", () => {
     expect(output.answer).toContain("Acme Industrie recrute son Directeur administratif et financier (H/F) en CDI à Lyon.");
     expect(output.model).toBe("web");
     expect(output.usage).toEqual({ inputTokens: 0, outputTokens: 0 });
+  });
+
+  it("dates the sources Brave states a page age for, read as UTC (#116)", async () => {
+    const { fetch } = fakeFetch(reply);
+
+    const output = await createBraveProvider({ apiKey: "bk", fetch }).search!(query, {});
+
+    expect(output.sourceDates).toEqual({ "https://carrieres.acme-industrie.example/offres/daf-lyon": new Date("2026-10-02T00:00:00Z") });
   });
 
   it("restricts to domains with site: operators in the query, and a freshness window as a date range", async () => {

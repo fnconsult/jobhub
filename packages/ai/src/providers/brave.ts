@@ -3,13 +3,15 @@
  * Brave has no domain parameter: included domains become `site:` operators in the query.
  * It has no exclusion either, so excluded domains are not applied (callers check results anyway).
  * A country is favoured with `country`; a further page of results is its `offset` (0-9).
+ * A result's `page_age` is its date, for the freshness rule (#116).
  */
 import type { AiProvider, SearchOutput } from "../types";
 import { getJson } from "./http";
 import { domainsOf, isoDay, searchOutputOfResults, sinceDateOf } from "./web-results";
 
 interface BraveResponse {
-  web?: { results?: { title?: string; url?: string; description?: string }[] };
+  /** `page_age`: when Brave says the page was published, ISO 8601 without an offset (read as UTC). */
+  web?: { results?: { title?: string; url?: string; description?: string; page_age?: string }[] };
 }
 
 /** Brave's maximum per request. */
@@ -46,7 +48,12 @@ export function createBraveProvider(options: BraveProviderOptions): AiProvider {
       const response = await getJson<BraveResponse>({ provider: "brave", fetch: options.fetch }, url, {
         "x-subscription-token": options.apiKey,
       });
-      const results = (response?.web?.results ?? []).map((r) => ({ title: plainText(r.title), url: r.url, snippet: plainText(r.description) }));
+      const results = (response?.web?.results ?? []).map((r) => ({
+        title: plainText(r.title),
+        url: r.url,
+        snippet: plainText(r.description),
+        published: r.page_age,
+      }));
       return searchOutputOfResults(results, "web");
     },
   };

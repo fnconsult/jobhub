@@ -271,8 +271,20 @@ describe("Perplexity provider", () => {
         "https://www.cadremploi.example/emploi/daf-lyon-123",
         "https://www.apec.example/offre/daf-lyon-456",
       ],
+      sourceDates: expect.any(Object),
       model: "openai/gpt-6-luna",
       usage: { inputTokens: 812, outputTokens: 64 },
+    });
+  });
+
+  it("dates the search results Perplexity gives a publication date (not their last update) for the freshness rule (#116)", async () => {
+    const { fetch } = fakeFetch(perplexityReply);
+
+    const output = await createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", {});
+
+    expect(output.sourceDates).toEqual({
+      "https://carrieres.acme-industrie.example/offres/daf-lyon": new Date("2026-10-02T00:00:00Z"),
+      "https://www.cadremploi.example/emploi/daf-lyon-123": new Date("2026-09-28T00:00:00Z"),
     });
   });
 

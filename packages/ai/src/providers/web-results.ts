@@ -3,12 +3,15 @@
  * a ranked list of pages, not a written answer. Each page becomes a source, and the
  * answer lists them (title, URL, snippet) so callers reading the answer see the same pages.
  */
+import { parseStatedDate } from "@jobhub/shared";
 import type { SearchFilters, SearchOutput } from "../types";
 
 export interface WebResult {
   title?: string;
   url?: string;
   snippet?: string;
+  /** When the provider says the page was published, as it writes it (unread when it cannot be). */
+  published?: string | null;
 }
 
 /** Search-only providers bill per request, not per token. */
@@ -16,16 +19,20 @@ const NO_TOKENS = { inputTokens: 0, outputTokens: 0 };
 
 export function searchOutputOfResults(results: WebResult[], model: string): SearchOutput {
   const seen = new Set<string>();
-  const kept: Required<WebResult>[] = [];
+  const kept: Required<Omit<WebResult, "published">>[] = [];
+  const sourceDates: Record<string, Date> = {};
   for (const result of results) {
     const url = result.url?.trim();
     if (!url || !/^https?:\/\//i.test(url) || seen.has(url)) continue;
     seen.add(url);
     kept.push({ title: result.title?.trim() ?? "", url, snippet: result.snippet?.trim() ?? "" });
+    const published = parseStatedDate(result.published);
+    if (published) sourceDates[url] = published;
   }
   return {
     answer: kept.map((r) => [r.title, r.url, r.snippet].filter(Boolean).join("\n")).join("\n\n"),
     sources: kept.map((r) => r.url),
+    ...(Object.keys(sourceDates).length ? { sourceDates } : {}),
     model,
     usage: NO_TOKENS,
   };

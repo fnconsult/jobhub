@@ -28,13 +28,22 @@ When it runs: nightly, by hand (`workflow_dispatch`), and on pull requests that 
 - **Cost** is the Coach Message Cost of each reply (`costInEur`: list prices at €0.86 per $). The suite reports the median and p90 per model against €0.03.
 - **Recommended default:** the cheapest model that is within the cost target (median and p90) and passes at least 80% of cases, and no more than 10 points below the best model's pass rate. If no model qualifies, it recommends none and a human decides.
 
-## Decision: the AI Coach's default model is Claude Sonnet 5.5
+## Decision (provisional, cost only): the AI Coach's default model is Claude Sonnet 5.5
 
 Set on 2026-10-15 in `packages/ai/src/env.ts`: on Anthropic, `coaching` defaults to `claude-sonnet-5-5`. Every other text task keeps Claude's default (`claude-opus-5-5`). `AI_COACHING_MODEL` still overrides it, for example `AI_COACHING_MODEL=anthropic.claude-opus-5-5` on Bedrock. Switching back takes a configuration change, not a deploy of new code.
 
 Why: **Opus 5.5 cannot meet the Coach cost target and Sonnet 5.5 can** ([cost projection](2026-10-15-cost-projection.md)). On the prompts the real AI Coach builds for the 19 cases, the p90 input is about 6,000 to 6,900 tokens. At 1,000 output tokens, Opus 5.5's p90 is €0.038 to €0.041 and Sonnet 5.5's is €0.019 to €0.020. Opus 5.5 thinks on every reply, and thinking is billed as output, so 1,000 output tokens is a low estimate for it. With a fuller workspace, the system prompt grows toward the 12k-token Coach context cap. There, at 500 output tokens, one Opus reply costs about €0.056 and one Sonnet reply about €0.028. Opus costs exactly twice Sonnet for every kind of token ([research](../issue-131.md)), so any reply Opus could give within the target, Sonnet gives for half.
 
-**Not yet measured: quality.** This run had no Claude credentials, so the suite has not compared the two models' replies yet. The first nightly run (or `workflow_dispatch`) will. If its recommendation is not `claude-sonnet-5-5`, revisit this decision. Options then: Opus 5.5 with prompt caching of the persona and knowledge prefix, a trimmed context, or a better prompt for Sonnet.
+**Not yet measured: quality.** No suite run is committed here: neither the agent that built the suite nor CI had Bedrock credentials (the `eval` check on PR #178 skipped), so the suite has not compared the two models' replies. Until a live run is committed, this default rests on cost alone and #131's acceptance criteria are not met.
+
+### To finish #131 (needs Bedrock credentials)
+
+1. Run the suite live, either way:
+   - locally, with `AWS_BEARER_TOKEN_BEDROCK` in the repo's `.env`: `npm run coach:eval`. It writes `<date>.md` and `<date>.json` here;
+   - or set the `AWS_BEARER_TOKEN_BEDROCK` repository secret, run the **Coach evals** workflow by hand (`workflow_dispatch`), and copy the two files from its `coach-evals` artifact into this folder.
+2. Read the failing cases' replies in `<date>.json` (see Caveats).
+3. If the run recommends `claude-sonnet-5-5`, drop "(provisional, cost only)" and this paragraph. If it recommends another model, change `DEFAULT_MODEL` in `packages/ai/src/env.ts` to it. If it recommends none, record the human decision here with the run's date. Options for Opus 5.5: prompt caching of the persona and knowledge prefix, or a trimmed context; for Sonnet 5.5: a better prompt.
+4. Commit the run and this page. `e2e/coach-evals.spec.ts` ("the decision claims no more than the committed suite runs show") checks that the latest committed run is a live, judged one and that the default matches its recommendation.
 
 ## Caveats
 

@@ -107,6 +107,36 @@ test.describe("default model decided", () => {
     expect(coachModel({ AI_COACHING_PROVIDER: "anthropic", ANTHROPIC_ENDPOINT: "bedrock", AWS_BEARER_TOKEN_BEDROCK: "t" })).toBe("anthropic.claude-sonnet-5-5");
   });
 
+  test("the decision claims no more than the committed suite runs show", () => {
+    const readme = readFileSync(path.join(evalsDir, "README.md"), "utf8");
+    const latest = readdirSync(evalsDir)
+      .filter((file) => /^\d{4}-\d{2}-\d{2}\.json$/.test(file))
+      .sort()
+      .at(-1);
+    if (!latest) {
+      // No live suite run committed yet: the default rests on cost alone, and the decision says it is provisional.
+      expect(readme).toMatch(/^## Decision \(provisional, cost only\):/m);
+      expect(readme).toContain("**Not yet measured: quality.**");
+      return;
+    }
+    const run = JSON.parse(readFileSync(path.join(evalsDir, latest), "utf8")) as {
+      judge: { eur: number };
+      models: { results: { judgment?: unknown }[] }[];
+      recommended: { model: string | null };
+    };
+    // A committed run is a live, judged run, not the offline AI_FAKE smoke test.
+    expect(run.judge.eur, `${latest} was not judged`).toBeGreaterThan(0);
+    for (const model of run.models) expect(model.results.some((result) => result.judgment)).toBe(true);
+    expect(readme).not.toContain("provisional");
+    if (run.recommended.model === null) {
+      // The suite recommended none: a human decided, and the README says on which run.
+      expect(readme).toContain(latest.replace(/\.json$/, ""));
+      return;
+    }
+    const coaching = coachModel({ AI_COACHING_PROVIDER: "anthropic", ANTHROPIC_ENDPOINT: "bedrock", AWS_BEARER_TOKEN_BEDROCK: "t" });
+    expect(coaching.replace(/^anthropic\./, ""), `${latest} recommends ${run.recommended.model}`).toBe(run.recommended.model);
+  });
+
   test("AI_COACHING_MODEL overrides the default", () => {
     expect(coachModel({ AI_COACHING_PROVIDER: "anthropic", AWS_BEARER_TOKEN_BEDROCK: "t", AI_COACHING_MODEL: "anthropic.claude-opus-5-5" })).toBe("anthropic.claude-opus-5-5");
   });

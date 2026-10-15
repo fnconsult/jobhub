@@ -71,6 +71,11 @@ globalThis.fetch = async (input, init) => {
     if (system.includes('"subject"')) {
       const channel = system.includes("InMail") ? "inmail" : "email";
       content = JSON.stringify({ subject: `Candidature (${language}) : ${title}`, text: `Message d'approche (${language}, ${channel}) pour « ${title} ».` });
+    } else if (prompt.includes("E2E_FRAMED_LETTER")) {
+      // A reply the way a model often writes it: Markdown, a sender block, placeholders, a repeated signature (#162).
+      content =
+        "**Marie Dupont**\n[Adresse]\n[Code postal, Ville]\n[Email] | [Téléphone]\n\n[Date]\n\n[Adresse de l'agence]\n\n**Objet : Candidature**\n\n" +
+        "Madame, Monsieur,\n\nJ'ai piloté la **consolidation IFRS** d'un groupe industriel.\n\nJe vous prie d'agréer mes salutations distinguées.\n\n**Marie Dupont**";
     } else content = `Lettre de motivation (${language}) pour « ${title} ».`;
     const dossier = /^(?:Dossier sur l'entreprise|Company dossier) : (.+)$/m.exec(prompt)?.[1];
     if (dossier) {

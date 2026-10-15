@@ -101,6 +101,19 @@ test.describe("Cover Letter and Outreach Message drafts", () => {
     await expect((await coverLetter(page)).getByLabel(td.coverLetter.textLabel)).toHaveValue(`Lettre de motivation (fr) pour « ${FRENCH.title} ».`);
   });
 
+  test("the drafted Cover Letter is its plain body only: no Markdown, no [placeholders], no sender block, date or signature (#162)", async ({ page }) => {
+    await openApplication(page, { ...FRENCH, content: `${FRENCH.content} E2E_FRAMED_LETTER` });
+    const letter = await coverLetter(page);
+    await letter.getByRole("button", { name: td.coverLetter.draft }).click();
+    await expect(letter.getByRole("status")).toHaveText(td.drafted);
+    const text = letter.getByLabel(td.coverLetter.textLabel);
+    await expect(text).toHaveValue(/^Madame, Monsieur,/);
+    await expect(text).toHaveValue(/consolidation IFRS d'un groupe industriel/);
+    for (const unwanted of [/\*\*/, /\[|\]/, /Adresse/, /Code postal/, /Téléphone/, /Date/, /Objet/, /Marie Dupont/]) {
+      expect(await text.inputValue()).not.toMatch(unwanted);
+    }
+  });
+
   test("an Outreach Message is drafted as an email to open in the Candidate's mail client, or as an InMail to copy; nothing is sent", async ({ page }) => {
     await openApplication(page, FRENCH);
     const message = await outreachMessage(page);

@@ -18,6 +18,9 @@
  *    figure is invented, and no private person is named, but for the Enriched
  *    Contact (Premium) the Candidate addresses an Outreach Message to: only their
  *    name and job title reach the AI Coach.
+ *  - A Cover Letter is drafted as its body only, in plain text: no Markdown, no
+ *    `[…]` placeholders, and no sender block, date or signature, which the
+ *    Application export adds from the Master CV (#162).
  *  - Drafts only (ADR-0005): nothing here sends anything.
  * Every read and change is scoped to the Candidate; inputs are untrusted and
  * problems come back as results. Task `writing`, EU endpoints only (ADR-0007).
@@ -31,11 +34,13 @@ import type { CompanyDossier, CompanyDossiers } from "../company-dossiers";
 import type { EnrichedContact, EnrichedContacts } from "../enriched-contacts";
 import type { Profiles } from "../profiles";
 import { fieldErrors, type FieldError } from "../validation";
+import { coverLetterBody } from "./cover-letter-body";
 import { documentLanguageOf, keepDocumentLanguage } from "./document-language";
 
 import { OUTREACH_CHANNELS, TAILORED_DOCUMENTS, type OutreachChannel, type TailoredDocumentKind } from "./kinds";
 
 export { OUTREACH_CHANNELS, TAILORED_DOCUMENTS, type OutreachChannel, type TailoredDocumentKind } from "./kinds";
+export { coverLetterBody } from "./cover-letter-body";
 
 interface Draft {
   /** The language it was written in. */
@@ -178,11 +183,15 @@ const RULES: Record<DocumentLanguage, string> = {
 
 const FORMAT: Record<DocumentLanguage, Record<TailoredDocumentKind, string>> = {
   fr: {
-    cover_letter: "Une page au plus. Réponds uniquement avec le texte de la lettre, sans commentaire.",
+    cover_letter:
+      "Une page au plus. Écris uniquement le corps de la lettre, de la formule d'appel à la formule de politesse : ni coordonnées de l'expéditeur ou du destinataire, ni lieu et date, ni objet, ni signature, ajoutés à l'export depuis son CV. " +
+      "En texte brut, sans Markdown (ni **, ni #), ni crochets à compléter. Réponds uniquement avec ce texte, sans commentaire.",
     outreach_message: 'Réponds uniquement avec un objet JSON : {"subject": "objet du message", "text": "texte du message"}.',
   },
   en: {
-    cover_letter: "One page at most. Reply with the letter's text only, no comment.",
+    cover_letter:
+      "One page at most. Write the body of the letter only, from the salutation to the closing: no sender or recipient details, place and date, subject or signature, which the export adds from their CV. " +
+      "In plain text, with no Markdown (no **, no #) and no brackets to fill in. Reply with that text only, no comment.",
     outreach_message: 'Reply with a JSON object only: {"subject": "the message subject", "text": "the message text"}.',
   },
 };
@@ -327,7 +336,7 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
         // The Master CV, identity block included: the draft speaks as the Candidate (ADR-0007).
         containsIdentity: true,
       });
-      const written = document === "outreach_message" ? outreachIn(text) : { subject: "", text: text.trim() };
+      const written = document === "outreach_message" ? outreachIn(text) : { subject: "", text: coverLetterBody(text, profile.masterCv.content) };
       return written.text ? { ...written, contactRoles: document === "outreach_message" ? contactRoles : [] } : null;
     } catch (error) {
       console.warn("[tailored-documents] the AI Coach could not write a draft:", error instanceof Error ? error.message : error);

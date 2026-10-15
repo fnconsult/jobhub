@@ -101,7 +101,7 @@ The Profile, Application, Job Offer, Job Search or Job Digest the page the Candi
 _Avoid_: Focus, current item, selected
 
 **Action Card**:
-A proposal from the AI Coach placed inside a page (e.g. "3 ATS Fixes proposées", "Relance suggérée") that the Candidate accepts or dismisses. Pending until decided, then accepted or dismissed, never decided twice. Accepting it carries out the change it proposes; if that fails, the card stays pending.
+A proposal from the AI Coach placed inside a page (e.g. "3 ATS Fixes proposées", "Relance suggérée") that the Candidate accepts or dismisses. Pending until decided or withdrawn, then accepted or dismissed, never decided twice. The AI Coach withdraws a pending card it no longer proposes (e.g. an ATS Fix the new ATS Score no longer calls for): it leaves the page as if never proposed, is not recorded as accepted or dismissed, and a decided card is never withdrawn. Accepting it carries out the change it proposes; if that fails, the card stays pending.
 _Avoid_: Notification, suggestion, prompt
 
 **Coaching Playbook**:
@@ -356,7 +356,7 @@ A 0–100 measure of how well a Master CV would pass applicant tracking systems,
 _Avoid_: CV score, parse score
 
 **ATS Fix**:
-A minimal, single change to a Master CV proposed by the AI Coach to raise its ATS Score, accepted or rejected individually.
+A minimal, single change to a Master CV proposed by the AI Coach to raise its ATS Score, accepted or rejected individually. Computing the ATS Score again refreshes the pending ATS Fixes to match the new score; a dismissed ATS Fix is never proposed again.
 _Avoid_: Suggestion, correction, improvement
 
 **Senior Advice**:

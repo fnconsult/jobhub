@@ -1,8 +1,8 @@
 import { createAiLayer, type AiLayer, type TokenUsage } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
-import { loadCoachKnowledge } from "@jobhub/coach-knowledge";
+import { loadCoachKnowledge, PLAYBOOK_IDS } from "@jobhub/coach-knowledge";
 import { describe, expect, it } from "vitest";
-import { runCoachEval, type CoachEvalCase } from "./index";
+import { COACH_EVAL_CASES, runCoachEval, type CoachEvalCase } from "./index";
 
 const knowledge = loadCoachKnowledge({ environment: "eval" });
 
@@ -159,5 +159,42 @@ describe("the Coach eval suite — comparing models", () => {
     ]);
 
     expect(report.recommended).toEqual({ model: null, reason: expect.stringMatching(/no model/i) });
+  });
+});
+
+describe("the Coach eval set", () => {
+  it("runs every case through the AI Coach and the judge, each with its own id", async () => {
+    const coach = aiOn("claude-sonnet-5-5");
+    const report = await runCoachEval({
+      cases: COACH_EVAL_CASES,
+      models: [{ model: "claude-sonnet-5-5", ai: coach.ai }],
+      judge: aiOn("claude-opus-5-5", { reply: judgment({ adherence: 5, figures: 5, tone: 5 }) }).ai,
+      knowledge,
+    });
+
+    expect(new Set(COACH_EVAL_CASES.map((evalCase) => evalCase.id)).size).toBe(COACH_EVAL_CASES.length);
+    expect(report.models[0]!.summary).toMatchObject({ cases: COACH_EVAL_CASES.length, passed: COACH_EVAL_CASES.length, errors: 0 });
+    // Every Coaching Playbook is given to the AI Coach by at least one case.
+    const used = new Set(report.models[0]!.results.flatMap((result) => result.playbooks!.map((playbook) => playbook.id)));
+    expect([...used].sort()).toEqual(["core-digest", ...PLAYBOOK_IDS].sort());
+  });
+
+  it("ports devarq's search relevance set: each listing In view as a Job Offer, the Coach asked whether it fits", async () => {
+    const ported = COACH_EVAL_CASES.filter((evalCase) => evalCase.origin?.startsWith("devarq job-hub/corpus/evals/search-relevance-v1.json#"));
+    const coach = aiOn("claude-sonnet-5-5");
+
+    await runCoachEval({ cases: ported, models: [{ model: "claude-sonnet-5-5", ai: coach.ai }], judge: aiOn("claude-opus-5-5", { reply: judgment({ adherence: 5, figures: 5, tone: 5 }) }).ai, knowledge });
+
+    expect(ported.map((evalCase) => evalCase.origin!.split("#")[1])).toEqual([
+      "dsi-aligned",
+      "dsi-versus-data",
+      "customer-success-aligned",
+      "historic-role-does-not-retarget",
+      "project-program-alias",
+      "technical-trade-profile",
+    ]);
+    expect(ported.every((evalCase) => evalCase.inView?.kind === "job_offer")).toBe(true);
+    // The Coach read the Job Offer In view: "Supply Chain Manager", from the historic-role case.
+    expect(coach.provider.calls[3]!.system).toContain("Supply Chain Manager");
   });
 });

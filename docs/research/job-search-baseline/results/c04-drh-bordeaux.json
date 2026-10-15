@@ -1,0 +1,296 @@
+{
+  "id": "c04-drh-bordeaux",
+  "persona": "DRH, 50 ans, Bordeaux",
+  "criteria": {
+    "targetRole": "Directeur des ressources humaines",
+    "location": "Bordeaux",
+    "contractType": "cdi",
+    "minSalary": 85000
+  },
+  "query": "Offres d'emploi « Directeur des ressources humaines » à Bordeaux, CDI, salaire à partir de 85 000 € brut annuel",
+  "ranAt": "2026-10-12T11:25:39.352Z",
+  "error": null,
+  "funnel": {
+    "providerUrls": 10,
+    "considered": 10,
+    "refusedBeforeRead": 8,
+    "readButNotAnOffer": 2,
+    "invalid": 0,
+    "captured": 0,
+    "duplicatesMerged": 0,
+    "offersAfterDedup": 0,
+    "score60plus": 0,
+    "fresh30d": 0,
+    "unknownAge": 0,
+    "looksExpired": 0
+  },
+  "timing": {
+    "totalMs": 6369,
+    "searchMs": 2841,
+    "pageFetchMsSum": 1145,
+    "pageRequests": 16,
+    "extractionMs": 2324,
+    "extractionCalls": 2
+  },
+  "tokens": {
+    "perplexity": {
+      "calls": 1,
+      "input": 5832,
+      "output": 219,
+      "model": "openai/gpt-6-luna"
+    },
+    "mistral": {
+      "calls": 2,
+      "input": 13300,
+      "output": 30,
+      "model": "mistral-large-latest"
+    },
+    "perplexityUsd": 0.00164,
+    "perplexityUsdSource": "billed (response usage.cost)",
+    "mistralUsd": 0.0067,
+    "estimatedUsd": 0.00834,
+    "estimatedEur": 0.00717
+  },
+  "sources": [
+    "https://emploi.lefigaro.fr/offres-emploi/v/bordeaux-33000/m/directeur-des-ressources-humaines-drh",
+    "https://candidat.francetravail.fr/offres/recherche/detail/6863998",
+    "https://www.jobijoba.com/fr/emploi/Ressources+humaines/Bordeaux",
+    "https://candidat.francetravail.fr/offres/recherche/detail/6703546",
+    "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Directeur%20RH%20/%20Direction%20Recherche%20et%20innovation",
+    "https://www.cadremploi.fr/emploi/liste_offres?fct=10600&ville=bordeaux-33",
+    "https://www.cadremploi.fr/emploi/detail_offre?offreId=156545452231953613",
+    "https://www.hellowork.com/fr-fr/emploi/metier_directeur-des-ressources-humaines-ville_bordeaux-33000.html",
+    "https://www.cadremploi.fr/emploi/liste_offres?fct=10601&ville=bordeaux-33",
+    "https://emploi.lefigaro.fr/offres-emploi/v/bordeaux-33000/m/responsable-du-personnel"
+  ],
+  "skipped": [
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/v/bordeaux-33000/m/directeur-des-ressources-humaines-drh",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://candidat.francetravail.fr/offres/recherche/detail/6863998",
+      "reason": "gone"
+    },
+    {
+      "url": "https://www.jobijoba.com/fr/emploi/Ressources+humaines/Bordeaux",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://candidat.francetravail.fr/offres/recherche/detail/6703546",
+      "reason": "gone"
+    },
+    {
+      "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Directeur%20RH%20/%20Direction%20Recherche%20et%20innovation",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://www.cadremploi.fr/emploi/liste_offres?fct=10600&ville=bordeaux-33",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://www.cadremploi.fr/emploi/detail_offre?offreId=156545452231953613",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-des-ressources-humaines-ville_bordeaux-33000.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.cadremploi.fr/emploi/liste_offres?fct=10601&ville=bordeaux-33",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/v/bordeaux-33000/m/responsable-du-personnel",
+      "reason": "bot_protection"
+    }
+  ],
+  "fetches": [
+    {
+      "url": "https://emploi.lefigaro.fr/robots.txt",
+      "status": 403,
+      "ms": 12,
+      "kind": "robots"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/v/bordeaux-33000/m/directeur-des-ressources-humaines-drh",
+      "status": 403,
+      "ms": 13,
+      "kind": "page"
+    },
+    {
+      "url": "https://candidat.francetravail.fr/robots.txt",
+      "status": 200,
+      "ms": 67,
+      "kind": "robots"
+    },
+    {
+      "url": "https://candidat.francetravail.fr/offres/recherche/detail/6863998",
+      "status": 404,
+      "ms": 174,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.jobijoba.com/robots.txt",
+      "status": 200,
+      "ms": 42,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.jobijoba.com/fr/emploi/Ressources+humaines/Bordeaux",
+      "status": 200,
+      "ms": 523,
+      "kind": "page"
+    },
+    {
+      "url": "https://candidat.francetravail.fr/offres/recherche/detail/6703546",
+      "status": 404,
+      "ms": 119,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.apec.fr/robots.txt",
+      "status": 403,
+      "ms": 13,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Directeur%20RH%20/%20Direction%20Recherche%20et%20innovation",
+      "status": 403,
+      "ms": 14,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.cadremploi.fr/robots.txt",
+      "status": 403,
+      "ms": 48,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.cadremploi.fr/emploi/liste_offres?fct=10600&ville=bordeaux-33",
+      "status": 403,
+      "ms": 30,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.cadremploi.fr/emploi/detail_offre?offreId=156545452231953613",
+      "status": 403,
+      "ms": 15,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/robots.txt",
+      "status": 200,
+      "ms": 25,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-des-ressources-humaines-ville_bordeaux-33000.html",
+      "status": 200,
+      "ms": 24,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.cadremploi.fr/emploi/liste_offres?fct=10601&ville=bordeaux-33",
+      "status": 403,
+      "ms": 14,
+      "kind": "page"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/v/bordeaux-33000/m/responsable-du-personnel",
+      "status": 403,
+      "ms": 12,
+      "kind": "page"
+    }
+  ],
+  "perplexityRaw": [
+    {
+      "model": "openai/gpt-6-luna",
+      "usage": {
+        "cost": {
+          "cache_creation_cost": 0.00051,
+          "cache_read_cost": 0.00002,
+          "currency": "USD",
+          "input_cost": 0,
+          "output_cost": 0.00011,
+          "tool_calls_cost": 0.001,
+          "tool_calls_cost_details": {
+            "search_web": 0.001
+          },
+          "total_cost": 0.00164
+        },
+        "input_tokens": 5832,
+        "input_tokens_details": {
+          "cache_creation_input_tokens": 4049,
+          "cache_read_input_tokens": 1780,
+          "cached_tokens": 1780
+        },
+        "output_tokens": 219,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "tool_calls_details": {
+          "search_web": {
+            "cost_usd": 0.001,
+            "invocation": 1
+          }
+        },
+        "total_tokens": 6051
+      },
+      "searchResults": [
+        {
+          "url": "https://emploi.lefigaro.fr/offres-emploi/v/bordeaux-33000/m/directeur-des-ressources-humaines-drh",
+          "title": "Offres Emploi Directeur des ressources humaines -drh- Bordeaux ...",
+          "date": "2026-10-01"
+        },
+        {
+          "url": "https://candidat.francetravail.fr/offres/recherche/detail/6863998",
+          "title": "Offres partenaires",
+          "date": "2026-10-05"
+        },
+        {
+          "url": "https://www.jobijoba.com/fr/emploi/Ressources+humaines/Bordeaux",
+          "title": "Emploi Ressources humaines à Bordeaux - Août 2026 - Jobijoba",
+          "date": "2026-09-28"
+        },
+        {
+          "url": "https://candidat.francetravail.fr/offres/recherche/detail/6703546",
+          "title": "Offre n° 6703546 Directeur / Directrice des Ressources Humaines -DRH- (H/F)",
+          "date": "2026-09-30"
+        },
+        {
+          "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Directeur%20RH%20/%20Direction%20Recherche%20et%20innovation",
+          "title": "Offres d'emploi Directeur RH / Direction Recherche et ...",
+          "date": "2026-09-29"
+        },
+        {
+          "url": "https://www.cadremploi.fr/emploi/liste_offres?fct=10600&ville=bordeaux-33",
+          "title": "Emploi Ressources Humaines - Personnel - Bordeaux (33)",
+          "date": "2026-09-28"
+        },
+        {
+          "url": "https://www.cadremploi.fr/emploi/detail_offre?offreId=156545452231953613",
+          "title": "Directeur des ressources humaines H/F",
+          "date": "2026-10-02"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-des-ressources-humaines-ville_bordeaux-33000.html",
+          "title": "Emploi DRH Bordeaux (33000) - Voir les dernières offres",
+          "date": "2026-09-15"
+        },
+        {
+          "url": "https://www.cadremploi.fr/emploi/liste_offres?fct=10601&ville=bordeaux-33",
+          "title": "www.cadremploi.fr · emploi · liste_offresEmploi DRH - Bordeaux (33) | Septembre 2026",
+          "date": "2026-09-28"
+        },
+        {
+          "url": "https://emploi.lefigaro.fr/offres-emploi/v/bordeaux-33000/m/responsable-du-personnel",
+          "title": "Offres Emploi Responsable du personnel Bordeaux (33000) - Octobre 2026",
+          "date": "2026-09-29"
+        }
+      ],
+      "answer": "Une offre correspond clairement à vos critères : **Directeur·trice des Ressources humaines**, en **CDI**, à Bordeaux ou à proximité, avec une rémunération annoncée de **90 000 à 105 000 € brut annuel**[6][9].\n\n- **Employeur/recruteur :** Vidal Associates Consulting & Search, pour un acteur majeur de la grande distribution.\n- **Missions :** définir et déployer la stratégie RH du site et piloter les fonctions RH clés; poste rattaché à la direction générale et membre du comité de direction[4][5].\n- **Expérience demandée :** au moins 10 ans en direction RH, idéalement dans un environnement opérationnel exigeant[4].\n- **Candidature :** recherchez l’intitulé « Directeur des Ressources Humaines H/F » chez Vidal Associates sur Cadremploi ou France Travail. À noter : les annonces repérées datent de septembre 2026, donc vérifiez qu’elles sont encore ouvertes avant de postuler[4][9]."
+    }
+  ],
+  "offers": []
+}

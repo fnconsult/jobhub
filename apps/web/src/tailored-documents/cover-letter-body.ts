@@ -38,6 +38,8 @@ function plain(line: string): string {
     .trimEnd();
 }
 
+const wordsIn = (text: string) => text.match(/[\p{L}\p{N}]+/gu)?.length ?? 0;
+
 const comparable = (text: string) =>
   text
     .normalize("NFC")
@@ -46,15 +48,6 @@ const comparable = (text: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
-/** Whether `line` is part of the letter's frame (sender block, address, date, subject, signature) rather than its body. */
-function isFrame(line: string, signer: Signer): boolean {
-  const text = line.trim();
-  if (!text) return true;
-  if (/^(-{3,}|\*{3,}|_{3,})$/.test(text)) return true;
-  if (signer.fullName && comparable(text) === comparable(signer.fullName)) return true;
-  return PLACEHOLDER.test(text) || FRAME.test(text) || (text.length <= 100 && CONTACT.test(text));
-}
-
 /** `text` with any `[…]` left in a sentence taken out, and the spaces around it tidied. */
 const withoutPlaceholders = (line: string) =>
   line
@@ -62,6 +55,17 @@ const withoutPlaceholders = (line: string) =>
     .replace(/[ \t]{2,}/g, " ")
     .replace(/ +([,.;:!?)])/g, "$1")
     .trim();
+
+/** Whether `line` is part of the letter's frame (sender block, address, date, subject, signature) rather than its body. */
+function isFrame(line: string, signer: Signer): boolean {
+  const text = line.trim();
+  if (!text) return true;
+  if (/^(-{3,}|\*{3,}|_{3,})$/.test(text)) return true;
+  if (signer.fullName && comparable(text) === comparable(signer.fullName)) return true;
+  // A short line with a `[…]` in it is a sender or recipient line to fill in ("Lyon, le [Date]"); a sentence is not.
+  if (PLACEHOLDER.test(text) && wordsIn(withoutPlaceholders(text)) < 5) return true;
+  return FRAME.test(text) || (text.length <= 100 && CONTACT.test(text));
+}
 
 /** The body of the Cover Letter `text`, signed by `signer`. Paragraphs are separated by one blank line. */
 export function coverLetterBody(text: string, signer: Signer): string {

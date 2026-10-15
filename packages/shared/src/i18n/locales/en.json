@@ -786,6 +786,7 @@
     "postedByAgencyUnnamed": "This offer is posted by a recruiting agency.",
     "presumedEmployer": "The real employer may be: {{employer}}.",
     "noPresumedEmployer": "The real employer could not be guessed.",
+    "presumedEmployerDescribed": "The offer does not name the real employer; it describes it as: {{description}}",
     "confirmBeforeLookup": "Confirm the employer or name the right one: nothing is looked up before you confirm.",
     "employerLabel": "Employer",
     "employerHint": "The company's name, or its SIREN number if you know it.",

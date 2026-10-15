@@ -166,6 +166,27 @@ test.describe("Company Dossier", () => {
     await expect(dossier.getByText(t.reliability.official)).toHaveCount(0);
   });
 
+  // Issue #168: the analysis answered with a description of the agency's client, which was prefilled as the employer.
+  test("an unnamed Presumed Employer leaves the employer field empty, its description shown as a hint only", async ({ page }) => {
+    const description = "Entreprise française spécialisée dans l'agencement et l'aménagement de pharmacies (nom non précisé)";
+    const dossier = await openApplication(page, "Cabinet Talents Business", `Notre client recrute son DAF. Client présumé : ${description}`);
+    await dossier.getByRole("button", { name: t.build }).click();
+
+    await expect(dossier.getByText(t.confirmBeforeLookup)).toBeVisible();
+    await expect(dossier.getByText(description, { exact: false })).toBeVisible();
+    const employer = dossier.getByLabel(t.employerLabel);
+    await expect(employer).toHaveValue("");
+
+    await employer.click();
+    await employer.pressSequentially("Acme Industrie");
+    await expect(employer).toHaveValue("Acme Industrie");
+    await dossier.getByRole("button", { name: t.nameEmployer }).click();
+
+    await expect(dossier.getByText(t.reliability.official)).toBeVisible();
+    await expect(dossier.getByText("552100554", { exact: true })).toBeVisible();
+    await expect(dossier.getByText(description, { exact: false })).toHaveCount(0);
+  });
+
   test("the dossier's HTTP API names no private person either, for French and foreign employers", async ({ page }) => {
     for (const employer of ["Acme Industrie", "Globex Robotics GmbH"]) {
       await page.context().clearCookies(); // a new Candidate for each employer

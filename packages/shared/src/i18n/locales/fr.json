@@ -786,6 +786,7 @@
     "postedByAgencyUnnamed": "Cette offre est publiée par un cabinet de recrutement.",
     "presumedEmployer": "L'employeur réel est peut-être : {{employer}}.",
     "noPresumedEmployer": "L'employeur réel n'a pas pu être deviné.",
+    "presumedEmployerDescribed": "L'offre ne nomme pas l'employeur réel ; elle le décrit ainsi : {{description}}",
     "confirmBeforeLookup": "Confirmez l'employeur ou indiquez le bon : aucune recherche n'est faite avant votre confirmation.",
     "employerLabel": "Employeur",
     "employerHint": "Le nom de l'entreprise, ou son numéro SIREN si vous le connaissez.",

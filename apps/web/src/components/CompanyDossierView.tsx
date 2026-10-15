@@ -38,9 +38,14 @@ export function CompanyDossierView(props: { applicationId: string; state: Compan
         <>
           <p className="notice">
             {state.agency ? t("companyDossier.postedByAgency", { agency: state.agency }) : t("companyDossier.postedByAgencyUnnamed")}{" "}
-            {state.presumedEmployer ? t("companyDossier.presumedEmployer", { employer: state.presumedEmployer }) : t("companyDossier.noPresumedEmployer")}
+            {state.presumedEmployer
+              ? t("companyDossier.presumedEmployer", { employer: state.presumedEmployer })
+              : state.presumedEmployerDescription
+                ? t("companyDossier.presumedEmployerDescribed", { description: state.presumedEmployerDescription })
+                : t("companyDossier.noPresumedEmployer")}
           </p>
           <p>{t("companyDossier.confirmBeforeLookup")}</p>
+          {/* Only a name is prefilled: a description is a hint above, never the field's value. */}
           {nameEmployer(state.presumedEmployer ?? undefined)}
         </>
       ) : (

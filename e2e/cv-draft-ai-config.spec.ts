@@ -126,6 +126,7 @@ test.describe("drafting from a CV when the AI configuration is invalid", () => {
       { cv: { name: "photo.png", mimeType: "image/png", buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) }, error: "unsupported_format" },
       { cv: { name: "cv.pdf", mimeType: PDF, buffer: Buffer.from(pdfCv(MARIE_DUPONT_CV).slice(0, 40)) }, error: "unreadable" },
       { cv: { name: "scan.pdf", mimeType: PDF, buffer: Buffer.from(pdfCv([])) }, error: "empty" },
+      { cv: { name: "blank.pdf", mimeType: PDF, buffer: Buffer.alloc(0) }, error: "empty" },
     ];
 
     for (const client of [page.request, request]) {

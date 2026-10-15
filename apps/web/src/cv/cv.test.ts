@@ -132,6 +132,15 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
     expect(provider.calls).toHaveLength(0);
   });
 
+  it("refuses a Word file with no text as empty, like a scanned PDF", async () => {
+    const { ai, provider } = aiReplying("{}");
+
+    const drafting = draftFromCv({ name: "cv.docx", bytes: await docxCv([]) }, { ai: () => ai, candidateId: "c1" });
+
+    await expect(drafting).rejects.toMatchObject({ code: "empty" });
+    expect(provider.calls).toHaveLength(0);
+  });
+
   it.each([
     ["a 0-byte PDF", "cv.pdf"],
     ["a 0-byte Word file", "cv.docx"],

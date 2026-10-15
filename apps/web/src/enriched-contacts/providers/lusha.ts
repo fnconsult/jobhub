@@ -57,13 +57,14 @@ export function createLushaProvider({ apiKey, fetch: rawFetch = fetch, baseUrl =
   return {
     id: "lusha",
 
-    async findPeople({ companyName, companyDomain, jobTitles, limit }) {
+    async findPeople({ companyName, companyDomain, jobTitles, limit, country }) {
       const answer = (await requestJson("lusha", fetchFn, `${baseUrl}/contacts/prospecting`, {
         headers,
         body: {
           pagination: { page: 0, size: Math.min(PAGE_SIZE.max, Math.max(PAGE_SIZE.min, limit)) },
           filters: {
-            contacts: { include: { jobTitles } },
+            // `countries` takes ISO codes (the documented example is ["US", "CA"]); `locations` is not sent alongside it.
+            contacts: { include: { jobTitles, ...(country && { countries: [country] }) } },
             companies: { include: companyDomain ? { domains: [companyDomain] } : { names: [companyName] } },
           },
           options: { maxContactsPerCompany: Math.min(MAX_CONTACTS_PER_COMPANY, Math.max(1, limit)) },

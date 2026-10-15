@@ -34,6 +34,19 @@ const DOSSIER: CompanyDossier = {
   suggestedContactRoles: ["hiring_manager", "hr_director", "talent_acquisition"],
 };
 
+const REGISTER_DOSSIER: CompanyDossier = {
+  source: "french_register",
+  reliability: "official",
+  employer: "Acme Industrie",
+  builtAt: new Date("2026-10-01T10:00:00Z"),
+  siren: "552100554",
+  name: "ACME INDUSTRIE",
+  address: "12 avenue de Wagram 75017 Paris",
+  financials: [],
+  executiveRoles: [],
+  suggestedContactRoles: ["hr_director"],
+};
+
 const CLAIRE: FoundPerson = { providerPersonId: "p-claire", name: "Claire M.", jobTitle: "DRH" };
 const HUGO: FoundPerson = { providerPersonId: "p-hugo", name: "Hugo B.", jobTitle: "Responsable recrutement" };
 const CLAIRE_DETAILS: ContactDetails = { providerPersonId: "p-claire", name: "Claire Martin", jobTitle: "DRH", emails: ["claire.martin@acme-industrie.fr"], phones: [] };
@@ -85,11 +98,24 @@ describe.skipIf(!connectionString)("Enriched Contacts (needs Postgres: DATABASE_
 
   async function saveApplication(owner: string) {
     const profile = await profiles.create(owner, { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
-    const captured = await jobOffers.capture(OFFER);
-    if (!profile.ok || !captured.ok) throw new Error("fixture refused");
-    const saved = await applications.save(owner, { jobOfferId: captured.jobOffer.id, profileId: profile.profile.id });
+    if (!profile.ok) throw new Error("fixture refused");
+    return saveOffer(owner, profile.profile.id, OFFER);
+  }
+
+  async function saveOffer(owner: string, profileId: string, offer: typeof OFFER) {
+    const captured = await jobOffers.capture(offer);
+    if (!captured.ok) throw new Error("fixture refused");
+    const saved = await applications.save(owner, { jobOfferId: captured.jobOffer.id, profileId });
     if (!saved.ok) throw new Error("fixture Application refused");
     return saved.application.id;
+  }
+
+  /** Marie's Application on a Job Offer at `location`, its employer's Company Dossier built as `dossier`. */
+  async function applicationAt(location: string, dossier: CompanyDossier) {
+    const application = await applications.get(marie, applicationId);
+    const id = await saveOffer(marie, application!.profile.id, { ...OFFER, source: { url: `https://www.apec.fr/offre/${encodeURIComponent(location)}` }, content: `Nous recherchons un DAF à ${location}.`, location });
+    dossiers.set(id, { status: "built", dossier });
+    return id;
   }
 
   beforeEach(async () => {
@@ -146,6 +172,43 @@ describe.skipIf(!connectionString)("Enriched Contacts (needs Postgres: DATABASE_
     expect(reveals).toEqual([]);
     // Finding people reveals nothing: no Enriched Contact is counted yet.
     expect((await t.billing.entitlements(marie)).usedThisMonth.enrichedContacts).toBe(0);
+  });
+
+  it("looks for people in the country the Job Offer's location names", async () => {
+    const { provider, searches } = fakeProvider();
+    await includeEnrichedContacts(20);
+
+    await contactsWith(provider).find(marie, await applicationAt("Londres, Royaume-Uni", REGISTER_DOSSIER));
+
+    expect(searches[0]).toMatchObject({ country: "GB" });
+  });
+
+  it("looks in France for an employer from the French company register when the Job Offer's location names no country", async () => {
+    const { provider, searches } = fakeProvider();
+    await includeEnrichedContacts(20);
+
+    await contactsWith(provider).find(marie, await applicationAt("Issy-les-Moulineaux", REGISTER_DOSSIER));
+
+    expect(searches[0]).toMatchObject({ country: "FR" });
+  });
+
+  it("looks in the country the web Company Dossier gives when the Job Offer's location names none", async () => {
+    const { provider, searches } = fakeProvider();
+    await includeEnrichedContacts(20);
+
+    await contactsWith(provider).find(marie, await applicationAt("Munich", { ...DOSSIER, country: "Allemagne" }));
+
+    expect(searches[0]).toMatchObject({ country: "DE" });
+  });
+
+  it("narrows the search to no place at all, never a city, when no country is known", async () => {
+    const { provider, searches } = fakeProvider();
+    await includeEnrichedContacts(20);
+
+    await contactsWith(provider).find(marie, applicationId);
+
+    expect(Object.keys(searches[0]!).sort()).toEqual(["companyDomain", "companyName", "jobTitles", "limit"]);
+    expect(JSON.stringify(searches[0])).not.toContain("Lyon");
   });
 
   it("is Premium only: a Plan without Enriched Contacts gets the Upgrade Prompt and the provider is not asked", async () => {

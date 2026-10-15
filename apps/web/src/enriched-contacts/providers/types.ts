@@ -4,6 +4,7 @@
  * contact details. Adapters (Lusha, Kaspr, Apollo) map it to their APIs; nothing
  * outside them knows a provider's endpoints or payloads.
  */
+import type { CountryCode } from "../countries";
 
 /** The data providers an adapter exists for. */
 export const CONTACT_PROVIDERS = ["lusha", "kaspr", "apollo"] as const;
@@ -18,6 +19,8 @@ export interface PeopleSearch {
   jobTitles: string[];
   /** At most this many people. */
   limit: number;
+  /** Only people in this country, when known. A country only, never a city: an offer's office and the company's seat are often in different towns. */
+  country?: CountryCode;
 }
 
 /** A person a search found: who and where, no contact details yet (revealing those costs provider credits). */

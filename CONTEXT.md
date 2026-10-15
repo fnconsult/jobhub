@@ -167,7 +167,7 @@ One of a small set of ATS-safe layouts used to export a CV.
 _Avoid_: Theme, design, model
 
 **Application export**:
-Downloading an Application's saved Tailored CV or Cover Letter as a PDF or Word file, using a CV Template. Only saved documents are exported, never a proposal or unsaved edits. A Cover Letter is signed with the Master CV's contact details and addressed to the employer.
+Downloading an Application's saved Tailored CV or Cover Letter as a PDF or Word file, using a CV Template. Only saved documents are exported, never a proposal or unsaved edits. A Cover Letter is dated the day of the export, carries the Master CV's contact details once (the Candidate is named in the sender block only) and is addressed to the employer; only the letter's body comes from the stored text.
 _Avoid_: Download, print
 
 **Search Criteria**:
@@ -325,7 +325,7 @@ The language Tailored Documents are written in. Defaults to the Job Offer's lang
 _Avoid_: Locale (for documents)
 
 **Cover Letter**:
-A motivation letter written for one Job Offer, stored on its Application.
+A motivation letter written for one Job Offer, stored on its Application. Only the letter's body, from salutation to closing, in plain text; the sender block, recipient, place and date, and name belong to the Application export.
 _Avoid_: Motivation letter, lettre (in code)
 
 **Outreach Message**:

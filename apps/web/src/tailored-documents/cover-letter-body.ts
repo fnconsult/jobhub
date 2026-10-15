@@ -48,13 +48,8 @@ const comparable = (text: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
-/** `text` with any `[…]` left in a sentence taken out, and the spaces around it tidied. */
-const withoutPlaceholders = (line: string) =>
-  line
-    .replace(new RegExp(PLACEHOLDER, "g"), "")
-    .replace(/[ \t]{2,}/g, " ")
-    .replace(/ +([,.;:!?)])/g, "$1")
-    .trim();
+/** `text` with any `[…]` left in a sentence taken out, with the space before it. */
+const withoutPlaceholders = (line: string) => line.replace(new RegExp(`[ \\t]*${PLACEHOLDER.source}`, "g"), "").trim();
 
 /** Whether `line` is part of the letter's frame (sender block, address, date, subject, signature) rather than its body. */
 function isFrame(line: string, signer: Signer): boolean {

@@ -79,4 +79,10 @@ describe("the body of a Cover Letter", () => {
 
     expect(coverLetterBody(letter, candidate)).toBe("Madame la Directrice,\n\nVotre offre a retenu toute mon attention.");
   });
+
+  it("keeps French spacing before punctuation", () => {
+    const letter = "Madame, Monsieur,\n\nMon objectif : rejoindre votre équipe ; pourquoi pas dès janvier ?";
+
+    expect(coverLetterBody(letter, candidate)).toBe(letter);
+  });
 });

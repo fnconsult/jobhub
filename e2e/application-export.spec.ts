@@ -207,6 +207,25 @@ test.describe("exporting the Tailored CV and the Cover Letter", () => {
     await expect((await tab(page, fr.tailoredCv.tailored)).getByRole("group", { name: fr.applicationExport.tailoredCv.title })).toHaveCount(0);
   });
 
+  test("the Cover Letter exports as plain text: its own header, Markdown and placeholders left out, the Candidate named once (#162)", async ({ page }) => {
+    const id = await openApplication(page, "application-export-plain");
+    await draftCoverLetter(page, id);
+    const pasted =
+      "**Marie Dupont**\n[Adresse]\n[Code postal, Ville]\n[Email] | [Téléphone]\n\nLyon, le [Date]\n\n**Objet : Candidature au poste de DAF**\n\n" +
+      "Madame, Monsieur,\n\nJ'ai piloté la **consolidation IFRS** d'un groupe industriel.\n\nJe vous prie d'agréer mes salutations distinguées.\n\n**Marie Dupont**";
+    const edited = await page.request.patch(`/api/applications/${id}/tailored-documents`, { data: { document: "cover_letter", text: pasted }, headers: { origin } });
+    expect(edited.status(), await edited.text()).toBe(200);
+
+    const pdf = await pdfText(await (await page.request.get(exportUrl(id, "cover-letter", "pdf"))).body());
+    const docx = (await mammoth.extractRawText({ buffer: await (await page.request.get(exportUrl(id, "cover-letter", "docx"))).body() })).value.replace(/\s+/g, " ").trim();
+    for (const text of [pdf, docx]) {
+      expect(text).toMatch(/^Marie Dupont marie\.dupont@example\.fr · 06 12 34 56 78 · Lyon Acme Industrie Lyon, le \d{1,2} \S+ \d{4} Madame, Monsieur, /);
+      expect(text).toContain("J'ai piloté la consolidation IFRS d'un groupe industriel. Je vous prie d'agréer mes salutations distinguées.");
+      expect(text.match(/Marie Dupont/g)).toHaveLength(1);
+      expect(text).not.toMatch(/\*\*|\[|\]/);
+    }
+  });
+
   test("an unknown Application returns 404", async ({ page }) => {
     await openApplication(page, "application-export-unknown");
     for (const document of ["tailored-cv", "cover-letter"] as const) {

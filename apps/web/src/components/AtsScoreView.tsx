@@ -22,8 +22,10 @@ export function AtsScoreView({
   t: T;
 }) {
   return (
-    <section className="ats-score stack" aria-labelledby="ats-score-title">
-      <h2 id="ats-score-title">{t("atsScore.title")}</h2>
+    <section className="section ats-score" aria-labelledby="ats-score-title">
+      <div className="section-head">
+        <h2 id="ats-score-title">{t("atsScore.title")}</h2>
+      </div>
       <p>{t("atsScore.intro", { role: targetRole })}</p>
       {atsScore ? <Breakdown atsScore={atsScore} currentVersion={currentVersion} t={t} /> : <p>{t("atsScore.notYet")}</p>}
       <AtsScoreButton profileId={profileId} computed={atsScore !== null} />

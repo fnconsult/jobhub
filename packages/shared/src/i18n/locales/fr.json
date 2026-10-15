@@ -430,7 +430,10 @@
     "dismiss": "Ignorer",
     "accepted": "Proposition acceptée.",
     "dismissed": "Proposition ignorée.",
-    "error": "Cette proposition n'a pas pu être appliquée. Réessayez ou rechargez la page."
+    "error": "Cette proposition n'a pas pu être appliquée. Réessayez ou rechargez la page.",
+    "copyDraft": "Copier le brouillon",
+    "copied": "Brouillon copié.",
+    "copyFailed": "La copie a échoué : sélectionnez le texte du brouillon et copiez-le vous-même."
   },
   "billing": {
     "plans": {
@@ -604,7 +607,6 @@
     "profileHint": "Le score de correspondance est calculé avec le CV de référence de ce profil.",
     "profileSaved": "Profil enregistré",
     "error": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez.",
-    "savedOn": "Offre enregistrée le {{date}}",
     "interviewsTitle": "Entretiens",
     "interviewsNone": "Aucun entretien enregistré pour l'instant.",
     "interviewsHint": "Vous pourrez noter vos entretiens quand la candidature sera au statut « Entretien ».",
@@ -619,7 +621,13 @@
     "reportUnavailable": "Signaler que cette offre n'est plus publiée",
     "reportUnavailableHint": "Pour vous seulement : l'offre ne change pas pour les autres, et votre candidature garde son statut.",
     "undoReport": "Annuler le signalement",
-    "reportedNotice": "Vous avez signalé le {{date}} que cette offre n'est plus publiée. Votre candidature et son statut restent tels quels : c'est vous qui décidez de la suite."
+    "reportedNotice": "Vous avez signalé le {{date}} que cette offre n'est plus publiée. Votre candidature et son statut restent tels quels : c'est vous qui décidez de la suite.",
+    "kind": "Candidature",
+    "savedOnLabel": "Enregistrée le",
+    "matchLabel": "Correspondance",
+    "matchDetail": "Voir le détail",
+    "offerLabel": "Offre",
+    "documentsTitle": "Documents adaptés"
   },
   "jobOffer": {
     "details": "En bref",
@@ -933,7 +941,7 @@
     "title": "Lettre de motivation et message d'approche",
     "draftsOnly": "Jobbbox n'envoie rien à votre place : copiez le texte ou ouvrez-le dans votre messagerie, puis envoyez-le vous-même.",
     "languageLabel": "Langue des documents",
-    "languageHint": "Par défaut, la langue de l'offre. Le changement s'applique à la prochaine rédaction.",
+    "languageHint": "Par défaut, la langue de l'offre. Elle vaut pour le CV adapté, la lettre et le message d'approche ; le changement s'applique à la prochaine proposition ou rédaction.",
     "languages": {
       "fr": "Français",
       "en": "Anglais"
@@ -982,8 +990,6 @@
   "tailoredCv": {
     "title": "CV adapté à l'offre",
     "factsOnly": "Le coach adapte votre CV de référence à cette offre : il reformule, réordonne, coupe et met en avant ce qu'il contient, sans jamais rien inventer. Ce que l'offre demande et que votre CV ne montre pas vous est demandé.",
-    "languageLabel": "Langue du CV adapté",
-    "languageHint": "Par défaut, la langue de l'offre. C'est aussi celle de la lettre et du message d'approche ; le changement s'applique à la prochaine proposition.",
     "none": "Aucun CV adapté pour l'instant. Le coach vous en propose un, que vous vérifiez avant de l'enregistrer.",
     "noneSinceSaved": "Vous pouvez demander une nouvelle proposition : le CV enregistré reste en place tant que vous n'en enregistrez pas un autre.",
     "propose": "Proposer un CV adapté",

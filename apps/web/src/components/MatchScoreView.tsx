@@ -3,7 +3,11 @@ import type { getServerT } from "@/i18n/server";
 
 type T = Awaited<ReturnType<typeof getServerT>>;
 
-/** A Match Score and its breakdown, criterion by criterion, in plain words. */
+/**
+ * A Match Score and its breakdown, criterion by criterion, in plain words: each
+ * one's verdict first (match, partial, mismatch, unknown), then what was compared.
+ * Its heading is `#match-score-title`, which a page can link to.
+ */
 export function MatchScoreView({ matchScore, profileName, t, locale }: { matchScore: MatchScore; profileName: string; t: T; locale: string }) {
   const { skills, seniority, location, salary, contractType } = matchScore.breakdown;
   const amount = (value: number) => new Intl.NumberFormat(locale).format(value);
@@ -11,11 +15,15 @@ export function MatchScoreView({ matchScore, profileName, t, locale }: { matchSc
   const contract = (value: string | undefined) => (value ? t(`cvReview.contractTypes.${value as "cdi"}`) : t("profile.notSpecified"));
   const orNotSpecified = (value: string | undefined) => value ?? t("profile.notSpecified");
   return (
-    <section className="match-score" aria-labelledby="match-score-title">
-      <h2 id="match-score-title">{t("matchScore.title")}</h2>
-      <p className="match-score-value">{t("matchScore.score", { score: matchScore.score })}</p>
+    <section className="section match-score" aria-labelledby="match-score-title">
+      <div className="section-head">
+        <h2 id="match-score-title" tabIndex={-1}>
+          {t("matchScore.title")}
+        </h2>
+        <p className="score">{t("matchScore.score", { score: matchScore.score })}</p>
+      </div>
       <p>{t("matchScore.intro", { profile: profileName })}</p>
-      <dl className="match-score-breakdown">
+      <ul className="breakdown">
         <Criterion name={t("matchScore.criteria.skills")} status={skills.status} t={t}>
           {skills.covered.length > 0 ? <SkillList title={t("matchScore.covered")} skills={skills.covered} /> : null}
           {skills.missing.length > 0 ? <SkillList title={t("matchScore.missing")} skills={skills.missing} /> : null}
@@ -39,21 +47,26 @@ export function MatchScoreView({ matchScore, profileName, t, locale }: { matchSc
             <p>{t("matchScore.offerAndWanted", { offer: contract(contractType.offer), wanted: contract(contractType.wanted) })}</p>
           ) : null}
         </Criterion>
-      </dl>
+      </ul>
       <p className="hint">{t("matchScore.unknownHint")}</p>
     </section>
   );
 }
 
+/** A verdict's colour only reinforces its words (ADR-0009). */
+const TONES: Record<CriterionStatus, string | undefined> = { match: "success", partial: undefined, mismatch: "danger", unknown: undefined };
+
 function Criterion({ name, status, t, children }: { name: string; status: CriterionStatus; t: T; children?: React.ReactNode }) {
   return (
-    <div className="match-score-criterion">
-      <dt>{name}</dt>
-      <dd>
-        <p className={`match-status match-status-${status}`}>{t(`matchScore.statuses.${status}`)}</p>
+    <li>
+      <p className="verdict" data-tone={TONES[status]}>
+        {t(`matchScore.statuses.${status}`)}
+      </p>
+      <div>
+        <p className="breakdown-criterion">{name}</p>
         {children}
-      </dd>
-    </div>
+      </div>
+    </li>
   );
 }
 

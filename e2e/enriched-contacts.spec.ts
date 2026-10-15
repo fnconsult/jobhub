@@ -89,7 +89,10 @@ test.describe("Enriched Contacts", () => {
 
     // The Outreach Message can be addressed to Claire: named in the draft, and the mail link is to her.
     await page.reload();
-    const message = page.getByRole("group", { name: td.outreachMessage.title });
+    // The Outreach Message is a tab of the Application's Tailored Documents (#136).
+    const documents = page.getByRole("region", { name: fr.application.documentsTitle });
+    await documents.getByRole("tab", { name: td.outreachMessage.title }).click();
+    const message = documents.getByRole("tabpanel", { name: td.outreachMessage.title });
     await message.getByLabel(td.outreachMessage.recipientLabel).selectOption({ label: "Claire Martin · DRH" });
     await message.getByRole("button", { name: td.outreachMessage.draft }).click();
     await expect(message.getByText(td.outreachMessage.addressedTo.replace("{{name}}", "Claire Martin (DRH)"))).toBeVisible();
@@ -207,7 +210,7 @@ test.describe("Enriched Contacts configuration", () => {
         expect(find.status(), await find.text()).toBe(409);
         expect(await find.json()).toEqual({ error: "disabled" });
         await page.goto(`${server.origin}/candidatures/${id}`);
-        await expect(page.getByRole("group", { name: td.outreachMessage.title })).toBeVisible();
+        await expect(page.getByRole("tab", { name: td.outreachMessage.title })).toBeVisible();
         await expect(page.getByRole("region", { name: t.title })).toHaveCount(0);
       } finally {
         server.stop();

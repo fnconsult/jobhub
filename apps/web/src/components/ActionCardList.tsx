@@ -17,6 +17,8 @@ export interface ActionCardView {
   dismissLabel?: string;
   /** Shown below the body, e.g. what accepting does. */
   hint?: string;
+  /** The body is a draft the Candidate sends themselves (e.g. a Follow-up): set apart as one, with a button to copy it. */
+  draft?: boolean;
 }
 
 type Outcome = { kind: "accepted" | "dismissed" } | { kind: "error"; cardId: string };
@@ -34,6 +36,16 @@ export function ActionCardList({ cards: shown }: { cards: ActionCardView[] }) {
   const cards = shown.filter((card) => !decided.has(card.id));
   const [busy, setBusy] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
+  const [copied, setCopied] = useState<{ cardId: string; ok: boolean } | null>(null);
+
+  async function copy(card: ActionCardView) {
+    try {
+      await navigator.clipboard.writeText(card.body);
+      setCopied({ cardId: card.id, ok: true });
+    } catch {
+      setCopied({ cardId: card.id, ok: false });
+    }
+  }
 
   async function decide(card: ActionCardView, decision: "accept" | "dismiss") {
     setBusy(card.id);
@@ -72,7 +84,7 @@ export function ActionCardList({ cards: shown }: { cards: ActionCardView[] }) {
         <article key={card.id} className="action-card" aria-labelledby={`action-card-${card.id}`}>
           {card.label ? <p className="action-card-label">{card.label}</p> : null}
           <h3 id={`action-card-${card.id}`}>{card.title}</h3>
-          <p className="cv-text">{card.body}</p>
+          <p className={card.draft ? "draft" : "cv-text"}>{card.body}</p>
           {card.hint ? <p className="hint">{card.hint}</p> : null}
           {outcome?.kind === "error" && outcome.cardId === card.id ? (
             <p className="field-error" role="alert">
@@ -83,10 +95,24 @@ export function ActionCardList({ cards: shown }: { cards: ActionCardView[] }) {
             <button className="button button-primary" type="button" disabled={busy === card.id} onClick={() => decide(card, "accept")}>
               {card.acceptLabel ?? t("actionCards.accept")}
             </button>
-            <button className="button" type="button" disabled={busy === card.id} onClick={() => decide(card, "dismiss")}>
+            {card.draft ? (
+              <button className="button" type="button" onClick={() => copy(card)}>
+                {t("actionCards.copyDraft")}
+              </button>
+            ) : null}
+            <button className="button button-quiet" type="button" disabled={busy === card.id} onClick={() => decide(card, "dismiss")}>
               {card.dismissLabel ?? t("actionCards.dismiss")}
             </button>
           </div>
+          {copied?.cardId === card.id ? (
+            copied.ok ? (
+              <p role="status">{t("actionCards.copied")}</p>
+            ) : (
+              <p className="field-error" role="alert">
+                {t("actionCards.copyFailed")}
+              </p>
+            )
+          ) : null}
         </article>
       ))}
     </section>

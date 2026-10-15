@@ -428,7 +428,8 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       const email = outbox[0]!;
       expect(email).toMatchObject({ to: "marie.dupont@example.fr", subject: expect.stringContaining("2 nouvelles offres") });
       expect(email.text).toContain(`https://app.jobbbox.fr/job-digests/${digest!.id}`);
-      expect(email.text).toContain(`https://app.jobbbox.fr/offres/${best}`);
+      // Its page scores it against the Job Digest's Profile, like the email (#163).
+      expect(email.text).toContain(`https://app.jobbbox.fr/offres/${best}?profil=${profileId}\n`);
       expect(email.text.indexOf("DAF H/F")).toBeLessThan(email.text.indexOf("Responsable financier"));
       expect(email.text).toContain("- DAF H/F (Acme Industrie, Lyon)");
     });

@@ -182,7 +182,8 @@ test.describe("On-demand AI Coach job search", () => {
       // Each Job Offer: its title leads to it, its Match Score with a meter, and why it has that score.
       const responsable = results.filter({ hasText: `Responsable financier (lu par l'IA) – réf. ${tag}` });
       const title = responsable.getByRole("heading", { level: 2 }).getByRole("link");
-      await expect(title).toHaveAttribute("href", /^\/offres\/[0-9a-f-]+$/);
+      // The Job Offer page it leads to scores it against this Job Search's Profile (#163).
+      await expect(title).toHaveAttribute("href", new RegExp(`^/offres/[0-9a-f-]+\\?profil=${profileId}$`));
       await expect(responsable.getByRole("link", { name: "Lire l'offre" })).toHaveAttribute("href", (await title.getAttribute("href"))!);
       await expect(responsable.getByText(/^Score de correspondance : \d+ \/ 100$/)).toBeVisible();
       await expect(responsable.locator(".meter")).toHaveAttribute("aria-hidden", "true");
@@ -194,6 +195,15 @@ test.describe("On-demand AI Coach job search", () => {
       await expect(reasons).toBeVisible();
       await expect(reasons.getByRole("listitem").filter({ hasText: "Lieu : Lyon, recherché : Lyon" })).toContainText("Correspond");
       await expect(reasons.getByRole("listitem").filter({ hasText: "Type de contrat : CDI, recherché : CDI" })).toContainText("Correspond");
+
+      // The Job Offer page gives the same Match Score, and why, for the same Profile (#163).
+      await title.click();
+      await expect(page).toHaveURL(/\/offres\/[0-9a-f-]+\?profil=/);
+      await expect(page.getByLabel("Profil à utiliser pour cette candidature")).toHaveValue(profileId);
+      await expect(page.getByText(`Score de correspondance avec le profil « ${searchCriteria.targetRole} » : ${score} / 100`)).toBeVisible();
+      await page.getByText(`Pourquoi ${score} ?`, { exact: true }).click();
+      await expect(page.getByRole("listitem").filter({ hasText: "Type de contrat : CDI, recherché : CDI" })).toContainText("Correspond");
+      await page.goBack();
 
       // Then: search again, or go back to the Profile.
       await expect(main.getByRole("button", { name: "Relancer une recherche" })).toBeVisible();

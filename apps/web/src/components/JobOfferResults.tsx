@@ -1,8 +1,9 @@
-import type { CriterionStatus, JobOffer, MatchScore } from "@jobhub/shared";
+import type { JobOffer, MatchScore } from "@jobhub/shared";
 import type { TFunction } from "i18next";
 import Link from "next/link";
 import { SaveSearchResultButton } from "@/components/JobSearchControls";
 import { jobOfferSalary, jobOfferSite } from "@/components/JobOfferView";
+import { MatchScoreWhy } from "@/components/MatchScoreWhy";
 import { matchScoreReasons } from "@/components/job-search-words";
 import { routes } from "@/routes";
 
@@ -13,9 +14,6 @@ export interface JobOfferResult {
   /** The Candidate's Application for this Job Offer, if they saved it. */
   applicationId: string | null;
 }
-
-/** A verdict is said in words; the colour only reinforces a clear match or mismatch. */
-const VERDICT_TONE: Partial<Record<CriterionStatus, string>> = { match: "success", mismatch: "danger" };
 
 /**
  * Job Offers found for a Profile, in the order given (best Match Score first),
@@ -58,7 +56,7 @@ function Result({ result, profileId, t, locale }: { result: JobOfferResult; prof
     <li className="row">
       <div className="row-main">
         <h2 className="row-title" id={titleId}>
-          <Link href={routes.jobOffer(jobOffer.id)}>{jobOffer.title}</Link>
+          <Link href={routes.jobOffer(jobOffer.id, profileId)}>{jobOffer.title}</Link>
         </h2>
         <p className="row-meta">
           {facts.map(([key, fact]) => (fact ? <span key={key}>{fact}</span> : null))}
@@ -86,24 +84,12 @@ function Result({ result, profileId, t, locale }: { result: JobOfferResult; prof
         ) : (
           <>
             <SaveSearchResultButton jobOfferId={jobOffer.id} profileId={profileId} describedBy={titleId} />
-            <Link className="button button-quiet" href={routes.jobOffer(jobOffer.id)} aria-describedby={titleId}>
+            <Link className="button button-quiet" href={routes.jobOffer(jobOffer.id, profileId)} aria-describedby={titleId}>
               {t("jobSearch.seeJobOffer")}
             </Link>
           </>
         )}
-        <details className="why">
-          <summary>{t("jobSearch.why", { score })}</summary>
-          <ul className="breakdown">
-            {matchScoreReasons(matchScore, t, locale).map((reason) => (
-              <li key={reason.text}>
-                <span className="verdict" data-tone={VERDICT_TONE[reason.status]}>
-                  {reason.verdict}
-                </span>
-                <span>{reason.text}</span>
-              </li>
-            ))}
-          </ul>
-        </details>
+        <MatchScoreWhy summary={t("jobSearch.why", { score })} reasons={matchScoreReasons(matchScore, t, locale)} />
       </div>
     </li>
   );

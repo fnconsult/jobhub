@@ -671,6 +671,7 @@
     "sourceLink": "See the job offer on {{site}}",
     "saveTitle": "Follow this job offer",
     "profileLabel": "Profile to use for this application",
+    "matchScore": "Match Score with the “{{profile}}” profile:",
     "save": "Save the job offer",
     "saving": "Saving…",
     "error": "Saving failed. Check your connection and try again.",

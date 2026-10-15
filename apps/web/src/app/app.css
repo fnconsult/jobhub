@@ -1624,6 +1624,18 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   border-color: transparent;
 }
 
+/* The Job Offer page's Match Score against one Profile, then "Pourquoi 86 ?" (#163). */
+.profile-match {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: baseline;
+}
+
+.profile-match p {
+  margin: 0;
+}
+
 details.why[open] {
   flex-basis: 100%;
 }

@@ -8,6 +8,8 @@ describe("ROME codes for a Search Criteria title", () => {
 
   it("reads the feminine form, accents, case and the (H/F) mention alike", () => {
     expect(romeCodesFor("DIRECTRICE FINANCIÈRE (H/F)")).toEqual(["M1205"]);
+    expect(romeCodesFor("Directrice administrative et financière")).toEqual(["M1205"]);
+    expect(romeCodesFor("Cheffe comptable F/H")).toEqual(["M1206"]);
   });
 
   it("maps an English title and an acronym", () => {

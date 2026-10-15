@@ -199,6 +199,7 @@ const MASCULINE: readonly [RegExp, string][] = [
   [/eure$/, "eur"],
   [/euse$/, "eur"],
   [/ale$/, "al"],
+  [/ive$/, "if"],
   [/^cheffe$/, "chef"],
 ];
 

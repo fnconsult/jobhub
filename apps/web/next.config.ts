@@ -9,7 +9,7 @@ loadRootEnv();
 const nextConfig: NextConfig = {
   // Self-contained server bundle, deployable as a container in an EU region (ADR-0007).
   output: "standalone",
-  transpilePackages: ["@jobhub/shared", "@jobhub/ai"],
+  transpilePackages: ["@jobhub/shared", "@jobhub/ai", "@jobhub/coach-knowledge"],
   // The Unicode fonts a PDF export embeds are read from node_modules at run time (src/export/fonts.ts).
   // `npm run build` checks they all made it into the standalone output (scripts/check-standalone-fonts.ts).
   outputFileTracingIncludes: {
@@ -19,6 +19,9 @@ const nextConfig: NextConfig = {
       "../../node_modules/@fontsource/noto-sans-devanagari/files/noto-sans-devanagari-devanagari-{400,700}-normal.woff",
       "../../node_modules/@fontsource/noto-sans-thai/files/noto-sans-thai-thai-{400,700}-normal.woff",
       "../../node_modules/@fontsource/noto-emoji/files/noto-emoji-emoji-400-normal.woff",
+      // The AI Coach's Coaching Playbooks, Core Digest and Sources, read at run time (@jobhub/coach-knowledge).
+      "../../packages/coach-knowledge/{core-digest,sources}.md",
+      "../../packages/coach-knowledge/playbooks/*.md",
     ],
   },
 };

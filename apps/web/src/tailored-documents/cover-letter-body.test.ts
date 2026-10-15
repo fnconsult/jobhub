@@ -66,4 +66,17 @@ describe("the body of a Cover Letter", () => {
   it("is empty when there is only a frame to fill in", () => {
     expect(coverLetterBody("**Hélène Durand-Lefèvre**\n[Adresse]\n\n[Date]", candidate)).toBe("");
   });
+
+  it("keeps a sentence that gives a phone number or a figure, even at the end of the letter", () => {
+    const letter = "Madame, Monsieur,\n\nJe reste disponible au 06 12 34 56 78 pour un entretien.";
+
+    expect(coverLetterBody(letter, candidate)).toBe(letter);
+    expect(coverLetterBody("Votre groupe (SIREN 552100554) recrute.", candidate)).toBe("Votre groupe (SIREN 552100554) recrute.");
+  });
+
+  it("starts at the salutation, not at a recipient named the same way above it", () => {
+    const letter = "Madame la Directrice des ressources humaines\nAgence Rhône-Alpes\nLyon, le [Date]\n\nMadame la Directrice,\n\nVotre offre a retenu toute mon attention.";
+
+    expect(coverLetterBody(letter, candidate)).toBe("Madame la Directrice,\n\nVotre offre a retenu toute mon attention.");
+  });
 });

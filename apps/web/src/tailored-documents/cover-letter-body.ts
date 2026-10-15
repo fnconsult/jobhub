@@ -16,8 +16,8 @@ export interface Signer {
 /** A `[…]` to fill in, e.g. `[Adresse]`, `[Email] | [Téléphone]`, `[Date]`. */
 const PLACEHOLDER = /\[[^\]\n]{1,80}\]/;
 
-/** How a letter opens: "Madame, Monsieur,", "Monsieur le Directeur,", "Dear Hiring Manager,", … */
-const SALUTATION = /^(madame|monsieur|mesdames|messieurs|cher|chère|bonjour|dear|hello|to whom it may concern)\b.{0,60}$/i;
+/** How a letter opens: "Madame, Monsieur,", "Monsieur le Directeur,", "Dear Hiring Manager:", … with a comma or colon, unlike a recipient's name. */
+const SALUTATION = /^(madame|monsieur|mesdames|messieurs|cher|chère|bonjour|dear|hello|to whom it may concern)\b.{0,60}[,:]$/i;
 
 /** Lines before the salutation or after the closing that belong to the letter's frame, not its body. */
 const FRAME = /^((objet|subject|re|p\.\s?j\.?|pièces? jointes?|enclosures?)\s*:|(à|a) l'attention\b|attn\b)/i;
@@ -64,7 +64,9 @@ function isFrame(line: string, signer: Signer): boolean {
   if (signer.fullName && comparable(text) === comparable(signer.fullName)) return true;
   // A short line with a `[…]` in it is a sender or recipient line to fill in ("Lyon, le [Date]"); a sentence is not.
   if (PLACEHOLDER.test(text) && wordsIn(withoutPlaceholders(text)) < 5) return true;
-  return FRAME.test(text) || (text.length <= 100 && CONTACT.test(text));
+  // So is a line of contact details ("helene@example.fr | 06 12 34 56 78", "Tél. : 06 12 34 56 78"); a sentence with a number in it is not.
+  if (CONTACT.test(text) && wordsIn(text.replace(new RegExp(CONTACT, "g"), "")) < 3) return true;
+  return FRAME.test(text);
 }
 
 /** The body of the Cover Letter `text`, signed by `signer`. Paragraphs are separated by one blank line. */

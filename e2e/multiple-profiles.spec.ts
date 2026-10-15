@@ -46,6 +46,11 @@ const switcherOf = (page: Page) => page.getByRole("navigation", { name: fr.profi
 /** The button that opens the Profile switcher's menu, named after the Profile being shown. */
 const switcherButtonOf = (page: Page) => switcherOf(page).getByRole("button");
 const currentProfile = (name: string) => fr.profileSwitcher.current.replace("{{name}}", name);
+/** The Profile page's title (#137): the Profile's name, edited in place. */
+const profileName = (page: Page) => page.getByLabel(fr.profileActions.name, { exact: true });
+/** The Profile page's Search Criteria (#137), each edited in place. */
+const criteriaOf = (page: Page) => page.getByRole("group", { name: fr.cvReview.searchCriteria });
+const masterCvOf = (page: Page) => page.getByRole("region", { name: fr.profile.masterCv });
 
 /** Opens the Profile switcher with the mouse and returns its menu. */
 async function openSwitcher(page: Page) {
@@ -69,15 +74,16 @@ test.describe("several Profiles per Candidate", () => {
 
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Consultante transformation");
     await expect(page).not.toHaveURL(`${origin}/profils/${firstId}`);
-    await expect(page.getByRole("form", { name: fr.cvReview.searchCriteria }).getByLabel(fr.cvReview.contractType)).toHaveValue("cdi");
-    await expect(page.getByText("Directrice financière · Groupe Seb · Lyon · 2015 – 2024")).toBeVisible();
-    await expect(page.getByText("Version 1")).toBeVisible();
+    await expect(criteriaOf(page).getByLabel(fr.cvReview.contractType)).toHaveValue("cdi");
+    await expect(masterCvOf(page).getByText("Directrice financière · Groupe Seb", { exact: true })).toBeVisible();
+    await expect(masterCvOf(page).getByText(/^Version 1 · /)).toBeVisible();
 
-    const name = page.getByLabel(fr.profileActions.name, { exact: true });
+    // Renamed in place: the title saves when the Candidate leaves it.
+    const name = profileName(page);
     await expect(name).toHaveValue("Consultante transformation");
     await name.fill("Consultante en transformation financière");
-    await page.getByRole("button", { name: fr.profileActions.rename }).click();
-    await expect(page.getByRole("status").filter({ hasText: fr.profileActions.renamed })).toBeVisible();
+    await name.press("Enter");
+    await expect(page.getByRole("status").filter({ hasText: fr.profilePage.nameSaved })).toBeVisible();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Consultante en transformation financière");
     await expect(page).toHaveTitle(`Consultante en transformation financière · ${fr.app.name}`);
 
@@ -116,11 +122,15 @@ test.describe("several Profiles per Candidate", () => {
     const id = await createProfile(page, "DAF");
     await page.goto(`/profils/${id}`);
 
-    const name = page.getByLabel(fr.profileActions.name, { exact: true });
+    // A blank name is not saved: the title goes back to the saved name.
+    const name = profileName(page);
     await name.fill("  ");
-    await page.getByRole("button", { name: fr.profileActions.rename }).click();
-    await expect(name).toHaveAttribute("aria-invalid", "true");
-    await expect(name).toHaveAccessibleDescription(fr.cvReview.required);
+    await name.press("Enter");
+    await expect(name).toHaveValue("DAF");
+    await expect(page.getByRole("status").filter({ hasText: fr.profilePage.nameSaved })).toHaveCount(0);
+    // The server refuses one too.
+    const blank = await page.request.patch(`/api/profiles/${id}`, { headers: { origin }, data: { name: "  " } });
+    expect(blank.status()).toBe(400);
     await page.reload();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("DAF");
   });
@@ -133,7 +143,7 @@ test.describe("several Profiles per Candidate", () => {
 
     await page.getByRole("button", { name: fr.profileActions.archive }).click();
     await expect(page.getByText(fr.profileActions.archivedNotice)).toBeVisible();
-    await expect(page.getByText("Directrice financière · Groupe Seb · Lyon · 2015 – 2024")).toBeVisible();
+    await expect(masterCvOf(page).getByText("Directrice financière · Groupe Seb", { exact: true })).toBeVisible();
     let switcher = await openSwitcher(page);
     await expect(switcher.getByRole("menuitem", { name: "Contrôleuse de gestion" })).toHaveCount(0);
     await expect(switcher.getByRole("menuitem", { name: "Directrice financière" })).toBeVisible();
@@ -316,12 +326,14 @@ test.describe("editing a Profile's Search Criteria (issue #70)", () => {
     await expect(locationScore().locator(".verdict")).toHaveText(fr.matchScore.statuses.mismatch);
 
     await page.goto(`/profils/${id}`);
-    const criteria = page.getByRole("form", { name: fr.cvReview.searchCriteria });
+    const criteria = criteriaOf(page);
     await expect(criteria.getByLabel(fr.cvReview.targetRole)).toHaveValue("Directrice financière");
     await criteria.getByLabel(fr.cvReview.targetRole).fill("Directrice administrative et financière");
+    await criteria.getByLabel(fr.cvReview.targetRole).press("Tab");
+    await expect(criteria.getByRole("status").filter({ hasText: fr.profilePage.criteriaSaved })).toHaveCount(1);
     await criteria.getByLabel(fr.cvReview.location, { exact: true }).fill("Paris");
-    await criteria.getByRole("button", { name: fr.searchCriteriaEditor.save }).click();
-    await expect(page.getByRole("status").filter({ hasText: fr.searchCriteriaEditor.saved })).toBeVisible();
+    await criteria.getByLabel(fr.cvReview.location, { exact: true }).press("Enter");
+    await expect(criteria.getByRole("status").filter({ hasText: fr.profilePage.criteriaSaved })).toHaveCount(2);
 
     await page.reload();
     await expect(criteria.getByLabel(fr.cvReview.targetRole)).toHaveValue("Directrice administrative et financière");
@@ -361,14 +373,14 @@ test.describe("editing a Profile's Search Criteria (issue #70)", () => {
     expect(archived.status()).toBe(409);
     expect(await archived.json()).toEqual({ error: "archived" });
     await page.goto(`/profils/${id}`);
-    await expect(page.getByRole("form", { name: fr.cvReview.searchCriteria })).toHaveCount(0);
+    await expect(criteriaOf(page)).toHaveCount(0);
     await expect(page.getByRole("term").filter({ hasText: fr.cvReview.targetRole })).toBeVisible();
 
     expect((await patch({ archived: false })).status()).toBe(200);
     expect((await patch({ name: "DAF industrie" })).status()).toBe(200);
     await page.goto(`/profils/${id}`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("DAF industrie");
-    await expect(page.getByRole("form", { name: fr.cvReview.searchCriteria }).getByLabel(fr.cvReview.location, { exact: true })).toHaveValue("Lyon");
+    await expect(criteriaOf(page).getByLabel(fr.cvReview.location, { exact: true })).toHaveValue("Lyon");
   });
 });
 

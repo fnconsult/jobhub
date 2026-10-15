@@ -33,6 +33,11 @@ async function candidateWithProfile(page: Page, label: string): Promise<string> 
   return (await created.json()).id;
 }
 
+/** The Profile page's Master CV (#137): a document whose fields hold the current version. */
+const masterCvOf = (page: Page) => page.getByRole("region", { name: fr.profile.masterCv });
+/** "Version N · enregistrée le …" at the top of the Profile page's Master CV. */
+const versionShown = (page: Page, version: number) => masterCvOf(page).getByText(new RegExp(`^Version ${version} · `));
+
 const entry = (page: Page, name: string) => page.getByRole("group", { name, exact: true });
 const button = (page: Page, name: string) => page.getByRole("button", { name, exact: true });
 
@@ -85,9 +90,11 @@ test.describe("editing the Master CV", () => {
     await button(page, fr.cvEditor.save).click();
 
     await expect(page).toHaveURL(`${origin}/profils/${id}`);
-    await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
-    await expect(page.getByText("Directrice administrative et financière", { exact: true })).toBeVisible();
-    await expect(page.getByText("Finance d'entreprise, industrie.")).toBeVisible();
+    await expect(versionShown(page, 2)).toBeVisible();
+    await expect(masterCvOf(page).getByLabel(fr.cvReview.headline)).toHaveValue("Directrice administrative et financière");
+    await expect(masterCvOf(page).getByLabel(fr.cvReview.summary)).toHaveValue("Finance d'entreprise, industrie.");
+    // The whole saved version, as the version page shows it.
+    await page.goto(`/profils/${id}/versions/2`);
     const jobs = page.locator(".cv-entry");
     await expect(jobs).toHaveText(["Contrôleuse de gestion · Renault", "Directrice financière · Groupe Seb · Lyon · 2015 – 2025"]);
     const items = (heading: string) => page.locator(`h3:text-is("${heading}") + ul > li`);
@@ -144,7 +151,8 @@ test.describe("editing the Master CV", () => {
 
     await button(page, fr.cvEditor.save).click();
     await expect(page).toHaveURL(`${origin}/profils/${id}`);
-    await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
+    await expect(versionShown(page, 2)).toBeVisible();
+    await page.goto(`/profils/${id}/versions/2`);
     await expect(page.locator(".cv-entry")).toHaveText(["Responsable comptable · Michelin · 2005 – 2015"]);
     const items = (heading: string) => page.locator(`h3:text-is("${heading}") + ul > li`);
     await expect(items(fr.cvReview.education)).toHaveText([/^DSCG/, /^Master Finance \(ESSEC\)/]);
@@ -207,7 +215,7 @@ test.describe("editing the Master CV", () => {
     await expect(page).toHaveURL(`${origin}/profils/${id}/cv`);
 
     await page.goto(`/profils/${id}`);
-    await expect(page.getByText("DAF", { exact: true })).toBeVisible();
+    await expect(masterCvOf(page).getByLabel(fr.cvReview.headline)).toHaveValue("DAF");
     await other.close();
   });
 
@@ -218,8 +226,8 @@ test.describe("editing the Master CV", () => {
     await page.getByRole("link", { name: fr.cvEditor.cancel }).click();
 
     await expect(page).toHaveURL(`${origin}/profils/${id}`);
-    await expect(page.getByText("Version 1", { exact: true })).toBeVisible();
-    await expect(page.locator(".cv").getByText("Directrice financière", { exact: true }).first()).toBeVisible();
+    await expect(versionShown(page, 1)).toBeVisible();
+    await expect(masterCvOf(page).getByLabel(fr.cvReview.headline)).toHaveValue("Directrice financière");
   });
 });
 
@@ -229,7 +237,7 @@ test.describe("Master CV version history", () => {
     await openEditor(page, id);
     await page.getByLabel(fr.cvReview.headline).fill("DAF groupe");
     await button(page, fr.cvEditor.save).click();
-    await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
+    await expect(versionShown(page, 2)).toBeVisible();
 
     await page.getByRole("link", { name: fr.profile.versionHistory }).click();
     await expect(page).toHaveURL(`${origin}/profils/${id}/versions`);
@@ -248,16 +256,16 @@ test.describe("Master CV version history", () => {
 
     await button(page, "Restaurer la version 1").click();
     await expect(page).toHaveURL(`${origin}/profils/${id}`);
-    await expect(page.getByText("Version 3", { exact: true })).toBeVisible();
-    await expect(page.getByText("DAF groupe")).toHaveCount(0);
+    await expect(versionShown(page, 3)).toBeVisible();
+    await expect(masterCvOf(page).getByLabel(fr.cvReview.headline)).toHaveValue("Directrice financière");
 
     await page.getByRole("link", { name: fr.profile.versionHistory }).click();
     await expect(versions.getByRole("heading", { level: 2 })).toHaveText(["Version 3", "Version 2", "Version 1"]);
     await expect(versions.first()).toContainText("Restaurée depuis la version 1");
     // Version 2 is still there and can be restored in turn.
     await button(page, "Restaurer la version 2").click();
-    await expect(page.getByText("Version 4", { exact: true })).toBeVisible();
-    await expect(page.getByText("DAF groupe", { exact: true })).toBeVisible();
+    await expect(versionShown(page, 4)).toBeVisible();
+    await expect(masterCvOf(page).getByLabel(fr.cvReview.headline)).toHaveValue("DAF groupe");
   });
 
   test("a version that does not exist is not found", async ({ page }) => {
@@ -306,7 +314,7 @@ test.describe("Master CV endpoints", () => {
     await other.close();
 
     await page.goto(`/profils/${id}`);
-    await expect(page.getByText("Version 1", { exact: true })).toBeVisible();
-    await expect(page.getByText("Pirate")).toHaveCount(0);
+    await expect(versionShown(page, 1)).toBeVisible();
+    await expect(masterCvOf(page).getByLabel(fr.cvReview.headline)).not.toHaveValue(/Pirate/);
   });
 });

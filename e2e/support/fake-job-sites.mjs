@@ -264,6 +264,42 @@ function freshnessSite(url) {
   return html(page(`Poste ${key}`, "<h1>Offre</h1>", `<script type="application/ld+json">${JSON.stringify(posting)}</script>`));
 }
 
+// France Travail mode (e2e/job-discovery-france-travail.spec.ts, #120): when E2E_DISCOVERY_FT is set, France Travail's
+// OAuth token endpoint and Offres d'emploi search answer as follows (the web search still returns the default pages):
+//  - "ok": a token, then E2E_DISCOVERY_FT_COUNT offers (as many as the request's `range` allows), each created 2 days ago;
+//  - "search-refused": a token, then HTTP 403 on the search; "token-refused": HTTP 401 on the token endpoint;
+//  - "failed": a token, then HTTP 500 on the search.
+// The offers' public pages (candidat.francetravail.fr) are never part of the fake web: they must never be requested.
+const ftMode = process.env.E2E_DISCOVERY_FT ?? "";
+const ftCount = Number(process.env.E2E_DISCOVERY_FT_COUNT ?? 3);
+export const FT_CREATED_MS = Date.now() - 2 * 24 * 60 * 60 * 1000;
+const ftOffer = (n) => ({
+  id: `FT${tag}x${n}`,
+  intitule: `Directeur administratif et financier France Travail ${n} – réf. ${tag}`,
+  description: `Offre ${n} (réf. ${tag}) : vous pilotez la finance d'un groupe industriel lyonnais.`,
+  dateCreation: new Date(FT_CREATED_MS).toISOString(),
+  dateActualisation: new Date(Date.now() - 60_000).toISOString(),
+  lieuTravail: { libelle: "69 - LYON 03", codePostal: "69003" },
+  entreprise: { nom: "INDUSTRIES DU RHONE" },
+  typeContrat: "CDI",
+  salaire: { libelle: "Annuel de 110000.00 Euros à 130000.00 Euros" },
+});
+
+function franceTravailSite(url) {
+  if (url.hostname === "entreprise.francetravail.fr") {
+    if (ftMode === "token-refused") return json({ error: "invalid_client" }, 401);
+    return json({ access_token: `ft-token-${tag}`, token_type: "Bearer", expires_in: 1499, scope: "api_offresdemploiv2 o2dsoffre" });
+  }
+  if (url.hostname === "api.francetravail.io") {
+    if (ftMode === "search-refused") return json({ message: "forbidden" }, 403);
+    if (ftMode === "failed") return json({ message: "boom" }, 500);
+    const end = Number(/^0-(\d+)$/.exec(url.searchParams.get("range") ?? "")?.[1] ?? 14);
+    return json({ resultats: Array.from({ length: Math.min(ftCount, end + 1) }, (_, n) => ftOffer(n + 1)) }, 206);
+  }
+  return html(page("Introuvable", "<p>404</p>"), { status: 404 });
+}
+const FT_HOSTS = ["entreprise.francetravail.fr", "api.francetravail.io", "candidat.francetravail.fr"];
+
 const volumePage = (n) => `https://volume-e2e.example/offre/${n}-${tag}`;
 
 /** What the fake web search returns, in order. */
@@ -367,6 +403,7 @@ globalThis.fetch = async (input, init = {}) => {
   }
   if (url.origin === "https://api.mistral.ai") return mistral(JSON.parse(body || "{}"));
 
+  if (ftMode && FT_HOSTS.includes(url.hostname)) return franceTravailSite(url);
   if (freshness && url.hostname === FRESHNESS_HOST) return freshnessSite(url);
   if (ats && ATS_HOSTS.includes(url.hostname)) return atsSite(url);
   if (listing && (url.hostname === LISTING_HOST || url.hostname === "autre-e2e.example")) return listingSite(url);

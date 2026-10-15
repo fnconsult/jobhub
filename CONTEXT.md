@@ -216,6 +216,15 @@ A Job Offer a results page gave that the run had not found yet. It is what lets 
 **Job discovery budget**:
 The limits that end one run of Job discovery (a Job Search or a Job Digest top-up), whichever comes first: a number of Job Offers found (new or already stored), an estimated spend in euros, or a duration. Defaults: 30 Job Offers, EUR 0.08, 90 seconds. The result page being read when a limit is reached is finished, so a run can go slightly past it.
 
+**France Travail search**:
+The first source of a Job discovery run when France Travail is configured: the official job-offer API of France Travail, searched with the Search Criteria. Its Job Offers count toward the Job discovery budget; when they fill it, the AI plan and web search are skipped. Losing access is a normal outcome, never a failed run.
+
+**France Travail status**:
+How the France Travail search went in one run, part of the Discovery metrics: off (not configured), searched, refused (access withdrawn or credentials rejected) or failed (any other error).
+
+**ROME code**:
+France Travail's code for a job, derived from the Search Criteria title; a title naming no known job is searched by keywords instead.
+
 **Discovery metrics**:
 What one run of Job discovery (a Job Search or a Job Digest top-up) measured: how many Job Offers each step kept (provider URLs, pages read, Job Offers extracted, already stored, left after deduplication, with a Match Score of 60 or more), the pages skipped by Skip reason, and the estimated cost in euros. Costs are estimates from list prices, not billed amounts. Duration is the Candidate's wait (start to outcome) for a Job Search, and the worker's run time for a Job Digest.
 
@@ -223,7 +232,7 @@ What one run of Job discovery (a Job Search or a Job Digest top-up) measured: ho
 Why a result page gave no Job Offer (for example a Forbidden site, robots.txt, an unreadable page, a closed posting, or a posting too old).
 
 **Posting date**:
-When a Job Offer was first published, as its source states it. Sources, strongest first: the public JSON API of Greenhouse, Lever or Ashby, the page's JobPosting `datePosted`, then the search provider's date for that page (weakest, as it may be a last-updated date). A date in the future or before 2000 counts as unknown. Never taken from a Candidate or the extension. Job discovery skips a posting first published more than 30 days ago (Skip reason "too old"), including a stored Job Offer found again, and the Job Digest leaves it out. A Job Offer with no known date is kept, labelled "date unknown", and listed after dated offers with an equal Match Score.
+When a Job Offer was first published, as its source states it. Sources, strongest first: the public JSON API of Greenhouse, Lever or Ashby, or a France Travail offer's creation date, the page's JobPosting `datePosted`, then the search provider's date for that page (weakest, as it may be a last-updated date). A date in the future or before 2000 counts as unknown. Never taken from a Candidate or the extension. Job discovery skips a posting first published more than 30 days ago (Skip reason "too old"), including a stored Job Offer found again, and the Job Digest leaves it out. A Job Offer with no known date is kept, labelled "date unknown", and listed after dated offers with an equal Match Score.
 _Avoid_: Publication date (when unknown), created date
 
 **Forbidden site**:

@@ -4,6 +4,7 @@ import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jo
 import type { JobOffer, SearchCriteria } from "@jobhub/shared";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import type { FranceTravail, FranceTravailSearch } from "./france-travail";
 import { createJobDiscovery, JobDiscoveryError, type JobDiscoveryBudget, type JobOfferStore } from "./index";
 
 const criteria: SearchCriteria = {
@@ -88,6 +89,8 @@ function setup(options: {
   llmUsage?: { inputTokens: number; outputTokens: number };
   /** When the run starts. Default: the epoch. */
   now?: Date;
+  /** France Travail, when configured. */
+  franceTravail?: FranceTravail;
 }) {
   const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, sourceDates: options.sourceDates, answer: options.answer, pages: options.searchPages });
   const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}', usage: options.llmUsage });
@@ -100,7 +103,7 @@ function setup(options: {
   const clock = fakeClock(options.now?.getTime());
   const web = fakeWeb(options.pages, clock);
   const jobOffers = memoryJobOffers(options.existing);
-  const discovery = createJobDiscovery({ ai, jobOffers, fetch: web.fetch, clock, budget: options.budget });
+  const discovery = createJobDiscovery({ ai, jobOffers, fetch: web.fetch, clock, budget: options.budget, franceTravail: options.franceTravail });
   return { discovery, search, llm, titles, web, jobOffers };
 }
 
@@ -1097,6 +1100,89 @@ describe("Job discovery", () => {
       const { discovery } = setup({ sources: urls, pages: pagesFor(urls, posting), budget: { jobOffers: 2 } });
 
       expect((await discovery.discover({ candidateId: "c", criteria })).jobOffers).toHaveLength(2);
+    });
+  });
+  describe("searching France Travail first, when it is configured", () => {
+    const NOW = new Date("2026-10-15T12:00:00Z");
+    const daysAgo = (days: number) => new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000);
+    const ftOffer = (id: string, postedAt: Date) => ({
+      url: `https://candidat.francetravail.fr/offres/recherche/detail/${id}`,
+      details: { title: `Directeur financier ${id}`, content: `Offre France Travail ${id}.`, location: "69 - LYON", contractType: "cdi" as const, postedAt },
+    });
+    /** France Travail answering `result` to every search, and the searches asked of it. */
+    const fakeFranceTravail = (result: FranceTravailSearch | ((max: number) => FranceTravailSearch)) => {
+      const searches: { criteria: SearchCriteria; max: number; now: Date }[] = [];
+      const franceTravail: FranceTravail = {
+        async search(searched, { max, now }) {
+          searches.push({ criteria: searched, max, now });
+          return typeof result === "function" ? result(max) : result;
+        },
+      };
+      return { franceTravail, searches };
+    };
+
+    it("captures its offers as Job Offers dated by France Travail, then searches the web as usual", async () => {
+      const ft = fakeFranceTravail({ ok: true, calls: 2, offers: [ftOffer("201A", daysAgo(5)), ftOffer("201B", daysAgo(45))] });
+      const { discovery, search, jobOffers } = setup({ sources: [], pages: {}, now: NOW, franceTravail: ft.franceTravail });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(ft.searches).toEqual([{ criteria, max: 30, now: NOW }]);
+      expect(report.jobOffers).toEqual([
+        expect.objectContaining({ title: "Directeur financier 201A", source: { url: "https://candidat.francetravail.fr/offres/recherche/detail/201A" }, postedAt: daysAgo(5) }),
+      ]);
+      expect(jobOffers.all).toHaveLength(1);
+      // The adapter asks for the last 30 days; an older offer is still dropped by the freshness rule.
+      expect(report.skipped).toEqual([{ url: "https://candidat.francetravail.fr/offres/recherche/detail/201B", reason: "too_old" }]);
+      expect(report.funnel).toEqual({ providerUrls: 0, fetched: 0, extracted: 1, alreadyStored: 0 });
+      expect(report.franceTravail).toEqual({ status: "searched", calls: 2, offers: 1 });
+      expect(search.queries.length).toBeGreaterThan(0);
+    });
+
+    it("finds an offer stored by an earlier run again rather than capturing it twice", async () => {
+      const offer = ftOffer("201A", daysAgo(5));
+      const stored: JobOffer = { id: "stored-1", source: { url: offer.url }, ...offer.details };
+      const ft = fakeFranceTravail({ ok: true, calls: 1, offers: [offer] });
+      const { discovery, jobOffers } = setup({ sources: [], pages: {}, now: NOW, existing: [stored], franceTravail: ft.franceTravail });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers.map((jobOffer) => jobOffer.id)).toEqual(["stored-1"]);
+      expect(jobOffers.all).toHaveLength(1);
+      expect(report.funnel).toMatchObject({ extracted: 0, alreadyStored: 1 });
+      expect(report.franceTravail).toEqual({ status: "searched", calls: 1, offers: 1 });
+    });
+
+    it("counts its offers in the budget: it asks for no more than the budget's Job Offers, and the web is not searched once they are found", async () => {
+      const ft = fakeFranceTravail((max) => ({ ok: true, calls: 2, offers: Array.from({ length: max }, (_, index) => ftOffer(`30${index}`, daysAgo(1))) }));
+      const { discovery, search } = setup({ sources: [DAF_URL], pages: {}, now: NOW, franceTravail: ft.franceTravail, budget: { jobOffers: 3 } });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(ft.searches.map(({ max }) => max)).toEqual([3]);
+      expect(report.jobOffers).toHaveLength(3);
+      expect(search.queries).toEqual([]);
+    });
+
+    it.each(["refused", "failed"] as const)("goes on with the web search when France Travail is %s, and says so", async (reason) => {
+      const ft = fakeFranceTravail({ ok: false, reason, detail: "search refused (403)", calls: 2 });
+      const { discovery } = setup({
+        sources: [DAF_URL],
+        pages: { [DAF_URL]: { body: jobPostingPage({ title: "DAF H/F", description: "Poste de DAF à Lyon.", datePosted: "2026-10-12" }) } },
+        now: NOW,
+        franceTravail: ft.franceTravail,
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers.map((jobOffer) => jobOffer.title)).toEqual(["DAF H/F"]);
+      expect(report.franceTravail).toEqual({ status: reason, calls: 2, offers: 0 });
+    });
+
+    it("is off without France Travail configured", async () => {
+      const { discovery } = setup({ sources: [], pages: {} });
+
+      expect((await discovery.discover({ candidateId: "c", criteria })).franceTravail).toEqual({ status: "off", calls: 0, offers: 0 });
     });
   });
 });

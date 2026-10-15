@@ -1,0 +1,36 @@
+{
+  "_synthetic": "Written by hand from third-party descriptions of the Offres d'emploi v2 search answer (#120 research): replace with a captured answer once access is granted (#119).",
+  "resultats": [
+    {
+      "id": "201ABCD",
+      "intitule": "Directeur administratif et financier H/F",
+      "description": "Rattaché au Directeur Général, vous pilotez la finance, la trésorerie et le contrôle de gestion d'un groupe industriel de 400 personnes.",
+      "dateCreation": "2026-10-10T09:12:00.000Z",
+      "dateActualisation": "2026-10-14T16:00:00.000Z",
+      "lieuTravail": { "libelle": "69 - LYON 03", "codePostal": "69003", "commune": "69383" },
+      "romeCode": "M1205",
+      "entreprise": { "nom": "INDUSTRIES DU RHONE" },
+      "typeContrat": "CDI",
+      "typeContratLibelle": "Contrat à durée indéterminée",
+      "experienceExige": "E",
+      "experienceLibelle": "10 An(s)",
+      "competences": [{ "code": "100001", "libelle": "Piloter la trésorerie" }, { "code": "100002", "libelle": "Consolidation des comptes" }],
+      "salaire": { "libelle": "Annuel de 110000.00 Euros à 130000.00 Euros" },
+      "origineOffre": { "origine": "1", "urlOrigine": "https://candidat.francetravail.fr/offres/recherche/detail/201ABCD" }
+    },
+    {
+      "id": "201EFGH",
+      "intitule": "Responsable administratif et financier (H/F)",
+      "description": "Mission de remplacement de 9 mois au sein d'une PME de négoce.",
+      "dateCreation": "2026-10-01T08:00:00.000Z",
+      "lieuTravail": { "libelle": "69 - VILLEURBANNE" },
+      "entreprise": {},
+      "typeContrat": "CDD",
+      "salaire": { "libelle": "Mensuel de 5000.00 Euros sur 12 mois" }
+    },
+    {
+      "id": "201IJKL",
+      "description": "Une offre sans intitulé ne fait pas un Job Offer."
+    }
+  ]
+}

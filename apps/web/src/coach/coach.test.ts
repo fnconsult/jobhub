@@ -55,8 +55,9 @@ const application: Application = {
 
 const jobSearch: JobSearch = {
   id: "44444444-4444-4444-8444-444444444444",
-  profile: { id: profile.id, name: profile.name },
+  profile: { id: profile.id, name: profile.name, searchCriteria: profile.searchCriteria },
   status: "done",
+  failure: null,
   startedAt: new Date("2026-10-10T08:00:00Z"),
   results: [{ jobOffer, matchScore, applicationId: null }],
   metrics: null,
@@ -149,7 +150,7 @@ describe("talking with the AI Coach in the Coach Panel", () => {
   it("says what its reply cost: the provider and model, the tokens in, out and cached, and the estimated cost in €", async () => {
     const provider = createFakeProvider({ id: "mistral", reply: "Bonjour", usage: { inputTokens: 1_000, outputTokens: 200, cachedInputTokens: 3_000 } });
     const ai = createAiLayer({ providers: [provider], routes: { coaching: { provider: "mistral", model: "mistral-large-latest" } }, usage: createMemoryUsageLog() });
-    const coach = createCoach({ ai, profiles: { get: async () => null } });
+    const coach = createCoach({ ai, ...sourcesOf(emptyWorkspace()) });
 
     const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "Bonjour" }] });
 

@@ -22,7 +22,7 @@
  */
 import type { Pool } from "pg";
 import * as z from "zod";
-import { COACH_FOCUS_KINDS, type Coach, type CoachFocus, type CoachMessageCost } from "../coach";
+import { COACH_FOCUS_KINDS, type Coach, type CoachMessageCost } from "../coach";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, type CoachMessage } from "../coach/conversation";
 import type { Profiles } from "../profiles";
 

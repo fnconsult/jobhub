@@ -23,7 +23,9 @@ const { values } = parseArgs({
   },
 });
 
-const env = process.env;
+// The suite never searches the web, but the AI layer builds the web search provider at start-up:
+// without its key (e.g. in CI), a placeholder that is never sent.
+const env: Record<string, string | undefined> = { ...process.env, PERPLEXITY_API_KEY: process.env.PERPLEXITY_API_KEY || "unused-by-coach-eval" };
 /** Bedrock (the default endpoint) names Claude models with an "anthropic." prefix. */
 const endpointModel = (model: string) => ((env.ANTHROPIC_ENDPOINT?.trim() || "bedrock") === "bedrock" && !model.startsWith("anthropic.") ? `anthropic.${model}` : model);
 /** An AI layer whose `coaching` task answers on `model`; usage is not logged (no Candidate). */
@@ -51,6 +53,11 @@ try {
 
 console.info(`[coach:eval] ${cases.length} cases × ${models.join(", ")}; judge ${values.judge}`);
 const report = await runCoachEval({ cases, models: compared, judge, knowledge: loadCoachKnowledge({ environment: "eval" }) });
+
+if (report.models.every((model) => model.results.every((result) => result.error === "coach"))) {
+  console.error("[coach:eval] The AI Coach gave no reply on any model: check the AI configuration (see the warnings above). Nothing written.");
+  process.exit(1);
+}
 
 const date = new Date().toISOString().slice(0, 10);
 const commit = execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();

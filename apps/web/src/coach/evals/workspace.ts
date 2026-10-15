@@ -22,7 +22,8 @@ export function evalWorkspace(evalCase: CoachEvalCase): { sources: Omit<CoachDep
     id: PROFILE_ID,
     name: candidate.targetRole,
     archived: false,
-    searchCriteria: { targetRole: candidate.targetRole, ...(candidate.location ? { location: candidate.location } : {}) },
+    // No location: the Coach context leaves it out.
+    searchCriteria: { targetRole: candidate.targetRole, location: candidate.location ?? "" },
     masterCv: {
       version: 1,
       content: {

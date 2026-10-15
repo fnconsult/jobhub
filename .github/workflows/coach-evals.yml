@@ -1,0 +1,57 @@
+name: Coach evals
+
+# The Coach eval suite (#131) calls Claude for real, so it runs nightly and on pull requests that
+# change the AI Coach's prompt, knowledge or model, not on every pull request.
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    inputs:
+      models:
+        description: Models compared, comma-separated
+        default: claude-opus-5-5,claude-sonnet-5-5
+  pull_request:
+    paths:
+      - apps/web/src/coach/**
+      - packages/coach-knowledge/**
+      - packages/ai/src/env.ts
+      - packages/ai/src/providers/anthropic.ts
+      - apps/web/scripts/coach-eval.ts
+      - .github/workflows/coach-evals.yml
+
+concurrency:
+  group: coach-evals-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      ANTHROPIC_ENDPOINT: bedrock
+      BEDROCK_REGION: eu-west-3
+      AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}
+    steps:
+      - name: Skip without Bedrock credentials
+        if: env.AWS_BEARER_TOKEN_BEDROCK == ''
+        run: echo "::warning::AWS_BEARER_TOKEN_BEDROCK is not set; the Coach eval suite did not run."
+      - uses: actions/checkout@v4
+        if: env.AWS_BEARER_TOKEN_BEDROCK != ''
+      - uses: actions/setup-node@v4
+        if: env.AWS_BEARER_TOKEN_BEDROCK != ''
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - if: env.AWS_BEARER_TOKEN_BEDROCK != ''
+        run: npm ci
+      - if: env.AWS_BEARER_TOKEN_BEDROCK != ''
+        env:
+          MODELS: ${{ inputs.models || 'claude-opus-5-5,claude-sonnet-5-5' }}
+        run: npm run coach:eval -- --models "$MODELS" --out "$RUNNER_TEMP/coach-evals"
+      - if: env.AWS_BEARER_TOKEN_BEDROCK != ''
+        run: cat "$RUNNER_TEMP"/coach-evals/*.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: env.AWS_BEARER_TOKEN_BEDROCK != ''
+        with:
+          name: coach-evals
+          path: ${{ runner.temp }}/coach-evals

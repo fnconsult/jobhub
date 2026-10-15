@@ -308,6 +308,26 @@
     "editMasterCv": "Modifier mon CV de référence",
     "versionHistory": "Historique des versions"
   },
+  "profilePage": {
+    "eyebrow": "Profil",
+    "nameSaved": "Nom du profil enregistré",
+    "criteriaSaved": "Critères enregistrés",
+    "jobDigestLink": {
+      "weekly": "Job Digest : chaque lundi",
+      "daily": "Job Digest : chaque jour",
+      "none": "Job Digest : non reçu"
+    },
+    "cvVersion": "Version {{version}} · enregistrée le {{date}}",
+    "skills": "Compétences, une par ligne",
+    "jobDescription": "Missions et réalisations : {{job}}",
+    "fullEditorHint": "Vos coordonnées, vos postes, vos formations et vos langues se modifient dans l'éditeur complet.",
+    "unsaved": "Modifications non enregistrées",
+    "savebarLabel": "Modifications du CV de référence",
+    "cancel": "Annuler",
+    "cancelled": "Modifications annulées.",
+    "saveVersion": "Enregistrer la version {{version}}",
+    "savedVersion": "Version {{version}} de votre CV de référence enregistrée."
+  },
   "profileSwitcher": {
     "label": "Sélecteur de profil",
     "current": "Profil : {{name}}",
@@ -316,8 +336,6 @@
   "profileActions": {
     "title": "Gérer ce profil",
     "name": "Nom du profil",
-    "rename": "Renommer",
-    "renamed": "Profil renommé.",
     "duplicateName": "Nom de la copie",
     "duplicateHint": "La copie reprend les critères de recherche et la version actuelle du CV de référence de ce profil.",
     "duplicate": "Dupliquer ce profil",
@@ -329,9 +347,7 @@
     "error": "La modification n'a pas pu être enregistrée. Veuillez réessayer."
   },
   "searchCriteriaEditor": {
-    "hint": "Jobbbox s'en sert pour le Match Score, le mot-clé cible de l'ATS Score et la recherche d'offres. Le nom du profil ne change pas : renommez-le plus bas si besoin.",
-    "save": "Enregistrer les critères",
-    "saved": "Critères de recherche enregistrés.",
+    "hint": "Jobbbox s'en sert pour le Match Score, le mot-clé cible de l'ATS Score et la recherche d'offres. Les modifier ne renomme pas le profil.",
     "archived": "Ce profil est archivé : restaurez-le pour modifier ses critères de recherche."
   },
   "newProfile": {
@@ -685,7 +701,6 @@
   },
   "jobSearch": {
     "sectionTitle": "Recherche d'offres",
-    "startHint": "Votre coach cherche sur le web des offres qui correspondent aux critères de recherche de ce profil, puis les classe par score de correspondance avec votre CV de référence.",
     "start": "Chercher des offres",
     "starting": "Lancement de la recherche…",
     "title": "Offres trouvées pour « {{profile}} »",

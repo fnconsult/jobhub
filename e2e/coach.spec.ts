@@ -157,7 +157,9 @@ test.describe("onboarding with the AI Coach", () => {
     // Saved as a Profile with version 1 of its Master CV, like an uploaded CV.
     await expect(page).toHaveURL(/\/profils\/[0-9a-f-]{36}$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice financière");
-    await expect(page.getByText("Version 1")).toBeVisible();
+    await expect(page.getByRole("region", { name: fr.profile.masterCv }).getByText(/^Version 1 · /)).toBeVisible();
+    // The whole Master CV, as its version page shows it.
+    await page.goto(`${new URL(page.url()).pathname}/versions/1`);
     await expect(page.getByText("Marie Dupont", { exact: true })).toBeVisible();
     await expect(page.getByText("Directrice financière · Groupe Seb · Lyon · 2015 – 2024")).toBeVisible();
     await expect(page.getByText("Responsable du contrôle de gestion · Renault · Paris · 2005 – 2015")).toBeVisible();

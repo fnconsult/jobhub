@@ -1194,8 +1194,10 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   display: contents;
 }
 
+/* A label stays beside its control when a hint or an error makes the value taller. */
 .props dt {
   display: flex;
+  align-self: start;
   gap: var(--space-2);
   align-items: center;
   min-height: var(--control-height);
@@ -1651,4 +1653,203 @@ details.why summary {
 
 .btn-row > .stack {
   margin-top: 0;
+}
+
+/* ---------- Pages that read like documents (#137, prototype #132) ----------
+   The Profile page first: an eyebrow, the title and the properties at the top,
+   then sections of 32px apart, 16px within a section, 8px between controls.
+   Values edited in place carry a dashed underline at 3:1 contrast (WCAG 1.4.11),
+   visible without hover, which a touch screen does not have. */
+.document {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.document h2,
+.document h3,
+.document .stack {
+  margin-top: 0;
+}
+
+.document p {
+  margin: 0;
+}
+
+.document .button {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: var(--control-height);
+  line-height: 1.25;
+  border-radius: var(--radius-md);
+}
+
+.document .button-primary {
+  color: var(--color-on-accent);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.document .button-quiet {
+  background: transparent;
+  border-color: transparent;
+}
+
+.document .button:disabled {
+  cursor: progress;
+}
+
+.btn-row .stack {
+  gap: var(--space-2);
+}
+
+.title-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.title-field h1 {
+  margin: 0;
+  font-size: var(--font-size-h1);
+}
+
+/* A field's error on a property row wraps under its value (the Application page's hint shares this). */
+.props .field-error {
+  flex-basis: 100%;
+}
+
+.inline-edit[aria-invalid="true"] {
+  border-bottom: 2px solid var(--color-danger);
+}
+
+select.inline-edit {
+  width: auto;
+  min-width: 12rem;
+  cursor: pointer;
+}
+
+textarea.inline-edit {
+  min-height: 5rem;
+  resize: vertical;
+  field-sizing: content;
+}
+
+/* The title: the Profile's name, as large as a page title. */
+textarea.title-edit {
+  min-height: 0;
+  overflow: hidden;
+  font-size: var(--font-size-h1);
+  font-weight: 700;
+  line-height: var(--line-height-heading);
+  resize: none;
+}
+
+.saved-flag {
+  font-weight: 600;
+  color: var(--color-success);
+}
+
+.saved-flag:empty {
+  display: none;
+}
+
+/* The Master CV as a document; its edits wait in a bar that sticks to the bottom. */
+.cv-doc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.doc-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.doc-block > label,
+.doc-label {
+  font-weight: 600;
+}
+
+.job {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-left: var(--space-4);
+  border-left: 2px solid var(--color-border);
+}
+
+.job-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  justify-content: space-between;
+}
+
+.savebar {
+  position: sticky;
+  bottom: var(--space-4);
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-background);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-menu);
+}
+
+.savebar .field-error {
+  flex-basis: 100%;
+}
+
+/* Rows of the Profile page: the latest Job Digests, to open. */
+.document .rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.document .row {
+  display: flex;
+  align-items: center;
+  min-height: var(--control-height);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.document .row-title {
+  font-size: var(--font-size-lead);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+@media (width < 64rem) {
+  .title-field h1,
+  textarea.title-edit {
+    font-size: var(--font-size-h2);
+  }
+}
+
+@media (width < 40rem) {
+  .props {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .props dt {
+    min-height: auto;
+    padding-top: var(--space-3);
+  }
+}
+
+.document .input {
+  min-height: var(--control-height);
 }

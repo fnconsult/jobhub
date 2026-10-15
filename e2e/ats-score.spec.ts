@@ -41,6 +41,9 @@ async function openProfile(page: Page, label: string): Promise<string> {
 
 const atsSection = (page: Page) => page.getByRole("region", { name: fr.atsScore.title });
 const cards = (page: Page) => page.getByRole("region", { name: fr.actionCards.title });
+/** The Profile page's Master CV (#137), and its "Version N · enregistrée le …". */
+const masterCvOf = (page: Page) => page.getByRole("region", { name: fr.profile.masterCv });
+const versionShown = (page: Page, version: number) => masterCvOf(page).getByText(new RegExp(`^Version ${version} · `));
 
 test.describe("ATS Score", () => {
   test("shows the score with its Lisibilité / Mots-clés breakdown and proposes the fixes as Action Cards", async ({ page }) => {
@@ -77,7 +80,7 @@ test.describe("ATS Score", () => {
     await expect(cards(page).getByRole("status")).toHaveText(fr.actionCards.dismissed);
     await expect(advice).toHaveCount(0);
     await page.reload();
-    await expect(page.getByText("Version 1", { exact: true })).toBeVisible();
+    await expect(versionShown(page, 1)).toBeVisible();
     await expect(cards(page).getByRole("article", { name: SENIOR_ADVICE })).toHaveCount(0);
   });
 
@@ -89,13 +92,15 @@ test.describe("ATS Score", () => {
 
     await cards(page).getByRole("article", { name: KEYWORD_FIX }).getByRole("button", { name: fr.actionCards.accept }).click();
     await expect(cards(page).getByRole("status")).toHaveText(fr.actionCards.accepted);
-    await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
+    await expect(versionShown(page, 2)).toBeVisible();
+    // The Master CV on the page follows the version the fix saved.
+    await expect(masterCvOf(page).getByLabel(fr.profilePage.skills)).toHaveValue(/\nTrésorerie$/);
     await expect(section.getByLabel("ATS Score : 100 sur 100")).toBeVisible();
     await expect(section).toContainText("Calculé sur la version 2 de votre CV de référence.");
 
     await cards(page).getByRole("article", { name: SENIOR_ADVICE }).getByRole("button", { name: fr.actionCards.accept }).click();
-    await expect(page.getByText("Version 3", { exact: true })).toBeVisible();
-    await expect(page.getByRole("main")).not.toContainText("58 ans");
+    await expect(versionShown(page, 3)).toBeVisible();
+    await expect(masterCvOf(page).getByLabel(fr.cvReview.headline)).toHaveValue("Directrice financière");
     await expect(section).toContainText("Calculé sur la version 3 de votre CV de référence.");
 
     // The Free Plan's one ATS Score of the month was the first computation: recomputing after fixes did not use it.
@@ -155,14 +160,14 @@ test.describe("ATS Fixes, one by one", () => {
     await expect(decorations).toHaveCount(0);
     await expect(split).toBeVisible();
     await expect(years).toBeVisible();
-    await expect(page.getByText("Version 1", { exact: true })).toBeVisible();
-    await expect(page.getByText("Version 2", { exact: true })).toHaveCount(0);
+    await expect(versionShown(page, 1)).toBeVisible();
+    await expect(versionShown(page, 2)).toHaveCount(0);
     expect(await shownScore(page)).toBe(before);
 
     // Accept another: a new Master CV version, and the score is recomputed on it.
     await split.getByRole("button", { name: fr.actionCards.accept }).click();
     await expect(cards(page).getByRole("status")).toHaveText(fr.actionCards.accepted);
-    await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
+    await expect(versionShown(page, 2)).toBeVisible();
     await expect(section).toContainText("Calculé sur la version 2 de votre CV de référence.");
     await expect(section.getByRole("listitem").filter({ hasText: fr.atsScore.checks.skillsList })).toContainText(fr.atsScore.passed);
     await expect.poll(() => shownScore(page)).toBeGreaterThan(before);
@@ -171,10 +176,10 @@ test.describe("ATS Fixes, one by one", () => {
 
     // The rejected fix stays rejected; the Senior Advice is still the Candidate's to decide.
     await page.reload();
-    await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
+    await expect(versionShown(page, 2)).toBeVisible();
     await expect(cards(page).getByRole("article", { name: DECORATIONS_FIX })).toHaveCount(0);
     await expect(cards(page).getByRole("article", { name: YEARS_ADVICE })).toBeVisible();
-    await expect(page.getByRole("main")).toContainText("★ Reporting");
+    await expect(masterCvOf(page).getByLabel(fr.profilePage.skills)).toHaveValue(/★ Reporting/);
   });
 });
 

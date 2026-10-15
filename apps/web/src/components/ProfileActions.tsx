@@ -10,21 +10,19 @@ import { routes } from "@/routes";
 import { TextField } from "./form-fields";
 import { UpgradePrompt, upgradePromptIn } from "./UpgradePrompt";
 
-type Action = "rename" | "duplicate" | "archive";
+type Action = "duplicate" | "archive";
 type Outcome = {
   action: Action;
   errors?: ProfileFieldError[];
   problem?: "plan_quota_reached" | "failed";
   /** When the Plan Quota refused: what the Plan allows and which Plan allows more. */
   upgradePrompt?: Prompt | null;
-  done?: boolean;
 };
 
-/** Rename, duplicate, archive or restore one Profile. */
+/** Duplicate, archive or restore one Profile (its name is edited in place, as the page title). */
 export function ProfileActions({ profile }: { profile: { id: string; name: string; archived: boolean } }) {
   const { t } = useTranslation();
   const router = useRouter();
-  const [name, setName] = useState(profile.name);
   const [duplicateName, setDuplicateName] = useState(() => copyName(profile.name, (name) => t("profiles.copyOf", { name })));
   const [working, setWorking] = useState<Action | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
@@ -48,15 +46,6 @@ export function ProfileActions({ profile }: { profile: { id: string; name: strin
     return null;
   }
 
-  async function rename(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (await send("rename", `/api/profiles/${profile.id}`, "PATCH", { name })) {
-      setOutcome({ action: "rename", done: true });
-      setDuplicateName(copyName(name, (copied) => t("profiles.copyOf", { name: copied })));
-      router.refresh();
-    }
-  }
-
   async function duplicate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const created = await send("duplicate", `/api/profiles/${profile.id}/duplicate`, "POST", { name: duplicateName });
@@ -77,24 +66,15 @@ export function ProfileActions({ profile }: { profile: { id: string; name: strin
       </p>
     ) : null;
 
-  const renameError = nameError("rename");
   const duplicateError = nameError("duplicate");
-  const renameProblem = problem("rename");
   const duplicateProblem = problem("duplicate");
   const archiveProblem = problem("archive");
 
   return (
-    <section className="stack" aria-labelledby="profile-actions">
-      <h2 id="profile-actions">{t("profileActions.title")}</h2>
-
-      <form className="stack" onSubmit={rename} noValidate>
-        <TextField label={t("profileActions.name")} value={name} onChange={setName} error={renameError} maxLength={PROFILE_NAME_MAX_LENGTH} required />
-        <button className="button" type="submit" disabled={working !== null}>
-          {working === "rename" ? t("profileActions.working") : t("profileActions.rename")}
-        </button>
-        {outcome?.action === "rename" && outcome.done ? <p role="status">{t("profileActions.renamed")}</p> : null}
-        {renameProblem}
-      </form>
+    <section className="section" aria-labelledby="profile-actions">
+      <div className="section-head">
+        <h2 id="profile-actions">{t("profileActions.title")}</h2>
+      </div>
 
       <form className="stack" onSubmit={duplicate} noValidate>
         <TextField

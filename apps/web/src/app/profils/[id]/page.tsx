@@ -1,5 +1,7 @@
+import type { SearchCriteria } from "@jobhub/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Fragment } from "react";
 import { getActionCards } from "@/action-cards/server";
 import { atsFixOf } from "@/ats-score";
 import { getAtsScoring } from "@/ats-score/server";
@@ -10,12 +12,12 @@ import { CoachInView } from "@/components/CoachPanel";
 import { CvExportForm } from "@/components/CvExportForm";
 import { JobDigestControls } from "@/components/JobDigestControls";
 import { StartJobSearchButton } from "@/components/JobSearchControls";
-import { MasterCvView } from "@/components/MasterCvView";
+import { MasterCvDocument } from "@/components/MasterCvDocument";
 import { ProfileActions } from "@/components/ProfileActions";
-import { SearchCriteriaEditor } from "@/components/SearchCriteriaEditor";
+import { ProfileTitle, SearchCriteriaProperties } from "@/components/ProfileInlineEdits";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getJobDigests } from "@/job-digests/server";
-import { requireOwnProfile } from "@/profiles/server";
+import { getProfiles, requireOwnProfile } from "@/profiles/server";
 import { routes } from "@/routes";
 
 type Params = { params: Promise<{ id: string }> };
@@ -31,135 +33,143 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 /**
- * One Profile: the AI Coach's Action Cards about it (ATS Fixes among them,
- * Senior Advice labelled), a Job Search for it, its Job Digest, its Search Criteria (editable
- * while the Profile is active), its ATS Score, the current version of its
- * Master CV, and what can be done with it.
+ * One Profile, as a document (prototype #132): its name as the title and its
+ * Search Criteria as properties, both edited in place and saved on change
+ * (read-only while archived); the AI Coach's Action Cards about it (ATS Fixes
+ * among them, Senior Advice labelled); its Master CV, edited in place and saved
+ * as a new version (ADR-0012); its ATS Score, its Job Digest, its CV export, and
+ * what can be done with it.
  */
 export default async function ProfilePage({ params }: Params) {
   const { candidateId, profile } = await currentProfile((await params).id);
   const t = await getServerT();
   const inView = { kind: "profile", id: profile.id, name: profile.name } as const;
-  const cards = await getActionCards().pending(candidateId, inView);
-  const atsScore = await getAtsScoring().latest(candidateId, profile.id);
-  const jobDigest = await getJobDigests().settings(candidateId, profile.id);
-  const locale = await getRequestLocale();
+  const [cards, atsScore, jobDigest, versions, locale] = await Promise.all([
+    getActionCards().pending(candidateId, inView),
+    getAtsScoring().latest(candidateId, profile.id),
+    getJobDigests().settings(candidateId, profile.id),
+    getProfiles().masterCvVersions(candidateId, profile.id),
+    getRequestLocale(),
+  ]);
   const { searchCriteria: criteria, masterCv } = profile;
-  const notSpecified = t("profile.notSpecified");
+  const savedAt = versions?.find((each) => each.version === masterCv.version)?.savedAt;
   return (
     <CandidateLayout candidateId={candidateId} currentProfileId={profile.id}>
-      <h1>{profile.name}</h1>
-      {profile.archived ? <p className="notice">{t("profileActions.archivedNotice")}</p> : null}
-      <CoachInView {...inView} />
-      <ActionCardList
-        key={`action-cards-${profile.id}`}
-        cards={cards.map(({ id, title, body, kind, payload }): ActionCardView => {
-          const seniorAdvice = atsFixOf({ kind, payload })?.category === "senior_advice";
-          return seniorAdvice ? { id, title, body, label: t("atsFixes.seniorAdvice"), dismissLabel: t("atsFixes.dismissAdvice") } : { id, title, body };
-        })}
-      />
+      <article className="document">
+        <header className="page-head">
+          <p className="eyebrow">{t("profilePage.eyebrow")}</p>
+          <ProfileTitle key={`title-${profile.id}`} profileId={profile.id} name={profile.name} />
+          {profile.archived ? <p className="notice">{t("profileActions.archivedNotice")}</p> : null}
+          {profile.archived ? (
+            <ArchivedCriteria criteria={criteria} locale={locale} t={t} />
+          ) : (
+            <SearchCriteriaProperties key={`criteria-${profile.id}`} profileId={profile.id} searchCriteria={criteria} />
+          )}
+          {profile.archived ? null : (
+            // The sidebar's Job Searches link leads here (routes.profileJobSearch).
+            <div className="btn-row" id="job-search-title" aria-label={t("jobSearch.sectionTitle")} role="group">
+              <StartJobSearchButton key={profile.id} profileId={profile.id} />
+              {jobDigest ? (
+                <Link className="button" href={routes.profileJobDigest(profile.id)}>
+                  {t(`profilePage.jobDigestLink.${jobDigest.subscribed ? jobDigest.frequency : "none"}`)}
+                </Link>
+              ) : null}
+            </div>
+          )}
+        </header>
 
-      {profile.archived ? null : (
-        <section className="stack" aria-labelledby="job-search-title">
-          <h2 id="job-search-title">{t("jobSearch.sectionTitle")}</h2>
-          <p>{t("jobSearch.startHint")}</p>
-          <StartJobSearchButton key={profile.id} profileId={profile.id} />
-        </section>
-      )}
+        <CoachInView {...inView} />
+        <ActionCardList
+          key={`action-cards-${profile.id}`}
+          cards={cards.map(({ id, title, body, kind, payload }): ActionCardView => {
+            const seniorAdvice = atsFixOf({ kind, payload })?.category === "senior_advice";
+            return seniorAdvice ? { id, title, body, label: t("atsFixes.seniorAdvice"), dismissLabel: t("atsFixes.dismissAdvice") } : { id, title, body };
+          })}
+        />
 
-      {jobDigest && !profile.archived ? (
-        <section className="stack" aria-labelledby="job-digest-title">
-          <h2 id="job-digest-title">{t("jobDigest.sectionTitle")}</h2>
-          <p>{t("jobDigest.hint")}</p>
-          {jobDigest.planFrequency !== "none" ? <p>{t(`jobDigest.frequency.${jobDigest.planFrequency}`)}</p> : null}
-          {jobDigest.subscribed ? (
-            <>
-              <p className="notice" role="status">
-                {t("jobDigest.subscribed")}
-              </p>
-              {jobDigest.frequency !== "none" ? <p>{t(`jobDigest.schedule.${jobDigest.frequency}`)}</p> : null}
-              {jobDigest.chosenFrequency !== jobDigest.frequency ? <p>{t("jobDigest.cappedToPlan")}</p> : null}
-            </>
-          ) : null}
-          <JobDigestControls
-            key={profile.id}
-            profileId={profile.id}
-            subscribed={jobDigest.subscribed}
-            chosenFrequency={jobDigest.chosenFrequency}
-            planFrequency={jobDigest.planFrequency}
-          />
-          {jobDigest.digests.length > 0 ? (
-            <>
-              <h3>{t("jobDigest.latestTitle")}</h3>
-              <ul>
-                {jobDigest.digests.map((digest) => (
-                  <li key={digest.id}>
-                    <Link href={routes.jobDigest(digest.id)}>
-                      {t("jobDigest.digestLink", { date: formatDate(digest.sentAt, locale), count: digest.count })}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </>
-          ) : null}
-        </section>
-      ) : null}
+        <MasterCvDocument
+          key={`master-cv-${profile.id}`}
+          profileId={profile.id}
+          version={masterCv.version}
+          savedOn={savedAt ? formatDate(savedAt, locale) : null}
+          content={masterCv.content}
+        />
 
-      {profile.archived ? (
-        <>
-          <h2>{t("cvReview.searchCriteria")}</h2>
-          <dl>
-            <dt>{t("cvReview.targetRole")}</dt>
-            <dd>{criteria.targetRole}</dd>
-            <dt>{t("cvReview.location")}</dt>
-            <dd>{criteria.location}</dd>
-            <dt>{t("cvReview.minSalary")}</dt>
-            <dd>
-              {criteria.minSalary === undefined
-                ? notSpecified
-                : t("profile.salary", { amount: new Intl.NumberFormat(locale).format(criteria.minSalary) })}
-            </dd>
-            <dt>{t("cvReview.contractType")}</dt>
-            <dd>{criteria.contractType ? t(`cvReview.contractTypes.${criteria.contractType}`) : notSpecified}</dd>
-            <dt>{t("cvReview.remoteWork")}</dt>
-            <dd>{criteria.remoteWork ? t(`cvReview.remoteWorkOptions.${criteria.remoteWork}`) : notSpecified}</dd>
-          </dl>
-        </>
-      ) : (
-        <SearchCriteriaEditor key={`criteria-${profile.id}`} profileId={profile.id} searchCriteria={criteria} />
-      )}
+        <AtsScoreView profileId={profile.id} targetRole={criteria.targetRole} currentVersion={masterCv.version} atsScore={atsScore} t={t} />
 
-      <AtsScoreView
-        profileId={profile.id}
-        targetRole={criteria.targetRole}
-        currentVersion={masterCv.version}
-        atsScore={atsScore}
-        t={t}
-      />
+        {jobDigest && !profile.archived ? (
+          <section className="section" aria-labelledby="job-digest-title">
+            <div className="section-head">
+              <h2 id="job-digest-title">{t("jobDigest.sectionTitle")}</h2>
+            </div>
+            <p>{t("jobDigest.hint")}</p>
+            {jobDigest.planFrequency !== "none" ? <p>{t(`jobDigest.frequency.${jobDigest.planFrequency}`)}</p> : null}
+            {jobDigest.subscribed ? (
+              <>
+                <p className="notice" role="status">
+                  {t("jobDigest.subscribed")}
+                </p>
+                {jobDigest.frequency !== "none" ? <p>{t(`jobDigest.schedule.${jobDigest.frequency}`)}</p> : null}
+                {jobDigest.chosenFrequency !== jobDigest.frequency ? <p>{t("jobDigest.cappedToPlan")}</p> : null}
+              </>
+            ) : null}
+            <JobDigestControls
+              key={profile.id}
+              profileId={profile.id}
+              subscribed={jobDigest.subscribed}
+              chosenFrequency={jobDigest.chosenFrequency}
+              planFrequency={jobDigest.planFrequency}
+            />
+            {jobDigest.digests.length > 0 ? (
+              <>
+                <h3>{t("jobDigest.latestTitle")}</h3>
+                <ul className="rows">
+                  {jobDigest.digests.map((digest) => (
+                    <li key={digest.id} className="row">
+                      <Link className="row-title" href={routes.jobDigest(digest.id)}>
+                        {t("jobDigest.digestLink", { date: formatDate(digest.sentAt, locale), count: digest.count })}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+          </section>
+        ) : null}
 
-      <h2>{t("profile.masterCv")}</h2>
-      <p>{t("profile.version", { version: masterCv.version })}</p>
-      <MasterCvView cv={masterCv.content} t={t} />
-      <nav className="actions" aria-label={t("profile.masterCv")}>
-        <Link className="button button-primary" href={routes.editMasterCv(profile.id)}>
-          {t("profile.editMasterCv")}
-        </Link>
-        <Link className="button" href={routes.masterCvVersions(profile.id)}>
-          {t("profile.versionHistory")}
-        </Link>
-      </nav>
+        <CvExportForm profileId={profile.id} t={t} />
 
-      <CvExportForm profileId={profile.id} t={t} />
-
-      <ProfileActions key={profile.id} profile={{ id: profile.id, name: profile.name, archived: profile.archived }} />
-
-      <p>
-        <Link href={routes.account}>{t("profile.backToAccount")}</Link>
-      </p>
+        <ProfileActions key={`${profile.id}-${profile.name}`} profile={{ id: profile.id, name: profile.name, archived: profile.archived }} />
+      </article>
     </CandidateLayout>
   );
 }
 
+/** An archived Profile's Search Criteria: read-only until it is restored. */
+function ArchivedCriteria({ criteria, locale, t }: { criteria: SearchCriteria; locale: string; t: Awaited<ReturnType<typeof getServerT>> }) {
+  const notSpecified = t("profile.notSpecified");
+  const properties: [string, string][] = [
+    [t("cvReview.targetRole"), criteria.targetRole],
+    [t("cvReview.location"), criteria.location],
+    [
+      t("cvReview.minSalary"),
+      criteria.minSalary === undefined ? notSpecified : t("profile.salary", { amount: new Intl.NumberFormat(locale).format(criteria.minSalary) }),
+    ],
+    [t("cvReview.contractType"), criteria.contractType ? t(`cvReview.contractTypes.${criteria.contractType}`) : notSpecified],
+    [t("cvReview.remoteWork"), criteria.remoteWork ? t(`cvReview.remoteWorkOptions.${criteria.remoteWork}`) : notSpecified],
+  ];
+  return (
+    <dl className="props" aria-label={t("cvReview.searchCriteria")}>
+      {properties.map(([label, value]) => (
+        <Fragment key={label}>
+          <dt>{label}</dt>
+          <dd>{value}</dd>
+        </Fragment>
+      ))}
+    </dl>
+  );
+}
+
 function formatDate(date: Date, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(date);
+  return new Intl.DateTimeFormat(locale, { dateStyle: "full", timeZone: "Europe/Paris" }).format(date);
 }

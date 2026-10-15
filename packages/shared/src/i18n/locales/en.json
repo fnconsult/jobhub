@@ -308,6 +308,26 @@
     "editMasterCv": "Edit my Master CV",
     "versionHistory": "Version history"
   },
+  "profilePage": {
+    "eyebrow": "Profile",
+    "nameSaved": "Profile name saved",
+    "criteriaSaved": "Criteria saved",
+    "jobDigestLink": {
+      "weekly": "Job Digest: every Monday",
+      "daily": "Job Digest: every day",
+      "none": "Job Digest: not received"
+    },
+    "cvVersion": "Version {{version}} · saved on {{date}}",
+    "skills": "Skills, one per line",
+    "jobDescription": "Duties and achievements: {{job}}",
+    "fullEditorHint": "Your contact details, jobs, education and languages are edited in the full editor.",
+    "unsaved": "Unsaved changes",
+    "savebarLabel": "Changes to the Master CV",
+    "cancel": "Cancel",
+    "cancelled": "Changes cancelled.",
+    "saveVersion": "Save version {{version}}",
+    "savedVersion": "Version {{version}} of your Master CV saved."
+  },
   "profileSwitcher": {
     "label": "Profile switcher",
     "current": "Profile: {{name}}",
@@ -316,8 +336,6 @@
   "profileActions": {
     "title": "Manage this profile",
     "name": "Profile name",
-    "rename": "Rename",
-    "renamed": "Profile renamed.",
     "duplicateName": "Name of the copy",
     "duplicateHint": "The copy takes this profile's search criteria and the current version of its master CV.",
     "duplicate": "Duplicate this profile",
@@ -329,9 +347,7 @@
     "error": "The change could not be saved. Please try again."
   },
   "searchCriteriaEditor": {
-    "hint": "Jobbbox uses them for the Match Score, the ATS Score's target keyword and the job search. The profile's name does not change: rename it below if needed.",
-    "save": "Save criteria",
-    "saved": "Search criteria saved.",
+    "hint": "Jobbbox uses them for the Match Score, the ATS Score's target keyword and the job search. Changing them does not rename the profile.",
     "archived": "This profile is archived: restore it to change its search criteria."
   },
   "newProfile": {
@@ -685,7 +701,6 @@
   },
   "jobSearch": {
     "sectionTitle": "Job search",
-    "startHint": "Your coach searches the web for job offers matching this profile's search criteria, then ranks them by how well your master CV matches.",
     "start": "Search for job offers",
     "starting": "Starting the search…",
     "title": "Job offers found for \"{{profile}}\"",

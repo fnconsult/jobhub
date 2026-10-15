@@ -18,6 +18,7 @@ import { EVAL_CANDIDATE_ID, evalWorkspace } from "./workspace";
 
 export { COACH_EVAL_CASES, COACH_EVAL_SET_VERSION, type CoachEvalCase } from "./cases";
 export { JUDGE_CRITERIA, PASS_SCORE, type Judgment } from "./judge";
+export { renderCoachEvalReport, type CoachEvalRun } from "./report";
 
 export interface CoachEvalOptions {
   cases: CoachEvalCase[];
@@ -68,13 +69,17 @@ export interface CoachEvalReport {
   judge: { model: string; eur: number };
   /**
    * The model to make the AI Coach's default: the cheapest within the Coach cost target that passes
-   * within QUALITY_MARGIN of the best model's share of cases. Null when none does: a human decides.
+   * at least QUALITY_FLOOR of the cases, and within QUALITY_MARGIN of the best model's share.
+   * Null when none does: a human decides.
    */
   recommended: { model: string | null; reason: string };
 }
 
 /** How far below the best model's share of passed cases a cheaper model may be and still be recommended. */
 export const QUALITY_MARGIN = 0.1;
+
+/** The least share of passed cases for a model to be recommended at all. */
+export const QUALITY_FLOOR = 0.8;
 
 export async function runCoachEval(options: CoachEvalOptions): Promise<CoachEvalReport> {
   const judge = { model: "", eur: 0 };
@@ -142,18 +147,19 @@ function summarize(results: CoachEvalCaseResult[]): CoachEvalSummary {
 function recommend(models: CoachEvalModelResult[]): CoachEvalReport["recommended"] {
   const share = ({ summary }: CoachEvalModelResult) => (summary.cases === 0 ? 0 : summary.passed / summary.cases);
   const best = Math.max(0, ...models.map(share));
+  const bar = Math.max(QUALITY_FLOOR, best - QUALITY_MARGIN);
   const [cheapest] = models
-    .filter((model) => model.summary.withinTarget && share(model) >= best - QUALITY_MARGIN)
+    .filter((model) => model.summary.withinTarget && share(model) >= bar)
     .sort((a, b) => a.summary.medianEur! - b.summary.medianEur!);
   const percent = (value: number) => `${Math.round(value * 100)}%`;
   if (!cheapest) {
     return {
       model: null,
-      reason: `No model is both within the Coach cost target (€${COACH_MESSAGE_COST_TARGET_EUR} median and p90) and within ${percent(QUALITY_MARGIN)} of the best share of cases passed (${percent(best)}).`,
+      reason: `No model is both within the Coach cost target (€${COACH_MESSAGE_COST_TARGET_EUR} median and p90) and passing ${percent(bar)} of cases or more (at least ${percent(QUALITY_FLOOR)}, and within ${percent(QUALITY_MARGIN)} of the best: ${percent(best)}).`,
     };
   }
   return {
     model: cheapest.model,
-    reason: `The cheapest model within the Coach cost target (€${COACH_MESSAGE_COST_TARGET_EUR} median and p90) that passes ${percent(share(cheapest))} of cases, within ${percent(QUALITY_MARGIN)} of the best (${percent(best)}).`,
+    reason: `The cheapest model within the Coach cost target (€${COACH_MESSAGE_COST_TARGET_EUR} median and p90) that passes ${percent(share(cheapest))} of cases (at least ${percent(QUALITY_FLOOR)}, and within ${percent(QUALITY_MARGIN)} of the best: ${percent(best)}).`,
   };
 }

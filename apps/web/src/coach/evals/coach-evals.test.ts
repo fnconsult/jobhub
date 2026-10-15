@@ -2,7 +2,7 @@ import { createAiLayer, type AiLayer, type TokenUsage } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import { loadCoachKnowledge, PLAYBOOK_IDS } from "@jobhub/coach-knowledge";
 import { describe, expect, it } from "vitest";
-import { COACH_EVAL_CASES, runCoachEval, type CoachEvalCase } from "./index";
+import { COACH_EVAL_CASES, renderCoachEvalReport, runCoachEval, type CoachEvalCase } from "./index";
 
 const knowledge = loadCoachKnowledge({ environment: "eval" });
 
@@ -196,5 +196,31 @@ describe("the Coach eval set", () => {
     expect(ported.every((evalCase) => evalCase.inView?.kind === "job_offer")).toBe(true);
     // The Coach read the Job Offer In view: "Supply Chain Manager", from the historic-role case.
     expect(coach.provider.calls[3]!.system).toContain("Supply Chain Manager");
+  });
+});
+
+describe("the Coach eval report", () => {
+  it("shows each model's summary, the recommended default, each case's scores and any figure outside the playbooks", async () => {
+    const judge = aiOn("claude-opus-5-5", { reply: judgment({ adherence: 5, figures: 2, tone: 4 }, ["73 %"]) });
+    const report = await runCoachEval({
+      cases: [nadia],
+      models: [
+        { model: "claude-opus-5-5", ai: aiOn("claude-opus-5-5", { usage: { inputTokens: 8_000, outputTokens: 500 } }).ai },
+        { model: "claude-sonnet-5-5", ai: aiOn("claude-sonnet-5-5", { usage: { inputTokens: 8_000, outputTokens: 500 } }).ai },
+      ],
+      judge: judge.ai,
+      knowledge,
+    });
+
+    const markdown = renderCoachEvalReport(report, { date: "2026-10-15", commit: "abc1234", setVersion: "coach-v1" });
+
+    expect(markdown).toContain("# Coach eval run, 2026-10-15");
+    expect(markdown).toContain("coach-v1");
+    expect(markdown).toContain("abc1234");
+    expect(markdown).toContain("| claude-opus-5-5 | 0 / 1 | 5.00 | 2.00 | 4.00 | €0.0361 | €0.0361 | no |");
+    expect(markdown).toContain("| claude-sonnet-5-5 | 0 / 1 | 5.00 | 2.00 | 4.00 | €0.0181 | €0.0181 | yes |");
+    expect(markdown).toMatch(/Recommended default: none/);
+    expect(markdown).toContain("| age-worry | 5 / 2 / 4 ✗ | 5 / 2 / 4 ✗ |");
+    expect(markdown).toContain("73 %");
   });
 });

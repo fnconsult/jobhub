@@ -595,3 +595,46 @@ describe("grounded in the Coaching Playbooks: the Core Digest, plus 1 or 2 playb
     expect(result).toMatchObject({ ok: true, playbooks: used("ats-optimization") });
   });
 });
+
+describe("the Ground Coach reply prompt", () => {
+  /** A small, fixed knowledge base, so the snapshot shows the prompt's shape rather than the playbooks' wording. */
+  const source = (id: string, author: string, year: string, title: string) => ({ id, author, year, title, url: `https://example.org/${id}`, licence: "public" });
+  const document = (title: string, version: string, text: string, sources: ReturnType<typeof source>[]) => ({
+    title,
+    version,
+    updated: "2026-10-12",
+    status: "validé (Claire Martin, 2026-10-13)",
+    humanValidated: true,
+    rules: [],
+    sources,
+    text,
+  });
+  const fixedKnowledge: Pick<CoachKnowledge, "playbook" | "coreDigest"> = {
+    coreDigest: () =>
+      document("Socle de coaching", "1.0", "# Socle de coaching\n\n**R1. Ne promettez jamais de résultat.** [S55]", [source("S55", "Dares", "2025", "Évaluation de l'accompagnement")]),
+    playbook: (id) =>
+      id === "interview-psychology"
+        ? {
+            id,
+            ...document("Réussir ses entretiens après 40 ans", "1.2", "# Réussir ses entretiens après 40 ans\n\n## Règles\n\n**R1. Préparez trois exemples chiffrés.** [S24]", [
+              source("S24", "Apec", "2026", "Les cadres seniors en recherche d'emploi"),
+            ]),
+          }
+        : undefined,
+  };
+
+  it("puts the persona, the rules for using the knowledge, the Core Digest, the playbooks with their Sources, then the Candidate's context", async () => {
+    const { coach, provider } = coachWith({ knowledge: fixedKnowledge });
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "Comment réussir mon entretien ?" }] });
+
+    expect(result).toMatchObject({ ok: true, playbooks: [{ id: "core-digest", version: "1.0" }, { id: "interview-psychology", version: "1.2" }] });
+    const system = contextOf(provider);
+    // Playbooks win over general knowledge; no statistic unless it is in a playbook, cited in plain words.
+    expect(system).toMatch(/priment sur tes connaissances générales/);
+    expect(system).toMatch(/aucun chiffre ni statistique qui ne figure pas dans le socle ou un playbook/);
+    expect(system).toMatch(/« Apec, 2026 »/);
+    expect(system).toMatch(/conseil général, sans chiffre/);
+    expect(system).toMatchSnapshot();
+  });
+});

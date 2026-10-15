@@ -106,6 +106,24 @@ describe.skipIf(!connectionString)("Action Cards (needs Postgres: DATABASE_URL)"
     expect(await cards.pending(marie, PROFILE)).toMatchObject([{ id, status: "pending" }]);
   });
 
+  it("lets the AI Coach withdraw a pending proposal it no longer makes, but never a decided card or someone else's", async () => {
+    const cards = createActionCards(database);
+    const stale = await cards.propose(marie, proposal);
+    const dismissed = await cards.propose(marie, { ...proposal, payload: { skill: "SAP" } });
+    await cards.decide(marie, dismissed.id, "dismiss");
+    const jeans = await cards.propose(jean, proposal);
+
+    expect(await cards.withdraw(marie, stale.id)).toBe(true);
+    expect(await cards.withdraw(marie, dismissed.id)).toBe(false);
+    expect(await cards.withdraw(marie, jeans.id)).toBe(false);
+    expect(await cards.withdraw(marie, "not-a-card")).toBe(false);
+
+    expect(await cards.pending(marie, PROFILE)).toEqual([]);
+    expect(await cards.dismissed(marie, PROFILE)).toEqual([{ ...dismissed, status: "dismissed" }]);
+    expect(await cards.decide(marie, stale.id, "accept")).toEqual({ ok: false, error: "not_found" });
+    expect(await cards.pending(jean, PROFILE)).toEqual([jeans]);
+  });
+
   it("lists a Candidate's pending cards of some kinds, across pages, oldest first", async () => {
     const cards = createActionCards(database);
     const APPLICATION = { kind: "application", id: "33333333-3333-4333-8333-333333333333" } as const;

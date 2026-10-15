@@ -167,6 +167,55 @@ describe.skipIf(!connectionString)("ATS Scoring (needs Postgres: DATABASE_URL)",
     expect((await profiles.get(marie, profileId))!.masterCv.version).toBe(2);
   });
 
+  it("computing the score again withdraws the pending fixes the new score no longer calls for (#165)", async () => {
+    await scoring.analyse(marie, profileId, "fr");
+    // The Candidate lists Trésorerie herself, in the Master CV editor.
+    await profiles.saveMasterCv(marie, profileId, { basedOnVersion: 1, content: { ...masterCv, skills: [...masterCv.skills, "Trésorerie"] } });
+
+    await scoring.analyse(marie, profileId, "fr");
+
+    expect((await actionCards.pending(marie, page())).map((card) => card.title)).toEqual(["Conseil senior : retirez votre âge"]);
+  });
+
+  it("computing the score again replaces a pending fix the new score calls for differently (#165)", async () => {
+    const created = await profiles.create(marie, {
+      masterCv: { ...masterCv, headline: "Responsable finance" },
+      searchCriteria: { targetRole: "Directrice financière", location: "Lyon" },
+    });
+    if (!created.ok) throw new Error("fixture Profile refused");
+    const focus = { kind: "profile", id: created.profile.id } as const;
+    const headlineCard = async () => (await actionCards.pending(marie, focus)).filter((card) => card.title === "Mettez votre poste cible en titre");
+    await scoring.analyse(marie, created.profile.id, "fr");
+    expect((await headlineCard()).map((card) => card.body)).toEqual([expect.stringContaining("« Directrice financière »")]);
+
+    await profiles.changeSearchCriteria(marie, created.profile.id, { searchCriteria: { targetRole: "DAF industrie", location: "Lyon" } });
+    await scoring.analyse(marie, created.profile.id, "fr");
+
+    expect((await headlineCard()).map((card) => card.body)).toEqual([expect.stringContaining("« DAF industrie »")]);
+  });
+
+  it("computing the score again keeps the pending fixes it calls for again as they are, whatever the change (#165)", async () => {
+    const created = await profiles.create(marie, {
+      masterCv: {
+        ...masterCv,
+        skills: [...masterCv.skills, "Trésorerie, Fiscalité ; Audit"],
+        experience: [...masterCv.experience, { title: "Comptable", employer: "Fiduciaire Rhône", location: "Lyon", period: "1988 – 1995", description: "" }],
+      },
+      searchCriteria: { targetRole: "Directrice financière", location: "Lyon" },
+    });
+    if (!created.ok) throw new Error("fixture Profile refused");
+    const focus = { kind: "profile", id: created.profile.id } as const;
+    const pendingFixes = async () =>
+      (await actionCards.pending(marie, focus)).map((card) => ({ id: card.id, change: (card.payload as { fix: { change: { type: string } } }).fix.change.type }));
+    await scoring.analyse(marie, created.profile.id, "fr");
+    const first = await pendingFixes();
+    expect(first.map((card) => card.change)).toEqual(expect.arrayContaining(["split_skill", "replace_text", "remove_experience"]));
+
+    await scoring.analyse(marie, created.profile.id, "fr");
+
+    expect(await pendingFixes()).toEqual(first);
+  });
+
   it("refuses beyond the Plan Quota, without scoring or proposing anything", async () => {
     quota = REFUSED;
 

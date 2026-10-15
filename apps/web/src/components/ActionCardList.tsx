@@ -21,6 +21,22 @@ export interface ActionCardView {
   draft?: boolean;
 }
 
+/** The heading of the page's Action Cards, while there are some. */
+const TITLE_ID = "action-cards-title";
+
+/**
+ * Brings the page's Action Cards into view and moves focus to them, e.g. once
+ * a computation elsewhere on the page has proposed new ones, which would
+ * otherwise appear out of sight. False when the page shows no Action Cards.
+ */
+export function bringActionCardsIntoView(): boolean {
+  const title = document.getElementById(TITLE_ID);
+  if (!title) return false;
+  title.scrollIntoView({ block: "start" });
+  title.focus({ preventScroll: true });
+  return true;
+}
+
 type Outcome = { kind: "accepted" | "dismissed" } | { kind: "error"; cardId: string };
 
 /**
@@ -73,8 +89,10 @@ export function ActionCardList({ cards: shown }: { cards: ActionCardView[] }) {
 
   if (cards.length === 0 && !outcome) return null;
   return (
-    <section className="action-cards stack" aria-labelledby="action-cards-title">
-      <h2 id="action-cards-title">{t("actionCards.title")}</h2>
+    <section className="action-cards stack" aria-labelledby={TITLE_ID}>
+      <h2 id={TITLE_ID} tabIndex={-1}>
+        {t("actionCards.title")}
+      </h2>
       {outcome && outcome.kind !== "error" ? (
         <p className="notice" role="status">
           {t(`actionCards.${outcome.kind}`)}

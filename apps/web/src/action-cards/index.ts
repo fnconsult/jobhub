@@ -9,7 +9,10 @@
  *    - `decide` a card once: "accept" runs its kind's `onAccept` handler and
  *      records the decision in one transaction (a failing handler leaves the
  *      card pending), "dismiss" only records it. Never throws for a card that
- *      is missing, someone else's or already decided: an error code comes back.
+ *      is missing, someone else's or already decided: an error code comes back;
+ *    - `withdraw` a pending card the AI Coach no longer proposes (e.g. an ATS
+ *      Fix the Master CV no longer needs): it leaves the page as if never
+ *      proposed. A decided card is never withdrawn.
  *  - `migrateActionCards(database)` — creates / upgrades the table.
  * Every read and decision is scoped to the Candidate. Cards are deleted with the
  * account (ADR-0010). Each kind (ATS Fix, Follow-up…) brings its own handler.
@@ -49,6 +52,8 @@ export interface ActionCards {
   /** The Candidate's pending cards of these kinds, whatever page they are on, oldest first. */
   pendingOfKinds(candidateId: string, kinds: string[]): Promise<ActionCard[]>;
   decide(candidateId: string, cardId: string, decision: ActionCardDecision): Promise<DecideResult>;
+  /** Takes back a pending card; false when it is not the Candidate's pending card. */
+  withdraw(candidateId: string, cardId: string): Promise<boolean>;
 }
 
 interface CardRow {
@@ -110,6 +115,15 @@ export function createActionCards(database: Pool, options: { onAccept?: Record<s
         [candidateId, kinds],
       );
       return rows.map(cardFrom);
+    },
+
+    async withdraw(candidateId, cardId) {
+      if (!UUID.test(cardId)) return false;
+      const { rowCount } = await database.query(`DELETE FROM action_card WHERE id = $1 AND candidate_id = $2 AND status = 'pending'`, [
+        cardId,
+        candidateId,
+      ]);
+      return rowCount === 1;
     },
 
     async decide(candidateId, cardId, decision) {

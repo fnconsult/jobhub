@@ -64,6 +64,24 @@ export function atsFixOf(card: Pick<ActionCard, "kind" | "payload">): AtsFix | u
   return fix && typeof fix.id === "string" && typeof fix.change?.type === "string" ? fix : undefined;
 }
 
+/**
+ * Two ATS Fixes are the same proposal when they make the same change for the same reason.
+ * A fix read back from a card went through jsonb, which reorders object keys, so the key
+ * is built with every object's keys sorted: only what the fix says counts, not its key order.
+ */
+function sameFix({ id, category, reason, change }: AtsFix): string {
+  return canonicalJson([id, category, reason, change]);
+}
+
+/** JSON whose objects list their keys in sorted order, at every depth. */
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_key, part: unknown) =>
+    part && typeof part === "object" && !Array.isArray(part)
+      ? Object.fromEntries(Object.entries(part).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+      : part,
+  );
+}
+
 /** A save that lost the race to another one is tried again on top of it, this many times. */
 const SAVE_ATTEMPTS = 3;
 
@@ -96,10 +114,20 @@ export function createAtsScoring({
 
   async function propose(candidateId: string, profile: Profile, locale: Locale) {
     const focus = { kind: "profile", id: profile.id } as const;
-    const decided = [...(await actionCards.pending(candidateId, focus)), ...(await actionCards.dismissed(candidateId, focus))];
-    const known = new Set(decided.map((card) => atsFixOf(card)?.id).filter(Boolean));
     const cv = profile.masterCv.content;
-    for (const fix of proposeAtsFixes({ cv, targetRole: profile.searchCriteria.targetRole, today: now() })) {
+    const fixes = proposeAtsFixes({ cv, targetRole: profile.searchCriteria.targetRole, today: now() });
+    const proposed = new Set(fixes.map(sameFix));
+    // A pending fix the new score no longer calls for, or calls for differently, is taken back.
+    const pending: string[] = [];
+    for (const card of await actionCards.pending(candidateId, focus)) {
+      const fix = atsFixOf(card);
+      if (!fix) continue;
+      if (proposed.has(sameFix(fix))) pending.push(fix.id);
+      else await actionCards.withdraw(candidateId, card.id);
+    }
+    const dismissed = (await actionCards.dismissed(candidateId, focus)).map((card) => atsFixOf(card)?.id);
+    const known = new Set([...pending, ...dismissed].filter(Boolean));
+    for (const fix of fixes) {
       if (known.has(fix.id)) continue;
       const payload: AtsFixPayload = { fix };
       await actionCards.propose(candidateId, { kind: ATS_FIX_CARD, focus, payload, ...cardText(fix, cv, locale) });

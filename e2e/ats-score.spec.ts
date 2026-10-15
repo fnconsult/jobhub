@@ -66,6 +66,25 @@ test.describe("ATS Score", () => {
     await expect(keywordFix.getByRole("button", { name: fr.actionCards.dismiss })).toBeVisible();
   });
 
+  test("the proposed fixes come into view as soon as the score is computed, without a reload (#165)", async ({ page }) => {
+    await openProfile(page, "ats-in-view");
+    const section = atsSection(page);
+    // The button sits below the Master CV, far from where the cards go.
+    await section.getByRole("button", { name: fr.atsScore.compute }).click();
+
+    await expect(section.getByLabel("ATS Score : 97 sur 100")).toBeAttached();
+    const proposals = cards(page);
+    await expect(proposals.getByRole("heading", { name: fr.actionCards.title })).toBeInViewport();
+    await expect(proposals.getByRole("heading", { name: fr.actionCards.title })).toBeFocused();
+    await expect(proposals.getByRole("article").getByRole("heading")).toHaveText([KEYWORD_FIX, SENIOR_ADVICE]);
+    await expect(proposals.getByRole("article", { name: KEYWORD_FIX })).toBeInViewport();
+
+    // The same cards after a reload.
+    await page.reload();
+    await expect(versionShown(page, 1)).toBeVisible();
+    await expect(cards(page).getByRole("article").getByRole("heading")).toHaveText([KEYWORD_FIX, SENIOR_ADVICE]);
+  });
+
   test("Senior Advice is labelled as such, says it is optional, and can be dismissed without changing the CV", async ({ page }) => {
     await openProfile(page, "ats-senior");
     await atsSection(page).getByRole("button", { name: fr.atsScore.compute }).click();

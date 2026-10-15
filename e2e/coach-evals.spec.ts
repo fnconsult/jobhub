@@ -107,8 +107,8 @@ test.describe("results committed under docs/research/coach-evals", () => {
     const job = (name: string) => workflow.match(new RegExp(`^  ${name}:\\n((?:    .*\\n|\\s*\\n)*)`, "m"))?.[1] ?? "";
     const evalJob = job("eval");
     expect(evalJob).toContain("npm run coach:eval");
-    expect(evalJob).toMatch(/^    needs: credentials$/m);
-    expect(evalJob).toMatch(/^    if: needs\.credentials\.outputs\.bedrock == 'true'$/m);
+    expect(evalJob).toMatch(/^ {4}needs: credentials$/m);
+    expect(evalJob).toMatch(/^ {4}if: needs\.credentials\.outputs\.bedrock == 'true'$/m);
     expect(evalJob, "no step-level skip left in the eval job").not.toMatch(/if: env\.AWS_BEARER_TOKEN_BEDROCK/);
     const credentials = job("credentials");
     expect(credentials).toContain("secrets.AWS_BEARER_TOKEN_BEDROCK");

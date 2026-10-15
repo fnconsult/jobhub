@@ -129,8 +129,9 @@ test.describe("Applications", () => {
     // Picking another Profile to save it with shows the score against that one.
     await page.getByLabel(fr.jobOffer.profileLabel).selectOption({ label: "DAF grand groupe" });
     await expect(shownScore("DAF grand groupe", 80)).toBeVisible();
-    await page.getByText("Pourquoi 80 ?", { exact: true }).click();
-    await expect(page.getByRole("listitem").filter({ hasText: "Salaire :" })).toContainText(fr.matchScore.statuses.mismatch);
+    // "Pourquoi" stays open, now on why it scores 80.
+    await expect(page.getByText("Pourquoi 80 ?", { exact: true })).toBeVisible();
+    await expect(reasons.getByRole("listitem").filter({ hasText: "Salaire :" })).toContainText(fr.matchScore.statuses.mismatch);
 
     // Coming from a Job Search or Job Digest, its Profile comes first.
     await page.goto(`/offres/${jobOfferId}?profil=${ambitiousId}`);

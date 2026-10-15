@@ -199,6 +199,53 @@ test.describe("Applications", () => {
     await expect(page.getByRole("region", { name: fr.application.interviewsTitle }).getByRole("listitem")).toHaveCount(2);
   });
 
+  test("an Interview is added, edited and removed (QA plan case 4.7, #167)", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("application-interview-edit"));
+    const applicationId = await saveApplication(page, await captureOffer(page), await createProfile(page, "DAF"));
+    await page.goto(`/candidatures/${applicationId}`);
+    await page.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.interview });
+    const interviews = page.getByRole("region", { name: fr.application.interviewsTitle });
+    await interviews.getByLabel(fr.application.interviewDate).fill("2026-11-12T14:30");
+    await interviews.getByLabel(fr.application.interviewNote).fill("Avec le PDG");
+    await interviews.getByRole("button", { name: fr.application.addInterview }).click();
+    await expect(interviews.getByRole("listitem")).toHaveCount(1);
+    await interviews.getByLabel(fr.application.interviewDate).fill("2026-11-20T11:00");
+    await interviews.getByRole("button", { name: fr.application.addInterview }).click();
+    await expect(interviews.getByRole("listitem")).toHaveCount(2);
+
+    // Edit the first one: its form opens filled in with its date, time (French time) and note.
+    const first = interviews.getByRole("listitem").first();
+    await first.getByRole("button", { name: /^Modifier l'entretien du/ }).click();
+    await expect(first.getByLabel(fr.application.interviewDate)).toHaveValue("2026-11-12T14:30");
+    await expect(first.getByLabel(fr.application.interviewNote)).toHaveValue("Avec le PDG");
+    await first.getByLabel(fr.application.interviewDate).fill("2026-11-25T16:45");
+    await first.getByLabel(fr.application.interviewNote).fill("Avec la DRH, en visioconférence");
+    await first.getByRole("button", { name: fr.application.saveInterview }).click();
+
+    // Saved, and back in date order: it is now the last one.
+    await expect(interviews.getByRole("listitem").last()).toContainText("25 novembre 2026");
+    await expect(interviews.getByRole("listitem").last()).toContainText("16:45");
+    await expect(interviews.getByRole("listitem").last()).toContainText("Avec la DRH, en visioconférence");
+    await expect(interviews.getByRole("listitem").first()).toContainText("20 novembre 2026");
+    await expect(interviews).not.toContainText("Avec le PDG");
+
+    // Cancelling an edit changes nothing.
+    await interviews.getByRole("listitem").first().getByRole("button", { name: /^Modifier l'entretien du/ }).click();
+    await interviews.getByRole("listitem").first().getByLabel(fr.application.interviewNote).fill("Brouillon");
+    await interviews.getByRole("listitem").first().getByRole("button", { name: fr.application.cancelInterviewEdit }).click();
+    await expect(interviews).not.toContainText("Brouillon");
+
+    // Remove the edited one.
+    await interviews.getByRole("listitem").last().getByRole("button", { name: /^Retirer l'entretien du/ }).click();
+    await expect(interviews.getByRole("listitem")).toHaveCount(1);
+    await expect(interviews.getByRole("listitem")).toContainText("20 novembre 2026");
+
+    await page.reload();
+    const reloaded = page.getByRole("region", { name: fr.application.interviewsTitle }).getByRole("listitem");
+    await expect(reloaded).toHaveCount(1);
+    await expect(reloaded).toContainText("20 novembre 2026");
+  });
+
   test("the Candidate switches the Profile an Application uses, and its Match Score follows", async ({ page, browser }) => {
     // Two Profiles: more than the Free Plan holds.
     const email = newAddress("application-profile");
@@ -278,7 +325,7 @@ test.describe("Applications", () => {
     }
     await expect(interviews.getByRole("listitem")).toHaveCount(2);
 
-    await interviews.getByRole("listitem").first().getByRole("button", { name: /4 novembre 2026/ }).click();
+    await interviews.getByRole("listitem").first().getByRole("button", { name: /^Retirer l'entretien du .*4 novembre 2026/ }).click();
     await expect(interviews.getByRole("listitem")).toHaveCount(1);
     await expect(interviews.getByRole("listitem")).toContainText("12 novembre 2026");
 

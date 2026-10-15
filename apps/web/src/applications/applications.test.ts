@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createJobOffers, createSourceChecks, forgetExpiredGuestCaptures, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
-import { createApplications, migrateApplications, type Applications } from "./index";
+import { createApplications, interviewWallClock, migrateApplications, type Applications } from "./index";
 
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -18,6 +18,14 @@ const masterCv: MasterCvContent = {
   skills: ["IFRS", "SAP"],
   languages: [],
 };
+
+describe("interviewWallClock", () => {
+  it("gives an Interview's date and time as typed in French time, the way the Interview form reads it back", () => {
+    expect(interviewWallClock(new Date("2026-11-12T13:30:00.000Z"))).toBe("2026-11-12T14:30"); // winter: UTC+1
+    expect(interviewWallClock(new Date("2026-06-03T07:00:00.000Z"))).toBe("2026-06-03T09:00"); // summer: UTC+2
+    expect(interviewWallClock(new Date("2026-12-31T23:05:00.000Z"))).toBe("2027-01-01T00:05");
+  });
+});
 
 describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)", () => {
   let testAuth: TestAuth;

@@ -145,6 +145,16 @@ function wallClockIn(local: string, timeZone: string): Date {
   return new Date(asUtc - offsetAt(guess, timeZone));
 }
 
+/** An Interview's date and time as typed in French time ("2026-11-12T14:30"), the value an Interview form starts from. */
+export function interviewWallClock(scheduledAt: Date): string {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-GB", { timeZone: INTERVIEW_TIME_ZONE, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+      .formatToParts(scheduledAt)
+      .map((part) => [part.type, part.value]),
+  );
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
 const interviewSchema = z.object({
   scheduledAt: z.iso
     .datetime({ offset: true, local: true })

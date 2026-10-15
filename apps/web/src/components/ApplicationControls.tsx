@@ -132,26 +132,56 @@ function Outcome({ outcome, saved }: { outcome: Outcome; saved: string }) {
 
 /** Adds a dated Interview to an Application at "Entretien". */
 export function AddInterviewForm({ applicationId }: { applicationId: string }) {
+  return <InterviewForm applicationId={applicationId} />;
+}
+
+/**
+ * Edits one Interview's date, time and note: a button that opens the Interview form
+ * filled in with them. `scheduledAt` is its date and time as typed in French time
+ * ("2026-11-12T14:30"); `label` names the Interview, e.g. "Modifier l'entretien du …".
+ */
+export function EditInterview(props: { applicationId: string; interview: { id: string; scheduledAt: string; note: string }; label: string }) {
+  const [editing, setEditing] = useState(false);
+  if (!editing)
+    return (
+      <button className="button" type="button" onClick={() => setEditing(true)}>
+        {props.label}
+      </button>
+    );
+  return <InterviewForm applicationId={props.applicationId} interview={props.interview} onClose={() => setEditing(false)} />;
+}
+
+/**
+ * The Interview form: its date and time (French time) and note. Without `interview`
+ * it adds one and empties itself; with it, it saves that Interview's changes, or
+ * `onClose`s on cancel, then on saving.
+ */
+function InterviewForm({ applicationId, interview, onClose }: { applicationId: string; interview?: { id: string; scheduledAt: string; note: string }; onClose?: () => void }) {
   const { t } = useTranslation();
   const router = useRouter();
   const id = useId();
-  const [scheduledAt, setScheduledAt] = useState("");
-  const [note, setNote] = useState("");
+  const [scheduledAt, setScheduledAt] = useState(interview?.scheduledAt ?? "");
+  const [note, setNote] = useState(interview?.note ?? "");
   const [working, setWorking] = useState(false);
   const [errors, setErrors] = useState<ApplicationFieldError[]>([]);
   const [failed, setFailed] = useState(false);
 
-  async function add(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setWorking(true);
     setFailed(false);
     // A datetime-local value ("2026-11-12T14:30") is French time: the app reads it so.
-    const { ok, result } = await send(`/api/applications/${applicationId}/interviews`, "POST", { scheduledAt, note });
+    const { ok, result } = interview
+      ? await send(`/api/applications/${applicationId}/interviews/${interview.id}`, "PATCH", { scheduledAt, note })
+      : await send(`/api/applications/${applicationId}/interviews`, "POST", { scheduledAt, note });
     setWorking(false);
     if (ok) {
       setErrors([]);
-      setScheduledAt("");
-      setNote("");
+      if (interview) onClose?.();
+      else {
+        setScheduledAt("");
+        setNote("");
+      }
       router.refresh();
     } else if (Array.isArray(result.errors)) setErrors(result.errors as ApplicationFieldError[]);
     else setFailed(true);
@@ -159,7 +189,7 @@ export function AddInterviewForm({ applicationId }: { applicationId: string }) {
 
   const dateError = errors.find((error) => error.field === "scheduledAt");
   return (
-    <form className="stack" onSubmit={add} noValidate>
+    <form className="stack" onSubmit={submit} noValidate>
       <div className="field">
         <label htmlFor={`${id}-date`}>{t("application.interviewDate")}</label>
         <input
@@ -185,9 +215,16 @@ export function AddInterviewForm({ applicationId }: { applicationId: string }) {
         </p>
         <input id={`${id}-note`} className="input" maxLength={500} value={note} aria-describedby={`${id}-note-hint`} onChange={(event) => setNote(event.target.value)} />
       </div>
-      <button className="button button-primary" type="submit" disabled={working}>
-        {working ? t("application.working") : t("application.addInterview")}
-      </button>
+      <div className="actions">
+        <button className="button button-primary" type="submit" disabled={working}>
+          {working ? t("application.working") : t(interview ? "application.saveInterview" : "application.addInterview")}
+        </button>
+        {interview ? (
+          <button className="button" type="button" onClick={onClose} disabled={working}>
+            {t("application.cancelInterviewEdit")}
+          </button>
+        ) : null}
+      </div>
       {failed ? (
         <p className="field-error" role="alert">
           {t("application.error")}

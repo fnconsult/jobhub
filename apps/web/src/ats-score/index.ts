@@ -64,9 +64,22 @@ export function atsFixOf(card: Pick<ActionCard, "kind" | "payload">): AtsFix | u
   return fix && typeof fix.id === "string" && typeof fix.change?.type === "string" ? fix : undefined;
 }
 
-/** Two ATS Fixes are the same proposal when they make the same change for the same reason. */
+/**
+ * Two ATS Fixes are the same proposal when they make the same change for the same reason.
+ * A fix read back from a card went through jsonb, which reorders object keys, so the key
+ * is built with every object's keys sorted: only what the fix says counts, not its key order.
+ */
 function sameFix({ id, category, reason, change }: AtsFix): string {
-  return JSON.stringify([id, category, reason, change]);
+  return canonicalJson([id, category, reason, change]);
+}
+
+/** JSON whose objects list their keys in sorted order, at every depth. */
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_key, part: unknown) =>
+    part && typeof part === "object" && !Array.isArray(part)
+      ? Object.fromEntries(Object.entries(part).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+      : part,
+  );
 }
 
 /** A save that lost the race to another one is tried again on top of it, this many times. */

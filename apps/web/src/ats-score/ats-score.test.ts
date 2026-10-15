@@ -194,6 +194,28 @@ describe.skipIf(!connectionString)("ATS Scoring (needs Postgres: DATABASE_URL)",
     expect((await headlineCard()).map((card) => card.body)).toEqual([expect.stringContaining("« DAF industrie »")]);
   });
 
+  it("computing the score again keeps the pending fixes it calls for again as they are, whatever the change (#165)", async () => {
+    const created = await profiles.create(marie, {
+      masterCv: {
+        ...masterCv,
+        skills: [...masterCv.skills, "Trésorerie, Fiscalité ; Audit"],
+        experience: [...masterCv.experience, { title: "Comptable", employer: "Fiduciaire Rhône", location: "Lyon", period: "1988 – 1995", description: "" }],
+      },
+      searchCriteria: { targetRole: "Directrice financière", location: "Lyon" },
+    });
+    if (!created.ok) throw new Error("fixture Profile refused");
+    const focus = { kind: "profile", id: created.profile.id } as const;
+    const pendingFixes = async () =>
+      (await actionCards.pending(marie, focus)).map((card) => ({ id: card.id, change: (card.payload as { fix: { change: { type: string } } }).fix.change.type }));
+    await scoring.analyse(marie, created.profile.id, "fr");
+    const first = await pendingFixes();
+    expect(first.map((card) => card.change)).toEqual(expect.arrayContaining(["split_skill", "replace_text", "remove_experience"]));
+
+    await scoring.analyse(marie, created.profile.id, "fr");
+
+    expect(await pendingFixes()).toEqual(first);
+  });
+
   it("refuses beyond the Plan Quota, without scoring or proposing anything", async () => {
     quota = REFUSED;
 

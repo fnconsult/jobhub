@@ -140,6 +140,10 @@ _Avoid_: Base CV, main CV, original CV
 One saved state of a Master CV, numbered from 1. Saving without changes creates none.
 _Avoid_: Revision, snapshot, draft
 
+**Save bar**:
+Where edits made to the Master CV on the Profile page wait until the Candidate saves them as one Master CV Version or cancels them. If a newer Master CV Version arrives first (for example an accepted ATS Fix), the edits are kept and saving is refused as a conflict, never merged or dropped.
+_Avoid_: Draft, autosave
+
 **Restore**:
 Making an earlier Master CV Version current by saving its content as a new version, so the history is kept and nothing is overwritten.
 _Avoid_: Rollback, revert, undo
@@ -153,7 +157,7 @@ Downloading an Application's saved Tailored CV or Cover Letter as a PDF or Word 
 _Avoid_: Download, print
 
 **Search Criteria**:
-The job-search parameters of a Profile: target role, location, salary, contract type, remote work. The Candidate can change them on an active Profile; this never renames the Profile, and Match Scores and Tailored CVs already kept are not recomputed. An Archived Profile's Search Criteria are read-only until it is restored.
+The job-search parameters of a Profile: target role, location, salary, contract type, remote work. The Candidate can change them on an active Profile, each change saving as soon as it is made; this never renames the Profile, and Match Scores and Tailored CVs already kept are not recomputed. An Archived Profile's Search Criteria are read-only until it is restored.
 _Avoid_: Filters, preferences
 
 **Onboarding Questionnaire**:

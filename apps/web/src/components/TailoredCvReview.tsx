@@ -42,11 +42,17 @@ async function send(url: string, method: "POST" | "PATCH", body?: object): Promi
 }
 
 /**
+ * Whether the Candidate accepted a change: what they chose, else accepted, unless it takes
+ * words from the Job Offer the Master CV lacks, which waits for an explicit accept (ADR-0006, #161).
+ */
+const decisionOf = (change: CvChange, decisions: Record<string, boolean>): boolean | null => decisions[change.id] ?? (change.fromOffer?.length ? null : true);
+
+/**
  * An Application's Tailored CV: proposed by the AI Coach in the Document
  * Language (`language`, chosen beside it) from the Master CV only (ADR-0006),
  * reviewed by the Candidate change by change against the Master CV, with both
- * Match Scores, then saved on the Application. The tab of the Application's
- * Tailored Documents that holds it names it.
+ * Match Scores, then saved on the Application with only the changes they
+ * accepted (#161). The tab of the Application's Tailored Documents that holds it names it.
  */
 export function TailoredCvReview({ applicationId, initial, language, locale }: { applicationId: string; initial: TailoredCv; language: DocumentLanguage; locale: string }) {
   const { t } = useTranslation();
@@ -54,7 +60,10 @@ export function TailoredCvReview({ applicationId, initial, language, locale }: {
   const url = `/api/applications/${applicationId}/tailored-cv`;
   const [state, setState] = useState(initial);
   const [status, setStatus] = useState<Status>(null);
+  /** The Candidate's accept (true) or reject (false) of each change of the proposal under review, by id. */
+  const [decisions, setDecisions] = useState<Record<string, boolean>>({});
   const { proposal, saved } = state;
+  const awaitingAccept = proposal?.changes.some((change) => decisionOf(change, decisions) === null) ?? false;
 
   async function run(next: Promise<{ tailoredCv?: TailoredCv; status: Status }>, done: Status) {
     const result = await next;
@@ -63,21 +72,26 @@ export function TailoredCvReview({ applicationId, initial, language, locale }: {
     setStatus(done);
   }
 
-  const propose = () => {
+  const propose = async () => {
     setStatus("proposing");
-    return run(send(url, "POST", { language }), "proposed");
+    await run(send(url, "POST", { language }), "proposed");
+    // Another proposal: its changes are reviewed afresh.
+    setDecisions({});
   };
+  const decide = (change: CvChange, accepted: boolean) => setDecisions((current) => ({ ...current, [change.id]: accepted }));
   const answer = (requirement: string, confirmed: boolean) => run(send(url, "PATCH", { requirement, confirmed }), null);
   const save = async () => {
     if (!proposal) return;
     setStatus("saving");
-    const result = await send(`${url}/save`, "POST", { revision: proposal.revision });
+    const accepted = proposal.changes.filter((change) => decisionOf(change, decisions) === true).map((change) => change.id);
+    const result = await send(`${url}/save`, "POST", { revision: proposal.revision, accepted });
     if (result.status === "proposalChanged") {
       // Proposed again or answered elsewhere: show that proposal, to be reviewed before it is saved.
       const current = await fetch(url)
         .then((response) => (response.ok ? (response.json() as Promise<TailoredCv>) : null))
         .catch(() => null);
       if (current) setState(current);
+      setDecisions({});
       return setStatus("proposalChanged");
     }
     if (!result.tailoredCv) return setStatus(result.status ?? "error");
@@ -133,15 +147,19 @@ export function TailoredCvReview({ applicationId, initial, language, locale }: {
           <h4>{t("tailoredCv.changesTitle")}</h4>
           {proposal.offerWordingTranslated ? <p className="hint">{t("tailoredCv.offerWordingTranslated")}</p> : null}
           {proposal.changes.length > 0 ? (
-            <ul className="stack tailored-cv-changes">
-              {proposal.changes.map((change, index) => (
-                <ChangeItem key={index} change={change} />
-              ))}
-            </ul>
+            <>
+              <p>{t("tailoredCv.changesIntro")}</p>
+              <ul className="stack tailored-cv-changes">
+                {proposal.changes.map((change) => (
+                  <ChangeItem key={change.id} change={change} accepted={decisionOf(change, decisions)} onDecide={(accepted) => decide(change, accepted)} />
+                ))}
+              </ul>
+            </>
           ) : (
             <p>{t("tailoredCv.noChanges")}</p>
           )}
 
+          {awaitingAccept ? <p className="notice">{t("tailoredCv.pendingHint")}</p> : null}
           <p id={`${id}-save-hint`} className="hint">
             {t("tailoredCv.saveHint")}
           </p>
@@ -176,12 +194,16 @@ function ScoreComparison({ score }: { score: { master: number; tailored: number 
   );
 }
 
-function ChangeItem({ change }: { change: CvChange }) {
+/** One change, shown against the Master CV, for the Candidate to accept or reject. `accepted`: null until they decide, for a change that waits for it. */
+function ChangeItem({ change, accepted, onDecide }: { change: CvChange; accepted: boolean | null; onDecide: (accepted: boolean) => void }) {
   const { t } = useTranslation();
+  const id = useId();
   const heading = [t(`tailoredCv.sections.${change.section}`), t(`tailoredCv.kinds.${change.kind}`), change.item].filter(Boolean).join(" · ");
   return (
-    <li className="board-card">
-      <p className="cv-entry">{heading}</p>
+    <li className="board-card stack">
+      <p id={`${id}-heading`} className="cv-entry">
+        {heading}
+      </p>
       {change.kind === "rephrased" || change.kind === "reordered" ? (
         <dl className="tailored-cv-compare">
           <div>
@@ -200,6 +222,16 @@ function ChangeItem({ change }: { change: CvChange }) {
           {t("tailoredCv.fromOffer", { words: change.fromOffer.join(", ") })}
         </p>
       ) : null}
+      {/* Each button tells which change it decides, without naming it after the change: the question groups are named after requirements. */}
+      <div className="actions">
+        <button className="button" type="button" aria-pressed={accepted === true} aria-describedby={`${id}-heading`} onClick={() => onDecide(true)}>
+          {t("tailoredCv.accept")}
+        </button>
+        <button className="button" type="button" aria-pressed={accepted === false} aria-describedby={`${id}-heading`} onClick={() => onDecide(false)}>
+          {t("tailoredCv.reject")}
+        </button>
+      </div>
+      {accepted === null ? <p className="hint">{t("tailoredCv.awaitingAccept")}</p> : null}
     </li>
   );
 }

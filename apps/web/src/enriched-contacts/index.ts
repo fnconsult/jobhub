@@ -19,7 +19,10 @@
  *    against the monthly Plan Quota; a reveal the provider could not answer is
  *    given back, and revealing someone again costs nothing.
  *  - Who to look for comes from the built Company Dossier: the employer's name and
- *    website, and its Suggested Contact Roles as job titles.
+ *    website, and its Suggested Contact Roles as job titles. Where: the country
+ *    the Job Offer's location names, else the employer's (France for the French
+ *    company register); never a city, and nowhere in particular when no
+ *    country is known.
  *  - Every person found and every Enriched Contact records its source provider,
  *    the provider's id for them, and when it was found and retrieved, to answer
  *    data-subject (GDPR) requests from the people contacted. They are deleted
@@ -31,7 +34,8 @@ import type { Applications } from "../applications";
 import type { QuotaDecision } from "../billing";
 import type { QuotaRefusal } from "../billing/upgrade-prompt";
 import type { CompanyDossier, CompanyDossiers, SuggestedContactRole } from "../company-dossiers";
-import { ContactProviderError, type ContactEnrichmentProvider, type ContactProviderId } from "./providers/types";
+import { countryIn, type CountryCode } from "./countries";
+import { ContactProviderError, type ContactEnrichmentProvider, type ContactProviderId, type PeopleSearch } from "./providers/types";
 
 export { CONTACT_PROVIDERS, type ContactProviderId } from "./providers/types";
 
@@ -125,7 +129,19 @@ const JOB_TITLES: Record<SuggestedContactRole, string[]> = {
 /** Looked for when the Suggested Contact Roles give no job title. */
 const DEFAULT_ROLES: SuggestedContactRole[] = ["hr_director", "talent_acquisition"];
 
-function searchFor(dossier: CompanyDossier) {
+/**
+ * The country to look for people in: the one the Job Offer's location names,
+ * else the employer's (the French company register's are in France). Never a
+ * city: the offer's office and the company's seat are often in different towns.
+ */
+function countryOf(dossier: CompanyDossier, jobOfferLocation: string | undefined): CountryCode | undefined {
+  const named = jobOfferLocation ? countryIn(jobOfferLocation) : undefined;
+  if (named) return named;
+  if (dossier.source === "french_register") return "FR";
+  return dossier.country ? countryIn(dossier.country) : undefined;
+}
+
+function searchFor(dossier: CompanyDossier, jobOfferLocation: string | undefined): PeopleSearch {
   const roles = dossier.suggestedContactRoles.filter((role) => JOB_TITLES[role]?.length);
   const jobTitles = [...new Set((roles.length ? roles : DEFAULT_ROLES).flatMap((role) => JOB_TITLES[role]))];
   const companyName = dossier.source === "french_register" ? dossier.name : dossier.employer;
@@ -133,7 +149,8 @@ function searchFor(dossier: CompanyDossier) {
   if (dossier.source === "web" && dossier.website && URL.canParse(dossier.website)) {
     companyDomain = new URL(dossier.website).hostname.replace(/^www\./, "");
   }
-  return { companyName, jobTitles, limit: SEARCH_LIMIT, ...(companyDomain && { companyDomain }) };
+  const country = countryOf(dossier, jobOfferLocation);
+  return { companyName, jobTitles, limit: SEARCH_LIMIT, ...(companyDomain && { companyDomain }), ...(country && { country }) };
 }
 
 interface Row {
@@ -183,8 +200,8 @@ export function createEnrichedContacts(database: Pool, deps: EnrichedContactsDep
     };
   }
 
-  const ownApplication = async (candidateId: string, applicationId: string) =>
-    UUID.test(applicationId) ? !!(await deps.applications.get(candidateId, applicationId)) : false;
+  const applicationOf = async (candidateId: string, applicationId: string) => (UUID.test(applicationId) ? deps.applications.get(candidateId, applicationId) : null);
+  const ownApplication = async (candidateId: string, applicationId: string) => !!(await applicationOf(candidateId, applicationId));
 
   async function rowOf(applicationId: string, contactId: string): Promise<Row | undefined> {
     if (!UUID.test(contactId)) return undefined;
@@ -205,7 +222,8 @@ export function createEnrichedContacts(database: Pool, deps: EnrichedContactsDep
     },
 
     async find(candidateId, applicationId) {
-      if (!(await ownApplication(candidateId, applicationId))) return { ok: false, error: "not_found" };
+      const application = await applicationOf(candidateId, applicationId);
+      if (!application) return { ok: false, error: "not_found" };
       if (!provider) return { ok: false, error: "disabled" };
       if (!provider.findPeople) return { ok: false, error: "search_unsupported" };
       const decision = await deps.quota.allows(candidateId);
@@ -214,7 +232,7 @@ export function createEnrichedContacts(database: Pool, deps: EnrichedContactsDep
       if (dossierState?.status !== "built") return { ok: false, error: "no_dossier" };
       let people;
       try {
-        people = await provider.findPeople(searchFor(dossierState.dossier));
+        people = await provider.findPeople(searchFor(dossierState.dossier, application.jobOffer.location));
       } catch (error) {
         return providerFailed(error);
       }

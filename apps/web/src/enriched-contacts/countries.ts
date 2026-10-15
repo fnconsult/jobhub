@@ -64,3 +64,27 @@ export type CountryCode = keyof typeof COUNTRIES;
 export function englishName(country: CountryCode): string {
   return COUNTRIES[country][0];
 }
+
+/** Lowercase, without accents, words separated by single spaces and padded with one: " cote d ivoire ". */
+const words = (text: string) => ` ${text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()} `;
+
+/**
+ * The country a free-text location names ("Londres, Royaume-Uni" is GB), or
+ * undefined when it names none of the countries above ("Lyon", "Remote").
+ * A city alone never gives a country. When several are named, the last one
+ * wins ("Dublin, Ireland"), and the longest name ending there ("Belfast,
+ * Northern Ireland" is GB, "Santa Fe, New Mexico" is US).
+ */
+export function countryIn(location: string): CountryCode | undefined {
+  const text = words(location);
+  let found: { country: CountryCode; end: number; length: number } | undefined;
+  for (const [country, names] of Object.entries(COUNTRIES) as [CountryCode, readonly string[]][]) {
+    for (const name of names) {
+      const start = text.lastIndexOf(` ${name} `);
+      if (start < 0) continue;
+      const end = start + name.length;
+      if (!found || end > found.end || (end === found.end && name.length > found.length)) found = { country, end, length: name.length };
+    }
+  }
+  return found?.country;
+}

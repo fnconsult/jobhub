@@ -85,7 +85,7 @@ function emptyWorkspace(): Workspace {
   return { profiles: [profile], applications: [], jobOffers: [], jobSearches: [], jobDigests: [], memory: [] };
 }
 
-function sourcesOf(workspace: Workspace): Omit<CoachDeps, "ai"> {
+function sourcesOf(workspace: Workspace): Omit<CoachDeps, "ai" | "knowledge"> {
   const mine = <T>(candidateId: string, items: T[]) => (candidateId === "marie" ? items : []);
   return {
     profiles: {

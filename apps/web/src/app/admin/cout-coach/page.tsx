@@ -62,6 +62,7 @@ export default async function CoachCostPage() {
                 <th scope="col">{t("admin.coachCost.cachedInputTokens")}</th>
                 <th scope="col">{t("admin.coachCost.outputTokens")}</th>
                 <th scope="col">{t("admin.coachCost.models")}</th>
+                <th scope="col">{t("admin.coachCost.playbooks")}</th>
               </tr>
             </thead>
             <tbody>
@@ -77,6 +78,7 @@ export default async function CoachCostPage() {
                   <td>{number.format(day.cachedInputTokens)}</td>
                   <td>{number.format(day.outputTokens)}</td>
                   <td>{day.models.map((model) => `${model.provider} ${model.model} (${number.format(model.messages)})`).join(", ")}</td>
+                  <td>{day.playbooks.map((playbook) => `${playbook.id} ${playbook.version} (${number.format(playbook.messages)})`).join(", ")}</td>
                 </tr>
               ))}
             </tbody>

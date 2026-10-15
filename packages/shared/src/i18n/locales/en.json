@@ -590,6 +590,7 @@
       "cachedInputTokens": "Cached tokens",
       "outputTokens": "Output tokens",
       "models": "Models",
+      "playbooks": "Playbooks used",
       "overTarget": "above target"
     }
   },

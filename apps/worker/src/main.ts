@@ -9,7 +9,7 @@ import { createJobSearchReports } from "@jobhub/web/job-searches";
 import { mailerFromEnv } from "@jobhub/web/mailers";
 import { createProfiles } from "@jobhub/web/profiles";
 import { Pool } from "pg";
-import { createJobDiscovery, jobDiscoveryBudgetFromEnv } from "./job-discovery";
+import { createJobDiscovery, franceTravailFromEnv, jobDiscoveryBudgetFromEnv } from "./job-discovery";
 import { startJobRunner, type JobRunner } from "./job-runner";
 import { createJobs } from "./jobs";
 
@@ -44,6 +44,10 @@ if (!baseURL) {
   process.exit(1);
 }
 
+// France Travail is searched only with its client credentials (access is on request): without them, Job discovery goes without it.
+const franceTravail = franceTravailFromEnv(process.env);
+if (!franceTravail) console.info("[worker] France Travail is off: FRANCE_TRAVAIL_CLIENT_ID and FRANCE_TRAVAIL_CLIENT_SECRET are not both set");
+
 const profiles = createProfiles(database);
 const jobOffers = createJobOffers(database);
 const billing = createBilling({ database, baseURL });
@@ -51,7 +55,7 @@ const billing = createBilling({ database, baseURL });
 const started: { runner?: JobRunner } = {};
 const jobs = createJobs({
   database,
-  discovery: "unavailable" in ai ? ai : createJobDiscovery({ ai, jobOffers, budget: jobDiscoveryBudgetFromEnv(process.env) }),
+  discovery: "unavailable" in ai ? ai : createJobDiscovery({ ai, jobOffers, budget: jobDiscoveryBudgetFromEnv(process.env), franceTravail }),
   profiles,
   // A failed Job Search gives its Plan Quota use back. Releasing needs no Stripe, only the quota table.
   jobSearches: createJobSearchReports(database, { quotas: billing }),

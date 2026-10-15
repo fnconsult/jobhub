@@ -48,14 +48,21 @@ const found = [
 
 /** What Job discovery reports: the Job Offers found, and what it measured. */
 function discoveryReport(report: Partial<DiscoveryReport> = {}): DiscoveryReport {
-  return { jobOffers: [], skipped: [], funnel: { providerUrls: 0, fetched: 0, extracted: 0, alreadyStored: 0 }, costEur: 0, ...report };
+  return {
+    jobOffers: [],
+    skipped: [],
+    funnel: { providerUrls: 0, fetched: 0, extracted: 0, alreadyStored: 0 },
+    costEur: 0,
+    franceTravail: { status: "off", offers: 0, calls: 0 },
+    ...report,
+  };
 }
 
 /** One Job Offer the Profile matches (its skill, in its town), one it does not. */
 const strongMatch = { id: "offer-strong", source: {}, title: "Directrice financière", content: "DAF à Lyon, IFRS.", location: "Lyon", skills: ["IFRS"] };
 const weakMatch = { id: "offer-weak", source: {}, title: "Développeur Java", content: "Java à Brest.", location: "Brest", skills: ["Java", "Kubernetes"], contractType: "freelance" as const };
 
-/** A run that read 3 of 6 provider URLs, skipped 4 pages and kept 2 Job Offers. */
+/** A run that read 3 of 6 provider URLs, skipped 4 pages and kept 2 Job Offers, one of them from France Travail. */
 const measuredRun = discoveryReport({
   jobOffers: [strongMatch, weakMatch],
   skipped: [
@@ -66,6 +73,7 @@ const measuredRun = discoveryReport({
   ],
   funnel: { providerUrls: 6, fetched: 3, extracted: 2, alreadyStored: 1 },
   costEur: 0.0123,
+  franceTravail: { status: "searched", offers: 1, calls: 2 },
 });
 
 /** What the Job Search or Job Digest keeps of `measuredRun`. */
@@ -73,6 +81,7 @@ const measuredMetrics = {
   funnel: { providerUrls: 6, fetched: 3, extracted: 2, alreadyStored: 1, afterDedup: 2, matched: 1 },
   skipped: { robots: 0, site_terms: 1, bot_protection: 0, login_wall: 0, not_public: 0, gone: 2, unreachable: 0, not_a_job_offer: 1, invalid: 0, too_old: 0 },
   costEur: 0.0123,
+  franceTravail: { status: "searched", offers: 1, calls: 2 },
 };
 
 /**
@@ -144,6 +153,19 @@ describe("the Job discovery job", () => {
 
     expect(runs).toEqual([{ candidateId: "candidate-1", criteria }]);
     expect(logs).toEqual(["[job-discovery] profile profile-1: 0 Job Offer(s), 1 page(s) skipped (site_terms: 1)"]);
+  });
+
+  it("logs France Travail's part when it is configured", async () => {
+    const searched = setup(async () => discoveryReport({ jobOffers: found, franceTravail: { status: "searched", offers: 1, calls: 2 } }));
+    const refused = setup(async () => discoveryReport({ franceTravail: { status: "refused", offers: 0, calls: 2 } }));
+
+    await searched.run({ candidateId: "candidate-1", profileId: "profile-1" });
+    await refused.run({ candidateId: "candidate-1", profileId: "profile-1" });
+
+    expect([...searched.logs, ...refused.logs]).toEqual([
+      "[job-discovery] profile profile-1: 2 Job Offer(s), 0 page(s) skipped, France Travail searched (1 Job Offer(s), 2 call(s))",
+      "[job-discovery] profile profile-1: 0 Job Offer(s), 0 page(s) skipped, France Travail refused (0 Job Offer(s), 2 call(s))",
+    ]);
   });
 
   it("does nothing for a Profile that no longer exists or is archived, or a malformed job", async () => {

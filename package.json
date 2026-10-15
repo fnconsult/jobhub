@@ -20,7 +20,8 @@
     "db:migrate": "npm run db:migrate -w @jobhub/web",
     "wf:record": "npm run --silent wf:record -w @jobhub/web --",
     "stack:up": "docker compose up -d",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "coach:eval": "npm run --silent coach:eval -w @jobhub/web --"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

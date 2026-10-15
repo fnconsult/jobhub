@@ -24,7 +24,8 @@
     "start": "next start",
     "typecheck": "next typegen && tsc -p tsconfig.json",
     "db:migrate": "tsx --env-file-if-exists=../../.env scripts/migrate.ts",
-    "wf:record": "tsx --env-file-if-exists=../../.env scripts/record-agent-run.ts"
+    "wf:record": "tsx --env-file-if-exists=../../.env scripts/record-agent-run.ts",
+    "coach:eval": "tsx --env-file-if-exists=../../.env scripts/coach-eval.ts"
   },
   "dependencies": {
     "@fontsource/noto-emoji": "^5.3.2",

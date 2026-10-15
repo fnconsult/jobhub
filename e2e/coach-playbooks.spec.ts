@@ -101,6 +101,8 @@ test.describe("playbook selection, per row of the playbook table", () => {
     { row: "freelance / portage / interim", message: "Le portage salarial, est-ce fait pour moi ?", playbooks: ["freelance-mission-positioning"] },
     { row: "positioning, age, CV", message: "J'ai 56 ans : comment me positionner sans paraître trop âgée ?", playbooks: ["senior-40plus-positioning"] },
     { row: "pace, motivation, budget", message: "Je perds ma motivation et mon budget fond, quel rythme tenir ?", playbooks: ["coaching-journey-gamification"] },
+    { row: "cover letter, in English", message: "Help me with my cover letter", playbooks: ["cover-letter-writing", "ats-optimization"] },
+    { row: "pace and motivation, in English", message: "I am exhausted and demotivated", playbooks: ["coaching-journey-gamification"] },
     { row: "no In view and no topic (default)", message: "Bonjour", playbooks: ["senior-40plus-positioning"] },
   ];
   for (const { row, message, playbooks } of topics) {

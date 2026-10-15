@@ -9,7 +9,8 @@
  * with their versions, to be recorded with the reply. Only what `knowledge` serves can be used:
  * in production, only Human-validated knowledge (ADR-0019).
  *
- * Topic detection is keyword rules on the latest Candidate message (accents and case ignored).
+ * Topic detection is keyword rules on the latest Candidate message (accents and case ignored),
+ * in French and in English: the Coach answers in the Candidate's language, so each row lists both.
  * Playbooks the message topic calls for come first, each matched topic giving its first
  * playbook before any gives its second; then those for what is In view; with neither, the
  * 40+ positioning playbook, which concerns every Candidate.
@@ -33,25 +34,50 @@ export const KNOWLEDGE_MAX_TOKENS = 6_000;
 interface PlaybookRow {
   playbooks: PlaybookId[];
   inView: CoachFocus["kind"][];
-  /** Matched against the message in lower case, without accents. */
+  /** Matched against the message in lower case, without accents. French rules, then English ones. */
   topic: RegExp[];
 }
 
 const APPLICATION: PlaybookRow = {
   playbooks: ["cover-letter-writing", "ats-optimization"],
   inView: ["application"],
-  topic: [/\blettres?\b/, /\bats\b/, /\bmots?[- ]cles?\b/, /\bkeywords?\b/],
+  topic: [
+    /\blettres?\b/,
+    /\bats\b/,
+    /\bmots?[- ]cles?\b/,
+    /\bletters?\b/,
+    /\bkeywords?\b/,
+    /\bapplicant tracking\b/,
+  ],
 };
 const JOB_OFFER: PlaybookRow = {
   playbooks: ["cv-offer-fit-scoring"],
   // A Job Search and a Job Digest list Job Offers with their Match Scores.
   inView: ["job_offer", "job_search", "job_digest"],
-  topic: [/\boffres?\b/, /\bannonces?\b/, /\bfiches? de poste\b/, /\bscores?\b/, /\bcorrespond/, /\badequation\b/],
+  topic: [
+    /\boffres?\b/,
+    /\bannonces?\b/,
+    /\bfiches? de poste\b/,
+    /\bscores?\b/,
+    /\bcorrespond/,
+    /\badequation\b/,
+    /\boffers?\b/,
+    /\bpostings?\b/,
+    /\bjob (?:ads?|adverts?|descriptions?)\b/,
+    /\bmatch(?:es|ing)?\b/,
+  ],
 };
 const INTERVIEW: PlaybookRow = {
   playbooks: ["interview-journey-stages", "interview-psychology"],
   inView: [],
-  topic: [/\bentretiens?\b/, /\binterviews?\b/, /\bn ?\+ ?[12]\b/, /\bpretentions? salariales?\b/],
+  topic: [
+    /\bentretiens?\b/,
+    /\binterviews?\b/,
+    /\bn ?\+ ?[12]\b/,
+    /\bpretentions? salariales?\b/,
+    /\bsalary (?:expectations?|negotiations?|requirements?)\b/,
+    /\bhiring managers?\b/,
+  ],
 };
 const OUTREACH: PlaybookRow = {
   playbooks: ["outreach-first-contact", "application-strategy"],
@@ -68,25 +94,64 @@ const OUTREACH: PlaybookRow = {
     /\bcandidatures? spontanees?\b/,
     /\bchasseurs? de tetes?\b/,
     /\bcabinets? de recrutement\b/,
+    /\breach(?:ing)? out\b/,
+    /\breferrals?\b/,
+    /\bcold (?:emails?|messages?|calls?|approach)\b/,
+    /\bhidden job market\b/,
+    /\b(?:unsolicited|speculative) applications?\b/,
+    /\bhead ?hunters?\b/,
+    /\brecruit(?:ment|ing) (?:agenc|firms?\b)/,
   ],
 };
 const FREELANCE: PlaybookRow = {
   playbooks: ["freelance-mission-positioning"],
   inView: [],
-  topic: [/\bfree[- ]?lance/, /\bportage\b/, /\binterim/, /\b(?:management|manager) de transition\b/, /\bindependante?s?\b/, /\b(?:auto|micro)[- ]?entrepr/, /\btjm\b/],
+  topic: [
+    /\bfree[- ]?lance/,
+    /\bportage\b/,
+    /\binterim/,
+    /\b(?:management|manager) de transition\b/,
+    /\bindependante?s?\b/,
+    /\b(?:auto|micro)[- ]?entrepr/,
+    /\btjm\b/,
+    /\bindependent\b/,
+    /\bself[- ]employ/,
+    /\bcontractors?\b/,
+    /\bumbrella compan/,
+    /\bdaily rates?\b/,
+  ],
 };
 const POSITIONING: PlaybookRow = {
   playbooks: ["senior-40plus-positioning"],
   // The Profile is the Candidate's positioning: its target role and Master CV.
   inView: ["profile"],
-  topic: [/\bage\b/, /\bagee?s?\b/, /\b[4-6]\d ans\b/, /\bseniors?\b/, /\bpositionn/, /\bcv\b/, /\bsurqualifie/, /\bpitch\b/, /\breconversion\b/, /\bdiscrimin/],
+  topic: [
+    /\bage\b/,
+    /\bagee?s?\b/,
+    /\b[4-6]\d ans\b/,
+    /\bseniors?\b/,
+    /\bpositionn/,
+    /\bcv\b/,
+    /\bsurqualifie/,
+    /\bpitch\b/,
+    /\breconversion\b/,
+    /\bdiscrimin/,
+    /\b[4-6]\d(?: years old|s)\b/,
+    /\bolder\b/,
+    /\bpositioning\b/,
+    // A French « résumé » is a summary: only « my resume », « the resume »… is the CV.
+    /\b(?:my|your|the|a) resumes?\b/,
+    /\boverqualified\b/,
+    /\bcareer (?:change|switch)/,
+  ],
 };
 const PACE: PlaybookRow = {
   playbooks: ["coaching-journey-gamification"],
   inView: [],
   topic: [
     /\brythme\b/,
-    /(?<!lettres? de )\bmotivation\b/,
+    // Not a cover letter: « lettre de motivation », "motivation letter".
+    /(?<!lettres? de )\bmotivation\b(?! letters?\b)/,
     /\b(?:de)?motive/,
     /\bdecourag/,
     /\bmoral\b/,
@@ -98,6 +163,18 @@ const PACE: PlaybookRow = {
     /\bchomage\b/,
     /\bcombien de temps\b/,
     /\bplan d'action\b/,
+    /\bpace\b/,
+    /\b(?:de|un)?motivated\b/,
+    /\bdiscourag/,
+    /\bmorale\b/,
+    /\bexhaust/,
+    /\btired\b/,
+    /\bburn(?:ed|t)? ?out\b/,
+    /\bmoney\b/,
+    /\bunemploy/,
+    /\bseverance\b/,
+    /\bhow long\b/,
+    /\baction plan\b/,
   ],
 };
 

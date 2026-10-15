@@ -548,6 +548,43 @@ describe("grounded in the Coaching Playbooks: the Core Digest, plus 1 or 2 playb
     for (const id of playbooks) expect(system).toContain(knowledge.playbook(id)!.title);
   });
 
+  // The Coach is used in French and in English: every topic row reads both.
+  it.each([
+    { row: "Application: cover letter", message: "Help me with my cover letter", playbooks: ["cover-letter-writing", "ats-optimization"] },
+    { row: "Application: résumé keywords", message: "Which keywords will get me past the applicant tracking system?", playbooks: ["cover-letter-writing", "ats-optimization"] },
+    { row: "Job Offer: posting fit", message: "Is this job posting a good match for me?", playbooks: ["cv-offer-fit-scoring"] },
+    { row: "Interview: salary expectations", message: "What should I answer about my salary expectations?", playbooks: ["interview-journey-stages", "interview-psychology"] },
+    { row: "Outreach: headhunters", message: "Should I reach out to headhunters?", playbooks: ["outreach-first-contact", "application-strategy"] },
+    { row: "Freelance: self-employed", message: "Could I work self-employed at a daily rate?", playbooks: ["freelance-mission-positioning"] },
+    { row: "Positioning: overqualified", message: "Recruiters say I am overqualified, how do I handle my positioning?", playbooks: ["senior-40plus-positioning"] },
+    { row: "Pace: exhausted and demotivated", message: "I am exhausted and demotivated", playbooks: ["coaching-journey-gamification"] },
+    { row: "Pace: money and unemployment", message: "My unemployment benefits run out soon and I am short of money", playbooks: ["coaching-journey-gamification"] },
+  ] as { row: string; message: string; playbooks: PlaybookId[] }[])("in English too: $row → $playbooks", async ({ message, playbooks }) => {
+    const { coach } = coachWith({ workspace });
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: message }] });
+
+    expect(result).toMatchObject({ ok: true, playbooks: used(...playbooks) });
+  });
+
+  it("takes an English resume for the CV, not a French « résumé » (a summary)", async () => {
+    const { coach } = coachWith();
+
+    const english = await coach.reply("marie", { messages: [{ from: "candidate", text: "How should I rework my resume for this job offer?" }] });
+    const french = await coach.reply("marie", { messages: [{ from: "candidate", text: "Pouvez-vous me faire un résumé de cette offre ?" }] });
+
+    expect(english).toMatchObject({ ok: true, playbooks: used("cv-offer-fit-scoring", "senior-40plus-positioning") });
+    expect(french).toMatchObject({ ok: true, playbooks: used("cv-offer-fit-scoring") });
+  });
+
+  it("does not take an English cover letter (« motivation letter ») for a motivation topic", async () => {
+    const { coach } = coachWith();
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "Can you review my motivation letter?" }] });
+
+    expect(result).toMatchObject({ ok: true, playbooks: used("cover-letter-writing", "ats-optimization") });
+  });
+
   it("puts the message topic before what is In view: an interview question on an Application page gets the interview playbooks", async () => {
     const { coach } = coachWith({ workspace });
 

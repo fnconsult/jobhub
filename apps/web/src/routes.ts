@@ -7,6 +7,8 @@ export const routes = {
   profile: (id: string) => `/profils/${id}`,
   /** The Job Search section of a Profile's page. */
   profileJobSearch: (id: string) => `/profils/${id}#job-search-title`,
+  /** The Search Criteria of a Profile's page. */
+  profileSearchCriteria: (id: string) => `/profils/${id}#search-criteria-title`,
   /** The Job Digest section of a Profile's page. */
   profileJobDigest: (id: string) => `/profils/${id}#job-digest-title`,
   editMasterCv: (id: string) => `/profils/${id}/cv`,

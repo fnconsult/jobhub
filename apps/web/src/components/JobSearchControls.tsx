@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { UpgradePrompt as Prompt } from "@/billing/upgrade-prompt";
 import { UpgradePrompt } from "@/components/UpgradePrompt";
@@ -21,8 +21,19 @@ type StartProblem = { prompt: Prompt } | { error: "archived" | "generic" };
 /**
  * Asks the AI Coach to search for Job Offers for a Profile, then opens the
  * Job Search's page. When the Plan Quota is used up, shows the Upgrade Prompt.
+ * `icon` is decoration beside the label (see icons.tsx).
  */
-export function StartJobSearchButton({ profileId, label, className = "button button-primary" }: { profileId: string; label?: string; className?: string }) {
+export function StartJobSearchButton({
+  profileId,
+  label,
+  className = "button button-primary",
+  icon,
+}: {
+  profileId: string;
+  label?: string;
+  className?: string;
+  icon?: ReactNode;
+}) {
   const { t } = useTranslation();
   const router = useRouter();
   const [working, setWorking] = useState(false);
@@ -44,6 +55,7 @@ export function StartJobSearchButton({ profileId, label, className = "button but
   return (
     <div className="stack">
       <button className={className} type="button" onClick={start} disabled={working}>
+        {icon}
         {working ? t("jobSearch.starting") : (label ?? t("jobSearch.start"))}
       </button>
       {problem && "prompt" in problem ? <UpgradePrompt prompt={problem.prompt} /> : null}

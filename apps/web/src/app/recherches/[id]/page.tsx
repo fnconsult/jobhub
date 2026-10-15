@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { CoachInView } from "@/components/CoachPanel";
+import { Icons } from "@/components/icons";
 import { JobOfferResults } from "@/components/JobOfferResults";
 import { RefreshWhileSearching, StartJobSearchButton } from "@/components/JobSearchControls";
+import { searchCriteriaInWords } from "@/components/job-search-words";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getJobSearches, requireOwnJobSearch } from "@/job-searches/server";
 import { routes } from "@/routes";
@@ -16,12 +18,18 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   return { title: `${t("jobSearch.title", { profile: jobSearch.profile.name })} · ${t("app.name")}` };
 }
 
+/** The Job Search's status as a pill: in words, the colour only reinforces it. */
+const STATUS_TONE = { searching: undefined, done: "success", failed: "danger" } as const;
+
 /**
- * One Job Search: while the AI Coach searches, a notice (the page refreshes
- * itself); then the Job Offers found, best Match Score first, each with its key
- * facts and a one-click save as an Application with the searched Profile, or
- * why it failed. The outcome is said in a live region, and replaces the Job
- * Search's notification: opening the page dismisses it.
+ * One Job Search, as a document (prototype #132): what was searched, its
+ * status, when it started and the Search Criteria its Match Scores are against
+ * (a link away from changing them); then, while the AI Coach searches, a notice
+ * (the page refreshes itself); then the Job Offers found, best Match Score
+ * first, each with its key facts, why it has its score, and a one-click save as
+ * an Application with the searched Profile, or why the search failed. The
+ * outcome is said in a live region, and replaces the Job Search's notification:
+ * opening the page dismisses it. It ends with searching again.
  */
 export default async function JobSearchPage({ params }: Params) {
   const { candidateId, jobSearch } = await requireOwnJobSearch((await params).id);
@@ -30,36 +38,54 @@ export default async function JobSearchPage({ params }: Params) {
   // This page shows how the Job Search ended: no need to notify the Candidate of it any more.
   if (status !== "searching") await getJobSearches().dismissNotification(candidateId, jobSearch.id);
   const inView = { kind: "profile", id: profile.id, name: profile.name } as const;
-  const startedAt = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Paris" }).format(jobSearch.startedAt);
+  const startedAt = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeStyle: "short", timeZone: "Europe/Paris" }).format(jobSearch.startedAt);
   return (
     <CandidateLayout candidateId={candidateId} currentProfileId={profile.id}>
-      <p>
-        <Link href={routes.profile(profile.id)}>{t("jobSearch.backToProfile")}</Link>
-      </p>
-      <h1>{t("jobSearch.title", { profile: profile.name })}</h1>
-      <p>{t("jobSearch.startedAt", { date: startedAt })}</p>
+      <header className="page-head">
+        <p className="eyebrow">{t("jobSearch.sectionTitle")}</p>
+        <h1>{t("jobSearch.title", { profile: profile.name })}</h1>
+        <dl className="props">
+          <dt>{t("jobSearch.status")}</dt>
+          <dd>
+            <span className="pill" data-tone={STATUS_TONE[status]}>
+              {t(`jobSearch.statuses.${status}`)}
+            </span>
+          </dd>
+          <dt>{t("jobSearch.startedOn")}</dt>
+          <dd>{startedAt}</dd>
+          <dt>{t("jobSearch.criteria")}</dt>
+          <dd>
+            <span>{searchCriteriaInWords(profile.searchCriteria, t, locale)}</span>
+            <Link className="props-action" href={routes.profileSearchCriteria(profile.id)}>
+              {t("jobSearch.editCriteria")}
+            </Link>
+          </dd>
+        </dl>
+        <div className="page-head-status" role="status">
+          {status === "searching" ? <p className="notice">{t("jobSearch.searching")}</p> : null}
+          {status === "failed" ? (
+            <div className="notice notice-failed">
+              <p>{t("jobSearch.failed")}</p>
+              <p>{`${t(`jobSearch.failureReasons.${jobSearch.failure ?? "other"}`)} ${t("jobSearch.notCounted")}`}</p>
+            </div>
+          ) : null}
+          {status === "done" && results.length === 0 ? <p className="notice">{t("jobSearch.noResults")}</p> : null}
+          {results.length > 0 ? <p className="lead">{t("jobSearch.resultsIntro", { count: results.length })}</p> : null}
+        </div>
+      </header>
       <CoachInView {...inView} />
-
-      <div className="stack" role="status">
-        {status === "searching" ? <p className="notice">{t("jobSearch.searching")}</p> : null}
-        {status === "failed" ? (
-          <div className="notice">
-            <p>{t("jobSearch.failed")}</p>
-            <p>{`${t(`jobSearch.failureReasons.${jobSearch.failure ?? "other"}`)} ${t("jobSearch.notCounted")}`}</p>
-          </div>
-        ) : null}
-        {status === "done" && results.length === 0 ? <p className="notice">{t("jobSearch.noResults")}</p> : null}
-        {results.length > 0 ? <p>{t("jobSearch.resultsIntro", { count: results.length })}</p> : null}
-      </div>
       {status === "searching" ? <RefreshWhileSearching /> : null}
 
       {results.length > 0 ? <JobOfferResults results={results} profileId={profile.id} t={t} locale={locale} /> : null}
 
-      {status !== "searching" ? (
-        <section className="stack" aria-label={t("jobSearch.sectionTitle")}>
-          <StartJobSearchButton profileId={profile.id} label={t("jobSearch.searchAgain")} className="button" />
-        </section>
-      ) : null}
+      <div className="btn-row">
+        {status !== "searching" ? (
+          <StartJobSearchButton profileId={profile.id} label={t("jobSearch.searchAgain")} className="button" icon={<Icons.searchAgain />} />
+        ) : null}
+        <Link className="button button-quiet" href={routes.profile(profile.id)}>
+          {t("jobSearch.backToProfile")}
+        </Link>
+      </div>
     </CandidateLayout>
   );
 }

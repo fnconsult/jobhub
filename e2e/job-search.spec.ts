@@ -97,6 +97,9 @@ async function searchFromProfile(page: Page, profileId: string): Promise<string>
 /** The worker's "failed" report lines for this Profile's Job discovery runs. */
 const failedRuns = (profileId: string) => workerOutput.split("\n").filter((line) => line.startsWith(`[job-discovery] profile ${profileId}: failed`)).length;
 
+/** The Job Offers listed on a Job Search page, top to bottom (not the lines of "Pourquoi 86 ?" inside them). */
+const foundJobOffers = (page: Page) => page.getByRole("list", { name: "Offres trouvées" }).getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2 }) });
+
 /** The Match Scores shown on a Job Search page, top to bottom. */
 async function shownScores(page: Page): Promise<number[]> {
   const texts = await page.getByText(/^Score de correspondance : \d+ \/ 100$/).allTextContents();
@@ -132,7 +135,7 @@ test.describe("On-demand AI Coach job search", () => {
     await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Offres trouvées pour « ${searchCriteria.targetRole} »`);
     // The page refreshes itself until the worker has finished.
-    const results = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2 }) });
+    const results = foundJobOffers(page);
     await expect(results, workerOutput).toHaveCount(2, { timeout: 90_000 });
 
     const scores = await shownScores(page);
@@ -142,20 +145,91 @@ test.describe("On-demand AI Coach job search", () => {
     await expect(daf).toContainText("Acme Industrie");
     await expect(daf).toContainText("Lyon");
     await expect(daf).toContainText("De 110 000 à 130 000 € brut par an");
-    await expect(daf).toContainText("carrieres.acme-e2e.example");
+    await expect(daf.getByText("Source : carrieres.acme-e2e.example")).toBeVisible();
     // The freshness rule (#116): the careers page's JobPosting dates it; the page only the LLM read states no date.
-    await expect(daf.getByRole("definition").filter({ hasText: /^\d{1,2} \S+ \d{4}$/ })).toHaveCount(1);
-    await expect(daf).toContainText("Date de publication");
+    await expect(daf.getByText(/^Publiée le \d{1,2} \S+ \d{4}$/)).toBeVisible();
     await expect(daf).not.toContainText("date inconnue");
     const undated = results.filter({ hasText: `Responsable financier (lu par l'IA) – réf. ${tag}` });
     await expect(undated.getByText("date inconnue", { exact: true })).toBeVisible();
 
     await daf.getByRole("button", { name: "Enregistrer en candidature" }).click();
-    await expect(daf.getByText("Enregistrée dans vos candidatures.")).toBeVisible();
+    await expect(daf.getByText("Enregistrée", { exact: true })).toBeVisible();
+    await expect(daf.getByRole("button", { name: "Enregistrer en candidature" })).toHaveCount(0);
     await daf.getByRole("link", { name: "Voir ma candidature" }).click();
     await expect(page).toHaveURL(/\/candidatures\/[0-9a-f-]+$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Directeur administratif et financier (H/F) – réf. ${tag}`);
     await expect(page.getByLabel("Profil utilisé")).toHaveValue(profileId);
+  });
+
+  // Issue #135: the page as the approved prototype (#132) lays it out, inside the sidebar layout.
+  test.describe("the results page, as in the prototype", () => {
+    test("reads like a document: what was searched, when and against which Search Criteria, then the Job Offers best first", async ({ page }) => {
+      const profileId = await signInWithProfile(page);
+      await searchFromProfile(page, profileId);
+      const results = foundJobOffers(page);
+      await expect(results, workerOutput).toHaveCount(2, { timeout: 90_000 });
+
+      const main = page.getByRole("main");
+      await expect(main.getByText("Recherche d'offres", { exact: true })).toBeVisible();
+      const properties = main.locator("dl.props");
+      await expect(properties.getByRole("term")).toHaveText(["Statut", "Lancée le", "Critères"]);
+      await expect(properties.getByRole("definition").nth(0)).toHaveText("Terminée");
+      await expect(properties.getByRole("definition").nth(1)).toHaveText(/^\S+ \d{1,2} \S+ \d{4} à \d{1,2}:\d{2}$/);
+      await expect(properties.getByRole("definition").nth(2)).toContainText("Lyon · CDI");
+      await expect(properties.getByRole("link", { name: "Modifier les critères" })).toHaveAttribute("href", `/profils/${profileId}#search-criteria-title`);
+      await expect(main.getByText("2 offres trouvées, de la plus proche à la moins proche de votre CV de référence.")).toBeVisible();
+
+      // Each Job Offer: its title leads to it, its Match Score with a meter, and why it has that score.
+      const responsable = results.filter({ hasText: `Responsable financier (lu par l'IA) – réf. ${tag}` });
+      const title = responsable.getByRole("heading", { level: 2 }).getByRole("link");
+      await expect(title).toHaveAttribute("href", /^\/offres\/[0-9a-f-]+$/);
+      await expect(responsable.getByRole("link", { name: "Lire l'offre" })).toHaveAttribute("href", (await title.getAttribute("href"))!);
+      await expect(responsable.getByText(/^Score de correspondance : \d+ \/ 100$/)).toBeVisible();
+      await expect(responsable.locator(".meter")).toHaveAttribute("aria-hidden", "true");
+      const score = (await shownScores(page))[1];
+      const why = responsable.getByText(`Pourquoi ${score} ?`, { exact: true });
+      const reasons = responsable.getByRole("list").filter({ hasText: "Type de contrat" });
+      await expect(reasons).toBeHidden();
+      await why.click();
+      await expect(reasons).toBeVisible();
+      await expect(reasons.getByRole("listitem").filter({ hasText: "Lieu : Lyon, recherché : Lyon" })).toContainText("Correspond");
+      await expect(reasons.getByRole("listitem").filter({ hasText: "Type de contrat : CDI, recherché : CDI" })).toContainText("Correspond");
+
+      // Then: search again, or go back to the Profile.
+      await expect(main.getByRole("button", { name: "Relancer une recherche" })).toBeVisible();
+      await expect(main.getByRole("link", { name: "Retour au profil" })).toHaveAttribute("href", `/profils/${profileId}`);
+      // It sits in the sidebar layout, the Job Searches link marked as the current page.
+      await expect(page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Recherches d'offres" })).toHaveAttribute("aria-current", "page");
+    });
+
+    test("meets the ADR-0009 floor: 16px text at AA contrast, 44px targets, and no sideways scrolling on a phone", async ({ page }) => {
+      const profileId = await signInWithProfile(page);
+      await searchFromProfile(page, profileId);
+      const results = foundJobOffers(page);
+      await expect(results, workerOutput).toHaveCount(2, { timeout: 90_000 });
+      for (const why of await page.getByText(/^Pourquoi \d+ \?$/).all()) await why.click();
+      // With JOB_SEARCH_SCREENSHOTS_DIR set, the page is also captured at each width (docs/screenshots/job-search-results).
+      const screenshots = process.env.JOB_SEARCH_SCREENSHOTS_DIR;
+      if (screenshots) mkdirSync(screenshots, { recursive: true });
+
+      for (const size of [{ width: 1440, height: 900 }, { width: 900, height: 1000 }, { width: 375, height: 812 }]) {
+        await page.setViewportSize(size);
+        const main = page.getByRole("main");
+        await expect(main.getByRole("heading", { level: 1 })).toBeVisible();
+        for (const text of (await renderedTexts(page)).filter((item) => item.fontSizePx > 0)) {
+          expect.soft(text.fontSizePx, `font size of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(16);
+          expect.soft(text.contrast, `contrast of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(4.5);
+        }
+        for (const target of await main.locator("a, button, summary").all()) {
+          if (!(await target.isVisible())) continue;
+          const box = (await target.boundingBox())!;
+          expect.soft(box.height, `height of "${await target.innerText()}" at ${size.width}px`).toBeGreaterThanOrEqual(44);
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), `sideways scroll at ${size.width}px`).toBe(0);
+        if (screenshots) await page.evaluate(() => window.scrollTo(0, 0));
+        if (screenshots) await page.screenshot({ path: path.join(screenshots, `${size.width}.png`) });
+      }
+    });
   });
 
   test("starts from the Coach Panel, for the Profile in view", async ({ page }) => {

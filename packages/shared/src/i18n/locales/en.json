@@ -700,10 +700,33 @@
     "save": "Save as an application",
     "saving": "Saving…",
     "saveError": "Saving failed. Check your connection and try again.",
-    "saved": "Saved in your applications.",
     "seeApplication": "See my application",
     "searchAgain": "Search again",
     "backToProfile": "Back to the profile",
+    "status": "Status",
+    "statuses": {
+      "searching": "In progress",
+      "done": "Finished",
+      "failed": "Did not succeed"
+    },
+    "startedOn": "Started on",
+    "criteria": "Criteria",
+    "editCriteria": "Change the criteria",
+    "remoteWork": "Remote work: {{option}}",
+    "resultsLabel": "Job offers found",
+    "scoreLabel": "Match Score: ",
+    "outOf": "/ 100",
+    "why": "Why {{score}}?",
+    "savedPill": "Saved",
+    "postedOn": "Posted on {{date}}",
+    "source": "Source: {{site}}",
+    "reasons": {
+      "skills": "Skills: {{covered}} of {{total}} on your CV",
+      "skillsWithMissing": "Skills: {{covered}} of {{total}} on your CV; missing: {{missing}}",
+      "seniority": "Experience: {{requiredYears}} years asked, {{cvYears}} years on your CV",
+      "offerAndWanted": "{{criterion}}: {{offer}}, wanted: {{wanted}}",
+      "salary": "Salary: €{{offer}}, wanted: at least €{{wanted}}"
+    },
     "errors": {
       "archived": "This profile is archived. Restore it to search for job offers.",
       "generic": "The search could not be started. Check your connection and try again."

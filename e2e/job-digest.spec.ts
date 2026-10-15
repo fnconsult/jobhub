@@ -213,7 +213,7 @@ async function optIn(page: Page, profileId: string, strings = fr) {
 
 /** The Match Scores a results page shows, top to bottom. */
 async function matchScoresOn(page: Page): Promise<number[]> {
-  return (await page.locator(".match-score-value").allTextContents()).map((text) => Number(text.match(/\d+/)![0]));
+  return (await page.getByText(/^Score de correspondance : \d+ \/ 100$/).allTextContents()).map((text) => Number(/(\d+) \//.exec(text)![1]));
 }
 
 test.describe("Job Digest", () => {
@@ -323,13 +323,13 @@ test.describe("Job Digest", () => {
     await expect(responsable).toHaveCount(1);
     await expect(responsable.getByText("date inconnue", { exact: true })).toBeVisible();
     const daf = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2, name: DAF }) });
-    await expect(daf).toContainText("Date de publication");
+    await expect(daf.getByText(/^Publiée le \d{1,2} \S+ \d{4}$/)).toBeVisible();
     await expect(daf).not.toContainText("date inconnue");
     const scores = await matchScoresOn(page);
     expect(scores).toEqual([...scores].sort((a, b) => b - a));
     expect(Math.min(...scores)).toBeGreaterThanOrEqual(60);
     await responsable.getByRole("button", { name: "Enregistrer en candidature" }).click();
-    await expect(responsable.getByText("Enregistrée dans vos candidatures.")).toBeVisible();
+    await expect(responsable.getByText("Enregistrée", { exact: true })).toBeVisible();
 
     // The Profile page lists it, linking to the same page.
     await page.goto(`/profils/${profileId}`);
@@ -438,7 +438,7 @@ test.describe("Job Digest", () => {
     await expect(daf, workerOutput).toHaveCount(1, { timeout: 90_000 });
     await expect(page.getByRole("heading", { level: 2, name: RESPONSABLE })).toBeVisible();
     await daf.getByRole("button", { name: "Enregistrer en candidature" }).click();
-    await expect(daf.getByText("Enregistrée dans vos candidatures.")).toBeVisible();
+    await expect(daf.getByText("Enregistrée", { exact: true })).toBeVisible();
 
     await optIn(page, profileId);
     await optedInLastWeek(profileId);

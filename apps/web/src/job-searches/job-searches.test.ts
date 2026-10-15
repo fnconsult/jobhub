@@ -119,6 +119,20 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     expect(done!.results[0]!.matchScore.score).toBeGreaterThan(done!.results[1]!.matchScore.score);
   });
 
+  it("names the Search Criteria its Match Scores are against: the Profile's current ones", async () => {
+    const jobSearch = await started();
+    const changed = await profiles.changeSearchCriteria(candidateId, profileId, {
+      searchCriteria: { targetRole: "DAF", location: "Villeurbanne", contractType: "cdi", minSalary: 85000 },
+    });
+    expect(changed.ok).toBe(true);
+
+    expect((await jobSearches.get(candidateId, jobSearch.id))?.profile).toEqual({
+      id: profileId,
+      name: "DAF",
+      searchCriteria: { targetRole: "DAF", location: "Villeurbanne", contractType: "cdi", minSalary: 85000 },
+    });
+  });
+
   it("ranks an undated Job Offer below a dated one with an equal Match Score, never above a lower one (#116)", async () => {
     const lyon = { location: "Lyon", contractType: "cdi", skills: ["IFRS", "SAP"] };
     const undated = await capture("DAF H/F – A", lyon);

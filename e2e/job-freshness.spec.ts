@@ -107,8 +107,7 @@ test.describe("Freshness rule in Job Search results (#116)", () => {
     await expect(undated).toHaveCount(1);
 
     // Dated: its Posting date, no "date inconnue". Undated: the label, no date.
-    await expect(dated).toContainText("Date de publication");
-    await expect(dated.getByRole("definition").filter({ hasText: /^\d{1,2} \S+ \d{4}$/ })).toHaveCount(1);
+    await expect(dated.getByText(/^Publiée le \d{1,2} \S+ \d{4}$/)).toHaveCount(1);
     await expect(dated).not.toContainText("date inconnue");
     await expect(undated.getByText("date inconnue", { exact: true })).toBeVisible();
 

@@ -189,6 +189,59 @@ test.describe("Tailored CV with change review", () => {
     await expect(saved.getByText("Directrice financière", { exact: true })).toBeVisible();
   });
 
+  test("the words flagged as taken from the Job Offer are meaningful terms, not word fragments or everyday words (#161)", async ({ page }) => {
+    await openApplication(page, {
+      title: "Membre Directeur forte travailler jusqu'à",
+      content: "Membre de l'équipe, Directeur forte de ses atouts, travailler jusqu'à la clôture.",
+      skills: ["IFRS"],
+    });
+    await section(page).getByRole("button", { name: tc.propose }).click();
+    const job = proposal(page).getByRole("listitem").filter({ hasText: `${tc.sections.experience} · ${tc.kinds.rephrased}` });
+    await expect(job.getByRole("note")).toHaveText(tc.fromOffer.replace("{{words}}", "Directeur"));
+    for (const noise of ["jusqu", "forte", "Membre", "travailler"]) {
+      await expect(job.getByRole("note")).not.toContainText(noise);
+    }
+  });
+
+  test("only the changes the Candidate accepts are saved, and a flagged change is never saved without its explicit accept (#161, HTTP API)", async ({ page }) => {
+    const id = await openApplication(page, FRENCH);
+    const url = `/api/applications/${id}/tailored-cv`;
+    type Proposed = { revision: string; changes: { id: string; section: string; fromOffer?: string[] }[] };
+    // Saving consumes the proposal reviewed, so each save starts from a proposal of its own.
+    const propose = async (): Promise<Proposed> => {
+      const response = await page.request.post(url, { data: { language: "fr" }, headers: { origin } });
+      expect(response.status(), await response.text()).toBe(200);
+      return (await response.json()).proposal;
+    };
+    const save = async ({ revision }: Proposed, accepted: string[]) => {
+      const response = await page.request.post(`${url}/save`, { data: { revision, accepted }, headers: { origin } });
+      expect(response.status(), await response.text()).toBe(200);
+      return (await response.json()).saved.content;
+    };
+
+    // Nothing accepted: the saved Tailored CV is the Master CV, flagged wording included.
+    const first = await propose();
+    expect(first.changes.some((change) => change.fromOffer?.length)).toBe(true);
+    const kept = await save(first, []);
+    expect(kept.headline).toBe(masterCv.headline);
+    expect(kept.experience).toEqual(masterCv.experience);
+    expect(kept.skills).toEqual(masterCv.skills);
+
+    // Only the headline change accepted: it is saved, the flagged wording is not.
+    const second = await propose();
+    const headlineOnly = second.changes.filter((change) => change.section === "headline").map((change) => change.id);
+    expect(headlineOnly.length).toBe(1);
+    const partial = await save(second, headlineOnly);
+    expect(partial.headline).toBe("Directrice financière (adapté, fr)");
+    expect(partial.experience[0].description).toBe("Consolidation IFRS.");
+
+    // Accepting the flagged change explicitly is what saves its wording.
+    const third = await propose();
+    const flagged = third.changes.filter((change) => change.fromOffer?.length).map((change) => change.id);
+    const explicit = await save(third, flagged);
+    expect(explicit.experience[0].description).toContain("pour « Directeur administratif et financier (H/F) »");
+  });
+
   test("a Tailored CV is written in the Job Offer's language by default, or in the Document Language the Candidate chooses", async ({ page }) => {
     await openApplication(page, ENGLISH);
     await expect(documentLanguage(page)).toHaveValue("en");

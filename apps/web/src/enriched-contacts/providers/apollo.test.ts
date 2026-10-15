@@ -55,6 +55,26 @@ describe("Apollo adapter", () => {
     expect(new URL(api.requests[0]!.url).searchParams.get("q_organization_name")).toBe("Acme Industrie");
   });
 
+  it("looks only for people located in the country searched, by its English name (not where the employer's headquarters are)", async () => {
+    const api = recordedFetch({ body: SEARCH_ANSWER });
+    const apollo = createApolloProvider({ apiKey: "k", fetch: api.fetch });
+
+    await apollo.findPeople!({ companyName: "Acme Industrie", companyDomain: "acme-industrie.fr", jobTitles: ["DRH"], limit: 5, country: "GB" });
+
+    const params = new URL(api.requests[0]!.url).searchParams;
+    expect(params.getAll("person_locations[]")).toEqual(["united kingdom"]);
+    expect(params.has("organization_locations[]")).toBe(false);
+  });
+
+  it("sends no location filter when no country is searched", async () => {
+    const api = recordedFetch({ body: SEARCH_ANSWER });
+    const apollo = createApolloProvider({ apiKey: "k", fetch: api.fetch });
+
+    await apollo.findPeople!({ companyName: "Acme Industrie", jobTitles: ["DRH"], limit: 5 });
+
+    expect([...new URL(api.requests[0]!.url).searchParams.keys()].filter((key) => /location/.test(key))).toEqual([]);
+  });
+
   it("reveals a found person's email by their Apollo id (phones are not asked for)", async () => {
     const api = recordedFetch({ body: MATCH_ANSWER });
     const apollo = createApolloProvider({ apiKey: "apollo-test-key", fetch: api.fetch });

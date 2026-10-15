@@ -1,5 +1,6 @@
 import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
+import { loadCoachKnowledge, type CoachKnowledge, type PlaybookId } from "@jobhub/coach-knowledge";
 import { describe, expect, it } from "vitest";
 import { scoreMatch, type JobOffer } from "@jobhub/shared";
 import type { Application } from "@/applications";
@@ -109,7 +110,10 @@ function sourcesOf(workspace: Workspace): Omit<CoachDeps, "ai"> {
   };
 }
 
-function coachWith(options: { reply?: string | (() => string); workspace?: Partial<Workspace> } = {}): {
+/** Every Coaching Playbook and the Core Digest, as served before a human validated them ("eval"). */
+const knowledge = loadCoachKnowledge({ environment: "eval" });
+
+function coachWith(options: { reply?: string | (() => string); workspace?: Partial<Workspace>; knowledge?: Pick<CoachKnowledge, "playbook" | "coreDigest"> } = {}): {
   coach: Coach;
   provider: FakeProvider;
   usage: ReturnType<typeof createMemoryUsageLog>;
@@ -117,7 +121,7 @@ function coachWith(options: { reply?: string | (() => string); workspace?: Parti
   const provider = createFakeProvider({ id: "mistral", reply: options.reply ?? "Bonjour Marie, que puis-je faire pour vous ?" });
   const usage = createMemoryUsageLog();
   const ai = createAiLayer({ providers: [provider], routes: { coaching: "mistral" }, usage });
-  return { coach: createCoach({ ai, ...sourcesOf({ ...emptyWorkspace(), ...options.workspace }) }), provider, usage };
+  return { coach: createCoach({ ai, knowledge: options.knowledge ?? knowledge, ...sourcesOf({ ...emptyWorkspace(), ...options.workspace }) }), provider, usage };
 }
 
 /** What the AI Coach was told for its latest reply. */
@@ -150,7 +154,7 @@ describe("talking with the AI Coach in the Coach Panel", () => {
   it("says what its reply cost: the provider and model, the tokens in, out and cached, and the estimated cost in €", async () => {
     const provider = createFakeProvider({ id: "mistral", reply: "Bonjour", usage: { inputTokens: 1_000, outputTokens: 200, cachedInputTokens: 3_000 } });
     const ai = createAiLayer({ providers: [provider], routes: { coaching: { provider: "mistral", model: "mistral-large-latest" } }, usage: createMemoryUsageLog() });
-    const coach = createCoach({ ai, ...sourcesOf(emptyWorkspace()) });
+    const coach = createCoach({ ai, knowledge, ...sourcesOf(emptyWorkspace()) });
 
     const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "Bonjour" }] });
 
@@ -281,7 +285,7 @@ describe("the Candidate's identity: first name only", () => {
     const claude = createFakeProvider({ id: "anthropic" });
     const mistral = createFakeProvider({ id: "mistral" });
     const ai = createAiLayer({ providers: [claude, mistral], routes: { coaching: "anthropic" }, euAiConsent: async () => true, usage: createMemoryUsageLog() });
-    const coach = createCoach({ ai, ...sourcesOf({ ...emptyWorkspace(), profiles: [writtenEverywhere] }) });
+    const coach = createCoach({ ai, knowledge, ...sourcesOf({ ...emptyWorkspace(), profiles: [writtenEverywhere] }) });
 
     await ask(coach, { kind: "profile", id: profile.id });
 
@@ -294,7 +298,7 @@ describe("the Candidate's identity: first name only", () => {
     const mistral = createFakeProvider({ id: "mistral" });
     const ai = createAiLayer({ providers: [claude, mistral], routes: { coaching: "anthropic" }, euAiConsent: async () => true, usage: createMemoryUsageLog() });
     const otherPhone: Profile = { ...profile, masterCv: { version: 4, content: { ...profile.masterCv.content, summary: "Mon portable perso : 07.98.76.54.32" } } };
-    const coach = createCoach({ ai, ...sourcesOf({ ...emptyWorkspace(), profiles: [otherPhone] }) });
+    const coach = createCoach({ ai, knowledge, ...sourcesOf({ ...emptyWorkspace(), profiles: [otherPhone] }) });
 
     await ask(coach, { kind: "profile", id: profile.id });
 
@@ -488,5 +492,33 @@ describe("the context's cap: about 12k tokens", () => {
     expect(system).not.toContain("Fin de l'offre.");
     expect(system).toContain("Vise une PME familiale");
     expect(system).toMatch(/19 ans d'expérience/);
+  });
+});
+
+describe("grounded in the Coaching Playbooks: the Core Digest, plus 1 or 2 playbooks picked from what is In view and the message topic", () => {
+  /** The playbooks and versions a reply says it used, the Core Digest first. */
+  const used = (...ids: PlaybookId[]) => [{ id: "core-digest", version: knowledge.coreDigest()!.version }, ...ids.map((id) => ({ id, version: knowledge.playbook(id)!.version }))];
+
+  const workspace = { applications: [application], jobOffers: [jobOffer], jobSearches: [jobSearch], jobDigests: [jobDigest] };
+
+  // One row of the playbook table each: In view / topic → playbooks.
+  it.each([
+    { row: "Application In view", focus: { kind: "application", id: application.id }, message: "Que me conseillez-vous ?", playbooks: ["cover-letter-writing", "ats-optimization"] },
+    { row: "Job Offer In view", focus: { kind: "job_offer", id: jobOffer.id }, message: "Que me conseillez-vous ?", playbooks: ["cv-offer-fit-scoring"] },
+    { row: "Interview", message: "Comment préparer mon entretien avec le N+1 ?", playbooks: ["interview-journey-stages", "interview-psychology"] },
+    { row: "Outreach / network", message: "Comment contacter le directeur financier sur LinkedIn ?", playbooks: ["outreach-first-contact", "application-strategy"] },
+    { row: "Freelance / portage / interim", message: "Le portage salarial, est-ce fait pour moi ?", playbooks: ["freelance-mission-positioning"] },
+    { row: "Positioning, age, CV", message: "J'ai 56 ans : comment me positionner sans paraître trop âgée ?", playbooks: ["senior-40plus-positioning"] },
+    { row: "Pace, motivation, budget", message: "Je perds ma motivation et mon budget fond, quel rythme tenir ?", playbooks: ["coaching-journey-gamification"] },
+  ] as { row: string; focus?: CoachFocus; message: string; playbooks: PlaybookId[] }[])("$row → $playbooks", async ({ focus, message, playbooks }) => {
+    const { coach, provider } = coachWith({ workspace });
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: message }], ...(focus ? { focus } : {}) });
+
+    if (!result.ok) throw new Error("no reply");
+    expect(result.playbooks).toEqual(used(...playbooks));
+    const system = contextOf(provider);
+    expect(system).toContain(knowledge.coreDigest()!.title);
+    for (const id of playbooks) expect(system).toContain(knowledge.playbook(id)!.title);
   });
 });

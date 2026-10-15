@@ -12,15 +12,25 @@
  * account adds nothing: see ./context. Task `coaching`, EU endpoints only (ADR-0007).
  * Each reply says what it cost (`CoachMessageCost`), so it can be recorded with
  * the message: an estimate from list prices, frozen at the time of the reply.
+ * Each reply is grounded in the coaching knowledge `knowledge` serves: the Core Digest
+ * and 1 or 2 Coaching Playbooks picked from what is In view and the message topic
+ * (see ./grounding). The playbooks win over the model's general knowledge and are the
+ * only place a figure may come from. The reply says which it used, with their versions
+ * (`playbooks`), so they can be recorded with the message. All of it, the persona, the
+ * knowledge and the context, stays within COACH_CONTEXT_MAX_TOKENS.
  */
 import { costInEur, type AiLayer, type ProviderId } from "@jobhub/ai";
+import type { CoachKnowledge } from "@jobhub/coach-knowledge";
 import * as z from "zod";
 import { COACH_CONTEXT_MAX_TOKENS, COACH_FOCUS_KINDS, coachContext, estimateTokens, type CoachSources } from "./context";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentConversation } from "./conversation";
+import { grounding, type PlaybookUsed } from "./grounding";
 
 export { COACH_CONTEXT_MAX_TOKENS, COACH_FOCUS_KINDS, estimateTokens, type CoachFocus, type CoachMemorySource, type CoachSources } from "./context";
 
 export { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentConversation, type CoachMessage } from "./conversation";
+
+export { KNOWLEDGE_MAX_TOKENS, MAX_PLAYBOOKS, type PlaybookUsed } from "./grounding";
 
 /** What one AI Coach reply cost: who answered, its tokens, and the estimated cost in € at list prices. */
 export interface CoachMessageCost {
@@ -34,7 +44,8 @@ export interface CoachMessageCost {
   eur: number;
 }
 
-export type CoachReply = { ok: true; reply: string; cost: CoachMessageCost } | { ok: false; error: "invalid" | "unavailable" };
+/** `playbooks`: the Core Digest and the Coaching Playbooks the reply drew on, with their versions (none when nothing is served). */
+export type CoachReply = { ok: true; reply: string; cost: CoachMessageCost; playbooks: PlaybookUsed[] } | { ok: false; error: "invalid" | "unavailable" };
 
 export interface Coach {
   reply(candidateId: string, input: unknown): Promise<CoachReply>;
@@ -42,6 +53,8 @@ export interface Coach {
 
 export interface CoachDeps extends CoachSources {
   ai: AiLayer;
+  /** The Coaching Playbooks and Core Digest served in this environment (ADR-0019). */
+  knowledge: Pick<CoachKnowledge, "playbook" | "coreDigest">;
 }
 
 /**
@@ -66,10 +79,14 @@ Règles :
 - Appuie-toi uniquement sur ce que le candidat t'a dit et sur les informations ci-dessous. N'invente jamais d'expérience, de diplôme ou de chiffre.
 - Si tu proposes une modification de son CV, dis précisément quoi changer et pourquoi.`;
 
-export function createCoach(deps: CoachDeps): Coach {
-  /** Room left for the context once the persona is in: the whole system prompt stays under the cap. */
-  const contextTokens = COACH_CONTEXT_MAX_TOKENS - estimateTokens(PERSONA) - 1;
+/** How the AI Coach uses the coaching knowledge that follows it (the Core Digest and the playbooks). */
+const GROUNDING_RULES = `Connaissances de coaching :
+- Le socle et les playbooks Jobbbox ci-dessous priment sur tes connaissances générales : en cas de désaccord, suis-les.
+- N'avance aucun chiffre ni statistique qui ne figure pas dans le socle ou un playbook ci-dessous.
+- Quand tu t'appuies sur un chiffre ou une étude, cite sa source en clair, par son auteur et son année (par exemple « Apec, 2026 »), jamais par son identifiant [S…].
+- Là où ils ne disent rien, donne un conseil général, sans chiffre.`;
 
+export function createCoach(deps: CoachDeps): Coach {
   return {
     async reply(candidateId, input) {
       const parsed = inputSchema.safeParse(input);
@@ -77,11 +94,14 @@ export function createCoach(deps: CoachDeps): Coach {
       const { focus } = parsed.data;
       const messages = recentConversation(parsed.data.messages);
       try {
-        const context = await coachContext(deps, candidateId, focus, contextTokens);
+        const knowledge = grounding(deps.knowledge, { inView: focus?.kind, message: messages.at(-1)!.text });
+        const instructions = [PERSONA, GROUNDING_RULES, knowledge.text].filter(Boolean).join("\n\n");
+        // Room left for the context once the persona and the knowledge are in: the whole system prompt stays under the cap.
+        const context = await coachContext(deps, candidateId, focus, COACH_CONTEXT_MAX_TOKENS - estimateTokens(instructions) - 1);
         const result = await deps.ai.generate({
           task: "coaching",
           candidateId,
-          system: `${PERSONA}\n\n${context}`,
+          system: `${instructions}\n\n${context}`,
           // First name only, the Master CV's identity stripped (#126): the AI layer's scan stays the safety net (#121).
           containsIdentity: false,
           prompt: messages.map((message) => ({ role: message.from === "candidate" ? ("user" as const) : ("assistant" as const), content: message.text })),
@@ -95,7 +115,7 @@ export function createCoach(deps: CoachDeps): Coach {
           cachedInputTokens: usage.cachedInputTokens ?? 0,
           eur: costInEur(result),
         };
-        return { ok: true, reply: result.text.trim(), cost };
+        return { ok: true, reply: result.text.trim(), cost, playbooks: knowledge.used };
       } catch (error) {
         console.warn("[coach] the AI Coach could not reply:", error instanceof Error ? error.message : error);
         return { ok: false, error: "unavailable" };

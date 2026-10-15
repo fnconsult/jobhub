@@ -1,12 +1,13 @@
 import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
+import { loadCoachKnowledge, type CoachKnowledge, type PlaybookId } from "@jobhub/coach-knowledge";
 import { describe, expect, it } from "vitest";
 import { scoreMatch, type JobOffer } from "@jobhub/shared";
 import type { Application } from "@/applications";
 import type { JobDigest } from "@/job-digests";
 import type { JobSearch } from "@/job-searches";
 import type { Profile } from "@/profiles";
-import { createCoach, MAX_MESSAGES, recentConversation, type Coach, type CoachDeps, type CoachFocus, COACH_CONTEXT_MAX_TOKENS, estimateTokens } from "./index";
+import { createCoach, MAX_MESSAGES, recentConversation, type Coach, type CoachDeps, type CoachFocus, COACH_CONTEXT_MAX_TOKENS, estimateTokens, KNOWLEDGE_MAX_TOKENS } from "./index";
 
 const profile: Profile = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -84,7 +85,7 @@ function emptyWorkspace(): Workspace {
   return { profiles: [profile], applications: [], jobOffers: [], jobSearches: [], jobDigests: [], memory: [] };
 }
 
-function sourcesOf(workspace: Workspace): Omit<CoachDeps, "ai"> {
+function sourcesOf(workspace: Workspace): Omit<CoachDeps, "ai" | "knowledge"> {
   const mine = <T>(candidateId: string, items: T[]) => (candidateId === "marie" ? items : []);
   return {
     profiles: {
@@ -109,7 +110,10 @@ function sourcesOf(workspace: Workspace): Omit<CoachDeps, "ai"> {
   };
 }
 
-function coachWith(options: { reply?: string | (() => string); workspace?: Partial<Workspace> } = {}): {
+/** Every Coaching Playbook and the Core Digest, as served before a human validated them ("eval"). */
+const knowledge = loadCoachKnowledge({ environment: "eval" });
+
+function coachWith(options: { reply?: string | (() => string); workspace?: Partial<Workspace>; knowledge?: Pick<CoachKnowledge, "playbook" | "coreDigest"> } = {}): {
   coach: Coach;
   provider: FakeProvider;
   usage: ReturnType<typeof createMemoryUsageLog>;
@@ -117,7 +121,7 @@ function coachWith(options: { reply?: string | (() => string); workspace?: Parti
   const provider = createFakeProvider({ id: "mistral", reply: options.reply ?? "Bonjour Marie, que puis-je faire pour vous ?" });
   const usage = createMemoryUsageLog();
   const ai = createAiLayer({ providers: [provider], routes: { coaching: "mistral" }, usage });
-  return { coach: createCoach({ ai, ...sourcesOf({ ...emptyWorkspace(), ...options.workspace }) }), provider, usage };
+  return { coach: createCoach({ ai, knowledge: options.knowledge ?? knowledge, ...sourcesOf({ ...emptyWorkspace(), ...options.workspace }) }), provider, usage };
 }
 
 /** What the AI Coach was told for its latest reply. */
@@ -150,7 +154,7 @@ describe("talking with the AI Coach in the Coach Panel", () => {
   it("says what its reply cost: the provider and model, the tokens in, out and cached, and the estimated cost in €", async () => {
     const provider = createFakeProvider({ id: "mistral", reply: "Bonjour", usage: { inputTokens: 1_000, outputTokens: 200, cachedInputTokens: 3_000 } });
     const ai = createAiLayer({ providers: [provider], routes: { coaching: { provider: "mistral", model: "mistral-large-latest" } }, usage: createMemoryUsageLog() });
-    const coach = createCoach({ ai, ...sourcesOf(emptyWorkspace()) });
+    const coach = createCoach({ ai, knowledge, ...sourcesOf(emptyWorkspace()) });
 
     const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "Bonjour" }] });
 
@@ -281,7 +285,7 @@ describe("the Candidate's identity: first name only", () => {
     const claude = createFakeProvider({ id: "anthropic" });
     const mistral = createFakeProvider({ id: "mistral" });
     const ai = createAiLayer({ providers: [claude, mistral], routes: { coaching: "anthropic" }, euAiConsent: async () => true, usage: createMemoryUsageLog() });
-    const coach = createCoach({ ai, ...sourcesOf({ ...emptyWorkspace(), profiles: [writtenEverywhere] }) });
+    const coach = createCoach({ ai, knowledge, ...sourcesOf({ ...emptyWorkspace(), profiles: [writtenEverywhere] }) });
 
     await ask(coach, { kind: "profile", id: profile.id });
 
@@ -294,7 +298,7 @@ describe("the Candidate's identity: first name only", () => {
     const mistral = createFakeProvider({ id: "mistral" });
     const ai = createAiLayer({ providers: [claude, mistral], routes: { coaching: "anthropic" }, euAiConsent: async () => true, usage: createMemoryUsageLog() });
     const otherPhone: Profile = { ...profile, masterCv: { version: 4, content: { ...profile.masterCv.content, summary: "Mon portable perso : 07.98.76.54.32" } } };
-    const coach = createCoach({ ai, ...sourcesOf({ ...emptyWorkspace(), profiles: [otherPhone] }) });
+    const coach = createCoach({ ai, knowledge, ...sourcesOf({ ...emptyWorkspace(), profiles: [otherPhone] }) });
 
     await ask(coach, { kind: "profile", id: profile.id });
 
@@ -475,6 +479,32 @@ describe("the context's cap: about 12k tokens", () => {
     expect(system).not.toContain("résumé3");
   });
 
+  it("keeps the playbooks within the cap too: the item In view is cut, never the playbooks picked", async () => {
+    const posting = { ...jobOffer, content: `Début de l'offre. ${text(20_000, "mission")}Fin de l'offre.` };
+    const { coach, provider } = coachWith({ workspace: { jobOffers: [posting] } });
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "J'ai 55 ans : ce CV colle-t-il à l'offre ?" }], focus: { kind: "job_offer", id: posting.id } });
+
+    expect(result).toMatchObject({ ok: true, playbooks: [{ id: "core-digest" }, { id: "cv-offer-fit-scoring" }, { id: "senior-40plus-positioning" }] });
+    const system = contextOf(provider);
+    expect(estimateTokens(system)).toBeLessThanOrEqual(COACH_CONTEXT_MAX_TOKENS);
+    expect(system).toContain(knowledge.playbook("senior-40plus-positioning")!.text);
+    expect(system).toContain(knowledge.playbook("cv-offer-fit-scoring")!.text);
+    expect(system).toContain("Début de l'offre.");
+    expect(system).not.toContain("Fin de l'offre.");
+  });
+
+  it("gives the coaching knowledge at most KNOWLEDGE_MAX_TOKENS, leaving out a second playbook that would go over", async () => {
+    const big = (id: PlaybookId) => ({ ...knowledge.playbook(id)!, text: `# ${id}\n\n${text(KNOWLEDGE_MAX_TOKENS / 2, "règle")}` });
+    const { coach, provider } = coachWith({ workspace: { applications: [application] }, knowledge: { playbook: big, coreDigest: () => knowledge.coreDigest() } });
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "Que me conseillez-vous ?" }], focus: { kind: "application", id: application.id } });
+
+    expect(result).toMatchObject({ ok: true, playbooks: [{ id: "core-digest" }, { id: "cover-letter-writing" }] });
+    expect(contextOf(provider)).not.toContain("# ats-optimization");
+    expect(estimateTokens(contextOf(provider))).toBeLessThanOrEqual(COACH_CONTEXT_MAX_TOKENS);
+  });
+
   it("cuts the item In view when it alone is over the cap, still telling the Candidate summary", async () => {
     const posting = { ...jobOffer, content: `Début de l'offre. ${text(20_000, "mission")}Fin de l'offre.` };
     const { coach, provider } = coachWith({ workspace: { jobOffers: [posting], memory: ["Vise une PME familiale"] } });
@@ -488,5 +518,186 @@ describe("the context's cap: about 12k tokens", () => {
     expect(system).not.toContain("Fin de l'offre.");
     expect(system).toContain("Vise une PME familiale");
     expect(system).toMatch(/19 ans d'expérience/);
+  });
+});
+
+describe("grounded in the Coaching Playbooks: the Core Digest, plus 1 or 2 playbooks picked from what is In view and the message topic", () => {
+  /** The playbooks and versions a reply says it used, the Core Digest first. */
+  const used = (...ids: PlaybookId[]) => [{ id: "core-digest", version: knowledge.coreDigest()!.version }, ...ids.map((id) => ({ id, version: knowledge.playbook(id)!.version }))];
+
+  const workspace = { applications: [application], jobOffers: [jobOffer], jobSearches: [jobSearch], jobDigests: [jobDigest] };
+
+  // One row of the playbook table each: In view / topic → playbooks.
+  it.each([
+    { row: "Application In view", focus: { kind: "application", id: application.id }, message: "Que me conseillez-vous ?", playbooks: ["cover-letter-writing", "ats-optimization"] },
+    { row: "Job Offer In view", focus: { kind: "job_offer", id: jobOffer.id }, message: "Que me conseillez-vous ?", playbooks: ["cv-offer-fit-scoring"] },
+    { row: "Interview", message: "Comment préparer mon entretien avec le N+1 ?", playbooks: ["interview-journey-stages", "interview-psychology"] },
+    { row: "Outreach / network", message: "Comment contacter le directeur financier sur LinkedIn ?", playbooks: ["outreach-first-contact", "application-strategy"] },
+    { row: "Freelance / portage / interim", message: "Le portage salarial, est-ce fait pour moi ?", playbooks: ["freelance-mission-positioning"] },
+    { row: "Positioning, age, CV", message: "J'ai 56 ans : comment me positionner sans paraître trop âgée ?", playbooks: ["senior-40plus-positioning"] },
+    { row: "Pace, motivation, budget", message: "Je perds ma motivation et mon budget fond, quel rythme tenir ?", playbooks: ["coaching-journey-gamification"] },
+  ] as { row: string; focus?: CoachFocus; message: string; playbooks: PlaybookId[] }[])("$row → $playbooks", async ({ focus, message, playbooks }) => {
+    const { coach, provider } = coachWith({ workspace });
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: message }], ...(focus ? { focus } : {}) });
+
+    if (!result.ok) throw new Error("no reply");
+    expect(result.playbooks).toEqual(used(...playbooks));
+    const system = contextOf(provider);
+    expect(system).toContain(knowledge.coreDigest()!.title);
+    for (const id of playbooks) expect(system).toContain(knowledge.playbook(id)!.title);
+  });
+
+  // The Coach is used in French and in English: every topic row reads both.
+  it.each([
+    { row: "Application: cover letter", message: "Help me with my cover letter", playbooks: ["cover-letter-writing", "ats-optimization"] },
+    { row: "Application: résumé keywords", message: "Which keywords will get me past the applicant tracking system?", playbooks: ["cover-letter-writing", "ats-optimization"] },
+    { row: "Job Offer: posting fit", message: "Is this job posting a good match for me?", playbooks: ["cv-offer-fit-scoring"] },
+    { row: "Interview: salary expectations", message: "What should I answer about my salary expectations?", playbooks: ["interview-journey-stages", "interview-psychology"] },
+    { row: "Outreach: headhunters", message: "Should I reach out to headhunters?", playbooks: ["outreach-first-contact", "application-strategy"] },
+    { row: "Freelance: self-employed", message: "Could I work self-employed at a daily rate?", playbooks: ["freelance-mission-positioning"] },
+    { row: "Positioning: overqualified", message: "Recruiters say I am overqualified, how do I handle my positioning?", playbooks: ["senior-40plus-positioning"] },
+    { row: "Pace: exhausted and demotivated", message: "I am exhausted and demotivated", playbooks: ["coaching-journey-gamification"] },
+    { row: "Pace: money and unemployment", message: "My unemployment benefits run out soon and I am short of money", playbooks: ["coaching-journey-gamification"] },
+  ] as { row: string; message: string; playbooks: PlaybookId[] }[])("in English too: $row → $playbooks", async ({ message, playbooks }) => {
+    const { coach } = coachWith({ workspace });
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: message }] });
+
+    expect(result).toMatchObject({ ok: true, playbooks: used(...playbooks) });
+  });
+
+  it("takes an English resume for the CV, not a French « résumé » (a summary)", async () => {
+    const { coach } = coachWith();
+
+    const english = await coach.reply("marie", { messages: [{ from: "candidate", text: "How should I rework my resume for this job offer?" }] });
+    const french = await coach.reply("marie", { messages: [{ from: "candidate", text: "Pouvez-vous me faire un résumé de cette offre ?" }] });
+
+    expect(english).toMatchObject({ ok: true, playbooks: used("cv-offer-fit-scoring", "senior-40plus-positioning") });
+    expect(french).toMatchObject({ ok: true, playbooks: used("cv-offer-fit-scoring") });
+  });
+
+  it("does not take an English cover letter (« motivation letter ») for a motivation topic", async () => {
+    const { coach } = coachWith();
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "Can you review my motivation letter?" }] });
+
+    expect(result).toMatchObject({ ok: true, playbooks: used("cover-letter-writing", "ats-optimization") });
+  });
+
+  it("puts the message topic before what is In view: an interview question on an Application page gets the interview playbooks", async () => {
+    const { coach } = coachWith({ workspace });
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "Mon entretien est jeudi, comment m'y préparer ?" }], focus: { kind: "application", id: application.id } });
+
+    expect(result).toMatchObject({ ok: true, playbooks: used("interview-journey-stages", "interview-psychology") });
+  });
+
+  it("adds at most 2 playbooks, the first of each topic before any second, when a message touches several topics", async () => {
+    const { coach } = coachWith();
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "J'ai 58 ans : comment parler de mon âge en entretien ?" }] });
+
+    expect(result).toMatchObject({ ok: true, playbooks: used("interview-journey-stages", "senior-40plus-positioning") });
+  });
+
+  it("reads the topic from the latest message only, accents and case aside", async () => {
+    const { coach } = coachWith();
+
+    const result = await coach.reply("marie", {
+      messages: [
+        { from: "candidate", text: "Comment préparer un ENTRETIEN ?" },
+        { from: "coach", text: "Commençons par le recruteur." },
+        { from: "candidate", text: "Et en INTERIM, ça se passe comment ?" },
+      ],
+    });
+
+    expect(result).toMatchObject({ ok: true, playbooks: used("freelance-mission-positioning") });
+  });
+
+  it("does not take a cover letter (« lettre de motivation ») for a motivation topic", async () => {
+    const { coach } = coachWith();
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "Pouvez-vous relire ma lettre de motivation ?" }] });
+
+    expect(result).toMatchObject({ ok: true, playbooks: used("cover-letter-writing", "ats-optimization") });
+  });
+
+  it.each([
+    { inView: "a Profile (the Candidate's positioning)", focus: { kind: "profile", id: profile.id }, playbooks: ["senior-40plus-positioning"] },
+    { inView: "a Job Search (Job Offers and their Match Scores)", focus: { kind: "job_search", id: jobSearch.id }, playbooks: ["cv-offer-fit-scoring"] },
+    { inView: "a Job Digest (Job Offers and their Match Scores)", focus: { kind: "job_digest", id: jobDigest.id }, playbooks: ["cv-offer-fit-scoring"] },
+    { inView: "nothing, and no topic: the 40+ positioning playbook, which concerns every Candidate", focus: undefined, playbooks: ["senior-40plus-positioning"] },
+  ] as { inView: string; focus?: CoachFocus; playbooks: PlaybookId[] }[])("with $inView In view → $playbooks", async ({ focus, playbooks }) => {
+    const { coach } = coachWith({ workspace });
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "Que me conseillez-vous ?" }], ...(focus ? { focus } : {}) });
+
+    expect(result).toMatchObject({ ok: true, playbooks: used(...playbooks) });
+  });
+
+  it("uses only the knowledge served: in production, nothing until a human validated it, and the reply says none was used (ADR-0019)", async () => {
+    const { coach, provider } = coachWith({ knowledge: loadCoachKnowledge({ environment: "production" }) });
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "Comment préparer mon entretien ?" }] });
+
+    expect(result).toMatchObject({ ok: true, playbooks: [] });
+    expect(contextOf(provider)).not.toContain(knowledge.playbook("interview-psychology")!.title);
+    expect(contextOf(provider)).not.toContain(knowledge.coreDigest()!.title);
+  });
+
+  it("falls back on the next playbook picked when one is not served", async () => {
+    const onlyAts: Pick<CoachKnowledge, "playbook" | "coreDigest"> = {
+      playbook: (id) => (id === "ats-optimization" ? knowledge.playbook(id) : undefined),
+      coreDigest: () => knowledge.coreDigest(),
+    };
+    const { coach } = coachWith({ workspace, knowledge: onlyAts });
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "Que me conseillez-vous ?" }], focus: { kind: "application", id: application.id } });
+
+    expect(result).toMatchObject({ ok: true, playbooks: used("ats-optimization") });
+  });
+});
+
+describe("the Ground Coach reply prompt", () => {
+  /** A small, fixed knowledge base, so the snapshot shows the prompt's shape rather than the playbooks' wording. */
+  const source = (id: string, author: string, year: string, title: string) => ({ id, author, year, title, url: `https://example.org/${id}`, licence: "public" });
+  const document = (title: string, version: string, text: string, sources: ReturnType<typeof source>[]) => ({
+    title,
+    version,
+    updated: "2026-10-12",
+    status: "validé (Claire Martin, 2026-10-13)",
+    humanValidated: true,
+    rules: [],
+    sources,
+    text,
+  });
+  const fixedKnowledge: Pick<CoachKnowledge, "playbook" | "coreDigest"> = {
+    coreDigest: () =>
+      document("Socle de coaching", "1.0", "# Socle de coaching\n\n**R1. Ne promettez jamais de résultat.** [S55]", [source("S55", "Dares", "2025", "Évaluation de l'accompagnement")]),
+    playbook: (id) =>
+      id === "interview-psychology"
+        ? {
+            id,
+            ...document("Réussir ses entretiens après 40 ans", "1.2", "# Réussir ses entretiens après 40 ans\n\n## Règles\n\n**R1. Préparez trois exemples chiffrés.** [S24]", [
+              source("S24", "Apec", "2026", "Les cadres seniors en recherche d'emploi"),
+            ]),
+          }
+        : undefined,
+  };
+
+  it("puts the persona, the rules for using the knowledge, the Core Digest, the playbooks with their Sources, then the Candidate's context", async () => {
+    const { coach, provider } = coachWith({ knowledge: fixedKnowledge });
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "Comment réussir mon entretien ?" }] });
+
+    expect(result).toMatchObject({ ok: true, playbooks: [{ id: "core-digest", version: "1.0" }, { id: "interview-psychology", version: "1.2" }] });
+    const system = contextOf(provider);
+    // Playbooks win over general knowledge; no statistic unless it is in a playbook, cited in plain words.
+    expect(system).toMatch(/priment sur tes connaissances générales/);
+    expect(system).toMatch(/aucun chiffre ni statistique qui ne figure pas dans le socle ou un playbook/);
+    expect(system).toMatch(/« Apec, 2026 »/);
+    expect(system).toMatch(/conseil général, sans chiffre/);
+    expect(system).toMatchSnapshot();
   });
 });

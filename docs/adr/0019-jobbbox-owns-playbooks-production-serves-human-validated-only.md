@@ -13,3 +13,5 @@ The Coaching Playbooks, their Sources and the Core Digest live in this repo (`pa
 - Nothing is served in production until a person validates the playbooks and the Core Digest: all 10 playbooks are marked as reviewed by an AI today and the Core Digest is a draft.
 - `development` and `eval` serve everything, so the AI Coach can be built and evaluated before validation.
 - Validating a file means editing its `statut` line; any content change after that must be validated again.
+- Until files are validated, production replies carry no knowledge and, since a figure needs a playbook, give no figures.
+- `COACH_KNOWLEDGE_ENVIRONMENT` can make a production build serve `development` or `eval` knowledge (e.g. the e2e server). It must never be set so on the real production deployment.

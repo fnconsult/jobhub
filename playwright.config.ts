@@ -48,7 +48,7 @@ export default defineConfig({
   projects: [
     {
       name: "web",
-      testMatch: /(web|database-connections|auth|account-data|profiles|master-cv|match-score|ats-score|coach|coach-context|billing|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|human-coaches|eu-ai-consent|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|profile-page)\.spec\.ts/,
+      testMatch: /(web|database-connections|auth|account-data|profiles|master-cv|match-score|ats-score|coach|coach-context|coach-playbooks|billing|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|human-coaches|eu-ai-consent|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|profile-page)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" },
     },
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },
@@ -77,6 +77,8 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       NEXT_TELEMETRY_DISABLED: "1",
+      // Unvalidated playbooks too: a production build serves only Human-validated ones (ADR-0019, #129).
+      COACH_KNOWLEDGE_ENVIRONMENT: "eval",
       // Candidate accounts in a local production build: sign-in links go to the server log.
       APP_URL: webOrigin,
       AUTH_SECRET: process.env.AUTH_SECRET ?? "e2e-only-secret-e2e-only-secret-e2e-only",
@@ -106,7 +108,7 @@ export default defineConfig({
       STRIPE_PRICE_COACHING_SESSION: "price_coaching_session",
       STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_coaching_session_premium",
       STRIPE_API_URL: process.env.E2E_STRIPE_URL,
-      ADMIN_EMAILS: "back-office@e2e.jobbbox.test,coach-office@e2e.jobbbox.test,account-office@e2e.jobbbox.test,cost-office@e2e.jobbbox.test",
+      ADMIN_EMAILS: "back-office@e2e.jobbbox.test,coach-office@e2e.jobbbox.test,account-office@e2e.jobbbox.test,cost-office@e2e.jobbbox.test,playbook-office@e2e.jobbbox.test",
       // Enriched Contacts (#23) on Apollo, faked; the DPA flag stands for the signed agreement.
       CONTACT_ENRICHMENT_PROVIDER: "apollo",
       APOLLO_API_KEY: "e2e-apollo-key",

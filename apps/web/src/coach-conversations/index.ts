@@ -14,15 +14,17 @@
  * Every read and change is scoped to the Candidate: another Candidate's
  * conversation is "not found". Never throws for bad input: an error code comes back.
  * Each AI Coach message is saved with what it cost (provider, model, tokens in,
- * out and cached, estimated €); `coachCostPerDay` gives the Administrator the
- * median and p90 cost per day, to check the €0.03 per message target (#127).
+ * out and cached, estimated €) and the Coaching Playbooks and Core Digest it drew
+ * on, with their versions (#129); `coachCostPerDay` gives the Administrator the
+ * median and p90 cost per day, to check the €0.03 per message target (#127), and
+ * which playbook versions answered.
  * Kept RETENTION_MONTHS after their last message (`purgeStaleCoachConversations`,
  * run daily by the worker) and deleted with the account (ADR-0010). Human
  * Coaches never read them: Coach Access covers Profiles and Applications only.
  */
 import type { Pool } from "pg";
 import * as z from "zod";
-import { COACH_FOCUS_KINDS, type Coach, type CoachMessageCost } from "../coach";
+import { COACH_FOCUS_KINDS, type Coach, type CoachMessageCost, type PlaybookUsed } from "../coach";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, type CoachMessage } from "../coach/conversation";
 import type { Profiles } from "../profiles";
 
@@ -154,9 +156,9 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
         }
         await client.query(`INSERT INTO coach_message (conversation_id, author, text, created_at) VALUES ($1, 'candidate', $2, $3)`, [id, message, sentAt]);
         await client.query(
-          `INSERT INTO coach_message (conversation_id, author, text, created_at, provider, model, input_tokens, output_tokens, cached_input_tokens, cost_eur)
-           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [id, answer.reply, sentAt, cost.provider, cost.model, cost.inputTokens, cost.outputTokens, cost.cachedInputTokens, cost.eur],
+          `INSERT INTO coach_message (conversation_id, author, text, created_at, provider, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, playbooks)
+           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [id, answer.reply, sentAt, cost.provider, cost.model, cost.inputTokens, cost.outputTokens, cost.cachedInputTokens, cost.eur, JSON.stringify(answer.playbooks)],
         );
         await client.query(`UPDATE coach_conversation SET last_message_at = $2 WHERE id = $1`, [id, sentAt]);
         await client.query("COMMIT");
@@ -230,6 +232,8 @@ export interface CoachCostDay {
   cachedInputTokens: number;
   /** Who answered, most replies first. */
   models: { provider: CoachMessageCost["provider"]; model: string; messages: number }[];
+  /** The Coaching Playbooks and Core Digest the replies drew on, per version, most replies first. */
+  playbooks: (PlaybookUsed & { messages: number })[];
 }
 
 /**
@@ -241,20 +245,26 @@ export async function coachCostPerDay(database: Pick<Pool, "query">, since: Date
   const { rows } = await database.query<CoachCostDay>(
     `WITH costed AS (
        SELECT to_char(created_at AT TIME ZONE 'Europe/Paris', 'YYYY-MM-DD') AS day, provider, model,
-              input_tokens, output_tokens, cached_input_tokens, cost_eur
+              input_tokens, output_tokens, cached_input_tokens, cost_eur, playbooks
          FROM coach_message WHERE author = 'coach' AND cost_eur IS NOT NULL AND created_at >= $1
      ), models AS (
        SELECT day, jsonb_agg(jsonb_build_object('provider', provider, 'model', model, 'messages', messages) ORDER BY messages DESC, provider, model) AS models
          FROM (SELECT day, provider, model, count(*)::int AS messages FROM costed GROUP BY day, provider, model) per_model
+        GROUP BY day
+     ), playbooks AS (
+       SELECT day, jsonb_agg(jsonb_build_object('id', id, 'version', version, 'messages', messages) ORDER BY messages DESC, id, version) AS playbooks
+         FROM (SELECT day, used ->> 'id' AS id, used ->> 'version' AS version, count(*)::int AS messages
+                 FROM costed, jsonb_array_elements(coalesce(costed.playbooks, '[]'::jsonb)) used
+                GROUP BY day, used ->> 'id', used ->> 'version') per_playbook
         GROUP BY day
      )
      SELECT c.day, count(*)::int AS messages,
             percentile_cont(0.5) WITHIN GROUP (ORDER BY c.cost_eur) AS "medianEur",
             percentile_cont(0.9) WITHIN GROUP (ORDER BY c.cost_eur) AS "p90Eur",
             sum(c.input_tokens)::float8 AS "inputTokens", sum(c.output_tokens)::float8 AS "outputTokens",
-            sum(c.cached_input_tokens)::float8 AS "cachedInputTokens", m.models
-       FROM costed c JOIN models m USING (day)
-      GROUP BY c.day, m.models
+            sum(c.cached_input_tokens)::float8 AS "cachedInputTokens", m.models, coalesce(p.playbooks, '[]'::jsonb) AS playbooks
+       FROM costed c JOIN models m USING (day) LEFT JOIN playbooks p USING (day)
+      GROUP BY c.day, m.models, p.playbooks
       ORDER BY c.day DESC`,
     [since],
   );
@@ -305,5 +315,8 @@ export async function migrateCoachConversations(database: Pool): Promise<void> {
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS cached_input_tokens integer;
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS cost_eur double precision;
     CREATE INDEX IF NOT EXISTS coach_message_costed_idx ON coach_message (created_at) WHERE cost_eur IS NOT NULL;
+    -- The Coaching Playbooks and Core Digest each AI Coach message drew on, [{ id, version }] (#129);
+    -- null on the Candidate's messages and on replies saved before.
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS playbooks jsonb;
   `);
 }

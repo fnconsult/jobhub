@@ -116,6 +116,14 @@ _Avoid_: Citation, reference, link
 The short set of cross-cutting coaching rules the AI Coach always applies, whatever the topic. Validated like a Coaching Playbook.
 _Avoid_: Summary, system prompt
 
+**Playbook table**:
+The mapping from what is In view and the topic of the Candidate's latest message to the Coaching Playbooks the AI Coach is given for a reply (one or two). A Profile counts as a positioning; a Job Search or Job Digest counts as a Job Offer.
+_Avoid_: Routing, playbook selection
+
+**Playbooks used**:
+The Core Digest and Coaching Playbooks, with their versions, that an AI Coach reply drew on, recorded with the message. Empty when none is Human-validated for the environment.
+_Avoid_: Sources used, citations
+
 **Human-validated**:
 A Coaching Playbook or Core Digest a named person has reviewed and approved, with the date. A review by an AI never counts. Only Human-validated coaching knowledge reaches Candidates.
 _Avoid_: Approved, QA'd, reviewed

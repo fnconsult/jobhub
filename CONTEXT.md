@@ -309,8 +309,12 @@ A copy of a Profile's Master CV adapted to one Job Offer, stored on its Applicat
 _Avoid_: Custom CV, adapted CV
 
 **Tailored CV Review**:
-The step where the Candidate checks a Tailored CV proposed by the AI Coach before it is saved: its questions about requirements the Master CV does not cover, its changes against the Master CV, and the Match Score of both. Until saved, the Tailored CV is only a proposal; a requirement is added only if the Candidate confirms it.
+The step where the Candidate checks a Tailored CV proposed by the AI Coach before it is saved: its questions about requirements the Master CV does not cover, its changes against the Master CV, and the Match Score of both. Each change is accepted or rejected on its own, and only accepted changes are saved; a rejected change keeps what the Master CV says. Until saved, the Tailored CV is only a proposal; a requirement is added only if the Candidate confirms it.
 _Avoid_: Preview, approval, diff
+
+**Flagged Change**:
+A change in a Tailored CV Review that rephrases a text with Job Offer words the Master CV lacks. It starts neither accepted nor rejected and is never saved without the Candidate's explicit accept. Common words of job offers and elision fragments ("jusqu" from "jusqu'à") are not flagged.
+_Avoid_: Suspicious change, warning
 
 **Refusal Reason**:
 Why an AI Coach reply is not a usable proposal: no JSON in it, unreadable JSON, the wrong shape, or no CV in it. A refused Tailored CV reply is retried once before the Candidate is told the proposal is unavailable. Logged with the reply's length and the provider and model, never its content.

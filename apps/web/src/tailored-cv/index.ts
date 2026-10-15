@@ -8,7 +8,7 @@
  *  - `get` the Application's Document Language, the proposal under review and the saved Tailored CV;
  *  - `propose` (or propose again) a Tailored CV: it replaces the proposal under review, never the saved one;
  *  - `answer` the proposal's questions: the Job Offer's requirements the Master CV does not show;
- *  - `save` the proposal once reviewed: it becomes the Application's Tailored CV.
+ *  - `save` the proposal once reviewed, with only the changes the Candidate accepted: it becomes the Application's Tailored CV.
  *
  * Rules kept here (ADR-0006):
  *  - A Tailored CV only rephrases, reorders, cuts and emphasises facts of the
@@ -27,6 +27,10 @@
  *    an AI translation into the Master CV's language, and the Candidate is told so.
  *  - A requirement the Master CV lacks becomes a question to the Candidate, and
  *    is added to the skills only if they confirm it.
+ *  - Each change is accepted or rejected by the Candidate: only the accepted ones
+ *    are saved, every other keeps the Master CV's (#161). Which ones are accepted
+ *    comes with the save, never guessed: a change flagged as taken from the Job
+ *    Offer is saved only once the Candidate accepts it.
  * Every read and change is scoped to the Candidate; inputs are untrusted and
  * problems come back as results. Task `writing`, EU endpoints only (ADR-0007).
  */
@@ -38,7 +42,7 @@ import type { Application, Applications } from "../applications";
 import type { Profiles } from "../profiles";
 import { documentLanguageOf, keepDocumentLanguage } from "../tailored-documents/document-language";
 import { fieldErrors, type FieldError } from "../validation";
-import { cvChanges, flagOfferWording, stemOf, wordsOf, type CvChange, type CvOrigins } from "./changes";
+import { cvChanges, flagOfferWording, stemOf, withChanges, wordsOf, type CvChange, type CvOrigins } from "./changes";
 import { askForTailoredCv, type AiReply } from "./reply";
 
 export { CV_SECTIONS, type CvChange, type CvOrigins, type CvSection } from "./changes";
@@ -118,7 +122,9 @@ export interface TailoredCvs {
   /**
    * The Candidate approves the proposal they reviewed: it becomes the Application's
    * Tailored CV, replacing the one saved before. Unanswered questions add nothing.
-   * `input`: { revision } of the proposal they reviewed.
+   * `input`: { revision, accepted } — the revision of the proposal they reviewed, and
+   * the ids of the changes they accepted (`CvChange.id`): every other change keeps the
+   * Master CV's, and an id naming no change of that proposal is ignored.
    * "not_found" when there is no proposal; "proposal_changed" when it is no longer
    * that revision; "master_cv_changed" when it was derived from a Master CV
    * Version that is no longer current.
@@ -134,7 +140,7 @@ export interface TailoredCvsDeps {
 
 const proposeSchema = z.object({ language: z.enum(DOCUMENT_LANGUAGES).optional() });
 const answerSchema = z.object({ requirement: z.string().trim().min(1).max(200), confirmed: z.boolean() });
-const saveSchema = z.object({ revision: z.string().min(1).max(64) });
+const saveSchema = z.object({ revision: z.string().min(1).max(64), accepted: z.array(z.string().max(500)).max(500) });
 
 /** Most questions asked about one proposal. */
 const MAX_QUESTIONS = 8;
@@ -456,7 +462,7 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       const application = await deps.applications.get(candidateId, applicationId);
       if (!application) return NOT_FOUND;
-      const { revision } = parsed.data;
+      const { revision, accepted } = parsed.data;
       const { rows } = await database.query<{ proposal: ProposalRow | null; revision: string | null }>(
         `SELECT proposal, md5(proposal::text) AS revision FROM tailored_cv WHERE application_id = $1`,
         [application.id],
@@ -470,7 +476,7 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
         language: proposal.language,
         masterCvVersion: proposal.masterCvVersion,
         master: proposal.master,
-        content: withConfirmed(proposal.adapted, proposal.questions),
+        content: withChanges(proposal.master, withConfirmed(proposal.adapted, proposal.questions), accepted, proposal.origins),
         savedAt: new Date().toISOString(),
       };
       // Only the revision the Candidate reviewed: one proposed or answered since, even a moment ago, is not saved unseen.

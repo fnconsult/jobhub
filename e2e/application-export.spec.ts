@@ -69,8 +69,9 @@ async function openApplication(page: Page, label: string): Promise<string> {
 async function saveTailoredCv(page: Page, id: string) {
   const proposed = await page.request.post(`/api/applications/${id}/tailored-cv`, { data: {}, headers: { origin } });
   expect(proposed.status(), await proposed.text()).toBe(200);
-  const { revision } = (await proposed.json()).proposal;
-  const saved = await page.request.post(`/api/applications/${id}/tailored-cv/save`, { data: { revision }, headers: { origin } });
+  const { revision, changes } = (await proposed.json()).proposal as { revision: string; changes: { id: string }[] };
+  const accepted = changes.map((change) => change.id);
+  const saved = await page.request.post(`/api/applications/${id}/tailored-cv/save`, { data: { revision, accepted }, headers: { origin } });
   expect(saved.status(), await saved.text()).toBe(200);
 }
 

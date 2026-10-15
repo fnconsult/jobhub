@@ -121,8 +121,9 @@ test.describe("exporting my data and deleting my account", () => {
     // The other Tailored Documents: a saved Tailored CV and an Outreach Message.
     const proposed = await page.request.post(`/api/applications/${applicationId}/tailored-cv`, { data: { language: "fr" }, headers: { origin } });
     expect(proposed.ok(), await proposed.text()).toBe(true);
+    const { revision, changes } = (await proposed.json()).proposal as { revision: string; changes: { id: string }[] };
     const savedCv = await page.request.post(`/api/applications/${applicationId}/tailored-cv/save`, {
-      data: { revision: (await proposed.json()).proposal.revision },
+      data: { revision, accepted: changes.map((change) => change.id) },
       headers: { origin },
     });
     expect(savedCv.ok(), await savedCv.text()).toBe(true);

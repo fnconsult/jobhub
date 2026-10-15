@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ActionCard } from "@/action-cards";
 import { getActionCards } from "@/action-cards/server";
-import { INTERVIEW_TIME_ZONE } from "@/applications";
+import { INTERVIEW_TIME_ZONE, interviewWallClock } from "@/applications";
 import { requireOwnApplication } from "@/applications/server";
 import { ActionCardList, type ActionCardView } from "@/components/ActionCardList";
 import {
   AddInterviewForm,
   ApplicationProfileSelect,
   ApplicationStatusSelect,
+  EditInterview,
   RemoveInterviewButton,
   ReportUnavailableButton,
 } from "@/components/ApplicationControls";
@@ -172,7 +173,14 @@ export default async function ApplicationPage({ params }: Params) {
                   <li key={interview.id} className="interview">
                     <p className="interview-date">{when}</p>
                     {interview.note ? <p>{interview.note}</p> : null}
-                    <RemoveInterviewButton applicationId={application.id} interviewId={interview.id} label={t("application.removeInterview", { date: when })} />
+                    <div className="actions">
+                      <EditInterview
+                        applicationId={application.id}
+                        interview={{ id: interview.id, scheduledAt: interviewWallClock(interview.scheduledAt), note: interview.note }}
+                        label={t("application.editInterview", { date: when })}
+                      />
+                      <RemoveInterviewButton applicationId={application.id} interviewId={interview.id} label={t("application.removeInterview", { date: when })} />
+                    </div>
                   </li>
                 );
               })}

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createJobOffers, createSourceChecks, forgetExpiredGuestCaptures, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
-import { createApplications, migrateApplications, type Applications } from "./index";
+import { createApplications, interviewWallClock, migrateApplications, type Applications } from "./index";
 
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -18,6 +18,14 @@ const masterCv: MasterCvContent = {
   skills: ["IFRS", "SAP"],
   languages: [],
 };
+
+describe("interviewWallClock", () => {
+  it("gives an Interview's date and time as typed in French time, the way the Interview form reads it back", () => {
+    expect(interviewWallClock(new Date("2026-11-12T13:30:00.000Z"))).toBe("2026-11-12T14:30"); // winter: UTC+1
+    expect(interviewWallClock(new Date("2026-06-03T07:00:00.000Z"))).toBe("2026-06-03T09:00"); // summer: UTC+2
+    expect(interviewWallClock(new Date("2026-12-31T23:05:00.000Z"))).toBe("2027-01-01T00:05");
+  });
+});
 
 describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)", () => {
   let testAuth: TestAuth;
@@ -297,6 +305,54 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
         ok: false,
         error: "not_found",
       });
+    });
+
+    it("edits an Interview's date, time and note, keeping them in date order", async () => {
+      const applicationId = await inInterview();
+      await applications.addInterview(candidateId, applicationId, { scheduledAt: "2026-11-04T09:00:00.000Z", note: "Avec la DRH" });
+      const added = await applications.addInterview(candidateId, applicationId, { scheduledAt: "2026-11-11T14:30:00.000Z" });
+      const firstId = added.ok ? added.application.interviews[0]!.id : "";
+
+      const edited = await applications.editInterview(candidateId, applicationId, firstId, { scheduledAt: "2026-11-18T10:15", note: "Avec le PDG" });
+
+      expect(edited).toMatchObject({
+        ok: true,
+        application: {
+          interviews: [
+            { scheduledAt: new Date("2026-11-11T14:30:00.000Z"), note: "" },
+            { id: firstId, scheduledAt: new Date("2026-11-18T09:15:00.000Z"), note: "Avec le PDG" },
+          ],
+        },
+      });
+    });
+
+    it("changes only what an edit names, even once the Application has moved on from \"Entretien\"", async () => {
+      const applicationId = await inInterview();
+      const added = await applications.addInterview(candidateId, applicationId, { scheduledAt: "2026-11-04T09:00:00.000Z", note: "Avec la DRH" });
+      const interviewId = added.ok ? added.application.interviews[0]!.id : "";
+      await applications.change(candidateId, applicationId, { status: "offer_received" });
+
+      const renoted = await applications.editInterview(candidateId, applicationId, interviewId, { note: "  En visioconférence " });
+      const cleared = await applications.editInterview(candidateId, applicationId, interviewId, { note: "" });
+
+      expect(renoted).toMatchObject({ ok: true, application: { interviews: [{ scheduledAt: new Date("2026-11-04T09:00:00.000Z"), note: "En visioconférence" }] } });
+      expect(cleared).toMatchObject({ ok: true, application: { interviews: [{ scheduledAt: new Date("2026-11-04T09:00:00.000Z"), note: "" }] } });
+    });
+
+    it("refuses an invalid date, and someone else's or an unknown Interview", async () => {
+      const applicationId = await inInterview();
+      const added = await applications.addInterview(candidateId, applicationId, { scheduledAt: "2026-11-04T09:00:00.000Z" });
+      const interviewId = added.ok ? added.application.interviews[0]!.id : "";
+
+      expect(await applications.editInterview(candidateId, applicationId, interviewId, { scheduledAt: "demain" })).toEqual({
+        ok: false,
+        errors: [{ field: "scheduledAt", code: "invalid" }],
+      });
+      expect(await applications.editInterview(candidateId, applicationId, interviewId, { scheduledAt: "" })).toMatchObject({ ok: false, errors: [{ field: "scheduledAt" }] });
+      expect(await applications.editInterview(otherCandidateId, applicationId, interviewId, { note: "x" })).toEqual({ ok: false, error: "not_found" });
+      expect(await applications.editInterview(candidateId, applicationId, "00000000-0000-4000-8000-000000000000", { note: "x" })).toEqual({ ok: false, error: "not_found" });
+      expect(await applications.editInterview(candidateId, applicationId, "pas-un-id", { note: "x" })).toEqual({ ok: false, error: "not_found" });
+      expect((await applications.get(candidateId, applicationId))?.interviews).toMatchObject([{ scheduledAt: new Date("2026-11-04T09:00:00.000Z"), note: "" }]);
     });
 
     it("removes an Interview the Candidate added by mistake", async () => {

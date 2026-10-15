@@ -199,6 +199,53 @@ test.describe("Applications", () => {
     await expect(page.getByRole("region", { name: fr.application.interviewsTitle }).getByRole("listitem")).toHaveCount(2);
   });
 
+  test("an Interview is added, edited and removed (QA plan case 4.7, #167)", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("application-interview-edit"));
+    const applicationId = await saveApplication(page, await captureOffer(page), await createProfile(page, "DAF"));
+    await page.goto(`/candidatures/${applicationId}`);
+    await page.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.interview });
+    const interviews = page.getByRole("region", { name: fr.application.interviewsTitle });
+    await interviews.getByLabel(fr.application.interviewDate).fill("2026-11-12T14:30");
+    await interviews.getByLabel(fr.application.interviewNote).fill("Avec le PDG");
+    await interviews.getByRole("button", { name: fr.application.addInterview }).click();
+    await expect(interviews.getByRole("listitem")).toHaveCount(1);
+    await interviews.getByLabel(fr.application.interviewDate).fill("2026-11-20T11:00");
+    await interviews.getByRole("button", { name: fr.application.addInterview }).click();
+    await expect(interviews.getByRole("listitem")).toHaveCount(2);
+
+    // Edit the first one: its form opens filled in with its date, time (French time) and note.
+    const first = interviews.getByRole("listitem").first();
+    await first.getByRole("button", { name: /^Modifier l'entretien du/ }).click();
+    await expect(first.getByLabel(fr.application.interviewDate)).toHaveValue("2026-11-12T14:30");
+    await expect(first.getByLabel(fr.application.interviewNote)).toHaveValue("Avec le PDG");
+    await first.getByLabel(fr.application.interviewDate).fill("2026-11-25T16:45");
+    await first.getByLabel(fr.application.interviewNote).fill("Avec la DRH, en visioconférence");
+    await first.getByRole("button", { name: fr.application.saveInterview }).click();
+
+    // Saved, and back in date order: it is now the last one.
+    await expect(interviews.getByRole("listitem").last()).toContainText("25 novembre 2026");
+    await expect(interviews.getByRole("listitem").last()).toContainText("16:45");
+    await expect(interviews.getByRole("listitem").last()).toContainText("Avec la DRH, en visioconférence");
+    await expect(interviews.getByRole("listitem").first()).toContainText("20 novembre 2026");
+    await expect(interviews).not.toContainText("Avec le PDG");
+
+    // Cancelling an edit changes nothing.
+    await interviews.getByRole("listitem").first().getByRole("button", { name: /^Modifier l'entretien du/ }).click();
+    await interviews.getByRole("listitem").first().getByLabel(fr.application.interviewNote).fill("Brouillon");
+    await interviews.getByRole("listitem").first().getByRole("button", { name: fr.application.cancelInterviewEdit }).click();
+    await expect(interviews).not.toContainText("Brouillon");
+
+    // Remove the edited one.
+    await interviews.getByRole("listitem").last().getByRole("button", { name: /^Retirer l'entretien du/ }).click();
+    await expect(interviews.getByRole("listitem")).toHaveCount(1);
+    await expect(interviews.getByRole("listitem")).toContainText("20 novembre 2026");
+
+    await page.reload();
+    const reloaded = page.getByRole("region", { name: fr.application.interviewsTitle }).getByRole("listitem");
+    await expect(reloaded).toHaveCount(1);
+    await expect(reloaded).toContainText("20 novembre 2026");
+  });
+
   test("the Candidate switches the Profile an Application uses, and its Match Score follows", async ({ page, browser }) => {
     // Two Profiles: more than the Free Plan holds.
     const email = newAddress("application-profile");
@@ -278,7 +325,7 @@ test.describe("Applications", () => {
     }
     await expect(interviews.getByRole("listitem")).toHaveCount(2);
 
-    await interviews.getByRole("listitem").first().getByRole("button", { name: /4 novembre 2026/ }).click();
+    await interviews.getByRole("listitem").first().getByRole("button", { name: /^Retirer l'entretien du .*4 novembre 2026/ }).click();
     await expect(interviews.getByRole("listitem")).toHaveCount(1);
     await expect(interviews.getByRole("listitem")).toContainText("12 novembre 2026");
 
@@ -287,6 +334,55 @@ test.describe("Applications", () => {
     await expect(interviews.getByRole("button", { name: fr.application.addInterview })).toHaveCount(0);
     await page.reload();
     await expect(page.getByRole("region", { name: fr.application.interviewsTitle }).getByRole("listitem")).toHaveCount(1);
+  });
+
+  test("PATCH /api/applications/[id]/interviews/[interviewId] edits an Interview, and add and delete keep working (#167)", async ({ page, browser }) => {
+    await signInWithMagicLink(page, newAddress("application-interview-api"));
+    const applicationId = await saveApplication(page, await captureOffer(page), await createProfile(page, "DAF"));
+    const base = `/api/applications/${applicationId}/interviews`;
+    const interviewsOf = async () => ((await (await page.request.get("/api/applications")).json()) as { id: string; interviews: { id: string; scheduledAt: string; note: string }[] }[]).find((a) => a.id === applicationId)!.interviews;
+
+    await page.request.patch(`/api/applications/${applicationId}`, { data: { status: "interview" }, headers: { origin } });
+    const added = await page.request.post(base, { data: { scheduledAt: "2026-11-12T14:30", note: "Avec le PDG" }, headers: { origin } });
+    expect(added.status(), await added.text()).toBe(200);
+    const [interview] = await interviewsOf();
+    expect(interview.note).toBe("Avec le PDG");
+    const url = `${base}/${interview.id}`;
+
+    // Date, time and note change together (no offset: French time, 16:45 in November is 15:45Z).
+    const edited = await page.request.patch(url, { data: { scheduledAt: "2026-11-25T16:45", note: "Avec la DRH" }, headers: { origin } });
+    expect(edited.status(), await edited.text()).toBe(200);
+    let [after] = await interviewsOf();
+    expect(after.id).toBe(interview.id);
+    expect(after.note).toBe("Avec la DRH");
+    expect(new Date(after.scheduledAt).toISOString()).toBe("2026-11-25T15:45:00.000Z");
+
+    // Only the named fields change.
+    expect((await page.request.patch(url, { data: { note: "Visio" }, headers: { origin } })).status()).toBe(200);
+    [after] = await interviewsOf();
+    expect(after.note).toBe("Visio");
+    expect(new Date(after.scheduledAt).toISOString()).toBe("2026-11-25T15:45:00.000Z");
+
+    // Invalid input and unknown Interviews are refused.
+    expect((await page.request.patch(url, { data: { scheduledAt: "not a date" }, headers: { origin } })).status()).toBe(400);
+    expect((await page.request.patch(`${base}/00000000-0000-4000-8000-000000000000`, { data: { note: "x" }, headers: { origin } })).status()).toBe(404);
+    expect((await page.request.patch(url, { data: { note: "x" }, headers: { origin: "https://evil.example" } })).status()).toBe(403);
+    expect((await interviewsOf())[0].note).toBe("Visio");
+
+    // Another Candidate, and an anonymous visitor, cannot edit it.
+    const other = await (await browser.newContext({ baseURL: origin })).newPage();
+    await signInWithMagicLink(other, newAddress("application-interview-api-other"));
+    expect((await other.request.patch(url, { data: { note: "piraté" }, headers: { origin } })).status()).toBe(404);
+    const anonymous = await (await browser.newContext({ baseURL: origin })).newPage();
+    expect((await anonymous.request.patch(url, { data: { note: "piraté" }, headers: { origin } })).status()).toBe(401);
+    expect((await interviewsOf())[0].note).toBe("Visio");
+
+    // Editing stays possible once the Application has moved on; deleting still works.
+    await page.request.patch(`/api/applications/${applicationId}`, { data: { status: "offer_received" }, headers: { origin } });
+    expect((await page.request.patch(url, { data: { note: "Après coup" }, headers: { origin } })).status()).toBe(200);
+    expect((await interviewsOf())[0].note).toBe("Après coup");
+    expect((await page.request.delete(url, { headers: { origin } })).status()).toBe(200);
+    expect(await interviewsOf()).toHaveLength(0);
   });
 
   test("an Application is only ever its Candidate's", async ({ page, browser }) => {

@@ -113,6 +113,10 @@ globalThis.fetch = async (input, init) => {
     if (query.includes("Bibendum")) {
       return perplexityAnswer(JSON.stringify({ country: "France", siren: "552 100 557" }), [{ url: "https://bibendum.example/groupe" }]);
     }
+    // "Atlantis Labs" (#95): a web dossier that names no country the people search knows.
+    if (query.includes("Atlantis Labs")) {
+      return perplexityAnswer(JSON.stringify({ headquarters: "Atlantis", industry: "Robotique", website: "atlantis-labs.example" }), [{ url: "https://atlantis-labs.example/about" }]);
+    }
     const answer = JSON.stringify({
       country: "Allemagne",
       headquarters: "Munich",

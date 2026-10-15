@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { expect as baseExpect, test, type Page } from "@playwright/test";
+import { expect as baseExpect, test, type Browser, type Page } from "@playwright/test";
 import { derivedPort } from "./support/ports";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
@@ -38,14 +38,17 @@ const masterCv = {
 };
 
 /** Signs a new Candidate in (on `plan`), saves a Job Offer from Acme Industrie, builds its Company Dossier unless told not to, and opens the Application page. */
-async function openApplication(page: Page, { plan, dossier = true }: { plan: "free" | "premium"; dossier?: boolean }) {
+async function openApplication(
+  page: Page,
+  { plan, dossier = true, employer = "Acme Industrie", location = "Lyon" }: { plan: "free" | "premium"; dossier?: boolean; employer?: string; location?: string },
+) {
   const email = newAddress("enriched-contacts");
   await signInWithMagicLink(page, email);
   if (plan === "premium") await subscribe(page, email, "premium");
   const profile = await page.request.post("/api/profiles", { data: { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } }, headers: { origin } });
   expect(profile.status(), await profile.text()).toBe(201);
   const offer = await page.request.post("/api/job-offers", {
-    data: { title: "DAF H/F", content: `(réf. ${unique()}) Poste de DAF.`, employer: "Acme Industrie", location: "Lyon" },
+    data: { title: "DAF H/F", content: `(réf. ${unique()}) Poste de DAF.`, employer, location },
     headers: { origin },
   });
   expect(offer.status(), await offer.text()).toBe(200);
@@ -309,6 +312,94 @@ test.describe("Enriched Contacts configuration", () => {
       await expect(section.getByRole("button", { name: t.find })).toHaveCount(0);
       const find = await page.request.post(`${server.origin}/api/applications/${id}/enriched-contacts`, { headers: { origin: server.origin } });
       expect(await find.json()).toEqual({ error: "search_unsupported" });
+    } finally {
+      server.stop();
+    }
+  });
+});
+
+// Issue #95: the people search is narrowed to a country, never a city: the Job Offer's
+// location when it names one, else the employer's (the French register means France, a
+// web dossier its own country), else not narrowed at all. Lusha takes the ISO code in
+// filters.contacts.include.countries, Apollo the English name in person_locations[];
+// what each provider was sent is logged by the fake (e2e/support/fake-contact-provider.mjs).
+// Kaspr cannot search by role, so it has no search to narrow (covered above).
+test.describe("Enriched Contacts people search country (#95)", () => {
+  test.describe.configure({ mode: "serial", timeout: 240_000 });
+
+  /** Where the Job Offer is, who the employer is, and the country the search must then be narrowed to (none: not narrowed). */
+  const cases = [
+    { name: "the Job Offer names no country and the employer is on the French register: France", employer: "Acme Industrie", location: "Lyon", country: "FR", apollo: "france" },
+    { name: "the Job Offer's country wins over the employer's: Londres, Royaume-Uni", employer: "Acme Industrie", location: "Londres, Royaume-Uni", country: "GB", apollo: "united kingdom" },
+    { name: "the Job Offer names no country and the web dossier gives Germany", employer: "Globex Robotics", location: "Lyon", country: "DE", apollo: "germany" },
+    { name: "no country anywhere: the search is not narrowed", employer: "Atlantis Labs", location: "Lyon", country: undefined, apollo: undefined },
+  ];
+
+  /** A new Candidate (a page of their own) saves the Job Offer and starts the search on `server`; returns once the server has answered. */
+  async function search(browser: Browser, server: { origin: string }, where: { employer: string; location: string }) {
+    const page = await browser.newPage({ baseURL: origin, locale: "en-US" });
+    try {
+      const { id } = await openApplication(page, { plan: "premium", ...where });
+      const found = await page.request.post(`${server.origin}/api/applications/${id}/enriched-contacts`, { headers: { origin: server.origin } });
+      expect(found.status(), await found.text()).toBe(200);
+    } finally {
+      await page.close();
+    }
+  }
+
+  const readLog = <T>(file: string) =>
+    existsSync(file) ? readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line) as T) : [];
+
+  test("on Lusha, the country goes to filters.contacts.include.countries, and a city never does", async ({ browser }) => {
+    const log = path.join(mkdtempSync(path.join(os.tmpdir(), "jobhub-e2e-lusha-country-")), "requests.jsonl");
+    const server = await startConfiguredServer(795, {
+      CONTACT_ENRICHMENT_PROVIDER: "lusha",
+      LUSHA_API_KEY: "e2e-lusha-key",
+      CONTACT_ENRICHMENT_DPA_SIGNED: "true",
+      E2E_LUSHA_REQUESTS: log,
+    });
+    type Prospecting = { path: string; body: { filters: { contacts: { include: { jobTitles: string[]; countries?: string[] } } } } };
+    try {
+      for (const { name, employer, location, country } of cases) {
+        const before = readLog<Prospecting>(log).filter((r) => r.path === "/v3/contacts/prospecting").length;
+        await search(browser, server, { employer, location });
+        const sent = readLog<Prospecting>(log).filter((r) => r.path === "/v3/contacts/prospecting");
+        expect(sent, name).toHaveLength(before + 1);
+        const request = sent.at(-1)!;
+        const include = request.body.filters.contacts.include;
+        expect(include.jobTitles.length, name).toBeGreaterThan(0);
+        if (country) expect(include.countries, name).toEqual([country]);
+        else expect(include, name).not.toHaveProperty("countries");
+        expect(JSON.stringify(request.body), name).not.toMatch(/Lyon|Londres|London/i);
+      }
+    } finally {
+      server.stop();
+    }
+  });
+
+  test("on Apollo, the country's English name goes to person_locations[], and a city never does", async ({ browser }) => {
+    const log = path.join(mkdtempSync(path.join(os.tmpdir(), "jobhub-e2e-apollo-country-")), "requests.jsonl");
+    const server = await startConfiguredServer(790, {
+      CONTACT_ENRICHMENT_PROVIDER: "apollo",
+      APOLLO_API_KEY: "e2e-apollo-key",
+      CONTACT_ENRICHMENT_DPA_SIGNED: "true",
+      E2E_APOLLO_REQUESTS: log,
+    });
+    type Search = { path: string; query: Record<string, string[]> };
+    try {
+      for (const { name, employer, location, apollo } of cases) {
+        const before = readLog<Search>(log).length;
+        await search(browser, server, { employer, location });
+        const sent = readLog<Search>(log);
+        expect(sent, name).toHaveLength(before + 1);
+        const { query } = sent.at(-1)!;
+        expect(query["person_titles[]"]?.length, name).toBeGreaterThan(0);
+        if (apollo) expect(query["person_locations[]"], name).toEqual([apollo]);
+        else expect(query, name).not.toHaveProperty("person_locations[]");
+        // The employer's headquarters is not where the people are: never filtered on.
+        expect(query, name).not.toHaveProperty("organization_locations[]");
+        expect(JSON.stringify(query), name).not.toMatch(/Lyon|Londres|London/i);
+      }
     } finally {
       server.stop();
     }

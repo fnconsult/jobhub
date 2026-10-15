@@ -115,7 +115,15 @@ globalThis.fetch = async (input, init) => {
   if (`${url.origin}/api/v1` !== API) return realFetch(input, init);
   const headers = new Headers(init?.headers);
   if (headers.get("x-api-key") !== KEY) return Response.json({ error: "Invalid access credentials." }, { status: 401 });
-  if (url.pathname === "/api/v1/mixed_people/api_search") return Response.json({ people, total_entries: people.length });
+  if (url.pathname === "/api/v1/mixed_people/api_search") {
+    // Each search the server sent, one JSON line of query parameters (name -> values), to E2E_APOLLO_REQUESTS when set (#95).
+    if (process.env.E2E_APOLLO_REQUESTS) {
+      const query = {};
+      for (const [name, value] of url.searchParams) (query[name] ??= []).push(value);
+      appendFileSync(process.env.E2E_APOLLO_REQUESTS, `${JSON.stringify({ path: url.pathname, query })}\n`);
+    }
+    return Response.json({ people, total_entries: people.length });
+  }
   if (url.pathname === "/api/v1/people/match") {
     const { id } = JSON.parse(init?.body ?? "{}");
     return Response.json({ person: details[id] ?? null });

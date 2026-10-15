@@ -135,9 +135,10 @@ describe("exporting a Cover Letter", () => {
     "Madame, Monsieur, " +
     "Directrice financière depuis quinze ans dans l'industrie, j'ai piloté la consolidation et le passage aux normes IFRS d'un groupe de 2 000 personnes. Votre offre m'a d'emblée retenue. " +
     "Je serais heureuse de vous exposer ma démarche lors d'un entretien. " +
-    "Je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées.";
+    "Je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées. " +
+    "Marie Dupont";
 
-  it.each(CV_TEMPLATES)("writes the same letter as a PDF and as a DOCX with the %s CV Template, the Candidate named once", async (template) => {
+  it.each(CV_TEMPLATES)("writes the same letter as a PDF and as a DOCX with the %s CV Template, signed with the Candidate's name", async (template) => {
     const pdf = await exportDocument({ kind: "cover_letter", content: letter }, { format: "pdf", template, language: "fr" });
     const docx = await exportDocument({ kind: "cover_letter", content: letter }, { format: "docx", template, language: "fr" });
 

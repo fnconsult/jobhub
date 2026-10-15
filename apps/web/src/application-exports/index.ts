@@ -14,7 +14,7 @@
  *  - The Cover Letter is signed with the contact details of the Application's
  *    Profile's Master CV, addressed to the employer and dated the day of the
  *    export. Only its body is taken from the stored text, in plain text: the
- *    sender block and date appear once, the Candidate's name once (#162).
+ *    sender block, date and signature are the export's own, once each (#162).
  *  - The file name names the document, the Candidate and the employer.
  * Every read is scoped to the Candidate: someone else's Application exports nothing.
  */

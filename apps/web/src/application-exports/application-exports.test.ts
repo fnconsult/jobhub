@@ -91,11 +91,11 @@ describe("exporting an Application's saved documents", () => {
     expect(file?.fileName).toBe("Cover-letter-Marie-Dupont-Globex-Ltd.docx");
     expect(await wordsOf(file!.bytes)).toBe(
       "Marie Dupont marie.dupont@example.fr · 06 12 34 56 78 · Lyon Globex Ltd Lyon, 7 October 2026 " +
-        "Dear Sir or Madam, I am applying for the CFO position. Yours faithfully,",
+        "Dear Sir or Madam, I am applying for the CFO position. Yours faithfully, Marie Dupont",
     );
   });
 
-  it("exports a Cover Letter drafted with its own header, Markdown and placeholders as its plain body, the Candidate named once (#162)", async () => {
+  it("exports a Cover Letter drafted with its own header, Markdown and placeholders as its plain body, framed once by the export's sender block and signature (#162)", async () => {
     const text =
       "**Marie Dupont**\n[Adresse]\n[Code postal, Ville]\n[Email] | [Téléphone]\n\nLyon, le [Date]\n\n**Objet : Candidature au poste de DAF**\n\n" +
       "Madame, Monsieur,\n\nJ'ai piloté la **consolidation IFRS** d'un groupe industriel.\n\nJe vous prie d'agréer mes salutations distinguées.\n\n**Marie Dupont**";
@@ -106,7 +106,7 @@ describe("exporting an Application's saved documents", () => {
       const words = format === "docx" ? await wordsOf(file!.bytes) : await pdfWordsOf(file!.bytes);
       expect(words, format).toBe(
         "Marie Dupont marie.dupont@example.fr · 06 12 34 56 78 · Lyon Globex Ltd Lyon, le 7 octobre 2026 " +
-          "Madame, Monsieur, J'ai piloté la consolidation IFRS d'un groupe industriel. Je vous prie d'agréer mes salutations distinguées.",
+          "Madame, Monsieur, J'ai piloté la consolidation IFRS d'un groupe industriel. Je vous prie d'agréer mes salutations distinguées. Marie Dupont",
       );
     }
   });

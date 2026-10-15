@@ -207,7 +207,7 @@ test.describe("exporting the Tailored CV and the Cover Letter", () => {
     await expect((await tab(page, fr.tailoredCv.tailored)).getByRole("group", { name: fr.applicationExport.tailoredCv.title })).toHaveCount(0);
   });
 
-  test("the Cover Letter exports as plain text: its own header, Markdown and placeholders left out, the Candidate named once (#162)", async ({ page }) => {
+  test("the Cover Letter exports as plain text: its own header, Markdown and placeholders left out, the sender block and signature the export's own, once (#162)", async ({ page }) => {
     const id = await openApplication(page, "application-export-plain");
     await draftCoverLetter(page, id);
     const pasted =
@@ -220,8 +220,9 @@ test.describe("exporting the Tailored CV and the Cover Letter", () => {
     const docx = (await mammoth.extractRawText({ buffer: await (await page.request.get(exportUrl(id, "cover-letter", "docx"))).body() })).value.replace(/\s+/g, " ").trim();
     for (const text of [pdf, docx]) {
       expect(text).toMatch(/^Marie Dupont marie\.dupont@example\.fr · 06 12 34 56 78 · Lyon Acme Industrie Lyon, le \d{1,2} \S+ \d{4} Madame, Monsieur, /);
-      expect(text).toContain("J'ai piloté la consolidation IFRS d'un groupe industriel. Je vous prie d'agréer mes salutations distinguées.");
-      expect(text.match(/Marie Dupont/g)).toHaveLength(1);
+      expect(text).toMatch(/J'ai piloté la consolidation IFRS d'un groupe industriel\. Je vous prie d'agréer mes salutations distinguées\. Marie Dupont$/);
+      // Once in the sender block, once as the signature: the drafted text's own are left out.
+      expect(text.match(/Marie Dupont/g)).toHaveLength(2);
       expect(text).not.toMatch(/\*\*|\[|\]/);
     }
   });

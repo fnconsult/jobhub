@@ -7,7 +7,7 @@ import type { Application } from "@/applications";
 import type { JobDigest } from "@/job-digests";
 import type { JobSearch } from "@/job-searches";
 import type { Profile } from "@/profiles";
-import { createCoach, MAX_MESSAGES, recentConversation, type Coach, type CoachDeps, type CoachFocus, COACH_CONTEXT_MAX_TOKENS, estimateTokens } from "./index";
+import { createCoach, MAX_MESSAGES, recentConversation, type Coach, type CoachDeps, type CoachFocus, COACH_CONTEXT_MAX_TOKENS, estimateTokens, KNOWLEDGE_MAX_TOKENS } from "./index";
 
 const profile: Profile = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -477,6 +477,32 @@ describe("the context's cap: about 12k tokens", () => {
     expect(system).toContain("« Profil 3 » : poste visé");
     expect(system).toContain("résumé1");
     expect(system).not.toContain("résumé3");
+  });
+
+  it("keeps the playbooks within the cap too: the item In view is cut, never the playbooks picked", async () => {
+    const posting = { ...jobOffer, content: `Début de l'offre. ${text(20_000, "mission")}Fin de l'offre.` };
+    const { coach, provider } = coachWith({ workspace: { jobOffers: [posting] } });
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "J'ai 55 ans : ce CV colle-t-il à l'offre ?" }], focus: { kind: "job_offer", id: posting.id } });
+
+    expect(result).toMatchObject({ ok: true, playbooks: [{ id: "core-digest" }, { id: "cv-offer-fit-scoring" }, { id: "senior-40plus-positioning" }] });
+    const system = contextOf(provider);
+    expect(estimateTokens(system)).toBeLessThanOrEqual(COACH_CONTEXT_MAX_TOKENS);
+    expect(system).toContain(knowledge.playbook("senior-40plus-positioning")!.text);
+    expect(system).toContain(knowledge.playbook("cv-offer-fit-scoring")!.text);
+    expect(system).toContain("Début de l'offre.");
+    expect(system).not.toContain("Fin de l'offre.");
+  });
+
+  it("gives the coaching knowledge at most KNOWLEDGE_MAX_TOKENS, leaving out a second playbook that would go over", async () => {
+    const big = (id: PlaybookId) => ({ ...knowledge.playbook(id)!, text: `# ${id}\n\n${text(KNOWLEDGE_MAX_TOKENS / 2, "règle")}` });
+    const { coach, provider } = coachWith({ workspace: { applications: [application] }, knowledge: { playbook: big, coreDigest: () => knowledge.coreDigest() } });
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "Que me conseillez-vous ?" }], focus: { kind: "application", id: application.id } });
+
+    expect(result).toMatchObject({ ok: true, playbooks: [{ id: "core-digest" }, { id: "cover-letter-writing" }] });
+    expect(contextOf(provider)).not.toContain("# ats-optimization");
+    expect(estimateTokens(contextOf(provider))).toBeLessThanOrEqual(COACH_CONTEXT_MAX_TOKENS);
   });
 
   it("cuts the item In view when it alone is over the cap, still telling the Candidate summary", async () => {

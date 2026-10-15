@@ -87,6 +87,26 @@ describe("AI layer configured from the environment", () => {
     expect(usage.entries.map((e) => e.task)).toEqual(["job_titles", "job_titles"]);
   });
 
+  it("runs the AI Coach on Claude Sonnet 5.5, and other text tasks on Claude's default, unless a model is set (#131)", async () => {
+    const models: string[] = [];
+    const fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      models.push(((await new Request(input, init).json()) as { model: string }).model);
+      return new Response(
+        JSON.stringify({ id: "m", type: "message", role: "assistant", model: "claude", content: [{ type: "text", text: "ok" }], stop_reason: "end_turn", usage: { input_tokens: 3, output_tokens: 2 } }),
+        { headers: { "content-type": "application/json" } },
+      );
+    }) as typeof globalThis.fetch;
+
+    const ai = createAiLayerFromEnv(base, { fetch, usage: createMemoryUsageLog() });
+    await ai.generate({ task: "coaching", candidateId: "c", prompt: "Bonjour" });
+    await ai.generate({ task: "writing", candidateId: "c", prompt: "Lettre" });
+    const opus = createAiLayerFromEnv({ ...base, AI_COACHING_MODEL: "anthropic.claude-opus-5-5" }, { fetch, usage: createMemoryUsageLog() });
+    await opus.generate({ task: "coaching", candidateId: "c", prompt: "Bonjour" });
+
+    // Bedrock names Claude models with an "anthropic." prefix.
+    expect(models).toEqual(["anthropic.claude-sonnet-5-5", "anthropic.claude-opus-5-5", "anthropic.claude-opus-5-5"]);
+  });
+
   it("refuses to start when personal-data tasks would go to the direct Anthropic API", () => {
     expect(() => createAiLayerFromEnv({ ...base, ANTHROPIC_ENDPOINT: "direct", ANTHROPIC_API_KEY: "sk" })).toThrow(DataResidencyError);
   });

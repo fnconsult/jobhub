@@ -27,6 +27,21 @@ const DEFAULT_PROVIDER: Record<Exclude<AiTask, keyof typeof DEFAULT_TASK>, Provi
  */
 const DEFAULT_TASK = { job_titles: "offer_analysis" } as const satisfies Partial<Record<AiTask, AiTask>>;
 
+/**
+ * A task's model on a provider when AI_<TASK>_MODEL is not set; otherwise the provider's default model.
+ * The AI Coach: Sonnet 5.5, within the €0.03 Coach cost target where Opus 5.5 is not (Coach eval suite, #131).
+ */
+const DEFAULT_MODEL: Partial<Record<AiTask, Partial<Record<ProviderId, string>>>> = {
+  coaching: { anthropic: "claude-sonnet-5-5" },
+};
+
+/** Bedrock (the default Anthropic endpoint) names Claude models with an "anthropic." prefix. */
+function defaultModel(env: Env, task: AiTask, provider: ProviderId): string | undefined {
+  const model = DEFAULT_MODEL[task]?.[provider];
+  if (!model || provider !== "anthropic") return model;
+  return (env.ANTHROPIC_ENDPOINT?.trim() || "bedrock") === "bedrock" ? `anthropic.${model}` : model;
+}
+
 const taskKey = (task: AiTask, suffix: "PROVIDER" | "MODEL") => `AI_${task.toUpperCase()}_${suffix}`;
 
 /** Every environment variable the AI layer reads. `.env.example` must list them all. */
@@ -135,7 +150,7 @@ export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps =
   for (const task of TASKS) {
     if (task in DEFAULT_TASK) continue;
     const provider = oneOf(env, taskKey(task, "PROVIDER"), PROVIDER_IDS, DEFAULT_PROVIDER[task as keyof typeof DEFAULT_PROVIDER]);
-    routes[task] = { provider, model: env[taskKey(task, "MODEL")]?.trim() || undefined };
+    routes[task] = { provider, model: env[taskKey(task, "MODEL")]?.trim() || defaultModel(env, task, provider) };
   }
   for (const [task, fallback] of Object.entries(DEFAULT_TASK) as [AiTask, AiTask][]) {
     const inherited = routes[fallback]!;

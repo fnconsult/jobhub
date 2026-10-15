@@ -287,7 +287,7 @@ The stage an Application is at: À postuler → Postulée → Relancée → Entr
 _Avoid_: State, stage
 
 **Interview**:
-One dated interview round within an Application. Added only while the Application is at "Entretien", and kept if it moves on. Times are French time (Europe/Paris).
+One dated interview round within an Application. Added only while the Application is at "Entretien", and kept if it moves on; it can be edited (date, time, note) or removed at any status. Times are French time (Europe/Paris).
 _Avoid_: Meeting, call
 
 **Follow-up**:

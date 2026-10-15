@@ -16,8 +16,8 @@
  *      and so is one Reported Unavailable (`reportedUnavailableAt`, that Application
  *      only, never the shared Job Offer); either keeps its status: nothing changes
  *      it automatically;
- *    - `addInterview` (only while it is at "Entretien") and `removeInterview`. Interviews
- *      are kept when the Application moves on.
+ *    - `addInterview` (only while it is at "Entretien"), `editInterview` and `removeInterview`.
+ *      Interviews are kept when the Application moves on.
  * Every read and change is scoped to the Candidate; inputs are untrusted (they
  * come from the browser) and problems come back as results, never exceptions.
  * Applications are deleted with the account (ADR-0010), their Job Offers are kept.
@@ -101,6 +101,12 @@ export interface Applications {
   change(candidateId: string, applicationId: string, input: unknown): Promise<ApplicationChangeResult>;
   /** Adds a dated Interview. `input`: { scheduledAt (ISO 8601 date and time), note? }. */
   addInterview(candidateId: string, applicationId: string, input: unknown): Promise<AddInterviewResult>;
+  /**
+   * Edits one of the Application's Interviews: its date and time, its note, or both.
+   * `input`: { scheduledAt?, note? }, read as `addInterview` reads them. Allowed whatever
+   * the Application Status, like removing one: Interviews are kept when it moves on.
+   */
+  editInterview(candidateId: string, applicationId: string, interviewId: string, input: unknown): Promise<ApplicationChangeResult>;
   /** Removes one of the Application's Interviews. */
   removeInterview(candidateId: string, applicationId: string, interviewId: string): Promise<ApplicationChangeResult>;
 }
@@ -145,6 +151,9 @@ const interviewSchema = z.object({
     .transform((value) => (/(Z|[+-]\d{2}:?\d{2})$/.test(value) ? new Date(value) : wallClockIn(value, INTERVIEW_TIME_ZONE))),
   note: z.string().trim().max(500).default(""),
 });
+
+/** An edit changes only the fields it names. */
+const interviewEditSchema = z.object({ scheduledAt: interviewSchema.shape.scheduledAt.optional(), note: z.string().trim().max(500).optional() });
 
 const NOT_FOUND = { ok: false, error: "not_found" } as const;
 const found = (application: Application | null): ApplicationChangeResult => (application ? { ok: true, application } : NOT_FOUND);
@@ -308,6 +317,20 @@ export function createApplications(
         parsed.data.scheduledAt,
         parsed.data.note,
       ]);
+      return found(await get(candidateId, applicationId));
+    },
+
+    async editInterview(candidateId, applicationId, interviewId, input) {
+      const parsed = interviewEditSchema.safeParse(input, { reportInput: true });
+      if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+      if (!UUID.test(applicationId) || !UUID.test(interviewId)) return NOT_FOUND;
+      const { rowCount } = await database.query(
+        `UPDATE interview i SET scheduled_at = COALESCE($4, i.scheduled_at), note = COALESCE($5, i.note)
+           FROM application a
+          WHERE i.id = $1 AND i.application_id = a.id AND a.id = $2 AND a.candidate_id = $3`,
+        [interviewId, applicationId, candidateId, parsed.data.scheduledAt ?? null, parsed.data.note ?? null],
+      );
+      if (rowCount === 0) return NOT_FOUND;
       return found(await get(candidateId, applicationId));
     },
 

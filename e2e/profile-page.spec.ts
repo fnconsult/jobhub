@@ -234,6 +234,39 @@ test.describe("the Profile page on the ADR-0009 floor", () => {
   }
 });
 
+// Firefox (and older Safari) has no `field-sizing: content`: the page's textareas
+// must still grow with their text there, as in the prototype. Chromium stands in
+// for such a browser: CSS.supports says no and the property is overridden.
+test("where field-sizing is unsupported, the name and the Master CV's texts still show in full", async ({ page }) => {
+  await page.addInitScript(() => {
+    const supports = CSS.supports.bind(CSS);
+    CSS.supports = ((...args: [string, string?]) => (args.join(" ").includes("field-sizing") ? false : supports(...(args as [string, string])))) as typeof CSS.supports;
+    document.addEventListener("DOMContentLoaded", () => {
+      const style = document.createElement("style");
+      style.textContent = "textarea { field-sizing: fixed !important; }";
+      document.head.append(style);
+    });
+  });
+  await page.setViewportSize({ width: 375, height: 812 });
+  const id = await candidateWithProfile(page, "profile-no-field-sizing");
+  await page.goto(`/profils/${id}`);
+  const clipped = (field: ReturnType<Page["locator"]>) => field.evaluate((el) => el.scrollHeight - el.clientHeight);
+
+  // "Directrice administrative et financière" wraps at 375px: it shows on every line it takes.
+  await expect(title(page)).toHaveValue("Directrice administrative et financière");
+  await expect(title(page)).toHaveCSS("field-sizing", "fixed");
+  await expect.poll(() => clipped(title(page))).toBeLessThanOrEqual(0);
+  expect((await title(page).boundingBox())!.height).toBeGreaterThan(60);
+
+  // It follows the text as the Candidate types.
+  await title(page).fill("Directrice administrative et financière, groupe industriel international");
+  await expect.poll(() => clipped(title(page))).toBeLessThanOrEqual(0);
+
+  const skills = masterCvSection(page).getByLabel(fr.profilePage.skills);
+  await skills.fill(Array.from({ length: 12 }, (_, i) => `Compétence ${i + 1}`).join("\n"));
+  await expect.poll(() => clipped(skills)).toBeLessThanOrEqual(0);
+});
+
 // For the review against the prototype: PROFILE_SCREENSHOTS_DIR=<dir> keeps them there.
 test("screenshots of the Profile page at 375, 900 and 1440px, with unsaved Master CV edits", async ({ page }, testInfo) => {
   const id = await candidateWithProfile(page, "profile-screens");

@@ -6,7 +6,7 @@ import { useId, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProfileFieldError } from "@/profiles";
 import { PROFILE_NAME_MAX_LENGTH } from "@/profiles/limits";
-import { InlineNotice, useInlineEdit, type InlineSaveResult } from "./InlineEdit";
+import { GrowingTextarea, InlineNotice, useInlineEdit, type InlineSaveResult } from "./InlineEdit";
 import { criteriaFieldsOf, searchCriteriaInput, type CriteriaFields } from "./SearchCriteriaFields";
 
 type Problem = ProfileFieldError | "archived" | "failed";
@@ -64,7 +64,7 @@ export function ProfileTitle({ profileId, name }: { profileId: string; name: str
         {t("profileActions.name")}
       </label>
       <h1 tabIndex={-1}>
-        <textarea
+        <GrowingTextarea
           id={id}
           {...edit.field}
           className="inline-edit title-edit"

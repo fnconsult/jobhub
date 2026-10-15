@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps, type KeyboardEvent, type ReactNode } from "react";
 import { inlineCommit } from "./inline-edit";
 
 /** What saving one inline-edit value came to: saved, or the message to show. */
@@ -95,4 +95,41 @@ export function InlineNotice({ notice, savedLabel, id }: { notice: Notice; saved
       ) : null}
     </>
   );
+}
+
+/**
+ * A textarea that grows with its text. `field-sizing: content` (app.css) does
+ * it where supported; elsewhere (Firefox, older Safari) its height follows its
+ * text, refitted on each change, once the fonts are in and when its width
+ * changes (the lines wrap differently), as the approved prototype (#132) does.
+ */
+export function GrowingTextarea(props: ComponentProps<"textarea">) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    if (ref.current && !growsByItself()) fitToText(ref.current);
+  }, [props.value]);
+  useEffect(() => {
+    const textarea = ref.current;
+    if (!textarea || growsByItself() || typeof ResizeObserver === "undefined") return;
+    let width = textarea.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (textarea.clientWidth === width) return;
+      width = textarea.clientWidth;
+      fitToText(textarea);
+    });
+    observer.observe(textarea);
+    void document.fonts?.ready.then(() => textarea.isConnected && fitToText(textarea));
+    return () => observer.disconnect();
+  }, []);
+  return <textarea ref={ref} {...props} />;
+}
+
+function growsByItself(): boolean {
+  return typeof CSS !== "undefined" && CSS.supports("field-sizing", "content");
+}
+
+function fitToText(textarea: HTMLTextAreaElement) {
+  textarea.style.height = "auto";
+  // border-box: the height takes in the borders, which scrollHeight leaves out.
+  textarea.style.height = `${textarea.scrollHeight + textarea.offsetHeight - textarea.clientHeight}px`;
 }

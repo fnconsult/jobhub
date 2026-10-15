@@ -7,6 +7,7 @@ import { useEffect, useReducer, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { isDirty, nextDraft, saveRequest, startDraft, type CvDocumentFields } from "@/profiles/master-cv-draft";
 import { routes } from "@/routes";
+import { GrowingTextarea } from "./InlineEdit";
 
 /**
  * A Profile's Master CV as a document on the Profile page: its title, summary,
@@ -69,7 +70,7 @@ export function MasterCvDocument(props: { profileId: string; version: number; sa
         </div>
         <div className="doc-block">
           <label htmlFor="cv-summary">{t("cvReview.summary")}</label>
-          <textarea id="cv-summary" className="inline-edit" rows={4} value={fields.summary} onChange={(e) => edit({ summary: e.target.value })} />
+          <GrowingTextarea id="cv-summary" className="inline-edit" rows={4} value={fields.summary} onChange={(e) => edit({ summary: e.target.value })} />
         </div>
         {experience.length > 0 ? (
           <div className="doc-block" role="group" aria-labelledby="cv-experience">
@@ -87,7 +88,7 @@ export function MasterCvDocument(props: { profileId: string; version: number; sa
                   <label className="visually-hidden" htmlFor={`cv-job-${index}`}>
                     {t("profilePage.jobDescription", { job: name })}
                   </label>
-                  <textarea
+                  <GrowingTextarea
                     id={`cv-job-${index}`}
                     className="inline-edit"
                     rows={3}
@@ -101,7 +102,7 @@ export function MasterCvDocument(props: { profileId: string; version: number; sa
         ) : null}
         <div className="doc-block">
           <label htmlFor="cv-skills">{t("profilePage.skills")}</label>
-          <textarea id="cv-skills" className="inline-edit" rows={6} value={fields.skills} onChange={(e) => edit({ skills: e.target.value })} />
+          <GrowingTextarea id="cv-skills" className="inline-edit" rows={6} value={fields.skills} onChange={(e) => edit({ skills: e.target.value })} />
         </div>
         <div className="doc-block">
           <p>{t("profilePage.fullEditorHint")}</p>

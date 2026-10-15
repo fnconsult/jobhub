@@ -98,6 +98,66 @@ describe("the Coach eval suite", () => {
     });
 
     expect(report.models[0]!.results).toEqual([{ caseId: "age-worry", passed: false, error: "coach" }]);
+    expect(report.models[0]!.summary).toMatchObject({ cases: 1, passed: 0, errors: 1 });
     expect(report.models[1]!.results).toEqual([expect.objectContaining({ caseId: "age-worry", reply: "Réponse de claude-sonnet-5-5", judgment: null, passed: false, error: "judge" })]);
+  });
+});
+
+describe("the Coach eval suite — comparing models", () => {
+  const anotherCase: CoachEvalCase = { ...nadia, id: "long-search", messages: [{ from: "candidate", text: "Je cherche depuis 14 mois, je suis découragée." }] };
+
+  /** Two cases on each model: `costs` in input tokens per reply (output 500), and the judge's tone score per reply. */
+  async function compare(models: { model: string; inputTokens: number[]; tone: number[] }[]) {
+    const tones = models.flatMap((model) => model.tone);
+    const judge = aiOn("claude-opus-5-5", { reply: () => judgment({ adherence: 5, figures: 5, tone: tones.shift()! }) });
+    return runCoachEval({
+      cases: [nadia, anotherCase],
+      models: models.map(({ model, inputTokens }) => {
+        const usages = [...inputTokens];
+        const provider = createFakeProvider({ id: "anthropic", reply: `Réponse de ${model}` });
+        const generate = provider.generate!.bind(provider);
+        provider.generate = async (input) => ({ ...(await generate(input)), usage: { inputTokens: usages.shift()!, outputTokens: 500 } });
+        return { model, ai: createAiLayer({ providers: [provider], routes: { coaching: { provider: "anthropic", model } }, usage: createMemoryUsageLog() }) };
+      }),
+      judge: judge.ai,
+      knowledge,
+    });
+  }
+
+  it("sums up each model: replies passed, mean score per criterion, median and p90 cost against the Coach cost target", async () => {
+    const report = await compare([{ model: "claude-sonnet-5-5", inputTokens: [6_000, 10_000], tone: [5, 3] }]);
+
+    // Sonnet: 6,000 × $2 + 500 × $10 = $0.017 → €0.01462; 10,000 × $2 + 500 × $10 = $0.025 → €0.0215. p90 interpolated like the Coach cost page.
+    expect(report.models[0]!.summary).toEqual({
+      cases: 2,
+      passed: 1,
+      errors: 0,
+      scores: { adherence: 5, figures: 5, tone: 4 },
+      medianEur: expect.closeTo(0.01806, 5),
+      p90Eur: expect.closeTo(0.020812, 5),
+      withinTarget: true,
+    });
+  });
+
+  it("recommends the cheapest model within the Coach cost target that passes about as many cases as the best", async () => {
+    const report = await compare([
+      { model: "claude-opus-5-5", inputTokens: [8_000, 8_000], tone: [5, 5] },
+      { model: "claude-sonnet-5-5", inputTokens: [8_000, 8_000], tone: [5, 5] },
+    ]);
+
+    expect(report.models.map((model) => [model.model, model.summary.withinTarget])).toEqual([
+      ["claude-opus-5-5", false],
+      ["claude-sonnet-5-5", true],
+    ]);
+    expect(report.recommended).toEqual({ model: "claude-sonnet-5-5", reason: expect.stringMatching(/within/i) });
+  });
+
+  it("recommends no model when the one within the cost target passes clearly fewer cases than the best", async () => {
+    const report = await compare([
+      { model: "claude-opus-5-5", inputTokens: [8_000, 8_000], tone: [5, 5] },
+      { model: "claude-sonnet-5-5", inputTokens: [8_000, 8_000], tone: [5, 2] },
+    ]);
+
+    expect(report.recommended).toEqual({ model: null, reason: expect.stringMatching(/no model/i) });
   });
 });

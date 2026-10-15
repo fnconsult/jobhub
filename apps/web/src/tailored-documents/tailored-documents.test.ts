@@ -119,6 +119,28 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
     expect((await documents.get(candidateId, applicationId))?.coverLetter?.text).toBe("Madame, Monsieur,\n\nVotre offre a retenu toute mon attention.");
   });
 
+  it("a Cover Letter is drafted as its body only, in plain text: no Markdown, placeholders, sender block, date or signature (#162)", async () => {
+    provider = createFakeProvider({
+      id: "mistral",
+      reply:
+        "**Marie Dupont**\n[Adresse]\n[Code postal, Ville]\n[Email] | [Téléphone]\n\nLyon, le [Date]\n\n**Objet : Candidature au poste de DAF**\n\n" +
+        "Madame, Monsieur,\n\nDirectrice financière, j'ai piloté la **consolidation IFRS**.\n\nJe vous prie d'agréer mes salutations distinguées.\n\n**Marie Dupont**",
+    });
+    const ai = createAiLayer({ providers: [provider], routes: { writing: "mistral" }, usage: createMemoryUsageLog() });
+    const database = testAuth.auth.options.database as Pool;
+    documents = createTailoredDocuments(database, { applications: createApplications(database, { jobOffers, profiles }), profiles, ai });
+
+    const result = await documents.draft(candidateId, applicationId, { document: "cover_letter" });
+
+    const text = "Madame, Monsieur,\n\nDirectrice financière, j'ai piloté la consolidation IFRS.\n\nJe vous prie d'agréer mes salutations distinguées.";
+    expect(result).toMatchObject({ ok: true, drafts: { coverLetter: { text } } });
+    expect((await documents.get(candidateId, applicationId))?.coverLetter?.text).toBe(text);
+    const { system } = lastCall();
+    expect(system).toContain("texte brut, sans Markdown");
+    expect(system).toContain("ni crochets à compléter");
+    expect(system).toContain("de la formule d'appel à la formule de politesse");
+  });
+
   it("declares the Master CV as the Candidate's identity, so drafts go to Mistral under EU AI consent (ADR-0007)", async () => {
     const database = testAuth.auth.options.database as Pool;
     const claude = createFakeProvider({ id: "anthropic", reply: writer });

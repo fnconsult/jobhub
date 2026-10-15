@@ -12,15 +12,18 @@
  *    proposal under review) and the stored Cover Letter.
  *  - Each is written in its own Document Language.
  *  - The Cover Letter is signed with the contact details of the Application's
- *    Profile's Master CV and addressed to the employer.
+ *    Profile's Master CV, addressed to the employer and dated the day of the
+ *    export. Only its body is taken from the stored text, in plain text: the
+ *    sender block, date and signature are the export's own, once each (#162).
  *  - The file name names the document, the Candidate and the employer.
  * Every read is scoped to the Candidate: someone else's Application exports nothing.
  */
+import { createI18n, type Locale } from "@jobhub/shared/i18n";
 import type { Applications } from "../applications";
 import { exportDocument, type CvTemplate, type ExportableDocument, type ExportedFile, type ExportFormat } from "../export";
 import type { Profiles } from "../profiles";
 import type { TailoredCvs } from "../tailored-cv";
-import type { TailoredDocuments } from "../tailored-documents";
+import { coverLetterBody, type TailoredDocuments } from "../tailored-documents";
 import type { ApplicationExportKind } from "./kinds";
 
 export { APPLICATION_EXPORTS, type ApplicationExportKind } from "./kinds";
@@ -38,6 +41,16 @@ export interface ApplicationExportsDeps {
   profiles: Pick<Profiles, "get">;
   tailoredCvs: Pick<TailoredCvs, "get">;
   tailoredDocuments: Pick<TailoredDocuments, "get">;
+  /** The day a Cover Letter is dated: today by default. */
+  now?: () => Date;
+}
+
+/** Where and when a Cover Letter is written, in its Document Language: "Lyon, le 7 octobre 2026". The place is the Master CV's location, up to its first comma. */
+function letterDate(location: string, day: Date, language: Locale): string {
+  const { t } = createI18n(language);
+  const date = new Intl.DateTimeFormat(language === "fr" ? "fr-FR" : "en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" }).format(day);
+  const place = (location.split(",")[0] ?? "").trim();
+  return place ? t("cvDocument.letterDate", { place, date }) : t("cvDocument.letterDateWithoutPlace", { date });
 }
 
 export function createApplicationExports(deps: ApplicationExportsDeps): ApplicationExports {
@@ -53,7 +66,17 @@ export function createApplicationExports(deps: ApplicationExportsDeps): Applicat
     const { fullName = "", email = "", phone = "", location = "" } = profile?.masterCv.content ?? {};
     const document: ExportableDocument = {
       kind: "cover_letter",
-      content: { fullName, email, phone, location, recipient: employer, date: "", subject: "", body: letter.text },
+      content: {
+        fullName,
+        email,
+        phone,
+        location,
+        recipient: employer,
+        date: letterDate(location, (deps.now ?? (() => new Date()))(), letter.language),
+        subject: "",
+        // Whatever the stored text frames the letter with is left out: the frame above is the only one (#162).
+        body: coverLetterBody(letter.text, { fullName }),
+      },
     };
     return { document, language: letter.language };
   }

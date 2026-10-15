@@ -58,10 +58,15 @@ function exportsWith(overrides: { tailoredCv?: ApplicationTailoredCv; drafts?: A
     profiles: { get: own(profile) },
     tailoredCvs: { get: own(overrides.tailoredCv ?? savedCv) },
     tailoredDocuments: { get: own(overrides.drafts ?? drafts) },
+    now: () => new Date("2026-10-07T09:30:00Z"),
   };
   return createApplicationExports(deps);
 }
 
+const pdfWordsOf = async (bytes: Uint8Array) => {
+  const { extractText, getDocumentProxy } = await import("unpdf");
+  return (await extractText(await getDocumentProxy(new Uint8Array(bytes)), { mergePages: true })).text.replace(/\s+/g, " ").trim();
+};
 const wordsOf = async (bytes: Uint8Array) => (await mammoth.extractRawText({ buffer: Buffer.from(bytes) })).value.replace(/\s+/g, " ").trim();
 
 describe("exporting an Application's saved documents", () => {
@@ -80,14 +85,30 @@ describe("exporting an Application's saved documents", () => {
     );
   });
 
-  it("exports the Cover Letter, signed with the Master CV's contact details and addressed to the employer", async () => {
+  it("exports the Cover Letter with the Master CV's contact details, addressed to the employer and dated the day of the export", async () => {
     const file = await exportsWith().file("c1", "a1", "cover_letter", { format: "docx", template: "classic" });
 
     expect(file?.fileName).toBe("Cover-letter-Marie-Dupont-Globex-Ltd.docx");
     expect(await wordsOf(file!.bytes)).toBe(
-      "Marie Dupont marie.dupont@example.fr · 06 12 34 56 78 · Lyon Globex Ltd " +
+      "Marie Dupont marie.dupont@example.fr · 06 12 34 56 78 · Lyon Globex Ltd Lyon, 7 October 2026 " +
         "Dear Sir or Madam, I am applying for the CFO position. Yours faithfully, Marie Dupont",
     );
+  });
+
+  it("exports a Cover Letter drafted with its own header, Markdown and placeholders as its plain body, framed once by the export's sender block and signature (#162)", async () => {
+    const text =
+      "**Marie Dupont**\n[Adresse]\n[Code postal, Ville]\n[Email] | [Téléphone]\n\nLyon, le [Date]\n\n**Objet : Candidature au poste de DAF**\n\n" +
+      "Madame, Monsieur,\n\nJ'ai piloté la **consolidation IFRS** d'un groupe industriel.\n\nJe vous prie d'agréer mes salutations distinguées.\n\n**Marie Dupont**";
+    const french = exportsWith({ drafts: { ...drafts, coverLetter: { language: "fr", text, draftedAt: new Date(), updatedAt: new Date() } } });
+
+    for (const format of ["docx", "pdf"] as const) {
+      const file = await french.file("c1", "a1", "cover_letter", { format, template: "classic" });
+      const words = format === "docx" ? await wordsOf(file!.bytes) : await pdfWordsOf(file!.bytes);
+      expect(words, format).toBe(
+        "Marie Dupont marie.dupont@example.fr · 06 12 34 56 78 · Lyon Globex Ltd Lyon, le 7 octobre 2026 " +
+          "Madame, Monsieur, J'ai piloté la consolidation IFRS d'un groupe industriel. Je vous prie d'agréer mes salutations distinguées. Marie Dupont",
+      );
+    }
   });
 
   it("exports a PDF too", async () => {

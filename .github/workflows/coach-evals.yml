@@ -24,7 +24,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # A job whose every step skips still reports success: without the secret, the eval check would show
+  # as passed though the suite never ran. Deciding here lets the eval job skip at the job level instead.
+  credentials:
+    runs-on: ubuntu-latest
+    outputs:
+      bedrock: ${{ steps.check.outputs.bedrock }}
+    steps:
+      - id: check
+        env:
+          AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}
+        run: |
+          if [ -n "$AWS_BEARER_TOKEN_BEDROCK" ]; then
+            echo "bedrock=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "bedrock=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::AWS_BEARER_TOKEN_BEDROCK is not set; the Coach eval suite did not run."
+          fi
+
   eval:
+    needs: credentials
+    if: needs.credentials.outputs.bedrock == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -32,26 +52,17 @@ jobs:
       BEDROCK_REGION: eu-west-3
       AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}
     steps:
-      - name: Skip without Bedrock credentials
-        if: env.AWS_BEARER_TOKEN_BEDROCK == ''
-        run: echo "::warning::AWS_BEARER_TOKEN_BEDROCK is not set; the Coach eval suite did not run."
       - uses: actions/checkout@v4
-        if: env.AWS_BEARER_TOKEN_BEDROCK != ''
       - uses: actions/setup-node@v4
-        if: env.AWS_BEARER_TOKEN_BEDROCK != ''
         with:
           node-version-file: .nvmrc
           cache: npm
-      - if: env.AWS_BEARER_TOKEN_BEDROCK != ''
-        run: npm ci
-      - if: env.AWS_BEARER_TOKEN_BEDROCK != ''
-        env:
+      - run: npm ci
+      - env:
           MODELS: ${{ inputs.models || 'claude-opus-5-5,claude-sonnet-5-5' }}
         run: npm run coach:eval -- --models "$MODELS" --out "$RUNNER_TEMP/coach-evals"
-      - if: env.AWS_BEARER_TOKEN_BEDROCK != ''
-        run: cat "$RUNNER_TEMP"/coach-evals/*.md >> "$GITHUB_STEP_SUMMARY"
+      - run: cat "$RUNNER_TEMP"/coach-evals/*.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
-        if: env.AWS_BEARER_TOKEN_BEDROCK != ''
         with:
           name: coach-evals
           path: ${{ runner.temp }}/coach-evals

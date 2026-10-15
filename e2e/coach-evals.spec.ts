@@ -99,6 +99,22 @@ test.describe("results committed under docs/research/coach-evals", () => {
     expect(workflow).toContain("npm run coach:eval");
     expect(workflow).toContain("upload-artifact");
   });
+
+  test("without the Bedrock secret the eval check shows as skipped, not as passed", () => {
+    // A job whose every step is skipped still reports success, so a green "eval" check would claim a suite
+    // run that never happened. Skipped at the job level, it shows as skipped on the pull request.
+    const workflow = readFileSync(path.resolve(".github/workflows/coach-evals.yml"), "utf8");
+    const job = (name: string) => workflow.match(new RegExp(`^  ${name}:\\n((?:    .*\\n|\\s*\\n)*)`, "m"))?.[1] ?? "";
+    const evalJob = job("eval");
+    expect(evalJob).toContain("npm run coach:eval");
+    expect(evalJob).toMatch(/^    needs: credentials$/m);
+    expect(evalJob).toMatch(/^    if: needs\.credentials\.outputs\.bedrock == 'true'$/m);
+    expect(evalJob, "no step-level skip left in the eval job").not.toMatch(/if: env\.AWS_BEARER_TOKEN_BEDROCK/);
+    const credentials = job("credentials");
+    expect(credentials).toContain("secrets.AWS_BEARER_TOKEN_BEDROCK");
+    expect(credentials).toContain("::warning::");
+    expect(credentials).not.toContain("npm ");
+  });
 });
 
 test.describe("default model decided", () => {

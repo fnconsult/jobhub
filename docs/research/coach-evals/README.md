@@ -11,7 +11,7 @@ npm run coach:eval
 
 It reads the AI layer's configuration from the repo's `.env`: every model runs on Anthropic, through `ANTHROPIC_ENDPOINT` (Bedrock eu-west-3 by default, with `AWS_BEARER_TOKEN_BEDROCK` or the AWS credential chain). It writes `<date>.md` (summary) and `<date>.json` (every reply, cost and judgment) into this folder. Commit them when a run informs a decision. `AI_FAKE=true npm run coach:eval -- --out /tmp/x` runs it offline as a smoke test. If no model gives a single reply (missing credentials, for example), it writes nothing and exits 1.
 
-When it runs: nightly, by hand (`workflow_dispatch`), and on pull requests that change the AI Coach's prompt, knowledge or model (`.github/workflows/coach-evals.yml`: `apps/web/src/coach/**`, `packages/coach-knowledge/**`, the AI layer's env routing and Claude adapter). It does not run on every pull request. The workflow needs the `AWS_BEARER_TOKEN_BEDROCK` repository secret. Without it, the workflow logs a warning and skips. Each run's Markdown goes to the job summary and both files go to the `coach-evals` artifact.
+When it runs: nightly, by hand (`workflow_dispatch`), and on pull requests that change the AI Coach's prompt, knowledge or model (`.github/workflows/coach-evals.yml`: `apps/web/src/coach/**`, `packages/coach-knowledge/**`, the AI layer's env routing and Claude adapter). It does not run on every pull request. The workflow needs the `AWS_BEARER_TOKEN_BEDROCK` repository secret. Without it, the `credentials` job logs a warning and the `eval` job is skipped, so its check shows as skipped, never as passed. Each run's Markdown goes to the job summary and both files go to the `coach-evals` artifact.
 
 ## What it does
 

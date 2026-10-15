@@ -22,6 +22,11 @@ export interface MasterCvDraft {
   nextVersion: number;
   /** The content of `basedOnVersion`. */
   saved: MasterCvContent;
+  /**
+   * The newest version the page shows: `basedOnVersion`, or a newer one that
+   * arrived during the edits (an accepted ATS Fix). Cancelling goes back to it.
+   */
+  latest: { version: number; content: MasterCvContent };
   fields: CvDocumentFields;
   /** What the last save said, or "editing" since the last edit. */
   status: MasterCvDraftStatus;
@@ -48,7 +53,14 @@ export type MasterCvDraftEvent =
   | { type: "loaded"; version: number; content: MasterCvContent };
 
 export function startDraft(version: number, content: MasterCvContent): MasterCvDraft {
-  return { basedOnVersion: version, nextVersion: version + 1, saved: content, fields: fieldsOf(content), status: { kind: "editing" } };
+  return {
+    basedOnVersion: version,
+    nextVersion: version + 1,
+    saved: content,
+    latest: { version, content },
+    fields: fieldsOf(content),
+    status: { kind: "editing" },
+  };
 }
 
 export function nextDraft(draft: MasterCvDraft, event: MasterCvDraftEvent): MasterCvDraft {
@@ -56,7 +68,7 @@ export function nextDraft(draft: MasterCvDraft, event: MasterCvDraftEvent): Mast
     case "edit":
       return { ...draft, fields: { ...draft.fields, ...event.changes }, status: { kind: "editing" } };
     case "cancel":
-      return startDraft(draft.basedOnVersion, draft.saved);
+      return startDraft(draft.latest.version, draft.latest.content);
     case "save":
       return { ...draft, status: { kind: "saving" } };
     case "failed":
@@ -64,7 +76,11 @@ export function nextDraft(draft: MasterCvDraft, event: MasterCvDraftEvent): Mast
     case "answered":
       return answered(draft, event.status, event.body);
     case "loaded":
-      return event.version === draft.basedOnVersion || isDirty(draft) ? draft : startDraft(event.version, event.content);
+      // Versions only grow: an older one is a late page, not news.
+      if (event.version <= draft.latest.version) return draft;
+      // Edits stay based on the version edited (ADR-0012); a save then says which version is current.
+      if (isDirty(draft)) return { ...draft, latest: { version: event.version, content: event.content } };
+      return startDraft(event.version, event.content);
   }
 }
 

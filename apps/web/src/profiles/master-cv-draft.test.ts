@@ -112,4 +112,29 @@ describe("the Master CV draft on the Profile page", () => {
     expect(draft.fields.headline).toBe("DAF");
     expect(saveRequest(draft).basedOnVersion).toBe(7);
   });
+
+  it("cancelling after a newer version arrived meanwhile puts back that newer version, so later saves are based on it", () => {
+    const fixed = { ...cv, skills: [...cv.skills, "Tagetik"] };
+    let draft = nextDraft(startDraft(7, cv), { type: "edit", changes: { headline: "DAF" } });
+    draft = nextDraft(draft, { type: "loaded", version: 8, content: fixed });
+    draft = nextDraft(nextDraft(draft, { type: "save" }), { type: "answered", status: 409, body: { currentVersion: 8 } });
+    draft = nextDraft(draft, { type: "cancel" });
+    expect(isDirty(draft)).toBe(false);
+    expect(draft.fields.headline).toBe(cv.headline);
+    expect(draft.fields.skills).toBe("Consolidation IFRS\nExcel avancé, Power BI\nTagetik");
+    expect(draft.nextVersion).toBe(9);
+    draft = nextDraft(draft, { type: "edit", changes: { headline: "DAF" } });
+    expect(saveRequest(draft)).toEqual({ basedOnVersion: 8, content: { ...fixed, headline: "DAF" } });
+  });
+
+  it("does not go back to an older version the page brings late", () => {
+    const saved = nextDraft(nextDraft(nextDraft(startDraft(7, cv), { type: "edit", changes: { headline: "DAF" } }), { type: "save" }), {
+      type: "answered",
+      status: 200,
+      body: { version: 8 },
+    });
+    const draft = nextDraft(saved, { type: "loaded", version: 7, content: cv });
+    expect(draft.basedOnVersion).toBe(8);
+    expect(draft.fields.headline).toBe("DAF");
+  });
 });

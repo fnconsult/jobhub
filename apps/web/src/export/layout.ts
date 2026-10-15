@@ -60,7 +60,7 @@ function cvBlocks(cv: MasterCvContent, language: Locale): Block[] {
   return blocks;
 }
 
-/** A French-style letter: sender, recipient, place and date, subject, paragraphs, signature. */
+/** A French-style letter: sender, recipient, place and date, subject, paragraphs. */
 function letterBlocks(letter: CoverLetterContent, language: Locale): Block[] {
   const { t } = createI18n(language);
   const blocks: Block[] = [];
@@ -82,7 +82,7 @@ function letterBlocks(letter: CoverLetterContent, language: Locale): Block[] {
     blocks.push({ kind: "entry", text: t("cvDocument.subject", { subject: letter.subject.trim() }) }, { kind: "gap" });
   }
   for (const paragraph of letter.body.split(/\n\s*\n/)) group(linesOf(paragraph));
-  add("text", letter.fullName);
+  // The Candidate is named once, in the sender block (#162).
   return blocks;
 }
 

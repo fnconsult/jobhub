@@ -945,6 +945,8 @@
     "languages": "Languages",
     "languageLevel": "{{name}}: {{level}}",
     "subject": "Subject: {{subject}}",
+    "letterDate": "{{place}}, {{date}}",
+    "letterDateWithoutPlace": "{{date}}",
     "cvFileName": "CV",
     "coverLetterFileName": "Cover-letter"
   },

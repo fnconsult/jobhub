@@ -72,7 +72,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 export default async function ApplicationPage({ params }: Params) {
   const { candidateId, application } = await requireOwnApplication((await params).id);
   const [t, locale] = await Promise.all([getServerT(), getRequestLocale()]);
-  const inView = { kind: "application", id: application.id, name: application.jobOffer.title } as const;
+  const inView = { kind: "application", id: application.id, name: application.jobOffer.title, profileId: application.profile.id } as const;
   const [cards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts, coachReviews] = await Promise.all([
     getActionCards().pending(candidateId, inView),
     getProfiles().list(candidateId),

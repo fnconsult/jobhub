@@ -1,24 +1,28 @@
 import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import { describe, expect, it } from "vitest";
+import { scoreMatch, type JobOffer } from "@jobhub/shared";
+import type { Application } from "@/applications";
+import type { JobDigest } from "@/job-digests";
+import type { JobSearch } from "@/job-searches";
 import type { Profile } from "@/profiles";
-import { createCoach, MAX_MESSAGES, recentConversation, type Coach } from "./index";
+import { createCoach, MAX_MESSAGES, recentConversation, type Coach, type CoachDeps, type CoachFocus, COACH_CONTEXT_MAX_TOKENS, estimateTokens } from "./index";
 
 const profile: Profile = {
   id: "11111111-1111-4111-8111-111111111111",
   name: "Directrice financière",
   archived: false,
-  searchCriteria: { targetRole: "Directrice financière", location: "Lyon", minSalary: 120000 },
+  searchCriteria: { targetRole: "Directrice financière", location: "Lyon", minSalary: 120000, contractType: "cdi" },
   masterCv: {
     version: 2,
     content: {
       fullName: "Marie Dupont",
       headline: "Directrice financière",
-      email: "",
-      phone: "",
-      location: "Lyon",
+      email: "marie.dupont@example.fr",
+      phone: "06 12 34 56 78",
+      location: "12 rue de la République, 69002 Lyon",
       summary: "",
-      experience: [{ title: "Directrice financière", employer: "Groupe Seb", location: "Lyon", period: "2015 – 2024", description: "" }],
+      experience: [{ title: "Directrice financière", employer: "Groupe Seb", location: "Lyon", period: "2005 – 2024", description: "Consolidation IFRS." }],
       education: [],
       skills: ["IFRS"],
       languages: [],
@@ -26,14 +30,100 @@ const profile: Profile = {
   },
 };
 
-function coachWith(options: { reply?: string | (() => string) } = {}): { coach: Coach; provider: FakeProvider; usage: ReturnType<typeof createMemoryUsageLog> } {
+const jobOffer: JobOffer = {
+  id: "22222222-2222-4222-8222-222222222222",
+  title: "DAF H/F",
+  employer: "Acme Industrie",
+  location: "Lyon",
+  contractType: "cdi",
+  skills: ["IFRS", "Power BI"],
+  content: "Rattaché au DG, vous pilotez la clôture mensuelle et le reporting du groupe.",
+  source: { url: "https://carrieres.example.fr/daf" },
+};
+const matchScore = scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer, today: new Date("2026-10-13") });
+
+const application: Application = {
+  id: "33333333-3333-4333-8333-333333333333",
+  status: "interview",
+  statusChangedAt: new Date("2026-10-01T09:00:00Z"),
+  createdAt: new Date("2026-09-20T09:00:00Z"),
+  jobOffer,
+  profile: { id: profile.id, name: profile.name },
+  interviews: [{ id: "i1", scheduledAt: new Date("2026-10-20T14:00:00Z"), note: "avec la DRH" }],
+  matchScore,
+};
+
+const jobSearch: JobSearch = {
+  id: "44444444-4444-4444-8444-444444444444",
+  profile: { id: profile.id, name: profile.name, searchCriteria: profile.searchCriteria },
+  status: "done",
+  failure: null,
+  startedAt: new Date("2026-10-10T08:00:00Z"),
+  results: [{ jobOffer, matchScore, applicationId: null }],
+  metrics: null,
+};
+
+const jobDigest: JobDigest = {
+  id: "55555555-5555-4555-8555-555555555555",
+  profile: { id: profile.id, name: profile.name },
+  sentAt: new Date("2026-10-12T05:00:00Z"),
+  results: [{ jobOffer: { ...jobOffer, id: "66666666-6666-4666-8666-666666666666", title: "Directeur administratif et financier" }, matchScore, applicationId: null }],
+};
+
+/** Marie's workspace, as the AI Coach reads it: only Marie can see what is in it. */
+interface Workspace {
+  profiles: Profile[];
+  applications: Application[];
+  jobOffers: JobOffer[];
+  jobSearches: JobSearch[];
+  jobDigests: JobDigest[];
+  memory: string[];
+}
+
+function emptyWorkspace(): Workspace {
+  return { profiles: [profile], applications: [], jobOffers: [], jobSearches: [], jobDigests: [], memory: [] };
+}
+
+function sourcesOf(workspace: Workspace): Omit<CoachDeps, "ai"> {
+  const mine = <T>(candidateId: string, items: T[]) => (candidateId === "marie" ? items : []);
+  return {
+    profiles: {
+      get: async (candidateId, id) => mine(candidateId, workspace.profiles).find((p) => p.id === id) ?? null,
+      list: async (candidateId) => mine(candidateId, workspace.profiles).map(({ id, name, archived }) => ({ id, name, archived })),
+    },
+    applications: {
+      get: async (candidateId, id) => mine(candidateId, workspace.applications).find((a) => a.id === id) ?? null,
+      list: async (candidateId) =>
+        mine(candidateId, workspace.applications).map(({ id, status, statusChangedAt, jobOffer, profile, interviews }) => ({ id, status, statusChangedAt, jobOffer, profile, interviews })),
+    },
+    jobOffers: { get: async (id) => workspace.jobOffers.find((o) => o.id === id) ?? null },
+    jobSearches: {
+      get: async (candidateId, id) => mine(candidateId, workspace.jobSearches).find((s) => s.id === id) ?? null,
+      latest: async (candidateId, profileId) => mine(candidateId, workspace.jobSearches).find((s) => s.profile.id === profileId && s.status === "done") ?? null,
+    },
+    jobDigests: {
+      get: async (candidateId, id) => mine(candidateId, workspace.jobDigests).find((d) => d.id === id) ?? null,
+      latest: async (candidateId, profileId) => mine(candidateId, workspace.jobDigests).find((d) => d.profile.id === profileId) ?? null,
+    },
+    coachMemory: { items: async (candidateId) => mine(candidateId, workspace.memory) },
+  };
+}
+
+function coachWith(options: { reply?: string | (() => string); workspace?: Partial<Workspace> } = {}): {
+  coach: Coach;
+  provider: FakeProvider;
+  usage: ReturnType<typeof createMemoryUsageLog>;
+} {
   const provider = createFakeProvider({ id: "mistral", reply: options.reply ?? "Bonjour Marie, que puis-je faire pour vous ?" });
   const usage = createMemoryUsageLog();
   const ai = createAiLayer({ providers: [provider], routes: { coaching: "mistral" }, usage });
-  // Marie owns the Profile; nobody else can see it.
-  const profiles = { get: async (candidateId: string, id: string) => (candidateId === "marie" && id === profile.id ? profile : null) };
-  return { coach: createCoach({ ai, profiles }), provider, usage };
+  return { coach: createCoach({ ai, ...sourcesOf({ ...emptyWorkspace(), ...options.workspace }) }), provider, usage };
 }
+
+/** What the AI Coach was told for its latest reply. */
+const contextOf = (provider: FakeProvider) => provider.calls.at(-1)!.system!;
+
+const ask = (coach: Coach, focus?: CoachFocus) => coach.reply("marie", { messages: [{ from: "candidate", text: "Que me conseillez-vous ?" }], ...(focus ? { focus } : {}) });
 
 describe("talking with the AI Coach in the Coach Panel", () => {
   it("answers the conversation so far, as the AI Coach, counting the tokens against the Candidate", async () => {
@@ -60,7 +150,7 @@ describe("talking with the AI Coach in the Coach Panel", () => {
   it("says what its reply cost: the provider and model, the tokens in, out and cached, and the estimated cost in €", async () => {
     const provider = createFakeProvider({ id: "mistral", reply: "Bonjour", usage: { inputTokens: 1_000, outputTokens: 200, cachedInputTokens: 3_000 } });
     const ai = createAiLayer({ providers: [provider], routes: { coaching: { provider: "mistral", model: "mistral-large-latest" } }, usage: createMemoryUsageLog() });
-    const coach = createCoach({ ai, profiles: { get: async () => null } });
+    const coach = createCoach({ ai, ...sourcesOf(emptyWorkspace()) });
 
     const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "Bonjour" }] });
 
@@ -79,20 +169,6 @@ describe("talking with the AI Coach in the Coach Panel", () => {
     expect(system).toContain("Directrice financière");
     expect(system).toContain("Groupe Seb");
     expect(system).toContain("120000");
-  });
-
-  it("declares the Master CV in view as the Candidate's identity, so it goes to Mistral under EU AI consent (ADR-0007)", async () => {
-    const claude = createFakeProvider({ id: "anthropic" });
-    const mistral = createFakeProvider({ id: "mistral" });
-    const ai = createAiLayer({ providers: [claude, mistral], routes: { coaching: "anthropic" }, euAiConsent: async () => true, usage: createMemoryUsageLog() });
-    const profiles = { get: async () => profile };
-    const coach = createCoach({ ai, profiles });
-
-    await coach.reply("marie", { messages: [{ from: "candidate", text: "Mon CV est-il bon ?" }], focus: { kind: "profile", id: profile.id } });
-    await coach.reply("marie", { messages: [{ from: "candidate", text: "Par où commencer ?" }] });
-
-    expect(mistral.calls.map((call) => call.messages.at(-1)?.content)).toEqual(["Mon CV est-il bon ?"]);
-    expect(claude.calls.map((call) => call.messages.at(-1)?.content)).toEqual(["Par où commencer ?"]);
   });
 
   it("never reads another Candidate's Profile, even when its id is sent", async () => {
@@ -149,5 +225,268 @@ describe("talking with the AI Coach in the Coach Panel", () => {
     });
 
     expect(await coach.reply("marie", { messages: [{ from: "candidate", text: "Bonjour" }] })).toEqual({ ok: false, error: "unavailable" });
+  });
+});
+
+describe("what the AI Coach always knows: a short Candidate summary", () => {
+  it("tells the AI Coach the Candidate's first name, target role, Search Criteria and seniority, whatever is in view", async () => {
+    const { coach, provider } = coachWith();
+
+    await ask(coach);
+
+    const context = contextOf(provider);
+    expect(context).toContain("Marie");
+    expect(context).toContain("Directrice financière");
+    expect(context).toContain("Lyon");
+    expect(context).toContain("120000");
+    expect(context).toMatch(/19 ans d'expérience/);
+  });
+});
+
+describe("the Candidate's identity: first name only", () => {
+  const writtenEverywhere: Profile = {
+    ...profile,
+    masterCv: {
+      version: 3,
+      content: {
+        ...profile.masterCv.content,
+        summary: "Marie Dupont, joignable au 06 12 34 56 78 ou à marie.dupont@example.fr, habite 12 rue de la République, 69002 Lyon.",
+      },
+    },
+  };
+
+  it("strips the full name, email, phone and postal address from the Master CV before it is sent, keeping the career", async () => {
+    const { coach, provider } = coachWith({ workspace: { profiles: [writtenEverywhere] } });
+
+    await ask(coach, { kind: "profile", id: profile.id });
+
+    const context = contextOf(provider);
+    expect(context).toContain("Marie");
+    expect(context).toContain("Groupe Seb");
+    expect(context).toContain("Consolidation IFRS.");
+    for (const identity of ["Dupont", "marie.dupont@example.fr", "06 12 34 56 78", "rue de la République", "69002"]) expect(context).not.toContain(identity);
+  });
+
+  it("strips them too from the onboarding answers summarised when nothing is in view", async () => {
+    const { coach, provider } = coachWith({ workspace: { profiles: [writtenEverywhere] } });
+
+    await ask(coach);
+
+    const context = contextOf(provider);
+    expect(context).toContain("joignable");
+    for (const identity of ["Dupont", "marie.dupont@example.fr", "06 12 34 56 78", "rue de la République", "69002"]) expect(context).not.toContain(identity);
+  });
+
+  it("so the AI Coach's context is not identity-bearing: it stays on the provider configured for coaching, even under EU AI consent", async () => {
+    const claude = createFakeProvider({ id: "anthropic" });
+    const mistral = createFakeProvider({ id: "mistral" });
+    const ai = createAiLayer({ providers: [claude, mistral], routes: { coaching: "anthropic" }, euAiConsent: async () => true, usage: createMemoryUsageLog() });
+    const coach = createCoach({ ai, ...sourcesOf({ ...emptyWorkspace(), profiles: [writtenEverywhere] }) });
+
+    await ask(coach, { kind: "profile", id: profile.id });
+
+    expect(claude.calls).toHaveLength(1);
+    expect(mistral.calls).toHaveLength(0);
+  });
+
+  it("leaves a phone number written in the CV in some other way to the AI layer's safety net, which sends it to Mistral (#121)", async () => {
+    const claude = createFakeProvider({ id: "anthropic" });
+    const mistral = createFakeProvider({ id: "mistral" });
+    const ai = createAiLayer({ providers: [claude, mistral], routes: { coaching: "anthropic" }, euAiConsent: async () => true, usage: createMemoryUsageLog() });
+    const otherPhone: Profile = { ...profile, masterCv: { version: 4, content: { ...profile.masterCv.content, summary: "Mon portable perso : 07.98.76.54.32" } } };
+    const coach = createCoach({ ai, ...sourcesOf({ ...emptyWorkspace(), profiles: [otherPhone] }) });
+
+    await ask(coach, { kind: "profile", id: profile.id });
+
+    expect(mistral.calls).toHaveLength(1);
+    expect(claude.calls).toHaveLength(0);
+  });
+});
+
+describe("the Coach Memory", () => {
+  it("tells the AI Coach what the Candidate confirmed it should remember", async () => {
+    const { coach, provider } = coachWith({ workspace: { memory: ["Préfère un poste à moins d'une heure de Lyon", "Ne veut plus travailler dans l'automobile"] } });
+
+    await ask(coach);
+
+    expect(contextOf(provider)).toContain("Préfère un poste à moins d'une heure de Lyon");
+    expect(contextOf(provider)).toContain("Ne veut plus travailler dans l'automobile");
+  });
+
+  it("says nothing of a Coach Memory that has no items", async () => {
+    const { coach, provider } = coachWith();
+
+    await ask(coach);
+
+    expect(contextOf(provider)).not.toMatch(/mémoire/i);
+  });
+});
+
+describe("the item In view, in full", () => {
+  it("a Profile: its Search Criteria and the current version of its Master CV", async () => {
+    const { coach, provider } = coachWith();
+
+    await ask(coach, { kind: "profile", id: profile.id });
+
+    expect(contextOf(provider)).toContain("Directrice financière");
+    expect(contextOf(provider)).toContain("Groupe Seb");
+    expect(contextOf(provider)).toContain("version 2");
+  });
+
+  it("an Application: its status, interviews, Match Score and the whole Job Offer", async () => {
+    const { coach, provider } = coachWith({ workspace: { applications: [application] } });
+
+    await ask(coach, { kind: "application", id: application.id });
+
+    const context = contextOf(provider);
+    expect(context).toContain("Entretien");
+    expect(context).toContain("2026-10-20");
+    expect(context).toContain("avec la DRH");
+    expect(context).toContain(`${matchScore.score}/100`);
+    expect(context).toContain("Power BI");
+    expect(context).toContain("vous pilotez la clôture mensuelle");
+  });
+
+  it("a Job Offer: the whole posting", async () => {
+    const { coach, provider } = coachWith({ workspace: { jobOffers: [jobOffer] } });
+
+    await ask(coach, { kind: "job_offer", id: jobOffer.id });
+
+    const context = contextOf(provider);
+    expect(context).toContain("DAF H/F");
+    expect(context).toContain("Acme Industrie");
+    expect(context).toContain("vous pilotez la clôture mensuelle");
+  });
+
+  it("a Job Search: its Profile, when it ran and every Job Offer found with its Match Score", async () => {
+    const { coach, provider } = coachWith({ workspace: { jobSearches: [jobSearch] } });
+
+    await ask(coach, { kind: "job_search", id: jobSearch.id });
+
+    const context = contextOf(provider);
+    expect(context).toContain("2026-10-10");
+    expect(context).toMatch(new RegExp(`DAF H/F chez Acme Industrie \\(Lyon\\) : score ${matchScore.score}/100`));
+  });
+
+  it("a Job Digest: its Profile, when it was sent and every Job Offer in it with its Match Score", async () => {
+    const { coach, provider } = coachWith({ workspace: { jobDigests: [jobDigest] } });
+
+    await ask(coach, { kind: "job_digest", id: jobDigest.id });
+
+    const context = contextOf(provider);
+    expect(context).toContain("2026-10-12");
+    expect(context).toContain(`Directeur administratif et financier chez Acme Industrie (Lyon) : score ${matchScore.score}/100`);
+  });
+
+  it("nothing of an Application, Job Search or Job Digest that is someone else's", async () => {
+    const { coach, provider } = coachWith({ workspace: { applications: [application], jobSearches: [jobSearch], jobDigests: [jobDigest] } });
+
+    for (const focus of [
+      { kind: "application", id: application.id },
+      { kind: "job_search", id: jobSearch.id },
+      { kind: "job_digest", id: jobDigest.id },
+    ] as const) {
+      await coach.reply("someone-else", { messages: [{ from: "candidate", text: "Et ça ?" }], focus });
+      expect(contextOf(provider)).not.toContain("Acme Industrie");
+    }
+  });
+});
+
+describe("the rest, summarised", () => {
+  const offer = (n: number): JobOffer => ({ ...jobOffer, id: `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`, title: `Offre ${n}` });
+  const scored = (n: number, score: number) => ({ jobOffer: offer(n), matchScore: { ...matchScore, score }, applicationId: null });
+
+  it("the 5 latest Applications with their status", async () => {
+    const applications = [1, 2, 3, 4, 5, 6].map((n) => ({ ...application, id: `app-${n}`, jobOffer: offer(n), status: n === 1 ? ("applied" as const) : ("to_apply" as const) }));
+    const { coach, provider } = coachWith({ workspace: { applications } });
+
+    await ask(coach);
+
+    const context = contextOf(provider);
+    expect(context).toContain("Offre 1 chez Acme Industrie (Lyon) : Postulée");
+    expect(context).toContain("Offre 5 chez Acme Industrie (Lyon) : À postuler");
+    expect(context).not.toContain("Offre 6");
+  });
+
+  it("the top 5 Job Offers by Match Score, from the latest Job Search and Job Digest of each active Profile", async () => {
+    const { coach, provider } = coachWith({
+      workspace: {
+        jobSearches: [{ ...jobSearch, results: [scored(1, 90), scored(2, 40), scored(3, 75), scored(4, 20)] }],
+        jobDigests: [{ ...jobDigest, results: [scored(5, 85), scored(6, 60), scored(7, 30)] }],
+      },
+    });
+
+    await ask(coach);
+
+    const context = contextOf(provider);
+    const order = ["Offre 1 ", "Offre 5 ", "Offre 3 ", "Offre 6 ", "Offre 2 "].map((title) => context.indexOf(title));
+    expect(order.every((index) => index >= 0)).toBe(true);
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+    expect(context).toContain("Offre 1 chez Acme Industrie (Lyon) : score 90/100");
+    expect(context).not.toContain("Offre 7");
+    expect(context).not.toContain("Offre 4");
+  });
+
+  it("the onboarding answers: what each active Profile's Master CV says of the Candidate", async () => {
+    const consultant: Profile = {
+      ...profile,
+      id: "77777777-7777-4777-8777-777777777777",
+      name: "Consultante transformation",
+      searchCriteria: { targetRole: "Consultante transformation finance", location: "Paris" },
+      masterCv: { version: 1, content: { ...profile.masterCv.content, headline: "Consultante en transformation finance", summary: "Vingt ans à piloter des projets ERP." } },
+    };
+    const archived: Profile = { ...consultant, id: "88888888-8888-4888-8888-888888888888", name: "Ancien profil", archived: true, masterCv: { version: 1, content: { ...consultant.masterCv.content, headline: "Ancien titre" } } };
+    const { coach, provider } = coachWith({ workspace: { profiles: [profile, consultant, archived] } });
+
+    await ask(coach);
+
+    const context = contextOf(provider);
+    expect(context).toContain("Consultante transformation finance");
+    expect(context).toContain("Vingt ans à piloter des projets ERP.");
+    expect(context).not.toContain("Ancien titre");
+  });
+});
+
+describe("the context's cap: about 12k tokens", () => {
+  /** About `tokens` tokens of words. */
+  const text = (tokens: number, word: string) => `${word} `.repeat(Math.ceil((tokens * 4) / (word.length + 1)));
+  const longProfile = (n: number): Profile => ({
+    ...profile,
+    id: `99999999-9999-4999-8999-${String(n).padStart(12, "0")}`,
+    name: `Profil ${n}`,
+    masterCv: { version: 1, content: { ...profile.masterCv.content, summary: text(3_000, `résumé${n}`) } },
+  });
+
+  it("is about 12k tokens", () => {
+    expect(COACH_CONTEXT_MAX_TOKENS).toBe(12_000);
+  });
+
+  it("trims the summaries first, keeping the Candidate summary and the item In view whole", async () => {
+    const posting = { ...jobOffer, content: text(5_000, "mission") };
+    const { coach, provider } = coachWith({ workspace: { profiles: [profile, longProfile(1), longProfile(2), longProfile(3)], jobOffers: [posting] } });
+
+    await ask(coach, { kind: "job_offer", id: posting.id });
+
+    const system = contextOf(provider);
+    expect(estimateTokens(system)).toBeLessThanOrEqual(12_000);
+    expect(system).toContain(posting.content);
+    expect(system).toContain("« Profil 3 » : poste visé");
+    expect(system).toContain("résumé1");
+    expect(system).not.toContain("résumé3");
+  });
+
+  it("cuts the item In view when it alone is over the cap, still telling the Candidate summary", async () => {
+    const posting = { ...jobOffer, content: `Début de l'offre. ${text(20_000, "mission")}Fin de l'offre.` };
+    const { coach, provider } = coachWith({ workspace: { jobOffers: [posting], memory: ["Vise une PME familiale"] } });
+
+    await ask(coach, { kind: "job_offer", id: posting.id });
+
+    const system = contextOf(provider);
+    expect(estimateTokens(system)).toBeLessThanOrEqual(12_000);
+    expect(estimateTokens(system)).toBeGreaterThan(11_000);
+    expect(system).toContain("Début de l'offre.");
+    expect(system).not.toContain("Fin de l'offre.");
+    expect(system).toContain("Vise une PME familiale");
+    expect(system).toMatch(/19 ans d'expérience/);
   });
 });

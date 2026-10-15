@@ -42,3 +42,7 @@ How a call is recognised:
 - Call sites declare `containsIdentity: true`, from the fields they inject into the prompt.
 - As a safety net, the AI layer scans the prompt for a phone number or an email address. An undeclared hit is routed to Mistral and logged (the task and the kinds found, never the prompt), so the call site can be fixed.
 - The identity block of the CV is stripped before scoring and before any AI re-ranking, so those calls never carry identity.
+
+## Amendment: the coaching context carries no identity (issue #126)
+
+The AI Coach's context is no longer identity-bearing, so the coaching call declares `containsIdentity: false` and stays on the `coaching` task instead of going to Mistral. Only the Candidate's first name is sent, the Master CV's identity block is dropped, and its values (full name, email, phone, address) are replaced wherever else the CV writes them. The scan above remains the safety net.

@@ -7,7 +7,7 @@
  *  - `send` the Candidate's next message, untrusted input from the browser
  *    `{ conversationId?, message, focus? }`: the AI Coach answers the saved
  *    conversation (a new one without `conversationId`, attached to the Profile
- *    in view when it starts) and both messages are saved together. Nothing is
+ *    in view when it starts, or to the Profile the page in view shows: `focus.profileId`) and both messages are saved together. Nothing is
  *    saved when the AI Coach cannot answer, so the Candidate can send again;
  *  - `list` the Candidate's conversations, most recently active first;
  *  - `open` one with its messages; `rename` it; `delete` it.
@@ -22,7 +22,7 @@
  */
 import type { Pool } from "pg";
 import * as z from "zod";
-import type { Coach, CoachFocus, CoachMessageCost } from "../coach";
+import { COACH_FOCUS_KINDS, type Coach, type CoachMessageCost } from "../coach";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, type CoachMessage } from "../coach/conversation";
 import type { Profiles } from "../profiles";
 
@@ -72,8 +72,11 @@ const titleSchema = z.string().trim().min(1).max(MAX_TITLE_LENGTH);
 const sendSchema = z.object({
   conversationId: z.string().regex(UUID).optional(),
   message: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH),
-  focus: z.object({ kind: z.enum(["profile", "application"]), id: z.string().max(100) }).optional(),
+  /** What is in view; `profileId`: the Profile a Job Search, Job Digest or Application page shows, to attach a new conversation to. */
+  focus: z.object({ kind: z.enum(COACH_FOCUS_KINDS), id: z.string().max(100), profileId: z.string().max(100).optional() }).optional(),
 });
+
+type FocusInput = z.infer<typeof sendSchema>["focus"];
 
 interface ConversationRow {
   id: string;
@@ -129,7 +132,10 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
       if (conversationId && !existing) return { ok: false, error: "not_found" };
       const history = existing ? await lastMessages(existing.id, MAX_MESSAGES) : [];
 
-      const answer = await deps.coach.reply(candidateId, { messages: [...history, { from: "candidate", text: message }], ...(focus ? { focus } : {}) });
+      const answer = await deps.coach.reply(candidateId, {
+        messages: [...history, { from: "candidate", text: message }],
+        ...(focus ? { focus: { kind: focus.kind, id: focus.id } } : {}),
+      });
       if (!answer.ok) return answer;
 
       const sentAt = now();
@@ -198,10 +204,11 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     },
   };
 
-  /** The Profile in view, if it is the Candidate's: the one a new conversation is attached to. */
-  async function profileInView(candidateId: string, focus: CoachFocus | undefined): Promise<string | null> {
-    if (focus?.kind !== "profile") return null;
-    return (await deps.profiles.get(candidateId, focus.id))?.id ?? null;
+  /** The Profile in view, or the one the page in view shows, if it is the Candidate's: the one a new conversation is attached to. */
+  async function profileInView(candidateId: string, focus: FocusInput): Promise<string | null> {
+    const profileId = focus?.kind === "profile" ? focus.id : focus?.profileId;
+    if (!profileId) return null;
+    return (await deps.profiles.get(candidateId, profileId))?.id ?? null;
   }
 }
 

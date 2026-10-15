@@ -34,6 +34,9 @@
 // the system prompt put in view, if any, and how many messages it was sent, so
 // tests can check the AI Coach knows what the Candidate is looking at.
 //
+// A Candidate message containing "E2E_SHOW_CONTEXT" gets the whole system prompt
+// back as the AI Coach's reply, so tests can check what the AI Coach is told (#126).
+//
 // For the offer analysis behind a Company Dossier (task offer_analysis), a posting
 // whose displayed employer starts with "Cabinet" is a recruiting agency's, and its
 // Presumed Employer is the name after "Client présumé : " in the posting.
@@ -53,7 +56,8 @@ globalThis.fetch = async (input, init) => {
   if (system.includes("coach Jobbbox")) {
     const inView = /Le candidat consulte son profil « (.+?) »/.exec(system)?.[1];
     const turns = body.messages.filter((message) => message.role !== "system").length;
-    content = `${inView ? `Je vois votre profil « ${inView} ».` : "Je ne vois aucun profil."} (${turns} message${turns > 1 ? "s" : ""})`;
+    if (prompt.includes("E2E_SHOW_CONTEXT")) content = system;
+    else content = `${inView ? `Je vois votre profil « ${inView} ».` : "Je ne vois aucun profil."} (${turns} message${turns > 1 ? "s" : ""})`;
   }
   if (system.includes("cabinet de recrutement")) {
     const agency = /^Employeur affiché : Cabinet/m.test(prompt);

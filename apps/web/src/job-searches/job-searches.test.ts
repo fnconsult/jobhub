@@ -167,6 +167,24 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     expect((await jobSearches.get(candidateId, jobSearch.id))?.results.map((result) => result.jobOffer.id)).toEqual([published]);
   });
 
+  it("gives the Profile's latest done Job Search, with its results, to the Candidate only", async () => {
+    expect(await jobSearches.latest(candidateId, profileId)).toBeNull();
+    const older = await started();
+    await jobSearches.record(older.id, { jobOfferIds: [await capture("Contrôleur de gestion", { location: "Lyon" })] });
+    clock.now = new Date("2026-10-16T10:00:00+02:00");
+    const newer = await started();
+    await jobSearches.record(newer.id, { jobOfferIds: [await capture("DAF H/F", { location: "Lyon", contractType: "cdi" })] });
+    clock.now = new Date("2026-10-17T10:00:00+02:00");
+    await started(); // still searching: not done yet
+
+    const latest = await jobSearches.latest(candidateId, profileId);
+
+    expect(latest).toMatchObject({ id: newer.id, status: "done" });
+    expect(latest?.results.map((result) => result.jobOffer.title)).toEqual(["DAF H/F"]);
+    expect(await jobSearches.latest(otherCandidateId, profileId)).toBeNull();
+    expect(await jobSearches.latest(candidateId, "not-a-uuid")).toBeNull();
+  });
+
   it("only searches for the Candidate's own, active Profiles", async () => {
     const othersProfile = await createProfile(otherCandidateId);
     expect(await jobSearches.start(candidateId, { profileId: othersProfile })).toEqual({ ok: false, error: "not_found" });

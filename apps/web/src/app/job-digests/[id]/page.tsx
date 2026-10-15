@@ -24,7 +24,7 @@ export default async function JobDigestPage({ params }: Params) {
   const { candidateId, jobDigest } = await requireOwnJobDigest((await params).id);
   const [t, locale] = await Promise.all([getServerT(), getRequestLocale()]);
   const { profile, results } = jobDigest;
-  const inView = { kind: "profile", id: profile.id, name: profile.name } as const;
+  const inView = { kind: "job_digest", id: jobDigest.id, name: profile.name, profileId: profile.id } as const;
   const sentAt = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(jobDigest.sentAt);
   return (
     <CandidateLayout candidateId={candidateId} currentProfileId={profile.id}>

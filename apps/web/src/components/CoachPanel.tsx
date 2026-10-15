@@ -8,8 +8,12 @@ import { CoachConversationList, type ConversationSummary } from "@/components/Co
 import { Icons } from "@/components/icons";
 import { StartJobSearchButton } from "@/components/JobSearchControls";
 
-/** What a page shows, as the Coach Panel tells the Candidate and the AI Coach. */
-export type InView = CoachFocus & { name: string };
+/**
+ * What a page shows, as the Coach Panel tells the Candidate and the AI Coach.
+ * `profileId`: the Profile a Job Search, Job Digest or Application page shows, so a
+ * new Coach Conversation is attached to it and the AI Coach can search for it.
+ */
+export type InView = CoachFocus & { name: string; profileId?: string };
 
 const SetInView = createContext<(inView: InView | null) => void>(() => {});
 
@@ -51,18 +55,29 @@ export function CoachPanelToggle({ floating = false }: { floating?: boolean }) {
 }
 
 /**
- * Declares the Profile or Application a page shows, so the Coach Panel (and
- * the AI Coach behind it) know what the Candidate has in view. Renders nothing;
- * does nothing outside a Coach Panel (signed-out pages).
+ * Declares the Profile, Application, Job Offer, Job Search or Job Digest a page
+ * shows, so the Coach Panel (and the AI Coach behind it) know what the Candidate
+ * has in view. Renders nothing; does nothing outside a Coach Panel (signed-out pages).
  */
-export function CoachInView({ kind, id, name }: InView) {
+export function CoachInView({ kind, id, name, profileId }: InView) {
   const setInView = useContext(SetInView);
   useEffect(() => {
-    setInView({ kind, id, name } as InView);
+    setInView({ kind, id, name, ...(profileId ? { profileId } : {}) } as InView);
     return () => setInView(null);
-  }, [setInView, kind, id, name]);
+  }, [setInView, kind, id, name, profileId]);
   return null;
 }
+
+/** The Profile in view, or the one the page in view shows. */
+const profileIdOf = (inView: InView | null) => (inView?.kind === "profile" ? inView.id : inView?.profileId);
+
+const IN_VIEW_LABEL = {
+  profile: "coachPanel.inViewProfile",
+  application: "coachPanel.inViewApplication",
+  job_offer: "coachPanel.inViewJobOffer",
+  job_search: "coachPanel.inViewJobSearch",
+  job_digest: "coachPanel.inViewJobDigest",
+} as const satisfies Record<InView["kind"], string>;
 
 type Status = "idle" | "sending" | "unavailable" | "invalid";
 
@@ -220,7 +235,7 @@ export function CoachPanel({ children }: { children: ReactNode }) {
         body: JSON.stringify({
           ...(conversation ? { conversationId: conversation.id } : {}),
           message: text,
-          ...(inView ? { focus: { kind: inView.kind, id: inView.id } } : {}),
+          ...(inView ? { focus: { kind: inView.kind, id: inView.id, ...(inView.profileId ? { profileId: inView.profileId } : {}) } } : {}),
         }),
       });
       const body = await response.json().catch(() => ({}));
@@ -244,7 +259,7 @@ export function CoachPanel({ children }: { children: ReactNode }) {
 
   const inViewLabel = inView
     ? t("coachPanel.inView", {
-        label: inView.kind === "profile" ? t("coachPanel.inViewProfile", { name: inView.name }) : t("coachPanel.inViewApplication", { name: inView.name }),
+        label: t(IN_VIEW_LABEL[inView.kind], { name: inView.name }),
       })
     : t("coachPanel.nothingInView");
 
@@ -304,8 +319,8 @@ export function CoachPanel({ children }: { children: ReactNode }) {
                 <div className="coach-panel-context">
                   <h3 className="coach-panel-conversation">{conversation ? conversation.title : t("coachPanel.newConversation")}</h3>
                   <p className="coach-panel-in-view">{inViewLabel}</p>
-                  {inView?.kind === "profile" ? (
-                    <StartJobSearchButton key={inView.id} profileId={inView.id} label={t("coachPanel.searchJobs")} className="button" />
+                  {profileIdOf(inView) ? (
+                    <StartJobSearchButton key={profileIdOf(inView)} profileId={profileIdOf(inView)!} label={t("coachPanel.searchJobs")} className="button" />
                   ) : (
                     <p className="hint">{t("coachPanel.searchHint")}</p>
                   )}

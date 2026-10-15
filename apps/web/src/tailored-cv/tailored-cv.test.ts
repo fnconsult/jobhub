@@ -67,6 +67,9 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
   let candidateId: string;
   let applicationId: string;
 
+  /** Every change of a proposal, accepted. */
+  const allOf = (proposal: { changes: { id: string }[] }) => proposal.changes.map((change) => change.id);
+
   /** The last call asking the AI Coach for a Tailored CV, not for a translation of the Job Offer's words. */
   const coachCall = () => provider.calls.filter((call) => !call.system?.startsWith("Translate")).at(-1)!;
 
@@ -282,18 +285,19 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
     const result = await tailoredCvs.answer(candidateId, applicationId, { requirement: "Power BI", confirmed: true });
 
     expect(result.ok && result.tailoredCv.proposal?.changes).toEqual([
-      { section: "headline", kind: "rephrased", master: "Directrice financière", tailored: "Directrice administrative et financière" },
-      { section: "summary", kind: "rephrased", master: masterCv.summary, tailored: PROPOSAL.summary },
+      { id: "headline.rephrased", section: "headline", kind: "rephrased", master: "Directrice financière", tailored: "Directrice administrative et financière" },
+      { id: "summary.rephrased", section: "summary", kind: "rephrased", master: masterCv.summary, tailored: PROPOSAL.summary },
       {
+        id: "experience.rephrased.0",
         section: "experience",
         kind: "rephrased",
         item: "Directrice financière · Groupe Seb · 2005 – 2024",
         master: "Directrice financière\nConsolidation IFRS de 12 filiales.",
         tailored: "Directrice financière\nPilotage de la consolidation IFRS de 12 filiales.",
       },
-      { section: "experience", kind: "cut", item: "Contrôleuse de gestion · Danone · 1995 – 2005" },
-      { section: "skills", kind: "reordered", master: "Reporting\nIFRS\nSAP", tailored: "IFRS\nSAP\nReporting" },
-      { section: "skills", kind: "added", item: "Power BI" },
+      { id: "experience.cut.1", section: "experience", kind: "cut", item: "Contrôleuse de gestion · Danone · 1995 – 2005" },
+      { id: "skills.reordered", section: "skills", kind: "reordered", master: "Reporting\nIFRS\nSAP", tailored: "IFRS\nSAP\nReporting" },
+      { id: "skills.added.Power BI", section: "skills", kind: "added", item: "Power BI" },
     ]);
   });
 
@@ -336,7 +340,7 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
     await tailoredCvs.answer(candidateId, applicationId, { requirement: "Power BI", confirmed: true });
     const reviewed = await tailoredCvs.get(candidateId, applicationId);
 
-    const result = await tailoredCvs.save(candidateId, applicationId, { revision: reviewed!.proposal!.revision });
+    const result = await tailoredCvs.save(candidateId, applicationId, { revision: reviewed!.proposal!.revision, accepted: allOf(reviewed!.proposal!) });
 
     expect(result).toMatchObject({
       ok: true,
@@ -352,14 +356,38 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
     expect(state?.proposal?.content.headline).toBe("Directrice financière groupe");
   });
 
+  it("only the changes the Candidate accepted are saved: a rejected one, or one taken from the Job Offer left unaccepted, keeps the Master CV's (ADR-0006)", async () => {
+    const offer = await saveApplication({
+      ...FRENCH_OFFER,
+      source: { url: "https://www.apec.fr/offre/daf-managers" },
+      content: `${FRENCH_OFFER.content} Expérience confirmée en management de managers.`,
+    });
+    reply = { ...PROPOSAL, summary: "Directrice financière depuis 2005, management de managers." };
+    await tailoredCvs.propose(candidateId, offer, {});
+    const answered = await tailoredCvs.answer(candidateId, offer, { requirement: "Power BI", confirmed: true });
+    if (!answered.ok || !answered.tailoredCv.proposal) throw new Error("no proposal");
+    const { revision, changes } = answered.tailoredCv.proposal;
+    const flagged = changes.find((change) => change.section === "summary")!;
+    expect(flagged.fromOffer).toEqual(["management", "managers"]);
+    const accepted = changes.filter((change) => change.section === "headline" || change.kind === "added").map((change) => change.id);
+
+    const result = await tailoredCvs.save(candidateId, offer, { revision, accepted });
+
+    expect(result.ok && result.tailoredCv.saved?.content).toEqual({
+      ...masterCv,
+      headline: PROPOSAL.headline,
+      skills: [...masterCv.skills, "Power BI"],
+    });
+  });
+
   it("there is nothing to save without a proposal, nor once the Master CV changed since it was proposed", async () => {
-    expect(await tailoredCvs.save(candidateId, applicationId, { revision: "none" })).toEqual({ ok: false, error: "not_found" });
+    expect(await tailoredCvs.save(candidateId, applicationId, { revision: "none", accepted: [] })).toEqual({ ok: false, error: "not_found" });
     const proposed = await tailoredCvs.propose(candidateId, applicationId, {});
     const revision = proposed.ok ? proposed.tailoredCv.proposal!.revision : "";
     const application = await createApplications(database, { jobOffers, profiles }).get(candidateId, applicationId);
     await profiles.saveMasterCv(candidateId, application!.profile.id, { basedOnVersion: 1, content: { ...masterCv, headline: "DAF" } });
 
-    expect(await tailoredCvs.save(candidateId, applicationId, { revision })).toEqual({ ok: false, error: "master_cv_changed" });
+    expect(await tailoredCvs.save(candidateId, applicationId, { revision, accepted: [] })).toEqual({ ok: false, error: "master_cv_changed" });
     expect((await tailoredCvs.get(candidateId, applicationId))?.saved).toBeNull();
   });
 
@@ -367,7 +395,7 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
     const otherCandidateId = await signIn("paul.martin@example.fr");
     expect(await tailoredCvs.get(otherCandidateId, applicationId)).toBeNull();
     expect(await tailoredCvs.propose(otherCandidateId, applicationId, {})).toEqual({ ok: false, error: "not_found" });
-    expect(await tailoredCvs.save(otherCandidateId, applicationId, { revision: "none" })).toEqual({ ok: false, error: "not_found" });
+    expect(await tailoredCvs.save(otherCandidateId, applicationId, { revision: "none", accepted: [] })).toEqual({ ok: false, error: "not_found" });
 
     await tailoredCvs.propose(candidateId, applicationId, {});
     reply = "Désolé, je ne peux pas.";
@@ -378,19 +406,20 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
     const reviewed = await tailoredCvs.propose(candidateId, applicationId, {});
     if (!reviewed.ok || !reviewed.tailoredCv.proposal) throw new Error("no proposal");
     const { revision } = reviewed.tailoredCv.proposal;
-    expect(await tailoredCvs.save(candidateId, applicationId, {})).toMatchObject({ ok: false, errors: [{ field: "revision" }] });
+    expect(await tailoredCvs.save(candidateId, applicationId, { accepted: [] })).toMatchObject({ ok: false, errors: [{ field: "revision" }] });
+    expect(await tailoredCvs.save(candidateId, applicationId, { revision })).toMatchObject({ ok: false, errors: [{ field: "accepted" }] });
 
     reply = { ...PROPOSAL, headline: "Directrice financière groupe" };
     await tailoredCvs.propose(candidateId, applicationId, { language: "en" });
-    expect(await tailoredCvs.save(candidateId, applicationId, { revision })).toEqual({ ok: false, error: "proposal_changed" });
+    expect(await tailoredCvs.save(candidateId, applicationId, { revision, accepted: [] })).toEqual({ ok: false, error: "proposal_changed" });
 
     const proposedAgain = (await tailoredCvs.get(candidateId, applicationId))!.proposal!;
     const answered = await tailoredCvs.answer(candidateId, applicationId, { requirement: "Power BI", confirmed: true });
-    expect(await tailoredCvs.save(candidateId, applicationId, { revision: proposedAgain.revision })).toEqual({ ok: false, error: "proposal_changed" });
+    expect(await tailoredCvs.save(candidateId, applicationId, { revision: proposedAgain.revision, accepted: allOf(proposedAgain) })).toEqual({ ok: false, error: "proposal_changed" });
     expect((await tailoredCvs.get(candidateId, applicationId))?.saved).toBeNull();
 
     if (!answered.ok || !answered.tailoredCv.proposal) throw new Error("no proposal");
-    const saved = await tailoredCvs.save(candidateId, applicationId, { revision: answered.tailoredCv.proposal.revision });
+    const saved = await tailoredCvs.save(candidateId, applicationId, { revision: answered.tailoredCv.proposal.revision, accepted: allOf(answered.tailoredCv.proposal) });
     expect(saved).toMatchObject({ ok: true, tailoredCv: { proposal: null, saved: { language: "en", content: { headline: "Directrice financière groupe", skills: ["IFRS", "SAP", "Reporting", "Power BI"] } } } });
   });
 
@@ -430,12 +459,12 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
     const changes = result.ok ? result.tailoredCv.proposal!.changes : [];
     expect(changes).toEqual(
       expect.arrayContaining([
-        { section: "education", kind: "rephrased", item: "Master Finance · ESSEC · 1994", master: "Master Finance · ESSEC · 1994", tailored: "Master's in Finance · ESSEC · 1994" },
-        { section: "skills", kind: "rephrased", item: "Reporting", master: "Reporting", tailored: "Financial reporting" },
-        { section: "languages", kind: "rephrased", item: "Anglais · courant", master: "Anglais · courant", tailored: "English · fluent" },
+        { id: "education.rephrased.0", section: "education", kind: "rephrased", item: "Master Finance · ESSEC · 1994", master: "Master Finance · ESSEC · 1994", tailored: "Master's in Finance · ESSEC · 1994" },
+        { id: "skills.rephrased.0", section: "skills", kind: "rephrased", item: "Reporting", master: "Reporting", tailored: "Financial reporting" },
+        { id: "languages.rephrased.0", section: "languages", kind: "rephrased", item: "Anglais · courant", master: "Anglais · courant", tailored: "English · fluent" },
       ]),
     );
-    expect(changes.filter((change) => change.kind === "cut")).toEqual([{ section: "experience", kind: "cut", item: "Contrôleuse de gestion · Danone · 1995 – 2005" }]);
+    expect(changes.filter((change) => change.kind === "cut")).toEqual([{ id: "experience.cut.1", section: "experience", kind: "cut", item: "Contrôleuse de gestion · Danone · 1995 – 2005" }]);
   });
 
   it("in the Master CV's language, a diploma, language or skill rewritten to state what it lacks keeps the Master CV's wording", async () => {

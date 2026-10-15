@@ -7,7 +7,7 @@ type Context = RouteContext<"/api/applications/[id]/tailored-cv/save">;
 
 /**
  * The Candidate approves the proposal they reviewed: it is saved as the Application's Tailored CV.
- * Body: { revision } of the proposal reviewed.
+ * Body: { revision, accepted } — the proposal reviewed, and the ids of the changes accepted: only those are saved.
  * 200 · 400 { errors } · 401 · 403 · 404 (no proposal) · 409 { error: "master_cv_changed" | "proposal_changed" }
  */
 export async function POST(request: Request, { params }: Context) {

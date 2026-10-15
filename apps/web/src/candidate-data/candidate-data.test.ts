@@ -132,7 +132,8 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     await applications.addInterview(candidateId, application.id, { scheduledAt: "2026-11-12T14:30", note: "avec la DRH" });
     const proposed = await tailoredCvs.propose(candidateId, application.id, {});
     if (!proposed.ok) throw new Error(`fixture Tailored CV refused: ${JSON.stringify(proposed)}`);
-    await tailoredCvs.save(candidateId, application.id, { revision: proposed.tailoredCv.proposal!.revision });
+    const { revision, changes } = proposed.tailoredCv.proposal!;
+    await tailoredCvs.save(candidateId, application.id, { revision, accepted: changes.map((change) => change.id) });
     await tailoredDocuments.draft(candidateId, application.id, { document: "cover_letter" });
     await tailoredDocuments.edit(candidateId, application.id, { document: "cover_letter", text: "Madame, Monsieur, je postule." });
 

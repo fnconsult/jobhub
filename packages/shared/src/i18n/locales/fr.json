@@ -701,7 +701,6 @@
   },
   "jobSearch": {
     "sectionTitle": "Recherche d'offres",
-    "startHint": "Votre coach cherche sur le web des offres qui correspondent aux critères de recherche de ce profil, puis les classe par score de correspondance avec votre CV de référence.",
     "start": "Chercher des offres",
     "starting": "Lancement de la recherche…",
     "title": "Offres trouvées pour « {{profile}} »",

@@ -701,7 +701,6 @@
   },
   "jobSearch": {
     "sectionTitle": "Job search",
-    "startHint": "Your coach searches the web for job offers matching this profile's search criteria, then ranks them by how well your master CV matches.",
     "start": "Search for job offers",
     "starting": "Starting the search…",
     "title": "Job offers found for \"{{profile}}\"",

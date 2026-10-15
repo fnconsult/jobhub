@@ -1194,8 +1194,10 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   display: contents;
 }
 
+/* A label stays beside its control when a hint or an error makes the value taller. */
 .props dt {
   display: flex;
+  align-self: start;
   gap: var(--space-2);
   align-items: center;
   min-height: var(--control-height);

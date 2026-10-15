@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { fromCatalogue, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
@@ -231,5 +231,30 @@ test.describe("the Profile page on the ADR-0009 floor", () => {
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
     });
+  }
+});
+
+// For the review against the prototype: PROFILE_SCREENSHOTS_DIR=<dir> keeps them there.
+test("screenshots of the Profile page at 375, 900 and 1440px, with unsaved Master CV edits", async ({ page }, testInfo) => {
+  const id = await candidateWithProfile(page, "profile-screens");
+  const dir = process.env.PROFILE_SCREENSHOTS_DIR;
+  if (dir) mkdirSync(dir, { recursive: true });
+  for (const [width, height] of [
+    [375, 812],
+    [900, 1000],
+    [1440, 900],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    await page.goto(`/profils/${id}`);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    const top = dir ? `${dir}/${width}-profile.png` : testInfo.outputPath(`${width}-profile.png`);
+    await page.screenshot({ path: top });
+    await testInfo.attach(`${width}px profile`, { path: top, contentType: "image/png" });
+
+    await masterCvSection(page).getByLabel(fr.cvReview.summary).fill("Plus de 15 ans dans l'industrie et la distribution.");
+    await expect(saveBar(page)).toBeVisible();
+    const cv = dir ? `${dir}/${width}-master-cv.png` : testInfo.outputPath(`${width}-master-cv.png`);
+    await page.screenshot({ path: cv, fullPage: true });
+    await testInfo.attach(`${width}px Master CV`, { path: cv, contentType: "image/png" });
   }
 });

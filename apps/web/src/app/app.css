@@ -1162,6 +1162,11 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   margin-top: 0;
 }
 
+/* Brought into view below the sticky top bar once new cards arrive (#165). */
+.action-cards h2 {
+  scroll-margin-top: calc(3.5rem + var(--space-4));
+}
+
 .page-head {
   display: flex;
   flex-direction: column;

@@ -29,8 +29,16 @@
  * source URL, or same text from another site) is returned, never duplicated,
  * and a known URL is not fetched again.
  *
+ * When France Travail is configured (see france-travail/), a run first searches
+ * its offers by structured filters (the ROME codes of the Search Criteria title,
+ * the area, the contract type), for no more Job Offers than the budget has left;
+ * each offer is captured like a posting read, at its France Travail page and
+ * dated by its creation. France Travail refusing or failing never fails the run:
+ * it is counted (`franceTravail` in the report) and the web search goes on.
+ *
  * A run searches and reads result pages in order until its budget runs out: 30
  * Job Offers, €0.08 or 90 s by default, whichever comes first (see JobDiscoveryBudget).
+ * France Travail's offers count toward it like any other Job Offers, and its time too.
  *
  * Each run is measured (its funnel and cost in €), also when it fails: the
  * error is then a JobDiscoveryError carrying what the run measured until then.
@@ -41,6 +49,7 @@ import {
   isPostingTooOld,
   MAX_POSTING_AGE_DAYS,
   type DiscoveryMetrics,
+  type FranceTravailMetrics,
   type JobOffer,
   type JobOfferDetails,
   type SearchCriteria,
@@ -48,6 +57,7 @@ import {
 } from "@jobhub/shared";
 import { readAtsPosting } from "./ats";
 import { DEFAULT_BUDGET, type JobDiscoveryBudget } from "./budget";
+import type { FranceTravail } from "./france-travail";
 import { htmlToText, metaRobots } from "./html";
 import { countJobPostings, readJobPosting } from "./job-posting";
 import { listingPageLinks } from "./listing-page";
@@ -58,6 +68,7 @@ import { createPoliteFetcher, realClock, type Clock, type JsonResult, type Refus
 export { MAX_POSTING_AGE_DAYS } from "@jobhub/shared";
 export { DEFAULT_BUDGET, jobDiscoveryBudgetFromEnv, type JobDiscoveryBudget } from "./budget";
 export type { RefusalReason } from "./polite-fetch";
+export { franceTravailFromEnv, type FranceTravail } from "./france-travail";
 
 /** Where Job Offers are stored. Satisfied by the web app's Job Offers module. */
 export interface JobOfferStore {
@@ -80,6 +91,8 @@ export interface JobDiscoveryOptions {
   budget?: Partial<JobDiscoveryBudget>;
   /** For waiting out robots.txt Crawl-delay and timing the budget. Default: real time. */
   clock?: Clock;
+  /** France Travail's offers, searched first. Default: none (its status is then `off`). */
+  franceTravail?: FranceTravail | null;
 }
 
 export interface DiscoverRequest {
@@ -107,6 +120,8 @@ export interface DiscoveryReport {
   funnel: DiscoveryFunnel;
   /** The estimated cost in € of the run's AI calls: the job title step, each web search and each page the LLM read. */
   costEur: number;
+  /** France Travail's part of the run (its offers are in the funnel too). */
+  franceTravail: FranceTravailMetrics;
 }
 
 /** The funnel's stages up to deduplication. Provider URLs are looked at in order until the budget runs out. */
@@ -166,6 +181,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         skipped: [],
         funnel: { providerUrls: 0, fetched: 0, extracted: 0, alreadyStored: 0 },
         costEur: 0,
+        franceTravail: { status: "off", offers: 0, calls: 0 },
       };
       const ai = costing(options.ai, (eur) => (report.costEur += eur));
       const { funnel, skipped } = report;
@@ -280,7 +296,32 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         await capture(page.url, details, searchDate);
       };
 
+      /**
+       * France Travail's offers for the Search Criteria, no more than the budget's Job Offers left, each captured
+       * like a posting read (at its France Travail page, dated by its creation) or found stored. Never throws.
+       */
+      const searchFranceTravail = async (franceTravail: FranceTravail) => {
+        const before = found.size;
+        const result = await franceTravail.search(criteria, { max: budget.jobOffers - found.size, now: new Date(clock.now()) });
+        report.franceTravail.calls = result.calls;
+        report.franceTravail.status = result.ok ? "searched" : result.reason;
+        for (const offer of result.ok ? result.offers : []) {
+          if (budgetSpent()) break;
+          if (seen.has(offer.url)) continue;
+          seen.add(offer.url);
+          const known = await storedAt(offer.url);
+          if (known) alreadyStored(offer.url, known);
+          else await capture(offer.url, offer.details, undefined);
+        }
+        report.franceTravail.offers = found.size - before;
+      };
+
       try {
+        if (options.franceTravail && !budgetSpent()) await searchFranceTravail(options.franceTravail);
+        if (budgetSpent()) {
+          report.jobOffers = [...found.values()];
+          return report;
+        }
         const plan = await ai.planJobSearch({ candidateId, criteria });
         const pager = searchPages(plan.queries, plan.pages);
         /** URLs the provider gave in this run, each counted once in the funnel. */

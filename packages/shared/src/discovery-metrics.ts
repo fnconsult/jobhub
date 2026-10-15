@@ -22,6 +22,22 @@ export type SkipReason = (typeof SKIP_REASONS)[number];
 /** The Match Score from which a Job Offer counts in the funnel's last stage (the Job Search target, 20 such per search). */
 export const FUNNEL_MATCH_SCORE = 60;
 
+/**
+ * How France Travail's search went in a run: `off` (not configured), `searched`,
+ * `refused` (France Travail turned us away: access withdrawn or not granted) or `failed`.
+ */
+export const FRANCE_TRAVAIL_STATUSES = ["off", "searched", "refused", "failed"] as const;
+export type FranceTravailStatus = (typeof FRANCE_TRAVAIL_STATUSES)[number];
+
+/** France Travail's part of a run. Its offers are also counted in the funnel, as extracted or already stored. */
+export interface FranceTravailMetrics {
+  status: FranceTravailStatus;
+  /** Job Offers it gave, new or already stored, after the freshness rule. */
+  offers: number;
+  /** HTTP calls made to it: a token when needed, and the search. */
+  calls: number;
+}
+
 export interface DiscoveryMetrics {
   /** How many results reached each stage, in order. */
   funnel: {
@@ -29,9 +45,9 @@ export interface DiscoveryMetrics {
     providerUrls: number;
     /** Result pages read, the postings followed from listing pages included. */
     fetched: number;
-    /** Job Offers extracted from the pages read, before deduplication. */
+    /** Job Offers extracted from the pages read (and France Travail's offers), before deduplication. */
     extracted: number;
-    /** Results that led to a Job Offer already stored, without reading the page. */
+    /** Results (and France Travail's offers) that led to a Job Offer already stored, without reading the page. */
     alreadyStored: number;
     /** Distinct Job Offers found, new or already stored. */
     afterDedup: number;
@@ -42,6 +58,8 @@ export interface DiscoveryMetrics {
   skipped: Record<SkipReason, number>;
   /** Estimated cost in € of the AI calls: the web search (tokens and fee) and the LLM reading pages. */
   costEur: number;
+  /** France Travail's part; absent for a run that never searched (or ran before France Travail was added). */
+  franceTravail?: FranceTravailMetrics;
 }
 
 /** The metrics of a run where Job discovery found nothing, or never ran. */

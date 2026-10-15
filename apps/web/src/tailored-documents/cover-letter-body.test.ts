@@ -62,4 +62,8 @@ describe("the body of a Cover Letter", () => {
 
     expect(coverLetterBody(letter, candidate)).toBe("Madame, Monsieur,\n\nVotre agence de recrute, et je serais ravie de la rejoindre.");
   });
+
+  it("is empty when there is only a frame to fill in", () => {
+    expect(coverLetterBody("**Hélène Durand-Lefèvre**\n[Adresse]\n\n[Date]", candidate)).toBe("");
+  });
 });

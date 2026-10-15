@@ -49,7 +49,7 @@ export interface ApplicationExportsDeps {
 function letterDate(location: string, day: Date, language: Locale): string {
   const { t } = createI18n(language);
   const date = new Intl.DateTimeFormat(language === "fr" ? "fr-FR" : "en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" }).format(day);
-  const place = location.split(",")[0].trim();
+  const place = (location.split(",")[0] ?? "").trim();
   return place ? t("cvDocument.letterDate", { place, date }) : t("cvDocument.letterDateWithoutPlace", { date });
 }
 

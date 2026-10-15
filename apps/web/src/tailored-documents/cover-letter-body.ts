@@ -71,10 +71,11 @@ function isFrame(line: string, signer: Signer): boolean {
 export function coverLetterBody(text: string, signer: Signer): string {
   let lines = text.replace(/\r\n?/g, "\n").split("\n").map(plain);
 
+  const frame = (line: string) => isFrame(line, signer);
   const salutation = lines.findIndex((line) => SALUTATION.test(line.trim()));
-  if (salutation >= 0) lines = lines.slice(salutation);
-  else while (lines.length > 0 && isFrame(lines[0], signer)) lines.shift();
-  while (lines.length > 0 && isFrame(lines[lines.length - 1], signer)) lines.pop();
+  const start = salutation >= 0 ? salutation : lines.findIndex((line) => !frame(line));
+  const end = lines.length - 1 - [...lines].reverse().findIndex((line) => !frame(line));
+  lines = start >= 0 && end < lines.length && end >= start ? lines.slice(start, end + 1) : [];
 
   return lines
     .map((line) => (line.trim() ? withoutPlaceholders(line) : ""))

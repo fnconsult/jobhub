@@ -1847,3 +1847,7 @@ textarea.title-edit {
     padding-top: var(--space-3);
   }
 }
+
+.document .input {
+  min-height: var(--control-height);
+}

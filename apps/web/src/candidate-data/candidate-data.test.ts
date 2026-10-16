@@ -132,6 +132,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
           ok: true,
           reply: "Premium : 4321 Match Scores par mois.",
           cost: { provider: "mistral", model: "secret-assistant-model", inputTokens: 1, outputTokens: 1, cachedInputTokens: 0, eur: 0.001 },
+          sections: ["planQuotas"],
         }),
       },
     });

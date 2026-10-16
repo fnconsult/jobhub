@@ -11,6 +11,10 @@
  *    messages; `rename` it; `delete` it.
  * Every read and change is scoped to the Administrator: another's conversation is
  * "not found". Never throws for bad input: an error code comes back.
+ * Each reply is saved with the Back Office sections it was told about. Saved history
+ * goes back to the assistant only within the roles the Administrator holds now: a
+ * reply drawing on a section they can no longer read is replayed as OUT_OF_ROLE_REPLY,
+ * so a role taken away never comes back through an old conversation.
  *
  * Kept apart from Candidates' Coach Conversations, in tables of their own, and counted
  * against no Plan Quota. They are the Administrator's personal data: in their data
@@ -20,6 +24,7 @@
 import type { Pool } from "pg";
 import * as z from "zod";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, type AssistantMessage } from "./conversation";
+import type { BackOfficeResource } from "../admin/access";
 import type { AskingAdministrator, BackOfficeAssistant } from "./index";
 
 export interface AssistantConversationSummary {
@@ -60,6 +65,12 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** Longest conversation title; a new conversation is named after the start of its first message. */
 export const MAX_TITLE_LENGTH = 80;
 
+/** What the assistant is told in place of a saved reply drawing on a section the Administrator can no longer read. */
+export const OUT_OF_ROLE_REPLY = "[Réponse retirée : elle portait sur des sections que vos rôles actuels ne couvrent plus.]";
+
+/** Postgres error code for a foreign key violation (here: the conversation was deleted meanwhile). */
+const FOREIGN_KEY_VIOLATION = "23503";
+
 /** How long a conversation is kept after its last message. */
 export const RETENTION_MONTHS = 12;
 
@@ -86,15 +97,25 @@ export function createAssistantConversations(database: Pool, deps: AssistantConv
     return rows[0] ?? null;
   }
 
-  /** The last `limit` messages of a conversation (all with null), oldest first. */
-  async function lastMessages(conversationId: string, limit: number | null): Promise<AssistantMessage[]> {
-    const { rows } = await database.query<AssistantMessage>(
-      `SELECT author AS "from", text FROM (
-         SELECT author, text, seq FROM back_office_assistant_message WHERE conversation_id = $1 ORDER BY seq DESC LIMIT $2
+  /** The last `limit` messages of a conversation (all with null), oldest first; replies with the sections they drew on. */
+  async function lastMessages(conversationId: string, limit: number | null): Promise<(AssistantMessage & { sections: BackOfficeResource[] | null })[]> {
+    const { rows } = await database.query<AssistantMessage & { sections: BackOfficeResource[] | null }>(
+      `SELECT author AS "from", text, sections FROM (
+         SELECT author, text, sections, seq FROM back_office_assistant_message WHERE conversation_id = $1 ORDER BY seq DESC LIMIT $2
        ) recent ORDER BY seq`,
       [conversationId, limit],
     );
     return rows;
+  }
+
+  /** The saved history as the assistant may be told it now: replies outside `administrator`'s current roles withdrawn. */
+  async function replayable(administrator: AskingAdministrator, conversationId: string): Promise<AssistantMessage[]> {
+    const saved = await lastMessages(conversationId, MAX_MESSAGES);
+    return saved.map(({ from, text, sections }) => {
+      // A reply with no sections recorded counts as drawing on every one.
+      const stillReadable = from === "administrator" || (sections !== null && sections.every((section) => administrator.access.can(section, "read")));
+      return { from, text: stillReadable ? text : OUT_OF_ROLE_REPLY };
+    });
   }
 
   return {
@@ -105,7 +126,7 @@ export function createAssistantConversations(database: Pool, deps: AssistantConv
 
       const existing = conversationId ? await find(administrator.id, conversationId) : null;
       if (conversationId && !existing) return { ok: false, error: "not_found" };
-      const history = existing ? await lastMessages(existing.id, MAX_MESSAGES) : [];
+      const history = existing ? await replayable(administrator, existing.id) : [];
 
       const answer = await deps.assistant.reply(administrator, { messages: [...history, { from: "administrator", text: message }] });
       if (!answer.ok) return answer;
@@ -129,13 +150,16 @@ export function createAssistantConversations(database: Pool, deps: AssistantConv
           sentAt,
         ]);
         await client.query(
-          `INSERT INTO back_office_assistant_message (conversation_id, author, text, created_at, provider, model, cost_eur) VALUES ($1, 'assistant', $2, $3, $4, $5, $6)`,
-          [id, answer.reply, sentAt, cost.provider, cost.model, cost.eur],
+          `INSERT INTO back_office_assistant_message (conversation_id, author, text, created_at, provider, model, cost_eur, sections)
+           VALUES ($1, 'assistant', $2, $3, $4, $5, $6, $7)`,
+          [id, answer.reply, sentAt, cost.provider, cost.model, cost.eur, answer.sections],
         );
         await client.query(`UPDATE back_office_assistant_conversation SET last_message_at = $2 WHERE id = $1`, [id, sentAt]);
         await client.query("COMMIT");
       } catch (error) {
         await client.query("ROLLBACK").catch(() => {});
+        // Deleted while the assistant was replying: nothing is saved.
+        if ((error as { code?: string }).code === FOREIGN_KEY_VIOLATION) return { ok: false, error: "not_found" };
         throw error;
       } finally {
         client.release();
@@ -155,7 +179,8 @@ export function createAssistantConversations(database: Pool, deps: AssistantConv
     async open(administratorId, conversationId) {
       const conversation = await find(administratorId, conversationId);
       if (!conversation) return null;
-      return { ...conversation, messages: await lastMessages(conversation.id, null) };
+      const messages = await lastMessages(conversation.id, null);
+      return { ...conversation, messages: messages.map(({ from, text }) => ({ from, text })) };
     },
 
     async rename(administratorId, conversationId, title) {
@@ -199,6 +224,8 @@ export async function migrateAssistantConversations(database: Pool): Promise<voi
   await database.query(`
     CREATE TABLE IF NOT EXISTS back_office_assistant_conversation (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      -- The Administrator's Candidate account (Administrators are Candidates with a Back Office Role):
+      -- named candidate_id like every table tied to an account, so deletion and export reach it.
       candidate_id text NOT NULL REFERENCES candidate (id) ON DELETE CASCADE,
       title text NOT NULL,
       created_at timestamptz NOT NULL DEFAULT now(),
@@ -217,6 +244,8 @@ export async function migrateAssistantConversations(database: Pool): Promise<voi
       model text,
       cost_eur double precision
     );
+    -- The Back Office sections each reply was told about (#205); null on the Administrator's messages.
+    ALTER TABLE back_office_assistant_message ADD COLUMN IF NOT EXISTS sections text[];
     CREATE INDEX IF NOT EXISTS back_office_assistant_message_conversation_idx ON back_office_assistant_message (conversation_id, seq);
   `);
 }

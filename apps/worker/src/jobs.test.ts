@@ -577,6 +577,7 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
             ok: true,
             reply: "Bonjour Claire",
             cost: { provider: "mistral", model: "mistral-large-latest", inputTokens: 100, outputTokens: 50, cachedInputTokens: 0, eur: 0.0001 },
+            sections: ["planQuotas"],
           }),
         },
       });

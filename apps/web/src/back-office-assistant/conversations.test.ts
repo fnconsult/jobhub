@@ -5,7 +5,7 @@ import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } f
 import { migrateCoachConversations } from "../coach-conversations";
 import { migrateProfiles } from "../profiles";
 import type { AskingAdministrator, AssistantReply } from "./index";
-import { createAssistantConversations, migrateAssistantConversations, purgeStaleAssistantConversations, type AssistantConversations } from "./conversations";
+import { createAssistantConversations, migrateAssistantConversations, OUT_OF_ROLE_REPLY, purgeStaleAssistantConversations, type AssistantConversations } from "./conversations";
 
 /** What the assistant was asked, per call. */
 type Asked = { administrator: AskingAdministrator; input: { messages: { from: string; text: string }[] } };
@@ -40,6 +40,7 @@ describe.skipIf(!connectionString)("Back Office Assistant conversations (needs P
       ok: true,
       reply: `Réponse ${n}`,
       cost: { provider: "mistral", model: "mistral-large", inputTokens: 1000, outputTokens: 100, cachedInputTokens: 0, eur: 0.002 },
+      sections: ["humanCoaches", "coachMessageCost"],
     });
     now = new Date();
     const assistant = {
@@ -75,6 +76,52 @@ describe.skipIf(!connectionString)("Back Office Assistant conversations (needs P
         { from: "assistant", text: "Réponse 2" },
       ],
     });
+  });
+
+  it("never brings back out-of-role data through saved history: a super-admin made Coach manager reopens a conversation", async () => {
+    const superAdmin: AskingAdministrator = { id: claire.id, access: backOfficeAccess(["super-admin"]) };
+    assistantReply = (n) => ({
+      ok: true,
+      reply: n === 1 ? "Journal : Paul a reçu le rôle Support le 13 octobre." : "Deux coachs en activité.",
+      cost: { provider: "mistral", model: "mistral-large", inputTokens: 1, outputTokens: 1, cachedInputTokens: 0, eur: 0.001 },
+      sections: n === 1 ? ["planQuotas", "humanCoaches", "coachMessageCost", "roles", "audit", "providerSecrets", "ssoProviders"] : ["humanCoaches", "coachMessageCost"],
+    });
+    const first = await conversations.send(superAdmin, { message: "Qui a changé les rôles ?" });
+    if (!first.ok) throw new Error("refused");
+
+    const coachManager: AskingAdministrator = { id: claire.id, access: backOfficeAccess(["coach-manager"]) };
+    await conversations.send(coachManager, { conversationId: first.conversation.id, message: "Et les coachs ?" });
+
+    const replayed = JSON.stringify(asked[1]!.input.messages);
+    expect(replayed).not.toContain("Journal");
+    expect(replayed).not.toContain("Support");
+    expect(asked[1]!.input.messages).toEqual([
+      { from: "administrator", text: "Qui a changé les rôles ?" },
+      { from: "assistant", text: OUT_OF_ROLE_REPLY },
+      { from: "administrator", text: "Et les coachs ?" },
+    ]);
+    // A reply within the roles they hold now is replayed as it was.
+    await conversations.send(coachManager, { conversationId: first.conversation.id, message: "Merci" });
+    expect(asked[2]!.input.messages.at(-2)).toEqual({ from: "assistant", text: "Deux coachs en activité." });
+    // As a super-admin again, the first reply comes back.
+    await conversations.send(superAdmin, { conversationId: first.conversation.id, message: "Encore ?" });
+    expect(asked[3]!.input.messages[1]).toEqual({ from: "assistant", text: "Journal : Paul a reçu le rôle Support le 13 octobre." });
+  });
+
+  it("answers not found, saving nothing, when the conversation is deleted while the assistant replies", async () => {
+    const first = await conversations.send(claire, { message: "Bonjour" });
+    if (!first.ok) throw new Error("refused");
+    const assistant = {
+      async reply() {
+        await conversations.delete(claire.id, first.conversation.id);
+        return assistantReply(1);
+      },
+    };
+    const racing = createAssistantConversations(database, { assistant });
+
+    expect(await racing.send(claire, { conversationId: first.conversation.id, message: "Encore ?" })).toEqual({ ok: false, error: "not_found" });
+    const { rows } = await database.query("SELECT count(*)::int AS n FROM back_office_assistant_message");
+    expect(rows[0].n).toBe(0);
   });
 
   it("keeps them apart from Candidate Coach Conversations", async () => {

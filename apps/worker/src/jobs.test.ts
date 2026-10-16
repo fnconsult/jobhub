@@ -79,7 +79,7 @@ const measuredRun = discoveryReport({
 /** What the Job Search or Job Digest keeps of `measuredRun`. */
 const measuredMetrics = {
   funnel: { providerUrls: 6, fetched: 3, extracted: 2, alreadyStored: 1, afterDedup: 2, matched: 1 },
-  skipped: { robots: 0, site_terms: 1, bot_protection: 0, login_wall: 0, not_public: 0, gone: 2, unreachable: 0, not_a_job_offer: 1, invalid: 0, too_old: 0 },
+  skipped: { robots: 0, site_terms: 1, bot_protection: 0, login_wall: 0, not_public: 0, gone: 2, unreachable: 0, not_a_job_offer: 1, invalid: 0, too_old: 0, site_disabled: 0 },
   costEur: 0.0123,
   franceTravail: { status: "searched", offers: 1, calls: 2 },
 };

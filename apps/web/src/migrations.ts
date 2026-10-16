@@ -19,6 +19,7 @@ import { migrateJobDigests } from "./job-digests/index";
 import { migrateJobOffers } from "./job-offers/index";
 import { migrateJobSearches } from "./job-searches/index";
 import { migrateProfiles } from "./profiles/index";
+import { migrateSearchSites } from "./search-sites/index";
 import { migrateTailoredCvs } from "./tailored-cv/index";
 import { migrateTailoredDocuments } from "./tailored-documents/index";
 
@@ -44,6 +45,7 @@ export async function migrateDatabase(config: AuthConfig, onMigrated: (done: str
     ["Job Digests are up to date", () => migrateJobDigests(database)],
     ["Human Coaches, Coach Access and Coaching Sessions are up to date", () => migrateHumanCoaches(database)],
     ["Coach Conversations are up to date", () => migrateCoachConversations(database)],
+    ["Job Sites, Job discovery sources and Job discovery sites are up to date", () => migrateSearchSites(database)],
   ];
   for (const [done, migrate] of steps) {
     await migrate();

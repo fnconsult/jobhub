@@ -397,6 +397,10 @@ _Avoid_: Tier, package, offer (ambiguous with Job Offer)
 Whether a Candidate has ever been charged for a Plan, even if they are back on Free. It decides whether the invoices entry is offered on the subscription page. A Coaching Session payment alone does not count.
 _Avoid_: Billing history, customer status
 
+**Scheduled Cancellation**:
+A paid Plan the Candidate cancelled in the Stripe customer portal for a later date, usually the end of the paid period. The Candidate keeps the Plan until then, the subscription page shows "<Plan> jusqu'au <date>", and renewing removes the date. An immediate cancellation drops to Free at once.
+_Avoid_: Pending cancellation, expiry
+
 **Plan Price**:
 What a Plan costs each billing interval, shown in the plan comparison. Read from Stripe, never set by us; Free costs 0. Left out when Stripe cannot give it.
 _Avoid_: Tariff, fee

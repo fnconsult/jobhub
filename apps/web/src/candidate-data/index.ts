@@ -9,7 +9,7 @@
  *    (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and
  *    Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored
  *    Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach
- *    Conversations, Coach Access, Coaching Sessions and Action Cards. Profiles and Applications
+ *    Conversations, Coach Memory, Coach Access, Coaching Sessions and Action Cards. Profiles and Applications
  *    are read through the modules that own them, so they show what the app shows; the rest is
  *    read as stored. Secrets (sign-in tokens, the unsubscribe link), Stripe's and the contact
  *    data providers' identifiers, and what each AI reply cost are left out. EXPORTED_TABLES
@@ -181,6 +181,8 @@ export interface CandidateDataExport {
   coachingSessions: (Omit<CoachingSession, "coach"> & { coach: CoachNamed })[];
   /** Every Action Card the AI Coach proposed, pending or decided, newest first. */
   actionCards: ExportedActionCard[];
+  /** What the Candidate confirmed the AI Coach should remember, oldest first. */
+  coachMemory: { id: string; kind: string; text: string; createdAt: Date; updatedAt: Date }[];
   /** Oldest first, archived ones included. */
   profiles: ExportedProfile[];
   /** Newest first. */
@@ -219,6 +221,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coach_access: "coachAccess",
   coaching_session: "coachingSessions (no Stripe identifiers)",
   action_card: "actionCards",
+  coach_memory_item: "coachMemory",
 };
 
 export interface CandidateData {
@@ -391,7 +394,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   return {
     async export(candidateId) {
-      const [account, plan, quotaUsage, euAiConsent, followUpDelays, coachConversations, coachAccess, coachingSessions, actionCards, profiles, applications] = await Promise.all([
+      const [account, plan, quotaUsage, euAiConsent, followUpDelays, coachConversations, coachAccess, coachingSessions, actionCards, coachMemory, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
         rowOf<NonNullable<CandidateDataExport["plan"]>>(
           `SELECT plan, stripe_status AS "subscriptionStatus", ends_at AS "endsAt" FROM candidate_plan WHERE candidate_id = $1`,
@@ -416,10 +419,14 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
              FROM action_card WHERE candidate_id = $1 ORDER BY created_at DESC, id`,
           candidateId,
         ),
+        rowsOf<CandidateDataExport["coachMemory"][number]>(
+          `SELECT id, kind, text, created_at AS "createdAt", updated_at AS "updatedAt" FROM coach_memory_item WHERE candidate_id = $1 ORDER BY created_at, id`,
+          candidateId,
+        ),
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, plan, quotaUsage, euAiConsent, followUpDelays, profiles, applications, coachConversations, coachAccess, coachingSessions, actionCards };
+      return { exportedAt: new Date(), account, plan, quotaUsage, euAiConsent, followUpDelays, profiles, applications, coachConversations, coachAccess, coachingSessions, actionCards, coachMemory };
     },
 
     async delete(candidateId) {

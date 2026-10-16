@@ -202,6 +202,15 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     ]);
   });
 
+  it("the export holds the Coach Memory the Candidate confirmed, oldest first", async () => {
+    await database.query(`INSERT INTO coach_memory_item (candidate_id, kind, text, created_at) VALUES ($1, 'goal', 'Devenir DAF', now() - interval '1 day'), ($1, 'constraint', 'Pas de télétravail partiel', now())`, [candidateId]);
+
+    expect((await candidateData.export(candidateId)).coachMemory).toEqual([
+      { id: expect.any(String), kind: "goal", text: "Devenir DAF", createdAt: expect.any(Date), updatedAt: expect.any(Date) },
+      expect.objectContaining({ kind: "constraint", text: "Pas de télétravail partiel" }),
+    ]);
+  });
+
   it("the export holds each Profile's ATS Score, or null when its Master CV was never scored", async () => {
     const scoredId = await createProfile(candidateId, "DAF");
     await createProfile(candidateId, "DSI");

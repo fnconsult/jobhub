@@ -48,7 +48,7 @@ export default defineConfig({
   projects: [
     {
       name: "web",
-      testMatch: /(web|database-connections|auth|account-data|profiles|master-cv|match-score|ats-score|coach|coach-context|coach-playbooks|billing|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|human-coaches|eu-ai-consent|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|profile-page)\.spec\.ts/,
+      testMatch: /(web|database-connections|auth|account-data|profiles|master-cv|match-score|ats-score|coach|coach-panel-reply|coach-context|coach-memory|coach-playbooks|billing|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|human-coaches|eu-ai-consent|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|profile-page)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" },
     },
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },

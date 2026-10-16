@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { fromCatalogue, renderedTexts } from "./support/accessibility";
 import { approveAtGoogle, refuseAtGoogle, signInWithMagicLink } from "./support/candidate";
 import { emailsTo, linkIn, newAddress, waitForEmail } from "./support/mailbox";
+import { startServer } from "./support/plan-prices";
 
 // Issue #2: passwordless sign-up / sign-in and the Candidate account, through
 // the web app's pages and its /api/auth HTTP API.
@@ -190,5 +191,45 @@ test.describe("Interface Language", () => {
     expect(response.status()).toBe(400);
     const session = await (await page.request.get("/api/auth/get-session")).json();
     expect(session.user.interfaceLanguage).toBe("fr");
+  });
+});
+
+// Issue #170: the sign-in page's text mentions Google only when Google sign-in is configured.
+// The suite's server has Google configured; a second build of the app has it unset.
+test.describe("sign-in page text and Google sign-in", () => {
+  test("with Google sign-in configured, the text and the button still mention Google", async ({ page }) => {
+    await page.goto("/connexion");
+    await expect(page.getByText("ou utilisez votre compte Google")).toBeVisible();
+    await expect(page.locator("p.lead")).toHaveText(fr.signIn.intro);
+    await expect(page.getByRole("button", { name: fr.signIn.google })).toBeVisible();
+
+    await page.goto("/connexion?error=access_denied");
+    await expect(page.getByRole("main").getByRole("alert")).toHaveText(fr.signIn.failed);
+    await expect(page.getByRole("main").getByRole("alert")).toContainText("Google");
+  });
+
+  test.describe("with Google sign-in not configured", () => {
+    test.describe.configure({ mode: "serial", timeout: 180_000 });
+    let server: Awaited<ReturnType<typeof startServer>>;
+    test.beforeAll(async () => {
+      server = await startServer(170, { GOOGLE_CLIENT_ID: undefined, GOOGLE_CLIENT_SECRET: undefined }, "start");
+    });
+    test.afterAll(() => server?.stop());
+
+    // Visitors who are not signed in always get French (a signed-in Candidate is sent on to their
+    // account), so the English text is covered by apps/web/src/auth/sign-in-copy.test.ts.
+    test("the text does not mention Google", async ({ page }) => {
+      await page.goto(`${server.origin}/connexion`);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.signIn.title);
+      await expect(page.locator("p.lead")).toHaveText(fr.signIn.introWithoutGoogle);
+      await expect(page.getByRole("button", { name: fr.signIn.google })).toHaveCount(0);
+      expect(await page.locator("main").innerText()).not.toMatch(/google/i);
+    });
+
+    test("the failed-sign-in notice does not mention Google either", async ({ page }) => {
+      await page.goto(`${server.origin}/connexion?error=access_denied`);
+      await expect(page.getByRole("main").getByRole("alert")).toHaveText(fr.signIn.failedWithoutGoogle);
+      expect(await page.locator("main").innerText()).not.toMatch(/google/i);
+    });
   });
 });

@@ -401,6 +401,11 @@ body:not(:has(.app-shell)) .coach-panel {
   border-bottom: 1px solid var(--color-border);
 }
 
+/* Tighter buttons, so the three tools take two rows at most and leave room for the messages. */
+.coach-panel-tools .button {
+  padding-inline: var(--space-3);
+}
+
 /* What the conversation is and what the coach sees, above the messages. */
 .coach-panel-context {
   display: flex;
@@ -500,6 +505,39 @@ body:not(:has(.app-shell)) .coach-panel {
 .coach-conversation-title {
   margin: 0;
   font-size: inherit;
+}
+
+/* The Candidate's Coach Memory, and the AI Coach's proposals to add to it, inside the Coach Panel. */
+.coach-memory h3,
+.coach-memory-proposals h4 {
+  margin: 0;
+}
+
+.coach-memory-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.coach-memory-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow-wrap: anywhere;
+}
+
+.coach-memory-item p {
+  margin: 0;
+}
+
+.coach-memory-kind {
+  font-weight: 600;
 }
 
 /* A text button that reads like a link: here, a conversation's name opens it. */

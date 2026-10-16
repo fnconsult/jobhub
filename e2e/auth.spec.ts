@@ -204,8 +204,8 @@ test.describe("sign-in page text and Google sign-in", () => {
     await expect(page.getByRole("button", { name: fr.signIn.google })).toBeVisible();
 
     await page.goto("/connexion?error=access_denied");
-    await expect(page.getByRole("alert")).toHaveText(fr.signIn.failed);
-    await expect(page.getByRole("alert")).toContainText("Google");
+    await expect(page.getByRole("main").getByRole("alert")).toHaveText(fr.signIn.failed);
+    await expect(page.getByRole("main").getByRole("alert")).toContainText("Google");
   });
 
   test.describe("with Google sign-in not configured", () => {
@@ -228,7 +228,7 @@ test.describe("sign-in page text and Google sign-in", () => {
 
     test("the failed-sign-in notice does not mention Google either", async ({ page }) => {
       await page.goto(`${server.origin}/connexion?error=access_denied`);
-      await expect(page.getByRole("alert")).toHaveText(fr.signIn.failedWithoutGoogle);
+      await expect(page.getByRole("main").getByRole("alert")).toHaveText(fr.signIn.failedWithoutGoogle);
       expect(await page.locator("main").innerText()).not.toMatch(/google/i);
     });
   });

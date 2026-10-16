@@ -324,6 +324,31 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(JSON.stringify(exported)).not.toContain("sophie.coach@example.fr");
   });
 
+  it("the export holds the Enriched Contacts obtained for each Application, revealed or only found, with where they come from", async () => {
+    const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));
+    // Found through the configured provider, one of them revealed.
+    await database.query(
+      `INSERT INTO enriched_contact (application_id, provider, provider_person_id, name, job_title, emails, phones, found_at, retrieved_at) VALUES
+         ($1, 'lusha', 'provider-person-1', 'Claire Durand', 'DRH', ARRAY['claire.durand@acme.fr'], ARRAY['+33 6 12 34 56 78'], '2026-10-01T09:00:00Z', '2026-10-01T09:05:00Z'),
+         ($1, 'lusha', 'provider-person-2', 'Luc Bernard', NULL, '{}', '{}', '2026-10-01T09:00:01Z', NULL)`,
+      [application.id],
+    );
+
+    expect((await candidateData.export(candidateId)).applications[0]!.enrichedContacts).toEqual([
+      {
+        id: expect.any(String),
+        name: "Claire Durand",
+        jobTitle: "DRH",
+        emails: ["claire.durand@acme.fr"],
+        phones: ["+33 6 12 34 56 78"],
+        provider: "lusha",
+        foundAt: new Date("2026-10-01T09:00:00Z"),
+        retrievedAt: new Date("2026-10-01T09:05:00Z"),
+      },
+      { id: expect.any(String), name: "Luc Bernard", jobTitle: null, emails: [], phones: [], provider: "lusha", foundAt: new Date("2026-10-01T09:00:01Z"), retrievedAt: null },
+    ]);
+  });
+
   it("deleting the account removes the Candidate and everything of theirs, signs them out, and keeps the Job Offers", async () => {
     const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
     const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));

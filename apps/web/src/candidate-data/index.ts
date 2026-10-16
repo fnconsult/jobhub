@@ -23,6 +23,7 @@ import type { ChosenFrequency } from "../job-digests";
 import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
 import type { CoachMessage } from "../coach";
 import type { CoachingSession, CoachReview } from "../human-coaches";
+import type { ContactProviderId } from "../enriched-contacts";
 import type { FollowUpDelays } from "../follow-ups";
 import type { MasterCvVersion, Profiles } from "../profiles";
 import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
@@ -91,6 +92,22 @@ export interface ExportedApplication extends Omit<Application, "matchScore"> {
   followUps: { sentAt: Date }[];
   /** Human Coaches' feedback on its Tailored Documents, oldest first. */
   coachReviews: CoachReview[];
+  /** The people at the employer the Candidate obtained from a contact data provider (ADR-0015), in the order found. */
+  enrichedContacts: ExportedEnrichedContact[];
+}
+
+/** A person found at the employer: contact details once the Candidate revealed them, empty before. */
+export interface ExportedEnrichedContact {
+  id: string;
+  name: string;
+  jobTitle: string | null;
+  emails: string[];
+  phones: string[];
+  /** The contact data provider the details come from. */
+  provider: ContactProviderId;
+  foundAt: Date;
+  /** When the contact details were retrieved; null while the person is only found. */
+  retrievedAt: Date | null;
 }
 
 /** A Coach Conversation with the AI Coach, every message included (what each reply cost is internal, left out). */
@@ -217,6 +234,11 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
          FROM coach_review r JOIN human_coach h ON h.id = r.coach_id WHERE r.candidate_id = $1 ORDER BY r.created_at, r.id`,
       candidateId,
     );
+    const enrichedContactsOf = await grouped<ExportedEnrichedContact>(
+      `SELECT e.application_id AS key, e.id, e.name, e.job_title AS "jobTitle", e.emails, e.phones, e.provider, e.found_at AS "foundAt", e.retrieved_at AS "retrievedAt"
+         FROM enriched_contact e JOIN application a ON a.id = e.application_id WHERE a.candidate_id = $1 ORDER BY e.found_at, e.id`,
+      candidateId,
+    );
     const summaries = await deps.applications.list(candidateId);
     const exported = await Promise.all(
       summaries.map(async ({ id }): Promise<ExportedApplication | null> => {
@@ -245,6 +267,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           },
           followUps: followUpsOf(id),
           coachReviews: coachReviewsOf(id),
+          enrichedContacts: enrichedContactsOf(id),
         };
       }),
     );

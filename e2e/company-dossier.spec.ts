@@ -117,7 +117,12 @@ test.describe("Company Dossier", () => {
 
     await dossier.getByRole("button", { name: t.build }).click();
 
-    await expect(dossier.getByRole("link", { name: /251113-press-release-en\.pdf$/ })).toBeVisible();
+    const link = dossier.getByRole("link", { name: /251113-press-release-en\.pdf$/ });
+    await expect(link).toBeVisible();
+    // The long URL wraps over several lines inside the screen instead of running past its edge.
+    const box = await link.boundingBox();
+    expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+    expect(box!.height).toBeGreaterThan(40);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
   });
 

@@ -75,17 +75,16 @@ const RULE = /^(?:-{3,}|\*{3,}|_{3,})$/;
 const HEADING = /^#{1,6}\s+(.+)$/;
 const ITEM = /^(?:[-*+•]|(?<number>\d{1,9})[.)])\s+(?<text>.+)$/u;
 
+type List = Extract<CoachReplyBlock, { kind: "list" }>;
+
 /** The blocks of the AI Coach reply `text`, in order. */
 export function coachReplyBlocks(text: string): CoachReplyBlock[] {
   const blocks: CoachReplyBlock[] = [];
-  /** The block lines go on, and the list item, while no blank line or other block came between. */
-  let current: CoachReplyBlock | null = null;
+  // Lines go on in the open paragraph, or list item, until a blank line or another block comes between.
+  let paragraph: Line[] | null = null;
+  let list: List | null = null;
   let item: Line[] | null = null;
   let afterBlank = false;
-  const close = () => {
-    current = null;
-    item = null;
-  };
   for (const raw of text.replace(/\r\n?/g, "\n").split("\n")) {
     const line = raw.trim();
     if (!line) {
@@ -94,29 +93,26 @@ export function coachReplyBlocks(text: string): CoachReplyBlock[] {
     }
     const heading = HEADING.exec(line);
     const listItem = ITEM.exec(line);
-    if (RULE.test(line)) close();
-    else if (heading) {
-      blocks.push({ kind: "paragraph", lines: [inlines(heading[1]!, { strong: true, emphasis: false })] });
-      close();
+    if (RULE.test(line) || heading) {
+      if (heading) blocks.push({ kind: "paragraph", lines: [inlines(heading[1]!, { strong: true, emphasis: false })] });
+      paragraph = list = item = null;
     } else if (listItem) {
       const { number, text: itemText } = listItem.groups!;
       const ordered = number !== undefined;
       // Blank lines between items keep one list: models often space them out.
-      let list: CoachReplyBlock | null = current;
-      if (list?.kind !== "list" || list.ordered !== ordered) {
+      if (!list || list.ordered !== ordered) {
         list = { kind: "list", ordered, start: ordered ? Number(number) : 1, items: [] };
         blocks.push(list);
       }
       list.items.push((item = [inlines(itemText!)]));
-      current = list;
+      paragraph = null;
     } else {
       const shown = inlines(line.replace(/^>\s?/, ""));
       if (item && !afterBlank) item.push(shown);
-      else if (current?.kind === "paragraph" && !afterBlank) current.lines.push(shown);
+      else if (paragraph && !afterBlank) paragraph.push(shown);
       else {
-        current = { kind: "paragraph", lines: [shown] };
-        item = null;
-        blocks.push(current);
+        blocks.push({ kind: "paragraph", lines: (paragraph = [shown]) });
+        list = item = null;
       }
     }
     afterBlank = false;

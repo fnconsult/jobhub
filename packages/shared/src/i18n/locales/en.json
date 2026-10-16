@@ -696,7 +696,7 @@
       "newValueHelp": "Pasted here, it is tested with the provider, then encrypted. It will never be shown again.",
       "saveAnyway": "Save even if the connection test fails",
       "saveAnywayHelp": "This choice is recorded in the journal.",
-      "replace": "Replace {{name}}",
+      "replace": "Test and save {{name}}",
       "clear": "Clear {{name}} (back to the environment)",
       "test": "Test {{name}}",
       "noMasterKey": "Saving is off: SECRETS_MASTER_KEYS is not set on this server. Keys come from the environment only.",

@@ -116,6 +116,8 @@ export default defineConfig({
       // Enriched Contacts (#23) on Apollo, faked; the DPA flag stands for the signed agreement.
       CONTACT_ENRICHMENT_PROVIDER: "apollo",
       APOLLO_API_KEY: "e2e-apollo-key",
+      // No Lusha key, whatever the shell has: the Clés specs (#208) enter one.
+      LUSHA_API_KEY: "",
       CONTACT_ENRICHMENT_DPA_SIGNED: "true",
     },
   },

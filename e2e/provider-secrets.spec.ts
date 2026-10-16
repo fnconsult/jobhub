@@ -26,7 +26,7 @@ const row = (page: Page, name: string) => page.getByRole("row").filter({ has: pa
 /** Pastes `value` as the new value of `name`, ticking "save anyway" if asked, and submits. */
 async function replace(page: Page, name: string, value: string, { saveAnyway = false } = {}) {
   await page.goto("/admin/cles");
-  await page.getByText(tr(keys.replaceLegend, { name }), { exact: true }).click();
+  await page.locator("summary", { hasText: tr(keys.replaceLegend, { name }) }).click();
   await page.getByLabel(tr(keys.newValue, { name })).fill(value);
   if (saveAnyway) await page.locator(`#anyway-${name}`).check();
   await page.getByRole("button", { name: tr(keys.replace, { name }) }).click();
@@ -112,7 +112,7 @@ test.describe("Provider Secrets (the Clés section)", () => {
     await expect(page.getByRole("main").getByRole("status")).toHaveText(tr(keys.saved, { name: NAME }));
     await expect(row(page, NAME)).toContainText(keys.sources.database);
     // The field is write-only: empty again.
-    await page.getByText(tr(keys.replaceLegend, { name: NAME }), { exact: true }).click();
+    await page.locator("summary", { hasText: tr(keys.replaceLegend, { name: NAME }) }).click();
     await expect(page.getByLabel(tr(keys.newValue, { name: NAME }))).toHaveValue("");
     await row(page, NAME).getByRole("button", { name: tr(keys.test, { name: NAME }) }).click();
     await expect(page.getByRole("main").getByRole("status")).toHaveText(tr(keys.testPassed, { name: NAME }));
@@ -149,7 +149,8 @@ test.describe("Provider Secrets (the Clés section)", () => {
 
     // Support replays the super-admin's replace form by hand.
     await page.goto("/admin/cles");
-    const form = page.locator("form").filter({ has: page.getByRole("button", { name: tr(keys.replace, { name: NAME }) }) });
+    // Folded away (in a closed <details>), so found by its fields rather than its button's role.
+    const form = page.locator("form").filter({ has: page.locator(`input[name="name"][value="${NAME}"]`) }).filter({ has: page.locator('input[name="value"]') });
     const actionField = await form.locator('input[name^="$ACTION_ID_"]').getAttribute("name");
     expect(actionField).toBeTruthy();
     const forged = await supportPage.request.post("/admin/cles", {

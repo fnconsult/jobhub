@@ -696,7 +696,7 @@
       "newValueHelp": "Collée ici, elle est testée auprès du fournisseur puis chiffrée. Elle ne sera plus jamais affichée.",
       "saveAnyway": "Enregistrer même si le test de connexion échoue",
       "saveAnywayHelp": "Ce choix est inscrit au journal.",
-      "replace": "Remplacer {{name}}",
+      "replace": "Tester et enregistrer {{name}}",
       "clear": "Effacer {{name}} (revenir à l'environnement)",
       "test": "Tester {{name}}",
       "noMasterKey": "Enregistrement désactivé : SECRETS_MASTER_KEYS n'est pas défini sur ce serveur. Les clés viennent uniquement de l'environnement.",

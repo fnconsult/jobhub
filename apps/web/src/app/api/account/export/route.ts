@@ -3,8 +3,10 @@ import { getCurrentCandidate } from "@/auth/server";
 import { getCandidateData } from "@/candidate-data/server";
 
 /**
- * Downloads all the Candidate's data (ADR-0010) as one JSON file: their account,
- * Profiles with every Master CV Version, Applications and Tailored Documents.
+ * Downloads all the Candidate's personal data (ADR-0010, GDPR art. 15 / 20) as one
+ * JSON file: their account, Plan, consents and settings, Profiles, Applications,
+ * Coach Conversations, Coach Access, Coaching Sessions and Action Cards (see
+ * CandidateDataExport). Secrets and providers' internal identifiers are left out.
  * 200 file · 401
  */
 export async function GET() {

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { BASE_URL, connectionString } from "../auth/test-support";
 import { migrateDatabase } from "../migrations";
 import { createThrowawayDatabase, type ThrowawayDatabase } from "../test-support/throwaway-database";
+import { EXPORTED_TABLES } from "./index";
 
 /** Tables kept when a Candidate is deleted (ADR-0010): shared, not personal data. */
 const KEPT = ["job_offer", "plan_quota"];
@@ -12,7 +13,7 @@ interface ForeignKey {
   onDelete: "cascade" | "other";
 }
 
-describe.skipIf(!connectionString)("What deleting a Candidate reaches, across every table (needs Postgres: DATABASE_URL)", () => {
+describe.skipIf(!connectionString)("What deleting or exporting a Candidate reaches, across every table (needs Postgres: DATABASE_URL)", () => {
   let throwaway: ThrowawayDatabase;
   let foreignKeys: ForeignKey[];
 
@@ -62,6 +63,12 @@ describe.skipIf(!connectionString)("What deleting a Candidate reaches, across ev
     const loose = rows.map((row) => row.table).filter((table) => !tablesTiedToCandidate().has(table));
 
     expect(loose).toEqual([]);
+  });
+
+  it("every table tied to a Candidate is in their data export (GDPR art. 15 / 20), so a new table cannot be left out of it", () => {
+    const missing = [...tablesTiedToCandidate()].filter((table) => !(table in EXPORTED_TABLES));
+
+    expect(missing).toEqual([]);
   });
 
   it("shared Job Offers and Plan Quotas are not tied to any Candidate, so they are kept", () => {

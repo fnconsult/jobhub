@@ -3,12 +3,19 @@ import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import type { MasterCvContent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createApplications, migrateApplications, type Applications } from "../applications";
-import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
-import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
-import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
-import { createTailoredCvs, migrateTailoredCvs } from "../tailored-cv";
-import { createTailoredDocuments, migrateTailoredDocuments } from "../tailored-documents";
+import { createApplications, type Applications } from "../applications";
+import { BASE_URL, connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
+import { createActionCards } from "../action-cards";
+import { createAtsScoring } from "../ats-score";
+import { createCoachConversations } from "../coach-conversations";
+import { createHumanCoaches } from "../human-coaches";
+import { createEuAiConsents } from "../eu-ai-consent";
+import { createFollowUps } from "../follow-ups";
+import { createJobOffers, type JobOffers } from "../job-offers";
+import { migrateDatabase } from "../migrations";
+import { createProfiles, type Profiles } from "../profiles";
+import { createTailoredCvs } from "../tailored-cv";
+import { createTailoredDocuments } from "../tailored-documents";
 import { createCandidateData, type CandidateData } from "./index";
 
 const masterCv: MasterCvContent = {
@@ -75,11 +82,8 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
   beforeEach(async () => {
     testAuth = await startTestAuth();
     database = testAuth.database;
-    await migrateProfiles(database);
-    await migrateJobOffers(database);
-    await migrateApplications(database);
-    await migrateTailoredDocuments(database);
-    await migrateTailoredCvs(database);
+    // Every table: the export reaches all of the Candidate's data.
+    await migrateDatabase({ database, baseURL: BASE_URL, secret: "test-secret-test-secret-test-secret-0123", mailer: { send: async () => {} } });
     profiles = createProfiles(database);
     jobOffers = createJobOffers(database);
     applications = createApplications(database, { jobOffers, profiles });
@@ -99,6 +103,8 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       name: expect.any(String),
       interfaceLanguage: "fr",
       createdAt: expect.any(Date),
+      signInMethods: [],
+      sessions: [expect.objectContaining({ createdAt: expect.any(Date) })],
     });
   });
 
@@ -120,6 +126,10 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
           expect.objectContaining({ version: 2, restoredFrom: null, content: { ...masterCv, summary: "20 ans de finance." } }),
           expect.objectContaining({ version: 1, restoredFrom: null, content: masterCv }),
         ],
+        atsScore: null,
+        jobSearches: [],
+        jobDigest: null,
+        jobDigests: [],
       },
       expect.objectContaining({ name: "Consultant transformation", archived: true, masterCvVersions: [expect.objectContaining({ version: 1 })] }),
     ]);
@@ -155,6 +165,256 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         },
       }),
     ]);
+  });
+
+  it("the export holds the Candidate's EU AI consent, dated, or null when they have not given it", async () => {
+    expect((await candidateData.export(candidateId)).euAiConsent).toBeNull();
+    const givenAt = await createEuAiConsents(database, { now: () => new Date("2026-09-01T08:00:00Z") }).give(candidateId);
+
+    expect((await candidateData.export(candidateId)).euAiConsent).toEqual({ givenAt: new Date("2026-09-01T08:00:00Z") });
+    expect(givenAt).toEqual(new Date("2026-09-01T08:00:00Z"));
+  });
+
+  it("the export holds the Follow-up Delays the Candidate set (null while they keep the defaults) and the Follow-ups sent on each Application", async () => {
+    const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));
+    expect(await candidateData.export(candidateId)).toMatchObject({ followUpDelays: null, applications: [{ followUps: [] }] });
+    const followUps = createFollowUps(database, { actionCards: createActionCards(database), applications, mailer: { send: async () => {} }, appUrl: BASE_URL });
+    await followUps.setDelays(candidateId, { afterApplied: 5, afterFollowUp: 12 });
+    // Sent when the Candidate accepts a Follow-up card or sets "Relancée".
+    await database.query(`INSERT INTO follow_up_sent (application_id, sent_at) VALUES ($1, '2026-10-02T09:00:00Z'), ($1, '2026-09-20T09:00:00Z')`, [application.id]);
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.followUpDelays).toEqual({ afterApplied: 5, afterFollowUp: 12 });
+    expect(exported.applications[0]!.followUps).toEqual([{ sentAt: new Date("2026-09-20T09:00:00Z") }, { sentAt: new Date("2026-10-02T09:00:00Z") }]);
+  });
+
+  it("the export holds every Action Card the AI Coach proposed, pending or decided, newest first", async () => {
+    const profileId = await createProfile(candidateId, "DAF");
+    const actionCards = createActionCards(database);
+    const first = await actionCards.propose(candidateId, { kind: "ats_fix", title: "Ajoutez SAP", body: "Le mot-clé manque.", focus: { kind: "profile", id: profileId }, payload: { fix: "x" } });
+    await actionCards.decide(candidateId, first.id, "dismiss");
+    const second = await actionCards.propose(candidateId, { kind: "follow_up", title: "Relancez Acme", body: "Une semaine déjà.", focus: { kind: "profile", id: profileId }, payload: null });
+
+    expect((await candidateData.export(candidateId)).actionCards).toEqual([
+      { id: second.id, kind: "follow_up", title: "Relancez Acme", body: "Une semaine déjà.", focus: { kind: "profile", id: profileId }, payload: null, status: "pending", createdAt: expect.any(Date), decidedAt: null },
+      expect.objectContaining({ id: first.id, title: "Ajoutez SAP", payload: { fix: "x" }, status: "dismissed", decidedAt: expect.any(Date) }),
+    ]);
+  });
+
+  it("the export holds each Profile's ATS Score, or null when its Master CV was never scored", async () => {
+    const scoredId = await createProfile(candidateId, "DAF");
+    await createProfile(candidateId, "DSI");
+    const analysed = await createAtsScoring({ database, profiles, actionCards: createActionCards(database) }).analyse(candidateId, scoredId, "fr");
+    if (!analysed.ok) throw new Error("fixture ATS Score refused");
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.profiles.map((profile) => profile.atsScore)).toEqual([
+      { version: 1, score: analysed.atsScore.score, computedAt: analysed.atsScore.computedAt },
+      null,
+    ]);
+    expect(analysed.atsScore.score).toMatchObject({ score: expect.any(Number) });
+  });
+
+  it("the export holds each Profile's Job Searches with the Job Offers they found, newest first", async () => {
+    const profileId = await createProfile(candidateId, "DAF");
+    const captured = await jobOffers.capture(OFFER);
+    if (!captured.ok) throw new Error("fixture Job Offer refused");
+    // Started from the Profile page, finished by Job discovery.
+    await database.query(
+      `INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, failure, started_at, finished_at) VALUES
+         ($1, $2, 'done', ARRAY[$3::uuid], NULL, '2026-10-01T08:00:00Z', '2026-10-01T08:04:00Z'),
+         ($1, $2, 'failed', '{}', 'timeout', '2026-10-05T08:00:00Z', '2026-10-05T08:15:00Z')`,
+      [candidateId, profileId, captured.jobOffer.id],
+    );
+
+    expect((await candidateData.export(candidateId)).profiles[0]!.jobSearches).toEqual([
+      { id: expect.any(String), status: "failed", failure: "timeout", startedAt: new Date("2026-10-05T08:00:00Z"), finishedAt: new Date("2026-10-05T08:15:00Z"), jobOfferIds: [] },
+      { id: expect.any(String), status: "done", failure: null, startedAt: new Date("2026-10-01T08:00:00Z"), finishedAt: new Date("2026-10-01T08:04:00Z"), jobOfferIds: [captured.jobOffer.id] },
+    ]);
+  });
+
+  it("the export holds each Profile's Job Digest settings and the Job Digests sent, but not the secret unsubscribe link", async () => {
+    const profileId = await createProfile(candidateId, "DAF");
+    const otherProfileId = await createProfile(candidateId, "DSI");
+    const captured = await jobOffers.capture(OFFER);
+    if (!captured.ok) throw new Error("fixture Job Offer refused");
+    // Opted in to a daily Job Digest, one sent, then opted out.
+    await database.query(
+      `INSERT INTO job_digest_subscription (profile_id, candidate_id, unsubscribe_token, subscribed_at, last_run_at, unsubscribed_at, frequency)
+       VALUES ($2, $1, 'secret-unsubscribe-token', '2026-09-01T06:00:00Z', '2026-09-02T06:00:00Z', '2026-09-10T12:00:00Z', 'daily')`,
+      [candidateId, profileId],
+    );
+    await database.query(`INSERT INTO job_digest (profile_id, candidate_id, job_offer_ids, sent_at) VALUES ($2, $1, ARRAY[$3::uuid], '2026-09-02T06:00:00Z')`, [
+      candidateId,
+      profileId,
+      captured.jobOffer.id,
+    ]);
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.profiles.find((profile) => profile.id === profileId)).toMatchObject({
+      jobDigest: { frequency: "daily", subscribedAt: new Date("2026-09-01T06:00:00Z"), unsubscribedAt: new Date("2026-09-10T12:00:00Z"), lastRunAt: new Date("2026-09-02T06:00:00Z") },
+      jobDigests: [{ id: expect.any(String), sentAt: new Date("2026-09-02T06:00:00Z"), jobOfferIds: [captured.jobOffer.id] }],
+    });
+    expect(exported.profiles.find((profile) => profile.id === otherProfileId)).toMatchObject({ jobDigest: null, jobDigests: [] });
+    expect(JSON.stringify(exported)).not.toContain("secret-unsubscribe-token");
+  });
+
+  it("the export holds every Coach Conversation with all its messages, the Candidate's and the AI Coach's, but not what each reply cost", async () => {
+    const profileId = await createProfile(candidateId, "DAF");
+    let replies = 0;
+    const cost = { provider: "mistral" as const, model: "secret-model-name", inputTokens: 10, outputTokens: 5, cachedInputTokens: 0, eur: 0.01 };
+    const conversations = createCoachConversations(database, {
+      coach: { reply: async () => ({ ok: true, reply: `Réponse ${++replies}`, cost, playbooks: [] }) },
+      profiles,
+    });
+    const first = await conversations.send(candidateId, { message: "Comment relancer Acme ?", focus: { kind: "profile", id: profileId } });
+    if (!first.ok) throw new Error("fixture Coach Conversation refused");
+    await conversations.send(candidateId, { conversationId: first.conversation.id, message: "Et après une semaine ?" });
+    const second = await conversations.send(candidateId, { message: "Bonjour" });
+    if (!second.ok) throw new Error("fixture Coach Conversation refused");
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.coachConversations).toEqual([
+      {
+        id: second.conversation.id,
+        title: "Bonjour",
+        profile: null,
+        createdAt: expect.any(Date),
+        lastMessageAt: expect.any(Date),
+        messages: [
+          { from: "candidate", text: "Bonjour", sentAt: expect.any(Date) },
+          { from: "coach", text: "Réponse 3", sentAt: expect.any(Date) },
+        ],
+      },
+      expect.objectContaining({
+        id: first.conversation.id,
+        profile: { id: profileId, name: "DAF" },
+        messages: [
+          { from: "candidate", text: "Comment relancer Acme ?", sentAt: expect.any(Date) },
+          { from: "coach", text: "Réponse 1", sentAt: expect.any(Date) },
+          { from: "candidate", text: "Et après une semaine ?", sentAt: expect.any(Date) },
+          { from: "coach", text: "Réponse 2", sentAt: expect.any(Date) },
+        ],
+      }),
+    ]);
+    expect(JSON.stringify(exported)).not.toContain("secret-model-name");
+  });
+
+  it("the export holds the Coach Access the Candidate granted, the Coaching Sessions they paid and the Coach Reviews of their Applications, naming each Human Coach but not their email", async () => {
+    const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));
+    await tailoredDocuments.draft(candidateId, application.id, { document: "cover_letter" });
+    const humanCoaches = createHumanCoaches(database, { profiles, applications, tailoredDocuments, tailoredCvs });
+    const added = await humanCoaches.add({ name: "Sophie Martin", email: "sophie.coach@example.fr", bookingUrl: "https://cal.com/sophie/seance", bio: "" });
+    if (!added.ok) throw new Error("fixture Human Coach refused");
+    const coach = added.coach;
+    await humanCoaches.grantAccess(candidateId, coach.id);
+    await humanCoaches.recordPaidSession({ checkoutSessionId: "cs_test_1", candidateId, coachId: coach.id, amount: 9000, currency: "eur" });
+    const reviewed = await humanCoaches.review(coach.id, candidateId, application.id, { document: "cover_letter", text: "Ouvrez sur votre dernier poste." });
+    if (!reviewed.ok) throw new Error("fixture Coach Review refused");
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.coachAccess).toEqual([{ coach: { id: coach.id, name: "Sophie Martin" }, grantedAt: expect.any(Date) }]);
+    expect(exported.coachingSessions).toEqual([{ id: expect.any(String), coach: { id: coach.id, name: "Sophie Martin" }, amount: 9000, currency: "eur", paidAt: expect.any(Date) }]);
+    expect(exported.applications[0]!.coachReviews).toEqual([
+      { id: reviewed.review.id, coach: { id: coach.id, name: "Sophie Martin" }, document: "cover_letter", text: "Ouvrez sur votre dernier poste.", createdAt: expect.any(Date) },
+    ]);
+    expect(JSON.stringify(exported)).not.toContain("sophie.coach@example.fr");
+  });
+
+  it("the export holds the Enriched Contacts obtained for each Application, revealed or only found, with where they come from", async () => {
+    const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));
+    // Found through the configured provider, one of them revealed.
+    await database.query(
+      `INSERT INTO enriched_contact (application_id, provider, provider_person_id, name, job_title, emails, phones, found_at, retrieved_at) VALUES
+         ($1, 'lusha', 'provider-person-1', 'Claire Durand', 'DRH', ARRAY['claire.durand@acme.fr'], ARRAY['+33 6 12 34 56 78'], '2026-10-01T09:00:00Z', '2026-10-01T09:05:00Z'),
+         ($1, 'lusha', 'provider-person-2', 'Luc Bernard', NULL, '{}', '{}', '2026-10-01T09:00:01Z', NULL)`,
+      [application.id],
+    );
+
+    expect((await candidateData.export(candidateId)).applications[0]!.enrichedContacts).toEqual([
+      {
+        id: expect.any(String),
+        name: "Claire Durand",
+        jobTitle: "DRH",
+        emails: ["claire.durand@acme.fr"],
+        phones: ["+33 6 12 34 56 78"],
+        provider: "lusha",
+        foundAt: new Date("2026-10-01T09:00:00Z"),
+        retrievedAt: new Date("2026-10-01T09:05:00Z"),
+      },
+      { id: expect.any(String), name: "Luc Bernard", jobTitle: null, emails: [], phones: [], provider: "lusha", foundAt: new Date("2026-10-01T09:00:01Z"), retrievedAt: null },
+    ]);
+  });
+
+  it("the export holds each Application's Match Score, whether the Candidate reported its Job Offer unavailable, and its Company Dossier", async () => {
+    const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));
+    await applications.change(candidateId, application.id, { reportedUnavailable: true });
+    // Built from the Application page, for the employer the Candidate confirmed.
+    await database.query(
+      `INSERT INTO company_dossier (application_id, awaiting_confirmation, confirmed_employer, dossier) VALUES ($1, false, 'Acme Industrie SA', $2)`,
+      [application.id, { source: "web", reliability: "less_reliable", employer: "Acme Industrie SA", builtAt: "2026-10-01T09:00:00.000Z", suggestedContactRoles: [], sources: [] }],
+    );
+
+    const [exported] = (await candidateData.export(candidateId)).applications;
+
+    expect(exported).toMatchObject({
+      matchScore: application.matchScore,
+      reportedUnavailableAt: expect.any(Date),
+      companyDossier: {
+        presumedEmployer: null,
+        presumedEmployerDescription: null,
+        agency: null,
+        confirmedEmployer: "Acme Industrie SA",
+        dossier: expect.objectContaining({ source: "web", employer: "Acme Industrie SA" }),
+        updatedAt: expect.any(Date),
+      },
+    });
+    expect(application.matchScore).toMatchObject({ score: expect.any(Number) });
+  });
+
+  it("the export holds the Candidate's Plan and how much of each Plan Quota they used, but not their Stripe identifiers", async () => {
+    expect(await candidateData.export(candidateId)).toMatchObject({ plan: null, quotaUsage: [] });
+    // Set from Stripe's signed webhooks; counted as the Candidate uses the app.
+    await database.query(
+      `INSERT INTO candidate_plan (candidate_id, plan, stripe_customer_id, stripe_subscription_id, stripe_status, charged, ends_at)
+       VALUES ($1, 'standard', 'cus_secret_customer', 'sub_secret_subscription', 'active', true, '2026-11-30T00:00:00Z')`,
+      [candidateId],
+    );
+    await database.query(`INSERT INTO quota_usage (candidate_id, quota, month, used) VALUES ($1, 'matchScores', '2026-09', 4), ($1, 'atsScores', '2026-10', 2)`, [candidateId]);
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.plan).toEqual({ plan: "standard", subscriptionStatus: "active", endsAt: new Date("2026-11-30T00:00:00Z") });
+    expect(exported.quotaUsage).toEqual([
+      { quota: "atsScores", month: "2026-10", used: 2 },
+      { quota: "matchScores", month: "2026-09", used: 4 },
+    ]);
+    expect(JSON.stringify(exported)).not.toMatch(/cus_secret_customer|sub_secret_subscription/);
+  });
+
+  it("the export holds how the Candidate signs in and their sign-in sessions, but no token or password", async () => {
+    // Linked when the Candidate signs in with Google.
+    await database.query(
+      `INSERT INTO account (id, "accountId", "providerId", "userId", "accessToken", "refreshToken", "idToken", password, "createdAt", "updatedAt")
+       VALUES ('acc-1', 'google-sub-1', 'google', $1, 'secret-access-token', 'secret-refresh-token', 'secret-id-token', 'secret-password-hash', '2026-09-01T08:00:00Z', now())`,
+      [candidateId],
+    );
+    const { rows: sessions } = await database.query<{ token: string }>(`SELECT token FROM session WHERE "userId" = $1`, [candidateId]);
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.account).toMatchObject({
+      signInMethods: [{ provider: "google", linkedAt: new Date("2026-09-01T08:00:00Z") }],
+      sessions: [{ createdAt: expect.any(Date), expiresAt: expect.any(Date), ipAddress: "127.0.0.1", userAgent: expect.any(String) }],
+    });
+    expect(sessions).toHaveLength(1);
+    expect(JSON.stringify(exported)).not.toMatch(/secret-|google-sub-1/);
+    expect(JSON.stringify(exported)).not.toContain(sessions[0]!.token);
   });
 
   it("deleting the account removes the Candidate and everything of theirs, signs them out, and keeps the Job Offers", async () => {

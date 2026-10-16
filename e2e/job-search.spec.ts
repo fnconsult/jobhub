@@ -126,6 +126,22 @@ test.describe("On-demand AI Coach job search", () => {
     rmSync(workDir, { recursive: true, force: true });
   });
 
+  test("a finished Job Search shows in the Candidate's data export, with the Job Offers it found (#171)", async ({ page }) => {
+    const profileId = await signInWithProfile(page);
+    const started = await page.request.post("/api/job-searches", { headers: { origin }, data: { profileId } });
+    expect(started.status(), await started.text()).toBe(201);
+    const searchId = (await started.json()).id as string;
+    await expect
+      .poll(async () => (await (await page.request.get(`/recherches/${searchId}`)).text()).includes("Votre coach cherche des offres"), { timeout: 90_000 })
+      .toBe(false);
+
+    const exported = await (await page.request.get("/api/account/export")).json();
+
+    expect(exported.profiles.find((p: { id: string }) => p.id === profileId).jobSearches).toEqual([
+      expect.objectContaining({ id: searchId, startedAt: expect.any(String), finishedAt: expect.any(String), jobOfferIds: expect.arrayContaining([expect.any(String)]) }),
+    ]);
+  });
+
   test("starts from a Profile, shows the Job Offers found by Match Score with their key facts, and saves one in one click", async ({ page }) => {
     const profileId = await signInWithProfile(page);
     await page.goto(`/profils/${profileId}`);

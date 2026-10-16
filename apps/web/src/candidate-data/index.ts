@@ -3,10 +3,17 @@
  * deleted with their account.
  *
  * One deep module. Callers get `createCandidateData(database, deps)`:
- *  - `export` everything the Candidate made: their account, their Profiles (Search Criteria and
- *    every Master CV Version), their Applications (with their Job Offer and
- *    Interviews) and those Applications' Tailored Documents. Each item is read
- *    through the module that owns it, so the export shows what the app shows.
+ *  - `export` all the Candidate's personal data (GDPR art. 15 / 20, #171): what they made and
+ *    what the app worked out or obtained about them. Their account (sign-in methods and
+ *    sessions), Plan and Plan Quota use, EU AI consent and Follow-up Delays; their Profiles
+ *    (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and
+ *    Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored
+ *    Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach
+ *    Conversations, Coach Access, Coaching Sessions and Action Cards. Profiles and Applications
+ *    are read through the modules that own them, so they show what the app shows; the rest is
+ *    read as stored. Secrets (sign-in tokens, the unsubscribe link), Stripe's and the contact
+ *    data providers' identifiers, and what each AI reply cost are left out. EXPORTED_TABLES
+ *    says where each table lands.
  *  - `delete` the Candidate's account at once and for good: their billing is
  *    closed first (no paid Plan outlives the account), then the Candidate goes,
  *    and with them everything tied to them (every table holding their data
@@ -14,9 +21,18 @@
  *    Tailored Documents, sessions...). Job Offers are not personal data and may
  *    be referenced by other Candidates: they are kept.
  */
-import type { SearchCriteria } from "@jobhub/shared";
+import type { Plan, SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
+import type { ActionCard } from "../action-cards";
 import type { Application, Applications } from "../applications";
+import type { KeptAtsScore } from "../ats-score";
+import type { CoachMessage } from "../coach";
+import type { CompanyDossier } from "../company-dossiers";
+import type { ContactProviderId } from "../enriched-contacts";
+import type { FollowUpDelays } from "../follow-ups";
+import type { CoachingSession, CoachReview } from "../human-coaches";
+import type { ChosenFrequency } from "../job-digests";
+import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
 import type { MasterCvVersion, Profiles } from "../profiles";
 import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
 import type { ApplicationDrafts, TailoredDocuments } from "../tailored-documents";
@@ -28,18 +44,56 @@ export interface ExportedProfile {
   searchCriteria: SearchCriteria;
   /** Newest first. */
   masterCvVersions: MasterCvVersion[];
+  /** The ATS Score of the Master CV version last scored, or null when it never was. */
+  atsScore: KeptAtsScore | null;
+  /** Newest first. */
+  jobSearches: ExportedJobSearch[];
+  /** The Candidate's Job Digest settings for the Profile, or null when they never opted in. */
+  jobDigest: ExportedJobDigestSettings | null;
+  /** The Job Digests sent for the Profile, newest first. */
+  jobDigests: { id: string; sentAt: Date; jobOfferIds: string[] }[];
 }
 
-/** The Candidate's account itself. */
+/** What the Candidate chose for a Profile's Job Digest (its unsubscribe link is a secret, left out). */
+export interface ExportedJobDigestSettings {
+  /** What the Candidate picked; their Plan may cap it. */
+  frequency: ChosenFrequency;
+  subscribedAt: Date;
+  /** Set while opted out. */
+  unsubscribedAt: Date | null;
+  /** When a Job Digest was last worked out for the Profile. */
+  lastRunAt: Date | null;
+}
+
+/** A Job Search the Candidate started for a Profile, and the Job Offers it found. */
+export interface ExportedJobSearch {
+  id: string;
+  status: JobSearchStatus;
+  failure: JobSearchFailure | null;
+  startedAt: Date;
+  /** Null while it is searching. */
+  finishedAt: Date | null;
+  /** The Job Offers it found, in the order Job discovery found them. */
+  jobOfferIds: string[];
+}
+
+/** The Candidate's account itself (its secrets, such as sign-in tokens, are left out). */
 export interface ExportedAccount {
   email: string;
   name: string;
   interfaceLanguage: string;
   createdAt: Date;
+  /** The sign-in providers linked to the account (e.g. Google), besides the magic link; oldest first. */
+  signInMethods: { provider: string; linkedAt: Date }[];
+  /** Where the Candidate is signed in, newest first. */
+  sessions: { createdAt: Date; expiresAt: Date; ipAddress: string | null; userAgent: string | null }[];
 }
 
-/** An Application as the Candidate keeps it: its Job Offer, Interviews and Tailored Documents. */
-export interface ExportedApplication extends Omit<Application, "matchScore"> {
+/**
+ * An Application as the Candidate keeps it: its Job Offer, Interviews, Match Score (worked out from
+ * their Profile, as the app shows it), Tailored Documents, and what the app and Human Coaches added to it.
+ */
+export interface ExportedApplication extends Application {
   tailoredDocuments: {
     documentLanguage: ApplicationDrafts["documentLanguage"];
     /** The Tailored CV saved on the Application, or null. */
@@ -49,6 +103,61 @@ export interface ExportedApplication extends Omit<Application, "matchScore"> {
     coverLetter: ApplicationDrafts["coverLetter"];
     outreachMessage: ApplicationDrafts["outreachMessage"];
   };
+  /** Follow-ups sent (a Follow-up card accepted, or "Relancée" set), oldest first. */
+  followUps: { sentAt: Date }[];
+  /** Human Coaches' feedback on its Tailored Documents, oldest first. */
+  coachReviews: CoachReview[];
+  /** The people at the employer the Candidate obtained from a contact data provider (ADR-0015), in the order found. */
+  enrichedContacts: ExportedEnrichedContact[];
+  /** What the app found about the employer, or null when nothing was looked up. */
+  companyDossier: ExportedCompanyDossier | null;
+}
+
+/** The Company Dossier of an Application, as kept. */
+export interface ExportedCompanyDossier {
+  /** The AI Coach's guess at the employer behind a recruiting agency's posting. */
+  presumedEmployer: string | null;
+  presumedEmployerDescription: string | null;
+  agency: string | null;
+  /** The employer the Candidate named. */
+  confirmedEmployer: string | null;
+  /** Null until it is built. */
+  dossier: CompanyDossier | null;
+  updatedAt: Date;
+}
+
+/** A person found at the employer: contact details once the Candidate revealed them, empty before. */
+export interface ExportedEnrichedContact {
+  id: string;
+  name: string;
+  jobTitle: string | null;
+  emails: string[];
+  phones: string[];
+  /** The contact data provider the details come from. */
+  provider: ContactProviderId;
+  foundAt: Date;
+  /** When the contact details were retrieved; null while the person is only found. */
+  retrievedAt: Date | null;
+}
+
+/** A Coach Conversation with the AI Coach, every message included (what each reply cost is internal, left out). */
+export interface ExportedCoachConversation {
+  id: string;
+  title: string;
+  /** The Profile in view when it started, if any. */
+  profile: { id: string; name: string } | null;
+  createdAt: Date;
+  lastMessageAt: Date;
+  /** Oldest first. */
+  messages: (CoachMessage & { sentAt: Date })[];
+}
+
+/** A Human Coach as the export names them: their email and booking link are theirs, left out. */
+export type CoachNamed = { id: string; name: string };
+
+export interface ExportedActionCard extends ActionCard {
+  /** When the Candidate accepted or dismissed it; null while pending. */
+  decidedAt: Date | null;
 }
 
 /** Everything the Candidate made in Jobbbox, ready to be written out as JSON. */
@@ -56,11 +165,61 @@ export interface CandidateDataExport {
   exportedAt: Date;
   /** Null once the account is deleted. */
   account: ExportedAccount | null;
+  /** The Candidate's Plan, from Stripe (its identifiers there are left out), or null on the Free Plan from the start. */
+  plan: { plan: Plan; subscriptionStatus: string | null; endsAt: Date | null } | null;
+  /** How much of each monthly Plan Quota the Candidate used, newest month first. */
+  quotaUsage: { quota: string; month: string; used: number }[];
+  /** The Candidate's EU AI consent (ADR-0007), or null when they have not given it (or withdrew it). */
+  euAiConsent: { givenAt: Date } | null;
+  /** The Follow-up Delays the Candidate set, or null while they keep the defaults. */
+  followUpDelays: FollowUpDelays | null;
+  /** Every Coach Conversation, most recently active first. */
+  coachConversations: ExportedCoachConversation[];
+  /** The Human Coaches the Candidate granted Coach Access to, oldest first. */
+  coachAccess: { coach: CoachNamed; grantedAt: Date }[];
+  /** The Coaching Sessions the Candidate paid for, newest first. */
+  coachingSessions: (Omit<CoachingSession, "coach"> & { coach: CoachNamed })[];
+  /** Every Action Card the AI Coach proposed, pending or decided, newest first. */
+  actionCards: ExportedActionCard[];
   /** Oldest first, archived ones included. */
   profiles: ExportedProfile[];
   /** Newest first. */
   applications: ExportedApplication[];
 }
+
+/**
+ * Where each table holding a Candidate's data lands in their export. A test checks every table tied
+ * to a Candidate is listed (as it checks they are all deleted with them, ADR-0010): a new table
+ * must be added to the export, and here, or the test fails.
+ */
+export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
+  candidate: "account",
+  account: "account.signInMethods (no tokens or password)",
+  session: "account.sessions (no tokens)",
+  candidate_plan: "plan (no Stripe identifiers)",
+  quota_usage: "quotaUsage",
+  eu_ai_consent: "euAiConsent",
+  follow_up_delay: "followUpDelays",
+  profile: "profiles",
+  master_cv_version: "profiles[].masterCvVersions",
+  ats_score: "profiles[].atsScore",
+  job_search: "profiles[].jobSearches",
+  job_digest_subscription: "profiles[].jobDigest (no unsubscribe token)",
+  job_digest: "profiles[].jobDigests",
+  application: "applications",
+  interview: "applications[].interviews",
+  tailored_cv: "applications[].tailoredDocuments",
+  tailored_document: "applications[].tailoredDocuments",
+  follow_up_sent: "applications[].followUps",
+  coach_review: "applications[].coachReviews",
+  enriched_contact: "applications[].enrichedContacts (no provider identifiers)",
+  company_dossier: "applications[].companyDossier",
+  coach_conversation: "coachConversations",
+  coach_message: "coachConversations[].messages (no AI costs)",
+  coach_access: "coachAccess",
+  coaching_session: "coachingSessions (no Stripe identifiers)",
+  action_card: "actionCards",
+};
 
 export interface CandidateData {
   /** All the Candidate's data. */
@@ -84,19 +243,81 @@ export interface CandidateDataDeps {
 
 export function createCandidateData(database: Pool, deps: CandidateDataDeps): CandidateData {
   async function exportProfiles(candidateId: string): Promise<ExportedProfile[]> {
-    const summaries = await deps.profiles.list(candidateId);
+    const [summaries, atsScoresOf, jobSearchesOf, jobDigestSettingsOf, jobDigestsOf] = await Promise.all([
+      deps.profiles.list(candidateId),
+      grouped<KeptAtsScore>(
+      `SELECT s.profile_id AS key, s.version, s.score, s.computed_at AS "computedAt" FROM ats_score s JOIN profile p ON p.id = s.profile_id
+        WHERE p.candidate_id = $1`,
+        candidateId,
+      ),
+      grouped<ExportedJobSearch>(
+      `SELECT profile_id AS key, id, status, failure, started_at AS "startedAt", finished_at AS "finishedAt", job_offer_ids::text[] AS "jobOfferIds"
+         FROM job_search WHERE candidate_id = $1 ORDER BY started_at DESC, id`,
+        candidateId,
+      ),
+      grouped<ExportedJobDigestSettings>(
+      `SELECT profile_id AS key, frequency, subscribed_at AS "subscribedAt", unsubscribed_at AS "unsubscribedAt", last_run_at AS "lastRunAt"
+         FROM job_digest_subscription WHERE candidate_id = $1`,
+        candidateId,
+      ),
+      grouped<ExportedProfile["jobDigests"][number]>(
+      `SELECT profile_id AS key, id, sent_at AS "sentAt", job_offer_ids::text[] AS "jobOfferIds" FROM job_digest WHERE candidate_id = $1 ORDER BY sent_at DESC, id`,
+        candidateId,
+      ),
+    ]);
     const exported = await Promise.all(
       summaries.map(async ({ id }) => {
         const [profile, versions] = await Promise.all([deps.profiles.get(candidateId, id), deps.profiles.masterCvVersions(candidateId, id)]);
         if (!profile || !versions) return null;
-        return { id, name: profile.name, archived: profile.archived, searchCriteria: profile.searchCriteria, masterCvVersions: versions };
+        return {
+          id,
+          name: profile.name,
+          archived: profile.archived,
+          searchCriteria: profile.searchCriteria,
+          masterCvVersions: versions,
+          atsScore: atsScoresOf(id)[0] ?? null,
+          jobSearches: jobSearchesOf(id),
+          jobDigest: jobDigestSettingsOf(id)[0] ?? null,
+          jobDigests: jobDigestsOf(id),
+        };
       }),
     );
     return exported.filter((profile) => profile !== null);
   }
 
+  /** Rows of one of the Candidate's tables, as `{ key, ...item }`, grouped by key (e.g. the Application they belong to). */
+  async function grouped<T extends object>(sql: string, candidateId: string): Promise<(key: string) => T[]> {
+    const rows = await rowsOf<T & { key: string }>(sql, candidateId);
+    const groups = new Map<string, T[]>();
+    for (const { key, ...item } of rows) groups.set(key, [...(groups.get(key) ?? []), item as unknown as T]);
+    return (key) => groups.get(key) ?? [];
+  }
+
   async function exportApplications(candidateId: string): Promise<ExportedApplication[]> {
-    const summaries = await deps.applications.list(candidateId);
+    const [summaries, followUpsOf, coachReviewsOf, enrichedContactsOf, companyDossiersOf] = await Promise.all([
+      deps.applications.list(candidateId),
+      grouped<{ sentAt: Date }>(
+      `SELECT s.application_id AS key, s.sent_at AS "sentAt" FROM follow_up_sent s JOIN application a ON a.id = s.application_id
+        WHERE a.candidate_id = $1 ORDER BY s.sent_at`,
+        candidateId,
+      ),
+      grouped<CoachReview>(
+      `SELECT r.application_id AS key, r.id, json_build_object('id', h.id, 'name', h.name) AS coach, r.document, r.text, r.created_at AS "createdAt"
+         FROM coach_review r JOIN human_coach h ON h.id = r.coach_id WHERE r.candidate_id = $1 ORDER BY r.created_at, r.id`,
+        candidateId,
+      ),
+      grouped<ExportedEnrichedContact>(
+      `SELECT e.application_id AS key, e.id, e.name, e.job_title AS "jobTitle", e.emails, e.phones, e.provider, e.found_at AS "foundAt", e.retrieved_at AS "retrievedAt"
+         FROM enriched_contact e JOIN application a ON a.id = e.application_id WHERE a.candidate_id = $1 ORDER BY e.found_at, e.id`,
+        candidateId,
+      ),
+      grouped<ExportedCompanyDossier>(
+      `SELECT d.application_id AS key, d.presumed_employer AS "presumedEmployer", d.presumed_employer_description AS "presumedEmployerDescription",
+              d.agency, d.confirmed_employer AS "confirmedEmployer", d.dossier, d.updated_at AS "updatedAt"
+         FROM company_dossier d JOIN application a ON a.id = d.application_id WHERE a.candidate_id = $1`,
+        candidateId,
+      ),
+    ]);
     const exported = await Promise.all(
       summaries.map(async ({ id }): Promise<ExportedApplication | null> => {
         const [application, tailoredCv, drafts] = await Promise.all([
@@ -105,16 +326,8 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           deps.tailoredDocuments.get(candidateId, id),
         ]);
         if (!application || !tailoredCv || !drafts) return null;
-        // The Match Score is worked out from the rest, not something the Candidate made.
-        const { status, statusChangedAt, createdAt, jobOffer, profile, interviews } = application;
         return {
-          id,
-          status,
-          statusChangedAt,
-          createdAt,
-          jobOffer,
-          profile,
-          interviews,
+          ...application,
           tailoredDocuments: {
             documentLanguage: drafts.documentLanguage,
             tailoredCv: tailoredCv.saved,
@@ -122,6 +335,10 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
             coverLetter: drafts.coverLetter,
             outreachMessage: drafts.outreachMessage,
           },
+          followUps: followUpsOf(id),
+          coachReviews: coachReviewsOf(id),
+          enrichedContacts: enrichedContactsOf(id),
+          companyDossier: companyDossiersOf(id)[0] ?? null,
         };
       }),
     );
@@ -129,17 +346,80 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
   }
 
   async function exportAccount(candidateId: string): Promise<ExportedAccount | null> {
-    const { rows } = await database.query<ExportedAccount>(
-      `SELECT email, name, "interfaceLanguage", "createdAt" FROM candidate WHERE id = $1`,
-      [candidateId],
-    );
-    return rows[0] ?? null;
+    const [account, signInMethods, sessions] = await Promise.all([
+      rowOf<Omit<ExportedAccount, "signInMethods" | "sessions">>(`SELECT email, name, "interfaceLanguage", "createdAt" FROM candidate WHERE id = $1`, candidateId),
+      rowsOf<ExportedAccount["signInMethods"][number]>(
+        `SELECT "providerId" AS provider, "createdAt" AS "linkedAt" FROM account WHERE "userId" = $1 ORDER BY "createdAt", id`,
+        candidateId,
+      ),
+      rowsOf<ExportedAccount["sessions"][number]>(
+        `SELECT "createdAt", "expiresAt", "ipAddress", "userAgent" FROM session WHERE "userId" = $1 ORDER BY "createdAt" DESC, id`,
+        candidateId,
+      ),
+    ]);
+    return account && { ...account, signInMethods, sessions };
+  }
+
+  /** Rows of one of the Candidate's tables (`$1` is their id). */
+  async function rowsOf<T extends object>(sql: string, candidateId: string): Promise<T[]> {
+    return (await database.query<T>(sql, [candidateId])).rows;
+  }
+
+  /** The Candidate's row of a table holding one per Candidate, or null. */
+  async function rowOf<T extends object>(sql: string, candidateId: string): Promise<T | null> {
+    return (await rowsOf<T>(sql, candidateId))[0] ?? null;
+  }
+
+  async function exportCoachConversations(candidateId: string): Promise<ExportedCoachConversation[]> {
+    const [conversations, messagesOf] = await Promise.all([
+      rowsOf<Omit<ExportedCoachConversation, "messages">>(
+        `SELECT c.id, c.title, CASE WHEN p.id IS NULL THEN NULL ELSE json_build_object('id', p.id, 'name', p.name) END AS profile,
+                c.created_at AS "createdAt", c.last_message_at AS "lastMessageAt"
+           FROM coach_conversation c LEFT JOIN profile p ON p.id = c.profile_id
+          WHERE c.candidate_id = $1 ORDER BY c.last_message_at DESC, c.id`,
+        candidateId,
+      ),
+      grouped<ExportedCoachConversation["messages"][number]>(
+        `SELECT m.conversation_id AS key, m.author AS "from", m.text, m.created_at AS "sentAt"
+           FROM coach_message m JOIN coach_conversation c ON c.id = m.conversation_id
+          WHERE c.candidate_id = $1 ORDER BY m.seq`,
+        candidateId,
+      ),
+    ]);
+    return conversations.map((conversation) => ({ ...conversation, messages: messagesOf(conversation.id) }));
   }
 
   return {
     async export(candidateId) {
-      const [account, profiles, applications] = await Promise.all([exportAccount(candidateId), exportProfiles(candidateId), exportApplications(candidateId)]);
-      return { exportedAt: new Date(), account, profiles, applications };
+      const [account, plan, quotaUsage, euAiConsent, followUpDelays, coachConversations, coachAccess, coachingSessions, actionCards, profiles, applications] = await Promise.all([
+        exportAccount(candidateId),
+        rowOf<NonNullable<CandidateDataExport["plan"]>>(
+          `SELECT plan, stripe_status AS "subscriptionStatus", ends_at AS "endsAt" FROM candidate_plan WHERE candidate_id = $1`,
+          candidateId,
+        ),
+        rowsOf<CandidateDataExport["quotaUsage"][number]>(`SELECT quota, month, used FROM quota_usage WHERE candidate_id = $1 ORDER BY month DESC, quota`, candidateId),
+        rowOf<{ givenAt: Date }>(`SELECT given_at AS "givenAt" FROM eu_ai_consent WHERE candidate_id = $1`, candidateId),
+        rowOf<FollowUpDelays>(`SELECT after_applied AS "afterApplied", after_follow_up AS "afterFollowUp" FROM follow_up_delay WHERE candidate_id = $1`, candidateId),
+        exportCoachConversations(candidateId),
+        rowsOf<CandidateDataExport["coachAccess"][number]>(
+          `SELECT json_build_object('id', h.id, 'name', h.name) AS coach, a.granted_at AS "grantedAt"
+             FROM coach_access a JOIN human_coach h ON h.id = a.coach_id WHERE a.candidate_id = $1 ORDER BY a.granted_at, h.id`,
+          candidateId,
+        ),
+        rowsOf<CandidateDataExport["coachingSessions"][number]>(
+          `SELECT s.id, json_build_object('id', h.id, 'name', h.name) AS coach, s.amount, s.currency, s.paid_at AS "paidAt"
+             FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id WHERE s.candidate_id = $1 ORDER BY s.paid_at DESC, s.id`,
+          candidateId,
+        ),
+        rowsOf<ExportedActionCard>(
+          `SELECT id, kind, title, body, json_build_object('kind', focus_kind, 'id', focus_id) AS focus, payload, status, created_at AS "createdAt", decided_at AS "decidedAt"
+             FROM action_card WHERE candidate_id = $1 ORDER BY created_at DESC, id`,
+          candidateId,
+        ),
+        exportProfiles(candidateId),
+        exportApplications(candidateId),
+      ]);
+      return { exportedAt: new Date(), account, plan, quotaUsage, euAiConsent, followUpDelays, profiles, applications, coachConversations, coachAccess, coachingSessions, actionCards };
     },
 
     async delete(candidateId) {

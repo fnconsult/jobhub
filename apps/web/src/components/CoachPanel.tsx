@@ -176,6 +176,7 @@ export function CoachPanel({ children }: { children: ReactNode }) {
   const toggles = useRef(new Set<HTMLButtonElement>());
   const input = useRef<HTMLTextAreaElement>(null);
   const body = useRef<HTMLDivElement>(null);
+  const messagesEnd = useRef<HTMLDivElement>(null);
   const setInView = useCallback((next: InView | null) => setInViewState(next), []);
 
   useEffect(() => {
@@ -240,10 +241,13 @@ export function CoachPanel({ children }: { children: ReactNode }) {
     else setListFailed(true);
   }
 
-  // The latest message (or the "thinking" notice) comes into view when it arrives (#164).
+  // The latest message (or the "thinking" notice) comes into view when it arrives (#164): the
+  // body scrolls to where the messages end, not to its own end, which holds the Coach Memory
+  // proposals (#125) and would push the latest reply out of sight in a short panel.
   useEffect(() => {
     const element = body.current;
-    if (element) element.scrollTop = element.scrollHeight;
+    const end = messagesEnd.current;
+    if (element && end) element.scrollTop += end.getBoundingClientRect().top - element.getBoundingClientRect().bottom;
   }, [messages, status, view, open]);
 
   async function openConversation(conversationId: string): Promise<boolean> {
@@ -396,7 +400,6 @@ export function CoachPanel({ children }: { children: ReactNode }) {
                       </li>
                     ))}
                   </ol>
-                  {conversation ? <CoachMemoryProposals key={conversation.id} conversationId={conversation.id} /> : null}
                   {status === "sending" ? (
                     <p className="notice" role="status">
                       {t("coachPanel.thinking")}
@@ -407,6 +410,8 @@ export function CoachPanel({ children }: { children: ReactNode }) {
                       {t(`coachPanel.errors.${status}`)}
                     </p>
                   ) : null}
+                  <div ref={messagesEnd} aria-hidden="true" />
+                  {conversation ? <CoachMemoryProposals key={conversation.id} conversationId={conversation.id} /> : null}
                 </div>
                 <form className="coach-panel-form" onSubmit={send}>
                   <label htmlFor={`${id}-message`}>{t("coachPanel.messageLabel")}</label>

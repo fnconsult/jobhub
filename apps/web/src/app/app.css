@@ -401,6 +401,11 @@ body:not(:has(.app-shell)) .coach-panel {
   border-bottom: 1px solid var(--color-border);
 }
 
+/* Tighter buttons, so the three tools take two rows at most and leave room for the messages. */
+.coach-panel-tools .button {
+  padding-inline: var(--space-3);
+}
+
 /* What the conversation is and what the coach sees, above the messages. */
 .coach-panel-context {
   display: flex;

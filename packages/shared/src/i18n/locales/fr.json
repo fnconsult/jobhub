@@ -593,7 +593,8 @@
     "sections": {
       "planQuotas": "Quotas des offres",
       "humanCoaches": "Coachs humains",
-      "coachCost": "Coût de l'AI Coach"
+      "coachCost": "Coût de l'AI Coach",
+      "journal": "Journal des modifications"
     },
     "planQuotas": {
       "title": "Quotas des offres",
@@ -640,6 +641,42 @@
       "models": "Modèles",
       "playbooks": "Playbooks utilisés",
       "overTarget": "au-dessus de l'objectif"
+    },
+    "journal": {
+      "title": "Journal des modifications",
+      "intro": "Chaque modification faite dans le back office : qui, quoi, avant et après, quand. Les valeurs secrètes ne sont jamais enregistrées, seulement leur remplacement. Chaque entrée est conservée {{years}} ans.",
+      "filter": "Afficher",
+      "all": "Tout",
+      "sections": {
+        "roles": "Rôles",
+        "plan_quotas": "Quotas des offres",
+        "human_coaches": "Coachs humains",
+        "provider_secrets": "Secrets des fournisseurs"
+      },
+      "actions": {
+        "added": "Ajout",
+        "updated": "Modification",
+        "retired": "Retrait",
+        "replaced": "Remplacement"
+      },
+      "none": "Aucune modification enregistrée.",
+      "caption": "Modifications du back office, des plus récentes aux plus anciennes",
+      "limit": "Seules les {{count}} modifications les plus récentes sont affichées.",
+      "at": "Date",
+      "administrator": "Administrateur",
+      "section": "Section",
+      "target": "Élément",
+      "action": "Action",
+      "changes": "Changements",
+      "accountDeleted": "compte supprimé",
+      "changed": "{{field}} : {{before}} → {{after}}",
+      "set": "{{field}} : {{after}}",
+      "removed": "{{field}} : {{before}} (retiré)",
+      "secretReplaced": "Valeur remplacée (jamais enregistrée)",
+      "unchanged": "Aucune valeur changée",
+      "unlimited": "illimité",
+      "empty": "vide",
+      "id": "Identifiant"
     }
   },
   "applicationStatuses": {

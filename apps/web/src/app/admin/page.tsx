@@ -32,6 +32,9 @@ export default async function BackOfficePage() {
         <li>
           <Link href={routes.adminCoachCost}>{t("admin.sections.coachCost")}</Link>
         </li>
+        <li>
+          <Link href={routes.adminJournal()}>{t("admin.sections.journal")}</Link>
+        </li>
       </ul>
     </main>
   );

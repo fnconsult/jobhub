@@ -37,4 +37,6 @@ export const routes = {
   adminHumanCoaches: "/admin/coachs",
   /** The AI Coach's cost per reply, per day: median and p90 against the target. */
   adminCoachCost: "/admin/cout-coach",
+  /** The Back Office Audit, newest first; with a section, only its changes. */
+  adminJournal: (section?: string) => (section ? `/admin/journal?section=${encodeURIComponent(section)}` : "/admin/journal"),
 } as const;

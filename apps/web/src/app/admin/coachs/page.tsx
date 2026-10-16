@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireAdministrator } from "@/admin/server";
+import { getBackOffice, requireAdministrator } from "@/admin/server";
 import { BackOfficeHeader } from "@/components/BackOfficeHeader";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { getServerT } from "@/i18n/server";
@@ -17,8 +17,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 async function addCoach(form: FormData) {
   "use server";
-  await requireAdministrator();
-  const added = await getHumanCoaches().add({
+  const administrator = await requireAdministrator();
+  const added = await getBackOffice().addHumanCoach(administrator, {
     name: form.get("name"),
     email: form.get("email"),
     bookingUrl: form.get("bookingUrl"),
@@ -30,8 +30,8 @@ async function addCoach(form: FormData) {
 
 async function retireCoach(form: FormData) {
   "use server";
-  await requireAdministrator();
-  await getHumanCoaches().retire(String(form.get("coachId")));
+  const administrator = await requireAdministrator();
+  await getBackOffice().retireHumanCoach(administrator, String(form.get("coachId")));
   redirect(`${routes.adminHumanCoaches}?retired=1`);
 }
 

@@ -9,6 +9,7 @@ import { planQuotaValue } from "@/billing/quota-labels";
 import { getBilling } from "@/billing/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { PaymentFailedNotice } from "@/components/PaymentFailedNotice";
+import { RefreshUntilPlanConfirmed } from "@/components/RefreshUntilPlanConfirmed";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 
@@ -44,6 +45,8 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
           {t("billing.page.checkoutSuccess")}
         </p>
       ) : null}
+      {/* Checkout is only offered on Free: until Stripe's webhook moves the Candidate off it, keep looking. */}
+      {checkout === "success" && plan === "free" ? <RefreshUntilPlanConfirmed /> : null}
       {error ? (
         <p className="notice" role="alert">
           {t(error === "unavailable" ? "billing.page.unavailable" : "billing.page.error")}

@@ -133,6 +133,9 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "application", from_column: "job_offer_id", to_table: "job_offer" },
         { from_table: "application", from_column: "profile_id", to_table: "profile" },
         { from_table: "ats_score", from_column: "profile_id", to_table: "profile" },
+        // issue #205: an Administrator's Back Office Assistant conversations, deleted with their account
+        { from_table: "back_office_assistant_conversation", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "back_office_assistant_message", from_column: "conversation_id", to_table: "back_office_assistant_conversation" },
         // The Back Office Audit (issue #203) outlives its Administrator: their id is set to null.
         { from_table: "back_office_audit", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "candidate_plan", from_column: "candidate_id", to_table: "candidate" },

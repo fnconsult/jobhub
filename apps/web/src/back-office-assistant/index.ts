@@ -78,9 +78,18 @@ const JOURNAL_ENTRIES = 30;
 const HUMAN_COACHES = 50;
 const BIO_LENGTH = 200;
 
+/** Longest saved reply replayed to the assistant. */
+const MAX_REPLY_LENGTH = 100_000;
+
 const inputSchema = z.object({
   messages: z
-    .array(z.object({ from: z.enum(["administrator", "assistant"]), text: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH) }))
+    .array(
+      z.discriminatedUnion("from", [
+        z.object({ from: z.literal("administrator"), text: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH) }),
+        // The assistant's own replies, as saved: they may run longer than what an Administrator may type.
+        z.object({ from: z.literal("assistant"), text: z.string().trim().min(1).max(MAX_REPLY_LENGTH) }),
+      ]),
+    )
     .min(1)
     .max(MAX_MESSAGES * 5)
     .refine((messages) => messages.at(-1)?.from === "administrator"),

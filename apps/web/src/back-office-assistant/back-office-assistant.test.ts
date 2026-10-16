@@ -260,4 +260,20 @@ describe("Back Office Assistant", () => {
       else process.env.MISTRAL_API_KEY = saved;
     }
   });
+
+  it("answers a conversation whose earlier reply was long: only the Administrator's messages are capped", async () => {
+    const { assistant, administrator } = assistantFor(["support"]);
+    const longReply = "Détail des quotas. ".repeat(600);
+
+    const reply = await assistant.reply(administrator, {
+      messages: [
+        { from: "administrator", text: "Détaillez tout." },
+        { from: "assistant", text: longReply },
+        { from: "administrator", text: "Et ensuite ?" },
+      ],
+    });
+
+    expect(reply).toMatchObject({ ok: true });
+    expect(await assistant.reply(administrator, asked("x".repeat(5001)))).toEqual({ ok: false, error: "invalid" });
+  });
 });

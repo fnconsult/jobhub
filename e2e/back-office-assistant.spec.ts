@@ -78,7 +78,7 @@ test.describe("Back Office Assistant", () => {
     await expect(lastReply(page)).toContainText("Réponse de l'assistant (3 messages)");
     await assistant(page).getByRole("button", { name: fr.coachPanel.conversations }).click();
     await expect(assistant(page)).toContainText(assistantTexts.retention);
-    await expect(assistant(page).getByRole("button", { name: "E2E_SHOW_CONTEXT Quels sont les quotas ?" })).toBeVisible();
+    await expect(assistant(page).getByRole("button", { name: "E2E_SHOW_CONTEXT Quels sont les quotas ?" }).first()).toBeVisible();
   });
 
   test("a Coach manager's assistant is told only about their sections; Provider Secrets and the rest are named as off-limits", async ({ page, browser }) => {

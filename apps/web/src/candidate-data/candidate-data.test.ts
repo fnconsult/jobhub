@@ -103,6 +103,8 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       name: expect.any(String),
       interfaceLanguage: "fr",
       createdAt: expect.any(Date),
+      signInMethods: [],
+      sessions: [expect.objectContaining({ createdAt: expect.any(Date) })],
     });
   });
 
@@ -373,6 +375,46 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       },
     });
     expect(application.matchScore).toMatchObject({ score: expect.any(Number) });
+  });
+
+  it("the export holds the Candidate's Plan and how much of each Plan Quota they used, but not their Stripe identifiers", async () => {
+    expect(await candidateData.export(candidateId)).toMatchObject({ plan: null, quotaUsage: [] });
+    // Set from Stripe's signed webhooks; counted as the Candidate uses the app.
+    await database.query(
+      `INSERT INTO candidate_plan (candidate_id, plan, stripe_customer_id, stripe_subscription_id, stripe_status, charged, ends_at)
+       VALUES ($1, 'standard', 'cus_secret_customer', 'sub_secret_subscription', 'active', true, '2026-11-30T00:00:00Z')`,
+      [candidateId],
+    );
+    await database.query(`INSERT INTO quota_usage (candidate_id, quota, month, used) VALUES ($1, 'matchScores', '2026-09', 4), ($1, 'atsScores', '2026-10', 2)`, [candidateId]);
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.plan).toEqual({ plan: "standard", subscriptionStatus: "active", endsAt: new Date("2026-11-30T00:00:00Z") });
+    expect(exported.quotaUsage).toEqual([
+      { quota: "atsScores", month: "2026-10", used: 2 },
+      { quota: "matchScores", month: "2026-09", used: 4 },
+    ]);
+    expect(JSON.stringify(exported)).not.toMatch(/cus_secret_customer|sub_secret_subscription/);
+  });
+
+  it("the export holds how the Candidate signs in and their sign-in sessions, but no token or password", async () => {
+    // Linked when the Candidate signs in with Google.
+    await database.query(
+      `INSERT INTO account (id, "accountId", "providerId", "userId", "accessToken", "refreshToken", "idToken", password, "createdAt", "updatedAt")
+       VALUES ('acc-1', 'google-sub-1', 'google', $1, 'secret-access-token', 'secret-refresh-token', 'secret-id-token', 'secret-password-hash', '2026-09-01T08:00:00Z', now())`,
+      [candidateId],
+    );
+    const { rows: sessions } = await database.query<{ token: string }>(`SELECT token FROM session WHERE "userId" = $1`, [candidateId]);
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.account).toMatchObject({
+      signInMethods: [{ provider: "google", linkedAt: new Date("2026-09-01T08:00:00Z") }],
+      sessions: [{ createdAt: expect.any(Date), expiresAt: expect.any(Date), ipAddress: "127.0.0.1", userAgent: expect.any(String) }],
+    });
+    expect(sessions).toHaveLength(1);
+    expect(JSON.stringify(exported)).not.toMatch(/secret-|google-sub-1/);
+    expect(JSON.stringify(exported)).not.toContain(sessions[0]!.token);
   });
 
   it("deleting the account removes the Candidate and everything of theirs, signs them out, and keeps the Job Offers", async () => {

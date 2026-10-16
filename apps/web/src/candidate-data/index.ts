@@ -14,7 +14,7 @@
  *    Tailored Documents, sessions...). Job Offers are not personal data and may
  *    be referenced by other Candidates: they are kept.
  */
-import type { SearchCriteria } from "@jobhub/shared";
+import type { Plan, SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type { ActionCard } from "../action-cards";
 import type { Application, Applications } from "../applications";
@@ -70,12 +70,16 @@ export interface ExportedJobSearch {
   jobOfferIds: string[];
 }
 
-/** The Candidate's account itself. */
+/** The Candidate's account itself (its secrets, such as sign-in tokens, are left out). */
 export interface ExportedAccount {
   email: string;
   name: string;
   interfaceLanguage: string;
   createdAt: Date;
+  /** The sign-in providers linked to the account (e.g. Google), besides the magic link; oldest first. */
+  signInMethods: { provider: string; linkedAt: Date }[];
+  /** Where the Candidate is signed in, newest first. */
+  sessions: { createdAt: Date; expiresAt: Date; ipAddress: string | null; userAgent: string | null }[];
 }
 
 /**
@@ -154,6 +158,10 @@ export interface CandidateDataExport {
   exportedAt: Date;
   /** Null once the account is deleted. */
   account: ExportedAccount | null;
+  /** The Candidate's Plan, from Stripe (its identifiers there are left out), or null on the Free Plan from the start. */
+  plan: { plan: Plan; subscriptionStatus: string | null; endsAt: Date | null } | null;
+  /** How much of each monthly Plan Quota the Candidate used, newest month first. */
+  quotaUsage: { quota: string; month: string; used: number }[];
   /** The Candidate's EU AI consent (ADR-0007), or null when they have not given it (or withdrew it). */
   euAiConsent: { givenAt: Date } | null;
   /** The Follow-up Delays the Candidate set, or null while they keep the defaults. */
@@ -293,11 +301,18 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
   }
 
   async function exportAccount(candidateId: string): Promise<ExportedAccount | null> {
-    const { rows } = await database.query<ExportedAccount>(
-      `SELECT email, name, "interfaceLanguage", "createdAt" FROM candidate WHERE id = $1`,
-      [candidateId],
-    );
-    return rows[0] ?? null;
+    const [account, signInMethods, sessions] = await Promise.all([
+      rowOf<Omit<ExportedAccount, "signInMethods" | "sessions">>(`SELECT email, name, "interfaceLanguage", "createdAt" FROM candidate WHERE id = $1`, candidateId),
+      rowsOf<ExportedAccount["signInMethods"][number]>(
+        `SELECT "providerId" AS provider, "createdAt" AS "linkedAt" FROM account WHERE "userId" = $1 ORDER BY "createdAt", id`,
+        candidateId,
+      ),
+      rowsOf<ExportedAccount["sessions"][number]>(
+        `SELECT "createdAt", "expiresAt", "ipAddress", "userAgent" FROM session WHERE "userId" = $1 ORDER BY "createdAt" DESC, id`,
+        candidateId,
+      ),
+    ]);
+    return account && { ...account, signInMethods, sessions };
   }
 
   /** Rows of one of the Candidate's tables (`$1` is their id). */
@@ -331,8 +346,13 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   return {
     async export(candidateId) {
-      const [account, euAiConsent, followUpDelays, coachConversations, coachAccess, coachingSessions, actionCards, profiles, applications] = await Promise.all([
+      const [account, plan, quotaUsage, euAiConsent, followUpDelays, coachConversations, coachAccess, coachingSessions, actionCards, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
+        rowOf<NonNullable<CandidateDataExport["plan"]>>(
+          `SELECT plan, stripe_status AS "subscriptionStatus", ends_at AS "endsAt" FROM candidate_plan WHERE candidate_id = $1`,
+          candidateId,
+        ),
+        rowsOf<CandidateDataExport["quotaUsage"][number]>(`SELECT quota, month, used FROM quota_usage WHERE candidate_id = $1 ORDER BY month DESC, quota`, candidateId),
         rowOf<{ givenAt: Date }>(`SELECT given_at AS "givenAt" FROM eu_ai_consent WHERE candidate_id = $1`, candidateId),
         rowOf<FollowUpDelays>(`SELECT after_applied AS "afterApplied", after_follow_up AS "afterFollowUp" FROM follow_up_delay WHERE candidate_id = $1`, candidateId),
         exportCoachConversations(candidateId),
@@ -354,7 +374,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, euAiConsent, followUpDelays, profiles, applications, coachConversations, coachAccess, coachingSessions, actionCards };
+      return { exportedAt: new Date(), account, plan, quotaUsage, euAiConsent, followUpDelays, profiles, applications, coachConversations, coachAccess, coachingSessions, actionCards };
     },
 
     async delete(candidateId) {

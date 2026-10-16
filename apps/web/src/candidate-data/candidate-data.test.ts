@@ -7,6 +7,7 @@ import { createApplications, type Applications } from "../applications";
 import { BASE_URL, connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createActionCards } from "../action-cards";
 import { createAtsScoring } from "../ats-score";
+import { createCoachConversations } from "../coach-conversations";
 import { createEuAiConsents } from "../eu-ai-consent";
 import { createFollowUps } from "../follow-ups";
 import { createJobOffers, type JobOffers } from "../job-offers";
@@ -256,6 +257,48 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     });
     expect(exported.profiles.find((profile) => profile.id === otherProfileId)).toMatchObject({ jobDigest: null, jobDigests: [] });
     expect(JSON.stringify(exported)).not.toContain("secret-unsubscribe-token");
+  });
+
+  it("the export holds every Coach Conversation with all its messages, the Candidate's and the AI Coach's, but not what each reply cost", async () => {
+    const profileId = await createProfile(candidateId, "DAF");
+    let replies = 0;
+    const cost = { provider: "mistral", model: "secret-model-name", inputTokens: 10, outputTokens: 5, cachedInputTokens: 0, eur: 0.01 };
+    const conversations = createCoachConversations(database, {
+      coach: { reply: async () => ({ ok: true, reply: `Réponse ${++replies}`, cost, playbooks: [] }) },
+      profiles,
+    });
+    const first = await conversations.send(candidateId, { message: "Comment relancer Acme ?", focus: { kind: "profile", id: profileId } });
+    if (!first.ok) throw new Error("fixture Coach Conversation refused");
+    await conversations.send(candidateId, { conversationId: first.conversation.id, message: "Et après une semaine ?" });
+    const second = await conversations.send(candidateId, { message: "Bonjour" });
+    if (!second.ok) throw new Error("fixture Coach Conversation refused");
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.coachConversations).toEqual([
+      {
+        id: second.conversation.id,
+        title: "Bonjour",
+        profile: null,
+        createdAt: expect.any(Date),
+        lastMessageAt: expect.any(Date),
+        messages: [
+          { from: "candidate", text: "Bonjour", sentAt: expect.any(Date) },
+          { from: "coach", text: "Réponse 3", sentAt: expect.any(Date) },
+        ],
+      },
+      expect.objectContaining({
+        id: first.conversation.id,
+        profile: { id: profileId, name: "DAF" },
+        messages: [
+          { from: "candidate", text: "Comment relancer Acme ?", sentAt: expect.any(Date) },
+          { from: "coach", text: "Réponse 1", sentAt: expect.any(Date) },
+          { from: "candidate", text: "Et après une semaine ?", sentAt: expect.any(Date) },
+          { from: "coach", text: "Réponse 2", sentAt: expect.any(Date) },
+        ],
+      }),
+    ]);
+    expect(JSON.stringify(exported)).not.toContain("secret-model-name");
   });
 
   it("deleting the account removes the Candidate and everything of theirs, signs them out, and keeps the Job Offers", async () => {

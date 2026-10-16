@@ -21,6 +21,7 @@ import type { Application, Applications } from "../applications";
 import type { KeptAtsScore } from "../ats-score";
 import type { ChosenFrequency } from "../job-digests";
 import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
+import type { CoachMessage } from "../coach";
 import type { FollowUpDelays } from "../follow-ups";
 import type { MasterCvVersion, Profiles } from "../profiles";
 import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
@@ -89,6 +90,18 @@ export interface ExportedApplication extends Omit<Application, "matchScore"> {
   followUps: { sentAt: Date }[];
 }
 
+/** A Coach Conversation with the AI Coach, every message included (what each reply cost is internal, left out). */
+export interface ExportedCoachConversation {
+  id: string;
+  title: string;
+  /** The Profile in view when it started, if any. */
+  profile: { id: string; name: string } | null;
+  createdAt: Date;
+  lastMessageAt: Date;
+  /** Oldest first. */
+  messages: (CoachMessage & { sentAt: Date })[];
+}
+
 export interface ExportedActionCard extends ActionCard {
   /** When the Candidate accepted or dismissed it; null while pending. */
   decidedAt: Date | null;
@@ -103,6 +116,8 @@ export interface CandidateDataExport {
   euAiConsent: { givenAt: Date } | null;
   /** The Follow-up Delays the Candidate set, or null while they keep the defaults. */
   followUpDelays: FollowUpDelays | null;
+  /** Every Coach Conversation, most recently active first. */
+  coachConversations: ExportedCoachConversation[];
   /** Every Action Card the AI Coach proposed, pending or decided, newest first. */
   actionCards: ExportedActionCard[];
   /** Oldest first, archived ones included. */
@@ -238,12 +253,32 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
     return (await rowsOf<T>(sql, candidateId))[0] ?? null;
   }
 
+  async function exportCoachConversations(candidateId: string): Promise<ExportedCoachConversation[]> {
+    const [conversations, messagesOf] = await Promise.all([
+      rowsOf<Omit<ExportedCoachConversation, "messages">>(
+        `SELECT c.id, c.title, CASE WHEN p.id IS NULL THEN NULL ELSE json_build_object('id', p.id, 'name', p.name) END AS profile,
+                c.created_at AS "createdAt", c.last_message_at AS "lastMessageAt"
+           FROM coach_conversation c LEFT JOIN profile p ON p.id = c.profile_id
+          WHERE c.candidate_id = $1 ORDER BY c.last_message_at DESC, c.id`,
+        candidateId,
+      ),
+      grouped<ExportedCoachConversation["messages"][number]>(
+        `SELECT m.conversation_id AS key, m.author AS "from", m.text, m.created_at AS "sentAt"
+           FROM coach_message m JOIN coach_conversation c ON c.id = m.conversation_id
+          WHERE c.candidate_id = $1 ORDER BY m.seq`,
+        candidateId,
+      ),
+    ]);
+    return conversations.map((conversation) => ({ ...conversation, messages: messagesOf(conversation.id) }));
+  }
+
   return {
     async export(candidateId) {
-      const [account, euAiConsent, followUpDelays, actionCards, profiles, applications] = await Promise.all([
+      const [account, euAiConsent, followUpDelays, coachConversations, actionCards, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
         rowOf<{ givenAt: Date }>(`SELECT given_at AS "givenAt" FROM eu_ai_consent WHERE candidate_id = $1`, candidateId),
         rowOf<FollowUpDelays>(`SELECT after_applied AS "afterApplied", after_follow_up AS "afterFollowUp" FROM follow_up_delay WHERE candidate_id = $1`, candidateId),
+        exportCoachConversations(candidateId),
         rowsOf<ExportedActionCard>(
           `SELECT id, kind, title, body, json_build_object('kind', focus_kind, 'id', focus_id) AS focus, payload, status, created_at AS "createdAt", decided_at AS "decidedAt"
              FROM action_card WHERE candidate_id = $1 ORDER BY created_at DESC, id`,
@@ -252,7 +287,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, euAiConsent, followUpDelays, actionCards, profiles, applications };
+      return { exportedAt: new Date(), account, euAiConsent, followUpDelays, profiles, applications, coachConversations, actionCards };
     },
 
     async delete(candidateId) {

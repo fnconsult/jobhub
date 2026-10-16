@@ -189,6 +189,61 @@ test.describe("exporting my data and deleting my account", () => {
     expect(JSON.stringify(exported)).not.toMatch(/"token"|unsubscribe|stripe/i);
   });
 
+  test("the export holds the Candidate's ATS Score, Action Cards, Job Digest settings, Enriched Contacts and Coach Access, and none of another Candidate's (#171)", async ({ page, browser }) => {
+    const admin = await personPage(browser, ADMINISTRATOR);
+    const coach = await addCoach(admin, newAddress("account-export-coach"));
+    await admin.context().close();
+
+    const email = newAddress("account-export-derived");
+    const { profileId, applicationId } = await candidateWithData(page, email);
+    await subscribe(page, email, "premium");
+
+    // ATS Score and the ATS Fixes proposed as Action Cards.
+    const scored = await page.request.post(`/api/profiles/${profileId}/ats-score`, { headers: { origin } });
+    expect(scored.ok(), await scored.text()).toBe(true);
+    // Job Digest settings.
+    const digest = await page.request.put(`/api/profiles/${profileId}/job-digest`, { headers: { origin }, data: { frequency: "weekly" } });
+    expect(digest.ok(), await digest.text()).toBe(true);
+    // Enriched Contacts: found through the Company Dossier, one revealed.
+    const dossier = await page.request.post(`/api/applications/${applicationId}/company-dossier`, { headers: { origin } });
+    expect(dossier.ok(), await dossier.text()).toBe(true);
+    const finding = await page.request.post(`/api/applications/${applicationId}/enriched-contacts`, { headers: { origin } });
+    expect(finding.ok(), await finding.text()).toBe(true);
+    const { found } = await (await page.request.get(`/api/applications/${applicationId}/enriched-contacts`)).json();
+    expect(found.length).toBeGreaterThan(0);
+    const revealed = await page.request.post(`/api/applications/${applicationId}/enriched-contacts/${found[0].id}`, { headers: { origin } });
+    expect(revealed.ok(), await revealed.text()).toBe(true);
+    // Coach Access.
+    await page.goto("/coachs");
+    await page.getByRole("button", { name: tr(fr.humanCoaches.grant, { name: coach.name }) }).click();
+    await expect(page.getByText(tr(fr.humanCoaches.accessGranted, { name: coach.name }))).toBeVisible();
+
+    // Another Candidate with their own ATS Score.
+    const other = await browser.newPage({ baseURL: origin });
+    const otherData = await candidateWithData(other, newAddress("account-export-derived-other"));
+    expect((await other.request.post(`/api/profiles/${otherData.profileId}/ats-score`, { headers: { origin } })).ok()).toBe(true);
+    await other.close();
+
+    const exportRes = await page.request.get("/api/account/export");
+    expect(exportRes.status()).toBe(200);
+    const exported = await exportRes.json();
+
+    const profile = exported.profiles.find((p: { id: string }) => p.id === profileId);
+    expect(profile.atsScore).toMatchObject({ version: 2, score: { score: expect.any(Number) }, computedAt: expect.any(String) });
+    expect(profile.jobDigest).toMatchObject({ frequency: "weekly", subscribedAt: expect.any(String), unsubscribedAt: null });
+    expect(exported.actionCards.length).toBeGreaterThan(0);
+    expect(exported.actionCards[0]).toMatchObject({ id: expect.any(String), title: expect.any(String) });
+    const contacts = exported.applications[0].enrichedContacts as { id: string; emails: string[]; provider: string; foundAt: string; retrievedAt: string | null }[];
+    expect(contacts.map((c) => c.id)).toContain(found[0].id);
+    expect(contacts.find((c) => c.id === found[0].id)).toMatchObject({ provider: "apollo", foundAt: expect.any(String), retrievedAt: expect.any(String) });
+    expect(contacts.some((c) => c.emails.length > 0)).toBe(true);
+    expect(exported.coachAccess).toEqual([expect.objectContaining({ coach: { id: coach.id, name: coach.name }, grantedAt: expect.any(String) })]);
+
+    const raw = JSON.stringify(exported);
+    expect(raw).not.toContain(otherData.profileId);
+    expect(raw).not.toContain(otherData.applicationId);
+  });
+
   test("only a signed-in Candidate can download their data", async ({ request }) => {
     expect((await request.get("/api/account/export")).status()).toBe(401);
   });

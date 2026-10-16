@@ -66,18 +66,24 @@ export function backOfficeAccess(roles: readonly BackOfficeRole[]): BackOfficeAc
   };
 }
 
+/** Whether a person is a permanent super-admin, and their addresses. */
+export type PermanentSuperAdmins = ((person: { email: string; emailVerified: boolean }) => boolean) & {
+  /** Their email addresses, lower case. */
+  emails: readonly string[];
+};
+
 /**
  * Permanent super-admins: the Jobbbox team members whose email addresses are listed in
  * ADMIN_EMAILS (ADR-0014), with a verified email. Nobody can revoke them from the app,
  * so the team can never be locked out.
  */
-export function permanentSuperAdminsFromEnv(env: Env) {
+export function permanentSuperAdminsFromEnv(env: Env): PermanentSuperAdmins {
   const emails = new Set(
     (env.ADMIN_EMAILS ?? "")
       .split(",")
       .map((email) => email.trim().toLowerCase())
       .filter(Boolean),
   );
-  return (person: { email: string; emailVerified: boolean }): boolean =>
-    person.emailVerified && emails.has(person.email.trim().toLowerCase());
+  const isPermanent = (person: { email: string; emailVerified: boolean }): boolean => person.emailVerified && emails.has(person.email.trim().toLowerCase());
+  return Object.assign(isPermanent, { emails: [...emails] });
 }

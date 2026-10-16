@@ -41,6 +41,10 @@
 // every message. Asked what to remember from a conversation ("Tu relis une
 // conversation"), it proposes each Candidate message as a goal, in order.
 //
+// For the Back Office Assistant (#205, "assistant du Back Office"), it says how many
+// messages it was sent; "E2E_SHOW_CONTEXT" gets the whole system prompt back, so tests
+// can check what the assistant is told for the asking Administrator's roles.
+//
 // For the offer analysis behind a Company Dossier (task offer_analysis), a posting
 // whose displayed employer starts with "Cabinet" is a recruiting agency's, and its
 // Presumed Employer is the name after "Client présumé : " in the posting.
@@ -75,6 +79,10 @@ globalThis.fetch = async (input, init) => {
       const remembered = system.match(/^- (?:Objectif|Contrainte|Décision) : /gm)?.length ?? 0;
       if (remembered) content += ` Mémoire : ${remembered} élément${remembered > 1 ? "s" : ""}.`;
     }
+  }
+  if (system.includes("assistant du Back Office")) {
+    const turns = body.messages.filter((message) => message.role !== "system").length;
+    content = prompt.includes("E2E_SHOW_CONTEXT") ? system : `Réponse de l'assistant (${turns} message${turns > 1 ? "s" : ""})`;
   }
   if (system.includes("Tu relis une conversation")) {
     const said = [...prompt.matchAll(/^Candidat : (.+)$/gm)].map((match) => match[1].trim());

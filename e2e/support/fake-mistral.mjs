@@ -36,6 +36,10 @@
 //
 // A Candidate message containing "E2E_SHOW_CONTEXT" gets the whole system prompt
 // back as the AI Coach's reply, so tests can check what the AI Coach is told (#126).
+// With a Coach Memory in its system prompt (#125), the AI Coach adds how many
+// items it was told ("Mémoire : 2 éléments."), so tests can check it goes with
+// every message. Asked what to remember from a conversation ("Tu relis une
+// conversation"), it proposes each Candidate message as a goal, in order.
 //
 // For the offer analysis behind a Company Dossier (task offer_analysis), a posting
 // whose displayed employer starts with "Cabinet" is a recruiting agency's, and its
@@ -66,7 +70,15 @@ globalThis.fetch = async (input, init) => {
     } else if (prompt.includes("E2E_COACH_LONG")) {
       content = Array.from({ length: 30 }, (_, i) => `Paragraphe ${i + 1} : une réponse longue du Coach.`).join("\n\n") + "\n\nFIN DE LA RÉPONSE";
     }
-    else content = `${inView ? `Je vois votre profil « ${inView} ».` : "Je ne vois aucun profil."} (${turns} message${turns > 1 ? "s" : ""})`;
+    else {
+      content = `${inView ? `Je vois votre profil « ${inView} ».` : "Je ne vois aucun profil."} (${turns} message${turns > 1 ? "s" : ""})`;
+      const remembered = system.match(/^- (?:Objectif|Contrainte|Décision) : /gm)?.length ?? 0;
+      if (remembered) content += ` Mémoire : ${remembered} élément${remembered > 1 ? "s" : ""}.`;
+    }
+  }
+  if (system.includes("Tu relis une conversation")) {
+    const said = [...prompt.matchAll(/^Candidat : (.+)$/gm)].map((match) => match[1].trim());
+    content = JSON.stringify({ items: said.map((text) => ({ kind: "goal", text })) });
   }
   if (system.includes("cabinet de recrutement")) {
     const agency = /^Employeur affiché : Cabinet/m.test(prompt);

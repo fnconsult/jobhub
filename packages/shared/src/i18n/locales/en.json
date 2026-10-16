@@ -161,7 +161,7 @@
       "account": "your account: email address, name, language, sign-in methods and sessions, plan and quota use, European AI consent, follow-up delays;",
       "profiles": "your profiles: search criteria, every version of your CV, ATS Score, job searches, Job Digest settings and the Job Digests sent;",
       "applications": "your applications: job offer, interviews, match score, tailored CV, cover letter, outreach message, follow-ups sent, coach reviews, enriched contacts and company dossier;",
-      "coaching": "your conversations with the AI coach, your coach's proposals, the access you granted to human coaches and the coaching sessions you paid for."
+      "coaching": "your conversations with the AI coach, your coach memory (what it remembers about you), your coach's proposals, the access you granted to human coaches and the coaching sessions you paid for."
     },
     "exportLeftOut": "It does not contain your sign-in secrets (tokens, unsubscribe link), human coaches' email addresses, our providers' internal identifiers (Stripe, contact data providers) or what each AI reply cost.",
     "export": "Download all my data",
@@ -450,6 +450,44 @@
       "load": "Your conversations couldn't be loaded. Please try again in a few moments.",
       "action": "This action didn't go through. Please try again in a few moments.",
       "invalidTitle": "Give the conversation a name of 1 to 80 characters."
+    }
+  },
+  "coachMemory": {
+    "open": "Coach memory",
+    "title": "Coach memory",
+    "hint": "What your coach remembers about you from one conversation to the next: your goals, constraints and decisions. Nothing is added without your consent, and it is deleted with your account.",
+    "empty": "Your coach has not remembered anything yet. In a conversation, ask what it suggests remembering.",
+    "loading": "Loading coach memory…",
+    "kinds": {
+      "goal": "Goal",
+      "constraint": "Constraint",
+      "decision": "Decision"
+    },
+    "kindLabel": "Type",
+    "textLabel": "What your coach remembers",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "confirmDelete": "Your coach will forget “{{text}}”. Delete it?",
+    "confirmDeleteButton": "Yes, delete",
+    "edited": "Item updated.",
+    "deleted": "Item deleted.",
+    "propose": "What should my coach remember from this conversation?",
+    "proposing": "Your coach is reading the conversation again…",
+    "proposalsTitle": "Your coach suggests remembering",
+    "proposalsHint": "Confirm each item to keep: only the ones you confirm are saved.",
+    "noProposals": "Your coach sees nothing new to remember in this conversation.",
+    "confirm": "Remember",
+    "dismiss": "Ignore",
+    "confirmed": "Remembered: “{{text}}”.",
+    "dismissed": "Ignored: nothing is saved.",
+    "errors": {
+      "load": "Coach memory could not be loaded. Try again in a few moments.",
+      "action": "This did not work. Try again in a few moments.",
+      "invalid": "Write 1 to 300 characters.",
+      "full": "Coach memory is full (30 items). Delete one to add another.",
+      "unavailable": "Your coach cannot make suggestions right now. Try again in a few moments."
     }
   },
   "actionCards": {

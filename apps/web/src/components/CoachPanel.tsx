@@ -6,6 +6,7 @@ import type { CoachFocus } from "@/coach";
 import { coachReplyBlocks, type Inline } from "@/coach/reply-text";
 import type { CoachMessage } from "@/coach/conversation";
 import { CoachConversationList, type ConversationSummary } from "@/components/CoachConversationList";
+import { CoachMemoryProposals, CoachMemoryView } from "@/components/CoachMemory";
 import { Icons } from "@/components/icons";
 import { StartJobSearchButton } from "@/components/JobSearchControls";
 
@@ -165,7 +166,7 @@ export function CoachPanel({ children }: { children: ReactNode }) {
   const [conversation, setConversation] = useState<ConversationSummary | null>(null);
   const [messages, setMessages] = useState<CoachMessage[]>([]);
   const [restoring, setRestoring] = useState(false);
-  const [view, setView] = useState<"chat" | "list">("chat");
+  const [view, setView] = useState<"chat" | "list" | "memory">("chat");
   const [conversations, setConversations] = useState<ConversationSummary[] | null>(null);
   const [listFailed, setListFailed] = useState(false);
   const [draft, setDraft] = useState("");
@@ -175,6 +176,7 @@ export function CoachPanel({ children }: { children: ReactNode }) {
   const toggles = useRef(new Set<HTMLButtonElement>());
   const input = useRef<HTMLTextAreaElement>(null);
   const body = useRef<HTMLDivElement>(null);
+  const messagesEnd = useRef<HTMLDivElement>(null);
   const setInView = useCallback((next: InView | null) => setInViewState(next), []);
 
   useEffect(() => {
@@ -239,10 +241,13 @@ export function CoachPanel({ children }: { children: ReactNode }) {
     else setListFailed(true);
   }
 
-  // The latest message (or the "thinking" notice) comes into view when it arrives (#164).
+  // The latest message (or the "thinking" notice) comes into view when it arrives (#164): the
+  // body scrolls to where the messages end, not to its own end, which holds the Coach Memory
+  // proposals (#125) and would push the latest reply out of sight in a short panel.
   useEffect(() => {
     const element = body.current;
-    if (element) element.scrollTop = element.scrollHeight;
+    const end = messagesEnd.current;
+    if (element && end) element.scrollTop += end.getBoundingClientRect().top - element.getBoundingClientRect().bottom;
   }, [messages, status, view, open]);
 
   async function openConversation(conversationId: string): Promise<boolean> {
@@ -336,12 +341,21 @@ export function CoachPanel({ children }: { children: ReactNode }) {
                   {t("coachPanel.backToConversation")}
                 </button>
               )}
+              {view !== "memory" ? (
+                <button className="button button-quiet" type="button" onClick={() => setView("memory")}>
+                  {t("coachMemory.open")}
+                </button>
+              ) : null}
               <button className="button button-quiet" type="button" onClick={startNewConversation}>
                 <Icons.add />
                 {t("coachPanel.newConversation")}
               </button>
             </div>
-            {view === "list" ? (
+            {view === "memory" ? (
+              <div className="coach-panel-body">
+                <CoachMemoryView />
+              </div>
+            ) : view === "list" ? (
               <div className="coach-panel-body">
                 <CoachConversationList
                   conversations={conversations}
@@ -396,6 +410,8 @@ export function CoachPanel({ children }: { children: ReactNode }) {
                       {t(`coachPanel.errors.${status}`)}
                     </p>
                   ) : null}
+                  <div ref={messagesEnd} aria-hidden="true" />
+                  {conversation ? <CoachMemoryProposals key={conversation.id} conversationId={conversation.id} /> : null}
                 </div>
                 <form className="coach-panel-form" onSubmit={send}>
                   <label htmlFor={`${id}-message`}>{t("coachPanel.messageLabel")}</label>

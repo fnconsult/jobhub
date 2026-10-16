@@ -161,7 +161,7 @@
       "account": "votre compte : adresse e-mail, nom, langue, moyens et sessions de connexion, abonnement et utilisation de vos quotas, accord pour l'IA européenne, délais de relance ;",
       "profiles": "vos profils : critères de recherche, toutes les versions de votre CV, ATS Score, recherches d'offres, réglages et envois du Job Digest ;",
       "applications": "vos candidatures : offre, entretiens, score de correspondance, CV adapté, lettre de motivation, message d'approche, relances envoyées, avis des coachs, contacts enrichis et dossier entreprise ;",
-      "coaching": "vos conversations avec le coach IA, les propositions de votre coach, les accès accordés aux coachs humains et vos séances de coaching payées."
+      "coaching": "vos conversations avec le coach IA, la mémoire du coach (ce qu'il retient de vous), les propositions de votre coach, les accès accordés aux coachs humains et vos séances de coaching payées."
     },
     "exportLeftOut": "Il ne contient pas vos secrets de connexion (jetons, lien de désabonnement), les adresses e-mail des coachs humains, les identifiants internes de nos prestataires (Stripe, fournisseurs de contacts) ni le coût de chaque réponse de l'IA.",
     "export": "Télécharger toutes mes données",
@@ -450,6 +450,44 @@
       "load": "Vos conversations n'ont pas pu être chargées. Réessayez dans quelques instants.",
       "action": "Cette action n'a pas abouti. Réessayez dans quelques instants.",
       "invalidTitle": "Donnez à la conversation un nom de 1 à 80 caractères."
+    }
+  },
+  "coachMemory": {
+    "open": "Mémoire du coach",
+    "title": "Mémoire du coach",
+    "hint": "Ce que votre coach retient de vous d'une conversation à l'autre : vos objectifs, vos contraintes, vos décisions. Rien n'y est ajouté sans votre accord, et elle est supprimée avec votre compte.",
+    "empty": "Votre coach n'a encore rien retenu. Dans une conversation, demandez-lui ce qu'il propose de retenir.",
+    "loading": "Chargement de la mémoire du coach…",
+    "kinds": {
+      "goal": "Objectif",
+      "constraint": "Contrainte",
+      "decision": "Décision"
+    },
+    "kindLabel": "Type",
+    "textLabel": "Ce que votre coach retient",
+    "edit": "Modifier",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "confirmDelete": "Votre coach oubliera « {{text}} ». Supprimer ?",
+    "confirmDeleteButton": "Oui, supprimer",
+    "edited": "Élément modifié.",
+    "deleted": "Élément supprimé.",
+    "propose": "Que retenir de cette conversation ?",
+    "proposing": "Votre coach relit la conversation…",
+    "proposalsTitle": "Votre coach propose de retenir",
+    "proposalsHint": "Confirmez chaque élément à garder : seuls ceux que vous confirmez sont enregistrés.",
+    "noProposals": "Votre coach ne voit rien de nouveau à retenir dans cette conversation.",
+    "confirm": "Retenir",
+    "dismiss": "Ignorer",
+    "confirmed": "Retenu : « {{text}} ».",
+    "dismissed": "Ignoré : rien n'est enregistré.",
+    "errors": {
+      "load": "La mémoire du coach n'a pas pu être chargée. Réessayez dans quelques instants.",
+      "action": "Cette action n'a pas abouti. Réessayez dans quelques instants.",
+      "invalid": "Écrivez de 1 à 300 caractères.",
+      "full": "La mémoire du coach est pleine (30 éléments). Supprimez-en un pour en ajouter un autre.",
+      "unavailable": "Votre coach ne peut pas proposer pour le moment. Réessayez dans quelques instants."
     }
   },
   "actionCards": {

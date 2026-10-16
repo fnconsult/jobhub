@@ -7,8 +7,9 @@ import { subscribe } from "./support/plan";
 
 // Issue #25 / ADR-0010: from their account page, the Candidate downloads all
 // their data (Profiles, every Master CV Version, Applications, Tailored
-// Documents) and deletes their account: everything tied to them goes, the Job
-// Offers stay.
+// Documents and, since #171, everything else tied to them: consent, Coach
+// Conversations, Coach Access...) and deletes their account: everything tied to
+// them goes, the Job Offers stay.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
 
@@ -156,6 +157,36 @@ test.describe("exporting my data and deleting my account", () => {
     const raw = JSON.stringify(exported);
     expect(raw).not.toContain(otherProfileId);
     expect(raw).not.toContain(otherApplicationId);
+  });
+
+  test("the export also holds the Candidate's EU AI consent, Follow-up Delays and Coach Conversations, and the account page says what it contains (#171)", async ({ page }) => {
+    const email = newAddress("account-export-more");
+    await candidateWithData(page, email);
+    expect((await page.request.put("/api/account/eu-ai-consent", { headers: { origin } })).ok()).toBe(true);
+    const delays = await page.request.put("/api/follow-up-delays", { data: { afterApplied: 5, afterFollowUp: 12 }, headers: { origin } });
+    expect(delays.ok(), await delays.text()).toBe(true);
+    const talked = await page.request.post("/api/coach", { headers: { origin }, data: { message: "Comment relancer Acme ?" } });
+    expect(talked.status(), await talked.text()).toBe(200);
+
+    await page.goto("/compte");
+    const section = page.getByRole("region", { name: fr.accountData.title });
+    for (const item of Object.values(fr.accountData.exportContents) as string[]) await expect(section.getByRole("listitem").filter({ hasText: item })).toHaveCount(1);
+    await expect(section.getByText(fr.accountData.exportLeftOut)).toBeVisible();
+    const [file] = await Promise.all([page.waitForEvent("download"), section.getByRole("link", { name: fr.accountData.export }).click()]);
+    const exported = JSON.parse(readFileSync((await file.path())!, "utf8"));
+
+    expect(exported.euAiConsent).toEqual({ givenAt: expect.any(String) });
+    expect(exported.followUpDelays).toEqual({ afterApplied: 5, afterFollowUp: 12 });
+    expect(exported.coachConversations).toEqual([
+      expect.objectContaining({
+        id: (await talked.json()).conversation.id,
+        messages: [expect.objectContaining({ from: "candidate", text: "Comment relancer Acme ?" }), expect.objectContaining({ from: "coach", text: expect.any(String) })],
+      }),
+    ]);
+    expect(exported).toMatchObject({ coachAccess: [], coachingSessions: [], actionCards: expect.any(Array), quotaUsage: expect.any(Array) });
+    expect(exported).toHaveProperty("plan");
+    expect(exported.account.sessions).toEqual(expect.arrayContaining([expect.objectContaining({ createdAt: expect.any(String) })]));
+    expect(JSON.stringify(exported)).not.toMatch(/"token"|unsubscribe|stripe/i);
   });
 
   test("only a signed-in Candidate can download their data", async ({ request }) => {

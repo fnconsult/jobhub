@@ -154,7 +154,14 @@
   },
   "accountData": {
     "title": "My data",
-    "exportHint": "Download everything you saved in Jobbbox: your profiles, every version of your CVs, your applications and their documents.",
+    "exportHint": "Download all your personal data in one file (JSON). It contains:",
+    "exportContents": {
+      "account": "your account: email address, name, language, sign-in methods and sessions, plan and quota use, European AI consent, follow-up delays;",
+      "profiles": "your profiles: search criteria, every version of your CV, ATS Score, job searches, Job Digest settings and the Job Digests sent;",
+      "applications": "your applications: job offer, interviews, match score, tailored CV, cover letter, outreach message, follow-ups sent, coach reviews, enriched contacts and company dossier;",
+      "coaching": "your conversations with the AI coach, your coach's proposals, the access you granted to human coaches and the coaching sessions you paid for."
+    },
+    "exportLeftOut": "It does not contain your sign-in secrets (tokens, unsubscribe link), human coaches' email addresses, our providers' internal identifiers (Stripe, contact data providers) or what each AI reply cost.",
     "export": "Download all my data",
     "deleteTitle": "Delete my account",
     "deleteWarning": "Your account is closed at once and you are signed out. Your profiles, CVs, applications, documents, the access you gave coaches and your coaching session notes are erased, permanently within 30 days at most. Your subscription, if you have one, ends. Download your data first if you want to keep it.",

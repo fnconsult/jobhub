@@ -154,7 +154,14 @@
   },
   "accountData": {
     "title": "Mes données",
-    "exportHint": "Téléchargez tout ce que vous avez enregistré dans Jobbbox : vos profils, toutes les versions de vos CV, vos candidatures et leurs documents.",
+    "exportHint": "Téléchargez toutes vos données personnelles dans un seul fichier (JSON). Il contient :",
+    "exportContents": {
+      "account": "votre compte : adresse e-mail, nom, langue, moyens et sessions de connexion, abonnement et utilisation de vos quotas, accord pour l'IA européenne, délais de relance ;",
+      "profiles": "vos profils : critères de recherche, toutes les versions de votre CV, ATS Score, recherches d'offres, réglages et envois du Job Digest ;",
+      "applications": "vos candidatures : offre, entretiens, score de correspondance, CV adapté, lettre de motivation, message d'approche, relances envoyées, avis des coachs, contacts enrichis et dossier entreprise ;",
+      "coaching": "vos conversations avec le coach IA, les propositions de votre coach, les accès accordés aux coachs humains et vos séances de coaching payées."
+    },
+    "exportLeftOut": "Il ne contient pas vos secrets de connexion (jetons, lien de désabonnement), les adresses e-mail des coachs humains, les identifiants internes de nos prestataires (Stripe, fournisseurs de contacts) ni le coût de chaque réponse de l'IA.",
     "export": "Télécharger toutes mes données",
     "deleteTitle": "Supprimer mon compte",
     "deleteWarning": "Votre compte est fermé tout de suite et vous êtes déconnecté. Vos profils, CV, candidatures, documents, accès accordés aux coachs et notes de séances de coaching sont effacés, définitivement sous 30 jours au plus. Votre abonnement, s'il y en a un, prend fin. Téléchargez vos données avant si vous souhaitez les garder.",

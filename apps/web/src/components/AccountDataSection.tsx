@@ -4,9 +4,13 @@ import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { routes } from "@/routes";
 
+/** What the export holds, one line each (GDPR art. 15 / 20, #171). */
+const EXPORT_CONTENTS = ["account", "profiles", "applications", "coaching"] as const;
+
 /**
- * The Candidate's own data (ADR-0010): download all of it, or delete the
- * account, confirmed by typing their email address.
+ * The Candidate's own data (ADR-0010): download all of it, told exactly what
+ * the file holds and leaves out, or delete the account, confirmed by typing
+ * their email address.
  */
 export function AccountDataSection() {
   const { t } = useTranslation();
@@ -42,6 +46,12 @@ export function AccountDataSection() {
     <section className="stack" aria-labelledby={`${id}-title`}>
       <h2 id={`${id}-title`}>{t("accountData.title")}</h2>
       <p>{t("accountData.exportHint")}</p>
+      <ul>
+        {EXPORT_CONTENTS.map((part) => (
+          <li key={part}>{t(`accountData.exportContents.${part}`)}</li>
+        ))}
+      </ul>
+      <p>{t("accountData.exportLeftOut")}</p>
       <a className="button" href="/api/account/export" download>
         {t("accountData.export")}
       </a>

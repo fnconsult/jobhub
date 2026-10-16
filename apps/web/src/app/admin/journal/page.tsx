@@ -1,10 +1,11 @@
 import { JOB_DIGEST_FREQUENCIES, LIMITED_QUOTAS, PLANS, type JobDigestFrequency, type LimitedQuota, type Plan } from "@jobhub/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { isBackOfficeRole } from "@/admin/access";
 import { BACK_OFFICE_SECTIONS, isBackOfficeSection, RETENTION_YEARS, type BackOfficeAuditEntry, type BackOfficeSection, type Recorded } from "@/admin/back-office";
 import { journalChanges, type JournalChange } from "@/admin/journal-changes";
-import { getBackOffice, requireAdministrator } from "@/admin/server";
-import { BackOfficeHeader } from "@/components/BackOfficeHeader";
+import { getBackOffice, requireBackOffice } from "@/admin/server";
+import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 
@@ -21,14 +22,14 @@ const CURRENT = "page";
 export async function generateMetadata(): Promise<Metadata> {
   // Metadata renders apart from the page: without this, the 404 shown to
   // non-Administrators would still carry the back office's title.
-  await requireAdministrator();
+  await requireBackOffice("audit");
   const t = await getServerT();
   return { title: `${t("admin.journal.title")} · ${t("admin.title")}`, robots: { index: false } };
 }
 
 /** Administrators read the Back Office Audit: every change made in the Back Office, newest first, by section. */
 export default async function JournalPage({ searchParams }: { searchParams: Promise<{ section?: string }> }) {
-  await requireAdministrator();
+  const { access } = await requireBackOffice("audit");
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
   const requested = (await searchParams).section;
@@ -42,6 +43,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
       return t(`billing.quotas.${field as LimitedQuota | "jobDigest"}`);
     }
     if (entrySection === "human_coaches" && HUMAN_COACH_FIELDS.includes(field as HumanCoachField)) return t(`admin.humanCoaches.${field as HumanCoachField}`);
+    if (entrySection === "roles" && field === "roles") return t("admin.administrators.roles");
     if (field === "id") return t("admin.journal.id");
     return field;
   };
@@ -49,6 +51,9 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     if (value === null) return t(entrySection === "plan_quotas" ? "admin.journal.unlimited" : "admin.journal.empty");
     if (entrySection === "plan_quotas" && field === "jobDigest" && JOB_DIGEST_FREQUENCIES.includes(value as JobDigestFrequency)) {
       return t(`billing.jobDigest.${value as JobDigestFrequency}`);
+    }
+    if (entrySection === "roles" && field === "roles" && Array.isArray(value)) {
+      return value.map((role) => (isBackOfficeRole(role) ? t(`admin.roles.${role}`) : String(role))).join(", ");
     }
     if (typeof value === "number") return number.format(value);
     if (typeof value === "string") return value === "" ? t("admin.journal.empty") : value;
@@ -64,11 +69,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
   };
 
   return (
-    <main className="page">
-      <BackOfficeHeader />
-      <p>
-        <Link href={routes.admin}>{t("admin.back")}</Link>
-      </p>
+    <BackOfficeLayout access={access}>
       <h1>{t("admin.journal.title")}</h1>
       <p className="lead">{t("admin.journal.intro", { years: String(RETENTION_YEARS) })}</p>
       <nav aria-label={t("admin.journal.filter")}>
@@ -134,6 +135,6 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
         </div>
       )}
       {entries.length === LIMIT ? <p>{t("admin.journal.limit", { count: String(LIMIT) })}</p> : null}
-    </main>
+    </BackOfficeLayout>
   );
 }

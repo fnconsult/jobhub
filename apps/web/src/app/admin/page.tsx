@@ -1,41 +1,25 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { requireAdministrator } from "@/admin/server";
-import { BackOfficeHeader } from "@/components/BackOfficeHeader";
+import { requireBackOffice } from "@/admin/server";
+import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getServerT } from "@/i18n/server";
-import { routes } from "@/routes";
 
 export async function generateMetadata(): Promise<Metadata> {
   // Metadata renders apart from the page: without this, the 404 shown to
   // non-Administrators would still carry the back office's title.
-  await requireAdministrator();
+  await requireBackOffice();
   const t = await getServerT();
   return { title: `${t("admin.title")} · ${t("app.name")}`, robots: { index: false } };
 }
 
-/** The back office's home: one entry per section the Jobbbox team runs. */
+/** The Back Office's home: the sidebar leads to each section the Administrator's roles cover. */
 export default async function BackOfficePage() {
-  await requireAdministrator();
+  const { access } = await requireBackOffice();
   const t = await getServerT();
   return (
-    <main className="page">
-      <BackOfficeHeader />
+    <BackOfficeLayout access={access}>
       <h1>{t("admin.title")}</h1>
       <p className="lead">{t("admin.intro")}</p>
-      <ul className="stack">
-        <li>
-          <Link href={routes.adminPlanQuotas}>{t("admin.sections.planQuotas")}</Link>
-        </li>
-        <li>
-          <Link href={routes.adminHumanCoaches}>{t("admin.sections.humanCoaches")}</Link>
-        </li>
-        <li>
-          <Link href={routes.adminCoachCost}>{t("admin.sections.coachCost")}</Link>
-        </li>
-        <li>
-          <Link href={routes.adminJournal()}>{t("admin.sections.journal")}</Link>
-        </li>
-      </ul>
-    </main>
+      <p>{t("admin.yourRoles", { roles: access.roles.map((role) => t(`admin.roles.${role}`)).join(", ") })}</p>
+    </BackOfficeLayout>
   );
 }

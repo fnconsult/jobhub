@@ -590,11 +590,30 @@
   "admin": {
     "title": "Back office",
     "intro": "For the Jobbbox team only.",
+    "yourRoles": "Your roles: {{roles}}.",
+    "readOnly": "Read only: your roles do not allow changes to this section.",
+    "roles": {
+      "super-admin": "Super-admin",
+      "plans-manager": "Plans manager",
+      "coach-manager": "Coach manager",
+      "support": "Support"
+    },
+    "nav": {
+      "label": "Back office navigation",
+      "account": "My account",
+      "groups": {
+        "offer": "Offer",
+        "coaching": "Coaching",
+        "platform": "Platform",
+        "team": "Team"
+      }
+    },
     "sections": {
-      "planQuotas": "Plan Quotas",
-      "humanCoaches": "Human Coaches",
-      "coachCost": "AI Coach cost",
-      "journal": "Change journal"
+      "planQuotas": "Quotas",
+      "humanCoaches": "Coaches",
+      "coachCost": "Coach cost",
+      "administrators": "Administrators",
+      "journal": "Journal"
     },
     "planQuotas": {
       "title": "Plan Quotas",
@@ -606,7 +625,6 @@
       "saved": "{{plan}} Plan quotas saved.",
       "invalid": "Check the values: whole numbers from 0, or empty for unlimited."
     },
-    "back": "Back to the back office",
     "humanCoaches": {
       "title": "Human coaches",
       "intro": "The coaches Candidates can book. They sign in with the email address given here. Jobbbox pays them outside the platform.",
@@ -641,6 +659,38 @@
       "models": "Models",
       "playbooks": "Playbooks used",
       "overTarget": "above target"
+    },
+    "administrators": {
+      "title": "Administrators",
+      "intro": "The Jobbbox team members who can use the back office, and their roles. A revoked role stops giving access from the next page.",
+      "caption": "Administrators and their roles",
+      "email": "Email address",
+      "roles": "Roles",
+      "permanent": "permanent",
+      "permanentHelp": "Permanent super-admin (ADMIN_EMAILS): cannot be revoked here.",
+      "revoke": "Revoke {{role}} from {{email}}",
+      "grantTitle": "Grant roles",
+      "grantEmail": "Email address of an existing Jobbbox account",
+      "grantEmailHelp": "The person must already have created their account.",
+      "grantRoles": "Roles to grant",
+      "grant": "Grant the roles",
+      "granted": "Roles granted: {{roles}}.",
+      "revoked": "Role revoked.",
+      "roleHelp": {
+        "super-admin": "The whole back office, Administrators and Journal included.",
+        "plans-manager": "Plans and their quotas.",
+        "coach-manager": "Human Coaches; reads the AI Coach cost.",
+        "support": "Reads everything except provider secrets, and changes nothing."
+      },
+      "errors": {
+        "unknown_account": "No Jobbbox account uses this email address. The person must create their account first.",
+        "unverified_account": "This account has not confirmed its email address yet: roles would give it no access. Ask them to sign in once first.",
+        "no_role": "Tick at least one role.",
+        "own_super_admin": "You cannot remove your own super-admin role.",
+        "permanent": "This super-admin is permanent (ADMIN_EMAILS): their role cannot be revoked here.",
+        "last_super_admin": "There must always be at least one super-admin.",
+        "forbidden": "Only super-admins grant and revoke roles."
+      }
     },
     "journal": {
       "title": "Change journal",

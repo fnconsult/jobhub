@@ -87,6 +87,8 @@ export interface ExportedAccount {
   signInMethods: { provider: string; linkedAt: Date }[];
   /** Where the Candidate is signed in, newest first. */
   sessions: { createdAt: Date; expiresAt: Date; ipAddress: string | null; userAgent: string | null }[];
+  /** The Back Office Roles they hold, as an Administrator (not who granted them); oldest first. */
+  backOfficeRoles: { role: string; grantedAt: Date }[];
 }
 
 /**
@@ -198,6 +200,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   candidate: "account",
   account: "account.signInMethods (no tokens or password)",
   session: "account.sessions (no tokens)",
+  administrator_role: "account.backOfficeRoles (not who granted them)",
   candidate_plan: "plan (no Stripe identifiers)",
   quota_usage: "quotaUsage",
   eu_ai_consent: "euAiConsent",
@@ -359,8 +362,8 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
   }
 
   async function exportAccount(candidateId: string): Promise<ExportedAccount | null> {
-    const [account, signInMethods, sessions] = await Promise.all([
-      rowOf<Omit<ExportedAccount, "signInMethods" | "sessions">>(`SELECT email, name, "interfaceLanguage", "createdAt" FROM candidate WHERE id = $1`, candidateId),
+    const [account, signInMethods, sessions, backOfficeRoles] = await Promise.all([
+      rowOf<Omit<ExportedAccount, "signInMethods" | "sessions" | "backOfficeRoles">>(`SELECT email, name, "interfaceLanguage", "createdAt" FROM candidate WHERE id = $1`, candidateId),
       rowsOf<ExportedAccount["signInMethods"][number]>(
         `SELECT "providerId" AS provider, "createdAt" AS "linkedAt" FROM account WHERE "userId" = $1 ORDER BY "createdAt", id`,
         candidateId,
@@ -369,8 +372,12 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         `SELECT "createdAt", "expiresAt", "ipAddress", "userAgent" FROM session WHERE "userId" = $1 ORDER BY "createdAt" DESC, id`,
         candidateId,
       ),
+      rowsOf<ExportedAccount["backOfficeRoles"][number]>(
+        `SELECT role, granted_at AS "grantedAt" FROM administrator_role WHERE candidate_id = $1 ORDER BY granted_at, role`,
+        candidateId,
+      ),
     ]);
-    return account && { ...account, signInMethods, sessions };
+    return account && { ...account, signInMethods, sessions, backOfficeRoles };
   }
 
   /** Rows of one of the Candidate's tables (`$1` is their id). */

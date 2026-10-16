@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getBackOffice, requireAdministrator } from "@/admin/server";
-import { BackOfficeHeader } from "@/components/BackOfficeHeader";
+import { getBackOffice, requireBackOffice } from "@/admin/server";
+import { BackOfficeForm } from "@/components/BackOfficeForm";
+import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
@@ -10,14 +10,14 @@ import { routes } from "@/routes";
 export async function generateMetadata(): Promise<Metadata> {
   // Metadata renders apart from the page: without this, the 404 shown to
   // non-Administrators would still carry the back office's title.
-  await requireAdministrator();
+  await requireBackOffice("humanCoaches");
   const t = await getServerT();
   return { title: `${t("admin.humanCoaches.title")} · ${t("admin.title")}`, robots: { index: false } };
 }
 
 async function addCoach(form: FormData) {
   "use server";
-  const administrator = await requireAdministrator();
+  const { administrator } = await requireBackOffice("humanCoaches", "write");
   const added = await getBackOffice().addHumanCoach(administrator, {
     name: form.get("name"),
     email: form.get("email"),
@@ -30,26 +30,23 @@ async function addCoach(form: FormData) {
 
 async function retireCoach(form: FormData) {
   "use server";
-  const administrator = await requireAdministrator();
+  const { administrator } = await requireBackOffice("humanCoaches", "write");
   await getBackOffice().retireHumanCoach(administrator, String(form.get("coachId")));
   redirect(`${routes.adminHumanCoaches}?retired=1`);
 }
 
 /** Administrators add Human Coaches, with their Cal.com booking link, and retire them. */
 export default async function HumanCoachesAdminPage({ searchParams }: { searchParams: Promise<{ added?: string; error?: string; retired?: string }> }) {
-  await requireAdministrator();
+  const { access, canWrite } = await requireBackOffice("humanCoaches");
   const t = await getServerT();
   const { added, error, retired } = await searchParams;
   const coaches = await getHumanCoaches().list();
 
   return (
-    <main className="page">
-      <BackOfficeHeader />
-      <p>
-        <Link href={routes.admin}>{t("admin.back")}</Link>
-      </p>
+    <BackOfficeLayout access={access}>
       <h1>{t("admin.humanCoaches.title")}</h1>
       <p className="lead">{t("admin.humanCoaches.intro")}</p>
+      {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}
       {added ? (
         <p className="notice" role="status">
           {t("admin.humanCoaches.added", { name: added })}
@@ -79,19 +76,20 @@ export default async function HumanCoachesAdminPage({ searchParams }: { searchPa
                 </a>
               </p>
               {coach.bio ? <p>{coach.bio}</p> : null}
-              <form action={retireCoach}>
+              <BackOfficeForm canWrite={canWrite} action={retireCoach}>
                 <input type="hidden" name="coachId" value={coach.id} />
-                <button className="button" type="submit">
+                <button className="button" type="submit" disabled={!canWrite}>
                   {t("admin.humanCoaches.retire", { name: coach.name })}
                 </button>
-              </form>
+              </BackOfficeForm>
             </li>
           ))}
         </ul>
       </section>
 
-      <form className="stack quota-form" action={addCoach}>
-        <fieldset>
+      <BackOfficeForm canWrite={canWrite} className="stack quota-form" action={addCoach}>
+        {/* Read-only for roles that may not change Human Coaches: the fields show, disabled, with nothing to send. */}
+        <fieldset disabled={!canWrite}>
           <legend>
             <h2>{t("admin.humanCoaches.addTitle")}</h2>
           </legend>
@@ -116,7 +114,7 @@ export default async function HumanCoachesAdminPage({ searchParams }: { searchPa
             {t("admin.humanCoaches.add")}
           </button>
         </fieldset>
-      </form>
-    </main>
+      </BackOfficeForm>
+    </BackOfficeLayout>
   );
 }

@@ -590,11 +590,30 @@
   "admin": {
     "title": "Back office",
     "intro": "Réservé à l'équipe Jobbbox.",
+    "yourRoles": "Vos rôles : {{roles}}.",
+    "readOnly": "Lecture seule : vos rôles ne permettent pas de modifier cette section.",
+    "roles": {
+      "super-admin": "Super-admin",
+      "plans-manager": "Responsable des offres",
+      "coach-manager": "Responsable coaching",
+      "support": "Support"
+    },
+    "nav": {
+      "label": "Navigation du back office",
+      "account": "Mon compte",
+      "groups": {
+        "offer": "Offre",
+        "coaching": "Coaching",
+        "platform": "Plateforme",
+        "team": "Équipe"
+      }
+    },
     "sections": {
-      "planQuotas": "Quotas des offres",
-      "humanCoaches": "Coachs humains",
-      "coachCost": "Coût de l'AI Coach",
-      "journal": "Journal des modifications"
+      "planQuotas": "Quotas",
+      "humanCoaches": "Coachs",
+      "coachCost": "Coût coach",
+      "administrators": "Administrateurs",
+      "journal": "Journal"
     },
     "planQuotas": {
       "title": "Quotas des offres",
@@ -606,7 +625,6 @@
       "saved": "Quotas de l'offre {{plan}} enregistrés.",
       "invalid": "Vérifiez les valeurs : des nombres entiers positifs, ou vide pour illimité."
     },
-    "back": "Retour au back office",
     "humanCoaches": {
       "title": "Coachs humains",
       "intro": "Les coachs que les candidats peuvent réserver. Ils se connectent avec l'adresse e-mail indiquée ici. Jobbbox les rémunère en dehors de la plateforme.",
@@ -641,6 +659,38 @@
       "models": "Modèles",
       "playbooks": "Playbooks utilisés",
       "overTarget": "au-dessus de l'objectif"
+    },
+    "administrators": {
+      "title": "Administrateurs",
+      "intro": "Les membres de l'équipe Jobbbox qui ont accès au back office, et leurs rôles. Un rôle retiré ne donne plus accès dès la page suivante.",
+      "caption": "Administrateurs et leurs rôles",
+      "email": "Adresse e-mail",
+      "roles": "Rôles",
+      "permanent": "permanent",
+      "permanentHelp": "Super-admin permanent (ADMIN_EMAILS) : ne peut pas être retiré ici.",
+      "revoke": "Retirer le rôle {{role}} à {{email}}",
+      "grantTitle": "Donner des rôles",
+      "grantEmail": "Adresse e-mail d'un compte Jobbbox existant",
+      "grantEmailHelp": "La personne doit déjà avoir créé son compte.",
+      "grantRoles": "Rôles à donner",
+      "grant": "Donner les rôles",
+      "granted": "Rôles donnés : {{roles}}.",
+      "revoked": "Rôle retiré.",
+      "roleHelp": {
+        "super-admin": "Tout le back office, dont les administrateurs et le journal.",
+        "plans-manager": "Les offres et leurs quotas.",
+        "coach-manager": "Les coachs humains ; consulte le coût de l'AI Coach.",
+        "support": "Consulte tout, sauf les secrets des fournisseurs, sans rien modifier."
+      },
+      "errors": {
+        "unknown_account": "Aucun compte Jobbbox n'utilise cette adresse e-mail. La personne doit d'abord créer son compte.",
+        "unverified_account": "Ce compte n'a pas encore confirmé son adresse e-mail : ses rôles ne lui donneraient pas accès. Demandez-lui de se connecter une première fois.",
+        "no_role": "Cochez au moins un rôle.",
+        "own_super_admin": "Vous ne pouvez pas retirer votre propre rôle de super-admin.",
+        "permanent": "Ce super-admin est permanent (ADMIN_EMAILS) : son rôle ne peut pas être retiré ici.",
+        "last_super_admin": "Il doit rester au moins un super-admin.",
+        "forbidden": "Seuls les super-admins donnent et retirent des rôles."
+      }
     },
     "journal": {
       "title": "Journal des modifications",

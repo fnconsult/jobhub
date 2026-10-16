@@ -632,6 +632,27 @@ body:not(:has(.app-shell)) .coach-panel {
   font-weight: 400;
 }
 
+/* Back Office Journal: the section filter on one wrapping line, each change on its own line. */
+.journal-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.journal-filter [aria-current="page"] {
+  font-weight: 700;
+}
+
+.journal-changes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
 /* A percentage width gives a select no min-content width, so the table would
    squeeze the status column until the Application Status is cut off. Here the
    select takes the width of its longest status instead. */
@@ -761,6 +782,11 @@ body:not(:has(.app-shell)) .coach-panel {
 
 .dossier-facts dd {
   margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A source's URL can run long with no break in it: it wraps, so the page never scrolls sideways (ADR-0009, #172). */
+.dossier-sources {
   overflow-wrap: anywhere;
 }
 

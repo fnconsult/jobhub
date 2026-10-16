@@ -2,6 +2,9 @@ import { Pool } from "pg";
 
 type Env = Record<string, string | undefined>;
 
+/** Where a query runs: the pool, or one client inside a transaction. */
+export type Queryable = Pick<Pool, "query">;
+
 /** Connections a pool opens at most, unless DATABASE_POOL_MAX says otherwise. */
 const DEFAULT_MAX = 10;
 

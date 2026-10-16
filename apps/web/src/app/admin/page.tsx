@@ -34,6 +34,7 @@ export default async function BackOfficePage() {
         </li>
         <li>
           <Link href={routes.adminSearchSites}>{t("admin.sections.searchSites")}</Link>
+          <Link href={routes.adminJournal()}>{t("admin.sections.journal")}</Link>
         </li>
       </ul>
     </main>

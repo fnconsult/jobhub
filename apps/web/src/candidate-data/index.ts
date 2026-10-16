@@ -224,6 +224,16 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coach_memory_item: "coachMemory",
 };
 
+/**
+ * Tables naming a Candidate that are Jobbbox's own operations record, not the Candidate's data:
+ * left out of their export and kept when their account is deleted, the Candidate's id set to
+ * null. Each says what it keeps and for how long. The same test checks every other table tied
+ * to a Candidate is exported and deleted with them.
+ */
+export const OPERATIONS_RECORD_TABLES: Readonly<Record<string, string>> = {
+  back_office_audit: "Back Office Audit (#203): the changes an Administrator made, with the email they had then; purged after 3 years",
+};
+
 export interface CandidateData {
   /** All the Candidate's data. */
   export(candidateId: string): Promise<CandidateDataExport>;

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { planQuotasFromForm } from "@/admin/plan-quotas-form";
-import { requireAdministrator } from "@/admin/server";
+import { getBackOffice, requireAdministrator } from "@/admin/server";
 import { getBilling } from "@/billing/server";
 import { BackOfficeHeader } from "@/components/BackOfficeHeader";
 import { getServerT } from "@/i18n/server";
@@ -19,10 +19,10 @@ export async function generateMetadata(): Promise<Metadata> {
 
 async function savePlanQuotas(form: FormData) {
   "use server";
-  await requireAdministrator();
+  const administrator = await requireAdministrator();
   const submitted = planQuotasFromForm(form);
   if (!submitted) redirect(`${routes.adminPlanQuotas}?invalid=${encodeURIComponent(String(form.get("plan")))}`);
-  await getBilling().setPlanQuotas(submitted.plan, submitted.quotas);
+  await getBackOffice().setPlanQuotas(administrator, submitted.plan, submitted.quotas);
   redirect(`${routes.adminPlanQuotas}?saved=${submitted.plan}`);
 }
 

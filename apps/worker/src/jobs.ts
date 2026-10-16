@@ -2,6 +2,7 @@ import { FUNNEL_MATCH_SCORE, noDiscoveryMetrics, scoreMatch, type CvContent, typ
 import type { Pool } from "pg";
 import type { FollowUps } from "@jobhub/web/follow-ups";
 
+import { purgeExpiredBackOfficeAudit, RETENTION_YEARS as BACK_OFFICE_AUDIT_RETENTION_YEARS } from "@jobhub/web/back-office";
 import { purgeStaleCoachConversations, RETENTION_MONTHS } from "@jobhub/web/coach-conversations";
 import { DIGEST_HOUR, DIGEST_TIME_ZONE, type JobDigests } from "@jobhub/web/job-digests";
 import { createSourceChecks, forgetExpiredGuestCaptures } from "@jobhub/web/job-offers";
@@ -42,6 +43,9 @@ export const SOURCE_RECHECK = "job-offers.recheck-sources";
 
 /** Queue name: delete the Coach Conversations whose last message is RETENTION_MONTHS old. Runs nightly. */
 export const COACH_CONVERSATIONS_PURGE = "coach-conversations.purge";
+
+/** Queue name: delete the Back Office Audit entries made BACK_OFFICE_AUDIT_RETENTION_YEARS ago or more. Runs nightly. */
+export const BACK_OFFICE_AUDIT_PURGE = "back-office-audit.purge";
 
 /** Postgres error code for a table that does not exist yet (the web app's migrations have not run). */
 const UNDEFINED_TABLE = "42P01";
@@ -270,6 +274,16 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         onceTablesExist(async () => {
           const purged = await purgeStaleCoachConversations(deps.database, now());
           if (purged) log(`[coach-conversations] ${purged} Coach Conversation(s) purged, ${RETENTION_MONTHS} months after their last message`);
+        }),
+    },
+
+    // The Back Office Audit is kept 3 years. Safe to run again.
+    [BACK_OFFICE_AUDIT_PURGE]: {
+      cron: "45 3 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const purged = await purgeExpiredBackOfficeAudit(deps.database, now());
+          if (purged) log(`[back-office-audit] ${purged} Back Office Audit entry(ies) purged, ${BACK_OFFICE_AUDIT_RETENTION_YEARS} years after they were made`);
         }),
     },
 

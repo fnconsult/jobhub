@@ -603,7 +603,8 @@
       "planQuotas": "Plan Quotas",
       "humanCoaches": "Human Coaches",
       "coachCost": "AI Coach cost",
-      "searchSites": "Search sites"
+      "searchSites": "Search sites",
+      "journal": "Change journal"
     },
     "planQuotas": {
       "title": "Plan Quotas",
@@ -713,6 +714,42 @@
         "siteForbidden": "This site forbids crawling in its terms of use: it cannot be added or enabled.",
         "notFound": "This item no longer exists. The page has been refreshed."
       }
+    },
+    "journal": {
+      "title": "Change journal",
+      "intro": "Every change made in the back office: who, what, before and after, when. Secret values are never recorded, only that they were replaced. Each entry is kept {{years}} years.",
+      "filter": "Show",
+      "all": "All",
+      "sections": {
+        "roles": "Roles",
+        "plan_quotas": "Plan Quotas",
+        "human_coaches": "Human Coaches",
+        "provider_secrets": "Provider secrets"
+      },
+      "actions": {
+        "added": "Added",
+        "updated": "Changed",
+        "retired": "Retired",
+        "replaced": "Replaced"
+      },
+      "none": "No change recorded.",
+      "caption": "Back office changes, newest first",
+      "limit": "Only the {{count}} most recent changes are shown.",
+      "at": "Date",
+      "administrator": "Administrator",
+      "section": "Section",
+      "target": "Item",
+      "action": "Action",
+      "changes": "Changes",
+      "accountDeleted": "account deleted",
+      "changed": "{{field}}: {{before}} → {{after}}",
+      "set": "{{field}}: {{after}}",
+      "removed": "{{field}}: {{before}} (removed)",
+      "secretReplaced": "Value replaced (never recorded)",
+      "unchanged": "No value changed",
+      "unlimited": "unlimited",
+      "empty": "empty",
+      "id": "Identifier"
     }
   },
   "applicationStatuses": {

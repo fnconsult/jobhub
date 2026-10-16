@@ -410,7 +410,7 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
         `- ${jobOffer.title}${where ? ` (${where})` : ""}`,
         `  ${t("jobDigest.email.matchScore", { score: matchScore.score })}`,
         `  ${jobOffer.postedAt ? t("jobDigest.email.postedAt", { date: day.format(jobOffer.postedAt) }) : t("jobDigest.email.dateUnknown")}`,
-        `  ${new URL(routes.jobOffer(jobOffer.id), deps.baseURL).toString()}`,
+        `  ${new URL(routes.jobOffer(jobOffer.id, digest.profile.id), deps.baseURL).toString()}`,
       ].join("\n");
     });
     const text = [

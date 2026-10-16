@@ -16,7 +16,8 @@ export const routes = {
   applications: "/candidatures",
   applicationsBoard: "/candidatures?vue=tableau",
   application: (id: string) => `/candidatures/${id}`,
-  jobOffer: (id: string) => `/offres/${id}`,
+  /** A Job Offer's page; with `profileId`, its Match Score preselects that Profile (the one a Job Search or Job Digest is for). */
+  jobOffer: (id: string, profileId?: string) => (profileId ? `/offres/${id}?profil=${encodeURIComponent(profileId)}` : `/offres/${id}`),
   jobSearch: (id: string) => `/recherches/${id}`,
   /** One Job Digest: its Job Offers ranked by Match Score. */
   jobDigest: (id: string) => `/job-digests/${id}`,

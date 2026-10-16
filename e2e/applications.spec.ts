@@ -28,9 +28,9 @@ const masterCv = {
   languages: [],
 };
 
-async function createProfile(page: Page, targetRole: string): Promise<string> {
+async function createProfile(page: Page, targetRole: string, minSalary = 110_000): Promise<string> {
   const saved = await page.request.post("/api/profiles", {
-    data: { masterCv, searchCriteria: { targetRole, location: "Lyon", minSalary: 110_000, contractType: "cdi" } },
+    data: { masterCv, searchCriteria: { targetRole, location: "Lyon", minSalary, contractType: "cdi" } },
     headers: { origin },
   });
   expect(saved.status(), await saved.text()).toBe(201);
@@ -104,6 +104,48 @@ test.describe("Applications", () => {
     });
     expect(again.status()).toBe(200);
     expect((await again.json()).id).toBe(page.url().split("/").at(-1));
+  });
+
+  // Issue #163: the Job Offer page shows its Match Score against the active Profile, with why.
+  test("the Job Offer page shows its Match Score against the Profile picked, with why, then the Application's once saved", async ({ page }) => {
+    const email = newAddress("job-offer-score");
+    await signInWithMagicLink(page, email);
+    await subscribe(page, email, "standard");
+    await createProfile(page, "DAF");
+    const ambitiousId = await createProfile(page, "DAF grand groupe", 150_000);
+    const jobOfferId = await captureOffer(page);
+    // Skills 3 of 4 (30 of 40), experience 20, location 15, contract type 15, salary 10:
+    // 90 when the offer reaches the Profile's minimum salary (110 000 €), 80 when it falls short (150 000 €).
+    const shownScore = (profile: string, score: number) => page.getByText(`Score de correspondance avec le profil « ${profile} » : ${score} / 100`);
+
+    await page.goto(`/offres/${jobOfferId}`);
+    await expect(shownScore("DAF", 90)).toBeVisible();
+    const reasons = page.getByRole("list").filter({ hasText: fr.matchScore.criteria.contractType });
+    await expect(reasons).toBeHidden();
+    await page.getByText("Pourquoi 90 ?", { exact: true }).click();
+    await expect(reasons.getByRole("listitem").filter({ hasText: "Lieu : Lyon, recherché : Lyon" })).toContainText(fr.matchScore.statuses.match);
+    await expect(reasons.getByRole("listitem").filter({ hasText: "Power BI" })).toContainText(fr.matchScore.statuses.partial);
+
+    // Picking another Profile to save it with shows the score against that one.
+    await page.getByLabel(fr.jobOffer.profileLabel).selectOption({ label: "DAF grand groupe" });
+    await expect(shownScore("DAF grand groupe", 80)).toBeVisible();
+    // "Pourquoi" stays open, now on why it scores 80.
+    await expect(page.getByText("Pourquoi 80 ?", { exact: true })).toBeVisible();
+    await expect(reasons.getByRole("listitem").filter({ hasText: "Salaire :" })).toContainText(fr.matchScore.statuses.mismatch);
+
+    // Coming from a Job Search or Job Digest, its Profile comes first.
+    await page.goto(`/offres/${jobOfferId}?profil=${ambitiousId}`);
+    await expect(page.getByLabel(fr.jobOffer.profileLabel)).toHaveValue(ambitiousId);
+    await expect(shownScore("DAF grand groupe", 80)).toBeVisible();
+
+    // Saved: the Application page gives the same score, and the Job Offer page shows the Application's.
+    await page.getByRole("button", { name: fr.jobOffer.save }).click();
+    await expect(page).toHaveURL(/\/candidatures\/[0-9a-f-]{36}$/);
+    await expect(page.getByRole("region", { name: fr.matchScore.title }).getByText("80 / 100", { exact: true })).toBeVisible();
+    await page.goto(`/offres/${jobOfferId}`);
+    await expect(page.getByText(fr.jobOffer.alreadySaved)).toBeVisible();
+    await expect(shownScore("DAF grand groupe", 80)).toBeVisible();
+    await expect(page.getByText("Pourquoi 80 ?", { exact: true })).toBeVisible();
   });
 
   test("the Candidate follows their Applications in a list and a board, changing the status by hand", async ({ page }) => {

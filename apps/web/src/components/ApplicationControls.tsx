@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { ApplicationFieldError } from "@/applications";
+import type { MatchScoreReason } from "@/components/job-search-words";
+import { ProfileMatchScore } from "@/components/MatchScoreWhy";
 import { routes } from "@/routes";
 
 type Outcome = "saved" | "failed" | null;
@@ -286,12 +288,23 @@ export function ReportUnavailableButton({ applicationId, reported }: { applicati
   );
 }
 
-/** Saves a Job Offer as an Application with the Profile the Candidate picks, then opens it. */
-export function SaveJobOfferForm({ jobOfferId, profiles }: { jobOfferId: string; profiles: { id: string; name: string }[] }) {
+/** Saves a Job Offer as an Application with the Profile the Candidate picks, then opens it. Shows the Job Offer's Match Score against the Profile picked. */
+export function SaveJobOfferForm({
+  jobOfferId,
+  profiles,
+  profileId: preselected,
+}: {
+  jobOfferId: string;
+  /** The active Profiles, each with the Job Offer's Match Score against it and why (`matchScoreReasons`). */
+  profiles: { id: string; name: string; matchScore: { score: number; reasons: MatchScoreReason[] } }[];
+  /** The Profile chosen first. */
+  profileId: string;
+}) {
   const { t } = useTranslation();
   const router = useRouter();
   const id = useId();
-  const [profileId, setProfileId] = useState(profiles[0]?.id ?? "");
+  const [profileId, setProfileId] = useState(preselected);
+  const chosen = profiles.find((profile) => profile.id === profileId);
   const [working, setWorking] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -319,6 +332,7 @@ export function SaveJobOfferForm({ jobOfferId, profiles }: { jobOfferId: string;
           ))}
         </select>
       </div>
+      {chosen ? <ProfileMatchScore profileName={chosen.name} score={chosen.matchScore.score} reasons={chosen.matchScore.reasons} live t={t} /> : null}
       <button className="button button-primary" type="submit" disabled={working}>
         {working ? t("jobOffer.saving") : t("jobOffer.save")}
       </button>

@@ -671,6 +671,7 @@
     "sourceLink": "Voir l'offre sur {{site}}",
     "saveTitle": "Suivre cette offre",
     "profileLabel": "Profil à utiliser pour cette candidature",
+    "matchScore": "Score de correspondance avec le profil « {{profile}} » :",
     "save": "Enregistrer l'offre",
     "saving": "Enregistrement…",
     "error": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez.",

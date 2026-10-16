@@ -57,6 +57,15 @@ globalThis.fetch = async (input, init) => {
     const inView = /Le candidat consulte son profil « (.+?) »/.exec(system)?.[1];
     const turns = body.messages.filter((message) => message.role !== "system").length;
     if (prompt.includes("E2E_SHOW_CONTEXT")) content = system;
+    else if (prompt.includes("E2E_COACH_MARKDOWN")) {
+      // A model's habits (#164): Markdown, and "tu" unless the Coach is told to vouvoyer.
+      const formal = system.includes("vouvoie");
+      content = formal
+        ? "Vous visez le poste de **Directrice des opérations** à **Lyon**.\n\nVos compétences :\n- *Consolidation* IFRS\n- Budget"
+        : "Tu vises le poste de **Directrice des opérations** à **Lyon**.\n\nTes compétences :\n- *Consolidation* IFRS\n- Budget";
+    } else if (prompt.includes("E2E_COACH_LONG")) {
+      content = Array.from({ length: 30 }, (_, i) => `Paragraphe ${i + 1} : une réponse longue du Coach.`).join("\n\n") + "\n\nFIN DE LA RÉPONSE";
+    }
     else content = `${inView ? `Je vois votre profil « ${inView} ».` : "Je ne vois aucun profil."} (${turns} message${turns > 1 ? "s" : ""})`;
   }
   if (system.includes("cabinet de recrutement")) {

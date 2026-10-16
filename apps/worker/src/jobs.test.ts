@@ -4,12 +4,14 @@ import { createJobOffers, migrateJobOffers } from "@jobhub/web/job-offers";
 import { createProfiles, migrateProfiles } from "@jobhub/web/profiles";
 import { createApplications, migrateApplications } from "../../web/src/applications";
 import { createCoachConversations, migrateCoachConversations } from "@jobhub/web/coach-conversations";
+import { createBackOffice, migrateBackOfficeAudit } from "@jobhub/web/back-office";
+import { createBilling, migrateBilling, STARTING_PLAN_QUOTAS } from "@jobhub/web/billing";
 import { signInWithMagicLink, startTestAuth } from "../../web/src/auth/test-support";
 import { createThrowawayDatabase } from "../../web/src/test-support/throwaway-database";
 import { JobDiscoveryError, type DiscoverRequest, type DiscoveryReport } from "./job-discovery";
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
 import type { DueJobDigest, JobDigestResult } from "@jobhub/web/job-digests";
-import { COACH_CONVERSATIONS_PURGE, createJobs, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, createJobs, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -515,6 +517,44 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       expect(logs).toEqual(["[coach-conversations] 1 Coach Conversation(s) purged, 12 months after their last message"]);
     } finally {
       await testAuth.stop();
+    }
+  });
+
+  it("purges, every night, the Back Office Audit entries 3 years old", async () => {
+    const testAuth = await startTestAuth();
+    try {
+      const database = testAuth.database;
+      await migrateBilling(database);
+      await migrateBackOfficeAudit(database);
+      const cookie = await signInWithMagicLink(testAuth, "claire@jobbbox.fr");
+      const session = (await (await testAuth.request("/api/auth/get-session", { cookie })).json()) as { user: { id: string; email: string } };
+      const unused = async () => {
+        throw new Error("not under test");
+      };
+      const backOffice = createBackOffice(database, { billing: createBilling({ database, baseURL: "http://localhost:3000" }), humanCoaches: { add: unused, retire: unused } });
+      await backOffice.setPlanQuotas(session.user, "free", { ...STARTING_PLAN_QUOTAS.free, matchScores: 4 });
+      const logs: string[] = [];
+      const jobAt = (days: number) =>
+        createJobs({ ...otherDeps, database, now: () => new Date(Date.now() + days * 86_400_000), log: (line) => logs.push(line) })[BACK_OFFICE_AUDIT_PURGE]!;
+
+      expect(jobAt(0).cron).toBe("45 3 * * *");
+      await jobAt(3 * 365 - 5).handler({});
+      expect(await backOffice.journal()).toHaveLength(1);
+
+      await jobAt(3 * 365 + 5).handler({});
+      expect(await backOffice.journal()).toEqual([]);
+      expect(logs).toEqual(["[back-office-audit] 1 Back Office Audit entry(ies) purged, 3 years after they were made"]);
+    } finally {
+      await testAuth.stop();
+    }
+  });
+
+  it("has no Back Office Audit to purge before the web app has created its tables", async () => {
+    const empty = await createThrowawayDatabase("test_worker_jobs_empty");
+    try {
+      await expect(createJobs({ ...otherDeps, database: empty.pool })[BACK_OFFICE_AUDIT_PURGE]!.handler({})).resolves.toBeUndefined();
+    } finally {
+      await empty.drop();
     }
   });
 

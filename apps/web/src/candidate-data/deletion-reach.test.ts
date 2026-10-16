@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { BASE_URL, connectionString } from "../auth/test-support";
 import { migrateDatabase } from "../migrations";
 import { createThrowawayDatabase, type ThrowawayDatabase } from "../test-support/throwaway-database";
-import { EXPORTED_TABLES } from "./index";
+import { EXPORTED_TABLES, OPERATIONS_RECORD_TABLES } from "./index";
 
 /** Tables kept when a Candidate is deleted (ADR-0010): shared, not personal data. */
 const KEPT = ["job_offer", "plan_quota"];
@@ -10,7 +10,7 @@ const KEPT = ["job_offer", "plan_quota"];
 interface ForeignKey {
   table: string;
   references: string;
-  onDelete: "cascade" | "other";
+  onDelete: "cascade" | "set null" | "other";
 }
 
 describe.skipIf(!connectionString)("What deleting or exporting a Candidate reaches, across every table (needs Postgres: DATABASE_URL)", () => {
@@ -22,7 +22,7 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
     await migrateDatabase({ database: throwaway.pool, baseURL: BASE_URL, secret: "test-secret-test-secret-test-secret-0123", mailer: { send: async () => {} } });
     const { rows } = await throwaway.pool.query<ForeignKey>(
       `SELECT c.conrelid::regclass::text AS table, c.confrelid::regclass::text AS references,
-              CASE c.confdeltype WHEN 'c' THEN 'cascade' ELSE 'other' END AS "onDelete"
+              CASE c.confdeltype WHEN 'c' THEN 'cascade' WHEN 'n' THEN 'set null' ELSE 'other' END AS "onDelete"
          FROM pg_constraint c WHERE c.contype = 'f'`,
     );
     foreignKeys = rows;
@@ -46,8 +46,13 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
     return tied;
   }
 
+  /** The tables of the Candidate's own data: those tied to them, but Jobbbox's operations record. */
+  function candidateDataTables(): string[] {
+    return [...tablesTiedToCandidate()].filter((table) => !(table in OPERATIONS_RECORD_TABLES));
+  }
+
   it("every table tied to a Candidate, directly or through their Profiles, Applications..., is deleted with them", () => {
-    const blocking = foreignKeys.filter((key) => tablesTiedToCandidate().has(key.references) && key.onDelete !== "cascade");
+    const blocking = foreignKeys.filter((key) => tablesTiedToCandidate().has(key.references) && candidateDataTables().includes(key.table) && key.onDelete !== "cascade");
 
     expect(blocking).toEqual([]);
     expect([...tablesTiedToCandidate()]).toEqual(expect.arrayContaining(["profile", "master_cv_version", "application", "tailored_cv", "tailored_document", "session", "coach_conversation", "coach_message", "coach_memory_item"]));
@@ -66,9 +71,17 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
   });
 
   it("every table tied to a Candidate is in their data export (GDPR art. 15 / 20), so a new table cannot be left out of it", () => {
-    const missing = [...tablesTiedToCandidate()].filter((table) => !(table in EXPORTED_TABLES));
+    const missing = candidateDataTables().filter((table) => !(table in EXPORTED_TABLES));
 
     expect(missing).toEqual([]);
+  });
+
+  it("Jobbbox's operations record outlives the Candidate: their id is set to null, nothing hangs off it, and it is not exported", () => {
+    for (const table of Object.keys(OPERATIONS_RECORD_TABLES)) {
+      expect(foreignKeys.filter((key) => key.table === table && key.references === "candidate")).toEqual([{ table, references: "candidate", onDelete: "set null" }]);
+      expect(foreignKeys.filter((key) => key.references === table)).toEqual([]);
+      expect(EXPORTED_TABLES).not.toHaveProperty(table);
+    }
   });
 
   it("shared Job Offers and Plan Quotas are not tied to any Candidate, so they are kept", () => {

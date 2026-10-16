@@ -9,6 +9,7 @@
  * and `migrateHumanCoaches(database)` creates its tables.
  */
 import type { Pool } from "pg";
+import type { Queryable } from "../database/pool";
 import * as z from "zod";
 import type { Application, Applications, ApplicationSummary } from "../applications";
 import type { Profile, Profiles } from "../profiles";
@@ -108,12 +109,19 @@ export interface HumanCoachesDeps {
 }
 
 export interface HumanCoaches {
-  /** Adds a Human Coach (Back Office). `input` is untrusted: { name, email, bookingUrl, bio? }. */
-  add(input: unknown): Promise<AddHumanCoachResult>;
+  /**
+   * Adds a Human Coach (Back Office). `input` is untrusted: { name, email, bookingUrl, bio? }.
+   * `within` runs it in the caller's transaction.
+   */
+  add(input: unknown, within?: Queryable): Promise<AddHumanCoachResult>;
   /** The Human Coaches Candidates can choose from, by name. */
   list(): Promise<HumanCoach[]>;
-  /** Retires a Human Coach: no longer listed, and no longer reads anything. Their past Coaching Sessions are kept. */
-  retire(coachId: string): Promise<void>;
+  /**
+   * Retires a Human Coach: no longer listed, and no longer reads anything. Their past Coaching
+   * Sessions are kept. Returns who was retired, or null (unknown or already retired).
+   * `within` runs it in the caller's transaction.
+   */
+  retire(coachId: string, within?: Queryable): Promise<HumanCoach | null>;
   /** The (not retired) Human Coach a signed-in person is, by their verified email, or null. */
   coachSignedIn(person: { email: string; emailVerified: boolean }): Promise<HumanCoach | null>;
 
@@ -249,11 +257,11 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
   const DOCUMENT_OF = { tailored_cv: "tailoredCv", cover_letter: "coverLetter", outreach_message: "outreachMessage" } as const;
 
   return {
-    async add(input) {
+    async add(input, within = database) {
       const parsed = coachSchema.safeParse(input, { reportInput: true });
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       const { name, email, bookingUrl, bio } = parsed.data;
-      const { rows } = await database.query<CoachRow>(
+      const { rows } = await within.query<CoachRow>(
         `INSERT INTO human_coach (name, email, booking_url, bio) VALUES ($1, $2, $3, $4)
          ON CONFLICT (email) WHERE retired_at IS NULL DO NOTHING
          RETURNING ${COACH_COLUMNS}`,
@@ -267,9 +275,13 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       return rows.map(coachFrom);
     },
 
-    async retire(coachId) {
-      if (!UUID.test(coachId)) return;
-      await database.query("UPDATE human_coach SET retired_at = now() WHERE id = $1 AND retired_at IS NULL", [coachId]);
+    async retire(coachId, within = database) {
+      if (!UUID.test(coachId)) return null;
+      const { rows } = await within.query<CoachRow>(
+        `UPDATE human_coach SET retired_at = now() WHERE id = $1 AND retired_at IS NULL RETURNING ${COACH_COLUMNS}`,
+        [coachId],
+      );
+      return rows[0] ? coachFrom(rows[0]) : null;
     },
 
     async coachSignedIn(person) {

@@ -4,6 +4,7 @@
  * hold across all tables (e.g. what deleting a Candidate removes, ADR-0010).
  */
 import { migrateActionCards } from "./action-cards/index";
+import { migrateBackOfficeAudit } from "./admin/back-office";
 import { migrateAgentRunLog } from "./agent-runs/index";
 import { migrateApplications } from "./applications/index";
 import { migrateAtsScores } from "./ats-score/index";
@@ -46,6 +47,7 @@ export async function migrateDatabase(config: AuthConfig, onMigrated: (done: str
     ["Human Coaches, Coach Access and Coaching Sessions are up to date", () => migrateHumanCoaches(database)],
     ["Coach Conversations are up to date", () => migrateCoachConversations(database)],
     ["Coach Memory is up to date", () => migrateCoachMemory(database)],
+    ["Back Office Audit is up to date", () => migrateBackOfficeAudit(database)],
   ];
   for (const [done, migrate] of steps) {
     await migrate();

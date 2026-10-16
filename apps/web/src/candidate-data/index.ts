@@ -23,6 +23,7 @@ import type { ChosenFrequency } from "../job-digests";
 import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
 import type { CoachMessage } from "../coach";
 import type { CoachingSession, CoachReview } from "../human-coaches";
+import type { CompanyDossier } from "../company-dossiers";
 import type { ContactProviderId } from "../enriched-contacts";
 import type { FollowUpDelays } from "../follow-ups";
 import type { MasterCvVersion, Profiles } from "../profiles";
@@ -77,8 +78,11 @@ export interface ExportedAccount {
   createdAt: Date;
 }
 
-/** An Application as the Candidate keeps it: its Job Offer, Interviews and Tailored Documents. */
-export interface ExportedApplication extends Omit<Application, "matchScore"> {
+/**
+ * An Application as the Candidate keeps it: its Job Offer, Interviews, Match Score (worked out from
+ * their Profile, as the app shows it), Tailored Documents, and what the app and Human Coaches added to it.
+ */
+export interface ExportedApplication extends Application {
   tailoredDocuments: {
     documentLanguage: ApplicationDrafts["documentLanguage"];
     /** The Tailored CV saved on the Application, or null. */
@@ -94,6 +98,21 @@ export interface ExportedApplication extends Omit<Application, "matchScore"> {
   coachReviews: CoachReview[];
   /** The people at the employer the Candidate obtained from a contact data provider (ADR-0015), in the order found. */
   enrichedContacts: ExportedEnrichedContact[];
+  /** What the app found about the employer, or null when nothing was looked up. */
+  companyDossier: ExportedCompanyDossier | null;
+}
+
+/** The Company Dossier of an Application, as kept. */
+export interface ExportedCompanyDossier {
+  /** The AI Coach's guess at the employer behind a recruiting agency's posting. */
+  presumedEmployer: string | null;
+  presumedEmployerDescription: string | null;
+  agency: string | null;
+  /** The employer the Candidate named. */
+  confirmedEmployer: string | null;
+  /** Null until it is built. */
+  dossier: CompanyDossier | null;
+  updatedAt: Date;
 }
 
 /** A person found at the employer: contact details once the Candidate revealed them, empty before. */
@@ -239,6 +258,12 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
          FROM enriched_contact e JOIN application a ON a.id = e.application_id WHERE a.candidate_id = $1 ORDER BY e.found_at, e.id`,
       candidateId,
     );
+    const companyDossiersOf = await grouped<ExportedCompanyDossier>(
+      `SELECT d.application_id AS key, d.presumed_employer AS "presumedEmployer", d.presumed_employer_description AS "presumedEmployerDescription",
+              d.agency, d.confirmed_employer AS "confirmedEmployer", d.dossier, d.updated_at AS "updatedAt"
+         FROM company_dossier d JOIN application a ON a.id = d.application_id WHERE a.candidate_id = $1`,
+      candidateId,
+    );
     const summaries = await deps.applications.list(candidateId);
     const exported = await Promise.all(
       summaries.map(async ({ id }): Promise<ExportedApplication | null> => {
@@ -248,16 +273,8 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           deps.tailoredDocuments.get(candidateId, id),
         ]);
         if (!application || !tailoredCv || !drafts) return null;
-        // The Match Score is worked out from the rest, not something the Candidate made.
-        const { status, statusChangedAt, createdAt, jobOffer, profile, interviews } = application;
         return {
-          id,
-          status,
-          statusChangedAt,
-          createdAt,
-          jobOffer,
-          profile,
-          interviews,
+          ...application,
           tailoredDocuments: {
             documentLanguage: drafts.documentLanguage,
             tailoredCv: tailoredCv.saved,
@@ -268,6 +285,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           followUps: followUpsOf(id),
           coachReviews: coachReviewsOf(id),
           enrichedContacts: enrichedContactsOf(id),
+          companyDossier: companyDossiersOf(id)[0] ?? null,
         };
       }),
     );

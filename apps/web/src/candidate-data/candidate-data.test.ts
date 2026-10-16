@@ -349,6 +349,32 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     ]);
   });
 
+  it("the export holds each Application's Match Score, whether the Candidate reported its Job Offer unavailable, and its Company Dossier", async () => {
+    const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));
+    await applications.change(candidateId, application.id, { reportedUnavailable: true });
+    // Built from the Application page, for the employer the Candidate confirmed.
+    await database.query(
+      `INSERT INTO company_dossier (application_id, awaiting_confirmation, confirmed_employer, dossier) VALUES ($1, false, 'Acme Industrie SA', $2)`,
+      [application.id, { source: "web", reliability: "less_reliable", employer: "Acme Industrie SA", builtAt: "2026-10-01T09:00:00.000Z", suggestedContactRoles: [], sources: [] }],
+    );
+
+    const [exported] = (await candidateData.export(candidateId)).applications;
+
+    expect(exported).toMatchObject({
+      matchScore: application.matchScore,
+      reportedUnavailableAt: expect.any(Date),
+      companyDossier: {
+        presumedEmployer: null,
+        presumedEmployerDescription: null,
+        agency: null,
+        confirmedEmployer: "Acme Industrie SA",
+        dossier: expect.objectContaining({ source: "web", employer: "Acme Industrie SA" }),
+        updatedAt: expect.any(Date),
+      },
+    });
+    expect(application.matchScore).toMatchObject({ score: expect.any(Number) });
+  });
+
   it("deleting the account removes the Candidate and everything of theirs, signs them out, and keeps the Job Offers", async () => {
     const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
     const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));

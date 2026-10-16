@@ -68,6 +68,10 @@ test.describe("Coach Memory", () => {
     await expect(item.getByRole("button", { name: fr.coachMemory.edit })).toBeFocused();
     expect(await memoryItems(page)).toEqual([{ kind: "decision", text: "DAF à Lyon ou Grenoble" }]);
 
+    // The account data export holds it (GDPR art. 15 / 20).
+    const exported = await (await page.request.get("/api/account/export")).json();
+    expect(exported.coachMemory).toEqual([expect.objectContaining({ kind: "decision", text: "DAF à Lyon ou Grenoble" })]);
+
     // Deleting asks first; then the AI Coach no longer gets it.
     await item.getByRole("button", { name: fr.coachMemory.delete }).click();
     await item.getByRole("button", { name: fr.coachMemory.confirmDeleteButton }).click();

@@ -6,7 +6,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApplications, type Applications } from "../applications";
 import { BASE_URL, connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createActionCards } from "../action-cards";
+import { createBackOffice } from "../admin/back-office";
 import { createAtsScoring } from "../ats-score";
+import { createBilling, STARTING_PLAN_QUOTAS } from "../billing";
 import { createCoachConversations } from "../coach-conversations";
 import { createHumanCoaches } from "../human-coaches";
 import { createEuAiConsents } from "../eu-ai-consent";
@@ -451,6 +453,22 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
 
     expect(again).not.toBe(candidateId);
     expect(await candidateData.export(again)).toMatchObject({ profiles: [], applications: [] });
+  });
+
+  it("an Administrator's export holds nothing of the Back Office Audit, and deleting their account keeps its entries, with the email they had", async () => {
+    const humanCoaches = createHumanCoaches(database, { profiles, applications, tailoredDocuments, tailoredCvs });
+    const backOffice = createBackOffice(database, { billing: createBilling({ database, baseURL: BASE_URL }), humanCoaches });
+    const before = await candidateData.export(candidateId);
+    await backOffice.setPlanQuotas({ id: candidateId, email: "marie.dupont@example.fr" }, "standard", { ...STARTING_PLAN_QUOTAS.standard, matchScores: 77 });
+
+    const after = await candidateData.export(candidateId);
+    expect({ ...after, exportedAt: before.exportedAt }).toEqual(before);
+
+    await candidateData.delete(candidateId);
+
+    expect(await backOffice.journal()).toMatchObject([
+      { actor: { candidateId: null, email: "marie.dupont@example.fr" }, section: "plan_quotas", target: "standard", after: { matchScores: 77 } },
+    ]);
   });
 
   it("the account is not deleted when its billing cannot be closed, so a paying Candidate is never left charged without an account", async () => {

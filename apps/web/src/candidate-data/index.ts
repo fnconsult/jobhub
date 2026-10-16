@@ -16,6 +16,7 @@
  */
 import type { SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
+import type { ActionCard } from "../action-cards";
 import type { Application, Applications } from "../applications";
 import type { FollowUpDelays } from "../follow-ups";
 import type { MasterCvVersion, Profiles } from "../profiles";
@@ -54,6 +55,11 @@ export interface ExportedApplication extends Omit<Application, "matchScore"> {
   followUps: { sentAt: Date }[];
 }
 
+export interface ExportedActionCard extends ActionCard {
+  /** When the Candidate accepted or dismissed it; null while pending. */
+  decidedAt: Date | null;
+}
+
 /** Everything the Candidate made in Jobbbox, ready to be written out as JSON. */
 export interface CandidateDataExport {
   exportedAt: Date;
@@ -63,6 +69,8 @@ export interface CandidateDataExport {
   euAiConsent: { givenAt: Date } | null;
   /** The Follow-up Delays the Candidate set, or null while they keep the defaults. */
   followUpDelays: FollowUpDelays | null;
+  /** Every Action Card the AI Coach proposed, pending or decided, newest first. */
+  actionCards: ExportedActionCard[];
   /** Oldest first, archived ones included. */
   profiles: ExportedProfile[];
   /** Newest first. */
@@ -157,29 +165,31 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
     return rows[0] ?? null;
   }
 
-  async function exportEuAiConsent(candidateId: string): Promise<CandidateDataExport["euAiConsent"]> {
-    const { rows } = await database.query<{ givenAt: Date }>(`SELECT given_at AS "givenAt" FROM eu_ai_consent WHERE candidate_id = $1`, [candidateId]);
-    return rows[0] ?? null;
+  /** Rows of one of the Candidate's tables (`$1` is their id). */
+  async function rowsOf<T extends object>(sql: string, candidateId: string): Promise<T[]> {
+    return (await database.query<T>(sql, [candidateId])).rows;
   }
 
-  async function exportFollowUpDelays(candidateId: string): Promise<FollowUpDelays | null> {
-    const { rows } = await database.query<FollowUpDelays>(
-      `SELECT after_applied AS "afterApplied", after_follow_up AS "afterFollowUp" FROM follow_up_delay WHERE candidate_id = $1`,
-      [candidateId],
-    );
-    return rows[0] ?? null;
+  /** The Candidate's row of a table holding one per Candidate, or null. */
+  async function rowOf<T extends object>(sql: string, candidateId: string): Promise<T | null> {
+    return (await rowsOf<T>(sql, candidateId))[0] ?? null;
   }
 
   return {
     async export(candidateId) {
-      const [account, euAiConsent, followUpDelays, profiles, applications] = await Promise.all([
+      const [account, euAiConsent, followUpDelays, actionCards, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
-        exportEuAiConsent(candidateId),
-        exportFollowUpDelays(candidateId),
+        rowOf<{ givenAt: Date }>(`SELECT given_at AS "givenAt" FROM eu_ai_consent WHERE candidate_id = $1`, candidateId),
+        rowOf<FollowUpDelays>(`SELECT after_applied AS "afterApplied", after_follow_up AS "afterFollowUp" FROM follow_up_delay WHERE candidate_id = $1`, candidateId),
+        rowsOf<ExportedActionCard>(
+          `SELECT id, kind, title, body, json_build_object('kind', focus_kind, 'id', focus_id) AS focus, payload, status, created_at AS "createdAt", decided_at AS "decidedAt"
+             FROM action_card WHERE candidate_id = $1 ORDER BY created_at DESC, id`,
+          candidateId,
+        ),
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, euAiConsent, followUpDelays, profiles, applications };
+      return { exportedAt: new Date(), account, euAiConsent, followUpDelays, actionCards, profiles, applications };
     },
 
     async delete(candidateId) {

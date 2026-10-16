@@ -180,6 +180,19 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(exported.applications[0]!.followUps).toEqual([{ sentAt: new Date("2026-09-20T09:00:00Z") }, { sentAt: new Date("2026-10-02T09:00:00Z") }]);
   });
 
+  it("the export holds every Action Card the AI Coach proposed, pending or decided, newest first", async () => {
+    const profileId = await createProfile(candidateId, "DAF");
+    const actionCards = createActionCards(database);
+    const first = await actionCards.propose(candidateId, { kind: "ats_fix", title: "Ajoutez SAP", body: "Le mot-clé manque.", focus: { kind: "profile", id: profileId }, payload: { fix: "x" } });
+    await actionCards.decide(candidateId, first.id, "dismiss");
+    const second = await actionCards.propose(candidateId, { kind: "follow_up", title: "Relancez Acme", body: "Une semaine déjà.", focus: { kind: "profile", id: profileId }, payload: null });
+
+    expect((await candidateData.export(candidateId)).actionCards).toEqual([
+      { id: second.id, kind: "follow_up", title: "Relancez Acme", body: "Une semaine déjà.", focus: { kind: "profile", id: profileId }, payload: null, status: "pending", createdAt: expect.any(Date), decidedAt: null },
+      expect.objectContaining({ id: first.id, title: "Ajoutez SAP", payload: { fix: "x" }, status: "dismissed", decidedAt: expect.any(Date) }),
+    ]);
+  });
+
   it("deleting the account removes the Candidate and everything of theirs, signs them out, and keeps the Job Offers", async () => {
     const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
     const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));

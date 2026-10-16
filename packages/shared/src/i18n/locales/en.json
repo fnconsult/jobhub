@@ -161,7 +161,7 @@
       "account": "your account: email address, name, language, sign-in methods and sessions, plan and quota use, European AI consent, follow-up delays;",
       "profiles": "your profiles: search criteria, every version of your CV, ATS Score, job searches, Job Digest settings and the Job Digests sent;",
       "applications": "your applications: job offer, interviews, match score, tailored CV, cover letter, outreach message, follow-ups sent, coach reviews, enriched contacts and company dossier;",
-      "coaching": "your conversations with the AI coach, your coach's proposals, the access you granted to human coaches and the coaching sessions you paid for."
+      "coaching": "your conversations with the AI coach, your coach memory (what it remembers about you), your coach's proposals, the access you granted to human coaches and the coaching sessions you paid for."
     },
     "exportLeftOut": "It does not contain your sign-in secrets (tokens, unsubscribe link), human coaches' email addresses, our providers' internal identifiers (Stripe, contact data providers) or what each AI reply cost.",
     "export": "Download all my data",

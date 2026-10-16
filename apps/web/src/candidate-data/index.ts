@@ -9,7 +9,7 @@
  *    (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and
  *    Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored
  *    Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach
- *    Conversations, Coach Access, Coaching Sessions and Action Cards. Profiles and Applications
+ *    Conversations, Coach Memory, Coach Access, Coaching Sessions and Action Cards. Profiles and Applications
  *    are read through the modules that own them, so they show what the app shows; the rest is
  *    read as stored. Secrets (sign-in tokens, the unsubscribe link), Stripe's and the contact
  *    data providers' identifiers, and what each AI reply cost are left out. EXPORTED_TABLES

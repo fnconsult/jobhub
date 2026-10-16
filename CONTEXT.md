@@ -229,14 +229,26 @@ France Travail's code for a job, derived from the Search Criteria title; a title
 What one run of Job discovery (a Job Search or a Job Digest top-up) measured: how many Job Offers each step kept (provider URLs, pages read, Job Offers extracted, already stored, left after deduplication, with a Match Score of 60 or more), the pages skipped by Skip reason, and the estimated cost in euros. Costs are estimates from list prices, not billed amounts. Duration is the Candidate's wait (start to outcome) for a Job Search, and the worker's run time for a Job Digest.
 
 **Skip reason**:
-Why a result page gave no Job Offer (for example a Forbidden site, robots.txt, an unreadable page, a closed posting, or a posting too old).
+Why a result page gave no Job Offer (for example a Forbidden site, robots.txt, an unreadable page, a closed posting, a posting too old, or a disabled Job discovery site).
+
+**Job discovery source**:
+Where Job discovery finds Job Offers: the France Travail search, the web search, or the public APIs of the ATS postings are read through (Greenhouse, Lever, Ashby). Administrators enable or disable each from the Back Office; a disabled one is skipped by Job Searches and Job Digest top-ups (France Travail then counts as off, and an ATS posting is read from its page). All are enabled when the Back Office cannot be read.
+_Avoid_: Provider (alone), channel
+
+**Job discovery site**:
+A domain Administrators list in the Back Office for Job discovery. While enabled, it is searched on purpose: one web search of the run, the plan's first Job Search query, restricted to it. While disabled, a result page on it (or a subdomain) is skipped. Never a Forbidden site. Removing one never removes a Job Offer found on it.
+_Avoid_: Source (alone), whitelist, blacklist
+
+**Job Site**:
+A site where the browser extension shows its "Analyser cette offre" badge, as a match pattern (e.g. `https://*.gestmax.fr/*`), optionally with the pattern of its posting pages. Built-in Job Sites are in the extension's manifest and can only be disabled; Administrators add others in the Back Office, where they get the badge only for people who allowed the extension on every site. A disabled Job Site gets no badge, but Capture from the popup still works there. The extension reads the list from the web app, keeping the last one read, or its built-in Job Sites before any.
+_Avoid_: Job board (for the setting), watched site
 
 **Posting date**:
 When a Job Offer was first published, as its source states it. Sources, strongest first: the public JSON API of Greenhouse, Lever or Ashby, or a France Travail offer's creation date, the page's JobPosting `datePosted`, then the search provider's date for that page (weakest, as it may be a last-updated date). A date in the future or before 2000 counts as unknown. Never taken from a Candidate or the extension. Job discovery skips a posting first published more than 30 days ago (Skip reason "too old"), including a stored Job Offer found again, and the Job Digest leaves it out. A Job Offer with no known date is kept, labelled "date unknown", and listed after dated offers with an equal Match Score.
 _Avoid_: Publication date (when unknown), created date
 
 **Forbidden site**:
-A site whose terms forbid crawling (LinkedIn, Indeed, Glassdoor). Job discovery never fetches it; only Capture covers it.
+A site whose terms forbid crawling (LinkedIn, Indeed, Glassdoor). Job discovery never fetches it, and it can never be a Job discovery site; only Capture covers it.
 
 **Expired Job Offer**:
 A Job Offer that is no longer published at its source: two re-checks in a row found it gone (404/410, past its closing date, or sent away from its page). Only Job Offers an ongoing Application follows (not at Acceptée, Refusée or Abandonnée) are re-checked. A live re-check in between starts the count again, and an expired offer found published again stops being expired. Its Applications are flagged, but their Application Status is never changed automatically. Left out of Job Digests and Job Search results.
@@ -421,5 +433,5 @@ _Avoid_: Dunning banner, billing alert
 ### Operations
 
 **Back Office**:
-The internal pages where Administrators manage Plan Quotas and Human Coaches.
+The internal pages where Administrators manage Plan Quotas, Human Coaches, Job Sites, Job discovery sources and Job discovery sites, and follow the AI Coach's cost.
 _Avoid_: Admin panel, dashboard, console

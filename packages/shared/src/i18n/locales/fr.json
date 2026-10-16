@@ -553,7 +553,8 @@
     "sections": {
       "planQuotas": "Quotas des offres",
       "humanCoaches": "Coachs humains",
-      "coachCost": "Coût de l'AI Coach"
+      "coachCost": "Coût de l'AI Coach",
+      "searchSites": "Sites de recherche"
     },
     "planQuotas": {
       "title": "Quotas des offres",
@@ -600,6 +601,69 @@
       "models": "Modèles",
       "playbooks": "Playbooks utilisés",
       "overTarget": "au-dessus de l'objectif"
+    },
+    "searchSites": {
+      "title": "Sites de recherche",
+      "intro": "Les sites que Jobbbox parcourt pour trouver des offres, et ceux où l'extension affiche son badge. Les modifications s'appliquent sans mise en production : à la prochaine recherche pour le worker, en quelques minutes à quelques heures pour l'extension.",
+      "status": "État",
+      "actions": "Actions",
+      "enabled": "Activé",
+      "disabled": "Désactivé",
+      "enable": "Activer {{name}}",
+      "disable": "Désactiver {{name}}",
+      "remove": "Retirer {{name}}",
+      "sources": {
+        "title": "Sources de la recherche d'offres",
+        "intro": "Où le worker cherche des offres pour les recherches d'offres et les compléments des Job Digests. Une source désactivée est ignorée.",
+        "caption": "Sources de la recherche d'offres",
+        "source": "Source",
+        "names": {
+          "france_travail": "API France Travail",
+          "web_search": "Recherche web (fournisseur de recherche)",
+          "ats_apis": "API publiques des ATS (Greenhouse, Lever, Ashby)"
+        }
+      },
+      "discoverySites": {
+        "title": "Sites de la recherche d'offres",
+        "intro": "Un site activé est cherché exprès : la recherche web ajoute une requête limitée à ce site. Un site désactivé est ignoré quand il apparaît dans les résultats. Retirer un site ne supprime aucune offre déjà trouvée.",
+        "forbidden": "Ces sites interdisent l'exploration dans leurs conditions d'utilisation et ne peuvent pas être ajoutés : {{sites}}. Seule l'extension les couvre.",
+        "none": "Aucun site pour l'instant.",
+        "caption": "Sites de la recherche d'offres",
+        "domain": "Domaine",
+        "domainHelp": "Par exemple apec.fr (sans www). Une adresse complète est acceptée : seul son domaine est gardé.",
+        "addTitle": "Ajouter un site",
+        "add": "Ajouter le site"
+      },
+      "jobSites": {
+        "title": "Sites de l'extension",
+        "intro": "Les sites où l'extension affiche son badge « Analyser cette offre ». Les sites intégrés à l'extension peuvent être désactivés, pas retirés. Un site ajouté n'a le badge que chez les personnes qui ont autorisé l'extension sur tous les sites. La capture manuelle reste possible partout.",
+        "caption": "Sites de l'extension",
+        "pattern": "Motif d'adresse",
+        "patternHelp": "Un motif https, par exemple https://*.gestmax.fr/* (le site et ses sous-domaines) ou www.exemple.fr. Jamais tous les sites.",
+        "postingPages": "Pages d'offre",
+        "postingPagesOptional": "Pages d'offre (facultatif)",
+        "postingPagesHelp": "Un motif sur le même site, par exemple https://*.gestmax.fr/*/offre/* : le badge s'y affiche même sans données JobPosting. Vide : seulement sur les pages qui publient une offre JobPosting.",
+        "anyPostingPage": "Pages publiant une offre JobPosting",
+        "origin": "Origine",
+        "builtIn": "Intégré à l'extension",
+        "added": "Ajouté",
+        "addTitle": "Ajouter un site à l'extension",
+        "add": "Ajouter le site à l'extension"
+      },
+      "notices": {
+        "saved": "Modification enregistrée.",
+        "jobSiteAdded": "Site ajouté à l'extension.",
+        "jobSiteRemoved": "Site retiré de l'extension. Les offres déjà capturées sont conservées.",
+        "jobSiteInvalid": "Vérifiez les motifs : une adresse https d'un seul site (pas tous les sites), et des pages d'offre sur ce même site.",
+        "jobSiteExists": "Ce site est déjà dans la liste de l'extension.",
+        "jobSiteBuiltIn": "Un site intégré à l'extension ne peut pas être retiré : désactivez-le.",
+        "siteAdded": "Site ajouté à la recherche d'offres.",
+        "siteRemoved": "Site retiré. Les offres déjà trouvées sont conservées.",
+        "siteInvalid": "Vérifiez le domaine, par exemple apec.fr.",
+        "siteExists": "Ce site est déjà dans la liste.",
+        "siteForbidden": "Ce site interdit l'exploration dans ses conditions d'utilisation : il ne peut pas être ajouté ni activé.",
+        "notFound": "Cet élément n'existe plus. La page a été actualisée."
+      }
     }
   },
   "applicationStatuses": {

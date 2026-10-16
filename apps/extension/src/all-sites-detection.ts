@@ -8,6 +8,11 @@
  * ALL_SITES (an optional host permission); the background then registers the
  * same content script for every other site, and removes it when the permission
  * is taken back. Pages are still read in the person's own browser (ADR-0002).
+ *
+ * The Job Sites Administrators add in the Back Office are not in the manifest:
+ * this same registration is what runs the badge there, and the content script
+ * then follows the Job Sites list (src/job-sites.ts). No registration per added
+ * site: it would need the same permission, and inject the badge twice.
  */
 import { JOB_SITES } from "./job-page";
 

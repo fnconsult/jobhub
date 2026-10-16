@@ -1,9 +1,11 @@
+import type { ExtensionJobSiteList } from "@jobhub/shared";
 import { designTokens } from "@jobhub/shared/design";
 import { createI18n } from "@jobhub/shared/i18n";
 import { browser } from "wxt/browser";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { badgePlacement, placementCss } from "../src/badge-placement";
 import { isOnJobSite, JOB_SITES, readJobPage } from "../src/job-page";
+import { badgeShows, BUILT_IN_JOB_SITE_LIST, jobSiteListFrom } from "../src/job-sites";
 import type { AnalyseReply, ExtensionMessage } from "../src/messages";
 import { snapshotPage } from "../src/page-snapshot";
 
@@ -11,7 +13,8 @@ const { color, fontFamily, fontSize, radius, space } = designTokens;
 
 /**
  * On major job boards and career sites, shows an "Analyser cette offre" badge
- * on job postings. The page is read here, in the person's own browser
+ * on job postings, following the Job Sites set in the Back Office (src/job-sites.ts).
+ * The page is read here, in the person's own browser
  * (ADR-0002); only the Job Offer it describes is sent to Jobbbox.
  */
 export default defineContentScript({
@@ -32,6 +35,11 @@ export default defineContentScript({
       .sendMessage<ExtensionMessage, string | null>({ type: "interface-language" })
       .catch(() => null);
     const { t } = createI18n(language);
+    // The Job Sites set in the Back Office: a disabled site gets no badge, an added site's posting pages do.
+    const jobSites = await browser.runtime
+      .sendMessage<ExtensionMessage, ExtensionJobSiteList | null>({ type: "job-sites" })
+      .then((list) => jobSiteListFrom(list) ?? BUILT_IN_JOB_SITE_LIST)
+      .catch(() => BUILT_IN_JOB_SITE_LIST);
 
     const host = document.createElement("jobbbox-badge");
     const shadow = host.attachShadow({ mode: "open" });
@@ -70,7 +78,7 @@ export default defineContentScript({
     // Job boards are single-page apps: check again when the URL changes, and once late content has loaded.
     const check = () => {
       const shown = host.isConnected;
-      const detected = readJobPage(snapshotPage(document)).detected;
+      const detected = badgeShows(snapshotPage(document), jobSites);
       if (detected && !shown) document.documentElement.append(host);
       if (!detected && shown) host.remove();
     };

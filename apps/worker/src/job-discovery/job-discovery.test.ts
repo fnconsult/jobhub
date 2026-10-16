@@ -1,7 +1,7 @@
 import { createAiLayer } from "@jobhub/ai";
 import type { SearchOptions } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
-import type { JobOffer, SearchCriteria } from "@jobhub/shared";
+import { DEFAULT_JOB_DISCOVERY_SETTINGS, type JobDiscoverySettings, type JobOffer, type SearchCriteria } from "@jobhub/shared";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { FranceTravail, FranceTravailSearch } from "./france-travail";
@@ -91,6 +91,8 @@ function setup(options: {
   now?: Date;
   /** France Travail, when configured. */
   franceTravail?: FranceTravail;
+  /** The Back Office's Job discovery sources and sites. */
+  settings?: () => Promise<JobDiscoverySettings>;
 }) {
   const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, sourceDates: options.sourceDates, answer: options.answer, pages: options.searchPages });
   const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}', usage: options.llmUsage });
@@ -103,7 +105,7 @@ function setup(options: {
   const clock = fakeClock(options.now?.getTime());
   const web = fakeWeb(options.pages, clock);
   const jobOffers = memoryJobOffers(options.existing);
-  const discovery = createJobDiscovery({ ai, jobOffers, fetch: web.fetch, clock, budget: options.budget, franceTravail: options.franceTravail });
+  const discovery = createJobDiscovery({ ai, jobOffers, fetch: web.fetch, clock, budget: options.budget, franceTravail: options.franceTravail, settings: options.settings });
   return { discovery, search, llm, titles, web, jobOffers };
 }
 
@@ -1183,6 +1185,114 @@ describe("Job discovery", () => {
       const { discovery } = setup({ sources: [], pages: {} });
 
       expect((await discovery.discover({ candidateId: "c", criteria })).franceTravail).toEqual({ status: "off", calls: 0, offers: 0 });
+    });
+  });
+
+  describe("following the Job discovery sources and sites set in the Back Office", () => {
+    const NOW = new Date("2026-10-15T12:00:00Z");
+    const recentPosting = (title: string) => ({ body: jobPostingPage({ title, description: `Poste de ${title} à Lyon.`, datePosted: "2026-10-12" }) });
+    const settings =
+      (changes: { sources?: Partial<JobDiscoverySettings["sources"]>; sites?: JobDiscoverySettings["sites"] }) =>
+      async (): Promise<JobDiscoverySettings> => ({
+        sources: { ...DEFAULT_JOB_DISCOVERY_SETTINGS.sources, ...changes.sources },
+        sites: changes.sites ?? [],
+      });
+    const franceTravailFinding = (searches: number[]): FranceTravail => ({
+      async search(_, { max }) {
+        searches.push(max);
+        return { ok: true, calls: 1, offers: [] };
+      },
+    });
+
+    it("does not search France Travail once disabled, and says it was off", async () => {
+      const searches: number[] = [];
+      const { discovery, search } = setup({ sources: [], pages: {}, now: NOW, franceTravail: franceTravailFinding(searches), settings: settings({ sources: { france_travail: false } }) });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(searches).toEqual([]);
+      expect(report.franceTravail).toEqual({ status: "off", calls: 0, offers: 0 });
+      expect(search.queries.length).toBeGreaterThan(0);
+    });
+
+    it("does not search the web once the web search is disabled: no plan, no search, France Travail only", async () => {
+      const searches: number[] = [];
+      const { discovery, search, titles } = setup({ sources: [DAF_URL], pages: {}, now: NOW, franceTravail: franceTravailFinding(searches), settings: settings({ sources: { web_search: false } }) });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(searches).toEqual([30]);
+      expect(titles.calls).toEqual([]);
+      expect(search.queries).toEqual([]);
+      expect(report.costEur).toBe(0);
+    });
+
+    it("reads an ATS posting's page instead of its API once the ATS APIs are disabled", async () => {
+      const GREENHOUSE = "https://job-boards.greenhouse.io/gitlab/jobs/8860302002";
+      const { discovery, web } = setup({ sources: [GREENHOUSE], pages: { [GREENHOUSE]: recentPosting("Account Executive") }, now: NOW, settings: settings({ sources: { ats_apis: false } }) });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers.map((offer) => offer.title)).toEqual(["Account Executive"]);
+      expect(web.fetched().filter((url) => url.includes("boards-api.greenhouse.io"))).toEqual([]);
+      expect(web.fetched()).toContain(GREENHOUSE);
+    });
+
+    it("searches each enabled Job discovery site on purpose, after the plan's queries, never a forbidden one", async () => {
+      const { discovery, search } = setup({
+        sources: [],
+        pages: {},
+        now: NOW,
+        settings: settings({
+          sites: [
+            { domain: "apec.fr", enabled: true },
+            { domain: "cadremploi.fr", enabled: false },
+            // Written into the table by hand: the Back Office never lets a forbidden site in.
+            { domain: "linkedin.com", enabled: true },
+          ],
+        }),
+      });
+
+      await discovery.discover({ candidateId: "c", criteria });
+
+      expect(search.searches.map((s) => s.filters?.includeDomains)).toEqual([undefined, undefined, ["apec.fr"]]);
+      expect(search.searches[2]!.query).toBe(search.searches[0]!.query);
+      expect(search.searches[2]!.filters?.excludeDomains).toEqual(["linkedin.com", "indeed.com", "indeed.fr", "glassdoor.com", "glassdoor.fr"]);
+    });
+
+    it("skips a result page on a disabled Job discovery site, or one of its subdomains, without fetching it", async () => {
+      const disabled = ["https://www.cadremploi.fr/emploi/detail_offre?offreId=1", "https://jobs.cadremploi.fr/offre/2"];
+      const { discovery, web } = setup({
+        sources: [...disabled, DAF_URL],
+        pages: { [DAF_URL]: recentPosting("DAF H/F") },
+        now: NOW,
+        settings: settings({ sites: [{ domain: "cadremploi.fr", enabled: false }] }),
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers.map((offer) => offer.title)).toEqual(["DAF H/F"]);
+      expect(report.skipped).toEqual(disabled.map((url) => ({ url, reason: "site_disabled" })));
+      expect(web.fetched().some((url) => url.includes("cadremploi"))).toBe(false);
+    });
+
+    it("searches as before when the settings cannot be read", async () => {
+      const searches: number[] = [];
+      const { discovery, search } = setup({
+        sources: [],
+        pages: {},
+        now: NOW,
+        franceTravail: franceTravailFinding(searches),
+        settings: async () => {
+          throw new Error("relation \"job_discovery_source\" does not exist");
+        },
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(searches).toEqual([30]);
+      expect(report.franceTravail.status).toBe("searched");
+      expect(search.searches.every((s) => s.filters?.includeDomains === undefined)).toBe(true);
     });
   });
 });

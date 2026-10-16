@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { CoachFocus } from "@/coach";
+import { coachReplyBlocks, type Inline } from "@/coach/reply-text";
 import type { CoachMessage } from "@/coach/conversation";
 import { CoachConversationList, type ConversationSummary } from "@/components/CoachConversationList";
 import { Icons } from "@/components/icons";
@@ -101,6 +102,45 @@ function remembered(): string | null {
   }
 }
 
+/** An AI Coach reply set as paragraphs, lists and bold or italic text, never raw Markdown (#164). */
+function CoachReplyText({ text }: { text: string }) {
+  const line = (inlines: Inline[]) =>
+    inlines.map((part, i) => {
+      let node: ReactNode = part.text;
+      if (part.emphasis) node = <em>{node}</em>;
+      if (part.strong) node = <strong>{node}</strong>;
+      return <span key={i}>{node}</span>;
+    });
+  const lines = (list: Inline[][]) =>
+    list.map((inlines, i) => (
+      <span key={i}>
+        {i > 0 ? <br /> : null}
+        {line(inlines)}
+      </span>
+    ));
+  return (
+    <>
+      {coachReplyBlocks(text).map((block, index) =>
+        block.kind === "paragraph" ? (
+          <p key={index}>{lines(block.lines)}</p>
+        ) : block.ordered ? (
+          <ol key={index} start={block.start}>
+            {block.items.map((item, i) => (
+              <li key={i}>{lines(item)}</li>
+            ))}
+          </ol>
+        ) : (
+          <ul key={index}>
+            {block.items.map((item, i) => (
+              <li key={i}>{lines(item)}</li>
+            ))}
+          </ul>
+        ),
+      )}
+    </>
+  );
+}
+
 /** A saved Coach Conversation with its messages, or null when it is gone or cannot be read. */
 async function fetchConversation(conversationId: string): Promise<{ conversation: ConversationSummary & { messages: CoachMessage[] } } | { gone: boolean }> {
   const response = await fetch(`/api/coach/conversations/${encodeURIComponent(conversationId)}`).catch(() => null);
@@ -134,6 +174,7 @@ export function CoachPanel({ children }: { children: ReactNode }) {
   const restored = useRef(false);
   const toggles = useRef(new Set<HTMLButtonElement>());
   const input = useRef<HTMLTextAreaElement>(null);
+  const body = useRef<HTMLDivElement>(null);
   const setInView = useCallback((next: InView | null) => setInViewState(next), []);
 
   useEffect(() => {
@@ -197,6 +238,12 @@ export function CoachPanel({ children }: { children: ReactNode }) {
     if (response?.ok) setConversations((await response.json()).conversations);
     else setListFailed(true);
   }
+
+  // The latest message (or the "thinking" notice) comes into view when it arrives (#164).
+  useEffect(() => {
+    const element = body.current;
+    if (element) element.scrollTop = element.scrollHeight;
+  }, [messages, status, view, open]);
 
   async function openConversation(conversationId: string): Promise<boolean> {
     const found = await fetchConversation(conversationId);
@@ -325,7 +372,7 @@ export function CoachPanel({ children }: { children: ReactNode }) {
                     <p className="hint">{t("coachPanel.searchHint")}</p>
                   )}
                 </div>
-                <div className="coach-panel-body">
+                <div className="coach-panel-body" ref={body}>
                   {restoring ? <p role="status">{t("coachPanel.loading")}</p> : null}
                   <ol className="chat coach-panel-messages" aria-label={t("coachPanel.messagesLabel")} aria-live="polite">
                     <li className="chat-message chat-coach">
@@ -335,7 +382,7 @@ export function CoachPanel({ children }: { children: ReactNode }) {
                     {messages.map((message, index) => (
                       <li key={index} className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}`}>
                         <span className="chat-author">{message.from === "coach" ? t("questionnaire.coach") : t("questionnaire.you")}</span>
-                        <p>{message.text}</p>
+                        {message.from === "coach" ? <CoachReplyText text={message.text} /> : <p>{message.text}</p>}
                       </li>
                     ))}
                   </ol>

@@ -176,6 +176,9 @@ test.describe("creating the first Profile from a CV", () => {
 
     await uploadCv(page, pdfFile([], "scan.pdf"));
     await expect(page.locator(".notice[role=alert]")).toHaveText(fr.cvUpload.errors.empty);
+
+    await uploadCv(page, { name: "blank.pdf", mimeType: PDF, buffer: Buffer.alloc(0) });
+    await expect(page.locator(".notice[role=alert]")).toHaveText(fr.cvUpload.errors.empty);
     await expect(page.getByLabel(fr.cvUpload.fileLabel)).toBeVisible();
   });
 

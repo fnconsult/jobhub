@@ -132,6 +132,29 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
     expect(provider.calls).toHaveLength(0);
   });
 
+  it("refuses a Word file with no text as empty, like a scanned PDF", async () => {
+    const { ai, provider } = aiReplying("{}");
+
+    const drafting = draftFromCv({ name: "cv.docx", bytes: await docxCv([]) }, { ai: () => ai, candidateId: "c1" });
+
+    await expect(drafting).rejects.toMatchObject({ code: "empty" });
+    expect(provider.calls).toHaveLength(0);
+  });
+
+  it.each([
+    ["a 0-byte PDF", "cv.pdf"],
+    ["a 0-byte Word file", "cv.docx"],
+    ["a 0-byte file of any other kind", "cv.png"],
+  ])("refuses %s as empty, not as an unsupported format", async (_, name) => {
+    const { ai, provider } = aiReplying("{}");
+
+    const drafting = draftFromCv({ name, bytes: new Uint8Array() }, { ai: () => ai, candidateId: "c1" });
+
+    await expect(drafting).rejects.toThrow(CvFileError);
+    await expect(drafting).rejects.toMatchObject({ code: "empty" });
+    expect(provider.calls).toHaveLength(0);
+  });
+
   it("refuses a damaged PDF as unreadable", async () => {
     const { ai } = aiReplying("{}");
     const damaged = pdfCv(MARIE_DUPONT_CV).slice(0, 40);

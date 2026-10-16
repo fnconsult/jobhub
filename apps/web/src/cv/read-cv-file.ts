@@ -39,6 +39,8 @@ const DOCX_PICTURE = /^word\/media\/[^/]+\.(?:png|jpe?g|gif|bmp|tiff?|webp|emf|w
 /** The text of a PDF or Word (.docx) CV, and whether it shows a picture. */
 export async function readCvFile(file: CvFile): Promise<CvFileReading> {
   if (file.bytes.byteLength > MAX_CV_FILE_BYTES) throw new CvFileError("too_large");
+  // A 0-byte file has no format to recognise: it is empty, whatever its name.
+  if (file.bytes.byteLength === 0) throw new CvFileError("empty");
   const extension = file.name.toLowerCase().split(".").pop();
 
   let text: string;

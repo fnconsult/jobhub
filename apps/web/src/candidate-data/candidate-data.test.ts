@@ -3,12 +3,14 @@ import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import type { MasterCvContent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createApplications, migrateApplications, type Applications } from "../applications";
-import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
-import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
-import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
-import { createTailoredCvs, migrateTailoredCvs } from "../tailored-cv";
-import { createTailoredDocuments, migrateTailoredDocuments } from "../tailored-documents";
+import { createApplications, type Applications } from "../applications";
+import { BASE_URL, connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
+import { createEuAiConsents } from "../eu-ai-consent";
+import { createJobOffers, type JobOffers } from "../job-offers";
+import { migrateDatabase } from "../migrations";
+import { createProfiles, type Profiles } from "../profiles";
+import { createTailoredCvs } from "../tailored-cv";
+import { createTailoredDocuments } from "../tailored-documents";
 import { createCandidateData, type CandidateData } from "./index";
 
 const masterCv: MasterCvContent = {
@@ -75,11 +77,8 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
   beforeEach(async () => {
     testAuth = await startTestAuth();
     database = testAuth.database;
-    await migrateProfiles(database);
-    await migrateJobOffers(database);
-    await migrateApplications(database);
-    await migrateTailoredDocuments(database);
-    await migrateTailoredCvs(database);
+    // Every table: the export reaches all of the Candidate's data.
+    await migrateDatabase({ database, baseURL: BASE_URL, secret: "test-secret-test-secret-test-secret-0123", mailer: { send: async () => {} } });
     profiles = createProfiles(database);
     jobOffers = createJobOffers(database);
     applications = createApplications(database, { jobOffers, profiles });
@@ -155,6 +154,14 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         },
       }),
     ]);
+  });
+
+  it("the export holds the Candidate's EU AI consent, dated, or null when they have not given it", async () => {
+    expect((await candidateData.export(candidateId)).euAiConsent).toBeNull();
+    const givenAt = await createEuAiConsents(database, { now: () => new Date("2026-09-01T08:00:00Z") }).give(candidateId);
+
+    expect((await candidateData.export(candidateId)).euAiConsent).toEqual({ givenAt: new Date("2026-09-01T08:00:00Z") });
+    expect(givenAt).toEqual(new Date("2026-09-01T08:00:00Z"));
   });
 
   it("deleting the account removes the Candidate and everything of theirs, signs them out, and keeps the Job Offers", async () => {

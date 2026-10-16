@@ -56,6 +56,8 @@ export interface CandidateDataExport {
   exportedAt: Date;
   /** Null once the account is deleted. */
   account: ExportedAccount | null;
+  /** The Candidate's EU AI consent (ADR-0007), or null when they have not given it (or withdrew it). */
+  euAiConsent: { givenAt: Date } | null;
   /** Oldest first, archived ones included. */
   profiles: ExportedProfile[];
   /** Newest first. */
@@ -136,10 +138,20 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
     return rows[0] ?? null;
   }
 
+  async function exportEuAiConsent(candidateId: string): Promise<CandidateDataExport["euAiConsent"]> {
+    const { rows } = await database.query<{ givenAt: Date }>(`SELECT given_at AS "givenAt" FROM eu_ai_consent WHERE candidate_id = $1`, [candidateId]);
+    return rows[0] ?? null;
+  }
+
   return {
     async export(candidateId) {
-      const [account, profiles, applications] = await Promise.all([exportAccount(candidateId), exportProfiles(candidateId), exportApplications(candidateId)]);
-      return { exportedAt: new Date(), account, profiles, applications };
+      const [account, euAiConsent, profiles, applications] = await Promise.all([
+        exportAccount(candidateId),
+        exportEuAiConsent(candidateId),
+        exportProfiles(candidateId),
+        exportApplications(candidateId),
+      ]);
+      return { exportedAt: new Date(), account, euAiConsent, profiles, applications };
     },
 
     async delete(candidateId) {

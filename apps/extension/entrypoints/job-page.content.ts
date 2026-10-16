@@ -2,6 +2,7 @@ import { designTokens } from "@jobhub/shared/design";
 import { createI18n } from "@jobhub/shared/i18n";
 import { browser } from "wxt/browser";
 import { defineContentScript } from "wxt/utils/define-content-script";
+import { badgePlacement, placementCss } from "../src/badge-placement";
 import { isOnJobSite, JOB_SITES, readJobPage } from "../src/job-page";
 import type { AnalyseReply, ExtensionMessage } from "../src/messages";
 import { snapshotPage } from "../src/page-snapshot";
@@ -21,7 +22,8 @@ export default defineContentScript({
   async main(ctx) {
     // In an iframe, only a posting gets the badge (not a job site's widgets, nor ads), and only on another
     // site's page: on a job site's own page (Indeed's posting pane, say), the page shows it.
-    if (window !== window.top) {
+    const inTopFrame = window === window.top;
+    if (!inTopFrame) {
       const topOrigin = [...location.ancestorOrigins].at(-1);
       if ((topOrigin && isOnJobSite(`${topOrigin}/`)) || !readJobPage(snapshotPage(document)).detected) return;
     }
@@ -41,7 +43,7 @@ export default defineContentScript({
     status.setAttribute("role", "status");
     const style = document.createElement("style");
     style.textContent = `
-      :host { all: initial; position: fixed; right: ${space[6]}px; bottom: ${space[6]}px; z-index: 2147483647; font-family: ${fontFamily.sans}; }
+      :host { all: initial; position: fixed; ${placementCss(badgePlacement(inTopFrame, space[6]))} z-index: 2147483647; font-family: ${fontFamily.sans}; }
       button { font: 600 ${fontSize.lead}px/1.25 ${fontFamily.sans}; color: ${color.onAccent}; background: ${color.accent};
                border: 0; border-radius: ${radius.lg}px; padding: ${space[3]}px ${space[4]}px; cursor: pointer;
                box-shadow: 0 4px 16px rgb(0 0 0 / 20%); }

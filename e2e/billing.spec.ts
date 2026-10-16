@@ -73,6 +73,48 @@ test.describe("Plans and Stripe billing", () => {
     expect(await formRedirect(page, "/api/billing/portal", fr.billing.page.manage)).toMatch(/^https:\/\/billing\.stripe\.test\//);
   });
 
+  // Issue #169: Stripe sends the Candidate back before (or while) its webhook arrives.
+  test("back from Stripe Checkout, the subscription page shows the new Plan once Stripe confirms it, without a reload", async ({ page }) => {
+    const email = newAddress("checkout-refresh");
+    await signInWithMagicLink(page, email);
+    await page.goto("/abonnement?checkout=success");
+    await expect(page.getByRole("status")).toHaveText(fr.billing.page.checkoutSuccess);
+    await expect(page.getByText("Votre offre actuelle : Gratuite")).toBeVisible();
+    await page.evaluate(() => ((window as unknown as { notReloaded: boolean }).notReloaded = true));
+
+    await subscribe(page, email, "standard");
+
+    await expect(page.getByText("Votre offre actuelle : Standard")).toBeVisible({ timeout: 15_000 });
+    expect(await page.evaluate(() => (window as unknown as { notReloaded?: boolean }).notReloaded)).toBe(true);
+    await expect(page.getByRole("button", { name: fr.billing.page.manage })).toBeVisible();
+  });
+
+  // Issue #169: a cancellation scheduled in the customer portal keeps the Plan until the end of the paid period.
+  test("a Candidate who cancelled in the customer portal sees until when the Plan is kept, then Free once it ends", async ({ page }) => {
+    const email = newAddress("cancel-at-period-end");
+    const customer = fakeCustomerId(email);
+    await signInWithMagicLink(page, email);
+    await subscribe(page, email, "premium");
+    await currentPlanIs(page, "Premium");
+
+    const later = (seconds: number) => new Date(Date.now() + seconds * 1000);
+    const premium = { customer, price: FAKE_STRIPE_PRICES.premium, currentPeriodEnd: new Date("2026-11-15T09:00:00Z") };
+    const cancelled = subscriptionEvent("customer.subscription.updated", { ...premium, status: "active", cancelAtPeriodEnd: true }, later(10));
+    expect((await deliverWebhook(page, cancelled)).status()).toBe(200);
+    await currentPlanIs(page, "Premium jusqu'au 15 novembre 2026");
+
+    // Renewed after all: no end date any more.
+    await deliverWebhook(page, subscriptionEvent("customer.subscription.updated", { ...premium, status: "active" }, later(20)));
+    await currentPlanIs(page, "Premium");
+    await expect(page.getByText(/jusqu'au/)).toHaveCount(0);
+
+    // Cancelled again, and the period is over: Free, as an immediate cancellation does.
+    await deliverWebhook(page, subscriptionEvent("customer.subscription.updated", { ...premium, status: "active", cancelAtPeriodEnd: true }, later(30)));
+    await deliverWebhook(page, subscriptionEvent("customer.subscription.deleted", { ...premium, status: "canceled", cancelAtPeriodEnd: true }, later(40)));
+    await currentPlanIs(page, "Gratuite");
+    await expect(page.getByText(/jusqu'au/)).toHaveCount(0);
+  });
+
   // Issue #103: the comparison prices each Plan from its Stripe Price (the fake's: 19 € and 39 € a month).
   test("the Plans show what they cost, in the Candidate's Interface Language", async ({ page }) => {
     const email = newAddress("plan-prices");

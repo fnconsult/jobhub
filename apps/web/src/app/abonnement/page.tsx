@@ -2,12 +2,14 @@ import { LIMITED_QUOTAS, MONTHLY_QUOTAS, PLANS, type PlanQuotas } from "@jobhub/
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentCandidate } from "@/auth/server";
+import { currentPlanLabel } from "@/billing/current-plan";
 import { paymentFailedNotice } from "@/billing/payment-failed-notice";
 import { planPriceLabel } from "@/billing/plan-price";
 import { planQuotaValue } from "@/billing/quota-labels";
 import { getBilling } from "@/billing/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { PaymentFailedNotice } from "@/components/PaymentFailedNotice";
+import { RefreshUntilPlanConfirmed } from "@/components/RefreshUntilPlanConfirmed";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 
@@ -26,7 +28,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   const t = await getServerT(locale);
   const { checkout, error } = await searchParams;
   const billing = getBilling();
-  const [{ plan, stripeStatus, quotas, usedThisMonth }, allQuotas, prices, hasInvoices] = await Promise.all([
+  const [{ plan, stripeStatus, endsAt, quotas, usedThisMonth }, allQuotas, prices, hasInvoices] = await Promise.all([
     billing.entitlements(candidate.id),
     billing.planQuotas(),
     billing.planPrices(),
@@ -43,12 +45,14 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
           {t("billing.page.checkoutSuccess")}
         </p>
       ) : null}
+      {/* Checkout is only offered on Free: until Stripe's webhook moves the Candidate off it, keep looking. */}
+      {checkout === "success" && plan === "free" ? <RefreshUntilPlanConfirmed /> : null}
       {error ? (
         <p className="notice" role="alert">
           {t(error === "unavailable" ? "billing.page.unavailable" : "billing.page.error")}
         </p>
       ) : null}
-      <p className="lead">{t("billing.page.currentPlan", { plan: planName(plan) })}</p>
+      <p className="lead">{currentPlanLabel({ plan, endsAt }, locale)}</p>
       {paymentFailed ? <PaymentFailedNotice notice={paymentFailed} /> : null}
 
       <h2>{t("billing.page.usageTitle")}</h2>

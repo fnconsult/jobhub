@@ -499,6 +499,7 @@
     "page": {
       "title": "My subscription",
       "currentPlan": "Your current Plan: {{plan}}",
+      "currentPlanUntil": "Your current Plan: {{plan}} until {{date}}",
       "checkoutSuccess": "Thank you! Your payment is recorded. Your new Plan shows here as soon as Stripe confirms it, usually within seconds.",
       "usageTitle": "Your usage this month",
       "usage": "{{used}} of {{limit}}",

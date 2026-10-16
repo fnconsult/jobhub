@@ -431,6 +431,61 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       },
     );
 
+    describe("a cancellation scheduled in the customer portal", () => {
+      const periodEnd = new Date("2026-11-15T09:00:00Z");
+
+      it("keeps the paid Plan and tells when it ends, at the end of the paid period", async () => {
+        const marie = await subscribed("marie.dupont@example.fr", "premium");
+        const premium = { customer: marie.customer, price: FAKE_STRIPE_PRICES.premium, status: "active", currentPeriodEnd: periodEnd };
+        await deliver(subscriptionEvent("customer.subscription.created", premium, new Date("2026-10-15T09:00:00Z")));
+        expect((await t.billing.entitlements(marie.id)).endsAt).toBeNull();
+
+        await deliver(subscriptionEvent("customer.subscription.updated", { ...premium, cancelAtPeriodEnd: true }, new Date("2026-10-16T09:00:00Z")));
+
+        expect(await t.billing.entitlements(marie.id)).toMatchObject({ plan: "premium", endsAt: periodEnd });
+      });
+
+      it("takes the end date Stripe sets as cancel_at, even when it is not the end of the period", async () => {
+        const marie = await subscribed("marie.dupont@example.fr", "premium");
+        const cancelAt = new Date("2026-11-02T12:00:00Z");
+
+        await deliver(subscriptionEvent("customer.subscription.updated", { customer: marie.customer, price: FAKE_STRIPE_PRICES.premium, status: "active", currentPeriodEnd: periodEnd, cancelAt }));
+
+        expect(await t.billing.entitlements(marie.id)).toMatchObject({ plan: "premium", endsAt: cancelAt });
+      });
+
+      it("forgets the end date once the Candidate renews, even if Stripe delivers the cancellation late", async () => {
+        const marie = await subscribed("marie.dupont@example.fr", "premium");
+        const premium = { customer: marie.customer, price: FAKE_STRIPE_PRICES.premium, status: "active", currentPeriodEnd: periodEnd };
+        await deliver(subscriptionEvent("customer.subscription.updated", { ...premium, cancelAtPeriodEnd: true }, new Date("2026-10-16T09:00:00Z")));
+
+        await deliver(subscriptionEvent("customer.subscription.updated", premium, new Date("2026-10-17T09:00:00Z")));
+        await deliver(subscriptionEvent("customer.subscription.updated", { ...premium, cancelAtPeriodEnd: true }, new Date("2026-10-16T09:00:00Z")));
+
+        expect(await t.billing.entitlements(marie.id)).toMatchObject({ plan: "premium", endsAt: null });
+      });
+
+      it("has no end date once the subscription has ended and the Candidate is back on Free", async () => {
+        const marie = await subscribed("marie.dupont@example.fr", "premium");
+        const premium = { customer: marie.customer, price: FAKE_STRIPE_PRICES.premium, currentPeriodEnd: periodEnd, cancelAtPeriodEnd: true };
+        await deliver(subscriptionEvent("customer.subscription.updated", { ...premium, status: "active" }, new Date("2026-10-16T09:00:00Z")));
+
+        await deliver(subscriptionEvent("customer.subscription.deleted", { ...premium, status: "canceled" }, new Date("2026-11-15T09:00:01Z")));
+
+        expect(await t.billing.entitlements(marie.id)).toMatchObject({ plan: "free", endsAt: null });
+      });
+
+      it("works on a database migrated before end dates were kept", async () => {
+        const marie = await subscribed("marie.dupont@example.fr", "premium");
+        await t.database.query("ALTER TABLE candidate_plan DROP COLUMN ends_at");
+        await t.migrateAgain();
+
+        await deliver(subscriptionEvent("customer.subscription.updated", { customer: marie.customer, price: FAKE_STRIPE_PRICES.premium, status: "active", currentPeriodEnd: periodEnd, cancelAtPeriodEnd: true }));
+
+        expect(await t.billing.entitlements(marie.id)).toMatchObject({ plan: "premium", endsAt: periodEnd });
+      });
+    });
+
     it("does not end the current subscription when an older one of the same Candidate ends", async () => {
       const marie = await subscribed("marie.dupont@example.fr");
       const old = { id: "sub_old", customer: marie.customer, price: FAKE_STRIPE_PRICES.standard };

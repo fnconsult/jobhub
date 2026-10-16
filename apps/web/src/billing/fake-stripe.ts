@@ -104,13 +104,21 @@ export type FakeStripe = Awaited<ReturnType<typeof startFakeStripe>>;
 
 let eventSequence = 0;
 
-/** A `customer.subscription.*` event as Stripe sends it, reduced to the fields that matter. */
+/**
+ * A `customer.subscription.*` event as Stripe sends it, reduced to the fields that matter.
+ * As on Stripe API versions since 2025-03-31.basil, the paid period's end is on the
+ * subscription item (a month after the event unless `currentPeriodEnd` says otherwise).
+ * A cancellation scheduled in the customer portal sets `cancelAtPeriodEnd`; one at
+ * another date sets `cancelAt`.
+ */
 export function subscriptionEvent(
   type: "customer.subscription.created" | "customer.subscription.updated" | "customer.subscription.deleted",
-  subscription: { customer: string; price: string; status: string; id?: string },
+  subscription: { customer: string; price: string; status: string; id?: string; currentPeriodEnd?: Date; cancelAtPeriodEnd?: boolean; cancelAt?: Date },
   createdAt: Date = new Date(),
 ) {
   eventSequence += 1;
+  const seconds = (date: Date) => Math.floor(date.getTime() / 1000);
+  const periodEnd = subscription.currentPeriodEnd ?? new Date(createdAt.getTime() + 30 * 24 * 3600_000);
   return {
     id: `evt_fake${eventSequence}`,
     object: "event",
@@ -122,7 +130,12 @@ export function subscriptionEvent(
         object: "subscription",
         customer: subscription.customer,
         status: subscription.status,
-        items: { object: "list", data: [{ id: `si_fake${eventSequence}`, price: { id: subscription.price } }] },
+        cancel_at: subscription.cancelAt ? seconds(subscription.cancelAt) : null,
+        cancel_at_period_end: subscription.cancelAtPeriodEnd ?? false,
+        items: {
+          object: "list",
+          data: [{ id: `si_fake${eventSequence}`, price: { id: subscription.price }, current_period_end: seconds(periodEnd) }],
+        },
       },
     },
   };

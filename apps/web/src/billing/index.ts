@@ -120,7 +120,8 @@ export async function migrateBilling(database: Pool): Promise<void> {
       stripe_subscription_id text,
       stripe_status text,
       stripe_event_at timestamptz,
-      charged boolean NOT NULL DEFAULT false
+      charged boolean NOT NULL DEFAULT false,
+      ends_at timestamptz
     );
     CREATE TABLE IF NOT EXISTS quota_usage (
       candidate_id text NOT NULL REFERENCES candidate(id) ON DELETE CASCADE,
@@ -140,6 +141,8 @@ export async function migrateBilling(database: Pool): Promise<void> {
       UPDATE candidate_plan SET charged = true WHERE stripe_status IN (${[...CHARGED_STATUSES, "canceled"].map((status) => `'${status}'`).join(", ")});
     `);
   }
+  // Databases from before scheduled cancellations were kept (#169): Stripe tells again on the next change.
+  await database.query("ALTER TABLE candidate_plan ADD COLUMN IF NOT EXISTS ends_at timestamptz");
   // A quota added after the table was created starts at its starting value on every Plan.
   const { rows: existing } = await database.query<{ column_name: string }>(
     "SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'plan_quota'",
@@ -306,10 +309,10 @@ export function createBilling(config: BillingConfig) {
 
   async function stripeAccountOf(candidateId: string) {
     const { rows } = await database.query(
-      "SELECT plan, stripe_customer_id, stripe_status FROM candidate_plan WHERE candidate_id = $1",
+      "SELECT plan, stripe_customer_id, stripe_status, ends_at FROM candidate_plan WHERE candidate_id = $1",
       [candidateId],
     );
-    return rows[0] as { plan: Plan; stripe_customer_id: string | null; stripe_status: string | null } | undefined;
+    return rows[0] as { plan: Plan; stripe_customer_id: string | null; stripe_status: string | null; ends_at: Date | null } | undefined;
   }
 
   /** The Candidate's Stripe customer, created on their first checkout. */
@@ -335,7 +338,20 @@ export function createBilling(config: BillingConfig) {
     return session.url;
   }
 
-  /** Applies a customer.subscription.* event: the Plan follows the subscription's price and status. */
+  /**
+   * When a still-paying subscription is due to end: the date Stripe set (`cancel_at`), else the
+   * end of the paid period when cancelled at period end. Since API version 2025-03-31.basil that
+   * period end is on the subscription item, not the subscription. Null when it simply renews.
+   */
+  function scheduledEndOf(subscription: Stripe.Subscription): number | null {
+    if (subscription.cancel_at) return subscription.cancel_at;
+    if (!subscription.cancel_at_period_end) return null;
+    // A webhook endpoint pinned to an older API version still has it on the subscription.
+    const legacy = (subscription as { current_period_end?: number }).current_period_end;
+    return subscription.items.data[0]?.current_period_end ?? legacy ?? null;
+  }
+
+  /** Applies a customer.subscription.* event: the Plan follows the subscription's price, status and scheduled end. */
   async function applySubscription(event: Stripe.Event, subscription: Stripe.Subscription) {
     const { prices } = stripe().config;
     const price = subscription.items.data[0]?.price.id;
@@ -349,7 +365,7 @@ export function createBilling(config: BillingConfig) {
     }
     await database.query(
       `UPDATE candidate_plan
-       SET plan = $2, stripe_subscription_id = $3, stripe_status = $4, stripe_event_at = to_timestamp($5)
+       SET plan = $2, stripe_subscription_id = $3, stripe_status = $4, stripe_event_at = to_timestamp($5), ends_at = to_timestamp($8)
        WHERE stripe_customer_id = $1
          AND (
            stripe_event_at IS NULL
@@ -368,6 +384,7 @@ export function createBilling(config: BillingConfig) {
         event.created,
         ended,
         event.type === "customer.subscription.deleted" ? STATUS_STAGES.canceled : stageOf(subscription.status),
+        ended ? null : scheduledEndOf(subscription),
       ],
     );
   }
@@ -618,11 +635,14 @@ export function createBilling(config: BillingConfig) {
      * The Candidate's Plan, the Plan Quotas that apply to them, and the status
      * Stripe last reported for their subscription (null if they never subscribed):
      * `past_due` while Stripe retries a failed payment, the Plan still kept.
+     * `endsAt` is when a paid Plan whose cancellation is scheduled ends (the
+     * Candidate keeps it until then); null when it renews, and on Free.
      */
     async entitlements(candidateId: string) {
       const account = await stripeAccountOf(candidateId);
       const plan = account?.plan ?? "free";
       const stripeStatus = (account?.stripe_status ?? null) as SubscriptionStatus | null;
+      const endsAt = plan === "free" ? null : (account?.ends_at ?? null);
       const { rows } = await database.query("SELECT quota, used FROM quota_usage WHERE candidate_id = $1 AND month = $2", [
         candidateId,
         monthInFrance(now()),
@@ -630,7 +650,7 @@ export function createBilling(config: BillingConfig) {
       const usedThisMonth = Object.fromEntries(
         MONTHLY_QUOTAS.map((quota) => [quota, (rows.find((row) => row.quota === quota)?.used as number | undefined) ?? 0]),
       ) as Record<MonthlyQuota, number>;
-      return { plan, stripeStatus, quotas: await quotasOf(plan), usedThisMonth };
+      return { plan, stripeStatus, endsAt, quotas: await quotasOf(plan), usedThisMonth };
     },
   };
 }

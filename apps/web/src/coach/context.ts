@@ -16,7 +16,7 @@
  * elsewhere in the CV, so the context is not identity-bearing (ADR-0007, #121:
  * the AI layer's scan stays the safety net).
  */
-import { withoutIdentity, yearsOfExperience, type ApplicationStatus, type CvContent, type JobOffer, type MatchScore, type SearchCriteria } from "@jobhub/shared";
+import { matchScoreReliability, withoutIdentity, yearsOfExperience, type ApplicationStatus, type CvContent, type JobOffer, type MatchScore, type SearchCriteria } from "@jobhub/shared";
 import type { Application, Applications } from "../applications";
 import type { JobDigest, JobDigests } from "../job-digests";
 import type { JobOffers } from "../job-offers";
@@ -224,10 +224,18 @@ function jobOfferText(jobOffer: JobOffer): string {
     .join("\n");
 }
 
-function matchScoreText({ score, breakdown }: MatchScore): string {
-  const { skills, seniority } = breakdown;
+/** The score as the AI Coach must read it (#94): a partial one is not a confident one, and none is not 0. */
+function scoreInWords(matchScore: MatchScore): string {
+  const reliability = matchScoreReliability(matchScore);
+  if (reliability === "not_computable") return "non calculable (aucun critère comparable)";
+  return `${matchScore.score}/100${reliability === "partial" ? " (partiel : peu de critères comparables)" : ""}`;
+}
+
+function matchScoreText(matchScore: MatchScore): string {
+  const { skills, seniority } = matchScore.breakdown;
+  const { breakdown } = matchScore;
   return [
-    `Score de correspondance : ${score}/100`,
+    `Score de correspondance : ${scoreInWords(matchScore)}`,
     skills.covered.length ? `compétences présentes : ${skills.covered.join(", ")}` : "",
     skills.missing.length ? `compétences manquantes : ${skills.missing.join(", ")}` : "",
     `séniorité ${seniority.status}, lieu ${breakdown.location.status}, salaire ${breakdown.salary.status}, contrat ${breakdown.contractType.status}`,
@@ -237,7 +245,7 @@ function matchScoreText({ score, breakdown }: MatchScore): string {
 }
 
 function resultLine({ jobOffer, matchScore, applicationId }: { jobOffer: JobOffer; matchScore: MatchScore; applicationId: string | null }): string {
-  return `${jobOfferHeadline(jobOffer)} : score ${matchScore.score}/100${applicationId ? " (candidature enregistrée)" : ""}`;
+  return `${jobOfferHeadline(jobOffer)} : score ${scoreInWords(matchScore)}${applicationId ? " (candidature enregistrée)" : ""}`;
 }
 
 async function inViewText(sources: CoachSources, candidateId: string, focus: CoachFocus | undefined): Promise<string | null> {

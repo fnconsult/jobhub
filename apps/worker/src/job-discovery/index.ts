@@ -51,7 +51,7 @@
  * Each run is measured (its funnel and cost in €), also when it fails: the
  * error is then a JobDiscoveryError carrying what the run measured until then.
  */
-import { costInEur, type AiLayer, type JobSearchQuery, type SearchFilters } from "@jobhub/ai";
+import { costInEur, readJobPage, type AiLayer, type JobSearchQuery, type SearchFilters } from "@jobhub/ai";
 import {
   believablePostingDate,
   DEFAULT_JOB_DISCOVERY_SETTINGS,
@@ -74,7 +74,6 @@ import type { FranceTravail } from "./france-travail";
 import { htmlToText, metaRobots } from "./html";
 import { countJobPostings, readJobPosting } from "./job-posting";
 import { listingPageLinks } from "./listing-page";
-import { extractWithLlm } from "./llm-extraction";
 import { searchPages } from "./search-pages";
 import { createPoliteFetcher, realClock, type Clock, type JsonResult, type RefusalReason } from "./polite-fetch";
 
@@ -343,7 +342,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           await followListing();
           return;
         }
-        if (!details && countJobPostings(page.html) <= 1) details = await extractWithLlm(ai, candidateId, htmlToText(page.html));
+        if (!details && countJobPostings(page.html) <= 1) details = await readJobPage(ai, candidateId, htmlToText(page.html));
         if (!details) {
           skipped.push({ url, reason: "not_a_job_offer" });
           return;

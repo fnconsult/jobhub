@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { ApplicationFieldError } from "@/applications";
-import type { MatchScoreReason } from "@/components/job-search-words";
+import type { MatchScoreFigure, MatchScoreReason } from "@/components/job-search-words";
 import { ProfileMatchScore } from "@/components/MatchScoreWhy";
 import { routes } from "@/routes";
 
@@ -296,7 +296,7 @@ export function SaveJobOfferForm({
 }: {
   jobOfferId: string;
   /** The active Profiles, each with the Job Offer's Match Score against it and why (`matchScoreReasons`). */
-  profiles: { id: string; name: string; matchScore: { score: number; reasons: MatchScoreReason[] } }[];
+  profiles: { id: string; name: string; matchScore: { figure: MatchScoreFigure; reasons: MatchScoreReason[] } }[];
   /** The Profile chosen first. */
   profileId: string;
 }) {
@@ -332,7 +332,7 @@ export function SaveJobOfferForm({
           ))}
         </select>
       </div>
-      {chosen ? <ProfileMatchScore profileName={chosen.name} score={chosen.matchScore.score} reasons={chosen.matchScore.reasons} live t={t} /> : null}
+      {chosen ? <ProfileMatchScore profileName={chosen.name} figure={chosen.matchScore.figure} reasons={chosen.matchScore.reasons} live t={t} /> : null}
       <button className="button button-primary" type="submit" disabled={working}>
         {working ? t("jobOffer.saving") : t("jobOffer.save")}
       </button>

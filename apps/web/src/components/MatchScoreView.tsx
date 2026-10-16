@@ -1,4 +1,5 @@
 import type { CriterionStatus, MatchScore, SalaryRange } from "@jobhub/shared";
+import { matchScoreFigure, matchScoreInWords, matchScoreReliabilityHint } from "@/components/job-search-words";
 import type { getServerT } from "@/i18n/server";
 
 type T = Awaited<ReturnType<typeof getServerT>>;
@@ -14,15 +15,18 @@ export function MatchScoreView({ matchScore, profileName, t, locale }: { matchSc
   const range = (offer: SalaryRange) => [offer.min, offer.max].filter((value) => value !== undefined).map(amount).join(" – ");
   const contract = (value: string | undefined) => (value ? t(`cvReview.contractTypes.${value as "cdi"}`) : t("profile.notSpecified"));
   const orNotSpecified = (value: string | undefined) => value ?? t("profile.notSpecified");
+  const figure = matchScoreFigure(matchScore);
+  const reliabilityHint = matchScoreReliabilityHint(figure, t);
   return (
     <section className="section match-score" aria-labelledby="match-score-title">
       <div className="section-head">
         <h2 id="match-score-title" tabIndex={-1}>
           {t("matchScore.title")}
         </h2>
-        <p className="score">{t("matchScore.score", { score: matchScore.score })}</p>
+        <p className="score">{matchScoreInWords(figure, t)}</p>
       </div>
       <p>{t("matchScore.intro", { profile: profileName })}</p>
+      {reliabilityHint ? <p className="notice">{reliabilityHint}</p> : null}
       <ul className="breakdown">
         <Criterion name={t("matchScore.criteria.skills")} status={skills.status} t={t}>
           {skills.covered.length > 0 ? <SkillList title={t("matchScore.covered")} skills={skills.covered} /> : null}

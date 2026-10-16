@@ -1,7 +1,7 @@
 import { createI18n } from "@jobhub/shared/i18n";
 import { describe, expect, it } from "vitest";
 import type { MatchScore } from "@jobhub/shared";
-import { matchScoreReasons, searchCriteriaInWords } from "./job-search-words";
+import { matchScoreFigure, matchScoreInWords, matchScoreReasons, matchScoreReliabilityHint, matchScoreWhyInWords, searchCriteriaInWords } from "./job-search-words";
 
 /** French groups thousands with a narrow no-break space. */
 const NNBSP = "\u202f";
@@ -64,5 +64,42 @@ describe("why a Job Offer has its Match Score, criterion by criterion", () => {
 
   it("reads in the Candidate's Interface Language", () => {
     expect(matchScoreReasons(matchScore, createI18n("en").t, "en")[2]).toEqual({ status: "match", verdict: "Matches", text: "Location: Villeurbanne, wanted: Lyon" });
+  });
+});
+
+describe("a Match Score's value, in words (#94)", () => {
+  const unknown = {
+    skills: { status: "unknown", covered: [], missing: [] },
+    seniority: { status: "unknown" },
+    location: { status: "unknown" },
+    salary: { status: "unknown" },
+    contractType: { status: "unknown" },
+  } as const satisfies MatchScore["breakdown"];
+
+  it("says a score with nothing to compare is not computable, not 0 / 100", () => {
+    const figure = matchScoreFigure({ score: 0, breakdown: unknown });
+
+    expect(matchScoreInWords(figure, fr)).toBe("Non calculable");
+    expect(matchScoreWhyInWords(figure, fr)).toBe("Pourquoi pas de score ?");
+    expect(matchScoreReliabilityHint(figure, fr)).toMatch(/^Aucun critère/);
+  });
+
+  it("shows a score on one known criterion as partial, naming how many were compared", () => {
+    const figure = matchScoreFigure({ score: 100, breakdown: { ...unknown, seniority: { status: "match", cvYears: 20, requiredYears: 10 } } });
+
+    expect(matchScoreInWords(figure, fr)).toBe("100 / 100, partiel");
+    expect(matchScoreReliabilityHint(figure, fr)).toMatch(/seul 1 critère sur 5/);
+    expect(matchScoreInWords(figure, createI18n("en").t)).toBe("100 / 100, partial");
+  });
+
+  it("shows a reliable score as before, with no hint", () => {
+    const figure = matchScoreFigure({
+      score: 72,
+      breakdown: { ...unknown, skills: { status: "partial", covered: ["IFRS"], missing: ["SAP"] }, seniority: { status: "match", cvYears: 20, requiredYears: 10 } },
+    });
+
+    expect(matchScoreInWords(figure, fr)).toBe("72 / 100");
+    expect(matchScoreWhyInWords(figure, fr)).toBe("Pourquoi 72 ?");
+    expect(matchScoreReliabilityHint(figure, fr)).toBeNull();
   });
 });

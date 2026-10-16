@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CvContent, JobOfferDetails, SearchCriteria } from "../domain";
-import { scoreMatch } from "./index";
+import { matchScoreReliability, scoreMatch } from "./index";
 
 const cv: CvContent = {
   fullName: "Marie Dupont",
@@ -277,6 +277,29 @@ describe("Match Score", () => {
     it("is 0 when nothing can be compared", () => {
       const bare = { ...cv, location: "", experience: [] };
       expect(scoreMatch({ cv: bare, jobOffer: { title: "DAF", content: "" }, today }).score).toBe(0);
+    });
+  });
+
+  describe("reliability (#94)", () => {
+    const today = new Date("2026-10-06");
+    const searchCriteria = { targetRole: "DAF", location: "Lyon", minSalary: 100_000, contractType: "cdi" as const };
+
+    it("is not computable when no criterion is known, rather than a score of 0", () => {
+      const matchScore = scoreMatch({ cv: { ...cv, location: "", experience: [] }, jobOffer: { title: "DAF", content: "" }, today });
+      expect(matchScoreReliability(matchScore)).toBe("not_computable");
+    });
+
+    it("is partial when only seniority is known, so its 100 is not a confident one", () => {
+      const matchScore = scoreMatch({ cv, searchCriteria, jobOffer: { title: "DAF", content: "10 ans d'expérience minimum." }, today });
+      expect(matchScore.score).toBe(100);
+      expect(matchScoreReliability(matchScore)).toBe("partial");
+    });
+
+    it("is reliable once the known criteria weigh half the score or more (skills and seniority)", () => {
+      const jobOffer: JobOfferDetails = { ...offer, skills: ["IFRS"], requiredExperienceYears: 10 };
+      expect(matchScoreReliability(scoreMatch({ cv, searchCriteria, jobOffer, today }))).toBe("reliable");
+      const located: JobOfferDetails = { title: "DAF", content: "", location: "Lyon", contractType: "cdi", salary: { max: 120_000 } };
+      expect(matchScoreReliability(scoreMatch({ cv, searchCriteria, jobOffer: located, today }))).toBe("partial");
     });
   });
 

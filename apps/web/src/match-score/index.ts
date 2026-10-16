@@ -13,12 +13,23 @@
  * (`matchScoreQuota`, asked once the request names a Job Offer and a CV it can
  * score, before scoring); a Guest's are not counted (ADR-0014).
  * Problems come back as results, never exceptions.
+ *
+ * A Match Score comes in up to two phases, and counts once whatever the phases:
+ *  1. `scoreMatch` on what the Job Offer states in structured form. A reliable
+ *     score of `ENOUGH_FROM_STRUCTURED_DATA` or more is the result.
+ *  2. Otherwise, when the Job Offer lacks a detail a criterion needs (e.g. a
+ *     Capture without JobPosting data has only a title and its text), an AI
+ *     reads the Job Offer's text for it (`readOfferText`: the offer only, never
+ *     the CV, so no identity). What it finds is kept on the Job Offer, once per
+ *     Job Offer, and the CV is scored again by the same rules, so the score
+ *     keeps its explained breakdown. If the AI fails or is too slow, the result
+ *     is the phase 1 score, flagged `offerTextUnread`.
  */
-import { scoreMatch, type MatchScore } from "@jobhub/shared";
+import { matchScoreReliability, scoreMatch, type JobOffer, type MatchInput, type MatchScore } from "@jobhub/shared";
 import * as z from "zod";
 import type { QuotaDecision } from "../billing";
 import type { QuotaRefusal } from "../billing/upgrade-prompt";
-import type { JobOffers } from "../job-offers";
+import type { FieldsFromText, JobOffers } from "../job-offers";
 import { cvContentSchema, searchCriteriaSchema, type Profiles } from "../profiles";
 import { fieldErrors, type FieldError } from "../validation";
 
@@ -37,6 +48,29 @@ export type MatchScoreResult =
  * `use(candidateId, "matchScores")`). Without one, nothing is counted.
  */
 export type MatchScoreQuota = (candidateId: string) => Promise<QuotaDecision>;
+
+/**
+ * What an AI reads in a Job Offer's text (its title and text, never a CV): the `offer_analysis`
+ * task. Throws when it cannot read it.
+ */
+export type OfferTextReader = (jobOffer: JobOffer, candidateId: string | null) => Promise<FieldsFromText>;
+
+/** A reliable phase 1 Match Score this high needs no AI reading of the Job Offer's text. */
+export const ENOUGH_FROM_STRUCTURED_DATA = 70;
+
+/** How long a Match Score waits for the AI reading; it is still kept when it finishes later. */
+const DEFAULT_TEXT_READ_TIMEOUT_MS = 20_000;
+
+/** Whether the Job Offer's text could make a criterion known: the offer lacks what the CV or Search Criteria have. */
+function offerLacksADetail({ breakdown }: MatchScore): boolean {
+  return (
+    breakdown.skills.status === "unknown" ||
+    (breakdown.seniority.requiredYears === undefined && breakdown.seniority.cvYears !== undefined) ||
+    (breakdown.location.offer === undefined && breakdown.location.wanted !== undefined) ||
+    (breakdown.salary.offer === undefined && breakdown.salary.wanted !== undefined) ||
+    (breakdown.contractType.offer === undefined && breakdown.contractType.wanted !== undefined)
+  );
+}
 
 export interface MatchScoring {
   /** `candidateId` is the signed-in Candidate, or null for a Guest. */
@@ -57,11 +91,55 @@ export function createMatchScoring({
   jobOffers,
   profiles,
   matchScoreQuota = async () => ({ allowed: true, remaining: null }),
+  readOfferText,
+  textReadTimeoutMs = DEFAULT_TEXT_READ_TIMEOUT_MS,
+  warn = (message, details) => console.warn(`[match-score] ${message}`, details),
 }: {
   jobOffers: JobOffers;
   profiles: Profiles;
   matchScoreQuota?: MatchScoreQuota;
+  /** The phase 2 AI reading. Without it, a Match Score is phase 1 only. */
+  readOfferText?: OfferTextReader;
+  textReadTimeoutMs?: number;
+  warn?: (message: string, details: Record<string, unknown>) => void;
 }): MatchScoring {
+  /** One reading per Job Offer at a time: a second Match Score waits for the first one's. */
+  const reading = new Map<string, Promise<JobOffer | null>>();
+
+  /** The Job Offer with the fields its text gave (now or before), or null when the AI could not read it in time. */
+  function filledFromText(jobOffer: JobOffer, candidateId: string | null, read: OfferTextReader): Promise<JobOffer | null> {
+    let filling = reading.get(jobOffer.id);
+    if (!filling) {
+      filling = jobOffers
+        .fillFromText(jobOffer.id, (stored) => read(stored, candidateId))
+        .catch((error: unknown) => {
+          warn("Job Offer text unread: Match Score from its structured data only", {
+            jobOfferId: jobOffer.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          return null;
+        })
+        .finally(() => reading.delete(jobOffer.id));
+      reading.set(jobOffer.id, filling);
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<null>((resolve) => {
+      timer = setTimeout(() => {
+        warn("Job Offer text reading too slow: Match Score from its structured data only", { jobOfferId: jobOffer.id });
+        resolve(null);
+      }, textReadTimeoutMs);
+    });
+    return Promise.race([filling, timeout]).finally(() => clearTimeout(timer));
+  }
+
+  async function twoPhaseScore(candidateId: string | null, input: Omit<MatchInput, "jobOffer">, jobOffer: JobOffer): Promise<MatchScore> {
+    const first = scoreMatch({ ...input, jobOffer });
+    const enough = first.score >= ENOUGH_FROM_STRUCTURED_DATA && matchScoreReliability(first) === "reliable";
+    if (!readOfferText || enough || !offerLacksADetail(first)) return first;
+    const filled = await filledFromText(jobOffer, candidateId, readOfferText);
+    return filled ? scoreMatch({ ...input, jobOffer: filled }) : { ...first, offerTextUnread: true };
+  }
+
   /** Null when the Match Score may go ahead; a Guest's always may. */
   async function refused(candidateId: string | null): Promise<MatchScoreResult | null> {
     if (!candidateId) return null;
@@ -84,11 +162,11 @@ export function createMatchScoring({
         if (!profile) return { ok: false, error: "not_found" };
         const refusal = await refused(candidateId);
         if (refusal) return refusal;
-        return { ok: true, matchScore: scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer }) };
+        return { ok: true, matchScore: await twoPhaseScore(candidateId, { cv: profile.masterCv.content, searchCriteria: profile.searchCriteria }, jobOffer) };
       }
       const refusal = await refused(candidateId);
       if (refusal) return refusal;
-      return { ok: true, matchScore: scoreMatch({ cv: request.cv, searchCriteria: request.searchCriteria, jobOffer }) };
+      return { ok: true, matchScore: await twoPhaseScore(candidateId, { cv: request.cv, searchCriteria: request.searchCriteria }, jobOffer) };
     },
   };
 }

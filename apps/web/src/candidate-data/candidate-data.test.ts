@@ -123,6 +123,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
           expect.objectContaining({ version: 1, restoredFrom: null, content: masterCv }),
         ],
         atsScore: null,
+        jobSearches: [],
       },
       expect.objectContaining({ name: "Consultant transformation", archived: true, masterCvVersions: [expect.objectContaining({ version: 1 })] }),
     ]);
@@ -208,6 +209,24 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       null,
     ]);
     expect(analysed.atsScore.score).toMatchObject({ score: expect.any(Number) });
+  });
+
+  it("the export holds each Profile's Job Searches with the Job Offers they found, newest first", async () => {
+    const profileId = await createProfile(candidateId, "DAF");
+    const captured = await jobOffers.capture(OFFER);
+    if (!captured.ok) throw new Error("fixture Job Offer refused");
+    // Started from the Profile page, finished by Job discovery.
+    await database.query(
+      `INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, failure, started_at, finished_at) VALUES
+         ($1, $2, 'done', ARRAY[$3::uuid], NULL, '2026-10-01T08:00:00Z', '2026-10-01T08:04:00Z'),
+         ($1, $2, 'failed', '{}', 'timeout', '2026-10-05T08:00:00Z', '2026-10-05T08:15:00Z')`,
+      [candidateId, profileId, captured.jobOffer.id],
+    );
+
+    expect((await candidateData.export(candidateId)).profiles[0]!.jobSearches).toEqual([
+      { id: expect.any(String), status: "failed", failure: "timeout", startedAt: new Date("2026-10-05T08:00:00Z"), finishedAt: new Date("2026-10-05T08:15:00Z"), jobOfferIds: [] },
+      { id: expect.any(String), status: "done", failure: null, startedAt: new Date("2026-10-01T08:00:00Z"), finishedAt: new Date("2026-10-01T08:04:00Z"), jobOfferIds: [captured.jobOffer.id] },
+    ]);
   });
 
   it("deleting the account removes the Candidate and everything of theirs, signs them out, and keeps the Job Offers", async () => {

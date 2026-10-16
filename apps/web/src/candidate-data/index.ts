@@ -19,6 +19,7 @@ import type { Pool } from "pg";
 import type { ActionCard } from "../action-cards";
 import type { Application, Applications } from "../applications";
 import type { KeptAtsScore } from "../ats-score";
+import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
 import type { FollowUpDelays } from "../follow-ups";
 import type { MasterCvVersion, Profiles } from "../profiles";
 import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
@@ -33,6 +34,20 @@ export interface ExportedProfile {
   masterCvVersions: MasterCvVersion[];
   /** The ATS Score of the Master CV version last scored, or null when it never was. */
   atsScore: KeptAtsScore | null;
+  /** Newest first. */
+  jobSearches: ExportedJobSearch[];
+}
+
+/** A Job Search the Candidate started for a Profile, and the Job Offers it found. */
+export interface ExportedJobSearch {
+  id: string;
+  status: JobSearchStatus;
+  failure: JobSearchFailure | null;
+  startedAt: Date;
+  /** Null while it is searching. */
+  finishedAt: Date | null;
+  /** The Job Offers it found, in the order Job discovery found them. */
+  jobOfferIds: string[];
 }
 
 /** The Candidate's account itself. */
@@ -107,6 +122,11 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         WHERE p.candidate_id = $1`,
       candidateId,
     );
+    const jobSearchesOf = await grouped<ExportedJobSearch>(
+      `SELECT profile_id AS key, id, status, failure, started_at AS "startedAt", finished_at AS "finishedAt", job_offer_ids::text[] AS "jobOfferIds"
+         FROM job_search WHERE candidate_id = $1 ORDER BY started_at DESC, id`,
+      candidateId,
+    );
     const summaries = await deps.profiles.list(candidateId);
     const exported = await Promise.all(
       summaries.map(async ({ id }) => {
@@ -119,6 +139,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           searchCriteria: profile.searchCriteria,
           masterCvVersions: versions,
           atsScore: atsScoresOf(id)[0] ?? null,
+          jobSearches: jobSearchesOf(id),
         };
       }),
     );

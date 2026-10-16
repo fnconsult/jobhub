@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createSecretResolver, liveObject, type StoredSecrets } from "./resolver";
+import { createSecretResolver, liveObject, rebuilding, type StoredSecrets } from "./resolver";
 
 /** A database of Provider Secrets the test edits: what `load` reads. */
 function fakeStore(initial: StoredSecrets = {}) {
@@ -150,5 +150,21 @@ describe("a client built from Provider Secrets (liveObject)", () => {
 
       expect(await stripe.call()).toBe("ok");
     }
+  });
+});
+
+describe("a value built from Provider Secrets (rebuilding)", () => {
+  it("is built again when one of its keys changes, including to nothing (a client turned off)", async () => {
+    const store = fakeStore({ FRANCE_TRAVAIL_CLIENT_SECRET: { value: "s1", row: "r1" } });
+    const resolver = createSecretResolver({ load: store.load, env: {} });
+    await resolver.refresh();
+    const franceTravail = rebuilding(resolver, ["FRANCE_TRAVAIL_CLIENT_SECRET"], (env) => (env.FRANCE_TRAVAIL_CLIENT_SECRET ? { secret: env.FRANCE_TRAVAIL_CLIENT_SECRET } : null));
+
+    const first = franceTravail();
+    expect(franceTravail()).toBe(first);
+    store.set({});
+    await resolver.refresh();
+
+    expect(franceTravail()).toBeNull();
   });
 });

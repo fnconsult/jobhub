@@ -6,6 +6,7 @@ export const BACK_OFFICE_PAGES = {
   planQuotas: { href: routes.adminPlanQuotas, resource: "planQuotas" },
   humanCoaches: { href: routes.adminHumanCoaches, resource: "humanCoaches" },
   coachCost: { href: routes.adminCoachCost, resource: "coachMessageCost" },
+  providerSecrets: { href: routes.adminProviderSecrets, resource: "providerSecrets" },
   administrators: { href: routes.adminAdministrators, resource: "roles" },
   journal: { href: routes.adminJournal(), resource: "audit" },
 } as const satisfies Record<string, { href: string; resource: BackOfficeResource }>;
@@ -14,12 +15,12 @@ export type BackOfficePage = keyof typeof BACK_OFFICE_PAGES;
 
 /**
  * The sidebar's groups, in order (map #123). Later sections join their group:
- * Plans and Coupons under Offre, Provider Secrets and Connexion under Plateforme.
+ * Plans and Coupons under Offre, Connexion under Plateforme.
  */
 const GROUPS = [
   { key: "offer", sections: ["planQuotas"] },
   { key: "coaching", sections: ["humanCoaches", "coachCost"] },
-  { key: "platform", sections: [] },
+  { key: "platform", sections: ["providerSecrets"] },
   { key: "team", sections: ["administrators", "journal"] },
 ] as const satisfies ReadonlyArray<{ key: string; sections: readonly BackOfficePage[] }>;
 

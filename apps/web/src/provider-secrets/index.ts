@@ -110,7 +110,19 @@ interface SecretRow {
 const sealedOf = (row: SecretRow): SealedSecret => ({ ciphertext: row.ciphertext, iv: row.iv, tag: row.tag, keyVersion: row.key_version });
 const placeOf = (row: Pick<SecretRow, "id" | "name" | "provider">) => ({ provider: row.provider, name: row.name, row: row.id });
 
-export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps): ProviderSecrets {
+/** What the worker needs of Provider Secrets: their values, and moving them to the newest master key. */
+export type ProviderSecretsReader = Pick<ProviderSecrets, "load" | "reencrypt">;
+
+/**
+ * Reads the Provider Secrets without changing them (the worker, and the store below).
+ * `cipher` null (no SECRETS_MASTER_KEYS): no row opens, env alone is used.
+ */
+export function providerSecretsReader(database: Pool, deps: Pick<ProviderSecretsDeps, "cipher" | "log">): ProviderSecretsReader {
+  const { load, reencrypt } = readerWithRows(database, deps);
+  return { load, reencrypt };
+}
+
+function readerWithRows(database: Pool, deps: Pick<ProviderSecretsDeps, "cipher" | "log">) {
   const log = deps.log ?? ((line: string) => console.warn(line));
 
   async function rows(within: Queryable = database): Promise<SecretRow[]> {
@@ -128,14 +140,55 @@ export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps)
     }
   }
 
-  async function load(): Promise<StoredSecrets> {
-    const stored: StoredSecrets = {};
-    for (const row of await rows()) {
-      const value = open(row);
-      if (value !== null) stored[row.name] = { value, row: row.id };
-    }
-    return stored;
-  }
+  return {
+    rows,
+    open,
+
+    async load() {
+      const stored: StoredSecrets = {};
+      for (const row of await rows()) {
+        const value = open(row);
+        if (value !== null) stored[row.name] = { value, row: row.id };
+      }
+      return stored;
+    },
+
+    async reencrypt() {
+      const cipher = deps.cipher;
+      if (!cipher) return 0;
+      const client = await database.connect();
+      let moved = 0;
+      try {
+        await client.query("BEGIN");
+        const { rows: stale } = await client.query<SecretRow>("SELECT * FROM provider_secret WHERE key_version <> $1 ORDER BY name FOR UPDATE", [cipher.activeVersion]);
+        for (const row of stale) {
+          // A row that does not open is left as it is (and said): re-encrypting cannot repair it.
+          const value = open(row);
+          if (value === null) continue;
+          const sealed = cipher.seal(value, placeOf(row));
+          await client.query("UPDATE provider_secret SET ciphertext = $2, iv = $3, tag = $4, key_version = $5 WHERE id = $1", [
+            row.id,
+            sealed.ciphertext,
+            sealed.iv,
+            sealed.tag,
+            sealed.keyVersion,
+          ]);
+          moved++;
+        }
+        await client.query("COMMIT");
+        return moved;
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+  };
+}
+
+export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps): ProviderSecrets {
+  const { rows, open, load, reencrypt } = readerWithRows(database, deps);
 
   /** The keys in use, with `overrides` over them, for a connection test. */
   async function envInUse(overrides: Env = {}): Promise<Env> {
@@ -169,6 +222,7 @@ export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps)
 
   return {
     load,
+    reencrypt,
 
     async list() {
       const stored = new Map((await rows()).map((row) => [row.name, row]));
@@ -233,38 +287,6 @@ export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps)
       const env = await envInUse();
       if (!env[name]?.trim()) return { ok: false, detail: "missing" };
       return testWith(providerOf(name), env, PROVIDER_SECRET_NAMES.map((secret) => env[secret]));
-    },
-
-    async reencrypt() {
-      const cipher = deps.cipher;
-      if (!cipher) return 0;
-      const client = await database.connect();
-      let moved = 0;
-      try {
-        await client.query("BEGIN");
-        const { rows: stale } = await client.query<SecretRow>("SELECT * FROM provider_secret WHERE key_version <> $1 ORDER BY name FOR UPDATE", [cipher.activeVersion]);
-        for (const row of stale) {
-          // A row that does not open is left as it is (and said): re-encrypting cannot repair it.
-          const value = open(row);
-          if (value === null) continue;
-          const sealed = cipher.seal(value, placeOf(row));
-          await client.query("UPDATE provider_secret SET ciphertext = $2, iv = $3, tag = $4, key_version = $5 WHERE id = $1", [
-            row.id,
-            sealed.ciphertext,
-            sealed.iv,
-            sealed.tag,
-            sealed.keyVersion,
-          ]);
-          moved++;
-        }
-        await client.query("COMMIT");
-        return moved;
-      } catch (error) {
-        await client.query("ROLLBACK");
-        throw error;
-      } finally {
-        client.release();
-      }
     },
   };
 }

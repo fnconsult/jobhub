@@ -104,6 +104,16 @@ function isRefusedKey(error: unknown): boolean {
   return [status, statusCode].some((code) => code === 401 || code === 403) || reason === "unauthorized";
 }
 
+/** A getter of what `build` makes from the values in use, built again only when one of `names` changes value (or source). */
+export function rebuilding<T>(resolver: SecretResolver, names: readonly string[], build: (env: Env) => T): (snapshot?: SecretsSnapshot) => T {
+  let built: { version: string; value: T } | null = null;
+  return (snapshot = resolver.current()) => {
+    const version = snapshot.versionOf(names);
+    if (built?.version !== version) built = { version, value: build(snapshot.env) };
+    return built.value;
+  };
+}
+
 /**
  * A client built by `build` from the values in use, standing in for it: rebuilt when
  * one of `names` changes value (or source), so a key replaced in the Back Office is
@@ -112,12 +122,7 @@ function isRefusedKey(error: unknown): boolean {
  * `build` may throw (a missing key): the call that needed the client throws then.
  */
 export function liveObject<T extends object>(resolver: SecretResolver, names: readonly string[], build: (env: Env) => T): T {
-  let built: { version: string; client: T } | null = null;
-  const clientFor = (snapshot: SecretsSnapshot): T => {
-    const version = snapshot.versionOf(names);
-    if (built?.version !== version) built = { version, client: build(snapshot.env) };
-    return built.client;
-  };
+  const clientFor = rebuilding(resolver, names, build);
 
   return new Proxy({} as T, {
     get(_, property) {
@@ -137,6 +142,6 @@ export function liveObject<T extends object>(resolver: SecretResolver, names: re
         });
       };
     },
-    has: (_, property) => Reflect.has(clientFor(resolver.current()), property),
+    has: (_, property) => Reflect.has(clientFor(), property),
   });
 }

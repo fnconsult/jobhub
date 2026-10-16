@@ -37,6 +37,8 @@ export const routes = {
   adminHumanCoaches: "/admin/coachs",
   /** The AI Coach's cost per reply, per day: median and p90 against the target. */
   adminCoachCost: "/admin/cout-coach",
+  /** The Provider Secrets (Clés): third-party keys, super-admins only. */
+  adminProviderSecrets: "/admin/cles",
   /** Administrators and their Back Office Roles. */
   adminAdministrators: "/admin/administrateurs",
   /** The Back Office Audit, newest first; with a section, only its changes. */

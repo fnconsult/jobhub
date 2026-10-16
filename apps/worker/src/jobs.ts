@@ -47,6 +47,13 @@ export const COACH_CONVERSATIONS_PURGE = "coach-conversations.purge";
 /** Queue name: delete the Back Office Audit entries made BACK_OFFICE_AUDIT_RETENTION_YEARS ago or more. Runs nightly. */
 export const BACK_OFFICE_AUDIT_PURGE = "back-office-audit.purge";
 
+/**
+ * Queue name: re-encrypt the Provider Secrets not under the newest master key of
+ * SECRETS_MASTER_KEYS (ADR-0020, docs/ops/provider-secrets.md). Runs nightly, and
+ * once when the worker starts, so a new master key is in use soon after it is deployed.
+ */
+export const PROVIDER_SECRETS_REENCRYPT = "provider-secrets.reencrypt";
+
 /** Postgres error code for a table that does not exist yet (the web app's migrations have not run). */
 const UNDEFINED_TABLE = "42P01";
 
@@ -72,6 +79,8 @@ export interface JobsDeps {
   followUps: Pick<FollowUps, "proposeDue">;
   /** The worker's side of Job Digests. Satisfied by the web app's Job Digests module. */
   jobDigests: Pick<JobDigests, "claimDue" | "deliver">;
+  /** The Provider Secrets, to move to the newest master key. Without them, nothing to re-encrypt. */
+  providerSecrets?: { reencrypt(): Promise<number> };
   /** Queues another job of this worker. */
   enqueue: (name: string, data: object) => Promise<void>;
   log?: (line: string) => void;
@@ -278,6 +287,15 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
     },
 
     // The Back Office Audit is kept 3 years. Safe to run again.
+    [PROVIDER_SECRETS_REENCRYPT]: {
+      cron: "15 4 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const moved = (await deps.providerSecrets?.reencrypt()) ?? 0;
+          if (moved) log(`[provider-secrets] ${moved} Provider Secret(s) re-encrypted under the newest master key`);
+        }),
+    },
+
     [BACK_OFFICE_AUDIT_PURGE]: {
       cron: "45 3 * * *",
       handler: () =>

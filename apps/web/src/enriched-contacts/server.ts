@@ -2,6 +2,9 @@ import { sharedPool } from "@/database/pool";
 import { getApplications } from "@/applications/server";
 import { getBilling } from "@/billing/server";
 import { getCompanyDossiers } from "@/company-dossiers/server";
+import { CONTACT_ENRICHMENT_SECRET_NAMES } from "@/provider-secrets/catalog";
+import { liveObject } from "@/provider-secrets/resolver";
+import { getSecretResolver } from "@/provider-secrets/server";
 import { contactEnrichmentFromEnv } from "./config";
 import { createEnrichedContacts, type EnrichedContacts } from "./index";
 
@@ -10,13 +13,14 @@ let instance: EnrichedContacts | undefined;
 /**
  * The app's Enriched Contacts, on the database named by DATABASE_URL and the
  * provider the environment selects (off without one, or until its DPA is
- * signed), counted against the Plan Quota's Enriched Contacts.
+ * signed), counted against the Plan Quota's Enriched Contacts. Rebuilt when the
+ * provider's key is replaced in the Back Office (Provider Secrets).
  */
 export function getEnrichedContacts(): EnrichedContacts {
-  if (!instance) {
-    const config = contactEnrichmentFromEnv(process.env);
+  instance ??= liveObject(getSecretResolver(), CONTACT_ENRICHMENT_SECRET_NAMES, (env) => {
+    const config = contactEnrichmentFromEnv(env);
     if (!config.provider) console.info(`[enriched-contacts] off: ${config.disabledBecause}`);
-    instance = createEnrichedContacts(sharedPool(), {
+    return createEnrichedContacts(sharedPool(), {
       applications: getApplications(),
       companyDossiers: getCompanyDossiers(),
       quota: {
@@ -26,6 +30,6 @@ export function getEnrichedContacts(): EnrichedContacts {
       },
       provider: config.provider,
     });
-  }
+  });
   return instance;
 }

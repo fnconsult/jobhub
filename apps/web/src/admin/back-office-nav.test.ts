@@ -5,7 +5,7 @@ import { backOfficeNav } from "./back-office-nav";
 const sections = (nav: ReturnType<typeof backOfficeNav>) => nav.map((group) => [group.key, group.sections.map((section) => [section.key, section.href])]);
 
 describe("the Back Office navigation", () => {
-  it("shows a super-admin every section, grouped, and no empty group", () => {
+  it("shows a super-admin every section, grouped, Provider Secrets (Clés) under Plateforme", () => {
     expect(sections(backOfficeNav(backOfficeAccess(["super-admin"])))).toEqual([
       ["offer", [["planQuotas", "/admin/quotas"]]],
       [
@@ -15,6 +15,7 @@ describe("the Back Office navigation", () => {
           ["coachCost", "/admin/cout-coach"],
         ],
       ],
+      ["platform", [["providerSecrets", "/admin/cles"]]],
       [
         "team",
         [
@@ -36,6 +37,7 @@ describe("the Back Office navigation", () => {
         ],
       ],
     ]);
+    // Support reads everything but Provider Secrets: no Plateforme group.
     expect(backOfficeNav(backOfficeAccess(["support"])).map((group) => group.key)).toEqual(["offer", "coaching"]);
     expect(backOfficeNav(backOfficeAccess([]))).toEqual([]);
   });

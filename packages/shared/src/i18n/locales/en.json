@@ -131,6 +131,7 @@
   "signIn": {
     "title": "Sign in to Jobbbox",
     "intro": "No password to remember: get a sign-in link by email, or use your Google account. If you don't have an account yet, one will be created.",
+    "introWithoutGoogle": "No password to remember: get a sign-in link by email. If you don't have an account yet, one will be created.",
     "emailLabel": "Your email address",
     "submit": "Send me a sign-in link",
     "sending": "Sending…",
@@ -139,7 +140,8 @@
     "google": "Continue with Google",
     "error": "Something went wrong. Check your email address and try again.",
     "linkError": "This sign-in link is no longer valid. Ask for a new one below.",
-    "failed": "Sign-in didn't go through. Try again below, with Google or with a link by email."
+    "failed": "Sign-in didn't go through. Try again below, with Google or with a link by email.",
+    "failedWithoutGoogle": "Sign-in didn't go through. Try again below with a link by email."
   },
   "account": {
     "title": "My account",

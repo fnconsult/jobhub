@@ -8,6 +8,13 @@ type Env = Record<string, string | undefined>;
 
 const DEV_SECRET = "development-only-secret-do-not-use-in-production";
 
+/** The Google OAuth client, or undefined when Google sign-in is not configured. */
+export function googleClientFromEnv(env: Env): AuthConfig["google"] {
+  return env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+    ? { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET }
+    : undefined;
+}
+
 /**
  * Reads the Candidate-accounts configuration from environment variables
  * (see .env.example). Fails fast in production when something is missing.
@@ -20,17 +27,12 @@ export function authConfigFromEnv(env: Env): AuthConfig {
     return value;
   };
 
-  const google =
-    env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
-      ? { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET }
-      : undefined;
-
   return {
     database: sharedPool(env),
     baseURL: required("APP_URL", "http://localhost:3000"),
     secret: required("AUTH_SECRET", DEV_SECRET),
     mailer: mailerFromEnv(env),
-    google,
+    google: googleClientFromEnv(env),
     extensionOrigins: (env.EXTENSION_ORIGINS ?? "")
       .split(",")
       .map((origin) => origin.trim())

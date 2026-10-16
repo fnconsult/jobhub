@@ -131,6 +131,7 @@
   "signIn": {
     "title": "Se connecter à Jobbbox",
     "intro": "Pas de mot de passe à retenir : recevez un lien de connexion par e-mail, ou utilisez votre compte Google. Si vous n'avez pas encore de compte, il sera créé.",
+    "introWithoutGoogle": "Pas de mot de passe à retenir : recevez un lien de connexion par e-mail. Si vous n'avez pas encore de compte, il sera créé.",
     "emailLabel": "Votre adresse e-mail",
     "submit": "Recevoir mon lien de connexion",
     "sending": "Envoi en cours…",
@@ -139,7 +140,8 @@
     "google": "Continuer avec Google",
     "error": "Une erreur est survenue. Vérifiez votre adresse e-mail et réessayez.",
     "linkError": "Ce lien de connexion n'est plus valable. Demandez-en un nouveau ci-dessous.",
-    "failed": "La connexion n'a pas abouti. Réessayez ci-dessous, avec Google ou en recevant un lien par e-mail."
+    "failed": "La connexion n'a pas abouti. Réessayez ci-dessous, avec Google ou en recevant un lien par e-mail.",
+    "failedWithoutGoogle": "La connexion n'a pas abouti. Réessayez ci-dessous en recevant un lien par e-mail."
   },
   "account": {
     "title": "Mon compte",

@@ -5,7 +5,7 @@ import { getCompanyDossiers } from "@/company-dossiers/server";
 import { CONTACT_ENRICHMENT_SECRET_NAMES } from "@/provider-secrets/catalog";
 import { liveObject } from "@/provider-secrets/resolver";
 import { getSecretResolver } from "@/provider-secrets/server";
-import { contactEnrichmentFromEnv } from "./config";
+import { contactEnrichmentFromSecrets } from "./config";
 import { createEnrichedContacts, type EnrichedContacts } from "./index";
 
 let instance: EnrichedContacts | undefined;
@@ -17,8 +17,9 @@ let instance: EnrichedContacts | undefined;
  * provider's key is replaced in the Back Office (Provider Secrets).
  */
 export function getEnrichedContacts(): EnrichedContacts {
-  instance ??= liveObject(getSecretResolver(), CONTACT_ENRICHMENT_SECRET_NAMES, (env) => {
-    const config = contactEnrichmentFromEnv(env);
+  instance ??= liveObject(getSecretResolver(), CONTACT_ENRICHMENT_SECRET_NAMES, () => {
+    // Its provider retries a refused key once with the database read afresh.
+    const config = contactEnrichmentFromSecrets(getSecretResolver());
     if (!config.provider) console.info(`[enriched-contacts] off: ${config.disabledBecause}`);
     return createEnrichedContacts(sharedPool(), {
       applications: getApplications(),

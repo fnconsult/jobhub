@@ -112,11 +112,15 @@ export function createSecretResolver(options: SecretResolverOptions): SecretReso
   };
 }
 
-/** Whether a provider refused the key a call was made with. */
+/**
+ * Whether a provider refused the key a call was made with: HTTP 401/403 (`status`,
+ * Stripe's `statusCode`), a contact provider's `unauthorized`, or an SMTP server's
+ * authentication failure (535, nodemailer's EAUTH).
+ */
 function isRefusedKey(error: unknown): boolean {
   if (typeof error !== "object" || error === null) return false;
-  const { status, statusCode, reason } = error as { status?: unknown; statusCode?: unknown; reason?: unknown };
-  return [status, statusCode].some((code) => code === 401 || code === 403) || reason === "unauthorized";
+  const { status, statusCode, reason, responseCode, code } = error as Record<string, unknown>;
+  return [status, statusCode].some((value) => value === 401 || value === 403) || reason === "unauthorized" || responseCode === 535 || code === "EAUTH";
 }
 
 /** A getter of what `build` makes from the values in use, built again only when one of `names` changes value (or source). */
@@ -132,11 +136,20 @@ export function rebuilding<T>(resolver: SecretResolver, names: readonly string[]
 /**
  * A client built by `build` from the values in use, standing in for it: rebuilt when
  * one of `names` changes value (or source), so a key replaced in the Back Office is
- * used without a restart. A method call refused with 401/403 reads the database
- * again and, if one of `names` changed, is made once more on the rebuilt client.
+ * used without a restart. A method call whose key is refused (401/403, an SMTP 535,
+ * or an answer `options.refused` recognises) reads the database again and, if one of
+ * `names` changed, is made once more on the rebuilt client.
  * `build` may throw (a missing key): the call that needed the client throws then.
  */
-export function liveObject<T extends object>(resolver: SecretResolver, names: readonly string[], build: (env: Env) => T): T {
+export function liveObject<T extends object>(
+  resolver: SecretResolver,
+  names: readonly string[],
+  build: (env: Env) => T,
+  options: {
+    /** For a client that answers a refusal rather than throwing it (France Travail's `{ ok: false, reason: "refused" }`). */
+    refused?: (answer: unknown) => boolean;
+  } = {},
+): T {
   const clientFor = rebuilding(resolver, names, build);
 
   return new Proxy({} as T, {
@@ -148,13 +161,22 @@ export function liveObject<T extends object>(resolver: SecretResolver, names: re
       return (...args: unknown[]) => {
         const result = (member as (...a: unknown[]) => unknown).apply(client, args);
         if (!(result instanceof Promise)) return result;
-        return result.catch(async (error: unknown) => {
-          if (!isRefusedKey(error)) throw error;
+        /** Once more on the client rebuilt from a fresh read, if one of its keys changed; else `otherwise`. */
+        const again = async (otherwise: () => unknown) => {
           const fresh = await resolver.refresh();
-          if (fresh.versionOf(names) === snapshot.versionOf(names)) throw error;
+          if (fresh.versionOf(names) === snapshot.versionOf(names)) return otherwise();
           const rebuilt = clientFor(fresh);
           return (Reflect.get(rebuilt, property, rebuilt) as (...a: unknown[]) => unknown).apply(rebuilt, args);
-        });
+        };
+        return result.then(
+          (answer: unknown) => (options.refused?.(answer) ? again(() => answer) : answer),
+          (error: unknown) => {
+            if (!isRefusedKey(error)) throw error;
+            return again(() => {
+              throw error;
+            });
+          },
+        );
       };
     },
     has: (_, property) => Reflect.has(clientFor(), property),

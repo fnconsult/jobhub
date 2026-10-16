@@ -166,8 +166,8 @@ describe("a client built from Provider Secrets (liveObject)", () => {
     expect(calls).toHaveBeenCalledTimes(2);
   });
 
-  it("recognises a refusal by statusCode (Stripe) or an unauthorized reason (contact providers)", async () => {
-    for (const refusal of [{ statusCode: 401 }, { reason: "unauthorized" }]) {
+  it("recognises a refusal by statusCode (Stripe), an unauthorized reason (contact providers) or an SMTP authentication failure (535)", async () => {
+    for (const refusal of [{ statusCode: 401 }, { reason: "unauthorized" }, { responseCode: 535 }, { code: "EAUTH" }]) {
       const store = fakeStore({ STRIPE_SECRET_KEY: { value: "old", row: "r1" } });
       const resolver = createSecretResolver({ load: store.load, env: ENV });
       await resolver.refresh();
@@ -197,5 +197,35 @@ describe("a value built from Provider Secrets (rebuilding)", () => {
     await resolver.refresh();
 
     expect(franceTravail()).toBeNull();
+  });
+});
+
+describe("a client that answers a refusal instead of throwing (liveObject's refused)", () => {
+  it("is asked once more, with the key read afresh, when its answer says the key was refused (France Travail)", async () => {
+    const store = fakeStore({ FRANCE_TRAVAIL_CLIENT_SECRET: { value: "revoked", row: "r1" } });
+    const resolver = createSecretResolver({ load: store.load, env: {} });
+    await resolver.refresh();
+    const franceTravail = liveObject(
+      resolver,
+      ["FRANCE_TRAVAIL_CLIENT_SECRET"],
+      (env) => ({
+        search: async () => (env.FRANCE_TRAVAIL_CLIENT_SECRET === "revoked" ? { ok: false as const, reason: "refused" } : { ok: true as const, secret: env.FRANCE_TRAVAIL_CLIENT_SECRET }),
+      }),
+      { refused: (answer) => (answer as { reason?: string }).reason === "refused" },
+    );
+    store.set({ FRANCE_TRAVAIL_CLIENT_SECRET: { value: "fresh", row: "r2" } });
+
+    expect(await franceTravail.search()).toEqual({ ok: true, secret: "fresh" });
+  });
+
+  it("keeps a refused answer when the key read afresh is the same", async () => {
+    const store = fakeStore({ FRANCE_TRAVAIL_CLIENT_SECRET: { value: "revoked", row: "r1" } });
+    const resolver = createSecretResolver({ load: store.load, env: {} });
+    await resolver.refresh();
+    const search = vi.fn(async () => ({ ok: false, reason: "refused" }));
+    const franceTravail = liveObject(resolver, ["FRANCE_TRAVAIL_CLIENT_SECRET"], () => ({ search }), { refused: () => true });
+
+    expect(await franceTravail.search()).toEqual({ ok: false, reason: "refused" });
+    expect(search).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,4 +1,3 @@
-import { AiConfigError, createAiLayerFromEnv, type AiLayer } from "@jobhub/ai";
 import { createApplications } from "@jobhub/web/applications";
 import { createBilling } from "@jobhub/web/billing";
 import { createEuAiConsents } from "@jobhub/web/eu-ai-consent";
@@ -8,11 +7,12 @@ import { createJobOffers } from "@jobhub/web/job-offers";
 import { createJobSearchReports } from "@jobhub/web/job-searches";
 import { mailerFromEnv } from "@jobhub/web/mailers";
 import { createProfiles } from "@jobhub/web/profiles";
-import { AI_SECRET_NAMES, FRANCE_TRAVAIL_SECRET_NAMES, liveObject, MAIL_SECRET_NAMES, rebuilding, watchProviderSecrets } from "@jobhub/web/provider-secrets";
+import { watchProviderSecrets } from "@jobhub/web/provider-secrets";
 import { Pool } from "pg";
-import { createJobDiscovery, franceTravailFromEnv, jobDiscoveryBudgetFromEnv } from "./job-discovery";
+import { jobDiscoveryBudgetFromEnv } from "./job-discovery";
 import { startJobRunner, type JobRunner } from "./job-runner";
 import { createJobs, PROVIDER_SECRETS_REENCRYPT } from "./jobs";
+import { workerClients } from "./provider-secrets";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -30,23 +30,24 @@ const providerSecrets = watchProviderSecrets({ database, env: process.env });
 await providerSecrets.ready;
 const secrets = providerSecrets.resolver;
 
+const profiles = createProfiles(database);
+const jobOffers = createJobOffers(database);
+
 // Job discovery needs the AI layer; the other jobs do not (Follow-ups fall back to
 // a template). Without AI configuration (e.g. the local docker-compose stack with no
 // repo-root .env, or one without keys) the worker still runs, and discovery jobs are
-// skipped with the reason. Production fails loudly instead.
-function aiLayer(): AiLayer | { unavailable: string } {
-  // A Candidate's identity-bearing calls go to Mistral once they gave EU AI consent (ADR-0007).
-  const build = (env: Record<string, string | undefined>) => createAiLayerFromEnv(env, { euAiConsent: (candidateId) => euAiConsents.has(candidateId) });
-  try {
-    build(secrets.current().env);
-    return liveObject(secrets, AI_SECRET_NAMES, build);
-  } catch (error) {
-    if (!(error instanceof AiConfigError) || process.env.NODE_ENV === "production") throw error;
-    console.warn(`[worker] Job discovery is unavailable: ${error.message}`);
-    return { unavailable: error.message };
-  }
-}
-const ai = aiLayer();
+// skipped with the reason, until a key is entered in the Back Office. Production fails
+// loudly instead. A Candidate's identity-bearing calls go to Mistral once they gave EU
+// AI consent (ADR-0007).
+const worker = workerClients({
+  resolver: secrets,
+  production: process.env.NODE_ENV === "production",
+  jobOffers,
+  budget: jobDiscoveryBudgetFromEnv(process.env),
+  euAiConsent: (candidateId) => euAiConsents.has(candidateId),
+  log: (line) => console.warn(line),
+});
+worker.discovery();
 
 const baseURL = process.env.APP_URL || (process.env.NODE_ENV === "production" ? undefined : "http://localhost:3000");
 if (!baseURL) {
@@ -55,25 +56,22 @@ if (!baseURL) {
 }
 
 // France Travail is searched only with its client credentials (access is on request): without them, Job discovery goes without it.
-// Built again (its access token dropped) when they are replaced in the Back Office.
-const franceTravail = rebuilding(secrets, FRANCE_TRAVAIL_SECRET_NAMES, (env) => franceTravailFromEnv(env));
-if (!franceTravail()) console.info("[worker] France Travail is off: FRANCE_TRAVAIL_CLIENT_ID and FRANCE_TRAVAIL_CLIENT_SECRET are not both set");
+if (!worker.franceTravail()) console.info("[worker] France Travail is off: FRANCE_TRAVAIL_CLIENT_ID and FRANCE_TRAVAIL_CLIENT_SECRET are not both set");
 // Fails at start-up, as before, where the mailer cannot be built (production without SMTP_URL).
 mailerFromEnv(secrets.current().env);
-const mailer = liveObject(secrets, MAIL_SECRET_NAMES, mailerFromEnv);
+const mailer = worker.mailer;
 
-const profiles = createProfiles(database);
-const jobOffers = createJobOffers(database);
 const billing = createBilling({ database, baseURL });
 // The Job Digest schedule queues jobs on the runner, which starts once the jobs exist.
 const started: { runner?: JobRunner } = {};
 const jobs = createJobs({
   database,
-  discovery: "unavailable" in ai ? ai : createJobDiscovery({ ai, jobOffers, budget: jobDiscoveryBudgetFromEnv(process.env), franceTravail }),
+  discovery: worker.discovery,
   profiles,
   // A failed Job Search gives its Plan Quota use back. Releasing needs no Stripe, only the quota table.
   jobSearches: createJobSearchReports(database, { quotas: billing }),
-  followUps: followUpsFromEnv(database, process.env, "unavailable" in ai ? undefined : ai, mailer),
+  // Without an AI key the AI call fails and the Follow-up falls back to its template.
+  followUps: followUpsFromEnv(database, process.env, worker.ai, mailer),
   jobDigests: createJobDigests(database, {
     profiles,
     jobOffers,

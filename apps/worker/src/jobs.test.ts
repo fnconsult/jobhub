@@ -349,6 +349,28 @@ describe("the worker without an AI layer", () => {
   });
 });
 
+describe("Job discovery asked for on each job (#208)", () => {
+  it("runs once its keys appear, without a restart: the getter is asked again on each job", async () => {
+    const logs: string[] = [];
+    let current: Exclude<JobsDeps["discovery"], () => unknown> = { unavailable: "Missing environment variable MISTRAL_API_KEY" };
+    const discover = vi.fn(async () => ({ jobOffers: [], skipped: [], funnel: { providerUrls: 0, pagesRead: 0, extracted: 0 }, costEur: 0, franceTravail: { status: "off", offers: 0, calls: 0 } }));
+    const jobs = createJobs({
+      ...otherDeps,
+      database: noDatabase,
+      discovery: () => current,
+      profiles: { get: async () => ({ archived: false, searchCriteria: criteria, masterCv: { content: masterCv } }) },
+      log: (line) => logs.push(line),
+    });
+
+    await jobs[JOB_DISCOVERY]!.handler({ candidateId: "candidate-1", profileId: "profile-1" });
+    current = { discover } as never;
+    await jobs[JOB_DISCOVERY]!.handler({ candidateId: "candidate-1", profileId: "profile-1" });
+
+    expect(logs[0]).toContain("skipped, Job discovery is unavailable (Missing environment variable MISTRAL_API_KEY)");
+    expect(discover).toHaveBeenCalledTimes(1);
+  });
+});
+
 const otherDeps = {
   discovery: { unavailable: "not under test" },
   profiles: { get: async () => null },

@@ -173,7 +173,9 @@ export async function migrateAdministratorRoles(database: Pool): Promise<void> {
     CREATE TABLE IF NOT EXISTS administrator_role (
       candidate_id text NOT NULL REFERENCES candidate (id) ON DELETE CASCADE,
       role text NOT NULL,
-      granted_by text REFERENCES candidate (id) ON DELETE SET NULL,
+      -- Who granted it, by Candidate id. Not a reference: deleting them must not take the role
+      -- away, and the Back Office Audit keeps the lasting record (with their email).
+      granted_by text,
       granted_at timestamptz NOT NULL DEFAULT now(),
       PRIMARY KEY (candidate_id, role)
     );

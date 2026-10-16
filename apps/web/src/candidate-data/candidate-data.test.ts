@@ -107,7 +107,20 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       createdAt: expect.any(Date),
       signInMethods: [],
       sessions: [expect.objectContaining({ createdAt: expect.any(Date) })],
+      backOfficeRoles: [],
     });
+  });
+
+  it("the export holds the Back Office Roles the Candidate holds, not who granted them", async () => {
+    await database.query(
+      `INSERT INTO administrator_role (candidate_id, role, granted_by, granted_at) VALUES ($1, 'support', 'someone-else', '2026-10-01T08:00:00Z')`,
+      [candidateId],
+    );
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.account?.backOfficeRoles).toEqual([{ role: "support", grantedAt: new Date("2026-10-01T08:00:00Z") }]);
+    expect(JSON.stringify(exported)).not.toContain("someone-else");
   });
 
   it("the export holds every Profile with its Search Criteria and every version of its Master CV", async () => {

@@ -26,7 +26,7 @@ const euAiConsents = createEuAiConsents(database);
 // Provider Secrets (ADR-0020): the keys entered in the Back Office over env's, read
 // before anything is built, kept current by NOTIFY and a 60 s refresh. The clients
 // holding a key are rebuilt when it changes, without a restart.
-const providerSecrets = watchProviderSecrets({ database, connectionString, env: process.env });
+const providerSecrets = watchProviderSecrets({ database, env: process.env });
 await providerSecrets.ready;
 const secrets = providerSecrets.resolver;
 

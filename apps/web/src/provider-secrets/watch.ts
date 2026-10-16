@@ -20,7 +20,7 @@ export interface WatchedProviderSecrets {
  * at most (a missed NOTIFY, a dropped connection). SECRETS_MASTER_KEYS in `env`
  * opens the rows; without it, env alone is used.
  */
-export function watchProviderSecrets(options: { database: Pool; connectionString: string; env: Env; log?: (line: string) => void }): WatchedProviderSecrets {
+export function watchProviderSecrets(options: { database: Pool; env: Env; log?: (line: string) => void }): WatchedProviderSecrets {
   const log = options.log ?? ((line: string) => console.warn(line));
   const reader = providerSecretsReader(options.database, { cipher: secretCipherFromEnv(options.env), log });
   const resolver = createSecretResolver({ load: reader.load, env: options.env, log });
@@ -30,7 +30,7 @@ export function watchProviderSecrets(options: { database: Pool; connectionString
   const ready = (async () => {
     await resolver.refresh();
     try {
-      stopListening = await listenForProviderSecretChanges(options.connectionString, () => void resolver.refresh(), { log });
+      stopListening = await listenForProviderSecretChanges(options.database, () => void resolver.refresh(), { log });
     } catch (error) {
       log(`[provider-secrets] not listening for changes (the ${TTL_MS / 1000} s refresh stands in): ${error instanceof Error ? error.message : String(error)}`);
     }

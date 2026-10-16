@@ -172,7 +172,7 @@ describe.skipIf(!connectionString)("Provider Secrets, encrypted in the database 
 
   it("tells every listener, web and worker, once a change is committed", async () => {
     const heard = vi.fn();
-    const stop = await listenForProviderSecretChanges(database.options.connectionString!, heard);
+    const stop = await listenForProviderSecretChanges(database, heard);
     try {
       await secrets.replace(claire, "MISTRAL_API_KEY", VALUE, { saveAnyway: false });
       await vi.waitFor(() => expect(heard).toHaveBeenCalledTimes(1));

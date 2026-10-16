@@ -12,7 +12,7 @@ import { watchProviderSecrets, type WatchedProviderSecrets } from "./watch";
 const holder = globalThis as { __jobhubProviderSecrets?: WatchedProviderSecrets };
 
 function watched(): WatchedProviderSecrets {
-  holder.__jobhubProviderSecrets ??= watchProviderSecrets({ database: sharedPool(), connectionString: process.env.DATABASE_URL!, env: process.env });
+  holder.__jobhubProviderSecrets ??= watchProviderSecrets({ database: sharedPool(), env: process.env });
   return holder.__jobhubProviderSecrets;
 }
 

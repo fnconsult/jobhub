@@ -19,7 +19,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { scrubSecrets } from "@jobhub/shared";
-import { Client, type Pool } from "pg";
+import type { Notification, Pool, PoolClient } from "pg";
 import type { BackOffice, BackOfficeActor, SecretAction } from "../admin/back-office";
 import type { Queryable } from "../database/pool";
 import { fingerprintOf, isProviderSecretName, PROVIDER_SECRETS, PROVIDER_SECRET_NAMES, providerOf, type ProviderSecretName, type SecretProvider } from "./catalog";
@@ -292,41 +292,49 @@ export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps)
 }
 
 /**
- * Calls `onChange` whenever a Provider Secret is replaced or cleared (Postgres NOTIFY),
- * on a connection of its own, reconnecting when it drops (`onChange` is called then
- * too: a change may have been missed). Returns a function that stops listening.
+ * Calls `onChange` whenever a Provider Secret is replaced or cleared (Postgres NOTIFY).
+ * Listens on one connection taken from `database` for good, so the process stays
+ * within its pool's budget of connections; when it drops, listens again on another
+ * (and calls `onChange`: a change may have been missed). Returns a function that stops.
  */
 export async function listenForProviderSecretChanges(
-  connectionString: string,
+  database: Pool,
   onChange: () => void,
   options: { log?: (line: string) => void; reconnectMs?: number } = {},
 ): Promise<() => Promise<void>> {
   const log = options.log ?? ((line: string) => console.warn(line));
-  let client: Client | null = null;
+  let client: PoolClient | null = null;
   let stopped = false;
   let retry: ReturnType<typeof setTimeout> | undefined;
 
-  async function connect(): Promise<void> {
-    const listening = new Client({ connectionString });
-    listening.on("notification", (message) => {
-      if (message.channel === PROVIDER_SECRETS_CHANNEL) onChange();
-    });
+  const onNotification = (message: Notification) => {
+    if (message.channel === PROVIDER_SECRETS_CHANNEL) onChange();
+  };
+
+  async function listen(): Promise<void> {
+    const listening = await database.connect();
+    listening.on("notification", onNotification);
     listening.on("error", (error) => {
       log(`[provider-secrets] stopped listening for changes: ${error.message}`);
-      void listening.end().catch(() => {});
+      listening.off("notification", onNotification);
+      listening.release(error);
       if (client === listening) client = null;
-      if (!stopped) retry = setTimeout(() => void connect().then(onChange, () => {}), options.reconnectMs ?? 5_000);
+      if (!stopped) retry = setTimeout(() => void listen().then(onChange, () => {}), options.reconnectMs ?? 5_000);
     });
-    await listening.connect();
     await listening.query(`LISTEN ${PROVIDER_SECRETS_CHANNEL}`);
     client = listening;
   }
 
-  await connect();
+  await listen();
   return async () => {
     stopped = true;
     clearTimeout(retry);
-    await client?.end();
+    const listening = client;
+    client = null;
+    if (!listening) return;
+    listening.off("notification", onNotification);
+    await listening.query(`UNLISTEN ${PROVIDER_SECRETS_CHANNEL}`).catch(() => {});
+    listening.release();
   };
 }
 

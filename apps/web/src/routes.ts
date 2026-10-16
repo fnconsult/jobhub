@@ -39,6 +39,8 @@ export const routes = {
   adminCoachCost: "/admin/cout-coach",
   /** The sites Jobbbox searches: the extension's Job Sites, Job discovery sources and Job discovery sites. */
   adminSearchSites: "/admin/sites",
+  /** Administrators and their Back Office Roles. */
+  adminAdministrators: "/admin/administrateurs",
   /** The Back Office Audit, newest first; with a section, only its changes. */
   adminJournal: (section?: string) => (section ? `/admin/journal?section=${encodeURIComponent(section)}` : "/admin/journal"),
 } as const;

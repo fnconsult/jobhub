@@ -55,21 +55,21 @@ describe.skipIf(!connectionString)("Search sites (needs Postgres: DATABASE_URL)"
       expect(await sites.addJobSite({ pattern: "https://www.apec.fr/*" })).toEqual({ ok: false, error: "exists" });
     });
 
-    it("can be disabled and enabled again, and the extension reads which", async () => {
-      expect(await sites.setJobSiteEnabled("https://*.linkedin.com/*", false)).toBe(true);
+    it("can be disabled and enabled again, answering how they were, and the extension reads which", async () => {
+      expect(await sites.setJobSiteEnabled("https://*.linkedin.com/*", false)).toEqual({ pattern: "https://*.linkedin.com/*", postingPages: null, builtIn: true, enabled: true });
       expect((await sites.extensionJobSites()).sites).toContainEqual({ pattern: "https://*.linkedin.com/*", postingPages: null, enabled: false });
 
-      await sites.setJobSiteEnabled("https://*.linkedin.com/*", true);
+      expect(await sites.setJobSiteEnabled("https://*.linkedin.com/*", true)).toMatchObject({ enabled: false });
       expect((await sites.extensionJobSites()).sites).toContainEqual({ pattern: "https://*.linkedin.com/*", postingPages: null, enabled: true });
-      expect(await sites.setJobSiteEnabled("https://unknown.example/*", false)).toBe(false);
+      expect(await sites.setJobSiteEnabled("https://unknown.example/*", false)).toBeNull();
     });
 
     it("can be removed when added, while a built-in one, in the extension's manifest, can only be disabled", async () => {
       await sites.addJobSite({ pattern: "https://*.taleez.fr/*" });
 
-      expect(await sites.removeJobSite("https://*.taleez.fr/*")).toBe("removed");
-      expect(await sites.removeJobSite("https://*.taleez.fr/*")).toBe("not_found");
-      expect(await sites.removeJobSite("https://www.apec.fr/*")).toBe("built_in");
+      expect(await sites.removeJobSite("https://*.taleez.fr/*")).toEqual({ ok: true, site: { pattern: "https://*.taleez.fr/*", postingPages: null, builtIn: false, enabled: true } });
+      expect(await sites.removeJobSite("https://*.taleez.fr/*")).toEqual({ ok: false, error: "not_found" });
+      expect(await sites.removeJobSite("https://www.apec.fr/*")).toEqual({ ok: false, error: "built_in" });
       expect((await sites.jobSites()).map((site) => site.pattern)).toContain("https://www.apec.fr/*");
     });
   });
@@ -80,12 +80,12 @@ describe.skipIf(!connectionString)("Search sites (needs Postgres: DATABASE_URL)"
     });
 
     it("can be disabled and enabled again; an unknown source is refused", async () => {
-      expect(await sites.setJobDiscoverySourceEnabled("france_travail", false)).toBe(true);
+      expect(await sites.setJobDiscoverySourceEnabled("france_travail", false)).toEqual({ source: "france_travail", wasEnabled: true });
       expect(await sites.jobDiscoverySources()).toEqual({ france_travail: false, web_search: true, ats_apis: true });
 
-      await sites.setJobDiscoverySourceEnabled("france_travail", true);
+      expect(await sites.setJobDiscoverySourceEnabled("france_travail", true)).toEqual({ source: "france_travail", wasEnabled: false });
       expect((await sites.jobDiscoverySources()).france_travail).toBe(true);
-      expect(await sites.setJobDiscoverySourceEnabled("monster", false)).toBe(false);
+      expect(await sites.setJobDiscoverySourceEnabled("monster", false)).toBeNull();
     });
   });
 
@@ -113,11 +113,11 @@ describe.skipIf(!connectionString)("Search sites (needs Postgres: DATABASE_URL)"
     it("can be disabled, enabled again and removed", async () => {
       await sites.addJobDiscoverySite("apec.fr");
 
-      expect(await sites.setJobDiscoverySiteEnabled("apec.fr", false)).toEqual({ ok: true });
+      expect(await sites.setJobDiscoverySiteEnabled("apec.fr", false)).toEqual({ ok: true, before: { domain: "apec.fr", enabled: true } });
       expect((await sites.jobDiscoverySettings()).sites).toEqual([{ domain: "apec.fr", enabled: false }]);
-      expect(await sites.setJobDiscoverySiteEnabled("apec.fr", true)).toEqual({ ok: true });
-      expect(await sites.removeJobDiscoverySite("apec.fr")).toBe(true);
-      expect(await sites.removeJobDiscoverySite("apec.fr")).toBe(false);
+      expect(await sites.setJobDiscoverySiteEnabled("apec.fr", true)).toEqual({ ok: true, before: { domain: "apec.fr", enabled: false } });
+      expect(await sites.removeJobDiscoverySite("apec.fr")).toEqual({ domain: "apec.fr", enabled: true });
+      expect(await sites.removeJobDiscoverySite("apec.fr")).toBeNull();
       expect(await sites.setJobDiscoverySiteEnabled("apec.fr", true)).toEqual({ ok: false, error: "not_found" });
     });
 
@@ -171,6 +171,6 @@ describe.skipIf(!connectionString)("Search sites (needs Postgres: DATABASE_URL)"
     await migrateSearchSites(database);
 
     expect((await sites.jobSites()).find((site) => site.pattern === "https://*.taleez.fr/*")).toMatchObject({ builtIn: false, enabled: false });
-    expect(await sites.removeJobSite("https://*.taleez.fr/*")).toBe("removed");
+    expect(await sites.removeJobSite("https://*.taleez.fr/*")).toMatchObject({ ok: true });
   });
 });

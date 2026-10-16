@@ -25,13 +25,24 @@ import type { AddHumanCoachResult, HumanCoaches } from "../human-coaches";
 export const RETENTION_YEARS = 3;
 
 /** What part of the Back Office a change was made in. */
-export const BACK_OFFICE_SECTIONS = ["roles", "plan_quotas", "human_coaches", "provider_secrets"] as const;
+export const BACK_OFFICE_SECTIONS = [
+  "roles",
+  "plan_quotas",
+  "human_coaches",
+  "provider_secrets",
+  "job_discovery_sources",
+  "job_discovery_sites",
+  "job_sites",
+] as const;
 export type BackOfficeSection = (typeof BACK_OFFICE_SECTIONS)[number];
 
 export const isBackOfficeSection = (value: unknown): value is BackOfficeSection => BACK_OFFICE_SECTIONS.includes(value as BackOfficeSection);
 
-/** What was done to the target. `replaced` is for secrets: their values are never recorded. */
-export type BackOfficeAction = "added" | "updated" | "retired" | "replaced";
+/**
+ * What was done to the target. `retired` keeps its history (a Human Coach), `removed`
+ * deletes it (a search site). `replaced` is for secrets: their values are never recorded.
+ */
+export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | "replaced";
 
 /** A value as recorded: what JSON can hold. */
 export type Recorded = string | number | boolean | null | Recorded[] | { [key: string]: Recorded };
@@ -65,7 +76,7 @@ export interface BackOfficeAuditEntry {
   action: BackOfficeAction;
   /** Null when there was nothing before (added), and for a replaced secret. */
   before: Recorded;
-  /** Null when there is nothing after (retired), and for a replaced secret. */
+  /** Null when there is nothing after (retired, removed), and for a replaced secret. */
   after: Recorded;
 }
 
@@ -181,10 +192,11 @@ export function createBackOffice(database: Pool, deps: BackOfficeDeps): BackOffi
     },
 
     async journal({ section, limit = 200 } = {}) {
+      // Ordered by the table's id, a number: a bare "id" would be the text column selected (10 before 9).
       const { rows } = await database.query<EntryRow>(
         `SELECT id::text, created_at, candidate_id, actor_email, section, target, action, before, after
          FROM back_office_audit WHERE $1::text IS NULL OR section = $1
-         ORDER BY id DESC LIMIT $2`,
+         ORDER BY back_office_audit.id DESC LIMIT $2`,
         [section ?? null, limit],
       );
       return rows.map(entryFrom);

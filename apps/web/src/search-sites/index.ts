@@ -12,6 +12,11 @@
  * code did before: the extension's built-in Job Sites and every Job discovery
  * source enabled, no Job discovery site.
  *
+ * Every write takes an optional `within`: it then runs in the caller's
+ * transaction, as the Back Office does to record it in the Back Office Audit
+ * (see admin/search-sites-back-office.ts). Each write answers what it changed,
+ * as it was before, so that it can be recorded.
+ *
  * Every input is untrusted and validated here. Forbidden sites (FORBIDDEN_SITES,
  * ADR-0002) can never be listed or enabled as Job discovery sites. Job Offers do
  * not reference these tables: removing a site never removes a Job Offer.
@@ -29,6 +34,7 @@ import {
   type JobDiscoverySource,
 } from "@jobhub/shared";
 import type { Pool } from "pg";
+import type { Queryable } from "../database/pool";
 
 /** One of the extension's Job Sites, as the Back Office shows it. */
 export interface JobSite {
@@ -44,6 +50,8 @@ export type AddJobSiteResult =
   /** `invalid`: not a usable match pattern, or posting pages on another host. `exists`: already listed. */
   | { ok: false; error: "invalid" | "exists" };
 
+export type RemoveJobSiteResult = { ok: true; site: JobSite } | { ok: false; error: "built_in" | "not_found" };
+
 export type AddJobDiscoverySiteResult =
   | { ok: true; site: JobDiscoverySite }
   /** `forbidden`: a site whose terms forbid crawling (ADR-0002). */
@@ -53,25 +61,29 @@ export interface SearchSites {
   /** Every Job Site, built-in ones first, then by pattern. */
   jobSites(): Promise<JobSite[]>;
   /** Adds an enabled Job Site. `input` is untrusted: { pattern, postingPages? }. */
-  addJobSite(input: unknown): Promise<AddJobSiteResult>;
-  /** False when no such Job Site. */
-  setJobSiteEnabled(pattern: string, enabled: boolean): Promise<boolean>;
-  /** `built_in`: a built-in Job Site is only ever disabled. */
-  removeJobSite(pattern: string): Promise<"removed" | "built_in" | "not_found">;
+  addJobSite(input: unknown, within?: Queryable): Promise<AddJobSiteResult>;
+  /** The Job Site as it was before; null when no such Job Site. */
+  setJobSiteEnabled(pattern: string, enabled: boolean, within?: Queryable): Promise<JobSite | null>;
+  /** The Job Site removed. `built_in`: a built-in Job Site is only ever disabled. */
+  removeJobSite(pattern: string, within?: Queryable): Promise<RemoveJobSiteResult>;
   /** What the extension reads: every Job Site with whether it is enabled. */
   extensionJobSites(): Promise<ExtensionJobSiteList>;
 
   jobDiscoverySources(): Promise<Record<JobDiscoverySource, boolean>>;
-  /** False for an unknown source. */
-  setJobDiscoverySourceEnabled(source: string, enabled: boolean): Promise<boolean>;
+  /** Whether the source was enabled before; null for an unknown source. */
+  setJobDiscoverySourceEnabled(source: string, enabled: boolean, within?: Queryable): Promise<{ source: JobDiscoverySource; wasEnabled: boolean } | null>;
   /** Every Job discovery site, by domain. */
   jobDiscoverySites(): Promise<JobDiscoverySite[]>;
   /** Adds an enabled Job discovery site. `input` is untrusted: a domain or a URL. */
-  addJobDiscoverySite(input: unknown): Promise<AddJobDiscoverySiteResult>;
-  /** A forbidden site is never enabled. */
-  setJobDiscoverySiteEnabled(domain: string, enabled: boolean): Promise<{ ok: true } | { ok: false; error: "not_found" | "forbidden" }>;
-  /** False when no such site. Job Offers found on it stay. */
-  removeJobDiscoverySite(domain: string): Promise<boolean>;
+  addJobDiscoverySite(input: unknown, within?: Queryable): Promise<AddJobDiscoverySiteResult>;
+  /** The site as it was before. A forbidden site is never enabled. */
+  setJobDiscoverySiteEnabled(
+    domain: string,
+    enabled: boolean,
+    within?: Queryable,
+  ): Promise<{ ok: true; before: JobDiscoverySite } | { ok: false; error: "not_found" | "forbidden" }>;
+  /** The site removed; null when no such site. Job Offers found on it stay. */
+  removeJobDiscoverySite(domain: string, within?: Queryable): Promise<JobDiscoverySite | null>;
   /** What one run of Job discovery reads. Forbidden sites are left out even if listed. */
   jobDiscoverySettings(): Promise<JobDiscoverySettings>;
 }
@@ -152,13 +164,13 @@ export function createSearchSites(database: Pool): SearchSites {
   return {
     jobSites,
 
-    async addJobSite(input) {
+    async addJobSite(input, within = database) {
       const fields = typeof input === "object" && input !== null ? (input as Record<string, unknown>) : {};
       const pattern = jobSitePattern(fields.pattern);
       if (!pattern) return { ok: false, error: "invalid" };
       const postingPages = postingPagesFor(pattern, fields.postingPages);
       if (postingPages === undefined) return { ok: false, error: "invalid" };
-      const { rows } = await database.query<JobSiteRow>(
+      const { rows } = await within.query<JobSiteRow>(
         `INSERT INTO extension_job_site (pattern, posting_pages) VALUES ($1, $2)
          ON CONFLICT (pattern) DO NOTHING
          RETURNING pattern, posting_pages, built_in, enabled`,
@@ -167,21 +179,27 @@ export function createSearchSites(database: Pool): SearchSites {
       return rows[0] ? { ok: true, site: jobSiteFromRow(rows[0]) } : { ok: false, error: "exists" };
     },
 
-    async setJobSiteEnabled(pattern, enabled) {
-      const { rowCount } = await database.query("UPDATE extension_job_site SET enabled = $2, updated_at = now() WHERE pattern = $1", [pattern, enabled]);
-      return (rowCount ?? 0) > 0;
+    async setJobSiteEnabled(pattern, enabled, within = database) {
+      // The joined row is read from the statement's snapshot: it is the Job Site as it was.
+      const { rows } = await within.query<JobSiteRow>(
+        `UPDATE extension_job_site site SET enabled = $2, updated_at = now()
+         FROM extension_job_site was WHERE site.pattern = $1 AND was.pattern = site.pattern
+         RETURNING was.pattern, was.posting_pages, was.built_in, was.enabled`,
+        [pattern, enabled],
+      );
+      return rows[0] ? jobSiteFromRow(rows[0]) : null;
     },
 
-    async removeJobSite(pattern) {
-      const { rows } = await database.query<{ built_in: boolean }>(
+    async removeJobSite(pattern, within = database) {
+      const { rows } = await within.query<JobSiteRow>(
         // A built-in Job Site is left in place: the CTE sees it, the DELETE skips it.
-        `WITH found AS (SELECT built_in FROM extension_job_site WHERE pattern = $1),
+        `WITH found AS (SELECT pattern, posting_pages, built_in, enabled FROM extension_job_site WHERE pattern = $1),
               removed AS (DELETE FROM extension_job_site WHERE pattern = $1 AND NOT built_in RETURNING 1)
-         SELECT built_in FROM found`,
+         SELECT pattern, posting_pages, built_in, enabled FROM found`,
         [pattern],
       );
-      if (!rows[0]) return "not_found";
-      return rows[0].built_in ? "built_in" : "removed";
+      if (!rows[0]) return { ok: false, error: "not_found" };
+      return rows[0].built_in ? { ok: false, error: "built_in" } : { ok: true, site: jobSiteFromRow(rows[0]) };
     },
 
     async extensionJobSites() {
@@ -191,38 +209,46 @@ export function createSearchSites(database: Pool): SearchSites {
 
     jobDiscoverySources,
 
-    async setJobDiscoverySourceEnabled(source, enabled) {
-      if (!isSource(source)) return false;
-      await database.query(
-        `INSERT INTO job_discovery_source (source, enabled) VALUES ($1, $2)
-         ON CONFLICT (source) DO UPDATE SET enabled = EXCLUDED.enabled, updated_at = now()`,
+    async setJobDiscoverySourceEnabled(source, enabled, within = database) {
+      if (!isSource(source)) return null;
+      // The CTE reads the statement's snapshot: the source as it was; a source not stored yet was on.
+      const { rows } = await within.query<{ was_enabled: boolean | null }>(
+        `WITH was AS (SELECT enabled FROM job_discovery_source WHERE source = $1)
+         INSERT INTO job_discovery_source (source, enabled) VALUES ($1, $2)
+         ON CONFLICT (source) DO UPDATE SET enabled = EXCLUDED.enabled, updated_at = now()
+         RETURNING (SELECT enabled FROM was) AS was_enabled`,
         [source, enabled],
       );
-      return true;
+      return { source, wasEnabled: rows[0]?.was_enabled ?? true };
     },
 
     jobDiscoverySites,
 
-    async addJobDiscoverySite(input) {
+    async addJobDiscoverySite(input, within = database) {
       const domain = jobDiscoveryDomain(input);
       if (!domain) return { ok: false, error: "invalid" };
       if (isForbiddenSite(domain)) return { ok: false, error: "forbidden" };
-      const { rows } = await database.query<JobDiscoverySite>(
+      const { rows } = await within.query<JobDiscoverySite>(
         "INSERT INTO job_discovery_site (domain) VALUES ($1) ON CONFLICT (domain) DO NOTHING RETURNING domain, enabled",
         [domain],
       );
       return rows[0] ? { ok: true, site: rows[0] } : { ok: false, error: "exists" };
     },
 
-    async setJobDiscoverySiteEnabled(domain, enabled) {
+    async setJobDiscoverySiteEnabled(domain, enabled, within = database) {
       if (enabled && isForbiddenSite(domain)) return { ok: false, error: "forbidden" };
-      const { rowCount } = await database.query("UPDATE job_discovery_site SET enabled = $2, updated_at = now() WHERE domain = $1", [domain, enabled]);
-      return (rowCount ?? 0) > 0 ? { ok: true } : { ok: false, error: "not_found" };
+      const { rows } = await within.query<JobDiscoverySite>(
+        `UPDATE job_discovery_site site SET enabled = $2, updated_at = now()
+         FROM job_discovery_site was WHERE site.domain = $1 AND was.domain = site.domain
+         RETURNING was.domain, was.enabled`,
+        [domain, enabled],
+      );
+      return rows[0] ? { ok: true, before: rows[0] } : { ok: false, error: "not_found" };
     },
 
-    async removeJobDiscoverySite(domain) {
-      const { rowCount } = await database.query("DELETE FROM job_discovery_site WHERE domain = $1", [domain]);
-      return (rowCount ?? 0) > 0;
+    async removeJobDiscoverySite(domain, within = database) {
+      const { rows } = await within.query<JobDiscoverySite>("DELETE FROM job_discovery_site WHERE domain = $1 RETURNING domain, enabled", [domain]);
+      return rows[0] ?? null;
     },
 
     async jobDiscoverySettings() {

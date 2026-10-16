@@ -1,25 +1,25 @@
 import { LIMITED_QUOTAS, JOB_DIGEST_FREQUENCIES, MONTHLY_QUOTAS, PLANS, type MonthlyQuota, type Plan } from "@jobhub/shared";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { planQuotasFromForm } from "@/admin/plan-quotas-form";
-import { getBackOffice, requireAdministrator } from "@/admin/server";
+import { getBackOffice, requireBackOffice } from "@/admin/server";
 import { getBilling } from "@/billing/server";
-import { BackOfficeHeader } from "@/components/BackOfficeHeader";
+import { BackOfficeForm } from "@/components/BackOfficeForm";
+import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 
 export async function generateMetadata(): Promise<Metadata> {
   // Metadata renders apart from the page: without this, the 404 shown to
   // non-Administrators would still carry the back office's title.
-  await requireAdministrator();
+  await requireBackOffice("planQuotas");
   const t = await getServerT();
   return { title: `${t("admin.planQuotas.title")} · ${t("admin.title")}`, robots: { index: false } };
 }
 
 async function savePlanQuotas(form: FormData) {
   "use server";
-  const administrator = await requireAdministrator();
+  const { administrator } = await requireBackOffice("planQuotas", "write");
   const submitted = planQuotasFromForm(form);
   if (!submitted) redirect(`${routes.adminPlanQuotas}?invalid=${encodeURIComponent(String(form.get("plan")))}`);
   await getBackOffice().setPlanQuotas(administrator, submitted.plan, submitted.quotas);
@@ -28,7 +28,7 @@ async function savePlanQuotas(form: FormData) {
 
 /** Administrators edit each Plan's quotas; empty means unlimited. */
 export default async function PlanQuotasPage({ searchParams }: { searchParams: Promise<{ saved?: string; invalid?: string }> }) {
-  await requireAdministrator();
+  const { access, canWrite } = await requireBackOffice("planQuotas");
   const t = await getServerT();
   const { saved, invalid } = await searchParams;
   const quotas = await getBilling().planQuotas();
@@ -36,13 +36,10 @@ export default async function PlanQuotasPage({ searchParams }: { searchParams: P
   const isPlan = (value: string | undefined): value is Plan => PLANS.includes(value as Plan);
 
   return (
-    <main className="page">
-      <BackOfficeHeader />
-      <p>
-        <Link href={routes.admin}>{t("admin.back")}</Link>
-      </p>
+    <BackOfficeLayout access={access}>
       <h1>{t("admin.planQuotas.title")}</h1>
       <p className="lead">{t("admin.planQuotas.intro")}</p>
+      {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}
       {isPlan(saved) ? (
         <p className="notice" role="status">
           {t("admin.planQuotas.saved", { plan: planName(saved) })}
@@ -54,9 +51,10 @@ export default async function PlanQuotasPage({ searchParams }: { searchParams: P
         </p>
       ) : null}
       {PLANS.map((plan) => (
-        <form key={plan} className="stack quota-form" action={savePlanQuotas}>
+        <BackOfficeForm key={plan} canWrite={canWrite} className="stack quota-form" action={savePlanQuotas}>
           <input type="hidden" name="plan" value={plan} />
-          <fieldset>
+          {/* Read-only for roles that may not change Plan Quotas: no field to edit, no button to save. */}
+          <fieldset disabled={!canWrite}>
             <legend>
               <h2>{t("admin.planQuotas.plan", { plan: planName(plan) })}</h2>
             </legend>
@@ -91,12 +89,14 @@ export default async function PlanQuotasPage({ searchParams }: { searchParams: P
                 ))}
               </select>
             </div>
-            <button className="button button-primary" type="submit">
-              {t("admin.planQuotas.save", { plan: planName(plan) })}
-            </button>
+            {canWrite ? (
+              <button className="button button-primary" type="submit">
+                {t("admin.planQuotas.save", { plan: planName(plan) })}
+              </button>
+            ) : null}
           </fieldset>
-        </form>
+        </BackOfficeForm>
       ))}
-    </main>
+    </BackOfficeLayout>
   );
 }

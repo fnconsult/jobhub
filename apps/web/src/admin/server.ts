@@ -4,12 +4,15 @@ import { getBilling } from "@/billing/server";
 import { sharedPool } from "@/database/pool";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { routes } from "@/routes";
-import { administratorsFromEnv } from "./access";
+import { getSearchSites } from "@/search-sites/server";
+import { permanentSuperAdminsFromEnv, type BackOfficeResource, type Permission } from "./access";
+import { createAdministrators, type AdministratorAccess, type Administrators, type Person } from "./administrators";
 import { createBackOffice, type BackOffice } from "./back-office";
-
-const isAdministrator = administratorsFromEnv(process.env);
+import { createSearchSitesBackOffice, type SearchSitesBackOffice } from "./search-sites-back-office";
 
 let backOffice: BackOffice | undefined;
+let administrators: Administrators | undefined;
+let searchSitesBackOffice: SearchSitesBackOffice | undefined;
 
 /** The app's Back Office writes and their Back Office Audit, on the database named by DATABASE_URL. */
 export function getBackOffice(): BackOffice {
@@ -17,19 +20,42 @@ export function getBackOffice(): BackOffice {
   return backOffice;
 }
 
-/** Whether the person signed in on this request is an Administrator. */
+/** The app's Administrators and their Back Office Roles; ADMIN_EMAILS names the permanent super-admins. */
+export function getAdministrators(): Administrators {
+  administrators ??= createAdministrators(sharedPool(), { backOffice: getBackOffice(), isPermanentSuperAdmin: permanentSuperAdminsFromEnv(process.env) });
+  return administrators;
+}
+
+/** The Search sites' Back Office writes, each recorded in the Back Office Audit. */
+export function getSearchSitesBackOffice(): SearchSitesBackOffice {
+  searchSitesBackOffice ??= createSearchSitesBackOffice(getSearchSites(), getBackOffice());
+  return searchSitesBackOffice;
+}
+
+/** Whether the person signed in on this request is an Administrator (holds any Back Office Role). */
 export async function currentIsAdministrator(): Promise<boolean> {
   const person = await getCurrentCandidate();
-  return person ? isAdministrator(person) : false;
+  return person ? (await getAdministrators().access(person)).isAdministrator : false;
 }
 
 /**
- * The Administrator signed in on this request. Sends anonymous visitors to
- * sign in, and answers 404 to everyone else, so the back office stays unseen.
+ * The Administrator signed in on this request, and what they may do, read afresh
+ * from the database. Sends anonymous visitors to sign in, and answers 404 to
+ * anyone else, so the Back Office stays unseen: to everyone but Administrators,
+ * and, with `resource`, to those whose roles do not allow `permission` on it.
+ * Every Back Office page and write calls it first.
  */
-export async function requireAdministrator() {
+export async function requireBackOffice(
+  resource?: BackOfficeResource,
+  permission: Permission = "read",
+): Promise<{ administrator: Person; access: AdministratorAccess; /** Whether their roles also let them change `resource`. */ canWrite: boolean }> {
   const person = await getCurrentCandidate();
   if (!person) redirect(routes.signIn);
-  if (!isAdministrator(person)) notFound();
-  return person;
+  const access = await getAdministrators().access(person);
+  if (!access.isAdministrator || (resource && !access.can(resource, permission))) notFound();
+  return {
+    administrator: { id: person.id, email: person.email, emailVerified: person.emailVerified },
+    access,
+    canWrite: resource ? access.can(resource, "write") : false,
+  };
 }

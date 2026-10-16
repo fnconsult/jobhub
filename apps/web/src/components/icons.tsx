@@ -18,6 +18,13 @@ const PATHS = {
   add: ["M12 5v14M5 12h14"],
   conversations: ["M4 6h16M4 12h16M4 18h10"],
   searchAgain: ["M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3M18 3v4h-4M6 21v-4h4"],
+  // The Back Office's sections (#204).
+  planQuotas: ["M4 20V10M10 20V4M16 20v-7M22 20H2"],
+  humanCoaches: ["M9 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6z", "M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6", "M16 5.5a3 3 0 0 1 0 5M18 14.5c2 .8 3 2.8 3 5.5"],
+  coachCost: ["M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z", "M15 8.5a4 4 0 1 0 0 7M7 11h6M7 13.5h6"],
+  searchSites: ["M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z", "M3 12h18M12 3c2.5 2.5 3.8 5.5 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.5-3.8-9S9.5 5.5 12 3z"],
+  administrators: ["M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z", "M9 12l2 2 4-4"],
+  journal: ["M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z", "M9 8h6M9 12h6M9 16h4"],
 } as const;
 
 export type IconName = keyof typeof PATHS;

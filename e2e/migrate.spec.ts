@@ -57,6 +57,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Coach Memory is up to date");
     expect(first.stdout).toContain("Job Sites, Job discovery sources and Job discovery sites are up to date");
     expect(first.stdout).toContain("Back Office Audit is up to date");
+    expect(first.stdout).toContain("Back Office Roles are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 
@@ -70,6 +71,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
       expect(tables.rows.map((r) => r.table_name)).toEqual([
         "account",
         "action_card",
+        "administrator_role", // issue #204: the Back Office Roles each Administrator holds
         "application",
         "ats_score", // issue #8: the ATS Score last computed for each Profile
         "back_office_audit", // issue #203: every change made in the Back Office
@@ -124,6 +126,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
       expect(references.rows).toEqual([
         { from_table: "account", from_column: "userId", to_table: "candidate" },
         { from_table: "action_card", from_column: "candidate_id", to_table: "candidate" },
+        // Back Office Roles (issue #204) go with their Administrator's account.
+        { from_table: "administrator_role", from_column: "candidate_id", to_table: "candidate" },
         // Applications (issue #12) hang off the Candidate and their Profile; their Job Offers are kept (ADR-0010).
         { from_table: "application", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "application", from_column: "job_offer_id", to_table: "job_offer" },

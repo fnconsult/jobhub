@@ -1,9 +1,9 @@
 import { FORBIDDEN_SITES, JOB_DISCOVERY_SOURCES } from "@jobhub/shared";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireAdministrator } from "@/admin/server";
-import { BackOfficeHeader } from "@/components/BackOfficeHeader";
+import { getSearchSitesBackOffice, requireBackOffice } from "@/admin/server";
+import { BackOfficeForm } from "@/components/BackOfficeForm";
+import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 import { getSearchSites } from "@/search-sites/server";
@@ -11,7 +11,7 @@ import { getSearchSites } from "@/search-sites/server";
 export async function generateMetadata(): Promise<Metadata> {
   // Metadata renders apart from the page: without this, the 404 shown to
   // non-Administrators would still carry the back office's title.
-  await requireAdministrator();
+  await requireBackOffice("searchSites");
   const t = await getServerT();
   return { title: `${t("admin.searchSites.title")} · ${t("admin.title")}`, robots: { index: false } };
 }
@@ -41,56 +41,56 @@ const enabledIn = (form: FormData) => form.get("enabled") === "true";
 
 async function setJobDiscoverySource(form: FormData) {
   "use server";
-  await requireAdministrator();
-  const known = await getSearchSites().setJobDiscoverySourceEnabled(String(form.get("source")), enabledIn(form));
+  const { administrator } = await requireBackOffice("searchSites", "write");
+  const known = await getSearchSitesBackOffice().setJobDiscoverySourceEnabled(administrator, String(form.get("source")), enabledIn(form));
   back(known ? "saved" : "notFound");
 }
 
 async function addJobDiscoverySite(form: FormData) {
   "use server";
-  await requireAdministrator();
-  const added = await getSearchSites().addJobDiscoverySite(form.get("domain"));
+  const { administrator } = await requireBackOffice("searchSites", "write");
+  const added = await getSearchSitesBackOffice().addJobDiscoverySite(administrator, form.get("domain"));
   if (added.ok) back("siteAdded");
   else back(added.error === "forbidden" ? "siteForbidden" : added.error === "exists" ? "siteExists" : "siteInvalid");
 }
 
 async function setJobDiscoverySite(form: FormData) {
   "use server";
-  await requireAdministrator();
-  const result = await getSearchSites().setJobDiscoverySiteEnabled(String(form.get("domain")), enabledIn(form));
+  const { administrator } = await requireBackOffice("searchSites", "write");
+  const result = await getSearchSitesBackOffice().setJobDiscoverySiteEnabled(administrator, String(form.get("domain")), enabledIn(form));
   back(result.ok ? "saved" : result.error === "forbidden" ? "siteForbidden" : "notFound");
 }
 
 async function removeJobDiscoverySite(form: FormData) {
   "use server";
-  await requireAdministrator();
-  back((await getSearchSites().removeJobDiscoverySite(String(form.get("domain")))) ? "siteRemoved" : "notFound");
+  const { administrator } = await requireBackOffice("searchSites", "write");
+  back((await getSearchSitesBackOffice().removeJobDiscoverySite(administrator, String(form.get("domain")))) ? "siteRemoved" : "notFound");
 }
 
 async function addJobSite(form: FormData) {
   "use server";
-  await requireAdministrator();
-  const added = await getSearchSites().addJobSite({ pattern: form.get("pattern"), postingPages: form.get("postingPages") });
+  const { administrator } = await requireBackOffice("searchSites", "write");
+  const added = await getSearchSitesBackOffice().addJobSite(administrator, { pattern: form.get("pattern"), postingPages: form.get("postingPages") });
   if (added.ok) back("jobSiteAdded");
   else back(added.error === "exists" ? "jobSiteExists" : "jobSiteInvalid");
 }
 
 async function setJobSite(form: FormData) {
   "use server";
-  await requireAdministrator();
-  back((await getSearchSites().setJobSiteEnabled(String(form.get("pattern")), enabledIn(form))) ? "saved" : "notFound");
+  const { administrator } = await requireBackOffice("searchSites", "write");
+  back((await getSearchSitesBackOffice().setJobSiteEnabled(administrator, String(form.get("pattern")), enabledIn(form))) ? "saved" : "notFound");
 }
 
 async function removeJobSite(form: FormData) {
   "use server";
-  await requireAdministrator();
-  const removed = await getSearchSites().removeJobSite(String(form.get("pattern")));
-  back(removed === "removed" ? "jobSiteRemoved" : removed === "built_in" ? "jobSiteBuiltIn" : "notFound");
+  const { administrator } = await requireBackOffice("searchSites", "write");
+  const removed = await getSearchSitesBackOffice().removeJobSite(administrator, String(form.get("pattern")));
+  back(removed.ok ? "jobSiteRemoved" : removed.error === "built_in" ? "jobSiteBuiltIn" : "notFound");
 }
 
 /** Administrators choose the sites Jobbbox searches: Job discovery sources and sites, and the extension's Job Sites. */
 export default async function SearchSitesPage({ searchParams }: { searchParams: Promise<{ notice?: string }> }) {
-  await requireAdministrator();
+  const { access, canWrite } = await requireBackOffice("searchSites");
   const t = await getServerT();
   const { notice } = await searchParams;
   const searchSites = getSearchSites();
@@ -98,33 +98,30 @@ export default async function SearchSitesPage({ searchParams }: { searchParams: 
   const shown = notice && Object.hasOwn(NOTICES, notice) ? (notice as Notice) : null;
   const status = (enabled: boolean) => t(enabled ? "admin.searchSites.enabled" : "admin.searchSites.disabled");
 
-  /** A button switching one row on or off. */
+  /** A button switching one row on or off; disabled, with nothing to send, for roles that may only read. */
   const toggle = (action: (form: FormData) => Promise<void>, name: string, value: string, enabled: boolean, label: string) => (
-    <form action={action}>
+    <BackOfficeForm canWrite={canWrite} action={action}>
       <input type="hidden" name={name} value={value} />
       <input type="hidden" name="enabled" value={String(!enabled)} />
-      <button className="button" type="submit">
+      <button className="button" type="submit" disabled={!canWrite}>
         {t(enabled ? "admin.searchSites.disable" : "admin.searchSites.enable", { name: label })}
       </button>
-    </form>
+    </BackOfficeForm>
   );
   const remove = (action: (form: FormData) => Promise<void>, name: string, value: string) => (
-    <form action={action}>
+    <BackOfficeForm canWrite={canWrite} action={action}>
       <input type="hidden" name={name} value={value} />
-      <button className="button" type="submit">
+      <button className="button" type="submit" disabled={!canWrite}>
         {t("admin.searchSites.remove", { name: value })}
       </button>
-    </form>
+    </BackOfficeForm>
   );
 
   return (
-    <main className="page">
-      <BackOfficeHeader />
-      <p>
-        <Link href={routes.admin}>{t("admin.back")}</Link>
-      </p>
+    <BackOfficeLayout access={access}>
       <h1>{t("admin.searchSites.title")}</h1>
       <p className="lead">{t("admin.searchSites.intro")}</p>
+      {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}
       {shown ? (
         <p className="notice" role={NOTICES[shown] ? "alert" : "status"}>
           {t(`admin.searchSites.notices.${shown}`)}
@@ -192,8 +189,9 @@ export default async function SearchSitesPage({ searchParams }: { searchParams: 
             </table>
           </div>
         )}
-        <form className="stack quota-form" action={addJobDiscoverySite}>
-          <fieldset>
+        <BackOfficeForm canWrite={canWrite} className="stack quota-form" action={addJobDiscoverySite}>
+          {/* Read-only for roles that may not change the search sites: the fields show, disabled, with nothing to send. */}
+          <fieldset disabled={!canWrite}>
             <legend>
               <h3>{t("admin.searchSites.discoverySites.addTitle")}</h3>
             </legend>
@@ -206,7 +204,7 @@ export default async function SearchSitesPage({ searchParams }: { searchParams: 
               {t("admin.searchSites.discoverySites.add")}
             </button>
           </fieldset>
-        </form>
+        </BackOfficeForm>
       </section>
 
       <section className="stack" aria-labelledby="job-sites-title">
@@ -242,8 +240,8 @@ export default async function SearchSitesPage({ searchParams }: { searchParams: 
             </tbody>
           </table>
         </div>
-        <form className="stack quota-form" action={addJobSite}>
-          <fieldset>
+        <BackOfficeForm canWrite={canWrite} className="stack quota-form" action={addJobSite}>
+          <fieldset disabled={!canWrite}>
             <legend>
               <h3>{t("admin.searchSites.jobSites.addTitle")}</h3>
             </legend>
@@ -261,8 +259,8 @@ export default async function SearchSitesPage({ searchParams }: { searchParams: 
               {t("admin.searchSites.jobSites.add")}
             </button>
           </fieldset>
-        </form>
+        </BackOfficeForm>
       </section>
-    </main>
+    </BackOfficeLayout>
   );
 }

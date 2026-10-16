@@ -42,7 +42,8 @@ test.describe("monorepo tooling", () => {
 
     // The Profile switcher now sits in the sidebar layout (#134), which replaced the workspace header.
     expect(read("apps/web/src/components/SidebarLayout.tsx")).not.toContain("<details");
-    expect(read("apps/web/src/components/SidebarLayout.tsx")).toContain("@radix-ui/react-dialog");
+    // Its drawer lives in the shell the Candidate's and the Back Office's sidebars share (#204).
+    expect(read("apps/web/src/components/SidebarShell.tsx")).toContain("@radix-ui/react-dialog");
   });
 
   test("lint rejects a hard-coded user-facing string in the web app", () => {

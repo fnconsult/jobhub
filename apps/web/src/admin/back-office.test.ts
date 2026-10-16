@@ -127,4 +127,13 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
     expect((await backOffice.journal({ section: "human_coaches" })).map((entry) => entry.target)).toEqual(["luc@rh-conseil.fr"]);
     expect(await backOffice.journal({ section: "roles" })).toEqual([]);
   });
+
+  it("the Journal stays newest first past entry 9, 99... (entries are ordered as numbers)", async () => {
+    await database.query("ALTER SEQUENCE back_office_audit_id_seq RESTART WITH 9");
+    for (const target of ["ninth", "tenth", "eleventh"]) {
+      await backOffice.record(claire, async () => null, () => ({ section: "roles", target, action: "added", before: null, after: { roles: ["support"] } }));
+    }
+
+    expect((await backOffice.journal()).map((entry) => entry.target)).toEqual(["eleventh", "tenth", "ninth"]);
+  });
 });

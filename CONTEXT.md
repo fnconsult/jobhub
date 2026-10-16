@@ -31,7 +31,7 @@ An outplacement firm, APEC or corporate HR department that pays for its benefici
 _Avoid_: Company, client, tenant, B2B customer
 
 **Administrator**:
-A member of the Jobbbox team who runs the Back Office. Signs in like a Candidate.
+A member of the Jobbbox team who runs the Back Office. Signs in like a Candidate and holds one or more Back Office Roles; those listed in `ADMIN_EMAILS` are permanent super-admins.
 _Avoid_: Admin user, operator, superuser, staff
 
 **Guest**:
@@ -446,10 +446,18 @@ _Avoid_: Dunning banner, billing alert
 The internal pages where Administrators manage Plan Quotas, Human Coaches, Job Sites, Job discovery sources and Job discovery sites, and follow the AI Coach's cost.
 _Avoid_: Admin panel, dashboard, console
 
+**Back Office Role**:
+What an Administrator may see and change in the Back Office: super-admin (everything, including roles, Provider Secrets, SSO providers, Job Sites, Job discovery sources and Job discovery sites), Plans manager (Plans, Plan Quotas, per-Plan features), Coach manager (Human Coaches, read Coach Message Cost) or Support (read-only, no secrets). Fixed in code; only super-admins grant or revoke them.
+_Avoid_: Permission level, admin type
+
 **Back Office Audit**:
-The record of every change an Administrator makes in the Back Office: who, when, what and the values before and after. Kept for 3 years, then purged. Jobbbox's own record, so it survives the Administrator's account deletion (their id is cleared, their email at the time stays) and is not part of their data export.
+The record of every change an Administrator makes in the Back Office (roles, Plan Quotas, Human Coaches, Provider Secrets, Job Sites, Job discovery sources and Job discovery sites): who, when, what and the values before and after. Secret values are never recorded, only that they were replaced. Kept for 3 years, then purged. Jobbbox's own record, so it survives the Administrator's account deletion (their id is cleared, their email at the time stays) and is not part of their data export.
 _Avoid_: Audit log, history, activity feed
 
 **Journal**:
 The Back Office page where Administrators read the Back Office Audit, newest first, filterable by section.
 _Avoid_: Audit page, changelog
+
+**Back Office Assistant**:
+The AI Coach panel shown to Administrators in the Back Office. Answers questions about Back Office data and settings within the asking Administrator's Back Office Roles; read-only, never sees Provider Secrets.
+_Avoid_: Admin bot, admin copilot

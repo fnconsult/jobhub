@@ -546,7 +546,8 @@
     "sections": {
       "planQuotas": "Plan Quotas",
       "humanCoaches": "Human Coaches",
-      "coachCost": "AI Coach cost"
+      "coachCost": "AI Coach cost",
+      "searchSites": "Search sites"
     },
     "planQuotas": {
       "title": "Plan Quotas",
@@ -593,6 +594,69 @@
       "models": "Models",
       "playbooks": "Playbooks used",
       "overTarget": "above target"
+    },
+    "searchSites": {
+      "title": "Search sites",
+      "intro": "The sites Jobbbox searches for job offers, and those where the extension shows its badge. Changes apply without a release: at the next search for the worker, within minutes to a few hours for the extension.",
+      "status": "Status",
+      "actions": "Actions",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "enable": "Enable {{name}}",
+      "disable": "Disable {{name}}",
+      "remove": "Remove {{name}}",
+      "sources": {
+        "title": "Job discovery sources",
+        "intro": "Where the worker looks for job offers, for job searches and Job Digest top-ups. A disabled source is skipped.",
+        "caption": "Job discovery sources",
+        "source": "Source",
+        "names": {
+          "france_travail": "France Travail API",
+          "web_search": "Web search (search provider)",
+          "ats_apis": "Public ATS APIs (Greenhouse, Lever, Ashby)"
+        }
+      },
+      "discoverySites": {
+        "title": "Job discovery sites",
+        "intro": "An enabled site is searched on purpose: the web search adds a query restricted to it. A disabled site is skipped when it shows up in results. Removing a site never deletes job offers already found.",
+        "forbidden": "These sites forbid crawling in their terms of use and cannot be added: {{sites}}. Only the extension covers them.",
+        "none": "No site yet.",
+        "caption": "Job discovery sites",
+        "domain": "Domain",
+        "domainHelp": "For example apec.fr (without www). A full address is accepted: only its domain is kept.",
+        "addTitle": "Add a site",
+        "add": "Add the site"
+      },
+      "jobSites": {
+        "title": "Extension sites",
+        "intro": "The sites where the extension shows its \"Analyse this offer\" badge. Sites built into the extension can be disabled, not removed. An added site only gets the badge for people who allowed the extension on every site. Manual capture still works everywhere.",
+        "caption": "Extension sites",
+        "pattern": "Address pattern",
+        "patternHelp": "An https pattern, for example https://*.gestmax.fr/* (the site and its subdomains) or www.example.com. Never every site.",
+        "postingPages": "Posting pages",
+        "postingPagesOptional": "Posting pages (optional)",
+        "postingPagesHelp": "A pattern on the same site, for example https://*.gestmax.fr/*/offre/*: the badge shows there even without JobPosting data. Empty: only on pages that publish a JobPosting.",
+        "anyPostingPage": "Pages publishing a JobPosting",
+        "origin": "Origin",
+        "builtIn": "Built into the extension",
+        "added": "Added",
+        "addTitle": "Add a site to the extension",
+        "add": "Add the site to the extension"
+      },
+      "notices": {
+        "saved": "Change saved.",
+        "jobSiteAdded": "Site added to the extension.",
+        "jobSiteRemoved": "Site removed from the extension. Job offers already captured are kept.",
+        "jobSiteInvalid": "Check the patterns: an https address of a single site (not every site), and posting pages on that same site.",
+        "jobSiteExists": "This site is already in the extension's list.",
+        "jobSiteBuiltIn": "A site built into the extension cannot be removed: disable it.",
+        "siteAdded": "Site added to job discovery.",
+        "siteRemoved": "Site removed. Job offers already found are kept.",
+        "siteInvalid": "Check the domain, for example apec.fr.",
+        "siteExists": "This site is already in the list.",
+        "siteForbidden": "This site forbids crawling in its terms of use: it cannot be added or enabled.",
+        "notFound": "This item no longer exists. The page has been refreshed."
+      }
     }
   },
   "applicationStatuses": {

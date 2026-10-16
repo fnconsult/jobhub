@@ -36,4 +36,6 @@ export const routes = {
   adminHumanCoaches: "/admin/coachs",
   /** The AI Coach's cost per reply, per day: median and p90 against the target. */
   adminCoachCost: "/admin/cout-coach",
+  /** The sites Jobbbox searches: the extension's Job Sites, Job discovery sources and Job discovery sites. */
+  adminSearchSites: "/admin/sites",
 } as const;

@@ -56,6 +56,8 @@ test.describe("Back Office Assistant", () => {
     await openAssistant(page);
     await expect(assistant(page)).toContainText(assistantTexts.welcome);
     await expect(assistant(page)).toContainText(assistantTexts.readOnly);
+    // Only one panel is mounted on a Back Office page: the assistant, not the Candidate's Coach Panel too.
+    await expect(page.locator(".coach-panel-toggle-floating")).toHaveCount(1);
     // No Coach Memory, nothing In view, no Job Search: those are the Candidate's.
     await expect(assistant(page).getByRole("button", { name: fr.coachMemory.open })).toHaveCount(0);
 

@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import type { ParseKeys } from "i18next";
+import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import type { CoachFocus } from "@/coach";
 import { coachReplyBlocks, type Inline } from "@/coach/reply-text";
@@ -10,6 +11,7 @@ import { CoachConversationList, type ConversationSummary } from "@/components/Co
 import { CoachMemoryProposals, CoachMemoryView } from "@/components/CoachMemory";
 import { Icons } from "@/components/icons";
 import { StartJobSearchButton } from "@/components/JobSearchControls";
+import { routes } from "@/routes";
 
 /**
  * What a page shows, as the Coach Panel tells the Candidate and the AI Coach.
@@ -97,13 +99,30 @@ export type PanelKind = "coach" | "backOfficeAssistant";
 /** What a message's author is called on the server, for each panel. */
 type ServerMessage = { from: "candidate" | "coach" | "administrator" | "assistant"; text: string };
 
-const PANELS = {
+/** Everything that differs between the two panels. */
+interface PanelConfig {
+  send: string;
+  conversations: string;
+  /** This browser remembers which conversation was open, to reopen it after a reload. */
+  storageKey: string;
+  features: {
+    /** The Coach Memory view and its proposals. */
+    memory: boolean;
+    /** What the page has in view goes with each message, and the Job Search it allows. */
+    inView: boolean;
+  };
+  texts: Record<"open" | "title" | "welcome" | "thinking" | "unavailable" | "messagesLabel" | "author" | "retention" | "noConversations", ParseKeys> & {
+    /** Shown where the Coach Panel says what is in view, for a panel that follows nothing in view. */
+    context?: ParseKeys;
+  };
+}
+
+const PANELS: Record<PanelKind, PanelConfig> = {
   coach: {
     send: "/api/coach",
     conversations: "/api/coach/conversations",
-    /** This browser remembers which conversation was open, to reopen it after a reload. */
     storageKey: "jobhub.coachConversation",
-    coachFeatures: true,
+    features: { memory: true, inView: true },
     texts: {
       open: "coachPanel.open",
       title: "coachPanel.title",
@@ -120,7 +139,7 @@ const PANELS = {
     send: "/api/admin/assistant",
     conversations: "/api/admin/assistant/conversations",
     storageKey: "jobhub.backOfficeAssistantConversation",
-    coachFeatures: false,
+    features: { memory: false, inView: false },
     texts: {
       open: "backOfficeAssistant.open",
       title: "backOfficeAssistant.title",
@@ -131,12 +150,13 @@ const PANELS = {
       author: "backOfficeAssistant.author",
       retention: "backOfficeAssistant.retention",
       noConversations: "backOfficeAssistant.noConversations",
+      context: "backOfficeAssistant.readOnly",
     },
   },
-} as const satisfies Record<PanelKind, unknown>;
+};
 
 /** A message as the panel shows it: the person's own, or the AI's reply. */
-const shown = (message: ServerMessage): CoachMessage => ({ from: message.from === "candidate" || message.from === "administrator" ? "candidate" : "coach", text: message.text });
+const asPanelMessage = (message: ServerMessage): CoachMessage => ({ from: message.from === "candidate" || message.from === "administrator" ? "candidate" : "coach", text: message.text });
 
 function remember(storageKey: string, conversationId: string | null) {
   try {
@@ -199,7 +219,7 @@ async function fetchConversation(endpoint: string, conversationId: string): Prom
   const response = await fetch(`${endpoint}/${encodeURIComponent(conversationId)}`).catch(() => null);
   if (!response?.ok) return { gone: response?.status === 404 };
   const { conversation } = (await response.json()) as { conversation: ConversationSummary & { messages: ServerMessage[] } };
-  return { conversation: { ...conversation, messages: conversation.messages.map(shown) } };
+  return { conversation: { ...conversation, messages: conversation.messages.map(asPanelMessage) } };
 }
 
 /**
@@ -343,7 +363,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
         body: JSON.stringify({
           ...(conversation ? { conversationId: conversation.id } : {}),
           message: text,
-          ...(inView && panel.coachFeatures ? { focus: { kind: inView.kind, id: inView.id, ...(inView.profileId ? { profileId: inView.profileId } : {}) } } : {}),
+          ...(inView && panel.features.inView ? { focus: { kind: inView.kind, id: inView.id, ...(inView.profileId ? { profileId: inView.profileId } : {}) } } : {}),
         }),
       });
       const body = await response.json().catch(() => ({}));
@@ -397,7 +417,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                   {t("coachPanel.backToConversation")}
                 </button>
               )}
-              {view !== "memory" && panel.coachFeatures ? (
+              {view !== "memory" && panel.features.memory ? (
                 <button className="button button-quiet" type="button" onClick={() => setView("memory")}>
                   {t("coachMemory.open")}
                 </button>
@@ -437,8 +457,8 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
               <>
                 <div className="coach-panel-context">
                   <h3 className="coach-panel-conversation">{conversation ? conversation.title : t("coachPanel.newConversation")}</h3>
-                  {panel.coachFeatures ? <p className="coach-panel-in-view">{inViewLabel}</p> : <p className="coach-panel-in-view">{t("backOfficeAssistant.readOnly")}</p>}
-                  {!panel.coachFeatures ? null : profileIdOf(inView) ? (
+                  <p className="coach-panel-in-view">{panel.features.inView || !texts.context ? inViewLabel : t(texts.context)}</p>
+                  {!panel.features.inView ? null : profileIdOf(inView) ? (
                     <StartJobSearchButton key={profileIdOf(inView)} profileId={profileIdOf(inView)!} label={t("coachPanel.searchJobs")} className="button" />
                   ) : (
                     <p className="hint">{t("coachPanel.searchHint")}</p>
@@ -469,7 +489,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                     </p>
                   ) : null}
                   <div ref={messagesEnd} aria-hidden="true" />
-                  {conversation && panel.coachFeatures ? <CoachMemoryProposals key={conversation.id} conversationId={conversation.id} /> : null}
+                  {conversation && panel.features.memory ? <CoachMemoryProposals key={conversation.id} conversationId={conversation.id} /> : null}
                 </div>
                 <form className="coach-panel-form" onSubmit={send}>
                   <label htmlFor={`${id}-message`}>{t("coachPanel.messageLabel")}</label>
@@ -499,4 +519,15 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
       </CoachPanelControl.Provider>
     </SetInView.Provider>
   );
+}
+
+/**
+ * The Candidate's Coach Panel around every page but the Back Office's, whose
+ * pages carry the Back Office Assistant instead (BackOfficeLayout): only one
+ * panel is ever mounted.
+ */
+export function CandidateCoachPanel({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const inBackOffice = pathname === routes.admin || pathname.startsWith(`${routes.admin}/`);
+  return inBackOffice ? children : <CoachPanel>{children}</CoachPanel>;
 }

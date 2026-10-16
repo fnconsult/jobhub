@@ -11,7 +11,7 @@ const notFound = () => NextResponse.json({ error: "not_found" }, { status: 404 }
 export async function GET(_request: Request, { params }: Context) {
   const asking = await backOfficeAdministrator();
   if (!asking) return notFound();
-  const conversation = await getAssistantConversations().open(asking.administrator.id, (await params).id);
+  const conversation = await getAssistantConversations().open(asking.id, (await params).id);
   return conversation ? NextResponse.json({ conversation }) : notFound();
 }
 
@@ -21,7 +21,7 @@ export async function PATCH(request: Request, { params }: Context) {
   const asking = await backOfficeAdministrator();
   if (!asking) return notFound();
   const body = await request.json().catch(() => undefined);
-  const result = await getAssistantConversations().rename(asking.administrator.id, (await params).id, body?.title);
+  const result = await getAssistantConversations().rename(asking.id, (await params).id, body?.title);
   if (result.ok) return NextResponse.json({ conversation: result.conversation });
   return result.error === "invalid" ? NextResponse.json({ error: "invalid" }, { status: 400 }) : notFound();
 }
@@ -31,5 +31,5 @@ export async function DELETE(request: Request, { params }: Context) {
   if (!isFromTrustedOrigin(request)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const asking = await backOfficeAdministrator();
   if (!asking) return notFound();
-  return (await getAssistantConversations().delete(asking.administrator.id, (await params).id)) ? new NextResponse(null, { status: 204 }) : notFound();
+  return (await getAssistantConversations().delete(asking.id, (await params).id)) ? new NextResponse(null, { status: 204 }) : notFound();
 }

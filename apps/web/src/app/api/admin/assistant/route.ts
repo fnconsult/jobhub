@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   if (!asking) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
   const body: unknown = await request.json().catch(() => undefined);
-  const result = await getAssistantConversations().send({ id: asking.administrator.id, access: asking.access }, body);
+  const result = await getAssistantConversations().send(asking, body);
   if (result.ok) return NextResponse.json({ conversation: result.conversation, reply: result.reply });
   return NextResponse.json({ error: result.error }, { status: STATUS[result.error] });
 }

@@ -6,5 +6,5 @@ import { getAssistantConversations } from "@/back-office-assistant/server";
 export async function GET() {
   const asking = await backOfficeAdministrator();
   if (!asking) return NextResponse.json({ error: "not_found" }, { status: 404 });
-  return NextResponse.json({ conversations: await getAssistantConversations().list(asking.administrator.id) });
+  return NextResponse.json({ conversations: await getAssistantConversations().list(asking.id) });
 }

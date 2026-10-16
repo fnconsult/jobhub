@@ -38,3 +38,12 @@ describe("scrubbing secrets out of a provider's error text", () => {
     expect(scrubSecrets("HTTP 500 internal error", ["", " ", "a"])).toBe("HTTP 500 internal error");
   });
 });
+
+describe("scrubbing credentials out of a URL", () => {
+  it("removes a URL's user and password (SMTP_URL), keeping the host", () => {
+    const scrubbed = scrubSecrets("SMTP: connect failed to smtps://9a1b2c@smtp-brevo.com:Xs0meP4ss@smtp-relay.brevo.com:465 (timeout)");
+
+    expect(scrubbed).not.toMatch(/9a1b2c|Xs0meP4ss/);
+    expect(scrubbed).toContain("smtp-relay.brevo.com:465");
+  });
+});

@@ -437,7 +437,7 @@ A third-party key (an AI provider's, France Travail's, the contact-enrichment pr
 _Avoid_: API key setting, credential, config secret
 
 **Back Office Audit**:
-The record of every change an Administrator makes in the Back Office: who, when, what and the values before and after. Secret values are never recorded, only that they were replaced. Kept for 3 years, then purged. Jobbbox's own record, so it survives the Administrator's account deletion (their id is cleared, their email at the time stays) and is not part of their data export.
+The record of every change an Administrator makes in the Back Office: who, when, what and the values before and after. Secret values are never recorded, only that they were replaced (possibly despite a failed connection test) or cleared. Kept for 3 years, then purged. Jobbbox's own record, so it survives the Administrator's account deletion (their id is cleared, their email at the time stays) and is not part of their data export.
 _Avoid_: Audit log, history, activity feed
 
 **Journal**:

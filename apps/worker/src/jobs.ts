@@ -286,7 +286,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         }),
     },
 
-    // The Back Office Audit is kept 3 years. Safe to run again.
+    // Nightly, and once at start (main.ts): every row under the newest master key. Safe to run again.
     [PROVIDER_SECRETS_REENCRYPT]: {
       cron: "15 4 * * *",
       handler: () =>
@@ -296,6 +296,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         }),
     },
 
+    // The Back Office Audit is kept 3 years. Safe to run again.
     [BACK_OFFICE_AUDIT_PURGE]: {
       cron: "45 3 * * *",
       handler: () =>

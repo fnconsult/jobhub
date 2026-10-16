@@ -8,8 +8,9 @@
  *  - does the key in use work                 `test`
  *  - what are the values (web and worker)     `load`, read by the resolver (./resolver.ts)
  *  - move every row to the newest master key  `reencrypt` (the worker's job)
- * and `listenForProviderSecretChanges(connectionString, onChange)` and
- * `migrateProviderSecrets(database)`.
+ * and `providerSecretsReader(database, deps)` (`load` and `reencrypt` alone, for the
+ * worker), `listenForProviderSecretChanges(database, onChange)` (NOTIFY, on a pooled
+ * connection) and `migrateProviderSecrets(database)`.
  *
  * Every replace and clear is made, recorded in the Back Office Audit (without the
  * value) and announced with NOTIFY in one transaction. A value goes in, never out:
@@ -24,7 +25,7 @@ import type { BackOffice, BackOfficeActor, SecretAction } from "../admin/back-of
 import type { Queryable } from "../database/pool";
 import { fingerprintOf, isProviderSecretName, PROVIDER_SECRETS, PROVIDER_SECRET_NAMES, providerOf, type ProviderSecretName, type SecretProvider } from "./catalog";
 import type { SealedSecret, SecretCipher } from "./cipher";
-import type { StoredSecrets } from "./resolver";
+import { snapshotOf, type StoredSecrets } from "./resolver";
 
 export { PROVIDER_SECRETS, type ProviderSecretName, type SecretProvider } from "./catalog";
 
@@ -102,7 +103,6 @@ interface SecretRow {
   iv: Buffer;
   tag: Buffer;
   key_version: number;
-  fingerprint: string | null;
   updated_by_email: string;
   updated_at: Date;
 }
@@ -190,12 +190,10 @@ function readerWithRows(database: Pool, deps: Pick<ProviderSecretsDeps, "cipher"
 export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps): ProviderSecrets {
   const { rows, open, load, reencrypt } = readerWithRows(database, deps);
 
-  /** The keys in use, with `overrides` over them, for a connection test. */
-  async function envInUse(overrides: Env = {}): Promise<Env> {
-    const env: Env = { ...deps.env };
-    for (const [name, { value }] of Object.entries(await load())) env[name] = value;
-    return { ...env, ...overrides };
-  }
+  /** The values in use: the database's over env's (as the resolver has them). */
+  const envInUse = async (): Promise<Env> => snapshotOf(deps.env, await load()).env;
+  /** Every key in use in `env`, to scrub out of what a provider answers. */
+  const keysIn = (env: Env) => PROVIDER_SECRET_NAMES.map((secret) => env[secret]);
 
   async function testWith(provider: SecretProvider, env: Env, secrets: readonly (string | undefined)[]): Promise<ConnectionTestResult> {
     try {
@@ -254,7 +252,8 @@ export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps)
       if (!cipher) return { ok: false, error: "no_master_key" };
 
       const provider = providerOf(name);
-      const tested = await testWith(provider, await envInUse({ [name]: value }), [value]);
+      const inUse = await envInUse();
+      const tested = await testWith(provider, { ...inUse, [name]: value }, [value, ...keysIn(inUse)]);
       if (!tested.ok && !saveAnyway) return { ok: false, error: "test_failed", detail: tested.detail };
 
       const id = randomUUID();
@@ -286,7 +285,7 @@ export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps)
     async test(name) {
       const env = await envInUse();
       if (!env[name]?.trim()) return { ok: false, detail: "missing" };
-      return testWith(providerOf(name), env, PROVIDER_SECRET_NAMES.map((secret) => env[secret]));
+      return testWith(providerOf(name), env, keysIn(env));
     },
   };
 }

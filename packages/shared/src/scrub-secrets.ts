@@ -6,6 +6,9 @@ const MIN_KNOWN = 6;
 /** How many first or last characters of a known key a provider may echo when it masks it. */
 const ECHO = 4;
 
+/** A URL's user and password (smtps://user:pass@host): up to the last @ before the host. */
+const URL_USERINFO = /\b([a-z][a-z0-9+.-]*:\/\/)[^\s/"']*@/gi;
+
 const PATTERNS: RegExp[] = [
   // Authorization: Bearer <token>, Basic <token>
   /\b(Bearer|Basic)\s+[^\s"',;]+/gi,
@@ -22,8 +25,8 @@ const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 /**
  * `text` (a provider's error message or answer body) without secrets, before it is
  * logged or stored: every value of `known` (the keys in use), a partly masked echo
- * of one (its first or last 4 characters next to an ellipsis or asterisks), and
- * whatever looks like a credential.
+ * of one (its first or last 4 characters next to an ellipsis or asterisks), a URL's
+ * user and password, and whatever looks like a credential.
  */
 export function scrubSecrets(text: string, known: readonly (string | undefined)[] = []): string {
   let scrubbed = text;
@@ -36,6 +39,7 @@ export function scrubSecrets(text: string, known: readonly (string | undefined)[
       scrubbed = scrubbed.replace(new RegExp(`${head}[^\\s"']*(?:…|\\.\\.\\.|\\*+)[^\\s"']*${tail}`, "g"), REDACTED);
     }
   }
+  scrubbed = scrubbed.replace(URL_USERINFO, (_, scheme: string) => `${scheme}${REDACTED}@`);
   scrubbed = scrubbed.replace(PATTERNS[0]!, (_, scheme: string) => `${scheme} ${REDACTED}`);
   scrubbed = scrubbed.replace(PATTERNS[1]!, (_, label: string) => `${label}${REDACTED}`);
   for (const pattern of PATTERNS.slice(2)) scrubbed = scrubbed.replace(pattern, (match) => (match === REDACTED ? match : REDACTED));

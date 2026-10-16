@@ -3,13 +3,13 @@ import { sharedPool } from "@/database/pool";
 import { secretCipherFromEnv } from "./cipher";
 import { createConnectionTester } from "./connection-tests";
 import { createProviderSecrets, type ProviderSecrets } from "./index";
-import type { SecretResolver } from "./resolver";
+import { snapshotOf, type SecretResolver } from "./resolver";
 import { watchProviderSecrets, type WatchedProviderSecrets } from "./watch";
 
 // On globalThis, not in a module variable: Next.js bundles server code into more than
 // one chunk, each with its own copy of this module; one cache per process must serve
 // them all, or a NOTIFY would refresh only one copy (see database/pool.ts).
-const holder = globalThis as { __jobhubProviderSecrets?: WatchedProviderSecrets };
+const holder = globalThis as { __jobhubProviderSecrets?: WatchedProviderSecrets; __jobhubProviderSecretsStore?: ProviderSecrets };
 
 function watched(): WatchedProviderSecrets {
   holder.__jobhubProviderSecrets ??= watchProviderSecrets({ database: sharedPool(), env: process.env });
@@ -30,22 +30,19 @@ export async function startProviderSecrets(): Promise<void> {
   if (process.env.DATABASE_URL) await watched().ready;
 }
 
-const envOnlySnapshot = {
-  env: process.env,
-  source: (name: string) => (process.env[name]?.trim() ? ("env" as const) : ("missing" as const)),
-  versionOf: (names: readonly string[]) => names.join(),
+/** Env alone: the values in use with nothing read from a database. */
+const envOnly: SecretResolver = {
+  current: () => snapshotOf(process.env, {}),
+  refresh: async () => snapshotOf(process.env, {}),
 };
-const envOnly: SecretResolver = { current: () => envOnlySnapshot, refresh: async () => envOnlySnapshot };
 
-let store: ProviderSecrets | undefined;
-
-/** The Back Office's Provider Secrets (the Clés section): their state, replacing, clearing and testing them. */
+/** The Back Office's Provider Secrets (the Clés section): their state, replacing, clearing and testing them. One per process, like the resolver. */
 export function getProviderSecrets(): ProviderSecrets {
-  store ??= createProviderSecrets(sharedPool(), {
+  holder.__jobhubProviderSecretsStore ??= createProviderSecrets(sharedPool(), {
     cipher: secretCipherFromEnv(process.env),
     backOffice: getBackOffice(),
     env: process.env,
     testConnection: createConnectionTester(),
   });
-  return store;
+  return holder.__jobhubProviderSecretsStore;
 }

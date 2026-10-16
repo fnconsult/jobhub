@@ -96,6 +96,16 @@ describe.skipIf(!connectionString)("Provider Secrets, encrypted in the database 
     expect(await backOffice.journal()).toEqual([]);
   });
 
+  it("a failed test's reason says nothing of any key in use either", async () => {
+    tester.mockResolvedValue({ ok: false, detail: `refused; also tried ${ENV.MISTRAL_API_KEY} and ${ENV.STRIPE_SECRET_KEY}` });
+
+    const replaced = await secrets.replace(claire, "MISTRAL_API_KEY", VALUE, { saveAnyway: false });
+
+    expect(replaced).toMatchObject({ ok: false, error: "test_failed" });
+    expect(JSON.stringify(replaced)).not.toContain(ENV.MISTRAL_API_KEY);
+    expect(JSON.stringify(replaced)).not.toContain(ENV.STRIPE_SECRET_KEY);
+  });
+
   it("'save anyway' keeps a key that failed its test, and records that it did", async () => {
     tester.mockResolvedValue({ ok: false, detail: "HTTP 503" });
 

@@ -198,7 +198,7 @@ export default async function ProviderSecretsPage({ searchParams }: { searchPara
                       name="value"
                       type="password"
                       required
-                      autoComplete="off"
+                      autoComplete="new-password"
                       spellCheck={false}
                       aria-describedby={`value-${name}-help`}
                     />

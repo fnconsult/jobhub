@@ -162,4 +162,17 @@ describe("Lusha adapter", () => {
       message: `lusha: HTTP 403: ${message}`,
     });
   });
+
+  it("keeps its key out of the error when Lusha echoes it back (#208)", async () => {
+    const apiKey = "lusha-key-0123456789";
+    const lusha = createLushaProvider({
+      apiKey,
+      fetch: recordedFetch({ status: 403, body: { message: `Invalid api_key ${apiKey}` } }).fetch,
+    });
+
+    const error = await lusha.findPeople!({ companyName: "Acme Industrie", jobTitles: ["DRH"], limit: 10 }).catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({ provider: "lusha", reason: "unauthorized" });
+    expect((error as Error).message).not.toContain("0123456789");
+  });
 });

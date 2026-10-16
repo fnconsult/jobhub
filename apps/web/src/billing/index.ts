@@ -25,6 +25,7 @@ import {
 import type { Locale } from "@jobhub/shared/i18n";
 import type { Pool } from "pg";
 import Stripe from "stripe";
+import type { Queryable } from "../database/pool";
 import { routes } from "../routes";
 
 export interface BillingConfig {
@@ -621,14 +622,20 @@ export function createBilling(config: BillingConfig) {
       ) as Record<Plan, PlanQuotas>;
     },
 
-    /** Replaces one Plan's quotas (back office). Applies at once to every Candidate on that Plan. */
-    async setPlanQuotas(plan: Plan, quotas: PlanQuotas): Promise<void> {
+    /**
+     * Replaces one Plan's quotas (Back Office) and returns the ones it replaced. Applies at
+     * once to every Candidate on that Plan. `within` runs it in the caller's transaction.
+     */
+    async setPlanQuotas(plan: Plan, quotas: PlanQuotas, within: Queryable = database): Promise<PlanQuotas> {
       const keys = Object.keys(COLUMNS) as (keyof PlanQuotas)[];
-      await database.query(
-        `UPDATE plan_quota SET ${keys.map((key, index) => `${COLUMNS[key]} = $${index + 2}`).join(", ")}, updated_at = now()
-         WHERE plan = $1`,
+      const { rows } = await within.query(
+        `UPDATE plan_quota p SET ${keys.map((key, index) => `${COLUMNS[key]} = $${index + 2}`).join(", ")}, updated_at = now()
+         FROM (SELECT * FROM plan_quota WHERE plan = $1 FOR UPDATE) previous
+         WHERE p.plan = previous.plan
+         RETURNING previous.*`,
         [plan, ...keys.map((key) => quotas[key])],
       );
+      return quotasFromRow(rows[0]);
     },
 
     /**

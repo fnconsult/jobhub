@@ -1,0 +1,80 @@
+/**
+ * Sign-in Providers (CONTEXT.md, #209): the identity providers, besides the magic
+ * link, that Candidates and Administrators may sign in with, configured by
+ * super-admins in the Back Office's Connexion section. Google, Apple and Microsoft
+ * are Better Auth social providers (one each, their id is their type); any number
+ * of generic OIDC providers go through Better Auth's generic OAuth plugin, each
+ * under an id the super-admin picks.
+ */
+
+export const SIGN_IN_PROVIDER_TYPES = ["google", "apple", "microsoft", "oidc"] as const;
+export type SignInProviderType = (typeof SIGN_IN_PROVIDER_TYPES)[number];
+
+export const isSignInProviderType = (value: unknown): value is SignInProviderType => SIGN_IN_PROVIDER_TYPES.includes(value as SignInProviderType);
+
+/** The social provider types: one provider each, its id is its type. */
+export const SOCIAL_TYPES = ["google", "apple", "microsoft"] as const satisfies readonly SignInProviderType[];
+
+/** The secret fields of each type, kept as Provider Secrets: write-only in the Back Office. */
+export const SECRET_FIELDS = {
+  google: ["clientSecret"],
+  microsoft: ["clientSecret"],
+  oidc: ["clientSecret"],
+  // Apple's client secret is a JWT the app signs with the .p8 key (see ./apple.ts), not typed in.
+  apple: ["teamId", "keyId", "privateKey"],
+} as const satisfies Record<SignInProviderType, readonly string[]>;
+
+export type SecretField = "clientSecret" | "teamId" | "keyId" | "privateKey";
+
+/** How a sign-in made in the app is named on its session: a provider's id, or this. */
+export const MAGIC_LINK = "magic-link";
+
+/** Ids an OIDC provider may not take: the social types and the magic link. */
+const RESERVED_IDS: readonly string[] = [...SOCIAL_TYPES, MAGIC_LINK, "email-password", "credential"];
+
+/** An OIDC provider's id: lower-case letters, digits and dashes, 2 to 32 characters, starting with a letter. */
+export const isValidOidcId = (id: string): boolean => /^[a-z][a-z0-9-]{1,31}$/.test(id) && !RESERVED_IDS.includes(id);
+
+/** A Microsoft tenant open to every directory: any of its admins may set any email address on an account. */
+export const isMultiTenant = (tenantId: string | undefined): boolean => ["common", "organizations"].includes((tenantId ?? "common").trim().toLowerCase());
+
+/**
+ * Where a provider sends the person back, to paste in its console. Better Auth 1.7
+ * serves generic OAuth providers on the same callback as the social ones.
+ */
+export const callbackPath = (id: string): string => `/api/auth/callback/${encodeURIComponent(id)}`;
+
+/** One Sign-in Provider in use, with its secrets opened. Server side only: never sent to a page. */
+export interface SignInProvider {
+  id: string;
+  type: SignInProviderType;
+  /** On the button: "Continuer avec {displayName}". */
+  displayName: string;
+  clientId: string;
+  /** For Apple, the JWT signed with its .p8 key. */
+  clientSecret: string;
+  /** OIDC: the issuer's discovery document (…/.well-known/openid-configuration). */
+  discoveryUrl?: string | undefined;
+  /** Microsoft: common, organizations, consumers, or one tenant's id or domain. */
+  tenantId?: string | undefined;
+  /** Apple: the app's bundle id, for sign-in from a native app. */
+  appBundleIdentifier?: string | undefined;
+  /** Off: registered for a test sign-in only, nobody signs in through it. */
+  enabled: boolean;
+  /** On the Candidate sign-in page. */
+  shownToCandidates: boolean;
+  /** Usable for Back Office sign-in. */
+  allowedForAdministrators: boolean;
+  /** Same email, same account: linked automatically, without the magic link first. */
+  trustedForLinking: boolean;
+}
+
+/** The sign-in configuration in use: what the Better Auth instance is built from. */
+export interface SignInConfiguration {
+  /** Each provider complete enough to be registered (its secrets present), enabled or not. */
+  providers: SignInProvider[];
+  /** The Back Office asks Administrators signed in by magic link to sign in again with a provider allowed for them. */
+  requireSsoForAdministrators: boolean;
+  /** Changes whenever anything above does: the instance is rebuilt then. Carries no secret. */
+  version: string;
+}

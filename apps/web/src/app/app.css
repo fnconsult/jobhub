@@ -726,6 +726,11 @@ body:not(:has(.app-shell)) .coach-panel {
   overflow-wrap: anywhere;
 }
 
+/* A source's URL can run long with no break in it: it wraps, so the page never scrolls sideways (ADR-0009, #172). */
+.dossier-sources {
+  overflow-wrap: anywhere;
+}
+
 .company-dossier h3 {
   margin-bottom: 0;
 }

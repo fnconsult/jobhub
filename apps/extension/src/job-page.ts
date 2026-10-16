@@ -59,13 +59,16 @@ export const KNOWN_POSTING_PAGES: readonly RegExp[] = [
   /^https:\/\/apply\.workable\.com\/[^/]+\/j\/[0-9A-F]+/i,
   /^https:\/\/[^/]+\.recruitee\.com\/o\//,
   /^https:\/\/[^/]+\.welcomekit\.co\/jobs\//,
+  // Gestmax, the ATS of many French public employers: the posting sits in an iframe on the employer's site (#187).
+  /^https:\/\/[^/]+\.gestmax\.fr\/\d+\/\d+\/[^/?#]+/,
 ];
 
 /**
  * Where the extension watches for postings to show the badge: the sites of
  * KNOWN_POSTING_PAGES, as match patterns. Elsewhere, Capture is manual (the
  * popup's "Capturer cette page", with activeTab), so the extension never asks
- * to read every site the person visits.
+ * to read every site the person visits. A job site's iframe in another site's
+ * page (gestmax.fr, #187) gets the badge too, and is read by Capture.
  */
 export const JOB_SITES: readonly string[] = [
   "https://*.linkedin.com/*",
@@ -95,13 +98,19 @@ export const JOB_SITES: readonly string[] = [
   "https://apply.workable.com/*",
   "https://*.recruitee.com/*",
   "https://*.welcomekit.co/*",
+  "https://*.gestmax.fr/*",
 ];
 
 const JOB_SITE_PATTERNS = JOB_SITES.map((pattern) => new MatchPattern(pattern));
 
+/** Whether a URL is on a site the extension watches (JOB_SITES). */
+export function isOnJobSite(url: string): boolean {
+  return JOB_SITE_PATTERNS.some((site) => site.includes(url));
+}
+
 /** Whether a URL is a posting's address on a site the extension watches. */
-function isKnownPostingPage(url: string): boolean {
-  return KNOWN_POSTING_PAGES.some((pattern) => pattern.test(url)) && JOB_SITE_PATTERNS.some((site) => site.includes(url));
+export function isKnownPostingPage(url: string): boolean {
+  return KNOWN_POSTING_PAGES.some((pattern) => pattern.test(url)) && isOnJobSite(url);
 }
 
 /** What a Job Offer can hold (the Job Offers API refuses more). */

@@ -124,6 +124,8 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         ],
         atsScore: null,
         jobSearches: [],
+        jobDigest: null,
+        jobDigests: [],
       },
       expect.objectContaining({ name: "Consultant transformation", archived: true, masterCvVersions: [expect.objectContaining({ version: 1 })] }),
     ]);
@@ -227,6 +229,33 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       { id: expect.any(String), status: "failed", failure: "timeout", startedAt: new Date("2026-10-05T08:00:00Z"), finishedAt: new Date("2026-10-05T08:15:00Z"), jobOfferIds: [] },
       { id: expect.any(String), status: "done", failure: null, startedAt: new Date("2026-10-01T08:00:00Z"), finishedAt: new Date("2026-10-01T08:04:00Z"), jobOfferIds: [captured.jobOffer.id] },
     ]);
+  });
+
+  it("the export holds each Profile's Job Digest settings and the Job Digests sent, but not the secret unsubscribe link", async () => {
+    const profileId = await createProfile(candidateId, "DAF");
+    const otherProfileId = await createProfile(candidateId, "DSI");
+    const captured = await jobOffers.capture(OFFER);
+    if (!captured.ok) throw new Error("fixture Job Offer refused");
+    // Opted in to a daily Job Digest, one sent, then opted out.
+    await database.query(
+      `INSERT INTO job_digest_subscription (profile_id, candidate_id, unsubscribe_token, subscribed_at, last_run_at, unsubscribed_at, frequency)
+       VALUES ($2, $1, 'secret-unsubscribe-token', '2026-09-01T06:00:00Z', '2026-09-02T06:00:00Z', '2026-09-10T12:00:00Z', 'daily')`,
+      [candidateId, profileId],
+    );
+    await database.query(`INSERT INTO job_digest (profile_id, candidate_id, job_offer_ids, sent_at) VALUES ($2, $1, ARRAY[$3::uuid], '2026-09-02T06:00:00Z')`, [
+      candidateId,
+      profileId,
+      captured.jobOffer.id,
+    ]);
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.profiles.find((profile) => profile.id === profileId)).toMatchObject({
+      jobDigest: { frequency: "daily", subscribedAt: new Date("2026-09-01T06:00:00Z"), unsubscribedAt: new Date("2026-09-10T12:00:00Z"), lastRunAt: new Date("2026-09-02T06:00:00Z") },
+      jobDigests: [{ id: expect.any(String), sentAt: new Date("2026-09-02T06:00:00Z"), jobOfferIds: [captured.jobOffer.id] }],
+    });
+    expect(exported.profiles.find((profile) => profile.id === otherProfileId)).toMatchObject({ jobDigest: null, jobDigests: [] });
+    expect(JSON.stringify(exported)).not.toContain("secret-unsubscribe-token");
   });
 
   it("deleting the account removes the Candidate and everything of theirs, signs them out, and keeps the Job Offers", async () => {

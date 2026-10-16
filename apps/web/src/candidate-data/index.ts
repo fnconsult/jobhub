@@ -19,6 +19,7 @@ import type { Pool } from "pg";
 import type { ActionCard } from "../action-cards";
 import type { Application, Applications } from "../applications";
 import type { KeptAtsScore } from "../ats-score";
+import type { ChosenFrequency } from "../job-digests";
 import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
 import type { FollowUpDelays } from "../follow-ups";
 import type { MasterCvVersion, Profiles } from "../profiles";
@@ -36,6 +37,21 @@ export interface ExportedProfile {
   atsScore: KeptAtsScore | null;
   /** Newest first. */
   jobSearches: ExportedJobSearch[];
+  /** The Candidate's Job Digest settings for the Profile, or null when they never opted in. */
+  jobDigest: ExportedJobDigestSettings | null;
+  /** The Job Digests sent for the Profile, newest first. */
+  jobDigests: { id: string; sentAt: Date; jobOfferIds: string[] }[];
+}
+
+/** What the Candidate chose for a Profile's Job Digest (its unsubscribe link is a secret, left out). */
+export interface ExportedJobDigestSettings {
+  /** What the Candidate picked; their Plan may cap it. */
+  frequency: ChosenFrequency;
+  subscribedAt: Date;
+  /** Set while opted out. */
+  unsubscribedAt: Date | null;
+  /** When a Job Digest was last worked out for the Profile. */
+  lastRunAt: Date | null;
 }
 
 /** A Job Search the Candidate started for a Profile, and the Job Offers it found. */
@@ -127,6 +143,15 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
          FROM job_search WHERE candidate_id = $1 ORDER BY started_at DESC, id`,
       candidateId,
     );
+    const jobDigestSettingsOf = await grouped<ExportedJobDigestSettings>(
+      `SELECT profile_id AS key, frequency, subscribed_at AS "subscribedAt", unsubscribed_at AS "unsubscribedAt", last_run_at AS "lastRunAt"
+         FROM job_digest_subscription WHERE candidate_id = $1`,
+      candidateId,
+    );
+    const jobDigestsOf = await grouped<ExportedProfile["jobDigests"][number]>(
+      `SELECT profile_id AS key, id, sent_at AS "sentAt", job_offer_ids::text[] AS "jobOfferIds" FROM job_digest WHERE candidate_id = $1 ORDER BY sent_at DESC, id`,
+      candidateId,
+    );
     const summaries = await deps.profiles.list(candidateId);
     const exported = await Promise.all(
       summaries.map(async ({ id }) => {
@@ -140,6 +165,8 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           masterCvVersions: versions,
           atsScore: atsScoresOf(id)[0] ?? null,
           jobSearches: jobSearchesOf(id),
+          jobDigest: jobDigestSettingsOf(id)[0] ?? null,
+          jobDigests: jobDigestsOf(id),
         };
       }),
     );

@@ -55,6 +55,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Job Digests are up to date");
     expect(first.stdout).toContain("Coach Conversations are up to date");
     expect(first.stdout).toContain("Coach Memory is up to date");
+    expect(first.stdout).toContain("Job Sites, Job discovery sources and Job discovery sites are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 
@@ -81,12 +82,15 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "company_dossier", // issue #17
         "enriched_contact", // issue #23: Enriched Contacts, with their source provider and retrieval date
         "eu_ai_consent", // issue #121: the Candidate's dated EU AI consent
+        "extension_job_site", // issue #188: the extension's Job Sites, set in the Back Office
         "follow_up_delay", // issue #21: each Candidate's Follow-up Delays
         "follow_up_sent", // issue #21: the Follow-ups marked as sent
         "human_coach", // issue #24: Human Coaches and their Cal.com booking links
         "interview",
         "job_digest", // issue #15: the Job Digests sent for each Profile
         "job_digest_subscription", // issue #15: opt-in per Profile
+        "job_discovery_site", // issue #188: the sites Job discovery searches, set in the Back Office
+        "job_discovery_source", // issue #188: the Job discovery sources, each enabled or not
         "job_offer",
         "job_search", // issue #14: on-demand AI Coach job search
         "master_cv_version",

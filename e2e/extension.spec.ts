@@ -258,8 +258,12 @@ test.describe("Guest Capture and Match Score", () => {
     const messages = readFileSync(path.join(e2eExtensionDir, "_locales/fr/messages.json"), "utf8");
     expect(messages).not.toMatch(/chrome/i);
     expect(manifest.permissions.sort()).toEqual(["activeTab", "alarms", "scripting", "storage"]);
-    expect(manifest.host_permissions).toEqual([`${origin}/*`]);
     expect(manifest.content_scripts[0].matches).toContain("https://www.welcometothejungle.com/*");
+    // The web app, for its session cookie, and the Job Sites the badge already matches, so Capture may read a
+    // job site's iframe in another site's page (gestmax.fr, #187): nothing beyond them.
+    expect([...manifest.host_permissions].sort()).toEqual([`${origin}/*`, ...manifest.content_scripts[0].matches].sort());
+    for (const pattern of manifest.content_scripts[0].matches) expect(pattern).toMatch(/^https:\/\/(\*\.)?[a-z0-9-]+(\.[a-z0-9-]+)+\/\*$/);
+    expect(manifest.content_scripts[0].all_frames).toBe(true);
     expect(JSON.stringify(manifest)).not.toContain("<all_urls>");
     // Every other site only if the person opts in, from the popup; the badge's script is then registered from the build.
     expect(manifest.optional_host_permissions).toEqual(["https://*/*"]);

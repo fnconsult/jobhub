@@ -112,7 +112,7 @@ test.describe("Freshness rule in Job Search results (#116)", () => {
     await expect(undated.getByText("date inconnue", { exact: true })).toBeVisible();
 
     // Equal Match Score (the postings differ only by title and date), found undated first: dated is listed first.
-    const scores = (await page.getByText(/^Score de correspondance : \d+ \/ 100$/).allTextContents()).map((t) => Number(/(\d+) \//.exec(t)![1]));
+    const scores = (await page.getByText(/^Score de correspondance : \d+ \/ 100(, partiel)?$/).allTextContents()).map((t) => Number(/(\d+) \//.exec(t)![1]));
     expect(scores).toHaveLength(2);
     expect(scores[0], "precondition: equal Match Scores").toBe(scores[1]);
     const headings = await results.getByRole("heading", { level: 2 }).allTextContents();

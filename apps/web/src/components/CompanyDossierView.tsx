@@ -153,7 +153,7 @@ function Dossier({ applicationId, dossier, t, locale }: { applicationId: string;
       {dossier.source === "web" && dossier.sources.length > 0 ? (
         <>
           <h3>{t("companyDossier.sourcesTitle")}</h3>
-          <ul>
+          <ul className="dossier-sources">
             {dossier.sources.map((source) => (
               <li key={source}>
                 <a href={source} rel="noopener noreferrer nofollow" target="_blank">

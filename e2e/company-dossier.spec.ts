@@ -111,6 +111,16 @@ test.describe("Company Dossier", () => {
     await expectNoPrivatePersonNamed(page);
   });
 
+  test("a web dossier citing long source URLs fits a phone screen, with no sideways scroll (#172)", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    const dossier = await openApplication(page, "Weitblick Energie AG");
+
+    await dossier.getByRole("button", { name: t.build }).click();
+
+    await expect(dossier.getByRole("link", { name: /251113-press-release-en\.pdf$/ })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+  });
+
   test("a recruiting agency's posting only proposes a Presumed Employer, looked up once the Candidate confirms it", async ({ page }) => {
     const dossier = await openApplication(page, "Cabinet Talents & Co", "Notre client, un industriel lyonnais, recrute son DAF. Client présumé : Acme Industrie");
 

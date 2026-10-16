@@ -252,7 +252,14 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   provider_secrets: "clés des fournisseurs",
 };
 
-const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = { added: "ajout", updated: "modification", retired: "retrait", replaced: "remplacement" };
+const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
+  added: "ajout",
+  updated: "modification",
+  retired: "retrait",
+  replaced: "remplacement",
+  replaced_despite_failed_test: "remplacement malgré un test échoué",
+  cleared: "effacement",
+};
 
 /** A Journal entry for the assistant: never a secret (none is recorded), never an address, Human Coaches by name. */
 function journalLine(entry: BackOfficeAuditEntry): string {

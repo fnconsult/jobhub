@@ -1,13 +1,23 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { headers } from "next/headers";
-import { authConfigFromEnv } from "./config";
-import { createAuth, type Auth } from "./index";
+import { MAIL_SECRET_NAMES } from "@/provider-secrets/catalog";
+import { liveObject } from "@/provider-secrets/resolver";
+import { getSecretResolver } from "@/provider-secrets/server";
+import { authConfigFromEnv, mailerFromEnv } from "./config";
+import { createAuth, type Auth, type Mailer } from "./index";
 
 let instance: Auth | undefined;
+let mailer: Mailer | undefined;
 
-/** The app's Candidate-accounts module, configured from the environment on first use. */
+/** The app's mailer: SMTP_URL from the Provider Secrets (Brevo), else env, rebuilt when it is replaced in the Back Office. */
+export function getMailer(): Mailer {
+  mailer ??= liveObject(getSecretResolver(), MAIL_SECRET_NAMES, mailerFromEnv);
+  return mailer;
+}
+
+/** The app's Candidate-accounts module, configured from the environment (and the Provider Secrets) on first use. */
 export function getAuth(): Auth {
-  instance ??= createAuth(authConfigFromEnv(process.env));
+  instance ??= createAuth({ ...authConfigFromEnv(getSecretResolver().current().env), mailer: getMailer() });
   return instance;
 }
 

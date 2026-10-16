@@ -1,7 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getApplications } from "@/applications/server";
-import { mailerFromEnv } from "@/auth/mailers";
-import { getAuth, getCurrentCandidate } from "@/auth/server";
+import { getAuth, getCurrentCandidate, getMailer } from "@/auth/server";
 import { getBilling } from "@/billing/server";
 import { sharedPool } from "@/database/pool";
 import { getJobOffers } from "@/job-offers/server";
@@ -22,7 +21,7 @@ export function getJobDigests(): JobDigests {
     jobOffers: getJobOffers(),
     applications: getApplications(),
     billing: getBilling(),
-    mailer: mailerFromEnv(process.env),
+    mailer: getMailer(),
     baseURL: String(getAuth().options.baseURL),
     ...jobDigestsConfigFromEnv(process.env),
   });

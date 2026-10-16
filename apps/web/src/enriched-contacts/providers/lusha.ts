@@ -7,6 +7,7 @@
  * Enrich Contacts (`POST /v3/contacts/enrich`) then reveals one person's emails
  * and phones; numbers flagged do-not-call are left out, so the DNC rule holds there.
  */
+import { scrubSecrets } from "@jobhub/shared";
 import { ContactProviderError, requestJson, texts, type ContactDetails, type ContactEnrichmentProvider, type Fetch, type FoundPerson } from "./types";
 
 const BASE_URL = "https://api.lusha.com/v3";
@@ -38,22 +39,22 @@ const jobTitleOf = (person: LushaPerson) => (person.jobTitle && typeof person.jo
  * `fetchFn`, except that a 400 or 403 fails with Lusha's own `message` (e.g. a
  * schema complaint, or a feature the plan lacks) so the log says what Lusha
  * refused. Only that message is kept, never the request or anything else from
- * the answer, so no personal data.
+ * the answer, so no personal data, and scrubbed of the key (#208).
  */
-function explainingBadRequests(fetchFn: Fetch): Fetch {
+function explainingBadRequests(fetchFn: Fetch, apiKey: string): Fetch {
   return async (url, init) => {
     const response = await fetchFn(url, init);
     if (response.status !== 400 && response.status !== 403) return response;
     const answer = (await response.json().catch(() => null)) as { message?: unknown } | null;
     const message = text(answer?.message);
     const status = `HTTP ${response.status}`;
-    throw new ContactProviderError("lusha", response.status === 403 ? "unauthorized" : "failed", message ? `${status}: ${message.slice(0, 200)}` : status);
+    throw new ContactProviderError("lusha", response.status === 403 ? "unauthorized" : "failed", message ? `${status}: ${scrubSecrets(message, [apiKey]).slice(0, 200)}` : status);
   };
 }
 
 export function createLushaProvider({ apiKey, fetch: rawFetch = fetch, baseUrl = BASE_URL }: { apiKey: string; fetch?: Fetch; baseUrl?: string }): ContactEnrichmentProvider {
   const headers = { api_key: apiKey };
-  const fetchFn = explainingBadRequests(rawFetch);
+  const fetchFn = explainingBadRequests(rawFetch, apiKey);
   return {
     id: "lusha",
 

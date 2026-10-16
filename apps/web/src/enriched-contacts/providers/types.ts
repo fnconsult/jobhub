@@ -4,6 +4,7 @@
  * contact details. Adapters (Lusha, Kaspr, Apollo) map it to their APIs; nothing
  * outside them knows a provider's endpoints or payloads.
  */
+import { scrubSecrets } from "@jobhub/shared";
 import type { CountryCode } from "../countries";
 
 /** The data providers an adapter exists for. */
@@ -49,14 +50,18 @@ export interface ContactEnrichmentProvider {
   getContactDetails(person: { providerPersonId: string }): Promise<ContactDetails | null>;
 }
 
-/** Why a provider could not answer. Nothing was found or revealed; the Candidate may try again later. */
+/**
+ * Why a provider could not answer. Nothing was found or revealed; the Candidate may try again later.
+ * Its message is scrubbed of `secrets` (the key sent) and of anything credential-shaped (#208).
+ */
 export class ContactProviderError extends Error {
   constructor(
     readonly provider: ContactProviderId,
     readonly reason: "unauthorized" | "out_of_credits" | "rate_limited" | "failed",
     message: string = reason,
+    secrets: readonly string[] = [],
   ) {
-    super(`${provider}: ${message}`);
+    super(`${provider}: ${scrubSecrets(message, secrets)}`);
     this.name = "ContactProviderError";
   }
 }
@@ -80,7 +85,7 @@ export async function requestJson(
     });
   } catch (error) {
     if (error instanceof ContactProviderError) throw error;
-    throw new ContactProviderError(provider, "failed", error instanceof Error ? error.message : String(error));
+    throw new ContactProviderError(provider, "failed", error instanceof Error ? error.message : String(error), Object.values(init.headers));
   }
   if (response.status === 404) return null;
   if (response.status === 401 || response.status === 403) throw new ContactProviderError(provider, "unauthorized", `HTTP ${response.status}`);

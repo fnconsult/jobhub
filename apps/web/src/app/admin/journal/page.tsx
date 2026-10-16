@@ -2,7 +2,7 @@ import { JOB_DIGEST_FREQUENCIES, LIMITED_QUOTAS, PLANS, type JobDigestFrequency,
 import type { Metadata } from "next";
 import Link from "next/link";
 import { isBackOfficeRole } from "@/admin/access";
-import { BACK_OFFICE_SECTIONS, isBackOfficeSection, RETENTION_YEARS, type BackOfficeAuditEntry, type BackOfficeSection, type Recorded } from "@/admin/back-office";
+import { BACK_OFFICE_SECTIONS, isBackOfficeSection, isSecretAction, RETENTION_YEARS, type BackOfficeAuditEntry, type BackOfficeSection, type Recorded } from "@/admin/back-office";
 import { journalChanges, type JournalChange } from "@/admin/journal-changes";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
@@ -115,8 +115,8 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
                     <td>{entry.section === "plan_quotas" && PLANS.includes(entry.target as Plan) ? t(`billing.plans.${entry.target as Plan}`) : entry.target}</td>
                     <td>{t(`admin.journal.actions.${entry.action}`)}</td>
                     <td>
-                      {entry.action === "replaced" ? (
-                        t("admin.journal.secretReplaced")
+                      {isSecretAction(entry.action) ? (
+                        t(`admin.journal.secret.${entry.action}`)
                       ) : changes.length === 0 ? (
                         t("admin.journal.unchanged")
                       ) : (

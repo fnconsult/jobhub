@@ -425,15 +425,19 @@ _Avoid_: Dunning banner, billing alert
 ### Operations
 
 **Back Office**:
-The internal pages where Administrators manage Plan Quotas and Human Coaches.
+The internal pages where Administrators manage Plan Quotas, Human Coaches, Provider Secrets and the team's Back Office Roles.
 _Avoid_: Admin panel, dashboard, console
 
 **Back Office Role**:
 What an Administrator may see and change in the Back Office: super-admin (everything, including roles, Provider Secrets and SSO providers), Plans manager (Plans, Plan Quotas, per-Plan features), Coach manager (Human Coaches, read Coach Message Cost) or Support (read-only, no secrets). Fixed in code; only super-admins grant or revoke them.
 _Avoid_: Permission level, admin type
 
+**Provider Secret**:
+A third-party key (an AI provider's, France Travail's, the contact-enrichment provider's, Stripe's, Brevo's SMTP credentials) that super-admins enter in the Back Office's Clés section. Stored encrypted in our database and used over the environment variable of the same name, which it falls back to once cleared. Never shown again once saved: only its source, last 4 characters, and who changed it when.
+_Avoid_: API key setting, credential, config secret
+
 **Back Office Audit**:
-The record of every change an Administrator makes in the Back Office: who, when, what and the values before and after. Secret values are never recorded, only that they were replaced. Kept for 3 years, then purged. Jobbbox's own record, so it survives the Administrator's account deletion (their id is cleared, their email at the time stays) and is not part of their data export.
+The record of every change an Administrator makes in the Back Office: who, when, what and the values before and after. Secret values are never recorded, only that they were replaced (possibly despite a failed connection test) or cleared. Kept for 3 years, then purged. Jobbbox's own record, so it survives the Administrator's account deletion (their id is cleared, their email at the time stays) and is not part of their data export.
 _Avoid_: Audit log, history, activity feed
 
 **Journal**:

@@ -84,6 +84,17 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
     }
   });
 
+  it("Provider Secrets name no Candidate, so they are never swept into a Candidate's data export (#208)", async () => {
+    const { rows } = await throwaway.pool.query<{ column: string }>(
+      `SELECT column_name AS column FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'provider_secret'`,
+    );
+
+    expect(rows.map((row) => row.column)).toContain("ciphertext");
+    expect(rows.map((row) => row.column)).not.toEqual(expect.arrayContaining(["candidate_id"]));
+    expect([...tablesTiedToCandidate()]).not.toContain("provider_secret");
+    expect(EXPORTED_TABLES).not.toHaveProperty("provider_secret");
+  });
+
   it("shared Job Offers and Plan Quotas are not tied to any Candidate, so they are kept", () => {
     expect([...tablesTiedToCandidate()].filter((table) => KEPT.includes(table))).toEqual([]);
   });

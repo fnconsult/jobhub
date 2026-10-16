@@ -96,6 +96,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "master_cv_version",
         "plan_quota",
         "profile",
+        "provider_secret", // issue #208: Provider Secrets, encrypted
         "quota_usage",
         "session",
         "tailored_cv", // issue #18: Tailored CV proposals and saved Tailored CVs

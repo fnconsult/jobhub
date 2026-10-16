@@ -1,0 +1,107 @@
+import { describe, expect, it, vi } from "vitest";
+import type { SecretProvider } from "./catalog";
+import { createConnectionTester } from "./connection-tests";
+
+/** A fetch that records each request and answers `status` with `body`. Nothing reaches a real provider. */
+function fakeFetch(status = 200, body: unknown = {}) {
+  const requests: Request[] = [];
+  const fetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+    requests.push(new Request(input, init));
+    return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+  });
+  return { fetch: fetch as unknown as typeof globalThis.fetch, requests };
+}
+
+describe("testing a provider's keys with its cheapest authenticated call", () => {
+  it.each<[SecretProvider, Record<string, string>, string, string, Record<string, string>]>([
+    ["mistral", { MISTRAL_API_KEY: "mk" }, "GET", "https://api.mistral.ai/v1/models", { authorization: "Bearer mk" }],
+    ["perplexity", { PERPLEXITY_API_KEY: "pk" }, "GET", "https://api.perplexity.ai/v1/models", { authorization: "Bearer pk" }],
+    ["bedrock", { AWS_BEARER_TOKEN_BEDROCK: "bk", BEDROCK_REGION: "eu-central-1" }, "GET", "https://bedrock-mantle.eu-central-1.api.aws/v1/models", { authorization: "Bearer bk" }],
+    ["stripe", { STRIPE_SECRET_KEY: "sk_test_1" }, "GET", "https://api.stripe.com/v1/balance", { authorization: "Bearer sk_test_1" }],
+    ["lusha", { LUSHA_API_KEY: "lk" }, "GET", "https://api.lusha.com/account/usage", { api_key: "lk" }],
+    ["apollo", { APOLLO_API_KEY: "ak" }, "GET", "https://api.apollo.io/api/v1/auth/health", { "x-api-key": "ak" }],
+    ["kaspr", { KASPR_API_KEY: "kk" }, "GET", "https://api.developers.kaspr.io/keys/remaining", { authorization: "Bearer kk" }],
+  ])("%s: %s %s", async (provider, env, method, url, headers) => {
+    const { fetch, requests } = fakeFetch(200, provider === "apollo" ? { is_logged_in: true } : {});
+
+    expect(await createConnectionTester({ fetch })(provider, env)).toEqual({ ok: true });
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0]!.method).toBe(method);
+    expect(requests[0]!.url).toBe(url);
+    for (const [header, value] of Object.entries(headers)) expect(requests[0]!.headers.get(header)).toBe(value);
+  });
+
+  it("France Travail: asks for an OAuth token with both client credentials", async () => {
+    const { fetch, requests } = fakeFetch(200, { access_token: "t", expires_in: 1500 });
+
+    expect(await createConnectionTester({ fetch })("france-travail", { FRANCE_TRAVAIL_CLIENT_ID: "id", FRANCE_TRAVAIL_CLIENT_SECRET: "secret" })).toEqual({ ok: true });
+
+    expect(requests[0]!.url).toContain("francetravail.fr/connexion/oauth2/access_token");
+    const form = new URLSearchParams(await requests[0]!.text());
+    expect(Object.fromEntries(form)).toMatchObject({ grant_type: "client_credentials", client_id: "id", client_secret: "secret" });
+  });
+
+  it("a refusal is a failed test, with the status", async () => {
+    const { fetch } = fakeFetch(401, { message: "Unauthorized" });
+
+    expect(await createConnectionTester({ fetch })("mistral", { MISTRAL_API_KEY: "mk" })).toEqual({ ok: false, detail: expect.stringContaining("HTTP 401") });
+  });
+
+  it("a network failure is a failed test", async () => {
+    const fetch = vi.fn(async () => {
+      throw new TypeError("fetch failed");
+    }) as unknown as typeof globalThis.fetch;
+
+    expect(await createConnectionTester({ fetch })("stripe", { STRIPE_SECRET_KEY: "sk_test_1" })).toEqual({ ok: false, detail: expect.stringContaining("fetch failed") });
+  });
+
+  it("a key missing for the provider fails without a call", async () => {
+    const { fetch } = fakeFetch();
+
+    expect(await createConnectionTester({ fetch })("france-travail", { FRANCE_TRAVAIL_CLIENT_ID: "id" })).toEqual({ ok: false, detail: "missing FRANCE_TRAVAIL_CLIENT_SECRET" });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("goes to the e2e fakes' origins when the env names them", async () => {
+    const { fetch, requests } = fakeFetch(200, { is_logged_in: true });
+    const tester = createConnectionTester({ fetch });
+
+    await tester("stripe", { STRIPE_SECRET_KEY: "sk_test_1", STRIPE_API_URL: "http://127.0.0.1:9999" });
+    await tester("apollo", { APOLLO_API_KEY: "ak", CONTACT_ENRICHMENT_PROVIDER: "apollo", CONTACT_ENRICHMENT_API_URL: "http://127.0.0.1:9998/api/v1" });
+
+    expect(requests.map((request) => request.url)).toEqual(["http://127.0.0.1:9999/v1/balance", "http://127.0.0.1:9998/api/v1/auth/health"]);
+  });
+
+  it("Stripe: refuses a live key outside production, as billing does", async () => {
+    const { fetch } = fakeFetch();
+
+    expect(await createConnectionTester({ fetch })("stripe", { STRIPE_SECRET_KEY: "sk_live_1" })).toEqual({ ok: false, detail: expect.stringContaining("live") });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("Apollo: a key it does not log in with fails", async () => {
+    const { fetch } = fakeFetch(200, { is_logged_in: false });
+
+    expect(await createConnectionTester({ fetch })("apollo", { APOLLO_API_KEY: "ak" })).toEqual({ ok: false, detail: expect.stringContaining("not logged in") });
+  });
+
+  it("Stripe's webhook secret cannot be called: its shape is checked", async () => {
+    const { fetch } = fakeFetch();
+    const tester = createConnectionTester({ fetch });
+
+    expect(await tester("stripe", { STRIPE_SECRET_KEY: "sk_test_1", STRIPE_WEBHOOK_SECRET: "nope" })).toEqual({ ok: false, detail: expect.stringContaining("whsec_") });
+    expect(await tester("stripe", { STRIPE_SECRET_KEY: "sk_test_1", STRIPE_WEBHOOK_SECRET: "whsec_abc" })).toEqual({ ok: true });
+  });
+
+  it("Brevo: verifies the SMTP relay with the URL's credentials", async () => {
+    const verifySmtp = vi.fn(async () => {});
+    const tester = createConnectionTester({ verifySmtp });
+
+    expect(await tester("brevo", { SMTP_URL: "smtps://user:pass@smtp-relay.brevo.com:465" })).toEqual({ ok: true });
+    expect(verifySmtp).toHaveBeenCalledWith("smtps://user:pass@smtp-relay.brevo.com:465");
+
+    verifySmtp.mockRejectedValueOnce(new Error("Invalid login: 535 Authentication failed"));
+    expect(await tester("brevo", { SMTP_URL: "smtps://user:pass@smtp-relay.brevo.com:465" })).toEqual({ ok: false, detail: expect.stringContaining("535") });
+  });
+});

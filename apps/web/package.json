@@ -16,7 +16,8 @@
     "./applications": "./src/applications/index.ts",
     "./coach-conversations": "./src/coach-conversations/index.ts",
     "./eu-ai-consent": "./src/eu-ai-consent/index.ts",
-    "./mailers": "./src/auth/mailers.ts"
+    "./mailers": "./src/auth/mailers.ts",
+    "./provider-secrets": "./src/provider-secrets/worker.ts"
   },
   "scripts": {
     "dev": "next dev",

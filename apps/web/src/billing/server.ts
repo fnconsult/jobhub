@@ -1,14 +1,23 @@
 import type { Locale } from "@jobhub/shared/i18n";
 import { getHumanCoaches } from "@/human-coaches/server";
+import { STRIPE_SECRET_NAMES } from "@/provider-secrets/catalog";
+import { liveObject } from "@/provider-secrets/resolver";
+import { getSecretResolver } from "@/provider-secrets/server";
 import { billingConfigFromEnv } from "./config";
 import { createBilling, type Billing } from "./index";
 import { paymentFailedNotice, type PaymentFailedNotice } from "./payment-failed-notice";
 
 let instance: Billing | undefined;
 
-/** The app's billing module, configured from the environment on first use. Paid Coaching Sessions go to the Human Coaches module. */
+/**
+ * The app's billing module, configured from the environment with the Provider Secrets
+ * over it, and rebuilt when the Stripe keys are replaced in the Back Office. Paid
+ * Coaching Sessions go to the Human Coaches module.
+ */
 export function getBilling(): Billing {
-  instance ??= createBilling({ ...billingConfigFromEnv(process.env), onCoachingSessionPaid: (paid) => getHumanCoaches().recordPaidSession(paid) });
+  instance ??= liveObject(getSecretResolver(), STRIPE_SECRET_NAMES, (env) =>
+    createBilling({ ...billingConfigFromEnv(env), onCoachingSessionPaid: (paid) => getHumanCoaches().recordPaidSession(paid) }),
+  );
   return instance;
 }
 

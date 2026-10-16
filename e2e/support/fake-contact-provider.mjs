@@ -2,7 +2,8 @@
 // contact-data providers behind Enriched Contacts (issue #23): the suite runs
 // with CONTACT_ENRICHMENT_PROVIDER=apollo, and Apollo's API is answered here;
 // a server started with CONTACT_ENRICHMENT_PROVIDER=lusha gets Lusha's v3 API
-// (issue #77). Nothing reaches the real ones.
+// (issue #77), and Lusha's account usage answers the Clés connection test, accepting
+// e2e-lusha-key and any key starting e2e-lusha-valid- (#208). Nothing reaches the real ones.
 //
 // Apollo: a search at any company finds two made-up people, Claire Martin (DRH)
 // and Hugo Bernard (Responsable recrutement). Claire's details reveal a work
@@ -112,6 +113,13 @@ function answerLusha(url, init) {
 globalThis.fetch = async (input, init) => {
   const url = new URL(typeof input === "string" || input instanceof URL ? input : input.url);
   if (url.href.startsWith(`${LUSHA}/`)) return answerLusha(url, init);
+  // Lusha's account usage, the Clés section's connection test (#208): a key Lusha does not know is
+  // refused, echoed back in the answer as some providers do, so the suite can check it is scrubbed.
+  if (url.href === "https://api.lusha.com/account/usage") {
+    const key = new Headers(init?.headers).get("api_key") ?? "";
+    if (key !== LUSHA_KEY && !key.startsWith("e2e-lusha-valid-")) return Response.json({ statusCode: 401, message: `Invalid api_key ${key}` }, { status: 401 });
+    return Response.json({ usage: { credits: { used: 0, total: 100 } } });
+  }
   if (`${url.origin}/api/v1` !== API) return realFetch(input, init);
   const headers = new Headers(init?.headers);
   if (headers.get("x-api-key") !== KEY) return Response.json({ error: "Invalid access credentials." }, { status: 401 });

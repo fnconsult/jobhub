@@ -6,7 +6,7 @@ const sections = (nav: ReturnType<typeof backOfficeNav>) => nav.map((group) => [
 
 describe("the Back Office navigation", () => {
   it("shows a super-admin every section, grouped, and no empty group", () => {
-    expect(sections(backOfficeNav(backOfficeAccess(["super-admin"]), "/admin"))).toEqual([
+    expect(sections(backOfficeNav(backOfficeAccess(["super-admin"])))).toEqual([
       ["offer", [["planQuotas", "/admin/quotas"]]],
       [
         "coaching",
@@ -26,8 +26,8 @@ describe("the Back Office navigation", () => {
   });
 
   it("shows only the sections an Administrator's roles cover, and leaves out groups with none", () => {
-    expect(sections(backOfficeNav(backOfficeAccess(["plans-manager"]), "/admin"))).toEqual([["offer", [["planQuotas", "/admin/quotas"]]]]);
-    expect(sections(backOfficeNav(backOfficeAccess(["coach-manager"]), "/admin"))).toEqual([
+    expect(sections(backOfficeNav(backOfficeAccess(["plans-manager"])))).toEqual([["offer", [["planQuotas", "/admin/quotas"]]]]);
+    expect(sections(backOfficeNav(backOfficeAccess(["coach-manager"])))).toEqual([
       [
         "coaching",
         [
@@ -36,13 +36,7 @@ describe("the Back Office navigation", () => {
         ],
       ],
     ]);
-    expect(backOfficeNav(backOfficeAccess(["support"]), "/admin").map((group) => group.key)).toEqual(["offer", "coaching"]);
-    expect(backOfficeNav(backOfficeAccess([]), "/admin")).toEqual([]);
-  });
-
-  it("marks the section shown, pages under it included", () => {
-    const nav = backOfficeNav(backOfficeAccess(["super-admin"]), "/admin/journal");
-    const current = nav.flatMap((group) => group.sections).filter((section) => section.current);
-    expect(current.map((section) => section.key)).toEqual(["journal"]);
+    expect(backOfficeNav(backOfficeAccess(["support"])).map((group) => group.key)).toEqual(["offer", "coaching"]);
+    expect(backOfficeNav(backOfficeAccess([]))).toEqual([]);
   });
 });

@@ -1,12 +1,10 @@
 import { EUR_PER_USD } from "@jobhub/ai";
 import type { Metadata } from "next";
-import Link from "next/link";
-import { requireAdministrator } from "@/admin/server";
+import { requireBackOffice } from "@/admin/server";
 import { COACH_MESSAGE_COST_TARGET_EUR } from "@/coach-conversations";
 import { coachCostOfLastDays } from "@/coach-conversations/server";
-import { BackOfficeHeader } from "@/components/BackOfficeHeader";
+import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getRequestLocale, getServerT } from "@/i18n/server";
-import { routes } from "@/routes";
 
 /** How many days back the page looks. */
 const DAYS = 30;
@@ -14,14 +12,14 @@ const DAYS = 30;
 export async function generateMetadata(): Promise<Metadata> {
   // Metadata renders apart from the page: without this, the 404 shown to
   // non-Administrators would still carry the back office's title.
-  await requireAdministrator();
+  await requireBackOffice("coachMessageCost");
   const t = await getServerT();
   return { title: `${t("admin.coachCost.title")} · ${t("admin.title")}`, robots: { index: false } };
 }
 
 /** Administrators follow what one AI Coach reply costs, per day: median and 90th percentile against the target. */
 export default async function CoachCostPage() {
-  await requireAdministrator();
+  const { access } = await requireBackOffice("coachMessageCost");
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
   const days = await coachCostOfLastDays(DAYS);
@@ -38,11 +36,7 @@ export default async function CoachCostPage() {
     );
 
   return (
-    <main className="page">
-      <BackOfficeHeader />
-      <p>
-        <Link href={routes.admin}>{t("admin.back")}</Link>
-      </p>
+    <BackOfficeLayout access={access}>
       <h1>{t("admin.coachCost.title")}</h1>
       <p className="lead">{t("admin.coachCost.intro", { days: String(DAYS), target: eur.format(COACH_MESSAGE_COST_TARGET_EUR) })}</p>
       <p>{t("admin.coachCost.estimate", { rate: number.format(EUR_PER_USD) })}</p>
@@ -85,6 +79,6 @@ export default async function CoachCostPage() {
           </table>
         </div>
       )}
-    </main>
+    </BackOfficeLayout>
   );
 }

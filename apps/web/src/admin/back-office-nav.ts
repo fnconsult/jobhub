@@ -27,17 +27,15 @@ export type BackOfficeNavGroupKey = (typeof GROUPS)[number]["key"];
 
 export interface BackOfficeNavGroup {
   key: BackOfficeNavGroupKey;
-  sections: { key: BackOfficePage; href: string; current: boolean }[];
+  sections: { key: BackOfficePage; href: string }[];
 }
 
-const isUnder = (pathname: string, path: string) => pathname === path || pathname.startsWith(`${path}/`);
-
-/** The Back Office navigation for `access`, on the page at `pathname`: only the sections it covers, and only groups with one. */
-export function backOfficeNav(access: BackOfficeAccess, pathname: string): BackOfficeNavGroup[] {
+/** The Back Office navigation for `access`: only the sections it covers, and only groups with one. */
+export function backOfficeNav(access: BackOfficeAccess): BackOfficeNavGroup[] {
   return GROUPS.map((group) => ({
     key: group.key,
     sections: group.sections
       .filter((key) => access.can(BACK_OFFICE_PAGES[key].resource, "read"))
-      .map((key) => ({ key, href: BACK_OFFICE_PAGES[key].href, current: isUnder(pathname, BACK_OFFICE_PAGES[key].href) })),
+      .map((key) => ({ key, href: BACK_OFFICE_PAGES[key].href })),
   })).filter((group) => group.sections.length > 0);
 }

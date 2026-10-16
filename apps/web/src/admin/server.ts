@@ -30,6 +30,18 @@ export async function currentIsAdministrator(): Promise<boolean> {
 }
 
 /**
+ * For the Back Office's API routes: the Administrator signed in on this request and what
+ * they may do, read afresh from the database; null for anyone else (signed out or with no
+ * Back Office Role), whom the route answers 404, so the Back Office stays unseen.
+ */
+export async function backOfficeAdministrator(): Promise<{ administrator: Person; access: AdministratorAccess } | null> {
+  const person = await getCurrentCandidate();
+  if (!person) return null;
+  const access = await getAdministrators().access(person);
+  return access.isAdministrator ? { administrator: { id: person.id, email: person.email, emailVerified: person.emailVerified }, access } : null;
+}
+
+/**
  * The Administrator signed in on this request, and what they may do, read afresh
  * from the database. Sends anonymous visitors to sign in, and answers 404 to
  * anyone else, so the Back Office stays unseen: to everyone but Administrators,

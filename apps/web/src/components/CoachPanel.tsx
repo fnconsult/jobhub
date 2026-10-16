@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import type { ParseKeys } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { CoachFocus } from "@/coach";
 import { coachReplyBlocks, type Inline } from "@/coach/reply-text";
@@ -26,6 +27,8 @@ type Control = {
   toggle: () => void;
   /** Each button registers itself, so closing the panel gives focus back to the one on screen. */
   register: (button: HTMLButtonElement | null) => (() => void) | undefined;
+  /** The button's words. */
+  label: ParseKeys;
 };
 
 const CoachPanelControl = createContext<Control | null>(null);
@@ -40,7 +43,7 @@ export function CoachPanelToggle({ floating = false }: { floating?: boolean }) {
   const { t } = useTranslation();
   const control = useContext(CoachPanelControl);
   if (!control) return null;
-  const { open, panelId, toggle, register } = control;
+  const { open, panelId, toggle, register, label } = control;
   return (
     <button
       ref={register}
@@ -51,7 +54,7 @@ export function CoachPanelToggle({ floating = false }: { floating?: boolean }) {
       onClick={toggle}
     >
       <Icons.coach />
-      {t("coachPanel.open")}
+      {t(label)}
     </button>
   );
 }
@@ -83,21 +86,70 @@ const IN_VIEW_LABEL = {
 
 type Status = "idle" | "sending" | "unavailable" | "invalid";
 
-/** This browser remembers which Coach Conversation was open, to reopen it after a reload. */
-const OPEN_CONVERSATION_KEY = "jobhub.coachConversation";
+/**
+ * Which panel it is: the Candidate's Coach Panel, with the AI Coach, or the
+ * Back Office Assistant (#205), the same panel for Administrators in the Back
+ * Office, with its own conversations and no Coach Memory, nothing In view and
+ * no Job Search.
+ */
+export type PanelKind = "coach" | "backOfficeAssistant";
 
-function remember(conversationId: string | null) {
+/** What a message's author is called on the server, for each panel. */
+type ServerMessage = { from: "candidate" | "coach" | "administrator" | "assistant"; text: string };
+
+const PANELS = {
+  coach: {
+    send: "/api/coach",
+    conversations: "/api/coach/conversations",
+    /** This browser remembers which conversation was open, to reopen it after a reload. */
+    storageKey: "jobhub.coachConversation",
+    coachFeatures: true,
+    texts: {
+      open: "coachPanel.open",
+      title: "coachPanel.title",
+      welcome: "coachPanel.welcome",
+      thinking: "coachPanel.thinking",
+      unavailable: "coachPanel.errors.unavailable",
+      messagesLabel: "coachPanel.messagesLabel",
+      author: "questionnaire.coach",
+      retention: "coachPanel.retention",
+      noConversations: "coachPanel.noConversations",
+    },
+  },
+  backOfficeAssistant: {
+    send: "/api/admin/assistant",
+    conversations: "/api/admin/assistant/conversations",
+    storageKey: "jobhub.backOfficeAssistantConversation",
+    coachFeatures: false,
+    texts: {
+      open: "backOfficeAssistant.open",
+      title: "backOfficeAssistant.title",
+      welcome: "backOfficeAssistant.welcome",
+      thinking: "backOfficeAssistant.thinking",
+      unavailable: "backOfficeAssistant.unavailable",
+      messagesLabel: "backOfficeAssistant.messagesLabel",
+      author: "backOfficeAssistant.author",
+      retention: "backOfficeAssistant.retention",
+      noConversations: "backOfficeAssistant.noConversations",
+    },
+  },
+} as const satisfies Record<PanelKind, unknown>;
+
+/** A message as the panel shows it: the person's own, or the AI's reply. */
+const shown = (message: ServerMessage): CoachMessage => ({ from: message.from === "candidate" || message.from === "administrator" ? "candidate" : "coach", text: message.text });
+
+function remember(storageKey: string, conversationId: string | null) {
   try {
-    if (conversationId) window.localStorage.setItem(OPEN_CONVERSATION_KEY, conversationId);
-    else window.localStorage.removeItem(OPEN_CONVERSATION_KEY);
+    if (conversationId) window.localStorage.setItem(storageKey, conversationId);
+    else window.localStorage.removeItem(storageKey);
   } catch {
     // Storage blocked: the conversation is still saved, only not reopened by itself.
   }
 }
 
-function remembered(): string | null {
+function remembered(storageKey: string): string | null {
   try {
-    return window.localStorage.getItem(OPEN_CONVERSATION_KEY);
+    return window.localStorage.getItem(storageKey);
   } catch {
     return null;
   }
@@ -142,11 +194,12 @@ function CoachReplyText({ text }: { text: string }) {
   );
 }
 
-/** A saved Coach Conversation with its messages, or null when it is gone or cannot be read. */
-async function fetchConversation(conversationId: string): Promise<{ conversation: ConversationSummary & { messages: CoachMessage[] } } | { gone: boolean }> {
-  const response = await fetch(`/api/coach/conversations/${encodeURIComponent(conversationId)}`).catch(() => null);
+/** A saved conversation with its messages, or null when it is gone or cannot be read. */
+async function fetchConversation(endpoint: string, conversationId: string): Promise<{ conversation: ConversationSummary & { messages: CoachMessage[] } } | { gone: boolean }> {
+  const response = await fetch(`${endpoint}/${encodeURIComponent(conversationId)}`).catch(() => null);
   if (!response?.ok) return { gone: response?.status === 404 };
-  return response.json();
+  const { conversation } = (await response.json()) as { conversation: ConversationSummary & { messages: ServerMessage[] } };
+  return { conversation: { ...conversation, messages: conversation.messages.map(shown) } };
 }
 
 /**
@@ -156,10 +209,13 @@ async function fetchConversation(conversationId: string): Promise<{ conversation
  * reload; each message goes with what the Candidate has in view. The Candidate
  * starts new conversations and lists, reopens, renames or deletes saved ones.
  * With a Profile in view, the Candidate can also ask the AI Coach to search
- * for Job Offers for it.
+ * for Job Offers for it. `kind="backOfficeAssistant"`: the same panel for an
+ * Administrator in the Back Office (see PanelKind).
  */
-export function CoachPanel({ children }: { children: ReactNode }) {
+export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; children: ReactNode }) {
   const { t } = useTranslation();
+  const panel = PANELS[kind];
+  const texts = panel.texts;
   const id = useId();
   const [open, setOpen] = useState(false);
   const [inView, setInViewState] = useState<InView | null>(null);
@@ -188,15 +244,15 @@ export function CoachPanel({ children }: { children: ReactNode }) {
     // The first time the panel opens, reopen the conversation this browser had open.
     if (restored.current) return;
     restored.current = true;
-    const conversationId = remembered();
+    const conversationId = remembered(panel.storageKey);
     if (!conversationId) return;
     setRestoring(true);
-    void fetchConversation(conversationId).then((found) => {
+    void fetchConversation(panel.conversations, conversationId).then((found) => {
       if ("conversation" in found) {
         const { messages: saved, ...summary } = found.conversation;
         setConversation(summary);
         setMessages(saved);
-      } else if (found.gone) remember(null);
+      } else if (found.gone) remember(panel.storageKey, null);
       setRestoring(false);
     });
   }
@@ -228,7 +284,7 @@ export function CoachPanel({ children }: { children: ReactNode }) {
     setConversation(null);
     setMessages([]);
     setStatus("idle");
-    remember(null);
+    remember(panel.storageKey, null);
     showChat();
   }
 
@@ -236,7 +292,7 @@ export function CoachPanel({ children }: { children: ReactNode }) {
     setView("list");
     setConversations(null);
     setListFailed(false);
-    const response = await fetch("/api/coach/conversations").catch(() => null);
+    const response = await fetch(panel.conversations).catch(() => null);
     if (response?.ok) setConversations((await response.json()).conversations);
     else setListFailed(true);
   }
@@ -251,7 +307,7 @@ export function CoachPanel({ children }: { children: ReactNode }) {
   }, [messages, status, view, open]);
 
   async function openConversation(conversationId: string): Promise<boolean> {
-    const found = await fetchConversation(conversationId);
+    const found = await fetchConversation(panel.conversations, conversationId);
     if (!("conversation" in found)) {
       if (found.gone) setConversations((list) => list?.filter((item) => item.id !== conversationId) ?? null);
       return false;
@@ -260,7 +316,7 @@ export function CoachPanel({ children }: { children: ReactNode }) {
     setConversation(summary);
     setMessages(saved);
     setStatus("idle");
-    remember(summary.id);
+    remember(panel.storageKey, summary.id);
     showChat();
     return true;
   }
@@ -280,26 +336,26 @@ export function CoachPanel({ children }: { children: ReactNode }) {
       setStatus(error);
     };
     try {
-      const response = await fetch("/api/coach", {
+      const response = await fetch(panel.send, {
         method: "POST",
         headers: { "content-type": "application/json" },
         // The server holds the conversation: only the new message goes.
         body: JSON.stringify({
           ...(conversation ? { conversationId: conversation.id } : {}),
           message: text,
-          ...(inView ? { focus: { kind: inView.kind, id: inView.id, ...(inView.profileId ? { profileId: inView.profileId } : {}) } } : {}),
+          ...(inView && panel.coachFeatures ? { focus: { kind: inView.kind, id: inView.id, ...(inView.profileId ? { profileId: inView.profileId } : {}) } } : {}),
         }),
       });
       const body = await response.json().catch(() => ({}));
       if (response.ok && typeof body.reply === "string") {
         setConversation(body.conversation);
-        remember(body.conversation.id);
+        remember(panel.storageKey, body.conversation.id);
         setMessages([...shown, { from: "coach", text: body.reply }]);
         setStatus("idle");
       } else if (response.status === 404) {
         // Deleted meanwhile (another tab, or kept past its 12 months): the message starts a new one.
         setConversation(null);
-        remember(null);
+        remember(panel.storageKey, null);
         setMessages([]);
         setDraft(text);
         setStatus("unavailable");
@@ -315,7 +371,7 @@ export function CoachPanel({ children }: { children: ReactNode }) {
       })
     : t("coachPanel.nothingInView");
 
-  const control: Control = { open, panelId: `${id}-panel`, toggle: () => (open ? close() : openPanel()), register };
+  const control: Control = { open, panelId: `${id}-panel`, toggle: () => (open ? close() : openPanel()), register, label: texts.open };
 
   return (
     <SetInView.Provider value={setInView}>
@@ -324,7 +380,7 @@ export function CoachPanel({ children }: { children: ReactNode }) {
         {open ? (
           <aside id={`${id}-panel`} className="coach-panel" aria-labelledby={`${id}-title`} onKeyDown={onKeyDown}>
             <div className="coach-panel-header">
-              <h2 id={`${id}-title`}>{t("coachPanel.title")}</h2>
+              <h2 id={`${id}-title`}>{t(texts.title)}</h2>
               <button className="button button-quiet" type="button" onClick={close}>
                 <Icons.close />
                 {t("coachPanel.close")}
@@ -341,7 +397,7 @@ export function CoachPanel({ children }: { children: ReactNode }) {
                   {t("coachPanel.backToConversation")}
                 </button>
               )}
-              {view !== "memory" ? (
+              {view !== "memory" && panel.coachFeatures ? (
                 <button className="button button-quiet" type="button" onClick={() => setView("memory")}>
                   {t("coachMemory.open")}
                 </button>
@@ -358,6 +414,8 @@ export function CoachPanel({ children }: { children: ReactNode }) {
             ) : view === "list" ? (
               <div className="coach-panel-body">
                 <CoachConversationList
+                  endpoint={panel.conversations}
+                  texts={texts}
                   conversations={conversations}
                   loadFailed={listFailed}
                   onOpen={openConversation}
@@ -370,7 +428,7 @@ export function CoachPanel({ children }: { children: ReactNode }) {
                     if (conversation?.id === deletedId) {
                       setConversation(null);
                       setMessages([]);
-                      remember(null);
+                      remember(panel.storageKey, null);
                     }
                   }}
                 />
@@ -379,8 +437,8 @@ export function CoachPanel({ children }: { children: ReactNode }) {
               <>
                 <div className="coach-panel-context">
                   <h3 className="coach-panel-conversation">{conversation ? conversation.title : t("coachPanel.newConversation")}</h3>
-                  <p className="coach-panel-in-view">{inViewLabel}</p>
-                  {profileIdOf(inView) ? (
+                  {panel.coachFeatures ? <p className="coach-panel-in-view">{inViewLabel}</p> : <p className="coach-panel-in-view">{t("backOfficeAssistant.readOnly")}</p>}
+                  {!panel.coachFeatures ? null : profileIdOf(inView) ? (
                     <StartJobSearchButton key={profileIdOf(inView)} profileId={profileIdOf(inView)!} label={t("coachPanel.searchJobs")} className="button" />
                   ) : (
                     <p className="hint">{t("coachPanel.searchHint")}</p>
@@ -388,30 +446,30 @@ export function CoachPanel({ children }: { children: ReactNode }) {
                 </div>
                 <div className="coach-panel-body" ref={body}>
                   {restoring ? <p role="status">{t("coachPanel.loading")}</p> : null}
-                  <ol className="chat coach-panel-messages" aria-label={t("coachPanel.messagesLabel")} aria-live="polite">
+                  <ol className="chat coach-panel-messages" aria-label={t(texts.messagesLabel)} aria-live="polite">
                     <li className="chat-message chat-coach">
-                      <span className="chat-author">{t("questionnaire.coach")}</span>
-                      <p>{t("coachPanel.welcome")}</p>
+                      <span className="chat-author">{t(texts.author)}</span>
+                      <p>{t(texts.welcome)}</p>
                     </li>
                     {messages.map((message, index) => (
                       <li key={index} className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}`}>
-                        <span className="chat-author">{message.from === "coach" ? t("questionnaire.coach") : t("questionnaire.you")}</span>
+                        <span className="chat-author">{message.from === "coach" ? t(texts.author) : t("questionnaire.you")}</span>
                         {message.from === "coach" ? <CoachReplyText text={message.text} /> : <p>{message.text}</p>}
                       </li>
                     ))}
                   </ol>
                   {status === "sending" ? (
                     <p className="notice" role="status">
-                      {t("coachPanel.thinking")}
+                      {t(texts.thinking)}
                     </p>
                   ) : null}
                   {status === "unavailable" || status === "invalid" ? (
                     <p className="notice" role="alert">
-                      {t(`coachPanel.errors.${status}`)}
+                      {t(status === "unavailable" ? texts.unavailable : "coachPanel.errors.invalid")}
                     </p>
                   ) : null}
                   <div ref={messagesEnd} aria-hidden="true" />
-                  {conversation ? <CoachMemoryProposals key={conversation.id} conversationId={conversation.id} /> : null}
+                  {conversation && panel.coachFeatures ? <CoachMemoryProposals key={conversation.id} conversationId={conversation.id} /> : null}
                 </div>
                 <form className="coach-panel-form" onSubmit={send}>
                   <label htmlFor={`${id}-message`}>{t("coachPanel.messageLabel")}</label>

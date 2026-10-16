@@ -1,5 +1,6 @@
 import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
+import type { BackOfficeAuditEntry } from "../admin/back-office";
 import { STARTING_PLAN_QUOTAS } from "../billing";
 import { beforeEach, describe, expect, it } from "vitest";
 import { backOfficeAccess, type BackOfficeRole } from "../admin/access";
@@ -47,7 +48,7 @@ function backOfficeData() {
     },
     async journal() {
       reads.push("journal");
-      return [
+      const entries: BackOfficeAuditEntry[] = [
         {
           id: "3",
           at: new Date("2026-10-14T09:00:00Z"),
@@ -79,6 +80,7 @@ function backOfficeData() {
           after: { matchScores: 4321 },
         },
       ];
+      return entries;
     },
   };
   return { sources, reads };

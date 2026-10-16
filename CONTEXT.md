@@ -247,7 +247,7 @@ An Application whose Candidate reported its Job Offer as no longer published, wh
 _Avoid_: Reported expired, closed by the Candidate
 
 **Presumed Employer**:
-The AI Coach's guess at the real employer behind a Job Offer posted by a recruiting agency. It becomes the employer, and gets a Company Dossier, only once the Candidate confirms it.
+The AI Coach's guess at the real employer behind a Job Offer posted by a recruiting agency. It becomes the employer, and gets a Company Dossier, only once the Candidate confirms it. It is a company name; when the posting only describes the client, there is no name to confirm and the Candidate names the employer.
 _Avoid_: Hidden employer, client
 
 **Job Digest**:

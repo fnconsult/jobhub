@@ -92,7 +92,11 @@ export type CompanyDossierState =
   /** The Job Offer names no employer: the Candidate can name it. */
   | { status: "employer_unknown" }
   /** Posted by a recruiting agency: the AI Coach's guess, to be confirmed by the Candidate before anything is looked up. */
-  | { status: "awaiting_confirmation"; presumedEmployer: string | null; agency?: string }
+  /**
+   * `presumedEmployer` is a company name only, never a description: when the posting only describes the client
+   * (e.g. "une entreprise spécialisée dans…, nom non précisé"), it is null and the description is given apart.
+   */
+  | { status: "awaiting_confirmation"; presumedEmployer: string | null; presumedEmployerDescription?: string; agency?: string }
   | { status: "built"; dossier: CompanyDossier };
 
 /** The employer the Candidate named is not a company: a sole trader (a private person), or a SIREN the register does not list. */
@@ -299,10 +303,33 @@ const ANALYSIS_SYSTEM =
   "Tu analyses une offre d'emploi publique. Dis si elle est publiée par un cabinet de recrutement, une agence d'intérim ou un " +
   "chasseur de têtes pour le compte d'un client, et si oui quel est le plus probablement ce client (l'employeur réel), " +
   "d'après le texte seulement. Réponds uniquement par un objet JSON : " +
-  '{"recruitingAgency": true|false, "presumedEmployer": "nom de l\'entreprise" ou null}.';
+  '{"recruitingAgency": true|false, "presumedEmployer": "nom de l\'entreprise" ou null, "presumedEmployerDescription": "description du client" ou null}. ' +
+  "Ne mets dans presumedEmployer que le nom propre d'une entreprise ; si le texte ne la nomme pas, mets null et décris-la " +
+  "en une phrase dans presumedEmployerDescription.";
+
+/** Words that say a company's name is withheld: what holds them describes the employer, it does not name it. */
+const NAME_WITHHELD =
+  /\b(?:nom )?non (?:précis|precis|communiqu|mentionn|divulgu|indiqu|nomm|cit|révél|revel|dévoil|devoil)|confidenti|anonym|inconnu|undisclosed|not (?:specified|disclosed|named|given)/i;
+/** Longer than any company name: a description. */
+const MAX_NAME_WORDS = 7;
+const DESCRIBES = /\bspécialisée?s? (?:dans|en)\b/i;
+
+/**
+ * The Presumed Employer as a name, and apart from it what describes it: an answer the analysis gives as a name
+ * but that only describes the client is never taken as one (it would be prefilled as the employer and looked up).
+ */
+function presumedEmployerFrom(name: unknown, description: unknown): { name: string | null; description: string | null } {
+  const reads = (text: unknown) => (typeof text === "string" ? text.trim().slice(0, 200) : "") || null;
+  const given = reads(name);
+  if (given && (NAME_WITHHELD.test(given) || DESCRIBES.test(given) || given.split(/\s+/).length > MAX_NAME_WORDS)) {
+    return { name: null, description: given };
+  }
+  return { name: given, description: given ? null : reads(description) };
+}
 
 interface Row {
   presumed_employer: string | null;
+  presumed_employer_description: string | null;
   agency: string | null;
   awaiting_confirmation: boolean;
   confirmed_employer: string | null;
@@ -313,7 +340,10 @@ function stateFrom(row: Row | undefined): CompanyDossierState {
   if (!row) return { status: "not_built" };
   if (row.dossier) return { status: "built", dossier: { ...row.dossier, builtAt: new Date(row.dossier.builtAt) } as CompanyDossier };
   if (row.awaiting_confirmation) {
-    const state: CompanyDossierState = { status: "awaiting_confirmation", presumedEmployer: row.presumed_employer };
+    // Rows saved before descriptions were kept apart may hold one as the name.
+    const presumed = presumedEmployerFrom(row.presumed_employer, row.presumed_employer_description);
+    const state: CompanyDossierState = { status: "awaiting_confirmation", presumedEmployer: presumed.name };
+    if (presumed.description) state.presumedEmployerDescription = presumed.description;
     if (row.agency) state.agency = row.agency;
     return state;
   }
@@ -326,7 +356,7 @@ export function createCompanyDossiers(
 ): CompanyDossiers {
   async function rowOf(applicationId: string): Promise<Row | undefined> {
     const { rows } = await database.query<Row>(
-      `SELECT presumed_employer, agency, awaiting_confirmation, confirmed_employer, dossier FROM company_dossier WHERE application_id = $1`,
+      `SELECT presumed_employer, presumed_employer_description, agency, awaiting_confirmation, confirmed_employer, dossier FROM company_dossier WHERE application_id = $1`,
       [applicationId],
     );
     return rows[0];
@@ -335,6 +365,7 @@ export function createCompanyDossiers(
   async function save(applicationId: string, fields: Partial<Omit<Row, "dossier">> & { dossier?: CompanyDossier | null }): Promise<CompanyDossierState> {
     const row: Row = {
       presumed_employer: null,
+      presumed_employer_description: null,
       agency: null,
       awaiting_confirmation: false,
       confirmed_employer: null,
@@ -343,11 +374,19 @@ export function createCompanyDossiers(
       ...fields,
     } as Row;
     await database.query(
-      `INSERT INTO company_dossier (application_id, presumed_employer, agency, awaiting_confirmation, confirmed_employer, dossier, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, now())
+      `INSERT INTO company_dossier (application_id, presumed_employer, agency, awaiting_confirmation, confirmed_employer, dossier, presumed_employer_description, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, now())
        ON CONFLICT (application_id) DO UPDATE SET presumed_employer = $2, agency = $3, awaiting_confirmation = $4,
-         confirmed_employer = $5, dossier = $6, updated_at = now()`,
-      [applicationId, row.presumed_employer, row.agency, row.awaiting_confirmation, row.confirmed_employer, row.dossier ? JSON.stringify(row.dossier) : null],
+         confirmed_employer = $5, dossier = $6, presumed_employer_description = $7, updated_at = now()`,
+      [
+        applicationId,
+        row.presumed_employer,
+        row.agency,
+        row.awaiting_confirmation,
+        row.confirmed_employer,
+        row.dossier ? JSON.stringify(row.dossier) : null,
+        row.presumed_employer_description,
+      ],
     );
     return stateFrom((await rowOf(applicationId))!);
   }
@@ -372,7 +411,10 @@ export function createCompanyDossiers(
   }
 
   /** Is the Job Offer posted by a recruiting agency, and for whom? Public posting text only. */
-  async function analyse(candidateId: string, application: Application): Promise<{ recruitingAgency: boolean; presumedEmployer: string | null }> {
+  async function analyse(
+    candidateId: string,
+    application: Application,
+  ): Promise<{ recruitingAgency: boolean; presumedEmployer: { name: string | null; description: string | null } }> {
     const { jobOffer } = application;
     const { text } = await ai.generate({
       task: "offer_analysis",
@@ -382,8 +424,10 @@ export function createCompanyDossiers(
       maxTokens: 200,
     });
     const answer = jsonIn(text);
-    const presumed = typeof answer?.presumedEmployer === "string" ? answer.presumedEmployer.trim().slice(0, 200) : "";
-    return { recruitingAgency: answer?.recruitingAgency === true, presumedEmployer: presumed || null };
+    return {
+      recruitingAgency: answer?.recruitingAgency === true,
+      presumedEmployer: presumedEmployerFrom(answer?.presumedEmployer, answer?.presumedEmployerDescription),
+    };
   }
 
   async function ownApplication(candidateId: string, applicationId: string): Promise<Application | null> {
@@ -416,12 +460,17 @@ export function createCompanyDossiers(
         const { recruitingAgency, presumedEmployer } = await analyse(candidateId, application);
         if (recruitingAgency) {
           // Only a guess: nothing is looked up for it until the Candidate confirms it.
-          return save(applicationId, { awaiting_confirmation: true, presumed_employer: presumedEmployer, agency: application.jobOffer.employer ?? null });
+          return save(applicationId, {
+            awaiting_confirmation: true,
+            presumed_employer: presumedEmployer.name,
+            presumed_employer_description: presumedEmployer.description,
+            agency: application.jobOffer.employer ?? null,
+          });
         }
         const employer = application.jobOffer.employer;
         // No employer named, or not a company: the Candidate is asked to name it.
         const dossier = employer ? await dossierFor(candidateId, employer) : null;
-        return save(applicationId, { awaiting_confirmation: false, presumed_employer: null, agency: null, dossier });
+        return save(applicationId, { awaiting_confirmation: false, presumed_employer: null, presumed_employer_description: null, agency: null, dossier });
       });
     },
 
@@ -451,5 +500,6 @@ export async function migrateCompanyDossiers(database: Pool): Promise<void> {
       dossier jsonb,
       updated_at timestamptz NOT NULL DEFAULT now()
     );
+    ALTER TABLE company_dossier ADD COLUMN IF NOT EXISTS presumed_employer_description text;
   `);
 }

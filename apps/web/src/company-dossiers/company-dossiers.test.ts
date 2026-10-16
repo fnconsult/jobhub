@@ -86,7 +86,7 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
   let otherCandidateId: string;
   let profileId: string;
   /** What the offer analysis answers: is the posting from a recruiting agency, and for whom. */
-  let analysis: { recruitingAgency: boolean; presumedEmployer: string | null } | string;
+  let analysis: { recruitingAgency: boolean; presumedEmployer: string | null; presumedEmployerDescription?: string | null } | string;
   let webAnswer: string;
   let webSources: string[];
 
@@ -497,6 +497,65 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
 
       expect(result).toMatchObject({ ok: true, state: { status: "built", dossier: { employer: "Globex Corp", source: "web" } } });
       expect(perplexity.queries[0]).toContain("« Globex Corp »");
+    });
+
+    describe("unnamed (the posting only describes the agency's client)", () => {
+      const description = "Entreprise française spécialisée dans l'agencement et l'aménagement de pharmacies (nom non précisé)";
+
+      it("proposes no name, and keeps the description apart from it", async () => {
+        analysis = { recruitingAgency: true, presumedEmployer: null, presumedEmployerDescription: description };
+        const applicationId = await applicationFor({ employer: "Talents Business" });
+
+        const result = await dossiers.build(candidateId, applicationId);
+
+        expect(result).toEqual({
+          ok: true,
+          state: { status: "awaiting_confirmation", presumedEmployer: null, presumedEmployerDescription: description, agency: "Talents Business" },
+        });
+        expect(await dossiers.get(candidateId, applicationId)).toMatchObject({ presumedEmployer: null, presumedEmployerDescription: description });
+      });
+
+      it("never takes a description the analysis gives as the name for a name", async () => {
+        analysis = { recruitingAgency: true, presumedEmployer: description };
+        const applicationId = await applicationFor({ employer: "Talents Business" });
+
+        const result = await dossiers.build(candidateId, applicationId);
+
+        expect(result).toMatchObject({ ok: true, state: { status: "awaiting_confirmation", presumedEmployer: null, presumedEmployerDescription: description } });
+      });
+
+      it.each([
+        "Groupe industriel international (confidentiel)",
+        "Client non communiqué",
+        "Acteur majeur de la distribution pharmaceutique en France et en Europe",
+      ])("reads %j as a description, not a name", async (given) => {
+        analysis = { recruitingAgency: true, presumedEmployer: given };
+        const applicationId = await applicationFor({ employer: "Talents Business" });
+
+        expect(await dossiers.build(candidateId, applicationId)).toMatchObject({ state: { presumedEmployer: null, presumedEmployerDescription: given } });
+      });
+
+      it.each(["Société Générale", "Compagnie Générale des Établissements Michelin", "Groupe SEB", "552 100 554"])("keeps %j as a name", async (given) => {
+        analysis = { recruitingAgency: true, presumedEmployer: given };
+        const applicationId = await applicationFor({ employer: "Talents Business" });
+
+        const result = await dossiers.build(candidateId, applicationId);
+
+        expect(result).toMatchObject({ state: { presumedEmployer: given } });
+        expect(result).not.toHaveProperty("state.presumedEmployerDescription");
+      });
+
+      it("builds the dossier from the employer name the Candidate types, never from the description", async () => {
+        analysis = { recruitingAgency: true, presumedEmployer: description };
+        const applicationId = await applicationFor({ employer: "Talents Business" });
+        await dossiers.build(candidateId, applicationId);
+
+        const result = await dossiers.confirmEmployer(candidateId, applicationId, { employer: "Acme Industrie" });
+
+        expect(result).toMatchObject({ ok: true, state: { status: "built", dossier: { employer: "Acme Industrie", siren: "552100554" } } });
+        expect(register.queries).toEqual(["Acme Industrie"]);
+        expect(perplexity.queries).toEqual([]);
+      });
     });
 
     it("asks the Candidate to name the employer when the Job Offer names none", async () => {

@@ -15,6 +15,8 @@ import { createEuAiConsents } from "../eu-ai-consent";
 import { createFollowUps } from "../follow-ups";
 import { createJobOffers, type JobOffers } from "../job-offers";
 import { migrateDatabase } from "../migrations";
+import { backOfficeAccess } from "../admin/access";
+import { createAssistantConversations } from "../back-office-assistant/conversations";
 import { createProfiles, type Profiles } from "../profiles";
 import { createTailoredCvs } from "../tailored-cv";
 import { createTailoredDocuments } from "../tailored-documents";
@@ -121,6 +123,36 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
 
     expect(exported.account?.backOfficeRoles).toEqual([{ role: "support", grantedAt: new Date("2026-10-01T08:00:00Z") }]);
     expect(JSON.stringify(exported)).not.toContain("someone-else");
+  });
+
+  it("the export holds the Administrator's Back Office Assistant conversations with every message, not what the replies cost", async () => {
+    const conversations = createAssistantConversations(database, {
+      assistant: {
+        reply: async () => ({
+          ok: true,
+          reply: "Premium : 4321 Match Scores par mois.",
+          cost: { provider: "mistral", model: "secret-assistant-model", inputTokens: 1, outputTokens: 1, cachedInputTokens: 0, eur: 0.001 },
+        }),
+      },
+    });
+    const sent = await conversations.send({ id: candidateId, access: backOfficeAccess(["support"]) }, { message: "Quotas Premium ?" });
+    if (!sent.ok) throw new Error("fixture conversation refused");
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.backOfficeAssistantConversations).toEqual([
+      {
+        id: sent.conversation.id,
+        title: "Quotas Premium ?",
+        createdAt: expect.any(Date),
+        lastMessageAt: expect.any(Date),
+        messages: [
+          { from: "administrator", text: "Quotas Premium ?", sentAt: expect.any(Date) },
+          { from: "assistant", text: "Premium : 4321 Match Scores par mois.", sentAt: expect.any(Date) },
+        ],
+      },
+    ]);
+    expect(JSON.stringify(exported)).not.toContain("secret-assistant-model");
   });
 
   it("the export holds every Profile with its Search Criteria and every version of its Master CV", async () => {

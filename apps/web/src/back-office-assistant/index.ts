@@ -31,16 +31,9 @@ import type { CoachMessageCost } from "../coach";
 import { COACH_MESSAGE_COST_TARGET_EUR, type CoachCostDay } from "../coach-conversations";
 import type { HumanCoach } from "../human-coaches";
 import { routes } from "../routes";
+import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentMessages } from "./conversation";
 
-/** One message of a conversation with the Back Office Assistant. */
-export interface AssistantMessage {
-  from: "administrator" | "assistant";
-  text: string;
-}
-
-/** Longest single message, and most messages the assistant answers from. */
-export const MAX_MESSAGE_LENGTH = 5000;
-export const MAX_MESSAGES = 40;
+export { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentMessages, type AssistantMessage } from "./conversation";
 
 /** The Back Office data the assistant reads, each source covered by one Back Office resource. */
 export interface BackOfficeAssistantSources {
@@ -86,13 +79,6 @@ const inputSchema = z.object({
     .max(MAX_MESSAGES * 5)
     .refine((messages) => messages.at(-1)?.from === "administrator"),
 });
-
-/** The last MAX_MESSAGES messages, starting with an Administrator's message. */
-export function recentMessages<T extends AssistantMessage>(messages: readonly T[]): T[] {
-  const recent = messages.slice(-MAX_MESSAGES);
-  const start = recent.findIndex((message) => message.from === "administrator");
-  return start === -1 ? [] : recent.slice(start);
-}
 
 const PERSONA = `Tu es l'assistant du Back Office de Jobbbox, pour les Administrateurs (l'équipe Jobbbox).
 Règles :

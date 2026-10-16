@@ -5,7 +5,9 @@ import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApplications, type Applications } from "../applications";
 import { BASE_URL, connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
+import { createActionCards } from "../action-cards";
 import { createEuAiConsents } from "../eu-ai-consent";
+import { createFollowUps } from "../follow-ups";
 import { createJobOffers, type JobOffers } from "../job-offers";
 import { migrateDatabase } from "../migrations";
 import { createProfiles, type Profiles } from "../profiles";
@@ -162,6 +164,20 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
 
     expect((await candidateData.export(candidateId)).euAiConsent).toEqual({ givenAt: new Date("2026-09-01T08:00:00Z") });
     expect(givenAt).toEqual(new Date("2026-09-01T08:00:00Z"));
+  });
+
+  it("the export holds the Follow-up Delays the Candidate set (null while they keep the defaults) and the Follow-ups sent on each Application", async () => {
+    const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));
+    expect(await candidateData.export(candidateId)).toMatchObject({ followUpDelays: null, applications: [{ followUps: [] }] });
+    const followUps = createFollowUps(database, { actionCards: createActionCards(database), applications, mailer: { send: async () => {} }, appUrl: BASE_URL });
+    await followUps.setDelays(candidateId, { afterApplied: 5, afterFollowUp: 12 });
+    // Sent when the Candidate accepts a Follow-up card or sets "Relancée".
+    await database.query(`INSERT INTO follow_up_sent (application_id, sent_at) VALUES ($1, '2026-10-02T09:00:00Z'), ($1, '2026-09-20T09:00:00Z')`, [application.id]);
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.followUpDelays).toEqual({ afterApplied: 5, afterFollowUp: 12 });
+    expect(exported.applications[0]!.followUps).toEqual([{ sentAt: new Date("2026-09-20T09:00:00Z") }, { sentAt: new Date("2026-10-02T09:00:00Z") }]);
   });
 
   it("deleting the account removes the Candidate and everything of theirs, signs them out, and keeps the Job Offers", async () => {

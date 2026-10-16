@@ -427,3 +427,11 @@ _Avoid_: Dunning banner, billing alert
 **Back Office**:
 The internal pages where Administrators manage Plan Quotas and Human Coaches.
 _Avoid_: Admin panel, dashboard, console
+
+**Back Office Audit**:
+The record of every change an Administrator makes in the Back Office: who, when, what and the values before and after. Kept for 3 years, then purged. Jobbbox's own record, so it survives the Administrator's account deletion (their id is cleared, their email at the time stays) and is not part of their data export.
+_Avoid_: Audit log, history, activity feed
+
+**Journal**:
+The Back Office page where Administrators read the Back Office Audit, newest first, filterable by section.
+_Avoid_: Audit page, changelog

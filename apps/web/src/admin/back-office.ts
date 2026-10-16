@@ -181,10 +181,11 @@ export function createBackOffice(database: Pool, deps: BackOfficeDeps): BackOffi
     },
 
     async journal({ section, limit = 200 } = {}) {
+      // Ordered by the table's id, a number: a bare "id" would be the text column selected (10 before 9).
       const { rows } = await database.query<EntryRow>(
         `SELECT id::text, created_at, candidate_id, actor_email, section, target, action, before, after
          FROM back_office_audit WHERE $1::text IS NULL OR section = $1
-         ORDER BY id DESC LIMIT $2`,
+         ORDER BY back_office_audit.id DESC LIMIT $2`,
         [section ?? null, limit],
       );
       return rows.map(entryFrom);

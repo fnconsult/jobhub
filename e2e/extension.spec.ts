@@ -402,17 +402,19 @@ test.describe("Guest Capture and Match Score", () => {
     // Another Job Offer captured is scored anew with the kept CV, then kept in turn.
     const other = await captureFromBadge(Object.keys(boardPages)[4]!);
     await expect(other.getByText(/^Contr.+leur de gestion H\/F$/)).toBeVisible();
-    await expect(other.getByText(scoreLine)).toBeVisible();
+    // A board page states nothing to compare, and its text gives nothing either: not computable, never 0 / 100 (#94).
+    await expect(other.getByText(fr.analysis.scoreNotComputable, { exact: true })).toBeVisible();
+    await expect(other.getByText(fr.analysis.notComputableNote)).toBeVisible();
     await expect.poll(() => scores.requests.length).toBe(3);
     await other.reload();
-    await expect(other.getByText(scoreLine)).toBeVisible();
+    await expect(other.getByText(fr.analysis.scoreNotComputable, { exact: true })).toBeVisible();
     await expect(other.getByText(/^Contr.+leur de gestion H\/F$/)).toBeVisible();
     expect(scores.requests).toHaveLength(3);
 
     // "Recalculer le Match Score" asks for one, whatever is kept.
     await other.getByRole("button", { name: fr.analysis.rescore }).click();
     await expect.poll(() => scores.requests.length).toBe(4);
-    await expect(other.getByText(scoreLine)).toBeVisible();
+    await expect(other.getByText(fr.analysis.scoreNotComputable, { exact: true })).toBeVisible();
     scores.stop();
     await other.getByRole("button", { name: fr.analysis.forget }).click();
     await expect(other.getByText(fr.analysis.forgotten)).toBeVisible();
@@ -687,7 +689,7 @@ test.describe("Guest Capture and Match Score", () => {
     ]);
     await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
     await analysis.getByRole("button", { name: fr.analysis.submit }).click();
-    await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toBeVisible();
+    await expect(analysis.getByText(fr.analysis.scoreNotComputable, { exact: true })).toBeVisible();
     const { guestSession: stored } = await guestSession(analysis);
     const jobOffer = (id: string) => analysis.request.get(`${origin}/api/job-offers/${id}`);
 

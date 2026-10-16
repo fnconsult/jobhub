@@ -4,7 +4,7 @@ import Link from "next/link";
 import { SaveSearchResultButton } from "@/components/JobSearchControls";
 import { jobOfferSalary, jobOfferSite } from "@/components/JobOfferView";
 import { MatchScoreWhy } from "@/components/MatchScoreWhy";
-import { matchScoreReasons } from "@/components/job-search-words";
+import { matchScoreFigure, matchScoreInWords, matchScoreReasons, matchScoreWhyInWords } from "@/components/job-search-words";
 import { routes } from "@/routes";
 
 /** One Job Offer found for a Profile: by a Job Search, or in a Job Digest. */
@@ -51,7 +51,8 @@ function Result({ result, profileId, t, locale }: { result: JobOfferResult; prof
     ["posted", postedOn ?? <span className="date-unknown">{t("jobOffer.dateUnknown")}</span>],
     ["source", site ? t("jobSearch.source", { site }) : null],
   ];
-  const { score } = matchScore;
+  const figure = matchScoreFigure(matchScore);
+  const { score } = figure;
   return (
     <li className="row">
       <div className="row-main">
@@ -65,11 +66,20 @@ function Result({ result, profileId, t, locale }: { result: JobOfferResult; prof
       <div className="row-side">
         <p className="score">
           <span className="visually-hidden">{t("jobSearch.scoreLabel")}</span>
-          <strong>{score}</strong> {t("jobSearch.outOf")}
+          {figure.reliability === "reliable" ? (
+            <>
+              <strong>{score}</strong> {t("jobSearch.outOf")}
+            </>
+          ) : (
+            // Partial or not computable (#94): said in words, never a bare figure that reads as confident.
+            <strong>{matchScoreInWords(figure, t)}</strong>
+          )}
         </p>
-        <span className="meter" aria-hidden="true">
-          <span style={{ width: `${Math.max(0, Math.min(100, score))}%` }} />
-        </span>
+        {figure.reliability === "not_computable" ? null : (
+          <span className="meter" aria-hidden="true">
+            <span style={{ width: `${Math.max(0, Math.min(100, score))}%` }} />
+          </span>
+        )}
       </div>
       <div className="row-actions">
         {applicationId ? (
@@ -89,7 +99,7 @@ function Result({ result, profileId, t, locale }: { result: JobOfferResult; prof
             </Link>
           </>
         )}
-        <MatchScoreWhy summary={t("jobSearch.why", { score })} reasons={matchScoreReasons(matchScore, t, locale)} />
+        <MatchScoreWhy summary={matchScoreWhyInWords(figure, t)} reasons={matchScoreReasons(matchScore, t, locale)} />
       </div>
     </li>
   );

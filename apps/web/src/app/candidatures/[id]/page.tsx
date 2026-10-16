@@ -22,6 +22,7 @@ import { getCompanyDossiers } from "@/company-dossiers/server";
 import { getEnrichedContacts } from "@/enriched-contacts/server";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { ExpiredJobOfferNotice, JobOfferView, jobOfferSite } from "@/components/JobOfferView";
+import { matchScoreFigure, matchScoreInWords } from "@/components/job-search-words";
 import { MatchScoreView } from "@/components/MatchScoreView";
 import { TailoredDocuments } from "@/components/TailoredDocuments";
 import { ABANDON_CARD, FOLLOW_UP_CARD, followUpCardApplies, type FollowUpPayload } from "@/follow-ups";
@@ -107,7 +108,7 @@ export default async function ApplicationPage({ params }: Params) {
             <div className="prop">
               <dt>{t("application.matchLabel")}</dt>
               <dd>
-                <span className="score">{t("matchScore.score", { score: application.matchScore.score })}</span>
+                <span className="score">{matchScoreInWords(matchScoreFigure(application.matchScore), t)}</span>
                 <a href="#match-score-title">{t("application.matchDetail")}</a>
               </dd>
             </div>

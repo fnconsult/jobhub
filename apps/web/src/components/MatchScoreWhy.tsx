@@ -1,6 +1,6 @@
 import type { CriterionStatus } from "@jobhub/shared";
 import type { TFunction } from "i18next";
-import type { MatchScoreReason } from "@/components/job-search-words";
+import { matchScoreInWords, matchScoreReliabilityHint, matchScoreWhyInWords, type MatchScoreFigure, type MatchScoreReason } from "@/components/job-search-words";
 
 /** A verdict is said in words; the colour only reinforces a clear match or mismatch. */
 const VERDICT_TONE: Partial<Record<CriterionStatus, string>> = { match: "success", mismatch: "danger" };
@@ -30,28 +30,31 @@ export function MatchScoreWhy({ summary, reasons }: { summary: string; reasons: 
 
 /**
  * The Match Score of a Job Offer against one Profile, as the Job Offer page
- * shows it: the score out of 100, naming the Profile, then "Pourquoi 86 ?".
+ * shows it: the score out of 100 (or "partiel", or "non calculable", #94),
+ * naming the Profile, then "Pourquoi 86 ?".
  * `live` announces a new score, when the Candidate picks another Profile.
  */
 export function ProfileMatchScore({
   profileName,
-  score,
+  figure,
   reasons,
   live,
   t,
 }: {
   profileName: string;
-  score: number;
+  figure: MatchScoreFigure;
   reasons: readonly MatchScoreReason[];
   live?: boolean;
   t: TFunction;
 }) {
+  const hint = matchScoreReliabilityHint(figure, t);
   return (
     <div className="profile-match">
       <p aria-live={live ? "polite" : undefined}>
-        {t("jobOffer.matchScore", { profile: profileName })} <strong className="score">{t("matchScore.score", { score })}</strong>
+        {t("jobOffer.matchScore", { profile: profileName })} <strong className="score">{matchScoreInWords(figure, t)}</strong>
       </p>
-      <MatchScoreWhy summary={t("jobSearch.why", { score })} reasons={reasons} />
+      {hint ? <p className="hint">{hint}</p> : null}
+      <MatchScoreWhy summary={matchScoreWhyInWords(figure, t)} reasons={reasons} />
     </div>
   );
 }

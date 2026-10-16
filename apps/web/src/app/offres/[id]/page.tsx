@@ -8,7 +8,7 @@ import { CandidateLayout } from "@/components/CandidateLayout";
 import { SaveJobOfferForm } from "@/components/ApplicationControls";
 import { CoachInView } from "@/components/CoachPanel";
 import { ExpiredJobOfferNotice, JobOfferView } from "@/components/JobOfferView";
-import { matchScoreReasons } from "@/components/job-search-words";
+import { matchScoreFigure, matchScoreReasons } from "@/components/job-search-words";
 import { ProfileMatchScore } from "@/components/MatchScoreWhy";
 import { TextSizeControl } from "@/components/TextSizeControl";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -99,7 +99,7 @@ async function SaveOrSeeApplication({ candidateId, jobOffer, profileId }: { cand
     return (
       <>
         <p>{t("jobOffer.alreadySaved")}</p>
-        <ProfileMatchScore profileName={match.profile.name} score={match.matchScore.score} reasons={matchScoreReasons(match.matchScore, t, locale)} t={t} />
+        <ProfileMatchScore profileName={match.profile.name} figure={matchScoreFigure(match.matchScore)} reasons={matchScoreReasons(match.matchScore, t, locale)} t={t} />
         <Link className="button button-primary" href={routes.application(match.applicationId)}>
           {t("jobOffer.seeApplication")}
         </Link>
@@ -108,7 +108,7 @@ async function SaveOrSeeApplication({ candidateId, jobOffer, profileId }: { cand
   }
   const choices = match.matches.map(({ profile, matchScore }) => ({
     ...profile,
-    matchScore: { score: matchScore.score, reasons: matchScoreReasons(matchScore, t, locale) },
+    matchScore: { figure: matchScoreFigure(matchScore), reasons: matchScoreReasons(matchScore, t, locale) },
   }));
   return <SaveJobOfferForm jobOfferId={jobOffer.id} profiles={choices} profileId={match.profileId} />;
 }

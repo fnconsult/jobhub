@@ -340,8 +340,14 @@ The collective term for an Application's Tailored CV, Cover Letter and Outreach 
 **Match Score**:
 A 0–100 measure of how well a CV (Master or Tailored) fits a Job Offer, with an explained breakdown (skills covered/missing, seniority, location, salary, contract type).
 Each breakdown item is a match, partial, mismatch or unknown (the Job Offer or the Search Criteria give nothing to compare); unknown items do not count in the score. Seniority compares the years of experience the Job Offer asks for with the span of dated jobs on the CV.
+With no known item it is not computable (never shown as 0); when its known items weigh less than half the score (skills weigh 40, seniority 20, location and contract type 15, salary 10) it is a Partial Match Score.
+A Match Score the Candidate or Guest asks for comes in two phases, counted once against the Plan Quota: first from what the Job Offer states in structured form; if that is not a reliable 70 or more and the Job Offer lacks a detail a criterion needs, an AI reads the Job Offer's text (never the CV) for it, the details found are kept on the Job Offer (once per Job Offer, never replacing a stated one) and the CV is scored again by the same rules. If the AI cannot read it, the first-phase score is shown, saying so.
 On a Job Offer's page, a signed-in Candidate sees the Match Score against the Profile picked in the save form (the one the Job Search or Job Digest link named first), or, once the Job Offer is an Application, the Application's Profile, archived or not. Showing it never counts against the Plan Quota.
 _Avoid_: Fit, compatibility, relevance
+
+**Partial Match Score**:
+A Match Score whose known items weigh less than half the score (e.g. seniority alone): shown with "partiel" and how many of the 5 items could be compared, never as a confident score.
+_Avoid_: Low-confidence score
 
 **"Pourquoi N ?"**:
 The reasons behind a Match Score of N, shown on each Job Offer of a Job Search or Job Digest: one line per breakdown item with its verdict.

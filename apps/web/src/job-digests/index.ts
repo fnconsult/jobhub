@@ -41,6 +41,7 @@
 import {
   JOB_DIGEST_FREQUENCIES,
   MAX_POSTING_AGE_DAYS,
+  matchScoreReliability,
   PLANS,
   rankByMatchScore,
   scoreMatch,
@@ -408,7 +409,7 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
       const where = [jobOffer.employer, jobOffer.location].filter(Boolean).join(", ");
       return [
         `- ${jobOffer.title}${where ? ` (${where})` : ""}`,
-        `  ${t("jobDigest.email.matchScore", { score: matchScore.score })}`,
+        `  ${t(matchScoreReliability(matchScore) === "partial" ? "jobDigest.email.matchScorePartial" : "jobDigest.email.matchScore", { score: matchScore.score })}`,
         `  ${jobOffer.postedAt ? t("jobDigest.email.postedAt", { date: day.format(jobOffer.postedAt) }) : t("jobDigest.email.dateUnknown")}`,
         `  ${new URL(routes.jobOffer(jobOffer.id, digest.profile.id), deps.baseURL).toString()}`,
       ].join("\n");

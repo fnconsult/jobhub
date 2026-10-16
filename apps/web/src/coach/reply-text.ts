@@ -14,7 +14,11 @@ export interface Inline {
 /** One line of a paragraph or of a list item. */
 export type Line = Inline[];
 
-export type CoachReplyBlock = { kind: "paragraph"; lines: Line[] };
+/**
+ * A paragraph, or a list: bulleted, or numbered from `start`. Headings are bold
+ * paragraphs; quotes are plain text; horizontal rules are left out.
+ */
+export type CoachReplyBlock = { kind: "paragraph"; lines: Line[] } | { kind: "list"; ordered: boolean; start: number; items: Line[][] };
 
 /**
  * What sets text apart in a line, first match wins: ***both***, **bold** or __bold__,
@@ -57,9 +61,9 @@ function inlinesOf(text: string, marks: Marks, into: Inline[]): Inline[] {
 }
 
 /** The runs of `text`, neighbours set alike merged into one. */
-function inlines(text: string): Line {
+function inlines(text: string, marks: Marks = { strong: false, emphasis: false }): Line {
   const line: Line = [];
-  for (const inline of inlinesOf(text, { strong: false, emphasis: false }, [])) {
+  for (const inline of inlinesOf(text, marks, [])) {
     const last = line.at(-1);
     if (last && last.strong === inline.strong && last.emphasis === inline.emphasis) last.text += inline.text;
     else line.push(inline);
@@ -67,17 +71,55 @@ function inlines(text: string): Line {
   return line;
 }
 
+const RULE = /^(?:-{3,}|\*{3,}|_{3,})$/;
+const HEADING = /^#{1,6}\s+(.+)$/;
+const ITEM = /^(?:[-*+•]|(?<number>\d{1,9})[.)])\s+(?<text>.+)$/u;
+
 /** The blocks of the AI Coach reply `text`, in order. */
 export function coachReplyBlocks(text: string): CoachReplyBlock[] {
   const blocks: CoachReplyBlock[] = [];
-  let paragraph: Line[] | null = null;
-  for (const line of text.replace(/\r\n?/g, "\n").split("\n")) {
-    if (!line.trim()) {
-      paragraph = null;
+  /** The block lines go on, and the list item, while no blank line or other block came between. */
+  let current: CoachReplyBlock | null = null;
+  let item: Line[] | null = null;
+  let afterBlank = false;
+  const close = () => {
+    current = null;
+    item = null;
+  };
+  for (const raw of text.replace(/\r\n?/g, "\n").split("\n")) {
+    const line = raw.trim();
+    if (!line) {
+      afterBlank = true;
       continue;
     }
-    if (!paragraph) blocks.push({ kind: "paragraph", lines: (paragraph = []) });
-    paragraph.push(inlines(line.trim()));
+    const heading = HEADING.exec(line);
+    const listItem = ITEM.exec(line);
+    if (RULE.test(line)) close();
+    else if (heading) {
+      blocks.push({ kind: "paragraph", lines: [inlines(heading[1]!, { strong: true, emphasis: false })] });
+      close();
+    } else if (listItem) {
+      const { number, text: itemText } = listItem.groups!;
+      const ordered = number !== undefined;
+      // Blank lines between items keep one list: models often space them out.
+      let list: CoachReplyBlock | null = current;
+      if (list?.kind !== "list" || list.ordered !== ordered) {
+        list = { kind: "list", ordered, start: ordered ? Number(number) : 1, items: [] };
+        blocks.push(list);
+      }
+      list.items.push((item = [inlines(itemText!)]));
+      current = list;
+    } else {
+      const shown = inlines(line.replace(/^>\s?/, ""));
+      if (item && !afterBlank) item.push(shown);
+      else if (current?.kind === "paragraph" && !afterBlank) current.lines.push(shown);
+      else {
+        current = { kind: "paragraph", lines: [shown] };
+        item = null;
+        blocks.push(current);
+      }
+    }
+    afterBlank = false;
   }
   return blocks;
 }

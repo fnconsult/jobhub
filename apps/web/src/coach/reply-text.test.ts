@@ -47,6 +47,41 @@ describe("an AI Coach reply, as the Coach Panel shows it (#164)", () => {
     expect(coachReplyBlocks("Le poste de **Directrice à Lyon.")).toEqual([{ kind: "paragraph", lines: [[plain("Le poste de Directrice à Lyon.")]] }]);
   });
 
+  it("makes a list of lines starting with -, * or •", () => {
+    expect(coachReplyBlocks("Vos points forts :\n- **Pilotage**\n* Lean management\n• Budget")).toEqual([
+      { kind: "paragraph", lines: [[plain("Vos points forts :")]] },
+      { kind: "list", ordered: false, start: 1, items: [[[strong("Pilotage")]], [[plain("Lean management")]], [[plain("Budget")]]] },
+    ]);
+  });
+
+  it("makes a numbered list of lines starting with 1. or 1), from its first number, even with blank lines between items", () => {
+    expect(coachReplyBlocks("3. Relancer\n\n4) Préparer l'entretien")).toEqual([
+      { kind: "list", ordered: true, start: 3, items: [[[plain("Relancer")]], [[plain("Préparer l'entretien")]]] },
+    ]);
+  });
+
+  it("keeps a line that follows a list item, indented or not, in that item", () => {
+    expect(coachReplyBlocks("1. **Pilotage**\n   Vous avez dirigé 3 sites.\n2. Budget\n\nEn résumé : un bon profil.")).toEqual([
+      { kind: "list", ordered: true, start: 1, items: [[[strong("Pilotage")], [plain("Vous avez dirigé 3 sites.")]], [[plain("Budget")]]] },
+      { kind: "paragraph", lines: [[plain("En résumé : un bon profil.")]] },
+    ]);
+  });
+
+  it("starts a new list when bullets follow numbers", () => {
+    expect(coachReplyBlocks("1. Relancer\n- par e-mail")).toEqual([
+      { kind: "list", ordered: true, start: 1, items: [[[plain("Relancer")]]] },
+      { kind: "list", ordered: false, start: 1, items: [[[plain("par e-mail")]]] },
+    ]);
+  });
+
+  it("sets a heading as a bold paragraph of its own, shows a quote as text and leaves out horizontal rules", () => {
+    expect(coachReplyBlocks("## Votre positionnement\nUn profil solide.\n\n---\n> Une citation")).toEqual([
+      { kind: "paragraph", lines: [[strong("Votre positionnement")]] },
+      { kind: "paragraph", lines: [[plain("Un profil solide.")]] },
+      { kind: "paragraph", lines: [[plain("Une citation")]] },
+    ]);
+  });
+
   it("shows inline code and links as their text", () => {
     expect(coachReplyBlocks("Tapez `Directrice` sur [l'Apec](https://www.apec.fr).")).toEqual([
       { kind: "paragraph", lines: [[plain("Tapez Directrice sur l'Apec.")]] },

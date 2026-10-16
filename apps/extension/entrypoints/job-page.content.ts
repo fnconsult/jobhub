@@ -2,7 +2,7 @@ import { designTokens } from "@jobhub/shared/design";
 import { createI18n } from "@jobhub/shared/i18n";
 import { browser } from "wxt/browser";
 import { defineContentScript } from "wxt/utils/define-content-script";
-import { JOB_SITES, readJobPage } from "../src/job-page";
+import { isOnJobSite, JOB_SITES, readJobPage } from "../src/job-page";
 import type { AnalyseReply, ExtensionMessage } from "../src/messages";
 import { snapshotPage } from "../src/page-snapshot";
 
@@ -15,8 +15,17 @@ const { color, fontFamily, fontSize, radius, space } = designTokens;
  */
 export default defineContentScript({
   matches: [...JOB_SITES],
+  // A job site's posting may sit in an iframe on the employer's own site (gestmax.fr, #187).
+  allFrames: true,
   runAt: "document_idle",
   async main(ctx) {
+    // In an iframe, only a posting gets the badge (not a job site's widgets, nor ads), and only on another
+    // site's page: on a job site's own page (Indeed's posting pane, say), the page shows it.
+    if (window !== window.top) {
+      const topOrigin = [...location.ancestorOrigins].at(-1);
+      if ((topOrigin && isOnJobSite(`${topOrigin}/`)) || !readJobPage(snapshotPage(document)).detected) return;
+    }
+
     const language = await browser.runtime
       .sendMessage<ExtensionMessage, string | null>({ type: "interface-language" })
       .catch(() => null);
@@ -55,15 +64,6 @@ export default defineContentScript({
       button.disabled = false;
       if (!reply.ok) status.textContent = t(reply.error === "invalid" ? "extension.captureImpossible" : "extension.unreachable");
     });
-
-    // The popup's "Capturer cette page" asks here first on job sites.
-    const onMessage = (message: ExtensionMessage, sender: { id?: string }, reply: (jobOffer: unknown) => void) => {
-      if (sender.id !== browser.runtime.id || message.type !== "capture") return false;
-      reply(readJobPage(snapshotPage(document)).jobOffer);
-      return false;
-    };
-    browser.runtime.onMessage.addListener(onMessage);
-    ctx.onInvalidated(() => browser.runtime.onMessage.removeListener(onMessage));
 
     // Job boards are single-page apps: check again when the URL changes, and once late content has loaded.
     const check = () => {

@@ -223,4 +223,32 @@ describe.skipIf(!connectionString)("Job Offers (needs Postgres: DATABASE_URL)", 
       expect(await jobOffers.get(id)).toHaveProperty("expiredAt");
     });
   });
+  describe("fields filled from the Job Offer's text (#94)", () => {
+    it("keeps the fields read that are well formed, leaves out the others, and never reads the text twice", async () => {
+      const captured = await jobOffers.capture({ title: "Chef de projet SI", content: "CDI à Saint-Ouen." });
+      if (!captured.ok) throw new Error("fixture Job Offer refused");
+      let reads = 0;
+      const read = async () => {
+        reads += 1;
+        // A contract type outside the list and negative years are dropped; the rest is kept.
+        return { location: " Saint-Ouen ", contractType: "permanent", skills: ["Pilotage", ""], requiredExperienceYears: -3, salary: { min: 52_000 } } as never;
+      };
+
+      const filled = await jobOffers.fillFromText(captured.jobOffer.id, read);
+      const again = await jobOffers.fillFromText(captured.jobOffer.id, read);
+
+      expect(filled).toEqual({ ...captured.jobOffer, location: "Saint-Ouen", skills: ["Pilotage"], salary: { min: 52_000 } });
+      expect(again).toEqual(filled);
+      expect(reads).toBe(1);
+    });
+
+    it("keeps nothing and reads again after a failed read; null for an unknown Job Offer", async () => {
+      const captured = await jobOffers.capture({ title: "DAF", content: "Poste de DAF." });
+      if (!captured.ok) throw new Error("fixture Job Offer refused");
+
+      await expect(jobOffers.fillFromText(captured.jobOffer.id, async () => Promise.reject(new Error("down")))).rejects.toThrow("down");
+      expect(await jobOffers.fillFromText(captured.jobOffer.id, async () => ({ employer: "Groupe Seb" }))).toMatchObject({ employer: "Groupe Seb" });
+      expect(await jobOffers.fillFromText("00000000-0000-4000-8000-000000000000", async () => ({}))).toBeNull();
+    });
+  });
 });

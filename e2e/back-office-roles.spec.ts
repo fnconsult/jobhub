@@ -205,6 +205,15 @@ test.describe("Back Office Roles", () => {
     const person = await personPage(browser, email);
     await grant(page, email, ["plans-manager", "coach-manager", "support"]);
 
+    // Sent by a super-admin, the same hand-made request grants (it does reach the form's action)...
+    const other = newAddress("escalation-control");
+    await personPage(browser, other);
+    const accepted = await submitAs(page, page, SECTIONS.administrators, admin.administrators.grant, { email: other, roles: "support" });
+    expect(accepted.status()).toBe(303);
+    await page.goto(SECTIONS.administrators);
+    await expect(page.getByRole("row").filter({ hasText: other })).toContainText(admin.roles.support);
+
+    // ...sent by anyone else, it is refused.
     const refused = await submitAs(person, page, SECTIONS.administrators, admin.administrators.grant, { email, roles: "super-admin" });
     expect(refused.status()).toBe(404);
 

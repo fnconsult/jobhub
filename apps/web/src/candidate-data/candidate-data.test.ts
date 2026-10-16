@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApplications, type Applications } from "../applications";
 import { BASE_URL, connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createActionCards } from "../action-cards";
+import { createAtsScoring } from "../ats-score";
 import { createEuAiConsents } from "../eu-ai-consent";
 import { createFollowUps } from "../follow-ups";
 import { createJobOffers, type JobOffers } from "../job-offers";
@@ -121,6 +122,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
           expect.objectContaining({ version: 2, restoredFrom: null, content: { ...masterCv, summary: "20 ans de finance." } }),
           expect.objectContaining({ version: 1, restoredFrom: null, content: masterCv }),
         ],
+        atsScore: null,
       },
       expect.objectContaining({ name: "Consultant transformation", archived: true, masterCvVersions: [expect.objectContaining({ version: 1 })] }),
     ]);
@@ -191,6 +193,21 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       { id: second.id, kind: "follow_up", title: "Relancez Acme", body: "Une semaine déjà.", focus: { kind: "profile", id: profileId }, payload: null, status: "pending", createdAt: expect.any(Date), decidedAt: null },
       expect.objectContaining({ id: first.id, title: "Ajoutez SAP", payload: { fix: "x" }, status: "dismissed", decidedAt: expect.any(Date) }),
     ]);
+  });
+
+  it("the export holds each Profile's ATS Score, or null when its Master CV was never scored", async () => {
+    const scoredId = await createProfile(candidateId, "DAF");
+    await createProfile(candidateId, "DSI");
+    const analysed = await createAtsScoring({ database, profiles, actionCards: createActionCards(database) }).analyse(candidateId, scoredId, "fr");
+    if (!analysed.ok) throw new Error("fixture ATS Score refused");
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.profiles.map((profile) => profile.atsScore)).toEqual([
+      { version: 1, score: analysed.atsScore.score, computedAt: analysed.atsScore.computedAt },
+      null,
+    ]);
+    expect(analysed.atsScore.score).toMatchObject({ score: expect.any(Number) });
   });
 
   it("deleting the account removes the Candidate and everything of theirs, signs them out, and keeps the Job Offers", async () => {

@@ -18,6 +18,7 @@ import type { SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type { ActionCard } from "../action-cards";
 import type { Application, Applications } from "../applications";
+import type { KeptAtsScore } from "../ats-score";
 import type { FollowUpDelays } from "../follow-ups";
 import type { MasterCvVersion, Profiles } from "../profiles";
 import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
@@ -30,6 +31,8 @@ export interface ExportedProfile {
   searchCriteria: SearchCriteria;
   /** Newest first. */
   masterCvVersions: MasterCvVersion[];
+  /** The ATS Score of the Master CV version last scored, or null when it never was. */
+  atsScore: KeptAtsScore | null;
 }
 
 /** The Candidate's account itself. */
@@ -99,12 +102,24 @@ export interface CandidateDataDeps {
 
 export function createCandidateData(database: Pool, deps: CandidateDataDeps): CandidateData {
   async function exportProfiles(candidateId: string): Promise<ExportedProfile[]> {
+    const atsScoresOf = await grouped<KeptAtsScore>(
+      `SELECT s.profile_id AS key, s.version, s.score, s.computed_at AS "computedAt" FROM ats_score s JOIN profile p ON p.id = s.profile_id
+        WHERE p.candidate_id = $1`,
+      candidateId,
+    );
     const summaries = await deps.profiles.list(candidateId);
     const exported = await Promise.all(
       summaries.map(async ({ id }) => {
         const [profile, versions] = await Promise.all([deps.profiles.get(candidateId, id), deps.profiles.masterCvVersions(candidateId, id)]);
         if (!profile || !versions) return null;
-        return { id, name: profile.name, archived: profile.archived, searchCriteria: profile.searchCriteria, masterCvVersions: versions };
+        return {
+          id,
+          name: profile.name,
+          archived: profile.archived,
+          searchCriteria: profile.searchCriteria,
+          masterCvVersions: versions,
+          atsScore: atsScoresOf(id)[0] ?? null,
+        };
       }),
     );
     return exported.filter((profile) => profile !== null);
@@ -112,7 +127,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   /** Rows of one of the Candidate's tables, as `{ key, ...item }`, grouped by key (e.g. the Application they belong to). */
   async function grouped<T extends object>(sql: string, candidateId: string): Promise<(key: string) => T[]> {
-    const { rows } = await database.query<T & { key: string }>(sql, [candidateId]);
+    const rows = await rowsOf<T & { key: string }>(sql, candidateId);
     const groups = new Map<string, T[]>();
     for (const { key, ...item } of rows) groups.set(key, [...(groups.get(key) ?? []), item as unknown as T]);
     return (key) => groups.get(key) ?? [];

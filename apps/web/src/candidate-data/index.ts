@@ -22,6 +22,7 @@ import type { KeptAtsScore } from "../ats-score";
 import type { ChosenFrequency } from "../job-digests";
 import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
 import type { CoachMessage } from "../coach";
+import type { CoachingSession, CoachReview } from "../human-coaches";
 import type { FollowUpDelays } from "../follow-ups";
 import type { MasterCvVersion, Profiles } from "../profiles";
 import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
@@ -88,6 +89,8 @@ export interface ExportedApplication extends Omit<Application, "matchScore"> {
   };
   /** Follow-ups sent (a Follow-up card accepted, or "Relancée" set), oldest first. */
   followUps: { sentAt: Date }[];
+  /** Human Coaches' feedback on its Tailored Documents, oldest first. */
+  coachReviews: CoachReview[];
 }
 
 /** A Coach Conversation with the AI Coach, every message included (what each reply cost is internal, left out). */
@@ -101,6 +104,9 @@ export interface ExportedCoachConversation {
   /** Oldest first. */
   messages: (CoachMessage & { sentAt: Date })[];
 }
+
+/** A Human Coach as the export names them: their email and booking link are theirs, left out. */
+export type CoachNamed = { id: string; name: string };
 
 export interface ExportedActionCard extends ActionCard {
   /** When the Candidate accepted or dismissed it; null while pending. */
@@ -118,6 +124,10 @@ export interface CandidateDataExport {
   followUpDelays: FollowUpDelays | null;
   /** Every Coach Conversation, most recently active first. */
   coachConversations: ExportedCoachConversation[];
+  /** The Human Coaches the Candidate granted Coach Access to, oldest first. */
+  coachAccess: { coach: CoachNamed; grantedAt: Date }[];
+  /** The Coaching Sessions the Candidate paid for, newest first. */
+  coachingSessions: (Omit<CoachingSession, "coach"> & { coach: CoachNamed })[];
   /** Every Action Card the AI Coach proposed, pending or decided, newest first. */
   actionCards: ExportedActionCard[];
   /** Oldest first, archived ones included. */
@@ -202,6 +212,11 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         WHERE a.candidate_id = $1 ORDER BY s.sent_at`,
       candidateId,
     );
+    const coachReviewsOf = await grouped<CoachReview>(
+      `SELECT r.application_id AS key, r.id, json_build_object('id', h.id, 'name', h.name) AS coach, r.document, r.text, r.created_at AS "createdAt"
+         FROM coach_review r JOIN human_coach h ON h.id = r.coach_id WHERE r.candidate_id = $1 ORDER BY r.created_at, r.id`,
+      candidateId,
+    );
     const summaries = await deps.applications.list(candidateId);
     const exported = await Promise.all(
       summaries.map(async ({ id }): Promise<ExportedApplication | null> => {
@@ -229,6 +244,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
             outreachMessage: drafts.outreachMessage,
           },
           followUps: followUpsOf(id),
+          coachReviews: coachReviewsOf(id),
         };
       }),
     );
@@ -274,11 +290,21 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   return {
     async export(candidateId) {
-      const [account, euAiConsent, followUpDelays, coachConversations, actionCards, profiles, applications] = await Promise.all([
+      const [account, euAiConsent, followUpDelays, coachConversations, coachAccess, coachingSessions, actionCards, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
         rowOf<{ givenAt: Date }>(`SELECT given_at AS "givenAt" FROM eu_ai_consent WHERE candidate_id = $1`, candidateId),
         rowOf<FollowUpDelays>(`SELECT after_applied AS "afterApplied", after_follow_up AS "afterFollowUp" FROM follow_up_delay WHERE candidate_id = $1`, candidateId),
         exportCoachConversations(candidateId),
+        rowsOf<CandidateDataExport["coachAccess"][number]>(
+          `SELECT json_build_object('id', h.id, 'name', h.name) AS coach, a.granted_at AS "grantedAt"
+             FROM coach_access a JOIN human_coach h ON h.id = a.coach_id WHERE a.candidate_id = $1 ORDER BY a.granted_at, h.id`,
+          candidateId,
+        ),
+        rowsOf<CandidateDataExport["coachingSessions"][number]>(
+          `SELECT s.id, json_build_object('id', h.id, 'name', h.name) AS coach, s.amount, s.currency, s.paid_at AS "paidAt"
+             FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id WHERE s.candidate_id = $1 ORDER BY s.paid_at DESC, s.id`,
+          candidateId,
+        ),
         rowsOf<ExportedActionCard>(
           `SELECT id, kind, title, body, json_build_object('kind', focus_kind, 'id', focus_id) AS focus, payload, status, created_at AS "createdAt", decided_at AS "decidedAt"
              FROM action_card WHERE candidate_id = $1 ORDER BY created_at DESC, id`,
@@ -287,7 +313,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, euAiConsent, followUpDelays, profiles, applications, coachConversations, actionCards };
+      return { exportedAt: new Date(), account, euAiConsent, followUpDelays, profiles, applications, coachConversations, coachAccess, coachingSessions, actionCards };
     },
 
     async delete(candidateId) {

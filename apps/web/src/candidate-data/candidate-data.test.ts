@@ -8,6 +8,7 @@ import { BASE_URL, connectionString, signInWithMagicLink, startTestAuth, type Te
 import { createActionCards } from "../action-cards";
 import { createAtsScoring } from "../ats-score";
 import { createCoachConversations } from "../coach-conversations";
+import { createHumanCoaches } from "../human-coaches";
 import { createEuAiConsents } from "../eu-ai-consent";
 import { createFollowUps } from "../follow-ups";
 import { createJobOffers, type JobOffers } from "../job-offers";
@@ -299,6 +300,28 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       }),
     ]);
     expect(JSON.stringify(exported)).not.toContain("secret-model-name");
+  });
+
+  it("the export holds the Coach Access the Candidate granted, the Coaching Sessions they paid and the Coach Reviews of their Applications, naming each Human Coach but not their email", async () => {
+    const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));
+    await tailoredDocuments.draft(candidateId, application.id, { document: "cover_letter" });
+    const humanCoaches = createHumanCoaches(database, { profiles, applications, tailoredDocuments, tailoredCvs });
+    const added = await humanCoaches.add({ name: "Sophie Martin", email: "sophie.coach@example.fr", bookingUrl: "https://cal.com/sophie/seance", bio: "" });
+    if (!added.ok) throw new Error("fixture Human Coach refused");
+    const coach = added.coach;
+    await humanCoaches.grantAccess(candidateId, coach.id);
+    await humanCoaches.recordPaidSession({ checkoutSessionId: "cs_test_1", candidateId, coachId: coach.id, amount: 9000, currency: "eur" });
+    const reviewed = await humanCoaches.review(coach.id, candidateId, application.id, { document: "cover_letter", text: "Ouvrez sur votre dernier poste." });
+    if (!reviewed.ok) throw new Error("fixture Coach Review refused");
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.coachAccess).toEqual([{ coach: { id: coach.id, name: "Sophie Martin" }, grantedAt: expect.any(Date) }]);
+    expect(exported.coachingSessions).toEqual([{ id: expect.any(String), coach: { id: coach.id, name: "Sophie Martin" }, amount: 9000, currency: "eur", paidAt: expect.any(Date) }]);
+    expect(exported.applications[0]!.coachReviews).toEqual([
+      { id: reviewed.review.id, coach: { id: coach.id, name: "Sophie Martin" }, document: "cover_letter", text: "Ouvrez sur votre dernier poste.", createdAt: expect.any(Date) },
+    ]);
+    expect(JSON.stringify(exported)).not.toContain("sophie.coach@example.fr");
   });
 
   it("deleting the account removes the Candidate and everything of theirs, signs them out, and keeps the Job Offers", async () => {

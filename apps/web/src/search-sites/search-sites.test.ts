@@ -31,10 +31,10 @@ describe.skipIf(!connectionString)("Search sites (needs Postgres: DATABASE_URL)"
     });
 
     it("can be added, with the match pattern of their posting pages, and are then read by the extension", async () => {
-      const added = await sites.addJobSite({ pattern: " *.Gestmax.fr ", postingPages: "https://*.gestmax.fr/*/offre/*" });
+      const added = await sites.addJobSite({ pattern: " *.Taleez.fr ", postingPages: "https://*.taleez.fr/*/offre/*" });
 
-      expect(added).toEqual({ ok: true, site: { pattern: "https://*.gestmax.fr/*", postingPages: "https://*.gestmax.fr/*/offre/*", builtIn: false, enabled: true } });
-      expect((await sites.extensionJobSites()).sites).toContainEqual({ pattern: "https://*.gestmax.fr/*", postingPages: "https://*.gestmax.fr/*/offre/*", enabled: true });
+      expect(added).toEqual({ ok: true, site: { pattern: "https://*.taleez.fr/*", postingPages: "https://*.taleez.fr/*/offre/*", builtIn: false, enabled: true } });
+      expect((await sites.extensionJobSites()).sites).toContainEqual({ pattern: "https://*.taleez.fr/*", postingPages: "https://*.taleez.fr/*/offre/*", enabled: true });
     });
 
     it.each([
@@ -44,9 +44,9 @@ describe.skipIf(!connectionString)("Search sites (needs Postgres: DATABASE_URL)"
       ["a port", { pattern: "https://example.fr:8443/*" }],
       ["a host without a domain", { pattern: "https://localhost/*" }],
       ["something that is not a pattern", { pattern: "<script>" }],
-      ["posting pages on another site", { pattern: "https://*.gestmax.fr/*", postingPages: "https://evil.example/*" }],
+      ["posting pages on another site", { pattern: "https://*.taleez.fr/*", postingPages: "https://evil.example/*" }],
       ["no pattern", {}],
-      ["not a form", "https://*.gestmax.fr/*"],
+      ["not a form", "https://*.taleez.fr/*"],
     ])("refuses %s", async (_, input) => {
       expect(await sites.addJobSite(input)).toEqual({ ok: false, error: "invalid" });
     });
@@ -65,10 +65,10 @@ describe.skipIf(!connectionString)("Search sites (needs Postgres: DATABASE_URL)"
     });
 
     it("can be removed when added, while a built-in one, in the extension's manifest, can only be disabled", async () => {
-      await sites.addJobSite({ pattern: "https://*.gestmax.fr/*" });
+      await sites.addJobSite({ pattern: "https://*.taleez.fr/*" });
 
-      expect(await sites.removeJobSite("https://*.gestmax.fr/*")).toBe("removed");
-      expect(await sites.removeJobSite("https://*.gestmax.fr/*")).toBe("not_found");
+      expect(await sites.removeJobSite("https://*.taleez.fr/*")).toBe("removed");
+      expect(await sites.removeJobSite("https://*.taleez.fr/*")).toBe("not_found");
       expect(await sites.removeJobSite("https://www.apec.fr/*")).toBe("built_in");
       expect((await sites.jobSites()).map((site) => site.pattern)).toContain("https://www.apec.fr/*");
     });
@@ -148,7 +148,7 @@ describe.skipIf(!connectionString)("Search sites (needs Postgres: DATABASE_URL)"
 
   it("can be migrated again without losing what Administrators changed", async () => {
     await sites.setJobSiteEnabled("https://*.linkedin.com/*", false);
-    await sites.addJobSite({ pattern: "https://*.gestmax.fr/*" });
+    await sites.addJobSite({ pattern: "https://*.taleez.fr/*" });
     await sites.setJobDiscoverySourceEnabled("web_search", false);
     await sites.addJobDiscoverySite("apec.fr");
 
@@ -164,13 +164,13 @@ describe.skipIf(!connectionString)("Search sites (needs Postgres: DATABASE_URL)"
   });
 
   it("a site the extension no longer builds in becomes an added one, keeping its state, so it can be removed", async () => {
-    await sites.addJobSite({ pattern: "https://*.gestmax.fr/*" });
-    await sites.setJobSiteEnabled("https://*.gestmax.fr/*", false);
-    await database.query("UPDATE extension_job_site SET built_in = true WHERE pattern = 'https://*.gestmax.fr/*'");
+    await sites.addJobSite({ pattern: "https://*.taleez.fr/*" });
+    await sites.setJobSiteEnabled("https://*.taleez.fr/*", false);
+    await database.query("UPDATE extension_job_site SET built_in = true WHERE pattern = 'https://*.taleez.fr/*'");
 
     await migrateSearchSites(database);
 
-    expect((await sites.jobSites()).find((site) => site.pattern === "https://*.gestmax.fr/*")).toMatchObject({ builtIn: false, enabled: false });
-    expect(await sites.removeJobSite("https://*.gestmax.fr/*")).toBe("removed");
+    expect((await sites.jobSites()).find((site) => site.pattern === "https://*.taleez.fr/*")).toMatchObject({ builtIn: false, enabled: false });
+    expect(await sites.removeJobSite("https://*.taleez.fr/*")).toBe("removed");
   });
 });

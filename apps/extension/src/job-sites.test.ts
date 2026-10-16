@@ -10,7 +10,7 @@ function page(url: string, structuredData: string[] = []): PageSnapshot {
 const withJobPosting = (url: string) => page(url, [JSON.stringify({ "@context": "https://schema.org", "@type": "JobPosting", title: "DAF H/F", description: "Poste de DAF." })]);
 
 const LINKEDIN_POSTING = "https://www.linkedin.com/jobs/view/3912345678/";
-const GESTMAX_POSTING = "https://recrutement.gestmax.fr/4521/1/directeur-financier/offre/fr_FR";
+const TALEEZ_POSTING = "https://recrutement.taleez.fr/4521/1/directeur-financier/offre/fr_FR";
 
 /** The built-in sites, with some changed as an Administrator would. */
 function listWith(...changes: { pattern: string; postingPages?: string | null; enabled: boolean }[]): ExtensionJobSiteList {
@@ -41,16 +41,16 @@ describe("where the badge shows", () => {
   });
 
   it("on an added site's posting pages, even without JobPosting data, while it is enabled", () => {
-    const added = { pattern: "https://*.gestmax.fr/*", postingPages: "https://*.gestmax.fr/*/offre/*", enabled: true };
+    const added = { pattern: "https://*.taleez.fr/*", postingPages: "https://*.taleez.fr/*/offre/*", enabled: true };
 
-    expect(badgeShows(page(GESTMAX_POSTING), listWith(added))).toBe(true);
-    expect(badgeShows(page("https://recrutement.gestmax.fr/search"), listWith(added))).toBe(false);
-    expect(badgeShows(page(GESTMAX_POSTING), listWith({ ...added, enabled: false }))).toBe(false);
-    expect(badgeShows(withJobPosting(GESTMAX_POSTING), listWith({ ...added, enabled: false }))).toBe(false);
+    expect(badgeShows(page(TALEEZ_POSTING), listWith(added))).toBe(true);
+    expect(badgeShows(page("https://recrutement.taleez.fr/search"), listWith(added))).toBe(false);
+    expect(badgeShows(page(TALEEZ_POSTING), listWith({ ...added, enabled: false }))).toBe(false);
+    expect(badgeShows(withJobPosting(TALEEZ_POSTING), listWith({ ...added, enabled: false }))).toBe(false);
   });
 
   it("elsewhere, only on a page publishing a JobPosting, as before", () => {
-    expect(badgeShows(page(GESTMAX_POSTING), BUILT_IN_JOB_SITE_LIST)).toBe(false);
+    expect(badgeShows(page(TALEEZ_POSTING), BUILT_IN_JOB_SITE_LIST)).toBe(false);
     expect(badgeShows(withJobPosting("https://careers.example-industrie.fr/postes/daf"), BUILT_IN_JOB_SITE_LIST)).toBe(true);
   });
 });
@@ -60,7 +60,7 @@ describe("the list the web app sends", () => {
     expect(
       jobSiteListFrom({
         sites: [
-          { pattern: "https://*.gestmax.fr/*", postingPages: "https://*.gestmax.fr/*/offre/*", enabled: true },
+          { pattern: "https://*.taleez.fr/*", postingPages: "https://*.taleez.fr/*/offre/*", enabled: true },
           { pattern: "https://*/*", postingPages: null, enabled: true },
           { pattern: "<all_urls>", postingPages: null, enabled: true },
           { pattern: "http://example.fr/*", postingPages: null, enabled: true },
@@ -71,7 +71,7 @@ describe("the list the web app sends", () => {
       }),
     ).toEqual({
       sites: [
-        { pattern: "https://*.gestmax.fr/*", postingPages: "https://*.gestmax.fr/*/offre/*", enabled: true },
+        { pattern: "https://*.taleez.fr/*", postingPages: "https://*.taleez.fr/*/offre/*", enabled: true },
         { pattern: "https://www.apec.fr/*", postingPages: null, enabled: false },
       ],
     });

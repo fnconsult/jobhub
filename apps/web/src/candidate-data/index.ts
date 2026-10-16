@@ -3,10 +3,17 @@
  * deleted with their account.
  *
  * One deep module. Callers get `createCandidateData(database, deps)`:
- *  - `export` everything the Candidate made: their account, their Profiles (Search Criteria and
- *    every Master CV Version), their Applications (with their Job Offer and
- *    Interviews) and those Applications' Tailored Documents. Each item is read
- *    through the module that owns it, so the export shows what the app shows.
+ *  - `export` all the Candidate's personal data (GDPR art. 15 / 20, #171): what they made and
+ *    what the app worked out or obtained about them. Their account (sign-in methods and
+ *    sessions), Plan and Plan Quota use, EU AI consent and Follow-up Delays; their Profiles
+ *    (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and
+ *    Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored
+ *    Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach
+ *    Conversations, Coach Access, Coaching Sessions and Action Cards. Profiles and Applications
+ *    are read through the modules that own them, so they show what the app shows; the rest is
+ *    read as stored. Secrets (sign-in tokens, the unsubscribe link), Stripe's and the contact
+ *    data providers' identifiers, and what each AI reply cost are left out. EXPORTED_TABLES
+ *    says where each table lands.
  *  - `delete` the Candidate's account at once and for good: their billing is
  *    closed first (no paid Plan outlives the account), then the Candidate goes,
  *    and with them everything tied to them (every table holding their data
@@ -19,13 +26,13 @@ import type { Pool } from "pg";
 import type { ActionCard } from "../action-cards";
 import type { Application, Applications } from "../applications";
 import type { KeptAtsScore } from "../ats-score";
-import type { ChosenFrequency } from "../job-digests";
-import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
 import type { CoachMessage } from "../coach";
-import type { CoachingSession, CoachReview } from "../human-coaches";
 import type { CompanyDossier } from "../company-dossiers";
 import type { ContactProviderId } from "../enriched-contacts";
 import type { FollowUpDelays } from "../follow-ups";
+import type { CoachingSession, CoachReview } from "../human-coaches";
+import type { ChosenFrequency } from "../job-digests";
+import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
 import type { MasterCvVersion, Profiles } from "../profiles";
 import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
 import type { ApplicationDrafts, TailoredDocuments } from "../tailored-documents";
@@ -180,6 +187,40 @@ export interface CandidateDataExport {
   applications: ExportedApplication[];
 }
 
+/**
+ * Where each table holding a Candidate's data lands in their export. A test checks every table tied
+ * to a Candidate is listed (as it checks they are all deleted with them, ADR-0010): a new table
+ * must be added to the export, and here, or the test fails.
+ */
+export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
+  candidate: "account",
+  account: "account.signInMethods (no tokens or password)",
+  session: "account.sessions (no tokens)",
+  candidate_plan: "plan (no Stripe identifiers)",
+  quota_usage: "quotaUsage",
+  eu_ai_consent: "euAiConsent",
+  follow_up_delay: "followUpDelays",
+  profile: "profiles",
+  master_cv_version: "profiles[].masterCvVersions",
+  ats_score: "profiles[].atsScore",
+  job_search: "profiles[].jobSearches",
+  job_digest_subscription: "profiles[].jobDigest (no unsubscribe token)",
+  job_digest: "profiles[].jobDigests",
+  application: "applications",
+  interview: "applications[].interviews",
+  tailored_cv: "applications[].tailoredDocuments",
+  tailored_document: "applications[].tailoredDocuments",
+  follow_up_sent: "applications[].followUps",
+  coach_review: "applications[].coachReviews",
+  enriched_contact: "applications[].enrichedContacts (no provider identifiers)",
+  company_dossier: "applications[].companyDossier",
+  coach_conversation: "coachConversations",
+  coach_message: "coachConversations[].messages (no AI costs)",
+  coach_access: "coachAccess",
+  coaching_session: "coachingSessions (no Stripe identifiers)",
+  action_card: "actionCards",
+};
+
 export interface CandidateData {
   /** All the Candidate's data. */
   export(candidateId: string): Promise<CandidateDataExport>;
@@ -202,26 +243,28 @@ export interface CandidateDataDeps {
 
 export function createCandidateData(database: Pool, deps: CandidateDataDeps): CandidateData {
   async function exportProfiles(candidateId: string): Promise<ExportedProfile[]> {
-    const atsScoresOf = await grouped<KeptAtsScore>(
+    const [summaries, atsScoresOf, jobSearchesOf, jobDigestSettingsOf, jobDigestsOf] = await Promise.all([
+      deps.profiles.list(candidateId),
+      grouped<KeptAtsScore>(
       `SELECT s.profile_id AS key, s.version, s.score, s.computed_at AS "computedAt" FROM ats_score s JOIN profile p ON p.id = s.profile_id
         WHERE p.candidate_id = $1`,
-      candidateId,
-    );
-    const jobSearchesOf = await grouped<ExportedJobSearch>(
+        candidateId,
+      ),
+      grouped<ExportedJobSearch>(
       `SELECT profile_id AS key, id, status, failure, started_at AS "startedAt", finished_at AS "finishedAt", job_offer_ids::text[] AS "jobOfferIds"
          FROM job_search WHERE candidate_id = $1 ORDER BY started_at DESC, id`,
-      candidateId,
-    );
-    const jobDigestSettingsOf = await grouped<ExportedJobDigestSettings>(
+        candidateId,
+      ),
+      grouped<ExportedJobDigestSettings>(
       `SELECT profile_id AS key, frequency, subscribed_at AS "subscribedAt", unsubscribed_at AS "unsubscribedAt", last_run_at AS "lastRunAt"
          FROM job_digest_subscription WHERE candidate_id = $1`,
-      candidateId,
-    );
-    const jobDigestsOf = await grouped<ExportedProfile["jobDigests"][number]>(
+        candidateId,
+      ),
+      grouped<ExportedProfile["jobDigests"][number]>(
       `SELECT profile_id AS key, id, sent_at AS "sentAt", job_offer_ids::text[] AS "jobOfferIds" FROM job_digest WHERE candidate_id = $1 ORDER BY sent_at DESC, id`,
-      candidateId,
-    );
-    const summaries = await deps.profiles.list(candidateId);
+        candidateId,
+      ),
+    ]);
     const exported = await Promise.all(
       summaries.map(async ({ id }) => {
         const [profile, versions] = await Promise.all([deps.profiles.get(candidateId, id), deps.profiles.masterCvVersions(candidateId, id)]);
@@ -251,28 +294,30 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
   }
 
   async function exportApplications(candidateId: string): Promise<ExportedApplication[]> {
-    const followUpsOf = await grouped<{ sentAt: Date }>(
+    const [summaries, followUpsOf, coachReviewsOf, enrichedContactsOf, companyDossiersOf] = await Promise.all([
+      deps.applications.list(candidateId),
+      grouped<{ sentAt: Date }>(
       `SELECT s.application_id AS key, s.sent_at AS "sentAt" FROM follow_up_sent s JOIN application a ON a.id = s.application_id
         WHERE a.candidate_id = $1 ORDER BY s.sent_at`,
-      candidateId,
-    );
-    const coachReviewsOf = await grouped<CoachReview>(
+        candidateId,
+      ),
+      grouped<CoachReview>(
       `SELECT r.application_id AS key, r.id, json_build_object('id', h.id, 'name', h.name) AS coach, r.document, r.text, r.created_at AS "createdAt"
          FROM coach_review r JOIN human_coach h ON h.id = r.coach_id WHERE r.candidate_id = $1 ORDER BY r.created_at, r.id`,
-      candidateId,
-    );
-    const enrichedContactsOf = await grouped<ExportedEnrichedContact>(
+        candidateId,
+      ),
+      grouped<ExportedEnrichedContact>(
       `SELECT e.application_id AS key, e.id, e.name, e.job_title AS "jobTitle", e.emails, e.phones, e.provider, e.found_at AS "foundAt", e.retrieved_at AS "retrievedAt"
          FROM enriched_contact e JOIN application a ON a.id = e.application_id WHERE a.candidate_id = $1 ORDER BY e.found_at, e.id`,
-      candidateId,
-    );
-    const companyDossiersOf = await grouped<ExportedCompanyDossier>(
+        candidateId,
+      ),
+      grouped<ExportedCompanyDossier>(
       `SELECT d.application_id AS key, d.presumed_employer AS "presumedEmployer", d.presumed_employer_description AS "presumedEmployerDescription",
               d.agency, d.confirmed_employer AS "confirmedEmployer", d.dossier, d.updated_at AS "updatedAt"
          FROM company_dossier d JOIN application a ON a.id = d.application_id WHERE a.candidate_id = $1`,
-      candidateId,
-    );
-    const summaries = await deps.applications.list(candidateId);
+        candidateId,
+      ),
+    ]);
     const exported = await Promise.all(
       summaries.map(async ({ id }): Promise<ExportedApplication | null> => {
         const [application, tailoredCv, drafts] = await Promise.all([

@@ -265,7 +265,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
   it("the export holds every Coach Conversation with all its messages, the Candidate's and the AI Coach's, but not what each reply cost", async () => {
     const profileId = await createProfile(candidateId, "DAF");
     let replies = 0;
-    const cost = { provider: "mistral", model: "secret-model-name", inputTokens: 10, outputTokens: 5, cachedInputTokens: 0, eur: 0.01 };
+    const cost = { provider: "mistral" as const, model: "secret-model-name", inputTokens: 10, outputTokens: 5, cachedInputTokens: 0, eur: 0.01 };
     const conversations = createCoachConversations(database, {
       coach: { reply: async () => ({ ok: true, reply: `Réponse ${++replies}`, cost, playbooks: [] }) },
       profiles,

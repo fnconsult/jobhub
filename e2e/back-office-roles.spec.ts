@@ -21,6 +21,7 @@ const SECTIONS = {
   planQuotas: "/admin/quotas",
   humanCoaches: "/admin/coachs",
   coachCost: "/admin/cout-coach",
+  providerSecrets: "/admin/cles",
   administrators: "/admin/administrateurs",
   journal: "/admin/journal",
 } as const;
@@ -90,13 +91,12 @@ async function submitAs(page: Page, formPage: Page, path: string, buttonName: st
 test.describe("Back Office Roles", () => {
   test("an ADMIN_EMAILS member is a permanent super-admin: every section, marked permanent, never revocable", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
-    await expectSections(page, ["planQuotas", "humanCoaches", "coachCost", "administrators", "journal"]);
+    await expectSections(page, ["planQuotas", "humanCoaches", "coachCost", "providerSecrets", "administrators", "journal"]);
 
     await page.goto(SECTIONS.administrators);
     await expect(page).toHaveTitle(`${admin.administrators.title} · ${admin.title}`);
-    // The sidebar names its groups; Plateforme has no section yet, so it is left out.
-    for (const group of ["offer", "coaching", "team"]) await expect(backOfficeNav(page).getByRole("heading", { name: admin.nav.groups[group] })).toBeVisible();
-    await expect(backOfficeNav(page).getByRole("heading", { name: admin.nav.groups.platform })).toHaveCount(0);
+    // The sidebar names its groups; Plateforme holds Provider Secrets (Clés, #208).
+    for (const group of ["offer", "coaching", "platform", "team"]) await expect(backOfficeNav(page).getByRole("heading", { name: admin.nav.groups[group] })).toBeVisible();
     await expect(backOfficeNav(page).getByRole("link", { name: admin.sections.administrators })).toHaveAttribute("aria-current", "page");
 
     const row = page.getByRole("row").filter({ hasText: SUPER_ADMIN });

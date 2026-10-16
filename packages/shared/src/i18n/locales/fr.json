@@ -674,7 +674,7 @@
       "grantEmailHelp": "La personne doit déjà avoir créé son compte.",
       "grantRoles": "Rôles à donner",
       "grant": "Donner les rôles",
-      "granted": "Rôles donnés à {{email}}.",
+      "granted": "Rôles donnés : {{roles}}.",
       "revoked": "Rôle retiré.",
       "roleHelp": {
         "super-admin": "Tout le back office, dont les administrateurs et le journal.",
@@ -684,9 +684,11 @@
       },
       "errors": {
         "unknown_account": "Aucun compte Jobbbox n'utilise cette adresse e-mail. La personne doit d'abord créer son compte.",
+        "unverified_account": "Ce compte n'a pas encore confirmé son adresse e-mail : ses rôles ne lui donneraient pas accès. Demandez-lui de se connecter une première fois.",
         "no_role": "Cochez au moins un rôle.",
         "own_super_admin": "Vous ne pouvez pas retirer votre propre rôle de super-admin.",
         "permanent": "Ce super-admin est permanent (ADMIN_EMAILS) : son rôle ne peut pas être retiré ici.",
+        "last_super_admin": "Il doit rester au moins un super-admin.",
         "forbidden": "Seuls les super-admins donnent et retirent des rôles."
       }
     },

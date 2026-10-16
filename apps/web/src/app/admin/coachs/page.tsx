@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
+import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { getServerT } from "@/i18n/server";
@@ -36,8 +37,7 @@ async function retireCoach(form: FormData) {
 
 /** Administrators add Human Coaches, with their Cal.com booking link, and retire them. */
 export default async function HumanCoachesAdminPage({ searchParams }: { searchParams: Promise<{ added?: string; error?: string; retired?: string }> }) {
-  const { access } = await requireBackOffice("humanCoaches");
-  const canEdit = access.can("humanCoaches", "write");
+  const { access, canWrite } = await requireBackOffice("humanCoaches");
   const t = await getServerT();
   const { added, error, retired } = await searchParams;
   const coaches = await getHumanCoaches().list();
@@ -46,7 +46,7 @@ export default async function HumanCoachesAdminPage({ searchParams }: { searchPa
     <BackOfficeLayout access={access}>
       <h1>{t("admin.humanCoaches.title")}</h1>
       <p className="lead">{t("admin.humanCoaches.intro")}</p>
-      {canEdit ? null : <p className="notice">{t("admin.readOnly")}</p>}
+      {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}
       {added ? (
         <p className="notice" role="status">
           {t("admin.humanCoaches.added", { name: added })}
@@ -76,48 +76,45 @@ export default async function HumanCoachesAdminPage({ searchParams }: { searchPa
                 </a>
               </p>
               {coach.bio ? <p>{coach.bio}</p> : null}
-              {canEdit ? (
-                <form action={retireCoach}>
-                  <input type="hidden" name="coachId" value={coach.id} />
-                  <button className="button" type="submit">
-                    {t("admin.humanCoaches.retire", { name: coach.name })}
-                  </button>
-                </form>
-              ) : null}
+              <BackOfficeForm canWrite={canWrite} action={retireCoach}>
+                <input type="hidden" name="coachId" value={coach.id} />
+                <button className="button" type="submit" disabled={!canWrite}>
+                  {t("admin.humanCoaches.retire", { name: coach.name })}
+                </button>
+              </BackOfficeForm>
             </li>
           ))}
         </ul>
       </section>
 
-      {canEdit ? (
-        <form className="stack quota-form" action={addCoach}>
-          <fieldset>
-            <legend>
-              <h2>{t("admin.humanCoaches.addTitle")}</h2>
-            </legend>
-            <div className="stack">
-              <label htmlFor="coach-name">{t("admin.humanCoaches.name")}</label>
-              <input id="coach-name" className="input" name="name" required autoComplete="off" />
-            </div>
-            <div className="stack">
-              <label htmlFor="coach-email">{t("admin.humanCoaches.email")}</label>
-              <input id="coach-email" className="input" name="email" type="email" required autoComplete="off" />
-            </div>
-            <div className="stack">
-              <label htmlFor="coach-booking-url">{t("admin.humanCoaches.bookingUrl")}</label>
-              <input id="coach-booking-url" className="input" name="bookingUrl" type="url" required aria-describedby="coach-booking-url-help" />
-              <p id="coach-booking-url-help">{t("admin.humanCoaches.bookingUrlHelp")}</p>
-            </div>
-            <div className="stack">
-              <label htmlFor="coach-bio">{t("admin.humanCoaches.bio")}</label>
-              <textarea id="coach-bio" className="input" name="bio" rows={3} />
-            </div>
-            <button className="button button-primary" type="submit">
-              {t("admin.humanCoaches.add")}
-            </button>
-          </fieldset>
-        </form>
-      ) : null}
+      <BackOfficeForm canWrite={canWrite} className="stack quota-form" action={addCoach}>
+        {/* Read-only for roles that may not change Human Coaches: the fields show, disabled, with nothing to send. */}
+        <fieldset disabled={!canWrite}>
+          <legend>
+            <h2>{t("admin.humanCoaches.addTitle")}</h2>
+          </legend>
+          <div className="stack">
+            <label htmlFor="coach-name">{t("admin.humanCoaches.name")}</label>
+            <input id="coach-name" className="input" name="name" required autoComplete="off" />
+          </div>
+          <div className="stack">
+            <label htmlFor="coach-email">{t("admin.humanCoaches.email")}</label>
+            <input id="coach-email" className="input" name="email" type="email" required autoComplete="off" />
+          </div>
+          <div className="stack">
+            <label htmlFor="coach-booking-url">{t("admin.humanCoaches.bookingUrl")}</label>
+            <input id="coach-booking-url" className="input" name="bookingUrl" type="url" required aria-describedby="coach-booking-url-help" />
+            <p id="coach-booking-url-help">{t("admin.humanCoaches.bookingUrlHelp")}</p>
+          </div>
+          <div className="stack">
+            <label htmlFor="coach-bio">{t("admin.humanCoaches.bio")}</label>
+            <textarea id="coach-bio" className="input" name="bio" rows={3} />
+          </div>
+          <button className="button button-primary" type="submit">
+            {t("admin.humanCoaches.add")}
+          </button>
+        </fieldset>
+      </BackOfficeForm>
     </BackOfficeLayout>
   );
 }

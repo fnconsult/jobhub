@@ -674,7 +674,7 @@
       "grantEmailHelp": "The person must already have created their account.",
       "grantRoles": "Roles to grant",
       "grant": "Grant the roles",
-      "granted": "Roles granted to {{email}}.",
+      "granted": "Roles granted: {{roles}}.",
       "revoked": "Role revoked.",
       "roleHelp": {
         "super-admin": "The whole back office, Administrators and Journal included.",
@@ -684,9 +684,11 @@
       },
       "errors": {
         "unknown_account": "No Jobbbox account uses this email address. The person must create their account first.",
+        "unverified_account": "This account has not confirmed its email address yet: roles would give it no access. Ask them to sign in once first.",
         "no_role": "Tick at least one role.",
         "own_super_admin": "You cannot remove your own super-admin role.",
         "permanent": "This super-admin is permanent (ADMIN_EMAILS): their role cannot be revoked here.",
+        "last_super_admin": "There must always be at least one super-admin.",
         "forbidden": "Only super-admins grant and revoke roles."
       }
     },

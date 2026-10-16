@@ -155,4 +155,52 @@ describe.skipIf(!connectionString)("Administrators and their Back Office Roles (
       { candidateId: paul.id, email: "paul@jobbbox.fr", roles: ["plans-manager", "support"], permanent: false },
     ]);
   });
+
+  it("refuses an account whose email address is not verified: its roles would give no access", async () => {
+    await database.query(`UPDATE candidate SET "emailVerified" = false WHERE id = $1`, [paul.id]);
+
+    expect(await administrators.grant(claire, "paul@jobbbox.fr", ["support"])).toEqual({ ok: false, error: "unverified_account" });
+    expect((await database.query("SELECT 1 FROM administrator_role WHERE candidate_id = $1", [paul.id])).rowCount).toBe(0);
+    expect(await backOffice.journal()).toEqual([]);
+  });
+
+  describe("with no ADMIN_EMAILS", () => {
+    let bare: Administrators;
+
+    beforeEach(async () => {
+      bare = createAdministrators(database, { backOffice, isPermanentSuperAdmin: permanentSuperAdminsFromEnv({}) });
+    });
+
+    it("two super-admins revoking each other at the same moment leave one super-admin", async () => {
+      await administrators.grant(claire, "paul@jobbbox.fr", ["super-admin"]);
+      await administrators.grant(claire, "marie.dupont@example.fr", ["super-admin"]);
+
+      const results = await Promise.all([bare.revoke(paul, marie.id, "super-admin"), bare.revoke(marie, paul.id, "super-admin")]);
+
+      expect(results.filter((result) => result.ok)).toHaveLength(1);
+      expect(results.filter((result) => !result.ok)).toEqual([{ ok: false, error: "forbidden" }]);
+      const remaining = [(await bare.access(paul)).isSuperAdmin, (await bare.access(marie)).isSuperAdmin];
+      expect(remaining.filter(Boolean)).toHaveLength(1);
+    });
+
+    it("the last super-admin cannot be revoked", async () => {
+      await administrators.grant(claire, "paul@jobbbox.fr", ["super-admin"]);
+
+      expect(await bare.revoke(paul, paul.id, "super-admin")).toEqual({ ok: false, error: "last_super_admin" });
+      expect((await bare.access(paul)).isSuperAdmin).toBe(true);
+    });
+
+    it("a super-admin whose role was just revoked cannot grant any more", async () => {
+      await administrators.grant(claire, "paul@jobbbox.fr", ["super-admin"]);
+      await administrators.grant(claire, "marie.dupont@example.fr", ["super-admin"]);
+
+      const [revoked, granted] = await Promise.all([bare.revoke(marie, paul.id, "super-admin"), bare.grant(paul, "paul@jobbbox.fr", ["support"])]);
+
+      expect(revoked).toEqual({ ok: true });
+      // Either the grant ran first, or it saw Paul was no longer a super-admin.
+      if (granted.ok) expect((await bare.access(paul)).roles).toEqual(["support"]);
+      else expect(granted).toEqual({ ok: false, error: "forbidden" });
+      expect((await bare.access(paul)).isSuperAdmin).toBe(false);
+    });
+  });
 });

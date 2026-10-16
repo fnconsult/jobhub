@@ -36,10 +36,17 @@ export async function currentIsAdministrator(): Promise<boolean> {
  * and, with `resource`, to those whose roles do not allow `permission` on it.
  * Every Back Office page and write calls it first.
  */
-export async function requireBackOffice(resource?: BackOfficeResource, permission: Permission = "read"): Promise<{ administrator: Person; access: AdministratorAccess }> {
+export async function requireBackOffice(
+  resource?: BackOfficeResource,
+  permission: Permission = "read",
+): Promise<{ administrator: Person; access: AdministratorAccess; /** Whether their roles also let them change `resource`. */ canWrite: boolean }> {
   const person = await getCurrentCandidate();
   if (!person) redirect(routes.signIn);
   const access = await getAdministrators().access(person);
   if (!access.isAdministrator || (resource && !access.can(resource, permission))) notFound();
-  return { administrator: { id: person.id, email: person.email, emailVerified: person.emailVerified }, access };
+  return {
+    administrator: { id: person.id, email: person.email, emailVerified: person.emailVerified },
+    access,
+    canWrite: resource ? access.can(resource, "write") : false,
+  };
 }

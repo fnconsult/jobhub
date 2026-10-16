@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { planQuotasFromForm } from "@/admin/plan-quotas-form";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
 import { getBilling } from "@/billing/server";
+import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
@@ -27,8 +28,7 @@ async function savePlanQuotas(form: FormData) {
 
 /** Administrators edit each Plan's quotas; empty means unlimited. */
 export default async function PlanQuotasPage({ searchParams }: { searchParams: Promise<{ saved?: string; invalid?: string }> }) {
-  const { access } = await requireBackOffice("planQuotas");
-  const canEdit = access.can("planQuotas", "write");
+  const { access, canWrite } = await requireBackOffice("planQuotas");
   const t = await getServerT();
   const { saved, invalid } = await searchParams;
   const quotas = await getBilling().planQuotas();
@@ -39,7 +39,7 @@ export default async function PlanQuotasPage({ searchParams }: { searchParams: P
     <BackOfficeLayout access={access}>
       <h1>{t("admin.planQuotas.title")}</h1>
       <p className="lead">{t("admin.planQuotas.intro")}</p>
-      {canEdit ? null : <p className="notice">{t("admin.readOnly")}</p>}
+      {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}
       {isPlan(saved) ? (
         <p className="notice" role="status">
           {t("admin.planQuotas.saved", { plan: planName(saved) })}
@@ -51,10 +51,10 @@ export default async function PlanQuotasPage({ searchParams }: { searchParams: P
         </p>
       ) : null}
       {PLANS.map((plan) => (
-        <form key={plan} className="stack quota-form" action={canEdit ? savePlanQuotas : undefined}>
+        <BackOfficeForm key={plan} canWrite={canWrite} className="stack quota-form" action={savePlanQuotas}>
           <input type="hidden" name="plan" value={plan} />
           {/* Read-only for roles that may not change Plan Quotas: no field to edit, no button to save. */}
-          <fieldset disabled={!canEdit}>
+          <fieldset disabled={!canWrite}>
             <legend>
               <h2>{t("admin.planQuotas.plan", { plan: planName(plan) })}</h2>
             </legend>
@@ -89,13 +89,13 @@ export default async function PlanQuotasPage({ searchParams }: { searchParams: P
                 ))}
               </select>
             </div>
-            {canEdit ? (
+            {canWrite ? (
               <button className="button button-primary" type="submit">
                 {t("admin.planQuotas.save", { plan: planName(plan) })}
               </button>
             ) : null}
           </fieldset>
-        </form>
+        </BackOfficeForm>
       ))}
     </BackOfficeLayout>
   );

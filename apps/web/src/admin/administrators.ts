@@ -10,9 +10,10 @@
  * Roles live in `administrator_role`, one row per Candidate and role; the
  * Candidate table is untouched (ADR-0011). ADMIN_EMAILS members are permanent
  * super-admins: they hold the role with no row, and nobody can revoke it. Only
- * super-admins grant and revoke, never their own super-admin role, and only to
- * an existing Candidate account. Every grant and revoke is recorded in the
- * Back Office Audit, in the same transaction.
+ * super-admins grant and revoke, never their own super-admin role nor the last
+ * one, and only to an existing, verified Candidate account. Every grant and revoke
+ * is checked, made and recorded in the Back Office Audit in one transaction, one
+ * at a time.
  */
 import type { Pool } from "pg";
 import type { Queryable } from "../database/pool";
@@ -48,8 +49,19 @@ export interface Administrator {
   permanent: boolean;
 }
 
-export type GrantResult = { ok: true } | { ok: false; error: "forbidden" | "no_role" | "unknown_account" };
-export type RevokeResult = { ok: true } | { ok: false; error: "forbidden" | "own_super_admin" | "permanent" };
+type GrantError = "forbidden" | "no_role" | "unknown_account" | "unverified_account";
+type RevokeError = "forbidden" | "own_super_admin" | "permanent" | "last_super_admin";
+export type GrantResult = { ok: true } | { ok: false; error: GrantError };
+export type RevokeResult = { ok: true } | { ok: false; error: RevokeError };
+
+/** What a grant or revoke's transaction did: refused, or changed one account's roles. */
+type Outcome<Error> = { refused: Error } | { email: string; before: BackOfficeRole[]; after: BackOfficeRole[] };
+
+interface AccountRow {
+  id: string;
+  email: string;
+  emailVerified: boolean;
+}
 
 export interface Administrators {
   /** What `person` may do in the Back Office now. Never cached: a revoked role is gone on the next request. */
@@ -58,14 +70,14 @@ export interface Administrators {
   list(): Promise<Administrator[]>;
   /**
    * `actor` gives `roles` (untrusted: unknown ones are ignored) to the Candidate account
-   * with `email`, on top of those they hold. Super-admins only; an email with no account
-   * is refused, nothing is kept for later.
+   * with `email`, on top of those they hold. Super-admins only; an email with no account,
+   * or not verified, is refused, nothing is kept for later.
    */
   grant(actor: Person, email: string, roles: readonly unknown[]): Promise<GrantResult>;
   /**
    * `actor` takes `role` (untrusted) from the Candidate `candidateId`; a role they do not
    * hold changes nothing. Super-admins only, never their own super-admin role, never
-   * an ADMIN_EMAILS member's.
+   * an ADMIN_EMAILS member's, never the last super-admin's.
    */
   revoke(actor: Person, candidateId: string, role: unknown): Promise<RevokeResult>;
 }
@@ -91,6 +103,33 @@ export function createAdministrators(database: Pool, deps: AdministratorsDeps): 
     const { rows } = await within.query<{ role: string }>("SELECT role FROM administrator_role WHERE candidate_id = $1", [candidateId]);
     // A role since dropped from the code grants nothing.
     return inOrder(rows.map((row) => row.role));
+  }
+
+  /**
+   * Inside a grant or revoke's transaction: waits for every other change of roles to
+   * finish (one at a time, so two super-admins revoking each other cannot both succeed),
+   * locks the actor's account (and `others`), and says whether the actor is a
+   * super-admin now, as recorded.
+   */
+  async function isSuperAdminWithin(within: Queryable, actorId: string, ...others: string[]): Promise<boolean> {
+    await within.query("SELECT pg_advisory_xact_lock(hashtext('administrator_role'))");
+    const { rows } = await within.query<AccountRow>(`SELECT id, email, "emailVerified" FROM candidate WHERE id = ANY($1::text[]) ORDER BY id FOR UPDATE`, [
+      [actorId, ...others],
+    ]);
+    const actor = rows.find((row) => row.id === actorId);
+    if (!actor?.emailVerified) return false;
+    return deps.isPermanentSuperAdmin(actor) || (await storedRoles(actorId, within)).includes("super-admin");
+  }
+
+  /** How many super-admins there are: those with the role recorded and the ADMIN_EMAILS members with an account, all with a verified email. */
+  async function superAdminCount(within: Queryable): Promise<number> {
+    const { rows } = await within.query<{ count: string }>(
+      `SELECT count(*) FROM candidate c
+       WHERE c."emailVerified"
+         AND (lower(c.email) = ANY($1::text[]) OR EXISTS (SELECT 1 FROM administrator_role r WHERE r.candidate_id = c.id AND r.role = 'super-admin'))`,
+      [deps.isPermanentSuperAdmin.emails],
+    );
+    return Number(rows[0]?.count ?? 0);
   }
 
   async function access(person: Person): Promise<AdministratorAccess> {
@@ -120,16 +159,18 @@ export function createAdministrators(database: Pool, deps: AdministratorsDeps): 
     },
 
     async grant(actor, email, requested) {
-      if (!(await access(actor)).isSuperAdmin) return { ok: false, error: "forbidden" };
       const roles = inOrder(requested.filter(isBackOfficeRole));
       if (roles.length === 0) return { ok: false, error: "no_role" };
-      const { rows } = await database.query<{ id: string; email: string }>("SELECT id, email FROM candidate WHERE lower(email) = lower($1)", [email.trim()]);
-      const account = rows[0];
-      if (!account) return { ok: false, error: "unknown_account" };
 
-      await deps.backOffice.record(
+      const outcome = await deps.backOffice.record(
         actor,
-        async (within) => {
+        async (within): Promise<Outcome<GrantError>> => {
+          if (!(await isSuperAdminWithin(within, actor.id))) return { refused: "forbidden" };
+          const { rows } = await within.query<AccountRow>(`SELECT id, email, "emailVerified" FROM candidate WHERE lower(email) = lower($1) FOR UPDATE`, [email.trim()]);
+          const account = rows[0];
+          if (!account) return { refused: "unknown_account" };
+          // Roles count only for a verified email: a grant to anyone else would give nothing, yet.
+          if (!account.emailVerified) return { refused: "unverified_account" };
           const before = await storedRoles(account.id, within);
           await within.query(
             `INSERT INTO administrator_role (candidate_id, role, granted_by)
@@ -137,32 +178,34 @@ export function createAdministrators(database: Pool, deps: AdministratorsDeps): 
              ON CONFLICT (candidate_id, role) DO NOTHING`,
             [account.id, roles, actor.id],
           );
-          return { before, after: inOrder([...before, ...roles]) };
+          return { email: account.email.toLowerCase(), before, after: inOrder([...before, ...roles]) };
         },
-        ({ before, after }) => rolesChange(account.email.toLowerCase(), before, after),
+        (done) => ("refused" in done ? null : rolesChange(done.email, done.before, done.after)),
       );
-      return { ok: true };
+      return "refused" in outcome ? { ok: false, error: outcome.refused } : { ok: true };
     },
 
     async revoke(actor, candidateId, role) {
-      if (!(await access(actor)).isSuperAdmin) return { ok: false, error: "forbidden" };
-      if (!isBackOfficeRole(role)) return { ok: true };
-      if (role === "super-admin" && candidateId === actor.id) return { ok: false, error: "own_super_admin" };
-      const { rows } = await database.query<{ email: string; emailVerified: boolean }>(`SELECT email, "emailVerified" FROM candidate WHERE id = $1`, [candidateId]);
-      const account = rows[0];
-      if (!account) return { ok: true };
-      if (role === "super-admin" && deps.isPermanentSuperAdmin(account)) return { ok: false, error: "permanent" };
-
-      await deps.backOffice.record(
+      const outcome = await deps.backOffice.record(
         actor,
-        async (within) => {
+        async (within): Promise<Outcome<RevokeError> | null> => {
+          if (!(await isSuperAdminWithin(within, actor.id, candidateId))) return { refused: "forbidden" };
+          if (!isBackOfficeRole(role)) return null;
+          const { rows } = await within.query<AccountRow>(`SELECT id, email, "emailVerified" FROM candidate WHERE id = $1`, [candidateId]);
+          const account = rows[0];
+          if (!account) return null;
           const before = await storedRoles(candidateId, within);
+          if (role === "super-admin") {
+            if (deps.isPermanentSuperAdmin(account)) return { refused: "permanent" };
+            if (before.includes(role) && (await superAdminCount(within)) <= 1) return { refused: "last_super_admin" };
+            if (candidateId === actor.id) return { refused: "own_super_admin" };
+          }
           await within.query("DELETE FROM administrator_role WHERE candidate_id = $1 AND role = $2", [candidateId, role]);
-          return { before, after: before.filter((held) => held !== role) };
+          return { email: account.email.toLowerCase(), before, after: before.filter((held) => held !== role) };
         },
-        ({ before, after }) => rolesChange(account.email.toLowerCase(), before, after),
+        (done) => (done === null || "refused" in done ? null : rolesChange(done.email, done.before, done.after)),
       );
-      return { ok: true };
+      return outcome !== null && "refused" in outcome ? { ok: false, error: outcome.refused } : { ok: true };
     },
   };
 }

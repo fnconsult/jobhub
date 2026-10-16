@@ -26,6 +26,9 @@ const SECTIONS = {
 } as const;
 type Section = keyof typeof SECTIONS;
 
+/** The Back Office Roles, in the order the app lists them. */
+const ROLES = ["super-admin", "plans-manager", "coach-manager", "support"];
+
 /** A signed-in page of its own (cookies apart), as for another person on another computer. */
 async function personPage(browser: Browser, email: string): Promise<Page> {
   const context = await browser.newContext({ baseURL: origin, locale: "en-US" });
@@ -42,7 +45,8 @@ async function grant(superAdmin: Page, email: string, roles: string[]) {
   await superAdmin.getByLabel(admin.administrators.grantEmail).fill(email);
   for (const role of roles) await superAdmin.getByRole("checkbox", { name: admin.roles[role] }).check();
   await superAdmin.getByRole("button", { name: admin.administrators.grant }).click();
-  await expect(superAdmin.getByRole("status")).toHaveText(tr(admin.administrators.granted, { email }));
+  const named = ROLES.filter((role) => roles.includes(role)).map((role) => admin.roles[role]);
+  await expect(superAdmin.getByRole("status")).toHaveText(tr(admin.administrators.granted, { roles: named.join(", ") }));
 }
 
 /** The super-admin revokes `role` from `email`. */
@@ -109,6 +113,12 @@ test.describe("Back Office Roles", () => {
     await page.getByRole("button", { name: admin.administrators.grant }).click();
     await expect(page.getByRole("main").getByRole("alert")).toHaveText(admin.administrators.errors.unknown_account);
 
+    // The notice names roles only from their keys: nothing else from the address bar is shown.
+    await page.goto(`${SECTIONS.administrators}?granted=${encodeURIComponent("<b>hacked</b>,support")}`);
+    await expect(page.getByRole("status")).toHaveText(tr(admin.administrators.granted, { roles: admin.roles.support }));
+    await page.goto(`${SECTIONS.administrators}?granted=hacked`);
+    await expect(page.getByRole("main").getByRole("status")).toHaveCount(0);
+
     const email = newAddress("granted");
     const person = await personPage(page.context().browser()!, email);
     await grant(page, email, ["support", "coach-manager"]);
@@ -143,10 +153,15 @@ test.describe("Back Office Roles", () => {
     await expect(supportPage.getByText(admin.readOnly)).toBeVisible();
     await expect(supportPage.getByRole("button")).not.toContainText([admin.planQuotas.save.split(" {{")[0]!]);
     await expect(supportPage.getByLabel(fr.billing.quotas.matchScores, { exact: false }).first()).toBeDisabled();
+    // Read only: the values show, but there is no form to send.
+    await expect(supportPage.getByRole("main").locator("form")).toHaveCount(0);
     await supportPage.goto(SECTIONS.humanCoaches);
     await expect(supportPage.getByText(admin.readOnly)).toBeVisible();
-    await expect(supportPage.getByRole("button", { name: admin.humanCoaches.add })).toHaveCount(0);
-    await expect(supportPage.getByLabel(admin.humanCoaches.name)).toHaveCount(0);
+    // The add and retire controls show, disabled, with no form behind them.
+    await expect(supportPage.getByRole("button", { name: admin.humanCoaches.add })).toBeDisabled();
+    await expect(supportPage.getByLabel(admin.humanCoaches.name)).toBeDisabled();
+    for (const retire of await supportPage.getByRole("button", { name: tr(admin.humanCoaches.retire, { name: "" }) }).all()) await expect(retire).toBeDisabled();
+    await expect(supportPage.getByRole("main").locator("form")).toHaveCount(0);
 
     // Nor can Support save by sending the form by hand: the write is refused on the server.
     const refused = await submitAs(supportPage, page, SECTIONS.planQuotas, tr(admin.planQuotas.save, { plan: fr.billing.plans.premium }), {

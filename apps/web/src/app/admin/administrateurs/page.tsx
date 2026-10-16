@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { BACK_OFFICE_ROLES } from "@/admin/access";
+import { BACK_OFFICE_ROLES, isBackOfficeRole } from "@/admin/access";
 import { getAdministrators, requireBackOffice } from "@/admin/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 
-const ERRORS = ["unknown_account", "no_role", "own_super_admin", "permanent", "forbidden"] as const;
+const ERRORS = ["unknown_account", "unverified_account", "no_role", "own_super_admin", "permanent", "last_super_admin", "forbidden"] as const;
 type ErrorCode = (typeof ERRORS)[number];
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -20,10 +20,10 @@ export async function generateMetadata(): Promise<Metadata> {
 async function grantRoles(form: FormData) {
   "use server";
   const { administrator } = await requireBackOffice("roles", "write");
-  const email = String(form.get("email") ?? "");
-  const granted = await getAdministrators().grant(administrator, email, form.getAll("roles"));
+  const roles = form.getAll("roles").filter(isBackOfficeRole);
+  const granted = await getAdministrators().grant(administrator, String(form.get("email") ?? ""), roles);
   if (!granted.ok) redirect(`${routes.adminAdministrators}?error=${granted.error}`);
-  redirect(`${routes.adminAdministrators}?granted=${encodeURIComponent(email.trim().toLowerCase())}`);
+  redirect(`${routes.adminAdministrators}?granted=${roles.join(",")}`);
 }
 
 async function revokeRole(form: FormData) {
@@ -42,14 +42,16 @@ export default async function AdministratorsPage({ searchParams }: { searchParam
   const administrators = await getAdministrators().list();
   const roleName = (role: (typeof BACK_OFFICE_ROLES)[number]) => t(`admin.roles.${role}`);
   const isError = (value: string | undefined): value is ErrorCode => ERRORS.includes(value as ErrorCode);
+  // The notice names the roles granted from their keys only: nothing typed in the address bar is shown.
+  const grantedRoles = BACK_OFFICE_ROLES.filter((role) => (granted ?? "").split(",").includes(role));
 
   return (
     <BackOfficeLayout access={access}>
       <h1>{t("admin.administrators.title")}</h1>
       <p className="lead">{t("admin.administrators.intro")}</p>
-      {granted ? (
+      {grantedRoles.length > 0 ? (
         <p className="notice" role="status">
-          {t("admin.administrators.granted", { email: granted })}
+          {t("admin.administrators.granted", { roles: grantedRoles.map(roleName).join(", ") })}
         </p>
       ) : null}
       {revoked ? (

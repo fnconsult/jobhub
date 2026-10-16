@@ -71,11 +71,42 @@ describe("the Provider Secrets resolver: database first, then env", () => {
     expect(JSON.stringify(log.mock.calls)).not.toContain("db-mistral");
   });
 
-  it("reads the database once for callers asking at the same time", async () => {
+  it("a refresh asked while a read is in flight reads once more after it: a save committed mid-read is not missed", async () => {
+    const store = fakeStore({ MISTRAL_API_KEY: { value: "old", row: "r1" } });
+    let finishFirstRead!: () => void;
+    const firstRead = new Promise<void>((resolve) => (finishFirstRead = resolve));
+    // The first read has already read the old row; it answers once the save has committed.
+    store.load.mockImplementationOnce(async () => {
+      const read = { MISTRAL_API_KEY: { value: "old", row: "r1" } };
+      await firstRead;
+      return read;
+    });
+    const resolver = createSecretResolver({ load: store.load, env: ENV });
+
+    const inFlight = resolver.refresh();
+    store.set({ MISTRAL_API_KEY: { value: "new", row: "r2" } });
+    const afterTheSave = resolver.refresh();
+    finishFirstRead();
+
+    expect((await inFlight).env.MISTRAL_API_KEY).toBe("old");
+    expect((await afterTheSave).env.MISTRAL_API_KEY).toBe("new");
+    expect(resolver.current().env.MISTRAL_API_KEY).toBe("new");
+  });
+
+  it("queues at most one more read, however many refreshes are asked meanwhile", async () => {
     const store = fakeStore();
     const resolver = createSecretResolver({ load: store.load, env: ENV });
 
-    await Promise.all([resolver.refresh(), resolver.refresh(), resolver.refresh()]);
+    await Promise.all([resolver.refresh(), resolver.refresh(), resolver.refresh(), resolver.refresh()]);
+
+    expect(store.load).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads the database once for a single caller", async () => {
+    const store = fakeStore();
+    const resolver = createSecretResolver({ load: store.load, env: ENV });
+
+    await resolver.refresh();
 
     expect(store.load).toHaveBeenCalledTimes(1);
   });

@@ -31,7 +31,7 @@ export interface SecretsSnapshot {
 export interface SecretResolver {
   /** The values in use now, from the cache. Never throws. */
   current(): SecretsSnapshot;
-  /** Reads the database now (once for concurrent callers), and returns what is in use then. */
+  /** Reads the database now (a read already in flight is followed by one more), and returns what is in use then. */
   refresh(): Promise<SecretsSnapshot>;
 }
 
@@ -48,7 +48,8 @@ export interface SecretResolverOptions {
   log?: (line: string) => void;
 }
 
-function snapshotOf(env: Env, stored: StoredSecrets): SecretsSnapshot {
+/** `env` with the database's Provider Secrets over it: the values in use. */
+export function snapshotOf(env: Env, stored: StoredSecrets): SecretsSnapshot {
   const overlaid: Env = { ...env };
   for (const [name, { value }] of Object.entries(stored)) overlaid[name] = value;
   const source = (name: string): SecretSource => (name in stored ? "database" : env[name]?.trim() ? "env" : "missing");
@@ -66,9 +67,10 @@ export function createSecretResolver(options: SecretResolverOptions): SecretReso
   let snapshot = snapshotOf(options.env, {});
   let readAt: number | null = null;
   let reading: Promise<SecretsSnapshot> | null = null;
+  let queued: Promise<SecretsSnapshot> | null = null;
 
-  function refresh(): Promise<SecretsSnapshot> {
-    reading ??= options
+  function read(): Promise<SecretsSnapshot> {
+    return options
       .load()
       .then(
         (stored) => {
@@ -85,12 +87,25 @@ export function createSecretResolver(options: SecretResolverOptions): SecretReso
         readAt = now();
         reading = null;
       });
-    return reading;
+  }
+
+  /**
+   * Reads now; while a read is in flight, one more read is queued after it (shared by
+   * every caller meanwhile): the read in flight may predate the change that asked.
+   */
+  function refresh(): Promise<SecretsSnapshot> {
+    if (!reading) return (reading = read());
+    queued ??= reading.then(() => {
+      queued = null;
+      return (reading = read());
+    });
+    return queued;
   }
 
   return {
     current() {
-      if (readAt !== null && now() - readAt >= ttlMs) void refresh();
+      // A stale cache joins a read in flight: it only needs one newer than the TTL.
+      if (!reading && readAt !== null && now() - readAt >= ttlMs) void refresh();
       return snapshot;
     },
     refresh,

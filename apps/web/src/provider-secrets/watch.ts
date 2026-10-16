@@ -29,11 +29,8 @@ export function watchProviderSecrets(options: { database: Pool; env: Env; log?: 
   let stopListening: (() => Promise<void>) | undefined;
   const ready = (async () => {
     await resolver.refresh();
-    try {
-      stopListening = await listenForProviderSecretChanges(options.database, () => void resolver.refresh(), { log });
-    } catch (error) {
-      log(`[provider-secrets] not listening for changes (the ${TTL_MS / 1000} s refresh stands in): ${error instanceof Error ? error.message : String(error)}`);
-    }
+    // Never throws: it keeps trying to listen, the TTL refresh standing in meanwhile.
+    stopListening = await listenForProviderSecretChanges(options.database, () => void resolver.refresh(), { log });
   })();
   return {
     resolver,

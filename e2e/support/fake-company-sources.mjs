@@ -113,6 +113,12 @@ globalThis.fetch = async (input, init) => {
     if (query.includes("Bibendum")) {
       return perplexityAnswer(JSON.stringify({ country: "France", siren: "552 100 557" }), [{ url: "https://bibendum.example/groupe" }]);
     }
+    // "Weitblick Energie AG" (#172): a web search citing a source by a long URL with no break in it.
+    if (query.includes("Weitblick Energie")) {
+      return perplexityAnswer(JSON.stringify({ country: "Allemagne", industry: "Énergie", website: "https://www.weitblick-energie.example/de/unternehmen/ueber-uns/investor-relations" }), [
+        { url: "https://assets.weitblick-energie.example/weitblick/assets/api/uuid:3f1c9a2e-7b4d-4e8a-9c61-2d5f0b8e4a17/251113-press-release-en.pdf" },
+      ]);
+    }
     // "Atlantis Labs" (#95): a web dossier that names no country the people search knows.
     if (query.includes("Atlantis Labs")) {
       return perplexityAnswer(JSON.stringify({ headquarters: "Atlantis", industry: "Robotique", website: "atlantis-labs.example" }), [{ url: "https://atlantis-labs.example/about" }]);

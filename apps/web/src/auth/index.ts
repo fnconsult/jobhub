@@ -165,14 +165,30 @@ export function signInHooks(signIn: SignInSetup, baseURL: string) {
     return user ? { id: user.id, email: user.email, emailVerified: user.emailVerified } : null;
   };
 
+  /** Whether `providerId`'s email is proof of owning that address (it links by email: policy.ts). */
+  const vouchesForEmail = (providerId: string) => trustedProviderIds(signIn.configuration).includes(providerId);
+
   return {
     user: {
       create: {
         before: async (user: { email: string; emailVerified: boolean }, ctx: HookContext) => {
           const providerId = providerOf(ctx);
-          if (!providerId || !ctx) return;
-          await decide(ctx, providerId, { id: "", email: user.email, emailVerified: user.emailVerified });
+          if (!providerId || !ctx) return undefined;
+          // A provider not trusted for linking proves nothing about the address, whatever it
+          // claims: the account starts unverified (no ADMIN_EMAILS standing), until a magic link.
+          const emailVerified = user.emailVerified && vouchesForEmail(providerId);
+          await decide(ctx, providerId, { id: "", email: user.email, emailVerified });
           signingUp.set(signUpKey(providerId, user.email), Date.now() + SIGN_UP_MS);
+          return { data: { emailVerified } };
+        },
+      },
+      update: {
+        before: async (update: { emailVerified?: unknown }, ctx: HookContext) => {
+          const providerId = providerOf(ctx);
+          // Better Auth marks an account verified when a provider says so at sign-in: not one that proves nothing.
+          // (In 1.7.7 that update sets emailVerified alone, so skipping it loses nothing else.)
+          if (providerId && update.emailVerified === true && !vouchesForEmail(providerId)) return false;
+          return undefined;
         },
       },
     },

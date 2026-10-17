@@ -1,5 +1,6 @@
 import { generateKeyPairSync, sign } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { permanentSuperAdminsFromEnv } from "../admin/access";
 import { createAuth } from "./index";
 import { BASE_URL, connectionString, cookiesFrom, signInWithMagicLink, startTestAuth, testProvider, testSignIn, type TestAuth } from "./test-support";
 
@@ -39,8 +40,13 @@ function ssoIdToken(claims: Record<string, unknown>): string {
   return `${unsigned}.${sign("sha256", Buffer.from(unsigned), issuerKeys.privateKey).toString("base64url")}`;
 }
 
-/** Who Google and the OIDC issuer say is signing in, and the nonce the issuer was asked to sign. */
-const person: { google: Record<string, unknown>; sso: Record<string, unknown>; nonce?: string } = { google: {}, sso: {} };
+/** Microsoft on its multi-tenant directory: any tenant's admin may set any email on an account. */
+const microsoft = testProvider({ id: "microsoft", type: "microsoft", displayName: "Microsoft", clientId: "jobbbox-microsoft", clientSecret: "test-microsoft-secret", tenantId: "common" });
+const microsoftIdToken = (claims: Record<string, unknown>) =>
+  `${encode({ alg: "RS256", typ: "JWT" })}.${encode({ iss: "https://login.microsoftonline.com/some-tenant/v2.0", tid: "some-tenant", aud: microsoft.clientId, iat: now(), exp: now() + 3600, ...claims })}.signature`;
+
+/** Who Google, Microsoft and the OIDC issuer say is signing in, and the nonce the issuer was asked to sign. */
+const person: { google: Record<string, unknown>; sso: Record<string, unknown>; microsoft: Record<string, unknown>; nonce?: string } = { google: {}, sso: {}, microsoft: {} };
 
 /** Stands in for Google and for the OIDC issuer (discovery, JWKS, code exchange). */
 function providersAnswer() {
@@ -51,6 +57,10 @@ function providersAnswer() {
       return Response.json({ access_token: "google-access-token", token_type: "Bearer", expires_in: 3600, scope: "openid email profile", id_token: googleIdToken(person.google) });
     }
     if (url === sso.discoveryUrl) return Response.json(discovery);
+    if (url.startsWith("https://login.microsoftonline.com/common/oauth2/v2.0/token")) {
+      return Response.json({ access_token: "microsoft-access-token", token_type: "Bearer", expires_in: 3600, id_token: microsoftIdToken(person.microsoft) });
+    }
+    if (url.startsWith("https://graph.microsoft.com/")) return new Response(null, { status: 404 });
     if (url === `${ISSUER}/jwks`) return Response.json({ keys: [{ ...issuerKeys.publicKey.export({ format: "jwk" }), kid: "issuer-key", alg: "RS256", use: "sig" }] });
     if (url === `${ISSUER}/token`) {
       return Response.json({ access_token: "sso-access-token", token_type: "Bearer", expires_in: 3600, id_token: ssoIdToken({ ...person.sso, nonce: person.nonce }) });
@@ -71,6 +81,7 @@ describe.skipIf(!connectionString)("signing in through the Sign-in Providers (ne
   beforeEach(() => {
     person.google = {};
     person.sso = {};
+    person.microsoft = {};
     completeTestSignIn.mockClear();
     // Before the instance is built: it reads the OIDC issuer's discovery document then.
     providersAnswer();
@@ -269,6 +280,54 @@ describe.skipIf(!connectionString)("signing in through the Sign-in Providers (ne
       const started = await testAuth.request("/api/auth/sign-in/social", { body: { provider: "jobbbox-sso", callbackURL: "/compte" } });
 
       expect(started.status).toBe(404);
+    });
+  });
+
+  describe("an account signed up through a provider not trusted for linking", () => {
+    const ADMIN_EMAIL = "office@jobbbox.fr";
+    const isPermanentSuperAdmin = permanentSuperAdminsFromEnv({ ADMIN_EMAILS: ADMIN_EMAIL });
+    const candidate = async (email: string) => (await testAuth.database.query('SELECT id, email, "emailVerified" FROM candidate WHERE email = $1', [email])).rows[0];
+
+    it("starts with its email not verified, whatever the OIDC issuer claims: an ADMIN_EMAILS address gets no Back Office", async () => {
+      await start();
+      person.sso = { sub: "sso-office", email: ADMIN_EMAIL, email_verified: true, name: "Office" };
+
+      const session = await sessionOf(cookiesFrom(await through("jobbbox-sso")));
+
+      expect(session.user).toMatchObject({ email: ADMIN_EMAIL, emailVerified: false });
+      expect((await candidate(ADMIN_EMAIL)).emailVerified).toBe(false);
+      expect(isPermanentSuperAdmin(await candidate(ADMIN_EMAIL))).toBe(false);
+    });
+
+    it("starts with its email not verified through Microsoft on a multi-tenant directory, though Microsoft is trusted otherwise", async () => {
+      await start([google, microsoft]);
+      person.microsoft = { oid: "microsoft-office", sub: "microsoft-office", email: ADMIN_EMAIL, email_verified: true, name: "Office" };
+
+      const session = await sessionOf(cookiesFrom(await through("microsoft")));
+
+      expect(session.user).toMatchObject({ email: ADMIN_EMAIL, emailVerified: false });
+      expect(isPermanentSuperAdmin(await candidate(ADMIN_EMAIL))).toBe(false);
+    });
+
+    it("is never made verified by a later sign-in through it; only the magic link verifies it", async () => {
+      await start();
+      person.sso = { sub: "sso-office", email: ADMIN_EMAIL, email_verified: true, name: "Office" };
+      await through("jobbbox-sso");
+      await through("jobbbox-sso");
+
+      expect((await candidate(ADMIN_EMAIL)).emailVerified).toBe(false);
+
+      await signInWithMagicLink(testAuth, ADMIN_EMAIL);
+      expect((await candidate(ADMIN_EMAIL)).emailVerified).toBe(true);
+    });
+
+    it("through a trusted provider, keeps the email the provider verified", async () => {
+      await start();
+      person.google = { sub: "google-paul", email: "paul@gmail.com", email_verified: true, name: "Paul" };
+
+      await through("google");
+
+      expect((await candidate("paul@gmail.com")).emailVerified).toBe(true);
     });
   });
 

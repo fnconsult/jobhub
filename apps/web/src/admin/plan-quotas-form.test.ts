@@ -25,7 +25,8 @@ describe("the Plan Quotas form of the back office", () => {
     ["text", { atsScores: "beaucoup" }],
     ["a limit too large to store", { profiles: "99999999999" }],
     ["an unknown Job Digest frequency", { jobDigest: "hourly" }],
-    ["an unknown Plan", { plan: "gold" }],
+    ["no Plan", { plan: "" }],
+    ["a Plan key that is not one", { plan: "Gold Plan!" }],
   ])("refuses %s", (_, override) => {
     const fields = { plan: "free", profiles: "1", matchScores: "3", atsScores: "1", enrichedContacts: "0", jobSearches: "3", jobDigest: "none", ...override };
 

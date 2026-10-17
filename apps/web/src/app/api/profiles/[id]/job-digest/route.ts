@@ -23,9 +23,9 @@ export async function PUT(request: Request, { params }: RouteContext<"/api/profi
   switch (result.error) {
     case "not_included":
     case "above_plan": {
-      const { plan, upgradeTo } = result;
+      const { plan, planName, upgradeTo, upgradeToName } = result;
       const daily = result.error === "above_plan" ? ({ frequency: "daily" } as const) : {};
-      const prompt = upgradePrompt({ quota: "jobDigest", plan, limit: 0, upgradeTo, ...daily }, localeOf(candidate));
+      const prompt = upgradePrompt({ quota: "jobDigest", plan, planName, limit: 0, upgradeTo, upgradeToName, ...daily }, localeOf(candidate));
       return NextResponse.json({ error: result.error, plan, upgradeTo, prompt }, { status: 402 });
     }
     case "invalid_frequency":

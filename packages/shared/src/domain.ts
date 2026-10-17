@@ -22,9 +22,26 @@ export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
  */
 export const FINAL_APPLICATION_STATUSES = ["accepted", "rejected", "abandoned"] as const satisfies readonly ApplicationStatus[];
 
-/** The subscription tier a Candidate is on. */
-export const PLANS = ["free", "standard", "premium"] as const;
-export type Plan = (typeof PLANS)[number];
+/**
+ * The subscription tier a Candidate is on, by its permanent key ("free", "standard",
+ * "premium", or one an Administrator created in the Back Office). Plans live in the
+ * database (the `plan` table): a key is only a Plan once that table holds it.
+ */
+export type Plan = string;
+
+/** The Plan every Candidate starts on: built in, always ranked first, never paid through Stripe. */
+export const FREE_PLAN = "free" satisfies Plan;
+
+/** Whether a Plan is shown in the plan comparison, at checkout and in Upgrade Prompts (offered), or not (hidden). */
+export const PLAN_STATUSES = ["offered", "hidden"] as const;
+export type PlanStatus = (typeof PLAN_STATUSES)[number];
+
+/**
+ * Plan Features: what a Plan switches on or off, beyond its countable Plan Quotas.
+ * A fixed set in code; Administrators choose which of them each Plan has.
+ */
+export const PLAN_FEATURES = ["coachingSessionDiscount"] as const;
+export type PlanFeature = (typeof PLAN_FEATURES)[number];
 
 /** Plan Quotas that cap a number of things: Profiles held at once, or uses per calendar month. */
 export const LIMITED_QUOTAS = ["profiles", "matchScores", "atsScores", "enrichedContacts", "jobSearches"] as const;

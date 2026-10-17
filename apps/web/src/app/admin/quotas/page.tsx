@@ -1,4 +1,4 @@
-import { LIMITED_QUOTAS, JOB_DIGEST_FREQUENCIES, MONTHLY_QUOTAS, PLANS, type MonthlyQuota, type Plan } from "@jobhub/shared";
+import { LIMITED_QUOTAS, JOB_DIGEST_FREQUENCIES, MONTHLY_QUOTAS, type MonthlyQuota } from "@jobhub/shared";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { planQuotasFromForm } from "@/admin/plan-quotas-form";
@@ -6,7 +6,7 @@ import { getBackOffice, requireBackOffice } from "@/admin/server";
 import { getBilling } from "@/billing/server";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
-import { getServerT } from "@/i18n/server";
+import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -26,23 +26,23 @@ async function savePlanQuotas(form: FormData) {
   redirect(`${routes.adminPlanQuotas}?saved=${submitted.plan}`);
 }
 
-/** Administrators edit each Plan's quotas; empty means unlimited. */
+/** Administrators edit each Plan's quotas, in rank order, hidden Plans included; empty means unlimited. */
 export default async function PlanQuotasPage({ searchParams }: { searchParams: Promise<{ saved?: string; invalid?: string }> }) {
   const { access, canWrite } = await requireBackOffice("planQuotas");
-  const t = await getServerT();
+  const locale = await getRequestLocale();
+  const t = await getServerT(locale);
   const { saved, invalid } = await searchParams;
-  const quotas = await getBilling().planQuotas();
-  const planName = (plan: Plan) => t(`billing.plans.${plan}`);
-  const isPlan = (value: string | undefined): value is Plan => PLANS.includes(value as Plan);
+  const [plans, quotas] = await Promise.all([getBilling().plans(), getBilling().planQuotas()]);
+  const savedPlan = plans.find((plan) => plan.key === saved);
 
   return (
     <BackOfficeLayout access={access}>
       <h1>{t("admin.planQuotas.title")}</h1>
       <p className="lead">{t("admin.planQuotas.intro")}</p>
       {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}
-      {isPlan(saved) ? (
+      {savedPlan ? (
         <p className="notice" role="status">
-          {t("admin.planQuotas.saved", { plan: planName(saved) })}
+          {t("admin.planQuotas.saved", { plan: savedPlan.name[locale] })}
         </p>
       ) : null}
       {invalid ? (
@@ -50,13 +50,16 @@ export default async function PlanQuotasPage({ searchParams }: { searchParams: P
           {t("admin.planQuotas.invalid")}
         </p>
       ) : null}
-      {PLANS.map((plan) => (
+      {plans.map(({ key: plan, name, status }) => (
         <BackOfficeForm key={plan} canWrite={canWrite} className="stack quota-form" action={savePlanQuotas}>
           <input type="hidden" name="plan" value={plan} />
           {/* Read-only for roles that may not change Plan Quotas: no field to edit, no button to save. */}
           <fieldset disabled={!canWrite}>
             <legend>
-              <h2>{t("admin.planQuotas.plan", { plan: planName(plan) })}</h2>
+              <h2>
+                {t("admin.planQuotas.plan", { plan: name[locale] })}
+                {status === "hidden" ? ` (${t("admin.plans.status.hidden")})` : null}
+              </h2>
             </legend>
             {LIMITED_QUOTAS.map((quota) => {
               const id = `${plan}-${quota}`;
@@ -72,7 +75,7 @@ export default async function PlanQuotasPage({ searchParams }: { searchParams: P
                     name={quota}
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    defaultValue={quotas[plan][quota] ?? ""}
+                    defaultValue={quotas[plan]?.[quota] ?? ""}
                     aria-describedby={`${id}-help`}
                   />
                   <p id={`${id}-help`}>{t("admin.planQuotas.limitHelp")}</p>
@@ -81,7 +84,7 @@ export default async function PlanQuotasPage({ searchParams }: { searchParams: P
             })}
             <div className="stack">
               <label htmlFor={`${plan}-jobDigest`}>{t("billing.quotas.jobDigest")}</label>
-              <select id={`${plan}-jobDigest`} className="input" name="jobDigest" defaultValue={quotas[plan].jobDigest}>
+              <select id={`${plan}-jobDigest`} className="input" name="jobDigest" defaultValue={quotas[plan]?.jobDigest}>
                 {JOB_DIGEST_FREQUENCIES.map((frequency) => (
                   <option key={frequency} value={frequency}>
                     {t(`billing.jobDigest.${frequency}`)}
@@ -91,7 +94,7 @@ export default async function PlanQuotasPage({ searchParams }: { searchParams: P
             </div>
             {canWrite ? (
               <button className="button button-primary" type="submit">
-                {t("admin.planQuotas.save", { plan: planName(plan) })}
+                {t("admin.planQuotas.save", { plan: name[locale] })}
               </button>
             ) : null}
           </fieldset>

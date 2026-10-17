@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApplications, migrateApplications } from "../applications";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createBilling, migrateBilling, STARTING_PLAN_QUOTAS, type Billing } from "../billing";
+import { FAKE_STRIPE_PRODUCTS, FAKE_STRIPE_SECRET_KEY, FAKE_STRIPE_WEBHOOK_SECRET, startFakeStripe } from "../billing/fake-stripe";
 import { createHumanCoaches, migrateHumanCoaches } from "../human-coaches";
 import { createJobOffers, migrateJobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles } from "../profiles";
@@ -65,6 +66,36 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
         after: quotas,
       },
     ]);
+  });
+
+  it("editing an unknown Plan's quotas records nothing", async () => {
+    await backOffice.setPlanQuotas(claire, "unknown", STARTING_PLAN_QUOTAS.standard);
+
+    expect(await backOffice.journal()).toEqual([]);
+  });
+
+  it("creating, changing and moving a Plan each record one entry; a refused one records nothing", async () => {
+    const stripe = await startFakeStripe();
+    try {
+      const withStripe = createBilling({ database, baseURL: "http://localhost:3000", stripe: { secretKey: FAKE_STRIPE_SECRET_KEY, webhookSecret: FAKE_STRIPE_WEBHOOK_SECRET, apiUrl: stripe.url } });
+      const plansOffice = createBackOffice(database, { billing: withStripe, humanCoaches: { add: async () => ({ ok: false, error: "invalid" }) as never, retire: async () => null } });
+      const essential = { key: "essentiel", name: { fr: "Essentiel", en: "Essential" }, stripeProductId: FAKE_STRIPE_PRODUCTS.essential, features: [] };
+
+      expect(await plansOffice.createPlan(claire, essential)).toMatchObject({ ok: true });
+      expect(await plansOffice.createPlan(claire, essential)).toEqual({ ok: false, error: "key_taken" });
+      expect(await plansOffice.updatePlan(claire, "essentiel", { ...essential, status: "offered", features: ["coachingSessionDiscount"] })).toMatchObject({ ok: true });
+      expect(await plansOffice.movePlan(claire, "essentiel", "down")).toEqual({ ok: true, before: 4, after: 3 });
+      expect(await plansOffice.movePlan(claire, "free", "up")).toEqual({ ok: false, error: "free_plan_built_in" });
+
+      const recorded = { name: { fr: "Essentiel", en: "Essential" }, status: "hidden", stripeProductId: FAKE_STRIPE_PRODUCTS.essential, features: [] };
+      expect((await plansOffice.journal()).map(({ section, target, action, before, after }) => ({ section, target, action, before, after }))).toEqual([
+        { section: "plans", target: "essentiel", action: "updated", before: { rank: 4 }, after: { rank: 3 } },
+        { section: "plans", target: "essentiel", action: "updated", before: recorded, after: { ...recorded, status: "offered", features: ["coachingSessionDiscount"] } },
+        { section: "plans", target: "essentiel", action: "added", before: null, after: { ...recorded, rank: 4, quotas: { ...STARTING_PLAN_QUOTAS.premium } } },
+      ]);
+    } finally {
+      await stripe.stop();
+    }
   });
 
   it("adding and retiring a Human Coach each record one entry; a refused one records nothing", async () => {

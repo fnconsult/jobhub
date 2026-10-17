@@ -6,7 +6,7 @@
 import type { Plan } from "@jobhub/shared";
 import { createI18n, type Locale } from "@jobhub/shared/i18n";
 import { routes } from "../routes";
-import type { QuotaDecision } from "./index";
+import type { PlanName, QuotaDecision } from "./index";
 
 export type QuotaRefusal = Extract<QuotaDecision, { allowed: false }>;
 
@@ -16,7 +16,7 @@ export type QuotaRefusal = Extract<QuotaDecision, { allowed: false }>;
  */
 export type PromptReason =
   | QuotaRefusal
-  | { quota: "jobDigest"; plan: Plan; limit: 0; upgradeTo: Plan | null; frequency?: "daily" };
+  | { quota: "jobDigest"; plan: Plan; planName: PlanName; limit: 0; upgradeTo: Plan | null; upgradeToName: PlanName | null; frequency?: "daily" };
 
 export interface UpgradePrompt {
   title: string;
@@ -29,16 +29,16 @@ export interface UpgradePrompt {
 
 export function upgradePrompt(refusal: PromptReason, locale: Locale): UpgradePrompt {
   const { t } = createI18n(locale);
-  const planName = (plan: Plan) => t(`billing.plans.${plan}`);
   const { quota, limit, upgradeTo } = refusal;
-  const plan = planName(refusal.plan);
+  const plan = refusal.planName[locale];
+  const upgradeName = refusal.upgradeToName?.[locale] ?? "";
 
   let message: string;
   if (quota === "jobDigest") {
     const daily = "frequency" in refusal && refusal.frequency === "daily";
     const reached = t(daily ? "billing.quotaReached.notIncluded.jobDigestDaily" : "billing.quotaReached.notIncluded.jobDigest", { plan });
     const next = daily ? "billing.quotaReached.upgradeIncludesDailyDigest" : "billing.quotaReached.upgradeIncludesIt";
-    message = upgradeTo ? `${reached} ${t(next, { plan: planName(upgradeTo) })}` : reached;
+    message = upgradeTo ? `${reached} ${t(next, { plan: upgradeName })}` : reached;
   } else {
     const reached =
       limit === 0
@@ -46,7 +46,7 @@ export function upgradePrompt(refusal: PromptReason, locale: Locale): UpgradePro
         : t(`billing.quotaReached.used.${quota}`, { plan, count: limit });
     const next = upgradeTo
       ? t(limit === 0 ? "billing.quotaReached.upgradeIncludes" : quota === "profiles" ? "billing.quotaReached.upgradeCreate" : "billing.quotaReached.upgradeUse", {
-          plan: planName(upgradeTo),
+          plan: upgradeName,
         })
       : t(quota === "profiles" ? "billing.quotaReached.noMore" : "billing.quotaReached.renews");
     message = `${reached} ${next}`;
@@ -56,7 +56,7 @@ export function upgradePrompt(refusal: PromptReason, locale: Locale): UpgradePro
     title: t("billing.quotaReached.title"),
     message,
     upgradeTo,
-    action: upgradeTo ? t("billing.quotaReached.action", { plan: planName(upgradeTo) }) : null,
+    action: upgradeTo ? t("billing.quotaReached.action", { plan: upgradeName }) : null,
     href: routes.subscription,
   };
 }

@@ -2,7 +2,8 @@
  * The Back Office's writes, each recorded in the Back Office Audit (CONTEXT.md, #203).
  *
  * One deep module. `createBackOffice(database, deps)` answers:
- *  - change what the Jobbbox team runs     `setPlanQuotas`, `addHumanCoach`, `retireHumanCoach`
+ *  - change what the Jobbbox team runs     `createPlan`, `updatePlan`, `movePlan`, `setPlanQuotas`,
+ *                                          `addHumanCoach`, `retireHumanCoach`
  *  - record any other Back Office write    `record`, the one seam every write goes through
  *  - read the record                       `journal`, newest first, by section
  * and `purgeExpiredBackOfficeAudit(database, now)` (the worker, daily) and
@@ -17,7 +18,7 @@
  */
 import type { Plan, PlanQuotas } from "@jobhub/shared";
 import type { Pool } from "pg";
-import type { Billing } from "../billing";
+import type { Billing, PlanDefinition, PlanResult } from "../billing";
 import type { Queryable } from "../database/pool";
 import type { AddHumanCoachResult, HumanCoaches } from "../human-coaches";
 
@@ -25,7 +26,7 @@ import type { AddHumanCoachResult, HumanCoaches } from "../human-coaches";
 export const RETENTION_YEARS = 3;
 
 /** What part of the Back Office a change was made in. */
-export const BACK_OFFICE_SECTIONS = ["roles", "plan_quotas", "human_coaches", "provider_secrets", "sign_in_providers"] as const;
+export const BACK_OFFICE_SECTIONS = ["roles", "plans", "plan_quotas", "human_coaches", "provider_secrets", "sign_in_providers"] as const;
 export type BackOfficeSection = (typeof BACK_OFFICE_SECTIONS)[number];
 
 export const isBackOfficeSection = (value: unknown): value is BackOfficeSection => BACK_OFFICE_SECTIONS.includes(value as BackOfficeSection);
@@ -80,12 +81,18 @@ export interface BackOfficeAuditEntry {
 }
 
 export interface BackOfficeDeps {
-  billing: Pick<Billing, "setPlanQuotas">;
+  billing: Pick<Billing, "setPlanQuotas" | "createPlan" | "updatePlan" | "movePlan">;
   humanCoaches: Pick<HumanCoaches, "add" | "retire">;
 }
 
 export interface BackOffice {
-  /** Replaces one Plan's quotas. */
+  /** Creates a Plan, hidden; `input` is untrusted (see Billing.createPlan); nothing is recorded when refused. */
+  createPlan(actor: BackOfficeActor, input: unknown): Promise<PlanResult<{ plan: PlanDefinition }>>;
+  /** Changes a Plan's names, status, Stripe product or Plan Features (see Billing.updatePlan); nothing is recorded when refused. */
+  updatePlan(actor: BackOfficeActor, plan: Plan, input: unknown): Promise<PlanResult<object>>;
+  /** Moves a Plan one rank up or down (see Billing.movePlan); nothing is recorded when refused. */
+  movePlan(actor: BackOfficeActor, plan: Plan, direction: "up" | "down"): Promise<PlanResult<{ before: number; after: number }>>;
+  /** Replaces one Plan's quotas; nothing is recorded for an unknown Plan. */
   setPlanQuotas(actor: BackOfficeActor, plan: Plan, quotas: PlanQuotas): Promise<void>;
   /** Adds a Human Coach. `input` is untrusted (see HumanCoaches.add); nothing is recorded when refused. */
   addHumanCoach(actor: BackOfficeActor, input: unknown): Promise<AddHumanCoachResult>;
@@ -130,6 +137,14 @@ const json = (value: Recorded): string | null => (value === null ? null : JSON.s
 /** A Plan's quotas as recorded. */
 const recordedQuotas = (quotas: PlanQuotas): Recorded => ({ ...quotas });
 
+/** What an Administrator sets on a Plan, as recorded; its key is the entry's target, its rank changes on its own. */
+const recordedPlan = ({ name, status, stripeProductId, features }: PlanDefinition): { [key: string]: Recorded } => ({
+  name: { ...name },
+  status,
+  stripeProductId,
+  features: [...features],
+});
+
 export function createBackOffice(database: Pool, deps: BackOfficeDeps): BackOffice {
   async function record<T>(actor: BackOfficeActor, write: (within: Queryable) => Promise<T>, changeOf: (result: T) => BackOfficeChange | null): Promise<T> {
     const client = await database.connect();
@@ -166,11 +181,40 @@ export function createBackOffice(database: Pool, deps: BackOfficeDeps): BackOffi
   return {
     record,
 
+    async createPlan(actor, input) {
+      const created = await record(
+        actor,
+        (within) => deps.billing.createPlan(input, within),
+        (result) =>
+          result.ok
+            ? { section: "plans", target: result.plan.key, action: "added", before: null, after: { ...recordedPlan(result.plan), rank: result.plan.rank, quotas: recordedQuotas(result.quotas) } }
+            : null,
+      );
+      return created.ok ? { ok: true, plan: created.plan } : created;
+    },
+
+    async updatePlan(actor, plan, input) {
+      const updated = await record(
+        actor,
+        (within) => deps.billing.updatePlan(plan, input, within),
+        (result) => (result.ok ? { section: "plans", target: plan, action: "updated", before: recordedPlan(result.before), after: recordedPlan(result.after) } : null),
+      );
+      return updated.ok ? { ok: true } : updated;
+    },
+
+    movePlan(actor, plan, direction) {
+      return record(
+        actor,
+        (within) => deps.billing.movePlan(plan, direction, within),
+        (result) => (result.ok ? { section: "plans", target: plan, action: "updated", before: { rank: result.before }, after: { rank: result.after } } : null),
+      );
+    },
+
     async setPlanQuotas(actor, plan, quotas) {
       await record(
         actor,
         (within) => deps.billing.setPlanQuotas(plan, quotas, within),
-        (before) => ({ section: "plan_quotas", target: plan, action: "updated", before: recordedQuotas(before), after: recordedQuotas(quotas) }),
+        (before) => (before ? { section: "plan_quotas", target: plan, action: "updated", before: recordedQuotas(before), after: recordedQuotas(quotas) } : null),
       );
     },
 

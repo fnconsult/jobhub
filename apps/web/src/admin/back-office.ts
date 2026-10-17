@@ -25,7 +25,16 @@ import type { AddHumanCoachResult, HumanCoaches } from "../human-coaches";
 export const RETENTION_YEARS = 3;
 
 /** What part of the Back Office a change was made in. */
-export const BACK_OFFICE_SECTIONS = ["roles", "plan_quotas", "human_coaches", "provider_secrets", "sign_in_providers"] as const;
+export const BACK_OFFICE_SECTIONS = [
+  "roles",
+  "plan_quotas",
+  "human_coaches",
+  "provider_secrets",
+  "sign_in_providers",
+  "job_discovery_sources",
+  "job_discovery_sites",
+  "job_sites",
+] as const;
 export type BackOfficeSection = (typeof BACK_OFFICE_SECTIONS)[number];
 
 export const isBackOfficeSection = (value: unknown): value is BackOfficeSection => BACK_OFFICE_SECTIONS.includes(value as BackOfficeSection);
@@ -38,7 +47,10 @@ export const isBackOfficeSection = (value: unknown): value is BackOfficeSection 
 export const SECRET_ACTIONS = ["replaced", "replaced_despite_failed_test", "cleared"] as const;
 export type SecretAction = (typeof SECRET_ACTIONS)[number];
 
-/** What was done to the target. */
+/**
+ * What was done to the target. `retired` keeps its history (a Human Coach), `removed`
+ * deletes it (a search site).
+ */
 export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | "tested" | SecretAction;
 
 export const isSecretAction = (action: BackOfficeAction): action is SecretAction => SECRET_ACTIONS.includes(action as SecretAction);
@@ -75,7 +87,7 @@ export interface BackOfficeAuditEntry {
   action: BackOfficeAction;
   /** Null when there was nothing before (added), and for a secret. */
   before: Recorded;
-  /** Null when there is nothing after (retired), and for a secret. */
+  /** Null when there is nothing after (retired, removed), and for a secret. */
   after: Recorded;
 }
 

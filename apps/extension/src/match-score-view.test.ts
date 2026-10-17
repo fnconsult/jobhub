@@ -21,6 +21,7 @@ describe("a Match Score, as the Guest reads it", () => {
   it("gives the score and each criterion with what it compared, in the Interface Language", () => {
     expect(describeMatchScore(matchScore, createI18n("fr"))).toEqual({
       score: "Match Score : 72 / 100",
+      notes: [],
       criteria: [
         { label: "Compétences", status: "Correspond en partie", details: ["Présentes dans votre CV : IFRS, SAP", "Absentes de votre CV : Power BI"] },
         { label: "Expérience", status: "Correspond", details: ["Votre CV : 25 ans · l'offre : 15 ans"] },
@@ -70,6 +71,47 @@ describe("a Match Score, as the Guest reads it", () => {
       status: "Ne correspond pas",
       details: ["L'offre : à partir de 60 000 € brut par an", "Votre minimum : 80 000 € brut par an"],
     });
+  });
+});
+
+describe("a Match Score on few or no known criteria (#94)", () => {
+  const unknown = {
+    skills: { status: "unknown", covered: [], missing: [] },
+    seniority: { status: "unknown" },
+    location: { status: "unknown" },
+    salary: { status: "unknown" },
+    contractType: { status: "unknown" },
+  } as const satisfies MatchScore["breakdown"];
+
+  it("says a score on no known criterion is not computable, never 0 / 100", () => {
+    const view = describeMatchScore({ score: 0, breakdown: unknown }, createI18n("fr"));
+
+    expect(view.score).toBe("Match Score : non calculable");
+    expect(view.notes).toEqual([expect.stringContaining("Aucun critère n'a pu être comparé")]);
+  });
+
+  it("shows a score on one known criterion as partial, not a confident 100 / 100", () => {
+    const seniorityOnly: MatchScore = { score: 100, breakdown: { ...unknown, seniority: { status: "match", cvYears: 20, requiredYears: 10 } } };
+
+    expect(describeMatchScore(seniorityOnly, createI18n("fr"))).toMatchObject({
+      score: "Match Score : 100 / 100, partiel",
+      notes: [expect.stringContaining("seul 1 critère sur 5 a pu être comparé")],
+    });
+    expect(describeMatchScore(seniorityOnly, createI18n("en")).score).toBe("Match Score: 100 / 100, partial");
+  });
+
+  it("says when the offer's text could not be read, so the score uses only what the offer states", () => {
+    const view = describeMatchScore({ ...matchScore, offerTextUnread: true }, createI18n("en"));
+
+    expect(view.score).toBe("Match Score: 72 / 100");
+    expect(view.notes).toEqual([expect.stringContaining("could not be read")]);
+  });
+
+  it("recalls a not computable score as such after a rescore", () => {
+    const at = new Date(2026, 9, 10, 14, 32);
+    expect(describeRescore({ previous: { score: 0, breakdown: unknown }, current: matchScore, at }, createI18n("fr"))).toBe(
+      "Match Score recalculé à 14:32 (avant : non calculable).",
+    );
   });
 });
 

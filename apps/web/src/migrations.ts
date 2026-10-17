@@ -24,6 +24,7 @@ import { migrateJobOffers } from "./job-offers/index";
 import { migrateJobSearches } from "./job-searches/index";
 import { migrateProfiles } from "./profiles/index";
 import { migrateProviderSecrets } from "./provider-secrets/index";
+import { migrateSearchSites } from "./search-sites/index";
 import { migrateSignInProviders } from "./sign-in-providers/index";
 import { migrateTailoredCvs } from "./tailored-cv/index";
 import { migrateTailoredDocuments } from "./tailored-documents/index";
@@ -57,6 +58,7 @@ export async function migrateDatabase(
     ["Job Digests are up to date", () => migrateJobDigests(database)],
     ["Human Coaches, Coach Access and Coaching Sessions are up to date", () => migrateHumanCoaches(database)],
     ["Coach Conversations are up to date", () => migrateCoachConversations(database)],
+    ["Job Sites, Job discovery sources and Job discovery sites are up to date", () => migrateSearchSites(database)],
     ["Coach Memory is up to date", () => migrateCoachMemory(database)],
     ["Back Office Audit is up to date", () => migrateBackOfficeAudit(database)],
     ["Back Office Roles are up to date", () => migrateAdministratorRoles(database)],

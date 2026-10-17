@@ -20,6 +20,7 @@ describe("the Back Office navigation", () => {
         [
           ["providerSecrets", "/admin/cles"],
           ["signInProviders", "/admin/connexion"],
+          ["searchSites", "/admin/sites"],
         ],
       ],
       [
@@ -43,9 +44,9 @@ describe("the Back Office navigation", () => {
         ],
       ],
     ]);
-    // Support reads everything but Provider Secrets: Connexion alone under Plateforme, read-only.
+    // Support reads everything but Provider Secrets: Connexion and the search sites under Plateforme, read-only.
     expect(sections(backOfficeNav(backOfficeAccess(["support"]))).map(([key]) => key)).toEqual(["offer", "coaching", "platform"]);
-    expect(sections(backOfficeNav(backOfficeAccess(["support"])))[2]).toEqual(["platform", [["signInProviders", "/admin/connexion"]]]);
+    expect(sections(backOfficeNav(backOfficeAccess(["support"])))[2]).toEqual(["platform", [["signInProviders", "/admin/connexion"], ["searchSites", "/admin/sites"]]]);
     expect(backOfficeNav(backOfficeAccess([]))).toEqual([]);
   });
 });

@@ -1,4 +1,4 @@
-import type { CriterionStatus, MatchScore, SalaryRange } from "@jobhub/shared";
+import { matchScoreReliability, type CriterionStatus, type MatchScore, type SalaryRange } from "@jobhub/shared";
 import type { createI18n } from "@jobhub/shared/i18n";
 
 type I18n = Pick<ReturnType<typeof createI18n>, "t" | "language">;
@@ -25,8 +25,19 @@ function missingSide(name: Criterion, breakdown: MatchScore["breakdown"]): "offe
 
 const UNKNOWN_STATUS = { offer: "unknown", cv: "notInCv", preference: "noPreference" } as const;
 
-/** A Match Score as the Guest reads it: the score, then each criterion with its status and what was compared. */
-export function describeMatchScore(matchScore: MatchScore, { t, language }: I18n): { score: string; criteria: CriterionView[] } {
+/** The score alone, as a rescore recalls it: "72 / 100", "100 / 100, partiel" or "non calculable". */
+function scoreValue(matchScore: MatchScore, t: I18n["t"]): string {
+  const reliability = matchScoreReliability(matchScore);
+  if (reliability === "not_computable") return t("extension.analysis.notComputableValue");
+  return t(reliability === "partial" ? "extension.analysis.partialValue" : "extension.analysis.scoreValue", { score: matchScore.score });
+}
+
+/**
+ * A Match Score as the Guest reads it: the score, what to know before trusting it (#94: a partial
+ * or not computable score, or an offer text that could not be read), then each criterion with
+ * its status and what was compared.
+ */
+export function describeMatchScore(matchScore: MatchScore, { t, language }: I18n): { score: string; notes: string[]; criteria: CriterionView[] } {
   const { breakdown } = matchScore;
   const { seniority, location, salary, contractType } = breakdown;
   const euros = (amount: number) => new Intl.NumberFormat(language, { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(amount);
@@ -55,8 +66,19 @@ export function describeMatchScore(matchScore: MatchScore, { t, language }: I18n
     ],
     contractType: contractType.offer ? [t("extension.analysis.offer", { value: t(`cvReview.contractTypes.${contractType.offer}`) })] : [],
   };
+  const reliability = matchScoreReliability(matchScore);
+  const known = CRITERIA.filter((name) => breakdown[name].status !== "unknown").length;
+  const notes = [
+    ...(reliability === "not_computable" ? [t("extension.analysis.notComputableNote")] : []),
+    ...(reliability === "partial" ? [t("extension.analysis.partialNote", { count: known })] : []),
+    ...(matchScore.offerTextUnread ? [t("extension.analysis.offerTextUnread")] : []),
+  ];
   return {
-    score: t("extension.analysis.score", { score: matchScore.score }),
+    score:
+      reliability === "not_computable"
+        ? t("extension.analysis.scoreNotComputable")
+        : t(reliability === "partial" ? "extension.analysis.scorePartial" : "extension.analysis.score", { score: matchScore.score }),
+    notes,
     criteria: CRITERIA.map((name) => {
       const status: CriterionStatus = breakdown[name].status;
       const key = status === "unknown" ? UNKNOWN_STATUS[missingSide(name, breakdown)] : status;
@@ -72,6 +94,7 @@ export function describeMatchScore(matchScore: MatchScore, { t, language }: I18n
 export function describeRescore({ previous, current, at }: { previous?: MatchScore; current: MatchScore; at: Date }, { t, language }: I18n): string {
   const time = new Intl.DateTimeFormat(language, { timeStyle: "short" }).format(at);
   if (!previous) return t("extension.analysis.rescored", { time });
-  if (previous.score === current.score) return t("extension.analysis.rescoredUnchanged", { time });
-  return t("extension.analysis.rescoredFrom", { time, score: previous.score });
+  const [before, now] = [scoreValue(previous, t), scoreValue(current, t)];
+  if (before === now) return t("extension.analysis.rescoredUnchanged", { time });
+  return t("extension.analysis.rescoredFrom", { time, score: before });
 }

@@ -1,4 +1,4 @@
-import type { ContractType, CriterionStatus, MatchScore, SearchCriteria } from "@jobhub/shared";
+import { matchScoreReliability, type ContractType, type CriterionStatus, type MatchScore, type MatchScoreReliability, type SearchCriteria } from "@jobhub/shared";
 import type { TFunction } from "i18next";
 
 /**
@@ -61,4 +61,35 @@ export function matchScoreReasons(matchScore: MatchScore, t: TFunction, locale: 
       offerAndWanted("contractType", contractType.offer && contract(contractType.offer), contractType.wanted && contract(contractType.wanted)),
     ),
   ];
+}
+
+/** What a page needs to show a Match Score's value: plain data, so a client component can take it. */
+export interface MatchScoreFigure {
+  score: number;
+  reliability: MatchScoreReliability;
+  /** How many of the 5 criteria could be compared. */
+  known: number;
+}
+
+export function matchScoreFigure(matchScore: MatchScore): MatchScoreFigure {
+  const known = Object.values(matchScore.breakdown).filter((criterion) => criterion.status !== "unknown").length;
+  return { score: matchScore.score, reliability: matchScoreReliability(matchScore), known };
+}
+
+/** "72 / 100", "100 / 100, partiel" or "Non calculable" (#94): never 0 / 100 for a score with nothing to compare. */
+export function matchScoreInWords({ score, reliability }: MatchScoreFigure, t: TFunction): string {
+  if (reliability === "not_computable") return t("matchScore.notComputable");
+  return t(reliability === "partial" ? "matchScore.partialScore" : "matchScore.score", { score });
+}
+
+/** "Pourquoi 72 ?", or "Pourquoi pas de score ?" when it is not computable. */
+export function matchScoreWhyInWords({ score, reliability }: MatchScoreFigure, t: TFunction): string {
+  return reliability === "not_computable" ? t("jobSearch.whyNotComputable") : t("jobSearch.why", { score });
+}
+
+/** What to know before trusting a partial or not computable Match Score; null for a reliable one. */
+export function matchScoreReliabilityHint({ reliability, known }: MatchScoreFigure, t: TFunction): string | null {
+  if (reliability === "not_computable") return t("matchScore.notComputableHint");
+  if (reliability === "partial") return t("matchScore.partialHint", { count: known });
+  return null;
 }

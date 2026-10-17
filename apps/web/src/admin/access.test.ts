@@ -28,11 +28,12 @@ describe("Back Office access", () => {
     const access = backOfficeAccess(["super-admin"]);
 
     expect(access.isAdministrator).toBe(true);
-    for (const resource of ["roles", "audit", "planQuotas", "plans", "humanCoaches", "coachMessageCost", "providerSecrets", "ssoProviders"] as const) {
+    for (const resource of ["roles", "audit", "planQuotas", "plans", "humanCoaches", "coachMessageCost", "providerSecrets", "ssoProviders", "searchSites"] as const) {
       expect(access.can(resource, "read"), resource).toBe(true);
     }
     expect(access.can("roles", "write")).toBe(true);
     expect(access.can("providerSecrets", "write")).toBe(true);
+    expect(access.can("searchSites", "write")).toBe(true);
   });
 
   it("a Plans manager runs Plans and Plan Quotas, nothing else", () => {
@@ -44,6 +45,7 @@ describe("Back Office access", () => {
     expect(access.can("coachMessageCost", "read")).toBe(false);
     expect(access.can("roles", "read")).toBe(false);
     expect(access.can("audit", "read")).toBe(false);
+    expect(access.can("searchSites", "read")).toBe(false);
   });
 
   it("a Coach manager runs Human Coaches and only reads the Coach Message Cost", () => {
@@ -58,7 +60,7 @@ describe("Back Office access", () => {
   it("Support reads every section but Provider Secrets and the team's own, and changes nothing", () => {
     const access = backOfficeAccess(["support"]);
 
-    for (const resource of ["planQuotas", "plans", "humanCoaches", "coachMessageCost", "ssoProviders"] as const) {
+    for (const resource of ["planQuotas", "plans", "humanCoaches", "coachMessageCost", "ssoProviders", "searchSites"] as const) {
       expect(access.can(resource, "read"), resource).toBe(true);
       expect(access.can(resource, "write"), resource).toBe(false);
     }

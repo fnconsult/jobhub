@@ -17,6 +17,7 @@
     "./applications": "./src/applications/index.ts",
     "./coach-conversations": "./src/coach-conversations/index.ts",
     "./eu-ai-consent": "./src/eu-ai-consent/index.ts",
+    "./search-sites": "./src/search-sites/index.ts",
     "./mailers": "./src/auth/mailers.ts",
     "./provider-secrets": "./src/provider-secrets/worker.ts",
     "./sign-in-providers": "./src/sign-in-providers/worker.ts",

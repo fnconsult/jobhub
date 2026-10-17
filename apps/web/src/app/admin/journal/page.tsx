@@ -1,4 +1,13 @@
-import { JOB_DIGEST_FREQUENCIES, LIMITED_QUOTAS, PLANS, type JobDigestFrequency, type LimitedQuota, type Plan } from "@jobhub/shared";
+import {
+  JOB_DIGEST_FREQUENCIES,
+  JOB_DISCOVERY_SOURCES,
+  LIMITED_QUOTAS,
+  PLANS,
+  type JobDigestFrequency,
+  type JobDiscoverySource,
+  type LimitedQuota,
+  type Plan,
+} from "@jobhub/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { isBackOfficeRole } from "@/admin/access";
@@ -16,6 +25,8 @@ const LIMIT = 200;
 const HUMAN_COACH_FIELDS = ["name", "email", "bookingUrl", "bio"] as const;
 type HumanCoachField = (typeof HUMAN_COACH_FIELDS)[number];
 
+/** The sections recording the sites Jobbbox searches: their entries hold `enabled` and, for Job Sites, `postingPages`. */
+const SEARCH_SITES_SECTIONS: readonly BackOfficeSection[] = ["job_discovery_sources", "job_discovery_sites", "job_sites"];
 /** A Sign-in Provider's recorded fields, by the Connexion page's label for each. */
 const SIGN_IN_PROVIDER_FIELDS = {
   type: "type",
@@ -59,6 +70,8 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     }
     if (entrySection === "human_coaches" && HUMAN_COACH_FIELDS.includes(field as HumanCoachField)) return t(`admin.humanCoaches.${field as HumanCoachField}`);
     if (entrySection === "roles" && field === "roles") return t("admin.administrators.roles");
+    if (SEARCH_SITES_SECTIONS.includes(entrySection) && field === "enabled") return t("admin.searchSites.status");
+    if (entrySection === "job_sites" && field === "postingPages") return t("admin.searchSites.jobSites.postingPages");
     if (entrySection === "sign_in_providers" && field in SIGN_IN_PROVIDER_FIELDS) {
       return t(`admin.signInProviders.${SIGN_IN_PROVIDER_FIELDS[field as keyof typeof SIGN_IN_PROVIDER_FIELDS]}`);
     }
@@ -66,6 +79,10 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     return field;
   };
   const shown = (entrySection: BackOfficeSection, field: string | null, value: Recorded): string => {
+    if (entrySection === "job_sites" && field === "postingPages" && value === null) return t("admin.searchSites.jobSites.anyPostingPage");
+    if (SEARCH_SITES_SECTIONS.includes(entrySection) && field === "enabled" && typeof value === "boolean") {
+      return t(value ? "admin.searchSites.enabled" : "admin.searchSites.disabled");
+    }
     if (value === null) return t(entrySection === "plan_quotas" ? "admin.journal.unlimited" : "admin.journal.empty");
     if (entrySection === "plan_quotas" && field === "jobDigest" && JOB_DIGEST_FREQUENCIES.includes(value as JobDigestFrequency)) {
       return t(`billing.jobDigest.${value as JobDigestFrequency}`);
@@ -84,6 +101,15 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     if (change.before === undefined) return t("admin.journal.set", { field, after });
     if (change.after === undefined) return t("admin.journal.removed", { field, before });
     return t("admin.journal.changed", { field, before, after });
+  };
+
+  /** What an entry changed, named as the Back Office names it. */
+  const target = (entry: BackOfficeAuditEntry): string => {
+    if (entry.section === "plan_quotas" && PLANS.includes(entry.target as Plan)) return t(`billing.plans.${entry.target as Plan}`);
+    if (entry.section === "job_discovery_sources" && JOB_DISCOVERY_SOURCES.includes(entry.target as JobDiscoverySource)) {
+      return t(`admin.searchSites.sources.names.${entry.target as JobDiscoverySource}`);
+    }
+    return entry.target;
   };
 
   return (
@@ -130,7 +156,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
                       {entry.actor.candidateId === null ? ` (${t("admin.journal.accountDeleted")})` : null}
                     </td>
                     <td>{t(`admin.journal.sections.${entry.section}`)}</td>
-                    <td>{entry.section === "plan_quotas" && PLANS.includes(entry.target as Plan) ? t(`billing.plans.${entry.target as Plan}`) : entry.target}</td>
+                    <td>{target(entry)}</td>
                     <td>{t(`admin.journal.actions.${entry.action}`)}</td>
                     <td>
                       {isSecretAction(entry.action) ? (

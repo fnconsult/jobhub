@@ -9,6 +9,7 @@ import { mailerFromEnv } from "@jobhub/web/mailers";
 import { createProfiles } from "@jobhub/web/profiles";
 import { permanentSuperAdminsFromEnv, superAdminEmails } from "@jobhub/web/administrators";
 import { secretCipherFromEnv, watchProviderSecrets } from "@jobhub/web/provider-secrets";
+import { createSearchSites } from "@jobhub/web/search-sites";
 import { appleFailureEmail, signInProvidersWorker } from "@jobhub/web/sign-in-providers";
 import { Pool } from "pg";
 import { jobDiscoveryBudgetFromEnv } from "./job-discovery";
@@ -34,6 +35,7 @@ const secrets = providerSecrets.resolver;
 
 const profiles = createProfiles(database);
 const jobOffers = createJobOffers(database);
+const searchSites = createSearchSites(database);
 
 // Job discovery needs the AI layer; the other jobs do not (Follow-ups fall back to
 // a template). Without AI configuration (e.g. the local docker-compose stack with no
@@ -46,6 +48,8 @@ const worker = workerClients({
   production: process.env.NODE_ENV === "production",
   jobOffers,
   budget: jobDiscoveryBudgetFromEnv(process.env),
+  // The Job discovery sources and sites Administrators set in the Back Office, read at the start of each run.
+  settings: () => searchSites.jobDiscoverySettings(),
   euAiConsent: (candidateId) => euAiConsents.has(candidateId),
   log: (line) => console.warn(line),
 });

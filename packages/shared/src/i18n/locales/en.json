@@ -57,10 +57,19 @@
       "rescoreCancel": "Cancel",
       "rescored": "Match Score recalculated at {{time}}.",
       "rescoredUnchanged": "Match Score recalculated at {{time}}: unchanged.",
-      "rescoredFrom": "Match Score recalculated at {{time}} (was {{score}} / 100).",
+      "rescoredFrom": "Match Score recalculated at {{time}} (was {{score}}).",
       "forget": "Delete my data now",
       "forgotten": "Your CV and the job offer have been deleted from this browser.",
       "score": "Match Score: {{score}} / 100",
+      "scoreValue": "{{score}} / 100",
+      "partialValue": "{{score}} / 100, partial",
+      "notComputableValue": "not computable",
+      "scorePartial": "Match Score: {{score}} / 100, partial",
+      "scoreNotComputable": "Match Score: not computable",
+      "partialNote_one": "Partial score: only {{count}} criterion out of 5 could be compared. On its own, it does not tell whether the job offer suits you.",
+      "partialNote_other": "Partial score: only {{count}} criteria out of 5 could be compared. On their own, they do not tell whether the job offer suits you.",
+      "notComputableNote": "No criterion could be compared: the job offer states nothing that can be set against your CV or your criteria. Read it to judge for yourself.",
+      "offerTextUnread": "The job offer's text could not be read to fill in what it leaves out: this score only uses what the job offer states in structured form. Recalculate it in a few minutes.",
       "breakdownTitle": "Match Score breakdown",
       "criteria": {
         "skills": "Skills",
@@ -640,6 +649,7 @@
       "coachCost": "Coach cost",
       "providerSecrets": "Keys",
       "signInProviders": "Sign-in",
+      "searchSites": "Search sites",
       "administrators": "Administrators",
       "journal": "Journal"
     },
@@ -786,6 +796,69 @@
       "playbooks": "Playbooks used",
       "overTarget": "above target"
     },
+    "searchSites": {
+      "title": "Search sites",
+      "intro": "The sites Jobbbox searches for job offers, and those where the extension shows its badge. Changes apply without a release: at the next search for the worker, within minutes to a few hours for the extension.",
+      "status": "Status",
+      "actions": "Actions",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "enable": "Enable {{name}}",
+      "disable": "Disable {{name}}",
+      "remove": "Remove {{name}}",
+      "sources": {
+        "title": "Job discovery sources",
+        "intro": "Where the worker looks for job offers, for job searches and Job Digest top-ups. A disabled source is skipped.",
+        "caption": "Job discovery sources",
+        "source": "Source",
+        "names": {
+          "france_travail": "France Travail API",
+          "web_search": "Web search (search provider)",
+          "ats_apis": "Public ATS APIs (Greenhouse, Lever, Ashby)"
+        }
+      },
+      "discoverySites": {
+        "title": "Job discovery sites",
+        "intro": "An enabled site is searched on purpose: the web search adds a query restricted to it. A disabled site is skipped when it shows up in results. Removing a site never deletes job offers already found.",
+        "forbidden": "These sites forbid crawling in their terms of use and cannot be added: {{sites}}. Only the extension covers them.",
+        "none": "No site yet.",
+        "caption": "Job discovery sites",
+        "domain": "Domain",
+        "domainHelp": "For example apec.fr (without www). A full address is accepted: only its domain is kept.",
+        "addTitle": "Add a site",
+        "add": "Add the site"
+      },
+      "jobSites": {
+        "title": "Extension sites",
+        "intro": "The sites where the extension shows its \"Analyse this offer\" badge. Sites built into the extension can be disabled, not removed. An added site only gets the badge for people who allowed the extension on every site. Manual capture still works everywhere.",
+        "caption": "Extension sites",
+        "pattern": "Address pattern",
+        "patternHelp": "An https pattern, for example https://*.gestmax.fr/* (the site and its subdomains) or www.example.com. Never every site.",
+        "postingPages": "Posting pages",
+        "postingPagesOptional": "Posting pages (optional)",
+        "postingPagesHelp": "A pattern on the same site, for example https://*.gestmax.fr/*/offre/*: the badge shows there even without JobPosting data. Empty: only on pages that publish a JobPosting.",
+        "anyPostingPage": "Pages publishing a JobPosting",
+        "origin": "Origin",
+        "builtIn": "Built into the extension",
+        "added": "Added",
+        "addTitle": "Add a site to the extension",
+        "add": "Add the site to the extension"
+      },
+      "notices": {
+        "saved": "Change saved.",
+        "jobSiteAdded": "Site added to the extension.",
+        "jobSiteRemoved": "Site removed from the extension. Job offers already captured are kept.",
+        "jobSiteInvalid": "Check the patterns: an https address of a single site (not every site), and posting pages on that same site.",
+        "jobSiteExists": "This site is already in the extension's list.",
+        "jobSiteBuiltIn": "A site built into the extension cannot be removed: disable it.",
+        "siteAdded": "Site added to job discovery.",
+        "siteRemoved": "Site removed. Job offers already found are kept.",
+        "siteInvalid": "Check the domain, for example apec.fr.",
+        "siteExists": "This site is already in the list.",
+        "siteForbidden": "This site forbids crawling in its terms of use: it cannot be added or enabled.",
+        "notFound": "This item no longer exists. The page has been refreshed."
+        }
+      },
     "providerSecrets": {
       "title": "Provider keys",
       "intro": "The keys of third-party services (AI, France Travail, contact enrichment, Stripe, email). A key entered here is encrypted and replaces the environment's within a minute, with no deployment. A key entered is never shown again: only its last 4 characters are.",
@@ -882,6 +955,9 @@
         "plan_quotas": "Plan Quotas",
         "human_coaches": "Human Coaches",
         "provider_secrets": "Provider keys",
+        "job_discovery_sources": "Job discovery sources",
+        "job_discovery_sites": "Job discovery sites",
+        "job_sites": "Extension sites",
         "sign_in_providers": "Sign-in"
       },
       "actions": {
@@ -1021,6 +1097,11 @@
   "matchScore": {
     "title": "Match score",
     "score": "{{score}} / 100",
+    "partialScore": "{{score}} / 100, partial",
+    "notComputable": "Not computable",
+    "partialHint_one": "Partial score: only {{count}} criterion out of 5 could be compared. On its own, it does not tell whether the job offer suits you.",
+    "partialHint_other": "Partial score: only {{count}} criteria out of 5 could be compared. On their own, they do not tell whether the job offer suits you.",
+    "notComputableHint": "No criterion could be compared: the job offer states nothing that can be set against your CV or your search criteria.",
     "intro": "The master CV of the \"{{profile}}\" profile compared with this job offer and your search criteria.",
     "unknownHint": "Criteria that cannot be compared (the job offer or your criteria say nothing about them) do not count in the score.",
     "criteria": {
@@ -1076,6 +1157,7 @@
     "scoreLabel": "Match Score: ",
     "outOf": "/ 100",
     "why": "Why {{score}}?",
+    "whyNotComputable": "Why no score?",
     "savedPill": "Saved",
     "postedOn": "Posted on {{date}}",
     "source": "Source: {{site}}",
@@ -1558,6 +1640,7 @@
       "intro_one": "Hello,\n\nYour coach found {{count}} new job offer for your profile “{{profile}}”:",
       "intro_other": "Hello,\n\nYour coach found {{count}} new job offers for your profile “{{profile}}”, closest to your master CV first:",
       "matchScore": "match score: {{score}} / 100",
+      "matchScorePartial": "match score: {{score}} / 100, partial",
       "postedAt": "posted on {{date}}",
       "dateUnknown": "posting date: date unknown",
       "seeDigest_one": "Find this Job Digest in Jobbbox:\n{{url}}",

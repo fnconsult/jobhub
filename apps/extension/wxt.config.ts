@@ -1,4 +1,5 @@
 import { defineConfig } from "wxt";
+import { JOB_SITES } from "./src/job-page";
 
 // The web app whose session the extension shares (see src/candidate-session.ts).
 const webOrigin = process.env.WXT_WEB_ORIGIN || "http://localhost:3000";
@@ -20,7 +21,9 @@ export default defineConfig({
     permissions: ["activeTab", "scripting", "storage", "alarms"],
     // Asked only when the person opts in, from the popup, to the badge on every site (src/all-sites-detection.ts, ALL_SITES).
     optional_host_permissions: ["https://*/*"],
-    // Lets the browser send the web app's session cookie with the extension's requests.
-    host_permissions: [`${webOrigin}/*`],
+    // Lets the browser send the web app's session cookie with the extension's requests. And JOB_SITES, which
+    // the badge's matches already cover: so Capture may read a job site's iframe in another site's page
+    // (gestmax.fr, #187), where activeTab covers only the page itself.
+    host_permissions: [`${webOrigin}/*`, ...JOB_SITES],
   },
 });

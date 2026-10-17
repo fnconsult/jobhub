@@ -67,6 +67,11 @@ const PRICES: Record<ProviderId, { default: Price; models?: [RegExp, Price][] }>
   },
 };
 
+function priceOf(provider: ProviderId, model: string): Price {
+  const prices = PRICES[provider];
+  return prices.models?.find(([pattern]) => pattern.test(model))?.[1] ?? prices.default;
+}
+
 /** One AI call as the AI layer returns it: a text result, or a web search's (it has `sources`). */
 export interface PricedCall {
   provider: ProviderId;
@@ -77,11 +82,20 @@ export interface PricedCall {
 
 /** The estimated cost in € of one AI call (a `generate`, `searchWeb` or `searchCompany` result). */
 export function costInEur(call: PricedCall): number {
-  const prices = PRICES[call.provider];
-  const price = prices.models?.find(([model]) => model.test(call.model))?.[1] ?? prices.default;
+  const price = priceOf(call.provider, call.model);
   const { inputTokens, outputTokens, cachedInputTokens = 0, cacheWriteTokens = 0 } = call.usage;
   const input = (inputTokens + cacheWriteTokens * (CACHE_WRITE - 1) + cachedInputTokens * (price.cacheRead ?? CACHE_READ)) * price.input;
   const tokens = (input + outputTokens * price.output) / 1_000_000;
   const search = call.sources ? (price.perSearch ?? 0) : 0;
   return (tokens + search) * EUR_PER_USD;
+}
+
+/**
+ * The estimated fee in € of a tool the model used, when its provider bills it apart from tokens:
+ * a web search, per search. Null when the fee is not known.
+ */
+export function toolCostInEur(call: { provider: ProviderId; model: string }, tool: { name: string; count: number }): number | null {
+  if (tool.name !== "web_search") return null;
+  const perSearch = priceOf(call.provider, call.model).perSearch;
+  return perSearch === undefined ? null : perSearch * tool.count * EUR_PER_USD;
 }

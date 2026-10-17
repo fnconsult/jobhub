@@ -95,7 +95,10 @@ function searchOutputOf(response: AgentResponse): SearchOutput {
   const found: string[] = [];
   const cited: string[] = [];
   const sourceDates: Record<string, Date> = {};
+  // Each block of search results is one use of the web_search tool, which Perplexity bills per search.
+  let searches = 0;
   for (const item of response.output ?? []) {
+    if (item.type === "search_results") searches += 1;
     if (item.type === "search_results" && "results" in item) {
       for (const result of item.results ?? []) {
         if (!result.url) continue;
@@ -118,5 +121,6 @@ function searchOutputOf(response: AgentResponse): SearchOutput {
     ...(Object.keys(sourceDates).length ? { sourceDates } : {}),
     model: response.model ?? "unknown",
     usage: { inputTokens: response.usage?.input_tokens ?? 0, outputTokens: response.usage?.output_tokens ?? 0 },
+    tools: [{ name: "web_search", count: Math.max(1, searches) }],
   };
 }

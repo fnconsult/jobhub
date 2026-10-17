@@ -59,10 +59,19 @@ export interface TextInput {
   maxTokens: number;
 }
 
+/** A tool the model used during one call (e.g. its web search), as the provider reports it. Never its arguments or results. */
+export interface ToolCall {
+  name: string;
+  /** How many times the model used it in the call. */
+  count: number;
+}
+
 export interface TextOutput {
   text: string;
   model: string;
   usage: TokenUsage;
+  /** The tools the model used, when the provider says. Default: none. */
+  tools?: ToolCall[];
 }
 
 export interface SearchOutput {
@@ -75,6 +84,8 @@ export interface SearchOutput {
   sourceDates?: Record<string, Date>;
   model: string;
   usage: TokenUsage;
+  /** How many web searches the call made, when the provider says. Default: one `web_search`. */
+  tools?: ToolCall[];
 }
 
 /**
@@ -112,6 +123,24 @@ export interface AiProvider {
   readonly searchPages?: number;
 }
 
+/** A tool use as recorded: how often, whether the call succeeded, how long the call took, and its fee when billed. */
+export interface ToolUse extends ToolCall {
+  ok: boolean;
+  durationMs: number;
+  /** Estimated € at list price; null when the provider's fee for it is not known. */
+  costEur: number | null;
+}
+
+/**
+ * What one call said: its system text, messages and reply (null when it failed); for a web search,
+ * the query as the one message and the answer. Personal data: only the AI Message Log keeps it.
+ */
+export interface Transcript {
+  system?: string;
+  messages: Message[];
+  reply: string | null;
+}
+
 export interface UsageEntry extends TokenUsage {
   /** null for a Guest (browser extension without an account). */
   candidateId: string | null;
@@ -122,6 +151,14 @@ export interface UsageEntry extends TokenUsage {
   model: string;
   /** Whether the provider answered. A failed call is recorded too, with no tokens. */
   ok: boolean;
+  /** How long the provider took to answer or fail. */
+  durationMs: number;
+  /** The tokens' estimated € at list price (`costInEur`); the tools' fees are apart, in `tools`. */
+  costEur: number;
+  /** The tools the call used. */
+  tools: ToolUse[];
+  /** What the call said. A usage log that is not the AI Message Log must leave it out. */
+  transcript: Transcript;
   at: Date;
 }
 

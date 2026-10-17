@@ -285,7 +285,17 @@ describe("Perplexity provider", () => {
       sourceDates: expect.any(Object),
       model: "openai/gpt-6-luna",
       usage: { inputTokens: 812, outputTokens: 64 },
+      tools: [{ name: "web_search", count: 1 }],
     });
+  });
+
+  it("says how many web searches the model made: one per block of search results", async () => {
+    const searchResults = perplexityReply.output.find((item: { type: string }) => item.type === "search_results");
+    const { fetch } = fakeFetch({ ...perplexityReply, output: [searchResults, searchResults, ...perplexityReply.output] });
+
+    const output = await createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", {});
+
+    expect(output.tools).toEqual([{ name: "web_search", count: 3 }]);
   });
 
   it("dates the search results Perplexity gives a publication date (not their last update) for the freshness rule (#116)", async () => {

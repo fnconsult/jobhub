@@ -3,6 +3,8 @@ import type { Pool } from "pg";
 import type { SecretCipher } from "../provider-secrets/cipher";
 import { createSignInProviders, type SignInProviders } from "./index";
 
+export type { AppleRegenerationFailure } from "./index";
+
 export { appleFailureEmail, type AppleFailureReason } from "./alerts";
 
 type Env = Record<string, string | undefined>;

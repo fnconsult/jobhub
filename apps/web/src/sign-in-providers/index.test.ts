@@ -400,9 +400,17 @@ describe.skipIf(!connectionString)("Sign-in Providers in the database (needs Pos
       now = new Date("2026-12-17T08:00:00Z");
       const withAnotherKey = signInProviders({ SECRETS_MASTER_KEYS: masterKey() });
       const log = vi.spyOn(console, "warn").mockImplementation(() => {});
-      expect(await withAnotherKey.regenerateAppleClientSecrets()).toEqual({ regenerated: [], failed: [{ id: "apple", reason: "missing_secret" }] });
-      log.mockRestore();
+      expect(await withAnotherKey.regenerateAppleClientSecrets()).toEqual({ regenerated: [], failed: [{ id: "apple", reason: "missing_secret", firstFailure: true }] });
       expect((await providers.list())[0]!.apple).toMatchObject({ failedAt: now });
+      // The next day it fails again: the same failure streak, the super-admins were told already.
+      const firstFailedAt = now;
+      now = new Date("2026-12-18T08:00:00Z");
+      expect(await withAnotherKey.regenerateAppleClientSecrets()).toEqual({ regenerated: [], failed: [{ id: "apple", reason: "missing_secret", firstFailure: false }] });
+      log.mockRestore();
+      expect((await providers.list())[0]!.apple).toMatchObject({ failedAt: firstFailedAt });
+      // Signed again: the streak is over, a later failure starts a new one.
+      expect(await providers.regenerateAppleClientSecrets()).toEqual({ regenerated: ["apple"], failed: [] });
+      expect((await providers.list())[0]!.apple).toMatchObject({ failedAt: null });
     });
   });
 });

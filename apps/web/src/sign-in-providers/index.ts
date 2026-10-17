@@ -117,6 +117,14 @@ export interface SignInProvidersDeps {
   fetchDiscovery?: (url: string) => Promise<Record<string, unknown> | null>;
 }
 
+/** An Apple client secret that could not be signed again. */
+export interface AppleRegenerationFailure {
+  id: string;
+  reason: "missing_secret" | "invalid_apple_key" | "no_master_key";
+  /** The first failure since it was last signed: the super-admins have not been told yet. */
+  firstFailure: boolean;
+}
+
 export interface SignInProviders {
   list(): Promise<SignInProviderStatus[]>;
   settings(): Promise<{ requireSsoForAdministrators: boolean }>;
@@ -143,8 +151,12 @@ export interface SignInProviders {
   completeTestSignIn(id: string, nonce: string): Promise<boolean>;
   /** The configuration in use, with its secrets: for the Better Auth instance only. */
   load(): Promise<SignInConfiguration>;
-  /** Signs Apple's client secret again where due (APPLE_REGENERATION_DAYS); which were, which failed and why. */
-  regenerateAppleClientSecrets(): Promise<{ regenerated: string[]; failed: { id: string; reason: "missing_secret" | "invalid_apple_key" | "no_master_key" }[] }>;
+  /**
+   * Signs Apple's client secret again where due (APPLE_REGENERATION_DAYS); which were, which failed
+   * and why, and whether that failure starts a streak (the last attempt worked): the super-admins
+   * are alerted once per streak, not every day it lasts.
+   */
+  regenerateAppleClientSecrets(): Promise<{ regenerated: string[]; failed: AppleRegenerationFailure[] }>;
 }
 
 interface ProviderRow {
@@ -611,14 +623,15 @@ export function createSignInProviders(database: Pool, deps: SignInProvidersDeps)
 
     async regenerateAppleClientSecrets() {
       const regenerated: string[] = [];
-      const failed: { id: string; reason: "missing_secret" | "invalid_apple_key" | "no_master_key" }[] = [];
+      const failed: AppleRegenerationFailure[] = [];
       const at = now();
       const [rows, stored] = await Promise.all([providerRows(), secretRows()]);
       for (const row of rows.filter((candidate) => candidate.type === "apple" && appleRegenerationDue(candidate.apple_generated_at, at))) {
         const secrets = secretsOf(row, stored);
-        const fail = async (reason: (typeof failed)[number]["reason"]) => {
-          failed.push({ id: row.id, reason });
-          await database.query("UPDATE sign_in_provider SET apple_failed_at = $2 WHERE id = $1", [row.id, at]);
+        const fail = async (reason: AppleRegenerationFailure["reason"]) => {
+          failed.push({ id: row.id, reason, firstFailure: row.apple_failed_at === null });
+          // When the streak started: kept until it is signed again.
+          await database.query("UPDATE sign_in_provider SET apple_failed_at = COALESCE(apple_failed_at, $2) WHERE id = $1", [row.id, at]);
         };
         const cipher = deps.cipher;
         if (!cipher) {

@@ -36,14 +36,21 @@ describe("signing Apple's client secret again", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("apple"));
   });
 
-  it("alerts the super-admins when it fails", async () => {
-    const failed = [{ id: "apple", reason: "invalid_apple_key" as const }];
+  it("alerts the super-admins when it starts failing, once per failure streak, not every day", async () => {
+    const firstDay = { id: "apple", reason: "invalid_apple_key" as const, firstFailure: true };
+    const nextDay = { ...firstDay, firstFailure: false };
     const alert = vi.fn(async () => {});
-    const job = jobsWith({ regenerateAppleClientSecrets: async () => ({ regenerated: [], failed }) }, alert)[APPLE_CLIENT_SECRETS]!;
+    const regenerate = vi.fn().mockResolvedValueOnce({ regenerated: [], failed: [firstDay] }).mockResolvedValueOnce({ regenerated: [], failed: [nextDay] });
+    const log = vi.fn();
+    const job = jobsWith({ regenerateAppleClientSecrets: regenerate }, alert, log)[APPLE_CLIENT_SECRETS]!;
 
     await job.handler({});
+    await job.handler({});
 
-    expect(alert).toHaveBeenCalledWith(failed);
+    expect(alert).toHaveBeenCalledOnce();
+    expect(alert).toHaveBeenCalledWith([firstDay]);
+    // Still said in the log every day.
+    expect(log).toHaveBeenCalledTimes(2);
   });
 
   it("does nothing before the web app's migrations have created the table", async () => {

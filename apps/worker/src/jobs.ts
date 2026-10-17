@@ -60,12 +60,12 @@ export const PROVIDER_SECRETS_REENCRYPT = "provider-secrets.reencrypt";
 /**
  * Queue name: sign Apple's client secret again, from its .p8 key, once a month (#209).
  * Runs daily: it signs only those signed a month ago or more, so a missed day costs nothing.
- * A failure is emailed to the super-admins: Apple sign-in stops when the one in use expires.
+ * A failure is emailed to the super-admins once per failure streak: Apple sign-in stops when the one in use expires.
  */
 export const APPLE_CLIENT_SECRETS = "sign-in-providers.apple-client-secret";
 
-/** Why an Apple client secret could not be signed again. */
-type AppleFailure = { id: string; reason: "missing_secret" | "invalid_apple_key" | "no_master_key" };
+/** An Apple client secret that could not be signed again; `firstFailure`: the streak starts, the super-admins are not told yet. */
+type AppleFailure = { id: string; reason: "missing_secret" | "invalid_apple_key" | "no_master_key"; firstFailure: boolean };
 
 /** Postgres error code for a table that does not exist yet (the web app's migrations have not run). */
 const UNDEFINED_TABLE = "42P01";
@@ -325,8 +325,12 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           if (!result) return;
           if (result.regenerated.length > 0) log(`[sign-in-providers] Apple client secret signed again for ${result.regenerated.join(", ")}`);
           if (result.failed.length === 0) return;
-          log(`[sign-in-providers] Apple client secret NOT signed again: ${result.failed.map(({ id, reason }) => `${id} (${reason})`).join(", ")}; super-admins alerted`);
-          await deps.alertAppleFailure?.(result.failed);
+          // Alerted once per failure streak; said in the log every day it lasts.
+          const starting = result.failed.filter((failure) => failure.firstFailure);
+          log(
+            `[sign-in-providers] Apple client secret NOT signed again: ${result.failed.map(({ id, reason }) => `${id} (${reason})`).join(", ")}; ${starting.length > 0 ? "super-admins alerted" : "super-admins already alerted"}`,
+          );
+          if (starting.length > 0) await deps.alertAppleFailure?.(starting);
         }),
     },
 

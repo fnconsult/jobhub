@@ -57,6 +57,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Coach Memory is up to date");
     expect(first.stdout).toContain("Back Office Audit is up to date");
     expect(first.stdout).toContain("Back Office Roles are up to date");
+    expect(first.stdout).toContain("Sign-in Providers are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 
@@ -99,6 +100,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "provider_secret", // issue #208: Provider Secrets, encrypted
         "quota_usage",
         "session",
+        "sign_in_provider", // issue #209: Sign-in Providers configured in the Back Office
+        "sign_in_setting", // issue #209: Require SSO for Administrators
         "tailored_cv", // issue #18: Tailored CV proposals and saved Tailored CVs
         "tailored_document", // issue #19: Cover Letters and Outreach Messages
         "verification",

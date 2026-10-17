@@ -136,7 +136,13 @@ test.describe("Sign-in Providers (the Connexion section)", () => {
     await expect(visitor.getByRole("main").getByRole("alert")).toHaveText(fr.signIn.providerNotAllowed);
     await visitor.context().close();
 
-    // The super-admin, signed in elsewhere, signs in through it and reaches the Back Office.
+    // Not trusted for linking: the super-admin links it once from Mon compte, where it is offered
+    // to Administrators though not to Candidates; then, elsewhere, signs in through it to the Back Office.
+    await approveAtIssuer(superAdmin, { sub: "sso-office", email: SSO_SUPER_ADMIN, email_verified: true, name: "SSO Office" }, SSO.clientId);
+    await superAdmin.goto(`${server.origin}/compte`);
+    await superAdmin.getByRole("button", { name: tr(fr.signInMethods.link, { provider: SSO.name }) }).click();
+    await expect(superAdmin).toHaveURL(`${server.origin}/compte`);
+    await expect(superAdmin.getByText(tr(fr.signInMethods.linked, { provider: SSO.name }))).toBeVisible();
     const elsewhere = await personPage(browser);
     await approveAtIssuer(elsewhere, { sub: "sso-office", email: SSO_SUPER_ADMIN, email_verified: true, name: "SSO Office" }, SSO.clientId);
     await elsewhere.goto(`${server.origin}/connexion/back-office`);

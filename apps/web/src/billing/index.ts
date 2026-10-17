@@ -48,8 +48,10 @@ import {
   type PlanDefinition,
   type PlanName,
 } from "./plans";
+import { couponOf, couponParams, type Coupon, type CouponResult } from "./coupons";
 
 export type { PlanDefinition, PlanName } from "./plans";
+export type { ActiveDiscount, Coupon, CouponDiscount, CouponDuration, CouponError, CouponResult } from "./coupons";
 
 export interface BillingConfig {
   /** Postgres pool holding the Candidate accounts. */
@@ -336,6 +338,15 @@ export class BillingError extends Error {
 
 /** Stripe calls made while a page renders: given up on quickly, never retried. */
 const QUICK: Stripe.RequestOptions = { timeout: 2_500, maxNetworkRetries: 0 };
+
+/** Stripe writes made from the Back Office: given up on after a few seconds, retried once (with the same idempotency key). */
+const STRIPE_WRITE: Stripe.RequestOptions = { timeout: 5_000, maxNetworkRetries: 1 };
+
+/** The most Coupons the Back Office lists (Stripe's largest page). */
+const MAX_COUPONS = 100;
+
+/** A promotion code's coupon and the Plans' products it applies to, expanded in one call. */
+const PROMOTION_CODE_EXPAND = ["promotion.coupon.applies_to"];
 
 /** Subscription statuses that keep the paid Plan; Stripe retries failed payments while past_due. */
 const PAYING_STATUSES = new Set(["active", "trialing", "past_due"]);
@@ -1032,6 +1043,71 @@ export function createBilling(config: BillingConfig) {
 
     /** Every Plan's quotas, lowest rank first. */
     planQuotas: allPlanQuotas,
+
+    /**
+     * Creates a Coupon (Back Office) from untrusted `input` (see coupons.ts `newCouponInput`): a Stripe
+     * coupon on the eligible Plans' products, and its promotion code. Calls Stripe only, briefly: run it
+     * outside any transaction. Nothing is left in Stripe when it fails.
+     */
+    async createCoupon(input: unknown): Promise<CouponResult<{ coupon: Coupon }>> {
+      const plans = await listPlans(database);
+      const params = couponParams(input, plans, now());
+      if (!params.ok) return params;
+      if (!config.stripe) return { ok: false, error: "stripe_unavailable" };
+      const { client } = stripe();
+      let couponId: string | undefined;
+      try {
+        const taken = await client.promotionCodes.list({ code: params.promotionCode.code!, active: true, limit: 1 }, QUICK);
+        if (taken.data.length > 0) return { ok: false, error: "code_taken" };
+        couponId = (await client.coupons.create(params.coupon, STRIPE_WRITE)).id;
+        const created = await client.promotionCodes.create({ promotion: { type: "coupon", coupon: couponId }, ...params.promotionCode, expand: PROMOTION_CODE_EXPAND }, STRIPE_WRITE);
+        return { ok: true, coupon: couponOf(created, plans, now()) };
+      } catch (error) {
+        // A coupon without its code would only clutter Stripe.
+        if (couponId) await client.coupons.del(couponId, QUICK).catch((cleanup: unknown) => console.error("[billing] could not delete a coupon left without its code", cleanup));
+        if (error instanceof Stripe.errors.StripeInvalidRequestError && error.param === "code") return { ok: false, error: "code_taken" };
+        console.error("[billing] could not create a Coupon in Stripe", error);
+        return { ok: false, error: "stripe_unavailable" };
+      }
+    },
+
+    /**
+     * Every Coupon (the Stripe account's promotion codes, at most MAX_COUPONS), newest first, with
+     * Stripe's redemption counts. Read while a page renders: null when Stripe is not configured or
+     * does not answer quickly.
+     */
+    async coupons(): Promise<Coupon[] | null> {
+      if (!config.stripe) return null;
+      try {
+        const [listed, plans] = await Promise.all([
+          stripe().client.promotionCodes.list({ limit: MAX_COUPONS, expand: PROMOTION_CODE_EXPAND.map((field) => `data.${field}`) }, QUICK),
+          listPlans(database),
+        ]);
+        return listed.data.map((promotionCode) => couponOf(promotionCode, plans, now()));
+      } catch (error) {
+        console.error("[billing] Coupons unavailable from Stripe", error);
+        return null;
+      }
+    },
+
+    /**
+     * Deactivates a Coupon (Back Office): its code can no longer be redeemed, and discounts already
+     * given run their course. Calls Stripe only: run it outside any transaction. Returns it before and after.
+     */
+    async deactivateCoupon(id: string): Promise<CouponResult<{ before: Coupon; after: Coupon }>> {
+      if (!config.stripe) return { ok: false, error: "stripe_unavailable" };
+      const { client } = stripe();
+      try {
+        const plans = await listPlans(database);
+        const before = couponOf(await client.promotionCodes.retrieve(id, { expand: PROMOTION_CODE_EXPAND }, QUICK), plans, now());
+        const after = couponOf(await client.promotionCodes.update(id, { active: false, expand: PROMOTION_CODE_EXPAND }, STRIPE_WRITE), plans, now());
+        return { ok: true, before, after };
+      } catch (error) {
+        if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") return { ok: false, error: "unknown_coupon" };
+        console.error("[billing] could not deactivate a Coupon in Stripe", error);
+        return { ok: false, error: "stripe_unavailable" };
+      }
+    },
 
     /**
      * Replaces one Plan's quotas (Back Office) and returns the ones it replaced; null for an unknown

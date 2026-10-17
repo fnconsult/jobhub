@@ -75,9 +75,58 @@ export function fakeCustomerId(email: string): string {
   return `cus_fake_${createHash("sha256").update(email).digest("hex").slice(0, 16)}`;
 }
 
+/** A coupon as the fake keeps it: its Stripe fields. */
+type FakeCoupon = {
+  id: string;
+  object: "coupon";
+  name: string | null;
+  percent_off: number | null;
+  amount_off: number | null;
+  currency: string | null;
+  duration: string;
+  duration_in_months: number | null;
+  applies_to: { products: string[] };
+  valid: boolean;
+};
+/** A promotion code as the fake keeps it; its coupon is always given expanded. */
+type FakePromotionCode = {
+  id: string;
+  code: string;
+  coupon: string;
+  active: boolean;
+  expires_at: number | null;
+  max_redemptions: number | null;
+  first_time_transaction: boolean;
+  times_redeemed: number;
+};
+
+/** The Stripe fields a form-encoded list (`applies_to[products][0]`, ...) holds under `prefix`, in order. */
+const listParam = (params: URLSearchParams, prefix: string) =>
+  [...params.keys()]
+    .filter((key) => key.startsWith(`${prefix}[`))
+    .sort((a, b) => Number(a.slice(prefix.length + 1, -1)) - Number(b.slice(prefix.length + 1, -1)))
+    .map((key) => params.get(key)!);
+const numberParam = (params: URLSearchParams, name: string) => (params.has(name) ? Number(params.get(name)) : null);
+
 /** Starts the fake on `port` (any free port by default). */
 export async function startFakeStripe(port = 0) {
   const calls: StripeCall[] = [];
+  const coupons = new Map<string, FakeCoupon>();
+  const promotionCodes = new Map<string, FakePromotionCode>();
+  const promotionCodeJson = (promotionCode: FakePromotionCode) => ({
+    id: promotionCode.id,
+    object: "promotion_code",
+    active: promotionCode.active,
+    code: promotionCode.code,
+    created: 0,
+    customer: null,
+    expires_at: promotionCode.expires_at,
+    max_redemptions: promotionCode.max_redemptions,
+    metadata: {},
+    promotion: { type: "coupon", coupon: coupons.get(promotionCode.coupon) },
+    restrictions: { first_time_transaction: promotionCode.first_time_transaction, minimum_amount: null, minimum_amount_currency: null },
+    times_redeemed: promotionCode.times_redeemed,
+  });
   const forgotten = new Set<string>();
   /** Default Prices changed by `setDefaultPrice`, by product. */
   const defaultPrices = new Map<string, string>();
@@ -107,6 +156,65 @@ export async function startFakeStripe(port = 0) {
         }
         forgotten.add(customer);
         return reply(200, { id: customer, object: "customer", deleted: true });
+      }
+      if (request.method === "POST" && path === "/v1/coupons") {
+        const coupon: FakeCoupon = {
+          id: `coupon_fake${id}`,
+          object: "coupon",
+          name: params.get("name"),
+          percent_off: numberParam(params, "percent_off"),
+          amount_off: numberParam(params, "amount_off"),
+          currency: params.get("currency"),
+          duration: params.get("duration") ?? "once",
+          duration_in_months: numberParam(params, "duration_in_months"),
+          applies_to: { products: listParam(params, "applies_to[products]") },
+          valid: true,
+        };
+        coupons.set(coupon.id, coupon);
+        return reply(200, coupon);
+      }
+      const couponPath = path.match(/^\/v1\/coupons\/([^/]+)$/);
+      if (request.method === "DELETE" && couponPath) {
+        coupons.delete(decodeURIComponent(couponPath[1]!));
+        return reply(200, { id: couponPath[1], object: "coupon", deleted: true });
+      }
+      if (request.method === "POST" && path === "/v1/promotion_codes") {
+        const code = params.get("code") ?? `CODE${id}`;
+        if ([...promotionCodes.values()].some((other) => other.active && other.code.toUpperCase() === code.toUpperCase())) {
+          return reply(400, { error: { type: "invalid_request_error", param: "code", message: "An active promotion code with this code already exists." } });
+        }
+        const coupon = params.get("promotion[coupon]") ?? "";
+        if (!coupons.has(coupon)) return reply(400, { error: { type: "invalid_request_error", code: "resource_missing", message: `No such coupon: '${coupon}'` } });
+        const promotionCode: FakePromotionCode = {
+          id: `promo_fake${id}`,
+          code,
+          coupon,
+          active: params.get("active") !== "false",
+          expires_at: numberParam(params, "expires_at"),
+          max_redemptions: numberParam(params, "max_redemptions"),
+          first_time_transaction: params.get("restrictions[first_time_transaction]") === "true",
+          times_redeemed: 0,
+        };
+        promotionCodes.set(promotionCode.id, promotionCode);
+        return reply(200, promotionCodeJson(promotionCode));
+      }
+      if (request.method === "GET" && path === "/v1/promotion_codes") {
+        const query = new URL(request.url ?? "/", "http://stripe.test").searchParams;
+        const code = query.get("code");
+        const active = query.get("active");
+        // Newest first, as Stripe lists them.
+        const listed = [...promotionCodes.values()]
+          .reverse()
+          .filter((each) => (code === null || each.code.toUpperCase() === code.toUpperCase()) && (active === null || String(each.active) === active))
+          .slice(0, Number(query.get("limit") ?? 10));
+        return reply(200, { object: "list", url: "/v1/promotion_codes", has_more: false, data: listed.map(promotionCodeJson) });
+      }
+      const promotionCodePath = path.match(/^\/v1\/promotion_codes\/([^/]+)$/);
+      if (promotionCodePath) {
+        const promotionCode = promotionCodes.get(decodeURIComponent(promotionCodePath[1]!));
+        if (!promotionCode) return reply(404, { error: { type: "invalid_request_error", code: "resource_missing", message: `No such promotion code: '${promotionCodePath[1]}'` } });
+        if (request.method === "POST" && params.has("active")) promotionCode.active = params.get("active") === "true";
+        return reply(200, promotionCodeJson(promotionCode));
       }
       if (request.method === "POST" && path === "/v1/checkout/sessions") {
         return reply(200, { id: `cs_fake${id}`, object: "checkout.session", url: `https://checkout.stripe.test/cs_fake${id}` });
@@ -149,6 +257,11 @@ export async function startFakeStripe(port = 0) {
     forgetCustomer: (customer: string) => void forgotten.add(customer),
     /** Makes the fake take every request from now on and never answer it, as a hanging Stripe does. */
     stopAnswering: () => void (silent = true),
+    /** Counts one redemption of a promotion code, as a completed Checkout does. */
+    redeem: (promotionCodeId: string) => {
+      const promotionCode = promotionCodes.get(promotionCodeId);
+      if (promotionCode) promotionCode.times_redeemed += 1;
+    },
     /** Calls made to one endpoint, e.g. "/v1/checkout/sessions". */
     callsTo: (path: string) => calls.filter((call) => call.path === path),
     stop: () =>

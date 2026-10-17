@@ -4,10 +4,13 @@
  * hold across all tables (e.g. what deleting a Candidate removes, ADR-0010).
  */
 import { migrateActionCards } from "./action-cards/index";
+import { migrateAdministratorRoles } from "./admin/administrators";
+import { migrateBackOfficeAudit } from "./admin/back-office";
 import { migrateAgentRunLog } from "./agent-runs/index";
 import { migrateApplications } from "./applications/index";
 import { migrateAtsScores } from "./ats-score/index";
 import { migrateCandidateAccounts, type AuthConfig } from "./auth/index";
+import { migrateAssistantConversations } from "./back-office-assistant/conversations";
 import { migrateBilling } from "./billing/index";
 import { migrateCoachConversations } from "./coach-conversations/index";
 import { migrateCoachMemory } from "./coach-memory/index";
@@ -20,11 +23,20 @@ import { migrateJobDigests } from "./job-digests/index";
 import { migrateJobOffers } from "./job-offers/index";
 import { migrateJobSearches } from "./job-searches/index";
 import { migrateProfiles } from "./profiles/index";
+import { migrateProviderSecrets } from "./provider-secrets/index";
+import { migrateSignInProviders } from "./sign-in-providers/index";
 import { migrateTailoredCvs } from "./tailored-cv/index";
 import { migrateTailoredDocuments } from "./tailored-documents/index";
 
-/** Migrates every table; `onMigrated` hears what is up to date after each step ("Profiles are up to date"). */
-export async function migrateDatabase(config: AuthConfig, onMigrated: (done: string) => void = () => {}): Promise<void> {
+/**
+ * Migrates every table; `onMigrated` hears what is up to date after each step ("Profiles are up to date").
+ * `env` holds the Google client the Sign-in Providers are seeded with (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET).
+ */
+export async function migrateDatabase(
+  config: AuthConfig,
+  onMigrated: (done: string) => void = () => {},
+  env: Record<string, string | undefined> = process.env,
+): Promise<void> {
   const { database } = config;
   const steps: [string, () => Promise<void>][] = [
     ["Candidate accounts are up to date", () => migrateCandidateAccounts(config)],
@@ -46,6 +58,11 @@ export async function migrateDatabase(config: AuthConfig, onMigrated: (done: str
     ["Human Coaches, Coach Access and Coaching Sessions are up to date", () => migrateHumanCoaches(database)],
     ["Coach Conversations are up to date", () => migrateCoachConversations(database)],
     ["Coach Memory is up to date", () => migrateCoachMemory(database)],
+    ["Back Office Audit is up to date", () => migrateBackOfficeAudit(database)],
+    ["Back Office Roles are up to date", () => migrateAdministratorRoles(database)],
+    ["Provider Secrets are up to date", () => migrateProviderSecrets(database)],
+    ["Sign-in Providers are up to date", () => migrateSignInProviders(database, env)],
+    ["Back Office Assistant conversations are up to date", () => migrateAssistantConversations(database)],
   ];
   for (const [done, migrate] of steps) {
     await migrate();

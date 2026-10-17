@@ -91,8 +91,11 @@ export interface JobDiscoveryOptions {
   budget?: Partial<JobDiscoveryBudget>;
   /** For waiting out robots.txt Crawl-delay and timing the budget. Default: real time. */
   clock?: Clock;
-  /** France Travail's offers, searched first. Default: none (its status is then `off`). */
-  franceTravail?: FranceTravail | null;
+  /**
+   * France Travail's offers, searched first. Default: none (its status is then `off`).
+   * A getter is asked on each run: the worker's follows its Provider Secrets (#208).
+   */
+  franceTravail?: FranceTravail | null | (() => FranceTravail | null);
 }
 
 export interface DiscoverRequest {
@@ -317,7 +320,8 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
       };
 
       try {
-        if (options.franceTravail && !budgetSpent()) await searchFranceTravail(options.franceTravail);
+        const franceTravail = typeof options.franceTravail === "function" ? options.franceTravail() : options.franceTravail;
+        if (franceTravail && !budgetSpent()) await searchFranceTravail(franceTravail);
         if (budgetSpent()) {
           report.jobOffers = [...found.values()];
           return report;

@@ -1,15 +1,18 @@
 import type { MasterCvContent, SearchCriteria } from "@jobhub/shared";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createJobOffers, migrateJobOffers } from "@jobhub/web/job-offers";
 import { createProfiles, migrateProfiles } from "@jobhub/web/profiles";
 import { createApplications, migrateApplications } from "../../web/src/applications";
 import { createCoachConversations, migrateCoachConversations } from "@jobhub/web/coach-conversations";
+import { createBackOffice, migrateBackOfficeAudit } from "@jobhub/web/back-office";
+import { createAssistantConversations, migrateAssistantConversations } from "@jobhub/web/back-office-assistant";
+import { createBilling, migrateBilling, STARTING_PLAN_QUOTAS } from "@jobhub/web/billing";
 import { signInWithMagicLink, startTestAuth } from "../../web/src/auth/test-support";
 import { createThrowawayDatabase } from "../../web/src/test-support/throwaway-database";
 import { JobDiscoveryError, type DiscoverRequest, type DiscoveryReport } from "./job-discovery";
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
 import type { DueJobDigest, JobDigestResult } from "@jobhub/web/job-digests";
-import { COACH_CONVERSATIONS_PURGE, createJobs, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { BACK_OFFICE_ASSISTANT_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -347,6 +350,28 @@ describe("the worker without an AI layer", () => {
   });
 });
 
+describe("Job discovery asked for on each job (#208)", () => {
+  it("runs once its keys appear, without a restart: the getter is asked again on each job", async () => {
+    const logs: string[] = [];
+    let current: Exclude<JobsDeps["discovery"], () => unknown> = { unavailable: "Missing environment variable MISTRAL_API_KEY" };
+    const discover = vi.fn(async () => ({ jobOffers: [], skipped: [], funnel: { providerUrls: 0, pagesRead: 0, extracted: 0 }, costEur: 0, franceTravail: { status: "off", offers: 0, calls: 0 } }));
+    const jobs = createJobs({
+      ...otherDeps,
+      database: noDatabase,
+      discovery: () => current,
+      profiles: { get: async () => ({ archived: false, searchCriteria: criteria, masterCv: { content: masterCv } }) },
+      log: (line) => logs.push(line),
+    });
+
+    await jobs[JOB_DISCOVERY]!.handler({ candidateId: "candidate-1", profileId: "profile-1" });
+    current = { discover } as never;
+    await jobs[JOB_DISCOVERY]!.handler({ candidateId: "candidate-1", profileId: "profile-1" });
+
+    expect(logs[0]).toContain("skipped, Job discovery is unavailable (Missing environment variable MISTRAL_API_KEY)");
+    expect(discover).toHaveBeenCalledTimes(1);
+  });
+});
+
 const otherDeps = {
   discovery: { unavailable: "not under test" },
   profiles: { get: async () => null },
@@ -366,6 +391,27 @@ describe("the Follow-ups job", () => {
     expect(job?.cron).toBe("0 6 * * 1-5");
     await job!.handler({});
     expect(runs).toEqual([now]);
+  });
+});
+
+describe("the Provider Secrets re-encryption job", () => {
+  it("re-encrypts, every night and when asked, the Provider Secrets not under the newest master key, saying how many", async () => {
+    const logs: string[] = [];
+    const reencrypt = vi.fn(async () => 2);
+    const job = createJobs({ ...otherDeps, database: noDatabase, providerSecrets: { reencrypt }, log: (line) => logs.push(line) })[PROVIDER_SECRETS_REENCRYPT]!;
+
+    expect(job.cron).toBe("15 4 * * *");
+    await job.handler({});
+
+    expect(reencrypt).toHaveBeenCalledTimes(1);
+    expect(logs).toEqual(["[provider-secrets] 2 Provider Secret(s) re-encrypted under the newest master key"]);
+  });
+
+  it("does nothing without Provider Secrets, or before the web app has created their table", async () => {
+    await expect(createJobs({ ...otherDeps, database: noDatabase })[PROVIDER_SECRETS_REENCRYPT]!.handler({})).resolves.toBeUndefined();
+    const missingTable = Object.assign(new Error("relation does not exist"), { code: "42P01" });
+    const reencrypt = vi.fn(async () => Promise.reject(missingTable));
+    await expect(createJobs({ ...otherDeps, database: noDatabase, providerSecrets: { reencrypt } })[PROVIDER_SECRETS_REENCRYPT]!.handler({})).resolves.toBeUndefined();
   });
 });
 
@@ -515,6 +561,88 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       expect(logs).toEqual(["[coach-conversations] 1 Coach Conversation(s) purged, 12 months after their last message"]);
     } finally {
       await testAuth.stop();
+    }
+  });
+
+  it("purges, every night, the Back Office Assistant conversations whose last message is 12 months old", async () => {
+    const testAuth = await startTestAuth();
+    try {
+      const database = testAuth.database;
+      await migrateAssistantConversations(database);
+      const cookie = await signInWithMagicLink(testAuth, "claire@jobbbox.fr");
+      const session = (await (await testAuth.request("/api/auth/get-session", { cookie })).json()) as { user: { id: string } };
+      const conversations = createAssistantConversations(database, {
+        assistant: {
+          reply: async () => ({
+            ok: true,
+            reply: "Bonjour Claire",
+            cost: { provider: "mistral", model: "mistral-large-latest", inputTokens: 100, outputTokens: 50, cachedInputTokens: 0, eur: 0.0001 },
+            sections: ["planQuotas"],
+          }),
+        },
+      });
+      const sent = await conversations.send({ id: session.user.id, access: { roles: ["support"], can: () => true } }, { message: "Bonjour" });
+      if (!sent.ok) throw new Error("fixture refused");
+      const logs: string[] = [];
+      const jobAt = (days: number) =>
+        createJobs({ ...otherDeps, database, now: () => new Date(Date.now() + days * 86_400_000), log: (line) => logs.push(line) })[BACK_OFFICE_ASSISTANT_PURGE]!;
+
+      expect(jobAt(0).cron).toBe("35 3 * * *");
+      await jobAt(360).handler({});
+      expect(await conversations.open(session.user.id, sent.conversation.id)).not.toBeNull();
+
+      await jobAt(370).handler({});
+      expect(await conversations.open(session.user.id, sent.conversation.id)).toBeNull();
+      expect(logs).toEqual(["[back-office-assistant] 1 Back Office Assistant conversation(s) purged, 12 months after their last message"]);
+    } finally {
+      await testAuth.stop();
+    }
+  });
+
+  it("has no Back Office Assistant conversation to purge before the web app has created its tables", async () => {
+    const empty = await createThrowawayDatabase("test_worker_jobs_empty");
+    try {
+      await expect(createJobs({ ...otherDeps, database: empty.pool })[BACK_OFFICE_ASSISTANT_PURGE]!.handler({})).resolves.toBeUndefined();
+    } finally {
+      await empty.drop();
+    }
+  });
+
+  it("purges, every night, the Back Office Audit entries 3 years old", async () => {
+    const testAuth = await startTestAuth();
+    try {
+      const database = testAuth.database;
+      await migrateBilling(database);
+      await migrateBackOfficeAudit(database);
+      const cookie = await signInWithMagicLink(testAuth, "claire@jobbbox.fr");
+      const session = (await (await testAuth.request("/api/auth/get-session", { cookie })).json()) as { user: { id: string; email: string } };
+      const unused = async () => {
+        throw new Error("not under test");
+      };
+      const backOffice = createBackOffice(database, { billing: createBilling({ database, baseURL: "http://localhost:3000" }), humanCoaches: { add: unused, retire: unused } });
+      await backOffice.setPlanQuotas(session.user, "free", { ...STARTING_PLAN_QUOTAS.free, matchScores: 4 });
+      const logs: string[] = [];
+      const jobAt = (days: number) =>
+        createJobs({ ...otherDeps, database, now: () => new Date(Date.now() + days * 86_400_000), log: (line) => logs.push(line) })[BACK_OFFICE_AUDIT_PURGE]!;
+
+      expect(jobAt(0).cron).toBe("45 3 * * *");
+      await jobAt(3 * 365 - 5).handler({});
+      expect(await backOffice.journal()).toHaveLength(1);
+
+      await jobAt(3 * 365 + 5).handler({});
+      expect(await backOffice.journal()).toEqual([]);
+      expect(logs).toEqual(["[back-office-audit] 1 Back Office Audit entry(ies) purged, 3 years after they were made"]);
+    } finally {
+      await testAuth.stop();
+    }
+  });
+
+  it("has no Back Office Audit to purge before the web app has created its tables", async () => {
+    const empty = await createThrowawayDatabase("test_worker_jobs_empty");
+    try {
+      await expect(createJobs({ ...otherDeps, database: empty.pool })[BACK_OFFICE_AUDIT_PURGE]!.handler({})).resolves.toBeUndefined();
+    } finally {
+      await empty.drop();
     }
   });
 

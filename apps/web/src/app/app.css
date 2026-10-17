@@ -632,6 +632,27 @@ body:not(:has(.app-shell)) .coach-panel {
   font-weight: 400;
 }
 
+/* Back Office Journal: the section filter on one wrapping line, each change on its own line. */
+.journal-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.journal-filter [aria-current="page"] {
+  font-weight: 700;
+}
+
+.journal-changes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
 /* A percentage width gives a select no min-content width, so the table would
    squeeze the status column until the Application Status is cut off. Here the
    select takes the width of its longest status instead. */
@@ -1035,6 +1056,19 @@ html[data-sidebar="closed"] .sidebar-docked {
   font-weight: 600;
   background: var(--color-surface-hover);
   box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+/* The Back Office's sidebar (#204): sections by group, each group named in small words above its links. */
+.sidebar-group + .sidebar-group {
+  margin-top: var(--space-4);
+}
+
+.sidebar-group-label {
+  margin: 0 0 var(--space-1);
+  padding: 0 var(--space-3);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
 }
 
 .sidebar-foot {
@@ -1912,4 +1946,65 @@ textarea.title-edit {
 
 .document .input {
   min-height: var(--control-height);
+}
+
+/* The Administrateurs page (#204): each role held, with the button that revokes it. */
+.administrator-roles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.administrator-roles li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+}
+
+/* A checkbox, its label beside it and its help below, all with a large target. */
+.checkbox-field {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 var(--space-3);
+  align-items: center;
+}
+
+.checkbox-field input {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.checkbox-field label {
+  min-height: var(--control-height);
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+}
+
+.checkbox-field p {
+  grid-column: 2;
+  margin: 0;
+}
+
+/* The Clés page (#208): each key's Test and Clear buttons, and one folded replace form per key. */
+.provider-secret-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.provider-secrets code {
+  overflow-wrap: anywhere;
+}
+
+.provider-secret-replace summary {
+  min-height: var(--control-height);
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  cursor: pointer;
 }

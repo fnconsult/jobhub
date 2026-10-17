@@ -1,7 +1,7 @@
 import { sharedPool } from "@/database/pool";
 import { getAi } from "@/ai/server";
 import { getApplications } from "@/applications/server";
-import { mailerFromEnv } from "@/auth/config";
+import { getMailer } from "@/auth/server";
 import { createActionCards } from "@/action-cards";
 import { createFollowUps, type FollowUps } from "./index";
 
@@ -19,7 +19,7 @@ export function getFollowUps(): FollowUps {
       // Proposing only: deciding goes through the app's Action Cards, which call `onAccept`.
       actionCards: createActionCards(database),
       applications: getApplications(),
-      mailer: mailerFromEnv(process.env),
+      mailer: getMailer(),
       appUrl: process.env.APP_URL || "http://localhost:3000",
       ai: getAi(),
     });

@@ -6,13 +6,17 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApplications, type Applications } from "../applications";
 import { BASE_URL, connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createActionCards } from "../action-cards";
+import { createBackOffice } from "../admin/back-office";
 import { createAtsScoring } from "../ats-score";
+import { createBilling, STARTING_PLAN_QUOTAS } from "../billing";
 import { createCoachConversations } from "../coach-conversations";
 import { createHumanCoaches } from "../human-coaches";
 import { createEuAiConsents } from "../eu-ai-consent";
 import { createFollowUps } from "../follow-ups";
 import { createJobOffers, type JobOffers } from "../job-offers";
 import { migrateDatabase } from "../migrations";
+import { backOfficeAccess } from "../admin/access";
+import { createAssistantConversations } from "../back-office-assistant/conversations";
 import { createProfiles, type Profiles } from "../profiles";
 import { createTailoredCvs } from "../tailored-cv";
 import { createTailoredDocuments } from "../tailored-documents";
@@ -105,7 +109,51 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       createdAt: expect.any(Date),
       signInMethods: [],
       sessions: [expect.objectContaining({ createdAt: expect.any(Date) })],
+      backOfficeRoles: [],
     });
+  });
+
+  it("the export holds the Back Office Roles the Candidate holds, not who granted them", async () => {
+    await database.query(
+      `INSERT INTO administrator_role (candidate_id, role, granted_by, granted_at) VALUES ($1, 'support', 'someone-else', '2026-10-01T08:00:00Z')`,
+      [candidateId],
+    );
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.account?.backOfficeRoles).toEqual([{ role: "support", grantedAt: new Date("2026-10-01T08:00:00Z") }]);
+    expect(JSON.stringify(exported)).not.toContain("someone-else");
+  });
+
+  it("the export holds the Administrator's Back Office Assistant conversations with every message, not what the replies cost", async () => {
+    const conversations = createAssistantConversations(database, {
+      assistant: {
+        reply: async () => ({
+          ok: true,
+          reply: "Premium : 4321 Match Scores par mois.",
+          cost: { provider: "mistral", model: "secret-assistant-model", inputTokens: 1, outputTokens: 1, cachedInputTokens: 0, eur: 0.001 },
+          sections: ["planQuotas"],
+        }),
+      },
+    });
+    const sent = await conversations.send({ id: candidateId, access: backOfficeAccess(["support"]) }, { message: "Quotas Premium ?" });
+    if (!sent.ok) throw new Error("fixture conversation refused");
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.backOfficeAssistantConversations).toEqual([
+      {
+        id: sent.conversation.id,
+        title: "Quotas Premium ?",
+        createdAt: expect.any(Date),
+        lastMessageAt: expect.any(Date),
+        messages: [
+          { from: "administrator", text: "Quotas Premium ?", sentAt: expect.any(Date) },
+          { from: "assistant", text: "Premium : 4321 Match Scores par mois.", sentAt: expect.any(Date) },
+        ],
+      },
+    ]);
+    expect(JSON.stringify(exported)).not.toContain("secret-assistant-model");
   });
 
   it("the export holds every Profile with its Search Criteria and every version of its Master CV", async () => {
@@ -451,6 +499,22 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
 
     expect(again).not.toBe(candidateId);
     expect(await candidateData.export(again)).toMatchObject({ profiles: [], applications: [] });
+  });
+
+  it("an Administrator's export holds nothing of the Back Office Audit, and deleting their account keeps its entries, with the email they had", async () => {
+    const humanCoaches = createHumanCoaches(database, { profiles, applications, tailoredDocuments, tailoredCvs });
+    const backOffice = createBackOffice(database, { billing: createBilling({ database, baseURL: BASE_URL }), humanCoaches });
+    const before = await candidateData.export(candidateId);
+    await backOffice.setPlanQuotas({ id: candidateId, email: "marie.dupont@example.fr" }, "standard", { ...STARTING_PLAN_QUOTAS.standard, matchScores: 77 });
+
+    const after = await candidateData.export(candidateId);
+    expect({ ...after, exportedAt: before.exportedAt }).toEqual(before);
+
+    await candidateData.delete(candidateId);
+
+    expect(await backOffice.journal()).toMatchObject([
+      { actor: { candidateId: null, email: "marie.dupont@example.fr" }, section: "plan_quotas", target: "standard", after: { matchScores: 77 } },
+    ]);
   });
 
   it("the account is not deleted when its billing cannot be closed, so a paying Candidate is never left charged without an account", async () => {

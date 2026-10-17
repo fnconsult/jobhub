@@ -1,3 +1,5 @@
+import { CONTACT_ENRICHMENT_SECRET_NAMES } from "../provider-secrets/catalog";
+import { liveObject, type SecretResolver } from "../provider-secrets/resolver";
 import { createApolloProvider } from "./providers/apollo";
 import { createKasprProvider } from "./providers/kaspr";
 import { createLushaProvider } from "./providers/lusha";
@@ -36,4 +38,16 @@ export function contactEnrichmentFromEnv(env: Env): ContactEnrichmentConfig {
   if (env.CONTACT_ENRICHMENT_DPA_SIGNED !== "true") return { provider: null, disabledBecause: "dpa_not_signed" };
   const baseUrl = env.CONTACT_ENRICHMENT_API_URL || undefined;
   return { provider: ADAPTERS[id]({ apiKey, ...(baseUrl && { baseUrl }) }) };
+}
+
+/**
+ * The active contact-enrichment provider from env with the Provider Secrets over it
+ * (#208). Its calls go through `liveObject`: one refused for its key (401/403) reads
+ * the database again and is made once more with a key just replaced in the Back Office.
+ */
+export function contactEnrichmentFromSecrets(resolver: SecretResolver): ContactEnrichmentConfig {
+  const config = contactEnrichmentFromEnv(resolver.current().env);
+  if (!config.provider) return config;
+  const configured = config.provider;
+  return { provider: liveObject(resolver, CONTACT_ENRICHMENT_SECRET_NAMES, (env) => contactEnrichmentFromEnv(env).provider ?? configured) };
 }

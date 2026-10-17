@@ -2,6 +2,8 @@ import { FUNNEL_MATCH_SCORE, noDiscoveryMetrics, scoreMatch, type CvContent, typ
 import type { Pool } from "pg";
 import type { FollowUps } from "@jobhub/web/follow-ups";
 
+import { purgeExpiredBackOfficeAudit, RETENTION_YEARS as BACK_OFFICE_AUDIT_RETENTION_YEARS } from "@jobhub/web/back-office";
+import { purgeStaleAssistantConversations, RETENTION_MONTHS as ASSISTANT_RETENTION_MONTHS } from "@jobhub/web/back-office-assistant";
 import { purgeStaleCoachConversations, RETENTION_MONTHS } from "@jobhub/web/coach-conversations";
 import { DIGEST_HOUR, DIGEST_TIME_ZONE, type JobDigests } from "@jobhub/web/job-digests";
 import { createSourceChecks, forgetExpiredGuestCaptures } from "@jobhub/web/job-offers";
@@ -43,6 +45,28 @@ export const SOURCE_RECHECK = "job-offers.recheck-sources";
 /** Queue name: delete the Coach Conversations whose last message is RETENTION_MONTHS old. Runs nightly. */
 export const COACH_CONVERSATIONS_PURGE = "coach-conversations.purge";
 
+/** Queue name: delete the Back Office Audit entries made BACK_OFFICE_AUDIT_RETENTION_YEARS ago or more. Runs nightly. */
+export const BACK_OFFICE_AUDIT_PURGE = "back-office-audit.purge";
+/** Queue name: delete the Back Office Assistant conversations whose last message is 12 months old. Runs nightly. */
+export const BACK_OFFICE_ASSISTANT_PURGE = "back-office-assistant.purge";
+
+/**
+ * Queue name: re-encrypt the Provider Secrets not under the newest master key of
+ * SECRETS_MASTER_KEYS (ADR-0020, docs/ops/provider-secrets.md). Runs nightly, and
+ * once when the worker starts, so a new master key is in use soon after it is deployed.
+ */
+export const PROVIDER_SECRETS_REENCRYPT = "provider-secrets.reencrypt";
+
+/**
+ * Queue name: sign Apple's client secret again, from its .p8 key, once a month (#209).
+ * Runs daily: it signs only those signed a month ago or more, so a missed day costs nothing.
+ * A failure is emailed to the super-admins once per failure streak: Apple sign-in stops when the one in use expires.
+ */
+export const APPLE_CLIENT_SECRETS = "sign-in-providers.apple-client-secret";
+
+/** An Apple client secret that could not be signed again; `firstFailure`: the streak starts, the super-admins are not told yet. */
+type AppleFailure = { id: string; reason: "missing_secret" | "invalid_apple_key" | "no_master_key"; firstFailure: boolean };
+
 /** Postgres error code for a table that does not exist yet (the web app's migrations have not run). */
 const UNDEFINED_TABLE = "42P01";
 
@@ -54,7 +78,8 @@ export interface DiscoveryUnavailable {
 export interface JobsDeps {
   database: Pick<Pool, "query">;
   now?: () => Date;
-  discovery: JobDiscovery | DiscoveryUnavailable;
+  /** Job discovery, or why it is unavailable; a getter is asked on each job (the worker's follows its Provider Secrets, #208). */
+  discovery: JobDiscovery | DiscoveryUnavailable | (() => JobDiscovery | DiscoveryUnavailable);
   /** Reads a Profile, scoped to its Candidate. Satisfied by the web app's Profiles module. */
   profiles: {
     get(candidateId: string, profileId: string): Promise<DiscoveryProfile | null>;
@@ -68,6 +93,12 @@ export interface JobsDeps {
   followUps: Pick<FollowUps, "proposeDue">;
   /** The worker's side of Job Digests. Satisfied by the web app's Job Digests module. */
   jobDigests: Pick<JobDigests, "claimDue" | "deliver">;
+  /** The Provider Secrets, to move to the newest master key. Without them, nothing to re-encrypt. */
+  providerSecrets?: { reencrypt(): Promise<number> };
+  /** The Sign-in Providers, whose Apple client secret is signed again monthly. Without them, nothing to sign. */
+  signInProviders?: { regenerateAppleClientSecrets(): Promise<{ regenerated: string[]; failed: AppleFailure[] }> };
+  /** Emails the super-admins that an Apple client secret could not be signed again. */
+  alertAppleFailure?: (failed: AppleFailure[]) => Promise<void>;
   /** Queues another job of this worker. */
   enqueue: (name: string, data: object) => Promise<void>;
   log?: (line: string) => void;
@@ -111,6 +142,7 @@ function discoveryTarget(data: unknown): { candidateId: string; profileId: strin
 export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
   const log = deps.log ?? ((line) => console.info(line));
   const now = deps.now ?? (() => new Date());
+  const discoveryNow = () => (typeof deps.discovery === "function" ? deps.discovery() : deps.discovery);
   /** Runs a job that reads the web app's tables: before its migrations have run, there is nothing to do. */
   const onceTablesExist = async (work: () => Promise<void>) => {
     try {
@@ -142,15 +174,16 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           return log(`[job-discovery] profile ${target.profileId}: gone or archived, skipped`);
         }
 
-        if ("unavailable" in deps.discovery) {
+        const discovery = discoveryNow();
+        if ("unavailable" in discovery) {
           await fail("unavailable");
           return log(
-            `[job-discovery] profile ${target.profileId}: skipped, Job discovery is unavailable (${deps.discovery.unavailable})`,
+            `[job-discovery] profile ${target.profileId}: skipped, Job discovery is unavailable (${discovery.unavailable})`,
           );
         }
         let report;
         try {
-          report = await deps.discovery.discover({ candidateId: target.candidateId, criteria: profile.searchCriteria });
+          report = await discovery.discover({ candidateId: target.candidateId, criteria: profile.searchCriteria });
         } catch (error) {
           // The Candidate is waiting for this Job Search: say it failed rather than retry it later.
           if (!jobSearchId) throw error;
@@ -222,7 +255,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         const profile = await deps.profiles.get(target.candidateId, target.profileId);
         if (!profile || profile.archived) return log(`[job-digest] profile ${target.profileId}: gone or archived, skipped`);
         const startedAt = now();
-        const discovery = deps.discovery;
+        const discovery = discoveryNow();
         let metrics = noDiscoveryMetrics();
         const discover = async () => {
           if ("unavailable" in discovery) throw new Error(`Job discovery is unavailable (${discovery.unavailable})`);
@@ -270,6 +303,54 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         onceTablesExist(async () => {
           const purged = await purgeStaleCoachConversations(deps.database, now());
           if (purged) log(`[coach-conversations] ${purged} Coach Conversation(s) purged, ${RETENTION_MONTHS} months after their last message`);
+        }),
+    },
+
+    // Nightly, and once at start (main.ts): every row under the newest master key. Safe to run again.
+    [PROVIDER_SECRETS_REENCRYPT]: {
+      cron: "15 4 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const moved = (await deps.providerSecrets?.reencrypt()) ?? 0;
+          if (moved) log(`[provider-secrets] ${moved} Provider Secret(s) re-encrypted under the newest master key`);
+        }),
+    },
+
+    // Daily; signs again only what is a month old. Safe to run again.
+    [APPLE_CLIENT_SECRETS]: {
+      cron: "30 4 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const result = await deps.signInProviders?.regenerateAppleClientSecrets();
+          if (!result) return;
+          if (result.regenerated.length > 0) log(`[sign-in-providers] Apple client secret signed again for ${result.regenerated.join(", ")}`);
+          if (result.failed.length === 0) return;
+          // Alerted once per failure streak; said in the log every day it lasts.
+          const starting = result.failed.filter((failure) => failure.firstFailure);
+          log(
+            `[sign-in-providers] Apple client secret NOT signed again: ${result.failed.map(({ id, reason }) => `${id} (${reason})`).join(", ")}; ${starting.length > 0 ? "super-admins alerted" : "super-admins already alerted"}`,
+          );
+          if (starting.length > 0) await deps.alertAppleFailure?.(starting);
+        }),
+    },
+
+    // Back Office Assistant conversations are kept 12 months after their last message. Safe to run again.
+    [BACK_OFFICE_ASSISTANT_PURGE]: {
+      cron: "35 3 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const purged = await purgeStaleAssistantConversations(deps.database, now());
+          if (purged) log(`[back-office-assistant] ${purged} Back Office Assistant conversation(s) purged, ${ASSISTANT_RETENTION_MONTHS} months after their last message`);
+        }),
+    },
+
+    // The Back Office Audit is kept 3 years. Safe to run again.
+    [BACK_OFFICE_AUDIT_PURGE]: {
+      cron: "45 3 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const purged = await purgeExpiredBackOfficeAudit(deps.database, now());
+          if (purged) log(`[back-office-audit] ${purged} Back Office Audit entry(ies) purged, ${BACK_OFFICE_AUDIT_RETENTION_YEARS} years after they were made`);
         }),
     },
 

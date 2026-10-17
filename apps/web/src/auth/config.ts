@@ -1,4 +1,6 @@
+import { permanentSuperAdminsFromEnv } from "../admin/access";
 import { sharedPool } from "../database/pool";
+import { configurationFromEnv } from "../sign-in-providers/index";
 import type { AuthConfig } from "./index";
 import { mailerFromEnv } from "./mailers";
 
@@ -8,16 +10,11 @@ type Env = Record<string, string | undefined>;
 
 const DEV_SECRET = "development-only-secret-do-not-use-in-production";
 
-/** The Google OAuth client, or undefined when Google sign-in is not configured. */
-export function googleClientFromEnv(env: Env): AuthConfig["google"] {
-  return env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
-    ? { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET }
-    : undefined;
-}
-
 /**
  * Reads the Candidate-accounts configuration from environment variables
  * (see .env.example). Fails fast in production when something is missing.
+ * Its sign-in is env's Google client alone: the web app replaces it with the
+ * database's Sign-in Providers (server.ts).
  */
 export function authConfigFromEnv(env: Env): AuthConfig {
   const production = env.NODE_ENV === "production";
@@ -26,13 +23,14 @@ export function authConfigFromEnv(env: Env): AuthConfig {
     if (!value) throw new Error(`Missing environment variable ${name}`);
     return value;
   };
+  const permanentSuperAdmin = permanentSuperAdminsFromEnv(env);
 
   return {
     database: sharedPool(env),
     baseURL: required("APP_URL", "http://localhost:3000"),
     secret: required("AUTH_SECRET", DEV_SECRET),
     mailer: mailerFromEnv(env),
-    google: googleClientFromEnv(env),
+    signIn: { configuration: configurationFromEnv(env), isAdministrator: async (person) => permanentSuperAdmin(person) },
     extensionOrigins: (env.EXTENSION_ORIGINS ?? "")
       .split(",")
       .map((origin) => origin.trim())

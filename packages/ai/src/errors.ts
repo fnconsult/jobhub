@@ -1,3 +1,4 @@
+import { scrubSecrets } from "@jobhub/shared";
 import type { ProviderId } from "./types";
 
 /** Thrown when a call would send personal data to an endpoint outside the EU (ADR-0007). */
@@ -10,15 +11,19 @@ export class AiConfigError extends Error {
   override name = "AiConfigError";
 }
 
-/** A provider call failed: HTTP error, refusal or unreadable response. */
+/**
+ * A provider call failed: HTTP error, refusal or unreadable response. Its message is
+ * scrubbed of the keys in `options.secrets` and of anything that looks like a
+ * credential (a provider may echo the key it was sent), so it can be logged or stored.
+ */
 export class AiProviderError extends Error {
   override name = "AiProviderError";
   constructor(
     readonly provider: ProviderId,
     message: string,
     readonly status?: number,
-    options?: { cause?: unknown },
+    options?: { cause?: unknown; secrets?: readonly (string | undefined)[] },
   ) {
-    super(`${provider}: ${message}`, options);
+    super(`${provider}: ${scrubSecrets(message, options?.secrets)}`, options?.cause === undefined ? undefined : { cause: options.cause });
   }
 }

@@ -2,6 +2,8 @@
 export const routes = {
   home: "/",
   signIn: "/connexion",
+  /** The Back Office sign-in: the providers allowed for Administrators; where Require SSO sends an Administrator. */
+  backOfficeSignIn: "/connexion/back-office",
   account: "/compte",
   newProfile: "/profils/nouveau",
   profile: (id: string) => `/profils/${id}`,
@@ -37,4 +39,12 @@ export const routes = {
   adminHumanCoaches: "/admin/coachs",
   /** The AI Coach's cost per reply, per day: median and p90 against the target. */
   adminCoachCost: "/admin/cout-coach",
+  /** The Provider Secrets (Clés): third-party keys, super-admins only. */
+  adminProviderSecrets: "/admin/cles",
+  /** The Sign-in Providers (Connexion) and Require SSO for Administrators, super-admins only. */
+  adminSignInProviders: "/admin/connexion",
+  /** Administrators and their Back Office Roles. */
+  adminAdministrators: "/admin/administrateurs",
+  /** The Back Office Audit, newest first; with a section, only its changes. */
+  adminJournal: (section?: string) => (section ? `/admin/journal?section=${encodeURIComponent(section)}` : "/admin/journal"),
 } as const;

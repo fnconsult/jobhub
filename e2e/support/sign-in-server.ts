@@ -47,6 +47,16 @@ export async function startSignInServer(offset: number): Promise<SignInServer> {
     GOOGLE_CLIENT_SECRET: "e2e-client-secret",
     ADMIN_EMAILS: SSO_SUPER_ADMIN,
     SECRETS_MASTER_KEYS: "1:ZTJlLW9ubHktbWFzdGVyLWtleS1lMmUtb25seS0wMDA=",
+    // A production build requires Stripe (billing/config.ts): without it, every page that
+    // reads a Plan Quota (Mon compte among them) fails. Set here, like the suite's server,
+    // on the suite's fake Stripe, never from the shell: CI has no .env (#214 went red there).
+    STRIPE_SECRET_KEY: "sk_test_fake",
+    STRIPE_WEBHOOK_SECRET: "whsec_test_fake",
+    STRIPE_PRICE_STANDARD: "price_standard_monthly",
+    STRIPE_PRICE_PREMIUM: "price_premium_monthly",
+    STRIPE_PRICE_COACHING_SESSION: "price_coaching_session",
+    STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_coaching_session_premium",
+    STRIPE_API_URL: process.env.E2E_STRIPE_URL,
     NODE_OPTIONS: [`--import=${path.resolve("e2e/support/fake-google.mjs")}`, `--import=${path.resolve("e2e/support/fake-oidc.mjs")}`].join(" "),
   };
   const migrate = spawnSync("npm", ["run", "db:migrate"], { env: { ...env, NODE_OPTIONS: "" }, encoding: "utf8" });

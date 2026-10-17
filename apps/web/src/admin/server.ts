@@ -32,17 +32,28 @@ export async function currentIsAdministrator(): Promise<boolean> {
 }
 
 /**
- * Where the person on the Back Office sign-in page stands: not signed in, signed in but no
- * Administrator, an Administrator whom Require SSO asks to sign in again, or one the Back
- * Office lets in.
+ * Where the person on this request stands with the Back Office, read afresh: not signed in,
+ * signed in with no Back Office Role, an Administrator whom Require SSO for Administrators
+ * asks to sign in again with a provider allowed for them (signed in by magic link; never an
+ * ADMIN_EMAILS super-admin), or one the Back Office lets in. The one place this is decided.
  */
-export async function backOfficeSignInState(): Promise<"anonymous" | "not_administrator" | "needs_sso" | "signed_in"> {
+async function backOfficeStanding(): Promise<
+  | { state: "anonymous" }
+  | { state: "not_administrator" }
+  | { state: "needs_sso" | "signed_in"; person: Person; access: AdministratorAccess }
+> {
   const current = await getCurrentSession();
-  if (!current) return "anonymous";
+  if (!current) return { state: "anonymous" };
   const access = await getAdministrators().access(current.user);
-  if (!access.isAdministrator) return "not_administrator";
+  if (!access.isAdministrator) return { state: "not_administrator" };
   const needsSso = needsSsoForBackOffice(currentSignInConfiguration(), { signInMethod: current.session.signInMethod ?? null, permanentSuperAdmin: access.permanent });
-  return needsSso ? "needs_sso" : "signed_in";
+  const { id, email, emailVerified } = current.user;
+  return { state: needsSso ? "needs_sso" : "signed_in", person: { id, email, emailVerified }, access };
+}
+
+/** Where the person on the Back Office sign-in page stands (see backOfficeStanding). */
+export async function backOfficeSignInState(): Promise<"anonymous" | "not_administrator" | "needs_sso" | "signed_in"> {
+  return (await backOfficeStanding()).state;
 }
 
 /**
@@ -52,13 +63,8 @@ export async function backOfficeSignInState(): Promise<"anonymous" | "not_admini
  * a provider), whom the route answers 404, so the Back Office stays unseen.
  */
 export async function backOfficeAdministrator(): Promise<{ id: string; access: AdministratorAccess } | null> {
-  const current = await getCurrentSession();
-  if (!current) return null;
-  const access = await getAdministrators().access(current.user);
-  if (!access.isAdministrator) return null;
-  // Require SSO for Administrators applies to the API routes as to the pages.
-  if (needsSsoForBackOffice(currentSignInConfiguration(), { signInMethod: current.session.signInMethod ?? null, permanentSuperAdmin: access.permanent })) return null;
-  return { id: current.user.id, access };
+  const standing = await backOfficeStanding();
+  return standing.state === "signed_in" ? { id: standing.person.id, access: standing.access } : null;
 }
 
 /**
@@ -75,17 +81,13 @@ export async function requireBackOffice(
   resource?: BackOfficeResource,
   permission: Permission = "read",
 ): Promise<{ administrator: Person; access: AdministratorAccess; /** Whether their roles also let them change `resource`. */ canWrite: boolean }> {
-  const current = await getCurrentSession();
-  if (!current) redirect(routes.backOfficeSignIn);
-  const person = current.user;
-  const access = await getAdministrators().access(person);
-  if (!access.isAdministrator) notFound();
-  if (needsSsoForBackOffice(currentSignInConfiguration(), { signInMethod: current.session.signInMethod ?? null, permanentSuperAdmin: access.permanent })) {
-    redirect(routes.backOfficeSignIn);
-  }
+  const standing = await backOfficeStanding();
+  if (standing.state === "anonymous" || standing.state === "needs_sso") redirect(routes.backOfficeSignIn);
+  if (standing.state === "not_administrator") notFound();
+  const { person: administrator, access } = standing;
   if (resource && !access.can(resource, permission)) notFound();
   return {
-    administrator: { id: person.id, email: person.email, emailVerified: person.emailVerified },
+    administrator,
     access,
     canWrite: resource ? access.can(resource, "write") : false,
   };

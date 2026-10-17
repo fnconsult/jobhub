@@ -22,6 +22,14 @@ export function signInButtons(configuration: SignInConfiguration, audience: Sign
   return configuration.providers.filter((provider) => usableBy(provider, audience)).map(({ id, displayName }) => ({ id, displayName }));
 }
 
+/** The providers a person may sign in with, so link from Mon compte: those shown to Candidates, and an Administrator's own, each once. */
+export function linkableProviders(configuration: SignInConfiguration, person: { isAdministrator: boolean }): SignInButton[] {
+  const candidates = signInButtons(configuration, "candidates");
+  if (!person.isAdministrator) return candidates;
+  const ids = new Set(candidates.map((button) => button.id));
+  return [...candidates, ...signInButtons(configuration, "administrators").filter((button) => !ids.has(button.id))];
+}
+
 /**
  * What to do with a person coming back from provider `providerId`:
  *  - allow:  sign them in (or up, or link it);

@@ -9,7 +9,7 @@ import { CandidateLayout } from "@/components/CandidateLayout";
 import { EuAiConsentForm } from "@/components/EuAiConsentForm";
 import { FollowUpDelaysForm } from "@/components/FollowUpDelaysForm";
 import { SignInMethods } from "@/components/SignInMethods";
-import { signInButtons } from "@/sign-in-providers/policy";
+import { linkableProviders } from "@/sign-in-providers/policy";
 import { currentSignInConfiguration } from "@/sign-in-providers/server";
 import { MAX_FOLLOW_UP_DELAY } from "@/follow-ups";
 import { getFollowUps } from "@/follow-ups/server";
@@ -38,11 +38,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
     linkedSignInProviders(),
     searchParams,
   ]);
-  // The providers this person may sign in with: those shown to Candidates, and an Administrator's own.
-  const configuration = currentSignInConfiguration();
-  const usable = [...signInButtons(configuration, "candidates"), ...(isAdministrator ? signInButtons(configuration, "administrators") : [])].filter(
-    (provider, index, all) => all.findIndex((other) => other.id === provider.id) === index,
-  );
+  const usable = linkableProviders(currentSignInConfiguration(), { isAdministrator });
   const active = profiles.filter((profile) => !profile.archived);
   const archived = profiles.filter((profile) => profile.archived);
   return (

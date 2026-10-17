@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { betterAuthSignIn, needsSsoForBackOffice, oauthSignInDecision, signInButtons, trustedProviderIds } from "./policy";
+import { betterAuthSignIn, linkableProviders, needsSsoForBackOffice, oauthSignInDecision, signInButtons, trustedProviderIds } from "./policy";
 import type { SignInConfiguration, SignInProvider } from "./catalog";
 
 const provider = (overrides: Partial<SignInProvider> & Pick<SignInProvider, "id" | "type">): SignInProvider => ({
@@ -47,6 +47,21 @@ describe("the sign-in buttons", () => {
 
   it("never carries a client secret", () => {
     expect(JSON.stringify(signInButtons(providers, "administrators"))).not.toContain("secret");
+  });
+});
+
+describe("the providers a person may link from Mon compte", () => {
+  const providers = configuration([google, staffOidc, draftApple]);
+
+  it("are those shown to Candidates, for a Candidate", () => {
+    expect(linkableProviders(providers, { isAdministrator: false })).toEqual([{ id: "google", displayName: "Google" }]);
+  });
+
+  it("add those allowed for Administrators, for an Administrator, each once", () => {
+    expect(linkableProviders(providers, { isAdministrator: true })).toEqual([
+      { id: "google", displayName: "Google" },
+      { id: "jobbbox-sso", displayName: "Jobbbox SSO" },
+    ]);
   });
 });
 

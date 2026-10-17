@@ -2,6 +2,7 @@ import { generateKeyPairSync, sign } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { permanentSuperAdminsFromEnv } from "../admin/access";
 import { createAuth } from "./index";
+import type { SignInProvider } from "../sign-in-providers/catalog";
 import { BASE_URL, connectionString, cookiesFrom, signInWithMagicLink, startTestAuth, testProvider, testSignIn, type TestAuth } from "./test-support";
 
 const google = testProvider({ id: "google", type: "google", displayName: "Google", clientId: "test-client.apps.googleusercontent.com", clientSecret: "test-google-secret" });
@@ -48,6 +49,9 @@ const microsoftIdToken = (claims: Record<string, unknown>) =>
 /** Who Google, Microsoft and the OIDC issuer say is signing in, and the nonce the issuer was asked to sign. */
 const person: { google: Record<string, unknown>; sso: Record<string, unknown>; microsoft: Record<string, unknown>; nonce?: string } = { google: {}, sso: {}, microsoft: {} };
 
+/** How the OIDC issuer behaves in a test. */
+const issuer = { hangs: false, discoveryRequests: 0 };
+
 /** Stands in for Google and for the OIDC issuer (discovery, JWKS, code exchange). */
 function providersAnswer() {
   const realFetch = globalThis.fetch;
@@ -56,7 +60,12 @@ function providersAnswer() {
     if (url.startsWith("https://oauth2.googleapis.com/token")) {
       return Response.json({ access_token: "google-access-token", token_type: "Bearer", expires_in: 3600, scope: "openid email profile", id_token: googleIdToken(person.google) });
     }
-    if (url === sso.discoveryUrl) return Response.json(discovery);
+    if (url === sso.discoveryUrl) {
+      issuer.discoveryRequests += 1;
+      // An issuer that answered the Sign-in Providers' timed check, then hangs.
+      if (issuer.hangs) return new Promise<Response>(() => {});
+      return Response.json(discovery);
+    }
     if (url.startsWith("https://login.microsoftonline.com/common/oauth2/v2.0/token")) {
       return Response.json({ access_token: "microsoft-access-token", token_type: "Bearer", expires_in: 3600, id_token: microsoftIdToken(person.microsoft) });
     }
@@ -68,6 +77,8 @@ function providersAnswer() {
     return realFetch(input, init);
   });
 }
+
+const configurationOf = (providers: SignInProvider[]) => testSignIn(providers).configuration;
 
 describe.skipIf(!connectionString)("signing in through the Sign-in Providers (needs Postgres: DATABASE_URL)", () => {
   let testAuth: TestAuth;
@@ -83,6 +94,8 @@ describe.skipIf(!connectionString)("signing in through the Sign-in Providers (ne
     person.sso = {};
     person.microsoft = {};
     completeTestSignIn.mockClear();
+    issuer.hangs = false;
+    issuer.discoveryRequests = 0;
     // Before the instance is built: it reads the OIDC issuer's discovery document then.
     providersAnswer();
   });
@@ -364,6 +377,46 @@ describe.skipIf(!connectionString)("signing in through the Sign-in Providers (ne
       const refused = await testAuth.request("/api/auth/link-social", { cookie: magic, body: { provider: "jobbbox-sso", idToken: { token } } });
 
       expect(refused.status).toBe(400);
+      expect((await testAuth.database.query("SELECT count(*) FROM account WHERE \"providerId\" = 'jobbbox-sso'")).rows[0].count).toBe("0");
+    });
+  });
+
+  describe("rebuilt from another configuration", () => {
+    it("starts without asking the OIDC issuer anything: its discovery document is the one read with the configuration", async () => {
+      issuer.hangs = true;
+      await start();
+      person.sso = { sub: "sso-paul", email: "paul@example.fr", email_verified: true, name: "Paul" };
+
+      const callback = await through("jobbbox-sso");
+
+      expect(locationOf(callback).pathname).toBe("/compte");
+      expect(issuer.discoveryRequests).toBe(0);
+    }, 10_000);
+
+    it("decides with the configuration in use now, not the one it was built with: a provider disabled since is refused", async () => {
+      let live = configurationOf([google, sso]);
+      await start();
+      const stale = testAuth.requestTo(createAuth({ ...testAuth.config, signIn: { ...testSignIn([google, sso]), current: () => live } }));
+      live = configurationOf([google, { ...sso, enabled: false }]);
+      person.sso = { sub: "sso-paul", email: "paul@example.fr", email_verified: true, name: "Paul" };
+
+      const refused = await through("jobbbox-sso", { request: stale });
+
+      expect(locationOf(refused).searchParams.get("error")).toBe("provider_disabled");
+      expect(await candidates()).toBe(0);
+    });
+
+    it("decides with the configuration in use now: a provider no longer trusted for linking takes over no account", async () => {
+      let live = configurationOf([google, { ...sso, trustedForLinking: true }]);
+      await start([google, { ...sso, trustedForLinking: true }]);
+      const stale = testAuth.requestTo(createAuth({ ...testAuth.config, signIn: { ...testSignIn([google, { ...sso, trustedForLinking: true }]), current: () => live } }));
+      await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+      live = configurationOf([google, sso]);
+      person.sso = { sub: "sso-marie", email: "marie.dupont@example.fr", email_verified: true, name: "Marie" };
+
+      const refused = await through("jobbbox-sso", { request: stale });
+
+      expect(locationOf(refused).searchParams.get("error")).toBe("account_not_linked");
       expect((await testAuth.database.query("SELECT count(*) FROM account WHERE \"providerId\" = 'jobbbox-sso'")).rows[0].count).toBe("0");
     });
   });

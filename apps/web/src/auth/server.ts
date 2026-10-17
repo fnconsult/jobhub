@@ -30,6 +30,8 @@ function signInSetup(configuration: SignInConfiguration): SignInSetup {
   const permanentSuperAdmin = permanentSuperAdminsFromEnv(process.env);
   return {
     configuration,
+    // Decisions follow the configuration in use now, even on an instance not rebuilt yet.
+    current: currentSignInConfiguration,
     async isAdministrator(person) {
       if (permanentSuperAdmin(person)) return true;
       // A person signing up holds no Back Office Role yet.

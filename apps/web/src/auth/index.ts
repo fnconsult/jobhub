@@ -23,6 +23,7 @@ import { magicLink } from "better-auth/plugins/magic-link";
 import type { Pool } from "pg";
 import * as z from "zod";
 import { routes } from "../routes";
+import { withDiscoveryDocuments } from "./discovery-documents";
 import { MAGIC_LINK, SIGN_IN_ERRORS, TEST_SIGN_IN, type SignInConfiguration } from "../sign-in-providers/catalog";
 import { betterAuthSignIn, oauthSignInDecision, trustedProviderIds } from "../sign-in-providers/policy";
 
@@ -50,7 +51,14 @@ export interface SigningInPerson {
 
 /** The Sign-in Providers an instance is built with, and who counts as an Administrator. */
 export interface SignInSetup {
+  /** What the instance registers (built once from it). */
   configuration: SignInConfiguration;
+  /**
+   * The configuration in use now, which every sign-in decision (enabled, who may use it, trust
+   * for linking) is read from, whatever instance serves the request: a provider disabled or
+   * untrusted since is refused at once. Default: `configuration`.
+   */
+  current?(): SignInConfiguration;
   /** Whether `person` may use the providers allowed for Administrators (holds a Back Office Role, or is in ADMIN_EMAILS). */
   isAdministrator(person: SigningInPerson): Promise<boolean>;
   /**
@@ -116,6 +124,8 @@ const providerOf = (ctx: HookContext): string | null => (ctx?.path?.startsWith("
  *  - each session records how it was signed in (`signInMethod`), for Require SSO.
  */
 export function signInHooks(signIn: SignInSetup, baseURL: string) {
+  /** The configuration decisions are read from: the one in use now. */
+  const live = (): SignInConfiguration => signIn.current?.() ?? signIn.configuration;
   /**
    * The people being signed up through a provider, by provider and email, until their first
    * account is created (a minute at most): that account is not a link. Keyed on what both hooks
@@ -147,7 +157,7 @@ export function signInHooks(signIn: SignInSetup, baseURL: string) {
   }
 
   async function decide(ctx: NonNullable<HookContext>, providerId: string, person: SigningInPerson): Promise<void> {
-    const decision = oauthSignInDecision(signIn.configuration, providerId, { isAdministrator: await signIn.isAdministrator(person) });
+    const decision = oauthSignInDecision(live(), providerId, { isAdministrator: await signIn.isAdministrator(person) });
     if (decision === "allow") return;
     if (decision === "test") {
       const nonce = (await currentOAuthState())?.[TEST_SIGN_IN];
@@ -166,7 +176,7 @@ export function signInHooks(signIn: SignInSetup, baseURL: string) {
   };
 
   /** Whether `providerId`'s email is proof of owning that address (it links by email: policy.ts). */
-  const vouchesForEmail = (providerId: string) => trustedProviderIds(signIn.configuration).includes(providerId);
+  const vouchesForEmail = (providerId: string) => trustedProviderIds(live()).includes(providerId);
 
   return {
     user: {
@@ -205,7 +215,7 @@ export function signInHooks(signIn: SignInSetup, baseURL: string) {
           await decide(ctx, providerId, person);
           // Linked by the Candidate, signed in, from Mon compte: they proved owning the account.
           if ((await currentOAuthState())?.link) return;
-          if (!trustedProviderIds(signIn.configuration).includes(providerId)) {
+          if (!vouchesForEmail(providerId)) {
             throw new APIError("FORBIDDEN", { code: SIGN_IN_ERRORS.accountNotLinked, message: "Sign in by magic link, then link this provider" });
           }
         },
@@ -277,7 +287,7 @@ function authOptions(config: AuthConfig) {
       accountLinking: {
         enabled: true,
         // Read on every request: the providers in use, trusted for linking (policy.ts).
-        trustedProviders: () => trustedProviderIds(signIn.configuration),
+        trustedProviders: () => trustedProviderIds(signIn.current?.() ?? signIn.configuration),
       },
     },
     databaseHooks: signInHooks(signIn, config.baseURL),
@@ -324,7 +334,10 @@ function authOptions(config: AuthConfig) {
 }
 
 export function createAuth(config: AuthConfig) {
-  return betterAuth(authOptions(config));
+  // Its start reads the OIDC providers' discovery documents from memory: it waits on no issuer.
+  const discovered = new Map<string, Record<string, unknown>>();
+  for (const provider of config.signIn?.configuration.providers ?? []) if (provider.discoveryUrl && provider.discovery) discovered.set(provider.discoveryUrl, provider.discovery);
+  return withDiscoveryDocuments(discovered, () => betterAuth(authOptions(config)));
 }
 
 export type Auth = ReturnType<typeof createAuth>;

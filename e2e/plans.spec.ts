@@ -45,7 +45,7 @@ test.describe("Plans in the Back Office", () => {
     await create.getByLabel(plans.nameEn).fill("Essential");
     await create.getByLabel(plans.product).fill(FAKE_STRIPE_PRICES.essential);
     await create.getByRole("button", { name: plans.create }).click();
-    await expect(page.getByRole("alert")).toHaveText(plans.errors.not_a_product_id);
+    await expect(page.getByRole("alert").filter({ hasText: plans.errors.not_a_product_id })).toBeVisible();
 
     await create.getByLabel(plans.key).fill("essentiel");
     await create.getByLabel(plans.nameFr).fill("Essentiel");
@@ -102,7 +102,7 @@ test.describe("Plans in the Back Office", () => {
     await page.goto("/admin/offres");
     await free.locator('input[name="offered"]').evaluate((input: HTMLInputElement) => input.remove());
     await free.getByRole("button", { name: tr(plans.save, { plan: "Gratuite" }) }).click();
-    await expect(page.getByRole("alert")).toHaveText(plans.errors.free_plan_built_in);
+    await expect(page.getByRole("alert").filter({ hasText: plans.errors.free_plan_built_in })).toBeVisible();
 
     // Every change is in the Journal, under Offres.
     await page.goto(`/admin/journal?section=plans`);

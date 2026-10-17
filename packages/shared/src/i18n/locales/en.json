@@ -916,6 +916,18 @@
       "id": "Identifier"
     }
   },
+  "backOfficeAssistant": {
+    "open": "Assistant",
+    "title": "Back office assistant",
+    "welcome": "Hello, I am the back office assistant. Ask me about the data and settings of your sections.",
+    "readOnly": "Read-only: the assistant answers from the sections your roles cover and never changes anything.",
+    "thinking": "The assistant is writing its reply…",
+    "unavailable": "The assistant cannot reply right now. Try again in a few moments.",
+    "messagesLabel": "Your conversation with the assistant",
+    "author": "Assistant",
+    "retention": "Your conversations with the assistant are kept for 12 months after their last message, then deleted. Nobody else sees them.",
+    "noConversations": "You have no conversation with the assistant yet."
+  },
   "applicationStatuses": {
     "to_apply": "To apply",
     "applied": "Applied",

@@ -10,6 +10,7 @@ import { migrateAgentRunLog } from "./agent-runs/index";
 import { migrateApplications } from "./applications/index";
 import { migrateAtsScores } from "./ats-score/index";
 import { migrateCandidateAccounts, type AuthConfig } from "./auth/index";
+import { migrateAssistantConversations } from "./back-office-assistant/conversations";
 import { migrateBilling } from "./billing/index";
 import { migrateCoachConversations } from "./coach-conversations/index";
 import { migrateCoachMemory } from "./coach-memory/index";
@@ -61,6 +62,7 @@ export async function migrateDatabase(
     ["Back Office Roles are up to date", () => migrateAdministratorRoles(database)],
     ["Provider Secrets are up to date", () => migrateProviderSecrets(database)],
     ["Sign-in Providers are up to date", () => migrateSignInProviders(database, env)],
+    ["Back Office Assistant conversations are up to date", () => migrateAssistantConversations(database)],
   ];
   for (const [done, migrate] of steps) {
     await migrate();

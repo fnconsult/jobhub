@@ -58,6 +58,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Back Office Audit is up to date");
     expect(first.stdout).toContain("Back Office Roles are up to date");
     expect(first.stdout).toContain("Sign-in Providers are up to date");
+    expect(first.stdout).toContain("Back Office Assistant conversations are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 
@@ -74,6 +75,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "administrator_role", // issue #204: the Back Office Roles each Administrator holds
         "application",
         "ats_score", // issue #8: the ATS Score last computed for each Profile
+        "back_office_assistant_conversation", // issue #205: an Administrator's Back Office Assistant conversations
+        "back_office_assistant_message", // issue #205: their messages
         "back_office_audit", // issue #203: every change made in the Back Office
         "candidate",
         "candidate_plan", // issue #22: Plans and Plan Quotas
@@ -133,6 +136,9 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "application", from_column: "job_offer_id", to_table: "job_offer" },
         { from_table: "application", from_column: "profile_id", to_table: "profile" },
         { from_table: "ats_score", from_column: "profile_id", to_table: "profile" },
+        // issue #205: an Administrator's Back Office Assistant conversations, deleted with their account
+        { from_table: "back_office_assistant_conversation", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "back_office_assistant_message", from_column: "conversation_id", to_table: "back_office_assistant_conversation" },
         // The Back Office Audit (issue #203) outlives its Administrator: their id is set to null.
         { from_table: "back_office_audit", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "candidate_plan", from_column: "candidate_id", to_table: "candidate" },

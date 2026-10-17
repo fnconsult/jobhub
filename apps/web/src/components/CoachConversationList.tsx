@@ -1,30 +1,37 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import type { ParseKeys } from "i18next";
 import { useTranslation } from "react-i18next";
 
-/** A saved Coach Conversation as the Coach Panel lists it (dates arrive as JSON strings). */
+/** A saved Coach Conversation as the Coach Panel lists it (dates arrive as JSON strings). The Back Office Assistant's have no Profile. */
 export interface ConversationSummary {
   id: string;
   title: string;
-  profile: { id: string; name: string } | null;
+  profile?: { id: string; name: string } | null;
   lastMessageAt: string;
 }
 
 type Notice = { kind: "status"; text: string } | { kind: "alert"; text: string } | null;
 
 /**
- * The Candidate's Coach Conversations inside the Coach Panel, most recently
- * active first: open one, rename it, or delete it after confirming. Text
- * buttons only (ADR-0009); focus stays on the conversation being acted on.
+ * The Candidate's Coach Conversations inside the Coach Panel (or an Administrator's
+ * Back Office Assistant conversations), most recently active first: open one, rename
+ * it, or delete it after confirming. Text buttons only (ADR-0009); focus stays on the
+ * conversation being acted on. `endpoint`: where each conversation is, by id.
  */
 export function CoachConversationList({
+  endpoint = "/api/coach/conversations",
+  texts = { retention: "coachPanel.retention", noConversations: "coachPanel.noConversations" },
   conversations,
   loadFailed,
   onOpen,
   onRenamed,
   onDeleted,
 }: {
+  endpoint?: string;
+  /** The i18n keys of what differs between the Coach Panel and the Back Office Assistant. */
+  texts?: { retention: ParseKeys; noConversations: ParseKeys };
   conversations: ConversationSummary[] | null;
   loadFailed: boolean;
   /** Resolves false when the conversation could not be opened. */
@@ -67,7 +74,7 @@ export function CoachConversationList({
   async function rename(event: FormEvent<HTMLFormElement>, conversationId: string) {
     event.preventDefault();
     const title = String(new FormData(event.currentTarget).get("title") ?? "");
-    const response = await fetch(`/api/coach/conversations/${conversationId}`, {
+    const response = await fetch(`${endpoint}/${encodeURIComponent(conversationId)}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ title }),
@@ -84,7 +91,7 @@ export function CoachConversationList({
   }
 
   async function remove(conversationId: string) {
-    const response = await fetch(`/api/coach/conversations/${conversationId}`, { method: "DELETE" }).catch(() => null);
+    const response = await fetch(`${endpoint}/${encodeURIComponent(conversationId)}`, { method: "DELETE" }).catch(() => null);
     // Already gone (deleted from another tab, or purged): it is off the list either way.
     if (response?.ok || response?.status === 404) {
       onDeleted(conversationId);
@@ -101,7 +108,7 @@ export function CoachConversationList({
       <h3 id={`${id}-heading`} ref={heading} tabIndex={-1}>
         {t("coachPanel.conversations")}
       </h3>
-      <p className="hint">{t("coachPanel.retention")}</p>
+      <p className="hint">{t(texts.retention)}</p>
       <div role="status">{notice?.kind === "status" ? <p className="notice">{notice.text}</p> : null}</div>
       {notice?.kind === "alert" ? (
         <p className="notice" role="alert">
@@ -115,7 +122,7 @@ export function CoachConversationList({
       ) : conversations === null ? (
         <p role="status">{t("coachPanel.loading")}</p>
       ) : conversations.length === 0 ? (
-        <p>{t("coachPanel.noConversations")}</p>
+        <p>{t(texts.noConversations)}</p>
       ) : (
         <ul className="coach-conversation-list">
           {conversations.map((conversation) => {

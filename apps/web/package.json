@@ -7,6 +7,7 @@
     "./root-env": "./src/env/root-env.ts",
     "./billing": "./src/billing/index.ts",
     "./back-office": "./src/admin/back-office.ts",
+    "./back-office-assistant": "./src/back-office-assistant/conversations.ts",
     "./job-offers": "./src/job-offers/index.ts",
     "./profiles": "./src/profiles/index.ts",
     "./job-searches": "./src/job-searches/index.ts",

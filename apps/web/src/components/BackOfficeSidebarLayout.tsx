@@ -14,7 +14,7 @@ const isUnder = (pathname: string, path: string) => pathname === path || pathnam
 /**
  * The Back Office's sidebar layout (#204, Notion design language of map #123):
  * the sections an Administrator's roles cover, by group, each group named; the
- * Coach Panel in the top bar, on every page. `groups` holds only what they may see.
+ * Back Office Assistant in the top bar, on every page. `groups` holds only what they may see.
  */
 export function BackOfficeSidebarLayout({ groups, children }: { groups: ReadonlyArray<BackOfficeNavGroup>; children: ReactNode }) {
   const { t } = useTranslation();

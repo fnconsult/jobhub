@@ -916,6 +916,18 @@
       "id": "Identifiant"
     }
   },
+  "backOfficeAssistant": {
+    "open": "Assistant",
+    "title": "Assistant du back office",
+    "welcome": "Bonjour, je suis l'assistant du back office. Posez-moi vos questions sur les données et les réglages de vos sections.",
+    "readOnly": "Lecture seule : l'assistant répond à partir des sections que vos rôles couvrent et ne modifie jamais rien.",
+    "thinking": "L'assistant rédige sa réponse…",
+    "unavailable": "L'assistant ne peut pas répondre pour le moment. Réessayez dans quelques instants.",
+    "messagesLabel": "Vos échanges avec l'assistant",
+    "author": "Assistant",
+    "retention": "Vos conversations avec l'assistant sont conservées 12 mois après leur dernier message, puis supprimées. Personne d'autre ne les voit.",
+    "noConversations": "Vous n'avez pas encore de conversation avec l'assistant."
+  },
   "applicationStatuses": {
     "to_apply": "À postuler",
     "applied": "Postulée",

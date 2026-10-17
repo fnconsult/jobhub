@@ -46,6 +46,22 @@ export async function backOfficeSignInState(): Promise<"anonymous" | "not_admini
 }
 
 /**
+ * For the Back Office's API routes: the Administrator signed in on this request (their Candidate id) and what
+ * they may do, read afresh from the database; null for anyone else (signed out, with no
+ * Back Office Role, or signed in by magic link while Require SSO for Administrators asks for
+ * a provider), whom the route answers 404, so the Back Office stays unseen.
+ */
+export async function backOfficeAdministrator(): Promise<{ id: string; access: AdministratorAccess } | null> {
+  const current = await getCurrentSession();
+  if (!current) return null;
+  const access = await getAdministrators().access(current.user);
+  if (!access.isAdministrator) return null;
+  // Require SSO for Administrators applies to the API routes as to the pages.
+  if (needsSsoForBackOffice(currentSignInConfiguration(), { signInMethod: current.session.signInMethod ?? null, permanentSuperAdmin: access.permanent })) return null;
+  return { id: current.user.id, access };
+}
+
+/**
  * The Administrator signed in on this request, and what they may do, read afresh
  * from the database. Sends anonymous visitors to sign in, and answers 404 to
  * anyone else, so the Back Office stays unseen: to everyone but Administrators,

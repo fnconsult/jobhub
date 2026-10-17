@@ -212,6 +212,9 @@ test.describe("Sign-in Providers (the Connexion section)", () => {
     await expect(support).toHaveURL(`${server.origin}/connexion/back-office`);
     await expect(support.getByRole("status")).toHaveText(fr.backOfficeSignIn.ssoRequired);
     await expect(support.getByLabel(fr.signIn.emailLabel)).toHaveCount(0);
+    // The Back Office's API routes (the Back Office Assistant's) are closed to them too.
+    const assistant = `${server.origin}/api/admin/assistant/conversations`;
+    expect((await support.request.get(assistant)).status()).toBe(404);
     // Their Candidate pages stay open.
     await support.goto(`${server.origin}/compte`);
     await expect(support).toHaveURL(`${server.origin}/compte`);
@@ -228,6 +231,7 @@ test.describe("Sign-in Providers (the Connexion section)", () => {
     await support.getByRole("button", { name: continueWithSso }).click();
     await expect(support).toHaveURL(`${server.origin}/admin`);
     await expect(support.getByRole("heading", { level: 1 })).toHaveText(fr.admin.title);
+    expect((await support.request.get(assistant)).status()).toBe(200);
 
     await superAdmin.getByRole("checkbox", { name: sp.ssoLabel }).uncheck();
     await superAdmin.getByRole("button", { name: sp.ssoSave }).click();

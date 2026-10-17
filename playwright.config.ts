@@ -50,7 +50,7 @@ export default defineConfig({
   projects: [
     {
       name: "web",
-      testMatch: /(web|database-connections|auth|account-data|back-office-audit|back-office-roles|provider-secrets|sign-in-providers|profiles|master-cv|match-score|ats-score|coach|coach-panel-reply|coach-context|coach-memory|coach-playbooks|billing|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|human-coaches|eu-ai-consent|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|profile-page)\.spec\.ts/,
+      testMatch: /(web|database-connections|auth|account-data|back-office-audit|back-office-roles|back-office-assistant|provider-secrets|sign-in-providers|profiles|master-cv|match-score|ats-score|coach|coach-panel-reply|coach-context|coach-memory|coach-playbooks|billing|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|human-coaches|eu-ai-consent|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|profile-page)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" },
     },
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },
@@ -110,7 +110,7 @@ export default defineConfig({
       STRIPE_PRICE_COACHING_SESSION: "price_coaching_session",
       STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_coaching_session_premium",
       STRIPE_API_URL: process.env.E2E_STRIPE_URL,
-      ADMIN_EMAILS: "back-office@e2e.jobbbox.test,coach-office@e2e.jobbbox.test,account-office@e2e.jobbbox.test,cost-office@e2e.jobbbox.test,playbook-office@e2e.jobbbox.test,journal-office@e2e.jobbbox.test,audit-departing-office@e2e.jobbbox.test,roles-office@e2e.jobbbox.test,keys-office@e2e.jobbbox.test",
+      ADMIN_EMAILS: "back-office@e2e.jobbbox.test,coach-office@e2e.jobbbox.test,account-office@e2e.jobbbox.test,cost-office@e2e.jobbbox.test,playbook-office@e2e.jobbbox.test,journal-office@e2e.jobbbox.test,audit-departing-office@e2e.jobbbox.test,roles-office@e2e.jobbbox.test,keys-office@e2e.jobbbox.test,assistant-office@e2e.jobbbox.test",
       // Provider Secrets (#208): an obviously fake master key, for the Clés section.
       SECRETS_MASTER_KEYS: "1:ZTJlLW9ubHktbWFzdGVyLWtleS1lMmUtb25seS0wMDA=",
       // Enriched Contacts (#23) on Apollo, faked; the DPA flag stands for the signed agreement.

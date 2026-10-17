@@ -1,0 +1,175 @@
+import type { Pool } from "pg";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { backOfficeAccess } from "../admin/access";
+import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
+import { migrateCoachConversations } from "../coach-conversations";
+import { migrateProfiles } from "../profiles";
+import type { AskingAdministrator, AssistantReply } from "./index";
+import { createAssistantConversations, migrateAssistantConversations, OUT_OF_ROLE_REPLY, purgeStaleAssistantConversations, type AssistantConversations } from "./conversations";
+
+/** What the assistant was asked, per call. */
+type Asked = { administrator: AskingAdministrator; input: { messages: { from: string; text: string }[] } };
+
+describe.skipIf(!connectionString)("Back Office Assistant conversations (needs Postgres: DATABASE_URL)", () => {
+  let testAuth: TestAuth;
+  let database: Pool;
+  let claire: AskingAdministrator;
+  let paul: AskingAdministrator;
+  let asked: Asked[];
+  let assistantReply: (n: number) => AssistantReply;
+  let conversations: AssistantConversations;
+  let now: Date;
+
+  async function administrator(email: string): Promise<AskingAdministrator> {
+    const cookie = await signInWithMagicLink(testAuth, email);
+    const id = (await (await testAuth.request("/api/auth/get-session", { cookie })).json()).user.id;
+    return { id, access: backOfficeAccess(["support"]) };
+  }
+
+  beforeEach(async () => {
+    testAuth = await startTestAuth();
+    database = testAuth.auth.options.database as Pool;
+    await migrateProfiles(database);
+    await migrateCoachConversations(database);
+    await migrateAssistantConversations(database);
+    await migrateAssistantConversations(database); // safe to run twice
+    claire = await administrator("claire@jobbbox.fr");
+    paul = await administrator("paul@jobbbox.fr");
+    asked = [];
+    assistantReply = (n) => ({
+      ok: true,
+      reply: `Réponse ${n}`,
+      cost: { provider: "mistral", model: "mistral-large", inputTokens: 1000, outputTokens: 100, cachedInputTokens: 0, eur: 0.002 },
+      sections: ["humanCoaches", "coachMessageCost"],
+    });
+    now = new Date();
+    const assistant = {
+      async reply(asking: AskingAdministrator, input: unknown) {
+        asked.push({ administrator: asking, input: input as Asked["input"] });
+        return assistantReply(asked.length);
+      },
+    };
+    conversations = createAssistantConversations(database, { assistant, now: () => now });
+  });
+  afterEach(async () => {
+    await testAuth.stop();
+  });
+
+  it("saves each exchange, so the conversation reopens as it was left; the assistant answers the saved conversation", async () => {
+    const first = await conversations.send(claire, { message: "Quels sont les quotas Premium ?" });
+    if (!first.ok) throw new Error("refused");
+    const second = await conversations.send(claire, { conversationId: first.conversation.id, message: "Et en Standard ?" });
+
+    expect(first.conversation.title).toBe("Quels sont les quotas Premium ?");
+    expect(second).toMatchObject({ ok: true, reply: "Réponse 2", conversation: { id: first.conversation.id } });
+    expect(asked[1]!.administrator).toBe(claire);
+    expect(asked[1]!.input.messages).toEqual([
+      { from: "administrator", text: "Quels sont les quotas Premium ?" },
+      { from: "assistant", text: "Réponse 1" },
+      { from: "administrator", text: "Et en Standard ?" },
+    ]);
+    expect(await conversations.open(claire.id, first.conversation.id)).toMatchObject({
+      messages: [
+        { from: "administrator", text: "Quels sont les quotas Premium ?" },
+        { from: "assistant", text: "Réponse 1" },
+        { from: "administrator", text: "Et en Standard ?" },
+        { from: "assistant", text: "Réponse 2" },
+      ],
+    });
+  });
+
+  it("never brings back out-of-role data through saved history: a super-admin made Coach manager reopens a conversation", async () => {
+    const superAdmin: AskingAdministrator = { id: claire.id, access: backOfficeAccess(["super-admin"]) };
+    assistantReply = (n) => ({
+      ok: true,
+      reply: n === 1 ? "Journal : Paul a reçu le rôle Support le 13 octobre." : "Deux coachs en activité.",
+      cost: { provider: "mistral", model: "mistral-large", inputTokens: 1, outputTokens: 1, cachedInputTokens: 0, eur: 0.001 },
+      sections: n === 1 ? ["planQuotas", "humanCoaches", "coachMessageCost", "roles", "audit", "providerSecrets", "ssoProviders"] : ["humanCoaches", "coachMessageCost"],
+    });
+    const first = await conversations.send(superAdmin, { message: "Qui a changé les rôles ?" });
+    if (!first.ok) throw new Error("refused");
+
+    const coachManager: AskingAdministrator = { id: claire.id, access: backOfficeAccess(["coach-manager"]) };
+    await conversations.send(coachManager, { conversationId: first.conversation.id, message: "Et les coachs ?" });
+
+    const replayed = JSON.stringify(asked[1]!.input.messages);
+    expect(replayed).not.toContain("Journal");
+    expect(replayed).not.toContain("Support");
+    expect(asked[1]!.input.messages).toEqual([
+      { from: "administrator", text: "Qui a changé les rôles ?" },
+      { from: "assistant", text: OUT_OF_ROLE_REPLY },
+      { from: "administrator", text: "Et les coachs ?" },
+    ]);
+    // A reply within the roles they hold now is replayed as it was.
+    await conversations.send(coachManager, { conversationId: first.conversation.id, message: "Merci" });
+    expect(asked[2]!.input.messages.at(-2)).toEqual({ from: "assistant", text: "Deux coachs en activité." });
+    // As a super-admin again, the first reply comes back.
+    await conversations.send(superAdmin, { conversationId: first.conversation.id, message: "Encore ?" });
+    expect(asked[3]!.input.messages[1]).toEqual({ from: "assistant", text: "Journal : Paul a reçu le rôle Support le 13 octobre." });
+  });
+
+  it("answers not found, saving nothing, when the conversation is deleted while the assistant replies", async () => {
+    const first = await conversations.send(claire, { message: "Bonjour" });
+    if (!first.ok) throw new Error("refused");
+    const assistant = {
+      async reply() {
+        await conversations.delete(claire.id, first.conversation.id);
+        return assistantReply(1);
+      },
+    };
+    const racing = createAssistantConversations(database, { assistant });
+
+    expect(await racing.send(claire, { conversationId: first.conversation.id, message: "Encore ?" })).toEqual({ ok: false, error: "not_found" });
+    const { rows } = await database.query("SELECT count(*)::int AS n FROM back_office_assistant_message");
+    expect(rows[0].n).toBe(0);
+  });
+
+  it("keeps them apart from Candidate Coach Conversations", async () => {
+    await conversations.send(claire, { message: "Bonjour" });
+
+    const { rows } = await database.query("SELECT count(*)::int AS n FROM coach_conversation");
+    expect(rows[0].n).toBe(0);
+  });
+
+  it("each Administrator's conversations are theirs alone: another's is not found", async () => {
+    const sent = await conversations.send(claire, { message: "Bonjour" });
+    if (!sent.ok) throw new Error("refused");
+    const id = sent.conversation.id;
+
+    expect(await conversations.send(paul, { conversationId: id, message: "Et moi ?" })).toEqual({ ok: false, error: "not_found" });
+    expect(await conversations.open(paul.id, id)).toBeNull();
+    expect(await conversations.list(paul.id)).toEqual([]);
+    expect(await conversations.rename(paul.id, id, "Volé")).toEqual({ ok: false, error: "not_found" });
+    expect(await conversations.delete(paul.id, id)).toBe(false);
+
+    expect(await conversations.rename(claire.id, id, "  Quotas  ")).toMatchObject({ ok: true, conversation: { title: "Quotas" } });
+    expect((await conversations.list(claire.id)).map((conversation) => conversation.title)).toEqual(["Quotas"]);
+    expect(await conversations.delete(claire.id, id)).toBe(true);
+    expect(await conversations.list(claire.id)).toEqual([]);
+  });
+
+  it("saves nothing when the assistant cannot answer, and refuses bad input", async () => {
+    assistantReply = () => ({ ok: false, error: "unavailable" });
+
+    expect(await conversations.send(claire, { message: "Bonjour" })).toEqual({ ok: false, error: "unavailable" });
+    expect(await conversations.send(claire, { message: "   " })).toEqual({ ok: false, error: "invalid" });
+    expect(await conversations.send(claire, { conversationId: "not-a-uuid", message: "Bonjour" })).toEqual({ ok: false, error: "invalid" });
+    expect(await conversations.list(claire.id)).toEqual([]);
+  });
+
+  it("goes with the Administrator's account, and is purged 12 months after its last message", async () => {
+    const old = new Date("2025-01-10T10:00:00Z");
+    now = old;
+    await conversations.send(claire, { message: "Ancienne question" });
+    now = new Date("2026-01-09T10:00:00Z");
+    await conversations.send(claire, { message: "Récente" });
+    await conversations.send(paul, { message: "Bonjour" });
+
+    expect(await purgeStaleAssistantConversations(database, new Date("2026-01-10T10:00:00Z"))).toBe(1);
+    expect((await conversations.list(claire.id)).map((conversation) => conversation.title)).toEqual(["Récente"]);
+
+    await database.query("DELETE FROM candidate WHERE id = $1", [claire.id]);
+    const { rows } = await database.query("SELECT count(*)::int AS n FROM back_office_assistant_message");
+    expect(rows[0].n).toBe(2); // Paul's exchange only
+  });
+});

@@ -33,7 +33,9 @@ import {
   callbackPath,
   isSignInProviderType,
   isValidOidcId,
-  SECRET_FIELDS,
+  PROVIDER_TYPES,
+  storedSecretFields,
+  type ProviderSetting,
   type SecretField,
   type SignInConfiguration,
   type SignInProvider,
@@ -193,7 +195,13 @@ interface SecretRow {
   key_version: number;
 }
 
-const DEFAULT_NAMES: Record<SignInProviderType, string> = { google: "Google", apple: "Apple", microsoft: "Microsoft", oidc: "" };
+/** How each provider setting is read from the Back Office's form: its value, or why it is refused. */
+const SETTINGS: Record<ProviderSetting, (raw: string) => { value: string | null } | { error: SaveError }> = {
+  discoveryUrl: (raw) => (raw && raw.length <= 2048 && isDiscoveryUrl(raw) ? { value: raw } : { error: "invalid_discovery_url" }),
+  // Microsoft's default directory: every account (see policy.ts on trusting it for linking).
+  tenantId: (raw) => (/^[A-Za-z0-9][A-Za-z0-9.-]{0,99}$/.test(raw || "common") ? { value: raw || "common" } : { error: "invalid_tenant" }),
+  appBundleIdentifier: (raw) => (!raw ? { value: null } : /^[A-Za-z0-9][A-Za-z0-9.-]{0,154}$/.test(raw) ? { value: raw } : { error: "invalid_bundle_id" }),
+};
 
 /** Env's Google client, as a provider; undefined when env has none. */
 function googleFromEnv(env: Env): SignInProvider | undefined {
@@ -297,7 +305,7 @@ export function createSignInProviders(database: Pool, deps: SignInProvidersDeps)
 
   /** The opened secrets of provider `row`, by field; Google's client secret falls back to env's. */
   function secretsOf(row: Pick<ProviderRow, "id" | "type">, stored: Map<string, SecretRow>): Partial<Record<SecretField, string>> {
-    const fields: SecretField[] = [...SECRET_FIELDS[row.type], ...(row.type === "apple" ? (["clientSecret"] as const) : [])];
+    const fields = storedSecretFields(row.type);
     const opened: Partial<Record<SecretField, string>> = {};
     for (const field of fields) {
       const value = open(stored.get(secretName(row.id, field)));
@@ -333,7 +341,7 @@ export function createSignInProviders(database: Pool, deps: SignInProvidersDeps)
       const [rows, stored] = await Promise.all([providerRows(), secretRows()]);
       return rows.map((row): SignInProviderStatus => {
         const opened = secretsOf(row, stored);
-        const secrets = SECRET_FIELDS[row.type].map((field) => {
+        const secrets = PROVIDER_TYPES[row.type].secretFields.map((field) => {
           const inDatabase = stored.has(secretName(row.id, field));
           const source: SignInSecretSource =
             inDatabase && opened[field] !== undefined ? "database" : inDatabase ? "unreadable" : opened[field] !== undefined ? "env" : "missing";
@@ -355,7 +363,7 @@ export function createSignInProviders(database: Pool, deps: SignInProvidersDeps)
           secrets,
           testedAt: row.tested_at,
           apple:
-            row.type === "apple"
+            PROVIDER_TYPES[row.type].signsClientSecret
               ? {
                   generatedAt: row.apple_generated_at,
                   expiresAt: row.apple_expires_at,
@@ -377,34 +385,37 @@ export function createSignInProviders(database: Pool, deps: SignInProvidersDeps)
       const fields = (typeof input === "object" && input !== null ? input : {}) as Record<string, unknown>;
       const type = fields.type;
       if (!isSignInProviderType(type)) return { ok: false, error: "invalid_type" };
-      const id = type === "oidc" ? text(fields.id) : type;
-      if (type === "oidc" && !isValidOidcId(id)) return { ok: false, error: "invalid_id" };
+      const id = PROVIDER_TYPES[type].idIsChosen ? text(fields.id) : type;
+      if (PROVIDER_TYPES[type].idIsChosen && !isValidOidcId(id)) return { ok: false, error: "invalid_id" };
       const [rows, stored] = await Promise.all([providerRows(), secretRows()]);
       const existing = rows.find((row) => row.id === id);
       if (existing && existing.type !== type) return { ok: false, error: "invalid_id" };
 
-      const displayName = text(fields.displayName) || DEFAULT_NAMES[type];
+      const kind = PROVIDER_TYPES[type];
+      const displayName = text(fields.displayName) || kind.defaultName;
       if (!displayName || displayName.length > 60) return { ok: false, error: "invalid_display_name" };
       const clientId = text(fields.clientId);
       if (!clientId || clientId.length > 512) return { ok: false, error: "invalid_client_id" };
-      const discoveryUrl = type === "oidc" ? text(fields.discoveryUrl) : null;
-      if (type === "oidc" && (!discoveryUrl || discoveryUrl.length > 2048 || !isDiscoveryUrl(discoveryUrl))) return { ok: false, error: "invalid_discovery_url" };
-      const tenantId = type === "microsoft" ? text(fields.tenantId) || "common" : null;
-      if (tenantId !== null && !/^[A-Za-z0-9][A-Za-z0-9.-]{0,99}$/.test(tenantId)) return { ok: false, error: "invalid_tenant" };
-      const appBundleIdentifier = type === "apple" ? text(fields.appBundleIdentifier) || null : null;
-      if (appBundleIdentifier !== null && !/^[A-Za-z0-9][A-Za-z0-9.-]{0,154}$/.test(appBundleIdentifier)) return { ok: false, error: "invalid_bundle_id" };
+      // Its own setting, if its type has one; the others stay empty.
+      const settings: Record<ProviderSetting, string | null> = { discoveryUrl: null, tenantId: null, appBundleIdentifier: null };
+      if (kind.setting) {
+        const read = SETTINGS[kind.setting](text(fields[kind.setting]));
+        if ("error" in read) return { ok: false, error: read.error };
+        settings[kind.setting] = read.value;
+      }
+      const { discoveryUrl, tenantId, appBundleIdentifier } = settings;
 
       const typed = (typeof fields.secrets === "object" && fields.secrets !== null ? fields.secrets : {}) as Record<string, unknown>;
       const replaced: Partial<Record<SecretField, string>> = {};
-      for (const field of SECRET_FIELDS[type]) {
+      for (const field of kind.secretFields) {
         const value = text(typed[field]);
         if (value.length > MAX_SECRET_LENGTH) return { ok: false, error: "too_long" };
         if (value) replaced[field] = value;
       }
       const secrets = { ...(existing ? secretsOf(existing, stored) : type === "google" ? secretsOf({ id, type }, stored) : {}), ...replaced };
-      if (SECRET_FIELDS[type].some((field) => !secrets[field])) return { ok: false, error: Object.keys(replaced).length > 0 && !deps.cipher ? "no_master_key" : "missing_secret" };
+      if (kind.secretFields.some((field) => !secrets[field])) return { ok: false, error: Object.keys(replaced).length > 0 && !deps.cipher ? "no_master_key" : "missing_secret" };
       const cipher = deps.cipher;
-      if (!cipher && (Object.keys(replaced).length > 0 || type === "apple")) return { ok: false, error: "no_master_key" };
+      if (!cipher && (Object.keys(replaced).length > 0 || kind.signsClientSecret)) return { ok: false, error: "no_master_key" };
 
       const credentialsChanged =
         !existing ||
@@ -418,7 +429,7 @@ export function createSignInProviders(database: Pool, deps: SignInProvidersDeps)
       if (enabled && !existing?.enabled && !testedAt) return { ok: false, error: "not_tested" };
 
       let apple: { clientSecret: string; expiresAt: Date; generatedAt: Date } | null = null;
-      if (type === "apple" && (credentialsChanged || !secrets.clientSecret)) {
+      if (kind.signsClientSecret && (credentialsChanged || !secrets.clientSecret)) {
         const generatedAt = now();
         try {
           apple = { ...appleClientSecret({ teamId: secrets.teamId!, keyId: secrets.keyId!, privateKey: secrets.privateKey!, clientId }, generatedAt), generatedAt };
@@ -440,7 +451,7 @@ export function createSignInProviders(database: Pool, deps: SignInProvidersDeps)
         shown_to_candidates: fields.shownToCandidates === true,
         allowed_for_administrators: fields.allowedForAdministrators === true,
         // Google, Apple and Microsoft always are (see policy.ts for Microsoft's multi-tenant directories).
-        trusted_for_linking: type === "oidc" ? fields.trustedForLinking === true : true,
+        trusted_for_linking: kind.trustIsAChoice ? fields.trustedForLinking === true : true,
       };
       const email = actor.email.trim().toLowerCase();
       await deps.backOffice.record(
@@ -500,7 +511,7 @@ export function createSignInProviders(database: Pool, deps: SignInProvidersDeps)
           const { rows } = await within.query<ProviderRow>("DELETE FROM sign_in_provider WHERE id = $1 RETURNING *", [id]);
           const row = rows[0];
           if (!row) return null;
-          const names = [...SECRET_FIELDS[row.type], "clientSecret" as const].map((field) => secretName(row.id, field));
+          const names = storedSecretFields(row.type).map((field) => secretName(row.id, field));
           await within.query("DELETE FROM provider_secret WHERE provider = $1 AND name = ANY($2::text[])", [SECRET_PROVIDER, names]);
           await announce(within);
           return row;

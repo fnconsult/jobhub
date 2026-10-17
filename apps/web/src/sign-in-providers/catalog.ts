@@ -15,16 +15,31 @@ export const isSignInProviderType = (value: unknown): value is SignInProviderTyp
 /** The social provider types: one provider each, its id is its type. */
 export const SOCIAL_TYPES = ["google", "apple", "microsoft"] as const satisfies readonly SignInProviderType[];
 
-/** The secret fields of each type, kept as Provider Secrets: write-only in the Back Office. */
-export const SECRET_FIELDS = {
-  google: ["clientSecret"],
-  microsoft: ["clientSecret"],
-  oidc: ["clientSecret"],
-  // Apple's client secret is a JWT the app signs with the .p8 key (see ./apple.ts), not typed in.
-  apple: ["teamId", "keyId", "privateKey"],
-} as const satisfies Record<SignInProviderType, readonly string[]>;
-
 export type SecretField = "clientSecret" | "teamId" | "keyId" | "privateKey";
+
+/** A provider's own setting, besides its client id: one per type at most. */
+export type ProviderSetting = "discoveryUrl" | "tenantId" | "appBundleIdentifier";
+
+/**
+ * Each type of Sign-in Provider, in one place: what it is called by default, the secrets the
+ * Back Office asks for (kept as Provider Secrets, write-only), its own setting, whether its
+ * client secret is signed by the app (Apple's, from the .p8 key: see ./apple.ts), whether
+ * trusting it for linking is the super-admin's choice (OIDC) or always on, and whether its id
+ * is chosen by the super-admin (OIDC: any number of them) or is its type (one each).
+ */
+export const PROVIDER_TYPES = {
+  google: { defaultName: "Google", secretFields: ["clientSecret"], setting: null, signsClientSecret: false, trustIsAChoice: false, idIsChosen: false },
+  microsoft: { defaultName: "Microsoft", secretFields: ["clientSecret"], setting: "tenantId", signsClientSecret: false, trustIsAChoice: false, idIsChosen: false },
+  apple: { defaultName: "Apple", secretFields: ["teamId", "keyId", "privateKey"], setting: "appBundleIdentifier", signsClientSecret: true, trustIsAChoice: false, idIsChosen: false },
+  oidc: { defaultName: "", secretFields: ["clientSecret"], setting: "discoveryUrl", signsClientSecret: false, trustIsAChoice: true, idIsChosen: true },
+} as const satisfies Record<
+  SignInProviderType,
+  { defaultName: string; secretFields: readonly SecretField[]; setting: ProviderSetting | null; signsClientSecret: boolean; trustIsAChoice: boolean; idIsChosen: boolean }
+>;
+
+/** The secrets a provider of `type` keeps, typed in or (Apple's client secret) signed by the app. */
+export const storedSecretFields = (type: SignInProviderType): readonly SecretField[] =>
+  PROVIDER_TYPES[type].signsClientSecret ? [...PROVIDER_TYPES[type].secretFields, "clientSecret"] : PROVIDER_TYPES[type].secretFields;
 
 /** Where the nonce of a test sign-in started from Connexion travels in the OAuth flow (`additionalData`). */
 export const TEST_SIGN_IN = "testSignIn";

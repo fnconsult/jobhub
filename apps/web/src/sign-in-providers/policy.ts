@@ -3,7 +3,7 @@
  * answer is read from a `SignInConfiguration`, which the Better Auth instance, the
  * sign-in pages and the Back Office guard share.
  */
-import { isMultiTenant, MAGIC_LINK, type SignInConfiguration, type SignInProvider } from "./catalog";
+import { isMultiTenant, MAGIC_LINK, type SignInConfiguration, type SignInProvider, type SignInProviderType } from "./catalog";
 
 /** Who a sign-in page is for. */
 export type SignInAudience = "candidates" | "administrators";
@@ -46,15 +46,16 @@ export function oauthSignInDecision(configuration: SignInConfiguration, provider
 }
 
 /**
- * Whether a provider's email address can be taken as proof of owning the Jobbbox
- * account with it. Microsoft on a multi-tenant directory never is: any tenant's
- * admin may set any address on one of their accounts.
+ * Whether a provider's email address is taken as proof of owning the Jobbbox account with it
+ * (it links by email). Microsoft on a multi-tenant directory never is: any tenant's admin may
+ * set any address on one of their accounts.
  */
-const trustworthy = (provider: SignInProvider): boolean => provider.trustedForLinking && !(provider.type === "microsoft" && isMultiTenant(provider.tenantId));
+export const linksByEmail = (provider: Pick<SignInProvider, "type" | "trustedForLinking"> & { tenantId?: string | null | undefined }): boolean =>
+  provider.trustedForLinking && !(provider.type === "microsoft" && isMultiTenant(provider.tenantId ?? undefined));
 
 /** The ids Better Auth links by email automatically (`accountLinking.trustedProviders`). */
 export function trustedProviderIds(configuration: SignInConfiguration): string[] {
-  return configuration.providers.filter((provider) => provider.enabled && trustworthy(provider)).map((provider) => provider.id);
+  return configuration.providers.filter((provider) => provider.enabled && linksByEmail(provider)).map((provider) => provider.id);
 }
 
 /**
@@ -87,6 +88,26 @@ export interface SocialProviders {
   apple?: { clientId: string; clientSecret: string; appBundleIdentifier?: string };
 }
 
+/** How each type of provider is registered with Better Auth. */
+const REGISTER: Record<SignInProviderType, (provider: SignInProvider, into: { socialProviders: SocialProviders; genericOAuth: GenericOAuthProvider[] }) => void> = {
+  google: ({ clientId, clientSecret }, into) => void (into.socialProviders.google = { clientId, clientSecret }),
+  microsoft: ({ clientId, clientSecret, tenantId }, into) => void (into.socialProviders.microsoft = { clientId, clientSecret, tenantId: tenantId?.trim() || "common" }),
+  apple: ({ clientId, clientSecret, appBundleIdentifier }, into) =>
+    void (into.socialProviders.apple = { clientId, clientSecret, ...(appBundleIdentifier ? { appBundleIdentifier } : {}) }),
+  oidc: (provider, into) => {
+    if (!provider.discovery || !provider.discoveryUrl) return;
+    into.genericOAuth.push({
+      providerId: provider.id,
+      name: provider.displayName,
+      clientId: provider.clientId,
+      clientSecret: provider.clientSecret,
+      discoveryUrl: provider.discoveryUrl,
+      scopes: ["openid", "email", "profile"],
+      requireIdTokenVerification: true,
+    });
+  },
+};
+
 /** Apple posts the person back from its own origin (form_post). */
 export const APPLE_ORIGIN = "https://appleid.apple.com";
 
@@ -101,34 +122,7 @@ export function betterAuthSignIn(configuration: SignInConfiguration): {
   genericOAuth: GenericOAuthProvider[];
   trustedOrigins: string[];
 } {
-  const socialProviders: SocialProviders = {};
-  const genericOAuth: GenericOAuthProvider[] = [];
-  for (const provider of configuration.providers.filter((candidate) => candidate.enabled || candidate.testPending)) {
-    const { clientId, clientSecret } = provider;
-    switch (provider.type) {
-      case "google":
-        socialProviders.google = { clientId, clientSecret };
-        break;
-      case "microsoft":
-        socialProviders.microsoft = { clientId, clientSecret, tenantId: provider.tenantId?.trim() || "common" };
-        break;
-      case "apple":
-        socialProviders.apple = { clientId, clientSecret, ...(provider.appBundleIdentifier ? { appBundleIdentifier: provider.appBundleIdentifier } : {}) };
-        break;
-      case "oidc":
-        if (provider.discovery && provider.discoveryUrl) {
-          genericOAuth.push({
-            providerId: provider.id,
-            name: provider.displayName,
-            clientId,
-            clientSecret,
-            discoveryUrl: provider.discoveryUrl,
-            scopes: ["openid", "email", "profile"],
-            requireIdTokenVerification: true,
-          });
-        }
-        break;
-    }
-  }
-  return { socialProviders, genericOAuth, trustedOrigins: socialProviders.apple ? [APPLE_ORIGIN] : [] };
+  const built = { socialProviders: {} as SocialProviders, genericOAuth: [] as GenericOAuthProvider[] };
+  for (const provider of configuration.providers.filter((candidate) => candidate.enabled || candidate.testPending)) REGISTER[provider.type](provider, built);
+  return { ...built, trustedOrigins: built.socialProviders.apple ? [APPLE_ORIGIN] : [] };
 }

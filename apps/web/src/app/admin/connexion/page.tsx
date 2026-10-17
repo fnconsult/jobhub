@@ -6,9 +6,10 @@ import { TestSignInButton } from "@/components/TestSignInButton";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { secretCipherFromEnv } from "@/provider-secrets/cipher";
 import { routes } from "@/routes";
-import { isMultiTenant, SECRET_FIELDS, SOCIAL_TYPES, type SignInProviderType } from "@/sign-in-providers/catalog";
+import { isMultiTenant, PROVIDER_TYPES, SOCIAL_TYPES, type SignInProviderType } from "@/sign-in-providers/catalog";
 import type { SaveError, SignInProviderStatus, SignInSecretSource } from "@/sign-in-providers/index";
 import { applyLatestSignIn } from "@/auth/server";
+import { linksByEmail } from "@/sign-in-providers/policy";
 import { getSignInProviders } from "@/sign-in-providers/server";
 
 const ERRORS = [
@@ -200,7 +201,7 @@ export default async function SignInProvidersPage({ searchParams }: { searchPara
                 {[
                   provider.shownToCandidates ? t("admin.signInProviders.shownToCandidates") : t("admin.signInProviders.hiddenFromCandidates"),
                   provider.allowedForAdministrators ? t("admin.signInProviders.allowedForAdministrators") : t("admin.signInProviders.notForAdministrators"),
-                  provider.trustedForLinking && !(provider.type === "microsoft" && isMultiTenant(provider.tenantId ?? undefined))
+                  linksByEmail(provider)
                     ? t("admin.signInProviders.trusted")
                     : t("admin.signInProviders.untrusted"),
                 ].join(" · ")}
@@ -297,7 +298,7 @@ function ProviderForm({ type, provider, formKey, t }: { type: SignInProviderType
       <input type="hidden" name="formKey" value={formKey} />
       <fieldset className="stack">
         <legend className="visually-hidden">{provider ? t("admin.signInProviders.edit", { name: provider.displayName }) : t("admin.signInProviders.add", { type: t(`admin.signInProviders.types.${type}`) })}</legend>
-        {type === "oidc" ? (
+        {PROVIDER_TYPES[type].idIsChosen ? (
           provider ? (
             <input type="hidden" name="id" value={provider.id} />
           ) : (
@@ -310,33 +311,33 @@ function ProviderForm({ type, provider, formKey, t }: { type: SignInProviderType
         ) : null}
         <div className="stack">
           <label htmlFor={field("displayName")}>{t("admin.signInProviders.displayName")}</label>
-          <input id={field("displayName")} className="input" name="displayName" required maxLength={60} defaultValue={provider?.displayName ?? (type === "oidc" ? "" : t(`admin.signInProviders.types.${type}`))} />
+          <input id={field("displayName")} className="input" name="displayName" required maxLength={60} defaultValue={provider?.displayName ?? (PROVIDER_TYPES[type].defaultName ? t(`admin.signInProviders.types.${type}`) : "")} />
         </div>
         <div className="stack">
           <label htmlFor={field("clientId")}>{t(type === "apple" ? "admin.signInProviders.serviceId" : "admin.signInProviders.clientId")}</label>
           <input id={field("clientId")} className="input" name="clientId" required maxLength={512} spellCheck={false} defaultValue={provider?.clientId ?? ""} />
         </div>
-        {type === "oidc" ? (
+        {PROVIDER_TYPES[type].setting === "discoveryUrl" ? (
           <div className="stack">
             <label htmlFor={field("discoveryUrl")}>{t("admin.signInProviders.discoveryUrl")}</label>
             <input id={field("discoveryUrl")} className="input" name="discoveryUrl" type="url" required spellCheck={false} defaultValue={provider?.discoveryUrl ?? ""} aria-describedby={field("discoveryUrl-help")} />
             <p id={field("discoveryUrl-help")}>{t("admin.signInProviders.discoveryUrlHelp")}</p>
           </div>
         ) : null}
-        {type === "microsoft" ? (
+        {PROVIDER_TYPES[type].setting === "tenantId" ? (
           <div className="stack">
             <label htmlFor={field("tenantId")}>{t("admin.signInProviders.tenantId")}</label>
             <input id={field("tenantId")} className="input" name="tenantId" spellCheck={false} defaultValue={provider?.tenantId ?? "consumers"} aria-describedby={field("tenantId-help")} />
             <p id={field("tenantId-help")}>{t("admin.signInProviders.tenantIdHelp")}</p>
           </div>
         ) : null}
-        {type === "apple" ? (
+        {PROVIDER_TYPES[type].setting === "appBundleIdentifier" ? (
           <div className="stack">
             <label htmlFor={field("appBundleIdentifier")}>{t("admin.signInProviders.appBundleIdentifier")}</label>
             <input id={field("appBundleIdentifier")} className="input" name="appBundleIdentifier" spellCheck={false} defaultValue={provider?.appBundleIdentifier ?? ""} />
           </div>
         ) : null}
-        {SECRET_FIELDS[type].map((secret) => (
+        {PROVIDER_TYPES[type].secretFields.map((secret) => (
           <div key={secret} className="stack">
             <label htmlFor={field(secret)}>{t(`admin.signInProviders.fields.${secret}`)}</label>
             {/* Write-only: the field is always empty, the value saved is never sent back. */}
@@ -359,7 +360,7 @@ function ProviderForm({ type, provider, formKey, t }: { type: SignInProviderType
         ))}
         <Switch name={SWITCHES.shownToCandidates} id={field(SWITCHES.shownToCandidates)} label={t("admin.signInProviders.shownToCandidatesLabel")} checked={provider?.shownToCandidates ?? true} />
         <Switch name={SWITCHES.allowedForAdministrators} id={field(SWITCHES.allowedForAdministrators)} label={t("admin.signInProviders.allowedForAdministratorsLabel")} checked={provider?.allowedForAdministrators ?? true} />
-        {type === "oidc" ? (
+        {PROVIDER_TYPES[type].trustIsAChoice ? (
           <Switch
             name={SWITCHES.trustedForLinking}
             id={field(SWITCHES.trustedForLinking)}

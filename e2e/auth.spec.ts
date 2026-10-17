@@ -10,6 +10,10 @@ import { startServer } from "./support/plan-prices";
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const en = JSON.parse(readFileSync("packages/shared/src/i18n/locales/en.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
+// The suite's server has env's Google client, seeded as a Sign-in Provider by the migration (#209).
+const continueWithGoogle = fr.signIn.continueWith.replace("{{provider}}", "Google");
+const introWithGoogle = fr.signIn.intro.replace("{{providers}}", "Google");
+const failedWithGoogle = fr.signIn.failed.replace("{{providers}}", "Google");
 
 test.describe("magic-link sign-up and sign-in", () => {
   test("a new person signs up with only their email and lands on their account, in French", async ({ page }) => {
@@ -109,7 +113,7 @@ test.describe("Google sign-in", () => {
     await approveAtGoogle(page, { sub: `google-${email}`, email, email_verified: true, name: "Jean Martin" }, origin);
 
     await page.goto("/connexion");
-    await page.getByRole("button", { name: fr.signIn.google }).click();
+    await page.getByRole("button", { name: continueWithGoogle }).click();
 
     await expect(page).toHaveURL(`${origin}/compte`);
     await expect(page.getByText(email)).toBeVisible();
@@ -127,7 +131,7 @@ test.describe("Google sign-in", () => {
     const viaGooglePage = await other.newPage();
     await approveAtGoogle(viaGooglePage, { sub: `google-${email}`, email, email_verified: true, name: "Both Ways" }, origin);
     await viaGooglePage.goto("/connexion");
-    await viaGooglePage.getByRole("button", { name: fr.signIn.google }).click();
+    await viaGooglePage.getByRole("button", { name: continueWithGoogle }).click();
     await expect(viaGooglePage).toHaveURL(`${origin}/compte`);
     const viaGoogle = await (await viaGooglePage.request.get("/api/auth/get-session")).json();
     expect(viaGoogle.user.id).toBe(viaEmail.user.id);
@@ -138,18 +142,18 @@ test.describe("Google sign-in", () => {
     await refuseAtGoogle(page, origin);
 
     await page.goto("/connexion");
-    await page.getByRole("button", { name: fr.signIn.google }).click();
+    await page.getByRole("button", { name: continueWithGoogle }).click();
 
     await expect(page).toHaveURL(/\/connexion\?error=access_denied$/);
-    await expect(page.getByRole("alert").filter({ hasText: fr.signIn.failed })).toBeVisible();
-    await expect(page.getByRole("button", { name: fr.signIn.google })).toBeVisible();
+    await expect(page.getByRole("alert").filter({ hasText: failedWithGoogle })).toBeVisible();
+    await expect(page.getByRole("button", { name: continueWithGoogle })).toBeVisible();
   });
 
   test("a Google callback that matches no sign-in lands on the sign-in page, not an English error page", async ({ page }) => {
     await page.goto("/api/auth/callback/google?error=access_denied&state=abc");
 
     await expect(page).toHaveURL(/\/connexion\?error=/);
-    await expect(page.getByRole("alert").filter({ hasText: fr.signIn.failed })).toBeVisible();
+    await expect(page.getByRole("alert").filter({ hasText: failedWithGoogle })).toBeVisible();
   });
 });
 
@@ -200,11 +204,11 @@ test.describe("sign-in page text and Google sign-in", () => {
   test("with Google sign-in configured, the text and the button still mention Google", async ({ page }) => {
     await page.goto("/connexion");
     await expect(page.getByText("ou utilisez votre compte Google")).toBeVisible();
-    await expect(page.locator("p.lead")).toHaveText(fr.signIn.intro);
-    await expect(page.getByRole("button", { name: fr.signIn.google })).toBeVisible();
+    await expect(page.locator("p.lead")).toHaveText(introWithGoogle);
+    await expect(page.getByRole("button", { name: continueWithGoogle })).toBeVisible();
 
     await page.goto("/connexion?error=access_denied");
-    await expect(page.getByRole("main").getByRole("alert")).toHaveText(fr.signIn.failed);
+    await expect(page.getByRole("main").getByRole("alert")).toHaveText(failedWithGoogle);
     await expect(page.getByRole("main").getByRole("alert")).toContainText("Google");
   });
 
@@ -221,14 +225,14 @@ test.describe("sign-in page text and Google sign-in", () => {
     test("the text does not mention Google", async ({ page }) => {
       await page.goto(`${server.origin}/connexion`);
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.signIn.title);
-      await expect(page.locator("p.lead")).toHaveText(fr.signIn.introWithoutGoogle);
-      await expect(page.getByRole("button", { name: fr.signIn.google })).toHaveCount(0);
+      await expect(page.locator("p.lead")).toHaveText(fr.signIn.introWithoutProviders);
+      await expect(page.getByRole("button", { name: continueWithGoogle })).toHaveCount(0);
       expect(await page.locator("main").innerText()).not.toMatch(/google/i);
     });
 
     test("the failed-sign-in notice does not mention Google either", async ({ page }) => {
       await page.goto(`${server.origin}/connexion?error=access_denied`);
-      await expect(page.getByRole("main").getByRole("alert")).toHaveText(fr.signIn.failedWithoutGoogle);
+      await expect(page.getByRole("main").getByRole("alert")).toHaveText(fr.signIn.failedWithoutProviders);
       expect(await page.locator("main").innerText()).not.toMatch(/google/i);
     });
   });

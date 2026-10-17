@@ -210,6 +210,18 @@ export function createAdministrators(database: Pool, deps: AdministratorsDeps): 
   };
 }
 
+/**
+ * Where to alert the super-admins (the worker's failures they must act on): every
+ * ADMIN_EMAILS address, and every verified account holding the super-admin role. Lower case, each once.
+ */
+export async function superAdminEmails(database: Pick<Pool, "query">, isPermanentSuperAdmin: PermanentSuperAdmins): Promise<string[]> {
+  const { rows } = await database.query<{ email: string }>(
+    `SELECT DISTINCT lower(c.email) AS email FROM candidate c JOIN administrator_role r ON r.candidate_id = c.id
+     WHERE r.role = 'super-admin' AND c."emailVerified"`,
+  );
+  return [...new Set([...isPermanentSuperAdmin.emails, ...rows.map((row) => row.email)])].sort();
+}
+
 /** Creates the Back Office Roles table. Run after the Candidate accounts' migration. Safe to run repeatedly. */
 export async function migrateAdministratorRoles(database: Pool): Promise<void> {
   await database.query(`

@@ -2,12 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentIsAdministrator } from "@/admin/server";
-import { getCurrentCandidate } from "@/auth/server";
+import { getCurrentCandidate, linkedSignInProviders } from "@/auth/server";
 import { AccountDataSection } from "@/components/AccountDataSection";
 import { AccountSettings } from "@/components/AccountSettings";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { EuAiConsentForm } from "@/components/EuAiConsentForm";
 import { FollowUpDelaysForm } from "@/components/FollowUpDelaysForm";
+import { SignInMethods } from "@/components/SignInMethods";
+import { signInButtons } from "@/sign-in-providers/policy";
+import { currentSignInConfiguration } from "@/sign-in-providers/server";
 import { MAX_FOLLOW_UP_DELAY } from "@/follow-ups";
 import { getFollowUps } from "@/follow-ups/server";
 import { currentHumanCoach } from "@/human-coaches/server";
@@ -21,17 +24,25 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t("account.title")} · ${t("app.name")}` };
 }
 
-export default async function AccountPage() {
+export default async function AccountPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const candidate = await getCurrentCandidate();
   if (!candidate) redirect(routes.signIn);
   const t = await getServerT();
-  const [profiles, canAdd, followUpDelays, euAiConsentGivenAt, locale] = await Promise.all([
+  const [profiles, canAdd, followUpDelays, euAiConsentGivenAt, locale, isAdministrator, linkedIds, { error }] = await Promise.all([
     getProfiles().list(candidate.id),
     getProfiles().canAddProfile(candidate.id),
     getFollowUps().delays(candidate.id),
     getEuAiConsents().givenAt(candidate.id),
     getRequestLocale(),
+    currentIsAdministrator(),
+    linkedSignInProviders(),
+    searchParams,
   ]);
+  // The providers this person may sign in with: those shown to Candidates, and an Administrator's own.
+  const configuration = currentSignInConfiguration();
+  const usable = [...signInButtons(configuration, "candidates"), ...(isAdministrator ? signInButtons(configuration, "administrators") : [])].filter(
+    (provider, index, all) => all.findIndex((other) => other.id === provider.id) === index,
+  );
   const active = profiles.filter((profile) => !profile.archived);
   const archived = profiles.filter((profile) => profile.archived);
   return (
@@ -83,12 +94,18 @@ export default async function AccountPage() {
             {t("account.coachSpace")}
           </Link>
         ) : null}
-        {(await currentIsAdministrator()) ? (
+        {isAdministrator ? (
           <Link className="button" href={routes.admin}>
             {t("account.admin")}
           </Link>
         ) : null}
       </nav>
+      <SignInMethods
+        email={candidate.email}
+        linked={usable.filter((provider) => linkedIds.includes(provider.id))}
+        linkable={usable.filter((provider) => !linkedIds.includes(provider.id))}
+        failed={Boolean(error)}
+      />
       <AccountSettings interfaceLanguage={candidate.interfaceLanguage} />
       <AccountDataSection />
     </CandidateLayout>

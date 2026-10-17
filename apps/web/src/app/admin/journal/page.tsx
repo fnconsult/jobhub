@@ -16,6 +16,21 @@ const LIMIT = 200;
 const HUMAN_COACH_FIELDS = ["name", "email", "bookingUrl", "bio"] as const;
 type HumanCoachField = (typeof HUMAN_COACH_FIELDS)[number];
 
+/** A Sign-in Provider's recorded fields, by the Connexion page's label for each. */
+const SIGN_IN_PROVIDER_FIELDS = {
+  type: "type",
+  displayName: "displayName",
+  clientId: "clientId",
+  discoveryUrl: "discoveryUrl",
+  tenantId: "tenantId",
+  appBundleIdentifier: "appBundleIdentifier",
+  enabled: "enabledLabel",
+  shownToCandidates: "shownToCandidatesLabel",
+  allowedForAdministrators: "allowedForAdministratorsLabel",
+  trustedForLinking: "trustedLabel",
+  secretsReplaced: "secrets",
+} as const;
+
 /** `aria-current` of the link to the section being shown. */
 const CURRENT = "page";
 
@@ -44,6 +59,9 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     }
     if (entrySection === "human_coaches" && HUMAN_COACH_FIELDS.includes(field as HumanCoachField)) return t(`admin.humanCoaches.${field as HumanCoachField}`);
     if (entrySection === "roles" && field === "roles") return t("admin.administrators.roles");
+    if (entrySection === "sign_in_providers" && field in SIGN_IN_PROVIDER_FIELDS) {
+      return t(`admin.signInProviders.${SIGN_IN_PROVIDER_FIELDS[field as keyof typeof SIGN_IN_PROVIDER_FIELDS]}`);
+    }
     if (field === "id") return t("admin.journal.id");
     return field;
   };

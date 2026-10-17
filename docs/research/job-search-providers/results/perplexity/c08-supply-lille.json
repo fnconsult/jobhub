@@ -1,0 +1,307 @@
+{
+  "id": "c08-supply-lille",
+  "persona": "Directeur supply chain, 49 ans, Lille",
+  "criteria": {
+    "targetRole": "Directeur supply chain",
+    "location": "Lille",
+    "contractType": "cdi",
+    "minSalary": 95000
+  },
+  "query": "Offres d'emploi « Directeur supply chain » à Lille, CDI, salaire à partir de 95 000 € brut annuel",
+  "ranAt": "2026-10-12T11:26:23.937Z",
+  "error": null,
+  "funnel": {
+    "providerUrls": 10,
+    "considered": 10,
+    "refusedBeforeRead": 4,
+    "readButNotAnOffer": 5,
+    "invalid": 0,
+    "captured": 1,
+    "duplicatesMerged": 0,
+    "offersAfterDedup": 1,
+    "score60plus": 0,
+    "fresh30d": 1,
+    "unknownAge": 0,
+    "looksExpired": 0
+  },
+  "timing": {
+    "totalMs": 24733,
+    "searchMs": 2366,
+    "pageFetchMsSum": 1555,
+    "pageRequests": 13,
+    "extractionMs": 20693,
+    "extractionCalls": 6
+  },
+  "tokens": {
+    "perplexity": {
+      "calls": 1,
+      "input": 5775,
+      "output": 141,
+      "model": "openai/gpt-6-luna"
+    },
+    "mistral": {
+      "calls": 6,
+      "input": 28746,
+      "output": 978,
+      "model": "mistral-large-latest"
+    },
+    "perplexityUsd": 0.00159,
+    "perplexityUsdSource": "billed (response usage.cost)",
+    "mistralUsd": 0.01584,
+    "estimatedUsd": 0.01743,
+    "estimatedEur": 0.01499
+  },
+  "sources": [
+    "https://www.hellowork.com/fr-fr/emplois/83488983.html",
+    "https://www.lille-emplois.com/emploi/metier_directeur-de-la-chaine-d-approvisionnement.html",
+    "https://www.jobijoba.com/fr/emploi/Directeur+supply+chain/Nord",
+    "https://www.hellowork.com/fr-fr/emplois/79630654.html",
+    "https://www.hellowork.com/fr-fr/emploi/metier_directeur-de-la-chaine-d-approvisionnement.html",
+    "https://www.meteojob.com/Lille-(59)-Emploi-Directeur-Supply-Chain",
+    "https://fr.indeed.com/q-supply-chain-manager-l-lille-(59)-emplois.html",
+    "https://fr.indeed.com/q-directeur-supply-chain-l-lille-(59)-emplois.html",
+    "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=directeur%20logistique%20supply%20chain",
+    "https://www.hellowork.com/fr-fr/metiers/directeur-supply-chain.html"
+  ],
+  "skipped": [
+    {
+      "url": "https://www.lille-emplois.com/emploi/metier_directeur-de-la-chaine-d-approvisionnement.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.jobijoba.com/fr/emploi/Directeur+supply+chain/Nord",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emplois/79630654.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-de-la-chaine-d-approvisionnement.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.meteojob.com/Lille-(59)-Emploi-Directeur-Supply-Chain",
+      "reason": "login_wall"
+    },
+    {
+      "url": "https://fr.indeed.com/q-supply-chain-manager-l-lille-(59)-emplois.html",
+      "reason": "site_terms"
+    },
+    {
+      "url": "https://fr.indeed.com/q-directeur-supply-chain-l-lille-(59)-emplois.html",
+      "reason": "site_terms"
+    },
+    {
+      "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=directeur%20logistique%20supply%20chain",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/metiers/directeur-supply-chain.html",
+      "reason": "not_a_job_offer"
+    }
+  ],
+  "fetches": [
+    {
+      "url": "https://www.hellowork.com/robots.txt",
+      "status": 200,
+      "ms": 21,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emplois/83488983.html",
+      "status": 200,
+      "ms": 127,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.lille-emplois.com/robots.txt",
+      "status": 200,
+      "ms": 54,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.lille-emplois.com/emploi/metier_directeur-de-la-chaine-d-approvisionnement.html",
+      "status": 200,
+      "ms": 60,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.jobijoba.com/robots.txt",
+      "status": 200,
+      "ms": 33,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.jobijoba.com/fr/emploi/Directeur+supply+chain/Nord",
+      "status": 200,
+      "ms": 704,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emplois/79630654.html",
+      "status": 200,
+      "ms": 27,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-de-la-chaine-d-approvisionnement.html",
+      "status": 200,
+      "ms": 28,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.meteojob.com/robots.txt",
+      "status": 200,
+      "ms": 67,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.meteojob.com/Lille-(59)-Emploi-Directeur-Supply-Chain",
+      "status": 200,
+      "ms": 151,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.apec.fr/robots.txt",
+      "status": 403,
+      "ms": 16,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=directeur%20logistique%20supply%20chain",
+      "status": 403,
+      "ms": 16,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/metiers/directeur-supply-chain.html",
+      "status": 200,
+      "ms": 251,
+      "kind": "page"
+    }
+  ],
+  "perplexityRaw": [
+    {
+      "model": "openai/gpt-6-luna",
+      "usage": {
+        "cost": {
+          "cache_creation_cost": 0.0005,
+          "cache_read_cost": 0.00002,
+          "currency": "USD",
+          "input_cost": 0,
+          "output_cost": 0.00007,
+          "tool_calls_cost": 0.001,
+          "tool_calls_cost_details": {
+            "search_web": 0.001
+          },
+          "total_cost": 0.00159
+        },
+        "input_tokens": 5775,
+        "input_tokens_details": {
+          "cache_creation_input_tokens": 3992,
+          "cache_read_input_tokens": 1780,
+          "cached_tokens": 1780
+        },
+        "output_tokens": 141,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "tool_calls_details": {
+          "search_web": {
+            "cost_usd": 0.001,
+            "invocation": 1
+          }
+        },
+        "total_tokens": 5916
+      },
+      "searchResults": [
+        {
+          "url": "https://www.hellowork.com/fr-fr/emplois/83488983.html",
+          "title": "Offre Emploi CDI Directeur Supply Chain Lille (59) - Recrutement par Keyman | Hellowork",
+          "date": "2026-09-17"
+        },
+        {
+          "url": "https://www.lille-emplois.com/emploi/metier_directeur-de-la-chaine-d-approvisionnement.html",
+          "title": "Offres d'Emploi Directeur de supply chain à Lille (59000)",
+          "date": "2026-05-18"
+        },
+        {
+          "url": "https://www.jobijoba.com/fr/emploi/Directeur+supply+chain/Nord",
+          "title": "Emploi Directeur supply chain en Nord - Avril 2026",
+          "date": "2026-10-11"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emplois/79630654.html",
+          "title": "Directeur Supply Chain H/F Supermarché Match - Hellowork",
+          "date": "2026-10-01"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-de-la-chaine-d-approvisionnement.html",
+          "title": "Emploi Directeur de supply chain - Plus de 80 Offres",
+          "date": "2026-10-11"
+        },
+        {
+          "url": "https://www.meteojob.com/Lille-(59)-Emploi-Directeur-Supply-Chain",
+          "title": "Offres Emploi Directeur supply chain Lille (59000) | Meteojob.com",
+          "date": "2026-09-24"
+        },
+        {
+          "url": "https://fr.indeed.com/q-supply-chain-manager-l-lille-(59)-emplois.html",
+          "title": "Emplois Supply chain manager (Lille (59))",
+          "date": "2026-09-22"
+        },
+        {
+          "url": "https://fr.indeed.com/q-directeur-supply-chain-l-lille-(59)-emplois.html",
+          "title": "Emplois Directeur supply chain (Lille (59))",
+          "date": "2026-09-19"
+        },
+        {
+          "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=directeur%20logistique%20supply%20chain",
+          "title": "Offres d'emploi directeur logistique supply chain - Apec",
+          "date": "2026-09-19"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/metiers/directeur-supply-chain.html",
+          "title": "Le salaire d'un Directeur...",
+          "date": "2026-09-27"
+        }
+      ],
+      "answer": "Je n’ai trouvé **aucune offre correspondant à tous vos critères** à Lille : les annonces de Directeur Supply Chain repérées en CDI affichent des rémunérations inférieures à 95 000 € brut annuel. L’offre Keyman propose 70 000 à 90 000 € par an[1], et celle de Supermarché Match est estimée entre 55 000 et 78 800 €[4].\n\nUne offre proche de Lille pourrait toutefois mériter vérification : Indeed répertorie un poste de Directeur Supply Chain chez EQUIPSTORE à Marcq-en-Barœul, mais le salaire n’est pas indiqué dans les résultats[7]."
+    }
+  ],
+  "offers": [
+    {
+      "url": "https://www.hellowork.com/fr-fr/emplois/83488983.html",
+      "title": "Directeur Supply Chain H/F",
+      "employer": "Keyman",
+      "location": "Lille - 59",
+      "contractType": "cdi",
+      "remoteWork": "on_site",
+      "salary": {
+        "min": 70000,
+        "max": 90000
+      },
+      "skills": [
+        "Gestion de la chaîne d'approvisionnement"
+      ],
+      "requiredExperienceYears": 15,
+      "readBy": "json-ld",
+      "matchScore": 55,
+      "breakdown": {
+        "skills": "mismatch",
+        "seniority": "match",
+        "location": "match",
+        "salary": "partial",
+        "contractType": "match"
+      },
+      "datePosted": "2026-09-29T11:26:23.937Z",
+      "dateMethod": "relative text",
+      "validThrough": null,
+      "ageDays": 13,
+      "looksExpired": false,
+      "expiryReasons": [],
+      "contentExcerpt": "Directeur Supply Chain H/F\n\nKeyman\n\nLille - 59\n\nCDI\n\n70 000 - 90 000 € / an\n\nCabinet de recrutement\n\nBac +3, Bac +4\n\nBac +5\n\nServices aux Entreprises\n\nExp. 15 ans min.\n\nÀ noter sur ce job\n\nVous avez ces compétences ? Cliquez dessus pour les ajouter rapidement à votre profil !\n\nGestion de la chaîne d'approvisionnement\n\nDétail du poste\n\nVotre rôle\n\nRattaché(e) directement à la Direction Générale, vous prenez en charge la structuration complète de la fonction Supply Chain, qui s'inscrit désormais au coeur de la stratégie de l'entreprise. Vous encadrez une équipe Approvisionnement et pilotez l'ensemble des flux, du choix des outils à la relation avec les partenaires logistiques externes. Au-delà"
+    }
+  ]
+}

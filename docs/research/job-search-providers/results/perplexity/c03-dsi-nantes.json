@@ -1,0 +1,285 @@
+{
+  "id": "c03-dsi-nantes",
+  "persona": "DSI, 55 ans, Nantes, hybride",
+  "criteria": {
+    "targetRole": "Directeur des systèmes d'information (DSI)",
+    "location": "Nantes",
+    "contractType": "cdi",
+    "remoteWork": "hybrid",
+    "minSalary": 100000
+  },
+  "query": "Offres d'emploi « Directeur des systèmes d'information (DSI) » à Nantes, CDI, télétravail partiel, salaire à partir de 100 000 € brut annuel",
+  "ranAt": "2026-10-12T11:25:26.904Z",
+  "error": null,
+  "funnel": {
+    "providerUrls": 10,
+    "considered": 10,
+    "refusedBeforeRead": 6,
+    "readButNotAnOffer": 4,
+    "invalid": 0,
+    "captured": 0,
+    "duplicatesMerged": 0,
+    "offersAfterDedup": 0,
+    "score60plus": 0,
+    "fresh30d": 0,
+    "unknownAge": 0,
+    "looksExpired": 0
+  },
+  "timing": {
+    "totalMs": 12243,
+    "searchMs": 2508,
+    "pageFetchMsSum": 1402,
+    "pageRequests": 14,
+    "extractionMs": 8209,
+    "extractionCalls": 4
+  },
+  "tokens": {
+    "perplexity": {
+      "calls": 1,
+      "input": 6242,
+      "output": 179,
+      "model": "openai/gpt-6-luna"
+    },
+    "mistral": {
+      "calls": 4,
+      "input": 31573,
+      "output": 57,
+      "model": "mistral-large-latest"
+    },
+    "perplexityUsd": 0.00167,
+    "perplexityUsdSource": "billed (response usage.cost)",
+    "mistralUsd": 0.01587,
+    "estimatedUsd": 0.01754,
+    "estimatedEur": 0.01509
+  },
+  "sources": [
+    "https://www.hellowork.com/fr-fr/emploi/metier_directeur-des-systemes-d-information-ville_nantes-44000.html",
+    "https://emploi.lefigaro.fr/offres-emploi/v/nantes-44100/m/directeur-des-systemes-d-information",
+    "https://www.hellowork.com/fr-fr/emploi/metier_directeur-des-systemes-d-information-region_pays-de-la-loire.html",
+    "https://www.hellowork.com/fr-fr/emploi/metier_directeur-des-systemes-d-information-departement_loire-atlantique-44.html",
+    "https://emploi.lefigaro.fr/offres-emploi/v/nantes-44000/m/directeur-des-systemes-d-information",
+    "https://fr.jooble.org/emploi-dsi/Nantes",
+    "https://candidat.francetravail.fr/offres/recherche/detail/6737046",
+    "https://emploi.lefigaro.fr/offres-emploi/d/fr-44/m/directeur-des-systemes-d-information",
+    "https://www.jobijoba.com/fr/emploi/Directeur+informatique/Nantes",
+    "https://fr.indeed.com/q-dsi-l-nantes-(44)-emplois.html"
+  ],
+  "skipped": [
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-des-systemes-d-information-ville_nantes-44000.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/v/nantes-44100/m/directeur-des-systemes-d-information",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-des-systemes-d-information-region_pays-de-la-loire.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-des-systemes-d-information-departement_loire-atlantique-44.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/v/nantes-44000/m/directeur-des-systemes-d-information",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://fr.jooble.org/emploi-dsi/Nantes",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://candidat.francetravail.fr/offres/recherche/detail/6737046",
+      "reason": "gone"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/d/fr-44/m/directeur-des-systemes-d-information",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://www.jobijoba.com/fr/emploi/Directeur+informatique/Nantes",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://fr.indeed.com/q-dsi-l-nantes-(44)-emplois.html",
+      "reason": "site_terms"
+    }
+  ],
+  "fetches": [
+    {
+      "url": "https://www.hellowork.com/robots.txt",
+      "status": 200,
+      "ms": 19,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-des-systemes-d-information-ville_nantes-44000.html",
+      "status": 200,
+      "ms": 12,
+      "kind": "page"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/robots.txt",
+      "status": 403,
+      "ms": 17,
+      "kind": "robots"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/v/nantes-44100/m/directeur-des-systemes-d-information",
+      "status": 403,
+      "ms": 13,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-des-systemes-d-information-region_pays-de-la-loire.html",
+      "status": 200,
+      "ms": 68,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-des-systemes-d-information-departement_loire-atlantique-44.html",
+      "status": 200,
+      "ms": 27,
+      "kind": "page"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/v/nantes-44000/m/directeur-des-systemes-d-information",
+      "status": 403,
+      "ms": 20,
+      "kind": "page"
+    },
+    {
+      "url": "https://fr.jooble.org/robots.txt",
+      "status": 200,
+      "ms": 149,
+      "kind": "robots"
+    },
+    {
+      "url": "https://fr.jooble.org/emploi-dsi/Nantes",
+      "status": 403,
+      "ms": 11,
+      "kind": "page"
+    },
+    {
+      "url": "https://candidat.francetravail.fr/robots.txt",
+      "status": 200,
+      "ms": 67,
+      "kind": "robots"
+    },
+    {
+      "url": "https://candidat.francetravail.fr/offres/recherche/detail/6737046",
+      "status": 404,
+      "ms": 321,
+      "kind": "page"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/d/fr-44/m/directeur-des-systemes-d-information",
+      "status": 403,
+      "ms": 13,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.jobijoba.com/robots.txt",
+      "status": 200,
+      "ms": 114,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.jobijoba.com/fr/emploi/Directeur+informatique/Nantes",
+      "status": 200,
+      "ms": 551,
+      "kind": "page"
+    }
+  ],
+  "perplexityRaw": [
+    {
+      "model": "openai/gpt-6-luna",
+      "usage": {
+        "cost": {
+          "cache_creation_cost": 0.00056,
+          "cache_read_cost": 0.00002,
+          "currency": "USD",
+          "input_cost": 0,
+          "output_cost": 0.00009,
+          "tool_calls_cost": 0.001,
+          "tool_calls_cost_details": {
+            "search_web": 0.001
+          },
+          "total_cost": 0.00167
+        },
+        "input_tokens": 6242,
+        "input_tokens_details": {
+          "cache_creation_input_tokens": 4459,
+          "cache_read_input_tokens": 1780,
+          "cached_tokens": 1780
+        },
+        "output_tokens": 179,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "tool_calls_details": {
+          "search_web": {
+            "cost_usd": 0.001,
+            "invocation": 1
+          }
+        },
+        "total_tokens": 6421
+      },
+      "searchResults": [
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-des-systemes-d-information-ville_nantes-44000.html",
+          "title": "Emploi DSI Nantes (44000) - Voir les dernières offres",
+          "date": "2026-10-09"
+        },
+        {
+          "url": "https://emploi.lefigaro.fr/offres-emploi/v/nantes-44100/m/directeur-des-systemes-d-information",
+          "title": "emploi.lefigaro.fr · offres-emploi · vOffres Emploi Directeur des systèmes d'information Nantes ...",
+          "date": "2026-10-09"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-des-systemes-d-information-region_pays-de-la-loire.html",
+          "title": "Emploi DSI Pays de la Loire - Plus de 35 Offres",
+          "date": "2026-10-09"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-des-systemes-d-information-departement_loire-atlantique-44.html",
+          "title": "Emploi DSI Loire-Atlantique (44) - Voir les dernières offres",
+          "date": "2026-09-04"
+        },
+        {
+          "url": "https://emploi.lefigaro.fr/offres-emploi/v/nantes-44000/m/directeur-des-systemes-d-information",
+          "title": "Offres Emploi Directeur des systèmes d'information Nantes ...",
+          "date": "2026-10-09"
+        },
+        {
+          "url": "https://fr.jooble.org/emploi-dsi/Nantes",
+          "title": "fr.jooble.org · emploi-dsi · NantesEmplois : Dsi à Nantes (Besoin d'urgence!) - 2026 - Jooble",
+          "date": "2026-08-06"
+        },
+        {
+          "url": "https://candidat.francetravail.fr/offres/recherche/detail/6737046",
+          "title": "Offre n° 6737046 Directeur des Systèmes d'Information H/F H/F (CDI)",
+          "date": "2026-09-26"
+        },
+        {
+          "url": "https://emploi.lefigaro.fr/offres-emploi/d/fr-44/m/directeur-des-systemes-d-information",
+          "title": "emploi.lefigaro.fr · offres-emploi · dOffres Emploi Directeur des systèmes d'information Loire ...",
+          "date": "2026-10-08"
+        },
+        {
+          "url": "https://www.jobijoba.com/fr/emploi/Directeur+informatique/Nantes",
+          "title": "Emploi Directeur informatique à Nantes - Août 2026",
+          "date": "2026-10-02"
+        },
+        {
+          "url": "https://fr.indeed.com/q-dsi-l-nantes-(44)-emplois.html",
+          "title": "Emplois : Dsi, Nantes (44) - 18 février 2026 - Indeed",
+          "date": "2026-03-30"
+        }
+      ],
+      "answer": "Je ne trouve pas d’offre qui réunisse **tous** vos critères à Nantes : DSI, CDI, télétravail partiel et salaire d’au moins 100 000 € brut annuel.\n\nLa piste la plus proche est une offre de **DSI indépendant** à Nantes, annoncée entre 30 000 et 110 000 € par an avec télétravail partiel, mais le statut est une franchise et non un CDI[1]. Une autre annonce, **DSI H/F chez Taylor River**, est en CDI à Indre, mais sa rémunération est de 75 000 à 80 000 €[2].\n\nUne offre de DSI en CDI publiée par Sapiance RH à Nantes existe également, mais les informations disponibles ne confirment ni le salaire demandé ni le télétravail partiel[7]."
+    }
+  ],
+  "offers": []
+}

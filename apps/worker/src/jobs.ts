@@ -3,6 +3,7 @@ import type { Pool } from "pg";
 import type { FollowUps } from "@jobhub/web/follow-ups";
 
 import { purgeExpiredBackOfficeAudit, RETENTION_YEARS as BACK_OFFICE_AUDIT_RETENTION_YEARS } from "@jobhub/web/back-office";
+import { purgeStaleAssistantConversations, RETENTION_MONTHS as ASSISTANT_RETENTION_MONTHS } from "@jobhub/web/back-office-assistant";
 import { purgeStaleCoachConversations, RETENTION_MONTHS } from "@jobhub/web/coach-conversations";
 import { DIGEST_HOUR, DIGEST_TIME_ZONE, type JobDigests } from "@jobhub/web/job-digests";
 import { createSourceChecks, forgetExpiredGuestCaptures } from "@jobhub/web/job-offers";
@@ -46,6 +47,8 @@ export const COACH_CONVERSATIONS_PURGE = "coach-conversations.purge";
 
 /** Queue name: delete the Back Office Audit entries made BACK_OFFICE_AUDIT_RETENTION_YEARS ago or more. Runs nightly. */
 export const BACK_OFFICE_AUDIT_PURGE = "back-office-audit.purge";
+/** Queue name: delete the Back Office Assistant conversations whose last message is 12 months old. Runs nightly. */
+export const BACK_OFFICE_ASSISTANT_PURGE = "back-office-assistant.purge";
 
 /**
  * Queue name: re-encrypt the Provider Secrets not under the newest master key of
@@ -296,6 +299,16 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         onceTablesExist(async () => {
           const moved = (await deps.providerSecrets?.reencrypt()) ?? 0;
           if (moved) log(`[provider-secrets] ${moved} Provider Secret(s) re-encrypted under the newest master key`);
+        }),
+    },
+
+    // Back Office Assistant conversations are kept 12 months after their last message. Safe to run again.
+    [BACK_OFFICE_ASSISTANT_PURGE]: {
+      cron: "35 3 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const purged = await purgeStaleAssistantConversations(deps.database, now());
+          if (purged) log(`[back-office-assistant] ${purged} Back Office Assistant conversation(s) purged, ${ASSISTANT_RETENTION_MONTHS} months after their last message`);
         }),
     },
 

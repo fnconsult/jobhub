@@ -9,7 +9,8 @@
  *    (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and
  *    Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored
  *    Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach
- *    Conversations, Coach Memory, Coach Access, Coaching Sessions and Action Cards. Profiles and Applications
+ *    Conversations, Coach Memory, Coach Access, Coaching Sessions and Action Cards; as an Administrator,
+ *    their Back Office Assistant conversations. Profiles and Applications
  *    are read through the modules that own them, so they show what the app shows; the rest is
  *    read as stored. Secrets (sign-in tokens, the unsubscribe link), Stripe's and the contact
  *    data providers' identifiers, and what each AI reply cost are left out. EXPORTED_TABLES
@@ -26,6 +27,7 @@ import type { Pool } from "pg";
 import type { ActionCard } from "../action-cards";
 import type { Application, Applications } from "../applications";
 import type { KeptAtsScore } from "../ats-score";
+import type { AssistantMessage } from "../back-office-assistant";
 import type { CoachMessage } from "../coach";
 import type { CompanyDossier } from "../company-dossiers";
 import type { ContactProviderId } from "../enriched-contacts";
@@ -154,6 +156,16 @@ export interface ExportedCoachConversation {
   messages: (CoachMessage & { sentAt: Date })[];
 }
 
+/** A conversation an Administrator had with the Back Office Assistant, every message included (what each reply cost is internal, left out). */
+export interface ExportedAssistantConversation {
+  id: string;
+  title: string;
+  createdAt: Date;
+  lastMessageAt: Date;
+  /** Oldest first. */
+  messages: (AssistantMessage & { sentAt: Date })[];
+}
+
 /** A Human Coach as the export names them: their email and booking link are theirs, left out. */
 export type CoachNamed = { id: string; name: string };
 
@@ -177,6 +189,8 @@ export interface CandidateDataExport {
   followUpDelays: FollowUpDelays | null;
   /** Every Coach Conversation, most recently active first. */
   coachConversations: ExportedCoachConversation[];
+  /** As an Administrator: every Back Office Assistant conversation, most recently active first. */
+  backOfficeAssistantConversations: ExportedAssistantConversation[];
   /** The Human Coaches the Candidate granted Coach Access to, oldest first. */
   coachAccess: { coach: CoachNamed; grantedAt: Date }[];
   /** The Coaching Sessions the Candidate paid for, newest first. */
@@ -225,6 +239,8 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coaching_session: "coachingSessions (no Stripe identifiers)",
   action_card: "actionCards",
   coach_memory_item: "coachMemory",
+  back_office_assistant_conversation: "backOfficeAssistantConversations",
+  back_office_assistant_message: "backOfficeAssistantConversations[].messages (no AI costs)",
 };
 
 /**
@@ -409,9 +425,26 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
     return conversations.map((conversation) => ({ ...conversation, messages: messagesOf(conversation.id) }));
   }
 
+  async function exportAssistantConversations(candidateId: string): Promise<ExportedAssistantConversation[]> {
+    const [conversations, messagesOf] = await Promise.all([
+      rowsOf<Omit<ExportedAssistantConversation, "messages">>(
+        `SELECT id, title, created_at AS "createdAt", last_message_at AS "lastMessageAt"
+           FROM back_office_assistant_conversation WHERE candidate_id = $1 ORDER BY last_message_at DESC, id`,
+        candidateId,
+      ),
+      grouped<ExportedAssistantConversation["messages"][number]>(
+        `SELECT m.conversation_id AS key, m.author AS "from", m.text, m.created_at AS "sentAt"
+           FROM back_office_assistant_message m JOIN back_office_assistant_conversation c ON c.id = m.conversation_id
+          WHERE c.candidate_id = $1 ORDER BY m.seq`,
+        candidateId,
+      ),
+    ]);
+    return conversations.map((conversation) => ({ ...conversation, messages: messagesOf(conversation.id) }));
+  }
+
   return {
     async export(candidateId) {
-      const [account, plan, quotaUsage, euAiConsent, followUpDelays, coachConversations, coachAccess, coachingSessions, actionCards, coachMemory, profiles, applications] = await Promise.all([
+      const [account, plan, quotaUsage, euAiConsent, followUpDelays, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
         rowOf<NonNullable<CandidateDataExport["plan"]>>(
           `SELECT plan, stripe_status AS "subscriptionStatus", ends_at AS "endsAt" FROM candidate_plan WHERE candidate_id = $1`,
@@ -421,6 +454,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         rowOf<{ givenAt: Date }>(`SELECT given_at AS "givenAt" FROM eu_ai_consent WHERE candidate_id = $1`, candidateId),
         rowOf<FollowUpDelays>(`SELECT after_applied AS "afterApplied", after_follow_up AS "afterFollowUp" FROM follow_up_delay WHERE candidate_id = $1`, candidateId),
         exportCoachConversations(candidateId),
+        exportAssistantConversations(candidateId),
         rowsOf<CandidateDataExport["coachAccess"][number]>(
           `SELECT json_build_object('id', h.id, 'name', h.name) AS coach, a.granted_at AS "grantedAt"
              FROM coach_access a JOIN human_coach h ON h.id = a.coach_id WHERE a.candidate_id = $1 ORDER BY a.granted_at, h.id`,
@@ -443,7 +477,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, plan, quotaUsage, euAiConsent, followUpDelays, profiles, applications, coachConversations, coachAccess, coachingSessions, actionCards, coachMemory };
+      return { exportedAt: new Date(), account, plan, quotaUsage, euAiConsent, followUpDelays, profiles, applications, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory };
     },
 
     async delete(candidateId) {

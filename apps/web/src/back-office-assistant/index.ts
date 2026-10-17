@@ -123,7 +123,7 @@ const SECTIONS: Record<BackOfficeResource, { name: string; page?: string }> = {
   roles: { name: "Administrateurs et rôles du Back Office", page: routes.adminAdministrators },
   audit: { name: "Journal du Back Office", page: routes.adminJournal() },
   providerSecrets: { name: "Clés des fournisseurs (Provider Secrets)" },
-  ssoProviders: { name: "Fournisseurs de connexion (SSO)" },
+  ssoProviders: { name: "Fournisseurs de connexion (SSO)", page: routes.adminSignInProviders },
 };
 
 const heading = (resource: BackOfficeResource) => {
@@ -250,12 +250,15 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   plan_quotas: "quotas",
   human_coaches: "coachs humains",
   provider_secrets: "clés des fournisseurs",
+  sign_in_providers: "fournisseurs de connexion",
 };
 
 const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
   added: "ajout",
   updated: "modification",
   retired: "retrait",
+  removed: "suppression",
+  tested: "test de connexion réussi",
   replaced: "remplacement",
   replaced_despite_failed_test: "remplacement malgré un test échoué",
   cleared: "effacement",

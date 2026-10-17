@@ -448,7 +448,8 @@ test.describe("back office", () => {
 
   test("is reached after signing in, and lists Plan Quotas and Human Coaches", async ({ page }) => {
     await page.goto("/admin");
-    await expect(page).toHaveURL(/\/connexion$/);
+    // Anonymous visitors are sent to the Back Office sign-in (#209).
+    await expect(page).toHaveURL(/\/connexion\/back-office$/);
     await signInWithMagicLink(page, ADMINISTRATOR);
     await page.goto("/admin");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.admin.title);

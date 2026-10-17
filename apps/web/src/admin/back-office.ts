@@ -25,7 +25,7 @@ import type { AddHumanCoachResult, HumanCoaches } from "../human-coaches";
 export const RETENTION_YEARS = 3;
 
 /** What part of the Back Office a change was made in. */
-export const BACK_OFFICE_SECTIONS = ["roles", "plan_quotas", "human_coaches", "provider_secrets"] as const;
+export const BACK_OFFICE_SECTIONS = ["roles", "plan_quotas", "human_coaches", "provider_secrets", "sign_in_providers"] as const;
 export type BackOfficeSection = (typeof BACK_OFFICE_SECTIONS)[number];
 
 export const isBackOfficeSection = (value: unknown): value is BackOfficeSection => BACK_OFFICE_SECTIONS.includes(value as BackOfficeSection);
@@ -39,7 +39,7 @@ export const SECRET_ACTIONS = ["replaced", "replaced_despite_failed_test", "clea
 export type SecretAction = (typeof SECRET_ACTIONS)[number];
 
 /** What was done to the target. */
-export type BackOfficeAction = "added" | "updated" | "retired" | SecretAction;
+export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | "tested" | SecretAction;
 
 export const isSecretAction = (action: BackOfficeAction): action is SecretAction => SECRET_ACTIONS.includes(action as SecretAction);
 

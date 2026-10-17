@@ -9,7 +9,7 @@
  *  - what are the values (web and worker)     `load`, read by the resolver (./resolver.ts)
  *  - move every row to the newest master key  `reencrypt` (the worker's job)
  * and `providerSecretsReader(database, deps)` (`load` and `reencrypt` alone, for the
- * worker), `listenForProviderSecretChanges(database, onChange)` (NOTIFY, on a pooled
+ * worker), and NOTIFY on PROVIDER_SECRETS_CHANNEL (heard with database/listen.ts, on a pooled
  * connection) and `migrateProviderSecrets(database)`.
  *
  * Every replace and clear is made, recorded in the Back Office Audit (without the
@@ -20,7 +20,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { scrubSecrets } from "@jobhub/shared";
-import type { Notification, Pool, PoolClient } from "pg";
+import type { Pool } from "pg";
 import type { BackOffice, BackOfficeActor, SecretAction } from "../admin/back-office";
 import type { Queryable } from "../database/pool";
 import { fingerprintOf, isProviderSecretName, PROVIDER_SECRETS, PROVIDER_SECRET_NAMES, providerOf, type ProviderSecretName, type SecretProvider } from "./catalog";
@@ -290,87 +290,6 @@ export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps)
   };
 }
 
-/**
- * Calls `onChange` whenever a Provider Secret is replaced or cleared (Postgres NOTIFY).
- * Listens on one connection taken from `database` for good, so the process stays
- * within its pool's budget of connections. Never gives up: when listening cannot start
- * or the connection drops, it tries again, waiting `reconnectMs` and doubling up to
- * `maxReconnectMs`, and calls `onChange` once listening again (a change may have been
- * missed). Returns a function that stops.
- */
-export async function listenForProviderSecretChanges(
-  database: Pick<Pool, "connect">,
-  onChange: () => void,
-  options: { log?: (line: string) => void; reconnectMs?: number; maxReconnectMs?: number } = {},
-): Promise<() => Promise<void>> {
-  const log = options.log ?? ((line: string) => console.warn(line));
-  const firstDelay = options.reconnectMs ?? 1_000;
-  const maxDelay = options.maxReconnectMs ?? 60_000;
-  let delay = firstDelay;
-  let client: { connection: PoolClient; detach(): void } | null = null;
-  let stopped = false;
-  let retry: ReturnType<typeof setTimeout> | undefined;
-
-  const onNotification = (message: Notification) => {
-    if (message.channel === PROVIDER_SECRETS_CHANNEL) onChange();
-  };
-
-  function again(): void {
-    if (stopped) return;
-    retry = setTimeout(() => void listen(true), delay);
-    retry.unref?.();
-    delay = Math.min(delay * 2, maxDelay);
-  }
-
-  /** One attempt; `missed`: a change may have gone unheard since the last one. */
-  async function listen(missed: boolean): Promise<void> {
-    let listening: PoolClient;
-    try {
-      listening = await database.connect();
-    } catch (error) {
-      log(`[provider-secrets] cannot listen for changes, trying again in ${delay} ms: ${error instanceof Error ? error.message : String(error)}`);
-      return again();
-    }
-    const detach = () => {
-      listening.off("notification", onNotification);
-      listening.off("error", dropped);
-    };
-    const dropped = (error: Error) => {
-      log(`[provider-secrets] stopped listening for changes, trying again in ${delay} ms: ${error.message}`);
-      detach();
-      if (client?.connection === listening) client = null;
-      listening.release(error);
-      again();
-    };
-    listening.on("notification", onNotification);
-    listening.on("error", dropped);
-    try {
-      await listening.query(`LISTEN ${PROVIDER_SECRETS_CHANNEL}`);
-    } catch (error) {
-      return dropped(error instanceof Error ? error : new Error(String(error)));
-    }
-    if (stopped) {
-      detach();
-      listening.release();
-      return;
-    }
-    client = { connection: listening, detach };
-    delay = firstDelay;
-    if (missed) onChange();
-  }
-
-  await listen(false);
-  return async () => {
-    stopped = true;
-    clearTimeout(retry);
-    const listening = client;
-    client = null;
-    if (!listening) return;
-    listening.detach();
-    await listening.connection.query(`UNLISTEN ${PROVIDER_SECRETS_CHANNEL}`).catch(() => {});
-    listening.connection.release();
-  };
-}
 
 /** Creates the Provider Secrets table. Safe to run repeatedly. */
 export async function migrateProviderSecrets(database: Pick<Pool, "query">): Promise<void> {

@@ -57,6 +57,16 @@ export const BACK_OFFICE_ASSISTANT_PURGE = "back-office-assistant.purge";
  */
 export const PROVIDER_SECRETS_REENCRYPT = "provider-secrets.reencrypt";
 
+/**
+ * Queue name: sign Apple's client secret again, from its .p8 key, once a month (#209).
+ * Runs daily: it signs only those signed a month ago or more, so a missed day costs nothing.
+ * A failure is emailed to the super-admins once per failure streak: Apple sign-in stops when the one in use expires.
+ */
+export const APPLE_CLIENT_SECRETS = "sign-in-providers.apple-client-secret";
+
+/** An Apple client secret that could not be signed again; `firstFailure`: the streak starts, the super-admins are not told yet. */
+type AppleFailure = { id: string; reason: "missing_secret" | "invalid_apple_key" | "no_master_key"; firstFailure: boolean };
+
 /** Postgres error code for a table that does not exist yet (the web app's migrations have not run). */
 const UNDEFINED_TABLE = "42P01";
 
@@ -85,6 +95,10 @@ export interface JobsDeps {
   jobDigests: Pick<JobDigests, "claimDue" | "deliver">;
   /** The Provider Secrets, to move to the newest master key. Without them, nothing to re-encrypt. */
   providerSecrets?: { reencrypt(): Promise<number> };
+  /** The Sign-in Providers, whose Apple client secret is signed again monthly. Without them, nothing to sign. */
+  signInProviders?: { regenerateAppleClientSecrets(): Promise<{ regenerated: string[]; failed: AppleFailure[] }> };
+  /** Emails the super-admins that an Apple client secret could not be signed again. */
+  alertAppleFailure?: (failed: AppleFailure[]) => Promise<void>;
   /** Queues another job of this worker. */
   enqueue: (name: string, data: object) => Promise<void>;
   log?: (line: string) => void;
@@ -299,6 +313,24 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         onceTablesExist(async () => {
           const moved = (await deps.providerSecrets?.reencrypt()) ?? 0;
           if (moved) log(`[provider-secrets] ${moved} Provider Secret(s) re-encrypted under the newest master key`);
+        }),
+    },
+
+    // Daily; signs again only what is a month old. Safe to run again.
+    [APPLE_CLIENT_SECRETS]: {
+      cron: "30 4 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const result = await deps.signInProviders?.regenerateAppleClientSecrets();
+          if (!result) return;
+          if (result.regenerated.length > 0) log(`[sign-in-providers] Apple client secret signed again for ${result.regenerated.join(", ")}`);
+          if (result.failed.length === 0) return;
+          // Alerted once per failure streak; said in the log every day it lasts.
+          const starting = result.failed.filter((failure) => failure.firstFailure);
+          log(
+            `[sign-in-providers] Apple client secret NOT signed again: ${result.failed.map(({ id, reason }) => `${id} (${reason})`).join(", ")}; ${starting.length > 0 ? "super-admins alerted" : "super-admins already alerted"}`,
+          );
+          if (starting.length > 0) await deps.alertAppleFailure?.(starting);
         }),
     },
 

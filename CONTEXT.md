@@ -425,7 +425,7 @@ _Avoid_: Dunning banner, billing alert
 ### Operations
 
 **Back Office**:
-The internal pages where Administrators manage Plan Quotas, Human Coaches, Provider Secrets and the team's Back Office Roles.
+The internal pages where Administrators manage Plan Quotas, Human Coaches, Provider Secrets, Sign-in Providers and the team's Back Office Roles.
 _Avoid_: Admin panel, dashboard, console
 
 **Back Office Role**:
@@ -435,6 +435,14 @@ _Avoid_: Permission level, admin type
 **Provider Secret**:
 A third-party key (an AI provider's, France Travail's, the contact-enrichment provider's, Stripe's, Brevo's SMTP credentials) that super-admins enter in the Back Office's Clés section. Stored encrypted in our database and used over the environment variable of the same name, which it falls back to once cleared. Never shown again once saved: only its source, last 4 characters, and who changed it when.
 _Avoid_: API key setting, credential, config secret
+
+**Sign-in Provider**:
+An identity provider, besides the magic link, that people sign in with: Google, Apple, Microsoft or a generic OIDC provider. Super-admins configure them in the Back Office's Connexion section; each is enabled only after a test sign-in, and is shown to Candidates, allowed for Administrators, or both. Trusted for linking, it signs a person into the existing account with the same email; otherwise they sign in by magic link first and link it from Mon compte. Its client secret (Apple: its Team ID, Key ID and .p8 key) is a Provider Secret.
+_Avoid_: SSO provider, identity provider, social login, auth connector
+
+**Require SSO for Administrators**:
+A super-admin setting, off by default: the Back Office asks an Administrator signed in by magic link to sign in again with a Sign-in Provider allowed for Administrators. Their Candidate pages are unaffected, and `ADMIN_EMAILS` super-admins are exempt.
+_Avoid_: Enforced SSO, mandatory SSO
 
 **Back Office Audit**:
 The record of every change an Administrator makes in the Back Office: who, when, what and the values before and after. Secret values are never recorded, only that they were replaced (possibly despite a failed connection test) or cleared. Kept for 3 years, then purged. Jobbbox's own record, so it survives the Administrator's account deletion (their id is cleared, their email at the time stays) and is not part of their data export.

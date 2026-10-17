@@ -10,11 +10,11 @@ const base = {
 };
 
 describe("authConfigFromEnv", () => {
-  it("offers Google sign-in only when its client is configured", () => {
-    expect(authConfigFromEnv(base).google).toBeUndefined();
-    expect(
-      authConfigFromEnv({ ...base, GOOGLE_CLIENT_ID: "id", GOOGLE_CLIENT_SECRET: "secret" }).google,
-    ).toEqual({ clientId: "id", clientSecret: "secret" });
+  it("offers env's Google sign-in only when its client is configured (until the database's Sign-in Providers are read)", () => {
+    expect(authConfigFromEnv(base).signIn?.configuration.providers).toEqual([]);
+    expect(authConfigFromEnv({ ...base, GOOGLE_CLIENT_ID: "id", GOOGLE_CLIENT_SECRET: "secret" }).signIn?.configuration.providers).toEqual([
+      expect.objectContaining({ id: "google", clientId: "id", clientSecret: "secret", enabled: true, shownToCandidates: true }),
+    ]);
   });
 
   it("trusts the comma-separated extension origins", () => {

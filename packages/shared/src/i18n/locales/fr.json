@@ -153,10 +153,10 @@
   },
   "signInMethods": {
     "title": "Moyens de connexion",
-    "magicLink": "Lien de connexion envoyé à {{email}}",
+    "magicLink": "Lien de connexion reçu par e-mail, à l'adresse de votre compte",
     "linked": "{{provider}} : associé à votre compte",
     "linkHelp": "Associez un autre moyen de connexion pour vous connecter sans attendre d'e-mail. Il doit utiliser la même adresse e-mail que votre compte.",
-    "link": "Associer {{provider}}",
+    "link": "Associer {{provider}} à mon compte",
     "failed": "L'association n'a pas abouti. Vérifiez que ce compte utilise la même adresse e-mail que votre compte Jobbbox, puis réessayez."
   },
   "appleAlert": {

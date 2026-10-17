@@ -153,10 +153,10 @@
   },
   "signInMethods": {
     "title": "Sign-in methods",
-    "magicLink": "Sign-in link sent to {{email}}",
+    "magicLink": "Sign-in link by email, to your account's address",
     "linked": "{{provider}}: linked to your account",
     "linkHelp": "Link another sign-in method to sign in without waiting for an email. It must use the same email address as your account.",
-    "link": "Link {{provider}}",
+    "link": "Link {{provider}} to my account",
     "failed": "Linking didn't go through. Check that this account uses the same email address as your Jobbbox account, then try again."
   },
   "appleAlert": {

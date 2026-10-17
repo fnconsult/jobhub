@@ -101,7 +101,6 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         ) : null}
       </nav>
       <SignInMethods
-        email={candidate.email}
         linked={usable.filter((provider) => linkedIds.includes(provider.id))}
         linkable={usable.filter((provider) => !linkedIds.includes(provider.id))}
         failed={Boolean(error)}

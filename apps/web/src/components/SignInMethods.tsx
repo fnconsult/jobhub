@@ -7,11 +7,11 @@ import { routes } from "@/routes";
 import type { SignInButton } from "@/sign-in-providers/policy";
 
 /**
- * How the Candidate signs in: the magic link to their address, the Sign-in Providers
+ * How the Candidate signs in: the magic link to their account's address (shown above it), the Sign-in Providers
  * linked to their account, and those they may link. Linking, signed in, is how an
  * account gets a provider not trusted for linking.
  */
-export function SignInMethods({ email, linked, linkable, failed }: { email: string; linked: SignInButton[]; linkable: SignInButton[]; failed: boolean }) {
+export function SignInMethods({ linked, linkable, failed }: { linked: SignInButton[]; linkable: SignInButton[]; failed: boolean }) {
   const { t } = useTranslation();
   const [error, setError] = useState(failed);
 
@@ -25,7 +25,7 @@ export function SignInMethods({ email, linked, linkable, failed }: { email: stri
     <section className="stack" aria-labelledby="sign-in-methods-title">
       <h2 id="sign-in-methods-title">{t("signInMethods.title")}</h2>
       <ul>
-        <li>{t("signInMethods.magicLink", { email })}</li>
+        <li>{t("signInMethods.magicLink")}</li>
         {linked.map((provider) => (
           <li key={provider.id}>{t("signInMethods.linked", { provider: provider.displayName })}</li>
         ))}

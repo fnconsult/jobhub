@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { checkoutSessionEvent, FAKE_STRIPE_COACHING_SESSION_PRICES, FAKE_STRIPE_PRICES, fakeCustomerId, signedEvent, subscriptionEvent } from "./fake-stripe";
+import { checkoutSessionEvent, FAKE_STRIPE_COACHING_SESSION_PRICES, FAKE_STRIPE_PRICES, FAKE_STRIPE_PRODUCTS, fakeCustomerId, signedEvent, subscriptionEvent } from "./fake-stripe";
 import { BillingError, createBilling, STARTING_PLAN_QUOTAS } from "./index";
 import { connectionString, startTestBilling, type TestBilling } from "./test-support";
 
@@ -495,6 +495,27 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       await deliver(subscriptionEvent("customer.subscription.deleted", { ...old, status: "canceled" }));
 
       expect((await t.billing.entitlements(marie.id)).plan).toBe("premium");
+    });
+
+    it("brings back to Free a Candidate who cancels while on an older Price of their Plan", async () => {
+      const marie = await subscribed("marie.dupont@example.fr");
+      const archived = { customer: marie.customer, price: "price_standard_monthly_2025", product: FAKE_STRIPE_PRODUCTS.standard };
+      await deliver(subscriptionEvent("customer.subscription.created", { ...archived, status: "active" }, new Date("2026-10-15T10:00:00Z")));
+      expect((await t.billing.entitlements(marie.id)).plan).toBe("standard");
+
+      await deliver(subscriptionEvent("customer.subscription.deleted", { ...archived, status: "canceled" }, new Date("2026-10-15T11:00:00Z")));
+
+      expect((await t.billing.entitlements(marie.id)).plan).toBe("free");
+    });
+
+    it("follows a Candidate who switches to another interval of their Plan in the customer portal", async () => {
+      const marie = await subscribed("marie.dupont@example.fr");
+      await deliver(subscriptionEvent("customer.subscription.created", { customer: marie.customer, price: FAKE_STRIPE_PRICES.premium, status: "active" }, new Date("2026-10-15T10:00:00Z")));
+      const yearly = { customer: marie.customer, price: "price_premium_yearly", product: FAKE_STRIPE_PRODUCTS.premium };
+
+      await deliver(subscriptionEvent("customer.subscription.updated", { ...yearly, status: "past_due" }, new Date("2026-10-15T11:00:00Z")));
+
+      expect(await t.billing.entitlements(marie.id)).toMatchObject({ plan: "premium", stripeStatus: "past_due" });
     });
 
     it("refuses a delivery whose signature is not Stripe's, and changes nothing", async () => {

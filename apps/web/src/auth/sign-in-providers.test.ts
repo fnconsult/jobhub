@@ -159,6 +159,34 @@ describe.skipIf(!connectionString)("signing in through the Sign-in Providers (ne
       expect((await sessionOf(viaSso)).user.id).toBe((await sessionOf(magic)).user.id);
     });
 
+    it("is linked from Mon compte through an untrusted provider that sends no email_verified (Microsoft common, many OIDC issuers), and only so", async () => {
+      await start();
+      const magic = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+      person.sso = { sub: "sso-marie", email: "marie.dupont@example.fr", name: "Marie" };
+
+      // Signing in with it still asks for the magic link first.
+      const refused = await through("jobbbox-sso");
+      expect(locationOf(refused).searchParams.get("error")).toBe("account_not_linked");
+
+      const linked = await through("jobbbox-sso", { cookie: magic, link: true });
+      expect(locationOf(linked).pathname).toBe("/compte");
+      expect(locationOf(linked).searchParams.get("error")).toBeNull();
+
+      const viaSso = cookiesFrom(await through("jobbbox-sso"));
+      expect((await sessionOf(viaSso)).user.id).toBe((await sessionOf(magic)).user.id);
+    });
+
+    it("is not linked from Mon compte when the provider's account has another email", async () => {
+      await start();
+      const magic = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+      person.sso = { sub: "sso-other", email: "someone.else@example.fr", name: "Other" };
+
+      const linked = await through("jobbbox-sso", { cookie: magic, link: true });
+
+      expect(locationOf(linked).searchParams.get("error")).not.toBeNull();
+      expect((await testAuth.database.query("SELECT count(*) FROM account WHERE \"providerId\" = 'jobbbox-sso'")).rows[0].count).toBe("0");
+    });
+
     it("of an Apple private relay address never matches: it is always a separate account", async () => {
       await start();
       await signInWithMagicLink(testAuth, "marie.dupont@example.fr");

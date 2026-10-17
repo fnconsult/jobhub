@@ -189,6 +189,17 @@ export function signInHooks(signIn: SignInSetup, baseURL: string) {
   };
 }
 
+/**
+ * Linking from Mon compte (the callback's state carries `link`: the person is signed in and
+ * asked for it) needs no verified email from the provider: being signed in proves owning the
+ * account, and Better Auth still requires the provider's email to be the account's. Many
+ * providers send none (Microsoft on common or organizations, some OIDC issuers), and Better Auth
+ * would otherwise refuse the link of a provider not trusted for linking. Signing in is untouched.
+ */
+async function verifiedWhileLinking(): Promise<{ emailVerified?: true }> {
+  return (await currentOAuthState())?.link ? { emailVerified: true } : {};
+}
+
 /** The endpoints that take a provider's ID token straight from the client, instead of the redirect. */
 const ID_TOKEN_PATHS = ["/sign-in/social", "/link-social"];
 
@@ -207,6 +218,9 @@ const refuseIdTokenSignIn = createAuthMiddleware(async (ctx) => {
 function authOptions(config: AuthConfig) {
   const signIn = config.signIn ?? NO_SIGN_IN;
   const providers = betterAuthSignIn(signIn.configuration);
+  const socialProviders = Object.fromEntries(
+    Object.entries(providers.socialProviders).map(([id, options]) => [id, { ...options, mapProfileToUser: verifiedWhileLinking }]),
+  ) as typeof providers.socialProviders;
   return {
     database: config.database,
     baseURL: config.baseURL,
@@ -219,7 +233,7 @@ function authOptions(config: AuthConfig) {
     onAPIError: { errorURL: new URL(routes.signIn, config.baseURL).toString() },
     // Check request origins everywhere, tests included (Better Auth skips it under NODE_ENV=test).
     advanced: { disableOriginCheck: false },
-    socialProviders: providers.socialProviders,
+    socialProviders,
     account: {
       accountLinking: {
         enabled: true,
@@ -265,7 +279,7 @@ function authOptions(config: AuthConfig) {
         },
       }),
       // Generic OIDC providers, through the same sign-in and callback endpoints as the social ones.
-      genericOAuth({ config: providers.genericOAuth }),
+      genericOAuth({ config: providers.genericOAuth.map((provider) => ({ ...provider, mapProfileToUser: verifiedWhileLinking })) }),
     ],
   } satisfies BetterAuthOptions;
 }

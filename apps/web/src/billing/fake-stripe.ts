@@ -20,6 +20,12 @@ export interface StripeCall {
 export const FAKE_STRIPE_SECRET_KEY = "sk_test_fake";
 export const FAKE_STRIPE_WEBHOOK_SECRET = "whsec_test_fake";
 export const FAKE_STRIPE_PRICES = { standard: "price_standard_monthly", premium: "price_premium_monthly" } as const;
+/** The Stripe Products the Plans' Prices belong to. */
+export const FAKE_STRIPE_PRODUCTS = { standard: "prod_standard", premium: "prod_premium" } as const;
+const FAKE_PRODUCTS: Record<string, string> = {
+  [FAKE_STRIPE_PRICES.standard]: FAKE_STRIPE_PRODUCTS.standard,
+  [FAKE_STRIPE_PRICES.premium]: FAKE_STRIPE_PRODUCTS.premium,
+};
 /** One-off Prices of a Coaching Session: 90 € (regular) and 72 € (Premium Plan). */
 export const FAKE_STRIPE_COACHING_SESSION_PRICES = { regular: "price_coaching_session", premium: "price_coaching_session_premium" } as const;
 const FAKE_UNIT_AMOUNTS: Record<string, number> = {
@@ -74,7 +80,7 @@ export async function startFakeStripe(port = 0) {
       const price = request.method === "GET" && path.match(/^\/v1\/prices\/([^/]+)$/)?.[1];
       if (price && FAKE_UNIT_AMOUNTS[price] !== undefined) {
         const recurring = Object.values<string>(FAKE_STRIPE_PRICES).includes(price) ? { interval: "month", interval_count: 1 } : null;
-        return reply(200, { id: price, object: "price", unit_amount: FAKE_UNIT_AMOUNTS[price], currency: "eur", recurring });
+        return reply(200, { id: price, object: "price", unit_amount: FAKE_UNIT_AMOUNTS[price], currency: "eur", recurring, product: FAKE_PRODUCTS[price] ?? "prod_other" });
       }
       if (request.method === "GET" && path === "/__calls") return reply(200, calls.map((call) => ({ ...call, params: Object.fromEntries(call.params) })));
       reply(404, { error: { type: "invalid_request_error", message: `fake Stripe has no ${request.method} ${path}` } });
@@ -109,11 +115,11 @@ let eventSequence = 0;
  * As on Stripe API versions since 2025-03-31.basil, the paid period's end is on the
  * subscription item (a month after the event unless `currentPeriodEnd` says otherwise).
  * A cancellation scheduled in the customer portal sets `cancelAtPeriodEnd`; one at
- * another date sets `cancelAt`.
+ * another date sets `cancelAt`. The Price's `product` is its Plan's for a known Price, unless `product` says otherwise.
  */
 export function subscriptionEvent(
   type: "customer.subscription.created" | "customer.subscription.updated" | "customer.subscription.deleted",
-  subscription: { customer: string; price: string; status: string; id?: string; currentPeriodEnd?: Date; cancelAtPeriodEnd?: boolean; cancelAt?: Date },
+  subscription: { customer: string; price: string; product?: string; status: string; id?: string; currentPeriodEnd?: Date; cancelAtPeriodEnd?: boolean; cancelAt?: Date },
   createdAt: Date = new Date(),
 ) {
   eventSequence += 1;
@@ -134,7 +140,7 @@ export function subscriptionEvent(
         cancel_at_period_end: subscription.cancelAtPeriodEnd ?? false,
         items: {
           object: "list",
-          data: [{ id: `si_fake${eventSequence}`, price: { id: subscription.price }, current_period_end: seconds(periodEnd) }],
+          data: [{ id: `si_fake${eventSequence}`, price: { id: subscription.price, product: subscription.product ?? FAKE_PRODUCTS[subscription.price] ?? "prod_other" }, current_period_end: seconds(periodEnd) }],
         },
       },
     },

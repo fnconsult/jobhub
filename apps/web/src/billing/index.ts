@@ -267,7 +267,7 @@ export function createBilling(config: BillingConfig) {
 
   /** Stripe Prices' amounts, kept a few minutes: Jobbbox sets them in Stripe and rarely changes them. */
   /** `interval` is set for a recurring Price charged once each interval (not every 3 months, say). */
-  type StripeAmount = { amount: number; currency: string; interval: string | null };
+  type StripeAmount = { amount: number; currency: string; interval: string | null; product: string };
   /** When Stripe last failed to give the Plan prices: pages render without them for a minute, without asking again. */
   let planPricesFailedAt: number | undefined;
   const priceCache = new Map<string, StripeAmount & { at: number }>();
@@ -276,7 +276,7 @@ export function createBilling(config: BillingConfig) {
     if (cached && now().getTime() - cached.at < 10 * 60_000) return cached;
     const price = await stripe().client.prices.retrieve(priceId, {}, options);
     if (price.unit_amount === null) throw new Error(`Stripe Price ${priceId} has no fixed amount`);
-    const fetched = { at: now().getTime(), amount: price.unit_amount, currency: price.currency, interval: price.recurring?.interval_count === 1 ? price.recurring.interval : null };
+    const fetched = { at: now().getTime(), amount: price.unit_amount, currency: price.currency, interval: price.recurring?.interval_count === 1 ? price.recurring.interval : null, product: productOf(price) };
     priceCache.set(priceId, fetched);
     return fetched;
   }
@@ -352,11 +352,27 @@ export function createBilling(config: BillingConfig) {
     return subscription.items.data[0]?.current_period_end ?? legacy ?? null;
   }
 
-  /** Applies a customer.subscription.* event: the Plan follows the subscription's price, status and scheduled end. */
-  async function applySubscription(event: Stripe.Event, subscription: Stripe.Subscription) {
+  function productOf(price: Stripe.Price): string {
+    return typeof price.product === "string" ? price.product : price.product.id;
+  }
+
+  /**
+   * The paid Plan a subscription Price belongs to: its configured Price, or any other Price of
+   * the same Stripe Product (an archived older amount, another interval switched to in the portal).
+   */
+  async function paidPlanOf(price: Stripe.Price | undefined): Promise<Plan | undefined> {
+    if (!price) return undefined;
     const { prices } = stripe().config;
-    const price = subscription.items.data[0]?.price.id;
-    const paidPlan: Plan | undefined = price === prices.standard ? "standard" : price === prices.premium ? "premium" : undefined;
+    if (price.id === prices.standard) return "standard";
+    if (price.id === prices.premium) return "premium";
+    const [standard, premium] = await Promise.all([amountOf(prices.standard), amountOf(prices.premium)]);
+    const product = productOf(price);
+    return product === standard.product ? "standard" : product === premium.product ? "premium" : undefined;
+  }
+
+  /** Applies a customer.subscription.* event: the Plan follows the subscription's product, status and scheduled end. */
+  async function applySubscription(event: Stripe.Event, subscription: Stripe.Subscription) {
+    const paidPlan = await paidPlanOf(subscription.items.data[0]?.price);
     if (!paidPlan) return; // Not one of our Plans' prices.
     const customer = typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
     const ended = event.type === "customer.subscription.deleted" || !PAYING_STATUSES.has(subscription.status);

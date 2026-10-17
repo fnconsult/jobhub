@@ -7,8 +7,8 @@ import type { UsageLog } from "./types";
  */
 export function createConsoleUsageLog(write: (line: string) => void = (line) => console.info(line)): UsageLog {
   return {
-    record({ transcript: _transcript, ...entry }) {
-      write(JSON.stringify({ event: "ai_usage", ...entry, at: entry.at.toISOString() }));
+    record(entry) {
+      write(JSON.stringify({ event: "ai_usage", ...entry, transcript: undefined, at: entry.at.toISOString() }));
     },
   };
 }

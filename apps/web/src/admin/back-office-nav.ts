@@ -5,6 +5,7 @@ import type { BackOfficeAccess, BackOfficeResource } from "./access";
 export const BACK_OFFICE_PAGES = {
   plans: { href: routes.adminPlans, resource: "plans" },
   planQuotas: { href: routes.adminPlanQuotas, resource: "planQuotas" },
+  coupons: { href: routes.adminCoupons, resource: "coupons" },
   humanCoaches: { href: routes.adminHumanCoaches, resource: "humanCoaches" },
   coachCost: { href: routes.adminCoachCost, resource: "coachMessageCost" },
   providerSecrets: { href: routes.adminProviderSecrets, resource: "providerSecrets" },
@@ -16,11 +17,10 @@ export const BACK_OFFICE_PAGES = {
 export type BackOfficePage = keyof typeof BACK_OFFICE_PAGES;
 
 /**
- * The sidebar's groups, in order (map #123). Later sections join their group:
- * Coupons under Offre.
+ * The sidebar's groups, in order (map #123).
  */
 const GROUPS = [
-  { key: "offer", sections: ["plans", "planQuotas"] },
+  { key: "offer", sections: ["plans", "planQuotas", "coupons"] },
   { key: "coaching", sections: ["humanCoaches", "coachCost"] },
   { key: "platform", sections: ["providerSecrets", "signInProviders"] },
   { key: "team", sections: ["administrators", "journal"] },

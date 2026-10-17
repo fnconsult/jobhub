@@ -611,6 +611,14 @@
       "week": "{{price}} / semaine",
       "month": "{{price}} / mois",
       "year": "{{price}} / an"
+    },
+    "coupon": {
+      "once": "−{{off}} sur le premier paiement",
+      "forever": "−{{off}} tant que l'abonnement dure",
+      "months_one": "−{{off}} pendant {{count}} mois",
+      "months_other": "−{{off}} pendant {{count}} mois",
+      "active": "Réduction en cours : {{terms}}",
+      "activeUntil": "Réduction en cours : −{{off}} jusqu'au {{date}}"
     }
   },
   "admin": {

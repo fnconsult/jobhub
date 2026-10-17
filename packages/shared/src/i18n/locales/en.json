@@ -611,6 +611,14 @@
       "week": "{{price}} / week",
       "month": "{{price}} / month",
       "year": "{{price}} / year"
+    },
+    "coupon": {
+      "once": "{{off}} off the first payment",
+      "forever": "{{off}} off for as long as the subscription lasts",
+      "months_one": "{{off}} off for {{count}} month",
+      "months_other": "{{off}} off for {{count}} months",
+      "active": "Current discount: {{terms}}",
+      "activeUntil": "Current discount: {{off}} off until {{date}}"
     }
   },
   "admin": {

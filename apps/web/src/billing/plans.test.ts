@@ -62,6 +62,20 @@ describe.skipIf(!connectionString)("Plans defined by Administrators (needs Postg
 
       expect((await deployed.plans()).find((plan) => plan.key === "standard")?.stripeProductId).toBe(FAKE_STRIPE_PRODUCTS.essential);
     });
+
+    it("keep selling and following the Plans with a product when an env price cannot give its own", async () => {
+      await t.database.query("UPDATE plan SET stripe_product_id = NULL WHERE key = 'premium'");
+      const misconfigured = createBilling({ ...t.config, stripe: { ...t.config.stripe!, envPlanPrices: { premium: "price_unknown" } } });
+      const marie = await t.signUp("marie.dupont@example.fr");
+      await misconfigured.startCheckout(marie, "standard");
+
+      const { payload, signature } = signedEvent(subscriptionEvent("customer.subscription.created", { customer: fakeCustomerId(marie.email), price: FAKE_STRIPE_PRICES.standard, status: "active" }));
+      await misconfigured.handleStripeWebhook(payload, signature);
+
+      expect((await misconfigured.entitlements(marie.id)).plan).toBe("standard");
+      expect(Object.keys((await misconfigured.planPrices())!)).toEqual(["free", "standard"]);
+      await expect(misconfigured.linkPlansToEnvPrices()).rejects.toThrow();
+    });
   });
 
   describe("creating a Plan in the Back Office", () => {

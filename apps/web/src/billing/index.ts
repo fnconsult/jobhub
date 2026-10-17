@@ -421,6 +421,18 @@ export function createBilling(config: BillingConfig) {
     });
     return linking;
   }
+  /**
+   * Links the Plans to their env Prices' products if not done yet, without failing what
+   * needs it: a Plan with a product works whatever happens to an env Price (the database
+   * wins), and one without is simply not sold yet.
+   */
+  async function linkedIfPossible(): Promise<void> {
+    try {
+      await linked();
+    } catch (error) {
+      console.error("[billing] could not tie the Plans to the products of STRIPE_PRICE_STANDARD / STRIPE_PRICE_PREMIUM", error);
+    }
+  }
 
   /** Why `product` cannot be a Plan's (other than `key`'s), or null when it can: it exists, is active and has a recurring default Price. */
   async function productProblem(product: string, key: string, within: Queryable): Promise<PlanError | null> {
@@ -516,9 +528,13 @@ export function createBilling(config: BillingConfig) {
    */
   async function paidPlanOf(price: Stripe.Price | undefined): Promise<Plan | undefined> {
     if (!price) return undefined;
-    await linked();
-    const { rows } = await database.query("SELECT key FROM plan WHERE stripe_product_id = $1 AND key <> $2", [productOf(price), FREE_PLAN]);
-    return rows[0]?.key as Plan | undefined;
+    const planOfProduct = async () =>
+      (await database.query("SELECT key FROM plan WHERE stripe_product_id = $1 AND key <> $2", [productOf(price), FREE_PLAN])).rows[0]?.key as Plan | undefined;
+    const known = await planOfProduct();
+    if (known) return known;
+    // Before the startup link to the env Prices' products is done, a starting Plan's subscriber is not lost.
+    await linkedIfPossible();
+    return planOfProduct();
   }
 
   /** Applies a customer.subscription.* event: the Plan follows the subscription's product, status and scheduled end. */
@@ -685,7 +701,7 @@ export function createBilling(config: BillingConfig) {
     async startCheckout(candidate: { id: string; email: string }, plan: Plan, locale: Locale = "fr"): Promise<string> {
       if (plan === FREE_PLAN) throw new BillingError("no_checkout_for_free_plan");
       const { client } = stripe();
-      await linked();
+      await linkedIfPossible();
       const chosen = await findPlan(database, plan);
       if (!chosen || chosen.status !== "offered" || !chosen.stripeProductId) throw new BillingError("plan_not_offered", `Plan ${plan} is not offered`);
       const customer = await stripeCustomerFor(candidate);
@@ -792,8 +808,8 @@ export function createBilling(config: BillingConfig) {
     async planPrices(): Promise<Record<Plan, PlanPrice> | null> {
       if (!config.stripe) return null;
       if (planPricesFailedAt !== undefined && now().getTime() - planPricesFailedAt < PLAN_PRICE_RETRY_AFTER_MS) return null;
+      await linkedIfPossible();
       try {
-        await linked();
         const paid = (await listPlans(database)).filter((plan) => plan.status === "offered" && plan.key !== FREE_PLAN && plan.stripeProductId);
         const prices = await Promise.all(paid.map(async (plan) => [plan.key, await subscriptionPrice(await defaultPriceOf(plan.stripeProductId!))] as const));
         planPricesFailedAt = undefined;

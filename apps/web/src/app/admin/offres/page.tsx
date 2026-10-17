@@ -152,7 +152,6 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
           </tbody>
         </table>
       </div>
-      <p>{t("admin.plans.hiddenHelp")}</p>
 
       {plans.map((plan) => {
         const id = (field: string) => `plan-${plan.key}-${field}`;

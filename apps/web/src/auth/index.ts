@@ -87,6 +87,15 @@ type HookContext = {
   context: { internalAdapter: { findUserById(id: string): Promise<{ id: string; email: string; emailVerified: boolean } | null> } };
 } | null;
 
+/** The OAuth flow's state on this request (parsed from the provider's redirect on a callback); null outside one. */
+async function currentOAuthState(): Promise<Record<string, unknown> | null> {
+  try {
+    return ((await getOAuthState()) as Record<string, unknown> | null) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** The provider a hook runs for: the one whose OAuth callback this is, if any. */
 const providerOf = (ctx: HookContext): string | null => (ctx?.path?.startsWith("/callback/") ? (ctx.params?.id ?? null) : null);
 
@@ -101,9 +110,21 @@ const providerOf = (ctx: HookContext): string | null => (ctx?.path?.startsWith("
  *    signed in, from Mon compte;
  *  - each session records how it was signed in (`signInMethod`), for Require SSO.
  */
-function signInHooks(signIn: SignInSetup, baseURL: string) {
-  /** The endpoint contexts in which a person is being signed up: their first account is not a link. */
-  const signingUp = new WeakSet<object>();
+export function signInHooks(signIn: SignInSetup, baseURL: string) {
+  /**
+   * The people being signed up through a provider, by provider and email, until their first
+   * account is created (a minute at most): that account is not a link. Keyed on what both hooks
+   * see, not on the endpoint context, which Better Auth need not hand both hooks alike.
+   */
+  const signingUp = new Map<string, number>();
+  const signUpKey = (providerId: string, email: string) => `${providerId}\n${email.trim().toLowerCase()}`;
+  const SIGN_UP_MS = 60_000;
+  function takeSignUp(key: string): boolean {
+    const until = signingUp.get(key);
+    signingUp.delete(key);
+    for (const [other, expires] of signingUp) if (expires < Date.now()) signingUp.delete(other);
+    return until !== undefined && until >= Date.now();
+  }
 
   async function decide(ctx: NonNullable<HookContext>, providerId: string, person: SigningInPerson): Promise<void> {
     const decision = oauthSignInDecision(signIn.configuration, providerId, { isAdministrator: await signIn.isAdministrator(person) });
@@ -128,7 +149,7 @@ function signInHooks(signIn: SignInSetup, baseURL: string) {
           const providerId = providerOf(ctx);
           if (!providerId || !ctx) return;
           await decide(ctx, providerId, { id: "", email: user.email, emailVerified: user.emailVerified });
-          signingUp.add(ctx);
+          signingUp.set(signUpKey(providerId, user.email), Date.now() + SIGN_UP_MS);
         },
       },
     },
@@ -136,12 +157,15 @@ function signInHooks(signIn: SignInSetup, baseURL: string) {
       create: {
         before: async (account: { userId: string }, ctx: HookContext) => {
           const providerId = providerOf(ctx);
-          if (!providerId || !ctx || signingUp.has(ctx)) return;
+          if (!providerId || !ctx) return;
           const person = await owner(ctx, account.userId);
-          if (!person) return;
+          // An account for nobody we can find is refused, not let through unchecked.
+          if (!person) throw new APIError("FORBIDDEN", { code: SIGN_IN_ERRORS.accountNotLinked, message: "Sign in by magic link, then link this provider" });
+          // Their first account, as they sign up: decided by the user hook.
+          if (takeSignUp(signUpKey(providerId, person.email))) return;
           await decide(ctx, providerId, person);
           // Linked by the Candidate, signed in, from Mon compte: they proved owning the account.
-          if ((await getOAuthState())?.link) return;
+          if ((await currentOAuthState())?.link) return;
           if (!trustedProviderIds(signIn.configuration).includes(providerId)) {
             throw new APIError("FORBIDDEN", { code: SIGN_IN_ERRORS.accountNotLinked, message: "Sign in by magic link, then link this provider" });
           }

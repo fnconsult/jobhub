@@ -22,6 +22,7 @@ import { migrateJobDigests } from "./job-digests/index";
 import { migrateJobOffers } from "./job-offers/index";
 import { migrateJobSearches } from "./job-searches/index";
 import { migrateProfiles } from "./profiles/index";
+import { migrateProviderSecrets } from "./provider-secrets/index";
 import { migrateSearchSites } from "./search-sites/index";
 import { migrateTailoredCvs } from "./tailored-cv/index";
 import { migrateTailoredDocuments } from "./tailored-documents/index";
@@ -52,6 +53,7 @@ export async function migrateDatabase(config: AuthConfig, onMigrated: (done: str
     ["Coach Memory is up to date", () => migrateCoachMemory(database)],
     ["Back Office Audit is up to date", () => migrateBackOfficeAudit(database)],
     ["Back Office Roles are up to date", () => migrateAdministratorRoles(database)],
+    ["Provider Secrets are up to date", () => migrateProviderSecrets(database)],
   ];
   for (const [done, migrate] of steps) {
     await migrate();

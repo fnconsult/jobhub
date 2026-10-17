@@ -122,8 +122,13 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): AiPr
           messages: input.messages,
         });
       } catch (error) {
-        const status = error instanceof Anthropic.APIError ? error.status : undefined;
-        throw new AiProviderError("anthropic", error instanceof Error ? error.message : "request failed", status, { cause: error });
+        const apiError = error instanceof Anthropic.APIError;
+        // An API error's message carries the answer, scrubbed here; the error itself (headers, body) is not kept as the cause.
+        const secrets = endpoint.kind === "vertex" ? [] : [endpoint.apiKey];
+        throw new AiProviderError("anthropic", error instanceof Error ? error.message : "request failed", apiError ? error.status : undefined, {
+          secrets,
+          ...(!apiError && { cause: error }),
+        });
       }
       if (message.stop_reason === "refusal") throw new AiProviderError("anthropic", "Claude declined the request (refusal)");
       const text = message.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("");

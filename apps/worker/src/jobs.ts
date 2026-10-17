@@ -47,6 +47,13 @@ export const COACH_CONVERSATIONS_PURGE = "coach-conversations.purge";
 /** Queue name: delete the Back Office Audit entries made BACK_OFFICE_AUDIT_RETENTION_YEARS ago or more. Runs nightly. */
 export const BACK_OFFICE_AUDIT_PURGE = "back-office-audit.purge";
 
+/**
+ * Queue name: re-encrypt the Provider Secrets not under the newest master key of
+ * SECRETS_MASTER_KEYS (ADR-0020, docs/ops/provider-secrets.md). Runs nightly, and
+ * once when the worker starts, so a new master key is in use soon after it is deployed.
+ */
+export const PROVIDER_SECRETS_REENCRYPT = "provider-secrets.reencrypt";
+
 /** Postgres error code for a table that does not exist yet (the web app's migrations have not run). */
 const UNDEFINED_TABLE = "42P01";
 
@@ -58,7 +65,8 @@ export interface DiscoveryUnavailable {
 export interface JobsDeps {
   database: Pick<Pool, "query">;
   now?: () => Date;
-  discovery: JobDiscovery | DiscoveryUnavailable;
+  /** Job discovery, or why it is unavailable; a getter is asked on each job (the worker's follows its Provider Secrets, #208). */
+  discovery: JobDiscovery | DiscoveryUnavailable | (() => JobDiscovery | DiscoveryUnavailable);
   /** Reads a Profile, scoped to its Candidate. Satisfied by the web app's Profiles module. */
   profiles: {
     get(candidateId: string, profileId: string): Promise<DiscoveryProfile | null>;
@@ -72,6 +80,8 @@ export interface JobsDeps {
   followUps: Pick<FollowUps, "proposeDue">;
   /** The worker's side of Job Digests. Satisfied by the web app's Job Digests module. */
   jobDigests: Pick<JobDigests, "claimDue" | "deliver">;
+  /** The Provider Secrets, to move to the newest master key. Without them, nothing to re-encrypt. */
+  providerSecrets?: { reencrypt(): Promise<number> };
   /** Queues another job of this worker. */
   enqueue: (name: string, data: object) => Promise<void>;
   log?: (line: string) => void;
@@ -115,6 +125,7 @@ function discoveryTarget(data: unknown): { candidateId: string; profileId: strin
 export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
   const log = deps.log ?? ((line) => console.info(line));
   const now = deps.now ?? (() => new Date());
+  const discoveryNow = () => (typeof deps.discovery === "function" ? deps.discovery() : deps.discovery);
   /** Runs a job that reads the web app's tables: before its migrations have run, there is nothing to do. */
   const onceTablesExist = async (work: () => Promise<void>) => {
     try {
@@ -146,15 +157,16 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           return log(`[job-discovery] profile ${target.profileId}: gone or archived, skipped`);
         }
 
-        if ("unavailable" in deps.discovery) {
+        const discovery = discoveryNow();
+        if ("unavailable" in discovery) {
           await fail("unavailable");
           return log(
-            `[job-discovery] profile ${target.profileId}: skipped, Job discovery is unavailable (${deps.discovery.unavailable})`,
+            `[job-discovery] profile ${target.profileId}: skipped, Job discovery is unavailable (${discovery.unavailable})`,
           );
         }
         let report;
         try {
-          report = await deps.discovery.discover({ candidateId: target.candidateId, criteria: profile.searchCriteria });
+          report = await discovery.discover({ candidateId: target.candidateId, criteria: profile.searchCriteria });
         } catch (error) {
           // The Candidate is waiting for this Job Search: say it failed rather than retry it later.
           if (!jobSearchId) throw error;
@@ -226,7 +238,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         const profile = await deps.profiles.get(target.candidateId, target.profileId);
         if (!profile || profile.archived) return log(`[job-digest] profile ${target.profileId}: gone or archived, skipped`);
         const startedAt = now();
-        const discovery = deps.discovery;
+        const discovery = discoveryNow();
         let metrics = noDiscoveryMetrics();
         const discover = async () => {
           if ("unavailable" in discovery) throw new Error(`Job discovery is unavailable (${discovery.unavailable})`);
@@ -274,6 +286,16 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         onceTablesExist(async () => {
           const purged = await purgeStaleCoachConversations(deps.database, now());
           if (purged) log(`[coach-conversations] ${purged} Coach Conversation(s) purged, ${RETENTION_MONTHS} months after their last message`);
+        }),
+    },
+
+    // Nightly, and once at start (main.ts): every row under the newest master key. Safe to run again.
+    [PROVIDER_SECRETS_REENCRYPT]: {
+      cron: "15 4 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const moved = (await deps.providerSecrets?.reencrypt()) ?? 0;
+          if (moved) log(`[provider-secrets] ${moved} Provider Secret(s) re-encrypted under the newest master key`);
         }),
     },
 

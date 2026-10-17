@@ -1,5 +1,5 @@
 import type { MasterCvContent, SearchCriteria } from "@jobhub/shared";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createJobOffers, migrateJobOffers } from "@jobhub/web/job-offers";
 import { createProfiles, migrateProfiles } from "@jobhub/web/profiles";
 import { createApplications, migrateApplications } from "../../web/src/applications";
@@ -11,7 +11,7 @@ import { createThrowawayDatabase } from "../../web/src/test-support/throwaway-da
 import { JobDiscoveryError, type DiscoverRequest, type DiscoveryReport } from "./job-discovery";
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
 import type { DueJobDigest, JobDigestResult } from "@jobhub/web/job-digests";
-import { BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, createJobs, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -349,6 +349,28 @@ describe("the worker without an AI layer", () => {
   });
 });
 
+describe("Job discovery asked for on each job (#208)", () => {
+  it("runs once its keys appear, without a restart: the getter is asked again on each job", async () => {
+    const logs: string[] = [];
+    let current: Exclude<JobsDeps["discovery"], () => unknown> = { unavailable: "Missing environment variable MISTRAL_API_KEY" };
+    const discover = vi.fn(async () => ({ jobOffers: [], skipped: [], funnel: { providerUrls: 0, pagesRead: 0, extracted: 0 }, costEur: 0, franceTravail: { status: "off", offers: 0, calls: 0 } }));
+    const jobs = createJobs({
+      ...otherDeps,
+      database: noDatabase,
+      discovery: () => current,
+      profiles: { get: async () => ({ archived: false, searchCriteria: criteria, masterCv: { content: masterCv } }) },
+      log: (line) => logs.push(line),
+    });
+
+    await jobs[JOB_DISCOVERY]!.handler({ candidateId: "candidate-1", profileId: "profile-1" });
+    current = { discover } as never;
+    await jobs[JOB_DISCOVERY]!.handler({ candidateId: "candidate-1", profileId: "profile-1" });
+
+    expect(logs[0]).toContain("skipped, Job discovery is unavailable (Missing environment variable MISTRAL_API_KEY)");
+    expect(discover).toHaveBeenCalledTimes(1);
+  });
+});
+
 const otherDeps = {
   discovery: { unavailable: "not under test" },
   profiles: { get: async () => null },
@@ -368,6 +390,27 @@ describe("the Follow-ups job", () => {
     expect(job?.cron).toBe("0 6 * * 1-5");
     await job!.handler({});
     expect(runs).toEqual([now]);
+  });
+});
+
+describe("the Provider Secrets re-encryption job", () => {
+  it("re-encrypts, every night and when asked, the Provider Secrets not under the newest master key, saying how many", async () => {
+    const logs: string[] = [];
+    const reencrypt = vi.fn(async () => 2);
+    const job = createJobs({ ...otherDeps, database: noDatabase, providerSecrets: { reencrypt }, log: (line) => logs.push(line) })[PROVIDER_SECRETS_REENCRYPT]!;
+
+    expect(job.cron).toBe("15 4 * * *");
+    await job.handler({});
+
+    expect(reencrypt).toHaveBeenCalledTimes(1);
+    expect(logs).toEqual(["[provider-secrets] 2 Provider Secret(s) re-encrypted under the newest master key"]);
+  });
+
+  it("does nothing without Provider Secrets, or before the web app has created their table", async () => {
+    await expect(createJobs({ ...otherDeps, database: noDatabase })[PROVIDER_SECRETS_REENCRYPT]!.handler({})).resolves.toBeUndefined();
+    const missingTable = Object.assign(new Error("relation does not exist"), { code: "42P01" });
+    const reencrypt = vi.fn(async () => Promise.reject(missingTable));
+    await expect(createJobs({ ...otherDeps, database: noDatabase, providerSecrets: { reencrypt } })[PROVIDER_SECRETS_REENCRYPT]!.handler({})).resolves.toBeUndefined();
   });
 });
 

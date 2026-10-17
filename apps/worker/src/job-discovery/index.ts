@@ -103,8 +103,11 @@ export interface JobDiscoveryOptions {
   budget?: Partial<JobDiscoveryBudget>;
   /** For waiting out robots.txt Crawl-delay and timing the budget. Default: real time. */
   clock?: Clock;
-  /** France Travail's offers, searched first. Default: none (its status is then `off`). */
-  franceTravail?: FranceTravail | null;
+  /**
+   * France Travail's offers, searched first. Default: none (its status is then `off`).
+   * A getter is asked on each run: the worker's follows its Provider Secrets (#208).
+   */
+  franceTravail?: FranceTravail | null | (() => FranceTravail | null);
   /**
    * The Job discovery sources and sites Administrators set in the Back Office, read at the start
    * of each run. Default, and when it throws: every source on, no site listed.
@@ -205,7 +208,8 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
     async discover({ candidateId, criteria }) {
       const startedAt = clock.now();
       const settings = await readSettings(options.settings);
-      const franceTravail = settings.sources.france_travail ? options.franceTravail : null;
+      const configuredFranceTravail = typeof options.franceTravail === "function" ? options.franceTravail() : options.franceTravail;
+      const franceTravail = settings.sources.france_travail ? configuredFranceTravail : null;
       /** Job discovery sites searched on purpose; a forbidden site never is, whatever the settings say. */
       const searchedSites = settings.sites.filter((site) => site.enabled && !isForbiddenSite(site.domain, forbiddenSites)).map((site) => site.domain);
       const disabledSites = settings.sites.filter((site) => !site.enabled).map((site) => site.domain);

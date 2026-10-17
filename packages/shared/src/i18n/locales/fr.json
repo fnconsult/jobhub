@@ -621,6 +621,7 @@
       "planQuotas": "Quotas",
       "humanCoaches": "Coachs",
       "coachCost": "Coût coach",
+      "providerSecrets": "Clés",
       "searchSites": "Sites de recherche",
       "administrators": "Administrateurs",
       "journal": "Journal"
@@ -731,6 +732,60 @@
         "siteExists": "Ce site est déjà dans la liste.",
         "siteForbidden": "Ce site interdit l'exploration dans ses conditions d'utilisation : il ne peut pas être ajouté ni activé.",
         "notFound": "Cet élément n'existe plus. La page a été actualisée."
+        }
+      },
+    "providerSecrets": {
+      "title": "Clés des fournisseurs",
+      "intro": "Les clés des services tiers (IA, France Travail, enrichissement de contacts, Stripe, e-mail). Une clé saisie ici est chiffrée et remplace celle de l'environnement en moins d'une minute, sans redéploiement. Une clé saisie n'est jamais réaffichée : seuls ses 4 derniers caractères le sont.",
+      "caption": "Clés des fournisseurs et leur source",
+      "key": "Clé",
+      "source": "Source",
+      "fingerprint": "Fin de la clé",
+      "changed": "Dernière modification",
+      "sources": {
+        "database": "Back office",
+        "env": "Environnement (repli)",
+        "missing": "Absente",
+        "unreadable": "Illisible : l'environnement prend le relais"
+      },
+      "missingHelp": "Absente partout : les fonctions qui en dépendent restent désactivées.",
+      "unreadableHelp": "La valeur enregistrée ne se déchiffre pas (clé maîtresse retirée ou ligne altérée). Remplacez-la ou effacez-la.",
+      "noFingerprint": "—",
+      "changedBy": "{{email}}, {{at}}",
+      "never": "—",
+      "providers": {
+        "mistral": "Mistral",
+        "perplexity": "Perplexity",
+        "bedrock": "AWS Bedrock",
+        "france-travail": "France Travail",
+        "lusha": "Lusha",
+        "kaspr": "Kaspr",
+        "apollo": "Apollo",
+        "stripe": "Stripe",
+        "brevo": "Brevo (SMTP)"
+      },
+      "replaceLegend": "Remplacer {{name}}",
+      "newValue": "Nouvelle valeur de {{name}}",
+      "newValueHelp": "Collée ici, elle est testée auprès du fournisseur puis chiffrée. Elle ne sera plus jamais affichée.",
+      "saveAnyway": "Enregistrer même si le test de connexion échoue",
+      "saveAnywayHelp": "Ce choix est inscrit au journal.",
+      "replace": "Tester et enregistrer {{name}}",
+      "clear": "Effacer {{name}} (revenir à l'environnement)",
+      "test": "Tester {{name}}",
+      "noMasterKey": "Enregistrement désactivé : SECRETS_MASTER_KEYS n'est pas défini sur ce serveur. Les clés viennent uniquement de l'environnement.",
+      "keyVersions": "Clés enregistrées chiffrées avec la clé maîtresse : {{versions}} (active : {{active}}).",
+      "saved": "{{name}} remplacée : le test de connexion a réussi.",
+      "savedUntested": "{{name}} remplacée malgré l'échec du test de connexion. C'est inscrit au journal.",
+      "cleared": "{{name}} effacée : la valeur de l'environnement est de nouveau utilisée.",
+      "testPassed": "{{name}} : le test de connexion a réussi.",
+      "testFailed": "{{name}} : le test de connexion a échoué.",
+      "status": "Réponse du fournisseur : HTTP {{status}}.",
+      "errors": {
+        "test_failed": "{{name}} n'a pas été enregistrée : le fournisseur a refusé la clé. Vérifiez-la, ou cochez « Enregistrer même si le test de connexion échoue ».",
+        "empty": "Saisissez une valeur.",
+        "too_long": "Cette valeur est trop longue.",
+        "unknown_secret": "Clé inconnue.",
+        "no_master_key": "Enregistrement désactivé : SECRETS_MASTER_KEYS n'est pas défini."
       }
     },
     "administrators": {
@@ -774,7 +829,7 @@
         "roles": "Rôles",
         "plan_quotas": "Quotas des offres",
         "human_coaches": "Coachs humains",
-        "provider_secrets": "Secrets des fournisseurs",
+        "provider_secrets": "Clés des fournisseurs",
         "job_discovery_sources": "Sources de la recherche d'offres",
         "job_discovery_sites": "Sites de la recherche d'offres",
         "job_sites": "Sites de l'extension"
@@ -784,7 +839,9 @@
         "updated": "Modification",
         "retired": "Retrait",
         "removed": "Suppression",
-        "replaced": "Remplacement"
+        "replaced": "Remplacement",
+        "replaced_despite_failed_test": "Remplacement malgré un test échoué",
+        "cleared": "Effacement"
       },
       "none": "Aucune modification enregistrée.",
       "caption": "Modifications du back office, des plus récentes aux plus anciennes",
@@ -799,7 +856,11 @@
       "changed": "{{field}} : {{before}} → {{after}}",
       "set": "{{field}} : {{after}}",
       "removed": "{{field}} : {{before}} (retiré)",
-      "secretReplaced": "Valeur remplacée (jamais enregistrée)",
+      "secret": {
+        "replaced": "Valeur remplacée (jamais enregistrée)",
+        "replaced_despite_failed_test": "Valeur remplacée malgré un test de connexion échoué (jamais enregistrée)",
+        "cleared": "Valeur effacée : la variable d'environnement reprend le relais"
+      },
       "unchanged": "Aucune valeur changée",
       "unlimited": "illimité",
       "empty": "vide",

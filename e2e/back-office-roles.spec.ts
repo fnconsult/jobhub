@@ -21,6 +21,7 @@ const SECTIONS = {
   planQuotas: "/admin/quotas",
   humanCoaches: "/admin/coachs",
   coachCost: "/admin/cout-coach",
+  providerSecrets: "/admin/cles",
   searchSites: "/admin/sites",
   administrators: "/admin/administrateurs",
   journal: "/admin/journal",
@@ -91,11 +92,11 @@ async function submitAs(page: Page, formPage: Page, path: string, buttonName: st
 test.describe("Back Office Roles", () => {
   test("an ADMIN_EMAILS member is a permanent super-admin: every section, marked permanent, never revocable", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
-    await expectSections(page, ["planQuotas", "humanCoaches", "coachCost", "searchSites", "administrators", "journal"]);
+    await expectSections(page, ["planQuotas", "humanCoaches", "coachCost", "providerSecrets", "searchSites", "administrators", "journal"]);
 
     await page.goto(SECTIONS.administrators);
     await expect(page).toHaveTitle(`${admin.administrators.title} · ${admin.title}`);
-    // The sidebar names its groups; Plateforme holds the search sites.
+    // The sidebar names its groups; Plateforme holds Provider Secrets (Clés, #208) and the search sites.
     for (const group of ["offer", "coaching", "platform", "team"]) await expect(backOfficeNav(page).getByRole("heading", { name: admin.nav.groups[group] })).toBeVisible();
     await expect(backOfficeNav(page).getByRole("link", { name: admin.sections.administrators })).toHaveAttribute("aria-current", "page");
 

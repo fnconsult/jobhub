@@ -196,6 +196,17 @@ describe("Mistral provider", () => {
     const provider = createMistralProvider({ apiKey: "bad", fetch });
     await expect(provider.generate!(textInput)).rejects.toMatchObject({ name: "AiProviderError", provider: "mistral", status: 401 });
   });
+
+  it("keeps its key out of the error, even when Mistral echoes it back (#208)", async () => {
+    const key = "mistral-key-0123456789";
+    const { fetch } = fakeFetch({ message: `Invalid API key ${key} (mist…6789)` }, 401);
+
+    const error = await createMistralProvider({ apiKey: key, fetch }).generate!(textInput).catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({ name: "AiProviderError", status: 401 });
+    expect(String((error as Error).message)).not.toMatch(/0123456789|mist…6789/);
+    expect((error as Error).message).toContain("Invalid API key");
+  });
 });
 
 describe("chat-completions providers", () => {

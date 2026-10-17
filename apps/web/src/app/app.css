@@ -1989,3 +1989,22 @@ textarea.title-edit {
   grid-column: 2;
   margin: 0;
 }
+
+/* The Clés page (#208): each key's Test and Clear buttons, and one folded replace form per key. */
+.provider-secret-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.provider-secrets code {
+  overflow-wrap: anywhere;
+}
+
+.provider-secret-replace summary {
+  min-height: var(--control-height);
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  cursor: pointer;
+}

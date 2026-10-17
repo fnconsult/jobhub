@@ -39,10 +39,20 @@ export type BackOfficeSection = (typeof BACK_OFFICE_SECTIONS)[number];
 export const isBackOfficeSection = (value: unknown): value is BackOfficeSection => BACK_OFFICE_SECTIONS.includes(value as BackOfficeSection);
 
 /**
- * What was done to the target. `retired` keeps its history (a Human Coach), `removed`
- * deletes it (a search site). `replaced` is for secrets: their values are never recorded.
+ * What can be done to a secret (a Provider Secret): replaced, replaced although its
+ * connection test failed ("save anyway"), or cleared (back to env). Its value is never
+ * recorded, before or after.
  */
-export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | "replaced";
+export const SECRET_ACTIONS = ["replaced", "replaced_despite_failed_test", "cleared"] as const;
+export type SecretAction = (typeof SECRET_ACTIONS)[number];
+
+/**
+ * What was done to the target. `retired` keeps its history (a Human Coach), `removed`
+ * deletes it (a search site).
+ */
+export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | SecretAction;
+
+export const isSecretAction = (action: BackOfficeAction): action is SecretAction => SECRET_ACTIONS.includes(action as SecretAction);
 
 /** A value as recorded: what JSON can hold. */
 export type Recorded = string | number | boolean | null | Recorded[] | { [key: string]: Recorded };
@@ -53,9 +63,9 @@ export type BackOfficeChange = {
   /** What was changed: a Plan, a Human Coach's email, an Administrator's email... */
   target: string;
 } & (
-  | { action: Exclude<BackOfficeAction, "replaced">; before: Recorded; after: Recorded }
-  /** A secret was replaced: no value is recorded, before or after. */
-  | { action: "replaced" }
+  | { action: Exclude<BackOfficeAction, SecretAction>; before: Recorded; after: Recorded }
+  /** A secret was replaced or cleared: no value is recorded, before or after. */
+  | { action: SecretAction }
 );
 
 /** The Administrator making a change, as signed in. */
@@ -74,9 +84,9 @@ export interface BackOfficeAuditEntry {
   section: BackOfficeSection;
   target: string;
   action: BackOfficeAction;
-  /** Null when there was nothing before (added), and for a replaced secret. */
+  /** Null when there was nothing before (added), and for a secret. */
   before: Recorded;
-  /** Null when there is nothing after (retired, removed), and for a replaced secret. */
+  /** Null when there is nothing after (retired, removed), and for a secret. */
   after: Recorded;
 }
 
@@ -139,7 +149,7 @@ export function createBackOffice(database: Pool, deps: BackOfficeDeps): BackOffi
       const result = await write(client);
       const change = changeOf(result);
       if (change) {
-        const replaced = change.action === "replaced";
+        const secret = isSecretAction(change.action);
         await client.query(
           `INSERT INTO back_office_audit (candidate_id, actor_email, section, target, action, before, after)
            VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)`,
@@ -149,8 +159,8 @@ export function createBackOffice(database: Pool, deps: BackOfficeDeps): BackOffi
             change.section,
             change.target,
             change.action,
-            replaced ? null : json(change.before),
-            replaced ? null : json(change.after),
+            secret || !("before" in change) ? null : json(change.before),
+            secret || !("after" in change) ? null : json(change.after),
           ],
         );
       }

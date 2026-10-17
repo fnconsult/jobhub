@@ -621,6 +621,7 @@
       "planQuotas": "Quotas",
       "humanCoaches": "Coaches",
       "coachCost": "Coach cost",
+      "providerSecrets": "Keys",
       "searchSites": "Search sites",
       "administrators": "Administrators",
       "journal": "Journal"
@@ -731,6 +732,60 @@
         "siteExists": "This site is already in the list.",
         "siteForbidden": "This site forbids crawling in its terms of use: it cannot be added or enabled.",
         "notFound": "This item no longer exists. The page has been refreshed."
+        }
+      },
+    "providerSecrets": {
+      "title": "Provider keys",
+      "intro": "The keys of third-party services (AI, France Travail, contact enrichment, Stripe, email). A key entered here is encrypted and replaces the environment's within a minute, with no deployment. A key entered is never shown again: only its last 4 characters are.",
+      "caption": "Provider keys and their source",
+      "key": "Key",
+      "source": "Source",
+      "fingerprint": "Ends with",
+      "changed": "Last changed",
+      "sources": {
+        "database": "Back office",
+        "env": "Environment (fallback)",
+        "missing": "Missing",
+        "unreadable": "Unreadable: the environment stands in"
+      },
+      "missingHelp": "Missing everywhere: the features that need it stay off.",
+      "unreadableHelp": "The saved value does not decrypt (master key removed or row tampered with). Replace or clear it.",
+      "noFingerprint": "—",
+      "changedBy": "{{email}}, {{at}}",
+      "never": "—",
+      "providers": {
+        "mistral": "Mistral",
+        "perplexity": "Perplexity",
+        "bedrock": "AWS Bedrock",
+        "france-travail": "France Travail",
+        "lusha": "Lusha",
+        "kaspr": "Kaspr",
+        "apollo": "Apollo",
+        "stripe": "Stripe",
+        "brevo": "Brevo (SMTP)"
+      },
+      "replaceLegend": "Replace {{name}}",
+      "newValue": "New value of {{name}}",
+      "newValueHelp": "Pasted here, it is tested with the provider, then encrypted. It will never be shown again.",
+      "saveAnyway": "Save even if the connection test fails",
+      "saveAnywayHelp": "This choice is recorded in the journal.",
+      "replace": "Test and save {{name}}",
+      "clear": "Clear {{name}} (back to the environment)",
+      "test": "Test {{name}}",
+      "noMasterKey": "Saving is off: SECRETS_MASTER_KEYS is not set on this server. Keys come from the environment only.",
+      "keyVersions": "Saved keys are encrypted with master key: {{versions}} (active: {{active}}).",
+      "saved": "{{name}} replaced: the connection test passed.",
+      "savedUntested": "{{name}} replaced although the connection test failed. This is recorded in the journal.",
+      "cleared": "{{name}} cleared: the environment's value is used again.",
+      "testPassed": "{{name}}: the connection test passed.",
+      "testFailed": "{{name}}: the connection test failed.",
+      "status": "Provider answer: HTTP {{status}}.",
+      "errors": {
+        "test_failed": "{{name}} was not saved: the provider refused the key. Check it, or tick “Save even if the connection test fails”.",
+        "empty": "Enter a value.",
+        "too_long": "This value is too long.",
+        "unknown_secret": "Unknown key.",
+        "no_master_key": "Saving is off: SECRETS_MASTER_KEYS is not set."
       }
     },
     "administrators": {
@@ -774,7 +829,7 @@
         "roles": "Roles",
         "plan_quotas": "Plan Quotas",
         "human_coaches": "Human Coaches",
-        "provider_secrets": "Provider secrets",
+        "provider_secrets": "Provider keys",
         "job_discovery_sources": "Job discovery sources",
         "job_discovery_sites": "Job discovery sites",
         "job_sites": "Extension sites"
@@ -784,7 +839,9 @@
         "updated": "Changed",
         "retired": "Retired",
         "removed": "Removed",
-        "replaced": "Replaced"
+        "replaced": "Replaced",
+        "replaced_despite_failed_test": "Replaced despite a failed test",
+        "cleared": "Cleared"
       },
       "none": "No change recorded.",
       "caption": "Back office changes, newest first",
@@ -799,7 +856,11 @@
       "changed": "{{field}}: {{before}} → {{after}}",
       "set": "{{field}}: {{after}}",
       "removed": "{{field}}: {{before}} (removed)",
-      "secretReplaced": "Value replaced (never recorded)",
+      "secret": {
+        "replaced": "Value replaced (never recorded)",
+        "replaced_despite_failed_test": "Value replaced although its connection test failed (never recorded)",
+        "cleared": "Value cleared: the environment variable is used again"
+      },
       "unchanged": "No value changed",
       "unlimited": "unlimited",
       "empty": "empty",

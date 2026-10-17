@@ -1,6 +1,7 @@
 import type { Pool } from "pg";
 import { secretCipherFromEnv } from "./cipher";
-import { listenForProviderSecretChanges, providerSecretsReader, type ProviderSecretsReader } from "./index";
+import { listenForNotifications } from "../database/listen";
+import { PROVIDER_SECRETS_CHANNEL, providerSecretsReader, type ProviderSecretsReader } from "./index";
 import { createSecretResolver, TTL_MS, type SecretResolver } from "./resolver";
 
 type Env = Record<string, string | undefined>;
@@ -30,7 +31,7 @@ export function watchProviderSecrets(options: { database: Pool; env: Env; log?: 
   const ready = (async () => {
     await resolver.refresh();
     // Never throws: it keeps trying to listen, the TTL refresh standing in meanwhile.
-    stopListening = await listenForProviderSecretChanges(options.database, () => void resolver.refresh(), { log });
+    stopListening = await listenForNotifications(options.database, PROVIDER_SECRETS_CHANNEL, () => void resolver.refresh(), { log });
   })();
   return {
     resolver,

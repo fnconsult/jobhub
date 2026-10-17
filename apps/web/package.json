@@ -7,6 +7,7 @@
     "./root-env": "./src/env/root-env.ts",
     "./billing": "./src/billing/index.ts",
     "./back-office": "./src/admin/back-office.ts",
+    "./back-office-assistant": "./src/back-office-assistant/conversations.ts",
     "./job-offers": "./src/job-offers/index.ts",
     "./profiles": "./src/profiles/index.ts",
     "./job-searches": "./src/job-searches/index.ts",
@@ -18,7 +19,9 @@
     "./eu-ai-consent": "./src/eu-ai-consent/index.ts",
     "./search-sites": "./src/search-sites/index.ts",
     "./mailers": "./src/auth/mailers.ts",
-    "./provider-secrets": "./src/provider-secrets/worker.ts"
+    "./provider-secrets": "./src/provider-secrets/worker.ts",
+    "./sign-in-providers": "./src/sign-in-providers/worker.ts",
+    "./administrators": "./src/admin/worker.ts"
   },
   "scripts": {
     "dev": "next dev",

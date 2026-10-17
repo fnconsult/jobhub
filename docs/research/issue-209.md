@@ -1,0 +1,20 @@
+# Research for issue #209: Sign-in Providers configured from the Back Office
+
+Scope: only the external facts #209 needs beyond `docs/research/issue-199.md` (branch `research/runtime-sso-providers`), which already covers runtime loading, rebuild-on-change, callback URLs, account linking and the Apple basics. Sources read 2026-10-17: installed `better-auth@1.7.7` and `@better-auth/core` dist (`node_modules/@better-auth/core/dist/social-providers/`). Where docs and 1.7.7 source differ, the source wins.
+
+## Findings
+
+1. **Microsoft is `socialProviders.microsoft`, not `microsoft-entra-id`.** The file is `microsoft-entra-id.mjs`, but it exports `microsoft` and its provider id is `"microsoft"` (`social-providers/index.mjs:48`, `microsoft-entra-id.mjs`). The callback URL is therefore `/api/auth/callback/microsoft`. This corrects the key name given in #199 finding 1.
+2. **Microsoft options that matter for the form.** `clientId`, `clientSecret`, `tenantId` (default `common`), optional `authority` (default `https://login.microsoftonline.com`). `tenantId` may be `common`, `organizations`, `consumers`, or a specific tenant id/domain. Default scopes: `openid profile email User.Read offline_access`. The issuer is only checked for a specific tenant; for the multi-tenant values the provider checks the `tid` claim itself and rejects personal accounts for `organizations` and work accounts for `consumers`.
+3. **Microsoft account identity is the `oid` claim**, and sign-in fails if `oid` is missing (`accountSubject`, `getUserInfo`).
+4. **Microsoft email trust.** `emailVerified` is `email_verified` if present; otherwise true only when the email is in `verified_primary_email` / `verified_secondary_email`. Entra ID tokens usually omit `email_verified`, so implicit linking for Microsoft depends on listing it in `trustedProviders`, which the issue does (on for Microsoft). Consequence for the spec: with `tenantId: common`, any tenant admin can set an arbitrary `email` on a tenant account, so trusted linking on `common` is an account-takeover risk; prefer `consumers` or a fixed tenant, or leave trust off. Reasoned from the Microsoft email-claim caveat the source cites, not tested.
+5. **Apple client secret is user-supplied JWT.** The `apple` provider takes `clientId` (Service ID), `clientSecret`, optional `appBundleIdentifier`/`audience`, and throws `CLIENT_ID_AND_SECRET_REQUIRED` if either is empty. Better Auth does not generate the ES256 JWT; the worker must (Team ID as `iss`, Key ID as `kid`, Service ID as `sub`, audience `https://appleid.apple.com`, max 6 months per Apple). Rebuild the instance after rotating it (#199 finding 5).
+6. **Apple flow details in source.** Authorization uses `responseMode: "form_post"` and `responseType: "code id_token"`, default scopes `email name`, ID token issuer `https://appleid.apple.com`, `maxTokenAge: 1h`. The form POST comes from `appleid.apple.com`, hence the `trustedOrigins` entry in the issue.
+7. **Apple email and name.** `emailVerified` comes from `email_verified` (boolean or the string `"true"`). The name is only available from the first authorization's `user` payload. Private-relay addresses (`@privaterelay.appleid.com`) never match an existing Candidate's email, so the "always a separate account" rule falls out naturally; no code is needed to enforce it, but a test should pin it.
+8. **Generic OIDC.** Per #199 finding 2, `genericOAuth` entries are resolved at instance init (discovery from the issuer/discovery URL), and the callback is `/api/auth/oauth2/callback/{providerId}` per the issue. Discovery failing at init for one bad row must not stop the instance from building: the loader should skip and report that row.
+
+## Not verified
+
+- Apple's own developer pages (client-secret claims, 6-month cap, private relay, `form_post`) were not read; items 5 and 7 rely on the Better Auth source and docs as summarised in #199.
+- Microsoft Learn pages were not fetched; item 4's `email` caveat is from the code comments' reference, not read directly.
+- Exact `genericOAuth` callback path in 1.7.7 was taken from the issue and #199, not re-read here.

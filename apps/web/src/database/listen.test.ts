@@ -1,7 +1,9 @@
 import { EventEmitter } from "node:events";
 import type { Pool } from "pg";
 import { describe, expect, it, vi } from "vitest";
-import { listenForProviderSecretChanges, PROVIDER_SECRETS_CHANNEL } from "./index";
+import { listenForNotifications } from "./listen";
+
+const CHANNEL = "something_changed";
 
 /** A pooled connection the test drives: LISTEN may fail, the connection may drop. */
 class FakeClient extends EventEmitter {
@@ -17,7 +19,7 @@ class FakeClient extends EventEmitter {
     this.released.push(error ?? "released");
   }
   notify() {
-    this.emit("notification", { channel: PROVIDER_SECRETS_CHANNEL, payload: "" });
+    this.emit("notification", { channel: CHANNEL, payload: "" });
   }
 }
 
@@ -38,7 +40,7 @@ describe("listening for Provider Secret changes (NOTIFY)", () => {
   it("hears a change", async () => {
     const client = new FakeClient();
     const heard = vi.fn();
-    const stop = await listenForProviderSecretChanges(fakePool([client]).pool, heard, quiet);
+    const stop = await listenForNotifications(fakePool([client]).pool, CHANNEL, heard, quiet);
 
     client.notify();
 
@@ -53,7 +55,7 @@ describe("listening for Provider Secret changes (NOTIFY)", () => {
     const { pool, connect } = fakePool([new Error("too many clients"), refusing, listening]);
     const heard = vi.fn();
 
-    const stop = await listenForProviderSecretChanges(pool, heard, quiet);
+    const stop = await listenForNotifications(pool, CHANNEL, heard, quiet);
 
     await vi.waitFor(() => expect(connect).toHaveBeenCalledTimes(3));
     expect(refusing.released).toEqual([expect.any(Error)]);
@@ -69,7 +71,7 @@ describe("listening for Provider Secret changes (NOTIFY)", () => {
     const last = new FakeClient();
     const { pool, connect } = fakePool([first, new Error("down"), new Error("still down"), last]);
     const heard = vi.fn();
-    const stop = await listenForProviderSecretChanges(pool, heard, quiet);
+    const stop = await listenForNotifications(pool, CHANNEL, heard, quiet);
 
     first.emit("error", new Error("connection terminated"));
 
@@ -84,7 +86,7 @@ describe("listening for Provider Secret changes (NOTIFY)", () => {
   it("stops trying once stopped", async () => {
     const { pool, connect } = fakePool([new Error("down"), new Error("down"), new Error("down"), new Error("down")]);
 
-    const stop = await listenForProviderSecretChanges(pool, vi.fn(), quiet);
+    const stop = await listenForNotifications(pool, CHANNEL, vi.fn(), quiet);
     await stop();
     const tries = connect.mock.calls.length;
     await new Promise((resolve) => setTimeout(resolve, 60));

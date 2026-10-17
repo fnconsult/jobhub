@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createBackOffice, migrateBackOfficeAudit, type BackOffice, type BackOfficeActor } from "../admin/back-office";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { secretCipherFromEnv } from "./cipher";
-import { createProviderSecrets, listenForProviderSecretChanges, migrateProviderSecrets, type ConnectionTester, type ProviderSecrets } from "./index";
+import { listenForNotifications } from "../database/listen";
+import { createProviderSecrets, migrateProviderSecrets, PROVIDER_SECRETS_CHANNEL, type ConnectionTester, type ProviderSecrets } from "./index";
 
 const masterKey = () => `${randomBytes(32).toString("base64")}`;
 const VALUE = "mistral-key-from-the-back-office-7f3a";
@@ -182,7 +183,7 @@ describe.skipIf(!connectionString)("Provider Secrets, encrypted in the database 
 
   it("tells every listener, web and worker, once a change is committed", async () => {
     const heard = vi.fn();
-    const stop = await listenForProviderSecretChanges(database, heard);
+    const stop = await listenForNotifications(database, PROVIDER_SECRETS_CHANNEL, heard);
     try {
       await secrets.replace(claire, "MISTRAL_API_KEY", VALUE, { saveAnyway: false });
       await vi.waitFor(() => expect(heard).toHaveBeenCalledTimes(1));

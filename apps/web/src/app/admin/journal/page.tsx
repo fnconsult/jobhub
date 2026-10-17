@@ -27,6 +27,20 @@ type HumanCoachField = (typeof HUMAN_COACH_FIELDS)[number];
 
 /** The sections recording the sites Jobbbox searches: their entries hold `enabled` and, for Job Sites, `postingPages`. */
 const SEARCH_SITES_SECTIONS: readonly BackOfficeSection[] = ["job_discovery_sources", "job_discovery_sites", "job_sites"];
+/** A Sign-in Provider's recorded fields, by the Connexion page's label for each. */
+const SIGN_IN_PROVIDER_FIELDS = {
+  type: "type",
+  displayName: "displayName",
+  clientId: "clientId",
+  discoveryUrl: "discoveryUrl",
+  tenantId: "tenantId",
+  appBundleIdentifier: "appBundleIdentifier",
+  enabled: "enabledLabel",
+  shownToCandidates: "shownToCandidatesLabel",
+  allowedForAdministrators: "allowedForAdministratorsLabel",
+  trustedForLinking: "trustedLabel",
+  secretsReplaced: "secrets",
+} as const;
 
 /** `aria-current` of the link to the section being shown. */
 const CURRENT = "page";
@@ -58,6 +72,9 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     if (entrySection === "roles" && field === "roles") return t("admin.administrators.roles");
     if (SEARCH_SITES_SECTIONS.includes(entrySection) && field === "enabled") return t("admin.searchSites.status");
     if (entrySection === "job_sites" && field === "postingPages") return t("admin.searchSites.jobSites.postingPages");
+    if (entrySection === "sign_in_providers" && field in SIGN_IN_PROVIDER_FIELDS) {
+      return t(`admin.signInProviders.${SIGN_IN_PROVIDER_FIELDS[field as keyof typeof SIGN_IN_PROVIDER_FIELDS]}`);
+    }
     if (field === "id") return t("admin.journal.id");
     return field;
   };

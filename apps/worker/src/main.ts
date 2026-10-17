@@ -7,8 +7,10 @@ import { createJobOffers } from "@jobhub/web/job-offers";
 import { createJobSearchReports } from "@jobhub/web/job-searches";
 import { mailerFromEnv } from "@jobhub/web/mailers";
 import { createProfiles } from "@jobhub/web/profiles";
-import { watchProviderSecrets } from "@jobhub/web/provider-secrets";
+import { permanentSuperAdminsFromEnv, superAdminEmails } from "@jobhub/web/administrators";
+import { secretCipherFromEnv, watchProviderSecrets } from "@jobhub/web/provider-secrets";
 import { createSearchSites } from "@jobhub/web/search-sites";
+import { appleFailureEmail, signInProvidersWorker } from "@jobhub/web/sign-in-providers";
 import { Pool } from "pg";
 import { jobDiscoveryBudgetFromEnv } from "./job-discovery";
 import { startJobRunner, type JobRunner } from "./job-runner";
@@ -86,6 +88,12 @@ const jobs = createJobs({
     ...jobDigestsConfigFromEnv(process.env),
   }),
   providerSecrets: providerSecrets.reader,
+  signInProviders: signInProvidersWorker(database, { cipher: secretCipherFromEnv(process.env), env: process.env }),
+  // Every super-admin hears of it: Apple sign-in stops once the client secret in use expires.
+  alertAppleFailure: async (failed) => {
+    const email = appleFailureEmail(failed, baseURL);
+    for (const to of await superAdminEmails(database, permanentSuperAdminsFromEnv(process.env))) await mailer.send({ to, ...email });
+  },
   enqueue: async (name, data) => {
     if (!started.runner) throw new Error("the job runner has not started yet");
     await started.runner.enqueue(name, data);

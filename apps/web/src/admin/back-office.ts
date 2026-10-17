@@ -30,6 +30,7 @@ export const BACK_OFFICE_SECTIONS = [
   "plan_quotas",
   "human_coaches",
   "provider_secrets",
+  "sign_in_providers",
   "job_discovery_sources",
   "job_discovery_sites",
   "job_sites",
@@ -50,7 +51,7 @@ export type SecretAction = (typeof SECRET_ACTIONS)[number];
  * What was done to the target. `retired` keeps its history (a Human Coach), `removed`
  * deletes it (a search site).
  */
-export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | SecretAction;
+export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | "tested" | SecretAction;
 
 export const isSecretAction = (action: BackOfficeAction): action is SecretAction => SECRET_ACTIONS.includes(action as SecretAction);
 

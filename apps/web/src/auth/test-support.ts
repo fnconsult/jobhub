@@ -1,5 +1,6 @@
 import { createThrowawayDatabase } from "../test-support/throwaway-database";
-import { createAuth, migrateCandidateAccounts, type AuthConfig, type MailMessage } from "./index";
+import type { SignInProvider } from "../sign-in-providers/catalog";
+import { createAuth, migrateCandidateAccounts, type AuthConfig, type MailMessage, type SignInSetup } from "./index";
 
 export const connectionString = process.env.DATABASE_URL;
 export const BASE_URL = "http://localhost:3000";
@@ -25,24 +26,32 @@ export async function startTestAuth(overrides: Partial<AuthConfig> = {}) {
   await migrateCandidateAccounts(config);
   const auth = createAuth(config);
 
-  return {
-    auth,
-    database,
-    mailbox,
-    /** Sends a request to the auth HTTP handler, as the browser would. */
-    request(path: string, init: { method?: string; body?: unknown; cookie?: string; origin?: string } = {}) {
+  /** Sends a request to `instance`'s auth HTTP handler, as the browser would. */
+  const requestTo =
+    (instance: ReturnType<typeof createAuth>) =>
+    (path: string, init: { method?: string; body?: unknown; cookie?: string; origin?: string } = {}) => {
       const headers = new Headers();
       if (init.body !== undefined) headers.set("content-type", "application/json");
       if (init.cookie) headers.set("cookie", init.cookie);
       headers.set("origin", init.origin ?? BASE_URL);
-      return auth.handler(
+      return instance.handler(
         new Request(new URL(path, BASE_URL), {
           method: init.method ?? (init.body === undefined ? "GET" : "POST"),
           headers,
           body: init.body === undefined ? undefined : JSON.stringify(init.body),
         }),
       );
-    },
+    };
+
+  return {
+    auth,
+    /** What the instance was built with: to build another over the same tables (a rebuilt sign-in). */
+    config,
+    database,
+    mailbox,
+    /** Sends a request to the auth HTTP handler, as the browser would. */
+    request: requestTo(auth),
+    requestTo,
     async stop() {
       await throwaway.drop();
     },
@@ -50,6 +59,23 @@ export async function startTestAuth(overrides: Partial<AuthConfig> = {}) {
 }
 
 export type TestAuth = Awaited<ReturnType<typeof startTestAuth>>;
+
+/** A Sign-in Provider for a test: enabled, shown to Candidates, allowed for Administrators and trusted for linking unless said otherwise. */
+export function testProvider(overrides: Partial<SignInProvider> & Pick<SignInProvider, "id" | "type" | "clientId" | "clientSecret">): SignInProvider {
+  return { displayName: overrides.id, enabled: true, shownToCandidates: true, allowedForAdministrators: true, trustedForLinking: true, ...overrides };
+}
+
+/** The sign-in an instance is built with in a test: `providers`, and the Administrators' emails. */
+export function testSignIn(
+  providers: SignInProvider[],
+  options: { administrators?: string[]; completeTestSignIn?: (providerId: string, nonce: string) => Promise<boolean> } = {},
+): SignInSetup {
+  return {
+    configuration: { providers, requireSsoForAdministrators: false, version: JSON.stringify(providers.map((provider) => provider.id)) },
+    isAdministrator: async (person) => (options.administrators ?? []).includes(person.email.toLowerCase()),
+    completeTestSignIn: options.completeTestSignIn ?? (async () => false),
+  };
+}
 
 /** The sign-in link inside an email body. */
 export function linkIn(message: MailMessage | undefined): string {

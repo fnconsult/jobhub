@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeDiscountLabel, couponTermsLabel } from "./coupon-label";
+import { activeDiscountLabel, couponDiscountLabel, couponTermsLabel } from "./coupon-label";
 
 /** Intl puts (narrow) no-break spaces in amounts; compare them as plain spaces. */
 const plain = (label: string) => label.replace(/\s/g, " ");
@@ -17,6 +17,11 @@ describe("Coupon labels", () => {
     expect(couponTermsLabel({ discount: { percentOff: 50 }, duration: { months: 1 } }, "en")).toBe("50% off for 1 month");
     expect(couponTermsLabel({ discount: { amountOff: 500, currency: "eur" }, duration: "once" }, "en")).toBe("€5 off the first payment");
     expect(couponTermsLabel({ discount: { percentOff: 100 }, duration: "forever" }, "en")).toBe("100% off for as long as the subscription lasts");
+  });
+
+  it("reads a discount alone", () => {
+    expect(plain(couponDiscountLabel({ percentOff: 50 }, "fr"))).toBe("−50 %");
+    expect(couponDiscountLabel({ amountOff: 450, currency: "eur" }, "en")).toBe("€4.50 off");
   });
 
   it("tells the Candidate the discount their subscription is getting, and until when, in French time", () => {

@@ -591,7 +591,12 @@
       "unavailable": "Le paiement en ligne n'est pas disponible pour le moment. Réessayez plus tard.",
       "error": "Une erreur est survenue. Veuillez réessayer.",
       "redirecting": "Redirection vers la page de paiement…",
-      "price": "Prix"
+      "price": "Prix",
+      "codeValid": "Code {{code}} : {{terms}}, valable sur {{plans}}. Il s'appliquera au paiement.",
+      "codeValidAll": "Code {{code}} : {{terms}}. Il s'appliquera au paiement.",
+      "codeInvalid": "Ce code promo n'est pas valable : il est inconnu, expiré ou n'est plus actif. Vous pouvez tout de même choisir une offre, sans réduction.",
+      "codeUnchecked": "Ce code promo n'a pas pu être vérifié pour le moment. Vous pourrez le saisir au paiement.",
+      "codeElsewhere": "Vous avez déjà une offre payante : un code promo ne s'applique qu'à un nouvel abonnement."
     },
     "quotas": {
       "profiles": "Profils",
@@ -618,7 +623,10 @@
       "months_one": "−{{off}} pendant {{count}} mois",
       "months_other": "−{{off}} pendant {{count}} mois",
       "active": "Réduction en cours : {{terms}}",
-      "activeUntil": "Réduction en cours : −{{off}} jusqu'au {{date}}"
+      "activeUntil": "Réduction en cours : −{{off}} jusqu'au {{date}}",
+      "off": "−{{off}}",
+      "monthsOnly_one": "{{count}} mois",
+      "monthsOnly_other": "{{count}} mois"
     }
   },
   "admin": {
@@ -645,6 +653,7 @@
     "sections": {
       "plans": "Offres",
       "planQuotas": "Quotas",
+      "coupons": "Codes promo",
       "humanCoaches": "Coachs",
       "coachCost": "Coût coach",
       "providerSecrets": "Clés",
@@ -828,6 +837,81 @@
       "saved": "Quotas de l'offre {{plan}} enregistrés.",
       "invalid": "Vérifiez les valeurs : des nombres entiers positifs, ou vide pour illimité."
     },
+    "coupons": {
+      "title": "Codes promo",
+      "intro": "Les codes promo que les candidats saisissent au paiement d'une offre, ou reçoivent par un lien. Ils sont créés dans Stripe, qui compte leurs utilisations. Les séances de coaching ne prennent pas de code promo.",
+      "caption": "Les codes promo, du plus récent au plus ancien",
+      "unavailable": "Stripe ne répond pas : la liste des codes promo est indisponible pour le moment.",
+      "none": "Aucun code promo pour l'instant.",
+      "code": "Code",
+      "codeHelp": "Lettres, chiffres, tirets ou soulignés, 3 à 40 caractères, par exemple PRINTEMPS50. Les candidats peuvent le saisir en minuscules.",
+      "terms": "Réduction",
+      "plans": "Offres",
+      "allPlans": "toutes",
+      "expiresAt": "Expire le",
+      "noExpiry": "jamais",
+      "redemptions": "Utilisations",
+      "redemptionsOf": "{{used}} sur {{max}}",
+      "firstSubscriptionOnly": "1er abonnement seulement",
+      "statusLabel": "Statut",
+      "status": {
+        "active": "actif",
+        "inactive": "désactivé ou expiré"
+      },
+      "link": "Lien à partager",
+      "deactivate": "Désactiver le code {{code}}",
+      "deactivateHelp": "Un code désactivé ne peut plus être utilisé ; les réductions déjà accordées vont à leur terme.",
+      "createTitle": "Créer un code promo",
+      "createHelp": "Le code est créé dans Stripe, avec ses conditions ; elles ne changent plus ensuite. Pour en changer, désactivez-le et créez-en un autre.",
+      "kind": "Type de réduction",
+      "kinds": {
+        "percent": "Pourcentage",
+        "amount": "Montant en euros"
+      },
+      "value": "Valeur",
+      "valueHelp": "Un pourcentage de 1 à 100, ou un montant en euros, par exemple 5 ou 4,50. À 100 %, le candidat s'abonne sans carte ; à la fin de la période offerte, sans paiement, il revient à l'offre Gratuite.",
+      "duration": "Durée",
+      "durations": {
+        "once": "Premier paiement seulement",
+        "repeating": "Pendant un nombre de mois",
+        "forever": "Tant que l'abonnement dure"
+      },
+      "durationInMonths": "Nombre de mois",
+      "durationInMonthsHelp": "De 1 à 36, pour la durée « Pendant un nombre de mois ».",
+      "plansHelp": "Le code ne s'applique qu'aux offres cochées (leurs produits Stripe).",
+      "expiresAtHelp": "Facultatif : le code fonctionne jusqu'à la fin de ce jour (heure de Paris).",
+      "maxRedemptions": "Nombre maximal d'utilisations",
+      "maxRedemptionsHelp": "Facultatif : vide pour illimité.",
+      "firstSubscriptionOnlyLabel": "Réservé à un premier abonnement",
+      "firstSubscriptionOnlyHelp": "Refusé aux candidats qui ont déjà payé.",
+      "create": "Créer le code promo",
+      "created": "Le code promo {{code}} est créé.",
+      "deactivated": "Le code promo {{code}} est désactivé.",
+      "yes": "oui",
+      "no": "non",
+      "fields": {
+        "code": "Code",
+        "discount": "Réduction",
+        "duration": "Durée",
+        "plans": "Offres",
+        "expiresAt": "Expire le",
+        "maxRedemptions": "Utilisations maximales",
+        "firstSubscriptionOnly": "1er abonnement seulement",
+        "active": "Actif"
+      },
+      "errors": {
+        "invalid_code": "Le code doit faire 3 à 40 caractères : lettres, chiffres, tirets ou soulignés.",
+        "code_taken": "Un code promo actif porte déjà ce code.",
+        "invalid_discount": "Indiquez un pourcentage de 1 à 100, ou un montant en euros supérieur à 0.",
+        "invalid_duration": "Choisissez une durée ; pour un nombre de mois, de 1 à 36.",
+        "no_plan": "Cochez au moins une offre.",
+        "plan_not_sold": "Seules les offres payantes liées à un produit Stripe peuvent recevoir un code promo.",
+        "invalid_expiry": "La date d'expiration doit être postérieure à aujourd'hui.",
+        "invalid_max_redemptions": "Le nombre maximal d'utilisations doit être un nombre entier supérieur à 0.",
+        "unknown_coupon": "Ce code promo n'existe pas dans Stripe.",
+        "stripe_unavailable": "Stripe ne répond pas : rien n'a été fait. Réessayez dans un instant."
+      }
+    },
     "humanCoaches": {
       "title": "Coachs humains",
       "intro": "Les coachs que les candidats peuvent réserver. Ils se connectent avec l'adresse e-mail indiquée ici. Jobbbox les rémunère en dehors de la plateforme.",
@@ -958,6 +1042,7 @@
         "roles": "Rôles",
         "plans": "Offres",
         "plan_quotas": "Quotas des offres",
+        "coupons": "Codes promo",
         "human_coaches": "Coachs humains",
         "provider_secrets": "Clés des fournisseurs",
         "sign_in_providers": "Connexion"

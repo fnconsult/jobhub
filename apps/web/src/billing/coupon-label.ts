@@ -8,6 +8,11 @@ function amountOff(discount: CouponDiscount, locale: Locale): string {
   return new Intl.NumberFormat(locale, { style: "currency", currency: discount.currency, ...(Number.isInteger(units) && { minimumFractionDigits: 0 }) }).format(units);
 }
 
+/** How a discount alone reads: "−50 %", "€5 off". */
+export function couponDiscountLabel(discount: CouponDiscount, locale: Locale): string {
+  return createI18n(locale).t("billing.coupon.off", { off: amountOff(discount, locale) });
+}
+
 /** How a Coupon's terms read: "−50 % pendant 3 mois", "€5 off the first payment". */
 export function couponTermsLabel({ discount, duration }: { discount: CouponDiscount; duration: CouponDuration }, locale: Locale): string {
   const { t } = createI18n(locale);

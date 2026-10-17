@@ -4,7 +4,12 @@ import type { BillingConfig, StripeConfig } from "./index";
 type Env = Record<string, string | undefined>;
 
 const COACHING_SESSION_PRICE_VARIABLES = ["STRIPE_PRICE_COACHING_SESSION", "STRIPE_PRICE_COACHING_SESSION_PREMIUM"] as const;
-const STRIPE_VARIABLES = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PRICE_STANDARD", "STRIPE_PRICE_PREMIUM"] as const;
+const STRIPE_VARIABLES = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"] as const;
+/**
+ * The Prices the starting paid Plans were sold at before Plans lived in the database (#206):
+ * optional fallbacks a Plan with no Stripe product yet finds its product from. To be removed.
+ */
+const PLAN_PRICE_VARIABLES = { standard: "STRIPE_PRICE_STANDARD", premium: "STRIPE_PRICE_PREMIUM" } as const;
 
 /**
  * Reads the billing configuration from environment variables (see
@@ -22,18 +27,19 @@ export function billingConfigFromEnv(env: Env): BillingConfig {
     if (!production && env.STRIPE_SECRET_KEY!.startsWith("sk_live_")) {
       throw new Error("A live Stripe key is only allowed in production; use a test-mode key (sk_test_…)");
     }
-    requirePriceIds(env, ["STRIPE_PRICE_STANDARD", "STRIPE_PRICE_PREMIUM"]);
+    const planPriceVariables = Object.entries(PLAN_PRICE_VARIABLES).filter(([, name]) => env[name]);
+    requirePriceIds(env, planPriceVariables.map(([, name]) => name));
     let coachingSessionPrices: StripeConfig["coachingSessionPrices"];
     if (COACHING_SESSION_PRICE_VARIABLES.some((name) => env[name])) {
       const missingPrice = COACHING_SESSION_PRICE_VARIABLES.filter((name) => !env[name]);
       if (missingPrice.length) throw new Error(`Missing environment variable ${missingPrice.join(", ")}`);
       requirePriceIds(env, COACHING_SESSION_PRICE_VARIABLES);
-      coachingSessionPrices = { regular: env.STRIPE_PRICE_COACHING_SESSION!, premium: env.STRIPE_PRICE_COACHING_SESSION_PREMIUM! };
+      coachingSessionPrices = { regular: env.STRIPE_PRICE_COACHING_SESSION!, discounted: env.STRIPE_PRICE_COACHING_SESSION_PREMIUM! };
     }
     stripe = {
       secretKey: env.STRIPE_SECRET_KEY!,
       webhookSecret: env.STRIPE_WEBHOOK_SECRET!,
-      prices: { standard: env.STRIPE_PRICE_STANDARD!, premium: env.STRIPE_PRICE_PREMIUM! },
+      envPlanPrices: Object.fromEntries(planPriceVariables.map(([plan, name]) => [plan, env[name]!])),
       coachingSessionPrices,
       apiUrl: env.STRIPE_API_URL || undefined,
     };

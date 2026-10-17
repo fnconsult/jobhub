@@ -218,7 +218,7 @@ describe.skipIf(!connectionString)("Enriched Contacts (needs Postgres: DATABASE_
     expect(await contacts.find(marie, applicationId)).toEqual({
       ok: false,
       error: "quota_exceeded",
-      refusal: { allowed: false, quota: "enrichedContacts", plan: "free", limit: 0, upgradeTo: "premium" },
+      refusal: { allowed: false, quota: "enrichedContacts", plan: "free", planName: { fr: "Gratuite", en: "Free" }, limit: 0, upgradeTo: "premium", upgradeToName: { fr: "Premium", en: "Premium" } },
     });
     expect(searches).toEqual([]);
   });

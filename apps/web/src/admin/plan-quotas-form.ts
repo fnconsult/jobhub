@@ -1,4 +1,4 @@
-import { JOB_DIGEST_FREQUENCIES, LIMITED_QUOTAS, PLANS, type Plan, type PlanQuotas } from "@jobhub/shared";
+import { JOB_DIGEST_FREQUENCIES, LIMITED_QUOTAS, type Plan, type PlanQuotas } from "@jobhub/shared";
 import * as z from "zod";
 
 /** The largest limit the plan_quota table can hold (Postgres `integer`). */
@@ -11,7 +11,8 @@ const limit = z.preprocess(
 );
 
 const schema = z.object({
-  plan: z.enum(PLANS),
+  /** A Plan's key; billing ignores one that is no Plan. */
+  plan: z.string().regex(/^[a-z][a-z0-9-]*$/),
   ...Object.fromEntries(LIMITED_QUOTAS.map((quota) => [quota, limit])),
   jobDigest: z.enum(JOB_DIGEST_FREQUENCIES),
 });

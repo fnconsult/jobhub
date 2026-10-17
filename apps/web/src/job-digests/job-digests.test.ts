@@ -158,13 +158,21 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
         ok: false,
         error: "above_plan",
         plan: "standard",
+        planName: { fr: "Standard", en: "Standard" },
         planFrequency: "weekly",
         upgradeTo: "premium",
+        upgradeToName: { fr: "Premium", en: "Premium" },
       });
       expect(await jobDigests.settings(candidateId, profileId)).toMatchObject({ subscribed: false, chosenFrequency: null });
 
       expect(await jobDigests.subscribe(candidateId, profileId, "hourly")).toEqual({ ok: false, error: "invalid_frequency" });
       expect(await jobDigests.subscribe(candidateId, profileId, undefined)).toEqual({ ok: false, error: "invalid_frequency" });
+    });
+
+    it("names no Plan above when the only one sending it daily is hidden", async () => {
+      await billing.updatePlan("premium", { name: { fr: "Premium", en: "Premium" }, status: "hidden", stripeProductId: null, features: [] });
+
+      expect(await jobDigests.subscribe(candidateId, profileId, "daily")).toMatchObject({ ok: false, error: "above_plan", upgradeTo: null, upgradeToName: null });
     });
 
     it("is per Profile", async () => {
@@ -177,7 +185,14 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
     it("is refused on a Plan without the Job Digest, naming the Plan that includes it", async () => {
       await onPlan(candidateId, "free");
 
-      expect(await jobDigests.subscribe(candidateId, profileId, "weekly")).toEqual({ ok: false, error: "not_included", plan: "free", upgradeTo: "standard" });
+      expect(await jobDigests.subscribe(candidateId, profileId, "weekly")).toEqual({
+        ok: false,
+        error: "not_included",
+        plan: "free",
+        planName: { fr: "Gratuite", en: "Free" },
+        upgradeTo: "standard",
+        upgradeToName: { fr: "Standard", en: "Standard" },
+      });
       expect(await jobDigests.settings(candidateId, profileId)).toMatchObject({ subscribed: false, frequency: "none", planFrequency: "none", upgradeTo: "standard" });
     });
 

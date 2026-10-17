@@ -635,6 +635,7 @@
       }
     },
     "sections": {
+      "plans": "Plans",
       "planQuotas": "Quotas",
       "humanCoaches": "Coaches",
       "coachCost": "Coach cost",
@@ -739,6 +740,74 @@
         "no_master_key": "Saving is off: SECRETS_MASTER_KEYS is not set.",
         "not_tested": "Test sign-in with this provider first: it can be enabled only after a passed test since its credentials last changed.",
         "unknown_provider": "Unknown provider."
+      }
+    },
+    "plans": {
+      "title": "Plans",
+      "intro": "The Plans offered to Candidates, in the order of the comparison: each is tied to a Stripe product, whose default price is sold at checkout. Prices are set in Stripe, quotas in the Quotas section.",
+      "caption": "The Plans, from the lowest to the highest",
+      "rank": "Rank",
+      "key": "Key",
+      "keyHelp": "Lower case letters, digits and dashes, for example essential. It never changes.",
+      "name": "Name",
+      "nameFr": "Name in French",
+      "nameEn": "Name in English",
+      "statusLabel": "Status",
+      "status": {
+        "offered": "offered",
+        "hidden": "hidden"
+      },
+      "offeredLabel": "Offered to Candidates",
+      "hiddenHelp": "A hidden Plan is not in the comparison, at checkout or in Upgrade Prompts. Its subscribers keep it; to move them to another Plan, use Stripe.",
+      "product": "Stripe product",
+      "productHelp": "The product's ID (prod_…), not a price's. The product must be active and have a recurring default price; all its prices give this Plan.",
+      "productFrozenHelp": "It no longer changes: its subscribers stay on this product. To move them to another Plan, use Stripe.",
+      "noProduct": "none",
+      "features": "Features",
+      "noFeatures": "none",
+      "featureNames": {
+        "coachingSessionDiscount": "Discounted Coaching Sessions"
+      },
+      "featureHelp": {
+        "coachingSessionDiscount": "Subscribers pay a session with a Human Coach at the discounted price (STRIPE_PRICE_COACHING_SESSION_PREMIUM)."
+      },
+      "free": "The Free Plan is built in: always first and offered, with no Stripe product. Only its name and quotas change.",
+      "moveUp": "Move the {{plan}} Plan up",
+      "moveDown": "Move the {{plan}} Plan down",
+      "edit": "Edit the {{plan}} Plan",
+      "save": "Save the {{plan}} Plan",
+      "saved": "{{plan}} Plan saved.",
+      "moved": "Plan order saved.",
+      "createTitle": "Create a Plan",
+      "createHelp": "It is created hidden, above the others, with the quotas of the Plan just below. Offer it once its quotas are ready.",
+      "create": "Create the Plan",
+      "created": "{{plan}} Plan created, hidden. Set its quotas, then offer it.",
+      "fields": {
+        "name": "Name",
+        "status": "Status",
+        "stripeProductId": "Stripe product",
+        "features": "Features",
+        "rank": "Rank",
+        "quotas": "Quotas"
+      },
+      "errors": {
+        "unknown_plan": "This Plan does not exist.",
+        "invalid_key": "Key refused: lower case letters, digits and dashes, 2 to 32 characters, starting with a letter.",
+        "key_taken": "Another Plan already has this key.",
+        "invalid_name": "Give a name in French and in English (60 characters at most).",
+        "invalid_status": "Unknown status.",
+        "invalid_feature": "Unknown feature.",
+        "not_a_product_id": "This is not a Stripe product ID (prod_…). A price ID (price_…) will not do: open the product in Stripe and copy its ID.",
+        "product_taken": "Another Plan already has this Stripe product.",
+        "product_not_found": "Stripe does not know this product. Check the ID and the mode (test or live).",
+        "product_archived": "This product is archived in Stripe.",
+        "no_recurring_default_price": "This product has no recurring default price (each day, week, month or year) in Stripe.",
+        "stripe_unavailable": "Stripe could not check the product. Try again in a moment.",
+        "product_required": "An offered paid Plan must be tied to a Stripe product.",
+        "free_plan_built_in": "The Free Plan cannot be hidden, moved or tied to a Stripe product.",
+        "cannot_move": "This Plan cannot go any further.",
+        "product_frozen": "A paid Plan's Stripe product no longer changes once chosen: its subscribers stay on it. To move them to another Plan, use Stripe.",
+        "conflict": "Another change to the Plans was saved at the same moment. Try again."
       }
     },
     "planQuotas": {
@@ -879,6 +948,7 @@
       "all": "All",
       "sections": {
         "roles": "Roles",
+        "plans": "Plans",
         "plan_quotas": "Plan Quotas",
         "human_coaches": "Human Coaches",
         "provider_secrets": "Provider keys",
@@ -1466,8 +1536,8 @@
     "title": "My human coaches",
     "intro": "On top of your AI coach, book a video session with an HR professional selected by Jobbbox.",
     "price": "Price of a session: {{price}}",
-    "premiumPrice": "Price of a session on your Premium plan: {{price}} instead of {{regular}}",
-    "premiumHint": "Premium subscribers get a reduced price on sessions.",
+    "discountedPrice": "Price of a session on your {{plan}} plan: {{price}} instead of {{regular}}",
+    "discountHint": "Some plans get a reduced price on sessions.",
     "unavailable": "Paying for sessions is not available yet.",
     "book": "Book a session with {{name}}",
     "none": "No coach is available at the moment.",

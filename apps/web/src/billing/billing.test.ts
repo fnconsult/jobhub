@@ -3,6 +3,10 @@ import { checkoutSessionEvent, FAKE_STRIPE_COACHING_SESSION_PRICES, FAKE_STRIPE_
 import { BillingError, createBilling, STARTING_PLAN_QUOTAS } from "./index";
 import { connectionString, startTestBilling, type TestBilling } from "./test-support";
 
+const FREE = { fr: "Gratuite", en: "Free" };
+const STANDARD = { fr: "Standard", en: "Standard" };
+const PREMIUM = { fr: "Premium", en: "Premium" };
+
 describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATABASE_URL)", () => {
   let t: TestBilling;
   beforeEach(async () => {
@@ -67,7 +71,7 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
 
       expect(allowed.map((decision) => decision.allowed)).toEqual([true, true, true]);
       expect(allowed.map((decision) => decision.allowed && decision.remaining)).toEqual([2, 1, 0]);
-      expect(refused).toEqual({ allowed: false, quota: "matchScores", plan: "free", limit: 3, upgradeTo: "standard" });
+      expect(refused).toEqual({ allowed: false, quota: "matchScores", plan: "free", planName: FREE, limit: 3, upgradeTo: "standard", upgradeToName: STANDARD });
     });
 
     it("starts counting again on the first day of the month, in French time", async () => {
@@ -105,7 +109,7 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
 
       for (let i = 0; i < 3; i++) expect((await t.billing.use(marie.id, "jobSearches")).allowed).toBe(true);
 
-      expect(await t.billing.use(marie.id, "jobSearches")).toEqual({ allowed: false, quota: "jobSearches", plan: "free", limit: 3, upgradeTo: "standard" });
+      expect(await t.billing.use(marie.id, "jobSearches")).toEqual({ allowed: false, quota: "jobSearches", plan: "free", planName: FREE, limit: 3, upgradeTo: "standard", upgradeToName: STANDARD });
     });
 
     it("points a Free Candidate wanting Enriched Contacts to Premium, the first Plan that has any", async () => {
@@ -115,14 +119,15 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
         allowed: false,
         quota: "enrichedContacts",
         plan: "free",
+        planName: FREE,
         limit: 0,
-        upgradeTo: "premium",
+        upgradeTo: "premium", upgradeToName: PREMIUM,
       });
     });
     it("says whether one more would be allowed without counting it", async () => {
       const marie = await t.signUp("marie.dupont@example.fr");
 
-      expect(await t.billing.allows(marie.id, "enrichedContacts")).toEqual({ allowed: false, quota: "enrichedContacts", plan: "free", limit: 0, upgradeTo: "premium" });
+      expect(await t.billing.allows(marie.id, "enrichedContacts")).toEqual({ allowed: false, quota: "enrichedContacts", plan: "free", planName: FREE, limit: 0, upgradeTo: "premium", upgradeToName: PREMIUM });
       await t.billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, enrichedContacts: 1 });
       expect(await t.billing.allows(marie.id, "enrichedContacts")).toEqual({ allowed: true, remaining: 0 });
       expect(await t.billing.allows(marie.id, "enrichedContacts")).toEqual({ allowed: true, remaining: 0 });
@@ -151,8 +156,9 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
         allowed: false,
         quota: "profiles",
         plan: "free",
+        planName: FREE,
         limit: 1,
-        upgradeTo: "standard",
+        upgradeTo: "standard", upgradeToName: STANDARD,
       });
     });
   });
@@ -549,8 +555,9 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
         allowed: false,
         quota: "enrichedContacts",
         plan: "premium",
+        planName: PREMIUM,
         limit: 20,
-        upgradeTo: null,
+        upgradeTo: null, upgradeToName: null,
       });
     });
   });
@@ -564,14 +571,19 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       });
     });
 
-    it("asks Stripe again only after a few minutes", async () => {
-      await t.billing.planPrices();
-      await t.billing.planPrices();
-      expect(t.stripe.callsTo(`/v1/prices/${FAKE_STRIPE_PRICES.standard}`)).toHaveLength(1);
+    it("asks Stripe once per paid Plan, for its product with the default price, and again only after a few minutes", async () => {
+      const billing = createBilling(t.config);
+      const before = t.stripe.callsTo(`/v1/prices/${FAKE_STRIPE_PRICES.standard}`).length;
+
+      await billing.planPrices();
+      await billing.planPrices();
+      expect(t.stripe.callsTo(`/v1/products/${FAKE_STRIPE_PRODUCTS.standard}`)).toHaveLength(1);
+      // One call per Plan: a Stripe that never answers holds the page for one short timeout, not two in a row.
+      expect(t.stripe.callsTo(`/v1/prices/${FAKE_STRIPE_PRICES.standard}`)).toHaveLength(before);
 
       t.clock.now = new Date(t.clock.now.getTime() + 11 * 60_000);
-      await t.billing.planPrices();
-      expect(t.stripe.callsTo(`/v1/prices/${FAKE_STRIPE_PRICES.standard}`)).toHaveLength(2);
+      await billing.planPrices();
+      expect(t.stripe.callsTo(`/v1/products/${FAKE_STRIPE_PRODUCTS.standard}`)).toHaveLength(2);
     });
 
     it("has no prices without Stripe", async () => {
@@ -581,13 +593,17 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
     });
 
     it("has no prices while Stripe cannot give them", async () => {
-      const unknownPrice = createBilling({ ...t.config, stripe: { ...t.config.stripe!, prices: { ...FAKE_STRIPE_PRICES, premium: "price_unknown" } } });
-      const oneOff = createBilling({ ...t.config, stripe: { ...t.config.stripe!, prices: { ...FAKE_STRIPE_PRICES, premium: FAKE_STRIPE_COACHING_SESSION_PRICES.regular } } });
       const unreachable = createBilling({ ...t.config, stripe: { ...t.config.stripe!, apiUrl: "http://127.0.0.1:9" } });
-
-      expect(await unknownPrice.planPrices()).toBeNull();
-      expect(await oneOff.planPrices()).toBeNull(); // not a subscription Price
       expect(await unreachable.planPrices()).toBeNull();
+    });
+
+    it("leaves out only the price of a Plan whose product Stripe cannot price", async () => {
+      const standard = { amount: 1900, currency: "eur", interval: "month" };
+      t.stripe.setDefaultPrice(FAKE_STRIPE_PRODUCTS.premium, FAKE_STRIPE_COACHING_SESSION_PRICES.regular);
+      expect(await createBilling(t.config).planPrices()).toEqual({ free: { ...standard, amount: 0 }, standard }); // not a subscription Price
+
+      t.stripe.setDefaultPrice(FAKE_STRIPE_PRODUCTS.premium, "price_unknown");
+      expect(await createBilling(t.config).planPrices()).toEqual({ free: { ...standard, amount: 0 }, standard });
     });
 
     it("gives up on a Stripe that never answers within a few seconds, and does not wait on it again at once", async () => {
@@ -596,16 +612,16 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       const started = Date.now();
       expect(await t.billing.planPrices()).toBeNull();
       expect(Date.now() - started).toBeLessThan(5_000);
-      expect(t.stripe.callsTo(`/v1/prices/${FAKE_STRIPE_PRICES.standard}`)).toHaveLength(1); // no retry
+      expect(t.stripe.callsTo(`/v1/products/${FAKE_STRIPE_PRODUCTS.standard}`)).toHaveLength(1); // no retry
 
       const again = Date.now();
       expect(await t.billing.planPrices()).toBeNull();
       expect(Date.now() - again).toBeLessThan(100);
-      expect(t.stripe.callsTo(`/v1/prices/${FAKE_STRIPE_PRICES.standard}`)).toHaveLength(1);
+      expect(t.stripe.callsTo(`/v1/products/${FAKE_STRIPE_PRODUCTS.standard}`)).toHaveLength(1);
 
       t.clock.now = new Date(t.clock.now.getTime() + 2 * 60_000);
       await t.billing.planPrices();
-      expect(t.stripe.callsTo(`/v1/prices/${FAKE_STRIPE_PRICES.standard}`)).toHaveLength(2);
+      expect(t.stripe.callsTo(`/v1/products/${FAKE_STRIPE_PRODUCTS.standard}`)).toHaveLength(2);
     }, 30_000);
   });
 
@@ -622,9 +638,9 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       const paul = await onPlan("paul.martin@example.fr", "standard");
       const lea = await onPlan("lea.moreau@example.fr", "premium");
 
-      expect(await t.billing.coachingSessionPrice(marie.id)).toEqual({ amount: 9000, currency: "eur", regularAmount: 9000 });
-      expect(await t.billing.coachingSessionPrice(paul.id)).toEqual({ amount: 9000, currency: "eur", regularAmount: 9000 });
-      expect(await t.billing.coachingSessionPrice(lea.id)).toEqual({ amount: 7200, currency: "eur", regularAmount: 9000 });
+      expect(await t.billing.coachingSessionPrice(marie.id)).toEqual({ amount: 9000, currency: "eur", regularAmount: 9000, planName: FREE });
+      expect(await t.billing.coachingSessionPrice(paul.id)).toEqual({ amount: 9000, currency: "eur", regularAmount: 9000, planName: STANDARD });
+      expect(await t.billing.coachingSessionPrice(lea.id)).toEqual({ amount: 7200, currency: "eur", regularAmount: 9000, planName: PREMIUM });
     });
 
     it("sends the Candidate to a one-off Stripe Checkout at their Plan's Coaching Session Price", async () => {
@@ -649,7 +665,7 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
         success_url: "http://localhost:3000/coachs?session=paid",
         cancel_url: "http://localhost:3000/coachs",
       });
-      expect(premium?.params.get("line_items[0][price]")).toBe(FAKE_STRIPE_COACHING_SESSION_PRICES.premium);
+      expect(premium?.params.get("line_items[0][price]")).toBe(FAKE_STRIPE_COACHING_SESSION_PRICES.discounted);
     });
 
     it("reports a Coaching Session as paid only from Stripe's signed webhook, once paid", async () => {

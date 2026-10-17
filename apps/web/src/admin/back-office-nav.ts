@@ -3,6 +3,7 @@ import type { BackOfficeAccess, BackOfficeResource } from "./access";
 
 /** The Back Office's pages (its sections), each covered by one resource: an Administrator sees a section when a role lets them read it. */
 export const BACK_OFFICE_PAGES = {
+  plans: { href: routes.adminPlans, resource: "plans" },
   planQuotas: { href: routes.adminPlanQuotas, resource: "planQuotas" },
   humanCoaches: { href: routes.adminHumanCoaches, resource: "humanCoaches" },
   coachCost: { href: routes.adminCoachCost, resource: "coachMessageCost" },
@@ -16,10 +17,10 @@ export type BackOfficePage = keyof typeof BACK_OFFICE_PAGES;
 
 /**
  * The sidebar's groups, in order (map #123). Later sections join their group:
- * Plans and Coupons under Offre.
+ * Coupons under Offre.
  */
 const GROUPS = [
-  { key: "offer", sections: ["planQuotas"] },
+  { key: "offer", sections: ["plans", "planQuotas"] },
   { key: "coaching", sections: ["humanCoaches", "coachCost"] },
   { key: "platform", sections: ["providerSecrets", "signInProviders"] },
   { key: "team", sections: ["administrators", "journal"] },

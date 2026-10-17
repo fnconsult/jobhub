@@ -19,7 +19,7 @@ export async function startTestBilling(overrides: Partial<BillingConfig> = {}) {
     stripe: {
       secretKey: FAKE_STRIPE_SECRET_KEY,
       webhookSecret: FAKE_STRIPE_WEBHOOK_SECRET,
-      prices: FAKE_STRIPE_PRICES,
+      envPlanPrices: { standard: FAKE_STRIPE_PRICES.standard, premium: FAKE_STRIPE_PRICES.premium },
       coachingSessionPrices: FAKE_STRIPE_COACHING_SESSION_PRICES,
       apiUrl: stripe.url,
     },
@@ -29,6 +29,8 @@ export async function startTestBilling(overrides: Partial<BillingConfig> = {}) {
   };
   await migrateBilling(config.database);
   const billing = createBilling(config);
+  // As the app does at startup: the starting paid Plans find their Stripe products.
+  if (config.stripe) await billing.linkPlansToEnvPrices();
 
   return {
     billing,

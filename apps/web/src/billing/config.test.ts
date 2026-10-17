@@ -9,16 +9,23 @@ const stripeEnv = {
 };
 
 describe("billing configuration from the environment", () => {
-  it("connects to Stripe with the paid Plans' prices", async () => {
+  it("connects to Stripe, with the env prices the starting paid Plans find their products from", async () => {
     const config = billingConfigFromEnv({ DATABASE_URL: "postgres://localhost/x", APP_URL: "https://app.jobbbox.fr", ...stripeEnv });
 
     expect(config.baseURL).toBe("https://app.jobbbox.fr");
     expect(config.stripe).toEqual({
       secretKey: "sk_test_123",
       webhookSecret: "whsec_123",
-      prices: { standard: "price_std", premium: "price_prem" },
+      envPlanPrices: { standard: "price_std", premium: "price_prem" },
       apiUrl: undefined,
     });
+    await config.database.end();
+  });
+
+  it("needs no Plan prices: once Plans have their Stripe products, the database is enough", async () => {
+    const config = billingConfigFromEnv({ DATABASE_URL: "postgres://localhost/x", STRIPE_SECRET_KEY: "sk_test_123", STRIPE_WEBHOOK_SECRET: "whsec_123" });
+
+    expect(config.stripe).toMatchObject({ secretKey: "sk_test_123", envPlanPrices: {} });
     await config.database.end();
   });
 
@@ -68,7 +75,7 @@ describe("billing configuration from the environment", () => {
     },
   );
 
-  it("takes the Coaching Session Prices, regular and Premium, when both are set", async () => {
+  it("takes the Coaching Session Prices, regular and discounted, when both are set", async () => {
     const config = billingConfigFromEnv({
       DATABASE_URL: "postgres://localhost/x",
       ...stripeEnv,
@@ -76,7 +83,7 @@ describe("billing configuration from the environment", () => {
       STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_session_premium",
     });
 
-    expect(config.stripe?.coachingSessionPrices).toEqual({ regular: "price_session", premium: "price_session_premium" });
+    expect(config.stripe?.coachingSessionPrices).toEqual({ regular: "price_session", discounted: "price_session_premium" });
     await config.database.end();
   });
 

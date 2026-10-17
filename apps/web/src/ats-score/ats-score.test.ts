@@ -21,7 +21,7 @@ const masterCv: MasterCvContent = {
   languages: [],
 };
 
-const REFUSED: QuotaDecision = { allowed: false, quota: "atsScores", plan: "free", limit: 1, upgradeTo: "standard" };
+const REFUSED: QuotaDecision = { allowed: false, quota: "atsScores", plan: "free", planName: { fr: "Gratuite", en: "Free" }, limit: 1, upgradeTo: "standard", upgradeToName: { fr: "Standard", en: "Standard" } };
 
 describe.skipIf(!connectionString)("ATS Scoring (needs Postgres: DATABASE_URL)", () => {
   let testAuth: TestAuth;

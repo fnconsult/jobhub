@@ -391,12 +391,16 @@ _Avoid_: Job, task, session, AI call
 ### Billing
 
 **Coaching Session Price**:
-The single price Jobbbox sets for a Coaching Session, discounted on the Premium Plan.
+The single price Jobbbox sets for a Coaching Session, discounted on Plans with the Coaching Session discount Plan Feature.
 _Avoid_: Coach rate, fee
 
 **Plan**:
-The subscription tier a Candidate is on: Free, Standard or Premium. Coaching Sessions are paid separately, with a Premium discount.
+The subscription tier a Candidate is on, defined by Administrators in the Back Office: a permanent key, a name in each Interface Language, a rank, offered or hidden, one Stripe product, fixed once set (every price of that product is the Plan's), its Plan Quotas and Plan Features. Free is built in: always ranked first and offered, with no Stripe product. A Plan is never deleted; a hidden Plan is not in the plan comparison, at checkout or in an Upgrade Prompt, and its subscribers keep it. Jobbbox started with Free, Standard and Premium. Coaching Sessions are paid separately.
 _Avoid_: Tier, package, offer (ambiguous with Job Offer)
+
+**Plan Feature**:
+Something a Plan has or not, from a fixed set in code, switched on or off per Plan by Administrators; a countable limit is a Plan Quota instead. The first and only one so far: the Coaching Session discount.
+_Avoid_: Entitlement, perk, add-on, feature flag
 
 **Paid Plan History**:
 Whether a Candidate has ever been charged for a Plan, even if they are back on Free. It decides whether the invoices entry is offered on the subscription page. A Coaching Session payment alone does not count.
@@ -407,7 +411,7 @@ A paid Plan the Candidate cancelled in the Stripe customer portal for a later da
 _Avoid_: Pending cancellation, expiry
 
 **Plan Price**:
-What a Plan costs each billing interval, shown in the plan comparison. Read from Stripe, never set by us; Free costs 0. Left out when Stripe cannot give it.
+What a Plan costs each billing interval, shown in the plan comparison: the default price of the Plan's Stripe product, which checkout sells. Read from Stripe, never set by us; Free costs 0. Left out when Stripe cannot give it.
 _Avoid_: Tariff, fee
 
 **Plan Quota**:
@@ -415,7 +419,7 @@ A configurable usage limit attached to a Plan: Profiles held at once, Match Scor
 _Avoid_: Limit, allowance, credits
 
 **Upgrade Prompt**:
-What a Candidate is shown when a Plan Quota stops them: what they reached and the cheapest Plan that would let them go on, or when the quota renews if no Plan offers more.
+What a Candidate is shown when a Plan Quota stops them: what they reached and the lowest-ranked offered Plan above theirs that would let them go on, or when the quota renews if no Plan offers more.
 _Avoid_: Paywall, upsell, upgrade popup
 
 **Payment Failed Notice**:
@@ -429,7 +433,7 @@ The internal pages where Administrators manage Plan Quotas, Human Coaches, Provi
 _Avoid_: Admin panel, dashboard, console
 
 **Back Office Role**:
-What an Administrator may see and change in the Back Office: super-admin (everything, including roles, Provider Secrets and SSO providers), Plans manager (Plans, Plan Quotas, per-Plan features), Coach manager (Human Coaches, read Coach Message Cost) or Support (read-only, no secrets). Fixed in code; only super-admins grant or revoke them.
+What an Administrator may see and change in the Back Office: super-admin (everything, including roles, Provider Secrets and SSO providers), Plans manager (Plans, Plan Quotas, Plan Features), Coach manager (Human Coaches, read Coach Message Cost) or Support (read-only, no secrets). Fixed in code; only super-admins grant or revoke them.
 _Avoid_: Permission level, admin type
 
 **Provider Secret**:

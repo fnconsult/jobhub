@@ -35,6 +35,8 @@ export const routes = {
   /** Where a Job Digest email's unsubscribe link leads (no sign-in needed). */
   jobDigestUnsubscribe: "/desabonnement",
   admin: "/admin",
+  /** The Plans (Offres): names, rank, offered or hidden, Stripe product, Plan Features. */
+  adminPlans: "/admin/offres",
   adminPlanQuotas: "/admin/quotas",
   adminHumanCoaches: "/admin/coachs",
   /** The AI Coach's cost per reply, per day: median and p90 against the target. */

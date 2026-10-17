@@ -7,26 +7,49 @@
  *  - how do they pay a Coaching Session?  `coachingSessionPrice`, `startCoachingSessionCheckout`
  *    (the signed webhook reports it paid through `onCoachingSessionPaid`)
  *  - how do they stop paying?     `closeAccount`, when they delete their account
- *  - what do the Plans allow?     `planQuotas`, `setPlanQuotas` (back office)
+ *  - which Plans are there?       `plans`, and in the Back Office `createPlan`, `updatePlan`, `movePlan`
+ *  - what do the Plans allow?     `planQuotas`, `setPlanQuotas` (back office), `upgradeFor`
  *  - what do the Plans cost?      `planPrices`
  * and `migrateBilling(database)` to create / upgrade its tables. Stripe, the
  * tables and month boundaries stay behind this seam.
+ *
+ * Plans live in the `plan` table (ADR-0014 addendum #206, ./plans.ts): each paid Plan is
+ * tied to one Stripe product, and every price of that product is the Plan's.
  */
 import {
+  FREE_PLAN,
   JOB_DIGEST_FREQUENCIES,
   LIMITED_QUOTAS,
   MONTHLY_QUOTAS,
-  PLANS,
   type LimitedQuota,
   type MonthlyQuota,
   type Plan,
+  type PlanFeature,
   type PlanQuotas,
 } from "@jobhub/shared";
 import type { Locale } from "@jobhub/shared/i18n";
 import type { Pool } from "pg";
 import Stripe from "stripe";
 import type { Queryable } from "../database/pool";
+import * as z from "zod";
 import { routes } from "../routes";
+import {
+  adoptProduct,
+  findPlan,
+  insertPlan,
+  listPlans,
+  lockedPlan,
+  migratePlans,
+  newPlanInput,
+  PLAN_KEY,
+  planChangeInput,
+  savePlan,
+  swapRanks,
+  type PlanDefinition,
+  type PlanName,
+} from "./plans";
+
+export type { PlanDefinition, PlanName } from "./plans";
 
 export interface BillingConfig {
   /** Postgres pool holding the Candidate accounts. */
@@ -71,26 +94,34 @@ export interface PlanPrice {
 export interface CoachingSessionPrice {
   amount: number;
   currency: string;
-  /** What it costs without the Premium discount; equal to `amount` off Premium. */
+  /** What it costs without the Coaching Session discount; equal to `amount` on a Plan without it. */
   regularAmount: number;
+  /** The name of the Candidate's Plan, which the discount comes with. */
+  planName: PlanName;
 }
 
 export interface StripeConfig {
   secretKey: string;
   webhookSecret: string;
-  /** Stripe Price ids of the paid Plans' subscriptions. */
-  prices: { standard: string; premium: string };
+  /**
+   * Stripe Price ids the paid Plans were sold at before Plans lived in the database
+   * (STRIPE_PRICE_STANDARD, STRIPE_PRICE_PREMIUM), by Plan key. A paid Plan with no
+   * Stripe product yet gets its Price's product (`linkPlansToEnvPrices`, at startup);
+   * afterwards the database wins. Optional fallbacks, to be removed in a later release.
+   */
+  envPlanPrices?: Partial<Record<Plan, string>> | undefined;
   /**
    * Stripe Price ids of the one-off Coaching Session Price: the regular one, and the
-   * discounted one for the Premium Plan. Without them, Coaching Sessions cannot be paid.
+   * discounted one for Plans with the Coaching Session discount (a Plan Feature).
+   * Without them, Coaching Sessions cannot be paid.
    */
-  coachingSessionPrices?: { regular: string; premium: string } | undefined;
+  coachingSessionPrices?: { regular: string; discounted: string } | undefined;
   /** Another Stripe API origin (a fake one in tests and e2e). */
   apiUrl?: string | undefined;
 }
 
-/** The quotas Jobbbox starts with; Administrators change them in the back office. */
-export const STARTING_PLAN_QUOTAS: Record<Plan, PlanQuotas> = {
+/** The quotas Jobbbox's starting Plans start with; Administrators change them in the back office. */
+export const STARTING_PLAN_QUOTAS: Record<"free" | "standard" | "premium", PlanQuotas> = {
   free: { profiles: 1, matchScores: 3, atsScores: 1, enrichedContacts: 0, jobSearches: 3, jobDigest: "none" },
   standard: { profiles: 3, matchScores: null, atsScores: null, enrichedContacts: 0, jobSearches: 30, jobDigest: "weekly" },
   premium: { profiles: null, matchScores: null, atsScores: null, enrichedContacts: 20, jobSearches: null, jobDigest: "daily" },
@@ -107,9 +138,10 @@ const COLUMNS = {
 
 /** Creates or upgrades the billing tables. Run after the Candidate accounts' migration. Safe to run repeatedly. */
 export async function migrateBilling(database: Pool): Promise<void> {
+  await migratePlans(database);
   await database.query(`
     CREATE TABLE IF NOT EXISTS plan_quota (
-      plan text PRIMARY KEY CHECK (plan IN (${PLANS.map((plan) => `'${plan}'`).join(", ")})),
+      plan text PRIMARY KEY REFERENCES plan (key),
       ${LIMITED_QUOTAS.map((quota) => `${COLUMNS[quota]} integer CHECK (${COLUMNS[quota]} >= 0)`).join(",\n      ")},
       job_digest text NOT NULL CHECK (job_digest IN (${JOB_DIGEST_FREQUENCIES.map((f) => `'${f}'`).join(", ")})),
       updated_at timestamptz NOT NULL DEFAULT now()
@@ -144,7 +176,19 @@ export async function migrateBilling(database: Pool): Promise<void> {
   }
   // Databases from before scheduled cancellations were kept (#169): Stripe tells again on the next change.
   await database.query("ALTER TABLE candidate_plan ADD COLUMN IF NOT EXISTS ends_at timestamptz");
-  // A quota added after the table was created starts at its starting value on every Plan.
+  // Databases from before Plans lived in the database (#206): a CHECK named the three Plans; now a Plan is a row of `plan`.
+  // Candidates' Plans are untouched: `candidate_plan` still references `plan_quota`.
+  await database.query("ALTER TABLE plan_quota DROP CONSTRAINT IF EXISTS plan_quota_plan_check");
+  const { rows: planReference } = await database.query(
+    "SELECT 1 FROM pg_constraint WHERE conname = 'plan_quota_plan_fkey' AND conrelid = 'plan_quota'::regclass",
+  );
+  if (planReference.length === 0) {
+    await database.query("ALTER TABLE plan_quota ADD CONSTRAINT plan_quota_plan_fkey FOREIGN KEY (plan) REFERENCES plan (key)");
+  }
+  const startingPlans = Object.keys(STARTING_PLAN_QUOTAS) as (keyof typeof STARTING_PLAN_QUOTAS)[];
+  // A quota added after the table was created starts at its starting value on the starting Plans, and on
+  // each Plan an Administrator created at the value of the Plan ranked just below it (Free's at worst):
+  // never NULL, which would mean unlimited.
   const { rows: existing } = await database.query<{ column_name: string }>(
     "SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'plan_quota'",
   );
@@ -152,11 +196,19 @@ export async function migrateBilling(database: Pool): Promise<void> {
     const column = COLUMNS[quota];
     if (existing.some((row) => row.column_name === column)) continue;
     await database.query(`ALTER TABLE plan_quota ADD COLUMN IF NOT EXISTS ${column} integer CHECK (${column} >= 0)`);
-    for (const plan of PLANS) {
+    for (const plan of startingPlans) {
       await database.query(`UPDATE plan_quota SET ${column} = $2 WHERE plan = $1`, [plan, STARTING_PLAN_QUOTAS[plan][quota]]);
     }
+    const { rows: ranked } = await database.query<{ plan: string }>("SELECT q.plan FROM plan_quota q JOIN plan p ON p.key = q.plan ORDER BY p.rank");
+    let below: string | undefined;
+    for (const { plan } of ranked) {
+      if (below && !(startingPlans as string[]).includes(plan)) {
+        await database.query(`UPDATE plan_quota SET ${column} = (SELECT ${column} FROM plan_quota WHERE plan = $2) WHERE plan = $1`, [plan, below]);
+      }
+      below = plan;
+    }
   }
-  for (const plan of PLANS) {
+  for (const plan of startingPlans) {
     const quotas = STARTING_PLAN_QUOTAS[plan];
     const keys = Object.keys(COLUMNS) as (keyof PlanQuotas)[];
     await database.query(
@@ -170,6 +222,52 @@ export async function migrateBilling(database: Pool): Promise<void> {
 
 type QuotaRow = Record<(typeof COLUMNS)[keyof PlanQuotas], unknown>;
 
+const QUOTA_COLUMNS = Object.values(COLUMNS).join(", ");
+
+/** The PlanError for a Plan form that does not parse: the first field at fault. */
+function inputError(error: z.ZodError): PlanError {
+  const field = error.issues[0]?.path[0];
+  if (field === "key") return "invalid_key";
+  if (field === "name") return "invalid_name";
+  if (field === "status") return "invalid_status";
+  if (field === "features") return "invalid_feature";
+  return "not_a_product_id";
+}
+
+const PRODUCT_ID = /^prod_[A-Za-z0-9_]+$/;
+
+/** The starting Plans first, in their order, then any other key: how env variables are named in a message. */
+const byStartingOrder = (a: string, b: string) => {
+  const order = Object.keys(STARTING_PLAN_QUOTAS);
+  const rank = (key: string) => (order.includes(key) ? order.indexOf(key) : order.length);
+  return rank(a) - rank(b) || a.localeCompare(b);
+};
+
+/** For writes made in a transaction that already asked Stripe about the product (`checkStripeProduct`). */
+export interface PlanWriteOptions {
+  productChecked?: boolean;
+}
+
+/**
+ * Runs a Plan write, answering a unique violation (a key, product or rank taken at the same
+ * moment) with a PlanError rather than an error page. Inside a caller's transaction the
+ * transaction is then aborted, so nothing of it is kept.
+ */
+async function uniquely<T>(write: () => Promise<PlanResult<T>>): Promise<PlanResult<T>> {
+  try {
+    return await write();
+  } catch (error) {
+    const violation = error as { code?: string; constraint?: string };
+    if (violation.code !== "23505") throw error;
+    if (violation.constraint === "plan_pkey") return { ok: false, error: "key_taken" };
+    if (violation.constraint === "plan_stripe_product_id_key") return { ok: false, error: "product_taken" };
+    return { ok: false, error: "conflict" };
+  }
+}
+
+/** The id of a Stripe object field that may be expanded. */
+const idOf = (value: string | { id: string } | null | undefined): string | null => (value ? (typeof value === "string" ? value : value.id) : null);
+
 function quotasFromRow(row: QuotaRow): PlanQuotas {
   const quotas = { jobDigest: row.job_digest } as PlanQuotas;
   for (const quota of LIMITED_QUOTAS) quotas[quota] = row[COLUMNS[quota]] as number | null;
@@ -178,11 +276,43 @@ function quotasFromRow(row: QuotaRow): PlanQuotas {
 
 /**
  * The answer to "may this Candidate do one more?". When refused, it names the
- * cheapest Plan that would allow it (null when no Plan does), for the upgrade prompt.
+ * lowest-ranked offered Plan above theirs that would allow it (null when none does),
+ * for the Upgrade Prompt, with both Plans' names.
  */
 export type QuotaDecision =
   | { allowed: true; /** Left after this one; null when unlimited. */ remaining: number | null }
-  | { allowed: false; quota: LimitedQuota; plan: Plan; limit: number; upgradeTo: Plan | null };
+  | { allowed: false; quota: LimitedQuota; plan: Plan; planName: PlanName; limit: number; upgradeTo: Plan | null; upgradeToName: PlanName | null };
+
+/** Why the Back Office could not create, change or move a Plan. */
+export type PlanError =
+  | "unknown_plan"
+  | "invalid_key"
+  | "key_taken"
+  | "invalid_name"
+  | "invalid_status"
+  | "invalid_feature"
+  /** Not a Stripe product ID (prod_…): a price ID, typically. */
+  | "not_a_product_id"
+  /** Another Plan is tied to that product. */
+  | "product_taken"
+  | "product_not_found"
+  | "product_archived"
+  /** The product has no default price charged once each day, week, month or year. */
+  | "no_recurring_default_price"
+  /** Stripe is not configured or could not be reached: the product cannot be checked. */
+  | "stripe_unavailable"
+  /** A paid Plan that is offered needs a product. */
+  | "product_required"
+  /** A paid Plan's product never changes once set: its subscribers stay on it (moving them is done in Stripe). */
+  | "product_frozen"
+  /** Another change to the Plans was saved at the same moment: try again. */
+  | "conflict"
+  /** Free cannot be hidden, moved or given a product. */
+  | "free_plan_built_in"
+  /** Nothing to swap with in that direction (or only Free). */
+  | "cannot_move";
+
+export type PlanResult<T> = ({ ok: true } & T) | { ok: false; error: PlanError };
 
 /** A Stripe subscription's status, as Stripe last reported it (customer.subscription.* webhooks). */
 export type SubscriptionStatus = Stripe.Subscription.Status;
@@ -190,13 +320,22 @@ export type SubscriptionStatus = Stripe.Subscription.Status;
 /** Why a billing request could not be served. `message` is for logs, not for Candidates. */
 export class BillingError extends Error {
   constructor(
-    readonly code: "stripe_not_configured" | "coaching_sessions_not_configured" | "no_checkout_for_free_plan" | "invalid_webhook_signature",
+    readonly code:
+      | "stripe_not_configured"
+      | "coaching_sessions_not_configured"
+      | "no_checkout_for_free_plan"
+      /** An unknown or hidden Plan, or one with no Stripe product yet. */
+      | "plan_not_offered"
+      | "invalid_webhook_signature",
     message: string = code,
   ) {
     super(message);
     this.name = "BillingError";
   }
 }
+
+/** Stripe calls made while a page renders: given up on quickly, never retried. */
+const QUICK: Stripe.RequestOptions = { timeout: 2_500, maxNetworkRetries: 0 };
 
 /** Subscription statuses that keep the paid Plan; Stripe retries failed payments while past_due. */
 const PAYING_STATUSES = new Set(["active", "trialing", "past_due"]);
@@ -226,8 +365,6 @@ const STORED_STAGE_SQL = `CASE stripe_status ${Object.entries(STATUS_STAGES)
   .map(([status, stage]) => `WHEN '${status}' THEN ${stage}`)
   .join(" ")} ELSE 2 END`;
 
-/** How long a page waits on Stripe for the Plan prices before rendering without them. */
-const PLAN_PRICE_TIMEOUT_MS = 2_500;
 /** How long after Stripe failed to give the Plan prices before asking it again. */
 const PLAN_PRICE_RETRY_AFTER_MS = 60_000;
 
@@ -259,7 +396,7 @@ export function createBilling(config: BillingConfig) {
   const coachingPageURL = (query = "") => new URL(routes.coaching + query, config.baseURL).toString();
 
   /** The Coaching Session Prices, or a BillingError when Stripe or the Prices are not configured. */
-  function coachingSessionPrices(): { regular: string; premium: string } {
+  function coachingSessionPrices(): { regular: string; discounted: string } {
     const prices = stripe().config.coachingSessionPrices;
     if (!prices) throw new BillingError("coaching_sessions_not_configured");
     return prices;
@@ -274,10 +411,13 @@ export function createBilling(config: BillingConfig) {
   async function amountOf(priceId: string, options?: Stripe.RequestOptions): Promise<StripeAmount> {
     const cached = priceCache.get(priceId);
     if (cached && now().getTime() - cached.at < 10 * 60_000) return cached;
-    const price = await stripe().client.prices.retrieve(priceId, {}, options);
-    if (price.unit_amount === null) throw new Error(`Stripe Price ${priceId} has no fixed amount`);
+    return remember(await stripe().client.prices.retrieve(priceId, {}, options));
+  }
+  /** Keeps a Price Stripe gave, for `amountOf`. */
+  function remember(price: Stripe.Price): StripeAmount {
+    if (price.unit_amount === null) throw new Error(`Stripe Price ${price.id} has no fixed amount`);
     const fetched = { at: now().getTime(), amount: price.unit_amount, currency: price.currency, interval: price.recurring?.interval_count === 1 ? price.recurring.interval : null, product: productOf(price) };
-    priceCache.set(priceId, fetched);
+    priceCache.set(price.id, fetched);
     return fetched;
   }
 
@@ -287,9 +427,119 @@ export function createBilling(config: BillingConfig) {
    * (the SDK otherwise waits 80 s per try, and tries 3 times).
    */
   async function subscriptionPrice(priceId: string): Promise<PlanPrice> {
-    const { amount, currency, interval } = await amountOf(priceId, { timeout: PLAN_PRICE_TIMEOUT_MS, maxNetworkRetries: 0 });
+    const { amount, currency, interval } = await amountOf(priceId, QUICK);
     if (!BILLING_INTERVALS.includes(interval as BillingInterval)) throw new Error(`Stripe Price ${priceId} is not charged once each day, week, month or year`);
     return { amount, currency, interval: interval as BillingInterval };
+  }
+
+  /** Stripe products' default Prices, kept a few minutes like the amounts. */
+  const productCache = new Map<string, { at: number; defaultPrice: string | null }>();
+  /**
+   * The Price a paid Plan is sold at: its Stripe product's default Price. Asked in one call, the
+   * Price expanded in the product, so a Stripe that never answers costs one short timeout, not two.
+   */
+  async function defaultPriceOf(product: string): Promise<string> {
+    const cached = productCache.get(product);
+    let defaultPrice = cached && now().getTime() - cached.at < 10 * 60_000 ? cached.defaultPrice : undefined;
+    if (defaultPrice === undefined) {
+      const fetched = await stripe().client.products.retrieve(product, { expand: ["default_price"] }, QUICK);
+      defaultPrice = idOf(fetched.default_price);
+      // A Price that is no fixed amount is left for subscriptionPrice to refuse.
+      if (fetched.default_price && typeof fetched.default_price === "object" && fetched.default_price.unit_amount !== null) remember(fetched.default_price);
+      productCache.set(product, { at: now().getTime(), defaultPrice });
+    }
+    if (!defaultPrice) throw new Error(`Stripe product ${product} has no default price`);
+    return defaultPrice;
+  }
+
+  /**
+   * Ties each paid Plan with no Stripe product yet to the product of its env Price
+   * (STRIPE_PRICE_STANDARD, STRIPE_PRICE_PREMIUM): how the Plans sold before #206 find
+   * their products. Once done it is not done again; if Stripe fails, it is tried again next time.
+   */
+  async function linkPlansToEnvPrices(): Promise<void> {
+    const prices = config.stripe?.envPlanPrices;
+    if (!prices) return;
+    const plans = await listPlans(database);
+    const unlinked = plans.filter((plan) => plan.key !== FREE_PLAN && !plan.stripeProductId && prices[plan.key]);
+    if (unlinked.length === 0) return;
+    // Every env Price's product, so two Plans sharing one is seen before either is tied to it.
+    const products = new Map<Plan, string>();
+    for (const [plan, price] of Object.entries(prices)) if (price) products.set(plan, (await amountOf(price, QUICK)).product);
+    const envName = (plan: Plan) => `STRIPE_PRICE_${plan.toUpperCase()}`;
+    for (const plan of unlinked) {
+      const product = products.get(plan.key)!;
+      const sharing = [...products].filter(([other, otherProduct]) => other !== plan.key && otherProduct === product).map(([other]) => other);
+      if (sharing.length > 0) {
+        console.warn(
+          `[billing] ${[plan.key, ...sharing].sort(byStartingOrder).map(envName).join(" and ")} are prices of the same Stripe product ${product}: ` +
+            `the ${plan.key} Plan is not tied to it, since a product is one Plan's. Each of those prices still follows its own Plan; ` +
+            "give each Plan its own product in Stripe, then set it in the Back Office (Offres).",
+        );
+        continue;
+      }
+      const holder = plans.find((other) => other.stripeProductId === product);
+      if (holder) {
+        console.warn(
+          `[billing] ${envName(plan.key)} is a price of Stripe product ${product}, already the ${holder.name.en} Plan's: the ${plan.key} Plan is not tied to it. ` +
+            "Set its own product in the Back Office (Offres).",
+        );
+        continue;
+      }
+      await adoptProduct(database, plan.key, product);
+    }
+  }
+  let linking: Promise<void> | undefined;
+  function linked(): Promise<void> {
+    linking ??= linkPlansToEnvPrices().catch((error: unknown) => {
+      linking = undefined;
+      throw error;
+    });
+    return linking;
+  }
+  /**
+   * Links the Plans to their env Prices' products if not done yet, without failing what
+   * needs it: a Plan with a product works whatever happens to an env Price (the database
+   * wins), and one without is simply not sold yet.
+   */
+  async function linkedIfPossible(): Promise<void> {
+    try {
+      await linked();
+    } catch (error) {
+      console.error("[billing] could not tie the Plans to the products of STRIPE_PRICE_STANDARD / STRIPE_PRICE_PREMIUM", error);
+    }
+  }
+
+  /**
+   * Why Stripe will not let `product` be a Plan's, or null when it can: it exists, is active and has
+   * a recurring default Price. Asked quickly, never retried: run it before any transaction opens.
+   */
+  async function stripeProductProblem(product: string): Promise<PlanError | null> {
+    if (!PRODUCT_ID.test(product)) return "not_a_product_id";
+    if (!config.stripe) return "stripe_unavailable";
+    try {
+      const fetched = await stripe().client.products.retrieve(product, {}, QUICK);
+      if (!fetched.active) return "product_archived";
+      const priceId = idOf(fetched.default_price);
+      if (!priceId) return "no_recurring_default_price";
+      productCache.set(product, { at: now().getTime(), defaultPrice: priceId });
+      priceCache.delete(priceId);
+      const { interval } = await amountOf(priceId, QUICK);
+      return BILLING_INTERVALS.includes(interval as BillingInterval) ? null : "no_recurring_default_price";
+    } catch (error) {
+      if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") return "product_not_found";
+      if (error instanceof Error && /has no fixed amount/.test(error.message)) return "no_recurring_default_price";
+      console.error("[billing] could not check a Stripe product", error);
+      return "stripe_unavailable";
+    }
+  }
+
+  /** Why `product` cannot be `key`'s: another Plan has it, or Stripe refuses it (unless `checked` says it was asked already). */
+  async function productProblem(product: string, key: string, within: Queryable, checked: boolean): Promise<PlanError | null> {
+    if (!PRODUCT_ID.test(product)) return "not_a_product_id";
+    const { rows } = await within.query("SELECT 1 FROM plan WHERE stripe_product_id = $1 AND key <> $2", [product, key]);
+    if (rows.length > 0) return "product_taken";
+    return checked ? null : stripeProductProblem(product);
   }
 
   /** Reports a paid Coaching Session from a checkout.session.* event; ignores any other checkout. */
@@ -357,17 +607,22 @@ export function createBilling(config: BillingConfig) {
   }
 
   /**
-   * The paid Plan a subscription Price belongs to: its configured Price, or any other Price of
-   * the same Stripe Product (an archived older amount, another interval switched to in the portal).
+   * The paid Plan a subscription Price belongs to: the Plan tied to the Price's Stripe product,
+   * whichever Price of it this is (the default one, an archived older amount, another interval
+   * switched to in the portal), offered or hidden.
    */
   async function paidPlanOf(price: Stripe.Price | undefined): Promise<Plan | undefined> {
     if (!price) return undefined;
-    const { prices } = stripe().config;
-    if (price.id === prices.standard) return "standard";
-    if (price.id === prices.premium) return "premium";
-    const [standard, premium] = await Promise.all([amountOf(prices.standard), amountOf(prices.premium)]);
-    const product = productOf(price);
-    return product === standard.product ? "standard" : product === premium.product ? "premium" : undefined;
+    // An env Price names its Plan exactly, whatever product it is on (STRIPE_PRICE_STANDARD / _PREMIUM sharing one, say).
+    const envPlan = Object.entries(config.stripe?.envPlanPrices ?? {}).find(([, envPrice]) => envPrice === price.id)?.[0];
+    if (envPlan && (await findPlan(database, envPlan))) return envPlan;
+    const planOfProduct = async () =>
+      (await database.query("SELECT key FROM plan WHERE stripe_product_id = $1 AND key <> $2", [productOf(price), FREE_PLAN])).rows[0]?.key as Plan | undefined;
+    const known = await planOfProduct();
+    if (known) return known;
+    // Before the startup link to the env Prices' products is done, a starting Plan's subscriber is not lost.
+    await linkedIfPossible();
+    return planOfProduct();
   }
 
   /** Applies a customer.subscription.* event: the Plan follows the subscription's product, status and scheduled end. */
@@ -395,7 +650,7 @@ export function createBilling(config: BillingConfig) {
          AND NOT ($6 AND stripe_subscription_id IS NOT NULL AND stripe_subscription_id <> $3)`,
       [
         customer,
-        ended ? "free" : paidPlan,
+        ended ? FREE_PLAN : paidPlan,
         subscription.id,
         subscription.status,
         event.created,
@@ -408,7 +663,7 @@ export function createBilling(config: BillingConfig) {
 
   async function planOf(candidateId: string): Promise<Plan> {
     const { rows } = await database.query("SELECT plan FROM candidate_plan WHERE candidate_id = $1", [candidateId]);
-    return (rows[0]?.plan as Plan | undefined) ?? "free";
+    return (rows[0]?.plan as Plan | undefined) ?? FREE_PLAN;
   }
 
   async function quotasOf(plan: Plan): Promise<PlanQuotas> {
@@ -416,17 +671,34 @@ export function createBilling(config: BillingConfig) {
     return quotasFromRow(rows[0]);
   }
 
-  /** The first Plan above `plan` that allows more than `limit` of `quota`. */
-  async function upgradeFor(plan: Plan, quota: LimitedQuota, limit: number): Promise<Plan | null> {
-    for (const higher of PLANS.slice(PLANS.indexOf(plan) + 1)) {
-      const higherLimit = (await quotasOf(higher))[quota];
-      if (higherLimit === null || higherLimit > limit) return higher;
-    }
-    return null;
+  /** Whether the Candidate's Plan has a Plan Feature. */
+  async function hasFeature(candidateId: string, feature: PlanFeature): Promise<boolean> {
+    return (await findPlan(database, await planOf(candidateId)))?.features.includes(feature) ?? false;
+  }
+
+  /** Every Plan's quotas, lowest rank first. */
+  async function allPlanQuotas(): Promise<Record<Plan, PlanQuotas>> {
+    const { rows } = await database.query("SELECT q.* FROM plan_quota q JOIN plan p ON p.key = q.plan ORDER BY p.rank");
+    return Object.fromEntries(rows.map((row) => [row.plan as Plan, quotasFromRow(row)]));
+  }
+
+  /** The lowest-ranked offered Plan above `plan` whose quotas `allow` what was asked; null when none. */
+  async function upgradeFor(plan: Plan, allow: (quotas: PlanQuotas) => boolean): Promise<PlanDefinition | null> {
+    const [plans, quotas] = await Promise.all([listPlans(database), allPlanQuotas()]);
+    const rank = plans.find((candidate) => candidate.key === plan)?.rank ?? 0;
+    return plans.find((higher) => higher.status === "offered" && higher.rank > rank && quotas[higher.key] !== undefined && allow(quotas[higher.key]!)) ?? null;
+  }
+
+  async function nameOf(plan: Plan): Promise<PlanName> {
+    return (await findPlan(database, plan))?.name ?? { fr: plan, en: plan };
   }
 
   async function refusal(plan: Plan, quota: LimitedQuota, limit: number): Promise<QuotaDecision> {
-    return { allowed: false, quota, plan, limit, upgradeTo: await upgradeFor(plan, quota, limit) };
+    const [upgrade, planName] = await Promise.all([
+      upgradeFor(plan, (quotas) => quotas[quota] === null || quotas[quota]! > limit),
+      nameOf(plan),
+    ]);
+    return { allowed: false, quota, plan, planName, limit, upgradeTo: upgrade?.key ?? null, upgradeToName: upgrade?.name ?? null };
   }
 
   return {
@@ -515,18 +787,21 @@ export function createBilling(config: BillingConfig) {
      * switched there, never by a second subscription).
      */
     async startCheckout(candidate: { id: string; email: string }, plan: Plan, locale: Locale = "fr"): Promise<string> {
-      if (plan === "free") throw new BillingError("no_checkout_for_free_plan");
-      const { client, config: stripeConfig } = stripe();
+      if (plan === FREE_PLAN) throw new BillingError("no_checkout_for_free_plan");
+      const { client } = stripe();
+      await linkedIfPossible();
+      const chosen = await findPlan(database, plan);
+      if (!chosen || chosen.status !== "offered" || !chosen.stripeProductId) throw new BillingError("plan_not_offered", `Plan ${plan} is not offered`);
       const customer = await stripeCustomerFor(candidate);
       const account = await stripeAccountOf(candidate.id);
-      if (account && account.plan !== "free" && PAYING_STATUSES.has(account.stripe_status ?? "")) {
+      if (account && account.plan !== FREE_PLAN && PAYING_STATUSES.has(account.stripe_status ?? "")) {
         return portalFor(customer, locale);
       }
       const session = await client.checkout.sessions.create({
         mode: "subscription",
         customer,
         client_reference_id: candidate.id,
-        line_items: [{ price: stripeConfig.prices[plan], quantity: 1 }],
+        line_items: [{ price: await defaultPriceOf(chosen.stripeProductId), quantity: 1 }],
         locale,
         success_url: pageURL("?checkout=success"),
         cancel_url: pageURL(),
@@ -539,27 +814,30 @@ export function createBilling(config: BillingConfig) {
     async coachingSessionPrice(candidateId: string): Promise<CoachingSessionPrice | null> {
       if (!config.stripe?.coachingSessionPrices) return null;
       const prices = coachingSessionPrices();
-      const premium = (await planOf(candidateId)) === "premium";
+      const plan = await planOf(candidateId);
+      const definition = await findPlan(database, plan);
+      const discounted = definition?.features.includes("coachingSessionDiscount") ?? false;
       const regular = await amountOf(prices.regular);
-      const charged = premium ? await amountOf(prices.premium) : regular;
-      return { amount: charged.amount, currency: charged.currency, regularAmount: regular.amount };
+      const charged = discounted ? await amountOf(prices.discounted) : regular;
+      return { amount: charged.amount, currency: charged.currency, regularAmount: regular.amount, planName: definition?.name ?? { fr: plan, en: plan } };
     },
 
     /**
      * Where to send a Candidate who books a Coaching Session with a Human Coach: a one-off
-     * Stripe Checkout at their Plan's Coaching Session Price (discounted on Premium). The
+     * Stripe Checkout at their Plan's Coaching Session Price (discounted on a Plan with the
+     * Coaching Session discount). The
      * Coaching Session exists only once the signed webhook confirms the payment.
      * Throws a BillingError("coaching_sessions_not_configured") without the Prices.
      */
     async startCoachingSessionCheckout(candidate: { id: string; email: string }, coachId: string, locale: Locale = "fr"): Promise<string> {
       const prices = coachingSessionPrices();
       const customer = await stripeCustomerFor(candidate);
-      const premium = (await planOf(candidate.id)) === "premium";
+      const discounted = await hasFeature(candidate.id, "coachingSessionDiscount");
       const session = await stripe().client.checkout.sessions.create({
         mode: "payment",
         customer,
         client_reference_id: candidate.id,
-        line_items: [{ price: premium ? prices.premium : prices.regular, quantity: 1 }],
+        line_items: [{ price: discounted ? prices.discounted : prices.regular, quantity: 1 }],
         metadata: { purpose: "coaching_session", coach_id: coachId, candidate_id: candidate.id },
         locale,
         success_url: coachingPageURL("?session=paid"),
@@ -582,7 +860,7 @@ export function createBilling(config: BillingConfig) {
     async hasInvoices(candidateId: string): Promise<boolean> {
       const { rows } = await database.query("SELECT plan, charged FROM candidate_plan WHERE candidate_id = $1", [candidateId]);
       const account = rows[0] as { plan: Plan; charged: boolean } | undefined;
-      return account !== undefined && (account.plan !== "free" || account.charged);
+      return account !== undefined && (account.plan !== FREE_PLAN || account.charged);
     },
 
     /**
@@ -611,18 +889,25 @@ export function createBilling(config: BillingConfig) {
     },
 
     /**
-     * What each Plan costs: the paid Plans' configured Stripe Prices, and the Free
-     * Plan at 0 in their currency and interval. Null when Stripe is not configured
-     * or cannot tell (unreachable, or a Price that is not a fixed recurring amount).
+     * What each offered Plan costs: a paid Plan's Stripe product's default Price, and the
+     * Free Plan at 0 in the first paid one's currency and interval. Null when Stripe is not
+     * configured or cannot tell (unreachable, or a Price that is not a fixed recurring amount).
      */
     async planPrices(): Promise<Record<Plan, PlanPrice> | null> {
       if (!config.stripe) return null;
       if (planPricesFailedAt !== undefined && now().getTime() - planPricesFailedAt < PLAN_PRICE_RETRY_AFTER_MS) return null;
-      const { prices } = config.stripe;
+      await linkedIfPossible();
       try {
-        const [standard, premium] = await Promise.all([subscriptionPrice(prices.standard), subscriptionPrice(prices.premium)]);
+        const paid = (await listPlans(database)).filter((plan) => plan.status === "offered" && plan.key !== FREE_PLAN && plan.stripeProductId);
+        const settled = await Promise.allSettled(paid.map(async (plan) => [plan.key, await subscriptionPrice(await defaultPriceOf(plan.stripeProductId!))] as const));
+        const prices = settled.flatMap((result) => (result.status === "fulfilled" ? [result.value] : []));
+        const failures = settled.flatMap((result) => (result.status === "rejected" ? [result.reason as unknown] : []));
+        // One product Stripe cannot price leaves out its own Plan's price; none at all, every price.
+        if (failures.length > 0 && prices.length === 0) throw failures[0];
+        for (const failure of failures) console.error("[billing] a Plan price is unavailable from Stripe", failure);
         planPricesFailedAt = undefined;
-        return { free: { ...standard, amount: 0 }, standard, premium };
+        const free: PlanPrice = { currency: prices[0]?.[1].currency ?? "eur", interval: prices[0]?.[1].interval ?? "month", amount: 0 };
+        return { [FREE_PLAN]: free, ...Object.fromEntries(prices) };
       } catch (error) {
         planPricesFailedAt = now().getTime();
         console.error("[billing] Plan prices unavailable from Stripe", error);
@@ -630,19 +915,129 @@ export function createBilling(config: BillingConfig) {
       }
     },
 
-    /** Every Plan's quotas, in Plan order. */
-    async planQuotas(): Promise<Record<Plan, PlanQuotas>> {
-      const { rows } = await database.query("SELECT * FROM plan_quota");
-      return Object.fromEntries(
-        PLANS.map((plan) => [plan, quotasFromRow(rows.find((row) => row.plan === plan))]),
-      ) as Record<Plan, PlanQuotas>;
+    /** Every Plan, offered and hidden, lowest rank first. */
+    plans(): Promise<PlanDefinition[]> {
+      return listPlans(database);
     },
 
     /**
-     * Replaces one Plan's quotas (Back Office) and returns the ones it replaced. Applies at
-     * once to every Candidate on that Plan. `within` runs it in the caller's transaction.
+     * Ties the paid Plans sold before #206 to their Stripe products, from their env Prices
+     * (see StripeConfig.envPlanPrices). Run at startup; billing also does it before it
+     * first needs a product. Throws if Stripe could not be reached.
      */
-    async setPlanQuotas(plan: Plan, quotas: PlanQuotas, within: Queryable = database): Promise<PlanQuotas> {
+    linkPlansToEnvPrices: linked,
+
+    /** The lowest-ranked offered Plan above `plan` whose quotas `allow` what was asked (an Upgrade Prompt's); null when none. */
+    upgradeFor,
+
+    /**
+     * Creates a Plan (Back Office) from untrusted `input`: `{ key, name: { fr, en },
+     * stripeProductId, features }`. The product must exist in Stripe, be active and have a
+     * recurring default Price, and be no other Plan's. The Plan starts hidden, ranked above
+     * every other, with the Plan Quotas of the Plan ranked just below it. `within` runs it
+     * in the caller's transaction.
+     */
+    async createPlan(input: unknown, within: Queryable = database, options: PlanWriteOptions = {}): Promise<PlanResult<{ plan: PlanDefinition; quotas: PlanQuotas }>> {
+      const parsed = newPlanInput.safeParse(input);
+      if (!parsed.success) return { ok: false, error: inputError(parsed.error) };
+      const { key, name, stripeProductId, features } = parsed.data;
+      if (!PLAN_KEY.test(key)) return { ok: false, error: "invalid_key" };
+      if (!options.productChecked) {
+        const problem = await stripeProductProblem(stripeProductId);
+        if (problem) return { ok: false, error: problem };
+      }
+      return uniquely<{ plan: PlanDefinition; quotas: PlanQuotas }>(async () => {
+        // Concurrent creates take their turn, each ranked above the one before.
+        await within.query("SELECT key FROM plan FOR UPDATE");
+        const plans = await listPlans(within);
+        if (plans.some((plan) => plan.key === key)) return { ok: false, error: "key_taken" };
+        const problem = await productProblem(stripeProductId, key, within, true);
+        if (problem) return { ok: false, error: problem };
+        const below = plans.at(-1)!;
+        const plan: PlanDefinition = { key, name, rank: below.rank + 1, status: "hidden", stripeProductId, features };
+        await insertPlan(within, plan);
+        const { rows } = await within.query(
+          `INSERT INTO plan_quota (plan, ${QUOTA_COLUMNS}) SELECT $1, ${QUOTA_COLUMNS} FROM plan_quota WHERE plan = $2 RETURNING *`,
+          [key, below.key],
+        );
+        return { ok: true, plan, quotas: quotasFromRow(rows[0]) };
+      });
+    },
+
+    /**
+     * Asks Stripe whether `product` may be a Plan's (exists, active, recurring default Price), quickly.
+     * For callers that write in a transaction: ask first, then pass `productChecked` to `createPlan` /
+     * `updatePlan`, so no transaction waits on Stripe.
+     */
+    checkStripeProduct: stripeProductProblem,
+
+    /**
+     * Changes a Plan (Back Office) from untrusted `input`: `{ name: { fr, en }, status,
+     * stripeProductId, features }`. Free keeps no product and stays offered; a paid Plan
+     * offered, or once tied to a product, needs one (checked as for `createPlan` when it
+     * changes). Hiding a Plan keeps its subscribers on it. Returns it before and after.
+     */
+    async updatePlan(key: Plan, input: unknown, within: Queryable = database, options: PlanWriteOptions = {}): Promise<PlanResult<{ before: PlanDefinition; after: PlanDefinition }>> {
+      const parsed = planChangeInput.safeParse(input);
+      if (!parsed.success) return { ok: false, error: inputError(parsed.error) };
+      const { name, status, features } = parsed.data;
+      const submittedProduct = parsed.data.stripeProductId || null;
+      const current = await findPlan(within, key);
+      // A product given to a Plan with none yet is asked of Stripe before anything is locked.
+      if (current && key !== FREE_PLAN && !current.stripeProductId && submittedProduct && !options.productChecked) {
+        const problem = await stripeProductProblem(submittedProduct);
+        if (problem) return { ok: false, error: problem };
+      }
+      return uniquely<{ before: PlanDefinition; after: PlanDefinition }>(async () => {
+        const before = await lockedPlan(within, key);
+        if (!before) return { ok: false, error: "unknown_plan" };
+        let stripeProductId: string | null;
+        if (key === FREE_PLAN) {
+          if (status !== "offered" || submittedProduct) return { ok: false, error: "free_plan_built_in" };
+          stripeProductId = null;
+        } else if (before.stripeProductId) {
+          // Frozen: left out of the form, or the same, it stays.
+          if (submittedProduct && submittedProduct !== before.stripeProductId) return { ok: false, error: "product_frozen" };
+          stripeProductId = before.stripeProductId;
+        } else {
+          if (!submittedProduct && status === "offered") return { ok: false, error: "product_required" };
+          if (submittedProduct) {
+            const problem = await productProblem(submittedProduct, key, within, true);
+            if (problem) return { ok: false, error: problem };
+          }
+          stripeProductId = submittedProduct;
+        }
+        const after: PlanDefinition = { ...before, name, status, stripeProductId, features };
+        await savePlan(within, after);
+        return { ok: true, before, after };
+      });
+    },
+
+    /**
+     * Moves a paid Plan one rank up or down (Back Office), swapping it with its neighbour.
+     * Free stays first: it does not move, and nothing moves below it. Returns the Plan's rank before and after.
+     */
+    async movePlan(key: Plan, direction: "up" | "down", within: Queryable = database): Promise<PlanResult<{ before: number; after: number }>> {
+      if (key === FREE_PLAN) return { ok: false, error: "free_plan_built_in" };
+      await within.query("SELECT key FROM plan FOR UPDATE");
+      const plans = await listPlans(within);
+      const index = plans.findIndex((plan) => plan.key === key);
+      if (index < 0) return { ok: false, error: "unknown_plan" };
+      const plan = plans[index]!;
+      const neighbour = plans[direction === "up" ? index + 1 : index - 1];
+      if (!neighbour || neighbour.key === FREE_PLAN) return { ok: false, error: "cannot_move" };
+      await swapRanks(within, plan, neighbour);
+      return { ok: true, before: plan.rank, after: neighbour.rank };
+    },
+
+    /** Every Plan's quotas, lowest rank first. */
+    planQuotas: allPlanQuotas,
+
+    /**
+     * Replaces one Plan's quotas (Back Office) and returns the ones it replaced; null for an unknown
+     * Plan. Applies at once to every Candidate on that Plan. `within` runs it in the caller's transaction.
+     */
+    async setPlanQuotas(plan: Plan, quotas: PlanQuotas, within: Queryable = database): Promise<PlanQuotas | null> {
       const keys = Object.keys(COLUMNS) as (keyof PlanQuotas)[];
       const { rows } = await within.query(
         `UPDATE plan_quota p SET ${keys.map((key, index) => `${COLUMNS[key]} = $${index + 2}`).join(", ")}, updated_at = now()
@@ -651,7 +1046,7 @@ export function createBilling(config: BillingConfig) {
          RETURNING previous.*`,
         [plan, ...keys.map((key) => quotas[key])],
       );
-      return quotasFromRow(rows[0]);
+      return rows[0] ? quotasFromRow(rows[0]) : null;
     },
 
     /**
@@ -663,9 +1058,9 @@ export function createBilling(config: BillingConfig) {
      */
     async entitlements(candidateId: string) {
       const account = await stripeAccountOf(candidateId);
-      const plan = account?.plan ?? "free";
+      const plan = account?.plan ?? FREE_PLAN;
       const stripeStatus = (account?.stripe_status ?? null) as SubscriptionStatus | null;
-      const endsAt = plan === "free" ? null : (account?.ends_at ?? null);
+      const endsAt = plan === FREE_PLAN ? null : (account?.ends_at ?? null);
       const { rows } = await database.query("SELECT quota, used FROM quota_usage WHERE candidate_id = $1 AND month = $2", [
         candidateId,
         monthInFrance(now()),

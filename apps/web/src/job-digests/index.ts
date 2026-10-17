@@ -41,7 +41,6 @@
 import {
   JOB_DIGEST_FREQUENCIES,
   MAX_POSTING_AGE_DAYS,
-  PLANS,
   rankByMatchScore,
   scoreMatch,
   type JobDigestFrequency,
@@ -54,7 +53,7 @@ import { randomBytes } from "node:crypto";
 import type { Pool } from "pg";
 import type { Applications } from "../applications";
 import type { Mailer } from "../auth";
-import type { Billing } from "../billing";
+import type { Billing, PlanName } from "../billing";
 import type { JobOffers } from "../job-offers";
 import type { Profile, Profiles } from "../profiles";
 import { routes } from "../routes";
@@ -99,7 +98,7 @@ export interface JobDigestSettings {
   frequency: JobDigestFrequency;
   /** The most the Candidate's Plan allows; "none" when it does not include the Job Digest. */
   planFrequency: JobDigestFrequency;
-  /** The cheapest Plan that includes the Job Digest, when the Candidate's does not. */
+  /** The lowest-ranked offered Plan that includes the Job Digest, when the Candidate's does not. */
   upgradeTo: Plan | null;
   /** The latest Job Digests of the Profile (at most LATEST_DIGESTS), newest first. */
   digests: JobDigestSummary[];
@@ -114,9 +113,17 @@ export type SubscribeResult =
   /** Neither "daily" nor "weekly". */
   | { ok: false; error: "invalid_frequency" }
   /** The Candidate's Plan has no Job Digest. */
-  | { ok: false; error: "not_included"; plan: Plan; upgradeTo: Plan | null }
-  /** The Candidate's Plan sends it less often than asked; `upgradeTo` is the cheapest Plan that allows it. */
-  | { ok: false; error: "above_plan"; plan: Plan; planFrequency: JobDigestFrequency; upgradeTo: Plan | null };
+  | ({ ok: false; error: "not_included" } & PlanUpgrade)
+  /** The Candidate's Plan sends it less often than asked; `upgradeTo` is the lowest-ranked offered Plan that allows it. */
+  | ({ ok: false; error: "above_plan"; planFrequency: JobDigestFrequency } & PlanUpgrade);
+
+/** The Candidate's Plan and the one to upgrade to (null when none does), with their names, for the Upgrade Prompt. */
+export interface PlanUpgrade {
+  plan: Plan;
+  planName: PlanName;
+  upgradeTo: Plan | null;
+  upgradeToName: PlanName | null;
+}
 
 /** An opted-in Profile whose Job Digest is due. */
 export interface DueJobDigest {
@@ -170,7 +177,7 @@ export interface JobDigestsDeps {
   jobOffers: Pick<JobOffers, "get">;
   applications: Pick<Applications, "list">;
   /** Plans only: a Job Digest uses no Plan Quota. */
-  billing: Pick<Billing, "entitlements" | "planQuotas">;
+  billing: Pick<Billing, "entitlements" | "plans" | "upgradeFor">;
   mailer: Mailer;
   /** Public origin of the web app; the email's links point here. */
   baseURL: string;
@@ -295,10 +302,11 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
     return { plan, frequency: quotas.jobDigest };
   }
 
-  /** The first Plan above `plan` whose Job Digest comes at least `frequency`. */
-  async function upgradeFor(plan: Plan, frequency: ChosenFrequency = "weekly"): Promise<Plan | null> {
-    const quotas = await deps.billing.planQuotas();
-    return PLANS.slice(PLANS.indexOf(plan) + 1).find((higher) => rank(quotas[higher].jobDigest) >= rank(frequency)) ?? null;
+  /** `plan` and the lowest-ranked offered Plan above it whose Job Digest comes at least `frequency`, with their names. */
+  async function planUpgrade(plan: Plan, frequency: ChosenFrequency = "weekly"): Promise<PlanUpgrade> {
+    const [plans, upgrade] = await Promise.all([deps.billing.plans(), deps.billing.upgradeFor(plan, (quotas) => rank(quotas.jobDigest) >= rank(frequency))]);
+    const planName = plans.find((candidate) => candidate.key === plan)?.name ?? { fr: plan, en: plan };
+    return { plan, planName, upgradeTo: upgrade?.key ?? null, upgradeToName: upgrade?.name ?? null };
   }
 
   async function ownProfile(candidateId: string, profileId: string): Promise<Profile | null> {
@@ -340,7 +348,7 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
       chosenFrequency,
       frequency,
       planFrequency,
-      upgradeTo: planFrequency === "none" ? await upgradeFor(plan) : null,
+      upgradeTo: planFrequency === "none" ? (await planUpgrade(plan)).upgradeTo : null,
       digests: latest.rows.map((row) => ({ id: row.id, sentAt: row.sent_at, count: row.count })),
     };
   }
@@ -444,9 +452,10 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
       if (profile.archived) return { ok: false, error: "archived" };
       if (!isChosenFrequency(frequency)) return { ok: false, error: "invalid_frequency" };
       const { plan, frequency: planFrequency } = await planOf(candidateId);
-      if (planFrequency === "none") return { ok: false, error: "not_included", plan, upgradeTo: await upgradeFor(plan) };
+      if (planFrequency === "none") return { ok: false, error: "not_included", ...(await planUpgrade(plan)) };
       if (rank(frequency) > rank(planFrequency)) {
-        return { ok: false, error: "above_plan", plan, planFrequency, upgradeTo: await upgradeFor(plan, frequency) };
+        const { planName, upgradeTo, upgradeToName } = await planUpgrade(plan, frequency);
+        return { ok: false, error: "above_plan", plan, planName, planFrequency, upgradeTo, upgradeToName };
       }
       // Opting in again counts from now, so it is not due before the next 07:00 that comes after it.
       await database.query(

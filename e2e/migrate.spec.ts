@@ -98,6 +98,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "job_offer",
         "job_search", // issue #14: on-demand AI Coach job search
         "master_cv_version",
+        "plan", // issue #206: the Plans Administrators define
         "plan_quota",
         "profile",
         "provider_secret", // issue #208: Provider Secrets, encrypted
@@ -176,6 +177,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "job_search", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "job_search", from_column: "profile_id", to_table: "profile" },
         { from_table: "master_cv_version", from_column: "profile_id", to_table: "profile" },
+        // A Plan's quotas belong to a Plan (issue #206), never deleted.
+        { from_table: "plan_quota", from_column: "plan", to_table: "plan" },
         { from_table: "profile", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "quota_usage", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "session", from_column: "userId", to_table: "candidate" },

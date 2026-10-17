@@ -22,11 +22,12 @@
  * Plan Quota: nothing is counted against one.
  */
 import { costInEur, type AiLayer } from "@jobhub/ai";
-import { PLANS, type Plan, type PlanQuotas } from "@jobhub/shared";
+import type { Plan, PlanFeature, PlanQuotas } from "@jobhub/shared";
 import * as z from "zod";
 import { BACK_OFFICE_ROLES, type BackOfficeAccess, type BackOfficeResource, type BackOfficeRole } from "../admin/access";
 import type { Administrator } from "../admin/administrators";
 import type { BackOfficeAuditEntry, Recorded } from "../admin/back-office";
+import type { PlanDefinition, PlanName } from "../billing";
 import type { CoachMessageCost } from "../coach";
 import { COACH_MESSAGE_COST_TARGET_EUR, type CoachCostDay } from "../coach-conversations";
 import type { HumanCoach } from "../human-coaches";
@@ -37,8 +38,10 @@ export { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentMessages, type AssistantMessage
 
 /** The Back Office data the assistant reads, each source covered by one Back Office resource. */
 export interface BackOfficeAssistantSources {
-  /** Every Plan's quotas (`planQuotas`). */
-  planQuotas(): Promise<Record<Plan, PlanQuotas>>;
+  /** Every Plan's quotas, lowest rank first, with its name (`planQuotas`). */
+  planQuotas(): Promise<{ key: Plan; name: PlanName; quotas: PlanQuotas }[]>;
+  /** Every Plan, lowest rank first, offered and hidden (`plans`). */
+  plans(): Promise<PlanDefinition[]>;
   /** The Human Coaches Candidates can choose from (`humanCoaches`). */
   humanCoaches(): Promise<HumanCoach[]>;
   /** The AI Coach's cost per day, newest first (`coachMessageCost`). */
@@ -112,12 +115,12 @@ const ROLE_NAMES: Record<BackOfficeRole, string> = {
   support: "Support",
 };
 
-const PLAN_NAMES: Record<Plan, string> = { free: "Free", standard: "Standard", premium: "Premium" };
+const FEATURE_NAMES: Record<PlanFeature, string> = { coachingSessionDiscount: "séances de coaching à prix réduit" };
 
 /** Each Back Office section as the assistant names it, and the page it is on (when there is one yet). */
 const SECTIONS: Record<BackOfficeResource, { name: string; page?: string }> = {
   planQuotas: { name: "Quotas des offres (Plan Quotas)", page: routes.adminPlanQuotas },
-  plans: { name: "Offres (Plans) et leurs fonctionnalités" },
+  plans: { name: "Offres (Plans) et leurs fonctionnalités", page: routes.adminPlans },
   humanCoaches: { name: "Coachs humains", page: routes.adminHumanCoaches },
   coachMessageCost: { name: "Coût du coach IA (Coach Message Cost)", page: routes.adminCoachCost },
   roles: { name: "Administrateurs et rôles du Back Office", page: routes.adminAdministrators },
@@ -160,10 +163,10 @@ function quotaValue(key: keyof PlanQuotas, value: PlanQuotas[keyof PlanQuotas]):
 /** What each section the Administrator may read says, read from its source. */
 const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssistantSources) => Promise<string>>> = {
   async planQuotas(sources) {
-    const quotas = await sources.planQuotas();
-    const lines = PLANS.map(
-      (plan) =>
-        `- ${PLAN_NAMES[plan]} : ${(Object.keys(QUOTA_NAMES) as (keyof PlanQuotas)[]).map((key) => `${QUOTA_NAMES[key]} ${quotaValue(key, quotas[plan][key])}`).join(" ; ")}`,
+    const plans = await sources.planQuotas();
+    const lines = plans.map(
+      ({ name, quotas }) =>
+        `- ${untrusted(name.fr)} : ${(Object.keys(QUOTA_NAMES) as (keyof PlanQuotas)[]).map((key) => `${QUOTA_NAMES[key]} ${quotaValue(key, quotas[key])}`).join(" ; ")}`,
     );
     return [
       heading("planQuotas"),
@@ -186,10 +189,17 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
     ].join("\n");
   },
 
-  async plans() {
+  async plans(sources) {
+    const plans = await sources.plans();
+    const lines = plans.map((plan) => {
+      const product = plan.stripeProductId ? `, produit Stripe ${plan.stripeProductId}` : "";
+      const features = plan.features.length ? ` ; fonctionnalités : ${plan.features.map((feature) => FEATURE_NAMES[feature]).join(", ")}` : "";
+      return `${plan.rank}. ${untrusted(plan.name.fr)} (clé ${plan.key}) : ${plan.status === "offered" ? "proposée" : "masquée"}${product}${features}`;
+    });
     return [
       heading("plans"),
-      `Les offres sont ${PLANS.map((plan) => PLAN_NAMES[plan]).join(", ")}. Leurs prix viennent de Stripe, jamais du Back Office. Les séances de coaching se paient à part, avec une remise en Premium.`,
+      "Les offres, de la plus basse à la plus haute : c'est l'ordre de la comparaison des offres, et une invitation à passer à l'offre supérieure (Upgrade Prompt) propose la première offre proposée au-dessus de celle du candidat qui permet ce qu'il demandait. Chaque offre payante est liée à un produit Stripe : son tarif par défaut est vendu au paiement, et tous ses tarifs donnent l'offre. Les prix viennent de Stripe, jamais du Back Office. Une offre masquée n'est ni comparée, ni vendue, ni proposée dans les invitations ; ses abonnés la gardent. Aucune offre n'est jamais supprimée. L'offre Gratuite est intégrée : toujours la première. Une nouvelle offre est créée masquée. Les séances de coaching se paient à part, à prix réduit pour les offres qui ont cette fonctionnalité.",
+      ...lines,
     ].join("\n");
   },
 
@@ -247,6 +257,7 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
 
 const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   roles: "rôles",
+  plans: "offres",
   plan_quotas: "quotas",
   human_coaches: "coachs humains",
   provider_secrets: "clés des fournisseurs",
@@ -269,7 +280,7 @@ function journalLine(entry: BackOfficeAuditEntry): string {
   const named = (value: Recorded) => (value && typeof value === "object" && !Array.isArray(value) && typeof value.name === "string" ? value.name : null);
   const target = entry.section === "human_coaches" ? untrusted(named(entry.after) ?? named(entry.before) ?? "un coach") : entry.target;
   const values =
-    entry.section === "plan_quotas" || entry.section === "roles"
+    entry.section === "plan_quotas" || entry.section === "plans" || entry.section === "roles"
       ? ` ; avant ${untrusted(JSON.stringify(entry.before))}, après ${untrusted(JSON.stringify(entry.after))}`
       : "";
   return `${JOURNAL_SECTIONS[entry.section]}, ${ACTIONS[entry.action]} de ${target}${values}`;

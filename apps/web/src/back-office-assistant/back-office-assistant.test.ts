@@ -15,7 +15,20 @@ function backOfficeData() {
   const sources: BackOfficeAssistantSources = {
     async planQuotas() {
       reads.push("planQuotas");
-      return { ...STARTING_PLAN_QUOTAS, premium: { ...STARTING_PLAN_QUOTAS.premium, matchScores: 4321 } };
+      return [
+        { key: "free", name: { fr: "Gratuite", en: "Free" }, quotas: STARTING_PLAN_QUOTAS.free },
+        { key: "standard", name: { fr: "Standard", en: "Standard" }, quotas: STARTING_PLAN_QUOTAS.standard },
+        { key: "premium", name: { fr: "Premium", en: "Premium" }, quotas: { ...STARTING_PLAN_QUOTAS.premium, matchScores: 4321 } },
+      ];
+    },
+    async plans() {
+      reads.push("plans");
+      return [
+        { key: "free", name: { fr: "Gratuite", en: "Free" }, rank: 1, status: "offered", stripeProductId: null, features: [] },
+        { key: "standard", name: { fr: "Standard", en: "Standard" }, rank: 2, status: "offered", stripeProductId: "prod_standard", features: [] },
+        { key: "essentiel", name: { fr: "Essentiel", en: "Essential" }, rank: 3, status: "hidden", stripeProductId: "prod_essential", features: [] },
+        { key: "premium", name: { fr: "Premium", en: "Premium" }, rank: 4, status: "offered", stripeProductId: "prod_premium", features: ["coachingSessionDiscount"] },
+      ];
     },
     async humanCoaches() {
       reads.push("humanCoaches");
@@ -120,6 +133,19 @@ describe("Back Office Assistant", () => {
     expect(prompt()).not.toContain(SECRET);
   });
 
+  it("a Plans manager's assistant knows the real Plans: their order, offered or hidden, and their Plan Features", async () => {
+    const { assistant, administrator } = assistantFor(["plans-manager"]);
+
+    await assistant.reply(administrator, asked("Quelles offres sont proposées ?"));
+
+    expect(data.reads.sort()).toEqual(["planQuotas", "plans"]);
+    const system = provider.calls[0]!.system!;
+    // Plan names are typed in the Back Office: framed as untrusted data, like Human Coaches' text.
+    expect(system).toContain("1. <donnees>Gratuite</donnees> (clé free) : proposée");
+    expect(system).toContain("3. <donnees>Essentiel</donnees> (clé essentiel) : masquée, produit Stripe prod_essential");
+    expect(system).toContain("4. <donnees>Premium</donnees> (clé premium) : proposée, produit Stripe prod_premium ; fonctionnalités : séances de coaching à prix réduit");
+  });
+
   it("names the sections outside the Administrator's roles, for the assistant to refuse them", async () => {
     const { assistant, administrator } = assistantFor(["coach-manager"]);
 
@@ -139,7 +165,7 @@ describe("Back Office Assistant", () => {
 
     await assistant.reply(administrator, asked("Combien de Match Scores en Premium ?"));
 
-    expect(data.reads.sort()).toEqual(["coachCost", "humanCoaches", "planQuotas"]);
+    expect(data.reads.sort()).toEqual(["coachCost", "humanCoaches", "planQuotas", "plans"]);
     expect(prompt()).toContain("Match Scores par mois 4321");
   });
 
@@ -151,7 +177,7 @@ describe("Back Office Assistant", () => {
 
       await assistant.reply(administrator, asked("Qui a changé la clé Mistral ?"));
 
-      expect(data.reads.sort()).toEqual(["administrators", "coachCost", "humanCoaches", "journal", "planQuotas"]);
+      expect(data.reads.sort()).toEqual(["administrators", "coachCost", "humanCoaches", "journal", "planQuotas", "plans"]);
       // That the key was replaced is in the Journal; its value never is, nor is any address.
       expect(prompt()).toContain("remplacement de MISTRAL_API_KEY");
       expect(prompt()).not.toContain(SECRET);

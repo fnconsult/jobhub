@@ -98,6 +98,29 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
     }
   });
 
+  it("creates Plans asked for at the same time one after the other, and answers a taken key with a PlanError", async () => {
+    const stripe = await startFakeStripe();
+    try {
+      const withStripe = createBilling({ database, baseURL: "http://localhost:3000", stripe: { secretKey: FAKE_STRIPE_SECRET_KEY, webhookSecret: FAKE_STRIPE_WEBHOOK_SECRET, apiUrl: stripe.url } });
+      const plansOffice = createBackOffice(database, { billing: withStripe, humanCoaches: { add: async () => ({ ok: false, error: "invalid" }) as never, retire: async () => null } });
+      const plan = (key: string, stripeProductId: string) => ({ key, name: { fr: key, en: key }, stripeProductId, features: [] });
+
+      const [essentiel, other] = await Promise.all([
+        plansOffice.createPlan(claire, plan("essentiel", FAKE_STRIPE_PRODUCTS.essential)),
+        plansOffice.createPlan(claire, plan("essentiel-bis", FAKE_STRIPE_PRODUCTS.standard)),
+      ]);
+      const same = await Promise.all([1, 2].map(() => plansOffice.createPlan(claire, plan("annuel", FAKE_STRIPE_PRODUCTS.premium))));
+
+      expect(essentiel).toMatchObject({ ok: true });
+      expect(other).toMatchObject({ ok: true });
+      expect((await withStripe.plans()).map((each) => each.rank)).toEqual([1, 2, 3, 4, 5, 6]);
+      expect(same.filter((result) => result.ok)).toHaveLength(1);
+      expect(same.filter((result) => !result.ok)).toEqual([{ ok: false, error: "key_taken" }]);
+    } finally {
+      await stripe.stop();
+    }
+  });
+
   it("adding and retiring a Human Coach each record one entry; a refused one records nothing", async () => {
     const sophie = { name: "Sophie Martin", email: "Sophie.Martin@rh-conseil.fr", bookingUrl: "https://cal.com/sophie-martin/seance", bio: "Ancienne DRH." };
 

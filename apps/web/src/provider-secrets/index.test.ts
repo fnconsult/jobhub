@@ -28,7 +28,7 @@ describe.skipIf(!connectionString)("Provider Secrets, encrypted in the database 
     database = testAuth.database;
     await migrateBackOfficeAudit(database);
     await migrateProviderSecrets(database);
-    backOffice = createBackOffice(database, { billing: { setPlanQuotas: async () => ({}) as never, createPlan: async () => ({}) as never, updatePlan: async () => ({}) as never, movePlan: async () => ({}) as never }, humanCoaches: { add: async () => ({}) as never, retire: async () => null } });
+    backOffice = createBackOffice(database, { billing: { setPlanQuotas: async () => ({}) as never, createPlan: async () => ({}) as never, updatePlan: async () => ({}) as never, movePlan: async () => ({}) as never, checkStripeProduct: async () => null, plans: async () => [] }, humanCoaches: { add: async () => ({}) as never, retire: async () => null } });
     const cookie = await signInWithMagicLink(testAuth, "claire@jobbbox.fr");
     const { user } = await (await testAuth.request("/api/auth/get-session", { cookie })).json();
     claire = { id: user.id, email: user.email };

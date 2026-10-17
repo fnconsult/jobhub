@@ -24,6 +24,8 @@ const ERRORS = [
   "no_recurring_default_price",
   "stripe_unavailable",
   "product_required",
+  "product_frozen",
+  "conflict",
   "free_plan_built_in",
   "cannot_move",
 ] as const satisfies readonly PlanError[];
@@ -176,19 +178,31 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
                     <label htmlFor={id("offered")}>{t("admin.plans.offeredLabel")}</label>
                     <p id={id("offered-help")}>{t("admin.plans.hiddenHelp")}</p>
                   </div>
-                  <div className="stack">
-                    <label htmlFor={id("product")}>{t("admin.plans.product")}</label>
-                    <input
-                      id={id("product")}
-                      className="input"
-                      name="stripeProductId"
-                      defaultValue={plan.stripeProductId ?? ""}
-                      autoComplete="off"
-                      spellCheck={false}
-                      aria-describedby={id("product-help")}
-                    />
-                    <p id={id("product-help")}>{t("admin.plans.productHelp")}</p>
-                  </div>
+                  {plan.stripeProductId ? (
+                    // Frozen once set: its subscribers stay on that product. Shown, never sent.
+                    <div className="stack">
+                      <dl>
+                        <dt>{t("admin.plans.product")}</dt>
+                        <dd>
+                          <code>{plan.stripeProductId}</code>
+                        </dd>
+                      </dl>
+                      <p>{t("admin.plans.productFrozenHelp")}</p>
+                    </div>
+                  ) : (
+                    <div className="stack">
+                      <label htmlFor={id("product")}>{t("admin.plans.product")}</label>
+                      <input
+                        id={id("product")}
+                        className="input"
+                        name="stripeProductId"
+                        autoComplete="off"
+                        spellCheck={false}
+                        aria-describedby={id("product-help")}
+                      />
+                      <p id={id("product-help")}>{t("admin.plans.productHelp")}</p>
+                    </div>
+                  )}
                 </>
               )}
               <FeatureFields id={id} checked={plan.features} t={t} />

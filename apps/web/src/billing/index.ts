@@ -186,7 +186,9 @@ export async function migrateBilling(database: Pool): Promise<void> {
     await database.query("ALTER TABLE plan_quota ADD CONSTRAINT plan_quota_plan_fkey FOREIGN KEY (plan) REFERENCES plan (key)");
   }
   const startingPlans = Object.keys(STARTING_PLAN_QUOTAS) as (keyof typeof STARTING_PLAN_QUOTAS)[];
-  // A quota added after the table was created starts at its starting value on every Plan.
+  // A quota added after the table was created starts at its starting value on the starting Plans, and on
+  // each Plan an Administrator created at the value of the Plan ranked just below it (Free's at worst):
+  // never NULL, which would mean unlimited.
   const { rows: existing } = await database.query<{ column_name: string }>(
     "SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'plan_quota'",
   );
@@ -196,6 +198,14 @@ export async function migrateBilling(database: Pool): Promise<void> {
     await database.query(`ALTER TABLE plan_quota ADD COLUMN IF NOT EXISTS ${column} integer CHECK (${column} >= 0)`);
     for (const plan of startingPlans) {
       await database.query(`UPDATE plan_quota SET ${column} = $2 WHERE plan = $1`, [plan, STARTING_PLAN_QUOTAS[plan][quota]]);
+    }
+    const { rows: ranked } = await database.query<{ plan: string }>("SELECT q.plan FROM plan_quota q JOIN plan p ON p.key = q.plan ORDER BY p.rank");
+    let below: string | undefined;
+    for (const { plan } of ranked) {
+      if (below && !(startingPlans as string[]).includes(plan)) {
+        await database.query(`UPDATE plan_quota SET ${column} = (SELECT ${column} FROM plan_quota WHERE plan = $2) WHERE plan = $1`, [plan, below]);
+      }
+      below = plan;
     }
   }
   for (const plan of startingPlans) {
@@ -222,6 +232,37 @@ function inputError(error: z.ZodError): PlanError {
   if (field === "status") return "invalid_status";
   if (field === "features") return "invalid_feature";
   return "not_a_product_id";
+}
+
+const PRODUCT_ID = /^prod_[A-Za-z0-9_]+$/;
+
+/** The starting Plans first, in their order, then any other key: how env variables are named in a message. */
+const byStartingOrder = (a: string, b: string) => {
+  const order = Object.keys(STARTING_PLAN_QUOTAS);
+  const rank = (key: string) => (order.includes(key) ? order.indexOf(key) : order.length);
+  return rank(a) - rank(b) || a.localeCompare(b);
+};
+
+/** For writes made in a transaction that already asked Stripe about the product (`checkStripeProduct`). */
+export interface PlanWriteOptions {
+  productChecked?: boolean;
+}
+
+/**
+ * Runs a Plan write, answering a unique violation (a key, product or rank taken at the same
+ * moment) with a PlanError rather than an error page. Inside a caller's transaction the
+ * transaction is then aborted, so nothing of it is kept.
+ */
+async function uniquely<T>(write: () => Promise<PlanResult<T>>): Promise<PlanResult<T>> {
+  try {
+    return await write();
+  } catch (error) {
+    const violation = error as { code?: string; constraint?: string };
+    if (violation.code !== "23505") throw error;
+    if (violation.constraint === "plan_pkey") return { ok: false, error: "key_taken" };
+    if (violation.constraint === "plan_stripe_product_id_key") return { ok: false, error: "product_taken" };
+    return { ok: false, error: "conflict" };
+  }
 }
 
 /** The id of a Stripe object field that may be expanded. */
@@ -260,8 +301,12 @@ export type PlanError =
   | "no_recurring_default_price"
   /** Stripe is not configured or could not be reached: the product cannot be checked. */
   | "stripe_unavailable"
-  /** A paid Plan that is offered, or that already had one, needs a product. */
+  /** A paid Plan that is offered needs a product. */
   | "product_required"
+  /** A paid Plan's product never changes once set: its subscribers stay on it (moving them is done in Stripe). */
+  | "product_frozen"
+  /** Another change to the Plans was saved at the same moment: try again. */
+  | "conflict"
   /** Free cannot be hidden, moved or given a product. */
   | "free_plan_built_in"
   /** Nothing to swap with in that direction (or only Free). */
@@ -407,10 +452,33 @@ export function createBilling(config: BillingConfig) {
   async function linkPlansToEnvPrices(): Promise<void> {
     const prices = config.stripe?.envPlanPrices;
     if (!prices) return;
-    for (const plan of await listPlans(database)) {
-      const price = prices[plan.key];
-      if (plan.key === FREE_PLAN || plan.stripeProductId || !price) continue;
-      await adoptProduct(database, plan.key, (await amountOf(price, QUICK)).product);
+    const plans = await listPlans(database);
+    const unlinked = plans.filter((plan) => plan.key !== FREE_PLAN && !plan.stripeProductId && prices[plan.key]);
+    if (unlinked.length === 0) return;
+    // Every env Price's product, so two Plans sharing one is seen before either is tied to it.
+    const products = new Map<Plan, string>();
+    for (const [plan, price] of Object.entries(prices)) if (price) products.set(plan, (await amountOf(price, QUICK)).product);
+    const envName = (plan: Plan) => `STRIPE_PRICE_${plan.toUpperCase()}`;
+    for (const plan of unlinked) {
+      const product = products.get(plan.key)!;
+      const sharing = [...products].filter(([other, otherProduct]) => other !== plan.key && otherProduct === product).map(([other]) => other);
+      if (sharing.length > 0) {
+        console.warn(
+          `[billing] ${[plan.key, ...sharing].sort(byStartingOrder).map(envName).join(" and ")} are prices of the same Stripe product ${product}: ` +
+            `the ${plan.key} Plan is not tied to it, since a product is one Plan's. Each of those prices still follows its own Plan; ` +
+            "give each Plan its own product in Stripe, then set it in the Back Office (Offres).",
+        );
+        continue;
+      }
+      const holder = plans.find((other) => other.stripeProductId === product);
+      if (holder) {
+        console.warn(
+          `[billing] ${envName(plan.key)} is a price of Stripe product ${product}, already the ${holder.name.en} Plan's: the ${plan.key} Plan is not tied to it. ` +
+            "Set its own product in the Back Office (Offres).",
+        );
+        continue;
+      }
+      await adoptProduct(database, plan.key, product);
     }
   }
   let linking: Promise<void> | undefined;
@@ -434,20 +502,21 @@ export function createBilling(config: BillingConfig) {
     }
   }
 
-  /** Why `product` cannot be a Plan's (other than `key`'s), or null when it can: it exists, is active and has a recurring default Price. */
-  async function productProblem(product: string, key: string, within: Queryable): Promise<PlanError | null> {
-    if (!/^prod_[A-Za-z0-9_]+$/.test(product)) return "not_a_product_id";
-    const { rows } = await within.query("SELECT 1 FROM plan WHERE stripe_product_id = $1 AND key <> $2", [product, key]);
-    if (rows.length > 0) return "product_taken";
+  /**
+   * Why Stripe will not let `product` be a Plan's, or null when it can: it exists, is active and has
+   * a recurring default Price. Asked quickly, never retried: run it before any transaction opens.
+   */
+  async function stripeProductProblem(product: string): Promise<PlanError | null> {
+    if (!PRODUCT_ID.test(product)) return "not_a_product_id";
     if (!config.stripe) return "stripe_unavailable";
     try {
-      const fetched = await stripe().client.products.retrieve(product);
+      const fetched = await stripe().client.products.retrieve(product, {}, QUICK);
       if (!fetched.active) return "product_archived";
       const priceId = idOf(fetched.default_price);
       if (!priceId) return "no_recurring_default_price";
       productCache.set(product, { at: now().getTime(), defaultPrice: priceId });
       priceCache.delete(priceId);
-      const { interval } = await amountOf(priceId);
+      const { interval } = await amountOf(priceId, QUICK);
       return BILLING_INTERVALS.includes(interval as BillingInterval) ? null : "no_recurring_default_price";
     } catch (error) {
       if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") return "product_not_found";
@@ -455,6 +524,14 @@ export function createBilling(config: BillingConfig) {
       console.error("[billing] could not check a Stripe product", error);
       return "stripe_unavailable";
     }
+  }
+
+  /** Why `product` cannot be `key`'s: another Plan has it, or Stripe refuses it (unless `checked` says it was asked already). */
+  async function productProblem(product: string, key: string, within: Queryable, checked: boolean): Promise<PlanError | null> {
+    if (!PRODUCT_ID.test(product)) return "not_a_product_id";
+    const { rows } = await within.query("SELECT 1 FROM plan WHERE stripe_product_id = $1 AND key <> $2", [product, key]);
+    if (rows.length > 0) return "product_taken";
+    return checked ? null : stripeProductProblem(product);
   }
 
   /** Reports a paid Coaching Session from a checkout.session.* event; ignores any other checkout. */
@@ -528,6 +605,9 @@ export function createBilling(config: BillingConfig) {
    */
   async function paidPlanOf(price: Stripe.Price | undefined): Promise<Plan | undefined> {
     if (!price) return undefined;
+    // An env Price names its Plan exactly, whatever product it is on (STRIPE_PRICE_STANDARD / _PREMIUM sharing one, say).
+    const envPlan = Object.entries(config.stripe?.envPlanPrices ?? {}).find(([, envPrice]) => envPrice === price.id)?.[0];
+    if (envPlan && (await findPlan(database, envPlan))) return envPlan;
     const planOfProduct = async () =>
       (await database.query("SELECT key FROM plan WHERE stripe_product_id = $1 AND key <> $2", [productOf(price), FREE_PLAN])).rows[0]?.key as Plan | undefined;
     const known = await planOfProduct();
@@ -811,7 +891,12 @@ export function createBilling(config: BillingConfig) {
       await linkedIfPossible();
       try {
         const paid = (await listPlans(database)).filter((plan) => plan.status === "offered" && plan.key !== FREE_PLAN && plan.stripeProductId);
-        const prices = await Promise.all(paid.map(async (plan) => [plan.key, await subscriptionPrice(await defaultPriceOf(plan.stripeProductId!))] as const));
+        const settled = await Promise.allSettled(paid.map(async (plan) => [plan.key, await subscriptionPrice(await defaultPriceOf(plan.stripeProductId!))] as const));
+        const prices = settled.flatMap((result) => (result.status === "fulfilled" ? [result.value] : []));
+        const failures = settled.flatMap((result) => (result.status === "rejected" ? [result.reason as unknown] : []));
+        // One product Stripe cannot price leaves out its own Plan's price; none at all, every price.
+        if (failures.length > 0 && prices.length === 0) throw failures[0];
+        for (const failure of failures) console.error("[billing] a Plan price is unavailable from Stripe", failure);
         planPricesFailedAt = undefined;
         const free: PlanPrice = { currency: prices[0]?.[1].currency ?? "eur", interval: prices[0]?.[1].interval ?? "month", amount: 0 };
         return { [FREE_PLAN]: free, ...Object.fromEntries(prices) };
@@ -844,24 +929,39 @@ export function createBilling(config: BillingConfig) {
      * every other, with the Plan Quotas of the Plan ranked just below it. `within` runs it
      * in the caller's transaction.
      */
-    async createPlan(input: unknown, within: Queryable = database): Promise<PlanResult<{ plan: PlanDefinition; quotas: PlanQuotas }>> {
+    async createPlan(input: unknown, within: Queryable = database, options: PlanWriteOptions = {}): Promise<PlanResult<{ plan: PlanDefinition; quotas: PlanQuotas }>> {
       const parsed = newPlanInput.safeParse(input);
       if (!parsed.success) return { ok: false, error: inputError(parsed.error) };
       const { key, name, stripeProductId, features } = parsed.data;
       if (!PLAN_KEY.test(key)) return { ok: false, error: "invalid_key" };
-      const plans = await listPlans(within);
-      if (plans.some((plan) => plan.key === key)) return { ok: false, error: "key_taken" };
-      const problem = await productProblem(stripeProductId, key, within);
-      if (problem) return { ok: false, error: problem };
-      const below = plans.at(-1)!;
-      const plan: PlanDefinition = { key, name, rank: below.rank + 1, status: "hidden", stripeProductId, features };
-      await insertPlan(within, plan);
-      const { rows } = await within.query(
-        `INSERT INTO plan_quota (plan, ${QUOTA_COLUMNS}) SELECT $1, ${QUOTA_COLUMNS} FROM plan_quota WHERE plan = $2 RETURNING *`,
-        [key, below.key],
-      );
-      return { ok: true, plan, quotas: quotasFromRow(rows[0]) };
+      if (!options.productChecked) {
+        const problem = await stripeProductProblem(stripeProductId);
+        if (problem) return { ok: false, error: problem };
+      }
+      return uniquely<{ plan: PlanDefinition; quotas: PlanQuotas }>(async () => {
+        // Concurrent creates take their turn, each ranked above the one before.
+        await within.query("SELECT key FROM plan FOR UPDATE");
+        const plans = await listPlans(within);
+        if (plans.some((plan) => plan.key === key)) return { ok: false, error: "key_taken" };
+        const problem = await productProblem(stripeProductId, key, within, true);
+        if (problem) return { ok: false, error: problem };
+        const below = plans.at(-1)!;
+        const plan: PlanDefinition = { key, name, rank: below.rank + 1, status: "hidden", stripeProductId, features };
+        await insertPlan(within, plan);
+        const { rows } = await within.query(
+          `INSERT INTO plan_quota (plan, ${QUOTA_COLUMNS}) SELECT $1, ${QUOTA_COLUMNS} FROM plan_quota WHERE plan = $2 RETURNING *`,
+          [key, below.key],
+        );
+        return { ok: true, plan, quotas: quotasFromRow(rows[0]) };
+      });
     },
+
+    /**
+     * Asks Stripe whether `product` may be a Plan's (exists, active, recurring default Price), quickly.
+     * For callers that write in a transaction: ask first, then pass `productChecked` to `createPlan` /
+     * `updatePlan`, so no transaction waits on Stripe.
+     */
+    checkStripeProduct: stripeProductProblem,
 
     /**
      * Changes a Plan (Back Office) from untrusted `input`: `{ name: { fr, en }, status,
@@ -869,25 +969,40 @@ export function createBilling(config: BillingConfig) {
      * offered, or once tied to a product, needs one (checked as for `createPlan` when it
      * changes). Hiding a Plan keeps its subscribers on it. Returns it before and after.
      */
-    async updatePlan(key: Plan, input: unknown, within: Queryable = database): Promise<PlanResult<{ before: PlanDefinition; after: PlanDefinition }>> {
+    async updatePlan(key: Plan, input: unknown, within: Queryable = database, options: PlanWriteOptions = {}): Promise<PlanResult<{ before: PlanDefinition; after: PlanDefinition }>> {
       const parsed = planChangeInput.safeParse(input);
       if (!parsed.success) return { ok: false, error: inputError(parsed.error) };
-      const before = await lockedPlan(within, key);
-      if (!before) return { ok: false, error: "unknown_plan" };
       const { name, status, features } = parsed.data;
-      const stripeProductId = parsed.data.stripeProductId || null;
-      if (key === FREE_PLAN) {
-        if (status !== "offered" || stripeProductId) return { ok: false, error: "free_plan_built_in" };
-      } else {
-        if (!stripeProductId && (status === "offered" || before.stripeProductId)) return { ok: false, error: "product_required" };
-        if (stripeProductId && stripeProductId !== before.stripeProductId) {
-          const problem = await productProblem(stripeProductId, key, within);
-          if (problem) return { ok: false, error: problem };
-        }
+      const submittedProduct = parsed.data.stripeProductId || null;
+      const current = await findPlan(within, key);
+      // A product given to a Plan with none yet is asked of Stripe before anything is locked.
+      if (current && key !== FREE_PLAN && !current.stripeProductId && submittedProduct && !options.productChecked) {
+        const problem = await stripeProductProblem(submittedProduct);
+        if (problem) return { ok: false, error: problem };
       }
-      const after: PlanDefinition = { ...before, name, status, stripeProductId, features };
-      await savePlan(within, after);
-      return { ok: true, before, after };
+      return uniquely<{ before: PlanDefinition; after: PlanDefinition }>(async () => {
+        const before = await lockedPlan(within, key);
+        if (!before) return { ok: false, error: "unknown_plan" };
+        let stripeProductId: string | null;
+        if (key === FREE_PLAN) {
+          if (status !== "offered" || submittedProduct) return { ok: false, error: "free_plan_built_in" };
+          stripeProductId = null;
+        } else if (before.stripeProductId) {
+          // Frozen: left out of the form, or the same, it stays.
+          if (submittedProduct && submittedProduct !== before.stripeProductId) return { ok: false, error: "product_frozen" };
+          stripeProductId = before.stripeProductId;
+        } else {
+          if (!submittedProduct && status === "offered") return { ok: false, error: "product_required" };
+          if (submittedProduct) {
+            const problem = await productProblem(submittedProduct, key, within, true);
+            if (problem) return { ok: false, error: problem };
+          }
+          stripeProductId = submittedProduct;
+        }
+        const after: PlanDefinition = { ...before, name, status, stripeProductId, features };
+        await savePlan(within, after);
+        return { ok: true, before, after };
+      });
     },
 
     /**

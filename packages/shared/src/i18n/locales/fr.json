@@ -761,6 +761,7 @@
       "hiddenHelp": "Une offre masquée n'apparaît ni dans la comparaison, ni au paiement, ni dans les invitations à passer à l'offre supérieure. Ses abonnés la gardent ; pour les changer d'offre, passez par Stripe.",
       "product": "Produit Stripe",
       "productHelp": "L'identifiant du produit (prod_…), pas celui d'un tarif. Le produit doit être actif et avoir un tarif par défaut récurrent ; tous ses tarifs donnent cette offre.",
+      "productFrozenHelp": "Il ne change plus : ses abonnés restent sur ce produit. Pour les faire changer d'offre, passez par Stripe.",
       "noProduct": "aucun",
       "features": "Fonctionnalités",
       "noFeatures": "aucune",
@@ -804,7 +805,9 @@
         "stripe_unavailable": "Stripe n'a pas pu vérifier le produit. Réessayez dans un instant.",
         "product_required": "Une offre payante proposée doit être liée à un produit Stripe.",
         "free_plan_built_in": "L'offre Gratuite ne peut être ni masquée, ni déplacée, ni liée à un produit Stripe.",
-        "cannot_move": "Cette offre ne peut pas aller plus loin."
+        "cannot_move": "Cette offre ne peut pas aller plus loin.",
+        "product_frozen": "Le produit Stripe d'une offre payante ne change plus une fois choisi : ses abonnés restent dessus. Pour les faire changer d'offre, passez par Stripe.",
+        "conflict": "Une autre modification des offres a été enregistrée au même moment. Réessayez."
       }
     },
     "planQuotas": {

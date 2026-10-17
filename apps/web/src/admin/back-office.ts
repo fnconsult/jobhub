@@ -16,7 +16,7 @@
  * operations record, not the Administrator's personal data export; they are kept
  * RETENTION_YEARS.
  */
-import type { Plan, PlanQuotas } from "@jobhub/shared";
+import { FREE_PLAN, type Plan, type PlanQuotas } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type { Billing, PlanDefinition, PlanResult } from "../billing";
 import type { Queryable } from "../database/pool";
@@ -81,7 +81,7 @@ export interface BackOfficeAuditEntry {
 }
 
 export interface BackOfficeDeps {
-  billing: Pick<Billing, "setPlanQuotas" | "createPlan" | "updatePlan" | "movePlan">;
+  billing: Pick<Billing, "setPlanQuotas" | "createPlan" | "updatePlan" | "movePlan" | "checkStripeProduct" | "plans">;
   humanCoaches: Pick<HumanCoaches, "add" | "retire">;
 }
 
@@ -134,6 +134,12 @@ const entryFrom = (row: EntryRow): BackOfficeAuditEntry => ({
 /** A recorded value as a jsonb parameter; nothing is SQL NULL. */
 const json = (value: Recorded): string | null => (value === null ? null : JSON.stringify(value));
 
+/** The Stripe product named in an untrusted Plan form, trimmed; "" when none. */
+const productOf = (input: unknown): string => {
+  const product = typeof input === "object" && input !== null ? (input as { stripeProductId?: unknown }).stripeProductId : undefined;
+  return typeof product === "string" ? product.trim() : "";
+};
+
 /** A Plan's quotas as recorded. */
 const recordedQuotas = (quotas: PlanQuotas): Recorded => ({ ...quotas });
 
@@ -182,9 +188,12 @@ export function createBackOffice(database: Pool, deps: BackOfficeDeps): BackOffi
     record,
 
     async createPlan(actor, input) {
+      // Stripe is asked before the transaction opens, so none waits on it.
+      const problem = await deps.billing.checkStripeProduct(productOf(input));
+      if (problem) return { ok: false, error: problem };
       const created = await record(
         actor,
-        (within) => deps.billing.createPlan(input, within),
+        (within) => deps.billing.createPlan(input, within, { productChecked: true }),
         (result) =>
           result.ok
             ? { section: "plans", target: result.plan.key, action: "added", before: null, after: { ...recordedPlan(result.plan), rank: result.plan.rank, quotas: recordedQuotas(result.quotas) } }
@@ -194,9 +203,18 @@ export function createBackOffice(database: Pool, deps: BackOfficeDeps): BackOffi
     },
 
     async updatePlan(actor, plan, input) {
+      // A product given to a Plan with none yet is asked of Stripe before the transaction opens.
+      const current = (await deps.billing.plans()).find((each) => each.key === plan);
+      const product = productOf(input);
+      let productChecked = false;
+      if (current && !current.stripeProductId && product && current.key !== FREE_PLAN) {
+        const problem = await deps.billing.checkStripeProduct(product);
+        if (problem) return { ok: false, error: problem };
+        productChecked = true;
+      }
       const updated = await record(
         actor,
-        (within) => deps.billing.updatePlan(plan, input, within),
+        (within) => deps.billing.updatePlan(plan, input, within, { productChecked }),
         (result) => (result.ok ? { section: "plans", target: plan, action: "updated", before: recordedPlan(result.before), after: recordedPlan(result.after) } : null),
       );
       return updated.ok ? { ok: true } : updated;

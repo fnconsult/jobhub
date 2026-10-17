@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FAKE_STRIPE_COACHING_SESSION_PRICES, FAKE_STRIPE_PRICES, FAKE_STRIPE_PRODUCTS, fakeCustomerId, signedEvent, subscriptionEvent } from "./fake-stripe";
 import { BillingError, createBilling, STARTING_PLAN_QUOTAS } from "./index";
 import { connectionString, startTestBilling, type TestBilling } from "./test-support";
@@ -54,13 +54,64 @@ describe.skipIf(!connectionString)("Plans defined by Administrators (needs Postg
     });
 
     it("keep the product an Administrator gave them over the env price's, across deployments", async () => {
-      await t.billing.updatePlan("standard", { name: { fr: "Standard", en: "Standard" }, status: "offered", stripeProductId: FAKE_STRIPE_PRODUCTS.essential, features: [] });
+      await t.database.query("UPDATE plan SET stripe_product_id = NULL, status = 'hidden' WHERE key = 'standard'");
+      expect(await t.billing.updatePlan("standard", { name: { fr: "Standard", en: "Standard" }, status: "offered", stripeProductId: FAKE_STRIPE_PRODUCTS.essential, features: [] })).toMatchObject({ ok: true });
 
       await t.migrateAgain();
       const deployed = createBilling(t.config);
       await deployed.linkPlansToEnvPrices();
 
       expect((await deployed.plans()).find((plan) => plan.key === "standard")?.stripeProductId).toBe(FAKE_STRIPE_PRODUCTS.essential);
+    });
+
+    it("are not tied to a product two env prices share: each price follows its own Plan, and the team is told", async () => {
+      await t.database.query("UPDATE plan SET stripe_product_id = NULL WHERE key IN ('standard', 'premium')");
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const shared = createBilling({ ...t.config, stripe: { ...t.config.stripe!, envPlanPrices: { standard: FAKE_STRIPE_PRICES.bundleStandard, premium: FAKE_STRIPE_PRICES.bundlePremium } } });
+      const marie = await t.signUp("marie.dupont@example.fr");
+      const jean = await t.signUp("jean.martin@example.fr");
+      await t.database.query("INSERT INTO candidate_plan (candidate_id, plan, stripe_customer_id) VALUES ($1, 'free', $2), ($3, 'free', $4)", [
+        marie.id,
+        fakeCustomerId(marie.email),
+        jean.id,
+        fakeCustomerId(jean.email),
+      ]);
+
+      await shared.linkPlansToEnvPrices();
+      for (const [candidate, price] of [[marie, FAKE_STRIPE_PRICES.bundlePremium], [jean, FAKE_STRIPE_PRICES.bundleStandard]] as const) {
+        const { payload, signature } = signedEvent(subscriptionEvent("customer.subscription.created", { customer: fakeCustomerId(candidate.email), price, status: "active" }));
+        await shared.handleStripeWebhook(payload, signature);
+      }
+
+      expect((await shared.plans()).map((plan) => plan.stripeProductId)).toEqual([null, null, null]);
+      expect((await shared.entitlements(marie.id)).plan).toBe("premium");
+      expect((await shared.entitlements(jean.id)).plan).toBe("standard");
+      expect(warn).toHaveBeenCalledWith(expect.stringMatching(/STRIPE_PRICE_STANDARD and STRIPE_PRICE_PREMIUM.*same Stripe product/));
+      warn.mockRestore();
+    });
+
+    it("are not tied to a product another Plan already has, and the team is told", async () => {
+      await t.database.query("UPDATE plan SET stripe_product_id = NULL WHERE key = 'standard'");
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const taken = createBilling({ ...t.config, stripe: { ...t.config.stripe!, envPlanPrices: { standard: FAKE_STRIPE_PRICES.premium } } });
+
+      await taken.linkPlansToEnvPrices();
+
+      expect((await taken.plans()).find((plan) => plan.key === "standard")?.stripeProductId).toBeNull();
+      expect(warn).toHaveBeenCalledWith(expect.stringMatching(/STRIPE_PRICE_STANDARD.*already the Premium Plan's/));
+      warn.mockRestore();
+    });
+
+    it("start a quota added in a later release at the value of the Plan ranked just below, for Plans Administrators created", async () => {
+      await t.billing.createPlan(ESSENTIAL);
+      await t.billing.movePlan("essentiel", "down");
+      await t.billing.setPlanQuotas("standard", { ...STARTING_PLAN_QUOTAS.standard, jobSearches: 12 });
+      await t.database.query("ALTER TABLE plan_quota DROP COLUMN job_searches");
+
+      await t.migrateAgain();
+
+      // Standard is back at its starting value; Essentiel, just above it, takes Standard's: never NULL (unlimited) by accident.
+      expect(await t.billing.planQuotas()).toMatchObject({ standard: { jobSearches: 30 }, essentiel: { jobSearches: 30 }, premium: { jobSearches: null } });
     });
 
     it("keep selling and following the Plans with a product when an env price cannot give its own", async () => {
@@ -106,6 +157,14 @@ describe.skipIf(!connectionString)("Plans defined by Administrators (needs Postg
       expect(await t.billing.plans()).toHaveLength(3);
     });
 
+    it("gives up on a Stripe that does not answer within a few seconds", async () => {
+      t.stripe.stopAnswering();
+      const started = Date.now();
+
+      expect(await t.billing.createPlan(ESSENTIAL)).toEqual({ ok: false, error: "stripe_unavailable" });
+      expect(Date.now() - started).toBeLessThan(5_000);
+    }, 30_000);
+
     it("cannot check the product while Stripe is not configured", async () => {
       const withoutStripe = createBilling({ ...t.config, stripe: undefined });
 
@@ -147,6 +206,19 @@ describe.skipIf(!connectionString)("Plans defined by Administrators (needs Postg
 
       expect((await t.billing.entitlements(marie.id)).plan).toBe("essentiel");
       expect((await t.billing.entitlements(jean.id)).plan).toBe("free");
+    });
+  });
+
+  describe("a paid Plan's Stripe product", () => {
+    it("is frozen once set: its subscribers stay on that product, so changing it is refused and the form may leave it out", async () => {
+      const standard = { name: { fr: "Standard", en: "Standard" }, status: "offered", features: [] };
+
+      expect(await t.billing.updatePlan("standard", { ...standard, stripeProductId: FAKE_STRIPE_PRODUCTS.essential })).toEqual({ ok: false, error: "product_frozen" });
+      expect(await t.billing.updatePlan("standard", { ...standard, stripeProductId: null, name: { fr: "Standard+", en: "Standard+" } })).toMatchObject({
+        ok: true,
+        after: { stripeProductId: FAKE_STRIPE_PRODUCTS.standard, name: { fr: "Standard+" } },
+      });
+      expect(await t.billing.updatePlan("standard", { ...standard, stripeProductId: FAKE_STRIPE_PRODUCTS.standard })).toMatchObject({ ok: true });
     });
   });
 

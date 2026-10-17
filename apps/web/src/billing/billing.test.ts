@@ -590,12 +590,15 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
     it("has no prices while Stripe cannot give them", async () => {
       const unreachable = createBilling({ ...t.config, stripe: { ...t.config.stripe!, apiUrl: "http://127.0.0.1:9" } });
       expect(await unreachable.planPrices()).toBeNull();
+    });
 
+    it("leaves out only the price of a Plan whose product Stripe cannot price", async () => {
+      const standard = { amount: 1900, currency: "eur", interval: "month" };
       t.stripe.setDefaultPrice(FAKE_STRIPE_PRODUCTS.premium, FAKE_STRIPE_COACHING_SESSION_PRICES.regular);
-      expect(await createBilling(t.config).planPrices()).toBeNull(); // not a subscription Price
+      expect(await createBilling(t.config).planPrices()).toEqual({ free: { ...standard, amount: 0 }, standard }); // not a subscription Price
 
       t.stripe.setDefaultPrice(FAKE_STRIPE_PRODUCTS.premium, "price_unknown");
-      expect(await createBilling(t.config).planPrices()).toBeNull();
+      expect(await createBilling(t.config).planPrices()).toEqual({ free: { ...standard, amount: 0 }, standard });
     });
 
     it("gives up on a Stripe that never answers within a few seconds, and does not wait on it again at once", async () => {

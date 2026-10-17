@@ -761,6 +761,7 @@
       "hiddenHelp": "A hidden Plan is not in the comparison, at checkout or in Upgrade Prompts. Its subscribers keep it; to move them to another Plan, use Stripe.",
       "product": "Stripe product",
       "productHelp": "The product's ID (prod_…), not a price's. The product must be active and have a recurring default price; all its prices give this Plan.",
+      "productFrozenHelp": "It no longer changes: its subscribers stay on this product. To move them to another Plan, use Stripe.",
       "noProduct": "none",
       "features": "Features",
       "noFeatures": "none",
@@ -804,7 +805,9 @@
         "stripe_unavailable": "Stripe could not check the product. Try again in a moment.",
         "product_required": "An offered paid Plan must be tied to a Stripe product.",
         "free_plan_built_in": "The Free Plan cannot be hidden, moved or tied to a Stripe product.",
-        "cannot_move": "This Plan cannot go any further."
+        "cannot_move": "This Plan cannot go any further.",
+        "product_frozen": "A paid Plan's Stripe product no longer changes once chosen: its subscribers stay on it. To move them to another Plan, use Stripe.",
+        "conflict": "Another change to the Plans was saved at the same moment. Try again."
       }
     },
     "planQuotas": {

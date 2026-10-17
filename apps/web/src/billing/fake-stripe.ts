@@ -20,7 +20,14 @@ export interface StripeCall {
 export const FAKE_STRIPE_SECRET_KEY = "sk_test_fake";
 export const FAKE_STRIPE_WEBHOOK_SECRET = "whsec_test_fake";
 /** The Prices Standard (19 €/month) and Premium (39 €/month) are sold at: their products' default Prices, and STRIPE_PRICE_STANDARD / _PREMIUM. */
-export const FAKE_STRIPE_PRICES = { standard: "price_standard_monthly", premium: "price_premium_monthly", essential: "price_essential_monthly" } as const;
+export const FAKE_STRIPE_PRICES = {
+  standard: "price_standard_monthly",
+  premium: "price_premium_monthly",
+  essential: "price_essential_monthly",
+  /** Two Plans' prices on one product, a set-up the Back Office does not allow (one product per Plan). */
+  bundleStandard: "price_bundle_standard",
+  bundlePremium: "price_bundle_premium",
+} as const;
 /**
  * The Stripe products the fake knows: Standard's and Premium's, and others for Plans an
  * Administrator creates: Essentiel (29 €/month, a fit), and ones a Plan cannot be tied to
@@ -46,6 +53,8 @@ const FAKE_PRICES: Record<string, FakePrice> = {
   [FAKE_STRIPE_PRICES.standard]: { amount: 1900, product: FAKE_STRIPE_PRODUCTS.standard, recurring: MONTHLY },
   [FAKE_STRIPE_PRICES.premium]: { amount: 3900, product: FAKE_STRIPE_PRODUCTS.premium, recurring: MONTHLY },
   [FAKE_STRIPE_PRICES.essential]: { amount: 2900, product: FAKE_STRIPE_PRODUCTS.essential, recurring: MONTHLY },
+  [FAKE_STRIPE_PRICES.bundleStandard]: { amount: 1900, product: "prod_bundle", recurring: MONTHLY },
+  [FAKE_STRIPE_PRICES.bundlePremium]: { amount: 3900, product: "prod_bundle", recurring: MONTHLY },
   price_standard_yearly: { amount: 19000, product: FAKE_STRIPE_PRODUCTS.standard, recurring: { interval: "year", interval_count: 1 } },
   price_archived_monthly: { amount: 1500, product: FAKE_STRIPE_PRODUCTS.archived, recurring: MONTHLY },
   price_one_off: { amount: 5000, product: FAKE_STRIPE_PRODUCTS.oneOff, recurring: null },

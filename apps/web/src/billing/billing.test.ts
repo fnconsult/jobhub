@@ -571,14 +571,19 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       });
     });
 
-    it("asks Stripe again only after a few minutes", async () => {
-      await t.billing.planPrices();
-      await t.billing.planPrices();
-      expect(t.stripe.callsTo(`/v1/prices/${FAKE_STRIPE_PRICES.standard}`)).toHaveLength(1);
+    it("asks Stripe once per paid Plan, for its product with the default price, and again only after a few minutes", async () => {
+      const billing = createBilling(t.config);
+      const before = t.stripe.callsTo(`/v1/prices/${FAKE_STRIPE_PRICES.standard}`).length;
+
+      await billing.planPrices();
+      await billing.planPrices();
+      expect(t.stripe.callsTo(`/v1/products/${FAKE_STRIPE_PRODUCTS.standard}`)).toHaveLength(1);
+      // One call per Plan: a Stripe that never answers holds the page for one short timeout, not two in a row.
+      expect(t.stripe.callsTo(`/v1/prices/${FAKE_STRIPE_PRICES.standard}`)).toHaveLength(before);
 
       t.clock.now = new Date(t.clock.now.getTime() + 11 * 60_000);
-      await t.billing.planPrices();
-      expect(t.stripe.callsTo(`/v1/prices/${FAKE_STRIPE_PRICES.standard}`)).toHaveLength(2);
+      await billing.planPrices();
+      expect(t.stripe.callsTo(`/v1/products/${FAKE_STRIPE_PRODUCTS.standard}`)).toHaveLength(2);
     });
 
     it("has no prices without Stripe", async () => {

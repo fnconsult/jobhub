@@ -411,10 +411,13 @@ export function createBilling(config: BillingConfig) {
   async function amountOf(priceId: string, options?: Stripe.RequestOptions): Promise<StripeAmount> {
     const cached = priceCache.get(priceId);
     if (cached && now().getTime() - cached.at < 10 * 60_000) return cached;
-    const price = await stripe().client.prices.retrieve(priceId, {}, options);
-    if (price.unit_amount === null) throw new Error(`Stripe Price ${priceId} has no fixed amount`);
+    return remember(await stripe().client.prices.retrieve(priceId, {}, options));
+  }
+  /** Keeps a Price Stripe gave, for `amountOf`. */
+  function remember(price: Stripe.Price): StripeAmount {
+    if (price.unit_amount === null) throw new Error(`Stripe Price ${price.id} has no fixed amount`);
     const fetched = { at: now().getTime(), amount: price.unit_amount, currency: price.currency, interval: price.recurring?.interval_count === 1 ? price.recurring.interval : null, product: productOf(price) };
-    priceCache.set(priceId, fetched);
+    priceCache.set(price.id, fetched);
     return fetched;
   }
 
@@ -431,13 +434,18 @@ export function createBilling(config: BillingConfig) {
 
   /** Stripe products' default Prices, kept a few minutes like the amounts. */
   const productCache = new Map<string, { at: number; defaultPrice: string | null }>();
-  /** The Price a paid Plan is sold at: its Stripe product's default Price. */
+  /**
+   * The Price a paid Plan is sold at: its Stripe product's default Price. Asked in one call, the
+   * Price expanded in the product, so a Stripe that never answers costs one short timeout, not two.
+   */
   async function defaultPriceOf(product: string): Promise<string> {
     const cached = productCache.get(product);
     let defaultPrice = cached && now().getTime() - cached.at < 10 * 60_000 ? cached.defaultPrice : undefined;
     if (defaultPrice === undefined) {
-      const fetched = await stripe().client.products.retrieve(product, {}, QUICK);
+      const fetched = await stripe().client.products.retrieve(product, { expand: ["default_price"] }, QUICK);
       defaultPrice = idOf(fetched.default_price);
+      // A Price that is no fixed amount is left for subscriptionPrice to refuse.
+      if (fetched.default_price && typeof fetched.default_price === "object" && fetched.default_price.unit_amount !== null) remember(fetched.default_price);
       productCache.set(product, { at: now().getTime(), defaultPrice });
     }
     if (!defaultPrice) throw new Error(`Stripe product ${product} has no default price`);

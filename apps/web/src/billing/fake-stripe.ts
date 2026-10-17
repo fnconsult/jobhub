@@ -122,7 +122,15 @@ export async function startFakeStripe(port = 0) {
       const product = request.method === "GET" && path.match(/^\/v1\/products\/([^/]+)$/)?.[1];
       if (product && FAKE_PRODUCTS[product]) {
         const { active, defaultPrice } = FAKE_PRODUCTS[product];
-        return reply(200, { id: product, object: "product", active, default_price: defaultPrices.get(product) ?? defaultPrice });
+        const priceId = defaultPrices.get(product) ?? defaultPrice;
+        // `expand[]=default_price` (as the SDK sends it in the query string) gives the Price itself.
+        const expanded = decodeURIComponent(new URL(request.url ?? "/", "http://stripe.test").search).includes("default_price");
+        const known = priceId ? FAKE_PRICES[priceId] : undefined;
+        const defaultPriceField =
+          expanded && priceId && known
+            ? { id: priceId, object: "price", active: true, unit_amount: known.amount, currency: "eur", recurring: known.recurring, product: known.product }
+            : priceId;
+        return reply(200, { id: product, object: "product", active, default_price: defaultPriceField });
       }
       if (product) return reply(404, { error: { type: "invalid_request_error", code: "resource_missing", message: `No such product: '${product}'` } });
       if (request.method === "GET" && path === "/__calls") return reply(200, calls.map((call) => ({ ...call, params: Object.fromEntries(call.params) })));

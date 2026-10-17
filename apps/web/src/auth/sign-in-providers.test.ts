@@ -197,6 +197,43 @@ describe.skipIf(!connectionString)("signing in through the Sign-in Providers (ne
     });
   });
 
+  describe("a sign-in with an ID token instead of the redirect (POST /sign-in/social with idToken)", () => {
+    // No client of ours signs in this way: refused outright, so the provider policy cannot be skipped.
+    it("is refused from an untrusted provider whose token says the email is verified: no account is taken over", async () => {
+      await start();
+      await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+      const token = ssoIdToken({ sub: "sso-marie", email: "marie.dupont@example.fr", email_verified: true, name: "Marie" });
+
+      const refused = await testAuth.request("/api/auth/sign-in/social", { body: { provider: "jobbbox-sso", idToken: { token } } });
+
+      expect(refused.status).toBe(400);
+      expect((await refused.json()).code).toBe("ID_TOKEN_SIGN_IN_NOT_SUPPORTED");
+      expect(refused.headers.getSetCookie().join()).not.toContain("session_token");
+      expect((await testAuth.database.query("SELECT count(*) FROM account WHERE \"providerId\" = 'jobbbox-sso'")).rows[0].count).toBe("0");
+    });
+
+    it("is refused through a provider allowed for Administrators only, to anyone", async () => {
+      await start([{ ...google, shownToCandidates: false }]);
+      const token = googleIdToken({ sub: "google-paul", email: "paul@gmail.com", email_verified: true, name: "Paul" });
+
+      const refused = await testAuth.request("/api/auth/sign-in/social", { body: { provider: "google", idToken: { token } } });
+
+      expect(refused.status).toBe(400);
+      expect(await candidates()).toBe(0);
+    });
+
+    it("is refused for linking too", async () => {
+      await start();
+      const magic = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+      const token = ssoIdToken({ sub: "sso-marie", email: "marie.dupont@example.fr", email_verified: true, name: "Marie" });
+
+      const refused = await testAuth.request("/api/auth/link-social", { cookie: magic, body: { provider: "jobbbox-sso", idToken: { token } } });
+
+      expect(refused.status).toBe(400);
+      expect((await testAuth.database.query("SELECT count(*) FROM account WHERE \"providerId\" = 'jobbbox-sso'")).rows[0].count).toBe("0");
+    });
+  });
+
   it("records on each session how it was signed in", async () => {
     await start();
     const magic = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");

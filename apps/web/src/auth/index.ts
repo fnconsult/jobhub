@@ -16,7 +16,7 @@
  */
 import { createI18n, DEFAULT_LOCALE, isSupportedLocale, SUPPORTED_LOCALES } from "@jobhub/shared/i18n";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
-import { APIError, getOAuthState } from "better-auth/api";
+import { APIError, createAuthMiddleware, getOAuthState } from "better-auth/api";
 import { getMigrations } from "better-auth/db/migration";
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { magicLink } from "better-auth/plugins/magic-link";
@@ -165,6 +165,21 @@ function signInHooks(signIn: SignInSetup, baseURL: string) {
   };
 }
 
+/** The endpoints that take a provider's ID token straight from the client, instead of the redirect. */
+const ID_TOKEN_PATHS = ["/sign-in/social", "/link-social"];
+
+/**
+ * Refuses a sign-in or a link made with a provider's ID token posted by the client: no page or
+ * client of ours does it, and it would skip the callback where the sign-in policy is applied.
+ */
+const refuseIdTokenSignIn = createAuthMiddleware(async (ctx) => {
+  if (!ID_TOKEN_PATHS.includes(ctx.path)) return;
+  const body = ctx.body as { idToken?: unknown } | undefined;
+  if (body?.idToken !== undefined) {
+    throw new APIError("BAD_REQUEST", { code: "ID_TOKEN_SIGN_IN_NOT_SUPPORTED", message: "Sign in through the provider's page" });
+  }
+});
+
 function authOptions(config: AuthConfig) {
   const signIn = config.signIn ?? NO_SIGN_IN;
   const providers = betterAuthSignIn(signIn.configuration);
@@ -189,6 +204,7 @@ function authOptions(config: AuthConfig) {
       },
     },
     databaseHooks: signInHooks(signIn, config.baseURL),
+    hooks: { before: refuseIdTokenSignIn },
     // The account of a person looking for a job is a Candidate (CONTEXT.md).
     user: {
       modelName: "candidate",

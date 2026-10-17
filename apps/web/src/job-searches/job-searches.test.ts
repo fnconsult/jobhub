@@ -208,7 +208,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     expect(await jobSearches.start(candidateId, { profileId })).toEqual({
       ok: false,
       error: "quota_exceeded",
-      refusal: { allowed: false, quota: "jobSearches", plan: "free", limit: 3, upgradeTo: "standard" },
+      refusal: { allowed: false, quota: "jobSearches", plan: "free", planName: { fr: "Gratuite", en: "Free" }, limit: 3, upgradeTo: "standard", upgradeToName: { fr: "Standard", en: "Standard" } },
     });
     expect(sent).toHaveLength(3);
 

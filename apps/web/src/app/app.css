@@ -2008,3 +2008,15 @@ textarea.title-edit {
   font-weight: 600;
   cursor: pointer;
 }
+
+/* A Plan's rank in the Back Office's Plans table, with its buttons to move it up or down. */
+.plan-rank {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.plan-rank form {
+  margin: 0;
+}

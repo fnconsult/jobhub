@@ -2,11 +2,13 @@ import {
   JOB_DIGEST_FREQUENCIES,
   JOB_DISCOVERY_SOURCES,
   LIMITED_QUOTAS,
-  PLANS,
+  PLAN_FEATURES,
+  PLAN_STATUSES,
   type JobDigestFrequency,
   type JobDiscoverySource,
   type LimitedQuota,
-  type Plan,
+  type PlanFeature,
+  type PlanStatus,
 } from "@jobhub/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -14,6 +16,7 @@ import { isBackOfficeRole } from "@/admin/access";
 import { BACK_OFFICE_SECTIONS, isBackOfficeSection, isSecretAction, RETENTION_YEARS, type BackOfficeAuditEntry, type BackOfficeSection, type Recorded } from "@/admin/back-office";
 import { journalChanges, type JournalChange } from "@/admin/journal-changes";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
+import { getBilling } from "@/billing/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
@@ -42,6 +45,10 @@ const SIGN_IN_PROVIDER_FIELDS = {
   secretsReplaced: "secrets",
 } as const;
 
+/** A Plan's recorded fields, by the Plans page's label for each. */
+const PLAN_FIELDS = ["name", "status", "stripeProductId", "features", "rank", "quotas"] as const;
+type PlanField = (typeof PLAN_FIELDS)[number];
+
 /** `aria-current` of the link to the section being shown. */
 const CURRENT = "page";
 
@@ -60,7 +67,15 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
   const t = await getServerT(locale);
   const requested = (await searchParams).section;
   const section = isBackOfficeSection(requested) ? requested : undefined;
-  const entries = await getBackOffice().journal({ section, limit: LIMIT });
+  const [entries, plans] = await Promise.all([getBackOffice().journal({ section, limit: LIMIT }), getBilling().plans()]);
+  /** What an entry changed, named as the Back Office names it: a Plan as it is named now; an unknown key stays as recorded. */
+  const target = (entry: BackOfficeAuditEntry): string => {
+    if (entry.section === "plans" || entry.section === "plan_quotas") return plans.find((plan) => plan.key === entry.target)?.name[locale] ?? entry.target;
+    if (entry.section === "job_discovery_sources" && JOB_DISCOVERY_SOURCES.includes(entry.target as JobDiscoverySource)) {
+      return t(`admin.searchSites.sources.names.${entry.target as JobDiscoverySource}`);
+    }
+    return entry.target;
+  };
   const at = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" });
   const number = new Intl.NumberFormat(locale);
 
@@ -72,6 +87,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     if (entrySection === "roles" && field === "roles") return t("admin.administrators.roles");
     if (SEARCH_SITES_SECTIONS.includes(entrySection) && field === "enabled") return t("admin.searchSites.status");
     if (entrySection === "job_sites" && field === "postingPages") return t("admin.searchSites.jobSites.postingPages");
+    if (entrySection === "plans" && PLAN_FIELDS.includes(field as PlanField)) return t(`admin.plans.fields.${field as PlanField}`);
     if (entrySection === "sign_in_providers" && field in SIGN_IN_PROVIDER_FIELDS) {
       return t(`admin.signInProviders.${SIGN_IN_PROVIDER_FIELDS[field as keyof typeof SIGN_IN_PROVIDER_FIELDS]}`);
     }
@@ -82,6 +98,14 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     if (entrySection === "job_sites" && field === "postingPages" && value === null) return t("admin.searchSites.jobSites.anyPostingPage");
     if (SEARCH_SITES_SECTIONS.includes(entrySection) && field === "enabled" && typeof value === "boolean") {
       return t(value ? "admin.searchSites.enabled" : "admin.searchSites.disabled");
+    }
+    if (entrySection === "plans") {
+      if (field === "stripeProductId" && value === null) return t("admin.plans.noProduct");
+      if (field === "status" && PLAN_STATUSES.includes(value as PlanStatus)) return t(`admin.plans.status.${value as PlanStatus}`);
+      if (field === "features" && Array.isArray(value)) {
+        return value.length ? value.map((feature) => (PLAN_FEATURES.includes(feature as PlanFeature) ? t(`admin.plans.featureNames.${feature as PlanFeature}`) : String(feature))).join(", ") : t("admin.plans.noFeatures");
+      }
+      if (field === "name" && typeof value === "object" && value !== null && !Array.isArray(value)) return `${String(value.fr)} / ${String(value.en)}`;
     }
     if (value === null) return t(entrySection === "plan_quotas" ? "admin.journal.unlimited" : "admin.journal.empty");
     if (entrySection === "plan_quotas" && field === "jobDigest" && JOB_DIGEST_FREQUENCIES.includes(value as JobDigestFrequency)) {
@@ -101,15 +125,6 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     if (change.before === undefined) return t("admin.journal.set", { field, after });
     if (change.after === undefined) return t("admin.journal.removed", { field, before });
     return t("admin.journal.changed", { field, before, after });
-  };
-
-  /** What an entry changed, named as the Back Office names it. */
-  const target = (entry: BackOfficeAuditEntry): string => {
-    if (entry.section === "plan_quotas" && PLANS.includes(entry.target as Plan)) return t(`billing.plans.${entry.target as Plan}`);
-    if (entry.section === "job_discovery_sources" && JOB_DISCOVERY_SOURCES.includes(entry.target as JobDiscoverySource)) {
-      return t(`admin.searchSites.sources.names.${entry.target as JobDiscoverySource}`);
-    }
-    return entry.target;
   };
 
   return (

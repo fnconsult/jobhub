@@ -38,7 +38,8 @@ async function deliverWebhook(page: Page, event: unknown) {
 
 /** The comparison table's row for one quota: its label, then the Free, Standard and Premium values. */
 async function planRow(page: Page, label: string) {
-  return page.getByRole("row", { name: new RegExp(`^${label}`) }).getByRole("cell").allInnerTexts();
+  // A Plan offered by plans.spec.ts while this runs is ranked after these three.
+  return (await page.getByRole("row", { name: new RegExp(`^${label}`) }).getByRole("cell").allInnerTexts()).slice(0, 3);
 }
 
 async function currentPlanIs(page: Page, plan: string) {
@@ -142,7 +143,7 @@ test.describe("Plans and Stripe billing", () => {
     await page.goto("/abonnement");
     await expect(page.getByText("Votre offre actuelle : Gratuite")).toBeVisible();
     const header = await page.getByRole("table").getByRole("columnheader").allInnerTexts();
-    expect(header.slice(1)).toEqual(["Gratuite", "Standard", "Premium"]);
+    expect(header.slice(1, 4)).toEqual(["Gratuite", "Standard", "Premium"]);
     expect(await planRow(page, "Profils")).toEqual(["1", "3", "Illimité"]);
     expect(await planRow(page, "Match Scores")).toEqual(["3 par mois", "Illimité", "Illimité"]);
     expect(await planRow(page, "ATS Scores")).toEqual(["1 par mois", "Illimité", "Illimité"]);

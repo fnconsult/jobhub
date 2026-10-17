@@ -644,6 +644,7 @@
       }
     },
     "sections": {
+      "plans": "Offres",
       "planQuotas": "Quotas",
       "humanCoaches": "Coachs",
       "coachCost": "Coût coach",
@@ -749,6 +750,74 @@
         "no_master_key": "Enregistrement désactivé : SECRETS_MASTER_KEYS n'est pas défini.",
         "not_tested": "Testez d'abord la connexion avec ce fournisseur : il ne peut être activé qu'après un test réussi depuis la dernière modification de ses identifiants.",
         "unknown_provider": "Fournisseur inconnu."
+      }
+    },
+    "plans": {
+      "title": "Offres",
+      "intro": "Les offres proposées aux candidats, dans l'ordre de la comparaison : chacune est liée à un produit Stripe, dont le tarif par défaut est vendu au paiement. Les prix se règlent dans Stripe, les quotas dans la section Quotas.",
+      "caption": "Les offres, de la plus basse à la plus haute",
+      "rank": "Rang",
+      "key": "Clé",
+      "keyHelp": "En minuscules, chiffres et tirets, par exemple essentiel. Elle ne change plus.",
+      "name": "Nom",
+      "nameFr": "Nom en français",
+      "nameEn": "Nom en anglais",
+      "statusLabel": "Statut",
+      "status": {
+        "offered": "proposée",
+        "hidden": "masquée"
+      },
+      "offeredLabel": "Proposée aux candidats",
+      "hiddenHelp": "Une offre masquée n'apparaît ni dans la comparaison, ni au paiement, ni dans les invitations à passer à l'offre supérieure. Ses abonnés la gardent ; pour les changer d'offre, passez par Stripe.",
+      "product": "Produit Stripe",
+      "productHelp": "L'identifiant du produit (prod_…), pas celui d'un tarif. Le produit doit être actif et avoir un tarif par défaut récurrent ; tous ses tarifs donnent cette offre.",
+      "productFrozenHelp": "Il ne change plus : ses abonnés restent sur ce produit. Pour les faire changer d'offre, passez par Stripe.",
+      "noProduct": "aucun",
+      "features": "Fonctionnalités",
+      "noFeatures": "aucune",
+      "featureNames": {
+        "coachingSessionDiscount": "Séances de coaching à prix réduit"
+      },
+      "featureHelp": {
+        "coachingSessionDiscount": "Les abonnés paient une séance avec un coach humain au prix réduit (STRIPE_PRICE_COACHING_SESSION_PREMIUM)."
+      },
+      "free": "L'offre Gratuite est intégrée : toujours la première et proposée, sans produit Stripe. Seuls son nom et ses quotas changent.",
+      "moveUp": "Monter l'offre {{plan}}",
+      "moveDown": "Descendre l'offre {{plan}}",
+      "edit": "Modifier l'offre {{plan}}",
+      "save": "Enregistrer l'offre {{plan}}",
+      "saved": "Offre {{plan}} enregistrée.",
+      "moved": "Ordre des offres enregistré.",
+      "createTitle": "Créer une offre",
+      "createHelp": "Elle est créée masquée, au-dessus des autres, avec les quotas de l'offre juste en dessous. Proposez-la quand ses quotas sont prêts.",
+      "create": "Créer l'offre",
+      "created": "Offre {{plan}} créée, masquée. Réglez ses quotas, puis proposez-la.",
+      "fields": {
+        "name": "Nom",
+        "status": "Statut",
+        "stripeProductId": "Produit Stripe",
+        "features": "Fonctionnalités",
+        "rank": "Rang",
+        "quotas": "Quotas"
+      },
+      "errors": {
+        "unknown_plan": "Cette offre n'existe pas.",
+        "invalid_key": "Clé refusée : en minuscules, chiffres et tirets, 2 à 32 caractères, en commençant par une lettre.",
+        "key_taken": "Cette clé est déjà celle d'une autre offre.",
+        "invalid_name": "Donnez un nom en français et en anglais (60 caractères au plus).",
+        "invalid_status": "Statut inconnu.",
+        "invalid_feature": "Fonctionnalité inconnue.",
+        "not_a_product_id": "Ce n'est pas un identifiant de produit Stripe (prod_…). Un identifiant de tarif (price_…) ne convient pas : ouvrez le produit dans Stripe et copiez son identifiant.",
+        "product_taken": "Ce produit Stripe est déjà celui d'une autre offre.",
+        "product_not_found": "Stripe ne connaît pas ce produit. Vérifiez l'identifiant et le mode (test ou production).",
+        "product_archived": "Ce produit est archivé dans Stripe.",
+        "no_recurring_default_price": "Ce produit n'a pas de tarif par défaut récurrent (chaque jour, semaine, mois ou année) dans Stripe.",
+        "stripe_unavailable": "Stripe n'a pas pu vérifier le produit. Réessayez dans un instant.",
+        "product_required": "Une offre payante proposée doit être liée à un produit Stripe.",
+        "free_plan_built_in": "L'offre Gratuite ne peut être ni masquée, ni déplacée, ni liée à un produit Stripe.",
+        "cannot_move": "Cette offre ne peut pas aller plus loin.",
+        "product_frozen": "Le produit Stripe d'une offre payante ne change plus une fois choisi : ses abonnés restent dessus. Pour les faire changer d'offre, passez par Stripe.",
+        "conflict": "Une autre modification des offres a été enregistrée au même moment. Réessayez."
       }
     },
     "planQuotas": {
@@ -952,6 +1021,7 @@
       "all": "Tout",
       "sections": {
         "roles": "Rôles",
+        "plans": "Offres",
         "plan_quotas": "Quotas des offres",
         "human_coaches": "Coachs humains",
         "provider_secrets": "Clés des fournisseurs",
@@ -1548,8 +1618,8 @@
     "title": "Mes coachs humains",
     "intro": "En plus de votre coach IA, réservez une séance en visio avec un professionnel RH sélectionné par Jobbbox.",
     "price": "Prix d'une séance : {{price}}",
-    "premiumPrice": "Prix d'une séance avec votre offre Premium : {{price}} au lieu de {{regular}}",
-    "premiumHint": "Les abonnés Premium bénéficient d'un prix réduit sur les séances.",
+    "discountedPrice": "Prix d'une séance avec votre offre {{plan}} : {{price}} au lieu de {{regular}}",
+    "discountHint": "Certaines offres donnent droit à un prix réduit sur les séances.",
     "unavailable": "Le paiement des séances n'est pas encore disponible.",
     "book": "Réserver une séance avec {{name}}",
     "none": "Aucun coach n'est disponible pour le moment.",

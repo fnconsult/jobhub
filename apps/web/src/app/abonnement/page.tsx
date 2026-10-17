@@ -1,4 +1,4 @@
-import { LIMITED_QUOTAS, MONTHLY_QUOTAS, PLANS, type PlanQuotas } from "@jobhub/shared";
+import { FREE_PLAN, LIMITED_QUOTAS, MONTHLY_QUOTAS, type PlanQuotas } from "@jobhub/shared";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentCandidate } from "@/auth/server";
@@ -20,7 +20,10 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const QUOTA_ROWS = [...LIMITED_QUOTAS, "jobDigest"] as const satisfies readonly (keyof PlanQuotas)[];
 
-/** The Candidate's Plan, this month's usage, the Plans side by side with their prices, and the way to Stripe (and their invoices there). */
+/**
+ * The Candidate's Plan, this month's usage, the offered Plans side by side in rank order with their
+ * prices, and the way to Stripe (and their invoices there). A hidden Plan is not compared, even the Candidate's.
+ */
 export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ checkout?: string; error?: string }> }) {
   const candidate = await getCurrentCandidate();
   if (!candidate) redirect(routes.signIn);
@@ -28,13 +31,15 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   const t = await getServerT(locale);
   const { checkout, error } = await searchParams;
   const billing = getBilling();
-  const [{ plan, stripeStatus, endsAt, quotas, usedThisMonth }, allQuotas, prices, hasInvoices] = await Promise.all([
+  const [{ plan, stripeStatus, endsAt, quotas, usedThisMonth }, plans, allQuotas, prices, hasInvoices] = await Promise.all([
     billing.entitlements(candidate.id),
+    billing.plans(),
     billing.planQuotas(),
     billing.planPrices(),
     billing.hasInvoices(candidate.id),
   ]);
-  const planName = (name: (typeof PLANS)[number]) => t(`billing.plans.${name}`);
+  const offered = plans.filter((each) => each.status === "offered");
+  const planName = plans.find((each) => each.key === plan)?.name ?? { fr: plan, en: plan };
   const paymentFailed = paymentFailedNotice(stripeStatus, locale);
 
   return (
@@ -46,13 +51,13 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
         </p>
       ) : null}
       {/* Checkout is only offered on Free: until Stripe's webhook moves the Candidate off it, keep looking. */}
-      {checkout === "success" && plan === "free" ? <RefreshUntilPlanConfirmed /> : null}
+      {checkout === "success" && plan === FREE_PLAN ? <RefreshUntilPlanConfirmed /> : null}
       {error ? (
         <p className="notice" role="alert">
           {t(error === "unavailable" ? "billing.page.unavailable" : "billing.page.error")}
         </p>
       ) : null}
-      <p className="lead">{currentPlanLabel({ plan, endsAt }, locale)}</p>
+      <p className="lead">{currentPlanLabel({ planName, endsAt }, locale)}</p>
       {paymentFailed ? <PaymentFailedNotice notice={paymentFailed} /> : null}
 
       <h2>{t("billing.page.usageTitle")}</h2>
@@ -75,9 +80,9 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
           <thead>
             <tr>
               <th scope="col">{t("billing.page.quota")}</th>
-              {PLANS.map((name) => (
-                <th scope="col" key={name} aria-current={name === plan ? "true" : undefined}>
-                  {planName(name)}
+              {offered.map(({ key, name }) => (
+                <th scope="col" key={key} aria-current={key === plan ? "true" : undefined}>
+                  {name[locale]}
                 </th>
               ))}
             </tr>
@@ -86,16 +91,16 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
             {prices ? (
               <tr>
                 <th scope="row">{t("billing.page.price")}</th>
-                {PLANS.map((name) => (
-                  <td key={name}>{planPriceLabel(prices[name], locale)}</td>
+                {offered.map(({ key }) => (
+                  <td key={key}>{prices[key] ? planPriceLabel(prices[key], locale) : null}</td>
                 ))}
               </tr>
             ) : null}
             {QUOTA_ROWS.map((quota) => (
               <tr key={quota}>
                 <th scope="row">{t(`billing.quotas.${quota}`)}</th>
-                {PLANS.map((name) => (
-                  <td key={name}>{planQuotaValue(t, quota, allQuotas[name])}</td>
+                {offered.map(({ key }) => (
+                  <td key={key}>{allQuotas[key] ? planQuotaValue(t, quota, allQuotas[key]) : null}</td>
                 ))}
               </tr>
             ))}
@@ -103,15 +108,15 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
           <tfoot>
             <tr>
               <td />
-              {PLANS.map((name) => (
-                <td key={name}>
-                  {name === plan ? (
+              {offered.map(({ key, name, stripeProductId }) => (
+                <td key={key}>
+                  {key === plan ? (
                     <strong>{t("billing.page.current")}</strong>
-                  ) : name !== "free" && plan === "free" ? (
+                  ) : key !== FREE_PLAN && stripeProductId && plan === FREE_PLAN ? (
                     <form method="post" action="/api/billing/checkout">
-                      <input type="hidden" name="plan" value={name} />
+                      <input type="hidden" name="plan" value={key} />
                       <button className="button button-primary" type="submit">
-                        {t("billing.page.choose", { plan: planName(name) })}
+                        {t("billing.page.choose", { plan: name[locale] })}
                       </button>
                     </form>
                   ) : null}
@@ -122,7 +127,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
         </table>
       </div>
 
-      {plan !== "free" ? (
+      {plan !== FREE_PLAN ? (
         <form className="stack" method="post" action="/api/billing/portal">
           <p>{t("billing.page.manageHelp")}</p>
           <button className="button button-primary" type="submit">

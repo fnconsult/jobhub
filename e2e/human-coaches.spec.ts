@@ -155,7 +155,7 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     const checkout = await page.request.post("/api/coaching/checkout", { form: { coachId: await coachIdOf(admin, coach.name) }, headers: { origin }, maxRedirects: 0 });
     expect(checkout.status()).toBe(303);
     const calls: { path: string; params: Record<string, string> }[] = await (await fetch(`${stripeUrl}/__calls`)).json();
-    expect(calls.filter((call) => call.path === "/v1/checkout/sessions").at(-1)?.params["line_items[0][price]"]).toBe(FAKE_STRIPE_COACHING_SESSION_PRICES.premium);
+    expect(calls.filter((call) => call.path === "/v1/checkout/sessions").at(-1)?.params["line_items[0][price]"]).toBe(FAKE_STRIPE_COACHING_SESSION_PRICES.discounted);
     await admin.context().close();
   });
 

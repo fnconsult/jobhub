@@ -15,7 +15,11 @@ export function getAssistantConversations(): AssistantConversations {
     assistant: createBackOfficeAssistant({
       ai: getAi(),
       sources: {
-        planQuotas: () => getBilling().planQuotas(),
+        planQuotas: async () => {
+          const [plans, quotas] = await Promise.all([getBilling().plans(), getBilling().planQuotas()]);
+          return plans.flatMap(({ key, name }) => (quotas[key] ? [{ key, name, quotas: quotas[key] }] : []));
+        },
+        plans: () => getBilling().plans(),
         humanCoaches: () => getHumanCoaches().list(),
         coachCost: (days) => coachCostOfLastDays(days),
         administrators: () => getAdministrators().list(),

@@ -18,7 +18,8 @@ const PATHS = {
   add: ["M12 5v14M5 12h14"],
   conversations: ["M4 6h16M4 12h16M4 18h10"],
   searchAgain: ["M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3M18 3v4h-4M6 21v-4h4"],
-  // The Back Office's sections (#204).
+  // The Back Office's sections (#204). Stacked layers: the Plans (#206).
+  plans: ["M12 3l9 5-9 5-9-5z", "M3 13l9 5 9-5"],
   planQuotas: ["M4 20V10M10 20V4M16 20v-7M22 20H2"],
   humanCoaches: ["M9 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6z", "M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6", "M16 5.5a3 3 0 0 1 0 5M18 14.5c2 .8 3 2.8 3 5.5"],
   coachCost: ["M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z", "M15 8.5a4 4 0 1 0 0 7M7 11h6M7 13.5h6"],

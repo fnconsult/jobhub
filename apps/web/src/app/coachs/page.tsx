@@ -88,10 +88,10 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
         {price === null ? (
           <p>{t("humanCoaches.unavailable")}</p>
         ) : price.amount < price.regularAmount ? (
-          <p>{t("humanCoaches.premiumPrice", { price: money(price.amount, price.currency), regular: money(price.regularAmount, price.currency) })}</p>
+          <p>{t("humanCoaches.discountedPrice", { plan: price.planName[locale], price: money(price.amount, price.currency), regular: money(price.regularAmount, price.currency) })}</p>
         ) : (
           <p>
-            {t("humanCoaches.price", { price: money(price.amount, price.currency) })} {t("humanCoaches.premiumHint")}
+            {t("humanCoaches.price", { price: money(price.amount, price.currency) })} {t("humanCoaches.discountHint")}
           </p>
         )}
         {coaches.length === 0 ? <p>{t("humanCoaches.none")}</p> : null}

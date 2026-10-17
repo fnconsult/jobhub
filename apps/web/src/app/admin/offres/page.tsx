@@ -28,6 +28,11 @@ const ERRORS = [
   "cannot_move",
 ] as const satisfies readonly PlanError[];
 
+/** The value a ticked checkbox sends. */
+const TICKED = "on";
+const UP = "up";
+const DOWN = "down";
+
 export async function generateMetadata(): Promise<Metadata> {
   // Metadata renders apart from the page: without this, the 404 shown to
   // non-Administrators would still carry the back office's title.
@@ -58,7 +63,7 @@ async function savePlan(form: FormData) {
 async function movePlan(form: FormData) {
   "use server";
   const { administrator } = await requireBackOffice("plans", "write");
-  const moved = await getBackOffice().movePlan(administrator, String(form.get("plan") ?? ""), form.get("direction") === "up" ? "up" : "down");
+  const moved = await getBackOffice().movePlan(administrator, String(form.get("plan") ?? ""), form.get("direction") === UP ? UP : DOWN);
   if (!moved.ok) failed(moved.error);
   else redirect(`${routes.adminPlans}?moved=1`);
 }
@@ -130,8 +135,8 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
                   <td>
                     <span className="plan-rank">
                       {plan.rank}
-                      {canWrite && canMoveUp ? <MoveButton plan={plan} direction="up" label={t("admin.plans.moveUp", { plan: name(plan) })} /> : null}
-                      {canWrite && canMoveDown ? <MoveButton plan={plan} direction="down" label={t("admin.plans.moveDown", { plan: name(plan) })} /> : null}
+                      {canWrite && canMoveUp ? <MoveButton plan={plan} direction={UP} label={t("admin.plans.moveUp", { plan: name(plan) })} /> : null}
+                      {canWrite && canMoveDown ? <MoveButton plan={plan} direction={DOWN} label={t("admin.plans.moveDown", { plan: name(plan) })} /> : null}
                     </span>
                   </td>
                   <th scope="row">{name(plan)}</th>
@@ -164,7 +169,7 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
               <NameFields id={id} plan={plan} labels={{ fr: t("admin.plans.nameFr"), en: t("admin.plans.nameEn") }} />
               {free ? (
                 // Free is always offered: what the form sends says so.
-                <input type="hidden" name="offered" value="on" />
+                <input type="hidden" name="offered" value={TICKED} />
               ) : (
                 <>
                   <div className="checkbox-field">
@@ -242,7 +247,7 @@ function MoveButton({ plan, direction, label }: { plan: PlanDefinition; directio
       <input type="hidden" name="plan" value={plan.key} />
       <input type="hidden" name="direction" value={direction} />
       <button className="button" type="submit" aria-label={label} title={label}>
-        <span aria-hidden="true">{direction === "up" ? "↑" : "↓"}</span>
+        <span aria-hidden="true">{direction === UP ? "↑" : "↓"}</span>
       </button>
     </form>
   );

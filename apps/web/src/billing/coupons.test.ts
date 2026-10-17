@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { FAKE_STRIPE_PRODUCTS } from "./fake-stripe";
+import { FAKE_STRIPE_PRICES, FAKE_STRIPE_PRODUCTS, fakeCustomerId, signedEvent, subscriptionEvent } from "./fake-stripe";
 import { createBilling } from "./index";
 import { connectionString, startTestBilling, type TestBilling } from "./test-support";
 
@@ -143,4 +143,134 @@ describe.skipIf(!connectionString)("Coupons (needs Postgres: DATABASE_URL)", () 
       expect(await createBilling({ ...t.config, stripe: undefined }).coupons()).toBeNull();
     });
   });
+
+  describe("at Plan Checkout", () => {
+    const checkoutParams = (index = -1) => Object.fromEntries(t.stripe.callsTo("/v1/checkout/sessions").at(index)!.params);
+
+    it("lets the Candidate type a code at Checkout, and asks for a card only when something is due", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+
+      await t.billing.startCheckout(marie, "standard");
+
+      expect(checkoutParams()).toMatchObject({ allow_promotion_codes: "true", payment_method_collection: "if_required" });
+      expect(checkoutParams()).not.toHaveProperty("discounts[0][promotion_code]");
+    });
+
+    it("applies a shared link's code to an eligible Plan, in place of the code field Stripe forbids alongside it", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      const spring = await t.billing.createCoupon(SPRING);
+      if (!spring.ok) throw new Error("fixture refused");
+
+      await t.billing.startCheckout(marie, "standard", "fr", { promotionCode: "printemps50" });
+
+      expect(checkoutParams()).toMatchObject({ "discounts[0][promotion_code]": spring.coupon.id, payment_method_collection: "if_required" });
+      expect(checkoutParams()).not.toHaveProperty("allow_promotion_codes");
+    });
+
+    it("checks out without the discount a code that does not apply: another Plan's, deactivated, expired, unknown", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      await t.billing.createCoupon({ ...SPRING, plans: ["premium"] });
+      const old = await t.billing.createCoupon({ ...SPRING, code: "ANCIEN" });
+      if (!old.ok) throw new Error("fixture refused");
+      await t.billing.deactivateCoupon(old.coupon.id);
+      await t.billing.createCoupon({ ...SPRING, code: "OCTOBRE", expiresAt: "2026-10-20" });
+      t.clock.now = new Date("2026-10-21T10:00:00+02:00");
+
+      for (const promotionCode of ["PRINTEMPS50", "ANCIEN", "OCTOBRE", "INCONNU"]) {
+        expect(await t.billing.startCheckout(marie, "standard", "fr", { promotionCode })).toMatch(/checkout\.stripe\.test/);
+        expect(checkoutParams(), promotionCode).toMatchObject({ allow_promotion_codes: "true" });
+        expect(checkoutParams(), promotionCode).not.toHaveProperty("discounts[0][promotion_code]");
+      }
+    });
+
+    it("checks out without the discount when Stripe refuses the code for this Candidate (a first subscription only, say)", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      await t.billing.createCoupon(SPRING);
+      t.stripe.refuseDiscounts();
+
+      expect(await t.billing.startCheckout(marie, "standard", "fr", { promotionCode: "PRINTEMPS50" })).toMatch(/checkout\.stripe\.test/);
+      expect(checkoutParams()).toMatchObject({ allow_promotion_codes: "true" });
+    });
+
+    it("never takes a code for a Coaching Session", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+
+      await t.billing.startCoachingSessionCheckout(marie, "coach-1");
+
+      expect(checkoutParams()).not.toHaveProperty("allow_promotion_codes");
+      expect(checkoutParams()).not.toHaveProperty("discounts[0][promotion_code]");
+      expect(checkoutParams()).not.toHaveProperty("payment_method_collection");
+    });
+  });
+
+  describe("a shared link's code on the subscription page", () => {
+    it("tells the terms of a code that works, and which Plans it is for", async () => {
+      await t.billing.createCoupon(SPRING);
+
+      expect(await t.billing.checkPromotionCode(" printemps50 ")).toMatchObject({ valid: true, coupon: { code: "PRINTEMPS50", discount: { percentOff: 50 }, plans: ["standard", "premium"] } });
+    });
+
+    it("tells that a code does not work: unknown, deactivated, expired or used up", async () => {
+      const old = await t.billing.createCoupon({ ...SPRING, code: "ANCIEN" });
+      if (!old.ok) throw new Error("fixture refused");
+      await t.billing.deactivateCoupon(old.coupon.id);
+      const once = await t.billing.createCoupon({ ...SPRING, code: "UNEFOIS", maxRedemptions: 1 });
+      if (!once.ok) throw new Error("fixture refused");
+      t.stripe.redeem(once.coupon.id);
+      await t.billing.createCoupon({ ...SPRING, code: "OCTOBRE", expiresAt: "2026-10-20" });
+      t.clock.now = new Date("2026-10-21T10:00:00+02:00");
+
+      for (const code of ["INCONNU", "ANCIEN", "UNEFOIS", "OCTOBRE", "pas un code !"]) expect(await t.billing.checkPromotionCode(code), code).toEqual({ valid: false });
+    });
+
+    it("cannot tell without Stripe", async () => {
+      expect(await createBilling({ ...t.config, stripe: undefined }).checkPromotionCode("PRINTEMPS50")).toBeNull();
+    });
+  });
+
+  describe("on the Candidate's subscription", () => {
+    it("tells the discount their subscription is getting, and until when", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      const spring = await t.billing.createCoupon(SPRING);
+      if (!spring.ok) throw new Error("fixture refused");
+      await t.billing.startCheckout(marie, "standard", "fr", { promotionCode: "PRINTEMPS50" });
+      await deliver(subscriptionEvent("customer.subscription.created", { customer: fakeCustomerId(marie.email), price: FAKE_STRIPE_PRICES.standard, status: "active", id: "sub_marie" }));
+      t.stripe.discountSubscription("sub_marie", spring.coupon.id, new Date("2027-01-15T10:00:00Z"));
+
+      expect(await t.billing.activeDiscount(marie.id)).toEqual({ discount: { percentOff: 50 }, duration: { months: 3 }, endsAt: new Date("2027-01-15T10:00:00Z") });
+    });
+
+    it("has none on Free, without a discount, or while Stripe cannot tell", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      const paul = await t.signUp("paul.martin@example.fr");
+      await t.billing.startCheckout(paul, "standard");
+      await deliver(subscriptionEvent("customer.subscription.created", { customer: fakeCustomerId(paul.email), price: FAKE_STRIPE_PRICES.standard, status: "active", id: "sub_paul" }));
+
+      expect(await t.billing.activeDiscount(marie.id)).toBeNull();
+      expect(await t.billing.activeDiscount(paul.id)).toBeNull();
+      t.stripe.stopAnswering();
+      expect(await t.billing.activeDiscount(paul.id)).toBeNull();
+    });
+
+    it("a 100 % code subscribes without a card; when the free period ends unpaid and Stripe ends the subscription, the Candidate is back on Free", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      await t.billing.createCoupon({ ...SPRING, code: "OFFERT", percentOff: 100, duration: "repeating", durationInMonths: 1 });
+      const customer = fakeCustomerId(marie.email);
+
+      await t.billing.startCheckout(marie, "premium", "fr", { promotionCode: "OFFERT" });
+      expect(checkoutCall()).toMatchObject({ payment_method_collection: "if_required" });
+      await deliver(subscriptionEvent("customer.subscription.created", { customer, price: FAKE_STRIPE_PRICES.premium, status: "active", id: "sub_marie" }));
+      expect((await t.billing.entitlements(marie.id)).plan).toBe("premium");
+
+      await deliver(subscriptionEvent("customer.subscription.deleted", { customer, price: FAKE_STRIPE_PRICES.premium, status: "canceled", id: "sub_marie" }, new Date(Date.now() + 60_000)));
+      expect((await t.billing.entitlements(marie.id)).plan).toBe("free");
+    });
+  });
+
+  const checkoutCall = () => Object.fromEntries(t.stripe.callsTo("/v1/checkout/sessions").at(-1)!.params);
+
+  async function deliver(event: unknown) {
+    const { payload, signature } = signedEvent(event);
+    await t.billing.handleStripeWebhook(payload, signature);
+  }
 });

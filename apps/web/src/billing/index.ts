@@ -48,7 +48,7 @@ import {
   type PlanDefinition,
   type PlanName,
 } from "./plans";
-import { couponOf, couponParams, type Coupon, type CouponResult } from "./coupons";
+import { couponOf, couponParams, termsOf, type ActiveDiscount, type Coupon, type CouponResult } from "./coupons";
 
 export type { PlanDefinition, PlanName } from "./plans";
 export type { ActiveDiscount, Coupon, CouponDiscount, CouponDuration, CouponError, CouponResult } from "./coupons";
@@ -69,6 +69,15 @@ export interface BillingConfig {
    * throws, the webhook fails and Stripe retries the delivery.
    */
   onCoachingSessionPaid?: (paid: PaidCoachingSession) => Promise<unknown>;
+}
+
+/** How a Candidate checks out. */
+export interface CheckoutOptions {
+  /**
+   * A code they brought (a shared link's `?code=`): applied at Checkout when it can be redeemed on the
+   * Plan; otherwise Checkout goes on without it, and they may type one there.
+   */
+  promotionCode?: string | undefined;
 }
 
 /** A Coaching Session payment Stripe confirmed. */
@@ -553,6 +562,33 @@ export function createBilling(config: BillingConfig) {
     return checked ? null : stripeProductProblem(product);
   }
 
+  /**
+   * The Coupon behind a code a Candidate brought (a shared link's `?code=`), if it can be redeemed now:
+   * active, not expired, not used up. Null when it cannot; throws when Stripe does not answer quickly.
+   */
+  async function redeemableCoupon(code: string): Promise<Coupon | null> {
+    const typed = code.trim().toUpperCase();
+    if (!/^[A-Z0-9_-]{1,40}$/.test(typed)) return null;
+    const [listed, plans] = await Promise.all([
+      stripe().client.promotionCodes.list({ code: typed, active: true, limit: 1, expand: PROMOTION_CODE_EXPAND.map((field) => `data.${field}`) }, QUICK),
+      listPlans(database),
+    ]);
+    const coupon = listed.data[0] && couponOf(listed.data[0], plans, now());
+    return coupon && coupon.active ? coupon : null;
+  }
+
+  /** The promotion code to apply at a Plan's Checkout: the code brought, if it can be redeemed on that Plan. */
+  async function promotionCodeFor(code: string | undefined, plan: Plan): Promise<string | null> {
+    if (!code) return null;
+    try {
+      const coupon = await redeemableCoupon(code);
+      return coupon && (coupon.plans === null || coupon.plans.includes(plan)) ? coupon.id : null;
+    } catch (error) {
+      console.error("[billing] could not check a promotion code; checking out without it", error);
+      return null;
+    }
+  }
+
   /** Reports a paid Coaching Session from a checkout.session.* event; ignores any other checkout. */
   async function applyCheckout(session: Stripe.Checkout.Session) {
     if (session.mode !== "payment" || session.metadata?.purpose !== "coaching_session") return;
@@ -797,7 +833,7 @@ export function createBilling(config: BillingConfig) {
      * its subscription, or the customer portal if they already pay (Plans are
      * switched there, never by a second subscription).
      */
-    async startCheckout(candidate: { id: string; email: string }, plan: Plan, locale: Locale = "fr"): Promise<string> {
+    async startCheckout(candidate: { id: string; email: string }, plan: Plan, locale: Locale = "fr", options: CheckoutOptions = {}): Promise<string> {
       if (plan === FREE_PLAN) throw new BillingError("no_checkout_for_free_plan");
       const { client } = stripe();
       await linkedIfPossible();
@@ -808,17 +844,75 @@ export function createBilling(config: BillingConfig) {
       if (account && account.plan !== FREE_PLAN && PAYING_STATUSES.has(account.stripe_status ?? "")) {
         return portalFor(customer, locale);
       }
-      const session = await client.checkout.sessions.create({
+      const promotionCode = await promotionCodeFor(options.promotionCode, plan);
+      const params: Stripe.Checkout.SessionCreateParams = {
         mode: "subscription",
         customer,
         client_reference_id: candidate.id,
         line_items: [{ price: await defaultPriceOf(chosen.stripeProductId), quantity: 1 }],
+        // A 100 % Coupon needs no card: Stripe asks for one only when something is due.
+        payment_method_collection: "if_required",
         locale,
         success_url: pageURL("?checkout=success"),
         cancel_url: pageURL(),
-      });
+      };
+      // Stripe takes either a code applied up front or the field to type one, never both.
+      const withCodeField = { ...params, allow_promotion_codes: true };
+      let session: Stripe.Checkout.Session;
+      if (promotionCode) {
+        try {
+          session = await client.checkout.sessions.create({ ...params, discounts: [{ promotion_code: promotionCode }] });
+        } catch (error) {
+          // A code Stripe will not apply for this customer (first subscription only, used up meanwhile): checkout goes on without it.
+          if (!(error instanceof Stripe.errors.StripeInvalidRequestError)) throw error;
+          console.warn("[billing] Stripe refused a promotion code at checkout; checking out without it:", error.message);
+          session = await client.checkout.sessions.create(withCodeField);
+        }
+      } else {
+        session = await client.checkout.sessions.create(withCodeField);
+      }
       if (!session.url) throw new Error("Stripe returned a checkout session without a URL");
       return session.url;
+    },
+
+    /**
+     * What a code a Candidate brought (a shared link's `?code=`) gives, for the subscription page:
+     * `{ valid: true, coupon }` when it can be redeemed now (on `coupon.plans`), `{ valid: false }` when
+     * not (unknown, deactivated, expired, used up). Null when Stripe is not configured or does not answer quickly.
+     */
+    async checkPromotionCode(code: string): Promise<{ valid: true; coupon: Coupon } | { valid: false } | null> {
+      if (!config.stripe) return null;
+      try {
+        const coupon = await redeemableCoupon(code);
+        return coupon ? { valid: true, coupon } : { valid: false };
+      } catch (error) {
+        console.error("[billing] could not check a promotion code", error);
+        return null;
+      }
+    },
+
+    /**
+     * The discount the Candidate's subscription is getting from a Coupon, for the subscription page;
+     * null on Free, without one, or when Stripe does not answer quickly.
+     */
+    async activeDiscount(candidateId: string): Promise<ActiveDiscount | null> {
+      if (!config.stripe) return null;
+      const { rows } = await database.query("SELECT plan, stripe_subscription_id FROM candidate_plan WHERE candidate_id = $1", [candidateId]);
+      const account = rows[0] as { plan: Plan; stripe_subscription_id: string | null } | undefined;
+      if (!account?.stripe_subscription_id || account.plan === FREE_PLAN) return null;
+      try {
+        const subscription = await stripe().client.subscriptions.retrieve(account.stripe_subscription_id, { expand: ["discounts.source.coupon"] }, QUICK);
+        for (const discount of subscription.discounts) {
+          const coupon = typeof discount === "object" ? discount.source.coupon : null;
+          if (!coupon || typeof coupon === "string" || typeof discount === "string") continue;
+          if (discount.end !== null && discount.end * 1000 <= now().getTime()) continue;
+          return { ...termsOf(coupon), endsAt: discount.end === null ? null : new Date(discount.end * 1000) };
+        }
+        return null;
+      } catch (error) {
+        console.error("[billing] could not read the subscription's discount from Stripe", error);
+        return null;
+      }
     },
 
     /** What a Coaching Session costs the Candidate on their Plan, or null when Coaching Sessions cannot be paid yet. */

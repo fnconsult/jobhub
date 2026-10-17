@@ -131,6 +131,10 @@ export async function startFakeStripe(port = 0) {
   /** Default Prices changed by `setDefaultPrice`, by product. */
   const defaultPrices = new Map<string, string>();
   let silent = false;
+  /** Whether Checkout refuses a session's `discounts`, as Stripe does for a code this customer may not use. */
+  let discountsRefused = false;
+  /** The discount each subscription has, by subscription id: its promotion code and when it ends. */
+  const subscriptionDiscounts = new Map<string, { promotionCode: string; end: number | null }>();
   let sequence = 0;
   const server: Server = createServer((request, response) => {
     let body = "";
@@ -217,10 +221,36 @@ export async function startFakeStripe(port = 0) {
         return reply(200, promotionCodeJson(promotionCode));
       }
       if (request.method === "POST" && path === "/v1/checkout/sessions") {
+        const discounted = params.has("discounts[0][promotion_code]");
+        if (discounted && params.get("allow_promotion_codes") === "true") {
+          return reply(400, { error: { type: "invalid_request_error", message: "You may only specify one of these parameters: allow_promotion_codes, discounts." } });
+        }
+        if (discounted && (discountsRefused || !promotionCodes.get(params.get("discounts[0][promotion_code]")!)?.active)) {
+          return reply(400, { error: { type: "invalid_request_error", code: "coupon_expired", param: "discounts", message: "This promotion code cannot be redeemed." } });
+        }
         return reply(200, { id: `cs_fake${id}`, object: "checkout.session", url: `https://checkout.stripe.test/cs_fake${id}` });
       }
       if (request.method === "POST" && path === "/v1/billing_portal/sessions") {
         return reply(200, { id: `bps_fake${id}`, object: "billing_portal.session", url: `https://billing.stripe.test/bps_fake${id}` });
+      }
+      const subscription = request.method === "GET" && path.match(/^\/v1\/subscriptions\/([^/]+)$/)?.[1];
+      if (subscription) {
+        const discount = subscriptionDiscounts.get(subscription);
+        const promotionCode = discount && promotionCodes.get(discount.promotionCode);
+        const discounts = promotionCode
+          ? [
+              {
+                id: `di_fake_${subscription}`,
+                object: "discount",
+                start: 0,
+                end: discount.end,
+                promotion_code: promotionCode.id,
+                source: { type: "coupon", coupon: coupons.get(promotionCode.coupon) },
+                subscription,
+              },
+            ]
+          : [];
+        return reply(200, { id: subscription, object: "subscription", discounts });
       }
       const price = request.method === "GET" && path.match(/^\/v1\/prices\/([^/]+)$/)?.[1];
       if (price && FAKE_PRICES[price]) {
@@ -241,6 +271,14 @@ export async function startFakeStripe(port = 0) {
         return reply(200, { id: product, object: "product", active, default_price: defaultPriceField });
       }
       if (product) return reply(404, { error: { type: "invalid_request_error", code: "resource_missing", message: `No such product: '${product}'` } });
+      // For e2e specs in another process: `discountSubscription` over HTTP.
+      const discountPath = request.method === "POST" && path.match(/^\/__subscriptions\/([^/]+)\/discount$/)?.[1];
+      if (discountPath) {
+        subscriptionDiscounts.set(decodeURIComponent(discountPath), { promotionCode: params.get("promotion_code") ?? "", end: numberParam(params, "end") });
+        return reply(200, {});
+      }
+      const promotionCodesPath = request.method === "GET" && path === "/__promotion_codes";
+      if (promotionCodesPath) return reply(200, [...promotionCodes.values()].map(promotionCodeJson));
       if (request.method === "GET" && path === "/__calls") return reply(200, calls.map((call) => ({ ...call, params: Object.fromEntries(call.params) })));
       reply(404, { error: { type: "invalid_request_error", message: `fake Stripe has no ${request.method} ${path}` } });
     });
@@ -262,6 +300,11 @@ export async function startFakeStripe(port = 0) {
       const promotionCode = promotionCodes.get(promotionCodeId);
       if (promotionCode) promotionCode.times_redeemed += 1;
     },
+    /** Makes Checkout refuse every session's `discounts` (a code for first subscriptions, say), as Stripe would. */
+    refuseDiscounts: () => void (discountsRefused = true),
+    /** Gives a subscription the discount of a promotion code, ending at `end` (null: as long as the subscription). */
+    discountSubscription: (subscriptionId: string, promotionCodeId: string, end: Date | null) =>
+      void subscriptionDiscounts.set(subscriptionId, { promotionCode: promotionCodeId, end: end && Math.floor(end.getTime() / 1000) }),
     /** Calls made to one endpoint, e.g. "/v1/checkout/sessions". */
     callsTo: (path: string) => calls.filter((call) => call.path === path),
     stop: () =>

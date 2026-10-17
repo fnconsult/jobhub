@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createBackOffice, migrateBackOfficeAudit, type BackOffice, type BackOfficeActor } from "../admin/back-office";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { secretCipherFromEnv } from "../provider-secrets/cipher";
-import { createProviderSecrets, listenForProviderSecretChanges, migrateProviderSecrets } from "../provider-secrets/index";
+import { listenForNotifications } from "../database/listen";
+import { createProviderSecrets, migrateProviderSecrets } from "../provider-secrets/index";
 import { configurationFromEnv, createSignInProviders, fetchDiscoveryDocument, migrateSignInProviders, SIGN_IN_PROVIDERS_CHANNEL, type SignInProviders } from "./index";
 
 type Env = Record<string, string | undefined>;
@@ -328,7 +329,7 @@ describe.skipIf(!connectionString)("Sign-in Providers in the database (needs Pos
 
   it("announces every committed change", async () => {
     const heard = vi.fn();
-    const stop = await listenForProviderSecretChanges(database, heard, { channel: SIGN_IN_PROVIDERS_CHANNEL });
+    const stop = await listenForNotifications(database, SIGN_IN_PROVIDERS_CHANNEL, heard);
     try {
       await providers.save(claire, oidc());
       await vi.waitFor(() => expect(heard).toHaveBeenCalledTimes(1));

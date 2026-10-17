@@ -1,5 +1,5 @@
 import type { Pool } from "pg";
-import { listenForProviderSecretChanges } from "../provider-secrets/index";
+import { listenForNotifications } from "../database/listen";
 import type { SignInConfiguration } from "./catalog";
 import { SIGN_IN_PROVIDERS_CHANNEL } from "./index";
 
@@ -63,7 +63,7 @@ export function watchSignInConfiguration(options: {
   let stopListening: (() => Promise<void>) | undefined;
   const ready = (async () => {
     await refresh();
-    stopListening = await listenForProviderSecretChanges(options.database, () => void refresh(), { log, channel: SIGN_IN_PROVIDERS_CHANNEL });
+    stopListening = await listenForNotifications(options.database, SIGN_IN_PROVIDERS_CHANNEL, () => void refresh(), { log });
   })();
 
   return {

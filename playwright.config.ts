@@ -59,6 +59,8 @@ export default defineConfig({
     { name: "ai", testMatch: /ai\.spec\.ts/ },
     // The coach-knowledge package (#128), loaded in a fresh process through its public entry point.
     { name: "coach-knowledge", testMatch: /coach-knowledge\.spec\.ts/ },
+    // The Coach eval suite (#131): `npm run coach:eval` run offline (AI_FAKE), its committed results and the default model.
+    { name: "coach-evals", testMatch: /coach-evals\.spec\.ts/ },
     // The static Notion-like layout prototype (#132), served by the spec itself and driven in Chromium.
     // Needs no web app: run it alone with E2E_NO_WEB_SERVER=1 npx playwright test --project=prototype.
     { name: "prototype", testMatch: /notion-layout-prototype\.spec\.ts/, use: { ...devices["Desktop Chrome"], locale: "fr-FR" } },

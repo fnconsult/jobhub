@@ -72,19 +72,26 @@ export interface GenericOAuthProvider {
   requireIdTokenVerification: boolean;
 }
 
+/** The social providers, as Better Auth's `socialProviders` takes them. */
+export interface SocialProviders {
+  google?: { clientId: string; clientSecret: string };
+  microsoft?: { clientId: string; clientSecret: string; tenantId: string };
+  apple?: { clientId: string; clientSecret: string; appBundleIdentifier?: string };
+}
+
 /** Apple posts the person back from its own origin (form_post). */
-const APPLE_ORIGIN = "https://appleid.apple.com";
+export const APPLE_ORIGIN = "https://appleid.apple.com";
 
 /**
  * What the Better Auth instance registers: every provider of `configuration`, enabled
  * or not (a provider not enabled is only for a test sign-in, see oauthSignInDecision).
  */
 export function betterAuthSignIn(configuration: SignInConfiguration): {
-  socialProviders: Record<string, Record<string, string>>;
+  socialProviders: SocialProviders;
   genericOAuth: GenericOAuthProvider[];
   trustedOrigins: string[];
 } {
-  const socialProviders: Record<string, Record<string, string>> = {};
+  const socialProviders: SocialProviders = {};
   const genericOAuth: GenericOAuthProvider[] = [];
   for (const provider of configuration.providers) {
     const { clientId, clientSecret } = provider;

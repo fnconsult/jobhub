@@ -291,7 +291,8 @@ export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps)
 }
 
 /**
- * Calls `onChange` whenever a Provider Secret is replaced or cleared (Postgres NOTIFY).
+ * Calls `onChange` whenever a Provider Secret is replaced or cleared (Postgres NOTIFY), or
+ * whatever else is announced on `options.channel` (the Sign-in Providers' changes).
  * Listens on one connection taken from `database` for good, so the process stays
  * within its pool's budget of connections. Never gives up: when listening cannot start
  * or the connection drops, it tries again, waiting `reconnectMs` and doubling up to
@@ -301,8 +302,10 @@ export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps)
 export async function listenForProviderSecretChanges(
   database: Pick<Pool, "connect">,
   onChange: () => void,
-  options: { log?: (line: string) => void; reconnectMs?: number; maxReconnectMs?: number } = {},
+  options: { log?: (line: string) => void; reconnectMs?: number; maxReconnectMs?: number; /** Default: PROVIDER_SECRETS_CHANNEL. */ channel?: string } = {},
 ): Promise<() => Promise<void>> {
+  const channel = options.channel ?? PROVIDER_SECRETS_CHANNEL;
+  if (!/^[a-z_]+$/.test(channel)) throw new Error(`Not a channel name: ${channel}`);
   const log = options.log ?? ((line: string) => console.warn(line));
   const firstDelay = options.reconnectMs ?? 1_000;
   const maxDelay = options.maxReconnectMs ?? 60_000;
@@ -312,7 +315,7 @@ export async function listenForProviderSecretChanges(
   let retry: ReturnType<typeof setTimeout> | undefined;
 
   const onNotification = (message: Notification) => {
-    if (message.channel === PROVIDER_SECRETS_CHANNEL) onChange();
+    if (message.channel === channel) onChange();
   };
 
   function again(): void {
@@ -345,7 +348,7 @@ export async function listenForProviderSecretChanges(
     listening.on("notification", onNotification);
     listening.on("error", dropped);
     try {
-      await listening.query(`LISTEN ${PROVIDER_SECRETS_CHANNEL}`);
+      await listening.query(`LISTEN ${channel}`);
     } catch (error) {
       return dropped(error instanceof Error ? error : new Error(String(error)));
     }
@@ -367,7 +370,7 @@ export async function listenForProviderSecretChanges(
     client = null;
     if (!listening) return;
     listening.detach();
-    await listening.connection.query(`UNLISTEN ${PROVIDER_SECRETS_CHANNEL}`).catch(() => {});
+    await listening.connection.query(`UNLISTEN ${channel}`).catch(() => {});
     listening.connection.release();
   };
 }

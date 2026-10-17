@@ -1,20 +1,30 @@
 /**
- * Candidate accounts: passwordless sign-up / sign-in (magic link + Google,
- * ADR-0008) and the Candidate's account settings.
+ * Candidate accounts: passwordless sign-up / sign-in (magic link, and the Sign-in
+ * Providers configured in the Back Office, ADR-0008 / #209) and the Candidate's
+ * account settings.
  *
  * One deep module in front of Better Auth. Callers get:
  *  - `createAuth(config)` — an instance whose `handler(Request)` serves every
  *    `/api/auth/*` endpoint and whose `api` reads sessions server-side;
  *  - `migrateCandidateAccounts(config)` — creates / upgrades the tables.
  * Everything else (tables, cookies, tokens, OAuth) stays behind this seam.
+ *
+ * An instance is built from one SignInConfiguration; when it changes, the app builds
+ * another over the same tables and secret, so every session stays valid (server.ts).
+ * Who may sign in through which provider, which ones link by email, and how each
+ * session was signed in are decided here, on every OAuth callback (see signInHooks).
  */
 import { createI18n, DEFAULT_LOCALE, isSupportedLocale, SUPPORTED_LOCALES } from "@jobhub/shared/i18n";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
+import { APIError, getOAuthState } from "better-auth/api";
 import { getMigrations } from "better-auth/db/migration";
+import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { magicLink } from "better-auth/plugins/magic-link";
 import type { Pool } from "pg";
 import * as z from "zod";
 import { routes } from "../routes";
+import { MAGIC_LINK, SIGN_IN_ERRORS, type SignInConfiguration } from "../sign-in-providers/catalog";
+import { betterAuthSignIn, oauthSignInDecision, trustedProviderIds } from "../sign-in-providers/policy";
 
 /** An email ready to send. Plain text keeps it readable in every mail client. */
 export interface MailMessage {
@@ -30,6 +40,23 @@ export interface Mailer {
   send(message: MailMessage): Promise<void>;
 }
 
+/** A person signing in, as the sign-in decisions see them. */
+export interface SigningInPerson {
+  /** Their Candidate id; empty for a person signing up. */
+  id: string;
+  email: string;
+  emailVerified: boolean;
+}
+
+/** The Sign-in Providers an instance is built with, and who counts as an Administrator. */
+export interface SignInSetup {
+  configuration: SignInConfiguration;
+  /** Whether `person` may use the providers allowed for Administrators (holds a Back Office Role, or is in ADMIN_EMAILS). */
+  isAdministrator(person: SigningInPerson): Promise<boolean>;
+  /** A test sign-in through provider `providerId`, not enabled yet, came back with a person: it works. */
+  onTestPassed?(providerId: string): Promise<void>;
+}
+
 export interface AuthConfig {
   /** Postgres pool. Its search_path decides which schema holds the accounts. */
   database: Pool;
@@ -38,8 +65,8 @@ export interface AuthConfig {
   /** At least 32 random characters; signs session cookies. */
   secret: string;
   mailer: Mailer;
-  /** Google OAuth client. Without it, "Continue with Google" is unavailable. */
-  google?: { clientId: string; clientSecret: string } | undefined;
+  /** The Sign-in Providers besides the magic link. Without it, the magic link alone. */
+  signIn?: SignInSetup | undefined;
   /**
    * Origins of our browser extension builds (chrome-extension://<id>). They
    * share the web app's session, so they may act for the signed-in Candidate.
@@ -50,21 +77,118 @@ export interface AuthConfig {
 /** How long a magic link stays valid. */
 export const MAGIC_LINK_MINUTES = 15;
 
+const NO_SIGN_IN: SignInSetup = { configuration: { providers: [], requireSsoForAdministrators: false, version: "none" }, isAdministrator: async () => false };
+
+/** The endpoint context a database hook runs in (null outside an endpoint). */
+type HookContext = {
+  path?: string;
+  params?: Record<string, string | undefined>;
+  redirect(url: string): unknown;
+  context: { internalAdapter: { findUserById(id: string): Promise<{ id: string; email: string; emailVerified: boolean } | null> } };
+} | null;
+
+/** The provider a hook runs for: the one whose OAuth callback this is, if any. */
+const providerOf = (ctx: HookContext): string | null => (ctx?.path?.startsWith("/callback/") ? (ctx.params?.id ?? null) : null);
+
+/**
+ * Better Auth's database hooks that apply the sign-in policy (sign-in-providers/policy.ts)
+ * on every OAuth callback, before anything is created:
+ *  - a provider not shown to Candidates signs in Administrators only (provider_not_allowed);
+ *  - a provider not enabled yet is the Back Office's test sign-in: it is marked as passed
+ *    and the super-admin is sent back to the Connexion section, nothing created;
+ *  - linking to an existing account by email happens only through a provider trusted for
+ *    linking (account_not_linked otherwise), or when the Candidate links it themselves,
+ *    signed in, from Mon compte;
+ *  - each session records how it was signed in (`signInMethod`), for Require SSO.
+ */
+function signInHooks(signIn: SignInSetup, baseURL: string) {
+  /** The endpoint contexts in which a person is being signed up: their first account is not a link. */
+  const signingUp = new WeakSet<object>();
+
+  async function decide(ctx: NonNullable<HookContext>, providerId: string, person: SigningInPerson): Promise<void> {
+    const decision = oauthSignInDecision(signIn.configuration, providerId, { isAdministrator: await signIn.isAdministrator(person) });
+    if (decision === "allow") return;
+    if (decision === "test") {
+      await signIn.onTestPassed?.(providerId);
+      throw ctx.redirect(new URL(`${routes.adminSignInProviders}?tested=${encodeURIComponent(providerId)}`, baseURL).toString());
+    }
+    // The callback sends the person back to the page they came from, with this code.
+    throw new APIError("FORBIDDEN", { code: SIGN_IN_ERRORS.providerNotAllowed, message: "This provider is for Administrators only" });
+  }
+
+  const owner = async (ctx: NonNullable<HookContext>, userId: string): Promise<SigningInPerson | null> => {
+    const user = await ctx.context.internalAdapter.findUserById(userId);
+    return user ? { id: user.id, email: user.email, emailVerified: user.emailVerified } : null;
+  };
+
+  return {
+    user: {
+      create: {
+        before: async (user: { email: string; emailVerified: boolean }, ctx: HookContext) => {
+          const providerId = providerOf(ctx);
+          if (!providerId || !ctx) return;
+          await decide(ctx, providerId, { id: "", email: user.email, emailVerified: user.emailVerified });
+          signingUp.add(ctx);
+        },
+      },
+    },
+    account: {
+      create: {
+        before: async (account: { userId: string }, ctx: HookContext) => {
+          const providerId = providerOf(ctx);
+          if (!providerId || !ctx || signingUp.has(ctx)) return;
+          const person = await owner(ctx, account.userId);
+          if (!person) return;
+          await decide(ctx, providerId, person);
+          // Linked by the Candidate, signed in, from Mon compte: they proved owning the account.
+          if ((await getOAuthState())?.link) return;
+          if (!trustedProviderIds(signIn.configuration).includes(providerId)) {
+            throw new APIError("FORBIDDEN", { code: SIGN_IN_ERRORS.accountNotLinked, message: "Sign in by magic link, then link this provider" });
+          }
+        },
+      },
+    },
+    session: {
+      create: {
+        before: async (session: { userId: string }, ctx: HookContext) => {
+          const providerId = providerOf(ctx);
+          if (providerId && ctx) {
+            const person = await owner(ctx, session.userId);
+            if (person) await decide(ctx, providerId, person);
+            return { data: { signInMethod: providerId } };
+          }
+          if (ctx?.path?.startsWith("/magic-link/verify")) return { data: { signInMethod: MAGIC_LINK } };
+          return undefined;
+        },
+      },
+    },
+  };
+}
+
 function authOptions(config: AuthConfig) {
+  const signIn = config.signIn ?? NO_SIGN_IN;
+  const providers = betterAuthSignIn(signIn.configuration);
   return {
     database: config.database,
     baseURL: config.baseURL,
     secret: config.secret,
-    trustedOrigins: config.extensionOrigins ?? [],
-    // Sign-in failures Better Auth redirects for (a refused Google consent, an
-    // OAuth state it cannot match) come back to our sign-in page, translated,
-    // rather than to its own English /api/auth/error page.
+    // Apple posts its callback from its own origin.
+    trustedOrigins: [...(config.extensionOrigins ?? []), ...providers.trustedOrigins],
+    // Sign-in failures Better Auth redirects for (a refused consent, an OAuth state it
+    // cannot match, a provider for Administrators only) come back to our sign-in page,
+    // translated, rather than to its own English /api/auth/error page.
     onAPIError: { errorURL: new URL(routes.signIn, config.baseURL).toString() },
     // Check request origins everywhere, tests included (Better Auth skips it under NODE_ENV=test).
     advanced: { disableOriginCheck: false },
-    socialProviders: config.google
-      ? { google: { clientId: config.google.clientId, clientSecret: config.google.clientSecret } }
-      : {},
+    socialProviders: providers.socialProviders,
+    account: {
+      accountLinking: {
+        enabled: true,
+        // Read on every request: the providers in use, trusted for linking (policy.ts).
+        trustedProviders: () => trustedProviderIds(signIn.configuration),
+      },
+    },
+    databaseHooks: signInHooks(signIn, config.baseURL),
     // The account of a person looking for a job is a Candidate (CONTEXT.md).
     user: {
       modelName: "candidate",
@@ -76,6 +200,12 @@ function authOptions(config: AuthConfig) {
           input: true,
           validator: { input: z.enum(SUPPORTED_LOCALES) },
         },
+      },
+    },
+    session: {
+      additionalFields: {
+        // How the session was signed in: a Sign-in Provider's id, or "magic-link". Set by the hooks above, never by the client.
+        signInMethod: { type: "string", required: false, input: false },
       },
     },
     plugins: [
@@ -94,6 +224,8 @@ function authOptions(config: AuthConfig) {
           });
         },
       }),
+      // Generic OIDC providers, through the same sign-in and callback endpoints as the social ones.
+      genericOAuth({ config: providers.genericOAuth }),
     ],
   } satisfies BetterAuthOptions;
 }

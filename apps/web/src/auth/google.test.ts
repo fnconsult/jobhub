@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { BASE_URL, connectionString, cookiesFrom, signInWithMagicLink, startTestAuth, type TestAuth } from "./test-support";
+import { BASE_URL, connectionString, cookiesFrom, signInWithMagicLink, startTestAuth, testProvider, testSignIn, type TestAuth } from "./test-support";
 
 const google = { clientId: "test-client.apps.googleusercontent.com", clientSecret: "test-client-secret" };
 
@@ -36,7 +36,7 @@ function googleAnswers(claims: Record<string, unknown>) {
 describe.skipIf(!connectionString)("Google sign-in (needs Postgres: DATABASE_URL)", () => {
   let testAuth: TestAuth;
   beforeEach(async () => {
-    testAuth = await startTestAuth({ google });
+    testAuth = await startTestAuth({ signIn: testSignIn([testProvider({ id: "google", type: "google", ...google })]) });
   });
   afterEach(async () => {
     vi.unstubAllGlobals();

@@ -134,3 +134,49 @@ describe("company web search", () => {
     expect(usage.entries).toEqual([expect.objectContaining({ candidateId: "cand-1", task: "web_search", provider: "perplexity" })]);
   });
 });
+
+describe("the usage of every AI call", () => {
+  it("records a call that succeeded as such", async () => {
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [createFakeProvider({ id: "mistral" })], routes: { scoring: "mistral" }, usage });
+
+    await ai.generate({ task: "scoring", candidateId: "cand-1", prompt: "Score this" });
+
+    expect(usage.entries).toEqual([expect.objectContaining({ task: "scoring", provider: "mistral", model: "fake-mistral", ok: true })]);
+  });
+
+  it("records a failed text call, with no tokens, and still fails it", async () => {
+    const failing = { ...createFakeProvider({ id: "mistral" }), generate: async () => Promise.reject(new Error("HTTP 503")) };
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [failing], routes: { scoring: { provider: "mistral", model: "mistral-small" } }, usage });
+
+    await expect(ai.generate({ task: "scoring", candidateId: "cand-1", prompt: "Score this" })).rejects.toThrow("HTTP 503");
+
+    expect(usage.entries).toEqual([
+      expect.objectContaining({ task: "scoring", provider: "mistral", endpoint: "fake mistral", model: "mistral-small", inputTokens: 0, outputTokens: 0, ok: false }),
+    ]);
+  });
+
+  it("records a failed web search, and still fails it", async () => {
+    const failing = { ...createFakeProvider({ id: "perplexity", residency: "outside_eu" }), search: async () => Promise.reject(new Error("HTTP 429")) };
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [failing], routes: { web_search: "perplexity" }, usage });
+
+    await expect(ai.searchCompany({ candidateId: null, employer: "Acme" })).rejects.toThrow("HTTP 429");
+
+    expect(usage.entries).toEqual([expect.objectContaining({ task: "web_search", provider: "perplexity", model: "default", ok: false })]);
+  });
+
+  it("answers whatever the usage log does: it throws, rejects or never settles", async () => {
+    const logs = [
+      { record: () => { throw new Error("log down"); } },
+      { record: () => Promise.reject(new Error("insert failed")) },
+      { record: () => new Promise<void>(() => {}) },
+    ];
+    for (const usage of logs) {
+      const ai = createAiLayer({ providers: [createFakeProvider({ id: "mistral", reply: "ok" })], routes: { scoring: "mistral" }, usage, warn: () => {} });
+
+      await expect(ai.generate({ task: "scoring", candidateId: "cand-1", prompt: "Score this" })).resolves.toMatchObject({ text: "ok" });
+    }
+  });
+});

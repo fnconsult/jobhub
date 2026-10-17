@@ -178,7 +178,41 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     return { route: identityRoute, identity: true };
   }
 
-  const log = (entry: Omit<UsageEntry, "at">) => options.usage.record({ ...entry, at: now() });
+  /**
+   * Records one call's usage without waiting for it: a usage log that throws, rejects or is slow
+   * never fails nor delays the call. Its failure is only warned about.
+   */
+  const log = (entry: Omit<UsageEntry, "at">) => {
+    const failed = (error: unknown) =>
+      warn("AI usage not recorded", { task: entry.task, provider: entry.provider, error: error instanceof Error ? error.message : String(error) });
+    try {
+      void Promise.resolve(options.usage.record({ ...entry, at: now() })).catch(failed);
+    } catch (error) {
+      failed(error);
+    }
+  };
+
+  /**
+   * Makes a provider call and records its usage, failed or not. A failed call has no tokens,
+   * and its model is the route's (or "default", the provider's own).
+   */
+  async function recorded<T extends { model: string; usage: TokenUsage }>(
+    entry: Pick<UsageEntry, "candidateId" | "task">,
+    provider: AiProvider,
+    route: Route,
+    call: () => Promise<T>,
+  ): Promise<T> {
+    const base = { ...entry, provider: provider.id, endpoint: provider.endpoint };
+    let output: T;
+    try {
+      output = await call();
+    } catch (error) {
+      log({ ...base, model: route.model ?? "default", inputTokens: 0, outputTokens: 0, ok: false });
+      throw error;
+    }
+    log({ ...base, model: output.model, ...output.usage, ok: true });
+    return output;
+  }
 
   const searchProvider = (): { route: Route; provider: AiProvider } => {
     const route = routeFor(SEARCH_TASK);
@@ -194,8 +228,9 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       throw new DataResidencyError("A web search's country filter must be a two-letter country code (ISO 3166-1 alpha-2)");
     }
     const { route, provider } = searchProvider();
-    const output = await provider.search!(query, { model: route.model, filters, ...(page && page > 1 ? { page } : {}) });
-    await log({ candidateId, task: SEARCH_TASK, provider: provider.id, endpoint: provider.endpoint, model: output.model, ...output.usage });
+    const output = await recorded({ candidateId, task: SEARCH_TASK }, provider, route, () =>
+      provider.search!(query, { model: route.model, filters, ...(page && page > 1 ? { page } : {}) }),
+    );
     return {
       answer: output.answer,
       sources: output.sources,
@@ -213,20 +248,14 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       const provider = providerFor(route);
       // Checked again per call: the rule must hold even if a provider changes at runtime.
       assertAllowed(request.task, provider, identity);
-      const output = await provider.generate!({
-        model: route.model,
-        system: request.system,
-        messages,
-        maxTokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
-      });
-      await log({
-        candidateId: request.candidateId,
-        task: request.task,
-        provider: provider.id,
-        endpoint: provider.endpoint,
-        model: output.model,
-        ...output.usage,
-      });
+      const output = await recorded({ candidateId: request.candidateId, task: request.task }, provider, route, () =>
+        provider.generate!({
+          model: route.model,
+          system: request.system,
+          messages,
+          maxTokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
+        }),
+      );
       return { text: output.text, provider: provider.id, model: output.model, usage: output.usage };
     },
 

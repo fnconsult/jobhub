@@ -118,11 +118,17 @@ export interface UsageEntry extends TokenUsage {
   task: AiTask;
   provider: ProviderId;
   endpoint: string;
+  /** The model that answered; for a failed call, the route's model, or "default" (the provider's own). */
   model: string;
+  /** Whether the provider answered. A failed call is recorded too, with no tokens. */
+  ok: boolean;
   at: Date;
 }
 
-/** Where every AI call's token usage goes (feeds Plan Quotas). */
+/**
+ * Where every AI call's usage goes (feeds Plan Quotas and AI Usage). The AI layer does not wait
+ * for `record`: a log that throws, rejects or is slow never fails nor delays the call.
+ */
 export interface UsageLog {
   record(entry: UsageEntry): void | Promise<void>;
 }

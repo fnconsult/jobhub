@@ -23,6 +23,7 @@ export function signInCopy({ providers, error }: { providers: readonly string[];
     if (MAGIC_LINK_ERRORS.has(error!)) return t("signIn.linkError");
     if (error === SIGN_IN_ERRORS.accountNotLinked) return t("signIn.accountNotLinked");
     if (error === SIGN_IN_ERRORS.providerNotAllowed) return t("signIn.providerNotAllowed");
+    if (error === SIGN_IN_ERRORS.providerDisabled) return t("signIn.providerDisabled");
     return providers.length > 0 ? t("signIn.failed", { providers: named }) : t("signIn.failedWithoutProviders");
   };
   return {

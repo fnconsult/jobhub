@@ -143,7 +143,8 @@
     "failed": "La connexion n'a pas abouti. Réessayez ci-dessous, avec {{providers}} ou en recevant un lien par e-mail.",
     "failedWithoutProviders": "La connexion n'a pas abouti. Réessayez ci-dessous en recevant un lien par e-mail.",
     "accountNotLinked": "Un compte Jobbbox utilise déjà cette adresse e-mail. Connectez-vous d'abord en recevant un lien par e-mail, puis associez ce moyen de connexion à votre compte depuis « Mon compte ».",
-    "providerNotAllowed": "Ce moyen de connexion est réservé à l'équipe Jobbbox. Connectez-vous ci-dessous en recevant un lien par e-mail."
+    "providerNotAllowed": "Ce moyen de connexion est réservé à l'équipe Jobbbox. Connectez-vous ci-dessous en recevant un lien par e-mail.",
+    "providerDisabled": "Ce moyen de connexion n'est pas disponible pour le moment. Connectez-vous ci-dessous en recevant un lien par e-mail."
   },
   "backOfficeSignIn": {
     "title": "Se connecter au back office",
@@ -888,6 +889,7 @@
         "updated": "Modification",
         "retired": "Retrait",
         "removed": "Suppression",
+        "tested": "Test de connexion réussi",
         "replaced": "Remplacement",
         "replaced_despite_failed_test": "Remplacement malgré un test échoué",
         "cleared": "Effacement"

@@ -83,8 +83,10 @@ export interface SocialProviders {
 export const APPLE_ORIGIN = "https://appleid.apple.com";
 
 /**
- * What the Better Auth instance registers: every provider of `configuration`, enabled
- * or not (a provider not enabled is only for a test sign-in, see oauthSignInDecision).
+ * What the Better Auth instance registers: the enabled providers, and one not enabled while
+ * a test sign-in started from Connexion is pending (see oauthSignInDecision). An OIDC provider
+ * is registered only if its discovery document was fetched in time when the configuration was
+ * read: an issuer that does not answer is left out rather than stall the instance's start.
  */
 export function betterAuthSignIn(configuration: SignInConfiguration): {
   socialProviders: SocialProviders;
@@ -93,7 +95,7 @@ export function betterAuthSignIn(configuration: SignInConfiguration): {
 } {
   const socialProviders: SocialProviders = {};
   const genericOAuth: GenericOAuthProvider[] = [];
-  for (const provider of configuration.providers) {
+  for (const provider of configuration.providers.filter((candidate) => candidate.enabled || candidate.testPending)) {
     const { clientId, clientSecret } = provider;
     switch (provider.type) {
       case "google":
@@ -106,7 +108,7 @@ export function betterAuthSignIn(configuration: SignInConfiguration): {
         socialProviders.apple = { clientId, clientSecret, ...(provider.appBundleIdentifier ? { appBundleIdentifier: provider.appBundleIdentifier } : {}) };
         break;
       case "oidc":
-        if (provider.discoveryUrl) {
+        if (provider.discovery && provider.discoveryUrl) {
           genericOAuth.push({
             providerId: provider.id,
             name: provider.displayName,

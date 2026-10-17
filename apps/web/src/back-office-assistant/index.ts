@@ -258,6 +258,7 @@ const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
   updated: "modification",
   retired: "retrait",
   removed: "suppression",
+  tested: "test de connexion réussi",
   replaced: "remplacement",
   replaced_despite_failed_test: "remplacement malgré un test échoué",
   cleared: "effacement",

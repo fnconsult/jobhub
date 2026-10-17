@@ -8,7 +8,8 @@ import { secretCipherFromEnv } from "@/provider-secrets/cipher";
 import { routes } from "@/routes";
 import { isMultiTenant, SECRET_FIELDS, SOCIAL_TYPES, type SignInProviderType } from "@/sign-in-providers/catalog";
 import type { SaveError, SignInProviderStatus, SignInSecretSource } from "@/sign-in-providers/index";
-import { getSignInProviders, refreshSignInConfiguration } from "@/sign-in-providers/server";
+import { applyLatestSignIn } from "@/auth/server";
+import { getSignInProviders } from "@/sign-in-providers/server";
 
 const ERRORS = [
   "invalid_type",
@@ -71,7 +72,7 @@ async function saveProvider(form: FormData) {
   });
   if (!saved.ok) redirect(back({ error: saved.error, form: text(form, "formKey") }));
   // This process uses it at once; the others hear the NOTIFY.
-  await refreshSignInConfiguration();
+  await applyLatestSignIn();
   redirect(back({ saved: saved.id }));
 }
 
@@ -80,7 +81,7 @@ async function removeProvider(form: FormData) {
   const { administrator } = await requireBackOffice("ssoProviders", "write");
   const removed = await getSignInProviders().remove(administrator, form.get("id"));
   if (!removed.ok) redirect(back({ error: removed.error }));
-  await refreshSignInConfiguration();
+  await applyLatestSignIn();
   redirect(back({ removed: "1" }));
 }
 
@@ -88,8 +89,21 @@ async function setRequireSso(form: FormData) {
   "use server";
   const { administrator } = await requireBackOffice("ssoProviders", "write");
   await getSignInProviders().setRequireSsoForAdministrators(administrator, form.get("requireSso") === "on");
-  await refreshSignInConfiguration();
+  await applyLatestSignIn();
   redirect(back({ sso: "saved" }));
+}
+
+/**
+ * Starts a test sign-in through a provider not enabled: registers it for a few minutes and
+ * returns the nonce its callback must bring back, so only this super-admin's sign-in can pass it.
+ */
+async function startTestSignIn(providerId: string): Promise<{ nonce: string } | { error: string }> {
+  "use server";
+  const { administrator } = await requireBackOffice("ssoProviders", "write");
+  const started = await getSignInProviders().startTestSignIn(administrator, providerId);
+  if (!started.ok) return { error: started.error };
+  await applyLatestSignIn();
+  return { nonce: started.nonce };
 }
 
 type Search = { saved?: string; removed?: string; tested?: string; testFailed?: string; error?: string; form?: string; sso?: string };
@@ -216,7 +230,7 @@ export default async function SignInProvidersPage({ searchParams }: { searchPara
             {provider.type === "microsoft" && isMultiTenant(provider.tenantId ?? undefined) ? <p className="notice">{t("admin.signInProviders.multiTenantHelp")}</p> : null}
             {canWrite ? (
               <div className="provider-secret-actions">
-                {provider.enabled ? null : <TestSignInButton providerId={provider.id} displayName={provider.displayName} />}
+                {provider.enabled ? null : <TestSignInButton providerId={provider.id} displayName={provider.displayName} start={startTestSignIn} />}
                 <form action={removeProvider}>
                   <input type="hidden" name="id" value={provider.id} />
                   <button className="button" type="submit">

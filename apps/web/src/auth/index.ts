@@ -23,7 +23,7 @@ import { magicLink } from "better-auth/plugins/magic-link";
 import type { Pool } from "pg";
 import * as z from "zod";
 import { routes } from "../routes";
-import { MAGIC_LINK, SIGN_IN_ERRORS, type SignInConfiguration } from "../sign-in-providers/catalog";
+import { MAGIC_LINK, SIGN_IN_ERRORS, TEST_SIGN_IN, type SignInConfiguration } from "../sign-in-providers/catalog";
 import { betterAuthSignIn, oauthSignInDecision, trustedProviderIds } from "../sign-in-providers/policy";
 
 /** An email ready to send. Plain text keeps it readable in every mail client. */
@@ -53,8 +53,12 @@ export interface SignInSetup {
   configuration: SignInConfiguration;
   /** Whether `person` may use the providers allowed for Administrators (holds a Back Office Role, or is in ADMIN_EMAILS). */
   isAdministrator(person: SigningInPerson): Promise<boolean>;
-  /** A test sign-in through provider `providerId`, not enabled yet, came back with a person: it works. */
-  onTestPassed?(providerId: string): Promise<void>;
+  /**
+   * A sign-in through provider `providerId`, not enabled yet, came back with `nonce`: true when it
+   * is the test sign-in a super-admin started from Connexion (the provider is then marked tested,
+   * in the Back Office Audit); false for anything else, refused.
+   */
+  completeTestSignIn?(providerId: string, nonce: string): Promise<boolean>;
 }
 
 export interface AuthConfig {
@@ -103,8 +107,9 @@ const providerOf = (ctx: HookContext): string | null => (ctx?.path?.startsWith("
  * Better Auth's database hooks that apply the sign-in policy (sign-in-providers/policy.ts)
  * on every OAuth callback, before anything is created:
  *  - a provider not shown to Candidates signs in Administrators only (provider_not_allowed);
- *  - a provider not enabled yet is the Back Office's test sign-in: it is marked as passed
- *    and the super-admin is sent back to the Connexion section, nothing created;
+ *  - through a provider not enabled, only the test sign-in a super-admin started from Connexion
+ *    goes (its nonce, checked by completeTestSignIn): it is marked as passed and the super-admin
+ *    is sent back to the Connexion section, nothing created; anything else is provider_disabled;
  *  - linking to an existing account by email happens only through a provider trusted for
  *    linking (account_not_linked otherwise), or when the Candidate links it themselves,
  *    signed in, from Mon compte;
@@ -126,15 +131,33 @@ export function signInHooks(signIn: SignInSetup, baseURL: string) {
     return until !== undefined && until >= Date.now();
   }
 
+  /**
+   * Refuses this sign-in with `code`. While linking from Mon compte, Better Auth would answer the
+   * refusal as JSON: the person is sent back to the flow's error page with the code instead,
+   * as a sign-in is.
+   */
+  async function refuse(ctx: NonNullable<HookContext>, code: string, message: string): Promise<never> {
+    const state = await currentOAuthState();
+    if (state?.link) {
+      const back = new URL(typeof state.errorURL === "string" && state.errorURL ? state.errorURL : routes.account, baseURL);
+      back.searchParams.set("error", code);
+      throw ctx.redirect(back.toString());
+    }
+    throw new APIError("FORBIDDEN", { code, message });
+  }
+
   async function decide(ctx: NonNullable<HookContext>, providerId: string, person: SigningInPerson): Promise<void> {
     const decision = oauthSignInDecision(signIn.configuration, providerId, { isAdministrator: await signIn.isAdministrator(person) });
     if (decision === "allow") return;
     if (decision === "test") {
-      await signIn.onTestPassed?.(providerId);
-      throw ctx.redirect(new URL(`${routes.adminSignInProviders}?tested=${encodeURIComponent(providerId)}`, baseURL).toString());
+      const nonce = (await currentOAuthState())?.[TEST_SIGN_IN];
+      if (typeof nonce === "string" && nonce && (await signIn.completeTestSignIn?.(providerId, nonce))) {
+        throw ctx.redirect(new URL(`${routes.adminSignInProviders}?tested=${encodeURIComponent(providerId)}`, baseURL).toString());
+      }
+      return refuse(ctx, SIGN_IN_ERRORS.providerDisabled, "This provider is not enabled");
     }
     // The callback sends the person back to the page they came from, with this code.
-    throw new APIError("FORBIDDEN", { code: SIGN_IN_ERRORS.providerNotAllowed, message: "This provider is for Administrators only" });
+    return refuse(ctx, SIGN_IN_ERRORS.providerNotAllowed, "This provider is for Administrators only");
   }
 
   const owner = async (ctx: NonNullable<HookContext>, userId: string): Promise<SigningInPerson | null> => {

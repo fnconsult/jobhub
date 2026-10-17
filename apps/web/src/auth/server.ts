@@ -6,12 +6,18 @@ import { liveObject } from "@/provider-secrets/resolver";
 import { getSecretResolver } from "@/provider-secrets/server";
 import type { SignInConfiguration } from "@/sign-in-providers/catalog";
 import { APPLE_ORIGIN } from "@/sign-in-providers/policy";
-import { currentSignInConfiguration, getSignInProviders } from "@/sign-in-providers/server";
+import { currentSignInConfiguration, getSignInProviders, refreshSignInConfiguration } from "@/sign-in-providers/server";
 import { authConfigFromEnv, mailerFromEnv } from "./config";
 import { createAuth, type Auth, type Mailer, type SignInSetup } from "./index";
+import { swapWhenReady } from "./instances";
 
-let built: { version: string; auth: Auth } | undefined;
 let mailer: Mailer | undefined;
+/** How long a change made in this process waits for the rebuilt sign-in to have started. */
+const REBUILD_WAIT_MS = 5_000;
+
+// On globalThis: Next.js bundles server code into more than one chunk (see sign-in-providers/server.ts).
+const holder = globalThis as { __jobhubAuthInstances?: ReturnType<typeof swapWhenReady<Auth>> };
+const instances = () => (holder.__jobhubAuthInstances ??= swapWhenReady<Auth>((auth) => auth.$context));
 
 /** The app's mailer: SMTP_URL from the Provider Secrets (Brevo), else env, rebuilt when it is replaced in the Back Office. */
 export function getMailer(): Mailer {
@@ -19,7 +25,7 @@ export function getMailer(): Mailer {
   return mailer;
 }
 
-/** The sign-in an instance is built with: `configuration`, the Administrators read afresh, and test sign-ins marked as passed. */
+/** The sign-in an instance is built with: `configuration`, the Administrators read afresh, and the Back Office's test sign-ins checked. */
 function signInSetup(configuration: SignInConfiguration): SignInSetup {
   const permanentSuperAdmin = permanentSuperAdminsFromEnv(process.env);
   return {
@@ -32,7 +38,11 @@ function signInSetup(configuration: SignInConfiguration): SignInSetup {
       const { getAdministrators } = await import("@/admin/server");
       return (await getAdministrators().access(person)).isAdministrator;
     },
-    onTestPassed: (providerId) => getSignInProviders().markTested(providerId),
+    async completeTestSignIn(providerId, nonce) {
+      const passed = await getSignInProviders().completeTestSignIn(providerId, nonce);
+      if (passed) void refreshSignInConfiguration();
+      return passed;
+    },
   };
 }
 
@@ -40,17 +50,23 @@ function signInSetup(configuration: SignInConfiguration): SignInSetup {
  * The app's Candidate-accounts module, configured from the environment (and the Provider
  * Secrets) and from the Sign-in Providers in use. Built again whenever those change (a
  * provider added, enabled, edited in the Back Office): over the same tables and secret,
- * so nobody is signed out.
+ * so nobody is signed out. A rebuilt one is used once it has started (instances.ts).
  */
 export function getAuth(): Auth {
   const configuration = currentSignInConfiguration();
-  if (built?.version !== configuration.version) {
-    built = {
-      version: configuration.version,
-      auth: createAuth({ ...authConfigFromEnv(getSecretResolver().current().env), mailer: getMailer(), signIn: signInSetup(configuration) }),
-    };
-  }
-  return built.auth;
+  return instances().get(configuration.version, () =>
+    createAuth({ ...authConfigFromEnv(getSecretResolver().current().env), mailer: getMailer(), signIn: signInSetup(configuration) }),
+  );
+}
+
+/**
+ * After a change made in this process (the Connexion section): reads the configuration again
+ * and waits, a few seconds at most, for the sign-in rebuilt from it to be the one in use.
+ */
+export async function applyLatestSignIn(): Promise<void> {
+  const { version } = await refreshSignInConfiguration();
+  getAuth();
+  await instances().settled(version, REBUILD_WAIT_MS);
 }
 
 /** The session signed in on this request and its Candidate, or null. Never touches the database for anonymous visitors. */

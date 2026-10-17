@@ -5,7 +5,8 @@
  * One deep module. `createSignInProviders(database, deps)` answers:
  *  - what is configured, as the Back Office shows it     `list`, `settings`: never a secret
  *  - change it                                            `save` (add or edit), `remove`, `setRequireSsoForAdministrators`
- *  - a test sign-in through a provider not enabled passed `markTested`
+ *  - a test sign-in through a provider not enabled         `startTestSignIn` (a super-admin, from Connexion),
+ *                                                         `completeTestSignIn` (its callback, with the nonce)
  *  - what the sign-in is built from (web app only)        `load`: the SignInConfiguration, secrets opened
  *  - Apple's client secret, signed again monthly          `regenerateAppleClientSecrets` (the worker's job)
  * and `configurationFromEnv(env)` (before the table exists, or without a database),
@@ -22,7 +23,7 @@
  * seconds. Google's client secret falls back to env's GOOGLE_CLIENT_SECRET, and env's
  * Google client is seeded as a provider once, by the migration.
  */
-import { randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 import type { BackOffice, BackOfficeActor, Recorded } from "../admin/back-office";
 import type { Queryable } from "../database/pool";
@@ -52,6 +53,12 @@ const secretName = (id: string, field: SecretField) => `sign-in/${id}/${field}`;
 const REQUIRE_SSO = "require_sso_for_administrators";
 const UNDEFINED_TABLE = "42P01";
 const MAX_SECRET_LENGTH = 8192;
+/** How long a test sign-in started from Connexion may take: the provider is registered meanwhile. */
+const TEST_SIGN_IN_MINUTES = 10;
+/** How long an issuer's discovery document may take to come, and how long a fetched one is used. */
+const DISCOVERY_TIMEOUT_MS = 5_000;
+const DISCOVERY_CACHE_MS = 60 * 60_000;
+const hashOf = (nonce: string) => createHash("sha256").update(nonce).digest("hex");
 
 /** Where a provider's secret in use comes from; `unreadable`: a row that does not open. */
 export type SignInSecretSource = "database" | "env" | "missing" | "unreadable";
@@ -106,6 +113,8 @@ export interface SignInProvidersDeps {
   now?: () => Date;
   /** Where a secret that does not open is said. Default: console.warn. */
   log?: (line: string) => void;
+  /** An OIDC issuer's discovery document, or null. Default: fetchDiscoveryDocument (5 s at most), kept an hour. */
+  fetchDiscovery?: (url: string) => Promise<Record<string, unknown> | null>;
 }
 
 export interface SignInProviders {
@@ -120,8 +129,18 @@ export interface SignInProviders {
   save(actor: BackOfficeActor, input: unknown): Promise<SaveResult>;
   remove(actor: BackOfficeActor, id: unknown): Promise<{ ok: true } | { ok: false; error: "unknown_provider" }>;
   setRequireSsoForAdministrators(actor: BackOfficeActor, on: boolean): Promise<void>;
-  /** A test sign-in through provider `id` passed: it may be enabled now. */
-  markTested(id: string): Promise<void>;
+  /**
+   * `actor` (a super-admin, from Connexion) starts a test sign-in through provider `id`, not
+   * enabled: it is registered for TEST_SIGN_IN_MINUTES, and the nonce returned (stored only
+   * hashed) must come back with the provider's callback.
+   */
+  startTestSignIn(actor: BackOfficeActor, id: unknown): Promise<{ ok: true; nonce: string } | { ok: false; error: "unknown_provider" | "already_enabled" }>;
+  /**
+   * A sign-in through provider `id` came back with `nonce`: true, once, when it is the test sign-in
+   * started for it in the last TEST_SIGN_IN_MINUTES. The provider is then marked tested (it may be
+   * enabled), recorded in the Back Office Audit as the super-admin who started it.
+   */
+  completeTestSignIn(id: string, nonce: string): Promise<boolean>;
   /** The configuration in use, with its secrets: for the Better Auth instance only. */
   load(): Promise<SignInConfiguration>;
   /** Signs Apple's client secret again where due (APPLE_REGENERATION_DAYS); which were, which failed and why. */
@@ -141,6 +160,10 @@ interface ProviderRow {
   allowed_for_administrators: boolean;
   trusted_for_linking: boolean;
   tested_at: Date | null;
+  test_nonce_hash: string | null;
+  test_started_at: Date | null;
+  test_started_by_id: string | null;
+  test_started_by_email: string | null;
   apple_generated_at: Date | null;
   apple_expires_at: Date | null;
   apple_failed_at: Date | null;
@@ -175,7 +198,7 @@ export function configurationFromEnv(env: Env): SignInConfiguration {
 }
 
 /** A provider's fields as the Back Office Audit records them: no secret. */
-const recorded = (row: Omit<ProviderRow, "tested_at" | "apple_generated_at" | "apple_expires_at" | "apple_failed_at" | "updated_by_email" | "updated_at">): { [key: string]: Recorded } => ({
+const recorded = (row: Omit<ProviderRow, "tested_at" | "test_nonce_hash" | "test_started_at" | "test_started_by_id" | "test_started_by_email" | "apple_generated_at" | "apple_expires_at" | "apple_failed_at" | "updated_by_email" | "updated_at">): { [key: string]: Recorded } => ({
   type: row.type,
   displayName: row.display_name,
   clientId: row.client_id,
@@ -200,9 +223,43 @@ function isDiscoveryUrl(value: string): boolean {
   }
 }
 
+/**
+ * An OIDC issuer's discovery document at `url`, or null when it does not come within `timeoutMs`
+ * or is not one (no https issuer, no authorization endpoint). Said in the log, without secrets.
+ */
+export async function fetchDiscoveryDocument(
+  url: string,
+  options: { fetch?: (url: string, init?: RequestInit) => Promise<Response>; timeoutMs?: number; log?: (line: string) => void } = {},
+): Promise<Record<string, unknown> | null> {
+  const log = options.log ?? ((line: string) => console.warn(line));
+  try {
+    const response = await (options.fetch ?? globalThis.fetch)(url, { signal: AbortSignal.timeout(options.timeoutMs ?? DISCOVERY_TIMEOUT_MS), headers: { accept: "application/json" } });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const document = (await response.json()) as Record<string, unknown>;
+    if (typeof document.issuer !== "string" || !URL.canParse(document.issuer)) throw new Error("no issuer");
+    if (typeof document.authorization_endpoint !== "string") throw new Error("no authorization endpoint");
+    return document;
+  } catch (error) {
+    log(`[sign-in-providers] the discovery document at ${url} could not be read, its provider is left out: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+}
+
 export function createSignInProviders(database: Pool, deps: SignInProvidersDeps): SignInProviders {
   const log = deps.log ?? ((line: string) => console.warn(line));
   const now = deps.now ?? (() => new Date());
+  const discoveries = new Map<string, { document: Record<string, unknown>; until: number }>();
+  /** An issuer's discovery document, fetched again an hour after it last was; null when it does not come. */
+  async function discoveryOf(url: string): Promise<Record<string, unknown> | null> {
+    const cached = discoveries.get(url);
+    if (cached && cached.until > Date.now()) return cached.document;
+    const document = await (deps.fetchDiscovery ?? ((address: string) => fetchDiscoveryDocument(address, { log })))(url);
+    if (document) discoveries.set(url, { document, until: Date.now() + DISCOVERY_CACHE_MS });
+    else discoveries.delete(url);
+    return document;
+  }
+  const testPending = (row: ProviderRow, at: Date) =>
+    !row.enabled && row.test_started_at !== null && row.test_started_at.getTime() > at.getTime() - TEST_SIGN_IN_MINUTES * 60_000;
   const place = (row: Pick<SecretRow, "name" | "id">) => ({ provider: SECRET_PROVIDER, name: row.name, row: row.id });
 
   async function providerRows(within: Queryable = database): Promise<ProviderRow[]> {
@@ -459,9 +516,50 @@ export function createSignInProviders(database: Pool, deps: SignInProvidersDeps)
       );
     },
 
-    async markTested(id) {
-      // Not part of the configuration's version: nothing to rebuild.
-      await database.query("UPDATE sign_in_provider SET tested_at = $2 WHERE id = $1", [id, now()]);
+    async startTestSignIn(actor, rawId) {
+      const id = text(rawId);
+      const nonce = randomBytes(32).toString("base64url");
+      // One statement: the test is started and announced (the provider registered everywhere) together.
+      const { rows } = await database.query<{ enabled: boolean; started: boolean }>(
+        `WITH found AS (SELECT id, enabled FROM sign_in_provider WHERE id = $1),
+              started AS (
+                UPDATE sign_in_provider SET test_nonce_hash = $2, test_started_at = $3, test_started_by_id = $4, test_started_by_email = $5
+                WHERE id = $1 AND NOT enabled RETURNING id
+              ),
+              announced AS (SELECT pg_notify($6, '') FROM started)
+         SELECT found.enabled, EXISTS (SELECT 1 FROM started) AS started FROM found LEFT JOIN announced ON true`,
+        [id, hashOf(nonce), now(), actor.id, actor.email.trim().toLowerCase(), SIGN_IN_PROVIDERS_CHANNEL],
+      );
+      if (!rows[0]) return { ok: false, error: "unknown_provider" };
+      if (!rows[0].started) return { ok: false, error: "already_enabled" };
+      return { ok: true, nonce };
+    },
+
+    async completeTestSignIn(id, nonce) {
+      const at = now();
+      const since = new Date(at.getTime() - TEST_SIGN_IN_MINUTES * 60_000);
+      const { rows } = await database.query<{ test_started_by_id: string; test_started_by_email: string }>(
+        `SELECT test_started_by_id, test_started_by_email FROM sign_in_provider
+         WHERE id = $1 AND NOT enabled AND test_nonce_hash = $2 AND test_started_at > $3`,
+        [id, hashOf(nonce), since],
+      );
+      const starter = rows[0];
+      if (!starter) return false;
+      return deps.backOffice.record(
+        { id: starter.test_started_by_id, email: starter.test_started_by_email },
+        async (within) => {
+          // Used once: a second callback with the same nonce finds nothing.
+          const used = await within.query(
+            `UPDATE sign_in_provider SET tested_at = $4, test_nonce_hash = NULL, test_started_at = NULL, test_started_by_id = NULL, test_started_by_email = NULL
+             WHERE id = $1 AND NOT enabled AND test_nonce_hash = $2 AND test_started_at > $3 RETURNING id`,
+            [id, hashOf(nonce), since, at],
+          );
+          if (used.rowCount === 0) return false;
+          await announce(within);
+          return true;
+        },
+        (passed) => (passed ? { section: "sign_in_providers", target: id, action: "tested", before: null, after: null } : null),
+      );
     },
 
     async load() {
@@ -475,11 +573,17 @@ export function createSignInProviders(database: Pool, deps: SignInProvidersDeps)
         log("[sign-in-providers] the sign_in_provider table does not exist yet (run the migrations): env's Google client alone is used");
         return configurationFromEnv(deps.env);
       }
+      const at = now();
       const providers: SignInProvider[] = [];
+      const discovered = new Map<string, boolean>();
       for (const row of rows) {
         const secrets = secretsOf(row, stored);
         // Not registered without its secrets: Better Auth could not use it.
         if (!secrets.clientSecret) continue;
+        const pending = testPending(row, at);
+        // Only for a provider Better Auth registers: one in use, or under test.
+        const discovery = row.type === "oidc" && row.discovery_url && (row.enabled || pending) ? ((await discoveryOf(row.discovery_url)) ?? undefined) : undefined;
+        discovered.set(row.id, discovery !== undefined);
         providers.push({
           id: row.id,
           type: row.type,
@@ -489,14 +593,16 @@ export function createSignInProviders(database: Pool, deps: SignInProvidersDeps)
           discoveryUrl: row.discovery_url ?? undefined,
           tenantId: row.tenant_id ?? undefined,
           appBundleIdentifier: row.app_bundle_identifier ?? undefined,
+          discovery,
           enabled: row.enabled,
+          testPending: pending,
           shownToCandidates: row.shown_to_candidates,
           allowedForAdministrators: row.allowed_for_administrators,
           trustedForLinking: row.trusted_for_linking,
         });
       }
       const version = [
-        ...rows.map((row) => `${row.id}@${row.updated_at.getTime()}`),
+        ...rows.map((row) => `${row.id}@${row.updated_at.getTime()}:test=${testPending(row, at)}:discovered=${discovered.get(row.id) ?? false}`),
         ...[...stored.values()].map((row) => `${row.name}@${row.id}`).sort(),
         `sso=${sso}`,
       ].join(",");
@@ -573,6 +679,11 @@ export async function migrateSignInProviders(database: Pick<Pool, "query">, env:
       trusted_for_linking boolean NOT NULL DEFAULT false,
       -- A test sign-in passed since the credentials last changed: it may be enabled.
       tested_at timestamptz,
+      -- The test sign-in a super-admin started from Connexion: its nonce, hashed, and who started it when.
+      test_nonce_hash text,
+      test_started_at timestamptz,
+      test_started_by_id text,
+      test_started_by_email text,
       apple_generated_at timestamptz,
       apple_expires_at timestamptz,
       apple_failed_at timestamptz,
@@ -581,6 +692,10 @@ export async function migrateSignInProviders(database: Pick<Pool, "query">, env:
       created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
       updated_at timestamptz NOT NULL DEFAULT clock_timestamp()
     );
+    ALTER TABLE sign_in_provider ADD COLUMN IF NOT EXISTS test_nonce_hash text;
+    ALTER TABLE sign_in_provider ADD COLUMN IF NOT EXISTS test_started_at timestamptz;
+    ALTER TABLE sign_in_provider ADD COLUMN IF NOT EXISTS test_started_by_id text;
+    ALTER TABLE sign_in_provider ADD COLUMN IF NOT EXISTS test_started_by_email text;
     CREATE TABLE IF NOT EXISTS sign_in_setting (
       name text PRIMARY KEY,
       value jsonb NOT NULL,

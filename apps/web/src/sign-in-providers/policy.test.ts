@@ -25,6 +25,7 @@ const staffOidc = provider({
   type: "oidc",
   displayName: "Jobbbox SSO",
   discoveryUrl: "https://sso.jobbbox.fr/.well-known/openid-configuration",
+  discovery: { issuer: "https://sso.jobbbox.fr", authorization_endpoint: "https://sso.jobbbox.fr/authorize" },
   shownToCandidates: false,
   trustedForLinking: false,
 });
@@ -136,8 +137,14 @@ describe("the Better Auth configuration", () => {
     ]);
   });
 
-  it("registers providers not enabled yet, so they can be tested", () => {
-    expect(Object.keys(betterAuthSignIn(configuration([draftApple])).socialProviders)).toEqual(["apple"]);
+  it("leaves out an OIDC provider whose discovery document could not be fetched in time when the configuration was read", () => {
+    expect(betterAuthSignIn(configuration([{ ...staffOidc, discovery: undefined }])).genericOAuth).toEqual([]);
+  });
+
+  it("registers a provider not enabled only while a test sign-in started from Connexion is pending", () => {
+    expect(Object.keys(betterAuthSignIn(configuration([draftApple])).socialProviders)).toEqual([]);
+    expect(Object.keys(betterAuthSignIn(configuration([{ ...draftApple, testPending: true }])).socialProviders)).toEqual(["apple"]);
+    expect(betterAuthSignIn(configuration([{ ...staffOidc, enabled: false }])).genericOAuth).toEqual([]);
   });
 
   it("trusts Apple's form post origin only while Apple is configured", () => {

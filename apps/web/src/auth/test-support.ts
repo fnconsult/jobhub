@@ -66,11 +66,14 @@ export function testProvider(overrides: Partial<SignInProvider> & Pick<SignInPro
 }
 
 /** The sign-in an instance is built with in a test: `providers`, and the Administrators' emails. */
-export function testSignIn(providers: SignInProvider[], options: { administrators?: string[]; onTestPassed?: (providerId: string) => Promise<void> } = {}): SignInSetup {
+export function testSignIn(
+  providers: SignInProvider[],
+  options: { administrators?: string[]; completeTestSignIn?: (providerId: string, nonce: string) => Promise<boolean> } = {},
+): SignInSetup {
   return {
     configuration: { providers, requireSsoForAdministrators: false, version: JSON.stringify(providers.map((provider) => provider.id)) },
     isAdministrator: async (person) => (options.administrators ?? []).includes(person.email.toLowerCase()),
-    ...(options.onTestPassed ? { onTestPassed: options.onTestPassed } : {}),
+    completeTestSignIn: options.completeTestSignIn ?? (async () => false),
   };
 }
 

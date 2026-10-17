@@ -26,6 +26,9 @@ export const SECRET_FIELDS = {
 
 export type SecretField = "clientSecret" | "teamId" | "keyId" | "privateKey";
 
+/** Where the nonce of a test sign-in started from Connexion travels in the OAuth flow (`additionalData`). */
+export const TEST_SIGN_IN = "testSignIn";
+
 /** How a sign-in made in the app is named on its session: a provider's id, or this. */
 export const MAGIC_LINK = "magic-link";
 
@@ -35,6 +38,8 @@ export const SIGN_IN_ERRORS = {
   providerNotAllowed: "provider_not_allowed",
   /** A Jobbbox account has this email and the provider is not trusted for linking: sign in by magic link, then link it from Mon compte. */
   accountNotLinked: "account_not_linked",
+  /** The provider is not enabled (only a super-admin's test sign-in goes through it then). */
+  providerDisabled: "provider_disabled",
 } as const;
 
 /** Ids an OIDC provider may not take: the social types and the magic link. */
@@ -67,8 +72,12 @@ export interface SignInProvider {
   tenantId?: string | undefined;
   /** Apple: the app's bundle id, for sign-in from a native app. */
   appBundleIdentifier?: string | undefined;
-  /** Off: registered for a test sign-in only, nobody signs in through it. */
+  /** OIDC: that discovery document, fetched (with a time limit) when the configuration was read; absent when it could not be. */
+  discovery?: Record<string, unknown> | undefined;
+  /** Off: nobody signs in through it; it is registered only for a test sign-in started from Connexion. */
   enabled: boolean;
+  /** A super-admin started a test sign-in through it from Connexion, a few minutes ago at most. */
+  testPending?: boolean | undefined;
   /** On the Candidate sign-in page. */
   shownToCandidates: boolean;
   /** Usable for Back Office sign-in. */

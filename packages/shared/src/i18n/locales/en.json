@@ -143,7 +143,8 @@
     "failed": "Sign-in didn't go through. Try again below, with {{providers}} or with a link by email.",
     "failedWithoutProviders": "Sign-in didn't go through. Try again below with a link by email.",
     "accountNotLinked": "A Jobbbox account already uses this email address. Sign in with a link by email first, then link this sign-in method to your account from \"My account\".",
-    "providerNotAllowed": "This sign-in method is for the Jobbbox team. Sign in below with a link by email."
+    "providerNotAllowed": "This sign-in method is for the Jobbbox team. Sign in below with a link by email.",
+    "providerDisabled": "This sign-in method isn't available at the moment. Sign in below with a link sent by email."
   },
   "backOfficeSignIn": {
     "title": "Sign in to the back office",
@@ -888,6 +889,7 @@
         "updated": "Changed",
         "retired": "Retired",
         "removed": "Removed",
+        "tested": "Test sign-in passed",
         "replaced": "Replaced",
         "replaced_despite_failed_test": "Replaced despite a failed test",
         "cleared": "Cleared"

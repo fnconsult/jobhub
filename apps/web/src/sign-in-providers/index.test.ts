@@ -5,7 +5,7 @@ import { createBackOffice, migrateBackOfficeAudit, type BackOffice, type BackOff
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { secretCipherFromEnv } from "../provider-secrets/cipher";
 import { createProviderSecrets, listenForProviderSecretChanges, migrateProviderSecrets } from "../provider-secrets/index";
-import { configurationFromEnv, createSignInProviders, migrateSignInProviders, SIGN_IN_PROVIDERS_CHANNEL, type SignInProviders } from "./index";
+import { configurationFromEnv, createSignInProviders, fetchDiscoveryDocument, migrateSignInProviders, SIGN_IN_PROVIDERS_CHANNEL, type SignInProviders } from "./index";
 
 type Env = Record<string, string | undefined>;
 
@@ -48,6 +48,29 @@ describe("configurationFromEnv", () => {
   });
 });
 
+const DISCOVERY = { issuer: "https://sso.jobbbox.fr", authorization_endpoint: "https://sso.jobbbox.fr/authorize", token_endpoint: "https://sso.jobbbox.fr/token" };
+
+describe("fetchDiscoveryDocument", () => {
+  it("is the issuer's discovery document", async () => {
+    const fetch = vi.fn(async () => Response.json(DISCOVERY));
+    expect(await fetchDiscoveryDocument("https://sso.jobbbox.fr/.well-known/openid-configuration", { fetch })).toEqual(DISCOVERY);
+  });
+
+  it("is null after the time limit when the issuer does not answer, rather than wait", async () => {
+    const hanging = (_url: string, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal!.reason)));
+    const started = Date.now();
+    expect(await fetchDiscoveryDocument("https://slow.example/.well-known/openid-configuration", { fetch: hanging, timeoutMs: 50, log: () => {} })).toBeNull();
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+
+  it("is null for an answer that is not a usable discovery document", async () => {
+    for (const answer of [new Response("nope", { status: 500 }), Response.json({ issuer: "not a url", authorization_endpoint: "x" }), Response.json({ issuer: "https://sso.jobbbox.fr" })]) {
+      expect(await fetchDiscoveryDocument("https://sso.jobbbox.fr/.well-known/openid-configuration", { fetch: async () => answer, log: () => {} })).toBeNull();
+    }
+  });
+});
+
 describe.skipIf(!connectionString)("Sign-in Providers in the database (needs Postgres: DATABASE_URL)", () => {
   let testAuth: TestAuth;
   let database: Pool;
@@ -57,8 +80,18 @@ describe.skipIf(!connectionString)("Sign-in Providers in the database (needs Pos
   let providers: SignInProviders;
   let now: Date;
 
+  const discoveries: string[] = [];
   const signInProviders = (env: Env = { SECRETS_MASTER_KEYS: keyring }) =>
-    createSignInProviders(database, { cipher: secretCipherFromEnv(env), backOffice, env, now: () => now });
+    createSignInProviders(database, {
+      cipher: secretCipherFromEnv(env),
+      backOffice,
+      env,
+      now: () => now,
+      fetchDiscovery: async (url) => {
+        discoveries.push(url);
+        return url.includes("unreachable") ? null : DISCOVERY;
+      },
+    });
 
   beforeEach(async () => {
     testAuth = await startTestAuth();
@@ -72,6 +105,7 @@ describe.skipIf(!connectionString)("Sign-in Providers in the database (needs Pos
     claire = { id: user.id, email: user.email };
     keyring = masterKey();
     now = new Date("2026-10-17T08:00:00Z");
+    discoveries.length = 0;
     providers = signInProviders();
   }, 60_000);
   afterEach(async () => {
@@ -153,7 +187,9 @@ describe.skipIf(!connectionString)("Sign-in Providers in the database (needs Pos
     await providers.save(claire, oidc());
 
     expect(await providers.save(claire, oidc({ enabled: true, secrets: {} }))).toEqual({ ok: false, error: "not_tested" });
-    await providers.markTested("jobbbox-sso");
+    const started = await providers.startTestSignIn(claire, "jobbbox-sso");
+    if (!started.ok) throw new Error(started.error);
+    expect(await providers.completeTestSignIn("jobbbox-sso", started.nonce)).toBe(true);
     expect(await providers.save(claire, oidc({ enabled: true, secrets: {} }))).toEqual({ ok: true, id: "jobbbox-sso" });
 
     // Credentials changed while enabled: it stays enabled, but a new test is due before enabling it again.
@@ -162,6 +198,82 @@ describe.skipIf(!connectionString)("Sign-in Providers in the database (needs Pos
     await providers.save(claire, oidc({ enabled: false, secrets: {} }));
     expect(await providers.save(claire, oidc({ enabled: true, secrets: {} }))).toEqual({ ok: false, error: "not_tested" });
     expect((await providers.load()).providers[0]).toMatchObject({ clientSecret: "rotated-secret-0000000000" });
+  });
+
+  describe("a test sign-in", () => {
+    it("is started by a super-admin from Connexion, registers the provider meanwhile, and passes once, with its nonce only", async () => {
+      await providers.save(claire, oidc());
+      expect((await providers.load()).providers[0]).toMatchObject({ enabled: false, testPending: false });
+
+      const started = await providers.startTestSignIn(claire, "jobbbox-sso");
+      if (!started.ok) throw new Error(started.error);
+      expect(started.nonce.length).toBeGreaterThanOrEqual(32);
+      expect((await providers.load()).providers[0]).toMatchObject({ testPending: true });
+      // The nonce itself is never stored.
+      expect(JSON.stringify((await database.query("SELECT * FROM sign_in_provider")).rows)).not.toContain(started.nonce);
+
+      expect(await providers.completeTestSignIn("jobbbox-sso", "a-nonce-nobody-issued")).toBe(false);
+      expect(await providers.completeTestSignIn("google", started.nonce)).toBe(false);
+      expect((await providers.list())[0]!.testedAt).toBeNull();
+      expect(await providers.completeTestSignIn("jobbbox-sso", started.nonce)).toBe(true);
+      expect(await providers.completeTestSignIn("jobbbox-sso", started.nonce)).toBe(false);
+
+      expect((await providers.list())[0]!.testedAt).toEqual(now);
+      expect((await providers.load()).providers[0]).toMatchObject({ testPending: false });
+    });
+
+    it("expires ten minutes after it was started", async () => {
+      await providers.save(claire, oidc());
+      const started = await providers.startTestSignIn(claire, "jobbbox-sso");
+      if (!started.ok) throw new Error(started.error);
+
+      now = new Date(now.getTime() + 11 * 60_000);
+
+      expect((await providers.load()).providers[0]).toMatchObject({ testPending: false });
+      expect(await providers.completeTestSignIn("jobbbox-sso", started.nonce)).toBe(false);
+    });
+
+    it("is recorded in the Back Office Audit, as the super-admin who started it", async () => {
+      await providers.save(claire, oidc());
+      const started = await providers.startTestSignIn(claire, "jobbbox-sso");
+      if (!started.ok) throw new Error(started.error);
+      await providers.completeTestSignIn("jobbbox-sso", started.nonce);
+
+      const [entry] = await backOffice.journal({ section: "sign_in_providers" });
+      expect(entry).toMatchObject({ target: "jobbbox-sso", action: "tested", actor: { candidateId: claire.id, email: "claire@jobbbox.fr" } });
+    });
+
+    it("is not started for a provider already enabled, nor one that does not exist", async () => {
+      expect(await providers.startTestSignIn(claire, "jobbbox-sso")).toEqual({ ok: false, error: "unknown_provider" });
+      await providers.save(claire, oidc());
+      await database.query("UPDATE sign_in_provider SET enabled = true WHERE id = 'jobbbox-sso'");
+      expect(await providers.startTestSignIn(claire, "jobbbox-sso")).toEqual({ ok: false, error: "already_enabled" });
+    });
+
+    it("changes the configuration's version when it starts and when it passes, so the provider is registered then unregistered", async () => {
+      await providers.save(claire, oidc());
+      const before = (await providers.load()).version;
+      const started = await providers.startTestSignIn(claire, "jobbbox-sso");
+      if (!started.ok) throw new Error(started.error);
+      const during = (await providers.load()).version;
+      await providers.completeTestSignIn("jobbbox-sso", started.nonce);
+
+      expect(during).not.toBe(before);
+      expect((await providers.load()).version).not.toBe(during);
+    });
+  });
+
+  it("fetches an OIDC issuer's discovery document only for a provider in use or under test, and leaves out one that does not answer", async () => {
+    await providers.save(claire, oidc());
+    await providers.save(claire, oidc({ id: "partner-sso", displayName: "Partner", discoveryUrl: "https://unreachable.partner.example/.well-known/openid-configuration" }));
+
+    await providers.load();
+    expect(discoveries).toEqual([]);
+
+    await database.query("UPDATE sign_in_provider SET enabled = true");
+    const { providers: loaded } = await providers.load();
+    expect(loaded.find((provider) => provider.id === "jobbbox-sso")).toMatchObject({ discovery: DISCOVERY });
+    expect(loaded.find((provider) => provider.id === "partner-sso")?.discovery).toBeUndefined();
   });
 
   it("records every change in the Back Office Audit, never a secret", async () => {

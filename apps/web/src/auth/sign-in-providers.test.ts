@@ -5,6 +5,15 @@ import { BASE_URL, connectionString, cookiesFrom, signInWithMagicLink, startTest
 
 const google = testProvider({ id: "google", type: "google", displayName: "Google", clientId: "test-client.apps.googleusercontent.com", clientSecret: "test-google-secret" });
 const ISSUER = "https://sso.jobbbox.test";
+/** The issuer's discovery document, as the Sign-in Providers fetched it when reading the configuration. */
+const discovery = {
+  issuer: ISSUER,
+  authorization_endpoint: `${ISSUER}/authorize`,
+  token_endpoint: `${ISSUER}/token`,
+  userinfo_endpoint: `${ISSUER}/userinfo`,
+  jwks_uri: `${ISSUER}/jwks`,
+  id_token_signing_alg_values_supported: ["RS256"],
+};
 const sso = testProvider({
   id: "jobbbox-sso",
   type: "oidc",
@@ -12,6 +21,7 @@ const sso = testProvider({
   clientId: "jobbbox-web",
   clientSecret: "test-sso-secret",
   discoveryUrl: `${ISSUER}/.well-known/openid-configuration`,
+  discovery,
   trustedForLinking: false,
 });
 
@@ -40,16 +50,7 @@ function providersAnswer() {
     if (url.startsWith("https://oauth2.googleapis.com/token")) {
       return Response.json({ access_token: "google-access-token", token_type: "Bearer", expires_in: 3600, scope: "openid email profile", id_token: googleIdToken(person.google) });
     }
-    if (url === sso.discoveryUrl) {
-      return Response.json({
-        issuer: ISSUER,
-        authorization_endpoint: `${ISSUER}/authorize`,
-        token_endpoint: `${ISSUER}/token`,
-        userinfo_endpoint: `${ISSUER}/userinfo`,
-        jwks_uri: `${ISSUER}/jwks`,
-        id_token_signing_alg_values_supported: ["RS256"],
-      });
-    }
+    if (url === sso.discoveryUrl) return Response.json(discovery);
     if (url === `${ISSUER}/jwks`) return Response.json({ keys: [{ ...issuerKeys.publicKey.export({ format: "jwk" }), kid: "issuer-key", alg: "RS256", use: "sig" }] });
     if (url === `${ISSUER}/token`) {
       return Response.json({ access_token: "sso-access-token", token_type: "Bearer", expires_in: 3600, id_token: ssoIdToken({ ...person.sso, nonce: person.nonce }) });
@@ -60,16 +61,17 @@ function providersAnswer() {
 
 describe.skipIf(!connectionString)("signing in through the Sign-in Providers (needs Postgres: DATABASE_URL)", () => {
   let testAuth: TestAuth;
-  const testPassed = vi.fn(async (providerId: string) => void providerId);
+  /** The test sign-in a super-admin started from Connexion, as the Sign-in Providers check it: this nonce only. */
+  const completeTestSignIn = vi.fn(async (providerId: string, nonce: string) => providerId === "jobbbox-sso" && nonce === "nonce-issued-to-claire");
 
   async function start(providers = [google, sso]) {
-    testAuth = await startTestAuth({ signIn: testSignIn(providers, { administrators: ["claire@jobbbox.fr"], onTestPassed: testPassed }) });
+    testAuth = await startTestAuth({ signIn: testSignIn(providers, { administrators: ["claire@jobbbox.fr"], completeTestSignIn }) });
   }
 
   beforeEach(() => {
     person.google = {};
     person.sso = {};
-    testPassed.mockClear();
+    completeTestSignIn.mockClear();
     // Before the instance is built: it reads the OIDC issuer's discovery document then.
     providersAnswer();
   });
@@ -79,10 +81,15 @@ describe.skipIf(!connectionString)("signing in through the Sign-in Providers (ne
   });
 
   /** Starts a sign-in (or, with `link`, linking from Mon compte) through `providerId`, lets the provider approve, and returns the callback's answer. */
-  async function through(providerId: string, options: { cookie?: string; link?: boolean; request?: TestAuth["request"] } = {}): Promise<Response> {
+  async function through(providerId: string, options: { cookie?: string; link?: boolean; testNonce?: string; request?: TestAuth["request"] } = {}): Promise<Response> {
     const request = options.request ?? testAuth.request;
     const started = await request(options.link ? "/api/auth/link-social" : "/api/auth/sign-in/social", {
-      body: { provider: providerId, callbackURL: "/compte", errorCallbackURL: "/connexion" },
+      body: {
+        provider: providerId,
+        callbackURL: "/compte",
+        errorCallbackURL: "/connexion",
+        ...(options.testNonce ? { additionalData: { testSignIn: options.testNonce } } : {}),
+      },
       ...(options.cookie ? { cookie: options.cookie } : {}),
     });
     expect(started.status).toBe(200);
@@ -200,28 +207,68 @@ describe.skipIf(!connectionString)("signing in through the Sign-in Providers (ne
   });
 
   describe("a provider not enabled yet", () => {
-    it("is tested by a sign-in that creates nothing and signs nobody in", async () => {
-      await start([google, { ...sso, enabled: false }]);
+    const testing = { ...sso, enabled: false, testPending: true };
+
+    it("is tested by the sign-in a super-admin started from Connexion: it passes, nothing is created, nobody is signed in", async () => {
+      await start([google, testing]);
       person.sso = { sub: "sso-claire", email: "claire@jobbbox.fr", email_verified: true, name: "Claire" };
 
-      const callback = await through("jobbbox-sso");
+      const callback = await through("jobbbox-sso", { testNonce: "nonce-issued-to-claire" });
 
       expect(callback.status).toBe(302);
       expect(callback.headers.get("location")).toBe(`${BASE_URL}/admin/connexion?tested=jobbbox-sso`);
       expect(callback.headers.getSetCookie().join()).not.toContain("session_token");
-      expect(testPassed).toHaveBeenCalledWith("jobbbox-sso");
+      expect(completeTestSignIn).toHaveBeenCalledWith("jobbbox-sso", "nonce-issued-to-claire");
       expect(await candidates()).toBe(0);
     });
 
-    it("signs no existing Candidate in either", async () => {
-      await start([google, { ...sso, enabled: false }]);
+    it("refuses a callback no super-admin started, or with another nonce: not marked tested, nothing created", async () => {
+      await start([google, testing]);
+      person.sso = { sub: "sso-paul", email: "paul@example.fr", email_verified: true, name: "Paul" };
+
+      for (const testNonce of [undefined, "a-nonce-nobody-issued"]) {
+        const refused = await through("jobbbox-sso", testNonce ? { testNonce } : {});
+        expect(locationOf(refused).pathname).toBe("/connexion");
+        expect(locationOf(refused).searchParams.get("error")).toBe("provider_disabled");
+        expect(refused.headers.getSetCookie().join()).not.toContain("session_token");
+      }
+      expect(await Promise.all(completeTestSignIn.mock.results.map((result) => result.value))).not.toContain(true);
+      expect(await candidates()).toBe(0);
+    });
+
+    it("signs in no Candidate linked to it before it was disabled, neither sends them to Connexion nor marks it tested", async () => {
+      await start();
+      const magic = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+      person.sso = { sub: "sso-marie", email: "marie.dupont@example.fr", email_verified: true, name: "Marie" };
+      await through("jobbbox-sso", { cookie: magic, link: true });
+
+      const disabled = testAuth.requestTo(createAuth({ ...testAuth.config, signIn: testSignIn([google, testing], { completeTestSignIn }) }));
+      const refused = await through("jobbbox-sso", { request: disabled });
+
+      expect(locationOf(refused).pathname).toBe("/connexion");
+      expect(locationOf(refused).searchParams.get("error")).toBe("provider_disabled");
+      expect(refused.headers.getSetCookie().join()).not.toContain("session_token");
+      expect(completeTestSignIn).not.toHaveBeenCalled();
+    });
+
+    it("is not linked from Mon compte either", async () => {
+      await start([google, testing]);
       const magic = await signInWithMagicLink(testAuth, "claire@jobbbox.fr");
       person.sso = { sub: "sso-claire", email: "claire@jobbbox.fr", email_verified: true, name: "Claire" };
 
       const linked = await through("jobbbox-sso", { cookie: magic, link: true });
 
-      expect(locationOf(linked).pathname).toBe("/admin/connexion");
+      expect(locationOf(linked).pathname).toBe("/connexion");
+      expect(locationOf(linked).searchParams.get("error")).toBe("provider_disabled");
       expect((await testAuth.database.query("SELECT count(*) FROM account WHERE \"providerId\" = 'jobbbox-sso'")).rows[0].count).toBe("0");
+    });
+
+    it("is not registered at all without a test sign-in pending", async () => {
+      await start([google, { ...sso, enabled: false }]);
+
+      const started = await testAuth.request("/api/auth/sign-in/social", { body: { provider: "jobbbox-sso", callbackURL: "/compte" } });
+
+      expect(started.status).toBe(404);
     });
   });
 

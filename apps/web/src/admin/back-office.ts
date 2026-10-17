@@ -39,7 +39,7 @@ export const SECRET_ACTIONS = ["replaced", "replaced_despite_failed_test", "clea
 export type SecretAction = (typeof SECRET_ACTIONS)[number];
 
 /** What was done to the target. */
-export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | SecretAction;
+export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | "tested" | SecretAction;
 
 export const isSecretAction = (action: BackOfficeAction): action is SecretAction => SECRET_ACTIONS.includes(action as SecretAction);
 

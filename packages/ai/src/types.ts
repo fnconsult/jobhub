@@ -17,6 +17,8 @@ export const TEXT_TASKS = {
   writing: { personalData: true },
   /** AI Coach conversation: reads everything about the Candidate. */
   coaching: { personalData: true },
+  /** The Back Office Assistant: what an Administrator types, and Back Office data (#205, #218). */
+  back_office_assistant: { personalData: true },
   /** Reading an uploaded CV into a structured Master CV: reads CVs. */
   cv_parsing: { personalData: true },
   /** Extracting structured fields from a Job Offer: public posting text only. */
@@ -64,6 +66,8 @@ export interface ToolCall {
   name: string;
   /** How many times the model used it in the call. */
   count: number;
+  /** Whether those uses succeeded, when the provider says. Default: they did. */
+  ok?: boolean;
 }
 
 export interface TextOutput {
@@ -117,6 +121,8 @@ export interface AiProvider {
   /** Human-readable endpoint, e.g. "bedrock eu-west-3"; used in errors and logs. */
   readonly endpoint: string;
   readonly residency: Residency;
+  /** The model it uses when the route names none, by name: what a failed call is recorded with. */
+  readonly defaultModel?: string;
   generate?(input: TextInput): Promise<TextOutput>;
   search?(query: string, options: SearchOptions): Promise<SearchOutput>;
   /** How many pages of results `search` can give one query (see `SearchOptions.page`). Default: 1. */
@@ -147,7 +153,7 @@ export interface UsageEntry extends TokenUsage {
   task: AiTask;
   provider: ProviderId;
   endpoint: string;
-  /** The model that answered; for a failed call, the route's model, or "default" (the provider's own). */
+  /** The model that answered; for a failed call, the route's model, else the provider's default model (or its id when it names none). */
   model: string;
   /** Whether the provider answered. A failed call is recorded too, with no tokens. */
   ok: boolean;

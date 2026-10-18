@@ -1,3 +1,4 @@
+import type { AiTask } from "@jobhub/ai";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireBackOffice } from "@/admin/server";
@@ -8,7 +9,7 @@ import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 
-type Task = "scoring" | "writing" | "coaching" | "cv_parsing" | "offer_analysis" | "job_titles" | "web_search";
+type Task = AiTask;
 
 export async function generateMetadata(): Promise<Metadata> {
   // Metadata renders apart from the page: without this, the 404 shown to

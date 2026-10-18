@@ -164,7 +164,8 @@ describe("the usage of every AI call", () => {
 
     await expect(ai.searchCompany({ candidateId: null, employer: "Acme" })).rejects.toThrow("HTTP 429");
 
-    expect(usage.entries).toEqual([expect.objectContaining({ task: "web_search", provider: "perplexity", model: "default", ok: false })]);
+    // No model on the route: the provider's own default, by name.
+    expect(usage.entries).toEqual([expect.objectContaining({ task: "web_search", provider: "perplexity", model: "fake-perplexity", ok: false })]);
   });
 
   it("records how long the call took, its estimated cost and its text: system, messages and reply", async () => {
@@ -202,6 +203,28 @@ describe("the usage of every AI call", () => {
         tools: [{ name: "web_search", count: 1, ok: true, durationMs: expect.any(Number), costEur: expect.closeTo(0.0043, 6) }],
         transcript: { messages: [{ role: "user", content: brave.queries[0] }], reply: "" },
       }),
+    ]);
+  });
+
+  it("records whether each tool use succeeded, when the provider says, and leaves unpriced a tool it does not bill apart", async () => {
+    const usage = createMemoryUsageLog();
+    const perplexity = createFakeProvider({
+      id: "perplexity",
+      residency: "outside_eu",
+      tools: [
+        { name: "web_search", count: 1 },
+        { name: "fetch_url", count: 2, ok: true },
+        { name: "fetch_url", count: 1, ok: false },
+      ],
+    });
+    const ai = createAiLayer({ providers: [perplexity], routes: { web_search: "perplexity" }, usage });
+
+    await ai.searchCompany({ candidateId: null, employer: "Acme" });
+
+    expect(usage.entries[0]!.tools).toEqual([
+      expect.objectContaining({ name: "web_search", count: 1, ok: true }),
+      { name: "fetch_url", count: 2, ok: true, durationMs: expect.any(Number), costEur: null },
+      { name: "fetch_url", count: 1, ok: false, durationMs: expect.any(Number), costEur: null },
     ]);
   });
 

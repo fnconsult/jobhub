@@ -124,7 +124,7 @@ describe("Back Office Assistant", () => {
   });
 
   function assistantFor(roles: BackOfficeRole[]) {
-    const ai = createAiLayer({ providers: [provider], routes: { coaching: "mistral" }, usage: createMemoryUsageLog() });
+    const ai = createAiLayer({ providers: [provider], routes: { back_office_assistant: "mistral" }, usage: createMemoryUsageLog() });
     return { assistant: createBackOfficeAssistant({ ai, sources: data.sources }), administrator: { id: "a2", access: backOfficeAccess(roles) } };
   }
 
@@ -235,7 +235,7 @@ describe("Back Office Assistant", () => {
     const usage = createMemoryUsageLog();
     const ai = createAiLayer({
       providers: [claude, mistral],
-      routes: { coaching: "anthropic" },
+      routes: { back_office_assistant: "anthropic" },
       usage,
       euAiConsent: async (candidateId) => candidateId === "consenting",
       warn: () => {},
@@ -269,7 +269,7 @@ describe("Back Office Assistant", () => {
             },
           }),
         ],
-        routes: { coaching: "mistral" },
+        routes: { back_office_assistant: "mistral" },
         usage: createMemoryUsageLog(),
       }),
       sources: data.sources,
@@ -291,7 +291,7 @@ describe("Back Office Assistant", () => {
       ...data.sources,
       humanCoaches: async () => [{ id: "c2", name: "Coach <b>Pirate</b>", email: "x@y.fr", bookingUrl: "https://cal.com/x", bio: injection }],
     };
-    const ai = createAiLayer({ providers: [provider], routes: { coaching: "mistral" }, usage: createMemoryUsageLog() });
+    const ai = createAiLayer({ providers: [provider], routes: { back_office_assistant: "mistral" }, usage: createMemoryUsageLog() });
     const assistant = createBackOfficeAssistant({ ai, sources });
 
     await assistant.reply({ id: "a1", access: backOfficeAccess(["super-admin"]) }, asked("Qui sont les coachs ?"));

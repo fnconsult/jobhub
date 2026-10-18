@@ -198,7 +198,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
 
   /**
    * Makes a provider call and records its usage, failed or not, with what it said. A failed call has
-   * no tokens and costs nothing; its model is the route's (or "default", the provider's own). A web
+   * no tokens and costs nothing; its model is the route's, else the provider's default. A web
    * search uses the `web_search` tool once unless the provider says otherwise.
    */
   async function recorded<T extends { model: string; usage: TokenUsage; tools?: ToolCall[] }>(
@@ -218,7 +218,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     } catch (error) {
       const durationMs = Math.round(clock() - started);
       const tools = search ? [{ name: "web_search", count: 1, ok: false, durationMs, costEur: 0 }] : [];
-      log({ ...base, model: route.model ?? "default", inputTokens: 0, outputTokens: 0, ok: false, durationMs, costEur: 0, tools, transcript: { ...said, reply: null } });
+      log({ ...base, model: route.model ?? provider.defaultModel ?? provider.id, inputTokens: 0, outputTokens: 0, ok: false, durationMs, costEur: 0, tools, transcript: { ...said, reply: null } });
       throw error;
     }
     const durationMs = Math.round(clock() - started);
@@ -231,7 +231,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       ok: true,
       durationMs,
       costEur: costInEur({ ...priced, usage: output.usage }),
-      tools: called.map((tool) => ({ name: tool.name, count: tool.count, ok: true, durationMs, costEur: toolCostInEur(priced, tool) })),
+      tools: called.map((tool) => ({ name: tool.name, count: tool.count, ok: tool.ok ?? true, durationMs, costEur: toolCostInEur(priced, tool) })),
       transcript: { ...said, reply: replyOf(output) },
     });
     return output;

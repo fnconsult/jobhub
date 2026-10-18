@@ -1051,7 +1051,8 @@
         "cv_parsing": "Lecture de CV",
         "offer_analysis": "Analyse d'offres",
         "job_titles": "Variantes d'intitulés",
-        "web_search": "Recherche web"
+        "web_search": "Recherche web",
+        "back_office_assistant": "Assistant du back office"
       }
     },
     "aiMessages": {

@@ -16,7 +16,7 @@
  * are counted per role, Journal targets are masked, Human Coaches go by their public
  * name and bio), and any address left in the context is masked as a last resort.
  *
- * Task `coaching`, EU endpoints only (ADR-0007), on behalf of the Administrator's own
+ * Task `back_office_assistant` (routed like `coaching` unless configured apart), EU endpoints only (ADR-0007), on behalf of the Administrator's own
  * Candidate account: identity-bearing calls (an address or phone number they type)
  * go to Mistral when they gave EU AI consent (#121). Its replies cost Jobbbox, not a
  * Plan Quota: nothing is counted against one.
@@ -347,7 +347,8 @@ export function createBackOfficeAssistant(deps: BackOfficeAssistantDeps): BackOf
       try {
         const context = await assistantContext(deps.sources, administrator.access);
         const result = await deps.ai.generate({
-          task: "coaching",
+          // Its own task, so it is counted apart from the AI Coach; routed like coaching, EU endpoints only.
+          task: "back_office_assistant",
           // The Administrator's own account: their EU AI consent routes what they type (#121).
           candidateId: administrator.id,
           system: `${PERSONA}\n\n${context}`,

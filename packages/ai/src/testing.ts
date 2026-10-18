@@ -54,6 +54,7 @@ export function createFakeProvider(options: FakeProviderOptions = {}): FakeProvi
   return {
     id,
     endpoint: `fake ${id}`,
+    defaultModel: `fake-${id}`,
     residency: options.residency ?? "eu",
     calls,
     queries,

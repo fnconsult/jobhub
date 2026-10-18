@@ -19,6 +19,8 @@ const ERRORS = [
   "plan_not_sold",
   "invalid_expiry",
   "invalid_max_redemptions",
+  "amount_covers_price",
+  "currency_not_eur",
   "unknown_coupon",
   "stripe_unavailable",
 ] as const satisfies readonly CouponError[];
@@ -117,14 +119,22 @@ export default async function CouponsPage({ searchParams }: { searchParams: Prom
               </tr>
             </thead>
             <tbody>
-              {coupons.map((coupon) => (
+              {coupons.map((coupon) =>
+                "unreadable" in coupon ? (
+                  <tr key={coupon.id}>
+                    <th scope="row">
+                      <code>{coupon.code}</code>
+                    </th>
+                    <td colSpan={canWrite ? 7 : 6}>{t("admin.coupons.unreadable")}</td>
+                  </tr>
+                ) : (
                 <tr key={coupon.id}>
                   <th scope="row">
                     <code>{coupon.code}</code>
                   </th>
                   <td>
                     {couponTermsLabel(coupon, locale)}
-                    {coupon.firstSubscriptionOnly ? ` (${t("admin.coupons.firstSubscriptionOnly")})` : null}
+                    {coupon.firstPaymentOnly ? ` (${t("admin.coupons.firstPaymentOnly")})` : null}
                   </td>
                   <td>{planNames(coupon)}</td>
                   <td>{coupon.expiresAt ? date.format(coupon.expiresAt) : t("admin.coupons.noExpiry")}</td>
@@ -150,7 +160,8 @@ export default async function CouponsPage({ searchParams }: { searchParams: Prom
                     </td>
                   ) : null}
                 </tr>
-              ))}
+                ),
+              )}
             </tbody>
           </table>
         </div>
@@ -233,9 +244,9 @@ function CreateCouponForm({ plans, locale, t }: { plans: PlanDefinition[]; local
           <p id="new-coupon-max-help">{t("admin.coupons.maxRedemptionsHelp")}</p>
         </div>
         <div className="checkbox-field">
-          <input id="new-coupon-first" type="checkbox" name="firstSubscriptionOnly" aria-describedby="new-coupon-first-help" />
-          <label htmlFor="new-coupon-first">{t("admin.coupons.firstSubscriptionOnlyLabel")}</label>
-          <p id="new-coupon-first-help">{t("admin.coupons.firstSubscriptionOnlyHelp")}</p>
+          <input id="new-coupon-first" type="checkbox" name="firstPaymentOnly" aria-describedby="new-coupon-first-help" />
+          <label htmlFor="new-coupon-first">{t("admin.coupons.firstPaymentOnlyLabel")}</label>
+          <p id="new-coupon-first-help">{t("admin.coupons.firstPaymentOnlyHelp")}</p>
         </div>
         <button className="button button-primary" type="submit">
           {t("admin.coupons.create")}

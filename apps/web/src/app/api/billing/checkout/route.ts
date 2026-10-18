@@ -1,5 +1,5 @@
 import { FREE_PLAN } from "@jobhub/shared";
-import { BillingError } from "@/billing";
+import { BillingError, PromotionCodeRefused } from "@/billing";
 import { getBilling } from "@/billing/server";
 import { routes } from "@/routes";
 import { candidatePosting, seeOther, subscriptionPage } from "@/billing/http";
@@ -20,6 +20,11 @@ export async function POST(request: Request) {
   try {
     return seeOther(await getBilling().startCheckout(candidate, plan, candidate.locale, { promotionCode }), request);
   } catch (error) {
+    // A code that cannot be applied: back to the subscription page, which says why and offers to go on without it.
+    if (error instanceof PromotionCodeRefused && promotionCode) {
+      const query = new URLSearchParams({ code: promotionCode, codeRefused: error.reason, plan });
+      return seeOther(subscriptionPage(`?${query}`), request);
+    }
     // An unknown or hidden Plan (a stale page, a forged form): back to the plan comparison as it is now.
     if (error instanceof BillingError && error.code === "plan_not_offered") return seeOther(subscriptionPage(), request);
     console.error("[billing] checkout failed", error);

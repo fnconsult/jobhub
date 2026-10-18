@@ -82,7 +82,7 @@ export interface BackOfficeAuditEntry {
 }
 
 export interface BackOfficeDeps {
-  billing: Pick<Billing, "setPlanQuotas" | "createPlan" | "updatePlan" | "movePlan" | "checkStripeProduct" | "plans" | "createCoupon" | "deactivateCoupon">;
+  billing: Pick<Billing, "setPlanQuotas" | "createPlan" | "updatePlan" | "movePlan" | "checkStripeProduct" | "plans" | "createCoupon" | "deactivateCoupon" | "reactivateCoupon">;
   humanCoaches: Pick<HumanCoaches, "add" | "retire">;
 }
 
@@ -100,7 +100,10 @@ export interface BackOffice {
    * audit transaction; if the entry cannot be recorded, the code is deactivated again. Nothing is recorded when refused.
    */
   createCoupon(actor: BackOfficeActor, input: unknown): Promise<CouponResult<{ coupon: Coupon }>>;
-  /** Deactivates a Coupon in Stripe (see Billing.deactivateCoupon); nothing is recorded when refused. */
+  /**
+   * Deactivates a Coupon in Stripe (see Billing.deactivateCoupon), before the audit transaction; reactivated
+   * if the entry cannot be recorded. Nothing is recorded when refused or when it was inactive already.
+   */
   deactivateCoupon(actor: BackOfficeActor, id: string): Promise<CouponResult<object>>;
   /** Adds a Human Coach. `input` is untrusted (see HumanCoaches.add); nothing is recorded when refused. */
   addHumanCoach(actor: BackOfficeActor, input: unknown): Promise<AddHumanCoachResult>;
@@ -159,7 +162,7 @@ const recordedCoupon = (coupon: Coupon): { [key: string]: Recorded } => ({
   plans: coupon.plans ? [...coupon.plans] : null,
   expiresAt: coupon.expiresAt ? coupon.expiresAt.toISOString() : null,
   maxRedemptions: coupon.maxRedemptions,
-  firstSubscriptionOnly: coupon.firstSubscriptionOnly,
+  firstPaymentOnly: coupon.firstPaymentOnly,
 });
 
 /** What an Administrator sets on a Plan, as recorded; its key is the entry's target, its rank changes on its own. */
@@ -274,13 +277,20 @@ export function createBackOffice(database: Pool, deps: BackOfficeDeps): BackOffi
     },
 
     async deactivateCoupon(actor, id) {
+      // As for createCoupon: Stripe first, outside the transaction; undone there if the entry cannot be recorded.
       const deactivated = await deps.billing.deactivateCoupon(id);
       if (!deactivated.ok) return deactivated;
-      await record(
-        actor,
-        async () => deactivated,
-        ({ before, after }) => ({ section: "coupons", target: after.code, action: "updated", before: { active: before.active }, after: { active: after.active } }),
-      );
+      if (!deactivated.changed) return { ok: true };
+      try {
+        await record(
+          actor,
+          async () => deactivated,
+          ({ after }) => ({ section: "coupons", target: after.code, action: "updated", before: { active: true }, after: { active: false } }),
+        );
+      } catch (error) {
+        await deps.billing.reactivateCoupon(id).catch(() => undefined);
+        throw error;
+      }
       return { ok: true };
     },
 

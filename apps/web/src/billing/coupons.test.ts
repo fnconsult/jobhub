@@ -12,7 +12,7 @@ const SPRING = {
   plans: ["standard", "premium"],
   expiresAt: "2027-03-31",
   maxRedemptions: 100,
-  firstSubscriptionOnly: true,
+  firstPaymentOnly: true,
 };
 
 describe.skipIf(!connectionString)("Coupons (needs Postgres: DATABASE_URL)", () => {
@@ -50,11 +50,11 @@ describe.skipIf(!connectionString)("Coupons (needs Postgres: DATABASE_URL)", () 
     });
 
     it("takes a fixed amount off in euros, once, on one Plan, with no expiry nor limit", async () => {
-      const created = await t.billing.createCoupon({ code: "bienvenue-5", amountOff: 500, duration: "once", plans: ["standard"], firstSubscriptionOnly: false });
+      const created = await t.billing.createCoupon({ code: "bienvenue-5", amountOff: 500, duration: "once", plans: ["standard"], firstPaymentOnly: false });
 
       expect(created).toMatchObject({
         ok: true,
-        coupon: { code: "BIENVENUE-5", discount: { amountOff: 500, currency: "eur" }, duration: "once", plans: ["standard"], expiresAt: null, maxRedemptions: null, firstSubscriptionOnly: false },
+        coupon: { code: "BIENVENUE-5", discount: { amountOff: 500, currency: "eur" }, duration: "once", plans: ["standard"], expiresAt: null, maxRedemptions: null, firstPaymentOnly: false },
       });
       expect(Object.fromEntries(t.stripe.callsTo("/v1/coupons")[0]!.params)).toMatchObject({ amount_off: "500", currency: "eur", duration: "once" });
     });
@@ -82,6 +82,22 @@ describe.skipIf(!connectionString)("Coupons (needs Postgres: DATABASE_URL)", () 
       expect(t.stripe.calls).not.toContainEqual(expect.objectContaining({ path: "/v1/coupons" }));
     });
 
+    it("refuses a fixed amount that would make a Plan free for good, but not for a while", async () => {
+      // Standard costs 19 € a month.
+      const forever = { code: "GRATUIT", amountOff: 1900, duration: "forever", plans: ["standard", "premium"], firstPaymentOnly: false };
+
+      expect(await t.billing.createCoupon(forever)).toEqual({ ok: false, error: "amount_covers_price" });
+      expect(await t.billing.createCoupon({ ...forever, amountOff: 1899 })).toMatchObject({ ok: true });
+      expect(await t.billing.createCoupon({ ...forever, code: "TROISMOIS", duration: "repeating", durationInMonths: 3 })).toMatchObject({ ok: true });
+    });
+
+    it("refuses a fixed amount in euros on a Plan Stripe prices in another currency", async () => {
+      t.stripe.setDefaultPrice(FAKE_STRIPE_PRODUCTS.premium, "price_premium_usd");
+
+      expect(await t.billing.createCoupon({ code: "CINQ", amountOff: 500, duration: "once", plans: ["premium"], firstPaymentOnly: false })).toEqual({ ok: false, error: "currency_not_eur" });
+      expect(await t.billing.createCoupon({ code: "MOITIE", percentOff: 50, duration: "once", plans: ["premium"], firstPaymentOnly: false })).toMatchObject({ ok: true });
+    });
+
     it("refuses a code already active, and leaves nothing behind in Stripe", async () => {
       await t.billing.createCoupon(SPRING);
 
@@ -99,7 +115,7 @@ describe.skipIf(!connectionString)("Coupons (needs Postgres: DATABASE_URL)", () 
   describe("listed and deactivated in the Back Office", () => {
     it("lists every code, newest first, with its terms, its Plans and how often Stripe saw it redeemed", async () => {
       const spring = await t.billing.createCoupon(SPRING);
-      await t.billing.createCoupon({ code: "AMI", percentOff: 100, duration: "forever", plans: ["premium"], firstSubscriptionOnly: false });
+      await t.billing.createCoupon({ code: "AMI", percentOff: 100, duration: "forever", plans: ["premium"], firstPaymentOnly: false });
       if (!spring.ok) throw new Error("fixture refused");
       t.stripe.redeem(spring.coupon.id);
       t.stripe.redeem(spring.coupon.id);
@@ -114,7 +130,7 @@ describe.skipIf(!connectionString)("Coupons (needs Postgres: DATABASE_URL)", () 
           plans: ["standard", "premium"],
           expiresAt: new Date("2027-03-31T23:59:59+02:00"),
           maxRedemptions: 100,
-          firstSubscriptionOnly: true,
+          firstPaymentOnly: true,
           timesRedeemed: 2,
           active: true,
         },
@@ -134,9 +150,33 @@ describe.skipIf(!connectionString)("Coupons (needs Postgres: DATABASE_URL)", () 
 
       const deactivated = await t.billing.deactivateCoupon(spring.coupon.id);
 
-      expect(deactivated).toMatchObject({ ok: true, before: { code: "PRINTEMPS50", active: true }, after: { code: "PRINTEMPS50", active: false } });
+      expect(deactivated).toMatchObject({ ok: true, changed: true, before: { code: "PRINTEMPS50", active: true }, after: { code: "PRINTEMPS50", active: false } });
+      // Already inactive: nothing changes, and Stripe is not written to.
+      const writes = t.stripe.callsTo(`/v1/promotion_codes/${spring.coupon.id}`).filter((call) => call.method === "POST").length;
+      expect(await t.billing.deactivateCoupon(spring.coupon.id)).toMatchObject({ ok: true, changed: false });
+      expect(t.stripe.callsTo(`/v1/promotion_codes/${spring.coupon.id}`).filter((call) => call.method === "POST")).toHaveLength(writes);
       expect(await t.billing.coupons()).toMatchObject([{ code: "PRINTEMPS50", active: false }]);
       expect(await t.billing.deactivateCoupon("promo_unknown")).toEqual({ ok: false, error: "unknown_coupon" });
+    });
+
+    it("reactivates a code whose deactivation could not be recorded", async () => {
+      const spring = await t.billing.createCoupon(SPRING);
+      if (!spring.ok) throw new Error("fixture refused");
+      await t.billing.deactivateCoupon(spring.coupon.id);
+
+      expect(await t.billing.reactivateCoupon(spring.coupon.id)).toEqual({ ok: true });
+      expect(await t.billing.coupons()).toMatchObject([{ code: "PRINTEMPS50", active: true }]);
+    });
+
+    it("lists every code, page after page, and shows one Stripe cannot make sense of as unreadable rather than none", async () => {
+      for (let i = 0; i < 105; i++) t.stripe.addPromotionCode(`LOT${i}`);
+      t.stripe.addMalformedPromotionCode("CASSE");
+
+      const listed = await t.billing.coupons();
+
+      expect(listed).toHaveLength(106);
+      expect(listed![0]).toEqual({ id: expect.stringMatching(/^promo_/), code: "CASSE", unreadable: true });
+      expect(listed!.filter((coupon) => "unreadable" in coupon)).toHaveLength(1);
     });
 
     it("has no list while Stripe is not configured", async () => {
@@ -167,7 +207,7 @@ describe.skipIf(!connectionString)("Coupons (needs Postgres: DATABASE_URL)", () 
       expect(checkoutParams()).not.toHaveProperty("allow_promotion_codes");
     });
 
-    it("checks out without the discount a code that does not apply: another Plan's, deactivated, expired, unknown", async () => {
+    it("refuses, rather than drops, a code that does not apply: another Plan's, deactivated, expired, unknown", async () => {
       const marie = await t.signUp("marie.dupont@example.fr");
       await t.billing.createCoupon({ ...SPRING, plans: ["premium"] });
       const old = await t.billing.createCoupon({ ...SPRING, code: "ANCIEN" });
@@ -176,20 +216,30 @@ describe.skipIf(!connectionString)("Coupons (needs Postgres: DATABASE_URL)", () 
       await t.billing.createCoupon({ ...SPRING, code: "OCTOBRE", expiresAt: "2026-10-20" });
       t.clock.now = new Date("2026-10-21T10:00:00+02:00");
 
-      for (const promotionCode of ["PRINTEMPS50", "ANCIEN", "OCTOBRE", "INCONNU"]) {
-        expect(await t.billing.startCheckout(marie, "standard", "fr", { promotionCode })).toMatch(/checkout\.stripe\.test/);
-        expect(checkoutParams(), promotionCode).toMatchObject({ allow_promotion_codes: "true" });
-        expect(checkoutParams(), promotionCode).not.toHaveProperty("discounts[0][promotion_code]");
+      const refusals = { PRINTEMPS50: "not_for_plan", ANCIEN: "unavailable", OCTOBRE: "unavailable", INCONNU: "unavailable" };
+      for (const [promotionCode, reason] of Object.entries(refusals)) {
+        await expect(t.billing.startCheckout(marie, "standard", "fr", { promotionCode }), promotionCode).rejects.toMatchObject({ name: "PromotionCodeRefused", reason });
       }
+      // Nothing sent to Checkout: the Candidate decides, back on the subscription page, whether to go on without it.
+      expect(t.stripe.callsTo("/v1/checkout/sessions")).toHaveLength(0);
     });
 
-    it("checks out without the discount when Stripe refuses the code for this Candidate (a first subscription only, say)", async () => {
+    it("refuses a code Stripe will not apply for this Candidate: one who has paid before, for a first-payment-only code", async () => {
       const marie = await t.signUp("marie.dupont@example.fr");
       await t.billing.createCoupon(SPRING);
-      t.stripe.refuseDiscounts();
+      // A Coaching Session paid earlier counts: Stripe's rule is the customer's first payment, not their first subscription.
+      t.stripe.markPaid(fakeCustomerId(marie.email));
 
-      expect(await t.billing.startCheckout(marie, "standard", "fr", { promotionCode: "PRINTEMPS50" })).toMatch(/checkout\.stripe\.test/);
-      expect(checkoutParams()).toMatchObject({ allow_promotion_codes: "true" });
+      await expect(t.billing.startCheckout(marie, "standard", "fr", { promotionCode: "PRINTEMPS50" })).rejects.toMatchObject({ name: "PromotionCodeRefused", reason: "not_for_you" });
+      expect(t.stripe.callsTo("/v1/checkout/sessions").filter((call) => call.params.get("mode") === "subscription")).toHaveLength(1);
+    });
+
+    it("refuses a code that could not be checked, rather than checking out at full price", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      await t.billing.startCheckout(marie, "standard"); // the customer exists
+      t.stripe.stopAnswering();
+
+      await expect(t.billing.startCheckout(marie, "standard", "fr", { promotionCode: "PRINTEMPS50" })).rejects.toMatchObject({ name: "PromotionCodeRefused", reason: "unchecked" });
     });
 
     it("never takes a code for a Coaching Session", async () => {
@@ -207,7 +257,7 @@ describe.skipIf(!connectionString)("Coupons (needs Postgres: DATABASE_URL)", () 
     it("tells the terms of a code that works, and which Plans it is for", async () => {
       await t.billing.createCoupon(SPRING);
 
-      expect(await t.billing.checkPromotionCode(" printemps50 ")).toMatchObject({ valid: true, coupon: { code: "PRINTEMPS50", discount: { percentOff: 50 }, plans: ["standard", "premium"] } });
+      expect(await t.billing.checkPromotionCode(" printemps50 ", "marie")).toMatchObject({ status: "valid", coupon: { code: "PRINTEMPS50", discount: { percentOff: 50 }, plans: ["standard", "premium"] } });
     });
 
     it("tells that a code does not work: unknown, deactivated, expired or used up", async () => {
@@ -220,11 +270,37 @@ describe.skipIf(!connectionString)("Coupons (needs Postgres: DATABASE_URL)", () 
       await t.billing.createCoupon({ ...SPRING, code: "OCTOBRE", expiresAt: "2026-10-20" });
       t.clock.now = new Date("2026-10-21T10:00:00+02:00");
 
-      for (const code of ["INCONNU", "ANCIEN", "UNEFOIS", "OCTOBRE", "pas un code !"]) expect(await t.billing.checkPromotionCode(code), code).toEqual({ valid: false });
+      for (const code of ["INCONNU", "ANCIEN", "UNEFOIS", "OCTOBRE", "pas un code !"]) expect(await t.billing.checkPromotionCode(code, "marie"), code).toEqual({ status: "invalid" });
     });
 
     it("cannot tell without Stripe", async () => {
-      expect(await createBilling({ ...t.config, stripe: undefined }).checkPromotionCode("PRINTEMPS50")).toBeNull();
+      expect(await createBilling({ ...t.config, stripe: undefined }).checkPromotionCode("PRINTEMPS50", "marie")).toBeNull();
+    });
+
+    it("asks Stripe once a minute per code, and stops one Candidate trying code after code", async () => {
+      await t.billing.createCoupon(SPRING);
+      const lookups = () => t.stripe.callsTo("/v1/promotion_codes").filter((call) => call.method === "GET").length;
+      const before = lookups();
+
+      for (let i = 0; i < 3; i++) await t.billing.checkPromotionCode("PRINTEMPS50", "marie");
+      expect(lookups()).toBe(before + 1);
+
+      for (let i = 0; i < 10; i++) await t.billing.checkPromotionCode(`ESSAI${i}`, "paul");
+      expect(await t.billing.checkPromotionCode("ESSAI10", "paul")).toEqual({ status: "throttled" });
+      // Another Candidate is not held back; a cached answer costs no try.
+      expect(await t.billing.checkPromotionCode("PRINTEMPS50", "lea")).toMatchObject({ status: "valid" });
+      t.clock.now = new Date(t.clock.now.getTime() + 11 * 60_000);
+      expect(await t.billing.checkPromotionCode("ESSAI10", "paul")).toEqual({ status: "invalid" });
+    });
+
+    it("forgets a cached answer when the Back Office deactivates the code", async () => {
+      const spring = await t.billing.createCoupon(SPRING);
+      if (!spring.ok) throw new Error("fixture refused");
+      expect(await t.billing.checkPromotionCode("PRINTEMPS50", "marie")).toMatchObject({ status: "valid" });
+
+      await t.billing.deactivateCoupon(spring.coupon.id);
+
+      expect(await t.billing.checkPromotionCode("PRINTEMPS50", "marie")).toEqual({ status: "invalid" });
     });
   });
 
@@ -252,18 +328,36 @@ describe.skipIf(!connectionString)("Coupons (needs Postgres: DATABASE_URL)", () 
       expect(await t.billing.activeDiscount(paul.id)).toBeNull();
     });
 
-    it("a 100 % code subscribes without a card; when the free period ends unpaid and Stripe ends the subscription, the Candidate is back on Free", async () => {
+    it("a 100 % code subscribes without a card; when the free period ends and the subscription goes past due with no card, the Candidate is on Free at once", async () => {
       const marie = await t.signUp("marie.dupont@example.fr");
       await t.billing.createCoupon({ ...SPRING, code: "OFFERT", percentOff: 100, duration: "repeating", durationInMonths: 1 });
       const customer = fakeCustomerId(marie.email);
 
       await t.billing.startCheckout(marie, "premium", "fr", { promotionCode: "OFFERT" });
       expect(checkoutCall()).toMatchObject({ payment_method_collection: "if_required" });
-      await deliver(subscriptionEvent("customer.subscription.created", { customer, price: FAKE_STRIPE_PRICES.premium, status: "active", id: "sub_marie" }));
+      const subscription = { customer, price: FAKE_STRIPE_PRICES.premium, id: "sub_marie", defaultPaymentMethod: null };
+      await deliver(subscriptionEvent("customer.subscription.created", { ...subscription, status: "active" }));
       expect((await t.billing.entitlements(marie.id)).plan).toBe("premium");
 
-      await deliver(subscriptionEvent("customer.subscription.deleted", { customer, price: FAKE_STRIPE_PRICES.premium, status: "canceled", id: "sub_marie" }, new Date(Date.now() + 60_000)));
+      // Not kept through Stripe's retries: there is no card to retry.
+      await deliver(subscriptionEvent("customer.subscription.updated", { ...subscription, status: "past_due" }, new Date(Date.now() + 60_000)));
       expect((await t.billing.entitlements(marie.id)).plan).toBe("free");
+      // Nor is the Payment Failed Notice shown, which says the Plan is kept.
+      expect((await t.billing.entitlements(marie.id)).stripeStatus).not.toBe("past_due");
+
+      // Should they add a card in the portal and pay, the Plan follows again.
+      await deliver(subscriptionEvent("customer.subscription.updated", { ...subscription, defaultPaymentMethod: "pm_card", status: "active" }, new Date(Date.now() + 120_000)));
+      expect((await t.billing.entitlements(marie.id)).plan).toBe("premium");
+    });
+
+    it("keeps the Plan of a past-due subscription that has a card, while Stripe retries it", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      const customer = fakeCustomerId(marie.email);
+      await t.billing.startCheckout(marie, "premium");
+
+      await deliver(subscriptionEvent("customer.subscription.updated", { customer, price: FAKE_STRIPE_PRICES.premium, status: "past_due" }));
+
+      expect((await t.billing.entitlements(marie.id)).plan).toBe("premium");
     });
   });
 

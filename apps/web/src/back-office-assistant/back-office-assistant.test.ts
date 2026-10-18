@@ -45,7 +45,7 @@ function backOfficeData() {
           plans: ["standard", "premium"],
           expiresAt: new Date("2027-03-31T21:59:59Z"),
           maxRedemptions: 100,
-          firstSubscriptionOnly: true,
+          firstPaymentOnly: true,
           timesRedeemed: 7,
           active: true,
         },
@@ -57,7 +57,7 @@ function backOfficeData() {
           plans: null,
           expiresAt: null,
           maxRedemptions: null,
-          firstSubscriptionOnly: false,
+          firstPaymentOnly: false,
           timesRedeemed: 0,
           active: false,
         },
@@ -187,7 +187,7 @@ describe("Back Office Assistant", () => {
 
     const system = provider.calls[0]!.system!;
     // Codes are typed in the Back Office: framed as untrusted data.
-    expect(system).toContain("- <donnees>PRINTEMPS50</donnees> : -50 % pendant 3 mois, sur Standard, Premium ; 1er abonnement seulement ; expire le 31/03/2027 ; utilisé 7 fois sur 100 ; actif");
+    expect(system).toContain("- <donnees>PRINTEMPS50</donnees> : -50 % pendant 3 mois, sur Standard, Premium ; 1er paiement seulement (refusé à qui a déjà payé, séance de coaching comprise) ; expire le 31/03/2027 ; utilisé 7 fois sur 100 ; actif");
     expect(system).toContain("- <donnees>BIENVENUE</donnees> : -5,00 € sur le premier paiement, sur toutes les offres ; utilisé 0 fois ; désactivé ou expiré");
   });
 

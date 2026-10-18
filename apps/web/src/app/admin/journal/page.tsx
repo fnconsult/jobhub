@@ -38,7 +38,7 @@ const PLAN_FIELDS = ["name", "status", "stripeProductId", "features", "rank", "q
 type PlanField = (typeof PLAN_FIELDS)[number];
 
 /** A Coupon's recorded fields, by the Codes promo page's label for each. */
-const COUPON_FIELDS = ["code", "discount", "duration", "plans", "expiresAt", "maxRedemptions", "firstSubscriptionOnly", "active"] as const;
+const COUPON_FIELDS = ["code", "discount", "duration", "plans", "expiresAt", "maxRedemptions", "firstPaymentOnly", "active"] as const;
 type CouponField = (typeof COUPON_FIELDS)[number];
 
 /** `aria-current` of the link to the section being shown. */

@@ -21,7 +21,7 @@ describe("the Coupon form of the Back Office", () => {
           ["plans", "premium"],
           ["expiresAt", "2027-03-31"],
           ["maxRedemptions", "100"],
-          ["firstSubscriptionOnly", "on"],
+          ["firstPaymentOnly", "on"],
         ]),
       ),
     ).toEqual({
@@ -33,7 +33,7 @@ describe("the Coupon form of the Back Office", () => {
       plans: ["standard", "premium"],
       expiresAt: "2027-03-31",
       maxRedemptions: 100,
-      firstSubscriptionOnly: true,
+      firstPaymentOnly: true,
     });
   });
 
@@ -47,7 +47,7 @@ describe("the Coupon form of the Back Office", () => {
       plans: [],
       expiresAt: null,
       maxRedemptions: null,
-      firstSubscriptionOnly: false,
+      firstPaymentOnly: false,
     });
     expect(couponFromForm(form([["kind", "amount"], ["value", "12.5"]])).amountOff).toBe(1250);
   });

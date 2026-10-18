@@ -596,7 +596,17 @@
       "codeValidAll": "Code {{code}} : {{terms}}. Il s'appliquera au paiement.",
       "codeInvalid": "Ce code promo n'est pas valable : il est inconnu, expiré ou n'est plus actif. Vous pouvez tout de même choisir une offre, sans réduction.",
       "codeUnchecked": "Ce code promo n'a pas pu être vérifié pour le moment. Vous pourrez le saisir au paiement.",
-      "codeElsewhere": "Vous avez déjà une offre payante : un code promo ne s'applique qu'à un nouvel abonnement."
+      "codeElsewhere": "Vous avez déjà une offre payante : un code promo ne s'applique qu'à un nouvel abonnement.",
+      "codeNoPlan": "Ce code promo ne s'applique à aucune des offres proposées. Vous pouvez tout de même choisir une offre, sans réduction.",
+      "codeThrottled": "Vous avez essayé beaucoup de codes promo : réessayez dans quelques minutes. Vous pouvez tout de même choisir une offre, sans réduction.",
+      "codeRefused": {
+        "not_for_plan": "Ce code promo ne s'applique pas à l'offre {{plan}}.",
+        "not_for_you": "Ce code promo ne peut pas vous être accordé : il est réservé à un premier paiement, et vous avez déjà payé (une séance de coaching compte), ou il vient d'être épuisé.",
+        "unavailable": "Ce code promo n'est plus valable : il est expiré, épuisé ou n'est plus actif.",
+        "unchecked": "Ce code promo n'a pas pu être vérifié pour le moment.",
+        "too_many_tries": "Vous avez essayé beaucoup de codes promo : réessayez dans quelques minutes."
+      },
+      "continueWithoutCode": "Continuer vers l'offre {{plan}} sans le code"
     },
     "quotas": {
       "profiles": "Profils",
@@ -852,7 +862,7 @@
       "noExpiry": "jamais",
       "redemptions": "Utilisations",
       "redemptionsOf": "{{used}} sur {{max}}",
-      "firstSubscriptionOnly": "1er abonnement seulement",
+      "firstPaymentOnly": "1er paiement seulement",
       "statusLabel": "Statut",
       "status": {
         "active": "actif",
@@ -869,7 +879,7 @@
         "amount": "Montant en euros"
       },
       "value": "Valeur",
-      "valueHelp": "Un pourcentage de 1 à 100, ou un montant en euros, par exemple 5 ou 4,50. À 100 %, le candidat s'abonne sans carte ; à la fin de la période offerte, sans paiement, il revient à l'offre Gratuite.",
+      "valueHelp": "Un pourcentage de 1 à 100, ou un montant en euros (les offres doivent être vendues en euros), par exemple 5 ou 4,50. À 100 %, le candidat s'abonne sans carte ; à la fin de la période offerte, faute de carte, il revient aussitôt à l'offre Gratuite.",
       "duration": "Durée",
       "durations": {
         "once": "Premier paiement seulement",
@@ -882,8 +892,8 @@
       "expiresAtHelp": "Facultatif : le code fonctionne jusqu'à la fin de ce jour (heure de Paris).",
       "maxRedemptions": "Nombre maximal d'utilisations",
       "maxRedemptionsHelp": "Facultatif : vide pour illimité.",
-      "firstSubscriptionOnlyLabel": "Réservé à un premier abonnement",
-      "firstSubscriptionOnlyHelp": "Refusé aux candidats qui ont déjà payé.",
+      "firstPaymentOnlyLabel": "Réservé à un premier paiement",
+      "firstPaymentOnlyHelp": "Refusé aux candidats qui ont déjà payé quoi que ce soit, une séance de coaching comprise (règle de Stripe : premier paiement, pas premier abonnement).",
       "create": "Créer le code promo",
       "created": "Le code promo {{code}} est créé.",
       "deactivated": "Le code promo {{code}} est désactivé.",
@@ -896,7 +906,7 @@
         "plans": "Offres",
         "expiresAt": "Expire le",
         "maxRedemptions": "Utilisations maximales",
-        "firstSubscriptionOnly": "1er abonnement seulement",
+        "firstPaymentOnly": "1er paiement seulement",
         "active": "Actif"
       },
       "errors": {
@@ -909,8 +919,11 @@
         "invalid_expiry": "La date d'expiration doit être postérieure à aujourd'hui.",
         "invalid_max_redemptions": "Le nombre maximal d'utilisations doit être un nombre entier supérieur à 0.",
         "unknown_coupon": "Ce code promo n'existe pas dans Stripe.",
-        "stripe_unavailable": "Stripe ne répond pas : rien n'a été fait. Réessayez dans un instant."
-      }
+        "stripe_unavailable": "Stripe ne répond pas : rien n'a été fait. Réessayez dans un instant.",
+        "amount_covers_price": "Un montant fixe « tant que l'abonnement dure » doit rester inférieur au prix de chaque offre cochée : sinon l'offre serait gratuite pour toujours.",
+        "currency_not_eur": "Une offre cochée n'est pas vendue en euros : utilisez un pourcentage pour elle."
+      },
+      "unreadable": "Illisible : Stripe donne ce code sans ses conditions. Voyez-le dans le tableau de bord Stripe."
     },
     "humanCoaches": {
       "title": "Coachs humains",

@@ -27,7 +27,7 @@ import * as z from "zod";
 import { BACK_OFFICE_ROLES, type BackOfficeAccess, type BackOfficeResource, type BackOfficeRole } from "../admin/access";
 import type { Administrator } from "../admin/administrators";
 import type { BackOfficeAuditEntry, Recorded } from "../admin/back-office";
-import type { Coupon, PlanDefinition, PlanName } from "../billing";
+import type { Coupon, ListedCoupon, PlanDefinition, PlanName } from "../billing";
 import type { CoachMessageCost } from "../coach";
 import { COACH_MESSAGE_COST_TARGET_EUR, type CoachCostDay } from "../coach-conversations";
 import type { HumanCoach } from "../human-coaches";
@@ -43,7 +43,7 @@ export interface BackOfficeAssistantSources {
   /** Every Plan, lowest rank first, offered and hidden (`plans`). */
   plans(): Promise<PlanDefinition[]>;
   /** The Coupons, newest first, and the Plans they name (`coupons`); null while Stripe cannot list them. */
-  coupons(): Promise<{ coupons: Coupon[]; plans: PlanDefinition[] } | null>;
+  coupons(): Promise<{ coupons: ListedCoupon[]; plans: PlanDefinition[] } | null>;
   /** The Human Coaches Candidates can choose from (`humanCoaches`). */
   humanCoaches(): Promise<HumanCoach[]>;
   /** The AI Coach's cost per day, newest first (`coachMessageCost`). */
@@ -174,7 +174,7 @@ function couponLine(coupon: Coupon, plans: PlanDefinition[]): string {
   const on = coupon.plans === null ? "sur toutes les offres" : `sur ${coupon.plans.map((key) => plans.find((plan) => plan.key === key)?.name.fr ?? key).join(", ")}`;
   return [
     `${discount} ${duration}, ${on}`,
-    coupon.firstSubscriptionOnly ? "1er abonnement seulement" : null,
+    coupon.firstPaymentOnly ? "1er paiement seulement (refusé à qui a déjà payé, séance de coaching comprise)" : null,
     coupon.expiresAt ? `expire le ${new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeZone: "Europe/Paris" }).format(coupon.expiresAt)}` : null,
     `utilisé ${coupon.timesRedeemed} fois${coupon.maxRedemptions === null ? "" : ` sur ${coupon.maxRedemptions}`}`,
     coupon.active ? "actif" : "désactivé ou expiré",
@@ -229,7 +229,7 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
 
   async coupons(sources) {
     const listed = await sources.coupons();
-    const lines = listed?.coupons.slice(0, COUPONS).map((coupon) => `- ${untrusted(coupon.code)} : ${couponLine(coupon, listed.plans)}`);
+    const lines = listed?.coupons.slice(0, COUPONS).map((coupon) => `- ${untrusted(coupon.code)} : ${"unreadable" in coupon ? "illisible (voir Stripe)" : couponLine(coupon, listed.plans)}`);
     return [
       heading("coupons"),
       "Les codes promo que les candidats saisissent au paiement d'une offre (ou reçoivent par un lien /abonnement?code=…), créés par les Responsables des offres dans Stripe depuis le Back Office. Un code désactivé ne peut plus être utilisé ; les réductions déjà accordées vont à leur terme. Un code à -100 % s'abonne sans carte ; à la fin de la période offerte, sans paiement, l'abonnement prend fin et le candidat revient à l'offre Gratuite. Les séances de coaching ne prennent pas de code promo. Le nombre d'utilisations vient de Stripe.",

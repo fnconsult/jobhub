@@ -35,12 +35,19 @@ export interface Coupon {
   plans: Plan[] | null;
   expiresAt: Date | null;
   maxRedemptions: number | null;
-  firstSubscriptionOnly: boolean;
+  /**
+   * Stripe's first-time-transaction restriction: refused to a customer who has already paid anything,
+   * a Coaching Session included. Not "first subscription".
+   */
+  firstPaymentOnly: boolean;
   /** How many times it was redeemed, as Stripe counts. */
   timesRedeemed: number;
   /** Whether it can still be redeemed: not deactivated, nor expired, nor used up. */
   active: boolean;
 }
+
+/** A promotion code in the Back Office's list: a Coupon, or one Stripe gives without a readable coupon. */
+export type ListedCoupon = Coupon | { id: string; code: string; unreadable: true };
 
 /** The discount a Candidate's subscription is getting. */
 export interface ActiveDiscount {
@@ -66,6 +73,10 @@ export type CouponError =
   /** Not a date, or not after today. */
   | "invalid_expiry"
   | "invalid_max_redemptions"
+  /** A fixed amount for as long as the subscription lasts, at or above an eligible Plan's price: that Plan free for good. */
+  | "amount_covers_price"
+  /** A fixed amount (in euros) on a Plan Stripe prices in another currency. */
+  | "currency_not_eur"
   | "unknown_coupon"
   /** Stripe is not configured or could not be reached. */
   | "stripe_unavailable";
@@ -89,7 +100,7 @@ export const newCouponInput = z.object({
   /** YYYY-MM-DD: the code works until the end of that day, in French time. */
   expiresAt: z.string().nullish(),
   maxRedemptions: z.number().nullish(),
-  firstSubscriptionOnly: z.boolean(),
+  firstPaymentOnly: z.boolean(),
 });
 
 /** The end of a day (YYYY-MM-DD) in French time, or null when it is no date. */
@@ -120,7 +131,7 @@ export function couponParams(
     if (field === "maxRedemptions") return { ok: false, error: "invalid_max_redemptions" };
     return { ok: false, error: "invalid_code" };
   }
-  const { code, percentOff, amountOff, duration, durationInMonths, expiresAt, maxRedemptions, firstSubscriptionOnly } = parsed.data;
+  const { code, percentOff, amountOff, duration, durationInMonths, expiresAt, maxRedemptions, firstPaymentOnly } = parsed.data;
   if (!CODE.test(code)) return { ok: false, error: "invalid_code" };
 
   let discount: Pick<Stripe.CouponCreateParams, "percent_off" | "amount_off" | "currency">;
@@ -161,7 +172,7 @@ export function couponParams(
       code,
       ...(expires && { expires_at: Math.floor(expires.getTime() / 1000) }),
       ...(maxRedemptions != null && { max_redemptions: maxRedemptions }),
-      restrictions: { first_time_transaction: firstSubscriptionOnly },
+      restrictions: { first_time_transaction: firstPaymentOnly },
     },
   };
 }
@@ -191,8 +202,18 @@ export function couponOf(promotionCode: Stripe.PromotionCode, plans: PlanDefinit
     plans: products && products.length > 0 ? plans.filter((plan) => plan.stripeProductId && products.includes(plan.stripeProductId)).map((plan) => plan.key) : null,
     expiresAt,
     maxRedemptions: promotionCode.max_redemptions,
-    firstSubscriptionOnly: promotionCode.restrictions.first_time_transaction,
+    firstPaymentOnly: promotionCode.restrictions.first_time_transaction,
     timesRedeemed: promotionCode.times_redeemed,
     active: promotionCode.active && coupon.valid && !usedUp && (expiresAt === null || expiresAt.getTime() > now.getTime()),
   };
+}
+
+/** A promotion code as the Back Office lists it: unreadable, rather than failing the list, when Stripe gives it without its coupon. */
+export function listedCouponOf(promotionCode: Stripe.PromotionCode, plans: PlanDefinition[], now: Date): ListedCoupon {
+  try {
+    return couponOf(promotionCode, plans, now);
+  } catch (error) {
+    console.error(`[billing] Stripe promotion code ${promotionCode.id} could not be read`, error);
+    return { id: promotionCode.id, code: promotionCode.code, unreadable: true };
+  }
 }

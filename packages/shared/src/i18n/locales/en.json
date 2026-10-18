@@ -596,7 +596,17 @@
       "codeValidAll": "Code {{code}}: {{terms}}. It will apply at checkout.",
       "codeInvalid": "This coupon code is not valid: it is unknown, expired or no longer active. You can still choose a Plan, without a discount.",
       "codeUnchecked": "This coupon code could not be checked for now. You can type it at checkout.",
-      "codeElsewhere": "You already have a paid Plan: a coupon code only applies to a new subscription."
+      "codeElsewhere": "You already have a paid Plan: a coupon code only applies to a new subscription.",
+      "codeNoPlan": "This coupon code applies to none of the Plans offered. You can still choose a Plan, without a discount.",
+      "codeThrottled": "You have tried many coupon codes: try again in a few minutes. You can still choose a Plan, without a discount.",
+      "codeRefused": {
+        "not_for_plan": "This coupon code does not apply to the {{plan}} Plan.",
+        "not_for_you": "This coupon code cannot be given to you: it is for a first payment only and you have paid before (a Coaching Session counts), or it has just been used up.",
+        "unavailable": "This coupon code is no longer valid: it has expired, been used up or is no longer active.",
+        "unchecked": "This coupon code could not be checked just now.",
+        "too_many_tries": "You have tried many coupon codes: try again in a few minutes."
+      },
+      "continueWithoutCode": "Continue to the {{plan}} Plan without the code"
     },
     "quotas": {
       "profiles": "Profiles",
@@ -852,7 +862,7 @@
       "noExpiry": "never",
       "redemptions": "Redemptions",
       "redemptionsOf": "{{used}} of {{max}}",
-      "firstSubscriptionOnly": "First subscription only",
+      "firstPaymentOnly": "First payment only",
       "statusLabel": "Status",
       "status": {
         "active": "active",
@@ -869,7 +879,7 @@
         "amount": "Amount in euros"
       },
       "value": "Value",
-      "valueHelp": "A percentage from 1 to 100, or an amount in euros, for example 5 or 4.50. At 100%, the Candidate subscribes without a card; when the free period ends unpaid, they are back on Free.",
+      "valueHelp": "A percentage from 1 to 100, or an amount in euros (the Plans must be sold in euros), for example 5 or 4.50. At 100%, the Candidate subscribes without a card; when the free period ends with no card, they are back on Free at once.",
       "duration": "Duration",
       "durations": {
         "once": "First payment only",
@@ -882,8 +892,8 @@
       "expiresAtHelp": "Optional: the code works until the end of that day (Paris time).",
       "maxRedemptions": "Maximum redemptions",
       "maxRedemptionsHelp": "Optional: empty for no limit.",
-      "firstSubscriptionOnlyLabel": "For a first subscription only",
-      "firstSubscriptionOnlyHelp": "Refused to Candidates who have paid before.",
+      "firstPaymentOnlyLabel": "For a first payment only",
+      "firstPaymentOnlyHelp": "Refused to Candidates who have already paid anything, a Coaching Session included (Stripe's rule: first payment, not first subscription).",
       "create": "Create the coupon",
       "created": "The coupon {{code}} is created.",
       "deactivated": "The coupon {{code}} is deactivated.",
@@ -896,7 +906,7 @@
         "plans": "Plans",
         "expiresAt": "Expires on",
         "maxRedemptions": "Maximum redemptions",
-        "firstSubscriptionOnly": "First subscription only",
+        "firstPaymentOnly": "First payment only",
         "active": "Active"
       },
       "errors": {
@@ -909,8 +919,11 @@
         "invalid_expiry": "The expiry date must be after today.",
         "invalid_max_redemptions": "The maximum redemptions must be a whole number above 0.",
         "unknown_coupon": "This coupon does not exist in Stripe.",
-        "stripe_unavailable": "Stripe is not answering: nothing was done. Try again in a moment."
-      }
+        "stripe_unavailable": "Stripe is not answering: nothing was done. Try again in a moment.",
+        "amount_covers_price": "A fixed amount \"for as long as the subscription lasts\" must stay below the price of each Plan ticked: otherwise that Plan would be free for good.",
+        "currency_not_eur": "A Plan ticked is not sold in euros: use a percentage for it."
+      },
+      "unreadable": "Unreadable: Stripe gives this code without its terms. See it in the Stripe Dashboard."
     },
     "humanCoaches": {
       "title": "Human coaches",

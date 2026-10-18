@@ -12,7 +12,7 @@ export function couponFromForm(form: FormData): {
   plans: string[];
   expiresAt: string | null;
   maxRedemptions: number | null;
-  firstSubscriptionOnly: boolean;
+  firstPaymentOnly: boolean;
 } {
   const text = (field: string) => String(form.get(field) ?? "").trim();
   const number = (field: string) => (text(field) === "" ? null : Number(text(field).replace(",", ".")));
@@ -27,6 +27,6 @@ export function couponFromForm(form: FormData): {
     plans: form.getAll("plans").map(String),
     expiresAt: text("expiresAt") || null,
     maxRedemptions: number("maxRedemptions"),
-    firstSubscriptionOnly: Boolean(form.get("firstSubscriptionOnly")),
+    firstPaymentOnly: Boolean(form.get("firstPaymentOnly")),
   };
 }

@@ -7,5 +7,5 @@ export * from "./profile-name";
 export * from "./discovery-metrics";
 export * from "./posting-date";
 export * from "./cv-identity";
-export { scrubSecrets } from "./scrub-secrets";
+export { scrubSecrets, scrubStoredText } from "./scrub-secrets";
 export * from "./external-api-usage";

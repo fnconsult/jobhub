@@ -31,8 +31,8 @@ export interface ExternalApiLog {
 
 export interface RecordingFetchOptions {
   provider: string;
-  /** The estimated cost in € of a call that answered `status` (null: none came); null when not known. Default: not known. */
-  costEur?: (status: number | null) => number | null;
+  /** The estimated cost in € of a call to `operation` that answered `status` (null: none came); null when not known. Default: not known. */
+  costEur?: (status: number | null, operation: string) => number | null;
   now?: () => Date;
   /** Milliseconds. Default: performance.now. */
   clock?: () => number;
@@ -43,67 +43,54 @@ export interface RecordingFetchOptions {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- any fetch-shaped function: the global one, or an adapter's narrower one.
 type FetchLike = (url: any, init?: any) => Promise<Response>;
 
-function operationOf(
-  url: unknown,
-  init: { method?: string } | undefined,
-): string {
-  const href =
-    typeof url === "string"
-      ? url
-      : url instanceof URL
-        ? url.href
-        : ((url as { url?: string } | undefined)?.url ?? "");
-  const method = (
-    init?.method ??
-    (url as { method?: string } | undefined)?.method ??
-    "GET"
-  ).toUpperCase();
+function operationOf(url: unknown, init: { method?: string } | undefined): string {
+  const href = typeof url === "string" ? url : url instanceof URL ? url.href : ((url as { url?: string } | undefined)?.url ?? "");
+  const method = (init?.method ?? (url as { method?: string } | undefined)?.method ?? "GET").toUpperCase();
   let path: string;
   try {
     path = new URL(href).pathname;
   } catch {
     path = href.split("?")[0] ?? "";
   }
-  return `${method} ${scrubSecrets(decodeURIComponent(path))}`;
+  return `${method} ${scrubSecrets(safelyDecoded(path))}`;
+}
+
+/** `path` with its escapes decoded; as it is when one is malformed ("100%zz"). */
+function safelyDecoded(path: string): string {
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
 }
 
 /** `fetch`, with each of its calls recorded in `log`; it answers, or fails, as `fetch` does. */
-export function recordingFetch<F extends FetchLike>(
-  fetch: F,
-  log: ExternalApiLog,
-  options: RecordingFetchOptions,
-): F {
+export function recordingFetch<F extends FetchLike>(fetch: F, log: ExternalApiLog, options: RecordingFetchOptions): F {
   const now = options.now ?? (() => new Date());
   const clock = options.clock ?? (() => performance.now());
-  const warn =
-    options.warn ??
-    ((message: string, error: unknown) =>
-      console.warn(
-        `[external-api] ${message}`,
-        error instanceof Error ? error.message : error,
-      ));
-  const record = (call: ExternalApiCall) => {
-    try {
-      void Promise.resolve(log.record(call)).catch((error: unknown) =>
-        warn("External API call not recorded", error),
-      );
-    } catch (error) {
-      warn("External API call not recorded", error);
-    }
-  };
+  const warn = options.warn ?? ((message: string, error: unknown) => console.warn(`[external-api] ${message}`, error instanceof Error ? error.message : error));
+  const failed = (error: unknown) => warn("External API call not recorded", error);
   const recording = async (url: unknown, init?: { method?: string }) => {
     const at = now();
     const started = clock();
-    const done = (httpStatus: number | null) =>
-      record({
-        provider: options.provider,
-        operation: operationOf(url, init),
-        at,
-        durationMs: Math.round(clock() - started),
-        ok: httpStatus !== null && httpStatus >= 200 && httpStatus < 300,
-        httpStatus,
-        costEur: options.costEur?.(httpStatus) ?? null,
-      });
+    /** Builds and records the call, all of it guarded: recording never fails the call it records. */
+    const done = (httpStatus: number | null) => {
+      try {
+        const operation = operationOf(url, init);
+        const call: ExternalApiCall = {
+          provider: options.provider,
+          operation,
+          at,
+          durationMs: Math.round(clock() - started),
+          ok: httpStatus !== null && httpStatus >= 200 && httpStatus < 300,
+          httpStatus,
+          costEur: options.costEur?.(httpStatus, operation) ?? null,
+        };
+        void Promise.resolve(log.record(call)).catch(failed);
+      } catch (error) {
+        failed(error);
+      }
+    };
     let response: Response;
     try {
       response = await fetch(url, init);

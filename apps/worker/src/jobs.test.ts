@@ -7,12 +7,13 @@ import { createCoachConversations, migrateCoachConversations } from "@jobhub/web
 import { createBackOffice, migrateBackOfficeAudit } from "@jobhub/web/back-office";
 import { createAssistantConversations, migrateAssistantConversations } from "@jobhub/web/back-office-assistant";
 import { createBilling, migrateBilling, STARTING_PLAN_QUOTAS } from "@jobhub/web/billing";
+import { createPostgresUsageLog, migrateAiUsage } from "@jobhub/web/ai-usage";
 import { signInWithMagicLink, startTestAuth } from "../../web/src/auth/test-support";
 import { createThrowawayDatabase } from "../../web/src/test-support/throwaway-database";
 import { JobDiscoveryError, type DiscoverRequest, type DiscoveryReport } from "./job-discovery";
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
 import type { DueJobDigest, JobDigestResult } from "@jobhub/web/job-digests";
-import { BACK_OFFICE_ASSISTANT_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { AI_USAGE_PURGE, BACK_OFFICE_ASSISTANT_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -634,6 +635,45 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       expect(logs).toEqual(["[back-office-audit] 1 Back Office Audit entry(ies) purged, 3 years after they were made"]);
     } finally {
       await testAuth.stop();
+    }
+  });
+
+  it("purges, every night, the AI Message Log 30 days old and the AI Usage 24 months old", async () => {
+    const testAuth = await startTestAuth();
+    try {
+      const database = testAuth.database;
+      await migrateAiUsage(database);
+      const usage = createPostgresUsageLog(database);
+      const call = { candidateId: null, task: "scoring" as const, provider: "mistral" as const, endpoint: "fake", model: "m", inputTokens: 1, outputTokens: 1, ok: true, durationMs: 1, costEur: 0, tools: [] };
+      await usage.record({ ...call, transcript: { messages: [{ role: "user", content: "Score" }], reply: "82" }, at: new Date() });
+      const logs: string[] = [];
+      const jobAt = (days: number) => createJobs({ ...otherDeps, database, now: () => new Date(Date.now() + days * 86_400_000), log: (line) => logs.push(line) })[AI_USAGE_PURGE]!;
+      const counted = async () => (await database.query<{ usage: number; logs: number }>(`SELECT (SELECT count(*) FROM ai_usage)::int AS usage, (SELECT count(*) FROM ai_message_log)::int AS logs`)).rows[0];
+
+      expect(jobAt(0).cron).toBe("50 3 * * *");
+      await jobAt(29).handler({});
+      expect(await counted()).toEqual({ usage: 1, logs: 1 });
+
+      await jobAt(31).handler({});
+      expect(await counted()).toEqual({ usage: 1, logs: 0 });
+
+      await jobAt(2 * 366).handler({});
+      expect(await counted()).toEqual({ usage: 0, logs: 0 });
+      expect(logs).toEqual([
+        "[ai-usage] 1 AI Message Log(s) purged after 30 days, 0 AI call(s) and 0 external API call(s) after 24 months",
+        "[ai-usage] 0 AI Message Log(s) purged after 30 days, 1 AI call(s) and 0 external API call(s) after 24 months",
+      ]);
+    } finally {
+      await testAuth.stop();
+    }
+  });
+
+  it("has no AI Usage to purge before the web app has created its tables", async () => {
+    const empty = await createThrowawayDatabase("test_worker_jobs_empty");
+    try {
+      await expect(createJobs({ ...otherDeps, database: empty.pool })[AI_USAGE_PURGE]!.handler({})).resolves.toBeUndefined();
+    } finally {
+      await empty.drop();
     }
   });
 

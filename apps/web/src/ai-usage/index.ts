@@ -33,6 +33,14 @@ export interface PostgresUsageLogOptions {
   warn?: Warn;
 }
 
+/** An environment variable holding a credential, by its name. */
+const CREDENTIAL = /KEY|TOKEN|SECRET|PASSWORD/;
+
+/** The values of every key, token, secret and password in `env`: what the AI Message Log scrubs by value. */
+export function knownSecrets(env: Record<string, string | undefined>): string[] {
+  return Object.entries(env).flatMap(([name, value]) => (CREDENTIAL.test(name) && value?.trim() ? [value] : []));
+}
+
 export interface PostgresAiUsageLogOptions extends PostgresUsageLogOptions {
   /** The keys in use (Provider Secrets and the environment's), scrubbed from the AI Message Log on top of whatever looks like a key. */
   secrets?: () => readonly (string | undefined)[];

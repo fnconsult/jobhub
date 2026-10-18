@@ -4,7 +4,7 @@ import { recordingFetch, type ExternalApiCall } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, startTestAuth, type TestAuth } from "../auth/test-support";
-import { aiUsagePeriod, aiUsageReport, createPostgresExternalApiLog, createPostgresUsageLog, migrateAiUsage, purgeExpiredAiUsage } from "./index";
+import { aiUsagePeriod, aiUsageReport, createPostgresExternalApiLog, createPostgresUsageLog, knownSecrets, migrateAiUsage, purgeExpiredAiUsage } from "./index";
 
 const MILLION = 1_000_000;
 
@@ -212,3 +212,20 @@ function entry() {
     transcript: { messages: [{ role: "user" as const, content: "Score" }], reply: "82" },
   };
 }
+
+describe("knownSecrets", () => {
+  it("lists the values of every key, token, secret and password the environment holds, and nothing else", () => {
+    expect(
+      knownSecrets({
+        MISTRAL_API_KEY: "mk-1",
+        AWS_BEARER_TOKEN_BEDROCK: "tok",
+        FRANCE_TRAVAIL_CLIENT_SECRET: "fts",
+        SECRETS_MASTER_KEYS: "k1,k2",
+        SMTP_PASSWORD: "pw",
+        AI_SCORING_MODEL: "mistral-small",
+        APP_URL: "https://jobbbox.fr",
+        EMPTY_API_KEY: "",
+      }).sort(),
+    ).toEqual(["fts", "k1,k2", "mk-1", "pw", "tok"]);
+  });
+});

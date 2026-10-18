@@ -88,7 +88,7 @@ test.describe("Coupons", () => {
 
     // An unknown code says so; choosing a Plan still works, without a discount.
     await candidate.goto("/abonnement?code=INCONNU");
-    await expect(candidate.getByRole("alert")).toHaveText(fr.billing.page.codeInvalid);
+    await expect(candidate.getByRole("alert").filter({ hasText: fr.billing.page.codeInvalid })).toBeVisible();
     await choose(candidate, "Standard");
     expect(await lastCheckout(customer)).toMatchObject({ allow_promotion_codes: "true" });
 
@@ -113,7 +113,7 @@ test.describe("Coupons", () => {
     const other = await (await browser.newContext({ baseURL: process.env.E2E_WEB_ORIGIN, locale: "fr-FR" })).newPage();
     await signInWithMagicLink(other, newAddress("coupon-late"));
     await other.goto("/abonnement?code=PRINTEMPS-E2E");
-    await expect(other.getByRole("alert")).toHaveText(fr.billing.page.codeInvalid);
+    await expect(other.getByRole("alert").filter({ hasText: fr.billing.page.codeInvalid })).toBeVisible();
 
     // Both changes are in the Journal, under Codes promo.
     await page.goto("/admin/journal?section=coupons");

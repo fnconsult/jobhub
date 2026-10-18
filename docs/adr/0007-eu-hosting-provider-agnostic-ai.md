@@ -46,3 +46,14 @@ How a call is recognised:
 ## Amendment: the coaching context carries no identity (issue #126)
 
 The AI Coach's context is no longer identity-bearing, so the coaching call declares `containsIdentity: false` and stays on the `coaching` task instead of going to Mistral. Only the Candidate's first name is sent, the Master CV's identity block is dropped, and its values (full name, email, phone, address) are replaced wherever else the CV writes them. The scan above remains the safety net.
+
+## Addendum: every AI call is persisted (issue #218)
+
+The AI layer's `UsageLog`, until now a JSON line on stdout, also writes to Postgres, in the web app and the worker, for the Back Office's AI consumption report. Every call through the layer is recorded, failed ones included (no tokens, nothing billed), with its duration, its estimated cost (the Coach Message Cost's price table and EUR conversion) and the tools its model used (a web search, priced per search apart from the tokens). Calls to external APIs outside the layer (France Travail, contact enrichment) go through a recording fetch into the same report.
+
+How the data rule of this ADR holds:
+- `ai_usage`, `ai_tool_usage` and `external_api_usage` carry no Candidate id and no text, payload or query string: aggregates of no one, outside the data export, kept 24 months.
+- What each call said goes to a separate AI Message Log (`ai_message_log`), personal data: kept 30 days in our EU database, tied to the Candidate (`ON DELETE CASCADE`, in their data export), read by super-admins only, every view written to the Back Office Audit. Keys and anything shaped like a credential are scrubbed before storing. The stdout line never carries it.
+- Recording never fails nor delays a call: the layer does not wait for the usage log, and a failed insert is only warned about.
+
+Web search calls are AI-layer calls: their per-search fee is reported as the model's `web_search` tool, not as an external API, so it is counted once.

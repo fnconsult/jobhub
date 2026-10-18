@@ -21,6 +21,10 @@ export function getAssistantConversations(): AssistantConversations {
           return plans.flatMap(({ key, name }) => (quotas[key] ? [{ key, name, quotas: quotas[key] }] : []));
         },
         plans: () => getBilling().plans(),
+        coupons: async () => {
+          const [coupons, plans] = await Promise.all([getBilling().coupons(), getBilling().plans()]);
+          return coupons && { coupons, plans };
+        },
         humanCoaches: () => getHumanCoaches().list(),
         coachCost: (days) => coachCostOfLastDays(days),
         aiUsage: () => aiUsageReportOf("30d"),

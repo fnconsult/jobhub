@@ -3,6 +3,7 @@
  *
  * One deep module. `createBackOffice(database, deps)` answers:
  *  - change what the Jobbbox team runs     `createPlan`, `updatePlan`, `movePlan`, `setPlanQuotas`,
+ *                                          `createCoupon`, `deactivateCoupon`,
  *                                          `addHumanCoach`, `retireHumanCoach`
  *  - record any other Back Office write    `record`, the one seam every write goes through
  *  - read the record                       `journal`, newest first, by section
@@ -18,7 +19,7 @@
  */
 import { FREE_PLAN, type Plan, type PlanQuotas } from "@jobhub/shared";
 import type { Pool } from "pg";
-import type { Billing, PlanDefinition, PlanResult } from "../billing";
+import type { Billing, Coupon, CouponResult, PlanDefinition, PlanResult } from "../billing";
 import type { Queryable } from "../database/pool";
 import type { AddHumanCoachResult, HumanCoaches } from "../human-coaches";
 
@@ -26,7 +27,7 @@ import type { AddHumanCoachResult, HumanCoaches } from "../human-coaches";
 export const RETENTION_YEARS = 3;
 
 /** What part of the Back Office a change was made in. */
-export const BACK_OFFICE_SECTIONS = ["roles", "plans", "plan_quotas", "human_coaches", "provider_secrets", "sign_in_providers", "ai_messages"] as const;
+export const BACK_OFFICE_SECTIONS = ["roles", "plans", "plan_quotas", "coupons", "human_coaches", "provider_secrets", "sign_in_providers", "ai_messages"] as const;
 export type BackOfficeSection = (typeof BACK_OFFICE_SECTIONS)[number];
 
 export const isBackOfficeSection = (value: unknown): value is BackOfficeSection => BACK_OFFICE_SECTIONS.includes(value as BackOfficeSection);
@@ -82,7 +83,7 @@ export interface BackOfficeAuditEntry {
 }
 
 export interface BackOfficeDeps {
-  billing: Pick<Billing, "setPlanQuotas" | "createPlan" | "updatePlan" | "movePlan" | "checkStripeProduct" | "plans">;
+  billing: Pick<Billing, "setPlanQuotas" | "createPlan" | "updatePlan" | "movePlan" | "checkStripeProduct" | "plans" | "createCoupon" | "deactivateCoupon" | "reactivateCoupon">;
   humanCoaches: Pick<HumanCoaches, "add" | "retire">;
 }
 
@@ -95,6 +96,16 @@ export interface BackOffice {
   movePlan(actor: BackOfficeActor, plan: Plan, direction: "up" | "down"): Promise<PlanResult<{ before: number; after: number }>>;
   /** Replaces one Plan's quotas; nothing is recorded for an unknown Plan. */
   setPlanQuotas(actor: BackOfficeActor, plan: Plan, quotas: PlanQuotas): Promise<void>;
+  /**
+   * Creates a Coupon in Stripe; `input` is untrusted (see Billing.createCoupon). Stripe is called before the
+   * audit transaction; if the entry cannot be recorded, the code is deactivated again. Nothing is recorded when refused.
+   */
+  createCoupon(actor: BackOfficeActor, input: unknown): Promise<CouponResult<{ coupon: Coupon }>>;
+  /**
+   * Deactivates a Coupon in Stripe (see Billing.deactivateCoupon), before the audit transaction; reactivated
+   * if the entry cannot be recorded. Nothing is recorded when refused or when it was inactive already.
+   */
+  deactivateCoupon(actor: BackOfficeActor, id: string): Promise<CouponResult<object>>;
   /** Adds a Human Coach. `input` is untrusted (see HumanCoaches.add); nothing is recorded when refused. */
   addHumanCoach(actor: BackOfficeActor, input: unknown): Promise<AddHumanCoachResult>;
   /** Retires a Human Coach; nothing is recorded for an unknown or already retired one. */
@@ -143,6 +154,17 @@ const productOf = (input: unknown): string => {
 
 /** A Plan's quotas as recorded. */
 const recordedQuotas = (quotas: PlanQuotas): Recorded => ({ ...quotas });
+
+/** A Coupon's terms as recorded; its code is the entry's target too. */
+const recordedCoupon = (coupon: Coupon): { [key: string]: Recorded } => ({
+  code: coupon.code,
+  discount: { ...coupon.discount },
+  duration: typeof coupon.duration === "string" ? coupon.duration : { ...coupon.duration },
+  plans: coupon.plans ? [...coupon.plans] : null,
+  expiresAt: coupon.expiresAt ? coupon.expiresAt.toISOString() : null,
+  maxRedemptions: coupon.maxRedemptions,
+  firstPaymentOnly: coupon.firstPaymentOnly,
+});
 
 /** What an Administrator sets on a Plan, as recorded; its key is the entry's target, its rank changes on its own. */
 const recordedPlan = ({ name, status, stripeProductId, features }: PlanDefinition): { [key: string]: Recorded } => ({
@@ -235,6 +257,42 @@ export function createBackOffice(database: Pool, deps: BackOfficeDeps): BackOffi
         (within) => deps.billing.setPlanQuotas(plan, quotas, within),
         (before) => (before ? { section: "plan_quotas", target: plan, action: "updated", before: recordedQuotas(before), after: recordedQuotas(quotas) } : null),
       );
+    },
+
+    async createCoupon(actor, input) {
+      // Stripe is the Coupon's only home, written before the transaction opens, so none waits on it.
+      const created = await deps.billing.createCoupon(input);
+      if (!created.ok) return created;
+      try {
+        await record(
+          actor,
+          async () => created.coupon,
+          (coupon) => ({ section: "coupons", target: coupon.code, action: "added", before: null, after: recordedCoupon(coupon) }),
+        );
+      } catch (error) {
+        // Unrecorded, the code must not be redeemable.
+        await deps.billing.deactivateCoupon(created.coupon.id).catch(() => undefined);
+        throw error;
+      }
+      return created;
+    },
+
+    async deactivateCoupon(actor, id) {
+      // As for createCoupon: Stripe first, outside the transaction; undone there if the entry cannot be recorded.
+      const deactivated = await deps.billing.deactivateCoupon(id);
+      if (!deactivated.ok) return deactivated;
+      if (!deactivated.changed) return { ok: true };
+      try {
+        await record(
+          actor,
+          async () => deactivated,
+          ({ after }) => ({ section: "coupons", target: after.code, action: "updated", before: { active: true }, after: { active: false } }),
+        );
+      } catch (error) {
+        await deps.billing.reactivateCoupon(id).catch(() => undefined);
+        throw error;
+      }
+      return { ok: true };
     },
 
     addHumanCoach(actor, input) {

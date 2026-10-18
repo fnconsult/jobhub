@@ -20,6 +20,8 @@ const statements = {
   planQuotas: ["read", "write"],
   /** Plans and their per-Plan features. */
   plans: ["read", "write"],
+  /** Coupons: Stripe promotion codes on Plans. */
+  coupons: ["read", "write"],
   humanCoaches: ["read", "write"],
   coachMessageCost: ["read"],
   providerSecrets: ["read", "write"],
@@ -44,10 +46,10 @@ const READ = ["read"] as const;
 
 const ROLES = {
   "super-admin": control.newRole(statements),
-  "plans-manager": control.newRole({ plans: ["read", "write"], planQuotas: ["read", "write"] }),
+  "plans-manager": control.newRole({ plans: ["read", "write"], planQuotas: ["read", "write"], coupons: ["read", "write"] }),
   "coach-manager": control.newRole({ humanCoaches: ["read", "write"], coachMessageCost: READ }),
   // Reads everything but Provider Secrets and the AI Message Log; the team's own sections (Administrateurs, Journal) stay with super-admins.
-  support: control.newRole({ planQuotas: READ, plans: READ, humanCoaches: READ, coachMessageCost: READ, ssoProviders: READ, aiUsage: READ }),
+  support: control.newRole({ planQuotas: READ, plans: READ, coupons: READ, humanCoaches: READ, coachMessageCost: READ, ssoProviders: READ, aiUsage: READ }),
 } satisfies Record<BackOfficeRole, unknown>;
 
 /** What one Administrator may do in the Back Office, from the roles they hold. */

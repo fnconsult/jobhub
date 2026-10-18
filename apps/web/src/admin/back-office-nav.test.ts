@@ -5,13 +5,14 @@ import { backOfficeNav } from "./back-office-nav";
 const sections = (nav: ReturnType<typeof backOfficeNav>) => nav.map((group) => [group.key, group.sections.map((section) => [section.key, section.href])]);
 
 describe("the Back Office navigation", () => {
-  it("shows a super-admin every section, grouped, Plans and their Quotas under Offre, Provider Secrets (Clés), Sign-in Providers (Connexion), AI consumption and AI message logs under Plateforme", () => {
+  it("shows a super-admin every section, grouped, Plans, their Quotas and Coupons under Offre, Provider Secrets (Clés), Sign-in Providers (Connexion), AI consumption and AI message logs under Plateforme", () => {
     expect(sections(backOfficeNav(backOfficeAccess(["super-admin"])))).toEqual([
       [
         "offer",
         [
           ["plans", "/admin/offres"],
           ["planQuotas", "/admin/quotas"],
+          ["coupons", "/admin/codes-promo"],
         ],
       ],
       [
@@ -47,6 +48,7 @@ describe("the Back Office navigation", () => {
         [
           ["plans", "/admin/offres"],
           ["planQuotas", "/admin/quotas"],
+          ["coupons", "/admin/codes-promo"],
         ],
       ],
     ]);

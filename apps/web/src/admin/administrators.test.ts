@@ -30,7 +30,7 @@ describe.skipIf(!connectionString)("Administrators and their Back Office Roles (
     const unused = async () => {
       throw new Error("not used here");
     };
-    backOffice = createBackOffice(database, { billing: { setPlanQuotas: unused, createPlan: unused, updatePlan: unused, movePlan: unused, checkStripeProduct: unused, plans: unused }, humanCoaches: { add: unused, retire: unused } });
+    backOffice = createBackOffice(database, { billing: { setPlanQuotas: unused, createPlan: unused, updatePlan: unused, movePlan: unused, checkStripeProduct: unused, plans: unused, createCoupon: unused, deactivateCoupon: unused, reactivateCoupon: unused }, humanCoaches: { add: unused, retire: unused } });
     administrators = createAdministrators(database, { backOffice, isPermanentSuperAdmin: permanentSuperAdminsFromEnv({ ADMIN_EMAILS: "claire@jobbbox.fr" }) });
     claire = await signUp("claire@jobbbox.fr");
     paul = await signUp("paul@jobbbox.fr");

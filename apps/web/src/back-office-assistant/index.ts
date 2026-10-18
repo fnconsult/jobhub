@@ -27,7 +27,7 @@ import * as z from "zod";
 import { BACK_OFFICE_ROLES, type BackOfficeAccess, type BackOfficeResource, type BackOfficeRole } from "../admin/access";
 import type { Administrator } from "../admin/administrators";
 import type { BackOfficeAuditEntry, Recorded } from "../admin/back-office";
-import type { PlanDefinition, PlanName } from "../billing";
+import type { Coupon, ListedCoupon, PlanDefinition, PlanName } from "../billing";
 import type { CoachMessageCost } from "../coach";
 import { COACH_MESSAGE_COST_TARGET_EUR, type CoachCostDay } from "../coach-conversations";
 import type { HumanCoach } from "../human-coaches";
@@ -42,6 +42,8 @@ export interface BackOfficeAssistantSources {
   planQuotas(): Promise<{ key: Plan; name: PlanName; quotas: PlanQuotas }[]>;
   /** Every Plan, lowest rank first, offered and hidden (`plans`). */
   plans(): Promise<PlanDefinition[]>;
+  /** The Coupons, newest first, and the Plans they name (`coupons`); null while Stripe cannot list them. */
+  coupons(): Promise<{ coupons: ListedCoupon[]; plans: PlanDefinition[] } | null>;
   /** The Human Coaches Candidates can choose from (`humanCoaches`). */
   humanCoaches(): Promise<HumanCoach[]>;
   /** The AI Coach's cost per day, newest first (`coachMessageCost`). */
@@ -80,6 +82,7 @@ const COST_DAYS = 14;
 const JOURNAL_ENTRIES = 30;
 const HUMAN_COACHES = 50;
 const BIO_LENGTH = 200;
+const COUPONS = 50;
 
 /** Longest saved reply replayed to the assistant. */
 const MAX_REPLY_LENGTH = 100_000;
@@ -121,6 +124,7 @@ const FEATURE_NAMES: Record<PlanFeature, string> = { coachingSessionDiscount: "s
 const SECTIONS: Record<BackOfficeResource, { name: string; page?: string }> = {
   planQuotas: { name: "Quotas des offres (Plan Quotas)", page: routes.adminPlanQuotas },
   plans: { name: "Offres (Plans) et leurs fonctionnalités", page: routes.adminPlans },
+  coupons: { name: "Codes promo (Coupons)", page: routes.adminCoupons },
   humanCoaches: { name: "Coachs humains", page: routes.adminHumanCoaches },
   coachMessageCost: { name: "Coût du coach IA (Coach Message Cost)", page: routes.adminCoachCost },
   roles: { name: "Administrateurs et rôles du Back Office", page: routes.adminAdministrators },
@@ -158,6 +162,26 @@ function quotaValue(key: keyof PlanQuotas, value: PlanQuotas[keyof PlanQuotas]):
   if (key === "jobDigest") return value === "none" ? "aucun" : value === "daily" ? "quotidien" : "hebdomadaire";
   if (value === null) return "illimité";
   return value === 0 ? "non inclus (0)" : String(value);
+}
+
+/** A Coupon's terms, for the assistant: "-50 % pendant 3 mois, sur Standard, Premium ; ... ; actif". */
+function couponLine(coupon: Coupon, plans: PlanDefinition[]): string {
+  const discount =
+    "percentOff" in coupon.discount
+      ? `-${coupon.discount.percentOff} %`
+      : `-${new Intl.NumberFormat("fr-FR", { style: "currency", currency: coupon.discount.currency }).format(coupon.discount.amountOff / 100)}`;
+  const duration = coupon.duration === "once" ? "sur le premier paiement" : coupon.duration === "forever" ? "sans limite de durée" : `pendant ${coupon.duration.months} mois`;
+  const on = coupon.plans === null ? "sur toutes les offres" : `sur ${coupon.plans.map((key) => plans.find((plan) => plan.key === key)?.name.fr ?? key).join(", ")}`;
+  return [
+    `${discount} ${duration}, ${on}`,
+    coupon.firstPaymentOnly ? "1er paiement seulement (refusé à qui a déjà payé, séance de coaching comprise)" : null,
+    coupon.expiresAt ? `expire le ${new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeZone: "Europe/Paris" }).format(coupon.expiresAt)}` : null,
+    `utilisé ${coupon.timesRedeemed} fois${coupon.maxRedemptions === null ? "" : ` sur ${coupon.maxRedemptions}`}`,
+    coupon.active ? "actif" : "désactivé ou expiré",
+  ]
+    .filter(Boolean)
+    .join(" ; ")
+    .replace(/\u202f|\u00a0/g, " ");
 }
 
 /** What each section the Administrator may read says, read from its source. */
@@ -200,6 +224,16 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
       heading("plans"),
       "Les offres, de la plus basse à la plus haute : c'est l'ordre de la comparaison des offres, et une invitation à passer à l'offre supérieure (Upgrade Prompt) propose la première offre proposée au-dessus de celle du candidat qui permet ce qu'il demandait. Chaque offre payante est liée à un produit Stripe : son tarif par défaut est vendu au paiement, et tous ses tarifs donnent l'offre. Les prix viennent de Stripe, jamais du Back Office. Une offre masquée n'est ni comparée, ni vendue, ni proposée dans les invitations ; ses abonnés la gardent. Aucune offre n'est jamais supprimée. L'offre Gratuite est intégrée : toujours la première. Une nouvelle offre est créée masquée. Les séances de coaching se paient à part, à prix réduit pour les offres qui ont cette fonctionnalité.",
       ...lines,
+    ].join("\n");
+  },
+
+  async coupons(sources) {
+    const listed = await sources.coupons();
+    const lines = listed?.coupons.slice(0, COUPONS).map((coupon) => `- ${untrusted(coupon.code)} : ${"unreadable" in coupon ? "illisible (voir Stripe)" : couponLine(coupon, listed.plans)}`);
+    return [
+      heading("coupons"),
+      "Les codes promo que les candidats saisissent au paiement d'une offre (ou reçoivent par un lien /abonnement?code=…), créés par les Responsables des offres dans Stripe depuis le Back Office. Un code désactivé ne peut plus être utilisé ; les réductions déjà accordées vont à leur terme. Un code à -100 % s'abonne sans carte ; à la fin de la période offerte, sans paiement, l'abonnement prend fin et le candidat revient à l'offre Gratuite. Les séances de coaching ne prennent pas de code promo. Le nombre d'utilisations vient de Stripe.",
+      ...(lines === undefined ? ["- liste indisponible : Stripe ne répond pas"] : lines.length ? lines : ["- aucun"]),
     ].join("\n");
   },
 
@@ -259,6 +293,7 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   roles: "rôles",
   plans: "offres",
   plan_quotas: "quotas",
+  coupons: "codes promo",
   human_coaches: "coachs humains",
   provider_secrets: "clés des fournisseurs",
   sign_in_providers: "fournisseurs de connexion",
@@ -280,7 +315,7 @@ function journalLine(entry: BackOfficeAuditEntry): string {
   const named = (value: Recorded) => (value && typeof value === "object" && !Array.isArray(value) && typeof value.name === "string" ? value.name : null);
   const target = entry.section === "human_coaches" ? untrusted(named(entry.after) ?? named(entry.before) ?? "un coach") : entry.target;
   const values =
-    entry.section === "plan_quotas" || entry.section === "plans" || entry.section === "roles"
+    entry.section === "plan_quotas" || entry.section === "plans" || entry.section === "roles" || entry.section === "coupons"
       ? ` ; avant ${untrusted(JSON.stringify(entry.before))}, après ${untrusted(JSON.stringify(entry.after))}`
       : "";
   return `${JOURNAL_SECTIONS[entry.section]}, ${ACTIONS[entry.action]} de ${target}${values}`;

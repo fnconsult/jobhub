@@ -121,6 +121,63 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
     }
   });
 
+  it("creating and deactivating a Coupon each record one entry, after Stripe; a refused one records nothing", async () => {
+    const stripe = await startFakeStripe();
+    try {
+      const withStripe = createBilling({ database, baseURL: "http://localhost:3000", stripe: { secretKey: FAKE_STRIPE_SECRET_KEY, webhookSecret: FAKE_STRIPE_WEBHOOK_SECRET, apiUrl: stripe.url } });
+      await withStripe.updatePlan("standard", { name: { fr: "Standard", en: "Standard" }, status: "offered", stripeProductId: FAKE_STRIPE_PRODUCTS.standard, features: [] });
+      const couponsOffice = createBackOffice(database, { billing: withStripe, humanCoaches: { add: async () => ({ ok: false, error: "invalid" }) as never, retire: async () => null } });
+      const spring = { code: "PRINTEMPS50", percentOff: 50, duration: "repeating", durationInMonths: 3, plans: ["standard"], expiresAt: "2027-03-31", maxRedemptions: 100, firstPaymentOnly: true };
+
+      const created = await couponsOffice.createCoupon(claire, spring);
+      expect(created).toMatchObject({ ok: true, coupon: { code: "PRINTEMPS50" } });
+      expect(await couponsOffice.createCoupon(claire, spring)).toEqual({ ok: false, error: "code_taken" });
+      if (!created.ok) throw new Error("fixture refused");
+      expect(await couponsOffice.deactivateCoupon(claire, created.coupon.id)).toMatchObject({ ok: true });
+      // Already inactive: nothing changed, nothing recorded.
+      expect(await couponsOffice.deactivateCoupon(claire, created.coupon.id)).toMatchObject({ ok: true });
+      expect(await couponsOffice.deactivateCoupon(claire, "promo_unknown")).toEqual({ ok: false, error: "unknown_coupon" });
+
+      const terms = {
+        code: "PRINTEMPS50",
+        discount: { percentOff: 50 },
+        duration: { months: 3 },
+        plans: ["standard"],
+        expiresAt: "2027-03-31T21:59:59.000Z",
+        maxRedemptions: 100,
+        firstPaymentOnly: true,
+      };
+      expect((await couponsOffice.journal({ section: "coupons" })).map(({ section, target, action, before, after }) => ({ section, target, action, before, after }))).toEqual([
+        { section: "coupons", target: "PRINTEMPS50", action: "updated", before: { active: true }, after: { active: false } },
+        { section: "coupons", target: "PRINTEMPS50", action: "added", before: null, after: terms },
+      ]);
+    } finally {
+      await stripe.stop();
+    }
+  });
+
+  it("a Coupon change that cannot be recorded is undone in Stripe", async () => {
+    const stripe = await startFakeStripe();
+    try {
+      const withStripe = createBilling({ database, baseURL: "http://localhost:3000", stripe: { secretKey: FAKE_STRIPE_SECRET_KEY, webhookSecret: FAKE_STRIPE_WEBHOOK_SECRET, apiUrl: stripe.url } });
+      await withStripe.updatePlan("standard", { name: { fr: "Standard", en: "Standard" }, status: "offered", stripeProductId: FAKE_STRIPE_PRODUCTS.standard, features: [] });
+      const couponsOffice = createBackOffice(database, { billing: withStripe, humanCoaches: { add: async () => ({ ok: false, error: "invalid" }) as never, retire: async () => null } });
+      const unknownAdministrator = { id: "no-such-candidate", email: "ghost@jobbbox.fr" };
+      const spring = { code: "PRINTEMPS50", percentOff: 50, duration: "once", plans: ["standard"], firstPaymentOnly: false };
+
+      await expect(couponsOffice.createCoupon(unknownAdministrator, spring)).rejects.toThrow();
+      expect(await withStripe.coupons()).toMatchObject([{ code: "PRINTEMPS50", active: false }]);
+
+      const created = await couponsOffice.createCoupon(claire, { ...spring, code: "AUTOMNE" });
+      if (!created.ok) throw new Error("fixture refused");
+      await expect(couponsOffice.deactivateCoupon(unknownAdministrator, created.coupon.id)).rejects.toThrow();
+      expect((await withStripe.coupons())![0]).toMatchObject({ code: "AUTOMNE", active: true });
+      expect((await couponsOffice.journal({ section: "coupons" })).map((entry) => entry.action)).toEqual(["added"]);
+    } finally {
+      await stripe.stop();
+    }
+  });
+
   it("adding and retiring a Human Coach each record one entry; a refused one records nothing", async () => {
     const sophie = { name: "Sophie Martin", email: "Sophie.Martin@rh-conseil.fr", bookingUrl: "https://cal.com/sophie-martin/seance", bio: "Ancienne DRH." };
 

@@ -48,8 +48,11 @@ import {
   type PlanDefinition,
   type PlanName,
 } from "./plans";
+import { createCodeLookups } from "./code-lookups";
+import { couponOf, couponParams, COUPON_CURRENCY, listedCouponOf, termsOf, type ActiveDiscount, type Coupon, type CouponResult, type ListedCoupon } from "./coupons";
 
 export type { PlanDefinition, PlanName } from "./plans";
+export type { ActiveDiscount, Coupon, CouponDiscount, CouponDuration, CouponError, CouponResult, ListedCoupon } from "./coupons";
 
 export interface BillingConfig {
   /** Postgres pool holding the Candidate accounts. */
@@ -67,6 +70,15 @@ export interface BillingConfig {
    * throws, the webhook fails and Stripe retries the delivery.
    */
   onCoachingSessionPaid?: (paid: PaidCoachingSession) => Promise<unknown>;
+}
+
+/** How a Candidate checks out. */
+export interface CheckoutOptions {
+  /**
+   * A code they brought (a shared link's `?code=`): applied at Checkout when it can be redeemed on the
+   * Plan; otherwise Checkout goes on without it, and they may type one there.
+   */
+  promotionCode?: string | undefined;
 }
 
 /** A Coaching Session payment Stripe confirmed. */
@@ -334,8 +346,41 @@ export class BillingError extends Error {
   }
 }
 
+/** Why a code a Candidate brought cannot be applied at Checkout. */
+export type PromotionCodeRefusal =
+  /** Not one of the Plans it is for. */
+  | "not_for_plan"
+  /** Stripe will not apply it for them: they have paid before (a first-payment-only code), or it was used up meanwhile. */
+  | "not_for_you"
+  /** Unknown, deactivated, expired or used up. */
+  | "unavailable"
+  /** Stripe could not be asked. */
+  | "unchecked"
+  /** They tried too many codes lately. */
+  | "too_many_tries";
+
+export const PROMOTION_CODE_REFUSALS = ["not_for_plan", "not_for_you", "unavailable", "unchecked", "too_many_tries"] as const satisfies readonly PromotionCodeRefusal[];
+
+/** A code brought to Checkout that cannot be applied; nothing was sent to Checkout. */
+export class PromotionCodeRefused extends Error {
+  constructor(readonly reason: PromotionCodeRefusal) {
+    super(`promotion code refused: ${reason}`);
+    this.name = "PromotionCodeRefused";
+  }
+}
+
 /** Stripe calls made while a page renders: given up on quickly, never retried. */
 const QUICK: Stripe.RequestOptions = { timeout: 2_500, maxNetworkRetries: 0 };
+
+/** Stripe writes made from the Back Office: given up on after a few seconds, retried once (with the same idempotency key). */
+const STRIPE_WRITE: Stripe.RequestOptions = { timeout: 5_000, maxNetworkRetries: 1 };
+
+/** The most Coupons the Back Office lists, read in pages of COUPON_PAGE (Stripe's largest). */
+const MAX_COUPONS = 1_000;
+const COUPON_PAGE = 100;
+
+/** A promotion code's coupon and the Plans' products it applies to, expanded in one call. */
+const PROMOTION_CODE_EXPAND = ["promotion.coupon.applies_to"];
 
 /** Subscription statuses that keep the paid Plan; Stripe retries failed payments while past_due. */
 const PAYING_STATUSES = new Set(["active", "trialing", "past_due"]);
@@ -542,6 +587,41 @@ export function createBilling(config: BillingConfig) {
     return checked ? null : stripeProductProblem(product);
   }
 
+  /**
+   * The Coupon behind a code a Candidate brought (a shared link's `?code=`), if it can be redeemed now:
+   * active, not expired, not used up. Null when it cannot; throws when Stripe does not answer quickly.
+   */
+  async function redeemableCoupon(code: string): Promise<Coupon | null> {
+    const typed = code.trim().toUpperCase();
+    if (!/^[A-Z0-9_-]{1,40}$/.test(typed)) return null;
+    const [listed, plans] = await Promise.all([
+      stripe().client.promotionCodes.list({ code: typed, active: true, limit: 1, expand: PROMOTION_CODE_EXPAND.map((field) => `data.${field}`) }, QUICK),
+      listPlans(database),
+    ]);
+    const listedCoupon = listed.data[0] && listedCouponOf(listed.data[0], plans, now());
+    return listedCoupon && !("unreadable" in listedCoupon) && listedCoupon.active ? listedCoupon : null;
+  }
+  /** Codes brought by Candidates: each answer kept a minute, and each Candidate held to a few lookups. */
+  const codeLookups = createCodeLookups({ lookup: redeemableCoupon, now });
+
+  /**
+   * The promotion code to apply at a Plan's Checkout for the code a Candidate brought; throws a
+   * PromotionCodeRefused saying why it cannot be applied.
+   */
+  async function promotionCodeFor(code: string, plan: Plan, requester: string): Promise<string> {
+    let found;
+    try {
+      found = await codeLookups.find(code.trim().toUpperCase(), requester);
+    } catch (error) {
+      console.error("[billing] could not check a promotion code", error);
+      throw new PromotionCodeRefused("unchecked");
+    }
+    if (found.status === "throttled") throw new PromotionCodeRefused("too_many_tries");
+    if (!found.value) throw new PromotionCodeRefused("unavailable");
+    if (found.value.plans !== null && !found.value.plans.includes(plan)) throw new PromotionCodeRefused("not_for_plan");
+    return found.value.id;
+  }
+
   /** Reports a paid Coaching Session from a checkout.session.* event; ignores any other checkout. */
   async function applyCheckout(session: Stripe.Checkout.Session) {
     if (session.mode !== "payment" || session.metadata?.purpose !== "coaching_session") return;
@@ -630,7 +710,9 @@ export function createBilling(config: BillingConfig) {
     const paidPlan = await paidPlanOf(subscription.items.data[0]?.price);
     if (!paidPlan) return; // Not one of our Plans' prices.
     const customer = typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
-    const ended = event.type === "customer.subscription.deleted" || !PAYING_STATUSES.has(subscription.status);
+    // Past due with no card to retry (a 100 % Coupon's free period over): nothing will be paid, so no Plan is kept meanwhile.
+    const cardless = subscription.status === "past_due" && !subscription.default_payment_method && !subscription.default_source;
+    const ended = event.type === "customer.subscription.deleted" || !PAYING_STATUSES.has(subscription.status) || cardless;
     if (CHARGED_STATUSES.includes(subscription.status)) {
       // Whatever order Stripe delivers events in, a payment once taken stays taken.
       await database.query("UPDATE candidate_plan SET charged = true WHERE stripe_customer_id = $1", [customer]);
@@ -784,9 +866,11 @@ export function createBilling(config: BillingConfig) {
     /**
      * Where to send a Candidate who chose a paid Plan: a Stripe Checkout for
      * its subscription, or the customer portal if they already pay (Plans are
-     * switched there, never by a second subscription).
+     * switched there, never by a second subscription). A code they brought is
+     * applied, or refused with a PromotionCodeRefused saying why: never dropped
+     * silently, so they choose whether to go on without it.
      */
-    async startCheckout(candidate: { id: string; email: string }, plan: Plan, locale: Locale = "fr"): Promise<string> {
+    async startCheckout(candidate: { id: string; email: string }, plan: Plan, locale: Locale = "fr", options: CheckoutOptions = {}): Promise<string> {
       if (plan === FREE_PLAN) throw new BillingError("no_checkout_for_free_plan");
       const { client } = stripe();
       await linkedIfPossible();
@@ -797,17 +881,78 @@ export function createBilling(config: BillingConfig) {
       if (account && account.plan !== FREE_PLAN && PAYING_STATUSES.has(account.stripe_status ?? "")) {
         return portalFor(customer, locale);
       }
-      const session = await client.checkout.sessions.create({
+      const promotionCode = options.promotionCode ? await promotionCodeFor(options.promotionCode, plan, candidate.id) : null;
+      const params: Stripe.Checkout.SessionCreateParams = {
         mode: "subscription",
         customer,
         client_reference_id: candidate.id,
         line_items: [{ price: await defaultPriceOf(chosen.stripeProductId), quantity: 1 }],
+        // A 100 % Coupon needs no card: Stripe asks for one only when something is due.
+        payment_method_collection: "if_required",
         locale,
         success_url: pageURL("?checkout=success"),
         cancel_url: pageURL(),
-      });
+      };
+      // Stripe takes either a code applied up front or the field to type one, never both.
+      const withCodeField = { ...params, allow_promotion_codes: true };
+      let session: Stripe.Checkout.Session;
+      if (promotionCode) {
+        try {
+          session = await client.checkout.sessions.create({ ...params, discounts: [{ promotion_code: promotionCode }] });
+        } catch (error) {
+          // A code Stripe will not apply for this customer (they have paid before, it was used up meanwhile):
+          // the Candidate is told, and chooses whether to go on without it.
+          if (!(error instanceof Stripe.errors.StripeInvalidRequestError)) throw error;
+          console.warn("[billing] Stripe refused a promotion code at checkout:", error.message);
+          throw new PromotionCodeRefused("not_for_you");
+        }
+      } else {
+        session = await client.checkout.sessions.create(withCodeField);
+      }
       if (!session.url) throw new Error("Stripe returned a checkout session without a URL");
       return session.url;
+    },
+
+    /**
+     * What a code a Candidate (`requester`, their id) brought in a shared link (`?code=`) gives, for the
+     * subscription page: `valid` with its Coupon when it can be redeemed now (on `coupon.plans`), `invalid`
+     * when not (unknown, deactivated, expired, used up), `throttled` when they tried too many codes lately.
+     * Null when Stripe is not configured or does not answer quickly. Answers are kept a minute per code.
+     */
+    async checkPromotionCode(code: string, requester: string): Promise<{ status: "valid"; coupon: Coupon } | { status: "invalid" } | { status: "throttled" } | null> {
+      if (!config.stripe) return null;
+      try {
+        const found = await codeLookups.find(code.trim().toUpperCase(), requester);
+        if (found.status === "throttled") return found;
+        return found.value ? { status: "valid", coupon: found.value } : { status: "invalid" };
+      } catch (error) {
+        console.error("[billing] could not check a promotion code", error);
+        return null;
+      }
+    },
+
+    /**
+     * The discount the Candidate's subscription is getting from a Coupon, for the subscription page;
+     * null on Free, without one, or when Stripe does not answer quickly.
+     */
+    async activeDiscount(candidateId: string): Promise<ActiveDiscount | null> {
+      if (!config.stripe) return null;
+      const { rows } = await database.query("SELECT plan, stripe_subscription_id FROM candidate_plan WHERE candidate_id = $1", [candidateId]);
+      const account = rows[0] as { plan: Plan; stripe_subscription_id: string | null } | undefined;
+      if (!account?.stripe_subscription_id || account.plan === FREE_PLAN) return null;
+      try {
+        const subscription = await stripe().client.subscriptions.retrieve(account.stripe_subscription_id, { expand: ["discounts.source.coupon"] }, QUICK);
+        for (const discount of subscription.discounts) {
+          const coupon = typeof discount === "object" ? discount.source.coupon : null;
+          if (!coupon || typeof coupon === "string" || typeof discount === "string") continue;
+          if (discount.end !== null && discount.end * 1000 <= now().getTime()) continue;
+          return { ...termsOf(coupon), endsAt: discount.end === null ? null : new Date(discount.end * 1000) };
+        }
+        return null;
+      } catch (error) {
+        console.error("[billing] could not read the subscription's discount from Stripe", error);
+        return null;
+      }
     },
 
     /** What a Coaching Session costs the Candidate on their Plan, or null when Coaching Sessions cannot be paid yet. */
@@ -1034,6 +1179,103 @@ export function createBilling(config: BillingConfig) {
     planQuotas: allPlanQuotas,
 
     /**
+     * Creates a Coupon (Back Office) from untrusted `input` (see coupons.ts `newCouponInput`): a Stripe
+     * coupon on the eligible Plans' products, and its promotion code. Calls Stripe only, briefly: run it
+     * outside any transaction. Nothing is left in Stripe when it fails.
+     */
+    async createCoupon(input: unknown): Promise<CouponResult<{ coupon: Coupon }>> {
+      const plans = await listPlans(database);
+      const params = couponParams(input, plans, now());
+      if (!params.ok) return params;
+      if (!config.stripe) return { ok: false, error: "stripe_unavailable" };
+      const { client } = stripe();
+      let couponId: string | undefined;
+      try {
+        const taken = await client.promotionCodes.list({ code: params.promotionCode.code!, active: true, limit: 1 }, QUICK);
+        if (taken.data.length > 0) return { ok: false, error: "code_taken" };
+        const amount = params.coupon.amount_off;
+        if (amount != null) {
+          // A fixed amount is in euros: every eligible Plan must be priced in euros, and, for good, cost more.
+          for (const product of params.coupon.applies_to!.products!) {
+            const price = await amountOf(await defaultPriceOf(product), QUICK);
+            if (price.currency !== COUPON_CURRENCY) return { ok: false, error: "currency_not_eur" };
+            if (params.coupon.duration === "forever" && amount >= price.amount) return { ok: false, error: "amount_covers_price" };
+          }
+        }
+        couponId = (await client.coupons.create(params.coupon, STRIPE_WRITE)).id;
+        const created = await client.promotionCodes.create({ promotion: { type: "coupon", coupon: couponId }, ...params.promotionCode, expand: PROMOTION_CODE_EXPAND }, STRIPE_WRITE);
+        codeLookups.forget();
+        return { ok: true, coupon: couponOf(created, plans, now()) };
+      } catch (error) {
+        // A coupon without its code would only clutter Stripe.
+        if (couponId) await client.coupons.del(couponId, QUICK).catch((cleanup: unknown) => console.error("[billing] could not delete a coupon left without its code", cleanup));
+        if (error instanceof Stripe.errors.StripeInvalidRequestError && error.param === "code") return { ok: false, error: "code_taken" };
+        console.error("[billing] could not create a Coupon in Stripe", error);
+        return { ok: false, error: "stripe_unavailable" };
+      }
+    },
+
+    /**
+     * Every Coupon (the Stripe account's promotion codes, page after page, at most MAX_COUPONS), newest
+     * first, with Stripe's redemption counts; one Stripe gives without its coupon is listed as unreadable.
+     * Read while a page renders: null when Stripe is not configured or does not answer quickly.
+     */
+    async coupons(): Promise<ListedCoupon[] | null> {
+      if (!config.stripe) return null;
+      try {
+        const [listed, plans] = await Promise.all([
+          stripe()
+            .client.promotionCodes.list({ limit: COUPON_PAGE, expand: PROMOTION_CODE_EXPAND.map((field) => `data.${field}`) }, QUICK)
+            .autoPagingToArray({ limit: MAX_COUPONS }),
+          listPlans(database),
+        ]);
+        return listed.map((promotionCode) => listedCouponOf(promotionCode, plans, now()));
+      } catch (error) {
+        console.error("[billing] Coupons unavailable from Stripe", error);
+        return null;
+      }
+    },
+
+    /**
+     * Deactivates a Coupon (Back Office): its code can no longer be redeemed, and discounts already
+     * given run their course. Calls Stripe only: run it outside any transaction. Returns it before and after.
+     */
+    async deactivateCoupon(id: string): Promise<CouponResult<{ before: Coupon; after: Coupon; /** False when it was deactivated already: nothing was written. */ changed: boolean }>> {
+      if (!config.stripe) return { ok: false, error: "stripe_unavailable" };
+      const { client } = stripe();
+      try {
+        const plans = await listPlans(database);
+        const current = await client.promotionCodes.retrieve(id, { expand: PROMOTION_CODE_EXPAND }, QUICK);
+        const before = couponOf(current, plans, now());
+        if (!current.active) return { ok: true, before, after: before, changed: false };
+        const after = couponOf(await client.promotionCodes.update(id, { active: false, expand: PROMOTION_CODE_EXPAND }, STRIPE_WRITE), plans, now());
+        codeLookups.forget();
+        return { ok: true, before, after, changed: true };
+      } catch (error) {
+        if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") return { ok: false, error: "unknown_coupon" };
+        console.error("[billing] could not deactivate a Coupon in Stripe", error);
+        return { ok: false, error: "stripe_unavailable" };
+      }
+    },
+
+    /**
+     * Reactivates a Coupon: only to undo a deactivation the Back Office Audit could not record, so that
+     * no change goes unrecorded. Calls Stripe only.
+     */
+    async reactivateCoupon(id: string): Promise<CouponResult<object>> {
+      if (!config.stripe) return { ok: false, error: "stripe_unavailable" };
+      try {
+        await stripe().client.promotionCodes.update(id, { active: true }, STRIPE_WRITE);
+        codeLookups.forget();
+        return { ok: true };
+      } catch (error) {
+        if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") return { ok: false, error: "unknown_coupon" };
+        console.error("[billing] could not reactivate a Coupon in Stripe", error);
+        return { ok: false, error: "stripe_unavailable" };
+      }
+    },
+
+    /**
      * Replaces one Plan's quotas (Back Office) and returns the ones it replaced; null for an unknown
      * Plan. Applies at once to every Candidate on that Plan. `within` runs it in the caller's transaction.
      */
@@ -1052,14 +1294,16 @@ export function createBilling(config: BillingConfig) {
     /**
      * The Candidate's Plan, the Plan Quotas that apply to them, and the status
      * Stripe last reported for their subscription (null if they never subscribed):
-     * `past_due` while Stripe retries a failed payment, the Plan still kept.
+     * `past_due` while Stripe retries a failed payment, the Plan still kept (never on Free).
      * `endsAt` is when a paid Plan whose cancellation is scheduled ends (the
      * Candidate keeps it until then); null when it renews, and on Free.
      */
     async entitlements(candidateId: string) {
       const account = await stripeAccountOf(candidateId);
       const plan = account?.plan ?? FREE_PLAN;
-      const stripeStatus = (account?.stripe_status ?? null) as SubscriptionStatus | null;
+      const reported = (account?.stripe_status ?? null) as SubscriptionStatus | null;
+      // Past due on Free (no card to retry, see applySubscription): no paid Plan is kept, so no Payment Failed Notice.
+      const stripeStatus = plan === FREE_PLAN && reported === "past_due" ? null : reported;
       const endsAt = plan === FREE_PLAN ? null : (account?.ends_at ?? null);
       const { rows } = await database.query("SELECT quota, used FROM quota_usage WHERE candidate_id = $1 AND month = $2", [
         candidateId,

@@ -44,8 +44,11 @@ function cappedMessages(messages: Message[]): Message[] {
   return kept;
 }
 
-/** Lets the caller's stack (the AI call) go on before any work is done. */
-const nextTurn = () => new Promise<void>((resolve) => setImmediate(resolve));
+/**
+ * Lets the caller's stack (the AI call) go on before any work is done: a timer, not setImmediate,
+ * which Next.js replaces in its server with one that can leave such a callback unrun.
+ */
+const nextTurn = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 type Warn = (message: string, error: unknown) => void;
 

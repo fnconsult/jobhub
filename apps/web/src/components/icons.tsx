@@ -29,6 +29,10 @@ const PATHS = {
   providerSecrets: ["M8 9a4 4 0 1 0 0 8 4 4 0 0 0 0-8z", "M11 11l9-9M16 6l3 3M14 8l2 2"],
   // A door with an arrow in: Sign-in Providers (#209).
   signInProviders: ["M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4", "M10 16l4-4-4-4M14 12H4"],
+  // A rising line on axes: AI consumption (#218).
+  aiUsage: ["M4 4v16h16", "M8 15l3.5-4 3 2.5L19 8"],
+  // A page under a magnifier: the AI message logs (#218).
+  aiMessages: ["M6 3h9l4 4v6", "M6 3v18h6", "M9 8h5M9 12h3", "M17 15a3 3 0 1 0 0 6 3 3 0 0 0 0-6z", "M19.2 20.2L21 22"],
   administrators: ["M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z", "M9 12l2 2 4-4"],
   journal: ["M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z", "M9 8h6M9 12h6M9 16h4"],
 } as const;

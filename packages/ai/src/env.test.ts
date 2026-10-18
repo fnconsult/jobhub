@@ -87,6 +87,20 @@ describe("AI layer configured from the environment", () => {
     expect(usage.entries.map((e) => e.task)).toEqual(["job_titles", "job_titles"]);
   });
 
+  it("answers the Back Office Assistant with the coaching provider and model unless AI_BACK_OFFICE_ASSISTANT_PROVIDER says otherwise (#218)", async () => {
+    const { fetch, hosts } = recordingFetch();
+    const usage = createMemoryUsageLog();
+    const env = { ...base, AI_COACHING_PROVIDER: "mistral", MISTRAL_API_KEY: "mk" };
+
+    await createAiLayerFromEnv(env, { fetch, usage }).generate({ task: "back_office_assistant", candidateId: "a", prompt: "Combien ?" });
+    await createAiLayerFromEnv({ ...env, AI_BACK_OFFICE_ASSISTANT_PROVIDER: "anthropic" }, { fetch, usage }).generate({ task: "back_office_assistant", candidateId: "a", prompt: "Combien ?" });
+
+    expect(hosts).toEqual(["api.mistral.ai", "bedrock-mantle.eu-west-3.api.aws"]);
+    expect(usage.entries.map((e) => e.task)).toEqual(["back_office_assistant", "back_office_assistant"]);
+    // What an Administrator types is personal data: EU endpoints only.
+    expect(() => createAiLayerFromEnv({ ...env, AI_BACK_OFFICE_ASSISTANT_PROVIDER: "openai", OPENAI_API_KEY: "sk", OPENAI_DATA_RESIDENCY: "us" })).toThrow(DataResidencyError);
+  });
+
   it("refuses to start when personal-data tasks would go to the direct Anthropic API", () => {
     expect(() => createAiLayerFromEnv({ ...base, ANTHROPIC_ENDPOINT: "direct", ANTHROPIC_API_KEY: "sk" })).toThrow(DataResidencyError);
   });

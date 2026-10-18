@@ -5,7 +5,7 @@
  */
 import { parseStatedDate } from "@jobhub/shared";
 import { AiProviderError } from "../errors";
-import type { AiProvider, SearchFilters, SearchOutput } from "../types";
+import type { AiProvider, SearchFilters, SearchOutput, ToolCall } from "../types";
 import { postJson } from "./http";
 import { domainsOf } from "./web-results";
 
@@ -16,7 +16,9 @@ interface AgentResponse {
   error?: { message?: string } | null;
   output?: (
     /** `date`: when the page was published (`last_updated` is not that, and is ignored). */
-    | { type: "search_results"; results?: { url?: string; date?: string | null }[] }
+    | { type: "search_results"; status?: string; error?: unknown; results?: { url?: string; date?: string | null }[] }
+    /** A page the model fetched (the fetch_url tool); `status` says whether it worked, when present. */
+    | { type: "fetch_url_results"; status?: string; error?: unknown }
     | { type: "message"; content?: { type: string; text?: string; annotations?: { type: string; url?: string }[] }[] }
     | { type: string }
   )[];
@@ -25,6 +27,8 @@ interface AgentResponse {
 
 /** Perplexity's preset: its cheapest web-search setup. A configured model replaces only the preset's model. */
 const PRESET = "fast";
+/** The model the "fast" preset runs. */
+const PRESET_MODEL = "openai/gpt-6-luna";
 /** Room for an answer listing offers; also required by Perplexity for `anthropic/*` models. */
 const MAX_OUTPUT_TOKENS = 2048;
 /** Perplexity's most entries in a domain filter. */
@@ -49,6 +53,8 @@ export function createPerplexityProvider(options: PerplexityProviderOptions): Ai
   const client = { provider: "perplexity" as const, apiKey: options.apiKey, fetch: options.fetch };
   return {
     id: "perplexity",
+    // The "fast" preset's model (docs/research/issue-74.md).
+    defaultModel: PRESET_MODEL,
     endpoint: "api.perplexity.ai",
     residency: "outside_eu",
     searchPages: PAGES,
@@ -95,7 +101,12 @@ function searchOutputOf(response: AgentResponse): SearchOutput {
   const found: string[] = [];
   const cited: string[] = [];
   const sourceDates: Record<string, Date> = {};
+  // Each block of search results is one use of the web_search tool, which Perplexity bills per search;
+  // each block of fetched pages, one use of fetch_url.
+  const tools = new ToolTally();
   for (const item of response.output ?? []) {
+    if (item.type === "search_results") tools.add("web_search", item);
+    if (item.type === "fetch_url_results") tools.add("fetch_url", item);
     if (item.type === "search_results" && "results" in item) {
       for (const result of item.results ?? []) {
         if (!result.url) continue;
@@ -118,5 +129,26 @@ function searchOutputOf(response: AgentResponse): SearchOutput {
     ...(Object.keys(sourceDates).length ? { sourceDates } : {}),
     model: response.model ?? "unknown",
     usage: { inputTokens: response.usage?.input_tokens ?? 0, outputTokens: response.usage?.output_tokens ?? 0 },
+    tools: tools.calls(),
   };
+}
+
+/** Tool blocks counted per tool and outcome; an outcome is known when the block has a `status` or an `error`. */
+class ToolTally {
+  private readonly counts = new Map<string, ToolCall>();
+
+  add(name: string, block: { type: string; status?: unknown; error?: unknown }) {
+    const ok = block.error ? false : typeof block.status === "string" ? block.status === "completed" : undefined;
+    const key = `${name} ${ok}`;
+    const tool = this.counts.get(key) ?? { name, count: 0, ...(ok === undefined ? {} : { ok }) };
+    tool.count += 1;
+    this.counts.set(key, tool);
+  }
+
+  /** The tools used, web_search first: at least one search, as the call is one. */
+  calls(): ToolCall[] {
+    const calls = [...this.counts.values()];
+    if (!calls.some((tool) => tool.name === "web_search")) calls.unshift({ name: "web_search", count: 1 });
+    return calls.sort((a, b) => Number(b.name === "web_search") - Number(a.name === "web_search"));
+  }
 }

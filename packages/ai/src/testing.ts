@@ -11,6 +11,7 @@ import type {
   TextInput,
   TextOutput,
   TokenUsage,
+  ToolCall,
   UsageEntry,
   UsageLog,
 } from "./types";
@@ -29,6 +30,8 @@ export interface FakeProviderOptions {
   /** The dates the search states for some sources (by URL). Default: none. */
   sourceDates?: Record<string, Date>;
   usage?: TokenUsage;
+  /** The tools the provider says the model used, on every call. Default: not said. */
+  tools?: ToolCall[];
   /** How many pages of results a search can give. Default: 1. */
   pages?: number;
 }
@@ -51,6 +54,7 @@ export function createFakeProvider(options: FakeProviderOptions = {}): FakeProvi
   return {
     id,
     endpoint: `fake ${id}`,
+    defaultModel: `fake-${id}`,
     residency: options.residency ?? "eu",
     calls,
     queries,
@@ -59,7 +63,7 @@ export function createFakeProvider(options: FakeProviderOptions = {}): FakeProvi
     async generate(input): Promise<TextOutput> {
       calls.push(input);
       const reply = options.reply ?? "fake reply";
-      return { text: typeof reply === "function" ? reply(input) : reply, model: input.model ?? `fake-${id}`, usage };
+      return { text: typeof reply === "function" ? reply(input) : reply, model: input.model ?? `fake-${id}`, usage, ...(options.tools ? { tools: options.tools } : {}) };
     },
     async search(query, { model, filters, page }): Promise<SearchOutput> {
       queries.push(query);
@@ -71,6 +75,7 @@ export function createFakeProvider(options: FakeProviderOptions = {}): FakeProvi
         ...(options.sourceDates ? { sourceDates: options.sourceDates } : {}),
         model: model ?? `fake-${id}`,
         usage,
+        ...(options.tools ? { tools: options.tools } : {}),
       };
     },
   };

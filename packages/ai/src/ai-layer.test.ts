@@ -134,3 +134,138 @@ describe("company web search", () => {
     expect(usage.entries).toEqual([expect.objectContaining({ candidateId: "cand-1", task: "web_search", provider: "perplexity" })]);
   });
 });
+
+describe("the usage of every AI call", () => {
+  it("records a call that succeeded as such", async () => {
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [createFakeProvider({ id: "mistral" })], routes: { scoring: "mistral" }, usage });
+
+    await ai.generate({ task: "scoring", candidateId: "cand-1", prompt: "Score this" });
+
+    expect(usage.entries).toEqual([expect.objectContaining({ task: "scoring", provider: "mistral", model: "fake-mistral", ok: true })]);
+  });
+
+  it("records a failed text call, with no tokens, and still fails it", async () => {
+    const failing = { ...createFakeProvider({ id: "mistral" }), generate: async () => Promise.reject(new Error("HTTP 503")) };
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [failing], routes: { scoring: { provider: "mistral", model: "mistral-small" } }, usage });
+
+    await expect(ai.generate({ task: "scoring", candidateId: "cand-1", prompt: "Score this" })).rejects.toThrow("HTTP 503");
+
+    expect(usage.entries).toEqual([
+      expect.objectContaining({ task: "scoring", provider: "mistral", endpoint: "fake mistral", model: "mistral-small", inputTokens: 0, outputTokens: 0, ok: false }),
+    ]);
+  });
+
+  it("records a failed web search, and still fails it", async () => {
+    const failing = { ...createFakeProvider({ id: "perplexity", residency: "outside_eu" }), search: async () => Promise.reject(new Error("HTTP 429")) };
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [failing], routes: { web_search: "perplexity" }, usage });
+
+    await expect(ai.searchCompany({ candidateId: null, employer: "Acme" })).rejects.toThrow("HTTP 429");
+
+    // No model on the route: the provider's own default, by name.
+    expect(usage.entries).toEqual([expect.objectContaining({ task: "web_search", provider: "perplexity", model: "fake-perplexity", ok: false })]);
+  });
+
+  it("records how long the call took, its estimated cost and its text: system, messages and reply", async () => {
+    let clock = 1_000;
+    const usage = createMemoryUsageLog();
+    const mistral = createFakeProvider({ id: "mistral", reply: "Bonjour", usage: { inputTokens: 1_000_000, outputTokens: 0 } });
+    const slow = { ...mistral, generate: async (input: Parameters<NonNullable<typeof mistral.generate>>[0]) => ((clock += 250), mistral.generate!(input)) };
+    const ai = createAiLayer({ providers: [slow], routes: { writing: { provider: "mistral", model: "mistral-small-latest" } }, usage, clock: () => clock });
+
+    await ai.generate({ task: "writing", candidateId: "cand-1", system: "Tu écris.", prompt: "Une lettre" });
+
+    expect(usage.entries).toEqual([
+      expect.objectContaining({
+        durationMs: 250,
+        // 1M input tokens of mistral-small at $0.1, at €0.86 per $.
+        costEur: expect.closeTo(0.086, 6),
+        tools: [],
+        transcript: { system: "Tu écris.", messages: [{ role: "user", content: "Une lettre" }], reply: "Bonjour" },
+      }),
+    ]);
+  });
+
+  it("records a web search as a web_search tool use, priced per search, apart from the tokens", async () => {
+    const usage = createMemoryUsageLog();
+    const brave = createFakeProvider({ id: "brave", residency: "outside_eu", answer: "", sources: ["https://acme.example"], usage: { inputTokens: 0, outputTokens: 0 } });
+    const ai = createAiLayer({ providers: [brave], routes: { web_search: "brave" }, usage });
+
+    await ai.searchCompany({ candidateId: null, employer: "Acme" });
+
+    expect(usage.entries).toEqual([
+      expect.objectContaining({
+        task: "web_search",
+        costEur: 0,
+        // Brave: $5 per 1,000 searches.
+        tools: [{ name: "web_search", count: 1, ok: true, durationMs: expect.any(Number), costEur: expect.closeTo(0.0043, 6) }],
+        transcript: { messages: [{ role: "user", content: brave.queries[0] }], reply: "" },
+      }),
+    ]);
+  });
+
+  it("records whether each tool use succeeded, when the provider says, and leaves unpriced a tool it does not bill apart", async () => {
+    const usage = createMemoryUsageLog();
+    const perplexity = createFakeProvider({
+      id: "perplexity",
+      residency: "outside_eu",
+      tools: [
+        { name: "web_search", count: 1 },
+        { name: "fetch_url", count: 2, ok: true },
+        { name: "fetch_url", count: 1, ok: false },
+      ],
+    });
+    const ai = createAiLayer({ providers: [perplexity], routes: { web_search: "perplexity" }, usage });
+
+    await ai.searchCompany({ candidateId: null, employer: "Acme" });
+
+    expect(usage.entries[0]!.tools).toEqual([
+      expect.objectContaining({ name: "web_search", count: 1, ok: true }),
+      { name: "fetch_url", count: 2, ok: true, durationMs: expect.any(Number), costEur: null },
+      { name: "fetch_url", count: 1, ok: false, durationMs: expect.any(Number), costEur: null },
+    ]);
+  });
+
+  it("records the tools a model says it used, each priced when the provider bills it", async () => {
+    const usage = createMemoryUsageLog();
+    const perplexity = createFakeProvider({ id: "perplexity", residency: "outside_eu", tools: [{ name: "web_search", count: 3 }] });
+    const ai = createAiLayer({ providers: [perplexity], routes: { web_search: "perplexity" }, usage });
+
+    await ai.searchCompany({ candidateId: null, employer: "Acme" });
+
+    // Perplexity: $0.0025 per search.
+    expect(usage.entries[0]!.tools).toEqual([{ name: "web_search", count: 3, ok: true, durationMs: expect.any(Number), costEur: expect.closeTo(3 * 0.0025 * 0.86, 6) }]);
+  });
+
+  it("records a failed call with its prompt, no reply and nothing billed", async () => {
+    const failing = { ...createFakeProvider({ id: "brave", residency: "outside_eu" }), search: async () => Promise.reject(new Error("HTTP 500")) };
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [failing], routes: { web_search: "brave" }, usage });
+
+    await expect(ai.searchCompany({ candidateId: null, employer: "Acme" })).rejects.toThrow();
+
+    expect(usage.entries).toEqual([
+      expect.objectContaining({
+        ok: false,
+        costEur: 0,
+        tools: [{ name: "web_search", count: 1, ok: false, durationMs: expect.any(Number), costEur: 0 }],
+        transcript: { messages: [expect.objectContaining({ role: "user" })], reply: null },
+      }),
+    ]);
+  });
+
+  it("answers whatever the usage log does: it throws, rejects or never settles", async () => {
+    const logs = [
+      { record: () => { throw new Error("log down"); } },
+      { record: () => Promise.reject(new Error("insert failed")) },
+      { record: () => new Promise<void>(() => {}) },
+    ];
+    for (const usage of logs) {
+      const ai = createAiLayer({ providers: [createFakeProvider({ id: "mistral", reply: "ok" })], routes: { scoring: "mistral" }, usage, warn: () => {} });
+
+      await expect(ai.generate({ task: "scoring", candidateId: "cand-1", prompt: "Score this" })).resolves.toMatchObject({ text: "ok" });
+    }
+  });
+});

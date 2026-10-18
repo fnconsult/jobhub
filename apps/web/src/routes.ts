@@ -47,6 +47,14 @@ export const routes = {
   adminProviderSecrets: "/admin/cles",
   /** The Sign-in Providers (Connexion) and Require SSO for Administrators, super-admins only. */
   adminSignInProviders: "/admin/connexion",
+  /** The AI consumption report (Consommation IA), over a period ("7d", "2026-09"...): super-admins and Support. */
+  adminAiUsage: (period?: string) => (period ? `/admin/consommation-ia?periode=${encodeURIComponent(period)}` : "/admin/consommation-ia"),
+  /** The AI Message Log (Journaux IA): the list, filtered, or one log; super-admins only, every log read is audited. */
+  adminAiMessages: (filter?: Record<string, string>) => {
+    const query = new URLSearchParams(Object.entries(filter ?? {}).filter(([, value]) => value)).toString();
+    return query ? `/admin/journaux-ia?${query}` : "/admin/journaux-ia";
+  },
+  adminAiMessage: (id: string) => `/admin/journaux-ia/${encodeURIComponent(id)}`,
   /** Administrators and their Back Office Roles. */
   adminAdministrators: "/admin/administrateurs",
   /** The Back Office Audit, newest first; with a section, only its changes. */

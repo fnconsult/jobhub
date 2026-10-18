@@ -1,4 +1,5 @@
 import { createSecretResolver, type StoredSecrets } from "@jobhub/web/provider-secrets";
+import type { ExternalApiCall } from "@jobhub/shared";
 import { describe, expect, it, vi } from "vitest";
 import { workerClients } from "./provider-secrets";
 
@@ -93,6 +94,21 @@ describe("the worker's clients, on Provider Secrets (#208)", () => {
 
     expect(result).toMatchObject({ ok: true, offers: [] });
     expect(providers.keysSent).toEqual(["ft-secret-revoked", "ft-secret-fresh"]);
+  });
+
+  it("records each France Travail call as an external API call, at no cost, without its payload or credentials (#218)", async () => {
+    const { resolver } = database({ FRANCE_TRAVAIL_CLIENT_ID: { value: "ft-id", row: "r1" }, FRANCE_TRAVAIL_CLIENT_SECRET: { value: "ft-secret-0123456789", row: "r2" } });
+    await resolver.refresh();
+    const calls: ExternalApiCall[] = [];
+    const worker = workerClients({ resolver, production: false, jobOffers: {} as never, fetch: fakeProviders().fetch, externalApis: { record: (call) => void calls.push(call) } });
+
+    await worker.franceTravail()!.search({ targetRole: "DAF", location: "Lyon" }, { max: 10, now: new Date() });
+
+    expect(calls.map(({ provider, ok, httpStatus, costEur }) => ({ provider, ok, httpStatus, costEur }))).toEqual([
+      { provider: "france_travail", ok: true, httpStatus: 200, costEur: 0 },
+      { provider: "france_travail", ok: true, httpStatus: 204, costEur: 0 },
+    ]);
+    expect(JSON.stringify(calls)).not.toMatch(/ft-secret|ft-id|DAF|Lyon/);
   });
 
   it("France Travail is off without its credentials, and on once they are entered", async () => {

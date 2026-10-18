@@ -30,6 +30,7 @@ export function createBraveProvider(options: BraveProviderOptions): AiProvider {
   const now = options.now ?? (() => new Date());
   return {
     id: "brave",
+    defaultModel: "web",
     endpoint: "api.search.brave.com",
     residency: "outside_eu",
     searchPages: PAGES,

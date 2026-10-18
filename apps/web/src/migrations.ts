@@ -7,6 +7,7 @@ import { migrateActionCards } from "./action-cards/index";
 import { migrateAdministratorRoles } from "./admin/administrators";
 import { migrateBackOfficeAudit } from "./admin/back-office";
 import { migrateAgentRunLog } from "./agent-runs/index";
+import { migrateAiUsage } from "./ai-usage/index";
 import { migrateApplications } from "./applications/index";
 import { migrateAtsScores } from "./ats-score/index";
 import { migrateCandidateAccounts, type AuthConfig } from "./auth/index";
@@ -63,6 +64,7 @@ export async function migrateDatabase(
     ["Provider Secrets are up to date", () => migrateProviderSecrets(database)],
     ["Sign-in Providers are up to date", () => migrateSignInProviders(database, env)],
     ["Back Office Assistant conversations are up to date", () => migrateAssistantConversations(database)],
+    ["AI Usage is up to date", () => migrateAiUsage(database)],
   ];
   for (const [done, migrate] of steps) {
     await migrate();

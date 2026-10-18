@@ -27,7 +27,7 @@ import type { AddHumanCoachResult, HumanCoaches } from "../human-coaches";
 export const RETENTION_YEARS = 3;
 
 /** What part of the Back Office a change was made in. */
-export const BACK_OFFICE_SECTIONS = ["roles", "plans", "plan_quotas", "coupons", "human_coaches", "provider_secrets", "sign_in_providers"] as const;
+export const BACK_OFFICE_SECTIONS = ["roles", "plans", "plan_quotas", "coupons", "human_coaches", "provider_secrets", "sign_in_providers", "ai_messages"] as const;
 export type BackOfficeSection = (typeof BACK_OFFICE_SECTIONS)[number];
 
 export const isBackOfficeSection = (value: unknown): value is BackOfficeSection => BACK_OFFICE_SECTIONS.includes(value as BackOfficeSection);
@@ -41,7 +41,8 @@ export const SECRET_ACTIONS = ["replaced", "replaced_despite_failed_test", "clea
 export type SecretAction = (typeof SECRET_ACTIONS)[number];
 
 /** What was done to the target. */
-export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | "tested" | SecretAction;
+/** "viewed": an AI Message Log was read (#218), the only read the Back Office Audit records. */
+export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | "tested" | "viewed" | SecretAction;
 
 export const isSecretAction = (action: BackOfficeAction): action is SecretAction => SECRET_ACTIONS.includes(action as SecretAction);
 

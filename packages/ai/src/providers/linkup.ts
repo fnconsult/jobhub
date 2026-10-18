@@ -25,6 +25,7 @@ export function createLinkupProvider(options: LinkupProviderOptions): AiProvider
   const now = options.now ?? (() => new Date());
   return {
     id: "linkup",
+    defaultModel: DEFAULT_DEPTH,
     endpoint: "api.linkup.so",
     residency: "outside_eu",
     async search(query, { model, filters }): Promise<SearchOutput> {

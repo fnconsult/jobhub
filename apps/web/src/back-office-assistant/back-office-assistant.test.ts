@@ -86,6 +86,19 @@ function backOfficeData() {
         },
       ];
     },
+    async aiUsage() {
+      reads.push("aiUsage");
+      const row = { inputTokens: 2_000_000, outputTokens: 300_000, cachedInputTokens: 10_000 };
+      return {
+        period: { key: "30d", from: "2026-09-18", to: "2026-10-18", per: "day" },
+        totals: { calls: 9876, failures: 12, ...row, callsCostEur: 41.5, toolCalls: 300, toolsCostEur: 1.29, externalCalls: 450, externalFailures: 3, externalCostEur: 0, costEur: 41.5 },
+        byModel: [{ provider: "mistral", model: "mistral-large-latest", calls: 9000, failures: 10, ...row, costEur: 40 }],
+        byTask: [{ task: "coaching", calls: 7000, failures: 5, ...row, costEur: 30 }],
+        byTime: [{ bucket: "2026-10-17", calls: 400, failures: 1, ...row, costEur: 1.5 }],
+        tools: [{ provider: "perplexity", name: "web_search", calls: 300, failures: 0, costEur: 1.29 }],
+        externalApis: [{ provider: "france_travail", operation: "GET /partenaire/offresdemploi/v2/offres/search", calls: 450, failures: 3, costEur: 0 }],
+      };
+    },
     async administrators() {
       reads.push("administrators");
       return [
@@ -145,7 +158,7 @@ describe("Back Office Assistant", () => {
   });
 
   function assistantFor(roles: BackOfficeRole[]) {
-    const ai = createAiLayer({ providers: [provider], routes: { coaching: "mistral" }, usage: createMemoryUsageLog() });
+    const ai = createAiLayer({ providers: [provider], routes: { back_office_assistant: "mistral" }, usage: createMemoryUsageLog() });
     return { assistant: createBackOfficeAssistant({ ai, sources: data.sources }), administrator: { id: "a2", access: backOfficeAccess(roles) } };
   }
 
@@ -210,8 +223,32 @@ describe("Back Office Assistant", () => {
 
     await assistant.reply(administrator, asked("Combien de Match Scores en Premium ?"));
 
-    expect(data.reads.sort()).toEqual(["coachCost", "coupons", "humanCoaches", "planQuotas", "plans"]);
+    expect(data.reads.sort()).toEqual(["aiUsage", "coachCost", "coupons", "humanCoaches", "planQuotas", "plans"]);
     expect(prompt()).toContain("Match Scores par mois 4321");
+  });
+
+  it("knows the AI consumption of the last 30 days, in aggregates, for the roles that read it (#218)", async () => {
+    const { assistant, administrator } = assistantFor(["support"]);
+
+    await assistant.reply(administrator, asked("Combien a coûté l'IA ce mois-ci ?"));
+
+    expect(prompt()).toContain("9876 appels");
+    expect(prompt()).toContain("41.50 €");
+    expect(prompt()).toContain("mistral mistral-large-latest : 9000 appels");
+    expect(prompt()).toContain("coaching : 7000 appels");
+    expect(prompt()).toContain("perplexity web_search : 300 utilisations");
+    expect(prompt()).toContain("france_travail GET /partenaire/offresdemploi/v2/offres/search : 450 appels, 3 en échec");
+    expect(prompt()).toContain("/admin/consommation-ia");
+  });
+
+  it("is never given the AI Message Log, not even to a super-admin: only what it is and where to read it", async () => {
+    const { assistant, administrator } = assistantFor(["super-admin"]);
+
+    const reply = await assistant.reply(administrator, asked("Que disait le dernier prompt de Marie ?"));
+
+    expect(reply).toMatchObject({ ok: true, sections: expect.arrayContaining(["aiUsage", "aiMessages"]) });
+    expect(prompt()).toContain("Journaux IA");
+    expect(prompt()).toContain("/admin/journaux-ia");
   });
 
   it("a super-admin's assistant reads every section, yet is given no secret value and no email address", async () => {
@@ -222,7 +259,7 @@ describe("Back Office Assistant", () => {
 
       await assistant.reply(administrator, asked("Qui a changé la clé Mistral ?"));
 
-      expect(data.reads.sort()).toEqual(["administrators", "coachCost", "coupons", "humanCoaches", "journal", "planQuotas", "plans"]);
+      expect(data.reads.sort()).toEqual(["administrators", "aiUsage", "coachCost", "coupons", "humanCoaches", "journal", "planQuotas", "plans"]);
       // That the key was replaced is in the Journal; its value never is, nor is any address.
       expect(prompt()).toContain("remplacement de MISTRAL_API_KEY");
       expect(prompt()).not.toContain(SECRET);
@@ -243,7 +280,7 @@ describe("Back Office Assistant", () => {
     const usage = createMemoryUsageLog();
     const ai = createAiLayer({
       providers: [claude, mistral],
-      routes: { coaching: "anthropic" },
+      routes: { back_office_assistant: "anthropic" },
       usage,
       euAiConsent: async (candidateId) => candidateId === "consenting",
       warn: () => {},
@@ -277,7 +314,7 @@ describe("Back Office Assistant", () => {
             },
           }),
         ],
-        routes: { coaching: "mistral" },
+        routes: { back_office_assistant: "mistral" },
         usage: createMemoryUsageLog(),
       }),
       sources: data.sources,
@@ -299,7 +336,7 @@ describe("Back Office Assistant", () => {
       ...data.sources,
       humanCoaches: async () => [{ id: "c2", name: "Coach <b>Pirate</b>", email: "x@y.fr", bookingUrl: "https://cal.com/x", bio: injection }],
     };
-    const ai = createAiLayer({ providers: [provider], routes: { coaching: "mistral" }, usage: createMemoryUsageLog() });
+    const ai = createAiLayer({ providers: [provider], routes: { back_office_assistant: "mistral" }, usage: createMemoryUsageLog() });
     const assistant = createBackOfficeAssistant({ ai, sources });
 
     await assistant.reply({ id: "a1", access: backOfficeAccess(["super-admin"]) }, asked("Qui sont les coachs ?"));

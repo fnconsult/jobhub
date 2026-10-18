@@ -1,8 +1,25 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createSecretResolver, type StoredSecrets } from "../provider-secrets/resolver";
+import type { ExternalApiCall } from "@jobhub/shared";
 import { contactEnrichmentFromEnv, contactEnrichmentFromSecrets } from "./config";
 
 describe("contact enrichment configuration", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("records each call to the provider as an external API call, with its credit cost and never the key (#218)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ person: { id: "p1", email: "marie@acme.example" } })));
+    const calls: ExternalApiCall[] = [];
+    const config = contactEnrichmentFromEnv(
+      { CONTACT_ENRICHMENT_PROVIDER: "apollo", APOLLO_API_KEY: "apollo-key-0123456789", CONTACT_ENRICHMENT_DPA_SIGNED: "true" },
+      { externalApis: { record: (call) => void calls.push(call) } },
+    );
+
+    await config.provider!.getContactDetails({ providerPersonId: "p1" });
+
+    expect(calls).toEqual([expect.objectContaining({ provider: "apollo", operation: "POST /api/v1/people/match", ok: true, httpStatus: 200, costEur: expect.closeTo(0.2 * 0.86, 9) })]);
+    expect(JSON.stringify(calls)).not.toMatch(/apollo-key|marie/);
+  });
+
   it("is disabled when no provider is configured", () => {
     expect(contactEnrichmentFromEnv({})).toEqual({ provider: null, disabledBecause: "no_provider" });
   });

@@ -51,6 +51,7 @@ export function createMistralProvider(options: TextProviderOptions): AiProvider 
   const defaultModel = options.defaultModel ?? "mistral-large-latest";
   return {
     id: "mistral",
+    defaultModel,
     endpoint: "api.mistral.ai",
     residency: "eu",
     async generate(input): Promise<TextOutput> {
@@ -75,6 +76,7 @@ export function createOpenAiProvider(options: OpenAiProviderOptions): AiProvider
   const defaultModel = options.defaultModel ?? "gpt-5";
   return {
     id: "openai",
+    defaultModel,
     endpoint: host,
     residency: options.dataResidency === "eu" ? "eu" : "outside_eu",
     async generate(input): Promise<TextOutput> {

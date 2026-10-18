@@ -68,6 +68,18 @@ describe("Back Office access", () => {
     expect(access.can("audit", "read")).toBe(false);
   });
 
+  it("super-admins and Support read the AI consumption; only super-admins read the AI Message Log (#218)", () => {
+    expect(backOfficeAccess(["super-admin"]).can("aiUsage", "read")).toBe(true);
+    expect(backOfficeAccess(["super-admin"]).can("aiMessages", "read")).toBe(true);
+    expect(backOfficeAccess(["support"]).can("aiUsage", "read")).toBe(true);
+    expect(backOfficeAccess(["support"]).can("aiUsage", "write")).toBe(false);
+    expect(backOfficeAccess(["support"]).can("aiMessages", "read")).toBe(false);
+    for (const role of ["plans-manager", "coach-manager"] as const) {
+      expect(backOfficeAccess([role]).can("aiUsage", "read"), role).toBe(false);
+      expect(backOfficeAccess([role]).can("aiMessages", "read"), role).toBe(false);
+    }
+  });
+
   it("several roles add up", () => {
     const access = backOfficeAccess(["support", "coach-manager"]);
 

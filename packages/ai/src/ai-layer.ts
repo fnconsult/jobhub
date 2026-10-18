@@ -1,9 +1,10 @@
 import type { SearchCriteria } from "@jobhub/shared";
 import { findIdentity } from "./identity-scan";
 import { buildCompanyQuery, buildSearchQuery, jobSearchQueries, jobTitlesPrompt, type JobSearchQuery } from "./search-query";
+import { costInEur, toolCostInEur } from "./cost";
 import { AiConfigError, DataResidencyError } from "./errors";
 import { SEARCH_TASK, TEXT_TASKS } from "./types";
-import type { AiProvider, AiTask, Message, ProviderId, SearchFilters, TextTask, TokenUsage, UsageEntry, UsageLog } from "./types";
+import type { AiProvider, AiTask, Message, ProviderId, SearchFilters, TextTask, TokenUsage, ToolCall, Transcript, UsageEntry, UsageLog } from "./types";
 
 export { AiConfigError, DataResidencyError };
 
@@ -101,6 +102,8 @@ export interface AiLayerOptions {
   routes: Partial<Record<AiTask, ProviderId | Route>>;
   usage: UsageLog;
   now?: () => Date;
+  /** Milliseconds, to time each call. Default: performance.now. */
+  clock?: () => number;
   /**
    * Where a call carrying the Candidate's identity goes when they gave EU AI consent
    * (ADR-0007 amendment). Must be an EU-resident text provider. Default: Mistral.
@@ -121,6 +124,7 @@ const COUNTRY_CODE = /^[A-Z]{2}$/;
 
 export function createAiLayer(options: AiLayerOptions): AiLayer {
   const now = options.now ?? (() => new Date());
+  const clock = options.clock ?? (() => performance.now());
   const identityRoute = options.identityRoute ?? DEFAULT_IDENTITY_ROUTE;
   const routeFor = (task: AiTask): Route => {
     const route = options.routes[task];
@@ -178,7 +182,60 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     return { route: identityRoute, identity: true };
   }
 
-  const log = (entry: Omit<UsageEntry, "at">) => options.usage.record({ ...entry, at: now() });
+  /**
+   * Records one call's usage without waiting for it: a usage log that throws, rejects or is slow
+   * never fails nor delays the call. Its failure is only warned about.
+   */
+  const log = (entry: Omit<UsageEntry, "at">) => {
+    const failed = (error: unknown) =>
+      warn("AI usage not recorded", { task: entry.task, provider: entry.provider, error: error instanceof Error ? error.message : String(error) });
+    try {
+      void Promise.resolve(options.usage.record({ ...entry, at: now() })).catch(failed);
+    } catch (error) {
+      failed(error);
+    }
+  };
+
+  /**
+   * Makes a provider call and records its usage, failed or not, with what it said. A failed call has
+   * no tokens and costs nothing; its model is the route's, else the provider's default. A web
+   * search uses the `web_search` tool once unless the provider says otherwise.
+   */
+  async function recorded<T extends { model: string; usage: TokenUsage; tools?: ToolCall[] }>(
+    entry: Pick<UsageEntry, "candidateId" | "task">,
+    provider: AiProvider,
+    route: Route,
+    said: Omit<Transcript, "reply">,
+    call: () => Promise<T>,
+    replyOf: (output: T) => string,
+  ): Promise<T> {
+    const base = { ...entry, provider: provider.id, endpoint: provider.endpoint };
+    const search = entry.task === SEARCH_TASK;
+    const started = clock();
+    let output: T;
+    try {
+      output = await call();
+    } catch (error) {
+      const durationMs = Math.round(clock() - started);
+      const tools = search ? [{ name: "web_search", count: 1, ok: false, durationMs, costEur: 0 }] : [];
+      log({ ...base, model: route.model ?? provider.defaultModel ?? provider.id, inputTokens: 0, outputTokens: 0, ok: false, durationMs, costEur: 0, tools, transcript: { ...said, reply: null } });
+      throw error;
+    }
+    const durationMs = Math.round(clock() - started);
+    const called = output.tools ?? (search ? [{ name: "web_search", count: 1 }] : []);
+    const priced = { provider: provider.id, model: output.model };
+    log({
+      ...base,
+      model: output.model,
+      ...output.usage,
+      ok: true,
+      durationMs,
+      costEur: costInEur({ ...priced, usage: output.usage }),
+      tools: called.map((tool) => ({ name: tool.name, count: tool.count, ok: tool.ok ?? true, durationMs, costEur: toolCostInEur(priced, tool) })),
+      transcript: { ...said, reply: replyOf(output) },
+    });
+    return output;
+  }
 
   const searchProvider = (): { route: Route; provider: AiProvider } => {
     const route = routeFor(SEARCH_TASK);
@@ -194,8 +251,14 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       throw new DataResidencyError("A web search's country filter must be a two-letter country code (ISO 3166-1 alpha-2)");
     }
     const { route, provider } = searchProvider();
-    const output = await provider.search!(query, { model: route.model, filters, ...(page && page > 1 ? { page } : {}) });
-    await log({ candidateId, task: SEARCH_TASK, provider: provider.id, endpoint: provider.endpoint, model: output.model, ...output.usage });
+    const output = await recorded(
+      { candidateId, task: SEARCH_TASK },
+      provider,
+      route,
+      { messages: [{ role: "user", content: query }] },
+      () => provider.search!(query, { model: route.model, filters, ...(page && page > 1 ? { page } : {}) }),
+      (answer) => answer.answer,
+    );
     return {
       answer: output.answer,
       sources: output.sources,
@@ -213,20 +276,14 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       const provider = providerFor(route);
       // Checked again per call: the rule must hold even if a provider changes at runtime.
       assertAllowed(request.task, provider, identity);
-      const output = await provider.generate!({
-        model: route.model,
-        system: request.system,
-        messages,
-        maxTokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
-      });
-      await log({
-        candidateId: request.candidateId,
-        task: request.task,
-        provider: provider.id,
-        endpoint: provider.endpoint,
-        model: output.model,
-        ...output.usage,
-      });
+      const output = await recorded(
+        { candidateId: request.candidateId, task: request.task },
+        provider,
+        route,
+        { ...(request.system === undefined ? {} : { system: request.system }), messages },
+        () => provider.generate!({ model: route.model, system: request.system, messages, maxTokens: request.maxTokens ?? DEFAULT_MAX_TOKENS }),
+        (reply) => reply.text,
+      );
       return { text: output.text, provider: provider.id, model: output.model, usage: output.usage };
     },
 

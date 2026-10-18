@@ -17,6 +17,8 @@ export const TEXT_TASKS = {
   writing: { personalData: true },
   /** AI Coach conversation: reads everything about the Candidate. */
   coaching: { personalData: true },
+  /** The Back Office Assistant: what an Administrator types, and Back Office data (#205, #218). */
+  back_office_assistant: { personalData: true },
   /** Reading an uploaded CV into a structured Master CV: reads CVs. */
   cv_parsing: { personalData: true },
   /** Extracting structured fields from a Job Offer: public posting text only. */
@@ -59,10 +61,21 @@ export interface TextInput {
   maxTokens: number;
 }
 
+/** A tool the model used during one call (e.g. its web search), as the provider reports it. Never its arguments or results. */
+export interface ToolCall {
+  name: string;
+  /** How many times the model used it in the call. */
+  count: number;
+  /** Whether those uses succeeded, when the provider says. Default: they did. */
+  ok?: boolean;
+}
+
 export interface TextOutput {
   text: string;
   model: string;
   usage: TokenUsage;
+  /** The tools the model used, when the provider says. Default: none. */
+  tools?: ToolCall[];
 }
 
 export interface SearchOutput {
@@ -75,6 +88,8 @@ export interface SearchOutput {
   sourceDates?: Record<string, Date>;
   model: string;
   usage: TokenUsage;
+  /** How many web searches the call made, when the provider says. Default: one `web_search`. */
+  tools?: ToolCall[];
 }
 
 /**
@@ -106,10 +121,30 @@ export interface AiProvider {
   /** Human-readable endpoint, e.g. "bedrock eu-west-3"; used in errors and logs. */
   readonly endpoint: string;
   readonly residency: Residency;
+  /** The model it uses when the route names none, by name: what a failed call is recorded with. */
+  readonly defaultModel?: string;
   generate?(input: TextInput): Promise<TextOutput>;
   search?(query: string, options: SearchOptions): Promise<SearchOutput>;
   /** How many pages of results `search` can give one query (see `SearchOptions.page`). Default: 1. */
   readonly searchPages?: number;
+}
+
+/** A tool use as recorded: how often, whether the call succeeded, how long the call took, and its fee when billed. */
+export interface ToolUse extends ToolCall {
+  ok: boolean;
+  durationMs: number;
+  /** Estimated € at list price; null when the provider's fee for it is not known. */
+  costEur: number | null;
+}
+
+/**
+ * What one call said: its system text, messages and reply (null when it failed); for a web search,
+ * the query as the one message and the answer. Personal data: only the AI Message Log keeps it.
+ */
+export interface Transcript {
+  system?: string;
+  messages: Message[];
+  reply: string | null;
 }
 
 export interface UsageEntry extends TokenUsage {
@@ -118,11 +153,25 @@ export interface UsageEntry extends TokenUsage {
   task: AiTask;
   provider: ProviderId;
   endpoint: string;
+  /** The model that answered; for a failed call, the route's model, else the provider's default model (or its id when it names none). */
   model: string;
+  /** Whether the provider answered. A failed call is recorded too, with no tokens. */
+  ok: boolean;
+  /** How long the provider took to answer or fail. */
+  durationMs: number;
+  /** The tokens' estimated € at list price (`costInEur`); the tools' fees are apart, in `tools`. */
+  costEur: number;
+  /** The tools the call used. */
+  tools: ToolUse[];
+  /** What the call said. A usage log that is not the AI Message Log must leave it out. */
+  transcript: Transcript;
   at: Date;
 }
 
-/** Where every AI call's token usage goes (feeds Plan Quotas). */
+/**
+ * Where every AI call's usage goes (feeds Plan Quotas and AI Usage). The AI layer does not wait
+ * for `record`: a log that throws, rejects or is slow never fails nor delays the call.
+ */
 export interface UsageLog {
   record(entry: UsageEntry): void | Promise<void>;
 }

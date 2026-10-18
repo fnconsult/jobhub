@@ -67,6 +67,11 @@ const PRICES: Record<ProviderId, { default: Price; models?: [RegExp, Price][] }>
   },
 };
 
+function priceOf(provider: ProviderId, model: string): Price {
+  const prices = PRICES[provider];
+  return prices.models?.find(([pattern]) => pattern.test(model))?.[1] ?? prices.default;
+}
+
 /** One AI call as the AI layer returns it: a text result, or a web search's (it has `sources`). */
 export interface PricedCall {
   provider: ProviderId;
@@ -77,11 +82,45 @@ export interface PricedCall {
 
 /** The estimated cost in € of one AI call (a `generate`, `searchWeb` or `searchCompany` result). */
 export function costInEur(call: PricedCall): number {
-  const prices = PRICES[call.provider];
-  const price = prices.models?.find(([model]) => model.test(call.model))?.[1] ?? prices.default;
+  const price = priceOf(call.provider, call.model);
   const { inputTokens, outputTokens, cachedInputTokens = 0, cacheWriteTokens = 0 } = call.usage;
   const input = (inputTokens + cacheWriteTokens * (CACHE_WRITE - 1) + cachedInputTokens * (price.cacheRead ?? CACHE_READ)) * price.input;
   const tokens = (input + outputTokens * price.output) / 1_000_000;
   const search = call.sources ? (price.perSearch ?? 0) : 0;
   return (tokens + search) * EUR_PER_USD;
+}
+
+/**
+ * The estimated fee in € of a tool the model used, when its provider bills it apart from tokens:
+ * a web search, per search. Null when the fee is not known.
+ */
+export function toolCostInEur(call: { provider: ProviderId; model: string }, tool: { name: string; count: number }): number | null {
+  if (tool.name !== "web_search") return null;
+  const perSearch = priceOf(call.provider, call.model).perSearch;
+  return perSearch === undefined ? null : perSearch * tool.count * EUR_PER_USD;
+}
+
+/**
+ * Contact enrichment (#23): US dollars per credit, and the credits each operation spends when it
+ * answers 2xx (matched on the end of its path). An estimate: none of the three publishes an API
+ * per-credit price, so these are effective list rates as third-party trackers read them, looked up
+ * 2026-10-18 (#218): Lusha's Pro plan, about $0.115 a credit (emelia.io/software/lusha/pricing);
+ * Kaspr's add-on credit, about $0.36 (fullenrich.com/content/kaspr-pricing); Apollo's overage
+ * credit, $0.20 (salesgear.io/blog/apollo-pricing). Credits per call from docs/research/issue-23.md:
+ * a Lusha search spends 1 credit per page of up to 25 results, a reveal 1; Apollo's people search
+ * spends none, a match 1; Kaspr's LinkedIn profile 1. Nothing found (404) or refused costs nothing.
+ */
+const ENRICHMENT_PRICES: Record<string, { perCredit: number; operations: [RegExp, number][] }> = {
+  lusha: { perCredit: 0.115, operations: [[/\/contacts\/prospecting$/, 1], [/\/contacts\/enrich$/, 1]] },
+  kaspr: { perCredit: 0.36, operations: [[/\/profile\/linkedin$/, 1]] },
+  apollo: { perCredit: 0.2, operations: [[/\/mixed_people\/api_search$/, 0], [/\/people\/match$/, 1]] },
+};
+
+/** The estimated cost in € of a contact enrichment call to `operation` ("POST /v3/contacts/enrich") that answered `status`; null when not known. */
+export function enrichmentCostInEur(provider: string, operation: string, status: number | null): number | null {
+  const prices = ENRICHMENT_PRICES[provider];
+  const credits = prices?.operations.find(([path]) => path.test(operation))?.[1];
+  if (credits === undefined) return null;
+  const answered = status !== null && status >= 200 && status < 300;
+  return answered ? credits * prices!.perCredit * EUR_PER_USD : 0;
 }

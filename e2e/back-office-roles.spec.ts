@@ -24,6 +24,8 @@ const SECTIONS = {
   coachCost: "/admin/cout-coach",
   providerSecrets: "/admin/cles",
   signInProviders: "/admin/connexion",
+  aiUsage: "/admin/consommation-ia",
+  aiMessages: "/admin/journaux-ia",
   administrators: "/admin/administrateurs",
   journal: "/admin/journal",
 } as const;
@@ -93,7 +95,7 @@ async function submitAs(page: Page, formPage: Page, path: string, buttonName: st
 test.describe("Back Office Roles", () => {
   test("an ADMIN_EMAILS member is a permanent super-admin: every section, marked permanent, never revocable", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
-    await expectSections(page, ["plans", "planQuotas", "humanCoaches", "coachCost", "providerSecrets", "signInProviders", "administrators", "journal"]);
+    await expectSections(page, ["plans", "planQuotas", "humanCoaches", "coachCost", "providerSecrets", "signInProviders", "aiUsage", "aiMessages", "administrators", "journal"]);
 
     await page.goto(SECTIONS.administrators);
     await expect(page).toHaveTitle(`${admin.administrators.title} · ${admin.title}`);
@@ -152,7 +154,7 @@ test.describe("Back Office Roles", () => {
     await coachesPage.goto(SECTIONS.humanCoaches);
     await expect(coachesPage.getByRole("button", { name: admin.humanCoaches.add })).toBeVisible();
 
-    await expectSections(supportPage, ["plans", "planQuotas", "humanCoaches", "coachCost", "signInProviders"]);
+    await expectSections(supportPage, ["plans", "planQuotas", "humanCoaches", "coachCost", "signInProviders", "aiUsage"]);
     await supportPage.goto(SECTIONS.plans);
     await expect(supportPage.getByText(admin.readOnly)).toBeVisible();
     await expect(supportPage.getByRole("main").locator("form")).toHaveCount(0);

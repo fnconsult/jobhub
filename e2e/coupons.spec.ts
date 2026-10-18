@@ -6,7 +6,8 @@ import { newAddress } from "./support/mailbox";
 
 // Issue #207: Coupons, Stripe promotion codes created from the Back Office (Codes promo) in the fake
 // Stripe (E2E_STRIPE_URL). A shared link /abonnement?code=… tells the Candidate what the code gives and
-// carries it to Checkout for the Plans it is for; an invalid one says so and Checkout still works. The
+// carries it to Checkout; a Plan it is not for refuses it, back on the page with the way on without it;
+// an invalid one says so and Checkout still works. The
 // subscription page shows the discount the subscription gets. Deactivated, the code no longer works.
 // Create and deactivate are in the Journal. Which roles reach the section: back-office-roles.spec.ts.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
@@ -17,17 +18,26 @@ const tr = (template: string, values: Record<string, string>) => template.replac
 /** Intl puts (narrow) no-break spaces in amounts; read them as plain spaces. */
 const plain = (text: string) => text.replace(/[\u202f\u00a0]/g, " ");
 
-async function lastCheckout(customer: string): Promise<Record<string, string>> {
+async function checkoutCalls(customer: string): Promise<{ params: Record<string, string> }[]> {
   const calls = await (await fetch(`${stripeUrl}/__calls`)).json();
-  return calls.filter((call: { path: string; params: Record<string, string> }) => call.path === "/v1/checkout/sessions" && call.params.customer === customer).at(-1).params;
+  return calls.filter((call: { path: string; params: Record<string, string> }) => call.path === "/v1/checkout/sessions" && call.params.customer === customer);
+}
+
+async function lastCheckout(customer: string): Promise<Record<string, string>> {
+  return (await checkoutCalls(customer)).at(-1)!.params;
 }
 
 /** Chooses a Plan on the subscription page; Stripe's Checkout page is not loaded. */
 async function choose(page: Page, plan: string) {
+  await toCheckout(page, `Choisir l'offre ${plan}`);
+}
+
+/** Clicks a button that sends the browser to Stripe Checkout; Stripe's page is not loaded. */
+async function toCheckout(page: Page, button: string) {
   await page.route("https://*.stripe.test/**", (route) => route.fulfill({ body: "Stripe" }));
   const [response] = await Promise.all([
     page.waitForResponse((r) => new URL(r.url()).pathname === "/api/billing/checkout"),
-    page.getByRole("button", { name: `Choisir l'offre ${plan}` }).click(),
+    page.getByRole("button", { name: button }).click(),
   ]);
   expect(response.status()).toBe(303);
   expect(response.headers().location).toMatch(/^https:\/\/checkout\.stripe\.test\//);
@@ -80,10 +90,16 @@ test.describe("Coupons", () => {
     expect(await lastCheckout(customer)).toMatchObject({ payment_method_collection: "if_required" });
     expect(await lastCheckout(customer)).not.toHaveProperty("allow_promotion_codes");
 
-    // Premium is not one of its Plans: Checkout goes on without it, with the field to type a code.
+    // Premium is not one of its Plans: refused, back on the subscription page, nothing sent to Checkout;
+    // the Candidate chooses to go on without it, with the field to type a code.
+    const checkouts = (await checkoutCalls(customer)).length;
     await candidate.goto("/abonnement?code=PRINTEMPS-E2E");
-    await choose(candidate, "Premium");
-    expect(await lastCheckout(customer)).toMatchObject({ allow_promotion_codes: "true" });
+    await candidate.getByRole("button", { name: "Choisir l'offre Premium" }).click();
+    await expect(candidate).toHaveURL(/codeRefused=not_for_plan/);
+    await expect(candidate.getByRole("alert").filter({ hasText: tr(fr.billing.page.codeRefused.not_for_plan, { plan: "Premium" }) })).toBeVisible();
+    expect(await checkoutCalls(customer)).toHaveLength(checkouts);
+    await toCheckout(candidate, tr(fr.billing.page.continueWithoutCode, { plan: "Premium" }));
+    expect(await lastCheckout(customer)).toMatchObject({ allow_promotion_codes: "true", "line_items[0][price]": FAKE_STRIPE_PRICES.premium });
     expect(await lastCheckout(customer)).not.toHaveProperty("discounts[0][promotion_code]");
 
     // An unknown code says so; choosing a Plan still works, without a discount.

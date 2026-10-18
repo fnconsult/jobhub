@@ -23,9 +23,9 @@ const DEFAULT_PROVIDER: Record<Exclude<AiTask, keyof typeof DEFAULT_TASK>, Provi
 };
 /**
  * A task whose provider is not set takes another task's provider, and its model unless one is set:
- * job titles are public text, like Job Offers.
+ * job titles are public text, like Job Offers; the Back Office Assistant is a coach, for Administrators.
  */
-const DEFAULT_TASK = { job_titles: "offer_analysis" } as const satisfies Partial<Record<AiTask, AiTask>>;
+const DEFAULT_TASK = { job_titles: "offer_analysis", back_office_assistant: "coaching" } as const satisfies Partial<Record<AiTask, AiTask>>;
 
 const taskKey = (task: AiTask, suffix: "PROVIDER" | "MODEL") => `AI_${task.toUpperCase()}_${suffix}`;
 

@@ -8,6 +8,7 @@
  * Nothing about a person is ever stored or shown from here.
  */
 
+import { recordingFetch, type ExternalApiLog } from "@jobhub/shared";
 import { nameKey, sirenIn } from "./company-names";
 
 export interface FinancialYear {
@@ -169,6 +170,8 @@ function companyFrom(company: ApiCompany): RegisteredCompany {
 
 export interface FrenchRegisterOptions {
   fetch?: typeof globalThis.fetch;
+  /** Where each call to the register is recorded (AI Usage's external APIs): free, never the query. Default: nowhere. */
+  externalApis?: ExternalApiLog;
   /** Default https://recherche-entreprises.api.gouv.fr */
   baseUrl?: string;
   /** Default 8 seconds. */
@@ -179,7 +182,9 @@ export interface FrenchRegisterOptions {
 const MIN_QUERY_LENGTH = 3;
 
 export function createFrenchRegister(options: FrenchRegisterOptions = {}): CompanyRegister {
-  const fetch = options.fetch ?? globalThis.fetch;
+  const plainFetch = options.fetch ?? globalThis.fetch;
+  // The register is a free public API.
+  const fetch = options.externalApis ? recordingFetch(plainFetch, options.externalApis, { provider: "recherche_entreprises", costEur: () => 0 }) : plainFetch;
   const baseUrl = options.baseUrl ?? "https://recherche-entreprises.api.gouv.fr";
   return {
     async search(query) {

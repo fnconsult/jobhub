@@ -108,6 +108,7 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): AiPr
 
   return {
     id: "anthropic",
+    defaultModel,
     endpoint: endpoint.kind === "direct" ? "api.anthropic.com" : `${endpoint.kind} ${endpoint.region}`,
     residency: residencyOf(endpoint),
 

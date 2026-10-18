@@ -60,6 +60,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Back Office Roles are up to date");
     expect(first.stdout).toContain("Sign-in Providers are up to date");
     expect(first.stdout).toContain("Back Office Assistant conversations are up to date");
+    expect(first.stdout).toContain("AI Usage is up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 
@@ -74,6 +75,9 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "account",
         "action_card",
         "administrator_role", // issue #204: the Back Office Roles each Administrator holds
+        "ai_message_log", // issue #218: what each AI call said, kept 30 days
+        "ai_tool_usage", // issue #218: the tools each AI call's model used
+        "ai_usage", // issue #218: every AI call's tokens and cost, no Candidate
         "application",
         "ats_score", // issue #8: the ATS Score last computed for each Profile
         "back_office_assistant_conversation", // issue #205: an Administrator's Back Office Assistant conversations
@@ -91,6 +95,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "enriched_contact", // issue #23: Enriched Contacts, with their source provider and retrieval date
         "eu_ai_consent", // issue #121: the Candidate's dated EU AI consent
         "extension_job_site", // issue #188: the extension's Job Sites, set in the Back Office
+        "external_api_usage", // issue #218: every call to France Travail and contact enrichment, no payload
         "follow_up_delay", // issue #21: each Candidate's Follow-up Delays
         "follow_up_sent", // issue #21: the Follow-ups marked as sent
         "human_coach", // issue #24: Human Coaches and their Cal.com booking links
@@ -136,6 +141,10 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "action_card", from_column: "candidate_id", to_table: "candidate" },
         // Back Office Roles (issue #204) go with their Administrator's account.
         { from_table: "administrator_role", from_column: "candidate_id", to_table: "candidate" },
+        // issue #218: the AI Message Log goes with the Candidate's account and with its AI call; AI Usage names no Candidate.
+        { from_table: "ai_message_log", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "ai_message_log", from_column: "usage_id", to_table: "ai_usage" },
+        { from_table: "ai_tool_usage", from_column: "usage_id", to_table: "ai_usage" },
         // Applications (issue #12) hang off the Candidate and their Profile; their Job Offers are kept (ADR-0010).
         { from_table: "application", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "application", from_column: "job_offer_id", to_table: "job_offer" },

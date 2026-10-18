@@ -1,3 +1,4 @@
+import type { ExternalApiCall } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { CompanyRegisterUnavailable, createFrenchRegister } from "./french-register";
 
@@ -51,6 +52,16 @@ function fakeFetch(respond: (url: URL) => Response) {
 }
 
 describe("French company register (API Recherche d'Entreprises)", () => {
+  it("records each call as a free external API call, never the company searched (#218)", async () => {
+    const { fetch } = fakeFetch(() => Response.json({ results: [acme], total_results: 1 }));
+    const calls: ExternalApiCall[] = [];
+
+    await createFrenchRegister({ fetch, externalApis: { record: (call) => void calls.push(call) } }).search("Acme Industrie");
+
+    expect(calls).toEqual([expect.objectContaining({ provider: "recherche_entreprises", operation: "GET /search", ok: true, httpStatus: 200, costEur: 0 })]);
+    expect(JSON.stringify(calls)).not.toMatch(/Acme/i);
+  });
+
   it("finds companies by name with their SIREN, identity, address, headcount and financials, newest year first", async () => {
     const { fetch, urls } = fakeFetch(() => Response.json({ results: [acme], total_results: 1 }));
     const register = createFrenchRegister({ fetch });

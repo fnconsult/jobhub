@@ -1,3 +1,4 @@
+import { getExternalApiLog } from "@/ai-usage/server";
 import { sharedPool } from "@/database/pool";
 import { getApplications } from "@/applications/server";
 import { getBilling } from "@/billing/server";
@@ -19,7 +20,7 @@ let instance: EnrichedContacts | undefined;
 export function getEnrichedContacts(): EnrichedContacts {
   instance ??= liveObject(getSecretResolver(), CONTACT_ENRICHMENT_SECRET_NAMES, () => {
     // Its provider retries a refused key once with the database read afresh.
-    const config = contactEnrichmentFromSecrets(getSecretResolver());
+    const config = contactEnrichmentFromSecrets(getSecretResolver(), { externalApis: getExternalApiLog() });
     if (!config.provider) console.info(`[enriched-contacts] off: ${config.disabledBecause}`);
     return createEnrichedContacts(sharedPool(), {
       applications: getApplications(),

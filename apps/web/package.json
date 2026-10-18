@@ -21,7 +21,8 @@
     "./mailers": "./src/auth/mailers.ts",
     "./provider-secrets": "./src/provider-secrets/worker.ts",
     "./sign-in-providers": "./src/sign-in-providers/worker.ts",
-    "./administrators": "./src/admin/worker.ts"
+    "./administrators": "./src/admin/worker.ts",
+    "./ai-usage": "./src/ai-usage/index.ts"
   },
   "scripts": {
     "dev": "next dev",

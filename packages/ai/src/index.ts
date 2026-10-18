@@ -40,6 +40,6 @@ export { buildCompanyQuery, buildSearchQuery, COMPANY_FACTS } from "./search-que
 export type { JobSearchQuery, QueryLanguage } from "./search-query";
 export { PROVIDER_IDS, SEARCH_TASK, TEXT_TASKS } from "./types";
 export type * from "./types";
-export { createConsoleUsageLog } from "./usage";
-export { costInEur, EUR_PER_USD } from "./cost";
+export { allUsageLogs, createConsoleUsageLog } from "./usage";
+export { costInEur, enrichmentCostInEur, EUR_PER_USD, toolCostInEur } from "./cost";
 export type { PricedCall } from "./cost";

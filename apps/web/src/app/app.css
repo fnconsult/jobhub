@@ -2020,3 +2020,9 @@ textarea.title-edit {
 .plan-rank form {
   margin: 0;
 }
+
+/* What an AI call said, on the Journaux IA page (#218): kept as written, long tokens wrapped. */
+.ai-message-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

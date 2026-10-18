@@ -95,6 +95,22 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
     expect(EXPORTED_TABLES).not.toHaveProperty("provider_secret");
   });
 
+  it("AI Usage names no Candidate and holds no text, so it stays out of the data export and outlives the account; the AI Message Log does neither (#218)", async () => {
+    const { rows } = await throwaway.pool.query<{ table: string; column: string }>(
+      `SELECT table_name AS table, column_name AS column FROM information_schema.columns
+        WHERE table_schema = current_schema() AND table_name IN ('ai_usage', 'ai_tool_usage', 'external_api_usage')`,
+    );
+
+    expect(new Set(rows.map((row) => row.table))).toEqual(new Set(["ai_usage", "ai_tool_usage", "external_api_usage"]));
+    expect(rows.map((row) => row.column)).not.toEqual(expect.arrayContaining(["candidate_id"]));
+    expect(rows.map((row) => row.column).filter((column) => /text|message|prompt|reply|system|body|payload|query/.test(column))).toEqual([]);
+    for (const table of ["ai_usage", "ai_tool_usage", "external_api_usage"]) {
+      expect([...tablesTiedToCandidate()]).not.toContain(table);
+      expect(EXPORTED_TABLES).not.toHaveProperty(table);
+    }
+    expect(candidateDataTables()).toContain("ai_message_log");
+  });
+
   it("shared Job Offers and Plan Quotas are not tied to any Candidate, so they are kept", () => {
     expect([...tablesTiedToCandidate()].filter((table) => KEPT.includes(table))).toEqual([]);
   });

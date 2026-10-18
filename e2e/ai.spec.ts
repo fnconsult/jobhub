@@ -288,11 +288,11 @@ test.describe("AI layer: Perplexity's Agent API (issue #74)", () => {
     ]);
   });
 
-  test("a search Perplexity fails surfaces as an error, with no usage logged", () => {
+  test("a search Perplexity fails surfaces as an error, logged as failed with no tokens (#218)", () => {
     const r = runAi({ ...KEYS }, [{ ...search(), criteria: { ...search().criteria, targetRole: "E2E_PROVIDER_DOWN" } } as HarnessCall]);
     expect(r.startup).toEqual({ ok: true });
     expect(r.outcomes[0]).toMatchObject({ ok: false });
-    expect(r.usage).toEqual([]);
+    expect(r.usage).toEqual([expect.objectContaining({ ok: false, inputTokens: 0, outputTokens: 0 })]);
   });
 });
 
@@ -316,14 +316,17 @@ test.describe("AI layer: token usage is logged per Candidate", () => {
     expect(total("cand-2")).toBe(150);
   });
 
-  test("a failed provider call is reported and not counted", () => {
+  test("a failed provider call is reported, and logged as failed with no tokens, so it counts for nothing (#218)", () => {
     const r = runAi({ ...KEYS, AI_SCORING_PROVIDER: "mistral" }, [
       { kind: "generate", task: "scoring", candidateId: "cand-1", prompt: "E2E_PROVIDER_DOWN" },
       score("cand-1"),
     ]);
     expect(r.outcomes[0]).toMatchObject({ ok: false, error: { name: "AiProviderError" } });
     expect(r.outcomes[1]).toMatchObject({ ok: true });
-    expect(r.usage).toHaveLength(1);
+    expect(r.usage).toEqual([
+      expect.objectContaining({ candidateId: "cand-1", task: "scoring", ok: false, inputTokens: 0, outputTokens: 0 }),
+      expect.objectContaining({ candidateId: "cand-1", task: "scoring", ok: true }),
+    ]);
   });
 });
 
@@ -422,11 +425,11 @@ test.describe("AI layer: pluggable web search providers (issue #110)", () => {
       expect(r.requests).toEqual([]);
     });
 
-    test(`a failing ${provider} search is reported and not counted`, () => {
+    test(`a failing ${provider} search is reported, and logged as failed with no tokens (#218)`, () => {
       const r = runAi(route(provider), [{ ...search(), criteria: { ...search().criteria, targetRole: "E2E_PROVIDER_DOWN" } } as HarnessCall]);
       expect(r.startup).toEqual({ ok: true });
       expect(r.outcomes[0]).toMatchObject({ ok: false, error: { name: "AiProviderError" } });
-      expect(r.usage).toEqual([]);
+      expect(r.usage).toEqual([expect.objectContaining({ ok: false, inputTokens: 0, outputTokens: 0 })]);
     });
   }
 

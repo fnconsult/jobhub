@@ -28,6 +28,7 @@ export function createTavilyProvider(options: TavilyProviderOptions): AiProvider
   const now = options.now ?? (() => new Date());
   return {
     id: "tavily",
+    defaultModel: DEFAULT_DEPTH,
     endpoint: "api.tavily.com",
     residency: "outside_eu",
     async search(query, { model, filters }): Promise<SearchOutput> {

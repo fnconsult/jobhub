@@ -1,3 +1,5 @@
+import { allUsageLogs, createConsoleUsageLog } from "@jobhub/ai";
+import { createPostgresExternalApiLog, createPostgresUsageLog, knownSecrets } from "@jobhub/web/ai-usage";
 import { createApplications } from "@jobhub/web/applications";
 import { createBilling } from "@jobhub/web/billing";
 import { createEuAiConsents } from "@jobhub/web/eu-ai-consent";
@@ -43,8 +45,12 @@ const searchSites = createSearchSites(database);
 // skipped with the reason, until a key is entered in the Back Office. Production fails
 // loudly instead. A Candidate's identity-bearing calls go to Mistral once they gave EU
 // AI consent (ADR-0007).
+// Every AI call goes to stdout and to AI Usage with its AI Message Log (every key in use
+// scrubbed); every France Travail call to AI Usage's external APIs. Neither waits on the insert.
 const worker = workerClients({
   resolver: secrets,
+  usage: allUsageLogs([createConsoleUsageLog(), createPostgresUsageLog(database, { secrets: () => knownSecrets(secrets.current().env) })]),
+  externalApis: createPostgresExternalApiLog(database),
   production: process.env.NODE_ENV === "production",
   jobOffers,
   budget: jobDiscoveryBudgetFromEnv(process.env),

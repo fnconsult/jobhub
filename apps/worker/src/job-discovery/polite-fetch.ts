@@ -2,6 +2,7 @@
  * Fetching a page the way ADR-0002 allows: robots.txt first, as ourselves,
  * and giving up (never working around it) at the first sign of bot protection.
  */
+import { recordingFetch, type ExternalApiLog } from "@jobhub/shared";
 import { htmlToText } from "./html";
 import { countJobPostings } from "./job-posting";
 import { robotsAllow, robotsCrawlDelay } from "./robots";
@@ -270,5 +271,28 @@ export function createPoliteFetcher(options: PoliteFetchOptions) {
         return { ok: false, reason: "unreachable" };
       }
     },
+  };
+}
+
+/** The job boards whose calls are recorded as external APIs (#218), by host. Their pages and APIs are free. */
+const JOB_BOARDS: [host: RegExp, provider: string][] = [
+  [/(^|\.)greenhouse\.io$/, "greenhouse"],
+  [/(^|\.)lever\.co$/, "lever"],
+  [/(^|\.)ashbyhq\.com$/, "ashby"],
+  [/(^|\.)apec\.fr$/, "apec"],
+];
+
+/** `fetch`, with each call to a job board (JOB_BOARDS) recorded in `log`; other sites' pages are not recorded. */
+export function recordingJobBoardFetch(fetch: typeof globalThis.fetch, log: ExternalApiLog): typeof globalThis.fetch {
+  const recording = new Map(JOB_BOARDS.map(([, provider]) => [provider, recordingFetch(fetch, log, { provider, costEur: () => 0 })]));
+  return (input, init) => {
+    let host = "";
+    try {
+      host = new URL(input instanceof Request ? input.url : String(input)).hostname;
+    } catch {
+      // Not a URL: fetch says so.
+    }
+    const board = JOB_BOARDS.find(([pattern]) => pattern.test(host))?.[1];
+    return (board ? recording.get(board)! : fetch)(input, init);
   };
 }

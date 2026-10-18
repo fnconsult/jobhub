@@ -33,7 +33,7 @@ export interface WorkerClientsOptions {
   fetch?: typeof globalThis.fetch;
   /** Default: one JSON line per AI call on stdout. */
   usage?: UsageLog;
-  /** Where each call to France Travail is recorded (AI Usage's external APIs). Default: nowhere. */
+  /** Where each call to France Travail and the job boards is recorded (AI Usage's external APIs). Default: nowhere. */
   externalApis?: ExternalApiLog;
   log?: (line: string) => void;
 }
@@ -74,7 +74,7 @@ export function workerClients(options: WorkerClientsOptions): WorkerClients {
       log(`[worker] Job discovery is unavailable: ${error.message}`);
       return { unavailable: error.message };
     }
-    return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, franceTravail, fetch: options.fetch });
+    return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, franceTravail, fetch: options.fetch, externalApis: options.externalApis });
   });
 
   return { discovery, ai, franceTravail, mailer: liveObject(resolver, MAIL_SECRET_NAMES, mailerFromEnv) };

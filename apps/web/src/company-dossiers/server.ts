@@ -1,3 +1,4 @@
+import { getExternalApiLog } from "@/ai-usage/server";
 import { sharedPool } from "@/database/pool";
 import { getAi } from "@/ai/server";
 import { getApplications } from "@/applications/server";
@@ -10,7 +11,7 @@ let instance: CompanyDossiers | undefined;
 export function getCompanyDossiers(): CompanyDossiers {
   instance ??= createCompanyDossiers(sharedPool(), {
     applications: getApplications(),
-    register: createFrenchRegister(),
+    register: createFrenchRegister({ externalApis: getExternalApiLog() }),
     ai: getAi(),
   });
   return instance;

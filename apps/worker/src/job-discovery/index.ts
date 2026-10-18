@@ -43,6 +43,7 @@
  * Each run is measured (its funnel and cost in €), also when it fails: the
  * error is then a JobDiscoveryError carrying what the run measured until then.
  */
+import type { ExternalApiLog } from "@jobhub/shared";
 import { costInEur, type AiLayer, type SearchFilters } from "@jobhub/ai";
 import {
   believablePostingDate,
@@ -63,7 +64,7 @@ import { countJobPostings, readJobPosting } from "./job-posting";
 import { listingPageLinks } from "./listing-page";
 import { extractWithLlm } from "./llm-extraction";
 import { searchPages } from "./search-pages";
-import { createPoliteFetcher, realClock, type Clock, type JsonResult, type RefusalReason } from "./polite-fetch";
+import { createPoliteFetcher, realClock, recordingJobBoardFetch, type Clock, type JsonResult, type RefusalReason } from "./polite-fetch";
 
 export { MAX_POSTING_AGE_DAYS } from "@jobhub/shared";
 export { DEFAULT_BUDGET, jobDiscoveryBudgetFromEnv, type JobDiscoveryBudget } from "./budget";
@@ -83,6 +84,8 @@ export interface JobDiscoveryOptions {
   jobOffers: JobOfferStore;
   /** Default: the global fetch. */
   fetch?: typeof globalThis.fetch;
+  /** Where each call to a job board (Greenhouse, Lever, Ashby, APEC) is recorded (AI Usage's external APIs). Default: nowhere. */
+  externalApis?: ExternalApiLog;
   /** How the crawler introduces itself to sites (and the name robots.txt rules address). */
   userAgent?: string;
   /** Hosts whose terms of use forbid crawling. Default: FORBIDDEN_SITES. */
@@ -170,8 +173,9 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
   return {
     async discover({ candidateId, criteria }) {
       const startedAt = clock.now();
+      const fetch = options.fetch ?? globalThis.fetch;
       const fetcher = createPoliteFetcher({
-        fetch: options.fetch ?? globalThis.fetch,
+        fetch: options.externalApis ? recordingJobBoardFetch(fetch, options.externalApis) : fetch,
         userAgent,
         forbiddenSites,
         timeoutMs: 15_000,

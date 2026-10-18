@@ -600,7 +600,22 @@
       "unavailable": "Online payment is not available at the moment. Please try again later.",
       "error": "Something went wrong. Please try again.",
       "redirecting": "Taking you to the payment page…",
-      "price": "Price"
+      "price": "Price",
+      "codeValid": "Code {{code}}: {{terms}}, valid on {{plans}}. It will apply at checkout.",
+      "codeValidAll": "Code {{code}}: {{terms}}. It will apply at checkout.",
+      "codeInvalid": "This coupon code is not valid: it is unknown, expired or no longer active. You can still choose a Plan, without a discount.",
+      "codeUnchecked": "This coupon code could not be checked for now. You can type it at checkout.",
+      "codeElsewhere": "You already have a paid Plan: a coupon code only applies to a new subscription.",
+      "codeNoPlan": "This coupon code applies to none of the Plans offered. You can still choose a Plan, without a discount.",
+      "codeThrottled": "You have tried many coupon codes: try again in a few minutes. You can still choose a Plan, without a discount.",
+      "codeRefused": {
+        "not_for_plan": "This coupon code does not apply to the {{plan}} Plan.",
+        "not_for_you": "This coupon code cannot be given to you: it is for a first payment only and you have paid before (a Coaching Session counts), or it has just been used up.",
+        "unavailable": "This coupon code is no longer valid: it has expired, been used up or is no longer active.",
+        "unchecked": "This coupon code could not be checked just now.",
+        "too_many_tries": "You have tried many coupon codes: try again in a few minutes."
+      },
+      "continueWithoutCode": "Continue to the {{plan}} Plan without the code"
     },
     "quotas": {
       "profiles": "Profiles",
@@ -620,6 +635,17 @@
       "week": "{{price}} / week",
       "month": "{{price}} / month",
       "year": "{{price}} / year"
+    },
+    "coupon": {
+      "once": "{{off}} off the first payment",
+      "forever": "{{off}} off for as long as the subscription lasts",
+      "months_one": "{{off}} off for {{count}} month",
+      "months_other": "{{off}} off for {{count}} months",
+      "active": "Current discount: {{terms}}",
+      "activeUntil": "Current discount: {{off}} off until {{date}}",
+      "off": "{{off}} off",
+      "monthsOnly_one": "{{count}} month",
+      "monthsOnly_other": "{{count}} months"
     }
   },
   "admin": {
@@ -646,6 +672,7 @@
     "sections": {
       "plans": "Plans",
       "planQuotas": "Quotas",
+      "coupons": "Coupons",
       "humanCoaches": "Coaches",
       "coachCost": "Coach cost",
       "providerSecrets": "Keys",
@@ -829,6 +856,84 @@
       "save": "Save the {{plan}} Plan",
       "saved": "{{plan}} Plan quotas saved.",
       "invalid": "Check the values: whole numbers from 0, or empty for unlimited."
+    },
+    "coupons": {
+      "title": "Coupons",
+      "intro": "The codes Candidates type when paying for a Plan, or receive in a link. They are created in Stripe, which counts how often they are redeemed. Coaching Sessions take no coupon.",
+      "caption": "The coupons, newest first",
+      "unavailable": "Stripe is not answering: the coupons cannot be listed for now.",
+      "none": "No coupon yet.",
+      "code": "Code",
+      "codeHelp": "Letters, digits, dashes or underscores, 3 to 40 characters, for example SPRING50. Candidates may type it in lower case.",
+      "terms": "Discount",
+      "plans": "Plans",
+      "allPlans": "all",
+      "expiresAt": "Expires on",
+      "noExpiry": "never",
+      "redemptions": "Redemptions",
+      "redemptionsOf": "{{used}} of {{max}}",
+      "firstPaymentOnly": "First payment only",
+      "statusLabel": "Status",
+      "status": {
+        "active": "active",
+        "inactive": "deactivated or expired"
+      },
+      "link": "Link to share",
+      "deactivate": "Deactivate the code {{code}}",
+      "deactivateHelp": "A deactivated code can no longer be redeemed; discounts already given run their course.",
+      "createTitle": "Create a coupon",
+      "createHelp": "The code is created in Stripe with its terms, which then no longer change. To change them, deactivate it and create another.",
+      "kind": "Kind of discount",
+      "kinds": {
+        "percent": "Percentage",
+        "amount": "Amount in euros"
+      },
+      "value": "Value",
+      "valueHelp": "A percentage from 1 to 100, or an amount in euros (the Plans must be sold in euros), for example 5 or 4.50. At 100%, the Candidate subscribes without a card; when the free period ends with no card, they are back on Free at once.",
+      "duration": "Duration",
+      "durations": {
+        "once": "First payment only",
+        "repeating": "For a number of months",
+        "forever": "For as long as the subscription lasts"
+      },
+      "durationInMonths": "Number of months",
+      "durationInMonthsHelp": "From 1 to 36, for the duration \"For a number of months\".",
+      "plansHelp": "The code only applies to the Plans ticked (their Stripe products).",
+      "expiresAtHelp": "Optional: the code works until the end of that day (Paris time).",
+      "maxRedemptions": "Maximum redemptions",
+      "maxRedemptionsHelp": "Optional: empty for no limit.",
+      "firstPaymentOnlyLabel": "For a first payment only",
+      "firstPaymentOnlyHelp": "Refused to Candidates who have already paid anything, a Coaching Session included (Stripe's rule: first payment, not first subscription).",
+      "create": "Create the coupon",
+      "created": "The coupon {{code}} is created.",
+      "deactivated": "The coupon {{code}} is deactivated.",
+      "yes": "yes",
+      "no": "no",
+      "fields": {
+        "code": "Code",
+        "discount": "Discount",
+        "duration": "Duration",
+        "plans": "Plans",
+        "expiresAt": "Expires on",
+        "maxRedemptions": "Maximum redemptions",
+        "firstPaymentOnly": "First payment only",
+        "active": "Active"
+      },
+      "errors": {
+        "invalid_code": "The code must be 3 to 40 characters: letters, digits, dashes or underscores.",
+        "code_taken": "An active coupon already has this code.",
+        "invalid_discount": "Enter a percentage from 1 to 100, or an amount in euros above 0.",
+        "invalid_duration": "Choose a duration; for a number of months, from 1 to 36.",
+        "no_plan": "Tick at least one Plan.",
+        "plan_not_sold": "Only paid Plans tied to a Stripe product can take a coupon.",
+        "invalid_expiry": "The expiry date must be after today.",
+        "invalid_max_redemptions": "The maximum redemptions must be a whole number above 0.",
+        "unknown_coupon": "This coupon does not exist in Stripe.",
+        "stripe_unavailable": "Stripe is not answering: nothing was done. Try again in a moment.",
+        "amount_covers_price": "A fixed amount \"for as long as the subscription lasts\" must stay below the price of each Plan ticked: otherwise that Plan would be free for good.",
+        "currency_not_eur": "A Plan ticked is not sold in euros: use a percentage for it."
+      },
+      "unreadable": "Unreadable: Stripe gives this code without its terms. See it in the Stripe Dashboard."
     },
     "humanCoaches": {
       "title": "Human coaches",
@@ -1023,6 +1128,7 @@
         "roles": "Roles",
         "plans": "Plans",
         "plan_quotas": "Plan Quotas",
+        "coupons": "Coupons",
         "human_coaches": "Human Coaches",
         "provider_secrets": "Provider keys",
         "job_discovery_sources": "Job discovery sources",

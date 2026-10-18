@@ -30,6 +30,40 @@ function backOfficeData() {
         { key: "premium", name: { fr: "Premium", en: "Premium" }, rank: 4, status: "offered", stripeProductId: "prod_premium", features: ["coachingSessionDiscount"] },
       ];
     },
+    async coupons() {
+      reads.push("coupons");
+      const plans = [
+        { key: "standard", name: { fr: "Standard", en: "Standard" }, rank: 2, status: "offered", stripeProductId: "prod_standard", features: [] },
+        { key: "premium", name: { fr: "Premium", en: "Premium" }, rank: 4, status: "offered", stripeProductId: "prod_premium", features: [] },
+      ] as const;
+      const coupons = [
+        {
+          id: "promo_1",
+          code: "PRINTEMPS50",
+          discount: { percentOff: 50 },
+          duration: { months: 3 },
+          plans: ["standard", "premium"],
+          expiresAt: new Date("2027-03-31T21:59:59Z"),
+          maxRedemptions: 100,
+          firstPaymentOnly: true,
+          timesRedeemed: 7,
+          active: true,
+        },
+        {
+          id: "promo_2",
+          code: "BIENVENUE",
+          discount: { amountOff: 500, currency: "eur" },
+          duration: "once",
+          plans: null,
+          expiresAt: null,
+          maxRedemptions: null,
+          firstPaymentOnly: false,
+          timesRedeemed: 0,
+          active: false,
+        },
+      ] as const;
+      return { plans: plans.map((plan) => ({ ...plan, features: [] })), coupons: coupons.map((coupon) => ({ ...coupon, plans: coupon.plans && [...coupon.plans] })) };
+    },
     async humanCoaches() {
       reads.push("humanCoaches");
       return [
@@ -138,12 +172,23 @@ describe("Back Office Assistant", () => {
 
     await assistant.reply(administrator, asked("Quelles offres sont proposées ?"));
 
-    expect(data.reads.sort()).toEqual(["planQuotas", "plans"]);
+    expect(data.reads.sort()).toEqual(["coupons", "planQuotas", "plans"]);
     const system = provider.calls[0]!.system!;
     // Plan names are typed in the Back Office: framed as untrusted data, like Human Coaches' text.
     expect(system).toContain("1. <donnees>Gratuite</donnees> (clé free) : proposée");
     expect(system).toContain("3. <donnees>Essentiel</donnees> (clé essentiel) : masquée, produit Stripe prod_essential");
     expect(system).toContain("4. <donnees>Premium</donnees> (clé premium) : proposée, produit Stripe prod_premium ; fonctionnalités : séances de coaching à prix réduit");
+  });
+
+  it("a Plans manager's assistant knows the Coupons: their terms, their Plans, how often redeemed, active or not", async () => {
+    const { assistant, administrator } = assistantFor(["plans-manager"]);
+
+    await assistant.reply(administrator, asked("Quels codes promo sont actifs ?"));
+
+    const system = provider.calls[0]!.system!;
+    // Codes are typed in the Back Office: framed as untrusted data.
+    expect(system).toContain("- <donnees>PRINTEMPS50</donnees> : -50 % pendant 3 mois, sur Standard, Premium ; 1er paiement seulement (refusé à qui a déjà payé, séance de coaching comprise) ; expire le 31/03/2027 ; utilisé 7 fois sur 100 ; actif");
+    expect(system).toContain("- <donnees>BIENVENUE</donnees> : -5,00 € sur le premier paiement, sur toutes les offres ; utilisé 0 fois ; désactivé ou expiré");
   });
 
   it("names the sections outside the Administrator's roles, for the assistant to refuse them", async () => {
@@ -165,7 +210,7 @@ describe("Back Office Assistant", () => {
 
     await assistant.reply(administrator, asked("Combien de Match Scores en Premium ?"));
 
-    expect(data.reads.sort()).toEqual(["coachCost", "humanCoaches", "planQuotas", "plans"]);
+    expect(data.reads.sort()).toEqual(["coachCost", "coupons", "humanCoaches", "planQuotas", "plans"]);
     expect(prompt()).toContain("Match Scores par mois 4321");
   });
 
@@ -177,7 +222,7 @@ describe("Back Office Assistant", () => {
 
       await assistant.reply(administrator, asked("Qui a changé la clé Mistral ?"));
 
-      expect(data.reads.sort()).toEqual(["administrators", "coachCost", "humanCoaches", "journal", "planQuotas", "plans"]);
+      expect(data.reads.sort()).toEqual(["administrators", "coachCost", "coupons", "humanCoaches", "journal", "planQuotas", "plans"]);
       // That the key was replaced is in the Journal; its value never is, nor is any address.
       expect(prompt()).toContain("remplacement de MISTRAL_API_KEY");
       expect(prompt()).not.toContain(SECRET);

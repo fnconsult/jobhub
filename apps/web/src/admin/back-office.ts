@@ -3,6 +3,7 @@
  *
  * One deep module. `createBackOffice(database, deps)` answers:
  *  - change what the Jobbbox team runs     `createPlan`, `updatePlan`, `movePlan`, `setPlanQuotas`,
+ *                                          `createCoupon`, `deactivateCoupon`,
  *                                          `addHumanCoach`, `retireHumanCoach`
  *  - record any other Back Office write    `record`, the one seam every write goes through
  *  - read the record                       `journal`, newest first, by section
@@ -18,7 +19,13 @@
  */
 import { FREE_PLAN, type Plan, type PlanQuotas } from "@jobhub/shared";
 import type { Pool } from "pg";
-import type { Billing, PlanDefinition, PlanResult } from "../billing";
+import type {
+  Billing,
+  Coupon,
+  CouponResult,
+  PlanDefinition,
+  PlanResult,
+} from "../billing";
 import type { Queryable } from "../database/pool";
 import type { AddHumanCoachResult, HumanCoaches } from "../human-coaches";
 
@@ -30,6 +37,7 @@ export const BACK_OFFICE_SECTIONS = [
   "roles",
   "plans",
   "plan_quotas",
+  "coupons",
   "human_coaches",
   "provider_secrets",
   "sign_in_providers",
@@ -39,26 +47,37 @@ export const BACK_OFFICE_SECTIONS = [
 ] as const;
 export type BackOfficeSection = (typeof BACK_OFFICE_SECTIONS)[number];
 
-export const isBackOfficeSection = (value: unknown): value is BackOfficeSection => BACK_OFFICE_SECTIONS.includes(value as BackOfficeSection);
+export const isBackOfficeSection = (
+  value: unknown,
+): value is BackOfficeSection =>
+  BACK_OFFICE_SECTIONS.includes(value as BackOfficeSection);
 
 /**
  * What can be done to a secret (a Provider Secret): replaced, replaced although its
  * connection test failed ("save anyway"), or cleared (back to env). Its value is never
  * recorded, before or after.
  */
-export const SECRET_ACTIONS = ["replaced", "replaced_despite_failed_test", "cleared"] as const;
+export const SECRET_ACTIONS = [
+  "replaced",
+  "replaced_despite_failed_test",
+  "cleared",
+] as const;
 export type SecretAction = (typeof SECRET_ACTIONS)[number];
 
 /**
  * What was done to the target. `retired` keeps its history (a Human Coach), `removed`
  * deletes it (a search site).
  */
-export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | "tested" | SecretAction;
+export type BackOfficeAction =
+  "added" | "updated" | "retired" | "removed" | "tested" | SecretAction;
 
-export const isSecretAction = (action: BackOfficeAction): action is SecretAction => SECRET_ACTIONS.includes(action as SecretAction);
+export const isSecretAction = (
+  action: BackOfficeAction,
+): action is SecretAction => SECRET_ACTIONS.includes(action as SecretAction);
 
 /** A value as recorded: what JSON can hold. */
-export type Recorded = string | number | boolean | null | Recorded[] | { [key: string]: Recorded };
+export type Recorded =
+  string | number | boolean | null | Recorded[] | { [key: string]: Recorded };
 
 /** One change to record. */
 export type BackOfficeChange = {
@@ -66,7 +85,11 @@ export type BackOfficeChange = {
   /** What was changed: a Plan, a Human Coach's email, an Administrator's email... */
   target: string;
 } & (
-  | { action: Exclude<BackOfficeAction, SecretAction>; before: Recorded; after: Recorded }
+  | {
+      action: Exclude<BackOfficeAction, SecretAction>;
+      before: Recorded;
+      after: Recorded;
+    }
   /** A secret was replaced or cleared: no value is recorded, before or after. */
   | { action: SecretAction }
 );
@@ -94,21 +117,66 @@ export interface BackOfficeAuditEntry {
 }
 
 export interface BackOfficeDeps {
-  billing: Pick<Billing, "setPlanQuotas" | "createPlan" | "updatePlan" | "movePlan" | "checkStripeProduct" | "plans">;
+  billing: Pick<
+    Billing,
+    | "setPlanQuotas"
+    | "createPlan"
+    | "updatePlan"
+    | "movePlan"
+    | "checkStripeProduct"
+    | "plans"
+    | "createCoupon"
+    | "deactivateCoupon"
+    | "reactivateCoupon"
+  >;
   humanCoaches: Pick<HumanCoaches, "add" | "retire">;
 }
 
 export interface BackOffice {
   /** Creates a Plan, hidden; `input` is untrusted (see Billing.createPlan); nothing is recorded when refused. */
-  createPlan(actor: BackOfficeActor, input: unknown): Promise<PlanResult<{ plan: PlanDefinition }>>;
+  createPlan(
+    actor: BackOfficeActor,
+    input: unknown,
+  ): Promise<PlanResult<{ plan: PlanDefinition }>>;
   /** Changes a Plan's names, status, Stripe product or Plan Features (see Billing.updatePlan); nothing is recorded when refused. */
-  updatePlan(actor: BackOfficeActor, plan: Plan, input: unknown): Promise<PlanResult<object>>;
+  updatePlan(
+    actor: BackOfficeActor,
+    plan: Plan,
+    input: unknown,
+  ): Promise<PlanResult<object>>;
   /** Moves a Plan one rank up or down (see Billing.movePlan); nothing is recorded when refused. */
-  movePlan(actor: BackOfficeActor, plan: Plan, direction: "up" | "down"): Promise<PlanResult<{ before: number; after: number }>>;
+  movePlan(
+    actor: BackOfficeActor,
+    plan: Plan,
+    direction: "up" | "down",
+  ): Promise<PlanResult<{ before: number; after: number }>>;
   /** Replaces one Plan's quotas; nothing is recorded for an unknown Plan. */
-  setPlanQuotas(actor: BackOfficeActor, plan: Plan, quotas: PlanQuotas): Promise<void>;
+  setPlanQuotas(
+    actor: BackOfficeActor,
+    plan: Plan,
+    quotas: PlanQuotas,
+  ): Promise<void>;
+  /**
+   * Creates a Coupon in Stripe; `input` is untrusted (see Billing.createCoupon). Stripe is called before the
+   * audit transaction; if the entry cannot be recorded, the code is deactivated again. Nothing is recorded when refused.
+   */
+  createCoupon(
+    actor: BackOfficeActor,
+    input: unknown,
+  ): Promise<CouponResult<{ coupon: Coupon }>>;
+  /**
+   * Deactivates a Coupon in Stripe (see Billing.deactivateCoupon), before the audit transaction; reactivated
+   * if the entry cannot be recorded. Nothing is recorded when refused or when it was inactive already.
+   */
+  deactivateCoupon(
+    actor: BackOfficeActor,
+    id: string,
+  ): Promise<CouponResult<object>>;
   /** Adds a Human Coach. `input` is untrusted (see HumanCoaches.add); nothing is recorded when refused. */
-  addHumanCoach(actor: BackOfficeActor, input: unknown): Promise<AddHumanCoachResult>;
+  addHumanCoach(
+    actor: BackOfficeActor,
+    input: unknown,
+  ): Promise<AddHumanCoachResult>;
   /** Retires a Human Coach; nothing is recorded for an unknown or already retired one. */
   retireHumanCoach(actor: BackOfficeActor, coachId: string): Promise<void>;
   /**
@@ -116,9 +184,16 @@ export interface BackOffice {
    * transaction it is given, then `changeOf` says what it changed (null: nothing to record).
    * If the write, or recording it, fails, neither is kept and the error is thrown.
    */
-  record<T>(actor: BackOfficeActor, write: (within: Queryable) => Promise<T>, changeOf: (result: T) => BackOfficeChange | null): Promise<T>;
+  record<T>(
+    actor: BackOfficeActor,
+    write: (within: Queryable) => Promise<T>,
+    changeOf: (result: T) => BackOfficeChange | null,
+  ): Promise<T>;
   /** The Back Office Audit, newest first: everything, or one section. At most `limit` entries (default 200). */
-  journal(filter?: { section?: BackOfficeSection; limit?: number }): Promise<BackOfficeAuditEntry[]>;
+  journal(filter?: {
+    section?: BackOfficeSection;
+    limit?: number;
+  }): Promise<BackOfficeAuditEntry[]>;
 }
 
 interface EntryRow {
@@ -145,27 +220,57 @@ const entryFrom = (row: EntryRow): BackOfficeAuditEntry => ({
 });
 
 /** A recorded value as a jsonb parameter; nothing is SQL NULL. */
-const json = (value: Recorded): string | null => (value === null ? null : JSON.stringify(value));
+const json = (value: Recorded): string | null =>
+  value === null ? null : JSON.stringify(value);
 
 /** The Stripe product named in an untrusted Plan form, trimmed; "" when none. */
 const productOf = (input: unknown): string => {
-  const product = typeof input === "object" && input !== null ? (input as { stripeProductId?: unknown }).stripeProductId : undefined;
+  const product =
+    typeof input === "object" && input !== null
+      ? (input as { stripeProductId?: unknown }).stripeProductId
+      : undefined;
   return typeof product === "string" ? product.trim() : "";
 };
 
 /** A Plan's quotas as recorded. */
 const recordedQuotas = (quotas: PlanQuotas): Recorded => ({ ...quotas });
 
+/** A Coupon's terms as recorded; its code is the entry's target too. */
+const recordedCoupon = (coupon: Coupon): { [key: string]: Recorded } => ({
+  code: coupon.code,
+  discount: { ...coupon.discount },
+  duration:
+    typeof coupon.duration === "string"
+      ? coupon.duration
+      : { ...coupon.duration },
+  plans: coupon.plans ? [...coupon.plans] : null,
+  expiresAt: coupon.expiresAt ? coupon.expiresAt.toISOString() : null,
+  maxRedemptions: coupon.maxRedemptions,
+  firstPaymentOnly: coupon.firstPaymentOnly,
+});
+
 /** What an Administrator sets on a Plan, as recorded; its key is the entry's target, its rank changes on its own. */
-const recordedPlan = ({ name, status, stripeProductId, features }: PlanDefinition): { [key: string]: Recorded } => ({
+const recordedPlan = ({
+  name,
+  status,
+  stripeProductId,
+  features,
+}: PlanDefinition): { [key: string]: Recorded } => ({
   name: { ...name },
   status,
   stripeProductId,
   features: [...features],
 });
 
-export function createBackOffice(database: Pool, deps: BackOfficeDeps): BackOffice {
-  async function record<T>(actor: BackOfficeActor, write: (within: Queryable) => Promise<T>, changeOf: (result: T) => BackOfficeChange | null): Promise<T> {
+export function createBackOffice(
+  database: Pool,
+  deps: BackOfficeDeps,
+): BackOffice {
+  async function record<T>(
+    actor: BackOfficeActor,
+    write: (within: Queryable) => Promise<T>,
+    changeOf: (result: T) => BackOfficeChange | null,
+  ): Promise<T> {
     const client = await database.connect();
     try {
       await client.query("BEGIN");
@@ -206,10 +311,21 @@ export function createBackOffice(database: Pool, deps: BackOfficeDeps): BackOffi
       if (problem) return { ok: false, error: problem };
       const created = await record(
         actor,
-        (within) => deps.billing.createPlan(input, within, { productChecked: true }),
+        (within) =>
+          deps.billing.createPlan(input, within, { productChecked: true }),
         (result) =>
           result.ok
-            ? { section: "plans", target: result.plan.key, action: "added", before: null, after: { ...recordedPlan(result.plan), rank: result.plan.rank, quotas: recordedQuotas(result.quotas) } }
+            ? {
+                section: "plans",
+                target: result.plan.key,
+                action: "added",
+                before: null,
+                after: {
+                  ...recordedPlan(result.plan),
+                  rank: result.plan.rank,
+                  quotas: recordedQuotas(result.quotas),
+                },
+              }
             : null,
       );
       return created.ok ? { ok: true, plan: created.plan } : created;
@@ -217,18 +333,35 @@ export function createBackOffice(database: Pool, deps: BackOfficeDeps): BackOffi
 
     async updatePlan(actor, plan, input) {
       // A product given to a Plan with none yet is asked of Stripe before the transaction opens.
-      const current = (await deps.billing.plans()).find((each) => each.key === plan);
+      const current = (await deps.billing.plans()).find(
+        (each) => each.key === plan,
+      );
       const product = productOf(input);
       let productChecked = false;
-      if (current && !current.stripeProductId && product && current.key !== FREE_PLAN) {
+      if (
+        current &&
+        !current.stripeProductId &&
+        product &&
+        current.key !== FREE_PLAN
+      ) {
         const problem = await deps.billing.checkStripeProduct(product);
         if (problem) return { ok: false, error: problem };
         productChecked = true;
       }
       const updated = await record(
         actor,
-        (within) => deps.billing.updatePlan(plan, input, within, { productChecked }),
-        (result) => (result.ok ? { section: "plans", target: plan, action: "updated", before: recordedPlan(result.before), after: recordedPlan(result.after) } : null),
+        (within) =>
+          deps.billing.updatePlan(plan, input, within, { productChecked }),
+        (result) =>
+          result.ok
+            ? {
+                section: "plans",
+                target: plan,
+                action: "updated",
+                before: recordedPlan(result.before),
+                after: recordedPlan(result.after),
+              }
+            : null,
       );
       return updated.ok ? { ok: true } : updated;
     },
@@ -237,7 +370,16 @@ export function createBackOffice(database: Pool, deps: BackOfficeDeps): BackOffi
       return record(
         actor,
         (within) => deps.billing.movePlan(plan, direction, within),
-        (result) => (result.ok ? { section: "plans", target: plan, action: "updated", before: { rank: result.before }, after: { rank: result.after } } : null),
+        (result) =>
+          result.ok
+            ? {
+                section: "plans",
+                target: plan,
+                action: "updated",
+                before: { rank: result.before },
+                after: { rank: result.after },
+              }
+            : null,
       );
     },
 
@@ -245,15 +387,83 @@ export function createBackOffice(database: Pool, deps: BackOfficeDeps): BackOffi
       await record(
         actor,
         (within) => deps.billing.setPlanQuotas(plan, quotas, within),
-        (before) => (before ? { section: "plan_quotas", target: plan, action: "updated", before: recordedQuotas(before), after: recordedQuotas(quotas) } : null),
+        (before) =>
+          before
+            ? {
+                section: "plan_quotas",
+                target: plan,
+                action: "updated",
+                before: recordedQuotas(before),
+                after: recordedQuotas(quotas),
+              }
+            : null,
       );
+    },
+
+    async createCoupon(actor, input) {
+      // Stripe is the Coupon's only home, written before the transaction opens, so none waits on it.
+      const created = await deps.billing.createCoupon(input);
+      if (!created.ok) return created;
+      try {
+        await record(
+          actor,
+          async () => created.coupon,
+          (coupon) => ({
+            section: "coupons",
+            target: coupon.code,
+            action: "added",
+            before: null,
+            after: recordedCoupon(coupon),
+          }),
+        );
+      } catch (error) {
+        // Unrecorded, the code must not be redeemable.
+        await deps.billing
+          .deactivateCoupon(created.coupon.id)
+          .catch(() => undefined);
+        throw error;
+      }
+      return created;
+    },
+
+    async deactivateCoupon(actor, id) {
+      // As for createCoupon: Stripe first, outside the transaction; undone there if the entry cannot be recorded.
+      const deactivated = await deps.billing.deactivateCoupon(id);
+      if (!deactivated.ok) return deactivated;
+      if (!deactivated.changed) return { ok: true };
+      try {
+        await record(
+          actor,
+          async () => deactivated,
+          ({ after }) => ({
+            section: "coupons",
+            target: after.code,
+            action: "updated",
+            before: { active: true },
+            after: { active: false },
+          }),
+        );
+      } catch (error) {
+        await deps.billing.reactivateCoupon(id).catch(() => undefined);
+        throw error;
+      }
+      return { ok: true };
     },
 
     addHumanCoach(actor, input) {
       return record(
         actor,
         (within) => deps.humanCoaches.add(input, within),
-        (added) => (added.ok ? { section: "human_coaches", target: added.coach.email, action: "added", before: null, after: { ...added.coach } } : null),
+        (added) =>
+          added.ok
+            ? {
+                section: "human_coaches",
+                target: added.coach.email,
+                action: "added",
+                before: null,
+                after: { ...added.coach },
+              }
+            : null,
       );
     },
 
@@ -261,7 +471,16 @@ export function createBackOffice(database: Pool, deps: BackOfficeDeps): BackOffi
       await record(
         actor,
         (within) => deps.humanCoaches.retire(coachId, within),
-        (retired) => (retired ? { section: "human_coaches", target: retired.email, action: "retired", before: { ...retired }, after: null } : null),
+        (retired) =>
+          retired
+            ? {
+                section: "human_coaches",
+                target: retired.email,
+                action: "retired",
+                before: { ...retired },
+                after: null,
+              }
+            : null,
       );
     },
 
@@ -282,11 +501,14 @@ export function createBackOffice(database: Pool, deps: BackOfficeDeps): BackOffi
  * Deletes the Back Office Audit entries RETENTION_YEARS old or more at `now`;
  * returns how many. Safe to run again.
  */
-export async function purgeExpiredBackOfficeAudit(database: Queryable, now: Date): Promise<number> {
-  const { rowCount } = await database.query("DELETE FROM back_office_audit WHERE created_at <= $1::timestamptz - make_interval(years => $2)", [
-    now,
-    RETENTION_YEARS,
-  ]);
+export async function purgeExpiredBackOfficeAudit(
+  database: Queryable,
+  now: Date,
+): Promise<number> {
+  const { rowCount } = await database.query(
+    "DELETE FROM back_office_audit WHERE created_at <= $1::timestamptz - make_interval(years => $2)",
+    [now, RETENTION_YEARS],
+  );
   return rowCount ?? 0;
 }
 

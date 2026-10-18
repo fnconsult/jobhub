@@ -2,6 +2,9 @@ import { FREE_PLAN, LIMITED_QUOTAS, MONTHLY_QUOTAS, type PlanQuotas } from "@job
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentCandidate } from "@/auth/server";
+import { PROMOTION_CODE_REFUSALS, type PromotionCodeRefusal } from "@/billing";
+import { codeNotice } from "@/billing/code-notice";
+import { activeDiscountLabel } from "@/billing/coupon-label";
 import { currentPlanLabel } from "@/billing/current-plan";
 import { paymentFailedNotice } from "@/billing/payment-failed-notice";
 import { planPriceLabel } from "@/billing/plan-price";
@@ -20,24 +23,42 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const QUOTA_ROWS = [...LIMITED_QUOTAS, "jobDigest"] as const satisfies readonly (keyof PlanQuotas)[];
 
+/** The longest code a shared link may carry (a Coupon's code is at most 40 characters). */
+const MAX_CODE_LENGTH = 40;
+
 /**
- * The Candidate's Plan, this month's usage, the offered Plans side by side in rank order with their
- * prices, and the way to Stripe (and their invoices there). A hidden Plan is not compared, even the Candidate's.
+ * The Candidate's Plan (and the discount their subscription gets), this month's usage, the offered
+ * Plans side by side in rank order with their prices, and the way to Stripe (and their invoices there).
+ * A hidden Plan is not compared, even the Candidate's. A shared link's `?code=` is checked and carried
+ * to Checkout, where it applies to the Plans it is for; checkout works without it all the same.
  */
-export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ checkout?: string; error?: string }> }) {
+export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ checkout?: string; error?: string; code?: string | string[]; codeRefused?: string; plan?: string }> }) {
   const candidate = await getCurrentCandidate();
   if (!candidate) redirect(routes.signIn);
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
-  const { checkout, error } = await searchParams;
+  const { checkout, error, code: codeParam, codeRefused, plan: refusedPlan } = await searchParams;
+  const code = typeof codeParam === "string" ? codeParam.trim().slice(0, MAX_CODE_LENGTH) : "";
   const billing = getBilling();
-  const [{ plan, stripeStatus, endsAt, quotas, usedThisMonth }, plans, allQuotas, prices, hasInvoices] = await Promise.all([
+  const [{ plan, stripeStatus, endsAt, quotas, usedThisMonth }, plans, allQuotas, prices, hasInvoices, discount] = await Promise.all([
     billing.entitlements(candidate.id),
     billing.plans(),
     billing.planQuotas(),
     billing.planPrices(),
     billing.hasInvoices(candidate.id),
+    billing.activeDiscount(candidate.id),
   ]);
+  const offeredKeys = plans.filter((each) => each.status === "offered" && each.key !== FREE_PLAN).map((each) => each.key);
+  // Sent back from Checkout, which refused the code for that Plan: say why, and offer to go on without it.
+  const refusal =
+    code && PROMOTION_CODE_REFUSALS.includes(codeRefused as PromotionCodeRefusal) && offeredKeys.includes(refusedPlan ?? "")
+      ? { reason: codeRefused as PromotionCodeRefusal, plan: refusedPlan! }
+      : null;
+  // A code only applies to a new subscription, from Free: there is no Checkout otherwise.
+  const promotion = code && plan === FREE_PLAN && !refusal ? await billing.checkPromotionCode(code, candidate.id) : null;
+  const notice = code ? codeNotice({ plan, plans, promotion, refusal, locale }) : null;
+  // Carried to Checkout when it may apply (or could not be checked here): Checkout says if it does not.
+  const carriedCode = code && plan === FREE_PLAN && !refusal && (promotion === null || notice?.role === "status") ? code : null;
   const offered = plans.filter((each) => each.status === "offered");
   const planName = plans.find((each) => each.key === plan)?.name ?? { fr: plan, en: plan };
   const paymentFailed = paymentFailedNotice(stripeStatus, locale);
@@ -58,6 +79,20 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
         </p>
       ) : null}
       <p className="lead">{currentPlanLabel({ planName, endsAt }, locale)}</p>
+      {discount ? <p>{activeDiscountLabel(discount, locale)}</p> : null}
+      {notice ? (
+        <div className="notice stack" role={notice.role}>
+          <p>{notice.text}</p>
+          {refusal ? (
+            <form method="post" action="/api/billing/checkout">
+              <input type="hidden" name="plan" value={refusal.plan} />
+              <button className="button button-primary" type="submit">
+                {t("billing.page.continueWithoutCode", { plan: plans.find((each) => each.key === refusal.plan)?.name[locale] ?? refusal.plan })}
+              </button>
+            </form>
+          ) : null}
+        </div>
+      ) : null}
       {paymentFailed ? <PaymentFailedNotice notice={paymentFailed} /> : null}
 
       <h2>{t("billing.page.usageTitle")}</h2>
@@ -115,6 +150,8 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
                   ) : key !== FREE_PLAN && stripeProductId && plan === FREE_PLAN ? (
                     <form method="post" action="/api/billing/checkout">
                       <input type="hidden" name="plan" value={key} />
+                      {/* Carried to Checkout even when unchecked here: billing applies it only where it can. */}
+                      {carriedCode ? <input type="hidden" name="code" value={carriedCode} /> : null}
                       <button className="button button-primary" type="submit">
                         {t("billing.page.choose", { plan: name[locale] })}
                       </button>

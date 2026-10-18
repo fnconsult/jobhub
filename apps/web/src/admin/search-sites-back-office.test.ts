@@ -21,7 +21,7 @@ describe.skipIf(!connectionString)("the Search sites' Back Office writes and the
     const unused = async () => {
       throw new Error("not used here");
     };
-    backOffice = createBackOffice(database, { billing: { setPlanQuotas: unused, createPlan: unused, updatePlan: unused, movePlan: unused, checkStripeProduct: unused, plans: unused }, humanCoaches: { add: unused, retire: unused } });
+    backOffice = createBackOffice(database, { billing: { setPlanQuotas: unused, createPlan: unused, updatePlan: unused, movePlan: unused, checkStripeProduct: unused, plans: unused, createCoupon: unused, deactivateCoupon: unused, reactivateCoupon: unused }, humanCoaches: { add: unused, retire: unused } });
     searchSites = createSearchSites(database);
     changes = createSearchSitesBackOffice(searchSites, backOffice);
     const cookie = await signInWithMagicLink(testAuth, "claire@jobbbox.fr");

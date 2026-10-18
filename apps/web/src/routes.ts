@@ -38,6 +38,8 @@ export const routes = {
   /** The Plans (Offres): names, rank, offered or hidden, Stripe product, Plan Features. */
   adminPlans: "/admin/offres",
   adminPlanQuotas: "/admin/quotas",
+  /** Coupons (Codes promo): Stripe promotion codes, Plans managers. */
+  adminCoupons: "/admin/codes-promo",
   adminHumanCoaches: "/admin/coachs",
   /** The AI Coach's cost per reply, per day: median and p90 against the target. */
   adminCoachCost: "/admin/cout-coach",

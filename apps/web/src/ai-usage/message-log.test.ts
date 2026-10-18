@@ -4,7 +4,7 @@ import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createBackOffice, migrateBackOfficeAudit, type BackOffice } from "../admin/back-office";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
-import { createPostgresUsageLog, migrateAiUsage, purgeExpiredAiUsage } from "./index";
+import { createPostgresUsageLog, MESSAGE_LOG_MAX_LENGTH, migrateAiUsage, purgeExpiredAiUsage } from "./index";
 import { createAiMessageLogs, type AiMessageLogs } from "./message-log";
 
 const PROVIDER_KEY = "mk-2f9c41d7a0b34e5f";
@@ -107,6 +107,42 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
     expect(stored).not.toContain(PROVIDER_KEY);
     expect(stored).not.toMatch(/sk-live|eyJhbGci/);
     expect(stored).toContain("[redacted]");
+  });
+
+  it("keeps no message log for a Candidate who no longer exists (deleted while the call ran): never a log without its owner", async () => {
+    await ai.generate({ task: "coaching", candidateId: "a-deleted-candidate", prompt: "Bonjour" });
+    await settled();
+
+    expect(await logs.list()).toEqual([]);
+    const { rows } = await database.query(`SELECT count(*)::int AS calls FROM ai_usage`);
+    expect(rows).toEqual([{ calls: 1 }]);
+  });
+
+  it("keeps UUIDs and URLs in what it stores, and caps each text at MESSAGE_LOG_MAX_LENGTH with a marker", async () => {
+    const long = "x".repeat(MESSAGE_LOG_MAX_LENGTH + 5_000);
+    const prompt = `Profil 6ea8e01c-2313-486c-8ef9-7ee619a374fa, https://www.apec.fr/offre/directeur-financier-lyon-2026 ${long}`;
+    await ai.generate({ task: "coaching", candidateId: marie, system: long, prompt });
+    await settled();
+    const [summary] = await logs.list();
+
+    const log = (await logs.open(admin, summary!.id))!;
+    expect(log.messages[0]!.content).toContain("6ea8e01c-2313-486c-8ef9-7ee619a374fa");
+    expect(log.messages[0]!.content).toContain("https://www.apec.fr/offre/directeur-financier-lyon-2026");
+    for (const text of [log.system!, log.messages[0]!.content]) {
+      expect(text.length).toBeLessThanOrEqual(MESSAGE_LOG_MAX_LENGTH + 100);
+      expect(text).toMatch(/\[truncated: \d+ characters\]$/);
+    }
+  });
+
+  it("does its scrubbing and writing after the AI call has returned, never on its stack", async () => {
+    let asked = 0;
+    const usage = createPostgresUsageLog(database, { secrets: () => (asked++, []) });
+
+    const recorded = usage.record({ candidateId: null, task: "scoring", provider: "mistral", endpoint: "fake", model: "m", inputTokens: 1, outputTokens: 1, ok: true, durationMs: 1, costEur: 0, tools: [], transcript: { messages: [{ role: "user", content: "Score" }], reply: "82" }, at: now });
+
+    expect(asked).toBe(0);
+    await recorded;
+    expect(asked).toBe(1);
   });
 
   it("keeps a call made for no Candidate (a Guest), and a failed call with no reply", async () => {

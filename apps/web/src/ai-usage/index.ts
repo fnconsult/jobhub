@@ -15,14 +15,37 @@
  * Aggregates of no one: these tables are not tied to a Candidate, so they stay out of the
  * data export and outlive account deletion.
  */
-import type { UsageLog } from "@jobhub/ai";
-import { scrubSecrets, type ExternalApiCall, type ExternalApiLog } from "@jobhub/shared";
+import type { Message, UsageLog } from "@jobhub/ai";
+import { scrubStoredText, type ExternalApiCall, type ExternalApiLog } from "@jobhub/shared";
 import type { Pool } from "pg";
 
 /** How long AI usage and external API calls are kept. */
 export const RETENTION_MONTHS = 24;
 /** How long the AI Message Log (what each call said: personal data) is kept. */
 export const MESSAGE_LOG_RETENTION_DAYS = 30;
+/** The longest text the AI Message Log keeps of a call's system text, of its messages (all together) and of its reply, in characters. */
+export const MESSAGE_LOG_MAX_LENGTH = 200_000;
+
+/** `text` cut to `max` characters, the cut said at its end. */
+function capped(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return `${text.slice(0, max)}\n[truncated: ${text.length - max} characters]`;
+}
+
+/** The messages within MESSAGE_LOG_MAX_LENGTH together, the latest kept first: an older one past it is cut, or emptied. */
+function cappedMessages(messages: Message[]): Message[] {
+  let left = MESSAGE_LOG_MAX_LENGTH;
+  const kept: Message[] = [];
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index]!;
+    kept.unshift({ role: message.role, content: capped(message.content, left) });
+    left = Math.max(0, left - message.content.length);
+  }
+  return kept;
+}
+
+/** Lets the caller's stack (the AI call) go on before any work is done. */
+const nextTurn = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 type Warn = (message: string, error: unknown) => void;
 
@@ -33,8 +56,8 @@ export interface PostgresUsageLogOptions {
   warn?: Warn;
 }
 
-/** An environment variable holding a credential, by its name. */
-const CREDENTIAL = /KEY|TOKEN|SECRET|PASSWORD/;
+/** An environment variable holding a credential, by its name; France Travail's client id and SMTP_URL (it carries a password) too. */
+const CREDENTIAL = /KEY|TOKEN|SECRET|PASSWORD|^FRANCE_TRAVAIL_CLIENT_ID$|^SMTP_URL$/;
 
 /** The values of every key, token, secret and password in `env`: what the AI Message Log scrubs by value. */
 export function knownSecrets(env: Record<string, string | undefined>): string[] {
@@ -55,9 +78,11 @@ export function createPostgresUsageLog(database: Pick<Pool, "query">, options: P
   const warn = options.warn ?? defaultWarn;
   return {
     async record(entry) {
+      // Nothing on the AI call's own stack: scrubbing a long prompt waits for the next turn.
+      await nextTurn();
       try {
         const known = options.secrets?.() ?? [];
-        const scrub = (text: string) => scrubSecrets(text, known);
+        const scrub = (text: string) => scrubStoredText(text, known);
         const { system, messages, reply } = entry.transcript;
         await database.query(
           `WITH usage AS (
@@ -69,8 +94,9 @@ export function createPostgresUsageLog(database: Pick<Pool, "query">, options: P
                FROM usage, jsonb_to_recordset($12::jsonb) AS tool (name text, count integer, ok boolean, "durationMs" integer, "costEur" double precision)
            )
            INSERT INTO ai_message_log (usage_id, candidate_id, at, system, messages, reply)
-           -- A Guest, or an id that is no Candidate's: kept without one.
-           SELECT usage.id, (SELECT id FROM candidate WHERE id = $13), $1, $14, $15::jsonb, $16 FROM usage`,
+           -- A Guest's call is kept without a Candidate; a Candidate's only while they exist: never a log without its owner.
+           SELECT usage.id, $13, $1, $14, $15::jsonb, $16 FROM usage
+            WHERE $13::text IS NULL OR EXISTS (SELECT 1 FROM candidate WHERE id = $13)`,
           [
             entry.at,
             entry.task,
@@ -85,9 +111,9 @@ export function createPostgresUsageLog(database: Pick<Pool, "query">, options: P
             entry.durationMs,
             JSON.stringify(entry.tools),
             entry.candidateId,
-            system === undefined ? null : scrub(system),
-            JSON.stringify(messages.map((message) => ({ role: message.role, content: scrub(message.content) }))),
-            reply === null ? null : scrub(reply),
+            system === undefined ? null : capped(scrub(system), MESSAGE_LOG_MAX_LENGTH),
+            JSON.stringify(cappedMessages(messages.map((message) => ({ role: message.role, content: scrub(message.content) })))),
+            reply === null ? null : capped(scrub(reply), MESSAGE_LOG_MAX_LENGTH),
           ],
         );
       } catch (error) {
@@ -207,52 +233,62 @@ export interface AiUsageReport {
   externalApis: { provider: string; operation: string; calls: number; failures: number; costEur: number | null }[];
 }
 
-const ROW = `count(*)::int AS calls, (count(*) FILTER (WHERE NOT ok))::int AS failures,
-             coalesce(sum(input_tokens), 0)::float8 AS "inputTokens", coalesce(sum(output_tokens), 0)::float8 AS "outputTokens",
-             coalesce(sum(cached_input_tokens), 0)::float8 AS "cachedInputTokens", coalesce(sum(cost), 0)::float8 AS "costEur"`;
-
 /** `column` within the period: $1 and $2 are its Paris dates. */
 const within = (column: string) => `${column} >= $1::timestamp AT TIME ZONE '${TIME_ZONE}' AND ${column} < $2::timestamp AT TIME ZONE '${TIME_ZONE}'`;
 
-/** The period's AI calls (with their tools' fees in `cost`), Paris-time bucket included. */
-const CALLS = `WITH calls AS (
-  SELECT u.*, u.cost_eur + coalesce((SELECT sum(t.cost_eur) FROM ai_tool_usage t WHERE t.usage_id = u.id), 0) AS cost,
-         to_char(u.at AT TIME ZONE '${TIME_ZONE}', $3) AS bucket
-    FROM ai_usage u
-   WHERE ${within("u.at")}
-)`;
+/** Calls, failures, tokens and cost of a group of the `calls` below, as JSON. */
+const ROW = `'calls', count(*), 'failures', count(*) FILTER (WHERE NOT ok),
+             'inputTokens', coalesce(sum(input_tokens), 0), 'outputTokens', coalesce(sum(output_tokens), 0),
+             'cachedInputTokens', coalesce(sum(cached_input_tokens), 0), 'costEur', coalesce(sum(cost), 0)`;
+
+/**
+ * The whole report in one query. `calls`, the period's AI calls with their tools' fees in `cost`
+ * and their Paris-time bucket, is computed once (MATERIALIZED) and grouped each way from there;
+ * the tools are summed per call with a GROUP BY, not a query per call.
+ */
+const REPORT = `
+  WITH tools AS MATERIALIZED (
+    SELECT u.id AS usage_id, u.provider, t.name, t.count, t.ok, t.cost_eur
+      FROM ai_usage u JOIN ai_tool_usage t ON t.usage_id = u.id
+     WHERE ${within("u.at")}
+  ), calls AS MATERIALIZED (
+    SELECT u.provider, u.model, u.task, u.ok, u.input_tokens, u.output_tokens, u.cached_input_tokens,
+           u.cost_eur + coalesce(fees.cost, 0) AS cost, to_char(u.at AT TIME ZONE '${TIME_ZONE}', $3) AS bucket
+      FROM ai_usage u
+      LEFT JOIN (SELECT usage_id, sum(cost_eur) AS cost FROM tools GROUP BY usage_id) fees ON fees.usage_id = u.id
+     WHERE ${within("u.at")}
+  )
+  SELECT
+    (SELECT json_build_object(${ROW}) FROM calls) AS total,
+    (SELECT coalesce(json_agg(row ORDER BY (row->>'calls')::int DESC, row->>'provider', row->>'model'), '[]')
+       FROM (SELECT json_build_object('provider', provider, 'model', model, ${ROW})::jsonb AS row FROM calls GROUP BY provider, model) g) AS "byModel",
+    (SELECT coalesce(json_agg(row ORDER BY (row->>'calls')::int DESC, row->>'task'), '[]')
+       FROM (SELECT json_build_object('task', task, ${ROW})::jsonb AS row FROM calls GROUP BY task) g) AS "byTask",
+    (SELECT coalesce(json_agg(row ORDER BY row->>'bucket' DESC), '[]')
+       FROM (SELECT json_build_object('bucket', bucket, ${ROW})::jsonb AS row FROM calls GROUP BY bucket) g) AS "byTime",
+    -- Uses and failed uses in one unit: each row counts \`count\` uses.
+    (SELECT coalesce(json_agg(row ORDER BY (row->>'calls')::int DESC, row->>'provider', row->>'name'), '[]')
+       FROM (SELECT json_build_object('provider', provider, 'name', name, 'calls', sum(count), 'failures', coalesce(sum(count) FILTER (WHERE NOT ok), 0),
+                                      'costEur', sum(cost_eur))::jsonb AS row
+               FROM tools GROUP BY provider, name) g) AS tools,
+    (SELECT coalesce(json_agg(row ORDER BY (row->>'calls')::int DESC, row->>'provider', row->>'operation'), '[]')
+       FROM (SELECT json_build_object('provider', provider, 'operation', operation, 'calls', count(*), 'failures', count(*) FILTER (WHERE NOT ok),
+                                      'costEur', sum(cost_eur))::jsonb AS row
+               FROM external_api_usage WHERE ${within("at")} GROUP BY provider, operation) g) AS "externalApis"`;
 
 /** The AI consumption of `period`, as the Back Office's report shows it. Estimates at list prices, in €. */
 export async function aiUsageReport(database: Pick<Pool, "query">, period: AiUsagePeriod): Promise<AiUsageReport> {
-  const params = [period.from, period.to, period.per === "day" ? "YYYY-MM-DD" : "YYYY-MM"];
-  const [total, byModel, byTask, byTime, tools, external] = await Promise.all([
-    database.query<AiUsageRow>(`${CALLS} SELECT ${ROW} FROM calls`, params),
-    database.query<AiUsageReport["byModel"][number]>(
-      `${CALLS} SELECT provider, model, ${ROW} FROM calls GROUP BY provider, model ORDER BY calls DESC, provider, model`,
-      params,
-    ),
-    database.query<AiUsageReport["byTask"][number]>(`${CALLS} SELECT task, ${ROW} FROM calls GROUP BY task ORDER BY calls DESC, task`, params),
-    database.query<AiUsageReport["byTime"][number]>(`${CALLS} SELECT bucket, ${ROW} FROM calls GROUP BY bucket ORDER BY bucket DESC`, params),
-    database.query<AiUsageReport["tools"][number]>(
-      `SELECT u.provider, t.name, sum(t.count)::int AS calls, (count(*) FILTER (WHERE NOT t.ok))::int AS failures, sum(t.cost_eur)::float8 AS "costEur"
-         FROM ai_tool_usage t JOIN ai_usage u ON u.id = t.usage_id
-        WHERE ${within("u.at")}
-        GROUP BY u.provider, t.name ORDER BY calls DESC, u.provider, t.name`,
-      params.slice(0, 2),
-    ),
-    database.query<AiUsageReport["externalApis"][number]>(
-      `SELECT provider, operation, count(*)::int AS calls, (count(*) FILTER (WHERE NOT ok))::int AS failures, sum(cost_eur)::float8 AS "costEur"
-         FROM external_api_usage WHERE ${within("at")}
-        GROUP BY provider, operation ORDER BY calls DESC, provider, operation`,
-      params.slice(0, 2),
-    ),
+  const { rows } = await database.query<Omit<AiUsageReport, "period" | "totals"> & { total: AiUsageRow }>(REPORT, [
+    period.from,
+    period.to,
+    period.per === "day" ? "YYYY-MM-DD" : "YYYY-MM",
   ]);
-  const calls = total.rows[0]!;
-  const toolCalls = tools.rows.reduce((sum, tool) => sum + tool.calls, 0);
-  const toolsCostEur = tools.rows.reduce((sum, tool) => sum + (tool.costEur ?? 0), 0);
-  const externalCalls = external.rows.reduce((sum, api) => sum + api.calls, 0);
-  const externalFailures = external.rows.reduce((sum, api) => sum + api.failures, 0);
-  const externalCostEur = external.rows.reduce((sum, api) => sum + (api.costEur ?? 0), 0);
+  const { total: calls, byModel, byTask, byTime, tools, externalApis } = rows[0]!;
+  const toolCalls = tools.reduce((sum, tool) => sum + tool.calls, 0);
+  const toolsCostEur = tools.reduce((sum, tool) => sum + (tool.costEur ?? 0), 0);
+  const externalCalls = externalApis.reduce((sum, api) => sum + api.calls, 0);
+  const externalFailures = externalApis.reduce((sum, api) => sum + api.failures, 0);
+  const externalCostEur = externalApis.reduce((sum, api) => sum + (api.costEur ?? 0), 0);
   return {
     period,
     totals: {
@@ -269,11 +305,11 @@ export async function aiUsageReport(database: Pick<Pool, "query">, period: AiUsa
       externalCostEur,
       costEur: calls.costEur + externalCostEur,
     },
-    byModel: byModel.rows,
-    byTask: byTask.rows,
-    byTime: byTime.rows,
-    tools: tools.rows,
-    externalApis: external.rows,
+    byModel,
+    byTask,
+    byTime,
+    tools,
+    externalApis,
   };
 }
 
@@ -311,6 +347,9 @@ export async function migrateAiUsage(database: Pick<Pool, "query">): Promise<voi
       duration_ms integer NOT NULL
     );
     CREATE INDEX IF NOT EXISTS ai_usage_at_idx ON ai_usage (at);
+    -- The Journaux IA filters, newest first.
+    CREATE INDEX IF NOT EXISTS ai_usage_task_at_idx ON ai_usage (task, at DESC);
+    CREATE INDEX IF NOT EXISTS ai_usage_model_at_idx ON ai_usage (model, at DESC);
     CREATE TABLE IF NOT EXISTS ai_tool_usage (
       id bigserial PRIMARY KEY,
       usage_id uuid NOT NULL REFERENCES ai_usage (id) ON DELETE CASCADE,
@@ -320,7 +359,9 @@ export async function migrateAiUsage(database: Pick<Pool, "query">): Promise<voi
       duration_ms integer NOT NULL,
       cost_eur double precision
     );
-    CREATE INDEX IF NOT EXISTS ai_tool_usage_usage_idx ON ai_tool_usage (usage_id);
+    -- The report sums a period's tools from its calls: what it reads, in the index.
+    DROP INDEX IF EXISTS ai_tool_usage_usage_idx;
+    CREATE INDEX IF NOT EXISTS ai_tool_usage_usage_cover_idx ON ai_tool_usage (usage_id) INCLUDE (name, count, ok, cost_eur);
     CREATE TABLE IF NOT EXISTS external_api_usage (
       id bigserial PRIMARY KEY,
       at timestamptz NOT NULL,
@@ -344,7 +385,9 @@ export async function migrateAiUsage(database: Pick<Pool, "query">): Promise<voi
       reply text
     );
     CREATE INDEX IF NOT EXISTS ai_message_log_at_idx ON ai_message_log (at DESC);
-    CREATE INDEX IF NOT EXISTS ai_message_log_candidate_idx ON ai_message_log (candidate_id);
+    -- A Candidate's logs, newest first (their data export, account deletion).
+    DROP INDEX IF EXISTS ai_message_log_candidate_idx;
+    CREATE INDEX IF NOT EXISTS ai_message_log_candidate_at_idx ON ai_message_log (candidate_id, at DESC);
     CREATE INDEX IF NOT EXISTS ai_message_log_usage_idx ON ai_message_log (usage_id);
   `);
 }

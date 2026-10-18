@@ -159,6 +159,14 @@ describe.skipIf(!connectionString)("AI Usage (needs Postgres: DATABASE_URL)", ()
     ]);
   });
 
+  it("counts a tool's uses and failed uses in the same unit", async () => {
+    const usage = createPostgresUsageLog(database);
+    const fetched = (count: number, ok: boolean) => ({ name: "fetch_url", count, ok, durationMs: 10, costEur: null });
+    await usage.record({ ...entry(), provider: "mistral", tools: [fetched(2, true), fetched(3, false)], at: new Date("2026-10-17T08:00:00Z") });
+
+    expect((await aiUsageReport(database, aiUsagePeriod("7d", now))).tools).toEqual([{ provider: "mistral", name: "fetch_url", calls: 5, failures: 3, costEur: null }]);
+  });
+
   it("reads a past month per day, and the last 12 months per month", async () => {
     await seed();
 
@@ -222,10 +230,12 @@ describe("knownSecrets", () => {
         FRANCE_TRAVAIL_CLIENT_SECRET: "fts",
         SECRETS_MASTER_KEYS: "k1,k2",
         SMTP_PASSWORD: "pw",
+        FRANCE_TRAVAIL_CLIENT_ID: "ft-client",
+        SMTP_URL: "smtps://u:p@smtp.example",
         AI_SCORING_MODEL: "mistral-small",
         APP_URL: "https://jobbbox.fr",
         EMPTY_API_KEY: "",
       }).sort(),
-    ).toEqual(["fts", "k1,k2", "mk-1", "pw", "tok"]);
+    ).toEqual(["ft-client", "fts", "k1,k2", "mk-1", "pw", "smtps://u:p@smtp.example", "tok"]);
   });
 });

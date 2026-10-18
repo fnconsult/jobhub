@@ -38,5 +38,5 @@ export type { JobSearchQuery, QueryLanguage } from "./search-query";
 export { PROVIDER_IDS, SEARCH_TASK, TEXT_TASKS } from "./types";
 export type * from "./types";
 export { allUsageLogs, createConsoleUsageLog } from "./usage";
-export { costInEur, EUR_PER_USD, toolCostInEur } from "./cost";
+export { costInEur, enrichmentCostInEur, EUR_PER_USD, toolCostInEur } from "./cost";
 export type { PricedCall } from "./cost";

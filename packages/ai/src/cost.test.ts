@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { costInEur } from "./cost";
+import { costInEur, enrichmentCostInEur } from "./cost";
 import { PROVIDER_IDS } from "./types";
 
 const usage = (inputTokens: number, outputTokens: number) => ({ inputTokens, outputTokens });
@@ -64,5 +64,27 @@ describe("the cost in € of an AI call", () => {
     const cost = costInEur({ provider, model: "any-model", usage: usage(1_000, 500), sources: [] });
     expect(Number.isFinite(cost)).toBe(true);
     expect(cost).toBeGreaterThan(0);
+  });
+});
+
+describe("what a contact enrichment call costs (#218)", () => {
+  it("prices a call that spends credits at the provider's credit price, in €", () => {
+    // Lusha: 1 credit at $0.115; Kaspr: 1 credit at $0.36; Apollo: 1 credit at $0.20.
+    expect(enrichmentCostInEur("lusha", "POST /v3/contacts/prospecting", 200)).toBeCloseTo(0.115 * 0.86, 9);
+    expect(enrichmentCostInEur("lusha", "POST /v3/contacts/enrich", 201)).toBeCloseTo(0.115 * 0.86, 9);
+    expect(enrichmentCostInEur("kaspr", "POST /profile/linkedin", 200)).toBeCloseTo(0.36 * 0.86, 9);
+    expect(enrichmentCostInEur("apollo", "POST /api/v1/people/match", 200)).toBeCloseTo(0.2 * 0.86, 9);
+  });
+
+  it("costs nothing for a search that spends no credit, nothing found, or a refused call", () => {
+    expect(enrichmentCostInEur("apollo", "POST /api/v1/mixed_people/api_search", 200)).toBe(0);
+    expect(enrichmentCostInEur("lusha", "POST /v3/contacts/enrich", 404)).toBe(0);
+    expect(enrichmentCostInEur("kaspr", "POST /profile/linkedin", 402)).toBe(0);
+    expect(enrichmentCostInEur("apollo", "POST /api/v1/people/match", null)).toBe(0);
+  });
+
+  it("does not know the cost of another provider or operation", () => {
+    expect(enrichmentCostInEur("apollo", "GET /api/v1/auth/health", 200)).toBeNull();
+    expect(enrichmentCostInEur("clearbit", "POST /v2/people", 200)).toBeNull();
   });
 });

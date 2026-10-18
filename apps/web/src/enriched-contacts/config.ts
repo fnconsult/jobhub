@@ -1,3 +1,4 @@
+import { enrichmentCostInEur } from "@jobhub/ai";
 import { recordingFetch, type ExternalApiLog } from "@jobhub/shared";
 import { CONTACT_ENRICHMENT_SECRET_NAMES } from "../provider-secrets/catalog";
 import { liveObject, type SecretResolver } from "../provider-secrets/resolver";
@@ -43,7 +44,10 @@ export function contactEnrichmentFromEnv(env: Env, deps: ContactEnrichmentDeps =
   if (!apiKey) throw new Error(`Missing environment variable ${KEY_VARIABLES[id]} for CONTACT_ENRICHMENT_PROVIDER=${id}`);
   if (env.CONTACT_ENRICHMENT_DPA_SIGNED !== "true") return { provider: null, disabledBecause: "dpa_not_signed" };
   const baseUrl = env.CONTACT_ENRICHMENT_API_URL || undefined;
-  const fetch = deps.externalApis ? recordingFetch(globalThis.fetch, deps.externalApis, { provider: id }) : undefined;
+  const fetch = deps.externalApis ? recordingFetch(globalThis.fetch, deps.externalApis, {
+        provider: id,
+        costEur: (status, operation) => enrichmentCostInEur(id, operation, status),
+      }) : undefined;
   return { provider: ADAPTERS[id]({ apiKey, ...(baseUrl && { baseUrl }), ...(fetch && { fetch }) }) };
 }
 

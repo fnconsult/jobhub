@@ -952,7 +952,8 @@
         "plan_quotas": "Plan Quotas",
         "human_coaches": "Human Coaches",
         "provider_secrets": "Provider keys",
-        "sign_in_providers": "Sign-in"
+        "sign_in_providers": "Sign-in",
+        "ai_messages": "AI message logs"
       },
       "actions": {
         "added": "Added",
@@ -962,7 +963,8 @@
         "tested": "Test sign-in passed",
         "replaced": "Replaced",
         "replaced_despite_failed_test": "Replaced despite a failed test",
-        "cleared": "Cleared"
+        "cleared": "Cleared",
+        "viewed": "Viewed"
       },
       "none": "No change recorded.",
       "caption": "Back office changes, newest first",

@@ -1,4 +1,5 @@
 import { createAiLayer } from "@jobhub/ai";
+import { createPostgresUsageLog } from "../ai-usage";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import type { MasterCvContent } from "@jobhub/shared";
 import type { Pool } from "pg";
@@ -257,6 +258,34 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       { id: expect.any(String), kind: "goal", text: "Devenir DAF", createdAt: expect.any(Date), updatedAt: expect.any(Date) },
       expect.objectContaining({ kind: "constraint", text: "Pas de télétravail partiel" }),
     ]);
+  });
+
+  it("the export holds the AI Message Log of the Candidate's own AI calls, newest first, without what they cost; account deletion takes it", async () => {
+    const other = await signIn("jean.martin@example.fr");
+    const usage = createPostgresUsageLog(database);
+    const pending: Promise<unknown>[] = [];
+    let at = new Date("2026-10-16T08:00:00Z");
+    const ai = createAiLayer({
+      providers: [createFakeProvider({ id: "mistral", reply: "Bonjour Marie" })],
+      routes: { coaching: "mistral" },
+      usage: { record: (entry) => void pending.push(Promise.resolve(usage.record(entry))) },
+      now: () => at,
+    });
+    await ai.generate({ task: "coaching", candidateId, system: "Tu es le coach.", prompt: "Bonjour" });
+    at = new Date("2026-10-17T08:00:00Z");
+    await ai.generate({ task: "coaching", candidateId, prompt: "Merci" });
+    await ai.generate({ task: "coaching", candidateId: other, prompt: "Pas à Marie" });
+    await Promise.all(pending);
+
+    expect((await candidateData.export(candidateId)).aiMessageLog).toEqual([
+      { id: expect.any(String), at: new Date("2026-10-17T08:00:00Z"), task: "coaching", provider: "mistral", model: "fake-mistral", system: null, messages: [{ role: "user", content: "Merci" }], reply: "Bonjour Marie" },
+      expect.objectContaining({ at: new Date("2026-10-16T08:00:00Z"), system: "Tu es le coach.", messages: [{ role: "user", content: "Bonjour" }] }),
+    ]);
+
+    await candidateData.delete(candidateId);
+
+    const { rows } = await database.query(`SELECT candidate_id FROM ai_message_log`);
+    expect(rows).toEqual([{ candidate_id: other }]);
   });
 
   it("the export holds each Profile's ATS Score, or null when its Master CV was never scored", async () => {

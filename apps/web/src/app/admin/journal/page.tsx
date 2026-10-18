@@ -150,7 +150,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
                     <td>{target(entry)}</td>
                     <td>{t(`admin.journal.actions.${entry.action}`)}</td>
                     <td>
-                      {isSecretAction(entry.action) ? (
+                      {entry.action === "viewed" ? null : isSecretAction(entry.action) ? (
                         t(`admin.journal.secret.${entry.action}`)
                       ) : changes.length === 0 ? (
                         t("admin.journal.unchanged")

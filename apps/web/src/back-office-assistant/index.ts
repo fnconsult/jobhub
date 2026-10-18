@@ -262,6 +262,7 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   human_coaches: "coachs humains",
   provider_secrets: "clés des fournisseurs",
   sign_in_providers: "fournisseurs de connexion",
+  ai_messages: "journaux IA",
 };
 
 const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
@@ -273,6 +274,7 @@ const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
   replaced: "remplacement",
   replaced_despite_failed_test: "remplacement malgré un test échoué",
   cleared: "effacement",
+  viewed: "consultation",
 };
 
 /** A Journal entry for the assistant: never a secret (none is recorded), never an address, Human Coaches by name. */

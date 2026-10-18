@@ -952,7 +952,8 @@
         "plan_quotas": "Quotas des offres",
         "human_coaches": "Coachs humains",
         "provider_secrets": "Clés des fournisseurs",
-        "sign_in_providers": "Connexion"
+        "sign_in_providers": "Connexion",
+        "ai_messages": "Journaux IA"
       },
       "actions": {
         "added": "Ajout",
@@ -962,7 +963,8 @@
         "tested": "Test de connexion réussi",
         "replaced": "Remplacement",
         "replaced_despite_failed_test": "Remplacement malgré un test échoué",
-        "cleared": "Effacement"
+        "cleared": "Effacement",
+        "viewed": "Consultation"
       },
       "none": "Aucune modification enregistrée.",
       "caption": "Modifications du back office, des plus récentes aux plus anciennes",

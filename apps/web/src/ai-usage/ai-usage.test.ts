@@ -90,8 +90,9 @@ describe.skipIf(!connectionString)("AI Usage (needs Postgres: DATABASE_URL)", ()
     const external = createPostgresExternalApiLog(database);
     const at = () => new Date("2026-10-17T07:00:00Z");
     const recorded = { record: (call: ExternalApiCall) => void pending.push(Promise.resolve(external.record(call))) };
-    await recordingFetch(async () => new Response("{}"), recorded, { provider: "france_travail", costEur: () => 0, now: at })("https://api.francetravail.io/offres?q=DAF", {});
-    await recordingFetch(async () => new Response("{}", { status: 429 }), recorded, { provider: "lusha", now: at })("https://api.lusha.com/v2/person", { method: "POST" });
+    const answer = (status: number): ((url: string, init: RequestInit) => Promise<Response>) => async () => new Response("{}", { status });
+    await recordingFetch(answer(200), recorded, { provider: "france_travail", costEur: () => 0, now: at })("https://api.francetravail.io/offres?q=DAF", {});
+    await recordingFetch(answer(429), recorded, { provider: "lusha", now: at })("https://api.lusha.com/v2/person", { method: "POST" });
     await settled();
     now = new Date("2026-10-18T10:00:00Z");
   }

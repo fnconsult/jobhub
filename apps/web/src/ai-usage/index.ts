@@ -5,21 +5,24 @@
  * One module in front of Postgres:
  *  - `createPostgresUsageLog(database)`, the AI layer's UsageLog in the web app and the worker:
  *    one `ai_usage` row per call (task, provider, endpoint, model, tokens, estimated €, outcome,
- *    duration) and one `ai_tool_usage` row per tool its model used. No Candidate id, no text.
+ *    duration) and one `ai_tool_usage` row per tool its model used: no Candidate id, no text.
  *  - `createPostgresExternalApiLog(database)`, where `recordingFetch` records the calls to
  *    France Travail and the contact enrichment providers: `external_api_usage`, no payload.
  *  - `aiUsageReport(database, aiUsagePeriod(key, now))`: totals and breakdowns of a period.
  *  - `purgeExpiredAiUsage(database, now)`, run nightly by the worker: rows are kept RETENTION_MONTHS.
+ * What each call said is kept apart, in the AI Message Log (`./message-log`), 30 days.
  * Recording never fails nor delays a call: an insert that fails is only warned about.
  * Aggregates of no one: these tables are not tied to a Candidate, so they stay out of the
  * data export and outlive account deletion.
  */
 import type { UsageLog } from "@jobhub/ai";
-import type { ExternalApiCall, ExternalApiLog } from "@jobhub/shared";
+import { scrubSecrets, type ExternalApiCall, type ExternalApiLog } from "@jobhub/shared";
 import type { Pool } from "pg";
 
 /** How long AI usage and external API calls are kept. */
 export const RETENTION_MONTHS = 24;
+/** How long the AI Message Log (what each call said: personal data) is kept. */
+export const MESSAGE_LOG_RETENTION_DAYS = 30;
 
 type Warn = (message: string, error: unknown) => void;
 
@@ -30,20 +33,36 @@ export interface PostgresUsageLogOptions {
   warn?: Warn;
 }
 
-/** The AI layer's usage log on Postgres. `record` never rejects: a failed insert is warned about. */
-export function createPostgresUsageLog(database: Pick<Pool, "query">, options: PostgresUsageLogOptions = {}): UsageLog {
+export interface PostgresAiUsageLogOptions extends PostgresUsageLogOptions {
+  /** The keys in use (Provider Secrets and the environment's), scrubbed from the AI Message Log on top of whatever looks like a key. */
+  secrets?: () => readonly (string | undefined)[];
+}
+
+/**
+ * The AI layer's usage log on Postgres: the call's usage and tools, and what it said in the AI Message
+ * Log (`./message-log`), secrets scrubbed, with its Candidate when there is one. All of it or nothing.
+ * `record` never rejects: a failed insert is warned about.
+ */
+export function createPostgresUsageLog(database: Pick<Pool, "query">, options: PostgresAiUsageLogOptions = {}): UsageLog {
   const warn = options.warn ?? defaultWarn;
   return {
     async record(entry) {
       try {
+        const known = options.secrets?.() ?? [];
+        const scrub = (text: string) => scrubSecrets(text, known);
+        const { system, messages, reply } = entry.transcript;
         await database.query(
           `WITH usage AS (
              INSERT INTO ai_usage (at, task, provider, endpoint, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, ok, duration_ms)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id
+           ), tools AS (
+             INSERT INTO ai_tool_usage (usage_id, name, count, ok, duration_ms, cost_eur)
+             SELECT usage.id, tool.name, tool.count, tool.ok, tool."durationMs", tool."costEur"
+               FROM usage, jsonb_to_recordset($12::jsonb) AS tool (name text, count integer, ok boolean, "durationMs" integer, "costEur" double precision)
            )
-           INSERT INTO ai_tool_usage (usage_id, name, count, ok, duration_ms, cost_eur)
-           SELECT usage.id, tool.name, tool.count, tool.ok, tool."durationMs", tool."costEur"
-             FROM usage, jsonb_to_recordset($12::jsonb) AS tool (name text, count integer, ok boolean, "durationMs" integer, "costEur" double precision)`,
+           INSERT INTO ai_message_log (usage_id, candidate_id, at, system, messages, reply)
+           -- A Guest, or an id that is no Candidate's: kept without one.
+           SELECT usage.id, (SELECT id FROM candidate WHERE id = $13), $1, $14, $15::jsonb, $16 FROM usage`,
           [
             entry.at,
             entry.task,
@@ -57,6 +76,10 @@ export function createPostgresUsageLog(database: Pick<Pool, "query">, options: P
             entry.ok,
             entry.durationMs,
             JSON.stringify(entry.tools),
+            entry.candidateId,
+            system === undefined ? null : scrub(system),
+            JSON.stringify(messages.map((message) => ({ role: message.role, content: scrub(message.content) }))),
+            reply === null ? null : scrub(reply),
           ],
         );
       } catch (error) {
@@ -247,17 +270,22 @@ export async function aiUsageReport(database: Pick<Pool, "query">, period: AiUsa
 }
 
 /**
- * Deletes the AI usage (with its tools) and the external API calls RETENTION_MONTHS old or more
- * at `now`; says how many of each. Safe to run again.
+ * Deletes the AI Message Log MESSAGE_LOG_RETENTION_DAYS old or more at `now`, and the AI usage (with
+ * its tools) and external API calls RETENTION_MONTHS old or more; says how many of each. Safe to run again.
  */
-export async function purgeExpiredAiUsage(database: Pick<Pool, "query">, now: Date): Promise<{ usage: number; externalApis: number }> {
+export async function purgeExpiredAiUsage(database: Pick<Pool, "query">, now: Date): Promise<{ usage: number; externalApis: number; messageLogs: number }> {
   const before = `$1::timestamptz - make_interval(months => $2)`;
+  const messageLogs = await database.query(`DELETE FROM ai_message_log WHERE at <= $1::timestamptz - make_interval(days => $2)`, [
+    now,
+    MESSAGE_LOG_RETENTION_DAYS,
+  ]);
+  // Counted apart: a message log still kept goes with its usage.
   const usage = await database.query(`DELETE FROM ai_usage WHERE at <= ${before}`, [now, RETENTION_MONTHS]);
   const externalApis = await database.query(`DELETE FROM external_api_usage WHERE at <= ${before}`, [now, RETENTION_MONTHS]);
-  return { usage: usage.rowCount ?? 0, externalApis: externalApis.rowCount ?? 0 };
+  return { usage: usage.rowCount ?? 0, externalApis: externalApis.rowCount ?? 0, messageLogs: messageLogs.rowCount ?? 0 };
 }
 
-/** Creates or upgrades the AI Usage tables. Safe to run repeatedly. */
+/** Creates or upgrades the AI Usage tables and the AI Message Log. Run after the Candidate tables. Safe to run repeatedly. */
 export async function migrateAiUsage(database: Pick<Pool, "query">): Promise<void> {
   await database.query(`
     CREATE TABLE IF NOT EXISTS ai_usage (
@@ -296,5 +324,19 @@ export async function migrateAiUsage(database: Pick<Pool, "query">): Promise<voi
       cost_eur double precision
     );
     CREATE INDEX IF NOT EXISTS external_api_usage_at_idx ON external_api_usage (at);
+    -- The AI Message Log: what each call said, secrets scrubbed. Personal data: kept 30 days,
+    -- in the Candidate's data export, deleted with their account.
+    CREATE TABLE IF NOT EXISTS ai_message_log (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      usage_id uuid NOT NULL REFERENCES ai_usage (id) ON DELETE CASCADE,
+      candidate_id text REFERENCES candidate (id) ON DELETE CASCADE,
+      at timestamptz NOT NULL,
+      system text,
+      messages jsonb NOT NULL,
+      reply text
+    );
+    CREATE INDEX IF NOT EXISTS ai_message_log_at_idx ON ai_message_log (at DESC);
+    CREATE INDEX IF NOT EXISTS ai_message_log_candidate_idx ON ai_message_log (candidate_id);
+    CREATE INDEX IF NOT EXISTS ai_message_log_usage_idx ON ai_message_log (usage_id);
   `);
 }

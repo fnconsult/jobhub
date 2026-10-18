@@ -457,7 +457,7 @@ The Back Office page where Administrators read the Back Office Audit, newest fir
 _Avoid_: Audit page, changelog
 
 **AI Usage**:
-What every AI call cost Jobbbox, whatever its task (not only AI Coach replies): when, task, provider, endpoint, model, input, output and cached input tokens, estimated cost in euros at list prices (the same prices as the Coach Message Cost), duration, success or failure; with each tool its model used (a web search, priced per search) and every call to an external API (France Travail, contact enrichment: provider, operation, HTTP status, cost when known). No Candidate and no text: aggregates of no one, so outside the Data export and kept 24 months whatever happens to accounts. Super-admins and Support read it on the Back Office's Consommation IA page, per period.
+What every AI call cost Jobbbox, whatever its task (not only AI Coach replies): when, task, provider, endpoint, model, input, output and cached input tokens, estimated cost in euros at list prices (the same prices as the Coach Message Cost), duration, success or failure; with each tool its model used (a web search, priced per search) and every call to an external API (France Travail, the French company register, the job boards, contact enrichment: provider, operation, HTTP status, cost when known). No Candidate and no text: aggregates of no one, so outside the Data export and kept 24 months whatever happens to accounts. Super-admins and Support read it on the Back Office's Consommation IA page, per period.
 _Avoid_: AI bill, token log, metering
 
 **AI Message Log**:

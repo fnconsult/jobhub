@@ -54,15 +54,15 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 
 | | |
 | --- | --- |
-| Purpose | Follow what AI costs Jobbbox: every AI call (all tasks), the tools its model used and the calls to external APIs (France Travail, contact enrichment), in the Back Office's AI consumption report. |
-| Legal basis | Not a processing of personal data: no person is named or identifiable. Recorded here to say so. |
-| People concerned | None. |
+| Purpose | Follow what AI costs Jobbbox: every AI call (all tasks), the tools its model used and the calls to external APIs (France Travail, the French company register, the job boards, contact enrichment), in the Back Office's AI consumption report. |
+| Legal basis | Legitimate interest (GDPR art. 6(1)(f)): knowing and controlling what the service costs to run. The rows name no one; for the 30 days its AI Message Log is kept, a call's row can be joined to the Candidate it was made for, and is personal data then; after that it is not. |
+| People concerned | Candidates, Administrators (Back Office Assistant) and Guests whose AI calls these are, indirectly and for 30 days through the AI Message Log; after that, none. |
 | Data | Per AI call: when, task, provider, endpoint, model, tokens (input, output, cached input), estimated cost, duration, success or failure; per tool used: its name, how many uses, success, cost when billed. Per external API call: provider, operation (HTTP method and path, no query string), HTTP status, duration, cost when known. No Candidate id, no prompt or reply text, no payload, no key (operations are scrubbed of anything shaped like one). |
 | Source | Written by the AI layer (web app and worker) and by the France Travail and contact enrichment clients, without waiting: a failed insert never fails the call. |
 | Who can read it | Super-admins and Support, on the Back Office's Consommation IA page (`/admin/consommation-ia`), as totals and breakdowns; the Back Office Assistant gets the same aggregates for those roles. Anyone else gets a 404. |
 | Storage | The `ai_usage`, `ai_tool_usage` and `external_api_usage` tables in the app's Postgres database (EU). |
 | Retention | 24 months. The worker's nightly job `ai-usage.purge` deletes older rows. |
-| Rights | Not part of a Candidate's data export, and kept when an account is deleted: the tables name no one (`apps/web/src/candidate-data/deletion-reach.test.ts` checks it). |
+| Rights | Not part of a Candidate's data export, and kept when an account is deleted: the tables name no one (`apps/web/src/candidate-data/deletion-reach.test.ts` checks it), and the link through the AI Message Log goes with it (exported, then deleted with the account or after 30 days). |
 | Security | Read-only pages, checked on every request. |
 
 ## AI Message Log (#218)
@@ -71,8 +71,8 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | --- | --- |
 | Purpose | Quality and debugging of the AI features: lets the Jobbbox team see what an AI call was asked and answered when a reply goes wrong. |
 | Legal basis | Legitimate interest (GDPR art. 6(1)(f)): keeping the AI features correct and safe for Candidates. Short retention and super-admin-only, audited access limit the impact. |
-| People concerned | Candidates (and Administrators using the Back Office Assistant on their own account), whose AI calls these are; people named in what they wrote. |
-| Data | Per AI call: the system text, the messages and the reply (null when the call failed), as the AI layer sent and received them, with keys and secrets scrubbed before storing (every key in use, and anything shaped like a credential); the Candidate's id (none for a Guest); the call's AI Usage row (task, model, tokens, cost). It can hold anything the call carried: CV content, Profile, Applications, Coach Conversations. |
+| People concerned | Candidates (and Administrators using the Back Office Assistant on their own account), whose AI calls these are; Guests (the browser extension without an account), whose calls are kept without an id; people named in what they wrote. |
+| Data | Per AI call: the system text, the messages and the reply (null when the call failed), as the AI layer sent and received them, with keys and secrets scrubbed before storing (every key in use, and anything shaped like a credential) and each text capped at 200,000 characters; the Candidate's id (none for a Guest; a call whose Candidate no longer exists keeps no log); the call's AI Usage row (task, model, tokens, cost). It can hold anything the call carried: CV content, Profile, Applications, Coach Conversations. |
 | Source | Written by the AI layer (web app and worker) with each call, without waiting: a failed insert never fails the call. |
 | Who can read it | Super-admins only (the `aiMessages` resource; not Support, not the Back Office Assistant), on the Back Office's Journaux IA page (`/admin/journaux-ia`): the list shows who, when, task and model, never the text; opening a log shows its text and writes who opened which log, when, to the Back Office Audit. Anyone else gets a 404. |
 | Storage | The `ai_message_log` table in the app's Postgres database (EU). |

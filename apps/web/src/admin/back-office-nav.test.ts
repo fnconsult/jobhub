@@ -5,7 +5,7 @@ import { backOfficeNav } from "./back-office-nav";
 const sections = (nav: ReturnType<typeof backOfficeNav>) => nav.map((group) => [group.key, group.sections.map((section) => [section.key, section.href])]);
 
 describe("the Back Office navigation", () => {
-  it("shows a super-admin every section, grouped, Plans and their Quotas under Offre, Provider Secrets (Clés) and Sign-in Providers (Connexion) under Plateforme", () => {
+  it("shows a super-admin every section, grouped, Plans and their Quotas under Offre, Provider Secrets (Clés), Sign-in Providers (Connexion), AI consumption and AI message logs under Plateforme", () => {
     expect(sections(backOfficeNav(backOfficeAccess(["super-admin"])))).toEqual([
       [
         "offer",
@@ -26,6 +26,8 @@ describe("the Back Office navigation", () => {
         [
           ["providerSecrets", "/admin/cles"],
           ["signInProviders", "/admin/connexion"],
+          ["aiUsage", "/admin/consommation-ia"],
+          ["aiMessages", "/admin/journaux-ia"],
         ],
       ],
       [
@@ -57,9 +59,15 @@ describe("the Back Office navigation", () => {
         ],
       ],
     ]);
-    // Support reads everything but Provider Secrets: Connexion alone under Plateforme, read-only.
+    // Support reads everything but Provider Secrets and the AI Message Log: Connexion and Consommation IA under Plateforme, read-only.
     expect(sections(backOfficeNav(backOfficeAccess(["support"]))).map(([key]) => key)).toEqual(["offer", "coaching", "platform"]);
-    expect(sections(backOfficeNav(backOfficeAccess(["support"])))[2]).toEqual(["platform", [["signInProviders", "/admin/connexion"]]]);
+    expect(sections(backOfficeNav(backOfficeAccess(["support"])))[2]).toEqual([
+      "platform",
+      [
+        ["signInProviders", "/admin/connexion"],
+        ["aiUsage", "/admin/consommation-ia"],
+      ],
+    ]);
     expect(backOfficeNav(backOfficeAccess([]))).toEqual([]);
   });
 });

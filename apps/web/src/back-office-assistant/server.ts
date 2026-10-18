@@ -1,5 +1,6 @@
 import { getBackOffice, getAdministrators } from "@/admin/server";
 import { getAi } from "@/ai/server";
+import { aiUsageReportOf } from "@/ai-usage/server";
 import { getBilling } from "@/billing/server";
 import { coachCostOfLastDays } from "@/coach-conversations/server";
 import { sharedPool } from "@/database/pool";
@@ -22,6 +23,7 @@ export function getAssistantConversations(): AssistantConversations {
         plans: () => getBilling().plans(),
         humanCoaches: () => getHumanCoaches().list(),
         coachCost: (days) => coachCostOfLastDays(days),
+        aiUsage: () => aiUsageReportOf("30d"),
         administrators: () => getAdministrators().list(),
         journal: (limit) => getBackOffice().journal({ limit }),
       },

@@ -28,6 +28,7 @@ import { BACK_OFFICE_ROLES, type BackOfficeAccess, type BackOfficeResource, type
 import type { Administrator } from "../admin/administrators";
 import type { BackOfficeAuditEntry, Recorded } from "../admin/back-office";
 import type { PlanDefinition, PlanName } from "../billing";
+import type { AiUsageReport } from "../ai-usage";
 import type { CoachMessageCost } from "../coach";
 import { COACH_MESSAGE_COST_TARGET_EUR, type CoachCostDay } from "../coach-conversations";
 import type { HumanCoach } from "../human-coaches";
@@ -46,6 +47,8 @@ export interface BackOfficeAssistantSources {
   humanCoaches(): Promise<HumanCoach[]>;
   /** The AI Coach's cost per day, newest first (`coachMessageCost`). */
   coachCost(days: number): Promise<CoachCostDay[]>;
+  /** The AI consumption of the last 30 days, aggregates only (`aiUsage`). */
+  aiUsage(): Promise<AiUsageReport>;
   /** The Administrators and their roles (`roles`). */
   administrators(): Promise<Administrator[]>;
   /** The Back Office Audit, newest first (`audit`). */
@@ -127,6 +130,8 @@ const SECTIONS: Record<BackOfficeResource, { name: string; page?: string }> = {
   audit: { name: "Journal du Back Office", page: routes.adminJournal() },
   providerSecrets: { name: "Clés des fournisseurs (Provider Secrets)" },
   ssoProviders: { name: "Fournisseurs de connexion (SSO)", page: routes.adminSignInProviders },
+  aiUsage: { name: "Consommation IA (AI Usage)", page: routes.adminAiUsage() },
+  aiMessages: { name: "Journaux IA (AI Message Log)", page: routes.adminAiMessages() },
 };
 
 const heading = (resource: BackOfficeResource) => {
@@ -189,6 +194,32 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
     ].join("\n");
   },
 
+  async aiUsage(sources) {
+    const { totals, byModel, byTask, tools, externalApis } = await sources.aiUsage();
+    const eur = (value: number | null) => (value === null ? "coût inconnu" : `${value.toFixed(2)} €`);
+    const calls = (row: { calls: number; failures: number }, unit = "appels") => `${row.calls} ${unit}${row.failures ? `, ${row.failures} en échec` : ""}`;
+    return [
+      heading("aiUsage"),
+      "Ce que coûtent les appels à l'IA (toutes les tâches, pas seulement le coach IA), les outils utilisés par les modèles (recherche web) et les API externes (France Travail, enrichissement de contacts), sur les 30 derniers jours (heure de Paris). Estimations aux prix publics, en euros. Agrégats seulement : aucun candidat, aucun texte.",
+      `Total : ${calls(totals)}, ${totals.inputTokens} jetons en entrée, ${totals.cachedInputTokens} en cache, ${totals.outputTokens} en sortie ; coût total ${eur(totals.costEur)} (dont outils ${eur(totals.toolsCostEur)}, API externes ${eur(totals.externalCostEur)}).`,
+      "Par fournisseur et modèle :",
+      ...byModel.map((row) => `- ${row.provider} ${row.model} : ${calls(row)}, ${eur(row.costEur)}`),
+      "Par tâche :",
+      ...byTask.map((row) => `- ${row.task} : ${calls(row)}, ${eur(row.costEur)}`),
+      "Outils :",
+      ...(tools.length ? tools.map((tool) => `- ${tool.provider} ${tool.name} : ${calls(tool, "utilisations")}, ${eur(tool.costEur)}`) : ["- aucun"]),
+      "API externes :",
+      ...(externalApis.length ? externalApis.map((api) => `- ${api.provider} ${api.operation} : ${calls(api)}, ${eur(api.costEur)}`) : ["- aucune"]),
+    ].join("\n");
+  },
+
+  async aiMessages() {
+    return [
+      heading("aiMessages"),
+      "Le texte de chaque appel à l'IA (prompt et réponse, secrets masqués), gardé 30 jours pour la qualité et le débogage, lisible par les super-admins seulement ; chaque consultation est notée au Journal. Vous n'y avez jamais accès : pour lire un journal, renvoyez à la page.",
+    ].join("\n");
+  },
+
   async plans(sources) {
     const plans = await sources.plans();
     const lines = plans.map((plan) => {
@@ -238,7 +269,7 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
     const permanent = administrators.filter((one) => one.permanent).length;
     return [
       heading("roles"),
-      "Rôles : Super-admin (tout, y compris les rôles, les clés des fournisseurs et la connexion SSO), Responsable des offres (offres et quotas), Responsable coaching (coachs humains, lecture du coût du coach IA), Support (lecture seule, sans secrets). Seuls les super-admins donnent ou retirent des rôles ; les super-admins permanents (ADMIN_EMAILS) ne peuvent pas être retirés.",
+      "Rôles : Super-admin (tout, y compris les rôles, les clés des fournisseurs, la connexion SSO et les journaux IA), Responsable des offres (offres et quotas), Responsable coaching (coachs humains, lecture du coût du coach IA), Support (lecture seule, sans secrets ni journaux IA). Seuls les super-admins donnent ou retirent des rôles ; les super-admins permanents (ADMIN_EMAILS) ne peuvent pas être retirés.",
       `${administrators.length} Administrateur(s), dont ${permanent} super-admin(s) permanent(s). Par rôle :`,
       ...lines,
     ].join("\n");

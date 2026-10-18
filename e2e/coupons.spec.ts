@@ -15,7 +15,7 @@ const stripeUrl = process.env.E2E_STRIPE_URL!;
 const ADMINISTRATOR = "back-office@e2e.jobbbox.test";
 const tr = (template: string, values: Record<string, string>) => template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
 /** Intl puts (narrow) no-break spaces in amounts; read them as plain spaces. */
-const plain = (text: string) => text.replace(/[  ]/g, " ");
+const plain = (text: string) => text.replace(/[\u202f\u00a0]/g, " ");
 
 async function lastCheckout(customer: string): Promise<Record<string, string>> {
   const calls = await (await fetch(`${stripeUrl}/__calls`)).json();
@@ -25,8 +25,14 @@ async function lastCheckout(customer: string): Promise<Record<string, string>> {
 /** Chooses a Plan on the subscription page; Stripe's Checkout page is not loaded. */
 async function choose(page: Page, plan: string) {
   await page.route("https://*.stripe.test/**", (route) => route.fulfill({ body: "Stripe" }));
-  await page.getByRole("button", { name: `Choisir l'offre ${plan}` }).click();
-  await page.waitForURL((url) => url.hostname === "checkout.stripe.test");
+  const [response] = await Promise.all([
+    page.waitForResponse((r) => new URL(r.url()).pathname === "/api/billing/checkout"),
+    page.getByRole("button", { name: `Choisir l'offre ${plan}` }).click(),
+  ]);
+  expect(response.status()).toBe(303);
+  expect(response.headers().location).toMatch(/^https:\/\/checkout\.stripe\.test\//);
+  // Let the browser finish following the redirect, or it interrupts the next page.goto.
+  await page.waitForURL((url) => url.hostname === "checkout.stripe.test" || url.protocol === "chrome-error:", { waitUntil: "commit" });
 }
 
 test.describe("Coupons", () => {

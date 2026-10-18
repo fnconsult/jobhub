@@ -1,8 +1,23 @@
-# EU hosting target
+# EU hosting
 
 Decision: ADR-0007 (all data stored in the EU, provider-agnostic AI). This page records where Jobbbox runs.
 
-## Target: AWS, region eu-west-3 (Paris)
+## Now: Hostinger VPS (Paris)
+
+Staging (`staging.jobbbox.ai`) and production run on one Hostinger VPS in Paris (`vps.fnconsult.co`), shared with other apps behind its Traefik. Each environment is one Docker Compose stack (`deploy/compose.yml`): Postgres (its own volume), a one-shot `migrate`, the web app and the worker.
+
+| Environment | Folder on the VPS | Compose project | GitHub Environment |
+| --- | --- | --- | --- |
+| staging | `/opt/jobbbox/staging` | `jobbbox-staging` | `staging` |
+| production | `/opt/jobbbox/production` | `jobbbox-production` | `production` |
+
+Each folder holds `.env` (every application secret, mode 600, only on the VPS; keys in `.env.example` plus `POSTGRES_PASSWORD`) and `app/`, the checkout of the deployed commit. `DATABASE_URL` and `APP_URL` are set by the compose file.
+
+Deploying is manual: `gh workflow run deploy.yml -f target=staging` (production also needs `-f confirm=jobbbox.ai`). `.github/workflows/deploy.yml` refuses a commit CI has not passed on, builds the `web`, `migrate` and `worker` images and pushes them to GHCR (`ghcr.io/fnconsult/jobhub/*:<sha>`), then connects to the VPS as `jobbbox-deploy`, checks out the commit and runs `deploy/deploy.sh`: pull, migrate, start, wait for `/api/health`. The VPS builds nothing. A push to `main` deploys nothing.
+
+Setting up an environment (GitHub Environment, SSH key, folder, `.env`): `scripts/setup/deploy-vps.sh` (`TARGET=production` for production).
+
+## Later: AWS, region eu-west-3 (Paris)
 
 | Piece | Service | Region |
 | --- | --- | --- |

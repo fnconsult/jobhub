@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
+import { getAi } from "@/ai/server";
 import { getApplications } from "@/applications/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
 import { summarizeJobOffer } from "@/job-offers/server";
+import { servedTaskRun } from "@/task-playbooks";
+import { getTaskPlaybooks } from "@/task-playbooks/server";
 
 /** The fields JobOfferTiles shows: when the reading adds one, the page is shown again. */
 const TILE_FIELDS = ["employer", "location", "contractType", "remoteWork", "salary", "skills", "requiredExperienceYears", "sector"] as const;
@@ -9,7 +12,9 @@ const TILE_FIELDS = ["employer", "location", "contractType", "remoteWork", "sala
 /**
  * The Job Offer Summary of one of the Candidate's Applications: the stored one, else written once by
  * the AI from the Job Offer's text (with the fields the offer lacks), stored, then returned. The
- * Application page asks for it after it is shown, never holding it up.
+ * Application page asks for it after it is shown, never holding it up. Until a version of the
+ * "job-offer-reading" task Playbook is served (in production: Human-validated, ADR-0026), none is
+ * written, and nothing is read.
  * 200 { summary: string | null, fieldsAdded: boolean } · 401 · 403 · 404 · 503 { error: "unavailable" }
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -22,7 +27,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // The summary and the sector, read together: an offer read before the sector existed is read again once.
   if (before.summary && before.sector) return NextResponse.json({ summary: before.summary, fieldsAdded: false });
   try {
-    const after = await summarizeJobOffer(before.id, candidate.id);
+    const reading = await servedTaskRun(getTaskPlaybooks(), "job-offer-reading", getAi());
+    if (!reading) return NextResponse.json({ summary: before.summary ?? null, fieldsAdded: false });
+    const after = await summarizeJobOffer(before.id, candidate.id, reading.instructions());
     if (!after) return NextResponse.json({ error: "not_found" }, { status: 404 });
     const fieldsAdded = TILE_FIELDS.some((field) => before[field] === undefined && after[field] !== undefined);
     return NextResponse.json({ summary: after.summary ?? null, fieldsAdded });

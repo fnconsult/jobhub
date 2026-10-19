@@ -226,3 +226,53 @@ describe("paging a Job Search query", () => {
     expect(perplexity.searches.map((search) => search.page)).toEqual([undefined, 2]);
   });
 });
+
+describe("a Job Search's queries, as the job-search-queries task Playbook words them (ADR-0026)", () => {
+  it("are worded and planned as before with version 1, its built-in text", async () => {
+    const mistral = createFakeProvider({ id: "mistral", reply: "{}" });
+    const ai = createAiLayer({ providers: [createFakeProvider({ id: "perplexity", residency: "outside_eu" }), mistral], routes: { web_search: "perplexity", job_titles: "mistral" }, usage: createMemoryUsageLog() });
+
+    await ai.planJobSearch({ candidateId: "cand-1", criteria });
+
+    expect(mistral.calls[0]!.system).toBe(
+      "Tu aides à chercher des offres d'emploi. On te donne un intitulé de poste. Donne les autres intitulés que les recruteurs " +
+        "emploient pour ce même poste : jusqu'à 2 en français et jusqu'à 3 en anglais, les plus courants d'abord, sans changer de niveau ni de métier. " +
+        'Réponds uniquement par un objet JSON : {"fr": ["..."], "en": ["..."]}.',
+    );
+  });
+
+  it("take the served version's instructions and Playbook Agent for the job titles, and its openings for the queries", async () => {
+    const perplexity = createFakeProvider({ id: "perplexity", residency: "outside_eu" });
+    const mistral = createFakeProvider({ id: "mistral", reply: JSON.stringify({ en: ["CFO"] }) });
+    const claude = createFakeProvider({ id: "anthropic", reply: JSON.stringify({ en: ["CFO"] }) });
+    const ai = createAiLayer({ providers: [perplexity, mistral, claude], routes: { web_search: "perplexity", job_titles: "anthropic" }, usage: createMemoryUsageLog() });
+
+    const plan = await ai.planJobSearch({
+      candidateId: "cand-1",
+      criteria,
+      instructions: {
+        titles: { text: "Donne des synonymes.", route: { provider: "mistral", model: "mistral-medium-3-5" }, effort: "high" },
+        openings: { fr: "Poste de {{intitulé}} près de {{lieu}}", en: "{{intitulé}} job near {{lieu}}" },
+      },
+    });
+    for (const query of plan.queries) await ai.searchWeb({ candidateId: "cand-1", criteria, query });
+
+    expect(claude.calls).toHaveLength(0);
+    expect(mistral.calls[0]).toMatchObject({ model: "mistral-medium-3-5", effort: "high" });
+    expect(mistral.calls[0]!.system).toMatch(/^Donne des synonymes\. Réponds uniquement par un objet JSON/);
+    expect(perplexity.queries).toEqual([
+      "Poste de Directeur Financier près de Lyon, CDI, télétravail partiel, salaire à partir de 90 000 € brut annuel",
+      "CFO job near Lyon, permanent contract, hybrid remote work, salary from €90,000 gross per year",
+    ]);
+  });
+
+  it("open with the built-in words when the served opening lacks the job title or the location", async () => {
+    const perplexity = createFakeProvider({ id: "perplexity", residency: "outside_eu" });
+    const ai = createAiLayer({ providers: [perplexity, createFakeProvider({ id: "mistral", reply: "{}" })], routes: { web_search: "perplexity", job_titles: "mistral" }, usage: createMemoryUsageLog() });
+
+    const plan = await ai.planJobSearch({ candidateId: "cand-1", criteria, instructions: { titles: { text: "Donne des synonymes." }, openings: { fr: "Offres à {{lieu}}", en: "Jobs" } } });
+    await ai.searchWeb({ candidateId: "cand-1", criteria, query: plan.queries[0] });
+
+    expect(perplexity.queries[0]).toMatch(/^Offre d'emploi « Directeur Financier » à Lyon, /);
+  });
+});

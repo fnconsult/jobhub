@@ -109,7 +109,7 @@ A proposal from the AI Coach placed inside a page (e.g. "3 ATS Fixes proposées"
 _Avoid_: Notification, suggestion, prompt
 
 **Coaching Playbook**:
-A versioned set of coaching rules the AI Coach draws on for one coaching topic, each rule citing its Sources.
+A versioned set of coaching rules the AI Coach draws on for one coaching topic, each rule citing its Sources. Not a Task Playbook, which an AI task follows and the AI Coach never consults.
 _Avoid_: Guide, script, prompt
 
 **Source**:
@@ -121,11 +121,11 @@ The short set of cross-cutting coaching rules the AI Coach always applies, whate
 _Avoid_: Summary, system prompt
 
 **Playbook Agent**:
-The AI that reads one Coaching Playbook for a reply, on its own provider, model and effort, set with the playbook in the Back Office from the EU-resident models allowed. A "when to consult it" text says what it is for.
+The AI that reads one Coaching Playbook for a reply, on its own provider, model and effort, set with the playbook in the Back Office from the EU-resident models allowed. A "when to consult it" text says what it is for. A Task Playbook's Playbook Agent is the AI running that task instead: it has no "when to consult it", and its effort may be the model's own.
 _Avoid_: Sub-agent, worker
 
 **Playbook Agent choice**:
-The small AI call that picks, for a reply, at most two Playbook Agents from their "when to consult it" texts, the conversation and what is In view. Each chosen agent advises on its playbook; the AI Coach reply draws on that advice. An agent that fails is left out of the reply.
+The small AI call that picks, for a reply, at most two Playbook Agents of Coaching Playbooks (never of a Task Playbook) from their "when to consult it" texts, the conversation and what is In view. Each chosen agent advises on its playbook; the AI Coach reply draws on that advice. An agent that fails is left out of the reply.
 _Avoid_: Routing, playbook selection, Playbook table
 
 **Playbooks used**:
@@ -133,8 +133,12 @@ The Core Digest and Coaching Playbooks, with their versions, that an AI Coach re
 _Avoid_: Sources used, citations
 
 **Human-validated**:
-A Coaching Playbook or Core Digest version a named Administrator, not one of its authors, has reviewed and approved, with the date. A review by an AI never counts. Only Human-validated coaching knowledge reaches Candidates.
+A Coaching Playbook, Core Digest or Task Playbook version a named Administrator, not one of its authors, has reviewed and approved, with the date. A review by an AI never counts. Only Human-validated coaching knowledge and Task Playbooks are served in production.
 _Avoid_: Approved, QA'd, reviewed
+
+**Task Playbook**:
+The working instructions of one AI task (reading an uploaded CV, writing a Tailored CV, a Cover Letter, an Outreach Message or a Follow-up, proposing Coach Memory, wording a Job Search's or a Company Dossier's web searches, the Back Office Assistant, the Job Offer Summary and sector), with the Playbook Agent that runs it. Versioned, edited, Human-validated and archived in the Back Office like a Coaching Playbook, but the AI Coach never consults it. It holds the task's rules only: the reply's shape, the safety rules and the data passed in stay in the code. With no version served, an existing task runs on its built-in text; the Job Offer Summary and sector are not written.
+_Avoid_: Prompt, template, system prompt
 
 ### Positioning
 
@@ -193,7 +197,7 @@ A job posting, captured by the extension or found by the AI Coach's search. One 
 _Avoid_: Job, posting, ad, vacancy, offer (alone)
 
 **Job Offer Summary**:
-Two or three sentences on a Job Offer (the role, its scope, what is expected), written by the AI from the offer's own text and in its language, inventing nothing. Shown, labelled as written by the AI, at the top of the Application's page.
+Two or three sentences on a Job Offer (the role, its scope, what is expected), written by the AI from the offer's own text and in its language, inventing nothing, as its Task Playbook says. Shown, labelled as written by the AI, at the top of the Application's page. None is written, nor the sector, while that Task Playbook has no version served (in production: none Human-validated).
 _Avoid_: Abstract, description
 
 **Capture**:
@@ -283,7 +287,7 @@ The research compiled about the employer behind a Job Offer from public data onl
 _Avoid_: Company info, company profile
 
 **Company News**:
-Up to five articles about a Company Dossier's employer from the last twelve months, found by web search when the dossier is built: each one's title, outlet, date and link, never its text, and none whose title names a private person. Part of building the dossier, counted against no Plan Quota.
+Up to five articles about a Company Dossier's employer from the last twelve months, found by web search when the dossier is built, worded as its Task Playbook says: each one's title, outlet, date and link, never its text, and none whose title names a private person. Part of building the dossier, counted against no Plan Quota.
 _Avoid_: Press review, feed
 
 **Suggested Contact Role**:

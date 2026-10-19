@@ -36,7 +36,8 @@ async function createPlaybook(form: FormData) {
 
 /**
  * Playbook editors write the AI Coach's coaching knowledge (#225): the Core Digest, the Sources list and
- * the Coaching Playbooks, each with its Playbook Agent; Support reads them.
+ * the Coaching Playbooks, each with its Playbook Agent; and, apart, the task Playbooks (ADR-0026), each
+ * AI task's instructions and the AI running it. Support reads them.
  */
 export default async function CoachingPlaybooksPage({ searchParams }: { searchParams: Promise<{ notice?: string; detail?: string }> }) {
   const { access, canWrite } = await requireBackOffice("coachingPlaybooks");
@@ -48,11 +49,59 @@ export default async function CoachingPlaybooksPage({ searchParams }: { searchPa
   const models = getAi().agentModels();
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "Europe/Paris" });
 
-  const name = (playbook: CoachingPlaybook) => (playbook.kind === "playbook" ? playbook.title : t(`admin.coachingPlaybooks.kinds.${playbook.kind}`));
+  const name = (playbook: CoachingPlaybook) =>
+    playbook.kind === "playbook" || playbook.kind === "task" ? playbook.title : t(`admin.coachingPlaybooks.kinds.${playbook.kind}`);
   const versionLine = (version: PlaybookVersion) =>
     `${t("admin.coachingPlaybooks.version", { version: String(version.version) })}, ${
       version.validation ? t("admin.coachingPlaybooks.validatedBy", { name: version.validation.name, date: date.format(version.validation.at) }) : t("admin.coachingPlaybooks.notValidated")
     }`;
+  // The AI Coach's knowledge, then the AI tasks' instructions apart: the AI Coach never consults these.
+  const coaching = playbooks.filter((playbook) => playbook.kind !== "task");
+  const tasks = playbooks.filter((playbook) => playbook.kind === "task");
+
+  /** One row per playbook: its name, latest and served versions, who runs it, and whether it is archived. */
+  const playbooksTable = (caption: string, agentHeading: string, rows: CoachingPlaybook[]) => (
+    <div className="table-scroll">
+      <table className="application-table">
+        <caption>{caption}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{t("admin.coachingPlaybooks.name")}</th>
+            <th scope="col">{t("admin.coachingPlaybooks.latest")}</th>
+            <th scope="col">{t("admin.coachingPlaybooks.served")}</th>
+            <th scope="col">{agentHeading}</th>
+            <th scope="col">{t("admin.coachingPlaybooks.status")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((playbook) => {
+            const agent = playbook.latest.agent;
+            return (
+              <tr key={playbook.id}>
+                <th scope="row">
+                  <Link href={routes.adminCoachingPlaybook(playbook.id)}>{name(playbook)}</Link> <code>{playbook.id}</code>
+                </th>
+                <td>{versionLine(playbook.latest)}</td>
+                <td>{playbook.served ? t("admin.coachingPlaybooks.version", { version: String(playbook.served.version) }) : t("admin.coachingPlaybooks.none")}</td>
+                <td>
+                  {agent
+                    ? t("admin.coachingPlaybooks.agentSummary", {
+                        provider: agent.provider,
+                        model: agent.model ?? t("admin.coachingPlaybooks.providerDefault"),
+                        effort: agent.effort ? t(`admin.coachingPlaybooks.efforts.${agent.effort}`) : t("admin.coachingPlaybooks.effortDefault"),
+                      })
+                    : playbook.kind === "task"
+                      ? t("admin.coachingPlaybooks.tasks.webSearch")
+                      : null}
+                </td>
+                <td>{t(playbook.archived ? "admin.coachingPlaybooks.archived" : "admin.coachingPlaybooks.active")}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 
   return (
     <BackOfficeLayout access={access} title={t("admin.coachingPlaybooks.title")}>
@@ -65,44 +114,13 @@ export default async function CoachingPlaybooksPage({ searchParams }: { searchPa
         </p>
       ) : null}
 
-      <div className="table-scroll">
-        <table className="application-table">
-          <caption>{t("admin.coachingPlaybooks.caption")}</caption>
-          <thead>
-            <tr>
-              <th scope="col">{t("admin.coachingPlaybooks.name")}</th>
-              <th scope="col">{t("admin.coachingPlaybooks.latest")}</th>
-              <th scope="col">{t("admin.coachingPlaybooks.served")}</th>
-              <th scope="col">{t("admin.coachingPlaybooks.agent")}</th>
-              <th scope="col">{t("admin.coachingPlaybooks.status")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {playbooks.map((playbook) => {
-              const agent = playbook.latest.agent;
-              return (
-                <tr key={playbook.id}>
-                  <th scope="row">
-                    <Link href={routes.adminCoachingPlaybook(playbook.id)}>{name(playbook)}</Link> <code>{playbook.id}</code>
-                  </th>
-                  <td>{versionLine(playbook.latest)}</td>
-                  <td>{playbook.served ? t("admin.coachingPlaybooks.version", { version: String(playbook.served.version) }) : t("admin.coachingPlaybooks.none")}</td>
-                  <td>
-                    {agent
-                      ? t("admin.coachingPlaybooks.agentSummary", {
-                          provider: agent.provider,
-                          model: agent.model ?? t("admin.coachingPlaybooks.providerDefault"),
-                          effort: t(`admin.coachingPlaybooks.efforts.${agent.effort}`),
-                        })
-                      : null}
-                  </td>
-                  <td>{t(playbook.archived ? "admin.coachingPlaybooks.archived" : "admin.coachingPlaybooks.active")}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      {playbooksTable(t("admin.coachingPlaybooks.caption"), t("admin.coachingPlaybooks.agent"), coaching)}
+
+      <section className="stack" aria-labelledby="tasks-title">
+        <h2 id="tasks-title">{t("admin.coachingPlaybooks.tasks.title")}</h2>
+        <p>{t("admin.coachingPlaybooks.tasks.intro")}</p>
+        {playbooksTable(t("admin.coachingPlaybooks.tasks.caption"), t("admin.coachingPlaybooks.tasks.runBy"), tasks)}
+      </section>
 
       <section className="stack" aria-labelledby="models-title">
         <h2 id="models-title">{t("admin.coachingPlaybooks.models.title")}</h2>

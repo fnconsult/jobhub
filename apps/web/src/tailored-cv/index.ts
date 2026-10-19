@@ -33,6 +33,8 @@
  *    Offer is saved only once the Candidate accepts it.
  * Every read and change is scoped to the Candidate; inputs are untrusted and
  * problems come back as results. Task `writing`, EU endpoints only (ADR-0007).
+ * The AI Coach's instructions and the AI writing the proposal are the "tailored-cv" task
+ * Playbook's (ADR-0026); the reply's shape stays here.
  */
 import type { AiLayer } from "@jobhub/ai";
 import { DOCUMENT_LANGUAGES, jobOfferLanguage, normalise, scoreMatch, withoutIdentity, type CvContent, type DocumentLanguage } from "@jobhub/shared";
@@ -40,6 +42,7 @@ import type { Pool } from "pg";
 import * as z from "zod";
 import type { Application, Applications } from "../applications";
 import type { Profiles } from "../profiles";
+import { taskRun, type TaskPlaybookReader, type TaskRun } from "../task-playbooks";
 import { documentLanguageOf, keepDocumentLanguage } from "../tailored-documents/document-language";
 import { fieldErrors, type FieldError } from "../validation";
 import { cvChanges, flagOfferWording, stemOf, withChanges, wordsOf, type CvChange, type CvOrigins } from "./changes";
@@ -136,6 +139,8 @@ export interface TailoredCvsDeps {
   applications: Pick<Applications, "get">;
   profiles: Pick<Profiles, "get">;
   ai: AiLayer;
+  /** The "tailored-cv" task Playbook's served version (ADR-0026); without it, its built-in text. */
+  taskPlaybooks?: TaskPlaybookReader;
 }
 
 const proposeSchema = z.object({ language: z.enum(DOCUMENT_LANGUAGES).optional() });
@@ -251,21 +256,14 @@ function fromMasterCv(master: CvContent, reply: AiReply, keywords: string[], lan
   };
 }
 
-function systemPrompt(language: DocumentLanguage): string {
-  return language === "fr"
-    ? `Tu es le coach Jobbbox. Tu adaptes le CV de référence d'un cadre expérimenté à l'offre ci-dessous, en français.
-Règles :
-- Tu peux seulement reformuler, réordonner, couper et mettre en avant ce que dit son CV de référence. N'ajoute jamais de compétence, d'expérience, de diplôme ou de chiffre.
-- Garde l'employeur et la période de chaque poste tels quels, et l'"id" de chaque diplôme, langue et compétence que tu gardes.
-- Dans "missing", liste les exigences de l'offre que son CV ne montre pas : le candidat dira s'il les a.
-Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experience": [{"employer": "", "period": "", "title": "", "description": ""}], "education": [{"id": "", "degree": "", "institution": "", "year": ""}], "skills": [{"id": "", "text": ""}], "languages": [{"id": "", "name": "", "level": ""}], "missing": [""]}.`
-    : `You are the Jobbbox coach. You adapt an experienced professional's reference CV to the job offer below, in English.
-Rules:
-- You may only rephrase, reorder, cut and emphasise what their reference CV says. Never add a skill, experience, degree or figure.
-- Keep each job's employer and period as they are, and the "id" of each degree, language and skill you keep.
-- In "missing", list the job offer's requirements their CV does not show: the candidate will say whether they have them.
-Reply with a JSON object only: {"headline": "", "summary": "", "experience": [{"employer": "", "period": "", "title": "", "description": ""}], "education": [{"id": "", "degree": "", "institution": "", "year": ""}], "skills": [{"id": "", "text": ""}], "languages": [{"id": "", "name": "", "level": ""}], "missing": [""]}.`;
-}
+/** The reply's shape (`replyIn`), in each Document Language, after the task Playbook's instructions. */
+const SHAPE: Record<DocumentLanguage, string> = {
+  fr: `Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experience": [{"employer": "", "period": "", "title": "", "description": ""}], "education": [{"id": "", "degree": "", "institution": "", "year": ""}], "skills": [{"id": "", "text": ""}], "languages": [{"id": "", "name": "", "level": ""}], "missing": [""]}.`,
+  en: `Reply with a JSON object only: {"headline": "", "summary": "", "experience": [{"employer": "", "period": "", "title": "", "description": ""}], "education": [{"id": "", "degree": "", "institution": "", "year": ""}], "skills": [{"id": "", "text": ""}], "languages": [{"id": "", "name": "", "level": ""}], "missing": [""]}.`,
+};
+
+/** The instructions: the "tailored-cv" task Playbook's section for `language`, then the reply's shape. */
+const systemPrompt = (run: TaskRun, language: DocumentLanguage): string => `${run.text(language)}\n${SHAPE[language]}`;
 
 interface ProposalRow {
   language: DocumentLanguage;
@@ -417,7 +415,8 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
         // Adapting needs the career, not the person: the identity block stays out of the prompt (ADR-0007).
         `${language === "fr" ? "CV de référence" : "Reference CV"} : ${JSON.stringify(referenceCv(withoutIdentity(master)))}`,
       ].join("\n\n");
-      const reply = await askForTailoredCv(deps.ai, { task: "writing", candidateId, system: systemPrompt(language), prompt });
+      const run = await taskRun(deps.taskPlaybooks, "tailored-cv", deps.ai);
+      const reply = await askForTailoredCv(deps.ai, { task: "writing", candidateId, system: systemPrompt(run, language), prompt, ...run.agent });
       if (!reply) return { ok: false, error: "unavailable" };
       if (parsed.data.language) await keepDocumentLanguage(database, application.id, language);
       const { content: adapted, origins } = fromMasterCv(master, reply, jobOffer.skills ?? [], language);

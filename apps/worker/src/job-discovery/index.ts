@@ -57,11 +57,16 @@
  * use whatever remains. The job titles are planned once per run, and a page or
  * Job Offer found for one location is not read or counted again for another.
  *
+ * The queries' wording and the job title step's instructions and AI are the "job-search-queries"
+ * task Playbook's, read at the start of each run (ADR-0026); the LLM reading a page writes the Job
+ * Offer Summary and sector only while the "job-offer-reading" task Playbook is served.
+ *
  * Each run is measured (its funnel and cost in €), also when it fails: the
  * error is then a JobDiscoveryError carrying what the run measured until then.
  */
 import type { ExternalApiLog } from "@jobhub/shared";
 import { costInEur, readJobPage, type AiLayer, type JobSearchQuery, type SearchFilters } from "@jobhub/ai";
+import { servedTaskRun, taskRun, type TaskPlaybookReader } from "@jobhub/web/task-playbooks";
 import {
   believablePostingDate,
   DEFAULT_JOB_DISCOVERY_SETTINGS,
@@ -129,6 +134,12 @@ export interface JobDiscoveryOptions {
    * of each run. Default, and when it throws: every source on, no site listed.
    */
   settings?: () => Promise<JobDiscoverySettings>;
+  /**
+   * The task Playbooks (ADR-0026), read at the start of each run: "job-search-queries" words the
+   * queries (default: its built-in text), and "job-offer-reading", while one is served, has the
+   * Job Offer Summary and sector written when the LLM reads a page (default: none written).
+   */
+  taskPlaybooks?: TaskPlaybookReader;
 }
 
 export interface DiscoverRequest {
@@ -255,6 +266,11 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         franceTravail: { status: "off", offers: 0, calls: 0 },
       };
       const ai = costing(options.ai, (eur) => (report.costEur += eur));
+      const [queryWording, offerReading] = await Promise.all([
+        taskRun(options.taskPlaybooks, "job-search-queries", options.ai),
+        servedTaskRun(options.taskPlaybooks, "job-offer-reading", options.ai),
+      ]);
+      const reading = offerReading?.instructions() ?? null;
       const { funnel, skipped } = report;
       /** The share of the budget the location being searched may use up to (k/n for the k-th of n locations). */
       let share = 1;
@@ -369,7 +385,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           await followListing();
           return;
         }
-        if (!details && countJobPostings(page.html) <= 1) details = await readJobPage(ai, candidateId, htmlToText(page.html));
+        if (!details && countJobPostings(page.html) <= 1) details = await readJobPage(ai, candidateId, htmlToText(page.html), reading);
         if (!details) {
           skipped.push({ url, reason: "not_a_job_offer" });
           return;
@@ -406,7 +422,14 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
 
       /** The web searches for one location, within its share of the budget. */
       const searchTheWeb = async (location: string) => {
-        plan ??= await ai.planJobSearch({ candidateId, criteria });
+        plan ??= await ai.planJobSearch({
+          candidateId,
+          criteria,
+          instructions: {
+            titles: queryWording.instructions("intitulés"),
+            openings: { fr: queryWording.text("requête fr"), en: queryWording.text("requête en") },
+          },
+        });
         // Each Job discovery site is searched on purpose too: the plan's first query, restricted to it.
         const first = plan.queries[0];
         const planned: PlannedSearch[] = [

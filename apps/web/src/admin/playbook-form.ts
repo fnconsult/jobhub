@@ -5,7 +5,8 @@ export const agentModelValue = (provider: ProviderId, model: string | null): str
 
 /**
  * A Playbook Version as submitted by the Back Office's form (#225), for `CoachingPlaybooks.create` and
- * `save`, which check every value: the model select read back as provider and model.
+ * `save`, which check every value: the model select read back as provider and model. A task Playbook's
+ * form may give no effort ("": the model's own) and gives no "when to consult it" (ADR-0026).
  */
 export function playbookVersionFromForm(form: FormData): { id: string; content: string; provider: string; model: string; effort: string; consultWhen: string } {
   const text = (field: string) => String(form.get(field) ?? "");

@@ -5,7 +5,8 @@
  *
  *  - `buildCompanyNewsQuery`: the only text sent to the web-search provider for it, built from the
  *    employer's name, registered name and website alone (a company, never a person), cleaned like
- *    Search Criteria. It asks for articles as JSON and for none naming a person.
+ *    Search Criteria, in the "company-news-search" task Playbook's words (ADR-0026). It always asks
+ *    for articles as JSON, for none of their text and for none naming a person.
  *  - `companyNewsIn`: the articles kept from the answer. Only items of the expected shape: an http(s)
  *    link that is not a social network's, a title, an outlet, a date within the last twelve months.
  *    Any whose title or outlet may name a person is dropped (when in doubt, dropped): the model must
@@ -13,7 +14,8 @@
  *    in a sentence-case title, no run of capitalised words but the employer's may be in it.
  *    Deduplicated by link, newest first, at most five.
  */
-import { clean } from "./search-query";
+import { builtInInstructions, fillSlots, slotsIn } from "@jobhub/coach-knowledge/tasks";
+import { clean, taskQueryText } from "./search-query";
 
 export interface CompanyNewsRequest {
   candidateId: string | null;
@@ -23,6 +25,11 @@ export interface CompanyNewsRequest {
   registeredName?: string;
   /** Its website, when known: only its host name is sent. */
   website?: string;
+  /**
+   * The "company-news-search" task Playbook's served text, `{{entreprise}}` standing for the employer's
+   * names and website; default: its built-in text.
+   */
+  instructions?: string;
 }
 
 /** One article about the employer: never its text. */
@@ -58,9 +65,10 @@ export function buildCompanyNewsQuery(request: Omit<CompanyNewsRequest, "candida
     registered && registered.toLowerCase() !== employer.toLowerCase() ? `raison sociale « ${registered} »` : "",
     host ? `site web ${host}` : "",
   ].filter(Boolean);
+  const words = request.instructions !== undefined && slotsIn(request.instructions).includes("entreprise") ? request.instructions : builtInInstructions("company-news-search");
+  const company = `« ${employer} »${known.length > 0 ? ` (${known.join(", ")})` : ""}`;
   return (
-    `Articles de presse récents (moins de 12 mois) sur l'entreprise « ${employer} »${known.length > 0 ? ` (${known.join(", ")})` : ""} : ` +
-    `au plus ${MAX_COMPANY_NEWS}, les plus récents d'abord. ` +
+    `${taskQueryText(fillSlots(words, { entreprise: company }), "company-news-search")} ` +
     `Réponds uniquement par un objet JSON {"articles": [{${ARTICLE_KEYS.map((key) => `"${key}"`).join(", ")}}]} : ` +
     `title le titre de l'article, outlet le média, date sa date de publication (AAAA-MM-JJ), url son lien, ` +
     `namesPerson true si le titre nomme une personne. Ne recopie pas le texte des articles. ` +

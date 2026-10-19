@@ -4,13 +4,15 @@
  *    posting, and what does it state (title, full text and the fields below)?
  *  - `readOfferFields`: the second phase of a Match Score — the fields a stored Job Offer lacks,
  *    read from its text (no copy of the text back, so the reply stays short and quick).
- * Both also write the Job Offer Summary: two or three sentences on the role, its scope and what is
- * expected, in the offer's own language, inventing nothing (ADR-0006).
+ * Both also write the Job Offer Summary (two or three sentences on the role, its scope and what is
+ * expected) and read the employer's sector and sub-sector, but only when given `reading`: the served
+ * version of the "job-offer-reading" task Playbook (ADR-0026), whose rules are added to the built-in
+ * field rules and whose Playbook Agent runs the call. Without it, neither is asked for, nor kept.
  * Both carry public posting text only, never the Candidate's CV or identity: they run as the
  * `offer_analysis` task, which carries no personal data (ADR-0007).
  */
 import { CONTRACT_TYPES, JOB_OFFER_SECTOR_MAX_CHARS, JOB_OFFER_SUMMARY_MAX_CHARS, REMOTE_WORK_OPTIONS, type JobOfferDetails } from "@jobhub/shared";
-import type { AiLayer } from "./ai-layer";
+import type { AiLayer, GenerateRequest, TaskInstructions } from "./ai-layer";
 
 /** Enough text for any real posting, while keeping the call cheap. */
 const MAX_PAGE_CHARS = 30_000;
@@ -24,34 +26,39 @@ export type OfferFields = Pick<
   "employer" | "location" | "contractType" | "remoteWork" | "salary" | "skills" | "requiredExperienceYears" | "summary" | "sector" | "subsector"
 >;
 
-const FIELDS_SCHEMA = `"employer"?: string, "location"?: string,
+/** The JSON fields asked for; the summary, sector and sub-sector only with the task Playbook's rules. */
+const fieldsSchema = (summary: boolean) => `"employer"?: string, "location"?: string,
  "contractType"?: ${CONTRACT_TYPES.map((t) => `"${t}"`).join(" | ")}, "remoteWork"?: ${REMOTE_WORK_OPTIONS.map((t) => `"${t}"`).join(" | ")},
- "salaryMin"?: number, "salaryMax"?: number, "skills"?: string[], "requiredExperienceYears"?: number, "summary": string,
- "sector"?: string, "subsector"?: string`;
+ "salaryMin"?: number, "salaryMax"?: number, "skills"?: string[], "requiredExperienceYears"?: number${
+   summary ? `, "summary": string,
+ "sector"?: string, "subsector"?: string` : ""
+ }`;
 
-const FIELDS_RULES = `- Salaires en euros bruts annuels. N'invente rien : omets un champ que l'offre ne précise pas.
-- "summary" : deux ou trois phrases (400 caractères au plus) sur le poste, son périmètre et ce qui est attendu,
-  écrites dans la langue de l'offre (en anglais pour une offre en anglais). Uniquement ce que l'offre dit, sans rien inventer
-  ni juger, et sans nom de personne (recruteur, manager).
-- "sector" : le secteur d'activité de l'employeur en quelques mots (ex. « Conseil », « Industrie automobile »), et
-  "subsector" : son sous-secteur ou domaine, plus précis (ex. « Stratégie et transformation »), dans la langue de l'offre,
-  d'après ce que l'offre dit de l'employeur et du poste. Omets-les si l'offre n'en dit rien.`;
+/** The built-in field rules, then the task Playbook's (the summary, sector and sub-sector), when served. */
+const fieldsRules = (reading: TaskInstructions | null) =>
+  ["- Salaires en euros bruts annuels. N'invente rien : omets un champ que l'offre ne précise pas.", ...(reading ? [reading.text.trim()] : [])].join("\n");
 
-const PAGE_SYSTEM = `Tu lis le texte d'une page web trouvée par une recherche d'offres d'emploi.
+const pageSystem = (reading: TaskInstructions | null) => `Tu lis le texte d'une page web trouvée par une recherche d'offres d'emploi.
 Réponds uniquement par un objet JSON, sans texte autour.
 Si la page n'est pas UNE offre d'emploi précise (liste d'offres, article, page d'accueil, offre expirée), réponds {"isJobOffer": false}.
 Sinon réponds :
-{"isJobOffer": true, "title": string, "content": string, ${FIELDS_SCHEMA}}
+{"isJobOffer": true, "title": string, "content": string, ${fieldsSchema(reading !== null)}}
 - "content" : le texte complet de l'offre, recopié tel quel, sans la navigation ni le pied de page du site.
-${FIELDS_RULES}`;
+${fieldsRules(reading)}`;
 
-const FIELDS_SYSTEM = `Tu lis le texte d'une offre d'emploi.
+const fieldsSystem = (reading: TaskInstructions | null) => `Tu lis le texte d'une offre d'emploi.
 Réponds uniquement par un objet JSON, sans texte autour :
-{${FIELDS_SCHEMA}}
+{${fieldsSchema(reading !== null)}}
 - "location" : la ville (et le pays s'il est indiqué) où se trouve le poste.
 - "skills" : les compétences demandées, en quelques mots chacune (au plus 15).
 - "requiredExperienceYears" : le nombre minimal d'années d'expérience demandé.
-${FIELDS_RULES}`;
+${fieldsRules(reading)}`;
+
+/** The task Playbook's Playbook Agent, when served: its route and effort. */
+const agentOf = (reading: TaskInstructions | null): Pick<GenerateRequest, "route" | "effort"> => ({
+  ...(reading?.route ? { route: reading.route } : {}),
+  ...(reading?.effort ? { effort: reading.effort } : {}),
+});
 
 type Json = Record<string, unknown>;
 
@@ -83,8 +90,8 @@ function labelFrom(value: unknown): string | undefined {
   return text && text.length <= JOB_OFFER_SECTOR_MAX_CHARS ? text : undefined;
 }
 
-/** The fields the reply states, each checked: anything of the wrong shape is left out. */
-function fieldsFrom(reply: Json): OfferFields {
+/** The fields the reply states, each checked: anything of the wrong shape is left out, and so is a summary or sector not asked for. */
+function fieldsFrom(reply: Json, summaryAsked: boolean): OfferFields {
   const fields: OfferFields = {};
   const employer = str(reply.employer);
   if (employer) fields.employer = employer;
@@ -101,6 +108,7 @@ function fieldsFrom(reply: Json): OfferFields {
   if (skills.length) fields.skills = skills;
   const years = typeof reply.requiredExperienceYears === "number" && reply.requiredExperienceYears >= 0 ? Math.round(reply.requiredExperienceYears) : undefined;
   if (years !== undefined) fields.requiredExperienceYears = years;
+  if (!summaryAsked) return fields;
   const summary = summaryFrom(reply.summary);
   if (summary) fields.summary = summary;
   const sector = labelFrom(reply.sector);
@@ -110,41 +118,47 @@ function fieldsFrom(reply: Json): OfferFields {
   return fields;
 }
 
-/** The Job Offer details the LLM reads from the page text, or null if it is not one job posting. */
-export async function readJobPage(ai: AiLayer, candidateId: string | null, pageText: string): Promise<JobOfferDetails | null> {
+/**
+ * The Job Offer details the LLM reads from the page text, or null if it is not one job posting.
+ * `reading`: the served "job-offer-reading" task Playbook; without it, no summary or sector.
+ */
+export async function readJobPage(ai: AiLayer, candidateId: string | null, pageText: string, reading: TaskInstructions | null = null): Promise<JobOfferDetails | null> {
   const { text } = await ai.generate({
     task: "offer_analysis",
     candidateId,
-    system: PAGE_SYSTEM,
+    system: pageSystem(reading),
     prompt: pageText.slice(0, MAX_PAGE_CHARS),
     maxTokens: 8192,
+    ...agentOf(reading),
   });
   const reply = parseJson(text);
   if (!reply || reply.isJobOffer !== true) return null;
   const title = str(reply.title);
   const content = str(reply.content);
   if (!title || !content) return null;
-  return { title, content, ...fieldsFrom(reply) };
+  return { title, content, ...fieldsFrom(reply, reading !== null) };
 }
 
 /**
  * The fields a Job Offer's text states (its title and text only). Empty when it states none;
- * throws what the AI layer throws, or when the reply is not a JSON object.
+ * throws what the AI layer throws, or when the reply is not a JSON object. `reading`: the served
+ * "job-offer-reading" task Playbook; without it, no summary or sector.
  */
 export async function readOfferFields(
   ai: AiLayer,
-  { candidateId, jobOffer }: { candidateId: string | null; jobOffer: Pick<JobOfferDetails, "title" | "content"> },
+  { candidateId, jobOffer, reading = null }: { candidateId: string | null; jobOffer: Pick<JobOfferDetails, "title" | "content">; reading?: TaskInstructions | null },
 ): Promise<OfferFields> {
   const { text } = await ai.generate({
     task: "offer_analysis",
     candidateId,
-    system: FIELDS_SYSTEM,
+    system: fieldsSystem(reading),
     prompt: `${jobOffer.title}\n\n${jobOffer.content}`.slice(0, MAX_PAGE_CHARS),
     // Fields and a short summary, never the text back: a short reply, so the Match Score is not kept waiting.
     maxTokens: 1024,
     containsIdentity: false,
+    ...agentOf(reading),
   });
   const reply = parseJson(text);
   if (!reply) throw new Error("The offer_analysis reply is not a JSON object");
-  return fieldsFrom(reply);
+  return fieldsFrom(reply, reading !== null);
 }

@@ -12,6 +12,7 @@
 import type { AiLayer } from "@jobhub/ai";
 import { distinctLocations, type MasterCvContent } from "@jobhub/shared";
 import { fitProfileName } from "../profiles/limits";
+import type { TaskPlaybookReader } from "../task-playbooks";
 import { readCvWithAi } from "./ai-reading";
 import { outlineCv } from "./outline-cv";
 import { readCvFile, type CvFile } from "./read-cv-file";
@@ -45,11 +46,13 @@ export interface DraftDeps {
    * provider without an account (ADR-0003).
    */
   candidateId: string | null;
+  /** The "cv-reading" task Playbook's served version (ADR-0026); without it, its built-in text. */
+  taskPlaybooks?: TaskPlaybookReader;
 }
 
 export async function draftFromCv(file: CvFile, deps: DraftDeps): Promise<CvDraft> {
   const { text, photo } = await readCvFile(file);
-  const reading = deps.candidateId === null ? null : await readCvWithAi(text, deps.ai, deps.candidateId);
+  const reading = deps.candidateId === null ? null : await readCvWithAi(text, deps.ai, deps.candidateId, deps.taskPlaybooks);
   // Only the file tells whether the CV shows a photo: neither reading of its text can.
   const read: MasterCvContent = { ...(reading?.masterCv ?? outlineCv(text)) };
   delete read.photo;

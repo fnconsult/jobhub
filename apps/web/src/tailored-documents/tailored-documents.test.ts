@@ -8,6 +8,7 @@ import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } f
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import type { EnrichedContact } from "../enriched-contacts";
+import { servedTasks, taskAgent } from "../task-playbooks/test-support";
 import { createTailoredDocuments, migrateTailoredDocuments, type CompanyDossierSource, type EnrichedContactSource, type TailoredDocuments } from "./index";
 
 const masterCv: MasterCvContent = {
@@ -154,6 +155,40 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
     expect(mistral.calls).toHaveLength(1);
     expect(claude.calls).toHaveLength(0);
     expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("are asked for with the cover-letter and outreach-message task Playbooks' sections, then who may be named and the format, on their Playbook Agent (ADR-0026)", async () => {
+    const database = testAuth.auth.options.database as Pool;
+    const claude = createFakeProvider({ id: "anthropic", reply: writer });
+    const ai = createAiLayer({ providers: [provider, claude], routes: { writing: "mistral" }, usage: createMemoryUsageLog() });
+    const taskPlaybooks = servedTasks({
+      "cover-letter": { content: "## fr\n\nÉcris une lettre.\n\n## en\n\nWrite a letter.", agent: taskAgent("anthropic", null, "medium") },
+      "outreach-message": { content: "## fr email\n\nUn e-mail.\n\n## fr inmail\n\nUn InMail.\n\n## en email\n\nAn email.\n\n## en inmail\n\nAn InMail." },
+    });
+    const served = createTailoredDocuments(database, { applications: createApplications(database, { jobOffers, profiles }), profiles, ai, taskPlaybooks });
+
+    await served.draft(candidateId, applicationId, { document: "cover_letter" });
+    await served.draft(candidateId, applicationId, { document: "outreach_message", channel: "inmail" });
+
+    expect(claude.calls).toHaveLength(1);
+    expect(claude.calls[0]).toMatchObject({ effort: "medium" });
+    expect(claude.calls[0]!.system).toMatch(/^Écris une lettre\.\n- Ne nomme aucune personne de l'entreprise\.\nUne page au plus\./);
+    // No Playbook Agent served for the Outreach Message: the task's configured route.
+    expect(provider.calls.at(-1)!.system).toMatch(/^Un InMail\.\n- Ne nomme aucune personne de l'entreprise\.\nRéponds uniquement avec un objet JSON/);
+  });
+
+  it("a served Playbook Agent does not change where a consenting Candidate's identity goes: Mistral (ADR-0007)", async () => {
+    const database = testAuth.auth.options.database as Pool;
+    const claude = createFakeProvider({ id: "anthropic", reply: writer });
+    const mistral = createFakeProvider({ id: "mistral", reply: writer });
+    const ai = createAiLayer({ providers: [claude, mistral], routes: { writing: "anthropic" }, euAiConsent: async (id) => id === candidateId, usage: createMemoryUsageLog() });
+    const taskPlaybooks = servedTasks({ "cover-letter": { content: "## fr\n\nÉcris.\n\n## en\n\nWrite.", agent: taskAgent("anthropic") } });
+    const consenting = createTailoredDocuments(database, { applications: createApplications(database, { jobOffers, profiles }), profiles, ai, taskPlaybooks });
+
+    await consenting.draft(candidateId, applicationId, { document: "cover_letter" });
+
+    expect(mistral.calls).toHaveLength(1);
+    expect(claude.calls).toHaveLength(0);
   });
 
   it("drafts are written in the Job Offer's language by default", async () => {

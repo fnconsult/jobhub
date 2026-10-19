@@ -22,7 +22,8 @@
     "./provider-secrets": "./src/provider-secrets/worker.ts",
     "./sign-in-providers": "./src/sign-in-providers/worker.ts",
     "./administrators": "./src/admin/worker.ts",
-    "./ai-usage": "./src/ai-usage/index.ts"
+    "./ai-usage": "./src/ai-usage/index.ts",
+    "./task-playbooks": "./src/task-playbooks/worker.ts"
   },
   "scripts": {
     "dev": "next dev",

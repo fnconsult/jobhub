@@ -1,6 +1,6 @@
 import type { SearchCriteria } from "@jobhub/shared";
 import { findIdentity } from "./identity-scan";
-import { buildCompanyQuery, buildSearchQuery, jobSearchQueries, jobTitlesPrompt, type JobSearchQuery } from "./search-query";
+import { buildCompanyQuery, buildSearchQuery, jobSearchQueries, jobTitlesPrompt, type JobSearchQuery, type QueryLanguage } from "./search-query";
 import { buildCompanyNewsQuery, COMPANY_NEWS_MAX_AGE_DAYS, companyNewsIn, type CompanyNewsArticle, type CompanyNewsRequest } from "./company-news";
 import { costInEur, toolCostInEur } from "./cost";
 import { effortHandling, type Effort, type EffortHandling } from "./effort";
@@ -31,6 +31,19 @@ export interface GenerateRequest {
    */
   route?: Route;
   /** How hard the model should think; left out by a model that has no such setting (see `agentModels`). */
+  effort?: Effort;
+}
+
+/**
+ * The instructions of one AI task as its task Playbook's served version gives them (ADR-0026): its text,
+ * the rules part only (the output shape, safety rules and data stay with the caller), and the Playbook
+ * Agent it runs on. Without them, a task uses its built-in text on its configured route.
+ */
+export interface TaskInstructions {
+  text: string;
+  /** The Playbook Agent's provider and model; the task's data rules still hold (see `GenerateRequest.route`). */
+  route?: Route;
+  /** The Playbook Agent's effort; none: the model's own. */
   effort?: Effort;
 }
 
@@ -74,6 +87,19 @@ export interface JobSearchPlanRequest {
   candidateId: string | null;
   /** Only their job title reaches the AI step that finds its variants. */
   criteria: SearchCriteria;
+  /** The "job-search-queries" task Playbook's served version; default: its built-in text. */
+  instructions?: JobSearchInstructions;
+}
+
+/**
+ * How a Job Search's queries are prepared, from the "job-search-queries" task Playbook (ADR-0026): the job
+ * title variants step's instructions and agent, and how each query opens per language, where
+ * `{{intitulé}}` and `{{lieu}}` are one job title and one location, cleaned. An opening lacking either
+ * is not used: the built-in one is.
+ */
+export interface JobSearchInstructions {
+  titles: TaskInstructions;
+  openings: Record<QueryLanguage, string>;
 }
 
 /** What a Job Search sends the web-search provider: its queries, and how far each can be paged. */
@@ -90,6 +116,11 @@ export interface CompanySearchRequest {
   candidateId: string | null;
   /** The only input: the employer's name, as the Job Offer or the Candidate gives it. Never a person. */
   employer: string;
+  /**
+   * The "company-facts-search" task Playbook's served text, `{{entreprise}}` standing for the employer;
+   * default: its built-in text. The JSON keys and "name no person" are always added.
+   */
+  instructions?: string;
 }
 
 export interface SearchResult {
@@ -334,19 +365,28 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       return { text: output.text, provider: provider.id, model: output.model, usage: output.usage };
     },
 
-    async planJobSearch({ candidateId, criteria }) {
+    async planJobSearch({ candidateId, criteria, instructions }) {
       const pages = Math.max(1, searchProvider().provider.searchPages ?? 1);
-      const { system, prompt } = jobTitlesPrompt(criteria);
+      const titles = instructions?.titles;
+      const { system, prompt } = jobTitlesPrompt(criteria, titles?.text);
       let call: GenerateResult | null = null;
       try {
-        call = await layer.generate({ task: "job_titles", candidateId, system, prompt, maxTokens: JOB_TITLES_MAX_TOKENS });
+        call = await layer.generate({
+          task: "job_titles",
+          candidateId,
+          system,
+          prompt,
+          maxTokens: JOB_TITLES_MAX_TOKENS,
+          ...(titles?.route ? { route: titles.route } : {}),
+          ...(titles?.effort ? { effort: titles.effort } : {}),
+        });
       } catch (error) {
         warn("Job title variants unavailable: searching with the Search Criteria title alone", {
           candidateId,
           error: error instanceof Error ? error.message : String(error),
         });
       }
-      return { queries: jobSearchQueries(criteria, call?.text ?? null), pages, call };
+      return { queries: jobSearchQueries(criteria, call?.text ?? null, instructions?.openings), pages, call };
     },
 
     async searchWeb(request) {
@@ -354,7 +394,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     },
 
     async searchCompany(request) {
-      return search(request.candidateId, buildCompanyQuery(request.employer));
+      return search(request.candidateId, buildCompanyQuery(request.employer, request.instructions));
     },
 
     async searchCompanyNews(request) {

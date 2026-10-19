@@ -1,12 +1,14 @@
 /**
  * The Follow-up email draft, in the Application's Document Language. Internal
  * to Follow-ups. Written by the AI Coach when an AI layer is given and answers;
- * otherwise, from a plain template, so a Follow-up is always proposed.
+ * otherwise, from a plain template, so a Follow-up is always proposed. The AI Coach's
+ * instructions and the AI writing it are the "follow-up" task Playbook's (ADR-0026).
  * Drafts only (ADR-0005): nothing here sends anything.
  */
 import type { AiLayer } from "@jobhub/ai";
 import type { DocumentLanguage } from "@jobhub/shared";
 import * as z from "zod";
+import { taskRun, type TaskPlaybookReader, type TaskRun } from "../task-playbooks";
 
 export interface FollowUpDraft {
   subject: string;
@@ -20,6 +22,8 @@ export interface FollowUpDraftRequest {
   jobOffer: { title: string; employer: string | null; content: string };
   /** 1 for the first Follow-up, 2 for the second. */
   followUpNumber: number;
+  /** The "follow-up" task Playbook's served version; without it, its built-in text. */
+  taskPlaybooks?: TaskPlaybookReader;
 }
 
 function template(language: DocumentLanguage, title: string, employer: string | null, followUpNumber: number): FollowUpDraft {
@@ -37,22 +41,16 @@ function template(language: DocumentLanguage, title: string, employer: string | 
   };
 }
 
-const SYSTEM: Record<DocumentLanguage, (followUpNumber: number) => string> = {
-  fr: (n) =>
-    `Tu es le coach Jobbbox. Tu rédiges un e-mail de relance${n > 1 ? " (deuxième relance)" : ""} en français, court (120 mots au plus), pour un cadre expérimenté resté sans réponse après sa candidature à l'offre ci-dessous.
-Règles :
-- Appuie-toi uniquement sur l'offre. N'invente jamais d'expérience, de diplôme ou de chiffre.
-- Ne nomme aucune personne de l'entreprise.
-- Ton courtois, sobre et concret, sans insistance.
+/** No one at the company is named, and the reply's shape: after the task Playbook's instructions. */
+const RULES: Record<DocumentLanguage, string> = {
+  fr: `- Ne nomme aucune personne de l'entreprise.
 Réponds uniquement avec un objet JSON : {"subject": "objet de l'e-mail", "text": "texte de l'e-mail"}.`,
-  en: (n) =>
-    `You are the Jobbbox coach. You write a short follow-up email${n > 1 ? " (second follow-up)" : ""} in English (120 words at most) for an experienced professional who has heard nothing back since applying to the job offer below.
-Rules:
-- Draw only on the job offer. Never invent experience, degrees or figures.
-- Do not name anyone at the company.
-- Courteous, plain and concrete, never pushy.
+  en: `- Do not name anyone at the company.
 Reply with a JSON object only: {"subject": "the email subject", "text": "the email text"}.`,
 };
+
+/** The "follow-up" task Playbook's section for the language and the Follow-up (1, or 2 for any later one), then the rules kept here. */
+const systemPrompt = (run: TaskRun, language: DocumentLanguage, followUpNumber: number) => `${run.text(`${language} ${followUpNumber > 1 ? 2 : 1}`)}\n${RULES[language]}`;
 
 const reply = z.object({ subject: z.string().catch(""), text: z.string() });
 
@@ -70,14 +68,16 @@ function parsed(answer: string): FollowUpDraft | null {
 
 /** The Follow-up draft: the AI Coach's, or the template's when there is no AI layer or it fails. */
 export async function followUpDraft(request: FollowUpDraftRequest): Promise<FollowUpDraft> {
-  const { ai, candidateId, language, jobOffer, followUpNumber } = request;
+  const { ai, candidateId, language, jobOffer, followUpNumber, taskPlaybooks } = request;
   const fallback = template(language, jobOffer.title, jobOffer.employer, followUpNumber);
   if (!ai) return fallback;
   try {
+    const run = await taskRun(taskPlaybooks, "follow-up", ai);
     const { text } = await ai.generate({
       task: "writing",
       candidateId,
-      system: SYSTEM[language](followUpNumber),
+      system: systemPrompt(run, language, followUpNumber),
+      ...run.agent,
       prompt: JSON.stringify({ title: jobOffer.title, employer: jobOffer.employer, content: jobOffer.content }),
     });
     const written = parsed(text);

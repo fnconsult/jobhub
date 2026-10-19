@@ -1333,7 +1333,7 @@
     },
     "coachingPlaybooks": {
       "title": "Playbooks de coaching",
-      "intro": "Les règles que l'AI Coach applique : le socle, la liste des sources et chaque playbook avec son Playbook Agent, le spécialiste que l'AI Coach consulte. Modifier une version validée crée une nouvelle version ; toutes les versions sont conservées.",
+      "intro": "Les règles que l'AI Coach applique : le socle, la liste des sources et chaque playbook avec son Playbook Agent, le spécialiste que l'AI Coach consulte. Plus bas, les playbooks des tâches IA. Modifier une version validée crée une nouvelle version ; toutes les versions sont conservées.",
       "servingValidated": "Cet environnement (production) ne sert que la dernière version validée par une personne de chacun.",
       "servingLatest": "Cet environnement sert la dernière version de chacun, validée ou non. La production ne sert que les versions validées.",
       "caption": "Socle, liste des sources et playbooks",
@@ -1345,7 +1345,8 @@
       "kinds": {
         "core_digest": "Socle de coaching",
         "sources": "Liste des sources",
-        "playbook": "Playbook"
+        "playbook": "Playbook",
+        "task": "Playbook de tâche IA"
       },
       "archived": "Archivé",
       "active": "Actif",
@@ -1378,7 +1379,14 @@
         "effort": "Effort",
         "effortHelp": "Le temps de réflexion demandé au modèle. Certains modèles l'ignorent ou n'ont que deux niveaux : voir le tableau des modèles.",
         "consultWhen": "Quand le consulter",
-        "consultWhenHelp": "L'AI Coach lit cette description pour choisir les Playbook Agents qu'il consulte, au plus deux par réponse."
+        "consultWhenHelp": "L'AI Coach lit cette description pour choisir les Playbook Agents qu'il consulte, au plus deux par réponse.",
+        "taskContent": "Consignes (Markdown)",
+        "taskContentHelp": "Seules les consignes de la tâche : le format de réponse, les règles de sécurité et les données transmises sont ajoutés par le code.",
+        "taskSections": "Une section par variante, chacune sous son titre « ## clé » :",
+        "taskSlots": "À garder, là où le code insère une valeur : {{slots}}",
+        "taskModel": "Modèle qui exécute la tâche",
+        "taskModelHelp": "Seuls les modèles hébergés dans l'Union européenne sont proposés. Les données personnelles et le consentement IA UE suivent toujours les règles de la tâche.",
+        "effortNone": "celui du modèle (rien n'est envoyé)"
       },
       "models": {
         "title": "Modèles autorisés",
@@ -1417,7 +1425,10 @@
         "archiveTitle": "Archiver",
         "archiveHelp": "Un playbook archivé n'est plus servi ; ses versions sont conservées. Un playbook n'est jamais supprimé.",
         "archive": "Archiver ce playbook",
-        "restore": "Rétablir ce playbook"
+        "restore": "Rétablir ce playbook",
+        "taskWebSearch": "Requête de recherche web : envoyée au fournisseur de recherche configuré, sans Playbook Agent.",
+        "taskArchiveHelp": "Un playbook de tâche archivé n'est plus servi ; ses versions sont conservées. La tâche reprend alors son texte intégré, et le résumé d'offre n'est plus rédigé.",
+        "instructions": "Consignes"
       },
       "notices": {
         "created": "Playbook créé, en version 1.",
@@ -1436,7 +1447,8 @@
         "archived": "Playbook archivé : il n'est plus servi.",
         "restored": "Playbook rétabli.",
         "not_archivable": "Le socle et la liste des sources ne peuvent pas être archivés.",
-        "nameRequired": "Indiquez votre nom pour valider."
+        "nameRequired": "Indiquez votre nom pour valider.",
+        "task_instructions": "Il manque aux consignes ce que la tâche lit, ou elles sont trop longues : {{list}}."
       },
       "journalFields": {
         "version": "Version",
@@ -1448,6 +1460,14 @@
         "validatedBy": "Validée par",
         "validatedAt": "Validée le",
         "archived": "Archivé"
+      },
+      "effortDefault": "celui du modèle",
+      "tasks": {
+        "title": "Playbooks des tâches IA",
+        "intro": "Les consignes de travail de chaque tâche IA (lire une offre ou un CV, rédiger un document, rechercher une entreprise…) et l'IA qui l'exécute. L'AI Coach ne les consulte jamais. Le format des réponses, les règles de sécurité et les données transmises restent dans le code. Sans version servie, une tâche reprend son texte intégré ; le résumé et le secteur d'une offre ne sont alors pas rédigés.",
+        "caption": "Playbooks des tâches IA",
+        "runBy": "Exécutée par",
+        "webSearch": "le fournisseur de recherche web configuré"
       }
     }
   },

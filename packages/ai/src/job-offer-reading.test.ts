@@ -1,5 +1,6 @@
+import { builtInInstructions } from "@jobhub/coach-knowledge/tasks";
 import { describe, expect, it } from "vitest";
-import { createAiLayer } from "./ai-layer";
+import { createAiLayer, type TaskInstructions } from "./ai-layer";
 import { readJobPage, readOfferFields } from "./job-offer-reading";
 import { createFakeProvider, createMemoryUsageLog } from "./testing";
 
@@ -56,13 +57,15 @@ describe("reading a Job Offer's fields from its text (#94)", () => {
   });
 });
 
-describe("the Job Offer Summary, read with the fields", () => {
+describe("the Job Offer Summary, read with the fields when its task Playbook is served (ADR-0026)", () => {
   const jobOffer = { title: "Finance Director", content: "Acme is hiring a Finance Director to lead a team of 12 in London." };
+  /** Version 1 of the "job-offer-reading" task Playbook, as served. */
+  const reading: TaskInstructions = { text: builtInInstructions("job-offer-reading") };
 
   it("asks for two or three sentences in the offer's own language, inventing nothing and naming no one", async () => {
     const { ai, claude } = setUp("{}");
 
-    await readOfferFields(ai, { candidateId: "cand-1", jobOffer });
+    await readOfferFields(ai, { candidateId: "cand-1", jobOffer, reading });
 
     const system = claude.calls[0]!.system ?? "";
     expect(system).toContain('"summary"');
@@ -72,12 +75,58 @@ describe("the Job Offer Summary, read with the fields", () => {
     expect(system).toMatch(/sans nom de personne/);
   });
 
+  it("sends version 1 word for word as before the task Playbook: the built-in field rules, then its rules", async () => {
+    const { ai, claude } = setUp("{}");
+
+    await readOfferFields(ai, { candidateId: "cand-1", jobOffer, reading });
+
+    expect(claude.calls[0]!.system).toBe(`Tu lis le texte d'une offre d'emploi.
+Réponds uniquement par un objet JSON, sans texte autour :
+{"employer"?: string, "location"?: string,
+ "contractType"?: "cdi" | "cdd" | "freelance" | "interim", "remoteWork"?: "on_site" | "hybrid" | "full_remote",
+ "salaryMin"?: number, "salaryMax"?: number, "skills"?: string[], "requiredExperienceYears"?: number, "summary": string,
+ "sector"?: string, "subsector"?: string}
+- "location" : la ville (et le pays s'il est indiqué) où se trouve le poste.
+- "skills" : les compétences demandées, en quelques mots chacune (au plus 15).
+- "requiredExperienceYears" : le nombre minimal d'années d'expérience demandé.
+- Salaires en euros bruts annuels. N'invente rien : omets un champ que l'offre ne précise pas.
+- "summary" : deux ou trois phrases (400 caractères au plus) sur le poste, son périmètre et ce qui est attendu,
+  écrites dans la langue de l'offre (en anglais pour une offre en anglais). Uniquement ce que l'offre dit, sans rien inventer
+  ni juger, et sans nom de personne (recruteur, manager).
+- "sector" : le secteur d'activité de l'employeur en quelques mots (ex. « Conseil », « Industrie automobile »), et
+  "subsector" : son sous-secteur ou domaine, plus précis (ex. « Stratégie et transformation »), dans la langue de l'offre,
+  d'après ce que l'offre dit de l'employeur et du poste. Omets-les si l'offre n'en dit rien.`);
+  });
+
+  it("sends the rules of the version served, and runs on its Playbook Agent", async () => {
+    const { ai, claude, mistral, usage } = setUp("{}");
+
+    await readOfferFields(ai, { candidateId: "cand-1", jobOffer, reading: { text: '- "summary" : une seule phrase.', route: { provider: "mistral", model: "mistral-medium-3-5" }, effort: "low" } });
+
+    expect(claude.calls).toHaveLength(0);
+    expect(mistral.calls[0]).toMatchObject({ model: "mistral-medium-3-5", effort: "low" });
+    expect(mistral.calls[0]!.system).toMatch(/- "summary" : une seule phrase\.$/);
+    expect(mistral.calls[0]!.system).not.toMatch(/deux ou trois phrases/);
+    expect(usage.entries).toMatchObject([{ task: "offer_analysis", provider: "mistral" }]);
+  });
+
+  it("asks for no summary, sector or sub-sector when no version is served, and keeps none the reply gives", async () => {
+    const { ai, claude } = setUp(JSON.stringify({ location: "London", summary: "Acme seeks a Finance Director.", sector: "Conseil", subsector: "Stratégie" }));
+
+    expect(await readOfferFields(ai, { candidateId: "cand-1", jobOffer })).toEqual({ location: "London" });
+    expect(await readJobPage(ai, null, JSON.stringify({}))).toBeNull();
+
+    const system = claude.calls[0]!.system ?? "";
+    expect(system).not.toMatch(/summary|sector|subsector/);
+    expect(system).toMatch(/Salaires en euros bruts annuels/);
+  });
+
   it("keeps a summary of the right shape, its spacing tidied, in the language it was written in", async () => {
     const { ai, usage } = setUp(
       JSON.stringify({ location: "London", summary: "  Acme seeks a Finance Director\nto lead a team of 12.  Reporting to the CEO.  " }),
     );
 
-    expect(await readOfferFields(ai, { candidateId: "cand-1", jobOffer })).toEqual({
+    expect(await readOfferFields(ai, { candidateId: "cand-1", jobOffer, reading })).toEqual({
       location: "London",
       summary: "Acme seeks a Finance Director to lead a team of 12. Reporting to the CEO.",
     });
@@ -86,26 +135,26 @@ describe("the Job Offer Summary, read with the fields", () => {
 
   it("reads the employer's sector and sub-sector, a sub-sector only with its sector, each a few words", async () => {
     const { ai } = setUp(JSON.stringify({ location: "Paris", sector: " Conseil ", subsector: "Stratégie et\ntransformation" }));
-    expect(await readOfferFields(ai, { candidateId: null, jobOffer })).toEqual({ location: "Paris", sector: "Conseil", subsector: "Stratégie et transformation" });
+    expect(await readOfferFields(ai, { candidateId: null, jobOffer, reading })).toEqual({ location: "Paris", sector: "Conseil", subsector: "Stratégie et transformation" });
 
     const { ai: noSector } = setUp(JSON.stringify({ location: "Paris", subsector: "Stratégie" }));
-    expect(await readOfferFields(noSector, { candidateId: null, jobOffer })).toEqual({ location: "Paris" });
+    expect(await readOfferFields(noSector, { candidateId: null, jobOffer, reading })).toEqual({ location: "Paris" });
 
     const { ai: tooLong } = setUp(JSON.stringify({ location: "Paris", sector: "x".repeat(81) }));
-    expect(await readOfferFields(tooLong, { candidateId: null, jobOffer })).toEqual({ location: "Paris" });
+    expect(await readOfferFields(tooLong, { candidateId: null, jobOffer, reading })).toEqual({ location: "Paris" });
   });
 
   it("leaves out a summary that is not text, is empty or is far too long", async () => {
     for (const summary of [42, ["a", "b"], "   ", "x".repeat(601)]) {
       const { ai } = setUp(JSON.stringify({ location: "London", summary }));
-      expect(await readOfferFields(ai, { candidateId: null, jobOffer })).toEqual({ location: "London" });
+      expect(await readOfferFields(ai, { candidateId: null, jobOffer, reading })).toEqual({ location: "London" });
     }
   });
 
   it("comes with a job page read by Job discovery", async () => {
     const { ai, claude } = setUp('{"isJobOffer": true, "title": "DAF H/F", "content": "Groupe Seb recrute son DAF.", "summary": "Groupe Seb recrute son DAF."}');
 
-    expect(await readJobPage(ai, null, "page")).toEqual({ title: "DAF H/F", content: "Groupe Seb recrute son DAF.", summary: "Groupe Seb recrute son DAF." });
+    expect(await readJobPage(ai, null, "page", reading)).toEqual({ title: "DAF H/F", content: "Groupe Seb recrute son DAF.", summary: "Groupe Seb recrute son DAF." });
     expect(claude.calls[0]!.system).toMatch(/langue de l'offre/);
   });
 });

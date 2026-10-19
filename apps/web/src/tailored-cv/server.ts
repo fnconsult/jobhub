@@ -2,6 +2,7 @@ import { sharedPool } from "@/database/pool";
 import { getAi } from "@/ai/server";
 import { getApplications } from "@/applications/server";
 import { getProfiles } from "@/profiles/server";
+import { getTaskPlaybooks } from "@/task-playbooks/server";
 import { createTailoredCvs, type TailoredCvs } from "./index";
 
 let instance: TailoredCvs | undefined;
@@ -12,6 +13,7 @@ export function getTailoredCvs(): TailoredCvs {
     applications: getApplications(),
     profiles: getProfiles(),
     ai: getAi(),
+    taskPlaybooks: getTaskPlaybooks(),
   });
   return instance;
 }

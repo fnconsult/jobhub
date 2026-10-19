@@ -1333,7 +1333,7 @@
     },
     "coachingPlaybooks": {
       "title": "Coaching Playbooks",
-      "intro": "The rules the AI Coach applies: the Core Digest, the Sources list and each playbook with its Playbook Agent, the specialist the AI Coach consults. Changing a validated version makes a new version; every version is kept.",
+      "intro": "The rules the AI Coach applies: the Core Digest, the Sources list and each playbook with its Playbook Agent, the specialist the AI Coach consults. Further down, the AI task playbooks. Changing a validated version makes a new version; every version is kept.",
       "servingValidated": "This environment (production) serves only the latest version of each that a person validated.",
       "servingLatest": "This environment serves the latest version of each, validated or not. Production serves only validated versions.",
       "caption": "Core Digest, Sources list and playbooks",
@@ -1345,7 +1345,8 @@
       "kinds": {
         "core_digest": "Core Digest",
         "sources": "Sources list",
-        "playbook": "Playbook"
+        "playbook": "Playbook",
+        "task": "AI task playbook"
       },
       "archived": "Archived",
       "active": "Active",
@@ -1378,7 +1379,14 @@
         "effort": "Effort",
         "effortHelp": "How hard the model should think. Some models ignore it or only have two levels: see the models table.",
         "consultWhen": "When to consult it",
-        "consultWhenHelp": "The AI Coach reads this description to choose the Playbook Agents it consults, at most two per reply."
+        "consultWhenHelp": "The AI Coach reads this description to choose the Playbook Agents it consults, at most two per reply.",
+        "taskContent": "Instructions (Markdown)",
+        "taskContentHelp": "The task's instructions only: the code adds the reply format, the safety rules and the data passed in.",
+        "taskSections": "One section per variant, each under its \"## key\" heading:",
+        "taskSlots": "Keep, where the code inserts a value: {{slots}}",
+        "taskModel": "Model running the task",
+        "taskModelHelp": "Only models hosted in the European Union are offered. Personal data and EU AI consent always follow the task's rules.",
+        "effortNone": "the model's own (nothing sent)"
       },
       "models": {
         "title": "Allowed models",
@@ -1417,7 +1425,10 @@
         "archiveTitle": "Archive",
         "archiveHelp": "An archived playbook is no longer served; its versions are kept. A playbook is never deleted.",
         "archive": "Archive this playbook",
-        "restore": "Restore this playbook"
+        "restore": "Restore this playbook",
+        "taskWebSearch": "Web-search query: sent to the configured web-search provider, with no Playbook Agent.",
+        "taskArchiveHelp": "An archived task playbook is no longer served; its versions are kept. The task then falls back to its built-in text, and job offer summaries are no longer written.",
+        "instructions": "Instructions"
       },
       "notices": {
         "created": "Playbook created, at version 1.",
@@ -1436,7 +1447,8 @@
         "archived": "Playbook archived: it is no longer served.",
         "restored": "Playbook restored.",
         "not_archivable": "The Core Digest and the Sources list cannot be archived.",
-        "nameRequired": "Give your name to validate."
+        "nameRequired": "Give your name to validate.",
+        "task_instructions": "The instructions lack what the task reads, or are too long: {{list}}."
       },
       "journalFields": {
         "version": "Version",
@@ -1448,6 +1460,14 @@
         "validatedBy": "Validated by",
         "validatedAt": "Validated on",
         "archived": "Archived"
+      },
+      "effortDefault": "the model's own",
+      "tasks": {
+        "title": "AI task playbooks",
+        "intro": "The working instructions of each AI task (reading a job offer or a CV, drafting a document, researching a company…) and the AI that runs it. The AI Coach never consults them. The reply formats, the safety rules and the data passed in stay in the code. With no version served, a task falls back to its built-in text; a job offer's summary and sector are then not written.",
+        "caption": "AI task playbooks",
+        "runBy": "Run by",
+        "webSearch": "the configured web-search provider"
       }
     }
   },

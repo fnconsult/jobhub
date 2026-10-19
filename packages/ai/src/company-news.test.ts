@@ -30,6 +30,25 @@ describe("the Company News search query", () => {
     expect(query).toMatch(/N'inclus aucun article dont le titre nomme une personne/);
   });
 
+  it("is worded as before with version 1 of the company-news-search task Playbook, its built-in text", () => {
+    expect(buildCompanyNewsQuery({ employer: "Acme", website: "acme.example" })).toBe(
+      "Articles de presse récents (moins de 12 mois) sur l'entreprise « Acme » (site web acme.example) : au plus 5, les plus récents d'abord. " +
+        'Réponds uniquement par un objet JSON {"articles": [{"title", "outlet", "date", "url", "namesPerson"}]} : ' +
+        "title le titre de l'article, outlet le média, date sa date de publication (AAAA-MM-JJ), url son lien, " +
+        "namesPerson true si le titre nomme une personne. Ne recopie pas le texte des articles. " +
+        "N'inclus aucun article dont le titre nomme une personne.",
+    );
+  });
+
+  it("takes the served version's words, on one line, and always adds the JSON shape and the rules on people and article text", () => {
+    const query = buildCompanyNewsQuery({ employer: "Acme hr@acme.example", instructions: "Actualités de\n{{entreprise}}, 3 au plus." });
+
+    expect(query).toMatch(/^Actualités de « Acme », 3 au plus\. Réponds uniquement par un objet JSON/);
+    expect(query).toMatch(/Ne recopie pas le texte des articles\. N'inclus aucun article dont le titre nomme une personne\.$/);
+    // A served text without {{entreprise}} would search nothing about the employer: the built-in one is used.
+    expect(buildCompanyNewsQuery({ employer: "Acme", instructions: "Actualités récentes." })).toMatch(/^Articles de presse récents/);
+  });
+
   it("strips contact details typed into the employer's name", () => {
     const query = buildCompanyNewsQuery({ employer: "Acme hr@acme.example +33 6 12 34 56 78" });
 

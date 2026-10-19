@@ -7,6 +7,7 @@ import { createApplications, migrateApplications, type Applications } from "../a
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles } from "../profiles";
+import { servedTasks } from "../task-playbooks/test-support";
 import { CompanyRegisterUnavailable, type CompanyRegister, type RegisteredCompany } from "./french-register";
 import { createCompanyDossiers, migrateCompanyDossiers, type CompanyDossiers } from "./index";
 
@@ -706,6 +707,22 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
 
       expect(await dossiers.get(candidateId, applicationId)).toMatchObject({ status: "built", dossier: { employer: "Acme", news: [] } });
     });
+  });
+
+  it("words both web searches as their served task Playbooks say, the employer cleaned, the JSON asked and no person named (ADR-0026)", async () => {
+    const database = testAuth.auth.options.database as Pool;
+    const taskPlaybooks = servedTasks({
+      "company-facts-search": { content: "Fiche courte de {{entreprise}}." },
+      "company-news-search": { content: "Articles de presse sur {{entreprise}}, 2 au plus." },
+    });
+    const served = createCompanyDossiers(database, { applications, register, ai, taskPlaybooks });
+    const applicationId = await applicationFor({ employer: "Globex Ltd" });
+
+    await served.build(candidateId, applicationId);
+
+    expect(perplexity.queries[0]).toMatch(/^Fiche courte de « Globex Ltd »\. Réponds uniquement par un objet JSON avec les clés .*Ne nomme aucune personne\.$/);
+    expect(newsQueries[0]).toMatch(/^Articles de presse sur « Globex Ltd », 2 au plus\. Réponds uniquement par un objet JSON .*N'inclus aucun article dont le titre nomme une personne\.$/);
+    expect(taskPlaybooks.reads).toEqual(expect.arrayContaining(["company-facts-search", "company-news-search"]));
   });
 
   it("shows and builds a dossier only for the Candidate's own Application", async () => {

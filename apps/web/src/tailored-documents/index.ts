@@ -24,6 +24,8 @@
  *  - Drafts only (ADR-0005): nothing here sends anything.
  * Every read and change is scoped to the Candidate; inputs are untrusted and
  * problems come back as results. Task `writing`, EU endpoints only (ADR-0007).
+ * The AI Coach's instructions and the AI drafting are the "cover-letter" and "outreach-message"
+ * task Playbooks' (ADR-0026); who may be named and each document's format stay here.
  */
 import type { AiLayer } from "@jobhub/ai";
 import { DOCUMENT_LANGUAGES, type DocumentLanguage } from "@jobhub/shared";
@@ -33,6 +35,7 @@ import type { Application, Applications } from "../applications";
 import type { CompanyDossier, CompanyDossiers } from "../company-dossiers";
 import type { EnrichedContact, EnrichedContacts } from "../enriched-contacts";
 import type { Profiles } from "../profiles";
+import { taskRun, type TaskPlaybookReader, type TaskRun } from "../task-playbooks";
 import { fieldErrors, type FieldError } from "../validation";
 import { coverLetterBody } from "./cover-letter-body";
 import { documentLanguageOf, keepDocumentLanguage } from "./document-language";
@@ -121,6 +124,8 @@ export interface TailoredDocumentsDeps {
   companyDossiers?: CompanyDossierSource;
   /** Optional: without it, Outreach Messages are addressed to no one in particular. */
   enrichedContacts?: EnrichedContactSource;
+  /** The "cover-letter" and "outreach-message" task Playbooks' served versions (ADR-0026); without it, their built-in text. */
+  taskPlaybooks?: TaskPlaybookReader;
 }
 
 const draftSchema = z.object({
@@ -154,33 +159,7 @@ interface DraftRow {
   updated_at: Date;
 }
 
-/** What to write, per document (and channel), in each Document Language. */
-const WHAT: Record<DocumentLanguage, Record<TailoredDocumentKind | OutreachChannel, string>> = {
-  fr: {
-    cover_letter: "une lettre de motivation en français",
-    outreach_message: "un message d'approche en français",
-    email: "un e-mail d'approche en français, court (150 mots au plus), à un contact chez l'employeur",
-    inmail: "un InMail LinkedIn d'approche en français, très court (100 mots au plus), à un contact chez l'employeur",
-  },
-  en: {
-    cover_letter: "a cover letter in English",
-    outreach_message: "an outreach message in English",
-    email: "a short outreach email in English (150 words at most) to a contact at the employer",
-    inmail: "a very short LinkedIn InMail in English (100 words at most) to a contact at the employer",
-  },
-};
-
-const RULES: Record<DocumentLanguage, string> = {
-  fr: `Règles :
-- Appuie-toi uniquement sur son CV de référence, l'offre et, s'il y en a, le dossier sur l'entreprise. N'invente jamais d'expérience, de diplôme ou de chiffre.
-- {{people}}
-- Ton sobre et concret, sans formule creuse.`,
-  en: `Rules:
-- Draw only on their reference CV, the job offer and, if any, the company dossier. Never invent experience, degrees or figures.
-- {{people}}
-- Plain and concrete, no empty phrases.`,
-};
-
+/** The format of each document, in each Document Language: the Cover Letter's body only, in plain text (#162); the Outreach Message's JSON. */
 const FORMAT: Record<DocumentLanguage, Record<TailoredDocumentKind, string>> = {
   fr: {
     cover_letter:
@@ -208,14 +187,16 @@ const PEOPLE: Record<DocumentLanguage, { nobody: string; recipientOnly: string }
   },
 };
 
-function systemPrompt(language: DocumentLanguage, document: TailoredDocumentKind, channel: OutreachChannel, addressed: boolean): string {
-  const what = WHAT[language][document === "outreach_message" ? channel : document];
-  const intro =
-    language === "fr"
-      ? `Tu es le coach Jobbbox. Tu rédiges ${what} pour un cadre expérimenté qui postule à l'offre ci-dessous.`
-      : `You are the Jobbbox coach. You write ${what} for an experienced professional applying to the job offer below.`;
-  const rules = RULES[language].replace("{{people}}", PEOPLE[language][addressed ? "recipientOnly" : "nobody"]);
-  return [intro, rules, FORMAT[language][document]].join("\n");
+/** The task Playbook writing each document: one for the Cover Letter, one for the Outreach Message (ADR-0026). */
+const TASK_PLAYBOOK = { cover_letter: "cover-letter", outreach_message: "outreach-message" } as const satisfies Record<TailoredDocumentKind, string>;
+
+/**
+ * The instructions: the task Playbook's section for the Document Language (and the Outreach Message's
+ * channel), then who may be named and the document's format, which stay here.
+ */
+function systemPrompt(run: TaskRun, language: DocumentLanguage, document: TailoredDocumentKind, channel: OutreachChannel, addressed: boolean): string {
+  const section = document === "outreach_message" ? `${language} ${channel}` : language;
+  return [run.text(section), `- ${PEOPLE[language][addressed ? "recipientOnly" : "nobody"]}`, FORMAT[language][document]].join("\n");
 }
 
 /** Suggested Contact Roles (#17) as job titles. A role not listed here is written as given. */
@@ -328,10 +309,12 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
     if (document === "outreach_message" && contact) parts.push(`${label.recipient} : ${[contact.name, contact.jobTitle].filter(Boolean).join(", ")}`);
     const prompt = parts.join("\n\n");
     try {
+      const run = await taskRun(deps.taskPlaybooks, TASK_PLAYBOOK[document], deps.ai);
       const { text } = await deps.ai.generate({
         task: "writing",
         candidateId,
-        system: systemPrompt(language, document, channel, document === "outreach_message" && !!contact),
+        system: systemPrompt(run, language, document, channel, document === "outreach_message" && !!contact),
+        ...run.agent,
         prompt,
         // The Master CV, identity block included: the draft speaks as the Candidate (ADR-0007).
         containsIdentity: true,

@@ -13,6 +13,7 @@ import { permanentSuperAdminsFromEnv, superAdminEmails } from "@jobhub/web/admin
 import { secretCipherFromEnv, watchProviderSecrets } from "@jobhub/web/provider-secrets";
 import { createSearchSites } from "@jobhub/web/search-sites";
 import { appleFailureEmail, signInProvidersWorker } from "@jobhub/web/sign-in-providers";
+import { taskPlaybooksReader } from "@jobhub/web/task-playbooks";
 import { Pool } from "pg";
 import { jobDiscoveryBudgetFromEnv } from "./job-discovery";
 import { startJobRunner, type JobRunner } from "./job-runner";
@@ -56,6 +57,8 @@ const worker = workerClients({
   budget: jobDiscoveryBudgetFromEnv(process.env),
   // The Job discovery sources and sites Administrators set in the Back Office, read at the start of each run.
   settings: () => searchSites.jobDiscoverySettings(),
+  // The task Playbooks at the version this environment serves (JOBHUB_TARGET), as the web app reads them.
+  taskPlaybooks: taskPlaybooksReader(database, process.env),
   euAiConsent: (candidateId) => euAiConsents.has(candidateId),
   log: (line) => console.warn(line),
 });

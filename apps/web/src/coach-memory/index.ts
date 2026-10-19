@@ -13,12 +13,14 @@
  * Nothing reaches Coach Memory without the Candidate confirming or writing it.
  * Every read and change is scoped to the Candidate: another Candidate's item or
  * conversation is "not found". Never throws for bad input: an error code comes back.
- * Deleted with the account (ADR-0010).
+ * Deleted with the account (ADR-0010). What the AI Coach is told to propose, and the AI proposing,
+ * are the "coach-memory" task Playbook's (ADR-0026); no personal data and the reply's shape stay here.
  */
 import type { AiLayer } from "@jobhub/ai";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { CoachConversations } from "../coach-conversations";
+import { taskRun, type TaskPlaybookReader } from "../task-playbooks";
 import { COACH_MEMORY_KINDS, MAX_ITEM_LENGTH, MAX_ITEMS, type CoachMemoryKind, type ProposedMemoryItem } from "./kinds";
 
 export { COACH_MEMORY_KINDS, MAX_ITEM_LENGTH, MAX_ITEMS, type CoachMemoryKind, type ProposedMemoryItem } from "./kinds";
@@ -56,6 +58,8 @@ export interface CoachMemory {
 export interface CoachMemoryDeps {
   ai: AiLayer;
   conversations: Pick<CoachConversations, "open">;
+  /** The "coach-memory" task Playbook's served version (ADR-0026); without it, its built-in text. */
+  taskPlaybooks?: TaskPlaybookReader;
 }
 
 
@@ -66,11 +70,8 @@ const proposalsSchema = z.object({
 });
 const itemSchema = z.object({ kind: z.enum(COACH_MEMORY_KINDS), text: z.string().trim().min(1).max(MAX_ITEM_LENGTH) });
 
-const PROPOSE_SYSTEM = `Tu es le coach Jobbbox. Tu relis une conversation avec un candidat et tu proposes les faits clés à retenir pour les prochaines conversations : ses objectifs (goal), ses contraintes (constraint) et ses décisions (decision).
-Règles :
-- Uniquement ce que le candidat a dit lui-même. N'invente rien, ne déduis rien.
-- Une phrase courte par fait, dans la langue du candidat.
-- Jamais de nom, d'e-mail, de téléphone ni d'adresse.
+/** No personal data, and the reply's shape: after the "coach-memory" task Playbook's instructions (ADR-0026). */
+const PROPOSE_RULES = `- Jamais de nom, d'e-mail, de téléphone ni d'adresse.
 Réponds uniquement avec un objet JSON : {"items": [{"kind": "goal" | "constraint" | "decision", "text": "le fait"}]}. Aucun fait à retenir : {"items": []}.`;
 
 interface ItemRow {
@@ -174,7 +175,8 @@ export function createCoachMemory(database: Pool, deps: CoachMemoryDeps): CoachM
       const remembered = await list(candidateId);
       const transcript = conversation.messages.map((message) => `${message.from === "candidate" ? "Candidat" : "Coach"} : ${message.text}`).join("\n");
       try {
-        const { text } = await deps.ai.generate({ task: "coaching", candidateId, system: PROPOSE_SYSTEM, prompt: promptFor(transcript, remembered) });
+        const run = await taskRun(deps.taskPlaybooks, "coach-memory", deps.ai);
+        const { text } = await deps.ai.generate({ task: "coaching", candidateId, system: `${run.text()}\n${PROPOSE_RULES}`, prompt: promptFor(transcript, remembered), ...run.agent });
         const proposals = proposalsIn(text);
         if (!proposals) return { ok: false, error: "unavailable" };
         return { ok: true, proposals: newFacts(proposals, remembered) };

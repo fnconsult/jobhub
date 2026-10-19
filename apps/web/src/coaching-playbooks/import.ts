@@ -1,12 +1,22 @@
 /**
- * The one-off import (#225): today's coaching knowledge files (`@jobhub/coach-knowledge`) as version 1
+ * The import (#225, ADR-0026): today's coaching knowledge files (`@jobhub/coach-knowledge`) as version 1
  * of each Coaching Playbook, of the Core Digest and of the Sources list, none of them Human-validated.
  * Each Coaching Playbook gets a default Playbook Agent: the AI Coach's route (provider and model) in
  * this environment, effort medium, and when to consult it as the Playbook table said (#129).
+ *
+ * And each task Playbook (`@jobhub/coach-knowledge/tasks`) as its version 1: the instructions its task
+ * used until then, run by a Playbook Agent on the task's route in this environment with no effort (the
+ * model's own, as before), so nothing changes when it is served. The tasks that ran before task
+ * Playbooks are imported Human-validated by François Nader, who approved it so production kept running
+ * them; the Job Offer Summary and sector, new, are not.
  */
-import { taskRouteFromEnv } from "@jobhub/ai";
+import { taskRouteFromEnv, type AiTask } from "@jobhub/ai";
 import { readCoachKnowledgeFiles } from "@jobhub/coach-knowledge";
+import { TASK_PLAYBOOKS } from "@jobhub/coach-knowledge/tasks";
 import type { PlaybookSeed } from "./index";
+
+/** Who validated the task Playbooks imported validated (ADR-0026). */
+export const IMPORT_VALIDATOR = "François Nader";
 
 type Env = Record<string, string | undefined>;
 
@@ -46,5 +56,14 @@ export function importedPlaybooks(env: Env = process.env): PlaybookSeed {
       content: playbook.text,
       agent: { provider: route.provider, model: route.model ?? null, effort: "medium", consultWhen: CONSULT_WHEN[playbook.id] ?? playbook.title },
     })),
+    tasks: TASK_PLAYBOOKS.map((task) => {
+      const taskRoute = task.agent ? taskRouteFromEnv(env, task.aiTask as AiTask) : null;
+      return {
+        id: task.id,
+        content: task.instructions,
+        agent: taskRoute ? { provider: taskRoute.provider, model: taskRoute.model ?? null, effort: null, consultWhen: "" } : null,
+        validatedBy: task.validatedAtImport ? IMPORT_VALIDATOR : null,
+      };
+    }),
   };
 }

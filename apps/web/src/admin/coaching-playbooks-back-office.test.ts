@@ -26,7 +26,12 @@ describe.skipIf(!connectionString)("Coaching Playbooks' Back Office writes and t
   beforeEach(async () => {
     testAuth = await startTestAuth();
     database = testAuth.database;
-    await migrateCoachingPlaybooks(database, () => ({ sources: SOURCES, coreDigest: "# Socle [S1]", playbooks: [{ id: "interview-psychology", content: "# Entretiens [S1]", agent }] }));
+    await migrateCoachingPlaybooks(database, () => ({
+      sources: SOURCES,
+      coreDigest: "# Socle [S1]",
+      playbooks: [{ id: "interview-psychology", content: "# Entretiens [S1]", agent }],
+      tasks: [{ id: "coach-memory", content: "Propose les faits.", agent: { ...agent, effort: null, consultWhen: "" }, validatedBy: "François Nader" }],
+    }));
     await migrateBackOfficeAudit(database);
     const unused = async () => {
       throw new Error("not used here");
@@ -95,6 +100,26 @@ describe.skipIf(!connectionString)("Coaching Playbooks' Back Office writes and t
 
     expect(await entries()).toEqual([
       { email: "claire@jobbbox.fr", section: "coaching_playbooks", target: "core-digest", action: "updated", before: { version: 1, rulesCharacters: 12 }, after: { version: 1, rulesCharacters: 17 } },
+    ]);
+  });
+
+  it("records a task Playbook's versions, validation and archive like any other's (ADR-0026)", async () => {
+    expect(await changes.save(claire, "coach-memory", { content: "Propose les faits clés.", provider: "mistral", model: "", effort: "" })).toMatchObject({ ok: true, newVersion: true });
+    expect(await changes.validate(paul, "coach-memory", 2)).toMatchObject({ ok: true });
+    expect(await changes.setArchived(paul, "coach-memory", true)).toEqual({ ok: true, changed: true, version: 2 });
+
+    const task = { provider: "mistral", model: null, effort: null, consultWhen: "" };
+    expect(await entries()).toEqual([
+      {
+        email: "claire@jobbbox.fr",
+        section: "coaching_playbooks",
+        target: "coach-memory",
+        action: "updated",
+        before: { version: 1, ...task, model: "mistral-medium-3-5", rulesCharacters: 18 },
+        after: { version: 2, ...task, rulesCharacters: 23 },
+      },
+      expect.objectContaining({ email: "paul@jobbbox.fr", target: "coach-memory", action: "validated", after: expect.objectContaining({ version: 2, validatedBy: "Paul Durand" }) }),
+      expect.objectContaining({ email: "paul@jobbbox.fr", target: "coach-memory", action: "archived" }),
     ]);
   });
 });

@@ -1,3 +1,4 @@
+import { builtInInstructions, fillSlots, slotsIn, taskPlaybookSeed } from "@jobhub/coach-knowledge/tasks";
 import type { ContractType, RemoteWork, SearchCriteria } from "@jobhub/shared";
 import { DataResidencyError } from "./errors";
 
@@ -17,18 +18,33 @@ export interface JobSearchQuery {
   readonly [issuedByPlan]: true;
 }
 
-/** Every query `jobSearchQueries` made: the only ones `buildSearchQuery` words. */
-const issued = new WeakSet<object>();
+/** Every query `jobSearchQueries` made, with how it opens: the only ones `buildSearchQuery` words. */
+const issued = new WeakMap<object, string>();
 
-function issue(title: string, language: QueryLanguage): JobSearchQuery {
+function issue(title: string, language: QueryLanguage, opening: string): JobSearchQuery {
   const query = Object.freeze({ title, language }) as JobSearchQuery;
-  issued.add(query);
+  issued.set(query, opening);
   return query;
 }
 
+/** The slots a query's opening holds: one job title and one location. */
+const OPENING_SLOTS = ["intitulé", "lieu"];
+
+/**
+ * How a query opens in `language`, with `{{intitulé}}` and `{{lieu}}`: one job offer (not a list of them,
+ * to steer away from listing pages, #105). The task Playbook's when given and usable, else the built-in one.
+ */
+function openingFor(language: QueryLanguage, served?: string): string {
+  const usable = served !== undefined && OPENING_SLOTS.every((slot) => slotsIn(served).includes(slot));
+  return usable ? served : builtInInstructions("job-search-queries", `requête ${language}`);
+}
+
+/** A task Playbook's text as it goes into a web-search query: on one line, no longer than its task allows. */
+export function taskQueryText(text: string, id: string): string {
+  return text.replace(/\s+/g, " ").trim().slice(0, taskPlaybookSeed(id)?.maxLength);
+}
+
 interface Wording {
-  /** The opening: one job offer (not a list of them, to steer away from listing pages, #105). */
-  offer(title: string, location: string): string;
   contract: Record<ContractType, string>;
   remote: Record<RemoteWork, string>;
   /** Several values of one criterion, any of which will do: "CDI ou freelance". */
@@ -38,7 +54,6 @@ interface Wording {
 
 const WORDING: Record<QueryLanguage, Wording> = {
   fr: {
-    offer: (title, location) => `Offre d'emploi « ${title} » à ${location}`,
     contract: { cdi: "CDI", cdd: "CDD", freelance: "freelance", interim: "intérim" },
     remote: { on_site: "sur site", hybrid: "télétravail partiel", full_remote: "télétravail complet" },
     anyOf: " ou ",
@@ -46,7 +61,6 @@ const WORDING: Record<QueryLanguage, Wording> = {
       `salaire à partir de ${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(amount).replace(/\s/g, " ")} € brut annuel`,
   },
   en: {
-    offer: (title, location) => `Job offer "${title}" in ${location}`,
     contract: { cdi: "permanent contract", cdd: "fixed-term contract", freelance: "freelance", interim: "temporary work" },
     remote: { on_site: "on site", hybrid: "hybrid remote work", full_remote: "fully remote work" },
     anyOf: " or ",
@@ -73,14 +87,15 @@ export function clean(text: string): string {
  * in each ("CDI ou freelance").
  */
 export function buildSearchQuery(criteria: SearchCriteria, query?: JobSearchQuery, location: string | undefined = criteria.locations[0]): string {
-  if (query !== undefined && !issued.has(query)) {
+  const opening = query === undefined ? openingFor("fr") : issued.get(query);
+  if (opening === undefined) {
     throw new DataResidencyError("A Job Search query must be one planJobSearch issued: no other job title may reach the web-search provider");
   }
   if (location === undefined || !criteria.locations.includes(location)) {
     throw new DataResidencyError("A Job Search query names one of the Search Criteria's locations, and no other place");
   }
   const wording = WORDING[query?.language ?? "fr"];
-  const parts = [wording.offer(clean(query?.title ?? criteria.targetRole), clean(location))];
+  const parts = [taskQueryText(fillSlots(opening, { intitulé: clean(query?.title ?? criteria.targetRole), lieu: clean(location) }), "job-search-queries")];
   const anyOf = (values: string[]) => [...new Set(values)].join(wording.anyOf);
   if (criteria.contractTypes.length > 0) parts.push(anyOf(criteria.contractTypes.map((type) => wording.contract[type])));
   if (criteria.remoteWorkOptions.length > 0) parts.push(anyOf(criteria.remoteWorkOptions.map((option) => wording.remote[option])));
@@ -95,15 +110,12 @@ const TITLES_PER_LANGUAGE = 3;
 
 /**
  * The AI step that gives a Job Search its job title variants: it is given the Search
- * Criteria title alone (ADR-0007), cleaned like every other field.
+ * Criteria title alone (ADR-0007), cleaned like every other field. `instructions`: the
+ * task Playbook's (default: the built-in ones); the JSON shape is always added.
  */
-export function jobTitlesPrompt(criteria: SearchCriteria): { system: string; prompt: string } {
+export function jobTitlesPrompt(criteria: SearchCriteria, instructions: string = builtInInstructions("job-search-queries", "intitulés")): { system: string; prompt: string } {
   return {
-    system:
-      "Tu aides à chercher des offres d'emploi. On te donne un intitulé de poste. Donne les autres intitulés que les recruteurs " +
-      `emploient pour ce même poste : jusqu'à ${TITLES_PER_LANGUAGE - 1} en français et jusqu'à ${TITLES_PER_LANGUAGE} en anglais, ` +
-      "les plus courants d'abord, sans changer de niveau ni de métier. " +
-      'Réponds uniquement par un objet JSON : {"fr": ["..."], "en": ["..."]}.',
+    system: `${instructions.trim()} Réponds uniquement par un objet JSON : {"fr": ["..."], "en": ["..."]}.`,
     prompt: clean(criteria.targetRole),
   };
 }
@@ -114,15 +126,16 @@ export function jobTitlesPrompt(criteria: SearchCriteria): { system: string; pro
  * Criteria title when the reply gives none), alternating French and English. Each title
  * is cleaned; an unreadable reply leaves the Search Criteria title alone, in both languages.
  */
-export function jobSearchQueries(criteria: SearchCriteria, reply: string | null): JobSearchQuery[] {
+export function jobSearchQueries(criteria: SearchCriteria, reply: string | null, openings?: Partial<Record<QueryLanguage, string>>): JobSearchQuery[] {
   const variants = titlesIn(reply);
   const own = clean(criteria.targetRole);
   const fr = distinctTitles([own, ...variants.fr]);
   const en = distinctTitles(variants.en.length ? variants.en : [own]);
+  const opening = { fr: openingFor("fr", openings?.fr), en: openingFor("en", openings?.en) };
   const queries: JobSearchQuery[] = [];
   for (let index = 0; index < TITLES_PER_LANGUAGE; index++) {
-    if (fr[index]) queries.push(issue(fr[index]!, "fr"));
-    if (en[index]) queries.push(issue(en[index]!, "en"));
+    if (fr[index]) queries.push(issue(fr[index]!, "fr", opening.fr));
+    if (en[index]) queries.push(issue(en[index]!, "en", opening.en));
   }
   return queries;
 }
@@ -155,11 +168,14 @@ export const COMPANY_FACTS = ["country", "headquarters", "industry", "headcount"
 /**
  * The only text ever sent to the web-search provider for a Company Dossier: built
  * from the employer's name alone (a company, not a person), cleaned like Search
- * Criteria. It asks for company facts as JSON and for no person to be named.
+ * Criteria, in the "company-facts-search" task Playbook's words (`instructions`, its
+ * `{{entreprise}}` the name; default: its built-in text). It always asks for company
+ * facts as JSON and for no person to be named.
  */
-export function buildCompanyQuery(employer: string): string {
+export function buildCompanyQuery(employer: string, instructions?: string): string {
+  const words = instructions !== undefined && slotsIn(instructions).includes("entreprise") ? instructions : builtInInstructions("company-facts-search");
   return (
-    `Fiche d'entreprise de « ${clean(employer)} » : pays, adresse du siège, secteur d'activité, effectif, chiffre d'affaires, site web, numéro SIREN si elle est française. ` +
+    `${taskQueryText(fillSlots(words, { entreprise: `« ${clean(employer)} »` }), "company-facts-search")} ` +
     `Réponds uniquement par un objet JSON avec les clés ${COMPANY_FACTS.join(", ")} (texte court, null si inconnu). ` +
     `Ne nomme aucune personne.`
   );

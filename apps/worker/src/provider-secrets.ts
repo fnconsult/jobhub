@@ -29,6 +29,8 @@ export interface WorkerClientsOptions {
   budget?: JobDiscoveryOptions["budget"];
   /** The Job discovery sources and sites set in the Back Office (#188), read at the start of each run. */
   settings?: JobDiscoveryOptions["settings"];
+  /** The task Playbooks Job discovery runs with (ADR-0026), read at the start of each run. */
+  taskPlaybooks?: JobDiscoveryOptions["taskPlaybooks"];
   /** Whether a Candidate gave EU AI consent (ADR-0007). */
   euAiConsent?: (candidateId: string) => Promise<boolean>;
   /** Default: the global fetch. */
@@ -76,7 +78,7 @@ export function workerClients(options: WorkerClientsOptions): WorkerClients {
       log(`[worker] Job discovery is unavailable: ${error.message}`);
       return { unavailable: error.message };
     }
-    return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, franceTravail, settings: options.settings, fetch: options.fetch, externalApis: options.externalApis });
+    return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, franceTravail, settings: options.settings, taskPlaybooks: options.taskPlaybooks, fetch: options.fetch, externalApis: options.externalApis });
   });
 
   return { discovery, ai, franceTravail, mailer: liveObject(resolver, MAIL_SECRET_NAMES, mailerFromEnv) };

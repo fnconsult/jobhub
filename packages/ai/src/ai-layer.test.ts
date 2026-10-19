@@ -133,6 +133,20 @@ describe("company web search", () => {
     expect(perplexity.queries[0]).toMatch(/siren/i);
     expect(usage.entries).toEqual([expect.objectContaining({ candidateId: "cand-1", task: "web_search", provider: "perplexity" })]);
   });
+
+  it("words the query as before with version 1 of the company-facts-search task Playbook, else as its served version says (ADR-0026)", async () => {
+    const perplexity = createFakeProvider({ id: "perplexity", residency: "outside_eu", answer: "{}" });
+    const ai = createAiLayer({ providers: [perplexity], routes: { web_search: "perplexity" }, usage: createMemoryUsageLog() });
+
+    await ai.searchCompany({ candidateId: "cand-1", employer: "Acme" });
+    await ai.searchCompany({ candidateId: "cand-1", employer: "Acme", instructions: "Qui est {{entreprise}} ?\nPays et effectif." });
+
+    expect(perplexity.queries).toEqual([
+      "Fiche d'entreprise de « Acme » : pays, adresse du siège, secteur d'activité, effectif, chiffre d'affaires, site web, numéro SIREN si elle est française. " +
+        "Réponds uniquement par un objet JSON avec les clés country, headquarters, industry, headcount, revenue, website, siren (texte court, null si inconnu). Ne nomme aucune personne.",
+      "Qui est « Acme » ? Pays et effectif. Réponds uniquement par un objet JSON avec les clés country, headquarters, industry, headcount, revenue, website, siren (texte court, null si inconnu). Ne nomme aucune personne.",
+    ]);
+  });
 });
 
 describe("the usage of every AI call", () => {

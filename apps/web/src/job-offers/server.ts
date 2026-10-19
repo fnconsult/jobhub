@@ -1,4 +1,4 @@
-import { readOfferFields } from "@jobhub/ai";
+import { readOfferFields, type TaskInstructions } from "@jobhub/ai";
 import type { JobOffer } from "@jobhub/shared";
 import { getAi } from "@/ai/server";
 import { sharedPool } from "@/database/pool";
@@ -15,8 +15,9 @@ export function getJobOffers(): JobOffers {
 /**
  * The Job Offer with its Job Offer Summary, read once from its text (title and text only, no CV, no
  * identity) as the `offer_analysis` task, logged as the Candidate's AI usage; the fields it lacks come
- * with it. Throws what the AI layer throws.
+ * with it. `reading`: the served "job-offer-reading" task Playbook (ADR-0026), whose rules and Playbook
+ * Agent write the summary and sector. Throws what the AI layer throws.
  */
-export function summarizeJobOffer(jobOfferId: string, candidateId: string): Promise<JobOffer | null> {
-  return getJobOffers().summarize(jobOfferId, (jobOffer) => readOfferFields(getAi(), { candidateId, jobOffer }));
+export function summarizeJobOffer(jobOfferId: string, candidateId: string, reading: TaskInstructions): Promise<JobOffer | null> {
+  return getJobOffers().summarize(jobOfferId, (jobOffer) => readOfferFields(getAi(), { candidateId, jobOffer, reading }));
 }

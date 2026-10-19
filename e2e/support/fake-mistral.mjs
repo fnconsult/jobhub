@@ -58,7 +58,9 @@
 // For the fields of a Job Offer read from its text (task offer_analysis, the second
 // phase of a Match Score, #94), it finds none ("{}"), unless the text holds
 // "E2E_OFFER_FIELDS=<json>", which it returns as the fields read. Either way it adds a
-// Job Offer Summary, "Résumé du poste : <the offer's title>.", unless the json gives one.
+// Job Offer Summary, "Résumé du poste : <the offer's title>.", unless the json gives one. A text holding
+// "E2E_ECHO_RULES" gets the last line of the rules it was sent as its summary instead (ADR-0026: the
+// rules come from the job-offer-reading task Playbook).
 const realFetch = globalThis.fetch;
 /** Calls so far per scripted Tailored CV id (E2E_CV_REPLIES). */
 const scriptedCalls = new Map();
@@ -115,6 +117,7 @@ globalThis.fetch = async (input, init) => {
     } catch {
       content = stated;
     }
+    if (prompt.includes("E2E_ECHO_RULES")) content = JSON.stringify({ summary: system.trim().split("\n").at(-1).trim() });
   }
   if (system.includes("cabinet de recrutement")) {
     const agency = /^Employeur affiché : Cabinet/m.test(prompt);

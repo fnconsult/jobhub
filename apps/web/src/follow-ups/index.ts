@@ -40,6 +40,7 @@ import type { Applications } from "../applications";
 import type { Mailer } from "../auth";
 import { routes } from "../routes";
 import { fieldErrors, type FieldError } from "../validation";
+import type { TaskPlaybookReader } from "../task-playbooks";
 import { followUpDraft } from "./draft";
 import { addWorkingDays, frenchDate } from "./working-days";
 
@@ -100,6 +101,8 @@ export interface FollowUpsDeps {
   appUrl: string;
   /** Optional: without it (or when it fails), the Follow-up is drafted from a plain template. */
   ai?: AiLayer;
+  /** The "follow-up" task Playbook's served version (ADR-0026); without it, its built-in text. */
+  taskPlaybooks?: TaskPlaybookReader;
   /** The clock a Follow-up is marked as sent by. Defaults to the real time. */
   now?: () => Date;
 }
@@ -175,7 +178,7 @@ export function createFollowUps(database: Pool, deps: FollowUpsDeps): FollowUps 
     const payload: FollowUpPayload = { since: since.toISOString(), jobTitle: row.title };
     if (kind === FOLLOW_UP_CARD) {
       const language = row.document_language ?? jobOfferLanguage({ title: row.title, content: row.content });
-      const draft = await followUpDraft({ ai: deps.ai, candidateId: row.candidate_id, language, jobOffer: row, followUpNumber: sent + 1 });
+      const draft = await followUpDraft({ ai: deps.ai, candidateId: row.candidate_id, language, jobOffer: row, followUpNumber: sent + 1, taskPlaybooks: deps.taskPlaybooks });
       Object.assign(payload, draft);
       await deps.actionCards.propose(row.candidate_id, { kind, focus, payload, title: t("followUps.cardTitle", { title: row.title }), body: draft.text });
     } else {

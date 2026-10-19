@@ -9,7 +9,8 @@ import { newAddress } from "./support/mailbox";
 // never deleted; every step is in the Journal with a link to its version. The e2e server serves the
 // latest versions (JOBHUB_TARGET=e2e), so the AI Coach consults what was just written: its fake
 // (fake-mistral.mjs) consults the Playbook Agents a message lists after "E2E_CONSULT=", and returns its
-// system prompt for "E2E_SHOW_CONTEXT".
+// system prompt for "E2E_SHOW_CONTEXT". ADR-0026: the AI tasks' Task Playbooks are listed apart and
+// edited the same way; the fake reading a Job Offer holding "E2E_ECHO_RULES" echoes the last rule it was sent.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const admin = fr.admin;
 const playbooks = admin.coachingPlaybooks;
@@ -165,6 +166,68 @@ test.describe("the Back Office's Coaching Playbooks", () => {
     await expect(page.getByText(playbooks.notValidated, { exact: true })).toBeVisible();
     await expect(page.locator(".playbook-rules")).not.toBeEmpty();
     await expect(page.getByLabel(playbooks.fields.consultWhen)).not.toHaveValue("");
+  });
+
+  test("the AI tasks' playbooks are listed apart, imported validated by François Nader but for the Job Offer Summary's, and never ask when to consult them", async ({ page }) => {
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    await page.goto("/admin/playbooks");
+
+    const tasks = page.getByRole("table", { name: playbooks.tasks.caption });
+    await expect(page.getByRole("heading", { level: 2, name: playbooks.tasks.title })).toBeVisible();
+    for (const id of ["cv-reading", "tailored-cv", "cover-letter", "outreach-message", "follow-up", "coach-memory", "company-facts-search", "company-news-search", "job-search-queries", "back-office-assistant"]) {
+      await expect(tasks.getByRole("row").filter({ has: page.locator("code", { hasText: new RegExp(`^${id}$`) }) })).toContainText("François Nader");
+    }
+    await expect(tasks.getByRole("row").filter({ hasText: "job-offer-reading" })).toContainText(playbooks.notValidated);
+    await expect(tasks.getByRole("row").filter({ hasText: "company-news-search" })).toContainText(playbooks.tasks.webSearch);
+    // The AI Coach's own table holds none of them.
+    await expect(page.getByRole("table", { name: playbooks.caption }).getByRole("row").filter({ hasText: "cv-reading" })).toHaveCount(0);
+
+    await tasks.getByRole("link", { name: "Lire une offre d'emploi : résumé et secteur" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Lire une offre d'emploi : résumé et secteur");
+    await expect(page.getByLabel(playbooks.fields.taskContent)).not.toHaveValue("");
+    await expect(page.getByLabel(playbooks.fields.taskModel)).toBeVisible();
+    await expect(page.getByLabel(playbooks.fields.consultWhen)).toHaveCount(0);
+  });
+
+  test("editing the job-offer-reading task Playbook changes the rules a Job Offer is read with", async ({ page }) => {
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    const rule = `- "summary" : règle E2E ${unique()}.`;
+
+    // e2e serves the latest version: saved, it is used at once (production would wait for its validation).
+    await page.goto("/admin/playbooks/job-offer-reading");
+    const content = page.getByLabel(playbooks.fields.taskContent);
+    await content.fill(`${(await content.inputValue()).trim()}\n${rule}`);
+    await page.getByRole("button", { name: playbooks.detail.save }).click();
+    await expect(notice(page)).toHaveText(tr(playbooks.notices.saved, { version: "1" }));
+
+    // A Job Offer read now: the fake AI echoes the last rule it was sent as the summary.
+    const profile = await page.request.post("/api/profiles", {
+      headers: { origin },
+      data: {
+        masterCv: { fullName: "Paul Validateur", headline: "DAF", email: "paul.validateur@example.fr", phone: "", location: "Lyon", summary: "", experience: [], education: [], skills: ["IFRS"], languages: [] },
+        searchCriteria: { targetRole: "DAF", locations: ["Lyon"] },
+      },
+    });
+    expect(profile.status(), await profile.text()).toBe(201);
+    const offer = await page.request.post("/api/job-offers", {
+      headers: { origin },
+      data: { source: { url: `https://www.apec.fr/offres/regles-${unique()}` }, title: "DAF H/F", content: `Groupe Ferlac recrute son DAF. E2E_ECHO_RULES ${unique()}`, employer: "Groupe Ferlac" },
+    });
+    expect(offer.status(), await offer.text()).toBe(200);
+    const application = await page.request.post("/api/applications", { headers: { origin }, data: { jobOfferId: (await offer.json()).id, profileId: (await profile.json()).id } });
+    expect(application.ok(), await application.text()).toBe(true);
+
+    const summary = await page.request.post(`/api/applications/${(await application.json()).id}/job-offer-summary`, { headers: { origin } });
+    expect(summary.status(), await summary.text()).toBe(200);
+    expect((await summary.json()).summary).toBe(rule);
+  });
+
+  test("a task Playbook's text must keep the sections and slots its task reads", async ({ page }) => {
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    await page.goto("/admin/playbooks/company-facts-search");
+    await page.getByLabel(playbooks.fields.taskContent).fill("Fiche de l'entreprise : pays et effectif.");
+    await page.getByRole("button", { name: playbooks.detail.save }).click();
+    await expect(alert(page)).toHaveText(tr(playbooks.notices.task_instructions, { list: "{{entreprise}}" }));
   });
 
   test("the Back Office offers only allowed models, and says when a model ignores the effort", async ({ page }) => {

@@ -3,6 +3,7 @@ import { getAi } from "@/ai/server";
 import { getApplications } from "@/applications/server";
 import { getMailer } from "@/auth/server";
 import { createActionCards } from "@/action-cards";
+import { getTaskPlaybooks } from "@/task-playbooks/server";
 import { createFollowUps, type FollowUps } from "./index";
 
 let instance: FollowUps | undefined;
@@ -22,6 +23,7 @@ export function getFollowUps(): FollowUps {
       mailer: getMailer(),
       appUrl: process.env.APP_URL || "http://localhost:3000",
       ai: getAi(),
+      taskPlaybooks: getTaskPlaybooks(),
     });
   })();
   return instance;

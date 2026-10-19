@@ -10,7 +10,9 @@
  *   await ai.searchWeb({ candidateId, criteria, query: plan.queries[0], page: 1, filters: { excludeDomains, maxAgeDays: 30 } });
  *   await ai.searchCompany({ candidateId, employer });
  *   await ai.searchCompanyNews({ candidateId, employer, registeredName, website }); // its Company News, never fails
- *   await readOfferFields(ai, { candidateId, jobOffer }); // a Job Offer's fields, read from its text
+ *   await readOfferFields(ai, { candidateId, jobOffer, reading }); // a Job Offer's fields, read from its text
+ * A task's instructions come from its task Playbook when the caller passes them (`TaskInstructions`,
+ * ADR-0026); otherwise from the built-in text, version 1 as written in `@jobhub/coach-knowledge/tasks`.
  */
 export { createAiLayer } from "./ai-layer";
 export type {
@@ -21,10 +23,12 @@ export type {
   GenerateRequest,
   GenerateResult,
   JobSearchPlan,
+  JobSearchInstructions,
   JobSearchPlanRequest,
   Route,
   SearchRequest,
   SearchResult,
+  TaskInstructions,
 } from "./ai-layer";
 export { AI_ENV_KEYS, createAiLayerFromEnv, taskRouteFromEnv } from "./env";
 export type { AiLayerDeps } from "./env";

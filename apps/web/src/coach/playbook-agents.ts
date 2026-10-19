@@ -123,7 +123,7 @@ export async function consultPlaybookAgent(
         maxTokens: AGENT_ADVICE_MAX_TOKENS,
         containsIdentity: false,
         route: agent.model ? { provider: agent.provider, model: agent.model } : { provider: agent.provider },
-        effort: agent.effort,
+        ...(agent.effort ? { effort: agent.effort } : {}),
       }),
       timeout,
     ]);

@@ -2,6 +2,7 @@ import { getExternalApiLog } from "@/ai-usage/server";
 import { sharedPool } from "@/database/pool";
 import { getAi } from "@/ai/server";
 import { getApplications } from "@/applications/server";
+import { getTaskPlaybooks } from "@/task-playbooks/server";
 import { createFrenchRegister } from "./french-register";
 import { createCompanyDossiers, type CompanyDossiers } from "./index";
 
@@ -13,6 +14,7 @@ export function getCompanyDossiers(): CompanyDossiers {
     applications: getApplications(),
     register: createFrenchRegister({ externalApis: getExternalApiLog() }),
     ai: getAi(),
+    taskPlaybooks: getTaskPlaybooks(),
   });
   return instance;
 }

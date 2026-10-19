@@ -35,12 +35,16 @@
  *    link, never their text, none whose title may name a person. Counted against no Plan Quota, its
  *    cost logged in AI Usage like the dossier's other calls. A failed news search never fails the
  *    build: the dossier then has no news.
+ *  - The wording of both web searches is their task Playbook's ("company-facts-search",
+ *    "company-news-search", ADR-0026); what they are sent about the employer, the JSON asked for and
+ *    "name no person" stay in the AI layer.
  * Every read and change is scoped to the Candidate; problems come back as results.
  */
 import { AiConfigError, AiProviderError, type AiLayer, type CompanyNewsArticle } from "@jobhub/ai";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { Application, Applications } from "../applications";
+import { taskRun, type TaskPlaybookReader } from "../task-playbooks";
 import { fieldErrors, type FieldError } from "../validation";
 import { nameKey, sirenIn } from "./company-names";
 import { CompanyRegisterUnavailable, type CompanyRegister, type FinancialYear, type RegisteredCompany } from "./french-register";
@@ -374,7 +378,20 @@ function stateFrom(row: Row | undefined): CompanyDossierState {
 
 export function createCompanyDossiers(
   database: Pool,
-  { applications, register, ai, now = () => new Date() }: { applications: Pick<Applications, "get">; register: CompanyRegister; ai: AiLayer; now?: () => Date },
+  {
+    applications,
+    register,
+    ai,
+    now = () => new Date(),
+    taskPlaybooks,
+  }: {
+    applications: Pick<Applications, "get">;
+    register: CompanyRegister;
+    ai: AiLayer;
+    now?: () => Date;
+    /** The "company-facts-search" and "company-news-search" task Playbooks' served versions (ADR-0026); without it, their built-in text. */
+    taskPlaybooks?: TaskPlaybookReader;
+  },
 ): CompanyDossiers {
   async function rowOf(applicationId: string): Promise<Row | undefined> {
     const { rows } = await database.query<Row>(
@@ -423,6 +440,7 @@ export function createCompanyDossiers(
     const news = await ai.searchCompanyNews({
       candidateId,
       employer,
+      instructions: (await taskRun(taskPlaybooks, "company-news-search", ai)).text(),
       ...(dossier.source === "french_register" ? { registeredName: dossier.name } : {}),
       ...(dossier.source === "web" && dossier.website ? { website: dossier.website } : {}),
     });
@@ -436,7 +454,7 @@ export function createCompanyDossiers(
     const match = matchIn(companies, employer);
     if (match) return registerDossier(employer, match, builtAt);
     if (soleTraderNamed || sirenIn(employer)) return null;
-    const found = await ai.searchCompany({ candidateId, employer });
+    const found = await ai.searchCompany({ candidateId, employer, instructions: (await taskRun(taskPlaybooks, "company-facts-search", ai)).text() });
     const webSiren = webSirenIn(found.answer);
     if (webSiren) {
       const listed = (await register.search(webSiren)).companies.find((company) => company.siren === webSiren);

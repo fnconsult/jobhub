@@ -4,6 +4,7 @@ import { getApplications } from "@/applications/server";
 import { getCompanyDossiers } from "@/company-dossiers/server";
 import { getEnrichedContacts } from "@/enriched-contacts/server";
 import { getProfiles } from "@/profiles/server";
+import { getTaskPlaybooks } from "@/task-playbooks/server";
 import { createTailoredDocuments, type TailoredDocuments } from "./index";
 
 let instance: TailoredDocuments | undefined;
@@ -21,6 +22,7 @@ export function getTailoredDocuments(): TailoredDocuments {
     ai: getAi(),
     companyDossiers: getCompanyDossiers(),
     enrichedContacts: getEnrichedContacts(),
+    taskPlaybooks: getTaskPlaybooks(),
   });
   return instance;
 }

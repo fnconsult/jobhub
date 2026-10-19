@@ -2,10 +2,17 @@ import { createAiLayer } from "@jobhub/ai";
 import type { SearchOptions } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import { DEFAULT_JOB_DISCOVERY_SETTINGS, type JobDiscoverySettings, type JobOffer, type SearchCriteria } from "@jobhub/shared";
+import type { TaskPlaybookReader } from "@jobhub/web/task-playbooks";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { FranceTravail, FranceTravailSearch } from "./france-travail";
 import { createJobDiscovery, JobDiscoveryError, type JobDiscoveryBudget, type JobOfferStore } from "./index";
+
+/** Serves, for each id given, that text as version 2 with no Playbook Agent; nothing for any other id. */
+const servedTasks =
+  (served: Record<string, { content: string }>): TaskPlaybookReader =>
+  async (id) =>
+    served[id] ? { id, version: 2, content: served[id]!.content, agent: null } : null;
 
 const criteria: SearchCriteria = {
   targetRole: "Directeur financier",
@@ -96,6 +103,8 @@ function setup(options: {
   franceTravail?: FranceTravail;
   /** The Back Office's Job discovery sources and sites. */
   settings?: () => Promise<JobDiscoverySettings>;
+  /** The task Playbooks served (ADR-0026). Default: none read, so no Job Offer Summary, and the built-in query wording. */
+  taskPlaybooks?: TaskPlaybookReader;
 }) {
   const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, sourceDates: options.sourceDates, answer: options.answer, pages: options.searchPages });
   const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}', usage: options.llmUsage });
@@ -108,7 +117,7 @@ function setup(options: {
   const clock = fakeClock(options.now?.getTime());
   const web = fakeWeb(options.pages, clock);
   const jobOffers = memoryJobOffers(options.existing);
-  const discovery = createJobDiscovery({ ai, jobOffers, fetch: web.fetch, clock, budget: options.budget, franceTravail: options.franceTravail, settings: options.settings });
+  const discovery = createJobDiscovery({ ai, jobOffers, fetch: web.fetch, clock, budget: options.budget, franceTravail: options.franceTravail, settings: options.settings, taskPlaybooks: options.taskPlaybooks });
   return { discovery, search, llm, titles, web, jobOffers };
 }
 
@@ -454,10 +463,11 @@ describe("Job discovery", () => {
     });
 
     it("hands the store the Job Offer Summary the LLM wrote as a trusted fact, never as the posting's own input", async () => {
-      const { discovery, jobOffers } = setup({
+      const { discovery, jobOffers, llm } = setup({
         sources: [DAF_URL],
         pages: { [DAF_URL]: { body: "<html><body><h1>DAF H/F</h1><p>Groupe Seb recrute son DAF.</p></body></html>" } },
         reply: '{"isJobOffer": true, "title": "DAF H/F", "content": "Groupe Seb recrute son DAF.", "summary": "Groupe Seb recrute son DAF à Lyon."}',
+        taskPlaybooks: servedTasks({ "job-offer-reading": { content: '- "summary" : deux phrases.' } }),
       });
 
       await discovery.discover({ candidateId: "c", criteria });
@@ -465,6 +475,37 @@ describe("Job discovery", () => {
       expect(jobOffers.captures).toHaveLength(1);
       expect(jobOffers.captures[0]!.input).not.toHaveProperty("summary");
       expect(jobOffers.captures[0]!.trusted).toEqual({ summary: "Groupe Seb recrute son DAF à Lyon." });
+      expect(llm.calls[0]!.system).toMatch(/- "summary" : deux phrases\.$/);
+    });
+
+    it("writes no Job Offer Summary or sector while the job-offer-reading task Playbook is not served (ADR-0026)", async () => {
+      const { discovery, jobOffers, llm } = setup({
+        sources: [DAF_URL],
+        pages: { [DAF_URL]: { body: "<html><body><h1>DAF H/F</h1><p>Groupe Seb recrute son DAF.</p></body></html>" } },
+        reply: '{"isJobOffer": true, "title": "DAF H/F", "content": "Groupe Seb recrute son DAF.", "summary": "Groupe Seb recrute son DAF à Lyon.", "sector": "Industrie"}',
+        taskPlaybooks: servedTasks({}),
+      });
+
+      await discovery.discover({ candidateId: "c", criteria });
+
+      expect(jobOffers.captures[0]!.trusted).toEqual({});
+      expect(llm.calls[0]!.system).not.toMatch(/summary|sector/);
+    });
+
+    it("words its queries and asks for job titles as the served job-search-queries task Playbook says (ADR-0026)", async () => {
+      const { discovery, search, titles } = setup({
+        sources: [],
+        pages: {},
+        taskPlaybooks: servedTasks({
+          "job-search-queries": { content: "## intitulés\n\nDonne des synonymes.\n\n## requête fr\n\nPoste « {{intitulé}} » vers {{lieu}}\n\n## requête en\n\n{{intitulé}} job in {{lieu}}" },
+        }),
+      });
+
+      await discovery.discover({ candidateId: "c", criteria });
+
+      expect(titles.calls[0]!.system).toMatch(/^Donne des synonymes\. Réponds uniquement par un objet JSON/);
+      expect(search.queries[0]).toMatch(/^Poste « Directeur financier » vers Lyon, CDI/);
+      expect(search.queries[1]).toMatch(/^Directeur financier job in Lyon, permanent contract/);
     });
 
     it("does not call the LLM when the page has JobPosting data", async () => {

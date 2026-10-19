@@ -353,7 +353,15 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     let replies = 0;
     const cost = { provider: "mistral" as const, model: "secret-model-name", inputTokens: 10, outputTokens: 5, cachedInputTokens: 0, eur: 0.01 };
     const conversations = createCoachConversations(database, {
-      coach: { reply: async () => ({ ok: true, reply: `Réponse ${++replies}`, cost, playbooks: [] }) },
+      coach: {
+        reply: async () => ({
+          ok: true,
+          reply: `Réponse ${++replies}`,
+          cost,
+          playbooks: [],
+          consultations: [{ playbookId: "interview-psychology", version: 1, ...cost, model: "secret-agent-model" }],
+        }),
+      },
       profiles,
     });
     const first = await conversations.send(candidateId, { message: "Comment relancer Acme ?", focus: { kind: "profile", id: profileId } });
@@ -388,6 +396,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       }),
     ]);
     expect(JSON.stringify(exported)).not.toContain("secret-model-name");
+    expect(JSON.stringify(exported)).not.toContain("secret-agent-model");
   });
 
   it("the export holds the Coach Access the Candidate granted, the Coaching Sessions they paid and the Coach Reviews of their Applications, naming each Human Coach but not their email", async () => {

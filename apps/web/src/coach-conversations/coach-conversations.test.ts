@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import type { CoachMessageCost, CoachReply } from "../coach";
 import { createProfiles, migrateProfiles } from "../profiles";
-import { coachCostPerDay, createCoachConversations, migrateCoachConversations, purgeStaleCoachConversations, type CoachConversations } from "./index";
+import { coachCostPerDay, coachCostPerPlaybookAgent, createCoachConversations, migrateCoachConversations, purgeStaleCoachConversations, type CoachConversations } from "./index";
 
 const masterCv = {
   fullName: "Marie Dupont",
@@ -56,7 +56,7 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     marie = await candidate("marie.dupont@example.fr");
     jean = await candidate("jean.martin@example.fr");
     asked = [];
-    coachReply = (n) => ({ ok: true, reply: `Réponse ${n}`, cost: cost(0.01), playbooks: [] });
+    coachReply = (n) => ({ ok: true, reply: `Réponse ${n}`, cost: cost(0.01), playbooks: [], consultations: [] });
     now = new Date();
     const coach = {
       async reply(candidateId: string, input: unknown) {
@@ -215,7 +215,7 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
   it("records each AI Coach reply's tokens and cost, so the median and p90 cost per day (Paris time) can be followed", async () => {
     // 13 October, Paris time: five replies from Claude, cached input on one of them.
     const costs = [0.05, 0.01, 0.04, 0.02, 0.03];
-    coachReply = (n) => ({ ok: true, reply: `Réponse ${n}`, cost: cost(costs[n - 1]!, n === 1 ? { inputTokens: 900, cachedInputTokens: 18_000 } : {}), playbooks: [] });
+    coachReply = (n) => ({ ok: true, reply: `Réponse ${n}`, cost: cost(costs[n - 1]!, n === 1 ? { inputTokens: 900, cachedInputTokens: 18_000 } : {}), playbooks: [], consultations: [] });
     now = new Date("2026-10-13T08:00:00Z");
     const first = await conversations.send(marie, { message: "Bonjour" });
     if (!first.ok) throw new Error("refused");
@@ -223,7 +223,7 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     now = new Date("2026-10-13T21:59:00Z"); // 23:59 in Paris
     await conversations.send(jean, { message: "Bonsoir" });
     // 14 October, Paris time (22:30 UTC on the 13th): one reply from Mistral.
-    coachReply = (n) => ({ ok: true, reply: `Réponse ${n}`, cost: cost(0.002, { provider: "mistral", model: "mistral-large-latest" }), playbooks: [] });
+    coachReply = (n) => ({ ok: true, reply: `Réponse ${n}`, cost: cost(0.002, { provider: "mistral", model: "mistral-large-latest" }), playbooks: [], consultations: [] });
     now = new Date("2026-10-13T22:30:00Z");
     await conversations.send(marie, { message: "Une question" });
 
@@ -240,9 +240,9 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
 
   it("adds up each day's tokens in, out and cached, and says which provider and model answered", async () => {
     now = new Date("2026-10-13T08:00:00Z");
-    coachReply = () => ({ ok: true, reply: "Réponse", cost: cost(0.012, { inputTokens: 900, outputTokens: 250, cachedInputTokens: 18_000 }), playbooks: [] });
+    coachReply = () => ({ ok: true, reply: "Réponse", cost: cost(0.012, { inputTokens: 900, outputTokens: 250, cachedInputTokens: 18_000 }), playbooks: [], consultations: [] });
     await conversations.send(marie, { message: "Bonjour" });
-    coachReply = () => ({ ok: true, reply: "Réponse", cost: cost(0.002, { provider: "mistral", model: "mistral-large-latest", inputTokens: 4_000, outputTokens: 100 }), playbooks: [] });
+    coachReply = () => ({ ok: true, reply: "Réponse", cost: cost(0.002, { provider: "mistral", model: "mistral-large-latest", inputTokens: 4_000, outputTokens: 100 }), playbooks: [], consultations: [] });
     await conversations.send(jean, { message: "Bonjour" });
     await conversations.send(jean, { message: "Merci" });
 
@@ -264,11 +264,11 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
   it("records the Coaching Playbooks and Core Digest each reply used, with their versions, so each day says which ones answered", async () => {
     const digest = { id: "core-digest", version: "1.0" } as const;
     const replies: CoachReply[] = [
-      { ok: true, reply: "Réponse", cost: cost(0.01), playbooks: [digest, { id: "interview-journey-stages", version: "1.0" }, { id: "interview-psychology", version: "1.2" }] },
-      { ok: true, reply: "Réponse", cost: cost(0.01), playbooks: [digest, { id: "interview-psychology", version: "1.2" }] },
-      { ok: true, reply: "Réponse", cost: cost(0.01), playbooks: [digest, { id: "interview-psychology", version: "1.3" }] },
+      { ok: true, reply: "Réponse", cost: cost(0.01), playbooks: [digest, { id: "interview-journey-stages", version: "1.0" }, { id: "interview-psychology", version: "1.2" }], consultations: [] },
+      { ok: true, reply: "Réponse", cost: cost(0.01), playbooks: [digest, { id: "interview-psychology", version: "1.2" }], consultations: [] },
+      { ok: true, reply: "Réponse", cost: cost(0.01), playbooks: [digest, { id: "interview-psychology", version: "1.3" }], consultations: [] },
       // In production before any human validation: nothing was used.
-      { ok: true, reply: "Réponse", cost: cost(0.01), playbooks: [] },
+      { ok: true, reply: "Réponse", cost: cost(0.01), playbooks: [], consultations: [] },
     ];
     coachReply = (n) => replies[n - 1]!;
     now = new Date("2026-10-13T08:00:00Z");
@@ -285,6 +285,45 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
           { id: "interview-psychology", version: "1.3", messages: 1 },
         ],
       },
+    ]);
+  });
+
+  it("records what each Playbook Agent consultation cost, so the median cost per Playbook Agent can be followed (#225)", async () => {
+    const consultation = (playbookId: string, eur: number, model = "mistral-medium-3-5") => ({
+      playbookId,
+      version: 1,
+      provider: "mistral" as const,
+      model,
+      inputTokens: 3_000,
+      outputTokens: 400,
+      cachedInputTokens: 0,
+      eur,
+    });
+    const replies: CoachReply[] = [
+      { ok: true, reply: "Réponse", cost: cost(0.02), playbooks: [], consultations: [consultation("interview-psychology", 0.004), consultation("ats-optimization", 0.001)] },
+      { ok: true, reply: "Réponse", cost: cost(0.02), playbooks: [], consultations: [consultation("interview-psychology", 0.006)] },
+      { ok: true, reply: "Réponse", cost: cost(0.02), playbooks: [], consultations: [consultation("interview-psychology", 0.011, "mistral-large-latest")] },
+      { ok: true, reply: "Réponse", cost: cost(0.01), playbooks: [], consultations: [] },
+    ];
+    coachReply = (n) => replies[n - 1]!;
+    now = new Date("2026-10-13T08:00:00Z");
+    for (const message of ["Mon entretien ?", "Et le stress ?", "Et après ?", "Merci"]) await conversations.send(marie, { message });
+    // Older than the period: left out.
+    now = new Date("2026-09-01T08:00:00Z");
+    coachReply = () => ({ ok: true, reply: "Réponse", cost: cost(0.02), playbooks: [], consultations: [consultation("ats-optimization", 0.5)] });
+    await conversations.send(marie, { message: "Avant" });
+
+    expect(await coachCostPerPlaybookAgent(database, new Date("2026-10-01T00:00:00Z"))).toEqual([
+      {
+        playbookId: "interview-psychology",
+        consultations: 3,
+        medianEur: expect.closeTo(0.006, 9),
+        models: [
+          { provider: "mistral", model: "mistral-medium-3-5", consultations: 2 },
+          { provider: "mistral", model: "mistral-large-latest", consultations: 1 },
+        ],
+      },
+      { playbookId: "ats-optimization", consultations: 1, medianEur: expect.closeTo(0.001, 9), models: [{ provider: "mistral", model: "mistral-medium-3-5", consultations: 1 }] },
     ]);
   });
 

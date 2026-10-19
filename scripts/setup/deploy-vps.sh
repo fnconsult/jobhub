@@ -261,8 +261,10 @@ pause
 
 stage "The $TARGET folder on the VPS"
 say "On the VPS, as a user with sudo, run:"
-note "  sudo mkdir -p $ROOT && sudo chown jobbbox-deploy: $ROOT"
+note "  id jobbbox-deploy || sudo useradd -m -U -s /bin/bash jobbbox-deploy"
 note "  sudo usermod -aG docker jobbbox-deploy      # deploy.sh runs docker compose"
+note "  sudo mkdir -p $ROOT && sudo chown jobbbox-deploy:jobbbox-deploy $ROOT"
+note "and put the public half of the stage-2 key in /home/jobbbox-deploy/.ssh/authorized_keys (mode 600, dir 700)."
 note "  docker network inspect n8n_default >/dev/null && echo traefik-network-ok"
 say "The deploy user must be able to reach GitHub over HTTPS (the repo is public, no key needed)."
 pause "Press Enter once $ROOT exists and belongs to jobbbox-deploy."

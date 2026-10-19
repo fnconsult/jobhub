@@ -96,7 +96,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
       {paymentFailed ? <PaymentFailedNotice notice={paymentFailed} /> : null}
 
       <h3>{t("billing.page.usageTitle")}</h3>
-      <dl>
+      <dl className="usage-tiles">
         {MONTHLY_QUOTAS.filter((quota) => quotas[quota] !== 0).map((quota) => (
           <div key={quota}>
             <dt>{t(`billing.quotas.${quota}`)}</dt>

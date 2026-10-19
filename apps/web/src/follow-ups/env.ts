@@ -9,10 +9,10 @@ import { createProfiles } from "../profiles";
 import { createFollowUps, type FollowUps } from "./index";
 
 /**
- * Follow-ups wired from environment variables (APP_URL, SMTP_URL, MAIL_FROM;
+ * Follow-ups wired from environment variables (APP_URL, BREVO_API_KEY or SMTP_URL, MAIL_FROM;
  * see .env.example), for a process outside the web app such as the worker.
  * Without an AI layer, Follow-ups are drafted from a plain template. `mailer`
- * (default: from SMTP_URL) lets the worker pass one kept current with the Provider Secrets.
+ * (default: from env's mail settings) lets the worker pass one kept current with the Provider Secrets.
  */
 export function followUpsFromEnv(database: Pool, env: Record<string, string | undefined>, ai?: AiLayer, mailer: Mailer = mailerFromEnv(env)): FollowUps {
   const appUrl = env.APP_URL || (env.NODE_ENV === "production" ? undefined : "http://localhost:3000");

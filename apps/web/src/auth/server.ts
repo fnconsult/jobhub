@@ -19,7 +19,7 @@ const REBUILD_WAIT_MS = 5_000;
 const holder = globalThis as { __jobhubAuthInstances?: ReturnType<typeof swapWhenReady<Auth>> };
 const instances = () => (holder.__jobhubAuthInstances ??= swapWhenReady<Auth>((auth) => auth.$context));
 
-/** The app's mailer: SMTP_URL from the Provider Secrets (Brevo), else env, rebuilt when it is replaced in the Back Office. */
+/** The app's mailer: BREVO_API_KEY or SMTP_URL from the Provider Secrets (Brevo), else env, rebuilt when it is replaced in the Back Office. */
 export function getMailer(): Mailer {
   mailer ??= liveObject(getSecretResolver(), MAIL_SECRET_NAMES, mailerFromEnv);
   return mailer;

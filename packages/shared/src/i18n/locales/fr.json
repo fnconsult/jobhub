@@ -188,7 +188,15 @@
       "euAi": "IA européenne",
       "signIn": "Connexion",
       "preferences": "Préférences",
+      "tools": "Outils",
       "data": "Mes données"
+    },
+    "tools": {
+      "title": "Outils",
+      "extensionTitle": "Extension Chrome Jobbbox",
+      "extensionIntro": "Depuis la page d'une offre d'emploi, l'extension l'enregistre dans Jobbbox et calcule son score de correspondance, sans copier-coller.",
+      "install": "Installer l'extension depuis le Chrome Web Store",
+      "soon": "L'extension arrive bientôt sur le Chrome Web Store."
     },
     "title": "Mon compte",
     "email": "Adresse e-mail",

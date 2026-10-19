@@ -18,6 +18,7 @@ export async function AccountSections({ candidateId, children }: { candidateId: 
     { href: routes.accountEuAi, label: t("account.sections.euAi") },
     { href: routes.accountSignIn, label: t("account.sections.signIn") },
     { href: routes.accountPreferences, label: t("account.sections.preferences") },
+    { href: routes.accountTools, label: t("account.sections.tools") },
     { href: routes.accountData, label: t("account.sections.data") },
   ];
   return (

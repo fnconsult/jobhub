@@ -241,6 +241,17 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     await expect(page.getByRole("button", { name: fr.sidebar.mainMenu })).toBeFocused();
   });
 
+  test("Mon compte's Outils Section offers the Chrome extension, coming soon until its store page is set", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("sidebar-tools"));
+    await page.getByRole("navigation", { name: fr.account.sections.sectionsLabel }).getByRole("link", { name: fr.account.sections.tools }).click();
+    await expect(page).toHaveURL(`${origin}/compte/outils`);
+    const extension = page.getByRole("region", { name: fr.account.tools.extensionTitle });
+    await expect(extension).toContainText(fr.account.tools.extensionIntro);
+    // The e2e server sets no EXTENSION_STORE_URL.
+    await expect(extension.getByText(fr.account.tools.soon)).toBeVisible();
+    await expect(extension.getByRole("link", { name: fr.account.tools.install })).toHaveCount(0);
+  });
+
   test("the home page sits in it once signed in", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("sidebar-home"));
     await page.goto("/");

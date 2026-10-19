@@ -188,7 +188,15 @@
       "euAi": "European AI",
       "signIn": "Sign-in",
       "preferences": "Preferences",
+      "tools": "Tools",
       "data": "My data"
+    },
+    "tools": {
+      "title": "Tools",
+      "extensionTitle": "Jobbbox Chrome extension",
+      "extensionIntro": "From a job offer's page, the extension saves it to Jobbbox and works out its Match Score, with no copying and pasting.",
+      "install": "Install the extension from the Chrome Web Store",
+      "soon": "The extension is coming soon to the Chrome Web Store."
     },
     "title": "My account",
     "email": "Email address",

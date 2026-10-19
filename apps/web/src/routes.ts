@@ -19,6 +19,7 @@ export const routes = {
   accountEuAi: "/compte/ia-europeenne",
   accountSignIn: "/compte/connexion",
   accountPreferences: "/compte/preferences",
+  accountTools: "/compte/outils",
   accountData: "/compte/donnees",
   newProfile: "/profils/nouveau",
   profile: (id: string) => `/profils/${id}`,

@@ -25,6 +25,8 @@ const PATHS = {
   coupons: ["M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z", "M8 8h.01"],
   humanCoaches: ["M9 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6z", "M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6", "M16 5.5a3 3 0 0 1 0 5M18 14.5c2 .8 3 2.8 3 5.5"],
   coachCost: ["M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z", "M15 8.5a4 4 0 1 0 0 7M7 11h6M7 13.5h6"],
+  // An open book: the Coaching Playbooks (#225).
+  coachingPlaybooks: ["M3 5c3-1 6-1 9 1v14c-3-2-6-2-9-1z", "M21 5c-3-1-6-1-9 1v14c3-2 6-2 9-1z"],
   searchSites: ["M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z", "M3 12h18M12 3c2.5 2.5 3.8 5.5 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.5-3.8-9S9.5 5.5 12 3z"],
   // A key: Provider Secrets (#208).
   providerSecrets: ["M8 9a4 4 0 1 0 0 8 4 4 0 0 0 0-8z", "M11 11l9-9M16 6l3 3M14 8l2 2"],

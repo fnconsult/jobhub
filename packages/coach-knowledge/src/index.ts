@@ -1,76 +1,46 @@
 /**
- * The AI Coach's coaching knowledge: Jobbbox's playbooks and the sources they cite.
- * Server-side only (reads the Markdown files at load time).
+ * The coaching knowledge as it was written in files before it moved to the Back Office (ADR-0021, #225):
+ * the Coaching Playbooks, the Core Digest and the Sources list, read once to be imported as their
+ * Playbook Version 1; and the Markdown they are written in (`[Sn]` citations, the Sources table).
+ * Server-side only (reads the Markdown files).
  *
- *   const knowledge = loadCoachKnowledge({ environment: "production" });
- *   knowledge.playbook("ats-optimization")?.rules;
+ *   const files = readCoachKnowledgeFiles();
+ *   files.playbooks[0].text; // the playbook's Markdown, without its frontmatter
+ *   citedSourceIds("… [S11][S23]"); // ["S11", "S23"]
  */
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { citedSourceIds, parsePlaybook, parseSources, type ParsedSource } from "./parse";
 
-export const PLAYBOOK_IDS = [
-  "application-strategy",
-  "ats-optimization",
-  "coaching-journey-gamification",
-  "cover-letter-writing",
-  "cv-offer-fit-scoring",
-  "freelance-mission-positioning",
-  "interview-journey-stages",
-  "interview-psychology",
-  "outreach-first-contact",
-  "senior-40plus-positioning",
-] as const;
-export type PlaybookId = (typeof PLAYBOOK_IDS)[number];
+export { citedSourceIds, parseSources } from "./parse";
 
-/** A source a playbook cites as `[Sn]`, from `sources.md`. */
+/** A source a playbook cites as `[Sn]`, from the Sources list. */
 export type Source = ParsedSource;
 
 /** One `Rn` rule of a playbook. `sourceIds` are the `[Sn]` it cites. */
 export type PlaybookRule = { id: string; title: string; text: string; sourceIds: string[] };
 
-/** What a playbook and the core digest share: a versioned, reviewed set of rules grounded in sources. */
+/** A playbook or the Core Digest as read from its file. */
 export type KnowledgeDocument = {
+  /** Its `# title`. */
   title: string;
-  version: string;
-  updated: string;
-  /** The frontmatter `statut`, verbatim (e.g. "validé (auto-QA Claude, 2026-07-26)"). */
-  status: string;
-  /** Whether `status` records a human's validation ("validé (<name>, <date>)"), not an AI review. */
-  humanValidated: boolean;
   rules: PlaybookRule[];
-  /** The frontmatter `sources`, resolved against `sources.md`. */
+  /** The Sources it cites, from the Sources list. */
   sources: Source[];
-  /** The whole Markdown without its frontmatter, ready for a prompt. */
+  /** The whole Markdown without its frontmatter. */
   text: string;
 };
 
-export type Playbook = KnowledgeDocument & { id: PlaybookId };
+export type ImportedPlaybook = KnowledgeDocument & { id: string };
 
-/** The ~1k-token cross-cutting rules the AI Coach always follows, whatever the topic. */
-export type CoreDigest = KnowledgeDocument;
-
-export type KnowledgeEnvironment = "production" | "development" | "eval";
-
-/**
- * In "production" only what a human validated is served; "development" and "eval" get
- * everything, so unvalidated playbooks can be tried and measured before they ship.
- */
-export type CoachKnowledge = {
-  /** The playbook, or undefined when it does not exist or is not served in this environment. */
-  playbook(id: PlaybookId): Playbook | undefined;
-  /** The playbooks served in this environment, by id. */
-  playbooks(): Playbook[];
-  /** The core digest, or undefined when it is not served in this environment. */
-  coreDigest(): CoreDigest | undefined;
-};
-
-export type LoadCoachKnowledgeOptions = {
-  environment: KnowledgeEnvironment;
-  /** The folder holding `playbooks/`, `core-digest.md` and `sources.md`. Defaults to this package's own. */
-  dir?: string;
-};
+export interface CoachKnowledgeFiles {
+  /** The Sources list: its whole Markdown, and the sources its table lists. */
+  sources: { text: string; entries: Source[] };
+  coreDigest: KnowledgeDocument;
+  /** By id (the file name). */
+  playbooks: ImportedPlaybook[];
+}
 
 /** The knowledge files are inconsistent (e.g. a citation missing from `sources.md`). */
 export class CoachKnowledgeError extends Error {
@@ -79,53 +49,40 @@ export class CoachKnowledgeError extends Error {
 
 const packageDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-/** Reads and checks the knowledge files. Throws `CoachKnowledgeError` when they are inconsistent. */
-export function loadCoachKnowledge({ environment, dir = packageDir }: LoadCoachKnowledgeOptions): CoachKnowledge {
-  const sources = new Map(parseSources(readFileSync(path.join(dir, "sources.md"), "utf8")).map((source) => [source.id, source]));
+/** The `# title` of a playbook's Markdown; "" when it has none. */
+export function markdownTitle(markdown: string): string {
+  return parsePlaybook(markdown).title;
+}
+
+/**
+ * Reads and checks the knowledge files of `dir` (default: this package's own `playbooks/`,
+ * `core-digest.md` and `sources.md`). Throws `CoachKnowledgeError` when they are inconsistent.
+ */
+export function readCoachKnowledgeFiles(dir: string = packageDir): CoachKnowledgeFiles {
+  const sourcesText = readFileSync(path.join(dir, "sources.md"), "utf8");
+  const entries = parseSources(sourcesText);
+  const sources = new Map(entries.map((source) => [source.id, source]));
   const read = (file: string) => readDocument(file, readFileSync(path.join(dir, file), "utf8"), sources);
-  const served = <T extends KnowledgeDocument>(document: T) => environment !== "production" || document.humanValidated;
 
   const playbooks = readdirSync(path.join(dir, "playbooks"))
     .filter((name) => name.endsWith(".md"))
     .sort()
-    .map((file) => {
-      const id = file.replace(/\.md$/, "");
-      if (!(PLAYBOOK_IDS as readonly string[]).includes(id)) throw new CoachKnowledgeError(`Unknown playbook ${id}`);
-      return { id: id as PlaybookId, ...read(path.join("playbooks", file)) };
-    })
-    .filter(served);
-  const byId = new Map(playbooks.map((playbook) => [playbook.id, playbook]));
-  const digest = read("core-digest.md");
-
-  return {
-    playbook: (id) => byId.get(id),
-    playbooks: () => [...playbooks],
-    coreDigest: () => (served(digest) ? digest : undefined),
-  };
+    .map((file) => ({ id: file.replace(/\.md$/, ""), ...read(path.join("playbooks", file)) }));
+  return { sources: { text: sourcesText.trim(), entries }, coreDigest: read("core-digest.md"), playbooks };
 }
 
 function readDocument(file: string, markdown: string, sources: Map<string, Source>): KnowledgeDocument {
   const { frontmatter, title, body, rules } = parsePlaybook(markdown);
-  const sourceIds = Array.isArray(frontmatter.sources) ? frontmatter.sources : [];
-  const unknown = [...new Set([...sourceIds, ...citedSourceIds(markdown)])].filter((sourceId) => !sources.has(sourceId));
+  const listed = Array.isArray(frontmatter.sources) ? frontmatter.sources : [];
+  const cited = citedSourceIds(body);
+  const unknown = [...new Set([...listed, ...cited])].filter((sourceId) => !sources.has(sourceId));
   if (unknown.length > 0) throw new CoachKnowledgeError(`${file} cites sources missing from sources.md: ${unknown.join(", ")}`);
-  const unlisted = citedSourceIds(body).filter((sourceId) => !sourceIds.includes(sourceId));
+  const unlisted = cited.filter((sourceId) => !listed.includes(sourceId));
   if (unlisted.length > 0) throw new CoachKnowledgeError(`${file} cites sources its frontmatter does not list: ${unlisted.join(", ")}`);
-  const status = String(frontmatter.statut ?? "");
   return {
     title,
-    version: String(frontmatter.version ?? ""),
-    updated: String(frontmatter.updated ?? ""),
-    status,
-    humanValidated: isHumanValidated(status),
     rules: rules.map((rule) => ({ ...rule, sourceIds: citedSourceIds(`${rule.title}\n${rule.text}`) })),
-    sources: sourceIds.map((sourceId) => sources.get(sourceId)!),
+    sources: listed.map((sourceId) => sources.get(sourceId)!),
     text: body,
   };
-}
-
-/** "validé (François Nader, 2026-10-10)" is a human validation; "validé (auto-QA Claude, …)" or a draft is not. */
-function isHumanValidated(status: string): boolean {
-  const reviewer = /^validée?\s*\((.+)\)\s*$/i.exec(status.trim())?.[1];
-  return reviewer !== undefined && !/auto|claude|\b(?:ia|ai|llm)\b/i.test(reviewer);
 }

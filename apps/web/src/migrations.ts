@@ -14,6 +14,8 @@ import { migrateCandidateAccounts, type AuthConfig } from "./auth/index";
 import { migrateAssistantConversations } from "./back-office-assistant/conversations";
 import { migrateBilling } from "./billing/index";
 import { migrateCoachConversations } from "./coach-conversations/index";
+import { importedPlaybooks } from "./coaching-playbooks/import";
+import { migrateCoachingPlaybooks } from "./coaching-playbooks/index";
 import { migrateCoachMemory } from "./coach-memory/index";
 import { migrateCompanyDossiers } from "./company-dossiers/index";
 import { migrateEnrichedContacts } from "./enriched-contacts/index";
@@ -32,7 +34,8 @@ import { migrateTailoredDocuments } from "./tailored-documents/index";
 
 /**
  * Migrates every table; `onMigrated` hears what is up to date after each step ("Profiles are up to date").
- * `env` holds the Google client the Sign-in Providers are seeded with (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET).
+ * `env` holds the Google client the Sign-in Providers are seeded with (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET),
+ * and the AI Coach's route the imported Playbook Agents start from (AI_COACHING_PROVIDER, AI_COACHING_MODEL).
  */
 export async function migrateDatabase(
   config: AuthConfig,
@@ -67,6 +70,7 @@ export async function migrateDatabase(
     ["Sign-in Providers are up to date", () => migrateSignInProviders(database, env)],
     ["Back Office Assistant conversations are up to date", () => migrateAssistantConversations(database)],
     ["AI Usage is up to date", () => migrateAiUsage(database)],
+    ["Coaching Playbooks, the Core Digest and the Sources list are up to date", () => migrateCoachingPlaybooks(database, () => importedPlaybooks(env))],
   ];
   for (const [done, migrate] of steps) {
     await migrate();

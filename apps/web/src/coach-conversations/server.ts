@@ -1,7 +1,7 @@
 import { sharedPool } from "@/database/pool";
 import { getCoach } from "@/coach/server";
 import { getProfiles } from "@/profiles/server";
-import { coachCostPerDay, createCoachConversations, type CoachConversations, type CoachCostDay } from "./index";
+import { coachCostPerDay, coachCostPerPlaybookAgent, createCoachConversations, type CoachConversations, type CoachCostDay, type PlaybookAgentCost } from "./index";
 
 let instance: CoachConversations | undefined;
 
@@ -14,4 +14,9 @@ export function getCoachConversations(): CoachConversations {
 /** The AI Coach's cost per day over the last `days` days, newest first (the back office's view). */
 export function coachCostOfLastDays(days: number): Promise<CoachCostDay[]> {
   return coachCostPerDay(sharedPool(), new Date(Date.now() - days * 24 * 60 * 60 * 1000));
+}
+
+/** What each Playbook Agent's consultations cost over the last `days` days, most consulted first (the back office's view). */
+export function playbookAgentCostOfLastDays(days: number): Promise<PlaybookAgentCost[]> {
+  return coachCostPerPlaybookAgent(sharedPool(), new Date(Date.now() - days * 24 * 60 * 60 * 1000));
 }

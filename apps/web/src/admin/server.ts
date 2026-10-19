@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentCandidate, getCurrentSession } from "@/auth/server";
 import { getBilling } from "@/billing/server";
+import { getCoachingPlaybooks } from "@/coaching-playbooks/server";
 import { sharedPool } from "@/database/pool";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { routes } from "@/routes";
@@ -10,11 +11,13 @@ import { currentSignInConfiguration } from "@/sign-in-providers/server";
 import { permanentSuperAdminsFromEnv, type BackOfficeResource, type Permission } from "./access";
 import { createAdministrators, type AdministratorAccess, type Administrators, type Person } from "./administrators";
 import { createBackOffice, type BackOffice } from "./back-office";
+import { createCoachingPlaybooksBackOffice, type CoachingPlaybooksBackOffice } from "./coaching-playbooks-back-office";
 import { createSearchSitesBackOffice, type SearchSitesBackOffice } from "./search-sites-back-office";
 
 let backOffice: BackOffice | undefined;
 let administrators: Administrators | undefined;
 let searchSitesBackOffice: SearchSitesBackOffice | undefined;
+let coachingPlaybooksBackOffice: CoachingPlaybooksBackOffice | undefined;
 
 /** The app's Back Office writes and their Back Office Audit, on the database named by DATABASE_URL. */
 export function getBackOffice(): BackOffice {
@@ -32,6 +35,12 @@ export function getAdministrators(): Administrators {
 export function getSearchSitesBackOffice(): SearchSitesBackOffice {
   searchSitesBackOffice ??= createSearchSitesBackOffice(getSearchSites(), getBackOffice());
   return searchSitesBackOffice;
+}
+
+/** The Coaching Playbooks' Back Office writes, each recorded in the Back Office Audit (#225). */
+export function getCoachingPlaybooksBackOffice(): CoachingPlaybooksBackOffice {
+  coachingPlaybooksBackOffice ??= createCoachingPlaybooksBackOffice(getCoachingPlaybooks(), getBackOffice());
+  return coachingPlaybooksBackOffice;
 }
 
 /** Whether the person signed in on this request is an Administrator (holds any Back Office Role). */

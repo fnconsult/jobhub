@@ -15,16 +15,17 @@
  * conversation is "not found". Never throws for bad input: an error code comes back.
  * Each AI Coach message is saved with what it cost (provider, model, tokens in,
  * out and cached, estimated €) and the Coaching Playbooks and Core Digest it drew
- * on, with their versions (#129); `coachCostPerDay` gives the Administrator the
- * median and p90 cost per day, to check the €0.03 per message target (#127), and
- * which playbook versions answered.
+ * on, with their versions (#129), and each Playbook Agent consultation with its cost
+ * (#225); `coachCostPerDay` gives the Administrator the median and p90 cost per day,
+ * to check the €0.03 per message target (#127), and which playbook versions answered;
+ * `coachCostPerPlaybookAgent` the median cost of each Playbook Agent's consultations.
  * Kept RETENTION_MONTHS after their last message (`purgeStaleCoachConversations`,
  * run daily by the worker) and deleted with the account (ADR-0010). Human
  * Coaches never read them: Coach Access covers Profiles and Applications only.
  */
 import type { Pool } from "pg";
 import * as z from "zod";
-import { COACH_FOCUS_KINDS, type Coach, type CoachMessageCost, type PlaybookUsed } from "../coach";
+import { COACH_FOCUS_KINDS, type Coach, type CoachMessageCost, type PlaybookConsultation, type PlaybookUsed } from "../coach";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, type CoachMessage } from "../coach/conversation";
 import type { Profiles } from "../profiles";
 
@@ -156,9 +157,21 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
         }
         await client.query(`INSERT INTO coach_message (conversation_id, author, text, created_at) VALUES ($1, 'candidate', $2, $3)`, [id, message, sentAt]);
         await client.query(
-          `INSERT INTO coach_message (conversation_id, author, text, created_at, provider, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, playbooks)
-           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-          [id, answer.reply, sentAt, cost.provider, cost.model, cost.inputTokens, cost.outputTokens, cost.cachedInputTokens, cost.eur, JSON.stringify(answer.playbooks)],
+          `INSERT INTO coach_message (conversation_id, author, text, created_at, provider, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, playbooks, consultations)
+           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          [
+            id,
+            answer.reply,
+            sentAt,
+            cost.provider,
+            cost.model,
+            cost.inputTokens,
+            cost.outputTokens,
+            cost.cachedInputTokens,
+            cost.eur,
+            JSON.stringify(answer.playbooks),
+            JSON.stringify(answer.consultations),
+          ],
         );
         await client.query(`UPDATE coach_conversation SET last_message_at = $2 WHERE id = $1`, [id, sentAt]);
         await client.query("COMMIT");
@@ -271,6 +284,41 @@ export async function coachCostPerDay(database: Pick<Pool, "query">, since: Date
   return rows;
 }
 
+/** What one Playbook Agent's consultations cost over a period. */
+export interface PlaybookAgentCost {
+  playbookId: string;
+  consultations: number;
+  /** Median estimated cost of one consultation, in € (interpolated). */
+  medianEur: number;
+  /** Who answered, most consultations first. */
+  models: { provider: PlaybookConsultation["provider"]; model: string; consultations: number }[];
+}
+
+/**
+ * The cost of each Playbook Agent's consultations from `since` on (#225), most consulted first.
+ * Estimates at list prices, frozen when each reply was saved; already counted in each reply's cost.
+ */
+export async function coachCostPerPlaybookAgent(database: Pick<Pool, "query">, since: Date): Promise<PlaybookAgentCost[]> {
+  const { rows } = await database.query<PlaybookAgentCost>(
+    `WITH consulted AS (
+       SELECT c ->> 'playbookId' AS playbook_id, c ->> 'provider' AS provider, c ->> 'model' AS model, (c ->> 'eur')::float8 AS eur
+         FROM coach_message m, jsonb_array_elements(m.consultations) c
+        WHERE m.author = 'coach' AND m.consultations IS NOT NULL AND m.created_at >= $1
+     ), models AS (
+       SELECT playbook_id, jsonb_agg(jsonb_build_object('provider', provider, 'model', model, 'consultations', n) ORDER BY n DESC, provider, model) AS models
+         FROM (SELECT playbook_id, provider, model, count(*)::int AS n FROM consulted GROUP BY playbook_id, provider, model) per_model
+        GROUP BY playbook_id
+     )
+     SELECT c.playbook_id AS "playbookId", count(*)::int AS consultations,
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY c.eur) AS "medianEur", m.models
+       FROM consulted c JOIN models m USING (playbook_id)
+      GROUP BY c.playbook_id, m.models
+      ORDER BY consultations DESC, c.playbook_id`,
+    [since],
+  );
+  return rows;
+}
+
 /** How long a Coach Conversation is kept after its last message. */
 export const RETENTION_MONTHS = 12;
 
@@ -318,5 +366,7 @@ export async function migrateCoachConversations(database: Pool): Promise<void> {
     -- The Coaching Playbooks and Core Digest each AI Coach message drew on, [{ id, version }] (#129);
     -- null on the Candidate's messages and on replies saved before.
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS playbooks jsonb;
+    -- The Playbook Agents each AI Coach message consulted, with what each cost (#225); null before.
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS consultations jsonb;
   `);
 }

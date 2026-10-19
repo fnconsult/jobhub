@@ -138,7 +138,8 @@ export type ValidatePlaybookResult =
   | { ok: true; version: PlaybookVersion }
   | { ok: false; error: "not_found" | "not_latest" | "already_validated" | "own_version" };
 
-export type ArchivePlaybookResult = { ok: true; changed: boolean } | { ok: false; error: "not_found" | "not_archivable" };
+/** `version`: the latest version, which an archive concerns. */
+export type ArchivePlaybookResult = { ok: true; changed: boolean; version: number } | { ok: false; error: "not_found" | "not_archivable" };
 
 export interface CoachingPlaybooks {
   /** The Core Digest, the Sources list, then every Coaching Playbook by id, archived ones too. */
@@ -452,18 +453,21 @@ export function createCoachingPlaybooks(database: Pool, deps: CoachingPlaybooksD
     },
 
     async setArchived(id, archived, within = database) {
-      const { rows } = await within.query<{ kind: PlaybookKind; was: boolean }>(
-        `WITH was AS (SELECT kind, archived_at IS NOT NULL AS was FROM coaching_playbook WHERE id = $1),
+      const { rows } = await within.query<{ kind: PlaybookKind; was: boolean; version: number }>(
+        `WITH was AS (
+                SELECT kind, archived_at IS NOT NULL AS was, (SELECT max(version) FROM playbook_version WHERE playbook_id = $1) AS version
+                  FROM coaching_playbook WHERE id = $1
+              ),
               changed AS (
                 UPDATE coaching_playbook SET archived_at = CASE WHEN $2 THEN clock_timestamp() END
                  WHERE id = $1 AND kind = 'playbook' AND (archived_at IS NOT NULL) <> $2 RETURNING 1
               )
-         SELECT kind, was FROM was`,
+         SELECT kind, was, version FROM was`,
         [id, archived],
       );
       if (!rows[0]) return { ok: false, error: "not_found" };
       if (rows[0].kind !== "playbook") return { ok: false, error: "not_archivable" };
-      return { ok: true, changed: rows[0].was !== archived };
+      return { ok: true, changed: rows[0].was !== archived, version: rows[0].version };
     },
 
     async served() {

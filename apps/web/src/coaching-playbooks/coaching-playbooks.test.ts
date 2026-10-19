@@ -223,8 +223,8 @@ describe.skipIf(!connectionString)("Coaching Playbooks, versioned in the databas
     });
 
     it("never an archived Coaching Playbook, which is kept with its versions and can be restored", async () => {
-      expect(await playbooks.setArchived("interview-psychology", true)).toEqual({ ok: true, changed: true });
-      expect(await playbooks.setArchived("interview-psychology", true)).toEqual({ ok: true, changed: false });
+      expect(await playbooks.setArchived("interview-psychology", true)).toEqual({ ok: true, changed: true, version: 1 });
+      expect(await playbooks.setArchived("interview-psychology", true)).toEqual({ ok: true, changed: false, version: 1 });
 
       expect(await servedIds(playbooks)).toEqual(["ats-optimization v1"]);
       expect((await playbooks.history("interview-psychology"))?.playbook).toMatchObject({ archived: true, served: null, latest: { version: 1 } });

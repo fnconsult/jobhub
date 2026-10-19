@@ -40,6 +40,8 @@ function runAi(env: Record<string, string>, calls: HarnessCall[] = []) {
 }
 
 const CV = "Jean Dupont, jean.dupont@example.fr, 06 12 34 56 78. Développeur TypeScript, 8 ans d'expérience.";
+/** The CV as it leaves for a provider: its email and phone taken out by the guardrail (the harness knows no Candidate's name). */
+const REDACTED_CV = "Jean Dupont, [E-MAIL], [TÉLÉPHONE]. Développeur TypeScript, 8 ans d'expérience.";
 const score = (candidateId: string | null = "cand-1"): HarnessCall => ({
   kind: "generate",
   task: "scoring",
@@ -133,8 +135,9 @@ test.describe("AI layer: provider adapters", () => {
     const [request] = r.requests;
     expect(request!.url).toBe("https://bedrock-mantle.eu-west-3.api.aws/anthropic/v1/messages");
     const body = JSON.parse(request!.body);
-    expect(body.system).toBe("Score this CV against the offer.");
-    expect(body.messages).toEqual([{ role: "user", content: CV }]);
+    // The guardrail (ADR-0007, 2026-10-20) took the email and phone out, and told the model so.
+    expect(body.system).toMatch(/^Score this CV against the offer\.\n+Note : des données personnelles ont été remplacées/);
+    expect(body.messages).toEqual([{ role: "user", content: REDACTED_CV }]);
     expect(r.outcomes[0]).toMatchObject({ ok: true, value: { text: "reply from bedrock-mantle.eu-west-3.api.aws", provider: "anthropic" } });
   });
 
@@ -160,26 +163,33 @@ test.describe("AI layer: provider adapters", () => {
       "https://eu.api.openai.com/v1/chat/completions",
       "https://api.perplexity.ai/v1/responses",
     ]);
-    expect(JSON.parse(r.requests[0]!.body).messages[0]).toEqual({ role: "system", content: "Score this CV against the offer." });
+    expect(JSON.parse(r.requests[0]!.body).messages[0]).toMatchObject({ role: "system", content: expect.stringMatching(/^Score this CV against the offer\.\n+Note : /) });
+    expect(JSON.parse(r.requests[0]!.body).messages[1]).toEqual({ role: "user", content: REDACTED_CV });
     expect(r.outcomes[2]).toMatchObject({ ok: true, value: { answer: "reply from api.perplexity.ai", sources: ["https://jobs.example/offre-1"] } });
   });
 });
 
-test.describe("AI layer: personal data only reaches EU-resident endpoints", () => {
-  const refusals: [string, Record<string, string>, RegExp][] = [
-    ["scoring on the direct Anthropic API", { ANTHROPIC_ENDPOINT: "direct", AI_SCORING_PROVIDER: "anthropic" }, /scoring.*api\.anthropic\.com/],
-    ["Bedrock outside the EU", { BEDROCK_REGION: "us-east-1" }, /bedrock us-east-1/],
-    ["Vertex outside the EU", { ANTHROPIC_ENDPOINT: "vertex", VERTEX_REGION: "us-east5", VERTEX_PROJECT_ID: "p" }, /vertex us-east5/],
-    ["OpenAI without EU data residency", { AI_SCORING_PROVIDER: "openai", OPENAI_DATA_RESIDENCY: "us" }, /api\.openai\.com/],
+test.describe("AI layer: the guardrail, not the endpoint's region, keeps identity in (ADR-0007, 2026-10-20)", () => {
+  const outsideEu: [string, Record<string, string>, string][] = [
+    ["scoring on the direct Anthropic API", { ANTHROPIC_ENDPOINT: "direct", AI_SCORING_PROVIDER: "anthropic" }, "api.anthropic.com"],
+    ["Bedrock outside the EU", { BEDROCK_REGION: "us-east-1", ANTHROPIC_API_KEY: "", ANTHROPIC_ENDPOINT: "bedrock" }, "bedrock-mantle.us-east-1.api.aws"],
+    ["OpenAI without EU data residency", { AI_SCORING_PROVIDER: "openai", OPENAI_DATA_RESIDENCY: "us" }, "api.openai.com"],
   ];
-  for (const [name, env, message] of refusals) {
-    test(`refuses to start: ${name}`, () => {
+  for (const [name, env, host] of outsideEu) {
+    test(`starts, and sends a personal-data task without its email or phone: ${name}`, () => {
       const r = runAi({ ...KEYS, ...env }, [score()]);
-      expect(r.startup).toMatchObject({ ok: false, error: { name: "DataResidencyError" } });
-      if (!r.startup.ok) expect(r.startup.error.message).toMatch(message);
-      expect(r.requests).toEqual([]);
+      ok(r);
+      expect(r.requests).toHaveLength(1);
+      expect(r.requests[0]!.host).toBe(host);
+      expect(r.requests[0]!.body).not.toMatch(/jean\.dupont@example\.fr|06 12 34 56 78/);
+      expect(r.requests[0]!.body).toContain("[E-MAIL]");
     });
   }
+
+  test("Vertex outside the EU is accepted at start-up", () => {
+    const r = runAi({ ...KEYS, ANTHROPIC_ENDPOINT: "vertex", VERTEX_REGION: "us-east5", VERTEX_PROJECT_ID: "p" });
+    expect(r.startup).toEqual({ ok: true });
+  });
 
   test("Perplexity cannot be given a text task (it would receive a CV)", () => {
     const r = runAi({ ...KEYS, AI_WRITING_PROVIDER: "perplexity" }, [write()]);

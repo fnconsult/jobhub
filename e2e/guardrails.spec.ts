@@ -307,6 +307,9 @@ test.describe("Guardrails: flag only", () => {
       await injection.getByLabel(guardrails.settingLabel).selectOption("flag");
       await injection.getByRole("button", { name: guardrails.saveSetting }).click();
       await expect(notice(admin)).toHaveText(guardrails.notices.settingSaved);
+      // The notice above may be left over from the previous save: reload so this one is stored before sending.
+      await admin.reload();
+      await expect(section(admin, "prompt_injection").getByLabel(guardrails.settingLabel)).toHaveValue("flag");
       const through = await send(page, "E2E_GUARDRAIL_INJECTION Bonjour coach");
       expect(through.blocked).toEqual({ message: false, reply: false });
       expect(through.reply).not.toBe(D.prompt_injection.fr);

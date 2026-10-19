@@ -23,7 +23,8 @@ export const PROVIDER_SECRETS = [
   { name: "APOLLO_API_KEY", provider: "apollo" },
   { name: "STRIPE_SECRET_KEY", provider: "stripe" },
   { name: "STRIPE_WEBHOOK_SECRET", provider: "stripe" },
-  // Brevo's SMTP relay: the URL carries its credentials.
+  // Brevo: its transactional email API key, used over its SMTP relay (whose URL carries its credentials).
+  { name: "BREVO_API_KEY", provider: "brevo" },
   { name: "SMTP_URL", provider: "brevo" },
 ] as const satisfies ReadonlyArray<{ name: string; provider: SecretProvider }>;
 
@@ -40,7 +41,7 @@ export const AI_SECRET_NAMES = ["MISTRAL_API_KEY", "PERPLEXITY_API_KEY", "AWS_BE
 export const STRIPE_SECRET_NAMES = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"] as const satisfies readonly ProviderSecretName[];
 export const FRANCE_TRAVAIL_SECRET_NAMES = ["FRANCE_TRAVAIL_CLIENT_ID", "FRANCE_TRAVAIL_CLIENT_SECRET"] as const satisfies readonly ProviderSecretName[];
 export const CONTACT_ENRICHMENT_SECRET_NAMES = ["LUSHA_API_KEY", "KASPR_API_KEY", "APOLLO_API_KEY"] as const satisfies readonly ProviderSecretName[];
-export const MAIL_SECRET_NAMES = ["SMTP_URL"] as const satisfies readonly ProviderSecretName[];
+export const MAIL_SECRET_NAMES = ["BREVO_API_KEY", "SMTP_URL"] as const satisfies readonly ProviderSecretName[];
 
 /** Fewer characters than this, and no fingerprint is shown: 4 of them would give away too much. */
 const FINGERPRINT_MIN_LENGTH = 16;

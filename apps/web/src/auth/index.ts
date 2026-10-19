@@ -36,7 +36,7 @@ export interface MailMessage {
   headers?: Record<string, string>;
 }
 
-/** Delivers emails. Adapters: SMTP in production, console in development, a mailbox in tests. */
+/** Delivers emails. Adapters: Brevo's API or SMTP in production, console in development, a mailbox in tests. */
 export interface Mailer {
   send(message: MailMessage): Promise<void>;
 }

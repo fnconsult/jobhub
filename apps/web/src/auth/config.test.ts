@@ -27,7 +27,7 @@ describe("authConfigFromEnv", () => {
 
   it("refuses to run in production without a secret or an SMTP server", () => {
     expect(() => authConfigFromEnv({ ...base, NODE_ENV: "production", AUTH_SECRET: undefined })).toThrow(/AUTH_SECRET/);
-    expect(() => authConfigFromEnv({ ...base, NODE_ENV: "production", SMTP_URL: undefined })).toThrow(/SMTP_URL/);
+    expect(() => authConfigFromEnv({ ...base, NODE_ENV: "production", SMTP_URL: undefined })).toThrow(/BREVO_API_KEY or SMTP_URL/);
   });
 
   it("runs in development with defaults, printing sign-in emails to the console", () => {

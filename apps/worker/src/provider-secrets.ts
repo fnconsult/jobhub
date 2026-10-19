@@ -7,7 +7,7 @@
  *   worker.discovery();     // Job discovery, or why it is unavailable: asked on each job
  *   worker.ai;              // the AI layer (Follow-ups)
  *   worker.franceTravail(); // France Travail, or null without its credentials
- *   worker.mailer;          // SMTP_URL (Brevo)
+ *   worker.mailer;          // BREVO_API_KEY or SMTP_URL (Brevo)
  *
  * A key refused by its provider (401/403, an SMTP 535, France Travail's refusal) is
  * read again from the database and the call made once more if it changed.

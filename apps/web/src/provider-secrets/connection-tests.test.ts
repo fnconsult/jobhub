@@ -16,6 +16,7 @@ describe("testing a provider's keys with its cheapest authenticated call", () =>
   it.each<[SecretProvider, Record<string, string>, string, string, Record<string, string>]>([
     ["mistral", { MISTRAL_API_KEY: "mk" }, "GET", "https://api.mistral.ai/v1/models", { authorization: "Bearer mk" }],
     ["perplexity", { PERPLEXITY_API_KEY: "pk" }, "GET", "https://api.perplexity.ai/v1/models", { authorization: "Bearer pk" }],
+    ["anthropic", { ANTHROPIC_API_KEY: "ak" }, "GET", "https://api.anthropic.com/v1/models", { "x-api-key": "ak", "anthropic-version": "2023-06-01" }],
     ["bedrock", { AWS_BEARER_TOKEN_BEDROCK: "bk", BEDROCK_REGION: "eu-central-1" }, "GET", "https://bedrock-mantle.eu-central-1.api.aws/v1/models", { authorization: "Bearer bk" }],
     ["stripe", { STRIPE_SECRET_KEY: "sk_test_1" }, "GET", "https://api.stripe.com/v1/balance", { authorization: "Bearer sk_test_1" }],
     ["lusha", { LUSHA_API_KEY: "lk" }, "GET", "https://api.lusha.com/account/usage", { api_key: "lk" }],

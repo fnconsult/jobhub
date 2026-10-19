@@ -101,8 +101,39 @@ describe("AI layer configured from the environment", () => {
     expect(() => createAiLayerFromEnv({ ...env, AI_BACK_OFFICE_ASSISTANT_PROVIDER: "openai", OPENAI_API_KEY: "sk", OPENAI_DATA_RESIDENCY: "us" })).toThrow(DataResidencyError);
   });
 
-  it("refuses to start when personal-data tasks would go to the direct Anthropic API", () => {
-    expect(() => createAiLayerFromEnv({ ...base, ANTHROPIC_ENDPOINT: "direct", ANTHROPIC_API_KEY: "sk" })).toThrow(DataResidencyError);
+  it("refuses to start when a personal-data task is routed to the direct Anthropic API", () => {
+    expect(() => createAiLayerFromEnv({ ...base, ANTHROPIC_ENDPOINT: "direct", ANTHROPIC_API_KEY: "sk", MISTRAL_API_KEY: "mk", AI_SCORING_PROVIDER: "anthropic" })).toThrow(DataResidencyError);
+  });
+
+  describe("Claude endpoint chosen by the keys entered (ANTHROPIC_ENDPOINT=auto, the default)", () => {
+    const keys = { PERPLEXITY_API_KEY: "pk", MISTRAL_API_KEY: "mk" };
+    const run = async (env: Record<string, string>) => {
+      const { fetch, hosts } = recordingFetch();
+      const usage = createMemoryUsageLog();
+      const ai = createAiLayerFromEnv(env, { fetch, usage });
+      await ai.generate({ task: "scoring", candidateId: "c", prompt: "CV" });
+      await ai.generate({ task: "offer_analysis", candidateId: "c", prompt: "Offre" });
+      return { hosts, providers: usage.entries.map((e) => e.provider) };
+    };
+
+    it("with the Anthropic key alone: Claude direct for public tasks, Mistral for personal data", async () => {
+      expect(await run({ ...keys, ANTHROPIC_API_KEY: "sk-ant" })).toEqual({ hosts: ["api.mistral.ai", "api.anthropic.com"], providers: ["mistral", "anthropic"] });
+    });
+
+    it("with the Bedrock key alone: Claude on Bedrock for every task", async () => {
+      expect((await run({ ...keys, AWS_BEARER_TOKEN_BEDROCK: "bk" })).hosts).toEqual(["bedrock-mantle.eu-west-3.api.aws", "bedrock-mantle.eu-west-3.api.aws"]);
+    });
+
+    it("with both keys: Bedrock for personal data, the direct API for public tasks", async () => {
+      expect(await run({ ...keys, ANTHROPIC_API_KEY: "sk-ant", AWS_BEARER_TOKEN_BEDROCK: "bk" })).toEqual({
+        hosts: ["bedrock-mantle.eu-west-3.api.aws", "api.anthropic.com"],
+        providers: ["anthropic", "anthropic"],
+      });
+    });
+
+    it("with the Anthropic key alone, personal-data tasks name the missing Mistral key", () => {
+      expect(() => createAiLayerFromEnv({ PERPLEXITY_API_KEY: "pk", ANTHROPIC_API_KEY: "sk-ant" })).toThrow(/MISTRAL_API_KEY/);
+    });
   });
 
   it("refuses to start when a personal-data task would go to OpenAI without EU data residency", () => {

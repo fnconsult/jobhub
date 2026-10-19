@@ -1057,7 +1057,8 @@
       "providers": {
         "mistral": "Mistral",
         "perplexity": "Perplexity",
-        "bedrock": "AWS Bedrock",
+        "anthropic": "Anthropic Claude (direct API, outside the EU)",
+        "bedrock": "Anthropic Claude (AWS Bedrock, EU)",
         "france-travail": "France Travail",
         "lusha": "Lusha",
         "kaspr": "Kaspr",

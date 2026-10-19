@@ -4,15 +4,15 @@ import { createJobSearchReports } from "../apps/web/src/job-searches";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
+import { showSystemPrompt, systemPromptShown } from "./support/system-prompt";
 
 // Issue #126: what the AI Coach is told of the Candidate before each reply.
 // Driven through the public endpoint the Coach Panel uses (POST /api/coach); the
 // AI Coach is faked inside the server (fake-mistral.mjs) and, asked with
-// "E2E_SHOW_CONTEXT", replies with the system prompt it was sent, which is the
-// Coach's context. The Coach Memory (#125) has no way in yet: it is covered by
+// "E2E_SHOW_CONTEXT#<tag>", prints the system prompt it was sent, which holds the
+// Coach's context, to the server log (support/system-prompt.ts). The Coach Memory (#125) has no way in yet: it is covered by
 // the Coach's unit tests, and here only its absence is checked.
 const origin = process.env.E2E_WEB_ORIGIN!;
-const SHOW = "E2E_SHOW_CONTEXT";
 const unique = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 const IDENTITY = {
@@ -95,9 +95,10 @@ async function storeResults(kind: "job_search" | "job_digest", candidate: string
 
 /** The context the AI Coach was sent along with the Candidate's message. */
 async function contextOf(page: Page, focus?: { kind: string; id: string }): Promise<string> {
-  const response = await page.request.post("/api/coach", { headers: { origin }, data: { message: `Bonjour ${SHOW}`, ...(focus ? { focus } : {}) } });
+  const show = showSystemPrompt();
+  const response = await page.request.post("/api/coach", { headers: { origin }, data: { message: `Bonjour ${show}`, ...(focus ? { focus } : {}) } });
   expect(response.status(), await response.text()).toBe(200);
-  return (await response.json()).reply;
+  return systemPromptShown(show);
 }
 
 const tokens = (text: string) => Math.ceil(text.length / 4);

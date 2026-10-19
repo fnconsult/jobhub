@@ -2,14 +2,15 @@ import { readdirSync, readFileSync } from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { showSystemPrompt, systemPromptShown } from "./support/system-prompt";
 
 // Issue #225: the Back Office's Coaching Playbooks section. A Playbook editor (granted by a super-admin
 // on the Administrateurs page) creates and versions playbooks; another Administrator validates a
 // version, naming themselves; changing a validated version makes a new one; a playbook is archived,
 // never deleted; every step is in the Journal with a link to its version. The e2e server serves the
 // latest versions (JOBHUB_TARGET=e2e), so the AI Coach consults what was just written: its fake
-// (fake-mistral.mjs) consults the Playbook Agents a message lists after "E2E_CONSULT=", and returns its
-// system prompt for "E2E_SHOW_CONTEXT".
+// (fake-mistral.mjs) consults the Playbook Agents a message lists after "E2E_CONSULT=", and prints its
+// system prompt to the server log for "E2E_SHOW_CONTEXT#<tag>".
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const admin = fr.admin;
 const playbooks = admin.coachingPlaybooks;
@@ -41,9 +42,10 @@ const alert = (page: Page) => page.getByRole("main").getByRole("alert");
 
 /** The system prompt the AI Coach was sent for a Candidate's message. */
 async function coachPrompt(page: Page, message: string): Promise<string> {
-  const response = await page.request.post("/api/coach", { headers: { origin }, data: { message: `${message} E2E_SHOW_CONTEXT` } });
+  const show = showSystemPrompt();
+  const response = await page.request.post("/api/coach", { headers: { origin }, data: { message: `${message} ${show}` } });
   expect(response.status(), await response.text()).toBe(200);
-  return (await response.json()).reply;
+  return systemPromptShown(show);
 }
 
 test.describe("the Back Office's Coaching Playbooks", () => {

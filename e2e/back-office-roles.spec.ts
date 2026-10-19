@@ -23,6 +23,7 @@ const SECTIONS = {
   coupons: "/admin/codes-promo",
   humanCoaches: "/admin/coachs",
   coachCost: "/admin/cout-coach",
+  coachingPlaybooks: "/admin/playbooks",
   providerSecrets: "/admin/cles",
   signInProviders: "/admin/connexion",
   aiUsage: "/admin/consommation-ia",
@@ -34,7 +35,7 @@ const SECTIONS = {
 type Section = keyof typeof SECTIONS;
 
 /** The Back Office Roles, in the order the app lists them. */
-const ROLES = ["super-admin", "plans-manager", "coach-manager", "support"];
+const ROLES = ["super-admin", "plans-manager", "coach-manager", "playbook-editor", "support"];
 
 /** A signed-in page of its own (cookies apart), as for another person on another computer. */
 async function personPage(browser: Browser, email: string): Promise<Page> {
@@ -97,7 +98,7 @@ async function submitAs(page: Page, formPage: Page, path: string, buttonName: st
 test.describe("Back Office Roles", () => {
   test("an ADMIN_EMAILS member is a permanent super-admin: every section, marked permanent, never revocable", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
-    await expectSections(page, ["plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "providerSecrets", "signInProviders", "aiUsage", "aiMessages", "searchSites", "administrators", "journal"]);
+    await expectSections(page, ["plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "providerSecrets", "signInProviders", "aiUsage", "aiMessages", "searchSites", "administrators", "journal"]);
 
     await page.goto(SECTIONS.administrators);
     await expect(page).toHaveTitle(`${admin.administrators.title} · ${admin.title}`);
@@ -156,7 +157,7 @@ test.describe("Back Office Roles", () => {
     await coachesPage.goto(SECTIONS.humanCoaches);
     await expect(coachesPage.getByRole("button", { name: admin.humanCoaches.add })).toBeVisible();
 
-    await expectSections(supportPage, ["plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "signInProviders", "aiUsage", "searchSites"]);
+    await expectSections(supportPage, ["plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "signInProviders", "aiUsage", "searchSites"]);
     await supportPage.goto(SECTIONS.plans);
     await expect(supportPage.getByText(admin.readOnly)).toBeVisible();
     await expect(supportPage.getByRole("main").locator("form")).toHaveCount(0);

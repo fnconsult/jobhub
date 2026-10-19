@@ -1,26 +1,25 @@
-import { loadCoachKnowledge } from "@jobhub/coach-knowledge";
 import { getAi } from "@/ai/server";
 import { getApplications } from "@/applications/server";
 import { getCoachMemory } from "@/coach-memory/server";
+import { getCoachingPlaybooks } from "@/coaching-playbooks/server";
 import { getJobDigests } from "@/job-digests/server";
 import { getJobOffers } from "@/job-offers/server";
 import { getJobSearches } from "@/job-searches/server";
 import { getProfiles } from "@/profiles/server";
 import { createCoach, type Coach } from "./index";
-import { knowledgeEnvironment } from "./knowledge-env";
 
 let instance: Coach | undefined;
 
 /**
  * The app's AI Coach, on the app's AI layer, reading the Candidate's workspace and Coach Memory (#125),
- * and grounded in the coaching knowledge served in this environment (ADR-0019).
+ * drawing on the Core Digest and the Playbook Agents served in this environment (ADR-0021).
  */
 export function getCoach(): Coach {
   instance ??= (() => {
     const jobDigests = getJobDigests();
     return createCoach({
       ai: getAi(),
-      knowledge: loadCoachKnowledge({ environment: knowledgeEnvironment(process.env) }),
+      playbooks: getCoachingPlaybooks(),
       profiles: getProfiles(),
       applications: getApplications(),
       jobOffers: getJobOffers(),

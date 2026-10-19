@@ -150,6 +150,50 @@ function identityProvider(env: Env, fake: boolean, fetch: typeof globalThis.fetc
   };
 }
 
+/** Which provider (and model, when set) serves each task: AI_<TASK>_PROVIDER and AI_<TASK>_MODEL, else the defaults. */
+function routesFromEnv(env: Env, fake: boolean): Record<AiTask, Route> {
+  // Claude reached only outside the EU (the direct API): tasks with personal data default to Mistral.
+  const personalFallback = !fake && !anthropicInEu(env);
+  const defaultProvider = (task: keyof typeof DEFAULT_PROVIDER): ProviderId => {
+    const provider = DEFAULT_PROVIDER[task];
+    return provider === "anthropic" && personalFallback && TEXT_TASKS[task as TextTask]?.personalData ? IDENTITY_PROVIDER : provider;
+  };
+  const routes: Partial<Record<AiTask, Route>> = {};
+  const routeOf = (provider: ProviderId, model: string | undefined): Route => (model ? { provider, model } : { provider });
+  for (const task of TASKS) {
+    if (task in DEFAULT_TASK) continue;
+    const provider = oneOf(env, taskKey(task, "PROVIDER"), PROVIDER_IDS, defaultProvider(task as keyof typeof DEFAULT_PROVIDER));
+    routes[task] = routeOf(provider, env[taskKey(task, "MODEL")]?.trim() || undefined);
+  }
+  for (const [task, fallback] of Object.entries(DEFAULT_TASK) as [AiTask, AiTask][]) {
+    const inherited = routes[fallback]!;
+    const provider = oneOf(env, taskKey(task, "PROVIDER"), PROVIDER_IDS, inherited.provider);
+    routes[task] = routeOf(provider, env[taskKey(task, "MODEL")]?.trim() || (provider === inherited.provider ? inherited.model : undefined));
+  }
+  return routes as Record<AiTask, Route>;
+}
+
+/**
+ * The provider and model (when one is set) a task is routed to by the environment, without building
+ * the AI layer nor needing its keys: e.g. the AI Coach's (`coaching`), which Playbook Agents start from (#225).
+ */
+export function taskRouteFromEnv(env: Env, task: AiTask): Route {
+  return routesFromEnv(env, env.AI_FAKE?.trim() === "true")[task];
+}
+
+/**
+ * Text providers no task uses that a Playbook Agent may still choose (#225), when their keys are entered:
+ * Mistral, OpenAI and Claude on Bedrock. Only the EU-resident ones are offered (`AiLayer.agentModels`).
+ */
+function agentOnlyProviders(env: Env, used: ProviderId[], fetch: typeof globalThis.fetch | undefined): AiProvider[] {
+  const entered: Partial<Record<ProviderId, boolean>> = {
+    mistral: Boolean(env.MISTRAL_API_KEY?.trim()),
+    openai: Boolean(env.OPENAI_API_KEY?.trim()),
+    anthropic: Boolean(env.AWS_BEARER_TOKEN_BEDROCK?.trim() || env.ANTHROPIC_API_KEY?.trim()),
+  };
+  return (Object.keys(entered) as ProviderId[]).filter((id) => entered[id] && !used.includes(id)).flatMap((id) => buildProviders(id, env, fetch));
+}
+
 /**
  * Builds the AI layer from environment variables (in production, ECS injects them from Secrets Manager).
  * Per task: AI_<TASK>_PROVIDER and AI_<TASK>_MODEL. Only providers some task uses need their keys.
@@ -159,27 +203,11 @@ export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps =
   const fake = env.AI_FAKE?.trim() === "true";
   if (fake && env.NODE_ENV === "production") throw new AiConfigError("AI_FAKE cannot be used in production");
 
-  // Claude reached only outside the EU (the direct API): tasks with personal data default to Mistral.
-  const personalFallback = !fake && !anthropicInEu(env);
-  const defaultProvider = (task: keyof typeof DEFAULT_PROVIDER): ProviderId => {
-    const provider = DEFAULT_PROVIDER[task];
-    return provider === "anthropic" && personalFallback && TEXT_TASKS[task as TextTask]?.personalData ? IDENTITY_PROVIDER : provider;
-  };
-  const routes: Partial<Record<AiTask, Route>> = {};
-  for (const task of TASKS) {
-    if (task in DEFAULT_TASK) continue;
-    const provider = oneOf(env, taskKey(task, "PROVIDER"), PROVIDER_IDS, defaultProvider(task as keyof typeof DEFAULT_PROVIDER));
-    routes[task] = { provider, model: env[taskKey(task, "MODEL")]?.trim() || undefined };
-  }
-  for (const [task, fallback] of Object.entries(DEFAULT_TASK) as [AiTask, AiTask][]) {
-    const inherited = routes[fallback]!;
-    const provider = oneOf(env, taskKey(task, "PROVIDER"), PROVIDER_IDS, inherited.provider);
-    const model = env[taskKey(task, "MODEL")]?.trim() || (provider === inherited.provider ? inherited.model : undefined);
-    routes[task] = { provider, model };
-  }
+  const routes = routesFromEnv(env, fake);
   const used = [...new Set(Object.values(routes).map((route) => route.provider))];
   const providers = used.flatMap((id) => (fake ? [createFakeProvider({ id })] : buildProviders(id, env, deps.fetch)));
-  if (deps.euAiConsent && !used.includes(IDENTITY_PROVIDER)) providers.push(identityProvider(env, fake, deps.fetch));
+  if (!fake) providers.push(...agentOnlyProviders(env, used, deps.fetch));
+  if (deps.euAiConsent && !providers.some((provider) => provider.id === IDENTITY_PROVIDER)) providers.push(identityProvider(env, fake, deps.fetch));
 
   return createAiLayer({
     providers,

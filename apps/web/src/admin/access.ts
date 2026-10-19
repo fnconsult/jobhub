@@ -32,6 +32,8 @@ const statements = {
   aiUsage: ["read"],
   /** The AI Message Log (Journaux IA): what AI calls said, personal data; every read is audited. */
   aiMessages: ["read"],
+  /** The Coaching Playbooks, the Core Digest and the Sources list (#225): write covers creating, versioning, validating and archiving. */
+  coachingPlaybooks: ["read", "write"],
 } as const satisfies Record<string, readonly Permission[]>;
 
 export type BackOfficeResource = keyof typeof statements;
@@ -39,7 +41,7 @@ export type BackOfficeResource = keyof typeof statements;
 const control = createAccessControl(statements);
 
 /** The Back Office Roles, as stored in `administrator_role.role`. */
-export const BACK_OFFICE_ROLES = ["super-admin", "plans-manager", "coach-manager", "support"] as const;
+export const BACK_OFFICE_ROLES = ["super-admin", "plans-manager", "coach-manager", "playbook-editor", "support"] as const;
 export type BackOfficeRole = (typeof BACK_OFFICE_ROLES)[number];
 
 export const isBackOfficeRole = (value: unknown): value is BackOfficeRole => BACK_OFFICE_ROLES.includes(value as BackOfficeRole);
@@ -50,8 +52,19 @@ const ROLES = {
   "super-admin": control.newRole(statements),
   "plans-manager": control.newRole({ plans: ["read", "write"], planQuotas: ["read", "write"], coupons: ["read", "write"] }),
   "coach-manager": control.newRole({ humanCoaches: ["read", "write"], coachMessageCost: READ }),
+  "playbook-editor": control.newRole({ coachingPlaybooks: ["read", "write"] }),
   // Reads everything but Provider Secrets and the AI Message Log; the team's own sections (Administrateurs, Journal) stay with super-admins.
-  support: control.newRole({ planQuotas: READ, plans: READ, coupons: READ, humanCoaches: READ, coachMessageCost: READ, ssoProviders: READ, aiUsage: READ, searchSites: READ }),
+  support: control.newRole({
+    planQuotas: READ,
+    plans: READ,
+    coupons: READ,
+    humanCoaches: READ,
+    coachMessageCost: READ,
+    ssoProviders: READ,
+    aiUsage: READ,
+    searchSites: READ,
+    coachingPlaybooks: READ,
+  }),
 } satisfies Record<BackOfficeRole, unknown>;
 
 /** What one Administrator may do in the Back Office, from the roles they hold. */

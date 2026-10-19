@@ -2360,3 +2360,11 @@ textarea.title-edit {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* A Playbook Version's rules, as written (#225). */
+.playbook-rules {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: inherit;
+  margin: 0;
+}

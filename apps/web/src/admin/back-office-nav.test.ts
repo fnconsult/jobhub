@@ -20,6 +20,7 @@ describe("the Back Office navigation", () => {
         [
           ["humanCoaches", "/admin/coachs"],
           ["coachCost", "/admin/cout-coach"],
+          ["coachingPlaybooks", "/admin/playbooks"],
         ],
       ],
       [
@@ -72,6 +73,8 @@ describe("the Back Office navigation", () => {
         ["searchSites", "/admin/sites"],
       ],
     ]);
+    // A Playbook editor sees the Coaching Playbooks alone, under Coaching (#225).
+    expect(sections(backOfficeNav(backOfficeAccess(["playbook-editor"])))).toEqual([["coaching", [["coachingPlaybooks", "/admin/playbooks"]]]]);
     expect(backOfficeNav(backOfficeAccess([]))).toEqual([]);
   });
 });

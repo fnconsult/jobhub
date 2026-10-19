@@ -50,6 +50,18 @@ const SIGN_IN_PROVIDER_FIELDS = {
 const PLAN_FIELDS = ["name", "status", "stripeProductId", "features", "rank", "quotas"] as const;
 type PlanField = (typeof PLAN_FIELDS)[number];
 
+/** A Playbook Version's recorded fields (#225), each with its label. */
+const PLAYBOOK_FIELDS = ["version", "provider", "model", "effort", "consultWhen", "rulesCharacters", "validatedBy", "validatedAt", "archived"] as const;
+type PlaybookField = (typeof PLAYBOOK_FIELDS)[number];
+
+/** The version a Coaching Playbooks entry concerns, recorded after (or before) the change. */
+const versionOf = (entry: BackOfficeAuditEntry): number | null => {
+  for (const value of [entry.after, entry.before]) {
+    if (typeof value === "object" && value !== null && !Array.isArray(value) && typeof value.version === "number") return value.version;
+  }
+  return null;
+};
+
 /** A Coupon's recorded fields, by the Codes promo page's label for each. */
 const COUPON_FIELDS = ["code", "discount", "duration", "plans", "expiresAt", "maxRedemptions", "firstPaymentOnly", "active"] as const;
 type CouponField = (typeof COUPON_FIELDS)[number];
@@ -97,6 +109,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     if (entrySection === "sign_in_providers" && field in SIGN_IN_PROVIDER_FIELDS) {
       return t(`admin.signInProviders.${SIGN_IN_PROVIDER_FIELDS[field as keyof typeof SIGN_IN_PROVIDER_FIELDS]}`);
     }
+    if (entrySection === "coaching_playbooks" && PLAYBOOK_FIELDS.includes(field as PlaybookField)) return t(`admin.coachingPlaybooks.journalFields.${field as PlaybookField}`);
     if (field === "id") return t("admin.journal.id");
     return field;
   };
@@ -124,6 +137,12 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
       if (field === "plans") return value === null ? t("admin.coupons.allPlans") : Array.isArray(value) ? value.map((key) => plans.find((plan) => plan.key === key)?.name[locale] ?? String(key)).join(", ") : String(value);
       if (field === "expiresAt") return typeof value === "string" ? new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "Europe/Paris" }).format(new Date(value)) : t("admin.coupons.noExpiry");
       if (typeof value === "boolean") return t(value ? "admin.coupons.yes" : "admin.coupons.no");
+    }
+    if (entrySection === "coaching_playbooks") {
+      if (field === "model" && value === null) return t("admin.coachingPlaybooks.providerDefault");
+      if (field === "effort" && (value === "low" || value === "medium" || value === "high")) return t(`admin.coachingPlaybooks.efforts.${value}`);
+      if (field === "validatedAt" && typeof value === "string") return at.format(new Date(value));
+      if (field === "archived" && typeof value === "boolean") return t(value ? "admin.coachingPlaybooks.archived" : "admin.coachingPlaybooks.active");
     }
     if (value === null) return t(entrySection === "plan_quotas" ? "admin.journal.unlimited" : "admin.journal.empty");
     if (entrySection === "plan_quotas" && field === "jobDigest" && JOB_DIGEST_FREQUENCIES.includes(value as JobDigestFrequency)) {
@@ -188,7 +207,15 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
                       {entry.actor.candidateId === null ? ` (${t("admin.journal.accountDeleted")})` : null}
                     </td>
                     <td>{t(`admin.journal.sections.${entry.section}`)}</td>
-                    <td>{target(entry)}</td>
+                    <td>
+                      {target(entry)}
+                      {entry.section === "coaching_playbooks" && versionOf(entry) !== null ? (
+                        <>
+                          {" "}
+                          (<Link href={routes.adminCoachingPlaybook(entry.target, versionOf(entry)!)}>{t("admin.journal.viewVersion", { version: String(versionOf(entry)) })}</Link>)
+                        </>
+                      ) : null}
+                    </td>
                     <td>{t(`admin.journal.actions.${entry.action}`)}</td>
                     <td>
                       {entry.action === "viewed" ? null : isSecretAction(entry.action) ? (

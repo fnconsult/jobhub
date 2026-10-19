@@ -680,7 +680,8 @@
       "super-admin": "Super-admin",
       "plans-manager": "Plans manager",
       "coach-manager": "Coach manager",
-      "support": "Support"
+      "support": "Support",
+      "playbook-editor": "Playbook editor"
     },
     "nav": {
       "label": "Back office navigation",
@@ -704,7 +705,8 @@
       "administrators": "Administrators",
       "journal": "Journal",
       "aiUsage": "AI consumption",
-      "aiMessages": "AI message logs"
+      "aiMessages": "AI message logs",
+      "coachingPlaybooks": "Playbooks"
     },
     "signInProviders": {
       "title": "Sign-in",
@@ -993,7 +995,17 @@
       "outputTokens": "Output tokens",
       "models": "Models",
       "playbooks": "Playbooks used",
-      "overTarget": "above target"
+      "overTarget": "above target",
+      "agents": {
+        "title": "Cost per Playbook Agent",
+        "intro": "Median cost of one consultation of each Playbook Agent over the last {{days}} days. It is already counted in the replies' cost above.",
+        "none": "No Playbook Agent consulted in this period.",
+        "caption": "Cost of one consultation, per Playbook Agent",
+        "playbook": "Playbook",
+        "consultations": "Consultations",
+        "median": "Median",
+        "models": "Models"
+      }
     },
     "searchSites": {
       "title": "Search sites",
@@ -1056,8 +1068,8 @@
         "siteExists": "This site is already in the list.",
         "siteForbidden": "This site forbids crawling in its terms of use: it cannot be added or enabled.",
         "notFound": "This item no longer exists. The page has been refreshed."
-        }
-      },
+      }
+    },
     "providerSecrets": {
       "title": "Provider keys",
       "intro": "The keys of third-party services (AI, France Travail, contact enrichment, Stripe, email). A key entered here is encrypted and replaces the environment's within a minute, with no deployment. A key entered is never shown again: only its last 4 characters are.",
@@ -1133,7 +1145,8 @@
         "super-admin": "The whole back office, Administrators and Journal included.",
         "plans-manager": "Plans and their quotas.",
         "coach-manager": "Human Coaches; reads the AI Coach cost.",
-        "support": "Reads everything except provider secrets, and changes nothing."
+        "support": "Reads everything except provider secrets, and changes nothing.",
+        "playbook-editor": "Writes, versions, validates and archives the Coaching Playbooks, the Core Digest and the Sources list."
       },
       "errors": {
         "unknown_account": "No Jobbbox account uses this email address. The person must create their account first.",
@@ -1161,7 +1174,8 @@
         "job_discovery_sites": "Job discovery sites",
         "job_sites": "Extension sites",
         "sign_in_providers": "Sign-in",
-        "ai_messages": "AI message logs"
+        "ai_messages": "AI message logs",
+        "coaching_playbooks": "Coaching Playbooks"
       },
       "actions": {
         "added": "Added",
@@ -1172,7 +1186,10 @@
         "replaced": "Replaced",
         "replaced_despite_failed_test": "Replaced despite a failed test",
         "cleared": "Cleared",
-        "viewed": "Viewed"
+        "viewed": "Viewed",
+        "validated": "Validation",
+        "archived": "Archive",
+        "restored": "Restore"
       },
       "none": "No change recorded.",
       "caption": "Back office changes, newest first",
@@ -1195,7 +1212,8 @@
       "unchanged": "No value changed",
       "unlimited": "unlimited",
       "empty": "empty",
-      "id": "Identifier"
+      "id": "Identifier",
+      "viewVersion": "see version {{version}}"
     },
     "aiUsage": {
       "title": "AI consumption",
@@ -1298,6 +1316,125 @@
       },
       "reply": "Reply",
       "noReply": "No reply: the call failed."
+    },
+    "coachingPlaybooks": {
+      "title": "Coaching Playbooks",
+      "intro": "The rules the AI Coach applies: the Core Digest, the Sources list and each playbook with its Playbook Agent, the specialist the AI Coach consults. Changing a validated version makes a new version; every version is kept.",
+      "servingValidated": "This environment (production) serves only the latest version of each that a person validated.",
+      "servingLatest": "This environment serves the latest version of each, validated or not. Production serves only validated versions.",
+      "caption": "Core Digest, Sources list and playbooks",
+      "name": "Name",
+      "latest": "Latest version",
+      "served": "Served version",
+      "agent": "Playbook Agent",
+      "status": "Status",
+      "kinds": {
+        "core_digest": "Core Digest",
+        "sources": "Sources list",
+        "playbook": "Playbook"
+      },
+      "archived": "Archived",
+      "active": "Active",
+      "none": "none",
+      "version": "v{{version}}",
+      "validatedBy": "validated by {{name}} on {{date}}",
+      "notValidated": "not validated",
+      "defaultModel": "default model ({{model}})",
+      "providerDefault": "default model",
+      "agentSummary": "{{provider}} · {{model}} · effort {{effort}}",
+      "efforts": {
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "effortHandling": {
+        "native": "",
+        "medium_as_high": "this model only has none and high: low means none, medium means high",
+        "ignored": "this model ignores effort"
+      },
+      "fields": {
+        "id": "Id",
+        "idHelp": "Lower case, words joined by hyphens (e.g. salary-negotiation). It cannot change afterwards.",
+        "content": "Rules (Markdown, in French)",
+        "contentHelp": "Every source cited [Sn] must be in the Sources list.",
+        "sourcesContent": "Sources list (Markdown table, one row per source)",
+        "sourcesHelp": "A source cited by a served version or the latest version of an active playbook cannot be removed.",
+        "model": "Playbook Agent's model",
+        "modelHelp": "Only models hosted in the European Union are offered: the Playbook Agent receives personal data.",
+        "effort": "Effort",
+        "effortHelp": "How hard the model should think. Some models ignore it or only have two levels: see the models table.",
+        "consultWhen": "When to consult it",
+        "consultWhenHelp": "The AI Coach reads this description to choose the Playbook Agents it consults, at most two per reply."
+      },
+      "models": {
+        "title": "Allowed models",
+        "caption": "Models hosted in the EU, and effort",
+        "provider": "Provider",
+        "model": "Model",
+        "effort": "Effort",
+        "native": "low, medium and high"
+      },
+      "create": {
+        "title": "New playbook",
+        "submit": "Create the playbook"
+      },
+      "detail": {
+        "back": "All playbooks",
+        "versions": "Versions",
+        "versionLink": "Version {{version}}",
+        "latestTag": "latest",
+        "servedTag": "served",
+        "versionTitle": "Version {{version}}",
+        "authors": "Written by",
+        "importAuthor": "file import",
+        "createdAt": "Created on",
+        "updatedAt": "Changed on",
+        "validation": "Validation",
+        "rules": "Rules",
+        "noVersion": "This version does not exist.",
+        "editTitle": "Edit",
+        "editDraft": "Version {{version}} is not validated yet: saving changes it.",
+        "editValidated": "Version {{version}} is validated: saving makes version {{next}}, to be validated in turn.",
+        "save": "Save",
+        "validateTitle": "Validate version {{version}}",
+        "validateHelp": "You confirm you have reviewed this version. Someone who wrote it cannot validate it, and a review by an AI never counts.",
+        "validatorName": "Your name",
+        "validate": "Validate version {{version}}",
+        "archiveTitle": "Archive",
+        "archiveHelp": "An archived playbook is no longer served; its versions are kept. A playbook is never deleted.",
+        "archive": "Archive this playbook",
+        "restore": "Restore this playbook"
+      },
+      "notices": {
+        "created": "Playbook created, at version 1.",
+        "saved": "Version {{version}} saved.",
+        "unchanged": "Nothing changed: no version saved.",
+        "invalid": "Incomplete form: rules, model, effort (low, medium or high) and description are required; a Sources list lists each source once.",
+        "exists": "This id is already taken.",
+        "model_not_allowed": "This model is not allowed: only the EU-hosted models offered here are.",
+        "unknown_sources": "Sources missing from the Sources list: {{sources}}.",
+        "sources_cited": "Cannot remove sources still cited: {{list}}.",
+        "validated": "Version {{version}} validated.",
+        "own_version": "You wrote this version: someone else must validate it.",
+        "already_validated": "This version is already validated.",
+        "not_latest": "Only the latest version can be validated.",
+        "not_found": "This playbook or version does not exist.",
+        "archived": "Playbook archived: it is no longer served.",
+        "restored": "Playbook restored.",
+        "not_archivable": "The Core Digest and the Sources list cannot be archived.",
+        "nameRequired": "Give your name to validate."
+      },
+      "journalFields": {
+        "version": "Version",
+        "provider": "Provider",
+        "model": "Model",
+        "effort": "Effort",
+        "consultWhen": "When to consult it",
+        "rulesCharacters": "Rules length (characters)",
+        "validatedBy": "Validated by",
+        "validatedAt": "Validated on",
+        "archived": "Archived"
+      }
     }
   },
   "backOfficeAssistant": {

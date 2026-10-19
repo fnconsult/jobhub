@@ -144,7 +144,7 @@ test.describe("exporting my data and deleting my account", () => {
     expect(exported.profiles.map((p: { id: string }) => p.id).sort()).toEqual([profileId, archivedId].sort());
     const first = exported.profiles.find((p: { id: string }) => p.id === profileId);
     expect(first.masterCvVersions.map((v: { version: number }) => v.version)).toEqual([3, 2, 1]);
-    expect(first.searchCriteria).toMatchObject({ targetRole: "DAF", location: "Lyon" });
+    expect(first.searchCriteria).toMatchObject({ targetRole: "DAF", locations: ["Lyon"] });
     expect(exported.profiles.find((p: { id: string }) => p.id === archivedId)).toMatchObject({ archived: true, masterCvVersions: [expect.objectContaining({ version: 1 })] });
 
     expect(exported.applications).toHaveLength(1);

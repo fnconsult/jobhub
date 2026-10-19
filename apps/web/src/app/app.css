@@ -1765,6 +1765,13 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   margin: 0 auto;
 }
 
+/* Its buttons reach the 44px floor (ADR-0009), links as well as buttons. */
+.job-search-notification .button {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+}
+
 .workspace .job-search-notifications {
   width: auto;
   max-width: none;

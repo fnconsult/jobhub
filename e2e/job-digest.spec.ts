@@ -201,13 +201,16 @@ async function switchToEnglish(page: Page) {
   expect(updated.status(), await updated.text()).toBe(200);
 }
 
-/** A Profile's Job Digest on the Job Digests page (ADR-0024), named after the Profile: these Candidates have one. */
-const jobDigestSection = (page: Page) => page.locator('section[id^="job-digest-"]').first();
+/**
+ * A Profile's Job Digest on the Job Digests page (ADR-0024), named after the Profile: that Profile's
+ * when given, else the first (these Candidates have one active Profile).
+ */
+const jobDigestSection = (page: Page, profileId?: string) => (profileId ? page.locator(`#job-digest-${profileId}`) : page.locator('section[id^="job-digest-"]').first());
 
 /** Opts in from the Profile page's Job Digest Section, at the frequency it proposes (the Plan's). */
 async function optIn(page: Page, profileId: string, strings = fr) {
   await page.goto("/job-digests");
-  const section = jobDigestSection(page);
+  const section = jobDigestSection(page, profileId);
   await section.getByRole("button", { name: strings.jobDigest.subscribe, exact: true }).click();
   await expect(section.getByRole("status")).toHaveText(strings.jobDigest.subscribed);
 }
@@ -268,7 +271,7 @@ test.describe("Job Digest", () => {
     const justOptedIn = await createProfile(page, "Contrôleuse de gestion");
 
     await page.goto("/job-digests");
-    const section = jobDigestSection(page);
+    const section = jobDigestSection(page, profileId);
     await expect(section).toContainText(fr.jobDigest.frequency.weekly);
     await expect(section.getByRole("radio", { name: fr.jobDigest.frequencyOptions.weekly })).toBeChecked();
 
@@ -375,7 +378,7 @@ test.describe("Job Digest", () => {
     const profileId = await createProfile(page);
 
     await page.goto("/job-digests");
-    const section = jobDigestSection(page, en.jobDigest.sectionTitle);
+    const section = jobDigestSection(page);
     await expect(section).toContainText(en.jobDigest.frequency.daily);
     await expect(section.getByRole("radio", { name: en.jobDigest.frequencyOptions.daily })).toBeChecked();
     await section.getByRole("button", { name: en.jobDigest.subscribe, exact: true }).click();

@@ -485,7 +485,8 @@
       "load": "Your conversations couldn't be loaded. Please try again in a few moments.",
       "action": "This action didn't go through. Please try again in a few moments.",
       "invalidTitle": "Give the conversation a name of 1 to 80 characters."
-    }
+    },
+    "blocked": "Blocked message"
   },
   "coachMemory": {
     "open": "Coach memory",

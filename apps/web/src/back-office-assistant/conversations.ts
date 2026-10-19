@@ -16,6 +16,9 @@
  * reply drawing on a section they can no longer read is replayed as OUT_OF_ROLE_REPLY,
  * so a role taken away never comes back through an old conversation.
  *
+ * A question a Guardrail blocked and the Guardrail message answering it are saved marked as blocked, and
+ * never replayed to the assistant; a reply replaced by its Guardrail message is marked too (#228).
+ *
  * Kept apart from Candidates' Coach Conversations, in tables of their own, and counted
  * against no Plan Quota. They are the Administrator's personal data: in their data
  * export, deleted with their account (ADR-0010), and purged RETENTION_MONTHS after
@@ -25,6 +28,7 @@ import type { Pool } from "pg";
 import * as z from "zod";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, type AssistantMessage } from "./conversation";
 import type { BackOfficeResource } from "../admin/access";
+import type { GuardrailLanguage } from "../guardrails";
 import type { AskingAdministrator, BackOfficeAssistant } from "./index";
 
 export interface AssistantConversationSummary {
@@ -38,13 +42,14 @@ export interface AssistantConversation extends AssistantConversationSummary {
 }
 
 export type AssistantSendResult =
-  | { ok: true; conversation: AssistantConversationSummary; reply: string }
+  | { ok: true; conversation: AssistantConversationSummary; reply: string; blocked: { message: boolean; reply: boolean } }
   | { ok: false; error: "invalid" | "not_found" | "unavailable" };
 
 export type AssistantRenameResult = { ok: true; conversation: AssistantConversationSummary } | { ok: false; error: "invalid" | "not_found" };
 
 export interface AssistantConversations {
-  send(administrator: AskingAdministrator, input: unknown): Promise<AssistantSendResult>;
+  /** `language`: the Administrator's, for a Guardrail message. */
+  send(administrator: AskingAdministrator, input: unknown, options?: { language?: GuardrailLanguage }): Promise<AssistantSendResult>;
   /** The Administrator's conversations, most recently active first. */
   list(administratorId: string): Promise<AssistantConversationSummary[]>;
   open(administratorId: string, conversationId: string): Promise<AssistantConversation | null>;
@@ -98,20 +103,22 @@ export function createAssistantConversations(database: Pool, deps: AssistantConv
   }
 
   /** The last `limit` messages of a conversation (all with null), oldest first; replies with the sections they drew on. */
-  async function lastMessages(conversationId: string, limit: number | null): Promise<(AssistantMessage & { sections: BackOfficeResource[] | null })[]> {
-    const { rows } = await database.query<AssistantMessage & { sections: BackOfficeResource[] | null }>(
-      `SELECT author AS "from", text, sections FROM (
-         SELECT author, text, sections, seq FROM back_office_assistant_message WHERE conversation_id = $1 ORDER BY seq DESC LIMIT $2
+  async function lastMessages(conversationId: string, limit: number | null): Promise<(AssistantMessage & { sections: BackOfficeResource[] | null; blocked: boolean })[]> {
+    const { rows } = await database.query<Omit<AssistantMessage, "blocked"> & { sections: BackOfficeResource[] | null; blocked: boolean }>(
+      `SELECT author AS "from", text, sections, blocked FROM (
+         SELECT author, text, sections, blocked, seq FROM back_office_assistant_message WHERE conversation_id = $1 ORDER BY seq DESC LIMIT $2
        ) recent ORDER BY seq`,
       [conversationId, limit],
     );
-    return rows;
+    return rows as (AssistantMessage & { sections: BackOfficeResource[] | null; blocked: boolean })[];
   }
 
   /** The saved history as the assistant may be told it now: replies outside `administrator`'s current roles withdrawn. */
   async function replayable(administrator: AskingAdministrator, conversationId: string): Promise<AssistantMessage[]> {
     const saved = await lastMessages(conversationId, MAX_MESSAGES);
-    return saved.map(({ from, text, sections }) => {
+    // A blocked question and the Guardrail message answering it are never replayed.
+    const kept = saved.filter((message, index) => (message.from === "administrator" ? !message.blocked : !(saved[index - 1]?.from === "administrator" && saved[index - 1]!.blocked)));
+    return kept.map(({ from, text, sections }) => {
       // A reply with no sections recorded counts as drawing on every one.
       const stillReadable = from === "administrator" || (sections !== null && sections.every((section) => administrator.access.can(section, "read")));
       return { from, text: stillReadable ? text : OUT_OF_ROLE_REPLY };
@@ -119,7 +126,7 @@ export function createAssistantConversations(database: Pool, deps: AssistantConv
   }
 
   return {
-    async send(administrator, input) {
+    async send(administrator, input, options = {}) {
       const parsed = sendSchema.safeParse(input);
       if (!parsed.success) return { ok: false, error: "invalid" };
       const { conversationId, message } = parsed.data;
@@ -128,8 +135,9 @@ export function createAssistantConversations(database: Pool, deps: AssistantConv
       if (conversationId && !existing) return { ok: false, error: "not_found" };
       const history = existing ? await replayable(administrator, existing.id) : [];
 
-      const answer = await deps.assistant.reply(administrator, { messages: [...history, { from: "administrator", text: message }] });
+      const answer = await deps.assistant.reply(administrator, { messages: [...history, { from: "administrator", text: message }] }, options.language ? { language: options.language } : undefined);
       if (!answer.ok) return answer;
+      const blocked = { message: answer.outcome === "blocked_message", reply: answer.outcome === "blocked_message" || answer.outcome === "blocked_reply" };
 
       const sentAt = now();
       const { cost } = answer;
@@ -144,15 +152,16 @@ export function createAssistantConversations(database: Pool, deps: AssistantConv
           );
           id = rows[0]!.id;
         }
-        await client.query(`INSERT INTO back_office_assistant_message (conversation_id, author, text, created_at) VALUES ($1, 'administrator', $2, $3)`, [
+        await client.query(`INSERT INTO back_office_assistant_message (conversation_id, author, text, created_at, blocked) VALUES ($1, 'administrator', $2, $3, $4)`, [
           id,
           message,
           sentAt,
+          blocked.message,
         ]);
         await client.query(
-          `INSERT INTO back_office_assistant_message (conversation_id, author, text, created_at, provider, model, cost_eur, sections)
-           VALUES ($1, 'assistant', $2, $3, $4, $5, $6, $7)`,
-          [id, answer.reply, sentAt, cost.provider, cost.model, cost.eur, answer.sections],
+          `INSERT INTO back_office_assistant_message (conversation_id, author, text, created_at, provider, model, cost_eur, sections, blocked)
+           VALUES ($1, 'assistant', $2, $3, $4, $5, $6, $7, $8)`,
+          [id, answer.reply, sentAt, cost.provider, cost.model, cost.eur, answer.sections, blocked.reply],
         );
         await client.query(`UPDATE back_office_assistant_conversation SET last_message_at = $2 WHERE id = $1`, [id, sentAt]);
         await client.query("COMMIT");
@@ -166,7 +175,7 @@ export function createAssistantConversations(database: Pool, deps: AssistantConv
       }
       const conversation = id ? await find(administrator.id, id) : null;
       if (!conversation) return { ok: false, error: "not_found" }; // deleted meanwhile
-      return { ok: true, conversation, reply: answer.reply };
+      return { ok: true, conversation, reply: answer.reply, blocked };
     },
 
     async list(administratorId) {
@@ -180,7 +189,7 @@ export function createAssistantConversations(database: Pool, deps: AssistantConv
       const conversation = await find(administratorId, conversationId);
       if (!conversation) return null;
       const messages = await lastMessages(conversation.id, null);
-      return { ...conversation, messages: messages.map(({ from, text }) => ({ from, text })) };
+      return { ...conversation, messages: messages.map(({ from, text, blocked }) => (blocked ? { from, text, blocked: true } : { from, text })) };
     },
 
     async rename(administratorId, conversationId, title) {
@@ -246,6 +255,8 @@ export async function migrateAssistantConversations(database: Pool): Promise<voi
     );
     -- The Back Office sections each reply was told about (#205); null on the Administrator's messages.
     ALTER TABLE back_office_assistant_message ADD COLUMN IF NOT EXISTS sections text[];
+    -- A Blocked message (#228): a question a Guardrail stopped, or the Guardrail message answering it or replacing a reply.
+    ALTER TABLE back_office_assistant_message ADD COLUMN IF NOT EXISTS blocked boolean NOT NULL DEFAULT false;
     CREATE INDEX IF NOT EXISTS back_office_assistant_message_conversation_idx ON back_office_assistant_message (conversation_id, seq);
   `);
 }

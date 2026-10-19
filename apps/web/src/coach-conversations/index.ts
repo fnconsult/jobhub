@@ -19,6 +19,10 @@
  * (#225); `coachCostPerDay` gives the Administrator the median and p90 cost per day,
  * to check the €0.03 per message target (#127), and which playbook versions answered;
  * `coachCostPerPlaybookAgent` the median cost of each Playbook Agent's consultations.
+ * Guardrails (#228): a Candidate message a Guardrail blocked and the Guardrail message that answered it are
+ * both saved, marked as blocked without naming the Guardrail, and are no longer given to the AI Coach; a
+ * reply replaced by its Guardrail message is marked as blocked too; a distress answer never is. `language`
+ * is the Candidate's, for the Guardrail message.
  * Kept RETENTION_MONTHS after their last message (`purgeStaleCoachConversations`,
  * run daily by the worker) and deleted with the account (ADR-0010). Human
  * Coaches never read them: Coach Access covers Profiles and Applications only.
@@ -27,6 +31,7 @@ import type { Pool } from "pg";
 import * as z from "zod";
 import { COACH_FOCUS_KINDS, type Coach, type CoachMessageCost, type PlaybookConsultation, type PlaybookUsed } from "../coach";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, type CoachMessage } from "../coach/conversation";
+import type { GuardrailLanguage } from "../guardrails";
 import type { Profiles } from "../profiles";
 
 export interface CoachConversationSummary {
@@ -41,14 +46,15 @@ export interface CoachConversation extends CoachConversationSummary {
   messages: CoachMessage[];
 }
 
+/** `blocked`: whether the Candidate's message and the reply were marked as blocked (#228). */
 export type SendResult =
-  | { ok: true; conversation: CoachConversationSummary; reply: string }
+  | { ok: true; conversation: CoachConversationSummary; reply: string; blocked: { message: boolean; reply: boolean } }
   | { ok: false; error: "invalid" | "not_found" | "unavailable" };
 
 export type RenameResult = { ok: true; conversation: CoachConversationSummary } | { ok: false; error: "invalid" | "not_found" };
 
 export interface CoachConversations {
-  send(candidateId: string, input: unknown): Promise<SendResult>;
+  send(candidateId: string, input: unknown, options?: { language?: GuardrailLanguage }): Promise<SendResult>;
   /** The Candidate's conversations, most recently active first. */
   list(candidateId: string): Promise<CoachConversationSummary[]>;
   open(candidateId: string, conversationId: string): Promise<CoachConversation | null>;
@@ -116,17 +122,17 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
 
   /** The last `limit` messages of a conversation, oldest first. */
   async function lastMessages(conversationId: string, limit: number | null): Promise<CoachMessage[]> {
-    const { rows } = await database.query<CoachMessage>(
-      `SELECT author AS "from", text FROM (
-         SELECT author, text, seq FROM coach_message WHERE conversation_id = $1 ORDER BY seq DESC LIMIT $2
+    const { rows } = await database.query<CoachMessage & { blocked: boolean }>(
+      `SELECT author AS "from", text, blocked FROM (
+         SELECT author, text, blocked, seq FROM coach_message WHERE conversation_id = $1 ORDER BY seq DESC LIMIT $2
        ) recent ORDER BY seq`,
       [conversationId, limit],
     );
-    return rows;
+    return rows.map(({ blocked, ...message }) => (blocked ? { ...message, blocked: true } : message));
   }
 
   return {
-    async send(candidateId, input) {
+    async send(candidateId, input, options = {}) {
       const parsed = sendSchema.safeParse(input);
       if (!parsed.success) return { ok: false, error: "invalid" };
       const { conversationId, message, focus } = parsed.data;
@@ -135,14 +141,19 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
       if (conversationId && !existing) return { ok: false, error: "not_found" };
       const history = existing ? await lastMessages(existing.id, MAX_MESSAGES) : [];
 
-      const answer = await deps.coach.reply(candidateId, {
-        messages: [...history, { from: "candidate", text: message }],
-        ...(focus ? { focus: { kind: focus.kind, id: focus.id } } : {}),
-      });
+      const answer = await deps.coach.reply(
+        candidateId,
+        {
+          messages: [...withoutBlockedMessages(history), { from: "candidate", text: message }],
+          ...(focus ? { focus: { kind: focus.kind, id: focus.id } } : {}),
+        },
+        options.language ? { language: options.language } : undefined,
+      );
       if (!answer.ok) return answer;
 
       const sentAt = now();
       const { cost } = answer;
+      const blocked = { message: answer.outcome === "blocked_message", reply: answer.outcome === "blocked_message" || answer.outcome === "blocked_reply" };
       const client = await database.connect();
       try {
         await client.query("BEGIN");
@@ -155,29 +166,30 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
           );
           id = rows[0]!.id;
         }
-        await client.query(`INSERT INTO coach_message (conversation_id, author, text, created_at) VALUES ($1, 'candidate', $2, $3)`, [id, message, sentAt]);
+        await client.query(`INSERT INTO coach_message (conversation_id, author, text, created_at, blocked) VALUES ($1, 'candidate', $2, $3, $4)`, [id, message, sentAt, blocked.message]);
         await client.query(
-          `INSERT INTO coach_message (conversation_id, author, text, created_at, provider, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, playbooks, consultations)
-           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          `INSERT INTO coach_message (conversation_id, author, text, created_at, provider, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, playbooks, consultations, blocked)
+           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
           [
             id,
             answer.reply,
             sentAt,
-            cost.provider,
-            cost.model,
-            cost.inputTokens,
-            cost.outputTokens,
-            cost.cachedInputTokens,
-            cost.eur,
+            cost?.provider ?? null,
+            cost?.model ?? null,
+            cost?.inputTokens ?? null,
+            cost?.outputTokens ?? null,
+            cost?.cachedInputTokens ?? null,
+            cost?.eur ?? null,
             JSON.stringify(answer.playbooks),
             JSON.stringify(answer.consultations),
+            blocked.reply,
           ],
         );
         await client.query(`UPDATE coach_conversation SET last_message_at = $2 WHERE id = $1`, [id, sentAt]);
         await client.query("COMMIT");
         const conversation = await find(candidateId, id);
         if (!conversation) return { ok: false, error: "not_found" }; // deleted meanwhile
-        return { ok: true, conversation, reply: answer.reply };
+        return { ok: true, conversation, reply: answer.reply, blocked };
       } catch (error) {
         await client.query("ROLLBACK").catch(() => {});
         throw error;
@@ -225,6 +237,15 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     if (!profileId) return null;
     return (await deps.profiles.get(candidateId, profileId))?.id ?? null;
   }
+}
+
+/** The conversation without its Blocked messages: a blocked Candidate message and the Guardrail message that answered it. */
+function withoutBlockedMessages(messages: CoachMessage[]): CoachMessage[] {
+  return messages.filter((message, index) => {
+    if (message.from === "candidate") return !message.blocked;
+    const asked = messages[index - 1];
+    return !(asked?.from === "candidate" && asked.blocked);
+  });
 }
 
 /** The most one AI Coach reply should cost, in € (#122). */
@@ -368,5 +389,7 @@ export async function migrateCoachConversations(database: Pool): Promise<void> {
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS playbooks jsonb;
     -- The Playbook Agents each AI Coach message consulted, with what each cost (#225); null before.
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS consultations jsonb;
+    -- A Blocked message (#228): a Candidate message a Guardrail stopped, or the Guardrail message answering it or replacing a reply.
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS blocked boolean NOT NULL DEFAULT false;
   `);
 }

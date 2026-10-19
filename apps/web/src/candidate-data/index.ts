@@ -239,13 +239,13 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   enriched_contact: "applications[].enrichedContacts (no provider identifiers)",
   company_dossier: "applications[].companyDossier",
   coach_conversation: "coachConversations",
-  coach_message: "coachConversations[].messages (no AI costs)",
+  coach_message: "coachConversations[].messages (blocked ones marked; no AI costs)",
   coach_access: "coachAccess",
   coaching_session: "coachingSessions (no Stripe identifiers)",
   action_card: "actionCards",
   coach_memory_item: "coachMemory",
   back_office_assistant_conversation: "backOfficeAssistantConversations",
-  back_office_assistant_message: "backOfficeAssistantConversations[].messages (no AI costs)",
+  back_office_assistant_message: "backOfficeAssistantConversations[].messages (blocked ones marked; no AI costs)",
   ai_message_log: "aiMessageLog (no AI costs)",
 };
 
@@ -422,13 +422,17 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         candidateId,
       ),
       grouped<ExportedCoachConversation["messages"][number]>(
-        `SELECT m.conversation_id AS key, m.author AS "from", m.text, m.created_at AS "sentAt"
+        `SELECT m.conversation_id AS key, m.author AS "from", m.text, CASE WHEN m.blocked THEN true END AS blocked, m.created_at AS "sentAt"
            FROM coach_message m JOIN coach_conversation c ON c.id = m.conversation_id
           WHERE c.candidate_id = $1 ORDER BY m.seq`,
         candidateId,
       ),
     ]);
-    return conversations.map((conversation) => ({ ...conversation, messages: messagesOf(conversation.id) }));
+    // A Blocked message (#228) says so; the others carry no mark.
+    return conversations.map((conversation) => ({
+      ...conversation,
+      messages: messagesOf(conversation.id).map(({ blocked, ...message }) => (blocked ? { ...message, blocked } : message)),
+    }));
   }
 
   async function exportAssistantConversations(candidateId: string): Promise<ExportedAssistantConversation[]> {
@@ -439,13 +443,16 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         candidateId,
       ),
       grouped<ExportedAssistantConversation["messages"][number]>(
-        `SELECT m.conversation_id AS key, m.author AS "from", m.text, m.created_at AS "sentAt"
+        `SELECT m.conversation_id AS key, m.author AS "from", m.text, CASE WHEN m.blocked THEN true END AS blocked, m.created_at AS "sentAt"
            FROM back_office_assistant_message m JOIN back_office_assistant_conversation c ON c.id = m.conversation_id
           WHERE c.candidate_id = $1 ORDER BY m.seq`,
         candidateId,
       ),
     ]);
-    return conversations.map((conversation) => ({ ...conversation, messages: messagesOf(conversation.id) }));
+    return conversations.map((conversation) => ({
+      ...conversation,
+      messages: messagesOf(conversation.id).map(({ blocked, ...message }) => (blocked ? { ...message, blocked } : message)),
+    }));
   }
 
   return {

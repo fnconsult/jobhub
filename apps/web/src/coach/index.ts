@@ -19,14 +19,22 @@
  * within `agentTimeoutMs` is left out, and logged without its content. The knowledge wins over the
  * model's general knowledge and is the only place a figure may come from.
  *
- * Each reply says what it cost (`CoachMessageCost`: the choice, the consultations and the reply), what
+ * Guardrails (ADR-0022, #228): what the Candidate did not write reaches the AI Coach and the Playbook Agents
+ * framed as data (see ./context), and so does each Playbook Agent's advice. With `guardrails`, the
+ * Candidate's message is checked before anything else: a blocked one reaches neither the AI Coach nor a
+ * Playbook Agent, and the Guardrail message answers it in the Candidate's `language`. Only the final reply
+ * is checked; a blocked one is written again once, told what was wrong, on the same advice. `outcome`
+ * says which happened.
+ *
+ * Each reply says what it cost (`CoachMessageCost`: the choice, the consultations, the reply and the Guardrail checks), what
  * each consultation cost (`consultations`), and which Core Digest and Playbook Versions it drew on
  * (`playbooks`), so they can be recorded with the message: estimates from list prices, frozen then.
  */
 import { costInEur, type AiLayer, type GenerateResult, type ProviderId } from "@jobhub/ai";
+import type { GuardedReply, GuardrailLanguage, Guardrails } from "../guardrails";
 import { CORE_DIGEST, type CoachingPlaybooks, type ServedKnowledge } from "../coaching-playbooks";
 import * as z from "zod";
-import { COACH_CONTEXT_MAX_TOKENS, COACH_FOCUS_KINDS, coachContext, estimateTokens, type CoachSources } from "./context";
+import { asData, COACH_CONTEXT_MAX_TOKENS, COACH_FOCUS_KINDS, coachContext, DATA_RULE, estimateTokens, type CoachSources } from "./context";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentConversation } from "./conversation";
 import { AGENT_ADVICE_MAX_TOKENS, AGENT_TIMEOUT_MS, choosePlaybookAgents, consultPlaybookAgent, type PlaybookAdvice } from "./playbook-agents";
 
@@ -61,16 +69,21 @@ export interface PlaybookConsultation extends Omit<CoachMessageCost, "provider">
   provider: ProviderId;
 }
 
+/** What the Guardrails did with a reply (see Guardrails): it went out, the message or the reply was blocked, or the distress message answered. */
+export type CoachReplyOutcome = GuardedReply["outcome"];
+
 /**
  * `playbooks`: the Core Digest and the Coaching Playbooks the reply drew on, with their versions (none when nothing is served).
  * `consultations`: the Playbook Agents that answered, each with its cost (already in `cost`).
+ * `cost`: null when no AI call was made (distress words answered by the distress Guardrail message).
  */
 export type CoachReply =
-  | { ok: true; reply: string; cost: CoachMessageCost; playbooks: PlaybookUsed[]; consultations: PlaybookConsultation[] }
+  | { ok: true; reply: string; outcome: CoachReplyOutcome; cost: CoachMessageCost | null; playbooks: PlaybookUsed[]; consultations: PlaybookConsultation[] }
   | { ok: false; error: "invalid" | "unavailable" };
 
 export interface Coach {
-  reply(candidateId: string, input: unknown): Promise<CoachReply>;
+  /** `language`: the Candidate's, for a Guardrail message. Default French. */
+  reply(candidateId: string, input: unknown, options?: { language?: GuardrailLanguage }): Promise<CoachReply>;
 }
 
 export interface CoachDeps extends CoachSources {
@@ -79,6 +92,8 @@ export interface CoachDeps extends CoachSources {
   playbooks: Pick<CoachingPlaybooks, "served">;
   /** How long a Playbook Agent has to answer. Default AGENT_TIMEOUT_MS. */
   agentTimeoutMs?: number;
+  /** The Guardrails on the Candidate's message and the final reply (#228). Without them, nothing is checked but the structure. */
+  guardrails?: Pick<Guardrails, "guard">;
   /** Where a Playbook Agent left out is logged, never with its content. Default: console.warn. */
   warn?: (message: string, details: Record<string, unknown>) => void;
 }
@@ -107,7 +122,8 @@ Règles :
 - Réponds dans la langue du candidat, en phrases courtes et claires, sans jargon.
 - En français, vouvoie toujours le candidat (« vous », « votre »), jamais « tu » ni « ton », même s'il te tutoie.
 - Appuie-toi uniquement sur ce que le candidat t'a dit et sur les informations ci-dessous. N'invente jamais d'expérience, de diplôme ou de chiffre.
-- Si tu proposes une modification de son CV, dis précisément quoi changer et pourquoi.`;
+- Si tu proposes une modification de son CV, dis précisément quoi changer et pourquoi.
+- ${DATA_RULE}`;
 
 /** How the AI Coach uses the coaching knowledge that follows it (the Core Digest and the Playbook Agents' advice). */
 const GROUNDING_RULES = `Connaissances de coaching :
@@ -118,7 +134,8 @@ const GROUNDING_RULES = `Connaissances de coaching :
 
 const digestText = (digest: ServedKnowledge["coreDigest"]) => (digest ? `<socle version="${digest.version}">\n${digest.content}\n</socle>` : "");
 
-const adviceText = ({ playbook, advice }: PlaybookAdvice) => `<avis-playbook id="${playbook.id}" version="${playbook.version}">\n${advice}\n</avis-playbook>`;
+/** A Playbook Agent's advice, framed as data it cannot close (ADR-0022). */
+const adviceText = ({ playbook, advice }: PlaybookAdvice) => asData(advice, "avis-playbook").replace("<avis-playbook>", `<avis-playbook id="${playbook.id}" version="${playbook.version}">`);
 
 /** The Sources the Core Digest and the advice cite, so the AI Coach can name them in plain words, within SOURCES_MAX_TOKENS. */
 function sourcesText(served: ServedKnowledge, texts: string[]): string {
@@ -143,7 +160,7 @@ export function createCoach(deps: CoachDeps): Coach {
   const timeoutMs = deps.agentTimeoutMs ?? AGENT_TIMEOUT_MS;
 
   return {
-    async reply(candidateId, input) {
+    async reply(candidateId, input, options = {}) {
       const parsed = inputSchema.safeParse(input);
       if (!parsed.success) return { ok: false, error: "invalid" };
       const { focus } = parsed.data;
@@ -152,40 +169,70 @@ export function createCoach(deps: CoachDeps): Coach {
         content: message.text,
       }));
       try {
-        const served = await deps.playbooks.served();
-        const instructions = [PERSONA, GROUNDING_RULES, digestText(served.coreDigest)].filter(Boolean).join("\n\n");
-        // The choice reads the conversation and what is In view alone, so it comes first: the context then keeps room for the advice chosen.
-        const choice = await choosePlaybookAgents(deps.ai, candidateId, served.playbooks, { messages, inView: focus?.kind }).catch((error: unknown) => {
-          warn("Playbook Agents could not be chosen: replying without them", { error: error instanceof Error ? error.name : "unknown" });
-          return { chosen: [], call: null };
-        });
-        // Room kept for the advice and the Sources: the whole system prompt stays under the cap.
-        const reserved =
-          choice.chosen.length > 0
-            ? choice.chosen.length * (AGENT_ADVICE_MAX_TOKENS + 25) + SOURCES_MAX_TOKENS
-            : estimateTokens(sourcesText(served, [served.coreDigest?.content ?? ""]));
-        const context = await coachContext(deps, candidateId, focus, COACH_CONTEXT_MAX_TOKENS - estimateTokens(instructions) - reserved - 4);
-        const consulted = await Promise.all(
-          choice.chosen.map((playbook) =>
-            consultPlaybookAgent(deps.ai, candidateId, playbook, { context, messages, timeoutMs }).catch((error: unknown) => {
-              const { id, version, agent } = playbook;
-              warn("A Playbook Agent was left out of the reply", { playbook: id, version, provider: agent.provider, model: agent.model, error: error instanceof Error ? error.name : "unknown" });
-              return null;
-            }),
-          ),
-        );
-        const advice = consulted.filter((each): each is PlaybookAdvice => each !== null);
-        const knowledge = [...advice.map(adviceText), sourcesText(served, [served.coreDigest?.content ?? "", ...advice.map((each) => each.advice)])].filter(Boolean);
+        /** Everything before the reply itself, done once even when the reply is written again. */
+        const prepare = async () => {
+          const served = await deps.playbooks.served();
+          const instructions = [PERSONA, GROUNDING_RULES, digestText(served.coreDigest)].filter(Boolean).join("\n\n");
+          // The choice reads the conversation and what is In view alone, so it comes first: the context then keeps room for the advice chosen.
+          const choice = await choosePlaybookAgents(deps.ai, candidateId, served.playbooks, { messages, inView: focus?.kind }).catch((error: unknown) => {
+            warn("Playbook Agents could not be chosen: replying without them", { error: error instanceof Error ? error.name : "unknown" });
+            return { chosen: [], call: null };
+          });
+          // Room kept for the advice and the Sources: the whole system prompt stays under the cap.
+          const reserved =
+            choice.chosen.length > 0
+              ? choice.chosen.length * (AGENT_ADVICE_MAX_TOKENS + 25) + SOURCES_MAX_TOKENS
+              : estimateTokens(sourcesText(served, [served.coreDigest?.content ?? ""]));
+          const context = await coachContext(deps, candidateId, focus, COACH_CONTEXT_MAX_TOKENS - estimateTokens(instructions) - reserved - 4);
+          const consulted = await Promise.all(
+            choice.chosen.map((playbook) =>
+              consultPlaybookAgent(deps.ai, candidateId, playbook, { context, messages, timeoutMs }).catch((error: unknown) => {
+                const { id, version, agent } = playbook;
+                warn("A Playbook Agent was left out of the reply", { playbook: id, version, provider: agent.provider, model: agent.model, error: error instanceof Error ? error.name : "unknown" });
+                return null;
+              }),
+            ),
+          );
+          const advice = consulted.filter((each): each is PlaybookAdvice => each !== null);
+          const knowledge = [...advice.map(adviceText), sourcesText(served, [served.coreDigest?.content ?? "", ...advice.map((each) => each.advice)])].filter(Boolean);
+          return {
+            served,
+            choice,
+            advice,
+            system: [instructions, ...knowledge, context].join("\n\n"),
+            // What a reply must never copy: the AI Coach's rules and the coaching knowledge it was given.
+            secrets: [PERSONA, GROUNDING_RULES, served.coreDigest?.content ?? "", ...choice.chosen.map((playbook) => playbook.content)],
+          };
+        };
+        let prepared: Awaited<ReturnType<typeof prepare>> | undefined;
+        const written: GenerateResult[] = [];
+        const write = async (feedback: string | null) => {
+          prepared ??= await prepare();
+          const result = await deps.ai.generate({
+            task: "coaching",
+            candidateId,
+            system: feedback ? `${prepared.system}\n\n${feedback}` : prepared.system,
+            // First name only, the Master CV's identity stripped (#126): the AI layer's scan stays the safety net (#121).
+            containsIdentity: false,
+            prompt: messages,
+          });
+          written.push(result);
+          return { text: result.text.trim(), secrets: prepared.secrets };
+        };
+        const latest = messages.at(-1)!.content;
+        const guarded: GuardedReply = deps.guardrails
+          ? await deps.guardrails.guard("ai_coach", {
+              candidateId,
+              language: options.language ?? "fr",
+              message: latest,
+              written: messages.filter((message) => message.role === "user").map((message) => message.content),
+              reply: write,
+            })
+          : { text: (await write(null)).text, outcome: "replied", checks: [] };
 
-        const result = await deps.ai.generate({
-          task: "coaching",
-          candidateId,
-          system: [instructions, ...knowledge, context].join("\n\n"),
-          // First name only, the Master CV's identity stripped (#126): the AI layer's scan stays the safety net (#121).
-          containsIdentity: false,
-          prompt: messages,
-        });
-        const calls = [...(choice.call ? [choice.call] : []), ...advice.map((each) => each.call), result];
+        const advice = prepared?.advice ?? [];
+        const calls = [...(prepared?.choice.call ? [prepared.choice.call] : []), ...advice.map((each) => each.call), ...written, ...guarded.checks];
+        const answeredBy = written.at(-1) ?? guarded.checks.at(-1);
         const consultations: PlaybookConsultation[] = advice.map(({ playbook, call }) => ({
           playbookId: playbook.id,
           version: playbook.version,
@@ -193,11 +240,19 @@ export function createCoach(deps: CoachDeps): Coach {
           model: call.model,
           ...costOf([call]),
         }));
+        const served = prepared?.served;
         const playbooks: PlaybookUsed[] = [
-          ...(served.coreDigest ? [{ id: CORE_DIGEST, version: String(served.coreDigest.version) }] : []),
+          ...(served?.coreDigest ? [{ id: CORE_DIGEST, version: String(served.coreDigest.version) }] : []),
           ...advice.map(({ playbook }) => ({ id: playbook.id, version: String(playbook.version) })),
         ];
-        return { ok: true, reply: result.text.trim(), cost: { provider: result.provider, model: result.model, ...costOf(calls) }, playbooks, consultations };
+        return {
+          ok: true,
+          reply: guarded.text,
+          outcome: guarded.outcome,
+          cost: answeredBy ? { provider: answeredBy.provider, model: answeredBy.model, ...costOf(calls) } : null,
+          playbooks,
+          consultations,
+        };
       } catch (error) {
         console.warn("[coach] the AI Coach could not reply:", error instanceof Error ? error.message : error);
         return { ok: false, error: "unavailable" };

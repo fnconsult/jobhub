@@ -16,12 +16,16 @@
  * are counted per role, Journal targets are masked, Human Coaches go by their public
  * name and bio), and any address left in the context is masked as a last resort.
  *
+ * Guardrails (ADR-0022, #228): with `guardrails`, the question is checked for prompt injection before the
+ * assistant sees it, and the reply for personal data leaks and secret disclosure; a blocked one is answered,
+ * or replaced, by the Guardrail message in the Administrator's `language`. `outcome` says which happened.
+ *
  * Task `back_office_assistant` (routed like `coaching` unless configured apart), EU endpoints only (ADR-0007), on behalf of the Administrator's own
  * Candidate account: identity-bearing calls (an address or phone number they type)
  * go to Mistral when they gave EU AI consent (#121). Its replies cost Jobbbox, not a
  * Plan Quota: nothing is counted against one.
  */
-import { costInEur, type AiLayer } from "@jobhub/ai";
+import { costInEur, type AiLayer, type GenerateResult } from "@jobhub/ai";
 import type { Plan, PlanFeature, PlanQuotas } from "@jobhub/shared";
 import * as z from "zod";
 import { BACK_OFFICE_ROLES, type BackOfficeAccess, type BackOfficeResource, type BackOfficeRole } from "../admin/access";
@@ -31,6 +35,7 @@ import type { AiUsageReport } from "../ai-usage";
 import type { Coupon, ListedCoupon, PlanDefinition, PlanName } from "../billing";
 import type { CoachMessageCost } from "../coach";
 import { COACH_MESSAGE_COST_TARGET_EUR, type CoachCostDay } from "../coach-conversations";
+import type { GuardedReply, GuardrailLanguage, Guardrails } from "../guardrails";
 import type { HumanCoach } from "../human-coaches";
 import { routes } from "../routes";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentMessages } from "./conversation";
@@ -68,16 +73,19 @@ export interface AskingAdministrator {
  * so a saved reply is replayed only to someone who can still read them all.
  */
 export type AssistantReply =
-  | { ok: true; reply: string; cost: CoachMessageCost; sections: BackOfficeResource[] }
+  | { ok: true; reply: string; outcome: GuardedReply["outcome"]; cost: CoachMessageCost; sections: BackOfficeResource[] }
   | { ok: false; error: "invalid" | "unavailable" };
 
 export interface BackOfficeAssistant {
-  reply(administrator: AskingAdministrator, input: unknown): Promise<AssistantReply>;
+  /** `language`: the Administrator's, for a Guardrail message. Default French. */
+  reply(administrator: AskingAdministrator, input: unknown, options?: { language?: GuardrailLanguage }): Promise<AssistantReply>;
 }
 
 export interface BackOfficeAssistantDeps {
   ai: AiLayer;
   sources: BackOfficeAssistantSources;
+  /** The Guardrails on the question and the reply (#228). Without them, nothing is checked. */
+  guardrails?: Pick<Guardrails, "guard">;
 }
 
 /** Days of AI Coach cost, Journal entries and Human Coaches the assistant is told about at most. */
@@ -385,36 +393,54 @@ async function assistantContext(sources: BackOfficeAssistantSources, access: Ask
 
 export function createBackOfficeAssistant(deps: BackOfficeAssistantDeps): BackOfficeAssistant {
   return {
-    async reply(administrator, input) {
+    async reply(administrator, input, options = {}) {
       const parsed = inputSchema.safeParse(input);
       if (!parsed.success) return { ok: false, error: "invalid" };
       const messages = recentMessages(parsed.data.messages);
       try {
-        const context = await assistantContext(deps.sources, administrator.access);
-        const result = await deps.ai.generate({
-          // Its own task, so it is counted apart from the AI Coach; routed like coaching, EU endpoints only.
-          task: "back_office_assistant",
-          // The Administrator's own account: their EU AI consent routes what they type (#121).
-          candidateId: administrator.id,
-          system: `${PERSONA}\n\n${context}`,
-          // No Candidate identity in the context (#121): no email address, no phone, no CV. Human Coaches
-          // appear by the professional name and bio Candidates see on the public Coachs page, which is not
-          // the identity of the Candidate the call is made for. Whatever the Administrator types is still
-          // scanned by the AI layer, and goes to Mistral with their EU AI consent.
-          containsIdentity: false,
-          prompt: messages.map((message) => ({ role: message.from === "administrator" ? ("user" as const) : ("assistant" as const), content: message.text })),
-        });
-        const { provider, model, usage } = result;
+        const written: GenerateResult[] = [];
+        const write = async (feedback: string | null) => {
+          const context = await assistantContext(deps.sources, administrator.access);
+          const result = await deps.ai.generate({
+            // Its own task, so it is counted apart from the AI Coach; routed like coaching, EU endpoints only.
+            task: "back_office_assistant",
+            // The Administrator's own account: their EU AI consent routes what they type (#121).
+            candidateId: administrator.id,
+            system: [PERSONA, context, feedback].filter(Boolean).join("\n\n"),
+            // No Candidate identity in the context (#121): no email address, no phone, no CV. Human Coaches
+            // appear by the professional name and bio Candidates see on the public Coachs page, which is not
+            // the identity of the Candidate the call is made for. Whatever the Administrator types is still
+            // scanned by the AI layer, and goes to Mistral with their EU AI consent.
+            containsIdentity: false,
+            prompt: messages.map((message) => ({ role: message.from === "administrator" ? ("user" as const) : ("assistant" as const), content: message.text })),
+          });
+          written.push(result);
+          return { text: result.text.trim(), secrets: [PERSONA] };
+        };
+        const guarded: GuardedReply = deps.guardrails
+          ? await deps.guardrails.guard("back_office_assistant", {
+              candidateId: administrator.id,
+              language: options.language ?? "fr",
+              message: messages.at(-1)!.text,
+              written: messages.filter((message) => message.from === "administrator").map((message) => message.text),
+              reply: write,
+            })
+          : { text: (await write(null)).text, outcome: "replied", checks: [] };
+        const calls = [...written, ...guarded.checks];
+        const answeredBy = written.at(-1) ?? guarded.checks.at(-1);
+        if (!answeredBy) throw new Error("no AI call answered");
+        const { provider, model } = answeredBy;
         return {
           ok: true,
-          reply: result.text.trim(),
+          reply: guarded.text,
+          outcome: guarded.outcome,
           cost: {
             provider,
             model,
-            inputTokens: usage.inputTokens,
-            outputTokens: usage.outputTokens,
-            cachedInputTokens: usage.cachedInputTokens ?? 0,
-            eur: costInEur(result),
+            inputTokens: calls.reduce((sum, call) => sum + call.usage.inputTokens, 0),
+            outputTokens: calls.reduce((sum, call) => sum + call.usage.outputTokens, 0),
+            cachedInputTokens: calls.reduce((sum, call) => sum + (call.usage.cachedInputTokens ?? 0), 0),
+            eur: calls.reduce((sum, call) => sum + costInEur(call), 0),
           },
           sections: readableSections(administrator.access),
         };

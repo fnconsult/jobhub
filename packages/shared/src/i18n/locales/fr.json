@@ -485,7 +485,8 @@
       "load": "Vos conversations n'ont pas pu être chargées. Réessayez dans quelques instants.",
       "action": "Cette action n'a pas abouti. Réessayez dans quelques instants.",
       "invalidTitle": "Donnez à la conversation un nom de 1 à 80 caractères."
-    }
+    },
+    "blocked": "Message bloqué"
   },
   "coachMemory": {
     "open": "Mémoire du coach",

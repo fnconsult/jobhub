@@ -670,13 +670,32 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   margin-top: 0;
 }
 
-/* The Applications' filters, in one row above the list, wrapping on narrow screens. */
-.list-filters {
+/* Above the Applications: the filters, then the List and Board switch at the row's far end;
+   everything sits on one line, aligned at the bottom, and wraps on narrow screens. */
+.list-toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3) var(--space-4);
   align-items: flex-end;
-  margin: var(--space-6) 0 0;
+  margin-bottom: var(--space-6);
+}
+
+.list-filters {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+  align-items: flex-end;
+}
+
+.list-views {
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.list-filters .field {
+  gap: var(--space-1);
+  margin: 0;
 }
 
 .list-filters .field {

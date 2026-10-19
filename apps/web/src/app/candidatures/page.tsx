@@ -61,19 +61,22 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
   return (
     <CandidateLayout candidateId={candidate.id} wide={board} title={t("applications.title")}>
       <FollowUpNotices notices={notices} t={t} />
-      <nav className="actions" aria-label={t("applications.viewsLabel")}>
-        <Link className="button" href={applicationListHref(routes.applications, view)} aria-current={board ? undefined : CURRENT}>
-          {t("applications.listView")}
-        </Link>
-        <Link className="button" href={applicationListHref(routes.applications, view, { board: true })} aria-current={board ? CURRENT : undefined}>
-          {t("applications.boardView")}
-        </Link>
-      </nav>
       {applications.length === 0 ? (
         <p className="notice">{t("applications.none")}</p>
       ) : (
         <>
-          <Filters view={view} board={board} profiles={profiles} t={t} />
+          {/* One row: the filters, then the List and Board switch at its far end. */}
+          <div className="list-toolbar">
+            <Filters view={view} board={board} profiles={profiles} t={t} />
+            <nav className="actions list-views" aria-label={t("applications.viewsLabel")}>
+              <Link className="button" href={applicationListHref(routes.applications, view)} aria-current={board ? undefined : CURRENT}>
+                {t("applications.listView")}
+              </Link>
+              <Link className="button" href={applicationListHref(routes.applications, view, { board: true })} aria-current={board ? CURRENT : undefined}>
+                {t("applications.boardView")}
+              </Link>
+            </nav>
+          </div>
           {hiddenArchived > 0 ? <p className="hint">{t("applications.archivedHidden", { count: hiddenArchived })}</p> : null}
           {shown.length === 0 ? (
             <p className="notice">{t("applications.noneMatch")}</p>

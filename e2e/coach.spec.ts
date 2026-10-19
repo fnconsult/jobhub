@@ -441,8 +441,9 @@ test.describe("AI Coach cost", () => {
     await expect(row).toHaveCount(1);
     await expect(row).toContainText("mistral mistral-large-latest");
     // The fake Mistral answers each call with 100 tokens in and 50 out: $0.000125 at Mistral Large's list price.
-    // With Coaching Playbooks served, a reply takes the choice of Playbook Agents (none here) and the reply itself (#225).
-    await expect(row.getByRole("cell").nth(1)).toHaveText(/0,0002\s?€/);
+    // With Coaching Playbooks served, a reply takes the choice of Playbook Agents (none here) and the reply itself (#225),
+    // and the Guardrails' check on the message and on the reply (#228): four calls.
+    await expect(row.getByRole("cell").nth(1)).toHaveText(/0,0004\s?€/);
     await context.close();
   });
 

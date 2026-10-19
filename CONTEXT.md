@@ -91,7 +91,7 @@ The key facts (goals, constraints, decisions) the AI Coach keeps about a Candida
 _Avoid_: Profile notes, chat history
 
 **Coach Message Cost**:
-What one AI Coach reply cost: provider, model, input, output and cached input tokens, and the estimated cost in euros at list prices, fixed when the reply is saved. Kept with the reply, so it goes when the Coach Conversation does. Seen by Administrators only, as a median and p90 per day, never by Candidates.
+What one AI Coach reply cost, Playbook Agent consultations included: provider, model, input, output and cached input tokens, and the estimated cost in euros at list prices, fixed when the reply is saved. Kept with the reply, so it goes when the Coach Conversation does. Seen by Administrators only, as a median and p90 per day, never by Candidates.
 _Avoid_: Bill, price
 
 **Coach cost target**:
@@ -109,8 +109,20 @@ A proposal from the AI Coach placed inside a page (e.g. "3 ATS Fixes proposées"
 _Avoid_: Notification, suggestion, prompt
 
 **Coaching Playbook**:
-A versioned set of coaching rules the AI Coach draws on for one coaching topic, each rule citing its Sources.
+A versioned set of coaching rules for one coaching topic, each rule citing its Sources, together with the Playbook Agent that applies it. Written and updated in the Back Office by Playbook editors.
 _Avoid_: Guide, script, prompt
+
+**Playbook Agent**:
+The specialist AI agent of one Coaching Playbook, with its own model and effort, which the AI Coach consults while preparing a reply; it is given the Coach context and its Coaching Playbook, and the AI Coach writes the reply itself. The AI Coach chooses which to consult, at most two per reply, from each one's description of when to consult it.
+_Avoid_: Sub-coach, tool, bot
+
+**Playbook Version**:
+One saved state of a Coaching Playbook (its rules and its Playbook Agent's model, effort and when to consult it), Core Digest or Sources list. Changing a Human-validated version makes a new one. Production serves the latest Human-validated version; other environments serve the latest. Kept forever, so Playbooks used can always be traced back.
+_Avoid_: Revision, draft
+
+**Archived Coaching Playbook**:
+A Coaching Playbook no longer served to the AI Coach. Its Playbook Versions are kept. A Coaching Playbook is never deleted.
+_Avoid_: Deleted playbook
 
 **Source**:
 A numbered reference (`[S12]`) to a study or official publication that backs a coaching rule. Listed once, in the Sources list shared by all Coaching Playbooks.
@@ -120,16 +132,12 @@ _Avoid_: Citation, reference, link
 The short set of cross-cutting coaching rules the AI Coach always applies, whatever the topic. Validated like a Coaching Playbook.
 _Avoid_: Summary, system prompt
 
-**Playbook table**:
-The mapping from what is In view and the topic of the Candidate's latest message to the Coaching Playbooks the AI Coach is given for a reply (one or two). A Profile counts as a positioning; a Job Search or Job Digest counts as a Job Offer.
-_Avoid_: Routing, playbook selection
-
 **Playbooks used**:
-The Core Digest and Coaching Playbooks, with their versions, that an AI Coach reply drew on, recorded with the message. Empty when none is Human-validated for the environment.
+The Core Digest and Coaching Playbooks, with their versions, that an AI Coach reply drew on, recorded with the message. Empty when none is served.
 _Avoid_: Sources used, citations
 
 **Human-validated**:
-A Coaching Playbook or Core Digest a named person has reviewed and approved, with the date. A review by an AI never counts. Only Human-validated coaching knowledge reaches Candidates.
+A Playbook Version a named person other than its author has reviewed and approved, with the date. A review by an AI never counts. In production, only Human-validated coaching knowledge reaches Candidates.
 _Avoid_: Approved, QA'd, reviewed
 
 ### Positioning
@@ -451,11 +459,11 @@ _Avoid_: Dunning banner, billing alert
 ### Operations
 
 **Back Office**:
-The internal pages where Administrators manage Plans, Plan Quotas, Coupons, Human Coaches, Provider Secrets, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites and the team's Back Office Roles, and follow AI Usage.
+The internal pages where Administrators manage Plans, Plan Quotas, Coupons, Human Coaches, Coaching Playbooks, Core Digest and Sources, Provider Secrets, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites and the team's Back Office Roles, and follow AI Usage.
 _Avoid_: Admin panel, dashboard, console
 
 **Back Office Role**:
-What an Administrator may see and change in the Back Office: super-admin (everything, including roles, Provider Secrets, SSO providers, Job Sites, Job discovery sources, Job discovery sites and the AI Message Log), Plans manager (Plans, Plan Quotas, Plan Features, Coupons), Coach manager (Human Coaches, read Coach Message Cost) or Support (read-only, no secrets, no AI Message Log). Fixed in code; only super-admins grant or revoke them.
+What an Administrator may see and change in the Back Office: super-admin (everything, including roles, Provider Secrets, SSO providers, Job Sites, Job discovery sources, Job discovery sites and the AI Message Log), Plans manager (Plans, Plan Quotas, Plan Features, Coupons), Coach manager (Human Coaches, read Coach Message Cost), Playbook editor (Coaching Playbooks, Core Digest and Sources) or Support (read-only, no secrets, no AI Message Log). Fixed in code; only super-admins grant or revoke them.
 _Avoid_: Permission level, admin type
 
 **Provider Secret**:
@@ -471,7 +479,7 @@ A super-admin setting, off by default: the Back Office asks an Administrator sig
 _Avoid_: Enforced SSO, mandatory SSO
 
 **Back Office Audit**:
-The record of every change an Administrator makes in the Back Office (roles, Plans, Plan Quotas, Coupons, Human Coaches, Provider Secrets, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites): who, when, what and the values before and after; and of every AI Message Log a super-admin opens. Secret values are never recorded, only that they were replaced (possibly despite a failed connection test) or cleared. Kept for 3 years, then purged. Jobbbox's own record, so it survives the Administrator's account deletion (their id is cleared, their email at the time stays) and is not part of their data export.
+The record of every change an Administrator makes in the Back Office (roles, Plans, Plan Quotas, Coupons, Human Coaches, Coaching Playbooks, Core Digest and Sources, Provider Secrets, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites): who, when, what and the values before and after; and of every AI Message Log a super-admin opens. Secret values are never recorded, only that they were replaced (possibly despite a failed connection test) or cleared. Kept for 3 years, then purged. Jobbbox's own record, so it survives the Administrator's account deletion (their id is cleared, their email at the time stays) and is not part of their data export.
 _Avoid_: Audit log, history, activity feed
 
 **Journal**:

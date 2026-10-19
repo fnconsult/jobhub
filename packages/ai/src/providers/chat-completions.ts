@@ -7,9 +7,15 @@ import { AiProviderError } from "../errors";
 import type { AiProvider, ProviderId, TextInput, TextOutput, TokenUsage } from "../types";
 import { postJson } from "./http";
 
+/**
+ * A part of the answer when a model thinks first: Mistral then sends `content` as a list of chunks,
+ * "thinking" chunks (a list of text chunks) before the answer's "text" chunks (docs.mistral.ai/capabilities/reasoning).
+ */
+type ContentChunk = { type: "text"; text: string } | { type: "thinking"; thinking: unknown } | { type: string };
+
 interface ChatCompletion {
   model: string;
-  choices: { message: { content: string | null } }[];
+  choices: { message: { content: string | ContentChunk[] | null } }[];
   /** `prompt_tokens` include the cached ones, when the provider reports them (OpenAI; Mistral not documented, #127). */
   usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } };
 }
@@ -36,8 +42,33 @@ function usageOf(completion: ChatCompletion): TokenUsage {
   };
 }
 
+/** The answer only: the text chunks of a chunked content, never the model's thinking. */
+function answerText(completion: ChatCompletion): string {
+  const content = completion.choices[0]!.message.content;
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content.map((chunk) => (chunk.type === "text" && "text" in chunk && typeof chunk.text === "string" ? chunk.text : "")).join("");
+}
+
+/**
+ * Room for thinking on top of the answer's tokens. A model's thinking counts against max_tokens
+ * (Mistral) or max_completion_tokens (OpenAI), so without it a reply that thinks first is cut off,
+ * or left empty, before its answer. Callers' maxTokens stays the answer's budget.
+ */
+const REASONING_ROOM_TOKENS = 8000;
+
 function chatMessages(input: TextInput) {
   return [...(input.system ? [{ role: "system", content: input.system }] : []), ...input.messages];
+}
+
+/**
+ * `reasoning_effort` as the model takes it (see effort.ts), nothing for a model that has none, and
+ * the token limit that leaves room for the thinking it asks for ("none" does not think).
+ */
+function withReasoning(provider: ProviderId, model: string, input: TextInput): { reasoning_effort?: string; maxTokens: number } {
+  const reasoning = reasoningEffort(provider, model, input);
+  const thinks = reasoning.reasoning_effort !== undefined && reasoning.reasoning_effort !== "none";
+  return { ...reasoning, maxTokens: input.maxTokens + (thinks ? REASONING_ROOM_TOKENS : 0) };
 }
 
 /** `reasoning_effort`, as the model takes it (see effort.ts); nothing for a model that has none. */
@@ -71,13 +102,9 @@ export function createMistralProvider(options: TextProviderOptions): AiProvider 
     residency: "eu",
     async generate(input): Promise<TextOutput> {
       const model = input.model ?? defaultModel;
-      const completion = await postChat(client, {
-        model,
-        max_tokens: input.maxTokens,
-        messages: chatMessages(input),
-        ...reasoningEffort("mistral", model, input),
-      });
-      return { text: completion.choices[0]!.message.content ?? "", model: completion.model, usage: usageOf(completion) };
+      const { maxTokens, ...reasoning } = withReasoning("mistral", model, input);
+      const completion = await postChat(client, { model, max_tokens: maxTokens, messages: chatMessages(input), ...reasoning });
+      return { text: answerText(completion), model: completion.model, usage: usageOf(completion) };
     },
   };
 }
@@ -99,13 +126,9 @@ export function createOpenAiProvider(options: OpenAiProviderOptions): AiProvider
     residency: options.dataResidency === "eu" ? "eu" : "outside_eu",
     async generate(input): Promise<TextOutput> {
       const model = input.model ?? defaultModel;
-      const completion = await postChat(client, {
-        model,
-        max_completion_tokens: input.maxTokens,
-        messages: chatMessages(input),
-        ...reasoningEffort("openai", model, input),
-      });
-      return { text: completion.choices[0]!.message.content ?? "", model: completion.model, usage: usageOf(completion) };
+      const { maxTokens, ...reasoning } = withReasoning("openai", model, input);
+      const completion = await postChat(client, { model, max_completion_tokens: maxTokens, messages: chatMessages(input), ...reasoning });
+      return { text: answerText(completion), model: completion.model, usage: usageOf(completion) };
     },
   };
 }

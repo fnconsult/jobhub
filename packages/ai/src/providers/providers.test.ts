@@ -267,6 +267,48 @@ describe("effort, as a Playbook Agent asks for it (#225)", () => {
     expect(requests[3]!.body).not.toHaveProperty("reasoning_effort");
   });
 
+  it("keeps only Mistral's answer when it thinks first: the content then comes as chunks, thinking then text", async () => {
+    // docs.mistral.ai/capabilities/reasoning: with reasoning_effort "high", message.content is a list of
+    // chunks, a "thinking" chunk (its own list of text chunks) before the answer's "text" chunks.
+    const { fetch } = fakeFetch({
+      ...chatReply(""),
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: "assistant",
+            content: [
+              { type: "thinking", thinking: [{ type: "text", text: "Le candidat a 52 ans, je regarde le playbook." }] },
+              { type: "text", text: "Mettez en avant " },
+              { type: "text", text: "vos résultats chiffrés." },
+            ],
+          },
+          finish_reason: "stop",
+        },
+      ],
+    });
+
+    const output = await createMistralProvider({ apiKey: "mk", fetch }).generate!({ ...textInput, model: "mistral-medium-3-5", effort: "medium" });
+
+    expect(output.text).toBe("Mettez en avant vos résultats chiffrés.");
+  });
+
+  it("gives a model that thinks room for its thinking on top of the answer's tokens, which thinking would otherwise eat", async () => {
+    const mistral = fakeFetch(chatReply("ok"));
+    const openai = fakeFetch(chatReply("ok"));
+
+    await createMistralProvider({ apiKey: "mk", fetch: mistral.fetch }).generate!({ ...textInput, model: "mistral-medium-3-5", effort: "medium" });
+    await createMistralProvider({ apiKey: "mk", fetch: mistral.fetch }).generate!({ ...textInput, model: "mistral-medium-3-5", effort: "low" });
+    await createMistralProvider({ apiKey: "mk", fetch: mistral.fetch }).generate!({ ...textInput, effort: "high" });
+    await createOpenAiProvider({ apiKey: "ok", dataResidency: "eu", fetch: openai.fetch }).generate!({ ...textInput, effort: "low" });
+
+    expect(mistral.requests[0]!.body.max_tokens as number).toBeGreaterThan(textInput.maxTokens);
+    // "none" does not think; a model without reasoning_effort ignores it.
+    expect(mistral.requests[1]!.body.max_tokens).toBe(textInput.maxTokens);
+    expect(mistral.requests[2]!.body.max_tokens).toBe(textInput.maxTokens);
+    expect(openai.requests[0]!.body.max_completion_tokens as number).toBeGreaterThan(textInput.maxTokens);
+  });
+
   it("is sent to OpenAI's reasoning models as reasoning_effort", async () => {
     const { fetch, requests } = fakeFetch(chatReply("ok"));
     const provider = createOpenAiProvider({ apiKey: "ok", dataResidency: "eu", fetch });

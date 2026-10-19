@@ -36,6 +36,14 @@
  * dated by its creation. France Travail refusing or failing never fails the run:
  * it is counted (`franceTravail` in the report) and the web search goes on.
  *
+ * Administrators set the Job discovery sources and sites in the Back Office (#188),
+ * read at the start of each run (`settings`): a disabled source (France Travail,
+ * the web search, the ATS APIs) is skipped; each enabled Job discovery site adds
+ * one web search, the plan's first query restricted to that site, after the
+ * plan's own queries; a result page on a disabled site is skipped
+ * (`site_disabled`). When the settings cannot be read, every source is searched
+ * and no site is listed, as before the Back Office managed them.
+ *
  * A run searches and reads result pages in order until its budget runs out: 30
  * Job Offers, €0.08 or 90 s by default, whichever comes first (see JobDiscoveryBudget).
  * France Travail's offers count toward it like any other Job Offers, and its time too.
@@ -44,12 +52,17 @@
  * error is then a JobDiscoveryError carrying what the run measured until then.
  */
 import type { ExternalApiLog } from "@jobhub/shared";
-import { costInEur, type AiLayer, type SearchFilters } from "@jobhub/ai";
+import { costInEur, readJobPage, type AiLayer, type JobSearchQuery, type SearchFilters } from "@jobhub/ai";
 import {
   believablePostingDate,
+  DEFAULT_JOB_DISCOVERY_SETTINGS,
+  FORBIDDEN_SITES,
+  isForbiddenSite,
+  isOnDomain,
   isPostingTooOld,
   MAX_POSTING_AGE_DAYS,
   type DiscoveryMetrics,
+  type JobDiscoverySettings,
   type FranceTravailMetrics,
   type JobOffer,
   type JobOfferDetails,
@@ -62,7 +75,6 @@ import type { FranceTravail } from "./france-travail";
 import { htmlToText, metaRobots } from "./html";
 import { countJobPostings, readJobPosting } from "./job-posting";
 import { listingPageLinks } from "./listing-page";
-import { extractWithLlm } from "./llm-extraction";
 import { searchPages } from "./search-pages";
 import { createPoliteFetcher, realClock, recordingJobBoardFetch, type Clock, type JsonResult, type RefusalReason } from "./polite-fetch";
 
@@ -99,6 +111,11 @@ export interface JobDiscoveryOptions {
    * A getter is asked on each run: the worker's follows its Provider Secrets (#208).
    */
   franceTravail?: FranceTravail | null | (() => FranceTravail | null);
+  /**
+   * The Job discovery sources and sites Administrators set in the Back Office, read at the start
+   * of each run. Default, and when it throws: every source on, no site listed.
+   */
+  settings?: () => Promise<JobDiscoverySettings>;
 }
 
 export interface DiscoverRequest {
@@ -110,9 +127,10 @@ export interface DiscoverRequest {
 /**
  * Why a result page gave no Job Offer. `too_old`: its Posting date (stated by
  * its ATS, its JobPosting data or the search provider, or stored with the Job
- * Offer it leads to) is more than MAX_POSTING_AGE_DAYS ago.
+ * Offer it leads to) is more than MAX_POSTING_AGE_DAYS ago. `site_disabled`: it is on a Job
+ * discovery site an Administrator disabled.
  */
-export type SkipReason = RefusalReason | "not_a_job_offer" | "invalid" | "too_old";
+export type SkipReason = RefusalReason | "not_a_job_offer" | "invalid" | "too_old" | "site_disabled";
 // The Job discovery metrics count pages by these reasons: the two lists must stay the same.
 const sameSkipReasons: [SkipReason, CountedSkipReason] extends [CountedSkipReason, SkipReason] ? true : never = true;
 void sameSkipReasons;
@@ -156,14 +174,33 @@ export const DEFAULT_USER_AGENT = "JobbboxBot/1.0 (+https://jobbbox.fr/robot)";
 /**
  * Sites whose terms of use forbid automated access (ADR-0002). They are covered
  * only by the browser extension, which captures what the Candidate is viewing.
+ * Shared with the Back Office, which never lets them be a Job discovery site.
  */
-export const FORBIDDEN_SITES = ["linkedin.com", "indeed.com", "indeed.fr", "glassdoor.com", "glassdoor.fr"] as const;
+export { FORBIDDEN_SITES } from "@jobhub/shared";
+
+/** One web search of a run: a query of the Job Search's plan, restricted to one Job discovery site or not. */
+interface PlannedSearch {
+  query: JobSearchQuery;
+  /** The Job discovery site the search is restricted to. */
+  site?: string;
+}
+
+/** Where the Back Office's settings come from; when they cannot be read, the run goes on with the defaults. */
+async function readSettings(settings: JobDiscoveryOptions["settings"]): Promise<JobDiscoverySettings> {
+  if (!settings) return DEFAULT_JOB_DISCOVERY_SETTINGS;
+  try {
+    return await settings();
+  } catch (error) {
+    console.warn(`[job-discovery] the Job discovery sources and sites could not be read, every source is searched: ${error instanceof Error ? error.message : String(error)}`);
+    return DEFAULT_JOB_DISCOVERY_SETTINGS;
+  }
+}
 
 export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
   const budget = { ...DEFAULT_BUDGET, ...options.budget };
   const clock = options.clock ?? realClock;
   const userAgent = options.userAgent ?? DEFAULT_USER_AGENT;
-  const forbiddenSites = options.forbiddenSites ?? FORBIDDEN_SITES;
+  const forbiddenSites: readonly string[] = options.forbiddenSites ?? FORBIDDEN_SITES;
   /**
    * What each web search asks of the provider, where it can: no forbidden site (none could be read,
    * and most are listing pages, #105), postings of the last 30 days (older ones are dropped), in France.
@@ -173,6 +210,20 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
   return {
     async discover({ candidateId, criteria }) {
       const startedAt = clock.now();
+      const settings = await readSettings(options.settings);
+      const configuredFranceTravail = typeof options.franceTravail === "function" ? options.franceTravail() : options.franceTravail;
+      const franceTravail = settings.sources.france_travail ? configuredFranceTravail : null;
+      /** Job discovery sites searched on purpose; a forbidden site never is, whatever the settings say. */
+      const searchedSites = settings.sites.filter((site) => site.enabled && !isForbiddenSite(site.domain, forbiddenSites)).map((site) => site.domain);
+      const disabledSites = settings.sites.filter((site) => !site.enabled).map((site) => site.domain);
+      const onDisabledSite = (url: string) => {
+        try {
+          const { hostname } = new URL(url);
+          return disabledSites.some((domain) => isOnDomain(hostname, domain));
+        } catch {
+          return false;
+        }
+      };
       const fetch = options.fetch ?? globalThis.fetch;
       const fetcher = createPoliteFetcher({
         fetch: options.externalApis ? recordingJobBoardFetch(fetch, options.externalApis) : fetch,
@@ -247,6 +298,10 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
       const read = async (url: string, follow: boolean, searchDate?: Date): Promise<void> => {
         if (seen.has(url)) return;
         seen.add(url);
+        if (onDisabledSite(url)) {
+          skipped.push({ url, reason: "site_disabled" });
+          return;
+        }
         const known = await storedAt(url);
         if (known) {
           alreadyStored(url, known);
@@ -254,7 +309,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         }
         // A Greenhouse, Lever or Ashby posting is read through its ATS's JSON API, which states its date and status;
         // when that API cannot be read, its page is read below like any other.
-        const ats = await readAtsPosting(url, { fetchJson: fetchAtsJson, now: new Date(clock.now()) });
+        const ats = settings.sources.ats_apis ? await readAtsPosting(url, { fetchJson: fetchAtsJson, now: new Date(clock.now()) }) : null;
         if (ats) {
           if (!ats.ok) {
             skipped.push({ url, reason: ats.reason });
@@ -295,7 +350,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           await followListing();
           return;
         }
-        if (!details && countJobPostings(page.html) <= 1) details = await extractWithLlm(ai, candidateId, htmlToText(page.html));
+        if (!details && countJobPostings(page.html) <= 1) details = await readJobPage(ai, candidateId, htmlToText(page.html));
         if (!details) {
           skipped.push({ url, reason: "not_a_job_offer" });
           return;
@@ -324,19 +379,26 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
       };
 
       try {
-        const franceTravail = typeof options.franceTravail === "function" ? options.franceTravail() : options.franceTravail;
         if (franceTravail && !budgetSpent()) await searchFranceTravail(franceTravail);
-        if (budgetSpent()) {
+        if (budgetSpent() || !settings.sources.web_search) {
           report.jobOffers = [...found.values()];
           return report;
         }
         const plan = await ai.planJobSearch({ candidateId, criteria });
-        const pager = searchPages(plan.queries, plan.pages);
+        // Each Job discovery site is searched on purpose too: the plan's first query, restricted to it.
+        const first = plan.queries[0];
+        const planned: PlannedSearch[] = [
+          ...plan.queries.map((query) => ({ query })),
+          ...(first ? searchedSites.map((site) => ({ query: first, site })) : []),
+        ];
+        const pager = searchPages(planned, plan.pages);
         /** URLs the provider gave in this run, each counted once in the funnel. */
         const providerUrls = new Set<string>();
         for (let next = pager.next(); next && !budgetSpent(); next = pager.next()) {
           const before = found.size;
-          const search = await ai.searchWeb({ candidateId, criteria, query: next.query, page: next.page, filters: searchFilters });
+          const { query, site } = next.query;
+          const filters = site ? { ...searchFilters, includeDomains: [site] } : searchFilters;
+          const search = await ai.searchWeb({ candidateId, criteria, query, page: next.page, filters });
           // The answer text only points at pages to read: a Job Offer always comes from a page read.
           const fresh = [...new Set([...search.sources, ...urlsIn(search.answer)])].filter((url) => !providerUrls.has(url));
           for (const url of fresh) providerUrls.add(url);

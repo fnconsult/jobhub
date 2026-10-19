@@ -1,4 +1,15 @@
-import { JOB_DIGEST_FREQUENCIES, LIMITED_QUOTAS, PLAN_FEATURES, PLAN_STATUSES, type JobDigestFrequency, type LimitedQuota, type PlanFeature, type PlanStatus } from "@jobhub/shared";
+import {
+  JOB_DIGEST_FREQUENCIES,
+  JOB_DISCOVERY_SOURCES,
+  LIMITED_QUOTAS,
+  PLAN_FEATURES,
+  PLAN_STATUSES,
+  type JobDigestFrequency,
+  type JobDiscoverySource,
+  type LimitedQuota,
+  type PlanFeature,
+  type PlanStatus,
+} from "@jobhub/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { isBackOfficeRole } from "@/admin/access";
@@ -18,6 +29,8 @@ const LIMIT = 200;
 const HUMAN_COACH_FIELDS = ["name", "email", "bookingUrl", "bio"] as const;
 type HumanCoachField = (typeof HUMAN_COACH_FIELDS)[number];
 
+/** The sections recording the sites Jobbbox searches: their entries hold `enabled` and, for Job Sites, `postingPages`. */
+const SEARCH_SITES_SECTIONS: readonly BackOfficeSection[] = ["job_discovery_sources", "job_discovery_sites", "job_sites"];
 /** A Sign-in Provider's recorded fields, by the Connexion page's label for each. */
 const SIGN_IN_PROVIDER_FIELDS = {
   type: "type",
@@ -60,9 +73,14 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
   const requested = (await searchParams).section;
   const section = isBackOfficeSection(requested) ? requested : undefined;
   const [entries, plans] = await Promise.all([getBackOffice().journal({ section, limit: LIMIT }), getBilling().plans()]);
-  /** A Plan's entries name it as it is named now; an unknown key stays as recorded. */
-  const target = (entry: BackOfficeAuditEntry): string =>
-    entry.section === "plans" || entry.section === "plan_quotas" ? (plans.find((plan) => plan.key === entry.target)?.name[locale] ?? entry.target) : entry.target;
+  /** What an entry changed, named as the Back Office names it: a Plan as it is named now; an unknown key stays as recorded. */
+  const target = (entry: BackOfficeAuditEntry): string => {
+    if (entry.section === "plans" || entry.section === "plan_quotas") return plans.find((plan) => plan.key === entry.target)?.name[locale] ?? entry.target;
+    if (entry.section === "job_discovery_sources" && JOB_DISCOVERY_SOURCES.includes(entry.target as JobDiscoverySource)) {
+      return t(`admin.searchSites.sources.names.${entry.target as JobDiscoverySource}`);
+    }
+    return entry.target;
+  };
   const at = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" });
   const number = new Intl.NumberFormat(locale);
 
@@ -72,6 +90,8 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     }
     if (entrySection === "human_coaches" && HUMAN_COACH_FIELDS.includes(field as HumanCoachField)) return t(`admin.humanCoaches.${field as HumanCoachField}`);
     if (entrySection === "roles" && field === "roles") return t("admin.administrators.roles");
+    if (SEARCH_SITES_SECTIONS.includes(entrySection) && field === "enabled") return t("admin.searchSites.status");
+    if (entrySection === "job_sites" && field === "postingPages") return t("admin.searchSites.jobSites.postingPages");
     if (entrySection === "plans" && PLAN_FIELDS.includes(field as PlanField)) return t(`admin.plans.fields.${field as PlanField}`);
     if (entrySection === "coupons" && COUPON_FIELDS.includes(field as CouponField)) return t(`admin.coupons.fields.${field as CouponField}`);
     if (entrySection === "sign_in_providers" && field in SIGN_IN_PROVIDER_FIELDS) {
@@ -81,6 +101,10 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     return field;
   };
   const shown = (entrySection: BackOfficeSection, field: string | null, value: Recorded): string => {
+    if (entrySection === "job_sites" && field === "postingPages" && value === null) return t("admin.searchSites.jobSites.anyPostingPage");
+    if (SEARCH_SITES_SECTIONS.includes(entrySection) && field === "enabled" && typeof value === "boolean") {
+      return t(value ? "admin.searchSites.enabled" : "admin.searchSites.disabled");
+    }
     if (entrySection === "plans") {
       if (field === "stripeProductId" && value === null) return t("admin.plans.noProduct");
       if (field === "status" && PLAN_STATUSES.includes(value as PlanStatus)) return t(`admin.plans.status.${value as PlanStatus}`);

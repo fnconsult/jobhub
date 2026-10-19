@@ -29,6 +29,7 @@ describe("the Back Office navigation", () => {
           ["signInProviders", "/admin/connexion"],
           ["aiUsage", "/admin/consommation-ia"],
           ["aiMessages", "/admin/journaux-ia"],
+          ["searchSites", "/admin/sites"],
         ],
       ],
       [
@@ -61,13 +62,14 @@ describe("the Back Office navigation", () => {
         ],
       ],
     ]);
-    // Support reads everything but Provider Secrets and the AI Message Log: Connexion and Consommation IA under Plateforme, read-only.
+    // Support reads everything but Provider Secrets and the AI Message Log: Connexion, Consommation IA and the search sites under Plateforme, read-only.
     expect(sections(backOfficeNav(backOfficeAccess(["support"]))).map(([key]) => key)).toEqual(["offer", "coaching", "platform"]);
     expect(sections(backOfficeNav(backOfficeAccess(["support"])))[2]).toEqual([
       "platform",
       [
         ["signInProviders", "/admin/connexion"],
         ["aiUsage", "/admin/consommation-ia"],
+        ["searchSites", "/admin/sites"],
       ],
     ]);
     expect(backOfficeNav(backOfficeAccess([]))).toEqual([]);

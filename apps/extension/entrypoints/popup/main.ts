@@ -3,7 +3,8 @@ import { createI18n } from "@jobhub/shared/i18n";
 import { browser } from "wxt/browser";
 import { ALL_SITES } from "../../src/all-sites-detection";
 import { readCandidateSession } from "../../src/candidate-session";
-import type { CapturedJobOffer } from "../../src/job-page";
+import { chooseFrame } from "../../src/frame-choice";
+import type { CapturedJobOffer, JobPage } from "../../src/job-page";
 import type { AnalyseReply, ExtensionMessage } from "../../src/messages";
 import { WEB_ORIGIN } from "../../src/web-app";
 import "./popup.css";
@@ -37,15 +38,13 @@ document.title = t("extension.title");
 
 /** The Job Offer the page in a tab describes, read in the person's own browser (ADR-0002). */
 async function readTab(tabId: number): Promise<CapturedJobOffer | null> {
-  // On job sites, the badge content script is already there.
-  const fromContentScript = await browser.tabs
-    .sendMessage<ExtensionMessage, CapturedJobOffer | null>(tabId, { type: "capture" })
-    .catch(() => undefined);
-  if (fromContentScript !== undefined) return fromContentScript;
-  // Anywhere else, the person's click on the toolbar button grants activeTab for this page.
+  // The person's click on the toolbar button grants activeTab for this page; JOB_SITES (host permissions)
+  // cover a job site's iframe in it, where some career sites put the posting (gestmax.fr, #187).
+  const read = (allFrames: boolean) => browser.scripting.executeScript({ target: { tabId, allFrames }, files: ["/capture.js"] });
   try {
-    const [injection] = await browser.scripting.executeScript({ target: { tabId }, files: ["/capture.js"] });
-    return (injection?.result as CapturedJobOffer | null | undefined) ?? null;
+    // A frame that cannot be read (another site's ad, say) is left out; should it fail the whole read, the page alone.
+    const injections = await read(true).catch(() => read(false));
+    return chooseFrame(injections.map(({ frameId, result }) => ({ frameId, page: (result as JobPage | null | undefined) ?? null })));
   } catch {
     return null; // Browser pages, extension stores and the like cannot be read.
   }

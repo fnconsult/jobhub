@@ -40,6 +40,7 @@ export interface SalaryBreakdown {
 }
 
 export interface MatchScore {
+  /** 0–100 over the known criteria; 0 when none is known (see `matchScoreReliability`: then it is not computable). */
   score: number;
   breakdown: {
     skills: SkillsBreakdown;
@@ -48,7 +49,20 @@ export interface MatchScore {
     salary: SalaryBreakdown;
     contractType: CriterionBreakdown<ContractType>;
   };
+  /**
+   * Set when the Job Offer's text was to be read for the details its structured data lacks (the
+   * second phase of a Match Score) and could not be: the score uses only what the Job Offer states.
+   */
+  offerTextUnread?: true;
 }
+
+/**
+ * How far a Match Score can be trusted, from the weight of its known criteria:
+ *  - "not_computable": no criterion is known, so there is no score to show (never 0 / 100);
+ *  - "partial": the known criteria weigh less than `RELIABLE_KNOWN_WEIGHT`, so it is shown as partial;
+ *  - "reliable": otherwise.
+ */
+export type MatchScoreReliability = "reliable" | "partial" | "not_computable";
 
 export interface MatchInput {
   cv: CvContent;
@@ -294,6 +308,20 @@ function fulfilment(criterion: { status: CriterionStatus }): number {
     return covered.length / (covered.length + missing.length);
   }
   return { match: 1, partial: 0.5, mismatch: 0, unknown: 0 }[criterion.status];
+}
+
+/** Out of 100: the known criteria of a reliable Match Score weigh at least this much (e.g. skills and seniority). */
+export const RELIABLE_KNOWN_WEIGHT = 50;
+
+/** The weight, out of 100, of the criteria the breakdown knows. */
+export function knownWeight(breakdown: MatchScore["breakdown"]): number {
+  return (Object.keys(WEIGHTS) as (keyof typeof WEIGHTS)[]).reduce((sum, name) => sum + (breakdown[name].status === "unknown" ? 0 : WEIGHTS[name]), 0);
+}
+
+/** Read from the breakdown, so a Match Score kept from before still says how far it can be trusted. */
+export function matchScoreReliability({ breakdown }: Pick<MatchScore, "breakdown">): MatchScoreReliability {
+  const known = knownWeight(breakdown);
+  return known === 0 ? "not_computable" : known < RELIABLE_KNOWN_WEIGHT ? "partial" : "reliable";
 }
 
 /** The weighted share of the known criteria that the CV fulfils, 0–100; 0 when nothing is known. */

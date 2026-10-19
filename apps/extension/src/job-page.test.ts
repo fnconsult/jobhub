@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MatchPattern } from "wxt/utils/match-patterns";
-import { JOB_SITES, readJobPage, type PageSnapshot } from "./job-page";
+import { isKnownPostingPage, JOB_SITES, readJobPage, type PageSnapshot } from "./job-page";
 
 /** A page as the content script sees it. */
 function page(overrides: Partial<PageSnapshot> = {}): PageSnapshot {
@@ -105,10 +105,31 @@ describe("reading a job page", () => {
     "https://jobs.smartrecruiters.com/Example/743999912345678-daf",
     "https://example.wd3.myworkdayjobs.com/fr-FR/careers/job/Lyon/DAF_R-01234",
     "https://apply.workable.com/example/j/1A2B3C4D5E/",
+    "https://iledefrance.gestmax.fr/16624/1/un-chef-ou-une-cheffe-de-produit-data-et-pilotage?backlink=search",
   ])("detects a job posting on a major job board or career site without structured data: %s", (url) => {
     expect(readJobPage(page({ url })).detected).toBe(true);
     // ...where the extension watches for postings, to show the badge.
     expect(JOB_SITES.some((pattern) => new MatchPattern(pattern).includes(url))).toBe(true);
+  });
+
+  it("reads a gestmax.fr posting, in its iframe on the employer's site, from its heading and text (#187)", () => {
+    const url = "https://iledefrance.gestmax.fr/16624/1/un-chef-ou-une-cheffe-de-produit-data-et-pilotage?backlink=search";
+    const read = readJobPage(
+      page({
+        url,
+        title: "Région Île-de-France - Offres d'emploi",
+        heading: "Un Chef ou une Cheffe de produit Data et Pilotage",
+        text: "Un Chef ou une Cheffe de produit Data et Pilotage\nAu sein du pôle Données, vous pilotez les produits data de la Région.",
+      }),
+    );
+
+    expect(isKnownPostingPage(url)).toBe(true);
+    expect(read.detected).toBe(true);
+    expect(read.jobOffer).toMatchObject({ source: { url }, title: "Un Chef ou une Cheffe de produit Data et Pilotage" });
+    // gestmax.fr's search and home pages are not postings.
+    for (const other of ["https://iledefrance.gestmax.fr/search", "https://iledefrance.gestmax.fr/"]) {
+      expect(isKnownPostingPage(other), other).toBe(false);
+    }
   });
 
   it("recognises a posting by its address only where the extension watches for postings", () => {

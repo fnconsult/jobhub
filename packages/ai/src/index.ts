@@ -9,6 +9,7 @@
  *   const plan = await ai.planJobSearch({ candidateId, criteria }); // up to 6 queries: job title variants × FR/EN
  *   await ai.searchWeb({ candidateId, criteria, query: plan.queries[0], page: 1, filters: { excludeDomains, maxAgeDays: 30 } });
  *   await ai.searchCompany({ candidateId, employer });
+ *   await readOfferFields(ai, { candidateId, jobOffer }); // a Job Offer's fields, read from its text
  */
 export { createAiLayer } from "./ai-layer";
 export type {
@@ -33,6 +34,8 @@ export { createPerplexityProvider } from "./providers/perplexity";
 export { createBraveProvider } from "./providers/brave";
 export { createLinkupProvider } from "./providers/linkup";
 export { createTavilyProvider } from "./providers/tavily";
+export { readJobPage, readOfferFields } from "./job-offer-reading";
+export type { OfferFields } from "./job-offer-reading";
 export { buildCompanyQuery, buildSearchQuery, COMPANY_FACTS } from "./search-query";
 export type { JobSearchQuery, QueryLanguage } from "./search-query";
 export { PROVIDER_IDS, SEARCH_TASK, TEXT_TASKS } from "./types";

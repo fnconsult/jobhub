@@ -26,6 +26,8 @@ const statements = {
   coachMessageCost: ["read"],
   providerSecrets: ["read", "write"],
   ssoProviders: ["read", "write"],
+  /** The sites Jobbbox searches: Job discovery sources and sites, and the extension's Job Sites. */
+  searchSites: ["read", "write"],
   /** The AI consumption report (Consommation IA): aggregates, read-only. */
   aiUsage: ["read"],
   /** The AI Message Log (Journaux IA): what AI calls said, personal data; every read is audited. */
@@ -49,7 +51,7 @@ const ROLES = {
   "plans-manager": control.newRole({ plans: ["read", "write"], planQuotas: ["read", "write"], coupons: ["read", "write"] }),
   "coach-manager": control.newRole({ humanCoaches: ["read", "write"], coachMessageCost: READ }),
   // Reads everything but Provider Secrets and the AI Message Log; the team's own sections (Administrateurs, Journal) stay with super-admins.
-  support: control.newRole({ planQuotas: READ, plans: READ, coupons: READ, humanCoaches: READ, coachMessageCost: READ, ssoProviders: READ, aiUsage: READ }),
+  support: control.newRole({ planQuotas: READ, plans: READ, coupons: READ, humanCoaches: READ, coachMessageCost: READ, ssoProviders: READ, aiUsage: READ, searchSites: READ }),
 } satisfies Record<BackOfficeRole, unknown>;
 
 /** What one Administrator may do in the Back Office, from the roles they hold. */

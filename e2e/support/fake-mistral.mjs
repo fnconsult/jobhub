@@ -48,6 +48,10 @@
 // For the offer analysis behind a Company Dossier (task offer_analysis), a posting
 // whose displayed employer starts with "Cabinet" is a recruiting agency's, and its
 // Presumed Employer is the name after "Client présumé : " in the posting.
+//
+// For the fields of a Job Offer read from its text (task offer_analysis, the second
+// phase of a Match Score, #94), it finds none ("{}"), unless the text holds
+// "E2E_OFFER_FIELDS=<json>", which it returns as the fields read.
 const realFetch = globalThis.fetch;
 /** Calls so far per scripted Tailored CV id (E2E_CV_REPLIES). */
 const scriptedCalls = new Map();
@@ -87,6 +91,9 @@ globalThis.fetch = async (input, init) => {
   if (system.includes("Tu relis une conversation")) {
     const said = [...prompt.matchAll(/^Candidat : (.+)$/gm)].map((match) => match[1].trim());
     content = JSON.stringify({ items: said.map((text) => ({ kind: "goal", text })) });
+  }
+  if (system.startsWith("Tu lis le texte d'une offre d'emploi.")) {
+    content = /E2E_OFFER_FIELDS=(\{.*?\})(?:\s|$)/.exec(prompt)?.[1] ?? "{}";
   }
   if (system.includes("cabinet de recrutement")) {
     const agency = /^Employeur affiché : Cabinet/m.test(prompt);

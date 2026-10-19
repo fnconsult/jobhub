@@ -55,8 +55,7 @@ export default async function CoachingPlaybooksPage({ searchParams }: { searchPa
     }`;
 
   return (
-    <BackOfficeLayout access={access}>
-      <h1>{t("admin.coachingPlaybooks.title")}</h1>
+    <BackOfficeLayout access={access} title={t("admin.coachingPlaybooks.title")}>
       <p className="lead">{t("admin.coachingPlaybooks.intro")}</p>
       <p>{t(playbookServing(process.env) === "validated" ? "admin.coachingPlaybooks.servingValidated" : "admin.coachingPlaybooks.servingLatest")}</p>
       {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}

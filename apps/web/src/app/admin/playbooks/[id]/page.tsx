@@ -80,11 +80,10 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
   const latest = playbook.latest;
 
   return (
-    <BackOfficeLayout access={access}>
+    <BackOfficeLayout access={access} title={title}>
       <p>
         <Link href={routes.adminCoachingPlaybooks}>{t("admin.coachingPlaybooks.detail.back")}</Link>
       </p>
-      <h1>{title}</h1>
       <p className="lead">
         <code>{playbook.id}</code> · {t(playbook.archived ? "admin.coachingPlaybooks.archived" : "admin.coachingPlaybooks.active")} · {t("admin.coachingPlaybooks.served")} :{" "}
         {playbook.served ? t("admin.coachingPlaybooks.version", { version: String(playbook.served.version) }) : t("admin.coachingPlaybooks.none")}

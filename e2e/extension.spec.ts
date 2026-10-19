@@ -134,6 +134,8 @@ test.describe("browser extension shares the web app session", () => {
       `${origin}/compte`,
     );
 
+    // The Interface Language is in Mon compte's Preferences Section (ADR-0024).
+    await web.goto("/compte/preferences");
     await web.getByLabel(frCatalogue.account.interfaceLanguage).selectOption("en");
     await expect(web.locator("html")).toHaveAttribute("lang", "en");
     popup = await openPopup();

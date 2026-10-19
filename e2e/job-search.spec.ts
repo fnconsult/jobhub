@@ -244,7 +244,8 @@ test.describe("On-demand AI Coach job search", () => {
       for (const size of [{ width: 1440, height: 900 }, { width: 900, height: 1000 }, { width: 375, height: 812 }]) {
         await page.setViewportSize(size);
         const main = page.getByRole("main");
-        await expect(main.getByRole("heading", { level: 1 })).toBeVisible();
+        // The page's title is in the Top Bar (ADR-0024).
+        await expect(page.getByRole("banner").getByRole("heading", { level: 1 })).toBeVisible();
         for (const text of (await renderedTexts(page)).filter((item) => item.fontSizePx > 0)) {
           expect.soft(text.fontSizePx, `font size of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(16);
           expect.soft(text.contrast, `contrast of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(4.5);

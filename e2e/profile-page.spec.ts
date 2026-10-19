@@ -164,9 +164,11 @@ test.describe("the Profile page as a document", () => {
     }
     await expect(criteria(page).getByRole("button", { name: fr.cvReview.addLocation })).toHaveCount(0);
     await expect(criteria(page).getByRole("button", { name: fr.cvReview.removeLocation.replace("{{number}}", "1") })).toHaveCount(0);
-    // Removing a place saves at once: the page is reloaded once that save is done.
+    // Removing a place saves at once: the page is reloaded once that save is done, the removal's own
+    // (the places without Bordeaux), not the one still in flight from leaving Rennes.
+    const removal = (body: string) => body.includes("Rennes") && !body.includes("Bordeaux");
     await Promise.all([
-      page.waitForResponse((response) => response.request().method() === "PATCH" && response.url().includes("/api/profiles/")),
+      page.waitForResponse((response) => response.request().method() === "PATCH" && response.url().includes("/api/profiles/") && removal(response.request().postData() ?? "")),
       criteria(page).getByRole("button", { name: fr.cvReview.removeLocation.replace("{{number}}", "2") }).click(),
     ]);
     await expect(criteria(page).getByRole("button", { name: fr.cvReview.addLocation })).toBeFocused();

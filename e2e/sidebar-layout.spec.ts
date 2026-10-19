@@ -93,7 +93,7 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     await expect(accountLink(page)).toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("navigation", { name: fr.account.sections.sectionsLabel }).getByRole("link", { name: fr.sidebar.subscription })).toHaveAttribute("aria-current", "page");
     await page.goto("/compte");
-    await expect(sidebarNav(page).getByRole("link", { name: fr.sidebar.jobSearches })).toHaveAttribute("href", `/profils/${profileId}#job-search-title`);
+    await expect(sidebarNav(page).getByRole("link", { name: fr.sidebar.jobSearches })).toHaveAttribute("href", `/recherches?profil=${profileId}`);
     await expect(page.getByRole("navigation", { name: fr.profileSwitcher.label })).toBeVisible();
     await expect(page.getByLabel(fr.textSize.label)).toBeVisible();
     await expect(page.getByRole("button", { name: fr.account.signOut })).toBeVisible();

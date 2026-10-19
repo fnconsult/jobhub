@@ -110,7 +110,8 @@ test.describe("AI layer: one module hides the provider, routing is configuration
     expect(r.requests.map((req) => req.host)).toEqual([
       "api.mistral.ai",
       "eu.api.openai.com",
-      "bedrock-mantle.eu-west-3.api.aws",
+      // Both Claude keys: offer analysis, without personal data, takes the direct API.
+      "api.anthropic.com",
       "api.perplexity.ai",
     ]);
     expect(JSON.parse(r.requests[0]!.body).model).toBe("mistral-small-latest");
@@ -166,7 +167,7 @@ test.describe("AI layer: provider adapters", () => {
 
 test.describe("AI layer: personal data only reaches EU-resident endpoints", () => {
   const refusals: [string, Record<string, string>, RegExp][] = [
-    ["scoring on the direct Anthropic API", { ANTHROPIC_ENDPOINT: "direct" }, /scoring.*api\.anthropic\.com/],
+    ["scoring on the direct Anthropic API", { ANTHROPIC_ENDPOINT: "direct", AI_SCORING_PROVIDER: "anthropic" }, /scoring.*api\.anthropic\.com/],
     ["Bedrock outside the EU", { BEDROCK_REGION: "us-east-1" }, /bedrock us-east-1/],
     ["Vertex outside the EU", { ANTHROPIC_ENDPOINT: "vertex", VERTEX_REGION: "us-east5", VERTEX_PROJECT_ID: "p" }, /vertex us-east5/],
     ["OpenAI without EU data residency", { AI_SCORING_PROVIDER: "openai", OPENAI_DATA_RESIDENCY: "us" }, /api\.openai\.com/],

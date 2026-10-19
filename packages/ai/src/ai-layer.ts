@@ -132,12 +132,13 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     return typeof route === "string" ? { provider: route } : route;
   };
   /**
-   * A provider may be reached through several endpoints (Claude: the direct API and Bedrock). A call with
-   * personal data takes the first EU-resident one; any other call, the first one listed.
+   * A provider may be reached through several endpoints (Claude: the direct API, then Bedrock). A call with
+   * personal data takes the first EU-resident one, else the last one listed (the one meant for personal
+   * data, so a refusal names it); any other call, the first one listed.
    */
   const providerFor = (route: Route, personalData = false): AiProvider => {
     const candidates = options.providers.filter((p) => p.id === route.provider);
-    const provider = (personalData && candidates.find((p) => p.residency === "eu")) || candidates[0];
+    const provider = personalData ? (candidates.find((p) => p.residency === "eu") ?? candidates.at(-1)) : candidates[0];
     if (!provider) throw new AiConfigError(`AI provider "${route.provider}" is not configured`);
     return provider;
   };

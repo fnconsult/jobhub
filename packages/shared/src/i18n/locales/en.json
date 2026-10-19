@@ -128,6 +128,7 @@
     "applications": "My applications"
   },
   "sidebar": {
+    "mainMenu": "Main menu",
     "label": "Main navigation",
     "skipToContent": "Skip to content",
     "menu": "Menu",

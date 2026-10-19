@@ -41,7 +41,9 @@ const coachButton = (page: Page) => page.getByRole("button", { name: fr.coachPan
 const coachPanel = (page: Page) => page.getByRole("complementary", { name: fr.coachPanel.title });
 const drawer = (page: Page) => page.getByRole("dialog", { name: fr.sidebar.menu });
 
-const NAV_LABELS = [fr.nav.applications, fr.sidebar.jobSearches, fr.sidebar.jobDigests, fr.nav.account, fr.sidebar.subscription, fr.account.humanCoaches];
+const NAV_LABELS = [fr.nav.applications, fr.sidebar.jobSearches, fr.sidebar.jobDigests, fr.account.humanCoaches];
+/** Mon compte sits in the sidebar's foot, above signing out; the Subscription is one of its Sections. */
+const accountLink = (page: Page) => page.getByRole("link", { name: fr.nav.account, exact: true });
 
 /** What the focused element says: its accessible name as a screen reader would read it, roughly. */
 const focused = (page: Page) =>
@@ -86,7 +88,11 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
       await expect(link.locator("svg")).toHaveAttribute("aria-hidden", "true");
       expect((await link.innerText()).trim().length).toBeGreaterThan(0);
     }
-    await expect(sidebarNav(page).getByRole("link", { name: fr.nav.account })).toHaveAttribute("aria-current", "page");
+    await expect(accountLink(page)).toHaveAttribute("aria-current", "page");
+    await page.goto("/abonnement");
+    await expect(accountLink(page)).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("navigation", { name: fr.account.sections.sectionsLabel }).getByRole("link", { name: fr.sidebar.subscription })).toHaveAttribute("aria-current", "page");
+    await page.goto("/compte");
     await expect(sidebarNav(page).getByRole("link", { name: fr.sidebar.jobSearches })).toHaveAttribute("href", `/profils/${profileId}#job-search-title`);
     await expect(page.getByRole("navigation", { name: fr.profileSwitcher.label })).toBeVisible();
     await expect(page.getByLabel(fr.textSize.label)).toBeVisible();
@@ -141,7 +147,7 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     await expect(skip).toBeInViewport();
 
     const order: string[] = [];
-    for (let i = 0; i < 13; i++) {
+    for (let i = 0; i < 12; i++) {
       await page.keyboard.press("Tab");
       order.push(await focused(page));
     }
@@ -151,10 +157,11 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
       ...NAV_LABELS,
       // The Text Size select reads as its current choice.
       fr.textSize.standard,
+      fr.nav.account,
       fr.account.signOut,
       fr.sidebar.collapse,
       fr.coachPanel.open,
-      order[12],
+      order[11],
     ]);
     // After the top bar comes the page itself.
     expect(await page.evaluate(() => !!document.activeElement?.closest("main"))).toBe(true);
@@ -212,6 +219,28 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     await expect(coachButton(page)).toBeFocused();
   });
 
+  test("with no room beside the page for its Sections, the sidebar lists them, the main menu one arrow away", async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 800 });
+    await signInWithMagicLink(page, newAddress("sidebar-sections"));
+    await page.goto("/compte/relances");
+    const inPage = page.getByRole("main").getByRole("navigation", { name: fr.account.sections.sectionsLabel });
+    await expect(inPage).toBeVisible();
+
+    // The Coach Panel docked beside the page leaves its column too narrow.
+    await coachButton(page).click();
+    await expect(inPage).toBeHidden();
+    const inSidebar = page.locator(".sidebar-docked").getByRole("navigation", { name: fr.account.sections.sectionsLabel });
+    await expect(inSidebar.getByRole("link", { name: fr.account.sections.followUps })).toHaveAttribute("aria-current", "page");
+    await expect(sidebarNav(page)).toHaveCount(0);
+
+    await page.getByRole("button", { name: fr.sidebar.mainMenu }).click();
+    await expect(sidebarNav(page)).toBeVisible();
+    await expect(page.getByRole("button", { name: fr.account.title, exact: true })).toBeFocused();
+    await page.getByRole("button", { name: fr.account.title, exact: true }).click();
+    await expect(inSidebar).toBeVisible();
+    await expect(page.getByRole("button", { name: fr.sidebar.mainMenu })).toBeFocused();
+  });
+
   test("the home page sits in it once signed in", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("sidebar-home"));
     await page.goto("/");
@@ -243,7 +272,7 @@ test.describe("below 64rem", () => {
     const nav = drawer(page).getByRole("navigation", { name: fr.sidebar.label });
     await expect(nav.getByRole("link")).toHaveText(NAV_LABELS);
     // Focus goes into the drawer, onto the current page's link.
-    await expect(nav.getByRole("link", { name: fr.nav.account })).toBeFocused();
+    await expect(drawer(page).getByRole("link", { name: fr.nav.account, exact: true })).toBeFocused();
     // The page behind is out of reach while it is open: its content and <main> itself,
     // which holds a live region (the Job Search notifications) that Radix's modal leaves exposed.
     await expect(page.getByRole("heading", { level: 1 })).toHaveCount(0);
@@ -263,6 +292,21 @@ test.describe("below 64rem", () => {
     await expect(page).toHaveURL(`${origin}/candidatures`);
     await expect(drawer(page)).toHaveCount(0);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.applications.title);
+  });
+
+  test("a Section of Mon compte shows alone, its title in the Top Bar leading back to the list", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("sidebar-section-back"));
+    await page.goto("/compte/relances");
+    await expect(page.getByRole("region", { name: fr.followUps.delaysTitle })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: fr.account.sections.sectionsLabel })).toBeHidden();
+    // As on iOS: an arrow before the title, no second way back in the page.
+    const back = page.getByRole("banner").getByRole("link", { name: fr.account.title, exact: true });
+    await expect(back.locator("svg")).toHaveAttribute("aria-hidden", "true");
+    await expect(page.getByRole("main").getByRole("link", { name: fr.account.sections.backToSections, exact: true })).toHaveCount(0);
+    await back.click();
+    await expect(page).toHaveURL(`${origin}/compte`);
+    await expect(page.getByRole("navigation", { name: fr.account.sections.sectionsLabel })).toBeVisible();
+    await expect(page.getByRole("banner").getByRole("link", { name: fr.account.title, exact: true })).toHaveCount(0);
   });
 
   test("the Coach Panel takes the whole screen, with nothing to widen", async ({ page }) => {

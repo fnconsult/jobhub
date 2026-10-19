@@ -18,5 +18,7 @@ Pages in the sidebar layout had grown into long stacks of headings (Mon compte h
 - Dark mode stays out: the tokens are light only, and a dark set is its own pass, audited like the light one.
 - Every page that renders its own `<h1>` hands it to the layout instead.
 - Split so far: Mon compte, a Profile's page and an Application's page. A page's own address shows its first Section; a Section that is absent (no Action Cards, no Job Digest, no coach review…) is left out of the list. Propositions comes first when there are Action Cards, so they are what a Candidate sees on arriving; computing an ATS Score leads to them.
-- The Subscription and Human Coaches pages stay whole for now: Stripe returns to them with notices in the address, and their codes are carried from the notice into the Plans table on the same page.
-- With the Coach Panel docked, a narrow column lines its Sections up above the one shown rather than beside it.
+- The Subscription is one of Mon compte's Sections but keeps its address (/abonnement), which Stripe and shared promotion links lead to, and stays whole: its notices and codes go from the address into the Plans table on the same page. The Human Coaches page stays whole too, for the same reason. Mon compte itself moves to the Sidebar's foot, above signing out.
+- On a phone, a Section shown alone has no back link of its own: the Top Bar's title is the way back, behind an arrow, as on iOS.
+- With the Coach Panel docked, a column too narrow for its Sections' list hands the list to the Sidebar, in place of the main menu, which stays one arrow away (« Menu principal »); with the Sidebar hidden, the list lines up above the Section shown.
+- The selected item of a menu is bold and shaded, without the accent bar it used to have.

@@ -53,7 +53,8 @@ test.describe("Plans and Stripe billing", () => {
     await signInWithMagicLink(page, email);
     await page.getByRole("link", { name: fr.sidebar.subscription }).click();
     await expect(page).toHaveURL(/\/abonnement$/);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.billing.page.title);
+    // A Section of Mon compte (ADR-0024), at its own address.
+    await expect(page.getByRole("heading", { level: 2, name: fr.billing.page.title })).toBeVisible();
     await expect(page.getByText("Votre offre actuelle : Gratuite")).toBeVisible();
     await expect(page.getByRole("row", { name: /Match Scores/ })).toContainText("3 par mois");
 

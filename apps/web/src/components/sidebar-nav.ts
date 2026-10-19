@@ -1,6 +1,6 @@
 import { routes } from "../routes";
 
-export type SidebarNavKey = "applications" | "jobSearches" | "jobDigests" | "account" | "subscription" | "humanCoaches" | "coachSpace" | "admin";
+export type SidebarNavKey = "applications" | "jobSearches" | "jobDigests" | "humanCoaches" | "coachSpace" | "admin";
 
 export interface SidebarNavItem {
   key: SidebarNavKey;
@@ -22,9 +22,10 @@ const isUnder = (pathname: string, path: string) => pathname === path || pathnam
  * Job Searches and Job Digests are run and kept per Profile, so they lead to
  * the sections of a Profile's page: the Profile in view when it is active,
  * otherwise the Candidate's first active Profile. With no active Profile they
- * are left out (an Archived Profile has neither section). Then Mon compte, the
- * Subscription and the Human Coaches; the Coach space for a Human Coach and the
- * Back Office for an Administrator.
+ * are left out (an Archived Profile has neither section). Then the Human
+ * Coaches; the Coach space for a Human Coach and the Back Office for an
+ * Administrator. Mon compte is not among them: it sits in the Sidebar's foot
+ * (see accountLink).
  */
 export function sidebarNav({
   pathname,
@@ -48,12 +49,13 @@ export function sidebarNav({
       { key: "jobDigests", href: routes.profileJobDigest(profile.id), current: pathname.startsWith(JOB_DIGEST_PAGES) || pathname.endsWith(JOB_DIGEST_SECTION) },
     );
   }
-  items.push(
-    { key: "account", href: routes.account, current: isUnder(pathname, routes.account) },
-    { key: "subscription", href: routes.subscription, current: isUnder(pathname, routes.subscription) },
-    { key: "humanCoaches", href: routes.coaching, current: isUnder(pathname, routes.coaching) },
-  );
+  items.push({ key: "humanCoaches", href: routes.coaching, current: isUnder(pathname, routes.coaching) });
   if (isHumanCoach) items.push({ key: "coachSpace", href: routes.coachSpace, current: isUnder(pathname, routes.coachSpace) });
   if (isAdministrator) items.push({ key: "admin", href: routes.admin, current: isUnder(pathname, routes.admin) });
   return items;
+}
+
+/** Mon compte, in the Sidebar's foot above signing out: current on its Sections, the Subscription among them. */
+export function accountLink(pathname: string): { href: string; current: boolean } {
+  return { href: routes.account, current: isUnder(pathname, routes.account) || isUnder(pathname, routes.subscription) };
 }

@@ -397,7 +397,7 @@ The Candidate's choice of how large all interface text is shown (Standard, Grand
 _Avoid_: Zoom, font setting
 
 **Sidebar**:
-The menu down the side of the Candidate's pages: Profile switcher, links to their pages, Text Size and signing out. The Candidate can hide it, and the choice is remembered in that browser. On narrow screens it becomes a drawer opened from the Top Bar's Menu button.
+The menu down the side of the Candidate's pages: Profile switcher, links to their pages, and at its foot Text Size, Mon compte and signing out. The Candidate can hide it, and the choice is remembered in that browser. On narrow screens it becomes a drawer opened from the Top Bar's Menu button.
 _Avoid_: Navigation bar, workspace header
 
 **Top Bar**:
@@ -405,7 +405,7 @@ The bar above every page beside the Sidebar: the page's title, the Menu button w
 _Avoid_: Header, navbar
 
 **Section**:
-One part of a long page, with its own address: Mon compte's Profils, Relances or Mes données, a Profile's or an Application's parts, a Back Office section. On wide screens a page's Sections are listed beside it; on phones the list is the page and each Section opens as a drawer.
+One part of a long page, with its own address: Mon compte's Profils, Abonnement, Relances or Mes données, a Profile's or an Application's parts, a Back Office section. On wide screens a page's Sections are listed beside it, or in the Sidebar in place of its links when the page has no room (the main menu one arrow away); on phones the list is the page and each Section opens as a drawer, its title in the Top Bar leading back to the list.
 _Avoid_: Tab, sub-page, panel
 
 ### Delivery

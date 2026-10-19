@@ -1153,11 +1153,10 @@ html[data-sidebar="closed"] .sidebar-docked {
   background: var(--color-surface-hover);
 }
 
-/* The page shown: bold, shaded and marked with a bar, not by colour alone. */
+/* The page shown: bold and shaded, not by colour alone. */
 .sidebar-link[aria-current="page"] {
   font-weight: 600;
   background: var(--color-surface-hover);
-  box-shadow: inset 3px 0 0 var(--color-accent);
 }
 
 /* The Back Office's sidebar (#204): sections by group, each group named in small words above its links. */
@@ -1236,6 +1235,31 @@ html[data-sidebar="closed"] .sidebar-docked {
   font-size: var(--font-size-h3);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* A Section alone on a phone: the title leads back to the list, behind an arrow (iOS style). */
+.topbar-title {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.topbar-title > h1 {
+  min-width: 0;
+}
+
+.topbar-back {
+  display: inline-flex;
+  flex: none;
+  gap: var(--space-1);
+  align-items: center;
+  min-height: var(--control-height);
+  color: inherit;
+  text-decoration: none;
+}
+
+.topbar-back .icon {
+  color: var(--color-accent);
 }
 
 /* The Profile's name, edited in place, at the Top Bar's size. */
@@ -1393,10 +1417,6 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   margin-top: 0;
 }
 
-.sections-back {
-  display: none;
-}
-
 /* A wide screen with a narrow column (the Coach Panel docked beside it): the
    Sections line up above the one shown instead of beside it. */
 .workspace > .page {
@@ -1417,6 +1437,30 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
     flex-flow: row wrap;
     gap: var(--space-1);
   }
+}
+
+/* With the sidebar showing, it lists the Sections instead (SidebarShell), the
+   main menu one arrow away: the page keeps its whole column. */
+@media (width >= 64rem) {
+  @container (width < 44rem) {
+    html:not([data-sidebar="closed"]) .sections-nav {
+      display: none;
+    }
+  }
+}
+
+.sidebar-switch {
+  align-self: stretch;
+  justify-content: flex-start;
+  font-weight: 600;
+}
+
+.sidebar-switch-forward {
+  justify-content: space-between;
+}
+
+.sidebar-switch-forward .icon {
+  transform: rotate(-90deg);
 }
 
 @media (width < 64rem) {
@@ -1450,7 +1494,6 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   .sections-nav .sidebar-link[aria-current="page"] {
     font-weight: inherit;
     background: transparent;
-    box-shadow: none;
   }
 
   .sections[data-at-list] .sections-content {
@@ -1467,14 +1510,6 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
     background: var(--color-background);
   }
 
-  .sections-back {
-    display: inline-flex;
-    gap: var(--space-2);
-    align-items: center;
-    align-self: flex-start;
-    min-height: var(--control-height);
-    font-weight: 600;
-  }
 }
 
 @media (width < 64rem) and (prefers-reduced-motion: no-preference) {

@@ -81,7 +81,8 @@ test.describe("ATS Score", () => {
 
     await atPropositions(page, id);
     const proposals = cards(page);
-    await expect(proposals.getByRole("heading", { name: fr.actionCards.title })).toBeInViewport();
+    // The Section's heading is said by the Top Bar (only screen readers hear it in the page, ADR-0024).
+    await expect(proposals).toBeInViewport();
     await expect(proposals.getByRole("article").getByRole("heading")).toHaveText([KEYWORD_FIX, SENIOR_ADVICE]);
     await expect(proposals.getByRole("article", { name: KEYWORD_FIX })).toBeInViewport();
 

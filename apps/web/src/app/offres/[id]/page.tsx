@@ -46,7 +46,7 @@ export default async function JobOfferPage({ params, searchParams }: Params & Se
   const inView = { kind: "job_offer", id: jobOffer.id, name: jobOffer.title } as const;
   const page = (
     <>
-      <h1>{jobOffer.title}</h1>
+      {candidate ? null : <h1>{jobOffer.title}</h1>}
       {candidate ? <CoachInView {...inView} /> : null}
       <ExpiredJobOfferNotice jobOffer={jobOffer} t={t} locale={locale} />
       <section className="stack" aria-labelledby="save-job-offer">
@@ -62,7 +62,12 @@ export default async function JobOfferPage({ params, searchParams }: Params & Se
       <JobOfferView jobOffer={jobOffer} t={t} locale={locale} />
     </>
   );
-  if (candidate) return <CandidateLayout candidateId={candidate.id}>{page}</CandidateLayout>;
+  if (candidate)
+    return (
+      <CandidateLayout candidateId={candidate.id} title={jobOffer.title}>
+        {page}
+      </CandidateLayout>
+    );
   return (
     <main className="page">
       <header className="page-header">

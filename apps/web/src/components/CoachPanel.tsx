@@ -9,6 +9,7 @@ import { coachReplyBlocks, type Inline } from "@/coach/reply-text";
 import type { CoachMessage } from "@/coach/conversation";
 import { CoachConversationList, type ConversationSummary } from "@/components/CoachConversationList";
 import { CoachMemoryProposals, CoachMemoryView } from "@/components/CoachMemory";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icons } from "@/components/icons";
 import { StartJobSearchButton } from "@/components/JobSearchControls";
 import { routes } from "@/routes";
@@ -35,6 +36,10 @@ type Control = {
 
 const CoachPanelControl = createContext<Control | null>(null);
 
+/** The menu opens under the conversation's title, from its start. */
+const MENU_ALIGN = "start";
+const MEMORY_VIEW = "memory";
+
 /**
  * The button that opens and closes the Coach Panel. The sidebar layout puts
  * one in its top bar; every other page gets the floating one the Coach Panel
@@ -46,13 +51,15 @@ export function CoachPanelToggle({ floating = false }: { floating?: boolean }) {
   const control = useContext(CoachPanelControl);
   if (!control) return null;
   const { open, panelId, toggle, register, label } = control;
+  // While the panel is open its Fermer button closes it: the toggle steps aside (ADR-0024).
+  if (open) return null;
   return (
     <button
       ref={register}
       className={floating ? "button button-primary coach-panel-toggle coach-panel-toggle-floating" : "button coach-panel-toggle"}
       type="button"
-      aria-expanded={open}
-      aria-controls={open ? panelId : undefined}
+      aria-expanded={false}
+      aria-controls={panelId}
       onClick={toggle}
     >
       <Icons.coach />
@@ -254,6 +261,8 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   const body = useRef<HTMLDivElement>(null);
   const messagesEnd = useRef<HTMLDivElement>(null);
   const setInView = useCallback((next: InView | null) => setInViewState(next), []);
+  // Agrandir: the panel widens into a modal drawer over the page (ADR-0024); never remembered.
+  const [wide, setWide] = useState(false);
 
   useEffect(() => {
     if (open) input.current?.focus();
@@ -279,8 +288,10 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
 
   function close() {
     setOpen(false);
-    // The button on screen: the top bar's, or the floating one where there is no top bar.
-    [...toggles.current].find((button) => button.getClientRects().length > 0)?.focus();
+    setWide(false);
+    // The button on screen: the top bar's, or the floating one where there is no top bar,
+    // once it is back (the toggle steps aside while the panel is open).
+    requestAnimationFrame(() => [...toggles.current].find((button) => button.getClientRects().length > 0)?.focus());
   }
 
   const register = useCallback((button: HTMLButtonElement | null) => {
@@ -291,8 +302,15 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     };
   }, []);
 
+  // Escape brings a widened panel back beside the page first, then closes it.
   function onKeyDown(event: KeyboardEvent) {
-    if (event.key === "Escape") close();
+    if (event.key !== "Escape") return;
+    if (wide) setWide(false);
+    else close();
+  }
+
+  function showMemory() {
+    setView(MEMORY_VIEW);
   }
 
   function showChat() {
@@ -391,41 +409,73 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
       })
     : t("coachPanel.nothingInView");
 
+  const contextText = panel.features.inView || !texts.context ? inViewLabel : t(texts.context);
+  const conversationTitle = conversation ? conversation.title : t("coachPanel.newConversation");
+
   const control: Control = { open, panelId: `${id}-panel`, toggle: () => (open ? close() : openPanel()), register, label: texts.open };
 
   return (
     <SetInView.Provider value={setInView}>
       <CoachPanelControl.Provider value={control}>
-        <div className={open ? "with-coach-panel" : undefined}>{children}</div>
+        {/* A widened panel is modal: the page beneath is out of reach until it narrows or closes. */}
+        <div className={open ? "with-coach-panel" : undefined} inert={open && wide}>
+          {children}
+        </div>
+        {open && wide ? <div className="coach-panel-scrim" aria-hidden="true" onClick={() => setWide(false)} /> : null}
         {open ? (
-          <aside id={`${id}-panel`} className="coach-panel" aria-labelledby={`${id}-title`} onKeyDown={onKeyDown}>
+          <aside
+            id={`${id}-panel`}
+            className={wide ? "coach-panel coach-panel-wide" : "coach-panel"}
+            aria-labelledby={`${id}-title`}
+            aria-modal={wide || undefined}
+            role={wide ? "dialog" : undefined}
+            onKeyDown={onKeyDown}
+          >
             <div className="coach-panel-header">
-              <h2 id={`${id}-title`}>{t(texts.title)}</h2>
-              <button className="button button-quiet" type="button" onClick={close}>
-                <Icons.close />
-                {t("coachPanel.close")}
-              </button>
-            </div>
-            <div className="coach-panel-tools">
-              {view === "chat" ? (
-                <button className="button button-quiet" type="button" onClick={showList}>
-                  <Icons.conversations />
-                  {t("coachPanel.conversations")}
+              <h2 id={`${id}-title`} className="visually-hidden">
+                {t(texts.title)}
+              </h2>
+              <DropdownMenu.Root modal={false}>
+                <DropdownMenu.Trigger className="button button-quiet coach-panel-menu-button">
+                  <span className="coach-panel-menu-title">{view === "list" ? t("coachPanel.conversations") : view === "memory" ? t("coachMemory.open") : conversationTitle}</span>
+                  <Icons.chevron />
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Portal>
+                  <DropdownMenu.Content className="menu coach-panel-menu" align={MENU_ALIGN} sideOffset={4}>
+                    <DropdownMenu.Item className="menu-item" onSelect={startNewConversation}>
+                      <Icons.add />
+                      {t("coachPanel.newConversation")}
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item className="menu-item" onSelect={() => void showList()}>
+                      <Icons.conversations />
+                      {t("coachPanel.conversations")}
+                    </DropdownMenu.Item>
+                    {panel.features.memory ? (
+                      <DropdownMenu.Item className="menu-item" onSelect={showMemory}>
+                        <Icons.coach />
+                        {t("coachMemory.open")}
+                      </DropdownMenu.Item>
+                    ) : null}
+                    {view !== "chat" ? (
+                      <>
+                        <DropdownMenu.Separator className="menu-separator" />
+                        <DropdownMenu.Item className="menu-item" onSelect={showChat}>
+                          {t("coachPanel.backToConversation")}
+                        </DropdownMenu.Item>
+                      </>
+                    ) : null}
+                  </DropdownMenu.Content>
+                </DropdownMenu.Portal>
+              </DropdownMenu.Root>
+              <div className="coach-panel-actions">
+                <button className="button button-quiet coach-panel-widen" type="button" onClick={() => setWide((was) => !was)}>
+                  {t(wide ? "coachPanel.narrow" : "coachPanel.widen")}
                 </button>
-              ) : (
-                <button className="button button-quiet" type="button" onClick={showChat}>
-                  {t("coachPanel.backToConversation")}
+                <button className="button button-quiet" type="button" onClick={close}>
+                  <Icons.close />
+                  {t("coachPanel.close")}
                 </button>
-              )}
-              {view !== "memory" && panel.features.memory ? (
-                <button className="button button-quiet" type="button" onClick={() => setView("memory")}>
-                  {t("coachMemory.open")}
-                </button>
-              ) : null}
-              <button className="button button-quiet" type="button" onClick={startNewConversation}>
-                <Icons.add />
-                {t("coachPanel.newConversation")}
-              </button>
+              </div>
             </div>
             {view === "memory" ? (
               <div className="coach-panel-body">
@@ -455,16 +505,8 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
               </div>
             ) : (
               <>
-                <div className="coach-panel-context">
-                  <h3 className="coach-panel-conversation">{conversation ? conversation.title : t("coachPanel.newConversation")}</h3>
-                  <p className="coach-panel-in-view">{panel.features.inView || !texts.context ? inViewLabel : t(texts.context)}</p>
-                  {!panel.features.inView ? null : profileIdOf(inView) ? (
-                    <StartJobSearchButton key={profileIdOf(inView)} profileId={profileIdOf(inView)!} label={t("coachPanel.searchJobs")} className="button" />
-                  ) : (
-                    <p className="hint">{t("coachPanel.searchHint")}</p>
-                  )}
-                </div>
                 <div className="coach-panel-body" ref={body}>
+                  <h3 className="visually-hidden">{conversationTitle}</h3>
                   {restoring ? <p role="status">{t("coachPanel.loading")}</p> : null}
                   <ol className="chat coach-panel-messages" aria-label={t(texts.messagesLabel)} aria-live="polite">
                     <li className="chat-message chat-coach">
@@ -492,24 +534,44 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                   {conversation && panel.features.memory ? <CoachMemoryProposals key={conversation.id} conversationId={conversation.id} /> : null}
                 </div>
                 <form className="coach-panel-form" onSubmit={send}>
-                  <label htmlFor={`${id}-message`}>{t("coachPanel.messageLabel")}</label>
-                  <textarea
-                    id={`${id}-message`}
-                    ref={input}
-                    className="input"
-                    rows={3}
-                    value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.shiftKey) {
-                        event.preventDefault();
-                        event.currentTarget.form?.requestSubmit();
-                      }
-                    }}
-                  />
-                  <button className="button button-primary" type="submit" disabled={status === "sending" || restoring}>
-                    {t("coachPanel.send")}
-                  </button>
+                  <label className="visually-hidden" htmlFor={`${id}-message`}>
+                    {t("coachPanel.messageLabel")}
+                  </label>
+                  {/* The Send button sits inside the message box; a click anywhere in the box writes in it. */}
+                  <div className="coach-panel-composer" onClick={(event) => event.target === event.currentTarget && input.current?.focus()}>
+                    <textarea
+                      id={`${id}-message`}
+                      ref={input}
+                      rows={2}
+                      placeholder={t("coachPanel.messageLabel")}
+                      value={draft}
+                      onChange={(event) => setDraft(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && !event.shiftKey) {
+                          event.preventDefault();
+                          event.currentTarget.form?.requestSubmit();
+                        }
+                      }}
+                    />
+                    <button className="button button-primary" type="submit" disabled={status === "sending" || restoring}>
+                      {t("coachPanel.send")}
+                    </button>
+                  </div>
+                  {/* What goes with the message: one line, opened for the whole text (and the Job Search). */}
+                  <details className="coach-panel-context">
+                    <summary>
+                      <Icons.coach />
+                      <span className="coach-panel-context-line">{contextText}</span>
+                    </summary>
+                    <div className="coach-panel-context-more">
+                      <p className="coach-panel-in-view">{contextText}</p>
+                      {!panel.features.inView ? null : profileIdOf(inView) ? (
+                        <StartJobSearchButton key={profileIdOf(inView)} profileId={profileIdOf(inView)!} label={t("coachPanel.searchJobs")} className="button" />
+                      ) : (
+                        <p className="hint">{t("coachPanel.searchHint")}</p>
+                      )}
+                    </div>
+                  </details>
                 </form>
               </>
             )}

@@ -64,8 +64,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   const paymentFailed = paymentFailedNotice(stripeStatus, locale);
 
   return (
-    <CandidateLayout candidateId={candidate.id}>
-      <h1>{t("billing.page.title")}</h1>
+    <CandidateLayout candidateId={candidate.id} title={t("billing.page.title")}>
       {checkout === "success" ? (
         <p className="notice" role="status">
           {t("billing.page.checkoutSuccess")}

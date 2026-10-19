@@ -36,8 +36,7 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
   const board = vue === "tableau";
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: INTERVIEW_TIME_ZONE });
   return (
-    <CandidateLayout candidateId={candidate.id} wide={board}>
-      <h1>{t("applications.title")}</h1>
+    <CandidateLayout candidateId={candidate.id} wide={board} title={t("applications.title")}>
       <FollowUpNotices notices={notices} t={t} />
       <nav className="actions" aria-label={t("applications.viewsLabel")}>
         <Link className="button" href={routes.applications} aria-current={board ? undefined : CURRENT}>

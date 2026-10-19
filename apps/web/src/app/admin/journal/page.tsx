@@ -146,8 +146,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
   };
 
   return (
-    <BackOfficeLayout access={access}>
-      <h1>{t("admin.journal.title")}</h1>
+    <BackOfficeLayout access={access} title={t("admin.journal.title")}>
       <p className="lead">{t("admin.journal.intro", { years: String(RETENTION_YEARS) })}</p>
       <nav aria-label={t("admin.journal.filter")}>
         <ul className="journal-filter">

@@ -179,6 +179,16 @@
     }
   },
   "account": {
+    "sections": {
+      "sectionsLabel": "Rubriques de mon compte",
+      "backToSections": "Mon compte",
+      "profiles": "Profils",
+      "followUps": "Relances",
+      "euAi": "IA européenne",
+      "signIn": "Connexion",
+      "preferences": "Préférences",
+      "data": "Mes données"
+    },
     "title": "Mon compte",
     "email": "Adresse e-mail",
     "interfaceLanguage": "Langue de l'interface",
@@ -467,6 +477,8 @@
     "newConversation": "Nouvelle conversation",
     "conversations": "Mes conversations",
     "backToConversation": "Revenir à la conversation",
+    "widen": "Agrandir",
+    "narrow": "Réduire",
     "loading": "Chargement de la conversation…",
     "noConversations": "Vous n'avez pas encore de conversation avec votre coach.",
     "retention": "Vos conversations sont conservées 12 mois après leur dernier message, puis supprimées. Votre coach humain ne les voit jamais.",

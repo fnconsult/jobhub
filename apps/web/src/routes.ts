@@ -5,6 +5,13 @@ export const routes = {
   /** The Back Office sign-in: the providers allowed for Administrators; where Require SSO sends an Administrator. */
   backOfficeSignIn: "/connexion/back-office",
   account: "/compte",
+  /** Mon compte's Sections (ADR-0024); `account` itself shows the first, the Profiles. */
+  accountProfiles: "/compte/profils",
+  accountFollowUps: "/compte/relances",
+  accountEuAi: "/compte/ia-europeenne",
+  accountSignIn: "/compte/connexion",
+  accountPreferences: "/compte/preferences",
+  accountData: "/compte/donnees",
   newProfile: "/profils/nouveau",
   profile: (id: string) => `/profils/${id}`,
   /** The Job Search section of a Profile's page. */

@@ -18,6 +18,9 @@ const LABELS = {
   jobDigests: "sidebar.jobDigests",
   account: "nav.account",
   subscription: "sidebar.subscription",
+  humanCoaches: "account.humanCoaches",
+  coachSpace: "account.coachSpace",
+  admin: "account.admin",
 } as const satisfies Record<SidebarNavKey, string>;
 
 /**
@@ -28,24 +31,31 @@ export function SidebarLayout({
   profiles,
   currentProfileId,
   canAddProfile,
+  isHumanCoach = false,
+  isAdministrator = false,
+  title,
   wide = false,
   children,
 }: {
   profiles: ReadonlyArray<SidebarProfile>;
   currentProfileId?: string | undefined;
   canAddProfile: boolean;
+  isHumanCoach?: boolean;
+  isAdministrator?: boolean;
+  title?: ReactNode;
   wide?: boolean;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
   const pathname = usePathname();
-  const items = sidebarNav({ pathname, profiles, currentProfileId });
+  const items = sidebarNav({ pathname, profiles, currentProfileId, isHumanCoach, isAdministrator });
   const switcherProfiles = profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name }));
   const current = profiles.find((profile) => profile.id === currentProfileId);
 
   return (
     <SidebarShell
       brand={{ href: routes.home, label: t("app.name") }}
+      title={title}
       wide={wide}
       top={
         profiles.length > 0 ? (

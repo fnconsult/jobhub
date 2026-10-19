@@ -7,6 +7,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { CoachPanelToggle } from "@/components/CoachPanel";
 import { Icons } from "@/components/icons";
+import { SignOutButton } from "@/components/SignOutButton";
 import { TextSizeControl } from "@/components/TextSizeControl";
 import { SIDEBAR_CLOSED, SIDEBAR_OPEN, SIDEBAR_STORAGE_KEY } from "@/design/sidebar-state";
 
@@ -29,8 +30,10 @@ function setHidden(hidden: boolean) {
 
 /**
  * The sidebar layout (#132, #134), whatever the sidebar holds: a skip link, the
- * sidebar (brand, `top`, the `nav`, the Text Size control), a top bar with the
- * Menu and Coach Panel buttons, and the page as `<main>`.
+ * sidebar (brand, `top`, the `nav`, the Text Size control, signing out), the Top
+ * Bar with the Menu button, the page's `title` and the Coach Panel button, and
+ * the page as `<main>`. `title` is the page's `<h1>`: a string, or an element that
+ * is one itself (an editable title). Pages never render their own (ADR-0024).
  *
  * On a wide screen the sidebar sits beside the page and can be hidden
  * (remembered by this browser); the Menu button brings it back. Below 64rem
@@ -42,11 +45,13 @@ export function SidebarShell({
   brand,
   top,
   nav,
+  title,
   wide = false,
   children,
 }: {
   brand: { href: string; label: string };
   top?: ReactNode;
+  title?: ReactNode;
   nav: (closeDrawer: () => void) => ReactNode;
   wide?: boolean;
   children: ReactNode;
@@ -100,6 +105,7 @@ export function SidebarShell({
       {nav(() => setDrawerPath(null))}
       <div className="sidebar-foot">
         <TextSizeControl />
+        <SignOutButton />
         {inDrawer ? null : (
           <button ref={collapseButton} className="button button-quiet sidebar-collapse" type="button" aria-controls={`${id}-sidebar`} onClick={hide}>
             <Icons.collapse />
@@ -154,6 +160,7 @@ export function SidebarShell({
             <Icons.menu />
             {t("sidebar.menu")}
           </button>
+          <div className="topbar-title">{typeof title === "string" ? <h1>{title}</h1> : title}</div>
           <CoachPanelToggle />
         </header>
         <main id={MAIN_ID} tabIndex={-1} className={wide ? "page page-wide" : "page"}>

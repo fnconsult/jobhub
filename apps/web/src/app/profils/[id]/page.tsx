@@ -54,11 +54,14 @@ export default async function ProfilePage({ params }: Params) {
   const { searchCriteria: criteria, masterCv } = profile;
   const savedAt = versions?.find((each) => each.version === masterCv.version)?.savedAt;
   return (
-    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id}>
+    <CandidateLayout
+      candidateId={candidateId}
+      currentProfileId={profile.id}
+      title={<ProfileTitle key={`title-${profile.id}`} profileId={profile.id} name={profile.name} />}
+    >
       <article className="document">
         <header className="page-head">
           <p className="eyebrow">{t("profilePage.eyebrow")}</p>
-          <ProfileTitle key={`title-${profile.id}`} profileId={profile.id} name={profile.name} />
           {profile.archived ? <p className="notice">{t("profileActions.archivedNotice")}</p> : null}
           {profile.archived ? (
             <ArchivedCriteria criteria={criteria} locale={locale} t={t} />

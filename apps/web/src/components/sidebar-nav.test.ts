@@ -9,7 +9,7 @@ const links = (items: ReturnType<typeof sidebarNav>) => items.map(({ key, href }
 const current = (items: ReturnType<typeof sidebarNav>) => items.filter((item) => item.current).map((item) => item.key);
 
 describe("sidebarNav", () => {
-  it("lists Applications, Job Searches, Job Digests, Account and Subscription, the Profile ones leading to the Profile in view", () => {
+  it("lists Applications, Job Searches, Job Digests, Account, Subscription and Human Coaches, the Profile ones leading to the Profile in view", () => {
     const items = sidebarNav({ pathname: "/profils/p-consultant", profiles: [daf, consultant], currentProfileId: "p-consultant" });
     expect(links(items)).toEqual([
       ["applications", "/candidatures"],
@@ -17,7 +17,14 @@ describe("sidebarNav", () => {
       ["jobDigests", "/profils/p-consultant#job-digest-title"],
       ["account", "/compte"],
       ["subscription", "/abonnement"],
+      ["humanCoaches", "/coachs"],
     ]);
+  });
+
+  it("adds the Coach space for a Human Coach and the Back Office for an Administrator", () => {
+    const keys = (flags: { isHumanCoach?: boolean; isAdministrator?: boolean }) => sidebarNav({ pathname: "/compte", profiles: [], ...flags }).map((item) => item.key);
+    expect(keys({})).toEqual(["applications", "account", "subscription", "humanCoaches"]);
+    expect(keys({ isHumanCoach: true, isAdministrator: true })).toEqual(["applications", "account", "subscription", "humanCoaches", "coachSpace", "admin"]);
   });
 
   it("leads Job Searches and Job Digests to the first active Profile when none is in view", () => {
@@ -34,8 +41,8 @@ describe("sidebarNav", () => {
   });
 
   it("leaves Job Searches and Job Digests out while the Candidate has no active Profile", () => {
-    expect(sidebarNav({ pathname: "/compte", profiles: [] }).map((item) => item.key)).toEqual(["applications", "account", "subscription"]);
-    expect(sidebarNav({ pathname: "/compte", profiles: [archived] }).map((item) => item.key)).toEqual(["applications", "account", "subscription"]);
+    expect(sidebarNav({ pathname: "/compte", profiles: [] }).map((item) => item.key)).toEqual(["applications", "account", "subscription", "humanCoaches"]);
+    expect(sidebarNav({ pathname: "/compte", profiles: [archived] }).map((item) => item.key)).toEqual(["applications", "account", "subscription", "humanCoaches"]);
   });
 
   it.each([
@@ -44,9 +51,10 @@ describe("sidebarNav", () => {
     ["/recherches/s-1", ["jobSearches"]],
     ["/job-digests/d-1", ["jobDigests"]],
     ["/compte", ["account"]],
+    ["/compte/relances", ["account"]],
     ["/abonnement", ["subscription"]],
     ["/profils/p-daf", []],
-    ["/coachs", []],
+    ["/coachs", ["humanCoaches"]],
     ["/offres/o-1", []],
     ["/compteur", []],
   ])("marks the item for %s as the current page", (pathname, expected) => {

@@ -179,6 +179,16 @@
     }
   },
   "account": {
+    "sections": {
+      "sectionsLabel": "Sections of my account",
+      "backToSections": "My account",
+      "profiles": "Profiles",
+      "followUps": "Follow-ups",
+      "euAi": "European AI",
+      "signIn": "Sign-in",
+      "preferences": "Preferences",
+      "data": "My data"
+    },
     "title": "My account",
     "email": "Email address",
     "interfaceLanguage": "Interface language",
@@ -467,6 +477,8 @@
     "newConversation": "New conversation",
     "conversations": "My conversations",
     "backToConversation": "Back to the conversation",
+    "widen": "Widen",
+    "narrow": "Narrow",
     "loading": "Loading the conversation…",
     "noConversations": "You don't have any conversation with your coach yet.",
     "retention": "Your conversations are kept for 12 months after their last message, then deleted. Your human coach never sees them.",

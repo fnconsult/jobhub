@@ -118,8 +118,7 @@ export default async function SearchSitesPage({ searchParams }: { searchParams: 
   );
 
   return (
-    <BackOfficeLayout access={access}>
-      <h1>{t("admin.searchSites.title")}</h1>
+    <BackOfficeLayout access={access} title={t("admin.searchSites.title")}>
       <p className="lead">{t("admin.searchSites.intro")}</p>
       {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}
       {shown ? (

@@ -94,13 +94,12 @@ export default async function ApplicationPage({ params }: Params) {
   const site = jobOfferSite(jobOffer);
   const recipients = (enrichedContacts?.contacts ?? []).map(({ id, name, jobTitle, emails }) => ({ id, name, ...(jobTitle && { jobTitle }), ...(emails[0] && { email: emails[0] }) }));
   return (
-    <CandidateLayout candidateId={candidateId}>
+    <CandidateLayout candidateId={candidateId} title={jobOffer.title}>
       <div className="doc">
         <header className="page-head">
           <p className="eyebrow">
             <Link href={routes.applications}>{t("application.backToApplications")}</Link>
           </p>
-          <h1>{jobOffer.title}</h1>
           {atAGlance ? <p className="lead">{atAGlance}</p> : null}
           <dl className="props">
             <ApplicationStatusSelect applicationId={application.id} status={application.status} property />

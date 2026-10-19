@@ -145,8 +145,7 @@ export default async function SignInProvidersPage({ searchParams }: { searchPara
   const addable: SignInProviderType[] = [...missingSocial, "oidc"];
 
   return (
-    <BackOfficeLayout access={access}>
-      <h1>{t("admin.signInProviders.title")}</h1>
+    <BackOfficeLayout access={access} title={t("admin.signInProviders.title")}>
       <p className="lead">{t("admin.signInProviders.intro")}</p>
       {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}
       {canWrite && !canSave ? <p className="notice">{t("admin.signInProviders.noMasterKey")}</p> : null}

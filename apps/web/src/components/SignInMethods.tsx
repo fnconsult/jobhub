@@ -17,7 +17,7 @@ export function SignInMethods({ linked, linkable, failed }: { linked: SignInButt
 
   async function link(provider: string) {
     setError(false);
-    const result = await authClient.linkSocial({ provider, callbackURL: routes.account, errorCallbackURL: routes.account });
+    const result = await authClient.linkSocial({ provider, callbackURL: routes.accountSignIn, errorCallbackURL: routes.accountSignIn });
     if (result.error) setError(true);
   }
 

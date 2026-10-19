@@ -36,8 +36,7 @@ export default async function CoachCostPage() {
     );
 
   return (
-    <BackOfficeLayout access={access}>
-      <h1>{t("admin.coachCost.title")}</h1>
+    <BackOfficeLayout access={access} title={t("admin.coachCost.title")}>
       <p className="lead">{t("admin.coachCost.intro", { days: String(DAYS), target: eur.format(COACH_MESSAGE_COST_TARGET_EUR) })}</p>
       <p>{t("admin.coachCost.estimate", { rate: number.format(EUR_PER_USD) })}</p>
       {days.length === 0 ? (

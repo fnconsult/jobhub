@@ -14,6 +14,13 @@ const PATHS = {
   subscription: ["M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z", "M3 10h18M7 15h4"],
   profile: ["M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8z", "M4 21c0-4 4-6 8-6s8 2 8 6"],
   chevron: ["M8 10l4 4 4-4"],
+  back: ["M15 6l-6 6 6 6"],
+  // A clipboard: a Human Coach's own space.
+  coachSpace: ["M9 3h6v3H9z", "M8 4.5H5V21h14V4.5h-3", "M8 11h8M8 15h5"],
+  // A shield: the Back Office.
+  admin: ["M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"],
+  // A door with an arrow out: signing out.
+  signOut: ["M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4", "M9 16l-4-4 4-4", "M5 12h11"],
   coach: ["M4 5h16v11H9l-5 4z", "M8 9h8M8 12h5"],
   add: ["M12 5v14M5 12h14"],
   conversations: ["M4 6h16M4 12h16M4 18h10"],

@@ -76,8 +76,7 @@ export default async function CouponsPage({ searchParams }: { searchParams: Prom
     coupon.plans === null ? t("admin.coupons.allPlans") : coupon.plans.map((key) => plans.find((plan) => plan.key === key)?.name[locale] ?? key).join(", ");
 
   return (
-    <BackOfficeLayout access={access}>
-      <h1>{t("admin.coupons.title")}</h1>
+    <BackOfficeLayout access={access} title={t("admin.coupons.title")}>
       <p className="lead">{t("admin.coupons.intro")}</p>
       {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}
       {createdCoupon ? (

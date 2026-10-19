@@ -73,7 +73,7 @@ A Human Coach no longer listed to Candidates and who can no longer read anything
 _Avoid_: Deleted coach
 
 **Coach Panel**:
-The side panel, available from every page, where the Candidate talks with the AI Coach.
+The side panel, available from every page, where the Candidate talks with the AI Coach. On wide screens it sits beside the page, and the Candidate can widen it into a drawer over the page; on phones it takes the whole screen. Its one menu, the conversation's title, holds a new conversation, the saved Coach Conversations and the Coach Memory.
 _Avoid_: Chat, chatbot, sidebar
 
 **Coach context**:
@@ -397,8 +397,16 @@ The Candidate's choice of how large all interface text is shown (Standard, Grand
 _Avoid_: Zoom, font setting
 
 **Sidebar**:
-The menu down the side of the Candidate's pages: Profile switcher, links to their sections, Text Size. The Candidate can hide it, and the choice is remembered in that browser. On narrow screens it becomes a drawer opened from the top bar's Menu button.
+The menu down the side of the Candidate's pages: Profile switcher, links to their pages, Text Size and signing out. The Candidate can hide it, and the choice is remembered in that browser. On narrow screens it becomes a drawer opened from the Top Bar's Menu button.
 _Avoid_: Navigation bar, workspace header
+
+**Top Bar**:
+The bar above every page beside the Sidebar: the page's title, the Menu button when the Sidebar is hidden, and the Coach Panel's button while the panel is closed.
+_Avoid_: Header, navbar
+
+**Section**:
+One part of a long page, with its own address: Mon compte's Profils, Relances or Mes données, a Profile's or an Application's parts, a Back Office section. On wide screens a page's Sections are listed beside it; on phones the list is the page and each Section opens as a drawer.
+_Avoid_: Tab, sub-page, panel
 
 ### Delivery
 

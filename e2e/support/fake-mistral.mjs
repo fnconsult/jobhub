@@ -49,6 +49,12 @@
 // whose displayed employer starts with "Cabinet" is a recruiting agency's, and its
 // Presumed Employer is the name after "Client présumé : " in the posting.
 //
+// Asked which Playbook Agents the AI Coach should consult (#225, "Tu choisis quels Playbook
+// Agents"), it names those the Candidate's message lists after "E2E_CONSULT=" (comma-separated),
+// else none. A Playbook Agent (its system prompt holds its `<playbook id=… version=…>`) answers with
+// advice naming its playbook, version, model and the reasoning_effort it was sent, citing [S24]; a
+// message holding "E2E_AGENT_DOWN=<id>" makes that Playbook Agent fail with a 503.
+//
 // For the fields of a Job Offer read from its text (task offer_analysis, the second
 // phase of a Match Score, #94), it finds none ("{}"), unless the text holds
 // "E2E_OFFER_FIELDS=<json>", which it returns as the fields read.
@@ -65,6 +71,14 @@ globalThis.fetch = async (input, init) => {
 
   let content = "fake reply";
   const system = String(body.messages?.find((message) => message.role === "system")?.content ?? "");
+  if (system.startsWith("Tu choisis quels Playbook Agents")) {
+    content = JSON.stringify(/E2E_CONSULT=([\w,-]+)/.exec(prompt)?.[1].split(",") ?? []);
+  }
+  const playbook = /<playbook id="([^"]+)" version="(\d+)">/.exec(system);
+  if (playbook) {
+    if (new RegExp(`E2E_AGENT_DOWN=${playbook[1]}(?![\\w-])`).test(prompt)) return new Response("upstream unavailable", { status: 503 });
+    content = `Avis du Playbook Agent ${playbook[1]} (version ${playbook[2]}, modèle ${body.model}, effort ${body.reasoning_effort ?? "aucun"}) : préparez trois exemples [S24].`;
+  }
   if (system.includes("coach Jobbbox")) {
     const inView = /Le candidat consulte son profil « (.+?) »/.exec(system)?.[1];
     const turns = body.messages.filter((message) => message.role !== "system").length;

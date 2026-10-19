@@ -189,8 +189,12 @@ _Avoid_: Form, survey
 ### Job offers
 
 **Job Offer**:
-A job posting, captured by the extension or found by the AI Coach's search. One Job Offer can be referenced by many Candidates.
+A job posting, captured by the extension or found by the AI Coach's search. One Job Offer can be referenced by many Candidates. Carries a Job Offer Summary.
 _Avoid_: Job, posting, ad, vacancy, offer (alone)
+
+**Job Offer Summary**:
+Two or three sentences on a Job Offer (the role, its scope, what is expected), written by the AI from the offer's own text and in its language, inventing nothing. Shown, labelled as written by the AI, at the top of the Application's page.
+_Avoid_: Abstract, description
 
 **Capture**:
 The act of the browser extension turning the job page the person is viewing into a Job Offer, either detected automatically or triggered manually.
@@ -275,8 +279,12 @@ A recurring email and in-app summary of new Job Offers matching a Profile's Sear
 _Avoid_: Alert, newsletter, feed
 
 **Company Dossier**:
-The research compiled about the employer behind a Job Offer from public data only: legal identity, address, financials and Suggested Contact Roles. Built from the French company register for a French employer; for a foreign one, from the web and marked less reliable. Never names a private person. Built only for a confirmed employer, and refused when the employer is not a company (e.g. a sole trader), in which case the Candidate is asked to name the hiring company.
+The research compiled about the employer behind a Job Offer from public data only: legal identity, address, financials and Suggested Contact Roles. Built from the French company register for a French employer; for a foreign one, from the web and marked less reliable. Never names a private person. Built only for a confirmed employer, and refused when the employer is not a company (e.g. a sole trader), in which case the Candidate is asked to name the hiring company. Holds the employer's Company News.
 _Avoid_: Company info, company profile
+
+**Company News**:
+Up to five articles about a Company Dossier's employer from the last twelve months, found by web search when the dossier is built: each one's title, outlet, date and link, never its text, and none whose title names a private person. Part of building the dossier, counted against no Plan Quota.
+_Avoid_: Press review, feed
 
 **Suggested Contact Role**:
 A job title the Candidate should look for and contact at the employer (e.g. "DRH"), given without naming a private person.

@@ -1,0 +1,74 @@
+# Jobbbox on the Hostinger VPS: one stack per environment (staging, production).
+# Run by deploy/deploy.sh, never by hand without its variables. The images are built by
+# .github/workflows/deploy.yml and pulled from GHCR, tagged with the commit SHA: the VPS
+# builds nothing (a Next.js build needs more memory than the shared VPS should spare).
+#
+# The VPS's Traefik (shared with other apps) routes JOBHUB_HOST to the web container
+# over its `n8n_default` network and gets the TLS certificate (resolver `mytlschallenge`).
+# Secrets and configuration come from <JOBHUB_ROOT>/.env on the VPS, never from the repo
+# (keys: .env.example; layout: docs/ops/hosting.md).
+
+x-app-env: &app-env
+  env_file:
+    - path: ${JOBHUB_ENV_FILE:?JOBHUB_ENV_FILE is required}
+  environment:
+    DATABASE_URL: postgres://jobhub:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/jobhub
+    APP_URL: https://${JOBHUB_HOST:?JOBHUB_HOST is required}
+    JOBHUB_REVISION: ${JOBHUB_REVISION}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: jobhub
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: jobhub
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobhub -d jobhub"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  migrate:
+    <<: *app-env
+    image: ${JOBHUB_IMAGES:?JOBHUB_IMAGES is required}/migrate:${JOBHUB_REVISION:?JOBHUB_REVISION is required}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    <<: *app-env
+    image: ${JOBHUB_IMAGES:?JOBHUB_IMAGES is required}/web:${JOBHUB_REVISION:?JOBHUB_REVISION is required}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks: [default, traefik]
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=n8n_default
+      - "traefik.http.routers.${JOBHUB_SLUG:?JOBHUB_SLUG is required}.rule=Host(`${JOBHUB_HOST}`)"
+      - "traefik.http.routers.${JOBHUB_SLUG}.entrypoints=websecure"
+      - "traefik.http.routers.${JOBHUB_SLUG}.tls=true"
+      - "traefik.http.routers.${JOBHUB_SLUG}.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.${JOBHUB_SLUG}.loadbalancer.server.port=3000"
+    restart: unless-stopped
+
+  worker:
+    <<: *app-env
+    image: ${JOBHUB_IMAGES}/worker:${JOBHUB_REVISION}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+networks:
+  traefik:
+    name: n8n_default
+    external: true
+
+volumes:
+  postgres-data:

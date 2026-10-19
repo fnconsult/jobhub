@@ -157,7 +157,8 @@ function SectionView({ data, section }: { data: ApplicationPageData; section: Ap
         />
       ) : null;
     case "offre":
-      return <JobOfferView jobOffer={application.jobOffer} t={t} locale={locale} />;
+      // The offer's facts are framed in the page's header: here, its full text.
+      return <JobOfferView jobOffer={application.jobOffer} t={t} locale={locale} details={false} />;
   }
 }
 

@@ -767,15 +767,18 @@ th[aria-sort] .sort-mark {
   background: var(--color-background);
 }
 
-/* This month's usage on the Subscription: one framed tile per quota, side by side. */
-.usage-tiles {
+/* Framed tiles, side by side: this month's usage on the Subscription, one per quota;
+   a Job Offer's facts in the Application's header, one per fact. */
+.usage-tiles,
+.tiles {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
   gap: var(--space-3);
   margin: 0;
 }
 
-.usage-tiles > div {
+.usage-tiles > div,
+.tiles > div {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -785,13 +788,28 @@ th[aria-sort] .sort-mark {
   border-radius: var(--radius-md);
 }
 
-.usage-tiles dt {
+.usage-tiles dt,
+.tiles dt {
   font-weight: 600;
 }
 
-.usage-tiles dd {
+.usage-tiles dd,
+.tiles dd {
   margin: 0;
   font-size: var(--font-size-lead);
+}
+
+/* A tile across the whole row (a Job Offer's skills). */
+.tiles > .tile-wide {
+  grid-column: 1 / -1;
+}
+
+.tiles > .tile-wide dd {
+  font-size: inherit;
+}
+
+.job-offer-tiles {
+  margin: var(--space-2) 0 var(--space-4);
 }
 
 /* Room for the floating Coach Panel button under the last line of every page. */

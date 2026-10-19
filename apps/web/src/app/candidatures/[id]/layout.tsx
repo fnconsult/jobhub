@@ -5,10 +5,9 @@ import { INTERVIEW_TIME_ZONE } from "@/applications";
 import { ApplicationProfileSelect, ApplicationStatusSelect, ReportUnavailableButton } from "@/components/ApplicationControls";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { CoachInView } from "@/components/CoachPanel";
-import { ExpiredJobOfferNotice, jobOfferSite } from "@/components/JobOfferView";
+import { ExpiredJobOfferNotice, JobOfferTiles, jobOfferSite } from "@/components/JobOfferView";
 import { matchScoreFigure, matchScoreInWords } from "@/components/job-search-words";
 import { SectionsLayout } from "@/components/SectionsLayout";
-import { jobOfferAtAGlance } from "@/job-offers/at-a-glance";
 import { routes, type ApplicationSection } from "@/routes";
 import { loadApplicationPage, type Params } from "./sections";
 
@@ -37,7 +36,6 @@ export default async function ApplicationLayout({ params, children }: Params & {
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: INTERVIEW_TIME_ZONE });
   const fullDate = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeZone: INTERVIEW_TIME_ZONE });
   const { jobOffer } = application;
-  const atAGlance = jobOfferAtAGlance(jobOffer, t, locale);
   const site = jobOfferSite(jobOffer);
   return (
     <CandidateLayout candidateId={candidateId} title={jobOffer.title}>
@@ -46,7 +44,7 @@ export default async function ApplicationLayout({ params, children }: Params & {
           <p className="eyebrow">
             <Link href={routes.applications}>{t("application.backToApplications")}</Link>
           </p>
-          {atAGlance ? <p className="lead">{atAGlance}</p> : null}
+          <JobOfferTiles jobOffer={jobOffer} t={t} locale={locale} />
           <dl className="props">
             <ApplicationStatusSelect applicationId={application.id} status={application.status} property />
             <ApplicationProfileSelect applicationId={application.id} profileId={application.profile.id} profiles={choices} />

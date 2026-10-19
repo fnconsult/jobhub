@@ -1,5 +1,4 @@
 import type { SearchCriteria } from "@jobhub/shared";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Fragment, cache } from "react";
 import { getActionCards } from "@/action-cards/server";
@@ -8,7 +7,6 @@ import { getAtsScoring } from "@/ats-score/server";
 import { ActionCardList, type ActionCardView } from "@/components/ActionCardList";
 import { AtsScoreView } from "@/components/AtsScoreView";
 import { CvExportForm } from "@/components/CvExportForm";
-import { JobDigestControls } from "@/components/JobDigestControls";
 import { MasterCvDocument } from "@/components/MasterCvDocument";
 import { ProfileActions } from "@/components/ProfileActions";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -21,8 +19,9 @@ type T = Awaited<ReturnType<typeof getServerT>>;
 /**
  * What every Section of a Profile's page needs, loaded once per request (the
  * layout and the Section shown share it): the Profile, its Action Cards and
- * Job Digest, and the Sections it has. Propositions is there only while the
- * AI Coach has Action Cards about it, Job Digest only while it is not archived.
+ * the Sections it has, and its Job Digest for the header's link to it on the
+ * Job Digests page. Propositions is there only while the AI Coach has Action
+ * Cards about it.
  */
 export const loadProfilePage = cache(async (id: string) => {
   const { candidateId, profile } = await requireOwnProfile(id);
@@ -34,7 +33,6 @@ export const loadProfilePage = cache(async (id: string) => {
   ]);
   const sections = PROFILE_SECTIONS.filter((section) => {
     if (section === "propositions") return cards.length > 0;
-    if (section === "job-digest") return Boolean(jobDigest) && !profile.archived;
     return true;
   });
   return { candidateId, profile, inView, cards, jobDigest, locale, sections };
@@ -59,8 +57,6 @@ export async function ProfileSectionPage({ id, section }: { id: string; section:
       return <MasterCv page={page} />;
     case "ats-score":
       return <AtsScore page={page} t={t} />;
-    case "job-digest":
-      return <JobDigest page={page} t={t} />;
     case "telecharger":
       return <CvExportForm profileId={page.profile.id} t={t} />;
     case "gerer":
@@ -125,50 +121,6 @@ async function AtsScore({ page, t }: { page: Page; t: T }) {
       proposalsHref={proposalsHref}
       t={t}
     />
-  );
-}
-
-function JobDigest({ page, t }: { page: Page; t: T }) {
-  const { profile, locale } = page;
-  const jobDigest = page.jobDigest!;
-  return (
-    <section className="section" aria-labelledby="job-digest-title">
-      <div className="section-head">
-        <h2 id="job-digest-title">{t("jobDigest.sectionTitle")}</h2>
-      </div>
-      <p>{t("jobDigest.hint")}</p>
-      {jobDigest.planFrequency !== "none" ? <p>{t(`jobDigest.frequency.${jobDigest.planFrequency}`)}</p> : null}
-      {jobDigest.subscribed ? (
-        <>
-          <p className="notice" role="status">
-            {t("jobDigest.subscribed")}
-          </p>
-          {jobDigest.frequency !== "none" ? <p>{t(`jobDigest.schedule.${jobDigest.frequency}`)}</p> : null}
-          {jobDigest.chosenFrequency !== jobDigest.frequency ? <p>{t("jobDigest.cappedToPlan")}</p> : null}
-        </>
-      ) : null}
-      <JobDigestControls
-        key={profile.id}
-        profileId={profile.id}
-        subscribed={jobDigest.subscribed}
-        chosenFrequency={jobDigest.chosenFrequency}
-        planFrequency={jobDigest.planFrequency}
-      />
-      {jobDigest.digests.length > 0 ? (
-        <>
-          <h3>{t("jobDigest.latestTitle")}</h3>
-          <ul className="rows">
-            {jobDigest.digests.map((digest) => (
-              <li key={digest.id} className="row">
-                <Link className="row-title" href={routes.jobDigest(digest.id)}>
-                  {t("jobDigest.digestLink", { date: formatDate(digest.sentAt, locale), count: digest.count })}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : null}
-    </section>
   );
 }
 

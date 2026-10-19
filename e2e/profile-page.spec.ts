@@ -62,11 +62,11 @@ test.describe("the Profile page as a document", () => {
     await expect(criteria(page).getByLabel(fr.cvReview.minSalary)).toHaveValue("85000");
     await expect(criteria(page).getByLabel(fr.cvReview.contractType)).toHaveValue("cdi");
     await expect(page.getByRole("button", { name: fr.jobSearch.start })).toBeVisible();
-    await expect(page.getByRole("link", { name: fr.profilePage.jobDigestLink.none })).toHaveAttribute("href", `/profils/${id}/job-digest`);
+    await expect(page.getByRole("link", { name: fr.profilePage.jobDigestLink.none })).toHaveAttribute("href", `/job-digests#job-digest-${id}`);
 
     // No Action Cards yet: no Propositions; the page shows its first Section, the Master CV.
     const s = fr.profilePage.sections;
-    await expect(sectionsNav(page).getByRole("link")).toHaveText([s["cv-de-reference"], s["ats-score"], s["job-digest"], s.telecharger, s.gerer]);
+    await expect(sectionsNav(page).getByRole("link")).toHaveText([s["cv-de-reference"], s["ats-score"], s.telecharger, s.gerer]);
     await expect(sectionLink(page, s["cv-de-reference"])).toHaveAttribute("aria-current", "page");
     const cv = masterCvSection(page);
     await expect(cv.getByText(/^Version 1 · enregistrée le \w+ \d+ \w+ \d{4}$/)).toBeVisible();
@@ -328,12 +328,9 @@ test.describe("the Profile page's Sections (ADR-0024)", () => {
     await page.goto(`/profils/${id}/propositions`);
     await expect(page).toHaveURL(new RegExp(`/profils/${id}$`));
 
-    // An archived Profile has no Job Digest.
-    const archived = await page.request.patch(`/api/profiles/${id}`, { headers: { origin }, data: { archived: true } });
-    expect(archived.ok()).toBe(true);
+    // The Job Digest is not one of a Profile's Sections: it has its own page (ADR-0024).
     expect((await page.request.get(`/profils/${id}/job-digest`)).status()).toBe(404);
     await page.goto(`/profils/${id}`);
-    await expect(sectionLink(page, fr.profilePage.sections["job-digest"])).toHaveCount(0);
     await expect(sectionLink(page, fr.profilePage.sections.gerer)).toBeVisible();
   });
 });

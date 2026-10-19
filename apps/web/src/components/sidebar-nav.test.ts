@@ -13,8 +13,8 @@ describe("sidebarNav", () => {
     const items = sidebarNav({ pathname: "/profils/p-consultant", profiles: [daf, consultant], currentProfileId: "p-consultant" });
     expect(links(items)).toEqual([
       ["applications", "/candidatures"],
-      ["jobSearches", "/profils/p-consultant#job-search-title"],
-      ["jobDigests", "/profils/p-consultant/job-digest"],
+      ["jobSearches", "/recherches?profil=p-consultant"],
+      ["jobDigests", "/job-digests"],
       ["humanCoaches", "/coachs"],
     ]);
   });
@@ -28,14 +28,14 @@ describe("sidebarNav", () => {
   it("leads Job Searches and Job Digests to the first active Profile when none is in view", () => {
     const items = sidebarNav({ pathname: "/compte", profiles: [archived, daf, consultant] });
     expect(links(items).slice(1, 3)).toEqual([
-      ["jobSearches", "/profils/p-daf#job-search-title"],
-      ["jobDigests", "/profils/p-daf/job-digest"],
+      ["jobSearches", "/recherches?profil=p-daf"],
+      ["jobDigests", "/job-digests"],
     ]);
   });
 
   it("leads them to the first active Profile when the Profile in view is archived (it has neither section)", () => {
     const items = sidebarNav({ pathname: "/profils/p-archived", profiles: [archived, consultant], currentProfileId: "p-archived" });
-    expect(links(items)[1]).toEqual(["jobSearches", "/profils/p-consultant#job-search-title"]);
+    expect(links(items)[1]).toEqual(["jobSearches", "/recherches?profil=p-consultant"]);
   });
 
   it("leaves Job Searches and Job Digests out while the Candidate has no active Profile", () => {
@@ -48,7 +48,8 @@ describe("sidebarNav", () => {
     ["/candidatures/a-1", ["applications"]],
     ["/recherches/s-1", ["jobSearches"]],
     ["/job-digests/d-1", ["jobDigests"]],
-    ["/profils/p-daf/job-digest", ["jobDigests"]],
+    ["/recherches", ["jobSearches"]],
+    ["/job-digests", ["jobDigests"]],
     ["/compte", []],
     ["/abonnement", []],
     ["/profils/p-daf", []],

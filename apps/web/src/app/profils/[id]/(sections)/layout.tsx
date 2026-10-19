@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  * both edited in place and saved on change (read-only while archived), head
  * every Section; then the AI Coach's Action Cards about it (ATS Fixes among
  * them, Senior Advice labelled), its Master CV, edited in place and saved as a
- * new version (ADR-0012), its ATS Score, its Job Digest, its CV export, and
+ * new version (ADR-0012), its ATS Score, its CV export, and
  * what can be done with it, each a page of its own under /profils/<id>.
  */
 export default async function ProfileLayout({ params, children }: Params & { children: ReactNode }) {
@@ -47,7 +47,7 @@ export default async function ProfileLayout({ params, children }: Params & { chi
             <SearchCriteriaProperties key={`criteria-${profile.id}`} profileId={profile.id} searchCriteria={criteria} />
           )}
           {profile.archived ? null : (
-            // The sidebar's Job Searches link leads here (routes.profileJobSearch).
+            // The Job Search and the Job Digest of this Profile, a click away.
             <div className="btn-row" id="job-search-title" aria-label={t("jobSearch.sectionTitle")} role="group">
               <StartJobSearchButton key={profile.id} profileId={profile.id} />
               {jobDigest ? (

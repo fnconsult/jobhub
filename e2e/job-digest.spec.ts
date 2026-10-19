@@ -201,12 +201,13 @@ async function switchToEnglish(page: Page) {
   expect(updated.status(), await updated.text()).toBe(200);
 }
 
-const jobDigestSection = (page: Page, title = fr.jobDigest.sectionTitle) => page.getByRole("region", { name: title });
+/** A Profile's Job Digest on the Job Digests page (ADR-0024), named after the Profile: these Candidates have one. */
+const jobDigestSection = (page: Page) => page.locator('section[id^="job-digest-"]').first();
 
 /** Opts in from the Profile page's Job Digest Section, at the frequency it proposes (the Plan's). */
 async function optIn(page: Page, profileId: string, strings = fr) {
-  await page.goto(`/profils/${profileId}/job-digest`);
-  const section = jobDigestSection(page, strings.jobDigest.sectionTitle);
+  await page.goto("/job-digests");
+  const section = jobDigestSection(page);
   await section.getByRole("button", { name: strings.jobDigest.subscribe, exact: true }).click();
   await expect(section.getByRole("status")).toHaveText(strings.jobDigest.subscribed);
 }
@@ -241,9 +242,9 @@ test.describe("Job Digest", () => {
   test("is not included in the Free Plan: opting in shows the Upgrade Prompt, and no Job Digest is made", async ({ page }) => {
     await signIn(page, "digest-free");
     const profileId = await createProfile(page);
-    await page.goto(`/profils/${profileId}/job-digest`);
+    await page.goto("/job-digests");
     const section = jobDigestSection(page);
-    await expect(section).toContainText(fr.jobDigest.hint);
+    await expect(page.getByRole("main")).toContainText(fr.jobDigest.hint);
 
     await section.getByRole("button", { name: fr.jobDigest.subscribe, exact: true }).click();
 
@@ -266,7 +267,7 @@ test.describe("Job Digest", () => {
     const otherProfileId = await createProfile(page, "Responsable financière");
     const justOptedIn = await createProfile(page, "Contrôleuse de gestion");
 
-    await page.goto(`/profils/${profileId}/job-digest`);
+    await page.goto("/job-digests");
     const section = jobDigestSection(page);
     await expect(section).toContainText(fr.jobDigest.frequency.weekly);
     await expect(section.getByRole("radio", { name: fr.jobDigest.frequencyOptions.weekly })).toBeChecked();
@@ -332,7 +333,7 @@ test.describe("Job Digest", () => {
     await expect(responsable.getByText("Enregistrée", { exact: true })).toBeVisible();
 
     // The Profile page lists it, linking to the same page.
-    await page.goto(`/profils/${profileId}/job-digest`);
+    await page.goto("/job-digests");
     await expect(section.getByRole("heading", { name: fr.jobDigest.latestTitle })).toBeVisible();
     await section.getByRole("link", { name: /^Job Digest du .+ : \d+ offres$/ }).click();
     await expect(page).toHaveURL(digestLink.pathname);
@@ -360,7 +361,7 @@ test.describe("Job Digest", () => {
     } finally {
       await visitor.close();
     }
-    await page.goto(`/profils/${profileId}/job-digest`);
+    await page.goto("/job-digests");
     await expect(jobDigestSection(page).getByRole("button", { name: fr.jobDigest.subscribe, exact: true })).toBeVisible();
     await expect(jobDigestSection(page).getByText(fr.jobDigest.subscribed)).toHaveCount(0);
     // Only that Profile's Job Digest was stopped.
@@ -373,7 +374,7 @@ test.describe("Job Digest", () => {
     await switchToEnglish(page);
     const profileId = await createProfile(page);
 
-    await page.goto(`/profils/${profileId}/job-digest`);
+    await page.goto("/job-digests");
     const section = jobDigestSection(page, en.jobDigest.sectionTitle);
     await expect(section).toContainText(en.jobDigest.frequency.daily);
     await expect(section.getByRole("radio", { name: en.jobDigest.frequencyOptions.daily })).toBeChecked();
@@ -454,7 +455,7 @@ test.describe("Job Digest", () => {
 
     // Opting out and back in keeps the weekly Plan Quota: not due again before next Monday's.
     const section = jobDigestSection(page);
-    await page.goto(`/profils/${profileId}/job-digest`);
+    await page.goto("/job-digests");
     await section.getByRole("button", { name: fr.jobDigest.unsubscribe }).click();
     await expect(section.getByRole("button", { name: fr.jobDigest.subscribe, exact: true })).toBeVisible();
     await section.getByRole("button", { name: fr.jobDigest.subscribe, exact: true }).click();

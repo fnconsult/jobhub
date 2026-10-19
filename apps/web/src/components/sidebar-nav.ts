@@ -9,20 +9,16 @@ export interface SidebarNavItem {
   current: boolean;
 }
 
-/** Job Searches and Job Digests have no index page: theirs live under these paths. */
-const JOB_SEARCH_PAGES = "/recherches/";
-const JOB_DIGEST_PAGES = "/job-digests/";
-/** A Profile's Job Digest Section (ADR-0024). */
-const JOB_DIGEST_SECTION = "/job-digest";
+
 
 const isUnder = (pathname: string, path: string) => pathname === path || pathname.startsWith(`${path}/`);
 
 /**
  * The links of the Candidate's sidebar, in order, for the page at `pathname`.
- * Job Searches and Job Digests are run and kept per Profile, so they lead to
- * the sections of a Profile's page: the Profile in view when it is active,
- * otherwise the Candidate's first active Profile. With no active Profile they
- * are left out (an Archived Profile has neither section). Then the Human
+ * Job Searches and Job Digests have pages of their own (ADR-0024): Job Searches
+ * opens on the Profile in view when it is active, otherwise the Candidate's
+ * first active Profile. With no active Profile both are left out (an Archived
+ * Profile has neither). Then the Human
  * Coaches; the Coach space for a Human Coach and the Back Office for an
  * Administrator. Mon compte is not among them: it sits in the Sidebar's foot
  * (see accountLink).
@@ -45,8 +41,8 @@ export function sidebarNav({
   const items: SidebarNavItem[] = [{ key: "applications", href: routes.applications, current: isUnder(pathname, routes.applications) }];
   if (profile) {
     items.push(
-      { key: "jobSearches", href: routes.profileJobSearch(profile.id), current: pathname.startsWith(JOB_SEARCH_PAGES) },
-      { key: "jobDigests", href: routes.profileJobDigest(profile.id), current: pathname.startsWith(JOB_DIGEST_PAGES) || pathname.endsWith(JOB_DIGEST_SECTION) },
+      { key: "jobSearches", href: routes.jobSearches(profile.id), current: isUnder(pathname, routes.jobSearches()) },
+      { key: "jobDigests", href: routes.jobDigests, current: isUnder(pathname, routes.jobDigests) },
     );
   }
   items.push({ key: "humanCoaches", href: routes.coaching, current: isUnder(pathname, routes.coaching) });

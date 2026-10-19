@@ -1,5 +1,5 @@
 /** The Sections of a Profile's page, in order (ADR-0024). */
-export const PROFILE_SECTIONS = ["propositions", "cv-de-reference", "ats-score", "job-digest", "telecharger", "gerer"] as const;
+export const PROFILE_SECTIONS = ["propositions", "cv-de-reference", "ats-score", "telecharger", "gerer"] as const;
 export type ProfileSection = (typeof PROFILE_SECTIONS)[number];
 
 /** The Sections of an Application's page, in order (ADR-0024). */
@@ -23,12 +23,13 @@ export const routes = {
   accountData: "/compte/donnees",
   newProfile: "/profils/nouveau",
   profile: (id: string) => `/profils/${id}`,
-  /** The Job Search section of a Profile's page. */
-  profileJobSearch: (id: string) => `/profils/${id}#job-search-title`,
+  /** The Recherches d'offres page (ADR-0024); with `profileId`, for that Profile. */
+  jobSearches: (profileId?: string) => (profileId ? `/recherches?profil=${encodeURIComponent(profileId)}` : "/recherches"),
   /** The Search Criteria of a Profile's page. */
   profileSearchCriteria: (id: string) => `/profils/${id}#search-criteria-title`,
-  /** The Job Digest Section of a Profile's page. */
-  profileJobDigest: (id: string) => `/profils/${id}/job-digest`,
+  /** The Job Digests page (ADR-0024), at a Profile's Job Digest. */
+  jobDigests: "/job-digests",
+  profileJobDigest: (id: string) => `/job-digests#job-digest-${id}`,
   /** A Section of a Profile's page (ADR-0024); `profile` itself shows the first one there is. */
   profileSection: (id: string, section: ProfileSection) => `/profils/${id}/${section}`,
   editMasterCv: (id: string) => `/profils/${id}/cv`,

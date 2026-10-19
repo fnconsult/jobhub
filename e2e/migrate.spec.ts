@@ -195,6 +195,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "master_cv_version", from_column: "profile_id", to_table: "profile" },
         // A Plan's quotas belong to a Plan (issue #206), never deleted.
         { from_table: "plan_quota", from_column: "plan", to_table: "plan" },
+        // Playbook Versions (issue #225) belong to their Coaching Playbook, neither ever deleted; no Candidate is named.
+        { from_table: "playbook_version", from_column: "playbook_id", to_table: "coaching_playbook" },
         { from_table: "profile", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "quota_usage", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "session", from_column: "userId", to_table: "candidate" },

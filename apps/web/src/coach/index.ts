@@ -28,7 +28,7 @@ import { CORE_DIGEST, type CoachingPlaybooks, type ServedKnowledge } from "../co
 import * as z from "zod";
 import { COACH_CONTEXT_MAX_TOKENS, COACH_FOCUS_KINDS, coachContext, estimateTokens, type CoachSources } from "./context";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentConversation } from "./conversation";
-import { AGENT_ADVICE_MAX_TOKENS, AGENT_TIMEOUT_MS, choosePlaybookAgents, consultPlaybookAgent, MAX_PLAYBOOK_AGENTS, type PlaybookAdvice } from "./playbook-agents";
+import { AGENT_ADVICE_MAX_TOKENS, AGENT_TIMEOUT_MS, choosePlaybookAgents, consultPlaybookAgent, type PlaybookAdvice } from "./playbook-agents";
 
 export { COACH_CONTEXT_MAX_TOKENS, COACH_FOCUS_KINDS, estimateTokens, type CoachFocus, type CoachMemorySource, type CoachSources } from "./context";
 
@@ -154,15 +154,17 @@ export function createCoach(deps: CoachDeps): Coach {
       try {
         const served = await deps.playbooks.served();
         const instructions = [PERSONA, GROUNDING_RULES, digestText(served.coreDigest)].filter(Boolean).join("\n\n");
-        // Room kept for the advice and the Sources when a Playbook Agent may be consulted: the whole system prompt stays under the cap.
-        const reserved = served.playbooks.length > 0 ? MAX_PLAYBOOK_AGENTS * (AGENT_ADVICE_MAX_TOKENS + 25) + SOURCES_MAX_TOKENS : SOURCES_MAX_TOKENS;
-        const [context, choice] = await Promise.all([
-          coachContext(deps, candidateId, focus, COACH_CONTEXT_MAX_TOKENS - estimateTokens(instructions) - reserved - 4),
-          choosePlaybookAgents(deps.ai, candidateId, served.playbooks, { messages, inView: focus?.kind }).catch((error: unknown) => {
-            warn("Playbook Agents could not be chosen: replying without them", { error: error instanceof Error ? error.name : "unknown" });
-            return { chosen: [], call: null };
-          }),
-        ]);
+        // The choice reads the conversation and what is In view alone, so it comes first: the context then keeps room for the advice chosen.
+        const choice = await choosePlaybookAgents(deps.ai, candidateId, served.playbooks, { messages, inView: focus?.kind }).catch((error: unknown) => {
+          warn("Playbook Agents could not be chosen: replying without them", { error: error instanceof Error ? error.name : "unknown" });
+          return { chosen: [], call: null };
+        });
+        // Room kept for the advice and the Sources: the whole system prompt stays under the cap.
+        const reserved =
+          choice.chosen.length > 0
+            ? choice.chosen.length * (AGENT_ADVICE_MAX_TOKENS + 25) + SOURCES_MAX_TOKENS
+            : estimateTokens(sourcesText(served, [served.coreDigest?.content ?? ""]));
+        const context = await coachContext(deps, candidateId, focus, COACH_CONTEXT_MAX_TOKENS - estimateTokens(instructions) - reserved - 4);
         const consulted = await Promise.all(
           choice.chosen.map((playbook) =>
             consultPlaybookAgent(deps.ai, candidateId, playbook, { context, messages, timeoutMs }).catch((error: unknown) => {

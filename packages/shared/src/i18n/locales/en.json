@@ -684,7 +684,8 @@
       "journal": "Journal",
       "aiUsage": "AI consumption",
       "aiMessages": "AI message logs",
-      "coachingPlaybooks": "Playbooks"
+      "coachingPlaybooks": "Playbooks",
+      "guardrails": "Guardrails"
     },
     "signInProviders": {
       "title": "Sign-in",
@@ -1153,7 +1154,8 @@
         "job_sites": "Extension sites",
         "sign_in_providers": "Sign-in",
         "ai_messages": "AI message logs",
-        "coaching_playbooks": "Coaching Playbooks"
+        "coaching_playbooks": "Coaching Playbooks",
+        "guardrails": "Guardrails"
       },
       "actions": {
         "added": "Added",
@@ -1191,7 +1193,8 @@
       "unlimited": "unlimited",
       "empty": "empty",
       "id": "Identifier",
-      "viewVersion": "see version {{version}}"
+      "viewVersion": "see version {{version}}",
+      "viewGuardrail": "see the guardrail"
     },
     "aiUsage": {
       "title": "AI consumption",
@@ -1413,6 +1416,92 @@
         "validatedBy": "Validated by",
         "validatedAt": "Validated on",
         "archived": "Archived"
+      }
+    },
+    "guardrails": {
+      "title": "Guardrails",
+      "intro": "Guardrails check what the AI Coach, its Playbook Agents and the Back Office Assistant receive, and what they reply. Their list is fixed in code: you tune each one and write the message it shows instead. What the Candidate did not write (job offers, CVs, company dossiers) always goes in as data, never as instructions.",
+      "servingValidated": "In production, a message is served only once validated by a named Administrator other than its author, each language apart. Until then, Jobbbox's default text applies.",
+      "servingLatest": "In this environment, the latest message written is served, validated or not. In production, only a validated one is.",
+      "caption": "The guardrails and their setting",
+      "name": "Guardrail",
+      "guardsAgainst": "What it checks",
+      "setting": "Setting",
+      "settingLabel": "When it finds something",
+      "settingHelp": "Block: the message is not sent, or the reply is written again once then replaced by the guardrail's message. Flag only: everything goes through, and the trigger is counted.",
+      "saveSetting": "Save the setting",
+      "alwaysOn": "Always blocks",
+      "alwaysOnHelp": "This guardrail always blocks: it cannot be set to flag only.",
+      "settings": {
+        "block": "Block",
+        "flag": "Flag only"
+      },
+      "names": {
+        "prompt_injection": "Prompt injection",
+        "personal_data_leak": "Personal data leak",
+        "secret_disclosure": "Secret disclosure",
+        "harmful_advice": "Out-of-scope or harmful advice",
+        "distress": "Distress"
+      },
+      "descriptions": {
+        "prompt_injection": "A message, or pasted text, that tries to change or reveal the AI's instructions, directly or indirectly.",
+        "personal_data_leak": "A reply that gives a third party's contact details or personal data.",
+        "secret_disclosure": "A reply that reveals the AI's instructions, the coaching playbooks' rules or a key (Provider Secrets).",
+        "harmful_advice": "A reply that gives legal, medical or financial advice, or discriminatory advice, age included.",
+        "distress": "A Candidate who expresses serious distress: they get the 3114 message. No one is alerted."
+      },
+      "languages": {
+        "fr": "French",
+        "en": "English"
+      },
+      "messageTitle": "Message in {{language}}",
+      "served": "Served",
+      "latest": "Latest version, awaiting validation",
+      "defaultText": "Jobbbox's default text",
+      "version": "version {{version}}",
+      "writtenBy": "written by {{author}}",
+      "validatedBy": "validated by {{name}} on {{date}}",
+      "notValidated": "not validated",
+      "validateTitle": "Validate the message in {{language}}, version {{version}}",
+      "validateHelp": "You must be an Administrator other than its author. Your name is recorded with the date.",
+      "validatorName": "Your name",
+      "validate": "Validate this message",
+      "editTitle": "Change the message in {{language}}",
+      "text": "Message text",
+      "textHelp": "Shown to the Candidate instead of the reply, without saying which guardrail acted. Each save makes a version to validate.",
+      "distressHelp": "Must give 3114, France's national suicide prevention line. Each save makes a version to validate.",
+      "saveMessage": "Save the message",
+      "journalFields": {
+        "setting": "Setting",
+        "language": "Language",
+        "version": "Version",
+        "text": "Text",
+        "validatedBy": "Validated by",
+        "validatedAt": "Validated on"
+      },
+      "triggers": {
+        "title": "Triggers",
+        "intro": "Each block, flag or unavailable check of the last {{days}} days, per day (Paris time) and per guardrail. No Candidate, no conversation, no text: the text, if needed, stays in the AI message logs (30 days). Kept {{months}} months.",
+        "caption": "Guardrail triggers per day",
+        "none": "No trigger over the period.",
+        "day": "Day",
+        "blocked": "Blocked",
+        "flagged": "Flagged",
+        "unavailable": "Check unavailable"
+      },
+      "notices": {
+        "settingSaved": "Setting saved.",
+        "messageSaved": "Message saved: another Administrator must validate it before production serves it.",
+        "validated": "Message validated.",
+        "unchanged": "Nothing changed.",
+        "invalid": "This text or setting is not valid.",
+        "always_on": "This guardrail always blocks.",
+        "not_found": "This guardrail or version does not exist.",
+        "helpline_missing": "The distress message must give 3114.",
+        "own_message": "You cannot validate a message you wrote.",
+        "already_validated": "This version is already validated.",
+        "not_latest": "Only the latest version can be validated.",
+        "nameRequired": "Give your name to validate."
       }
     }
   },

@@ -147,6 +147,7 @@ const SECTIONS: Record<BackOfficeResource, { name: string; page?: string }> = {
   aiMessages: { name: "Journaux IA (AI Message Log)", page: routes.adminAiMessages() },
   searchSites: { name: "Sites de recherche (Job Sites et recherche d'offres)", page: routes.adminSearchSites },
   coachingPlaybooks: { name: "Playbooks de coaching, socle et sources (Coaching Playbooks)", page: routes.adminCoachingPlaybooks },
+  guardrails: { name: "Garde-fous (Guardrails) et leurs déclenchements", page: routes.adminGuardrails },
 };
 
 const heading = (resource: BackOfficeResource) => {
@@ -248,6 +249,13 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
     ].join("\n");
   },
 
+  async guardrails() {
+    return [
+      heading("guardrails"),
+      "Les garde-fous protègent le coach IA, ses Playbook Agents et vous-même contre l'injection d'instructions, la fuite de données personnelles, la divulgation des instructions, des règles de coaching ou des clés, les conseils hors du rôle ou dangereux (juridiques, médicaux, financiers, discriminatoires, y compris sur l'âge) et la détresse (message avec le 3114). Leur liste est fixée dans le code ; les super-admins règlent chacun sur bloquer ou signaler seulement (détresse, fuite de données et divulgation bloquent toujours) et écrivent ses messages, en français et en anglais, validés par un autre Administrateur avant d'être servis en production. Chaque déclenchement est compté par jour, sans candidat ni texte, gardé 24 mois ; personne n'est alerté en cas de détresse.",
+    ].join("\n");
+  },
+
   async aiMessages() {
     return [
       heading("aiMessages"),
@@ -344,6 +352,7 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   job_sites: "sites de l'extension",
   ai_messages: "journaux IA",
   coaching_playbooks: "playbooks de coaching",
+  guardrails: "garde-fous",
 };
 
 const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {

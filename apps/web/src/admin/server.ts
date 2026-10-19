@@ -3,6 +3,7 @@ import { getCurrentCandidate, getCurrentSession } from "@/auth/server";
 import { getBilling } from "@/billing/server";
 import { getCoachingPlaybooks } from "@/coaching-playbooks/server";
 import { sharedPool } from "@/database/pool";
+import { getGuardrailStore } from "@/guardrails/server";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { routes } from "@/routes";
 import { getSearchSites } from "@/search-sites/server";
@@ -12,12 +13,14 @@ import { permanentSuperAdminsFromEnv, type BackOfficeResource, type Permission }
 import { createAdministrators, type AdministratorAccess, type Administrators, type Person } from "./administrators";
 import { createBackOffice, type BackOffice } from "./back-office";
 import { createCoachingPlaybooksBackOffice, type CoachingPlaybooksBackOffice } from "./coaching-playbooks-back-office";
+import { createGuardrailsBackOffice, type GuardrailsBackOffice } from "./guardrails-back-office";
 import { createSearchSitesBackOffice, type SearchSitesBackOffice } from "./search-sites-back-office";
 
 let backOffice: BackOffice | undefined;
 let administrators: Administrators | undefined;
 let searchSitesBackOffice: SearchSitesBackOffice | undefined;
 let coachingPlaybooksBackOffice: CoachingPlaybooksBackOffice | undefined;
+let guardrailsBackOffice: GuardrailsBackOffice | undefined;
 
 /** The app's Back Office writes and their Back Office Audit, on the database named by DATABASE_URL. */
 export function getBackOffice(): BackOffice {
@@ -41,6 +44,12 @@ export function getSearchSitesBackOffice(): SearchSitesBackOffice {
 export function getCoachingPlaybooksBackOffice(): CoachingPlaybooksBackOffice {
   coachingPlaybooksBackOffice ??= createCoachingPlaybooksBackOffice(getCoachingPlaybooks(), getBackOffice());
   return coachingPlaybooksBackOffice;
+}
+
+/** The Guardrails' Back Office writes, each recorded in the Back Office Audit (#228). */
+export function getGuardrailsBackOffice(): GuardrailsBackOffice {
+  guardrailsBackOffice ??= createGuardrailsBackOffice(getGuardrailStore(), getBackOffice());
+  return guardrailsBackOffice;
 }
 
 /** Whether the person signed in on this request is an Administrator (holds any Back Office Role). */

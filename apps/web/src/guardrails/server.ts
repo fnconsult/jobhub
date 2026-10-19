@@ -2,7 +2,7 @@ import { getAi } from "@/ai/server";
 import { playbookServing } from "@/coaching-playbooks/serving";
 import { sharedPool } from "@/database/pool";
 import { createGuardrails, type Guardrails } from "./index";
-import { createGuardrailStore, type GuardrailStore } from "./store";
+import { createGuardrailStore, type GuardrailStore, type GuardrailTriggerDay } from "./store";
 
 let store: GuardrailStore | undefined;
 let guardrails: Guardrails | undefined;
@@ -23,4 +23,9 @@ export function getGuardrails(): Guardrails {
     return createGuardrails({ ai: getAi(), config, triggers });
   })();
   return guardrails;
+}
+
+/** The Guardrail Triggers of the last `days` days, per day and per Guardrail, newest first (the back office's view). */
+export function guardrailTriggersOfLastDays(days: number): Promise<GuardrailTriggerDay[]> {
+  return getGuardrailStore().triggersPerDay(new Date(Date.now() - days * 24 * 60 * 60 * 1000));
 }

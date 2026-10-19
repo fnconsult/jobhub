@@ -84,6 +84,17 @@ describe("the Job Offer Summary, read with the fields", () => {
     expect(usage.entries).toMatchObject([{ task: "offer_analysis", candidateId: "cand-1" }]);
   });
 
+  it("reads the employer's sector and sub-sector, a sub-sector only with its sector, each a few words", async () => {
+    const { ai } = setUp(JSON.stringify({ location: "Paris", sector: " Conseil ", subsector: "Stratégie et\ntransformation" }));
+    expect(await readOfferFields(ai, { candidateId: null, jobOffer })).toEqual({ location: "Paris", sector: "Conseil", subsector: "Stratégie et transformation" });
+
+    const { ai: noSector } = setUp(JSON.stringify({ location: "Paris", subsector: "Stratégie" }));
+    expect(await readOfferFields(noSector, { candidateId: null, jobOffer })).toEqual({ location: "Paris" });
+
+    const { ai: tooLong } = setUp(JSON.stringify({ location: "Paris", sector: "x".repeat(81) }));
+    expect(await readOfferFields(tooLong, { candidateId: null, jobOffer })).toEqual({ location: "Paris" });
+  });
+
   it("leaves out a summary that is not text, is empty or is far too long", async () => {
     for (const summary of [42, ["a", "b"], "   ", "x".repeat(601)]) {
       const { ai } = setUp(JSON.stringify({ location: "London", summary }));

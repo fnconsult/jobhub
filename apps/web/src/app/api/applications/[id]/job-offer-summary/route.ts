@@ -4,7 +4,7 @@ import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
 import { summarizeJobOffer } from "@/job-offers/server";
 
 /** The fields JobOfferTiles shows: when the reading adds one, the page is shown again. */
-const TILE_FIELDS = ["employer", "location", "contractType", "remoteWork", "salary", "skills", "requiredExperienceYears"] as const;
+const TILE_FIELDS = ["employer", "location", "contractType", "remoteWork", "salary", "skills", "requiredExperienceYears", "sector"] as const;
 
 /**
  * The Job Offer Summary of one of the Candidate's Applications: the stored one, else written once by
@@ -19,7 +19,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const application = await getApplications().get(candidate.id, (await params).id);
   if (!application) return NextResponse.json({ error: "not_found" }, { status: 404 });
   const before = application.jobOffer;
-  if (before.summary) return NextResponse.json({ summary: before.summary, fieldsAdded: false });
+  // The summary and the sector, read together: an offer read before the sector existed is read again once.
+  if (before.summary && before.sector) return NextResponse.json({ summary: before.summary, fieldsAdded: false });
   try {
     const after = await summarizeJobOffer(before.id, candidate.id);
     if (!after) return NextResponse.json({ error: "not_found" }, { status: 404 });

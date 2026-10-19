@@ -24,6 +24,7 @@ export function JobOfferTiles({ jobOffer, t, locale }: { jobOffer: JobOffer; t: 
   const tiles: [string, string][] = [];
   if (salaryText) tiles.push([t("jobOffer.salary"), salaryText]);
   if (jobOffer.employer) tiles.push([t("jobOffer.employer"), jobOffer.employer]);
+  if (jobOffer.sector) tiles.push([t("jobOffer.sector"), [jobOffer.sector, jobOffer.subsector].filter(Boolean).join(" · ")]);
   if (jobOffer.location) tiles.push([t("jobOffer.location"), jobOffer.location]);
   if (jobOffer.contractType) tiles.push([t("jobOffer.contractType"), t(`cvReview.contractTypes.${jobOffer.contractType}`)]);
   if (jobOffer.remoteWork) tiles.push([t("jobOffer.remoteWork"), t(`cvReview.remoteWorkOptions.${jobOffer.remoteWork}`)]);

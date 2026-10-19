@@ -98,9 +98,9 @@ export interface JobOfferStore {
   findBySourceUrl(url: string): Promise<JobOffer | null>;
   /** Stores a posting, or returns the stored Job Offer for the same posting. */
   capture(
-    input: { source: { url: string } } & Omit<JobOfferDetails, "postedAt" | "summary">,
+    input: { source: { url: string } } & Omit<JobOfferDetails, "postedAt" | "summary" | "sector" | "subsector">,
     capturedBy?: "candidate" | "guest",
-    trusted?: { postedAt?: Date; summary?: string },
+    trusted?: { postedAt?: Date; summary?: string; sector?: string; subsector?: string },
   ): Promise<{ ok: true; jobOffer: JobOffer } | { ok: false; errors: unknown[] }>;
 }
 
@@ -294,7 +294,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
        */
       const capture = async (url: string, details: JobOfferDetails, searchDate: Date | undefined) => {
         const now = new Date(clock.now());
-        const { postedAt: stated, summary, ...untrusted } = details;
+        const { postedAt: stated, summary, sector, subsector, ...untrusted } = details;
         const postedAt = believablePostingDate(stated, now) ?? believablePostingDate(searchDate, now);
         if (isPostingTooOld(postedAt, now)) {
           skipped.push({ url, reason: "too_old" });
@@ -303,7 +303,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         funnel.extracted++;
         // The Posting date is what the worker read from the source itself, and the Job Offer Summary what its AI wrote
         // from the page: trusted, unlike anything a browser sends.
-        const trusted = { ...(postedAt && { postedAt }), ...(summary && { summary }) };
+        const trusted = { ...(postedAt && { postedAt }), ...(summary && { summary }), ...(sector && { sector }), ...(subsector && { subsector }) };
         const captured = await options.jobOffers.capture({ source: { url }, ...untrusted }, "candidate", trusted);
         if (!captured.ok) skipped.push({ url, reason: "invalid" });
         else if (isPostingTooOld(captured.jobOffer.postedAt, now)) skipped.push({ url, reason: "too_old" });

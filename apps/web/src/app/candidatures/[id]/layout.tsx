@@ -48,7 +48,7 @@ export default async function ApplicationLayout({ params, children }: Params & {
             <Link href={routes.applications}>{t("application.backToApplications")}</Link>
           </p>
           <JobOfferTiles jobOffer={jobOffer} t={t} locale={locale} />
-          <JobOfferSummary applicationId={application.id} summary={jobOffer.summary} />
+          <JobOfferSummary applicationId={application.id} summary={jobOffer.summary} needsReading={!jobOffer.summary || !jobOffer.sector} />
           <dl className="props">
             <ApplicationStatusSelect applicationId={application.id} status={application.status} property />
             <ApplicationProfileSelect applicationId={application.id} profileId={application.profile.id} profiles={choices} />

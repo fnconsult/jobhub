@@ -193,7 +193,16 @@ export interface JobOfferDetails {
    * inventing nothing (ADR-0006). Unset until it is read (or when the AI gave none).
    */
   summary?: string;
+  /**
+   * The employer's sector (e.g. "Conseil") and, finer, its sub-sector or domain (e.g. "Stratégie et
+   * transformation"), read by the AI from the offer's text with the summary. Unset when it says nothing of it.
+   */
+  sector?: string;
+  subsector?: string;
 }
+
+/** The longest sector or sub-sector kept, in characters. */
+export const JOB_OFFER_SECTOR_MAX_CHARS = 80;
 
 /** The longest Job Offer Summary kept, in characters: the AI is asked for about 400. */
 export const JOB_OFFER_SUMMARY_MAX_CHARS = 600;

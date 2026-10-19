@@ -189,7 +189,7 @@ _Avoid_: Form, survey
 ### Job offers
 
 **Job Offer**:
-A job posting, captured by the extension or found by the AI Coach's search. One Job Offer can be referenced by many Candidates. Carries a Job Offer Summary.
+A job posting, captured by the extension or found by the AI Coach's search. One Job Offer can be referenced by many Candidates. Carries a Job Offer Summary and, read by the AI with it, its employer's sector and sub-sector (or domain).
 _Avoid_: Job, posting, ad, vacancy, offer (alone)
 
 **Job Offer Summary**:

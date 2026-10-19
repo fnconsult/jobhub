@@ -1550,6 +1550,7 @@
     "details": "At a glance",
     "contentTitle": "Job offer text",
     "employer": "Employer",
+    "sector": "Sector",
     "location": "Location",
     "contractType": "Contract type",
     "remoteWork": "Remote work",

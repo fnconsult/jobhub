@@ -296,6 +296,21 @@ describe.skipIf(!connectionString)("Job Offers (needs Postgres: DATABASE_URL)", 
       expect(summarized).toMatchObject({ employer: "Groupe Seb", location: "Lyon", summary: "Poste de DAF à Lyon." });
     });
 
+    it("comes with the employer's sector, and an offer summarized before there were sectors is read once more for it", async () => {
+      const id = await capturedId({ title: "Consultant", content: "Cabinet de conseil en stratégie.", employer: "Acme Conseil" });
+      await jobOffers.summarize(id, async () => ({ summary: "Poste de consultant." }));
+      await throwaway.pool.query(`UPDATE job_offer SET sector = NULL, subsector = NULL, sector_read_at = NULL WHERE id = $1`, [id]);
+      let reads = 0;
+      const read = async () => {
+        reads += 1;
+        return { summary: "Autre résumé.", sector: "Conseil", subsector: "Stratégie et transformation" };
+      };
+
+      expect(await jobOffers.summarize(id, read)).toMatchObject({ summary: "Poste de consultant.", sector: "Conseil", subsector: "Stratégie et transformation" });
+      expect(await jobOffers.summarize(id, read)).toMatchObject({ sector: "Conseil" });
+      expect(reads).toBe(1);
+    });
+
     it("is not asked for again after a read giving none of the right shape, and is asked for again after a failed read", async () => {
       const id = await capturedId();
       await expect(jobOffers.summarize(id, async () => Promise.reject(new Error("down")))).rejects.toThrow("down");

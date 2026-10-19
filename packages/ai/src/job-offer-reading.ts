@@ -9,7 +9,7 @@
  * Both carry public posting text only, never the Candidate's CV or identity: they run as the
  * `offer_analysis` task, which carries no personal data (ADR-0007).
  */
-import { CONTRACT_TYPES, JOB_OFFER_SUMMARY_MAX_CHARS, REMOTE_WORK_OPTIONS, type JobOfferDetails } from "@jobhub/shared";
+import { CONTRACT_TYPES, JOB_OFFER_SECTOR_MAX_CHARS, JOB_OFFER_SUMMARY_MAX_CHARS, REMOTE_WORK_OPTIONS, type JobOfferDetails } from "@jobhub/shared";
 import type { AiLayer } from "./ai-layer";
 
 /** Enough text for any real posting, while keeping the call cheap. */
@@ -21,17 +21,21 @@ const MAX_PAGE_CHARS = 30_000;
  */
 export type OfferFields = Pick<
   JobOfferDetails,
-  "employer" | "location" | "contractType" | "remoteWork" | "salary" | "skills" | "requiredExperienceYears" | "summary"
+  "employer" | "location" | "contractType" | "remoteWork" | "salary" | "skills" | "requiredExperienceYears" | "summary" | "sector" | "subsector"
 >;
 
 const FIELDS_SCHEMA = `"employer"?: string, "location"?: string,
  "contractType"?: ${CONTRACT_TYPES.map((t) => `"${t}"`).join(" | ")}, "remoteWork"?: ${REMOTE_WORK_OPTIONS.map((t) => `"${t}"`).join(" | ")},
- "salaryMin"?: number, "salaryMax"?: number, "skills"?: string[], "requiredExperienceYears"?: number, "summary": string`;
+ "salaryMin"?: number, "salaryMax"?: number, "skills"?: string[], "requiredExperienceYears"?: number, "summary": string,
+ "sector"?: string, "subsector"?: string`;
 
 const FIELDS_RULES = `- Salaires en euros bruts annuels. N'invente rien : omets un champ que l'offre ne précise pas.
 - "summary" : deux ou trois phrases (400 caractères au plus) sur le poste, son périmètre et ce qui est attendu,
   écrites dans la langue de l'offre (en anglais pour une offre en anglais). Uniquement ce que l'offre dit, sans rien inventer
-  ni juger, et sans nom de personne (recruteur, manager).`;
+  ni juger, et sans nom de personne (recruteur, manager).
+- "sector" : le secteur d'activité de l'employeur en quelques mots (ex. « Conseil », « Industrie automobile »), et
+  "subsector" : son sous-secteur ou domaine, plus précis (ex. « Stratégie et transformation »), dans la langue de l'offre,
+  d'après ce que l'offre dit de l'employeur et du poste. Omets-les si l'offre n'en dit rien.`;
 
 const PAGE_SYSTEM = `Tu lis le texte d'une page web trouvée par une recherche d'offres d'emploi.
 Réponds uniquement par un objet JSON, sans texte autour.
@@ -73,6 +77,12 @@ function summaryFrom(value: unknown): string | undefined {
   return text && text.length <= JOB_OFFER_SUMMARY_MAX_CHARS ? text : undefined;
 }
 
+/** A sector or sub-sector: a few words on one line. */
+function labelFrom(value: unknown): string | undefined {
+  const text = str(value)?.replace(/\s+/g, " ");
+  return text && text.length <= JOB_OFFER_SECTOR_MAX_CHARS ? text : undefined;
+}
+
 /** The fields the reply states, each checked: anything of the wrong shape is left out. */
 function fieldsFrom(reply: Json): OfferFields {
   const fields: OfferFields = {};
@@ -93,6 +103,10 @@ function fieldsFrom(reply: Json): OfferFields {
   if (years !== undefined) fields.requiredExperienceYears = years;
   const summary = summaryFrom(reply.summary);
   if (summary) fields.summary = summary;
+  const sector = labelFrom(reply.sector);
+  if (sector) fields.sector = sector;
+  const subsector = labelFrom(reply.subsector);
+  if (subsector && sector) fields.subsector = subsector;
   return fields;
 }
 

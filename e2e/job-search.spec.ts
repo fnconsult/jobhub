@@ -267,7 +267,10 @@ test.describe("On-demand AI Coach job search", () => {
     await page.goto(`/profils/${profileId}`);
     await page.getByRole("button", { name: "Mon coach" }).click();
 
-    await page.getByRole("complementary").getByRole("button", { name: "Chercher des offres pour ce profil" }).click();
+    // The search sits under the one line saying what the coach sees, opened on demand (ADR-0024).
+    const panel = page.getByRole("complementary");
+    await panel.locator("summary", { hasText: /^Vous consultez : le profil/ }).click();
+    await panel.getByRole("button", { name: "Chercher des offres pour ce profil" }).click();
 
     await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Offres trouvées pour « ${searchCriteria.targetRole} »`);

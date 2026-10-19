@@ -198,7 +198,7 @@ banner "Sign-in Providers: Google, Microsoft, Apple and OIDC in the Back Office 
 
 stage "Which app are you configuring?"
 say "Every provider console needs this app's address in its redirect (callback) URLs."
-ask TARGET_APP_URL "App address (e.g. https://staging.jobbbox.fr):"
+ask TARGET_APP_URL "App address (e.g. https://staging.jobbbox.ai):"
 TARGET_APP_URL="${TARGET_APP_URL%/}"
 say "Callback URLs to paste in the consoles below:"
 note "  Google:    $TARGET_APP_URL/api/auth/callback/google"

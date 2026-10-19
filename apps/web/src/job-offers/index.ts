@@ -22,6 +22,9 @@
  * (`expiredAt`). Nothing else about it, or its Applications, changes.
  * Expiry is not for good: a later re-check finding it published, or capturing
  * its source page again, makes it a published Job Offer again.
+ * A Job Offer captured without structured data (no JobPosting) has only a title
+ * and its text: `fillFromText` adds, once per Job Offer, the fields an AI reads
+ * from that text (the second phase of a Match Score), never replacing one stated.
  */
 import { createHash } from "node:crypto";
 import { CONTRACT_TYPES, REMOTE_WORK_OPTIONS, type JobOffer } from "@jobhub/shared";
@@ -41,6 +44,9 @@ export {
 } from "./source-checks";
 
 export type { FieldError as JobOfferFieldError } from "../validation";
+
+/** The fields of a Job Offer `fillFromText` can fill from what its text states. */
+export type FieldsFromText = Pick<JobOffer, "employer" | "location" | "contractType" | "remoteWork" | "salary" | "skills" | "requiredExperienceYears">;
 
 export type CaptureJobOfferResult = { ok: true; jobOffer: JobOffer } | { ok: false; errors: FieldError[] };
 
@@ -78,6 +84,13 @@ export interface JobOffers {
   get(id: string): Promise<JobOffer | null>;
   /** The Job Offer captured from this source URL (ignoring tracking parameters), or null. */
   findBySourceUrl(url: string): Promise<JobOffer | null>;
+  /**
+   * Fills the fields the Job Offer lacks from what `read` finds in its text, once per Job Offer:
+   * after a read that succeeded (even one finding nothing), `read` is never called for it again.
+   * A field already stated is never replaced. Returns the Job Offer as stored afterwards, or
+   * null if there is none with this id. What `read` throws is thrown, and the next call reads again.
+   */
+  fillFromText(id: string, read: (jobOffer: JobOffer) => Promise<FieldsFromText>): Promise<JobOffer | null>;
 }
 
 /** Drops NUL characters: text scraped from a page can carry them, and Postgres cannot store them in text columns. */
@@ -108,6 +121,9 @@ const inputSchema = z.object({
   requiredExperienceYears: z.number().int().min(0).max(60).optional(),
 });
 
+/** The fields `fillFromText` may fill, validated as a captured posting's are. */
+const FILLABLE = ["employer", "location", "contractType", "remoteWork", "salary", "skills", "requiredExperienceYears"] as const satisfies (keyof FieldsFromText)[];
+const fillableSchema = inputSchema.pick(Object.fromEntries(FILLABLE.map((name) => [name, true])) as Record<(typeof FILLABLE)[number], true>);
 
 interface JobOfferRow {
   id: string;
@@ -259,6 +275,52 @@ export function createJobOffers(database: Pool): JobOffers {
       const { rows } = await database.query<JobOfferRow>(`SELECT ${COLUMNS} FROM job_offer WHERE url_key = $1`, [urlKey(url)]);
       return rows[0] ? jobOfferFrom(rows[0]) : null;
     },
+
+    async fillFromText(id, read) {
+      if (!UUID.test(id)) return null;
+      const { rows } = await database.query<JobOfferRow & { text_read_at: Date | null }>(
+        `SELECT ${COLUMNS}, text_read_at FROM job_offer WHERE id = $1`,
+        [id],
+      );
+      const row = rows[0];
+      if (!row) return null;
+      if (row.text_read_at !== null) return jobOfferFrom(row);
+
+      // Each field is checked as a captured posting's is: one that fails is left out, the rest kept.
+      const found = await read(jobOfferFrom(row));
+      const valid: Record<string, unknown> = {};
+      for (const name of FILLABLE) {
+        const field = fillableSchema.shape[name].safeParse(found[name]);
+        if (field.success && field.data !== undefined) valid[name] = field.data;
+      }
+      const fields = valid as FieldsFromText;
+      const updated = await database.query<JobOfferRow>(
+        `UPDATE job_offer SET
+           employer = COALESCE(employer, $2),
+           location = COALESCE(location, $3),
+           contract_type = COALESCE(contract_type, $4),
+           remote_work = COALESCE(remote_work, $5),
+           salary_min = CASE WHEN salary_min IS NULL AND salary_max IS NULL THEN $6 ELSE salary_min END,
+           salary_max = CASE WHEN salary_min IS NULL AND salary_max IS NULL THEN $7 ELSE salary_max END,
+           skills = CASE WHEN COALESCE(cardinality(skills), 0) = 0 THEN $8 ELSE skills END,
+           required_experience_years = COALESCE(required_experience_years, $9),
+           text_read_at = now()
+         WHERE id = $1
+         RETURNING ${COLUMNS}`,
+        [
+          id,
+          fields.employer ?? null,
+          fields.location ?? null,
+          fields.contractType ?? null,
+          fields.remoteWork ?? null,
+          fields.salary?.min ?? null,
+          fields.salary?.max ?? null,
+          fields.skills?.length ? fields.skills : null,
+          fields.requiredExperienceYears ?? null,
+        ],
+      );
+      return updated.rows[0] ? jobOfferFrom(updated.rows[0]) : null;
+    },
   };
 }
 
@@ -293,5 +355,7 @@ export async function migrateJobOffers(database: Pool): Promise<void> {
     ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS gone_checks integer NOT NULL DEFAULT 0;
     -- When the source first published the posting, when it states it in a form we trust (e.g. an ATS's API).
     ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS posted_at timestamptz;
+    -- When an AI read the posting's text for the fields its structured data lacks (fillFromText): done once.
+    ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS text_read_at timestamptz;
   `);
 }

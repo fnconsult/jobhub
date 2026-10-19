@@ -100,9 +100,12 @@ const failedRuns = (profileId: string) => workerOutput.split("\n").filter((line)
 /** The Job Offers listed on a Job Search page, top to bottom (not the lines of "Pourquoi 86 ?" inside them). */
 const foundJobOffers = (page: Page) => page.getByRole("list", { name: "Offres trouvées" }).getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2 }) });
 
-/** The Match Scores shown on a Job Search page, top to bottom. */
+/**
+ * The Match Scores shown on a Job Search page, top to bottom. The faked postings state no skills, so their
+ * scores may be partial, shown "N / 100, partiel" (#94).
+ */
 async function shownScores(page: Page): Promise<number[]> {
-  const texts = await page.getByText(/^Score de correspondance : \d+ \/ 100$/).allTextContents();
+  const texts = await page.getByText(/^Score de correspondance : \d+ \/ 100(, partiel)?$/).allTextContents();
   return texts.map((text) => Number(/(\d+) \//.exec(text)![1]));
 }
 
@@ -201,7 +204,7 @@ test.describe("On-demand AI Coach job search", () => {
       // The Job Offer page it leads to scores it against this Job Search's Profile (#163).
       await expect(title).toHaveAttribute("href", new RegExp(`^/offres/[0-9a-f-]+\\?profil=${profileId}$`));
       await expect(responsable.getByRole("link", { name: "Lire l'offre" })).toHaveAttribute("href", (await title.getAttribute("href"))!);
-      await expect(responsable.getByText(/^Score de correspondance : \d+ \/ 100$/)).toBeVisible();
+      await expect(responsable.getByText(/^Score de correspondance : \d+ \/ 100(, partiel)?$/)).toBeVisible();
       await expect(responsable.locator(".meter")).toHaveAttribute("aria-hidden", "true");
       const score = (await shownScores(page))[1];
       const why = responsable.getByText(`Pourquoi ${score} ?`, { exact: true });
@@ -267,7 +270,7 @@ test.describe("On-demand AI Coach job search", () => {
 
     await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Offres trouvées pour « ${searchCriteria.targetRole} »`);
-    await expect(page.getByText(/^Score de correspondance : \d+ \/ 100$/).first()).toBeVisible({ timeout: 90_000 });
+    await expect(page.getByText(/^Score de correspondance : \d+ \/ 100(, partiel)?$/).first()).toBeVisible({ timeout: 90_000 });
   });
 
   // Issue #74: only a Job Search that can run counts against the Plan Quota.
@@ -287,7 +290,7 @@ test.describe("On-demand AI Coach job search", () => {
     const candidateId = await candidateIdOf(page);
     // One search that works, so the count has something to lose if a failure were given back twice.
     await searchFromProfile(page, profileId);
-    await expect(page.getByText(/^Score de correspondance : \d+ \/ 100$/).first(), workerOutput).toBeVisible({ timeout: 90_000 });
+    await expect(page.getByText(/^Score de correspondance : \d+ \/ 100(, partiel)?$/).first(), workerOutput).toBeVisible({ timeout: 90_000 });
     expect(await jobSearchesUsed(page)).toBe("1 sur 3");
 
     writeFileSync(searchDownFlag, "");

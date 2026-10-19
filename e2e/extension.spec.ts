@@ -258,8 +258,12 @@ test.describe("Guest Capture and Match Score", () => {
     const messages = readFileSync(path.join(e2eExtensionDir, "_locales/fr/messages.json"), "utf8");
     expect(messages).not.toMatch(/chrome/i);
     expect(manifest.permissions.sort()).toEqual(["activeTab", "alarms", "scripting", "storage"]);
-    expect(manifest.host_permissions).toEqual([`${origin}/*`]);
     expect(manifest.content_scripts[0].matches).toContain("https://www.welcometothejungle.com/*");
+    // The web app, for its session cookie, and the Job Sites the badge already matches, so Capture may read a
+    // job site's iframe in another site's page (gestmax.fr, #187): nothing beyond them.
+    expect([...manifest.host_permissions].sort()).toEqual([`${origin}/*`, ...manifest.content_scripts[0].matches].sort());
+    for (const pattern of manifest.content_scripts[0].matches) expect(pattern).toMatch(/^https:\/\/(\*\.)?[a-z0-9-]+(\.[a-z0-9-]+)+\/\*$/);
+    expect(manifest.content_scripts[0].all_frames).toBe(true);
     expect(JSON.stringify(manifest)).not.toContain("<all_urls>");
     // Every other site only if the person opts in, from the popup; the badge's script is then registered from the build.
     expect(manifest.optional_host_permissions).toEqual(["https://*/*"]);
@@ -402,17 +406,19 @@ test.describe("Guest Capture and Match Score", () => {
     // Another Job Offer captured is scored anew with the kept CV, then kept in turn.
     const other = await captureFromBadge(Object.keys(boardPages)[4]!);
     await expect(other.getByText(/^Contr.+leur de gestion H\/F$/)).toBeVisible();
-    await expect(other.getByText(scoreLine)).toBeVisible();
+    // A board page states nothing to compare, and its text gives nothing either: not computable, never 0 / 100 (#94).
+    await expect(other.getByText(fr.analysis.scoreNotComputable, { exact: true })).toBeVisible();
+    await expect(other.getByText(fr.analysis.notComputableNote)).toBeVisible();
     await expect.poll(() => scores.requests.length).toBe(3);
     await other.reload();
-    await expect(other.getByText(scoreLine)).toBeVisible();
+    await expect(other.getByText(fr.analysis.scoreNotComputable, { exact: true })).toBeVisible();
     await expect(other.getByText(/^Contr.+leur de gestion H\/F$/)).toBeVisible();
     expect(scores.requests).toHaveLength(3);
 
     // "Recalculer le Match Score" asks for one, whatever is kept.
     await other.getByRole("button", { name: fr.analysis.rescore }).click();
     await expect.poll(() => scores.requests.length).toBe(4);
-    await expect(other.getByText(scoreLine)).toBeVisible();
+    await expect(other.getByText(fr.analysis.scoreNotComputable, { exact: true })).toBeVisible();
     scores.stop();
     await other.getByRole("button", { name: fr.analysis.forget }).click();
     await expect(other.getByText(fr.analysis.forgotten)).toBeVisible();
@@ -687,7 +693,7 @@ test.describe("Guest Capture and Match Score", () => {
     ]);
     await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
     await analysis.getByRole("button", { name: fr.analysis.submit }).click();
-    await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toBeVisible();
+    await expect(analysis.getByText(fr.analysis.scoreNotComputable, { exact: true })).toBeVisible();
     const { guestSession: stored } = await guestSession(analysis);
     const jobOffer = (id: string) => analysis.request.get(`${origin}/api/job-offers/${id}`);
 

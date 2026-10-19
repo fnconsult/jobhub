@@ -323,3 +323,31 @@ test.describe("Match Score: skills by normalised form and synonyms", () => {
     await guest.dispose();
   });
 });
+
+// Issue #94: a Capture without JobPosting data has only a title and its text. The Match Score's second
+// phase has the AI read the details from the text (faked: E2E_OFFER_FIELDS), keeps them on the Job Offer,
+// and scores with them; it never answers 0 / 100 for want of details.
+test.describe("Match Score of a Job Offer captured without structured data", () => {
+  test("reads the missing details from the offer's text, once, and scores with them", async () => {
+    const guest = await guestFrom(extensionOrigin);
+    const fields = { location: "Lyon", contractType: "cdi", skills: ["IFRS", "SAP"], requiredExperienceYears: 15 };
+    const offer = await capture(guest, {
+      source: { url: `https://iledefrance.gestmax.fr/${unique()}/1/chef-de-projet` },
+      title: "Chef de projet finance (H/F)",
+      content: `Type de contrat : CDI. Ville : Lyon. E2E_OFFER_FIELDS=${JSON.stringify(fields)} Fin de l'offre.`,
+    });
+
+    const { status, body } = await matchScore(guest, { jobOfferId: offer.id, cv: masterCv, searchCriteria });
+
+    expect(status).toBe(200);
+    expect(body.offerTextUnread).toBeUndefined();
+    // Skills 40, seniority 20, location 15, contract 15; salary unknown (the offer states none): 90 of 90.
+    expect(body.score).toBe(100);
+    expect(body.breakdown.location).toEqual({ status: "match", offer: "Lyon", wanted: "Lyon" });
+    expect(body.breakdown.contractType).toEqual({ status: "match", offer: "cdi", wanted: "cdi" });
+    // Kept on the Job Offer, for everyone who scores it next.
+    const stored = await (await guest.get(`/api/job-offers/${offer.id}`)).json();
+    expect(stored).toMatchObject({ location: "Lyon", contractType: "cdi", skills: ["IFRS", "SAP"], requiredExperienceYears: 15 });
+    await guest.dispose();
+  });
+});

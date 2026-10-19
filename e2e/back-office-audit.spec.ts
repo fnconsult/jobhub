@@ -78,6 +78,46 @@ test.describe("the Back Office Journal", () => {
     await expect(page.getByRole("row").filter({ hasText: ADMINISTRATOR }).filter({ hasText: fr.billing.plans.premium }).first()).toBeVisible();
   });
 
+  test("records each search-sites change: the source or site, and its state before and after", async ({ page }) => {
+    const sites = fr.admin.searchSites;
+    const domain = `audit-${unique()}.fr`;
+    const franceTravail = sites.sources.names.france_travail;
+    await signInWithMagicLink(page, ADMINISTRATOR);
+
+    await page.goto("/admin/sites");
+    await page.getByLabel(sites.discoverySites.domain).fill(domain);
+    await page.getByRole("button", { name: sites.discoverySites.add, exact: true }).click();
+    await expect(page.getByRole("status")).toHaveText(sites.notices.siteAdded);
+    await page.getByRole("button", { name: tr(sites.disable, { name: domain }) }).click();
+    await expect(page.getByRole("status")).toHaveText(sites.notices.saved);
+    await page.getByRole("button", { name: tr(sites.remove, { name: domain }) }).click();
+    await expect(page.getByRole("status")).toHaveText(sites.notices.siteRemoved);
+    // Switch a Job discovery source off, then on again (other tests rely on it).
+    await page.getByRole("button", { name: tr(sites.disable, { name: franceTravail }) }).click();
+    await expect(page.getByRole("status")).toHaveText(sites.notices.saved);
+    await page.getByRole("button", { name: tr(sites.enable, { name: franceTravail }) }).click();
+    await expect(page.getByRole("status")).toHaveText(sites.notices.saved);
+
+    await page.goto("/admin/journal?section=job_discovery_sites");
+    const siteRows = page.getByRole("row").filter({ hasText: domain });
+    await expect(siteRows).toHaveCount(3);
+    await expect(siteRows.nth(0)).toContainText(journal.actions.removed);
+    await expect(siteRows.nth(0)).toContainText(tr(journal.removed, { field: sites.status, before: sites.disabled }));
+    await expect(siteRows.nth(1)).toContainText(journal.actions.updated);
+    await expect(siteRows.nth(1)).toContainText(tr(journal.changed, { field: sites.status, before: sites.enabled, after: sites.disabled }));
+    await expect(siteRows.nth(2)).toContainText(journal.actions.added);
+    await expect(siteRows.nth(2)).toContainText(tr(journal.set, { field: sites.status, after: sites.enabled }));
+    for (const row of await siteRows.all()) {
+      await expect(row).toContainText(ADMINISTRATOR);
+      await expect(row).toContainText(journal.sections.job_discovery_sites);
+    }
+
+    await page.goto("/admin/journal?section=job_discovery_sources");
+    const sourceRows = page.getByRole("row").filter({ hasText: ADMINISTRATOR }).filter({ hasText: franceTravail });
+    await expect(sourceRows.nth(0)).toContainText(tr(journal.changed, { field: sites.status, before: sites.disabled, after: sites.enabled }));
+    await expect(sourceRows.nth(1)).toContainText(tr(journal.changed, { field: sites.status, before: sites.enabled, after: sites.disabled }));
+  });
+
   async function addCoach(page: Page, name: string, email: string) {
     await page.goto("/admin/coachs");
     await page.getByLabel(fr.admin.humanCoaches.name).fill(name);

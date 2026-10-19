@@ -4,14 +4,17 @@ import { getBilling } from "@/billing/server";
 import { sharedPool } from "@/database/pool";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { routes } from "@/routes";
+import { getSearchSites } from "@/search-sites/server";
 import { needsSsoForBackOffice } from "@/sign-in-providers/policy";
 import { currentSignInConfiguration } from "@/sign-in-providers/server";
 import { permanentSuperAdminsFromEnv, type BackOfficeResource, type Permission } from "./access";
 import { createAdministrators, type AdministratorAccess, type Administrators, type Person } from "./administrators";
 import { createBackOffice, type BackOffice } from "./back-office";
+import { createSearchSitesBackOffice, type SearchSitesBackOffice } from "./search-sites-back-office";
 
 let backOffice: BackOffice | undefined;
 let administrators: Administrators | undefined;
+let searchSitesBackOffice: SearchSitesBackOffice | undefined;
 
 /** The app's Back Office writes and their Back Office Audit, on the database named by DATABASE_URL. */
 export function getBackOffice(): BackOffice {
@@ -23,6 +26,12 @@ export function getBackOffice(): BackOffice {
 export function getAdministrators(): Administrators {
   administrators ??= createAdministrators(sharedPool(), { backOffice: getBackOffice(), isPermanentSuperAdmin: permanentSuperAdminsFromEnv(process.env) });
   return administrators;
+}
+
+/** The Search sites' Back Office writes, each recorded in the Back Office Audit. */
+export function getSearchSitesBackOffice(): SearchSitesBackOffice {
+  searchSitesBackOffice ??= createSearchSitesBackOffice(getSearchSites(), getBackOffice());
+  return searchSitesBackOffice;
 }
 
 /** Whether the person signed in on this request is an Administrator (holds any Back Office Role). */

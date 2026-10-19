@@ -136,6 +136,7 @@ const SECTIONS: Record<BackOfficeResource, { name: string; page?: string }> = {
   ssoProviders: { name: "Fournisseurs de connexion (SSO)", page: routes.adminSignInProviders },
   aiUsage: { name: "Consommation IA (AI Usage)", page: routes.adminAiUsage() },
   aiMessages: { name: "Journaux IA (AI Message Log)", page: routes.adminAiMessages() },
+  searchSites: { name: "Sites de recherche (Job Sites et recherche d'offres)", page: routes.adminSearchSites },
 };
 
 const heading = (resource: BackOfficeResource) => {
@@ -328,6 +329,9 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   human_coaches: "coachs humains",
   provider_secrets: "clés des fournisseurs",
   sign_in_providers: "fournisseurs de connexion",
+  job_discovery_sources: "sources de la recherche d'offres",
+  job_discovery_sites: "sites de la recherche d'offres",
+  job_sites: "sites de l'extension",
   ai_messages: "journaux IA",
 };
 

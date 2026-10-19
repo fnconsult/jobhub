@@ -233,14 +233,26 @@ France Travail's code for a job, derived from the Search Criteria title; a title
 What one run of Job discovery (a Job Search or a Job Digest top-up) measured: how many Job Offers each step kept (provider URLs, pages read, Job Offers extracted, already stored, left after deduplication, with a Match Score of 60 or more), the pages skipped by Skip reason, and the estimated cost in euros. Costs are estimates from list prices, not billed amounts. Duration is the Candidate's wait (start to outcome) for a Job Search, and the worker's run time for a Job Digest.
 
 **Skip reason**:
-Why a result page gave no Job Offer (for example a Forbidden site, robots.txt, an unreadable page, a closed posting, or a posting too old).
+Why a result page gave no Job Offer (for example a Forbidden site, robots.txt, an unreadable page, a closed posting, a posting too old, or a disabled Job discovery site).
+
+**Job discovery source**:
+Where Job discovery finds Job Offers: the France Travail search, the web search, or the public APIs of the ATS postings are read through (Greenhouse, Lever, Ashby). Administrators enable or disable each from the Back Office; a disabled one is skipped by Job Searches and Job Digest top-ups (France Travail then counts as off, and an ATS posting is read from its page). All are enabled when the Back Office cannot be read.
+_Avoid_: Provider (alone), channel
+
+**Job discovery site**:
+A domain Administrators list in the Back Office for Job discovery. While enabled, it is searched on purpose: one web search of the run, the plan's first Job Search query, restricted to it. While disabled, a result page on it (or a subdomain) is skipped. Never a Forbidden site. Removing one never removes a Job Offer found on it.
+_Avoid_: Source (alone), whitelist, blacklist
+
+**Job Site**:
+A site where the browser extension shows its "Analyser cette offre" badge, as a match pattern (e.g. `https://*.gestmax.fr/*`), optionally with the pattern of its posting pages. Built-in Job Sites are in the extension's manifest and can only be disabled; Administrators add others in the Back Office, where they get the badge only for people who allowed the extension on every site. A disabled Job Site gets no badge, but Capture from the popup still works there. The extension reads the list from the web app, keeping the last one read, or its built-in Job Sites before any.
+_Avoid_: Job board (for the setting), watched site
 
 **Posting date**:
 When a Job Offer was first published, as its source states it. Sources, strongest first: the public JSON API of Greenhouse, Lever or Ashby, or a France Travail offer's creation date, the page's JobPosting `datePosted`, then the search provider's date for that page (weakest, as it may be a last-updated date). A date in the future or before 2000 counts as unknown. Never taken from a Candidate or the extension. Job discovery skips a posting first published more than 30 days ago (Skip reason "too old"), including a stored Job Offer found again, and the Job Digest leaves it out. A Job Offer with no known date is kept, labelled "date unknown", and listed after dated offers with an equal Match Score.
 _Avoid_: Publication date (when unknown), created date
 
 **Forbidden site**:
-A site whose terms forbid crawling (LinkedIn, Indeed, Glassdoor). Job discovery never fetches it; only Capture covers it.
+A site whose terms forbid crawling (LinkedIn, Indeed, Glassdoor). Job discovery never fetches it, and it can never be a Job discovery site; only Capture covers it.
 
 **Expired Job Offer**:
 A Job Offer that is no longer published at its source: two re-checks in a row found it gone (404/410, past its closing date, or sent away from its page). Only Job Offers an ongoing Application follows (not at Acceptée, Refusée or Abandonnée) are re-checked. A live re-check in between starts the count again, and an expired offer found published again stops being expired. Its Applications are flagged, but their Application Status is never changed automatically. Left out of Job Digests and Job Search results.
@@ -344,8 +356,14 @@ The collective term for an Application's Tailored CV, Cover Letter and Outreach 
 **Match Score**:
 A 0–100 measure of how well a CV (Master or Tailored) fits a Job Offer, with an explained breakdown (skills covered/missing, seniority, location, salary, contract type).
 Each breakdown item is a match, partial, mismatch or unknown (the Job Offer or the Search Criteria give nothing to compare); unknown items do not count in the score. Seniority compares the years of experience the Job Offer asks for with the span of dated jobs on the CV.
+With no known item it is not computable (never shown as 0); when its known items weigh less than half the score (skills weigh 40, seniority 20, location and contract type 15, salary 10) it is a Partial Match Score.
+A Match Score the Candidate or Guest asks for comes in two phases, counted once against the Plan Quota: first from what the Job Offer states in structured form; if that is not a reliable 70 or more and the Job Offer lacks a detail a criterion needs, an AI reads the Job Offer's text (never the CV) for it, the details found are kept on the Job Offer (once per Job Offer, never replacing a stated one) and the CV is scored again by the same rules. If the AI cannot read it, the first-phase score is shown, saying so.
 On a Job Offer's page, a signed-in Candidate sees the Match Score against the Profile picked in the save form (the one the Job Search or Job Digest link named first), or, once the Job Offer is an Application, the Application's Profile, archived or not. Showing it never counts against the Plan Quota.
 _Avoid_: Fit, compatibility, relevance
+
+**Partial Match Score**:
+A Match Score whose known items weigh less than half the score (e.g. seniority alone): shown with "partiel" and how many of the 5 items could be compared, never as a confident score.
+_Avoid_: Low-confidence score
 
 **"Pourquoi N ?"**:
 The reasons behind a Match Score of N, shown on each Job Offer of a Job Search or Job Digest: one line per breakdown item with its verdict.
@@ -433,11 +451,11 @@ _Avoid_: Dunning banner, billing alert
 ### Operations
 
 **Back Office**:
-The internal pages where Administrators manage Plans, Plan Quotas, Coupons, Human Coaches, Provider Secrets, Sign-in Providers and the team's Back Office Roles, and follow AI Usage.
+The internal pages where Administrators manage Plans, Plan Quotas, Coupons, Human Coaches, Provider Secrets, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites and the team's Back Office Roles, and follow AI Usage.
 _Avoid_: Admin panel, dashboard, console
 
 **Back Office Role**:
-What an Administrator may see and change in the Back Office: super-admin (everything, including roles, Provider Secrets, SSO providers and the AI Message Log), Plans manager (Plans, Plan Quotas, Plan Features, Coupons), Coach manager (Human Coaches, read Coach Message Cost) or Support (read-only, no secrets, no AI Message Log). Fixed in code; only super-admins grant or revoke them.
+What an Administrator may see and change in the Back Office: super-admin (everything, including roles, Provider Secrets, SSO providers, Job Sites, Job discovery sources, Job discovery sites and the AI Message Log), Plans manager (Plans, Plan Quotas, Plan Features, Coupons), Coach manager (Human Coaches, read Coach Message Cost) or Support (read-only, no secrets, no AI Message Log). Fixed in code; only super-admins grant or revoke them.
 _Avoid_: Permission level, admin type
 
 **Provider Secret**:
@@ -453,7 +471,7 @@ A super-admin setting, off by default: the Back Office asks an Administrator sig
 _Avoid_: Enforced SSO, mandatory SSO
 
 **Back Office Audit**:
-The record of every change an Administrator makes in the Back Office: who, when, what and the values before and after; and of every AI Message Log a super-admin opens. Secret values are never recorded, only that they were replaced (possibly despite a failed connection test) or cleared. Kept for 3 years, then purged. Jobbbox's own record, so it survives the Administrator's account deletion (their id is cleared, their email at the time stays) and is not part of their data export.
+The record of every change an Administrator makes in the Back Office (roles, Plans, Plan Quotas, Coupons, Human Coaches, Provider Secrets, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites): who, when, what and the values before and after; and of every AI Message Log a super-admin opens. Secret values are never recorded, only that they were replaced (possibly despite a failed connection test) or cleared. Kept for 3 years, then purged. Jobbbox's own record, so it survives the Administrator's account deletion (their id is cleared, their email at the time stays) and is not part of their data export.
 _Avoid_: Audit log, history, activity feed
 
 **Journal**:

@@ -5,7 +5,7 @@ import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } f
 import { createJobOffers, migrateJobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import type { QuotaDecision } from "../billing";
-import { createMatchScoring, type MatchScoring } from "./index";
+import { createMatchScoring, type MatchScoring, type OfferTextReader } from "./index";
 
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -168,5 +168,150 @@ describe.skipIf(!connectionString)("Match Scoring (needs Postgres: DATABASE_URL)
     expect(await metered.score(candidateId, { jobOfferId, profileId: "00000000-0000-4000-8000-000000000000" })).toEqual({ ok: false, error: "not_found" });
 
     expect(asked).toEqual([]);
+  });
+  describe("two phases: the Job Offer's text read by an AI when its structured data is not enough (#94)", () => {
+    /** A Capture without JobPosting data: a title and the page text, nothing else. */
+    async function textOnlyJobOffer(content = "Chef de projet SI. Type de contrat : CDI. Ville : Lyon. Compétences : IFRS, SAP.") {
+      const captured = await jobOffers.capture({ title: "Chef de projet SI H/F", content });
+      if (!captured.ok) throw new Error("fixture Job Offer refused");
+      return captured.jobOffer.id;
+    }
+    const searchCriteria = { targetRole: "DAF", location: "Lyon", contractType: "cdi" };
+
+    function readingScoring(read: OfferTextReader, extra: { textReadTimeoutMs?: number; decision?: QuotaDecision } = {}) {
+      const reads: { jobOfferId: string; candidateId: string | null; content: string }[] = [];
+      const asked: string[] = [];
+      const warnings: string[] = [];
+      const reading = createMatchScoring({
+        jobOffers,
+        profiles,
+        matchScoreQuota: async (id) => {
+          asked.push(id);
+          return extra.decision ?? { allowed: true, remaining: 5 };
+        },
+        readOfferText: async (jobOffer, candidateId) => {
+          reads.push({ jobOfferId: jobOffer.id, candidateId, content: jobOffer.content });
+          return read(jobOffer, candidateId);
+        },
+        warn: (message) => warnings.push(message),
+        ...(extra.textReadTimeoutMs ? { textReadTimeoutMs: extra.textReadTimeoutMs } : {}),
+      });
+      return { reading, reads, asked, warnings };
+    }
+
+    it("reads the details from the offer's text, keeps them on the Job Offer and scores with them, counting one Match Score", async () => {
+      const id = await textOnlyJobOffer();
+      const { reading, reads, asked } = readingScoring(async () => ({ location: "Lyon", contractType: "cdi", skills: ["IFRS", "SAP"], employer: "Groupe Seb" }));
+
+      const result = await reading.score(candidateId, { jobOfferId: id, cv: masterCv, searchCriteria });
+
+      expect(result).toMatchObject({
+        ok: true,
+        matchScore: {
+          score: 100,
+          breakdown: {
+            skills: { status: "match", covered: ["IFRS", "SAP"] },
+            location: { status: "match", offer: "Lyon" },
+            contractType: { status: "match", offer: "cdi" },
+          },
+        },
+      });
+      expect(result.ok && result.matchScore.offerTextUnread).toBeUndefined();
+      expect(reads).toEqual([{ jobOfferId: id, candidateId, content: expect.stringContaining("Type de contrat") }]);
+      expect(asked).toEqual([candidateId]);
+      expect(await jobOffers.get(id)).toMatchObject({ employer: "Groupe Seb", location: "Lyon", contractType: "cdi", skills: ["IFRS", "SAP"] });
+    });
+
+    it("reads a Job Offer's text once: the next Match Scores, a Guest's included, use what was kept", async () => {
+      const id = await textOnlyJobOffer();
+      const { reading, reads } = readingScoring(async () => ({ location: "Paris" }));
+
+      await reading.score(candidateId, { jobOfferId: id, cv: masterCv, searchCriteria });
+      const again = await reading.score(null, { jobOfferId: id, cv: masterCv });
+
+      expect(reads).toHaveLength(1);
+      expect(again).toMatchObject({ ok: true, matchScore: { breakdown: { location: { status: "mismatch", offer: "Paris", wanted: "Lyon" } } } });
+    });
+
+    it("needs no AI when the structured data gives a reliable score of 70 or more", async () => {
+      const { reading, reads } = readingScoring(async () => ({}));
+
+      // The fixture Job Offer states skills, location, contract type and salary: 82 for a Guest.
+      expect(await reading.score(null, { jobOfferId, cv: masterCv })).toMatchObject({ ok: true, matchScore: { score: 82 } });
+      expect(reads).toEqual([]);
+    });
+
+    it("does not read the text when it could not change the score: every criterion the CV can compare is known", async () => {
+      const captured = await jobOffers.capture({
+        title: "DAF H/F",
+        content: "DAF. 30 ans d'expérience.",
+        location: "Paris",
+        skills: ["Power BI"],
+      });
+      if (!captured.ok) throw new Error("fixture Job Offer refused");
+      const { reading, reads } = readingScoring(async () => ({}));
+
+      // A Guest without Search Criteria: salary and contract type have nothing to compare with.
+      const result = await reading.score(null, { jobOfferId: captured.jobOffer.id, cv: masterCv });
+
+      expect(result).toMatchObject({ ok: true, matchScore: { score: 0 } });
+      expect(reads).toEqual([]);
+    });
+
+    it("falls back to the phase 1 score, flagged, when the AI fails, and reads again next time", async () => {
+      const id = await textOnlyJobOffer();
+      let fail = true;
+      const { reading, reads, asked, warnings } = readingScoring(async () => {
+        if (fail) throw new Error("provider down");
+        return { location: "Lyon" };
+      });
+
+      const failed = await reading.score(candidateId, { jobOfferId: id, cv: masterCv, searchCriteria });
+      expect(failed).toMatchObject({ ok: true, matchScore: { offerTextUnread: true, breakdown: { location: { status: "unknown" } } } });
+      expect(warnings).toHaveLength(1);
+
+      fail = false;
+      const retried = await reading.score(candidateId, { jobOfferId: id, cv: masterCv, searchCriteria });
+      expect(retried).toMatchObject({ ok: true, matchScore: { breakdown: { location: { status: "match" } } } });
+      expect(reads).toHaveLength(2);
+      expect(asked).toEqual([candidateId, candidateId]);
+    });
+
+    it("does not keep the Candidate waiting on a slow AI, and keeps what it reads once it answers", async () => {
+      const id = await textOnlyJobOffer();
+      let answer!: () => void;
+      const answered = new Promise<void>((resolve) => (answer = resolve));
+      const { reading } = readingScoring(
+        async () => {
+          await answered;
+          return { location: "Lyon" };
+        },
+        { textReadTimeoutMs: 50 },
+      );
+
+      const result = await reading.score(null, { jobOfferId: id, cv: masterCv });
+      expect(result).toMatchObject({ ok: true, matchScore: { offerTextUnread: true } });
+
+      answer();
+      await expect.poll(async () => (await jobOffers.get(id))?.location).toBe("Lyon");
+    });
+
+    it("never reads the text of a Match Score the Plan Quota refuses", async () => {
+      const id = await textOnlyJobOffer();
+      const { reading, reads } = readingScoring(async () => ({}), { decision: REFUSED });
+
+      expect(await reading.score(candidateId, { jobOfferId: id, cv: masterCv })).toMatchObject({ ok: false, error: "quota_exceeded" });
+      expect(reads).toEqual([]);
+    });
+
+    it("never replaces a detail the Job Offer states", async () => {
+      const captured = await jobOffers.capture({ title: "DAF H/F", content: "DAF à Lyon.", location: "Lyon" });
+      if (!captured.ok) throw new Error("fixture Job Offer refused");
+      const { reading } = readingScoring(async () => ({ location: "Marseille", contractType: "cdd" }));
+
+      await reading.score(candidateId, { jobOfferId: captured.jobOffer.id, cv: masterCv, searchCriteria });
+
+      expect(await jobOffers.get(captured.jobOffer.id)).toMatchObject({ location: "Lyon", contractType: "cdd" });
+    });
   });
 });

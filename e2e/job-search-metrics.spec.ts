@@ -83,7 +83,7 @@ interface Metrics {
   costEur: number;
   durationMs: number;
 }
-const SKIP_REASONS = ["robots", "site_terms", "bot_protection", "login_wall", "not_public", "gone", "unreachable", "not_a_job_offer", "invalid", "too_old"];
+const SKIP_REASONS = ["robots", "site_terms", "bot_protection", "login_wall", "not_public", "gone", "unreachable", "not_a_job_offer", "invalid", "too_old", "site_disabled"];
 
 async function query<T extends pg.QueryResultRow>(sql: string, params: unknown[] = []): Promise<T[]> {
   const client = new pg.Client({ connectionString: databaseUrl });
@@ -123,8 +123,8 @@ async function runJobSearch(page: Page, profileId: string, status: "done" | "fai
 /** The Match Scores of the Job Offers a finished Job Search lists, as its page shows them. */
 async function shownScores(page: Page, jobSearchId: string): Promise<number[]> {
   await page.goto(`/recherches/${jobSearchId}`);
-  await expect(page.getByText(/^Score de correspondance : \d+ \/ 100$/).first()).toBeVisible({ timeout: 30_000 });
-  const texts = await page.getByText(/^Score de correspondance : \d+ \/ 100$/).allTextContents();
+  await expect(page.getByText(/^Score de correspondance : \d+ \/ 100(, partiel)?$/).first()).toBeVisible({ timeout: 30_000 });
+  const texts = await page.getByText(/^Score de correspondance : \d+ \/ 100(, partiel)?$/).allTextContents();
   return texts.map((text) => Number(/(\d+) \//.exec(text)![1]));
 }
 
@@ -192,6 +192,7 @@ test.describe("Job Search metrics (#109)", () => {
       not_a_job_offer: 0,
       invalid: 0,
       too_old: 0,
+      site_disabled: 0, // no Job discovery site is disabled in the Back Office (#188)
     });
     // Every result is accounted for: skipped, already stored, or read.
     const total = Object.values(skipped).reduce((sum, count) => sum + count, 0);
@@ -260,7 +261,7 @@ test.describe("Job Search metrics (#109)", () => {
     expect(run!.metrics.funnel.providerUrls).toBe(10);
     // The pages the sites refuse are refused again on every run.
     expect(run!.metrics.skipped).toEqual({
-      robots: 2, site_terms: 1, bot_protection: 2, login_wall: 1, not_public: 0, gone: 0, unreachable: 0, not_a_job_offer: 0, invalid: 0, too_old: 0,
+      robots: 2, site_terms: 1, bot_protection: 2, login_wall: 1, not_public: 0, gone: 0, unreachable: 0, not_a_job_offer: 0, invalid: 0, too_old: 0, site_disabled: 0,
     });
     expect(run!.metrics.funnel.afterDedup).toBeGreaterThanOrEqual(3);
     expect(run!.metrics.funnel.matched).toBeLessThanOrEqual(run!.metrics.funnel.afterDedup);

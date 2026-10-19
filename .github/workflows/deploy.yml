@@ -1,0 +1,158 @@
+# Deploys Jobbbox to the Hostinger VPS over SSH (docs/ops/hosting.md).
+#
+# Manual only: `gh workflow run deploy.yml -f target=staging` (from the ref to deploy,
+# default main). A push never deploys. Production also needs `confirm=jobbbox.ai`.
+#
+# One GitHub Environment per target (Settings → Environments), set up by
+# scripts/setup/deploy-vps.sh:
+#   variables  JOBHUB_ROOT (/opt/jobbbox/<target>), JOBHUB_HOST, JOBHUB_SLUG
+#   secrets    VPS_HOST, VPS_USER, VPS_SSH_KEY
+# Application secrets live in <JOBHUB_ROOT>/.env on the VPS, never in GitHub.
+#
+# The images (web, migrate, worker) are built here and pushed to GHCR, tagged with the
+# commit SHA; the VPS only pulls them, with this run's short-lived token.
+name: Deploy
+run-name: Deploy ${{ inputs.target }} (${{ github.ref_name }}) by ${{ github.actor }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Environment to deploy
+        type: choice
+        options: [staging, production]
+        default: staging
+      confirm:
+        description: "Production only: type jobbbox.ai to confirm"
+        type: string
+        default: ""
+
+concurrency:
+  group: deploy-${{ inputs.target }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  IMAGES: ghcr.io/${{ github.repository }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.target }}
+    permissions:
+      actions: read
+    steps:
+      - name: Check confirmation, configuration and CI
+        env:
+          TARGET: ${{ inputs.target }}
+          CONFIRM: ${{ inputs.confirm }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          JOBHUB_ROOT: ${{ vars.JOBHUB_ROOT }}
+          JOBHUB_HOST: ${{ vars.JOBHUB_HOST }}
+          JOBHUB_SLUG: ${{ vars.JOBHUB_SLUG }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$TARGET" = production ] && [ "$CONFIRM" != jobbbox.ai ]; then
+            echo "::error::Production deployment refused: type jobbbox.ai in 'confirm'."
+            exit 1
+          fi
+          for v in VPS_HOST VPS_USER VPS_SSH_KEY JOBHUB_ROOT JOBHUB_HOST JOBHUB_SLUG; do
+            if [ -z "${!v}" ]; then
+              echo "::error::$v is not set on the '$TARGET' environment. Run scripts/setup/deploy-vps.sh."
+              exit 1
+            fi
+          done
+          case "$JOBHUB_ROOT" in
+            *"$TARGET"*) ;;
+            *) echo "::error::JOBHUB_ROOT ($JOBHUB_ROOT) does not name '$TARGET'."; exit 1 ;;
+          esac
+          ci=$(gh run list -R "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$GITHUB_SHA" \
+            --json conclusion --jq '[.[] | select(.conclusion == "success")] | length')
+          if [ "$ci" = 0 ]; then
+            echo "::error::CI has not passed on $GITHUB_SHA. Deploy a commit CI has passed on."
+            exit 1
+          fi
+          echo "▸ $TARGET → $JOBHUB_HOST ($JOBHUB_ROOT, $JOBHUB_SLUG) at $GITHUB_SHA"
+
+  images:
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - { name: web, dockerfile: apps/web/Dockerfile, target: web }
+          - { name: migrate, dockerfile: apps/web/Dockerfile, target: migrate }
+          - { name: worker, dockerfile: apps/worker/Dockerfile, target: "" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
+          push: true
+          tags: ${{ env.IMAGES }}/${{ matrix.name }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  deploy:
+    needs: images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    environment:
+      name: ${{ inputs.target }}
+      url: https://${{ vars.JOBHUB_HOST }}
+    steps:
+      - name: Deploy on the VPS
+        # Pinned to a SHA: this action receives the VPS key.
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+        env:
+          JOBHUB_TARGET: ${{ inputs.target }}
+          JOBHUB_ROOT: ${{ vars.JOBHUB_ROOT }}
+          JOBHUB_HOST: ${{ vars.JOBHUB_HOST }}
+          JOBHUB_SLUG: ${{ vars.JOBHUB_SLUG }}
+          JOBHUB_REVISION: ${{ github.sha }}
+          JOBHUB_REPO: ${{ github.server_url }}/${{ github.repository }}.git
+          JOBHUB_IMAGES: ${{ env.IMAGES }}
+          GHCR_TOKEN: ${{ github.token }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 30m
+          envs: JOBHUB_TARGET,JOBHUB_ROOT,JOBHUB_HOST,JOBHUB_SLUG,JOBHUB_REVISION,JOBHUB_REPO,JOBHUB_IMAGES,GHCR_TOKEN
+          script: |
+            set -e
+            app="$JOBHUB_ROOT/app"
+            [ -d "$app/.git" ] || git clone --quiet "$JOBHUB_REPO" "$app"
+            git -C "$app" fetch --quiet origin "$JOBHUB_REVISION"
+            git -C "$app" checkout --quiet --force "$JOBHUB_REVISION"
+            git -C "$app" clean --quiet -fdx
+            "$app/deploy/deploy.sh"
+
+      - name: Smoke test
+        env:
+          JOBHUB_HOST: ${{ vars.JOBHUB_HOST }}
+        run: |
+          for i in $(seq 1 20); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "https://$JOBHUB_HOST/api/health" || true)
+            [ "$code" = 200 ] && { echo "✓ https://$JOBHUB_HOST/api/health → 200"; exit 0; }
+            sleep 6
+          done
+          echo "::error::https://$JOBHUB_HOST/api/health answered $code"
+          exit 1

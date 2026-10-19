@@ -8,7 +8,7 @@ import type { CapturedJobOffer } from "./job-page";
 export type ExtensionMessage =
   | { type: "analyse"; jobOffer: CapturedJobOffer }
   | { type: "interface-language" }
-  /** To the badge content script, on job sites: the Job Offer its page describes. */
-  | { type: "capture" };
+  /** From the badge content script: the Job Sites to use (src/job-sites.ts). */
+  | { type: "job-sites" };
 
 export type AnalyseReply = { ok: true } | { ok: false; error: "invalid" | "unreachable" };

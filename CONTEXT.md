@@ -459,7 +459,7 @@ What an Administrator may see and change in the Back Office: super-admin (everyt
 _Avoid_: Permission level, admin type
 
 **Provider Secret**:
-A third-party key (an AI provider's, France Travail's, the contact-enrichment provider's, Stripe's, Brevo's SMTP credentials) that super-admins enter in the Back Office's Clés section. Stored encrypted in our database and used over the environment variable of the same name, which it falls back to once cleared. Never shown again once saved: only its source, last 4 characters, and who changed it when.
+A third-party key (an AI provider's, France Travail's, the contact-enrichment provider's, Stripe's, Brevo's API key or SMTP credentials) that super-admins enter in the Back Office's Clés section. Stored encrypted in our database and used over the environment variable of the same name, which it falls back to once cleared. Never shown again once saved: only its source, last 4 characters, and who changed it when.
 _Avoid_: API key setting, credential, config secret
 
 **Sign-in Provider**:

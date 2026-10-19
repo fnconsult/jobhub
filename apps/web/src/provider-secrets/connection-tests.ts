@@ -2,7 +2,7 @@
  * The connection test of each provider behind a Provider Secret: its cheapest
  * authenticated call, made with the keys in `env` (the one being saved over those
  * in use). AI providers list their models, France Travail gives an OAuth token,
- * Stripe its balance, Brevo's SMTP relay is verified, the contact-enrichment
+ * Stripe its balance, Brevo its account (or its SMTP relay is verified), the contact-enrichment
  * provider answers its account call. Nothing is spent and nothing is stored.
  *
  * The details returned may quote the provider's answer; the store scrubs them of
@@ -137,8 +137,14 @@ export function createConnectionTester(deps: ConnectionTesterDeps = {}): Connect
       return bearer(`${origin}/v1/balance`, found.STRIPE_SECRET_KEY);
     },
     async brevo(env) {
+      // The API key is the one the mailer uses when both are set (auth/mailers.ts).
+      const apiKey = env.BREVO_API_KEY?.trim();
+      if (apiKey) {
+        const origin = env.BREVO_API_URL?.trim().replace(/\/$/, "") || "https://api.brevo.com/v3";
+        return call(`${origin}/account`, { method: "GET", headers: { "api-key": apiKey, accept: "application/json" } });
+      }
       const found = keys(env, "SMTP_URL");
-      if ("missing" in found) return failed(`missing ${found.missing}`);
+      if ("missing" in found) return failed("missing BREVO_API_KEY or SMTP_URL");
       try {
         await verifySmtp(found.SMTP_URL);
         return ok;

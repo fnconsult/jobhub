@@ -1064,7 +1064,7 @@
         "kaspr": "Kaspr",
         "apollo": "Apollo",
         "stripe": "Stripe",
-        "brevo": "Brevo (SMTP)"
+        "brevo": "Brevo"
       },
       "replaceLegend": "Replace {{name}}",
       "newValue": "New value of {{name}}",

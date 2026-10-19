@@ -95,6 +95,22 @@ describe("testing a provider's keys with its cheapest authenticated call", () =>
     expect(await tester("stripe", { STRIPE_SECRET_KEY: "sk_test_1", STRIPE_WEBHOOK_SECRET: "whsec_abc" })).toEqual({ ok: true });
   });
 
+  it("Brevo: reads the account with the API key, over the SMTP relay", async () => {
+    const verifySmtp = vi.fn(async () => {});
+    const calls: Array<[string, RequestInit | undefined]> = [];
+    const fetch = (async (url: string, init?: RequestInit) => {
+      calls.push([url, init]);
+      return new Response("{}", { status: (init?.headers as Record<string, string>)["api-key"] === "xkeysib-good" ? 200 : 401 });
+    }) as typeof globalThis.fetch;
+    const tester = createConnectionTester({ fetch, verifySmtp });
+
+    expect(await tester("brevo", { BREVO_API_KEY: "xkeysib-good", SMTP_URL: "smtps://user:pass@smtp-relay.brevo.com:465" })).toEqual({ ok: true });
+    expect(calls[0]?.[0]).toBe("https://api.brevo.com/v3/account");
+    expect(verifySmtp).not.toHaveBeenCalled();
+    expect(await tester("brevo", { BREVO_API_KEY: "xkeysib-bad" })).toEqual({ ok: false, detail: expect.stringContaining("401") });
+    expect(await tester("brevo", {})).toEqual({ ok: false, detail: "missing BREVO_API_KEY or SMTP_URL" });
+  });
+
   it("Brevo: verifies the SMTP relay with the URL's credentials", async () => {
     const verifySmtp = vi.fn(async () => {});
     const tester = createConnectionTester({ verifySmtp });

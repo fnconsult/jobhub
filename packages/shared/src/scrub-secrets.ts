@@ -14,8 +14,8 @@ const PATTERNS: RegExp[] = [
   /\b(Bearer|Basic)\s+[^\s"',;]+/gi,
   // api_key=…, "apiKey": "…", client_secret: …, password=…
   /\b((?:api[_-]?key|apikey|x-api-key|client[_-]?secret|secret|password|token|access[_-]?token)["']?\s*[:=]\s*["']?)[^\s"',;&}]+/gi,
-  // Provider key shapes: sk-…, sk_live_…, rk_test_…, whsec_…, pplx-…
-  /\b(?:sk|rk|pk|whsec|pplx|lsh)[-_][A-Za-z0-9_-]{8,}/g,
+  // Provider key shapes: sk-…, sk_live_…, rk_test_…, whsec_…, pplx-…, xkeysib-… (Brevo)
+  /\b(?:sk|rk|pk|whsec|pplx|lsh|xkeysib|xsmtpsib)[-_][A-Za-z0-9_-]{8,}/g,
   // Anything long and token-like: 32+ characters of letters, digits, - and _.
   /\b[A-Za-z0-9_-]{32,}\b/g,
 ];

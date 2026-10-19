@@ -46,7 +46,7 @@ if ! flock -n 9; then echo "✗ another deployment of $JOBHUB_TARGET is running"
 if docker info >/dev/null 2>&1; then
   DOCKER=(docker)
 elif sudo -n docker info >/dev/null 2>&1; then
-  DOCKER=(sudo -n --preserve-env=JOBHUB_ENV_FILE,JOBHUB_HOST,JOBHUB_SLUG,JOBHUB_REVISION,JOBHUB_IMAGES,DOCKER_CONFIG docker)
+  DOCKER=(sudo -n --preserve-env=JOBHUB_ENV_FILE,JOBHUB_TARGET,JOBHUB_HOST,JOBHUB_SLUG,JOBHUB_REVISION,JOBHUB_IMAGES,DOCKER_CONFIG docker)
 else
   echo "✗ $(id -un) cannot run docker (not in the docker group, no passwordless sudo)" >&2
   exit 1
@@ -59,7 +59,7 @@ if [ "$head" != "$JOBHUB_REVISION" ]; then
   exit 1
 fi
 
-export JOBHUB_ENV_FILE="$ENV_FILE" JOBHUB_HOST JOBHUB_SLUG JOBHUB_REVISION JOBHUB_IMAGES
+export JOBHUB_ENV_FILE="$ENV_FILE" JOBHUB_TARGET JOBHUB_HOST JOBHUB_SLUG JOBHUB_REVISION JOBHUB_IMAGES
 compose=("${DOCKER[@]}" compose -f "$APP/deploy/compose.yml" -p "$JOBHUB_SLUG" --env-file "$ENV_FILE")
 
 # Log in to GHCR in a throwaway Docker config, so the token is never kept on the VPS.

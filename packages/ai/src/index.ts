@@ -13,6 +13,7 @@
  */
 export { createAiLayer } from "./ai-layer";
 export type {
+  AgentModelChoice,
   AiLayer,
   AiLayerOptions,
   CompanySearchRequest,
@@ -24,7 +25,7 @@ export type {
   SearchRequest,
   SearchResult,
 } from "./ai-layer";
-export { AI_ENV_KEYS, createAiLayerFromEnv } from "./env";
+export { AI_ENV_KEYS, createAiLayerFromEnv, taskRouteFromEnv } from "./env";
 export type { AiLayerDeps } from "./env";
 export { AiConfigError, AiProviderError, DataResidencyError } from "./errors";
 export { createAnthropicProvider } from "./providers/anthropic";
@@ -41,5 +42,7 @@ export type { JobSearchQuery, QueryLanguage } from "./search-query";
 export { PROVIDER_IDS, SEARCH_TASK, TEXT_TASKS } from "./types";
 export type * from "./types";
 export { allUsageLogs, createConsoleUsageLog } from "./usage";
+export { EFFORTS, effortHandling, isEffort } from "./effort";
+export type { Effort, EffortHandling } from "./effort";
 export { costInEur, enrichmentCostInEur, EUR_PER_USD, toolCostInEur } from "./cost";
 export type { PricedCall } from "./cost";

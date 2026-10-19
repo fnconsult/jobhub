@@ -118,6 +118,7 @@ const ROLE_NAMES: Record<BackOfficeRole, string> = {
   "super-admin": "Super-admin",
   "plans-manager": "Responsable des offres",
   "coach-manager": "Responsable coaching",
+  "playbook-editor": "Rédacteur de playbooks",
   support: "Support",
 };
 
@@ -137,6 +138,7 @@ const SECTIONS: Record<BackOfficeResource, { name: string; page?: string }> = {
   aiUsage: { name: "Consommation IA (AI Usage)", page: routes.adminAiUsage() },
   aiMessages: { name: "Journaux IA (AI Message Log)", page: routes.adminAiMessages() },
   searchSites: { name: "Sites de recherche (Job Sites et recherche d'offres)", page: routes.adminSearchSites },
+  coachingPlaybooks: { name: "Playbooks de coaching, socle et sources (Coaching Playbooks)", page: routes.adminCoachingPlaybooks },
 };
 
 const heading = (resource: BackOfficeResource) => {
@@ -333,6 +335,7 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   job_discovery_sites: "sites de la recherche d'offres",
   job_sites: "sites de l'extension",
   ai_messages: "journaux IA",
+  coaching_playbooks: "playbooks de coaching",
 };
 
 const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
@@ -345,6 +348,9 @@ const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
   replaced_despite_failed_test: "remplacement malgré un test échoué",
   cleared: "effacement",
   viewed: "consultation",
+  validated: "validation",
+  archived: "archivage",
+  restored: "rétablissement",
 };
 
 /** A Journal entry for the assistant: never a secret (none is recorded), never an address, Human Coaches by name. */

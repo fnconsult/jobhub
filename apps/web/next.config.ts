@@ -19,9 +19,6 @@ const nextConfig: NextConfig = {
       "../../node_modules/@fontsource/noto-sans-devanagari/files/noto-sans-devanagari-devanagari-{400,700}-normal.woff",
       "../../node_modules/@fontsource/noto-sans-thai/files/noto-sans-thai-thai-{400,700}-normal.woff",
       "../../node_modules/@fontsource/noto-emoji/files/noto-emoji-emoji-400-normal.woff",
-      // The AI Coach's Coaching Playbooks, Core Digest and Sources, read at run time (@jobhub/coach-knowledge).
-      "../../packages/coach-knowledge/{core-digest,sources}.md",
-      "../../packages/coach-knowledge/playbooks/*.md",
     ],
   },
 };

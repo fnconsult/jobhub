@@ -82,6 +82,20 @@ describe("Back Office access", () => {
     }
   });
 
+  it("a Playbook editor creates, edits, validates and archives Coaching Playbooks, nothing else; super-admins too; Support only reads them (#225)", () => {
+    const editor = backOfficeAccess(["playbook-editor"]);
+
+    expect(editor.isAdministrator).toBe(true);
+    expect(editor.can("coachingPlaybooks", "write")).toBe(true);
+    for (const resource of ["roles", "audit", "plans", "humanCoaches", "coachMessageCost", "providerSecrets", "aiMessages"] as const) {
+      expect(editor.can(resource, "read"), resource).toBe(false);
+    }
+    expect(backOfficeAccess(["super-admin"]).can("coachingPlaybooks", "write")).toBe(true);
+    expect(backOfficeAccess(["support"]).can("coachingPlaybooks", "read")).toBe(true);
+    expect(backOfficeAccess(["support"]).can("coachingPlaybooks", "write")).toBe(false);
+    for (const role of ["plans-manager", "coach-manager"] as const) expect(backOfficeAccess([role]).can("coachingPlaybooks", "read"), role).toBe(false);
+  });
+
   it("several roles add up", () => {
     const access = backOfficeAccess(["support", "coach-manager"]);
 

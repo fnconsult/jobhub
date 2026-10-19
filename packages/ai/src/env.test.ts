@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { AI_ENV_KEYS, createAiLayerFromEnv } from "./env";
+import { AI_ENV_KEYS, createAiLayerFromEnv, taskRouteFromEnv } from "./env";
 import { AiConfigError, DataResidencyError } from "./errors";
 import { createMemoryUsageLog } from "./testing";
 
@@ -195,6 +195,31 @@ describe("AI layer configured from the environment", () => {
         /MISTRAL_API_KEY/,
       );
       expect(hosts).toEqual([]);
+    });
+  });
+
+  describe("Playbook Agents (#225)", () => {
+    const providersOf = (env: Record<string, string>) => createAiLayerFromEnv(env, { usage: createMemoryUsageLog() }).agentModels().map((choice) => choice.provider);
+
+    it("may use every EU-resident text provider whose key is entered, even one no task uses", () => {
+      expect(providersOf(base)).toEqual(["anthropic"]);
+      expect(providersOf({ ...base, MISTRAL_API_KEY: "mk" })).toEqual(["anthropic", "mistral"]);
+      expect(providersOf({ ...base, OPENAI_API_KEY: "ok" })).toEqual(["anthropic", "openai"]);
+    });
+
+    it("never one reached only outside the EU", () => {
+      expect(providersOf({ ...base, OPENAI_API_KEY: "ok", OPENAI_DATA_RESIDENCY: "us" })).toEqual(["anthropic"]);
+      expect(providersOf({ ANTHROPIC_API_KEY: "ak", MISTRAL_API_KEY: "mk", PERPLEXITY_API_KEY: "pk" })).toEqual(["mistral"]);
+    });
+
+    it("are given by default the AI Coach's route: its provider and model", () => {
+      expect(taskRouteFromEnv(base, "coaching")).toEqual({ provider: "anthropic" });
+      expect(taskRouteFromEnv({ ...base, AI_COACHING_PROVIDER: "mistral", AI_COACHING_MODEL: "mistral-medium-3-5" }, "coaching")).toEqual({
+        provider: "mistral",
+        model: "mistral-medium-3-5",
+      });
+      // Claude reached only outside the EU: the AI Coach is on Mistral.
+      expect(taskRouteFromEnv({ ANTHROPIC_API_KEY: "ak" }, "coaching")).toEqual({ provider: "mistral" });
     });
   });
 

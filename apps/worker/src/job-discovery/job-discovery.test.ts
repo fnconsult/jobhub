@@ -8,11 +8,11 @@ import { describe, expect, it } from "vitest";
 import type { FranceTravail, FranceTravailSearch } from "./france-travail";
 import { createJobDiscovery, JobDiscoveryError, type JobDiscoveryBudget, type JobOfferStore } from "./index";
 
-/** Serves, for each id given, that text as version 2 with no Playbook Agent; nothing for any other id. */
+/** Serves, for each id given, that text as version 2 with no Playbook Agent, searching where it says (none: the configured route); nothing for any other id. */
 const servedTasks =
-  (served: Record<string, { content: string }>): TaskPlaybookReader =>
+  (served: Record<string, { content: string; search?: { provider: "brave"; model: string | null } }>): TaskPlaybookReader =>
   async (id) =>
-    served[id] ? { id, version: 2, content: served[id]!.content, agent: null } : null;
+    served[id] ? { id, version: 2, content: served[id]!.content, agent: null, search: served[id]!.search ?? null } : null;
 
 const criteria: SearchCriteria = {
   targetRole: "Directeur financier",
@@ -105,12 +105,14 @@ function setup(options: {
   settings?: () => Promise<JobDiscoverySettings>;
   /** The task Playbooks served (ADR-0026). Default: none read, so no Job Offer Summary, and the built-in query wording. */
   taskPlaybooks?: TaskPlaybookReader;
+  /** Another web-search provider configured, which a task Playbook may name. */
+  otherSearch?: FakeProvider;
 }) {
   const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, sourceDates: options.sourceDates, answer: options.answer, pages: options.searchPages });
   const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}', usage: options.llmUsage });
   const titles = createFakeProvider({ id: "mistral", reply: options.titles ?? "{}" });
   const ai = createAiLayer({
-    providers: [search, llm, titles],
+    providers: [search, llm, titles, ...(options.otherSearch ? [options.otherSearch] : [])],
     routes: { web_search: "perplexity", offer_analysis: "anthropic", job_titles: "mistral" },
     usage: createMemoryUsageLog(),
   });
@@ -506,6 +508,26 @@ describe("Job discovery", () => {
       expect(titles.calls[0]!.system).toMatch(/^Donne des synonymes\. Réponds uniquement par un objet JSON/);
       expect(search.queries[0]).toMatch(/^Poste « Directeur financier » vers Lyon, CDI/);
       expect(search.queries[1]).toMatch(/^Directeur financier job in Lyon, permanent contract/);
+    });
+
+    it("searches on the web-search provider the job-search-queries task Playbook names (ADR-0026)", async () => {
+      const brave = createFakeProvider({ id: "brave", residency: "outside_eu" });
+      const { discovery, search } = setup({
+        sources: [],
+        pages: {},
+        otherSearch: brave,
+        taskPlaybooks: servedTasks({
+          "job-search-queries": {
+            content: "## intitulés\n\nDonne des synonymes.\n\n## requête fr\n\nPoste « {{intitulé}} » vers {{lieu}}\n\n## requête en\n\n{{intitulé}} job in {{lieu}}",
+            search: { provider: "brave", model: null },
+          },
+        }),
+      });
+
+      await discovery.discover({ candidateId: "c", criteria });
+
+      expect(search.queries).toEqual([]);
+      expect(brave.queries[0]).toMatch(/^Poste « Directeur financier » vers Lyon/);
     });
 
     it("does not call the LLM when the page has JobPosting data", async () => {

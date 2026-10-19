@@ -26,6 +26,10 @@ _Avoid_: AI opt-in, privacy setting
 The part of a CV that identifies the Candidate: name, postal address, phone and email.
 _Avoid_: Contact details, header
 
+**Redaction**:
+What the AI layer takes out of every AI call, generation and web search, before it leaves for a provider: every email address and phone number found by its shape, and what Jobbbox knows of the Candidate's identity (their account's name and email, their latest Master CV's Identity block: full name, last name, postal address, phone, email), each replaced by a placeholder such as « [NOM] » or « [E-MAIL] ». The first name stays. A text task's reply gets the values back, so a Cover Letter still signs with the name; the AI Message Log keeps what was sent, redacted. It replaced the rule that personal data only goes to EU-resident endpoints: names Jobbbox does not know go through, and the rest of a CV (employers, dates, career) stays in the call.
+_Avoid_: Anonymisation, masking, scrubbing (that is for keys and secrets)
+
 **Organisation**:
 An outplacement firm, APEC or corporate HR department that pays for its beneficiaries' Candidate accounts and whose advisors can follow their progress. Not in the MVP: Candidates pay for themselves first.
 _Avoid_: Company, client, tenant, B2B customer
@@ -121,7 +125,7 @@ The short set of cross-cutting coaching rules the AI Coach always applies, whate
 _Avoid_: Summary, system prompt
 
 **Playbook Agent**:
-The AI that reads one Coaching Playbook for a reply, on its own provider, model and effort, set with the playbook in the Back Office from the EU-resident models allowed. A "when to consult it" text says what it is for. A Task Playbook's Playbook Agent is the AI running that task instead: it has no "when to consult it", and its effort may be the model's own.
+The AI that reads one Coaching Playbook for a reply, on its own provider, model and effort, set with the playbook in the Back Office from every text provider configured (one outside the EU is marked so; every call is redacted). A "when to consult it" text says what it is for. A Task Playbook's Playbook Agent is the AI running that task instead: it has no "when to consult it", and its effort may be the model's own.
 _Avoid_: Sub-agent, worker
 
 **Playbook Agent choice**:
@@ -137,7 +141,7 @@ A Coaching Playbook, Core Digest or Task Playbook version a named Administrator,
 _Avoid_: Approved, QA'd, reviewed
 
 **Task Playbook**:
-The working instructions of one AI task (reading an uploaded CV, writing a Tailored CV, a Cover Letter, an Outreach Message or a Follow-up, proposing Coach Memory, wording a Job Search's or a Company Dossier's web searches, the Back Office Assistant, the Job Offer Summary and sector), with the Playbook Agent that runs it. Versioned, edited, Human-validated and archived in the Back Office like a Coaching Playbook, but the AI Coach never consults it. It holds the task's rules only: the reply's shape, the safety rules and the data passed in stay in the code. With no version served, an existing task runs on its built-in text; the Job Offer Summary and sector are not written.
+The working instructions of one AI task (reading an uploaded CV, writing a Tailored CV, a Cover Letter, an Outreach Message or a Follow-up, proposing Coach Memory, wording a Job Search's or a Company Dossier's web searches, the Back Office Assistant, the Job Offer Summary and sector), with the Playbook Agent that runs it and, for one that searches the web (a Company Dossier's facts and Company News, a Job Search's queries), the web-search provider and model its searches go to (none: the configured one). Versioned, edited, Human-validated and archived in the Back Office like a Coaching Playbook, but the AI Coach never consults it. It holds the task's rules only: the reply's shape, the safety rules and the data passed in stay in the code. With no version served, an existing task runs on its built-in text; the Job Offer Summary and sector are not written.
 _Avoid_: Prompt, template, system prompt
 
 ### Positioning
@@ -511,7 +515,7 @@ What every AI call cost Jobbbox, whatever its task (not only AI Coach replies): 
 _Avoid_: AI bill, token log, metering
 
 **AI Message Log**:
-What one AI call said: its system text, messages and reply, keys and secrets scrubbed, with the Candidate it was made for (none for a Guest). Kept 30 days for quality and debugging, then purged; deleted with the account and in the Candidate's Data export. Only super-admins read it, on the Back Office's Journaux IA page, and every log they open is written to the Back Office Audit.
+What one AI call said, as sent: its system text and messages after Redaction, and the reply as it came, keys and secrets scrubbed, with the Candidate it was made for (none for a Guest). Kept 30 days for quality and debugging, then purged; deleted with the account and in the Candidate's Data export. Only super-admins read it, on the Back Office's Journaux IA page, and every log they open is written to the Back Office Audit.
 _Avoid_: Prompt log, transcript, chat history
 
 **Back Office Assistant**:

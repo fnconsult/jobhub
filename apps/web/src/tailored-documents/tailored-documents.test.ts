@@ -154,7 +154,8 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
 
     expect(mistral.calls).toHaveLength(1);
     expect(claude.calls).toHaveLength(0);
-    expect(warn).not.toHaveBeenCalled();
+    // Declared, so never an undeclared identity; redacted like every call.
+    expect(warn.mock.calls.map(([message]) => message)).toEqual(["Identity redacted before the AI call"]);
   });
 
   it("are asked for with the cover-letter and outreach-message task Playbooks' sections, then who may be named and the format, on their Playbook Agent (ADR-0026)", async () => {

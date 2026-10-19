@@ -9,6 +9,7 @@ export const backOfficeAssistant = {
   title: "Assistant du Back Office",
   aiTask: "back_office_assistant",
   agent: true,
+  search: false,
   validatedAtImport: true,
   instructions: `Tu es l'assistant du Back Office de Jobbbox, pour les Administrateurs (l'équipe Jobbbox).
 Règles :

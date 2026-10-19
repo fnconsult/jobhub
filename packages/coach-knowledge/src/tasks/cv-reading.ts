@@ -6,6 +6,7 @@ export const cvReading = {
   title: "Lire un CV importé",
   aiTask: "cv_parsing",
   agent: true,
+  search: false,
   validatedAtImport: true,
   instructions: `Tu lis le CV d'un candidat et tu le recopies, section par section, dans un objet JSON.
 Règles :

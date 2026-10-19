@@ -1,6 +1,7 @@
 /**
  * The AI layer's safety net for identity routing (ADR-0007 amendment): finds a phone number or an
- * email address in prompt text a call site did not declare as carrying the Candidate's identity.
+ * email address in prompt text a call site did not declare as carrying the Candidate's identity. The
+ * same shapes are what redaction always removes before a call (redaction.ts).
  * Names and postal addresses cannot be told apart from other text, so call sites must still declare.
  *
  * Prompts often carry job-offer text, full of long digit runs (dates, salary ranges, references,
@@ -10,7 +11,10 @@
 
 export type IdentityHit = "phone" | "email";
 
-const EMAIL = /[^\s@<>()[\]",;:]+@[^\s@<>()[\]",;:]+\.[a-z]{2,}/i;
+// Starts only where a run of address characters starts, so a long run with no "@" (a capped log text,
+// a base64 blob) is read once, not once per character.
+const EMAIL = /(?<![^\s@<>()[\]",;:])[^\s@<>()[\]",;:]+@[^\s@<>()[\]",;:]+\.[a-z]{2,}/i;
+const EMAILS = new RegExp(EMAIL.source, "gi");
 
 // Never the tail of a longer number ("552 100 554 00013", "1 004 567 890").
 const NOT_AFTER_A_NUMBER = String.raw`(?<!\d[\s.,-]?)`;
@@ -36,16 +40,35 @@ const NATIONAL_DIGITS = 10;
 
 const digitCount = (text: string) => text.replace(/\D/g, "").length;
 
-function hasPhone(text: string): boolean {
-  for (const [match] of text.matchAll(INTERNATIONAL)) {
-    const digits = digitCount(match);
-    if (digits >= INTERNATIONAL_DIGITS.min && digits <= INTERNATIONAL_DIGITS.max && !ROUNDED_QUANTITY.test(match)) return true;
-  }
-  for (const [match] of text.matchAll(NATIONAL)) {
-    if (digitCount(match) === NATIONAL_DIGITS) return true;
-  }
-  return false;
+/** Where a phone number or email address is in a text: its first character and the one after it. */
+export interface IdentityMatch {
+  kind: IdentityHit;
+  start: number;
+  end: number;
+  text: string;
 }
+
+/** Every phone number in a text, by the shapes above (an international one first where both match). */
+export function findPhones(text: string): IdentityMatch[] {
+  const found: IdentityMatch[] = [];
+  for (const match of text.matchAll(INTERNATIONAL)) {
+    const digits = digitCount(match[0]);
+    if (digits >= INTERNATIONAL_DIGITS.min && digits <= INTERNATIONAL_DIGITS.max && !ROUNDED_QUANTITY.test(match[0])) {
+      found.push({ kind: "phone", start: match.index, end: match.index + match[0].length, text: match[0] });
+    }
+  }
+  for (const match of text.matchAll(NATIONAL)) {
+    if (digitCount(match[0]) === NATIONAL_DIGITS) found.push({ kind: "phone", start: match.index, end: match.index + match[0].length, text: match[0] });
+  }
+  return found;
+}
+
+/** Every email address in a text. */
+export function findEmails(text: string): IdentityMatch[] {
+  return [...text.matchAll(EMAILS)].map((match) => ({ kind: "email" as const, start: match.index, end: match.index + match[0].length, text: match[0] }));
+}
+
+const hasPhone = (text: string): boolean => findPhones(text).length > 0;
 
 /** What kinds of identity the texts show, in a fixed order; empty when none. */
 export function findIdentity(texts: readonly string[]): IdentityHit[] {

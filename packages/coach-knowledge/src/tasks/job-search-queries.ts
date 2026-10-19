@@ -4,13 +4,15 @@ import type { TaskPlaybookSeed } from "./types";
  * A Job Search's queries: the job title variants step (job_titles, on its Playbook Agent, given the
  * Search Criteria title alone), and how each web-search query opens, in French and English, where
  * {{intitulé}} and {{lieu}} are one job title and one location of the Search Criteria, cleaned. The
- * JSON shape, the cap on titles, and the contract, remote-work and salary words stay in code.
+ * JSON shape, the cap on titles, and the contract, remote-work and salary words stay in code. Its
+ * searches go to the web-search provider its version names, else the configured one.
  */
 export const jobSearchQueries = {
   id: "job-search-queries",
   title: "Préparer les requêtes d'une recherche d'offres",
   aiTask: "job_titles",
   agent: true,
+  search: true,
   validatedAtImport: true,
   sections: [
     { key: "intitulés", label: "consigne de l'étape qui trouve les autres intitulés du poste" },

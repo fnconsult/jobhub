@@ -1,33 +1,42 @@
 import { EFFORTS, type AgentModelChoice } from "@jobhub/ai";
 import type { TaskPlaybookSeed } from "@jobhub/coach-knowledge/tasks";
 import type { PlaybookKind, PlaybookVersion } from "@/coaching-playbooks";
-import { agentModelValue, effortOf } from "@/admin/playbook-form";
+import { agentModelValue, effortOf, outsideEu } from "@/admin/playbook-form";
 import { getServerT } from "@/i18n/server";
 
 /**
  * The fields of a Playbook Version (#225): its rules, and for a Coaching Playbook its Playbook Agent's
- * model (only those `models` offers: EU-resident), effort and when to consult it. `version` prefills them.
- * For a task Playbook (ADR-0026, `task` as the code knows it): its instructions, with the sections and
- * slots its task reads, and the model and effort running it (none for a web-search query), which may be
- * the model's own; no "when to consult it", the AI Coach never consults it.
+ * model (those `models` offers: every text provider configured, an outside-EU one marked so), effort and
+ * when to consult it. `version` prefills them. For a task Playbook (ADR-0026, `task` as the code knows it):
+ * its instructions, with the sections and slots its task reads, and the model and effort running it (none
+ * for a web-search query), which may be the model's own; no "when to consult it", the AI Coach never
+ * consults it. A task Playbook that searches the web also has its « Moteur de recherche »: one of
+ * `searchModels`, or none for the configured web-search route.
  */
 export async function PlaybookVersionFields({
   idPrefix,
   kind,
   version,
   models,
+  searchModels = [],
   task,
 }: {
   idPrefix: string;
   kind: PlaybookKind;
   version?: PlaybookVersion;
   models: AgentModelChoice[];
+  searchModels?: AgentModelChoice[];
   task?: TaskPlaybookSeed;
 }) {
   const t = await getServerT();
   const agent = version?.agent ?? null;
   const current = agent ? agentModelValue(agent.provider, agent.model) : undefined;
   const offered = models.flatMap((choice) => [agentModelValue(choice.provider, null), ...choice.models.map((each) => agentModelValue(choice.provider, each.model))]);
+  const search = version?.search ?? null;
+  const currentSearch = search ? agentModelValue(search.provider, search.model) : "";
+  const offeredSearch = searchModels.flatMap((choice) => [agentModelValue(choice.provider, null), ...choice.models.map((each) => agentModelValue(choice.provider, each.model))]);
+  /** " (hors UE)" after a model that runs outside the EU. */
+  const where = (choices: AgentModelChoice[], choice: AgentModelChoice, model: string | null) => (outsideEu(choices, choice.provider, model) ? ` (${t("admin.coachingPlaybooks.outsideEu")})` : "");
   const id = (field: string) => `${idPrefix}-${field}`;
   const isTask = kind === "task";
   const hasAgent = kind === "playbook" || (isTask && task?.agent !== false);
@@ -66,11 +75,11 @@ export async function PlaybookVersionFields({
               {models.map((choice) => (
                 <optgroup key={choice.provider} label={`${choice.provider} (${choice.endpoint})`}>
                   <option value={agentModelValue(choice.provider, null)}>
-                    {`${choice.provider} · ${t("admin.coachingPlaybooks.defaultModel", { model: choice.defaultModel ?? "?" })}`}
+                    {`${choice.provider} · ${t("admin.coachingPlaybooks.defaultModel", { model: choice.defaultModel ?? "?" })}${where(models, choice, null)}`}
                   </option>
                   {choice.models.map((each) => (
                     <option key={each.model} value={agentModelValue(choice.provider, each.model)}>
-                      {`${choice.provider} · ${each.model}`}
+                      {`${choice.provider} · ${each.model}${where(models, choice, each.model)}`}
                     </option>
                   ))}
                 </optgroup>
@@ -101,6 +110,29 @@ export async function PlaybookVersionFields({
             </div>
           )}
         </>
+      ) : null}
+      {isTask && task?.search ? (
+        <div className="stack">
+          <label htmlFor={id("search-model")}>{t("admin.coachingPlaybooks.fields.searchModel")}</label>
+          <select id={id("search-model")} className="input" name="searchModel" defaultValue={currentSearch} aria-describedby={id("search-model-help")}>
+            <option value="">{t("admin.coachingPlaybooks.fields.searchConfigured")}</option>
+            {/* A provider no longer offered stays visible, so saving tells why it is refused rather than changing it silently. */}
+            {search && !offeredSearch.includes(currentSearch) ? <option value={currentSearch}>{`${search.provider} · ${search.model ?? t("admin.coachingPlaybooks.providerDefault")}`}</option> : null}
+            {searchModels.map((choice) => (
+              <optgroup key={choice.provider} label={`${choice.provider} (${choice.endpoint})`}>
+                <option value={agentModelValue(choice.provider, null)}>
+                  {`${choice.provider} · ${t("admin.coachingPlaybooks.defaultModel", { model: choice.defaultModel ?? "?" })}${where(searchModels, choice, null)}`}
+                </option>
+                {choice.models.map((each) => (
+                  <option key={each.model} value={agentModelValue(choice.provider, each.model)}>
+                    {`${choice.provider} · ${each.model}${where(searchModels, choice, each.model)}`}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+          <p id={id("search-model-help")}>{t("admin.coachingPlaybooks.fields.searchModelHelp")}</p>
+        </div>
       ) : null}
     </>
   );

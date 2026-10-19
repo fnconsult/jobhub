@@ -6,6 +6,7 @@ export const jobOfferReading = {
   title: "Lire une offre d'emploi : résumé et secteur",
   aiTask: "offer_analysis",
   agent: true,
+  search: false,
   validatedAtImport: false,
   instructions: `- "summary" : deux ou trois phrases (400 caractères au plus) sur le poste, son périmètre et ce qui est attendu,
   écrites dans la langue de l'offre (en anglais pour une offre en anglais). Uniquement ce que l'offre dit, sans rien inventer

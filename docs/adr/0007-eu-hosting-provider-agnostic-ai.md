@@ -59,3 +59,26 @@ How the data rule of this ADR holds:
 - Recording never fails nor delays a call: the layer does not wait for the usage log, and a failed insert is only warned about.
 
 Web search calls are AI-layer calls: their per-search fee is reported as the model's `web_search` tool, not as an external API, so it is counted once.
+
+## Amendment: redaction replaces EU-only routing (2026-10-20)
+
+The product owner lifted the rule that personal data is sent only to EU-resident endpoints. In its place, nothing that identifies the Candidate should reach an AI provider: a guardrail in the AI layer takes it out of each call before it leaves (`packages/ai/src/redaction.ts`). All data is still stored in the EU; what changed is where an AI call may go.
+
+What changed:
+- Any configured text provider may run any text task, outside the EU too: OpenAI without EU data residency, Claude's direct API. The AI layer no longer refuses one at start-up nor per call (`DataResidencyError` is kept only for the identity route below and for a web search's country filter). A task with personal data still prefers an EU-resident endpoint where its provider has one (Claude on Bedrock over the direct API), and the defaults still route those tasks to EU endpoints; that is a preference, no longer a rule.
+- The Back Office offers every configured provider for a Playbook Agent and a task Playbook's web searches, each outside-EU option marked « hors UE » (ADR-0026 amendment).
+- A web-search provider still only searches: a text task is never routed to it.
+- EU AI Consent (issue #121) is unchanged: it is the Candidate's own choice, so a consenting Candidate's identity-bearing call still goes to Mistral, and the identity route must still be EU-resident.
+
+What the guardrail removes, from the system text and every message of every call (text generation and web search alike), before the provider sees them:
+- Always, by their shape: every email address and phone number (the patterns of `identity-scan.ts`), whoever they belong to.
+- When the call is made for a Candidate, what Jobbbox knows of their identity (`identityOf`, read from their account and their latest Master CV): their full name and last name, their postal address (a Master CV location holding a digit), their email and phone, matched as written whatever the case and spacing.
+- Each value becomes a placeholder, the same one throughout the call: « [NOM] », « [NOM DE FAMILLE] », « [ADRESSE] », « [E-MAIL] », « [TÉLÉPHONE] », « [LIEN] » (numbered from a second distinct value, « [E-MAIL 2] »). The model is told to keep them as they are. A text task's reply gets back the values that call took out, and only those: a Cover Letter still signs with the Candidate's name, and reading an uploaded CV still fills its Identity block when its values were known or had the shape of an email or phone.
+- The first name stays: alone it identifies no one, and the AI Coach addresses the Candidate by it on purpose (issue #126).
+- The AI Message Log keeps what was actually sent, redacted, and the reply as it came. The layer warns of how many values of each kind it took out, never the values. A failed identity lookup never fails a call: it is warned about and the call is redacted by shape alone.
+
+Its limits, stated plainly:
+- The rest of the CV goes through: employers, job titles, dates, schools, career. Under GDPR that is pseudonymised personal data, not anonymous data: someone holding other sources could single the Candidate out from it. Sending it to a provider outside the EU is a transfer of personal data, which needs its own legal basis (standard contractual clauses or an adequacy decision) in the provider's terms, and belongs in the register of processing.
+- Names Jobbbox does not know slip through: a newly uploaded CV whose name differs from the account's (the first upload, before any Master CV exists), a referee's or a former manager's name, a name written with a typo. Names cannot be told apart from other words by their shape.
+- A last name shorter than three letters is not matched, to avoid false hits on ordinary words; a postal address is matched only as the Master CV writes it.
+- A company sharing the Candidate's last name is redacted too (« Dupont Conseil » becomes « [NOM DE FAMILLE] Conseil » in a web search).

@@ -437,10 +437,13 @@ export function createCompanyDossiers(
   async function dossierFor(candidateId: string, employer: string): Promise<CompanyDossier | null> {
     const dossier = await companyDossierFor(candidateId, employer);
     if (!dossier) return null;
+    // The task Playbook's words, on the web-search provider it names (else the configured one).
+    const run = await taskRun(taskPlaybooks, "company-news-search", ai);
     const news = await ai.searchCompanyNews({
       candidateId,
       employer,
-      instructions: (await taskRun(taskPlaybooks, "company-news-search", ai)).text(),
+      instructions: run.text(),
+      route: run.searchRoute,
       ...(dossier.source === "french_register" ? { registeredName: dossier.name } : {}),
       ...(dossier.source === "web" && dossier.website ? { website: dossier.website } : {}),
     });
@@ -454,7 +457,8 @@ export function createCompanyDossiers(
     const match = matchIn(companies, employer);
     if (match) return registerDossier(employer, match, builtAt);
     if (soleTraderNamed || sirenIn(employer)) return null;
-    const found = await ai.searchCompany({ candidateId, employer, instructions: (await taskRun(taskPlaybooks, "company-facts-search", ai)).text() });
+    const run = await taskRun(taskPlaybooks, "company-facts-search", ai);
+    const found = await ai.searchCompany({ candidateId, employer, instructions: run.text(), route: run.searchRoute });
     const webSiren = webSirenIn(found.answer);
     if (webSiren) {
       const listed = (await register.search(webSiren)).companies.find((company) => company.siren === webSiren);

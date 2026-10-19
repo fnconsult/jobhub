@@ -9,7 +9,8 @@
  *  - what the AI Coach uses `served`: the Core Digest, the Sources list and the Coaching Playbooks
  *                           with their Playbook Agents, at the version this environment serves; never
  *                           a task Playbook
- *  - what an AI task uses   `servedTask(id)`: one task Playbook's served version and its Playbook Agent
+ *  - what an AI task uses   `servedTask(id)`: one task Playbook's served version, its Playbook Agent and
+ *                           its web-search provider
  * and `migrateCoachingPlaybooks(database, seed)` creates its tables, once imports `seed`'s coaching
  * knowledge as version 1 of each, and adds each task Playbook still missing (see ./import).
  *
@@ -23,9 +24,13 @@
  *    served, nor deleted; the Core Digest and the Sources list cannot be archived.
  *  - Every `[Sn]` a version cites must be in the latest Sources list; a Source cited by the served or
  *    latest version of a Coaching Playbook in use, or of the Core Digest, cannot leave it.
- *  - A Playbook Agent only uses a provider and model `agentModels` offers (EU-resident, ADR-0007);
- *    no model means the provider's default one. Its effort is low, medium or high; a task Playbook's
- *    may also be none (the model's own), and it has no "when to consult it".
+ *  - A Playbook Agent only uses a provider and model `agentModels` offers (every text provider
+ *    configured, outside the EU too: every call is redacted, ADR-0007); no model means the provider's
+ *    default one. Its effort is low, medium or high; a task Playbook's may also be none (the model's
+ *    own), and it has no "when to consult it".
+ *  - A task Playbook that runs web searches may name their provider and model (or depth) among those
+ *    `searchModels` offers; none (as imported) means the configured web-search route. Changing it is a
+ *    change like any other: a Human-validated version gets a new one.
  *  - Task Playbooks are the ones the code knows (`@jobhub/coach-knowledge/tasks`): never created here,
  *    only imported. A version's text must have the sections and `{{slots}}` its task reads; one for a
  *    web-search query has no Playbook Agent. A task Playbook cites no Source.
@@ -69,6 +74,13 @@ export interface PlaybookAgent {
   consultWhen: string;
 }
 
+/** The web-search provider a task Playbook's searches go to, as one Playbook Version sets it (ADR-0026). */
+export interface PlaybookSearch {
+  provider: ProviderId;
+  /** Null: the provider's default model (or depth). */
+  model: string | null;
+}
+
 /** Who validated a Playbook Version, and when. */
 export interface Validation {
   name: string;
@@ -84,6 +96,8 @@ export interface PlaybookVersion {
   content: string;
   /** Null for the Core Digest, the Sources list and a task Playbook for a web-search query. */
   agent: PlaybookAgent | null;
+  /** A task Playbook's web-search provider; null for every other, and for one that names none: the configured web-search route. */
+  search: PlaybookSearch | null;
   /** The email of each Administrator who saved it, the first one first; "import" for the one-off import. */
   authors: string[];
   createdAt: Date;
@@ -115,8 +129,10 @@ export interface ServedTaskPlaybook {
   id: string;
   version: number;
   content: string;
-  /** Null for a web-search query, which goes to the configured web-search provider. */
+  /** Null for a web-search query alone, which has no Playbook Agent. */
   agent: PlaybookAgent | null;
+  /** Where its web searches go; null: the configured web-search route. */
+  search: PlaybookSearch | null;
 }
 
 /**
@@ -174,7 +190,8 @@ export interface CoachingPlaybooks {
   create(editor: PlaybookEditor, input: unknown, within?: Queryable): Promise<CreatePlaybookResult>;
   /**
    * Saves a version of `id`. `input` is untrusted: { content } for the Core Digest and the Sources list,
-   * with { provider, model, effort, consultWhen } for a Coaching Playbook (model "" is the provider's default).
+   * with { provider, model, effort, consultWhen } for a Coaching Playbook (model "" is the provider's default),
+   * and { searchProvider, searchModel } for a task Playbook that searches the web (provider "": the configured route).
    */
   save(editor: PlaybookEditor, id: string, input: unknown, within?: Queryable): Promise<SavePlaybookResult>;
   /** Marks version `version` of `id` Human-validated by `validator`, now. */
@@ -191,6 +208,8 @@ export interface CoachingPlaybooksDeps {
   serving: PlaybookServing;
   /** The providers and models a Playbook Agent may use (the AI layer's `agentModels`). */
   agentModels: () => AgentModelChoice[];
+  /** The web-search providers and models a task Playbook's searches may use (the AI layer's `searchModels`). Default: none. */
+  searchModels?: () => AgentModelChoice[];
 }
 
 /**
@@ -224,6 +243,8 @@ export async function migrateCoachingPlaybooks(database: Pool, seed: () => Playb
       validated_at timestamptz,
       PRIMARY KEY (playbook_id, version)
     );
+    ALTER TABLE playbook_version ADD COLUMN IF NOT EXISTS search_provider text;
+    ALTER TABLE playbook_version ADD COLUMN IF NOT EXISTS search_model text;
   `);
   await inTransaction(database, async (client) => {
     // One importer at a time: two migrations starting together import once.
@@ -263,6 +284,8 @@ interface VersionRow {
   agent_model: string | null;
   agent_effort: string | null;
   consult_when: string | null;
+  search_provider: string | null;
+  search_model: string | null;
   authors: string[];
   created_at: Date;
   updated_at: Date;
@@ -271,7 +294,7 @@ interface VersionRow {
   validated_at: Date | null;
 }
 
-const VERSION_COLUMNS = `v.playbook_id, v.version, v.content, v.agent_provider, v.agent_model, v.agent_effort, v.consult_when, v.authors,
+const VERSION_COLUMNS = `v.playbook_id, v.version, v.content, v.agent_provider, v.agent_model, v.agent_effort, v.consult_when, v.search_provider, v.search_model, v.authors,
   v.created_at, v.updated_at, v.validated_by_name, v.validated_by_email, v.validated_at`;
 
 const versionFrom = (row: VersionRow): PlaybookVersion => ({
@@ -282,17 +305,26 @@ const versionFrom = (row: VersionRow): PlaybookVersion => ({
     row.agent_provider === null
       ? null
       : { provider: row.agent_provider as ProviderId, model: row.agent_model, effort: (row.agent_effort as Effort | null) ?? null, consultWhen: row.consult_when ?? "" },
+  search: row.search_provider === null ? null : { provider: row.search_provider as ProviderId, model: row.search_model },
   authors: row.authors,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   validation: row.validated_at ? { name: row.validated_by_name ?? "", email: row.validated_by_email ?? "", at: row.validated_at } : null,
 });
 
-async function insertVersion(within: Queryable, id: string, version: number, content: string, agent: PlaybookAgent | null, authors: string[]): Promise<PlaybookVersion> {
+async function insertVersion(
+  within: Queryable,
+  id: string,
+  version: number,
+  content: string,
+  agent: PlaybookAgent | null,
+  authors: string[],
+  search: PlaybookSearch | null = null,
+): Promise<PlaybookVersion> {
   const { rows } = await within.query<VersionRow>(
-    `INSERT INTO playbook_version AS v (playbook_id, version, content, agent_provider, agent_model, agent_effort, consult_when, authors)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING ${VERSION_COLUMNS}`,
-    [id, version, content, agent?.provider ?? null, agent?.model ?? null, agent?.effort ?? null, agent?.consultWhen ?? null, authors],
+    `INSERT INTO playbook_version AS v (playbook_id, version, content, agent_provider, agent_model, agent_effort, consult_when, search_provider, search_model, authors)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING ${VERSION_COLUMNS}`,
+    [id, version, content, agent?.provider ?? null, agent?.model ?? null, agent?.effort ?? null, agent?.consultWhen ?? null, search?.provider ?? null, search?.model ?? null, authors],
   );
   return versionFrom(rows[0]!);
 }
@@ -325,44 +357,57 @@ const field = (input: Record<string, unknown>, key: string): string | undefined 
   return typeof value === "string" ? value : undefined;
 };
 
-type VersionInput = { content: string; agent: PlaybookAgent | null };
+type VersionInput = { content: string; agent: PlaybookAgent | null; search: PlaybookSearch | null };
+
+const isProvider = (value: string | undefined): value is ProviderId => value !== undefined && (PROVIDER_IDS as readonly string[]).includes(value);
 
 /**
- * A version's text and, for a Coaching Playbook or a task Playbook run by one, its Playbook Agent, read
- * from an untrusted form; null when unusable. `task`: what a task Playbook's text must hold, its task as
- * the code knows it (none: a task the code no longer knows, run by a Playbook Agent).
+ * A version's text and, for a Coaching Playbook or a task Playbook run by one, its Playbook Agent, and for
+ * a task Playbook that searches the web, its web-search provider, read from an untrusted form; null when
+ * unusable. `task`: what a task Playbook's text must hold, its task as the code knows it (none: a task the
+ * code no longer knows, run by a Playbook Agent).
  */
 function versionInput(kind: PlaybookKind, input: unknown, task?: TaskPlaybookSeed): VersionInput | null {
   if (typeof input !== "object" || input === null || Array.isArray(input)) return null;
   const fields = input as Record<string, unknown>;
   const content = field(fields, "content")?.replace(/\r\n/g, "\n").trim();
   if (!content || content.length > MAX_CONTENT_LENGTH) return null;
-  if (kind === "core_digest" || kind === "sources" || (kind === "task" && task?.agent === false)) return { content, agent: null };
+  // No web-search provider named: the configured web-search route.
+  const searchProvider = field(fields, "searchProvider")?.trim() || undefined;
+  if (kind === "task" && task?.search && searchProvider !== undefined && !isProvider(searchProvider)) return null;
+  const search: PlaybookSearch | null =
+    kind === "task" && task?.search && isProvider(searchProvider) ? { provider: searchProvider, model: field(fields, "searchModel")?.trim() || null } : null;
+  if (kind === "core_digest" || kind === "sources" || (kind === "task" && task?.agent === false)) return { content, agent: null, search };
   const provider = field(fields, "provider");
   const effort = fields.effort;
-  if (!provider || !(PROVIDER_IDS as readonly string[]).includes(provider)) return null;
+  if (!isProvider(provider)) return null;
   const model = field(fields, "model")?.trim() || null;
   if (kind === "task") {
     // No effort: the model's own. The AI Coach never consults a task Playbook: no "when to consult it".
     if (effort !== undefined && effort !== "" && !isEffort(effort)) return null;
-    return { content, agent: { provider: provider as ProviderId, model, effort: isEffort(effort) ? effort : null, consultWhen: "" } };
+    return { content, agent: { provider, model, effort: isEffort(effort) ? effort : null, consultWhen: "" }, search };
   }
   const consultWhen = field(fields, "consultWhen")?.trim();
   if (!isEffort(effort)) return null;
   if (!consultWhen || consultWhen.length > MAX_CONSULT_WHEN_LENGTH) return null;
-  return { content, agent: { provider: provider as ProviderId, model, effort, consultWhen } };
+  return { content, agent: { provider, model, effort, consultWhen }, search: null };
 }
 
 const sameAgent = (a: PlaybookAgent | null, b: PlaybookAgent | null) =>
   a === b || (a !== null && b !== null && a.provider === b.provider && a.model === b.model && a.effort === b.effort && a.consultWhen === b.consultWhen);
 
+const sameSearch = (a: PlaybookSearch | null, b: PlaybookSearch | null) => a === b || (a !== null && b !== null && a.provider === b.provider && a.model === b.model);
+
 const normalEmail = (email: string) => email.trim().toLowerCase();
 
 export function createCoachingPlaybooks(database: Pool, deps: CoachingPlaybooksDeps): CoachingPlaybooks {
-  const allowed = (agent: PlaybookAgent): boolean => {
-    const choice = deps.agentModels().find((each) => each.provider === agent.provider);
-    return choice !== undefined && (agent.model === null || choice.models.some((each) => each.model === agent.model));
+  /** Whether `choices` offer the provider and model (none: its default) of `named`. */
+  const offered = (choices: AgentModelChoice[], named: { provider: ProviderId; model: string | null }): boolean => {
+    const choice = choices.find((each) => each.provider === named.provider);
+    return choice !== undefined && (named.model === null || choice.models.some((each) => each.model === named.model));
   };
+  const allowed = (agent: PlaybookAgent): boolean => offered(deps.agentModels(), agent);
+  const allowedSearch = (search: PlaybookSearch): boolean => offered(deps.searchModels?.() ?? [], search);
 
   /** The latest version of each, or of `id`. */
   async function latestVersions(within: Queryable, id?: string): Promise<Map<string, PlaybookVersion>> {
@@ -478,8 +523,9 @@ export function createCoachingPlaybooks(database: Pool, deps: CoachingPlaybooksD
         const parsed = versionInput(kind, input, task);
         if (!parsed) return { ok: false, error: "invalid" };
         if (parsed.agent && !allowed(parsed.agent)) return { ok: false, error: "model_not_allowed" };
+        if (parsed.search && !allowedSearch(parsed.search)) return { ok: false, error: "model_not_allowed" };
         const before = (await latestVersions(client, id)).get(id)!;
-        if (before.content === parsed.content && sameAgent(before.agent, parsed.agent)) return { ok: false, error: "unchanged" };
+        if (before.content === parsed.content && sameAgent(before.agent, parsed.agent) && sameSearch(before.search, parsed.search)) return { ok: false, error: "unchanged" };
         if (kind === "sources") {
           const refused = await checkSourcesList(client, parsed.content, before.content);
           if (refused) return refused;
@@ -492,13 +538,24 @@ export function createCoachingPlaybooks(database: Pool, deps: CoachingPlaybooksD
         }
         const author = normalEmail(editor.email);
         if (before.validation) {
-          return { ok: true, before, version: await insertVersion(client, id, before.version + 1, parsed.content, parsed.agent, [author]), newVersion: true };
+          return { ok: true, before, version: await insertVersion(client, id, before.version + 1, parsed.content, parsed.agent, [author], parsed.search), newVersion: true };
         }
         const { rows: updated } = await client.query<VersionRow>(
-          `UPDATE playbook_version v SET content = $3, agent_provider = $4, agent_model = $5, agent_effort = $6, consult_when = $7,
+          `UPDATE playbook_version v SET content = $3, agent_provider = $4, agent_model = $5, agent_effort = $6, consult_when = $7, search_provider = $9, search_model = $10,
                   authors = CASE WHEN $8 = ANY(v.authors) THEN v.authors ELSE array_append(v.authors, $8) END, updated_at = clock_timestamp()
             WHERE v.playbook_id = $1 AND v.version = $2 RETURNING ${VERSION_COLUMNS}`,
-          [id, before.version, parsed.content, parsed.agent?.provider ?? null, parsed.agent?.model ?? null, parsed.agent?.effort ?? null, parsed.agent?.consultWhen ?? null, author],
+          [
+            id,
+            before.version,
+            parsed.content,
+            parsed.agent?.provider ?? null,
+            parsed.agent?.model ?? null,
+            parsed.agent?.effort ?? null,
+            parsed.agent?.consultWhen ?? null,
+            author,
+            parsed.search?.provider ?? null,
+            parsed.search?.model ?? null,
+          ],
         );
         return { ok: true, before, version: versionFrom(updated[0]!), newVersion: false };
       });
@@ -567,7 +624,7 @@ export function createCoachingPlaybooks(database: Pool, deps: CoachingPlaybooksD
       );
       if (!rows[0]) return null;
       const version = versionFrom(rows[0]);
-      return { id, version: version.version, content: version.content, agent: version.agent };
+      return { id, version: version.version, content: version.content, agent: version.agent, search: version.search };
     },
   };
 }

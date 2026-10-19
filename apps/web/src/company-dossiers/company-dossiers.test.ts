@@ -725,6 +725,23 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
     expect(taskPlaybooks.reads).toEqual(expect.arrayContaining(["company-facts-search", "company-news-search"]));
   });
 
+  it("searches on the web-search provider each served task Playbook names, else the configured one (ADR-0026)", async () => {
+    const database = testAuth.auth.options.database as Pool;
+    const tavily = createFakeProvider({ id: "tavily", residency: "outside_eu", answer: "{}" });
+    const withTavily = createAiLayer({ providers: [mistral, perplexity, tavily], routes: { offer_analysis: "mistral", web_search: "perplexity" }, usage: createMemoryUsageLog() });
+    const taskPlaybooks = servedTasks({
+      "company-facts-search": { content: "Fiche courte de {{entreprise}}.", search: { provider: "tavily", model: null } },
+      "company-news-search": { content: "Articles de presse sur {{entreprise}}, 2 au plus." },
+    });
+    const served = createCompanyDossiers(database, { applications, register, ai: withTavily, taskPlaybooks });
+
+    await served.build(candidateId, await applicationFor({ employer: "Globex Ltd" }));
+
+    expect(tavily.queries).toEqual([expect.stringMatching(/^Fiche courte de « Globex Ltd »/)]);
+    expect(perplexity.queries).toEqual([]);
+    expect(newsQueries).toEqual([expect.stringMatching(/^Articles de presse sur « Globex Ltd »/)]);
+  });
+
   it("shows and builds a dossier only for the Candidate's own Application", async () => {
     const applicationId = await applicationFor({ employer: "Acme Industrie" });
 

@@ -6,6 +6,7 @@ export const followUp = {
   title: "Rédiger une relance",
   aiTask: "writing",
   agent: true,
+  search: false,
   validatedAtImport: true,
   sections: [
     { key: "fr 1", label: "première relance, en français" },

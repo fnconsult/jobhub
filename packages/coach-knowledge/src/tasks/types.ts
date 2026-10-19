@@ -19,10 +19,15 @@ export interface TaskPlaybookSeed {
   /** The AI task its calls are counted under in AI Usage. */
   aiTask: string;
   /**
-   * Whether it runs on its Playbook Agent (a text model offered for it). False for a web-search query,
-   * which always goes to the configured web-search provider: it has no Playbook Agent.
+   * Whether it runs on its Playbook Agent (a text model offered for it). False for a web-search query
+   * alone: it has no Playbook Agent.
    */
   agent: boolean;
+  /**
+   * Whether it runs web searches, on the web-search provider (and model or depth) its version names among
+   * those configured, or the configured `web_search` route when it names none (ADR-0026).
+   */
+  search: boolean;
   /** Imported Human-validated (by François Nader, ADR-0026), so production kept running it. */
   validatedAtImport: boolean;
   /** The sections its text must have; none: the whole text is the instructions. */

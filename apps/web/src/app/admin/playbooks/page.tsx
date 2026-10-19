@@ -93,6 +93,9 @@ export default async function CoachingPlaybooksPage({ searchParams }: { searchPa
                     : playbook.kind === "task"
                       ? t("admin.coachingPlaybooks.tasks.webSearch")
                       : null}
+                  {playbook.latest.search
+                    ? ` · ${t("admin.coachingPlaybooks.tasks.searchSummary", { provider: playbook.latest.search.provider, model: playbook.latest.search.model ?? t("admin.coachingPlaybooks.providerDefault") })}`
+                    : null}
                 </td>
                 <td>{t(playbook.archived ? "admin.coachingPlaybooks.archived" : "admin.coachingPlaybooks.active")}</td>
               </tr>
@@ -132,6 +135,7 @@ export default async function CoachingPlaybooksPage({ searchParams }: { searchPa
               <tr>
                 <th scope="col">{t("admin.coachingPlaybooks.models.provider")}</th>
                 <th scope="col">{t("admin.coachingPlaybooks.models.model")}</th>
+                <th scope="col">{t("admin.coachingPlaybooks.models.residency")}</th>
                 <th scope="col">{t("admin.coachingPlaybooks.models.effort")}</th>
               </tr>
             </thead>
@@ -141,6 +145,7 @@ export default async function CoachingPlaybooksPage({ searchParams }: { searchPa
                   <tr key={`${choice.provider} ${each.model}`}>
                     <th scope="row">{`${choice.provider} (${choice.endpoint})`}</th>
                     <td>{each.model}</td>
+                    <td>{t(each.residency === "eu" ? "admin.coachingPlaybooks.models.inEu" : "admin.coachingPlaybooks.outsideEu")}</td>
                     <td>{each.effort === "native" ? t("admin.coachingPlaybooks.models.native") : t(`admin.coachingPlaybooks.effortHandling.${each.effort}`)}</td>
                   </tr>
                 )),

@@ -1,6 +1,6 @@
 import type { SearchCriteria } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { createAiLayer, DataResidencyError } from "./ai-layer";
+import { AiConfigError, createAiLayer } from "./ai-layer";
 import { createFakeProvider, createMemoryUsageLog } from "./testing";
 
 describe("AI layer", () => {
@@ -26,27 +26,31 @@ describe("AI layer", () => {
     expect(usage.totalFor("cand-1")).toEqual({ inputTokens: 10, outputTokens: 5 });
   });
 
-  describe("personal data only goes to EU-resident endpoints", () => {
-    const usOpenAi = createFakeProvider({ id: "openai", residency: "outside_eu" });
+  describe("an endpoint outside the EU may take any task: the call is redacted instead (ADR-0007 amendment, 2026-10-20)", () => {
+    const usOpenAi = () => createFakeProvider({ id: "openai", residency: "outside_eu" });
 
-    it.each(["scoring", "writing", "coaching"] as const)("refuses to route %s to an endpoint outside the EU", (task) => {
-      expect(() => createAiLayer({ providers: [usOpenAi], routes: { [task]: "openai" }, usage: createMemoryUsageLog() })).toThrow(
-        DataResidencyError,
-      );
+    it.each(["scoring", "writing", "coaching"] as const)("routes %s to an endpoint outside the EU, without the Candidate's email or phone", async (task) => {
+      const openai = usOpenAi();
+      const ai = createAiLayer({ providers: [openai], routes: { [task]: "openai" }, usage: createMemoryUsageLog(), warn: () => {} });
+
+      await expect(ai.generate({ task, candidateId: "c", prompt: "CV : marie.dupont@example.fr, 06 12 34 56 78" })).resolves.toMatchObject({ provider: "openai" });
+      expect(openai.calls[0]!.messages[0]!.content).toBe("CV : [E-MAIL], [TÉLÉPHONE]");
     });
 
-    it("allows Job Offer analysis, which carries no personal data, on an endpoint outside the EU", async () => {
-      const ai = createAiLayer({ providers: [usOpenAi], routes: { offer_analysis: "openai" }, usage: createMemoryUsageLog() });
-      await expect(ai.generate({ task: "offer_analysis", candidateId: null, prompt: "Offre: DAF H/F" })).resolves.toMatchObject({
-        provider: "openai",
-      });
+    it("prefers an EU-resident endpoint for a task with personal data when the provider has one", async () => {
+      const direct = { ...createFakeProvider({ id: "anthropic", residency: "outside_eu" }), endpoint: "api.anthropic.com" };
+      const bedrock = { ...createFakeProvider({ id: "anthropic" }), endpoint: "bedrock eu-west-3" };
+      const usage = createMemoryUsageLog();
+      const ai = createAiLayer({ providers: [direct, bedrock], routes: { scoring: "anthropic", offer_analysis: "anthropic" }, usage });
+
+      await ai.generate({ task: "scoring", candidateId: "c", prompt: "CV" });
+      await ai.generate({ task: "offer_analysis", candidateId: null, prompt: "Offre" });
+
+      expect(usage.entries.map((entry) => entry.endpoint)).toEqual(["bedrock eu-west-3", "api.anthropic.com"]);
     });
 
-    it("never sends a personal-data call outside the EU, even if a provider's residency changes after start-up", async () => {
-      const drifting = { ...createFakeProvider({ id: "anthropic" }), residency: "eu" as "eu" | "outside_eu" };
-      const ai = createAiLayer({ providers: [drifting], routes: { scoring: "anthropic" }, usage: createMemoryUsageLog() });
-      drifting.residency = "outside_eu";
-      await expect(ai.generate({ task: "scoring", candidateId: "c", prompt: "CV" })).rejects.toThrow(DataResidencyError);
+    it("still refuses to route a text task to a web-search provider, which cannot write", () => {
+      expect(() => createAiLayer({ providers: [{ ...createFakeProvider({ id: "perplexity", residency: "outside_eu" }), generate: undefined }], routes: { scoring: "perplexity" }, usage: createMemoryUsageLog() })).toThrow(AiConfigError);
     });
   });
 });

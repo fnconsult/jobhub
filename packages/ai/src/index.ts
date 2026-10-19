@@ -13,6 +13,8 @@
  *   await readOfferFields(ai, { candidateId, jobOffer, reading }); // a Job Offer's fields, read from its text
  * A task's instructions come from its task Playbook when the caller passes them (`TaskInstructions`,
  * ADR-0026); otherwise from the built-in text, version 1 as written in `@jobhub/coach-knowledge/tasks`.
+ * Every call, generation and web search, is redacted before it leaves (redaction.ts): email addresses and
+ * phone numbers always, and what `identityOf` knows of the Candidate; a reply gets the values back.
  */
 export { createAiLayer } from "./ai-layer";
 export type {
@@ -33,6 +35,8 @@ export type {
 export { AI_ENV_KEYS, createAiLayerFromEnv, taskRouteFromEnv } from "./env";
 export type { AiLayerDeps } from "./env";
 export { AiConfigError, AiProviderError, DataResidencyError } from "./errors";
+export { givenNameOf, redactIdentity, REDACTION_NOTE } from "./redaction";
+export type { CandidateIdentity, RedactedKind, Redaction } from "./redaction";
 export { createAnthropicProvider } from "./providers/anthropic";
 export type { AnthropicEndpoint, AnthropicProviderOptions } from "./providers/anthropic";
 export { createMistralProvider, createOpenAiProvider } from "./providers/chat-completions";

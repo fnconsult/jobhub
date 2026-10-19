@@ -84,8 +84,11 @@ describe("identity routing under EU AI consent", () => {
       expect(claude.calls).toHaveLength(0);
       expect(warnings).toEqual([
         { message: expect.stringMatching(/undeclared identity/i), details: { task: "coaching", candidateId: "cand-consenting", found: ["phone"] } },
+        // Routed on what the call says, then redacted: Mistral is not sent the number either.
+        { message: expect.stringMatching(/redacted/i), details: { task: "coaching", candidateId: "cand-consenting", redacted: { phone: 1 } } },
       ]);
       expect(JSON.stringify(warnings)).not.toContain("06 12");
+      expect(mistral.calls[0]!.messages[0]!.content).toBe("Rappelez-moi au [TÉLÉPHONE] pour parler de ma candidature");
     });
 
     it.each([
@@ -105,7 +108,7 @@ describe("identity routing under EU AI consent", () => {
       const result = await ai.generate({ task: "coaching", candidateId: "cand-consenting", prompt: `Mon numéro : ${phone}, merci.` });
 
       expect(result.provider).toBe("mistral");
-      expect(warnings).toEqual([expect.objectContaining({ details: expect.objectContaining({ found: ["phone"] }) })]);
+      expect(warnings.filter(({ message }) => /undeclared/i.test(message))).toEqual([expect.objectContaining({ details: expect.objectContaining({ found: ["phone"] }) })]);
     });
 
     // Job-offer text is full of long digit runs that are not phone numbers: those calls keep their task's provider, unlogged.

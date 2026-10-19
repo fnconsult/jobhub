@@ -9,6 +9,7 @@ export const coverLetter = {
   title: "Rédiger une lettre de motivation",
   aiTask: "writing",
   agent: true,
+  search: false,
   validatedAtImport: true,
   sections: [
     { key: "fr", label: "lettre en français" },

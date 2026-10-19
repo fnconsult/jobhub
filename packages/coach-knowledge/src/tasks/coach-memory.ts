@@ -6,6 +6,7 @@ export const coachMemory = {
   title: "Proposer les faits à retenir (Coach Memory)",
   aiTask: "coaching",
   agent: true,
+  search: false,
   validatedAtImport: true,
   instructions: `Tu es le coach Jobbbox. Tu relis une conversation avec un candidat et tu proposes les faits clés à retenir pour les prochaines conversations : ses objectifs (goal), ses contraintes (constraint) et ses décisions (decision).
 Règles :

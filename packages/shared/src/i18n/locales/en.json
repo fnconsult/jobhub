@@ -1375,7 +1375,7 @@
         "sourcesContent": "Sources list (Markdown table, one row per source)",
         "sourcesHelp": "A source cited by a served version or the latest version of an active playbook cannot be removed.",
         "model": "Playbook Agent's model",
-        "modelHelp": "Only models hosted in the European Union are offered: the Playbook Agent receives personal data.",
+        "modelHelp": "Every configured provider is offered, outside the European Union too (marked \"outside EU\"): before each call, the Candidate's identity is taken out of the message (name, address, email, phone, links).",
         "effort": "Effort",
         "effortHelp": "How hard the model should think. Some models ignore it or only have two levels: see the models table.",
         "consultWhen": "When to consult it",
@@ -1385,16 +1385,21 @@
         "taskSections": "One section per variant, each under its \"## key\" heading:",
         "taskSlots": "Keep, where the code inserts a value: {{slots}}",
         "taskModel": "Model running the task",
-        "taskModelHelp": "Only models hosted in the European Union are offered. Personal data and EU AI consent always follow the task's rules.",
-        "effortNone": "the model's own (nothing sent)"
+        "taskModelHelp": "Every configured provider is offered, outside the European Union too (marked \"outside EU\"): the Candidate's identity is taken out of each call before it is sent, and EU AI consent still applies.",
+        "effortNone": "the model's own (nothing sent)",
+        "searchModel": "Search engine",
+        "searchModelHelp": "The web-search provider, with its model or depth, that receives this task's searches, among those configured. By default: the one configured for every web search. It only receives queries built from the search criteria or the company's name.",
+        "searchConfigured": "Configured provider (default)"
       },
       "models": {
         "title": "Allowed models",
-        "caption": "Models hosted in the EU, and effort",
+        "caption": "Models offered, hosting and effort",
         "provider": "Provider",
         "model": "Model",
         "effort": "Effort",
-        "native": "low, medium and high"
+        "native": "low, medium and high",
+        "residency": "Hosting",
+        "inEu": "EU"
       },
       "create": {
         "title": "New playbook",
@@ -1426,9 +1431,10 @@
         "archiveHelp": "An archived playbook is no longer served; its versions are kept. A playbook is never deleted.",
         "archive": "Archive this playbook",
         "restore": "Restore this playbook",
-        "taskWebSearch": "Web-search query: sent to the configured web-search provider, with no Playbook Agent.",
+        "taskWebSearch": "Web-search query, with no Playbook Agent: sent to the search engine shown, or to the configured provider.",
         "taskArchiveHelp": "An archived task playbook is no longer served; its versions are kept. The task then falls back to its built-in text, and job offer summaries are no longer written.",
-        "instructions": "Instructions"
+        "instructions": "Instructions",
+        "search": "Search engine"
       },
       "notices": {
         "created": "Playbook created, at version 1.",
@@ -1436,7 +1442,7 @@
         "unchanged": "Nothing changed: no version saved.",
         "invalid": "Incomplete form: rules, model, effort (low, medium or high) and description are required; a Sources list lists each source once.",
         "exists": "This id is already taken.",
-        "model_not_allowed": "This model is not allowed: only the EU-hosted models offered here are.",
+        "model_not_allowed": "This model is not allowed: only the models offered here are.",
         "unknown_sources": "Sources missing from the Sources list: {{sources}}.",
         "sources_cited": "Cannot remove sources still cited: {{list}}.",
         "validated": "Version {{version}} validated.",
@@ -1467,8 +1473,10 @@
         "intro": "The working instructions of each AI task (reading a job offer or a CV, drafting a document, researching a company…) and the AI that runs it. The AI Coach never consults them. The reply formats, the safety rules and the data passed in stay in the code. With no version served, a task falls back to its built-in text; a job offer's summary and sector are then not written.",
         "caption": "AI task playbooks",
         "runBy": "Run by",
-        "webSearch": "the configured web-search provider"
-      }
+        "webSearch": "the configured web-search provider",
+        "searchSummary": "search: {{provider}} · {{model}}"
+      },
+      "outsideEu": "outside EU"
     }
   },
   "backOfficeAssistant": {

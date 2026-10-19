@@ -23,3 +23,9 @@ When no version of an existing task is served (archived, or none validated), the
 - **Let the AI Coach consult Task Playbooks like Coaching Playbooks:** they are a task's working instructions, not coaching advice; the Playbook Agent choice would waste a call on them and could mix them into replies.
 - **Make the whole prompt editable, output format and safety rules included:** one edit could break parsing or send personal data where it must not go.
 - **Import every Task Playbook unvalidated:** production would have lost every AI task until each was reviewed.
+
+## Amendment: every configured provider, and a web-search provider per task Playbook (2026-10-20)
+
+A Playbook Agent is no longer limited to EU-resident models: the Back Office offers every text provider whose key is entered, with its endpoint, each outside-EU option marked « hors UE ». The data rule it relied on was replaced by redaction (ADR-0007 amendment of 2026-10-20): every call is stripped of the Candidate's identity before it leaves; EU AI Consent still sends a consenting Candidate's identity-bearing call to Mistral.
+
+The task Playbooks that run web searches (`search: true` in `packages/coach-knowledge/src/tasks/`: the Company Dossier's facts and Company News, and a Job Search's queries, whose job-title step keeps its Playbook Agent) also name their « Moteur de recherche »: one web-search provider and model (or depth) among those configured (Perplexity, Brave, Tavily, Linkup, whichever keys are entered; Perplexity stays search only). A version stores it in `search_provider` and `search_model`; none, as every imported version 1 has, means the configured `web_search` route, so nothing changed when it was added. Changing it is a change like the text or the agent: on a Human-validated version it makes a new version to validate. A served choice the AI layer no longer offers (key removed, model gone) is not used: the configured web-search route is, with a warning.

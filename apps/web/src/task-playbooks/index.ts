@@ -5,6 +5,7 @@
  *   const run = await taskRun(taskPlaybooks, "cv-reading", ai);
  *   await ai.generate({ task: "cv_parsing", system: `${run.text()}\n${SHAPE}`, ...run.agent, … });
  *   run.text("fr");                                          // one `## fr` section
+ *   await ai.searchCompany({ candidateId, employer, instructions: run.text(), route: run.searchRoute });
  *   const reading = await servedTaskRun(taskPlaybooks, "job-offer-reading", ai); // null: none served
  *
  * `taskRun` never fails: when no version is served (archived, or none Human-validated in production) or
@@ -12,12 +13,13 @@
  * `@jobhub/coach-knowledge/tasks`) and its configured route, with a warning. `servedTaskRun` is for a
  * task that does nothing without a served version (the Job Offer Summary and sector).
  * A served Playbook Agent the AI layer no longer offers (its provider unconfigured, its model gone) is
- * not used: the task's configured route is, with a warning. The AI layer still applies the task's data
- * rules (ADR-0007): personal data stays EU-resident, identity-bearing calls follow EU AI Consent.
+ * not used: the task's configured route is, with a warning; likewise a served web-search provider no
+ * longer offered: the configured web-search route is. The AI layer still redacts every call (ADR-0007),
+ * and identity-bearing calls still follow EU AI Consent.
  */
-import type { AiLayer, GenerateRequest, TaskInstructions } from "@jobhub/ai";
+import type { AiLayer, GenerateRequest, Route, TaskInstructions } from "@jobhub/ai";
 import { builtInInstructions, taskSection, type TaskPlaybookId } from "@jobhub/coach-knowledge/tasks";
-import type { PlaybookAgent, ServedTaskPlaybook } from "../coaching-playbooks";
+import type { PlaybookAgent, PlaybookSearch, ServedTaskPlaybook } from "../coaching-playbooks";
 
 export type { TaskPlaybookId } from "@jobhub/coach-knowledge/tasks";
 
@@ -35,13 +37,18 @@ export interface TaskRun {
   agent: Pick<GenerateRequest, "route" | "effort">;
   /** Its instructions (or one section) with its Playbook Agent, as the AI layer's own tasks take them. */
   instructions(section?: string): TaskInstructions;
+  /** The web-search provider and model its searches go to, as the AI layer's searches take it (`route`); undefined for the configured web-search route. */
+  searchRoute: Route | undefined;
 }
+
+/** What `taskRun` checks a served version against: the models the AI layer offers (a test double may offer no web search). */
+type Offers = Pick<AiLayer, "agentModels"> & Partial<Pick<AiLayer, "searchModels">>;
 
 type Warn = (message: string) => void;
 const consoleWarn: Warn = (message) => console.warn(`[task-playbooks] ${message}`);
 
 /** The Playbook Agent as the AI layer takes it; empty, with a warning, when the AI layer no longer offers its model. */
-function agentFor(id: string, agent: PlaybookAgent | null, ai: Pick<AiLayer, "agentModels">, warn: Warn): TaskRun["agent"] {
+function agentFor(id: string, agent: PlaybookAgent | null, ai: Offers, warn: Warn): TaskRun["agent"] {
   if (!agent) return {};
   const choice = ai.agentModels().find((each) => each.provider === agent.provider);
   if (!choice || (agent.model !== null && !choice.models.some((each) => each.model === agent.model))) {
@@ -51,8 +58,20 @@ function agentFor(id: string, agent: PlaybookAgent | null, ai: Pick<AiLayer, "ag
   return { route: agent.model ? { provider: agent.provider, model: agent.model } : { provider: agent.provider }, ...(agent.effort ? { effort: agent.effort } : {}) };
 }
 
-function runOf(id: TaskPlaybookId, served: ServedTaskPlaybook | null, ai: Pick<AiLayer, "agentModels">, warn: Warn): TaskRun {
+/** The web-search route a served version names; undefined, with a warning, when the AI layer no longer offers it. */
+function searchRouteFor(id: string, search: PlaybookSearch | null, ai: Offers, warn: Warn): Route | undefined {
+  if (!search) return undefined;
+  const choice = ai.searchModels?.().find((each) => each.provider === search.provider);
+  if (!choice || (search.model !== null && !choice.models.some((each) => each.model === search.model))) {
+    warn(`task Playbook "${id}": its web-search provider (${search.provider} ${search.model ?? "default model"}) is not offered here, the configured web-search route is used`);
+    return undefined;
+  }
+  return search.model ? { provider: search.provider, model: search.model } : { provider: search.provider };
+}
+
+function runOf(id: TaskPlaybookId, served: ServedTaskPlaybook | null, ai: Offers, warn: Warn): TaskRun {
   const agent = served ? agentFor(id, served.agent, ai, warn) : {};
+  const searchRoute = served ? searchRouteFor(id, served.search ?? null, ai, warn) : undefined;
   const text = (section?: string): string => {
     if (!served) return builtInInstructions(id, section);
     if (section === undefined) return served.content;
@@ -61,7 +80,7 @@ function runOf(id: TaskPlaybookId, served: ServedTaskPlaybook | null, ai: Pick<A
     warn(`task Playbook "${id}" v${served.version} has no section "${section}": its built-in text is used`);
     return builtInInstructions(id, section);
   };
-  return { id, version: served?.version ?? null, text, agent, instructions: (section) => ({ text: text(section), ...agent }) };
+  return { id, version: served?.version ?? null, text, agent, instructions: (section) => ({ text: text(section), ...agent }), searchRoute };
 }
 
 /** The served version of `id`, or null when none is or it cannot be read (`failed`). */
@@ -79,14 +98,14 @@ async function read(reader: TaskPlaybookReader | undefined, id: TaskPlaybookId, 
  * How the task of `id` runs now: its served version, else its built-in text (with a warning).
  * Without `reader` (a caller not wired to the database, as in unit tests), the built-in text, silently.
  */
-export async function taskRun(reader: TaskPlaybookReader | undefined, id: TaskPlaybookId, ai: Pick<AiLayer, "agentModels">, warn: Warn = consoleWarn): Promise<TaskRun> {
+export async function taskRun(reader: TaskPlaybookReader | undefined, id: TaskPlaybookId, ai: Offers, warn: Warn = consoleWarn): Promise<TaskRun> {
   const { served, failed } = await read(reader, id, warn);
   if (reader && !served && !failed) warn(`no version of task Playbook "${id}" is served: its built-in text is used`);
   return runOf(id, served, ai, warn);
 }
 
 /** How the task of `id` runs now, only from its served version: null when none is (or it cannot be read). */
-export async function servedTaskRun(reader: TaskPlaybookReader | undefined, id: TaskPlaybookId, ai: Pick<AiLayer, "agentModels">, warn: Warn = consoleWarn): Promise<TaskRun | null> {
+export async function servedTaskRun(reader: TaskPlaybookReader | undefined, id: TaskPlaybookId, ai: Offers, warn: Warn = consoleWarn): Promise<TaskRun | null> {
   const { served } = await read(reader, id, warn);
   return served ? runOf(id, served, ai, warn) : null;
 }

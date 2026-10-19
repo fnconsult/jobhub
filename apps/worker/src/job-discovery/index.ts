@@ -429,6 +429,8 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
             titles: queryWording.instructions("intitulés"),
             openings: { fr: queryWording.text("requête fr"), en: queryWording.text("requête en") },
           },
+          // Its searches go to the web-search provider the task Playbook names (else the configured one): paged as it pages.
+          route: queryWording.searchRoute,
         });
         // Each Job discovery site is searched on purpose too: the plan's first query, restricted to it.
         const first = plan.queries[0];
@@ -441,7 +443,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           const before = found.size;
           const { query, site } = next.query;
           const filters = site ? { ...searchFilters, includeDomains: [site] } : searchFilters;
-          const search = await ai.searchWeb({ candidateId, criteria, query, page: next.page, filters, location });
+          const search = await ai.searchWeb({ candidateId, criteria, query, page: next.page, filters, location, route: queryWording.searchRoute });
           // The answer text only points at pages to read: a Job Offer always comes from a page read.
           const fresh = [...new Set([...search.sources, ...urlsIn(search.answer)])].filter((url) => !providerUrls.has(url));
           for (const url of fresh) providerUrls.add(url);
@@ -503,5 +505,6 @@ function costing(ai: AiLayer, spend: (eur: number) => void): AiLayer {
     // Only a Company Dossier searches for Company News: Job discovery never does.
     searchCompanyNews: (request) => ai.searchCompanyNews(request),
     agentModels: () => ai.agentModels(),
+    searchModels: () => ai.searchModels(),
   };
 }

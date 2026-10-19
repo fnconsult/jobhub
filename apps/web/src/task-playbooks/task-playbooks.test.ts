@@ -10,7 +10,8 @@ import { servedTasks, taskAgent } from "./test-support";
 function layer(reply = "{}") {
   const mistral = createFakeProvider({ id: "mistral", reply });
   const claude = createFakeProvider({ id: "anthropic", reply, models: ["claude-opus-5-5"] });
-  const ai = createAiLayer({ providers: [mistral, claude], routes: { writing: "mistral", cv_parsing: "mistral", coaching: "mistral" }, usage: createMemoryUsageLog(), warn: () => {} });
+  const tavily = createFakeProvider({ id: "tavily", residency: "outside_eu", models: ["basic", "advanced"] });
+  const ai = createAiLayer({ providers: [mistral, claude, tavily], routes: { writing: "mistral", cv_parsing: "mistral", coaching: "mistral" }, usage: createMemoryUsageLog(), warn: () => {} });
   return { ai, mistral, claude };
 }
 
@@ -48,6 +49,28 @@ describe("what an AI task runs with (ADR-0026)", () => {
     expect(run.agent).toEqual({});
     expect(run.text("en")).toBe(builtInInstructions("tailored-cv", "en"));
     expect(warnings).toHaveLength(2);
+  });
+
+  it("searches the web on the provider and model its served version names, else on the configured web-search route", async () => {
+    const { ai } = layer();
+    const facts = "Qui est {{entreprise}} ?";
+
+    expect((await taskRun(servedTasks({ "company-facts-search": { content: facts, search: { provider: "tavily", model: "advanced" } } }), "company-facts-search", ai)).searchRoute).toEqual({ provider: "tavily", model: "advanced" });
+    expect((await taskRun(servedTasks({ "company-facts-search": { content: facts, search: { provider: "tavily", model: null } } }), "company-facts-search", ai)).searchRoute).toEqual({ provider: "tavily" });
+    expect((await taskRun(servedTasks({ "company-facts-search": { content: facts } }), "company-facts-search", ai)).searchRoute).toBeUndefined();
+    expect((await taskRun(undefined, "company-facts-search", ai)).searchRoute).toBeUndefined();
+  });
+
+  it("leaves out, with a warning, a web-search provider the AI layer no longer offers: the configured route is used", async () => {
+    const { ai } = layer();
+    const warnings: string[] = [];
+    const served = (search: { provider: "tavily" | "linkup"; model: string | null }) => servedTasks({ "company-news-search": { content: "Actualité de {{entreprise}}", search } });
+
+    expect((await taskRun(served({ provider: "linkup", model: null }), "company-news-search", ai, (message) => warnings.push(message))).searchRoute).toBeUndefined();
+    expect((await taskRun(served({ provider: "tavily", model: "ultra" }), "company-news-search", ai, (message) => warnings.push(message))).searchRoute).toBeUndefined();
+    // A caller whose AI layer offers no web search (a test double) gets the configured route too.
+    expect((await taskRun(served({ provider: "tavily", model: null }), "company-news-search", { agentModels: () => [] }, (message) => warnings.push(message))).searchRoute).toBeUndefined();
+    expect(warnings).toEqual([expect.stringMatching(/web-search provider \(linkup default model\) is not offered/), expect.stringMatching(/tavily ultra/), expect.stringMatching(/tavily default model/)]);
   });
 
   it("is nothing for a task that runs only from a served version, the Job Offer Summary, when none is", async () => {

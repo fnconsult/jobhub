@@ -1,6 +1,7 @@
 import { allUsageLogs, createConsoleUsageLog } from "@jobhub/ai";
 import { createPostgresExternalApiLog, createPostgresUsageLog, knownSecrets } from "@jobhub/web/ai-usage";
 import { createApplications } from "@jobhub/web/applications";
+import { candidateIdentityOf } from "@jobhub/web/candidate-identity";
 import { createBilling } from "@jobhub/web/billing";
 import { createEuAiConsents } from "@jobhub/web/eu-ai-consent";
 import { followUpsFromEnv } from "@jobhub/web/follow-ups/env";
@@ -45,7 +46,7 @@ const searchSites = createSearchSites(database);
 // repo-root .env, or one without keys) the worker still runs, and discovery jobs are
 // skipped with the reason, until a key is entered in the Back Office. Production fails
 // loudly instead. A Candidate's identity-bearing calls go to Mistral once they gave EU
-// AI consent (ADR-0007).
+// AI consent, and every call is redacted of their identity before it leaves (ADR-0007).
 // Every AI call goes to stdout and to AI Usage with its AI Message Log (every key in use
 // scrubbed); every France Travail call to AI Usage's external APIs. Neither waits on the insert.
 const worker = workerClients({
@@ -60,6 +61,7 @@ const worker = workerClients({
   // The task Playbooks at the version this environment serves (JOBHUB_TARGET), as the web app reads them.
   taskPlaybooks: taskPlaybooksReader(database, process.env),
   euAiConsent: (candidateId) => euAiConsents.has(candidateId),
+  identityOf: candidateIdentityOf(database),
   log: (line) => console.warn(line),
 });
 worker.discovery();

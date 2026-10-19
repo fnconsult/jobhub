@@ -72,6 +72,7 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
   if (!history) notFound();
   const { playbook, versions } = history;
   const models = getAi().agentModels();
+  const searchModels = getAi().searchModels();
   const shown = isNotice(notice) ? notice : null;
   const selected: PlaybookVersion | undefined = requested ? versions.find((version) => String(version.version) === requested) : playbook.latest;
   const at = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" });
@@ -163,6 +164,16 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
                 <dd>{t("admin.coachingPlaybooks.detail.taskWebSearch")}</dd>
               </>
             ) : null}
+            {task?.search ? (
+              <>
+                <dt>{t("admin.coachingPlaybooks.detail.search")}</dt>
+                <dd>
+                  {selected.search
+                    ? `${selected.search.provider} · ${selected.search.model ?? t("admin.coachingPlaybooks.providerDefault")}`
+                    : t("admin.coachingPlaybooks.fields.searchConfigured")}
+                </dd>
+              </>
+            ) : null}
           </dl>
           <h3>{t(playbook.kind === "task" ? "admin.coachingPlaybooks.detail.instructions" : "admin.coachingPlaybooks.detail.rules")}</h3>
           <pre className="playbook-rules" lang="fr">
@@ -206,7 +217,7 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
               : t("admin.coachingPlaybooks.detail.editDraft", { version: String(latest.version) })}
           </p>
           <input type="hidden" name="playbookId" value={playbook.id} />
-          <PlaybookVersionFields idPrefix={EDIT_FORM} kind={playbook.kind} version={latest} models={models} task={task} />
+          <PlaybookVersionFields idPrefix={EDIT_FORM} kind={playbook.kind} version={latest} models={models} searchModels={searchModels} task={task} />
           <button className="button button-primary" type="submit">
             {t("admin.coachingPlaybooks.detail.save")}
           </button>

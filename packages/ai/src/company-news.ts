@@ -15,6 +15,7 @@
  *    Deduplicated by link, newest first, at most five.
  */
 import { builtInInstructions, fillSlots, slotsIn } from "@jobhub/coach-knowledge/tasks";
+import type { Route } from "./ai-layer";
 import { clean, taskQueryText } from "./search-query";
 
 export interface CompanyNewsRequest {
@@ -30,6 +31,8 @@ export interface CompanyNewsRequest {
    * names and website; default: its built-in text.
    */
   instructions?: string;
+  /** The web-search provider and model instead of the configured one: the task Playbook's (ADR-0026). */
+  route?: Route;
 }
 
 /** One article about the employer: never its text. */

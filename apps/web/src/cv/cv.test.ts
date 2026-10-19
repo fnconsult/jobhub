@@ -213,7 +213,8 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
 
       expect(mistral.calls).toHaveLength(1);
       expect(claude.calls).toHaveLength(0);
-      expect(warn).not.toHaveBeenCalled();
+      // Declared, so never an undeclared identity; redacted like every call.
+      expect(warn.mock.calls.map(([message]) => message)).toEqual(["Identity redacted before the AI call"]);
     });
 
     it("reads a Guest's CV by rules alone: it is not sent to an AI provider without an account (ADR-0003)", async () => {

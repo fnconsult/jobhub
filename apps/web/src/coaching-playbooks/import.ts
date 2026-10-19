@@ -6,7 +6,8 @@
  *
  * And each task Playbook (`@jobhub/coach-knowledge/tasks`) as its version 1: the instructions its task
  * used until then, run by a Playbook Agent on the task's route in this environment with no effort (the
- * model's own, as before), so nothing changes when it is served. The tasks that ran before task
+ * model's own, as before), and with no web-search provider named (its searches on the configured
+ * web-search route), so nothing changes when it is served. The tasks that ran before task
  * Playbooks are imported Human-validated by François Nader, who approved it so production kept running
  * them; the Job Offer Summary and sector, new, are not.
  */

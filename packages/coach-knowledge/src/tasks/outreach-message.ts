@@ -9,6 +9,7 @@ export const outreachMessage = {
   title: "Rédiger un message d'approche",
   aiTask: "writing",
   agent: true,
+  search: false,
   validatedAtImport: true,
   sections: [
     { key: "fr email", label: "e-mail en français" },

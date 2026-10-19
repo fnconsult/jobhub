@@ -6,6 +6,7 @@ export const tailoredCv = {
   title: "Adapter le CV à une offre (CV ciblé)",
   aiTask: "writing",
   agent: true,
+  search: false,
   validatedAtImport: true,
   sections: [
     { key: "fr", label: "CV ciblé en français" },

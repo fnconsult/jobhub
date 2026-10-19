@@ -7,6 +7,7 @@ import { getAtsScoring } from "@/ats-score/server";
 import { ActionCardList, type ActionCardView } from "@/components/ActionCardList";
 import { AtsScoreView } from "@/components/AtsScoreView";
 import { CvExportForm } from "@/components/CvExportForm";
+import { anyOfInWords, contractTypesInWords, remoteWorkOptionsInWords } from "@/components/job-search-words";
 import { MasterCvDocument } from "@/components/MasterCvDocument";
 import { ProfileActions } from "@/components/ProfileActions";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -129,13 +130,13 @@ export function ArchivedCriteria({ criteria, locale, t }: { criteria: SearchCrit
   const notSpecified = t("profile.notSpecified");
   const properties: [string, string][] = [
     [t("cvReview.targetRole"), criteria.targetRole],
-    [t("cvReview.location"), criteria.location],
+    [t("cvReview.locations"), anyOfInWords(criteria.locations, locale)],
     [
       t("cvReview.minSalary"),
       criteria.minSalary === undefined ? notSpecified : t("profile.salary", { amount: new Intl.NumberFormat(locale).format(criteria.minSalary) }),
     ],
-    [t("cvReview.contractType"), criteria.contractType ? t(`cvReview.contractTypes.${criteria.contractType}`) : notSpecified],
-    [t("cvReview.remoteWork"), criteria.remoteWork ? t(`cvReview.remoteWorkOptions.${criteria.remoteWork}`) : notSpecified],
+    [t("cvReview.contractType"), contractTypesInWords(criteria.contractTypes, t, locale) || notSpecified],
+    [t("cvReview.remoteWork"), remoteWorkOptionsInWords(criteria.remoteWorkOptions, t, locale) || notSpecified],
   ];
   return (
     <dl className="props" aria-label={t("cvReview.searchCriteria")}>

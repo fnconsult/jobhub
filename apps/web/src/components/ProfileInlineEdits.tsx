@@ -1,13 +1,21 @@
 "use client";
 
-import { CONTRACT_TYPES, REMOTE_WORK_OPTIONS, type SearchCriteria } from "@jobhub/shared";
+import { distinctLocations, type SearchCriteria } from "@jobhub/shared";
 import { useRouter } from "next/navigation";
-import { useId, useRef } from "react";
+import { useId, useRef, useState, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProfileFieldError } from "@/profiles";
 import { PROFILE_NAME_MAX_LENGTH } from "@/profiles/limits";
 import { GrowingTextarea, InlineNotice, useInlineEdit, type InlineSaveResult } from "./InlineEdit";
-import { criteriaFieldsOf, searchCriteriaInput, type CriteriaFields } from "./SearchCriteriaFields";
+import {
+  ContractTypeChoices,
+  criteriaFieldsOf,
+  LocationFields,
+  RemoteWorkChoices,
+  searchCriteriaInput,
+  type ChoicesProps,
+  type CriteriaFields,
+} from "./SearchCriteriaFields";
 
 type Problem = ProfileFieldError | "archived" | "failed";
 
@@ -81,7 +89,9 @@ export function ProfileTitle({ profileId, name }: { profileId: string; name: str
 
 /**
  * An active Profile's Search Criteria as a property list, each value edited in
- * place and saved on change. Changing them does not rename the Profile.
+ * place and saved on change: a text when the Candidate leaves it, a place when
+ * they leave its input or remove it, a contract type or remote-work option as
+ * soon as it is ticked or unticked. Changing them does not rename the Profile.
  */
 export function SearchCriteriaProperties({ profileId, searchCriteria }: { profileId: string; searchCriteria: SearchCriteria }) {
   const { t } = useTranslation();
@@ -90,41 +100,137 @@ export function SearchCriteriaProperties({ profileId, searchCriteria }: { profil
   // The criteria as last saved: each field saves them all with its own value changed.
   const saved = useRef<CriteriaFields>(initial);
   const messageOf = useProblemMessage();
-  const save =
-    (field: keyof CriteriaFields, maxLength?: number) =>
-    async (value: string): Promise<InlineSaveResult> => {
-      const next = { ...saved.current, [field]: value };
+  // One save at a time, in the order the changes were made: each builds on the one before.
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const saveCriteria = (changes: Partial<CriteriaFields>, field: keyof CriteriaFields, maxLength?: number): Promise<InlineSaveResult> => {
+    const saving = queue.current.then(async (): Promise<InlineSaveResult> => {
+      const next = { ...saved.current, ...changes };
       const problem = await patchProfile(profileId, { searchCriteria: searchCriteriaInput(next) }, `searchCriteria.${field}`);
       if (problem) return { ok: false, message: messageOf(problem, maxLength) };
       saved.current = next;
       router.refresh();
       return { ok: true };
-    };
-  const notSpecified: [string, string] = ["", t("cvReview.notSpecified")];
-  const properties: (Omit<PropertyProps, "saved" | "save"> & { field: keyof CriteriaFields })[] = [
-    { field: "targetRole", label: t("cvReview.targetRole"), required: true, maxLength: PROFILE_NAME_MAX_LENGTH },
-    { field: "location", label: t("cvReview.location"), required: true },
-    { field: "minSalary", label: t("cvReview.minSalary"), numeric: true },
-    {
-      field: "contractType",
-      label: t("cvReview.contractType"),
-      options: [notSpecified, ...CONTRACT_TYPES.map((option): [string, string] => [option, t(`cvReview.contractTypes.${option}`)])],
-    },
-    {
-      field: "remoteWork",
-      label: t("cvReview.remoteWork"),
-      options: [notSpecified, ...REMOTE_WORK_OPTIONS.map((option): [string, string] => [option, t(`cvReview.remoteWorkOptions.${option}`)])],
-      hint: t("searchCriteriaEditor.hint"),
-    },
-  ];
+    });
+    queue.current = saving;
+    return saving;
+  };
+  const saves = {
+    targetRole: (targetRole: string) => saveCriteria({ targetRole }, "targetRole", PROFILE_NAME_MAX_LENGTH),
+    locations: (locations: string[]) => saveCriteria({ locations }, "locations"),
+    minSalary: (minSalary: string) => saveCriteria({ minSalary }, "minSalary"),
+    contractTypes: (contractTypes: CriteriaFields["contractTypes"]) => saveCriteria({ contractTypes }, "contractTypes"),
+    remoteWorkOptions: (remoteWorkOptions: CriteriaFields["remoteWorkOptions"]) => saveCriteria({ remoteWorkOptions }, "remoteWorkOptions"),
+  };
   return (
     <div role="group" aria-label={t("cvReview.searchCriteria")}>
       <dl className="props">
-        {properties.map(({ field, ...property }) => (
-          <Property key={field} {...property} saved={initial[field]} save={save(field, property.maxLength)} />
-        ))}
+        <Property label={t("cvReview.targetRole")} required maxLength={PROFILE_NAME_MAX_LENGTH} saved={initial.targetRole} save={saves.targetRole} />
+        <LocationsProperty saved={searchCriteria.locations} save={saves.locations} />
+        <Property label={t("cvReview.minSalary")} numeric saved={initial.minSalary} save={saves.minSalary} />
+        <ChoicesProperty
+          label={t("cvReview.contractType")}
+          Choices={ContractTypeChoices}
+          saved={initial.contractTypes}
+          save={saves.contractTypes}
+        />
+        <ChoicesProperty
+          label={t("cvReview.remoteWork")}
+          Choices={RemoteWorkChoices}
+          saved={initial.remoteWorkOptions}
+          save={saves.remoteWorkOptions}
+          hint={t("searchCriteriaEditor.hint")}
+        />
       </dl>
     </div>
+  );
+}
+
+type Notice = { kind: "saved" } | { kind: "error"; message: string } | null;
+
+const sameList = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((value, index) => value === b[index]);
+
+/**
+ * The Search Criteria's places, up to five, on a property row. A place saves when the Candidate
+ * leaves its input or removes it; with every place left blank, the saved ones come back (one is required).
+ */
+function LocationsProperty({ saved: initial, save }: { saved: string[]; save: (locations: string[]) => Promise<InlineSaveResult> }) {
+  const { t } = useTranslation();
+  const [locations, setLocations] = useState(initial.length ? initial : [""]);
+  const saved = useRef(initial);
+  const [notice, setNotice] = useState<Notice>(null);
+  async function commit(next: string[]) {
+    const kept = distinctLocations(next);
+    if (kept.length === 0) {
+      setLocations(saved.current.length ? saved.current : [""]);
+      return;
+    }
+    if (sameList(kept, saved.current)) return;
+    setNotice(null);
+    const result = await save(kept);
+    if (result.ok) {
+      saved.current = kept;
+      setNotice({ kind: "saved" });
+    } else {
+      setNotice({ kind: "error", message: result.message });
+    }
+  }
+  return (
+    <>
+      <dt>{t("cvReview.locations")}</dt>
+      <dd>
+        <LocationFields
+          inline
+          value={locations}
+          onChange={setLocations}
+          onLeave={(next) => void commit(next)}
+          onRemove={(next) => {
+            setLocations(next);
+            void commit(next);
+          }}
+        />
+        <InlineNotice notice={notice} savedLabel={t("profilePage.criteriaSaved")} />
+      </dd>
+    </>
+  );
+}
+
+/**
+ * Contract types or remote-work options on a property row, as checkboxes: each tick or untick
+ * saves at once; a refused one puts the saved choice back.
+ */
+function ChoicesProperty<T extends string>(props: {
+  label: string;
+  Choices: ComponentType<ChoicesProps<T>>;
+  saved: T[];
+  save: (value: T[]) => Promise<InlineSaveResult>;
+  hint?: string;
+}) {
+  const { t } = useTranslation();
+  const [value, setValue] = useState<T[]>(props.saved);
+  const saved = useRef(props.saved);
+  const [notice, setNotice] = useState<Notice>(null);
+  const { Choices, save } = props;
+  const change = async (next: T[]) => {
+    setValue(next);
+    setNotice(null);
+    const result = await save(next);
+    if (result.ok) {
+      saved.current = next;
+      setNotice({ kind: "saved" });
+    } else {
+      setValue(saved.current);
+      setNotice({ kind: "error", message: result.message });
+    }
+  };
+  return (
+    <>
+      <dt>{props.label}</dt>
+      <dd>
+        <Choices inline value={value} onChange={(next) => void change(next)} />
+        <InlineNotice notice={notice} savedLabel={t("profilePage.criteriaSaved")} />
+        {props.hint ? <span className="hint">{props.hint}</span> : null}
+      </dd>
+    </>
   );
 }
 
@@ -135,7 +241,6 @@ type PropertyProps = {
   required?: boolean;
   numeric?: boolean;
   maxLength?: number;
-  options?: [string, string][];
   hint?: string;
 };
 
@@ -150,26 +255,16 @@ function Property(props: PropertyProps) {
         <label htmlFor={id}>{props.label}</label>
       </dt>
       <dd>
-        {props.options ? (
-          <select id={id} {...edit.select} aria-describedby={described}>
-            {props.options.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <input
-            id={id}
-            type="text"
-            {...edit.field}
-            required={props.required}
-            maxLength={props.maxLength}
-            inputMode={props.numeric ? "numeric" : undefined}
-            aria-describedby={described}
-            onKeyDown={edit.onKeyDown}
-          />
-        )}
+        <input
+          id={id}
+          type="text"
+          {...edit.field}
+          required={props.required}
+          maxLength={props.maxLength}
+          inputMode={props.numeric ? "numeric" : undefined}
+          aria-describedby={described}
+          onKeyDown={edit.onKeyDown}
+        />
         <InlineNotice notice={edit.notice} savedLabel={t("profilePage.criteriaSaved")} id={`${id}-error`} />
         {props.hint ? (
           <span className="hint" id={`${id}-hint`}>

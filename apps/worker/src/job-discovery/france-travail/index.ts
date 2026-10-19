@@ -5,7 +5,7 @@
  * Posting date.
  *
  *   const franceTravail = franceTravailFromEnv(process.env); // null: not configured, Job discovery goes without it
- *   const result = await franceTravail.search(criteria, { max: 30, now });
+ *   const result = await franceTravail.search(criteria, { max: 30, now, location: "Lyon" });
  *   // { ok: true, offers: [{ url, details }], calls } | { ok: false, reason: "refused" | "failed", detail, calls }
  *
  * Runs only with FRANCE_TRAVAIL_CLIENT_ID and FRANCE_TRAVAIL_CLIENT_SECRET set.
@@ -32,8 +32,11 @@ export type FranceTravailSearch =
   | { ok: false; reason: "refused" | "failed"; detail: string; calls: number };
 
 export interface FranceTravail {
-  /** France Travail's first `max` offers (at most 150) for the Search Criteria, created in the last 30 days at `now`. Never throws. */
-  search(criteria: SearchCriteria, options: { max: number; now: Date }): Promise<FranceTravailSearch>;
+  /**
+   * France Travail's first `max` offers (at most 150) for the Search Criteria near `location` (one of
+   * theirs, the first by default), created in the last 30 days at `now`. Never throws.
+   */
+  search(criteria: SearchCriteria, options: { max: number; now: Date; location?: string }): Promise<FranceTravailSearch>;
 }
 
 export interface FranceTravailOptions {
@@ -57,7 +60,7 @@ export function createFranceTravail(options: FranceTravailOptions): FranceTravai
   let token: { value: string; expiresAt: number } | null = null;
 
   return {
-    async search(criteria, { max, now }) {
+    async search(criteria, { max, now, location }) {
       let calls = 0;
       const call = (url: string, init: RequestInit = {}) => {
         calls++;
@@ -77,7 +80,7 @@ export function createFranceTravail(options: FranceTravailOptions): FranceTravai
           const seconds = typeof expiresIn === "number" && expiresIn > 0 ? expiresIn : 0;
           token = { value, expiresAt: now.getTime() + Math.max(seconds - 60, 0) * 1000 };
         }
-        const answer = await call(`${SEARCH_URL}?${searchParams(criteria, { max, now })}`, {
+        const answer = await call(`${SEARCH_URL}?${searchParams(criteria, location === undefined ? { max, now } : { max, now, location })}`, {
           headers: { authorization: `Bearer ${token.value}`, accept: "application/json" },
         });
         if (answer.status === 204) return { ok: true, offers: [], calls };

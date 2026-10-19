@@ -86,7 +86,7 @@ describe.skipIf(!connectionString)("Follow-ups (needs Postgres: DATABASE_URL)", 
     actionCards = createActionCards(database, { onAccept: followUps.onAccept });
     candidateId = await signIn("marie.dupont@example.fr");
     otherCandidateId = await signIn("paul.martin@example.fr");
-    const profile = await profiles.create(candidateId, { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
+    const profile = await profiles.create(candidateId, { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } });
     const captured = await jobOffers.capture({
       source: { url: "https://www.apec.fr/offre/1" },
       title: "DAF H/F",

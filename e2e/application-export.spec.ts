@@ -42,7 +42,7 @@ async function tab(page: Page, name: string) {
 async function openApplication(page: Page, label: string): Promise<string> {
   await signInWithMagicLink(page, newAddress(label));
   const profile = await page.request.post("/api/profiles", {
-    data: { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } },
+    data: { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } },
     headers: { origin },
   });
   expect(profile.status(), await profile.text()).toBe(201);

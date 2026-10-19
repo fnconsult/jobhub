@@ -14,6 +14,8 @@
  */
 import {
   CONTRACT_TYPES,
+  distinctLocations,
+  MAX_SEARCH_LOCATIONS,
   REMOTE_WORK_OPTIONS,
   type MasterCvContent,
   type SearchCriteria,
@@ -145,15 +147,44 @@ export const cvContentSchema = z.object({
   photo: z.boolean().optional(),
 });
 
-/** Search Criteria as the browser sends them: a target role and a location at least. */
-export const searchCriteriaSchema = z.object({
-  // The Profile is named after it, so it obeys the same limit as a Profile name.
-  targetRole: required.max(PROFILE_NAME_MAX_LENGTH),
-  location: required,
-  minSalary: z.number().int().positive().max(10_000_000).optional(),
-  contractType: z.enum(CONTRACT_TYPES).optional(),
-  remoteWork: z.enum(REMOTE_WORK_OPTIONS).optional(),
-});
+/**
+ * Search Criteria sent in their shape from before ADR-0025 (one `location`, `contractType` and
+ * `remoteWork`), as earlier versions of the browser extension still send them: read as lists of
+ * one. Accepted for one release, while those versions are replaced.
+ */
+function fromSingleValues(input: unknown): unknown {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) return input;
+  const { location, contractType, remoteWork, ...rest } = input as Record<string, unknown>;
+  return {
+    ...rest,
+    ...(rest.locations === undefined && location !== undefined ? { locations: [location] } : {}),
+    ...(rest.contractTypes === undefined && contractType !== undefined ? { contractTypes: [contractType] } : {}),
+    ...(rest.remoteWorkOptions === undefined && remoteWork !== undefined ? { remoteWorkOptions: [remoteWork] } : {}),
+  };
+}
+
+/** The options chosen among `all`, each once, in `all`'s order. */
+const chosenAmong =
+  <T extends string>(all: readonly T[]) =>
+  (chosen: T[]): T[] =>
+    all.filter((option) => chosen.includes(option));
+
+/**
+ * Search Criteria as the browser sends them (ADR-0025): a target role, one to
+ * MAX_SEARCH_LOCATIONS locations (trimmed, blanks dropped, each place once), and
+ * any number of contract types and remote-work options (none: no preference).
+ */
+export const searchCriteriaSchema = z.preprocess(
+  fromSingleValues,
+  z.object({
+    // The Profile is named after it, so it obeys the same limit as a Profile name.
+    targetRole: required.max(PROFILE_NAME_MAX_LENGTH),
+    locations: z.array(z.string()).transform(distinctLocations).pipe(z.array(z.string()).min(1).max(MAX_SEARCH_LOCATIONS)),
+    minSalary: z.number().int().positive().max(10_000_000).optional(),
+    contractTypes: z.array(z.enum(CONTRACT_TYPES)).default([]).transform(chosenAmong(CONTRACT_TYPES)),
+    remoteWorkOptions: z.array(z.enum(REMOTE_WORK_OPTIONS)).default([]).transform(chosenAmong(REMOTE_WORK_OPTIONS)),
+  }),
+);
 
 const changeCriteriaSchema = z.object({ searchCriteria: searchCriteriaSchema });
 
@@ -164,19 +195,22 @@ interface ProfileRow {
   name: string;
   archived: boolean;
   target_role: string;
-  location: string;
+  locations: string[];
   min_salary: number | null;
-  contract_type: SearchCriteria["contractType"] | null;
-  remote_work: SearchCriteria["remoteWork"] | null;
+  contract_types: SearchCriteria["contractTypes"];
+  remote_work_options: SearchCriteria["remoteWorkOptions"];
   version: number;
   content: MasterCvContent;
 }
 
 function profileFrom(row: ProfileRow): Profile {
-  const searchCriteria: SearchCriteria = { targetRole: row.target_role, location: row.location };
+  const searchCriteria: SearchCriteria = {
+    targetRole: row.target_role,
+    locations: row.locations,
+    contractTypes: row.contract_types,
+    remoteWorkOptions: row.remote_work_options,
+  };
   if (row.min_salary !== null) searchCriteria.minSalary = row.min_salary;
-  if (row.contract_type !== null) searchCriteria.contractType = row.contract_type;
-  if (row.remote_work !== null) searchCriteria.remoteWork = row.remote_work;
   return { id: row.id, name: row.name, archived: row.archived, searchCriteria, masterCv: { version: row.version, content: row.content } };
 }
 
@@ -235,7 +269,7 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
   async function get(candidateId: string, profileId: string): Promise<Profile | null> {
     if (!UUID.test(profileId)) return null;
     const { rows } = await database.query<ProfileRow>(
-      `SELECT p.id, p.name, p.archived_at IS NOT NULL AS archived, p.target_role, p.location, p.min_salary, p.contract_type, p.remote_work, v.version, v.content
+      `SELECT p.id, p.name, p.archived_at IS NOT NULL AS archived, p.target_role, p.locations, p.min_salary, p.contract_types, p.remote_work_options, v.version, v.content
          FROM profile p
          JOIN master_cv_version v ON v.profile_id = p.id
         WHERE p.id = $1 AND p.candidate_id = $2
@@ -254,16 +288,16 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
     return transaction(async (client) => {
       if (!(await roomForOneMore(candidateId, client))) return QUOTA_REACHED;
       const { rows } = await client.query<{ id: string }>(
-        `INSERT INTO profile (candidate_id, name, target_role, location, min_salary, contract_type, remote_work)
+        `INSERT INTO profile (candidate_id, name, target_role, locations, min_salary, contract_types, remote_work_options)
          VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
         [
           candidateId,
           name,
           searchCriteria.targetRole,
-          searchCriteria.location,
+          searchCriteria.locations,
           searchCriteria.minSalary ?? null,
-          searchCriteria.contractType ?? null,
-          searchCriteria.remoteWork ?? null,
+          searchCriteria.contractTypes,
+          searchCriteria.remoteWorkOptions,
         ],
       );
       const id = rows[0]!.id;
@@ -375,16 +409,16 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
       const { searchCriteria } = parsed.data;
       // archived_at IS NULL: an archive landing meanwhile wins.
       const { rowCount } = await database.query(
-        `UPDATE profile SET target_role = $3, location = $4, min_salary = $5, contract_type = $6, remote_work = $7
+        `UPDATE profile SET target_role = $3, locations = $4, min_salary = $5, contract_types = $6, remote_work_options = $7
           WHERE id = $1 AND candidate_id = $2 AND archived_at IS NULL`,
         [
           profileId,
           candidateId,
           searchCriteria.targetRole,
-          searchCriteria.location,
+          searchCriteria.locations,
           searchCriteria.minSalary ?? null,
-          searchCriteria.contractType ?? null,
-          searchCriteria.remoteWork ?? null,
+          searchCriteria.contractTypes,
+          searchCriteria.remoteWorkOptions,
         ],
       );
       return rowCount ? { ok: true, profile: { ...profile, searchCriteria } } : ARCHIVED;
@@ -405,7 +439,16 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
   };
 }
 
-/** Creates or upgrades the Profile tables. Run after the Candidate account tables. Safe to run repeatedly. */
+/**
+ * Creates or upgrades the Profile tables. Run after the Candidate account tables. Safe to run
+ * repeatedly, and on a database with data.
+ *
+ * Search Criteria with several values (ADR-0025): a Profile stored before holds one `location`,
+ * `contract_type` and `remote_work`; it gets them as lists of one (none for an empty one) in
+ * `locations`, `contract_types` and `remote_work_options`, in one transaction. The old columns
+ * are kept, no longer written nor required, so the app version before this one still reads its
+ * Profiles while it is replaced; a later release drops them.
+ */
 export async function migrateProfiles(database: Pool): Promise<void> {
   await database.query(`
     CREATE TABLE IF NOT EXISTS profile (
@@ -413,12 +456,35 @@ export async function migrateProfiles(database: Pool): Promise<void> {
       candidate_id text NOT NULL REFERENCES candidate (id) ON DELETE CASCADE,
       name text NOT NULL,
       target_role text NOT NULL,
-      location text NOT NULL,
+      locations text[] NOT NULL,
       min_salary integer,
-      contract_type text,
-      remote_work text,
+      contract_types text[] NOT NULL DEFAULT '{}',
+      remote_work_options text[] NOT NULL DEFAULT '{}',
       created_at timestamptz NOT NULL DEFAULT now()
     );
+  `);
+  const { rows: singleValueColumns } = await database.query<{ column_name: string }>(
+    `SELECT column_name FROM information_schema.columns
+      WHERE table_schema = current_schema() AND table_name = 'profile' AND column_name IN ('location', 'contract_type', 'remote_work')`,
+  );
+  const fromSingleValues =
+    singleValueColumns.length === 3
+      ? `UPDATE profile
+            SET locations = ARRAY[location],
+                contract_types = CASE WHEN contract_type IS NULL THEN '{}' ELSE ARRAY[contract_type] END,
+                remote_work_options = CASE WHEN remote_work IS NULL THEN '{}' ELSE ARRAY[remote_work] END
+          WHERE locations IS NULL;
+         ALTER TABLE profile ALTER COLUMN location DROP NOT NULL;`
+      : "";
+  // One query, so one transaction: a Profile never has its new columns half filled.
+  await database.query(`
+    ALTER TABLE profile ADD COLUMN IF NOT EXISTS locations text[];
+    ALTER TABLE profile ADD COLUMN IF NOT EXISTS contract_types text[] NOT NULL DEFAULT '{}';
+    ALTER TABLE profile ADD COLUMN IF NOT EXISTS remote_work_options text[] NOT NULL DEFAULT '{}';
+    ${fromSingleValues}
+    ALTER TABLE profile ALTER COLUMN locations SET NOT NULL;
+  `);
+  await database.query(`
     ALTER TABLE profile ADD COLUMN IF NOT EXISTS archived_at timestamptz;
     CREATE INDEX IF NOT EXISTS profile_candidate_id_idx ON profile (candidate_id);
     CREATE TABLE IF NOT EXISTS master_cv_version (

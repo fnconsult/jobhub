@@ -35,7 +35,7 @@ const masterCv = {
 /** Signs a new Candidate in with a Profile (Master CV edited once) and an Application with a Cover Letter. */
 async function candidateWithData(page: Page, email: string) {
   await signInWithMagicLink(page, email);
-  const profile = await page.request.post("/api/profiles", { data: { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } }, headers: { origin } });
+  const profile = await page.request.post("/api/profiles", { data: { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } }, headers: { origin } });
   expect(profile.status(), await profile.text()).toBe(201);
   const profileId = (await profile.json()).id as string;
   const edited = await page.request.put(`/api/profiles/${profileId}/master-cv`, {
@@ -108,7 +108,7 @@ test.describe("exporting my data and deleting my account", () => {
     await subscribe(page, email, "standard");
 
     // A second Profile (the Standard Plan allows more than one), archived.
-    const second = await page.request.post("/api/profiles", { data: { masterCv: { ...masterCv, headline: "DAF de transition" }, searchCriteria: { targetRole: "DAF de transition", location: "Paris" } }, headers: { origin } });
+    const second = await page.request.post("/api/profiles", { data: { masterCv: { ...masterCv, headline: "DAF de transition" }, searchCriteria: { targetRole: "DAF de transition", locations: ["Paris"] } }, headers: { origin } });
     expect(second.status(), await second.text()).toBe(201);
     const archivedId = (await second.json()).id as string;
     const archived = await page.request.patch(`/api/profiles/${archivedId}`, { data: { archived: true }, headers: { origin } });

@@ -1,5 +1,5 @@
-import type { CriterionStatus, MatchScore, SalaryRange } from "@jobhub/shared";
-import { matchScoreFigure, matchScoreInWords, matchScoreReliabilityHint } from "@/components/job-search-words";
+import { wantedValues, type CriterionStatus, type MatchScore, type SalaryRange } from "@jobhub/shared";
+import { anyOfInWords, matchScoreFigure, matchScoreInWords, matchScoreReliabilityHint } from "@/components/job-search-words";
 import type { getServerT } from "@/i18n/server";
 
 type T = Awaited<ReturnType<typeof getServerT>>;
@@ -14,7 +14,9 @@ export function MatchScoreView({ matchScore, profileName, t, locale }: { matchSc
   const amount = (value: number) => new Intl.NumberFormat(locale).format(value);
   const range = (offer: SalaryRange) => [offer.min, offer.max].filter((value) => value !== undefined).map(amount).join(" – ");
   const contract = (value: string | undefined) => (value ? t(`cvReview.contractTypes.${value as "cdi"}`) : t("profile.notSpecified"));
-  const orNotSpecified = (value: string | undefined) => value ?? t("profile.notSpecified");
+  const orNotSpecified = (value: string | undefined) => value || t("profile.notSpecified");
+  // Any one of the values wanted is enough (ADR-0025): "Lyon ou Bordeaux".
+  const anyOf = (values: string[]) => orNotSpecified(anyOfInWords(values, locale));
   const figure = matchScoreFigure(matchScore);
   const reliabilityHint = matchScoreReliabilityHint(figure, t);
   return (
@@ -39,7 +41,7 @@ export function MatchScoreView({ matchScore, profileName, t, locale }: { matchSc
         </Criterion>
         <Criterion name={t("matchScore.criteria.location")} status={location.status} t={t}>
           {location.status !== "unknown" ? (
-            <p>{t("matchScore.offerAndWanted", { offer: orNotSpecified(location.offer), wanted: orNotSpecified(location.wanted) })}</p>
+            <p>{t("matchScore.offerAndWanted", { offer: orNotSpecified(location.offer), wanted: anyOf(wantedValues(location)) })}</p>
           ) : null}
         </Criterion>
         <Criterion name={t("matchScore.criteria.salary")} status={salary.status} t={t}>
@@ -48,7 +50,7 @@ export function MatchScoreView({ matchScore, profileName, t, locale }: { matchSc
         </Criterion>
         <Criterion name={t("matchScore.criteria.contractType")} status={contractType.status} t={t}>
           {contractType.status !== "unknown" ? (
-            <p>{t("matchScore.offerAndWanted", { offer: contract(contractType.offer), wanted: contract(contractType.wanted) })}</p>
+            <p>{t("matchScore.offerAndWanted", { offer: contract(contractType.offer), wanted: anyOf(wantedValues(contractType).map((value) => contract(value))) })}</p>
           ) : null}
         </Criterion>
       </ul>

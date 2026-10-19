@@ -28,7 +28,7 @@ test.describe("Database connections", () => {
     // A Candidate with an Application: its page reads from most of the app's modules.
     await signInWithMagicLink(page, newAddress("db-connections"));
     const profile = await page.request.post("/api/profiles", {
-      data: { masterCv: { fullName: "Marie Dupont", headline: "DAF", email: "", phone: "", location: "Lyon", summary: "", experience: [], education: [], skills: [], languages: [] }, searchCriteria: { targetRole: "DAF", location: "Lyon" } },
+      data: { masterCv: { fullName: "Marie Dupont", headline: "DAF", email: "", phone: "", location: "Lyon", summary: "", experience: [], education: [], skills: [], languages: [] }, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } },
       headers: { origin },
     });
     expect(profile.status(), await profile.text()).toBe(201);

@@ -4,6 +4,7 @@
  * back to the rule-based outline.
  */
 import type { AiLayer } from "@jobhub/ai";
+import { distinctLocations } from "@jobhub/shared";
 import * as z from "zod";
 import type { CvDraft } from "./index";
 
@@ -30,7 +31,11 @@ const readingSchema = z.object({
     skills: list(z.string()),
     languages: list(z.object({ name: text, level: text })),
   }),
-  searchCriteria: z.object({ targetRole: text, location: text }).catch({ targetRole: "", location: "" }),
+  // The AI names one place, where the Candidate lives: the draft's only location, if any.
+  searchCriteria: z
+    .object({ targetRole: text, location: text })
+    .catch({ targetRole: "", location: "" })
+    .transform(({ targetRole, location }) => ({ targetRole, locations: distinctLocations([location]) })),
 });
 
 const SYSTEM = `Tu lis le CV d'un candidat et tu le recopies, section par section, dans un objet JSON.

@@ -130,7 +130,7 @@ test.describe("Expired Job Offers (worker job job-offers.recheck-sources)", () =
           skills: ["IFRS"],
           languages: [],
         },
-        searchCriteria: { targetRole: "DAF", location: "Lyon" },
+        searchCriteria: { targetRole: "DAF", locations: ["Lyon"] },
       },
     });
     expect(profile.status(), await profile.text()).toBe(201);

@@ -152,13 +152,16 @@ const APPLICATION_STATUS: Record<ApplicationStatus, string> = {
   abandoned: "Abandonnée",
 };
 
+/** Several values of one criterion, any of which will do (ADR-0025): "CDI ou freelance". */
+const anyOf = (values: readonly string[]) => new Intl.ListFormat("fr", { type: "disjunction" }).format(values);
+
 function criteriaText(criteria: SearchCriteria): string {
   return [
     `poste visé ${criteria.targetRole}`,
-    criteria.location ? `lieu ${criteria.location}` : "",
+    criteria.locations.length > 0 ? `${criteria.locations.length > 1 ? "lieux" : "lieu"} ${anyOf(criteria.locations)}` : "",
     criteria.minSalary !== undefined ? `salaire minimum ${criteria.minSalary} € brut annuel` : "",
-    criteria.contractType ? `contrat ${CONTRACT_TYPE[criteria.contractType] ?? criteria.contractType}` : "",
-    criteria.remoteWork ? `travail ${REMOTE_WORK[criteria.remoteWork] ?? criteria.remoteWork}` : "",
+    criteria.contractTypes.length > 0 ? `contrat ${anyOf(criteria.contractTypes.map((type) => CONTRACT_TYPE[type] ?? type))}` : "",
+    criteria.remoteWorkOptions.length > 0 ? `travail ${anyOf(criteria.remoteWorkOptions.map((option) => REMOTE_WORK[option] ?? option))}` : "",
   ]
     .filter(Boolean)
     .join(", ");

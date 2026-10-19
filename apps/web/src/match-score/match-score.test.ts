@@ -79,7 +79,7 @@ describe.skipIf(!connectionString)("Match Scoring (needs Postgres: DATABASE_URL)
         breakdown: {
           skills: { status: "partial", covered: ["IFRS", "SAP"], missing: ["Power BI"] },
           seniority: { status: "match", cvYears: 19, requiredYears: 15 },
-          location: { status: "match", offer: "Lyon", wanted: "Lyon" },
+          location: { status: "match", offer: "Lyon", wanted: ["Lyon"] },
           salary: { status: "unknown", offer: { min: 110_000, max: 130_000 } },
           contractType: { status: "unknown", offer: "cdi" },
         },
@@ -90,7 +90,7 @@ describe.skipIf(!connectionString)("Match Scoring (needs Postgres: DATABASE_URL)
   it("scores a Profile's Master CV against its Search Criteria for the signed-in Candidate", async () => {
     const created = await profiles.create(candidateId, {
       masterCv,
-      searchCriteria: { targetRole: "DAF", location: "Lyon", minSalary: 150_000, contractType: "cdi" },
+      searchCriteria: { targetRole: "DAF", locations: ["Lyon"], minSalary: 150_000, contractTypes: ["cdi"] },
     });
     if (!created.ok) throw new Error("fixture Profile refused");
 
@@ -101,7 +101,7 @@ describe.skipIf(!connectionString)("Match Scoring (needs Postgres: DATABASE_URL)
       matchScore: {
         breakdown: {
           salary: { status: "mismatch", offer: { min: 110_000, max: 130_000 }, wanted: 150_000 },
-          contractType: { status: "match", offer: "cdi", wanted: "cdi" },
+          contractType: { status: "match", offer: "cdi", wanted: ["cdi"] },
         },
       },
     });
@@ -109,7 +109,7 @@ describe.skipIf(!connectionString)("Match Scoring (needs Postgres: DATABASE_URL)
 
   it("scores a Tailored CV sent with the request, with the Search Criteria it is for", async () => {
     const tailoredCv = { ...masterCv, skills: [...masterCv.skills, "Power BI"] };
-    const searchCriteria = { targetRole: "DAF", location: "Lyon", minSalary: 120_000, contractType: "cdi" };
+    const searchCriteria = { targetRole: "DAF", locations: ["Lyon"], minSalary: 120_000, contractTypes: ["cdi"] };
 
     const result = await scoring.score(candidateId, { jobOfferId, cv: tailoredCv, searchCriteria });
 
@@ -117,7 +117,7 @@ describe.skipIf(!connectionString)("Match Scoring (needs Postgres: DATABASE_URL)
   });
 
   it("refuses a Profile to a Guest, and someone else's Profile or an unknown Job Offer to anyone", async () => {
-    const created = await profiles.create(candidateId, { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
+    const created = await profiles.create(candidateId, { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } });
     if (!created.ok) throw new Error("fixture Profile refused");
     const cookie = await signInWithMagicLink(testAuth, "jean.martin@example.fr");
     const otherId = (await (await testAuth.request("/api/auth/get-session", { cookie })).json()).user.id;
@@ -134,7 +134,7 @@ describe.skipIf(!connectionString)("Match Scoring (needs Postgres: DATABASE_URL)
   });
 
   it("counts one Match Score against the signed-in Candidate's Plan Quota, for a Profile or a CV sent with the request", async () => {
-    const created = await profiles.create(candidateId, { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
+    const created = await profiles.create(candidateId, { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } });
     if (!created.ok) throw new Error("fixture Profile refused");
     const { metered, asked } = meteredScoring({ allowed: true, remaining: 2 });
 
@@ -145,7 +145,7 @@ describe.skipIf(!connectionString)("Match Scoring (needs Postgres: DATABASE_URL)
   });
 
   it("refuses a Match Score the Candidate's Plan Quota does not allow, without scoring", async () => {
-    const created = await profiles.create(candidateId, { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
+    const created = await profiles.create(candidateId, { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } });
     if (!created.ok) throw new Error("fixture Profile refused");
     const { metered } = meteredScoring(REFUSED);
 
@@ -176,7 +176,7 @@ describe.skipIf(!connectionString)("Match Scoring (needs Postgres: DATABASE_URL)
       if (!captured.ok) throw new Error("fixture Job Offer refused");
       return captured.jobOffer.id;
     }
-    const searchCriteria = { targetRole: "DAF", location: "Lyon", contractType: "cdi" };
+    const searchCriteria = { targetRole: "DAF", locations: ["Lyon"], contractTypes: ["cdi"] };
 
     function readingScoring(read: OfferTextReader, extra: { textReadTimeoutMs?: number; decision?: QuotaDecision } = {}) {
       const reads: { jobOfferId: string; candidateId: string | null; content: string }[] = [];
@@ -230,7 +230,7 @@ describe.skipIf(!connectionString)("Match Scoring (needs Postgres: DATABASE_URL)
       const again = await reading.score(null, { jobOfferId: id, cv: masterCv });
 
       expect(reads).toHaveLength(1);
-      expect(again).toMatchObject({ ok: true, matchScore: { breakdown: { location: { status: "mismatch", offer: "Paris", wanted: "Lyon" } } } });
+      expect(again).toMatchObject({ ok: true, matchScore: { breakdown: { location: { status: "mismatch", offer: "Paris", wanted: ["Lyon"] } } } });
     });
 
     it("needs no AI when the structured data gives a reliable score of 70 or more", async () => {

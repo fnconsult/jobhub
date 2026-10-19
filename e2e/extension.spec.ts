@@ -508,7 +508,7 @@ test.describe("Guest Capture and Match Score", () => {
       fullName: "Marie Dupont", headline: "Directrice financière", email: "", phone: "", location: "Lyon", summary: "",
       experience: [], education: [], skills: ["IFRS"], languages: [],
     };
-    const created = await web.request.post(`${origin}/api/profiles`, { headers: { origin }, data: { masterCv, searchCriteria: { targetRole: "Directrice financière", location: "Lyon" } } });
+    const created = await web.request.post(`${origin}/api/profiles`, { headers: { origin }, data: { masterCv, searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] } } });
     expect(created.status(), await created.text()).toBe(201);
     const profileId = (await created.json()).id as string;
     const used = async () => {
@@ -915,7 +915,7 @@ test.describe("Guest Capture and Match Score", () => {
       fullName: "Marie Dupont", headline: "Contrôleuse de gestion", email: "", phone: "", location: "Lyon", summary: "",
       experience: [], education: [], skills: [], languages: [],
     };
-    const existing = await web.request.post(`${origin}/api/profiles`, { headers: { origin }, data: { masterCv, searchCriteria: { targetRole: "Contrôleuse de gestion", location: "Lyon" } } });
+    const existing = await web.request.post(`${origin}/api/profiles`, { headers: { origin }, data: { masterCv, searchCriteria: { targetRole: "Contrôleuse de gestion", locations: ["Lyon"] } } });
     expect(existing.status(), await existing.text()).toBe(201);
     const existingId = (await existing.json()).id as string;
     await web.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
@@ -968,7 +968,7 @@ test.describe("Guest Capture and Match Score", () => {
     const profileIds: string[] = [];
     // Two Profiles whose Master CVs match the posting's skills differently, so their Match Scores differ.
     for (const [targetRole, skills] of [["Directrice financière", ["IFRS", "Consolidation", "Power BI"]], ["Consultante transformation", []]] as const) {
-      const data = { masterCv: { ...masterCv, skills }, searchCriteria: { targetRole, location: "Lyon" } };
+      const data = { masterCv: { ...masterCv, skills }, searchCriteria: { targetRole, locations: ["Lyon"] } };
       const created = await web.request.post(`${origin}/api/profiles`, { headers: { origin }, data });
       expect(created.status(), await created.text()).toBe(201);
       profileIds.push((await created.json()).id);

@@ -97,7 +97,7 @@ describe.skipIf(!connectionString)("Enriched Contacts (needs Postgres: DATABASE_
   const includeEnrichedContacts = (count: number | null) => t.billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, enrichedContacts: count });
 
   async function saveApplication(owner: string) {
-    const profile = await profiles.create(owner, { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
+    const profile = await profiles.create(owner, { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } });
     if (!profile.ok) throw new Error("fixture refused");
     return saveOffer(owner, profile.profile.id, OFFER);
   }

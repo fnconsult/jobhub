@@ -31,7 +31,7 @@ async function openProfile(page: Page, label: string): Promise<string> {
   await signInWithMagicLink(page, newAddress(label));
   const created = await page.request.post("/api/profiles", {
     headers: { origin },
-    data: { masterCv, searchCriteria: { targetRole: "Directrice financière", location: "Lyon" } },
+    data: { masterCv, searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] } },
   });
   expect(created.status()).toBe(201);
   const { id } = await created.json();
@@ -173,7 +173,7 @@ test.describe("ATS Fixes, one by one", () => {
     await signInWithMagicLink(page, newAddress("ats-one-by-one"));
     const created = await page.request.post("/api/profiles", {
       headers: { origin },
-      data: { masterCv: clutteredCv, searchCriteria: { targetRole: "Directrice financière", location: "Lyon" } },
+      data: { masterCv: clutteredCv, searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] } },
     });
     expect(created.status()).toBe(201);
     const id = (await created.json()).id;

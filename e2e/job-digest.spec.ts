@@ -48,7 +48,7 @@ const masterCv = {
   skills: ["Consolidation", "IFRS"],
   languages: [],
 };
-const criteria = (targetRole: string) => ({ targetRole, location: "Lyon", contractType: "cdi" });
+const criteria = (targetRole: string) => ({ targetRole, locations: ["Lyon"], contractTypes: ["cdi"] });
 
 test.use({ baseURL: origin });
 

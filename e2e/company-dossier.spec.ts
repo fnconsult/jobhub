@@ -37,7 +37,7 @@ const masterCv = {
 async function openApplication(page: Page, employer: string | undefined, content = "Poste de DAF.") {
   await signInWithMagicLink(page, newAddress("company-dossier"));
   const profile = await page.request.post("/api/profiles", {
-    data: { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } },
+    data: { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } },
     headers: { origin },
   });
   expect(profile.status(), await profile.text()).toBe(201);

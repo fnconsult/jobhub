@@ -52,7 +52,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
   }
 
   async function createProfile(owner: string, targetRole = "DAF") {
-    const created = await profiles.create(owner, { masterCv, searchCriteria: { targetRole, location: "Lyon", contractType: "cdi" } });
+    const created = await profiles.create(owner, { masterCv, searchCriteria: { targetRole, locations: ["Lyon"], contractTypes: ["cdi"] } });
     if (!created.ok) throw new Error("fixture Profile refused");
     return created.profile.id;
   }

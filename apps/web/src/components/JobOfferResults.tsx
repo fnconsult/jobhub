@@ -22,21 +22,39 @@ export interface JobOfferResult {
  * with a meter, a one-click save as an Application with that Profile and a
  * link to read the Job Offer (once saved: the Application, marked "Enregistrée"),
  * and "Pourquoi 86 ?" opening the score's reasons.
- * The results view of Job Searches and Job Digests.
+ * The results view of Job Searches and Job Digests. Each title is a level-2
+ * heading, or `headingLevel` under a heading of the page's own (results grouped by Profile);
+ * `label` names the list (default "Offres trouvées").
  */
-export function JobOfferResults({ results, profileId, t, locale }: { results: JobOfferResult[]; profileId: string; t: TFunction; locale: string }) {
+export function JobOfferResults({
+  results,
+  profileId,
+  t,
+  locale,
+  headingLevel = 2,
+  label,
+}: {
+  results: JobOfferResult[];
+  profileId: string;
+  t: TFunction;
+  locale: string;
+  headingLevel?: 2 | 3 | 4;
+  label?: string;
+}) {
   return (
-    <ol className="rows" aria-label={t("jobSearch.resultsLabel")}>
+    <ol className="rows" aria-label={label ?? t("jobSearch.resultsLabel")}>
       {results.map((result) => (
-        <Result key={result.jobOffer.id} result={result} profileId={profileId} t={t} locale={locale} />
+        <Result key={result.jobOffer.id} result={result} profileId={profileId} t={t} locale={locale} headingLevel={headingLevel} />
       ))}
     </ol>
   );
 }
 
-function Result({ result, profileId, t, locale }: { result: JobOfferResult; profileId: string; t: TFunction; locale: string }) {
+function Result({ result, profileId, t, locale, headingLevel }: { result: JobOfferResult; profileId: string; t: TFunction; locale: string; headingLevel: 2 | 3 | 4 }) {
+  const Heading = (["h2", "h3", "h4"] as const)[headingLevel - 2]!;
   const { jobOffer, matchScore, applicationId } = result;
-  const titleId = `search-result-${jobOffer.id}`;
+  // The same Job Offer can be found for two Profiles shown on one page: one id each.
+  const titleId = `search-result-${profileId}-${jobOffer.id}`;
   const site = jobOfferSite(jobOffer);
   const postedOn = jobOffer.postedAt
     ? t("jobSearch.postedOn", { date: new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(new Date(jobOffer.postedAt)) })
@@ -56,9 +74,9 @@ function Result({ result, profileId, t, locale }: { result: JobOfferResult; prof
   return (
     <li className="row">
       <div className="row-main">
-        <h2 className="row-title" id={titleId}>
+        <Heading className="row-title" id={titleId}>
           <Link href={routes.jobOffer(jobOffer.id, profileId)}>{jobOffer.title}</Link>
-        </h2>
+        </Heading>
         <p className="row-meta">
           {facts.map(([key, fact]) => (fact ? <span key={key}>{fact}</span> : null))}
         </p>

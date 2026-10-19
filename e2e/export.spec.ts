@@ -36,7 +36,7 @@ async function candidateWithProfile(page: Page, label: string, cv = masterCv): P
   await signInWithMagicLink(page, newAddress(label));
   const created = await page.request.post("/api/profiles", {
     headers: { origin },
-    data: { masterCv: cv, searchCriteria: { targetRole: "Directrice financière", location: "Lyon" } },
+    data: { masterCv: cv, searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] } },
   });
   expect(created.status()).toBe(201);
   return (await created.json()).id;

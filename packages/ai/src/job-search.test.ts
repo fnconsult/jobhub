@@ -7,10 +7,10 @@ import { createFakeProvider, createMemoryUsageLog } from "./testing";
 
 const criteria: SearchCriteria = {
   targetRole: "Directeur Financier",
-  location: "Lyon",
+  locations: ["Lyon"],
   minSalary: 90000,
-  contractType: "cdi",
-  remoteWork: "hybrid",
+  contractTypes: ["cdi"],
+  remoteWorkOptions: ["hybrid"],
 };
 
 /** A layer whose job title step answers `variants`, so its plan issues queries with those titles. */
@@ -48,6 +48,40 @@ describe("Job Search query variants", () => {
     await ai.searchWeb({ candidateId: "cand-1", criteria, query: await planned("DAF", "fr") });
 
     expect(perplexity.queries).toEqual(["Offre d'emploi « DAF » à Lyon, CDI, télétravail partiel, salaire à partir de 90 000 € brut annuel"]);
+  });
+});
+
+describe("Search Criteria with several values (ADR-0025)", () => {
+  const several: SearchCriteria = { ...criteria, locations: ["Lyon", "Bordeaux"], contractTypes: ["cdi", "freelance"], remoteWorkOptions: ["hybrid", "full_remote"] };
+
+  it("names one location per query, and every contract type and remote-work option wanted in each", async () => {
+    const { ai, perplexity } = searchLayer();
+
+    await ai.searchWeb({ candidateId: "cand-1", criteria: several, location: "Bordeaux" });
+    await ai.searchWeb({ candidateId: "cand-1", criteria: several });
+
+    expect(perplexity.queries).toEqual([
+      "Offre d'emploi « Directeur Financier » à Bordeaux, CDI ou freelance, télétravail partiel ou télétravail complet, salaire à partir de 90 000 € brut annuel",
+      "Offre d'emploi « Directeur Financier » à Lyon, CDI ou freelance, télétravail partiel ou télétravail complet, salaire à partir de 90 000 € brut annuel",
+    ]);
+  });
+
+  it("words several values in English with 'or'", async () => {
+    const { ai, perplexity } = searchLayer({ en: ["Chief Financial Officer"] });
+    const query = (await ai.planJobSearch({ candidateId: "cand-1", criteria: several })).queries.find((q) => q.language === "en")!;
+
+    await ai.searchWeb({ candidateId: "cand-1", criteria: several, query, location: "Lyon" });
+
+    expect(perplexity.queries).toEqual([
+      'Job offer "Chief Financial Officer" in Lyon, permanent contract or freelance, hybrid remote work or fully remote work, salary from €90,000 gross per year',
+    ]);
+  });
+
+  it("refuses a place that is not one of the Search Criteria's locations", async () => {
+    const { ai, perplexity } = searchLayer();
+
+    await expect(ai.searchWeb({ candidateId: "cand-1", criteria: several, location: "Jean Dupont" })).rejects.toThrow(DataResidencyError);
+    expect(perplexity.queries).toEqual([]);
   });
 });
 
@@ -123,7 +157,7 @@ describe("planning a Job Search", () => {
         "\n```",
     );
 
-    const plan = await ai.planJobSearch({ candidateId: "cand-1", criteria: { targetRole: "DAF", location: "Lyon" } });
+    const plan = await ai.planJobSearch({ candidateId: "cand-1", criteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] } });
 
     expect(plan.queries).toEqual([
       { title: "DAF", language: "fr" },

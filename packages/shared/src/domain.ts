@@ -66,14 +66,42 @@ export type ContractType = (typeof CONTRACT_TYPES)[number];
 export const REMOTE_WORK_OPTIONS = ["on_site", "hybrid", "full_remote"] as const;
 export type RemoteWork = (typeof REMOTE_WORK_OPTIONS)[number];
 
-/** The job-search parameters of a Profile. */
+/** How many locations a Profile's Search Criteria hold at most (ADR-0025). */
+export const MAX_SEARCH_LOCATIONS = 5;
+
+/**
+ * The job-search parameters of a Profile: one target role and one minimum salary,
+ * several locations, contract types and remote-work options (ADR-0025). A Job
+ * Offer meets a criterion as soon as it meets one of its values; an empty list
+ * of contract types or remote-work options means no preference.
+ */
 export interface SearchCriteria {
   targetRole: string;
-  location: string;
+  /** One to `MAX_SEARCH_LOCATIONS` places, trimmed, each named once. */
+  locations: string[];
   /** Minimum gross annual salary, in euros. */
   minSalary?: number;
-  contractType?: ContractType;
-  remoteWork?: RemoteWork;
+  /** Any of them will do; none means no preference. */
+  contractTypes: ContractType[];
+  /** Any of them will do; none means no preference. */
+  remoteWorkOptions: RemoteWork[];
+}
+
+/**
+ * Locations as Search Criteria keep them: trimmed, blanks dropped, each place
+ * once (compared without case or accents), in the order given.
+ */
+export function distinctLocations(locations: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const kept: string[] = [];
+  for (const raw of locations) {
+    const location = raw.trim();
+    const key = location.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+    if (!location || seen.has(key)) continue;
+    seen.add(key);
+    kept.push(location);
+  }
+  return kept;
 }
 
 /** One job held, as written on a CV. */

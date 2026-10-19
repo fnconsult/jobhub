@@ -45,7 +45,7 @@ async function withDatabase<T>(use: (db: pg.Client) => Promise<T>): Promise<T> {
 async function createProfile(page: Page, targetRole: string): Promise<string> {
   const response = await page.request.post("/api/profiles", {
     headers: { origin },
-    data: { masterCv: { ...MASTER_CV, headline: targetRole }, searchCriteria: { targetRole, location: "Lyon" } },
+    data: { masterCv: { ...MASTER_CV, headline: targetRole }, searchCriteria: { targetRole, locations: ["Lyon"] } },
   });
   expect(response.status()).toBe(201);
   return (await response.json()).id;
@@ -143,7 +143,7 @@ test.describe("onboarding with the AI Coach", () => {
     await expect(page.getByText(fr.questionnaire.reviewIntro)).toBeVisible();
     const criteria = page.getByRole("group", { name: fr.cvReview.searchCriteria });
     await expect(criteria.getByLabel(fr.cvReview.targetRole, { exact: true })).toHaveValue("Directrice financière");
-    await expect(criteria.getByLabel(fr.cvReview.location, { exact: true })).toHaveValue("Lyon");
+    await expect(criteria.getByLabel(fr.cvReview.locationItem.replace("{{number}}", "1"), { exact: true })).toHaveValue("Lyon");
     await expect(page.getByLabel(fr.cvReview.fullName)).toHaveValue("Marie Dupont");
     await expect(page.getByLabel(fr.cvReview.email)).toHaveValue("marie.dupont@example.fr");
     await expect(page.getByRole("group", { name: "Poste 2" }).getByLabel(fr.cvReview.employer)).toHaveValue("Renault");
@@ -152,7 +152,7 @@ test.describe("onboarding with the AI Coach", () => {
     await expect(skills).toHaveCount(3);
     expect(await skills.evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value))).toEqual(["Consolidation", "IFRS", "SAP"]);
     await expect(page.getByRole("group", { name: "Langue 2" }).getByLabel(fr.cvReview.level)).toHaveValue("notions");
-    await page.getByLabel(fr.cvReview.contractType).selectOption({ label: fr.cvReview.contractTypes.cdi });
+    await page.getByRole("group", { name: fr.cvReview.contractType }).getByRole("checkbox", { name: fr.cvReview.contractTypes.cdi }).check();
     await page.getByRole("button", { name: fr.cvReview.save }).click();
 
     // Saved as a Profile with version 1 of its Master CV, like an uploaded CV.

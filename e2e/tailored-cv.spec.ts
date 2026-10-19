@@ -49,7 +49,7 @@ const ENGLISH = {
 async function openApplication(page: Page, offer: { title: string; content: string; skills: string[] }, cv = masterCv): Promise<string> {
   await signInWithMagicLink(page, newAddress("tailored-cv"));
   const profile = await page.request.post("/api/profiles", {
-    data: { masterCv: cv, searchCriteria: { targetRole: "DAF", location: "Lyon" } },
+    data: { masterCv: cv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } },
     headers: { origin },
   });
   expect(profile.status(), await profile.text()).toBe(201);

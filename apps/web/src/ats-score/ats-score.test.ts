@@ -63,7 +63,7 @@ describe.skipIf(!connectionString)("ATS Scoring (needs Postgres: DATABASE_URL)",
       },
     });
     marie = await candidate("marie.dupont@example.fr");
-    const created = await profiles.create(marie, { masterCv, searchCriteria: { targetRole: "Directrice financière", location: "Lyon" } });
+    const created = await profiles.create(marie, { masterCv, searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] } });
     if (!created.ok) throw new Error("fixture Profile refused");
     profileId = created.profile.id;
   });
@@ -102,7 +102,7 @@ describe.skipIf(!connectionString)("ATS Scoring (needs Postgres: DATABASE_URL)",
   });
 
   it("advises leaving out the photo of a CV that shows one, in either language, and records it once accepted", async () => {
-    const withPhoto = { masterCv: { ...masterCv, photo: true }, searchCriteria: { targetRole: "Directrice financière", location: "Lyon" } };
+    const withPhoto = { masterCv: { ...masterCv, photo: true }, searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] } };
     const english = await profiles.create(marie, withPhoto);
     if (!english.ok) throw new Error("fixture Profile refused");
     await scoring.analyse(marie, english.profile.id, "en");
@@ -180,7 +180,7 @@ describe.skipIf(!connectionString)("ATS Scoring (needs Postgres: DATABASE_URL)",
   it("computing the score again replaces a pending fix the new score calls for differently (#165)", async () => {
     const created = await profiles.create(marie, {
       masterCv: { ...masterCv, headline: "Responsable finance" },
-      searchCriteria: { targetRole: "Directrice financière", location: "Lyon" },
+      searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] },
     });
     if (!created.ok) throw new Error("fixture Profile refused");
     const focus = { kind: "profile", id: created.profile.id } as const;
@@ -188,7 +188,7 @@ describe.skipIf(!connectionString)("ATS Scoring (needs Postgres: DATABASE_URL)",
     await scoring.analyse(marie, created.profile.id, "fr");
     expect((await headlineCard()).map((card) => card.body)).toEqual([expect.stringContaining("« Directrice financière »")]);
 
-    await profiles.changeSearchCriteria(marie, created.profile.id, { searchCriteria: { targetRole: "DAF industrie", location: "Lyon" } });
+    await profiles.changeSearchCriteria(marie, created.profile.id, { searchCriteria: { targetRole: "DAF industrie", locations: ["Lyon"] } });
     await scoring.analyse(marie, created.profile.id, "fr");
 
     expect((await headlineCard()).map((card) => card.body)).toEqual([expect.stringContaining("« DAF industrie »")]);
@@ -201,7 +201,7 @@ describe.skipIf(!connectionString)("ATS Scoring (needs Postgres: DATABASE_URL)",
         skills: [...masterCv.skills, "Trésorerie, Fiscalité ; Audit"],
         experience: [...masterCv.experience, { title: "Comptable", employer: "Fiduciaire Rhône", location: "Lyon", period: "1988 – 1995", description: "" }],
       },
-      searchCriteria: { targetRole: "Directrice financière", location: "Lyon" },
+      searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] },
     });
     if (!created.ok) throw new Error("fixture Profile refused");
     const focus = { kind: "profile", id: created.profile.id } as const;

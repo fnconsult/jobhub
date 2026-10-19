@@ -48,7 +48,7 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
         { name: "Allemand", level: "notions" },
       ],
     });
-    expect(draft.searchCriteria).toEqual({ targetRole: "Directrice financière", location: "Lyon (69003)" });
+    expect(draft.searchCriteria).toEqual({ targetRole: "Directrice financière", locations: ["Lyon (69003)"] });
   });
 
   it("reads a period in brackets, a town on the contact line and an unrecognised last section", async () => {
@@ -75,7 +75,7 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
       education: [{ degree: "Ingénieur informatique", institution: "INSA Rennes", year: "2010" }],
       languages: [{ name: "Anglais", level: "courant" }],
     });
-    expect(draft.searchCriteria).toEqual({ targetRole: "Chef de projet SI", location: "Nantes" });
+    expect(draft.searchCriteria).toEqual({ targetRole: "Chef de projet SI", locations: ["Nantes"] });
   });
 
   it("reads a Word (.docx) CV the same way as a PDF", async () => {
@@ -198,7 +198,7 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
 
       const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai: () => ai, candidateId: "cand-42" });
 
-      expect(draft).toEqual(aiReading);
+      expect(draft).toEqual({ ...aiReading, searchCriteria: { targetRole: "Directrice administrative et financière", locations: ["Lyon"] } });
       expect(provider.calls).toHaveLength(1);
       expect(provider.calls[0]!.messages.at(-1)!.content).toContain("Responsable du contrôle de gestion — Renault, Paris — 2005 – 2015");
     });
@@ -223,7 +223,7 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
 
       expect(provider.calls).toHaveLength(0);
       expect(draft.masterCv).toMatchObject({ fullName: "Marie Dupont", skills: ["Consolidation", "IFRS", "SAP", "Management d'équipe"] });
-      expect(draft.searchCriteria).toEqual({ targetRole: "Directrice financière", location: "Lyon (69003)" });
+      expect(draft.searchCriteria).toEqual({ targetRole: "Directrice financière", locations: ["Lyon (69003)"] });
     });
 
     it("drafts a Guest's CV without ever building the AI layer, so a Guest needs no AI configuration", async () => {
@@ -277,7 +277,7 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
           skills: ["IFRS"],
           languages: [],
         },
-        searchCriteria: { targetRole: "", location: "" },
+        searchCriteria: { targetRole: "", locations: [] },
       });
     });
 

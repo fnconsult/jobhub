@@ -71,7 +71,7 @@ describe("the Onboarding Questionnaire", () => {
           { name: "Allemand", level: "notions" },
         ],
       },
-      searchCriteria: { targetRole: "Directrice financière", location: "Lyon" },
+      searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] },
     });
   });
 
@@ -109,7 +109,7 @@ describe("the Onboarding Questionnaire", () => {
         skills: [],
         languages: [],
       },
-      searchCriteria: { targetRole: "Chef de projet SI", location: "Nantes" },
+      searchCriteria: { targetRole: "Chef de projet SI", locations: ["Nantes"] },
     });
   });
 

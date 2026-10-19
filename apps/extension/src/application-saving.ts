@@ -17,7 +17,7 @@
  *    (`lock`): several pages open at sign-up still make one Profile.
  * Problems come back as results, never exceptions.
  */
-import { fitProfileName, type JobOffer } from "@jobhub/shared";
+import { distinctLocations, fitProfileName, type JobOffer } from "@jobhub/shared";
 import type { GuestSession, GuestSessionContent } from "./guest-session";
 import type { JobbboxApi, ProfileOption, UpgradePrompt } from "./jobbbox-api";
 
@@ -67,11 +67,12 @@ export function createApplicationSaving({ api, session, lock = webLock }: { api:
     let newProfile: ProfileOption | null = null;
     if (choice === "new_profile_from_cv") {
       if (!cv) return failed("search_criteria_missing");
+      const fromCv = distinctLocations(searchCriteria?.locations ?? []);
       const criteria = {
         targetRole: fitProfileName(searchCriteria?.targetRole || jobOffer.title),
-        location: (searchCriteria?.location || jobOffer.location || "").trim(),
+        locations: fromCv.length > 0 ? fromCv : distinctLocations([jobOffer.location ?? ""]),
       };
-      if (!criteria.targetRole || !criteria.location) return failed("search_criteria_missing");
+      if (!criteria.targetRole || criteria.locations.length === 0) return failed("search_criteria_missing");
       const created = await api.createProfile(cv, criteria);
       if (!created.ok) {
         if (created.error === "plan_quota_reached") return { state: "failed", error: created.error, prompt: created.prompt };

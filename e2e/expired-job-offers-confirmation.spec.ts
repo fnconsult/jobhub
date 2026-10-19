@@ -82,7 +82,7 @@ async function signInWithProfile(page: Page, label: string): Promise<string> {
     headers: { origin },
     data: {
       masterCv: { fullName: "Claire Martin", headline: "DAF", email: "claire.martin@example.fr", phone: "", location: "Lyon", summary: "", experience: [], education: [], skills: ["IFRS"], languages: [] },
-      searchCriteria: { targetRole: "DAF", location: "Lyon" },
+      searchCriteria: { targetRole: "DAF", locations: ["Lyon"] },
     },
   });
   expect(profile.status(), await profile.text()).toBe(201);

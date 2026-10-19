@@ -61,7 +61,7 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
   }
 
   async function saveApplication(offer: Parameters<JobOffers["capture"]>[0], owner = candidateId) {
-    const profile = await profiles.create(owner, { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
+    const profile = await profiles.create(owner, { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } });
     const captured = await jobOffers.capture(offer);
     if (!profile.ok || !captured.ok) throw new Error("fixture refused");
     const applications = createApplications(testAuth.auth.options.database as Pool, { jobOffers, profiles });

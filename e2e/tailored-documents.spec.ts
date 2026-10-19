@@ -41,7 +41,7 @@ const ENGLISH = {
 async function openApplication(page: Page, offer: { title: string; content: string }): Promise<string> {
   await signInWithMagicLink(page, newAddress("tailored-documents"));
   const profile = await page.request.post("/api/profiles", {
-    data: { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } },
+    data: { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } },
     headers: { origin },
   });
   expect(profile.status(), await profile.text()).toBe(201);

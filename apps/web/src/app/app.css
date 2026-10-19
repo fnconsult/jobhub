@@ -1434,6 +1434,18 @@ html[data-sidebar="closed"] .sidebar-docked {
   font-size: var(--font-size-h3);
 }
 
+/* The Profile's name, edited in place, as wide as its words beside the Section's name. */
+.topbar-title > .title-field {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.topbar-title textarea.title-edit {
+  width: auto;
+  min-width: 8ch;
+  max-width: 100%;
+}
+
 /* The Profile's name, edited in place, at the Top Bar's size. */
 .topbar-title .title-field h1,
 .topbar-title textarea.title-edit {
@@ -2238,6 +2250,74 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   border-color: transparent;
 }
 
+/* Recherches d'offres (ADR-0025): the Profile chooser, then each Profile's latest results,
+   in tabs or in swimlanes. A swimlane's Job Offers sit side by side in a strip that scrolls
+   sideways on its own (the page never does), reachable from the keyboard. */
+.job-searches-groups {
+  margin-top: var(--space-8);
+}
+
+.job-searches-groups .section-head h3 {
+  margin: 0;
+}
+
+.job-searches-groups .list-views {
+  margin-left: 0;
+}
+
+.job-searches-chooser .button,
+.job-searches-groups .list-views .button {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+}
+
+/* The view shown: bold and shaded, as a menu's selected item (ADR-0024), not by colour alone. */
+.job-searches-groups .list-views [aria-current="page"] {
+  font-weight: 600;
+  background: var(--color-surface-hover);
+}
+
+.lane + .lane {
+  margin-top: var(--space-6);
+}
+
+.lane-track {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border-radius: var(--radius-md);
+}
+
+.lane-track:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.lane-track .rows {
+  flex-direction: row;
+  gap: var(--space-3);
+  width: max-content;
+  padding-bottom: var(--space-2);
+  border-top: 0;
+}
+
+.lane-track .row {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  width: min(20rem, 80vw);
+  padding: var(--space-3);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.lane-track .row-side {
+  flex-direction: row;
+  align-items: center;
+}
+
 /* The Job Offer page's Match Score against one Profile, then "Pourquoi 86 ?" (#163). */
 .profile-match {
   display: flex;
@@ -2500,6 +2580,42 @@ textarea.title-edit {
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-3);
   align-items: center;
+}
+
+/* Search Criteria (ADR-0025): a place per row with its "Retirer" button, and a group of checkboxes
+   without a frame where a property row already names it. */
+.location-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.location-field-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.location-field-row input {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.inline-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.inline-fieldset .hint {
+  margin: 0;
 }
 
 /* A checkbox, its label beside it and its help below, all with a large target. */

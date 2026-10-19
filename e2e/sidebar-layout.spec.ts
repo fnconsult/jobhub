@@ -28,7 +28,7 @@ const masterCv = {
 async function createProfile(page: Page, targetRole: string): Promise<string> {
   const response = await page.request.post("/api/profiles", {
     headers: { origin },
-    data: { masterCv: { ...masterCv, headline: targetRole }, searchCriteria: { targetRole, location: "Lyon", contractType: "cdi" } },
+    data: { masterCv: { ...masterCv, headline: targetRole }, searchCriteria: { targetRole, locations: ["Lyon"], contractTypes: ["cdi"] } },
   });
   expect(response.status()).toBe(201);
   return (await response.json()).id;
@@ -71,6 +71,8 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
       "/abonnement",
       `/profils/${profileId}/versions`,
       `/profils/${profileId}/cv`,
+      `/recherches?profil=${profileId}`,
+      "/recherches?profil=tous",
     ]) {
       await page.goto(path);
       // The page's title is in the Top Bar.

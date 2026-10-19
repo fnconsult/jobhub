@@ -31,6 +31,8 @@ interface Wording {
   offer(title: string, location: string): string;
   contract: Record<ContractType, string>;
   remote: Record<RemoteWork, string>;
+  /** Several values of one criterion, any of which will do: "CDI ou freelance". */
+  anyOf: string;
   salary(amount: number): string;
 }
 
@@ -39,6 +41,7 @@ const WORDING: Record<QueryLanguage, Wording> = {
     offer: (title, location) => `Offre d'emploi « ${title} » à ${location}`,
     contract: { cdi: "CDI", cdd: "CDD", freelance: "freelance", interim: "intérim" },
     remote: { on_site: "sur site", hybrid: "télétravail partiel", full_remote: "télétravail complet" },
+    anyOf: " ou ",
     salary: (amount) =>
       `salaire à partir de ${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(amount).replace(/\s/g, " ")} € brut annuel`,
   },
@@ -46,6 +49,7 @@ const WORDING: Record<QueryLanguage, Wording> = {
     offer: (title, location) => `Job offer "${title}" in ${location}`,
     contract: { cdi: "permanent contract", cdd: "fixed-term contract", freelance: "freelance", interim: "temporary work" },
     remote: { on_site: "on site", hybrid: "hybrid remote work", full_remote: "fully remote work" },
+    anyOf: " or ",
     salary: (amount) => `salary from €${new Intl.NumberFormat("en-GB", { maximumFractionDigits: 0 }).format(amount)} gross per year`,
   },
 };
@@ -63,16 +67,23 @@ function clean(text: string): string {
 /**
  * The only text ever sent to the web-search provider for a Job Search (ADR-0007): built field
  * by field from Search Criteria, so no CV content or name can reach it. `query` picks the job
- * title and the language; by default, the Search Criteria's own title in French.
+ * title and the language; by default, the Search Criteria's own title in French. A query names
+ * one place, `location`, one of the Search Criteria's (the first by default): a Job Search runs
+ * one search per location (ADR-0025); the contract types and remote-work options wanted are all
+ * in each ("CDI ou freelance").
  */
-export function buildSearchQuery(criteria: SearchCriteria, query?: JobSearchQuery): string {
+export function buildSearchQuery(criteria: SearchCriteria, query?: JobSearchQuery, location: string | undefined = criteria.locations[0]): string {
   if (query !== undefined && !issued.has(query)) {
     throw new DataResidencyError("A Job Search query must be one planJobSearch issued: no other job title may reach the web-search provider");
   }
+  if (location === undefined || !criteria.locations.includes(location)) {
+    throw new DataResidencyError("A Job Search query names one of the Search Criteria's locations, and no other place");
+  }
   const wording = WORDING[query?.language ?? "fr"];
-  const parts = [wording.offer(clean(query?.title ?? criteria.targetRole), clean(criteria.location))];
-  if (criteria.contractType) parts.push(wording.contract[criteria.contractType]);
-  if (criteria.remoteWork) parts.push(wording.remote[criteria.remoteWork]);
+  const parts = [wording.offer(clean(query?.title ?? criteria.targetRole), clean(location))];
+  const anyOf = (values: string[]) => [...new Set(values)].join(wording.anyOf);
+  if (criteria.contractTypes.length > 0) parts.push(anyOf(criteria.contractTypes.map((type) => wording.contract[type])));
+  if (criteria.remoteWorkOptions.length > 0) parts.push(anyOf(criteria.remoteWorkOptions.map((option) => wording.remote[option])));
   if (typeof criteria.minSalary === "number" && Number.isFinite(criteria.minSalary) && criteria.minSalary > 0) {
     parts.push(wording.salary(criteria.minSalary));
   }

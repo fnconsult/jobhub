@@ -62,6 +62,11 @@ export interface SearchRequest {
   query?: JobSearchQuery;
   /** Which page of results, from 1 (the default) up to the plan's `pages`. */
   page?: number;
+  /**
+   * The one place to search near: one of the Search Criteria's locations, the first by default.
+   * A Job Search sends one search per location (ADR-0025).
+   */
+  location?: string;
 }
 
 export interface JobSearchPlanRequest {
@@ -339,7 +344,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     },
 
     async searchWeb(request) {
-      return search(request.candidateId, buildSearchQuery(request.criteria, request.query), request.filters, request.page);
+      return search(request.candidateId, buildSearchQuery(request.criteria, request.query, request.location ?? request.criteria.locations[0]), request.filters, request.page);
     },
 
     async searchCompany(request) {

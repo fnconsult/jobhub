@@ -45,7 +45,7 @@ async function openApplication(
   const email = newAddress("enriched-contacts");
   await signInWithMagicLink(page, email);
   if (plan === "premium") await subscribe(page, email, "premium");
-  const profile = await page.request.post("/api/profiles", { data: { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } }, headers: { origin } });
+  const profile = await page.request.post("/api/profiles", { data: { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } }, headers: { origin } });
   expect(profile.status(), await profile.text()).toBe(201);
   const offer = await page.request.post("/api/job-offers", {
     data: { title: "DAF H/F", content: `(réf. ${unique()}) Poste de DAF.`, employer, location },

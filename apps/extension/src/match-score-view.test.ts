@@ -18,6 +18,21 @@ const matchScore: MatchScore = {
 };
 
 describe("a Match Score, as the Guest reads it", () => {
+  it("names every place and contract type wanted, any one of which is enough (ADR-0025)", () => {
+    const several: MatchScore = {
+      ...matchScore,
+      breakdown: {
+        ...matchScore.breakdown,
+        location: { status: "match", offer: "Bordeaux", wanted: ["Lyon", "Bordeaux"] },
+        contractType: { status: "match", offer: "freelance", wanted: ["cdi", "freelance"] },
+      },
+    };
+
+    const [, , location, , contractType] = describeMatchScore(several, createI18n("fr")).criteria;
+    expect(location!.details).toEqual(["Bordeaux", "Vous cherchez : Lyon ou Bordeaux"]);
+    expect(contractType!.details).toEqual(["L'offre : Indépendant (freelance)", "Vous cherchez : CDI ou Indépendant (freelance)"]);
+  });
+
   it("gives the score and each criterion with what it compared, in the Interface Language", () => {
     expect(describeMatchScore(matchScore, createI18n("fr"))).toEqual({
       score: "Match Score : 72 / 100",
@@ -25,7 +40,7 @@ describe("a Match Score, as the Guest reads it", () => {
       criteria: [
         { label: "Compétences", status: "Correspond en partie", details: ["Présentes dans votre CV : IFRS, SAP", "Absentes de votre CV : Power BI"] },
         { label: "Expérience", status: "Correspond", details: ["Votre CV : 25 ans · l'offre : 15 ans"] },
-        { label: "Lieu", status: "Correspond", details: ["Lyon"] },
+        { label: "Lieu", status: "Correspond", details: ["Lyon", "Vous cherchez : Lyon (69003)"] },
         { label: "Salaire", status: "Non précisé dans l'offre", details: [] },
         { label: "Type de contrat", status: "Non précisé dans l'offre", details: [] },
       ],

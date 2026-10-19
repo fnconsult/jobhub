@@ -33,7 +33,7 @@ const masterCv = {
 
 async function createProfile(page: Page, targetRole: string, minSalary = 110_000): Promise<string> {
   const saved = await page.request.post("/api/profiles", {
-    data: { masterCv, searchCriteria: { targetRole, location: "Lyon", minSalary, contractType: "cdi" } },
+    data: { masterCv, searchCriteria: { targetRole, locations: ["Lyon"], minSalary, contractTypes: ["cdi"] } },
     headers: { origin },
   });
   expect(saved.status(), await saved.text()).toBe(201);

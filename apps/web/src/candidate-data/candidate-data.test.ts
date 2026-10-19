@@ -71,7 +71,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
   }
 
   async function createProfile(owner: string, targetRole: string) {
-    const created = await profiles.create(owner, { masterCv, searchCriteria: { targetRole, location: "Lyon" } });
+    const created = await profiles.create(owner, { masterCv, searchCriteria: { targetRole, locations: ["Lyon"] } });
     if (!created.ok) throw new Error("fixture Profile refused");
     return created.profile.id;
   }
@@ -170,7 +170,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         id: profileId,
         name: "DAF",
         archived: false,
-        searchCriteria: { targetRole: "DAF", location: "Lyon" },
+        searchCriteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] },
         masterCvVersions: [
           expect.objectContaining({ version: 2, restoredFrom: null, content: { ...masterCv, summary: "20 ans de finance." } }),
           expect.objectContaining({ version: 1, restoredFrom: null, content: masterCv }),

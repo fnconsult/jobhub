@@ -9,9 +9,9 @@ import { createJobDiscovery, JobDiscoveryError, type JobDiscoveryBudget, type Jo
 
 const criteria: SearchCriteria = {
   targetRole: "Directeur financier",
-  location: "Lyon",
-  contractType: "cdi",
-  remoteWork: "hybrid",
+  locations: ["Lyon"],
+  contractTypes: ["cdi"],
+  remoteWorkOptions: ["hybrid"],
   minSalary: 110_000,
 };
 
@@ -168,7 +168,7 @@ describe("Job discovery", () => {
 
     await discovery.discover({
       candidateId: "candidate-1",
-      criteria: { targetRole: "DAF jean.dupont@mail.fr 06 12 34 56 78", location: "Lyon" },
+      criteria: { targetRole: "DAF jean.dupont@mail.fr 06 12 34 56 78", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] },
     });
 
     expect(titles.calls.map((call) => call.messages)).toEqual([[{ role: "user", content: "DAF" }]]);
@@ -1102,6 +1102,91 @@ describe("Job discovery", () => {
       const { discovery } = setup({ sources: urls, pages: pagesFor(urls, posting), budget: { jobOffers: 2 } });
 
       expect((await discovery.discover({ candidateId: "c", criteria })).jobOffers).toHaveLength(2);
+    });
+
+    describe("with several locations, one search each, sharing the budget (ADR-0025)", () => {
+      const twoPlaces: SearchCriteria = { ...criteria, locations: ["Lyon", "Bordeaux"], contractTypes: ["cdi", "freelance"] };
+      const place = (query: string) => (query.includes("Bordeaux") ? "bordeaux" : "lyon");
+      /** Each place's own postings, `count` of them. */
+      const postingsIn = (city: string, count: number) => Array.from({ length: count }, (_, index) => `https://emplois.example.fr/${city}/${index + 1}`);
+      const allPages = (...lists: string[][]) => pagesFor(lists.flat(), posting);
+
+      it("searches each location in turn, every contract type wanted in each query, the job titles planned once", async () => {
+        const { discovery, search, titles } = setup({ sources: [], pages: {} });
+
+        await discovery.discover({ candidateId: "c", criteria: twoPlaces });
+
+        expect(titles.calls).toHaveLength(1);
+        expect(search.queries).toEqual([
+          "Offre d'emploi « Directeur financier » à Lyon, CDI ou freelance, télétravail partiel, salaire à partir de 110 000 € brut annuel",
+          'Job offer "Directeur financier" in Lyon, permanent contract or freelance, hybrid remote work, salary from €110,000 gross per year',
+          "Offre d'emploi « Directeur financier » à Bordeaux, CDI ou freelance, télétravail partiel, salaire à partir de 110 000 € brut annuel",
+          'Job offer "Directeur financier" in Bordeaux, permanent contract or freelance, hybrid remote work, salary from €110,000 gross per year',
+        ]);
+      });
+
+      it("splits the Job Offers evenly: each location stops at its share, and the run at the whole budget", async () => {
+        const lyon = postingsIn("lyon", 5);
+        const bordeaux = postingsIn("bordeaux", 5);
+        const { discovery } = setup({ sources: (query) => (place(query) === "lyon" ? lyon : bordeaux), pages: allPages(lyon, bordeaux), budget: { jobOffers: 4 } });
+
+        const report = await discovery.discover({ candidateId: "c", criteria: twoPlaces });
+
+        expect(report.jobOffers.map((jobOffer) => jobOffer.source.url)).toEqual([...lyon.slice(0, 2), ...bordeaux.slice(0, 2)]);
+      });
+
+      it("leaves what a location did not use to the next one, never more than the budget in all", async () => {
+        const lyon = postingsIn("lyon", 1);
+        const bordeaux = postingsIn("bordeaux", 10);
+        const { discovery } = setup({ sources: (query) => (place(query) === "lyon" ? lyon : bordeaux), pages: allPages(lyon, bordeaux), budget: { jobOffers: 4 } });
+
+        const report = await discovery.discover({ candidateId: "c", criteria: twoPlaces });
+
+        expect(report.jobOffers.map((jobOffer) => jobOffer.source.url)).toEqual([...lyon, ...bordeaux.slice(0, 3)]);
+      });
+
+      it("shares the time too: two locations take no longer than one", async () => {
+        const lyon = postingsIn("lyon", 5);
+        const bordeaux = postingsIn("bordeaux", 5);
+        // Each page takes 40 s: Lyon reads until 45 s (two pages, to 80 s), Bordeaux until 90 s (one page).
+        const pages = Object.fromEntries([...lyon, ...bordeaux].map((url, index) => [url, { ...posting(url, index), delayMs: 40_000 }]));
+        const { discovery } = setup({ sources: (query) => (place(query) === "lyon" ? lyon : bordeaux), pages });
+
+        const report = await discovery.discover({ candidateId: "c", criteria: twoPlaces });
+
+        expect(report.jobOffers.map((jobOffer) => jobOffer.source.url)).toEqual([...lyon.slice(0, 2), bordeaux[0]]);
+      });
+
+      it("reads a posting found near two locations once", async () => {
+        const shared = postingsIn("lyon", 1);
+        const { discovery, web } = setup({ sources: shared, pages: allPages(shared) });
+
+        const report = await discovery.discover({ candidateId: "c", criteria: twoPlaces });
+
+        expect(report.jobOffers).toHaveLength(1);
+        expect(web.fetched().filter((url) => url === shared[0])).toHaveLength(1);
+        expect(report.funnel.providerUrls).toBe(1);
+      });
+
+      it("searches France Travail near each location for that location's share of the Job Offers", async () => {
+        const searches: { location?: string; max: number }[] = [];
+        const franceTravail: FranceTravail = {
+          async search(_criteria, { max, location }) {
+            searches.push({ location, max });
+            return { ok: true, calls: 1, offers: [] };
+          },
+        };
+        const { discovery } = setup({ sources: [], pages: {}, franceTravail, budget: { jobOffers: 30 } });
+
+        const report = await discovery.discover({ candidateId: "c", criteria: { ...twoPlaces, locations: ["Lyon", "Bordeaux", "Nantes"] } });
+
+        expect(searches).toEqual([
+          { location: "Lyon", max: 10 },
+          { location: "Bordeaux", max: 20 },
+          { location: "Nantes", max: 30 },
+        ]);
+        expect(report.franceTravail).toEqual({ status: "searched", calls: 3, offers: 0 });
+      });
     });
   });
   describe("searching France Travail first, when it is configured", () => {

@@ -68,6 +68,60 @@ export function StartJobSearchButton({
   );
 }
 
+type StartAllFailure = { profileId: string; profile: string; reason: "quota" | "archived" | "generic" };
+
+/**
+ * Starts one Job Search for each of `profiles` (the Candidate's active Profiles), one after
+ * the other, each counting one against the Plan Quota as from a Profile's page; then stays on
+ * the page, which shows them running. Says how many started and, by name, each Profile left
+ * without one and why; the first Upgrade Prompt a used-up Plan Quota gave is shown once.
+ */
+export function StartAllJobSearchesButton({ profiles, icon }: { profiles: { id: string; name: string }[]; icon?: ReactNode }) {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const [working, setWorking] = useState(false);
+  const [outcome, setOutcome] = useState<{ started: number; failures: StartAllFailure[]; prompt: Prompt | null } | null>(null);
+
+  async function start() {
+    setWorking(true);
+    setOutcome(null);
+    let started = 0;
+    let prompt: Prompt | null = null;
+    const failures: StartAllFailure[] = [];
+    for (const profile of profiles) {
+      const { status, result } = await post("/api/job-searches", { profileId: profile.id });
+      if (status === 201) {
+        started += 1;
+        continue;
+      }
+      const quota = status === 402;
+      if (quota && !prompt && typeof result.prompt === "object" && result.prompt !== null) prompt = result.prompt as Prompt;
+      failures.push({ profileId: profile.id, profile: profile.name, reason: quota ? "quota" : result.error === "archived" ? "archived" : "generic" });
+    }
+    setOutcome({ started, failures, prompt });
+    setWorking(false);
+    if (started > 0) router.refresh();
+  }
+
+  return (
+    <div className="stack">
+      <button className="button button-primary" type="button" onClick={start} disabled={working}>
+        {icon}
+        {working ? t("jobSearchesPage.startingAll") : t("jobSearchesPage.startAll", { count: profiles.length })}
+      </button>
+      <div role="status">{outcome && outcome.started > 0 ? <p>{t("jobSearchesPage.startedAll", { count: outcome.started })}</p> : null}</div>
+      {outcome && outcome.failures.length > 0 ? (
+        <ul className="field-error" role="alert">
+          {outcome.failures.map((failure) => (
+            <li key={failure.profileId}>{t("jobSearchesPage.failedFor", { profile: failure.profile, reason: t(`jobSearchesPage.failureReasons.${failure.reason}`) })}</li>
+          ))}
+        </ul>
+      ) : null}
+      {outcome?.prompt ? <UpgradePrompt prompt={outcome.prompt} /> : null}
+    </div>
+  );
+}
+
 /** Saves one Job Offer a Job Search found as an Application, with the Job Search's Profile, in one click. */
 export function SaveSearchResultButton({ jobOfferId, profileId, describedBy }: { jobOfferId: string; profileId: string; describedBy?: string }) {
   const { t } = useTranslation();

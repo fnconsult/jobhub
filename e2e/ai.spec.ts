@@ -55,10 +55,10 @@ const search = (candidateId: string | null = "cand-1", filters?: Record<string, 
   filters,
   criteria: {
     targetRole: "Développeur TypeScript jean.dupont@example.fr",
-    location: "Paris +33 6 12 34 56 78",
+    locations: ["Paris +33 6 12 34 56 78"],
     minSalary: 55000,
-    contractType: "cdi",
-    remoteWork: "hybrid",
+    contractTypes: ["cdi"],
+    remoteWorkOptions: ["hybrid"],
   },
 });
 

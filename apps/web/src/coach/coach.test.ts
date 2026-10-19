@@ -13,7 +13,7 @@ const profile: Profile = {
   id: "11111111-1111-4111-8111-111111111111",
   name: "Directrice financière",
   archived: false,
-  searchCriteria: { targetRole: "Directrice financière", location: "Lyon", minSalary: 120000, contractType: "cdi" },
+  searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"], minSalary: 120000, contractTypes: ["cdi"], remoteWorkOptions: [] },
   masterCv: {
     version: 2,
     content: {
@@ -516,7 +516,7 @@ describe("the rest, summarised", () => {
       ...profile,
       id: "77777777-7777-4777-8777-777777777777",
       name: "Consultante transformation",
-      searchCriteria: { targetRole: "Consultante transformation finance", location: "Paris" },
+      searchCriteria: { targetRole: "Consultante transformation finance", locations: ["Paris"], contractTypes: [], remoteWorkOptions: [] },
       masterCv: { version: 1, content: { ...profile.masterCv.content, headline: "Consultante en transformation finance", summary: "Vingt ans à piloter des projets ERP." } },
     };
     const archived: Profile = { ...consultant, id: "88888888-8888-4888-8888-888888888888", name: "Ancien profil", archived: true, masterCv: { version: 1, content: { ...consultant.masterCv.content, headline: "Ancien titre" } } };
@@ -528,6 +528,18 @@ describe("the rest, summarised", () => {
     expect(context).toContain("Consultante transformation finance");
     expect(context).toContain("Vingt ans à piloter des projets ERP.");
     expect(context).not.toContain("Ancien titre");
+  });
+
+  it("each active Profile's Search Criteria with every value wanted, any one of which will do (ADR-0025)", async () => {
+    const twoRegions: Profile = {
+      ...profile,
+      searchCriteria: { ...profile.searchCriteria, locations: ["Lyon", "Bordeaux"], contractTypes: ["cdi", "freelance"], remoteWorkOptions: ["hybrid", "full_remote"] },
+    };
+    const { coach, provider } = coachWith({ workspace: { profiles: [twoRegions] } });
+
+    await ask(coach);
+
+    expect(contextOf(provider)).toContain("lieux Lyon ou Bordeaux, salaire minimum 120000 € brut annuel, contrat CDI ou freelance, travail hybride ou télétravail complet");
   });
 });
 

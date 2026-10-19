@@ -46,7 +46,7 @@ const masterCv = {
 /** The Master CV adapted to the DAF offer: it now shows Power BI too. */
 const tailoredCv = { ...masterCv, skills: [...masterCv.skills, "Power BI"] };
 
-const searchCriteria = { targetRole: "Directrice administrative et financière", location: "Lyon", minSalary: 110_000, contractType: "cdi" };
+const searchCriteria = { targetRole: "Directrice administrative et financière", locations: ["Lyon"], minSalary: 110_000, contractTypes: ["cdi"] };
 
 /** A browser or extension with no account: no cookies at all. */
 async function guestFrom(requestOrigin: string): Promise<APIRequestContext> {
@@ -144,7 +144,7 @@ test.describe("Match Score", () => {
     const offer = await capture(guest, dafOffer(unique()));
 
     // Search Criteria wanting more money and a freelance contract.
-    const criteria = { targetRole: "DAF", location: "Lyon", minSalary: 130_000, contractType: "freelance" };
+    const criteria = { targetRole: "DAF", locations: ["Lyon"], minSalary: 130_000, contractTypes: ["freelance"] };
     const { status, body } = await matchScore(guest, { jobOfferId: offer.id, cv: masterCv, searchCriteria: criteria });
 
     expect(status).toBe(200);
@@ -154,9 +154,9 @@ test.describe("Match Score", () => {
       breakdown: {
         skills: { status: "partial", covered: ["IFRS", "Consolidation", "SAP"], missing: ["Power BI"] },
         seniority: { status: "match", cvYears: 19, requiredYears: 15 },
-        location: { status: "match", offer: "Lyon", wanted: "Lyon" },
+        location: { status: "match", offer: "Lyon", wanted: ["Lyon"] },
         salary: { status: "partial", offer: { min: 100_000, max: 120_000 }, wanted: 130_000 },
-        contractType: { status: "mismatch", offer: "cdi", wanted: "freelance" },
+        contractType: { status: "mismatch", offer: "cdi", wanted: ["freelance"] },
       },
     });
     await guest.dispose();
@@ -170,7 +170,7 @@ test.describe("Match Score", () => {
     expect(status).toBe(200);
     // Known: skills 30/40, seniority 20/20, location 0/15 → 50 of 75.
     expect(body.score).toBe(67);
-    expect(body.breakdown.location).toEqual({ status: "mismatch", offer: "Lyon", wanted: "Paris" });
+    expect(body.breakdown.location).toEqual({ status: "mismatch", offer: "Lyon", wanted: ["Paris"] });
     expect(body.breakdown.salary).toEqual({ status: "unknown", offer: { min: 100_000, max: 120_000 } });
     expect(body.breakdown.contractType).toEqual({ status: "unknown", offer: "cdi" });
     await guest.dispose();
@@ -191,9 +191,9 @@ test.describe("Match Score", () => {
       breakdown: {
         skills: { status: "partial", covered: ["IFRS", "Consolidation", "SAP"], missing: ["Power BI"] },
         seniority: { status: "match", cvYears: 19, requiredYears: 15 },
-        location: { status: "match", offer: "Lyon", wanted: "Lyon" },
+        location: { status: "match", offer: "Lyon", wanted: ["Lyon"] },
         salary: { status: "match", offer: { min: 100_000, max: 120_000 }, wanted: 110_000 },
-        contractType: { status: "match", offer: "cdi", wanted: "cdi" },
+        contractType: { status: "match", offer: "cdi", wanted: ["cdi"] },
       },
     });
 
@@ -313,7 +313,7 @@ test.describe("Match Score: skills by normalised form and synonyms", () => {
       salary: { min: 70_000, max: 90_000 },
       skills: ["Gestion de la chaîne d'approvisionnement"],
     });
-    const criteria = { targetRole: "Directeur supply chain", location: "Lille", contractType: "cdi", minSalary: 95_000 };
+    const criteria = { targetRole: "Directeur supply chain", locations: ["Lille"], contractTypes: ["cdi"], minSalary: 95_000 };
     const { status, body } = await matchScore(guest, { jobOfferId: offer.id, cv: supplyChainCv, searchCriteria: criteria });
 
     expect(status).toBe(200);
@@ -343,8 +343,8 @@ test.describe("Match Score of a Job Offer captured without structured data", () 
     expect(body.offerTextUnread).toBeUndefined();
     // Skills 40, seniority 20, location 15, contract 15; salary unknown (the offer states none): 90 of 90.
     expect(body.score).toBe(100);
-    expect(body.breakdown.location).toEqual({ status: "match", offer: "Lyon", wanted: "Lyon" });
-    expect(body.breakdown.contractType).toEqual({ status: "match", offer: "cdi", wanted: "cdi" });
+    expect(body.breakdown.location).toEqual({ status: "match", offer: "Lyon", wanted: ["Lyon"] });
+    expect(body.breakdown.contractType).toEqual({ status: "match", offer: "cdi", wanted: ["cdi"] });
     // Kept on the Job Offer, for everyone who scores it next.
     const stored = await (await guest.get(`/api/job-offers/${offer.id}`)).json();
     expect(stored).toMatchObject({ location: "Lyon", contractType: "cdi", skills: ["IFRS", "SAP"], requiredExperienceYears: 15 });

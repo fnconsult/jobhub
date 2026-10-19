@@ -32,7 +32,7 @@ const masterCv = {
   skills: ["Consolidation"],
   languages: [],
 };
-const searchCriteria = { targetRole: "Directrice administrative et financière", location: "Lyon", contractType: "cdi" };
+const searchCriteria = { targetRole: "Directrice administrative et financière", locations: ["Lyon"], contractTypes: ["cdi"] };
 
 let candidateId = "";
 let profileId = "";

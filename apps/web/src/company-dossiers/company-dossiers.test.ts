@@ -133,7 +133,7 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
     dossiers = createCompanyDossiers(database, { applications, register, ai });
     candidateId = await signIn("marie.dupont@example.fr");
     otherCandidateId = await signIn("paul.martin@example.fr");
-    const created = await profiles.create(candidateId, { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
+    const created = await profiles.create(candidateId, { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } });
     if (!created.ok) throw new Error("fixture Profile refused");
     profileId = created.profile.id;
   });

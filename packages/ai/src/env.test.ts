@@ -101,6 +101,20 @@ describe("AI layer configured from the environment", () => {
     expect(() => createAiLayerFromEnv({ ...env, AI_BACK_OFFICE_ASSISTANT_PROVIDER: "openai", OPENAI_API_KEY: "sk", OPENAI_DATA_RESIDENCY: "us" })).toThrow(DataResidencyError);
   });
 
+  it("checks Guardrails with the coaching provider and model unless AI_GUARDRAIL_PROVIDER says otherwise, EU endpoints only (#228)", async () => {
+    const { fetch, hosts } = recordingFetch();
+    const usage = createMemoryUsageLog();
+    const env = { ...base, AI_COACHING_PROVIDER: "mistral", MISTRAL_API_KEY: "mk" };
+
+    await createAiLayerFromEnv(env, { fetch, usage }).generate({ task: "guardrail", candidateId: "c", prompt: "Bonjour" });
+    await createAiLayerFromEnv({ ...env, AI_GUARDRAIL_PROVIDER: "anthropic" }, { fetch, usage }).generate({ task: "guardrail", candidateId: "c", prompt: "Bonjour" });
+
+    expect(hosts).toEqual(["api.mistral.ai", "bedrock-mantle.eu-west-3.api.aws"]);
+    expect(usage.entries.map((e) => e.task)).toEqual(["guardrail", "guardrail"]);
+    // A Guardrail reads what the Candidate typed and the AI Coach's reply: EU endpoints only (ADR-0007).
+    expect(() => createAiLayerFromEnv({ ...env, AI_GUARDRAIL_PROVIDER: "openai", OPENAI_API_KEY: "sk", OPENAI_DATA_RESIDENCY: "us" })).toThrow(DataResidencyError);
+  });
+
   it("refuses to start when a personal-data task is routed to the direct Anthropic API", () => {
     expect(() => createAiLayerFromEnv({ ...base, ANTHROPIC_ENDPOINT: "direct", ANTHROPIC_API_KEY: "sk", MISTRAL_API_KEY: "mk", AI_SCORING_PROVIDER: "anthropic" })).toThrow(DataResidencyError);
   });

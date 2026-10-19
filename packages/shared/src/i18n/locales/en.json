@@ -1253,7 +1253,8 @@
         "offer_analysis": "Job Offer analysis",
         "job_titles": "Job title variants",
         "web_search": "Web search",
-        "back_office_assistant": "Back Office Assistant"
+        "back_office_assistant": "Back Office Assistant",
+        "guardrail": "Guardrails"
       }
     },
     "aiMessages": {

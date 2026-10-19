@@ -18,4 +18,4 @@ The set of Guardrails is fixed in code. Super-admins only tune each one in the B
 - A reply may cost two more AI calls; they count in the Coach Message Cost.
 - A blocked reply is written again once, told what was wrong, before being replaced by the Guardrail message (a leak or a secret is replaced at once). Both the blocked message and the answer stay in the Coach Conversation, marked as blocked without naming the Guardrail.
 - Guardrail messages are in French and English, each Human-validated by someone other than its author before production serves it; a default text in code applies until then, so production always has a distress message.
-- Strengthening Guardrails (and Playbooks) through evals is left to its own design session.
+- Strengthening Guardrails (and Playbooks) through evals is settled in ADR-0023.

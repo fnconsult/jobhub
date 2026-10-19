@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
@@ -136,6 +136,45 @@ test.describe("the Back Office's Coaching Playbooks", () => {
     await page.getByRole("button", { name: playbooks.detail.save }).click();
     await expect(alert(page)).toContainText("S24 (");
     await expect(alert(page)).toContainText("coaching-journey-gamification");
+  });
+
+  test("the import left every file as version 1, none Human-validated, each Coaching Playbook with a default Playbook Agent", async ({ page }) => {
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    const imported = readdirSync("packages/coach-knowledge/playbooks")
+      .filter((file) => file.endsWith(".md"))
+      .map((file) => file.replace(/\.md$/, ""));
+    expect(imported.length).toBeGreaterThanOrEqual(10);
+
+    await page.goto("/admin/playbooks");
+    for (const id of imported) {
+      const row = page.getByRole("row").filter({ has: page.locator("code", { hasText: new RegExp(`^${id}$`) }) });
+      await expect(row).toHaveCount(1);
+      await expect(row).toContainText(playbooks.notValidated);
+      // Effort medium, on the AI Coach's route; never already served as validated.
+      await expect(row).toContainText(`${fr.admin.coachingPlaybooks.efforts.medium}`);
+      await expect(row).toContainText(tr(playbooks.version, { version: "1" }));
+    }
+    // The e2e environment serves the latest versions, which the page says.
+    await expect(page.getByText(playbooks.servingLatest)).toBeVisible();
+    for (const kind of ["core_digest", "sources"]) {
+      await expect(page.getByRole("row").filter({ hasText: playbooks.kinds[kind] })).toContainText(playbooks.notValidated);
+    }
+
+    await page.goto(`/admin/playbooks/${imported[0]}?version=1`);
+    await expect(page.getByText(playbooks.detail.importAuthor)).toBeVisible();
+    await expect(page.getByText(playbooks.notValidated, { exact: true })).toBeVisible();
+    await expect(page.locator(".playbook-rules")).not.toBeEmpty();
+    await expect(page.getByLabel(playbooks.fields.consultWhen)).not.toHaveValue("");
+  });
+
+  test("the Back Office offers only allowed models, and says when a model ignores the effort", async ({ page }) => {
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    await page.goto("/admin/playbooks");
+    const groups = await page.getByLabel(playbooks.fields.model).locator("optgroup").evaluateAll((nodes) => nodes.map((node) => node.getAttribute("label") ?? ""));
+    expect(groups.length).toBeGreaterThan(0);
+    // No endpoint outside the European Union is offered.
+    for (const group of groups) expect(group, group).not.toMatch(/api\.openai\.com|api\.anthropic\.com|api\.mistral\.ai\/us|\.us-[a-z]+-\d/);
+    await expect(page.getByText(playbooks.fields.effortHelp)).toBeVisible();
   });
 
   test("Support reads the Coaching Playbooks without any way to change them", async ({ page, browser }) => {

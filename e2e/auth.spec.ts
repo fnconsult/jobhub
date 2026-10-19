@@ -38,7 +38,10 @@ test.describe("magic-link sign-up and sign-in", () => {
     await page.goto(link);
     await expect(page).toHaveURL(`${origin}/compte`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.account.title);
+    // The address is in Mon compte's Sign-in Section, the language in its Preferences (ADR-0024).
+    await page.goto("/compte/connexion");
     await expect(page.getByText(email)).toBeVisible();
+    await page.goto("/compte/preferences");
     await expect(page.getByLabel(fr.account.interfaceLanguage)).toHaveValue("fr");
 
     // The home page now leads to the account instead of sign-in.
@@ -116,7 +119,9 @@ test.describe("Google sign-in", () => {
     await page.getByRole("button", { name: continueWithGoogle }).click();
 
     await expect(page).toHaveURL(`${origin}/compte`);
+    await page.goto("/compte/connexion");
     await expect(page.getByText(email)).toBeVisible();
+    await page.goto("/compte/preferences");
     await expect(page.getByLabel(fr.account.interfaceLanguage)).toHaveValue("fr");
     const session = await (await page.request.get("/api/auth/get-session")).json();
     expect(session.user).toMatchObject({ email, name: "Jean Martin", interfaceLanguage: "fr" });
@@ -162,6 +167,7 @@ test.describe("Interface Language", () => {
     const email = newAddress("language");
     await signInWithMagicLink(page, email);
     await expect(page.locator("html")).toHaveAttribute("lang", "fr");
+    await page.goto("/compte/preferences");
     const select = page.getByLabel(fr.account.interfaceLanguage);
     await expect(select).toHaveValue("fr");
     await expect(select.locator("option")).toHaveText([fr.languages.fr, fr.languages.en]);

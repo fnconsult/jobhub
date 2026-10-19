@@ -263,7 +263,8 @@ test("where field-sizing is unsupported, the name and the Master CV's texts stil
   await expect(title(page)).toHaveValue("Directrice administrative et financière");
   await expect(title(page)).toHaveCSS("field-sizing", "fixed");
   await expect.poll(() => clipped(title(page))).toBeLessThanOrEqual(0);
-  expect((await title(page).boundingBox())!.height).toBeGreaterThan(60);
+  // Two lines at the Top Bar's title size (ADR-0024).
+  expect((await title(page).boundingBox())!.height).toBeGreaterThan(45);
 
   // It follows the text as the Candidate types.
   await title(page).fill("Directrice administrative et financière, groupe industriel international");

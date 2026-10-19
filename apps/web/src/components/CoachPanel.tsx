@@ -425,7 +425,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     <SetInView.Provider value={setInView}>
       <CoachPanelControl.Provider value={control}>
         {/* A widened panel is modal: the page beneath is out of reach until it narrows or closes. */}
-        <div className={open ? "with-coach-panel" : undefined} inert={open && wide}>
+        <div className={open ? "with-coach-panel" : undefined} inert={open && wide} aria-hidden={(open && wide) || undefined}>
           {children}
         </div>
         {open && wide ? <div className="coach-panel-scrim" aria-hidden="true" onClick={() => setWide(false)} /> : null}

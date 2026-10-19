@@ -263,7 +263,7 @@ test.describe("exporting my data and deleting my account", () => {
     await section.getByLabel(fr.accountData.confirmLabel).fill("someone.else@example.fr");
     await section.getByRole("button", { name: fr.accountData.delete }).click();
     await expect(section.getByRole("alert")).toHaveText(fr.accountData.confirmMismatch);
-    await expect(page).toHaveURL(/\/compte$/);
+    await expect(page).toHaveURL(/\/compte\/donnees$/);
 
     await section.getByLabel(fr.accountData.confirmLabel).fill(email);
     await section.getByRole("button", { name: fr.accountData.delete }).click();

@@ -89,6 +89,11 @@ export function createConnectionTester(deps: ConnectionTesterDeps = {}): Connect
       const found = keys(env, "PERPLEXITY_API_KEY");
       return "missing" in found ? failed(`missing ${found.missing}`) : bearer("https://api.perplexity.ai/v1/models", found.PERPLEXITY_API_KEY);
     },
+    async anthropic(env) {
+      const found = keys(env, "ANTHROPIC_API_KEY");
+      if ("missing" in found) return failed(`missing ${found.missing}`);
+      return call("https://api.anthropic.com/v1/models", { method: "GET", headers: { "x-api-key": found.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", accept: "application/json" } });
+    },
     async bedrock(env) {
       const found = keys(env, "AWS_BEARER_TOKEN_BEDROCK");
       const region = env.BEDROCK_REGION?.trim() || "eu-west-3";

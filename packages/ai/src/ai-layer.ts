@@ -131,8 +131,13 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     if (!route) throw new AiConfigError(`No provider configured for AI task "${task}"`);
     return typeof route === "string" ? { provider: route } : route;
   };
-  const providerFor = (route: Route): AiProvider => {
-    const provider = options.providers.find((p) => p.id === route.provider);
+  /**
+   * A provider may be reached through several endpoints (Claude: the direct API and Bedrock). A call with
+   * personal data takes the first EU-resident one; any other call, the first one listed.
+   */
+  const providerFor = (route: Route, personalData = false): AiProvider => {
+    const candidates = options.providers.filter((p) => p.id === route.provider);
+    const provider = (personalData && candidates.find((p) => p.residency === "eu")) || candidates[0];
     if (!provider) throw new AiConfigError(`AI provider "${route.provider}" is not configured`);
     return provider;
   };
@@ -149,7 +154,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
 
   // Fail fast at start-up on a configuration that breaks the data rule.
   for (const task of Object.keys(options.routes) as AiTask[]) {
-    const provider = providerFor(routeFor(task));
+    const provider = providerFor(routeFor(task), task !== SEARCH_TASK && TEXT_TASKS[task].personalData);
     if (task === SEARCH_TASK) {
       if (!provider.search) throw new AiConfigError(`AI provider "${provider.id}" cannot search the web`);
     } else {
@@ -157,7 +162,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     }
   }
   // The identity route needs no provider until a consenting Candidate's call carries identity; when it has one, check it now.
-  const identityProvider = options.euAiConsent && options.providers.find((p) => p.id === identityRoute.provider);
+  const identityProvider = options.euAiConsent && options.providers.some((p) => p.id === identityRoute.provider) && providerFor(identityRoute, true);
   if (identityProvider && (!identityProvider.generate || identityProvider.residency !== "eu")) {
     throw new DataResidencyError(
       `The identity route carries personal data and must be an EU-resident text provider, not ${identityProvider.id} (${identityProvider.endpoint})`,
@@ -273,7 +278,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     async generate(request) {
       const messages = typeof request.prompt === "string" ? [{ role: "user" as const, content: request.prompt }] : request.prompt;
       const { route, identity } = await routeForCall(request, messages);
-      const provider = providerFor(route);
+      const provider = providerFor(route, identity || TEXT_TASKS[request.task].personalData);
       // Checked again per call: the rule must hold even if a provider changes at runtime.
       assertAllowed(request.task, provider, identity);
       const output = await recorded(

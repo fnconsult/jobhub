@@ -1,13 +1,13 @@
 import { createAiLayer, type AiLayer, type Route } from "./ai-layer";
 import { AiConfigError } from "./errors";
-import { createAnthropicProvider } from "./providers/anthropic";
+import { createAnthropicProvider, type AnthropicEndpoint } from "./providers/anthropic";
 import { createMistralProvider, createOpenAiProvider } from "./providers/chat-completions";
 import { createBraveProvider } from "./providers/brave";
 import { createLinkupProvider } from "./providers/linkup";
 import { createPerplexityProvider } from "./providers/perplexity";
 import { createTavilyProvider } from "./providers/tavily";
 import { createFakeProvider } from "./testing";
-import { PROVIDER_IDS, SEARCH_TASK, TEXT_TASKS, type AiProvider, type AiTask, type ProviderId, type UsageLog } from "./types";
+import { PROVIDER_IDS, SEARCH_TASK, TEXT_TASKS, type AiProvider, type AiTask, type ProviderId, type TextTask, type UsageLog } from "./types";
 import { createConsoleUsageLog } from "./usage";
 
 type Env = Record<string, string | undefined>;
@@ -72,18 +72,46 @@ function oneOf<T extends string>(env: Env, key: string, allowed: readonly T[], f
   return value as T;
 }
 
-function buildProvider(id: ProviderId, env: Env, fetch: typeof globalThis.fetch | undefined): AiProvider {
-  switch (id) {
-    case "anthropic": {
-      const kind = oneOf(env, "ANTHROPIC_ENDPOINT", ["bedrock", "vertex", "direct"] as const, "bedrock");
-      const endpoint =
-        kind === "direct"
-          ? { kind, apiKey: required(env, "ANTHROPIC_API_KEY") }
-          : kind === "vertex"
-            ? { kind, region: env.VERTEX_REGION?.trim() || "europe-west1", projectId: required(env, "VERTEX_PROJECT_ID") }
-            : { kind, region: env.BEDROCK_REGION?.trim() || "eu-west-3", apiKey: env.AWS_BEARER_TOKEN_BEDROCK?.trim() || undefined };
-      return createAnthropicProvider({ endpoint, fetch });
+const ANTHROPIC_ENDPOINTS = ["auto", "bedrock", "vertex", "direct"] as const;
+
+/**
+ * Where Claude is reached (ANTHROPIC_ENDPOINT). `auto`, the default, follows the keys entered:
+ * the direct API with ANTHROPIC_API_KEY, Bedrock with AWS_BEARER_TOKEN_BEDROCK, both with both
+ * keys, and Bedrock through the AWS credential chain (e.g. the ECS task role) with neither.
+ * The direct API comes first: with both, tasks without personal data use it (ai-layer.ts).
+ */
+function anthropicEndpoints(env: Env): AnthropicEndpoint[] {
+  const bedrock = (): AnthropicEndpoint => ({ kind: "bedrock", region: env.BEDROCK_REGION?.trim() || "eu-west-3", apiKey: env.AWS_BEARER_TOKEN_BEDROCK?.trim() || undefined });
+  switch (oneOf(env, "ANTHROPIC_ENDPOINT", ANTHROPIC_ENDPOINTS, "auto")) {
+    case "direct":
+      return [{ kind: "direct", apiKey: required(env, "ANTHROPIC_API_KEY") }];
+    case "vertex":
+      return [{ kind: "vertex", region: env.VERTEX_REGION?.trim() || "europe-west1", projectId: required(env, "VERTEX_PROJECT_ID") }];
+    case "bedrock":
+      return [bedrock()];
+    case "auto": {
+      const direct = env.ANTHROPIC_API_KEY?.trim();
+      const endpoints: AnthropicEndpoint[] = direct ? [{ kind: "direct", apiKey: direct }] : [];
+      if (!direct || env.AWS_BEARER_TOKEN_BEDROCK?.trim()) endpoints.push(bedrock());
+      return endpoints;
     }
+  }
+}
+
+/** Whether Claude is reached through an EU-resident endpoint, so it may take personal data. */
+function anthropicInEu(env: Env): boolean {
+  const kind = oneOf(env, "ANTHROPIC_ENDPOINT", ANTHROPIC_ENDPOINTS, "auto");
+  if (kind === "auto") return !env.ANTHROPIC_API_KEY?.trim() || Boolean(env.AWS_BEARER_TOKEN_BEDROCK?.trim());
+  return kind !== "direct";
+}
+
+function buildProviders(id: ProviderId, env: Env, fetch: typeof globalThis.fetch | undefined): AiProvider[] {
+  if (id === "anthropic") return anthropicEndpoints(env).map((endpoint) => createAnthropicProvider({ endpoint, fetch }));
+  return [buildProvider(id, env, fetch)];
+}
+
+function buildProvider(id: Exclude<ProviderId, "anthropic">, env: Env, fetch: typeof globalThis.fetch | undefined): AiProvider {
+  switch (id) {
     case "mistral":
       return createMistralProvider({ apiKey: required(env, "MISTRAL_API_KEY"), fetch });
     case "openai":
@@ -131,10 +159,16 @@ export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps =
   const fake = env.AI_FAKE?.trim() === "true";
   if (fake && env.NODE_ENV === "production") throw new AiConfigError("AI_FAKE cannot be used in production");
 
+  // Claude reached only outside the EU (the direct API): tasks with personal data default to Mistral.
+  const personalFallback = !fake && !anthropicInEu(env);
+  const defaultProvider = (task: keyof typeof DEFAULT_PROVIDER): ProviderId => {
+    const provider = DEFAULT_PROVIDER[task];
+    return provider === "anthropic" && personalFallback && TEXT_TASKS[task as TextTask]?.personalData ? IDENTITY_PROVIDER : provider;
+  };
   const routes: Partial<Record<AiTask, Route>> = {};
   for (const task of TASKS) {
     if (task in DEFAULT_TASK) continue;
-    const provider = oneOf(env, taskKey(task, "PROVIDER"), PROVIDER_IDS, DEFAULT_PROVIDER[task as keyof typeof DEFAULT_PROVIDER]);
+    const provider = oneOf(env, taskKey(task, "PROVIDER"), PROVIDER_IDS, defaultProvider(task as keyof typeof DEFAULT_PROVIDER));
     routes[task] = { provider, model: env[taskKey(task, "MODEL")]?.trim() || undefined };
   }
   for (const [task, fallback] of Object.entries(DEFAULT_TASK) as [AiTask, AiTask][]) {
@@ -144,7 +178,7 @@ export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps =
     routes[task] = { provider, model };
   }
   const used = [...new Set(Object.values(routes).map((route) => route.provider))];
-  const providers = used.map((id) => (fake ? createFakeProvider({ id }) : buildProvider(id, env, deps.fetch)));
+  const providers = used.flatMap((id) => (fake ? [createFakeProvider({ id })] : buildProviders(id, env, deps.fetch)));
   if (deps.euAiConsent && !used.includes(IDENTITY_PROVIDER)) providers.push(identityProvider(env, fake, deps.fetch));
 
   return createAiLayer({

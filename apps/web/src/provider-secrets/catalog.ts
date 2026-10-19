@@ -8,12 +8,14 @@
  */
 
 /** Who a Provider Secret is for; keys of one provider are tested together. */
-export const SECRET_PROVIDERS = ["mistral", "perplexity", "bedrock", "france-travail", "lusha", "kaspr", "apollo", "stripe", "brevo"] as const;
+export const SECRET_PROVIDERS = ["mistral", "perplexity", "anthropic", "bedrock", "france-travail", "lusha", "kaspr", "apollo", "stripe", "brevo"] as const;
 export type SecretProvider = (typeof SECRET_PROVIDERS)[number];
 
 export const PROVIDER_SECRETS = [
   { name: "MISTRAL_API_KEY", provider: "mistral" },
   { name: "PERPLEXITY_API_KEY", provider: "perplexity" },
+  // Claude: the direct API (outside the EU: tasks without personal data only) and/or Bedrock (EU). ANTHROPIC_ENDPOINT=auto uses whichever are entered.
+  { name: "ANTHROPIC_API_KEY", provider: "anthropic" },
   { name: "AWS_BEARER_TOKEN_BEDROCK", provider: "bedrock" },
   { name: "FRANCE_TRAVAIL_CLIENT_ID", provider: "france-travail" },
   { name: "FRANCE_TRAVAIL_CLIENT_SECRET", provider: "france-travail" },
@@ -36,7 +38,7 @@ export const isProviderSecretName = (value: unknown): value is ProviderSecretNam
 export const providerOf = (name: ProviderSecretName): SecretProvider => PROVIDER_SECRETS.find((secret) => secret.name === name)!.provider;
 
 /** The keys the AI layer reads among the Provider Secrets. */
-export const AI_SECRET_NAMES = ["MISTRAL_API_KEY", "PERPLEXITY_API_KEY", "AWS_BEARER_TOKEN_BEDROCK"] as const satisfies readonly ProviderSecretName[];
+export const AI_SECRET_NAMES = ["MISTRAL_API_KEY", "PERPLEXITY_API_KEY", "ANTHROPIC_API_KEY", "AWS_BEARER_TOKEN_BEDROCK"] as const satisfies readonly ProviderSecretName[];
 export const STRIPE_SECRET_NAMES = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"] as const satisfies readonly ProviderSecretName[];
 export const FRANCE_TRAVAIL_SECRET_NAMES = ["FRANCE_TRAVAIL_CLIENT_ID", "FRANCE_TRAVAIL_CLIENT_SECRET"] as const satisfies readonly ProviderSecretName[];
 export const CONTACT_ENRICHMENT_SECRET_NAMES = ["LUSHA_API_KEY", "KASPR_API_KEY", "APOLLO_API_KEY"] as const satisfies readonly ProviderSecretName[];

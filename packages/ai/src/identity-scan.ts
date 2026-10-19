@@ -36,21 +36,28 @@ const NATIONAL_DIGITS = 10;
 
 const digitCount = (text: string) => text.replace(/\D/g, "").length;
 
-function hasPhone(text: string): boolean {
-  for (const [match] of text.matchAll(INTERNATIONAL)) {
-    const digits = digitCount(match);
-    if (digits >= INTERNATIONAL_DIGITS.min && digits <= INTERNATIONAL_DIGITS.max && !ROUNDED_QUANTITY.test(match)) return true;
+/** The phone numbers `text` shows, as written. */
+function phonesIn(text: string): string[] {
+  const phones: { at: number; phone: string }[] = [];
+  for (const match of text.matchAll(INTERNATIONAL)) {
+    const digits = digitCount(match[0]);
+    if (digits >= INTERNATIONAL_DIGITS.min && digits <= INTERNATIONAL_DIGITS.max && !ROUNDED_QUANTITY.test(match[0])) phones.push({ at: match.index, phone: match[0] });
   }
-  for (const [match] of text.matchAll(NATIONAL)) {
-    if (digitCount(match) === NATIONAL_DIGITS) return true;
+  for (const match of text.matchAll(NATIONAL)) {
+    if (digitCount(match[0]) === NATIONAL_DIGITS && !phones.some(({ at, phone }) => match.index >= at && match.index < at + phone.length)) phones.push({ at: match.index, phone: match[0] });
   }
-  return false;
+  return phones.sort((a, b) => a.at - b.at).map(({ phone }) => phone);
 }
 
 /** What kinds of identity the texts show, in a fixed order; empty when none. */
 export function findIdentity(texts: readonly string[]): IdentityHit[] {
   const hits: IdentityHit[] = [];
-  if (texts.some(hasPhone)) hits.push("phone");
+  if (texts.some((text) => phonesIn(text).length > 0)) hits.push("phone");
   if (texts.some((text) => EMAIL.test(text))) hits.push("email");
   return hits;
+}
+
+/** The phone numbers and email addresses `text` shows, each as written, in the order they appear (#228). */
+export function identityIn(text: string): { phones: string[]; emails: string[] } {
+  return { phones: phonesIn(text), emails: [...text.matchAll(new RegExp(EMAIL.source, "gi"))].map((match) => match[0].replace(/[.,;:!?)]+$/, "")) };
 }

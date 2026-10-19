@@ -37,6 +37,8 @@ export interface GenerateRequest {
 export interface AgentModelChoice {
   provider: ProviderId;
   endpoint: string;
+  /** The model a Playbook Agent naming none gets. */
+  defaultModel?: string;
   models: { model: string; effort: EffortHandling }[];
 }
 
@@ -352,7 +354,14 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
         const named = routed.flatMap((route) => (route?.provider === provider.id && route.model ? [route.model] : []));
         const models = [...new Set([...named, ...(provider.models ?? (provider.defaultModel ? [provider.defaultModel] : []))])];
         // A provider standing for a missing key offers nothing.
-        if (models.length > 0) choices.push({ provider: provider.id, endpoint: provider.endpoint, models: models.map((model) => ({ model, effort: effortHandling(provider.id, model) })) });
+        if (models.length > 0) {
+          choices.push({
+            provider: provider.id,
+            endpoint: provider.endpoint,
+            ...(provider.defaultModel ? { defaultModel: provider.defaultModel } : {}),
+            models: models.map((model) => ({ model, effort: effortHandling(provider.id, model) })),
+          });
+        }
       }
       return choices;
     },

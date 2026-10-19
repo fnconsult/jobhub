@@ -74,6 +74,7 @@ describe("the models a Playbook Agent may use (#225)", () => {
       {
         provider: "anthropic",
         endpoint: "fake anthropic",
+        defaultModel: "fake-anthropic",
         models: [
           { model: "anthropic.claude-sonnet-5-5", effort: "native" },
           { model: "anthropic.claude-opus-5-5", effort: "native" },
@@ -83,6 +84,7 @@ describe("the models a Playbook Agent may use (#225)", () => {
       {
         provider: "mistral",
         endpoint: "fake mistral",
+        defaultModel: "fake-mistral",
         models: [
           { model: "mistral-large-latest", effort: "ignored" },
           { model: "mistral-medium-3-5", effort: "medium_as_high" },

@@ -91,7 +91,7 @@ The key facts (goals, constraints, decisions) the AI Coach keeps about a Candida
 _Avoid_: Profile notes, chat history
 
 **Coach Message Cost**:
-What one AI Coach reply cost, Playbook Agent consultations included: provider, model, input, output and cached input tokens, and the estimated cost in euros at list prices, fixed when the reply is saved. Kept with the reply, so it goes when the Coach Conversation does. Seen by Administrators only, as a median and p90 per day, never by Candidates.
+What one AI Coach reply cost, Playbook Agent consultations and Guardrail checks included: provider, model, input, output and cached input tokens, and the estimated cost in euros at list prices, fixed when the reply is saved. Kept with the reply, so it goes when the Coach Conversation does. Seen by Administrators only, as a median and p90 per day, never by Candidates.
 _Avoid_: Bill, price
 
 **Coach cost target**:
@@ -137,8 +137,20 @@ The Core Digest and Coaching Playbooks, with their versions, that an AI Coach re
 _Avoid_: Sources used, citations
 
 **Human-validated**:
-A Playbook Version a named person other than its author has reviewed and approved, with the date. A review by an AI never counts. In production, only Human-validated coaching knowledge reaches Candidates.
+A Playbook Version or Guardrail message a named person other than its author has reviewed and approved, with the date. A review by an AI never counts. In production, only Human-validated coaching knowledge reaches Candidates.
 _Avoid_: Approved, QA'd, reviewed
+
+**Guardrail**:
+A named check on a Candidate's or Administrator's message to the AI Coach or Back Office Assistant (input), or on the reply of the AI Coach, a Playbook Agent or the Back Office Assistant (output), that lets it through, blocks it or flags it, by fixed rules or by asking an EU-resident AI model. It guards against direct and indirect prompt injection, personal data leaks, disclosure of prompts, Coaching Playbook rules or secrets, out-of-scope or harmful advice, and distress. The set of Guardrails is fixed in code; Administrators only tune each one in the Back Office, and the distress, personal data leak and secret disclosure Guardrails can never be switched off. Other AI tasks keep their own rules and have no Guardrails. Content the Candidate did not write (a Job Offer, a Company Dossier, a CV) always reaches the AI Coach and Playbook Agents marked as data, never as instructions; a Playbook Agent's reply reaches the AI Coach the same way. Only the final reply is checked on output, not each Playbook Agent's. When the AI model cannot be reached, the message or reply goes through and the fixed rules still apply; distress words always bring the distress Guardrail message. The Back Office Assistant has only the prompt injection, personal data leak and secret disclosure Guardrails.
+_Avoid_: Filter, moderation, safety layer
+
+**Blocked message**:
+A Candidate message a Guardrail stops before the AI Coach sees it, or an AI Coach reply a Guardrail stops before the Candidate does. A blocked message is answered by the Guardrail message; a blocked reply is written again once, told what was wrong, then replaced by the Guardrail message if still blocked (a leak or a secret is replaced at once). Both stay in the Coach Conversation, marked as blocked without naming the Guardrail; a distress Guardrail's answer is never shown as a block. A Guardrail set to flag only lets everything through and records it.
+_Avoid_: Rejected message, filtered reply
+
+**Guardrail message**:
+The fixed text, in French and in English, a Guardrail answers with instead of the AI Coach (for distress, the 3114 helpline). Changed by super-admins in the Back Office; reaches Candidates in production only once Human-validated, each language apart. Until then, a default text written by Jobbbox applies.
+_Avoid_: Error message, refusal
 
 ### Positioning
 
@@ -459,11 +471,11 @@ _Avoid_: Dunning banner, billing alert
 ### Operations
 
 **Back Office**:
-The internal pages where Administrators manage Plans, Plan Quotas, Coupons, Human Coaches, Coaching Playbooks, Core Digest and Sources, Provider Secrets, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites and the team's Back Office Roles, and follow AI Usage.
+The internal pages where Administrators manage Plans, Plan Quotas, Coupons, Human Coaches, Coaching Playbooks, Core Digest and Sources, Guardrails, Provider Secrets, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites and the team's Back Office Roles, and follow AI Usage and Guardrail Triggers.
 _Avoid_: Admin panel, dashboard, console
 
 **Back Office Role**:
-What an Administrator may see and change in the Back Office: super-admin (everything, including roles, Provider Secrets, SSO providers, Job Sites, Job discovery sources, Job discovery sites and the AI Message Log), Plans manager (Plans, Plan Quotas, Plan Features, Coupons), Coach manager (Human Coaches, read Coach Message Cost), Playbook editor (Coaching Playbooks, Core Digest and Sources) or Support (read-only, no secrets, no AI Message Log). Fixed in code; only super-admins grant or revoke them.
+What an Administrator may see and change in the Back Office: super-admin (everything, including roles, Guardrails, Provider Secrets, SSO providers, Job Sites, Job discovery sources, Job discovery sites and the AI Message Log), Plans manager (Plans, Plan Quotas, Plan Features, Coupons), Coach manager (Human Coaches, read Coach Message Cost), Playbook editor (Coaching Playbooks, Core Digest and Sources) or Support (read-only, no secrets, no AI Message Log). Fixed in code; only super-admins grant or revoke them.
 _Avoid_: Permission level, admin type
 
 **Provider Secret**:
@@ -479,7 +491,7 @@ A super-admin setting, off by default: the Back Office asks an Administrator sig
 _Avoid_: Enforced SSO, mandatory SSO
 
 **Back Office Audit**:
-The record of every change an Administrator makes in the Back Office (roles, Plans, Plan Quotas, Coupons, Human Coaches, Coaching Playbooks, Core Digest and Sources, Provider Secrets, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites): who, when, what and the values before and after; and of every AI Message Log a super-admin opens. Secret values are never recorded, only that they were replaced (possibly despite a failed connection test) or cleared. Kept for 3 years, then purged. Jobbbox's own record, so it survives the Administrator's account deletion (their id is cleared, their email at the time stays) and is not part of their data export.
+The record of every change an Administrator makes in the Back Office (roles, Plans, Plan Quotas, Coupons, Human Coaches, Coaching Playbooks, Core Digest and Sources, Guardrails, Provider Secrets, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites): who, when, what and the values before and after; and of every AI Message Log a super-admin opens. Secret values are never recorded, only that they were replaced (possibly despite a failed connection test) or cleared. Kept for 3 years, then purged. Jobbbox's own record, so it survives the Administrator's account deletion (their id is cleared, their email at the time stays) and is not part of their data export.
 _Avoid_: Audit log, history, activity feed
 
 **Journal**:
@@ -493,6 +505,10 @@ _Avoid_: AI bill, token log, metering
 **AI Message Log**:
 What one AI call said: its system text, messages and reply, keys and secrets scrubbed, with the Candidate it was made for (none for a Guest). Kept 30 days for quality and debugging, then purged; deleted with the account and in the Candidate's Data export. Only super-admins read it, on the Back Office's Journaux IA page, and every log they open is written to the Back Office Audit.
 _Avoid_: Prompt log, transcript, chat history
+
+**Guardrail Trigger**:
+One time a Guardrail blocked, flagged or could not check a message or reply: which Guardrail, its setting, what it did, for which agent, and when. No Candidate, no Coach Conversation and no text: aggregates of no one, so outside the Data export and kept 24 months. Super-admins and Support read them per day in the Back Office; the text, if needed, is in the AI Message Log. No one is alerted when a Candidate expresses distress.
+_Avoid_: Guardrail log, incident, alert
 
 **Back Office Assistant**:
 The AI Coach panel shown to Administrators in the Back Office. Answers questions about Back Office data and settings within the asking Administrator's Back Office Roles; read-only, never sees Provider Secrets nor email addresses. Its conversations are the Administrator's own, kept apart from Coach Conversations and counted against no Plan Quota: kept 12 months after their last message, deleted with the account, in their Data export.

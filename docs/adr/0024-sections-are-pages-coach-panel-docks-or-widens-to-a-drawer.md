@@ -19,6 +19,7 @@ Pages in the sidebar layout had grown into long stacks of headings (Mon compte h
 - Every page that renders its own `<h1>` hands it to the layout instead.
 - Split so far: Mon compte, a Profile's page and an Application's page. A page's own address shows its first Section; a Section that is absent (no Action Cards, no Job Digest, no coach review…) is left out of the list. Propositions comes first when there are Action Cards, so they are what a Candidate sees on arriving; computing an ATS Score leads to them.
 - The Subscription is one of Mon compte's Sections but keeps its address (/abonnement), which Stripe and shared promotion links lead to, and stays whole: its notices and codes go from the address into the Plans table on the same page. The Human Coaches page stays whole too, for the same reason. Mon compte itself moves to the Sidebar's foot, above signing out.
+- The Top Bar names the Section shown after the page's title (« Mon compte › Relances »); the Section's own heading is kept for screen readers only, so the Section starts level with the top of the list beside it.
 - On a phone, a Section shown alone has no back link of its own: the Top Bar's title is the way back, behind an arrow, as on iOS.
 - With the Coach Panel docked, a column too narrow for its Sections' list hands the list to the Sidebar, in place of the main menu, which stays one arrow away (« Menu principal »); with the Sidebar hidden, the list lines up above the Section shown.
 - The selected item of a menu is bold and shaded, without the accent bar it used to have.

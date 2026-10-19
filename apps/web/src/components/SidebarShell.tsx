@@ -17,10 +17,14 @@ const WIDE = "(width >= 64rem)";
 export const CURRENT = "page";
 const MAIN_ID = "main";
 
-/** Where a Section shown alone on a phone leads back to: the Top Bar's back arrow (ADR-0024). */
+/**
+ * What a page split into Sections tells the Top Bar (ADR-0024): the Section shown, named after
+ * the page's title, and, for a Section shown alone on a phone, where the back arrow leads.
+ */
 export type TopBarBackLink = { href: string; label: string };
-/** Sets (or clears) the Top Bar's back arrow; SectionsLayout calls it. */
-export const TopBarBack = createContext<(back: TopBarBackLink | null) => void>(() => {});
+export type TopBarSection = { section: string; back: TopBarBackLink | null };
+/** Sets (or clears) the Section the Top Bar names; SectionsLayout calls it. */
+export const TopBarBack = createContext<(section: TopBarSection | null) => void>(() => {});
 
 /** A page's Sections, which the sidebar takes over when the page's column has no room for their list. */
 export type SidebarSectionsMenu = { title: string; label: string; items: ReadonlyArray<{ href: string; label: string; current: boolean }> };
@@ -79,7 +83,10 @@ export function SidebarShell({
   const drawerOpen = drawerPath === pathname;
   const menuButton = useRef<HTMLButtonElement>(null);
   const topbar = useRef<HTMLElement>(null);
-  const [back, setBack] = useState<TopBarBackLink | null>(null);
+  const [shownSection, setShownSection] = useState<TopBarSection | null>(null);
+  const back = shownSection?.back ?? null;
+  // The Section shown, after the page's title: « Mon compte › Relances ».
+  const crumb = shownSection ? <span className="topbar-crumb">{shownSection.section}</span> : null;
   const [sectionsMenu, setSectionsMenu] = useState<SidebarSectionsMenu | null>(null);
   // The page's column is too narrow for its Sections' list (the Coach Panel docked beside it).
   const [cramped, setCramped] = useState(false);
@@ -209,7 +216,7 @@ export function SidebarShell({
   );
 
   return (
-    <TopBarBack.Provider value={setBack}>
+    <TopBarBack.Provider value={setShownSection}>
       <SidebarSections.Provider value={setSectionsMenu}>
         <div className="app-shell">
           <a className="skip-link" href={`#${MAIN_ID}`}>
@@ -257,16 +264,19 @@ export function SidebarShell({
               <div className="topbar-title">
                 {/* A Section alone on a phone: the title leads back to the list, behind an arrow, as on iOS. */}
                 {typeof title === "string" ? (
-                  <h1>
-                    {back ? (
-                      <Link className="topbar-back" href={back.href}>
-                        <Icons.back />
-                        {title}
-                      </Link>
-                    ) : (
-                      title
-                    )}
-                  </h1>
+                  <>
+                    <h1>
+                      {back ? (
+                        <Link className="topbar-back" href={back.href}>
+                          <Icons.back />
+                          {title}
+                        </Link>
+                      ) : (
+                        title
+                      )}
+                    </h1>
+                    {crumb}
+                  </>
                 ) : (
                   <>
                     {back ? (
@@ -275,6 +285,7 @@ export function SidebarShell({
                       </Link>
                     ) : null}
                     {title}
+                    {crumb}
                   </>
                 )}
               </div>

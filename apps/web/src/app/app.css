@@ -1262,6 +1262,22 @@ html[data-sidebar="closed"] .sidebar-docked {
   color: var(--color-accent);
 }
 
+/* The Section shown, after the page's title (ADR-0024): « Mon compte › Relances ». */
+.topbar-crumb {
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+.topbar-crumb::before {
+  padding: 0 var(--space-2);
+  content: "›";
+}
+
+.topbar-title > .topbar-crumb {
+  flex: none;
+  font-size: var(--font-size-h3);
+}
+
 /* The Profile's name, edited in place, at the Top Bar's size. */
 .topbar-title .title-field h1,
 .topbar-title textarea.title-edit {
@@ -1414,6 +1430,28 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 .sections-content > :first-child + * > h2:first-child,
 .sections-content > :first-child + h2,
 .sections-content > :first-child + section > h2:first-child {
+  margin-top: 0;
+}
+
+/* The Section's own heading is said by the Top Bar: only screen readers hear it here,
+   and the Section starts level with the top of the list beside it. */
+.sections-content > h2:first-child,
+.sections-content > section:first-child > h2:first-child,
+.sections-content > section:first-child > .section-head:first-child > h2:first-child,
+.sections-content > * > section:first-child > h2:first-child,
+.sections-content > * > section:first-child > .section-head:first-child > h2:first-child {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.sections-content > :first-child,
+.sections-content > :first-child > :first-child + *,
+.sections-content > :first-child > :first-child + * > :first-child,
+.sections-content > h2:first-child + * {
   margin-top: 0;
 }
 

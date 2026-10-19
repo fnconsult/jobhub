@@ -113,7 +113,9 @@ test.describe("the Application page", () => {
     // "Voir le détail" leads to the Match Score's breakdown.
     await head.getByRole("link", { name: fr.application.matchDetail }).click();
     await expect(page).toHaveURL(new RegExp(`/candidatures/${id}/correspondance$`));
-    await expect(page.getByRole("heading", { name: fr.matchScore.title })).toBeInViewport();
+    // Its heading is said by the Top Bar (only screen readers hear it in the page, ADR-0024).
+    await expect(page.getByRole("region", { name: fr.matchScore.title })).toBeInViewport();
+    await expect(page.getByRole("banner")).toContainText(fr.application.sections.correspondance);
 
     await expectAccessibilityFloor(page);
   });

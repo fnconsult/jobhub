@@ -95,7 +95,15 @@ function sourcesOf(workspace: Workspace): Omit<CoachDeps, "ai" | "playbooks"> {
     applications: {
       get: async (candidateId, id) => mine(candidateId, workspace.applications).find((a) => a.id === id) ?? null,
       list: async (candidateId) =>
-        mine(candidateId, workspace.applications).map(({ id, status, statusChangedAt, jobOffer, profile, interviews }) => ({ id, status, statusChangedAt, jobOffer, profile, interviews })),
+        mine(candidateId, workspace.applications).map(({ id, status, statusChangedAt, createdAt, jobOffer, profile, interviews }) => ({
+          id,
+          status,
+          statusChangedAt,
+          createdAt,
+          jobOffer,
+          profile: { ...profile, archived: false },
+          interviews,
+        })),
     },
     jobOffers: { get: async (id) => workspace.jobOffers.find((o) => o.id === id) ?? null },
     jobSearches: {

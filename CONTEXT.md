@@ -306,6 +306,10 @@ _Avoid_: Job entry, candidature (in code), opportunity
 The stage an Application is at: À postuler → Postulée → Relancée → Entretien → Offre reçue → Acceptée, or the end states Refusée / Abandonnée. Changed manually by the Candidate.
 _Avoid_: State, stage
 
+**Archived Application**:
+An Application at an end state (Acceptée, Refusée, Abandonnée) or whose Profile is archived. Kept, but left out of Mes candidatures until the Candidate asks to see them.
+_Avoid_: Closed application, old application
+
 **Interview**:
 One dated interview round within an Application. Added only while the Application is at "Entretien", and kept if it moves on; it can be edited (date, time, note) or removed at any status. Times are French time (Europe/Paris).
 _Avoid_: Meeting, call

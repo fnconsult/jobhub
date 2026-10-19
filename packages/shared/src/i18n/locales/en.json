@@ -1481,7 +1481,18 @@
     "emptyColumn": "No applications",
     "noInterview": "None",
     "expired": "Expired job offer",
-    "reportedByYou": "Reported by you"
+    "reportedByYou": "Reported by you",
+    "filtersLabel": "Filter and sort the applications",
+    "allProfiles": "All profiles",
+    "allStatuses": "All statuses",
+    "showArchived": "Show archived applications",
+    "filter": "Filter",
+    "reset": "Show all",
+    "sortedAscending": "sorted A to Z",
+    "sortedDescending": "sorted Z to A",
+    "noneMatch": "No application matches these filters.",
+    "archivedHidden_one": "{{count}} archived application is hidden.",
+    "archivedHidden_other": "{{count}} archived applications are hidden."
   },
   "application": {
     "sections": {

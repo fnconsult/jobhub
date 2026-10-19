@@ -178,6 +178,13 @@ test.describe("Applications", () => {
     const toApply = page.getByRole("region", { name: fr.applicationStatuses.to_apply });
     await expect(toApply.getByRole("link", { name: /Contrôleur de gestion senior/ })).toBeVisible();
     await toApply.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.abandoned });
+    // Abandonnée is an end state: an Archived Application, hidden until the Candidate asks for them.
+    await expect(page.getByText(fr.applications.archivedHidden_one.replace("{{count}}", "1"))).toBeVisible();
+    await expect(page.getByRole("link", { name: /Contrôleur/ })).toHaveCount(0);
+    const filters = page.getByRole("form", { name: fr.applications.filtersLabel });
+    await filters.getByLabel(fr.applications.showArchived).check();
+    await filters.getByRole("button", { name: fr.applications.filter }).click();
+    await expect(page).toHaveURL(`${origin}/candidatures?vue=tableau&archivees=1`);
     await expect(page.getByRole("region", { name: fr.applicationStatuses.abandoned }).getByRole("link", { name: /Contrôleur/ })).toBeVisible();
 
     // The board's text meets the accessibility floor (ADR-0009).

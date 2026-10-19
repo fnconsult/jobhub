@@ -1481,7 +1481,18 @@
     "emptyColumn": "Aucune candidature",
     "noInterview": "Aucun",
     "expired": "Offre expirée",
-    "reportedByYou": "Signalé par vous"
+    "reportedByYou": "Signalé par vous",
+    "filtersLabel": "Filtrer et trier les candidatures",
+    "allProfiles": "Tous les profils",
+    "allStatuses": "Tous les statuts",
+    "showArchived": "Afficher les candidatures archivées",
+    "filter": "Filtrer",
+    "reset": "Tout afficher",
+    "sortedAscending": "triée de A à Z",
+    "sortedDescending": "triée de Z à A",
+    "noneMatch": "Aucune candidature ne correspond à ces filtres.",
+    "archivedHidden_one": "{{count}} candidature archivée est masquée.",
+    "archivedHidden_other": "{{count}} candidatures archivées sont masquées."
   },
   "application": {
     "sections": {

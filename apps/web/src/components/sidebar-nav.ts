@@ -12,6 +12,8 @@ export interface SidebarNavItem {
 /** Job Searches and Job Digests have no index page: theirs live under these paths. */
 const JOB_SEARCH_PAGES = "/recherches/";
 const JOB_DIGEST_PAGES = "/job-digests/";
+/** A Profile's Job Digest Section (ADR-0024). */
+const JOB_DIGEST_SECTION = "/job-digest";
 
 const isUnder = (pathname: string, path: string) => pathname === path || pathname.startsWith(`${path}/`);
 
@@ -43,7 +45,7 @@ export function sidebarNav({
   if (profile) {
     items.push(
       { key: "jobSearches", href: routes.profileJobSearch(profile.id), current: pathname.startsWith(JOB_SEARCH_PAGES) },
-      { key: "jobDigests", href: routes.profileJobDigest(profile.id), current: pathname.startsWith(JOB_DIGEST_PAGES) },
+      { key: "jobDigests", href: routes.profileJobDigest(profile.id), current: pathname.startsWith(JOB_DIGEST_PAGES) || pathname.endsWith(JOB_DIGEST_SECTION) },
     );
   }
   items.push(

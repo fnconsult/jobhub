@@ -1,3 +1,11 @@
+/** The Sections of a Profile's page, in order (ADR-0024). */
+export const PROFILE_SECTIONS = ["propositions", "cv-de-reference", "ats-score", "job-digest", "telecharger", "gerer"] as const;
+export type ProfileSection = (typeof PROFILE_SECTIONS)[number];
+
+/** The Sections of an Application's page, in order (ADR-0024). */
+export const APPLICATION_SECTIONS = ["propositions", "documents", "correspondance", "entretiens", "avis", "dossier", "contacts", "offre"] as const;
+export type ApplicationSection = (typeof APPLICATION_SECTIONS)[number];
+
 /** Paths of the web app's pages. French, like the interface default. */
 export const routes = {
   home: "/",
@@ -18,13 +26,17 @@ export const routes = {
   profileJobSearch: (id: string) => `/profils/${id}#job-search-title`,
   /** The Search Criteria of a Profile's page. */
   profileSearchCriteria: (id: string) => `/profils/${id}#search-criteria-title`,
-  /** The Job Digest section of a Profile's page. */
-  profileJobDigest: (id: string) => `/profils/${id}#job-digest-title`,
+  /** The Job Digest Section of a Profile's page. */
+  profileJobDigest: (id: string) => `/profils/${id}/job-digest`,
+  /** A Section of a Profile's page (ADR-0024); `profile` itself shows the first one there is. */
+  profileSection: (id: string, section: ProfileSection) => `/profils/${id}/${section}`,
   editMasterCv: (id: string) => `/profils/${id}/cv`,
   masterCvVersions: (id: string) => `/profils/${id}/versions`,
   applications: "/candidatures",
   applicationsBoard: "/candidatures?vue=tableau",
   application: (id: string) => `/candidatures/${id}`,
+  /** A Section of an Application's page (ADR-0024); `application` itself shows the first one there is. */
+  applicationSection: (id: string, section: ApplicationSection) => `/candidatures/${id}/${section}`,
   /** A Job Offer's page; with `profileId`, its Match Score preselects that Profile (the one a Job Search or Job Digest is for). */
   jobOffer: (id: string, profileId?: string) => (profileId ? `/offres/${id}?profil=${encodeURIComponent(profileId)}` : `/offres/${id}`),
   jobSearch: (id: string) => `/recherches/${id}`,

@@ -64,7 +64,7 @@ async function openApplication(page: Page, offer: { title: string; content: stri
   });
   expect(saved.ok(), await saved.text()).toBe(true);
   const id = (await saved.json()).id as string;
-  await page.goto(`/candidatures/${id}`);
+  await page.goto(`/candidatures/${id}/documents`);
   await page.waitForLoadState("networkidle");
   return id;
 }

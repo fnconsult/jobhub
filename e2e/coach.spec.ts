@@ -7,6 +7,7 @@ import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { catalogueStrings, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { chooseInPanelMenu } from "./support/coach-panel";
 
 // Issue #5: a Candidate without a CV builds their Master CV with the AI Coach's
 // Onboarding Questionnaire; the Coach Panel is on every page and knows the
@@ -307,14 +308,14 @@ test.describe("the Coach Panel", () => {
     await page.goto("/compte");
     await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
     await expect(messages).toHaveCount(5);
-    await coachPanel(page).getByRole("button", { name: fr.coachPanel.newConversation }).click();
+    await chooseInPanelMenu(coachPanel(page), fr.coachPanel.newConversation);
     await expect(messages).toHaveCount(1);
     await expect(coachPanel(page).getByLabel(fr.coachPanel.messageLabel)).toBeFocused();
     await askCoach(page, "Comment préparer un entretien ?");
     await expect(messages.last()).toHaveText(/Je ne vois aucun profil\. \(1 message\)/);
 
     // Both are listed, most recent first, the first one with the Profile it started on.
-    await coachPanel(page).getByRole("button", { name: fr.coachPanel.conversations }).click();
+    await chooseInPanelMenu(coachPanel(page), fr.coachPanel.conversations);
     const list = coachPanel(page).getByRole("region", { name: fr.coachPanel.conversations });
     await expect(list.getByRole("heading", { level: 3, name: fr.coachPanel.conversations })).toBeFocused();
     const items = list.getByRole("article");
@@ -329,7 +330,7 @@ test.describe("the Coach Panel", () => {
     await expect(coachPanel(page).getByLabel(fr.coachPanel.messageLabel)).toBeFocused();
 
     // Rename it; Escape in the name field cancels without closing the panel.
-    await coachPanel(page).getByRole("button", { name: fr.coachPanel.conversations }).click();
+    await chooseInPanelMenu(coachPanel(page), fr.coachPanel.conversations);
     const first = list.getByRole("article", { name: "Mon CV est-il bon ?" });
     await first.getByRole("button", { name: fr.coachPanel.rename }).click();
     await expect(first.getByLabel(fr.coachPanel.renameLabel)).toBeFocused();
@@ -355,7 +356,7 @@ test.describe("the Coach Panel", () => {
     await page.reload();
     await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
     await expect(coachPanel(page).getByRole("heading", { level: 3, name: "Relecture du CV" })).toBeVisible();
-    await coachPanel(page).getByRole("button", { name: fr.coachPanel.conversations }).click();
+    await chooseInPanelMenu(coachPanel(page), fr.coachPanel.conversations);
     await expect(items).toHaveCount(1);
     await expect(items.first()).toContainText("Relecture du CV");
   });
@@ -390,7 +391,7 @@ test.describe("the Coach Panel", () => {
     await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
     await askCoach(page, "Bonjour");
     await expect(coachPanel(page).getByRole("list", { name: fr.coachPanel.messagesLabel }).getByRole("listitem")).toHaveCount(3);
-    await coachPanel(page).getByRole("button", { name: fr.coachPanel.conversations }).click();
+    await chooseInPanelMenu(coachPanel(page), fr.coachPanel.conversations);
     const list = coachPanel(page).getByRole("region", { name: fr.coachPanel.conversations });
     await list.getByRole("button", { name: fr.coachPanel.delete }).click();
     await expect(list.getByRole("button", { name: fr.coachPanel.confirmDeleteButton })).toBeVisible();

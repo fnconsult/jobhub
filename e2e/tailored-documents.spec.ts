@@ -56,7 +56,7 @@ async function openApplication(page: Page, offer: { title: string; content: stri
   });
   expect(saved.ok(), await saved.text()).toBe(true);
   const id = (await saved.json()).id as string;
-  await page.goto(`/candidatures/${id}`);
+  await page.goto(`/candidatures/${id}/documents`);
   return id;
 }
 
@@ -138,7 +138,7 @@ test.describe("Cover Letter and Outreach Message drafts", () => {
 
     // Drafts only (ADR-0005): there is nothing to send them with.
     await expect(documents(page).getByRole("button", { name: /envoyer|send/i })).toHaveCount(0);
-    expect((await page.request.post(`/api/applications/${page.url().split("/").at(-1)}/tailored-documents/send`, { headers: { origin } })).ok()).toBe(false);
+    expect((await page.request.post(`/api/applications/${page.url().split("/").at(-2)}/tailored-documents/send`, { headers: { origin } })).ok()).toBe(false);
   });
 
   test("drafts are written in English for an English Job Offer, and in the Document Language the Candidate chooses", async ({ page }) => {
@@ -181,11 +181,15 @@ test.describe("Cover Letter and Outreach Message drafts", () => {
 
   test("with a Company Dossier built, both drafts draw on it and the Outreach Message is addressed to its Suggested Contact Roles", async ({ page }) => {
     test.slow(); // building the dossier calls the (faked) register and web search
-    await openApplication(page, FRENCH);
+    const id = await openApplication(page, FRENCH);
+    // The Company Dossier is a Section of its own (ADR-0024).
+    await page.goto(`/candidatures/${id}/dossier`);
     await page.waitForLoadState("networkidle");
     const dossier = page.getByRole("region", { name: fr.companyDossier.title });
     await dossier.getByRole("button", { name: fr.companyDossier.build }).click();
     await expect(dossier.getByText("552100554", { exact: true })).toBeVisible({ timeout: 15_000 });
+    await page.goto(`/candidatures/${id}/documents`);
+    await page.waitForLoadState("networkidle");
 
     await (await coverLetter(page)).getByRole("button", { name: td.coverLetter.draft }).click();
     await expect((await coverLetter(page)).getByLabel(td.coverLetter.textLabel)).toHaveValue(

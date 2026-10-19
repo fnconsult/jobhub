@@ -58,7 +58,7 @@ async function download(page: Page, button: string): Promise<{ name: string; tex
 test.describe("exporting the Master CV", () => {
   test("the Candidate picks a CV Template and downloads the same CV as a PDF and as a Word file", async ({ page }) => {
     const id = await candidateWithProfile(page, "export");
-    await page.goto(`/profils/${id}`);
+    await page.goto(`/profils/${id}/telecharger`);
 
     const form = page.getByRole("region", { name: fr.cvExport.title });
     const templates = form.getByRole("group", { name: fr.cvExport.template });
@@ -86,7 +86,7 @@ test.describe("exporting the Master CV", () => {
       summary: "李明 · 김민준 · Ελληνικά ✓",
     };
     const id = await candidateWithProfile(page, "export-unicode", cv);
-    await page.goto(`/profils/${id}`);
+    await page.goto(`/profils/${id}/telecharger`);
 
     const pdf = await download(page, fr.cvExport.pdf);
     const docx = await download(page, fr.cvExport.docx);
@@ -101,7 +101,7 @@ test.describe("exporting the Master CV", () => {
   test("names in Japanese, Thai, Arabic or Hebrew, and pasted tabs, come out the same in the PDF and the Word file", async ({ page }) => {
     const cv = { ...masterCv, fullName: "結城 花子", headline: "Directrice\tfinancière ❤", summary: "馬場 健 · สมชาย ใจดี · محمد علي · דוד כהן · ☐" };
     const id = await candidateWithProfile(page, "export-scripts", cv);
-    await page.goto(`/profils/${id}`);
+    await page.goto(`/profils/${id}/telecharger`);
 
     const pdf = await download(page, fr.cvExport.pdf);
     const docx = await download(page, fr.cvExport.docx);

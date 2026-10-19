@@ -363,6 +363,16 @@
     "versionHistory": "Historique des versions"
   },
   "profilePage": {
+    "sections": {
+      "sectionsLabel": "Rubriques du profil",
+      "backToSections": "Le profil",
+      "propositions": "Propositions",
+      "cv-de-reference": "CV de référence",
+      "ats-score": "ATS Score",
+      "job-digest": "Job Digest",
+      "telecharger": "Télécharger",
+      "gerer": "Gérer"
+    },
     "eyebrow": "Profil",
     "nameSaved": "Nom du profil enregistré",
     "criteriaSaved": "Critères enregistrés",
@@ -1328,6 +1338,18 @@
     "reportedByYou": "Signalé par vous"
   },
   "application": {
+    "sections": {
+      "sectionsLabel": "Rubriques de la candidature",
+      "backToSections": "La candidature",
+      "propositions": "Propositions",
+      "documents": "Documents",
+      "correspondance": "Correspondance",
+      "entretiens": "Entretiens",
+      "avis": "Avis des coachs",
+      "dossier": "Dossier entreprise",
+      "contacts": "Contacts",
+      "offre": "L'offre"
+    },
     "statusLabel": "Statut",
     "statusSaved": "Statut enregistré",
     "profileLabel": "Profil utilisé",

@@ -197,7 +197,7 @@ test.describe("Follow-ups", () => {
   test("the Candidate adjusts their Follow-up Delays on their account page, and the AI Coach keeps to them", async ({ page }) => {
     const { email, title, id } = await candidateWithApplication(page, "follow-up-delays");
 
-    await page.goto("/compte");
+    await page.goto("/compte/relances");
     const delays = page.getByRole("region", { name: fr.followUps.delaysTitle });
     await expect(delays.getByLabel(fr.followUps.afterApplied)).toHaveValue("7");
     await expect(delays.getByLabel(fr.followUps.afterFollowUp)).toHaveValue("10");

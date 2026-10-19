@@ -51,7 +51,7 @@ async function openApplication(page: Page, employer: string | undefined, content
     headers: { origin },
   });
   expect(application.ok(), await application.text()).toBe(true);
-  await page.goto(`/candidatures/${(await application.json()).id}`);
+  await page.goto(`/candidatures/${(await application.json()).id}/dossier`);
   // The dossier's buttons only act once the page is hydrated.
   await page.waitForLoadState("networkidle");
   return page.getByRole("region", { name: t.title });
@@ -149,7 +149,7 @@ test.describe("Company Dossier", () => {
     const dossier = await openApplication(page, "Cabinet Talents & Co", "Notre client recrute son DAF. Client présumé : Acme Industrie");
     await dossier.getByRole("button", { name: t.build }).click();
     await expect(dossier.getByText(t.confirmBeforeLookup)).toBeVisible();
-    const api = `${new URL(page.url()).pathname.replace("/candidatures/", "/api/applications/")}/company-dossier`;
+    const api = `${new URL(page.url()).pathname.replace("/candidatures/", "/api/applications/").replace(/\/dossier$/, "")}/company-dossier`;
 
     const rebuilt = await page.request.post(api, { headers: { origin } });
     expect(rebuilt.status(), await rebuilt.text()).toBe(200);
@@ -220,7 +220,7 @@ test.describe("Company Dossier", () => {
     for (const employer of ["Acme Industrie", "Globex Robotics GmbH"]) {
       await page.context().clearCookies(); // a new Candidate for each employer
       await openApplication(page, employer);
-      const api = `${new URL(page.url()).pathname.replace("/candidatures/", "/api/applications/")}/company-dossier`;
+      const api = `${new URL(page.url()).pathname.replace("/candidatures/", "/api/applications/").replace(/\/dossier$/, "")}/company-dossier`;
       const built = await page.request.post(api, { headers: { origin } });
       expect(built.status(), await built.text()).toBe(200);
       expect((await built.json()).status).toBe("built");
@@ -233,7 +233,7 @@ test.describe("Company Dossier", () => {
 
   test("a Candidate cannot read or build another Candidate's Company Dossier", async ({ page, browser }) => {
     await openApplication(page, "Acme Industrie");
-    const api = `${new URL(page.url()).pathname.replace("/candidatures/", "/api/applications/")}/company-dossier`;
+    const api = `${new URL(page.url()).pathname.replace("/candidatures/", "/api/applications/").replace(/\/dossier$/, "")}/company-dossier`;
 
     const other = await browser.newPage({ baseURL: origin });
     await signInWithMagicLink(other, newAddress("company-dossier-other"));

@@ -196,7 +196,7 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     await expect(coachPage.getByRole("status")).toHaveText(space.reviewSaved);
 
     // The Candidate reads the Coach Review on the Application.
-    await page.goto(`/candidatures/${applicationId}`);
+    await page.goto(`/candidatures/${applicationId}/avis`);
     const reviews = page.getByRole("region", { name: fr.coachReviews.title });
     await expect(reviews).toContainText("Ouvrez sur votre dernier poste de DAF.");
     await expect(reviews).toContainText(coach.name);

@@ -17,3 +17,6 @@ Pages in the sidebar layout had grown into long stacks of headings (Mon compte h
 
 - Dark mode stays out: the tokens are light only, and a dark set is its own pass, audited like the light one.
 - Every page that renders its own `<h1>` hands it to the layout instead.
+- Split so far: Mon compte, a Profile's page and an Application's page. A page's own address shows its first Section; a Section that is absent (no Action Cards, no Job Digest, no coach review…) is left out of the list. Propositions comes first when there are Action Cards, so they are what a Candidate sees on arriving; computing an ATS Score leads to them.
+- The Subscription and Human Coaches pages stay whole for now: Stripe returns to them with notices in the address, and their codes are carried from the notice into the Plans table on the same page.
+- With the Coach Panel docked, a narrow column lines its Sections up above the one shown rather than beside it.

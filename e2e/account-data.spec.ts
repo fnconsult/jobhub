@@ -82,7 +82,7 @@ test.describe("exporting my data and deleting my account", () => {
   test("the Candidate downloads all their data from their account page", async ({ page }) => {
     const email = newAddress("account-export");
     const { profileId, applicationId } = await candidateWithData(page, email);
-    await page.goto("/compte");
+    await page.goto("/compte/donnees");
 
     const section = page.getByRole("region", { name: fr.accountData.title });
     const [file] = await Promise.all([page.waitForEvent("download"), section.getByRole("link", { name: fr.accountData.export }).click()]);
@@ -136,7 +136,7 @@ test.describe("exporting my data and deleting my account", () => {
     const { profileId: otherProfileId, applicationId: otherApplicationId } = await candidateWithData(other, newAddress("account-export-other"));
     await other.close();
 
-    await page.goto("/compte");
+    await page.goto("/compte/donnees");
     const section = page.getByRole("region", { name: fr.accountData.title });
     const [file] = await Promise.all([page.waitForEvent("download"), section.getByRole("link", { name: fr.accountData.export }).click()]);
     const exported = JSON.parse(readFileSync((await file.path())!, "utf8"));
@@ -168,7 +168,7 @@ test.describe("exporting my data and deleting my account", () => {
     const talked = await page.request.post("/api/coach", { headers: { origin }, data: { message: "Comment relancer Acme ?" } });
     expect(talked.status(), await talked.text()).toBe(200);
 
-    await page.goto("/compte");
+    await page.goto("/compte/donnees");
     const section = page.getByRole("region", { name: fr.accountData.title });
     for (const item of Object.values(fr.accountData.exportContents) as string[]) await expect(section.getByRole("listitem").filter({ hasText: item })).toHaveCount(1);
     await expect(section.getByText(fr.accountData.exportLeftOut)).toBeVisible();
@@ -257,7 +257,7 @@ test.describe("exporting my data and deleting my account", () => {
     expect(talked.status()).toBe(200);
     const conversationId = (await talked.json()).conversation.id;
     const stripe = process.env.E2E_STRIPE_URL!;
-    await page.goto("/compte");
+    await page.goto("/compte/donnees");
 
     const section = page.getByRole("region", { name: fr.accountData.title });
     await section.getByLabel(fr.accountData.confirmLabel).fill("someone.else@example.fr");
@@ -355,11 +355,11 @@ test.describe("exporting my data and deleting my account", () => {
     await coachPage.getByLabel(fr.coachSpace.reviewText).fill("Ouvrez sur votre dernier poste de DAF.");
     await coachPage.getByRole("button", { name: fr.coachSpace.reviewSubmit }).click();
     await expect(coachPage.getByRole("status")).toHaveText(fr.coachSpace.reviewSaved);
-    await page.goto(`/candidatures/${applicationId}`);
+    await page.goto(`/candidatures/${applicationId}/avis`);
     await expect(page.getByRole("region", { name: fr.coachReviews.title })).toContainText("Ouvrez sur votre dernier poste de DAF.");
 
     // The Candidate deletes their account from their account page.
-    await page.goto("/compte");
+    await page.goto("/compte/donnees");
     const section = page.getByRole("region", { name: fr.accountData.title });
     await section.getByLabel(fr.accountData.confirmLabel).fill(email);
     await section.getByRole("button", { name: fr.accountData.delete }).click();

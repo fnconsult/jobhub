@@ -1397,6 +1397,28 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   display: none;
 }
 
+/* A wide screen with a narrow column (the Coach Panel docked beside it): the
+   Sections line up above the one shown instead of beside it. */
+.workspace > .page {
+  container-type: inline-size;
+}
+
+@container (width < 44rem) {
+  .sections {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  .sections-nav {
+    position: static;
+  }
+
+  .sections-nav ul {
+    flex-flow: row wrap;
+    gap: var(--space-1);
+  }
+}
+
 @media (width < 64rem) {
   .sections {
     display: block;
@@ -1404,6 +1426,12 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 
   .sections-nav {
     position: static;
+  }
+
+  /* On a phone the list is the page: one Section per row. */
+  .sections-nav ul {
+    flex-flow: column nowrap;
+    gap: 0;
   }
 
   .sections-nav .sidebar-link {

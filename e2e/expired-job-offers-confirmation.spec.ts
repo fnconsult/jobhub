@@ -207,7 +207,7 @@ test.describe("Expired Job Offers: confirmation, scope and Reported Unavailable"
   for (const [language, t, label] of [["fr", fr, "French"], ["en", en, "English"]] as const) {
     test(`the badge shows in the list, the board, the Application page and the Job Offer page (${label})`, async () => {
       if (language === "en") {
-        await page.goto("/compte");
+        await page.goto("/compte/preferences");
         await page.getByLabel(fr.account.interfaceLanguage).selectOption("en");
         await expect(page.getByRole("status").filter({ hasText: en.account.saved })).toHaveText(en.account.saved);
       }
@@ -233,7 +233,7 @@ test.describe("Expired Job Offers: confirmation, scope and Reported Unavailable"
   }
 
   test("a Candidate reports a Job Offer unavailable on their Application and undoes it, without touching the other Candidate's", async () => {
-    await page.goto("/compte");
+    await page.goto("/compte/preferences");
     await page.getByLabel(en.account.interfaceLanguage).selectOption("fr");
     await expect(page.getByRole("status").filter({ hasText: fr.account.saved })).toHaveText(fr.account.saved);
 

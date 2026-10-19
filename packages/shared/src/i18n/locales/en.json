@@ -363,6 +363,16 @@
     "versionHistory": "Version history"
   },
   "profilePage": {
+    "sections": {
+      "sectionsLabel": "Sections of the profile",
+      "backToSections": "The profile",
+      "propositions": "Suggestions",
+      "cv-de-reference": "Master CV",
+      "ats-score": "ATS Score",
+      "job-digest": "Job Digest",
+      "telecharger": "Download",
+      "gerer": "Manage"
+    },
     "eyebrow": "Profile",
     "nameSaved": "Profile name saved",
     "criteriaSaved": "Criteria saved",
@@ -1328,6 +1338,18 @@
     "reportedByYou": "Reported by you"
   },
   "application": {
+    "sections": {
+      "sectionsLabel": "Sections of the application",
+      "backToSections": "The application",
+      "propositions": "Suggestions",
+      "documents": "Documents",
+      "correspondance": "Match",
+      "entretiens": "Interviews",
+      "avis": "Coach reviews",
+      "dossier": "Company dossier",
+      "contacts": "Contacts",
+      "offre": "The job offer"
+    },
     "statusLabel": "Status",
     "statusSaved": "Status saved",
     "profileLabel": "Profile used",

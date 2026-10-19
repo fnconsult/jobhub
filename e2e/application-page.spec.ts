@@ -8,7 +8,8 @@ import { newAddress } from "./support/mailbox";
 // (#132), inside the sidebar layout (#134): a document with its title, the Job
 // Offer at a glance and its properties edited in place, the Tailored Documents
 // in tabs, the Match Score's breakdown verdict first, then the Interviews; all
-// on the ADR-0009 floor. The AI Coach is Mistral, faked by e2e/support/fake-mistral.mjs.
+// on the ADR-0009 floor. Since ADR-0024 each part is a Section at its own address.
+// The AI Coach is Mistral, faked by e2e/support/fake-mistral.mjs.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const td = fr.tailoredDocuments;
 const origin = process.env.E2E_WEB_ORIGIN!;
@@ -64,6 +65,8 @@ async function openApplication(page: Page, label: string): Promise<{ id: string;
   return { id, sourceUrl };
 }
 
+/** The link to one of the Application's Sections (ADR-0024). */
+const sectionLink = (page: Page, name: string) => page.getByRole("navigation", { name: fr.application.sections.sectionsLabel }).getByRole("link", { name });
 const documents = (page: Page) => page.getByRole("region", { name: fr.application.documentsTitle });
 const tab = (page: Page, name: string) => documents(page).getByRole("tab", { name, exact: true });
 const panel = (page: Page, name: string) => documents(page).getByRole("tabpanel", { name, exact: true });
@@ -80,7 +83,7 @@ test.describe("the Application page", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
   test("reads as a document: the title, the Job Offer at a glance and the Application's properties", async ({ page }) => {
-    const { sourceUrl } = await openApplication(page, "application-page-head");
+    const { id, sourceUrl } = await openApplication(page, "application-page-head");
     const head = page.getByRole("main").locator("header").first();
 
     await expect(head.getByRole("link", { name: fr.application.backToApplications })).toHaveAttribute("href", "/candidatures");
@@ -109,7 +112,7 @@ test.describe("the Application page", () => {
 
     // "Voir le détail" leads to the Match Score's breakdown.
     await head.getByRole("link", { name: fr.application.matchDetail }).click();
-    await expect(page).toHaveURL(/#match-score-title$/);
+    await expect(page).toHaveURL(new RegExp(`/candidatures/${id}/correspondance$`));
     await expect(page.getByRole("heading", { name: fr.matchScore.title })).toBeInViewport();
 
     await expectAccessibilityFloor(page);
@@ -117,6 +120,9 @@ test.describe("the Application page", () => {
 
   test("the Match Score's breakdown gives each criterion's verdict in words first", async ({ page }) => {
     await openApplication(page, "application-page-score");
+    // A Section of its own (ADR-0024), listed beside the one shown.
+    await sectionLink(page, fr.application.sections.correspondance).click();
+    await expect(page).toHaveURL(/\/correspondance$/);
     const score = page.getByRole("region", { name: fr.matchScore.title });
     await expect(score.getByRole("heading", { level: 2 })).toHaveText(fr.matchScore.title);
     await expect(score.getByText(/^\d{1,3} \/ 100$/)).toBeVisible();
@@ -132,7 +138,8 @@ test.describe("the Application page", () => {
   });
 
   test("the Tailored Documents are tabs, worked with the keyboard, and keep unsaved edits from one tab to another", async ({ page }) => {
-    await openApplication(page, "application-page-tabs");
+    const { id } = await openApplication(page, "application-page-tabs");
+    await page.goto(`/candidatures/${id}/documents`);
     await expect(documents(page).getByRole("heading", { level: 2 })).toHaveText(fr.application.documentsTitle);
     await expect(documents(page).getByRole("tab")).toHaveText([fr.tailoredCv.tailored, td.coverLetter.title, td.outreachMessage.title]);
     await expect(tab(page, fr.tailoredCv.tailored)).toHaveAttribute("aria-selected", "true");

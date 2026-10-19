@@ -51,6 +51,9 @@ const profileName = (page: Page) => page.getByLabel(fr.profileActions.name, { ex
 /** The Profile page's Search Criteria (#137), each edited in place. */
 const criteriaOf = (page: Page) => page.getByRole("group", { name: fr.cvReview.searchCriteria });
 const masterCvOf = (page: Page) => page.getByRole("region", { name: fr.profile.masterCv });
+/** Opens a Section of the Profile's page from the list beside it (ADR-0024). */
+const openSection = (page: Page, name: string) =>
+  page.getByRole("navigation", { name: fr.profilePage.sections.sectionsLabel }).getByRole("link", { name, exact: true }).click();
 
 /** Opens the Profile switcher with the mouse and returns its menu. */
 async function openSwitcher(page: Page) {
@@ -64,7 +67,7 @@ test.describe("several Profiles per Candidate", () => {
   test("a Candidate duplicates a Profile, renames the copy and switches between them", async ({ page }) => {
     await signInOn(page, "duplicate");
     const firstId = await createProfile(page, "Directrice financière");
-    await page.goto(`/profils/${firstId}`);
+    await page.goto(`/profils/${firstId}/gerer`);
     await expect(switcherButtonOf(page)).toHaveText(currentProfile("Directrice financière"));
 
     const duplicateName = page.getByLabel(fr.profileActions.duplicateName);
@@ -108,7 +111,7 @@ test.describe("several Profiles per Candidate", () => {
     await expect(page.getByLabel(fr.cvReview.targetRole)).toHaveAttribute("maxlength", "120");
 
     const id = await createProfile(page, "x".repeat(118));
-    await page.goto(`/profils/${id}`);
+    await page.goto(`/profils/${id}/gerer`);
     const duplicateName = page.getByLabel(fr.profileActions.duplicateName);
     const suggested = `${"x".repeat(112)} (copie)`;
     await expect(duplicateName).toHaveValue(suggested);
@@ -139,10 +142,11 @@ test.describe("several Profiles per Candidate", () => {
     await signInOn(page, "archive");
     await createProfile(page, "Directrice financière");
     const oldId = await createProfile(page, "Contrôleuse de gestion");
-    await page.goto(`/profils/${oldId}`);
+    await page.goto(`/profils/${oldId}/gerer`);
 
     await page.getByRole("button", { name: fr.profileActions.archive }).click();
     await expect(page.getByText(fr.profileActions.archivedNotice)).toBeVisible();
+    await openSection(page, fr.profilePage.sections["cv-de-reference"]);
     await expect(masterCvOf(page).getByText("Directrice financière · Groupe Seb", { exact: true })).toBeVisible();
     let switcher = await openSwitcher(page);
     await expect(switcher.getByRole("menuitem", { name: "Contrôleuse de gestion" })).toHaveCount(0);
@@ -151,6 +155,7 @@ test.describe("several Profiles per Candidate", () => {
     await page.goto("/compte");
     const archived = page.getByRole("region", { name: fr.profiles.archivedTitle });
     await archived.getByRole("link", { name: "Contrôleuse de gestion" }).click();
+    await openSection(page, fr.profilePage.sections.gerer);
     await page.getByRole("button", { name: fr.profileActions.restore }).click();
     await expect(page.getByText(fr.profileActions.archivedNotice)).toHaveCount(0);
     switcher = await openSwitcher(page);
@@ -220,12 +225,12 @@ test.describe("several Profiles per Candidate", () => {
     });
 
     // Duplicating from the Profile page shows the Upgrade Prompt.
-    await page.goto(`/profils/${firstId}`);
+    await page.goto(`/profils/${firstId}/gerer`);
     await page.getByRole("button", { name: fr.profileActions.duplicate }).click();
     const prompt = page.getByRole("alert").filter({ hasText: fr.billing.quotaReached.title });
     await expect(prompt).toContainText(upgrade.message);
     await expect(prompt.getByRole("link", { name: upgrade.action })).toHaveAttribute("href", "/abonnement");
-    await expect(page).toHaveURL(`${origin}/profils/${firstId}`);
+    await expect(page).toHaveURL(`${origin}/profils/${firstId}/gerer`);
 
     // So does the new Profile page, instead of the forms.
     await page.goto("/profils/nouveau");
@@ -321,7 +326,7 @@ test.describe("editing a Profile's Search Criteria (issue #70)", () => {
       page.getByRole("region", { name: fr.matchScore.title }).getByRole("listitem").filter({ hasText: fr.matchScore.criteria.location });
     const offerAndWanted = (wanted: string) => fr.matchScore.offerAndWanted.replace("{{offer}}", "Paris").replace("{{wanted}}", wanted);
 
-    await page.goto(`/candidatures/${applicationId}`);
+    await page.goto(`/candidatures/${applicationId}/correspondance`);
     await expect(locationScore()).toContainText(offerAndWanted("Lyon"));
     await expect(locationScore().locator(".verdict")).toHaveText(fr.matchScore.statuses.mismatch);
 
@@ -341,9 +346,10 @@ test.describe("editing a Profile's Search Criteria (issue #70)", () => {
     await expect(criteria.getByLabel(fr.cvReview.contractType)).toHaveValue("cdi");
     // The name is not tied to the target role: the Candidate renames the Profile separately.
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice financière");
+    await openSection(page, fr.profilePage.sections["ats-score"]);
     await expect(page.getByText(fr.atsScore.intro.replace("{{role}}", "Directrice administrative et financière"))).toBeVisible();
 
-    await page.goto(`/candidatures/${applicationId}`);
+    await page.goto(`/candidatures/${applicationId}/correspondance`);
     await expect(locationScore()).toContainText(offerAndWanted("Paris"));
     await expect(locationScore().locator(".verdict")).toHaveText(fr.matchScore.statuses.match);
   });

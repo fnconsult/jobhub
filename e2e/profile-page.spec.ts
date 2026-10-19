@@ -43,11 +43,14 @@ const criteria = (page: Page) => page.getByRole("group", { name: fr.cvReview.sea
 const masterCvSection = (page: Page) => page.getByRole("region", { name: fr.profile.masterCv });
 const saveBar = (page: Page) => page.getByRole("region", { name: fr.profilePage.savebarLabel });
 const saveVersion = (version: number) => fr.profilePage.saveVersion.replace("{{version}}", String(version));
+/** The list of the Profile page's Sections (ADR-0024). */
+const sectionsNav = (page: Page) => page.getByRole("navigation", { name: fr.profilePage.sections.sectionsLabel });
+const sectionLink = (page: Page, name: string) => sectionsNav(page).getByRole("link", { name });
 
 test.describe("the Profile page as a document", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test("reads top-down: eyebrow, the name as title, the Search Criteria as properties, then the Master CV", async ({ page }) => {
+  test("reads top-down: eyebrow, the name as title, the Search Criteria as properties, then the Sections, the Master CV first", async ({ page }) => {
     const id = await candidateWithProfile(page, "profile-doc");
     await page.goto(`/profils/${id}`);
 
@@ -59,8 +62,12 @@ test.describe("the Profile page as a document", () => {
     await expect(criteria(page).getByLabel(fr.cvReview.minSalary)).toHaveValue("85000");
     await expect(criteria(page).getByLabel(fr.cvReview.contractType)).toHaveValue("cdi");
     await expect(page.getByRole("button", { name: fr.jobSearch.start })).toBeVisible();
-    await expect(page.getByRole("link", { name: fr.profilePage.jobDigestLink.none })).toHaveAttribute("href", `/profils/${id}#job-digest-title`);
+    await expect(page.getByRole("link", { name: fr.profilePage.jobDigestLink.none })).toHaveAttribute("href", `/profils/${id}/job-digest`);
 
+    // No Action Cards yet: no Propositions; the page shows its first Section, the Master CV.
+    const s = fr.profilePage.sections;
+    await expect(sectionsNav(page).getByRole("link")).toHaveText([s["cv-de-reference"], s["ats-score"], s["job-digest"], s.telecharger, s.gerer]);
+    await expect(sectionLink(page, s["cv-de-reference"])).toHaveAttribute("aria-current", "page");
     const cv = masterCvSection(page);
     await expect(cv.getByText(/^Version 1 · enregistrée le \w+ \d+ \w+ \d{4}$/)).toBeVisible();
     await expect(cv.getByLabel(fr.cvReview.headline)).toHaveValue(masterCv.headline);
@@ -117,7 +124,7 @@ test.describe("the Profile page as a document", () => {
 
   test("Master CV edits gather into one new version, or are cancelled", async ({ page }) => {
     const id = await candidateWithProfile(page, "profile-cv-version");
-    await page.goto(`/profils/${id}`);
+    await page.goto(`/profils/${id}/cv-de-reference`);
     const cv = masterCvSection(page);
 
     await cv.getByLabel(fr.cvReview.summary).fill("Plus de 15 ans dans l'industrie et la distribution.");
@@ -153,7 +160,7 @@ test.describe("the Profile page as a document", () => {
 
   test("a save based on an outdated version is refused and overwrites nothing (ADR-0012)", async ({ page }) => {
     const id = await candidateWithProfile(page, "profile-cv-conflict");
-    await page.goto(`/profils/${id}`);
+    await page.goto(`/profils/${id}/cv-de-reference`);
     const cv = masterCvSection(page);
     await cv.getByLabel(fr.cvReview.headline).fill("DAF");
 
@@ -195,7 +202,7 @@ test.describe("the Profile page on the ADR-0009 floor", () => {
     test(`at ${viewport.width}px: catalogue strings, 16px and AA contrast, visible edit affordances, 44px targets, no sideways scroll`, async ({ page }) => {
       await page.setViewportSize(viewport);
       const id = await candidateWithProfile(page, `profile-floor-${viewport.width}`);
-      await page.goto(`/profils/${id}`);
+      await page.goto(`/profils/${id}/cv-de-reference`);
       await masterCvSection(page).getByLabel(fr.cvReview.headline).fill("DAF");
       await expect(saveBar(page)).toBeVisible();
 
@@ -249,7 +256,7 @@ test("where field-sizing is unsupported, the name and the Master CV's texts stil
   });
   await page.setViewportSize({ width: 375, height: 812 });
   const id = await candidateWithProfile(page, "profile-no-field-sizing");
-  await page.goto(`/profils/${id}`);
+  await page.goto(`/profils/${id}/cv-de-reference`);
   const clipped = (field: ReturnType<Page["locator"]>) => field.evaluate((el) => el.scrollHeight - el.clientHeight);
 
   // "Directrice administrative et financière" wraps at 375px: it shows on every line it takes.
@@ -268,6 +275,68 @@ test("where field-sizing is unsupported, the name and the Master CV's texts stil
 });
 
 // For the review against the prototype: PROFILE_SCREENSHOTS_DIR=<dir> keeps them there.
+test.describe("the Profile page's Sections (ADR-0024)", () => {
+  test("on a wide screen, each Section is listed beside the one shown and has its own address", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const id = await candidateWithProfile(page, "profile-sections");
+    const s = fr.profilePage.sections;
+    await page.goto(`/profils/${id}`);
+
+    await sectionLink(page, s["ats-score"]).click();
+    await expect(page).toHaveURL(new RegExp(`/profils/${id}/ats-score$`));
+    await expect(sectionLink(page, s["ats-score"])).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("region", { name: fr.atsScore.title })).toBeVisible();
+    await expect(masterCvSection(page)).toHaveCount(0);
+    // The page's head stays on every Section.
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice administrative et financière");
+    await expect(criteria(page).getByLabel(fr.cvReview.location, { exact: true })).toHaveValue("Lyon");
+
+    await sectionLink(page, s.telecharger).click();
+    await expect(page).toHaveURL(new RegExp(`/profils/${id}/telecharger$`));
+    await expect(page.getByRole("region", { name: fr.cvExport.title })).toBeVisible();
+
+    await sectionLink(page, s.gerer).click();
+    await expect(page.getByRole("region", { name: fr.profileActions.title })).toBeVisible();
+
+    await page.goBack();
+    await expect(page).toHaveURL(new RegExp(`/profils/${id}/telecharger$`));
+    await expect(page.getByRole("region", { name: fr.cvExport.title })).toBeVisible();
+  });
+
+  test("on a phone, the Profile's page is the list of its Sections, each shown alone with a way back", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    const id = await candidateWithProfile(page, "profile-sections-phone");
+    const s = fr.profilePage.sections;
+    await page.goto(`/profils/${id}`);
+    await expect(sectionsNav(page)).toBeVisible();
+    await expect(masterCvSection(page)).toBeHidden();
+
+    await sectionLink(page, s["cv-de-reference"]).click();
+    await expect(page).toHaveURL(new RegExp(`/profils/${id}/cv-de-reference$`));
+    await expect(masterCvSection(page)).toBeVisible();
+    await expect(sectionsNav(page)).toBeHidden();
+
+    await page.getByRole("link", { name: s.backToSections, exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/profils/${id}$`));
+    await expect(sectionsNav(page)).toBeVisible();
+  });
+
+  test("a Section the Profile does not have is not found, nor listed", async ({ page }) => {
+    const id = await candidateWithProfile(page, "profile-sections-absent");
+    // No Action Cards: Propositions leads back to the Profile's page.
+    await page.goto(`/profils/${id}/propositions`);
+    await expect(page).toHaveURL(new RegExp(`/profils/${id}$`));
+
+    // An archived Profile has no Job Digest.
+    const archived = await page.request.patch(`/api/profiles/${id}`, { headers: { origin }, data: { archived: true } });
+    expect(archived.ok()).toBe(true);
+    expect((await page.request.get(`/profils/${id}/job-digest`)).status()).toBe(404);
+    await page.goto(`/profils/${id}`);
+    await expect(sectionLink(page, fr.profilePage.sections["job-digest"])).toHaveCount(0);
+    await expect(sectionLink(page, fr.profilePage.sections.gerer)).toBeVisible();
+  });
+});
+
 test("screenshots of the Profile page at 375, 900 and 1440px, with unsaved Master CV edits", async ({ page }, testInfo) => {
   const id = await candidateWithProfile(page, "profile-screens");
   const dir = process.env.PROFILE_SCREENSHOTS_DIR;
@@ -284,6 +353,8 @@ test("screenshots of the Profile page at 375, 900 and 1440px, with unsaved Maste
     await page.screenshot({ path: top });
     await testInfo.attach(`${width}px profile`, { path: top, contentType: "image/png" });
 
+    // Below 64rem the Profile's page is the list of its Sections: the Master CV is a Section of its own.
+    await page.goto(`/profils/${id}/cv-de-reference`);
     await masterCvSection(page).getByLabel(fr.cvReview.summary).fill("Plus de 15 ans dans l'industrie et la distribution.");
     await expect(saveBar(page)).toBeVisible();
     const cv = dir ? `${dir}/${width}-master-cv.png` : testInfo.outputPath(`${width}-master-cv.png`);

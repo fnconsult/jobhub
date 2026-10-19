@@ -14,7 +14,7 @@ describe("sidebarNav", () => {
     expect(links(items)).toEqual([
       ["applications", "/candidatures"],
       ["jobSearches", "/profils/p-consultant#job-search-title"],
-      ["jobDigests", "/profils/p-consultant#job-digest-title"],
+      ["jobDigests", "/profils/p-consultant/job-digest"],
       ["account", "/compte"],
       ["subscription", "/abonnement"],
       ["humanCoaches", "/coachs"],
@@ -31,7 +31,7 @@ describe("sidebarNav", () => {
     const items = sidebarNav({ pathname: "/compte", profiles: [archived, daf, consultant] });
     expect(links(items).slice(1, 3)).toEqual([
       ["jobSearches", "/profils/p-daf#job-search-title"],
-      ["jobDigests", "/profils/p-daf#job-digest-title"],
+      ["jobDigests", "/profils/p-daf/job-digest"],
     ]);
   });
 
@@ -50,6 +50,7 @@ describe("sidebarNav", () => {
     ["/candidatures/a-1", ["applications"]],
     ["/recherches/s-1", ["jobSearches"]],
     ["/job-digests/d-1", ["jobDigests"]],
+    ["/profils/p-daf/job-digest", ["jobDigests"]],
     ["/compte", ["account"]],
     ["/compte/relances", ["account"]],
     ["/abonnement", ["subscription"]],

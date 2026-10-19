@@ -263,6 +263,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   const setInView = useCallback((next: InView | null) => setInViewState(next), []);
   // Agrandir: the panel widens into a modal drawer over the page (ADR-0024); never remembered.
   const [wide, setWide] = useState(false);
+  const focusMoved = useRef(false);
 
   useEffect(() => {
     if (open) input.current?.focus();
@@ -307,6 +308,12 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     if (event.key !== "Escape") return;
     if (wide) setWide(false);
     else close();
+  }
+
+  /** A menu item whose view takes the focus: the menu must not hand it back to its button. */
+  function moveFocus(action: () => void) {
+    focusMoved.current = true;
+    action();
   }
 
   function showMemory() {
@@ -441,17 +448,26 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                   <Icons.chevron />
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Portal>
-                  <DropdownMenu.Content className="menu coach-panel-menu" align={MENU_ALIGN} sideOffset={4}>
-                    <DropdownMenu.Item className="menu-item" onSelect={startNewConversation}>
+                  <DropdownMenu.Content
+                    className="menu coach-panel-menu"
+                    align={MENU_ALIGN}
+                    sideOffset={4}
+                    // An item that moves focus on (the list's heading, the message box) keeps it there.
+                    onCloseAutoFocus={(event) => {
+                      if (focusMoved.current) event.preventDefault();
+                      focusMoved.current = false;
+                    }}
+                  >
+                    <DropdownMenu.Item className="menu-item" onSelect={() => moveFocus(startNewConversation)}>
                       <Icons.add />
                       {t("coachPanel.newConversation")}
                     </DropdownMenu.Item>
-                    <DropdownMenu.Item className="menu-item" onSelect={() => void showList()}>
+                    <DropdownMenu.Item className="menu-item" onSelect={() => moveFocus(() => void showList())}>
                       <Icons.conversations />
                       {t("coachPanel.conversations")}
                     </DropdownMenu.Item>
                     {panel.features.memory ? (
-                      <DropdownMenu.Item className="menu-item" onSelect={showMemory}>
+                      <DropdownMenu.Item className="menu-item" onSelect={() => moveFocus(showMemory)}>
                         <Icons.coach />
                         {t("coachMemory.open")}
                       </DropdownMenu.Item>
@@ -459,7 +475,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                     {view !== "chat" ? (
                       <>
                         <DropdownMenu.Separator className="menu-separator" />
-                        <DropdownMenu.Item className="menu-item" onSelect={showChat}>
+                        <DropdownMenu.Item className="menu-item" onSelect={() => moveFocus(showChat)}>
                           {t("coachPanel.backToConversation")}
                         </DropdownMenu.Item>
                       </>

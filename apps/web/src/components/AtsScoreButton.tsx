@@ -10,9 +10,10 @@ import { UpgradePrompt, upgradePromptIn } from "./UpgradePrompt";
 /**
  * Computes the Profile's ATS Score (counted against the Plan Quota), then shows
  * it and the fixes proposed: once the page has them, the Action Cards are
- * brought into view, as they sit far above this button.
+ * brought into view, or, when they are in another Section of the Profile's
+ * page (`proposalsHref`, ADR-0024), the Candidate is taken there.
  */
-export function AtsScoreButton({ profileId, computed }: { profileId: string; computed: boolean }) {
+export function AtsScoreButton({ profileId, computed, proposalsHref }: { profileId: string; computed: boolean; proposalsHref?: string | null }) {
   const { t } = useTranslation();
   const router = useRouter();
   const [state, setState] = useState<"idle" | "computing" | "failed">("idle");
@@ -23,8 +24,8 @@ export function AtsScoreButton({ profileId, computed }: { profileId: string; com
   useEffect(() => {
     if (refreshing || !justComputed.current) return;
     justComputed.current = false;
-    bringActionCardsIntoView();
-  }, [refreshing]);
+    if (!bringActionCardsIntoView() && proposalsHref) router.push(proposalsHref);
+  }, [refreshing, proposalsHref, router]);
 
   async function compute() {
     setState("computing");

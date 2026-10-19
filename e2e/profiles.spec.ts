@@ -239,6 +239,8 @@ test.describe("CV and Profile endpoints", () => {
     await signInWithMagicLink(otherPage, newAddress("other"));
     const response = await otherPage.goto(`/profils/${id}`);
     expect(response?.status()).toBe(404);
+    // Nor any of its Sections (ADR-0024).
+    expect((await otherPage.goto(`/profils/${id}/cv-de-reference`))?.status()).toBe(404);
     await other.close();
   });
 });

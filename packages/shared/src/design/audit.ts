@@ -14,7 +14,7 @@ type ColorToken = keyof DesignTokens["color"];
 
 /** Colours text may take: each is audited at AA on every surface (onAccent on accent). */
 export const TEXT_COLORS: ColorToken[] = ["text", "textSecondary", "accent", "danger", "success"];
-const SURFACES: ColorToken[] = ["background", "surface", "surfaceHover"];
+const SURFACES: ColorToken[] = ["background", "surface", "surfaceHover", "dangerSurface"];
 
 function channel(hex: string, offset: number): number {
   const value = parseInt(hex.slice(offset, offset + 2), 16) / 255;

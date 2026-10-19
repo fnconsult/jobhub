@@ -670,6 +670,32 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   margin-top: 0;
 }
 
+/* In the Applications table the column says Status: the select's own label is for screen readers only. */
+.application-table .field > label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+/* Deleting the account: framed and shaded in danger, apart from the rest of the page. */
+.danger-zone {
+  padding: var(--space-4) var(--space-6) var(--space-6);
+  background: var(--color-danger-surface);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+}
+
+.danger-zone > h3 {
+  margin-top: 0;
+}
+
+.danger-zone .button-danger {
+  background: var(--color-background);
+}
+
 /* This month's usage on the Subscription: one framed tile per quota, side by side. */
 .usage-tiles {
   display: grid;
@@ -1224,6 +1250,20 @@ html[data-sidebar="closed"] .sidebar-docked {
 .sidebar-collapse,
 .sidebar-sign-out {
   align-self: flex-start;
+}
+
+/* The foot's links and buttons line their icons up with the menu's above. */
+.sidebar-foot {
+  padding-inline: 0;
+}
+
+.sidebar-foot .text-size-control {
+  padding-inline: var(--space-2);
+}
+
+.sidebar-foot .button-quiet {
+  /* Less the button's 1px border, which a link has not. */
+  padding-inline: calc(var(--space-3) - 1px);
 }
 
 .workspace {

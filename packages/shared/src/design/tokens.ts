@@ -10,6 +10,8 @@ export const designTokens = {
     surface: "#f7f7f5",
     surfaceHover: "#efeeec",
     border: "#e3e2e0",
+    // The surface of what cannot be undone (deleting the account), framed in danger.
+    dangerSurface: "#fdf0ee",
     // Text colours: every one must read at AA (4.5:1) on every surface.
     text: "#37352f",
     textSecondary: "#5a5955",

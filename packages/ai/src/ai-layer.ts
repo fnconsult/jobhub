@@ -2,6 +2,7 @@ import type { SearchCriteria } from "@jobhub/shared";
 import { findIdentity } from "./identity-scan";
 import { buildCompanyQuery, buildSearchQuery, jobSearchQueries, jobTitlesPrompt, type JobSearchQuery } from "./search-query";
 import { costInEur, toolCostInEur } from "./cost";
+import { effortHandling, type Effort, type EffortHandling } from "./effort";
 import { AiConfigError, DataResidencyError } from "./errors";
 import { SEARCH_TASK, TEXT_TASKS } from "./types";
 import type { AiProvider, AiTask, Message, ProviderId, SearchFilters, TextTask, TokenUsage, ToolCall, Transcript, UsageEntry, UsageLog } from "./types";
@@ -22,6 +23,21 @@ export interface GenerateRequest {
    * inject. With the Candidate's EU AI consent, such a call goes to the identity route (Mistral).
    */
   containsIdentity?: boolean;
+  /**
+   * The provider and model for this call instead of the task's (a Playbook Agent's, #225). The task's
+   * data rules still hold: a personal-data task only reaches an EU-resident endpoint, and an
+   * identity-bearing call of a consenting Candidate still goes to the identity route.
+   */
+  route?: Route;
+  /** How hard the model should think; left out by a model that has no such setting (see `agentModels`). */
+  effort?: Effort;
+}
+
+/** A text provider a Playbook Agent may use (#225): EU-resident, with the models it offers and how each takes effort. */
+export interface AgentModelChoice {
+  provider: ProviderId;
+  endpoint: string;
+  models: { model: string; effort: EffortHandling }[];
 }
 
 export interface GenerateResult {
@@ -89,6 +105,11 @@ export interface AiLayer {
   searchWeb(request: SearchRequest): Promise<SearchResult>;
   /** Searches the web for public facts about an employer, for a Company Dossier. */
   searchCompany(request: CompanySearchRequest): Promise<SearchResult>;
+  /**
+   * The providers and models a Playbook Agent may use (#225): the EU-resident text providers configured,
+   * each with the models a route names for it, then those it offers.
+   */
+  agentModels(): AgentModelChoice[];
 }
 
 export interface Route {
@@ -179,7 +200,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
    */
   async function routeForCall(request: GenerateRequest, messages: Message[]): Promise<{ route: Route; identity: boolean }> {
     const { candidateId, task } = request;
-    const byTask = () => ({ route: routeFor(task), identity: false });
+    const byTask = () => ({ route: request.route ?? routeFor(task), identity: false });
     if (candidateId === null || !options.euAiConsent) return byTask();
     const undeclared = request.containsIdentity ? [] : findIdentity([request.system ?? "", ...messages.map((m) => m.content)]);
     if (!request.containsIdentity && undeclared.length === 0) return byTask();
@@ -287,7 +308,14 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
         provider,
         route,
         { ...(request.system === undefined ? {} : { system: request.system }), messages },
-        () => provider.generate!({ model: route.model, system: request.system, messages, maxTokens: request.maxTokens ?? DEFAULT_MAX_TOKENS }),
+        () =>
+          provider.generate!({
+            model: route.model,
+            system: request.system,
+            messages,
+            maxTokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
+            ...(request.effort ? { effort: request.effort } : {}),
+          }),
         (reply) => reply.text,
       );
       return { text: output.text, provider: provider.id, model: output.model, usage: output.usage };
@@ -314,6 +342,19 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
 
     async searchCompany(request) {
       return search(request.candidateId, buildCompanyQuery(request.employer));
+    },
+
+    agentModels() {
+      const routed = [...Object.values(options.routes), identityRoute].map((route) => (typeof route === "string" ? { provider: route } : route));
+      const choices: AgentModelChoice[] = [];
+      for (const provider of options.providers) {
+        if (!provider.generate || provider.residency !== "eu" || choices.some((choice) => choice.provider === provider.id)) continue;
+        const named = routed.flatMap((route) => (route?.provider === provider.id && route.model ? [route.model] : []));
+        const models = [...new Set([...named, ...(provider.models ?? (provider.defaultModel ? [provider.defaultModel] : []))])];
+        // A provider standing for a missing key offers nothing.
+        if (models.length > 0) choices.push({ provider: provider.id, endpoint: provider.endpoint, models: models.map((model) => ({ model, effort: effortHandling(provider.id, model) })) });
+      }
+      return choices;
     },
   };
   return layer;

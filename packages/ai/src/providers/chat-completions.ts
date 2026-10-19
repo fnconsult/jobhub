@@ -2,6 +2,7 @@
  * Mistral and OpenAI both speak the chat-completions wire format,
  * so one small fetch client serves the two adapters.
  */
+import { effortHandling } from "../effort";
 import { AiProviderError } from "../errors";
 import type { AiProvider, ProviderId, TextInput, TextOutput, TokenUsage } from "../types";
 import { postJson } from "./http";
@@ -39,6 +40,19 @@ function chatMessages(input: TextInput) {
   return [...(input.system ? [{ role: "system", content: input.system }] : []), ...input.messages];
 }
 
+/** `reasoning_effort`, as the model takes it (see effort.ts); nothing for a model that has none. */
+function reasoningEffort(provider: ProviderId, model: string, input: TextInput): { reasoning_effort?: string } {
+  if (!input.effort) return {};
+  switch (effortHandling(provider, model)) {
+    case "native":
+      return { reasoning_effort: input.effort };
+    case "medium_as_high":
+      return { reasoning_effort: input.effort === "low" ? "none" : "high" };
+    case "ignored":
+      return {};
+  }
+}
+
 interface TextProviderOptions {
   apiKey: string;
   defaultModel?: string;
@@ -52,13 +66,16 @@ export function createMistralProvider(options: TextProviderOptions): AiProvider 
   return {
     id: "mistral",
     defaultModel,
+    models: [...new Set([defaultModel, "mistral-medium-3-5", "mistral-small-latest"])],
     endpoint: "api.mistral.ai",
     residency: "eu",
     async generate(input): Promise<TextOutput> {
+      const model = input.model ?? defaultModel;
       const completion = await postChat(client, {
-        model: input.model ?? defaultModel,
+        model,
         max_tokens: input.maxTokens,
         messages: chatMessages(input),
+        ...reasoningEffort("mistral", model, input),
       });
       return { text: completion.choices[0]!.message.content ?? "", model: completion.model, usage: usageOf(completion) };
     },
@@ -77,13 +94,16 @@ export function createOpenAiProvider(options: OpenAiProviderOptions): AiProvider
   return {
     id: "openai",
     defaultModel,
+    models: [...new Set([defaultModel, "gpt-5-mini"])],
     endpoint: host,
     residency: options.dataResidency === "eu" ? "eu" : "outside_eu",
     async generate(input): Promise<TextOutput> {
+      const model = input.model ?? defaultModel;
       const completion = await postChat(client, {
-        model: input.model ?? defaultModel,
+        model,
         max_completion_tokens: input.maxTokens,
         messages: chatMessages(input),
+        ...reasoningEffort("openai", model, input),
       });
       return { text: completion.choices[0]!.message.content ?? "", model: completion.model, usage: usageOf(completion) };
     },

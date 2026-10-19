@@ -1,6 +1,7 @@
 import { AnthropicBedrockMantle } from "@anthropic-ai/bedrock-sdk";
 import Anthropic from "@anthropic-ai/sdk";
 import { AnthropicVertex } from "@anthropic-ai/vertex-sdk";
+import { effortHandling } from "../effort";
 import { AiProviderError } from "../errors";
 import type { AiProvider, Residency, TextInput, TextOutput, TokenUsage } from "../types";
 
@@ -27,6 +28,8 @@ export interface AnthropicProviderOptions {
 }
 
 const DEFAULT_MODEL = "claude-opus-5-5";
+/** The Claude models offered a Playbook Agent (#225), the default first. */
+const MODELS = [DEFAULT_MODEL, "claude-sonnet-5-5", "claude-haiku-5-5"];
 
 /** Claude's `input_tokens` leave out the input read from and written to its prompt cache. */
 function usageOf(usage: Anthropic.Usage): TokenUsage {
@@ -103,24 +106,29 @@ function clientFor(options: AnthropicProviderOptions): MessagesClient {
 
 export function createAnthropicProvider(options: AnthropicProviderOptions): AiProvider {
   const { endpoint } = options;
-  const defaultModel = options.defaultModel ?? (endpoint.kind === "bedrock" ? `anthropic.${DEFAULT_MODEL}` : DEFAULT_MODEL);
+  // Bedrock names Claude's models with its own prefix.
+  const named = (model: string) => (endpoint.kind === "bedrock" ? `anthropic.${model}` : model);
+  const defaultModel = options.defaultModel ?? named(DEFAULT_MODEL);
   let client: MessagesClient | undefined;
 
   return {
     id: "anthropic",
     defaultModel,
+    models: [...new Set([defaultModel, ...MODELS.map(named)])],
     endpoint: endpoint.kind === "direct" ? "api.anthropic.com" : `${endpoint.kind} ${endpoint.region}`,
     residency: residencyOf(endpoint),
 
     async generate(input: TextInput): Promise<TextOutput> {
       client ??= clientFor(options);
+      const model = input.model ?? defaultModel;
       let message: Anthropic.Message;
       try {
         message = await client.messages.create({
-          model: input.model ?? defaultModel,
+          model,
           max_tokens: input.maxTokens,
           ...(input.system ? { system: input.system } : {}),
           messages: input.messages,
+          ...(input.effort && effortHandling("anthropic", model) === "native" ? { output_config: { effort: input.effort } } : {}),
         });
       } catch (error) {
         const apiError = error instanceof Anthropic.APIError;

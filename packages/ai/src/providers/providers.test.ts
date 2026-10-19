@@ -242,6 +242,59 @@ describe("OpenAI provider", () => {
   });
 });
 
+describe("effort, as a Playbook Agent asks for it (#225)", () => {
+  it("is sent to Claude as output_config.effort on a model that takes it, and left out on one that does not", async () => {
+    const { fetch, requests } = fakeFetch(anthropicReply);
+    const provider = createAnthropicProvider({ endpoint: { kind: "bedrock", region: "eu-west-3", apiKey: "k" }, fetch });
+
+    await provider.generate!({ ...textInput, effort: "low" });
+    await provider.generate!({ ...textInput, model: "anthropic.claude-haiku-4-5", effort: "low" });
+    await provider.generate!(textInput);
+
+    expect(requests[0]!.body).toMatchObject({ output_config: { effort: "low" } });
+    expect(requests[1]!.body).not.toHaveProperty("output_config");
+    expect(requests[2]!.body).not.toHaveProperty("output_config");
+  });
+
+  it("is sent to Mistral as reasoning_effort, none for low and high for medium or high, only on a model that has it", async () => {
+    const { fetch, requests } = fakeFetch(chatReply("ok"));
+    const provider = createMistralProvider({ apiKey: "mk", fetch });
+
+    for (const effort of ["low", "medium", "high"] as const) await provider.generate!({ ...textInput, model: "mistral-medium-3-5", effort });
+    await provider.generate!({ ...textInput, effort: "high" });
+
+    expect(requests.slice(0, 3).map((request) => request.body.reasoning_effort)).toEqual(["none", "high", "high"]);
+    expect(requests[3]!.body).not.toHaveProperty("reasoning_effort");
+  });
+
+  it("is sent to OpenAI's reasoning models as reasoning_effort", async () => {
+    const { fetch, requests } = fakeFetch(chatReply("ok"));
+    const provider = createOpenAiProvider({ apiKey: "ok", dataResidency: "eu", fetch });
+
+    await provider.generate!({ ...textInput, effort: "medium" });
+    await provider.generate!({ ...textInput, model: "gpt-4.1", effort: "medium" });
+
+    expect(requests[0]!.body).toMatchObject({ reasoning_effort: "medium" });
+    expect(requests[1]!.body).not.toHaveProperty("reasoning_effort");
+  });
+});
+
+describe("the models a provider offers a Playbook Agent (#225)", () => {
+  it("names Claude's models as its endpoint does: with Bedrock's prefix on Bedrock", () => {
+    expect(createAnthropicProvider({ endpoint: { kind: "bedrock", region: "eu-west-3" } }).models).toEqual([
+      "anthropic.claude-opus-5-5",
+      "anthropic.claude-sonnet-5-5",
+      "anthropic.claude-haiku-5-5",
+    ]);
+    expect(createAnthropicProvider({ endpoint: { kind: "vertex", region: "europe-west1", projectId: "p" } }).models).toEqual(["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]);
+  });
+
+  it("starts with the provider's default model", () => {
+    expect(createMistralProvider({ apiKey: "mk" }).models?.[0]).toBe("mistral-large-latest");
+    expect(createOpenAiProvider({ apiKey: "ok", dataResidency: "eu" }).models?.[0]).toBe("gpt-5");
+  });
+});
+
 /**
  * A Perplexity Agent API (`POST /v1/responses`) answer to a web search. HAND-WRITTEN
  * from the API reference and the 'fast' preset's documented model, not recorded:

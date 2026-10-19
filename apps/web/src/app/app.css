@@ -799,6 +799,12 @@ th[aria-sort] .sort-mark {
   font-size: var(--font-size-lead);
 }
 
+/* Every tile of the row's grid as wide and as tall as the others, whatever its words. */
+.tiles-even,
+.usage-tiles {
+  grid-auto-rows: 1fr;
+}
+
 /* A tile across the whole row (a Job Offer's skills). */
 .tiles > .tile-wide {
   grid-column: 1 / -1;

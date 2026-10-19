@@ -15,8 +15,9 @@ export function jobOfferSite({ source }: Pick<JobOffer, "source">): string | nul
 
 /**
  * What a Job Offer says at a glance, one framed tile per fact (salary first when it
- * states one), the skills on a tile of their own across the row: the Application
- * page's header shows them (ADR-0024). Nothing when the offer says none of it.
+ * states one), every tile the same width and height, then the skills as tags on a
+ * tile of their own across the row: the Application page's header shows them
+ * (ADR-0024). Nothing when the offer says none of it.
  */
 export function JobOfferTiles({ jobOffer, t, locale }: { jobOffer: JobOffer; t: T; locale: string }) {
   const salaryText = jobOfferSalary(jobOffer, t, locale);
@@ -30,22 +31,28 @@ export function JobOfferTiles({ jobOffer, t, locale }: { jobOffer: JobOffer; t: 
   const skills = jobOffer.skills?.length ? jobOffer.skills : null;
   if (tiles.length === 0 && !skills) return null;
   return (
-    <dl className="tiles job-offer-tiles" aria-label={t("jobOffer.details")}>
-      {tiles.map(([term, value]) => (
-        <div key={term}>
-          <dt>{term}</dt>
-          <dd>{value}</dd>
-        </div>
-      ))}
-      {skills ? (
-        <div className="tile-wide">
-          <dt>{t("jobOffer.skills")}</dt>
-          <dd>
-            <SkillTags skills={skills} />
-          </dd>
-        </div>
+    <>
+      {tiles.length > 0 ? (
+        <dl className="tiles tiles-even job-offer-tiles" aria-label={t("jobOffer.details")}>
+          {tiles.map(([term, value]) => (
+            <div key={term}>
+              <dt>{term}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
       ) : null}
-    </dl>
+      {skills ? (
+        <dl className="tiles job-offer-tiles" aria-label={t("jobOffer.skills")}>
+          <div className="tile-wide">
+            <dt>{t("jobOffer.skills")}</dt>
+            <dd>
+              <SkillTags skills={skills} />
+            </dd>
+          </div>
+        </dl>
+      ) : null}
+    </>
   );
 }
 

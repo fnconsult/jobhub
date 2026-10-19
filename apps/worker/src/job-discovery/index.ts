@@ -97,7 +97,11 @@ export interface JobOfferStore {
   /** The Job Offer already captured from this source URL (ignoring tracking parameters), or null. */
   findBySourceUrl(url: string): Promise<JobOffer | null>;
   /** Stores a posting, or returns the stored Job Offer for the same posting. */
-  capture(input: { source: { url: string } } & Omit<JobOfferDetails, "postedAt">, capturedBy?: "candidate" | "guest", trusted?: { postedAt?: Date }): Promise<{ ok: true; jobOffer: JobOffer } | { ok: false; errors: unknown[] }>;
+  capture(
+    input: { source: { url: string } } & Omit<JobOfferDetails, "postedAt" | "summary">,
+    capturedBy?: "candidate" | "guest",
+    trusted?: { postedAt?: Date; summary?: string },
+  ): Promise<{ ok: true; jobOffer: JobOffer } | { ok: false; errors: unknown[] }>;
 }
 
 export interface JobDiscoveryOptions {
@@ -290,15 +294,17 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
        */
       const capture = async (url: string, details: JobOfferDetails, searchDate: Date | undefined) => {
         const now = new Date(clock.now());
-        const { postedAt: stated, ...untrusted } = details;
+        const { postedAt: stated, summary, ...untrusted } = details;
         const postedAt = believablePostingDate(stated, now) ?? believablePostingDate(searchDate, now);
         if (isPostingTooOld(postedAt, now)) {
           skipped.push({ url, reason: "too_old" });
           return;
         }
         funnel.extracted++;
-        // The Posting date is what the worker read from the source itself: trusted, unlike anything a browser sends.
-        const captured = await options.jobOffers.capture({ source: { url }, ...untrusted }, "candidate", postedAt ? { postedAt } : {});
+        // The Posting date is what the worker read from the source itself, and the Job Offer Summary what its AI wrote
+        // from the page: trusted, unlike anything a browser sends.
+        const trusted = { ...(postedAt && { postedAt }), ...(summary && { summary }) };
+        const captured = await options.jobOffers.capture({ source: { url }, ...untrusted }, "candidate", trusted);
         if (!captured.ok) skipped.push({ url, reason: "invalid" });
         else if (isPostingTooOld(captured.jobOffer.postedAt, now)) skipped.push({ url, reason: "too_old" });
         else found.set(captured.jobOffer.id, captured.jobOffer);
@@ -471,6 +477,8 @@ function costing(ai: AiLayer, spend: (eur: number) => void): AiLayer {
       spend(costInEur(result));
       return result;
     },
+    // Only a Company Dossier searches for Company News: Job discovery never does.
+    searchCompanyNews: (request) => ai.searchCompanyNews(request),
     agentModels: () => ai.agentModels(),
   };
 }

@@ -57,7 +57,8 @@
 //
 // For the fields of a Job Offer read from its text (task offer_analysis, the second
 // phase of a Match Score, #94), it finds none ("{}"), unless the text holds
-// "E2E_OFFER_FIELDS=<json>", which it returns as the fields read.
+// "E2E_OFFER_FIELDS=<json>", which it returns as the fields read. Either way it adds a
+// Job Offer Summary, "Résumé du poste : <the offer's title>.", unless the json gives one.
 const realFetch = globalThis.fetch;
 /** Calls so far per scripted Tailored CV id (E2E_CV_REPLIES). */
 const scriptedCalls = new Map();
@@ -107,7 +108,13 @@ globalThis.fetch = async (input, init) => {
     content = JSON.stringify({ items: said.map((text) => ({ kind: "goal", text })) });
   }
   if (system.startsWith("Tu lis le texte d'une offre d'emploi.")) {
-    content = /E2E_OFFER_FIELDS=(\{.*?\})(?:\s|$)/.exec(prompt)?.[1] ?? "{}";
+    const stated = /E2E_OFFER_FIELDS=(\{.*?\})(?:\s|$)/.exec(prompt)?.[1] ?? "{}";
+    const title = prompt.split("\n")[0].trim();
+    try {
+      content = JSON.stringify({ summary: `Résumé du poste : ${title}.`, ...JSON.parse(stated) });
+    } catch {
+      content = stated;
+    }
   }
   if (system.includes("cabinet de recrutement")) {
     const agency = /^Employeur affiché : Cabinet/m.test(prompt);

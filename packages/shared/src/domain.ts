@@ -187,7 +187,16 @@ export interface JobOfferDetails {
    * search provider's date for the page). Unset means the date is unknown.
    */
   postedAt?: Date;
+  /**
+   * The Job Offer Summary: two or three sentences on the role, its scope and what
+   * is expected, written by the AI from the offer's own text and in its language,
+   * inventing nothing (ADR-0006). Unset until it is read (or when the AI gave none).
+   */
+  summary?: string;
 }
+
+/** The longest Job Offer Summary kept, in characters: the AI is asked for about 400. */
+export const JOB_OFFER_SUMMARY_MAX_CHARS = 600;
 
 /** A Job Offer as stored: shared by every Candidate and Guest who captures the same posting. */
 export interface JobOffer extends JobOfferDetails {

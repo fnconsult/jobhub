@@ -1545,6 +1545,8 @@
     "documentsTitle": "Documents adaptés"
   },
   "jobOffer": {
+    "summaryLabel": "Résumé par l'IA",
+    "summaryPending": "Résumé en cours…",
     "details": "En bref",
     "contentTitle": "Texte de l'offre",
     "employer": "Employeur",
@@ -1766,6 +1768,11 @@
       "chief_executive": "Dirigeant ou dirigeante (gérant, président, directeur général)"
     },
     "sourcesTitle": "Sources",
+    "newsTitle": "Actualités",
+    "newsMeta": "{{outlet}}, {{date}}",
+    "newsSearchedOn": "Articles trouvés le {{date}}.",
+    "newsNotSearched": "Mettez le dossier à jour pour y ajouter les actualités de l'employeur.",
+    "noNews": "Aucun article récent trouvé.",
     "builtOn": "Dossier constitué le {{date}} pour « {{employer}} »."
   },
   "enrichedContacts": {

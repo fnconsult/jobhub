@@ -53,14 +53,17 @@ function fakeWeb(pages: Record<string, Page>, clock: FakeClock) {
 }
 
 /** Job Offers kept in memory, deduplicated by source URL like the real store. */
-function memoryJobOffers(existing: JobOffer[] = []): JobOfferStore & { all: JobOffer[] } {
+function memoryJobOffers(existing: JobOffer[] = []): JobOfferStore & { all: JobOffer[]; captures: { input: object; trusted?: object }[] } {
   const all = [...existing];
+  const captures: { input: object; trusted?: object }[] = [];
   return {
     all,
+    captures,
     async findBySourceUrl(url) {
       return all.find((offer) => offer.source.url === url) ?? null;
     },
     async capture(input, _capturedBy, trusted) {
+      captures.push({ input, trusted });
       const offer = { ...(input as Omit<JobOffer, "id">), ...trusted };
       const same = all.find((o) => o.source.url === offer.source.url || o.content === offer.content);
       if (same) return { ok: true, jobOffer: same };
@@ -448,6 +451,20 @@ describe("Job discovery", () => {
           skills: ["IFRS"],
         },
       ]);
+    });
+
+    it("hands the store the Job Offer Summary the LLM wrote as a trusted fact, never as the posting's own input", async () => {
+      const { discovery, jobOffers } = setup({
+        sources: [DAF_URL],
+        pages: { [DAF_URL]: { body: "<html><body><h1>DAF H/F</h1><p>Groupe Seb recrute son DAF.</p></body></html>" } },
+        reply: '{"isJobOffer": true, "title": "DAF H/F", "content": "Groupe Seb recrute son DAF.", "summary": "Groupe Seb recrute son DAF à Lyon."}',
+      });
+
+      await discovery.discover({ candidateId: "c", criteria });
+
+      expect(jobOffers.captures).toHaveLength(1);
+      expect(jobOffers.captures[0]!.input).not.toHaveProperty("summary");
+      expect(jobOffers.captures[0]!.trusted).toEqual({ summary: "Groupe Seb recrute son DAF à Lyon." });
     });
 
     it("does not call the LLM when the page has JobPosting data", async () => {

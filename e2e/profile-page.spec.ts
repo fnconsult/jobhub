@@ -141,7 +141,11 @@ test.describe("the Profile page as a document", () => {
     // Freelance as well as CDI: both stay ticked.
     await choice(page, fr.cvReview.contractType, fr.cvReview.contractTypes.freelance).check();
     await choice(page, fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.hybrid).check();
-    await choice(page, fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.full_remote).check();
+    // Each tick saves in turn: the last one sent before the page is reloaded.
+    await Promise.all([
+      page.waitForResponse((response) => response.request().method() === "PATCH" && (response.request().postData() ?? "").includes("full_remote")),
+      choice(page, fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.full_remote).check(),
+    ]);
     await expect(choice(page, fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.full_remote)).toBeChecked();
 
     await page.reload();
@@ -160,7 +164,11 @@ test.describe("the Profile page as a document", () => {
     }
     await expect(criteria(page).getByRole("button", { name: fr.cvReview.addLocation })).toHaveCount(0);
     await expect(criteria(page).getByRole("button", { name: fr.cvReview.removeLocation.replace("{{number}}", "1") })).toHaveCount(0);
-    await criteria(page).getByRole("button", { name: fr.cvReview.removeLocation.replace("{{number}}", "2") }).click();
+    // Removing a place saves at once: the page is reloaded once that save is done.
+    await Promise.all([
+      page.waitForResponse((response) => response.request().method() === "PATCH" && response.url().includes("/api/profiles/")),
+      criteria(page).getByRole("button", { name: fr.cvReview.removeLocation.replace("{{number}}", "2") }).click(),
+    ]);
     await expect(criteria(page).getByRole("button", { name: fr.cvReview.addLocation })).toBeFocused();
 
     await page.reload();
@@ -260,6 +268,8 @@ test.describe("the Profile page on the ADR-0009 floor", () => {
           ...masterCv.experience.flatMap((job) => [`${job.title} · ${job.employer}`, `${job.period} · ${job.location}`]),
           "Directrice administrative et financière",
           fr.profileSwitcher.current.replace("{{name}}", "Directrice administrative et financière"),
+          // Each place's label, numbered.
+          ...[1, 2, 3, 4, 5].map((number) => fr.cvReview.locationItem.replace("{{number}}", String(number))),
         ].map((text) => text.trim()),
       );
       const known = fromCatalogue(fr);

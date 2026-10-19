@@ -29,7 +29,7 @@ export const TEXT_TASKS = {
 } as const satisfies Record<string, { personalData: boolean }>;
 export type TextTask = keyof typeof TEXT_TASKS;
 
-/** The web-search task. Only ever receives a query built from Search Criteria, or from an employer's name for a Company Dossier. */
+/** The web-search task. Only ever receives a query built from Search Criteria, or from an employer's names and website for a Company Dossier and its Company News. */
 export const SEARCH_TASK = "web_search";
 export type SearchTask = typeof SEARCH_TASK;
 export type AiTask = TextTask | SearchTask;

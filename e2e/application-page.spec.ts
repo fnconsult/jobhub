@@ -87,11 +87,24 @@ test.describe("the Application page", () => {
     const head = page.getByRole("main").locator("header").first();
 
     await expect(head.getByRole("link", { name: fr.application.backToApplications })).toHaveAttribute("href", "/candidatures");
-    await expect(head.getByText("Groupe Ferlac · Villeurbanne (69) · CDI · De 95 000 à 110 000 € brut par an", { exact: true })).toBeVisible();
+    // The Job Offer Summary, written by the AI once the page is shown (faked from the offer's title), labelled so, above the facts.
+    const summary = head.locator(`dl[aria-label="${fr.jobOffer.summaryLabel}"]`);
+    await expect(summary.locator("dt")).toHaveText(fr.jobOffer.summaryLabel);
+    await expect(summary.locator("dd")).toHaveText(`Résumé du poste : ${TITLE}.`);
+    await expect(head.getByRole("status").filter({ hasText: fr.jobOffer.summaryPending })).toHaveCount(0);
+    // Stored: shown straight away when the page is shown again.
+    await page.reload();
+    await expect(summary.locator("dd")).toHaveText(`Résumé du poste : ${TITLE}.`);
+    // The Job Offer's facts, one framed tile each, the salary first (ADR-0024).
+    const facts = head.locator(`dl[aria-label="${fr.jobOffer.details}"]`);
+    // The facts the offer states, in this order; the AI's reading of its text may add more after them.
+    await expect(facts.locator("dt")).toContainText([fr.jobOffer.salary, fr.jobOffer.employer, fr.jobOffer.location, fr.jobOffer.contractType]);
+    await expect(facts.locator("dd")).toContainText(["De 95 000 à 110 000 € brut par an", "Groupe Ferlac", "Villeurbanne (69)", "CDI"]);
 
     // Properties: a label beside each value.
-    const props = head.getByRole("definition");
-    await expect(head.getByRole("term")).toHaveText([
+    const propList = head.locator("dl.props");
+    const props = propList.getByRole("definition");
+    await expect(propList.getByRole("term")).toHaveText([
       fr.application.statusLabel,
       fr.application.profileLabel,
       fr.application.matchLabel,

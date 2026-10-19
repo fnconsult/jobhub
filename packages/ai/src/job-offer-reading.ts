@@ -4,23 +4,34 @@
  *    posting, and what does it state (title, full text and the fields below)?
  *  - `readOfferFields`: the second phase of a Match Score — the fields a stored Job Offer lacks,
  *    read from its text (no copy of the text back, so the reply stays short and quick).
+ * Both also write the Job Offer Summary: two or three sentences on the role, its scope and what is
+ * expected, in the offer's own language, inventing nothing (ADR-0006).
  * Both carry public posting text only, never the Candidate's CV or identity: they run as the
  * `offer_analysis` task, which carries no personal data (ADR-0007).
  */
-import { CONTRACT_TYPES, REMOTE_WORK_OPTIONS, type JobOfferDetails } from "@jobhub/shared";
+import { CONTRACT_TYPES, JOB_OFFER_SUMMARY_MAX_CHARS, REMOTE_WORK_OPTIONS, type JobOfferDetails } from "@jobhub/shared";
 import type { AiLayer } from "./ai-layer";
 
 /** Enough text for any real posting, while keeping the call cheap. */
 const MAX_PAGE_CHARS = 30_000;
 
-/** The fields of a Job Offer an LLM can read from its text: those the Match Score and the Company Dossier use. */
-export type OfferFields = Pick<JobOfferDetails, "employer" | "location" | "contractType" | "remoteWork" | "salary" | "skills" | "requiredExperienceYears">;
+/**
+ * The fields of a Job Offer an LLM can read from its text: those the Match Score and the Company Dossier use,
+ * and the Job Offer Summary.
+ */
+export type OfferFields = Pick<
+  JobOfferDetails,
+  "employer" | "location" | "contractType" | "remoteWork" | "salary" | "skills" | "requiredExperienceYears" | "summary"
+>;
 
 const FIELDS_SCHEMA = `"employer"?: string, "location"?: string,
  "contractType"?: ${CONTRACT_TYPES.map((t) => `"${t}"`).join(" | ")}, "remoteWork"?: ${REMOTE_WORK_OPTIONS.map((t) => `"${t}"`).join(" | ")},
- "salaryMin"?: number, "salaryMax"?: number, "skills"?: string[], "requiredExperienceYears"?: number`;
+ "salaryMin"?: number, "salaryMax"?: number, "skills"?: string[], "requiredExperienceYears"?: number, "summary": string`;
 
-const FIELDS_RULES = `- Salaires en euros bruts annuels. N'invente rien : omets un champ que l'offre ne précise pas.`;
+const FIELDS_RULES = `- Salaires en euros bruts annuels. N'invente rien : omets un champ que l'offre ne précise pas.
+- "summary" : deux ou trois phrases (400 caractères au plus) sur le poste, son périmètre et ce qui est attendu,
+  écrites dans la langue de l'offre (en anglais pour une offre en anglais). Uniquement ce que l'offre dit, sans rien inventer
+  ni juger, et sans nom de personne (recruteur, manager).`;
 
 const PAGE_SYSTEM = `Tu lis le texte d'une page web trouvée par une recherche d'offres d'emploi.
 Réponds uniquement par un objet JSON, sans texte autour.
@@ -56,6 +67,12 @@ const str = (value: unknown) => (typeof value === "string" && value.trim() ? val
 const positive = (value: unknown) => (typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.round(value) : undefined);
 const oneOf = <T extends string>(allowed: readonly T[], value: unknown) => (allowed.includes(value as T) ? (value as T) : undefined);
 
+/** A Job Offer Summary of the right shape: text, its spacing tidied, not too long. */
+function summaryFrom(value: unknown): string | undefined {
+  const text = str(value)?.replace(/\s+/g, " ");
+  return text && text.length <= JOB_OFFER_SUMMARY_MAX_CHARS ? text : undefined;
+}
+
 /** The fields the reply states, each checked: anything of the wrong shape is left out. */
 function fieldsFrom(reply: Json): OfferFields {
   const fields: OfferFields = {};
@@ -74,6 +91,8 @@ function fieldsFrom(reply: Json): OfferFields {
   if (skills.length) fields.skills = skills;
   const years = typeof reply.requiredExperienceYears === "number" && reply.requiredExperienceYears >= 0 ? Math.round(reply.requiredExperienceYears) : undefined;
   if (years !== undefined) fields.requiredExperienceYears = years;
+  const summary = summaryFrom(reply.summary);
+  if (summary) fields.summary = summary;
   return fields;
 }
 
@@ -107,7 +126,7 @@ export async function readOfferFields(
     candidateId,
     system: FIELDS_SYSTEM,
     prompt: `${jobOffer.title}\n\n${jobOffer.content}`.slice(0, MAX_PAGE_CHARS),
-    // Fields only, never the text back: a short reply, so the Match Score is not kept waiting.
+    // Fields and a short summary, never the text back: a short reply, so the Match Score is not kept waiting.
     maxTokens: 1024,
     containsIdentity: false,
   });

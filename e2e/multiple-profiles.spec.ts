@@ -364,7 +364,8 @@ test.describe("editing a Profile's Search Criteria (issue #70)", () => {
     expect((await invalid.json()).errors).toEqual(
       expect.arrayContaining([
         { field: "searchCriteria.targetRole", code: "required" },
-        { field: "searchCriteria.contractType", code: "invalid" },
+        // The contract type that is not one: named by its place in the list.
+        { field: "searchCriteria.contractTypes.0", code: "invalid" },
       ]),
     );
 

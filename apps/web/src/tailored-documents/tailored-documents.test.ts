@@ -218,6 +218,8 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
         executiveRoles: ["Président"],
         builtAt: new Date("2026-10-01T10:00:00Z"),
         suggestedContactRoles: ["hr_director", "hiring_manager"],
+        news: [],
+        newsSearched: true,
       },
     });
 

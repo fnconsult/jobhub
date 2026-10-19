@@ -812,6 +812,11 @@ th[aria-sort] .sort-mark {
   margin: var(--space-2) 0 var(--space-4);
 }
 
+/* The Job Offer Summary, written by the AI: one tile across the row, above the Job Offer's facts. */
+.job-offer-summary {
+  margin: var(--space-2) 0 0;
+}
+
 /* Room for the floating Coach Panel button under the last line of every page. */
 .page {
   padding-bottom: calc(var(--space-12) + var(--space-12));
@@ -1031,6 +1036,26 @@ th[aria-sort] .sort-mark {
 
 /* A source's URL can run long with no break in it: it wraps, so the page never scrolls sideways (ADR-0009, #172). */
 .dossier-sources {
+  overflow-wrap: anywhere;
+}
+
+/* Company News: one article a row, its title a link at least 2.75rem high (ADR-0009), its outlet and date below. */
+.dossier-news {
+  display: grid;
+  gap: var(--space-3);
+  padding-left: 0;
+  list-style: none;
+}
+
+.dossier-news li {
+  display: flex;
+  flex-direction: column;
+}
+
+.dossier-news a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
   overflow-wrap: anywhere;
 }
 
@@ -1670,8 +1695,10 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 }
 
 @media (width < 64rem) {
+  /* The Section slides in from the right: it never widens the page meanwhile. */
   .sections {
     display: block;
+    overflow-x: clip;
   }
 
   .sections-nav {

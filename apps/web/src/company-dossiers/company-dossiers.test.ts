@@ -89,6 +89,9 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
   let analysis: { recruitingAgency: boolean; presumedEmployer: string | null; presumedEmployerDescription?: string | null } | string;
   let webAnswer: string;
   let webSources: string[];
+  /** What the Company News search answers, or an error it fails with; its queries are kept apart from the company search's. */
+  let newsAnswer: string | Error;
+  let newsQueries: string[];
 
   async function signIn(email: string) {
     const cookie = await signInWithMagicLink(testAuth, email);
@@ -125,7 +128,14 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
     webSources = ["https://example.com/about"];
     mistral = createFakeProvider({ id: "mistral", reply: () => (typeof analysis === "string" ? analysis : JSON.stringify(analysis)) });
     perplexity = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: ["https://example.com/about"] });
+    newsAnswer = JSON.stringify({ articles: [] });
+    newsQueries = [];
     perplexity.search = async (query) => {
+      if (query.startsWith("Articles de presse")) {
+        newsQueries.push(query);
+        if (newsAnswer instanceof Error) throw newsAnswer;
+        return { answer: newsAnswer, sources: [], model: "fake", usage: { inputTokens: 1, outputTokens: 1 } };
+      }
       perplexity.queries.push(query);
       return { answer: webAnswer, sources: webSources, model: "fake", usage: { inputTokens: 1, outputTokens: 1 } };
     };
@@ -362,11 +372,17 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
             website: "https://acme-robotics.example",
             sources: ["https://example.com/about"],
             suggestedContactRoles: ["hiring_manager", "talent_acquisition", "hr_director"],
+            news: [],
+            newsSearched: true,
           },
         },
       });
       expect(perplexity.queries[0]).toContain("« Acme Robotics GmbH »");
       expect(JSON.stringify(result)).not.toContain("Müller");
+      // Its Company News is searched with its website, to tell it apart from namesakes.
+      expect(newsQueries).toHaveLength(1);
+      expect(newsQueries[0]).toContain("« Acme Robotics GmbH »");
+      expect(newsQueries[0]).toContain("site web acme-robotics.example");
     });
 
     it("drops web facts that name a person or give a street address", async () => {
@@ -610,6 +626,85 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
         ok: false,
         errors: [{ field: "employer", code: "required" }],
       });
+    });
+  });
+
+  describe("Company News", () => {
+    /** The day `days` before today, YYYY-MM-DD. */
+    const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+    const article = (fields: Record<string, unknown>) => ({ outlet: "Les Echos", date: daysAgo(30), url: "https://news.example/a", namesPerson: false, ...fields });
+
+    it("searches the employer's news when the dossier is built, by its registered name, and keeps it with the dossier", async () => {
+      newsAnswer = JSON.stringify({
+        articles: [
+          article({ title: "Acme Industrie ouvre une usine à Lyon", url: "https://news.example/usine", date: daysAgo(10) }),
+          article({ title: "Acme Industrie publie ses résultats", url: "https://news.example/resultats", date: daysAgo(40) }),
+          article({ title: "Acme Industrie déménage", url: "https://news.example/ancien", date: daysAgo(400) }),
+          article({ title: "Pauline Martin quitte Acme Industrie", url: "https://news.example/depart" }),
+        ],
+      });
+      const applicationId = await applicationFor({ employer: "Acme" });
+
+      const result = await dossiers.build(candidateId, applicationId);
+
+      const news = [
+        { title: "Acme Industrie ouvre une usine à Lyon", outlet: "Les Echos", publishedAt: daysAgo(10), url: "https://news.example/usine" },
+        { title: "Acme Industrie publie ses résultats", outlet: "Les Echos", publishedAt: daysAgo(40), url: "https://news.example/resultats" },
+      ];
+      expect(result).toMatchObject({ ok: true, state: { status: "built", dossier: { source: "french_register", news } } });
+      expect(newsQueries).toHaveLength(1);
+      expect(newsQueries[0]).toContain("raison sociale « ACME INDUSTRIE »");
+      expect(JSON.stringify(result)).not.toContain("Pauline");
+      expect(await dossiers.get(candidateId, applicationId)).toMatchObject({ status: "built", dossier: { news } });
+    });
+
+    it("drops a title the dossier's own safeguards take for one about a person", async () => {
+      newsAnswer = JSON.stringify({ articles: [article({ title: "Acme Industrie, l'entreprise fondée par un ingénieur lyonnais, grandit" })] });
+      const applicationId = await applicationFor({ employer: "Acme Industrie" });
+
+      expect(await dossiers.build(candidateId, applicationId)).toMatchObject({ ok: true, state: { dossier: { news: [] } } });
+    });
+
+    it("still builds the dossier, without news, when the news search fails", async () => {
+      newsAnswer = new Error("HTTP 503");
+      const applicationId = await applicationFor({ employer: "Acme Industrie" });
+
+      const result = await dossiers.build(candidateId, applicationId);
+
+      expect(result).toMatchObject({ ok: true, state: { status: "built", dossier: { siren: "552100554", news: [] } } });
+      expect(newsQueries).toHaveLength(1);
+    });
+
+    it("searches the news again when the dossier is built again", async () => {
+      const applicationId = await applicationFor({ employer: "Acme Industrie" });
+      await dossiers.build(candidateId, applicationId);
+      newsAnswer = JSON.stringify({ articles: [article({ title: "Acme Industrie recrute 200 personnes en 2027" })] });
+
+      const result = await dossiers.build(candidateId, applicationId);
+
+      expect(newsQueries).toHaveLength(2);
+      expect(result).toMatchObject({ ok: true, state: { dossier: { news: [{ title: "Acme Industrie recrute 200 personnes en 2027" }] } } });
+    });
+
+    it("searches no news for an employer that is not a company, nor before the Candidate confirms a Presumed Employer", async () => {
+      register.soleTraderNamed = true;
+      register.companies = [];
+      await dossiers.build(candidateId, await applicationFor({ employer: "Damien Dupont" }));
+      analysis = { recruitingAgency: true, presumedEmployer: "Acme Industrie" };
+      await dossiers.build(candidateId, await applicationFor({ employer: "Cabinet Talents" }));
+
+      expect(newsQueries).toEqual([]);
+    });
+
+    it("gives a dossier built before Company News no news", async () => {
+      const applicationId = await applicationFor({ employer: "Acme Industrie" });
+      const database = testAuth.auth.options.database as Pool;
+      await database.query(`INSERT INTO company_dossier (application_id, dossier) VALUES ($1, $2)`, [
+        applicationId,
+        { source: "web", reliability: "less_reliable", employer: "Acme", builtAt: "2026-01-01T09:00:00.000Z", suggestedContactRoles: [], sources: [] },
+      ]);
+
+      expect(await dossiers.get(candidateId, applicationId)).toMatchObject({ status: "built", dossier: { employer: "Acme", news: [] } });
     });
   });
 

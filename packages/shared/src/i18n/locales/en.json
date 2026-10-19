@@ -1545,6 +1545,8 @@
     "documentsTitle": "Tailored documents"
   },
   "jobOffer": {
+    "summaryLabel": "Summary by the AI",
+    "summaryPending": "Summary in progress…",
     "details": "At a glance",
     "contentTitle": "Job offer text",
     "employer": "Employer",
@@ -1766,6 +1768,11 @@
       "chief_executive": "Head of the company (gérant, président, CEO)"
     },
     "sourcesTitle": "Sources",
+    "newsTitle": "News",
+    "newsMeta": "{{outlet}}, {{date}}",
+    "newsSearchedOn": "Articles found on {{date}}.",
+    "newsNotSearched": "Update the dossier to add the employer's news.",
+    "noNews": "No recent article found.",
     "builtOn": "Dossier built on {{date}} for “{{employer}}”."
   },
   "enrichedContacts": {

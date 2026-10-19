@@ -60,7 +60,7 @@ const EMAIL = /\S+@\S+/g;
 const PHONE = /\+?\d(?:[\s.-]?\d){7,}/g;
 
 /** Free text the Candidate typed (or an AI step wrote): drop anything that looks like contact details, collapse whitespace, cap length. */
-function clean(text: string): string {
+export function clean(text: string): string {
   return text.replace(EMAIL, " ").replace(PHONE, " ").replace(/\s+/g, " ").trim().slice(0, MAX_FIELD_LENGTH).trim();
 }
 

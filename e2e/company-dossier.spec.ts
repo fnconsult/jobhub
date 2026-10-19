@@ -94,6 +94,32 @@ test.describe("Company Dossier", () => {
     await expect(dossier.getByText(t.reliability.official)).toBeVisible();
     await expect(dossier.getByText(t.noFinancials)).toBeVisible();
     await expect(dossier.getByRole("table")).toHaveCount(0);
+    // The (faked) news search finds no article about it.
+    await expect(dossier.getByRole("heading", { name: t.newsTitle })).toBeVisible();
+    await expect(dossier.getByText(t.noNews)).toBeVisible();
+  });
+
+  test("a dossier shows the employer's Company News of the last twelve months, none naming a person", async ({ page }) => {
+    const dossier = await openApplication(page, "Acme Industrie");
+
+    await dossier.getByRole("button", { name: t.build }).click();
+
+    await expect(dossier.getByRole("heading", { name: t.newsTitle })).toBeVisible();
+    const news = dossier.getByRole("list").filter({ has: page.getByRole("link", { name: "Une nouvelle usine de robots inaugurée" }) });
+    await expect(news.getByRole("listitem")).toHaveCount(1);
+    const article = news.getByRole("link", { name: "Une nouvelle usine de robots inaugurée" });
+    await expect(article).toHaveAttribute("href", "https://news.example/nouvelle-usine");
+    await expect(article).toHaveAttribute("target", "_blank");
+    await expect(article).toHaveAttribute("rel", "noopener noreferrer nofollow");
+    await expect(news.getByText(/^Le Journal de l'Industrie, \d{1,2} \S+ \d{4}$/)).toBeVisible();
+    // Older than twelve months, or naming a person: left out.
+    await expect(dossier.getByText("Des résultats annuels en hausse")).toHaveCount(0);
+    await expect(dossier.getByText(/quitte la direction/)).toHaveCount(0);
+    await expect(dossier.getByText(t.noNews)).toHaveCount(0);
+    await expect(dossier.getByText(/^Articles trouvés le \d{1,2} \S+ \d{4}\.$/)).toBeVisible();
+    // A target of at least 44px (ADR-0009).
+    expect((await article.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await expectNoPrivatePersonNamed(page);
   });
 
   test("a foreign employer gets a dossier from web sources, labelled less reliable", async ({ page }) => {

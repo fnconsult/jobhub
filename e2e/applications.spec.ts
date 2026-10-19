@@ -93,7 +93,8 @@ test.describe("Applications", () => {
     await expect(offer.getByRole("heading", { name: "Vos missions :" })).toBeVisible();
     await expect(offer.getByRole("listitem")).toHaveText(["Piloter la clôture des comptes", "Encadrer une équipe de 12 personnes"]);
     await expect(offer.getByRole("heading", { name: "PROFIL RECHERCHÉ" })).toBeVisible();
-    await expect(page.getByRole("region", { name: fr.jobOffer.details }).getByText("Acme Industrie", { exact: true })).toBeVisible();
+    // Its facts are in the page's header, framed (ADR-0024).
+    await expect(page.locator(`dl[aria-label="${fr.jobOffer.details}"]`).getByText("Acme Industrie", { exact: true })).toBeVisible();
     await sectionLink(page, fr.application.sections.correspondance).click();
     const score = page.getByRole("region", { name: fr.matchScore.title });
     await expect(score.getByText(/^\d{1,3}\s?\/\s?100$/)).toBeVisible();

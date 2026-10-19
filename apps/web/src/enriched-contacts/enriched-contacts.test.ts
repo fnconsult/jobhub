@@ -31,6 +31,8 @@ const DOSSIER: CompanyDossier = {
   builtAt: new Date("2026-10-01T10:00:00Z"),
   website: "https://www.acme-industrie.fr/",
   sources: [],
+  news: [],
+    newsSearched: true,
   suggestedContactRoles: ["hiring_manager", "hr_director", "talent_acquisition"],
 };
 
@@ -45,6 +47,8 @@ const REGISTER_DOSSIER: CompanyDossier = {
   financials: [],
   executiveRoles: [],
   suggestedContactRoles: ["hr_director"],
+  news: [],
+    newsSearched: true,
 };
 
 const CLAIRE: FoundPerson = { providerPersonId: "p-claire", name: "Claire M.", jobTitle: "DRH" };

@@ -56,6 +56,49 @@ describe("reading a Job Offer's fields from its text (#94)", () => {
   });
 });
 
+describe("the Job Offer Summary, read with the fields", () => {
+  const jobOffer = { title: "Finance Director", content: "Acme is hiring a Finance Director to lead a team of 12 in London." };
+
+  it("asks for two or three sentences in the offer's own language, inventing nothing and naming no one", async () => {
+    const { ai, claude } = setUp("{}");
+
+    await readOfferFields(ai, { candidateId: "cand-1", jobOffer });
+
+    const system = claude.calls[0]!.system ?? "";
+    expect(system).toContain('"summary"');
+    expect(system).toMatch(/deux ou trois phrases/);
+    expect(system).toMatch(/langue de l'offre/);
+    expect(system).toMatch(/sans rien inventer/);
+    expect(system).toMatch(/sans nom de personne/);
+  });
+
+  it("keeps a summary of the right shape, its spacing tidied, in the language it was written in", async () => {
+    const { ai, usage } = setUp(
+      JSON.stringify({ location: "London", summary: "  Acme seeks a Finance Director\nto lead a team of 12.  Reporting to the CEO.  " }),
+    );
+
+    expect(await readOfferFields(ai, { candidateId: "cand-1", jobOffer })).toEqual({
+      location: "London",
+      summary: "Acme seeks a Finance Director to lead a team of 12. Reporting to the CEO.",
+    });
+    expect(usage.entries).toMatchObject([{ task: "offer_analysis", candidateId: "cand-1" }]);
+  });
+
+  it("leaves out a summary that is not text, is empty or is far too long", async () => {
+    for (const summary of [42, ["a", "b"], "   ", "x".repeat(601)]) {
+      const { ai } = setUp(JSON.stringify({ location: "London", summary }));
+      expect(await readOfferFields(ai, { candidateId: null, jobOffer })).toEqual({ location: "London" });
+    }
+  });
+
+  it("comes with a job page read by Job discovery", async () => {
+    const { ai, claude } = setUp('{"isJobOffer": true, "title": "DAF H/F", "content": "Groupe Seb recrute son DAF.", "summary": "Groupe Seb recrute son DAF."}');
+
+    expect(await readJobPage(ai, null, "page")).toEqual({ title: "DAF H/F", content: "Groupe Seb recrute son DAF.", summary: "Groupe Seb recrute son DAF." });
+    expect(claude.calls[0]!.system).toMatch(/langue de l'offre/);
+  });
+});
+
 describe("reading a job page (Job discovery)", () => {
   it("returns the posting with its fields, or null for a page that is not one job posting", async () => {
     const posting = setUp('{"isJobOffer": true, "title": "DAF H/F", "content": "Groupe Seb recrute son DAF.", "contractType": "cdi", "skills": ["IFRS"]}');

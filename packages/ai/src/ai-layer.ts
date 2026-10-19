@@ -1,6 +1,7 @@
 import type { SearchCriteria } from "@jobhub/shared";
 import { findIdentity } from "./identity-scan";
 import { buildCompanyQuery, buildSearchQuery, jobSearchQueries, jobTitlesPrompt, type JobSearchQuery } from "./search-query";
+import { buildCompanyNewsQuery, COMPANY_NEWS_MAX_AGE_DAYS, companyNewsIn, type CompanyNewsArticle, type CompanyNewsRequest } from "./company-news";
 import { costInEur, toolCostInEur } from "./cost";
 import { effortHandling, type Effort, type EffortHandling } from "./effort";
 import { AiConfigError, DataResidencyError } from "./errors";
@@ -112,6 +113,11 @@ export interface AiLayer {
   searchWeb(request: SearchRequest): Promise<SearchResult>;
   /** Searches the web for public facts about an employer, for a Company Dossier. */
   searchCompany(request: CompanySearchRequest): Promise<SearchResult>;
+  /**
+   * Searches the web for the employer's Company News: up to 5 articles from the last 12 months, newest
+   * first, none whose title may name a person (company-news.ts). Never fails: on a failed search, none.
+   */
+  searchCompanyNews(request: CompanyNewsRequest): Promise<CompanyNewsArticle[]>;
   /**
    * The providers and models a Playbook Agent may use (#225): the EU-resident text providers configured,
    * each with the models a route names for it, then those it offers.
@@ -349,6 +355,20 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
 
     async searchCompany(request) {
       return search(request.candidateId, buildCompanyQuery(request.employer));
+    },
+
+    async searchCompanyNews(request) {
+      try {
+        const found = await search(request.candidateId, buildCompanyNewsQuery(request), { maxAgeDays: COMPANY_NEWS_MAX_AGE_DAYS });
+        const companyNames = [request.employer, request.registeredName ?? "", request.website ?? ""].filter(Boolean);
+        return companyNewsIn(found.answer, { now: now(), companyNames, ...(found.sourceDates ? { sourceDates: found.sourceDates } : {}) });
+      } catch (error) {
+        warn("Company News unavailable: the Company Dossier is built without it", {
+          candidateId: request.candidateId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return [];
+      }
     },
 
     agentModels() {

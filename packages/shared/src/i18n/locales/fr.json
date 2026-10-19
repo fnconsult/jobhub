@@ -2028,7 +2028,6 @@
     "saved": "CV adapté enregistré sur la candidature.",
     "savedTitle": "CV adapté enregistré",
     "savedOn": "Enregistré le {{date}}.",
-    "skillsLine": "Compétences : {{skills}}",
     "unavailable": "Le coach n'a pas pu proposer de CV adapté pour l'instant. Réessayez dans quelques minutes.",
     "masterCvChanged": "Votre CV de référence a changé depuis cette proposition : demandez une nouvelle proposition avant d'enregistrer.",
     "proposalChanged": "Cette proposition a changé depuis que vous l'avez vérifiée (dans un autre onglet ?) : vérifiez-la à nouveau avant d'enregistrer.",

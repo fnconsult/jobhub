@@ -151,7 +151,8 @@ test.describe("Tailored CV with change review", () => {
     await page.reload();
     const saved = section(page).getByRole("group", { name: tc.savedTitle });
     await expect(saved.getByText("Directrice financière (adapté, fr)")).toBeVisible();
-    await expect(saved.getByText(tc.skillsLine.replace("{{skills}}", "Consolidation, IFRS, SAP, Power BI"))).toBeVisible();
+    // Its skills as tags, one per skill.
+    await expect(saved.getByRole("list", { name: fr.cvReview.skills }).getByRole("listitem")).toHaveText(["Consolidation", "IFRS", "SAP", "Power BI"]);
     // The rejected cut and the unaccepted wording from the Job Offer keep the Master CV's.
     const jobs = saved.getByRole("list", { name: tc.sections.experience }).getByRole("listitem");
     await expect(jobs).toHaveCount(2);

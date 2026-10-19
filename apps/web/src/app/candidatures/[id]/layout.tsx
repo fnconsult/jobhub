@@ -21,8 +21,9 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 /**
  * One Application, laid out as a document (the Notion-like prototype, #132): on
- * every Section, the Job Offer Summary (written by the AI, asked for once the page
- * is shown when the offer has none yet), the Job Offer at a glance and the Application's properties
+ * every Section, the Job Offer at a glance (its facts framed, skills as tags), then
+ * the Job Offer Summary (written by the AI, asked for once the page is shown when
+ * the offer has none yet), then the Application's properties
  * (status and Profile, both changed in place; Match Score; when it was saved;
  * the Job Offer's site), then whether its Job Offer is expired or Reported
  * Unavailable by the Candidate (who can report it, and undo that). Then its
@@ -46,8 +47,8 @@ export default async function ApplicationLayout({ params, children }: Params & {
           <p className="eyebrow">
             <Link href={routes.applications}>{t("application.backToApplications")}</Link>
           </p>
-          <JobOfferSummary applicationId={application.id} summary={jobOffer.summary} />
           <JobOfferTiles jobOffer={jobOffer} t={t} locale={locale} />
+          <JobOfferSummary applicationId={application.id} summary={jobOffer.summary} />
           <dl className="props">
             <ApplicationStatusSelect applicationId={application.id} status={application.status} property />
             <ApplicationProfileSelect applicationId={application.id} profileId={application.profile.id} profiles={choices} />

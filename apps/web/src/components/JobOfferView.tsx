@@ -1,4 +1,5 @@
 import type { JobOffer } from "@jobhub/shared";
+import { SkillTags } from "@/components/SkillTags";
 import type { getServerT } from "@/i18n/server";
 import { jobOfferSalary } from "@/job-offers/at-a-glance";
 import { contentBlocks } from "@/job-offers/content-blocks";
@@ -26,7 +27,7 @@ export function JobOfferTiles({ jobOffer, t, locale }: { jobOffer: JobOffer; t: 
   if (jobOffer.contractType) tiles.push([t("jobOffer.contractType"), t(`cvReview.contractTypes.${jobOffer.contractType}`)]);
   if (jobOffer.remoteWork) tiles.push([t("jobOffer.remoteWork"), t(`cvReview.remoteWorkOptions.${jobOffer.remoteWork}`)]);
   if (jobOffer.requiredExperienceYears !== undefined) tiles.push([t("jobOffer.experience"), t("jobOffer.experienceYears", { years: jobOffer.requiredExperienceYears })]);
-  const skills = jobOffer.skills?.length ? jobOffer.skills.join(", ") : null;
+  const skills = jobOffer.skills?.length ? jobOffer.skills : null;
   if (tiles.length === 0 && !skills) return null;
   return (
     <dl className="tiles job-offer-tiles" aria-label={t("jobOffer.details")}>
@@ -39,7 +40,9 @@ export function JobOfferTiles({ jobOffer, t, locale }: { jobOffer: JobOffer; t: 
       {skills ? (
         <div className="tile-wide">
           <dt>{t("jobOffer.skills")}</dt>
-          <dd>{skills}</dd>
+          <dd>
+            <SkillTags skills={skills} />
+          </dd>
         </div>
       ) : null}
     </dl>
@@ -67,7 +70,11 @@ export function JobOfferView({ jobOffer, t, locale, details = true }: { jobOffer
             {jobOffer.requiredExperienceYears !== undefined ? (
               <Detail term={t("jobOffer.experience")}>{t("jobOffer.experienceYears", { years: jobOffer.requiredExperienceYears })}</Detail>
             ) : null}
-            {jobOffer.skills?.length ? <Detail term={t("jobOffer.skills")}>{jobOffer.skills.join(", ")}</Detail> : null}
+            {jobOffer.skills?.length ? (
+              <Detail term={t("jobOffer.skills")}>
+                <SkillTags skills={jobOffer.skills} />
+              </Detail>
+            ) : null}
             {site ? (
               <Detail term={t("jobOffer.source")}>
                 {jobOffer.source.url ? (

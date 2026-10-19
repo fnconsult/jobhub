@@ -1,6 +1,7 @@
 import { wantedValues, type CriterionStatus, type MatchScore, type SalaryRange } from "@jobhub/shared";
 import { anyOfInWords, matchScoreFigure, matchScoreInWords, matchScoreReliabilityHint } from "@/components/job-search-words";
 import type { getServerT } from "@/i18n/server";
+import { SkillTags } from "@/components/SkillTags";
 
 type T = Awaited<ReturnType<typeof getServerT>>;
 
@@ -80,11 +81,7 @@ function SkillList({ title, skills }: { title: string; skills: string[] }) {
   return (
     <>
       <p>{title}</p>
-      <ul className="skill-list">
-        {skills.map((skill) => (
-          <li key={skill}>{skill}</li>
-        ))}
-      </ul>
+      <SkillTags skills={skills} />
     </>
   );
 }

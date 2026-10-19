@@ -2,7 +2,7 @@ import { EUR_PER_USD } from "@jobhub/ai";
 import type { Metadata } from "next";
 import { requireBackOffice } from "@/admin/server";
 import { COACH_MESSAGE_COST_TARGET_EUR } from "@/coach-conversations";
-import { coachCostOfLastDays } from "@/coach-conversations/server";
+import { coachCostOfLastDays, playbookAgentCostOfLastDays } from "@/coach-conversations/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 
@@ -22,7 +22,7 @@ export default async function CoachCostPage() {
   const { access } = await requireBackOffice("coachMessageCost");
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
-  const days = await coachCostOfLastDays(DAYS);
+  const [days, agents] = await Promise.all([coachCostOfLastDays(DAYS), playbookAgentCostOfLastDays(DAYS)]);
   const eur = new Intl.NumberFormat(locale, { style: "currency", currency: "EUR", minimumFractionDigits: 4, maximumFractionDigits: 4 });
   const number = new Intl.NumberFormat(locale);
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" });
@@ -79,6 +79,38 @@ export default async function CoachCostPage() {
           </table>
         </div>
       )}
+
+      <section className="stack" aria-labelledby="agents-title">
+        <h2 id="agents-title">{t("admin.coachCost.agents.title")}</h2>
+        <p>{t("admin.coachCost.agents.intro", { days: String(DAYS) })}</p>
+        {agents.length === 0 ? (
+          <p>{t("admin.coachCost.agents.none")}</p>
+        ) : (
+          <div className="table-scroll">
+            <table className="application-table">
+              <caption>{t("admin.coachCost.agents.caption")}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">{t("admin.coachCost.agents.playbook")}</th>
+                  <th scope="col">{t("admin.coachCost.agents.consultations")}</th>
+                  <th scope="col">{t("admin.coachCost.agents.median")}</th>
+                  <th scope="col">{t("admin.coachCost.agents.models")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {agents.map((agent) => (
+                  <tr key={agent.playbookId}>
+                    <th scope="row">{agent.playbookId}</th>
+                    <td>{number.format(agent.consultations)}</td>
+                    <td>{eur.format(agent.medianEur)}</td>
+                    <td>{agent.models.map((model) => `${model.provider} ${model.model} (${number.format(model.consultations)})`).join(", ")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </BackOfficeLayout>
   );
 }

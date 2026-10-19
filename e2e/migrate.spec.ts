@@ -61,6 +61,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Sign-in Providers are up to date");
     expect(first.stdout).toContain("Back Office Assistant conversations are up to date");
     expect(first.stdout).toContain("AI Usage is up to date");
+    expect(first.stdout).toContain("Coaching Playbooks, the Core Digest and the Sources list are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 
@@ -90,6 +91,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "coach_memory_item", // issue #125: the Candidate's Coach Memory
         "coach_message", // issue #124: their messages
         "coach_review", // issue #24: Coach Reviews of Tailored Documents
+        "coaching_playbook", // issue #225: the Coaching Playbooks, the Core Digest and the Sources list
         "coaching_session", // issue #24: Coaching Sessions paid through Stripe
         "company_dossier", // issue #17
         "enriched_contact", // issue #23: Enriched Contacts, with their source provider and retrieval date
@@ -109,6 +111,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "master_cv_version",
         "plan", // issue #206: the Plans Administrators define
         "plan_quota",
+        "playbook_version", // issue #225: every Playbook Version, kept forever
         "profile",
         "provider_secret", // issue #208: Provider Secrets, encrypted
         "quota_usage",
@@ -192,6 +195,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "master_cv_version", from_column: "profile_id", to_table: "profile" },
         // A Plan's quotas belong to a Plan (issue #206), never deleted.
         { from_table: "plan_quota", from_column: "plan", to_table: "plan" },
+        // Playbook Versions (issue #225) belong to their Coaching Playbook, neither ever deleted; no Candidate is named.
+        { from_table: "playbook_version", from_column: "playbook_id", to_table: "coaching_playbook" },
         { from_table: "profile", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "quota_usage", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "session", from_column: "userId", to_table: "candidate" },

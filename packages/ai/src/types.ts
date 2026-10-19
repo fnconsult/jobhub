@@ -2,6 +2,7 @@
  * Types shared by the AI layer and its provider adapters (ADR-0007).
  * Callers only need `AiLayer`; `AiProvider` is the seam each adapter fills.
  */
+import type { Effort } from "./effort";
 
 export const PROVIDER_IDS = ["anthropic", "mistral", "openai", "perplexity", "brave", "tavily", "linkup"] as const;
 export type ProviderId = (typeof PROVIDER_IDS)[number];
@@ -59,6 +60,8 @@ export interface TextInput {
   system?: string;
   messages: Message[];
   maxTokens: number;
+  /** How hard the model should think (#225); each adapter translates it, or leaves it out for a model that has no such setting (see effort.ts). */
+  effort?: Effort;
 }
 
 /** A tool the model used during one call (e.g. its web search), as the provider reports it. Never its arguments or results. */
@@ -123,6 +126,8 @@ export interface AiProvider {
   readonly residency: Residency;
   /** The model it uses when the route names none, by name: what a failed call is recorded with. */
   readonly defaultModel?: string;
+  /** The text models it offers a Playbook Agent (#225), by the name this endpoint knows them by, its default model first. */
+  readonly models?: readonly string[];
   generate?(input: TextInput): Promise<TextOutput>;
   search?(query: string, options: SearchOptions): Promise<SearchOutput>;
   /** How many pages of results `search` can give one query (see `SearchOptions.page`). Default: 1. */

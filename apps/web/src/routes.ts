@@ -43,6 +43,9 @@ export const routes = {
   adminHumanCoaches: "/admin/coachs",
   /** The AI Coach's cost per reply, per day: median and p90 against the target. */
   adminCoachCost: "/admin/cout-coach",
+  /** The Coaching Playbooks, the Core Digest and the Sources list (#225); one of them, at a version (default: its latest). */
+  adminCoachingPlaybooks: "/admin/playbooks",
+  adminCoachingPlaybook: (id: string, version?: number) => `/admin/playbooks/${encodeURIComponent(id)}${version ? `?version=${version}` : ""}`,
   /** The sites Jobbbox searches: the extension's Job Sites, Job discovery sources and Job discovery sites. */
   adminSearchSites: "/admin/sites",
   /** The Provider Secrets (Clés): third-party keys, super-admins only. */

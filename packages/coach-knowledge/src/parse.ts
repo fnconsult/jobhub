@@ -1,4 +1,4 @@
-/** Parsers for the knowledge files' Markdown. Internal to the package: callers use `loadCoachKnowledge`. */
+/** Parsers for the Markdown coaching knowledge is written in. */
 
 export type Frontmatter = Record<string, string | string[]>;
 

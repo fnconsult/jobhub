@@ -45,6 +45,7 @@ export const BACK_OFFICE_SECTIONS = [
   "job_discovery_sites",
   "job_sites",
   "ai_messages",
+  "coaching_playbooks",
 ] as const;
 export type BackOfficeSection = (typeof BACK_OFFICE_SECTIONS)[number];
 
@@ -68,9 +69,10 @@ export type SecretAction = (typeof SECRET_ACTIONS)[number];
 /**
  * What was done to the target. `retired` keeps its history (a Human Coach), `removed`
  * deletes it (a search site). `viewed`: an AI Message Log was read (#218), the only read the
- * Back Office Audit records.
+ * Back Office Audit records. `validated`, `archived` and `restored`: a Playbook Version was
+ * Human-validated, a Coaching Playbook archived or restored (#225).
  */
-export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | "tested" | "viewed" | SecretAction;
+export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | "tested" | "viewed" | "validated" | "archived" | "restored" | SecretAction;
 
 export const isSecretAction = (
   action: BackOfficeAction,

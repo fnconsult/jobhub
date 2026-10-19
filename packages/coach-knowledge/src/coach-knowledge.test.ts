@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { loadCoachKnowledge, PLAYBOOK_IDS } from "./index";
+import { citedSourceIds, markdownTitle, parseSources, readCoachKnowledgeFiles } from "./index";
 
 const packageDir = fileURLToPath(new URL("..", import.meta.url));
 
@@ -25,168 +25,80 @@ describe("sources.md", () => {
   });
 });
 
-describe("loadCoachKnowledge — the imported playbooks", () => {
-  const knowledge = loadCoachKnowledge({ environment: "eval" });
+describe("readCoachKnowledgeFiles — what is imported as Playbook Version 1 (#225)", () => {
+  const files = readCoachKnowledgeFiles();
 
-  it("exposes a playbook by id with its frontmatter, rules and sources", () => {
-    const playbook = knowledge.playbook("coaching-journey-gamification");
-
-    expect(playbook).toMatchObject({
-      id: "coaching-journey-gamification",
-      title: "Parcours d'accompagnement : cadence, suivi et gamification",
-      version: "1.0",
-      updated: "2026-07-26",
-      status: "validé (auto-QA Claude, 2026-07-26)",
-    });
-    expect(playbook?.sources.map((source) => source.id)).toEqual(["S24", "S35", "S54", "S55", "S56"]);
-    expect(playbook?.rules).toHaveLength(12);
-    expect(playbook?.rules[1]).toMatchObject({
-      id: "R2",
-      title: "Annoncez un effet réel mais modeste, jamais une promesse de résultat.",
-      sourceIds: ["S55"],
-    });
-    expect(playbook?.rules[1]?.text).toMatch(/^Dans cette même évaluation, l'effet sur l'emploi durable/);
+  it("reads the ten playbooks by id, each with its title, rules, cited sources and Markdown without frontmatter", () => {
+    expect(files.playbooks.map((playbook) => playbook.id)).toEqual([
+      "application-strategy",
+      "ats-optimization",
+      "coaching-journey-gamification",
+      "cover-letter-writing",
+      "cv-offer-fit-scoring",
+      "freelance-mission-positioning",
+      "interview-journey-stages",
+      "interview-psychology",
+      "outreach-first-contact",
+      "senior-40plus-positioning",
+    ]);
+    const playbook = files.playbooks.find((each) => each.id === "coaching-journey-gamification")!;
+    expect(playbook.title).toBe("Parcours d'accompagnement : cadence, suivi et gamification");
+    expect(playbook.sources.map((source) => source.id)).toEqual(["S24", "S35", "S54", "S55", "S56"]);
+    expect(playbook.rules).toHaveLength(12);
+    expect(playbook.rules[1]).toMatchObject({ id: "R2", title: "Annoncez un effet réel mais modeste, jamais une promesse de résultat.", sourceIds: ["S55"] });
+    expect(playbook.text).toMatch(/^# Parcours d'accompagnement/);
+    for (const each of files.playbooks) expect(each.rules.length, each.id).toBeGreaterThanOrEqual(9);
   });
 
-  it("loads all ten playbooks, each with its version, rules and sources", () => {
-    for (const id of PLAYBOOK_IDS) {
-      const playbook = knowledge.playbook(id);
-      expect(playbook, id).toBeDefined();
-      expect(playbook?.version, id).toMatch(/^\d+\.\d+$/);
-      expect(playbook?.updated, id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-      expect(playbook?.rules.length, id).toBeGreaterThanOrEqual(9);
-      expect(playbook?.rules.every((rule) => rule.title && rule.text), id).toBe(true);
-      expect(playbook?.sources.length, id).toBeGreaterThanOrEqual(4);
-    }
-    expect(knowledge.playbook("senior-40plus-positioning")?.rules[0]).toMatchObject({
-      id: "R1",
-      title: "Positionnez votre expérience comme une valeur directement utile au poste.",
-      sourceIds: ["S4", "S20"],
-    });
-  });
-});
-
-describe("loadCoachKnowledge — the core digest", () => {
-  const digest = loadCoachKnowledge({ environment: "eval" }).coreDigest();
-
-  it("is about 1k tokens of cross-cutting rules, ready for a system prompt", () => {
+  it("reads the Core Digest: about 1k tokens of five cross-cutting rules, each grounded in a cited source", () => {
     // ~3.5 characters per token for French prose: 2,800–4,800 characters ≈ 800–1,350 tokens.
-    expect(digest?.text.length).toBeGreaterThan(2800);
-    expect(digest?.text.length).toBeLessThan(4800);
-    expect(digest?.text).not.toMatch(/^---/);
-    expect(digest).toMatchObject({ version: "1.0", humanValidated: false });
+    expect(files.coreDigest.text.length).toBeGreaterThan(2800);
+    expect(files.coreDigest.text.length).toBeLessThan(4800);
+    expect(files.coreDigest.text).not.toMatch(/^---/);
+    expect(files.coreDigest.rules).toHaveLength(5);
+    for (const rule of files.coreDigest.rules) expect(rule.sourceIds.length, rule.id).toBeGreaterThan(0);
   });
 
-  it("covers the five cross-cutting rules, each grounded in a cited source", () => {
-    expect(digest?.rules.map((rule) => rule.title)).toEqual([
-      expect.stringMatching(/jamais .*résultat/i),
-      expect.stringMatching(/recherche longue.*marché/i),
-      expect.stringMatching(/budget/i),
-      expect.stringMatching(/faits.*résultats/i),
-      expect.stringMatching(/contact humain/i),
-    ]);
-    for (const rule of digest?.rules ?? []) expect(rule.sourceIds.length, rule.id).toBeGreaterThan(0);
-    expect(digest?.sources.map((source) => source.id)).toEqual(expect.arrayContaining(["S24", "S35", "S55"]));
-  });
-
-  it("is not served in production until a human validated it", () => {
-    expect(loadCoachKnowledge({ environment: "production" }).coreDigest()).toBeUndefined();
+  it("reads the Sources list whole, with the sources its table lists", () => {
+    expect(files.sources.text).toMatch(/^# Sources des playbooks de coaching/);
+    expect(files.sources.entries).toHaveLength(51);
+    expect(files.sources.entries[0]).toMatchObject({ id: "S1", author: "Apec × France Travail", year: "2026" });
   });
 });
 
-describe("loadCoachKnowledge — which playbooks are served", () => {
-  const dir = knowledgeDir({
-    sources: ["S1"],
-    playbooks: {
-      "ats-optimization": playbookMarkdown({ id: "ats-optimization", sources: ["S1"], body: "[S1]", statut: "validé (François Nader, 2026-10-10)" }),
-      "cover-letter-writing": playbookMarkdown({ id: "cover-letter-writing", sources: ["S1"], body: "[S1]", statut: "validé (auto-QA Claude, 2026-07-26)" }),
-      "interview-psychology": playbookMarkdown({ id: "interview-psychology", sources: ["S1"], body: "[S1]", statut: "brouillon" }),
-    },
-  });
-
-  it("serves only playbooks a human validated in production", () => {
-    const knowledge = loadCoachKnowledge({ environment: "production", dir });
-
-    expect(knowledge.playbooks().map((playbook) => playbook.id)).toEqual(["ats-optimization"]);
-    expect(knowledge.playbook("ats-optimization")?.humanValidated).toBe(true);
-    expect(knowledge.playbook("cover-letter-writing")).toBeUndefined();
-    expect(knowledge.playbook("interview-psychology")).toBeUndefined();
-  });
-
-  it.each(["development", "eval"] as const)("serves every playbook in %s", (environment) => {
-    const knowledge = loadCoachKnowledge({ environment, dir });
-
-    expect(knowledge.playbooks().map((playbook) => [playbook.id, playbook.humanValidated])).toEqual([
-      ["ats-optimization", true],
-      ["cover-letter-writing", false],
-      ["interview-psychology", false],
-    ]);
-  });
-
-  it("serves none of today's playbooks in production: an AI review is not a human validation", () => {
-    expect(loadCoachKnowledge({ environment: "production" }).playbooks()).toEqual([]);
-  });
-});
-
-describe("loadCoachKnowledge — a knowledge folder", () => {
+describe("readCoachKnowledgeFiles — a knowledge folder", () => {
   it("refuses a playbook citing a source missing from sources.md", () => {
-    const dir = knowledgeDir({
-      sources: ["S1"],
-      playbooks: { "ats-optimization": playbookMarkdown({ id: "ats-optimization", sources: ["S1"], body: "Texte. [S1][S99]" }) },
-    });
+    const dir = knowledgeDir({ sources: ["S1"], playbooks: { "ats-optimization": playbookMarkdown({ id: "ats-optimization", sources: ["S1"], body: "Texte. [S1][S99]" }) } });
 
-    expect(() => loadCoachKnowledge({ environment: "eval", dir })).toThrow(/ats-optimization.*S99/);
+    expect(() => readCoachKnowledgeFiles(dir)).toThrow(/ats-optimization.*S99/);
   });
 
-  it("refuses a playbook citing a source its frontmatter does not list, so its sources resolve every rule's", () => {
-    const dir = knowledgeDir({
-      sources: ["S1", "S2"],
-      playbooks: { "ats-optimization": playbookMarkdown({ id: "ats-optimization", sources: ["S1"], body: "Texte. [S1][S2]" }) },
-    });
+  it("refuses a playbook citing a source its frontmatter does not list", () => {
+    const dir = knowledgeDir({ sources: ["S1", "S2"], playbooks: { "ats-optimization": playbookMarkdown({ id: "ats-optimization", sources: ["S1"], body: "Texte. [S1][S2]" }) } });
 
-    expect(() => loadCoachKnowledge({ environment: "eval", dir })).toThrow(/ats-optimization.*frontmatter.*S2/);
-  });
-
-  it("refuses a playbook file that is not a known playbook id", () => {
-    const dir = knowledgeDir({
-      sources: ["S1"],
-      playbooks: { "salary-negotiation": playbookMarkdown({ id: "salary-negotiation", sources: ["S1"], body: "[S1]" }) },
-    });
-
-    expect(() => loadCoachKnowledge({ environment: "eval", dir })).toThrow(/salary-negotiation/);
+    expect(() => readCoachKnowledgeFiles(dir)).toThrow(/ats-optimization.*frontmatter.*S2/);
   });
 });
 
-function playbookMarkdown({
-  id,
-  sources,
-  body,
-  statut = "validé (auto-QA Claude, 2026-07-26)",
-}: {
-  id: string;
-  sources: string[];
-  body: string;
-  statut?: string;
-}): string {
-  return [
-    "---",
-    `playbook: ${id}`,
-    'version: "2.0"',
-    'updated: "2026-10-01"',
-    `statut: ${statut}`,
-    `sources: [${sources.join(", ")}]`,
-    "langue: fr",
-    "---",
-    "",
-    `# ${id}`,
-    "",
-    "## Règles",
-    "",
-    "**R1. Une règle.**",
-    "",
-    body,
-    "",
-  ].join("\n");
+describe("the Markdown of coaching knowledge", () => {
+  it("finds every [Sn] a text cites, once, in order", () => {
+    expect(citedSourceIds("Un fait [S11][S23]. Un autre [S11] et S4 sans crochets.")).toEqual(["S11", "S23"]);
+  });
+
+  it("reads the Sources table, row by row", () => {
+    expect(parseSources("| ID | Titre | Auteur | Année | URL | Licence |\n|--|--|--|--|--|--|\n| S1 | Une étude | Apec | 2026 | https://apec.fr | publique |")).toEqual([
+      { id: "S1", title: "Une étude", author: "Apec", year: "2026", url: "https://apec.fr", licence: "publique" },
+    ]);
+  });
+
+  it("finds a playbook's # title", () => {
+    expect(markdownTitle("Intro\n\n# Optimiser son CV\n\n## Règles")).toBe("Optimiser son CV");
+    expect(markdownTitle("Aucun titre")).toBe("");
+  });
+});
+
+function playbookMarkdown({ id, sources, body }: { id: string; sources: string[]; body: string }): string {
+  return ["---", `playbook: ${id}`, `sources: [${sources.join(", ")}]`, "langue: fr", "---", "", `# ${id}`, "", "## Règles", "", "**R1. Une règle.**", "", body, ""].join("\n");
 }
 
 function knowledgeDir({ sources, playbooks }: { sources: string[]; playbooks: Record<string, string> }): string {

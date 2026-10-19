@@ -34,6 +34,8 @@ export interface FakeProviderOptions {
   tools?: ToolCall[];
   /** How many pages of results a search can give. Default: 1. */
   pages?: number;
+  /** The models it offers a Playbook Agent. Default: its default model alone. */
+  models?: string[];
 }
 
 export interface FakeProvider extends AiProvider {
@@ -55,6 +57,7 @@ export function createFakeProvider(options: FakeProviderOptions = {}): FakeProvi
     id,
     endpoint: `fake ${id}`,
     defaultModel: `fake-${id}`,
+    models: options.models ?? [`fake-${id}`],
     residency: options.residency ?? "eu",
     calls,
     queries,

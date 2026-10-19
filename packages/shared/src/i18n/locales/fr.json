@@ -657,7 +657,8 @@
       "super-admin": "Super-admin",
       "plans-manager": "Responsable des offres",
       "coach-manager": "Responsable coaching",
-      "support": "Support"
+      "support": "Support",
+      "playbook-editor": "Rédacteur de playbooks"
     },
     "nav": {
       "label": "Navigation du back office",
@@ -681,7 +682,8 @@
       "administrators": "Administrateurs",
       "journal": "Journal",
       "aiUsage": "Consommation IA",
-      "aiMessages": "Journaux IA"
+      "aiMessages": "Journaux IA",
+      "coachingPlaybooks": "Playbooks"
     },
     "signInProviders": {
       "title": "Connexion",
@@ -970,7 +972,17 @@
       "outputTokens": "Tokens en sortie",
       "models": "Modèles",
       "playbooks": "Playbooks utilisés",
-      "overTarget": "au-dessus de l'objectif"
+      "overTarget": "au-dessus de l'objectif",
+      "agents": {
+        "title": "Coût par Playbook Agent",
+        "intro": "Coût médian d'une consultation de chaque Playbook Agent sur les {{days}} derniers jours. Il est déjà compté dans le coût des réponses ci-dessus.",
+        "none": "Aucun Playbook Agent consulté sur cette période.",
+        "caption": "Coût d'une consultation, par Playbook Agent",
+        "playbook": "Playbook",
+        "consultations": "Consultations",
+        "median": "Médiane",
+        "models": "Modèles"
+      }
     },
     "searchSites": {
       "title": "Sites de recherche",
@@ -1033,8 +1045,8 @@
         "siteExists": "Ce site est déjà dans la liste.",
         "siteForbidden": "Ce site interdit l'exploration dans ses conditions d'utilisation : il ne peut pas être ajouté ni activé.",
         "notFound": "Cet élément n'existe plus. La page a été actualisée."
-        }
-      },
+      }
+    },
     "providerSecrets": {
       "title": "Clés des fournisseurs",
       "intro": "Les clés des services tiers (IA, France Travail, enrichissement de contacts, Stripe, e-mail). Une clé saisie ici est chiffrée et remplace celle de l'environnement en moins d'une minute, sans redéploiement. Une clé saisie n'est jamais réaffichée : seuls ses 4 derniers caractères le sont.",
@@ -1110,7 +1122,8 @@
         "super-admin": "Tout le back office, dont les administrateurs et le journal.",
         "plans-manager": "Les offres et leurs quotas.",
         "coach-manager": "Les coachs humains ; consulte le coût de l'AI Coach.",
-        "support": "Consulte tout, sauf les secrets des fournisseurs, sans rien modifier."
+        "support": "Consulte tout, sauf les secrets des fournisseurs, sans rien modifier.",
+        "playbook-editor": "Écrit, versionne, valide et archive les playbooks de coaching, le socle et la liste des sources."
       },
       "errors": {
         "unknown_account": "Aucun compte Jobbbox n'utilise cette adresse e-mail. La personne doit d'abord créer son compte.",
@@ -1138,7 +1151,8 @@
         "job_discovery_sites": "Sites de la recherche d'offres",
         "job_sites": "Sites de l'extension",
         "sign_in_providers": "Connexion",
-        "ai_messages": "Journaux IA"
+        "ai_messages": "Journaux IA",
+        "coaching_playbooks": "Playbooks de coaching"
       },
       "actions": {
         "added": "Ajout",
@@ -1149,7 +1163,10 @@
         "replaced": "Remplacement",
         "replaced_despite_failed_test": "Remplacement malgré un test échoué",
         "cleared": "Effacement",
-        "viewed": "Consultation"
+        "viewed": "Consultation",
+        "validated": "Validation",
+        "archived": "Archivage",
+        "restored": "Rétablissement"
       },
       "none": "Aucune modification enregistrée.",
       "caption": "Modifications du back office, des plus récentes aux plus anciennes",
@@ -1172,7 +1189,8 @@
       "unchanged": "Aucune valeur changée",
       "unlimited": "illimité",
       "empty": "vide",
-      "id": "Identifiant"
+      "id": "Identifiant",
+      "viewVersion": "voir la version {{version}}"
     },
     "aiUsage": {
       "title": "Consommation IA",
@@ -1275,6 +1293,125 @@
       },
       "reply": "Réponse",
       "noReply": "Aucune réponse : l'appel a échoué."
+    },
+    "coachingPlaybooks": {
+      "title": "Playbooks de coaching",
+      "intro": "Les règles que l'AI Coach applique : le socle, la liste des sources et chaque playbook avec son Playbook Agent, le spécialiste que l'AI Coach consulte. Modifier une version validée crée une nouvelle version ; toutes les versions sont conservées.",
+      "servingValidated": "Cet environnement (production) ne sert que la dernière version validée par une personne de chacun.",
+      "servingLatest": "Cet environnement sert la dernière version de chacun, validée ou non. La production ne sert que les versions validées.",
+      "caption": "Socle, liste des sources et playbooks",
+      "name": "Nom",
+      "latest": "Dernière version",
+      "served": "Version servie",
+      "agent": "Playbook Agent",
+      "status": "État",
+      "kinds": {
+        "core_digest": "Socle de coaching",
+        "sources": "Liste des sources",
+        "playbook": "Playbook"
+      },
+      "archived": "Archivé",
+      "active": "Actif",
+      "none": "aucune",
+      "version": "v{{version}}",
+      "validatedBy": "validée par {{name}} le {{date}}",
+      "notValidated": "non validée",
+      "defaultModel": "modèle par défaut ({{model}})",
+      "providerDefault": "modèle par défaut",
+      "agentSummary": "{{provider}} · {{model}} · effort {{effort}}",
+      "efforts": {
+        "low": "faible",
+        "medium": "moyen",
+        "high": "élevé"
+      },
+      "effortHandling": {
+        "native": "",
+        "medium_as_high": "ce modèle n'a que « aucun » et « élevé » : faible y vaut aucun, moyen y vaut élevé",
+        "ignored": "ce modèle ignore l'effort"
+      },
+      "fields": {
+        "id": "Identifiant",
+        "idHelp": "En minuscules, mots séparés par des tirets (par exemple negociation-salariale). Il ne change plus ensuite.",
+        "content": "Règles (Markdown, en français)",
+        "contentHelp": "Chaque source citée [Sn] doit figurer dans la liste des sources.",
+        "sourcesContent": "Liste des sources (tableau Markdown, une ligne par source)",
+        "sourcesHelp": "Une source citée par une version servie ou la dernière version d'un playbook actif ne peut pas être retirée.",
+        "model": "Modèle du Playbook Agent",
+        "modelHelp": "Seuls les modèles hébergés dans l'Union européenne sont proposés : le Playbook Agent reçoit des données personnelles.",
+        "effort": "Effort",
+        "effortHelp": "Le temps de réflexion demandé au modèle. Certains modèles l'ignorent ou n'ont que deux niveaux : voir le tableau des modèles.",
+        "consultWhen": "Quand le consulter",
+        "consultWhenHelp": "L'AI Coach lit cette description pour choisir les Playbook Agents qu'il consulte, au plus deux par réponse."
+      },
+      "models": {
+        "title": "Modèles autorisés",
+        "caption": "Modèles hébergés dans l'UE et effort",
+        "provider": "Fournisseur",
+        "model": "Modèle",
+        "effort": "Effort",
+        "native": "faible, moyen et élevé"
+      },
+      "create": {
+        "title": "Nouveau playbook",
+        "submit": "Créer le playbook"
+      },
+      "detail": {
+        "back": "Tous les playbooks",
+        "versions": "Versions",
+        "versionLink": "Version {{version}}",
+        "latestTag": "dernière",
+        "servedTag": "servie",
+        "versionTitle": "Version {{version}}",
+        "authors": "Écrite par",
+        "importAuthor": "import des fichiers",
+        "createdAt": "Créée le",
+        "updatedAt": "Modifiée le",
+        "validation": "Validation",
+        "rules": "Règles",
+        "noVersion": "Cette version n'existe pas.",
+        "editTitle": "Modifier",
+        "editDraft": "La version {{version}} n'est pas encore validée : l'enregistrer la modifie.",
+        "editValidated": "La version {{version}} est validée : l'enregistrer crée la version {{next}}, à valider à son tour.",
+        "save": "Enregistrer",
+        "validateTitle": "Valider la version {{version}}",
+        "validateHelp": "Vous attestez avoir relu cette version. Une personne qui l'a écrite ne peut pas la valider, et une relecture par une IA ne compte jamais.",
+        "validatorName": "Votre nom",
+        "validate": "Valider la version {{version}}",
+        "archiveTitle": "Archiver",
+        "archiveHelp": "Un playbook archivé n'est plus servi ; ses versions sont conservées. Un playbook n'est jamais supprimé.",
+        "archive": "Archiver ce playbook",
+        "restore": "Rétablir ce playbook"
+      },
+      "notices": {
+        "created": "Playbook créé, en version 1.",
+        "saved": "Version {{version}} enregistrée.",
+        "unchanged": "Rien n'a changé : aucune version enregistrée.",
+        "invalid": "Formulaire incomplet : règles, modèle, effort (faible, moyen ou élevé) et description sont requis ; une liste de sources liste chaque source une fois.",
+        "exists": "Cet identifiant est déjà pris.",
+        "model_not_allowed": "Ce modèle n'est pas autorisé : seuls les modèles hébergés dans l'UE proposés ici le sont.",
+        "unknown_sources": "Sources absentes de la liste des sources : {{sources}}.",
+        "sources_cited": "Impossible de retirer des sources encore citées : {{list}}.",
+        "validated": "Version {{version}} validée.",
+        "own_version": "Vous avez écrit cette version : une autre personne doit la valider.",
+        "already_validated": "Cette version est déjà validée.",
+        "not_latest": "Seule la dernière version peut être validée.",
+        "not_found": "Ce playbook ou cette version n'existe pas.",
+        "archived": "Playbook archivé : il n'est plus servi.",
+        "restored": "Playbook rétabli.",
+        "not_archivable": "Le socle et la liste des sources ne peuvent pas être archivés.",
+        "nameRequired": "Indiquez votre nom pour valider."
+      },
+      "journalFields": {
+        "version": "Version",
+        "provider": "Fournisseur",
+        "model": "Modèle",
+        "effort": "Effort",
+        "consultWhen": "Quand le consulter",
+        "rulesCharacters": "Longueur des règles (caractères)",
+        "validatedBy": "Validée par",
+        "validatedAt": "Validée le",
+        "archived": "Archivé"
+      }
     }
   },
   "backOfficeAssistant": {

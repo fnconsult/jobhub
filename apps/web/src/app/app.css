@@ -1387,7 +1387,7 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 
 .sections-nav {
   position: sticky;
-  top: calc(3.5rem + var(--space-6));
+  top: calc(var(--topbar-height, 3.5rem) + var(--space-6));
 }
 
 .sections-nav ul {
@@ -1753,6 +1753,15 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   gap: var(--space-1);
   overflow-x: auto;
   border-bottom: 1px solid var(--color-border);
+}
+
+/* Inside the sidebar layout the tabs stay in reach as the long document under them scrolls:
+   they stick under the Top Bar (whose height SidebarShell measures). */
+.workspace .tablist {
+  position: sticky;
+  top: var(--topbar-height, 3.5rem);
+  z-index: 5;
+  background: var(--color-background);
 }
 
 .tab {

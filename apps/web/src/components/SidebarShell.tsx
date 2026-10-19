@@ -78,6 +78,7 @@ export function SidebarShell({
   const [drawerPath, setDrawerPath] = useState<string | null>(null);
   const drawerOpen = drawerPath === pathname;
   const menuButton = useRef<HTMLButtonElement>(null);
+  const topbar = useRef<HTMLElement>(null);
   const [back, setBack] = useState<TopBarBackLink | null>(null);
   const [sectionsMenu, setSectionsMenu] = useState<SidebarSectionsMenu | null>(null);
   // The page's column is too narrow for its Sections' list (the Coach Panel docked beside it).
@@ -102,6 +103,20 @@ export function SidebarShell({
     observer.observe(main);
     measure();
     return () => observer.disconnect();
+  }, []);
+
+  // The Top Bar's height, for what sticks under it as the page scrolls (--topbar-height in app.css):
+  // it grows with the Text Size, and takes two rows on a phone.
+  useEffect(() => {
+    const bar = topbar.current;
+    if (!bar) return;
+    const root = document.documentElement;
+    const observer = new ResizeObserver(() => root.style.setProperty("--topbar-height", `${bar.offsetHeight}px`));
+    observer.observe(bar);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--topbar-height");
+    };
   }, []);
 
   /** Between the main menu and the page's Sections; focus stays on the button that switches them. */
@@ -234,7 +249,7 @@ export function SidebarShell({
             notifications): without this, <main> stayed in reach behind the drawer.
           */}
           <div className="workspace" inert={drawerOpen} aria-hidden={drawerOpen || undefined}>
-            <header className="topbar">
+            <header ref={topbar} className="topbar">
               <button ref={menuButton} className="button button-quiet menu-toggle" type="button" aria-expanded={drawerOpen} onClick={showMenu}>
                 <Icons.menu />
                 {t("sidebar.menu")}

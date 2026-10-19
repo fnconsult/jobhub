@@ -365,11 +365,10 @@ test.describe("Job Digest", () => {
       await visitor.close();
     }
     await page.goto("/job-digests");
-    await expect(jobDigestSection(page).getByRole("button", { name: fr.jobDigest.subscribe, exact: true })).toBeVisible();
-    await expect(jobDigestSection(page).getByText(fr.jobDigest.subscribed)).toHaveCount(0);
+    await expect(jobDigestSection(page, profileId).getByRole("button", { name: fr.jobDigest.subscribe, exact: true })).toBeVisible();
+    await expect(jobDigestSection(page, profileId).getByText(fr.jobDigest.subscribed)).toHaveCount(0);
     // Only that Profile's Job Digest was stopped.
-    await page.goto(`/profils/${otherProfileId}/job-digest`);
-    await expect(jobDigestSection(page).getByRole("status")).toHaveText(fr.jobDigest.subscribed);
+    await expect(jobDigestSection(page, otherProfileId).getByRole("status")).toHaveText(fr.jobDigest.subscribed);
   });
 
   test("Premium, in English: daily, the email is in the Candidate's Interface Language, and the mail client's one-click unsubscribe works", async ({ page }) => {

@@ -48,7 +48,7 @@ export default async function ToolsPage() {
         <section key={category} className="stack" aria-labelledby={`tools-${category}`}>
           <h2 id={`tools-${category}`}>{t(`admin.tools.categories.${category}`)}</h2>
           <div className="table-scroll">
-            <table className="application-table tools-table">
+            <table className="application-table">
               <caption className="visually-hidden">{t(`admin.tools.categories.${category}`)}</caption>
               <thead>
                 <tr>

@@ -18,6 +18,11 @@ export const NOTICES = {
   not_archivable: true,
   nameRequired: true,
   no_eval_run: true,
+  caseAdded: false,
+  caseSaved: false,
+  caseRemoved: false,
+  too_many: true,
+  no_cases: true,
 } as const;
 export type Notice = keyof typeof NOTICES;
 

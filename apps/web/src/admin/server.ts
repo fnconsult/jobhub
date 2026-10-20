@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentCandidate, getCurrentSession } from "@/auth/server";
 import { getBilling } from "@/billing/server";
 import { getCoachingPlaybooks } from "@/coaching-playbooks/server";
+import { getEvals } from "@/evals/server";
 import { sharedPool } from "@/database/pool";
 import { getGuardrailStore } from "@/guardrails/server";
 import { getHumanCoaches } from "@/human-coaches/server";
@@ -13,6 +14,7 @@ import { permanentSuperAdminsFromEnv, type BackOfficeResource, type Permission }
 import { createAdministrators, type AdministratorAccess, type Administrators, type Person } from "./administrators";
 import { createBackOffice, type BackOffice } from "./back-office";
 import { createCoachingPlaybooksBackOffice, type CoachingPlaybooksBackOffice } from "./coaching-playbooks-back-office";
+import { createEvalCasesBackOffice, type EvalCasesBackOffice } from "./eval-cases-back-office";
 import { createGuardrailsBackOffice, type GuardrailsBackOffice } from "./guardrails-back-office";
 import { createSearchSitesBackOffice, type SearchSitesBackOffice } from "./search-sites-back-office";
 
@@ -21,6 +23,7 @@ let administrators: Administrators | undefined;
 let searchSitesBackOffice: SearchSitesBackOffice | undefined;
 let coachingPlaybooksBackOffice: CoachingPlaybooksBackOffice | undefined;
 let guardrailsBackOffice: GuardrailsBackOffice | undefined;
+let evalCasesBackOffice: EvalCasesBackOffice | undefined;
 
 /** The app's Back Office writes and their Back Office Audit, on the database named by DATABASE_URL. */
 export function getBackOffice(): BackOffice {
@@ -46,10 +49,16 @@ export function getCoachingPlaybooksBackOffice(): CoachingPlaybooksBackOffice {
   return coachingPlaybooksBackOffice;
 }
 
-/** The Guardrails' Back Office writes, each recorded in the Back Office Audit (#228). */
+/** The Guardrails' Back Office writes, each recorded in the Back Office Audit (#228); a new setting after its Eval Run (#231). */
 export function getGuardrailsBackOffice(): GuardrailsBackOffice {
-  guardrailsBackOffice ??= createGuardrailsBackOffice(getGuardrailStore(), getBackOffice());
+  guardrailsBackOffice ??= createGuardrailsBackOffice(getGuardrailStore(), getBackOffice(), getEvals());
   return guardrailsBackOffice;
+}
+
+/** A Coaching Playbook's Eval Cases' Back Office writes, each recorded in the Back Office Audit (#231). */
+export function getEvalCasesBackOffice(): EvalCasesBackOffice {
+  evalCasesBackOffice ??= createEvalCasesBackOffice(getEvals(), getBackOffice());
+  return evalCasesBackOffice;
 }
 
 /** Whether the person signed in on this request is an Administrator (holds any Back Office Role). */

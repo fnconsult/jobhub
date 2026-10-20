@@ -1155,7 +1155,8 @@
         "sign_in_providers": "Sign-in",
         "ai_messages": "AI message logs",
         "coaching_playbooks": "Coaching Playbooks",
-        "guardrails": "Guardrails"
+        "guardrails": "Guardrails",
+        "eval_cases": "Eval Cases"
       },
       "actions": {
         "added": "Added",
@@ -1194,7 +1195,8 @@
       "empty": "empty",
       "id": "Identifier",
       "viewVersion": "see version {{version}}",
-      "viewGuardrail": "see the guardrail"
+      "viewGuardrail": "see the guardrail",
+      "viewEvalCases": "see the Eval Cases"
     },
     "aiUsage": {
       "title": "AI consumption",
@@ -1406,7 +1408,12 @@
         "restored": "Playbook restored.",
         "not_archivable": "The Core Digest and the Sources list cannot be archived.",
         "nameRequired": "Give your name to validate.",
-        "no_eval_run": "Start an Eval Run on version {{version}} as it now is first: it can be validated only after one, whatever its score."
+        "no_eval_run": "Start an Eval Run on version {{version}} as it now is first: it can be validated only after one, whatever its score.",
+        "caseAdded": "Eval Case added.",
+        "caseSaved": "Eval Case saved.",
+        "caseRemoved": "Eval Case removed.",
+        "too_many": "This playbook already has the most Eval Cases allowed.",
+        "no_cases": "Add at least one Eval Case before starting an Eval Run."
       },
       "journalFields": {
         "version": "Version",
@@ -1492,7 +1499,7 @@
         "unavailable": "Check unavailable"
       },
       "notices": {
-        "settingSaved": "Setting saved.",
+        "settingSaved": "Setting saved, after the Guardrails' Eval Cases were played on it.",
         "messageSaved": "Message saved: another Administrator must validate it before production serves it.",
         "validated": "Message validated.",
         "unchanged": "Nothing changed.",
@@ -1503,7 +1510,131 @@
         "own_message": "You cannot validate a message you wrote.",
         "already_validated": "This version is already validated.",
         "not_latest": "Only the latest version can be validated.",
-        "nameRequired": "Give your name to validate."
+        "nameRequired": "Give your name to validate.",
+        "eval_refused": "Setting refused: with it, cases that the distress, personal data leak or secret disclosure Guardrail must block would get through: {{cases}}."
+      },
+      "settingHelpEvals": "Before a setting is saved, the Guardrails' Eval Cases are played on it. It is refused if it lets through a case that the distress, personal data leak or secret disclosure Guardrail must block. Changing a message plays no case.",
+      "runs": {
+        "title": "Guardrails' Eval Runs",
+        "intro": "Each new setting is first played on the Guardrails' Eval Cases, written by the engineering team and shipped with the app. Each case expects an exact verdict: let through, block or flag."
+      }
+    },
+    "evals": {
+      "title": "Eval Run",
+      "back": "Back",
+      "cases": {
+        "title": "Eval Cases",
+        "intro": "Fictional scenarios: a Candidate's situation, their message, possibly what they have in view, and what a good reply does, scored by the AI judge. They belong to the playbook, not to a version, and need no validation. Write them in French, with nothing of a real person. They stay in this environment and every change is in the Journal.",
+        "none": "No Eval Case yet.",
+        "writtenBy": "Written by {{author}} on {{date}}",
+        "add": "Add an Eval Case",
+        "addButton": "Add this case",
+        "edit": "Edit this case",
+        "save": "Save this case",
+        "remove": "Remove this case",
+        "fields": {
+          "title": "Title",
+          "context": "The Candidate's situation (fictional)",
+          "contextHelp": "Who the Candidate is, in a few sentences, first name only: their age, their job, what they are looking for.",
+          "message": "Their message to the coach",
+          "inViewKind": "What they have in view",
+          "inViewNone": "Nothing in particular",
+          "inViewText": "Text of what they have in view",
+          "inViewTextHelp": "For instance the job offer or the application, as the coach would read it. Leave empty when nothing is in view.",
+          "criteria": "What a good reply does",
+          "criteriaHelp": "Criteria in plain words, which the AI judge scores from 0 to 10."
+        },
+        "inViewKinds": {
+          "profile": "A Profile",
+          "application": "An Application",
+          "job_offer": "A Job Offer",
+          "job_search": "A Job Search",
+          "job_digest": "A Job Digest"
+        }
+      },
+      "runs": {
+        "title": "Eval Runs",
+        "intro": "An Eval Run plays each case through the AI Coach's whole reply, made to consult this playbook at the version played; the other playbooks are served as they are. The AI judge, fixed by Jobbbox, scores each reply. Its calls count in AI Usage. An Eval Run helps you decide: it validates nothing.",
+        "start": "Evaluate version {{version}}",
+        "startHelp": "To compare models and efforts, evaluate the version once per choice, among EU-hosted models. Then keep the best one by saving it with the version.",
+        "agentAsSaved": "The version's Playbook Agent, as saved",
+        "startButton": "Start the Eval Run",
+        "running": "The Eval Run may take a few minutes.",
+        "none": "No Eval Run yet.",
+        "caption": "Eval Runs, newest first",
+        "startedAt": "Date",
+        "version": "Version",
+        "agent": "Playbook Agent",
+        "score": "Score",
+        "cost": "Cost",
+        "responseTime": "Mean response time",
+        "startedBy": "Started by",
+        "details": "Details",
+        "open": "see",
+        "asSaved": "as saved",
+        "tried": "trial",
+        "scoreValue": "{{score}} / 100",
+        "noScore": "not scored",
+        "seconds": "{{seconds}} s"
+      },
+      "validation": {
+        "onLatest": "Eval Run on version {{version}}, as it now is",
+        "onServed": "Eval Run on the served version ({{version}})",
+        "noRunOnLatest": "No Eval Run on this version as it now is: start one before validating it.",
+        "noRunOnServed": "No Eval Run on the served version.",
+        "noneServed": "No version is served.",
+        "summary": "{{score}}, cost {{cost}}, mean response time {{time}}, on {{date}}",
+        "noScoreBlocks": "No score blocks validation: it is yours to judge, reading the replies."
+      },
+      "aiCoach": {
+        "title": "The AI Coach's Eval Runs",
+        "intro": "The AI Coach's own Eval Cases, written by the engineering team and shipped with the app: its tone, no invented figures, and picking the right playbook. They are played on the AI Coach as released, with the playbooks served.",
+        "start": "Evaluate the AI Coach"
+      },
+      "run": {
+        "subjects": {
+          "coaching_playbook": "Playbook \"{{playbook}}\", version {{version}}",
+          "ai_coach": "The AI Coach as released",
+          "guardrails": "Guardrail setting"
+        },
+        "startedBy": "Started by {{author}} on {{date}}",
+        "judge": "AI judge",
+        "noJudge": "None: Guardrail verdicts are exact",
+        "agent": "Playbook Agent",
+        "settings": "Settings played",
+        "cases": "Cases played",
+        "context": "Situation",
+        "message": "Message",
+        "inView": "In view",
+        "criteria": "Criteria",
+        "consults": "Playbook to consult",
+        "consulted": "Playbooks consulted",
+        "noneConsulted": "none",
+        "reply": "The coach's reply",
+        "noReply": "The AI Coach could not reply.",
+        "guardrail": "Guardrail",
+        "expected": "Expected verdict",
+        "verdict": "Verdict",
+        "passed": "as expected",
+        "failed": "not as expected",
+        "caseScore": "Score",
+        "reason": "The judge's view",
+        "caseCost": "Cost",
+        "caseTime": "Response time",
+        "verdicts": {
+          "let_through": "let through",
+          "block": "block",
+          "flag": "flag"
+        }
+      },
+      "journalFields": {
+        "caseId": "Case",
+        "title": "Title",
+        "context": "Situation",
+        "message": "Message",
+        "inViewKind": "In view",
+        "inViewText": "Text in view",
+        "criteria": "Criteria"
       }
     }
   },

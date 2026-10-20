@@ -36,6 +36,8 @@ const statements = {
   coachingPlaybooks: ["read", "write"],
   /** The Guardrails (#228): read covers their Guardrail Triggers; write covers settings and Guardrail messages, validation included. */
   guardrails: ["read", "write"],
+  /** Eval Runs (#231, ADR-0023): write covers starting one, whose AI calls cost; a Guardrail setting's needs `guardrails` write too. */
+  evalRuns: ["read", "write"],
 } as const satisfies Record<string, readonly Permission[]>;
 
 export type BackOfficeResource = keyof typeof statements;
@@ -54,7 +56,7 @@ const ROLES = {
   "super-admin": control.newRole(statements),
   "plans-manager": control.newRole({ plans: ["read", "write"], planQuotas: ["read", "write"], coupons: ["read", "write"] }),
   "coach-manager": control.newRole({ humanCoaches: ["read", "write"], coachMessageCost: READ }),
-  "playbook-editor": control.newRole({ coachingPlaybooks: ["read", "write"] }),
+  "playbook-editor": control.newRole({ coachingPlaybooks: ["read", "write"], evalRuns: ["read", "write"] }),
   // Reads everything but Provider Secrets and the AI Message Log; the team's own sections (Administrateurs, Journal) stay with super-admins.
   support: control.newRole({
     planQuotas: READ,
@@ -67,6 +69,7 @@ const ROLES = {
     searchSites: READ,
     coachingPlaybooks: READ,
     guardrails: READ,
+    evalRuns: READ,
   }),
 } satisfies Record<BackOfficeRole, unknown>;
 

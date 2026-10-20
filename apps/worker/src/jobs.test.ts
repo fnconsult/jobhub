@@ -671,7 +671,7 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       const database = testAuth.database;
       await migrateAiUsage(database);
       const usage = createPostgresUsageLog(database);
-      const call = { candidateId: null, task: "scoring" as const, provider: "mistral" as const, endpoint: "fake", model: "m", inputTokens: 1, outputTokens: 1, ok: true, durationMs: 1, costEur: 0, tools: [] };
+      const call = { candidateId: null, task: "scoring" as const, provider: "mistral" as const, endpoint: "fake", model: "m", inputTokens: 1, outputTokens: 1, outcome: "ok" as const, sent: true, durationMs: 1, costEur: 0, tools: [] };
       await usage.record({ ...call, transcript: { messages: [{ role: "user", content: "Score" }], reply: "82" }, at: new Date() });
       const logs: string[] = [];
       const jobAt = (days: number) => createJobs({ ...otherDeps, database, now: () => new Date(Date.now() + days * 86_400_000), log: (line) => logs.push(line) })[AI_USAGE_PURGE]!;

@@ -1885,6 +1885,10 @@
     "startedOn": "Lancée le",
     "criteria": "Critères",
     "editCriteria": "Modifier les critères",
+    "criteriaDialog": {
+      "title": "Critères de recherche · {{profile}}",
+      "close": "Fermer"
+    },
     "remoteWork": "Télétravail : {{option}}",
     "resultsLabel": "Offres trouvées",
     "scoreLabel": "Score de correspondance : ",

@@ -1885,6 +1885,10 @@
     "startedOn": "Started on",
     "criteria": "Criteria",
     "editCriteria": "Change the criteria",
+    "criteriaDialog": {
+      "title": "Search criteria · {{profile}}",
+      "close": "Close"
+    },
     "remoteWork": "Remote work: {{option}}",
     "resultsLabel": "Job offers found",
     "scoreLabel": "Match Score: ",

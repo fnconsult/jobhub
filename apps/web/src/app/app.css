@@ -2998,3 +2998,43 @@ textarea.title-edit {
 .agenda-past .agenda-item-title {
   font-weight: 400;
 }
+
+/* « À planifier » (#248): the Unscheduled Coaching Sessions at the top of the Agenda, each with its
+   Human Coach's booking link and the button to enter the date booked. */
+.agenda-to-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  margin-bottom: var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.agenda-to-schedule h2,
+.agenda-to-schedule p {
+  margin: 0;
+}
+
+.agenda-unscheduled {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+/* A dated Coaching Session: its link, then the button to edit its date beside it (below on a phone). */
+.agenda-item-with-action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.agenda-item-with-action .agenda-item-link {
+  flex: 1 1 18rem;
+}

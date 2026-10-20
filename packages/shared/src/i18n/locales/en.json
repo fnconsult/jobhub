@@ -217,7 +217,7 @@
       "account": "your account: email address, name, language, sign-in methods and sessions, plan and quota use, European AI consent, follow-up delays;",
       "profiles": "your profiles: search criteria, every version of your CV, ATS Score, job searches, Job Digest settings and the Job Digests sent;",
       "applications": "your applications: job offer, interviews, match score, tailored CV, cover letter, outreach message, follow-ups sent, coach reviews, enriched contacts and company dossier;",
-      "coaching": "your conversations with the AI coach, your coach memory (what it remembers about you), your coach's proposals, the access you granted to human coaches and the coaching sessions you paid for."
+      "coaching": "your conversations with the AI coach, your coach memory (what it remembers about you), your coach's proposals, the access you granted to human coaches and the coaching sessions you paid for, with their date, duration, video call link and your note."
     },
     "exportLeftOut": "It does not contain your sign-in secrets (tokens, unsubscribe link), human coaches' email addresses, our providers' internal identifiers (Stripe, contact data providers) or what each AI reply cost.",
     "export": "Download all my data",
@@ -1837,13 +1837,18 @@
   },
   "agenda": {
     "title": "Interviews and appointments",
-    "none": "No upcoming interviews. Add your interviews from each application, in its « Interviews » part.",
+    "none": "No upcoming appointments. Add your interviews from each application, in its « Interviews » part.",
     "nonePast": "No past appointments.",
     "showPast": "See past appointments",
     "showUpcoming": "See upcoming appointments",
     "pastTitle": "Past appointments",
     "upcomingTitle": "Upcoming",
-    "interview": "Interview"
+    "interview": "Interview",
+    "toSchedule": "To schedule",
+    "toScheduleIntro": "Your paid coaching sessions have no date yet. Book your time on the coach's Cal.com page, then enter the date here.",
+    "coachingSession": "Coaching session",
+    "withCoach": "with {{name}}",
+    "duration": "{{count}} min"
   },
   "application": {
     "statusLabel": "Status",
@@ -2401,7 +2406,34 @@
     "accessNotGranted": "{{name}} has no access to your profiles and applications.",
     "grant": "Give {{name}} access",
     "revoke": "Withdraw {{name}}'s access",
-    "listTitle": "Choose a coach"
+    "listTitle": "Choose a coach",
+    "sessionOn": "Session with {{name}} on {{date}}",
+    "sessionDuration": "Duration: {{count}} minutes",
+    "joinVideo": "Join the video call with {{name}}",
+    "seeInAgenda": "See in the agenda",
+    "toSchedule": "No date yet: book your time on Cal.com, then enter the date."
+  },
+  "coachingSession": {
+    "enterDate": "I've booked: enter the date",
+    "enterDateFor": "I've booked: enter the date of the session with {{name}}",
+    "edit": "Change the date",
+    "editFor": "Change the date of the session with {{name}}",
+    "title": "Session with {{name}}",
+    "close": "Close",
+    "date": "Session date and time (Paris time)",
+    "duration": "Duration in minutes (optional)",
+    "videoLink": "Video call link (optional)",
+    "videoLinkHint": "The link you got when booking, starting with https://",
+    "note": "Note (optional)",
+    "save": "Save",
+    "working": "Saving…",
+    "cancel": "Cancel",
+    "requiredDate": "Enter the session's date and time.",
+    "invalidDate": "This date is not valid. Enter the session's date and time.",
+    "invalidDuration": "Enter a duration between 5 and 600 minutes, or leave it empty.",
+    "invalidVideoLink": "Enter a link starting with http:// or https://, or leave it empty.",
+    "invalidNote": "The note must be 500 characters at most.",
+    "error": "Saving failed. Check your connection and try again."
   },
   "coachReviews": {
     "title": "Your coaches' reviews",

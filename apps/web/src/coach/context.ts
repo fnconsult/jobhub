@@ -391,13 +391,14 @@ function jobDigestText(jobDigest: JobDigest): string {
   ].join("\n");
 }
 
+const AGENDA_DAY = new Intl.DateTimeFormat("fr", { timeZone: INTERVIEW_TIME_ZONE, dateStyle: "long" });
 const AGENDA_WHEN = new Intl.DateTimeFormat("fr", { timeZone: INTERVIEW_TIME_ZONE, weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
 /** One Agenda Item in a line, its date and time in French time: "jeudi 22 octobre 2026 à 14:30 : entretien pour DAF H/F chez Acme Industrie". */
 function agendaLine(item: AgendaItem): string {
   const what =
     item.kind === "interview"
-      ? `entretien pour ${item.jobTitle}${item.employer ? ` chez ${item.employer}` : ""}`
+      ? `entretien pour ${item.jobTitle}${item.employer ? ` chez ${item.employer}` : ""}${item.cancelledAt ? ` [annulé le ${AGENDA_DAY.format(item.cancelledAt)}]` : ""}`
       : [
           `séance de coaching avec ${item.coach.name}${item.durationMinutes ? ` (${item.durationMinutes} min)` : ""}`,
           item.videoLink ? `lien de visio : ${item.videoLink}` : "",

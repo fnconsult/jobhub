@@ -550,6 +550,14 @@ describe("the item In view, in full", () => {
     expect(context).not.toContain("Umbrella");
   });
 
+  it("the Agenda: a Cancelled Interview, as the Agenda shows it, says it is cancelled", async () => {
+    const { coach, provider } = coachWith({ workspace: { agenda: [interviewItem("2026-10-22T12:30:00.000Z", { cancelledAt: new Date("2026-10-19T10:00:00.000Z") })] } });
+
+    await ask(coach, { kind: "agenda", id: "agenda" });
+
+    expect(contextOf(provider)).toContain("jeudi 22 octobre 2026 à 14:30 : entretien pour DAF H/F chez Acme Industrie [annulé le 19 octobre 2026]");
+  });
+
   it("the Agenda with nothing in the next 30 days says so", async () => {
     const { coach, provider } = coachWith();
 

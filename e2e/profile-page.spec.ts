@@ -472,7 +472,8 @@ test.describe("the Profile page's Sections (ADR-0024)", () => {
 });
 
 test("screenshots of the Profile page at 375, 900 and 1440px, with unsaved Master CV edits", async ({ page }, testInfo) => {
-  const id = await candidateWithProfile(page, "profile-screens");
+  // Several places, as chips with their "Retirer" buttons (#235).
+  const id = await candidateWithProfile(page, "profile-screens", ["Lyon", "Bordeaux (33)", "Saint-Étienne-de-Saint-Geoirs (38)"]);
   const dir = process.env.PROFILE_SCREENSHOTS_DIR;
   if (dir) mkdirSync(dir, { recursive: true });
   for (const [width, height] of [

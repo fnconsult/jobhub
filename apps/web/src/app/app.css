@@ -2731,7 +2731,7 @@ textarea.title-edit {
   align-items: center;
   max-width: 100%;
   min-height: var(--control-height);
-  padding: 0 0 0 var(--space-3);
+  padding: 0 var(--space-3);
   color: var(--color-text);
   overflow-wrap: anywhere;
   list-style: none;
@@ -2752,6 +2752,7 @@ textarea.title-edit {
   min-width: var(--control-height);
   min-height: var(--control-height);
   padding: 0 var(--space-3) 0 var(--space-2);
+  margin-right: calc(-1 * var(--space-3));
   font: inherit;
   color: var(--color-text);
   cursor: pointer;

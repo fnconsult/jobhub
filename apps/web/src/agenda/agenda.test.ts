@@ -5,7 +5,7 @@ import { createApplications, migrateApplications, type Applications } from "../a
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
-import { createAgenda, type Agenda } from "./index";
+import { agendaPeriod, createAgenda, type Agenda } from "./index";
 
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -89,21 +89,23 @@ describe.skipIf(!connectionString)("Agenda (needs Postgres: DATABASE_URL)", () =
     ]);
   });
 
-  it("shows upcoming Interviews from now on, oldest first, and past ones only when asked, newest first", async () => {
+  it("shows upcoming Interviews from today on, oldest first, and past ones (before today) only when asked, newest first", async () => {
     const daf = await applicationInInterview(candidateId, "DAF H/F", "Acme Industrie");
     const controller = await applicationInInterview(candidateId, "Contrôleur de gestion", "Globex");
     await addInterview(candidateId, daf, "2026-10-27T09:00");
     await addInterview(candidateId, controller, "2026-10-20T11:00"); // later today
-    await addInterview(candidateId, daf, "2026-10-20T09:00"); // earlier today: past already
+    await addInterview(candidateId, daf, "2026-10-20T09:00"); // earlier today: still today, so upcoming
+    await addInterview(candidateId, controller, "2026-10-20T00:00"); // today's very start, French time
+    await addInterview(candidateId, daf, "2026-10-19T23:59"); // yesterday, French time (21:59 UTC): past
     await addInterview(candidateId, controller, "2026-10-13T15:00");
     await addInterview(candidateId, daf, "2026-10-13T10:00");
 
     expect(shape(await agenda.days(candidateId, { period: "upcoming", now: NOW }))).toEqual([
-      ["2026-10-20", ["2026-10-20T09:00:00.000Z"]],
+      ["2026-10-20", ["2026-10-19T22:00:00.000Z", "2026-10-20T07:00:00.000Z", "2026-10-20T09:00:00.000Z"]],
       ["2026-10-27", ["2026-10-27T08:00:00.000Z"]],
     ]);
     expect(shape(await agenda.days(candidateId, { period: "past", now: NOW }))).toEqual([
-      ["2026-10-20", ["2026-10-20T07:00:00.000Z"]],
+      ["2026-10-19", ["2026-10-19T21:59:00.000Z"]],
       ["2026-10-13", ["2026-10-13T13:00:00.000Z", "2026-10-13T08:00:00.000Z"]],
     ]);
   });
@@ -132,5 +134,24 @@ describe.skipIf(!connectionString)("Agenda (needs Postgres: DATABASE_URL)", () =
   it("is empty when the Candidate has no Interview", async () => {
     expect(await agenda.days(candidateId, { period: "upcoming", now: NOW })).toEqual([]);
     expect(await agenda.days(candidateId, { period: "past", now: NOW })).toEqual([]);
+  });
+});
+
+describe("agendaPeriod: where the Agenda puts an instant, split at the start of today in French time", () => {
+  it("puts anything from today's midnight in French time on in the upcoming Agenda Items, even earlier today", () => {
+    expect(agendaPeriod(new Date("2026-10-20T07:00:00.000Z"), NOW)).toBe("upcoming"); // 09:00 today, before now
+    expect(agendaPeriod(new Date("2026-10-19T22:00:00.000Z"), NOW)).toBe("upcoming"); // 00:00 today, French time
+    expect(agendaPeriod(new Date("2026-10-27T08:00:00.000Z"), NOW)).toBe("upcoming");
+  });
+
+  it("puts anything before today in French time in the past ones, even when it is today in UTC", () => {
+    expect(agendaPeriod(new Date("2026-10-19T21:59:59.999Z"), NOW)).toBe("past"); // 23:59 yesterday, French time
+    expect(agendaPeriod(new Date("2026-10-13T08:00:00.000Z"), NOW)).toBe("past");
+  });
+
+  it("follows French time in winter too, and just after midnight", () => {
+    const winterNow = new Date("2026-11-04T23:30:00.000Z"); // 00:30 on 5 November, French time (UTC+1)
+    expect(agendaPeriod(new Date("2026-11-04T23:00:00.000Z"), winterNow)).toBe("upcoming"); // 00:00 on the 5th
+    expect(agendaPeriod(new Date("2026-11-04T22:59:00.000Z"), winterNow)).toBe("past"); // 23:59 on the 4th
   });
 });

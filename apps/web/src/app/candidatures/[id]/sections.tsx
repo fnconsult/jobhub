@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import type { ActionCard } from "@/action-cards";
 import { getActionCards } from "@/action-cards/server";
+import { agendaPeriod } from "@/agenda";
 import { INTERVIEW_TIME_ZONE, interviewWallClock } from "@/applications";
 import { requireOwnApplication } from "@/applications/server";
 import { ActionCardList, type ActionCardView } from "@/components/ActionCardList";
@@ -77,9 +78,9 @@ export const loadApplicationPage = cache(async (id: string) => {
     offre: true,
   };
   const sections = APPLICATION_SECTIONS.filter((section) => present[section]);
-  // The Agenda, at its past Agenda Items when every Interview here is past.
-  const now = Date.now();
-  const allPast = application.interviews.length > 0 && application.interviews.every((interview) => interview.scheduledAt.getTime() < now);
+  // The Agenda, at its past Agenda Items when every Interview here is past there (before today).
+  const now = new Date();
+  const allPast = application.interviews.length > 0 && application.interviews.every((interview) => agendaPeriod(interview.scheduledAt, now) === "past");
   const agendaHref = routes.agenda(allPast);
   return { candidateId, application, t, locale, inView, cards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts, coachReviews, sections, agendaHref };
 });

@@ -7,12 +7,14 @@
  * One deep module in front of Postgres. Callers get `createAgenda(database).days`:
  * the signed-in Candidate's Agenda Items for a period, grouped by day in French
  * time (Europe/Paris, like Interviews), ready to show.
- *  - "upcoming": from `now` on, oldest first;
- *  - "past": before `now`, newest first (days and the items within them).
+ *  - "upcoming": from the start of today on, oldest first, so that today's
+ *    items stay together, even those earlier today;
+ *  - "past": before today, newest first (days and the items within them).
+ * Today is `now`'s day in French time; `agendaPeriod` says where an instant goes.
  * Every read is scoped to the Candidate.
  */
 import type { Pool } from "pg";
-import { INTERVIEW_TIME_ZONE } from "../applications";
+import { INTERVIEW_TIME_ZONE, interviewDayStart } from "../applications";
 
 /** One Interview, as the Agenda shows it; it leads to its Application's Interviews Section. */
 export interface InterviewAgendaItem {
@@ -39,7 +41,7 @@ export interface AgendaDay {
 export type AgendaPeriod = "upcoming" | "past";
 
 export interface Agenda {
-  /** The Candidate's Agenda Items for `period`, split at `now`, grouped by day in French time. */
+  /** The Candidate's Agenda Items for `period`, split at the start of `now`'s day, grouped by day in French time. */
   days(candidateId: string, options: { period: AgendaPeriod; now: Date }): Promise<AgendaDay[]>;
 }
 
@@ -48,6 +50,11 @@ const DAY = new Intl.DateTimeFormat("en-CA", { timeZone: INTERVIEW_TIME_ZONE, ye
 /** The day `instant` falls on in French time, "2026-10-22". */
 function agendaDay(instant: Date): string {
   return DAY.format(instant);
+}
+
+/** The period an Agenda Item at `instant` is in: "upcoming" from the start of today (`now`'s day in French time) on, "past" before. */
+export function agendaPeriod(instant: Date, now: Date): AgendaPeriod {
+  return instant.getTime() < interviewDayStart(now).getTime() ? "past" : "upcoming";
 }
 
 export function createAgenda(database: Pool): Agenda {
@@ -61,7 +68,7 @@ export function createAgenda(database: Pool): Agenda {
          JOIN job_offer o ON o.id = a.job_offer_id
         WHERE a.candidate_id = $1 AND ${upcoming ? "i.scheduled_at >= $2" : "i.scheduled_at < $2"}
         ORDER BY i.scheduled_at ${upcoming ? "ASC" : "DESC"}, i.created_at ${upcoming ? "ASC" : "DESC"}`,
-      [candidateId, now],
+      [candidateId, interviewDayStart(now)],
     );
     return rows.map((row) => ({
       kind: "interview",

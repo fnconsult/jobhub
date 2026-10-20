@@ -152,6 +152,7 @@ async function jobSearchRun(page: Page, scenario: Scenario, label: string) {
       FANTASTIC_JOBS_API_KEY: envKey,
       FANTASTIC_JOBS_API_URL: "",
       FANTASTIC_JOBS_EUR_PER_JOB: "",
+      FANTASTIC_JOBS_MAX_PER_SEARCH: "",
       ...scenario.env,
       E2E_DISCOVERY_TAG: tag,
       E2E_DISCOVERY_LOG: requestLog,

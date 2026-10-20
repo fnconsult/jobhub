@@ -37,6 +37,39 @@ export function searchParams(
   });
 }
 
+/**
+ * What an answer says of the plan's quotas (its `x-api-*` headers, on every answer): the Jobs credits and
+ * API requests left, when they are renewed, and how long a 429 asks to wait (`retry-after`, seconds or a date).
+ * Each is left out when the answer does not state it.
+ */
+export interface Usage {
+  jobsRemaining?: number;
+  requestsRemaining?: number;
+  nextBillingDate?: Date;
+  retryAfterMs?: number;
+}
+
+export function readUsage(headers: Headers, now: Date): Usage {
+  const usage: Usage = {};
+  const count = (name: string) => {
+    const text = headers.get(name)?.trim();
+    const value = text ? Number(text) : NaN;
+    return Number.isFinite(value) ? value : undefined;
+  };
+  const jobsRemaining = count("x-api-jobs-remaining");
+  if (jobsRemaining !== undefined) usage.jobsRemaining = jobsRemaining;
+  const requestsRemaining = count("x-api-requests-remaining");
+  if (requestsRemaining !== undefined) usage.requestsRemaining = requestsRemaining;
+  const billing = Date.parse(headers.get("x-api-next-billing-date") ?? "");
+  if (Number.isFinite(billing)) usage.nextBillingDate = new Date(billing);
+  const retryAfter = headers.get("retry-after")?.trim();
+  if (retryAfter) {
+    const ms = /^\d+$/.test(retryAfter) ? Number(retryAfter) * 1000 : Date.parse(retryAfter) - now.getTime();
+    if (Number.isFinite(ms) && ms > 0) usage.retryAfterMs = ms;
+  }
+  return usage;
+}
+
 type Json = Record<string, unknown>;
 const isObject = (value: unknown): value is Json => typeof value === "object" && value !== null && !Array.isArray(value);
 const str = (value: unknown): string | undefined => (typeof value === "string" && value.trim() ? value.trim() : undefined);

@@ -34,7 +34,7 @@ function fakeFantasticJobs(answer: Answer | (() => Answer) = {}) {
   return { fetch: fetch as typeof globalThis.fetch, requests, request };
 }
 
-function setup(answer?: Answer | (() => Answer), options: { eurPerJob?: number } = {}) {
+function setup(answer?: Answer | (() => Answer), options: { eurPerJob?: number; maxPerSearch?: number } = {}) {
   const api = fakeFantasticJobs(answer);
   const fantasticJobs = createFantasticJobs({ apiKey: "fj-key", fetch: api.fetch, ...options });
   return { api, fantasticJobs };
@@ -55,7 +55,7 @@ describe("Fantastic.jobs search", () => {
   it("searches the title near the location, posted in the last 30 days, with descriptions, for no more jobs than wanted", async () => {
     const { api, fantasticJobs } = setup();
 
-    await fantasticJobs.search(criteria, { max: 12, now: NOW });
+    await fantasticJobs.search(criteria, { max: 8, now: NOW });
 
     expect(Object.fromEntries(api.request().url.searchParams)).toEqual({
       title: "Chef de projet",
@@ -63,8 +63,25 @@ describe("Fantastic.jobs search", () => {
       time_frame: "6m",
       date_posted_gte: "2026-09-20T12:00:00Z",
       description_format: "text",
-      limit: "12",
+      limit: "8",
     });
+  });
+
+  it("asks for no more than 10 jobs a search by default, however many are wanted, so a trial's credits last ~50 searches", async () => {
+    const { api, fantasticJobs } = setup();
+
+    await fantasticJobs.search(criteria, { max: 30, now: NOW });
+
+    expect(api.request().url.searchParams.get("limit")).toBe("10");
+  });
+
+  it("asks for no more jobs a search than its set maximum", async () => {
+    const { api, fantasticJobs } = setup({}, { maxPerSearch: 4 });
+
+    await fantasticJobs.search(criteria, { max: 30, now: NOW });
+    await fantasticJobs.search(criteria, { max: 2, now: NOW });
+
+    expect(api.requests.map((request) => request.url.searchParams.get("limit"))).toEqual(["4", "2"]);
   });
 
   it("searches one of several locations at a time, and France when the Search Criteria name none", async () => {
@@ -132,6 +149,79 @@ describe("Fantastic.jobs search", () => {
     expect(await fantasticJobs.search(criteria, { max: 30, now: NOW })).toEqual({ ok: true, offers: [], calls: 1, costEur: 0 });
   });
 
+  describe("quota guard: once a quota is spent, no call is made until it is renewed", () => {
+    const LATER = new Date("2026-10-20T13:00:00Z");
+    const spent = (headers: Record<string, string>) => {
+      let n = 0;
+      return setup(() => (n++ === 0 ? { headers } : {}));
+    };
+
+    it.each([
+      ["its Jobs credits", { "x-api-jobs-remaining": "0", "x-api-requests-remaining": "40" }],
+      ["its API requests", { "x-api-jobs-remaining": "300", "x-api-requests-remaining": "0" }],
+    ])("is refused without a call once an answer says %s are spent", async (_, headers) => {
+      const { api, fantasticJobs } = spent(headers);
+
+      expect(await fantasticJobs.search(criteria, { max: 30, now: NOW })).toMatchObject({ ok: true });
+      expect(await fantasticJobs.search(criteria, { max: 30, now: LATER })).toMatchObject({ ok: false, reason: "refused", calls: 0 });
+      expect(api.requests).toHaveLength(1);
+    });
+
+    it.each([402, 429])("is refused without a call after Fantastic.jobs answered %i", async (status) => {
+      let n = 0;
+      const { api, fantasticJobs } = setup(() => (n++ === 0 ? { status, body: '{"message":"no"}' } : {}));
+
+      await fantasticJobs.search(criteria, { max: 30, now: NOW });
+      expect(await fantasticJobs.search(criteria, { max: 30, now: LATER })).toMatchObject({ ok: false, reason: "refused", calls: 0 });
+      expect(api.requests).toHaveLength(1);
+    });
+
+    it("calls again once the next billing date it stated is past", async () => {
+      const { api, fantasticJobs } = spent({ "x-api-jobs-remaining": "0", "x-api-requests-remaining": "40", "x-api-next-billing-date": "2026-11-01T00:00:00Z" });
+
+      await fantasticJobs.search(criteria, { max: 30, now: NOW });
+      expect(await fantasticJobs.search(criteria, { max: 30, now: new Date("2026-10-31T23:59:00Z") })).toMatchObject({ ok: false, reason: "refused", calls: 0 });
+      expect(await fantasticJobs.search(criteria, { max: 30, now: new Date("2026-11-01T00:01:00Z") })).toMatchObject({ ok: true, calls: 1 });
+      expect(api.requests).toHaveLength(2);
+    });
+
+    it("calls again after the wait a 429 asked for (Retry-After)", async () => {
+      let n = 0;
+      const { api, fantasticJobs } = setup(() => (n++ === 0 ? { status: 429, headers: { "retry-after": "60" } } : {}));
+
+      await fantasticJobs.search(criteria, { max: 30, now: NOW });
+      expect(await fantasticJobs.search(criteria, { max: 30, now: new Date(NOW.getTime() + 30_000) })).toMatchObject({ ok: false, reason: "refused", calls: 0 });
+      expect(await fantasticJobs.search(criteria, { max: 30, now: new Date(NOW.getTime() + 61_000) })).toMatchObject({ ok: true, calls: 1 });
+      expect(api.requests).toHaveLength(2);
+    });
+
+    it("without a renewal date stated, holds the calls back for a day", async () => {
+      const { api, fantasticJobs } = spent({ "x-api-jobs-remaining": "0" });
+
+      await fantasticJobs.search(criteria, { max: 30, now: NOW });
+      expect(await fantasticJobs.search(criteria, { max: 30, now: new Date("2026-10-21T11:59:00Z") })).toMatchObject({ ok: false, reason: "refused", calls: 0 });
+      expect(await fantasticJobs.search(criteria, { max: 30, now: new Date("2026-10-21T12:01:00Z") })).toMatchObject({ ok: true, calls: 1 });
+      expect(api.requests).toHaveLength(2);
+    });
+
+    it("asks for no more jobs than the Jobs credits left", async () => {
+      const { api, fantasticJobs } = spent({ "x-api-jobs-remaining": "3", "x-api-requests-remaining": "40" });
+
+      await fantasticJobs.search(criteria, { max: 30, now: NOW });
+      await fantasticJobs.search(criteria, { max: 30, now: LATER });
+
+      expect(api.requests.map((request) => request.url.searchParams.get("limit"))).toEqual(["10", "3"]);
+    });
+
+    it("keeps calling while both quotas have some left", async () => {
+      const { api, fantasticJobs } = setup({ headers: { "x-api-jobs-remaining": "300", "x-api-requests-remaining": "40" } });
+
+      await fantasticJobs.search(criteria, { max: 30, now: NOW });
+      expect(await fantasticJobs.search(criteria, { max: 30, now: LATER })).toMatchObject({ ok: true, calls: 1 });
+      expect(api.requests).toHaveLength(2);
+    });
+  });
+
   describe("failing soft: a search never throws, so Job discovery goes on without Fantastic.jobs", () => {
     it.each([401, 402, 403, 429])("is refused when Fantastic.jobs answers %i (key rejected, quota exhausted)", async (status) => {
       const { fantasticJobs } = setup({ status, body: '{"message":"no"}' });
@@ -166,5 +256,18 @@ describe("Fantastic.jobs from the environment", () => {
     await fantasticJobs!.search(criteria, { max: 5, now: NOW });
 
     expect(api.request().url.href).toMatch(/^http:\/\/localhost:4243\/v1\/active-ats\?/);
+  });
+
+  it("asks for no more jobs a search than FANTASTIC_JOBS_MAX_PER_SEARCH, 10 when unset or not a positive number", async () => {
+    const limitWith = async (max: string | undefined) => {
+      const api = fakeFantasticJobs({ body: "[]" });
+      await fantasticJobsFromEnv({ FANTASTIC_JOBS_API_KEY: "fj-key", FANTASTIC_JOBS_MAX_PER_SEARCH: max }, { fetch: api.fetch })!.search(criteria, { max: 30, now: NOW });
+      return api.request().url.searchParams.get("limit");
+    };
+
+    expect(await limitWith("25")).toBe("25");
+    expect(await limitWith(undefined)).toBe("10");
+    expect(await limitWith("0")).toBe("10");
+    expect(await limitWith("many")).toBe("10");
   });
 });

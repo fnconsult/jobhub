@@ -402,7 +402,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(JSON.stringify(exported)).not.toContain("secret-agent-model");
   });
 
-  it("the export holds the Coach Access the Candidate granted, the Coaching Sessions they paid and the Coach Reviews of their Applications, naming each Human Coach but not their email", async () => {
+  it("the export holds the Coach Access the Candidate granted, the Coaching Sessions they paid with their date, duration, video link and note, and the Coach Reviews of their Applications, naming each Human Coach but not their email or booking link", async () => {
     const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));
     await tailoredDocuments.draft(candidateId, application.id, { document: "cover_letter" });
     const humanCoaches = createHumanCoaches(database, { profiles, applications, tailoredDocuments, tailoredCvs });
@@ -411,17 +411,32 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     const coach = added.coach;
     await humanCoaches.grantAccess(candidateId, coach.id);
     await humanCoaches.recordPaidSession({ checkoutSessionId: "cs_test_1", candidateId, coachId: coach.id, amount: 9000, currency: "eur" });
+    const [session] = await humanCoaches.sessions(candidateId);
+    await humanCoaches.scheduleSession(candidateId, session!.id, { scheduledAt: "2026-10-22T14:30", durationMinutes: 60, videoLink: "https://meet.google.com/abc-defg-hij", note: "Préparer mon pitch." });
     const reviewed = await humanCoaches.review(coach.id, candidateId, application.id, { document: "cover_letter", text: "Ouvrez sur votre dernier poste." });
     if (!reviewed.ok) throw new Error("fixture Coach Review refused");
 
     const exported = await candidateData.export(candidateId);
 
     expect(exported.coachAccess).toEqual([{ coach: { id: coach.id, name: "Sophie Martin" }, grantedAt: expect.any(Date) }]);
-    expect(exported.coachingSessions).toEqual([{ id: expect.any(String), coach: { id: coach.id, name: "Sophie Martin" }, amount: 9000, currency: "eur", paidAt: expect.any(Date) }]);
+    expect(exported.coachingSessions).toEqual([
+      {
+        id: session!.id,
+        coach: { id: coach.id, name: "Sophie Martin" },
+        amount: 9000,
+        currency: "eur",
+        paidAt: expect.any(Date),
+        scheduledAt: new Date("2026-10-22T12:30:00.000Z"),
+        durationMinutes: 60,
+        videoLink: "https://meet.google.com/abc-defg-hij",
+        note: "Préparer mon pitch.",
+      },
+    ]);
     expect(exported.applications[0]!.coachReviews).toEqual([
       { id: reviewed.review.id, coach: { id: coach.id, name: "Sophie Martin" }, document: "cover_letter", text: "Ouvrez sur votre dernier poste.", createdAt: expect.any(Date) },
     ]);
     expect(JSON.stringify(exported)).not.toContain("sophie.coach@example.fr");
+    expect(JSON.stringify(exported)).not.toContain("https://cal.com/sophie/seance");
   });
 
   it("the export holds the Enriched Contacts obtained for each Application, revealed or only found, with where they come from", async () => {

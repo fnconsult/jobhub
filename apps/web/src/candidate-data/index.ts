@@ -194,7 +194,7 @@ export interface CandidateDataExport {
   backOfficeAssistantConversations: ExportedAssistantConversation[];
   /** The Human Coaches the Candidate granted Coach Access to, oldest first. */
   coachAccess: { coach: CoachNamed; grantedAt: Date }[];
-  /** The Coaching Sessions the Candidate paid for, newest first. */
+  /** The Coaching Sessions the Candidate paid for, newest first, with the date, duration, video link and note entered; never the Human Coach's booking link. */
   coachingSessions: (Omit<CoachingSession, "coach"> & { coach: CoachNamed })[];
   /** Every Action Card the AI Coach proposed, pending or decided, newest first. */
   actionCards: ExportedActionCard[];
@@ -242,7 +242,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coach_conversation: "coachConversations",
   coach_message: "coachConversations[].messages (blocked ones marked, a Job Offer card's Job Offer named; no AI costs)",
   coach_access: "coachAccess",
-  coaching_session: "coachingSessions (no Stripe identifiers)",
+  coaching_session: "coachingSessions, with their date, duration, video link and note (no Stripe identifiers, no booking link)",
   action_card: "actionCards",
   coach_memory_item: "coachMemory",
   back_office_assistant_conversation: "backOfficeAssistantConversations",
@@ -475,7 +475,8 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           candidateId,
         ),
         rowsOf<CandidateDataExport["coachingSessions"][number]>(
-          `SELECT s.id, json_build_object('id', h.id, 'name', h.name) AS coach, s.amount, s.currency, s.paid_at AS "paidAt"
+          `SELECT s.id, json_build_object('id', h.id, 'name', h.name) AS coach, s.amount, s.currency, s.paid_at AS "paidAt",
+                  s.scheduled_at AS "scheduledAt", s.duration_minutes AS "durationMinutes", s.video_link AS "videoLink", s.note
              FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id WHERE s.candidate_id = $1 ORDER BY s.paid_at DESC, s.id`,
           candidateId,
         ),

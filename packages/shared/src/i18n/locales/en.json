@@ -717,7 +717,8 @@
       "aiUsage": "AI consumption",
       "aiMessages": "AI message logs",
       "coachingPlaybooks": "Playbooks",
-      "guardrails": "Guardrails"
+      "guardrails": "Guardrails",
+      "tools": "Tools"
     },
     "signInProviders": {
       "title": "Sign-in",

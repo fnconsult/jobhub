@@ -72,6 +72,9 @@ export const routes = {
   adminGuardrails: "/admin/garde-fous",
   /** The sites Jobbbox searches: the extension's Job Sites, Job discovery sources and Job discovery sites. */
   adminSearchSites: "/admin/sites",
+  /** The Tools (Outils, #233): every external tool the app calls, and one Tool's latest calls; super-admins and Support. */
+  adminTools: "/admin/outils",
+  adminTool: (id: string) => `/admin/outils/${encodeURIComponent(id)}`,
   /** The Provider Secrets (Clés): third-party keys, super-admins only. */
   adminProviderSecrets: "/admin/cles",
   /** The Sign-in Providers (Connexion) and Require SSO for Administrators, super-admins only. */

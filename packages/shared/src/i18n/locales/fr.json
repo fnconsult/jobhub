@@ -717,7 +717,8 @@
       "aiUsage": "Consommation IA",
       "aiMessages": "Journaux IA",
       "coachingPlaybooks": "Playbooks",
-      "guardrails": "Garde-fous"
+      "guardrails": "Garde-fous",
+      "tools": "Outils"
     },
     "signInProviders": {
       "title": "Connexion",

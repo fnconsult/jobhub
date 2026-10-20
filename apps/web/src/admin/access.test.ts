@@ -103,6 +103,13 @@ describe("Back Office access", () => {
     for (const role of ["plans-manager", "coach-manager", "playbook-editor"] as const) expect(backOfficeAccess([role]).can("guardrails", "read"), role).toBe(false);
   });
 
+  it("super-admins and Support read the Tools; no role changes them, no other role sees them (#233)", () => {
+    expect(backOfficeAccess(["super-admin"]).can("tools", "read")).toBe(true);
+    expect(backOfficeAccess(["support"]).can("tools", "read")).toBe(true);
+    for (const role of ["super-admin", "support"] as const) expect(backOfficeAccess([role]).can("tools", "write" as never), role).toBe(false);
+    for (const role of ["plans-manager", "coach-manager", "playbook-editor"] as const) expect(backOfficeAccess([role]).can("tools", "read"), role).toBe(false);
+  });
+
   it("several roles add up", () => {
     const access = backOfficeAccess(["support", "coach-manager"]);
 

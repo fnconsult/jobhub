@@ -36,6 +36,8 @@ const statements = {
   coachingPlaybooks: ["read", "write"],
   /** The Guardrails (#228): read covers their Guardrail Triggers; write covers settings and Guardrail messages, validation included. */
   guardrails: ["read", "write"],
+  /** The Tools (Outils, #233): the external tools the app calls, their state and their calls; read-only, never a payload or a secret. */
+  tools: ["read"],
   /** Eval Runs (#231, ADR-0023): write covers starting one, whose AI calls cost; a Guardrail setting's needs `guardrails` write too. */
   evalRuns: ["read", "write"],
 } as const satisfies Record<string, readonly Permission[]>;
@@ -69,6 +71,7 @@ const ROLES = {
     searchSites: READ,
     coachingPlaybooks: READ,
     guardrails: READ,
+    tools: READ,
     evalRuns: READ,
   }),
 } satisfies Record<BackOfficeRole, unknown>;

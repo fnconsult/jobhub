@@ -61,7 +61,7 @@ function signInSetup(configuration: SignInConfiguration): SignInSetup {
 export function getAuth(): Auth {
   const configuration = currentSignInConfiguration();
   return instances().get(configuration.version, () =>
-    createAuth({ ...authConfigFromEnv(getSecretResolver().current().env), mailer: getMailer(), signIn: signInSetup(configuration) }),
+    createAuth({ ...authConfigFromEnv(getSecretResolver().current().env), mailer: getMailer(), signIn: signInSetup(configuration), externalApis: getExternalApiLog() }),
   );
 }
 

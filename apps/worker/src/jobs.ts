@@ -13,6 +13,7 @@ import { JOB_DISCOVERY_QUEUE, type JobSearchReports } from "@jobhub/web/job-sear
 import { JobDiscoveryError, type DiscoveryReport, type JobDiscovery } from "./job-discovery";
 import { createSourceRecheck } from "./source-recheck";
 import type { JobDefinition } from "./job-runner";
+import type { ReferenceData } from "@jobhub/web/reference-data";
 
 /**
  * Queue name: search the web for Job Offers matching one Profile.
@@ -73,6 +74,12 @@ export const PROVIDER_SECRETS_REENCRYPT = "provider-secrets.reencrypt";
  */
 export const APPLE_CLIENT_SECRETS = "sign-in-providers.apple-client-secret";
 
+/**
+ * Queue name: ask INSEE and France Travail again for the Sectors', Subsectors' and Domains' labels
+ * (#236, the reference data). Monthly; a source that fails keeps the labels it had.
+ */
+export const REFERENCE_DATA_REFRESH = "reference-data.refresh";
+
 /** An Apple client secret that could not be signed again; `firstFailure`: the streak starts, the super-admins are not told yet. */
 type AppleFailure = { id: string; reason: "missing_secret" | "invalid_apple_key" | "no_master_key"; firstFailure: boolean };
 
@@ -106,6 +113,8 @@ export interface JobsDeps {
   providerSecrets?: { reencrypt(): Promise<number> };
   /** The Sign-in Providers, whose Apple client secret is signed again monthly. Without them, nothing to sign. */
   signInProviders?: { regenerateAppleClientSecrets(): Promise<{ regenerated: string[]; failed: AppleFailure[] }> };
+  /** The reference data, refreshed monthly. Satisfied by the web app's reference data module. Without it, nothing to refresh. */
+  referenceData?: Pick<ReferenceData, "refresh">;
   /** Emails the super-admins that an Apple client secret could not be signed again. */
   alertAppleFailure?: (failed: AppleFailure[]) => Promise<void>;
   /** Queues another job of this worker. */
@@ -340,6 +349,21 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
             `[sign-in-providers] Apple client secret NOT signed again: ${result.failed.map(({ id, reason }) => `${id} (${reason})`).join(", ")}; ${starting.length > 0 ? "super-admins alerted" : "super-admins already alerted"}`,
           );
           if (starting.length > 0) await deps.alertAppleFailure?.(starting);
+        }),
+    },
+
+    // The 2nd of each month (the ROME is published twice a year, NAF changes in January 2027). Safe to run again.
+    [REFERENCE_DATA_REFRESH]: {
+      cron: "0 5 2 * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const report = await deps.referenceData?.refresh();
+          if (!report) return;
+          log(
+            `[reference-data] ${Object.entries(report)
+              .map(([source, outcome]) => (outcome === "refreshed" ? `${source}: refreshed` : `${source}: failed (${outcome.failed}), its labels kept`))
+              .join(", ")}`,
+          );
         }),
     },
 

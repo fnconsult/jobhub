@@ -14,7 +14,7 @@ import { createGuardrailStore, migrateGuardrails } from "@jobhub/web/guardrails"
 import { JobDiscoveryError, type DiscoverRequest, type DiscoveryReport } from "./job-discovery";
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
 import type { DueJobDigest, JobDigestResult } from "@jobhub/web/job-digests";
-import { AI_USAGE_PURGE, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { AI_USAGE_PURGE, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -414,6 +414,27 @@ describe("the Provider Secrets re-encryption job", () => {
     const missingTable = Object.assign(new Error("relation does not exist"), { code: "42P01" });
     const reencrypt = vi.fn(async () => Promise.reject(missingTable));
     await expect(createJobs({ ...otherDeps, database: noDatabase, providerSecrets: { reencrypt } })[PROVIDER_SECRETS_REENCRYPT]!.handler({})).resolves.toBeUndefined();
+  });
+});
+
+describe("the reference data refresh job (#236)", () => {
+  it("asks INSEE and France Travail again for the Sectors', Subsectors' and Domains' labels once a month, saying how each went", async () => {
+    const logs: string[] = [];
+    const refresh = vi.fn(async () => ({ naf: "refreshed" as const, romeDomains: { failed: "api.francetravail.fr answered 503" } }));
+    const job = createJobs({ ...otherDeps, database: noDatabase, referenceData: { refresh }, log: (line) => logs.push(line) })[REFERENCE_DATA_REFRESH]!;
+
+    expect(job.cron).toBe("0 5 2 * *");
+    await job.handler({});
+
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(logs).toEqual(["[reference-data] naf: refreshed, romeDomains: failed (api.francetravail.fr answered 503), its labels kept"]);
+  });
+
+  it("does nothing without reference data, or before the web app has created its table", async () => {
+    await expect(createJobs({ ...otherDeps, database: noDatabase })[REFERENCE_DATA_REFRESH]!.handler({})).resolves.toBeUndefined();
+    const missingTable = Object.assign(new Error("relation does not exist"), { code: "42P01" });
+    const refresh = vi.fn(async () => Promise.reject(missingTable));
+    await expect(createJobs({ ...otherDeps, database: noDatabase, referenceData: { refresh } })[REFERENCE_DATA_REFRESH]!.handler({})).resolves.toBeUndefined();
   });
 });
 

@@ -69,6 +69,7 @@ const ATS_MODULE = "apps/worker/src/job-discovery/ats.ts";
 const ENRICHMENT_MODULE = "apps/web/src/enriched-contacts/providers";
 const MAILER_MODULE = "apps/web/src/auth/mailers.ts";
 const SIGN_IN_MODULE = "apps/web/src/auth/index.ts";
+const REFERENCE_DATA_MODULE = "apps/web/src/reference-data/sources.ts";
 
 const WEB_SEARCH_PURPOSE: Translated = {
   fr: "Recherche web : offres d'emploi, dossiers entreprise et actualités. Ne reçoit que des requêtes bâties sur les critères de recherche ou le nom d'un employeur.",
@@ -425,6 +426,36 @@ export const TOOLS = [
     usage: { table: "external_api_usage", provider: "geo-api-gouv" },
     residency: "eu",
     residencyNote: { fr: "Service public français ; ne reçoit que le début d'un nom de lieu.", en: "French public service; receives only the start of a place name." },
+  },
+  {
+    id: "insee-naf",
+    name: "INSEE (rdf.insee.fr)",
+    purpose: {
+      fr: "Nomenclature NAF rév. 2 de l'INSEE : les libellés des secteurs et sous-secteurs des critères de recherche, mis en cache et rafraîchis chaque mois.",
+      en: "INSEE's NAF rév. 2 nomenclature: the labels of the Search Criteria's Sectors and Subsectors, cached and refreshed monthly.",
+    },
+    category: "reference_data",
+    module: REFERENCE_DATA_MODULE,
+    runsIn: "both",
+    keys: [],
+    usage: { table: "external_api_usage", provider: "insee-naf" },
+    residency: "eu",
+    residencyNote: { fr: "Service public français ; ne reçoit aucune donnée.", en: "French public service; receives no data." },
+  },
+  {
+    id: "rome-open-data",
+    name: "ROME open data (France Travail)",
+    purpose: {
+      fr: "Données ouvertes du ROME 4.0 de France Travail : les libellés des domaines professionnels des critères de recherche, mis en cache et rafraîchis chaque mois.",
+      en: "France Travail's ROME 4.0 open data: the labels of the Search Criteria's professional Domains, cached and refreshed monthly.",
+    },
+    category: "reference_data",
+    module: REFERENCE_DATA_MODULE,
+    runsIn: "both",
+    keys: [],
+    usage: { table: "external_api_usage", provider: "rome-open-data" },
+    residency: "eu",
+    residencyNote: { fr: "Service public français ; ne reçoit aucune donnée.", en: "French public service; receives no data." },
   },
 ] as const satisfies readonly Tool[];
 

@@ -129,7 +129,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     expect((await jobSearches.get(candidateId, jobSearch.id))?.profile).toEqual({
       id: profileId,
       name: "DAF",
-      searchCriteria: { targetRole: "DAF", locations: ["Villeurbanne"], contractTypes: ["cdi"], remoteWorkOptions: [], minSalary: 85000 },
+      searchCriteria: { targetRole: "DAF", locations: ["Villeurbanne"], contractTypes: ["cdi"], remoteWorkOptions: [], minSalary: 85000, sectors: [], subsectors: [], domains: [] },
     });
   });
 

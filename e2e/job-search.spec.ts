@@ -109,8 +109,17 @@ async function changeMinSalaryInDialog(page: Page, criteriaLine: Locator, profil
   await button.click();
   const dialog = page.getByRole("dialog", { name: `Critères de recherche · ${profileName}` });
   await expect(dialog).toBeVisible();
-  // Only the Search Criteria, labels beside their values as on the Profile page.
-  await expect(dialog.getByRole("term")).toHaveText(["Poste recherché", "Lieux", "Salaire annuel brut minimum (en euros)", "Type de contrat", "Télétravail"]);
+  // Only the Search Criteria, labels beside their values as on the Profile page, Sectors and Domains among them (#236).
+  await expect(dialog.getByRole("term")).toHaveText([
+    "Poste recherché",
+    "Lieux",
+    "Salaire annuel brut minimum (en euros)",
+    "Type de contrat",
+    "Télétravail",
+    "Secteurs",
+    "Sous-secteurs",
+    "Domaines",
+  ]);
   await expect(dialog.getByLabel("Poste recherché")).toHaveValue(searchCriteria.targetRole);
   const salary = dialog.getByLabel("Salaire annuel brut minimum (en euros)");
   await salary.fill("90000");

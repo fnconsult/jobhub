@@ -93,8 +93,9 @@ export function IndustryInput(props: {
 
 /**
  * A multi-select combobox with chips (ARIA 1.2): the choices as chips, each with its "Retirer" button,
- * then an input filtering the options by label as it is typed; arrows move through them, Enter or a
- * click chooses one, Escape closes the list then empties the input. The focus stays on the input.
+ * then an input whose list opens on a click, a down arrow or typing, filtered by label as it is typed;
+ * arrows move through it, Enter or a click chooses one, Escape closes the list then empties the input.
+ * The focus stays on the input.
  */
 function ChipsCombobox(props: {
   legend: string;
@@ -181,7 +182,6 @@ function ChipsCombobox(props: {
             aria-activedescendant={expanded && active !== null ? optionId(active) : undefined}
             aria-invalid={props.error ? true : undefined}
             aria-describedby={described}
-            onFocus={() => setOpen(true)}
             onClick={() => setOpen(true)}
             onChange={(event) => {
               setQuery(event.target.value);

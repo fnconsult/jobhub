@@ -29,11 +29,11 @@ const masterCv = {
 };
 
 /** Signs a new Candidate in with one Profile, and returns its id. */
-async function candidateWithProfile(page: Page, label: string, locations = ["Lyon"]): Promise<string> {
+async function candidateWithProfile(page: Page, label: string, locations = ["Lyon"], more: Record<string, string[]> = {}): Promise<string> {
   await signInWithMagicLink(page, newAddress(label));
   const created = await page.request.post("/api/profiles", {
     headers: { origin },
-    data: { masterCv, searchCriteria: { targetRole: "Directrice administrative et financière", locations, minSalary: 85000, contractTypes: ["cdi"] } },
+    data: { masterCv, searchCriteria: { targetRole: "Directrice administrative et financière", locations, minSalary: 85000, contractTypes: ["cdi"], ...more } },
   });
   expect(created.status()).toBe(201);
   return (await created.json()).id;
@@ -298,6 +298,66 @@ test.describe("the Profile page as a document", () => {
     await expect(cv.getByLabel(fr.cvReview.headline)).toHaveValue(masterCv.headline);
   });
 
+  test("Sectors, Subsectors and Domains are chosen as chips, the Subsectors offered limited to the Sectors chosen, each change saving (#236)", async ({ page }) => {
+    const id = await candidateWithProfile(page, "profile-sectors");
+    await page.goto(`/profils/${id}`);
+    const sectorInput = criteria(page).getByRole("combobox", { name: fr.cvReview.industryInputs.sectors, exact: true });
+    const subsectorInput = criteria(page).getByRole("combobox", { name: fr.cvReview.industryInputs.subsectors, exact: true });
+    const domainInput = criteria(page).getByRole("combobox", { name: fr.cvReview.industryInputs.domains, exact: true });
+    const chips = (legend: string) => criteria(page).getByRole("group", { name: legend, exact: true }).getByRole("listitem").locator("> span");
+    const options = criteria(page).getByRole("listbox").getByRole("option");
+    const patched = (includes: string) =>
+      page.waitForResponse((response) => response.request().method() === "PATCH" && (response.request().postData() ?? "").includes(includes));
+
+    // No Subsector without a Sector.
+    await expect(subsectorInput).toBeDisabled();
+    await expect(criteria(page).getByText(fr.cvReview.subsectorsNeedSector)).toBeVisible();
+
+    // A Sector, found by typing part of its label, chosen with the keyboard: it saves at once.
+    await sectorInput.fill("financ");
+    await expect(options).toHaveText(["Activités financières et d'assurance"]);
+    await sectorInput.press("ArrowDown");
+    await Promise.all([patched('"sectors":["K"]'), sectorInput.press("Enter")]);
+    await expect(chips(fr.cvReview.sectors)).toHaveText(["Activités financières et d'assurance"]);
+    await expect(sectorInput).toBeFocused();
+
+    // The Subsectors offered are those of the Sector chosen alone, each said with its Sector.
+    await subsectorInput.click();
+    await expect(options).toHaveText([
+      "Activités des services financiers, hors assurance et caisses de retraiteActivités financières et d'assurance",
+      "AssuranceActivités financières et d'assurance",
+      "Activités auxiliaires de services financiers et d'assuranceActivités financières et d'assurance",
+    ]);
+    await Promise.all([patched('"subsectors":["64"]'), options.first().click()]);
+    await expect(chips(fr.cvReview.subsectors)).toHaveText(["Activités des services financiers, hors assurance et caisses de retraite"]);
+
+    // A Domain, by its ROME label.
+    await domainInput.fill("direction d'entreprise");
+    await Promise.all([patched('"domains":["M13"]'), domainInput.press("Enter")]);
+    await expect(chips(fr.cvReview.domains)).toHaveText(["Direction d'entreprise"]);
+
+    await page.reload();
+    await expect(chips(fr.cvReview.sectors)).toHaveText(["Activités financières et d'assurance"]);
+    await expect(chips(fr.cvReview.subsectors)).toHaveText(["Activités des services financiers, hors assurance et caisses de retraite"]);
+    await expect(chips(fr.cvReview.domains)).toHaveText(["Direction d'entreprise"]);
+
+    // In the Search Criteria in words on Recherches d'offres.
+    await page.goto(`/recherches?profil=${id}`);
+    await expect(page.getByText(/· Secteur : Activités des services financiers, hors assurance et caisses de retraite · Domaine : Direction d'entreprise$/)).toBeVisible();
+
+    // Removing the Sector takes its Subsector with it, in one save.
+    await page.goto(`/profils/${id}`);
+    await Promise.all([
+      patched('"sectors":[],"subsectors":[]'),
+      criteria(page).getByRole("button", { name: fr.cvReview.removeChoice.replace("{{label}}", "Activités financières et d'assurance"), exact: true }).click(),
+    ]);
+    await expect(chips(fr.cvReview.subsectors)).toHaveCount(0);
+    await expect(subsectorInput).toBeDisabled();
+    await page.reload();
+    await expect(chips(fr.cvReview.sectors)).toHaveCount(0);
+    await expect(chips(fr.cvReview.domains)).toHaveText(["Direction d'entreprise"]);
+  });
+
   test("an archived Profile shows its Search Criteria read-only", async ({ page }) => {
     const id = await candidateWithProfile(page, "profile-archived");
     const archived = await page.request.patch(`/api/profiles/${id}`, { headers: { origin }, data: { archived: true } });
@@ -483,8 +543,12 @@ test.describe("the Profile page's Sections (ADR-0024)", () => {
 });
 
 test("screenshots of the Profile page at 375, 900 and 1440px, with unsaved Master CV edits", async ({ page }, testInfo) => {
-  // Several places, as chips with their "Retirer" buttons (#235).
-  const id = await candidateWithProfile(page, "profile-screens", ["Lyon", "Bordeaux (33)", "Saint-Étienne-de-Saint-Geoirs (38)"]);
+  // Several places, as chips with their "Retirer" buttons (#235); Sectors, a Subsector and a Domain (#236).
+  const id = await candidateWithProfile(page, "profile-screens", ["Lyon", "Bordeaux (33)", "Saint-Étienne-de-Saint-Geoirs (38)"], {
+    sectors: ["C", "K"],
+    subsectors: ["29"],
+    domains: ["M13"],
+  });
   const dir = process.env.PROFILE_SCREENSHOTS_DIR;
   if (dir) mkdirSync(dir, { recursive: true });
   for (const [width, height] of [

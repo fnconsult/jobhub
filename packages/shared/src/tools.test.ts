@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { TOOL_CATEGORIES, TOOLS, toolById, toolOfUsage, toolsByCategory } from "./tools";
+import { externalApiProvidersOf, TOOL_CATEGORIES, TOOLS, toolById, toolOfUsage, toolsByCategory } from "./tools";
 
 describe("the Tools", () => {
   it("are every external tool the app calls, grouped by category in the Back Office's order", () => {
     expect(toolsByCategory().map(({ category, tools }) => [category, tools.map((tool) => tool.id)])).toEqual([
       ["ai_model", ["anthropic", "anthropic-bedrock", "anthropic-vertex", "mistral", "openai"]],
       ["web_search", ["perplexity", "brave", "tavily", "linkup"]],
-      ["job_discovery", ["france-travail", "greenhouse", "lever", "ashby", "apec"]],
+      ["job_discovery", ["france-travail", "greenhouse", "lever", "ashby", "apec", "job-site"]],
       ["company_data", ["recherche-entreprises"]],
       ["contact_enrichment", ["lusha", "kaspr", "apollo"]],
       ["billing", ["stripe"]],
@@ -62,9 +62,17 @@ describe("the Tool a recorded call was made to", () => {
     expect(toolOfUsage({ table: "external_api_usage", provider: "france_travail" })?.id).toBe("france-travail");
     expect(toolOfUsage({ table: "external_api_usage", provider: "recherche_entreprises" })?.id).toBe("recherche-entreprises");
     expect(toolOfUsage({ table: "external_api_usage", provider: "lusha" })?.id).toBe("lusha");
+    expect(toolOfUsage({ table: "external_api_usage", provider: "job_site" })?.id).toBe("job-site");
     expect(toolOfUsage({ table: "external_api_usage", provider: "geo-api-gouv" })?.id).toBe("geo-api-gouv");
     expect(toolOfUsage({ table: "external_api_usage", provider: "insee-naf" })?.id).toBe("insee-naf");
     expect(toolOfUsage({ table: "external_api_usage", provider: "rome-open-data" })?.id).toBe("rome-open-data");
+  });
+
+  it("is found, for an AI Tool, by the provider id its key's connection tests are recorded under", () => {
+    expect(toolOfUsage({ table: "external_api_usage", provider: "mistral" })?.id).toBe("mistral");
+    expect(toolOfUsage({ table: "external_api_usage", provider: "anthropic" })?.id).toBe("anthropic");
+    expect(toolOfUsage({ table: "external_api_usage", provider: "anthropic_bedrock" })?.id).toBe("anthropic-bedrock");
+    expect(toolOfUsage({ table: "external_api_usage", provider: "perplexity" })?.id).toBe("perplexity");
   });
 
   it("is found by its AI provider id and, for Claude, the endpoint that served it", () => {
@@ -76,12 +84,20 @@ describe("the Tool a recorded call was made to", () => {
 
   it("is none for a provider not registered, or an id of the other table", () => {
     expect(toolOfUsage({ table: "external_api_usage", provider: "unknown_api" })).toBeUndefined();
-    expect(toolOfUsage({ table: "external_api_usage", provider: "mistral" })).toBeUndefined();
+    expect(toolOfUsage({ table: "external_api_usage", provider: "openai" })).toBeUndefined();
     expect(toolOfUsage({ table: "ai_usage", provider: "france_travail", endpoint: "x" })).toBeUndefined();
   });
 
   it("is never two Tools", () => {
     const usages = TOOLS.flatMap((tool) => (tool.usage ? [`${tool.usage.table}:${tool.usage.provider}:${"endpoint" in tool.usage ? tool.usage.endpoint : ""}`] : []));
+    const external = TOOLS.flatMap((tool) => externalApiProvidersOf(tool));
     expect(new Set(usages).size).toBe(usages.length);
+    expect(new Set(external).size).toBe(external.length);
+  });
+
+  it("records a Tool's calls outside ai_usage under its external API provider ids", () => {
+    expect(externalApiProvidersOf(toolById("stripe")!)).toEqual(["stripe"]);
+    expect(externalApiProvidersOf(toolById("mistral")!)).toEqual(["mistral"]);
+    expect(externalApiProvidersOf(toolById("openai")!)).toEqual([]);
   });
 });

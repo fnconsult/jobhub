@@ -494,7 +494,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
       try {
         const { locations } = criteria;
         // Fantastic.jobs is searched once a run, at the first location the budget leaves room for: every call
-        // spends one of its plan's API requests (a hard limit) and its jobs Jobs credits (ADR-0027).
+        // spends one of its plan's API requests (a hard limit) and its jobs Jobs credits (ADR-0031).
         let fantasticJobsSearched = false;
         for (const [index, location] of locations.entries()) {
           share = (index + 1) / locations.length;

@@ -635,6 +635,39 @@ describe("the rest, summarised", () => {
     expect(context).not.toContain("Ancien titre");
   });
 
+  it("the next three Agenda Items from now on, one line each, none that is cancelled", async () => {
+    const { coach, provider } = coachWith({
+      workspace: {
+        agenda: [
+          interviewItem("2026-10-20T06:00:00.000Z", { jobTitle: "Ce matin", employer: "Avant" }), // 08:00 today, over
+          interviewItem("2026-10-21T08:00:00.000Z", { jobTitle: "Annulé", employer: "Hooli", cancelledAt: new Date("2026-10-19T10:00:00.000Z") }),
+          interviewItem("2026-10-22T12:30:00.000Z", { note: "avec la DRH" }),
+          coachingSessionItem("2026-10-23T08:00:00.000Z", { durationMinutes: 45 }),
+          interviewItem("2026-10-27T09:00:00.000Z", { jobTitle: "Contrôleur de gestion", employer: "Globex" }),
+          interviewItem("2026-10-28T09:00:00.000Z", { jobTitle: "Quatrième", employer: "Initech" }),
+        ],
+      },
+    });
+
+    await ask(coach);
+
+    const context = contextOf(provider);
+    expect(context).toContain("Ses 3 prochains entretiens et rendez-vous (heure de Paris) :");
+    expect(context).toContain("- jeudi 22 octobre 2026 à 14:30 : entretien pour DAF H/F chez Acme Industrie ; note : avec la DRH");
+    expect(context).toContain("- vendredi 23 octobre 2026 à 10:00 : séance de coaching avec Sophie Martin (45 min)");
+    expect(context).toContain("- mardi 27 octobre 2026 à 10:00 : entretien pour Contrôleur de gestion chez Globex");
+    for (const left of ["Quatrième", "Annulé", "Ce matin"]) expect(context).not.toContain(left);
+  });
+
+  it("not the next three Agenda Items again when the Agenda is In view", async () => {
+    const { coach, provider } = coachWith({ workspace: { agenda: [interviewItem("2026-10-22T12:30:00.000Z")] } });
+
+    await ask(coach, { kind: "agenda", id: "agenda" });
+
+    expect(contextOf(provider)).not.toContain("prochains entretiens et rendez-vous (heure de Paris)");
+    expect(contextOf(provider).match(/DAF H\/F chez Acme Industrie/g)).toHaveLength(1);
+  });
+
   it("each active Profile's Search Criteria with every value wanted, any one of which will do (ADR-0025)", async () => {
     const twoRegions: Profile = {
       ...profile,

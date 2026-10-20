@@ -9,6 +9,7 @@
  *    Agenda, the Agenda Items of the next 30 days, in French time (Europe/Paris);
  *  - summarised: the 5 latest Applications with their status, the top 5 Job Offers
  *    by Match Score (from each active Profile's latest Job Search and Job Digest),
+ *    the next 3 Agenda Items from now on, none cancelled (unless the Agenda is In view),
  *    and the onboarding answers (what each Profile's Master CV says of the Candidate);
  *  - capped at `maxTokens` (estimated): the summaries are trimmed first, then the
  *    In-view item is cut; the Candidate summary is kept.
@@ -96,6 +97,9 @@ export const COACH_CONTEXT_MAX_TOKENS = 12_000;
 /** How many items each summary holds at most. */
 export const SUMMARY_ITEMS = 5;
 
+/** How many of the next Agenda Items, from now on and not cancelled, the summaries hold. */
+export const NEXT_AGENDA_ITEMS = 3;
+
 /** How far ahead the Agenda In view reaches, in days. */
 export const AGENDA_IN_VIEW_DAYS = 30;
 
@@ -114,21 +118,28 @@ export async function coachContext(sources: CoachSources, candidateId: string, f
   const now = sources.now?.() ?? new Date();
   const [profiles, industries] = await Promise.all([activeProfiles(sources, candidateId), sources.industries?.().catch(() => NO_INDUSTRY_REFERENCE) ?? NO_INDUSTRY_REFERENCE]);
   const criteriaText = criteriaTextOf(industries);
-  const [inView, memory, applications, jobOffers] = await Promise.all([
-    inViewText(sources, candidateId, focus, criteriaText, now),
+  const agenda = sources.agenda.upcoming(candidateId, now);
+  const [inView, memory, applications, jobOffers, upcoming] = await Promise.all([
+    inViewText(sources, candidateId, focus, criteriaText, { now, agenda }),
     sources.coachMemory?.items(candidateId) ?? [],
     sources.applications.list(candidateId),
     topJobOffers(sources, candidateId, profiles),
+    agenda,
   ]);
+  const nextAgendaItems = upcoming.filter((item) => item.scheduledAt >= now && !(item.kind === "interview" && item.cancelledAt)).slice(0, NEXT_AGENDA_ITEMS);
   const name = firstName(profiles.map((profile) => profile.masterCv.content.fullName).find((fullName) => fullName.trim()) ?? "");
 
   const always = [candidateSummary(name, profiles, criteriaText), memorySection(memory)].filter(Boolean).join("\n\n");
   const inViewProfileId = focus?.kind === "profile" ? focus.id : null;
-  // Trimmed from the last to the first: Job Offers go first, the onboarding answers last.
+  // Trimmed from the last to the first: Job Offers go first, then Applications, the next Agenda Items, the onboarding answers last.
   const summaries: Summary[] = [
     {
       heading: "Ce que le candidat a dit de lui à l'inscription (réponses d'onboarding, par profil) :",
       lines: profiles.filter((profile) => profile.id !== inViewProfileId).map(onboardingLine),
+    },
+    {
+      heading: `Ses ${NEXT_AGENDA_ITEMS} prochains entretiens et rendez-vous (heure de Paris) :`,
+      lines: focus?.kind === "agenda" ? [] : nextAgendaItems.map(agendaLine),
     },
     { heading: `Ses ${SUMMARY_ITEMS} dernières candidatures :`, lines: applications.slice(0, SUMMARY_ITEMS).map(applicationLine) },
     { heading: `Les ${SUMMARY_ITEMS} offres d'emploi qui lui correspondent le mieux (score de correspondance) :`, lines: jobOffers },
@@ -310,7 +321,7 @@ async function inViewText(
   candidateId: string,
   focus: CoachFocus | undefined,
   criteriaText: (criteria: SearchCriteria) => string,
-  now: Date,
+  { now, agenda }: { now: Date; agenda: Promise<AgendaItem[]> },
 ): Promise<string | null> {
   switch (focus?.kind) {
     case "profile": {
@@ -341,7 +352,7 @@ async function inViewText(
     }
     case "agenda": {
       const until = now.getTime() + AGENDA_IN_VIEW_DAYS * 24 * 60 * 60 * 1000;
-      const items = (await sources.agenda.upcoming(candidateId, now)).filter((item) => item.scheduledAt.getTime() < until);
+      const items = (await agenda).filter((item) => item.scheduledAt.getTime() < until);
       return agendaText(items);
     }
     default:

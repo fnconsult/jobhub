@@ -30,6 +30,8 @@ export interface InterviewAgendaItem extends Pick<Interview, "scheduledAt" | "du
   employer?: string;
   /** What the Candidate noted about it, e.g. "avec la DRH", when they did. */
   note?: string;
+  /** When the Candidate cancelled it: a Cancelled Agenda Item stays on the Agenda, struck through (#250). */
+  cancelledAt?: Date;
 }
 
 /** One dated Coaching Session, as the Agenda shows it; it leads to its Human Coach on the Human Coaches page. */

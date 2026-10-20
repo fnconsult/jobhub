@@ -1,4 +1,4 @@
-import type { SearchCriteria } from "@jobhub/shared";
+import type { IndustryReference, SearchCriteria } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { createAiLayer } from "./ai-layer";
 import { DataResidencyError } from "./errors";
@@ -82,6 +82,44 @@ describe("Search Criteria with several values (ADR-0025)", () => {
 
     await expect(ai.searchWeb({ candidateId: "cand-1", criteria: several, location: "Jean Dupont" })).rejects.toThrow(DataResidencyError);
     expect(perplexity.queries).toEqual([]);
+  });
+});
+
+describe("Sectors in a Job Search query (#236)", () => {
+  const industries: IndustryReference = {
+    sectors: [
+      { code: "C", label: { fr: "Industrie manufacturière", en: "Manufacturing" } },
+      { code: "K", label: { fr: "Activités financières et d'assurance", en: "Financial and insurance activities" } },
+    ],
+    subsectors: [{ code: "29", parent: "C", label: { fr: "Industrie automobile", en: "Manufacture of motor vehicles, trailers and semi-trailers" } }],
+    domains: [{ code: "M13", parent: "M", label: { fr: "Direction d'entreprise" } }],
+  };
+  const inSectors: SearchCriteria = { ...criteria, sectors: ["C", "K"], subsectors: ["29"], domains: ["M13"] };
+
+  it("names the label of each Sector chosen, or of its Subsectors chosen, any of which will do", async () => {
+    const { ai, perplexity } = searchLayer();
+
+    await ai.searchWeb({ candidateId: "cand-1", criteria: inSectors, industries });
+
+    expect(perplexity.queries).toEqual([
+      "Offre d'emploi « Directeur Financier » à Lyon, CDI, télétravail partiel, salaire à partir de 90 000 € brut annuel, secteur Industrie automobile ou Activités financières et d'assurance",
+    ]);
+  });
+
+  it("names them in English in an English query", async () => {
+    const { ai, perplexity, planned } = searchLayer({ en: ["Chief Financial Officer"] });
+
+    await ai.searchWeb({ candidateId: "cand-1", criteria: { ...inSectors, subsectors: [], sectors: ["K"] }, industries, query: await planned("Chief Financial Officer", "en") });
+
+    expect(perplexity.queries[0]).toMatch(/, Financial and insurance activities sector$/);
+  });
+
+  it("names no Sector without their labels, nor any code", async () => {
+    const { ai, perplexity } = searchLayer();
+
+    await ai.searchWeb({ candidateId: "cand-1", criteria: inSectors });
+
+    expect(perplexity.queries).toEqual(["Offre d'emploi « Directeur Financier » à Lyon, CDI, télétravail partiel, salaire à partir de 90 000 € brut annuel"]);
   });
 });
 

@@ -1,4 +1,4 @@
-import type { SearchCriteria } from "@jobhub/shared";
+import type { IndustryReference, SearchCriteria } from "@jobhub/shared";
 import { findIdentity } from "./identity-scan";
 import { buildCompanyQuery, buildSearchQuery, jobSearchQueries, jobTitlesPrompt, type JobSearchQuery, type QueryLanguage } from "./search-query";
 import { buildCompanyNewsQuery, COMPANY_NEWS_MAX_AGE_DAYS, companyNewsIn, type CompanyNewsArticle, type CompanyNewsRequest } from "./company-news";
@@ -93,6 +93,8 @@ export interface SearchRequest {
    * A Job Search sends one search per location (ADR-0025).
    */
   location?: string;
+  /** The NAF labels the Search Criteria's Sectors are named by (#236); without them, none is named. */
+  industries?: IndustryReference;
 }
 
 export interface JobSearchPlanRequest {
@@ -476,7 +478,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     },
 
     async searchWeb(request) {
-      return search(request.candidateId, buildSearchQuery(request.criteria, request.query, request.location ?? request.criteria.locations[0]), request.filters, request.page, request.route);
+      return search(request.candidateId, buildSearchQuery(request.criteria, request.query, request.location ?? request.criteria.locations[0], request.industries), request.filters, request.page, request.route);
     },
 
     async searchCompany(request) {

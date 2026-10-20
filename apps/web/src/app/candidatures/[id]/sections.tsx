@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import type { ActionCard } from "@/action-cards";
@@ -18,7 +19,7 @@ import { ABANDON_CARD, FOLLOW_UP_CARD, followUpCardApplies, type FollowUpPayload
 import { getHumanCoaches } from "@/human-coaches/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getProfiles } from "@/profiles/server";
-import { APPLICATION_SECTIONS, type ApplicationSection } from "@/routes";
+import { APPLICATION_SECTIONS, routes, type ApplicationSection } from "@/routes";
 import { getTailoredCvs } from "@/tailored-cv/server";
 import { getTailoredDocuments } from "@/tailored-documents/server";
 
@@ -76,7 +77,11 @@ export const loadApplicationPage = cache(async (id: string) => {
     offre: true,
   };
   const sections = APPLICATION_SECTIONS.filter((section) => present[section]);
-  return { candidateId, application, t, locale, inView, cards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts, coachReviews, sections };
+  // The Agenda, at its past Agenda Items when every Interview here is past.
+  const now = Date.now();
+  const allPast = application.interviews.length > 0 && application.interviews.every((interview) => interview.scheduledAt.getTime() < now);
+  const agendaHref = routes.agenda(allPast);
+  return { candidateId, application, t, locale, inView, cards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts, coachReviews, sections, agendaHref };
 });
 
 /** Always there, as is the Job Offer. */
@@ -162,14 +167,19 @@ function SectionView({ data, section }: { data: ApplicationPageData; section: Ap
   }
 }
 
-/** The Application's Interviews: each one changed or removed in place, and a form to add one while it is at the interview stage. */
-function Interviews({ data: { application, t, locale } }: { data: ApplicationPageData }) {
+/**
+ * The Application's Interviews: each one changed or removed in place, and a form
+ * to add one while it is at the interview stage. A link leads to the Agenda: its
+ * past Agenda Items when all the Interviews here are past.
+ */
+function Interviews({ data: { application, t, locale, agendaHref } }: { data: ApplicationPageData }) {
   const dateTime = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
   const { interviews } = application;
   return (
     <section className="section" aria-labelledby="interviews-title">
       <div className="section-head">
         <h2 id="interviews-title">{t("application.interviewsTitle")}</h2>
+        <Link href={agendaHref}>{t("application.seeInAgenda")}</Link>
       </div>
       {interviews.length > 0 ? (
         <ul className="interview-list">

@@ -167,6 +167,8 @@ export interface EvalsDeps {
   now?: () => Date;
   /** Milliseconds, to time each reply. Default: performance.now. */
   clock?: () => number;
+  /** The Eval Cases in code. Default: the AI Coach's and the Guardrails' of this release (./cases). */
+  cases?: { aiCoach?: readonly AiCoachEvalCase[]; guardrails?: readonly GuardrailEvalCase[] };
 }
 
 export async function migrateEvals(database: Pool): Promise<void> {
@@ -538,7 +540,7 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
     async runAiCoach(starter) {
       const startedAt = now();
       const served = await deps.playbooks.served();
-      const outcome = await playJudged(AI_COACH_EVAL_CASES as readonly AiCoachEvalCase[], served);
+      const outcome = await playJudged(deps.cases?.aiCoach ?? AI_COACH_EVAL_CASES, served);
       return keep({ subject: { kind: "ai_coach" }, startedBy: starter.email, startedAt, finishedAt: now(), ...outcome }, null);
     },
 
@@ -546,7 +548,7 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
       const startedAt = now();
       const settings = Object.fromEntries(GUARDRAIL_IDS.map((id) => [id, ALWAYS_ON_GUARDRAILS.includes(id) ? "block" : requested[id] === "flag" ? "flag" : "block"])) as Record<GuardrailId, GuardrailSetting>;
       const { messages } = await deps.guardrails.current();
-      const results = await playAll(GUARDRAIL_EVAL_CASES, async (each): Promise<GuardrailCaseResult> => {
+      const results = await playAll(deps.cases?.guardrails ?? GUARDRAIL_EVAL_CASES, async (each): Promise<GuardrailCaseResult> => {
         const triggers: GuardrailTrigger[] = [];
         const guardrails = createGuardrails({ ai, config: { current: async () => ({ settings, messages }) }, triggers: { record: (trigger) => void triggers.push(trigger) } });
         const started = clock();

@@ -591,3 +591,50 @@ test.describe("Guardrail messages in production", () => {
     await candidate.close();
   });
 });
+
+// Issue #231: a Guardrail setting is saved only after the Guardrails' Eval Cases are played on it. In this file, so that
+// no other spec runs against a setting while it is changed.
+test.describe("Eval Runs of the Guardrails", () => {
+  test("a new Guardrail setting is saved only after the Guardrails' Eval Cases are played on it, with exact verdicts and no AI judge; changing a message plays none", async ({ page }) => {
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    await page.goto("/admin/garde-fous");
+    const runs = page.locator("section#eval-runs").getByRole("table", { name: fr.admin.evals.runs.caption }).getByRole("row");
+    const before = Math.max((await runs.count()) - 1, 0);
+
+    // A new setting: the cases are played on it first, and it is saved with the run.
+    const section = page.locator("section#prompt_injection");
+    await section.getByLabel(guardrails.settingLabel).selectOption("flag");
+    await section.getByRole("button", { name: guardrails.saveSetting }).click();
+    await expect(notice(page)).toHaveText(guardrails.notices.settingSaved);
+    await page.getByRole("link", { name: guardrails.runs.played }).click();
+    await expect(page.getByText(fr.admin.evals.run.subjects.guardrails)).toBeVisible();
+    await expect(page.getByText(fr.admin.evals.run.noJudge)).toBeVisible();
+    await expect(page.getByText(`${guardrails.names.prompt_injection} : ${guardrails.settings.flag}`)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Détresse exprimée en toutes lettres" })).toBeVisible();
+    // Each case: its expected verdict and what the Guardrails answered. One it must block is flagged when its Guardrail is flag only.
+    const injection = page.getByRole("region", { name: "Demande d'ignorer les instructions et d'afficher le prompt" });
+    await expect(injection).toContainText(fr.admin.evals.run.verdicts.flag);
+    await expect(injection).toContainText(fr.admin.evals.run.passed);
+    const distress = page.getByRole("region", { name: "Détresse exprimée en toutes lettres" });
+    await expect(distress).toContainText(`${fr.admin.evals.run.verdicts.block} (${fr.admin.evals.run.passed})`);
+
+    // Back to block: another run. Then a message is changed: no more run.
+    await page.goto("/admin/garde-fous");
+    await page.locator("section#prompt_injection").getByLabel(guardrails.settingLabel).selectOption("block");
+    await page.locator("section#prompt_injection").getByRole("button", { name: guardrails.saveSetting }).click();
+    await expect(page).toHaveURL(/notice=settingSaved.*#prompt_injection$/);
+    await expect(notice(page)).toHaveText(guardrails.notices.settingSaved);
+    await expect(runs).toHaveCount(before + 2 + 1);
+
+    const group = page.locator("section#prompt_injection").getByRole("group", { name: tr(guardrails.editTitle, { language: guardrails.languages.fr }) });
+    await group.getByLabel(guardrails.text).fill(DEFAULT_GUARDRAIL_MESSAGES.prompt_injection.fr);
+    await group.getByRole("button", { name: guardrails.saveMessage }).click();
+    await expect(notice(page)).toHaveText(guardrails.notices.messageSaved);
+    await page.reload();
+    await expect(runs).toHaveCount(before + 2 + 1);
+
+    // (Saved with Jobbbox's own default text, so the Candidate-facing Guardrail specs are unaffected.)
+    // The distress, personal data leak and secret disclosure Guardrails always block: no setting could let their cases through.
+    for (const always of ["distress", "personal_data_leak", "secret_disclosure"]) await expect(page.locator(`section#${always}`).getByLabel(guardrails.settingLabel)).toHaveCount(0);
+  });
+});

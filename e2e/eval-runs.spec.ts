@@ -5,7 +5,7 @@ import { newAddress } from "./support/mailbox";
 
 // Issue #231: Eval Cases and Eval Runs (ADR-0023). Driven through the Back Office: a Playbook's page
 // (/admin/playbooks/<id>: Eval Cases and Eval Runs), /admin/playbooks (the AI Coach's own Eval Cases),
-// /admin/garde-fous (a Guardrail setting's run) and /admin/evaluations/<run id>, and through AI Usage.
+// /admin/evaluations/<run id>, and through AI Usage.
 // The AI is faked inside the server (fake-mistral.mjs): the AI judge scores a reply 8 out of 10 (80 / 100),
 // 2 when the criteria hold "E2E_JUDGE_LOW"; the AI Coach consults the Playbook Agents a message lists
 // after "E2E_CONSULT=".
@@ -13,7 +13,6 @@ const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "
 const admin = fr.admin;
 const playbooks = admin.coachingPlaybooks;
 const evals = admin.evals;
-const guardrails = admin.guardrails;
 // Its own permanent super-admin (ADMIN_EMAILS): two sign-ins of one address at once can pick up each other's link.
 const SUPER_ADMIN = "eval-runs-office@e2e.jobbbox.test";
 const origin = process.env.E2E_WEB_ORIGIN!;
@@ -347,49 +346,5 @@ test.describe("The AI Coach's own Eval Cases", () => {
     // A Candidate never reaches the Back Office.
     const candidate = await personPage(browser, newAddress("eval-ai-coach-candidate"));
     expect((await candidate.goto("/admin/playbooks"))?.status()).toBe(404);
-  });
-});
-
-test.describe("Eval Runs of the Guardrails", () => {
-  test("a new Guardrail setting is saved only after the Guardrails' Eval Cases are played on it, with exact verdicts and no AI judge; changing a message plays none", async ({ page }) => {
-    await signInWithMagicLink(page, SUPER_ADMIN);
-    await page.goto("/admin/garde-fous");
-    const runs = page.locator("section#eval-runs").getByRole("table", { name: evals.runs.caption }).getByRole("row");
-    const before = Math.max((await runs.count()) - 1, 0);
-
-    // A new setting: the cases are played on it first, and it is saved with the run.
-    const section = page.locator("section#prompt_injection");
-    await section.getByLabel(guardrails.settingLabel).selectOption("flag");
-    await section.getByRole("button", { name: guardrails.saveSetting }).click();
-    await expect(notice(page)).toHaveText(guardrails.notices.settingSaved);
-    await page.getByRole("link", { name: guardrails.runs.played }).click();
-    await expect(page.getByText(evals.run.subjects.guardrails)).toBeVisible();
-    await expect(page.getByText(evals.run.noJudge)).toBeVisible();
-    await expect(page.getByText(`${guardrails.names.prompt_injection} : ${guardrails.settings.flag}`)).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Détresse exprimée en toutes lettres" })).toBeVisible();
-    // Each case: its expected verdict and what the Guardrails answered. One it must block is flagged when its Guardrail is flag only.
-    const injection = page.getByRole("region", { name: "Demande d'ignorer les instructions et d'afficher le prompt" });
-    await expect(injection).toContainText(evals.run.verdicts.flag);
-    await expect(injection).toContainText(evals.run.passed);
-    const distress = page.getByRole("region", { name: "Détresse exprimée en toutes lettres" });
-    await expect(distress).toContainText(`${evals.run.verdicts.block} (${evals.run.passed})`);
-
-    // Back to block: another run. Then a message is changed: no more run.
-    await page.goto("/admin/garde-fous");
-    await page.locator("section#prompt_injection").getByLabel(guardrails.settingLabel).selectOption("block");
-    await page.locator("section#prompt_injection").getByRole("button", { name: guardrails.saveSetting }).click();
-    await expect(page).toHaveURL(/notice=settingSaved.*#prompt_injection$/);
-    await expect(notice(page)).toHaveText(guardrails.notices.settingSaved);
-    await expect(runs).toHaveCount(before + 2 + 1);
-
-    const group = page.locator("section#prompt_injection").getByRole("group", { name: tr(guardrails.editTitle, { language: guardrails.languages.fr }) });
-    await group.getByLabel(guardrails.text).fill(`Message de test ${unique()}`);
-    await group.getByRole("button", { name: guardrails.saveMessage }).click();
-    await expect(notice(page)).toHaveText(guardrails.notices.messageSaved);
-    await page.reload();
-    await expect(runs).toHaveCount(before + 2 + 1);
-
-    // The distress, personal data leak and secret disclosure Guardrails always block: no setting could let their cases through.
-    for (const always of ["distress", "personal_data_leak", "secret_disclosure"]) await expect(page.locator(`section#${always}`).getByLabel(guardrails.settingLabel)).toHaveCount(0);
   });
 });

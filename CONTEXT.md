@@ -506,16 +506,20 @@ _Avoid_: Dunning banner, billing alert
 ### Operations
 
 **Back Office**:
-The internal pages where Administrators manage Plans, Plan Quotas, Coupons, Human Coaches, Coaching Playbooks, Core Digest and Sources, Guardrails, Provider Secrets, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites and the team's Back Office Roles, and follow AI Usage and Guardrail Triggers.
+The internal pages where Administrators manage Plans, Plan Quotas, Coupons, Human Coaches, Coaching Playbooks, Core Digest and Sources, Guardrails, Provider Secrets, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites and the team's Back Office Roles, and follow AI Usage, Guardrail Triggers and the state of the Tools.
 _Avoid_: Admin panel, dashboard, console
 
 **Back Office Role**:
-What an Administrator may see and change in the Back Office: super-admin (everything, including roles, Guardrails, Provider Secrets, SSO providers, Job Sites, Job discovery sources, Job discovery sites and the AI Message Log), Plans manager (Plans, Plan Quotas, Plan Features, Coupons), Coach manager (Human Coaches, read Coach Message Cost), Playbook editor (Coaching Playbooks, Core Digest and Sources: edit, validate, archive; Eval Cases and start Eval Runs) or Support (read-only, including Eval Runs, no secrets, no AI Message Log). Super-admins also start Eval Runs. Fixed in code; only super-admins grant or revoke them.
+What an Administrator may see and change in the Back Office: super-admin (everything, including roles, Guardrails, Provider Secrets, SSO providers, Job Sites, Job discovery sources, Job discovery sites and the AI Message Log), Plans manager (Plans, Plan Quotas, Plan Features, Coupons), Coach manager (Human Coaches, read Coach Message Cost), Playbook editor (Coaching Playbooks, Core Digest and Sources: edit, validate, archive; Eval Cases and start Eval Runs) or Support (read-only, including Eval Runs and Tools, no secrets, no AI Message Log). Super-admins also start Eval Runs. Fixed in code; only super-admins grant or revoke them.
 _Avoid_: Permission level, admin type
 
 **Provider Secret**:
 A third-party key (an AI provider's, France Travail's, the contact-enrichment provider's, Stripe's, Brevo's API key or SMTP credentials) that super-admins enter in the Back Office's Clés section. Stored encrypted in our database and used over the environment variable of the same name, which it falls back to once cleared. Never shown again once saved: only its source, last 4 characters, and who changed it when.
 _Avoid_: API key setting, credential, config secret
+
+**Tool**:
+An external service the application calls at runtime, from the web app or the worker: an AI model, web search, a job board API, the company register, a contact-enrichment provider, Stripe, Brevo or a Sign-in Provider. Each is registered in one catalog with its purpose, the keys it needs, where its calls are recorded and its data residency (in the EU, outside the EU, or not established); a provider missing from the catalog fails the tests. The Back Office's Outils section shows each Tool's state (configured, key missing, not configured) and its last 30 days of calls, failures and cost, and its latest calls without any payload. Super-admins and Support read it. Not a tool an AI model uses during a call (a web search it runs), which is only counted in AI Usage.
+_Avoid_: Integration, connector, service
 
 **Sign-in Provider**:
 An identity provider, besides the magic link, that people sign in with: Google, Apple, Microsoft or a generic OIDC provider. Super-admins configure them in the Back Office's Connexion section; each is enabled only after a test sign-in, and is shown to Candidates, allowed for Administrators, or both. Trusted for linking, it signs a person into the existing account with the same email; otherwise they sign in by magic link first and link it from Mon compte. Its client secret (Apple: its Team ID, Key ID and .p8 key) is a Provider Secret.

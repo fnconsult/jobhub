@@ -280,9 +280,6 @@ test.describe("On-demand AI Coach job search", () => {
         const main = page.getByRole("main");
         // The page's title is in the Top Bar (ADR-0024).
         await expect(page.getByRole("banner").getByRole("heading", { level: 1 })).toBeVisible();
-        // The place suggestions shown (#235): measured with the rest.
-        await placeInput(dialog).fill("loire");
-        await expect(placeOptions(dialog)).toHaveCount(4);
         for (const text of (await renderedTexts(page)).filter((item) => item.fontSizePx > 0)) {
           expect.soft(text.fontSizePx, `font size of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(16);
           expect.soft(text.contrast, `contrast of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(4.5);

@@ -240,7 +240,7 @@ A result page that lists several postings (a job board's search results, a caree
 _Avoid_: Results page, index page
 
 **Job Search**:
-One run of Job discovery that a Candidate starts for a Profile, and its outcome: searching, done or failed. Started from the Recherches d'offres page or a Profile's page, for one Profile or for all their active Profiles at once (one Job Search each). With several locations it searches each of them within the one Job discovery budget. It counts one against the Plan Quota, and the use is given back if the search fails or times out. A search nobody has finished after 15 minutes is failed. Its page shows the Match Scores against the Profile's current Search Criteria; a Job Search keeps no copy of the criteria it was run with.
+One run of Job discovery that a Candidate starts for a Profile, and its outcome: searching, done or failed. Started from the Recherches d'offres page, for one Profile or for all their active Profiles at once (one Job Search each); the Coach Panel and "Relancer une recherche" on a Job Search's page start one for a single Profile. A Profile's page does not offer it. With several locations it searches each of them within the one Job discovery budget. It counts one against the Plan Quota, and the use is given back if the search fails or times out. A search nobody has finished after 15 minutes is failed. Its page shows the Match Scores against the Profile's current Search Criteria; a Job Search keeps no copy of the criteria it was run with.
 _Avoid_: Search (alone, ambiguous with Search Criteria)
 
 **Job Search Notification**:

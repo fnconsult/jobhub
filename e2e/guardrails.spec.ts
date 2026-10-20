@@ -101,6 +101,12 @@ test.describe("the Back Office's Guardrails", () => {
     await section(page, "harmful_advice").getByRole("button", { name: guardrails.saveSetting }).click();
     await expect(notice(page)).toHaveText(guardrails.notices.settingSaved);
     await expect(guardrailRow(page, guardrails.names.harmful_advice)).toContainText(guardrails.settings.flag);
+    // The setting was saved only after the Guardrails' Eval Cases were played on it (ADR-0023, #231).
+    await page.getByRole("link", { name: guardrails.runs.played }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.admin.evals.title);
+    await expect(page.getByText(fr.admin.evals.run.subjects.guardrails)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Détresse exprimée en toutes lettres" })).toBeVisible();
+    await page.goto("/admin/garde-fous");
 
     // A distress message must give 3114; its author cannot validate it.
     const distressFr = section(page, "distress").getByRole("group", { name: tr(guardrails.editTitle, { language: guardrails.languages.fr }) });
@@ -128,9 +134,10 @@ test.describe("the Back Office's Guardrails", () => {
     await expect(notice(validator)).toHaveText(guardrails.notices.validated);
     await expect(section(validator, "distress")).toContainText("Paul Validateur");
 
-    // Back to block, then the Journal: each change, linking to the Guardrail.
+    // Back to block, then the Journal: each change, linking to the Guardrail. Saving plays the Eval Cases first: wait for it.
     await section(page, "harmful_advice").getByLabel(guardrails.settingLabel).selectOption("block");
     await section(page, "harmful_advice").getByRole("button", { name: guardrails.saveSetting }).click();
+    await expect(page).toHaveURL(/notice=settingSaved.*#harmful_advice$/);
     await expect(notice(page)).toHaveText(guardrails.notices.settingSaved);
     await page.goto("/admin/journal?section=guardrails");
     const rows = page.getByRole("table").getByRole("row").filter({ hasText: admin.journal.sections.guardrails });
@@ -306,6 +313,8 @@ test.describe("Guardrails: flag only", () => {
       const injection = section(admin, "prompt_injection");
       await injection.getByLabel(guardrails.settingLabel).selectOption("flag");
       await injection.getByRole("button", { name: guardrails.saveSetting }).click();
+      // Saving plays the Guardrails' Eval Cases first: wait for this save's own notice.
+      await expect(admin).toHaveURL(/notice=settingSaved.*#prompt_injection$/);
       await expect(notice(admin)).toHaveText(guardrails.notices.settingSaved);
       // The notice above may be left over from the previous save: reload so this one is stored before sending.
       await admin.reload();

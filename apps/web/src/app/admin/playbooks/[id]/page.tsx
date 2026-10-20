@@ -373,7 +373,7 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
                 </select>
               </div>
               <div className="stack">
-                <label htmlFor="eval-run-model">{t("admin.coachingPlaybooks.fields.model")}</label>
+                <label htmlFor="eval-run-model">{t("admin.evals.runs.model")}</label>
                 <select id="eval-run-model" className="input" name="agentModel" defaultValue="" aria-describedby="eval-run-help">
                   <option value="">{t("admin.evals.runs.agentAsSaved")}</option>
                   {models.map((choice) => (
@@ -389,7 +389,7 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
                 </select>
               </div>
               <div className="stack">
-                <label htmlFor="eval-run-effort">{t("admin.coachingPlaybooks.fields.effort")}</label>
+                <label htmlFor="eval-run-effort">{t("admin.evals.runs.effort")}</label>
                 <select id="eval-run-effort" className="input" name="effort" defaultValue="">
                   <option value="">{t("admin.evals.runs.agentAsSaved")}</option>
                   {EFFORTS.map((effort) => (

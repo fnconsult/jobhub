@@ -1516,7 +1516,8 @@
       "settingHelpEvals": "Before a setting is saved, the Guardrails' Eval Cases are played on it. It is refused if it lets through a case that the distress, personal data leak or secret disclosure Guardrail must block. Changing a message plays no case.",
       "runs": {
         "title": "Guardrails' Eval Runs",
-        "intro": "Each new setting is first played on the Guardrails' Eval Cases, written by the engineering team and shipped with the app. Each case expects an exact verdict: let through, block or flag."
+        "intro": "Each new setting is first played on the Guardrails' Eval Cases, written by the engineering team and shipped with the app. Each case expects an exact verdict: let through, block or flag.",
+        "played": "See the Eval Run played on this setting"
       }
     },
     "evals": {
@@ -1575,7 +1576,9 @@
         "tried": "trial",
         "scoreValue": "{{score}} / 100",
         "noScore": "not scored",
-        "seconds": "{{seconds}} s"
+        "seconds": "{{seconds}} s",
+        "model": "Playbook Agent model to try",
+        "effort": "Effort to try"
       },
       "validation": {
         "onLatest": "Eval Run on version {{version}}, as it now is",
@@ -1597,7 +1600,7 @@
           "ai_coach": "The AI Coach as released",
           "guardrails": "Guardrail setting"
         },
-        "startedBy": "Started by {{author}} on {{date}}",
+        "startedBy": "{{author}}, on {{date}}",
         "judge": "AI judge",
         "noJudge": "None: Guardrail verdicts are exact",
         "agent": "Playbook Agent",

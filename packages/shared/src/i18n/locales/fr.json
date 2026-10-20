@@ -1516,7 +1516,8 @@
       "settingHelpEvals": "Avant d'enregistrer un réglage, les cas d'évaluation des garde-fous sont joués avec lui. Il est refusé s'il laisse passer un cas que la détresse, la fuite de données personnelles ou la divulgation de secrets doit bloquer. Changer un message ne joue aucun cas.",
       "runs": {
         "title": "Évaluations des garde-fous",
-        "intro": "Chaque nouveau réglage est d'abord évalué sur les cas d'évaluation des garde-fous, écrits par l'équipe technique et livrés avec l'application. Le verdict attendu de chaque cas est exact : laisser passer, bloquer ou signaler."
+        "intro": "Chaque nouveau réglage est d'abord évalué sur les cas d'évaluation des garde-fous, écrits par l'équipe technique et livrés avec l'application. Le verdict attendu de chaque cas est exact : laisser passer, bloquer ou signaler.",
+        "played": "Voir l'évaluation jouée sur ce réglage"
       }
     },
     "evals": {
@@ -1575,7 +1576,9 @@
         "tried": "essai",
         "scoreValue": "{{score}} / 100",
         "noScore": "non noté",
-        "seconds": "{{seconds}} s"
+        "seconds": "{{seconds}} s",
+        "model": "Modèle du Playbook Agent à essayer",
+        "effort": "Effort à essayer"
       },
       "validation": {
         "onLatest": "Évaluation de la version {{version}}, telle qu'elle est",
@@ -1597,7 +1600,7 @@
           "ai_coach": "Le coach IA tel qu'il est livré",
           "guardrails": "Réglage des garde-fous"
         },
-        "startedBy": "Lancée par {{author}}, le {{date}}",
+        "startedBy": "{{author}}, le {{date}}",
         "judge": "Juge IA",
         "noJudge": "Aucun : les verdicts des garde-fous sont exacts",
         "agent": "Playbook Agent",

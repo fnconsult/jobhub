@@ -108,12 +108,11 @@ export default async function GuardrailsPage({ searchParams }: { searchParams: P
       {shown ? (
         <p className="notice" role={NOTICES[shown] ? "alert" : "status"}>
           {t(`admin.guardrails.notices.${shown}`, { cases: cases ?? "" })}
-          {run && /^[0-9a-f-]{36}$/i.test(run) ? (
-            <>
-              {" "}
-              <Link href={routes.adminEvalRun(run)}>{t("admin.evals.runs.open")}</Link>
-            </>
-          ) : null}
+        </p>
+      ) : null}
+      {shown && run && /^[0-9a-f-]{36}$/i.test(run) ? (
+        <p>
+          <Link href={routes.adminEvalRun(run)}>{t("admin.guardrails.runs.played")}</Link>
         </p>
       ) : null}
 

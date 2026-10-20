@@ -187,6 +187,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "enriched_contact", from_column: "application_id", to_table: "application" },
         // EU AI consent (issue #121) goes with its Candidate.
         { from_table: "eu_ai_consent", from_column: "candidate_id", to_table: "candidate" },
+        // A Coaching Playbook's Eval Cases (issue #231) belong to it; no Candidate in them.
+        { from_table: "eval_case", from_column: "playbook_id", to_table: "coaching_playbook" },
         // Follow-up Delays (issue #21) go with their Candidate, Follow-ups sent with their Application.
         { from_table: "follow_up_delay", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "follow_up_sent", from_column: "application_id", to_table: "application" },

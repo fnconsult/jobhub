@@ -2929,3 +2929,72 @@ textarea.title-edit {
   font-family: inherit;
   margin: 0;
 }
+
+/* The Agenda (#246): upcoming Agenda Items by day; the past ones dimmed. */
+.agenda {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.agenda-day h3 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-h3);
+}
+
+.agenda-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.agenda-item-link {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: baseline;
+  padding: var(--space-3);
+  color: var(--color-text);
+  text-decoration: none;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.agenda-item-link:hover .agenda-item-title {
+  text-decoration: underline;
+}
+
+.agenda-item-time {
+  min-width: 4rem;
+  font-weight: 600;
+}
+
+.agenda-item-what {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+}
+
+.agenda-item-kind {
+  color: var(--color-text-secondary);
+}
+
+.agenda-item-title {
+  font-weight: 600;
+}
+
+.agenda-past .agenda-item-link {
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border-style: dashed;
+}
+
+.agenda-past .agenda-item-time,
+.agenda-past .agenda-item-title {
+  font-weight: 400;
+}

@@ -137,7 +137,8 @@
     "jobSearches": "Recherches d'offres",
     "jobDigests": "Job Digests",
     "subscription": "Abonnement",
-    "mainMenu": "Menu principal"
+    "mainMenu": "Menu principal",
+    "agenda": "Agenda"
   },
   "signIn": {
     "title": "Se connecter à Jobbbox",
@@ -1834,6 +1835,16 @@
     "archivedHidden_one": "{{count}} candidature archivée est masquée.",
     "archivedHidden_other": "{{count}} candidatures archivées sont masquées."
   },
+  "agenda": {
+    "title": "Entretiens et rendez-vous",
+    "none": "Aucun entretien à venir. Ajoutez vos entretiens depuis chaque candidature, dans sa partie « Entretiens ».",
+    "nonePast": "Aucun rendez-vous passé.",
+    "showPast": "Voir les rendez-vous passés",
+    "showUpcoming": "Voir les rendez-vous à venir",
+    "pastTitle": "Rendez-vous passés",
+    "upcomingTitle": "À venir",
+    "interview": "Entretien"
+  },
   "application": {
     "statusLabel": "Statut",
     "statusSaved": "Statut enregistré",
@@ -1876,7 +1887,8 @@
       "dossier": "Dossier entreprise",
       "contacts": "Contacts",
       "offre": "L'offre"
-    }
+    },
+    "seeInAgenda": "Voir dans l'agenda"
   },
   "jobOffer": {
     "details": "En bref",

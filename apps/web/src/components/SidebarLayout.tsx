@@ -14,6 +14,7 @@ export type SidebarProfile = { id: string; name: string; archived: boolean };
 
 const LABELS = {
   applications: "nav.applications",
+  agenda: "sidebar.agenda",
   jobSearches: "sidebar.jobSearches",
   jobDigests: "sidebar.jobDigests",
   humanCoaches: "account.humanCoaches",

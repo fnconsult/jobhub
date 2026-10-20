@@ -1,6 +1,8 @@
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
+import type { EvalRun, GuardrailsRun } from "../evals";
+import type { GuardrailId, GuardrailSetting } from "../guardrails";
 import { createGuardrailStore, migrateGuardrails, type GuardrailStore } from "../guardrails/store";
 import { createBackOffice, migrateBackOfficeAudit, type BackOffice, type BackOfficeActor } from "./back-office";
 import { createGuardrailsBackOffice, type GuardrailsBackOffice } from "./guardrails-back-office";
@@ -13,6 +15,9 @@ describe.skipIf(!connectionString)("Guardrails' Back Office writes and their Bac
   let changes: GuardrailsBackOffice;
   let claire: BackOfficeActor & { name: string };
   let paul: BackOfficeActor & { name: string };
+  /** The settings each Eval Run played, and what the next one says got through. */
+  let played: Record<GuardrailId, GuardrailSetting>[];
+  let refused: GuardrailsRun["refused"];
 
   async function actor(email: string, name: string) {
     const cookie = await signInWithMagicLink(testAuth, email);
@@ -33,7 +38,15 @@ describe.skipIf(!connectionString)("Guardrails' Back Office writes and their Bac
       humanCoaches: { add: unused, retire: unused },
     });
     store = createGuardrailStore(database, { serving: "latest" });
-    changes = createGuardrailsBackOffice(store, backOffice);
+    played = [];
+    refused = [];
+    const evals = {
+      async runGuardrails(_starter: { email: string }, settings: Record<GuardrailId, GuardrailSetting>): Promise<GuardrailsRun> {
+        played.push(settings);
+        return { run: { id: `run-${played.length}` } as EvalRun, refused };
+      },
+    };
+    changes = createGuardrailsBackOffice(store, backOffice, evals);
     claire = await actor("claire@jobbbox.fr", "Claire Martin");
     paul = await actor("paul@jobbbox.fr", "Paul Durand");
   }, 60_000);
@@ -71,6 +84,38 @@ describe.skipIf(!connectionString)("Guardrails' Back Office writes and their Bac
         after: { language: "fr", version: 2, text: "Appelez le 3114, gratuit, à toute heure." },
       },
     ]);
+  });
+
+  describe("a new Guardrail setting (ADR-0023, #231)", () => {
+    it("is saved only after the Guardrails' Eval Cases are played on it, the other settings as they are", async () => {
+      await changes.setSetting(claire, "prompt_injection", "flag");
+
+      const saved = await changes.setSetting(claire, "harmful_advice", "flag");
+
+      expect(saved).toMatchObject({ ok: true, changed: true, run: { id: "run-2" } });
+      expect(played.at(-1)).toMatchObject({ prompt_injection: "flag", harmful_advice: "flag", distress: "block" });
+      expect((await store.config.current()).settings.harmful_advice).toBe("flag");
+    });
+
+    it("is refused, and nothing recorded, when it lets through a case the distress, personal data leak or secret disclosure Guardrail must block", async () => {
+      refused = [{ case: { id: "secret-after-injection" } } as GuardrailsRun["refused"][number]];
+
+      const saved = await changes.setSetting(claire, "prompt_injection", "flag");
+
+      expect(saved).toMatchObject({ ok: false, error: "eval_refused", run: { id: "run-1" }, refused: [{ case: { id: "secret-after-injection" } }] });
+      expect((await store.config.current()).settings.prompt_injection).toBe("block");
+      expect(await entries()).toEqual([]);
+    });
+
+    it("plays no Eval Case when the setting is unchanged or refused, nor when a Guardrail message changes", async () => {
+      await changes.setSetting(claire, "harmful_advice", "block");
+      await changes.setSetting(claire, "distress", "flag");
+      await changes.setSetting(claire, "harmful_advice", "sometimes");
+      await changes.saveMessage(claire, "harmful_advice", "fr", "Adressez-vous à un professionnel.");
+      await changes.validateMessage(paul, "harmful_advice", "fr", 1);
+
+      expect(played).toEqual([]);
+    });
   });
 
   it("keeps a change and its entry together: when the entry cannot be recorded, the change is not kept", async () => {

@@ -10,7 +10,8 @@ import type { TaskPlaybookReader } from "./index";
 export { servedTaskRun, taskRun, type TaskPlaybookReader, type TaskRun } from "./index";
 
 export function taskPlaybooksReader(database: Pool, env: Record<string, string | undefined> = process.env): TaskPlaybookReader {
-  // Reads only: no Playbook Agent is checked against the models offered here, which only saving does.
-  const playbooks = createCoachingPlaybooks(database, { serving: playbookServing(env), agentModels: () => [] });
+  // Reads only: no Playbook Agent is checked against the models offered here, which only saving does,
+  // and nothing is validated here, which alone asks for an Eval Run.
+  const playbooks = createCoachingPlaybooks(database, { serving: playbookServing(env), agentModels: () => [], evalRunOn: async () => false });
   return (id) => playbooks.servedTask(id);
 }

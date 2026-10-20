@@ -1192,7 +1192,8 @@
         "sign_in_providers": "Connexion",
         "ai_messages": "Journaux IA",
         "coaching_playbooks": "Playbooks de coaching",
-        "guardrails": "Garde-fous"
+        "guardrails": "Garde-fous",
+        "eval_cases": "Cas d'évaluation"
       },
       "actions": {
         "added": "Ajout",
@@ -1231,7 +1232,8 @@
       "empty": "vide",
       "id": "Identifiant",
       "viewVersion": "voir la version {{version}}",
-      "viewGuardrail": "voir le garde-fou"
+      "viewGuardrail": "voir le garde-fou",
+      "viewEvalCases": "voir les cas d'évaluation"
     },
     "aiUsage": {
       "title": "Consommation IA",
@@ -1295,7 +1297,8 @@
         "job_titles": "Variantes d'intitulés",
         "web_search": "Recherche web",
         "back_office_assistant": "Assistant du back office",
-        "guardrail": "Garde-fous"
+        "guardrail": "Garde-fous",
+        "eval": "Évaluations"
       }
     },
     "aiMessages": {
@@ -1459,6 +1462,12 @@
         "restored": "Playbook rétabli.",
         "not_archivable": "Le socle et la liste des sources ne peuvent pas être archivés.",
         "nameRequired": "Indiquez votre nom pour valider.",
+        "no_eval_run": "Lancez d'abord une évaluation sur la version {{version}} telle qu'elle est : elle n'est validée qu'après une évaluation, quel que soit son score.",
+        "caseAdded": "Cas d'évaluation ajouté.",
+        "caseSaved": "Cas d'évaluation enregistré.",
+        "caseRemoved": "Cas d'évaluation supprimé.",
+        "too_many": "Ce playbook a déjà le nombre maximal de cas d'évaluation.",
+        "no_cases": "Ajoutez au moins un cas d'évaluation avant de lancer une évaluation.",
         "task_instructions": "Il manque aux consignes ce que la tâche lit, ou elles sont trop longues : {{list}}."
       },
       "journalFields": {
@@ -1555,7 +1564,7 @@
         "unavailable": "Contrôle indisponible"
       },
       "notices": {
-        "settingSaved": "Réglage enregistré.",
+        "settingSaved": "Réglage enregistré, après avoir joué les cas d'évaluation des garde-fous avec lui.",
         "messageSaved": "Message enregistré : il doit être validé par un autre administrateur pour être servi en production.",
         "validated": "Message validé.",
         "unchanged": "Rien n'a changé.",
@@ -1566,7 +1575,134 @@
         "own_message": "Vous ne pouvez pas valider un message que vous avez écrit.",
         "already_validated": "Cette version est déjà validée.",
         "not_latest": "Seule la dernière version peut être validée.",
-        "nameRequired": "Indiquez votre nom pour valider."
+        "nameRequired": "Indiquez votre nom pour valider.",
+        "eval_refused": "Réglage refusé : avec lui, des cas que la détresse, la fuite de données personnelles ou la divulgation de secrets doit bloquer passeraient : {{cases}}."
+      },
+      "settingHelpEvals": "Avant d'enregistrer un réglage, les cas d'évaluation des garde-fous sont joués avec lui. Il est refusé s'il laisse passer un cas que la détresse, la fuite de données personnelles ou la divulgation de secrets doit bloquer. Changer un message ne joue aucun cas.",
+      "runs": {
+        "title": "Évaluations des garde-fous",
+        "intro": "Chaque nouveau réglage est d'abord évalué sur les cas d'évaluation des garde-fous, écrits par l'équipe technique et livrés avec l'application. Le verdict attendu de chaque cas est exact : laisser passer, bloquer ou signaler.",
+        "played": "Voir l'évaluation jouée sur ce réglage"
+      }
+    },
+    "evals": {
+      "title": "Évaluation",
+      "back": "Retour",
+      "cases": {
+        "title": "Cas d'évaluation",
+        "intro": "Des scénarios fictifs : la situation d'un candidat, son message, éventuellement ce qu'il consulte, et ce qu'une bonne réponse doit faire, noté par le juge IA. Ils appartiennent au playbook, pas à une version, et ne se valident pas. Rédigez-les en français, sans rien d'une personne réelle. Ils restent dans cet environnement et chaque modification est notée au Journal.",
+        "none": "Aucun cas d'évaluation pour l'instant.",
+        "writtenBy": "Écrit par {{author}}, le {{date}}",
+        "add": "Ajouter un cas d'évaluation",
+        "addButton": "Ajouter ce cas",
+        "edit": "Modifier ce cas",
+        "save": "Enregistrer ce cas",
+        "remove": "Supprimer ce cas",
+        "fields": {
+          "title": "Titre",
+          "context": "Situation du candidat (fictive)",
+          "contextHelp": "Qui est le candidat, en quelques phrases, prénom seulement : son âge, son métier, ce qu'il cherche.",
+          "message": "Son message au coach",
+          "inViewKind": "Ce qu'il consulte",
+          "inViewNone": "Rien en particulier",
+          "inViewText": "Texte de ce qu'il consulte",
+          "inViewTextHelp": "Par exemple l'offre d'emploi ou la candidature, telle que le coach la lirait. Laissez vide s'il ne consulte rien.",
+          "criteria": "Ce qu'une bonne réponse doit faire",
+          "criteriaHelp": "Des critères en mots simples, que le juge IA note de 0 à 10."
+        },
+        "inViewKinds": {
+          "profile": "Un profil",
+          "application": "Une candidature",
+          "job_offer": "Une offre d'emploi",
+          "job_search": "Une recherche d'offres",
+          "job_digest": "Un Job Digest"
+        }
+      },
+      "runs": {
+        "title": "Évaluations",
+        "intro": "Une évaluation joue chaque cas sur la réponse entière du coach IA, qui consulte ce playbook à la version évaluée ; les autres playbooks sont servis tels quels. Le juge IA, fixé par Jobbbox, note chaque réponse. Ses appels comptent dans la consommation IA. Une évaluation aide à décider : elle ne valide rien.",
+        "start": "Évaluer la version {{version}}",
+        "startHelp": "Pour comparer des modèles et des efforts, évaluez la version une fois par choix, parmi les modèles hébergés dans l'UE. Retenez ensuite le meilleur en l'enregistrant avec la version.",
+        "agentAsSaved": "Le Playbook Agent de la version, tel qu'enregistré",
+        "startButton": "Lancer l'évaluation",
+        "running": "L'évaluation peut prendre quelques minutes.",
+        "none": "Aucune évaluation pour l'instant.",
+        "caption": "Évaluations, des plus récentes aux plus anciennes",
+        "startedAt": "Date",
+        "version": "Version",
+        "agent": "Playbook Agent",
+        "score": "Score",
+        "cost": "Coût",
+        "responseTime": "Temps de réponse moyen",
+        "startedBy": "Lancée par",
+        "details": "Détail",
+        "open": "voir",
+        "asSaved": "tel qu'enregistré",
+        "tried": "essai",
+        "scoreValue": "{{score}} / 100",
+        "noScore": "non noté",
+        "seconds": "{{seconds}} s",
+        "model": "Modèle du Playbook Agent à essayer",
+        "effort": "Effort à essayer"
+      },
+      "validation": {
+        "onLatest": "Évaluation de la version {{version}}, telle qu'elle est",
+        "onServed": "Évaluation de la version servie ({{version}})",
+        "noRunOnLatest": "Aucune évaluation sur cette version telle qu'elle est : lancez-en une avant de la valider.",
+        "noRunOnServed": "Aucune évaluation de la version servie.",
+        "noneServed": "Aucune version n'est servie.",
+        "summary": "{{score}}, coût {{cost}}, temps de réponse moyen {{time}}, le {{date}}",
+        "noScoreBlocks": "Aucun score ne bloque la validation : c'est à vous de juger, en lisant les réponses."
+      },
+      "aiCoach": {
+        "title": "Évaluations du coach IA",
+        "intro": "Les cas d'évaluation du coach IA lui-même, écrits par l'équipe technique et livrés avec l'application : son ton, l'absence de chiffres inventés, et le choix du bon playbook. Ils sont joués sur le coach IA tel qu'il est livré, avec les playbooks servis.",
+        "start": "Évaluer le coach IA"
+      },
+      "run": {
+        "subjects": {
+          "coaching_playbook": "Playbook « {{playbook}} », version {{version}}",
+          "ai_coach": "Le coach IA tel qu'il est livré",
+          "guardrails": "Réglage des garde-fous"
+        },
+        "startedBy": "{{author}}, le {{date}}",
+        "judge": "Juge IA",
+        "noJudge": "Aucun : les verdicts des garde-fous sont exacts",
+        "agent": "Playbook Agent",
+        "settings": "Réglages joués",
+        "cases": "Cas joués",
+        "context": "Situation",
+        "message": "Message",
+        "inView": "Consulte",
+        "criteria": "Critères",
+        "consults": "Playbook à consulter",
+        "consulted": "Playbooks consultés",
+        "noneConsulted": "aucun",
+        "reply": "Réponse du coach",
+        "noReply": "Le coach IA n'a pas pu répondre.",
+        "guardrail": "Garde-fou",
+        "expected": "Verdict attendu",
+        "verdict": "Verdict",
+        "passed": "conforme",
+        "failed": "non conforme",
+        "caseScore": "Note",
+        "reason": "Avis du juge",
+        "caseCost": "Coût",
+        "caseTime": "Temps de réponse",
+        "verdicts": {
+          "let_through": "laisser passer",
+          "block": "bloquer",
+          "flag": "signaler"
+        }
+      },
+      "journalFields": {
+        "caseId": "Cas",
+        "title": "Titre",
+        "context": "Situation",
+        "message": "Message",
+        "inViewKind": "Ce qu'il consulte",
+        "inViewText": "Texte consulté",
+        "criteria": "Critères"
       }
     }
   },

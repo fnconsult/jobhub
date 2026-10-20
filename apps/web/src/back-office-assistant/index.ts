@@ -152,6 +152,7 @@ const SECTIONS: Record<BackOfficeResource, { name: string; page?: string }> = {
   searchSites: { name: "Sites de recherche (Job Sites et recherche d'offres)", page: routes.adminSearchSites },
   coachingPlaybooks: { name: "Playbooks de coaching, socle et sources (Coaching Playbooks)", page: routes.adminCoachingPlaybooks },
   guardrails: { name: "Garde-fous (Guardrails) et leurs déclenchements", page: routes.adminGuardrails },
+  evalRuns: { name: "Évaluations (Eval Runs) des playbooks, du coach IA et des garde-fous", page: routes.adminCoachingPlaybooks },
 };
 
 const heading = (resource: BackOfficeResource) => {
@@ -256,7 +257,14 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
   async guardrails() {
     return [
       heading("guardrails"),
-      "Les garde-fous protègent le coach IA, ses Playbook Agents et vous-même contre l'injection d'instructions, la fuite de données personnelles, la divulgation des instructions, des règles de coaching ou des clés, les conseils hors du rôle ou dangereux (juridiques, médicaux, financiers, discriminatoires, y compris sur l'âge) et la détresse (message avec le 3114). Leur liste est fixée dans le code ; les super-admins règlent chacun sur bloquer ou signaler seulement (détresse, fuite de données et divulgation bloquent toujours) et écrivent ses messages, en français et en anglais, validés par un autre Administrateur avant d'être servis en production. Chaque déclenchement est compté par jour, sans candidat ni texte, gardé 24 mois ; personne n'est alerté en cas de détresse.",
+      "Les garde-fous protègent le coach IA, ses Playbook Agents et vous-même contre l'injection d'instructions, la fuite de données personnelles, la divulgation des instructions, des règles de coaching ou des clés, les conseils hors du rôle ou dangereux (juridiques, médicaux, financiers, discriminatoires, y compris sur l'âge) et la détresse (message avec le 3114). Leur liste est fixée dans le code ; les super-admins règlent chacun sur bloquer ou signaler seulement (détresse, fuite de données et divulgation bloquent toujours) et écrivent ses messages, en français et en anglais, validés par un autre Administrateur avant d'être servis en production. Un nouveau réglage n'est enregistré qu'après avoir joué les cas d'évaluation des garde-fous, et refusé s'il laisse passer un cas que la détresse, la fuite de données ou la divulgation doit bloquer ; changer un message ne joue aucun cas. Chaque déclenchement est compté par jour, sans candidat ni texte, gardé 24 mois ; personne n'est alerté en cas de détresse.",
+    ].join("\n");
+  },
+
+  async evalRuns() {
+    return [
+      heading("evalRuns"),
+      "Les cas d'évaluation sont des scénarios fictifs (situation d'un candidat, message, éventuellement ce qu'il consulte) avec leur résultat attendu : un verdict exact pour un garde-fou, des critères en mots simples notés par un juge IA pour un playbook. Ceux du coach IA et des garde-fous sont dans le code ; ceux d'un playbook de coaching sont écrits dans sa page par les rédacteurs de playbooks, en français, sans validation, propres à chaque environnement, et chaque modification est notée au Journal. Une évaluation joue la réponse entière du coach IA, qui consulte le playbook à la version évaluée, et garde chaque résultat, le score, le coût et le temps de réponse. Seuls les rédacteurs de playbooks et les super-admins en lancent ; ses appels comptent dans la consommation IA (tâche eval). Une version de playbook n'est validée qu'après une évaluation sur elle, que le valideur lit à côté de celle de la version servie ; aucun score ne bloque la validation. Pour comparer des modèles et des efforts (hébergés dans l'UE), on évalue une version brouillon une fois par choix.",
     ].join("\n");
   },
 
@@ -356,6 +364,7 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   job_sites: "sites de l'extension",
   ai_messages: "journaux IA",
   coaching_playbooks: "playbooks de coaching",
+  eval_cases: "cas d'évaluation",
   guardrails: "garde-fous",
 };
 

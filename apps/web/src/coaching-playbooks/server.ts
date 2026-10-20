@@ -1,5 +1,6 @@
 import { getAi } from "@/ai/server";
 import { sharedPool } from "@/database/pool";
+import { hasEvalRunOn } from "@/evals";
 import { createCoachingPlaybooks, type CoachingPlaybooks } from "./index";
 import { playbookServing } from "./serving";
 
@@ -7,9 +8,10 @@ let instance: CoachingPlaybooks | undefined;
 
 /**
  * The app's Coaching Playbooks, on the database named by DATABASE_URL, serving what this environment
- * serves (JOBHUB_TARGET, ADR-0021); Playbook Agents may use the models the app's AI layer offers.
+ * serves (JOBHUB_TARGET, ADR-0021); Playbook Agents may use the models the app's AI layer offers, and a
+ * version is Human-validated only after an Eval Run on it (ADR-0023).
  */
 export function getCoachingPlaybooks(): CoachingPlaybooks {
-  instance ??= createCoachingPlaybooks(sharedPool(), { serving: playbookServing(process.env), agentModels: () => getAi().agentModels() });
+  instance ??= createCoachingPlaybooks(sharedPool(), { serving: playbookServing(process.env), agentModels: () => getAi().agentModels(), evalRunOn: hasEvalRunOn });
   return instance;
 }

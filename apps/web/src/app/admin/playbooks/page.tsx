@@ -9,9 +9,11 @@ import { getCoachingPlaybooks } from "@/coaching-playbooks/server";
 import { playbookServing } from "@/coaching-playbooks/serving";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { getEvals } from "@/evals/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 import { isNotice, NOTICES, noticeQuery } from "./notices";
+import { EvalRunsTable } from "../evaluations/run-views";
 import { PlaybookVersionFields } from "./version-fields";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -34,6 +36,14 @@ async function createPlaybook(form: FormData) {
   redirect(`${routes.adminCoachingPlaybooks}${noticeQuery(created)}`);
 }
 
+/** Plays the AI Coach's own Eval Cases on the AI Coach as released (ADR-0023, #231): Playbook editors and super-admins only. */
+async function evaluateAiCoach() {
+  "use server";
+  const { administrator } = await requireBackOffice("evalRuns", "write");
+  const run = await getEvals().runAiCoach(administrator);
+  redirect(routes.adminEvalRun(run.id));
+}
+
 /**
  * Playbook editors write the AI Coach's coaching knowledge (#225): the Core Digest, the Sources list and
  * the Coaching Playbooks, each with its Playbook Agent; and, apart, the task Playbooks (ADR-0026), each
@@ -45,7 +55,8 @@ export default async function CoachingPlaybooksPage({ searchParams }: { searchPa
   const t = await getServerT(locale);
   const { notice, detail } = await searchParams;
   const shown = isNotice(notice) ? notice : null;
-  const playbooks = await getCoachingPlaybooks().list();
+  const [playbooks, aiCoachRuns] = await Promise.all([getCoachingPlaybooks().list(), getEvals().runs({ kind: "ai_coach" }, 10)]);
+  const canRun = access.can("evalRuns", "write");
   const models = getAi().agentModels();
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "Europe/Paris" });
 
@@ -153,6 +164,18 @@ export default async function CoachingPlaybooksPage({ searchParams }: { searchPa
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section className="stack" id="ai-coach-evals" aria-labelledby="ai-coach-evals-title">
+        <h2 id="ai-coach-evals-title">{t("admin.evals.aiCoach.title")}</h2>
+        <p>{t("admin.evals.aiCoach.intro")}</p>
+        <BackOfficeForm canWrite={canRun} className="stack" action={evaluateAiCoach}>
+          <p>{t("admin.evals.runs.running")}</p>
+          <button className="button" type="submit" disabled={!canRun}>
+            {t("admin.evals.aiCoach.start")}
+          </button>
+        </BackOfficeForm>
+        <EvalRunsTable runs={aiCoachRuns} caption={t("admin.evals.runs.caption")} />
       </section>
 
       <BackOfficeForm canWrite={canWrite} className="stack quota-form" action={createPlaybook}>

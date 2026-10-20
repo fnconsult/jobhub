@@ -3,7 +3,7 @@
  * Digest, the Sources list and the task Playbooks (each AI task's working instructions), each a series
  * of Playbook Versions kept forever, written in the Back Office by Playbook editors.
  *
- * One deep module. `createCoachingPlaybooks(database, { serving, agentModels })` answers:
+ * One deep module. `createCoachingPlaybooks(database, { serving, agentModels, evalRunOn })` answers:
  *  - what there is          `list` (each with its latest and its served version), `history` (every version)
  *  - write                  `create` a Coaching Playbook, `save` a version, `validate` one, `setArchived`
  *  - what the AI Coach uses `served`: the Core Digest, the Sources list and the Coaching Playbooks
@@ -18,7 +18,8 @@
  *  - A version not yet Human-validated is edited in place, each author noted; changing a
  *    Human-validated one makes a new version. Saving without a change makes nothing.
  *  - A version is Human-validated once, by a named Administrator other than its authors, and only
- *    while it is the latest.
+ *    while it is the latest; a Coaching Playbook's version only after an Eval Run on it as it now is
+ *    (`evalRunOn`, ADR-0023), whatever its score.
  *  - `serving: "validated"` (production) serves the latest Human-validated version of each;
  *    `"latest"` (every other environment) the latest version. An archived Coaching Playbook is never
  *    served, nor deleted; the Core Digest and the Sources list cannot be archived.
@@ -176,7 +177,7 @@ export type SavePlaybookResult =
 
 export type ValidatePlaybookResult =
   | { ok: true; version: PlaybookVersion }
-  | { ok: false; error: "not_found" | "not_latest" | "already_validated" | "own_version" };
+  | { ok: false; error: "not_found" | "not_latest" | "already_validated" | "own_version" | "no_eval_run" };
 
 /** `version`: the latest version, which an archive concerns. */
 export type ArchivePlaybookResult = { ok: true; changed: boolean; version: number } | { ok: false; error: "not_found" | "not_archivable" };
@@ -208,6 +209,8 @@ export interface CoachingPlaybooksDeps {
   serving: PlaybookServing;
   /** The providers and models a Playbook Agent may use (the AI layer's `agentModels`). */
   agentModels: () => AgentModelChoice[];
+  /** Whether an Eval Run played this version of a Coaching Playbook as it now is (ADR-0023): see evals/. */
+  evalRunOn: (version: PlaybookVersion, within: Queryable) => Promise<boolean>;
   /** The web-search providers and models a task Playbook's searches may use (the AI layer's `searchModels`). Default: none. */
   searchModels?: () => AgentModelChoice[];
 }
@@ -563,13 +566,14 @@ export function createCoachingPlaybooks(database: Pool, deps: CoachingPlaybooksD
 
     validate(validator, id, version, within = database) {
       return inTransaction(within, async (client): Promise<ValidatePlaybookResult> => {
-        const { rows } = await client.query("SELECT 1 FROM coaching_playbook WHERE id = $1 FOR UPDATE", [id]);
+        const { rows } = await client.query<{ kind: PlaybookKind }>("SELECT kind FROM coaching_playbook WHERE id = $1 FOR UPDATE", [id]);
         const latest = rows.length > 0 ? (await latestVersions(client, id)).get(id) : undefined;
         if (!latest || !Number.isInteger(version) || version < 1 || version > latest.version) return { ok: false, error: "not_found" };
         if (version !== latest.version) return { ok: false, error: "not_latest" };
         if (latest.validation) return { ok: false, error: "already_validated" };
         const email = normalEmail(validator.email);
         if (latest.authors.includes(email)) return { ok: false, error: "own_version" };
+        if (rows[0]!.kind === "playbook" && !(await deps.evalRunOn(latest, client))) return { ok: false, error: "no_eval_run" };
         const { rows: validated } = await client.query<VersionRow>(
           `UPDATE playbook_version v SET validated_by_name = $3, validated_by_email = $4, validated_at = clock_timestamp()
             WHERE v.playbook_id = $1 AND v.version = $2 RETURNING ${VERSION_COLUMNS}`,

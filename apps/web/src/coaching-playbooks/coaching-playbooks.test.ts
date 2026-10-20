@@ -57,7 +57,9 @@ const paul = { email: "paul@jobbbox.fr", name: "Paul Martin" };
 describe.skipIf(!connectionString)("Coaching Playbooks, versioned in the database (needs Postgres: DATABASE_URL)", () => {
   let throwaway: ThrowawayDatabase;
   let database: Pool;
-  const playbooksFor = (serving: PlaybookServing) => createCoachingPlaybooks(database, { serving, agentModels: () => MODELS, searchModels: () => SEARCH_MODELS });
+  /** Every version has had its Eval Run here: what validation needs of it is tested in evals/. */
+  const playbooksFor = (serving: PlaybookServing) =>
+    createCoachingPlaybooks(database, { serving, agentModels: () => MODELS, searchModels: () => SEARCH_MODELS, evalRunOn: async () => true });
   let playbooks: CoachingPlaybooks;
 
   beforeEach(async () => {
@@ -313,11 +315,11 @@ describe.skipIf(!connectionString)("Coaching Playbooks, versioned in the databas
         await migrateCoachingPlaybooks(old.pool, () => ({ ...SEED, tasks: [] }));
         await old.pool.query(`ALTER TABLE coaching_playbook DROP CONSTRAINT coaching_playbook_kind_check;
           ALTER TABLE coaching_playbook ADD CONSTRAINT coaching_playbook_kind_check CHECK (kind IN ('playbook', 'core_digest', 'sources'))`);
-        const before = createCoachingPlaybooks(old.pool, { serving: "latest", agentModels: () => MODELS });
+        const before = createCoachingPlaybooks(old.pool, { serving: "latest", agentModels: () => MODELS, evalRunOn: async () => true });
         await before.save(claire, "ats-optimization", { content: "# ATS\n\n**R1. Autre.** [S1]", ...agent });
 
         await migrateCoachingPlaybooks(old.pool, () => SEED);
-        const after = createCoachingPlaybooks(old.pool, { serving: "validated", agentModels: () => MODELS });
+        const after = createCoachingPlaybooks(old.pool, { serving: "validated", agentModels: () => MODELS, evalRunOn: async () => true });
         expect(await taskIds(after)).toEqual(["job-offer-reading", "cv-reading", "tailored-cv", "company-facts-search"]);
         expect((await after.list()).find((playbook) => playbook.id === "ats-optimization")?.latest.content).toBe("# ATS\n\n**R1. Autre.** [S1]");
         expect(await after.servedTask("cv-reading")).toMatchObject({ version: 1, content: builtInInstructions("cv-reading") });

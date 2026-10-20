@@ -15,6 +15,7 @@ import { showSystemPrompt, systemPromptShown } from "./support/system-prompt";
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const admin = fr.admin;
 const playbooks = admin.coachingPlaybooks;
+const evals = admin.evals;
 // Its own permanent super-admin (ADMIN_EMAILS): two sign-ins of one address at once can pick up each other's link.
 const SUPER_ADMIN = "playbook-validator-office@e2e.jobbbox.test";
 const origin = process.env.E2E_WEB_ORIGIN!;
@@ -80,8 +81,37 @@ test.describe("the Back Office's Coaching Playbooks", () => {
     // The AI Coach consults it as soon as it is written (not in production, which serves validated versions only).
     expect(await coachPrompt(editor, `Mon salaire ? E2E_CONSULT=${id}`)).toContain(`<avis-playbook id="${id}" version="1">`);
 
-    // Another Administrator validates it, under their name.
+    // Without an Eval Run on it, no one can validate it (ADR-0023, #231).
     await page.goto(`/admin/playbooks/${id}`);
+    await expect(page.getByText(evals.validation.noRunOnLatest)).toBeVisible();
+    await page.getByLabel(playbooks.detail.validatorName).fill("Paul Validateur");
+    await page.getByRole("button", { name: tr(playbooks.detail.validate, { version: "1" }) }).click();
+    await expect(alert(page)).toHaveText(tr(playbooks.notices.no_eval_run, { version: "1" }));
+
+    // The editor writes an Eval Case, in French, and evaluates version 1: the AI Coach's whole reply, consulting it, scored by the AI judge.
+    await editor.goto(`/admin/playbooks/${id}`);
+    await editor.getByLabel(evals.cases.fields.title).fill("Négocie une offre à 85 k€");
+    await editor.getByLabel(evals.cases.fields.context).fill("Le candidat s'appelle Paul (prénom seulement). Il a 55 ans et vise un poste de DAF.");
+    await editor.getByLabel(evals.cases.fields.message).fill("On m'offre 85 k€, comment négocier ?");
+    await editor.getByLabel(evals.cases.fields.inViewKind, { exact: true }).selectOption("job_offer");
+    await editor.getByLabel(evals.cases.fields.inViewText).fill("DAF H/F chez Acme Industrie, Lyon, 80 à 90 k€.");
+    await editor.getByLabel(evals.cases.fields.criteria).fill("La réponse conseille de viser le haut de la fourchette avec des preuves.");
+    await editor.getByRole("button", { name: evals.cases.addButton }).click();
+    await expect(notice(editor)).toHaveText(playbooks.notices.caseAdded);
+    await expect(editor.getByRole("heading", { name: "Négocie une offre à 85 k€" })).toBeVisible();
+    await editor.getByRole("button", { name: evals.runs.startButton }).click();
+    await expect(editor).toHaveURL(/\/admin\/evaluations\/[0-9a-f-]{36}$/);
+    await expect(editor.getByRole("heading", { level: 1 })).toHaveText(evals.title);
+    await expect(editor.getByText(tr(evals.run.subjects.coaching_playbook, { playbook: "Négocier son salaire", version: "1" }))).toBeVisible();
+    await expect(editor.getByRole("heading", { name: "Négocie une offre à 85 k€" })).toBeVisible();
+    await expect(editor.getByText(id, { exact: true })).toBeVisible();
+    await expect(editor.getByText("E2E : la réponse remplit les critères.")).toBeVisible();
+    await expect(editor.getByText(tr(evals.runs.scoreValue, { score: "80" })).first()).toBeVisible();
+
+    // Another Administrator reads that run beside the served version's, then validates it, under their name: no score blocks it.
+    await page.goto(`/admin/playbooks/${id}`);
+    await expect(page.getByText(tr(evals.validation.onLatest, { version: "1" }))).toBeVisible();
+    await expect(page.getByText(evals.validation.noRunOnLatest)).toHaveCount(0);
     await page.getByLabel(playbooks.detail.validatorName).fill("Paul Validateur");
     await page.getByRole("button", { name: tr(playbooks.detail.validate, { version: "1" }) }).click();
     await expect(notice(page)).toHaveText(tr(playbooks.notices.validated, { version: "1" }));
@@ -116,6 +146,13 @@ test.describe("the Back Office's Coaching Playbooks", () => {
     await expect(rows.nth(3)).toContainText(editorEmail);
     await rows.nth(2).getByRole("link", { name: tr(admin.journal.viewVersion, { version: "1" }) }).click();
     await expect(page).toHaveURL(new RegExp(`/admin/playbooks/${id}\\?version=1$`));
+
+    // The Eval Case's every change is in the Journal too, in its own section.
+    await page.goto("/admin/journal?section=eval_cases");
+    const caseRows = page.getByRole("row").filter({ hasText: id });
+    await expect(caseRows).toHaveCount(1);
+    await expect(caseRows.first()).toContainText(admin.journal.actions.added);
+    await expect(caseRows.first()).toContainText("Négocie une offre à 85 k€");
   });
 
   test("a citation missing from the Sources list is refused, naming it; a cited Source cannot leave the list", async ({ page }) => {

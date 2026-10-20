@@ -117,4 +117,13 @@ describe("Back Office access", () => {
     expect(access.isAdministrator).toBe(false);
     expect(access.can("planQuotas", "read")).toBe(false);
   });
+
+  it("only Playbook editors and super-admins start an Eval Run, whose AI calls cost; Support reads them (ADR-0023, #231)", () => {
+    expect(backOfficeAccess(["playbook-editor"]).can("evalRuns", "write")).toBe(true);
+    expect(backOfficeAccess(["super-admin"]).can("evalRuns", "write")).toBe(true);
+    expect(backOfficeAccess(["support"]).can("evalRuns", "read")).toBe(true);
+    for (const role of ["support", "plans-manager", "coach-manager"] as const) {
+      expect(backOfficeAccess([role]).can("evalRuns", "write"), role).toBe(false);
+    }
+  });
 });

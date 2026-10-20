@@ -68,6 +68,9 @@
 // advice naming its playbook, version, model and the reasoning_effort it was sent, citing [S24]; a
 // message holding "E2E_AGENT_DOWN=<id>" makes that Playbook Agent fail with a 503.
 //
+// The AI judge of Eval Runs (#231, "Tu es le juge des évaluations") scores every reply 8 out of 10, or 2 when the
+// criteria hold "E2E_JUDGE_LOW", with a reason in French.
+//
 // For the fields of a Job Offer read from its text (task offer_analysis, the second
 // phase of a Match Score, #94), it finds none ("{}"), unless the text holds
 // "E2E_OFFER_FIELDS=<json>", which it returns as the fields read. Either way it adds a
@@ -93,6 +96,10 @@ globalThis.fetch = async (input, init) => {
       ? { prompt_injection: prompt.includes("E2E_GUARDRAIL_INJECTION"), distress: prompt.includes("E2E_GUARDRAIL_DISTRESS") }
       : { harmful_advice: prompt.includes("E2E_GUARDRAIL_ADVICE"), personal_data_leak: prompt.includes("E2E_GUARDRAIL_LEAK"), secret_disclosure: prompt.includes("E2E_GUARDRAIL_SECRET") };
     return completion(body, JSON.stringify(verdict));
+  }
+  if (system.startsWith("Tu es le juge des évaluations")) {
+    const low = prompt.includes("E2E_JUDGE_LOW");
+    return completion(body, JSON.stringify({ score: low ? 2 : 8, raison: low ? "E2E : la réponse ne remplit pas les critères." : "E2E : la réponse remplit les critères." }));
   }
   const shown = /E2E_SHOW_CONTEXT(#[\w-]+)?/.exec(prompt);
   const said = /E2E_COACH_SAY=(.*)/.exec(prompt)?.[1].trim();

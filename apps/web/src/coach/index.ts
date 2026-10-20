@@ -29,14 +29,18 @@
  * Each reply says what it cost (`CoachMessageCost`: the choice, the consultations, the reply and the Guardrail checks), what
  * each consultation cost (`consultations`), and which Core Digest and Playbook Versions it drew on
  * (`playbooks`), so they can be recorded with the message: estimates from list prices, frozen then.
+ *
+ * Eval Runs (ADR-0023, #231) play the whole reply the same way, with two differences given at construction:
+ * `context`, a fictional Coach context told as is in place of a Candidate's workspace, and `consult`, the
+ * Coaching Playbook whose Playbook Agent the reply always consults first, besides those chosen.
  */
 import { costInEur, type AiLayer, type GenerateResult, type ProviderId } from "@jobhub/ai";
 import type { GuardedReply, GuardrailLanguage, Guardrails } from "../guardrails";
 import { CORE_DIGEST, type CoachingPlaybooks, type ServedKnowledge } from "../coaching-playbooks";
 import * as z from "zod";
-import { asData, COACH_CONTEXT_MAX_TOKENS, COACH_FOCUS_KINDS, coachContext, DATA_RULE, estimateTokens, type CoachSources } from "./context";
+import { asData, COACH_CONTEXT_MAX_TOKENS, COACH_FOCUS_KINDS, coachContext, DATA_RULE, estimateTokens, type CoachFocus, type CoachSources } from "./context";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentConversation } from "./conversation";
-import { AGENT_ADVICE_MAX_TOKENS, AGENT_TIMEOUT_MS, choosePlaybookAgents, consultPlaybookAgent, type PlaybookAdvice } from "./playbook-agents";
+import { AGENT_ADVICE_MAX_TOKENS, AGENT_TIMEOUT_MS, choosePlaybookAgents, consultPlaybookAgent, MAX_PLAYBOOK_AGENTS, type PlaybookAdvice } from "./playbook-agents";
 
 export { COACH_CONTEXT_MAX_TOKENS, COACH_FOCUS_KINDS, estimateTokens, type CoachFocus, type CoachMemorySource, type CoachSources } from "./context";
 
@@ -86,7 +90,13 @@ export interface Coach {
   reply(candidateId: string, input: unknown, options?: { language?: GuardrailLanguage }): Promise<CoachReply>;
 }
 
-export interface CoachDeps extends CoachSources {
+/** A Coach context given as is, within `maxTokens` (an Eval Case's fictional one): what the AI Coach then knows of the Candidate. */
+export type CoachContextSource = (candidateId: string, focus: CoachFocus | undefined, maxTokens: number) => Promise<string>;
+
+/** Where the Coach context comes from: the Candidate's workspace, or one given as is (`context`, for an Eval Run). */
+export type CoachDeps = CoachOptions & (CoachSources | { context: CoachContextSource });
+
+export interface CoachOptions {
   ai: AiLayer;
   /** The Core Digest, Sources list and Coaching Playbooks served in this environment (ADR-0021). */
   playbooks: Pick<CoachingPlaybooks, "served">;
@@ -96,6 +106,8 @@ export interface CoachDeps extends CoachSources {
   guardrails?: Pick<Guardrails, "guard">;
   /** Where a Playbook Agent left out is logged, never with its content. Default: console.warn. */
   warn?: (message: string, details: Record<string, unknown>) => void;
+  /** A Coaching Playbook's Eval Run: the served Coaching Playbook every reply consults first, besides those chosen. */
+  consult?: string;
 }
 
 /**
@@ -158,6 +170,12 @@ const costOf = (calls: GenerateResult[]) => ({
 export function createCoach(deps: CoachDeps): Coach {
   const warn = deps.warn ?? ((message: string, details: Record<string, unknown>) => console.warn(`[coach] ${message}`, details));
   const timeoutMs = deps.agentTimeoutMs ?? AGENT_TIMEOUT_MS;
+  const contextOf: CoachContextSource = "context" in deps ? deps.context : (candidateId, focus, maxTokens) => coachContext(deps, candidateId, focus, maxTokens);
+  /** The Playbook Agents chosen, with the one an Eval Run consults first. */
+  const withConsulted = (served: ServedKnowledge, chosen: ServedKnowledge["playbooks"]) => {
+    const consulted = served.playbooks.find((playbook) => playbook.id === deps.consult);
+    return consulted ? [consulted, ...chosen.filter((playbook) => playbook.id !== consulted.id)].slice(0, MAX_PLAYBOOK_AGENTS) : chosen;
+  };
 
   return {
     async reply(candidateId, input, options = {}) {
@@ -174,16 +192,17 @@ export function createCoach(deps: CoachDeps): Coach {
           const served = await deps.playbooks.served();
           const instructions = [PERSONA, GROUNDING_RULES, digestText(served.coreDigest)].filter(Boolean).join("\n\n");
           // The choice reads the conversation and what is In view alone, so it comes first: the context then keeps room for the advice chosen.
-          const choice = await choosePlaybookAgents(deps.ai, candidateId, served.playbooks, { messages, inView: focus?.kind }).catch((error: unknown) => {
+          const chosen = await choosePlaybookAgents(deps.ai, candidateId, served.playbooks, { messages, inView: focus?.kind }).catch((error: unknown) => {
             warn("Playbook Agents could not be chosen: replying without them", { error: error instanceof Error ? error.name : "unknown" });
             return { chosen: [], call: null };
           });
+          const choice = { ...chosen, chosen: withConsulted(served, chosen.chosen) };
           // Room kept for the advice and the Sources: the whole system prompt stays under the cap.
           const reserved =
             choice.chosen.length > 0
               ? choice.chosen.length * (AGENT_ADVICE_MAX_TOKENS + 25) + SOURCES_MAX_TOKENS
               : estimateTokens(sourcesText(served, [served.coreDigest?.content ?? ""]));
-          const context = await coachContext(deps, candidateId, focus, COACH_CONTEXT_MAX_TOKENS - estimateTokens(instructions) - reserved - 4);
+          const context = await contextOf(candidateId, focus, COACH_CONTEXT_MAX_TOKENS - estimateTokens(instructions) - reserved - 4);
           const consulted = await Promise.all(
             choice.chosen.map((playbook) =>
               consultPlaybookAgent(deps.ai, candidateId, playbook, { context, messages, timeoutMs }).catch((error: unknown) => {

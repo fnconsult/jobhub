@@ -171,6 +171,13 @@ export interface AiLayer {
    */
   agentModels(): AgentModelChoice[];
   /**
+   * The same layer for an Eval Run (#231, ADR-0023): each text call is recorded in AI Usage on the `eval` task
+   * and for no Candidate (Eval Cases are fictional), yet keeps the route and data rules of its own task, so the
+   * AI Coach and its Playbook Agents are played on the endpoints they use for Candidates. The AI
+   * judge's own calls are of the `eval` task. An Eval Run makes no web search: those methods refuse.
+   */
+  forEval(): AiLayer;
+  /**
    * The web-search providers and models (or depths) a task Playbook's searches may use (ADR-0026): every
    * web-search provider configured, the configured route's model first for its provider.
    */
@@ -409,37 +416,40 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     };
   }
 
+  /** One text call, recorded in AI Usage as `recordedAs` (its own task, or `eval` for an Eval Run). */
+  async function generateAs(request: GenerateRequest, recordedAs: TextTask): Promise<GenerateResult> {
+    const messages = typeof request.prompt === "string" ? [{ role: "user" as const, content: request.prompt }] : request.prompt;
+    // Routed on what the call says (the identity scan), then redacted: what leaves is never the Candidate's identity.
+    const { route, identity } = await routeForCall(request, messages);
+    const provider = providerFor(route, identity || TEXT_TASKS[request.task].personalData);
+    // Checked again per call: the rule must hold even if a provider changes at runtime.
+    assertAllowed(request.task, provider, identity);
+    const redaction = await redacted(request.task, request.candidateId, [request.system ?? "", ...messages.map((message) => message.content)]);
+    const [redactedSystem = "", ...contents] = redaction.texts;
+    // The model is told to keep the placeholders as they are, so they can be put back in its reply.
+    const system = redaction.redacted ? [redactedSystem, REDACTION_NOTE].filter(Boolean).join("\n\n") : request.system;
+    const sent = messages.map((message, index) => ({ ...message, content: contents[index] ?? "" }));
+    const output = await recorded(
+      { candidateId: request.candidateId, task: recordedAs },
+      provider,
+      route,
+      // The AI Message Log keeps what was sent, redacted, and the reply as it came, placeholders and all.
+      { ...(system === undefined ? {} : { system }), messages: sent },
+      () =>
+        provider.generate!({
+          model: route.model,
+          system,
+          messages: sent,
+          maxTokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
+          ...(request.effort ? { effort: request.effort } : {}),
+        }),
+      (reply) => reply.text,
+    );
+    return { text: redaction.restore(output.text), provider: provider.id, model: output.model, usage: output.usage };
+  }
+
   const layer: AiLayer = {
-    async generate(request) {
-      const messages = typeof request.prompt === "string" ? [{ role: "user" as const, content: request.prompt }] : request.prompt;
-      // Routed on what the call says (the identity scan), then redacted: what leaves is never the Candidate's identity.
-      const { route, identity } = await routeForCall(request, messages);
-      const provider = providerFor(route, identity || TEXT_TASKS[request.task].personalData);
-      // Checked again per call: the rule must hold even if a provider changes at runtime.
-      assertAllowed(request.task, provider, identity);
-      const redaction = await redacted(request.task, request.candidateId, [request.system ?? "", ...messages.map((message) => message.content)]);
-      const [redactedSystem = "", ...contents] = redaction.texts;
-      // The model is told to keep the placeholders as they are, so they can be put back in its reply.
-      const system = redaction.redacted ? [redactedSystem, REDACTION_NOTE].filter(Boolean).join("\n\n") : request.system;
-      const sent = messages.map((message, index) => ({ ...message, content: contents[index] ?? "" }));
-      const output = await recorded(
-        { candidateId: request.candidateId, task: request.task },
-        provider,
-        route,
-        // The AI Message Log keeps what was sent, redacted, and the reply as it came, placeholders and all.
-        { ...(system === undefined ? {} : { system }), messages: sent },
-        () =>
-          provider.generate!({
-            model: route.model,
-            system,
-            messages: sent,
-            maxTokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
-            ...(request.effort ? { effort: request.effort } : {}),
-          }),
-        (reply) => reply.text,
-      );
-      return { text: redaction.restore(output.text), provider: provider.id, model: output.model, usage: output.usage };
-    },
+    generate: (request) => generateAs(request, request.task),
 
     async planJobSearch({ candidateId, criteria, instructions, route }) {
       const pages = Math.max(1, searchProvider(route).provider.searchPages ?? 1);
@@ -494,6 +504,21 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     searchModels() {
       return modelChoices((provider) => Boolean(provider.search), [options.routes[SEARCH_TASK]]);
     },
+
+    forEval: () => evalLayer,
+  };
+  const noSearch = async (): Promise<never> => {
+    throw new AiConfigError("An Eval Run makes no web search");
+  };
+  const evalLayer: AiLayer = {
+    generate: (request) => generateAs({ ...request, candidateId: null }, "eval"),
+    planJobSearch: noSearch,
+    searchWeb: noSearch,
+    searchCompany: noSearch,
+    searchCompanyNews: noSearch,
+    agentModels: () => layer.agentModels(),
+    searchModels: () => layer.searchModels(),
+    forEval: () => evalLayer,
   };
 
   /**

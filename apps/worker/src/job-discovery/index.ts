@@ -506,5 +506,6 @@ function costing(ai: AiLayer, spend: (eur: number) => void): AiLayer {
     searchCompanyNews: (request) => ai.searchCompanyNews(request),
     agentModels: () => ai.agentModels(),
     searchModels: () => ai.searchModels(),
+    forEval: () => costing(ai.forEval(), spend),
   };
 }

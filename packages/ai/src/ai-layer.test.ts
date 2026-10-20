@@ -55,6 +55,45 @@ describe("AI layer", () => {
   });
 });
 
+describe("Eval Runs (#231, ADR-0023)", () => {
+  const coachEu = createFakeProvider({ id: "anthropic", residency: "eu", reply: "Coach" });
+  const judgeOutsideEu = createFakeProvider({ id: "openai", residency: "outside_eu", reply: "{\"score\": 8}" });
+  const setUp = () => {
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [coachEu, judgeOutsideEu], routes: { coaching: "anthropic", eval: "openai" }, usage });
+    return { ai, usage };
+  };
+
+  it("records every call made for an Eval Run on the eval task, for no Candidate, in AI Usage", async () => {
+    const { ai, usage } = setUp();
+
+    await ai.forEval().generate({ task: "coaching", candidateId: "candidate-1", prompt: "Bonjour" });
+
+    expect(usage.entries).toEqual([expect.objectContaining({ task: "eval", candidateId: null, provider: "anthropic" })]);
+  });
+
+  it("plays a call on the route of its own task, outside the EU too once configured: every call is redacted (ADR-0007 amendment)", async () => {
+    const outsideEu = createFakeProvider({ id: "mistral", residency: "outside_eu" });
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [coachEu, outsideEu, judgeOutsideEu], routes: { coaching: "anthropic", eval: "openai" }, usage });
+
+    const played = await ai.forEval().generate({ task: "coaching", candidateId: null, prompt: "Bonjour", route: { provider: "mistral" } });
+
+    expect(played.provider).toBe("mistral");
+    expect(outsideEu.calls).toHaveLength(1);
+    expect(usage.entries.at(-1)).toMatchObject({ task: "eval", candidateId: null, provider: "mistral" });
+  });
+
+  it("lets the AI judge, the eval task's own calls, use an endpoint outside the EU: its cases are fictional", async () => {
+    const { ai, usage } = setUp();
+
+    const judged = await ai.forEval().generate({ task: "eval", candidateId: null, prompt: "Note cette réponse" });
+
+    expect(judged).toMatchObject({ provider: "openai", text: '{"score": 8}' });
+    expect(usage.entries.at(-1)).toMatchObject({ task: "eval", provider: "openai" });
+  });
+});
+
 describe("web search", () => {
   const criteria: SearchCriteria = {
     targetRole: "Directeur Financier",

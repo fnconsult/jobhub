@@ -40,7 +40,7 @@ describe.skipIf(!connectionString)("Coaching Playbooks' Back Office writes and t
       billing: { setPlanQuotas: unused, createPlan: unused, updatePlan: unused, movePlan: unused, checkStripeProduct: unused, plans: unused, createCoupon: unused, deactivateCoupon: unused, reactivateCoupon: unused },
       humanCoaches: { add: unused, retire: unused },
     });
-    playbooks = createCoachingPlaybooks(database, { serving: "latest", agentModels: () => [{ provider: "mistral", endpoint: "api.mistral.ai", residency: "eu", models: [{ model: "mistral-medium-3-5", effort: "medium_as_high", residency: "eu" }] }] });
+    playbooks = createCoachingPlaybooks(database, { serving: "latest", agentModels: () => [{ provider: "mistral", endpoint: "api.mistral.ai", residency: "eu", models: [{ model: "mistral-medium-3-5", effort: "medium_as_high", residency: "eu" }] }], evalRunOn: async () => true });
     changes = createCoachingPlaybooksBackOffice(playbooks, backOffice);
     claire = await actor("claire@jobbbox.fr", "Claire Martin");
     paul = await actor("paul@jobbbox.fr", "Paul Durand");

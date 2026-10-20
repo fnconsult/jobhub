@@ -5,11 +5,14 @@ import { getCurrentCandidate } from "@/auth/server";
 import { playbookServing } from "@/coaching-playbooks/serving";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { getEvals } from "@/evals/server";
 import { GUARDRAIL_LANGUAGES, GUARDRAIL_SETTINGS, type GuardrailId, type GuardrailLanguage } from "@/guardrails";
 import { getGuardrailStore, guardrailTriggersOfLastDays } from "@/guardrails/server";
 import { TRIGGER_RETENTION_MONTHS, type GuardrailMessageVersion } from "@/guardrails/store";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
+import Link from "next/link";
+import { EvalRunsTable } from "../evaluations/run-views";
 
 /** What the page says after an action: a key under admin.guardrails.notices, and whether it is an error. */
 const NOTICES = {
@@ -25,6 +28,7 @@ const NOTICES = {
   already_validated: true,
   not_latest: true,
   nameRequired: true,
+  eval_refused: true,
 } as const;
 type Notice = keyof typeof NOTICES;
 const isNotice = (value: unknown): value is Notice => typeof value === "string" && Object.hasOwn(NOTICES, value);
@@ -40,14 +44,19 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t("admin.guardrails.title")} · ${t("admin.title")}`, robots: { index: false } };
 }
 
-const back = (notice: Notice, anchor?: string): never => redirect(`${routes.adminGuardrails}?notice=${notice}${anchor ? `#${anchor}` : ""}`);
+/** `run`: the Eval Run a setting was played on; `cases`: what it let through. */
+const back = (notice: Notice, anchor?: string, extra: Record<string, string> = {}): never =>
+  redirect(`${routes.adminGuardrails}?${new URLSearchParams({ notice, ...extra })}${anchor ? `#${anchor}` : ""}`);
 
+/** A new setting is saved only after the Guardrails' Eval Cases are played on it (ADR-0023, #231). */
 async function saveSetting(form: FormData) {
   "use server";
   const { administrator } = await requireBackOffice("guardrails", "write");
   const id = String(form.get("guardrail"));
   const done = await getGuardrailsBackOffice().setSetting(administrator, id, form.get("setting"));
-  back(done.ok ? (done.changed ? "settingSaved" : "unchanged") : done.error, id);
+  if (done.ok) back(done.changed ? "settingSaved" : "unchanged", id, done.run ? { run: done.run.id } : {});
+  else if (done.error === "eval_refused") back("eval_refused", id, { run: done.run.id, cases: done.refused.map((result) => result.case.title).join(" ; ") });
+  else back(done.error, id);
 }
 
 async function saveMessage(form: FormData) {
@@ -74,14 +83,15 @@ async function validateMessage(form: FormData) {
  * which another Administrator validates; Support reads. The Guardrail Triggers, per day and per Guardrail,
  * name no one and hold no text.
  */
-export default async function GuardrailsPage({ searchParams }: { searchParams: Promise<{ notice?: string }> }) {
+export default async function GuardrailsPage({ searchParams }: { searchParams: Promise<{ notice?: string; run?: string; cases?: string }> }) {
   const { access, canWrite } = await requireBackOffice("guardrails");
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
-  const { notice } = await searchParams;
+  const { notice, run, cases } = await searchParams;
   const shown = isNotice(notice) ? notice : null;
-  const [guardrails, triggers] = await Promise.all([getGuardrailStore().list(), guardrailTriggersOfLastDays(TRIGGER_DAYS)]);
+  const [guardrails, triggers, runs] = await Promise.all([getGuardrailStore().list(), guardrailTriggersOfLastDays(TRIGGER_DAYS), getEvals().runs({ kind: "guardrails" }, 10)]);
   const accountName = (await getCurrentCandidate())?.name?.trim() ?? "";
+  const readsRuns = access.can("evalRuns", "read");
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "Europe/Paris" });
   const number = new Intl.NumberFormat(locale);
   const validation = (message: GuardrailMessageVersion) =>
@@ -97,7 +107,12 @@ export default async function GuardrailsPage({ searchParams }: { searchParams: P
       {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}
       {shown ? (
         <p className="notice" role={NOTICES[shown] ? "alert" : "status"}>
-          {t(`admin.guardrails.notices.${shown}`)}
+          {t(`admin.guardrails.notices.${shown}`, { cases: cases ?? "" })}
+        </p>
+      ) : null}
+      {shown && run && /^[0-9a-f-]{36}$/i.test(run) ? (
+        <p>
+          <Link href={routes.adminEvalRun(run)}>{t("admin.guardrails.runs.played")}</Link>
         </p>
       ) : null}
 
@@ -144,7 +159,9 @@ export default async function GuardrailsPage({ searchParams }: { searchParams: P
                     </option>
                   ))}
                 </select>
-                <p id={`${guardrail.id}-setting-help`}>{t("admin.guardrails.settingHelp")}</p>
+                <p id={`${guardrail.id}-setting-help`}>
+                  {t("admin.guardrails.settingHelp")} {t("admin.guardrails.settingHelpEvals")}
+                </p>
                 <button className="button button-primary" type="submit">
                   {t("admin.guardrails.saveSetting")}
                 </button>
@@ -213,6 +230,12 @@ export default async function GuardrailsPage({ searchParams }: { searchParams: P
           })}
         </section>
       ))}
+
+      <section className="stack" id="eval-runs" aria-labelledby="eval-runs-title">
+        <h2 id="eval-runs-title">{t("admin.guardrails.runs.title")}</h2>
+        <p>{t("admin.guardrails.runs.intro")}</p>
+        {readsRuns ? <EvalRunsTable runs={runs} caption={t("admin.evals.runs.caption")} /> : null}
+      </section>
 
       <section className="stack" aria-labelledby="triggers-title">
         <h2 id="triggers-title">{t("admin.guardrails.triggers.title")}</h2>

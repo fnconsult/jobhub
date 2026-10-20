@@ -63,6 +63,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("AI Usage is up to date");
     expect(first.stdout).toContain("Coaching Playbooks, the Core Digest, the Sources list and the task Playbooks are up to date");
     expect(first.stdout).toContain("Guardrails are up to date");
+    expect(first.stdout).toContain("Eval Cases and Eval Runs are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 
@@ -97,6 +98,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "company_dossier", // issue #17
         "enriched_contact", // issue #23: Enriched Contacts, with their source provider and retrieval date
         "eu_ai_consent", // issue #121: the Candidate's dated EU AI consent
+        "eval_case", // issue #231: a Coaching Playbook's Eval Cases, fictional, in each environment
+        "eval_run", // issue #231: each Eval Run, with the text of the cases it played
         "extension_job_site", // issue #188: the extension's Job Sites, set in the Back Office
         "external_api_usage", // issue #218: every call to France Travail and contact enrichment, no payload
         "follow_up_delay", // issue #21: each Candidate's Follow-up Delays
@@ -184,6 +187,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "enriched_contact", from_column: "application_id", to_table: "application" },
         // EU AI consent (issue #121) goes with its Candidate.
         { from_table: "eu_ai_consent", from_column: "candidate_id", to_table: "candidate" },
+        // A Coaching Playbook's Eval Cases (issue #231) belong to it; no Candidate in them.
+        { from_table: "eval_case", from_column: "playbook_id", to_table: "coaching_playbook" },
         // Follow-up Delays (issue #21) go with their Candidate, Follow-ups sent with their Application.
         { from_table: "follow_up_delay", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "follow_up_sent", from_column: "application_id", to_table: "application" },

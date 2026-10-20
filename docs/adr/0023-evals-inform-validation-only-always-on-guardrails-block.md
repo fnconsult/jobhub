@@ -20,3 +20,5 @@ The reason is that ADR-0019 makes a named person accountable for the advice: an 
 - The AI judge is fixed by Jobbbox, never chosen per playbook; since its cases are fictional, it need not be EU-resident. Changing it makes earlier runs incomparable, so served versions are run again.
 - Playbook Eval Cases and runs live in each environment beside their playbooks, in French like them; nothing is copied between environments.
 - Changing a Guardrail message plays no Eval Case.
+- A Guardrail Eval Case expects an exact verdict on the setting being played: a block becomes a flag when that Guardrail is set to flag only. All Guardrail cases are played on the full proposed settings, so an always-on case let through by another Guardrail's change also refuses it.
+- The AI Coach's own Eval Run scores 0 a case whose expected Coaching Playbook is served but not consulted.

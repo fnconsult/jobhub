@@ -8,7 +8,7 @@ import type { JobDigest } from "@/job-digests";
 import type { JobSearch } from "@/job-searches";
 import type { Profile } from "@/profiles";
 import { createGuardrails, DEFAULT_GUARDRAIL_MESSAGES, GUARDRAIL_IDS, type GuardrailId, type GuardrailSetting, type GuardrailTrigger } from "../guardrails";
-import { createCoach, MAX_MESSAGES, recentConversation, type Coach, type CoachDeps, type CoachFocus, COACH_CONTEXT_MAX_TOKENS, estimateTokens, AGENT_ADVICE_MAX_TOKENS } from "./index";
+import { createCoach, MAX_MESSAGES, recentConversation, type Coach, type CoachFocus, type CoachSources, COACH_CONTEXT_MAX_TOKENS, estimateTokens, AGENT_ADVICE_MAX_TOKENS } from "./index";
 
 const profile: Profile = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -86,7 +86,7 @@ function emptyWorkspace(): Workspace {
   return { profiles: [profile], applications: [], jobOffers: [], jobSearches: [], jobDigests: [], memory: [] };
 }
 
-function sourcesOf(workspace: Workspace): Omit<CoachDeps, "ai" | "playbooks"> {
+function sourcesOf(workspace: Workspace): CoachSources {
   const mine = <T>(candidateId: string, items: T[]) => (candidateId === "marie" ? items : []);
   return {
     profiles: {
@@ -887,5 +887,47 @@ describe("Guardrails on the AI Coach and its Playbook Agents (ADR-0022, #228)", 
       ["mistral", "guardrail"],
     ]);
     expect(result.cost).toMatchObject({ provider: "mistral", model: "fake-mistral", inputTokens: 50, outputTokens: 25 });
+  });
+});
+
+describe("played for an Eval Run (ADR-0023, #231)", () => {
+  const conversation = [{ from: "candidate" as const, text: "Comment réussir mon entretien de jeudi ?" }];
+
+  it("made to consult a Coaching Playbook, consults it first even when the choice picks none, beside those chosen", async () => {
+    const consulting = (choose: string) => {
+      const provider = createFakeProvider({ id: "mistral", reply: answering({ choose }) });
+      const claude = createFakeProvider({ id: "anthropic", reply: answering({ choose }), models: ["anthropic.claude-haiku-5-5"] });
+      const ai = createAiLayer({ providers: [provider, claude], routes: { coaching: "mistral" }, usage: createMemoryUsageLog() });
+      return createCoach({ ai, playbooks: servedOf(SERVED), consult: "freelance-mission-positioning", ...sourcesOf(emptyWorkspace()) });
+    };
+
+    const none = await consulting("[]").reply("marie", { messages: conversation });
+    const others = await consulting('["interview-psychology", "ats-optimization"]').reply("marie", { messages: conversation });
+
+    expect(none).toMatchObject({ ok: true, playbooks: [{ id: "core-digest" }, { id: "freelance-mission-positioning" }] });
+    expect(others).toMatchObject({ ok: true, playbooks: [{ id: "core-digest" }, { id: "freelance-mission-positioning" }, { id: "interview-psychology" }] });
+  });
+
+  it("told a fictional Coach context, gives it to the AI Coach and its Playbook Agents as is, reading no Candidate's workspace", async () => {
+    const provider = createFakeProvider({ id: "mistral", reply: answering({ choose: '["freelance-mission-positioning"]' }) });
+    const ai = createAiLayer({ providers: [provider], routes: { coaching: "mistral" }, usage: createMemoryUsageLog() });
+    const asked: { focus: CoachFocus | undefined; maxTokens: number }[] = [];
+    const coach = createCoach({
+      ai,
+      playbooks: servedOf({ ...SERVED, playbooks: SERVED.playbooks.filter((playbook) => playbook.agent.provider === "mistral") }),
+      context: async (_candidateId, focus, maxTokens) => {
+        asked.push({ focus, maxTokens });
+        return "Le candidat s'appelle Paul (prénom seulement). Il vise un poste de contrôleur de gestion.";
+      },
+    });
+
+    const result = await coach.reply("eval", { messages: conversation, focus: { kind: "job_offer", id: "eval" } });
+
+    expect(result).toMatchObject({ ok: true });
+    const agent = provider.calls.find((call) => call.system?.includes('<playbook id="freelance-mission-positioning"'))!;
+    expect(agent.system).toContain("Le candidat s'appelle Paul");
+    expect(contextOf(provider)).toContain("Il vise un poste de contrôleur de gestion.");
+    expect(asked).toEqual([{ focus: { kind: "job_offer", id: "eval" }, maxTokens: expect.any(Number) }]);
+    expect(asked[0]!.maxTokens).toBeLessThan(COACH_CONTEXT_MAX_TOKENS);
   });
 });

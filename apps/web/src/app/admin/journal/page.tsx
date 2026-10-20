@@ -18,6 +18,7 @@ import { journalChanges, type JournalChange } from "@/admin/journal-changes";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
 import { couponDiscountLabel } from "@/billing/coupon-label";
 import { getBilling } from "@/billing/server";
+import { EVAL_IN_VIEW_KINDS, type EvalInView } from "@/evals/cases";
 import { GUARDRAIL_LANGUAGES, GUARDRAIL_SETTINGS, isGuardrailId, type GuardrailLanguage, type GuardrailSetting } from "@/guardrails";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -62,6 +63,10 @@ const versionOf = (entry: BackOfficeAuditEntry): number | null => {
   }
   return null;
 };
+
+/** An Eval Case's recorded fields (#231), each with its label. */
+const EVAL_CASE_FIELDS = ["caseId", "title", "context", "message", "inViewKind", "inViewText", "criteria"] as const;
+type EvalCaseField = (typeof EVAL_CASE_FIELDS)[number];
 
 /** A Guardrail's recorded fields (#228): its setting, or a Guardrail message's language, version, text and validation. */
 const GUARDRAIL_FIELDS = ["setting", "language", "version", "text", "validatedBy", "validatedAt"] as const;
@@ -117,6 +122,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     }
     if (entrySection === "coaching_playbooks" && PLAYBOOK_FIELDS.includes(field as PlaybookField)) return t(`admin.coachingPlaybooks.journalFields.${field as PlaybookField}`);
     if (entrySection === "guardrails" && GUARDRAIL_FIELDS.includes(field as GuardrailField)) return t(`admin.guardrails.journalFields.${field as GuardrailField}`);
+    if (entrySection === "eval_cases" && EVAL_CASE_FIELDS.includes(field as EvalCaseField)) return t(`admin.evals.journalFields.${field as EvalCaseField}`);
     if (field === "id") return t("admin.journal.id");
     return field;
   };
@@ -156,6 +162,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
       if (field === "language" && GUARDRAIL_LANGUAGES.includes(value as GuardrailLanguage)) return t(`admin.guardrails.languages.${value as GuardrailLanguage}`);
       if (field === "validatedAt" && typeof value === "string") return at.format(new Date(value));
     }
+    if (entrySection === "eval_cases" && field === "inViewKind" && EVAL_IN_VIEW_KINDS.includes(value as EvalInView["kind"])) return t(`admin.evals.cases.inViewKinds.${value as EvalInView["kind"]}`);
     if (value === null) return t(entrySection === "plan_quotas" ? "admin.journal.unlimited" : "admin.journal.empty");
     if (entrySection === "plan_quotas" && field === "jobDigest" && JOB_DIGEST_FREQUENCIES.includes(value as JobDigestFrequency)) {
       return t(`billing.jobDigest.${value as JobDigestFrequency}`);
@@ -225,6 +232,12 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
                         <>
                           {" "}
                           (<Link href={routes.adminCoachingPlaybook(entry.target, versionOf(entry)!)}>{t("admin.journal.viewVersion", { version: String(versionOf(entry)) })}</Link>)
+                        </>
+                      ) : null}
+                      {entry.section === "eval_cases" ? (
+                        <>
+                          {" "}
+                          (<Link href={`${routes.adminCoachingPlaybook(entry.target)}#eval-cases`}>{t("admin.journal.viewEvalCases")}</Link>)
                         </>
                       ) : null}
                       {entry.section === "guardrails" && isGuardrailId(entry.target) ? (

@@ -9,7 +9,7 @@
  * given the conversation and what is In view, never the rest of the Coach context. Each chosen one is
  * given the Coach context and its Coaching Playbook, and answers the AI Coach, not the Candidate: its
  * advice, cut at AGENT_ADVICE_MAX_TOKENS, then reaches the AI Coach marked as data. All are calls of
- * the `coaching` task, so personal data stays EU-resident and EU AI Consent applies (ADR-0007).
+ * the `coaching` task, so they are redacted like every call and EU AI Consent applies (ADR-0007).
  */
 import type { AiLayer, GenerateResult, Message } from "@jobhub/ai";
 import type { ServedKnowledge } from "../coaching-playbooks";
@@ -123,7 +123,7 @@ export async function consultPlaybookAgent(
         maxTokens: AGENT_ADVICE_MAX_TOKENS,
         containsIdentity: false,
         route: agent.model ? { provider: agent.provider, model: agent.model } : { provider: agent.provider },
-        effort: agent.effort,
+        ...(agent.effort ? { effort: agent.effort } : {}),
       }),
       timeout,
     ]);

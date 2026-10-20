@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CvContent, JobOfferDetails, SearchCriteria } from "../domain";
-import { matchScoreReliability, scoreMatch } from "./index";
+import { matchScoreReliability, scoreMatch, wantedValues } from "./index";
 
 const cv: CvContent = {
   fullName: "Marie Dupont",
@@ -131,7 +131,7 @@ describe("Match Score", () => {
         skills: ["Gestion de la chaîne d'approvisionnement"],
         requiredExperienceYears: 15,
       };
-      const searchCriteria = { targetRole: "Directeur supply chain", location: "Lille", contractType: "cdi" as const, minSalary: 95_000 };
+      const searchCriteria: SearchCriteria = { targetRole: "Directeur supply chain", locations: ["Lille"], contractTypes: ["cdi"], remoteWorkOptions: [], minSalary: 95_000 };
 
       const result = scoreMatch({ cv: supplyChainCv, jobOffer, searchCriteria, today: new Date("2026-10-12") });
 
@@ -190,15 +190,25 @@ describe("Match Score", () => {
   });
 
   describe("location", () => {
-    const criteria = { targetRole: "DAF", location: "Lyon" };
+    const criteria: SearchCriteria = { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] };
 
     it("matches when the Job Offer is where the Search Criteria want to work", () => {
       expect(scoreMatch({ cv, searchCriteria: criteria, jobOffer: { ...offer, location: "Lyon 3e (69)" } }).breakdown.location).toEqual({
         status: "match",
         offer: "Lyon 3e (69)",
-        wanted: "Lyon",
+        wanted: ["Lyon"],
       });
       expect(scoreMatch({ cv, searchCriteria: criteria, jobOffer: { ...offer, location: "Paris" } }).breakdown.location.status).toBe("mismatch");
+    });
+
+    it("matches a Job Offer near any one of several locations (ADR-0025)", () => {
+      const twoRegions: SearchCriteria = { ...criteria, locations: ["Lyon", "Bordeaux"] };
+      expect(scoreMatch({ cv, searchCriteria: twoRegions, jobOffer: { ...offer, location: "Bordeaux (33)" } }).breakdown.location).toEqual({
+        status: "match",
+        offer: "Bordeaux (33)",
+        wanted: ["Lyon", "Bordeaux"],
+      });
+      expect(scoreMatch({ cv, searchCriteria: twoRegions, jobOffer: { ...offer, location: "Lille" } }).breakdown.location.status).toBe("mismatch");
     });
 
     it("matches a fully remote Job Offer wherever it is based", () => {
@@ -210,14 +220,14 @@ describe("Match Score", () => {
       expect(scoreMatch({ cv, jobOffer: { ...offer, location: "Villeurbanne, Lyon" } }).breakdown.location).toEqual({
         status: "match",
         offer: "Villeurbanne, Lyon",
-        wanted: "Lyon",
+        wanted: ["Lyon"],
       });
-      expect(scoreMatch({ cv, searchCriteria: criteria, jobOffer: offer }).breakdown.location).toEqual({ status: "unknown", wanted: "Lyon" });
+      expect(scoreMatch({ cv, searchCriteria: criteria, jobOffer: offer }).breakdown.location).toEqual({ status: "unknown", wanted: ["Lyon"] });
     });
   });
 
   describe("salary", () => {
-    const criteria = { targetRole: "DAF", location: "Lyon", minSalary: 100_000 };
+    const criteria: SearchCriteria = { targetRole: "DAF", locations: ["Lyon"], minSalary: 100_000, contractTypes: [], remoteWorkOptions: [] };
     const salaryOf = (salary: JobOfferDetails["salary"], searchCriteria: SearchCriteria = criteria) =>
       scoreMatch({ cv, searchCriteria, jobOffer: { ...offer, salary } }).breakdown.salary;
 
@@ -233,24 +243,45 @@ describe("Match Score", () => {
 
     it("is unknown when the Job Offer gives no salary or the Search Criteria no minimum", () => {
       expect(salaryOf(undefined)).toEqual({ status: "unknown", wanted: 100_000 });
-      expect(salaryOf({ max: 90_000 }, { targetRole: "DAF", location: "Lyon" })).toEqual({ status: "unknown", offer: { max: 90_000 } });
+      expect(salaryOf({ max: 90_000 }, { ...criteria, minSalary: undefined })).toEqual({ status: "unknown", offer: { max: 90_000 } });
     });
   });
 
   it("compares the Job Offer's contract type with the one the Search Criteria want", () => {
-    const searchCriteria = { targetRole: "DAF", location: "Lyon", contractType: "cdi" as const };
+    const searchCriteria: SearchCriteria = { targetRole: "DAF", locations: ["Lyon"], contractTypes: ["cdi"], remoteWorkOptions: [] };
     expect(scoreMatch({ cv, searchCriteria, jobOffer: { ...offer, contractType: "cdi" } }).breakdown.contractType).toEqual({
       status: "match",
       offer: "cdi",
-      wanted: "cdi",
+      wanted: ["cdi"],
     });
     expect(scoreMatch({ cv, searchCriteria, jobOffer: { ...offer, contractType: "cdd" } }).breakdown.contractType.status).toBe("mismatch");
     expect(scoreMatch({ cv, jobOffer: { ...offer, contractType: "cdd" } }).breakdown.contractType).toEqual({ status: "unknown", offer: "cdd" });
   });
 
+  it("matches a contract type when the Job Offer's is any one of those wanted, and has no preference when none is (ADR-0025)", () => {
+    const searchCriteria: SearchCriteria = { targetRole: "DAF", locations: ["Lyon"], contractTypes: ["cdi", "freelance"], remoteWorkOptions: [] };
+    expect(scoreMatch({ cv, searchCriteria, jobOffer: { ...offer, contractType: "freelance" } }).breakdown.contractType).toEqual({
+      status: "match",
+      offer: "freelance",
+      wanted: ["cdi", "freelance"],
+    });
+    expect(scoreMatch({ cv, searchCriteria, jobOffer: { ...offer, contractType: "cdd" } }).breakdown.contractType.status).toBe("mismatch");
+    const noPreference = { ...searchCriteria, contractTypes: [] };
+    expect(scoreMatch({ cv, searchCriteria: noPreference, jobOffer: { ...offer, contractType: "cdd" } }).breakdown.contractType).toEqual({
+      status: "unknown",
+      offer: "cdd",
+    });
+  });
+
+  it("reads a wanted value kept from before ADR-0025 as a list of one", () => {
+    expect(wantedValues({ status: "match", offer: "Lyon", wanted: "Lyon" })).toEqual(["Lyon"]);
+    expect(wantedValues({ status: "match", offer: "cdi", wanted: ["cdi", "freelance"] })).toEqual(["cdi", "freelance"]);
+    expect(wantedValues({ status: "unknown" })).toEqual([]);
+  });
+
   describe("score", () => {
     const today = new Date("2026-10-06");
-    const searchCriteria = { targetRole: "DAF", location: "Lyon", minSalary: 100_000, contractType: "cdi" as const };
+    const searchCriteria: SearchCriteria = { targetRole: "DAF", locations: ["Lyon"], minSalary: 100_000, contractTypes: ["cdi"], remoteWorkOptions: [] };
     const fullMatch: JobOfferDetails = {
       ...offer,
       skills: ["IFRS", "SAP"],
@@ -282,7 +313,7 @@ describe("Match Score", () => {
 
   describe("reliability (#94)", () => {
     const today = new Date("2026-10-06");
-    const searchCriteria = { targetRole: "DAF", location: "Lyon", minSalary: 100_000, contractType: "cdi" as const };
+    const searchCriteria: SearchCriteria = { targetRole: "DAF", locations: ["Lyon"], minSalary: 100_000, contractTypes: ["cdi"], remoteWorkOptions: [] };
 
     it("is not computable when no criterion is known, rather than a score of 0", () => {
       const matchScore = scoreMatch({ cv: { ...cv, location: "", experience: [] }, jobOffer: { title: "DAF", content: "" }, today });

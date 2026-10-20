@@ -6,7 +6,7 @@ type T = Awaited<ReturnType<typeof getServerT>>;
 
 /**
  * An Application's Company Dossier: how reliable it is, the employer's identity,
- * address and financials, and the Suggested Contact Roles. No person is named.
+ * address and financials, the Suggested Contact Roles and its Company News. No person is named.
  * Before it is built: a button, or the form to name or confirm the employer.
  */
 export function CompanyDossierView(props: { applicationId: string; state: CompanyDossierState | null; t: T; locale: string }) {
@@ -59,6 +59,8 @@ function Dossier({ applicationId, dossier, t, locale }: { applicationId: string;
   const money = new Intl.NumberFormat(locale, { style: "currency", currency: "EUR", notation: "compact", maximumFractionDigits: 1 });
   const number = new Intl.NumberFormat(locale);
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" });
+  // An article's date is a calendar day, kept as such.
+  const day = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" });
   const facts: [string, React.ReactNode][] = [];
   if (dossier.source === "french_register") {
     facts.push([t("companyDossier.facts.name"), dossier.name], [t("companyDossier.facts.siren"), dossier.siren]);
@@ -149,6 +151,27 @@ function Dossier({ applicationId, dossier, t, locale }: { applicationId: string;
           <li key={role}>{t(`companyDossier.contactRoles.${role}`)}</li>
         ))}
       </ul>
+
+      {/* Company News: each article's title, outlet and date, linking to it; never its text. */}
+      <h3>{t("companyDossier.newsTitle")}</h3>
+      {!dossier.newsSearched ? (
+        // Built before Company News: updating the dossier searches them.
+        <p>{t("companyDossier.newsNotSearched")}</p>
+      ) : dossier.news.length > 0 ? (
+        <ul className="dossier-news">
+          {dossier.news.map((article) => (
+            <li key={article.url}>
+              <a href={article.url} rel="noopener noreferrer nofollow" target="_blank">
+                {article.title}
+              </a>
+              <span className="hint">{t("companyDossier.newsMeta", { outlet: article.outlet, date: day.format(new Date(`${article.publishedAt}T00:00:00Z`)) })}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p>{t("companyDossier.noNews")}</p>
+      )}
+      {dossier.newsSearched ? <p className="hint">{t("companyDossier.newsSearchedOn", { date: date.format(dossier.builtAt) })}</p> : null}
 
       {dossier.source === "web" && dossier.sources.length > 0 ? (
         <>

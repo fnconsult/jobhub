@@ -12,7 +12,7 @@ const jobOffer: JobOffer = {
   location: "Lyon",
 };
 const cv = { fullName: "Marie Dupont", headline: "Directrice financière", skills: ["IFRS"] } as CvContent;
-const searchCriteria = { targetRole: "Directrice financière", location: "Lyon" };
+const searchCriteria = { targetRole: "Directrice financière", locations: ["Lyon"] };
 
 function memoryStorage(): SessionStorage {
   const items: Record<string, unknown> = {};
@@ -42,7 +42,7 @@ function account({ profiles = [] as { id: string; name: string }[], profileQuota
       return { ok: true, profiles: state.profiles.map(({ id, name }) => ({ id, name })) };
     },
     async createProfile(cv, searchCriteria) {
-      if (!searchCriteria.targetRole || !searchCriteria.location) return { ok: false, error: "invalid" };
+      if (!searchCriteria.targetRole || searchCriteria.locations.length === 0) return { ok: false, error: "invalid" };
       if (state.profiles.length >= profileQuota) {
         return { ok: false, error: "plan_quota_reached", prompt: { message: "Your Plan includes 1 Profile.", action: "Upgrade", href: "/abonnement" } };
       }
@@ -139,16 +139,16 @@ describe("saving a captured Job Offer as an Application, from the extension", ()
   });
 
   it("takes the target role and location the CV does not give from the Job Offer", async () => {
-    const session = await guestWork({ jobOffer, cv, searchCriteria: { targetRole: "", location: "" } });
+    const session = await guestWork({ jobOffer, cv, searchCriteria: { targetRole: "", locations: [] } });
     const { api, state } = account();
 
     await createApplicationSaving({ api, session, lock: oneAtATime() }).open();
 
-    expect(state.profiles[0]).toMatchObject({ name: jobOffer.title, searchCriteria: { targetRole: jobOffer.title, location: "Lyon" } });
+    expect(state.profiles[0]).toMatchObject({ name: jobOffer.title, searchCriteria: { targetRole: jobOffer.title, locations: ["Lyon"] } });
   });
 
   it("keeps the Guest's work, and says why, when no Profile can be made from it", async () => {
-    const session = await guestWork({ jobOffer: { ...jobOffer, location: undefined }, cv, searchCriteria: { targetRole: "DAF", location: "" } });
+    const session = await guestWork({ jobOffer: { ...jobOffer, location: undefined }, cv, searchCriteria: { targetRole: "DAF", locations: [] } });
     const { api, state } = account();
 
     expect(await createApplicationSaving({ api, session, lock: oneAtATime() }).open()).toEqual({ state: "failed", error: "search_criteria_missing" });

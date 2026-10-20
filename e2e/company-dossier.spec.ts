@@ -37,7 +37,7 @@ const masterCv = {
 async function openApplication(page: Page, employer: string | undefined, content = "Poste de DAF.") {
   await signInWithMagicLink(page, newAddress("company-dossier"));
   const profile = await page.request.post("/api/profiles", {
-    data: { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } },
+    data: { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } },
     headers: { origin },
   });
   expect(profile.status(), await profile.text()).toBe(201);
@@ -51,7 +51,7 @@ async function openApplication(page: Page, employer: string | undefined, content
     headers: { origin },
   });
   expect(application.ok(), await application.text()).toBe(true);
-  await page.goto(`/candidatures/${(await application.json()).id}`);
+  await page.goto(`/candidatures/${(await application.json()).id}/dossier`);
   // The dossier's buttons only act once the page is hydrated.
   await page.waitForLoadState("networkidle");
   return page.getByRole("region", { name: t.title });
@@ -94,6 +94,32 @@ test.describe("Company Dossier", () => {
     await expect(dossier.getByText(t.reliability.official)).toBeVisible();
     await expect(dossier.getByText(t.noFinancials)).toBeVisible();
     await expect(dossier.getByRole("table")).toHaveCount(0);
+    // The (faked) news search finds no article about it.
+    await expect(dossier.getByRole("heading", { name: t.newsTitle })).toBeVisible();
+    await expect(dossier.getByText(t.noNews)).toBeVisible();
+  });
+
+  test("a dossier shows the employer's Company News of the last twelve months, none naming a person", async ({ page }) => {
+    const dossier = await openApplication(page, "Acme Industrie");
+
+    await dossier.getByRole("button", { name: t.build }).click();
+
+    await expect(dossier.getByRole("heading", { name: t.newsTitle })).toBeVisible();
+    const news = dossier.getByRole("list").filter({ has: page.getByRole("link", { name: "Une nouvelle usine de robots inaugurée" }) });
+    await expect(news.getByRole("listitem")).toHaveCount(1);
+    const article = news.getByRole("link", { name: "Une nouvelle usine de robots inaugurée" });
+    await expect(article).toHaveAttribute("href", "https://news.example/nouvelle-usine");
+    await expect(article).toHaveAttribute("target", "_blank");
+    await expect(article).toHaveAttribute("rel", "noopener noreferrer nofollow");
+    await expect(news.getByText(/^Le Journal de l'Industrie, \d{1,2} \S+ \d{4}$/)).toBeVisible();
+    // Older than twelve months, or naming a person: left out.
+    await expect(dossier.getByText("Des résultats annuels en hausse")).toHaveCount(0);
+    await expect(dossier.getByText(/quitte la direction/)).toHaveCount(0);
+    await expect(dossier.getByText(t.noNews)).toHaveCount(0);
+    await expect(dossier.getByText(/^Articles trouvés le \d{1,2} \S+ \d{4}\.$/)).toBeVisible();
+    // A target of at least 44px (ADR-0009).
+    expect((await article.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await expectNoPrivatePersonNamed(page);
   });
 
   test("a foreign employer gets a dossier from web sources, labelled less reliable", async ({ page }) => {
@@ -149,7 +175,7 @@ test.describe("Company Dossier", () => {
     const dossier = await openApplication(page, "Cabinet Talents & Co", "Notre client recrute son DAF. Client présumé : Acme Industrie");
     await dossier.getByRole("button", { name: t.build }).click();
     await expect(dossier.getByText(t.confirmBeforeLookup)).toBeVisible();
-    const api = `${new URL(page.url()).pathname.replace("/candidatures/", "/api/applications/")}/company-dossier`;
+    const api = `${new URL(page.url()).pathname.replace("/candidatures/", "/api/applications/").replace(/\/dossier$/, "")}/company-dossier`;
 
     const rebuilt = await page.request.post(api, { headers: { origin } });
     expect(rebuilt.status(), await rebuilt.text()).toBe(200);
@@ -220,7 +246,7 @@ test.describe("Company Dossier", () => {
     for (const employer of ["Acme Industrie", "Globex Robotics GmbH"]) {
       await page.context().clearCookies(); // a new Candidate for each employer
       await openApplication(page, employer);
-      const api = `${new URL(page.url()).pathname.replace("/candidatures/", "/api/applications/")}/company-dossier`;
+      const api = `${new URL(page.url()).pathname.replace("/candidatures/", "/api/applications/").replace(/\/dossier$/, "")}/company-dossier`;
       const built = await page.request.post(api, { headers: { origin } });
       expect(built.status(), await built.text()).toBe(200);
       expect((await built.json()).status).toBe("built");
@@ -233,7 +259,7 @@ test.describe("Company Dossier", () => {
 
   test("a Candidate cannot read or build another Candidate's Company Dossier", async ({ page, browser }) => {
     await openApplication(page, "Acme Industrie");
-    const api = `${new URL(page.url()).pathname.replace("/candidatures/", "/api/applications/")}/company-dossier`;
+    const api = `${new URL(page.url()).pathname.replace("/candidatures/", "/api/applications/").replace(/\/dossier$/, "")}/company-dossier`;
 
     const other = await browser.newPage({ baseURL: origin });
     await signInWithMagicLink(other, newAddress("company-dossier-other"));

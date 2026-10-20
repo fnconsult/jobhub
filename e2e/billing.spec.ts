@@ -51,9 +51,10 @@ test.describe("Plans and Stripe billing", () => {
   test("a Free Candidate subscribes to Standard through Stripe Checkout and gets its quotas", async ({ page }) => {
     const email = newAddress("abonnement");
     await signInWithMagicLink(page, email);
-    await page.getByRole("link", { name: fr.account.plan }).click();
+    await page.getByRole("link", { name: fr.sidebar.subscription }).click();
     await expect(page).toHaveURL(/\/abonnement$/);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.billing.page.title);
+    // A Section of Mon compte (ADR-0024), at its own address.
+    await expect(page.getByRole("heading", { level: 2, name: fr.billing.page.title })).toBeVisible();
     await expect(page.getByText("Votre offre actuelle : Gratuite")).toBeVisible();
     await expect(page.getByRole("row", { name: /Match Scores/ })).toContainText("3 par mois");
 
@@ -124,7 +125,7 @@ test.describe("Plans and Stripe billing", () => {
     const prices = async (label: string) => (await planRow(page, label)).map((cell) => cell.replace(/\s/g, " "));
     expect(await prices(fr.billing.page.price)).toEqual(["0 € / mois", "19 € / mois", "39 € / mois"]);
 
-    await page.goto("/compte");
+    await page.goto("/compte/preferences");
     await page.getByLabel(fr.account.interfaceLanguage).selectOption("en");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(en.account.title);
     await page.goto("/abonnement");
@@ -299,7 +300,7 @@ test.describe("Plans and Stripe billing", () => {
     await subscribe(page, email, "standard");
     const event = subscriptionEvent("customer.subscription.updated", { customer: fakeCustomerId(email), price: FAKE_STRIPE_PRICES.standard, status: "past_due" }, new Date(Date.now() + 10_000));
     expect((await deliverWebhook(page, event)).status()).toBe(200);
-    await page.goto("/compte");
+    await page.goto("/compte/preferences");
     await page.getByLabel(fr.account.interfaceLanguage).selectOption("en");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     const notice = page.getByRole("status").filter({ hasText: en.billing.paymentFailed.message });

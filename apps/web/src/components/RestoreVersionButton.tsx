@@ -3,7 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { routes } from "@/routes";
+import { routes, type ProfileSection } from "@/routes";
+
+/** Back to the Master CV's own Section once it is saved, left or restored. */
+const CV_SECTION: ProfileSection = "cv-de-reference";
 
 /** Restores `version` of a Profile's Master CV as its new current version, then shows the Profile. */
 export function RestoreVersionButton({ profileId, version }: { profileId: string; version: number }) {
@@ -20,7 +23,7 @@ export function RestoreVersionButton({ profileId, version }: { profileId: string
         body: JSON.stringify({ version }),
       });
       if (!response.ok) throw new Error(`restore failed: ${response.status}`);
-      router.push(routes.profile(profileId));
+      router.push(routes.profileSection(profileId, CV_SECTION));
       router.refresh();
     } catch {
       setState("failed");

@@ -94,7 +94,7 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
   });
 
   it("keeps several conversations per Candidate, most recently active first, each attached to the Profile in view when it started", async () => {
-    const profile = await createProfiles(database).create(marie, { masterCv, searchCriteria: { targetRole: "Directrice financière", location: "Lyon" } });
+    const profile = await createProfiles(database).create(marie, { masterCv, searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] } });
     if (!profile.ok) throw new Error("fixture refused");
     const onProfile = await conversations.send(marie, { message: "Mon CV est-il bon ?", focus: { kind: "profile", id: profile.profile.id } });
     const elsewhere = await conversations.send(marie, { message: "Comment préparer un entretien ?" });
@@ -114,7 +114,7 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
   });
 
   it("attaches a conversation started on a Job Search, Job Digest or Application page to the Profile shown there, telling the AI Coach what is in view", async () => {
-    const profile = await createProfiles(database).create(marie, { masterCv, searchCriteria: { targetRole: "Directrice financière", location: "Lyon" } });
+    const profile = await createProfiles(database).create(marie, { masterCv, searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] } });
     if (!profile.ok) throw new Error("fixture refused");
     const jobSearchId = "44444444-4444-4444-8444-444444444444";
 
@@ -127,7 +127,7 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
   });
 
   it("does not attach another Candidate's Profile, even when its id is sent", async () => {
-    const profile = await createProfiles(database).create(marie, { masterCv, searchCriteria: { targetRole: "Directrice financière", location: "Lyon" } });
+    const profile = await createProfiles(database).create(marie, { masterCv, searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] } });
     if (!profile.ok) throw new Error("fixture refused");
 
     const sent = await conversations.send(jean, { message: "Et ce profil ?", focus: { kind: "profile", id: profile.profile.id } });

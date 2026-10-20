@@ -2,16 +2,23 @@ import { createAiLayer } from "@jobhub/ai";
 import type { SearchOptions } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import { DEFAULT_JOB_DISCOVERY_SETTINGS, type JobDiscoverySettings, type JobOffer, type SearchCriteria } from "@jobhub/shared";
+import type { TaskPlaybookReader } from "@jobhub/web/task-playbooks";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { FranceTravail, FranceTravailSearch } from "./france-travail";
 import { createJobDiscovery, JobDiscoveryError, type JobDiscoveryBudget, type JobOfferStore } from "./index";
 
+/** Serves, for each id given, that text as version 2 with no Playbook Agent, searching where it says (none: the configured route); nothing for any other id. */
+const servedTasks =
+  (served: Record<string, { content: string; search?: { provider: "brave"; model: string | null } }>): TaskPlaybookReader =>
+  async (id) =>
+    served[id] ? { id, version: 2, content: served[id]!.content, agent: null, search: served[id]!.search ?? null } : null;
+
 const criteria: SearchCriteria = {
   targetRole: "Directeur financier",
-  location: "Lyon",
-  contractType: "cdi",
-  remoteWork: "hybrid",
+  locations: ["Lyon"],
+  contractTypes: ["cdi"],
+  remoteWorkOptions: ["hybrid"],
   minSalary: 110_000,
 };
 
@@ -53,14 +60,17 @@ function fakeWeb(pages: Record<string, Page>, clock: FakeClock) {
 }
 
 /** Job Offers kept in memory, deduplicated by source URL like the real store. */
-function memoryJobOffers(existing: JobOffer[] = []): JobOfferStore & { all: JobOffer[] } {
+function memoryJobOffers(existing: JobOffer[] = []): JobOfferStore & { all: JobOffer[]; captures: { input: object; trusted?: object }[] } {
   const all = [...existing];
+  const captures: { input: object; trusted?: object }[] = [];
   return {
     all,
+    captures,
     async findBySourceUrl(url) {
       return all.find((offer) => offer.source.url === url) ?? null;
     },
     async capture(input, _capturedBy, trusted) {
+      captures.push({ input, trusted });
       const offer = { ...(input as Omit<JobOffer, "id">), ...trusted };
       const same = all.find((o) => o.source.url === offer.source.url || o.content === offer.content);
       if (same) return { ok: true, jobOffer: same };
@@ -93,19 +103,23 @@ function setup(options: {
   franceTravail?: FranceTravail;
   /** The Back Office's Job discovery sources and sites. */
   settings?: () => Promise<JobDiscoverySettings>;
+  /** The task Playbooks served (ADR-0026). Default: none read, so no Job Offer Summary, and the built-in query wording. */
+  taskPlaybooks?: TaskPlaybookReader;
+  /** Another web-search provider configured, which a task Playbook may name. */
+  otherSearch?: FakeProvider;
 }) {
   const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, sourceDates: options.sourceDates, answer: options.answer, pages: options.searchPages });
   const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}', usage: options.llmUsage });
   const titles = createFakeProvider({ id: "mistral", reply: options.titles ?? "{}" });
   const ai = createAiLayer({
-    providers: [search, llm, titles],
+    providers: [search, llm, titles, ...(options.otherSearch ? [options.otherSearch] : [])],
     routes: { web_search: "perplexity", offer_analysis: "anthropic", job_titles: "mistral" },
     usage: createMemoryUsageLog(),
   });
   const clock = fakeClock(options.now?.getTime());
   const web = fakeWeb(options.pages, clock);
   const jobOffers = memoryJobOffers(options.existing);
-  const discovery = createJobDiscovery({ ai, jobOffers, fetch: web.fetch, clock, budget: options.budget, franceTravail: options.franceTravail, settings: options.settings });
+  const discovery = createJobDiscovery({ ai, jobOffers, fetch: web.fetch, clock, budget: options.budget, franceTravail: options.franceTravail, settings: options.settings, taskPlaybooks: options.taskPlaybooks });
   return { discovery, search, llm, titles, web, jobOffers };
 }
 
@@ -168,7 +182,7 @@ describe("Job discovery", () => {
 
     await discovery.discover({
       candidateId: "candidate-1",
-      criteria: { targetRole: "DAF jean.dupont@mail.fr 06 12 34 56 78", location: "Lyon" },
+      criteria: { targetRole: "DAF jean.dupont@mail.fr 06 12 34 56 78", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] },
     });
 
     expect(titles.calls.map((call) => call.messages)).toEqual([[{ role: "user", content: "DAF" }]]);
@@ -448,6 +462,72 @@ describe("Job discovery", () => {
           skills: ["IFRS"],
         },
       ]);
+    });
+
+    it("hands the store the Job Offer Summary the LLM wrote as a trusted fact, never as the posting's own input", async () => {
+      const { discovery, jobOffers, llm } = setup({
+        sources: [DAF_URL],
+        pages: { [DAF_URL]: { body: "<html><body><h1>DAF H/F</h1><p>Groupe Seb recrute son DAF.</p></body></html>" } },
+        reply: '{"isJobOffer": true, "title": "DAF H/F", "content": "Groupe Seb recrute son DAF.", "summary": "Groupe Seb recrute son DAF à Lyon."}',
+        taskPlaybooks: servedTasks({ "job-offer-reading": { content: '- "summary" : deux phrases.' } }),
+      });
+
+      await discovery.discover({ candidateId: "c", criteria });
+
+      expect(jobOffers.captures).toHaveLength(1);
+      expect(jobOffers.captures[0]!.input).not.toHaveProperty("summary");
+      expect(jobOffers.captures[0]!.trusted).toEqual({ summary: "Groupe Seb recrute son DAF à Lyon." });
+      expect(llm.calls[0]!.system).toMatch(/- "summary" : deux phrases\.$/);
+    });
+
+    it("writes no Job Offer Summary or sector while the job-offer-reading task Playbook is not served (ADR-0026)", async () => {
+      const { discovery, jobOffers, llm } = setup({
+        sources: [DAF_URL],
+        pages: { [DAF_URL]: { body: "<html><body><h1>DAF H/F</h1><p>Groupe Seb recrute son DAF.</p></body></html>" } },
+        reply: '{"isJobOffer": true, "title": "DAF H/F", "content": "Groupe Seb recrute son DAF.", "summary": "Groupe Seb recrute son DAF à Lyon.", "sector": "Industrie"}',
+        taskPlaybooks: servedTasks({}),
+      });
+
+      await discovery.discover({ candidateId: "c", criteria });
+
+      expect(jobOffers.captures[0]!.trusted).toEqual({});
+      expect(llm.calls[0]!.system).not.toMatch(/summary|sector/);
+    });
+
+    it("words its queries and asks for job titles as the served job-search-queries task Playbook says (ADR-0026)", async () => {
+      const { discovery, search, titles } = setup({
+        sources: [],
+        pages: {},
+        taskPlaybooks: servedTasks({
+          "job-search-queries": { content: "## intitulés\n\nDonne des synonymes.\n\n## requête fr\n\nPoste « {{intitulé}} » vers {{lieu}}\n\n## requête en\n\n{{intitulé}} job in {{lieu}}" },
+        }),
+      });
+
+      await discovery.discover({ candidateId: "c", criteria });
+
+      expect(titles.calls[0]!.system).toMatch(/^Donne des synonymes\. Réponds uniquement par un objet JSON/);
+      expect(search.queries[0]).toMatch(/^Poste « Directeur financier » vers Lyon, CDI/);
+      expect(search.queries[1]).toMatch(/^Directeur financier job in Lyon, permanent contract/);
+    });
+
+    it("searches on the web-search provider the job-search-queries task Playbook names (ADR-0026)", async () => {
+      const brave = createFakeProvider({ id: "brave", residency: "outside_eu" });
+      const { discovery, search } = setup({
+        sources: [],
+        pages: {},
+        otherSearch: brave,
+        taskPlaybooks: servedTasks({
+          "job-search-queries": {
+            content: "## intitulés\n\nDonne des synonymes.\n\n## requête fr\n\nPoste « {{intitulé}} » vers {{lieu}}\n\n## requête en\n\n{{intitulé}} job in {{lieu}}",
+            search: { provider: "brave", model: null },
+          },
+        }),
+      });
+
+      await discovery.discover({ candidateId: "c", criteria });
+
+      expect(search.queries).toEqual([]);
+      expect(brave.queries[0]).toMatch(/^Poste « Directeur financier » vers Lyon/);
     });
 
     it("does not call the LLM when the page has JobPosting data", async () => {
@@ -1102,6 +1182,91 @@ describe("Job discovery", () => {
       const { discovery } = setup({ sources: urls, pages: pagesFor(urls, posting), budget: { jobOffers: 2 } });
 
       expect((await discovery.discover({ candidateId: "c", criteria })).jobOffers).toHaveLength(2);
+    });
+
+    describe("with several locations, one search each, sharing the budget (ADR-0025)", () => {
+      const twoPlaces: SearchCriteria = { ...criteria, locations: ["Lyon", "Bordeaux"], contractTypes: ["cdi", "freelance"] };
+      const place = (query: string) => (query.includes("Bordeaux") ? "bordeaux" : "lyon");
+      /** Each place's own postings, `count` of them. */
+      const postingsIn = (city: string, count: number) => Array.from({ length: count }, (_, index) => `https://emplois.example.fr/${city}/${index + 1}`);
+      const allPages = (...lists: string[][]) => pagesFor(lists.flat(), posting);
+
+      it("searches each location in turn, every contract type wanted in each query, the job titles planned once", async () => {
+        const { discovery, search, titles } = setup({ sources: [], pages: {} });
+
+        await discovery.discover({ candidateId: "c", criteria: twoPlaces });
+
+        expect(titles.calls).toHaveLength(1);
+        expect(search.queries).toEqual([
+          "Offre d'emploi « Directeur financier » à Lyon, CDI ou freelance, télétravail partiel, salaire à partir de 110 000 € brut annuel",
+          'Job offer "Directeur financier" in Lyon, permanent contract or freelance, hybrid remote work, salary from €110,000 gross per year',
+          "Offre d'emploi « Directeur financier » à Bordeaux, CDI ou freelance, télétravail partiel, salaire à partir de 110 000 € brut annuel",
+          'Job offer "Directeur financier" in Bordeaux, permanent contract or freelance, hybrid remote work, salary from €110,000 gross per year',
+        ]);
+      });
+
+      it("splits the Job Offers evenly: each location stops at its share, and the run at the whole budget", async () => {
+        const lyon = postingsIn("lyon", 5);
+        const bordeaux = postingsIn("bordeaux", 5);
+        const { discovery } = setup({ sources: (query) => (place(query) === "lyon" ? lyon : bordeaux), pages: allPages(lyon, bordeaux), budget: { jobOffers: 4 } });
+
+        const report = await discovery.discover({ candidateId: "c", criteria: twoPlaces });
+
+        expect(report.jobOffers.map((jobOffer) => jobOffer.source.url)).toEqual([...lyon.slice(0, 2), ...bordeaux.slice(0, 2)]);
+      });
+
+      it("leaves what a location did not use to the next one, never more than the budget in all", async () => {
+        const lyon = postingsIn("lyon", 1);
+        const bordeaux = postingsIn("bordeaux", 10);
+        const { discovery } = setup({ sources: (query) => (place(query) === "lyon" ? lyon : bordeaux), pages: allPages(lyon, bordeaux), budget: { jobOffers: 4 } });
+
+        const report = await discovery.discover({ candidateId: "c", criteria: twoPlaces });
+
+        expect(report.jobOffers.map((jobOffer) => jobOffer.source.url)).toEqual([...lyon, ...bordeaux.slice(0, 3)]);
+      });
+
+      it("shares the time too: two locations take no longer than one", async () => {
+        const lyon = postingsIn("lyon", 5);
+        const bordeaux = postingsIn("bordeaux", 5);
+        // Each page takes 40 s: Lyon reads until 45 s (two pages, to 80 s), Bordeaux until 90 s (one page).
+        const pages = Object.fromEntries([...lyon, ...bordeaux].map((url, index) => [url, { ...posting(url, index), delayMs: 40_000 }]));
+        const { discovery } = setup({ sources: (query) => (place(query) === "lyon" ? lyon : bordeaux), pages });
+
+        const report = await discovery.discover({ candidateId: "c", criteria: twoPlaces });
+
+        expect(report.jobOffers.map((jobOffer) => jobOffer.source.url)).toEqual([...lyon.slice(0, 2), bordeaux[0]]);
+      });
+
+      it("reads a posting found near two locations once", async () => {
+        const shared = postingsIn("lyon", 1);
+        const { discovery, web } = setup({ sources: shared, pages: allPages(shared) });
+
+        const report = await discovery.discover({ candidateId: "c", criteria: twoPlaces });
+
+        expect(report.jobOffers).toHaveLength(1);
+        expect(web.fetched().filter((url) => url === shared[0])).toHaveLength(1);
+        expect(report.funnel.providerUrls).toBe(1);
+      });
+
+      it("searches France Travail near each location for that location's share of the Job Offers", async () => {
+        const searches: { location?: string; max: number }[] = [];
+        const franceTravail: FranceTravail = {
+          async search(_criteria, { max, location }) {
+            searches.push({ location, max });
+            return { ok: true, calls: 1, offers: [] };
+          },
+        };
+        const { discovery } = setup({ sources: [], pages: {}, franceTravail, budget: { jobOffers: 30 } });
+
+        const report = await discovery.discover({ candidateId: "c", criteria: { ...twoPlaces, locations: ["Lyon", "Bordeaux", "Nantes"] } });
+
+        expect(searches).toEqual([
+          { location: "Lyon", max: 10 },
+          { location: "Bordeaux", max: 20 },
+          { location: "Nantes", max: 30 },
+        ]);
+        expect(report.franceTravail).toEqual({ status: "searched", calls: 3, offers: 0 });
+      });
     });
   });
   describe("searching France Travail first, when it is configured", () => {

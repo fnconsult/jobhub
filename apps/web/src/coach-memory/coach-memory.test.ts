@@ -4,6 +4,7 @@ import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import type { CoachConversation } from "../coach-conversations";
+import { servedTasks, taskAgent } from "../task-playbooks/test-support";
 import { createCoachMemory, MAX_ITEMS, migrateCoachMemory, type CoachMemory } from "./index";
 
 const CONVERSATION_ID = "22222222-2222-4222-8222-222222222222";
@@ -74,6 +75,33 @@ describe.skipIf(!connectionString)("Coach Memory (needs Postgres: DATABASE_URL)"
     });
     expect(provider.calls[0]!.messages.at(-1)!.content).toContain("pas plus de 2 jours de déplacement");
     expect(await memory.list(marie)).toEqual([]);
+  });
+
+  it("asks with the coach-memory task Playbook's version 1 word for word as before, then no personal data and the reply's shape (ADR-0026)", async () => {
+    await memory.propose(marie, CONVERSATION_ID);
+
+    expect(provider.calls[0]!.system).toBe(`Tu es le coach Jobbbox. Tu relis une conversation avec un candidat et tu proposes les faits clés à retenir pour les prochaines conversations : ses objectifs (goal), ses contraintes (constraint) et ses décisions (decision).
+Règles :
+- Uniquement ce que le candidat a dit lui-même. N'invente rien, ne déduis rien.
+- Une phrase courte par fait, dans la langue du candidat.
+- Jamais de nom, d'e-mail, de téléphone ni d'adresse.
+Réponds uniquement avec un objet JSON : {"items": [{"kind": "goal" | "constraint" | "decision", "text": "le fait"}]}. Aucun fait à retenir : {"items": []}.`);
+  });
+
+  it("asks with the served task Playbook's instructions, on its Playbook Agent, never without the rule on personal data (ADR-0026)", async () => {
+    const claude = createFakeProvider({ id: "anthropic", reply: () => aiAnswer });
+    const ai = createAiLayer({ providers: [provider, claude], routes: { coaching: "mistral" }, usage: createMemoryUsageLog() });
+    const served = createCoachMemory(database, {
+      ai,
+      conversations: { open: async (candidateId, id) => conversationOf(candidateId, id) },
+      taskPlaybooks: servedTasks({ "coach-memory": { content: "Retiens les objectifs seulement.", agent: taskAgent("anthropic", null, "low") } }),
+    });
+
+    expect(await served.propose(marie, CONVERSATION_ID)).toMatchObject({ ok: true });
+
+    expect(provider.calls).toHaveLength(0);
+    expect(claude.calls[0]).toMatchObject({ effort: "low" });
+    expect(claude.calls[0]!.system).toMatch(/^Retiens les objectifs seulement\.\n- Jamais de nom, d'e-mail, de téléphone ni d'adresse\.\nRéponds uniquement avec un objet JSON/);
   });
 
   it("saves an item only once the Candidate confirms it, in their Coach Memory alone", async () => {

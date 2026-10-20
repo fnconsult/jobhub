@@ -16,8 +16,7 @@ export default async function BackOfficePage() {
   const { access } = await requireBackOffice();
   const t = await getServerT();
   return (
-    <BackOfficeLayout access={access}>
-      <h1>{t("admin.title")}</h1>
+    <BackOfficeLayout access={access} title={t("admin.title")}>
       <p className="lead">{t("admin.intro")}</p>
       <p>{t("admin.yourRoles", { roles: access.roles.map((role) => t(`admin.roles.${role}`)).join(", ") })}</p>
     </BackOfficeLayout>

@@ -149,7 +149,7 @@ export function signInHooks(signIn: SignInSetup, baseURL: string) {
   async function refuse(ctx: NonNullable<HookContext>, code: string, message: string): Promise<never> {
     const state = await currentOAuthState();
     if (state?.link) {
-      const back = new URL(typeof state.errorURL === "string" && state.errorURL ? state.errorURL : routes.account, baseURL);
+      const back = new URL(typeof state.errorURL === "string" && state.errorURL ? state.errorURL : routes.accountSignIn, baseURL);
       back.searchParams.set("error", code);
       throw ctx.redirect(back.toString());
     }

@@ -1,6 +1,7 @@
 /**
  * The AI layer's safety net for identity routing (ADR-0007 amendment): finds a phone number or an
- * email address in prompt text a call site did not declare as carrying the Candidate's identity.
+ * email address in prompt text a call site did not declare as carrying the Candidate's identity. The
+ * same shapes are what redaction always removes before a call (redaction.ts).
  * Names and postal addresses cannot be told apart from other text, so call sites must still declare.
  *
  * Prompts often carry job-offer text, full of long digit runs (dates, salary ranges, references,
@@ -10,7 +11,10 @@
 
 export type IdentityHit = "phone" | "email";
 
-const EMAIL = /[^\s@<>()[\]",;:]+@[^\s@<>()[\]",;:]+\.[a-z]{2,}/i;
+// Starts only where a run of address characters starts, so a long run with no "@" (a capped log text,
+// a base64 blob) is read once, not once per character.
+const EMAIL = /(?<![^\s@<>()[\]",;:])[^\s@<>()[\]",;:]+@[^\s@<>()[\]",;:]+\.[a-z]{2,}/i;
+const EMAILS = new RegExp(EMAIL.source, "gi");
 
 // Never the tail of a longer number ("552 100 554 00013", "1 004 567 890").
 const NOT_AFTER_A_NUMBER = String.raw`(?<!\d[\s.,-]?)`;
@@ -36,28 +40,52 @@ const NATIONAL_DIGITS = 10;
 
 const digitCount = (text: string) => text.replace(/\D/g, "").length;
 
-/** The phone numbers `text` shows, as written. */
-function phonesIn(text: string): string[] {
-  const phones: { at: number; phone: string }[] = [];
+/** Where a phone number or email address is in a text: its first character and the one after it. */
+export interface IdentityMatch {
+  kind: IdentityHit;
+  start: number;
+  end: number;
+  text: string;
+}
+
+/** Every phone number in a text, by the shapes above (an international one first where both match). */
+export function findPhones(text: string): IdentityMatch[] {
+  const found: IdentityMatch[] = [];
   for (const match of text.matchAll(INTERNATIONAL)) {
     const digits = digitCount(match[0]);
-    if (digits >= INTERNATIONAL_DIGITS.min && digits <= INTERNATIONAL_DIGITS.max && !ROUNDED_QUANTITY.test(match[0])) phones.push({ at: match.index, phone: match[0] });
+    if (digits >= INTERNATIONAL_DIGITS.min && digits <= INTERNATIONAL_DIGITS.max && !ROUNDED_QUANTITY.test(match[0])) {
+      found.push({ kind: "phone", start: match.index, end: match.index + match[0].length, text: match[0] });
+    }
   }
   for (const match of text.matchAll(NATIONAL)) {
-    if (digitCount(match[0]) === NATIONAL_DIGITS && !phones.some(({ at, phone }) => match.index >= at && match.index < at + phone.length)) phones.push({ at: match.index, phone: match[0] });
+    if (digitCount(match[0]) === NATIONAL_DIGITS) found.push({ kind: "phone", start: match.index, end: match.index + match[0].length, text: match[0] });
   }
-  return phones.sort((a, b) => a.at - b.at).map(({ phone }) => phone);
+  return found;
+}
+
+/** Every email address in a text. */
+export function findEmails(text: string): IdentityMatch[] {
+  return [...text.matchAll(EMAILS)].map((match) => ({ kind: "email" as const, start: match.index, end: match.index + match[0].length, text: match[0] }));
+}
+
+const hasPhone = (text: string): boolean => findPhones(text).length > 0;
+
+/** The phone numbers `text` shows, as written, in order: a national shape inside an international one counts once. */
+function phonesIn(text: string): string[] {
+  const phones: IdentityMatch[] = [];
+  for (const phone of findPhones(text)) if (!phones.some(({ start, end }) => phone.start >= start && phone.start < end)) phones.push(phone);
+  return phones.sort((a, b) => a.start - b.start).map(({ text: phone }) => phone);
 }
 
 /** What kinds of identity the texts show, in a fixed order; empty when none. */
 export function findIdentity(texts: readonly string[]): IdentityHit[] {
   const hits: IdentityHit[] = [];
-  if (texts.some((text) => phonesIn(text).length > 0)) hits.push("phone");
+  if (texts.some(hasPhone)) hits.push("phone");
   if (texts.some((text) => EMAIL.test(text))) hits.push("email");
   return hits;
 }
 
 /** The phone numbers and email addresses `text` shows, each as written, in the order they appear (#228). */
 export function identityIn(text: string): { phones: string[]; emails: string[] } {
-  return { phones: phonesIn(text), emails: [...text.matchAll(new RegExp(EMAIL.source, "gi"))].map((match) => match[0].replace(/[.,;:!?)]+$/, "")) };
+  return { phones: phonesIn(text), emails: [...text.matchAll(EMAILS)].map((match) => match[0].replace(/[.,;:!?)]+$/, "")) };
 }

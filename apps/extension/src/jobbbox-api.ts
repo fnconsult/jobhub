@@ -4,7 +4,7 @@
  * host permission on the web app), so a signed-in Candidate is recognised and a
  * Guest is not. Problems come back as results, never exceptions.
  */
-import type { CvContent, JobOffer, MatchScore } from "@jobhub/shared";
+import { distinctLocations, type CvContent, type JobOffer, type MatchScore } from "@jobhub/shared";
 import type { SearchCriteriaDraft } from "./guest-session";
 import type { CapturedJobOffer } from "./job-page";
 
@@ -84,7 +84,13 @@ function upgradePromptIn(body: Record<string, unknown>): UpgradePrompt | null {
 function scoreRequest(against: ScoreAgainst) {
   if ("profileId" in against) return { profileId: against.profileId };
   const { cv, searchCriteria } = against;
-  return searchCriteria?.targetRole.trim() && searchCriteria.location.trim() ? { cv, searchCriteria } : { cv };
+  return searchCriteria?.targetRole.trim() && distinctLocations(searchCriteria.locations).length > 0 ? { cv, searchCriteria } : { cv };
+}
+
+/** The places of a CV draft's Search Criteria; a web app from before ADR-0025 sends one `location`. */
+function draftLocations(criteria: Record<string, unknown>): string[] {
+  if (Array.isArray(criteria.locations)) return distinctLocations(criteria.locations.filter((place): place is string => typeof place === "string"));
+  return distinctLocations([String(criteria.location ?? "")]);
 }
 
 export function createJobbboxApi(webOrigin: string, fetchImpl: Fetch = (url, init) => fetch(url, init)): JobbboxApi {
@@ -119,8 +125,8 @@ export function createJobbboxApi(webOrigin: string, fetchImpl: Fetch = (url, ini
         const code = String(reply.body.error);
         return { ok: false, error: CV_ERRORS.has(code) ? (code as ReadCvError) : "unreadable" };
       }
-      const criteria = (reply.body.searchCriteria ?? {}) as Partial<SearchCriteriaDraft>;
-      const searchCriteria = { targetRole: String(criteria.targetRole ?? ""), location: String(criteria.location ?? "") };
+      const criteria = (reply.body.searchCriteria ?? {}) as Record<string, unknown>;
+      const searchCriteria: SearchCriteriaDraft = { targetRole: String(criteria.targetRole ?? ""), locations: draftLocations(criteria) };
       return { ok: true, cv: reply.body.masterCv as CvContent, searchCriteria };
     },
 

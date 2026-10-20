@@ -30,17 +30,27 @@
  *    register or web lookup is made for it until the Candidate confirms it.
  *  - No private person is ever named: executives are kept as roles, and contacts
  *    are Suggested Contact Roles. Named contacts are Enriched Contacts (Premium), not here.
+ *  - Each build (or rebuild) also searches the web for the employer's Company News (the AI layer's
+ *    `searchCompanyNews`): up to five articles of the last twelve months, by title, outlet, date and
+ *    link, never their text, none whose title may name a person. Counted against no Plan Quota, its
+ *    cost logged in AI Usage like the dossier's other calls. A failed news search never fails the
+ *    build: the dossier then has no news.
+ *  - The wording of both web searches is their task Playbook's ("company-facts-search",
+ *    "company-news-search", ADR-0026); what they are sent about the employer, the JSON asked for and
+ *    "name no person" stay in the AI layer.
  * Every read and change is scoped to the Candidate; problems come back as results.
  */
-import { AiConfigError, AiProviderError, type AiLayer } from "@jobhub/ai";
+import { AiConfigError, AiProviderError, type AiLayer, type CompanyNewsArticle } from "@jobhub/ai";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { Application, Applications } from "../applications";
+import { taskRun, type TaskPlaybookReader } from "../task-playbooks";
 import { fieldErrors, type FieldError } from "../validation";
 import { nameKey, sirenIn } from "./company-names";
 import { CompanyRegisterUnavailable, type CompanyRegister, type FinancialYear, type RegisteredCompany } from "./french-register";
 
 export type { CompanyRegister, FinancialYear, RegisterSearch, RegisteredCompany } from "./french-register";
+export type { CompanyNewsArticle } from "@jobhub/ai";
 
 /** Job titles to look for at the employer, never a person. Translated in the interface. */
 export const SUGGESTED_CONTACT_ROLES = ["hiring_manager", "talent_acquisition", "hr_director", "hr_manager", "chief_executive"] as const;
@@ -51,6 +61,13 @@ interface DossierBase {
   employer: string;
   builtAt: Date;
   suggestedContactRoles: SuggestedContactRole[];
+  /**
+   * The employer's Company News, searched when the dossier was built (`builtAt`): up to five articles
+   * of the twelve months before, newest first. Empty when none was found or the search failed, and
+   * for a dossier built before Company News (`newsSearched` false: rebuilding it searches them).
+   */
+  news: CompanyNewsArticle[];
+  newsSearched: boolean;
 }
 
 /** Built from the French company register: official data. */
@@ -182,6 +199,8 @@ function registerDossier(employer: string, company: RegisteredCompany, builtAt: 
     financials: company.financials,
     executiveRoles: company.executiveRoles,
     suggestedContactRoles: contactRolesFor(company.headcount),
+    news: [],
+    newsSearched: false,
   };
   if (company.legalForm) dossier.legalForm = company.legalForm;
   if (company.activity) dossier.activity = company.activity;
@@ -277,6 +296,8 @@ function webDossier(employer: string, answer: string, sources: string[], builtAt
     builtAt,
     sources: sources.filter(isPublicPage).slice(0, 10),
     suggestedContactRoles: [],
+    news: [],
+    newsSearched: false,
   };
   for (const fact of WEB_FACTS) {
     const value = facts[WEB_KEYS[fact]];
@@ -333,12 +354,17 @@ interface Row {
   agency: string | null;
   awaiting_confirmation: boolean;
   confirmed_employer: string | null;
-  dossier: (Omit<CompanyDossier, "builtAt"> & { builtAt: string }) | null;
+  dossier: (Omit<CompanyDossier, "builtAt" | "news" | "newsSearched"> & { builtAt: string; news?: CompanyNewsArticle[] }) | null;
 }
 
 function stateFrom(row: Row | undefined): CompanyDossierState {
   if (!row) return { status: "not_built" };
-  if (row.dossier) return { status: "built", dossier: { ...row.dossier, builtAt: new Date(row.dossier.builtAt) } as CompanyDossier };
+  // A dossier built before Company News has none, and says it was never searched.
+  if (row.dossier)
+    return {
+      status: "built",
+      dossier: { ...row.dossier, news: row.dossier.news ?? [], newsSearched: row.dossier.news !== undefined, builtAt: new Date(row.dossier.builtAt) } as CompanyDossier,
+    };
   if (row.awaiting_confirmation) {
     // Rows saved before descriptions were kept apart may hold one as the name.
     const presumed = presumedEmployerFrom(row.presumed_employer, row.presumed_employer_description);
@@ -352,7 +378,20 @@ function stateFrom(row: Row | undefined): CompanyDossierState {
 
 export function createCompanyDossiers(
   database: Pool,
-  { applications, register, ai, now = () => new Date() }: { applications: Pick<Applications, "get">; register: CompanyRegister; ai: AiLayer; now?: () => Date },
+  {
+    applications,
+    register,
+    ai,
+    now = () => new Date(),
+    taskPlaybooks,
+  }: {
+    applications: Pick<Applications, "get">;
+    register: CompanyRegister;
+    ai: AiLayer;
+    now?: () => Date;
+    /** The "company-facts-search" and "company-news-search" task Playbooks' served versions (ADR-0026); without it, their built-in text. */
+    taskPlaybooks?: TaskPlaybookReader;
+  },
 ): CompanyDossiers {
   async function rowOf(applicationId: string): Promise<Row | undefined> {
     const { rows } = await database.query<Row>(
@@ -392,16 +431,34 @@ export function createCompanyDossiers(
   }
 
   /**
-   * The dossier for `employer`: from the register when it lists the company, else from the web.
+   * The dossier for `employer`, with its Company News: from the register when it lists the company, else from the web.
    * Null when `employer` is not a company (a sole trader, or a SIREN the register does not list): nothing is searched for it.
    */
   async function dossierFor(candidateId: string, employer: string): Promise<CompanyDossier | null> {
+    const dossier = await companyDossierFor(candidateId, employer);
+    if (!dossier) return null;
+    // The task Playbook's words, on the web-search provider it names (else the configured one).
+    const run = await taskRun(taskPlaybooks, "company-news-search", ai);
+    const news = await ai.searchCompanyNews({
+      candidateId,
+      employer,
+      instructions: run.text(),
+      route: run.searchRoute,
+      ...(dossier.source === "french_register" ? { registeredName: dossier.name } : {}),
+      ...(dossier.source === "web" && dossier.website ? { website: dossier.website } : {}),
+    });
+    // The same net as for web facts, over what the AI layer already kept: no title with a person's role or honorific.
+    return { ...dossier, news: news.filter((article) => !PERSON_WORDS.test(article.title)), newsSearched: true };
+  }
+
+  async function companyDossierFor(candidateId: string, employer: string): Promise<CompanyDossier | null> {
     const builtAt = now();
     const { companies, soleTraderNamed } = await register.search(employer);
     const match = matchIn(companies, employer);
     if (match) return registerDossier(employer, match, builtAt);
     if (soleTraderNamed || sirenIn(employer)) return null;
-    const found = await ai.searchCompany({ candidateId, employer });
+    const run = await taskRun(taskPlaybooks, "company-facts-search", ai);
+    const found = await ai.searchCompany({ candidateId, employer, instructions: run.text(), route: run.searchRoute });
     const webSiren = webSirenIn(found.answer);
     if (webSiren) {
       const listed = (await register.search(webSiren)).companies.find((company) => company.siren === webSiren);

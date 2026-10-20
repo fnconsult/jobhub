@@ -25,11 +25,23 @@ export interface SeniorityBreakdown {
   requiredYears?: number;
 }
 
-/** One criterion compared with the Search Criteria: what the Job Offer says, and what is wanted. */
+/**
+ * One criterion compared with the Search Criteria: what the Job Offer says, and
+ * what is wanted, any one of which is enough (ADR-0025). Left out when nothing is
+ * wanted. A Match Score kept from before ADR-0025 holds a single wanted value:
+ * read it with `wantedValues`.
+ */
 export interface CriterionBreakdown<T> {
   status: CriterionStatus;
   offer?: T;
-  wanted?: T;
+  wanted?: T[] | T;
+}
+
+/** What a criterion wants, as a list, whether the Match Score is new or kept from before ADR-0025. */
+export function wantedValues<T>(criterion: CriterionBreakdown<T>): T[] {
+  const { wanted } = criterion;
+  if (wanted === undefined) return [];
+  return Array.isArray(wanted) ? wanted : [wanted];
 }
 
 /** The Job Offer's salary range against the Search Criteria's minimum salary. */
@@ -267,19 +279,33 @@ function scoreSeniority(cv: CvContent, jobOffer: JobOfferDetails, today: Date): 
   return breakdown;
 }
 
-/** Compares what the Job Offer says with what is wanted; unknown when either is missing. */
-function compare<T>(offer: T | undefined, wanted: T | undefined, status: (offer: T, wanted: T) => CriterionStatus): CriterionBreakdown<T> {
+const RANK: Record<CriterionStatus, number> = { match: 3, partial: 2, mismatch: 1, unknown: 0 };
+
+/**
+ * Compares what the Job Offer says with each value wanted and keeps the best
+ * outcome: meeting one value is enough (ADR-0025). Unknown when the Job Offer
+ * says nothing or nothing is wanted.
+ */
+function compare<T>(offer: T | undefined, wanted: readonly T[], status: (offer: T, wanted: T) => CriterionStatus): CriterionBreakdown<T> {
   const breakdown: CriterionBreakdown<T> = { status: "unknown" };
   if (offer !== undefined) breakdown.offer = offer;
-  if (wanted !== undefined) breakdown.wanted = wanted;
-  if (offer !== undefined && wanted !== undefined) breakdown.status = status(offer, wanted);
+  if (wanted.length > 0) breakdown.wanted = [...wanted];
+  if (offer !== undefined && wanted.length > 0) {
+    breakdown.status = wanted.map((value) => status(offer, value)).reduce((best, next) => (RANK[next] > RANK[best] ? next : best));
+  }
   return breakdown;
 }
 
 const blankToUndefined = (text: string | undefined) => (text?.trim() ? text.trim() : undefined);
 
+/** The places wanted: the Search Criteria's locations, or for a Guest without them, the CV's own location. */
+function wantedLocations(cv: CvContent, searchCriteria: SearchCriteria | undefined): string[] {
+  const places = searchCriteria ? searchCriteria.locations : [cv.location];
+  return places.map(blankToUndefined).filter((place): place is string => place !== undefined);
+}
+
 function scoreLocation(cv: CvContent, jobOffer: JobOfferDetails, searchCriteria: SearchCriteria | undefined) {
-  return compare(blankToUndefined(jobOffer.location), blankToUndefined(searchCriteria?.location ?? cv.location), (offer, wanted) => {
+  return compare(blankToUndefined(jobOffer.location), wantedLocations(cv, searchCriteria), (offer, wanted) => {
     if (jobOffer.remoteWork === "full_remote") return "match";
     const [a, b] = [normalise(offer), normalise(wanted)];
     return a.includes(b) || b.includes(a) ? "match" : "mismatch";
@@ -341,7 +367,7 @@ export function scoreMatch({ cv, jobOffer, searchCriteria, today = new Date() }:
   const seniority = scoreSeniority(cv, jobOffer, today);
   const location = scoreLocation(cv, jobOffer, searchCriteria);
   const salary = scoreSalary(jobOffer, searchCriteria);
-  const contractType = compare(jobOffer.contractType, searchCriteria?.contractType, (offer, wanted) => (offer === wanted ? "match" : "mismatch"));
+  const contractType = compare(jobOffer.contractType, searchCriteria?.contractTypes ?? [], (offer, wanted) => (offer === wanted ? "match" : "mismatch"));
   const breakdown = { skills, seniority, location, salary, contractType };
   return { score: overall(breakdown), breakdown };
 }

@@ -113,7 +113,8 @@
       "openApplication": "See my application",
       "searchCriteriaMissing": "Neither your CV nor the job offer gives the role you are looking for and where. Create your profile on Jobbbox, then save this job offer again.",
       "createProfile": "Create my profile on Jobbbox",
-      "profileQuotaReached": "Your plan does not allow another profile. Choose one of your profiles."
+      "profileQuotaReached": "Your plan does not allow another profile. Choose one of your profiles.",
+      "wanted": "You are looking for: {{value}}"
     },
     "allSites": "Detect job offers on every site",
     "allSitesHint": "To see “Analyse this offer” on employers' own career sites too. Your browser will ask for your permission; pages are still read in this browser only."
@@ -135,7 +136,8 @@
     "collapse": "Hide the menu",
     "jobSearches": "Job searches",
     "jobDigests": "Job Digests",
-    "subscription": "Subscription"
+    "subscription": "Subscription",
+    "mainMenu": "Main menu"
   },
   "signIn": {
     "title": "Sign in to Jobbbox",
@@ -187,7 +189,25 @@
     "plan": "My subscription",
     "admin": "Back office",
     "humanCoaches": "My human coaches",
-    "coachSpace": "My coach space"
+    "coachSpace": "My coach space",
+    "sections": {
+      "sectionsLabel": "Sections of my account",
+      "backToSections": "My account",
+      "profiles": "Profiles",
+      "followUps": "Follow-ups",
+      "euAi": "European AI",
+      "signIn": "Sign-in",
+      "preferences": "Preferences",
+      "tools": "Tools",
+      "data": "My data"
+    },
+    "tools": {
+      "title": "Tools",
+      "extensionTitle": "Jobbbox Chrome extension",
+      "extensionIntro": "From a job offer's page, the extension saves it to Jobbbox and works out its Match Score, with no copying and pasting.",
+      "install": "Install the extension from the Chrome Web Store",
+      "soon": "The extension is coming soon to the Chrome Web Store."
+    }
   },
   "accountData": {
     "title": "My data",
@@ -315,7 +335,13 @@
     "invalidValue": "This value is not valid.",
     "tooLong": "This field cannot be longer than {{max}} characters.",
     "error": "Your profile could not be saved. Please try again.",
-    "scratchIntro": "Fill in your master CV and search criteria, then save your profile."
+    "scratchIntro": "Fill in your master CV and search criteria, then save your profile.",
+    "locations": "Locations",
+    "locationsHint": "Up to 5 places: a job offer near any one of them suits you.",
+    "locationItem": "Location {{number}}",
+    "addLocation": "Add a location",
+    "removeLocation": "Remove location {{number}}",
+    "anyOfHint": "Tick everything that suits you. Nothing ticked: no preference."
   },
   "cvEditor": {
     "title": "Edit my Master CV",
@@ -370,7 +396,16 @@
     "cancel": "Cancel",
     "cancelled": "Changes cancelled.",
     "saveVersion": "Save version {{version}}",
-    "savedVersion": "Version {{version}} of your Master CV saved."
+    "savedVersion": "Version {{version}} of your Master CV saved.",
+    "sections": {
+      "sectionsLabel": "Sections of the profile",
+      "backToSections": "The profile",
+      "propositions": "Suggestions",
+      "cv-de-reference": "Master CV",
+      "ats-score": "ATS Score",
+      "telecharger": "Download",
+      "gerer": "Manage"
+    }
   },
   "profileSwitcher": {
     "label": "Profile switcher",
@@ -486,7 +521,9 @@
       "action": "This action didn't go through. Please try again in a few moments.",
       "invalidTitle": "Give the conversation a name of 1 to 80 characters."
     },
-    "blocked": "Blocked message"
+    "blocked": "Blocked message",
+    "widen": "Widen",
+    "narrow": "Narrow"
   },
   "coachMemory": {
     "open": "Coach memory",
@@ -1301,7 +1338,7 @@
     },
     "coachingPlaybooks": {
       "title": "Coaching Playbooks",
-      "intro": "The rules the AI Coach applies: the Core Digest, the Sources list and each playbook with its Playbook Agent, the specialist the AI Coach consults. Changing a validated version makes a new version; every version is kept.",
+      "intro": "The rules the AI Coach applies: the Core Digest, the Sources list and each playbook with its Playbook Agent, the specialist the AI Coach consults. Further down, the AI task playbooks. Changing a validated version makes a new version; every version is kept.",
       "servingValidated": "This environment (production) serves only the latest version of each that a person validated.",
       "servingLatest": "This environment serves the latest version of each, validated or not. Production serves only validated versions.",
       "caption": "Core Digest, Sources list and playbooks",
@@ -1313,7 +1350,8 @@
       "kinds": {
         "core_digest": "Core Digest",
         "sources": "Sources list",
-        "playbook": "Playbook"
+        "playbook": "Playbook",
+        "task": "AI task playbook"
       },
       "archived": "Archived",
       "active": "Active",
@@ -1342,19 +1380,31 @@
         "sourcesContent": "Sources list (Markdown table, one row per source)",
         "sourcesHelp": "A source cited by a served version or the latest version of an active playbook cannot be removed.",
         "model": "Playbook Agent's model",
-        "modelHelp": "Only models hosted in the European Union are offered: the Playbook Agent receives personal data.",
+        "modelHelp": "Every configured provider is offered, outside the European Union too (marked \"outside EU\"): before each call, the Candidate's identity is taken out of the message (name, address, email, phone, links).",
         "effort": "Effort",
         "effortHelp": "How hard the model should think. Some models ignore it or only have two levels: see the models table.",
         "consultWhen": "When to consult it",
-        "consultWhenHelp": "The AI Coach reads this description to choose the Playbook Agents it consults, at most two per reply."
+        "consultWhenHelp": "The AI Coach reads this description to choose the Playbook Agents it consults, at most two per reply.",
+        "taskContent": "Instructions (Markdown)",
+        "taskContentHelp": "The task's instructions only: the code adds the reply format, the safety rules and the data passed in.",
+        "taskSections": "One section per variant, each under its \"## key\" heading:",
+        "taskSlots": "Keep, where the code inserts a value: {{slots}}",
+        "taskModel": "Model running the task",
+        "taskModelHelp": "Every configured provider is offered, outside the European Union too (marked \"outside EU\"): the Candidate's identity is taken out of each call before it is sent, and EU AI consent still applies.",
+        "effortNone": "the model's own (nothing sent)",
+        "searchModel": "Search engine",
+        "searchModelHelp": "The web-search provider, with its model or depth, that receives this task's searches, among those configured. By default: the one configured for every web search. It only receives queries built from the search criteria or the company's name.",
+        "searchConfigured": "Configured provider (default)"
       },
       "models": {
         "title": "Allowed models",
-        "caption": "Models hosted in the EU, and effort",
+        "caption": "Models offered, hosting and effort",
         "provider": "Provider",
         "model": "Model",
         "effort": "Effort",
-        "native": "low, medium and high"
+        "native": "low, medium and high",
+        "residency": "Hosting",
+        "inEu": "EU"
       },
       "create": {
         "title": "New playbook",
@@ -1385,7 +1435,11 @@
         "archiveTitle": "Archive",
         "archiveHelp": "An archived playbook is no longer served; its versions are kept. A playbook is never deleted.",
         "archive": "Archive this playbook",
-        "restore": "Restore this playbook"
+        "restore": "Restore this playbook",
+        "taskWebSearch": "Web-search query, with no Playbook Agent: sent to the search engine shown, or to the configured provider.",
+        "taskArchiveHelp": "An archived task playbook is no longer served; its versions are kept. The task then falls back to its built-in text, and job offer summaries are no longer written.",
+        "instructions": "Instructions",
+        "search": "Search engine"
       },
       "notices": {
         "created": "Playbook created, at version 1.",
@@ -1393,7 +1447,7 @@
         "unchanged": "Nothing changed: no version saved.",
         "invalid": "Incomplete form: rules, model, effort (low, medium or high) and description are required; a Sources list lists each source once.",
         "exists": "This id is already taken.",
-        "model_not_allowed": "This model is not allowed: only the EU-hosted models offered here are.",
+        "model_not_allowed": "This model is not allowed: only the models offered here are.",
         "unknown_sources": "Sources missing from the Sources list: {{sources}}.",
         "sources_cited": "Cannot remove sources still cited: {{list}}.",
         "validated": "Version {{version}} validated.",
@@ -1404,7 +1458,8 @@
         "archived": "Playbook archived: it is no longer served.",
         "restored": "Playbook restored.",
         "not_archivable": "The Core Digest and the Sources list cannot be archived.",
-        "nameRequired": "Give your name to validate."
+        "nameRequired": "Give your name to validate.",
+        "task_instructions": "The instructions lack what the task reads, or are too long: {{list}}."
       },
       "journalFields": {
         "version": "Version",
@@ -1416,7 +1471,17 @@
         "validatedBy": "Validated by",
         "validatedAt": "Validated on",
         "archived": "Archived"
-      }
+      },
+      "effortDefault": "the model's own",
+      "tasks": {
+        "title": "AI task playbooks",
+        "intro": "The working instructions of each AI task (reading a job offer or a CV, drafting a document, researching a company…) and the AI that runs it. The AI Coach never consults them. The reply formats, the safety rules and the data passed in stay in the code. With no version served, a task falls back to its built-in text; a job offer's summary and sector are then not written.",
+        "caption": "AI task playbooks",
+        "runBy": "Run by",
+        "webSearch": "the configured web-search provider",
+        "searchSummary": "search: {{provider}} · {{model}}"
+      },
+      "outsideEu": "outside EU"
     },
     "guardrails": {
       "title": "Guardrails",
@@ -1541,7 +1606,18 @@
     "emptyColumn": "No applications",
     "noInterview": "None",
     "expired": "Expired job offer",
-    "reportedByYou": "Reported by you"
+    "reportedByYou": "Reported by you",
+    "filtersLabel": "Filter and sort the applications",
+    "allProfiles": "All profiles",
+    "allStatuses": "All statuses",
+    "showArchived": "Show archived applications",
+    "filter": "Filter",
+    "reset": "Show all",
+    "sortedAscending": "sorted A to Z",
+    "sortedDescending": "sorted Z to A",
+    "noneMatch": "No application matches these filters.",
+    "archivedHidden_one": "{{count}} archived application is hidden.",
+    "archivedHidden_other": "{{count}} archived applications are hidden."
   },
   "application": {
     "statusLabel": "Status",
@@ -1573,7 +1649,19 @@
     "matchLabel": "Match",
     "matchDetail": "See the details",
     "offerLabel": "Job offer",
-    "documentsTitle": "Tailored documents"
+    "documentsTitle": "Tailored documents",
+    "sections": {
+      "sectionsLabel": "Sections of the application",
+      "backToSections": "The application",
+      "propositions": "Suggestions",
+      "documents": "Documents",
+      "correspondance": "Match",
+      "entretiens": "Interviews",
+      "avis": "Coach reviews",
+      "dossier": "Company dossier",
+      "contacts": "Contacts",
+      "offre": "The job offer"
+    }
   },
   "jobOffer": {
     "details": "At a glance",
@@ -1603,7 +1691,10 @@
     "createProfileToSave": "Create a profile to save this job offer",
     "expired": "Expired job offer: no longer published on its original site since {{date}}.",
     "postedAt": "Posting date",
-    "dateUnknown": "date unknown"
+    "dateUnknown": "date unknown",
+    "summaryLabel": "Summary by the AI",
+    "summaryPending": "Summary in progress…",
+    "sector": "Sector"
   },
   "matchScore": {
     "title": "Match score",
@@ -1763,7 +1854,12 @@
       "chief_executive": "Head of the company (gérant, président, CEO)"
     },
     "sourcesTitle": "Sources",
-    "builtOn": "Dossier built on {{date}} for “{{employer}}”."
+    "builtOn": "Dossier built on {{date}} for “{{employer}}”.",
+    "newsTitle": "News",
+    "newsMeta": "{{outlet}}, {{date}}",
+    "newsSearchedOn": "Articles found on {{date}}.",
+    "newsNotSearched": "Update the dossier to add the employer's news.",
+    "noNews": "No recent article found."
   },
   "enrichedContacts": {
     "title": "Enriched Contacts",
@@ -2018,7 +2114,6 @@
     "saved": "Tailored CV saved on the application.",
     "savedTitle": "Saved tailored CV",
     "savedOn": "Saved on {{date}}.",
-    "skillsLine": "Skills: {{skills}}",
     "unavailable": "The coach could not propose a tailored CV right now. Try again in a few minutes.",
     "masterCvChanged": "Your reference CV changed since this proposal: ask for a new proposal before saving.",
     "proposalChanged": "This proposal changed since you reviewed it (in another tab?): review it again before saving.",
@@ -2166,5 +2261,39 @@
       "done": "Done: you will no longer receive this Job Digest.",
       "invalid": "This unsubscribe link is no longer valid. You may already be unsubscribed; otherwise, sign in and turn the Job Digest off from the profile page."
     }
+  },
+  "jobSearchesPage": {
+    "intro": "Your coach searches for job offers that meet a profile's search criteria. Each search counts once toward your plan's job searches.",
+    "chooserLabel": "Choose the profile",
+    "profileLabel": "Profile",
+    "allProfiles": "All my profiles",
+    "show": "Show",
+    "noActiveProfile": "You have no active profile. Create a profile, or restore an archived one, to search for job offers.",
+    "createProfile": "Create a profile",
+    "latestTitle": "Latest job offers found",
+    "latestOn": "Search of {{date}}",
+    "seeJobSearch": "See this search",
+    "seeRunning": "Follow the search in progress",
+    "searching": "A search is in progress for this profile. This page updates by itself.",
+    "never": "No job search for this profile yet. Start one: the job offers found will show here.",
+    "startAll_one": "Search for my profile (1 search)",
+    "startAll_other": "Search for my {{count}} profiles ({{count}} searches)",
+    "startAllHint": "One search per active profile, each counted toward your plan's job searches. Archived profiles are left out.",
+    "startingAll": "Starting the searches…",
+    "startedAll_one": "{{count}} search started.",
+    "startedAll_other": "{{count}} searches started.",
+    "failedFor": "No search for \"{{profile}}\": {{reason}}",
+    "failureReasons": {
+      "quota": "you have used all of your plan's job searches this month.",
+      "archived": "this profile is archived.",
+      "generic": "it could not be started. Check your connection and try again."
+    },
+    "viewsLabel": "Results display",
+    "tabsView": "Tabs",
+    "lanesView": "Swimlanes",
+    "groupsLabel": "Results by profile",
+    "groupTitle": "Job offers for \"{{profile}}\"",
+    "laneLabel": "Job offers found for \"{{profile}}\", scroll sideways",
+    "searchThisProfile": "Search for this profile alone"
   }
 }

@@ -68,9 +68,12 @@ export interface ApplicationSummary {
   id: string;
   status: ApplicationStatus;
   statusChangedAt: Date;
+  /** When the Candidate saved the Job Offer. */
+  createdAt: Date;
   /** `expiredAt` flags an Application on an Expired Job Offer; its status is left to the Candidate. */
   jobOffer: Pick<JobOffer, "id" | "title" | "employer" | "location" | "expiredAt">;
-  profile: { id: string; name: string };
+  /** `archived`: the Profile is archived, which makes the Application an Archived Application. */
+  profile: { id: string; name: string; archived: boolean };
   /** Oldest first. */
   interviews: Interview[];
   /** Set while the Candidate reports its Job Offer no longer published (Reported Unavailable). */
@@ -256,10 +259,10 @@ export function createApplications(
 
     async list(candidateId) {
       const { rows } = await database.query<
-        ApplicationRow & { title: string; employer: string | null; location: string | null; expired_at: Date | null; profile_name: string }
+        ApplicationRow & { title: string; employer: string | null; location: string | null; expired_at: Date | null; profile_name: string; profile_archived: boolean }
       >(
         `SELECT a.id, a.job_offer_id, a.profile_id, a.status, a.status_changed_at, a.created_at, a.reported_unavailable_at,
-                o.title, o.employer, o.location, o.expired_at, p.name AS profile_name
+                o.title, o.employer, o.location, o.expired_at, p.name AS profile_name, p.archived_at IS NOT NULL AS profile_archived
            FROM application a
            JOIN job_offer o ON o.id = a.job_offer_id
            JOIN profile p ON p.id = a.profile_id
@@ -277,8 +280,9 @@ export function createApplications(
           id: row.id,
           status: row.status,
           statusChangedAt: row.status_changed_at,
+          createdAt: row.created_at,
           jobOffer,
-          profile: { id: row.profile_id, name: row.profile_name },
+          profile: { id: row.profile_id, name: row.profile_name, archived: row.profile_archived },
           interviews: interviews.get(row.id)!,
         };
         if (row.reported_unavailable_at !== null) summary.reportedUnavailableAt = row.reported_unavailable_at;

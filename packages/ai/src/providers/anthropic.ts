@@ -6,8 +6,9 @@ import { AiProviderError } from "../errors";
 import type { AiProvider, Residency, TextInput, TextOutput, TokenUsage } from "../types";
 
 /**
- * Where Claude is reached. Only Bedrock and Vertex in an EU region are EU-resident;
- * the direct Anthropic API is not, so the AI layer keeps personal data off it.
+ * Where Claude is reached. Only Bedrock and Vertex in an EU region are EU-resident; the direct
+ * Anthropic API is not, so the AI layer prefers another endpoint for a task with personal data, and
+ * the Back Office marks it outside the EU (every call is redacted either way, ADR-0007).
  */
 export type AnthropicEndpoint =
   /** Anthropic's own API. */

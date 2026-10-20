@@ -71,7 +71,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
   }
 
   async function createProfile(owner: string, targetRole: string) {
-    const created = await profiles.create(owner, { masterCv, searchCriteria: { targetRole, location: "Lyon" } });
+    const created = await profiles.create(owner, { masterCv, searchCriteria: { targetRole, locations: ["Lyon"] } });
     if (!created.ok) throw new Error("fixture Profile refused");
     return created.profile.id;
   }
@@ -171,7 +171,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         id: profileId,
         name: "DAF",
         archived: false,
-        searchCriteria: { targetRole: "DAF", location: "Lyon" },
+        searchCriteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] },
         masterCvVersions: [
           expect.objectContaining({ version: 2, restoredFrom: null, content: { ...masterCv, summary: "20 ans de finance." } }),
           expect.objectContaining({ version: 1, restoredFrom: null, content: masterCv }),
@@ -188,6 +188,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
   it("the export holds every Application with its Job Offer, Interviews and Tailored Documents", async () => {
     const profileId = await createProfile(candidateId, "DAF");
     const application = await saveApplication(candidateId, profileId);
+    await jobOffers.summarize(application.jobOffer.id, async () => ({ summary: "Acme Industrie recrute son DAF." }));
     await applications.change(candidateId, application.id, { status: "interview" });
     await applications.addInterview(candidateId, application.id, { scheduledAt: "2026-11-12T14:30", note: "avec la DRH" });
     const proposed = await tailoredCvs.propose(candidateId, application.id, {});
@@ -204,7 +205,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         id: application.id,
         status: "interview",
         profile: { id: profileId, name: "DAF" },
-        jobOffer: expect.objectContaining({ title: "DAF H/F", employer: "Acme Industrie" }),
+        jobOffer: expect.objectContaining({ title: "DAF H/F", employer: "Acme Industrie", summary: "Acme Industrie recrute son DAF." }),
         interviews: [expect.objectContaining({ note: "avec la DRH", scheduledAt: new Date("2026-11-12T13:30:00Z") })],
         tailoredDocuments: {
           documentLanguage: "fr",
@@ -454,7 +455,18 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     // Built from the Application page, for the employer the Candidate confirmed.
     await database.query(
       `INSERT INTO company_dossier (application_id, awaiting_confirmation, confirmed_employer, dossier) VALUES ($1, false, 'Acme Industrie SA', $2)`,
-      [application.id, { source: "web", reliability: "less_reliable", employer: "Acme Industrie SA", builtAt: "2026-10-01T09:00:00.000Z", suggestedContactRoles: [], sources: [] }],
+      [
+        application.id,
+        {
+          source: "web",
+          reliability: "less_reliable",
+          employer: "Acme Industrie SA",
+          builtAt: "2026-10-01T09:00:00.000Z",
+          suggestedContactRoles: [],
+          sources: [],
+          news: [{ title: "Acme Industrie ouvre une usine", outlet: "Les Echos", publishedAt: "2026-09-01", url: "https://news.example/usine" }],
+        },
+      ],
     );
 
     const [exported] = (await candidateData.export(candidateId)).applications;
@@ -467,7 +479,8 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         presumedEmployerDescription: null,
         agency: null,
         confirmedEmployer: "Acme Industrie SA",
-        dossier: expect.objectContaining({ source: "web", employer: "Acme Industrie SA" }),
+        // With its Company News.
+        dossier: expect.objectContaining({ source: "web", employer: "Acme Industrie SA", news: [expect.objectContaining({ url: "https://news.example/usine" })] }),
         updatedAt: expect.any(Date),
       },
     });

@@ -50,8 +50,7 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" });
 
   return (
-    <CandidateLayout candidateId={candidate.id}>
-      <h1>{t("humanCoaches.title")}</h1>
+    <CandidateLayout candidateId={candidate.id} title={t("humanCoaches.title")}>
       <p className="lead">{t("humanCoaches.intro")}</p>
       {session === "paid" ? (
         <p className="notice" role="status">

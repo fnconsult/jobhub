@@ -71,7 +71,7 @@ export async function migrateDatabase(
     ["Sign-in Providers are up to date", () => migrateSignInProviders(database, env)],
     ["Back Office Assistant conversations are up to date", () => migrateAssistantConversations(database)],
     ["AI Usage is up to date", () => migrateAiUsage(database)],
-    ["Coaching Playbooks, the Core Digest and the Sources list are up to date", () => migrateCoachingPlaybooks(database, () => importedPlaybooks(env))],
+    ["Coaching Playbooks, the Core Digest, the Sources list and the task Playbooks are up to date", () => migrateCoachingPlaybooks(database, () => importedPlaybooks(env))],
     ["Guardrails are up to date", () => migrateGuardrails(database)],
   ];
   for (const [done, migrate] of steps) {

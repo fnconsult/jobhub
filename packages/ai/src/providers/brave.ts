@@ -31,6 +31,8 @@ export function createBraveProvider(options: BraveProviderOptions): AiProvider {
   return {
     id: "brave",
     defaultModel: "web",
+    // Brave has one web search: nothing else to choose.
+    models: ["web"],
     endpoint: "api.search.brave.com",
     residency: "outside_eu",
     searchPages: PAGES,

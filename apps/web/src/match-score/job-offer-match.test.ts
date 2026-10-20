@@ -28,7 +28,7 @@ const jobOffer: JobOffer = {
 };
 
 function profile(id: string, name: string, minSalary: number, archived = false): Profile {
-  return { id, name, archived, searchCriteria: { targetRole: "DAF", location: "Lyon", minSalary, contractType: "cdi" }, masterCv: { version: 1, content: masterCv } };
+  return { id, name, archived, searchCriteria: { targetRole: "DAF", locations: ["Lyon"], minSalary, contractTypes: ["cdi"], remoteWorkOptions: [] }, masterCv: { version: 1, content: masterCv } };
 }
 
 // Skills 2/3 of 40, seniority 20, location 15, contract type 15, salary 10 (out of 100):

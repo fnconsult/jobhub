@@ -7,7 +7,8 @@ import { newAddress } from "./support/mailbox";
 // Issue #134: the Candidate's pages sit in the sidebar layout approved in the
 // prototype (#132): a sidebar with the Profile switcher and labelled links,
 // collapsible on wide screens and a drawer below 64rem, a skip link, and the
-// Coach Panel docked on the right from 80rem.
+// Coach Panel docked on the right from 64rem (ADR-0024, which also puts each
+// page's title in the Top Bar and signing out in the sidebar's foot).
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
 
@@ -27,7 +28,7 @@ const masterCv = {
 async function createProfile(page: Page, targetRole: string): Promise<string> {
   const response = await page.request.post("/api/profiles", {
     headers: { origin },
-    data: { masterCv: { ...masterCv, headline: targetRole }, searchCriteria: { targetRole, location: "Lyon", contractType: "cdi" } },
+    data: { masterCv: { ...masterCv, headline: targetRole }, searchCriteria: { targetRole, locations: ["Lyon"], contractTypes: ["cdi"] } },
   });
   expect(response.status()).toBe(201);
   return (await response.json()).id;
@@ -40,7 +41,9 @@ const coachButton = (page: Page) => page.getByRole("button", { name: fr.coachPan
 const coachPanel = (page: Page) => page.getByRole("complementary", { name: fr.coachPanel.title });
 const drawer = (page: Page) => page.getByRole("dialog", { name: fr.sidebar.menu });
 
-const NAV_LABELS = [fr.nav.applications, fr.sidebar.jobSearches, fr.sidebar.jobDigests, fr.nav.account, fr.sidebar.subscription];
+const NAV_LABELS = [fr.nav.applications, fr.sidebar.jobSearches, fr.sidebar.jobDigests, fr.account.humanCoaches];
+/** Mon compte sits in the sidebar's foot, above signing out; the Subscription is one of its Sections. */
+const accountLink = (page: Page) => page.getByRole("link", { name: fr.nav.account, exact: true });
 
 /** What the focused element says: its accessible name as a screen reader would read it, roughly. */
 const focused = (page: Page) =>
@@ -59,6 +62,7 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     const profileId = await createProfile(page, "Directrice administrative et financière");
 
     for (const path of [
+      "/",
       "/compte",
       "/candidatures",
       `/profils/${profileId}`,
@@ -67,9 +71,12 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
       "/abonnement",
       `/profils/${profileId}/versions`,
       `/profils/${profileId}/cv`,
+      `/recherches?profil=${profileId}`,
+      "/recherches?profil=tous",
     ]) {
       await page.goto(path);
-      await expect(page.getByRole("heading", { level: 1 }), `heading on ${path}`).toBeVisible();
+      // The page's title is in the Top Bar.
+      await expect(page.getByRole("banner").getByRole("heading", { level: 1 }), `heading on ${path}`).toBeVisible();
       await expect(sidebarNav(page), `sidebar on ${path}`).toBeVisible();
       await expect(page.getByRole("main"), `one main on ${path}`).toHaveCount(1);
       await expect(page.locator(".page-header"), `no old header on ${path}`).toHaveCount(0);
@@ -83,10 +90,15 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
       await expect(link.locator("svg")).toHaveAttribute("aria-hidden", "true");
       expect((await link.innerText()).trim().length).toBeGreaterThan(0);
     }
-    await expect(sidebarNav(page).getByRole("link", { name: fr.nav.account })).toHaveAttribute("aria-current", "page");
-    await expect(sidebarNav(page).getByRole("link", { name: fr.sidebar.jobSearches })).toHaveAttribute("href", `/profils/${profileId}#job-search-title`);
+    await expect(accountLink(page)).toHaveAttribute("aria-current", "page");
+    await page.goto("/abonnement");
+    await expect(accountLink(page)).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("navigation", { name: fr.account.sections.sectionsLabel }).getByRole("link", { name: fr.sidebar.subscription })).toHaveAttribute("aria-current", "page");
+    await page.goto("/compte");
+    await expect(sidebarNav(page).getByRole("link", { name: fr.sidebar.jobSearches })).toHaveAttribute("href", `/recherches?profil=${profileId}`);
     await expect(page.getByRole("navigation", { name: fr.profileSwitcher.label })).toBeVisible();
     await expect(page.getByLabel(fr.textSize.label)).toBeVisible();
+    await expect(page.getByRole("button", { name: fr.account.signOut })).toBeVisible();
 
     // The links lead to their pages.
     await sidebarNav(page).getByRole("link", { name: fr.nav.applications }).click();
@@ -137,7 +149,7 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     await expect(skip).toBeInViewport();
 
     const order: string[] = [];
-    for (let i = 0; i < 11; i++) {
+    for (let i = 0; i < 12; i++) {
       await page.keyboard.press("Tab");
       order.push(await focused(page));
     }
@@ -147,9 +159,11 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
       ...NAV_LABELS,
       // The Text Size select reads as its current choice.
       fr.textSize.standard,
+      fr.nav.account,
+      fr.account.signOut,
       fr.sidebar.collapse,
       fr.coachPanel.open,
-      order[10],
+      order[11],
     ]);
     // After the top bar comes the page itself.
     expect(await page.evaluate(() => !!document.activeElement?.closest("main"))).toBe(true);
@@ -164,7 +178,7 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     expect(await page.evaluate(() => !!document.activeElement?.closest("main"))).toBe(true);
   });
 
-  test("the Coach Panel opens from the top bar and docks on the right from 80rem, beside the page", async ({ page }) => {
+  test("the Coach Panel opens from the top bar and docks on the right, beside the page", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("sidebar-coach"));
     await expect(page.getByRole("banner").getByRole("button", { name: fr.coachPanel.open, exact: true })).toBeVisible();
     await expect(coachButton(page)).toHaveCount(1);
@@ -172,9 +186,12 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     await coachButton(page).click();
     const panel = coachPanel(page);
     await expect(panel.getByLabel(fr.coachPanel.messageLabel)).toBeFocused();
+    // Its Fermer button closes it: the top bar's steps aside meanwhile.
+    await expect(coachButton(page)).toHaveCount(0);
     const box = (await panel.boundingBox())!;
     expect(box.x + box.width).toBeCloseTo(1440, 0);
-    expect(box.width).toBeCloseTo(24 * 16, 0);
+    // A third of the window, between 27rem and 36rem.
+    expect(box.width).toBeCloseTo(0.34 * 1440, 0);
     expect(box.height).toBeCloseTo(900, 0);
     // Docked: the page stays beside it, not under it.
     const main = (await page.getByRole("main").boundingBox())!;
@@ -188,18 +205,61 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
       expect.soft(t.contrast, `contrast of "${t.text}"`).toBeGreaterThanOrEqual(4.5);
     }
 
+    // Agrandir: a modal drawer over the page, which keeps its place beneath; Escape brings it back.
+    await panel.getByRole("button", { name: fr.coachPanel.widen }).click();
+    const drawerPanel = page.getByRole("dialog", { name: fr.coachPanel.title });
+    expect((await drawerPanel.boundingBox())!.width).toBeCloseTo(64 * 16, 0);
+    expect((await page.locator("main").boundingBox())!.width).toBeCloseTo(main.width, 0);
+    // Modal: the page beneath is out of reach.
+    await expect(page.getByRole("main")).toHaveCount(0);
+    await drawerPanel.getByLabel(fr.coachPanel.messageLabel).press("Escape");
+    await expect(coachPanel(page)).toBeVisible();
+    expect((await coachPanel(page).boundingBox())!.width).toBeCloseTo(box.width, 0);
+
     await panel.getByRole("button", { name: fr.coachPanel.close }).click();
     await expect(panel).toHaveCount(0);
     await expect(coachButton(page)).toBeFocused();
   });
 
-  test("pages outside the sidebar layout keep their Coach Panel button", async ({ page }) => {
+  test("with no room beside the page for its Sections, the sidebar lists them, the main menu one arrow away", async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 800 });
+    await signInWithMagicLink(page, newAddress("sidebar-sections"));
+    await page.goto("/compte/relances");
+    const inPage = page.getByRole("main").getByRole("navigation", { name: fr.account.sections.sectionsLabel });
+    await expect(inPage).toBeVisible();
+
+    // The Coach Panel docked beside the page leaves its column too narrow.
+    await coachButton(page).click();
+    await expect(inPage).toBeHidden();
+    const inSidebar = page.locator(".sidebar-docked").getByRole("navigation", { name: fr.account.sections.sectionsLabel });
+    await expect(inSidebar.getByRole("link", { name: fr.account.sections.followUps })).toHaveAttribute("aria-current", "page");
+    await expect(sidebarNav(page)).toHaveCount(0);
+
+    await page.getByRole("button", { name: fr.sidebar.mainMenu }).click();
+    await expect(sidebarNav(page)).toBeVisible();
+    await expect(page.getByRole("button", { name: fr.account.title, exact: true })).toBeFocused();
+    await page.getByRole("button", { name: fr.account.title, exact: true }).click();
+    await expect(inSidebar).toBeVisible();
+    await expect(page.getByRole("button", { name: fr.sidebar.mainMenu })).toBeFocused();
+  });
+
+  test("Mon compte's Outils Section offers the Chrome extension, coming soon until its store page is set", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("sidebar-tools"));
+    await page.getByRole("navigation", { name: fr.account.sections.sectionsLabel }).getByRole("link", { name: fr.account.sections.tools }).click();
+    await expect(page).toHaveURL(`${origin}/compte/outils`);
+    const extension = page.getByRole("region", { name: fr.account.tools.extensionTitle });
+    await expect(extension).toContainText(fr.account.tools.extensionIntro);
+    // The e2e server sets no EXTENSION_STORE_URL.
+    await expect(extension.getByText(fr.account.tools.soon)).toBeVisible();
+    await expect(extension.getByRole("link", { name: fr.account.tools.install })).toHaveCount(0);
+  });
+
+  test("the home page sits in it once signed in", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("sidebar-home"));
     await page.goto("/");
-    await expect(sidebarNav(page)).toHaveCount(0);
-    await coachButton(page).click();
-    await coachPanel(page).getByLabel(fr.coachPanel.messageLabel).press("Escape");
-    await expect(coachButton(page)).toBeFocused();
+    await expect(sidebarNav(page)).toBeVisible();
+    await expect(page.getByRole("banner").getByRole("heading", { level: 1 })).toHaveText(fr.home.title);
+    await expect(page.locator(".page-header")).toHaveCount(0);
   });
 });
 
@@ -225,7 +285,7 @@ test.describe("below 64rem", () => {
     const nav = drawer(page).getByRole("navigation", { name: fr.sidebar.label });
     await expect(nav.getByRole("link")).toHaveText(NAV_LABELS);
     // Focus goes into the drawer, onto the current page's link.
-    await expect(nav.getByRole("link", { name: fr.nav.account })).toBeFocused();
+    await expect(drawer(page).getByRole("link", { name: fr.nav.account, exact: true })).toBeFocused();
     // The page behind is out of reach while it is open: its content and <main> itself,
     // which holds a live region (the Job Search notifications) that Radix's modal leaves exposed.
     await expect(page.getByRole("heading", { level: 1 })).toHaveCount(0);
@@ -247,12 +307,28 @@ test.describe("below 64rem", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.applications.title);
   });
 
-  test("the Coach Panel opens over the page", async ({ page }) => {
+  test("a Section of Mon compte shows alone, its title in the Top Bar leading back to the list", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("sidebar-section-back"));
+    await page.goto("/compte/relances");
+    await expect(page.getByRole("region", { name: fr.followUps.delaysTitle })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: fr.account.sections.sectionsLabel })).toBeHidden();
+    // As on iOS: an arrow before the title, no second way back in the page.
+    const back = page.getByRole("banner").getByRole("link", { name: fr.account.title, exact: true });
+    await expect(back.locator("svg")).toHaveAttribute("aria-hidden", "true");
+    await expect(page.getByRole("main").getByRole("link", { name: fr.account.sections.backToSections, exact: true })).toHaveCount(0);
+    await back.click();
+    await expect(page).toHaveURL(`${origin}/compte`);
+    await expect(page.getByRole("navigation", { name: fr.account.sections.sectionsLabel })).toBeVisible();
+    await expect(page.getByRole("banner").getByRole("link", { name: fr.account.title, exact: true })).toHaveCount(0);
+  });
+
+  test("the Coach Panel takes the whole screen, with nothing to widen", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("sidebar-sheet"));
     await coachButton(page).click();
     const box = (await coachPanel(page).boundingBox())!;
-    expect(box.x + box.width).toBeCloseTo(1000, 0);
-    expect(box.width).toBeCloseTo(24 * 16, 0);
+    expect(box.x).toBeCloseTo(0, 0);
+    expect(box.width).toBeCloseTo(1000, 0);
+    await expect(coachPanel(page).getByRole("button", { name: fr.coachPanel.widen })).toBeHidden();
   });
 });
 

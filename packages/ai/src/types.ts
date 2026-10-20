@@ -9,7 +9,9 @@ export type ProviderId = (typeof PROVIDER_IDS)[number];
 
 /**
  * What a text call is for. Each task is routed to a provider by configuration.
- * Whether a task carries personal data is fixed here, in code, so configuration can never loosen it.
+ * Whether a task carries personal data is noted here, for information: its default route prefers an
+ * EU-resident endpoint (env.ts). No task is refused an endpoint for it any more: every call is redacted
+ * before it leaves (redaction.ts, ADR-0007 amendment of 2026-10-20).
  */
 export const TEXT_TASKS = {
   /** Match Score, ATS Score, ATS Fixes: reads CVs. */
@@ -31,7 +33,7 @@ export const TEXT_TASKS = {
 } as const satisfies Record<string, { personalData: boolean }>;
 export type TextTask = keyof typeof TEXT_TASKS;
 
-/** The web-search task. Only ever receives a query built from Search Criteria, or from an employer's name for a Company Dossier. */
+/** The web-search task. Only ever receives a query built from Search Criteria, or from an employer's names and website for a Company Dossier and its Company News. */
 export const SEARCH_TASK = "web_search";
 export type SearchTask = typeof SEARCH_TASK;
 export type AiTask = TextTask | SearchTask;
@@ -54,7 +56,7 @@ export interface Message {
   content: string;
 }
 
-/** Where a provider endpoint processes data. Personal data may only go to "eu". */
+/** Where a provider endpoint processes data; shown in the Back Office, and required "eu" of the identity route (EU AI consent). */
 export type Residency = "eu" | "outside_eu";
 
 export interface TextInput {

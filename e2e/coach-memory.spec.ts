@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { chooseInPanelMenu } from "./support/coach-panel";
 
 // Issue #125: the AI Coach proposes key facts from a Coach Conversation; the
 // Candidate confirms each before it reaches their Coach Memory, which they see,
@@ -48,12 +49,12 @@ test.describe("Coach Memory", () => {
     expect(await memoryItems(page)).toEqual([{ kind: "goal", text: "Je vise un poste de DAF à Lyon" }]);
 
     // The Coach Memory goes with the next message, in this conversation or a new one.
-    await coachPanel(page).getByRole("button", { name: fr.coachPanel.newConversation }).click();
+    await chooseInPanelMenu(coachPanel(page), fr.coachPanel.newConversation);
     await askCoach(page, "Par où commencer ?");
     await expect(messages(page).last()).toHaveText(/\(1 message\) Mémoire : 1 élément\.$/);
 
     // The Candidate sees it in the Coach Panel, and edits its kind and words.
-    await coachPanel(page).getByRole("button", { name: fr.coachMemory.open }).click();
+    await chooseInPanelMenu(coachPanel(page), fr.coachMemory.open);
     const memory = coachPanel(page).getByRole("region", { name: fr.coachMemory.title });
     await expect(memory.getByRole("heading", { level: 3, name: fr.coachMemory.title })).toBeFocused();
     const item = memory.getByRole("article");
@@ -78,7 +79,7 @@ test.describe("Coach Memory", () => {
     await expect(memory.getByRole("status")).toContainText(fr.coachMemory.deleted);
     await expect(memory).toContainText(fr.coachMemory.empty);
     expect(await memoryItems(page)).toEqual([]);
-    await coachPanel(page).getByRole("button", { name: fr.coachPanel.backToConversation }).click();
+    await chooseInPanelMenu(coachPanel(page), fr.coachPanel.backToConversation);
     await askCoach(page, "Et ensuite ?");
     await expect(messages(page).last()).toHaveText(/\(3 messages\)$/);
   });
@@ -111,7 +112,7 @@ test.describe("Coach Memory", () => {
     await signInWithMagicLink(page, newAddress("coach-memory-floor"));
     await page.request.post("/api/coach/memory", { headers: { origin }, data: { kind: "constraint", text: "Pas plus de 2 jours de déplacement par mois" } });
     await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
-    await coachPanel(page).getByRole("button", { name: fr.coachMemory.open }).click();
+    await chooseInPanelMenu(coachPanel(page), fr.coachMemory.open);
     const memory = coachPanel(page).getByRole("region", { name: fr.coachMemory.title });
     await memory.getByRole("button", { name: fr.coachMemory.delete }).click();
     await expect(memory.getByRole("button", { name: fr.coachMemory.confirmDeleteButton })).toBeVisible();

@@ -73,7 +73,7 @@ async function candidateWithApplication(page: Page, label: string) {
   const email = newAddress(label);
   await signInWithMagicLink(page, email);
   const profile = await page.request.post("/api/profiles", {
-    data: { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon", contractType: "cdi" } },
+    data: { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: ["cdi"] } },
     headers: { origin },
   });
   expect(profile.status(), await profile.text()).toBe(201);
@@ -197,7 +197,7 @@ test.describe("Follow-ups", () => {
   test("the Candidate adjusts their Follow-up Delays on their account page, and the AI Coach keeps to them", async ({ page }) => {
     const { email, title, id } = await candidateWithApplication(page, "follow-up-delays");
 
-    await page.goto("/compte");
+    await page.goto("/compte/relances");
     const delays = page.getByRole("region", { name: fr.followUps.delaysTitle });
     await expect(delays.getByLabel(fr.followUps.afterApplied)).toHaveValue("7");
     await expect(delays.getByLabel(fr.followUps.afterFollowUp)).toHaveValue("10");

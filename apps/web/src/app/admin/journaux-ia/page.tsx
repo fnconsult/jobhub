@@ -32,8 +32,7 @@ export default async function AiMessagesPage({ searchParams }: { searchParams: P
   const at = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "medium", timeZone: "Europe/Paris" });
 
   return (
-    <BackOfficeLayout access={access}>
-      <h1>{t("admin.aiMessages.title")}</h1>
+    <BackOfficeLayout access={access} title={t("admin.aiMessages.title")}>
       <p className="lead">{t("admin.aiMessages.intro", { days: String(MESSAGE_LOG_RETENTION_DAYS) })}</p>
 
       <form method="get" action={routes.adminAiMessages()} className="stack" aria-label={t("admin.aiMessages.filter")}>

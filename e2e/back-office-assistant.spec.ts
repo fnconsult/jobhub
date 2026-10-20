@@ -3,6 +3,7 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { showSystemPrompt, systemPromptShown } from "./support/system-prompt";
+import { chooseInPanelMenu, panelMenuItems } from "./support/coach-panel";
 
 // Issue #205: the Back Office Assistant, the Coach Panel for Administrators in the
 // Back Office. Read-only; told only what the asking Administrator's Back Office Roles
@@ -58,9 +59,12 @@ test.describe("Back Office Assistant", () => {
     await expect(assistant(page)).toContainText(assistantTexts.welcome);
     await expect(assistant(page)).toContainText(assistantTexts.readOnly);
     // Only one panel is mounted on a Back Office page: the assistant, not the Candidate's Coach Panel too.
-    await expect(page.locator(".coach-panel-toggle-floating")).toHaveCount(1);
+    // Each panel renders a floating button, and the open assistant's steps aside: none is left.
+    await expect(page.locator(".coach-panel-toggle-floating")).toHaveCount(0);
     // No Coach Memory, nothing In view, no Job Search: those are the Candidate's.
-    await expect(assistant(page).getByRole("button", { name: fr.coachMemory.open })).toHaveCount(0);
+    const items = await panelMenuItems(assistant(page));
+    await expect(items).toHaveText([fr.coachPanel.newConversation, fr.coachPanel.conversations]);
+    await page.keyboard.press("Escape");
 
     const show = showSystemPrompt();
     const question = `${show} Quels sont les quotas ?`;
@@ -81,7 +85,7 @@ test.describe("Back Office Assistant", () => {
     await expect(assistant(page)).toContainText(question);
     await ask(page, "Et ensuite ?");
     await expect(lastReply(page)).toContainText("Réponse de l'assistant (3 messages)");
-    await assistant(page).getByRole("button", { name: fr.coachPanel.conversations }).click();
+    await chooseInPanelMenu(assistant(page), fr.coachPanel.conversations);
     await expect(assistant(page)).toContainText(assistantTexts.retention);
     await expect(assistant(page).getByRole("button", { name: question }).first()).toBeVisible();
   });
@@ -109,7 +113,7 @@ test.describe("Back Office Assistant", () => {
     expect(prompt).not.toContain(MISTRAL_KEY);
 
     // The super-admin's conversations are theirs alone.
-    await assistant(coachManager).getByRole("button", { name: fr.coachPanel.conversations }).click();
+    await chooseInPanelMenu(assistant(coachManager), fr.coachPanel.conversations);
     await expect(assistant(coachManager).getByRole("button", { name: /Quels sont les quotas \?/ })).toHaveCount(0);
   });
 

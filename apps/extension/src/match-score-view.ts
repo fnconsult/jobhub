@@ -1,4 +1,4 @@
-import { matchScoreReliability, type CriterionStatus, type MatchScore, type SalaryRange } from "@jobhub/shared";
+import { matchScoreReliability, wantedValues, type CriterionStatus, type MatchScore, type SalaryRange } from "@jobhub/shared";
 import type { createI18n } from "@jobhub/shared/i18n";
 
 type I18n = Pick<ReturnType<typeof createI18n>, "t" | "language">;
@@ -48,6 +48,11 @@ export function describeMatchScore(matchScore: MatchScore, { t, language }: I18n
     return t("extension.analysis.salary.upTo", { amount: euros(max!) });
   };
 
+  /** What the Search Criteria want, any one of which is enough (ADR-0025): "Vous cherchez : Lyon ou Bordeaux". */
+  const wanted = (values: string[]) =>
+    values.length > 0 ? [t("extension.analysis.wanted", { value: new Intl.ListFormat(language, { type: "disjunction" }).format(values) })] : [];
+  const contract = (value: string) => t(`cvReview.contractTypes.${value as "cdi"}`);
+
   const details: Record<Criterion, string[]> = {
     skills: [
       ...(breakdown.skills.covered.length ? [t("extension.analysis.covered", { skills: breakdown.skills.covered.join(", ") })] : []),
@@ -59,12 +64,15 @@ export function describeMatchScore(matchScore: MatchScore, { t, language }: I18n
         : seniority.cvYears === undefined
           ? [t("extension.analysis.offerYears", { required: seniority.requiredYears })]
           : [t("extension.analysis.years", { cv: seniority.cvYears, required: seniority.requiredYears })],
-    location: location.offer ? [location.offer] : [],
+    location: [...(location.offer ? [location.offer] : []), ...wanted(wantedValues(location))],
     salary: [
       ...(salary.offer ? [t("extension.analysis.offer", { value: salaryRange(salary.offer) })] : []),
       ...(salary.wanted !== undefined ? [t("extension.analysis.salary.wanted", { amount: euros(salary.wanted) })] : []),
     ],
-    contractType: contractType.offer ? [t("extension.analysis.offer", { value: t(`cvReview.contractTypes.${contractType.offer}`) })] : [],
+    contractType: [
+      ...(contractType.offer ? [t("extension.analysis.offer", { value: contract(contractType.offer) })] : []),
+      ...wanted(wantedValues(contractType).map(contract)),
+    ],
   };
   const reliability = matchScoreReliability(matchScore);
   const known = CRITERIA.filter((name) => breakdown[name].status !== "unknown").length;

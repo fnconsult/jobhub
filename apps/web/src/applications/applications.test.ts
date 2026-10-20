@@ -44,7 +44,7 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
   }
 
   async function createProfile(owner: string, targetRole: string) {
-    const created = await profiles.create(owner, { masterCv, searchCriteria: { targetRole, location: "Lyon", contractType: "cdi" } });
+    const created = await profiles.create(owner, { masterCv, searchCriteria: { targetRole, locations: ["Lyon"], contractTypes: ["cdi"] } });
     if (!created.ok) throw new Error("fixture Profile refused");
     return created.profile.id;
   }
@@ -163,9 +163,9 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
       breakdown: {
         skills: { status: "partial", covered: ["IFRS", "SAP"], missing: ["Power BI"] },
         seniority: { status: "match", cvYears: 19, requiredYears: 15 },
-        location: { status: "match", offer: "Lyon", wanted: "Lyon" },
+        location: { status: "match", offer: "Lyon", wanted: ["Lyon"] },
         salary: { status: "unknown" },
-        contractType: { status: "match", offer: "cdi", wanted: "cdi" },
+        contractType: { status: "match", offer: "cdi", wanted: ["cdi"] },
       },
     });
   });
@@ -188,16 +188,18 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
         id: second.id,
         status: "to_apply",
         statusChangedAt: expect.any(Date),
+        createdAt: expect.any(Date),
         jobOffer: { id: second.jobOffer.id, title: "Contrôleur de gestion" },
-        profile: { id: profileId, name: "DAF" },
+        profile: { id: profileId, name: "DAF", archived: false },
         interviews: [],
       },
       {
         id: first.id,
         status: "to_apply",
         statusChangedAt: expect.any(Date),
+        createdAt: expect.any(Date),
         jobOffer: { id: jobOfferId, title: "DAF H/F", employer: "Acme Industrie", location: "Lyon" },
-        profile: { id: profileId, name: "DAF" },
+        profile: { id: profileId, name: "DAF", archived: false },
         interviews: [],
       },
     ]);

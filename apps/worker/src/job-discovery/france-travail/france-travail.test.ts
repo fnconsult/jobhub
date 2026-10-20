@@ -8,7 +8,7 @@ const SEARCH_ANSWER = readFileSync(new URL("../fixtures/france-travail/search.sy
 
 const NOW = new Date("2026-10-15T12:00:00Z");
 
-const criteria: SearchCriteria = { targetRole: "Directrice administrative et financière", location: "Lyon", contractType: "cdi" };
+const criteria: SearchCriteria = { targetRole: "Directrice administrative et financière", locations: ["Lyon"], contractTypes: ["cdi"], remoteWorkOptions: [] };
 
 interface Answer {
   status?: number;
@@ -126,7 +126,7 @@ describe("France Travail search", () => {
   it("searches by the title's keywords when it names no ROME job, and all of France for a place it does not know", async () => {
     const { api, franceTravail } = setup();
 
-    await franceTravail.search({ targetRole: "Chef de projet tisserand (H/F)", location: "Télétravail" }, { max: 10, now: NOW });
+    await franceTravail.search({ targetRole: "Chef de projet tisserand (H/F)", locations: ["Télétravail"], contractTypes: [], remoteWorkOptions: [] }, { max: 10, now: NOW });
 
     const params = api.search().url.searchParams;
     expect(params.get("motsCles")).toBe("chef,projet,tisserand");
@@ -145,7 +145,7 @@ describe("France Travail search", () => {
   ])("filters %s by its area", async (location, filter) => {
     const { api, franceTravail } = setup();
 
-    await franceTravail.search({ ...criteria, location }, { max: 30, now: NOW });
+    await franceTravail.search({ ...criteria, locations: [location] }, { max: 30, now: NOW });
 
     const params = api.search().url.searchParams;
     expect({ departement: params.get("departement") ?? undefined, region: params.get("region") ?? undefined }).toEqual({ departement: undefined, region: undefined, ...filter });
@@ -158,9 +158,20 @@ describe("France Travail search", () => {
   ] as const)("filters the %s contract type as %s", async (contractType, code) => {
     const { api, franceTravail } = setup();
 
-    await franceTravail.search({ ...criteria, contractType }, { max: 30, now: NOW });
+    await franceTravail.search({ ...criteria, contractTypes: [contractType] }, { max: 30, now: NOW });
 
     expect(api.search().url.searchParams.get("typeContrat")).toBe(code);
+  });
+
+  it("searches one of several locations at a time, with every contract type wanted in one filter (ADR-0025)", async () => {
+    const { api, franceTravail } = setup();
+    const several: SearchCriteria = { ...criteria, locations: ["Lyon", "Bordeaux"], contractTypes: ["cdi", "freelance"] };
+
+    await franceTravail.search(several, { max: 30, now: NOW, location: "Bordeaux" });
+
+    const params = api.search().url.searchParams;
+    expect(params.get("departement")).toBe("33");
+    expect(params.get("typeContrat")).toBe("CDI,LIB");
   });
 
   it("asks for no more than 150 offers, the most one answer gives", async () => {

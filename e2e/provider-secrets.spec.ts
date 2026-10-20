@@ -120,7 +120,7 @@ test.describe("Provider Secrets (the Clés section)", () => {
     await page.goto("/admin/journal?section=provider_secrets");
     await expect(page.getByRole("row").filter({ hasText: NAME }).first()).toContainText(admin.journal.secret.replaced);
 
-    await page.goto("/compte");
+    await page.goto("/compte/donnees");
     const section = page.getByRole("region", { name: fr.accountData.title });
     const [file] = await Promise.all([page.waitForEvent("download"), section.getByRole("link", { name: fr.accountData.export }).click()]);
     const exported = readFileSync((await file.path())!, "utf8");

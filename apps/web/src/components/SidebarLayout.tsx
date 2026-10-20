@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Icons } from "@/components/icons";
 import { ProfileSwitcherMenu } from "@/components/ProfileSwitcherMenu";
-import { sidebarNav, type SidebarNavKey } from "@/components/sidebar-nav";
+import { accountLink, sidebarNav, type SidebarNavKey } from "@/components/sidebar-nav";
 import { CURRENT, SidebarShell } from "@/components/SidebarShell";
 import { routes } from "@/routes";
 
@@ -16,8 +16,9 @@ const LABELS = {
   applications: "nav.applications",
   jobSearches: "sidebar.jobSearches",
   jobDigests: "sidebar.jobDigests",
-  account: "nav.account",
-  subscription: "sidebar.subscription",
+  humanCoaches: "account.humanCoaches",
+  coachSpace: "account.coachSpace",
+  admin: "account.admin",
 } as const satisfies Record<SidebarNavKey, string>;
 
 /**
@@ -28,25 +29,39 @@ export function SidebarLayout({
   profiles,
   currentProfileId,
   canAddProfile,
+  isHumanCoach = false,
+  isAdministrator = false,
+  title,
   wide = false,
   children,
 }: {
   profiles: ReadonlyArray<SidebarProfile>;
   currentProfileId?: string | undefined;
   canAddProfile: boolean;
+  isHumanCoach?: boolean;
+  isAdministrator?: boolean;
+  title?: ReactNode;
   wide?: boolean;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
   const pathname = usePathname();
-  const items = sidebarNav({ pathname, profiles, currentProfileId });
+  const items = sidebarNav({ pathname, profiles, currentProfileId, isHumanCoach, isAdministrator });
+  const account = accountLink(pathname);
   const switcherProfiles = profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name }));
   const current = profiles.find((profile) => profile.id === currentProfileId);
 
   return (
     <SidebarShell
       brand={{ href: routes.home, label: t("app.name") }}
+      title={title}
       wide={wide}
+      foot={(closeDrawer) => (
+        <Link className="sidebar-link" href={account.href} aria-current={account.current ? CURRENT : undefined} onClick={closeDrawer}>
+          <Icons.account />
+          {t("nav.account")}
+        </Link>
+      )}
       top={
         profiles.length > 0 ? (
           <ProfileSwitcherMenu

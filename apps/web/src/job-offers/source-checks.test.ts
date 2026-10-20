@@ -86,7 +86,7 @@ describe.skipIf(!connectionString)("Job Offer source re-checks (needs Postgres: 
     applications = createApplications(database, { jobOffers, profiles });
     sourceChecks = createSourceChecks(database);
     candidateId = await signIn("marie.dupont@example.fr");
-    const created = await profiles.create(candidateId, { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
+    const created = await profiles.create(candidateId, { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } });
     if (!created.ok) throw new Error("fixture Profile refused");
     profileId = created.profile.id;
   });
@@ -154,7 +154,7 @@ describe.skipIf(!connectionString)("Job Offer source re-checks (needs Postgres: 
       const id = await capture();
       await follow(id, "rejected");
       const otherCandidate = await signIn("paul.martin@example.fr");
-      const other = await profiles.create(otherCandidate, { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
+      const other = await profiles.create(otherCandidate, { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } });
       if (!other.ok) throw new Error("fixture Profile refused");
       await follow(id, "to_apply", otherCandidate, other.profile.id);
 

@@ -40,7 +40,7 @@ const masterCv = {
   skills: ["Consolidation", "IFRS"],
   languages: [],
 };
-const searchCriteria = { targetRole: "Directrice administrative et financière", location: "Lyon", contractType: "cdi" };
+const searchCriteria = { targetRole: "Directrice administrative et financière", locations: ["Lyon"], contractTypes: ["cdi"] };
 const knownUrl = `https://deja-vu-e2e.example/offre/${tag}`;
 
 test.use({ baseURL: origin });

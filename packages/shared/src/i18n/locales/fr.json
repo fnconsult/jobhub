@@ -113,7 +113,8 @@
       "openApplication": "Voir ma candidature",
       "searchCriteriaMissing": "Nous n'avons trouvé ni dans votre CV ni dans l'offre le poste visé et le lieu de votre recherche. Créez votre profil sur Jobbbox, puis enregistrez de nouveau cette offre.",
       "createProfile": "Créer mon profil sur Jobbbox",
-      "profileQuotaReached": "Votre formule ne permet pas de créer un autre profil. Choisissez l'un de vos profils."
+      "profileQuotaReached": "Votre formule ne permet pas de créer un autre profil. Choisissez l'un de vos profils.",
+      "wanted": "Vous cherchez : {{value}}"
     },
     "allSites": "Détecter les offres sur tous les sites",
     "allSitesHint": "Pour voir « Analyser cette offre » aussi sur les sites carrières des employeurs. Votre navigateur vous demandera l'autorisation ; les pages restent lues dans ce navigateur uniquement."
@@ -135,7 +136,8 @@
     "collapse": "Masquer le menu",
     "jobSearches": "Recherches d'offres",
     "jobDigests": "Job Digests",
-    "subscription": "Abonnement"
+    "subscription": "Abonnement",
+    "mainMenu": "Menu principal"
   },
   "signIn": {
     "title": "Se connecter à Jobbbox",
@@ -187,7 +189,25 @@
     "plan": "Mon abonnement",
     "admin": "Back office",
     "humanCoaches": "Mes coachs humains",
-    "coachSpace": "Mon espace coach"
+    "coachSpace": "Mon espace coach",
+    "sections": {
+      "sectionsLabel": "Rubriques de mon compte",
+      "backToSections": "Mon compte",
+      "profiles": "Profils",
+      "followUps": "Relances",
+      "euAi": "IA européenne",
+      "signIn": "Connexion",
+      "preferences": "Préférences",
+      "tools": "Outils",
+      "data": "Mes données"
+    },
+    "tools": {
+      "title": "Outils",
+      "extensionTitle": "Extension Chrome Jobbbox",
+      "extensionIntro": "Depuis la page d'une offre d'emploi, l'extension l'enregistre dans Jobbbox et calcule son score de correspondance, sans copier-coller.",
+      "install": "Installer l'extension depuis le Chrome Web Store",
+      "soon": "L'extension arrive bientôt sur le Chrome Web Store."
+    }
   },
   "accountData": {
     "title": "Mes données",
@@ -315,7 +335,13 @@
     "invalidValue": "Cette valeur n'est pas valide.",
     "tooLong": "Ce champ ne peut pas dépasser {{max}} caractères.",
     "error": "Votre profil n'a pas pu être enregistré. Veuillez réessayer.",
-    "scratchIntro": "Remplissez votre CV de référence et vos critères de recherche, puis enregistrez votre profil."
+    "scratchIntro": "Remplissez votre CV de référence et vos critères de recherche, puis enregistrez votre profil.",
+    "locations": "Lieux",
+    "locationsHint": "Jusqu'à 5 lieux : une offre proche de l'un d'eux vous correspond.",
+    "locationItem": "Lieu {{number}}",
+    "addLocation": "Ajouter un lieu",
+    "removeLocation": "Retirer le lieu {{number}}",
+    "anyOfHint": "Cochez tout ce qui vous convient. Rien de coché : pas de préférence."
   },
   "cvEditor": {
     "title": "Modifier mon CV de référence",
@@ -370,7 +396,16 @@
     "cancel": "Annuler",
     "cancelled": "Modifications annulées.",
     "saveVersion": "Enregistrer la version {{version}}",
-    "savedVersion": "Version {{version}} de votre CV de référence enregistrée."
+    "savedVersion": "Version {{version}} de votre CV de référence enregistrée.",
+    "sections": {
+      "sectionsLabel": "Rubriques du profil",
+      "backToSections": "Le profil",
+      "propositions": "Propositions",
+      "cv-de-reference": "CV de référence",
+      "ats-score": "ATS Score",
+      "telecharger": "Télécharger",
+      "gerer": "Gérer"
+    }
   },
   "profileSwitcher": {
     "label": "Sélecteur de profil",
@@ -486,7 +521,9 @@
       "action": "Cette action n'a pas abouti. Réessayez dans quelques instants.",
       "invalidTitle": "Donnez à la conversation un nom de 1 à 80 caractères."
     },
-    "blocked": "Message bloqué"
+    "blocked": "Message bloqué",
+    "widen": "Agrandir",
+    "narrow": "Réduire"
   },
   "coachMemory": {
     "open": "Mémoire du coach",
@@ -1301,7 +1338,7 @@
     },
     "coachingPlaybooks": {
       "title": "Playbooks de coaching",
-      "intro": "Les règles que l'AI Coach applique : le socle, la liste des sources et chaque playbook avec son Playbook Agent, le spécialiste que l'AI Coach consulte. Modifier une version validée crée une nouvelle version ; toutes les versions sont conservées.",
+      "intro": "Les règles que l'AI Coach applique : le socle, la liste des sources et chaque playbook avec son Playbook Agent, le spécialiste que l'AI Coach consulte. Plus bas, les playbooks des tâches IA. Modifier une version validée crée une nouvelle version ; toutes les versions sont conservées.",
       "servingValidated": "Cet environnement (production) ne sert que la dernière version validée par une personne de chacun.",
       "servingLatest": "Cet environnement sert la dernière version de chacun, validée ou non. La production ne sert que les versions validées.",
       "caption": "Socle, liste des sources et playbooks",
@@ -1313,7 +1350,8 @@
       "kinds": {
         "core_digest": "Socle de coaching",
         "sources": "Liste des sources",
-        "playbook": "Playbook"
+        "playbook": "Playbook",
+        "task": "Playbook de tâche IA"
       },
       "archived": "Archivé",
       "active": "Actif",
@@ -1342,19 +1380,31 @@
         "sourcesContent": "Liste des sources (tableau Markdown, une ligne par source)",
         "sourcesHelp": "Une source citée par une version servie ou la dernière version d'un playbook actif ne peut pas être retirée.",
         "model": "Modèle du Playbook Agent",
-        "modelHelp": "Seuls les modèles hébergés dans l'Union européenne sont proposés : le Playbook Agent reçoit des données personnelles.",
+        "modelHelp": "Tous les fournisseurs configurés sont proposés, y compris hors de l'Union européenne (signalés « hors UE ») : avant chaque appel, l'identité du candidat est retirée du message (nom, adresse, e-mail, téléphone, liens).",
         "effort": "Effort",
         "effortHelp": "Le temps de réflexion demandé au modèle. Certains modèles l'ignorent ou n'ont que deux niveaux : voir le tableau des modèles.",
         "consultWhen": "Quand le consulter",
-        "consultWhenHelp": "L'AI Coach lit cette description pour choisir les Playbook Agents qu'il consulte, au plus deux par réponse."
+        "consultWhenHelp": "L'AI Coach lit cette description pour choisir les Playbook Agents qu'il consulte, au plus deux par réponse.",
+        "taskContent": "Consignes (Markdown)",
+        "taskContentHelp": "Seules les consignes de la tâche : le format de réponse, les règles de sécurité et les données transmises sont ajoutés par le code.",
+        "taskSections": "Une section par variante, chacune sous son titre « ## clé » :",
+        "taskSlots": "À garder, là où le code insère une valeur : {{slots}}",
+        "taskModel": "Modèle qui exécute la tâche",
+        "taskModelHelp": "Tous les fournisseurs configurés sont proposés, y compris hors de l'Union européenne (signalés « hors UE ») : l'identité du candidat est retirée de chaque appel avant l'envoi, et le consentement IA UE s'applique toujours.",
+        "effortNone": "celui du modèle (rien n'est envoyé)",
+        "searchModel": "Moteur de recherche",
+        "searchModelHelp": "Le fournisseur de recherche web, avec son modèle ou sa profondeur, qui reçoit les recherches de cette tâche, parmi ceux configurés. Par défaut : celui configuré pour toutes les recherches web. Il ne reçoit que des requêtes construites à partir des critères de recherche ou du nom de l'entreprise.",
+        "searchConfigured": "Fournisseur configuré (par défaut)"
       },
       "models": {
         "title": "Modèles autorisés",
-        "caption": "Modèles hébergés dans l'UE et effort",
+        "caption": "Modèles proposés, hébergement et effort",
         "provider": "Fournisseur",
         "model": "Modèle",
         "effort": "Effort",
-        "native": "faible, moyen et élevé"
+        "native": "faible, moyen et élevé",
+        "residency": "Hébergement",
+        "inEu": "UE"
       },
       "create": {
         "title": "Nouveau playbook",
@@ -1385,7 +1435,11 @@
         "archiveTitle": "Archiver",
         "archiveHelp": "Un playbook archivé n'est plus servi ; ses versions sont conservées. Un playbook n'est jamais supprimé.",
         "archive": "Archiver ce playbook",
-        "restore": "Rétablir ce playbook"
+        "restore": "Rétablir ce playbook",
+        "taskWebSearch": "Requête de recherche web, sans Playbook Agent : envoyée au moteur de recherche indiqué, ou au fournisseur configuré.",
+        "taskArchiveHelp": "Un playbook de tâche archivé n'est plus servi ; ses versions sont conservées. La tâche reprend alors son texte intégré, et le résumé d'offre n'est plus rédigé.",
+        "instructions": "Consignes",
+        "search": "Moteur de recherche"
       },
       "notices": {
         "created": "Playbook créé, en version 1.",
@@ -1393,7 +1447,7 @@
         "unchanged": "Rien n'a changé : aucune version enregistrée.",
         "invalid": "Formulaire incomplet : règles, modèle, effort (faible, moyen ou élevé) et description sont requis ; une liste de sources liste chaque source une fois.",
         "exists": "Cet identifiant est déjà pris.",
-        "model_not_allowed": "Ce modèle n'est pas autorisé : seuls les modèles hébergés dans l'UE proposés ici le sont.",
+        "model_not_allowed": "Ce modèle n'est pas autorisé : seuls les modèles proposés ici le sont.",
         "unknown_sources": "Sources absentes de la liste des sources : {{sources}}.",
         "sources_cited": "Impossible de retirer des sources encore citées : {{list}}.",
         "validated": "Version {{version}} validée.",
@@ -1404,7 +1458,8 @@
         "archived": "Playbook archivé : il n'est plus servi.",
         "restored": "Playbook rétabli.",
         "not_archivable": "Le socle et la liste des sources ne peuvent pas être archivés.",
-        "nameRequired": "Indiquez votre nom pour valider."
+        "nameRequired": "Indiquez votre nom pour valider.",
+        "task_instructions": "Il manque aux consignes ce que la tâche lit, ou elles sont trop longues : {{list}}."
       },
       "journalFields": {
         "version": "Version",
@@ -1416,7 +1471,17 @@
         "validatedBy": "Validée par",
         "validatedAt": "Validée le",
         "archived": "Archivé"
-      }
+      },
+      "effortDefault": "celui du modèle",
+      "tasks": {
+        "title": "Playbooks des tâches IA",
+        "intro": "Les consignes de travail de chaque tâche IA (lire une offre ou un CV, rédiger un document, rechercher une entreprise…) et l'IA qui l'exécute. L'AI Coach ne les consulte jamais. Le format des réponses, les règles de sécurité et les données transmises restent dans le code. Sans version servie, une tâche reprend son texte intégré ; le résumé et le secteur d'une offre ne sont alors pas rédigés.",
+        "caption": "Playbooks des tâches IA",
+        "runBy": "Exécutée par",
+        "webSearch": "le fournisseur de recherche web configuré",
+        "searchSummary": "recherche : {{provider}} · {{model}}"
+      },
+      "outsideEu": "hors UE"
     },
     "guardrails": {
       "title": "Garde-fous",
@@ -1541,7 +1606,18 @@
     "emptyColumn": "Aucune candidature",
     "noInterview": "Aucun",
     "expired": "Offre expirée",
-    "reportedByYou": "Signalé par vous"
+    "reportedByYou": "Signalé par vous",
+    "filtersLabel": "Filtrer et trier les candidatures",
+    "allProfiles": "Tous les profils",
+    "allStatuses": "Tous les statuts",
+    "showArchived": "Afficher les candidatures archivées",
+    "filter": "Filtrer",
+    "reset": "Tout afficher",
+    "sortedAscending": "triée de A à Z",
+    "sortedDescending": "triée de Z à A",
+    "noneMatch": "Aucune candidature ne correspond à ces filtres.",
+    "archivedHidden_one": "{{count}} candidature archivée est masquée.",
+    "archivedHidden_other": "{{count}} candidatures archivées sont masquées."
   },
   "application": {
     "statusLabel": "Statut",
@@ -1573,7 +1649,19 @@
     "matchLabel": "Correspondance",
     "matchDetail": "Voir le détail",
     "offerLabel": "Offre",
-    "documentsTitle": "Documents adaptés"
+    "documentsTitle": "Documents adaptés",
+    "sections": {
+      "sectionsLabel": "Rubriques de la candidature",
+      "backToSections": "La candidature",
+      "propositions": "Propositions",
+      "documents": "Documents",
+      "correspondance": "Correspondance",
+      "entretiens": "Entretiens",
+      "avis": "Avis des coachs",
+      "dossier": "Dossier entreprise",
+      "contacts": "Contacts",
+      "offre": "L'offre"
+    }
   },
   "jobOffer": {
     "details": "En bref",
@@ -1603,7 +1691,10 @@
     "createProfileToSave": "Créez un profil pour enregistrer cette offre",
     "expired": "Offre expirée : elle n'est plus publiée sur son site d'origine depuis le {{date}}.",
     "postedAt": "Date de publication",
-    "dateUnknown": "date inconnue"
+    "dateUnknown": "date inconnue",
+    "summaryLabel": "Résumé par l'IA",
+    "summaryPending": "Résumé en cours…",
+    "sector": "Secteur"
   },
   "matchScore": {
     "title": "Score de correspondance",
@@ -1763,7 +1854,12 @@
       "chief_executive": "Dirigeant ou dirigeante (gérant, président, directeur général)"
     },
     "sourcesTitle": "Sources",
-    "builtOn": "Dossier constitué le {{date}} pour « {{employer}} »."
+    "builtOn": "Dossier constitué le {{date}} pour « {{employer}} ».",
+    "newsTitle": "Actualités",
+    "newsMeta": "{{outlet}}, {{date}}",
+    "newsSearchedOn": "Articles trouvés le {{date}}.",
+    "newsNotSearched": "Mettez le dossier à jour pour y ajouter les actualités de l'employeur.",
+    "noNews": "Aucun article récent trouvé."
   },
   "enrichedContacts": {
     "title": "Contacts enrichis",
@@ -2018,7 +2114,6 @@
     "saved": "CV adapté enregistré sur la candidature.",
     "savedTitle": "CV adapté enregistré",
     "savedOn": "Enregistré le {{date}}.",
-    "skillsLine": "Compétences : {{skills}}",
     "unavailable": "Le coach n'a pas pu proposer de CV adapté pour l'instant. Réessayez dans quelques minutes.",
     "masterCvChanged": "Votre CV de référence a changé depuis cette proposition : demandez une nouvelle proposition avant d'enregistrer.",
     "proposalChanged": "Cette proposition a changé depuis que vous l'avez vérifiée (dans un autre onglet ?) : vérifiez-la à nouveau avant d'enregistrer.",
@@ -2166,5 +2261,39 @@
       "done": "C'est fait : vous ne recevrez plus ce Job Digest.",
       "invalid": "Ce lien de désabonnement n'est plus valable. Vous êtes peut-être déjà désabonné ; sinon, connectez-vous et désactivez le Job Digest depuis la page du profil."
     }
+  },
+  "jobSearchesPage": {
+    "intro": "Votre coach cherche des offres selon les critères de recherche d'un profil. Chaque recherche compte une fois dans les recherches d'offres de votre offre.",
+    "chooserLabel": "Choisir le profil",
+    "profileLabel": "Profil",
+    "allProfiles": "Tous mes profils",
+    "show": "Afficher",
+    "noActiveProfile": "Vous n'avez aucun profil actif. Créez un profil, ou restaurez un profil archivé, pour chercher des offres.",
+    "createProfile": "Créer un profil",
+    "latestTitle": "Dernières offres trouvées",
+    "latestOn": "Recherche du {{date}}",
+    "seeJobSearch": "Voir cette recherche",
+    "seeRunning": "Suivre la recherche en cours",
+    "searching": "Une recherche est en cours pour ce profil. Cette page se met à jour toute seule.",
+    "never": "Aucune recherche d'offres pour ce profil pour l'instant. Lancez-en une : les offres trouvées s'afficheront ici.",
+    "startAll_one": "Chercher pour mon profil (1 recherche)",
+    "startAll_other": "Chercher pour mes {{count}} profils ({{count}} recherches)",
+    "startAllHint": "Une recherche par profil actif, chacune comptée dans les recherches d'offres de votre offre. Les profils archivés sont laissés de côté.",
+    "startingAll": "Lancement des recherches…",
+    "startedAll_one": "{{count}} recherche lancée.",
+    "startedAll_other": "{{count}} recherches lancées.",
+    "failedFor": "Pas de recherche pour « {{profile}} » : {{reason}}",
+    "failureReasons": {
+      "quota": "vous avez utilisé toutes les recherches d'offres de votre offre ce mois-ci.",
+      "archived": "ce profil est archivé.",
+      "generic": "elle n'a pas pu être lancée. Vérifiez votre connexion et réessayez."
+    },
+    "viewsLabel": "Affichage des résultats",
+    "tabsView": "Onglets",
+    "lanesView": "Couloirs",
+    "groupsLabel": "Résultats par profil",
+    "groupTitle": "Offres pour « {{profile}} »",
+    "laneLabel": "Offres trouvées pour « {{profile}} », à faire défiler de côté",
+    "searchThisProfile": "Chercher pour ce profil seul"
   }
 }

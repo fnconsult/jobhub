@@ -7,6 +7,7 @@ import { createApplications, migrateApplications } from "../applications";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
+import { servedTasks, taskAgent } from "../task-playbooks/test-support";
 import { migrateTailoredDocuments } from "../tailored-documents";
 import { createTailoredCvs, migrateTailoredCvs, type TailoredCvs } from "./index";
 
@@ -79,7 +80,7 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
   }
 
   async function saveApplication(offer: Parameters<JobOffers["capture"]>[0], owner = candidateId) {
-    const profile = await profiles.create(owner, { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
+    const profile = await profiles.create(owner, { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } });
     const captured = await jobOffers.capture(offer);
     if (!profile.ok || !captured.ok) throw new Error("fixture refused");
     const applications = createApplications(database, { jobOffers, profiles });
@@ -116,6 +117,31 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
   afterEach(async () => {
     await testAuth.stop();
   }, 60_000);
+
+  it("is asked for with the tailored-cv task Playbook's version 1 word for word as before, then the reply's shape (ADR-0026)", async () => {
+    await tailoredCvs.propose(candidateId, applicationId, {});
+
+    expect(coachCall().system).toBe(`Tu es le coach Jobbbox. Tu adaptes le CV de référence d'un cadre expérimenté à l'offre ci-dessous, en français.
+Règles :
+- Tu peux seulement reformuler, réordonner, couper et mettre en avant ce que dit son CV de référence. N'ajoute jamais de compétence, d'expérience, de diplôme ou de chiffre.
+- Garde l'employeur et la période de chaque poste tels quels, et l'"id" de chaque diplôme, langue et compétence que tu gardes.
+- Dans "missing", liste les exigences de l'offre que son CV ne montre pas : le candidat dira s'il les a.
+Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experience": [{"employer": "", "period": "", "title": "", "description": ""}], "education": [{"id": "", "degree": "", "institution": "", "year": ""}], "skills": [{"id": "", "text": ""}], "languages": [{"id": "", "name": "", "level": ""}], "missing": [""]}.`);
+  });
+
+  it("is asked for with the served task Playbook's section for the Document Language, on its Playbook Agent (ADR-0026)", async () => {
+    const claude = createFakeProvider({ id: "anthropic", reply: JSON.stringify(PROPOSAL) });
+    const ai = createAiLayer({ providers: [provider, claude], routes: { writing: "mistral" }, usage });
+    const taskPlaybooks = servedTasks({ "tailored-cv": { content: "## fr\n\nAdapte avec soin.\n\n## en\n\nAdapt with care.", agent: taskAgent("anthropic", null, "high") } });
+    const served = createTailoredCvs(database, { applications: createApplications(database, { jobOffers, profiles }), profiles, ai, taskPlaybooks });
+
+    expect(await served.propose(candidateId, applicationId, {})).toMatchObject({ ok: true });
+
+    expect(provider.calls).toHaveLength(0);
+    expect(claude.calls[0]!.system).toMatch(/^Adapte avec soin\.\nRéponds uniquement avec un objet JSON : \{"headline"/);
+    expect(claude.calls[0]).toMatchObject({ effort: "high" });
+    expect(usage.entries.at(-1)).toMatchObject({ task: "writing", provider: "anthropic" });
+  });
 
   it("an Application has no Tailored CV until the AI Coach proposes one", async () => {
     expect(await tailoredCvs.get(candidateId, applicationId)).toMatchObject({ documentLanguage: "fr", proposal: null, saved: null });

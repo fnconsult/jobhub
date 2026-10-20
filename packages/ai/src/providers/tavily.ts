@@ -13,6 +13,8 @@ interface TavilyResponse {
 
 /** The cheapest full search: 1 credit per request. */
 const DEFAULT_DEPTH = "basic";
+/** The depths a task Playbook may choose (ADR-0026), the default first. */
+const DEPTHS = [DEFAULT_DEPTH, "advanced", "fast", "ultra-fast"];
 /** Tavily's maximum per request. */
 const MAX_RESULTS = 20;
 
@@ -29,6 +31,7 @@ export function createTavilyProvider(options: TavilyProviderOptions): AiProvider
   return {
     id: "tavily",
     defaultModel: DEFAULT_DEPTH,
+    models: DEPTHS,
     endpoint: "api.tavily.com",
     residency: "outside_eu",
     async search(query, { model, filters }): Promise<SearchOutput> {

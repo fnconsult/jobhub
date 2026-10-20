@@ -89,7 +89,8 @@ test.describe("drafting from a CV when the AI configuration is invalid", () => {
       expect(response.status(), await response.text()).toBe(200);
       const draft = await response.json();
       expect(draft.masterCv.fullName).toBe("Marie Dupont");
-      expect(draft.searchCriteria).toEqual({ targetRole: "Directrice financière", location: "Lyon (69003)" });
+      // Several places since ADR-0025 (the first one also as `location`, for older extensions).
+      expect(draft.searchCriteria).toMatchObject({ targetRole: "Directrice financière", locations: ["Lyon (69003)"] });
     }
 
     expect(warningsIn(server.output()).length - before).toBe(0);
@@ -108,7 +109,7 @@ test.describe("drafting from a CV when the AI configuration is invalid", () => {
     const draft = await response.json();
     expect(draft.masterCv).toMatchObject({ fullName: "Marie Dupont", skills: ["Consolidation", "IFRS", "SAP", "Management d'équipe"] });
     expect(draft.masterCv.experience).toHaveLength(2);
-    expect(draft.searchCriteria).toEqual({ targetRole: "Directrice financière", location: "Lyon (69003)" });
+    expect(draft.searchCriteria).toEqual({ targetRole: "Directrice financière", location: "Lyon (69003)", locations: ["Lyon (69003)"] });
     await expect.poll(() => warningsIn(server.output()).length - before).toBe(1);
     const [warning] = warningsIn(server.output()).slice(before);
     expect(warning).toContain("MISTRAL_API_KEY");

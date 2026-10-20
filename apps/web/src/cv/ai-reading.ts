@@ -1,9 +1,12 @@
 /**
  * The AI Coach's reading of a CV's text (task `cv_parsing`, EU endpoints only,
  * ADR-0007). Returns null when the reply cannot be used, so the caller can fall
- * back to the rule-based outline.
+ * back to the rule-based outline. Its instructions and the AI running it are the
+ * "cv-reading" task Playbook's (ADR-0026); the JSON shape it is read with stays here.
  */
 import type { AiLayer } from "@jobhub/ai";
+import { taskRun, type TaskPlaybookReader } from "../task-playbooks";
+import { distinctLocations } from "@jobhub/shared";
 import * as z from "zod";
 import type { CvDraft } from "./index";
 
@@ -30,17 +33,15 @@ const readingSchema = z.object({
     skills: list(z.string()),
     languages: list(z.object({ name: text, level: text })),
   }),
-  searchCriteria: z.object({ targetRole: text, location: text }).catch({ targetRole: "", location: "" }),
+  // The AI names one place, where the Candidate lives: the draft's only location, if any.
+  searchCriteria: z
+    .object({ targetRole: text, location: text })
+    .catch({ targetRole: "", location: "" })
+    .transform(({ targetRole, location }) => ({ targetRole, locations: distinctLocations([location]) })),
 });
 
-const SYSTEM = `Tu lis le CV d'un candidat et tu le recopies, section par section, dans un objet JSON.
-Règles :
-- Recopie uniquement ce qui est écrit dans le CV, dans sa langue. N'invente, ne reformule et n'ajoute rien.
-- Laisse une chaîne vide ("") ou une liste vide ([]) quand le CV ne dit rien.
-- "period" et "level" sont recopiés tels qu'écrits (ex. "2015 – 2024", "courant").
-- searchCriteria.targetRole : le poste que le candidat semble viser (titre du CV ou poste le plus récent).
-- searchCriteria.location : la ville où il habite, si le CV l'indique.
-Réponds uniquement avec le JSON, au format :
+/** The shape the reply is read with (`readingSchema`), after the task Playbook's instructions. */
+const SHAPE = `Réponds uniquement avec le JSON, au format :
 {"masterCv":{"fullName":"","headline":"","email":"","phone":"","location":"","summary":"",
 "experience":[{"title":"","employer":"","location":"","period":"","description":""}],
 "education":[{"degree":"","institution":"","year":""}],
@@ -64,10 +65,12 @@ function jsonIn(reply: string): unknown {
  * (`AiConfigError`, whose message names the missing setting, never its value)
  * falls back to the rule-based outline like any other AI failure.
  */
-export async function readCvWithAi(cvText: string, ai: () => AiLayer, candidateId: string): Promise<CvDraft | null> {
+export async function readCvWithAi(cvText: string, ai: () => AiLayer, candidateId: string, taskPlaybooks?: TaskPlaybookReader): Promise<CvDraft | null> {
   let reply: string;
   try {
-    ({ text: reply } = await ai().generate({ task: "cv_parsing", candidateId, system: SYSTEM, prompt: `CV :\n${cvText}`, containsIdentity: true }));
+    const layer = ai();
+    const run = await taskRun(taskPlaybooks, "cv-reading", layer);
+    ({ text: reply } = await layer.generate({ task: "cv_parsing", candidateId, system: `${run.text()}\n${SHAPE}`, prompt: `CV :\n${cvText}`, containsIdentity: true, ...run.agent }));
   } catch (error) {
     console.warn("[cv] AI reading of a CV failed, using the rule-based outline:", error instanceof Error ? error.message : error);
     return null;

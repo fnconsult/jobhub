@@ -9,7 +9,12 @@
  *   const plan = await ai.planJobSearch({ candidateId, criteria }); // up to 6 queries: job title variants × FR/EN
  *   await ai.searchWeb({ candidateId, criteria, query: plan.queries[0], page: 1, filters: { excludeDomains, maxAgeDays: 30 } });
  *   await ai.searchCompany({ candidateId, employer });
- *   await readOfferFields(ai, { candidateId, jobOffer }); // a Job Offer's fields, read from its text
+ *   await ai.searchCompanyNews({ candidateId, employer, registeredName, website }); // its Company News, never fails
+ *   await readOfferFields(ai, { candidateId, jobOffer, reading }); // a Job Offer's fields, read from its text
+ * A task's instructions come from its task Playbook when the caller passes them (`TaskInstructions`,
+ * ADR-0026); otherwise from the built-in text, version 1 as written in `@jobhub/coach-knowledge/tasks`.
+ * Every call, generation and web search, is redacted before it leaves (redaction.ts): email addresses and
+ * phone numbers always, and what `identityOf` knows of the Candidate; a reply gets the values back.
  */
 export { createAiLayer } from "./ai-layer";
 export type {
@@ -20,16 +25,20 @@ export type {
   GenerateRequest,
   GenerateResult,
   JobSearchPlan,
+  JobSearchInstructions,
   JobSearchPlanRequest,
   Route,
   SearchRequest,
   SearchResult,
+  TaskInstructions,
 } from "./ai-layer";
 export { AI_ENV_KEYS, createAiLayerFromEnv, taskRouteFromEnv } from "./env";
 export type { AiLayerDeps } from "./env";
 export { findIdentity, identityIn } from "./identity-scan";
 export type { IdentityHit } from "./identity-scan";
 export { AiConfigError, AiProviderError, DataResidencyError } from "./errors";
+export { givenNameOf, redactIdentity, REDACTION_NOTE } from "./redaction";
+export type { CandidateIdentity, RedactedKind, Redaction } from "./redaction";
 export { createAnthropicProvider } from "./providers/anthropic";
 export type { AnthropicEndpoint, AnthropicProviderOptions } from "./providers/anthropic";
 export { createMistralProvider, createOpenAiProvider } from "./providers/chat-completions";
@@ -40,6 +49,8 @@ export { createTavilyProvider } from "./providers/tavily";
 export { readJobPage, readOfferFields } from "./job-offer-reading";
 export type { OfferFields } from "./job-offer-reading";
 export { buildCompanyQuery, buildSearchQuery, COMPANY_FACTS } from "./search-query";
+export { buildCompanyNewsQuery, COMPANY_NEWS_MAX_AGE_DAYS, companyNewsIn, MAX_COMPANY_NEWS } from "./company-news";
+export type { CompanyNewsArticle, CompanyNewsRequest } from "./company-news";
 export type { JobSearchQuery, QueryLanguage } from "./search-query";
 export { PROVIDER_IDS, SEARCH_TASK, TEXT_TASKS } from "./types";
 export type * from "./types";

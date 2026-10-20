@@ -30,12 +30,12 @@ describe("the Jobbbox API, from the extension", () => {
 
   it("reads a CV file and scores it against a Job Offer", async () => {
     const app = webApp({
-      "/api/cv/draft": Response.json({ masterCv: cv, searchCriteria: { targetRole: "DAF", location: "Lyon" } }),
+      "/api/cv/draft": Response.json({ masterCv: cv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } }),
       "/api/match-score": Response.json(matchScore),
     });
     const api = createJobbboxApi(WEB_ORIGIN, app.fetch);
 
-    expect(await api.readCv(new File(["%PDF"], "cv.pdf"))).toEqual({ ok: true, cv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
+    expect(await api.readCv(new File(["%PDF"], "cv.pdf"))).toEqual({ ok: true, cv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } });
     expect((app.calls[0]?.init.body as FormData).get("cv")).toBeInstanceOf(File);
     expect(await api.score("jo-1", { cv })).toEqual({ ok: true, matchScore });
     expect(JSON.parse(String(app.calls[1]?.init.body))).toEqual({ jobOfferId: "jo-1", cv });
@@ -54,14 +54,21 @@ describe("the Jobbbox API, from the extension", () => {
     expect(await api.score("jo-gone", { cv })).toEqual({ ok: false, error: "job_offer_gone" });
   });
 
+  it("reads the one place a web app from before ADR-0025 gives a CV draft", async () => {
+    const app = webApp({ "/api/cv/draft": Response.json({ masterCv: cv, searchCriteria: { targetRole: "DAF", location: " Lyon " } }) });
+    const api = createJobbboxApi(WEB_ORIGIN, app.fetch);
+
+    expect(await api.readCv(new File(["%PDF"], "cv.pdf"))).toEqual({ ok: true, cv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } });
+  });
+
   it("scores a CV with the Search Criteria read from it, only when they name a target role and a location", async () => {
     const app = webApp({ "/api/match-score": () => Response.json(matchScore) });
     const api = createJobbboxApi(WEB_ORIGIN, app.fetch);
 
-    await api.score("jo-1", { cv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
-    await api.score("jo-1", { cv, searchCriteria: { targetRole: "DAF", location: "" } });
+    await api.score("jo-1", { cv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } });
+    await api.score("jo-1", { cv, searchCriteria: { targetRole: "DAF", locations: [] } });
 
-    expect(JSON.parse(String(app.calls[0]?.init.body))).toEqual({ jobOfferId: "jo-1", cv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
+    expect(JSON.parse(String(app.calls[0]?.init.body))).toEqual({ jobOfferId: "jo-1", cv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } });
     expect(JSON.parse(String(app.calls[1]?.init.body))).toEqual({ jobOfferId: "jo-1", cv });
   });
 
@@ -129,7 +136,7 @@ describe("the Jobbbox API, from the extension", () => {
       "/api/applications": () => Response.json({ id: "a-1" }, { status: 201 }),
     });
     const api = createJobbboxApi(WEB_ORIGIN, app.fetch);
-    const searchCriteria = { targetRole: "DAF", location: "Lyon" };
+    const searchCriteria = { targetRole: "DAF", locations: ["Lyon"] };
 
     expect(await api.createProfile(cv, searchCriteria)).toEqual({ ok: true, profileId: "p-1" });
     expect(app.calls[0]?.init).toMatchObject({ method: "POST", credentials: "include", body: JSON.stringify({ masterCv: cv, searchCriteria }) });
@@ -144,7 +151,7 @@ describe("the Jobbbox API, from the extension", () => {
       webApp({ "/api/profiles": () => Response.json({ error: "plan_quota_reached", prompt }, { status: 409 }) }).fetch,
     );
 
-    expect(await api.createProfile(cv, { targetRole: "DAF", location: "Lyon" })).toEqual({
+    expect(await api.createProfile(cv, { targetRole: "DAF", locations: ["Lyon"] })).toEqual({
       ok: false,
       error: "plan_quota_reached",
       prompt: { message: prompt.message, action: "Upgrade to Standard", href: "/abonnement" },
@@ -155,12 +162,12 @@ describe("the Jobbbox API, from the extension", () => {
     const api = createJobbboxApi(
       WEB_ORIGIN,
       webApp({
-        "/api/profiles": () => Response.json({ errors: [{ field: "searchCriteria.location", code: "too_small" }] }, { status: 400 }),
+        "/api/profiles": () => Response.json({ errors: [{ field: "searchCriteria.locations", code: "required" }] }, { status: 400 }),
         "/api/applications": () => Response.json({ error: "not_found" }, { status: 404 }),
       }).fetch,
     );
 
-    expect(await api.createProfile(cv, { targetRole: "DAF", location: "" })).toEqual({ ok: false, error: "invalid" });
+    expect(await api.createProfile(cv, { targetRole: "DAF", locations: [] })).toEqual({ ok: false, error: "invalid" });
     expect(await api.saveApplication("jo-gone", "p-1")).toEqual({ ok: false, error: "not_found" });
   });
 
@@ -171,7 +178,7 @@ describe("the Jobbbox API, from the extension", () => {
     expect(await api.readCv(new File(["%PDF"], "cv.pdf"))).toEqual({ ok: false, error: "unreachable" });
     expect(await api.score("jo-1", { cv })).toEqual({ ok: false, error: "unreachable" });
     expect(await api.profiles()).toEqual({ ok: false, error: "unreachable" });
-    expect(await api.createProfile(cv, { targetRole: "DAF", location: "Lyon" })).toEqual({ ok: false, error: "unreachable" });
+    expect(await api.createProfile(cv, { targetRole: "DAF", locations: ["Lyon"] })).toEqual({ ok: false, error: "unreachable" });
     expect(await api.saveApplication("jo-1", "p-1")).toEqual({ ok: false, error: "unreachable" });
   });
 });

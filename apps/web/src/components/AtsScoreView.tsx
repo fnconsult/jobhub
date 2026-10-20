@@ -13,12 +13,15 @@ export function AtsScoreView({
   targetRole,
   currentVersion,
   atsScore,
+  proposalsHref,
   t,
 }: {
   profileId: string;
   targetRole: string;
   currentVersion: number;
   atsScore: KeptAtsScore | null;
+  /** Where the Action Cards about the Profile are, while there are some and not on this page. */
+  proposalsHref?: string | null;
   t: T;
 }) {
   return (
@@ -28,7 +31,7 @@ export function AtsScoreView({
       </div>
       <p>{t("atsScore.intro", { role: targetRole })}</p>
       {atsScore ? <Breakdown atsScore={atsScore} currentVersion={currentVersion} t={t} /> : <p>{t("atsScore.notYet")}</p>}
-      <AtsScoreButton profileId={profileId} computed={atsScore !== null} />
+      <AtsScoreButton profileId={profileId} computed={atsScore !== null} proposalsHref={proposalsHref} />
     </section>
   );
 }

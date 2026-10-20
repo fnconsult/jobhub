@@ -1,8 +1,9 @@
 import type { AgentModelChoice } from "@jobhub/ai";
+import { builtInInstructions, TASK_PLAYBOOKS } from "@jobhub/coach-knowledge/tasks";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createThrowawayDatabase, type ThrowawayDatabase } from "../test-support/throwaway-database";
-import { importedPlaybooks } from "./import";
+import { importedPlaybooks, IMPORT_VALIDATOR } from "./import";
 import {
   CORE_DIGEST,
   createCoachingPlaybooks,
@@ -15,15 +16,25 @@ import {
 
 const connectionString = process.env.DATABASE_URL;
 
-/** The EU-resident models the AI layer offers in these tests. */
+/** The text models the AI layer offers in these tests, one outside the EU. */
 const MODELS: AgentModelChoice[] = [
-  { provider: "mistral", endpoint: "api.mistral.ai", models: [{ model: "mistral-large-latest", effort: "ignored" }, { model: "mistral-medium-3-5", effort: "medium_as_high" }] },
-  { provider: "anthropic", endpoint: "bedrock eu-west-3", models: [{ model: "anthropic.claude-opus-5-5", effort: "native" }] },
+  { provider: "mistral", endpoint: "api.mistral.ai", residency: "eu", models: [{ model: "mistral-large-latest", effort: "ignored", residency: "eu" }, { model: "mistral-medium-3-5", effort: "medium_as_high", residency: "eu" }] },
+  { provider: "anthropic", endpoint: "bedrock eu-west-3", residency: "eu", models: [{ model: "anthropic.claude-opus-5-5", effort: "native", residency: "eu" }] },
+  { provider: "openai", endpoint: "api.openai.com", residency: "outside_eu", models: [{ model: "gpt-5", effort: "native", residency: "outside_eu" }] },
+];
+
+/** The web-search providers the AI layer offers in these tests (ADR-0026). */
+const SEARCH_MODELS: AgentModelChoice[] = [
+  { provider: "perplexity", endpoint: "api.perplexity.ai", residency: "outside_eu", defaultModel: "sonar", models: [{ model: "sonar", effort: "ignored", residency: "outside_eu" }] },
+  { provider: "tavily", endpoint: "api.tavily.com", residency: "outside_eu", defaultModel: "basic", models: [{ model: "basic", effort: "ignored", residency: "outside_eu" }, { model: "advanced", effort: "ignored", residency: "outside_eu" }] },
 ];
 
 const SOURCES = ["# Sources", "", "| ID | Titre | Auteur | Année | URL | Licence |", "|--|--|--|--|--|--|", "| S1 | Étude 1 | Apec | 2026 | https://apec.fr/1 | publique |", "| S2 | Étude 2 | Dares | 2025 | https://dares.fr/2 | publique |", "| S3 | Étude 3 | OCDE | 2019 | https://oecd.org/3 | publique |"].join("\n");
 
 const agent = { provider: "mistral" as const, model: "mistral-medium-3-5", effort: "medium" as const, consultWhen: "Quand le candidat prépare un entretien." };
+
+/** A task Playbook's Playbook Agent: no effort (the model's own), never consulted by the AI Coach. */
+const taskAgent = { provider: "mistral" as const, model: "mistral-medium-3-5", effort: null, consultWhen: "" };
 
 const SEED: PlaybookSeed = {
   sources: SOURCES,
@@ -31,6 +42,12 @@ const SEED: PlaybookSeed = {
   playbooks: [
     { id: "interview-psychology", content: "# Psychologie de l'entretien\n\n**R1. Respirez.** [S2]", agent },
     { id: "ats-optimization", content: "# Optimiser son CV pour les ATS\n\n**R1. Des mots-clés.** [S1]", agent: { ...agent, consultWhen: "Quand il est question d'ATS." } },
+  ],
+  tasks: [
+    { id: "cv-reading", content: builtInInstructions("cv-reading"), agent: taskAgent, validatedBy: "François Nader" },
+    { id: "job-offer-reading", content: builtInInstructions("job-offer-reading"), agent: taskAgent, validatedBy: null },
+    { id: "tailored-cv", content: builtInInstructions("tailored-cv"), agent: taskAgent, validatedBy: "François Nader" },
+    { id: "company-facts-search", content: builtInInstructions("company-facts-search"), agent: null, validatedBy: "François Nader" },
   ],
 };
 
@@ -40,7 +57,7 @@ const paul = { email: "paul@jobbbox.fr", name: "Paul Martin" };
 describe.skipIf(!connectionString)("Coaching Playbooks, versioned in the database (needs Postgres: DATABASE_URL)", () => {
   let throwaway: ThrowawayDatabase;
   let database: Pool;
-  const playbooksFor = (serving: PlaybookServing) => createCoachingPlaybooks(database, { serving, agentModels: () => MODELS });
+  const playbooksFor = (serving: PlaybookServing) => createCoachingPlaybooks(database, { serving, agentModels: () => MODELS, searchModels: () => SEARCH_MODELS });
   let playbooks: CoachingPlaybooks;
 
   beforeEach(async () => {
@@ -59,7 +76,7 @@ describe.skipIf(!connectionString)("Coaching Playbooks, versioned in the databas
     it("makes version 1 of each Coaching Playbook, of the Core Digest and of the Sources list, none of them Human-validated", async () => {
       const listed = await playbooks.list();
 
-      expect(listed.map((playbook) => [playbook.id, playbook.kind, playbook.latest.version, playbook.latest.validation])).toEqual([
+      expect(listed.filter((playbook) => playbook.kind !== "task").map((playbook) => [playbook.id, playbook.kind, playbook.latest.version, playbook.latest.validation])).toEqual([
         [CORE_DIGEST, "core_digest", 1, null],
         [SOURCES_LIST, "sources", 1, null],
         ["ats-optimization", "playbook", 1, null],
@@ -138,10 +155,12 @@ describe.skipIf(!connectionString)("Coaching Playbooks, versioned in the databas
       expect(await playbooks.save(claire, "ats-optimization", input)).toEqual({ ok: false, error: "invalid" });
     });
 
-    it("lets a Playbook Agent use only an EU-resident model the AI layer offers", async () => {
-      expect(await playbooks.save(claire, "ats-optimization", { content: "# ATS", ...agent, provider: "openai", model: "gpt-5" })).toEqual({ ok: false, error: "model_not_allowed" });
+    it("lets a Playbook Agent use only a model the AI layer offers, outside the EU too", async () => {
+      expect(await playbooks.save(claire, "ats-optimization", { content: "# ATS", ...agent, provider: "openai", model: "gpt-4" })).toEqual({ ok: false, error: "model_not_allowed" });
+      expect(await playbooks.save(claire, "ats-optimization", { content: "# ATS", ...agent, provider: "perplexity", model: "" })).toEqual({ ok: false, error: "model_not_allowed" });
       expect(await playbooks.save(claire, "ats-optimization", { content: "# ATS", ...agent, model: "mistral-tiny" })).toEqual({ ok: false, error: "model_not_allowed" });
       expect(await playbooks.save(claire, "ats-optimization", { content: "# ATS", ...agent, provider: "anthropic", model: "anthropic.claude-opus-5-5" })).toMatchObject({ ok: true });
+      expect(await playbooks.save(claire, "ats-optimization", { content: "# ATS", ...agent, provider: "openai", model: "gpt-5" })).toMatchObject({ ok: true, version: { agent: { provider: "openai", model: "gpt-5" } } });
     });
 
     it("says when a playbook does not exist", async () => {
@@ -253,6 +272,151 @@ describe.skipIf(!connectionString)("Coaching Playbooks, versioned in the databas
       expect(await playbooks.create(claire, { id: CORE_DIGEST, content: "# Socle", ...agent })).toEqual({ ok: false, error: "exists" });
       expect(await playbooks.create(claire, { id: "Salaire !", content: "# Salaire", ...agent })).toEqual({ ok: false, error: "invalid" });
       expect(await playbooks.create(claire, { id: "salaire", content: "# Salaire [S77]", ...agent })).toEqual({ ok: false, error: "unknown_sources", sources: ["S77"] });
+    });
+  });
+
+  describe("task Playbooks (ADR-0026)", () => {
+    const taskIds = async (each: CoachingPlaybooks) => (await each.list()).filter((playbook) => playbook.kind === "task").map((playbook) => playbook.id);
+    /** A task Playbook's form: its text and the model running it, no effort ("": the model's own), no "when to consult it". */
+    const taskForm = (content: string, fields: Record<string, string> = {}) => ({ content, provider: "mistral", model: "mistral-medium-3-5", effort: "", ...fields });
+
+    it("are imported as version 1 by \"import\": the existing tasks Human-validated under the name given, the Job Offer Summary's not", async () => {
+      const listed = (await playbooks.list()).filter((playbook) => playbook.kind === "task");
+
+      // Listed after the coaching knowledge, in the order the code lists its tasks, titled as the code names them.
+      expect(listed.map((playbook) => playbook.id)).toEqual(["job-offer-reading", "cv-reading", "tailored-cv", "company-facts-search"]);
+      expect(listed.find((playbook) => playbook.id === "cv-reading")).toMatchObject({
+        title: "Lire un CV importé",
+        latest: { version: 1, authors: ["import"], agent: taskAgent, validation: { name: "François Nader", email: "import" } },
+      });
+      expect(listed.find((playbook) => playbook.id === "job-offer-reading")).toMatchObject({ title: "Lire une offre d'emploi : résumé et secteur", latest: { validation: null } });
+      expect(listed.find((playbook) => playbook.id === "company-facts-search")?.latest).toMatchObject({ agent: null, search: null });
+    });
+
+    it("of the code's tasks: each existing one validated by François Nader, run on the task's route with no effort, a web-search query by no Playbook Agent", () => {
+      const { tasks } = importedPlaybooks({ AI_WRITING_PROVIDER: "mistral", AI_WRITING_MODEL: "mistral-medium-3-5" });
+
+      expect(tasks.map((task) => task.id)).toEqual(TASK_PLAYBOOKS.map((task) => task.id));
+      expect(tasks.filter((task) => task.validatedBy === null).map((task) => task.id)).toEqual(["job-offer-reading"]);
+      expect(tasks.find((task) => task.id === "cv-reading")?.validatedBy).toBe(IMPORT_VALIDATOR);
+      expect(IMPORT_VALIDATOR).toBe("François Nader");
+      expect(tasks.find((task) => task.id === "tailored-cv")?.agent).toEqual({ provider: "mistral", model: "mistral-medium-3-5", effort: null, consultWhen: "" });
+      expect(tasks.find((task) => task.id === "cv-reading")?.agent).toMatchObject({ provider: "anthropic", model: null, effort: null });
+      expect(tasks.filter((task) => task.agent === null).map((task) => task.id)).toEqual(["company-facts-search", "company-news-search"]);
+      for (const task of tasks) expect(task.content, task.id).toBe(builtInInstructions(task.id as never));
+    });
+
+    it("are added, once, to a database migrated before they existed, leaving its coaching knowledge as it was", async () => {
+      const old = await createThrowawayDatabase("test_task_playbooks_seed");
+      try {
+        // A database migrated before task Playbooks: the coaching knowledge only, and the kinds it allowed then.
+        await migrateCoachingPlaybooks(old.pool, () => ({ ...SEED, tasks: [] }));
+        await old.pool.query(`ALTER TABLE coaching_playbook DROP CONSTRAINT coaching_playbook_kind_check;
+          ALTER TABLE coaching_playbook ADD CONSTRAINT coaching_playbook_kind_check CHECK (kind IN ('playbook', 'core_digest', 'sources'))`);
+        const before = createCoachingPlaybooks(old.pool, { serving: "latest", agentModels: () => MODELS });
+        await before.save(claire, "ats-optimization", { content: "# ATS\n\n**R1. Autre.** [S1]", ...agent });
+
+        await migrateCoachingPlaybooks(old.pool, () => SEED);
+        const after = createCoachingPlaybooks(old.pool, { serving: "validated", agentModels: () => MODELS });
+        expect(await taskIds(after)).toEqual(["job-offer-reading", "cv-reading", "tailored-cv", "company-facts-search"]);
+        expect((await after.list()).find((playbook) => playbook.id === "ats-optimization")?.latest.content).toBe("# ATS\n\n**R1. Autre.** [S1]");
+        expect(await after.servedTask("cv-reading")).toMatchObject({ version: 1, content: builtInInstructions("cv-reading") });
+
+        // Safe to run again: a task Playbook changed since is kept, none is added twice, a new one is added.
+        await after.save(claire, "cv-reading", taskForm("Lis le CV."));
+        await migrateCoachingPlaybooks(old.pool, () => ({ ...SEED, tasks: [...SEED.tasks, { id: "coach-memory", content: builtInInstructions("coach-memory"), agent: taskAgent, validatedBy: "François Nader" }] }));
+        await migrateCoachingPlaybooks(old.pool, () => SEED);
+        expect((await after.history("cv-reading"))?.versions.map((version) => [version.version, version.content])).toEqual([
+          [2, "Lis le CV."],
+          [1, builtInInstructions("cv-reading")],
+        ]);
+        expect(await taskIds(after)).toEqual(["job-offer-reading", "cv-reading", "tailored-cv", "coach-memory", "company-facts-search"]);
+      } finally {
+        await old.drop();
+      }
+    }, 60_000);
+
+    it("are never served to the AI Coach, nor chosen as its Playbook Agents", async () => {
+      expect((await playbooks.served()).playbooks.map((playbook) => playbook.id)).toEqual(["ats-optimization", "interview-psychology"]);
+    });
+
+    it("serve, in production, the latest Human-validated version: none for the Job Offer Summary until a person validates it", async () => {
+      const production = playbooksFor("validated");
+      expect(await production.servedTask("job-offer-reading")).toBeNull();
+      expect(await production.servedTask("cv-reading")).toEqual({ id: "cv-reading", version: 1, content: builtInInstructions("cv-reading"), agent: taskAgent, search: null });
+
+      // A change makes version 2, not served until validated by someone other than its author.
+      await production.save(claire, "cv-reading", taskForm("Lis le CV.", { effort: "high" }));
+      expect(await production.servedTask("cv-reading")).toMatchObject({ version: 1 });
+      expect(await production.validate({ ...claire, name: "Claire" }, "cv-reading", 2)).toEqual({ ok: false, error: "own_version" });
+      await production.validate(paul, "cv-reading", 2);
+      expect(await production.servedTask("cv-reading")).toEqual({ id: "cv-reading", version: 2, content: "Lis le CV.", agent: { ...taskAgent, effort: "high" }, search: null });
+
+      await production.validate(paul, "job-offer-reading", 1);
+      expect(await production.servedTask("job-offer-reading")).toMatchObject({ version: 1, content: builtInInstructions("job-offer-reading") });
+    });
+
+    it("serve, elsewhere, the latest version, validated or not; none when archived, nor for an id that is no task Playbook", async () => {
+      expect(await playbooks.servedTask("job-offer-reading")).toMatchObject({ version: 1 });
+      await playbooks.save(claire, "job-offer-reading", taskForm("- \"summary\" : une phrase."));
+      expect(await playbooks.servedTask("job-offer-reading")).toMatchObject({ version: 1, content: '- "summary" : une phrase.' });
+
+      expect(await playbooks.setArchived("job-offer-reading", true)).toEqual({ ok: true, changed: true, version: 1 });
+      expect(await playbooks.servedTask("job-offer-reading")).toBeNull();
+      expect(await playbooks.servedTask("ats-optimization")).toBeNull();
+      expect(await playbooks.servedTask("core-digest")).toBeNull();
+    });
+
+    it("take a Playbook Agent with no \"when to consult it\", and an effort or none; a web-search query takes none", async () => {
+      expect(await playbooks.save(claire, "cv-reading", taskForm("Lis le CV.", { consultWhen: "Jamais lu" }))).toMatchObject({
+        ok: true,
+        newVersion: true,
+        version: { version: 2, agent: { provider: "mistral", model: "mistral-medium-3-5", effort: null, consultWhen: "" } },
+      });
+      expect(await playbooks.save(claire, "cv-reading", taskForm("Lis le CV.", { effort: "max" }))).toEqual({ ok: false, error: "invalid" });
+      expect(await playbooks.save(claire, "cv-reading", taskForm("Lis le CV.", { provider: "openai", model: "gpt-4" }))).toEqual({ ok: false, error: "model_not_allowed" });
+      expect(await playbooks.save(claire, "company-facts-search", { content: "Qui est {{entreprise}} ?", provider: "mistral" })).toMatchObject({ ok: true, version: { agent: null } });
+    });
+
+    it("searching the web, take a web-search provider and model among those offered; none is the configured web-search route", async () => {
+      const facts = "Qui est {{entreprise}} ?";
+      expect(await playbooks.save(claire, "company-facts-search", { content: facts, searchProvider: "tavily", searchModel: "advanced" })).toMatchObject({
+        ok: true,
+        version: { version: 2, agent: null, search: { provider: "tavily", model: "advanced" } },
+      });
+      expect(await playbooks.servedTask("company-facts-search")).toMatchObject({ search: { provider: "tavily", model: "advanced" } });
+      // Imported Human-validated: the change made version 2, then edited in place.
+      expect(await playbooks.save(claire, "company-facts-search", { content: facts, searchProvider: "perplexity", searchModel: "" })).toMatchObject({ ok: true, version: { search: { provider: "perplexity", model: null } } });
+      expect(await playbooks.save(claire, "company-facts-search", { content: facts, searchProvider: "", searchModel: "" })).toMatchObject({ ok: true, version: { search: null } });
+
+      expect(await playbooks.save(claire, "company-facts-search", { content: facts, searchProvider: "tavily", searchModel: "ultra" })).toEqual({ ok: false, error: "model_not_allowed" });
+      expect(await playbooks.save(claire, "company-facts-search", { content: facts, searchProvider: "brave" })).toEqual({ ok: false, error: "model_not_allowed" });
+      expect(await playbooks.save(claire, "company-facts-search", { content: facts, searchProvider: "mistral" })).toEqual({ ok: false, error: "model_not_allowed" });
+      expect(await playbooks.save(claire, "company-facts-search", { content: facts, searchProvider: "bing" })).toEqual({ ok: false, error: "invalid" });
+      // A task that runs no web search keeps none, whatever the form says.
+      expect(await playbooks.save(claire, "cv-reading", taskForm("Lis le CV.", { searchProvider: "tavily" }))).toMatchObject({ ok: true, version: { search: null } });
+    });
+
+    it("make a new version, once Human-validated, when only the web-search provider changes; none when it stays", async () => {
+      const content = builtInInstructions("company-facts-search");
+      expect(await playbooks.save(claire, "company-facts-search", { content })).toEqual({ ok: false, error: "unchanged" });
+
+      expect(await playbooks.save(claire, "company-facts-search", { content, searchProvider: "tavily" })).toMatchObject({ ok: true, newVersion: true, version: { version: 2, search: { provider: "tavily", model: null } } });
+      expect(await playbooks.save(claire, "company-facts-search", { content, searchProvider: "tavily" })).toEqual({ ok: false, error: "unchanged" });
+      expect((await playbooks.history("company-facts-search"))?.versions.map((version) => version.search)).toEqual([{ provider: "tavily", model: null }, null]);
+    });
+
+    it("refuse a text lacking a section or a {{slot}} its task reads, or too long for a web-search query", async () => {
+      expect(await playbooks.save(claire, "tailored-cv", taskForm("## fr\n\nAdapte le CV."))).toEqual({ ok: false, error: "task_instructions", problems: ["## en"] });
+      expect(await playbooks.save(claire, "company-facts-search", { content: "Qui est cette entreprise ?" })).toEqual({ ok: false, error: "task_instructions", problems: ["{{entreprise}}"] });
+      expect(await playbooks.save(claire, "company-facts-search", { content: `{{entreprise}} ${"x".repeat(600)}` })).toEqual({ ok: false, error: "task_instructions", problems: ["length"] });
+      // A task Playbook cites no Source: "[S9]" is just text.
+      expect(await playbooks.save(claire, "cv-reading", taskForm("Lis le CV [S9]."))).toMatchObject({ ok: true });
+    });
+
+    it("are never created in the Back Office: their ids stay the code's", async () => {
+      expect(await playbooks.create(claire, { id: "cv-reading", content: "# CV", ...agent })).toEqual({ ok: false, error: "exists" });
+      expect(await playbooks.create(claire, { id: "coach-memory", content: "# Mémoire", ...agent })).toEqual({ ok: false, error: "exists" });
     });
   });
 });

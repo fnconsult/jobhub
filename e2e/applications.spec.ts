@@ -13,6 +13,9 @@ import { subscribe } from "./support/plan";
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
 
+/** The link to one of an Application's Sections (ADR-0024). */
+const sectionLink = (page: Page, name: string) => page.getByRole("navigation", { name: fr.application.sections.sectionsLabel }).getByRole("link", { name });
+
 const unique = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 const masterCv = {
@@ -30,7 +33,7 @@ const masterCv = {
 
 async function createProfile(page: Page, targetRole: string, minSalary = 110_000): Promise<string> {
   const saved = await page.request.post("/api/profiles", {
-    data: { masterCv, searchCriteria: { targetRole, location: "Lyon", minSalary, contractType: "cdi" } },
+    data: { masterCv, searchCriteria: { targetRole, locations: ["Lyon"], minSalary, contractTypes: ["cdi"] } },
     headers: { origin },
   });
   expect(saved.status(), await saved.text()).toBe(201);
@@ -83,11 +86,16 @@ test.describe("Applications", () => {
     await expect(page).toHaveTitle(`Directeur administratif et financier (H/F) · ${fr.app.name}`);
     await expect(page.getByLabel(fr.application.statusLabel)).toHaveValue("to_apply");
     await expect(page.getByLabel(fr.application.profileLabel)).toHaveValue(consultantId);
+    // Each in a Section of its own (ADR-0024).
+    await sectionLink(page, fr.application.sections.offre).click();
+    await expect(page).toHaveURL(/\/candidatures\/[0-9a-f-]{36}\/offre$/);
     const offer = page.getByRole("region", { name: fr.jobOffer.contentTitle });
     await expect(offer.getByRole("heading", { name: "Vos missions :" })).toBeVisible();
     await expect(offer.getByRole("listitem")).toHaveText(["Piloter la clôture des comptes", "Encadrer une équipe de 12 personnes"]);
     await expect(offer.getByRole("heading", { name: "PROFIL RECHERCHÉ" })).toBeVisible();
-    await expect(page.getByRole("region", { name: fr.jobOffer.details }).getByText("Acme Industrie", { exact: true })).toBeVisible();
+    // Its facts are in the page's header, framed (ADR-0024).
+    await expect(page.locator(`dl[aria-label="${fr.jobOffer.details}"]`).getByText("Acme Industrie", { exact: true })).toBeVisible();
+    await sectionLink(page, fr.application.sections.correspondance).click();
     const score = page.getByRole("region", { name: fr.matchScore.title });
     await expect(score.getByText(/^\d{1,3}\s?\/\s?100$/)).toBeVisible();
     await expect(score.getByText("Power BI")).toBeVisible(); // the missing skill
@@ -141,6 +149,7 @@ test.describe("Applications", () => {
     // Saved: the Application page gives the same score, and the Job Offer page shows the Application's.
     await page.getByRole("button", { name: fr.jobOffer.save }).click();
     await expect(page).toHaveURL(/\/candidatures\/[0-9a-f-]{36}$/);
+    await sectionLink(page, fr.application.sections.correspondance).click();
     await expect(page.getByRole("region", { name: fr.matchScore.title }).getByText("80 / 100", { exact: true })).toBeVisible();
     await page.goto(`/offres/${jobOfferId}`);
     await expect(page.getByText(fr.jobOffer.alreadySaved)).toBeVisible();
@@ -170,6 +179,13 @@ test.describe("Applications", () => {
     const toApply = page.getByRole("region", { name: fr.applicationStatuses.to_apply });
     await expect(toApply.getByRole("link", { name: /Contrôleur de gestion senior/ })).toBeVisible();
     await toApply.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.abandoned });
+    // Abandonnée is an end state: an Archived Application, hidden until the Candidate asks for them.
+    await expect(page.getByText(fr.applications.archivedHidden_one.replace("{{count}}", "1"))).toBeVisible();
+    await expect(page.getByRole("link", { name: /Contrôleur/ })).toHaveCount(0);
+    const filters = page.getByRole("form", { name: fr.applications.filtersLabel });
+    await filters.getByLabel(fr.applications.showArchived).check();
+    await filters.getByRole("button", { name: fr.applications.filter }).click();
+    await expect(page).toHaveURL(`${origin}/candidatures?vue=tableau&archivees=1`);
     await expect(page.getByRole("region", { name: fr.applicationStatuses.abandoned }).getByRole("link", { name: /Contrôleur/ })).toBeVisible();
 
     // The board's text meets the accessibility floor (ADR-0009).
@@ -219,7 +235,7 @@ test.describe("Applications", () => {
     await signInWithMagicLink(page, newAddress("application-interviews"));
     const applicationId = await saveApplication(page, await captureOffer(page), await createProfile(page, "DAF"));
 
-    await page.goto(`/candidatures/${applicationId}`);
+    await page.goto(`/candidatures/${applicationId}/entretiens`);
     await expect(page.getByRole("button", { name: fr.application.addInterview })).toHaveCount(0);
     await page.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.interview });
 
@@ -244,7 +260,7 @@ test.describe("Applications", () => {
   test("an Interview is added, edited and removed (QA plan case 4.7, #167)", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("application-interview-edit"));
     const applicationId = await saveApplication(page, await captureOffer(page), await createProfile(page, "DAF"));
-    await page.goto(`/candidatures/${applicationId}`);
+    await page.goto(`/candidatures/${applicationId}/entretiens`);
     await page.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.interview });
     const interviews = page.getByRole("region", { name: fr.application.interviewsTitle });
     await interviews.getByLabel(fr.application.interviewDate).fill("2026-11-12T14:30");
@@ -297,7 +313,7 @@ test.describe("Applications", () => {
     const consultantId = await createProfile(page, "Consultant transformation");
     const applicationId = await saveApplication(page, await captureOffer(page), dafId);
 
-    await page.goto(`/candidatures/${applicationId}`);
+    await page.goto(`/candidatures/${applicationId}/correspondance`);
     const score = page.getByRole("region", { name: fr.matchScore.title });
     await expect(score).toContainText("« DAF »");
     await page.getByLabel(fr.application.profileLabel).selectOption({ label: "Consultant transformation" });
@@ -351,7 +367,7 @@ test.describe("Applications", () => {
     expect(early.status()).toBe(409);
     expect((await early.json()).error).toBe("not_in_interview");
 
-    await page.goto(`/candidatures/${applicationId}`);
+    await page.goto(`/candidatures/${applicationId}/entretiens`);
     await expect(page.getByText(fr.application.interviewsHint)).toBeVisible();
     await page.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.interview });
     const interviews = page.getByRole("region", { name: fr.application.interviewsTitle });

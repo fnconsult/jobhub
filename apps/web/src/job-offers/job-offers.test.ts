@@ -251,4 +251,99 @@ describe.skipIf(!connectionString)("Job Offers (needs Postgres: DATABASE_URL)", 
       expect(await jobOffers.fillFromText("00000000-0000-4000-8000-000000000000", async () => ({}))).toBeNull();
     });
   });
+
+  describe("the Job Offer Summary", () => {
+    const capturedId = async (input: object = { title: "Finance Director", content: "Lead a team of 12 in London." }) => {
+      const captured = await jobOffers.capture(input);
+      if (!captured.ok) throw new Error("fixture Job Offer refused");
+      return captured.jobOffer.id;
+    };
+
+    it("is stored with the fields read from the text, its spacing tidied, and kept when the text is read for a Match Score", async () => {
+      const id = await capturedId();
+
+      const filled = await jobOffers.fillFromText(id, async () => ({ location: "London", summary: " Lead a team\nof 12 in London. " }));
+
+      expect(filled).toMatchObject({ location: "London", summary: "Lead a team of 12 in London." });
+      expect(await jobOffers.get(id)).toMatchObject({ summary: "Lead a team of 12 in London." });
+    });
+
+    it("is read once, with the fields the offer lacks, and a second call at the same time waits for the first one's", async () => {
+      const id = await capturedId();
+      let reads = 0;
+      const read = async () => {
+        reads += 1;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        return { employer: "Acme", summary: "Acme seeks a Finance Director to lead a team of 12." };
+      };
+
+      const [first, second] = await Promise.all([jobOffers.summarize(id, read), jobOffers.summarize(id, read)]);
+      const later = await jobOffers.summarize(id, read);
+
+      expect(first).toMatchObject({ employer: "Acme", summary: "Acme seeks a Finance Director to lead a team of 12." });
+      expect(second).toEqual(first);
+      expect(later).toEqual(first);
+      expect(reads).toBe(1);
+    });
+
+    it("is read for an offer whose fields were read before there were summaries, never replacing a field stated", async () => {
+      const id = await capturedId({ title: "DAF", content: "Poste de DAF à Lyon.", employer: "Groupe Seb" });
+      await jobOffers.fillFromText(id, async () => ({ location: "Lyon" }));
+      await throwaway.pool.query(`UPDATE job_offer SET summary_read_at = NULL WHERE id = $1`, [id]);
+
+      const summarized = await jobOffers.summarize(id, async () => ({ employer: "Autre", summary: "Poste de DAF à Lyon." }));
+
+      expect(summarized).toMatchObject({ employer: "Groupe Seb", location: "Lyon", summary: "Poste de DAF à Lyon." });
+    });
+
+    it("comes with the employer's sector, and an offer summarized before there were sectors is read once more for it", async () => {
+      const id = await capturedId({ title: "Consultant", content: "Cabinet de conseil en stratégie.", employer: "Acme Conseil" });
+      await jobOffers.summarize(id, async () => ({ summary: "Poste de consultant." }));
+      await throwaway.pool.query(`UPDATE job_offer SET sector = NULL, subsector = NULL, sector_read_at = NULL WHERE id = $1`, [id]);
+      let reads = 0;
+      const read = async () => {
+        reads += 1;
+        return { summary: "Autre résumé.", sector: "Conseil", subsector: "Stratégie et transformation" };
+      };
+
+      expect(await jobOffers.summarize(id, read)).toMatchObject({ summary: "Poste de consultant.", sector: "Conseil", subsector: "Stratégie et transformation" });
+      expect(await jobOffers.summarize(id, read)).toMatchObject({ sector: "Conseil" });
+      expect(reads).toBe(1);
+    });
+
+    it("is not asked for again after a read giving none of the right shape, and is asked for again after a failed read", async () => {
+      const id = await capturedId();
+      await expect(jobOffers.summarize(id, async () => Promise.reject(new Error("down")))).rejects.toThrow("down");
+      let reads = 0;
+      const tooLong = async () => {
+        reads += 1;
+        return { summary: "x".repeat(601) };
+      };
+
+      expect(await jobOffers.summarize(id, tooLong)).not.toHaveProperty("summary");
+      expect(await jobOffers.summarize(id, tooLong)).not.toHaveProperty("summary");
+      expect(reads).toBe(1);
+      expect(await jobOffers.summarize("00000000-0000-4000-8000-000000000000", tooLong)).toBeNull();
+    });
+
+    it("comes as a trusted fact with a posting Job discovery read, never from the posting a browser sends", async () => {
+      const fromBrowser = await jobOffers.capture({ ...posting, summary: "Écrit par le navigateur." });
+      expect(fromBrowser.ok && fromBrowser.jobOffer).not.toHaveProperty("summary");
+
+      const read = await jobOffers.capture(posting, "candidate", { summary: "Le groupe recrute son DAF." });
+      expect(read.ok && read.jobOffer).toMatchObject({ summary: "Le groupe recrute son DAF." });
+      let reads = 0;
+      expect(await jobOffers.summarize(read.ok ? read.jobOffer.id : "", async () => ((reads += 1), {}))).toMatchObject({ summary: "Le groupe recrute son DAF." });
+      expect(reads).toBe(0);
+    });
+
+    it("survives the table's migration run again", async () => {
+      const id = await capturedId();
+      await jobOffers.summarize(id, async () => ({ summary: "Lead a team of 12 in London." }));
+
+      await migrateJobOffers(throwaway.pool);
+
+      expect(await jobOffers.get(id)).toMatchObject({ summary: "Lead a team of 12 in London." });
+    });
+  });
 });

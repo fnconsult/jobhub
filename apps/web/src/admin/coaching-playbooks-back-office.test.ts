@@ -26,7 +26,12 @@ describe.skipIf(!connectionString)("Coaching Playbooks' Back Office writes and t
   beforeEach(async () => {
     testAuth = await startTestAuth();
     database = testAuth.database;
-    await migrateCoachingPlaybooks(database, () => ({ sources: SOURCES, coreDigest: "# Socle [S1]", playbooks: [{ id: "interview-psychology", content: "# Entretiens [S1]", agent }] }));
+    await migrateCoachingPlaybooks(database, () => ({
+      sources: SOURCES,
+      coreDigest: "# Socle [S1]",
+      playbooks: [{ id: "interview-psychology", content: "# Entretiens [S1]", agent }],
+      tasks: [{ id: "coach-memory", content: "Propose les faits.", agent: { ...agent, effort: null, consultWhen: "" }, validatedBy: "François Nader" }],
+    }));
     await migrateBackOfficeAudit(database);
     const unused = async () => {
       throw new Error("not used here");
@@ -35,7 +40,7 @@ describe.skipIf(!connectionString)("Coaching Playbooks' Back Office writes and t
       billing: { setPlanQuotas: unused, createPlan: unused, updatePlan: unused, movePlan: unused, checkStripeProduct: unused, plans: unused, createCoupon: unused, deactivateCoupon: unused, reactivateCoupon: unused },
       humanCoaches: { add: unused, retire: unused },
     });
-    playbooks = createCoachingPlaybooks(database, { serving: "latest", agentModels: () => [{ provider: "mistral", endpoint: "api.mistral.ai", models: [{ model: "mistral-medium-3-5", effort: "medium_as_high" }] }] });
+    playbooks = createCoachingPlaybooks(database, { serving: "latest", agentModels: () => [{ provider: "mistral", endpoint: "api.mistral.ai", residency: "eu", models: [{ model: "mistral-medium-3-5", effort: "medium_as_high", residency: "eu" }] }] });
     changes = createCoachingPlaybooksBackOffice(playbooks, backOffice);
     claire = await actor("claire@jobbbox.fr", "Claire Martin");
     paul = await actor("paul@jobbbox.fr", "Paul Durand");
@@ -95,6 +100,26 @@ describe.skipIf(!connectionString)("Coaching Playbooks' Back Office writes and t
 
     expect(await entries()).toEqual([
       { email: "claire@jobbbox.fr", section: "coaching_playbooks", target: "core-digest", action: "updated", before: { version: 1, rulesCharacters: 12 }, after: { version: 1, rulesCharacters: 17 } },
+    ]);
+  });
+
+  it("records a task Playbook's versions, validation and archive like any other's (ADR-0026)", async () => {
+    expect(await changes.save(claire, "coach-memory", { content: "Propose les faits clés.", provider: "mistral", model: "", effort: "" })).toMatchObject({ ok: true, newVersion: true });
+    expect(await changes.validate(paul, "coach-memory", 2)).toMatchObject({ ok: true });
+    expect(await changes.setArchived(paul, "coach-memory", true)).toEqual({ ok: true, changed: true, version: 2 });
+
+    const task = { provider: "mistral", model: null, effort: null, consultWhen: "" };
+    expect(await entries()).toEqual([
+      {
+        email: "claire@jobbbox.fr",
+        section: "coaching_playbooks",
+        target: "coach-memory",
+        action: "updated",
+        before: { version: 1, ...task, model: "mistral-medium-3-5", rulesCharacters: 18 },
+        after: { version: 2, ...task, rulesCharacters: 23 },
+      },
+      expect.objectContaining({ email: "paul@jobbbox.fr", target: "coach-memory", action: "validated", after: expect.objectContaining({ version: 2, validatedBy: "Paul Durand" }) }),
+      expect.objectContaining({ email: "paul@jobbbox.fr", target: "coach-memory", action: "archived" }),
     ]);
   });
 });

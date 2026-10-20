@@ -16,13 +16,14 @@ const isUnder = (pathname: string, path: string) => pathname === path || pathnam
  * the sections an Administrator's roles cover, by group, each group named; the
  * Back Office Assistant in the top bar, on every page. `groups` holds only what they may see.
  */
-export function BackOfficeSidebarLayout({ groups, children }: { groups: ReadonlyArray<BackOfficeNavGroup>; children: ReactNode }) {
+export function BackOfficeSidebarLayout({ groups, title, children }: { groups: ReadonlyArray<BackOfficeNavGroup>; title?: ReactNode; children: ReactNode }) {
   const { t } = useTranslation();
   const pathname = usePathname();
 
   return (
     <SidebarShell
       brand={{ href: routes.admin, label: `${t("app.name")} · ${t("admin.title")}` }}
+      title={title}
       nav={(closeDrawer) => (
         <nav className="sidebar-nav" aria-label={t("admin.nav.label")}>
           {groups.map((group) => (

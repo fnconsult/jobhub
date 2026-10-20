@@ -43,8 +43,7 @@ export default async function HumanCoachesAdminPage({ searchParams }: { searchPa
   const coaches = await getHumanCoaches().list();
 
   return (
-    <BackOfficeLayout access={access}>
-      <h1>{t("admin.humanCoaches.title")}</h1>
+    <BackOfficeLayout access={access} title={t("admin.humanCoaches.title")}>
       <p className="lead">{t("admin.humanCoaches.intro")}</p>
       {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}
       {added ? (

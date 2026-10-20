@@ -10,7 +10,7 @@ import { paymentFailedNotice } from "@/billing/payment-failed-notice";
 import { planPriceLabel } from "@/billing/plan-price";
 import { planQuotaValue } from "@/billing/quota-labels";
 import { getBilling } from "@/billing/server";
-import { CandidateLayout } from "@/components/CandidateLayout";
+import { AccountSections } from "@/components/AccountSections";
 import { PaymentFailedNotice } from "@/components/PaymentFailedNotice";
 import { RefreshUntilPlanConfirmed } from "@/components/RefreshUntilPlanConfirmed";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -27,7 +27,7 @@ const QUOTA_ROWS = [...LIMITED_QUOTAS, "jobDigest"] as const satisfies readonly 
 const MAX_CODE_LENGTH = 40;
 
 /**
- * The Candidate's Plan (and the discount their subscription gets), this month's usage, the offered
+ * Mon compte's Subscription Section (ADR-0024), at its own address: the Candidate's Plan (and the discount their subscription gets), this month's usage, the offered
  * Plans side by side in rank order with their prices, and the way to Stripe (and their invoices there).
  * A hidden Plan is not compared, even the Candidate's. A shared link's `?code=` is checked and carried
  * to Checkout, where it applies to the Plans it is for; checkout works without it all the same.
@@ -64,8 +64,8 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   const paymentFailed = paymentFailedNotice(stripeStatus, locale);
 
   return (
-    <CandidateLayout candidateId={candidate.id}>
-      <h1>{t("billing.page.title")}</h1>
+    <AccountSections candidateId={candidate.id}>
+      <h2>{t("billing.page.title")}</h2>
       {checkout === "success" ? (
         <p className="notice" role="status">
           {t("billing.page.checkoutSuccess")}
@@ -95,8 +95,8 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
       ) : null}
       {paymentFailed ? <PaymentFailedNotice notice={paymentFailed} /> : null}
 
-      <h2>{t("billing.page.usageTitle")}</h2>
-      <dl>
+      <h3>{t("billing.page.usageTitle")}</h3>
+      <dl className="usage-tiles">
         {MONTHLY_QUOTAS.filter((quota) => quotas[quota] !== 0).map((quota) => (
           <div key={quota}>
             <dt>{t(`billing.quotas.${quota}`)}</dt>
@@ -109,7 +109,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
         ))}
       </dl>
 
-      <h2>{t("billing.page.comparisonTitle")}</h2>
+      <h3>{t("billing.page.comparisonTitle")}</h3>
       <div className="table-scroll">
         <table className="plan-table">
           <thead>
@@ -181,6 +181,6 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
           </button>
         </form>
       ) : null}
-    </CandidateLayout>
+    </AccountSections>
   );
 }

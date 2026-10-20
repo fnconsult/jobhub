@@ -6,6 +6,7 @@ import { coachCostOfLastDays } from "@/coach-conversations/server";
 import { sharedPool } from "@/database/pool";
 import { getGuardrails } from "@/guardrails/server";
 import { getHumanCoaches } from "@/human-coaches/server";
+import { getTaskPlaybooks } from "@/task-playbooks/server";
 import { createAssistantConversations, type AssistantConversations } from "./conversations";
 import { createBackOfficeAssistant } from "./index";
 
@@ -17,6 +18,7 @@ export function getAssistantConversations(): AssistantConversations {
     assistant: createBackOfficeAssistant({
       ai: getAi(),
       guardrails: getGuardrails(),
+      taskPlaybooks: getTaskPlaybooks(),
       sources: {
         planQuotas: async () => {
           const [plans, quotas] = await Promise.all([getBilling().plans(), getBilling().planQuotas()]);

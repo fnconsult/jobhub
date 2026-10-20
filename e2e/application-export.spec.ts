@@ -42,7 +42,7 @@ async function tab(page: Page, name: string) {
 async function openApplication(page: Page, label: string): Promise<string> {
   await signInWithMagicLink(page, newAddress(label));
   const profile = await page.request.post("/api/profiles", {
-    data: { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } },
+    data: { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } },
     headers: { origin },
   });
   expect(profile.status(), await profile.text()).toBe(201);
@@ -140,7 +140,7 @@ test.describe("exporting the Tailored CV and the Cover Letter", () => {
 
   test("the application page shows the download controls only once the document is saved", async ({ page }) => {
     const id = await openApplication(page, "application-export-page");
-    await page.goto(`/candidatures/${id}`);
+    await page.goto(`/candidatures/${id}/documents`);
     await expect((await tab(page, fr.tailoredCv.tailored)).getByRole("group", { name: fr.applicationExport.tailoredCv.title })).toHaveCount(0);
     await expect((await tab(page, fr.tailoredDocuments.coverLetter.title)).getByRole("group", { name: fr.applicationExport.coverLetter.title })).toHaveCount(0);
 
@@ -183,7 +183,7 @@ test.describe("exporting the Tailored CV and the Cover Letter", () => {
       expect((await page.request.get(exportUrl(cvOnly, "tailored-cv", format))).status(), `tailored-cv ${format}`).toBe(200);
       expect((await page.request.get(exportUrl(cvOnly, "cover-letter", format))).status(), `cover-letter ${format}`).toBe(404);
     }
-    await page.goto(`/candidatures/${cvOnly}`);
+    await page.goto(`/candidatures/${cvOnly}/documents`);
     await expect((await tab(page, fr.tailoredCv.tailored)).getByRole("group", { name: fr.applicationExport.tailoredCv.title })).toBeVisible();
     await expect((await tab(page, fr.tailoredDocuments.coverLetter.title)).getByRole("group", { name: fr.applicationExport.coverLetter.title })).toHaveCount(0);
 
@@ -202,7 +202,7 @@ test.describe("exporting the Tailored CV and the Cover Letter", () => {
       expect((await page.request.get(exportUrl(letterOnly, "cover-letter", format))).status(), `cover-letter ${format}`).toBe(200);
       expect((await page.request.get(exportUrl(letterOnly, "tailored-cv", format))).status(), `tailored-cv ${format}`).toBe(404);
     }
-    await page.goto(`/candidatures/${letterOnly}`);
+    await page.goto(`/candidatures/${letterOnly}/documents`);
     await expect((await tab(page, fr.tailoredDocuments.coverLetter.title)).getByRole("group", { name: fr.applicationExport.coverLetter.title })).toBeVisible();
     await expect((await tab(page, fr.tailoredCv.tailored)).getByRole("group", { name: fr.applicationExport.tailoredCv.title })).toHaveCount(0);
   });
@@ -248,7 +248,7 @@ test.describe("exporting the Tailored CV and the Cover Letter", () => {
     expect(text).toContain("Marie Dupont Directrice financière marie.dupont@example.fr");
     expect(text).not.toContain("adapté");
 
-    await page.goto(`/profils/${profileId}`);
+    await page.goto(`/profils/${profileId}/telecharger`);
     const [file] = await Promise.all([page.waitForEvent("download"), page.getByRole("region", { name: fr.cvExport.title }).getByRole("button", { name: fr.cvExport.docx }).click()]);
     expect(file.suggestedFilename()).toBe("CV-Marie-Dupont.docx");
   });

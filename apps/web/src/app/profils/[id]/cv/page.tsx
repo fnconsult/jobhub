@@ -17,8 +17,7 @@ export default async function EditMasterCvPage({ params }: Params) {
   const { candidateId, profile } = await requireOwnProfile((await params).id);
   const t = await getServerT();
   return (
-    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id}>
-      <h1>{t("cvEditor.title")}</h1>
+    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id} title={t("cvEditor.title")}>
       <p className="lead">{profile.name}</p>
       <p>{t("cvEditor.intro")}</p>
       <p>{t("cvEditor.editingVersion", { version: profile.masterCv.version })}</p>

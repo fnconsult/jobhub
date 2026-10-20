@@ -49,7 +49,7 @@ const ENGLISH = {
 async function openApplication(page: Page, offer: { title: string; content: string; skills: string[] }, cv = masterCv): Promise<string> {
   await signInWithMagicLink(page, newAddress("tailored-cv"));
   const profile = await page.request.post("/api/profiles", {
-    data: { masterCv: cv, searchCriteria: { targetRole: "DAF", location: "Lyon" } },
+    data: { masterCv: cv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } },
     headers: { origin },
   });
   expect(profile.status(), await profile.text()).toBe(201);
@@ -64,7 +64,7 @@ async function openApplication(page: Page, offer: { title: string; content: stri
   });
   expect(saved.ok(), await saved.text()).toBe(true);
   const id = (await saved.json()).id as string;
-  await page.goto(`/candidatures/${id}`);
+  await page.goto(`/candidatures/${id}/documents`);
   await page.waitForLoadState("networkidle");
   return id;
 }
@@ -151,7 +151,8 @@ test.describe("Tailored CV with change review", () => {
     await page.reload();
     const saved = section(page).getByRole("group", { name: tc.savedTitle });
     await expect(saved.getByText("Directrice financière (adapté, fr)")).toBeVisible();
-    await expect(saved.getByText(tc.skillsLine.replace("{{skills}}", "Consolidation, IFRS, SAP, Power BI"))).toBeVisible();
+    // Its skills as tags, one per skill.
+    await expect(saved.getByRole("list", { name: fr.cvReview.skills }).getByRole("listitem")).toHaveText(["Consolidation", "IFRS", "SAP", "Power BI"]);
     // The rejected cut and the unaccepted wording from the Job Offer keep the Master CV's.
     const jobs = saved.getByRole("list", { name: tc.sections.experience }).getByRole("listitem");
     await expect(jobs).toHaveCount(2);

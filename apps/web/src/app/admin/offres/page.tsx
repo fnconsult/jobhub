@@ -89,8 +89,7 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
   const features = (plan: PlanDefinition) => (plan.features.length ? plan.features.map((feature) => t(`admin.plans.featureNames.${feature}`)).join(", ") : t("admin.plans.noFeatures"));
 
   return (
-    <BackOfficeLayout access={access}>
-      <h1>{t("admin.plans.title")}</h1>
+    <BackOfficeLayout access={access} title={t("admin.plans.title")}>
       <p className="lead">{t("admin.plans.intro")}</p>
       {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}
       {savedPlan ? (

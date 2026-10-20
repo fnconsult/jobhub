@@ -139,9 +139,9 @@ test.describe("Sign-in Providers (the Connexion section)", () => {
     // Not trusted for linking: the super-admin links it once from Mon compte, where it is offered
     // to Administrators though not to Candidates; then, elsewhere, signs in through it to the Back Office.
     await approveAtIssuer(superAdmin, { sub: "sso-office", email: SSO_SUPER_ADMIN, email_verified: true, name: "SSO Office" }, SSO.clientId);
-    await superAdmin.goto(`${server.origin}/compte`);
+    await superAdmin.goto(`${server.origin}/compte/connexion`);
     await superAdmin.getByRole("button", { name: tr(fr.signInMethods.link, { provider: SSO.name }) }).click();
-    await expect(superAdmin).toHaveURL(`${server.origin}/compte`);
+    await expect(superAdmin).toHaveURL(`${server.origin}/compte/connexion`);
     await expect(superAdmin.getByText(tr(fr.signInMethods.linked, { provider: SSO.name }))).toBeVisible();
     const elsewhere = await personPage(browser);
     await approveAtIssuer(elsewhere, { sub: "sso-office", email: SSO_SUPER_ADMIN, email_verified: true, name: "SSO Office" }, SSO.clientId);
@@ -177,9 +177,9 @@ test.describe("Sign-in Providers (the Connexion section)", () => {
 
     // Signed in by magic link, the Candidate links it from Mon compte.
     await approveAtIssuer(byEmail, { sub: `sso-${email}`, email, email_verified: true, name: "Lien Plus Tard" }, SSO.clientId);
-    await byEmail.goto(`${server.origin}/compte`);
+    await byEmail.goto(`${server.origin}/compte/connexion`);
     await byEmail.getByRole("button", { name: tr(fr.signInMethods.link, { provider: SSO.name }) }).click();
-    await expect(byEmail).toHaveURL(`${server.origin}/compte`);
+    await expect(byEmail).toHaveURL(`${server.origin}/compte/connexion`);
     await expect(byEmail.getByText(tr(fr.signInMethods.linked, { provider: SSO.name }))).toBeVisible();
 
     // From then on, the provider signs into the same account.
@@ -216,8 +216,8 @@ test.describe("Sign-in Providers (the Connexion section)", () => {
     const assistant = `${server.origin}/api/admin/assistant/conversations`;
     expect((await support.request.get(assistant)).status()).toBe(404);
     // Their Candidate pages stay open.
-    await support.goto(`${server.origin}/compte`);
-    await expect(support).toHaveURL(`${server.origin}/compte`);
+    await support.goto(`${server.origin}/compte/connexion`);
+    await expect(support).toHaveURL(`${server.origin}/compte/connexion`);
 
     // The ADMIN_EMAILS super-admin, signed in by magic link, is exempt.
     await superAdmin.goto(`${server.origin}/admin/connexion`);

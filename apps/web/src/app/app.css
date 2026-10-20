@@ -343,10 +343,11 @@ textarea.input {
   width: 100%;
 }
 
-/* The Coach Panel (#134, from the prototype #132): a panel on the right, docked
-   beside the page from 80rem and over it below; the whole width on phones. Its
-   button sits in the sidebar layout's top bar; pages outside that layout get a
-   floating one. */
+/* The Coach Panel (#134, ADR-0024): docked beside the page from 64rem, the
+   page then scrolling in its own column so its scrollbar never lands on the
+   panel; the whole screen below. Agrandir widens it into a modal drawer over
+   the page. Its button sits in the sidebar layout's top bar; pages outside
+   that layout get a floating one. Either steps aside while the panel is open. */
 .coach-panel-toggle-floating {
   position: fixed;
   right: var(--space-4);
@@ -367,95 +368,131 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   z-index: 30;
   display: flex;
   flex-direction: column;
-  width: min(var(--coach-width), 100%);
+  width: 100%;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
   background: var(--color-background);
   border-left: 1px solid var(--color-border);
-  box-shadow: var(--shadow-overlay);
 }
 
-/* Room for the floating button under the message box. */
-body:not(:has(.app-shell)) .coach-panel {
-  padding-bottom: calc(var(--space-12) + var(--space-6));
-}
-
-@media (width >= 80rem) {
+@media (width >= 64rem) {
   .coach-panel {
-    box-shadow: none;
+    width: var(--coach-width);
   }
 
   .with-coach-panel {
+    height: 100dvh;
     margin-right: var(--coach-width);
+    overflow-y: auto;
+  }
+
+  /* Agrandir: a drawer over the page, which keeps its layout beneath. */
+  .coach-panel-wide {
+    width: min(64rem, 92vw);
+    box-shadow: var(--shadow-overlay);
+  }
+}
+
+.coach-panel-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  background: var(--scrim);
+}
+
+/* Widening only makes sense beside a page. */
+@media (width < 64rem) {
+  .coach-panel-widen,
+  .coach-panel-scrim {
+    display: none;
   }
 }
 
 .coach-panel-header {
   display: flex;
+  gap: var(--space-1);
+  align-items: center;
+  min-height: 3.5rem;
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* The panel's one menu: the conversation's title. */
+.coach-panel-menu-button {
+  display: inline-flex;
+  flex: 1;
   gap: var(--space-2);
   align-items: center;
   justify-content: space-between;
-  min-height: 3.5rem;
-  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
-  border-bottom: 1px solid var(--color-border);
+  min-width: 0;
+  font-weight: 600;
+  text-align: left;
 }
 
-.coach-panel-header h2 {
-  margin: 0;
-  font-size: var(--font-size-h3);
+.coach-panel-menu-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.coach-panel-tools {
+.coach-panel-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex: none;
   gap: var(--space-1);
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--color-border);
 }
 
-/* Tighter buttons, so the three tools take two rows at most and leave room for the messages. */
-.coach-panel-tools .button {
+.coach-panel-actions .button {
   padding-inline: var(--space-3);
 }
 
-/* What the conversation is and what the coach sees, above the messages. */
-.coach-panel-context {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  align-items: flex-start;
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+.menu {
+  /* Above the Coach Panel and the sidebar's drawer. */
+  z-index: 60;
+  min-width: min(16rem, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-1);
+  background: var(--color-background);
+  border: 1px solid var(--color-text-secondary);
+  border-radius: var(--radius-sm);
 }
 
-.coach-panel-context .button {
-  background: var(--color-background);
+.menu-item {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+/* The item under the pointer or keyboard focus; the ring stays inside the menu. */
+.menu-item[data-highlighted] {
+  background: var(--color-surface);
+}
+
+.menu-item:focus-visible {
+  outline-offset: -3px;
+}
+
+.menu-separator {
+  height: 1px;
+  margin: var(--space-1) 0;
+  background: var(--color-border);
 }
 
 .coach-panel-in-view {
   margin: 0;
 }
 
-.coach-panel-conversation {
-  margin: 0;
-  font-size: var(--font-size-lead);
-  overflow-wrap: anywhere;
-}
-
-/* The part that scrolls: the messages (or the saved conversations). */
+/* The part that scrolls: the messages (or the saved conversations, or the Coach Memory). */
 .coach-panel-body {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: var(--space-4);
   min-height: 0;
-  padding: var(--space-4);
+  padding: var(--space-4) var(--space-4) var(--space-2);
   overflow-y: auto;
-}
-
-.coach-panel .chat-message {
-  max-width: 92%;
 }
 
 /* The coach speaks in the page's voice; the Candidate's own words sit in bubbles. */
@@ -469,26 +506,91 @@ body:not(:has(.app-shell)) .coach-panel {
   background: var(--color-surface);
 }
 
-/* The message box stays at the bottom of the panel. */
+/* The message box, Send inside it, stays at the bottom of the panel. */
 .coach-panel-form {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-4) var(--space-4);
+  padding: var(--space-2) var(--space-3) var(--space-3);
   border-top: 1px solid var(--color-border);
 }
 
-.coach-panel-form label {
-  font-weight: 600;
+.coach-panel-composer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  cursor: text;
+  background: var(--color-background);
+  border: 1px solid var(--color-text-secondary);
+  border-radius: var(--radius-md);
 }
 
-.coach-panel-form .input {
-  max-width: none;
-  min-height: 4.5rem;
+/* The ring goes round the whole box, Send included. */
+.coach-panel-composer:focus-within {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
-.coach-panel-form .button {
+.coach-panel-composer textarea {
+  width: 100%;
+  min-height: 3rem;
+  max-height: 12rem;
+  padding: var(--space-1);
+  font: inherit;
+  color: var(--color-text);
+  resize: none;
+  field-sizing: content;
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+
+.coach-panel-composer textarea::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.coach-panel-composer .button {
   align-self: flex-end;
+}
+
+/* What goes with the message: one line, opened for the whole text. */
+.coach-panel-context {
+  min-width: 0;
+  padding: 0 var(--space-1);
+  color: var(--color-text-secondary);
+}
+
+.coach-panel-context summary {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: var(--control-height);
+  cursor: pointer;
+  list-style: none;
+}
+
+.coach-panel-context summary::-webkit-details-marker {
+  display: none;
+}
+
+.coach-panel-context-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coach-panel-context[open] .coach-panel-context-line {
+  display: none;
+}
+
+.coach-panel-context-more {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding-bottom: var(--space-2);
+  color: var(--color-text);
 }
 
 /* The Candidate's saved Coach Conversations, inside the Coach Panel. */
@@ -578,6 +680,159 @@ body:not(:has(.app-shell)) .coach-panel {
 
 .action-card h3 {
   margin-top: 0;
+}
+
+/* Above the Applications: the filters, then the List and Board switch at the row's far end;
+   everything sits on one line, aligned at the bottom, and wraps on narrow screens. */
+.list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+  align-items: flex-end;
+  margin-bottom: var(--space-6);
+}
+
+.list-filters {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+  align-items: flex-end;
+}
+
+.list-views {
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.list-filters .field {
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.list-filters .field {
+  flex: 1 1 12rem;
+  max-width: 18rem;
+}
+
+.list-filters .input {
+  min-height: var(--control-height);
+}
+
+.list-filters .checkbox {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: var(--control-height);
+}
+
+.list-filters .checkbox input {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* A sortable column header: the whole header is the link, its mark beside the words. */
+.sort-link {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: var(--control-height);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.sort-link:hover {
+  text-decoration: underline;
+}
+
+.sort-mark {
+  color: var(--color-text-secondary);
+}
+
+th[aria-sort] .sort-mark {
+  color: var(--color-accent);
+}
+
+/* In the Applications table the column says Status: the select's own label is for screen readers only. */
+.application-table .field > label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+/* Deleting the account: framed and shaded in danger, apart from the rest of the page. */
+.danger-zone {
+  padding: var(--space-4) var(--space-6) var(--space-6);
+  background: var(--color-danger-surface);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+}
+
+.danger-zone > h3 {
+  margin-top: 0;
+}
+
+.danger-zone .button-danger {
+  background: var(--color-background);
+}
+
+/* Framed tiles, side by side: this month's usage on the Subscription, one per quota;
+   a Job Offer's facts in the Application's header, one per fact. */
+.usage-tiles,
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.usage-tiles > div,
+.tiles > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.usage-tiles dt,
+.tiles dt {
+  font-weight: 600;
+}
+
+.usage-tiles dd,
+.tiles dd {
+  margin: 0;
+  font-size: var(--font-size-lead);
+}
+
+/* Every tile of the row's grid as wide and as tall as the others, whatever its words. */
+.tiles-even,
+.usage-tiles {
+  grid-auto-rows: 1fr;
+}
+
+/* A tile across the whole row (a Job Offer's skills). */
+.tiles > .tile-wide {
+  grid-column: 1 / -1;
+}
+
+.tiles > .tile-wide dd {
+  font-size: inherit;
+}
+
+.job-offer-tiles {
+  margin: var(--space-2) 0 var(--space-4);
+}
+
+/* The Job Offer Summary, written by the AI: one tile across the row, above the Job Offer's facts. */
+.job-offer-summary {
+  margin: var(--space-2) 0 0;
 }
 
 /* Room for the floating Coach Panel button under the last line of every page. */
@@ -749,10 +1004,16 @@ body:not(:has(.app-shell)) .coach-panel {
   margin-bottom: var(--space-2);
 }
 
+/* A skill as a tag: the same everywhere skills are read (SkillTags). */
 .skill-list li {
   padding: var(--space-1) var(--space-3);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: 999px;
+}
+
+.tiles .skill-list {
+  margin: var(--space-1) 0 0;
 }
 
 .match-status {
@@ -799,6 +1060,26 @@ body:not(:has(.app-shell)) .coach-panel {
 
 /* A source's URL can run long with no break in it: it wraps, so the page never scrolls sideways (ADR-0009, #172). */
 .dossier-sources {
+  overflow-wrap: anywhere;
+}
+
+/* Company News: one article a row, its title a link at least 2.75rem high (ADR-0009), its outlet and date below. */
+.dossier-news {
+  display: grid;
+  gap: var(--space-3);
+  padding-left: 0;
+  list-style: none;
+}
+
+.dossier-news li {
+  display: flex;
+  flex-direction: column;
+}
+
+.dossier-news a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
   overflow-wrap: anywhere;
 }
 
@@ -906,7 +1187,7 @@ body:not(:has(.app-shell)) .coach-panel {
    page below 64rem. Every target is at least 2.75rem high. */
 :root {
   --sidebar-width: 17rem;
-  --coach-width: 24rem;
+  --coach-width: clamp(27rem, 34vw, 36rem);
   --control-height: 2.75rem;
   --scrim: rgb(15 15 15 / 45%);
   --shadow-overlay: 0 0.75rem 2rem rgb(15 15 15 / 18%), 0 0 0 1px rgb(15 15 15 / 6%);
@@ -1063,11 +1344,10 @@ html[data-sidebar="closed"] .sidebar-docked {
   background: var(--color-surface-hover);
 }
 
-/* The page shown: bold, shaded and marked with a bar, not by colour alone. */
+/* The page shown: bold and shaded, not by colour alone. */
 .sidebar-link[aria-current="page"] {
   font-weight: 600;
   background: var(--color-surface-hover);
-  box-shadow: inset 3px 0 0 var(--color-accent);
 }
 
 /* The Back Office's sidebar (#204): sections by group, each group named in small words above its links. */
@@ -1105,8 +1385,23 @@ html[data-sidebar="closed"] .sidebar-docked {
   min-height: var(--control-height);
 }
 
-.sidebar-collapse {
+.sidebar-collapse,
+.sidebar-sign-out {
   align-self: flex-start;
+}
+
+/* The foot's links and buttons line their icons up with the menu's above. */
+.sidebar-foot {
+  padding-inline: 0;
+}
+
+.sidebar-foot .text-size-control {
+  padding-inline: var(--space-2);
+}
+
+.sidebar-foot .button-quiet {
+  /* Less the button's 1px border, which a link has not. */
+  padding-inline: calc(var(--space-3) - 1px);
 }
 
 .workspace {
@@ -1123,14 +1418,92 @@ html[data-sidebar="closed"] .sidebar-docked {
   gap: var(--space-2);
   align-items: center;
   min-height: 3.5rem;
-  padding: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-8);
   background: var(--color-background);
   border-bottom: 1px solid var(--color-border);
 }
 
 .topbar .coach-panel-toggle {
+  flex: none;
   min-height: var(--control-height);
-  margin-left: auto;
+}
+
+/* The page's title, in the Top Bar (ADR-0024): one line, cut short with an ellipsis. */
+.topbar-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.topbar-title h1 {
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--font-size-h3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A Section alone on a phone: the title leads back to the list, behind an arrow (iOS style). */
+.topbar-title {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.topbar-title > h1 {
+  min-width: 0;
+}
+
+.topbar-back {
+  display: inline-flex;
+  flex: none;
+  gap: var(--space-1);
+  align-items: center;
+  min-height: var(--control-height);
+  color: inherit;
+  text-decoration: none;
+}
+
+.topbar-back .icon {
+  color: var(--color-accent);
+}
+
+/* The Section shown, after the page's title (ADR-0024): « Mon compte › Relances ». */
+.topbar-crumb {
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+.topbar-crumb::before {
+  padding: 0 var(--space-2);
+  content: "›";
+}
+
+.topbar-title > .topbar-crumb {
+  flex: none;
+  font-size: var(--font-size-h3);
+}
+
+/* The Profile's name, edited in place, as wide as its words beside the Section's name. */
+.topbar-title > .title-field {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.topbar-title textarea.title-edit {
+  width: auto;
+  min-width: 8ch;
+  max-width: 100%;
+}
+
+/* The Profile's name, edited in place, at the Top Bar's size. */
+.topbar-title .title-field h1,
+.topbar-title textarea.title-edit {
+  font-size: var(--font-size-h3);
+  white-space: normal;
+}
+
+.topbar .menu-toggle {
+  flex: none;
 }
 
 /* The Menu button brings a hidden sidebar back, or opens the drawer. */
@@ -1142,19 +1515,46 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   display: inline-flex;
 }
 
+/* The page's content column (ADR-0024): wide, beside the Sidebar rather than
+   centred in what is left, with running text kept to a readable measure. No
+   room is kept at the bottom for a floating Coach Panel button: here it sits
+   in the Top Bar. */
 .workspace > .page {
   width: 100%;
-  padding-top: var(--space-8);
+  max-width: 72rem;
+  margin: 0;
+  padding: var(--space-6) var(--space-8) var(--space-12);
+}
+
+.workspace > .page-wide {
+  max-width: none;
+}
+
+.workspace > .page :is(p, li, dd, .lead) {
+  max-width: 70ch;
+}
+
+@media (width < 40rem) {
+  .workspace > .page {
+    padding-inline: var(--space-4);
+  }
+
+  .topbar {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    padding-left: var(--space-4);
+  }
+
+  /* On a phone the title gets a row of its own, under Menu and the coach button. */
+  .topbar-title {
+    flex-basis: 100%;
+    order: 1;
+  }
 }
 
 /* Reached by the skip link: the page itself needs no ring. */
 .workspace > .page:focus {
   outline: none;
-}
-
-.workspace > .page > h1:first-child,
-.workspace > .page > .payment-failed-banner + h1 {
-  margin-top: 0;
 }
 
 .workspace .payment-failed-banner {
@@ -1208,12 +1608,198 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   }
 }
 
+/* A page split into Sections (ADR-0024): from 64rem, the list beside the Section
+   shown; below, the list alone at the page's own address, and each Section
+   alone as a full-height sheet with its way back. */
+.sections {
+  display: grid;
+  grid-template-columns: minmax(12rem, 15rem) minmax(0, 1fr);
+  gap: var(--space-8);
+  align-items: start;
+}
+
+.sections-nav {
+  position: sticky;
+  top: calc(var(--topbar-height, 3.5rem) + var(--space-6));
+}
+
+.sections-nav ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The chevron says "opens": only on the phone list, where a Section opens as a sheet. */
+.sections-nav .sidebar-link .icon {
+  display: none;
+}
+
+.sections-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+.sections-content > :first-child + * > h2:first-child,
+.sections-content > :first-child + h2,
+.sections-content > :first-child + section > h2:first-child {
+  margin-top: 0;
+}
+
+/* The Section's own heading is said by the Top Bar: only screen readers hear it here,
+   and the Section starts level with the top of the list beside it. */
+.sections-content > h2:first-child,
+.sections-content > section:first-child > h2:first-child,
+.sections-content > section:first-child > .section-head:first-child > h2:first-child,
+.sections-content > * > section:first-child > h2:first-child,
+.sections-content > * > section:first-child > .section-head:first-child > h2:first-child {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.sections-content > :first-child,
+.sections-content > :first-child > :first-child + *,
+.sections-content > :first-child > :first-child + * > :first-child,
+.sections-content > h2:first-child + * {
+  margin-top: 0;
+}
+
+/* A wide screen with a narrow column (the Coach Panel docked beside it): the
+   Sections line up above the one shown instead of beside it. */
+.workspace > .page {
+  container-type: inline-size;
+}
+
+@container (width < 44rem) {
+  .sections {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  .sections-nav {
+    position: static;
+  }
+
+  .sections-nav ul {
+    flex-flow: row wrap;
+    gap: var(--space-1);
+  }
+}
+
+/* With the sidebar showing, it lists the Sections instead (SidebarShell), the
+   main menu one arrow away: the page keeps its whole column. */
+@media (width >= 64rem) {
+  @container (width < 44rem) {
+    html:not([data-sidebar="closed"]) .sections-nav {
+      display: none;
+    }
+  }
+}
+
+.sidebar-switch {
+  align-self: stretch;
+  justify-content: flex-start;
+  font-weight: 600;
+}
+
+.sidebar-switch-forward {
+  justify-content: space-between;
+}
+
+.sidebar-switch-forward .icon {
+  transform: rotate(-90deg);
+}
+
+@media (width < 64rem) {
+  /* The Section slides in from the right: it never widens the page meanwhile. */
+  .sections {
+    display: block;
+    overflow-x: clip;
+  }
+
+  .sections-nav {
+    position: static;
+  }
+
+  /* On a phone the list is the page: one Section per row. */
+  .sections-nav ul {
+    flex-flow: column nowrap;
+    gap: 0;
+  }
+
+  .sections-nav .sidebar-link {
+    justify-content: space-between;
+    min-height: 3.25rem;
+    border-bottom: 1px solid var(--color-border);
+    border-radius: 0;
+  }
+
+  .sections-nav .sidebar-link .icon {
+    display: block;
+    transform: rotate(-90deg);
+  }
+
+  /* The list is the page; the chevrons do not mark a current one. */
+  .sections-nav .sidebar-link[aria-current="page"] {
+    font-weight: inherit;
+    background: transparent;
+  }
+
+  .sections[data-at-list] .sections-content {
+    display: none;
+  }
+
+  .sections:not([data-at-list]) .sections-nav {
+    display: none;
+  }
+
+  /* A Section alone, sliding in like a sheet: the Top Bar above it keeps the
+     page's title and the Coach Panel button in reach. */
+  .sections:not([data-at-list]) .sections-content {
+    background: var(--color-background);
+  }
+
+}
+
+@media (width < 64rem) and (prefers-reduced-motion: no-preference) {
+  .sections:not([data-at-list]) .sections-content {
+    animation: sheet-in 0.2s ease;
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+
 /* Job Search notifications: a finished Job Search, atop every workspace page,
    aligned with the page's content column (.page). Said in words; the border only reinforces it. */
 .job-search-notifications {
   width: calc(100% - 2 * var(--space-4));
   max-width: calc(44rem - 2 * var(--space-4));
   margin: 0 auto;
+}
+
+/* Its buttons reach the 44px floor (ADR-0009), links as well as buttons. */
+.job-search-notification .button {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+}
+
+.workspace .job-search-notifications {
+  width: auto;
+  max-width: none;
+  margin: 0 0 var(--space-6);
 }
 
 .job-search-notifications ul {
@@ -1431,6 +2017,15 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   gap: var(--space-1);
   overflow-x: auto;
   border-bottom: 1px solid var(--color-border);
+}
+
+/* Inside the sidebar layout the tabs stay in reach as the long document under them scrolls:
+   they stick under the Top Bar (whose height SidebarShell measures). */
+.workspace .tablist {
+  position: sticky;
+  top: var(--topbar-height, 3.5rem);
+  z-index: 5;
+  background: var(--color-background);
 }
 
 .tab {
@@ -1713,6 +2308,74 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   border-color: transparent;
 }
 
+/* Recherches d'offres (ADR-0025): the Profile chooser, then each Profile's latest results,
+   in tabs or in swimlanes. A swimlane's Job Offers sit side by side in a strip that scrolls
+   sideways on its own (the page never does), reachable from the keyboard. */
+.job-searches-groups {
+  margin-top: var(--space-8);
+}
+
+.job-searches-groups .section-head h3 {
+  margin: 0;
+}
+
+.job-searches-groups .list-views {
+  margin-left: 0;
+}
+
+.job-searches-chooser .button,
+.job-searches-groups .list-views .button {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+}
+
+/* The view shown: bold and shaded, as a menu's selected item (ADR-0024), not by colour alone. */
+.job-searches-groups .list-views [aria-current="page"] {
+  font-weight: 600;
+  background: var(--color-surface-hover);
+}
+
+.lane + .lane {
+  margin-top: var(--space-6);
+}
+
+.lane-track {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border-radius: var(--radius-md);
+}
+
+.lane-track:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.lane-track .rows {
+  flex-direction: row;
+  gap: var(--space-3);
+  width: max-content;
+  padding-bottom: var(--space-2);
+  border-top: 0;
+}
+
+.lane-track .row {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  width: min(20rem, 80vw);
+  padding: var(--space-3);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.lane-track .row-side {
+  flex-direction: row;
+  align-items: center;
+}
+
 /* The Job Offer page's Match Score against one Profile, then "Pourquoi 86 ?" (#163). */
 .profile-match {
   display: flex;
@@ -1975,6 +2638,42 @@ textarea.title-edit {
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-3);
   align-items: center;
+}
+
+/* Search Criteria (ADR-0025): a place per row with its "Retirer" button, and a group of checkboxes
+   without a frame where a property row already names it. */
+.location-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.location-field-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.location-field-row input {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.inline-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.inline-fieldset .hint {
+  margin: 0;
 }
 
 /* A checkbox, its label beside it and its help below, all with a large target. */

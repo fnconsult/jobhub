@@ -40,7 +40,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
   }
 
   async function createProfile(owner: string) {
-    const created = await profiles.create(owner, { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon", contractType: "cdi" } });
+    const created = await profiles.create(owner, { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: ["cdi"], remoteWorkOptions: [] } });
     if (!created.ok) throw new Error("fixture Profile refused");
     return created.profile.id;
   }
@@ -122,14 +122,14 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
   it("names the Search Criteria its Match Scores are against: the Profile's current ones", async () => {
     const jobSearch = await started();
     const changed = await profiles.changeSearchCriteria(candidateId, profileId, {
-      searchCriteria: { targetRole: "DAF", location: "Villeurbanne", contractType: "cdi", minSalary: 85000 },
+      searchCriteria: { targetRole: "DAF", locations: ["Villeurbanne"], contractTypes: ["cdi"], remoteWorkOptions: [], minSalary: 85000 },
     });
     expect(changed.ok).toBe(true);
 
     expect((await jobSearches.get(candidateId, jobSearch.id))?.profile).toEqual({
       id: profileId,
       name: "DAF",
-      searchCriteria: { targetRole: "DAF", location: "Villeurbanne", contractType: "cdi", minSalary: 85000 },
+      searchCriteria: { targetRole: "DAF", locations: ["Villeurbanne"], contractTypes: ["cdi"], remoteWorkOptions: [], minSalary: 85000 },
     });
   });
 
@@ -183,6 +183,22 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     expect(latest?.results.map((result) => result.jobOffer.title)).toEqual(["DAF H/F"]);
     expect(await jobSearches.latest(otherCandidateId, profileId)).toBeNull();
     expect(await jobSearches.latest(candidateId, "not-a-uuid")).toBeNull();
+  });
+
+  it("gives the Profile's Job Search still searching, to the Candidate only, until it is done or past its time", async () => {
+    expect(await jobSearches.searching(candidateId, profileId)).toBeNull();
+    const first = await started();
+    expect(await jobSearches.searching(candidateId, profileId)).toMatchObject({ id: first.id, status: "searching" });
+    expect(await jobSearches.searching(otherCandidateId, profileId)).toBeNull();
+    expect(await jobSearches.searching(candidateId, "not-a-uuid")).toBeNull();
+
+    await jobSearches.record(first.id, { jobOfferIds: [] });
+    expect(await jobSearches.searching(candidateId, profileId)).toBeNull();
+
+    const forgotten = await started();
+    clock.now = new Date(clock.now.getTime() + 16 * 60 * 1000);
+    expect(await jobSearches.searching(candidateId, profileId)).toBeNull();
+    expect(await jobSearches.get(candidateId, forgotten.id)).toMatchObject({ status: "failed", failure: "timeout" });
   });
 
   it("only searches for the Candidate's own, active Profiles", async () => {

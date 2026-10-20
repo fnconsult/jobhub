@@ -223,6 +223,24 @@ test.describe("adding an Interview from the Agenda", () => {
   });
 });
 
+test.describe("the Data export (#247)", () => {
+  test("carries each Interview's duration, format and place", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("agenda-export"));
+    const applicationId = await applicationAt(page, await createProfile(page), "DAF H/F", "interview");
+    const added = await page.request.post(`/api/applications/${applicationId}/interviews`, {
+      headers: { origin },
+      data: { scheduledAt: "2026-11-12T14:30", durationMinutes: 45, format: "video", place: "https://meet.example.com/abc" },
+    });
+    expect(added.ok(), await added.text()).toBe(true);
+
+    const exported = await (await page.request.get("/api/account/export")).json();
+    const application = exported.applications.find((a: { id: string }) => a.id === applicationId);
+    expect(application.interviews).toEqual([
+      expect.objectContaining({ durationMinutes: 45, format: "video", place: "https://meet.example.com/abc" }),
+    ]);
+  });
+});
+
 test.describe("the Agenda on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 

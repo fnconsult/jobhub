@@ -17,6 +17,7 @@
  */
 import type { Pool } from "pg";
 import { INTERVIEW_TIME_ZONE, interviewDayStart, type Interview } from "../applications";
+import type { SessionEditor } from "../human-coaches";
 
 /** One Interview, as the Agenda shows it; it leads to its Application's Interviews Section. */
 export interface InterviewAgendaItem extends Pick<Interview, "scheduledAt" | "durationMinutes" | "format" | "place"> {
@@ -40,6 +41,8 @@ export interface CoachingSessionAgendaItem {
   durationMinutes?: number;
   videoLink?: string;
   note?: string;
+  /** Who last entered or changed its date: « modifié par le coach » for "coach". */
+  changedBy: SessionEditor;
 }
 
 export type AgendaItem = InterviewAgendaItem | CoachingSessionAgendaItem;
@@ -117,8 +120,8 @@ export function createAgenda(database: Pool): Agenda {
   /** The Candidate's dated Coaching Sessions in `period`, in its order. */
   async function coachingSessions(candidateId: string, period: AgendaPeriod, now: Date): Promise<AgendaItem[]> {
     const upcoming = period === "upcoming";
-    const { rows } = await database.query<{ id: string; scheduled_at: Date; coach_id: string; coach_name: string; duration_minutes: number | null; video_link: string | null; note: string | null }>(
-      `SELECT s.id, s.scheduled_at, h.id AS coach_id, h.name AS coach_name, s.duration_minutes, s.video_link, s.note
+    const { rows } = await database.query<{ id: string; scheduled_at: Date; coach_id: string; coach_name: string; duration_minutes: number | null; video_link: string | null; note: string | null; changed_by: SessionEditor | null }>(
+      `SELECT s.id, s.scheduled_at, h.id AS coach_id, h.name AS coach_name, s.duration_minutes, s.video_link, s.note, s.changed_by
          FROM coaching_session s
          JOIN human_coach h ON h.id = s.coach_id
         WHERE s.candidate_id = $1 AND ${upcoming ? "s.scheduled_at >= $2" : "s.scheduled_at < $2"}
@@ -133,6 +136,7 @@ export function createAgenda(database: Pool): Agenda {
       ...(row.duration_minutes !== null ? { durationMinutes: row.duration_minutes } : {}),
       ...(row.video_link ? { videoLink: row.video_link } : {}),
       ...(row.note ? { note: row.note } : {}),
+      changedBy: row.changed_by ?? "candidate",
     }));
   }
 

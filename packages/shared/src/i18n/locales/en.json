@@ -717,7 +717,8 @@
       "aiUsage": "AI consumption",
       "aiMessages": "AI message logs",
       "coachingPlaybooks": "Playbooks",
-      "guardrails": "Guardrails"
+      "guardrails": "Guardrails",
+      "tools": "Tools"
     },
     "signInProviders": {
       "title": "Sign-in",
@@ -1699,6 +1700,70 @@
         "inViewText": "Text in view",
         "criteria": "Criteria"
       }
+    },
+    "tools": {
+      "title": "Tools",
+      "intro": "Every external tool the application calls, from the web app and the worker: what it is for, where it processes data, whether it is configured and its calls over the last 30 days. Neither what the calls said nor any key is shown.",
+      "categories": {
+        "ai_model": "AI models",
+        "web_search": "Web search",
+        "job_discovery": "Job discovery",
+        "company_data": "Company data",
+        "contact_enrichment": "Contact enrichment",
+        "billing": "Billing",
+        "mail": "Email",
+        "sign_in": "Sign-in",
+        "geolocation": "Geolocation",
+        "reference_data": "Reference data"
+      },
+      "tool": "Tool",
+      "purpose": "Purpose",
+      "runsIn": "Called by",
+      "residency": "Data processed",
+      "status": "Status",
+      "keys": "Keys",
+      "calls": "Calls (30 d)",
+      "failures": "Failures",
+      "cost": "Cost (30 d)",
+      "runsInValues": {
+        "web": "Web app",
+        "worker": "Worker",
+        "both": "Web app and worker"
+      },
+      "residencies": {
+        "eu": "In the EU",
+        "outside_eu": "Outside the EU",
+        "unknown": "Not established"
+      },
+      "statuses": {
+        "configured": "Configured",
+        "key_missing": "Key missing",
+        "not_configured": "Not configured",
+        "no_key_needed": "No key needed"
+      },
+      "missingKeys": "Missing: {{keys}}",
+      "noKeys": "None",
+      "notTraced": "Not traced",
+      "unknownCost": "Unknown",
+      "back": "All tools",
+      "details": "Details",
+      "category": "Category",
+      "module": "Module",
+      "figuresTitle": "Last 30 days",
+      "latestCalls": "Latest calls",
+      "latestCallsIntro": "The latest {{count}} calls at most, newest first. What the calls said and the keys are never kept.",
+      "noCalls": "No call recorded.",
+      "notTracedHelp": "This tool's calls are not traced yet.",
+      "callsCaption": "Latest calls to {{name}}",
+      "at": "When",
+      "operation": "Operation",
+      "outcome": "Outcome",
+      "duration": "Duration",
+      "callCost": "Cost",
+      "ok": "OK",
+      "failed": "Failed",
+      "httpStatus": "HTTP {{status}}",
+      "noAnswer": "No answer"
     }
   },
   "backOfficeAssistant": {

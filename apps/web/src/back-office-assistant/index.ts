@@ -152,6 +152,7 @@ const SECTIONS: Record<BackOfficeResource, { name: string; page?: string }> = {
   searchSites: { name: "Sites de recherche (Job Sites et recherche d'offres)", page: routes.adminSearchSites },
   coachingPlaybooks: { name: "Playbooks de coaching, socle et sources (Coaching Playbooks)", page: routes.adminCoachingPlaybooks },
   guardrails: { name: "Garde-fous (Guardrails) et leurs déclenchements", page: routes.adminGuardrails },
+  tools: { name: "Outils (Tools) : les outils externes que l'application appelle", page: routes.adminTools },
   evalRuns: { name: "Évaluations (Eval Runs) des playbooks, du coach IA et des garde-fous", page: routes.adminCoachingPlaybooks },
 };
 

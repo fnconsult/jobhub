@@ -353,6 +353,8 @@ export async function migrateAiUsage(database: Pick<Pool, "query">): Promise<voi
     -- The Journaux IA filters, newest first.
     CREATE INDEX IF NOT EXISTS ai_usage_task_at_idx ON ai_usage (task, at DESC);
     CREATE INDEX IF NOT EXISTS ai_usage_model_at_idx ON ai_usage (model, at DESC);
+    -- A Tool's latest calls, on its Outils page (#233).
+    CREATE INDEX IF NOT EXISTS ai_usage_provider_at_idx ON ai_usage (provider, at DESC);
     CREATE TABLE IF NOT EXISTS ai_tool_usage (
       id bigserial PRIMARY KEY,
       usage_id uuid NOT NULL REFERENCES ai_usage (id) ON DELETE CASCADE,
@@ -376,6 +378,7 @@ export async function migrateAiUsage(database: Pick<Pool, "query">): Promise<voi
       cost_eur double precision
     );
     CREATE INDEX IF NOT EXISTS external_api_usage_at_idx ON external_api_usage (at);
+    CREATE INDEX IF NOT EXISTS external_api_usage_provider_at_idx ON external_api_usage (provider, at DESC);
     -- The AI Message Log: what each call said, secrets scrubbed. Personal data: kept 30 days,
     -- in the Candidate's data export, deleted with their account.
     CREATE TABLE IF NOT EXISTS ai_message_log (

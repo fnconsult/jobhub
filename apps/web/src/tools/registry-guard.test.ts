@@ -1,0 +1,75 @@
+/**
+ * The guard on the Tools (#233): every provider a call is recorded for, in `ai_usage` or in
+ * `external_api_usage`, anywhere in the code, is a registered Tool. Adding a call to an
+ * unregistered tool fails here (and, for `recordingFetch`, at type-check).
+ */
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
+import { PROVIDER_IDS } from "@jobhub/ai";
+import { TOOLS } from "@jobhub/shared";
+import { describe, expect, it } from "vitest";
+import { CONTACT_PROVIDERS } from "../enriched-contacts/providers/types";
+import { PROVIDER_SECRETS } from "../provider-secrets/catalog";
+
+const ROOT = new URL("../../../../", import.meta.url).pathname;
+
+const registered = (table: "ai_usage" | "external_api_usage") => TOOLS.flatMap((tool) => (tool.usage?.table === table ? [tool.usage.provider as string] : []));
+
+/** Every source file of the apps and packages, tests left out. */
+function sourceFiles(): string[] {
+  return ["apps", "packages"].flatMap((top) =>
+    readdirSync(join(ROOT, top)).flatMap((workspace) => {
+      const src = join(ROOT, top, workspace, "src");
+      try {
+        return (readdirSync(src, { recursive: true }) as string[])
+          .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file) && !file.includes("node_modules"))
+          .map((file) => join(src, file));
+      } catch {
+        return [];
+      }
+    }),
+  );
+}
+
+/**
+ * The provider ids a source records external API calls for: in a file calling `recordingFetch`,
+ * every `provider: "..."` and every `[/host/, "provider"]` pair (a host-to-provider table).
+ */
+function recordedProviderIds(source: string): string[] {
+  if (!source.includes("recordingFetch(")) return [];
+  const literals = [...source.matchAll(/provider:\s*"([^"]+)"/g), ...source.matchAll(/\/,\s*"([^"]+)"\s*\]/g)];
+  return literals.map((match) => match[1]!);
+}
+
+describe("the guard on the Tools", () => {
+  it("reads the providers a file records calls for, and none from a file that records none", () => {
+    expect(
+      recordedProviderIds(`const fetch = recordingFetch(globalThis.fetch, log, { provider: "acme_api" });
+        const BOARDS = [[/(^|\\.)acme\\.io$/, "acme_board"]];`),
+    ).toEqual(["acme_api", "acme_board"]);
+    expect(recordedProviderIds(`const route = { provider: "mistral" };`)).toEqual([]);
+  });
+
+  it("finds every external API provider recorded in the code among the Tools", () => {
+    const found = sourceFiles().flatMap((file) => recordedProviderIds(readFileSync(file, "utf8")).map((provider) => ({ provider, file: relative(ROOT, file) })));
+    // The scan sees the calls of today: France Travail (web and worker), the French register and the job boards.
+    expect(found.map(({ provider }) => provider)).toEqual(expect.arrayContaining(["france_travail", "recherche_entreprises", "greenhouse", "lever", "ashby", "apec"]));
+    const external = registered("external_api_usage");
+    expect(found.filter(({ provider }) => !external.includes(provider))).toEqual([]);
+  });
+
+  it("finds every contact enrichment provider, recorded by its id, among the Tools", () => {
+    const external = registered("external_api_usage");
+    expect(CONTACT_PROVIDERS.filter((provider) => !external.includes(provider))).toEqual([]);
+  });
+
+  it("finds every AI provider, recorded in ai_usage, among the Tools", () => {
+    const ai = registered("ai_usage");
+    expect(PROVIDER_IDS.filter((provider) => !ai.includes(provider))).toEqual([]);
+  });
+
+  it("finds every Provider Secret among the keys of a Tool", () => {
+    const keys = TOOLS.flatMap((tool) => tool.keys as readonly string[]);
+    expect(PROVIDER_SECRETS.map((secret) => secret.name).filter((name) => !keys.includes(name))).toEqual([]);
+  });
+});

@@ -32,6 +32,7 @@ describe("the Back Office navigation", () => {
           ["aiUsage", "/admin/consommation-ia"],
           ["aiMessages", "/admin/journaux-ia"],
           ["searchSites", "/admin/sites"],
+          ["tools", "/admin/outils"],
         ],
       ],
       [
@@ -72,6 +73,7 @@ describe("the Back Office navigation", () => {
         ["signInProviders", "/admin/connexion"],
         ["aiUsage", "/admin/consommation-ia"],
         ["searchSites", "/admin/sites"],
+        ["tools", "/admin/outils"],
       ],
     ]);
     // A Playbook editor sees the Coaching Playbooks alone, under Coaching (#225).

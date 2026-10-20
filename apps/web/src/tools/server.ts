@@ -1,0 +1,25 @@
+import type { Tool, ToolCategory } from "@jobhub/shared";
+import { sharedPool } from "@/database/pool";
+import { getSecretResolver } from "@/provider-secrets/server";
+import { getSignInProviders } from "@/sign-in-providers/server";
+import { toolCalls, toolsOverview, type ToolCall, type ToolRow, type ToolsState } from "./index";
+
+/** The values in use (Provider Secrets over env) and the Sign-in Providers enabled; none without a database. */
+async function currentState(): Promise<ToolsState> {
+  const env = getSecretResolver().current().env;
+  if (!process.env.DATABASE_URL) return { env, signInTypes: [] };
+  const providers = await getSignInProviders().list();
+  return { env, signInTypes: providers.filter((provider) => provider.enabled).map((provider) => provider.type) };
+}
+
+/** Every Tool, by category, with its status and its last 30 days' calls, as the Outils page lists them. */
+export async function toolsOverviewNow(): Promise<{ category: ToolCategory; rows: ToolRow[] }[]> {
+  return toolsOverview(sharedPool(), await currentState(), new Date());
+}
+
+/** `tool`'s status and latest calls, as its Outils page shows them. */
+export async function toolPage(tool: Tool): Promise<{ row: ToolRow; calls: ToolCall[] }> {
+  const overview = await toolsOverviewNow();
+  const row = overview.flatMap((group) => group.rows).find((candidate) => candidate.tool.id === tool.id)!;
+  return { row, calls: await toolCalls(sharedPool(), tool) };
+}

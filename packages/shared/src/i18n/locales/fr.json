@@ -717,7 +717,8 @@
       "aiUsage": "Consommation IA",
       "aiMessages": "Journaux IA",
       "coachingPlaybooks": "Playbooks",
-      "guardrails": "Garde-fous"
+      "guardrails": "Garde-fous",
+      "tools": "Outils"
     },
     "signInProviders": {
       "title": "Connexion",
@@ -1699,6 +1700,70 @@
         "inViewText": "Texte consulté",
         "criteria": "Critères"
       }
+    },
+    "tools": {
+      "title": "Outils",
+      "intro": "Chaque outil externe que l'application appelle, depuis l'app web et le worker : à quoi il sert, où il traite les données, s'il est configuré et ses appels des 30 derniers jours. Ni le contenu des appels ni les clés ne sont affichés.",
+      "categories": {
+        "ai_model": "Modèles d'IA",
+        "web_search": "Recherche web",
+        "job_discovery": "Recherche d'offres",
+        "company_data": "Données d'entreprises",
+        "contact_enrichment": "Enrichissement de contacts",
+        "billing": "Facturation",
+        "mail": "E-mail",
+        "sign_in": "Connexion",
+        "geolocation": "Géolocalisation",
+        "reference_data": "Référentiels"
+      },
+      "tool": "Outil",
+      "purpose": "Usage",
+      "runsIn": "Appelé par",
+      "residency": "Données traitées",
+      "status": "État",
+      "keys": "Clés",
+      "calls": "Appels (30 j)",
+      "failures": "Échecs",
+      "cost": "Coût (30 j)",
+      "runsInValues": {
+        "web": "App web",
+        "worker": "Worker",
+        "both": "App web et worker"
+      },
+      "residencies": {
+        "eu": "Dans l'UE",
+        "outside_eu": "Hors UE",
+        "unknown": "Non établi"
+      },
+      "statuses": {
+        "configured": "Configuré",
+        "key_missing": "Clé manquante",
+        "not_configured": "Non configuré",
+        "no_key_needed": "Sans clé"
+      },
+      "missingKeys": "Manque : {{keys}}",
+      "noKeys": "Aucune",
+      "notTraced": "Non tracé",
+      "unknownCost": "Inconnu",
+      "back": "Tous les outils",
+      "details": "Fiche",
+      "category": "Catégorie",
+      "module": "Module",
+      "figuresTitle": "30 derniers jours",
+      "latestCalls": "Derniers appels",
+      "latestCallsIntro": "Les {{count}} derniers appels au plus, du plus récent au plus ancien. Le contenu des appels et les clés ne sont jamais conservés.",
+      "noCalls": "Aucun appel enregistré.",
+      "notTracedHelp": "Les appels de cet outil ne sont pas encore tracés.",
+      "callsCaption": "Derniers appels à {{name}}",
+      "at": "Date",
+      "operation": "Opération",
+      "outcome": "Résultat",
+      "duration": "Durée",
+      "callCost": "Coût",
+      "ok": "OK",
+      "failed": "Échec",
+      "httpStatus": "HTTP {{status}}",
+      "noAnswer": "Pas de réponse"
     }
   },
   "backOfficeAssistant": {

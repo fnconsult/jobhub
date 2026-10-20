@@ -210,6 +210,53 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     await expect(page.getByRole("region", { name: fr.agenda.upcomingTitle }).getByRole("listitem")).toContainText("23:30");
   });
 
+  // Issue #248: a Retired Human Coach's past sessions still show on the Agenda, and the Data export
+  // holds the date, duration, video link and note of a Coaching Session, never the booking link.
+  test("a Retired Human Coach's past Coaching Session still shows, and the Data export holds its details but no booking link", async ({ page, browser }) => {
+    const admin = await personPage(browser, ADMINISTRATOR);
+    const coach = await addCoach(admin, newAddress("coach"));
+    const coachId = await coachIdOf(admin, coach.name);
+    await signInWithMagicLink(page, newAddress("coaching-retired"));
+    await page.request.post("/api/coaching/checkout", { form: { coachId }, headers: { origin }, maxRedirects: 0 });
+    const [started] = await checkoutsFor(coachId);
+    const { payload, signature } = signedEvent(
+      checkoutSessionEvent("checkout.session.completed", { id: `cs_e2e_${unique()}`, candidateId: started!["metadata[candidate_id]"]!, coachId, amount: 9000, currency: "eur", paymentStatus: "paid" }),
+    );
+    const delivered = await page.request.post("/api/billing/webhook", { data: payload, headers: { "stripe-signature": signature, "content-type": "application/json" } });
+    expect(delivered.status()).toBe(200);
+
+    await page.goto("/agenda");
+    const toSchedule = page.getByRole("region", { name: fr.agenda.toSchedule });
+    await toSchedule.getByRole("button", { name: tr(fr.coachingSession.enterDateFor, { name: coach.name }) }).click();
+    const dialog = page.getByRole("dialog", { name: tr(fr.coachingSession.title, { name: coach.name }) });
+    const pastDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date(Date.now() - 10 * 86_400_000));
+    await dialog.getByLabel(fr.coachingSession.date).fill(`${pastDay}T10:00`);
+    await dialog.getByLabel(fr.coachingSession.duration).fill("45");
+    await dialog.getByLabel(fr.coachingSession.videoLink).fill("https://meet.google.com/abc-defg-hij");
+    await dialog.getByLabel(fr.coachingSession.note).fill("Préparer mon pitch.");
+    await dialog.getByRole("button", { name: fr.coachingSession.save }).click();
+    await expect(dialog).toHaveCount(0);
+
+    await admin.goto("/admin/coachs");
+    await admin.getByRole("button", { name: tr(fr.admin.humanCoaches.retire, { name: coach.name }) }).click();
+    await expect(admin.getByRole("status")).toHaveText(fr.admin.humanCoaches.retired);
+    await admin.context().close();
+
+    await page.goto("/agenda?periode=passes");
+    const past = page.getByRole("region", { name: fr.agenda.pastTitle }).getByRole("region");
+    await expect(past).toHaveCount(1);
+    await expect(past.first().getByRole("heading").locator("time")).toHaveAttribute("datetime", pastDay);
+    await expect(past.first().getByRole("listitem")).toContainText(tr(fr.agenda.withCoach, { name: coach.name }));
+
+    const exportResponse = await page.request.get("/api/account/export");
+    expect(exportResponse.status()).toBe(200);
+    const exported = await exportResponse.json();
+    expect(exported.coachingSessions).toEqual([
+      expect.objectContaining({ coach: { id: coachId, name: coach.name }, scheduledAt: expect.any(String), durationMinutes: 45, videoLink: "https://meet.google.com/abc-defg-hij", note: "Préparer mon pitch." }),
+    ]);
+    expect(JSON.stringify(exported)).not.toContain(coach.bookingUrl);
+  });
+
   test("a Premium Candidate pays the discounted Coaching Session Price", async ({ page, browser }) => {
     const admin = await personPage(browser, ADMINISTRATOR);
     const coach = await addCoach(admin, newAddress("coach"));

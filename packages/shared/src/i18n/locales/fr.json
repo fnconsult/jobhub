@@ -382,11 +382,6 @@
     "eyebrow": "Profil",
     "nameSaved": "Nom du profil enregistré",
     "criteriaSaved": "Critères enregistrés",
-    "jobDigestLink": {
-      "weekly": "Job Digest : chaque lundi",
-      "daily": "Job Digest : chaque jour",
-      "none": "Job Digest : non reçu"
-    },
     "cvVersion": "Version {{version}} · enregistrée le {{date}}",
     "skills": "Compétences, une par ligne",
     "jobDescription": "Missions et réalisations : {{job}}",

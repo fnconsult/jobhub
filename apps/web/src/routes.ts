@@ -29,9 +29,8 @@ export const routes = {
   allJobSearches: (lanes = false) => `/recherches?profil=tous${lanes ? "&vue=couloirs" : ""}`,
   /** The Search Criteria of a Profile's page. */
   profileSearchCriteria: (id: string) => `/profils/${id}#search-criteria-title`,
-  /** The Job Digests page (ADR-0024), at a Profile's Job Digest. */
+  /** The Job Digests page (ADR-0024). */
   jobDigests: "/job-digests",
-  profileJobDigest: (id: string) => `/job-digests#job-digest-${id}`,
   /** A Section of a Profile's page (ADR-0024); `profile` itself shows the first one there is. */
   profileSection: (id: string, section: ProfileSection) => `/profils/${id}/${section}`,
   editMasterCv: (id: string) => `/profils/${id}/cv`,

@@ -69,7 +69,7 @@ async function searchFromNewProfile(page: Page): Promise<void> {
   await signInWithMagicLink(page, newAddress("freshness"));
   const created = await page.request.post("/api/profiles", { headers: { origin }, data: { masterCv, searchCriteria } });
   expect(created.status(), await created.text()).toBe(201);
-  await page.goto(`/profils/${(await created.json()).id}`);
+  await page.goto(`/recherches?profil=${(await created.json()).id}`);
   await page.getByRole("button", { name: "Chercher des offres", exact: true }).click();
   await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
 }

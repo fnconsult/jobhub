@@ -131,6 +131,11 @@ export function recordingFetch<F extends FetchLike>(fetch: F, log: ExternalApiLo
   return recording as F;
 }
 
+export interface RecordingClientOptions extends RecordingOptions {
+  /** The HTTP status a call that returns is recorded with. Default: 200; null for a client that does not speak HTTP (SMTP). */
+  answeredStatus?: number | null;
+}
+
 /** The HTTP status an SDK's error carries (Stripe's `statusCode`, a `status`); null when it has none. */
 function statusOfError(error: unknown): number | null {
   if (typeof error !== "object" || error === null) return null;
@@ -145,12 +150,13 @@ const isThenable = (value: unknown): value is PromiseLike<unknown> =>
 /**
  * `client` (an SDK's: Stripe, a mailer), with each call of one of its methods, however deep
  * (`checkout.sessions.create`), recorded in `log` under that path. A call that returns, or
- * resolves, is recorded as answered 200; one that throws, or rejects, with its error's HTTP
+ * resolves, is recorded as answered `answeredStatus` (200); one that throws, or rejects, with its error's HTTP
  * status (`statusCode`, `status`), else none. Never its arguments, answer or error message.
  * It answers as `client` does: what a method returns is given back as it is (a Stripe list
  * keeps its `autoPagingToArray`). Properties that are not methods are read through.
  */
-export function recordingClient<T extends object>(client: T, log: ExternalApiLog, options: RecordingOptions): T {
+export function recordingClient<T extends object>(client: T, log: ExternalApiLog, options: RecordingClientOptions): T {
+  const answered = options.answeredStatus === undefined ? 200 : options.answeredStatus;
   const wrap = <O extends object>(target: O, path: string[]): O => {
     const wrapped = new Map<PropertyKey, unknown>();
     return new Proxy(target, {
@@ -179,12 +185,12 @@ export function recordingClient<T extends object>(client: T, log: ExternalApiLog
         throw error;
       }
       if (!isThenable(result)) {
-        done(200, true);
+        done(answered, true);
         return result;
       }
       // Watched, not replaced: the caller gets the SDK's own promise.
       result.then(
-        () => done(200, true),
+        () => done(answered, true),
         (error: unknown) => done(statusOfError(error), false),
       );
       return result;

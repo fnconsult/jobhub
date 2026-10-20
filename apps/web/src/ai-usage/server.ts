@@ -1,13 +1,11 @@
 import { allUsageLogs, createConsoleUsageLog, type UsageLog } from "@jobhub/ai";
-import type { ExternalApiLog } from "@jobhub/shared";
 import { getBackOffice } from "@/admin/server";
 import { sharedPool } from "@/database/pool";
 import { getSecretResolver } from "@/provider-secrets/server";
-import { aiUsagePeriod, aiUsageReport, createPostgresExternalApiLog, createPostgresUsageLog, knownSecrets, type AiUsageReport } from "./index";
+import { aiUsagePeriod, aiUsageReport, createPostgresUsageLog, knownSecrets, type AiUsageReport } from "./index";
 import { createAiMessageLogs, type AiMessageLogs } from "./message-log";
 
 let usage: UsageLog | undefined;
-let externalApis: ExternalApiLog | undefined;
 let messageLogs: AiMessageLogs | undefined;
 
 /**
@@ -21,11 +19,7 @@ export function getAiUsageLog(): UsageLog {
   return usage;
 }
 
-/** Where the app's calls to external APIs (contact enrichment, Stripe, mail, sign-in...) are recorded; none without a database. */
-export function getExternalApiLog(): ExternalApiLog {
-  externalApis ??= process.env.DATABASE_URL ? createPostgresExternalApiLog(sharedPool()) : { record: () => {} };
-  return externalApis;
-}
+export { getExternalApiLog } from "./external-api-log";
 
 /** The AI consumption of the period `key` names (the last 30 days by default), as the Back Office's report shows it. */
 export function aiUsageReportOf(key: unknown): Promise<AiUsageReport> {

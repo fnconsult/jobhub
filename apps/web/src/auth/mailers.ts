@@ -1,3 +1,4 @@
+import { recordingClient, recordingFetch, type ExternalApiLog } from "@jobhub/shared";
 import nodemailer from "nodemailer";
 import type { Mailer, MailMessage } from "./index";
 
@@ -25,7 +26,7 @@ export function parseSender(from: string): { name?: string; email: string } {
 }
 
 /** Sends emails through Brevo's transactional email API, with an API key (xkeysib-…). */
-export function brevoApiMailer(apiKey: string, from: string, options: { apiUrl?: string; fetch?: typeof globalThis.fetch } = {}): Mailer {
+export function brevoApiMailer(apiKey: string, from: string, options: { apiUrl?: string; fetch?: (url: string, init: RequestInit) => Promise<Response> } = {}): Mailer {
   const fetch = options.fetch ?? globalThis.fetch;
   const apiUrl = (options.apiUrl?.trim() || BREVO_API_URL).replace(/\/$/, "");
   const sender = parseSender(from);
@@ -48,9 +49,11 @@ export function brevoApiMailer(apiKey: string, from: string, options: { apiUrl?:
   };
 }
 
+/** What an SMTP mailer sends through: nodemailer's transport, by default. */
+export type SmtpTransport = { sendMail(mail: { from: string; to: string; subject: string; text: string; headers?: Record<string, string> }): Promise<unknown> };
+
 /** Sends emails through an SMTP server (an EU provider in production, ADR-0007). */
-export function smtpMailer(smtpUrl: string, from: string): Mailer {
-  const transport = nodemailer.createTransport(smtpUrl);
+export function smtpMailer(smtpUrl: string, from: string, transport: SmtpTransport = nodemailer.createTransport(smtpUrl)): Mailer {
   return {
     async send(message: MailMessage) {
       await transport.sendMail({ from, to: message.to, subject: message.subject, text: message.text, headers: message.headers });
@@ -67,18 +70,30 @@ export function consoleMailer(): Mailer {
   };
 }
 
+export interface MailerOptions {
+  /** Where each email sent is recorded (#234): one call to Brevo, never who it was for nor what it said. Default: nowhere. */
+  externalApis?: ExternalApiLog;
+  /** What SMTP_URL is sent through. Default: nodemailer's transport to it. */
+  smtpTransport?: SmtpTransport;
+}
+
 /**
  * The mailer the environment names (see .env.example): Brevo's API with BREVO_API_KEY,
  * else SMTP_URL; the console in development without either, or with MAIL_TRANSPORT=console
  * (local production builds, e2e). Fails fast in production when both are missing.
  */
-export function mailerFromEnv(env: Record<string, string | undefined>): Mailer {
+export function mailerFromEnv(env: Record<string, string | undefined>, options: MailerOptions = {}): Mailer {
   const production = env.NODE_ENV === "production";
   const brevoApiKey = env.BREVO_API_KEY?.trim();
   if (env.MAIL_TRANSPORT === "console" || (!production && !brevoApiKey && !env.SMTP_URL)) return consoleMailer();
   if (!brevoApiKey && !env.SMTP_URL) throw new Error("Missing environment variable BREVO_API_KEY or SMTP_URL");
   const from = env.MAIL_FROM || (production ? undefined : "Jobbbox <bonjour@localhost>");
   if (!from) throw new Error("Missing environment variable MAIL_FROM");
-  if (brevoApiKey) return brevoApiMailer(brevoApiKey, from, { apiUrl: env.BREVO_API_URL });
-  return smtpMailer(env.SMTP_URL!, from);
+  const { externalApis } = options;
+  if (brevoApiKey) {
+    const fetch = externalApis ? recordingFetch((url: string, init?: RequestInit) => globalThis.fetch(url, init), externalApis, { provider: "brevo", operation: () => "send" }) : undefined;
+    return brevoApiMailer(brevoApiKey, from, { apiUrl: env.BREVO_API_URL, fetch });
+  }
+  const smtp = smtpMailer(env.SMTP_URL!, from, options.smtpTransport);
+  return externalApis ? recordingClient(smtp, externalApis, { provider: "brevo_smtp", answeredStatus: null }) : smtp;
 }

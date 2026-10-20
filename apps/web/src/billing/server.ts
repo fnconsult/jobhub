@@ -1,5 +1,5 @@
 import type { Locale } from "@jobhub/shared/i18n";
-import { getExternalApiLog } from "@/ai-usage/server";
+import { getExternalApiLog } from "@/ai-usage/external-api-log";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { STRIPE_SECRET_NAMES } from "@/provider-secrets/catalog";
 import { liveObject } from "@/provider-secrets/resolver";

@@ -278,3 +278,14 @@ describe("an SDK's calls, as recorded", () => {
     }
   });
 });
+
+describe("a client that does not speak HTTP, as recorded", () => {
+  it("records a call that returns as ok without an HTTP status when told so", async () => {
+    const calls: ExternalApiCall[] = [];
+    const smtp = recordingClient({ async send() {} }, { record: (call) => void calls.push(call) }, { provider: "brevo_smtp", answeredStatus: null });
+
+    await smtp.send();
+
+    expect(calls).toEqual([expect.objectContaining({ provider: "brevo_smtp", operation: "send", ok: true, httpStatus: null })]);
+  });
+});

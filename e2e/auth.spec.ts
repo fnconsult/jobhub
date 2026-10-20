@@ -51,7 +51,10 @@ test.describe("magic-link sign-up and sign-in", () => {
 
   test("the sign-in and account pages use only catalogue strings and meet the ADR-0009 floor", async ({ page }) => {
     // Some account-page strings carry a value, e.g. the Follow-up Delays hint (issue #21).
-    const allowed = { has: fromCatalogue(fr) };
+    const known = fromCatalogue(fr);
+    // The Usage Meter's percentage, a catalogue string with the week's number in it.
+    const meter = fr.usageMeter.percent.replace("{{percent}}", "0");
+    const allowed = { has: (text: string) => text === meter || known(text) };
     const email = newAddress("floor");
     await page.goto("/connexion");
     for (const t of await renderedTexts(page)) {

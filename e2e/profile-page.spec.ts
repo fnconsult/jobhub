@@ -360,7 +360,10 @@ test.describe("the Profile page on the ADR-0009 floor", () => {
           "Pays de la Loire",
         ].map((text) => text.trim()),
       );
-      const known = fromCatalogue(fr);
+      const catalogue = fromCatalogue(fr);
+      // The Usage Meter's percentage, a catalogue string with the week's number in it.
+      const meter = fr.usageMeter.percent.replace("{{percent}}", "0");
+      const known = (text: string) => text === meter || catalogue(text);
       for (const t of await renderedTexts(page)) {
         // Values in fields are the Candidate's own text.
         if (t.tag === "select" || t.tag === "textarea" || own.has(t.text)) continue;

@@ -218,6 +218,8 @@ test.describe("onboarding with the AI Coach", () => {
     await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
     await expect(answerBox(page)).toBeVisible();
     const allowed = new Set(catalogueStrings(fr));
+    // The Usage Meter's percentage, a catalogue string with the week's number in it.
+    allowed.add(fr.usageMeter.percent.replace("{{percent}}", "0"));
     for (const t of await renderedTexts(page)) {
       expect.soft(allowed.has(t.text), `"${t.text}" comes from the catalogue`).toBe(true);
       expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);

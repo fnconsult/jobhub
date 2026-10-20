@@ -411,6 +411,21 @@ export const TOOLS = [
     residency: "unknown",
     residencyNote: { fr: "Selon l'émetteur configuré.", en: "Depends on the configured issuer." },
   },
+  {
+    id: "geo-api-gouv",
+    name: "geo.api.gouv.fr",
+    purpose: {
+      fr: "Découpage administratif de l'État (communes, départements, régions) : suggère les lieux des critères de recherche pendant la saisie.",
+      en: "The French state's administrative divisions (communes, départements, régions): suggests the places of the Search Criteria while typing.",
+    },
+    category: "geolocation",
+    module: "apps/web/src/places/geo-api.ts",
+    runsIn: "web",
+    keys: [],
+    usage: { table: "external_api_usage", provider: "geo-api-gouv" },
+    residency: "eu",
+    residencyNote: { fr: "Service public français ; ne reçoit que le début d'un nom de lieu.", en: "French public service; receives only the start of a place name." },
+  },
 ] as const satisfies readonly Tool[];
 
 export type ToolId = (typeof TOOLS)[number]["id"];

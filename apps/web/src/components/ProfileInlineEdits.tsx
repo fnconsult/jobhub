@@ -1,6 +1,6 @@
 "use client";
 
-import { distinctLocations, type SearchCriteria } from "@jobhub/shared";
+import type { SearchCriteria } from "@jobhub/shared";
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,7 +10,7 @@ import { GrowingTextarea, InlineNotice, useInlineEdit, type InlineSaveResult } f
 import {
   ContractTypeChoices,
   criteriaFieldsOf,
-  LocationFields,
+  LocationsInput,
   RemoteWorkChoices,
   searchCriteriaInput,
   type ChoicesProps,
@@ -89,8 +89,8 @@ export function ProfileTitle({ profileId, name }: { profileId: string; name: str
 
 /**
  * An active Profile's Search Criteria as a property list, each value edited in
- * place and saved on change: a text when the Candidate leaves it, a place when
- * they leave its input or remove it, a contract type or remote-work option as
+ * place and saved on change: a text when the Candidate leaves it, a place as
+ * soon as it is added or removed, a contract type or remote-work option as
  * soon as it is ticked or unticked. Changing them does not rename the Profile.
  */
 export function SearchCriteriaProperties({ profileId, searchCriteria }: { profileId: string; searchCriteria: SearchCriteria }) {
@@ -147,30 +147,25 @@ export function SearchCriteriaProperties({ profileId, searchCriteria }: { profil
 
 type Notice = { kind: "saved" } | { kind: "error"; message: string } | null;
 
-const sameList = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((value, index) => value === b[index]);
-
 /**
- * The Search Criteria's places, up to five, on a property row. A place saves when the Candidate
- * leaves its input or removes it; with every place left blank, the saved ones come back (one is required).
+ * The Search Criteria's places, up to five, as chips on a property row (#235): each place added
+ * or removed saves at once; a refused change puts the saved places back. The last place stays
+ * (Locations is required).
  */
 function LocationsProperty({ saved: initial, save }: { saved: string[]; save: (locations: string[]) => Promise<InlineSaveResult> }) {
   const { t } = useTranslation();
-  const [locations, setLocations] = useState(initial.length ? initial : [""]);
+  const [locations, setLocations] = useState(initial);
   const saved = useRef(initial);
   const [notice, setNotice] = useState<Notice>(null);
-  async function commit(next: string[]) {
-    const kept = distinctLocations(next);
-    if (kept.length === 0) {
-      setLocations(saved.current.length ? saved.current : [""]);
-      return;
-    }
-    if (sameList(kept, saved.current)) return;
+  async function change(next: string[]) {
+    setLocations(next);
     setNotice(null);
-    const result = await save(kept);
+    const result = await save(next);
     if (result.ok) {
-      saved.current = kept;
+      saved.current = next;
       setNotice({ kind: "saved" });
     } else {
+      setLocations(saved.current);
       setNotice({ kind: "error", message: result.message });
     }
   }
@@ -178,16 +173,7 @@ function LocationsProperty({ saved: initial, save }: { saved: string[]; save: (l
     <>
       <dt>{t("cvReview.locations")}</dt>
       <dd>
-        <LocationFields
-          inline
-          value={locations}
-          onChange={setLocations}
-          onLeave={(next) => void commit(next)}
-          onRemove={(next) => {
-            setLocations(next);
-            void commit(next);
-          }}
-        />
+        <LocationsInput inline keepOne value={locations} onChange={(next) => void change(next)} />
         <InlineNotice notice={notice} savedLabel={t("profilePage.criteriaSaved")} />
       </dd>
     </>

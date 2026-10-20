@@ -111,7 +111,7 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
   it("groups the Tools by category, in the catalog's order", async () => {
     const overview = await toolsOverview(database, { env: {}, signInTypes: [] }, now);
 
-    expect(overview.map((group) => group.category)).toEqual(["ai_model", "web_search", "job_discovery", "company_data", "contact_enrichment", "billing", "mail", "sign_in"]);
+    expect(overview.map((group) => group.category)).toEqual(["ai_model", "web_search", "job_discovery", "company_data", "contact_enrichment", "billing", "mail", "sign_in", "geolocation"]);
     expect(overview[0]!.rows.map((row) => row.tool.id)).toEqual(["anthropic", "anthropic-bedrock", "anthropic-vertex", "mistral", "openai"]);
   });
 

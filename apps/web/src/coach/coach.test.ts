@@ -2,7 +2,8 @@ import { costInEur, createAiLayer, type AiProvider, type TextInput } from "@jobh
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import { describe, expect, it } from "vitest";
 import { scoreMatch, type IndustryReference, type JobOffer } from "@jobhub/shared";
-import type { Application } from "@/applications";
+import type { AgendaItem } from "@/agenda";
+import { interviewDayStart, type Application } from "../applications";
 import type { ServedKnowledge } from "@/coaching-playbooks";
 import type { JobDigest } from "@/job-digests";
 import type { JobSearch } from "@/job-searches";
@@ -73,6 +74,29 @@ const jobDigest: JobDigest = {
   results: [{ jobOffer: { ...jobOffer, id: "66666666-6666-4666-8666-666666666666", title: "Directeur administratif et financier" }, matchScore, applicationId: null }],
 };
 
+/** "Now" for the AI Coach: Tuesday 20 October 2026, 10:00 French time (UTC+2). */
+const NOW = new Date("2026-10-20T08:00:00.000Z");
+
+/** An Interview on the Agenda, at `scheduledAt` (UTC). */
+const interviewItem = (scheduledAt: string, more: Partial<Extract<AgendaItem, { kind: "interview" }>> = {}): AgendaItem => ({
+  kind: "interview",
+  id: `interview-${scheduledAt}`,
+  scheduledAt: new Date(scheduledAt),
+  applicationId: application.id,
+  jobTitle: "DAF H/F",
+  employer: "Acme Industrie",
+  ...more,
+});
+
+/** A dated Coaching Session on the Agenda, at `scheduledAt` (UTC). */
+const coachingSessionItem = (scheduledAt: string, more: Partial<Extract<AgendaItem, { kind: "coachingSession" }>> = {}): AgendaItem => ({
+  kind: "coachingSession",
+  id: `session-${scheduledAt}`,
+  scheduledAt: new Date(scheduledAt),
+  coach: { id: "coach-sophie", name: "Sophie Martin" },
+  ...more,
+});
+
 /** Marie's workspace, as the AI Coach reads it: only Marie can see what is in it. */
 interface Workspace {
   profiles: Profile[];
@@ -81,10 +105,12 @@ interface Workspace {
   jobSearches: JobSearch[];
   jobDigests: JobDigest[];
   memory: string[];
+  /** Her dated Agenda Items, past and upcoming, in any order. */
+  agenda: AgendaItem[];
 }
 
 function emptyWorkspace(): Workspace {
-  return { profiles: [profile], applications: [], jobOffers: [], jobSearches: [], jobDigests: [], memory: [] };
+  return { profiles: [profile], applications: [], jobOffers: [], jobSearches: [], jobDigests: [], memory: [], agenda: [] };
 }
 
 function sourcesOf(workspace: Workspace): CoachSources {
@@ -117,6 +143,14 @@ function sourcesOf(workspace: Workspace): CoachSources {
       latest: async (candidateId, profileId) => mine(candidateId, workspace.jobDigests).find((d) => d.profile.id === profileId) ?? null,
     },
     coachMemory: { items: async (candidateId) => mine(candidateId, workspace.memory) },
+    // As the Agenda gives them: from the start of today in French time on, oldest first.
+    agenda: {
+      upcoming: async (candidateId, now) =>
+        mine(candidateId, workspace.agenda)
+          .filter((item) => item.scheduledAt >= interviewDayStart(now))
+          .sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime()),
+    },
+    now: () => NOW,
   };
 }
 
@@ -490,6 +524,47 @@ describe("the item In view, in full", () => {
     const context = contextOf(provider);
     expect(context).toContain("2026-10-12");
     expect(context).toContain(`Directeur administratif et financier chez Acme Industrie (Lyon) : score ${matchScore.score}/100`);
+  });
+
+  it("the Agenda: its Agenda Items of the next 30 days in French time, with each one's kind, job title and company or Human Coach, and note", async () => {
+    const { coach, provider } = coachWith({
+      workspace: {
+        agenda: [
+          interviewItem("2026-10-22T12:30:00.000Z", { note: "avec la DRH" }),
+          coachingSessionItem("2026-10-23T08:00:00.000Z", { durationMinutes: 45, videoLink: "https://meet.google.com/abc-defg-hij", note: "Préparer l'entretien chez Acme" }),
+          interviewItem("2026-11-18T09:00:00.000Z", { jobTitle: "Contrôleur de gestion", employer: "Globex" }), // in 29 days
+          interviewItem("2026-11-20T09:00:00.000Z", { jobTitle: "Directeur financier", employer: "Initech" }), // in 31 days
+          interviewItem("2026-10-13T08:00:00.000Z", { jobTitle: "Responsable comptable", employer: "Umbrella" }), // last week
+        ],
+      },
+    });
+
+    await ask(coach, { kind: "agenda", id: "agenda" });
+
+    const context = contextOf(provider);
+    expect(context).toContain("Le candidat consulte son agenda");
+    expect(context).toContain("jeudi 22 octobre 2026 à 14:30 : entretien pour DAF H/F chez Acme Industrie ; note : avec la DRH");
+    expect(context).toContain("vendredi 23 octobre 2026 à 10:00 : séance de coaching avec Sophie Martin (45 min) ; lien de visio : https://meet.google.com/abc-defg-hij ; note : Préparer l'entretien chez Acme");
+    expect(context).toContain("Contrôleur de gestion chez Globex");
+    expect(context).not.toContain("Initech");
+    expect(context).not.toContain("Umbrella");
+  });
+
+  it("the Agenda with nothing in the next 30 days says so", async () => {
+    const { coach, provider } = coachWith();
+
+    await ask(coach, { kind: "agenda", id: "agenda" });
+
+    expect(contextOf(provider)).toContain("Aucun entretien ni rendez-vous dans les 30 prochains jours.");
+  });
+
+  it("nothing of another Candidate's Agenda", async () => {
+    const { coach, provider } = coachWith({ workspace: { agenda: [interviewItem("2026-10-22T12:30:00.000Z", { note: "avec la DRH" })] } });
+
+    await coach.reply("someone-else", { messages: [{ from: "candidate", text: "Et mon agenda ?" }], focus: { kind: "agenda", id: "agenda" } });
+
+    expect(contextOf(provider)).not.toContain("Acme Industrie");
+    expect(contextOf(provider)).not.toContain("avec la DRH");
   });
 
   it("nothing of an Application, Job Search or Job Digest that is someone else's", async () => {

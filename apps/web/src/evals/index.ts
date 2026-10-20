@@ -275,6 +275,7 @@ const IN_VIEW_LABEL: Record<EvalInView["kind"], string> = {
   job_offer: "L'offre d'emploi que le candidat consulte",
   job_search: "La recherche d'offres que le candidat consulte",
   job_digest: "Le Job Digest que le candidat consulte",
+  agenda: "L'agenda que le candidat consulte (ses entretiens et rendez-vous des 30 prochains jours)",
 };
 
 /** An Eval Case's fictional Coach context, as coachContext would frame it: the item In view as data, within `maxTokens`. */

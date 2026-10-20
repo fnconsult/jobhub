@@ -9,6 +9,7 @@ import { getApplications } from "@/applications/server";
 import { getCurrentCandidate } from "@/auth/server";
 import { AddInterviewDialog, type InterviewableApplication } from "@/components/AddInterviewDialog";
 import { CandidateLayout } from "@/components/CandidateLayout";
+import { CoachInView } from "@/components/CoachPanel";
 import { CoachingSessionDialog } from "@/components/CoachingSessionDialog";
 import { InterviewFacts, InterviewTimes } from "@/components/InterviewDetails";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -16,6 +17,8 @@ import { routes, type ApplicationSection } from "@/routes";
 
 /** Where an Interview leads: its Application's Interviews Section. */
 const INTERVIEWS: ApplicationSection = "entretiens";
+/** What the AI Coach has In view here: the Agenda (its next 30 days, whichever period is shown). */
+const AGENDA_IN_VIEW = { kind: "agenda", id: "agenda" } as const;
 /** The address's value for the past Agenda Items (see routes.agenda). */
 const PAST = "passes";
 
@@ -35,6 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * Session to its Human Coach on the Human Coaches page. Unscheduled Coaching
  * Sessions sit at the top, « À planifier », with each Human Coach's booking link.
  * « Ajouter un entretien » adds an Interview to one of the ongoing Applications (#247).
+ * The AI Coach has the Agenda In view: its Agenda Items of the next 30 days.
  */
 export default async function AgendaPage({ searchParams }: { searchParams: Promise<{ periode?: string }> }) {
   const candidate = await getCurrentCandidate();
@@ -60,6 +64,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
       <div className="agenda-actions">
         <AddInterviewDialog applications={ongoing} />
       </div>
+      <CoachInView {...AGENDA_IN_VIEW} name={t("agenda.title")} />
       {unscheduled.length > 0 ? <ToSchedule sessions={unscheduled} formatDate={(value) => paidOn.format(value)} t={t} /> : null}
       <section className={past ? "agenda agenda-past" : "agenda"} aria-labelledby="agenda-period-title">
         <div className="section-head">

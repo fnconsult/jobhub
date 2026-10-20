@@ -38,6 +38,7 @@ const IN_VIEW: Record<CoachFocus["kind"], string> = {
   job_offer: "une offre d'emploi",
   job_search: "les résultats d'une recherche d'offres",
   job_digest: "un Job Digest (une sélection d'offres)",
+  agenda: "son agenda (ses entretiens et rendez-vous à venir)",
 };
 
 /** Which Playbook Agents the AI Coach consults, most useful first, and the call that chose them (null without one). */

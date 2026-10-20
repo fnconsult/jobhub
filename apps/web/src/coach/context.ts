@@ -5,7 +5,8 @@
  *  - always a short Candidate summary (first name, and per active Profile its
  *    target role, Search Criteria and seniority) and the Coach Memory when it has items;
  *  - the item In view in full: a Profile, an Application, a Job Offer, a Job Search
- *    or a Job Digest; only the Candidate's own (a Job Offer belongs to no one);
+ *    or a Job Digest; only the Candidate's own (a Job Offer belongs to no one); on the
+ *    Agenda, the Agenda Items of the next 30 days, in French time (Europe/Paris);
  *  - summarised: the 5 latest Applications with their status, the top 5 Job Offers
  *    by Match Score (from each active Profile's latest Job Search and Job Digest),
  *    and the onboarding answers (what each Profile's Master CV says of the Candidate);
@@ -32,7 +33,8 @@ import {
   type MatchScore,
   type SearchCriteria,
 } from "@jobhub/shared";
-import type { Application, Applications } from "../applications";
+import type { AgendaItem } from "../agenda";
+import { INTERVIEW_TIME_ZONE, type Application, type Applications } from "../applications";
 import type { JobDigest, JobDigests } from "../job-digests";
 import type { JobOffers } from "../job-offers";
 import type { JobSearch, JobSearches } from "../job-searches";
@@ -44,13 +46,21 @@ export type CoachFocus =
   | { kind: "application"; id: string }
   | { kind: "job_offer"; id: string }
   | { kind: "job_search"; id: string }
-  | { kind: "job_digest"; id: string };
+  | { kind: "job_digest"; id: string }
+  /** The Agenda: what is In view is its Agenda Items of the next 30 days, whatever the id. */
+  | { kind: "agenda"; id: string };
 
-export const COACH_FOCUS_KINDS = ["profile", "application", "job_offer", "job_search", "job_digest"] as const satisfies readonly CoachFocus["kind"][];
+export const COACH_FOCUS_KINDS = ["profile", "application", "job_offer", "job_search", "job_digest", "agenda"] as const satisfies readonly CoachFocus["kind"][];
 
 /** The Coach Memory: what the Candidate confirmed the AI Coach should remember (#125). */
 export interface CoachMemorySource {
   items(candidateId: string): Promise<string[]>;
+}
+
+/** The Candidate's Agenda, as the AI Coach reads it. */
+export interface CoachAgendaSource {
+  /** The Candidate's dated Agenda Items from the start of `now`'s day in French time on, oldest first. */
+  upcoming(candidateId: string, now: Date): Promise<AgendaItem[]>;
 }
 
 /** Where the AI Coach reads the Candidate's workspace from; every read is scoped to the Candidate. */
@@ -65,6 +75,9 @@ export interface CoachSources {
   coachMemory?: CoachMemorySource;
   /** The Sectors', Subsectors' and Domains' labels (#236); without them, or when they cannot be read, none is named. */
   industries?: () => Promise<IndustryReference>;
+  agenda: CoachAgendaSource;
+  /** The clock the Agenda Items are read against. Default: the system clock. */
+  now?: () => Date;
 }
 
 /** What the AI Coach and the Playbook Agents are told of the text framed as data. */
@@ -83,6 +96,9 @@ export const COACH_CONTEXT_MAX_TOKENS = 12_000;
 /** How many items each summary holds at most. */
 export const SUMMARY_ITEMS = 5;
 
+/** How far ahead the Agenda In view reaches, in days. */
+export const AGENDA_IN_VIEW_DAYS = 30;
+
 /** A rough token count (about 4 characters per token), enough to keep the context under its cap. */
 export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
@@ -95,10 +111,11 @@ interface Summary {
 }
 
 export async function coachContext(sources: CoachSources, candidateId: string, focus: CoachFocus | undefined, maxTokens: number): Promise<string> {
+  const now = sources.now?.() ?? new Date();
   const [profiles, industries] = await Promise.all([activeProfiles(sources, candidateId), sources.industries?.().catch(() => NO_INDUSTRY_REFERENCE) ?? NO_INDUSTRY_REFERENCE]);
   const criteriaText = criteriaTextOf(industries);
   const [inView, memory, applications, jobOffers] = await Promise.all([
-    inViewText(sources, candidateId, focus, criteriaText),
+    inViewText(sources, candidateId, focus, criteriaText, now),
     sources.coachMemory?.items(candidateId) ?? [],
     sources.applications.list(candidateId),
     topJobOffers(sources, candidateId, profiles),
@@ -293,6 +310,7 @@ async function inViewText(
   candidateId: string,
   focus: CoachFocus | undefined,
   criteriaText: (criteria: SearchCriteria) => string,
+  now: Date,
 ): Promise<string | null> {
   switch (focus?.kind) {
     case "profile": {
@@ -320,6 +338,11 @@ async function inViewText(
     case "job_digest": {
       const jobDigest = await sources.jobDigests.get(candidateId, focus.id);
       return jobDigest ? jobDigestText(jobDigest) : null;
+    }
+    case "agenda": {
+      const until = now.getTime() + AGENDA_IN_VIEW_DAYS * 24 * 60 * 60 * 1000;
+      const items = (await sources.agenda.upcoming(candidateId, now)).filter((item) => item.scheduledAt.getTime() < until);
+      return agendaText(items);
     }
     default:
       return null;
@@ -354,6 +377,29 @@ function jobDigestText(jobDigest: JobDigest): string {
   return [
     `Le candidat consulte la sélection d'offres envoyée le ${day(jobDigest.sentAt)} pour son profil « ${jobDigest.profile.name} ».`,
     ["Offres, meilleur score d'abord :", ...jobDigest.results.map((result) => `- ${resultLine(result)}`)].join("\n"),
+  ].join("\n");
+}
+
+const AGENDA_WHEN = new Intl.DateTimeFormat("fr", { timeZone: INTERVIEW_TIME_ZONE, weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+/** One Agenda Item in a line, its date and time in French time: "jeudi 22 octobre 2026 à 14:30 : entretien pour DAF H/F chez Acme Industrie". */
+function agendaLine(item: AgendaItem): string {
+  const what =
+    item.kind === "interview"
+      ? `entretien pour ${item.jobTitle}${item.employer ? ` chez ${item.employer}` : ""}`
+      : [
+          `séance de coaching avec ${item.coach.name}${item.durationMinutes ? ` (${item.durationMinutes} min)` : ""}`,
+          item.videoLink ? `lien de visio : ${item.videoLink}` : "",
+        ]
+          .filter(Boolean)
+          .join(" ; ");
+  return [`${AGENDA_WHEN.format(item.scheduledAt)} : ${what}`, item.note ? `note : ${item.note}` : ""].filter(Boolean).join(" ; ");
+}
+
+function agendaText(items: AgendaItem[]): string {
+  return [
+    `Le candidat consulte son agenda « Entretiens et rendez-vous ». Ses entretiens et rendez-vous des ${AGENDA_IN_VIEW_DAYS} prochains jours (heure de Paris) :`,
+    ...(items.length ? items.map((item) => `- ${agendaLine(item)}`) : [`Aucun entretien ni rendez-vous dans les ${AGENDA_IN_VIEW_DAYS} prochains jours.`]),
   ].join("\n");
 }
 

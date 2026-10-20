@@ -71,7 +71,7 @@ export function CoachPanelToggle({ floating = false }: { floating?: boolean }) {
 
 /**
  * Declares the Profile, Application, Job Offer, Job Search or Job Digest a page
- * shows, so the Coach Panel (and the AI Coach behind it) know what the Candidate
+ * shows, or the Agenda, so the Coach Panel (and the AI Coach behind it) know what the Candidate
  * has in view. Renders nothing; does nothing outside a Coach Panel (signed-out pages).
  */
 export function CoachInView({ kind, id, name, profileId }: InView) {
@@ -92,6 +92,7 @@ const IN_VIEW_LABEL = {
   job_offer: "coachPanel.inViewJobOffer",
   job_search: "coachPanel.inViewJobSearch",
   job_digest: "coachPanel.inViewJobDigest",
+  agenda: "coachPanel.inViewAgenda",
 } as const satisfies Record<InView["kind"], string>;
 
 type Status = "idle" | "sending" | "unavailable" | "invalid";

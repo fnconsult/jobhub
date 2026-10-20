@@ -69,7 +69,7 @@ export interface AiLayerDeps {
 
 function required(env: Env, key: string): string {
   const value = env[key]?.trim();
-  if (!value) throw new AiConfigError(`Missing environment variable ${key}`);
+  if (!value) throw new AiConfigError(`Missing environment variable ${key}`, { reason: "key_missing" });
   return value;
 }
 
@@ -152,7 +152,7 @@ function identityProvider(env: Env, fake: boolean, fetch: typeof globalThis.fetc
     endpoint: "mistral (not configured)",
     residency: "eu",
     generate: async () => {
-      throw new AiConfigError("Missing environment variable MISTRAL_API_KEY: needed for identity-bearing AI calls of Candidates with EU AI consent");
+      throw new AiConfigError("Missing environment variable MISTRAL_API_KEY: needed for identity-bearing AI calls of Candidates with EU AI consent", { reason: "key_missing" });
     },
   };
 }

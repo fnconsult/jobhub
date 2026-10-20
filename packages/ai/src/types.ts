@@ -2,7 +2,7 @@
  * Types shared by the AI layer and its provider adapters (ADR-0007).
  * Callers only need `AiLayer`; `AiProvider` is the seam each adapter fills.
  */
-import type { AiUsageProvider } from "@jobhub/shared";
+import type { AiUsageProvider, FailureReason, Outcome, TechnicalReason } from "@jobhub/shared";
 import type { Effort } from "./effort";
 
 /** Each a registered Tool's (TOOLS, #233): a provider not registered does not type-check. */
@@ -168,19 +168,33 @@ export interface UsageEntry extends TokenUsage {
   /** null for a Guest (browser extension without an account). */
   candidateId: string | null;
   task: AiTask;
-  provider: ProviderId;
-  endpoint: string;
-  /** The model that answered; for a failed call, the route's model, else the provider's default model (or its id when it names none). */
-  model: string;
-  /** Whether the provider answered. A failed call is recorded too, with no tokens. */
-  ok: boolean;
-  /** How long the provider took to answer or fail. */
+  /** Null for a call stopped before any provider was chosen (no route for its task). */
+  provider: ProviderId | null;
+  /** Null for a call stopped before it reached one of the provider's endpoints. */
+  endpoint: string | null;
+  /**
+   * The model that answered; for a failed call, the route's model, else the provider's default model (or its
+   * id when it names none); null for a call stopped before it had one.
+   */
+  model: string | null;
+  /** How the call ended (ADR-0030): ok, warning (worked, degraded) or failed. A failed call is recorded too, with no tokens. */
+  outcome: Outcome;
+  /** Why it failed or warned (its Failure Reason's code); absent when ok. */
+  reason?: FailureReason;
+  /**
+   * What the error said: its class, provider, HTTP status and message, scrubbed, redacted and cut. Personal data:
+   * only the AI Message Log keeps it, as it keeps the transcript.
+   */
+  technicalReason?: TechnicalReason;
+  /** Whether the call left for its provider; false for one stopped before (missing key or route, data residency), which costs nothing. */
+  sent: boolean;
+  /** How long the provider took to answer or fail; 0 for a call stopped before it was sent. */
   durationMs: number;
   /** The tokens' estimated € at list price (`costInEur`); the tools' fees are apart, in `tools`. */
   costEur: number;
   /** The tools the call used. */
   tools: ToolUse[];
-  /** What the call said. A usage log that is not the AI Message Log must leave it out. */
+  /** What the call said (or would have said, when not sent). A usage log that is not the AI Message Log must leave it out, and `technicalReason` too. */
   transcript: Transcript;
   at: Date;
 }

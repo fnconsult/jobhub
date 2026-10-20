@@ -186,7 +186,7 @@ describe("the AI layer's Company News search", () => {
     expect(news).toEqual([{ title: "Acme ouvre une usine à Clermont-Ferrand", outlet: "Les Echos", publishedAt: "2026-09-01", url: "https://news.example/usine" }]);
     expect(perplexity.searches).toEqual([expect.objectContaining({ filters: { maxAgeDays: 365 } })]);
     expect(perplexity.queries[0]).toContain("Articles de presse");
-    expect(usage.entries).toEqual([expect.objectContaining({ candidateId: "cand-1", task: "web_search", provider: "perplexity", ok: true })]);
+    expect(usage.entries).toEqual([expect.objectContaining({ candidateId: "cand-1", task: "web_search", provider: "perplexity", outcome: "ok" })]);
   });
 
   it("never fails: a failed search gives no article, and is logged as failed", async () => {
@@ -196,7 +196,7 @@ describe("the AI layer's Company News search", () => {
     const ai = createAiLayer({ providers: [failing], routes: { web_search: "perplexity" }, usage, warn: (message) => warnings.push(message) });
 
     expect(await ai.searchCompanyNews({ candidateId: "cand-1", employer: "Acme" })).toEqual([]);
-    expect(usage.entries).toEqual([expect.objectContaining({ task: "web_search", ok: false })]);
+    expect(usage.entries).toEqual([expect.objectContaining({ task: "web_search", outcome: "failed" })]);
     expect(warnings).toEqual([expect.stringMatching(/Company News unavailable/)]);
   });
 

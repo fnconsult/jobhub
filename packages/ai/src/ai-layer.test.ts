@@ -1,6 +1,7 @@
 import type { SearchCriteria } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { AiConfigError, createAiLayer } from "./ai-layer";
+import { AiConfigError, createAiLayer, DataResidencyError } from "./ai-layer";
+import { AiProviderError } from "./errors";
 import { createFakeProvider, createMemoryUsageLog } from "./testing";
 
 describe("AI layer", () => {
@@ -199,7 +200,7 @@ describe("the usage of every AI call", () => {
 
     await ai.generate({ task: "scoring", candidateId: "cand-1", prompt: "Score this" });
 
-    expect(usage.entries).toEqual([expect.objectContaining({ task: "scoring", provider: "mistral", model: "fake-mistral", ok: true })]);
+    expect(usage.entries).toEqual([expect.objectContaining({ task: "scoring", provider: "mistral", model: "fake-mistral", outcome: "ok" })]);
   });
 
   it("records a failed text call, with no tokens, and still fails it", async () => {
@@ -210,7 +211,7 @@ describe("the usage of every AI call", () => {
     await expect(ai.generate({ task: "scoring", candidateId: "cand-1", prompt: "Score this" })).rejects.toThrow("HTTP 503");
 
     expect(usage.entries).toEqual([
-      expect.objectContaining({ task: "scoring", provider: "mistral", endpoint: "fake mistral", model: "mistral-small", inputTokens: 0, outputTokens: 0, ok: false }),
+      expect.objectContaining({ task: "scoring", provider: "mistral", endpoint: "fake mistral", model: "mistral-small", inputTokens: 0, outputTokens: 0, outcome: "failed" }),
     ]);
   });
 
@@ -222,7 +223,7 @@ describe("the usage of every AI call", () => {
     await expect(ai.searchCompany({ candidateId: null, employer: "Acme" })).rejects.toThrow("HTTP 429");
 
     // No model on the route: the provider's own default, by name.
-    expect(usage.entries).toEqual([expect.objectContaining({ task: "web_search", provider: "perplexity", model: "fake-perplexity", ok: false })]);
+    expect(usage.entries).toEqual([expect.objectContaining({ task: "web_search", provider: "perplexity", model: "fake-perplexity", outcome: "failed" })]);
   });
 
   it("records how long the call took, its estimated cost and its text: system, messages and reply", async () => {
@@ -305,7 +306,7 @@ describe("the usage of every AI call", () => {
 
     expect(usage.entries).toEqual([
       expect.objectContaining({
-        ok: false,
+        outcome: "failed",
         costEur: 0,
         tools: [{ name: "web_search", count: 1, ok: false, durationMs: expect.any(Number), costEur: 0 }],
         transcript: { messages: [expect.objectContaining({ role: "user" })], reply: null },
@@ -324,5 +325,138 @@ describe("the usage of every AI call", () => {
 
       await expect(ai.generate({ task: "scoring", candidateId: "cand-1", prompt: "Score this" })).resolves.toMatchObject({ text: "ok" });
     }
+  });
+});
+
+describe("the Failure Reason of every failed AI call (#259, ADR-0030)", () => {
+  it("records a provider's 503 as failed, provider_unavailable, with the provider and status 503 in the technical reason", async () => {
+    const usage = createMemoryUsageLog();
+    const mistral = createFakeProvider({ id: "mistral", fail: new AiProviderError("mistral", "HTTP 503 Service Unavailable", 503) });
+    const ai = createAiLayer({ providers: [mistral], routes: { scoring: "mistral" }, usage });
+
+    await expect(ai.generate({ task: "scoring", candidateId: "cand-1", prompt: "Score this" })).rejects.toThrow(AiProviderError);
+
+    expect(usage.entries).toEqual([
+      expect.objectContaining({
+        outcome: "failed",
+        reason: "provider_unavailable",
+        technicalReason: { class: "AiProviderError", provider: "mistral", status: 503, message: "mistral: HTTP 503 Service Unavailable" },
+        sent: true,
+        costEur: 0,
+        transcript: { messages: [{ role: "user", content: "Score this" }], reply: null },
+      }),
+    ]);
+  });
+
+  it("records a failed web search with its Failure Reason", async () => {
+    const usage = createMemoryUsageLog();
+    const perplexity = createFakeProvider({ id: "perplexity", fail: new AiProviderError("perplexity", "HTTP 429", 429) });
+    const ai = createAiLayer({ providers: [perplexity], routes: { web_search: "perplexity" }, usage });
+
+    await expect(ai.searchCompany({ candidateId: null, employer: "Acme" })).rejects.toThrow("HTTP 429");
+
+    expect(usage.entries).toEqual([expect.objectContaining({ task: "web_search", outcome: "failed", reason: "rate_limited", sent: true })]);
+  });
+
+  it("records a call whose provider's key is missing as failed and not sent, key_missing, at no cost; the caller still gets the AiConfigError", async () => {
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [createFakeProvider({ id: "mistral" })], routes: { coaching: "mistral" }, usage, warn: () => {} });
+
+    // A Playbook Agent's route names a provider whose key was never entered.
+    await expect(ai.generate({ task: "coaching", candidateId: "cand-1", system: "Tu es le coach.", prompt: "Écris à marie.dupont@example.fr", route: { provider: "openai", model: "gpt-5" } })).rejects.toThrow(AiConfigError);
+
+    expect(usage.entries).toEqual([
+      {
+        candidateId: "cand-1",
+        task: "coaching",
+        provider: "openai",
+        endpoint: null,
+        model: "gpt-5",
+        inputTokens: 0,
+        outputTokens: 0,
+        outcome: "failed",
+        reason: "key_missing",
+        technicalReason: { class: "AiConfigError", message: 'AI provider "openai" is not configured' },
+        sent: false,
+        durationMs: 0,
+        costEur: 0,
+        tools: [],
+        // What would have been sent, redacted.
+        transcript: { system: "Tu es le coach.", messages: [{ role: "user", content: "Écris à [E-MAIL]" }], reply: null },
+        at: expect.any(Date),
+      },
+    ]);
+  });
+
+  it("records a call stopped inside the provider by a missing key (the identity route without its key) as not sent", async () => {
+    const usage = createMemoryUsageLog();
+    const standIn = createFakeProvider({ id: "mistral", fail: new AiConfigError("Missing environment variable MISTRAL_API_KEY", { reason: "key_missing" }) });
+    const ai = createAiLayer({ providers: [standIn], routes: { scoring: "mistral" }, usage });
+
+    await expect(ai.generate({ task: "scoring", candidateId: "cand-1", prompt: "Score" })).rejects.toThrow(AiConfigError);
+
+    expect(usage.entries).toEqual([expect.objectContaining({ outcome: "failed", reason: "key_missing", sent: false, costEur: 0, tools: [] })]);
+  });
+
+  it("records a task no provider serves as route_missing, not sent, with no provider", async () => {
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [createFakeProvider({ id: "mistral" })], routes: { coaching: "mistral" }, usage });
+
+    await expect(ai.generate({ task: "writing", candidateId: null, prompt: "Une lettre" })).rejects.toThrow(AiConfigError);
+
+    expect(usage.entries).toEqual([expect.objectContaining({ task: "writing", provider: null, endpoint: null, model: null, outcome: "failed", reason: "route_missing", sent: false })]);
+  });
+
+  it("records a web search refused by a data residency rule as data_residency, not sent", async () => {
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [createFakeProvider({ id: "perplexity" })], routes: { web_search: "perplexity" }, usage });
+
+    await expect(ai.searchWeb({ candidateId: null, criteria: { targetRole: "DAF", locations: ["Paris"], contractTypes: [], remoteWorkOptions: [] } as unknown as SearchCriteria, filters: { country: "France" } })).rejects.toThrow(DataResidencyError);
+
+    expect(usage.entries).toEqual([expect.objectContaining({ task: "web_search", provider: "perplexity", outcome: "failed", reason: "data_residency", sent: false, tools: [] })]);
+  });
+
+  it("an Eval Run's web search is recorded as refused too", async () => {
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [createFakeProvider({ id: "perplexity" })], routes: { web_search: "perplexity" }, usage });
+
+    await expect(ai.forEval().searchCompany({ candidateId: null, employer: "Acme" })).rejects.toThrow(AiConfigError);
+
+    expect(usage.entries).toEqual([expect.objectContaining({ task: "web_search", candidateId: null, outcome: "failed", reason: "route_missing", sent: false })]);
+  });
+
+  it("keeps a technical message holding an API key, an email or more than 500 characters scrubbed, redacted and cut", async () => {
+    const usage = createMemoryUsageLog();
+    const key = "sk-proj-4f9a1c2b7d8e3f6a5b4c";
+    const echo = `HTTP 400 invalid key ${key}; prompt began « Bonjour Marie Dupont, marie.dupont@example.fr » ${"et la suite ".repeat(60)}`;
+    const openai = createFakeProvider({ id: "openai", fail: new AiProviderError("openai", echo, 400) });
+    const ai = createAiLayer({
+      providers: [openai],
+      routes: { writing: "openai" },
+      usage,
+      identityOf: async () => ({ fullName: "Marie Dupont", firstName: "Marie", lastName: "Dupont" }),
+      warn: () => {},
+    });
+
+    await expect(ai.generate({ task: "writing", candidateId: "cand-1", prompt: "Une lettre" })).rejects.toThrow(AiProviderError);
+
+    const message = usage.entries[0]!.technicalReason!.message;
+    expect(usage.entries[0]!.reason).toBe("provider_rejected");
+    expect(message).not.toContain(key);
+    expect(message).not.toContain("marie.dupont@example.fr");
+    expect(message).not.toContain("Dupont");
+    expect(message).toContain("[E-MAIL]");
+    expect(message.length).toBeLessThanOrEqual(500);
+  });
+
+  it("records a call that succeeded as ok, sent, without a Failure Reason", async () => {
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [createFakeProvider({ id: "mistral" })], routes: { scoring: "mistral" }, usage });
+
+    await ai.generate({ task: "scoring", candidateId: "cand-1", prompt: "Score" });
+
+    expect(usage.entries[0]).toMatchObject({ outcome: "ok", sent: true });
+    expect(usage.entries[0]).not.toHaveProperty("reason");
+    expect(usage.entries[0]).not.toHaveProperty("technicalReason");
   });
 });

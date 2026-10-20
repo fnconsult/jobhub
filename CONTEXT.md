@@ -264,10 +264,17 @@ A Job Offer a results page gave that the run had not found yet. It is what lets 
 The limits that end one run of Job discovery (a Job Search or a Job Digest top-up), whichever comes first: a number of Job Offers found (new or already stored), an estimated spend in euros, or a duration. Defaults: 30 Job Offers, EUR 0.08, 90 seconds. The result page being read when a limit is reached is finished, so a run can go slightly past it.
 
 **France Travail search**:
-The first source of a Job discovery run when France Travail is configured: the official job-offer API of France Travail, searched with the Search Criteria. Its Job Offers count toward the Job discovery budget; when they fill it, the AI plan and web search are skipped. Losing access is a normal outcome, never a failed run.
+The first source of a Job discovery run when France Travail is configured: the official job-offer API of France Travail, searched with the Search Criteria. Its Job Offers count toward the Job discovery budget; when they fill it, the Fantastic.jobs search, the AI plan and web search are skipped. Losing access is a normal outcome, never a failed run.
 
 **France Travail status**:
 How the France Travail search went in one run, part of the Discovery metrics: off (not configured), searched, refused (access withdrawn or credentials rejected) or failed (any other error).
+
+**Fantastic.jobs search**:
+The source of a Job discovery run after the France Travail search when Fantastic.jobs' key is set: its `active-ats` API, the postings of employers' own career pages (their ATS), searched by the Search Criteria title and location. Each Job Offer is captured at its ATS page and dated by its posting, so it deduplicates with those already stored. Its Job Offers count toward the Job discovery budget; when they fill it, the web search is skipped. Every job returned is charged, so one search asks for no more than a set maximum (10 by default) and none once a quota is spent, until it is renewed (ADR-0027). A refusal is a normal outcome, never a failed run.
+_Avoid_: Fantastic.jobs feed, job board search
+
+**Fantastic.jobs status**:
+How the Fantastic.jobs search went in one run, part of the Discovery metrics with its calls, Job Offers kept and estimated cost: off (no key or the source disabled), searched, refused (key rejected, or its Jobs credits or API requests spent) or failed (any other error).
 
 **ROME code**:
 France Travail's code for a job, derived from the Search Criteria title; a title naming no known job is searched by keywords instead.
@@ -279,7 +286,7 @@ What one run of Job discovery (a Job Search or a Job Digest top-up) measured: ho
 Why a result page gave no Job Offer (for example a Forbidden site, robots.txt, an unreadable page, a closed posting, a posting too old, or a disabled Job discovery site).
 
 **Job discovery source**:
-Where Job discovery finds Job Offers: the France Travail search, the web search, or the public APIs of the ATS postings are read through (Greenhouse, Lever, Ashby). Administrators enable or disable each from the Back Office; a disabled one is skipped by Job Searches and Job Digest top-ups (France Travail then counts as off, and an ATS posting is read from its page). All are enabled when the Back Office cannot be read.
+Where Job discovery finds Job Offers: the France Travail search, the Fantastic.jobs search, the web search, or the public APIs of the ATS postings are read through (Greenhouse, Lever, Ashby). Administrators enable or disable each from the Back Office; a disabled one is skipped by Job Searches and Job Digest top-ups (France Travail or Fantastic.jobs then counts as off, and an ATS posting is read from its page). All are enabled when the Back Office cannot be read.
 _Avoid_: Provider (alone), channel
 
 **Job discovery site**:
@@ -518,7 +525,7 @@ What an Administrator may see and change in the Back Office: super-admin (everyt
 _Avoid_: Permission level, admin type
 
 **Provider Secret**:
-A third-party key (an AI provider's, France Travail's, the contact-enrichment provider's, Stripe's, Brevo's API key or SMTP credentials) that super-admins enter in the Back Office's Clés section. Stored encrypted in our database and used over the environment variable of the same name, which it falls back to once cleared. Never shown again once saved: only its source, last 4 characters, and who changed it when.
+A third-party key (an AI provider's, France Travail's, Fantastic.jobs', the contact-enrichment provider's, Stripe's, Brevo's API key or SMTP credentials) that super-admins enter in the Back Office's Clés section. Stored encrypted in our database and used over the environment variable of the same name, which it falls back to once cleared. Never shown again once saved: only its source, last 4 characters, and who changed it when.
 _Avoid_: API key setting, credential, config secret
 
 **Tool**:

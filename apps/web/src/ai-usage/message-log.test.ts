@@ -184,8 +184,10 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
     await ai.generate({ task: "coaching", candidateId: marie, prompt: "Bonjour" });
     await settled();
 
-    expect(await purgeExpiredAiUsage(database, new Date("2026-11-15T08:00:00Z"))).toEqual({ usage: 0, externalApis: 0, messageLogs: 0 });
-    expect(await purgeExpiredAiUsage(database, new Date("2026-11-16T08:00:00Z"))).toEqual({ usage: 0, externalApis: 0, messageLogs: 1 });
+    // The row is stamped with the call's clock (now, set above), so the cut-offs are measured from it.
+    const day = 24 * 60 * 60 * 1000;
+    expect(await purgeExpiredAiUsage(database, new Date(now.getTime() + 29 * day))).toEqual({ usage: 0, externalApis: 0, messageLogs: 0 });
+    expect(await purgeExpiredAiUsage(database, new Date(now.getTime() + 31 * day))).toEqual({ usage: 0, externalApis: 0, messageLogs: 1 });
     expect(await logs.list()).toEqual([]);
   });
 

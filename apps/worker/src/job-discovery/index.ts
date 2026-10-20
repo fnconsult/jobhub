@@ -86,15 +86,25 @@ import {
 import { readAtsPosting } from "./ats";
 import { DEFAULT_BUDGET, type JobDiscoveryBudget } from "./budget";
 import type { FranceTravail } from "./france-travail";
-import { htmlToText, metaRobots } from "./html";
-import { countJobPostings, readJobPosting } from "./job-posting";
 import { listingPageLinks } from "./listing-page";
 import { searchPages } from "./search-pages";
-import { createPoliteFetcher, realClock, recordingJobBoardFetch, type Clock, type JsonResult, type RefusalReason } from "./polite-fetch";
+import {
+  countJobPostings,
+  createPoliteFetcher,
+  DEFAULT_USER_AGENT,
+  htmlToText,
+  metaRobots,
+  readJobPosting,
+  realClock,
+  recordingJobBoardFetch,
+  type Clock,
+  type JsonResult,
+  type RefusalReason,
+} from "@jobhub/shared/page-reading";
 
 export { MAX_POSTING_AGE_DAYS } from "@jobhub/shared";
 export { DEFAULT_BUDGET, jobDiscoveryBudgetFromEnv, type JobDiscoveryBudget } from "./budget";
-export type { RefusalReason } from "./polite-fetch";
+export type { RefusalReason } from "@jobhub/shared/page-reading";
 export { franceTravailFromEnv, type FranceTravail } from "./france-travail";
 
 /** Where Job Offers are stored. Satisfied by the web app's Job Offers module. */
@@ -193,7 +203,7 @@ export interface JobDiscovery {
 /** Job Searches look for jobs in France: the provider favours French pages. */
 const SEARCH_COUNTRY = "FR";
 
-export const DEFAULT_USER_AGENT = "JobbboxBot/1.0 (+https://jobbbox.fr/robot)";
+export { DEFAULT_USER_AGENT } from "@jobhub/shared/page-reading";
 
 /**
  * Sites whose terms of use forbid automated access (ADR-0002). They are covered

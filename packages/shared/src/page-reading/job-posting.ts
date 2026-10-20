@@ -3,7 +3,8 @@
  * https://schema.org/JobPosting — fields are loosely typed in the wild, so every
  * read is defensive: a field we cannot make sense of is left out.
  */
-import { parseStatedDate, type ContractType, type JobOfferDetails, type RemoteWork, type SalaryRange } from "@jobhub/shared";
+import type { ContractType, JobOfferDetails, RemoteWork, SalaryRange } from "../domain";
+import { parseStatedDate } from "../posting-date";
 import { decodeEntities, htmlToText, jsonLdBlocks } from "./html";
 
 type Json = Record<string, unknown>;

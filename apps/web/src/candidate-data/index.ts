@@ -153,7 +153,8 @@ export interface ExportedCoachConversation {
   createdAt: Date;
   lastMessageAt: Date;
   /** Oldest first. */
-  messages: (CoachMessage & { sentAt: Date })[];
+  /** `jobOfferId`: the Job Offer of a reply's Job Offer card. */
+  messages: (Omit<CoachMessage, "jobOffer"> & { jobOfferId?: string; sentAt: Date })[];
 }
 
 /** A conversation an Administrator had with the Back Office Assistant, every message included (what each reply cost is internal, left out). */
@@ -239,7 +240,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   enriched_contact: "applications[].enrichedContacts (no provider identifiers)",
   company_dossier: "applications[].companyDossier",
   coach_conversation: "coachConversations",
-  coach_message: "coachConversations[].messages (blocked ones marked; no AI costs)",
+  coach_message: "coachConversations[].messages (blocked ones marked, a Job Offer card's Job Offer named; no AI costs)",
   coach_access: "coachAccess",
   coaching_session: "coachingSessions (no Stripe identifiers)",
   action_card: "actionCards",
@@ -422,16 +423,16 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         candidateId,
       ),
       grouped<ExportedCoachConversation["messages"][number]>(
-        `SELECT m.conversation_id AS key, m.author AS "from", m.text, CASE WHEN m.blocked THEN true END AS blocked, m.created_at AS "sentAt"
+        `SELECT m.conversation_id AS key, m.author AS "from", m.text, CASE WHEN m.blocked THEN true END AS blocked, m.job_offer_id AS "jobOfferId", m.created_at AS "sentAt"
            FROM coach_message m JOIN coach_conversation c ON c.id = m.conversation_id
           WHERE c.candidate_id = $1 ORDER BY m.seq`,
         candidateId,
       ),
     ]);
-    // A Blocked message (#228) says so; the others carry no mark.
+    // A Blocked message (#228) says so, a reply with a Job Offer card names its Job Offer; the others carry no mark.
     return conversations.map((conversation) => ({
       ...conversation,
-      messages: messagesOf(conversation.id).map(({ blocked, ...message }) => (blocked ? { ...message, blocked } : message)),
+      messages: messagesOf(conversation.id).map(({ blocked, jobOfferId, ...message }) => ({ ...message, ...(blocked ? { blocked } : {}), ...(jobOfferId ? { jobOfferId } : {}) })),
     }));
   }
 

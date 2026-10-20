@@ -18,6 +18,7 @@ import { webPort as e2eWebPort } from "./e2e/support/ports";
 // and so are the French company register and Perplexity's web search behind
 // Company Dossiers (e2e/support/fake-company-sources.mjs), and so is Apollo, the
 // contact-data provider behind Enriched Contacts (e2e/support/fake-contact-provider.mjs), and so is
+// the careers site of a Job Offer link pasted in the Coach Panel (e2e/support/fake-coach-link-sites.mjs), and so is
 // geo.api.gouv.fr, which suggests the Search Criteria's places (e2e/support/fake-geo-api.mjs).
 // Stripe is a fake HTTP API (apps/web/src/billing/fake-stripe.ts) on
 // E2E_STRIPE_URL; webhooks are signed with its test secret. ADMIN_EMAILS names
@@ -51,7 +52,7 @@ export default defineConfig({
   projects: [
     {
       name: "web",
-      testMatch: /(web|database-connections|auth|account-data|back-office-audit|back-office-roles|back-office-assistant|ai-consumption|provider-secrets|sign-in-providers|profiles|master-cv|match-score|ats-score|coach|coach-panel-reply|coach-context|coach-memory|coach-playbooks|billing|plans|coupons|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|human-coaches|eu-ai-consent|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|profile-page|coaching-playbooks-back-office|guardrails|eval-runs|tools)\.spec\.ts/,
+      testMatch: /(web|database-connections|auth|account-data|back-office-audit|back-office-roles|back-office-assistant|ai-consumption|provider-secrets|sign-in-providers|profiles|master-cv|match-score|ats-score|coach|coach-panel-reply|coach-job-offer-link|coach-context|coach-memory|coach-playbooks|billing|plans|coupons|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|human-coaches|eu-ai-consent|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|profile-page|coaching-playbooks-back-office|guardrails|eval-runs|tools)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" },
     },
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },
@@ -103,6 +104,7 @@ export default defineConfig({
         `--import=${path.resolve("e2e/support/fake-mistral.mjs")}`,
         `--import=${path.resolve("e2e/support/fake-company-sources.mjs")}`,
         `--import=${path.resolve("e2e/support/fake-contact-provider.mjs")}`,
+        `--import=${path.resolve("e2e/support/fake-coach-link-sites.mjs")}`,
         `--import=${path.resolve("e2e/support/fake-geo-api.mjs")}`,
       ].join(" "),
       STRIPE_SECRET_KEY: "sk_test_fake",

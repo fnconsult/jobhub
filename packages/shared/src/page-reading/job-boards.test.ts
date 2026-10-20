@@ -1,4 +1,4 @@
-import type { ExternalApiCall } from "@jobhub/shared";
+import type { ExternalApiCall } from "../external-api-usage";
 import { expect, it } from "vitest";
 import { recordingJobBoardFetch } from "./polite-fetch";
 

@@ -534,6 +534,8 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
     try {
       const database = testAuth.database;
       await migrateProfiles(database);
+      await migrateJobOffers(database);
+      await migrateApplications(database);
       await migrateCoachConversations(database);
       const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
       const session = (await (await testAuth.request("/api/auth/get-session", { cookie })).json()) as { user: { id: string } };

@@ -176,6 +176,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // Coach Memory (issue #125) goes with its Candidate.
         { from_table: "coach_memory_item", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coach_message", from_column: "conversation_id", to_table: "coach_conversation" },
+        // A reply's Job Offer card points to its Job Offer (cleared if the offer is ever deleted).
+        { from_table: "coach_message", from_column: "job_offer_id", to_table: "job_offer" },
         { from_table: "coach_review", from_column: "application_id", to_table: "application" },
         { from_table: "coach_review", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coach_review", from_column: "coach_id", to_table: "human_coach" },

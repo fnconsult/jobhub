@@ -224,7 +224,7 @@ _Avoid_: Form, survey
 ### Job offers
 
 **Job Offer**:
-A job posting, captured by the extension or found by the AI Coach's search. One Job Offer can be referenced by many Candidates. Carries a Job Offer Summary and, read by the AI with it, its employer's sector and sub-sector (or domain).
+A job posting, captured by the extension, read from a Job Offer link or found by the AI Coach's search. One Job Offer can be referenced by many Candidates. Carries a Job Offer Summary and, read by the AI with it, its employer's sector and sub-sector (or domain).
 _Avoid_: Job, posting, ad, vacancy, offer (alone)
 
 **Job Offer Summary**:
@@ -234,6 +234,14 @@ _Avoid_: Abstract, description
 **Capture**:
 The act of the browser extension turning the job page the person is viewing into a Job Offer, either detected automatically or triggered manually.
 _Avoid_: Scrape, import, clip
+
+**Job Offer link**:
+A link to one job posting the Candidate pastes in a Coach Panel message. Once the Guardrails let the message through, Jobbbox reads the page the way Job discovery reads one (robots rules, as itself, giving up at bot protection or a sign-in), takes its JobPosting data or has the AI read its text as data, and stores it as a Job Offer like a Capture. The AI Coach answers with a set reply and a Job Offer card instead of its own reply. A Forbidden site is never read: the reply sends the Candidate to the extension, as it does for a page that cannot be read.
+_Avoid_: URL import, scrape
+
+**Job Offer card**:
+The card in an AI Coach reply to a Job Offer link: the Job Offer's title and employer and a link to its page. "À traiter" until the Candidate follows it (saves it as an Application), which gives it its Match Score and At a glance; then "Suivie". Not an Action Card: nothing is accepted or dismissed. Saved with the Coach Conversation; never given to the AI Coach.
+_Avoid_: Action Card, preview, link card
 
 **Job discovery**:
 The AI Coach's search of the web for Job Offers matching a Profile's Search Criteria. Contrast with Capture, which starts from a page the person is viewing. URLs named in the search provider's answer are read like its sources, but the answer itself never makes a Job Offer.
@@ -295,7 +303,7 @@ When a Job Offer was first published, as its source states it. Sources, stronges
 _Avoid_: Publication date (when unknown), created date
 
 **Forbidden site**:
-A site whose terms forbid crawling (LinkedIn, Indeed, Glassdoor). Job discovery never fetches it, and it can never be a Job discovery site; only Capture covers it.
+A site whose terms forbid crawling (LinkedIn, Indeed, Glassdoor). Job discovery never fetches it, it can never be a Job discovery site, and a Job Offer link to it is never read; only Capture covers it.
 
 **Expired Job Offer**:
 A Job Offer that is no longer published at its source: two re-checks in a row found it gone (404/410, past its closing date, or sent away from its page). Only Job Offers an ongoing Application follows (not at Acceptée, Refusée or Abandonnée) are re-checked. A live re-check in between starts the count again, and an expired offer found published again stops being expired. Its Applications are flagged, but their Application Status is never changed automatically. Left out of Job Digests and Job Search results.

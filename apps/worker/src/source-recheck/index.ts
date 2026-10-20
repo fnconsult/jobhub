@@ -12,10 +12,8 @@
  * A page we may not or cannot read tells us nothing, and the Job Offer stays as
  * it is until the next re-check.
  */
-import { createPoliteFetcher, type Clock, type RefusalReason } from "../job-discovery/polite-fetch";
-import { DEFAULT_USER_AGENT, FORBIDDEN_SITES } from "../job-discovery";
-import { htmlToText } from "../job-discovery/html";
-import { jobPostingValidThrough, readJobPosting } from "../job-discovery/job-posting";
+import { createPoliteFetcher, DEFAULT_USER_AGENT, htmlToText, jobPostingValidThrough, readJobPosting, type Clock, type RefusalReason } from "@jobhub/shared/page-reading";
+import { FORBIDDEN_SITES } from "../job-discovery";
 
 /** What one re-check learnt: still published, no longer published ("gone"), or nothing (not read). */
 export type SourceCheckOutcome = "published" | "gone" | "unknown";

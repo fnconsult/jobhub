@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./i18n": "./src/i18n/index.ts",
-    "./design": "./src/design/index.ts"
+    "./design": "./src/design/index.ts",
+    "./page-reading": "./src/page-reading/index.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"

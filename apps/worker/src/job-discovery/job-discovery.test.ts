@@ -449,7 +449,7 @@ describe("Job discovery", () => {
       const report = await discovery.discover({ candidateId: "c", criteria });
 
       expect(llm.calls).toHaveLength(1);
-      expect(llm.calls[0]!.messages[0]!.content).toBe("Accueil\n\nDAF H/F\n\nGroupe Seb recrute son DAF.");
+      expect(llm.calls[0]!.messages[0]!.content).toBe("<page>\nAccueil\n\nDAF H/F\n\nGroupe Seb recrute son DAF.\n</page>");
       expect(report.jobOffers).toEqual([
         {
           id: "offer-1",

@@ -2,7 +2,8 @@
  * Fetching a page the way ADR-0002 allows: robots.txt first, as ourselves,
  * and giving up (never working around it) at the first sign of bot protection.
  */
-import { recordingFetch, type ExternalApiLog, type ExternalApiProvider } from "@jobhub/shared";
+import { recordingFetch, type ExternalApiLog } from "../external-api-usage";
+import type { ExternalApiProvider } from "../tools";
 import { htmlToText } from "./html";
 import { countJobPostings } from "./job-posting";
 import { robotsAllow, robotsCrawlDelay } from "./robots";
@@ -139,7 +140,13 @@ async function readText(response: Response, maxBytes: number): Promise<string | 
     }
     chunks.push(value);
   }
-  return new TextDecoder().decode(Buffer.concat(chunks));
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
 }
 
 /** A fetcher for one discovery run: robots.txt is read once per site. */

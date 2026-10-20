@@ -338,9 +338,18 @@
     "scratchIntro": "Remplissez votre CV de référence et vos critères de recherche, puis enregistrez votre profil.",
     "locations": "Lieux",
     "locationsHint": "Jusqu'à 5 lieux : une offre proche de l'un d'eux vous correspond.",
-    "locationItem": "Lieu {{number}}",
-    "addLocation": "Ajouter un lieu",
-    "removeLocation": "Retirer le lieu {{number}}",
+    "removeLocation": "Retirer {{place}}",
+    "removePlace": "Retirer",
+    "placeInput": "Ajouter un lieu",
+    "placeInputHint": "Tapez au moins 3 lettres pour voir des suggestions, ou un lieu puis Entrée.",
+    "noPlaceFound": "Aucune suggestion : Entrée ajoute « {{place}} » tel quel.",
+    "placeAlreadyListed": "« {{place}} » est déjà dans votre liste.",
+    "placesFull": "{{max}} lieux au plus : retirez-en un pour en ajouter un autre.",
+    "placeKinds": {
+      "commune": "Commune",
+      "departement": "Département",
+      "region": "Région"
+    },
     "anyOfHint": "Cochez tout ce qui vous convient. Rien de coché : pas de préférence."
   },
   "cvEditor": {

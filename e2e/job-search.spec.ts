@@ -7,6 +7,7 @@ import pg from "pg";
 import { PgBoss } from "pg-boss";
 import { renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
+import { placeInput, placeNames, placeOptions, removePlace, typePlace } from "./support/locations";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
 
@@ -115,6 +116,15 @@ async function changeMinSalaryInDialog(page: Page, criteriaLine: Locator, profil
   await salary.fill("90000");
   await salary.press("Tab");
   await expect(dialog.getByRole("status").filter({ hasText: "Critères enregistrés" })).toHaveCount(1);
+  // The Locations field as on the Profile page (#235): a place added, then removed, each saved at once.
+  await typePlace(dialog, "Remote");
+  await expect(placeNames(dialog)).toHaveText(["Lyon", "Remote"]);
+  await expect(dialog.getByRole("status").filter({ hasText: "Critères enregistrés" })).toHaveCount(2);
+  await Promise.all([
+    page.waitForResponse((response) => response.request().method() === "PATCH" && !(response.request().postData() ?? "").includes("Remote")),
+    removePlace(dialog, "Remote").click(),
+  ]);
+  await expect(placeNames(dialog)).toHaveText(["Lyon"]);
   await dialog.getByRole("button", { name: "Fermer", exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(button).toBeFocused();
@@ -270,6 +280,9 @@ test.describe("On-demand AI Coach job search", () => {
         const main = page.getByRole("main");
         // The page's title is in the Top Bar (ADR-0024).
         await expect(page.getByRole("banner").getByRole("heading", { level: 1 })).toBeVisible();
+        // The place suggestions shown (#235): measured with the rest.
+        await placeInput(dialog).fill("loire");
+        await expect(placeOptions(dialog)).toHaveCount(4);
         for (const text of (await renderedTexts(page)).filter((item) => item.fontSizePx > 0)) {
           expect.soft(text.fontSizePx, `font size of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(16);
           expect.soft(text.contrast, `contrast of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(4.5);
@@ -513,12 +526,15 @@ test.describe("On-demand AI Coach job search", () => {
           expect(await dialog.evaluate((element) => element.contains(document.activeElement)), `focus after ${i + 1} Tab at ${size.width}px`).toBe(true);
         }
 
+        // The place suggestions shown (#235): measured with the rest.
+        await placeInput(dialog).fill("loire");
+        await expect(placeOptions(dialog)).toHaveCount(4);
         for (const text of (await renderedTexts(page)).filter((item) => item.fontSizePx > 0)) {
           expect.soft(text.fontSizePx, `font size of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(16);
           expect.soft(text.contrast, `contrast of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(4.5);
         }
         // Every control is at least 2.75rem (44px) tall, as on the Profile page (a checkbox's target is its label).
-        for (const target of await dialog.getByRole("button").or(dialog.getByRole("textbox")).all()) {
+        for (const target of await dialog.getByRole("button").or(dialog.getByRole("textbox")).or(dialog.getByRole("combobox")).or(dialog.getByRole("option")).all()) {
           if (!(await target.isVisible())) continue;
           const box = (await target.boundingBox())!;
           expect.soft(box.height, `height of ${await target.evaluate((element) => element.outerHTML.slice(0, 80))} at ${size.width}px`).toBeGreaterThanOrEqual(44);
@@ -536,6 +552,13 @@ test.describe("On-demand AI Coach job search", () => {
 
         if (screenshots) await page.screenshot({ path: path.join(screenshots, `criteria-dialog-${size.width}.png`) });
 
+        // Escape closes the suggestions, then empties the input, the dialog still open; then it closes the dialog.
+        await placeInput(dialog).press("Escape");
+        await expect(placeOptions(dialog)).toHaveCount(0);
+        await expect(dialog).toBeVisible();
+        await placeInput(dialog).press("Escape");
+        await expect(placeInput(dialog)).toHaveValue("");
+        await expect(dialog).toBeVisible();
         await page.keyboard.press("Escape");
         await expect(dialog).toHaveCount(0);
         await expect(button).toBeFocused();

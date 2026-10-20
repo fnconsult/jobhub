@@ -6,7 +6,7 @@ describe("the Tools", () => {
     expect(toolsByCategory().map(({ category, tools }) => [category, tools.map((tool) => tool.id)])).toEqual([
       ["ai_model", ["anthropic", "anthropic-bedrock", "anthropic-vertex", "mistral", "openai"]],
       ["web_search", ["perplexity", "brave", "tavily", "linkup"]],
-      ["job_discovery", ["france-travail", "greenhouse", "lever", "ashby", "apec"]],
+      ["job_discovery", ["france-travail", "fantastic-jobs", "greenhouse", "lever", "ashby", "apec"]],
       ["company_data", ["recherche-entreprises"]],
       ["contact_enrichment", ["lusha", "kaspr", "apollo"]],
       ["billing", ["stripe"]],

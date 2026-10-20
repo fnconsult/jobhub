@@ -222,6 +222,21 @@ export const TOOLS = [
     residencyNote: { fr: "Service public français ; aucune donnée personnelle envoyée.", en: "French public service; no personal data sent." },
   },
   {
+    id: "fantastic-jobs",
+    name: "Fantastic.jobs",
+    purpose: {
+      fr: "API des offres publiées sur les ATS des employeurs (active-ats) : la recherche d'offres. Ne reçoit que les critères de recherche.",
+      en: "API of the postings on employers' ATS (active-ats): Job discovery. Receives only Search Criteria.",
+    },
+    category: "job_discovery",
+    module: "apps/worker/src/job-discovery/fantastic-jobs/api.ts",
+    runsIn: "worker",
+    keys: ["FANTASTIC_JOBS_API_KEY"],
+    usage: { table: "external_api_usage", provider: "fantastic_jobs" },
+    residency: "eu",
+    residencyNote: { fr: "Société néerlandaise ; aucune donnée personnelle envoyée.", en: "Dutch company; no personal data sent." },
+  },
+  {
     id: "greenhouse",
     name: "Greenhouse",
     purpose: ATS_PURPOSE("Greenhouse"),

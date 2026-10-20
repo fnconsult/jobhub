@@ -50,7 +50,7 @@
 // The Guardrails' AI checks (#228, "Tu contrôles le message" / "Tu contrôles la réponse") find
 // prompt injection in a message holding "E2E_GUARDRAIL_INJECTION" and out-of-scope advice in a
 // reply holding "E2E_GUARDRAIL_ADVICE", nothing else; a message holding "E2E_GUARDRAIL_DOWN"
-// makes them fail with a 503, so the checks are unavailable. "E2E_GUARDRAIL_DISTRESS" in a message is
+// makes them fail with a 503, so the checks are unavailable; "E2E_GUARDRAIL_ECHO", with a 400 whose body echoes the key, an email and a long text. "E2E_GUARDRAIL_DISTRESS" in a message is
 // distress, "E2E_GUARDRAIL_LEAK" / "E2E_GUARDRAIL_SECRET" in a reply a leak / a secret.
 // A message holding "E2E_COACH_SAY=<text>" (to the end of the line) has the AI Coach or the Back Office
 // Assistant reply that text; written again (told its reply was blocked) it replies a clean text, unless the
@@ -92,6 +92,8 @@ globalThis.fetch = async (input, init) => {
   const system = String(body.messages?.find((message) => message.role === "system")?.content ?? "");
   if (system.startsWith("Tu contrôles le message") || system.startsWith("Tu contrôles la réponse")) {
     if (prompt.includes("E2E_GUARDRAIL_DOWN")) return new Response("upstream unavailable", { status: 503 });
+    // A provider refusing with an error that echoes the key, an email address and a long text (#259: stored scrubbed, redacted and cut).
+    if (prompt.includes("E2E_GUARDRAIL_ECHO")) return new Response(`invalid key e2e-mistral-key for contact echo.person@example.fr ${"padding text ".repeat(80)}END_OF_ECHO`, { status: 400 });
     const verdict = system.startsWith("Tu contrôles le message")
       ? { prompt_injection: prompt.includes("E2E_GUARDRAIL_INJECTION"), distress: prompt.includes("E2E_GUARDRAIL_DISTRESS") }
       : { harmful_advice: prompt.includes("E2E_GUARDRAIL_ADVICE"), personal_data_leak: prompt.includes("E2E_GUARDRAIL_LEAK"), secret_disclosure: prompt.includes("E2E_GUARDRAIL_SECRET") };

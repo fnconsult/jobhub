@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
+import { newAddress } from "./support/mailbox";
 
 // Issue #218 (and #259, the Outcome and Failure Reason of each call): the Back Office's AI consumption report (Consommation IA) counts every AI
 // call, and the AI Message Log (Journaux IA) keeps what each said for 30 days, for
@@ -10,6 +11,7 @@ const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "
 const admin = fr.admin;
 const assistantTexts = fr.backOfficeAssistant;
 // Its own permanent super-admin: two sign-ins of one address at once can pick up each other's link.
+const origin = process.env.E2E_WEB_ORIGIN!;
 const SUPER_ADMIN = "ai-office@e2e.jobbbox.test";
 /** The Provider Secret the e2e server runs with (playwright.config.ts): it must never be stored. */
 const MISTRAL_KEY = "e2e-mistral-key";
@@ -110,5 +112,55 @@ test.describe("AI consumption and AI message logs", () => {
     await expect(technical.filter({ hasText: "AiProviderError" })).toBeVisible();
     await expect(technical.filter({ hasText: /^503$/ })).toBeVisible();
     await expect(page.getByRole("main")).not.toContainText(MISTRAL_KEY);
+  });
+
+  test("a technical reason holding an API key, an email address or a long text is stored scrubbed, redacted and cut (#259)", async ({ page }) => {
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    await page.goto("/admin/journaux-ia");
+    // The Guardrails' AI check of this question is refused by a 400 echoing the key, an email address and a long text.
+    await askAssistant(page, `E2E_GUARDRAIL_ECHO Bonjour ${Date.now()}`);
+
+    await page.goto("/admin/journaux-ia");
+    await page.getByLabel(admin.aiMessages.email).fill(SUPER_ADMIN);
+    await page.getByLabel(admin.aiMessages.task).selectOption("guardrail");
+    await page.getByLabel(admin.aiMessages.reason).selectOption("provider_rejected");
+    const rows = page.getByRole("table", { name: admin.aiMessages.caption }).getByRole("row").filter({ hasText: SUPER_ADMIN });
+    await expect(async () => {
+      await page.getByRole("button", { name: admin.aiMessages.apply }).click();
+      await expect(rows.first()).toBeVisible({ timeout: 1_000 });
+    }).toPass();
+    await rows.first().getByRole("link", { name: admin.aiMessages.open }).click();
+
+    const why = page.getByRole("region", { name: admin.aiMessages.why });
+    await expect(why).toContainText(fr.failureReasons.provider_rejected);
+    const text = (await why.innerText()).replace(/\s+/g, " ");
+    expect(text).toContain("invalid key");
+    expect(text).not.toContain(MISTRAL_KEY);
+    expect(text).not.toContain("echo.person@example.fr");
+    // Cut: the end of the long text is gone.
+    expect(text).not.toContain("END_OF_ECHO");
+    expect(text.length).toBeLessThan(900);
+  });
+
+  test("the Candidate's data export holds each failed call's Failure Reason code and wording, never its technical reason (#259)", async ({ page }) => {
+    const email = newAddress("failure-export");
+    await signInWithMagicLink(page, email);
+    const talked = await page.request.post("/api/coach", { headers: { origin }, data: { message: "E2E_GUARDRAIL_DOWN Comment relancer Acme ?" } });
+    expect(talked.status(), await talked.text()).toBe(200);
+
+    await page.goto("/compte/donnees");
+    const section = page.getByRole("region", { name: fr.accountData.title });
+    let failed: Record<string, unknown> | undefined;
+    await expect(async () => {
+      const [file] = await Promise.all([page.waitForEvent("download"), section.getByRole("link", { name: fr.accountData.export }).click()]);
+      const exported = JSON.parse(readFileSync((await file.path())!, "utf8"));
+      failed = exported.aiMessageLog.find((log: { outcome: string }) => log.outcome === "failed");
+      expect(failed).toBeTruthy();
+    }).toPass();
+    expect(failed).toMatchObject({ task: "guardrail", outcome: "failed", reason: { code: "provider_unavailable", wording: fr.failureReasons.provider_unavailable } });
+    const raw = JSON.stringify(failed);
+    expect(raw).not.toContain("AiProviderError");
+    expect(raw).not.toContain("technicalReason");
+    expect(raw).not.toContain("503");
   });
 });

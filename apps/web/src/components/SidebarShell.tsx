@@ -8,7 +8,6 @@ import { useTranslation } from "react-i18next";
 import { CoachPanelToggle } from "@/components/CoachPanel";
 import { Icons } from "@/components/icons";
 import { SignOutButton } from "@/components/SignOutButton";
-import { TextSizeControl } from "@/components/TextSizeControl";
 import { SIDEBAR_CLOSED, SIDEBAR_OPEN, SIDEBAR_STORAGE_KEY } from "@/design/sidebar-state";
 
 /** At and above this width the sidebar sits beside the page; below it, it is a drawer. */
@@ -46,7 +45,7 @@ function setHidden(hidden: boolean) {
 
 /**
  * The sidebar layout (#132, #134), whatever the sidebar holds: a skip link, the
- * sidebar (brand, `top`, the `nav`, the Text Size control, signing out), the Top
+ * sidebar (brand, `top`, the `nav`, signing out), the Top
  * Bar with the Menu button, the page's `title` and the Coach Panel button, and
  * the page as `<main>`. `title` is the page's `<h1>`: a string, or an element that
  * is one itself (an editable title). Pages never render their own (ADR-0024).
@@ -202,7 +201,6 @@ export function SidebarShell({
         </>
       )}
       <div className="sidebar-foot">
-        <TextSizeControl />
         {foot?.(() => setDrawerPath(null))}
         <SignOutButton />
         {inDrawer ? null : (

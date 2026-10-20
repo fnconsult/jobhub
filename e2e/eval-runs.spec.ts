@@ -120,6 +120,9 @@ test.describe("Eval Cases of a Coaching Playbook", () => {
 
     // Changed, then removed.
     await article.getByText(evals.cases.edit).click();
+    // Every field of the edit form has its label (ADR-0009, WCAG 2.1 AA), the Title too: no other element shares its id.
+    await expect(article.getByRole("textbox", { name: evals.cases.fields.title, exact: true })).toHaveValue("Cas de négociation");
+    await expect(editor.getByRole("article", { name: "Cas de négociation", exact: true })).toHaveCount(1);
     await article.getByLabel(evals.cases.fields.criteria).fill("La réponse conseille de demander un variable.");
     await article.getByRole("button", { name: evals.cases.save }).click();
     await expect(notice(editor)).toHaveText(playbooks.notices.caseSaved);

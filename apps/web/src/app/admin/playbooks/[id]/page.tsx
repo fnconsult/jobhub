@@ -319,7 +319,7 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
                   <BackOfficeForm canWrite={canWrite} className="stack quota-form" action={saveEvalCase}>
                     <input type="hidden" name="playbookId" value={playbook.id} />
                     <input type="hidden" name="caseId" value={evalCase.id} />
-                    {caseFields(`case-${evalCase.id}`, evalCase)}
+                    {caseFields(`edit-case-${evalCase.id}`, evalCase)}
                     <button className="button button-primary" type="submit">
                       {t("admin.evals.cases.save")}
                     </button>

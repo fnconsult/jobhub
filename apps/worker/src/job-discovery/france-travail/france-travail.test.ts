@@ -8,7 +8,7 @@ const SEARCH_ANSWER = readFileSync(new URL("../fixtures/france-travail/search.sy
 
 const NOW = new Date("2026-10-15T12:00:00Z");
 
-const criteria: SearchCriteria = { targetRole: "Directrice administrative et financière", locations: ["Lyon"], contractTypes: ["cdi"], remoteWorkOptions: [] };
+const criteria: SearchCriteria = { targetRole: "Directrice administrative et financière", locations: ["Lyon"], contractTypes: ["cdi"], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] };
 
 interface Answer {
   status?: number;
@@ -126,7 +126,7 @@ describe("France Travail search", () => {
   it("searches by the title's keywords when it names no ROME job, and all of France for a place it does not know", async () => {
     const { api, franceTravail } = setup();
 
-    await franceTravail.search({ targetRole: "Chef de projet tisserand (H/F)", locations: ["Télétravail"], contractTypes: [], remoteWorkOptions: [] }, { max: 10, now: NOW });
+    await franceTravail.search({ targetRole: "Chef de projet tisserand (H/F)", locations: ["Télétravail"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] }, { max: 10, now: NOW });
 
     const params = api.search().url.searchParams;
     expect(params.get("motsCles")).toBe("chef,projet,tisserand");

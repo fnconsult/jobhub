@@ -18,7 +18,7 @@ const criteria: SearchCriteria = {
   targetRole: "Directeur financier",
   locations: ["Lyon"],
   contractTypes: ["cdi"],
-  remoteWorkOptions: ["hybrid"],
+  remoteWorkOptions: ["hybrid"], sectors: [], subsectors: [], domains: [],
   minSalary: 110_000,
 };
 
@@ -182,7 +182,7 @@ describe("Job discovery", () => {
 
     await discovery.discover({
       candidateId: "candidate-1",
-      criteria: { targetRole: "DAF jean.dupont@mail.fr 06 12 34 56 78", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] },
+      criteria: { targetRole: "DAF jean.dupont@mail.fr 06 12 34 56 78", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] },
     });
 
     expect(titles.calls.map((call) => call.messages)).toEqual([[{ role: "user", content: "DAF" }]]);

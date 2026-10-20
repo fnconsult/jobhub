@@ -11,12 +11,12 @@ const fr = createI18n("fr").t;
 describe("the Search Criteria of a Job Search, in words", () => {
   it("says where, which contract, from what salary and how much remote work, in one line", () => {
     expect(
-      searchCriteriaInWords({ targetRole: "DAF", locations: ["Lyon"], contractTypes: ["cdi"], minSalary: 85000, remoteWorkOptions: ["hybrid"] }, fr, "fr"),
+      searchCriteriaInWords({ targetRole: "DAF", locations: ["Lyon"], contractTypes: ["cdi"], minSalary: 85000, remoteWorkOptions: ["hybrid"], sectors: [], subsectors: [], domains: [] }, fr, "fr"),
     ).toBe(`Lyon · CDI · 85${NNBSP}000 € brut par an minimum · Télétravail : Hybride`);
   });
 
   it("says every place, contract type and remote-work option wanted, any one of which will do (ADR-0025)", () => {
-    const criteria = { targetRole: "DAF", locations: ["Lyon", "Bordeaux"], contractTypes: ["cdi" as const, "freelance" as const], remoteWorkOptions: ["hybrid" as const, "full_remote" as const] };
+    const criteria = { targetRole: "DAF", locations: ["Lyon", "Bordeaux"], contractTypes: ["cdi" as const, "freelance" as const], remoteWorkOptions: ["hybrid" as const, "full_remote" as const], sectors: [], subsectors: [], domains: [] };
     expect(searchCriteriaInWords(criteria, fr, "fr")).toBe("Lyon ou Bordeaux · CDI ou Indépendant (freelance) · Télétravail : Hybride ou Télétravail complet");
     expect(searchCriteriaInWords({ ...criteria, locations: ["Lyon", "Bordeaux", "Nantes"] }, createI18n("en").t, "en")).toBe(
       "Lyon, Bordeaux, or Nantes · Permanent (CDI) or Freelance · Remote work: Hybrid or Fully remote",
@@ -24,7 +24,7 @@ describe("the Search Criteria of a Job Search, in words", () => {
   });
 
   it("leaves out what the Candidate did not specify", () => {
-    expect(searchCriteriaInWords({ targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] }, fr, "fr")).toBe("Lyon");
+    expect(searchCriteriaInWords({ targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] }, fr, "fr")).toBe("Lyon");
   });
 });
 

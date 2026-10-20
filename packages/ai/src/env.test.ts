@@ -32,7 +32,7 @@ describe("AI layer configured from the environment", () => {
     const ai = createAiLayerFromEnv(base, { fetch, usage: createMemoryUsageLog() });
 
     await ai.generate({ task: "scoring", candidateId: "c", prompt: "CV" });
-    await ai.searchWeb({ candidateId: "c", criteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] } });
+    await ai.searchWeb({ candidateId: "c", criteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] } });
 
     expect(hosts).toEqual(["bedrock-mantle.eu-west-3.api.aws", "api.perplexity.ai"]);
   });
@@ -66,7 +66,7 @@ describe("AI layer configured from the environment", () => {
       const usage = createMemoryUsageLog();
       const env = { AWS_BEARER_TOKEN_BEDROCK: "bedrock-key", AI_WEB_SEARCH_PROVIDER: provider, [key]: "search-key" };
 
-      await createAiLayerFromEnv(env, { fetch, usage }).searchWeb({ candidateId: "c", criteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] } });
+      await createAiLayerFromEnv(env, { fetch, usage }).searchWeb({ candidateId: "c", criteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] } });
 
       expect(hosts).toEqual([host]);
       expect(usage.entries.map((e) => [e.task, e.provider])).toEqual([["web_search", provider]]);
@@ -78,7 +78,7 @@ describe("AI layer configured from the environment", () => {
     const { fetch, hosts } = recordingFetch();
     const usage = createMemoryUsageLog();
     const env = { ...base, AI_OFFER_ANALYSIS_PROVIDER: "mistral", AI_OFFER_ANALYSIS_MODEL: "mistral-small-latest", MISTRAL_API_KEY: "mk" };
-    const criteria = { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] };
+    const criteria = { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] };
 
     await createAiLayerFromEnv(env, { fetch, usage }).planJobSearch({ candidateId: "c", criteria });
     await createAiLayerFromEnv({ ...env, AI_JOB_TITLES_PROVIDER: "anthropic" }, { fetch, usage }).planJobSearch({ candidateId: "c", criteria });

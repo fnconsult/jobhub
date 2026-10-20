@@ -10,7 +10,7 @@ const criteria: SearchCriteria = {
   locations: ["Lyon"],
   minSalary: 90000,
   contractTypes: ["cdi"],
-  remoteWorkOptions: ["hybrid"],
+  remoteWorkOptions: ["hybrid"], sectors: [], subsectors: [], domains: [],
 };
 
 /** A layer whose job title step answers `variants`, so its plan issues queries with those titles. */
@@ -52,7 +52,7 @@ describe("Job Search query variants", () => {
 });
 
 describe("Search Criteria with several values (ADR-0025)", () => {
-  const several: SearchCriteria = { ...criteria, locations: ["Lyon", "Bordeaux"], contractTypes: ["cdi", "freelance"], remoteWorkOptions: ["hybrid", "full_remote"] };
+  const several: SearchCriteria = { ...criteria, locations: ["Lyon", "Bordeaux"], contractTypes: ["cdi", "freelance"], remoteWorkOptions: ["hybrid", "full_remote"], sectors: [], subsectors: [], domains: [] };
 
   it("names one location per query, and every contract type and remote-work option wanted in each", async () => {
     const { ai, perplexity } = searchLayer();
@@ -157,7 +157,7 @@ describe("planning a Job Search", () => {
         "\n```",
     );
 
-    const plan = await ai.planJobSearch({ candidateId: "cand-1", criteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] } });
+    const plan = await ai.planJobSearch({ candidateId: "cand-1", criteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] } });
 
     expect(plan.queries).toEqual([
       { title: "DAF", language: "fr" },

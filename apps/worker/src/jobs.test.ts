@@ -31,7 +31,7 @@ const noJobDigests: JobsDeps["jobDigests"] = {
   deliver: async () => ({ digest: null, discovery: "not_run" }),
 };
 
-const criteria: SearchCriteria = { targetRole: "Directeur financier", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] };
+const criteria: SearchCriteria = { targetRole: "Directeur financier", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] };
 
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",

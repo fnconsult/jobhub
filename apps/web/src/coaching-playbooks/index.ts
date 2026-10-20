@@ -1,14 +1,18 @@
 /**
- * Coaching Playbooks (ADR-0021, #225): the Coaching Playbooks, the Core Digest and the Sources list,
- * each a series of Playbook Versions kept forever, written in the Back Office by Playbook editors.
+ * Coaching Playbooks (ADR-0021, #225) and task Playbooks (ADR-0026): the Coaching Playbooks, the Core
+ * Digest, the Sources list and the task Playbooks (each AI task's working instructions), each a series
+ * of Playbook Versions kept forever, written in the Back Office by Playbook editors.
  *
  * One deep module. `createCoachingPlaybooks(database, { serving, agentModels, evalRunOn })` answers:
  *  - what there is          `list` (each with its latest and its served version), `history` (every version)
  *  - write                  `create` a Coaching Playbook, `save` a version, `validate` one, `setArchived`
  *  - what the AI Coach uses `served`: the Core Digest, the Sources list and the Coaching Playbooks
- *                           with their Playbook Agents, at the version this environment serves
- * and `migrateCoachingPlaybooks(database, seed)` creates its tables and, once, imports `seed`
- * as version 1 of each (see ./import).
+ *                           with their Playbook Agents, at the version this environment serves; never
+ *                           a task Playbook
+ *  - what an AI task uses   `servedTask(id)`: one task Playbook's served version, its Playbook Agent and
+ *                           its web-search provider
+ * and `migrateCoachingPlaybooks(database, seed)` creates its tables, once imports `seed`'s coaching
+ * knowledge as version 1 of each, and adds each task Playbook still missing (see ./import).
  *
  * Rules kept here, whoever calls:
  *  - A version not yet Human-validated is edited in place, each author noted; changing a
@@ -21,8 +25,16 @@
  *    served, nor deleted; the Core Digest and the Sources list cannot be archived.
  *  - Every `[Sn]` a version cites must be in the latest Sources list; a Source cited by the served or
  *    latest version of a Coaching Playbook in use, or of the Core Digest, cannot leave it.
- *  - A Playbook Agent only uses a provider and model `agentModels` offers (EU-resident, ADR-0007);
- *    no model means the provider's default one. Its effort is low, medium or high.
+ *  - A Playbook Agent only uses a provider and model `agentModels` offers (every text provider
+ *    configured, outside the EU too: every call is redacted, ADR-0007); no model means the provider's
+ *    default one. Its effort is low, medium or high; a task Playbook's may also be none (the model's
+ *    own), and it has no "when to consult it".
+ *  - A task Playbook that runs web searches may name their provider and model (or depth) among those
+ *    `searchModels` offers; none (as imported) means the configured web-search route. Changing it is a
+ *    change like any other: a Human-validated version gets a new one.
+ *  - Task Playbooks are the ones the code knows (`@jobhub/coach-knowledge/tasks`): never created here,
+ *    only imported. A version's text must have the sections and `{{slots}}` its task reads; one for a
+ *    web-search query has no Playbook Agent. A task Playbook cites no Source.
  *
  * Every write takes an optional `within`: it then runs in the caller's transaction, as the Back
  * Office does to record it in the Back Office Audit (see admin/coaching-playbooks-back-office.ts).
@@ -30,6 +42,7 @@
  */
 import { isEffort, PROVIDER_IDS, type AgentModelChoice, type Effort, type ProviderId } from "@jobhub/ai";
 import { citedSourceIds, markdownTitle, parseSources, type Source } from "@jobhub/coach-knowledge";
+import { TASK_PLAYBOOKS, taskInstructionsProblems, taskPlaybookSeed, type TaskPlaybookSeed } from "@jobhub/coach-knowledge/tasks";
 import type { Pool, PoolClient } from "pg";
 import type { Queryable } from "../database/pool";
 
@@ -40,7 +53,7 @@ export const SOURCES_LIST = "sources";
 /** The author of the one-off import's versions. */
 export const IMPORT_AUTHOR = "import";
 
-export const PLAYBOOK_KINDS = ["playbook", "core_digest", "sources"] as const;
+export const PLAYBOOK_KINDS = ["playbook", "core_digest", "sources", "task"] as const;
 export type PlaybookKind = (typeof PLAYBOOK_KINDS)[number];
 
 /** Which versions this environment serves: production only Human-validated ones (ADR-0019, ADR-0021). */
@@ -51,14 +64,22 @@ export const MAX_CONTENT_LENGTH = 100_000;
 /** Longest "when to consult it" description, in characters. */
 export const MAX_CONSULT_WHEN_LENGTH = 1_000;
 
-/** A Coaching Playbook's specialist, as one Playbook Version sets it. */
+/** A Coaching Playbook's specialist, or the AI running a task Playbook's task, as one Playbook Version sets it. */
 export interface PlaybookAgent {
   provider: ProviderId;
   /** Null: the provider's default model. */
   model: string | null;
-  effort: Effort;
-  /** When the AI Coach should consult it, in French. */
+  /** Null (task Playbooks only): none is sent, the model thinks as it does by default. */
+  effort: Effort | null;
+  /** When the AI Coach should consult it, in French; "" for a task Playbook, which the AI Coach never consults. */
   consultWhen: string;
+}
+
+/** The web-search provider a task Playbook's searches go to, as one Playbook Version sets it (ADR-0026). */
+export interface PlaybookSearch {
+  provider: ProviderId;
+  /** Null: the provider's default model (or depth). */
+  model: string | null;
 }
 
 /** Who validated a Playbook Version, and when. */
@@ -74,8 +95,10 @@ export interface PlaybookVersion {
   version: number;
   /** The rules, in French Markdown; for the Sources list, its table of Sources. */
   content: string;
-  /** Null for the Core Digest and the Sources list. */
+  /** Null for the Core Digest, the Sources list and a task Playbook for a web-search query. */
   agent: PlaybookAgent | null;
+  /** A task Playbook's web-search provider; null for every other, and for one that names none: the configured web-search route. */
+  search: PlaybookSearch | null;
   /** The email of each Administrator who saved it, the first one first; "import" for the one-off import. */
   authors: string[];
   createdAt: Date;
@@ -87,7 +110,7 @@ export interface PlaybookVersion {
 export interface CoachingPlaybook {
   id: string;
   kind: PlaybookKind;
-  /** The latest version's `# title`, else its id. */
+  /** The latest version's `# title`, else its id; a task Playbook's title as the code names it. */
   title: string;
   archived: boolean;
   latest: PlaybookVersion;
@@ -102,11 +125,26 @@ export interface ServedKnowledge {
   playbooks: { id: string; title: string; version: number; content: string; agent: PlaybookAgent }[];
 }
 
-/** One version as the import writes it: version 1, by "import", not validated. */
+/** A task Playbook's served version: what its task runs with. */
+export interface ServedTaskPlaybook {
+  id: string;
+  version: number;
+  content: string;
+  /** Null for a web-search query alone, which has no Playbook Agent. */
+  agent: PlaybookAgent | null;
+  /** Where its web searches go; null: the configured web-search route. */
+  search: PlaybookSearch | null;
+}
+
+/**
+ * Version 1 of each, as the import writes it, by "import": the coaching knowledge not validated; a task
+ * Playbook validated under `validatedBy` when given (ADR-0026), else not.
+ */
 export interface PlaybookSeed {
   sources: string;
   coreDigest: string;
   playbooks: { id: string; content: string; agent: PlaybookAgent }[];
+  tasks: { id: string; content: string; agent: PlaybookAgent | null; validatedBy: string | null }[];
 }
 
 /** Who saves a version: an Administrator, by the email they sign in with. */
@@ -123,6 +161,8 @@ export interface PlaybookValidator {
 type Refusal =
   /** The form is not usable: empty text, unknown effort, no description, a Sources list without a source or with one twice. */
   | { ok: false; error: "invalid" | "not_found" | "model_not_allowed" }
+  /** A task Playbook's text lacks what its task reads: each section (`## key`) or `{{slot}}` missing, or "length". */
+  | { ok: false; error: "task_instructions"; problems: string[] }
   /** Citations missing from the Sources list. */
   | { ok: false; error: "unknown_sources"; sources: string[] };
 
@@ -151,14 +191,18 @@ export interface CoachingPlaybooks {
   create(editor: PlaybookEditor, input: unknown, within?: Queryable): Promise<CreatePlaybookResult>;
   /**
    * Saves a version of `id`. `input` is untrusted: { content } for the Core Digest and the Sources list,
-   * with { provider, model, effort, consultWhen } for a Coaching Playbook (model "" is the provider's default).
+   * with { provider, model, effort, consultWhen } for a Coaching Playbook (model "" is the provider's default),
+   * and { searchProvider, searchModel } for a task Playbook that searches the web (provider "": the configured route).
    */
   save(editor: PlaybookEditor, id: string, input: unknown, within?: Queryable): Promise<SavePlaybookResult>;
   /** Marks version `version` of `id` Human-validated by `validator`, now. */
   validate(validator: PlaybookValidator, id: string, version: number, within?: Queryable): Promise<ValidatePlaybookResult>;
   /** Archives a Coaching Playbook (no longer served, kept) or restores it. */
   setArchived(id: string, archived: boolean, within?: Queryable): Promise<ArchivePlaybookResult>;
+  /** What the AI Coach uses: never a task Playbook. */
   served(): Promise<ServedKnowledge>;
+  /** The served version of the task Playbook `id`; null when none is (archived, nothing Human-validated in production, or no such task Playbook). */
+  servedTask(id: string): Promise<ServedTaskPlaybook | null>;
 }
 
 export interface CoachingPlaybooksDeps {
@@ -167,17 +211,25 @@ export interface CoachingPlaybooksDeps {
   agentModels: () => AgentModelChoice[];
   /** Whether an Eval Run played this version of a Coaching Playbook as it now is (ADR-0023): see evals/. */
   evalRunOn: (version: PlaybookVersion, within: Queryable) => Promise<boolean>;
+  /** The web-search providers and models a task Playbook's searches may use (the AI layer's `searchModels`). Default: none. */
+  searchModels?: () => AgentModelChoice[];
 }
 
-/** Creates the tables and, when there is no Coaching Playbook yet, imports `seed()` as version 1 of each. Safe to run repeatedly. */
+/**
+ * Creates the tables; when there is no coaching knowledge yet, imports `seed()`'s as version 1 of each;
+ * and adds each task Playbook of `seed()` still missing, so a database migrated before task Playbooks
+ * existed gets them too. Safe to run repeatedly: what is there is never changed.
+ */
 export async function migrateCoachingPlaybooks(database: Pool, seed: () => PlaybookSeed): Promise<void> {
   await database.query(`
     CREATE TABLE IF NOT EXISTS coaching_playbook (
       id text PRIMARY KEY,
-      kind text NOT NULL CHECK (kind IN (${PLAYBOOK_KINDS.map((kind) => `'${kind}'`).join(", ")})),
+      kind text NOT NULL,
       archived_at timestamptz,
       created_at timestamptz NOT NULL DEFAULT now()
     );
+    ALTER TABLE coaching_playbook DROP CONSTRAINT IF EXISTS coaching_playbook_kind_check;
+    ALTER TABLE coaching_playbook ADD CONSTRAINT coaching_playbook_kind_check CHECK (kind IN (${PLAYBOOK_KINDS.map((kind) => `'${kind}'`).join(", ")}));
     CREATE TABLE IF NOT EXISTS playbook_version (
       playbook_id text NOT NULL REFERENCES coaching_playbook (id),
       version integer NOT NULL CHECK (version > 0),
@@ -194,21 +246,35 @@ export async function migrateCoachingPlaybooks(database: Pool, seed: () => Playb
       validated_at timestamptz,
       PRIMARY KEY (playbook_id, version)
     );
+    ALTER TABLE playbook_version ADD COLUMN IF NOT EXISTS search_provider text;
+    ALTER TABLE playbook_version ADD COLUMN IF NOT EXISTS search_model text;
   `);
   await inTransaction(database, async (client) => {
     // One importer at a time: two migrations starting together import once.
     await client.query("LOCK TABLE coaching_playbook IN EXCLUSIVE MODE");
-    const { rows } = await client.query("SELECT 1 FROM coaching_playbook LIMIT 1");
-    if (rows.length > 0) return;
-    const { sources, coreDigest, playbooks } = seed();
-    const imported: { id: string; kind: PlaybookKind; content: string; agent: PlaybookAgent | null }[] = [
-      { id: CORE_DIGEST, kind: "core_digest", content: coreDigest, agent: null },
-      { id: SOURCES_LIST, kind: "sources", content: sources, agent: null },
-      ...playbooks.map((playbook) => ({ ...playbook, kind: "playbook" as const })),
-    ];
-    for (const { id, kind, content, agent } of imported) {
-      await client.query("INSERT INTO coaching_playbook (id, kind) VALUES ($1, $2)", [id, kind]);
+    const { rows } = await client.query("SELECT 1 FROM coaching_playbook WHERE kind <> 'task' LIMIT 1");
+    const { sources, coreDigest, playbooks, tasks } = seed();
+    if (rows.length === 0) {
+      const imported: { id: string; kind: PlaybookKind; content: string; agent: PlaybookAgent | null }[] = [
+        { id: CORE_DIGEST, kind: "core_digest", content: coreDigest, agent: null },
+        { id: SOURCES_LIST, kind: "sources", content: sources, agent: null },
+        ...playbooks.map((playbook) => ({ ...playbook, kind: "playbook" as const })),
+      ];
+      for (const { id, kind, content, agent } of imported) {
+        await client.query("INSERT INTO coaching_playbook (id, kind) VALUES ($1, $2)", [id, kind]);
+        await insertVersion(client, id, 1, content, agent, [IMPORT_AUTHOR]);
+      }
+    }
+    for (const { id, content, agent, validatedBy } of tasks) {
+      const { rows: added } = await client.query("INSERT INTO coaching_playbook (id, kind) VALUES ($1, 'task') ON CONFLICT (id) DO NOTHING RETURNING id", [id]);
+      if (added.length === 0) continue;
       await insertVersion(client, id, 1, content, agent, [IMPORT_AUTHOR]);
+      if (validatedBy) {
+        await client.query(
+          "UPDATE playbook_version SET validated_by_name = $2, validated_by_email = $3, validated_at = clock_timestamp() WHERE playbook_id = $1 AND version = 1",
+          [id, validatedBy, IMPORT_AUTHOR],
+        );
+      }
     }
   });
 }
@@ -221,6 +287,8 @@ interface VersionRow {
   agent_model: string | null;
   agent_effort: string | null;
   consult_when: string | null;
+  search_provider: string | null;
+  search_model: string | null;
   authors: string[];
   created_at: Date;
   updated_at: Date;
@@ -229,7 +297,7 @@ interface VersionRow {
   validated_at: Date | null;
 }
 
-const VERSION_COLUMNS = `v.playbook_id, v.version, v.content, v.agent_provider, v.agent_model, v.agent_effort, v.consult_when, v.authors,
+const VERSION_COLUMNS = `v.playbook_id, v.version, v.content, v.agent_provider, v.agent_model, v.agent_effort, v.consult_when, v.search_provider, v.search_model, v.authors,
   v.created_at, v.updated_at, v.validated_by_name, v.validated_by_email, v.validated_at`;
 
 const versionFrom = (row: VersionRow): PlaybookVersion => ({
@@ -239,18 +307,27 @@ const versionFrom = (row: VersionRow): PlaybookVersion => ({
   agent:
     row.agent_provider === null
       ? null
-      : { provider: row.agent_provider as ProviderId, model: row.agent_model, effort: row.agent_effort as Effort, consultWhen: row.consult_when ?? "" },
+      : { provider: row.agent_provider as ProviderId, model: row.agent_model, effort: (row.agent_effort as Effort | null) ?? null, consultWhen: row.consult_when ?? "" },
+  search: row.search_provider === null ? null : { provider: row.search_provider as ProviderId, model: row.search_model },
   authors: row.authors,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   validation: row.validated_at ? { name: row.validated_by_name ?? "", email: row.validated_by_email ?? "", at: row.validated_at } : null,
 });
 
-async function insertVersion(within: Queryable, id: string, version: number, content: string, agent: PlaybookAgent | null, authors: string[]): Promise<PlaybookVersion> {
+async function insertVersion(
+  within: Queryable,
+  id: string,
+  version: number,
+  content: string,
+  agent: PlaybookAgent | null,
+  authors: string[],
+  search: PlaybookSearch | null = null,
+): Promise<PlaybookVersion> {
   const { rows } = await within.query<VersionRow>(
-    `INSERT INTO playbook_version AS v (playbook_id, version, content, agent_provider, agent_model, agent_effort, consult_when, authors)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING ${VERSION_COLUMNS}`,
-    [id, version, content, agent?.provider ?? null, agent?.model ?? null, agent?.effort ?? null, agent?.consultWhen ?? null, authors],
+    `INSERT INTO playbook_version AS v (playbook_id, version, content, agent_provider, agent_model, agent_effort, consult_when, search_provider, search_model, authors)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING ${VERSION_COLUMNS}`,
+    [id, version, content, agent?.provider ?? null, agent?.model ?? null, agent?.effort ?? null, agent?.consultWhen ?? null, search?.provider ?? null, search?.model ?? null, authors],
   );
   return versionFrom(rows[0]!);
 }
@@ -283,32 +360,57 @@ const field = (input: Record<string, unknown>, key: string): string | undefined 
   return typeof value === "string" ? value : undefined;
 };
 
-/** A version's text and, for a Coaching Playbook, its Playbook Agent, read from an untrusted form; null when unusable. */
-function versionInput(kind: PlaybookKind, input: unknown): { content: string; agent: PlaybookAgent | null } | null {
+type VersionInput = { content: string; agent: PlaybookAgent | null; search: PlaybookSearch | null };
+
+const isProvider = (value: string | undefined): value is ProviderId => value !== undefined && (PROVIDER_IDS as readonly string[]).includes(value);
+
+/**
+ * A version's text and, for a Coaching Playbook or a task Playbook run by one, its Playbook Agent, and for
+ * a task Playbook that searches the web, its web-search provider, read from an untrusted form; null when
+ * unusable. `task`: what a task Playbook's text must hold, its task as the code knows it (none: a task the
+ * code no longer knows, run by a Playbook Agent).
+ */
+function versionInput(kind: PlaybookKind, input: unknown, task?: TaskPlaybookSeed): VersionInput | null {
   if (typeof input !== "object" || input === null || Array.isArray(input)) return null;
   const fields = input as Record<string, unknown>;
   const content = field(fields, "content")?.replace(/\r\n/g, "\n").trim();
   if (!content || content.length > MAX_CONTENT_LENGTH) return null;
-  if (kind !== "playbook") return { content, agent: null };
+  // No web-search provider named: the configured web-search route.
+  const searchProvider = field(fields, "searchProvider")?.trim() || undefined;
+  if (kind === "task" && task?.search && searchProvider !== undefined && !isProvider(searchProvider)) return null;
+  const search: PlaybookSearch | null =
+    kind === "task" && task?.search && isProvider(searchProvider) ? { provider: searchProvider, model: field(fields, "searchModel")?.trim() || null } : null;
+  if (kind === "core_digest" || kind === "sources" || (kind === "task" && task?.agent === false)) return { content, agent: null, search };
   const provider = field(fields, "provider");
   const effort = fields.effort;
-  const consultWhen = field(fields, "consultWhen")?.trim();
-  if (!provider || !(PROVIDER_IDS as readonly string[]).includes(provider) || !isEffort(effort)) return null;
-  if (!consultWhen || consultWhen.length > MAX_CONSULT_WHEN_LENGTH) return null;
+  if (!isProvider(provider)) return null;
   const model = field(fields, "model")?.trim() || null;
-  return { content, agent: { provider: provider as ProviderId, model, effort, consultWhen } };
+  if (kind === "task") {
+    // No effort: the model's own. The AI Coach never consults a task Playbook: no "when to consult it".
+    if (effort !== undefined && effort !== "" && !isEffort(effort)) return null;
+    return { content, agent: { provider, model, effort: isEffort(effort) ? effort : null, consultWhen: "" }, search };
+  }
+  const consultWhen = field(fields, "consultWhen")?.trim();
+  if (!isEffort(effort)) return null;
+  if (!consultWhen || consultWhen.length > MAX_CONSULT_WHEN_LENGTH) return null;
+  return { content, agent: { provider, model, effort, consultWhen }, search: null };
 }
 
 const sameAgent = (a: PlaybookAgent | null, b: PlaybookAgent | null) =>
   a === b || (a !== null && b !== null && a.provider === b.provider && a.model === b.model && a.effort === b.effort && a.consultWhen === b.consultWhen);
 
+const sameSearch = (a: PlaybookSearch | null, b: PlaybookSearch | null) => a === b || (a !== null && b !== null && a.provider === b.provider && a.model === b.model);
+
 const normalEmail = (email: string) => email.trim().toLowerCase();
 
 export function createCoachingPlaybooks(database: Pool, deps: CoachingPlaybooksDeps): CoachingPlaybooks {
-  const allowed = (agent: PlaybookAgent): boolean => {
-    const choice = deps.agentModels().find((each) => each.provider === agent.provider);
-    return choice !== undefined && (agent.model === null || choice.models.some((each) => each.model === agent.model));
+  /** Whether `choices` offer the provider and model (none: its default) of `named`. */
+  const offered = (choices: AgentModelChoice[], named: { provider: ProviderId; model: string | null }): boolean => {
+    const choice = choices.find((each) => each.provider === named.provider);
+    return choice !== undefined && (named.model === null || choice.models.some((each) => each.model === named.model));
   };
+  const allowed = (agent: PlaybookAgent): boolean => offered(deps.agentModels(), agent);
+  const allowedSearch = (search: PlaybookSearch): boolean => offered(deps.searchModels?.() ?? [], search);
 
   /** The latest version of each, or of `id`. */
   async function latestVersions(within: Queryable, id?: string): Promise<Map<string, PlaybookVersion>> {
@@ -335,17 +437,24 @@ export function createCoachingPlaybooks(database: Pool, deps: CoachingPlaybooksD
     const [{ rows }, latest, served] = await Promise.all([
       within.query<{ id: string; kind: PlaybookKind; archived: boolean }>(
         `SELECT id, kind, archived_at IS NOT NULL AS archived FROM coaching_playbook WHERE $1::text IS NULL OR id = $1
-          ORDER BY array_position(ARRAY['core_digest', 'sources', 'playbook'], kind), id`,
+          ORDER BY array_position(ARRAY['core_digest', 'sources', 'playbook', 'task'], kind), id`,
         [id ?? null],
       ),
       latestVersions(within, id),
       servedVersions(within, id),
     ]);
-    return rows.flatMap((row) => {
+    const listed = rows.flatMap((row) => {
       const version = latest.get(row.id);
       if (!version) return [];
-      return [{ ...row, title: markdownTitle(version.content) || row.id, latest: version, served: served.get(row.id) ?? null }];
+      const title = row.kind === "task" ? (taskPlaybookSeed(row.id)?.title ?? row.id) : markdownTitle(version.content) || row.id;
+      return [{ ...row, title, latest: version, served: served.get(row.id) ?? null }];
     });
+    // Task Playbooks in the order the code lists its tasks, any it no longer knows last.
+    const taskOrder = (id: string) => {
+      const index = TASK_PLAYBOOKS.findIndex((seed) => seed.id === id);
+      return index < 0 ? TASK_PLAYBOOKS.length : index;
+    };
+    return listed.sort((a, b) => (a.kind === "task" && b.kind === "task" ? taskOrder(a.id) - taskOrder(b.id) : 0));
   }
 
   /** The `[Sn]` of `content` missing from the latest Sources list. */
@@ -361,7 +470,7 @@ export function createCoachingPlaybooks(database: Pool, deps: CoachingPlaybooksD
     const [latest, served, { rows: inUse }] = await Promise.all([
       latestVersions(within),
       servedVersions(within),
-      within.query<{ id: string }>(`SELECT id FROM coaching_playbook WHERE archived_at IS NULL AND kind <> 'sources'`),
+      within.query<{ id: string }>(`SELECT id FROM coaching_playbook WHERE archived_at IS NULL AND kind NOT IN ('sources', 'task')`),
     ]);
     const ordered = inUse.map((row) => row.id).sort((a, b) => (a === CORE_DIGEST ? -1 : b === CORE_DIGEST ? 1 : a.localeCompare(b)));
     return removed.flatMap((source) => {
@@ -395,6 +504,8 @@ export function createCoachingPlaybooks(database: Pool, deps: CoachingPlaybooksD
       return inTransaction(within, async (client): Promise<CreatePlaybookResult> => {
         const id = typeof input === "object" && input !== null ? (input as Record<string, unknown>).id : undefined;
         if (typeof id !== "string" || !ID.test(id) || id.length > MAX_ID_LENGTH) return { ok: false, error: "invalid" };
+        // A task Playbook's id stays its own, imported or not yet.
+        if (taskPlaybookSeed(id)) return { ok: false, error: "exists" };
         const parsed = versionInput("playbook", input);
         if (!parsed) return { ok: false, error: "invalid" };
         if (!allowed(parsed.agent!)) return { ok: false, error: "model_not_allowed" };
@@ -411,27 +522,43 @@ export function createCoachingPlaybooks(database: Pool, deps: CoachingPlaybooksD
         const { rows } = await client.query<{ kind: PlaybookKind }>("SELECT kind FROM coaching_playbook WHERE id = $1 FOR UPDATE", [id]);
         const kind = rows[0]?.kind;
         if (!kind) return { ok: false, error: "not_found" };
-        const parsed = versionInput(kind, input);
+        const task = kind === "task" ? taskPlaybookSeed(id) : undefined;
+        const parsed = versionInput(kind, input, task);
         if (!parsed) return { ok: false, error: "invalid" };
         if (parsed.agent && !allowed(parsed.agent)) return { ok: false, error: "model_not_allowed" };
+        if (parsed.search && !allowedSearch(parsed.search)) return { ok: false, error: "model_not_allowed" };
         const before = (await latestVersions(client, id)).get(id)!;
-        if (before.content === parsed.content && sameAgent(before.agent, parsed.agent)) return { ok: false, error: "unchanged" };
+        if (before.content === parsed.content && sameAgent(before.agent, parsed.agent) && sameSearch(before.search, parsed.search)) return { ok: false, error: "unchanged" };
         if (kind === "sources") {
           const refused = await checkSourcesList(client, parsed.content, before.content);
           if (refused) return refused;
+        } else if (kind === "task") {
+          const problems = task ? taskInstructionsProblems(task, parsed.content) : [];
+          if (problems.length > 0) return { ok: false, error: "task_instructions", problems };
         } else {
           const unknown = await unknownSources(client, parsed.content);
           if (unknown.length > 0) return { ok: false, error: "unknown_sources", sources: unknown };
         }
         const author = normalEmail(editor.email);
         if (before.validation) {
-          return { ok: true, before, version: await insertVersion(client, id, before.version + 1, parsed.content, parsed.agent, [author]), newVersion: true };
+          return { ok: true, before, version: await insertVersion(client, id, before.version + 1, parsed.content, parsed.agent, [author], parsed.search), newVersion: true };
         }
         const { rows: updated } = await client.query<VersionRow>(
-          `UPDATE playbook_version v SET content = $3, agent_provider = $4, agent_model = $5, agent_effort = $6, consult_when = $7,
+          `UPDATE playbook_version v SET content = $3, agent_provider = $4, agent_model = $5, agent_effort = $6, consult_when = $7, search_provider = $9, search_model = $10,
                   authors = CASE WHEN $8 = ANY(v.authors) THEN v.authors ELSE array_append(v.authors, $8) END, updated_at = clock_timestamp()
             WHERE v.playbook_id = $1 AND v.version = $2 RETURNING ${VERSION_COLUMNS}`,
-          [id, before.version, parsed.content, parsed.agent?.provider ?? null, parsed.agent?.model ?? null, parsed.agent?.effort ?? null, parsed.agent?.consultWhen ?? null, author],
+          [
+            id,
+            before.version,
+            parsed.content,
+            parsed.agent?.provider ?? null,
+            parsed.agent?.model ?? null,
+            parsed.agent?.effort ?? null,
+            parsed.agent?.consultWhen ?? null,
+            author,
+            parsed.search?.provider ?? null,
+            parsed.search?.model ?? null,
+          ],
         );
         return { ok: true, before, version: versionFrom(updated[0]!), newVersion: false };
       });
@@ -464,13 +591,13 @@ export function createCoachingPlaybooks(database: Pool, deps: CoachingPlaybooksD
               ),
               changed AS (
                 UPDATE coaching_playbook SET archived_at = CASE WHEN $2 THEN clock_timestamp() END
-                 WHERE id = $1 AND kind = 'playbook' AND (archived_at IS NOT NULL) <> $2 RETURNING 1
+                 WHERE id = $1 AND kind IN ('playbook', 'task') AND (archived_at IS NOT NULL) <> $2 RETURNING 1
               )
          SELECT kind, was, version FROM was`,
         [id, archived],
       );
       if (!rows[0]) return { ok: false, error: "not_found" };
-      if (rows[0].kind !== "playbook") return { ok: false, error: "not_archivable" };
+      if (rows[0].kind !== "playbook" && rows[0].kind !== "task") return { ok: false, error: "not_archivable" };
       return { ok: true, changed: rows[0].was !== archived, version: rows[0].version };
     },
 
@@ -490,6 +617,18 @@ export function createCoachingPlaybooks(database: Pool, deps: CoachingPlaybooksD
           return [{ id: row.id, title: markdownTitle(version.content) || row.id, version: version.version, content: version.content, agent: version.agent }];
         }),
       };
+    },
+
+    async servedTask(id) {
+      const { rows } = await database.query<VersionRow>(
+        `SELECT ${VERSION_COLUMNS} FROM playbook_version v JOIN coaching_playbook p ON p.id = v.playbook_id
+          WHERE v.playbook_id = $1 AND p.kind = 'task' AND p.archived_at IS NULL AND ($2 = 'latest' OR v.validated_at IS NOT NULL)
+          ORDER BY v.version DESC LIMIT 1`,
+        [id, deps.serving],
+      );
+      if (!rows[0]) return null;
+      const version = versionFrom(rows[0]);
+      return { id, version: version.version, content: version.content, agent: version.agent, search: version.search };
     },
   };
 }

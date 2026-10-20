@@ -21,8 +21,7 @@ export default async function MasterCvVersionsPage({ params }: Params) {
   const t = await getServerT();
   const dateFormat = new Intl.DateTimeFormat(await getRequestLocale(), { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Paris" });
   return (
-    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id}>
-      <h1>{t("versions.title")}</h1>
+    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id} title={t("versions.title")}>
       <p className="lead">{profile.name}</p>
       <p>{t("versions.intro")}</p>
       <ol className="version-list">

@@ -7,10 +7,10 @@ import { createFakeProvider, createMemoryUsageLog } from "./testing";
 
 const criteria: SearchCriteria = {
   targetRole: "Directeur Financier",
-  location: "Lyon",
+  locations: ["Lyon"],
   minSalary: 90000,
-  contractType: "cdi",
-  remoteWork: "hybrid",
+  contractTypes: ["cdi"],
+  remoteWorkOptions: ["hybrid"],
 };
 
 /** A layer whose job title step answers `variants`, so its plan issues queries with those titles. */
@@ -48,6 +48,40 @@ describe("Job Search query variants", () => {
     await ai.searchWeb({ candidateId: "cand-1", criteria, query: await planned("DAF", "fr") });
 
     expect(perplexity.queries).toEqual(["Offre d'emploi « DAF » à Lyon, CDI, télétravail partiel, salaire à partir de 90 000 € brut annuel"]);
+  });
+});
+
+describe("Search Criteria with several values (ADR-0025)", () => {
+  const several: SearchCriteria = { ...criteria, locations: ["Lyon", "Bordeaux"], contractTypes: ["cdi", "freelance"], remoteWorkOptions: ["hybrid", "full_remote"] };
+
+  it("names one location per query, and every contract type and remote-work option wanted in each", async () => {
+    const { ai, perplexity } = searchLayer();
+
+    await ai.searchWeb({ candidateId: "cand-1", criteria: several, location: "Bordeaux" });
+    await ai.searchWeb({ candidateId: "cand-1", criteria: several });
+
+    expect(perplexity.queries).toEqual([
+      "Offre d'emploi « Directeur Financier » à Bordeaux, CDI ou freelance, télétravail partiel ou télétravail complet, salaire à partir de 90 000 € brut annuel",
+      "Offre d'emploi « Directeur Financier » à Lyon, CDI ou freelance, télétravail partiel ou télétravail complet, salaire à partir de 90 000 € brut annuel",
+    ]);
+  });
+
+  it("words several values in English with 'or'", async () => {
+    const { ai, perplexity } = searchLayer({ en: ["Chief Financial Officer"] });
+    const query = (await ai.planJobSearch({ candidateId: "cand-1", criteria: several })).queries.find((q) => q.language === "en")!;
+
+    await ai.searchWeb({ candidateId: "cand-1", criteria: several, query, location: "Lyon" });
+
+    expect(perplexity.queries).toEqual([
+      'Job offer "Chief Financial Officer" in Lyon, permanent contract or freelance, hybrid remote work or fully remote work, salary from €90,000 gross per year',
+    ]);
+  });
+
+  it("refuses a place that is not one of the Search Criteria's locations", async () => {
+    const { ai, perplexity } = searchLayer();
+
+    await expect(ai.searchWeb({ candidateId: "cand-1", criteria: several, location: "Jean Dupont" })).rejects.toThrow(DataResidencyError);
+    expect(perplexity.queries).toEqual([]);
   });
 });
 
@@ -123,7 +157,7 @@ describe("planning a Job Search", () => {
         "\n```",
     );
 
-    const plan = await ai.planJobSearch({ candidateId: "cand-1", criteria: { targetRole: "DAF", location: "Lyon" } });
+    const plan = await ai.planJobSearch({ candidateId: "cand-1", criteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] } });
 
     expect(plan.queries).toEqual([
       { title: "DAF", language: "fr" },
@@ -190,5 +224,55 @@ describe("paging a Job Search query", () => {
     await ai.searchWeb({ candidateId: "cand-1", criteria, query: await planned("CFO", "en"), page: 2 });
 
     expect(perplexity.searches.map((search) => search.page)).toEqual([undefined, 2]);
+  });
+});
+
+describe("a Job Search's queries, as the job-search-queries task Playbook words them (ADR-0026)", () => {
+  it("are worded and planned as before with version 1, its built-in text", async () => {
+    const mistral = createFakeProvider({ id: "mistral", reply: "{}" });
+    const ai = createAiLayer({ providers: [createFakeProvider({ id: "perplexity", residency: "outside_eu" }), mistral], routes: { web_search: "perplexity", job_titles: "mistral" }, usage: createMemoryUsageLog() });
+
+    await ai.planJobSearch({ candidateId: "cand-1", criteria });
+
+    expect(mistral.calls[0]!.system).toBe(
+      "Tu aides à chercher des offres d'emploi. On te donne un intitulé de poste. Donne les autres intitulés que les recruteurs " +
+        "emploient pour ce même poste : jusqu'à 2 en français et jusqu'à 3 en anglais, les plus courants d'abord, sans changer de niveau ni de métier. " +
+        'Réponds uniquement par un objet JSON : {"fr": ["..."], "en": ["..."]}.',
+    );
+  });
+
+  it("take the served version's instructions and Playbook Agent for the job titles, and its openings for the queries", async () => {
+    const perplexity = createFakeProvider({ id: "perplexity", residency: "outside_eu" });
+    const mistral = createFakeProvider({ id: "mistral", reply: JSON.stringify({ en: ["CFO"] }) });
+    const claude = createFakeProvider({ id: "anthropic", reply: JSON.stringify({ en: ["CFO"] }) });
+    const ai = createAiLayer({ providers: [perplexity, mistral, claude], routes: { web_search: "perplexity", job_titles: "anthropic" }, usage: createMemoryUsageLog() });
+
+    const plan = await ai.planJobSearch({
+      candidateId: "cand-1",
+      criteria,
+      instructions: {
+        titles: { text: "Donne des synonymes.", route: { provider: "mistral", model: "mistral-medium-3-5" }, effort: "high" },
+        openings: { fr: "Poste de {{intitulé}} près de {{lieu}}", en: "{{intitulé}} job near {{lieu}}" },
+      },
+    });
+    for (const query of plan.queries) await ai.searchWeb({ candidateId: "cand-1", criteria, query });
+
+    expect(claude.calls).toHaveLength(0);
+    expect(mistral.calls[0]).toMatchObject({ model: "mistral-medium-3-5", effort: "high" });
+    expect(mistral.calls[0]!.system).toMatch(/^Donne des synonymes\. Réponds uniquement par un objet JSON/);
+    expect(perplexity.queries).toEqual([
+      "Poste de Directeur Financier près de Lyon, CDI, télétravail partiel, salaire à partir de 90 000 € brut annuel",
+      "CFO job near Lyon, permanent contract, hybrid remote work, salary from €90,000 gross per year",
+    ]);
+  });
+
+  it("open with the built-in words when the served opening lacks the job title or the location", async () => {
+    const perplexity = createFakeProvider({ id: "perplexity", residency: "outside_eu" });
+    const ai = createAiLayer({ providers: [perplexity, createFakeProvider({ id: "mistral", reply: "{}" })], routes: { web_search: "perplexity", job_titles: "mistral" }, usage: createMemoryUsageLog() });
+
+    const plan = await ai.planJobSearch({ candidateId: "cand-1", criteria, instructions: { titles: { text: "Donne des synonymes." }, openings: { fr: "Offres à {{lieu}}", en: "Jobs" } } });
+    await ai.searchWeb({ candidateId: "cand-1", criteria, query: plan.queries[0] });
+
+    expect(perplexity.queries[0]).toMatch(/^Offre d'emploi « Directeur Financier » à Lyon, /);
   });
 });

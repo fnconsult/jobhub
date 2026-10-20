@@ -55,6 +55,7 @@ export function createPerplexityProvider(options: PerplexityProviderOptions): Ai
     id: "perplexity",
     // The "fast" preset's model (docs/research/issue-74.md).
     defaultModel: PRESET_MODEL,
+    models: [PRESET_MODEL],
     endpoint: "api.perplexity.ai",
     residency: "outside_eu",
     searchPages: PAGES,

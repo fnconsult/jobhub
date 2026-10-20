@@ -14,7 +14,7 @@
  * answer becomes a CV section all stay behind it. The questions' wording lives
  * in the interface catalogue (`questionnaire.questions.<id>`).
  */
-import type { CvEducation, CvExperience, CvLanguage, MasterCvContent } from "@jobhub/shared";
+import { distinctLocations, type CvEducation, type CvExperience, type CvLanguage, type MasterCvContent } from "@jobhub/shared";
 import type { CvDraft } from "@/cv";
 
 export type QuestionId =
@@ -63,7 +63,7 @@ const text = (id: QuestionId, optional: boolean, number?: number): Question => (
 /** Replays the answers given so far; returns the draft they make and the question to ask next. */
 function replay(answers: readonly string[]): { draft: CvDraft; next: Question | null } {
   const cv: MasterCvContent = { fullName: "", headline: "", email: "", phone: "", location: "", summary: "", experience: [], education: [], skills: [], languages: [] };
-  const criteria = { targetRole: "", location: "" };
+  const criteria: CvDraft["searchCriteria"] = { targetRole: "", locations: [] };
   let index = 0;
   /** The next answer, or undefined when the interview has reached this question. */
   const take = () => (index < answers.length ? answers[index++]! : undefined);
@@ -71,7 +71,8 @@ function replay(answers: readonly string[]): { draft: CvDraft; next: Question | 
   function* script(): Generator<Question, void, string> {
     cv.fullName = yield text("fullName", false);
     criteria.targetRole = cv.headline = yield text("targetRole", false);
-    criteria.location = cv.location = yield text("location", false);
+    cv.location = yield text("location", false);
+    criteria.locations = distinctLocations([cv.location]);
     cv.email = yield text("email", true);
     cv.phone = yield text("phone", true);
 

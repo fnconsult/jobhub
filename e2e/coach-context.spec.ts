@@ -38,7 +38,7 @@ const masterCv = (headline: string, extra: Record<string, unknown> = {}) => ({
 async function createProfile(page: Page, targetRole: string, cvExtra: Record<string, unknown> = {}): Promise<string> {
   const created = await page.request.post("/api/profiles", {
     headers: { origin },
-    data: { masterCv: masterCv(targetRole, cvExtra), searchCriteria: { targetRole, location: "Lyon", contractType: "cdi" } },
+    data: { masterCv: masterCv(targetRole, cvExtra), searchCriteria: { targetRole, locations: ["Lyon"], contractTypes: ["cdi"] } },
   });
   expect(created.status(), await created.text()).toBe(201);
   return (await created.json()).id;

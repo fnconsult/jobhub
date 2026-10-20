@@ -57,7 +57,7 @@ export async function expectComparisonWithoutPrices(page: Page, server: PlanPric
   const response = await page.goto(`${server.origin}/abonnement`);
   expect(Date.now() - started, "/abonnement waits on Stripe for the Plan prices only a few seconds").toBeLessThan(10_000);
   expect(response?.status(), server.output()).toBe(200);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.billing.page.title);
+  await expect(page.getByRole("heading", { level: 2, name: fr.billing.page.title })).toBeVisible();
   // A Plan offered by plans.spec.ts while this runs is ranked after these three.
   await expect(page.getByRole("table").getByRole("columnheader").first()).toHaveText(fr.billing.page.quota);
   expect((await page.getByRole("table").getByRole("columnheader").allInnerTexts()).slice(1, 4)).toEqual(["Gratuite", "Standard", "Premium"]);

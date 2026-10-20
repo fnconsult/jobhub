@@ -11,12 +11,20 @@ const fr = createI18n("fr").t;
 describe("the Search Criteria of a Job Search, in words", () => {
   it("says where, which contract, from what salary and how much remote work, in one line", () => {
     expect(
-      searchCriteriaInWords({ targetRole: "DAF", location: "Lyon", contractType: "cdi", minSalary: 85000, remoteWork: "hybrid" }, fr, "fr"),
+      searchCriteriaInWords({ targetRole: "DAF", locations: ["Lyon"], contractTypes: ["cdi"], minSalary: 85000, remoteWorkOptions: ["hybrid"] }, fr, "fr"),
     ).toBe(`Lyon · CDI · 85${NNBSP}000 € brut par an minimum · Télétravail : Hybride`);
   });
 
+  it("says every place, contract type and remote-work option wanted, any one of which will do (ADR-0025)", () => {
+    const criteria = { targetRole: "DAF", locations: ["Lyon", "Bordeaux"], contractTypes: ["cdi" as const, "freelance" as const], remoteWorkOptions: ["hybrid" as const, "full_remote" as const] };
+    expect(searchCriteriaInWords(criteria, fr, "fr")).toBe("Lyon ou Bordeaux · CDI ou Indépendant (freelance) · Télétravail : Hybride ou Télétravail complet");
+    expect(searchCriteriaInWords({ ...criteria, locations: ["Lyon", "Bordeaux", "Nantes"] }, createI18n("en").t, "en")).toBe(
+      "Lyon, Bordeaux, or Nantes · Permanent (CDI) or Freelance · Remote work: Hybrid or Fully remote",
+    );
+  });
+
   it("leaves out what the Candidate did not specify", () => {
-    expect(searchCriteriaInWords({ targetRole: "DAF", location: "Lyon" }, fr, "fr")).toBe("Lyon");
+    expect(searchCriteriaInWords({ targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] }, fr, "fr")).toBe("Lyon");
   });
 });
 
@@ -64,6 +72,22 @@ describe("why a Job Offer has its Match Score, criterion by criterion", () => {
 
   it("reads in the Candidate's Interface Language", () => {
     expect(matchScoreReasons(matchScore, createI18n("en").t, "en")[2]).toEqual({ status: "match", verdict: "Matches", text: "Location: Villeurbanne, wanted: Lyon" });
+  });
+
+  it("names every value wanted, any one of which is enough (ADR-0025), and still reads a Match Score kept from before", () => {
+    const several: MatchScore = {
+      ...matchScore,
+      breakdown: {
+        ...matchScore.breakdown,
+        location: { status: "match", offer: "Villeurbanne", wanted: ["Lyon", "Bordeaux"] },
+        contractType: { status: "match", offer: "freelance", wanted: ["cdi", "freelance"] },
+      },
+    };
+    const reasons = matchScoreReasons(several, fr, "fr");
+    expect(reasons[2]!.text).toBe("Lieu : Villeurbanne, recherché : Lyon ou Bordeaux");
+    expect(reasons[4]!.text).toBe("Type de contrat : Indépendant (freelance), recherché : CDI ou Indépendant (freelance)");
+    // The Match Score above holds single wanted values, as one kept from before does.
+    expect(matchScoreReasons(matchScore, fr, "fr")[4]!.text).toBe("Type de contrat : CDD, recherché : CDI");
   });
 });
 

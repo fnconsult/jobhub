@@ -1,16 +1,41 @@
-import { matchScoreReliability, type ContractType, type CriterionStatus, type MatchScore, type MatchScoreReliability, type SearchCriteria } from "@jobhub/shared";
+import {
+  matchScoreReliability,
+  wantedValues,
+  type ContractType,
+  type CriterionStatus,
+  type MatchScore,
+  type MatchScoreReliability,
+  type RemoteWork,
+  type SearchCriteria,
+} from "@jobhub/shared";
 import type { TFunction } from "i18next";
 
+/** Values any one of which will do, in words: "Lyon ou Bordeaux", "CDI, CDD ou Intérim" (ADR-0025). */
+export function anyOfInWords(values: readonly string[], locale: string): string {
+  return new Intl.ListFormat(locale, { type: "disjunction" }).format(values);
+}
+
+/** The contract types wanted, in words ("CDI ou Indépendant (freelance)"); "" for none. */
+export function contractTypesInWords(contractTypes: readonly ContractType[], t: TFunction, locale: string): string {
+  return anyOfInWords(contractTypes.map((type) => t(`cvReview.contractTypes.${type}`)), locale);
+}
+
+/** The remote-work options wanted, in words ("Hybride ou Télétravail complet"); "" for none. */
+export function remoteWorkOptionsInWords(options: readonly RemoteWork[], t: TFunction, locale: string): string {
+  return anyOfInWords(options.map((option) => t(`cvReview.remoteWorkOptions.${option}`)), locale);
+}
+
 /**
- * A Profile's Search Criteria in one line ("Lyon · CDI · 85 000 € brut par an
- * minimum · Télétravail : Hybride"), leaving out what the Candidate did not
- * specify. The target role is not repeated: the Job Search page names it.
+ * A Profile's Search Criteria in one line ("Lyon ou Bordeaux · CDI ou Indépendant
+ * (freelance) · 85 000 € brut par an minimum · Télétravail : Hybride"), leaving out
+ * what the Candidate did not specify. The target role is not repeated: the Job
+ * Search page names it.
  */
 export function searchCriteriaInWords(criteria: SearchCriteria, t: TFunction, locale: string): string {
-  const parts = [criteria.location.trim()];
-  if (criteria.contractType) parts.push(t(`cvReview.contractTypes.${criteria.contractType}`));
+  const parts = [anyOfInWords(criteria.locations, locale)];
+  if (criteria.contractTypes.length > 0) parts.push(contractTypesInWords(criteria.contractTypes, t, locale));
   if (criteria.minSalary !== undefined) parts.push(t("profile.salary", { amount: new Intl.NumberFormat(locale).format(criteria.minSalary) }));
-  if (criteria.remoteWork) parts.push(t("jobSearch.remoteWork", { option: t(`cvReview.remoteWorkOptions.${criteria.remoteWork}`) }));
+  if (criteria.remoteWorkOptions.length > 0) parts.push(t("jobSearch.remoteWork", { option: remoteWorkOptionsInWords(criteria.remoteWorkOptions, t, locale) }));
   return parts.filter(Boolean).join(" · ");
 }
 
@@ -54,11 +79,11 @@ export function matchScoreReasons(matchScore: MatchScore, t: TFunction, locale: 
   return [
     reason(skills.status, skillsText),
     reason(seniority.status, seniorityText),
-    reason(location.status, offerAndWanted("location", location.offer, location.wanted)),
+    reason(location.status, offerAndWanted("location", location.offer, anyOfInWords(wantedValues(location), locale))),
     reason(salary.status, salaryText),
     reason(
       contractType.status,
-      offerAndWanted("contractType", contractType.offer && contract(contractType.offer), contractType.wanted && contract(contractType.wanted)),
+      offerAndWanted("contractType", contractType.offer && contract(contractType.offer), anyOfInWords(wantedValues(contractType).map(contract), locale)),
     ),
   ];
 }

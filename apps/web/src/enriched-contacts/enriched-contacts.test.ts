@@ -31,6 +31,8 @@ const DOSSIER: CompanyDossier = {
   builtAt: new Date("2026-10-01T10:00:00Z"),
   website: "https://www.acme-industrie.fr/",
   sources: [],
+  news: [],
+    newsSearched: true,
   suggestedContactRoles: ["hiring_manager", "hr_director", "talent_acquisition"],
 };
 
@@ -45,6 +47,8 @@ const REGISTER_DOSSIER: CompanyDossier = {
   financials: [],
   executiveRoles: [],
   suggestedContactRoles: ["hr_director"],
+  news: [],
+    newsSearched: true,
 };
 
 const CLAIRE: FoundPerson = { providerPersonId: "p-claire", name: "Claire M.", jobTitle: "DRH" };
@@ -97,7 +101,7 @@ describe.skipIf(!connectionString)("Enriched Contacts (needs Postgres: DATABASE_
   const includeEnrichedContacts = (count: number | null) => t.billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, enrichedContacts: count });
 
   async function saveApplication(owner: string) {
-    const profile = await profiles.create(owner, { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
+    const profile = await profiles.create(owner, { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } });
     if (!profile.ok) throw new Error("fixture refused");
     return saveOffer(owner, profile.profile.id, OFFER);
   }

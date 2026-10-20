@@ -26,6 +26,10 @@ _Avoid_: AI opt-in, privacy setting
 The part of a CV that identifies the Candidate: name, postal address, phone and email.
 _Avoid_: Contact details, header
 
+**Redaction**:
+What the AI layer takes out of every AI call, generation and web search, before it leaves for a provider: every email address and phone number found by its shape, and what Jobbbox knows of the Candidate's identity (their account's name and email, their latest Master CV's Identity block: full name, last name, postal address, phone, email), each replaced by a placeholder such as « [NOM] » or « [E-MAIL] ». The first name stays. A text task's reply gets the values back, so a Cover Letter still signs with the name; the AI Message Log keeps what was sent, redacted. It replaced the rule that personal data only goes to EU-resident endpoints: names Jobbbox does not know go through, and the rest of a CV (employers, dates, career) stays in the call.
+_Avoid_: Anonymisation, masking, scrubbing (that is for keys and secrets)
+
 **Organisation**:
 An outplacement firm, APEC or corporate HR department that pays for its beneficiaries' Candidate accounts and whose advisors can follow their progress. Not in the MVP: Candidates pay for themselves first.
 _Avoid_: Company, client, tenant, B2B customer
@@ -73,7 +77,7 @@ A Human Coach no longer listed to Candidates and who can no longer read anything
 _Avoid_: Deleted coach
 
 **Coach Panel**:
-The side panel, available from every page, where the Candidate talks with the AI Coach.
+The side panel, available from every page, where the Candidate talks with the AI Coach. On wide screens it sits beside the page, and the Candidate can widen it into a drawer over the page; on phones it takes the whole screen. Its one menu, the conversation's title, holds a new conversation, the saved Coach Conversations and the Coach Memory.
 _Avoid_: Chat, chatbot, sidebar
 
 **Coach context**:
@@ -109,11 +113,11 @@ A proposal from the AI Coach placed inside a page (e.g. "3 ATS Fixes proposées"
 _Avoid_: Notification, suggestion, prompt
 
 **Coaching Playbook**:
-A versioned set of coaching rules for one coaching topic, each rule citing its Sources, together with the Playbook Agent that applies it. Written and updated in the Back Office by Playbook editors.
+A versioned set of coaching rules for one coaching topic, each rule citing its Sources, together with the Playbook Agent that applies it. Written and updated in the Back Office by Playbook editors. Not a Task Playbook, which an AI task follows and the AI Coach never consults.
 _Avoid_: Guide, script, prompt
 
 **Playbook Agent**:
-The specialist AI agent of one Coaching Playbook, on its own provider, model and effort, set with the playbook in the Back Office from the EU-resident models allowed. It is given the Coach context and its Coaching Playbook and advises on it; the AI Coach writes the reply itself. A "when to consult it" text says what it is for; the Playbook Agent choice picks which to consult, at most two per reply.
+The specialist AI agent of one Coaching Playbook, on its own provider, model and effort, set with the playbook in the Back Office from every text provider configured (one outside the EU is marked so; every call is redacted). It is given the Coach context and its Coaching Playbook and advises on it; the AI Coach writes the reply itself. A "when to consult it" text says what it is for; the Playbook Agent choice picks which to consult, at most two per reply. A Task Playbook's Playbook Agent is the AI running that task instead: it has no "when to consult it", and its effort may be the model's own.
 _Avoid_: Sub-coach, sub-agent, worker, tool, bot
 
 **Playbook Version**:
@@ -133,7 +137,7 @@ The short set of cross-cutting coaching rules the AI Coach always applies, whate
 _Avoid_: Summary, system prompt
 
 **Playbook Agent choice**:
-The small AI call that picks, for a reply, at most two Playbook Agents from their "when to consult it" texts, the conversation and what is In view. Each chosen agent advises on its playbook; the AI Coach reply draws on that advice. An agent that fails is left out of the reply.
+The small AI call that picks, for a reply, at most two Playbook Agents of Coaching Playbooks (never of a Task Playbook) from their "when to consult it" texts, the conversation and what is In view. Each chosen agent advises on its playbook; the AI Coach reply draws on that advice. An agent that fails is left out of the reply.
 _Avoid_: Routing, playbook selection, Playbook table
 
 **Playbooks used**:
@@ -141,7 +145,7 @@ The Core Digest and Coaching Playbooks, with their versions, that an AI Coach re
 _Avoid_: Sources used, citations
 
 **Human-validated**:
-A Playbook Version or Guardrail message a named Administrator, not one of its authors, has reviewed and approved, with the date. A review by an AI never counts. In production, only Human-validated coaching knowledge reaches Candidates.
+A Playbook Version (of a Coaching Playbook, the Core Digest or a Task Playbook) or Guardrail message a named Administrator, not one of its authors, has reviewed and approved, with the date. A review by an AI never counts. In production, only Human-validated coaching knowledge, Task Playbooks and Guardrail messages are served.
 _Avoid_: Approved, QA'd, reviewed
 
 **Eval Case**:
@@ -152,7 +156,7 @@ _Avoid_: Test case, golden
 One pass of a set of Eval Cases on one configuration (a Playbook Version with its Playbook Agent's model and effort, a Guardrail setting, or the AI Coach as released), with each case's result and an overall score, cost and response time, dated and kept. A Coaching Playbook's Eval Run plays the AI Coach's whole reply, made to consult that playbook, the others served as they are; Playbook editors compare models and efforts by running a draft version once per choice. Only Playbook editors and super-admins start one, and it counts in AI Usage. Scored by an AI judge Jobbbox fixes, never chosen per Coaching Playbook. An Eval Run helps a person decide; it never makes anything Human-validated.
 
 **Guardrail**:
-A named check on a Candidate's or Administrator's message to the AI Coach or Back Office Assistant (input), or on the reply of the AI Coach, a Playbook Agent or the Back Office Assistant (output), that lets it through, blocks it or flags it, by fixed rules or by asking an EU-resident AI model. It guards against direct and indirect prompt injection, personal data leaks, disclosure of prompts, Coaching Playbook rules or secrets, out-of-scope or harmful advice, and distress. The set of Guardrails is fixed in code; Administrators only tune each one in the Back Office. A new setting is saved only once the Guardrail's Eval Cases have been played on it, and is refused if it lets through a case that the distress, personal data leak or secret disclosure Guardrail must block; those three can never be switched off. Other AI tasks keep their own rules and have no Guardrails. Content the Candidate did not write (a Job Offer, a Company Dossier, a CV) always reaches the AI Coach and Playbook Agents marked as data, never as instructions; a Playbook Agent's reply reaches the AI Coach the same way. Only the final reply is checked on output, not each Playbook Agent's. When the AI model cannot be reached, the message or reply goes through and the fixed rules still apply; distress words always bring the distress Guardrail message. The Back Office Assistant has only the prompt injection, personal data leak and secret disclosure Guardrails.
+A named check on a Candidate's or Administrator's message to the AI Coach or Back Office Assistant (input), or on the reply of the AI Coach, a Playbook Agent or the Back Office Assistant (output), that lets it through, blocks it or flags it, by fixed rules or by asking an AI model (any configured provider, every call redacted). It guards against direct and indirect prompt injection, personal data leaks, disclosure of prompts, Coaching Playbook rules or secrets, out-of-scope or harmful advice, and distress. The set of Guardrails is fixed in code; Administrators only tune each one in the Back Office. A new setting is saved only once the Guardrail's Eval Cases have been played on it, and is refused if it lets through a case that the distress, personal data leak or secret disclosure Guardrail must block; those three can never be switched off. Other AI tasks keep their own rules and have no Guardrails. Content the Candidate did not write (a Job Offer, a Company Dossier, a CV) always reaches the AI Coach and Playbook Agents marked as data, never as instructions; a Playbook Agent's reply reaches the AI Coach the same way. Only the final reply is checked on output, not each Playbook Agent's. When the AI model cannot be reached, the message or reply goes through and the fixed rules still apply; distress words always bring the distress Guardrail message. The Back Office Assistant has only the prompt injection, personal data leak and secret disclosure Guardrails.
 _Avoid_: Filter, moderation, safety layer
 
 **Blocked message**:
@@ -206,7 +210,7 @@ Downloading an Application's saved Tailored CV or Cover Letter as a PDF or Word 
 _Avoid_: Download, print
 
 **Search Criteria**:
-The job-search parameters of a Profile: target role, location, salary, contract type, remote work. The Candidate can change them on an active Profile, each change saving as soon as it is made; this never renames the Profile, and Match Scores and Tailored CVs already kept are not recomputed. An Archived Profile's Search Criteria are read-only until it is restored.
+The job-search parameters of a Profile: one target role, one minimum salary, and any number of locations (up to five), contract types and remote-work options; none chosen means no preference. A Job Offer meets a criterion as soon as it meets one of its values. The Candidate can change them on an active Profile, each change saving as soon as it is made; this never renames the Profile, and Match Scores and Tailored CVs already kept are not recomputed. An Archived Profile's Search Criteria are read-only until it is restored.
 _Avoid_: Filters, preferences
 
 **Onboarding Questionnaire**:
@@ -216,8 +220,12 @@ _Avoid_: Form, survey
 ### Job offers
 
 **Job Offer**:
-A job posting, captured by the extension or found by the AI Coach's search. One Job Offer can be referenced by many Candidates.
+A job posting, captured by the extension or found by the AI Coach's search. One Job Offer can be referenced by many Candidates. Carries a Job Offer Summary and, read by the AI with it, its employer's sector and sub-sector (or domain).
 _Avoid_: Job, posting, ad, vacancy, offer (alone)
+
+**Job Offer Summary**:
+Two or three sentences on a Job Offer (the role, its scope, what is expected), written by the AI from the offer's own text and in its language, inventing nothing, as its Task Playbook says. Shown, labelled as written by the AI, at the top of the Application's page. None is written, nor the sector, while that Task Playbook has no version served (in production: none Human-validated).
+_Avoid_: Abstract, description
 
 **Capture**:
 The act of the browser extension turning the job page the person is viewing into a Job Offer, either detected automatically or triggered manually.
@@ -232,7 +240,7 @@ A result page that lists several postings (a job board's search results, a caree
 _Avoid_: Results page, index page
 
 **Job Search**:
-One run of Job discovery that a Candidate starts for a Profile, and its outcome: searching, done or failed. It counts one against the Plan Quota, and the use is given back if the search fails or times out. A search nobody has finished after 15 minutes is failed. Its page shows the Match Scores against the Profile's current Search Criteria; a Job Search keeps no copy of the criteria it was run with.
+One run of Job discovery that a Candidate starts for a Profile, and its outcome: searching, done or failed. Started from the Recherches d'offres page or a Profile's page, for one Profile or for all their active Profiles at once (one Job Search each). With several locations it searches each of them within the one Job discovery budget. It counts one against the Plan Quota, and the use is given back if the search fails or times out. A search nobody has finished after 15 minutes is failed. Its page shows the Match Scores against the Profile's current Search Criteria; a Job Search keeps no copy of the criteria it was run with.
 _Avoid_: Search (alone, ambiguous with Search Criteria)
 
 **Job Search Notification**:
@@ -302,8 +310,12 @@ A recurring email and in-app summary of new Job Offers matching a Profile's Sear
 _Avoid_: Alert, newsletter, feed
 
 **Company Dossier**:
-The research compiled about the employer behind a Job Offer from public data only: legal identity, address, financials and Suggested Contact Roles. Built from the French company register for a French employer; for a foreign one, from the web and marked less reliable. Never names a private person. Built only for a confirmed employer, and refused when the employer is not a company (e.g. a sole trader), in which case the Candidate is asked to name the hiring company.
+The research compiled about the employer behind a Job Offer from public data only: legal identity, address, financials and Suggested Contact Roles. Built from the French company register for a French employer; for a foreign one, from the web and marked less reliable. Never names a private person. Built only for a confirmed employer, and refused when the employer is not a company (e.g. a sole trader), in which case the Candidate is asked to name the hiring company. Holds the employer's Company News.
 _Avoid_: Company info, company profile
+
+**Company News**:
+Up to five articles about a Company Dossier's employer from the last twelve months, found by web search when the dossier is built, worded as its Task Playbook says: each one's title, outlet, date and link, never its text, and none whose title names a private person. Part of building the dossier, counted against no Plan Quota.
+_Avoid_: Press review, feed
 
 **Suggested Contact Role**:
 A job title the Candidate should look for and contact at the employer (e.g. "DRH"), given without naming a private person.
@@ -332,6 +344,10 @@ _Avoid_: Job entry, candidature (in code), opportunity
 **Application Status**:
 The stage an Application is at: À postuler → Postulée → Relancée → Entretien → Offre reçue → Acceptée, or the end states Refusée / Abandonnée. Changed manually by the Candidate.
 _Avoid_: State, stage
+
+**Archived Application**:
+An Application at an end state (Acceptée, Refusée, Abandonnée) or whose Profile is archived. Kept, but left out of Mes candidatures until the Candidate asks to see them.
+_Avoid_: Closed application, old application
 
 **Interview**:
 One dated interview round within an Application. Added only while the Application is at "Entretien", and kept if it moves on; it can be edited (date, time, note) or removed at any status. Times are French time (Europe/Paris).
@@ -428,8 +444,16 @@ The Candidate's choice of how large all interface text is shown (Standard, Grand
 _Avoid_: Zoom, font setting
 
 **Sidebar**:
-The menu down the side of the Candidate's pages: Profile switcher, links to their sections, Text Size. The Candidate can hide it, and the choice is remembered in that browser. On narrow screens it becomes a drawer opened from the top bar's Menu button.
+The menu down the side of the Candidate's pages: Profile switcher, links to their pages, and at its foot Text Size, Mon compte and signing out. The Candidate can hide it, and the choice is remembered in that browser. On narrow screens it becomes a drawer opened from the Top Bar's Menu button.
 _Avoid_: Navigation bar, workspace header
+
+**Top Bar**:
+The bar above every page beside the Sidebar: the page's title, the Menu button when the Sidebar is hidden, and the Coach Panel's button while the panel is closed.
+_Avoid_: Header, navbar
+
+**Section**:
+One part of a long page, with its own address: Mon compte's Profils, Abonnement, Relances or Mes données, a Profile's or an Application's parts, a Back Office section. On wide screens a page's Sections are listed beside it, or in the Sidebar in place of its links when the page has no room (the main menu one arrow away); on phones the list is the page and each Section opens as a drawer, its title in the Top Bar leading back to the list.
+_Avoid_: Tab, sub-page, panel
 
 ### Delivery
 
@@ -514,7 +538,7 @@ What every AI call cost Jobbbox, whatever its task (not only AI Coach replies): 
 _Avoid_: AI bill, token log, metering
 
 **AI Message Log**:
-What one AI call said: its system text, messages and reply, keys and secrets scrubbed, with the Candidate it was made for (none for a Guest). Kept 30 days for quality and debugging, then purged; deleted with the account and in the Candidate's Data export. Only super-admins read it, on the Back Office's Journaux IA page, and every log they open is written to the Back Office Audit.
+What one AI call said, as sent: its system text and messages after Redaction, and the reply as it came, keys and secrets scrubbed, with the Candidate it was made for (none for a Guest). Kept 30 days for quality and debugging, then purged; deleted with the account and in the Candidate's Data export. Only super-admins read it, on the Back Office's Journaux IA page, and every log they open is written to the Back Office Audit.
 _Avoid_: Prompt log, transcript, chat history
 
 **Guardrail Trigger**:

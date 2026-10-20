@@ -40,10 +40,9 @@ export default async function JobSearchPage({ params }: Params) {
   const inView = { kind: "job_search", id: jobSearch.id, name: profile.name, profileId: profile.id } as const;
   const startedAt = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeStyle: "short", timeZone: "Europe/Paris" }).format(jobSearch.startedAt);
   return (
-    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id}>
+    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id} title={t("jobSearch.title", { profile: profile.name })}>
       <header className="page-head">
         <p className="eyebrow">{t("jobSearch.sectionTitle")}</p>
-        <h1>{t("jobSearch.title", { profile: profile.name })}</h1>
         <dl className="props">
           <dt>{t("jobSearch.status")}</dt>
           <dd>

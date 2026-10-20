@@ -55,32 +55,34 @@ export function AccountDataSection() {
       <a className="button" href="/api/account/export" download>
         {t("accountData.export")}
       </a>
-      <h3>{t("accountData.deleteTitle")}</h3>
-      <p id={`${id}-warning`}>{t("accountData.deleteWarning")}</p>
-      <form className="stack" onSubmit={deleteAccount} noValidate>
-        <div className="field">
-          <label htmlFor={inputId}>{t("accountData.confirmLabel")}</label>
-          <input
-            id={inputId}
-            className="input"
-            type="email"
-            autoComplete="off"
-            required
-            value={email}
-            aria-invalid={problem === "confirmMismatch" ? true : undefined}
-            aria-describedby={`${id}-warning`}
-            onChange={(event) => setEmail(event.target.value)}
-          />
-        </div>
-        <button className="button button-danger" type="submit" disabled={working}>
-          {t("accountData.delete")}
-        </button>
-        {problem ? (
-          <p className="field-error" role="alert">
-            {t(`accountData.${problem}`)}
-          </p>
-        ) : null}
-      </form>
+      <div className="danger-zone stack">
+        <h3>{t("accountData.deleteTitle")}</h3>
+        <p id={`${id}-warning`}>{t("accountData.deleteWarning")}</p>
+        <form className="stack" onSubmit={deleteAccount} noValidate>
+          <div className="field">
+            <label htmlFor={inputId}>{t("accountData.confirmLabel")}</label>
+            <input
+              id={inputId}
+              className="input"
+              type="email"
+              autoComplete="off"
+              required
+              value={email}
+              aria-invalid={problem === "confirmMismatch" ? true : undefined}
+              aria-describedby={`${id}-warning`}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </div>
+          <button className="button button-danger" type="submit" disabled={working}>
+            {t("accountData.delete")}
+          </button>
+          {problem ? (
+            <p className="field-error" role="alert">
+              {t(`accountData.${problem}`)}
+            </p>
+          ) : null}
+        </form>
+      </div>
     </section>
   );
 }

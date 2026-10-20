@@ -37,7 +37,7 @@ const masterCv = {
   languages: [],
 };
 
-/** Signs a new Candidate in (on `plan`), saves a Job Offer from Acme Industrie, builds its Company Dossier unless told not to, and opens the Application page. */
+/** Signs a new Candidate in (on `plan`), saves a Job Offer from Acme Industrie, builds its Company Dossier unless told not to, and opens the Application's Contacts Section. */
 async function openApplication(
   page: Page,
   { plan, dossier = true, employer = "Acme Industrie", location = "Lyon" }: { plan: "free" | "premium"; dossier?: boolean; employer?: string; location?: string },
@@ -45,7 +45,7 @@ async function openApplication(
   const email = newAddress("enriched-contacts");
   await signInWithMagicLink(page, email);
   if (plan === "premium") await subscribe(page, email, "premium");
-  const profile = await page.request.post("/api/profiles", { data: { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } }, headers: { origin } });
+  const profile = await page.request.post("/api/profiles", { data: { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } }, headers: { origin } });
   expect(profile.status(), await profile.text()).toBe(201);
   const offer = await page.request.post("/api/job-offers", {
     data: { title: "DAF H/F", content: `(réf. ${unique()}) Poste de DAF.`, employer, location },
@@ -59,14 +59,14 @@ async function openApplication(
     const built = await page.request.post(`/api/applications/${id}/company-dossier`, { headers: { origin } });
     expect(built.ok(), await built.text()).toBe(true);
   }
-  await page.goto(`/candidatures/${id}`);
+  await page.goto(`/candidatures/${id}/contacts`);
   await page.waitForLoadState("networkidle");
   return { id, section: page.getByRole("region", { name: t.title }) };
 }
 
 test.describe("Enriched Contacts", () => {
   test("a Premium Candidate finds people at the employer, gets one's details with their source and date, and addresses the Outreach Message to them", async ({ page }) => {
-    const { section } = await openApplication(page, { plan: "premium" });
+    const { id, section } = await openApplication(page, { plan: "premium" });
 
     await section.getByRole("button", { name: t.find }).click();
 
@@ -91,7 +91,7 @@ test.describe("Enriched Contacts", () => {
     await page.goBack();
 
     // The Outreach Message can be addressed to Claire: named in the draft, and the mail link is to her.
-    await page.reload();
+    await page.goto(`/candidatures/${id}/documents`);
     // The Outreach Message is a tab of the Application's Tailored Documents (#136).
     const documents = page.getByRole("region", { name: fr.application.documentsTitle });
     await documents.getByRole("tab", { name: td.outreachMessage.title }).click();
@@ -212,9 +212,14 @@ test.describe("Enriched Contacts configuration", () => {
         const find = await page.request.post(`${server.origin}/api/applications/${id}/enriched-contacts`, { headers: { origin: server.origin } });
         expect(find.status(), await find.text()).toBe(409);
         expect(await find.json()).toEqual({ error: "disabled" });
-        await page.goto(`${server.origin}/candidatures/${id}`);
+        await page.goto(`${server.origin}/candidatures/${id}/documents`);
         await expect(page.getByRole("tab", { name: td.outreachMessage.title })).toBeVisible();
         await expect(page.getByRole("region", { name: t.title })).toHaveCount(0);
+        // No Contacts Section (ADR-0024): not listed, and not at its address.
+        const sections = page.getByRole("navigation", { name: fr.application.sections.sectionsLabel });
+        await expect(sections.getByRole("link", { name: fr.application.sections.documents })).toBeVisible();
+        await expect(sections.getByRole("link", { name: fr.application.sections.contacts })).toHaveCount(0);
+        expect((await page.goto(`${server.origin}/candidatures/${id}/contacts`))?.status()).toBe(404);
       } finally {
         server.stop();
       }
@@ -248,7 +253,7 @@ test.describe("Enriched Contacts configuration", () => {
         ? readFileSync(requestLog, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line) as LushaRequest)
         : [];
     try {
-      await page.goto(`${server.origin}/candidatures/${id}`);
+      await page.goto(`${server.origin}/candidatures/${id}/contacts`);
       await page.waitForLoadState("networkidle");
       const section = page.getByRole("region", { name: t.title });
       await section.getByRole("button", { name: t.find }).click();
@@ -306,7 +311,7 @@ test.describe("Enriched Contacts configuration", () => {
     try {
       const state = await (await page.request.get(`${server.origin}/api/applications/${id}/enriched-contacts`)).json();
       expect(state).toMatchObject({ enabled: true, searchable: false });
-      await page.goto(`${server.origin}/candidatures/${id}`);
+      await page.goto(`${server.origin}/candidatures/${id}/contacts`);
       const section = page.getByRole("region", { name: t.title });
       await expect(section.getByText(t.searchUnsupported)).toBeVisible();
       await expect(section.getByRole("button", { name: t.find })).toHaveCount(0);

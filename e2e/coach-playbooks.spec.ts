@@ -32,7 +32,7 @@ const masterCv = (headline: string) => ({
 async function createProfile(page: Page, targetRole = "Directrice financière"): Promise<string> {
   const created = await page.request.post("/api/profiles", {
     headers: { origin },
-    data: { masterCv: masterCv(targetRole), searchCriteria: { targetRole, location: "Lyon", contractType: "cdi" } },
+    data: { masterCv: masterCv(targetRole), searchCriteria: { targetRole, locations: ["Lyon"], contractTypes: ["cdi"] } },
   });
   expect(created.status(), await created.text()).toBe(201);
   return (await created.json()).id;

@@ -32,13 +32,17 @@ export default async function AiMessagePage({ params }: Params) {
   const eur = new Intl.NumberFormat(locale, { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 6 });
 
   return (
-    <BackOfficeLayout access={access}>
+    <BackOfficeLayout
+      access={access}
+      title={
+        <h1>
+          {t("admin.aiMessages.title")} · <time dateTime={log.at.toISOString()}>{at.format(log.at)}</time>
+        </h1>
+      }
+    >
       <p>
         <Link href={routes.adminAiMessages()}>{t("admin.aiMessages.back")}</Link>
       </p>
-      <h1>
-        {t("admin.aiMessages.title")} · <time dateTime={log.at.toISOString()}>{at.format(log.at)}</time>
-      </h1>
       <p className="notice" role="status">
         {t("admin.aiMessages.audited")}
       </p>

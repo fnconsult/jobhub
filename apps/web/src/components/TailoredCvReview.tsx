@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { APPLICATION_EXPORTS } from "@/application-exports/kinds";
 import type { CvChange } from "@/tailored-cv/changes";
 import { ApplicationExportForm } from "./ApplicationExportForm";
+import { SkillTags } from "@/components/SkillTags";
 
 type Status = "proposing" | "proposed" | "saving" | "saved" | "unavailable" | "masterCvChanged" | "proposalChanged" | "error" | null;
 
@@ -266,7 +267,14 @@ function CvSummary({ cv }: { cv: CvContent }) {
           </ul>
         </>
       ) : null}
-      {cv.skills.length > 0 ? <p>{t("tailoredCv.skillsLine", { skills: cv.skills.join(", ") })}</p> : null}
+      {cv.skills.length > 0 ? (
+        <>
+          <p id={`${id}-skills`} className="cv-entry">
+            {t("cvReview.skills")}
+          </p>
+          <SkillTags skills={cv.skills} label={t("cvReview.skills")} />
+        </>
+      ) : null}
       {cv.languages.length > 0 ? (
         <>
           <p id={`${id}-languages`} className="cv-entry">

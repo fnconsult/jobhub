@@ -36,7 +36,7 @@ const masterCv = {
   skills: ["Consolidation", "IFRS"],
   languages: [{ name: "Italien", level: "courant" }],
 };
-const searchCriteria = { targetRole: "Directrice administrative et financière", location: "Lyon", contractType: "cdi", remoteWork: "hybrid", minSalary: 110_000 };
+const searchCriteria = { targetRole: "Directrice administrative et financière", locations: ["Lyon"], contractTypes: ["cdi"], remoteWorkOptions: ["hybrid"], minSalary: 110_000 };
 
 const site = {
   jsonLd: `https://carrieres.acme-e2e.example/offres/daf-lyon-${tag}`,

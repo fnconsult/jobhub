@@ -11,6 +11,7 @@ const origin = process.env.E2E_WEB_ORIGIN!;
 test.describe("EU AI consent", () => {
   test("the Candidate gives EU AI consent on their account page, sees its date, and can withdraw it", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("eu-ai-consent"));
+    await page.goto("/compte/ia-europeenne");
     const consent = page.getByRole("region", { name: fr.euAiConsent.title });
     await expect(consent.getByRole("status")).toHaveText(fr.euAiConsent.notGiven);
 

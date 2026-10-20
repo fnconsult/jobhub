@@ -99,8 +99,7 @@ export default async function ProviderSecretsPage({ searchParams }: { searchPara
   if (status && (error === "test_failed" || (tested && search.result !== "passed"))) notices.push({ role: "alert", text: t("admin.providerSecrets.status", { status }) });
 
   return (
-    <BackOfficeLayout access={access}>
-      <h1>{t("admin.providerSecrets.title")}</h1>
+    <BackOfficeLayout access={access} title={t("admin.providerSecrets.title")}>
       <p className="lead">{t("admin.providerSecrets.intro")}</p>
       {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}
       {cipher ? null : <p className="notice">{t("admin.providerSecrets.noMasterKey")}</p>}

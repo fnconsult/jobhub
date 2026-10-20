@@ -31,7 +31,7 @@ const masterCv = {
   skills: ["Consolidation", "IFRS"],
   languages: [],
 };
-const searchCriteria = { targetRole: "Directeur financier", location: "Lyon", contractType: "cdi" };
+const searchCriteria = { targetRole: "Directeur financier", locations: ["Lyon"], contractTypes: ["cdi"] };
 
 test.use({ baseURL: origin });
 

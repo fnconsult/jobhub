@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { AI_ENV_KEYS, createAiLayerFromEnv, taskRouteFromEnv } from "./env";
-import { AiConfigError, DataResidencyError } from "./errors";
+import { AiConfigError } from "./errors";
 import { createMemoryUsageLog } from "./testing";
 
 /** Answers every call like the provider at that host would, and records the hosts called. */
@@ -32,7 +32,7 @@ describe("AI layer configured from the environment", () => {
     const ai = createAiLayerFromEnv(base, { fetch, usage: createMemoryUsageLog() });
 
     await ai.generate({ task: "scoring", candidateId: "c", prompt: "CV" });
-    await ai.searchWeb({ candidateId: "c", criteria: { targetRole: "DAF", location: "Lyon" } });
+    await ai.searchWeb({ candidateId: "c", criteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] } });
 
     expect(hosts).toEqual(["bedrock-mantle.eu-west-3.api.aws", "api.perplexity.ai"]);
   });
@@ -66,7 +66,7 @@ describe("AI layer configured from the environment", () => {
       const usage = createMemoryUsageLog();
       const env = { AWS_BEARER_TOKEN_BEDROCK: "bedrock-key", AI_WEB_SEARCH_PROVIDER: provider, [key]: "search-key" };
 
-      await createAiLayerFromEnv(env, { fetch, usage }).searchWeb({ candidateId: "c", criteria: { targetRole: "DAF", location: "Lyon" } });
+      await createAiLayerFromEnv(env, { fetch, usage }).searchWeb({ candidateId: "c", criteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] } });
 
       expect(hosts).toEqual([host]);
       expect(usage.entries.map((e) => [e.task, e.provider])).toEqual([["web_search", provider]]);
@@ -78,7 +78,7 @@ describe("AI layer configured from the environment", () => {
     const { fetch, hosts } = recordingFetch();
     const usage = createMemoryUsageLog();
     const env = { ...base, AI_OFFER_ANALYSIS_PROVIDER: "mistral", AI_OFFER_ANALYSIS_MODEL: "mistral-small-latest", MISTRAL_API_KEY: "mk" };
-    const criteria = { targetRole: "DAF", location: "Lyon" };
+    const criteria = { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] };
 
     await createAiLayerFromEnv(env, { fetch, usage }).planJobSearch({ candidateId: "c", criteria });
     await createAiLayerFromEnv({ ...env, AI_JOB_TITLES_PROVIDER: "anthropic" }, { fetch, usage }).planJobSearch({ candidateId: "c", criteria });
@@ -97,11 +97,11 @@ describe("AI layer configured from the environment", () => {
 
     expect(hosts).toEqual(["api.mistral.ai", "bedrock-mantle.eu-west-3.api.aws"]);
     expect(usage.entries.map((e) => e.task)).toEqual(["back_office_assistant", "back_office_assistant"]);
-    // What an Administrator types is personal data: EU endpoints only.
-    expect(() => createAiLayerFromEnv({ ...env, AI_BACK_OFFICE_ASSISTANT_PROVIDER: "openai", OPENAI_API_KEY: "sk", OPENAI_DATA_RESIDENCY: "us" })).toThrow(DataResidencyError);
+    // Outside the EU too, once configured: every call is redacted (ADR-0007 amendment, 2026-10-20).
+    expect(() => createAiLayerFromEnv({ ...env, AI_BACK_OFFICE_ASSISTANT_PROVIDER: "openai", OPENAI_API_KEY: "sk", OPENAI_DATA_RESIDENCY: "us" })).not.toThrow();
   });
 
-  it("checks Guardrails with the coaching provider and model unless AI_GUARDRAIL_PROVIDER says otherwise, EU endpoints only (#228)", async () => {
+  it("checks Guardrails with the coaching provider and model unless AI_GUARDRAIL_PROVIDER says otherwise, outside the EU too (#228)", async () => {
     const { fetch, hosts } = recordingFetch();
     const usage = createMemoryUsageLog();
     const env = { ...base, AI_COACHING_PROVIDER: "mistral", MISTRAL_API_KEY: "mk" };
@@ -111,8 +111,8 @@ describe("AI layer configured from the environment", () => {
 
     expect(hosts).toEqual(["api.mistral.ai", "bedrock-mantle.eu-west-3.api.aws"]);
     expect(usage.entries.map((e) => e.task)).toEqual(["guardrail", "guardrail"]);
-    // A Guardrail reads what the Candidate typed and the AI Coach's reply: EU endpoints only (ADR-0007).
-    expect(() => createAiLayerFromEnv({ ...env, AI_GUARDRAIL_PROVIDER: "openai", OPENAI_API_KEY: "sk", OPENAI_DATA_RESIDENCY: "us" })).toThrow(DataResidencyError);
+    // Outside the EU too, once configured: every call is redacted (ADR-0007 amendment, 2026-10-20).
+    expect(() => createAiLayerFromEnv({ ...env, AI_GUARDRAIL_PROVIDER: "openai", OPENAI_API_KEY: "sk", OPENAI_DATA_RESIDENCY: "us" })).not.toThrow();
   });
 
   it("judges Eval Runs with the coaching provider and model unless AI_EVAL_PROVIDER says otherwise, outside the EU allowed (#231)", async () => {
@@ -127,8 +127,13 @@ describe("AI layer configured from the environment", () => {
     expect(usage.entries.map((e) => e.task)).toEqual(["eval", "eval"]);
   });
 
-  it("refuses to start when a personal-data task is routed to the direct Anthropic API", () => {
-    expect(() => createAiLayerFromEnv({ ...base, ANTHROPIC_ENDPOINT: "direct", ANTHROPIC_API_KEY: "sk", MISTRAL_API_KEY: "mk", AI_SCORING_PROVIDER: "anthropic" })).toThrow(DataResidencyError);
+  it("starts with a personal-data task routed to the direct Anthropic API, as configured", async () => {
+    const { fetch, hosts } = recordingFetch();
+    const ai = createAiLayerFromEnv({ ...base, ANTHROPIC_ENDPOINT: "direct", ANTHROPIC_API_KEY: "sk", MISTRAL_API_KEY: "mk", AI_SCORING_PROVIDER: "anthropic" }, { fetch, usage: createMemoryUsageLog() });
+
+    await ai.generate({ task: "scoring", candidateId: "c", prompt: "CV" });
+
+    expect(hosts).toEqual(["api.anthropic.com"]);
   });
 
   describe("Claude endpoint chosen by the keys entered (ANTHROPIC_ENDPOINT=auto, the default)", () => {
@@ -162,10 +167,12 @@ describe("AI layer configured from the environment", () => {
     });
   });
 
-  it("refuses to start when a personal-data task would go to OpenAI without EU data residency", () => {
-    expect(() =>
-      createAiLayerFromEnv({ ...base, AI_SCORING_PROVIDER: "openai", OPENAI_API_KEY: "ok", OPENAI_DATA_RESIDENCY: "us" }),
-    ).toThrow(DataResidencyError);
+  it("starts with a personal-data task routed to OpenAI without EU data residency, as configured", () => {
+    expect(() => createAiLayerFromEnv({ ...base, AI_SCORING_PROVIDER: "openai", OPENAI_API_KEY: "ok", OPENAI_DATA_RESIDENCY: "us" })).not.toThrow();
+  });
+
+  it("still refuses to start with a text task routed to a web-search provider", () => {
+    expect(() => createAiLayerFromEnv({ ...base, AI_SCORING_PROVIDER: "perplexity" })).toThrow(AiConfigError);
   });
 
   it("accepts Claude on Vertex AI in an EU region", () => {
@@ -227,15 +234,22 @@ describe("AI layer configured from the environment", () => {
   describe("Playbook Agents (#225)", () => {
     const providersOf = (env: Record<string, string>) => createAiLayerFromEnv(env, { usage: createMemoryUsageLog() }).agentModels().map((choice) => choice.provider);
 
-    it("may use every EU-resident text provider whose key is entered, even one no task uses", () => {
+    it("may use every text provider whose key is entered, even one no task uses", () => {
       expect(providersOf(base)).toEqual(["anthropic"]);
       expect(providersOf({ ...base, MISTRAL_API_KEY: "mk" })).toEqual(["anthropic", "mistral"]);
       expect(providersOf({ ...base, OPENAI_API_KEY: "ok" })).toEqual(["anthropic", "openai"]);
     });
 
-    it("never one reached only outside the EU", () => {
-      expect(providersOf({ ...base, OPENAI_API_KEY: "ok", OPENAI_DATA_RESIDENCY: "us" })).toEqual(["anthropic"]);
-      expect(providersOf({ ANTHROPIC_API_KEY: "ak", MISTRAL_API_KEY: "mk", PERPLEXITY_API_KEY: "pk" })).toEqual(["mistral"]);
+    it("outside the EU too, marked as such", () => {
+      const choices = (env: Record<string, string>) => createAiLayerFromEnv(env, { usage: createMemoryUsageLog() }).agentModels();
+      expect(choices({ ...base, OPENAI_API_KEY: "ok", OPENAI_DATA_RESIDENCY: "us" }).map(({ provider, residency }) => ({ provider, residency }))).toEqual([
+        { provider: "anthropic", residency: "eu" },
+        { provider: "openai", residency: "outside_eu" },
+      ]);
+      expect(choices({ ANTHROPIC_API_KEY: "ak", MISTRAL_API_KEY: "mk", PERPLEXITY_API_KEY: "pk" }).map(({ provider, endpoint, residency }) => ({ provider, endpoint, residency }))).toEqual([
+        { provider: "mistral", endpoint: "api.mistral.ai", residency: "eu" },
+        { provider: "anthropic", endpoint: "api.anthropic.com", residency: "outside_eu" },
+      ]);
     });
 
     it("are given by default the AI Coach's route: its provider and model", () => {
@@ -246,6 +260,27 @@ describe("AI layer configured from the environment", () => {
       });
       // Claude reached only outside the EU: the AI Coach is on Mistral.
       expect(taskRouteFromEnv({ ANTHROPIC_API_KEY: "ak" }, "coaching")).toEqual({ provider: "mistral" });
+    });
+  });
+
+  describe("web-search providers a task Playbook may choose (ADR-0026)", () => {
+    const searchOf = (env: Record<string, string>) => createAiLayerFromEnv(env, { usage: createMemoryUsageLog() }).searchModels();
+
+    it("are every web-search provider whose key is entered, each with its models or depths", () => {
+      expect(searchOf({ ...base, BRAVE_SEARCH_API_KEY: "bk", TAVILY_API_KEY: "tk", LINKUP_API_KEY: "lk" }).map(({ provider, defaultModel, models }) => ({ provider, defaultModel, models: models.map((each) => each.model) }))).toEqual([
+        { provider: "perplexity", defaultModel: "openai/gpt-6-luna", models: ["openai/gpt-6-luna"] },
+        { provider: "brave", defaultModel: "web", models: ["web"] },
+        { provider: "tavily", defaultModel: "basic", models: ["basic", "advanced", "fast", "ultra-fast"] },
+        { provider: "linkup", defaultModel: "standard", models: ["standard", "fast", "deep", "flash"] },
+      ]);
+    });
+
+    it("never a text provider, and none whose key is missing", () => {
+      expect(searchOf({ ...base, MISTRAL_API_KEY: "mk" }).map((choice) => choice.provider)).toEqual(["perplexity"]);
+    });
+
+    it("put the configured web-search model first", () => {
+      expect(searchOf({ ...base, AI_WEB_SEARCH_MODEL: "sonar-pro" })[0]!.models.map((each) => each.model)).toEqual(["sonar-pro", "openai/gpt-6-luna"]);
     });
   });
 

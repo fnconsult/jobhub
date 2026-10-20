@@ -138,11 +138,11 @@ describe("scoring a CV against a Job Offer from the extension", () => {
   it("sends the Search Criteria read with the CV, so the Match Score weighs them too", async () => {
     const { session, scoring, requests } = setUp();
     await session().keepJobOffer(jobOffer);
-    await session().keepCv(cv, { targetRole: "DAF", location: "Lyon" });
+    await session().keepCv(cv, { targetRole: "DAF", locations: ["Lyon"] });
 
     await scoring().score(jobOffer, { cv });
 
-    expect(requests).toEqual([{ jobOfferId: "jo-1", cv, searchCriteria: { targetRole: "DAF", location: "Lyon" } }]);
+    expect(requests).toEqual([{ jobOfferId: "jo-1", cv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } }]);
   });
 
   it("scores a Profile without any CV in the session, and shows its kept Match Score on reopen without computing it again", async () => {

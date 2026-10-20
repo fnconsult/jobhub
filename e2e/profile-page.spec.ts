@@ -32,7 +32,7 @@ async function candidateWithProfile(page: Page, label: string): Promise<string> 
   await signInWithMagicLink(page, newAddress(label));
   const created = await page.request.post("/api/profiles", {
     headers: { origin },
-    data: { masterCv, searchCriteria: { targetRole: "Directrice administrative et financière", location: "Lyon", minSalary: 85000, contractType: "cdi" } },
+    data: { masterCv, searchCriteria: { targetRole: "Directrice administrative et financière", locations: ["Lyon"], minSalary: 85000, contractTypes: ["cdi"] } },
   });
   expect(created.status()).toBe(201);
   return (await created.json()).id;
@@ -40,14 +40,21 @@ async function candidateWithProfile(page: Page, label: string): Promise<string> 
 
 const title = (page: Page) => page.getByLabel(fr.profileActions.name, { exact: true });
 const criteria = (page: Page) => page.getByRole("group", { name: fr.cvReview.searchCriteria });
+/** The input of the Search Criteria's n-th place ("Lieu 1"), ADR-0025. */
+const place = (page: Page, number: number) => criteria(page).getByLabel(fr.cvReview.locationItem.replace("{{number}}", String(number)), { exact: true });
+/** One checkbox of the contract types or remote-work options. */
+const choice = (page: Page, legend: string, option: string) => criteria(page).getByRole("group", { name: legend }).getByRole("checkbox", { name: option, exact: true });
 const masterCvSection = (page: Page) => page.getByRole("region", { name: fr.profile.masterCv });
 const saveBar = (page: Page) => page.getByRole("region", { name: fr.profilePage.savebarLabel });
 const saveVersion = (version: number) => fr.profilePage.saveVersion.replace("{{version}}", String(version));
+/** The list of the Profile page's Sections (ADR-0024). */
+const sectionsNav = (page: Page) => page.getByRole("navigation", { name: fr.profilePage.sections.sectionsLabel });
+const sectionLink = (page: Page, name: string) => sectionsNav(page).getByRole("link", { name });
 
 test.describe("the Profile page as a document", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test("reads top-down: eyebrow, the name as title, the Search Criteria as properties, then the Master CV", async ({ page }) => {
+  test("reads top-down: eyebrow, the name as title, the Search Criteria as properties, then the Sections, the Master CV first", async ({ page }) => {
     const id = await candidateWithProfile(page, "profile-doc");
     await page.goto(`/profils/${id}`);
 
@@ -55,12 +62,17 @@ test.describe("the Profile page as a document", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice administrative et financière");
     await expect(title(page)).toHaveValue("Directrice administrative et financière");
     await expect(criteria(page).getByLabel(fr.cvReview.targetRole)).toHaveValue("Directrice administrative et financière");
-    await expect(criteria(page).getByLabel(fr.cvReview.location, { exact: true })).toHaveValue("Lyon");
+    await expect(place(page, 1)).toHaveValue("Lyon");
     await expect(criteria(page).getByLabel(fr.cvReview.minSalary)).toHaveValue("85000");
-    await expect(criteria(page).getByLabel(fr.cvReview.contractType)).toHaveValue("cdi");
+    await expect(choice(page, fr.cvReview.contractType, fr.cvReview.contractTypes.cdi)).toBeChecked();
+    await expect(choice(page, fr.cvReview.contractType, fr.cvReview.contractTypes.cdd)).not.toBeChecked();
     await expect(page.getByRole("button", { name: fr.jobSearch.start })).toBeVisible();
-    await expect(page.getByRole("link", { name: fr.profilePage.jobDigestLink.none })).toHaveAttribute("href", `/profils/${id}#job-digest-title`);
+    await expect(page.getByRole("link", { name: fr.profilePage.jobDigestLink.none })).toHaveAttribute("href", `/job-digests#job-digest-${id}`);
 
+    // No Action Cards yet: no Propositions; the page shows its first Section, the Master CV.
+    const s = fr.profilePage.sections;
+    await expect(sectionsNav(page).getByRole("link")).toHaveText([s["cv-de-reference"], s["ats-score"], s.telecharger, s.gerer]);
+    await expect(sectionLink(page, s["cv-de-reference"])).toHaveAttribute("aria-current", "page");
     const cv = masterCvSection(page);
     await expect(cv.getByText(/^Version 1 · enregistrée le \w+ \d+ \w+ \d{4}$/)).toBeVisible();
     await expect(cv.getByLabel(fr.cvReview.headline)).toHaveValue(masterCv.headline);
@@ -92,11 +104,11 @@ test.describe("the Profile page as a document", () => {
     await title(page).press("Escape");
     await expect(title(page)).toHaveValue("DAF industrie");
 
-    // A text criterion saves when the Candidate leaves it, a select as soon as it changes.
-    await criteria(page).getByLabel(fr.cvReview.location, { exact: true }).fill("Lyon et 50 km autour");
-    await criteria(page).getByLabel(fr.cvReview.location, { exact: true }).press("Tab");
+    // A text criterion saves when the Candidate leaves it, a checkbox as soon as it is ticked.
+    await place(page, 1).fill("Lyon et 50 km autour");
+    await place(page, 1).press("Tab");
     await expect(criteria(page).getByRole("status").filter({ hasText: fr.profilePage.criteriaSaved })).toHaveCount(1);
-    await criteria(page).getByLabel(fr.cvReview.remoteWork).selectOption("hybrid");
+    await choice(page, fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.hybrid).check();
     await expect(criteria(page).getByRole("status").filter({ hasText: fr.profilePage.criteriaSaved })).toHaveCount(2);
 
     // An invalid value says what is wrong, on the field, and is not saved.
@@ -108,16 +120,68 @@ test.describe("the Profile page as a document", () => {
 
     await page.reload();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("DAF industrie");
-    await expect(criteria(page).getByLabel(fr.cvReview.location, { exact: true })).toHaveValue("Lyon et 50 km autour");
-    await expect(criteria(page).getByLabel(fr.cvReview.remoteWork)).toHaveValue("hybrid");
+    await expect(place(page, 1)).toHaveValue("Lyon et 50 km autour");
+    await expect(choice(page, fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.hybrid)).toBeChecked();
     await expect(criteria(page).getByLabel(fr.cvReview.minSalary)).toHaveValue("85000");
     // The name does not follow the target role.
     await expect(criteria(page).getByLabel(fr.cvReview.targetRole)).toHaveValue("Directrice administrative et financière");
   });
 
+  test("Search Criteria take several places, contract types and remote-work options, each change saving (ADR-0025)", async ({ page }) => {
+    const id = await candidateWithProfile(page, "profile-several-values");
+    await page.goto(`/profils/${id}`);
+    const saved = () => criteria(page).getByRole("status").filter({ hasText: fr.profilePage.criteriaSaved });
+
+    // A second place: "Ajouter un lieu" adds its input and moves the focus to it; leaving it saves.
+    await criteria(page).getByRole("button", { name: fr.cvReview.addLocation }).click();
+    await expect(place(page, 2)).toBeFocused();
+    await place(page, 2).fill("Bordeaux");
+    await place(page, 2).press("Tab");
+    await expect(saved()).toHaveCount(1);
+    // Freelance as well as CDI: both stay ticked.
+    await choice(page, fr.cvReview.contractType, fr.cvReview.contractTypes.freelance).check();
+    await choice(page, fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.hybrid).check();
+    // Each tick saves in turn: the last one sent before the page is reloaded.
+    await Promise.all([
+      page.waitForResponse((response) => response.request().method() === "PATCH" && (response.request().postData() ?? "").includes("full_remote")),
+      choice(page, fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.full_remote).check(),
+    ]);
+    await expect(choice(page, fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.full_remote)).toBeChecked();
+
+    await page.reload();
+    await expect(place(page, 1)).toHaveValue("Lyon");
+    await expect(place(page, 2)).toHaveValue("Bordeaux");
+    await expect(choice(page, fr.cvReview.contractType, fr.cvReview.contractTypes.cdi)).toBeChecked();
+    await expect(choice(page, fr.cvReview.contractType, fr.cvReview.contractTypes.freelance)).toBeChecked();
+    await expect(choice(page, fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.hybrid)).toBeChecked();
+    await expect(choice(page, fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.full_remote)).toBeChecked();
+
+    // Up to five places; each after the first has its own "Retirer" button, in words.
+    for (const [number, city] of [[3, "Nantes"], [4, "Lille"], [5, "Rennes"]] as const) {
+      await criteria(page).getByRole("button", { name: fr.cvReview.addLocation }).click();
+      await place(page, number).fill(city);
+      await place(page, number).press("Tab");
+    }
+    await expect(criteria(page).getByRole("button", { name: fr.cvReview.addLocation })).toHaveCount(0);
+    await expect(criteria(page).getByRole("button", { name: fr.cvReview.removeLocation.replace("{{number}}", "1") })).toHaveCount(0);
+    // Removing a place saves at once: the page is reloaded once that save is done, the removal's own
+    // (the places without Bordeaux), not the one still in flight from leaving Rennes.
+    const removal = (body: string) => body.includes("Rennes") && !body.includes("Bordeaux");
+    await Promise.all([
+      page.waitForResponse((response) => response.request().method() === "PATCH" && response.url().includes("/api/profiles/") && removal(response.request().postData() ?? "")),
+      criteria(page).getByRole("button", { name: fr.cvReview.removeLocation.replace("{{number}}", "2") }).click(),
+    ]);
+    await expect(criteria(page).getByRole("button", { name: fr.cvReview.addLocation })).toBeFocused();
+
+    await page.reload();
+    await expect(place(page, 2)).toHaveValue("Nantes");
+    await expect(place(page, 4)).toHaveValue("Rennes");
+    await expect(place(page, 5)).toHaveCount(0);
+  });
+
   test("Master CV edits gather into one new version, or are cancelled", async ({ page }) => {
     const id = await candidateWithProfile(page, "profile-cv-version");
-    await page.goto(`/profils/${id}`);
+    await page.goto(`/profils/${id}/cv-de-reference`);
     const cv = masterCvSection(page);
 
     await cv.getByLabel(fr.cvReview.summary).fill("Plus de 15 ans dans l'industrie et la distribution.");
@@ -153,7 +217,7 @@ test.describe("the Profile page as a document", () => {
 
   test("a save based on an outdated version is refused and overwrites nothing (ADR-0012)", async ({ page }) => {
     const id = await candidateWithProfile(page, "profile-cv-conflict");
-    await page.goto(`/profils/${id}`);
+    await page.goto(`/profils/${id}/cv-de-reference`);
     const cv = masterCvSection(page);
     await cv.getByLabel(fr.cvReview.headline).fill("DAF");
 
@@ -180,9 +244,10 @@ test.describe("the Profile page as a document", () => {
     await page.goto(`/profils/${id}`);
     await expect(page.getByText(fr.profileActions.archivedNotice)).toBeVisible();
     const properties = page.getByRole("term");
-    await expect(properties.filter({ hasText: fr.cvReview.location })).toBeVisible();
+    await expect(properties.filter({ hasText: fr.cvReview.locations })).toBeVisible();
     await expect(page.getByRole("definition").filter({ hasText: /^Lyon$/ })).toBeVisible();
-    await expect(page.getByRole("textbox", { name: fr.cvReview.location, exact: true })).toHaveCount(0);
+    await expect(page.getByRole("textbox", { name: fr.cvReview.locationItem.replace("{{number}}", "1"), exact: true })).toHaveCount(0);
+    await expect(page.getByRole("checkbox")).toHaveCount(0);
     await expect(page.getByRole("button", { name: fr.jobSearch.start })).toHaveCount(0);
   });
 });
@@ -195,7 +260,7 @@ test.describe("the Profile page on the ADR-0009 floor", () => {
     test(`at ${viewport.width}px: catalogue strings, 16px and AA contrast, visible edit affordances, 44px targets, no sideways scroll`, async ({ page }) => {
       await page.setViewportSize(viewport);
       const id = await candidateWithProfile(page, `profile-floor-${viewport.width}`);
-      await page.goto(`/profils/${id}`);
+      await page.goto(`/profils/${id}/cv-de-reference`);
       await masterCvSection(page).getByLabel(fr.cvReview.headline).fill("DAF");
       await expect(saveBar(page)).toBeVisible();
 
@@ -205,6 +270,8 @@ test.describe("the Profile page on the ADR-0009 floor", () => {
           ...masterCv.experience.flatMap((job) => [`${job.title} · ${job.employer}`, `${job.period} · ${job.location}`]),
           "Directrice administrative et financière",
           fr.profileSwitcher.current.replace("{{name}}", "Directrice administrative et financière"),
+          // Each place's label, numbered.
+          ...[1, 2, 3, 4, 5].map((number) => fr.cvReview.locationItem.replace("{{number}}", String(number))),
         ].map((text) => text.trim()),
       );
       const known = fromCatalogue(fr);
@@ -249,14 +316,15 @@ test("where field-sizing is unsupported, the name and the Master CV's texts stil
   });
   await page.setViewportSize({ width: 375, height: 812 });
   const id = await candidateWithProfile(page, "profile-no-field-sizing");
-  await page.goto(`/profils/${id}`);
+  await page.goto(`/profils/${id}/cv-de-reference`);
   const clipped = (field: ReturnType<Page["locator"]>) => field.evaluate((el) => el.scrollHeight - el.clientHeight);
 
   // "Directrice administrative et financière" wraps at 375px: it shows on every line it takes.
   await expect(title(page)).toHaveValue("Directrice administrative et financière");
   await expect(title(page)).toHaveCSS("field-sizing", "fixed");
   await expect.poll(() => clipped(title(page))).toBeLessThanOrEqual(0);
-  expect((await title(page).boundingBox())!.height).toBeGreaterThan(60);
+  // Two lines at the Top Bar's title size (ADR-0024).
+  expect((await title(page).boundingBox())!.height).toBeGreaterThan(45);
 
   // It follows the text as the Candidate types.
   await title(page).fill("Directrice administrative et financière, groupe industriel international");
@@ -268,6 +336,65 @@ test("where field-sizing is unsupported, the name and the Master CV's texts stil
 });
 
 // For the review against the prototype: PROFILE_SCREENSHOTS_DIR=<dir> keeps them there.
+test.describe("the Profile page's Sections (ADR-0024)", () => {
+  test("on a wide screen, each Section is listed beside the one shown and has its own address", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const id = await candidateWithProfile(page, "profile-sections");
+    const s = fr.profilePage.sections;
+    await page.goto(`/profils/${id}`);
+
+    await sectionLink(page, s["ats-score"]).click();
+    await expect(page).toHaveURL(new RegExp(`/profils/${id}/ats-score$`));
+    await expect(sectionLink(page, s["ats-score"])).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("region", { name: fr.atsScore.title })).toBeVisible();
+    await expect(masterCvSection(page)).toHaveCount(0);
+    // The page's head stays on every Section.
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice administrative et financière");
+    await expect(place(page, 1)).toHaveValue("Lyon");
+
+    await sectionLink(page, s.telecharger).click();
+    await expect(page).toHaveURL(new RegExp(`/profils/${id}/telecharger$`));
+    await expect(page.getByRole("region", { name: fr.cvExport.title })).toBeVisible();
+
+    await sectionLink(page, s.gerer).click();
+    await expect(page.getByRole("region", { name: fr.profileActions.title })).toBeVisible();
+
+    await page.goBack();
+    await expect(page).toHaveURL(new RegExp(`/profils/${id}/telecharger$`));
+    await expect(page.getByRole("region", { name: fr.cvExport.title })).toBeVisible();
+  });
+
+  test("on a phone, the Profile's page is the list of its Sections, each shown alone with a way back", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    const id = await candidateWithProfile(page, "profile-sections-phone");
+    const s = fr.profilePage.sections;
+    await page.goto(`/profils/${id}`);
+    await expect(sectionsNav(page)).toBeVisible();
+    await expect(masterCvSection(page)).toBeHidden();
+
+    await sectionLink(page, s["cv-de-reference"]).click();
+    await expect(page).toHaveURL(new RegExp(`/profils/${id}/cv-de-reference$`));
+    await expect(masterCvSection(page)).toBeVisible();
+    await expect(sectionsNav(page)).toBeHidden();
+
+    await page.getByRole("link", { name: s.backToSections, exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/profils/${id}$`));
+    await expect(sectionsNav(page)).toBeVisible();
+  });
+
+  test("a Section the Profile does not have is not found, nor listed", async ({ page }) => {
+    const id = await candidateWithProfile(page, "profile-sections-absent");
+    // No Action Cards: Propositions leads back to the Profile's page.
+    await page.goto(`/profils/${id}/propositions`);
+    await expect(page).toHaveURL(new RegExp(`/profils/${id}$`));
+
+    // The Job Digest is not one of a Profile's Sections: it has its own page (ADR-0024).
+    expect((await page.request.get(`/profils/${id}/job-digest`)).status()).toBe(404);
+    await page.goto(`/profils/${id}`);
+    await expect(sectionLink(page, fr.profilePage.sections.gerer)).toBeVisible();
+  });
+});
+
 test("screenshots of the Profile page at 375, 900 and 1440px, with unsaved Master CV edits", async ({ page }, testInfo) => {
   const id = await candidateWithProfile(page, "profile-screens");
   const dir = process.env.PROFILE_SCREENSHOTS_DIR;
@@ -284,6 +411,8 @@ test("screenshots of the Profile page at 375, 900 and 1440px, with unsaved Maste
     await page.screenshot({ path: top });
     await testInfo.attach(`${width}px profile`, { path: top, contentType: "image/png" });
 
+    // Below 64rem the Profile's page is the list of its Sections: the Master CV is a Section of its own.
+    await page.goto(`/profils/${id}/cv-de-reference`);
     await masterCvSection(page).getByLabel(fr.cvReview.summary).fill("Plus de 15 ans dans l'industrie et la distribution.");
     await expect(saveBar(page)).toBeVisible();
     const cv = dir ? `${dir}/${width}-master-cv.png` : testInfo.outputPath(`${width}-master-cv.png`);

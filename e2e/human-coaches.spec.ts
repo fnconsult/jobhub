@@ -61,7 +61,7 @@ async function addCoach(admin: Page, email: string) {
 
 /** A Profile and an Application with a Cover Letter drafted by the AI Coach, for the Candidate signed in on `page`. */
 async function applicationWithCoverLetter(page: Page): Promise<string> {
-  const profile = await page.request.post("/api/profiles", { data: { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } }, headers: { origin } });
+  const profile = await page.request.post("/api/profiles", { data: { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } }, headers: { origin } });
   expect(profile.status(), await profile.text()).toBe(201);
   const captured = await page.request.post("/api/job-offers", {
     data: { source: { url: `https://www.apec.fr/offres/${unique()}` }, title: "DAF (H/F)", content: "Acme Industrie recrute son DAF. Vous pilotez la clôture des comptes.", employer: "Acme Industrie" },
@@ -196,7 +196,7 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     await expect(coachPage.getByRole("status")).toHaveText(space.reviewSaved);
 
     // The Candidate reads the Coach Review on the Application.
-    await page.goto(`/candidatures/${applicationId}`);
+    await page.goto(`/candidatures/${applicationId}/avis`);
     const reviews = page.getByRole("region", { name: fr.coachReviews.title });
     await expect(reviews).toContainText("Ouvrez sur votre dernier poste de DAF.");
     await expect(reviews).toContainText(coach.name);

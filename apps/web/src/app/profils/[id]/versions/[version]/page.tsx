@@ -30,8 +30,7 @@ export default async function MasterCvVersionPage({ params }: Params) {
   const t = await getServerT();
   const current = shown.version === profile.masterCv.version;
   return (
-    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id}>
-      <h1>{t("versions.viewTitle", { version: shown.version })}</h1>
+    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id} title={t("versions.viewTitle", { version: shown.version })}>
       <p className="lead">{profile.name}</p>
       {current ? <p className="version-current">{t("versions.current")}</p> : null}
       {shown.restoredFrom !== null ? <p>{t("versions.restoredFrom", { version: shown.restoredFrom })}</p> : null}

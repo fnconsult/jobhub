@@ -7,7 +7,7 @@
  *    - `start` a Job Search for a Profile (from the Profile page or the Coach
  *      Panel). It counts against the Plan Quota first, then queues Job discovery
  *      for the worker. A Job Search that ends failed gives its use back;
- *    - `get` one, or the `latest` done one of a Profile, with its results: each Job Offer found, the Match Score of the
+ *    - `get` one, the `latest` done one of a Profile or the one it is `searching` for, with its results: each Job Offer found, the Match Score of the
  *      Profile's current Master CV against it, and the Application the Candidate
  *      already has for it, best Match Score first (an undated Job Offer after a
  *      dated one with an equal Match Score). Expired Job Offers are left out,
@@ -107,6 +107,8 @@ export interface JobSearches {
   get(candidateId: string, jobSearchId: string): Promise<JobSearch | null>;
   /** The Profile's latest done Job Search, with its results (as `get` gives them), or null. */
   latest(candidateId: string, profileId: string): Promise<JobSearch | null>;
+  /** The Profile's Job Search still searching (the latest one, if several), or null. One past its time is failed first, so not given. */
+  searching(candidateId: string, profileId: string): Promise<JobSearch | null>;
   /**
    * Records the outcome of Job discovery for a Job Search still searching; later reports are ignored.
    * A failure gives the Job Search's Plan Quota use back, at most once per Job Search.
@@ -334,6 +336,16 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
         [candidateId, profileId],
       );
       return rows[0] ? jobSearchFrom(candidateId, rows[0]) : null;
+    },
+    async searching(candidateId, profileId) {
+      if (!UUID.test(profileId)) return null;
+      const { rows } = await database.query<JobSearchRow>(
+        `SELECT id, profile_id, status, failure, job_offer_ids, started_at, metrics FROM job_search
+         WHERE candidate_id = $1 AND profile_id = $2 AND status = 'searching' ORDER BY started_at DESC LIMIT 1`,
+        [candidateId, profileId],
+      );
+      const jobSearch = rows[0] ? await jobSearchFrom(candidateId, rows[0]) : null;
+      return jobSearch?.status === "searching" ? jobSearch : null;
     },
     record,
     async notifications(candidateId) {

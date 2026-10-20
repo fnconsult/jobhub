@@ -27,11 +27,10 @@ export default async function JobDigestPage({ params }: Params) {
   const inView = { kind: "job_digest", id: jobDigest.id, name: profile.name, profileId: profile.id } as const;
   const sentAt = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(jobDigest.sentAt);
   return (
-    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id}>
+    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id} title={t("jobDigest.page.title", { profile: profile.name })}>
       <p>
         <Link href={routes.profile(profile.id)}>{t("jobDigest.page.backToProfile")}</Link>
       </p>
-      <h1>{t("jobDigest.page.title", { profile: profile.name })}</h1>
       <p>{t("jobDigest.sentAt", { date: sentAt })}</p>
       <CoachInView {...inView} />
       <p>{t("jobDigest.page.intro", { count: results.length })}</p>

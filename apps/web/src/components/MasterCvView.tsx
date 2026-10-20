@@ -1,5 +1,6 @@
 import type { MasterCvContent } from "@jobhub/shared";
 import type { getServerT } from "@/i18n/server";
+import { SkillTags } from "@/components/SkillTags";
 
 /** One version of a Master CV, read-only, section by section. */
 export function MasterCvView({ cv, t }: { cv: MasterCvContent; t: Awaited<ReturnType<typeof getServerT>> }) {
@@ -38,11 +39,7 @@ export function MasterCvView({ cv, t }: { cv: MasterCvContent; t: Awaited<Return
       {cv.skills.length > 0 ? (
         <>
           <h3>{t("cvReview.skills")}</h3>
-          <ul className="cv-list">
-            {cv.skills.map((skill, index) => (
-              <li key={index}>{skill}</li>
-            ))}
-          </ul>
+          <SkillTags skills={cv.skills} />
         </>
       ) : null}
 

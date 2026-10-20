@@ -32,7 +32,7 @@ Setting up an environment (GitHub Environment, SSH key, folder, `.env`): `script
 Rules:
 - Every resource that stores or processes personal data (CVs, Profiles, Applications, Tailored Documents) is created in an EU region. No cross-region replication outside the EU.
 - Backups and snapshots stay in eu-west-3 (or another EU region for disaster recovery, e.g. eu-central-1).
-- AI calls with personal data only go to EU-resident endpoints (ADR-0007). Perplexity only receives search queries.
+- Every AI call is redacted of the Candidate's identity before it leaves (ADR-0007, amendment of 2026-10-20); an AI provider may be outside the EU when an Administrator configures or chooses it. Web-search providers only receive search queries.
 - The browser extension is distributed through the Chrome Web Store; it holds no data beyond the session and talks only to the EU-hosted API.
 
 ## Staying portable

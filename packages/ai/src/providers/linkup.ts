@@ -11,6 +11,8 @@ interface LinkupResponse {
 }
 
 const DEFAULT_DEPTH = "standard";
+/** The depths a task Playbook may choose (ADR-0026), the default first. */
+const DEPTHS = [DEFAULT_DEPTH, "fast", "deep", "flash"];
 const MAX_RESULTS = 20;
 
 export interface LinkupProviderOptions {
@@ -26,6 +28,7 @@ export function createLinkupProvider(options: LinkupProviderOptions): AiProvider
   return {
     id: "linkup",
     defaultModel: DEFAULT_DEPTH,
+    models: DEPTHS,
     endpoint: "api.linkup.so",
     residency: "outside_eu",
     async search(query, { model, filters }): Promise<SearchOutput> {

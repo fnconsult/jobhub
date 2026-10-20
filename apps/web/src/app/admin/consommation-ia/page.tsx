@@ -72,8 +72,7 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
   );
 
   return (
-    <BackOfficeLayout access={access}>
-      <h1>{t("admin.aiUsage.title")}</h1>
+    <BackOfficeLayout access={access} title={t("admin.aiUsage.title")}>
       <p className="lead">{t("admin.aiUsage.intro")}</p>
       <p>{t("admin.aiUsage.estimate", { rate: number.format(EUR_PER_USD) })}</p>
       {readsCoachCost ? (

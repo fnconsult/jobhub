@@ -20,11 +20,20 @@ const SEED: PlaybookSeed = {
     { id: "interview-psychology", content: "# Psychologie de l'entretien\n\n**R1. Respirez.** [S1]", agent },
     { id: "ats-optimization", content: "# Optimiser son CV pour les ATS\n\n**R1. Des mots-clés.** [S1]", agent: { ...agent, consultWhen: "Quand il est question d'ATS." } },
   ],
+  tasks: [],
 };
 
 /** The EU-resident models a Playbook Agent may use in these tests; the judge is outside the EU. */
 const MODELS: AgentModelChoice[] = [
-  { provider: "mistral", endpoint: "fake mistral", models: [{ model: "mistral-medium-3-5", effort: "medium_as_high" }, { model: "mistral-large-latest", effort: "ignored" }] },
+  {
+    provider: "mistral",
+    endpoint: "fake mistral",
+    residency: "eu",
+    models: [
+      { model: "mistral-medium-3-5", effort: "medium_as_high", residency: "eu" },
+      { model: "mistral-large-latest", effort: "ignored", residency: "eu" },
+    ],
+  },
 ];
 
 const claire = { email: "claire@jobbbox.fr" };

@@ -61,7 +61,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Sign-in Providers are up to date");
     expect(first.stdout).toContain("Back Office Assistant conversations are up to date");
     expect(first.stdout).toContain("AI Usage is up to date");
-    expect(first.stdout).toContain("Coaching Playbooks, the Core Digest and the Sources list are up to date");
+    expect(first.stdout).toContain("Coaching Playbooks, the Core Digest, the Sources list and the task Playbooks are up to date");
     expect(first.stdout).toContain("Guardrails are up to date");
     expect(first.stdout).toContain("Eval Cases and Eval Runs are up to date");
     const again = migrate();

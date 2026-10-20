@@ -26,7 +26,7 @@ const BLANK_MASTER_CV: MasterCvContent = {
 };
 
 /** The draft a Candidate starts from when they start from scratch: the review form left blank. */
-export const BLANK_DRAFT: CvDraft = { masterCv: BLANK_MASTER_CV, searchCriteria: { targetRole: "", location: "" } };
+export const BLANK_DRAFT: CvDraft = { masterCv: BLANK_MASTER_CV, searchCriteria: { targetRole: "", locations: [] } };
 
 const FILE_ERRORS = new Set<string>(["unsupported_format", "too_large", "unreadable", "empty"]);
 
@@ -106,7 +106,7 @@ export function CvReview(props: { draft: CvDraft; intro: string; startOverLabel:
   const router = useRouter();
   const [review, setReview] = useState<ReviewState>(() => ({
     masterCv: props.draft.masterCv,
-    criteria: criteriaFieldsOf({ targetRole: props.draft.searchCriteria.targetRole, location: props.draft.searchCriteria.location }),
+    criteria: criteriaFieldsOf({ targetRole: props.draft.searchCriteria.targetRole, locations: props.draft.searchCriteria.locations }),
     saving: false,
     errors: [],
     failed: false,

@@ -17,7 +17,7 @@ const masterCv: MasterCvContent = {
   skills: [],
   languages: [],
 };
-const draft = (targetRole: string) => ({ masterCv, searchCriteria: { targetRole, location: "Lyon" } });
+const draft = (targetRole: string) => ({ masterCv, searchCriteria: { targetRole, locations: ["Lyon"] } });
 
 describe.skipIf(!connectionString)("Profiles under the Plan Quota (needs Postgres: DATABASE_URL)", () => {
   let t: TestBilling;

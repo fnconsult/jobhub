@@ -36,7 +36,7 @@ async function signInOn(page: Page, label: string, plan: "standard" | "premium" 
 async function createProfile(page: Page, targetRole: string): Promise<string> {
   const response = await page.request.post("/api/profiles", {
     headers: { origin },
-    data: { masterCv, searchCriteria: { targetRole, location: "Lyon", contractType: "cdi" } },
+    data: { masterCv, searchCriteria: { targetRole, locations: ["Lyon"], contractTypes: ["cdi"] } },
   });
   expect(response.status()).toBe(201);
   return (await response.json()).id;
@@ -51,6 +51,9 @@ const profileName = (page: Page) => page.getByLabel(fr.profileActions.name, { ex
 /** The Profile page's Search Criteria (#137), each edited in place. */
 const criteriaOf = (page: Page) => page.getByRole("group", { name: fr.cvReview.searchCriteria });
 const masterCvOf = (page: Page) => page.getByRole("region", { name: fr.profile.masterCv });
+/** Opens a Section of the Profile's page from the list beside it (ADR-0024). */
+const openSection = (page: Page, name: string) =>
+  page.getByRole("navigation", { name: fr.profilePage.sections.sectionsLabel }).getByRole("link", { name, exact: true }).click();
 
 /** Opens the Profile switcher with the mouse and returns its menu. */
 async function openSwitcher(page: Page) {
@@ -64,7 +67,7 @@ test.describe("several Profiles per Candidate", () => {
   test("a Candidate duplicates a Profile, renames the copy and switches between them", async ({ page }) => {
     await signInOn(page, "duplicate");
     const firstId = await createProfile(page, "Directrice financière");
-    await page.goto(`/profils/${firstId}`);
+    await page.goto(`/profils/${firstId}/gerer`);
     await expect(switcherButtonOf(page)).toHaveText(currentProfile("Directrice financière"));
 
     const duplicateName = page.getByLabel(fr.profileActions.duplicateName);
@@ -74,7 +77,7 @@ test.describe("several Profiles per Candidate", () => {
 
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Consultante transformation");
     await expect(page).not.toHaveURL(`${origin}/profils/${firstId}`);
-    await expect(criteriaOf(page).getByLabel(fr.cvReview.contractType)).toHaveValue("cdi");
+    await expect(criteriaOf(page).getByRole("group", { name: fr.cvReview.contractType }).getByRole("checkbox", { name: fr.cvReview.contractTypes.cdi })).toBeChecked();
     await expect(masterCvOf(page).getByText("Directrice financière · Groupe Seb", { exact: true })).toBeVisible();
     await expect(masterCvOf(page).getByText(/^Version 1 · /)).toBeVisible();
 
@@ -98,7 +101,7 @@ test.describe("several Profiles per Candidate", () => {
     await signInOn(page, "long-name");
     const tooLong = await page.request.post("/api/profiles", {
       headers: { origin },
-      data: { masterCv, searchCriteria: { targetRole: "R".repeat(121), location: "Lyon" } },
+      data: { masterCv, searchCriteria: { targetRole: "R".repeat(121), locations: ["Lyon"] } },
     });
     expect(tooLong.status()).toBe(400);
     expect((await tooLong.json()).errors).toEqual([{ field: "searchCriteria.targetRole", code: "too_long" }]);
@@ -108,7 +111,7 @@ test.describe("several Profiles per Candidate", () => {
     await expect(page.getByLabel(fr.cvReview.targetRole)).toHaveAttribute("maxlength", "120");
 
     const id = await createProfile(page, "x".repeat(118));
-    await page.goto(`/profils/${id}`);
+    await page.goto(`/profils/${id}/gerer`);
     const duplicateName = page.getByLabel(fr.profileActions.duplicateName);
     const suggested = `${"x".repeat(112)} (copie)`;
     await expect(duplicateName).toHaveValue(suggested);
@@ -139,10 +142,11 @@ test.describe("several Profiles per Candidate", () => {
     await signInOn(page, "archive");
     await createProfile(page, "Directrice financière");
     const oldId = await createProfile(page, "Contrôleuse de gestion");
-    await page.goto(`/profils/${oldId}`);
+    await page.goto(`/profils/${oldId}/gerer`);
 
     await page.getByRole("button", { name: fr.profileActions.archive }).click();
     await expect(page.getByText(fr.profileActions.archivedNotice)).toBeVisible();
+    await openSection(page, fr.profilePage.sections["cv-de-reference"]);
     await expect(masterCvOf(page).getByText("Directrice financière · Groupe Seb", { exact: true })).toBeVisible();
     let switcher = await openSwitcher(page);
     await expect(switcher.getByRole("menuitem", { name: "Contrôleuse de gestion" })).toHaveCount(0);
@@ -151,6 +155,7 @@ test.describe("several Profiles per Candidate", () => {
     await page.goto("/compte");
     const archived = page.getByRole("region", { name: fr.profiles.archivedTitle });
     await archived.getByRole("link", { name: "Contrôleuse de gestion" }).click();
+    await openSection(page, fr.profilePage.sections.gerer);
     await page.getByRole("button", { name: fr.profileActions.restore }).click();
     await expect(page.getByText(fr.profileActions.archivedNotice)).toHaveCount(0);
     switcher = await openSwitcher(page);
@@ -169,7 +174,7 @@ test.describe("several Profiles per Candidate", () => {
     await expect(criteria.getByLabel(fr.cvReview.targetRole, { exact: true })).toHaveValue("");
     await expect(page.getByLabel(fr.cvReview.fullName)).toHaveValue("");
     await criteria.getByLabel(fr.cvReview.targetRole, { exact: true }).fill("Consultante transformation");
-    await criteria.getByLabel(fr.cvReview.location, { exact: true }).fill("Paris");
+    await criteria.getByLabel(fr.cvReview.locationItem.replace("{{number}}", "1"), { exact: true }).fill("Paris");
     await page.getByLabel(fr.cvReview.fullName).fill("Marie Dupont");
     await page.getByRole("button", { name: fr.cvReview.save }).click();
 
@@ -211,7 +216,7 @@ test.describe("several Profiles per Candidate", () => {
     // The API refuses, and says what to show.
     const refused = await page.request.post("/api/profiles", {
       headers: { origin },
-      data: { masterCv, searchCriteria: { targetRole: "Consultante", location: "Lyon" } },
+      data: { masterCv, searchCriteria: { targetRole: "Consultante", locations: ["Lyon"] } },
     });
     expect(refused.status()).toBe(409);
     expect(await refused.json()).toMatchObject({
@@ -220,12 +225,12 @@ test.describe("several Profiles per Candidate", () => {
     });
 
     // Duplicating from the Profile page shows the Upgrade Prompt.
-    await page.goto(`/profils/${firstId}`);
+    await page.goto(`/profils/${firstId}/gerer`);
     await page.getByRole("button", { name: fr.profileActions.duplicate }).click();
     const prompt = page.getByRole("alert").filter({ hasText: fr.billing.quotaReached.title });
     await expect(prompt).toContainText(upgrade.message);
     await expect(prompt.getByRole("link", { name: upgrade.action })).toHaveAttribute("href", "/abonnement");
-    await expect(page).toHaveURL(`${origin}/profils/${firstId}`);
+    await expect(page).toHaveURL(`${origin}/profils/${firstId}/gerer`);
 
     // So does the new Profile page, instead of the forms.
     await page.goto("/profils/nouveau");
@@ -321,7 +326,7 @@ test.describe("editing a Profile's Search Criteria (issue #70)", () => {
       page.getByRole("region", { name: fr.matchScore.title }).getByRole("listitem").filter({ hasText: fr.matchScore.criteria.location });
     const offerAndWanted = (wanted: string) => fr.matchScore.offerAndWanted.replace("{{offer}}", "Paris").replace("{{wanted}}", wanted);
 
-    await page.goto(`/candidatures/${applicationId}`);
+    await page.goto(`/candidatures/${applicationId}/correspondance`);
     await expect(locationScore()).toContainText(offerAndWanted("Lyon"));
     await expect(locationScore().locator(".verdict")).toHaveText(fr.matchScore.statuses.mismatch);
 
@@ -331,19 +336,20 @@ test.describe("editing a Profile's Search Criteria (issue #70)", () => {
     await criteria.getByLabel(fr.cvReview.targetRole).fill("Directrice administrative et financière");
     await criteria.getByLabel(fr.cvReview.targetRole).press("Tab");
     await expect(criteria.getByRole("status").filter({ hasText: fr.profilePage.criteriaSaved })).toHaveCount(1);
-    await criteria.getByLabel(fr.cvReview.location, { exact: true }).fill("Paris");
-    await criteria.getByLabel(fr.cvReview.location, { exact: true }).press("Enter");
+    await criteria.getByLabel(fr.cvReview.locationItem.replace("{{number}}", "1"), { exact: true }).fill("Paris");
+    await criteria.getByLabel(fr.cvReview.locationItem.replace("{{number}}", "1"), { exact: true }).press("Enter");
     await expect(criteria.getByRole("status").filter({ hasText: fr.profilePage.criteriaSaved })).toHaveCount(2);
 
     await page.reload();
     await expect(criteria.getByLabel(fr.cvReview.targetRole)).toHaveValue("Directrice administrative et financière");
-    await expect(criteria.getByLabel(fr.cvReview.location, { exact: true })).toHaveValue("Paris");
-    await expect(criteria.getByLabel(fr.cvReview.contractType)).toHaveValue("cdi");
+    await expect(criteria.getByLabel(fr.cvReview.locationItem.replace("{{number}}", "1"), { exact: true })).toHaveValue("Paris");
+    await expect(criteria.getByRole("group", { name: fr.cvReview.contractType }).getByRole("checkbox", { name: fr.cvReview.contractTypes.cdi })).toBeChecked();
     // The name is not tied to the target role: the Candidate renames the Profile separately.
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice financière");
+    await openSection(page, fr.profilePage.sections["ats-score"]);
     await expect(page.getByText(fr.atsScore.intro.replace("{{role}}", "Directrice administrative et financière"))).toBeVisible();
 
-    await page.goto(`/candidatures/${applicationId}`);
+    await page.goto(`/candidatures/${applicationId}/correspondance`);
     await expect(locationScore()).toContainText(offerAndWanted("Paris"));
     await expect(locationScore().locator(".verdict")).toHaveText(fr.matchScore.statuses.match);
   });
@@ -353,23 +359,24 @@ test.describe("editing a Profile's Search Criteria (issue #70)", () => {
     const id = await createProfile(page, "DAF");
     const patch = (data: object, on = page) => on.request.patch(`/api/profiles/${id}`, { headers: { origin }, data });
 
-    const invalid = await patch({ searchCriteria: { targetRole: "", location: "Lyon", contractType: "stage" } });
+    const invalid = await patch({ searchCriteria: { targetRole: "", locations: ["Lyon"], contractTypes: ["stage"] } });
     expect(invalid.status()).toBe(400);
     expect((await invalid.json()).errors).toEqual(
       expect.arrayContaining([
         { field: "searchCriteria.targetRole", code: "required" },
-        { field: "searchCriteria.contractType", code: "invalid" },
+        // The contract type that is not one: named by its place in the list.
+        { field: "searchCriteria.contractTypes.0", code: "invalid" },
       ]),
     );
 
     const other = await browser.newContext({ baseURL: origin });
     const otherPage = await other.newPage();
     await signInWithMagicLink(otherPage, newAddress("edit-criteria-other"));
-    expect((await patch({ searchCriteria: { targetRole: "Piraté", location: "Paris" } }, otherPage)).status()).toBe(404);
+    expect((await patch({ searchCriteria: { targetRole: "Piraté", locations: ["Paris"] } }, otherPage)).status()).toBe(404);
     await other.close();
 
     expect((await patch({ archived: true })).status()).toBe(200);
-    const archived = await patch({ searchCriteria: { targetRole: "DAF", location: "Paris" } });
+    const archived = await patch({ searchCriteria: { targetRole: "DAF", locations: ["Paris"] } });
     expect(archived.status()).toBe(409);
     expect(await archived.json()).toEqual({ error: "archived" });
     await page.goto(`/profils/${id}`);
@@ -380,7 +387,7 @@ test.describe("editing a Profile's Search Criteria (issue #70)", () => {
     expect((await patch({ name: "DAF industrie" })).status()).toBe(200);
     await page.goto(`/profils/${id}`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("DAF industrie");
-    await expect(criteriaOf(page).getByLabel(fr.cvReview.location, { exact: true })).toHaveValue("Lyon");
+    await expect(criteriaOf(page).getByLabel(fr.cvReview.locationItem.replace("{{number}}", "1"), { exact: true })).toHaveValue("Lyon");
   });
 });
 

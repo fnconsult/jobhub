@@ -46,8 +46,7 @@ export default async function AdministratorsPage({ searchParams }: { searchParam
   const grantedRoles = BACK_OFFICE_ROLES.filter((role) => (granted ?? "").split(",").includes(role));
 
   return (
-    <BackOfficeLayout access={access}>
-      <h1>{t("admin.administrators.title")}</h1>
+    <BackOfficeLayout access={access} title={t("admin.administrators.title")}>
       <p className="lead">{t("admin.administrators.intro")}</p>
       {grantedRoles.length > 0 ? (
         <p className="notice" role="status">

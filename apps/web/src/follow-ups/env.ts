@@ -6,6 +6,7 @@ import { mailerFromEnv } from "../auth/config";
 import type { Mailer } from "../auth/index";
 import { createJobOffers } from "../job-offers";
 import { createProfiles } from "../profiles";
+import { taskPlaybooksReader } from "../task-playbooks/worker";
 import { createFollowUps, type FollowUps } from "./index";
 
 /**
@@ -23,5 +24,6 @@ export function followUpsFromEnv(database: Pool, env: Record<string, string | un
     mailer,
     appUrl,
     ai,
+    ...(ai ? { taskPlaybooks: taskPlaybooksReader(database, env) } : {}),
   });
 }

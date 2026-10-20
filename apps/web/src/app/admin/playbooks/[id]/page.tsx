@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { EFFORTS } from "@jobhub/ai";
+import { taskPlaybookSeed } from "@jobhub/coach-knowledge/tasks";
 import { agentModelValue, effortOf, evalCaseFromForm, evalRunFromForm, playbookVersionFromForm } from "@/admin/playbook-form";
 import { getCoachingPlaybooksBackOffice, getEvalCasesBackOffice, requireBackOffice } from "@/admin/server";
 import { getAi } from "@/ai/server";
@@ -102,7 +103,7 @@ async function archivePlaybook(form: FormData) {
   back(id, done.ok ? noticeQuery(archived ? "archived" : "restored") : noticeQuery(done));
 }
 
-/** One Coaching Playbook, the Core Digest or the Sources list (#225): its versions, one of them in full, and what a Playbook editor can do. */
+/** One Coaching Playbook, the Core Digest, the Sources list or a task Playbook (#225, ADR-0026): its versions, one of them in full, and what a Playbook editor can do. */
 export default async function CoachingPlaybookPage({ params, searchParams }: { params: Params; searchParams: Promise<{ version?: string; notice?: string; detail?: string }> }) {
   const { access, canWrite } = await requireBackOffice("coachingPlaybooks");
   const locale = await getRequestLocale();
@@ -113,10 +114,13 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
   if (!history) notFound();
   const { playbook, versions } = history;
   const models = getAi().agentModels();
+  const searchModels = getAi().searchModels();
   const shown = isNotice(notice) ? notice : null;
   const selected: PlaybookVersion | undefined = requested ? versions.find((version) => String(version.version) === requested) : playbook.latest;
   const at = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" });
-  const title = playbook.kind === "playbook" ? playbook.title : t(`admin.coachingPlaybooks.kinds.${playbook.kind}`);
+  const title = playbook.kind === "playbook" || playbook.kind === "task" ? playbook.title : t(`admin.coachingPlaybooks.kinds.${playbook.kind}`);
+  // A task Playbook as the code knows it: the sections and slots its text must hold, and whether a Playbook Agent runs it.
+  const task = playbook.kind === "task" ? taskPlaybookSeed(playbook.id) : undefined;
   const versionName = (version: number) => t("admin.coachingPlaybooks.detail.versionLink", { version: String(version) });
   const accountName = (await getCurrentCandidate())?.name?.trim() ?? "";
   const latest = playbook.latest;
@@ -175,11 +179,10 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
   );
 
   return (
-    <BackOfficeLayout access={access}>
+    <BackOfficeLayout access={access} title={title}>
       <p>
         <Link href={routes.adminCoachingPlaybooks}>{t("admin.coachingPlaybooks.detail.back")}</Link>
       </p>
-      <h1>{title}</h1>
       <p className="lead">
         <code>{playbook.id}</code> · {t(playbook.archived ? "admin.coachingPlaybooks.archived" : "admin.coachingPlaybooks.active")} · {t("admin.coachingPlaybooks.served")} :{" "}
         {playbook.served ? t("admin.coachingPlaybooks.version", { version: String(playbook.served.version) }) : t("admin.coachingPlaybooks.none")}
@@ -237,18 +240,37 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
                   {t("admin.coachingPlaybooks.agentSummary", {
                     provider: selected.agent.provider,
                     model: selected.agent.model ?? t("admin.coachingPlaybooks.providerDefault"),
-                    effort: t(`admin.coachingPlaybooks.efforts.${selected.agent.effort}`),
+                    effort: selected.agent.effort ? t(`admin.coachingPlaybooks.efforts.${selected.agent.effort}`) : t("admin.coachingPlaybooks.effortDefault"),
                   })}
                   {effortOf(models, selected.agent.provider, selected.agent.model) === "native"
                     ? null
                     : ` (${t(`admin.coachingPlaybooks.effortHandling.${effortOf(models, selected.agent.provider, selected.agent.model)}`)})`}
                 </dd>
-                <dt>{t("admin.coachingPlaybooks.fields.consultWhen")}</dt>
-                <dd lang="fr">{selected.agent.consultWhen}</dd>
+                {playbook.kind === "task" ? null : (
+                  <>
+                    <dt>{t("admin.coachingPlaybooks.fields.consultWhen")}</dt>
+                    <dd lang="fr">{selected.agent.consultWhen}</dd>
+                  </>
+                )}
+              </>
+            ) : playbook.kind === "task" ? (
+              <>
+                <dt>{t("admin.coachingPlaybooks.tasks.runBy")}</dt>
+                <dd>{t("admin.coachingPlaybooks.detail.taskWebSearch")}</dd>
+              </>
+            ) : null}
+            {task?.search ? (
+              <>
+                <dt>{t("admin.coachingPlaybooks.detail.search")}</dt>
+                <dd>
+                  {selected.search
+                    ? `${selected.search.provider} · ${selected.search.model ?? t("admin.coachingPlaybooks.providerDefault")}`
+                    : t("admin.coachingPlaybooks.fields.searchConfigured")}
+                </dd>
               </>
             ) : null}
           </dl>
-          <h3>{t("admin.coachingPlaybooks.detail.rules")}</h3>
+          <h3>{t(playbook.kind === "task" ? "admin.coachingPlaybooks.detail.instructions" : "admin.coachingPlaybooks.detail.rules")}</h3>
           <pre className="playbook-rules" lang="fr">
             {selected.content}
           </pre>
@@ -420,17 +442,17 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
               : t("admin.coachingPlaybooks.detail.editDraft", { version: String(latest.version) })}
           </p>
           <input type="hidden" name="playbookId" value={playbook.id} />
-          <PlaybookVersionFields idPrefix={EDIT_FORM} kind={playbook.kind} version={latest} models={models} />
+          <PlaybookVersionFields idPrefix={EDIT_FORM} kind={playbook.kind} version={latest} models={models} searchModels={searchModels} task={task} />
           <button className="button button-primary" type="submit">
             {t("admin.coachingPlaybooks.detail.save")}
           </button>
         </fieldset>
       </BackOfficeForm>
 
-      {playbook.kind === "playbook" ? (
+      {playbook.kind === "playbook" || playbook.kind === "task" ? (
         <BackOfficeForm canWrite={canWrite} className="stack" action={archivePlaybook}>
           <h2>{t("admin.coachingPlaybooks.detail.archiveTitle")}</h2>
-          <p>{t("admin.coachingPlaybooks.detail.archiveHelp")}</p>
+          <p>{t(playbook.kind === "task" ? "admin.coachingPlaybooks.detail.taskArchiveHelp" : "admin.coachingPlaybooks.detail.archiveHelp")}</p>
           <input type="hidden" name="playbookId" value={playbook.id} />
           <input type="hidden" name="archived" value={String(!playbook.archived)} />
           <button className="button" type="submit" disabled={!canWrite}>

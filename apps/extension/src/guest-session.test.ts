@@ -22,7 +22,7 @@ function memoryStorage(): SessionStorage & { items: Record<string, unknown> } {
 const HOUR = 3_600_000;
 const jobOffer: JobOffer = { id: "jo-1", source: { url: "https://www.apec.fr/offre/1" }, title: "DAF", content: "Poste de DAF." };
 const cv = { fullName: "Marie Dupont", skills: ["IFRS"] } as CvContent;
-const searchCriteria = { targetRole: "Directrice financière", location: "Lyon" };
+const searchCriteria = { targetRole: "Directrice financière", locations: ["Lyon"] };
 
 describe("a Guest session", () => {
   it("keeps the captured Job Offer and the Guest's CV in the browser's session storage", async () => {

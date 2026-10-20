@@ -126,17 +126,23 @@ function area(location: string): Record<string, string> {
 const isoSeconds = (date: Date) => date.toISOString().replace(/\.\d{3}Z$/, "Z");
 
 /**
- * The search for `criteria`: by the ROME codes of its title, else by the title's
- * keywords; in its area and contract type when France Travail knows them; created
- * in the last MAX_POSTING_AGE_DAYS days; the first `max` offers (at most MAX_RANGE).
+ * The search for `criteria` near `location`, one of its locations (France Travail
+ * filters by one area at a time, so Job discovery searches each location in turn,
+ * ADR-0025): by the ROME codes of its title, else by the title's keywords; in that
+ * area when France Travail knows it, and in any of its contract types; created in
+ * the last MAX_POSTING_AGE_DAYS days; the first `max` offers (at most MAX_RANGE).
  */
-export function searchParams(criteria: SearchCriteria, { max, now }: { max: number; now: Date }): URLSearchParams {
+export function searchParams(
+  criteria: SearchCriteria,
+  { max, now, location = criteria.locations[0] ?? "" }: { max: number; now: Date; location?: string },
+): URLSearchParams {
   const params = new URLSearchParams();
   const codes = romeCodesFor(criteria.targetRole);
   if (codes.length > 0) params.set("codeROME", codes.join(","));
   else params.set("motsCles", words(criteria.targetRole).filter((word) => !NOT_KEYWORDS.has(word)).join(","));
-  for (const [name, value] of Object.entries(area(criteria.location))) params.set(name, value);
-  if (criteria.contractType) params.set("typeContrat", CONTRACT_CODES[criteria.contractType]);
+  for (const [name, value] of Object.entries(area(location))) params.set(name, value);
+  // Several contract types are one comma-separated filter, any of which will do.
+  if (criteria.contractTypes.length > 0) params.set("typeContrat", [...new Set(criteria.contractTypes.map((type) => CONTRACT_CODES[type]))].join(","));
   params.set("minCreationDate", isoSeconds(new Date(now.getTime() - MAX_POSTING_AGE_DAYS * 24 * 60 * 60 * 1000)));
   params.set("maxCreationDate", isoSeconds(now));
   params.set("range", `0-${Math.min(Math.max(max, 1), MAX_RANGE) - 1}`);

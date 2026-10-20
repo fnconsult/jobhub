@@ -22,8 +22,12 @@ export function evalRunFormat(t: T, locale: string) {
 }
 
 /** A Playbook Agent as an Eval Run played it. */
-export function agentText(t: T, agent: { provider: string; model: string | null; effort: "low" | "medium" | "high" }): string {
-  return t("admin.coachingPlaybooks.agentSummary", { provider: agent.provider, model: agent.model ?? t("admin.coachingPlaybooks.providerDefault"), effort: t(`admin.coachingPlaybooks.efforts.${agent.effort}`) });
+export function agentText(t: T, agent: { provider: string; model: string | null; effort: "low" | "medium" | "high" | null }): string {
+  return t("admin.coachingPlaybooks.agentSummary", {
+    provider: agent.provider,
+    model: agent.model ?? t("admin.coachingPlaybooks.providerDefault"),
+    effort: agent.effort ? t(`admin.coachingPlaybooks.efforts.${agent.effort}`) : t("admin.coachingPlaybooks.effortDefault"),
+  });
 }
 
 /** Eval Runs, newest first: when, on what (a Playbook Version's, with its Playbook Agent), score, cost, response time and who started it. */

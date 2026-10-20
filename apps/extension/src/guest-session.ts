@@ -15,10 +15,13 @@ export interface SessionStorage {
   remove(key: string): Promise<void>;
 }
 
-/** The Search Criteria read from a CV with it: the Profile the CV becomes if the Guest signs up starts from them. */
+/**
+ * The Search Criteria read from a CV with it: the Profile the CV becomes if the Guest signs up starts from them.
+ * `locations`: the one place the CV gives, or none (a Profile may have up to five, ADR-0025).
+ */
 export interface SearchCriteriaDraft {
   targetRole: string;
-  location: string;
+  locations: string[];
 }
 
 /** Where the work went once saved in the Candidate's account: the Application, and the Profile made from the CV, if one was. */

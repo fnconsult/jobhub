@@ -35,7 +35,7 @@ const masterCv = {
 /** Signs a new Candidate in with a Profile (Master CV edited once) and an Application with a Cover Letter. */
 async function candidateWithData(page: Page, email: string) {
   await signInWithMagicLink(page, email);
-  const profile = await page.request.post("/api/profiles", { data: { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } }, headers: { origin } });
+  const profile = await page.request.post("/api/profiles", { data: { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } }, headers: { origin } });
   expect(profile.status(), await profile.text()).toBe(201);
   const profileId = (await profile.json()).id as string;
   const edited = await page.request.put(`/api/profiles/${profileId}/master-cv`, {
@@ -82,7 +82,7 @@ test.describe("exporting my data and deleting my account", () => {
   test("the Candidate downloads all their data from their account page", async ({ page }) => {
     const email = newAddress("account-export");
     const { profileId, applicationId } = await candidateWithData(page, email);
-    await page.goto("/compte");
+    await page.goto("/compte/donnees");
 
     const section = page.getByRole("region", { name: fr.accountData.title });
     const [file] = await Promise.all([page.waitForEvent("download"), section.getByRole("link", { name: fr.accountData.export }).click()]);
@@ -108,7 +108,7 @@ test.describe("exporting my data and deleting my account", () => {
     await subscribe(page, email, "standard");
 
     // A second Profile (the Standard Plan allows more than one), archived.
-    const second = await page.request.post("/api/profiles", { data: { masterCv: { ...masterCv, headline: "DAF de transition" }, searchCriteria: { targetRole: "DAF de transition", location: "Paris" } }, headers: { origin } });
+    const second = await page.request.post("/api/profiles", { data: { masterCv: { ...masterCv, headline: "DAF de transition" }, searchCriteria: { targetRole: "DAF de transition", locations: ["Paris"] } }, headers: { origin } });
     expect(second.status(), await second.text()).toBe(201);
     const archivedId = (await second.json()).id as string;
     const archived = await page.request.patch(`/api/profiles/${archivedId}`, { data: { archived: true }, headers: { origin } });
@@ -136,7 +136,7 @@ test.describe("exporting my data and deleting my account", () => {
     const { profileId: otherProfileId, applicationId: otherApplicationId } = await candidateWithData(other, newAddress("account-export-other"));
     await other.close();
 
-    await page.goto("/compte");
+    await page.goto("/compte/donnees");
     const section = page.getByRole("region", { name: fr.accountData.title });
     const [file] = await Promise.all([page.waitForEvent("download"), section.getByRole("link", { name: fr.accountData.export }).click()]);
     const exported = JSON.parse(readFileSync((await file.path())!, "utf8"));
@@ -144,7 +144,7 @@ test.describe("exporting my data and deleting my account", () => {
     expect(exported.profiles.map((p: { id: string }) => p.id).sort()).toEqual([profileId, archivedId].sort());
     const first = exported.profiles.find((p: { id: string }) => p.id === profileId);
     expect(first.masterCvVersions.map((v: { version: number }) => v.version)).toEqual([3, 2, 1]);
-    expect(first.searchCriteria).toMatchObject({ targetRole: "DAF", location: "Lyon" });
+    expect(first.searchCriteria).toMatchObject({ targetRole: "DAF", locations: ["Lyon"] });
     expect(exported.profiles.find((p: { id: string }) => p.id === archivedId)).toMatchObject({ archived: true, masterCvVersions: [expect.objectContaining({ version: 1 })] });
 
     expect(exported.applications).toHaveLength(1);
@@ -168,7 +168,7 @@ test.describe("exporting my data and deleting my account", () => {
     const talked = await page.request.post("/api/coach", { headers: { origin }, data: { message: "Comment relancer Acme ?" } });
     expect(talked.status(), await talked.text()).toBe(200);
 
-    await page.goto("/compte");
+    await page.goto("/compte/donnees");
     const section = page.getByRole("region", { name: fr.accountData.title });
     for (const item of Object.values(fr.accountData.exportContents) as string[]) await expect(section.getByRole("listitem").filter({ hasText: item })).toHaveCount(1);
     await expect(section.getByText(fr.accountData.exportLeftOut)).toBeVisible();
@@ -257,13 +257,13 @@ test.describe("exporting my data and deleting my account", () => {
     expect(talked.status()).toBe(200);
     const conversationId = (await talked.json()).conversation.id;
     const stripe = process.env.E2E_STRIPE_URL!;
-    await page.goto("/compte");
+    await page.goto("/compte/donnees");
 
     const section = page.getByRole("region", { name: fr.accountData.title });
     await section.getByLabel(fr.accountData.confirmLabel).fill("someone.else@example.fr");
     await section.getByRole("button", { name: fr.accountData.delete }).click();
     await expect(section.getByRole("alert")).toHaveText(fr.accountData.confirmMismatch);
-    await expect(page).toHaveURL(/\/compte$/);
+    await expect(page).toHaveURL(/\/compte\/donnees$/);
 
     await section.getByLabel(fr.accountData.confirmLabel).fill(email);
     await section.getByRole("button", { name: fr.accountData.delete }).click();
@@ -355,11 +355,11 @@ test.describe("exporting my data and deleting my account", () => {
     await coachPage.getByLabel(fr.coachSpace.reviewText).fill("Ouvrez sur votre dernier poste de DAF.");
     await coachPage.getByRole("button", { name: fr.coachSpace.reviewSubmit }).click();
     await expect(coachPage.getByRole("status")).toHaveText(fr.coachSpace.reviewSaved);
-    await page.goto(`/candidatures/${applicationId}`);
+    await page.goto(`/candidatures/${applicationId}/avis`);
     await expect(page.getByRole("region", { name: fr.coachReviews.title })).toContainText("Ouvrez sur votre dernier poste de DAF.");
 
     // The Candidate deletes their account from their account page.
-    await page.goto("/compte");
+    await page.goto("/compte/donnees");
     const section = page.getByRole("region", { name: fr.accountData.title });
     await section.getByLabel(fr.accountData.confirmLabel).fill(email);
     await section.getByRole("button", { name: fr.accountData.delete }).click();

@@ -12,7 +12,7 @@
  * A key refused by its provider (401/403, an SMTP 535, France Travail's refusal) is
  * read again from the database and the call made once more if it changed.
  */
-import { AiConfigError, createAiLayerFromEnv, type AiLayer, type UsageLog } from "@jobhub/ai";
+import { AiConfigError, createAiLayerFromEnv, type AiLayer, type CandidateIdentity, type UsageLog } from "@jobhub/ai";
 import { recordingFetch, type ExternalApiLog } from "@jobhub/shared";
 import { mailerFromEnv } from "@jobhub/web/mailers";
 import { AI_SECRET_NAMES, FRANCE_TRAVAIL_SECRET_NAMES, liveObject, MAIL_SECRET_NAMES, rebuilding, type SecretResolver } from "@jobhub/web/provider-secrets";
@@ -29,8 +29,12 @@ export interface WorkerClientsOptions {
   budget?: JobDiscoveryOptions["budget"];
   /** The Job discovery sources and sites set in the Back Office (#188), read at the start of each run. */
   settings?: JobDiscoveryOptions["settings"];
+  /** The task Playbooks Job discovery runs with (ADR-0026), read at the start of each run. */
+  taskPlaybooks?: JobDiscoveryOptions["taskPlaybooks"];
   /** Whether a Candidate gave EU AI consent (ADR-0007). */
   euAiConsent?: (candidateId: string) => Promise<boolean>;
+  /** What is known of a Candidate's identity, taken out of each of their AI calls (ADR-0007). Default: emails and phone numbers alone. */
+  identityOf?: (candidateId: string) => Promise<CandidateIdentity | null>;
   /** Default: the global fetch. */
   fetch?: typeof globalThis.fetch;
   /** Default: one JSON line per AI call on stdout. */
@@ -53,7 +57,7 @@ const FRANCE_TRAVAIL_OFF: FranceTravail = { search: async () => ({ ok: false, re
 export function workerClients(options: WorkerClientsOptions): WorkerClients {
   const { resolver } = options;
   const log = options.log ?? ((line: string) => console.info(line));
-  const buildAi = (env: Env) => createAiLayerFromEnv(env, { euAiConsent: options.euAiConsent, fetch: options.fetch, usage: options.usage });
+  const buildAi = (env: Env) => createAiLayerFromEnv(env, { euAiConsent: options.euAiConsent, identityOf: options.identityOf, fetch: options.fetch, usage: options.usage });
   const ai = liveObject(resolver, AI_SECRET_NAMES, buildAi);
 
   const franceTravailConfigured = rebuilding(resolver, FRANCE_TRAVAIL_SECRET_NAMES, (env) => franceTravailFromEnv(env) !== null);
@@ -76,7 +80,7 @@ export function workerClients(options: WorkerClientsOptions): WorkerClients {
       log(`[worker] Job discovery is unavailable: ${error.message}`);
       return { unavailable: error.message };
     }
-    return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, franceTravail, settings: options.settings, fetch: options.fetch, externalApis: options.externalApis });
+    return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, franceTravail, settings: options.settings, taskPlaybooks: options.taskPlaybooks, fetch: options.fetch, externalApis: options.externalApis });
   });
 
   return { discovery, ai, franceTravail, mailer: liveObject(resolver, MAIL_SECRET_NAMES, mailerFromEnv) };

@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { routes } from "@/routes";
+import { routes, type ProfileSection } from "@/routes";
+
+/** Back to the Master CV's own Section once it is saved, left or restored. */
+const CV_SECTION: ProfileSection = "cv-de-reference";
 import { MasterCvFields } from "./MasterCvFields";
 
 type Outcome = { kind: "editing" } | { kind: "saving" } | { kind: "conflict"; currentVersion: number } | { kind: "invalid" } | { kind: "failed" };
@@ -31,7 +34,7 @@ export function MasterCvEditor(props: { profileId: string; version: number; cont
       });
       const body = await response.json().catch(() => ({}));
       if (response.ok) {
-        router.push(routes.profile(props.profileId));
+        router.push(routes.profileSection(props.profileId, CV_SECTION));
         router.refresh();
         return;
       }
@@ -59,7 +62,7 @@ export function MasterCvEditor(props: { profileId: string; version: number; cont
         <button className="button button-primary" type="submit" disabled={outcome.kind === "saving"}>
           {outcome.kind === "saving" ? t("cvEditor.saving") : t("cvEditor.save")}
         </button>
-        <Link className="button" href={routes.profile(props.profileId)}>
+        <Link className="button" href={routes.profileSection(props.profileId, CV_SECTION)}>
           {t("cvEditor.cancel")}
         </Link>
       </div>

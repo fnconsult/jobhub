@@ -6,6 +6,7 @@ import { createBraveProvider } from "./providers/brave";
 import { createLinkupProvider } from "./providers/linkup";
 import { createPerplexityProvider } from "./providers/perplexity";
 import { createTavilyProvider } from "./providers/tavily";
+import type { CandidateIdentity } from "./redaction";
 import { createFakeProvider } from "./testing";
 import { PROVIDER_IDS, SEARCH_TASK, TEXT_TASKS, type AiProvider, type AiTask, type ProviderId, type TextTask, type UsageLog } from "./types";
 import { createConsoleUsageLog } from "./usage";
@@ -59,6 +60,11 @@ export interface AiLayerDeps {
    * calls go to Mistral (AI_IDENTITY_MODEL). Without this lookup, no Candidate has consented.
    */
   euAiConsent?: (candidateId: string) => Promise<boolean>;
+  /**
+   * What is known of the Candidate's identity, taken out of each of their AI calls (redaction.ts). Without
+   * it, only email addresses and phone numbers are, by their shape. Must not throw (a failure is only warned about).
+   */
+  identityOf?: (candidateId: string) => Promise<CandidateIdentity | null>;
 }
 
 function required(env: Env, key: string): string {
@@ -99,7 +105,7 @@ function anthropicEndpoints(env: Env): AnthropicEndpoint[] {
   }
 }
 
-/** Whether Claude is reached through an EU-resident endpoint, so it may take personal data. */
+/** Whether Claude is reached through an EU-resident endpoint, so it is the default for tasks with personal data. */
 function anthropicInEu(env: Env): boolean {
   const kind = oneOf(env, "ANTHROPIC_ENDPOINT", ANTHROPIC_ENDPOINTS, "auto");
   if (kind === "auto") return !env.ANTHROPIC_API_KEY?.trim() || Boolean(env.AWS_BEARER_TOKEN_BEDROCK?.trim());
@@ -153,7 +159,8 @@ function identityProvider(env: Env, fake: boolean, fetch: typeof globalThis.fetc
 
 /** Which provider (and model, when set) serves each task: AI_<TASK>_PROVIDER and AI_<TASK>_MODEL, else the defaults. */
 function routesFromEnv(env: Env, fake: boolean): Record<AiTask, Route> {
-  // Claude reached only outside the EU (the direct API): tasks with personal data default to Mistral.
+  // Claude reached only outside the EU (the direct API): tasks with personal data default to Mistral, a
+  // preference for an EU endpoint where nothing is configured. AI_<TASK>_PROVIDER may name any provider.
   const personalFallback = !fake && !anthropicInEu(env);
   const defaultProvider = (task: keyof typeof DEFAULT_PROVIDER): ProviderId => {
     const provider = DEFAULT_PROVIDER[task];
@@ -183,22 +190,28 @@ export function taskRouteFromEnv(env: Env, task: AiTask): Route {
 }
 
 /**
- * Text providers no task uses that a Playbook Agent may still choose (#225), when their keys are entered:
- * Mistral, OpenAI and Claude on Bedrock. Only the EU-resident ones are offered (`AiLayer.agentModels`).
+ * Providers no task uses that a task Playbook may still choose, when their keys are entered: every text
+ * provider for a Playbook Agent (#225, `AiLayer.agentModels`), outside the EU too (OpenAI without EU data
+ * residency, Claude's direct API), and every web-search provider for its searches (`AiLayer.searchModels`).
  */
-function agentOnlyProviders(env: Env, used: ProviderId[], fetch: typeof globalThis.fetch | undefined): AiProvider[] {
-  const entered: Partial<Record<ProviderId, boolean>> = {
+function offeredOnlyProviders(env: Env, used: ProviderId[], fetch: typeof globalThis.fetch | undefined): AiProvider[] {
+  const entered: Record<ProviderId, boolean> = {
+    anthropic: Boolean(env.AWS_BEARER_TOKEN_BEDROCK?.trim() || env.ANTHROPIC_API_KEY?.trim()),
     mistral: Boolean(env.MISTRAL_API_KEY?.trim()),
     openai: Boolean(env.OPENAI_API_KEY?.trim()),
-    anthropic: Boolean(env.AWS_BEARER_TOKEN_BEDROCK?.trim() || env.ANTHROPIC_API_KEY?.trim()),
+    perplexity: Boolean(env.PERPLEXITY_API_KEY?.trim()),
+    brave: Boolean(env.BRAVE_SEARCH_API_KEY?.trim()),
+    tavily: Boolean(env.TAVILY_API_KEY?.trim()),
+    linkup: Boolean(env.LINKUP_API_KEY?.trim()),
   };
-  return (Object.keys(entered) as ProviderId[]).filter((id) => entered[id] && !used.includes(id)).flatMap((id) => buildProviders(id, env, fetch));
+  return PROVIDER_IDS.filter((id) => entered[id] && !used.includes(id)).flatMap((id) => buildProviders(id, env, fetch));
 }
 
 /**
  * Builds the AI layer from environment variables (in production, ECS injects them from Secrets Manager).
  * Per task: AI_<TASK>_PROVIDER and AI_<TASK>_MODEL. Only providers some task uses need their keys.
- * Throws at start-up on a missing key or a routing that would break the data rule (ADR-0007).
+ * Throws at start-up on a missing key or a task routed to a provider that cannot serve it (a web-search
+ * provider for a text task); every call is redacted (redaction.ts, ADR-0007).
  */
 export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps = {}): AiLayer {
   const fake = env.AI_FAKE?.trim() === "true";
@@ -207,7 +220,7 @@ export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps =
   const routes = routesFromEnv(env, fake);
   const used = [...new Set(Object.values(routes).map((route) => route.provider))];
   const providers = used.flatMap((id) => (fake ? [createFakeProvider({ id })] : buildProviders(id, env, deps.fetch)));
-  if (!fake) providers.push(...agentOnlyProviders(env, used, deps.fetch));
+  if (!fake) providers.push(...offeredOnlyProviders(env, used, deps.fetch));
   if (deps.euAiConsent && !providers.some((provider) => provider.id === IDENTITY_PROVIDER)) providers.push(identityProvider(env, fake, deps.fetch));
 
   return createAiLayer({
@@ -215,6 +228,7 @@ export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps =
     routes,
     identityRoute: { provider: IDENTITY_PROVIDER, model: env.AI_IDENTITY_MODEL?.trim() || undefined },
     euAiConsent: deps.euAiConsent,
+    identityOf: deps.identityOf,
     usage: deps.usage ?? createConsoleUsageLog(),
   });
 }

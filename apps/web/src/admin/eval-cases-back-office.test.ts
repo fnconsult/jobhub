@@ -30,7 +30,7 @@ describe.skipIf(!connectionString)("Eval Cases' Back Office writes and their Bac
   beforeEach(async () => {
     testAuth = await startTestAuth();
     database = testAuth.database;
-    await migrateCoachingPlaybooks(database, () => ({ sources: SOURCES, coreDigest: "# Socle [S1]", playbooks: [{ id: "interview-psychology", content: "# Entretiens [S1]", agent }] }));
+    await migrateCoachingPlaybooks(database, () => ({ sources: SOURCES, coreDigest: "# Socle [S1]", playbooks: [{ id: "interview-psychology", content: "# Entretiens [S1]", agent }], tasks: [] }));
     await migrateEvals(database);
     await migrateBackOfficeAudit(database);
     const unused = async () => {

@@ -18,7 +18,14 @@
 // person's name and home address in the facts and a LinkedIn profile among the
 // sources and as its website, none of which may reach the page. For "Bibendum",
 // it gives the group's SIREN.
+//
+// Its search for an employer's Company News (the query asking for "Articles de presse") answers
+// with three articles: one from last month, kept; one older than twelve months and one whose title
+// names a person (Hans Müller), which the dossier must drop. For "Sans Chiffres", with none.
 const realFetch = globalThis.fetch;
+
+/** The calendar day `days` ago, YYYY-MM-DD. */
+const daysAgo = (days) => new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
 
 /** Perplexity's Agent API (POST /v1/responses): `text` as the answer, `sources` as its search results. */
 function perplexityAnswer(text, sources) {
@@ -100,6 +107,16 @@ globalThis.fetch = async (input, init) => {
   }
   if (url.origin === "https://api.perplexity.ai") {
     const query = JSON.stringify(init?.body ?? "");
+    if (query.includes("Articles de presse")) {
+      const articles = /sans chiffres/i.test(query)
+        ? []
+        : [
+            { title: "Une nouvelle usine de robots inaugurée", outlet: "Le Journal de l'Industrie", date: daysAgo(20), url: "https://news.example/nouvelle-usine", namesPerson: false },
+            { title: "Des résultats annuels en hausse", outlet: "Éco Hebdo", date: daysAgo(400), url: "https://news.example/resultats-anciens", namesPerson: false },
+            { title: "Hans Müller quitte la direction du groupe", outlet: "Éco Hebdo", date: daysAgo(10), url: "https://news.example/depart", namesPerson: false },
+          ];
+      return perplexityAnswer(JSON.stringify({ articles }), articles.map(({ url }) => ({ url })));
+    }
     if (query.includes("PersonLeak")) {
       const leak = JSON.stringify({
         country: "États-Unis",

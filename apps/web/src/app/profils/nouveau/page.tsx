@@ -21,8 +21,7 @@ export default async function NewProfilePage() {
   const t = await getServerT();
   const upgradePrompt = await profileUpgradePromptFor(candidate);
   return (
-    <CandidateLayout candidateId={candidate.id}>
-      <h1>{t("newProfile.title")}</h1>
+    <CandidateLayout candidateId={candidate.id} title={t("newProfile.title")}>
       {upgradePrompt ? (
         <>
           <UpgradePrompt prompt={upgradePrompt} />

@@ -4,16 +4,24 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { INTERVIEW_TIME_ZONE, type ApplicationSummary } from "@/applications";
 import { getApplications } from "@/applications/server";
+import { APPLICATION_SORTS, applicationListHref, applicationListView, isArchivedApplication, viewApplications, type ApplicationListParams, type ApplicationListView, type ApplicationSort } from "@/applications/list-view";
 import { getCurrentCandidate } from "@/auth/server";
 import { FOLLOW_UP_CARD, type FollowUpNotice } from "@/follow-ups";
 import { getFollowUps } from "@/follow-ups/server";
 import { ApplicationStatusSelect } from "@/components/ApplicationControls";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { getProfiles } from "@/profiles/server";
 import { routes } from "@/routes";
 
 /** `aria-current` of the link to the view being shown. */
 const CURRENT = "page";
+/** The address's values for the board view and the reversed order (see list-view). */
+const BOARD = "tableau";
+const DESCENDING = "desc";
+/** The sort marks beside a column header: decoration, the order is said in words too. */
+const SORT_MARKS = { asc: "▲", desc: "▼" } as const;
+const UNSORTED_MARK = "↕";
 
 type T = Awaited<ReturnType<typeof getServerT>>;
 
@@ -22,37 +30,62 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t("applications.title")} · ${t("app.name")}` };
 }
 
-/** The Candidate's Applications, as a list (by default) or as a board with one column per Application Status. */
-export default async function ApplicationsPage({ searchParams }: { searchParams: Promise<{ vue?: string }> }) {
+/** The column headers that sort the list, with their words. */
+const SORT_LABELS = { offre: "applications.jobOffer", profil: "applications.profile", entretiens: "applications.interviews", statut: "applications.status" } as const satisfies Record<ApplicationSort, string>;
+
+/**
+ * The Candidate's Applications, as a list (by default) or as a board with one column per
+ * Application Status, filtered by Profile and Status and sorted by a column, all in the
+ * address. Archived Applications (an end state, or an archived Profile) are hidden until asked for.
+ */
+export default async function ApplicationsPage({ searchParams }: { searchParams: Promise<{ vue?: string } & ApplicationListParams> }) {
   const candidate = await getCurrentCandidate();
   if (!candidate) redirect(routes.signIn);
-  const [t, locale, applications, notices, { vue }] = await Promise.all([
+  const [t, locale, applications, notices, profiles, params] = await Promise.all([
     getServerT(),
     getRequestLocale(),
     getApplications().list(candidate.id),
     getFollowUps().notices(candidate.id),
+    getProfiles().list(candidate.id),
     searchParams,
   ]);
-  const board = vue === "tableau";
+  const board = params.vue === BOARD;
+  const view = applicationListView(params);
+  // The filters' form sends its empty choices too: keep the address to what is chosen.
+  const canonical = applicationListHref(routes.applications, view, { board });
+  if (Object.entries(params).some(([key, value]) => key !== "vue" && !value)) redirect(canonical);
+  const shown = viewApplications(applications, view, locale);
+  // Archived Applications the other filters would show, hidden only for being archived.
+  const hiddenArchived = view.showArchived ? 0 : viewApplications(applications, { ...view, showArchived: true }, locale).filter(isArchivedApplication).length - shown.filter(isArchivedApplication).length;
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: INTERVIEW_TIME_ZONE });
   return (
-    <CandidateLayout candidateId={candidate.id} wide={board}>
-      <h1>{t("applications.title")}</h1>
+    <CandidateLayout candidateId={candidate.id} wide={board} title={t("applications.title")}>
       <FollowUpNotices notices={notices} t={t} />
-      <nav className="actions" aria-label={t("applications.viewsLabel")}>
-        <Link className="button" href={routes.applications} aria-current={board ? undefined : CURRENT}>
-          {t("applications.listView")}
-        </Link>
-        <Link className="button" href={routes.applicationsBoard} aria-current={board ? CURRENT : undefined}>
-          {t("applications.boardView")}
-        </Link>
-      </nav>
       {applications.length === 0 ? (
         <p className="notice">{t("applications.none")}</p>
-      ) : board ? (
-        <Board applications={applications} t={t} />
       ) : (
-        <List applications={applications} t={t} formatDate={(value) => date.format(value)} />
+        <>
+          {/* One row: the filters, then the List and Board switch at its far end. */}
+          <div className="list-toolbar">
+            <Filters view={view} board={board} profiles={profiles} t={t} />
+            <nav className="actions list-views" aria-label={t("applications.viewsLabel")}>
+              <Link className="button" href={applicationListHref(routes.applications, view)} aria-current={board ? undefined : CURRENT}>
+                {t("applications.listView")}
+              </Link>
+              <Link className="button" href={applicationListHref(routes.applications, view, { board: true })} aria-current={board ? CURRENT : undefined}>
+                {t("applications.boardView")}
+              </Link>
+            </nav>
+          </div>
+          {hiddenArchived > 0 ? <p className="hint">{t("applications.archivedHidden", { count: hiddenArchived })}</p> : null}
+          {shown.length === 0 ? (
+            <p className="notice">{t("applications.noneMatch")}</p>
+          ) : board ? (
+            <Board applications={shown} t={t} />
+          ) : (
+            <List applications={shown} view={view} t={t} formatDate={(value) => date.format(value)} />
+          )}
+        </>
       )}
     </CandidateLayout>
   );
@@ -77,6 +110,55 @@ function FollowUpNotices({ notices, t }: { notices: FollowUpNotice[]; t: T }) {
   );
 }
 
+/**
+ * The filters: a plain form sent by its button, so it works without scripts and its
+ * choices land in the address (a reload or a shared link keeps them).
+ */
+function Filters({ view, board, profiles, t }: { view: ApplicationListView; board: boolean; profiles: { id: string; name: string; archived: boolean }[]; t: T }) {
+  const filtered = view.profileId !== null || view.status !== null || view.showArchived;
+  return (
+    <form className="list-filters" method="get" action={routes.applications} aria-label={t("applications.filtersLabel")}>
+      {board ? <input type="hidden" name="vue" value={BOARD} /> : null}
+      {view.sort ? <input type="hidden" name="tri" value={view.sort} /> : null}
+      {view.sort && view.order === "desc" ? <input type="hidden" name="ordre" value={DESCENDING} /> : null}
+      <div className="field">
+        <label htmlFor="filter-profile">{t("applications.profile")}</label>
+        <select id="filter-profile" name="profil" className="input" defaultValue={view.profileId ?? ""}>
+          <option value="">{t("applications.allProfiles")}</option>
+          {profiles.map((profile) => (
+            <option key={profile.id} value={profile.id}>
+              {profile.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor="filter-status">{t("applications.status")}</label>
+        <select id="filter-status" name="statut" className="input" defaultValue={view.status ?? ""}>
+          <option value="">{t("applications.allStatuses")}</option>
+          {APPLICATION_STATUSES.map((status) => (
+            <option key={status} value={status}>
+              {t(`applicationStatuses.${status}`)}
+            </option>
+          ))}
+        </select>
+      </div>
+      <label className="checkbox">
+        <input type="checkbox" name="archivees" value="1" defaultChecked={view.showArchived} />
+        {t("applications.showArchived")}
+      </label>
+      <button className="button" type="submit">
+        {t("applications.filter")}
+      </button>
+      {filtered ? (
+        <Link className="button button-quiet" href={applicationListHref(routes.applications, { ...view, profileId: null, status: null, showArchived: false }, { board })}>
+          {t("applications.reset")}
+        </Link>
+      ) : null}
+    </form>
+  );
+}
+
 const jobOfferLabel = (application: ApplicationSummary) =>
   [application.jobOffer.title, application.jobOffer.employer, application.jobOffer.location].filter(Boolean).join(" · ");
 
@@ -94,16 +176,32 @@ function ExpiredFlag({ application, t }: { application: ApplicationSummary; t: T
   );
 }
 
-function List({ applications, t, formatDate }: { applications: ApplicationSummary[]; t: T; formatDate: (value: Date) => string }) {
+/** A column header that sorts the list by it; a second click reverses the order. */
+function SortHeader({ sort, view, t }: { sort: ApplicationSort; view: ApplicationListView; t: T }) {
+  const current = view.sort === sort;
+  const order = current && view.order === "asc" ? "desc" : "asc";
+  return (
+    <th scope="col" aria-sort={current ? (view.order === "asc" ? "ascending" : "descending") : undefined}>
+      <Link className="sort-link" href={applicationListHref(routes.applications, view, { sort, order })}>
+        {t(SORT_LABELS[sort])}
+        {current ? <span className="visually-hidden">, {t(view.order === "asc" ? "applications.sortedAscending" : "applications.sortedDescending")}</span> : null}
+        <span className="sort-mark" aria-hidden="true">
+          {current ? SORT_MARKS[view.order] : UNSORTED_MARK}
+        </span>
+      </Link>
+    </th>
+  );
+}
+
+function List({ applications, view, t, formatDate }: { applications: ApplicationSummary[]; view: ApplicationListView; t: T; formatDate: (value: Date) => string }) {
   return (
     <div className="table-scroll">
       <table className="application-table">
         <thead>
           <tr>
-            <th scope="col">{t("applications.jobOffer")}</th>
-            <th scope="col">{t("applications.profile")}</th>
-            <th scope="col">{t("applications.interviews")}</th>
-            <th scope="col">{t("applications.status")}</th>
+            {APPLICATION_SORTS.map((sort) => (
+              <SortHeader key={sort} sort={sort} view={view} t={t} />
+            ))}
           </tr>
         </thead>
         <tbody>

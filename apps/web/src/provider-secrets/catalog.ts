@@ -14,7 +14,7 @@ export type SecretProvider = (typeof SECRET_PROVIDERS)[number];
 export const PROVIDER_SECRETS = [
   { name: "MISTRAL_API_KEY", provider: "mistral" },
   { name: "PERPLEXITY_API_KEY", provider: "perplexity" },
-  // Claude: the direct API (outside the EU: tasks without personal data only) and/or Bedrock (EU). ANTHROPIC_ENDPOINT=auto uses whichever are entered.
+  // Claude: the direct API (outside the EU) and/or Bedrock (EU, preferred for tasks with personal data). ANTHROPIC_ENDPOINT=auto uses whichever are entered.
   { name: "ANTHROPIC_API_KEY", provider: "anthropic" },
   { name: "AWS_BEARER_TOKEN_BEDROCK", provider: "bedrock" },
   { name: "FRANCE_TRAVAIL_CLIENT_ID", provider: "france-travail" },

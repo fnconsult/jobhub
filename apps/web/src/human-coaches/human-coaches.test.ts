@@ -72,7 +72,7 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
   /** A Candidate with one Profile and one Application. */
   async function candidateWithApplication(email: string) {
     const id = await signUp(email);
-    const profile = await profiles.create(id, { masterCv, searchCriteria: { targetRole: "DAF", location: "Lyon" } });
+    const profile = await profiles.create(id, { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } });
     if (!profile.ok) throw new Error("fixture refused");
     const saved = await applications.save(id, { jobOfferId: await jobOfferId(), profileId: profile.profile.id });
     if (!saved.ok) throw new Error("fixture refused");

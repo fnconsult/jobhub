@@ -66,14 +66,42 @@ export type ContractType = (typeof CONTRACT_TYPES)[number];
 export const REMOTE_WORK_OPTIONS = ["on_site", "hybrid", "full_remote"] as const;
 export type RemoteWork = (typeof REMOTE_WORK_OPTIONS)[number];
 
-/** The job-search parameters of a Profile. */
+/** How many locations a Profile's Search Criteria hold at most (ADR-0025). */
+export const MAX_SEARCH_LOCATIONS = 5;
+
+/**
+ * The job-search parameters of a Profile: one target role and one minimum salary,
+ * several locations, contract types and remote-work options (ADR-0025). A Job
+ * Offer meets a criterion as soon as it meets one of its values; an empty list
+ * of contract types or remote-work options means no preference.
+ */
 export interface SearchCriteria {
   targetRole: string;
-  location: string;
+  /** One to `MAX_SEARCH_LOCATIONS` places, trimmed, each named once. */
+  locations: string[];
   /** Minimum gross annual salary, in euros. */
   minSalary?: number;
-  contractType?: ContractType;
-  remoteWork?: RemoteWork;
+  /** Any of them will do; none means no preference. */
+  contractTypes: ContractType[];
+  /** Any of them will do; none means no preference. */
+  remoteWorkOptions: RemoteWork[];
+}
+
+/**
+ * Locations as Search Criteria keep them: trimmed, blanks dropped, each place
+ * once (compared without case or accents), in the order given.
+ */
+export function distinctLocations(locations: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const kept: string[] = [];
+  for (const raw of locations) {
+    const location = raw.trim();
+    const key = location.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+    if (!location || seen.has(key)) continue;
+    seen.add(key);
+    kept.push(location);
+  }
+  return kept;
 }
 
 /** One job held, as written on a CV. */
@@ -159,7 +187,25 @@ export interface JobOfferDetails {
    * search provider's date for the page). Unset means the date is unknown.
    */
   postedAt?: Date;
+  /**
+   * The Job Offer Summary: two or three sentences on the role, its scope and what
+   * is expected, written by the AI from the offer's own text and in its language,
+   * inventing nothing (ADR-0006). Unset until it is read (or when the AI gave none).
+   */
+  summary?: string;
+  /**
+   * The employer's sector (e.g. "Conseil") and, finer, its sub-sector or domain (e.g. "Stratégie et
+   * transformation"), read by the AI from the offer's text with the summary. Unset when it says nothing of it.
+   */
+  sector?: string;
+  subsector?: string;
 }
+
+/** The longest sector or sub-sector kept, in characters. */
+export const JOB_OFFER_SECTOR_MAX_CHARS = 80;
+
+/** The longest Job Offer Summary kept, in characters: the AI is asked for about 400. */
+export const JOB_OFFER_SUMMARY_MAX_CHARS = 600;
 
 /** A Job Offer as stored: shared by every Candidate and Guest who captures the same posting. */
 export interface JobOffer extends JobOfferDetails {

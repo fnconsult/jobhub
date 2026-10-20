@@ -36,8 +36,7 @@ export default async function PlanQuotasPage({ searchParams }: { searchParams: P
   const savedPlan = plans.find((plan) => plan.key === saved);
 
   return (
-    <BackOfficeLayout access={access}>
-      <h1>{t("admin.planQuotas.title")}</h1>
+    <BackOfficeLayout access={access} title={t("admin.planQuotas.title")}>
       <p className="lead">{t("admin.planQuotas.intro")}</p>
       {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}
       {savedPlan ? (

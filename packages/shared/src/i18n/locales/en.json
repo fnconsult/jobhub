@@ -139,7 +139,8 @@
     "jobSearches": "Job searches",
     "jobDigests": "Job Digests",
     "subscription": "Subscription",
-    "mainMenu": "Main menu"
+    "mainMenu": "Main menu",
+    "agenda": "Agenda"
   },
   "usageMeter": {
     "title": "Usage this week",
@@ -1859,6 +1860,16 @@
     "archivedHidden_one": "{{count}} archived application is hidden.",
     "archivedHidden_other": "{{count}} archived applications are hidden."
   },
+  "agenda": {
+    "title": "Interviews and appointments",
+    "none": "No upcoming interviews. Add your interviews from each application, in its « Interviews » part.",
+    "nonePast": "No past appointments.",
+    "showPast": "See past appointments",
+    "showUpcoming": "See upcoming appointments",
+    "pastTitle": "Past appointments",
+    "upcomingTitle": "Upcoming",
+    "interview": "Interview"
+  },
   "application": {
     "statusLabel": "Status",
     "statusSaved": "Status saved",
@@ -1901,7 +1912,8 @@
       "dossier": "Company dossier",
       "contacts": "Contacts",
       "offre": "The job offer"
-    }
+    },
+    "seeInAgenda": "See in the agenda"
   },
   "jobOffer": {
     "details": "At a glance",

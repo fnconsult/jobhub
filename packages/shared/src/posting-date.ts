@@ -19,20 +19,30 @@ const EARLIEST = Date.UTC(2000, 0, 1);
 /**
  * The instant a source states, in any of the forms sources use: epoch
  * milliseconds (Lever), an ISO 8601 date (UTC midnight) or date-time (UTC when
- * it has no offset: Brave), or an RFC 1123 date (Tavily). Undefined otherwise.
+ * it has no offset: Brave), an RFC 1123 date (Tavily), or a French day/month/year
+ * date (UTC midnight: groupecreditagricole.jobs). Undefined otherwise.
  */
 export function parseStatedDate(value: unknown): Date | undefined {
   let instant = NaN;
   if (typeof value === "number") instant = value;
   else if (typeof value === "string") {
     const text = value.trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) instant = Date.parse(`${text}T00:00:00Z`);
+    const dayFirst = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text);
+    if (dayFirst) instant = utcDate(Number(dayFirst[3]), Number(dayFirst[2]), Number(dayFirst[1]));
+    else if (/^\d{4}-\d{2}-\d{2}$/.test(text)) instant = Date.parse(`${text}T00:00:00Z`);
     else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(text)) instant = Date.parse(`${text}Z`);
     else if (/^\d{4}-\d{2}-\d{2}T/.test(text) || /^[A-Z][a-z]{2}, \d{1,2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}(:\d{2})? (GMT|UTC|[+-]\d{4})$/.test(text)) {
       instant = Date.parse(text);
     }
   }
   return Number.isFinite(instant) ? new Date(instant) : undefined;
+}
+
+/** UTC midnight of that day, or NaN when the day does not exist (31/02, a 19th month). */
+function utcDate(year: number, month: number, day: number): number {
+  const instant = Date.UTC(year, month - 1, day);
+  const date = new Date(instant);
+  return date.getUTCMonth() === month - 1 && date.getUTCDate() === day ? instant : NaN;
 }
 
 /** The date, when it can be a Posting date at `now`: not before 2000, not in the future (a day of clock skew allowed). */

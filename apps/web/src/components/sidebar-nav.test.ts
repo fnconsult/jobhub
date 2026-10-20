@@ -9,10 +9,11 @@ const links = (items: ReturnType<typeof sidebarNav>) => items.map(({ key, href }
 const current = (items: ReturnType<typeof sidebarNav>) => items.filter((item) => item.current).map((item) => item.key);
 
 describe("sidebarNav", () => {
-  it("lists Applications, Job Searches, Job Digests and Human Coaches, the Profile ones leading to the Profile in view", () => {
+  it("lists Applications, the Agenda, Job Searches, Job Digests and Human Coaches, the Profile ones leading to the Profile in view", () => {
     const items = sidebarNav({ pathname: "/profils/p-consultant", profiles: [daf, consultant], currentProfileId: "p-consultant" });
     expect(links(items)).toEqual([
       ["applications", "/candidatures"],
+      ["agenda", "/agenda"],
       ["jobSearches", "/recherches?profil=p-consultant"],
       ["jobDigests", "/job-digests"],
       ["humanCoaches", "/coachs"],
@@ -21,13 +22,13 @@ describe("sidebarNav", () => {
 
   it("adds the Coach space for a Human Coach and the Back Office for an Administrator", () => {
     const keys = (flags: { isHumanCoach?: boolean; isAdministrator?: boolean }) => sidebarNav({ pathname: "/compte", profiles: [], ...flags }).map((item) => item.key);
-    expect(keys({})).toEqual(["applications", "humanCoaches"]);
-    expect(keys({ isHumanCoach: true, isAdministrator: true })).toEqual(["applications", "humanCoaches", "coachSpace", "admin"]);
+    expect(keys({})).toEqual(["applications", "agenda", "humanCoaches"]);
+    expect(keys({ isHumanCoach: true, isAdministrator: true })).toEqual(["applications", "agenda", "humanCoaches", "coachSpace", "admin"]);
   });
 
   it("leads Job Searches and Job Digests to the first active Profile when none is in view", () => {
     const items = sidebarNav({ pathname: "/compte", profiles: [archived, daf, consultant] });
-    expect(links(items).slice(1, 3)).toEqual([
+    expect(links(items).slice(2, 4)).toEqual([
       ["jobSearches", "/recherches?profil=p-daf"],
       ["jobDigests", "/job-digests"],
     ]);
@@ -35,17 +36,19 @@ describe("sidebarNav", () => {
 
   it("leads them to the first active Profile when the Profile in view is archived (it has neither section)", () => {
     const items = sidebarNav({ pathname: "/profils/p-archived", profiles: [archived, consultant], currentProfileId: "p-archived" });
-    expect(links(items)[1]).toEqual(["jobSearches", "/recherches?profil=p-consultant"]);
+    expect(links(items)[2]).toEqual(["jobSearches", "/recherches?profil=p-consultant"]);
   });
 
   it("leaves Job Searches and Job Digests out while the Candidate has no active Profile", () => {
-    expect(sidebarNav({ pathname: "/compte", profiles: [] }).map((item) => item.key)).toEqual(["applications", "humanCoaches"]);
-    expect(sidebarNav({ pathname: "/compte", profiles: [archived] }).map((item) => item.key)).toEqual(["applications", "humanCoaches"]);
+    expect(sidebarNav({ pathname: "/compte", profiles: [] }).map((item) => item.key)).toEqual(["applications", "agenda", "humanCoaches"]);
+    expect(sidebarNav({ pathname: "/compte", profiles: [archived] }).map((item) => item.key)).toEqual(["applications", "agenda", "humanCoaches"]);
   });
 
   it.each([
     ["/candidatures", ["applications"]],
     ["/candidatures/a-1", ["applications"]],
+    ["/agenda", ["agenda"]],
+    ["/agendas", []],
     ["/recherches/s-1", ["jobSearches"]],
     ["/job-digests/d-1", ["jobDigests"]],
     ["/recherches", ["jobSearches"]],

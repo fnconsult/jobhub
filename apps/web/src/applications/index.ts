@@ -158,6 +158,11 @@ export function interviewWallClock(scheduledAt: Date): string {
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
 }
 
+/** The instant the day `instant` falls on, in French time, begins: its midnight there (never skipped: France changes the clocks at 2 or 3 a.m.). */
+export function interviewDayStart(instant: Date): Date {
+  return wallClockIn(`${interviewWallClock(instant).slice(0, 10)}T00:00`, INTERVIEW_TIME_ZONE);
+}
+
 const interviewSchema = z.object({
   scheduledAt: z.iso
     .datetime({ offset: true, local: true })

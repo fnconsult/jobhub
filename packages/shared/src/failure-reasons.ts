@@ -3,7 +3,8 @@
  * failed or warned, in two parts.
  *
  *  - The functional reason: a stable code from FAILURE_REASONS, with its wording in every interface
- *    language (`failureReasons.<code>` in the i18n catalogues). Countable, filterable, no personal data.
+ *    language (`failureReasons.<code>` in the i18n catalogues, read by `failureReasonWording` from
+ *    `@jobhub/shared/i18n`, so this entry point loads no JSON). Countable, filterable, no personal data.
  *  - The technical reason: the error's class, provider, HTTP status and message, the message scrubbed of
  *    keys and secrets, passed through Redaction and cut at TECHNICAL_REASON_MAX_LENGTH characters. It only
  *    goes with the text it explains (the AI Message Log) or in the Back Office Audit, never in AI Usage
@@ -12,7 +13,6 @@
  * `failureOf` reads an error by its shape (its `name`, `provider`, `status` and `reason`), so it serves the
  * AI layer's errors without importing them: an error may carry its own code as `reason`.
  */
-import { createI18n } from "./i18n";
 import { scrubSecrets } from "./scrub-secrets";
 
 /** How an AI call ended: it succeeded, worked while its feature ran degraded, or failed (or was never sent). */
@@ -116,12 +116,3 @@ export function failureOf(error: unknown, options: FailureOptions = {}): Failure
     },
   };
 }
-
-/** A code's wording, French by default: what an Administrator, or a Candidate in their Data export, reads. */
-export function failureReasonWording(code: FailureReason, locale: string = "fr"): string {
-  let i18n = translators.get(locale);
-  if (!i18n) translators.set(locale, (i18n = createI18n(locale)));
-  return i18n.t(`failureReasons.${code}`);
-}
-
-const translators = new Map<string, ReturnType<typeof createI18n>>();

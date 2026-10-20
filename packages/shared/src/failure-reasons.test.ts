@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { FAILURE_REASONS, failureOf, failureReasonWording, isFailureReason, TECHNICAL_REASON_MAX_LENGTH } from "./failure-reasons";
+import { FAILURE_REASONS, failureOf, isFailureReason, TECHNICAL_REASON_MAX_LENGTH } from "./failure-reasons";
+import { failureReasonWording } from "./i18n";
 
 /** Shaped like the AI layer's errors (packages/ai/src/errors.ts), which this module cannot import. */
 class AiProviderError extends Error {

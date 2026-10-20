@@ -22,7 +22,8 @@
  *    Tailored Documents, sessions...). Job Offers are not personal data and may
  *    be referenced by other Candidates: they are kept.
  */
-import { failureReasonWording, isFailureReason, type FailureReason, type Outcome, type Plan, type SearchCriteria } from "@jobhub/shared";
+import { failureReasonWording } from "@jobhub/shared/i18n";
+import { isFailureReason, type FailureReason, type Outcome, type Plan, type SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type { ActionCard } from "../action-cards";
 import type { Application, Applications } from "../applications";

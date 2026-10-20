@@ -70,7 +70,7 @@ test.describe("browser extension", () => {
     const page = await context.newPage();
     await page.goto(`chrome-extension://${unpackedExtensionId(extensionDir)}/popup.html`);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    expect(await page.evaluate(() => getComputedStyle(document.body).fontSize)).toBe("16px");
+    expect(await page.evaluate(() => getComputedStyle(document.body).fontSize)).toBe("17px");
     expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(255, 255, 255)");
     for (const t of await renderedTexts(page)) {
       expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
@@ -525,7 +525,7 @@ test.describe("Guest Capture and Match Score", () => {
     await expect(analysis.getByLabel(frCatalogue.cvUpload.fileLabel)).toHaveCount(0);
     expect(scores.bodies).toEqual([{ jobOfferId: expect.any(String), profileId }]);
     const shown = await analysis.getByText(scoreLine).textContent();
-    expect(await used()).toBe("1 sur 3");
+    expect(await used()).toBe("1 sur 1");
 
     // Reopening and reloading the page, again and again, shows the kept Match Score and uses none of the Plan Quota.
     for (let i = 0; i < 3; i++) {
@@ -536,7 +536,7 @@ test.describe("Guest Capture and Match Score", () => {
     await expect(reopened.getByText(scoreLine)).toHaveText(shown!);
     await reopened.close();
     expect(scores.requests).toHaveLength(1);
-    expect(await used()).toBe("1 sur 3");
+    expect(await used()).toBe("1 sur 1");
 
     // A rescore uses the Plan Quota, so it is confirmed first: cancelled, it asks for nothing (#76).
     await analysis.getByRole("button", { name: fr.analysis.rescore }).click();
@@ -546,27 +546,20 @@ test.describe("Guest Capture and Match Score", () => {
     await expect(analysis.getByRole("button", { name: fr.analysis.rescore })).toBeVisible();
     expect(scores.requests).toHaveLength(1);
 
-    // Confirmed, each one uses the Plan Quota, up to its limit, and says when it was computed, even
-    // when the value did not change; then the Upgrade Prompt (QA case 11.3).
-    for (let i = 0; i < 2; i++) {
-      await analysis.getByRole("button", { name: fr.analysis.rescore }).click();
-      await analysis.getByRole("button", { name: fr.analysis.rescoreConfirmAction }).click();
-      await expect.poll(() => scores.requests.length).toBe(2 + i);
-      await expect(analysis.getByText(scoreLine)).toBeVisible();
-      await expect(analysis.getByRole("status").filter({ hasText: /^Match Score recalculé à \d{2}:\d{2} : inchangé\.$/ })).toBeVisible();
-    }
-    expect(await used()).toBe("3 sur 3");
+    // Confirmed, it would use the Plan Quota, but the Free Plan's one Match Score of the week went on
+    // the first score: the Upgrade Prompt (QA case 11.3). A rescore within the quota is driven above, for a Guest.
     await analysis.getByRole("button", { name: fr.analysis.rescore }).click();
     await analysis.getByRole("button", { name: fr.analysis.rescoreConfirmAction }).click();
-    const prompt = analysis.getByRole("alert").filter({ hasText: "Vous avez utilisé les 3 Match Scores compris ce mois-ci" });
+    const prompt = analysis.getByRole("alert").filter({ hasText: "Vous avez utilisé le Match Score compris cette semaine" });
     await expect(prompt).toBeVisible();
     await expect(prompt.getByRole("link", { name: "Découvrir l'offre Standard" })).toHaveAttribute("href", `${origin}/abonnement`);
-    expect(scores.requests).toHaveLength(4);
+    expect(scores.requests).toHaveLength(2);
+    expect(await used()).toBe("1 sur 1");
 
     // The kept Match Score is still shown on reopen, past the quota, without asking for one.
     await analysis.reload();
     await expect(analysis.getByText(scoreLine)).toBeVisible();
-    expect(scores.requests).toHaveLength(4);
+    expect(scores.requests).toHaveLength(2);
     scores.stop();
 
     // Another CV can still be scored instead, and the Profile chosen again.

@@ -51,6 +51,41 @@
   border-radius: var(--radius-sm);
 }
 
+/* Préférences: the Text Size slider, its four steps named under the track. */
+.text-size-slider {
+  align-self: stretch;
+  width: 100%;
+  max-width: 28rem;
+}
+
+.text-size-slider label {
+  font-weight: 600;
+}
+
+.text-size-slider input[type="range"] {
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.text-size-steps {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-text-secondary);
+}
+
+.text-size-steps li[data-current] {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
 .button {
   padding: var(--space-2) var(--space-4);
   background: var(--color-background);
@@ -1390,17 +1425,86 @@ html[data-sidebar="closed"] .sidebar-docked {
   border-top: 1px solid var(--color-border);
 }
 
-.sidebar .text-size-control {
-  flex-direction: column;
-  align-items: stretch;
+/* The Usage Meter (ADR-0031): the week's Plan Quotas as one bar, its detail under the button. */
+.usage-meter {
+  padding-inline: var(--space-2);
 }
 
-.sidebar .text-size-control label {
+.usage-meter-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text);
+  font: inherit;
+  text-align: start;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.usage-meter-toggle:hover {
+  background: var(--color-surface-hover);
+}
+
+.usage-meter-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-2);
   font-weight: 600;
 }
 
-.sidebar .text-size-control select {
-  min-height: var(--control-height);
+.usage-meter-head > :last-child {
+  white-space: nowrap;
+}
+
+.usage-meter-bar {
+  display: block;
+  height: 0.5rem;
+  overflow: hidden;
+  background: var(--color-background);
+  border: 1px solid var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.usage-meter-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--color-accent);
+}
+
+.usage-meter-detail {
+  padding: 0 var(--space-3) var(--space-2);
+}
+
+.usage-meter-detail dl {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-2);
+}
+
+.usage-meter-detail dl > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 var(--space-2);
+}
+
+.usage-meter-detail dt {
+  font-weight: 400;
+}
+
+.usage-meter-detail dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.usage-meter-detail .hint {
+  margin: 0 0 var(--space-2);
 }
 
 .sidebar-collapse,
@@ -1411,10 +1515,6 @@ html[data-sidebar="closed"] .sidebar-docked {
 /* The foot's links and buttons line their icons up with the menu's above. */
 .sidebar-foot {
   padding-inline: 0;
-}
-
-.sidebar-foot .text-size-control {
-  padding-inline: var(--space-2);
 }
 
 .sidebar-foot .button-quiet {

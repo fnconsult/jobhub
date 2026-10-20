@@ -10,9 +10,11 @@
   },
   "textSize": {
     "label": "Text size",
+    "small": "Small",
     "standard": "Standard",
-    "large": "Large",
-    "xlarge": "Extra large"
+    "large": "Medium",
+    "xlarge": "Large",
+    "hint": "Remembered on this device."
   },
   "notFound": {
     "title": "Page not found",
@@ -52,7 +54,7 @@
       "useProfile": "Use one of my profiles",
       "scoreNotFound": "This job offer or this profile is no longer available. Choose another profile or capture the job offer again.",
       "rescore": "Rescore",
-      "rescoreConfirm": "A new calculation uses one Match Score of your monthly plan. The result only changes if the offer or your profile has changed.",
+      "rescoreConfirm": "A new calculation uses one Match Score of your weekly plan. The result only changes if the offer or your profile has changed.",
       "rescoreConfirmAction": "Confirm the recalculation",
       "rescoreCancel": "Cancel",
       "rescored": "Match Score recalculated at {{time}}.",
@@ -138,6 +140,13 @@
     "jobDigests": "Job Digests",
     "subscription": "Subscription",
     "mainMenu": "Main menu"
+  },
+  "usageMeter": {
+    "title": "Usage this week",
+    "percent": "{{percent}}%",
+    "unlimited": "Unlimited",
+    "valueText": "{{used}} of {{allowed}} used ({{percent}}%)",
+    "subscription": "See my subscription"
   },
   "signIn": {
     "title": "Sign in to Jobbbox",
@@ -599,14 +608,14 @@
       "used": {
         "profiles_one": "The {{plan}} Plan includes {{count}} Profile.",
         "profiles_other": "The {{plan}} Plan includes {{count}} Profiles.",
-        "matchScores_one": "You have used the 1 Match Score included this month in the {{plan}} Plan.",
-        "matchScores_other": "You have used the {{count}} Match Scores included this month in the {{plan}} Plan.",
-        "atsScores_one": "You have used the 1 ATS Score included this month in the {{plan}} Plan.",
-        "atsScores_other": "You have used the {{count}} ATS Scores included this month in the {{plan}} Plan.",
-        "enrichedContacts_one": "You have used the 1 Enriched Contact included this month in the {{plan}} Plan.",
-        "enrichedContacts_other": "You have used the {{count}} Enriched Contacts included this month in the {{plan}} Plan.",
-        "jobSearches_one": "You have used the 1 job search included this month in the {{plan}} Plan.",
-        "jobSearches_other": "You have used the {{count}} job searches included this month in the {{plan}} Plan."
+        "matchScores_one": "You have used the 1 Match Score included this week in the {{plan}} Plan.",
+        "matchScores_other": "You have used the {{count}} Match Scores included this week in the {{plan}} Plan.",
+        "atsScores_one": "You have used the 1 ATS Score included this week in the {{plan}} Plan.",
+        "atsScores_other": "You have used the {{count}} ATS Scores included this week in the {{plan}} Plan.",
+        "enrichedContacts_one": "You have used the 1 Enriched Contact included this week in the {{plan}} Plan.",
+        "enrichedContacts_other": "You have used the {{count}} Enriched Contacts included this week in the {{plan}} Plan.",
+        "jobSearches_one": "You have used the 1 job search included this week in the {{plan}} Plan.",
+        "jobSearches_other": "You have used the {{count}} job searches included this week in the {{plan}} Plan."
       },
       "notIncluded": {
         "profiles": "Creating Profiles is not included in the {{plan}} Plan.",
@@ -621,7 +630,7 @@
       "upgradeUse": "The {{plan}} Plan lets you do more.",
       "upgradeIncludes": "The {{plan}} Plan includes them.",
       "upgradeIncludesIt": "The {{plan}} Plan includes it.",
-      "renews": "Your quota renews on the 1st of the month.",
+      "renews": "Your quota renews every Monday.",
       "noMore": "You cannot create any more.",
       "action": "See the {{plan}} Plan",
       "upgradeIncludesDailyDigest": "The {{plan}} Plan includes it."
@@ -635,14 +644,14 @@
       "currentPlan": "Your current Plan: {{plan}}",
       "currentPlanUntil": "Your current Plan: {{plan}} until {{date}}",
       "checkoutSuccess": "Thank you! Your payment is recorded. Your new Plan shows here as soon as Stripe confirms it, usually within seconds.",
-      "usageTitle": "Your usage this month",
+      "usageTitle": "Your usage this week",
       "usage": "{{used}} of {{limit}}",
       "usageUnlimited": "{{used}} (unlimited)",
       "comparisonTitle": "Plans",
       "quota": "What is included",
       "unlimited": "Unlimited",
       "notIncluded": "Not included",
-      "perMonth": "{{count}} a month",
+      "perWeek": "{{count}} a week",
       "choose": "Choose the {{plan}} Plan",
       "current": "Your Plan",
       "manage": "Manage my subscription",
@@ -910,10 +919,25 @@
       "intro": "Changes apply at once to every Candidate on the Plan. Leave a field empty for “unlimited”.",
       "plan": "{{plan}} Plan",
       "limitHelp": "A number, or empty for unlimited",
-      "monthly": "a month",
+      "weekly": "a week",
       "save": "Save the {{plan}} Plan",
       "saved": "{{plan}} Plan quotas saved.",
-      "invalid": "Check the values: whole numbers from 0, or empty for unlimited."
+      "invalid": "Check the values: whole numbers from 0, or empty for unlimited.",
+      "reset": {
+        "title": "Reset this week's usage",
+        "intro": "Quotas are counted per week, from Monday 00:00 (Paris time). Resetting erases the current week's usage of every Candidate, for every quota: each starts again from zero until next Monday. Past weeks are kept.",
+        "reason": "Reason for the reset",
+        "reasonHelp": "Required. It is recorded in the Back Office journal.",
+        "confirm": "I confirm resetting this week's usage for every Candidate.",
+        "submit": "Reset for every Candidate",
+        "done_one": "This week's usage reset: {{count}} Candidate affected.",
+        "done_other": "This week's usage reset: {{count}} Candidates affected.",
+        "refused": "Nothing was reset: give a reason and tick the confirmation.",
+        "journalFields": {
+          "reason": "Reason",
+          "candidates": "Candidates affected"
+        }
+      }
     },
     "coupons": {
       "title": "Coupons",
@@ -1222,7 +1246,8 @@
         "viewed": "Viewed",
         "validated": "Validation",
         "archived": "Archive",
-        "restored": "Restore"
+        "restored": "Restore",
+        "reset": "Reset"
       },
       "none": "No change recorded.",
       "caption": "Back office changes, newest first",
@@ -2001,7 +2026,7 @@
       "discovery_failed": "The job sites could not be reached.",
       "other": "A technical problem stopped it."
     },
-    "notCounted": "It does not count toward this month's job searches.",
+    "notCounted": "It does not count toward this week's job searches.",
     "notifications": {
       "label": "Finished job searches",
       "done_zero": "Your job search for \"{{profile}}\" is finished: no job offers found.",
@@ -2082,7 +2107,7 @@
   },
   "enrichedContacts": {
     "title": "Enriched Contacts",
-    "intro": "Find the people holding the roles to contact at the employer, then get their contact details from a licensed data provider. Each contact whose details you get counts toward your monthly quota.",
+    "intro": "Find the people holding the roles to contact at the employer, then get their contact details from a licensed data provider. Each contact whose details you get counts toward your weekly quota.",
     "needsDossier": "Build the company dossier first: it tells which roles to look for.",
     "searchUnsupported": "The current data provider cannot search for people by role.",
     "find": "Find contacts",
@@ -2092,7 +2117,7 @@
     "foundNone": "No one found yet.",
     "reveal": "Get contact details",
     "revealFor": "Get {{name}}'s contact details",
-    "revealHint": "Each request for contact details counts as one Enriched Contact in this month's quota. Nothing is counted if the provider has none.",
+    "revealHint": "Each request for contact details counts as one Enriched Contact in this week's quota. Nothing is counted if the provider has none.",
     "revealing": "Requesting…",
     "contactsTitle": "Your Enriched Contacts",
     "email": "Email",
@@ -2503,7 +2528,7 @@
     "startedAll_other": "{{count}} searches started.",
     "failedFor": "No search for \"{{profile}}\": {{reason}}",
     "failureReasons": {
-      "quota": "you have used all of your plan's job searches this month.",
+      "quota": "you have used all of your plan's job searches this week.",
       "archived": "this profile is archived.",
       "generic": "it could not be started. Check your connection and try again."
     },

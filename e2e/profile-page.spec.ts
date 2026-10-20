@@ -66,8 +66,9 @@ test.describe("the Profile page as a document", () => {
     await expect(criteria(page).getByLabel(fr.cvReview.minSalary)).toHaveValue("85000");
     await expect(choice(page, fr.cvReview.contractType, fr.cvReview.contractTypes.cdi)).toBeChecked();
     await expect(choice(page, fr.cvReview.contractType, fr.cvReview.contractTypes.cdd)).not.toBeChecked();
-    await expect(page.getByRole("button", { name: fr.jobSearch.start })).toBeVisible();
-    await expect(page.getByRole("link", { name: fr.profilePage.jobDigestLink.none })).toHaveAttribute("href", `/job-digests#job-digest-${id}`);
+    // No Job Search nor Job Digest from the Profile page: Recherches d'offres, the Coach Panel and the Job Digests page offer them (#238).
+    await expect(page.getByRole("button", { name: fr.jobSearch.start, exact: true })).toHaveCount(0);
+    await expect(page.locator(`a[href="/job-digests#job-digest-${id}"]`)).toHaveCount(0);
 
     // No Action Cards yet: no Propositions; the page shows its first Section, the Master CV.
     const s = fr.profilePage.sections;
@@ -248,7 +249,8 @@ test.describe("the Profile page as a document", () => {
     await expect(page.getByRole("definition").filter({ hasText: /^Lyon$/ })).toBeVisible();
     await expect(page.getByRole("textbox", { name: fr.cvReview.locationItem.replace("{{number}}", "1"), exact: true })).toHaveCount(0);
     await expect(page.getByRole("checkbox")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: fr.jobSearch.start })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: fr.jobSearch.start, exact: true })).toHaveCount(0);
+    await expect(page.locator(`a[href="/job-digests#job-digest-${id}"]`)).toHaveCount(0);
   });
 });
 

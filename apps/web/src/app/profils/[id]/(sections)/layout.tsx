@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { CoachInView } from "@/components/CoachPanel";
-import { StartJobSearchButton } from "@/components/JobSearchControls";
 import { ProfileTitle, SearchCriteriaProperties } from "@/components/ProfileInlineEdits";
 import { SectionsLayout } from "@/components/SectionsLayout";
 import { getServerT } from "@/i18n/server";
@@ -26,9 +24,11 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  * them, Senior Advice labelled), its Master CV, edited in place and saved as a
  * new version (ADR-0012), its ATS Score, its CV export, and
  * what can be done with it, each a page of its own under /profils/<id>.
+ * Its Job Searches start from Recherches d'offres and the Coach Panel, its
+ * Job Digest is on the Job Digests page: neither is offered here (#238).
  */
 export default async function ProfileLayout({ params, children }: Params & { children: ReactNode }) {
-  const { candidateId, profile, inView, jobDigest, locale, sections } = await loadProfilePage((await params).id);
+  const { candidateId, profile, inView, locale, sections } = await loadProfilePage((await params).id);
   const t = await getServerT();
   const criteria = profile.searchCriteria;
   return (
@@ -45,17 +45,6 @@ export default async function ProfileLayout({ params, children }: Params & { chi
             <ArchivedCriteria criteria={criteria} locale={locale} t={t} />
           ) : (
             <SearchCriteriaProperties key={`criteria-${profile.id}`} profileId={profile.id} searchCriteria={criteria} />
-          )}
-          {profile.archived ? null : (
-            // The Job Search and the Job Digest of this Profile, a click away.
-            <div className="btn-row" id="job-search-title" aria-label={t("jobSearch.sectionTitle")} role="group">
-              <StartJobSearchButton key={profile.id} profileId={profile.id} />
-              {jobDigest ? (
-                <Link className="button" href={routes.profileJobDigest(profile.id)}>
-                  {t(`profilePage.jobDigestLink.${jobDigest.subscribed ? jobDigest.frequency : "none"}`)}
-                </Link>
-              ) : null}
-            </div>
           )}
         </header>
 

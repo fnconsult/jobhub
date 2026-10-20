@@ -11,7 +11,6 @@ import { anyOfInWords, contractTypesInWords, remoteWorkOptionsInWords } from "@/
 import { MasterCvDocument } from "@/components/MasterCvDocument";
 import { ProfileActions } from "@/components/ProfileActions";
 import { getRequestLocale, getServerT } from "@/i18n/server";
-import { getJobDigests } from "@/job-digests/server";
 import { getProfiles, requireOwnProfile } from "@/profiles/server";
 import { PROFILE_SECTIONS, type ProfileSection, routes } from "@/routes";
 
@@ -20,23 +19,18 @@ type T = Awaited<ReturnType<typeof getServerT>>;
 /**
  * What every Section of a Profile's page needs, loaded once per request (the
  * layout and the Section shown share it): the Profile, its Action Cards and
- * the Sections it has, and its Job Digest for the header's link to it on the
- * Job Digests page. Propositions is there only while the AI Coach has Action
- * Cards about it.
+ * the Sections it has. Propositions is there only while the AI Coach has
+ * Action Cards about it.
  */
 export const loadProfilePage = cache(async (id: string) => {
   const { candidateId, profile } = await requireOwnProfile(id);
   const inView = { kind: "profile", id: profile.id, name: profile.name } as const;
-  const [cards, jobDigest, locale] = await Promise.all([
-    getActionCards().pending(candidateId, inView),
-    getJobDigests().settings(candidateId, profile.id),
-    getRequestLocale(),
-  ]);
+  const [cards, locale] = await Promise.all([getActionCards().pending(candidateId, inView), getRequestLocale()]);
   const sections = PROFILE_SECTIONS.filter((section) => {
     if (section === "propositions") return cards.length > 0;
     return true;
   });
-  return { candidateId, profile, inView, cards, jobDigest, locale, sections };
+  return { candidateId, profile, inView, cards, locale, sections };
 });
 
 /**

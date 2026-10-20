@@ -87,9 +87,9 @@ async function jobSearchesUsed(page: Page): Promise<string> {
   return (await page.locator("dl > div").filter({ has: page.getByText("Recherches d'offres", { exact: true }) }).locator("dd").innerText()).trim();
 }
 
-/** Clicks "Chercher des offres" on the Profile page and returns the Job Search's id once on its page. */
+/** Clicks "Chercher des offres" on Recherches d'offres for the Profile and returns the Job Search's id once on its page. */
 async function searchFromProfile(page: Page, profileId: string): Promise<string> {
-  await page.goto(`/profils/${profileId}`);
+  await page.goto(`/recherches?profil=${profileId}`);
   await page.getByRole("button", { name: "Chercher des offres", exact: true }).click();
   await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
   return new URL(page.url()).pathname.split("/").pop()!;
@@ -148,7 +148,7 @@ test.describe("On-demand AI Coach job search", () => {
 
   test("starts from a Profile, shows the Job Offers found by Match Score with their key facts, and saves one in one click", async ({ page }) => {
     const profileId = await signInWithProfile(page);
-    await page.goto(`/profils/${profileId}`);
+    await page.goto(`/recherches?profil=${profileId}`);
 
     await page.getByRole("button", { name: "Chercher des offres", exact: true }).click();
 
@@ -366,7 +366,7 @@ test.describe("On-demand AI Coach job search", () => {
         .poll(async () => (await (await page.request.get(`/recherches/${id}`)).text()).includes("Votre coach cherche des offres"), { timeout: 90_000 })
         .toBe(false);
     }
-    await page.goto(`/profils/${profileId}`);
+    await page.goto(`/recherches?profil=${profileId}`);
 
     await page.getByRole("button", { name: "Chercher des offres", exact: true }).click();
 
@@ -464,7 +464,7 @@ test.describe("On-demand AI Coach job search", () => {
       await expect(latest.getByText("2 offres trouvées, de la plus proche à la moins proche de votre CV de référence.")).toBeVisible();
       await expect(offersIn(latest, page, 3).getByText(/^Score de correspondance : \d+ \/ 100(, partiel)?$/)).toHaveCount(2);
 
-      // Its button searches again, as from the Profile's page.
+      // Its button searches again.
       await main.getByRole("button", { name: "Chercher des offres", exact: true }).click();
       await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
       await expect(offersIn(page.getByRole("main"), page, 2), workerOutput).toHaveCount(2, { timeout: 90_000 });

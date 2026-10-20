@@ -434,7 +434,7 @@ test.describe("Job Digest", () => {
     const otherProfileId = await createProfile(page, "Responsable financière");
 
     // The Candidate ran a Job Search for the Profile: it listed both Job Offers, and they saved the DAF one.
-    await page.goto(`/profils/${profileId}`);
+    await page.goto(`/recherches?profil=${profileId}`);
     await page.getByRole("button", { name: "Chercher des offres", exact: true }).click();
     await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
     const daf = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2, name: DAF }) });

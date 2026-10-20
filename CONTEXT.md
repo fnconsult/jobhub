@@ -15,7 +15,7 @@ The Candidate deletes their own account, confirmed by typing their email address
 _Avoid_: Account closure, deactivation
 
 **Data export**:
-One JSON file the Candidate downloads holding all their personal data, what they made and what Jobbbox worked out or obtained about them (GDPR art. 15 and 20): their account (sign-in methods and sessions), Plan and Plan Quota use, EU AI Consent and Follow-up Delays; their Profiles (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and the Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach Conversations with every message, Coach Memory, Action Cards, Coach Access and Coaching Sessions; their AI Message Log. It leaves out secrets (sign-in tokens and passwords, the Job Digest unsubscribe link), Human Coaches' email addresses and booking links, Stripe's and the contact data providers' identifiers, and the Coach Message Cost. Every table tied to a Candidate must land in it.
+One JSON file the Candidate downloads holding all their personal data, what they made and what Jobbbox worked out or obtained about them (GDPR art. 15 and 20): their account (sign-in methods and sessions), Plan and Plan Quota use, EU AI Consent, Follow-up Delays and Appointment Reminder setting; their Profiles (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and the Job Digests sent); their Applications (Job Offer, Interviews with their Reschedule history, Match Score, Tailored Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach Conversations with every message, Coach Memory, Action Cards, Coach Access and Coaching Sessions (with their date, video link and Reschedule history); their AI Message Log. It leaves out secrets (sign-in tokens and passwords, the Job Digest unsubscribe link), Human Coaches' email addresses and booking links, Stripe's and the contact data providers' identifiers, and the Coach Message Cost. Every table tied to a Candidate must land in it.
 _Avoid_: Backup, data dump
 
 **EU AI Consent**:
@@ -57,8 +57,12 @@ A real HR professional, selected by Jobbbox, whom a Candidate can book for paid 
 _Avoid_: Advisor, consultant, recruiter
 
 **Coaching Session**:
-A booked, paid video meeting between a Candidate and a Human Coach.
+A booked, paid video meeting between a Candidate and a Human Coach. Recorded when its payment is confirmed, without a date: the Candidate then books a time on the Human Coach's Cal.com page, and that time reaches Jobbbox only when the Candidate or the Human Coach enters it (date and time in French time, optional duration, video link and note). Until then it is an Unscheduled Coaching Session. Never deleted by the Candidate.
 _Avoid_: Appointment, call, meeting
+
+**Unscheduled Coaching Session**:
+A paid Coaching Session with no date entered yet, or whose date was cleared by a cancellation. Shown at the top of the Agenda as « À planifier », with the Human Coach's booking link; not in the week or month views. One a Coach manager marked as refunded in the Back Office leaves the Agenda.
+_Avoid_: Pending session, draft session
 
 **Coach Access**:
 The Candidate's explicit consent allowing a Human Coach to read their Profiles and Applications.
@@ -69,7 +73,7 @@ A Human Coach's feedback on one Tailored Document of an Application. The Candida
 _Avoid_: Comment, annotation
 
 **Coach space**:
-A Human Coach's read-only pages: the Candidates who granted Coach Access, their Profiles and Applications, and the form for Coach Reviews.
+A Human Coach's pages: the Candidates who granted Coach Access, their Profiles and Applications (read-only), the form for Coach Reviews, and their own Coaching Sessions with each Candidate, whose date and video link they can enter or correct. They see no Agenda.
 _Avoid_: Coach dashboard
 
 **Retired Human Coach**:
@@ -81,7 +85,7 @@ The side panel, available from every page, where the Candidate talks with the AI
 _Avoid_: Chat, chatbot, sidebar
 
 **Coach context**:
-What the AI Coach is told before each reply: always the Candidate summary and the Coach Memory, plus the item In view, plus summaries of the rest (onboarding answers, latest Applications, top Job Offers), within a size cap. Summaries are trimmed before the item In view.
+What the AI Coach is told before each reply: always the Candidate summary and the Coach Memory, plus the item In view, plus summaries of the rest (onboarding answers, latest Applications, top Job Offers, the next three Agenda Items), within a size cap. Summaries are trimmed before the item In view.
 
 **Candidate summary**:
 The Candidate's first name and, for each active Profile, its target role, Search Criteria and seniority (from years of experience). Never the rest of the Identity block.
@@ -105,7 +109,7 @@ EUR 0.03 per AI Coach reply, judged on the daily median and p90 of the Coach Mes
 Input tokens the AI provider reads from its prompt cache rather than processing again; priced apart from the rest of the input.
 
 **In view**:
-The Profile, Application, Job Offer, Job Search or Job Digest the page the Candidate is on shows. The Coach Panel and AI Coach use it as context, and only if it belongs to the Candidate.
+The Profile, Application, Job Offer, Job Search or Job Digest the page the Candidate is on shows, or, on the Agenda, the Agenda Items of the next 30 days. The Coach Panel and AI Coach use it as context, and only if it belongs to the Candidate.
 _Avoid_: Focus, current item, selected
 
 **Action Card**:
@@ -350,7 +354,7 @@ An Application at an end state (Acceptée, Refusée, Abandonnée) or whose Profi
 _Avoid_: Closed application, old application
 
 **Interview**:
-One dated interview round within an Application. Added only while the Application is at "Entretien", and kept if it moves on; it can be edited (date, time, note) or removed at any status. Times are French time (Europe/Paris).
+One dated interview round within an Application: date and time in French time (Europe/Paris), optional duration, format (video, phone or on site), place or link, and a note. Entered by the Candidate, from the Application or from the Agenda, never detected or imported. Added only while the Application is at "Entretien": adding one from the Agenda to an Application at another status offers to move it to "Entretien", which the Candidate confirms. Kept if the Application moves on, archived ones included. It can be edited, Rescheduled or Cancelled at any status; deleting it is for an entry made by mistake and leaves no trace.
 _Avoid_: Meeting, call
 
 **Follow-up**:
@@ -397,6 +401,32 @@ _Avoid_: Mail, InMail, message (alone)
 
 **Tailored Documents**:
 The collective term for an Application's Tailored CV, Cover Letter and Outreach Message.
+
+### Agenda
+
+**Agenda**:
+The Candidate's page « Entretiens et rendez-vous », in the Sidebar after Mes candidatures: their Agenda Items as a list (the default: upcoming ones grouped by day, past ones on request, newest first), a week (Monday to Sunday, one column per day) or a month, each view and period with its own address. Unscheduled Coaching Sessions sit at the top. Past Agenda Items stay, shown dimmed; nothing is removed automatically.
+_Avoid_: Calendar, planning, schedule
+
+**Agenda Item**:
+An Interview or a dated Coaching Session, as the Agenda shows it. An Interview links to its Application's Interviews Section, a Coaching Session to its Human Coach. Not a thing of its own: the two keep their own rules.
+_Avoid_: Appointment, event, meeting
+
+**Reschedule**:
+A change of an Agenda Item's date and time made more than an hour after it was entered or last changed; a change within that hour is a correction and leaves no trace. Each Reschedule is kept in the item's Reschedule history (previous date, new date, by whom, when), and the item shows « Reporté », with the date first planned.
+_Avoid_: Move, edit (for a date change)
+
+**Cancelled Agenda Item**:
+An Agenda Item the Candidate (or, for a Coaching Session, the Human Coach) marked as cancelled. A Cancelled Interview stays on the Agenda struck through, with the date of cancellation. A Cancelled Coaching Session goes back to Unscheduled, the cancellation kept in its Reschedule history; refunds are handled outside Jobbbox. No Appointment Reminder and no Calendar file for it.
+_Avoid_: Deleted appointment
+
+**Appointment Reminder**:
+The email Jobbbox sends the Candidate at 18:00 French time the day before an Agenda Item still planned, in their Interface Language. On by default, switched off in Mon compte's Rappels Section; on every Plan, against no Plan Quota. None for an Agenda Item entered after that time. The Human Coach gets none.
+_Avoid_: Notification, alert, Follow-up
+
+**Calendar file**:
+One Agenda Item as a downloadable .ics file (« Ajouter à mon calendrier »), in French time. Jobbbox offers no calendar subscription or sync: a later change needs a new download.
+_Avoid_: Calendar sync, feed
 
 ### Scoring
 
@@ -452,7 +482,7 @@ The bar above every page beside the Sidebar: the page's title, the Menu button w
 _Avoid_: Header, navbar
 
 **Section**:
-One part of a long page, with its own address: Mon compte's Profils, Abonnement, Relances or Mes données, a Profile's or an Application's parts, a Back Office section. On wide screens a page's Sections are listed beside it, or in the Sidebar in place of its links when the page has no room (the main menu one arrow away); on phones the list is the page and each Section opens as a drawer, its title in the Top Bar leading back to the list.
+One part of a long page, with its own address: Mon compte's Profils, Abonnement, Relances, Rappels or Mes données, a Profile's or an Application's parts, a Back Office section. On wide screens a page's Sections are listed beside it, or in the Sidebar in place of its links when the page has no room (the main menu one arrow away); on phones the list is the page and each Section opens as a drawer, its title in the Top Bar leading back to the list.
 _Avoid_: Tab, sub-page, panel
 
 ### Delivery

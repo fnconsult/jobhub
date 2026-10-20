@@ -1759,6 +1759,7 @@
       "operation": "Operation",
       "outcome": "Outcome",
       "duration": "Duration",
+      "callCost": "Cost",
       "ok": "OK",
       "failed": "Failed",
       "httpStatus": "HTTP {{status}}",

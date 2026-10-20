@@ -79,7 +79,14 @@ test.describe("Tools (Outils)", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Mistral AI");
     await expect(page.getByRole("definition").filter({ hasText: tools.residencies.eu })).toBeVisible();
     const calls = page.getByRole("table", { name: tr(tools.callsCaption, { name: "Mistral AI" }) });
-    await expect(calls.getByRole("row").filter({ hasText: "back_office_assistant · " }).first()).toContainText(tools.ok);
+    // Each call's own cost, not a 30-day figure.
+    await expect(calls.getByRole("columnheader")).toHaveText([tools.at, tools.operation, tools.outcome, tools.duration, tools.callCost]);
+    // The guardrail's call can be recorded before the Assistant's, and either one makes Mistral's
+    // count above non-zero: the Assistant's own call may still be on its way, so reload until it lands.
+    await expect(async () => {
+      await page.reload();
+      await expect(calls.getByRole("row").filter({ hasText: "back_office_assistant · " }).first()).toContainText(tools.ok, { timeout: 1_000 });
+    }).toPass();
     await expect(page.getByRole("main")).not.toContainText(question.slice(0, 20));
     await expect(page.getByRole("main")).not.toContainText(MISTRAL_KEY);
     await page.getByRole("link", { name: tools.back }).click();

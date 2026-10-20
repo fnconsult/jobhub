@@ -123,7 +123,7 @@ export default async function ToolPage({ params }: Params) {
                   <th scope="col">{t("admin.tools.operation")}</th>
                   <th scope="col">{t("admin.tools.outcome")}</th>
                   <th scope="col">{t("admin.tools.duration")}</th>
-                  <th scope="col">{t("admin.tools.cost")}</th>
+                  <th scope="col">{t("admin.tools.callCost")}</th>
                 </tr>
               </thead>
               <tbody>

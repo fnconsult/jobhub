@@ -27,6 +27,8 @@ export type {
 } from "./ai-layer";
 export { AI_ENV_KEYS, createAiLayerFromEnv, taskRouteFromEnv } from "./env";
 export type { AiLayerDeps } from "./env";
+export { findIdentity, identityIn } from "./identity-scan";
+export type { IdentityHit } from "./identity-scan";
 export { AiConfigError, AiProviderError, DataResidencyError } from "./errors";
 export { createAnthropicProvider } from "./providers/anthropic";
 export type { AnthropicEndpoint, AnthropicProviderOptions } from "./providers/anthropic";

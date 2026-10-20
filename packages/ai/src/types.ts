@@ -20,6 +20,8 @@ export const TEXT_TASKS = {
   coaching: { personalData: true },
   /** The Back Office Assistant: what an Administrator types, and Back Office data (#205, #218). */
   back_office_assistant: { personalData: true },
+  /** Guardrail checks (#228, ADR-0022): what a Candidate or Administrator typed, and the AI Coach's or Back Office Assistant's reply. */
+  guardrail: { personalData: true },
   /** Reading an uploaded CV into a structured Master CV: reads CVs. */
   cv_parsing: { personalData: true },
   /** Extracting structured fields from a Job Offer: public posting text only. */

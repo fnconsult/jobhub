@@ -327,6 +327,18 @@ textarea.input {
   font-weight: 600;
 }
 
+/* A Blocked message (#228): said in words, never by colour alone; the Guardrail is not named. */
+.chat-blocked {
+  border-style: dashed;
+  border-color: var(--color-text-secondary);
+}
+
+.chat-blocked-label {
+  display: block;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
 .chat-form {
   width: 100%;
 }

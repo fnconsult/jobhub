@@ -62,6 +62,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Back Office Assistant conversations are up to date");
     expect(first.stdout).toContain("AI Usage is up to date");
     expect(first.stdout).toContain("Coaching Playbooks, the Core Digest and the Sources list are up to date");
+    expect(first.stdout).toContain("Guardrails are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 
@@ -100,6 +101,9 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "external_api_usage", // issue #218: every call to France Travail and contact enrichment, no payload
         "follow_up_delay", // issue #21: each Candidate's Follow-up Delays
         "follow_up_sent", // issue #21: the Follow-ups marked as sent
+        "guardrail_message", // issue #228: the Guardrail messages, each version Human-validated apart
+        "guardrail_setting", // issue #228: block or flag only, per Guardrail
+        "guardrail_trigger", // issue #228: each block, flag or unavailable check, no Candidate, no text
         "human_coach", // issue #24: Human Coaches and their Cal.com booking links
         "interview",
         "job_digest", // issue #15: the Job Digests sent for each Profile

@@ -485,7 +485,8 @@
       "load": "Vos conversations n'ont pas pu être chargées. Réessayez dans quelques instants.",
       "action": "Cette action n'a pas abouti. Réessayez dans quelques instants.",
       "invalidTitle": "Donnez à la conversation un nom de 1 à 80 caractères."
-    }
+    },
+    "blocked": "Message bloqué"
   },
   "coachMemory": {
     "open": "Mémoire du coach",
@@ -683,7 +684,8 @@
       "journal": "Journal",
       "aiUsage": "Consommation IA",
       "aiMessages": "Journaux IA",
-      "coachingPlaybooks": "Playbooks"
+      "coachingPlaybooks": "Playbooks",
+      "guardrails": "Garde-fous"
     },
     "signInProviders": {
       "title": "Connexion",
@@ -1152,7 +1154,8 @@
         "job_sites": "Sites de l'extension",
         "sign_in_providers": "Connexion",
         "ai_messages": "Journaux IA",
-        "coaching_playbooks": "Playbooks de coaching"
+        "coaching_playbooks": "Playbooks de coaching",
+        "guardrails": "Garde-fous"
       },
       "actions": {
         "added": "Ajout",
@@ -1190,7 +1193,8 @@
       "unlimited": "illimité",
       "empty": "vide",
       "id": "Identifiant",
-      "viewVersion": "voir la version {{version}}"
+      "viewVersion": "voir la version {{version}}",
+      "viewGuardrail": "voir le garde-fou"
     },
     "aiUsage": {
       "title": "Consommation IA",
@@ -1253,7 +1257,8 @@
         "offer_analysis": "Analyse d'offres",
         "job_titles": "Variantes d'intitulés",
         "web_search": "Recherche web",
-        "back_office_assistant": "Assistant du back office"
+        "back_office_assistant": "Assistant du back office",
+        "guardrail": "Garde-fous"
       }
     },
     "aiMessages": {
@@ -1411,6 +1416,92 @@
         "validatedBy": "Validée par",
         "validatedAt": "Validée le",
         "archived": "Archivé"
+      }
+    },
+    "guardrails": {
+      "title": "Garde-fous",
+      "intro": "Les garde-fous contrôlent ce que reçoivent le coach IA, ses Playbook Agents et l'assistant du back office, et ce qu'ils répondent. Leur liste est fixée dans le code : vous réglez chacun et écrivez le message qu'il affiche à sa place. Ce que le candidat n'a pas écrit (offres, CV, dossiers d'entreprise) est toujours transmis comme une donnée, jamais comme une instruction.",
+      "servingValidated": "En production, un message n'est servi qu'une fois validé par un administrateur nommé autre que son auteur, chaque langue à part. D'ici là, le texte par défaut de Jobbbox s'applique.",
+      "servingLatest": "Dans cet environnement, le dernier message écrit est servi, validé ou non. En production, seul un message validé l'est.",
+      "caption": "Les garde-fous et leur réglage",
+      "name": "Garde-fou",
+      "guardsAgainst": "Ce qu'il contrôle",
+      "setting": "Réglage",
+      "settingLabel": "Quand il détecte quelque chose",
+      "settingHelp": "Bloquer : le message n'est pas envoyé, ou la réponse est réécrite une fois puis remplacée par le message du garde-fou. Signaler seulement : tout passe, et le déclenchement est compté.",
+      "saveSetting": "Enregistrer le réglage",
+      "alwaysOn": "Bloque toujours",
+      "alwaysOnHelp": "Ce garde-fou bloque toujours : il ne peut pas être réglé sur « signaler seulement ».",
+      "settings": {
+        "block": "Bloquer",
+        "flag": "Signaler seulement"
+      },
+      "names": {
+        "prompt_injection": "Injection d'instructions",
+        "personal_data_leak": "Fuite de données personnelles",
+        "secret_disclosure": "Divulgation de secrets",
+        "harmful_advice": "Conseil hors rôle ou dangereux",
+        "distress": "Détresse"
+      },
+      "descriptions": {
+        "prompt_injection": "Un message, ou un texte collé, qui tente de modifier ou de faire révéler les instructions de l'IA, directement ou indirectement.",
+        "personal_data_leak": "Une réponse qui donne les coordonnées ou les données personnelles d'un tiers.",
+        "secret_disclosure": "Une réponse qui dévoile les instructions de l'IA, les règles des playbooks de coaching ou une clé (Provider Secrets).",
+        "harmful_advice": "Une réponse qui donne un conseil juridique, médical ou financier, ou un conseil discriminatoire, y compris sur l'âge.",
+        "distress": "Un candidat qui exprime une détresse grave : il reçoit le message du 3114. Personne n'est alerté."
+      },
+      "languages": {
+        "fr": "français",
+        "en": "anglais"
+      },
+      "messageTitle": "Message en {{language}}",
+      "served": "Servi",
+      "latest": "Dernière version, en attente de validation",
+      "defaultText": "Texte par défaut de Jobbbox",
+      "version": "version {{version}}",
+      "writtenBy": "écrite par {{author}}",
+      "validatedBy": "validée par {{name}} le {{date}}",
+      "notValidated": "non validée",
+      "validateTitle": "Valider le message en {{language}}, version {{version}}",
+      "validateHelp": "Vous devez être un autre administrateur que son auteur. Votre nom est enregistré avec la date.",
+      "validatorName": "Votre nom",
+      "validate": "Valider ce message",
+      "editTitle": "Modifier le message en {{language}}",
+      "text": "Texte du message",
+      "textHelp": "Affiché au candidat à la place de la réponse, sans dire quel garde-fou a agi. Chaque enregistrement crée une version à valider.",
+      "distressHelp": "Doit donner le 3114, le numéro national de prévention du suicide. Chaque enregistrement crée une version à valider.",
+      "saveMessage": "Enregistrer le message",
+      "journalFields": {
+        "setting": "Réglage",
+        "language": "Langue",
+        "version": "Version",
+        "text": "Texte",
+        "validatedBy": "Validé par",
+        "validatedAt": "Validé le"
+      },
+      "triggers": {
+        "title": "Déclenchements",
+        "intro": "Chaque blocage, signalement ou contrôle indisponible des {{days}} derniers jours, par jour (heure de Paris) et par garde-fou. Aucun candidat, aucune conversation, aucun texte : le texte, si besoin, reste dans les journaux IA (30 jours). Conservés {{months}} mois.",
+        "caption": "Déclenchements des garde-fous par jour",
+        "none": "Aucun déclenchement sur la période.",
+        "day": "Jour",
+        "blocked": "Bloqués",
+        "flagged": "Signalés",
+        "unavailable": "Contrôle indisponible"
+      },
+      "notices": {
+        "settingSaved": "Réglage enregistré.",
+        "messageSaved": "Message enregistré : il doit être validé par un autre administrateur pour être servi en production.",
+        "validated": "Message validé.",
+        "unchanged": "Rien n'a changé.",
+        "invalid": "Ce texte ou ce réglage n'est pas valable.",
+        "always_on": "Ce garde-fou bloque toujours.",
+        "not_found": "Ce garde-fou ou cette version n'existe pas.",
+        "helpline_missing": "Le message de détresse doit donner le 3114.",
+        "own_message": "Vous ne pouvez pas valider un message que vous avez écrit.",
+        "already_validated": "Cette version est déjà validée.",
+        "not_latest": "Seule la dernière version peut être validée.",
+        "nameRequired": "Indiquez votre nom pour valider."
       }
     }
   },

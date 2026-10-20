@@ -9,6 +9,8 @@
 export interface CoachMessage {
   from: "candidate" | "coach";
   text: string;
+  /** A Blocked message (#228): a Candidate message a Guardrail stopped, or the Guardrail message that answered it or replaced a reply. Which Guardrail is never said. */
+  blocked?: true;
 }
 
 /** Longest single message, and most messages the AI Coach answers from. */

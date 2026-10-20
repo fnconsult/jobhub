@@ -132,6 +132,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         reply: async () => ({
           ok: true,
           reply: "Premium : 4321 Match Scores par mois.",
+          outcome: "replied",
           cost: { provider: "mistral", model: "secret-assistant-model", inputTokens: 1, outputTokens: 1, cachedInputTokens: 0, eur: 0.001 },
           sections: ["planQuotas"],
         }),
@@ -348,7 +349,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(JSON.stringify(exported)).not.toContain("secret-unsubscribe-token");
   });
 
-  it("the export holds every Coach Conversation with all its messages, the Candidate's and the AI Coach's, but not what each reply cost", async () => {
+  it("the export holds every Coach Conversation with all its messages, the Candidate's and the AI Coach's, blocked ones marked (#228), but not what each reply cost", async () => {
     const profileId = await createProfile(candidateId, "DAF");
     let replies = 0;
     const cost = { provider: "mistral" as const, model: "secret-model-name", inputTokens: 10, outputTokens: 5, cachedInputTokens: 0, eur: 0.01 };
@@ -357,6 +358,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         reply: async () => ({
           ok: true,
           reply: `Réponse ${++replies}`,
+          outcome: replies === 3 ? "blocked_message" : "replied",
           cost,
           playbooks: [],
           consultations: [{ playbookId: "interview-psychology", version: 1, ...cost, model: "secret-agent-model" }],
@@ -380,8 +382,8 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         createdAt: expect.any(Date),
         lastMessageAt: expect.any(Date),
         messages: [
-          { from: "candidate", text: "Bonjour", sentAt: expect.any(Date) },
-          { from: "coach", text: "Réponse 3", sentAt: expect.any(Date) },
+          { from: "candidate", text: "Bonjour", blocked: true, sentAt: expect.any(Date) },
+          { from: "coach", text: "Réponse 3", blocked: true, sentAt: expect.any(Date) },
         ],
       },
       expect.objectContaining({

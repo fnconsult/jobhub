@@ -8,6 +8,8 @@
 export interface AssistantMessage {
   from: "administrator" | "assistant";
   text: string;
+  /** A Blocked message (#228): a question a Guardrail stopped, or the Guardrail message answering it or replacing a reply. */
+  blocked?: true;
 }
 
 /** Longest single message, and most messages the assistant answers from. */

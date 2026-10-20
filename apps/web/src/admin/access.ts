@@ -34,6 +34,8 @@ const statements = {
   aiMessages: ["read"],
   /** The Coaching Playbooks, the Core Digest and the Sources list (#225): write covers creating, versioning, validating and archiving. */
   coachingPlaybooks: ["read", "write"],
+  /** The Guardrails (#228): read covers their Guardrail Triggers; write covers settings and Guardrail messages, validation included. */
+  guardrails: ["read", "write"],
 } as const satisfies Record<string, readonly Permission[]>;
 
 export type BackOfficeResource = keyof typeof statements;
@@ -64,6 +66,7 @@ const ROLES = {
     aiUsage: READ,
     searchSites: READ,
     coachingPlaybooks: READ,
+    guardrails: READ,
   }),
 } satisfies Record<BackOfficeRole, unknown>;
 

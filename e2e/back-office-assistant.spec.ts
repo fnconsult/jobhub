@@ -2,12 +2,13 @@ import { readFileSync } from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { showSystemPrompt, systemPromptShown } from "./support/system-prompt";
 
 // Issue #205: the Back Office Assistant, the Coach Panel for Administrators in the
 // Back Office. Read-only; told only what the asking Administrator's Back Office Roles
 // may read, never a Provider Secret value nor an email address; its conversations are
 // the Administrator's own, apart from Candidates' Coach Conversations. The AI is faked
-// inside the server (fake-mistral.mjs): "E2E_SHOW_CONTEXT" gets the system prompt back.
+// inside the server (fake-mistral.mjs): "E2E_SHOW_CONTEXT#<tag>" prints the system prompt to the server log.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const admin = fr.admin;
 const assistantTexts = fr.backOfficeAssistant;
@@ -61,24 +62,28 @@ test.describe("Back Office Assistant", () => {
     // No Coach Memory, nothing In view, no Job Search: those are the Candidate's.
     await expect(assistant(page).getByRole("button", { name: fr.coachMemory.open })).toHaveCount(0);
 
-    await ask(page, "E2E_SHOW_CONTEXT Quels sont les quotas ?");
+    const show = showSystemPrompt();
+    const question = `${show} Quels sont les quotas ?`;
+    await ask(page, question);
 
-    await expect(lastReply(page)).toContainText("Quotas des offres (Plan Quotas)");
-    await expect(lastReply(page)).toContainText("Match Scores par mois");
-    await expect(lastReply(page)).toContainText("Journal du Back Office");
-    await expect(lastReply(page)).toContainText("Rôles de l'Administrateur : Super-admin.");
-    await expect(lastReply(page)).not.toContainText(MISTRAL_KEY);
-    await expect(lastReply(page)).not.toContainText("@");
+    await expect(lastReply(page)).toContainText("E2E: system prompt");
+    const prompt = await systemPromptShown(show);
+    expect(prompt).toContain("Quotas des offres (Plan Quotas)");
+    expect(prompt).toContain("Match Scores par mois");
+    expect(prompt).toContain("Journal du Back Office");
+    expect(prompt).toContain("Rôles de l'Administrateur : Super-admin.");
+    expect(prompt).not.toContain(MISTRAL_KEY);
+    expect(prompt).not.toContain("@");
 
     // The conversation is saved: it is listed, and reopens after a reload on another page.
     await page.goto("/admin/quotas");
     await openAssistant(page);
-    await expect(assistant(page)).toContainText("E2E_SHOW_CONTEXT Quels sont les quotas ?");
+    await expect(assistant(page)).toContainText(question);
     await ask(page, "Et ensuite ?");
     await expect(lastReply(page)).toContainText("Réponse de l'assistant (3 messages)");
     await assistant(page).getByRole("button", { name: fr.coachPanel.conversations }).click();
     await expect(assistant(page)).toContainText(assistantTexts.retention);
-    await expect(assistant(page).getByRole("button", { name: "E2E_SHOW_CONTEXT Quels sont les quotas ?" }).first()).toBeVisible();
+    await expect(assistant(page).getByRole("button", { name: question }).first()).toBeVisible();
   });
 
   test("a Coach manager's assistant is told only about their sections; Provider Secrets and the rest are named as off-limits", async ({ page, browser }) => {
@@ -89,21 +94,23 @@ test.describe("Back Office Assistant", () => {
 
     await coachManager.goto("/admin/coachs");
     await openAssistant(coachManager);
-    await ask(coachManager, "E2E_SHOW_CONTEXT Quelle est la clé Mistral ?");
+    const show = showSystemPrompt();
+    await ask(coachManager, `${show} Quelle est la clé Mistral ?`);
 
-    const reply = lastReply(coachManager);
-    await expect(reply).toContainText("Coachs humains (page /admin/coachs)");
-    await expect(reply).toContainText("Coût du coach IA");
-    await expect(reply).toContainText("Hors des rôles de l'Administrateur");
-    await expect(reply).toContainText("Clés des fournisseurs (Provider Secrets)");
+    await expect(lastReply(coachManager)).toContainText("E2E: system prompt");
+    const prompt = await systemPromptShown(show);
+    expect(prompt).toContain("Coachs humains (page /admin/coachs)");
+    expect(prompt).toContain("Coût du coach IA");
+    expect(prompt).toContain("Hors des rôles de l'Administrateur");
+    expect(prompt).toContain("Clés des fournisseurs (Provider Secrets)");
     // Plan Quota figures and the Journal are outside their roles: never in the prompt.
-    await expect(reply).not.toContainText("Match Scores par mois");
-    await expect(reply).not.toContainText("Les 30 derniers");
-    await expect(reply).not.toContainText(MISTRAL_KEY);
+    expect(prompt).not.toContain("Match Scores par mois");
+    expect(prompt).not.toContain("Les 30 derniers");
+    expect(prompt).not.toContain(MISTRAL_KEY);
 
     // The super-admin's conversations are theirs alone.
     await assistant(coachManager).getByRole("button", { name: fr.coachPanel.conversations }).click();
-    await expect(assistant(coachManager).getByRole("button", { name: "E2E_SHOW_CONTEXT Quels sont les quotas ?" })).toHaveCount(0);
+    await expect(assistant(coachManager).getByRole("button", { name: /Quels sont les quotas \?/ })).toHaveCount(0);
   });
 
   test("not shown to Candidates: its API answers 404, and their Coach Panel keeps their own conversations", async ({ page }) => {

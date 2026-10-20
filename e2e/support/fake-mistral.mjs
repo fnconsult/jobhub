@@ -34,16 +34,29 @@
 // the system prompt put in view, if any, and how many messages it was sent, so
 // tests can check the AI Coach knows what the Candidate is looking at.
 //
-// A Candidate message containing "E2E_SHOW_CONTEXT" gets the whole system prompt
-// back as the AI Coach's reply, so tests can check what the AI Coach is told (#126).
+// A Candidate message containing "E2E_SHOW_CONTEXT#<tag>" has the whole system prompt it was
+// sent printed to the server log ("[fake-mistral] system prompt #<tag>: <JSON string>"), so tests
+// can check what the AI Coach is told (#126; see support/system-prompt.ts). It is not sent back:
+// a reply copying the system prompt is what the secret disclosure Guardrail replaces (#228).
 // With a Coach Memory in its system prompt (#125), the AI Coach adds how many
 // items it was told ("Mémoire : 2 éléments."), so tests can check it goes with
 // every message. Asked what to remember from a conversation ("Tu relis une
 // conversation"), it proposes each Candidate message as a goal, in order.
 //
 // For the Back Office Assistant (#205, "assistant du Back Office"), it says how many
-// messages it was sent; "E2E_SHOW_CONTEXT" gets the whole system prompt back, so tests
-// can check what the assistant is told for the asking Administrator's roles.
+// messages it was sent; "E2E_SHOW_CONTEXT#<tag>" prints the whole system prompt to the
+// server log, so tests can check what the assistant is told for the asking Administrator's roles.
+//
+// The Guardrails' AI checks (#228, "Tu contrôles le message" / "Tu contrôles la réponse") find
+// prompt injection in a message holding "E2E_GUARDRAIL_INJECTION" and out-of-scope advice in a
+// reply holding "E2E_GUARDRAIL_ADVICE", nothing else; a message holding "E2E_GUARDRAIL_DOWN"
+// makes them fail with a 503, so the checks are unavailable. "E2E_GUARDRAIL_DISTRESS" in a message is
+// distress, "E2E_GUARDRAIL_LEAK" / "E2E_GUARDRAIL_SECRET" in a reply a leak / a secret.
+// A message holding "E2E_COACH_SAY=<text>" (to the end of the line) has the AI Coach or the Back Office
+// Assistant reply that text; written again (told its reply was blocked) it replies a clean text, unless the
+// message also holds "E2E_STUBBORN" ("[at]", "[sp]", "[dash]" in the text become "@", a space and "-", so a reply can hold
+// an email address, a phone number or a key the message does not). "E2E_COACH_COPY_SYSTEM" has the AI Coach reply its whole system prompt.
+// "E2E_AGENT_LEAK" has a Playbook Agent's advice hold a third party's email address.
 //
 // For the offer analysis behind a Company Dossier (task offer_analysis), a posting
 // whose displayed employer starts with "Cabinet" is a recruiting agency's, and its
@@ -71,6 +84,16 @@ globalThis.fetch = async (input, init) => {
 
   let content = "fake reply";
   const system = String(body.messages?.find((message) => message.role === "system")?.content ?? "");
+  if (system.startsWith("Tu contrôles le message") || system.startsWith("Tu contrôles la réponse")) {
+    if (prompt.includes("E2E_GUARDRAIL_DOWN")) return new Response("upstream unavailable", { status: 503 });
+    const verdict = system.startsWith("Tu contrôles le message")
+      ? { prompt_injection: prompt.includes("E2E_GUARDRAIL_INJECTION"), distress: prompt.includes("E2E_GUARDRAIL_DISTRESS") }
+      : { harmful_advice: prompt.includes("E2E_GUARDRAIL_ADVICE"), personal_data_leak: prompt.includes("E2E_GUARDRAIL_LEAK"), secret_disclosure: prompt.includes("E2E_GUARDRAIL_SECRET") };
+    return completion(body, JSON.stringify(verdict));
+  }
+  const shown = /E2E_SHOW_CONTEXT(#[\w-]+)?/.exec(prompt);
+  const said = /E2E_COACH_SAY=(.*)/.exec(prompt)?.[1].trim();
+  if (shown) console.log(`[fake-mistral] system prompt ${shown[1] ?? "#"}: ${JSON.stringify(system)}`);
   if (system.startsWith("Tu choisis quels Playbook Agents")) {
     content = JSON.stringify(/E2E_CONSULT=([\w,-]+)/.exec(prompt)?.[1].split(",") ?? []);
   }
@@ -78,11 +101,14 @@ globalThis.fetch = async (input, init) => {
   if (playbook) {
     if (new RegExp(`E2E_AGENT_DOWN=${playbook[1]}(?![\\w-])`).test(prompt)) return new Response("upstream unavailable", { status: 503 });
     content = `Avis du Playbook Agent ${playbook[1]} (version ${playbook[2]}, modèle ${body.model}, effort ${body.reasoning_effort ?? "aucun"}) : préparez trois exemples [S24].`;
+    if (prompt.includes("E2E_AGENT_LEAK")) content += " Contact : agent.tiers@exemple.fr";
   }
   if (system.includes("coach Jobbbox")) {
     const inView = /Le candidat consulte son profil « (.+?) »/.exec(system)?.[1];
     const turns = body.messages.filter((message) => message.role !== "system").length;
-    if (prompt.includes("E2E_SHOW_CONTEXT")) content = system;
+    if (shown) content = `E2E: system prompt ${shown[1] ?? "#"} in the server log`;
+    else if (prompt.includes("E2E_COACH_COPY_SYSTEM")) content = system;
+    else if (said) content = saidText(said, system, prompt);
     else if (prompt.includes("E2E_COACH_MARKDOWN")) {
       // A model's habits (#164): Markdown, and "tu" unless the Coach is told to vouvoyer.
       const formal = system.includes("vouvoie");
@@ -100,7 +126,7 @@ globalThis.fetch = async (input, init) => {
   }
   if (system.includes("assistant du Back Office")) {
     const turns = body.messages.filter((message) => message.role !== "system").length;
-    content = prompt.includes("E2E_SHOW_CONTEXT") ? system : `Réponse de l'assistant (${turns} message${turns > 1 ? "s" : ""})`;
+    content = shown ? `E2E: system prompt ${shown[1] ?? "#"} in the server log` : said ? saidText(said, system, prompt) : `Réponse de l'assistant (${turns} message${turns > 1 ? "s" : ""})`;
   }
   if (system.includes("Tu relis une conversation")) {
     const said = [...prompt.matchAll(/^Candidat : (.+)$/gm)].map((match) => match[1].trim());
@@ -188,10 +214,22 @@ globalThis.fetch = async (input, init) => {
       searchCriteria: { targetRole: `${headline} (lu par l'IA)`, location: "Lyon" },
     });
   }
+  return completion(body, content);
+};
+
+/** What E2E_COACH_SAY has an assistant reply: the text, or a clean one when it is asked to write again (and not stubborn). */
+function saidText(said, system, prompt) {
+  if (system.includes("Ta réponse précédente a été bloquée") && !prompt.includes("E2E_STUBBORN")) return "Voici une réponse recentrée sur votre recherche d'emploi.";
+  // "[at]", "[sp]", "[dash]" stand for "@", " " and "-": the reply holds what the message does not (an email address the Candidate never wrote).
+  return said.replaceAll("[at]", "@").replaceAll("[sp]", " ").replaceAll("[dash]", "-");
+}
+
+/** A chat completion answering `content`. */
+function completion(body, content) {
   return Response.json({
     id: "cmpl_e2e",
     model: body.model ?? "mistral-large-latest",
     choices: [{ index: 0, message: { role: "assistant", content }, finish_reason: "stop" }],
     usage: { prompt_tokens: 100, completion_tokens: 50 },
   });
-};
+}

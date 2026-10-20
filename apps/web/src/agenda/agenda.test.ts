@@ -3,6 +3,7 @@ import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApplications, migrateApplications, type Applications } from "../applications";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
+import { createHumanCoaches, migrateHumanCoaches, type HumanCoaches } from "../human-coaches";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import { agendaPeriod, createAgenda, type Agenda } from "./index";
@@ -30,6 +31,7 @@ describe.skipIf(!connectionString)("Agenda (needs Postgres: DATABASE_URL)", () =
   let jobOffers: JobOffers;
   let applications: Applications;
   let agenda: Agenda;
+  let coaches: HumanCoaches;
   let candidateId: string;
   let otherCandidateId: string;
 
@@ -64,16 +66,18 @@ describe.skipIf(!connectionString)("Agenda (needs Postgres: DATABASE_URL)", () =
     await migrateProfiles(database);
     await migrateJobOffers(database);
     await migrateApplications(database);
+    await migrateHumanCoaches(database);
     profiles = createProfiles(database);
     jobOffers = createJobOffers(database);
     applications = createApplications(database, { jobOffers, profiles });
+    coaches = createHumanCoaches(database, { profiles, applications, tailoredDocuments: { get: async () => null }, tailoredCvs: { get: async () => null } });
     agenda = createAgenda(database);
     candidateId = await signIn("marie.dupont@example.fr");
     otherCandidateId = await signIn("paul.martin@example.fr");
-  });
+  }, 60_000);
   afterEach(async () => {
     await testAuth.stop();
-  });
+  }, 60_000);
 
   it("shows only the signed-in Candidate's Interviews, with the Job Offer's title and company and the Application they belong to", async () => {
     const mine = await applicationInInterview(candidateId, "DAF H/F", "Acme Industrie");
@@ -134,6 +138,79 @@ describe.skipIf(!connectionString)("Agenda (needs Postgres: DATABASE_URL)", () =
   it("is empty when the Candidate has no Interview", async () => {
     expect(await agenda.days(candidateId, { period: "upcoming", now: NOW })).toEqual([]);
     expect(await agenda.days(candidateId, { period: "past", now: NOW })).toEqual([]);
+    expect(await agenda.unscheduled(candidateId)).toEqual([]);
+  });
+
+  describe("Coaching Sessions", () => {
+    let paid = 0;
+    /** A Human Coach named `name`, with their Cal.com booking link. */
+    async function addCoach(name: string) {
+      const added = await coaches.add({ name, email: `${name.split(" ")[0]!.toLowerCase()}@rh-conseil.fr`, bookingUrl: `https://cal.com/${name.split(" ")[0]!.toLowerCase()}/seance` });
+      if (!added.ok) throw new Error("fixture Human Coach refused");
+      return added.coach;
+    }
+    /** A Coaching Session `owner` paid with `coachId`, as Stripe's webhook records it; its id. */
+    async function paySession(owner: string, coachId: string) {
+      paid += 1;
+      await coaches.recordPaidSession({ checkoutSessionId: `cs_${paid}`, candidateId: owner, coachId, amount: 9000, currency: "eur" });
+      return (await coaches.sessions(owner))[0]!.id;
+    }
+
+    it("a paid Coaching Session with no date is an Unscheduled Coaching Session, with the Human Coach's booking link, and not in the dated lists", async () => {
+      const sophie = await addCoach("Sophie Martin");
+      const sessionId = await paySession(candidateId, sophie.id);
+      await paySession(otherCandidateId, sophie.id);
+
+      expect(await agenda.unscheduled(candidateId)).toEqual([{ id: sessionId, coach: { id: sophie.id, name: "Sophie Martin", bookingUrl: "https://cal.com/sophie/seance" }, paidAt: expect.any(Date) }]);
+      expect(await agenda.days(candidateId, { period: "upcoming", now: NOW })).toEqual([]);
+      expect(await agenda.days(candidateId, { period: "past", now: NOW })).toEqual([]);
+    });
+
+    it("once dated, a Coaching Session leaves « À planifier » for the list, on its day in French time, among the Interviews", async () => {
+      const sophie = await addCoach("Sophie Martin");
+      const sessionId = await paySession(candidateId, sophie.id);
+      const applicationId = await applicationInInterview(candidateId, "DAF H/F", "Acme Industrie");
+      await addInterview(candidateId, applicationId, "2026-10-22T14:30");
+
+      await coaches.scheduleSession(candidateId, sessionId, { scheduledAt: "2026-10-22T23:30", durationMinutes: 45, videoLink: "https://meet.google.com/abc" });
+
+      expect(await agenda.unscheduled(candidateId)).toEqual([]);
+      expect(await agenda.days(candidateId, { period: "upcoming", now: NOW })).toEqual([
+        {
+          day: "2026-10-22",
+          items: [
+            expect.objectContaining({ kind: "interview", scheduledAt: new Date("2026-10-22T12:30:00.000Z") }),
+            { kind: "coachingSession", id: sessionId, scheduledAt: new Date("2026-10-22T21:30:00.000Z"), coach: { id: sophie.id, name: "Sophie Martin" }, durationMinutes: 45, videoLink: "https://meet.google.com/abc" },
+          ],
+        },
+      ]);
+    });
+
+    it("shows only the Candidate's own Coaching Sessions", async () => {
+      const sophie = await addCoach("Sophie Martin");
+      const theirs = await paySession(otherCandidateId, sophie.id);
+      await coaches.scheduleSession(otherCandidateId, theirs, { scheduledAt: "2026-10-22T10:00" });
+
+      expect(await agenda.days(candidateId, { period: "upcoming", now: NOW })).toEqual([]);
+      expect(await agenda.unscheduled(candidateId)).toEqual([]);
+    });
+
+    it("keeps a Retired Human Coach's past Coaching Sessions, newest first among the past Agenda Items", async () => {
+      const sophie = await addCoach("Sophie Martin");
+      const older = await paySession(candidateId, sophie.id);
+      const newer = await paySession(candidateId, sophie.id);
+      await coaches.scheduleSession(candidateId, older, { scheduledAt: "2026-10-06T10:00" });
+      await coaches.scheduleSession(candidateId, newer, { scheduledAt: "2026-10-13T10:00" });
+      const applicationId = await applicationInInterview(candidateId, "DAF H/F", "Acme Industrie");
+      await addInterview(candidateId, applicationId, "2026-10-13T15:00");
+
+      await coaches.retire(sophie.id);
+
+      expect(shape(await agenda.days(candidateId, { period: "past", now: NOW }))).toEqual([
+        ["2026-10-13", ["2026-10-13T13:00:00.000Z", "2026-10-13T08:00:00.000Z"]],
+        ["2026-10-06", ["2026-10-06T08:00:00.000Z"]],
+      ]);
+    });
   });
 });
 

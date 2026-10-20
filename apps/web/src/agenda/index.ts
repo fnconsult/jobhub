@@ -1,12 +1,14 @@
 /**
  * The Agenda: the Candidate's Agenda Items, read from where they live. An
- * Agenda Item is not a thing of its own (CONTEXT.md): today the Interviews of
- * every Application, Archived Applications included; Coaching Sessions come later
- * as another source.
+ * Agenda Item is not a thing of its own (CONTEXT.md): the Interviews of every
+ * Application, Archived Applications included, and the dated Coaching Sessions,
+ * Retired Human Coaches' included.
  *
- * One deep module in front of Postgres. Callers get `createAgenda(database).days`:
- * the signed-in Candidate's Agenda Items for a period, grouped by day in French
- * time (Europe/Paris, like Interviews), ready to show.
+ * One deep module in front of Postgres. Callers get `createAgenda(database)`:
+ *  - `days`: the signed-in Candidate's Agenda Items for a period, grouped by day
+ *    in French time (Europe/Paris, like Interviews), ready to show;
+ *  - `unscheduled`: their Unscheduled Coaching Sessions (paid, no date yet), for
+ *    the « À planifier » box, with each Human Coach's booking link.
  *  - "upcoming": from the start of today on, oldest first, so that today's
  *    items stay together, even those earlier today;
  *  - "past": before today, newest first (days and the items within them).
@@ -29,7 +31,26 @@ export interface InterviewAgendaItem {
   employer?: string;
 }
 
-export type AgendaItem = InterviewAgendaItem;
+/** One dated Coaching Session, as the Agenda shows it; it leads to its Human Coach on the Human Coaches page. */
+export interface CoachingSessionAgendaItem {
+  kind: "coachingSession";
+  /** The Coaching Session's id. */
+  id: string;
+  scheduledAt: Date;
+  coach: { id: string; name: string };
+  durationMinutes?: number;
+  videoLink?: string;
+  note?: string;
+}
+
+export type AgendaItem = InterviewAgendaItem | CoachingSessionAgendaItem;
+
+/** A paid Coaching Session with no date yet: the Candidate books it on the Human Coach's Cal.com page, then enters its date. */
+export interface UnscheduledCoachingSession {
+  id: string;
+  coach: { id: string; name: string; bookingUrl: string };
+  paidAt: Date;
+}
 
 /** One day of the Agenda, in French time, with its items in the period's order. */
 export interface AgendaDay {
@@ -43,6 +64,8 @@ export type AgendaPeriod = "upcoming" | "past";
 export interface Agenda {
   /** The Candidate's Agenda Items for `period`, split at the start of `now`'s day, grouped by day in French time. */
   days(candidateId: string, options: { period: AgendaPeriod; now: Date }): Promise<AgendaDay[]>;
+  /** The Candidate's Unscheduled Coaching Sessions, oldest paid first. Never in `days`. */
+  unscheduled(candidateId: string): Promise<UnscheduledCoachingSession[]>;
 }
 
 const DAY = new Intl.DateTimeFormat("en-CA", { timeZone: INTERVIEW_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit" });
@@ -80,16 +103,54 @@ export function createAgenda(database: Pool): Agenda {
     }));
   }
 
+  /** The Candidate's dated Coaching Sessions in `period`, in its order. */
+  async function coachingSessions(candidateId: string, period: AgendaPeriod, now: Date): Promise<AgendaItem[]> {
+    const upcoming = period === "upcoming";
+    const { rows } = await database.query<{ id: string; scheduled_at: Date; coach_id: string; coach_name: string; duration_minutes: number | null; video_link: string | null; note: string | null }>(
+      `SELECT s.id, s.scheduled_at, h.id AS coach_id, h.name AS coach_name, s.duration_minutes, s.video_link, s.note
+         FROM coaching_session s
+         JOIN human_coach h ON h.id = s.coach_id
+        WHERE s.candidate_id = $1 AND ${upcoming ? "s.scheduled_at >= $2" : "s.scheduled_at < $2"}
+        ORDER BY s.scheduled_at ${upcoming ? "ASC" : "DESC"}, s.paid_at ${upcoming ? "ASC" : "DESC"}`,
+      [candidateId, interviewDayStart(now)],
+    );
+    return rows.map((row) => ({
+      kind: "coachingSession",
+      id: row.id,
+      scheduledAt: row.scheduled_at,
+      coach: { id: row.coach_id, name: row.coach_name },
+      ...(row.duration_minutes !== null ? { durationMinutes: row.duration_minutes } : {}),
+      ...(row.video_link ? { videoLink: row.video_link } : {}),
+      ...(row.note ? { note: row.note } : {}),
+    }));
+  }
+
   return {
     async days(candidateId, { period, now }) {
+      const [byInterview, bySession] = await Promise.all([interviews(candidateId, period, now), coachingSessions(candidateId, period, now)]);
+      const direction = period === "upcoming" ? 1 : -1;
+      // Each source comes in the period's order; sorting is stable, so that order holds for items at the same time.
+      const items = [...byInterview, ...bySession].sort((a, b) => direction * (a.scheduledAt.getTime() - b.scheduledAt.getTime()));
       const days: AgendaDay[] = [];
-      for (const item of await interviews(candidateId, period, now)) {
+      for (const item of items) {
         const day = agendaDay(item.scheduledAt);
         const last = days.at(-1);
         if (last?.day === day) last.items.push(item);
         else days.push({ day, items: [item] });
       }
       return days;
+    },
+
+    async unscheduled(candidateId) {
+      const { rows } = await database.query<{ id: string; paid_at: Date; coach_id: string; coach_name: string; booking_url: string }>(
+        `SELECT s.id, s.paid_at, h.id AS coach_id, h.name AS coach_name, h.booking_url
+           FROM coaching_session s
+           JOIN human_coach h ON h.id = s.coach_id
+          WHERE s.candidate_id = $1 AND s.scheduled_at IS NULL
+          ORDER BY s.paid_at, s.id`,
+        [candidateId],
+      );
+      return rows.map((row) => ({ id: row.id, coach: { id: row.coach_id, name: row.coach_name, bookingUrl: row.booking_url }, paidAt: row.paid_at }));
     },
   };
 }

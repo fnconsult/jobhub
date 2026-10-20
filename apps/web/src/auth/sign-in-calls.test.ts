@@ -1,5 +1,6 @@
 import type { ExternalApiCall } from "@jobhub/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { withDiscoveryDocuments } from "./discovery-documents";
 import { recordingSignInCalls, signInToolOf } from "./sign-in-calls";
 
 const request = (path: string, method = "GET") => new Request(new URL(path, "http://localhost:3000"), { method });
@@ -103,6 +104,54 @@ describe("the calls a sign-in makes to its provider, as recorded (#234)", () => 
     ]);
 
     expect(calls.map(({ provider, operation }) => `${provider} ${operation}`).sort()).toEqual(["apple token", "microsoft token"]);
+  });
+
+  describe("after the instance is rebuilt (a Sign-in Provider changed)", () => {
+    const issuer = "https://acme.okta.com/.well-known/openid-configuration";
+    const rebuild = () => withDiscoveryDocuments(new Map([[issuer, { issuer: "https://acme.okta.com" }]]), () => "instance");
+    const callback = (log: { record: (call: ExternalApiCall) => void }) =>
+      recordingSignInCalls(request("/api/auth/callback/google"), log, async () => {
+        await fetch("https://oauth2.googleapis.com/token", { method: "POST" });
+        return new Response(null, { status: 302 });
+      });
+
+    it("records each call of a callback once", async () => {
+      provider();
+      const { calls, log } = recorder();
+
+      rebuild();
+      await callback(log);
+      rebuild();
+      await callback(log);
+
+      expect(calls.map(({ operation }) => operation)).toEqual(["token", "token"]);
+    });
+
+    it("keeps the fetch in use as it was however often it is rebuilt: no wrapper around a wrapper", async () => {
+      provider();
+      const { log } = recorder();
+      rebuild();
+      await callback(log);
+      const installed = globalThis.fetch;
+
+      for (let i = 0; i < 3; i++) {
+        rebuild();
+        await callback(log);
+      }
+
+      expect(globalThis.fetch).toBe(installed);
+    });
+
+    it("still answers the issuer's discovery document from memory while it starts", async () => {
+      const network = provider();
+      const { log } = recorder();
+      await callback(log);
+
+      const answer = await withDiscoveryDocuments(new Map([[issuer, { issuer: "https://acme.okta.com" }]]), () => fetch(issuer));
+
+      expect(await answer.json()).toEqual({ issuer: "https://acme.okta.com" });
+      expect(network).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("signs in even when its calls cannot be recorded", async () => {

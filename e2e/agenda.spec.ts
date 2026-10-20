@@ -115,6 +115,14 @@ test.describe("the Agenda", () => {
     await expect(agendaLink(page)).toHaveAttribute("aria-current", "page");
   });
 
+  test("is what the Coach Panel has in view (#254)", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("agenda-coach"));
+    await page.goto("/agenda");
+    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    const coachPanel = page.getByRole("complementary", { name: fr.coachPanel.title });
+    await expect(coachPanel).toContainText(`Vous consultez : ${fr.coachPanel.inViewAgenda}`);
+  });
+
   test("shows only the signed-in Candidate's Interviews", async ({ page, browser }) => {
     await signInWithMagicLink(page, newAddress("agenda-owner"));
     await applicationWithInterviews(page, "Contrôleur de gestion", [`${parisDay(5)}T09:00`]);

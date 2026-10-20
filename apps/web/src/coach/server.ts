@@ -8,6 +8,7 @@ import { getJobOfferLinks } from "@/job-offer-links/server";
 import { getJobOffers } from "@/job-offers/server";
 import { getJobSearches } from "@/job-searches/server";
 import { getProfiles } from "@/profiles/server";
+import { readIndustryReference } from "@/reference-data/server";
 import { createCoach, type Coach } from "./index";
 
 let instance: Coach | undefined;
@@ -36,6 +37,8 @@ export function getCoach(): Coach {
           return latest ? jobDigests.get(candidateId, latest.id) : null;
         },
       },
+      // Each active Profile's Sectors and Domains, by their labels (#236).
+      industries: readIndustryReference,
       // Coach Memory needs Coach Conversations, which need the AI Coach: resolved on first use, not at construction.
       coachMemory: {
         async items(candidateId) {

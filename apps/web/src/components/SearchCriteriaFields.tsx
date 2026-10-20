@@ -8,6 +8,8 @@ import { PROFILE_NAME_MAX_LENGTH } from "@/profiles/limits";
 import { MIN_PLACE_QUERY_LENGTH, type PlaceSuggestion } from "@/places/geo-api";
 import { TextField } from "./form-fields";
 import { Icons } from "./icons";
+import { INDUSTRY_FIELDS } from "./industry-choices";
+import { IndustryInput, useIndustryReference } from "./IndustryInputs";
 import { addPlace, movedOption } from "./places-input";
 
 /** Search Criteria as a form holds them: what the inputs show. */
@@ -18,6 +20,10 @@ export interface CriteriaFields {
   minSalary: string;
   contractTypes: ContractType[];
   remoteWorkOptions: RemoteWork[];
+  /** Codes (#236): NAF sections, NAF divisions within them, ROME professional domains. */
+  sectors: string[];
+  subsectors: string[];
+  domains: string[];
 }
 
 /** What the inputs show for saved (or drafted) Search Criteria. */
@@ -28,6 +34,9 @@ export function criteriaFieldsOf(criteria: Partial<SearchCriteria>): CriteriaFie
     minSalary: criteria.minSalary === undefined ? "" : String(criteria.minSalary),
     contractTypes: [...(criteria.contractTypes ?? [])],
     remoteWorkOptions: [...(criteria.remoteWorkOptions ?? [])],
+    sectors: [...(criteria.sectors ?? [])],
+    subsectors: [...(criteria.subsectors ?? [])],
+    domains: [...(criteria.domains ?? [])],
   };
 }
 
@@ -44,6 +53,9 @@ export function searchCriteriaInput(criteria: CriteriaFields): Record<string, un
     ...(salary ? { minSalary: /^\d+$/.test(salary) ? Number(salary) : salary } : {}),
     contractTypes: criteria.contractTypes,
     remoteWorkOptions: criteria.remoteWorkOptions,
+    sectors: criteria.sectors,
+    subsectors: criteria.subsectors,
+    domains: criteria.domains,
   };
 }
 
@@ -56,6 +68,9 @@ export function useSearchCriteriaLabels(): Record<string, string> {
     "searchCriteria.minSalary": t("cvReview.minSalary"),
     "searchCriteria.contractTypes": t("cvReview.contractType"),
     "searchCriteria.remoteWorkOptions": t("cvReview.remoteWork"),
+    "searchCriteria.sectors": t("cvReview.sectors"),
+    "searchCriteria.subsectors": t("cvReview.subsectors"),
+    "searchCriteria.domains": t("cvReview.domains"),
   };
 }
 
@@ -75,6 +90,8 @@ export function SearchCriteriaFields(props: { value: CriteriaFields; onChange: (
     contractTypes: errorFor(errors, "contractTypes"),
     remoteWorkOptions: errorFor(errors, "remoteWorkOptions"),
   };
+  const reference = useIndustryReference();
+  const industry = { sectors: value.sectors, subsectors: value.subsectors, domains: value.domains };
   return (
     <>
       <TextField
@@ -89,6 +106,9 @@ export function SearchCriteriaFields(props: { value: CriteriaFields; onChange: (
       <TextField label={t("cvReview.minSalary")} value={value.minSalary} onChange={(minSalary) => onChange({ minSalary })} error={error.minSalary} numeric />
       <ContractTypeChoices value={value.contractTypes} onChange={(contractTypes) => onChange({ contractTypes })} error={error.contractTypes} />
       <RemoteWorkChoices value={value.remoteWorkOptions} onChange={(remoteWorkOptions) => onChange({ remoteWorkOptions })} error={error.remoteWorkOptions} />
+      {INDUSTRY_FIELDS.map((field) => (
+        <IndustryInput key={field} field={field} value={industry} reference={reference} onChange={onChange} error={errorFor(errors, field)} />
+      ))}
     </>
   );
 }

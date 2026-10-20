@@ -14,6 +14,7 @@ import { getRequestLocale, getServerT } from "@/i18n/server";
 import type { JobSearch } from "@/job-searches";
 import { getJobSearches } from "@/job-searches/server";
 import { getProfiles } from "@/profiles/server";
+import { readIndustryReference } from "@/reference-data/server";
 import { routes } from "@/routes";
 
 /** The address's values: every active Profile at once, and their results in swimlanes (tabs by default). */
@@ -44,7 +45,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function JobSearchesPage({ searchParams }: { searchParams: Promise<{ profil?: string; vue?: string }> }) {
   const candidate = await getCurrentCandidate();
   if (!candidate) redirect(routes.signIn);
-  const [t, locale, profiles, params] = await Promise.all([getServerT(), getRequestLocale(), getProfiles().list(candidate.id), searchParams]);
+  const [t, locale, profiles, params, industries] = await Promise.all([getServerT(), getRequestLocale(), getProfiles().list(candidate.id), searchParams, readIndustryReference()]);
   const active = profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name }));
   const first = active[0];
   if (!first) {
@@ -91,7 +92,7 @@ export default async function JobSearchesPage({ searchParams }: { searchParams: 
             </dd>
             <dt>{t("jobSearch.criteria")}</dt>
             <dd>
-              <span>{searchCriteriaInWords(full.searchCriteria, t, locale)}</span>
+              <span>{searchCriteriaInWords(full.searchCriteria, t, locale, industries)}</span>
               <SearchCriteriaDialog profileId={chosen.id} profileName={chosen.name} searchCriteria={full.searchCriteria} />
             </dd>
           </dl>

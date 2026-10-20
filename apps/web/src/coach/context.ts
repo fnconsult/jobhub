@@ -19,7 +19,19 @@
  * elsewhere in the CV, so the context is not identity-bearing (ADR-0007, #121:
  * the AI layer's scan stays the safety net).
  */
-import { matchScoreReliability, withoutIdentity, yearsOfExperience, type ApplicationStatus, type CvContent, type JobOffer, type MatchScore, type SearchCriteria } from "@jobhub/shared";
+import {
+  industryLabels,
+  matchScoreReliability,
+  NO_INDUSTRY_REFERENCE,
+  withoutIdentity,
+  yearsOfExperience,
+  type ApplicationStatus,
+  type CvContent,
+  type IndustryReference,
+  type JobOffer,
+  type MatchScore,
+  type SearchCriteria,
+} from "@jobhub/shared";
 import type { Application, Applications } from "../applications";
 import type { JobDigest, JobDigests } from "../job-digests";
 import type { JobOffers } from "../job-offers";
@@ -51,6 +63,8 @@ export interface CoachSources {
   jobDigests: Pick<JobDigests, "get"> & { latest(candidateId: string, profileId: string): Promise<JobDigest | null> };
   /** Absent until the Coach Memory exists. */
   coachMemory?: CoachMemorySource;
+  /** The Sectors', Subsectors' and Domains' labels (#236); without them, or when they cannot be read, none is named. */
+  industries?: () => Promise<IndustryReference>;
 }
 
 /** What the AI Coach and the Playbook Agents are told of the text framed as data. */
@@ -81,16 +95,17 @@ interface Summary {
 }
 
 export async function coachContext(sources: CoachSources, candidateId: string, focus: CoachFocus | undefined, maxTokens: number): Promise<string> {
-  const profiles = await activeProfiles(sources, candidateId);
+  const [profiles, industries] = await Promise.all([activeProfiles(sources, candidateId), sources.industries?.().catch(() => NO_INDUSTRY_REFERENCE) ?? NO_INDUSTRY_REFERENCE]);
+  const criteriaText = criteriaTextOf(industries);
   const [inView, memory, applications, jobOffers] = await Promise.all([
-    inViewText(sources, candidateId, focus),
+    inViewText(sources, candidateId, focus, criteriaText),
     sources.coachMemory?.items(candidateId) ?? [],
     sources.applications.list(candidateId),
     topJobOffers(sources, candidateId, profiles),
   ]);
   const name = firstName(profiles.map((profile) => profile.masterCv.content.fullName).find((fullName) => fullName.trim()) ?? "");
 
-  const always = [candidateSummary(name, profiles), memorySection(memory)].filter(Boolean).join("\n\n");
+  const always = [candidateSummary(name, profiles, criteriaText), memorySection(memory)].filter(Boolean).join("\n\n");
   const inViewProfileId = focus?.kind === "profile" ? focus.id : null;
   // Trimmed from the last to the first: Job Offers go first, the onboarding answers last.
   const summaries: Summary[] = [
@@ -140,7 +155,7 @@ function firstName(fullName: string): string {
   return fullName.trim().split(/\s+/)[0] ?? "";
 }
 
-function candidateSummary(name: string, profiles: Profile[]): string {
+function candidateSummary(name: string, profiles: Profile[], criteriaText: (criteria: SearchCriteria) => string): string {
   const who = name ? `Le candidat s'appelle ${name} (prénom seulement).` : "Le candidat n'a pas donné son prénom.";
   if (profiles.length === 0) return `${who}\nIl n'a encore aucun profil actif.`;
   return [
@@ -171,17 +186,23 @@ const APPLICATION_STATUS: Record<ApplicationStatus, string> = {
 /** Several values of one criterion, any of which will do (ADR-0025): "CDI ou freelance". */
 const anyOf = (values: readonly string[]) => new Intl.ListFormat("fr", { type: "disjunction" }).format(values);
 
-function criteriaText(criteria: SearchCriteria): string {
-  return [
-    `poste visé ${criteria.targetRole}`,
-    criteria.locations.length > 0 ? `${criteria.locations.length > 1 ? "lieux" : "lieu"} ${anyOf(criteria.locations)}` : "",
-    criteria.minSalary !== undefined ? `salaire minimum ${criteria.minSalary} € brut annuel` : "",
-    criteria.contractTypes.length > 0 ? `contrat ${anyOf(criteria.contractTypes.map((type) => CONTRACT_TYPE[type] ?? type))}` : "",
-    criteria.remoteWorkOptions.length > 0 ? `travail ${anyOf(criteria.remoteWorkOptions.map((option) => REMOTE_WORK[option] ?? option))}` : "",
-  ]
-    .filter(Boolean)
-    .join(", ");
-}
+/** Search Criteria in words, the Sectors and Domains by their French labels in `industries`. */
+const criteriaTextOf =
+  (industries: IndustryReference) =>
+  (criteria: SearchCriteria): string => {
+    const { sectors, domains } = industryLabels(criteria, industries, "fr");
+    return [
+      `poste visé ${criteria.targetRole}`,
+      criteria.locations.length > 0 ? `${criteria.locations.length > 1 ? "lieux" : "lieu"} ${anyOf(criteria.locations)}` : "",
+      criteria.minSalary !== undefined ? `salaire minimum ${criteria.minSalary} € brut annuel` : "",
+      criteria.contractTypes.length > 0 ? `contrat ${anyOf(criteria.contractTypes.map((type) => CONTRACT_TYPE[type] ?? type))}` : "",
+      criteria.remoteWorkOptions.length > 0 ? `travail ${anyOf(criteria.remoteWorkOptions.map((option) => REMOTE_WORK[option] ?? option))}` : "",
+      sectors.length > 0 ? `secteur ${anyOf(sectors)}` : "",
+      domains.length > 0 ? `domaine ${anyOf(domains)}` : "",
+    ]
+      .filter(Boolean)
+      .join(", ");
+  };
 
 function seniorityText(cv: CvContent): string {
   const years = yearsOfExperience(cv);
@@ -267,7 +288,12 @@ function resultLine({ jobOffer, matchScore, applicationId }: { jobOffer: JobOffe
   return `${jobOfferHeadline(jobOffer)} : score ${scoreInWords(matchScore)}${applicationId ? " (candidature enregistrée)" : ""}`;
 }
 
-async function inViewText(sources: CoachSources, candidateId: string, focus: CoachFocus | undefined): Promise<string | null> {
+async function inViewText(
+  sources: CoachSources,
+  candidateId: string,
+  focus: CoachFocus | undefined,
+  criteriaText: (criteria: SearchCriteria) => string,
+): Promise<string | null> {
   switch (focus?.kind) {
     case "profile": {
       const profile = await sources.profiles.get(candidateId, focus.id);

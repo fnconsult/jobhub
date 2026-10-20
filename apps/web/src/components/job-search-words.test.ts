@@ -1,6 +1,6 @@
 import { createI18n } from "@jobhub/shared/i18n";
 import { describe, expect, it } from "vitest";
-import type { MatchScore } from "@jobhub/shared";
+import type { IndustryReference, MatchScore } from "@jobhub/shared";
 import { matchScoreFigure, matchScoreInWords, matchScoreReasons, matchScoreReliabilityHint, matchScoreWhyInWords, searchCriteriaInWords } from "./job-search-words";
 
 /** French groups thousands with a narrow no-break space. */
@@ -21,6 +21,25 @@ describe("the Search Criteria of a Job Search, in words", () => {
     expect(searchCriteriaInWords({ ...criteria, locations: ["Lyon", "Bordeaux", "Nantes"] }, createI18n("en").t, "en")).toBe(
       "Lyon, Bordeaux, or Nantes · Permanent (CDI) or Freelance · Remote work: Hybrid or Fully remote",
     );
+  });
+
+  it("names the Sectors and Domains wanted by their labels, in the page's language where the nomenclature has it (#236)", () => {
+    const industries: IndustryReference = {
+      sectors: [
+        { code: "C", label: { fr: "Industrie manufacturière", en: "Manufacturing" } },
+        { code: "K", label: { fr: "Activités financières et d'assurance", en: "Financial and insurance activities" } },
+      ],
+      subsectors: [{ code: "29", parent: "C", label: { fr: "Industrie automobile", en: "Manufacture of motor vehicles, trailers and semi-trailers" } }],
+      domains: [{ code: "M13", parent: "M", label: { fr: "Direction d'entreprise" } }],
+    };
+    const criteria = { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: ["C", "K"], subsectors: ["29"], domains: ["M13"] };
+
+    expect(searchCriteriaInWords(criteria, fr, "fr", industries)).toBe("Lyon · Secteur : Industrie automobile ou Activités financières et d'assurance · Domaine : Direction d'entreprise");
+    expect(searchCriteriaInWords(criteria, createI18n("en").t, "en", industries)).toBe(
+      "Lyon · Sector: Manufacture of motor vehicles, trailers and semi-trailers or Financial and insurance activities · Domain: Direction d'entreprise",
+    );
+    // Without their labels, nothing is said of them.
+    expect(searchCriteriaInWords(criteria, fr, "fr")).toBe("Lyon");
   });
 
   it("leaves out what the Candidate did not specify", () => {

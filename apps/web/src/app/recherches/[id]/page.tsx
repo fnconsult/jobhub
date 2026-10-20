@@ -9,6 +9,7 @@ import { SearchCriteriaDialog } from "@/components/SearchCriteriaDialog";
 import { searchCriteriaInWords } from "@/components/job-search-words";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getJobSearches, requireOwnJobSearch } from "@/job-searches/server";
+import { readIndustryReference } from "@/reference-data/server";
 import { routes } from "@/routes";
 
 type Params = { params: Promise<{ id: string }> };
@@ -34,7 +35,7 @@ const STATUS_TONE = { searching: undefined, done: "success", failed: "danger" } 
  */
 export default async function JobSearchPage({ params }: Params) {
   const { candidateId, jobSearch } = await requireOwnJobSearch((await params).id);
-  const [t, locale] = await Promise.all([getServerT(), getRequestLocale()]);
+  const [t, locale, industries] = await Promise.all([getServerT(), getRequestLocale(), readIndustryReference()]);
   const { profile, status, results } = jobSearch;
   // This page shows how the Job Search ended: no need to notify the Candidate of it any more.
   if (status !== "searching") await getJobSearches().dismissNotification(candidateId, jobSearch.id);
@@ -55,7 +56,7 @@ export default async function JobSearchPage({ params }: Params) {
           <dd>{startedAt}</dd>
           <dt>{t("jobSearch.criteria")}</dt>
           <dd>
-            <span>{searchCriteriaInWords(profile.searchCriteria, t, locale)}</span>
+            <span>{searchCriteriaInWords(profile.searchCriteria, t, locale, industries)}</span>
             <SearchCriteriaDialog profileId={profile.id} profileName={profile.name} searchCriteria={profile.searchCriteria} />
           </dd>
         </dl>

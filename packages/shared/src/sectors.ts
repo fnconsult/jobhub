@@ -107,24 +107,22 @@ export interface IndustryReference {
 
 export const NO_INDUSTRY_REFERENCE: IndustryReference = { sectors: [], subsectors: [], domains: [] };
 
+/** The labels of `codes` among `entries`, in `language` where the nomenclature has it (French otherwise); a code it does not name is left out. */
+export function referenceLabels(codes: readonly string[], entries: readonly ReferenceEntry[], language: "fr" | "en"): string[] {
+  const labels = new Map(entries.map((entry) => [entry.code, (language === "en" ? entry.label.en : undefined) ?? entry.label.fr]));
+  return codes.map((code) => labels.get(code)).filter((label): label is string => label !== undefined);
+}
+
 /**
  * The labels of the Sectors and Domains chosen, in `language` where the nomenclature has it (French
  * otherwise): each Sector by its most precise choice, the Subsectors chosen in it, or itself when
  * none is. A code the reference data does not name is left out.
  */
 export function industryLabels(chosen: IndustryChoices, reference: IndustryReference, language: "fr" | "en"): { sectors: string[]; domains: string[] } {
-  const labelled = (entries: ReferenceEntry[]) => {
-    const labels = new Map(entries.map((entry) => [entry.code, (language === "en" ? entry.label.en : undefined) ?? entry.label.fr]));
-    return (code: string) => labels.get(code);
-  };
-  const [sector, subsector, domain] = [labelled(reference.sectors), labelled(reference.subsectors), labelled(reference.domains)];
   const subsectors = new Set(chosen.subsectors);
   const sectors = chosen.sectors.flatMap((code) => {
     const own = subsectorsOf(code).filter((each) => subsectors.has(each));
-    return own.length > 0 ? own.map(subsector) : [sector(code)];
+    return own.length > 0 ? referenceLabels(own, reference.subsectors, language) : referenceLabels([code], reference.sectors, language);
   });
-  return {
-    sectors: sectors.filter((label): label is string => label !== undefined),
-    domains: chosen.domains.map(domain).filter((label): label is string => label !== undefined),
-  };
+  return { sectors, domains: referenceLabels(chosen.domains, reference.domains, language) };
 }

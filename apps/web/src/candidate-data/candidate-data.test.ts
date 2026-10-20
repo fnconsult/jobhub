@@ -495,14 +495,14 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
        VALUES ($1, 'standard', 'cus_secret_customer', 'sub_secret_subscription', 'active', true, '2026-11-30T00:00:00Z')`,
       [candidateId],
     );
-    await database.query(`INSERT INTO quota_usage (candidate_id, quota, month, used) VALUES ($1, 'matchScores', '2026-09', 4), ($1, 'atsScores', '2026-10', 2)`, [candidateId]);
+    await database.query(`INSERT INTO quota_usage (candidate_id, quota, week, used) VALUES ($1, 'matchScores', '2026-09', 4), ($1, 'atsScores', '2026-10-12', 2)`, [candidateId]);
 
     const exported = await candidateData.export(candidateId);
 
     expect(exported.plan).toEqual({ plan: "standard", subscriptionStatus: "active", endsAt: new Date("2026-11-30T00:00:00Z") });
     expect(exported.quotaUsage).toEqual([
-      { quota: "atsScores", month: "2026-10", used: 2 },
-      { quota: "matchScores", month: "2026-09", used: 4 },
+      { quota: "atsScores", week: "2026-10-12", used: 2 },
+      { quota: "matchScores", week: "2026-09", used: 4 },
     ]);
     expect(JSON.stringify(exported)).not.toMatch(/cus_secret_customer|sub_secret_subscription/);
   });

@@ -74,6 +74,8 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     jobOffers = createJobOffers(database);
     applications = createApplications(database, { jobOffers, profiles });
     billing = createBilling({ database, baseURL: "http://localhost:3000", now: () => clock.now });
+    // Three Job Searches a week on Free (it starts with one), so a test can search more than once.
+    await billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, jobSearches: 3 });
     sent = [];
     jobSearches = createJobSearches(database, {
       profiles,
@@ -218,7 +220,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     expect(await jobSearches.get(candidateId, "not-a-job-search")).toBeNull();
   });
 
-  it("lets a Free Candidate start 3 Job Searches a month, then shows what Plan lets them go on, without searching", async () => {
+  it("lets a Free Candidate start 3 Job Searches a week (as their Plan grants), then shows what Plan lets them go on, without searching", async () => {
     for (let i = 0; i < 3; i++) await started();
 
     expect(await jobSearches.start(candidateId, { profileId })).toEqual({
@@ -334,7 +336,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
   });
 
   describe("the Plan Quota of Job Searches", () => {
-    const used = async () => (await billing.entitlements(candidateId)).usedThisMonth.jobSearches;
+    const used = async () => (await billing.entitlements(candidateId)).usedThisWeek.jobSearches;
 
     it("a successful Job Search uses one", async () => {
       const jobOfferId = await capture("DAF H/F", { location: "Lyon" });

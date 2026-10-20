@@ -56,7 +56,7 @@ test.describe("Plans and Stripe billing", () => {
     // A Section of Mon compte (ADR-0024), at its own address.
     await expect(page.getByRole("heading", { level: 2, name: fr.billing.page.title })).toBeVisible();
     await expect(page.getByText("Votre offre actuelle : Gratuite")).toBeVisible();
-    await expect(page.getByRole("row", { name: /Match Scores/ })).toContainText("3 par mois");
+    await expect(page.getByRole("row", { name: /Match Scores/ })).toContainText("1 par semaine");
 
     expect(await formRedirect(page, "/api/billing/checkout", "Choisir l'offre Standard")).toMatch(/^https:\/\/checkout\.stripe\.test\//);
     const [checkout] = (await stripeCalls("/v1/checkout/sessions")).filter((call) => call.params.customer === fakeCustomerId(email));
@@ -146,14 +146,14 @@ test.describe("Plans and Stripe billing", () => {
     const header = await page.getByRole("table").getByRole("columnheader").allInnerTexts();
     expect(header.slice(1, 4)).toEqual(["Gratuite", "Standard", "Premium"]);
     expect(await planRow(page, "Profils")).toEqual(["1", "3", "Illimité"]);
-    expect(await planRow(page, "Match Scores")).toEqual(["3 par mois", "Illimité", "Illimité"]);
-    expect(await planRow(page, "ATS Scores")).toEqual(["1 par mois", "Illimité", "Illimité"]);
+    expect(await planRow(page, "Match Scores")).toEqual(["1 par semaine", "Illimité", "Illimité"]);
+    expect(await planRow(page, "ATS Scores")).toEqual(["1 par semaine", "Illimité", "Illimité"]);
     expect(await planRow(page, "Job Digest")).toEqual(["Non compris", "Chaque semaine", "Chaque jour"]);
-    expect(await planRow(page, "Contacts enrichis")).toEqual(["Non compris", "Non compris", "20 par mois"]);
+    expect(await planRow(page, "Contacts enrichis")).toEqual(["Non compris", "Non compris", "5 par semaine"]);
 
-    // This month's usage, counted against the Free Plan's limits.
+    // This week's usage, counted against the Free Plan's limits.
     const usage = page.locator("dl");
-    await expect(usage.locator("div").filter({ hasText: "Match Scores" }).locator("dd")).toHaveText("0 sur 3");
+    await expect(usage.locator("div").filter({ hasText: "Match Scores" }).locator("dd")).toHaveText("0 sur 1");
     await expect(usage.locator("div").filter({ hasText: "ATS Scores" }).locator("dd")).toHaveText("0 sur 1");
     await expect(usage).not.toContainText("Contacts enrichis");
     await expect(page.getByRole("button", { name: fr.billing.page.manage })).toHaveCount(0);
@@ -177,7 +177,7 @@ test.describe("Plans and Stripe billing", () => {
     const premium = { customer, price: FAKE_STRIPE_PRICES.premium };
     expect((await deliverWebhook(page, subscriptionEvent("customer.subscription.created", { ...premium, status: "active" }, at(0)))).status()).toBe(200);
     await currentPlanIs(page, "Premium");
-    await expect(page.locator("dl div").filter({ hasText: "Contacts enrichis" }).locator("dd")).toHaveText("0 sur 20");
+    await expect(page.locator("dl div").filter({ hasText: "Contacts enrichis" }).locator("dd")).toHaveText("0 sur 5");
     await expect(page.locator("dl div").filter({ hasText: "Match Scores" }).locator("dd")).toHaveText("0 (illimité)");
     await expect(page.getByRole("button", { name: /^Choisir l'offre/ })).toHaveCount(0);
 
@@ -369,7 +369,7 @@ test.describe("Plan Quotas on Match Scores", () => {
     return (await captured.json()).id;
   }
 
-  test("a Free Candidate gets 3 Match Scores a month, then a 402 with the Upgrade Prompt; Standard lifts the limit", async ({ page, baseURL }) => {
+  test("a Free Candidate gets 1 Match Score a week, then a 402 with the Upgrade Prompt; Standard lifts the limit", async ({ page, baseURL }) => {
     const email = newAddress("match-quota");
     await signInWithMagicLink(page, email);
     const jobOfferId = await captureOffer(page, baseURL!);
@@ -379,25 +379,25 @@ test.describe("Plan Quotas on Match Scores", () => {
     expect((await score({ jobOfferId: "00000000-0000-4000-8000-000000000000", cv })).status()).toBe(404);
     expect((await score({ jobOfferId })).status()).toBe(400);
 
-    for (let i = 0; i < 3; i++) expect((await score({ jobOfferId, cv })).status()).toBe(200);
+    expect((await score({ jobOfferId, cv })).status()).toBe(200);
     const refused = await score({ jobOfferId, cv });
     expect(refused.status()).toBe(402);
     expect(await refused.json()).toEqual({
       error: "quota_exceeded",
       quota: "matchScores",
       plan: "free",
-      limit: 3,
+      limit: 1,
       upgradeTo: "standard",
       prompt: {
         title: fr.billing.quotaReached.title,
-        message: "Vous avez utilisé les 3 Match Scores compris ce mois-ci dans l'offre Gratuite. Avec l'offre Standard, vous pouvez en faire davantage.",
+        message: "Vous avez utilisé le Match Score compris cette semaine dans l'offre Gratuite. Avec l'offre Standard, vous pouvez en faire davantage.",
         upgradeTo: "standard",
         action: "Découvrir l'offre Standard",
         href: "/abonnement",
       },
     });
     await page.goto("/abonnement");
-    await expect(page.locator("dl div").filter({ hasText: "Match Scores" }).locator("dd")).toHaveText("3 sur 3");
+    await expect(page.locator("dl div").filter({ hasText: "Match Scores" }).locator("dd")).toHaveText("1 sur 1");
 
     await subscribe(page, email, "standard");
     expect((await score({ jobOfferId, cv })).status()).toBe(200);
@@ -433,19 +433,54 @@ test.describe("back office", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.admin.planQuotas.title);
 
     const free = page.locator("form").filter({ has: page.getByRole("heading", { name: "Offre Gratuite" }) });
-    await free.getByLabel("Match Scores (par mois)").fill("5");
+    await free.getByLabel("Match Scores (par semaine)").fill("5");
     await free.getByRole("button", { name: "Enregistrer l'offre Gratuite" }).click();
     await expect(page.getByRole("status")).toHaveText("Quotas de l'offre Gratuite enregistrés.");
-    await expect(free.getByLabel("Match Scores (par mois)")).toHaveValue("5");
+    await expect(free.getByLabel("Match Scores (par semaine)")).toHaveValue("5");
 
     await page.goto("/abonnement");
-    await expect(page.getByRole("row", { name: /Match Scores/ })).toContainText("5 par mois");
+    await expect(page.getByRole("row", { name: /Match Scores/ })).toContainText("5 par semaine");
 
     // Put the starting quota back for the other tests.
     await page.goto("/admin/quotas");
-    await free.getByLabel("Match Scores (par mois)").fill("3");
+    await free.getByLabel("Match Scores (par semaine)").fill("1");
     await free.getByRole("button", { name: "Enregistrer l'offre Gratuite" }).click();
     await expect(page.getByRole("status")).toBeVisible();
+  });
+
+  test("lets an Administrator reset this week's usage of every Candidate, with a reason the Journal keeps (ADR-0031)", async ({ page, baseURL }) => {
+    // A Candidate uses their one Match Score of the week.
+    await signInWithMagicLink(page, newAddress("usage-reset"));
+    const tag = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const captured = await page.request.post("/api/job-offers", {
+      data: { source: { url: `https://www.apec.fr/offres/daf-${tag}` }, title: "DAF H/F", content: `DAF (réf. ${tag}).`, location: "Lyon" },
+      headers: { origin: baseURL! },
+    });
+    const cv = { fullName: "Marie Dupont", headline: "DAF", email: "", phone: "", location: "Lyon", summary: "", experience: [], education: [], skills: ["IFRS"], languages: [] };
+    const scored = await page.request.post("/api/match-score", { data: { jobOfferId: (await captured.json()).id, cv }, headers: { origin: baseURL! } });
+    expect(scored.status()).toBe(200);
+    await page.goto("/abonnement");
+    await expect(page.locator("dl div").filter({ hasText: "Match Scores" }).locator("dd")).toHaveText("1 sur 1");
+
+    const admin = await (await page.context().browser()!.newContext({ baseURL })).newPage();
+    await signInWithMagicLink(admin, ADMINISTRATOR);
+    await admin.goto("/admin/quotas");
+    const reset = admin.locator("form").filter({ has: admin.getByRole("heading", { name: fr.admin.planQuotas.reset.title }) });
+    // Neither a reason alone nor the confirmation alone resets anything: both are required.
+    await expect(reset.getByLabel(fr.admin.planQuotas.reset.reason)).toHaveAttribute("required", "");
+    await reset.getByLabel(fr.admin.planQuotas.reset.reason).fill("Recherches d'offres en panne mardi");
+    await reset.getByLabel(fr.admin.planQuotas.reset.confirm).check();
+    await reset.getByRole("button", { name: fr.admin.planQuotas.reset.submit }).click();
+    await expect(admin.getByRole("status")).toContainText("Usage de la semaine remis à zéro");
+
+    await page.goto("/abonnement");
+    await expect(page.locator("dl div").filter({ hasText: "Match Scores" }).locator("dd")).toHaveText("0 sur 1");
+
+    await admin.goto("/admin/journal");
+    const entry = admin.getByRole("row").filter({ hasText: fr.admin.journal.actions.reset }).first();
+    await expect(entry).toContainText(fr.admin.journal.sections.plan_quotas);
+    await expect(entry).toContainText("Recherches d'offres en panne mardi");
+    await admin.context().close();
   });
 
   test("is reached after signing in, and lists Plan Quotas and Human Coaches", async ({ page }) => {
@@ -465,14 +500,14 @@ test.describe("back office", () => {
     const plan = (name: string) => page.locator("form").filter({ has: page.getByRole("heading", { name: `Offre ${name}` }) });
     const values = async (name: string) => ({
       profiles: await plan(name).getByLabel("Profils").inputValue(),
-      matchScores: await plan(name).getByLabel("Match Scores (par mois)").inputValue(),
-      atsScores: await plan(name).getByLabel("ATS Scores (par mois)").inputValue(),
-      enrichedContacts: await plan(name).getByLabel("Contacts enrichis (par mois)").inputValue(),
+      matchScores: await plan(name).getByLabel("Match Scores (par semaine)").inputValue(),
+      atsScores: await plan(name).getByLabel("ATS Scores (par semaine)").inputValue(),
+      enrichedContacts: await plan(name).getByLabel("Contacts enrichis (par semaine)").inputValue(),
       jobDigest: await plan(name).getByLabel("Job Digest").inputValue(),
     });
-    expect(await values("Gratuite")).toEqual({ profiles: "1", matchScores: "3", atsScores: "1", enrichedContacts: "0", jobDigest: "none" });
+    expect(await values("Gratuite")).toEqual({ profiles: "1", matchScores: "1", atsScores: "1", enrichedContacts: "0", jobDigest: "none" });
     expect(await values("Standard")).toEqual({ profiles: "3", matchScores: "", atsScores: "", enrichedContacts: "0", jobDigest: "weekly" });
-    expect(await values("Premium")).toEqual({ profiles: "", matchScores: "", atsScores: "", enrichedContacts: "20", jobDigest: "daily" });
+    expect(await values("Premium")).toEqual({ profiles: "", matchScores: "", atsScores: "", enrichedContacts: "5", jobDigest: "daily" });
 
     await plan("Standard").getByLabel("Profils").fill("");
     await plan("Standard").getByLabel("Job Digest").selectOption("daily");

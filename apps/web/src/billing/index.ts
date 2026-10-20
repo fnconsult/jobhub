@@ -11,7 +11,7 @@
  *  - what do the Plans allow?     `planQuotas`, `setPlanQuotas` (back office), `upgradeFor`
  *  - what do the Plans cost?      `planPrices`
  * and `migrateBilling(database)` to create / upgrade its tables. Stripe, the
- * tables and month boundaries stay behind this seam.
+ * tables and week boundaries stay behind this seam.
  *
  * Plans live in the `plan` table (ADR-0014 addendum #206, ./plans.ts): each paid Plan is
  * tied to one Stripe product, and every price of that product is the Plan's.
@@ -20,12 +20,12 @@ import {
   FREE_PLAN,
   JOB_DIGEST_FREQUENCIES,
   LIMITED_QUOTAS,
-  MONTHLY_QUOTAS,
+  WEEKLY_QUOTAS,
   type LimitedQuota,
-  type MonthlyQuota,
   type Plan,
   type PlanFeature,
   type PlanQuotas,
+  type WeeklyQuota,
 } from "@jobhub/shared";
 import type { Locale } from "@jobhub/shared/i18n";
 import type { Pool } from "pg";
@@ -61,7 +61,7 @@ export interface BillingConfig {
   baseURL: string;
   /** Without Stripe, quotas still apply but nobody can change Plan. */
   stripe?: StripeConfig | undefined;
-  /** The current time. Tests move it; month boundaries are taken in Europe/Paris. */
+  /** The current time. Tests move it; week boundaries are taken in Europe/Paris. */
   now?: () => Date;
   /**
    * Told of each Coaching Session Stripe confirms as paid, from its signed webhook
@@ -132,12 +132,24 @@ export interface StripeConfig {
   apiUrl?: string | undefined;
 }
 
-/** The quotas Jobbbox's starting Plans start with; Administrators change them in the back office. */
+/** The quotas Jobbbox's starting Plans start with, per week (ADR-0031); Administrators change them in the back office. */
 export const STARTING_PLAN_QUOTAS: Record<"free" | "standard" | "premium", PlanQuotas> = {
-  free: { profiles: 1, matchScores: 3, atsScores: 1, enrichedContacts: 0, jobSearches: 3, jobDigest: "none" },
-  standard: { profiles: 3, matchScores: null, atsScores: null, enrichedContacts: 0, jobSearches: 30, jobDigest: "weekly" },
-  premium: { profiles: null, matchScores: null, atsScores: null, enrichedContacts: 20, jobSearches: null, jobDigest: "daily" },
+  free: { profiles: 1, matchScores: 1, atsScores: 1, enrichedContacts: 0, jobSearches: 1, jobDigest: "none" },
+  standard: { profiles: 3, matchScores: null, atsScores: null, enrichedContacts: 0, jobSearches: 7, jobDigest: "weekly" },
+  premium: { profiles: null, matchScores: null, atsScores: null, enrichedContacts: 5, jobSearches: null, jobDigest: "daily" },
 };
+
+/**
+ * The starting amounts while quotas were counted per calendar month, before ADR-0031. A
+ * database still counting by the month has each amount still at one of these divided by
+ * the weeks of a month, rounded up; an amount an Administrator changed stays as it is.
+ */
+const MONTHLY_STARTING_AMOUNTS: Record<"free" | "standard" | "premium", Partial<Record<WeeklyQuota, number>>> = {
+  free: { matchScores: 3, atsScores: 1, jobSearches: 3 },
+  standard: { jobSearches: 30 },
+  premium: { enrichedContacts: 20 },
+};
+const WEEKS_A_MONTH = 52 / 12;
 
 const COLUMNS = {
   profiles: "profiles",
@@ -171,11 +183,29 @@ export async function migrateBilling(database: Pool): Promise<void> {
     CREATE TABLE IF NOT EXISTS quota_usage (
       candidate_id text NOT NULL REFERENCES candidate(id) ON DELETE CASCADE,
       quota text NOT NULL,
-      month text NOT NULL,
+      week text NOT NULL,
       used integer NOT NULL,
-      PRIMARY KEY (candidate_id, quota, month)
+      PRIMARY KEY (candidate_id, quota, week)
     );
   `);
+  // Databases from before weekly quotas (ADR-0031): `month` becomes `week`. Its rows keep their month
+  // ("2026-10"), so they are history the week never counts, and the monthly starting amounts become weekly.
+  const { rows: monthColumn } = await database.query(
+    "SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'quota_usage' AND column_name = 'month'",
+  );
+  if (monthColumn.length > 0) {
+    await database.query("ALTER TABLE quota_usage RENAME COLUMN month TO week");
+    for (const [plan, amounts] of Object.entries(MONTHLY_STARTING_AMOUNTS)) {
+      for (const [quota, monthly] of Object.entries(amounts) as [WeeklyQuota, number][]) {
+        const column = COLUMNS[quota];
+        await database.query(`UPDATE plan_quota SET ${column} = $3, updated_at = now() WHERE plan = $1 AND ${column} = $2`, [
+          plan,
+          monthly,
+          Math.ceil(monthly / WEEKS_A_MONTH),
+        ]);
+      }
+    }
+  }
   // Databases from before `charged`: a subscription Stripe reports paid or since cancelled was charged (Plans have no trial).
   const { rows: chargedColumn } = await database.query(
     "SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'candidate_plan' AND column_name = 'charged'",
@@ -413,11 +443,12 @@ const STORED_STAGE_SQL = `CASE stripe_status ${Object.entries(STATUS_STAGES)
 /** How long after Stripe failed to give the Plan prices before asking it again. */
 const PLAN_PRICE_RETRY_AFTER_MS = 60_000;
 
-/** "2026-10": the calendar month in France, which monthly quotas count by. */
-function monthInFrance(date: Date): string {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit" }).formatToParts(date);
-  const part = (type: string) => parts.find((p) => p.type === type)?.value;
-  return `${part("year")}-${part("month")}`;
+/** "2026-10-12": the Monday the week in France starts on (at 00:00, Paris time), which weekly quotas count by. */
+export function weekInFrance(date: Date): string {
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+  const day = new Date(`${today}T00:00:00Z`);
+  day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7));
+  return day.toISOString().slice(0, 10);
 }
 
 export function createBilling(config: BillingConfig) {
@@ -785,22 +816,22 @@ export function createBilling(config: BillingConfig) {
 
   return {
     /**
-     * Records one use of a monthly quota (a Match Score, an ATS Score, an
-     * Enriched Contact) if the Candidate's Plan allows it this month. Call it
+     * Records one use of a weekly quota (a Match Score, an ATS Score, an
+     * Enriched Contact, a Job Search) if the Candidate's Plan allows it this week. Call it
      * before doing the work; nothing is recorded when refused. Safe under
      * concurrent requests.
      */
-    async use(candidateId: string, quota: MonthlyQuota): Promise<QuotaDecision> {
+    async use(candidateId: string, quota: WeeklyQuota): Promise<QuotaDecision> {
       const plan = await planOf(candidateId);
       const limit = (await quotasOf(plan))[quota];
-      const month = monthInFrance(now());
+      const week = weekInFrance(now());
       if (limit !== null && limit <= 0) return refusal(plan, quota, limit);
       const { rows } = await database.query(
-        `INSERT INTO quota_usage (candidate_id, quota, month, used) VALUES ($1, $2, $3, 1)
-         ON CONFLICT (candidate_id, quota, month) DO UPDATE SET used = quota_usage.used + 1
+        `INSERT INTO quota_usage (candidate_id, quota, week, used) VALUES ($1, $2, $3, 1)
+         ON CONFLICT (candidate_id, quota, week) DO UPDATE SET used = quota_usage.used + 1
          WHERE $4::integer IS NULL OR quota_usage.used < $4::integer
          RETURNING used`,
-        [candidateId, quota, month, limit],
+        [candidateId, quota, week, limit],
       );
       if (rows.length === 0) return refusal(plan, quota, limit!);
       return { allowed: true, remaining: limit === null ? null : limit - (rows[0].used as number) };
@@ -825,30 +856,44 @@ export function createBilling(config: BillingConfig) {
     },
 
     /**
-     * Whether `use` would allow one more of a monthly quota now. Records nothing:
+     * Whether `use` would allow one more of a weekly quota now. Records nothing:
      * for asking before work whose cost is only known once done (see `release`).
      */
-    async allows(candidateId: string, quota: MonthlyQuota): Promise<QuotaDecision> {
+    async allows(candidateId: string, quota: WeeklyQuota): Promise<QuotaDecision> {
       const plan = await planOf(candidateId);
       const limit = (await quotasOf(plan))[quota];
       if (limit === null) return { allowed: true, remaining: null };
-      const { rows } = await database.query("SELECT used FROM quota_usage WHERE candidate_id = $1 AND quota = $2 AND month = $3", [
+      const { rows } = await database.query("SELECT used FROM quota_usage WHERE candidate_id = $1 AND quota = $2 AND week = $3", [
         candidateId,
         quota,
-        monthInFrance(now()),
+        weekInFrance(now()),
       ]);
       const used = (rows[0]?.used as number | undefined) ?? 0;
       if (used >= limit) return refusal(plan, quota, limit);
       return { allowed: true, remaining: limit - used - 1 };
     },
 
-    /** Gives back one use recorded this month by `use` whose work could not be done. Never below zero. */
-    async release(candidateId: string, quota: MonthlyQuota): Promise<void> {
-      await database.query("UPDATE quota_usage SET used = used - 1 WHERE candidate_id = $1 AND quota = $2 AND month = $3 AND used > 0", [
+    /** Gives back one use recorded this week by `use` whose work could not be done. Never below zero. */
+    async release(candidateId: string, quota: WeeklyQuota): Promise<void> {
+      await database.query("UPDATE quota_usage SET used = used - 1 WHERE candidate_id = $1 AND quota = $2 AND week = $3 AND used > 0", [
         candidateId,
         quota,
-        monthInFrance(now()),
+        weekInFrance(now()),
       ]);
+    },
+
+    /**
+     * Back Office: forgets this week's uses of every Candidate, so each starts the week
+     * again from nothing. Earlier weeks stay as history. Says which week, and how many Candidates had any.
+     */
+    async resetWeeklyUsage(within: Queryable = database): Promise<{ week: string; candidates: number }> {
+      const week = weekInFrance(now());
+      const { rows } = await within.query<{ candidates: number }>(
+        `WITH reset AS (DELETE FROM quota_usage WHERE week = $1 RETURNING candidate_id)
+         SELECT count(DISTINCT candidate_id)::integer AS candidates FROM reset`,
+        [week],
+      );
+      return { week, candidates: rows[0]?.candidates ?? 0 };
     },
 
     /**
@@ -1305,14 +1350,14 @@ export function createBilling(config: BillingConfig) {
       // Past due on Free (no card to retry, see applySubscription): no paid Plan is kept, so no Payment Failed Notice.
       const stripeStatus = plan === FREE_PLAN && reported === "past_due" ? null : reported;
       const endsAt = plan === FREE_PLAN ? null : (account?.ends_at ?? null);
-      const { rows } = await database.query("SELECT quota, used FROM quota_usage WHERE candidate_id = $1 AND month = $2", [
+      const { rows } = await database.query("SELECT quota, used FROM quota_usage WHERE candidate_id = $1 AND week = $2", [
         candidateId,
-        monthInFrance(now()),
+        weekInFrance(now()),
       ]);
-      const usedThisMonth = Object.fromEntries(
-        MONTHLY_QUOTAS.map((quota) => [quota, (rows.find((row) => row.quota === quota)?.used as number | undefined) ?? 0]),
-      ) as Record<MonthlyQuota, number>;
-      return { plan, stripeStatus, endsAt, quotas: await quotasOf(plan), usedThisMonth };
+      const usedThisWeek = Object.fromEntries(
+        WEEKLY_QUOTAS.map((quota) => [quota, (rows.find((row) => row.quota === quota)?.used as number | undefined) ?? 0]),
+      ) as Record<WeeklyQuota, number>;
+      return { plan, stripeStatus, endsAt, quotas: await quotasOf(plan), usedThisWeek };
     },
   };
 }

@@ -43,13 +43,16 @@ export type PlanStatus = (typeof PLAN_STATUSES)[number];
 export const PLAN_FEATURES = ["coachingSessionDiscount"] as const;
 export type PlanFeature = (typeof PLAN_FEATURES)[number];
 
-/** Plan Quotas that cap a number of things: Profiles held at once, or uses per calendar month. */
+/** Plan Quotas that cap a number of things: Profiles held at once, or uses per week. */
 export const LIMITED_QUOTAS = ["profiles", "matchScores", "atsScores", "enrichedContacts", "jobSearches"] as const;
 export type LimitedQuota = (typeof LIMITED_QUOTAS)[number];
 
-/** Limited Plan Quotas counted per calendar month (Europe/Paris); the others count what the Candidate holds. */
-export const MONTHLY_QUOTAS = ["matchScores", "atsScores", "enrichedContacts", "jobSearches"] as const satisfies readonly LimitedQuota[];
-export type MonthlyQuota = (typeof MONTHLY_QUOTAS)[number];
+/**
+ * Limited Plan Quotas counted per week, from Monday 00:00 in Europe/Paris (ADR-0031);
+ * the others count what the Candidate holds.
+ */
+export const WEEKLY_QUOTAS = ["matchScores", "atsScores", "enrichedContacts", "jobSearches"] as const satisfies readonly LimitedQuota[];
+export type WeeklyQuota = (typeof WEEKLY_QUOTAS)[number];
 
 /** How often a Candidate receives a Job Digest. */
 export const JOB_DIGEST_FREQUENCIES = ["none", "weekly", "daily"] as const;

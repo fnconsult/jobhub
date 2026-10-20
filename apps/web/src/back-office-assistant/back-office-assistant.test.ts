@@ -253,7 +253,7 @@ describe("Back Office Assistant", () => {
     await assistant.reply(administrator, asked("Combien de Match Scores en Premium ?"));
 
     expect(data.reads.sort()).toEqual(["aiUsage", "coachCost", "coupons", "humanCoaches", "planQuotas", "plans"]);
-    expect(prompt()).toContain("Match Scores par mois 4321");
+    expect(prompt()).toContain("Match Scores par semaine 4321");
   });
 
   it("knows the AI consumption of the last 30 days, in aggregates, for the roles that read it (#218)", async () => {

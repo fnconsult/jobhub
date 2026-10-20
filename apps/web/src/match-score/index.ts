@@ -40,7 +40,7 @@ export type MatchScoreResult =
   | { ok: false; error: "unauthorized" }
   /** No such Job Offer, or no such Profile for this Candidate. */
   | { ok: false; error: "not_found" }
-  /** The Candidate's Plan Quota allows no more Match Scores this month. */
+  /** The Candidate's Plan Quota allows no more Match Scores this week. */
   | { ok: false; error: "quota_exceeded"; refusal: QuotaRefusal };
 
 /**

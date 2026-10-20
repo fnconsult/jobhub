@@ -111,7 +111,7 @@ describe.skipIf(!connectionString)("Plans defined by Administrators (needs Postg
       await t.migrateAgain();
 
       // Standard is back at its starting value; Essentiel, just above it, takes Standard's: never NULL (unlimited) by accident.
-      expect(await t.billing.planQuotas()).toMatchObject({ standard: { jobSearches: 30 }, essentiel: { jobSearches: 30 }, premium: { jobSearches: null } });
+      expect(await t.billing.planQuotas()).toMatchObject({ standard: { jobSearches: 7 }, essentiel: { jobSearches: 7 }, premium: { jobSearches: null } });
     });
 
     it("keep selling and following the Plans with a product when an env price cannot give its own", async () => {

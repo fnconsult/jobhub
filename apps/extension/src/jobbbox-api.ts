@@ -31,7 +31,7 @@ export interface JobbboxApi {
    * Search Criteria), or against a CV and the Search Criteria read from it.
    * "job_offer_gone" (a CV): the Job Offer has been forgotten since. "not_found" (a Profile): the Job Offer
    * or the Profile is gone. "signed_out" (a Profile): nobody is signed in any more.
-   * "quota_exceeded": the signed-in Candidate's Plan allows no more Match Scores this month.
+   * "quota_exceeded": the signed-in Candidate's Plan allows no more Match Scores this week.
    */
   score(
     jobOfferId: string,

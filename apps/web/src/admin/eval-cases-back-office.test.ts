@@ -37,7 +37,7 @@ describe.skipIf(!connectionString)("Eval Cases' Back Office writes and their Bac
       throw new Error("not used here");
     };
     backOffice = createBackOffice(database, {
-      billing: { setPlanQuotas: unused, createPlan: unused, updatePlan: unused, movePlan: unused, checkStripeProduct: unused, plans: unused, createCoupon: unused, deactivateCoupon: unused, reactivateCoupon: unused },
+      billing: { setPlanQuotas: unused, resetWeeklyUsage: unused, createPlan: unused, updatePlan: unused, movePlan: unused, checkStripeProduct: unused, plans: unused, createCoupon: unused, deactivateCoupon: unused, reactivateCoupon: unused },
       humanCoaches: { add: unused, retire: unused },
     });
     const ai = createAiLayer({ providers: [createFakeProvider({ id: "mistral" })], routes: { coaching: "mistral" }, usage: createMemoryUsageLog() });

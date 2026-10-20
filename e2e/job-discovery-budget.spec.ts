@@ -299,7 +299,7 @@ test.describe("Job discovery budget (#113)", () => {
     await page.goto(`/recherches/${jobSearchId}`);
     await expect(failure).toBeVisible();
     await page.goto("/abonnement");
-    await expect(page.locator("dl > div").filter({ has: page.getByText("Recherches d'offres", { exact: true }) }).locator("dd")).toHaveText("0 sur 3");
+    await expect(page.locator("dl > div").filter({ has: page.getByText("Recherches d'offres", { exact: true }) }).locator("dd")).toHaveText("0 sur 1");
     await page.close();
   });
 });

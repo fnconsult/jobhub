@@ -119,10 +119,11 @@ export function referenceLabels(codes: readonly string[], entries: readonly Refe
  * none is. A code the reference data does not name is left out.
  */
 export function industryLabels(chosen: IndustryChoices, reference: IndustryReference, language: "fr" | "en"): { sectors: string[]; domains: string[] } {
-  const subsectors = new Set(chosen.subsectors);
-  const sectors = chosen.sectors.flatMap((code) => {
+  // Search Criteria saved or sent before #236 have no sectors, subsectors or domains: none chosen.
+  const subsectors = new Set(chosen.subsectors ?? []);
+  const sectors = (chosen.sectors ?? []).flatMap((code) => {
     const own = subsectorsOf(code).filter((each) => subsectors.has(each));
     return own.length > 0 ? referenceLabels(own, reference.subsectors, language) : referenceLabels([code], reference.sectors, language);
   });
-  return { sectors, domains: referenceLabels(chosen.domains, reference.domains, language) };
+  return { sectors, domains: referenceLabels(chosen.domains ?? [], reference.domains, language) };
 }

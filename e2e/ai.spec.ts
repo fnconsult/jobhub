@@ -356,9 +356,11 @@ test.describe("AI layer: Failure Reasons (#259)", () => {
   });
 
   test("a route naming a provider whose key was never entered is logged as failed, key_missing, not sent, at no cost; the caller still gets the AiConfigError", () => {
-    const r = runAi({ MISTRAL_API_KEY: "test-mistral-key", AI_WRITING_PROVIDER: "mistral" }, [
+    const r = runAi({ ...KEYS, OPENAI_API_KEY: "", AI_WRITING_PROVIDER: "mistral" }, [
+      // OpenAI serves no task here, so its key is not needed at start-up.
       { kind: "generate", task: "writing", candidateId: "cand-1", prompt: "Une lettre", route: { provider: "openai", model: "gpt-5" } },
     ]);
+    expect(r.startup).toEqual({ ok: true });
     expect(r.outcomes[0]).toMatchObject({ ok: false, error: { name: "AiConfigError" } });
     expect(r.requests).toEqual([]);
     expect(r.usage).toEqual([expect.objectContaining({ task: "writing", provider: "openai", outcome: "failed", reason: "key_missing", sent: false, costEur: 0, inputTokens: 0, outputTokens: 0 })]);

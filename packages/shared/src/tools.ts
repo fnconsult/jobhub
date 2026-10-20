@@ -262,7 +262,7 @@ export const TOOLS = [
       en: "APEC's offer pages, read when Job discovery finds one.",
     },
     category: "job_discovery",
-    module: "apps/worker/src/job-discovery/polite-fetch.ts",
+    module: "packages/shared/src/page-reading/polite-fetch.ts",
     runsIn: "worker",
     keys: [],
     usage: { table: "external_api_usage", provider: "apec" },

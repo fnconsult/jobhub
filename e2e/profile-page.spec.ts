@@ -216,6 +216,17 @@ test.describe("the Profile page as a document", () => {
     await expect(places(page)).toHaveText(["Lyon", "Pays de la Loire", "Genève", "Remote"]);
   });
 
+  test("suggestions start at three characters: two list nothing, three list the matching places (#235)", async ({ page }) => {
+    const id = await candidateWithProfile(page, "profile-three-chars");
+    await page.goto(`/profils/${id}`);
+    await placeInput(criteria(page)).fill("lo");
+    await expect(placeInput(criteria(page))).toHaveAttribute("aria-expanded", "false");
+    await expect(placeOptions(page)).toHaveCount(0);
+    await placeInput(criteria(page)).fill("loi");
+    await expect(placeOptions(page).first()).toBeVisible();
+    await expect(placeInput(criteria(page))).toHaveAttribute("aria-expanded", "true");
+  });
+
   test("the last place cannot be removed: Locations is required", async ({ page }) => {
     const id = await candidateWithProfile(page, "profile-last-place", ["Lyon", "Paris"]);
     await page.goto(`/profils/${id}`);

@@ -1427,6 +1427,29 @@ describe("Job discovery", () => {
       expect(search.queries).toEqual([]);
     });
 
+    it("is called once a run, at its first location, however many locations the Search Criteria name (trial quota)", async () => {
+      const places = ["Lyon", "Bordeaux", "Nantes", "Lille", "Paris"];
+      const fj = fakeFantasticJobs({ ok: true, calls: 1, costEur: 0.008, offers: [fjOffer("1", daysAgo(3))] });
+      const { discovery, search } = setup({ sources: [], pages: {}, now: NOW, fantasticJobs: fj.fantasticJobs });
+
+      const report = await discovery.discover({ candidateId: "c", criteria: { ...criteria, locations: places } });
+
+      expect(fj.searches.map(({ location }) => location)).toEqual(["Lyon"]);
+      expect(report.fantasticJobs).toEqual({ status: "searched", calls: 1, offers: 1, costEur: 0.008 });
+      // The web is still searched near every location.
+      for (const place of places) expect(search.queries.some((query) => query.includes(place))).toBe(true);
+    });
+
+    it("is not called again at the next location once its one search of the run was refused", async () => {
+      const fj = fakeFantasticJobs({ ok: false, reason: "refused", detail: "quota spent", calls: 0 });
+      const { discovery } = setup({ sources: [], pages: {}, now: NOW, fantasticJobs: fj.fantasticJobs });
+
+      const report = await discovery.discover({ candidateId: "c", criteria: { ...criteria, locations: ["Lyon", "Bordeaux"] } });
+
+      expect(fj.searches).toHaveLength(1);
+      expect(report.fantasticJobs).toEqual({ status: "refused", calls: 0, offers: 0, costEur: 0 });
+    });
+
     it.each(["refused", "failed"] as const)("goes on with the other sources when Fantastic.jobs is %s, and says so", async (reason) => {
       const fj = fakeFantasticJobs({ ok: false, reason, detail: "active-ats refused (401)", calls: 1 });
       const { discovery } = setup({

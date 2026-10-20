@@ -17,8 +17,8 @@ export const MAX_LIMIT = 1000;
 const isoSeconds = (date: Date) => date.toISOString().replace(/\.\d{3}Z$/, "Z");
 
 /**
- * The search for `criteria` near `location`, one of its locations (Job discovery searches each in turn,
- * ADR-0025; France when none): its title as a text search, posted in the last MAX_POSTING_AGE_DAYS days,
+ * The search for `criteria` near `location`, one of its locations (Job discovery searches it once a run, at its first,
+ * ADR-0027; France when none): its title as a text search, posted in the last MAX_POSTING_AGE_DAYS days,
  * with its description as text, the first `max` jobs (at most MAX_LIMIT). `time_frame` is when Fantastic.jobs
  * indexed a job, its widest window, so that the Posting date alone decides. Contract types and remote work
  * are left to the Match Score: Fantastic.jobs' employment types say nothing of a CDI.

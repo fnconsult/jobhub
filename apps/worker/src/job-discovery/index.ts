@@ -493,10 +493,16 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
 
       try {
         const { locations } = criteria;
+        // Fantastic.jobs is searched once a run, at the first location the budget leaves room for: every call
+        // spends one of its plan's API requests (a hard limit) and its jobs Jobs credits (ADR-0027).
+        let fantasticJobsSearched = false;
         for (const [index, location] of locations.entries()) {
           share = (index + 1) / locations.length;
           if (franceTravail && !budgetSpent()) await searchJobApi(franceTravail, report.franceTravail, location);
-          if (fantasticJobs && !budgetSpent()) await searchJobApi(fantasticJobs, report.fantasticJobs, location);
+          if (fantasticJobs && !fantasticJobsSearched && !budgetSpent()) {
+            fantasticJobsSearched = true;
+            await searchJobApi(fantasticJobs, report.fantasticJobs, location);
+          }
           if (budgetSpent() || !settings.sources.web_search) continue;
           await searchTheWeb(location);
         }

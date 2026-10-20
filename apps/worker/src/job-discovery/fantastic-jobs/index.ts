@@ -14,7 +14,7 @@
  * A search asks for no more than `maxPerSearch` jobs (FANTASTIC_JOBS_MAX_PER_SEARCH,
  * default 10), whatever the Job discovery budget has left, so that a plan's Jobs
  * credits last (the trial's 500: ~50 searches rather than ~16), nor more than the
- * credits left.
+ * credits left. Job discovery makes one search a run, at its first location (ADR-0027).
  *
  * Quota guard (ADR-0027): the client keeps the last quotas an answer stated (`x-api-jobs-remaining`,
  * `x-api-requests-remaining`). Once either is spent, or Fantastic.jobs answered 402

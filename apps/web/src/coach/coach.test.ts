@@ -764,6 +764,34 @@ describe("the context's cap: about 12k tokens", () => {
     expect(system).not.toContain("Fin de l'offre.");
   });
 
+  it("holds with many Agenda Items: the Agenda In view is cut after its first items, the Candidate summary kept", async () => {
+    const many = Array.from({ length: 600 }, (_, n) =>
+      interviewItem(new Date(NOW.getTime() + (n + 1) * 60 * 60 * 1000).toISOString(), { jobTitle: `Poste ${n}`, note: text(40, `note${n}`) }),
+    );
+    const { coach, provider } = coachWith({ workspace: { agenda: many } });
+
+    await ask(coach, { kind: "agenda", id: "agenda" });
+
+    const system = contextOf(provider);
+    expect(estimateTokens(system)).toBeLessThanOrEqual(COACH_CONTEXT_MAX_TOKENS);
+    expect(system).toContain("entretien pour Poste 0 chez Acme Industrie");
+    expect(system).not.toContain("Poste 599 ");
+    expect(system).toMatch(/19 ans d'expérience/);
+  });
+
+  it("trims the next Agenda Items before the item In view", async () => {
+    const posting = { ...jobOffer, content: text(11_000, "mission") };
+    const agenda = [1, 2, 3].map((n) => interviewItem(`2026-10-2${n}T08:00:00.000Z`, { jobTitle: `Poste ${n}`, note: text(300, `note${n}`) }));
+    const { coach, provider } = coachWith({ workspace: { jobOffers: [posting], agenda } });
+
+    await ask(coach, { kind: "job_offer", id: posting.id });
+
+    const system = contextOf(provider);
+    expect(estimateTokens(system)).toBeLessThanOrEqual(COACH_CONTEXT_MAX_TOKENS);
+    expect(system).toContain(posting.content);
+    expect(system).not.toContain("Poste 3 ");
+  });
+
   it("cuts the item In view when it alone is over the cap, still telling the Candidate summary", async () => {
     const posting = { ...jobOffer, content: `Début de l'offre. ${text(20_000, "mission")}Fin de l'offre.` };
     const { coach, provider } = coachWith({ workspace: { jobOffers: [posting], memory: ["Vise une PME familiale"] } });

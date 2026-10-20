@@ -351,6 +351,19 @@ const runFrom = (row: RunRow): EvalRun => ({
   results: row.results,
 });
 
+/** The latest Eval Run that played `version` as it now is (its rules and its Playbook Agent); null when none. */
+async function latestRunOn(version: PlaybookVersion, within: Queryable): Promise<EvalRun | null> {
+  if (!version.agent) return null;
+  const { rows } = await within.query<RunRow>(
+    `SELECT ${RUN_COLUMNS} FROM eval_run WHERE kind = 'coaching_playbook' AND playbook_id = $1 AND version = $2 AND played = $3 ORDER BY started_at DESC LIMIT 1`,
+    [version.playbookId, version.version, playedFingerprint(version.content, version.agent)],
+  );
+  return rows[0] ? runFrom(rows[0]) : null;
+}
+
+/** Whether an Eval Run played `version` as it now is: what Human validation of a Coaching Playbook's version needs (CoachingPlaybooksDeps.evalRunOn). */
+export const hasEvalRunOn = async (version: PlaybookVersion, within: Queryable): Promise<boolean> => (await latestRunOn(version, within)) !== null;
+
 export function createEvals(database: Pool, deps: EvalsDeps): Evals {
   const now = deps.now ?? (() => new Date());
   const clock = deps.clock ?? (() => performance.now());
@@ -582,13 +595,6 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
       return rows[0] ? runFrom(rows[0]) : null;
     },
 
-    async playedOn(version, within = database) {
-      if (!version.agent) return null;
-      const { rows } = await within.query<RunRow>(
-        `SELECT ${RUN_COLUMNS} FROM eval_run WHERE kind = 'coaching_playbook' AND playbook_id = $1 AND version = $2 AND played = $3 ORDER BY started_at DESC LIMIT 1`,
-        [version.playbookId, version.version, playedFingerprint(version.content, version.agent)],
-      );
-      return rows[0] ? runFrom(rows[0]) : null;
-    },
+    playedOn: (version, within = database) => latestRunOn(version, within),
   };
 }

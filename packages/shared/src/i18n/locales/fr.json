@@ -1405,7 +1405,8 @@
         "archived": "Playbook archivé : il n'est plus servi.",
         "restored": "Playbook rétabli.",
         "not_archivable": "Le socle et la liste des sources ne peuvent pas être archivés.",
-        "nameRequired": "Indiquez votre nom pour valider."
+        "nameRequired": "Indiquez votre nom pour valider.",
+        "no_eval_run": "Lancez d'abord une évaluation sur la version {{version}} telle qu'elle est : elle n'est validée qu'après une évaluation, quel que soit son score."
       },
       "journalFields": {
         "version": "Version",

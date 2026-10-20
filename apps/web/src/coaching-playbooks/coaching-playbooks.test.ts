@@ -40,7 +40,8 @@ const paul = { email: "paul@jobbbox.fr", name: "Paul Martin" };
 describe.skipIf(!connectionString)("Coaching Playbooks, versioned in the database (needs Postgres: DATABASE_URL)", () => {
   let throwaway: ThrowawayDatabase;
   let database: Pool;
-  const playbooksFor = (serving: PlaybookServing) => createCoachingPlaybooks(database, { serving, agentModels: () => MODELS });
+  /** Every version has had its Eval Run here: what validation needs of it is tested in evals/. */
+  const playbooksFor = (serving: PlaybookServing) => createCoachingPlaybooks(database, { serving, agentModels: () => MODELS, evalRunOn: async () => true });
   let playbooks: CoachingPlaybooks;
 
   beforeEach(async () => {

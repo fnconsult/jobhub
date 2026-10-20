@@ -1405,7 +1405,8 @@
         "archived": "Playbook archived: it is no longer served.",
         "restored": "Playbook restored.",
         "not_archivable": "The Core Digest and the Sources list cannot be archived.",
-        "nameRequired": "Give your name to validate."
+        "nameRequired": "Give your name to validate.",
+        "no_eval_run": "Start an Eval Run on version {{version}} as it now is first: it can be validated only after one, whatever its score."
       },
       "journalFields": {
         "version": "Version",

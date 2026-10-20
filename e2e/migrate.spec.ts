@@ -63,6 +63,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("AI Usage is up to date");
     expect(first.stdout).toContain("Coaching Playbooks, the Core Digest and the Sources list are up to date");
     expect(first.stdout).toContain("Guardrails are up to date");
+    expect(first.stdout).toContain("Eval Cases and Eval Runs are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 
@@ -97,6 +98,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "company_dossier", // issue #17
         "enriched_contact", // issue #23: Enriched Contacts, with their source provider and retrieval date
         "eu_ai_consent", // issue #121: the Candidate's dated EU AI consent
+        "eval_case", // issue #231: a Coaching Playbook's Eval Cases, fictional, in each environment
+        "eval_run", // issue #231: each Eval Run, with the text of the cases it played
         "extension_job_site", // issue #188: the extension's Job Sites, set in the Back Office
         "external_api_usage", // issue #218: every call to France Travail and contact enrichment, no payload
         "follow_up_delay", // issue #21: each Candidate's Follow-up Delays

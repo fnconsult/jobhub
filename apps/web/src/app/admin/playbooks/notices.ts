@@ -17,6 +17,7 @@ export const NOTICES = {
   not_found: true,
   not_archivable: true,
   nameRequired: true,
+  no_eval_run: true,
 } as const;
 export type Notice = keyof typeof NOTICES;
 

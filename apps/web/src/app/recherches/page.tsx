@@ -8,6 +8,7 @@ import { Icons } from "@/components/icons";
 import { JobOfferResults } from "@/components/JobOfferResults";
 import { RefreshWhileSearching, StartAllJobSearchesButton, StartJobSearchButton } from "@/components/JobSearchControls";
 import { JobSearchTabs } from "@/components/JobSearchTabs";
+import { SearchCriteriaDialog } from "@/components/SearchCriteriaDialog";
 import { searchCriteriaInWords } from "@/components/job-search-words";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import type { JobSearch } from "@/job-searches";
@@ -34,8 +35,8 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * Recherches d'offres (ADR-0024, ADR-0025): Job Searches for one active Profile
  * (`?profil=<id>`, by default the first) or for all of them at once (`?profil=tous`),
- * the choice kept in the address. For one Profile: its Search Criteria in words (a link
- * away from changing them), the "Chercher des offres" button, a Job Search still searching
+ * the choice kept in the address. For one Profile: its Search Criteria in words (a button
+ * opening them in a dialog, #237), the "Chercher des offres" button, a Job Search still searching
  * (the page refreshes itself until it ends) and the results of its latest done Job Search.
  * For all: one button starting one Job Search per active Profile, and each Profile's latest
  * results, in tabs or, with `?vue=couloirs`, in swimlanes scrolled sideways.
@@ -91,9 +92,7 @@ export default async function JobSearchesPage({ searchParams }: { searchParams: 
             <dt>{t("jobSearch.criteria")}</dt>
             <dd>
               <span>{searchCriteriaInWords(full.searchCriteria, t, locale)}</span>
-              <Link className="props-action" href={routes.profileSearchCriteria(chosen.id)}>
-                {t("jobSearch.editCriteria")}
-              </Link>
+              <SearchCriteriaDialog profileId={chosen.id} profileName={chosen.name} searchCriteria={full.searchCriteria} />
             </dd>
           </dl>
           {searching ? null : (

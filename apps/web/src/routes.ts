@@ -27,8 +27,6 @@ export const routes = {
   jobSearches: (profileId?: string) => (profileId ? `/recherches?profil=${encodeURIComponent(profileId)}` : "/recherches"),
   /** The Recherches d'offres page for all active Profiles at once, their results in tabs or, with `lanes`, in swimlanes. */
   allJobSearches: (lanes = false) => `/recherches?profil=tous${lanes ? "&vue=couloirs" : ""}`,
-  /** The Search Criteria of a Profile's page. */
-  profileSearchCriteria: (id: string) => `/profils/${id}#search-criteria-title`,
   /** The Job Digests page (ADR-0024). */
   jobDigests: "/job-digests",
   /** A Section of a Profile's page (ADR-0024); `profile` itself shows the first one there is. */

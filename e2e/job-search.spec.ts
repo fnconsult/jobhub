@@ -98,6 +98,29 @@ async function searchFromProfile(page: Page, profileId: string): Promise<string>
 /** The worker's "failed" report lines for this Profile's Job discovery runs. */
 const failedRuns = (profileId: string) => workerOutput.split("\n").filter((line) => line.startsWith(`[job-discovery] profile ${profileId}: failed`)).length;
 
+/**
+ * "Modifier les critères" (#237): the button opens a dialog named after the Profile with only its Search Criteria,
+ * each saved on change. The minimum salary is set to 90 000 €, the dialog closed with its Close button, the focus
+ * back on the button, and the page's criteria line says the change.
+ */
+async function changeMinSalaryInDialog(page: Page, criteriaLine: Locator, profileName: string) {
+  const button = page.getByRole("main").getByRole("button", { name: "Modifier les critères" });
+  await button.click();
+  const dialog = page.getByRole("dialog", { name: `Critères de recherche · ${profileName}` });
+  await expect(dialog).toBeVisible();
+  // Only the Search Criteria, labels beside their values as on the Profile page.
+  await expect(dialog.getByRole("term")).toHaveText(["Poste recherché", "Lieux", "Salaire annuel brut minimum (en euros)", "Type de contrat", "Télétravail"]);
+  await expect(dialog.getByLabel("Poste recherché")).toHaveValue(searchCriteria.targetRole);
+  const salary = dialog.getByLabel("Salaire annuel brut minimum (en euros)");
+  await salary.fill("90000");
+  await salary.press("Tab");
+  await expect(dialog.getByRole("status").filter({ hasText: "Critères enregistrés" })).toHaveCount(1);
+  await dialog.getByRole("button", { name: "Fermer", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(button).toBeFocused();
+  await expect(criteriaLine).toContainText(/^Lyon · CDI · 90\s000 € brut par an minimum/);
+}
+
 /** The Job Offers listed on a Job Search page, top to bottom (not the lines of "Pourquoi 86 ?" inside them). */
 const foundJobOffers = (page: Page) => page.getByRole("list", { name: "Offres trouvées" }).getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2 }) });
 
@@ -196,7 +219,7 @@ test.describe("On-demand AI Coach job search", () => {
       await expect(properties.getByRole("definition").nth(0)).toHaveText("Terminée");
       await expect(properties.getByRole("definition").nth(1)).toHaveText(/^\S+ \d{1,2} \S+ \d{4} à \d{1,2}:\d{2}$/);
       await expect(properties.getByRole("definition").nth(2)).toContainText("Lyon · CDI");
-      await expect(properties.getByRole("link", { name: "Modifier les critères" })).toHaveAttribute("href", `/profils/${profileId}#search-criteria-title`);
+      await changeMinSalaryInDialog(page, properties.getByRole("definition").nth(2), searchCriteria.targetRole);
       await expect(main.getByText("2 offres trouvées, de la plus proche à la moins proche de votre CV de référence.")).toBeVisible();
 
       // Each Job Offer: its title leads to it, its Match Score with a meter, and why it has that score.
@@ -443,7 +466,7 @@ test.describe("On-demand AI Coach job search", () => {
       await expect(properties.getByRole("term")).toHaveText(["Profil", "Critères"]);
       await expect(properties.getByRole("link", { name: searchCriteria.targetRole })).toHaveAttribute("href", `/profils/${profileId}`);
       await expect(properties.getByRole("definition").nth(1)).toContainText("Lyon · CDI");
-      await expect(properties.getByRole("link", { name: "Modifier les critères" })).toHaveAttribute("href", `/profils/${profileId}#search-criteria-title`);
+      await changeMinSalaryInDialog(page, properties.getByRole("definition").nth(1), searchCriteria.targetRole);
       await expect(main.getByText("Aucune recherche d'offres pour ce profil pour l'instant.", { exact: false })).toBeVisible();
 
       // A Job Search started elsewhere (the Coach Panel, another tab) shows as running, and the page follows it.
@@ -468,6 +491,55 @@ test.describe("On-demand AI Coach job search", () => {
       await main.getByRole("button", { name: "Chercher des offres", exact: true }).click();
       await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
       await expect(offersIn(page.getByRole("main"), page, 2), workerOutput).toHaveCount(2, { timeout: 90_000 });
+    });
+
+    test("\"Modifier les critères\": a named dialog, focus trapped, Escape closing it, on the ADR-0009 floor at 1280px and 375px (#237)", async ({ page }) => {
+      const profileId = await signInWithProfile(page);
+      // With JOB_SEARCH_SCREENSHOTS_DIR set, the dialog is also captured at each width.
+      const screenshots = process.env.JOB_SEARCH_SCREENSHOTS_DIR;
+      if (screenshots) mkdirSync(screenshots, { recursive: true });
+      for (const size of [{ width: 1280, height: 800 }, { width: 375, height: 812 }]) {
+        await page.setViewportSize(size);
+        await page.goto(`/recherches?profil=${profileId}`);
+        const button = page.getByRole("main").getByRole("button", { name: "Modifier les critères" });
+        await button.focus();
+        await page.keyboard.press("Enter");
+        const dialog = page.getByRole("dialog", { name: `Critères de recherche · ${searchCriteria.targetRole}` });
+        await expect(dialog).toBeVisible();
+        // The focus starts on the dialog itself (no field's value selected, one keystroke from being replaced), and Tab never takes it out.
+        await expect(dialog).toBeFocused();
+        for (let i = 0; i < 25; i++) {
+          await page.keyboard.press("Tab");
+          expect(await dialog.evaluate((element) => element.contains(document.activeElement)), `focus after ${i + 1} Tab at ${size.width}px`).toBe(true);
+        }
+
+        for (const text of (await renderedTexts(page)).filter((item) => item.fontSizePx > 0)) {
+          expect.soft(text.fontSizePx, `font size of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(16);
+          expect.soft(text.contrast, `contrast of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(4.5);
+        }
+        // Every control is at least 2.75rem (44px) tall, as on the Profile page (a checkbox's target is its label).
+        for (const target of await dialog.getByRole("button").or(dialog.getByRole("textbox")).all()) {
+          if (!(await target.isVisible())) continue;
+          const box = (await target.boundingBox())!;
+          expect.soft(box.height, `height of ${await target.evaluate((element) => element.outerHTML.slice(0, 80))} at ${size.width}px`).toBeGreaterThanOrEqual(44);
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), `sideways scroll at ${size.width}px`).toBe(0);
+        const box = (await dialog.boundingBox())!;
+        if (size.width === 375) {
+          // Full screen on a phone.
+          expect(box.x).toBe(0);
+          expect(box.width).toBe(size.width);
+          expect(box.height).toBeGreaterThanOrEqual(size.height - 1);
+        } else {
+          expect(box.width).toBeLessThan(size.width);
+        }
+
+        if (screenshots) await page.screenshot({ path: path.join(screenshots, `criteria-dialog-${size.width}.png`) });
+
+        await page.keyboard.press("Escape");
+        await expect(dialog).toHaveCount(0);
+        await expect(button).toBeFocused();
+      }
     });
 
     test("switches Profile with the chooser, kept in the address; archived Profiles are not offered", async ({ page }) => {

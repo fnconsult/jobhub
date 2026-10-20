@@ -5,6 +5,7 @@ import { CoachInView } from "@/components/CoachPanel";
 import { Icons } from "@/components/icons";
 import { JobOfferResults } from "@/components/JobOfferResults";
 import { RefreshWhileSearching, StartJobSearchButton } from "@/components/JobSearchControls";
+import { SearchCriteriaDialog } from "@/components/SearchCriteriaDialog";
 import { searchCriteriaInWords } from "@/components/job-search-words";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getJobSearches, requireOwnJobSearch } from "@/job-searches/server";
@@ -24,7 +25,7 @@ const STATUS_TONE = { searching: undefined, done: "success", failed: "danger" } 
 /**
  * One Job Search, as a document (prototype #132): what was searched, its
  * status, when it started and the Search Criteria its Match Scores are against
- * (a link away from changing them); then, while the AI Coach searches, a notice
+ * (a button opening them in a dialog, #237); then, while the AI Coach searches, a notice
  * (the page refreshes itself); then the Job Offers found, best Match Score
  * first, each with its key facts, why it has its score, and a one-click save as
  * an Application with the searched Profile, or why the search failed. The
@@ -55,9 +56,7 @@ export default async function JobSearchPage({ params }: Params) {
           <dt>{t("jobSearch.criteria")}</dt>
           <dd>
             <span>{searchCriteriaInWords(profile.searchCriteria, t, locale)}</span>
-            <Link className="props-action" href={routes.profileSearchCriteria(profile.id)}>
-              {t("jobSearch.editCriteria")}
-            </Link>
+            <SearchCriteriaDialog profileId={profile.id} profileName={profile.name} searchCriteria={profile.searchCriteria} />
           </dd>
         </dl>
         <div className="page-head-status" role="status">

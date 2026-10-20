@@ -294,5 +294,61 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
 
       expect(await coaches.sessions(marie)).toHaveLength(1);
     });
+
+    /** Marie's one paid Coaching Session with Sophie. */
+    async function paidSession() {
+      const sophie = await addCoach();
+      const marie = await signUp("marie.dupont@example.fr");
+      await coaches.recordPaidSession({ checkoutSessionId: "cs_1", candidateId: marie, coachId: sophie.id, ...payment });
+      const [session] = await coaches.sessions(marie);
+      return { sophie, marie, session: session! };
+    }
+
+    it("is recorded without a date: an Unscheduled Coaching Session", async () => {
+      const { session } = await paidSession();
+
+      expect(session).toMatchObject({ scheduledAt: null, durationMinutes: null, videoLink: null, note: null });
+    });
+
+    it("the Candidate enters its date in French time, its duration, video link and note, then edits them", async () => {
+      const { marie, session } = await paidSession();
+
+      const scheduled = await coaches.scheduleSession(marie, session.id, { scheduledAt: "2026-10-22T23:30", durationMinutes: 60, videoLink: " https://meet.google.com/abc-defg-hij ", note: " Préparer mon pitch. " });
+
+      const expected = { id: session.id, scheduledAt: new Date("2026-10-22T21:30:00.000Z"), durationMinutes: 60, videoLink: "https://meet.google.com/abc-defg-hij", note: "Préparer mon pitch." };
+      expect(scheduled).toEqual({ ok: true, session: expect.objectContaining(expected) });
+      expect(await coaches.sessions(marie)).toEqual([expect.objectContaining(expected)]);
+
+      await coaches.scheduleSession(marie, session.id, { scheduledAt: "2026-10-23T10:00" });
+      expect(await coaches.sessions(marie)).toEqual([expect.objectContaining({ scheduledAt: new Date("2026-10-23T08:00:00.000Z"), durationMinutes: null, videoLink: null, note: null })]);
+    });
+
+    it("refuses a missing or unreadable date, a video link that is not http(s) and a duration that is not a number of minutes", async () => {
+      const { marie, session } = await paidSession();
+
+      const refused = await coaches.scheduleSession(marie, session.id, { scheduledAt: "", durationMinutes: 0, videoLink: "javascript:alert(1)" });
+
+      expect(refused.ok).toBe(false);
+      expect(refused.ok === false && "errors" in refused ? refused.errors.map((error) => error.field).sort() : []).toEqual(["durationMinutes", "scheduledAt", "videoLink"]);
+      expect(await coaches.sessions(marie)).toEqual([expect.objectContaining({ scheduledAt: null })]);
+    });
+
+    it("a Candidate can set the date of their own Coaching Sessions only", async () => {
+      const { marie, session } = await paidSession();
+      const paul = await signUp("paul.martin@example.fr");
+
+      expect(await coaches.scheduleSession(paul, session.id, { scheduledAt: "2026-10-22T14:00" })).toEqual({ ok: false, error: "not_found" });
+      expect(await coaches.scheduleSession(paul, "not-a-session", { scheduledAt: "2026-10-22T14:00" })).toEqual({ ok: false, error: "not_found" });
+      expect(await coaches.sessions(marie)).toEqual([expect.objectContaining({ scheduledAt: null })]);
+    });
+
+    it("a Retired Human Coach's Coaching Sessions keep their date", async () => {
+      const { sophie, marie, session } = await paidSession();
+      await coaches.scheduleSession(marie, session.id, { scheduledAt: "2026-10-13T10:00" });
+
+      await coaches.retire(sophie.id);
+
+      expect(await coaches.sessions(marie)).toEqual([expect.objectContaining({ coach: expect.objectContaining({ name: SOPHIE.name }), scheduledAt: new Date("2026-10-13T08:00:00.000Z") })]);
+    });
   });
 });

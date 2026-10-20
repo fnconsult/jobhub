@@ -6,12 +6,13 @@
  *  - who are the Human Coaches?        `add`, `list`, `retire` (Back Office), `coachSignedIn`
  *  - whom may they read?               `grantAccess`, `revokeAccess`, `accessGranted` (the Candidate's Coach Access)
  *  - what do they read?                `candidates`, `candidateFile`, `application` (read only)
+ *  - what did the Candidate pay for?  `recordPaidSession` (Stripe's webhook), `sessions`, `scheduleSession`
  * and `migrateHumanCoaches(database)` creates its tables.
  */
 import type { Pool } from "pg";
 import type { Queryable } from "../database/pool";
 import * as z from "zod";
-import type { Application, Applications, ApplicationSummary } from "../applications";
+import { frenchDateTime, type Application, type Applications, type ApplicationSummary } from "../applications";
 import type { Profile, Profiles } from "../profiles";
 import type { SavedTailoredCv, TailoredCvs } from "../tailored-cv";
 import type { CoverLetter, OutreachMessage, TailoredDocuments } from "../tailored-documents";
@@ -83,7 +84,19 @@ export interface CoachingSession {
   amount: number;
   currency: string;
   paidAt: Date;
+  /** When it takes place, as the Candidate entered it; null while it is an Unscheduled Coaching Session. */
+  scheduledAt: Date | null;
+  durationMinutes: number | null;
+  /** Where it takes place: an http(s) link. */
+  videoLink: string | null;
+  note: string | null;
 }
+
+export type ScheduleSessionResult =
+  | { ok: true; session: CoachingSession }
+  | { ok: false; errors: FieldError[] }
+  /** No such Coaching Session of this Candidate. */
+  | { ok: false; error: "not_found" };
 
 /** A Coaching Session payment Stripe confirmed. */
 export interface PaidCoachingSession {
@@ -153,6 +166,13 @@ export interface HumanCoaches {
   recordPaidSession(paid: PaidCoachingSession): Promise<boolean>;
   /** The Candidate's paid Coaching Sessions, newest first, retired Human Coaches included. */
   sessions(candidateId: string): Promise<CoachingSession[]>;
+  /**
+   * The Candidate enters or edits the date of one of their own Coaching Sessions, booked on the
+   * Human Coach's Cal.com page (ADR-0027). `input` is untrusted: { scheduledAt (French time without
+   * an offset), durationMinutes?, videoLink? (http or https), note? }; it replaces all four.
+   * "not_found" for anyone else's session. A Candidate never deletes a Coaching Session.
+   */
+  scheduleSession(candidateId: string, sessionId: string, input: unknown): Promise<ScheduleSessionResult>;
 }
 
 /** Cal.com's hosted sites (cal.com, its EU instance cal.eu, and their subdomains). */
@@ -174,6 +194,35 @@ const coachSchema = z.object({
   email: z.email().trim().toLowerCase().max(320),
   bookingUrl: z.string().trim().max(500).refine(isCalComBookingPage),
   bio: z.string().trim().max(2000).default(""),
+});
+
+/** An http or https link, as typed. */
+function isWebLink(value: string): boolean {
+  try {
+    return ["http:", "https:"].includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+}
+
+/** An optional text field: blank is none. */
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .nullish()
+    .transform((value) => value || null);
+
+const scheduleSchema = z.object({
+  scheduledAt: frenchDateTime,
+  /** Blank is none. */
+  durationMinutes: z
+    .union([z.number().int().min(5).max(600), z.literal("")])
+    .nullish()
+    .transform((value) => (typeof value === "number" ? value : null)),
+  videoLink: optionalText(500).refine((value) => value === null || isWebLink(value)),
+  note: optionalText(500),
 });
 
 interface CoachRow {
@@ -252,6 +301,30 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       outreachMessage: drafts?.outreachMessage ?? null,
       reviews,
     };
+  }
+
+  /** The Candidate's Coaching Sessions (or the one `sessionId` names), newest first. */
+  async function sessionsOf(candidateId: string, sessionId?: string): Promise<CoachingSession[]> {
+    const { rows } = await database.query<
+      CoachRow & { session_id: string; amount: number; currency: string; paid_at: Date; scheduled_at: Date | null; duration_minutes: number | null; video_link: string | null; note: string | null }
+    >(
+      `SELECT s.id AS session_id, s.amount, s.currency, s.paid_at, s.scheduled_at, s.duration_minutes, s.video_link, s.note,
+              h.id, h.name, h.email, h.booking_url, h.bio
+       FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id
+       WHERE s.candidate_id = $1 AND ($2::uuid IS NULL OR s.id = $2) ORDER BY s.paid_at DESC, s.id`,
+      [candidateId, sessionId ?? null],
+    );
+    return rows.map((row) => ({
+      id: row.session_id,
+      coach: coachFrom(row),
+      amount: row.amount,
+      currency: row.currency,
+      paidAt: row.paid_at,
+      scheduledAt: row.scheduled_at,
+      durationMinutes: row.duration_minutes,
+      videoLink: row.video_link,
+      note: row.note,
+    }));
   }
 
   const DOCUMENT_OF = { tailored_cv: "tailoredCv", cover_letter: "coverLetter", outreach_message: "outreachMessage" } as const;
@@ -375,13 +448,21 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
     },
 
     async sessions(candidateId) {
-      const { rows } = await database.query<CoachRow & { session_id: string; amount: number; currency: string; paid_at: Date }>(
-        `SELECT s.id AS session_id, s.amount, s.currency, s.paid_at, h.id, h.name, h.email, h.booking_url, h.bio
-         FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id
-         WHERE s.candidate_id = $1 ORDER BY s.paid_at DESC, s.id`,
-        [candidateId],
+      return sessionsOf(candidateId);
+    },
+
+    async scheduleSession(candidateId, sessionId, input) {
+      const parsed = scheduleSchema.safeParse(input, { reportInput: true });
+      if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+      if (!UUID.test(sessionId)) return { ok: false, error: "not_found" };
+      const { scheduledAt, durationMinutes, videoLink, note } = parsed.data;
+      const { rowCount } = await database.query(
+        `UPDATE coaching_session SET scheduled_at = $3, duration_minutes = $4, video_link = $5, note = $6
+         WHERE id = $1 AND candidate_id = $2`,
+        [sessionId, candidateId, scheduledAt, durationMinutes, videoLink, note],
       );
-      return rows.map((row) => ({ id: row.session_id, coach: coachFrom(row), amount: row.amount, currency: row.currency, paidAt: row.paid_at }));
+      const session = rowCount ? (await sessionsOf(candidateId, sessionId))[0] : undefined;
+      return session ? { ok: true, session } : { ok: false, error: "not_found" };
     },
   };
 }
@@ -426,5 +507,10 @@ export async function migrateHumanCoaches(database: Pool): Promise<void> {
       paid_at timestamptz NOT NULL DEFAULT clock_timestamp()
     );
     CREATE INDEX IF NOT EXISTS coaching_session_candidate_id_idx ON coaching_session (candidate_id);
+    -- Its date and where it takes place, entered by hand once booked on Cal.com (ADR-0027); null while unscheduled.
+    ALTER TABLE coaching_session ADD COLUMN IF NOT EXISTS scheduled_at timestamptz;
+    ALTER TABLE coaching_session ADD COLUMN IF NOT EXISTS duration_minutes integer CHECK (duration_minutes > 0);
+    ALTER TABLE coaching_session ADD COLUMN IF NOT EXISTS video_link text;
+    ALTER TABLE coaching_session ADD COLUMN IF NOT EXISTS note text;
   `);
 }

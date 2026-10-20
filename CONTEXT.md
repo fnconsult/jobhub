@@ -113,8 +113,20 @@ A proposal from the AI Coach placed inside a page (e.g. "3 ATS Fixes proposées"
 _Avoid_: Notification, suggestion, prompt
 
 **Coaching Playbook**:
-A versioned set of coaching rules the AI Coach draws on for one coaching topic, each rule citing its Sources. Not a Task Playbook, which an AI task follows and the AI Coach never consults.
+A versioned set of coaching rules for one coaching topic, each rule citing its Sources, together with the Playbook Agent that applies it. Written and updated in the Back Office by Playbook editors. Not a Task Playbook, which an AI task follows and the AI Coach never consults.
 _Avoid_: Guide, script, prompt
+
+**Playbook Agent**:
+The specialist AI agent of one Coaching Playbook, on its own provider, model and effort, set with the playbook in the Back Office from every text provider configured (one outside the EU is marked so; every call is redacted). It is given the Coach context and its Coaching Playbook and advises on it; the AI Coach writes the reply itself. A "when to consult it" text says what it is for; the Playbook Agent choice picks which to consult, at most two per reply. A Task Playbook's Playbook Agent is the AI running that task instead: it has no "when to consult it", and its effort may be the model's own.
+_Avoid_: Sub-coach, sub-agent, worker, tool, bot
+
+**Playbook Version**:
+One saved state of a Coaching Playbook (its rules and its Playbook Agent's model, effort and when to consult it), Core Digest or Sources list. Changing a Human-validated version makes a new one. Production serves the latest Human-validated version; other environments serve the latest. Kept forever, so Playbooks used can always be traced back.
+_Avoid_: Revision, draft
+
+**Archived Coaching Playbook**:
+A Coaching Playbook no longer served to the AI Coach. Its Playbook Versions are kept. A Coaching Playbook is never deleted.
+_Avoid_: Deleted playbook
 
 **Source**:
 A numbered reference (`[S12]`) to a study or official publication that backs a coaching rule. Listed once, in the Sources list shared by all Coaching Playbooks.
@@ -124,20 +136,16 @@ _Avoid_: Citation, reference, link
 The short set of cross-cutting coaching rules the AI Coach always applies, whatever the topic. Validated like a Coaching Playbook.
 _Avoid_: Summary, system prompt
 
-**Playbook Agent**:
-The AI that reads one Coaching Playbook for a reply, on its own provider, model and effort, set with the playbook in the Back Office from every text provider configured (one outside the EU is marked so; every call is redacted). A "when to consult it" text says what it is for. A Task Playbook's Playbook Agent is the AI running that task instead: it has no "when to consult it", and its effort may be the model's own.
-_Avoid_: Sub-agent, worker
-
 **Playbook Agent choice**:
 The small AI call that picks, for a reply, at most two Playbook Agents of Coaching Playbooks (never of a Task Playbook) from their "when to consult it" texts, the conversation and what is In view. Each chosen agent advises on its playbook; the AI Coach reply draws on that advice. An agent that fails is left out of the reply.
 _Avoid_: Routing, playbook selection, Playbook table
 
 **Playbooks used**:
-The Core Digest and Coaching Playbooks, with their versions, that an AI Coach reply drew on, recorded with the message. Empty when none is Human-validated for the environment.
+The Core Digest and Coaching Playbooks, with their versions, that an AI Coach reply drew on, recorded with the message. Empty when none is served.
 _Avoid_: Sources used, citations
 
 **Human-validated**:
-A Coaching Playbook, Core Digest or Task Playbook version a named Administrator, not one of its authors, has reviewed and approved, with the date. A review by an AI never counts. Only Human-validated coaching knowledge and Task Playbooks are served in production.
+A Playbook Version (of a Coaching Playbook, the Core Digest or a Task Playbook) a named Administrator, not one of its authors, has reviewed and approved, with the date. A review by an AI never counts. In production, only Human-validated coaching knowledge and Task Playbooks are served.
 _Avoid_: Approved, QA'd, reviewed
 
 **Task Playbook**:
@@ -483,11 +491,11 @@ _Avoid_: Dunning banner, billing alert
 ### Operations
 
 **Back Office**:
-The internal pages where Administrators manage Plans, Plan Quotas, Coupons, Human Coaches, Provider Secrets, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites and the team's Back Office Roles, and follow AI Usage.
+The internal pages where Administrators manage Plans, Plan Quotas, Coupons, Human Coaches, Coaching Playbooks, Core Digest and Sources, Provider Secrets, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites and the team's Back Office Roles, and follow AI Usage.
 _Avoid_: Admin panel, dashboard, console
 
 **Back Office Role**:
-What an Administrator may see and change in the Back Office: super-admin (everything, including roles, Provider Secrets, SSO providers, Job Sites, Job discovery sources, Job discovery sites and the AI Message Log), Plans manager (Plans, Plan Quotas, Plan Features, Coupons), Coach manager (Human Coaches, read Coach Message Cost), Playbook editor (Coaching Playbooks: edit, validate, archive) or Support (read-only, no secrets, no AI Message Log). Fixed in code; only super-admins grant or revoke them.
+What an Administrator may see and change in the Back Office: super-admin (everything, including roles, Provider Secrets, SSO providers, Job Sites, Job discovery sources, Job discovery sites and the AI Message Log), Plans manager (Plans, Plan Quotas, Plan Features, Coupons), Coach manager (Human Coaches, read Coach Message Cost), Playbook editor (Coaching Playbooks, Core Digest and Sources: edit, validate, archive) or Support (read-only, no secrets, no AI Message Log). Fixed in code; only super-admins grant or revoke them.
 _Avoid_: Permission level, admin type
 
 **Provider Secret**:
@@ -503,7 +511,7 @@ A super-admin setting, off by default: the Back Office asks an Administrator sig
 _Avoid_: Enforced SSO, mandatory SSO
 
 **Back Office Audit**:
-The record of every change an Administrator makes in the Back Office (roles, Plans, Plan Quotas, Coupons, Human Coaches, Provider Secrets, Sign-in Providers, Job Sites, Job discovery sources, Job discovery sites and Coaching Playbooks, including validated, archived and restored): who, when, what and the values before and after; and of every AI Message Log a super-admin opens. Secret values are never recorded, only that they were replaced (possibly despite a failed connection test) or cleared. Kept for 3 years, then purged. Jobbbox's own record, so it survives the Administrator's account deletion (their id is cleared, their email at the time stays) and is not part of their data export.
+The record of every change an Administrator makes in the Back Office (roles, Plans, Plan Quotas, Coupons, Human Coaches, Coaching Playbooks, Core Digest and Sources, including validated, archived and restored, Provider Secrets, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites): who, when, what and the values before and after; and of every AI Message Log a super-admin opens. Secret values are never recorded, only that they were replaced (possibly despite a failed connection test) or cleared. Kept for 3 years, then purged. Jobbbox's own record, so it survives the Administrator's account deletion (their id is cleared, their email at the time stays) and is not part of their data export.
 _Avoid_: Audit log, history, activity feed
 
 **Journal**:

@@ -48,7 +48,7 @@ export const LIMITED_QUOTAS = ["profiles", "matchScores", "atsScores", "enriched
 export type LimitedQuota = (typeof LIMITED_QUOTAS)[number];
 
 /**
- * Limited Plan Quotas counted per week, from Monday 00:00 in Europe/Paris (ADR-0031);
+ * Limited Plan Quotas counted per week, from Monday 00:00 in Europe/Paris (ADR-0032);
  * the others count what the Candidate holds.
  */
 export const WEEKLY_QUOTAS = ["matchScores", "atsScores", "enrichedContacts", "jobSearches"] as const satisfies readonly LimitedQuota[];

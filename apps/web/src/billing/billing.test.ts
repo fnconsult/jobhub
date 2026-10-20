@@ -61,7 +61,7 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       expect(await t.billing.planQuotas()).toMatchObject({ free: { jobSearches: 1 }, standard: { jobSearches: 7 }, premium: { jobSearches: null } });
     });
 
-    it("turns a database counting by the month into one counting by the week, once (ADR-0031)", async () => {
+    it("turns a database counting by the month into one counting by the week, once (ADR-0032)", async () => {
       // As before weekly counting: a `month` column, the monthly starting amounts, one amount an Administrator edited.
       const marie = await t.signUp("marie.dupont@example.fr");
       await t.database.query("ALTER TABLE quota_usage RENAME COLUMN week TO month");

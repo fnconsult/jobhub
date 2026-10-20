@@ -132,7 +132,7 @@ export interface StripeConfig {
   apiUrl?: string | undefined;
 }
 
-/** The quotas Jobbbox's starting Plans start with, per week (ADR-0031); Administrators change them in the back office. */
+/** The quotas Jobbbox's starting Plans start with, per week (ADR-0032); Administrators change them in the back office. */
 export const STARTING_PLAN_QUOTAS: Record<"free" | "standard" | "premium", PlanQuotas> = {
   free: { profiles: 1, matchScores: 1, atsScores: 1, enrichedContacts: 0, jobSearches: 1, jobDigest: "none" },
   standard: { profiles: 3, matchScores: null, atsScores: null, enrichedContacts: 0, jobSearches: 7, jobDigest: "weekly" },
@@ -140,7 +140,7 @@ export const STARTING_PLAN_QUOTAS: Record<"free" | "standard" | "premium", PlanQ
 };
 
 /**
- * The starting amounts while quotas were counted per calendar month, before ADR-0031. A
+ * The starting amounts while quotas were counted per calendar month, before ADR-0032. A
  * database still counting by the month has each amount still at one of these divided by
  * the weeks of a month, rounded up; an amount an Administrator changed stays as it is.
  */
@@ -188,7 +188,7 @@ export async function migrateBilling(database: Pool): Promise<void> {
       PRIMARY KEY (candidate_id, quota, week)
     );
   `);
-  // Databases from before weekly quotas (ADR-0031): `month` becomes `week`. Its rows keep their month
+  // Databases from before weekly quotas (ADR-0032): `month` becomes `week`. Its rows keep their month
   // ("2026-10"), so they are history the week never counts, and the monthly starting amounts become weekly.
   const { rows: monthColumn } = await database.query(
     "SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'quota_usage' AND column_name = 'month'",

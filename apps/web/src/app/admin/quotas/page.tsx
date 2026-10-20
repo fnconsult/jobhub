@@ -37,7 +37,7 @@ async function resetWeeklyUsage(form: FormData) {
 
 /**
  * Administrators edit each Plan's quotas, in rank order, hidden Plans included; empty means unlimited.
- * Below, those who may change them can reset this week's usage of every Candidate, with a reason (ADR-0031).
+ * Below, those who may change them can reset this week's usage of every Candidate, with a reason (ADR-0032).
  */
 export default async function PlanQuotasPage({
   searchParams,

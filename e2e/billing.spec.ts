@@ -448,7 +448,7 @@ test.describe("back office", () => {
     await expect(page.getByRole("status")).toBeVisible();
   });
 
-  test("lets an Administrator reset this week's usage of every Candidate, with a reason the Journal keeps (ADR-0031)", async ({ page, baseURL }) => {
+  test("lets an Administrator reset this week's usage of every Candidate, with a reason the Journal keeps (ADR-0032)", async ({ page, baseURL }) => {
     // A Candidate uses their one Match Score of the week.
     await signInWithMagicLink(page, newAddress("usage-reset"));
     const tag = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

@@ -1425,7 +1425,7 @@ html[data-sidebar="closed"] .sidebar-docked {
   border-top: 1px solid var(--color-border);
 }
 
-/* The Usage Meter (ADR-0031): the week's Plan Quotas as one bar, its detail under the button. */
+/* The Usage Meter (ADR-0032): the week's Plan Quotas as one bar, its detail under the button. */
 .usage-meter {
   padding-inline: var(--space-2);
 }

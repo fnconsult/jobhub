@@ -184,7 +184,7 @@ export interface CandidateDataExport {
   plan: { plan: Plan; subscriptionStatus: string | null; endsAt: Date | null } | null;
   /**
    * How much of each weekly Plan Quota the Candidate used, newest first: `week` is the Monday
-   * it starts on ("2026-10-12"), or the month ("2026-10") for uses counted monthly before ADR-0031.
+   * it starts on ("2026-10-12"), or the month ("2026-10") for uses counted monthly before ADR-0032.
    */
   quotaUsage: { quota: string; week: string; used: number }[];
   /** The Candidate's EU AI consent (ADR-0007), or null when they have not given it (or withdrew it). */

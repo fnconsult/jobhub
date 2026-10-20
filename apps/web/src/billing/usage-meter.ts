@@ -19,7 +19,7 @@ export interface UsageMeter {
 }
 
 /**
- * The Candidate's week of Plan Quotas as one bar (ADR-0031): every limited quota weighs
+ * The Candidate's week of Plan Quotas as one bar (ADR-0032): every limited quota weighs
  * what the Plan grants of it, so 2 of 3 Match Scores and 1 of 4 Job Searches fill 3 of 7.
  * Unlimited and not-included quotas, and the Job Digest (a frequency), weigh nothing.
  */

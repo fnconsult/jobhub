@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
-// The sidebar's Usage Meter (ADR-0031): the week's Plan Quotas as one bar, each weighed by
+// The sidebar's Usage Meter (ADR-0032): the week's Plan Quotas as one bar, each weighed by
 // what the Plan grants; its button shows each quota's use, and leads to the subscription page.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;

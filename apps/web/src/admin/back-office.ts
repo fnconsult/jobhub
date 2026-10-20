@@ -73,7 +73,7 @@ export type SecretAction = (typeof SECRET_ACTIONS)[number];
  * deletes it (a search site). `viewed`: an AI Message Log was read (#218), the only read the
  * Back Office Audit records. `validated`, `archived` and `restored`: a Playbook Version was
  * Human-validated, a Coaching Playbook archived or restored (#225). `reset`: the week's Plan Quota
- * usage of every Candidate was forgotten (ADR-0031).
+ * usage of every Candidate was forgotten (ADR-0032).
  */
 export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | "tested" | "viewed" | "validated" | "archived" | "restored" | "reset" | SecretAction;
 

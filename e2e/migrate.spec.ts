@@ -215,7 +215,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "tailored_cv", from_column: "application_id", to_table: "application" },
         { from_table: "tailored_document", from_column: "application_id", to_table: "application" },
       ]);
-      // The Plans start with the quotas of issue #22, plus Job Searches (issue #14), counted per week (ADR-0031); re-running keeps them.
+      // The Plans start with the quotas of issue #22, plus Job Searches (issue #14), counted per week (ADR-0032); re-running keeps them.
       const startingQuotas = [
         { plan: "free", profiles: 1, match_scores: 1, ats_scores: 1, enriched_contacts: 0, job_searches: 1, job_digest: "none" },
         { plan: "standard", profiles: 3, match_scores: null, ats_scores: null, enriched_contacts: 0, job_searches: 7, job_digest: "weekly" },

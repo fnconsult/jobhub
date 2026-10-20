@@ -7,7 +7,7 @@ import type { UsageMeter as Meter } from "@/billing/usage-meter";
 import { routes } from "@/routes";
 
 /**
- * The sidebar's Usage Meter (ADR-0031): one bar for the week's Plan Quotas, each
+ * The sidebar's Usage Meter (ADR-0032): one bar for the week's Plan Quotas, each
  * weighed by what the Plan grants. The button shows each quota's use, and the
  * Job Digest's frequency, under it; the link leads to the subscription page.
  */

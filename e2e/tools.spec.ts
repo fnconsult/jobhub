@@ -92,10 +92,39 @@ test.describe("Tools (Outils)", () => {
     await page.getByRole("link", { name: tools.back }).click();
     await expect(page).toHaveURL(/\/admin\/outils$/);
 
-    // A Tool whose calls are not traced yet, and an id that is no Tool.
+    // Another Tool's page, and an id that is no Tool.
     await page.goto("/admin/outils/stripe");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Stripe");
     expect((await page.goto("/admin/outils/linkedin"))?.status()).toBe(404);
+  });
+
+  test("a Stripe call shows on Stripe's page and in the Journal with the Outils filter, beside the Back Office changes, never what it carried (#234)", async ({ page }) => {
+    const journal = admin.journal;
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    // A webhook delivery Stripe did not sign: refused, and recorded as a failed call.
+    const forged = await page.request.post("/api/billing/webhook", { data: '{"id":"evt_forged_e2e"}', headers: { "stripe-signature": "t=1,v1=forged", "content-type": "application/json" } });
+    expect(forged.status()).toBe(400);
+
+    await page.goto("/admin/outils/stripe");
+    const calls = page.getByRole("table", { name: tr(tools.callsCaption, { name: "Stripe" }) });
+    await expect(async () => {
+      await page.reload();
+      await expect(calls.getByRole("row").filter({ hasText: "webhooks.constructEvent" }).first()).toContainText(tools.failed, { timeout: 1_000 });
+    }).toPass();
+    await expect(page.getByRole("main")).not.toContainText("evt_forged_e2e");
+
+    await page.goto("/admin/journal");
+    await page.getByRole("navigation", { name: journal.filter }).getByRole("link", { name: journal.tools, exact: true }).click();
+    await expect(page).toHaveURL(/\/admin\/journal\?section=tools$/);
+    await expect(page.getByRole("navigation", { name: journal.filter }).getByRole("link", { name: journal.tools, exact: true })).toHaveAttribute("aria-current", "page");
+    const lines = page.getByRole("table", { name: journal.toolsCaption });
+    const stripeCall = lines.getByRole("row").filter({ hasText: "webhooks.constructEvent" }).first();
+    await expect(stripeCall).toContainText(journal.byJobbbox);
+    await expect(stripeCall.getByRole("link", { name: "Stripe" })).toHaveAttribute("href", "/admin/outils/stripe");
+    // Newest first, whatever they are.
+    const times = await lines.locator("tbody time").evaluateAll((elements) => elements.map((element) => element.getAttribute("datetime")!));
+    expect(times).toEqual([...times].sort().reverse());
+    await expect(page.getByRole("main")).not.toContainText("evt_forged_e2e");
   });
 
   test("every place suggestion asks geo.api.gouv.fr, listed under Géolocalisation, and each of its calls is traced (#235)", async ({ page, request }) => {

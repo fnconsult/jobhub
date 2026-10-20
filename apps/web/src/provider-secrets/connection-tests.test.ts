@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ExternalApiCall } from "@jobhub/shared";
 import type { SecretProvider } from "./catalog";
 import { createConnectionTester } from "./connection-tests";
 
@@ -120,5 +121,65 @@ describe("testing a provider's keys with its cheapest authenticated call", () =>
 
     verifySmtp.mockRejectedValueOnce(new Error("Invalid login: 535 Authentication failed"));
     expect(await tester("brevo", { SMTP_URL: "smtps://user:pass@smtp-relay.brevo.com:465" })).toEqual({ ok: false, detail: expect.stringContaining("535") });
+  });
+});
+
+describe("a connection test, as recorded", () => {
+  const recorder = () => {
+    const calls: ExternalApiCall[] = [];
+    return { calls, externalApis: { record: (call: ExternalApiCall) => void calls.push(call) } };
+  };
+
+  it.each<[SecretProvider, Record<string, string>, string]>([
+    ["mistral", { MISTRAL_API_KEY: "mk-abcdefgh" }, "mistral"],
+    ["perplexity", { PERPLEXITY_API_KEY: "pplx-abcdefgh" }, "perplexity"],
+    ["anthropic", { ANTHROPIC_API_KEY: "sk-ant-abcdefgh" }, "anthropic"],
+    ["bedrock", { AWS_BEARER_TOKEN_BEDROCK: "bk-abcdefgh" }, "anthropic_bedrock"],
+    ["france-travail", { FRANCE_TRAVAIL_CLIENT_ID: "id-abcdefgh", FRANCE_TRAVAIL_CLIENT_SECRET: "secret-abcdefgh" }, "france_travail"],
+    ["lusha", { LUSHA_API_KEY: "lk-abcdefgh" }, "lusha"],
+    ["kaspr", { KASPR_API_KEY: "kk-abcdefgh" }, "kaspr"],
+    ["apollo", { APOLLO_API_KEY: "ak-abcdefgh" }, "apollo"],
+    ["stripe", { STRIPE_SECRET_KEY: "sk_test_abcdefgh" }, "stripe"],
+    ["brevo", { BREVO_API_KEY: "xkeysib-abcdefgh" }, "brevo"],
+  ])("%s: one connection_test call to its Tool, never the key", async (provider, env, tool) => {
+    const { calls, externalApis } = recorder();
+    const { fetch } = fakeFetch(401);
+
+    await createConnectionTester({ fetch, externalApis })(provider, env);
+
+    expect(calls).toEqual([expect.objectContaining({ provider: tool, operation: "connection_test", ok: false, httpStatus: 401 })]);
+    expect(calls[0]!.durationMs).toBeGreaterThanOrEqual(0);
+    expect(JSON.stringify(calls)).not.toMatch(/abcdefgh/);
+  });
+
+  it("Brevo's SMTP relay: its verification, recorded under the relay", async () => {
+    const { calls, externalApis } = recorder();
+
+    await createConnectionTester({ externalApis, verifySmtp: async () => {} })("brevo", { SMTP_URL: "smtp://user:secret@smtp-relay.brevo.com:587" });
+    await createConnectionTester({ externalApis, verifySmtp: async () => Promise.reject(new Error("Invalid login")) })("brevo", { SMTP_URL: "smtp://user:secret@smtp-relay.brevo.com:587" });
+
+    expect(calls.map(({ provider, operation, ok, httpStatus }) => ({ provider, operation, ok, httpStatus }))).toEqual([
+      { provider: "brevo_smtp", operation: "connection_test", ok: true, httpStatus: null },
+      { provider: "brevo_smtp", operation: "connection_test", ok: false, httpStatus: null },
+    ]);
+    expect(JSON.stringify(calls)).not.toMatch(/secret|user/);
+  });
+
+  it("records nothing when a key is missing: no call was made", async () => {
+    const { calls, externalApis } = recorder();
+
+    await createConnectionTester({ fetch: fakeFetch().fetch, externalApis })("mistral", {});
+
+    expect(calls).toEqual([]);
+  });
+
+  it("answers even when the call cannot be recorded", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const tester = createConnectionTester({ fetch: fakeFetch().fetch, externalApis: { record: () => Promise.reject(new Error("insert failed")) } });
+      expect(await tester("mistral", { MISTRAL_API_KEY: "mk" })).toEqual({ ok: true });
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

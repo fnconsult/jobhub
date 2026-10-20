@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { signInWithMagicLink } from "./support/candidate";
+import { approveAtGoogle, signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
 // Issue #233: the Back Office's Outils section lists every external tool the app calls, by
@@ -194,6 +194,49 @@ test.describe("Tools (Outils)", () => {
       const calls = page.getByRole("table", { name: tr(tools.callsCaption, { name }) });
       await expect(calls.getByRole("row").filter({ hasText: operation }).first()).toContainText(tools.ok);
     }
+  });
+
+  test("a Google sign-in and a refused key test are each one call on their Tool's page and in the Journal, never who signed in nor what was sent (#234)", async ({ page, browser }) => {
+    const journal = admin.journal;
+    const keys = admin.providerSecrets;
+    const candidateEmail = newAddress("traced-person");
+    const sub = `google-sub-${Date.now()}`;
+    const candidate = await browser.newContext({ baseURL: origin });
+    const candidatePage = await candidate.newPage();
+    await approveAtGoogle(candidatePage, { sub, email: candidateEmail, email_verified: true, name: "Traced Person" }, origin);
+    await candidatePage.goto("/connexion");
+    await candidatePage.getByRole("button", { name: fr.signIn.continueWith.replace("{{provider}}", "Google") }).click();
+    await expect(candidatePage).toHaveURL(`${origin}/compte`);
+    const candidateId = (await (await candidatePage.request.get("/api/auth/get-session")).json()).user.id as string;
+    await candidate.close();
+
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    // A key its provider refuses: tested, so one connection-test call to Lusha.
+    await page.goto("/admin/cles");
+    await page.locator("summary", { hasText: tr(keys.replaceLegend, { name: "LUSHA_API_KEY" }) }).click();
+    await page.getByLabel(tr(keys.newValue, { name: "LUSHA_API_KEY" })).fill(`e2e-traced-secret-${Date.now()}`);
+    await page.getByRole("button", { name: tr(keys.replace, { name: "LUSHA_API_KEY" }) }).click();
+    await expect(page.getByRole("main").getByRole("alert").first()).toHaveText(tr(keys.errors.test_failed, { name: "LUSHA_API_KEY" }));
+
+    for (const [id, name] of [["google", "Google"], ["lusha", "Lusha"]] as const) {
+      await page.goto(`/admin/outils/${id}`);
+      const calls = page.getByRole("table", { name: tr(tools.callsCaption, { name }) });
+      await expect(async () => {
+        await page.reload();
+        await expect(calls.getByRole("row").nth(1)).toBeVisible({ timeout: 1_000 });
+      }).toPass();
+      const text = await page.getByRole("main").innerText();
+      for (const forbidden of [candidateEmail, candidateId, sub, "e2e-traced-secret", "Traced Person"]) expect(text, `${name} page`).not.toContain(forbidden);
+    }
+    await page.goto("/admin/outils/lusha");
+    await expect(page.getByRole("table", { name: tr(tools.callsCaption, { name: "Lusha" }) }).getByRole("row").filter({ hasText: "connection_test" }).first()).toContainText(tools.failed);
+
+    await page.goto("/admin/journal?section=tools");
+    const lines = page.getByRole("table", { name: journal.toolsCaption });
+    await expect(lines.getByRole("row").filter({ hasText: "connection_test" }).first()).toBeVisible();
+    await expect(lines.getByRole("link", { name: "Google", exact: true }).first()).toHaveAttribute("href", "/admin/outils/google");
+    const all = await page.getByRole("main").innerText();
+    for (const forbidden of [candidateEmail, candidateId, sub, "e2e-traced-secret"]) expect(all, "Journal").not.toContain(forbidden);
   });
 
   test("Support reads the Tools without a way into Clés; other roles and Candidates get a 404", async ({ page, browser }) => {

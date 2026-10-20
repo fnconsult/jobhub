@@ -2,9 +2,11 @@
  * Types shared by the AI layer and its provider adapters (ADR-0007).
  * Callers only need `AiLayer`; `AiProvider` is the seam each adapter fills.
  */
+import type { AiUsageProvider } from "@jobhub/shared";
 import type { Effort } from "./effort";
 
-export const PROVIDER_IDS = ["anthropic", "mistral", "openai", "perplexity", "brave", "tavily", "linkup"] as const;
+/** Each a registered Tool's (TOOLS, #233): a provider not registered does not type-check. */
+export const PROVIDER_IDS = ["anthropic", "mistral", "openai", "perplexity", "brave", "tavily", "linkup"] as const satisfies readonly AiUsageProvider[];
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 
 /**

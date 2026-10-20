@@ -2,7 +2,7 @@
  * Fetching a page the way ADR-0002 allows: robots.txt first, as ourselves,
  * and giving up (never working around it) at the first sign of bot protection.
  */
-import { recordingFetch, type ExternalApiLog } from "@jobhub/shared";
+import { recordingFetch, type ExternalApiLog, type ExternalApiProvider } from "@jobhub/shared";
 import { htmlToText } from "./html";
 import { countJobPostings } from "./job-posting";
 import { robotsAllow, robotsCrawlDelay } from "./robots";
@@ -275,7 +275,7 @@ export function createPoliteFetcher(options: PoliteFetchOptions) {
 }
 
 /** The job boards whose calls are recorded as external APIs (#218), by host. Their pages and APIs are free. */
-const JOB_BOARDS: [host: RegExp, provider: string][] = [
+const JOB_BOARDS: [host: RegExp, provider: ExternalApiProvider][] = [
   [/(^|\.)greenhouse\.io$/, "greenhouse"],
   [/(^|\.)lever\.co$/, "lever"],
   [/(^|\.)ashbyhq\.com$/, "ashby"],

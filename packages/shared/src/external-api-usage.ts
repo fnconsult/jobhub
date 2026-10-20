@@ -7,6 +7,7 @@
  *   const fetch = recordingFetch(globalThis.fetch, externalApis, { provider: "france_travail", costEur: () => 0 });
  */
 import { scrubSecrets } from "./scrub-secrets";
+import type { ExternalApiProvider } from "./tools";
 
 /** One call to an external API, as recorded. */
 export interface ExternalApiCall {
@@ -30,7 +31,8 @@ export interface ExternalApiLog {
 }
 
 export interface RecordingFetchOptions {
-  provider: string;
+  /** A registered Tool's (TOOLS): a call to an unregistered tool does not type-check. */
+  provider: ExternalApiProvider;
   /** The estimated cost in € of a call to `operation` that answered `status` (null: none came); null when not known. Default: not known. */
   costEur?: (status: number | null, operation: string) => number | null;
   now?: () => Date;

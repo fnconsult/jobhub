@@ -10,10 +10,11 @@ import { createBilling, migrateBilling, STARTING_PLAN_QUOTAS } from "@jobhub/web
 import { createPostgresUsageLog, migrateAiUsage } from "@jobhub/web/ai-usage";
 import { signInWithMagicLink, startTestAuth } from "../../web/src/auth/test-support";
 import { createThrowawayDatabase } from "../../web/src/test-support/throwaway-database";
+import { createGuardrailStore, migrateGuardrails } from "@jobhub/web/guardrails";
 import { JobDiscoveryError, type DiscoverRequest, type DiscoveryReport } from "./job-discovery";
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
 import type { DueJobDigest, JobDigestResult } from "@jobhub/web/job-digests";
-import { AI_USAGE_PURGE, BACK_OFFICE_ASSISTANT_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { AI_USAGE_PURGE, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -541,6 +542,7 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
           reply: async () => ({
             ok: true,
             reply: "Bonjour Marie",
+            outcome: "replied",
             cost: { provider: "mistral", model: "mistral-large-latest", inputTokens: 100, outputTokens: 50, cachedInputTokens: 0, eur: 0.0001 },
             playbooks: [],
             consultations: [],
@@ -578,6 +580,7 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
           reply: async () => ({
             ok: true,
             reply: "Bonjour Claire",
+            outcome: "replied",
             cost: { provider: "mistral", model: "mistral-large-latest", inputTokens: 100, outputTokens: 50, cachedInputTokens: 0, eur: 0.0001 },
             sections: ["planQuotas"],
           }),
@@ -675,6 +678,29 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       await expect(createJobs({ ...otherDeps, database: empty.pool })[AI_USAGE_PURGE]!.handler({})).resolves.toBeUndefined();
     } finally {
       await empty.drop();
+    }
+  });
+
+  it("purges, every night, the Guardrail Triggers 24 months old (#228)", async () => {
+    const throwaway = await createThrowawayDatabase("test_worker_jobs_guardrails");
+    try {
+      const database = throwaway.pool;
+      await migrateGuardrails(database);
+      await createGuardrailStore(database, { serving: "latest" }).triggers.record({ guardrail: "distress", setting: "block", action: "blocked", agent: "ai_coach", at: new Date() });
+      const logs: string[] = [];
+      const jobAt = (days: number) =>
+        createJobs({ ...otherDeps, database, now: () => new Date(Date.now() + days * 86_400_000), log: (line) => logs.push(line) })[GUARDRAIL_TRIGGERS_PURGE]!;
+      const counted = async () => (await database.query<{ n: number }>("SELECT count(*)::int AS n FROM guardrail_trigger")).rows[0]!.n;
+
+      expect(jobAt(0).cron).toBe("55 3 * * *");
+      await jobAt(365).handler({});
+      expect(await counted()).toBe(1);
+      await jobAt(2 * 366).handler({});
+      expect(await counted()).toBe(0);
+      expect(logs).toEqual(["[guardrails] 1 Guardrail Trigger(s) purged, 24 months after they were recorded"]);
+      await expect(createJobs({ ...otherDeps, database: (await createThrowawayDatabase("test_worker_jobs_empty")).pool })[GUARDRAIL_TRIGGERS_PURGE]!.handler({})).resolves.toBeUndefined();
+    } finally {
+      await throwaway.drop();
     }
   });
 

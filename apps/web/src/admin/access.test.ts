@@ -96,6 +96,13 @@ describe("Back Office access", () => {
     for (const role of ["plans-manager", "coach-manager"] as const) expect(backOfficeAccess([role]).can("coachingPlaybooks", "read"), role).toBe(false);
   });
 
+  it("only super-admins change Guardrail settings and Guardrail messages; Support only reads them and their Guardrail Triggers (#228)", () => {
+    expect(backOfficeAccess(["super-admin"]).can("guardrails", "write")).toBe(true);
+    expect(backOfficeAccess(["support"]).can("guardrails", "read")).toBe(true);
+    expect(backOfficeAccess(["support"]).can("guardrails", "write")).toBe(false);
+    for (const role of ["plans-manager", "coach-manager", "playbook-editor"] as const) expect(backOfficeAccess([role]).can("guardrails", "read"), role).toBe(false);
+  });
+
   it("several roles add up", () => {
     const access = backOfficeAccess(["support", "coach-manager"]);
 

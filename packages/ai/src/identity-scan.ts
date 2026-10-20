@@ -70,10 +70,22 @@ export function findEmails(text: string): IdentityMatch[] {
 
 const hasPhone = (text: string): boolean => findPhones(text).length > 0;
 
+/** The phone numbers `text` shows, as written, in order: a national shape inside an international one counts once. */
+function phonesIn(text: string): string[] {
+  const phones: IdentityMatch[] = [];
+  for (const phone of findPhones(text)) if (!phones.some(({ start, end }) => phone.start >= start && phone.start < end)) phones.push(phone);
+  return phones.sort((a, b) => a.start - b.start).map(({ text: phone }) => phone);
+}
+
 /** What kinds of identity the texts show, in a fixed order; empty when none. */
 export function findIdentity(texts: readonly string[]): IdentityHit[] {
   const hits: IdentityHit[] = [];
   if (texts.some(hasPhone)) hits.push("phone");
   if (texts.some((text) => EMAIL.test(text))) hits.push("email");
   return hits;
+}
+
+/** The phone numbers and email addresses `text` shows, each as written, in the order they appear (#228). */
+export function identityIn(text: string): { phones: string[]; emails: string[] } {
+  return { phones: phonesIn(text), emails: [...text.matchAll(EMAILS)].map((match) => match[0].replace(/[.,;:!?)]+$/, "")) };
 }

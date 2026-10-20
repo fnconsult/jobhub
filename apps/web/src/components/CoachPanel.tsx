@@ -104,7 +104,7 @@ type Status = "idle" | "sending" | "unavailable" | "invalid";
 export type PanelKind = "coach" | "backOfficeAssistant";
 
 /** What a message's author is called on the server, for each panel. */
-type ServerMessage = { from: "candidate" | "coach" | "administrator" | "assistant"; text: string };
+type ServerMessage = { from: "candidate" | "coach" | "administrator" | "assistant"; text: string; blocked?: true };
 
 /** Everything that differs between the two panels. */
 interface PanelConfig {
@@ -163,7 +163,11 @@ const PANELS: Record<PanelKind, PanelConfig> = {
 };
 
 /** A message as the panel shows it: the person's own, or the AI's reply. */
-const asPanelMessage = (message: ServerMessage): CoachMessage => ({ from: message.from === "candidate" || message.from === "administrator" ? "candidate" : "coach", text: message.text });
+const asPanelMessage = (message: ServerMessage): CoachMessage => ({
+  from: message.from === "candidate" || message.from === "administrator" ? "candidate" : "coach",
+  text: message.text,
+  ...(message.blocked ? { blocked: true as const } : {}),
+});
 
 function remember(storageKey: string, conversationId: string | null) {
   try {
@@ -395,7 +399,13 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
       if (response.ok && typeof body.reply === "string") {
         setConversation(body.conversation);
         remember(panel.storageKey, body.conversation.id);
-        setMessages([...shown, { from: "coach", text: body.reply }]);
+        // A Blocked message (#228): the Guardrail is never named, only that the message or the reply was blocked.
+        const blocked = body.blocked as { message?: boolean; reply?: boolean } | undefined;
+        setMessages([
+          ...messages,
+          { from: "candidate", text, ...(blocked?.message ? { blocked: true as const } : {}) },
+          { from: "coach", text: body.reply, ...(blocked?.reply ? { blocked: true as const } : {}) },
+        ]);
         setStatus("idle");
       } else if (response.status === 404) {
         // Deleted meanwhile (another tab, or kept past its 12 months): the message starts a new one.
@@ -530,8 +540,9 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                       <p>{t(texts.welcome)}</p>
                     </li>
                     {messages.map((message, index) => (
-                      <li key={index} className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}`}>
+                      <li key={index} className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}${message.blocked ? " chat-blocked" : ""}`}>
                         <span className="chat-author">{message.from === "coach" ? t(texts.author) : t("questionnaire.you")}</span>
+                        {message.blocked ? <span className="chat-blocked-label">{t("coachPanel.blocked")}</span> : null}
                         {message.from === "coach" ? <CoachReplyText text={message.text} /> : <p>{message.text}</p>}
                       </li>
                     ))}

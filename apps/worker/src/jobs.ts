@@ -6,6 +6,7 @@ import { MESSAGE_LOG_RETENTION_DAYS, purgeExpiredAiUsage, RETENTION_MONTHS as AI
 import { purgeExpiredBackOfficeAudit, RETENTION_YEARS as BACK_OFFICE_AUDIT_RETENTION_YEARS } from "@jobhub/web/back-office";
 import { purgeStaleAssistantConversations, RETENTION_MONTHS as ASSISTANT_RETENTION_MONTHS } from "@jobhub/web/back-office-assistant";
 import { purgeStaleCoachConversations, RETENTION_MONTHS } from "@jobhub/web/coach-conversations";
+import { purgeExpiredGuardrailTriggers, TRIGGER_RETENTION_MONTHS as GUARDRAIL_TRIGGER_RETENTION_MONTHS } from "@jobhub/web/guardrails";
 import { DIGEST_HOUR, DIGEST_TIME_ZONE, type JobDigests } from "@jobhub/web/job-digests";
 import { createSourceChecks, forgetExpiredGuestCaptures } from "@jobhub/web/job-offers";
 import { JOB_DISCOVERY_QUEUE, type JobSearchReports } from "@jobhub/web/job-searches";
@@ -53,6 +54,8 @@ export const BACK_OFFICE_AUDIT_PURGE = "back-office-audit.purge";
  * external API calls AI_USAGE_RETENTION_MONTHS old. Runs nightly.
  */
 export const AI_USAGE_PURGE = "ai-usage.purge";
+/** Queue name: delete the Guardrail Triggers GUARDRAIL_TRIGGER_RETENTION_MONTHS old (#228). Runs nightly. */
+export const GUARDRAIL_TRIGGERS_PURGE = "guardrail-triggers.purge";
 /** Queue name: delete the Back Office Assistant conversations whose last message is 12 months old. Runs nightly. */
 export const BACK_OFFICE_ASSISTANT_PURGE = "back-office-assistant.purge";
 
@@ -361,6 +364,16 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
               `[ai-usage] ${purged.messageLogs} AI Message Log(s) purged after ${MESSAGE_LOG_RETENTION_DAYS} days, ${purged.usage} AI call(s) and ${purged.externalApis} external API call(s) after ${AI_USAGE_RETENTION_MONTHS} months`,
             );
           }
+        }),
+    },
+
+    // Guardrail Triggers are kept 24 months, like AI Usage. Safe to run again.
+    [GUARDRAIL_TRIGGERS_PURGE]: {
+      cron: "55 3 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const purged = await purgeExpiredGuardrailTriggers(deps.database, now());
+          if (purged) log(`[guardrails] ${purged} Guardrail Trigger(s) purged, ${GUARDRAIL_TRIGGER_RETENTION_MONTHS} months after they were recorded`);
         }),
     },
 

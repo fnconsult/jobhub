@@ -46,6 +46,7 @@ export const BACK_OFFICE_SECTIONS = [
   "job_sites",
   "ai_messages",
   "coaching_playbooks",
+  "guardrails",
 ] as const;
 export type BackOfficeSection = (typeof BACK_OFFICE_SECTIONS)[number];
 

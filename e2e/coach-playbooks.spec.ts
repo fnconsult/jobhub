@@ -2,17 +2,17 @@ import { readFileSync } from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { showSystemPrompt, systemPromptShown } from "./support/system-prompt";
 
 // Issues #129 and #225: the AI Coach's replies draw on the Core Digest and on the advice of at most
 // two Playbook Agents it chose to consult. Driven through the public endpoint the Coach Panel uses
 // (POST /api/coach) and the Administrator's coach cost page; Mistral is faked inside the server
 // (fake-mistral.mjs): asked which Playbook Agents to consult, it names those the message lists after
 // "E2E_CONSULT=", each Playbook Agent answers with advice naming its playbook and version, and the
-// AI Coach, asked with "E2E_SHOW_CONTEXT", replies with the system prompt it was sent. The e2e server
+// AI Coach, asked with "E2E_SHOW_CONTEXT#<tag>", prints the system prompt it was sent to the server log. The e2e server
 // serves the imported, unvalidated Playbook Versions (JOBHUB_TARGET=e2e, playwright.config.ts).
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
-const SHOW = "E2E_SHOW_CONTEXT";
 const unique = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const tokens = (text: string) => Math.ceil(text.length / 4);
 
@@ -58,9 +58,10 @@ async function captureOffer(page: Page, title: string, content = "Vos missions :
 
 /** The system prompt the AI Coach was sent for this message. */
 async function promptFor(page: Page, message: string, focus?: { kind: string; id: string }): Promise<string> {
-  const response = await page.request.post("/api/coach", { headers: { origin }, data: { message: `${message} ${SHOW}`, ...(focus ? { focus } : {}) } });
+  const show = showSystemPrompt();
+  const response = await page.request.post("/api/coach", { headers: { origin }, data: { message: `${message} ${show}`, ...(focus ? { focus } : {}) } });
   expect(response.status(), await response.text()).toBe(200);
-  return (await response.json()).reply;
+  return systemPromptShown(show);
 }
 
 /** The Core Digest and the Playbook Agents' advice the prompt holds, as "id version", in the order they appear. */

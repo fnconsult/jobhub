@@ -91,7 +91,6 @@
       "years": "Your CV: {{cv}} years · the offer: {{required}} years",
       "signUp": "Create an account to keep this job offer and your CV",
       "offer": "The offer: {{value}}",
-      "wanted": "You are looking for: {{value}}",
       "offerYears": "The offer: {{required}} years",
       "salary": {
         "range": "{{min}} – {{max}} gross per year",
@@ -114,7 +113,8 @@
       "openApplication": "See my application",
       "searchCriteriaMissing": "Neither your CV nor the job offer gives the role you are looking for and where. Create your profile on Jobbbox, then save this job offer again.",
       "createProfile": "Create my profile on Jobbbox",
-      "profileQuotaReached": "Your plan does not allow another profile. Choose one of your profiles."
+      "profileQuotaReached": "Your plan does not allow another profile. Choose one of your profiles.",
+      "wanted": "You are looking for: {{value}}"
     },
     "allSites": "Detect job offers on every site",
     "allSitesHint": "To see “Analyse this offer” on employers' own career sites too. Your browser will ask for your permission; pages are still read in this browser only."
@@ -129,7 +129,6 @@
     "applications": "My applications"
   },
   "sidebar": {
-    "mainMenu": "Main menu",
     "label": "Main navigation",
     "skipToContent": "Skip to content",
     "menu": "Menu",
@@ -137,7 +136,8 @@
     "collapse": "Hide the menu",
     "jobSearches": "Job searches",
     "jobDigests": "Job Digests",
-    "subscription": "Subscription"
+    "subscription": "Subscription",
+    "mainMenu": "Main menu"
   },
   "signIn": {
     "title": "Sign in to Jobbbox",
@@ -181,6 +181,15 @@
     }
   },
   "account": {
+    "title": "My account",
+    "email": "Email address",
+    "interfaceLanguage": "Interface language",
+    "saved": "Saved.",
+    "signOut": "Sign out",
+    "plan": "My subscription",
+    "admin": "Back office",
+    "humanCoaches": "My human coaches",
+    "coachSpace": "My coach space",
     "sections": {
       "sectionsLabel": "Sections of my account",
       "backToSections": "My account",
@@ -198,16 +207,7 @@
       "extensionIntro": "From a job offer's page, the extension saves it to Jobbbox and works out its Match Score, with no copying and pasting.",
       "install": "Install the extension from the Chrome Web Store",
       "soon": "The extension is coming soon to the Chrome Web Store."
-    },
-    "title": "My account",
-    "email": "Email address",
-    "interfaceLanguage": "Interface language",
-    "saved": "Saved.",
-    "signOut": "Sign out",
-    "plan": "My subscription",
-    "admin": "Back office",
-    "humanCoaches": "My human coaches",
-    "coachSpace": "My coach space"
+    }
   },
   "accountData": {
     "title": "My data",
@@ -280,12 +280,6 @@
     "contractType": "Contract type",
     "remoteWork": "Remote work",
     "notSpecified": "Not specified",
-    "locations": "Locations",
-    "locationsHint": "Up to 5 places: a job offer near any one of them suits you.",
-    "locationItem": "Location {{number}}",
-    "addLocation": "Add a location",
-    "removeLocation": "Remove location {{number}}",
-    "anyOfHint": "Tick everything that suits you. Nothing ticked: no preference.",
     "contractTypes": {
       "cdi": "Permanent (CDI)",
       "cdd": "Fixed-term (CDD)",
@@ -341,7 +335,13 @@
     "invalidValue": "This value is not valid.",
     "tooLong": "This field cannot be longer than {{max}} characters.",
     "error": "Your profile could not be saved. Please try again.",
-    "scratchIntro": "Fill in your master CV and search criteria, then save your profile."
+    "scratchIntro": "Fill in your master CV and search criteria, then save your profile.",
+    "locations": "Locations",
+    "locationsHint": "Up to 5 places: a job offer near any one of them suits you.",
+    "locationItem": "Location {{number}}",
+    "addLocation": "Add a location",
+    "removeLocation": "Remove location {{number}}",
+    "anyOfHint": "Tick everything that suits you. Nothing ticked: no preference."
   },
   "cvEditor": {
     "title": "Edit my Master CV",
@@ -379,15 +379,6 @@
     "versionHistory": "Version history"
   },
   "profilePage": {
-    "sections": {
-      "sectionsLabel": "Sections of the profile",
-      "backToSections": "The profile",
-      "propositions": "Suggestions",
-      "cv-de-reference": "Master CV",
-      "ats-score": "ATS Score",
-      "telecharger": "Download",
-      "gerer": "Manage"
-    },
     "eyebrow": "Profile",
     "nameSaved": "Profile name saved",
     "criteriaSaved": "Criteria saved",
@@ -405,7 +396,16 @@
     "cancel": "Cancel",
     "cancelled": "Changes cancelled.",
     "saveVersion": "Save version {{version}}",
-    "savedVersion": "Version {{version}} of your Master CV saved."
+    "savedVersion": "Version {{version}} of your Master CV saved.",
+    "sections": {
+      "sectionsLabel": "Sections of the profile",
+      "backToSections": "The profile",
+      "propositions": "Suggestions",
+      "cv-de-reference": "Master CV",
+      "ats-score": "ATS Score",
+      "telecharger": "Download",
+      "gerer": "Manage"
+    }
   },
   "profileSwitcher": {
     "label": "Profile switcher",
@@ -502,8 +502,6 @@
     "newConversation": "New conversation",
     "conversations": "My conversations",
     "backToConversation": "Back to the conversation",
-    "widen": "Widen",
-    "narrow": "Narrow",
     "loading": "Loading the conversation…",
     "noConversations": "You don't have any conversation with your coach yet.",
     "retention": "Your conversations are kept for 12 months after their last message, then deleted. Your human coach never sees them.",
@@ -522,7 +520,10 @@
       "load": "Your conversations couldn't be loaded. Please try again in a few moments.",
       "action": "This action didn't go through. Please try again in a few moments.",
       "invalidTitle": "Give the conversation a name of 1 to 80 characters."
-    }
+    },
+    "blocked": "Blocked message",
+    "widen": "Widen",
+    "narrow": "Narrow"
   },
   "coachMemory": {
     "open": "Coach memory",
@@ -720,7 +721,8 @@
       "journal": "Journal",
       "aiUsage": "AI consumption",
       "aiMessages": "AI message logs",
-      "coachingPlaybooks": "Playbooks"
+      "coachingPlaybooks": "Playbooks",
+      "guardrails": "Guardrails"
     },
     "signInProviders": {
       "title": "Sign-in",
@@ -1189,7 +1191,8 @@
         "job_sites": "Extension sites",
         "sign_in_providers": "Sign-in",
         "ai_messages": "AI message logs",
-        "coaching_playbooks": "Coaching Playbooks"
+        "coaching_playbooks": "Coaching Playbooks",
+        "guardrails": "Guardrails"
       },
       "actions": {
         "added": "Added",
@@ -1227,7 +1230,8 @@
       "unlimited": "unlimited",
       "empty": "empty",
       "id": "Identifier",
-      "viewVersion": "see version {{version}}"
+      "viewVersion": "see version {{version}}",
+      "viewGuardrail": "see the guardrail"
     },
     "aiUsage": {
       "title": "AI consumption",
@@ -1290,7 +1294,8 @@
         "offer_analysis": "Job Offer analysis",
         "job_titles": "Job title variants",
         "web_search": "Web search",
-        "back_office_assistant": "Back Office Assistant"
+        "back_office_assistant": "Back Office Assistant",
+        "guardrail": "Guardrails"
       }
     },
     "aiMessages": {
@@ -1477,6 +1482,92 @@
         "searchSummary": "search: {{provider}} · {{model}}"
       },
       "outsideEu": "outside EU"
+    },
+    "guardrails": {
+      "title": "Guardrails",
+      "intro": "Guardrails check what the AI Coach, its Playbook Agents and the Back Office Assistant receive, and what they reply. Their list is fixed in code: you tune each one and write the message it shows instead. What the Candidate did not write (job offers, CVs, company dossiers) always goes in as data, never as instructions.",
+      "servingValidated": "In production, a message is served only once validated by a named Administrator other than its author, each language apart. Until then, Jobbbox's default text applies.",
+      "servingLatest": "In this environment, the latest message written is served, validated or not. In production, only a validated one is.",
+      "caption": "The guardrails and their setting",
+      "name": "Guardrail",
+      "guardsAgainst": "What it checks",
+      "setting": "Setting",
+      "settingLabel": "When it finds something",
+      "settingHelp": "Block: the message is not sent, or the reply is written again once then replaced by the guardrail's message. Flag only: everything goes through, and the trigger is counted.",
+      "saveSetting": "Save the setting",
+      "alwaysOn": "Always blocks",
+      "alwaysOnHelp": "This guardrail always blocks: it cannot be set to flag only.",
+      "settings": {
+        "block": "Block",
+        "flag": "Flag only"
+      },
+      "names": {
+        "prompt_injection": "Prompt injection",
+        "personal_data_leak": "Personal data leak",
+        "secret_disclosure": "Secret disclosure",
+        "harmful_advice": "Out-of-scope or harmful advice",
+        "distress": "Distress"
+      },
+      "descriptions": {
+        "prompt_injection": "A message, or pasted text, that tries to change or reveal the AI's instructions, directly or indirectly.",
+        "personal_data_leak": "A reply that gives a third party's contact details or personal data.",
+        "secret_disclosure": "A reply that reveals the AI's instructions, the coaching playbooks' rules or a key (Provider Secrets).",
+        "harmful_advice": "A reply that gives legal, medical or financial advice, or discriminatory advice, age included.",
+        "distress": "A Candidate who expresses serious distress: they get the 3114 message. No one is alerted."
+      },
+      "languages": {
+        "fr": "French",
+        "en": "English"
+      },
+      "messageTitle": "Message in {{language}}",
+      "served": "Served",
+      "latest": "Latest version, awaiting validation",
+      "defaultText": "Jobbbox's default text",
+      "version": "version {{version}}",
+      "writtenBy": "written by {{author}}",
+      "validatedBy": "validated by {{name}} on {{date}}",
+      "notValidated": "not validated",
+      "validateTitle": "Validate the message in {{language}}, version {{version}}",
+      "validateHelp": "You must be an Administrator other than its author. Your name is recorded with the date.",
+      "validatorName": "Your name",
+      "validate": "Validate this message",
+      "editTitle": "Change the message in {{language}}",
+      "text": "Message text",
+      "textHelp": "Shown to the Candidate instead of the reply, without saying which guardrail acted. Each save makes a version to validate.",
+      "distressHelp": "Must give 3114, France's national suicide prevention line. Each save makes a version to validate.",
+      "saveMessage": "Save the message",
+      "journalFields": {
+        "setting": "Setting",
+        "language": "Language",
+        "version": "Version",
+        "text": "Text",
+        "validatedBy": "Validated by",
+        "validatedAt": "Validated on"
+      },
+      "triggers": {
+        "title": "Triggers",
+        "intro": "Each block, flag or unavailable check of the last {{days}} days, per day (Paris time) and per guardrail. No Candidate, no conversation, no text: the text, if needed, stays in the AI message logs (30 days). Kept {{months}} months.",
+        "caption": "Guardrail triggers per day",
+        "none": "No trigger over the period.",
+        "day": "Day",
+        "blocked": "Blocked",
+        "flagged": "Flagged",
+        "unavailable": "Check unavailable"
+      },
+      "notices": {
+        "settingSaved": "Setting saved.",
+        "messageSaved": "Message saved: another Administrator must validate it before production serves it.",
+        "validated": "Message validated.",
+        "unchanged": "Nothing changed.",
+        "invalid": "This text or setting is not valid.",
+        "always_on": "This guardrail always blocks.",
+        "not_found": "This guardrail or version does not exist.",
+        "helpline_missing": "The distress message must give 3114.",
+        "own_message": "You cannot validate a message you wrote.",
+        "already_validated": "This version is already validated.",
+        "not_latest": "Only the latest version can be validated.",
+        "nameRequired": "Give your name to validate."
+      }
     }
   },
   "backOfficeAssistant": {
@@ -1529,18 +1620,6 @@
     "archivedHidden_other": "{{count}} archived applications are hidden."
   },
   "application": {
-    "sections": {
-      "sectionsLabel": "Sections of the application",
-      "backToSections": "The application",
-      "propositions": "Suggestions",
-      "documents": "Documents",
-      "correspondance": "Match",
-      "entretiens": "Interviews",
-      "avis": "Coach reviews",
-      "dossier": "Company dossier",
-      "contacts": "Contacts",
-      "offre": "The job offer"
-    },
     "statusLabel": "Status",
     "statusSaved": "Status saved",
     "profileLabel": "Profile used",
@@ -1570,15 +1649,24 @@
     "matchLabel": "Match",
     "matchDetail": "See the details",
     "offerLabel": "Job offer",
-    "documentsTitle": "Tailored documents"
+    "documentsTitle": "Tailored documents",
+    "sections": {
+      "sectionsLabel": "Sections of the application",
+      "backToSections": "The application",
+      "propositions": "Suggestions",
+      "documents": "Documents",
+      "correspondance": "Match",
+      "entretiens": "Interviews",
+      "avis": "Coach reviews",
+      "dossier": "Company dossier",
+      "contacts": "Contacts",
+      "offre": "The job offer"
+    }
   },
   "jobOffer": {
-    "summaryLabel": "Summary by the AI",
-    "summaryPending": "Summary in progress…",
     "details": "At a glance",
     "contentTitle": "Job offer text",
     "employer": "Employer",
-    "sector": "Sector",
     "location": "Location",
     "contractType": "Contract type",
     "remoteWork": "Remote work",
@@ -1603,7 +1691,10 @@
     "createProfileToSave": "Create a profile to save this job offer",
     "expired": "Expired job offer: no longer published on its original site since {{date}}.",
     "postedAt": "Posting date",
-    "dateUnknown": "date unknown"
+    "dateUnknown": "date unknown",
+    "summaryLabel": "Summary by the AI",
+    "summaryPending": "Summary in progress…",
+    "sector": "Sector"
   },
   "matchScore": {
     "title": "Match score",
@@ -1634,40 +1725,6 @@
     "offerAndWanted": "Offer: {{offer}} · Wanted: {{wanted}}",
     "salaryOffer": "Offer: {{offer}}",
     "salaryWanted": "Wanted: at least €{{amount}} gross per year"
-  },
-  "jobSearchesPage": {
-    "intro": "Your coach searches for job offers that meet a profile's search criteria. Each search counts once toward your plan's job searches.",
-    "chooserLabel": "Choose the profile",
-    "profileLabel": "Profile",
-    "allProfiles": "All my profiles",
-    "show": "Show",
-    "noActiveProfile": "You have no active profile. Create a profile, or restore an archived one, to search for job offers.",
-    "createProfile": "Create a profile",
-    "latestTitle": "Latest job offers found",
-    "latestOn": "Search of {{date}}",
-    "seeJobSearch": "See this search",
-    "seeRunning": "Follow the search in progress",
-    "searching": "A search is in progress for this profile. This page updates by itself.",
-    "never": "No job search for this profile yet. Start one: the job offers found will show here.",
-    "startAll_one": "Search for my profile (1 search)",
-    "startAll_other": "Search for my {{count}} profiles ({{count}} searches)",
-    "startAllHint": "One search per active profile, each counted toward your plan's job searches. Archived profiles are left out.",
-    "startingAll": "Starting the searches…",
-    "startedAll_one": "{{count}} search started.",
-    "startedAll_other": "{{count}} searches started.",
-    "failedFor": "No search for \"{{profile}}\": {{reason}}",
-    "failureReasons": {
-      "quota": "you have used all of your plan's job searches this month.",
-      "archived": "this profile is archived.",
-      "generic": "it could not be started. Check your connection and try again."
-    },
-    "viewsLabel": "Results display",
-    "tabsView": "Tabs",
-    "lanesView": "Swimlanes",
-    "groupsLabel": "Results by profile",
-    "groupTitle": "Job offers for \"{{profile}}\"",
-    "laneLabel": "Job offers found for \"{{profile}}\", scroll sideways",
-    "searchThisProfile": "Search for this profile alone"
   },
   "jobSearch": {
     "sectionTitle": "Job search",
@@ -1797,12 +1854,12 @@
       "chief_executive": "Head of the company (gérant, président, CEO)"
     },
     "sourcesTitle": "Sources",
+    "builtOn": "Dossier built on {{date}} for “{{employer}}”.",
     "newsTitle": "News",
     "newsMeta": "{{outlet}}, {{date}}",
     "newsSearchedOn": "Articles found on {{date}}.",
     "newsNotSearched": "Update the dossier to add the employer's news.",
-    "noNews": "No recent article found.",
-    "builtOn": "Dossier built on {{date}} for “{{employer}}”."
+    "noNews": "No recent article found."
   },
   "enrichedContacts": {
     "title": "Enriched Contacts",
@@ -2204,5 +2261,39 @@
       "done": "Done: you will no longer receive this Job Digest.",
       "invalid": "This unsubscribe link is no longer valid. You may already be unsubscribed; otherwise, sign in and turn the Job Digest off from the profile page."
     }
+  },
+  "jobSearchesPage": {
+    "intro": "Your coach searches for job offers that meet a profile's search criteria. Each search counts once toward your plan's job searches.",
+    "chooserLabel": "Choose the profile",
+    "profileLabel": "Profile",
+    "allProfiles": "All my profiles",
+    "show": "Show",
+    "noActiveProfile": "You have no active profile. Create a profile, or restore an archived one, to search for job offers.",
+    "createProfile": "Create a profile",
+    "latestTitle": "Latest job offers found",
+    "latestOn": "Search of {{date}}",
+    "seeJobSearch": "See this search",
+    "seeRunning": "Follow the search in progress",
+    "searching": "A search is in progress for this profile. This page updates by itself.",
+    "never": "No job search for this profile yet. Start one: the job offers found will show here.",
+    "startAll_one": "Search for my profile (1 search)",
+    "startAll_other": "Search for my {{count}} profiles ({{count}} searches)",
+    "startAllHint": "One search per active profile, each counted toward your plan's job searches. Archived profiles are left out.",
+    "startingAll": "Starting the searches…",
+    "startedAll_one": "{{count}} search started.",
+    "startedAll_other": "{{count}} searches started.",
+    "failedFor": "No search for \"{{profile}}\": {{reason}}",
+    "failureReasons": {
+      "quota": "you have used all of your plan's job searches this month.",
+      "archived": "this profile is archived.",
+      "generic": "it could not be started. Check your connection and try again."
+    },
+    "viewsLabel": "Results display",
+    "tabsView": "Tabs",
+    "lanesView": "Swimlanes",
+    "groupsLabel": "Results by profile",
+    "groupTitle": "Job offers for \"{{profile}}\"",
+    "laneLabel": "Job offers found for \"{{profile}}\", scroll sideways",
+    "searchThisProfile": "Search for this profile alone"
   }
 }

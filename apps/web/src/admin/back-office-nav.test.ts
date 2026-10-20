@@ -21,6 +21,7 @@ describe("the Back Office navigation", () => {
           ["humanCoaches", "/admin/coachs"],
           ["coachCost", "/admin/cout-coach"],
           ["coachingPlaybooks", "/admin/playbooks"],
+          ["guardrails", "/admin/garde-fous"],
         ],
       ],
       [

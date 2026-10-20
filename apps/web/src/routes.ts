@@ -69,6 +69,8 @@ export const routes = {
   /** The Coaching Playbooks, the Core Digest and the Sources list (#225); one of them, at a version (default: its latest). */
   adminCoachingPlaybooks: "/admin/playbooks",
   adminCoachingPlaybook: (id: string, version?: number) => `/admin/playbooks/${encodeURIComponent(id)}${version ? `?version=${version}` : ""}`,
+  /** The Guardrails (Garde-fous, #228): settings and Guardrail messages for super-admins, read by Support, with their Guardrail Triggers. */
+  adminGuardrails: "/admin/garde-fous",
   /** The sites Jobbbox searches: the extension's Job Sites, Job discovery sources and Job discovery sites. */
   adminSearchSites: "/admin/sites",
   /** The Provider Secrets (Clés): third-party keys, super-admins only. */

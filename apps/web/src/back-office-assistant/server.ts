@@ -4,6 +4,7 @@ import { aiUsageReportOf } from "@/ai-usage/server";
 import { getBilling } from "@/billing/server";
 import { coachCostOfLastDays } from "@/coach-conversations/server";
 import { sharedPool } from "@/database/pool";
+import { getGuardrails } from "@/guardrails/server";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { getTaskPlaybooks } from "@/task-playbooks/server";
 import { createAssistantConversations, type AssistantConversations } from "./conversations";
@@ -11,11 +12,12 @@ import { createBackOfficeAssistant } from "./index";
 
 let instance: AssistantConversations | undefined;
 
-/** The app's Back Office Assistant and its conversations, on the app's AI layer and the Back Office's data. */
+/** The app's Back Office Assistant and its conversations, on the app's AI layer and the Back Office's data, behind its Guardrails (#228). */
 export function getAssistantConversations(): AssistantConversations {
   instance ??= createAssistantConversations(sharedPool(), {
     assistant: createBackOfficeAssistant({
       ai: getAi(),
+      guardrails: getGuardrails(),
       taskPlaybooks: getTaskPlaybooks(),
       sources: {
         planQuotas: async () => {

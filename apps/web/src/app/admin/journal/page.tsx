@@ -18,6 +18,7 @@ import { journalChanges, type JournalChange } from "@/admin/journal-changes";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
 import { couponDiscountLabel } from "@/billing/coupon-label";
 import { getBilling } from "@/billing/server";
+import { GUARDRAIL_LANGUAGES, GUARDRAIL_SETTINGS, isGuardrailId, type GuardrailLanguage, type GuardrailSetting } from "@/guardrails";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
@@ -62,6 +63,10 @@ const versionOf = (entry: BackOfficeAuditEntry): number | null => {
   return null;
 };
 
+/** A Guardrail's recorded fields (#228): its setting, or a Guardrail message's language, version, text and validation. */
+const GUARDRAIL_FIELDS = ["setting", "language", "version", "text", "validatedBy", "validatedAt"] as const;
+type GuardrailField = (typeof GUARDRAIL_FIELDS)[number];
+
 /** A Coupon's recorded fields, by the Codes promo page's label for each. */
 const COUPON_FIELDS = ["code", "discount", "duration", "plans", "expiresAt", "maxRedemptions", "firstPaymentOnly", "active"] as const;
 type CouponField = (typeof COUPON_FIELDS)[number];
@@ -91,6 +96,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     if (entry.section === "job_discovery_sources" && JOB_DISCOVERY_SOURCES.includes(entry.target as JobDiscoverySource)) {
       return t(`admin.searchSites.sources.names.${entry.target as JobDiscoverySource}`);
     }
+    if (entry.section === "guardrails" && isGuardrailId(entry.target)) return t(`admin.guardrails.names.${entry.target}`);
     return entry.target;
   };
   const at = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" });
@@ -110,6 +116,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
       return t(`admin.signInProviders.${SIGN_IN_PROVIDER_FIELDS[field as keyof typeof SIGN_IN_PROVIDER_FIELDS]}`);
     }
     if (entrySection === "coaching_playbooks" && PLAYBOOK_FIELDS.includes(field as PlaybookField)) return t(`admin.coachingPlaybooks.journalFields.${field as PlaybookField}`);
+    if (entrySection === "guardrails" && GUARDRAIL_FIELDS.includes(field as GuardrailField)) return t(`admin.guardrails.journalFields.${field as GuardrailField}`);
     if (field === "id") return t("admin.journal.id");
     return field;
   };
@@ -143,6 +150,11 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
       if (field === "effort" && (value === "low" || value === "medium" || value === "high")) return t(`admin.coachingPlaybooks.efforts.${value}`);
       if (field === "validatedAt" && typeof value === "string") return at.format(new Date(value));
       if (field === "archived" && typeof value === "boolean") return t(value ? "admin.coachingPlaybooks.archived" : "admin.coachingPlaybooks.active");
+    }
+    if (entrySection === "guardrails") {
+      if (field === "setting" && GUARDRAIL_SETTINGS.includes(value as GuardrailSetting)) return t(`admin.guardrails.settings.${value as GuardrailSetting}`);
+      if (field === "language" && GUARDRAIL_LANGUAGES.includes(value as GuardrailLanguage)) return t(`admin.guardrails.languages.${value as GuardrailLanguage}`);
+      if (field === "validatedAt" && typeof value === "string") return at.format(new Date(value));
     }
     if (value === null) return t(entrySection === "plan_quotas" ? "admin.journal.unlimited" : "admin.journal.empty");
     if (entrySection === "plan_quotas" && field === "jobDigest" && JOB_DIGEST_FREQUENCIES.includes(value as JobDigestFrequency)) {
@@ -213,6 +225,12 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
                         <>
                           {" "}
                           (<Link href={routes.adminCoachingPlaybook(entry.target, versionOf(entry)!)}>{t("admin.journal.viewVersion", { version: String(versionOf(entry)) })}</Link>)
+                        </>
+                      ) : null}
+                      {entry.section === "guardrails" && isGuardrailId(entry.target) ? (
+                        <>
+                          {" "}
+                          (<Link href={`${routes.adminGuardrails}#${entry.target}`}>{t("admin.journal.viewGuardrail")}</Link>)
                         </>
                       ) : null}
                     </td>

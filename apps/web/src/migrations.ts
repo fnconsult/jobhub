@@ -21,6 +21,7 @@ import { migrateCompanyDossiers } from "./company-dossiers/index";
 import { migrateEnrichedContacts } from "./enriched-contacts/index";
 import { migrateEuAiConsents } from "./eu-ai-consent/index";
 import { migrateFollowUps } from "./follow-ups/index";
+import { migrateGuardrails } from "./guardrails/store";
 import { migrateHumanCoaches } from "./human-coaches/index";
 import { migrateJobDigests } from "./job-digests/index";
 import { migrateJobOffers } from "./job-offers/index";
@@ -71,6 +72,7 @@ export async function migrateDatabase(
     ["Back Office Assistant conversations are up to date", () => migrateAssistantConversations(database)],
     ["AI Usage is up to date", () => migrateAiUsage(database)],
     ["Coaching Playbooks, the Core Digest, the Sources list and the task Playbooks are up to date", () => migrateCoachingPlaybooks(database, () => importedPlaybooks(env))],
+    ["Guardrails are up to date", () => migrateGuardrails(database)],
   ];
   for (const [done, migrate] of steps) {
     await migrate();

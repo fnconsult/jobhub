@@ -7,6 +7,7 @@
  *  - whom may they read?               `grantAccess`, `revokeAccess`, `accessGranted` (the Candidate's Coach Access)
  *  - what do they read?                `candidates`, `candidateFile`, `application` (read only)
  *  - what did the Candidate pay for?  `recordPaidSession` (Stripe's webhook), `sessions`, `scheduleSession`
+ *  - whom does the coach meet?         `coachSessions` (the Coach space)
  * and `migrateHumanCoaches(database)` creates its tables.
  */
 import type { Pool } from "pg";
@@ -92,6 +93,22 @@ export interface CoachingSession {
   note: string | null;
 }
 
+/**
+ * One of a Human Coach's own Coaching Sessions, as the Coach space shows it. The session itself is the
+ * relationship, so no Coach Access is needed: it names the Candidate (first name and last initial),
+ * nothing of their Profiles or Applications, and leaves out their note.
+ */
+export interface CoachedSession {
+  id: string;
+  /** "Marie D.": the first name and last initial of the Candidate's account name; empty when they gave none. */
+  candidateName: string;
+  paidAt: Date;
+  /** Null while it is an Unscheduled Coaching Session (« À planifier »). */
+  scheduledAt: Date | null;
+  durationMinutes: number | null;
+  videoLink: string | null;
+}
+
 export type ScheduleSessionResult =
   | { ok: true; session: CoachingSession }
   | { ok: false; errors: FieldError[] }
@@ -173,6 +190,13 @@ export interface HumanCoaches {
    * "not_found" for anyone else's session. A Candidate never deletes a Coaching Session.
    */
   scheduleSession(candidateId: string, sessionId: string, input: unknown): Promise<ScheduleSessionResult>;
+
+  /**
+   * The (not retired) Human Coach's own Coaching Sessions, with every Candidate, whether or not they
+   * granted Coach Access: Unscheduled ones first (oldest paid first), then the dated ones, latest first.
+   * Empty for a Retired Human Coach (ADR-0016) or an unknown one.
+   */
+  coachSessions(coachId: string): Promise<CoachedSession[]>;
 }
 
 /** Cal.com's hosted sites (cal.com, its EU instance cal.eu, and their subdomains). */
@@ -255,6 +279,15 @@ const reviewFrom = (row: ReviewRow): CoachReview => ({
   text: row.text,
   createdAt: row.created_at,
 });
+
+/** "Marie D.": the first word of `fullName` and the initial of its last word. */
+function firstNameAndLastInitial(fullName: string): string {
+  const words = fullName.trim().split(/\s+/).filter(Boolean);
+  const first = words[0] ?? "";
+  if (words.length < 2) return first;
+  const initial = Array.from(words.at(-1)!)[0]!.toLocaleUpperCase("fr");
+  return `${first} ${initial}.`;
+}
 
 const COACH_COLUMNS = "id, name, email, booking_url, bio";
 const coachFrom = (row: CoachRow): HumanCoach => ({ id: row.id, name: row.name, email: row.email, bookingUrl: row.booking_url, bio: row.bio });
@@ -450,6 +483,27 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
 
     async sessions(candidateId) {
       return sessionsOf(candidateId);
+    },
+
+    async coachSessions(coachId) {
+      if (!UUID.test(coachId)) return [];
+      const { rows } = await database.query<{ id: string; candidate_name: string | null; paid_at: Date; scheduled_at: Date | null; duration_minutes: number | null; video_link: string | null }>(
+        `SELECT s.id, c.name AS candidate_name, s.paid_at, s.scheduled_at, s.duration_minutes, s.video_link
+           FROM coaching_session s
+           JOIN human_coach h ON h.id = s.coach_id AND h.retired_at IS NULL
+           JOIN candidate c ON c.id = s.candidate_id
+          WHERE s.coach_id = $1
+          ORDER BY s.scheduled_at DESC NULLS FIRST, s.paid_at, s.id`,
+        [coachId],
+      );
+      return rows.map((row) => ({
+        id: row.id,
+        candidateName: firstNameAndLastInitial(row.candidate_name ?? ""),
+        paidAt: row.paid_at,
+        scheduledAt: row.scheduled_at,
+        durationMinutes: row.duration_minutes,
+        videoLink: row.video_link,
+      }));
     },
 
     async scheduleSession(candidateId, sessionId, input) {

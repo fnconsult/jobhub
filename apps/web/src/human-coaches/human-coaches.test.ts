@@ -355,5 +355,39 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
 
       expect(await coaches.sessions(marie)).toEqual([expect.objectContaining({ coach: expect.objectContaining({ name: SOPHIE.name }), scheduledAt: new Date("2026-10-13T08:00:00.000Z") })]);
     });
+
+    describe("in the Coach space", () => {
+      const PAUL = { name: "Paul Lefèvre", email: "paul.lefevre@rh-conseil.fr", bookingUrl: "https://cal.com/paul-lefevre/seance" };
+
+      /** A Candidate signed up with `email`, under the account name `name`. */
+      async function candidateNamed(email: string, name: string) {
+        const cookie = await signInWithMagicLink(testAuth, email);
+        await testAuth.request("/api/auth/update-user", { cookie, body: { name } });
+        return (await (await testAuth.request("/api/auth/get-session", { cookie })).json()).user.id as string;
+      }
+
+      it("a Human Coach sees their own Coaching Sessions only, each with the Candidate's first name and last initial, dated or not", async () => {
+        const sophie = await addCoach();
+        const paul = await addCoach(PAUL);
+        const marie = await candidateNamed("marie.dupont@example.fr", "Marie Dupont");
+        const eric = await candidateNamed("eric.durand@example.fr", "éric de la Tour");
+        await coaches.recordPaidSession({ checkoutSessionId: "cs_1", candidateId: marie, coachId: sophie.id, ...payment });
+        await coaches.recordPaidSession({ checkoutSessionId: "cs_2", candidateId: eric, coachId: sophie.id, ...payment });
+        await coaches.recordPaidSession({ checkoutSessionId: "cs_3", candidateId: marie, coachId: paul.id, ...payment });
+        const [marieWithSophie] = (await coaches.sessions(marie)).filter((session) => session.coach.id === sophie.id);
+        await coaches.scheduleSession(marie, marieWithSophie!.id, { scheduledAt: "2026-10-22T14:30", durationMinutes: 60, videoLink: "https://meet.google.com/abc", note: "Mon pitch." });
+
+        const sessions = await coaches.coachSessions(sophie.id);
+
+        // « À planifier » first, then the dated ones, latest first.
+        expect(sessions).toEqual([
+          { id: expect.any(String), candidateName: "éric T.", paidAt: expect.any(Date), scheduledAt: null, durationMinutes: null, videoLink: null },
+          { id: marieWithSophie!.id, candidateName: "Marie D.", paidAt: expect.any(Date), scheduledAt: new Date("2026-10-22T12:30:00.000Z"), durationMinutes: 60, videoLink: "https://meet.google.com/abc" },
+        ]);
+        expect(JSON.stringify(sessions)).not.toContain("Mon pitch.");
+        expect(JSON.stringify(sessions)).not.toContain("example.fr");
+        expect(await coaches.coachSessions("not-a-coach")).toEqual([]);
+      });
+    });
   });
 });

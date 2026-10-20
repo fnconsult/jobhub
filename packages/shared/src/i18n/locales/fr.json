@@ -1300,7 +1300,7 @@
     },
     "aiUsage": {
       "title": "Consommation IA",
-      "intro": "Chaque appel à l'IA (toutes les tâches, pas seulement l'AI Coach), les outils que les modèles utilisent et les appels aux API externes (France Travail, enrichissement de contacts), sur la période choisie (heure de Paris).",
+      "intro": "Chaque appel à l'IA (toutes les tâches, pas seulement l'AI Coach), les outils que les modèles utilisent et les appels aux outils externes (France Travail, enrichissement de contacts, Stripe, Brevo, connexion, pages lues…), sur la période choisie (heure de Paris).",
       "estimate": "Estimations aux prix publics des fournisseurs, en dollars convertis à {{rate}} € pour 1 $ (une hypothèse, pas le cours du jour), figées au moment de chaque appel. Agrégats seulement : ni candidat, ni texte.",
       "coachCostLink": "Médiane et 90e centile du coût d'une réponse de l'AI Coach : Coût coach",
       "period": "Période",

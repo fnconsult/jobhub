@@ -1300,7 +1300,7 @@
     },
     "aiUsage": {
       "title": "AI consumption",
-      "intro": "Every AI call (all tasks, not only the AI Coach), the tools the models use and the calls to external APIs (France Travail, contact enrichment), over the chosen period (Paris time).",
+      "intro": "Every AI call (all tasks, not only the AI Coach), the tools the models use and the calls to external tools (France Travail, contact enrichment, Stripe, Brevo, sign-in, pages read…), over the chosen period (Paris time).",
       "estimate": "Estimates at the providers' list prices, in dollars converted at €{{rate}} per $1 (an assumption, not today's rate), fixed when each call was made. Aggregates only: no Candidate, no text.",
       "coachCostLink": "Median and 90th percentile of one AI Coach reply's cost: Coach cost",
       "period": "Period",

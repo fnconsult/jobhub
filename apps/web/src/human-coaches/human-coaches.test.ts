@@ -388,6 +388,59 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
         expect(JSON.stringify(sessions)).not.toContain("example.fr");
         expect(await coaches.coachSessions("not-a-coach")).toEqual([]);
       });
+
+      it("a Human Coach enters or corrects the date, duration and video link of their own Coaching Session; the Candidate's note stays, and the change is the coach's", async () => {
+        const { sophie, marie, session } = await paidSession();
+        await coaches.scheduleSession(marie, session.id, { scheduledAt: "2026-10-22T14:30", note: "Préparer mon pitch." });
+        expect(await coaches.sessions(marie)).toEqual([expect.objectContaining({ changedBy: "candidate" })]);
+
+        const corrected = await coaches.scheduleCoachedSession(sophie.id, session.id, { scheduledAt: "2026-10-22T16:00", durationMinutes: 45, videoLink: "https://meet.google.com/xyz", note: "Écrasée ?" });
+
+        expect(corrected).toEqual({ ok: true, session: expect.objectContaining({ id: session.id, scheduledAt: new Date("2026-10-22T14:00:00.000Z"), durationMinutes: 45, videoLink: "https://meet.google.com/xyz" }) });
+        expect(await coaches.sessions(marie)).toEqual([
+          expect.objectContaining({ scheduledAt: new Date("2026-10-22T14:00:00.000Z"), durationMinutes: 45, videoLink: "https://meet.google.com/xyz", note: "Préparer mon pitch.", changedBy: "coach" }),
+        ]);
+
+        await coaches.scheduleSession(marie, session.id, { scheduledAt: "2026-10-22T17:00", note: "Préparer mon pitch." });
+        expect(await coaches.sessions(marie)).toEqual([expect.objectContaining({ changedBy: "candidate" })]);
+      });
+
+      it("a Human Coach enters the date of an Unscheduled Coaching Session, and refuses an unreadable one like the Candidate's form", async () => {
+        const { sophie, marie, session } = await paidSession();
+        expect(await coaches.sessions(marie)).toEqual([expect.objectContaining({ changedBy: null })]);
+
+        expect(await coaches.scheduleCoachedSession(sophie.id, session.id, { scheduledAt: "", videoLink: "javascript:alert(1)" })).toEqual({
+          ok: false,
+          errors: [
+            { field: "scheduledAt", code: "required" },
+            { field: "videoLink", code: "invalid" },
+          ],
+        });
+        expect((await coaches.scheduleCoachedSession(sophie.id, session.id, { scheduledAt: "2026-10-23T09:00" })).ok).toBe(true);
+        expect(await coaches.coachSessions(sophie.id)).toEqual([expect.objectContaining({ id: session.id, scheduledAt: new Date("2026-10-23T07:00:00.000Z") })]);
+      });
+
+      it("another Human Coach's Coaching Session is refused", async () => {
+        const { marie, session } = await paidSession();
+        const paul = await addCoach(PAUL);
+
+        expect(await coaches.scheduleCoachedSession(paul.id, session.id, { scheduledAt: "2026-10-22T14:00" })).toEqual({ ok: false, error: "not_found" });
+        expect(await coaches.scheduleCoachedSession("not-a-coach", session.id, { scheduledAt: "2026-10-22T14:00" })).toEqual({ ok: false, error: "not_found" });
+        expect(await coaches.scheduleCoachedSession(paul.id, "not-a-session", { scheduledAt: "2026-10-22T14:00" })).toEqual({ ok: false, error: "not_found" });
+        expect(await coaches.coachSessions(paul.id)).toEqual([]);
+        expect(await coaches.sessions(marie)).toEqual([expect.objectContaining({ scheduledAt: null })]);
+      });
+
+      it("a Retired Human Coach is refused: they no longer see or edit their Coaching Sessions, which the Candidate keeps", async () => {
+        const { sophie, marie, session } = await paidSession();
+        await coaches.scheduleSession(marie, session.id, { scheduledAt: "2026-10-22T14:30" });
+
+        await coaches.retire(sophie.id);
+
+        expect(await coaches.coachSessions(sophie.id)).toEqual([]);
+        expect(await coaches.scheduleCoachedSession(sophie.id, session.id, { scheduledAt: "2026-10-23T09:00" })).toEqual({ ok: false, error: "not_found" });
+        expect(await coaches.sessions(marie)).toEqual([expect.objectContaining({ scheduledAt: new Date("2026-10-22T12:30:00.000Z"), changedBy: "candidate" })]);
+      });
     });
   });
 });

@@ -7,7 +7,7 @@
  *  - whom may they read?               `grantAccess`, `revokeAccess`, `accessGranted` (the Candidate's Coach Access)
  *  - what do they read?                `candidates`, `candidateFile`, `application` (read only)
  *  - what did the Candidate pay for?  `recordPaidSession` (Stripe's webhook), `sessions`, `scheduleSession`
- *  - whom does the coach meet?         `coachSessions` (the Coach space)
+ *  - whom does the coach meet?         `coachSessions`, `scheduleCoachedSession` (the Coach space)
  * and `migrateHumanCoaches(database)` creates its tables.
  */
 import type { Pool } from "pg";
@@ -91,7 +91,12 @@ export interface CoachingSession {
   /** Where it takes place: an http(s) link. */
   videoLink: string | null;
   note: string | null;
+  /** Who last entered or changed its date: the Agenda says « modifié par le coach » for "coach". Null while never dated. */
+  changedBy: SessionEditor | null;
 }
+
+/** Who enters or changes a Coaching Session's date (ADR-0027). */
+export type SessionEditor = "candidate" | "coach";
 
 /**
  * One of a Human Coach's own Coaching Sessions, as the Coach space shows it. The session itself is the
@@ -108,6 +113,12 @@ export interface CoachedSession {
   durationMinutes: number | null;
   videoLink: string | null;
 }
+
+export type ScheduleCoachedSessionResult =
+  | { ok: true; session: CoachedSession }
+  | { ok: false; errors: FieldError[] }
+  /** No such Coaching Session of this Human Coach, or they are retired. */
+  | { ok: false; error: "not_found" };
 
 export type ScheduleSessionResult =
   | { ok: true; session: CoachingSession }
@@ -197,6 +208,13 @@ export interface HumanCoaches {
    * Empty for a Retired Human Coach (ADR-0016) or an unknown one.
    */
   coachSessions(coachId: string): Promise<CoachedSession[]>;
+  /**
+   * The (not retired) Human Coach enters or corrects the date of one of their own Coaching Sessions
+   * (ADR-0027). `input` is untrusted: { scheduledAt (French time without an offset), durationMinutes?,
+   * videoLink? (http or https) }; it replaces those three and keeps the Candidate's note. The change is
+   * recorded as the coach's. "not_found" for another coach's session, or for a Retired Human Coach.
+   */
+  scheduleCoachedSession(coachId: string, sessionId: string, input: unknown): Promise<ScheduleCoachedSessionResult>;
 }
 
 /** Cal.com's hosted sites (cal.com, its EU instance cal.eu, and their subdomains). */
@@ -249,6 +267,9 @@ const scheduleSchema = z.object({
   videoLink: optionalText(500).refine((value) => value === null || isWebLink(value)),
   note: optionalText(500),
 });
+
+/** What a Human Coach enters: the Candidate's note is not theirs to change. */
+const coachScheduleSchema = scheduleSchema.omit({ note: true });
 
 interface CoachRow {
   id: string;
@@ -340,9 +361,19 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
   /** The Candidate's Coaching Sessions (or the one `sessionId` names), newest first. */
   async function sessionsOf(candidateId: string, sessionId?: string): Promise<CoachingSession[]> {
     const { rows } = await database.query<
-      CoachRow & { session_id: string; amount: number; currency: string; paid_at: Date; scheduled_at: Date | null; duration_minutes: number | null; video_link: string | null; note: string | null }
+      CoachRow & {
+        session_id: string;
+        amount: number;
+        currency: string;
+        paid_at: Date;
+        scheduled_at: Date | null;
+        duration_minutes: number | null;
+        video_link: string | null;
+        note: string | null;
+        changed_by: SessionEditor | null;
+      }
     >(
-      `SELECT s.id AS session_id, s.amount, s.currency, s.paid_at, s.scheduled_at, s.duration_minutes, s.video_link, s.note,
+      `SELECT s.id AS session_id, s.amount, s.currency, s.paid_at, s.scheduled_at, s.duration_minutes, s.video_link, s.note, s.changed_by,
               h.id, h.name, h.email, h.booking_url, h.bio
        FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id
        WHERE s.candidate_id = $1 AND ($2::uuid IS NULL OR s.id = $2) ORDER BY s.paid_at DESC, s.id`,
@@ -358,6 +389,29 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       durationMinutes: row.duration_minutes,
       videoLink: row.video_link,
       note: row.note,
+      changedBy: row.changed_by,
+    }));
+  }
+
+  /** The (not retired) Human Coach's Coaching Sessions (or the one `sessionId` names), « À planifier » first, then latest first. */
+  async function coachSessionsOf(coachId: string, sessionId?: string): Promise<CoachedSession[]> {
+    if (!UUID.test(coachId)) return [];
+    const { rows } = await database.query<{ id: string; candidate_name: string | null; paid_at: Date; scheduled_at: Date | null; duration_minutes: number | null; video_link: string | null }>(
+      `SELECT s.id, c.name AS candidate_name, s.paid_at, s.scheduled_at, s.duration_minutes, s.video_link
+         FROM coaching_session s
+         JOIN human_coach h ON h.id = s.coach_id AND h.retired_at IS NULL
+         JOIN candidate c ON c.id = s.candidate_id
+        WHERE s.coach_id = $1 AND ($2::uuid IS NULL OR s.id = $2)
+        ORDER BY s.scheduled_at DESC NULLS FIRST, s.paid_at, s.id`,
+      [coachId, sessionId ?? null],
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      candidateName: firstNameAndLastInitial(row.candidate_name ?? ""),
+      paidAt: row.paid_at,
+      scheduledAt: row.scheduled_at,
+      durationMinutes: row.duration_minutes,
+      videoLink: row.video_link,
     }));
   }
 
@@ -485,25 +539,21 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       return sessionsOf(candidateId);
     },
 
-    async coachSessions(coachId) {
-      if (!UUID.test(coachId)) return [];
-      const { rows } = await database.query<{ id: string; candidate_name: string | null; paid_at: Date; scheduled_at: Date | null; duration_minutes: number | null; video_link: string | null }>(
-        `SELECT s.id, c.name AS candidate_name, s.paid_at, s.scheduled_at, s.duration_minutes, s.video_link
-           FROM coaching_session s
-           JOIN human_coach h ON h.id = s.coach_id AND h.retired_at IS NULL
-           JOIN candidate c ON c.id = s.candidate_id
-          WHERE s.coach_id = $1
-          ORDER BY s.scheduled_at DESC NULLS FIRST, s.paid_at, s.id`,
-        [coachId],
+    coachSessions: (coachId) => coachSessionsOf(coachId),
+
+    async scheduleCoachedSession(coachId, sessionId, input) {
+      const parsed = coachScheduleSchema.safeParse(input, { reportInput: true });
+      if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+      if (!UUID.test(coachId) || !UUID.test(sessionId)) return { ok: false, error: "not_found" };
+      const { scheduledAt, durationMinutes, videoLink } = parsed.data;
+      const { rowCount } = await database.query(
+        `UPDATE coaching_session s SET scheduled_at = $3, duration_minutes = $4, video_link = $5, changed_by = 'coach'
+           FROM human_coach h
+          WHERE s.id = $1 AND s.coach_id = $2 AND h.id = s.coach_id AND h.retired_at IS NULL`,
+        [sessionId, coachId, scheduledAt, durationMinutes, videoLink],
       );
-      return rows.map((row) => ({
-        id: row.id,
-        candidateName: firstNameAndLastInitial(row.candidate_name ?? ""),
-        paidAt: row.paid_at,
-        scheduledAt: row.scheduled_at,
-        durationMinutes: row.duration_minutes,
-        videoLink: row.video_link,
-      }));
+      const session = rowCount ? (await coachSessionsOf(coachId, sessionId))[0] : undefined;
+      return session ? { ok: true, session } : { ok: false, error: "not_found" };
     },
 
     async scheduleSession(candidateId, sessionId, input) {
@@ -512,7 +562,7 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       if (!UUID.test(sessionId)) return { ok: false, error: "not_found" };
       const { scheduledAt, durationMinutes, videoLink, note } = parsed.data;
       const { rowCount } = await database.query(
-        `UPDATE coaching_session SET scheduled_at = $3, duration_minutes = $4, video_link = $5, note = $6
+        `UPDATE coaching_session SET scheduled_at = $3, duration_minutes = $4, video_link = $5, note = $6, changed_by = 'candidate'
          WHERE id = $1 AND candidate_id = $2`,
         [sessionId, candidateId, scheduledAt, durationMinutes, videoLink, note],
       );
@@ -567,5 +617,8 @@ export async function migrateHumanCoaches(database: Pool): Promise<void> {
     ALTER TABLE coaching_session ADD COLUMN IF NOT EXISTS duration_minutes integer CHECK (duration_minutes > 0);
     ALTER TABLE coaching_session ADD COLUMN IF NOT EXISTS video_link text;
     ALTER TABLE coaching_session ADD COLUMN IF NOT EXISTS note text;
+    -- Who last entered or changed its date (#249): the Candidate or the Human Coach; null while never dated.
+    ALTER TABLE coaching_session ADD COLUMN IF NOT EXISTS changed_by text CHECK (changed_by IN ('candidate', 'coach'));
+    UPDATE coaching_session SET changed_by = 'candidate' WHERE changed_by IS NULL AND scheduled_at IS NOT NULL;
   `);
 }

@@ -1,6 +1,6 @@
 import { routes } from "../routes";
 
-export type SidebarNavKey = "applications" | "jobSearches" | "jobDigests" | "humanCoaches" | "coachSpace" | "admin";
+export type SidebarNavKey = "applications" | "agenda" | "jobSearches" | "jobDigests" | "humanCoaches" | "coachSpace" | "admin";
 
 export interface SidebarNavItem {
   key: SidebarNavKey;
@@ -14,8 +14,8 @@ export interface SidebarNavItem {
 const isUnder = (pathname: string, path: string) => pathname === path || pathname.startsWith(`${path}/`);
 
 /**
- * The links of the Candidate's sidebar, in order, for the page at `pathname`.
- * Job Searches and Job Digests have pages of their own (ADR-0024): Job Searches
+ * The links of the Candidate's sidebar, in order, for the page at `pathname`:
+ * Mes candidatures, then the Agenda. Job Searches and Job Digests have pages of their own (ADR-0024): Job Searches
  * opens on the Profile in view when it is active, otherwise the Candidate's
  * first active Profile. With no active Profile both are left out (an Archived
  * Profile has neither). Then the Human
@@ -38,7 +38,10 @@ export function sidebarNav({
 }): SidebarNavItem[] {
   const active = profiles.filter((profile) => !profile.archived);
   const profile = active.find((candidate) => candidate.id === currentProfileId) ?? active[0];
-  const items: SidebarNavItem[] = [{ key: "applications", href: routes.applications, current: isUnder(pathname, routes.applications) }];
+  const items: SidebarNavItem[] = [
+    { key: "applications", href: routes.applications, current: isUnder(pathname, routes.applications) },
+    { key: "agenda", href: routes.agenda(), current: isUnder(pathname, routes.agenda()) },
+  ];
   if (profile) {
     items.push(
       { key: "jobSearches", href: routes.jobSearches(profile.id), current: isUnder(pathname, routes.jobSearches()) },

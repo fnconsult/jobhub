@@ -87,6 +87,11 @@ export interface SearchCriteria {
   remoteWorkOptions: RemoteWork[];
 }
 
+/** What two places are compared by: trimmed, without case or accents ("Île-de-France" is "ile-de-france"). */
+export function locationKey(location: string): string {
+  return location.trim().normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+}
+
 /**
  * Locations as Search Criteria keep them: trimmed, blanks dropped, each place
  * once (compared without case or accents), in the order given.
@@ -96,7 +101,7 @@ export function distinctLocations(locations: readonly string[]): string[] {
   const kept: string[] = [];
   for (const raw of locations) {
     const location = raw.trim();
-    const key = location.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+    const key = locationKey(location);
     if (!location || seen.has(key)) continue;
     seen.add(key);
     kept.push(location);

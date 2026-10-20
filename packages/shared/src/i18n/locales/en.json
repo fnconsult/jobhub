@@ -1906,7 +1906,8 @@
     "toScheduleIntro": "Your paid coaching sessions have no date yet. Book your time on the coach's Cal.com page, then enter the date here.",
     "coachingSession": "Coaching session",
     "withCoach": "with {{name}}",
-    "duration": "{{count}} min"
+    "duration": "{{count}} min",
+    "changedByCoach": "changed by the coach"
   },
   "application": {
     "statusLabel": "Status",
@@ -2478,7 +2479,8 @@
     "sessionDuration": "Duration: {{count}} minutes",
     "joinVideo": "Join the video call with {{name}}",
     "seeInAgenda": "See in the agenda",
-    "toSchedule": "No date yet: book your time on Cal.com, then enter the date."
+    "toSchedule": "No date yet: book your time on Cal.com, then enter the date.",
+    "changedByCoach": "Date changed by {{name}}"
   },
   "coachingSession": {
     "enterDate": "I've booked: enter the date",
@@ -2500,7 +2502,9 @@
     "invalidDuration": "Enter a duration between 5 and 600 minutes, or leave it empty.",
     "invalidVideoLink": "Enter a link starting with http:// or https://, or leave it empty.",
     "invalidNote": "The note must be 500 characters at most.",
-    "error": "Saving failed. Check your connection and try again."
+    "error": "Saving failed. Check your connection and try again.",
+    "coachEnterDate": "Enter the date",
+    "coachEnterDateFor": "Enter the date of the session with {{name}}"
   },
   "coachReviews": {
     "title": "Your coaches' reviews",
@@ -2534,7 +2538,17 @@
     "reviewInvalid": "Choose a document already written and write your review.",
     "reviewNothing": "The candidate has no application documents to review yet.",
     "status": "Status: {{status}}",
-    "applicationStatus": "({{status}}, since {{date}})"
+    "applicationStatus": "({{status}}, since {{date}})",
+    "candidatesTitle": "Candidates with coach access",
+    "sessionsTitle": "My coaching sessions",
+    "sessionsIntro": "The sessions candidates paid for with you. Enter or correct the date booked and the video link: the candidate finds them in their agenda.",
+    "sessionsNone": "No paid session yet.",
+    "unnamedCandidate": "Unnamed candidate",
+    "sessionToSchedule": "To schedule",
+    "sessionOn": "On {{date}} (Paris time)",
+    "sessionDuration": "{{count}} min",
+    "sessionPaidOn": "Paid on {{date}}",
+    "joinVideo": "Video link with {{name}}"
   },
   "jobDigest": {
     "sectionTitle": "Job Digest",

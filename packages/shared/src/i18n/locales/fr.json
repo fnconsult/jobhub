@@ -1289,7 +1289,14 @@
       "id": "Identifiant",
       "viewVersion": "voir la version {{version}}",
       "viewGuardrail": "voir le garde-fou",
-      "viewEvalCases": "voir les cas d'évaluation"
+      "viewEvalCases": "voir les cas d'évaluation",
+      "tools": "Outils",
+      "toolsIntro": "Avec le filtre Outils, chaque appel aux outils externes (Stripe, Brevo, connexion, tests de connexion, pages lues…) apparaît à côté des modifications du back office, du plus récent au plus ancien. Un appel n'est enregistré qu'avec son outil, son opération, son résultat et sa durée : ni contenu, ni candidat, ni secret.",
+      "toolsCaption": "Modifications du back office et appels aux outils, des plus récents aux plus anciens",
+      "byJobbbox": "Jobbbox (appel d'outil)",
+      "toolCall": "Appel",
+      "toolCallResult": "{{outcome}}, {{duration}}",
+      "toolsLimit": "Seules les {{count}} lignes les plus récentes sont affichées."
     },
     "aiUsage": {
       "title": "Consommation IA",

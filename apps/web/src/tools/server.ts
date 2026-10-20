@@ -2,7 +2,7 @@ import type { Tool, ToolCategory } from "@jobhub/shared";
 import { sharedPool } from "@/database/pool";
 import { getSecretResolver } from "@/provider-secrets/server";
 import { getSignInProviders } from "@/sign-in-providers/server";
-import { toolCalls, toolsOverview, type ToolCall, type ToolRow, type ToolsState } from "./index";
+import { latestToolCalls, toolCalls, toolsOverview, type CalledTool, type ToolCall, type ToolRow, type ToolsState } from "./index";
 
 /** The values in use (Provider Secrets over env) and the Sign-in Providers enabled; none without a database. */
 async function currentState(): Promise<ToolsState> {
@@ -22,4 +22,10 @@ export async function toolPage(tool: Tool): Promise<{ row: ToolRow; calls: ToolC
   const overview = await toolsOverviewNow();
   const row = overview.flatMap((group) => group.rows).find((candidate) => candidate.tool.id === tool.id)!;
   return { row, calls: await toolCalls(sharedPool(), tool) };
+}
+
+/** Every Tool's `limit` latest calls together, newest first, as the Journal's Outils filter lists them; none without a database. */
+export async function latestToolCallsNow(limit: number): Promise<CalledTool[]> {
+  if (!process.env.DATABASE_URL) return [];
+  return latestToolCalls(sharedPool(), { limit });
 }

@@ -1289,7 +1289,14 @@
       "id": "Identifier",
       "viewVersion": "see version {{version}}",
       "viewGuardrail": "see the guardrail",
-      "viewEvalCases": "see the Eval Cases"
+      "viewEvalCases": "see the Eval Cases",
+      "tools": "Tools",
+      "toolsIntro": "With the Tools filter, every call to an external tool (Stripe, Brevo, sign-in, connection tests, pages read…) shows next to the back office changes, newest first. A call is recorded with its tool, operation, outcome and duration only: no content, no Candidate, no secret.",
+      "toolsCaption": "Back office changes and tool calls, newest first",
+      "byJobbbox": "Jobbbox (tool call)",
+      "toolCall": "Call",
+      "toolCallResult": "{{outcome}}, {{duration}}",
+      "toolsLimit": "Only the {{count}} most recent lines are shown."
     },
     "aiUsage": {
       "title": "AI consumption",

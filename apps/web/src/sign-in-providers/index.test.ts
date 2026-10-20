@@ -6,6 +6,7 @@ import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } f
 import { secretCipherFromEnv } from "../provider-secrets/cipher";
 import { listenForNotifications } from "../database/listen";
 import { createProviderSecrets, migrateProviderSecrets } from "../provider-secrets/index";
+import type { ExternalApiCall } from "@jobhub/shared";
 import { configurationFromEnv, createSignInProviders, fetchDiscoveryDocument, migrateSignInProviders, SIGN_IN_PROVIDERS_CHANNEL, type SignInProviders } from "./index";
 
 type Env = Record<string, string | undefined>;
@@ -63,6 +64,20 @@ describe("fetchDiscoveryDocument", () => {
     const started = Date.now();
     expect(await fetchDiscoveryDocument("https://slow.example/.well-known/openid-configuration", { fetch: hanging, timeoutMs: 50, log: () => {} })).toBeNull();
     expect(Date.now() - started).toBeLessThan(2000);
+  });
+
+  it("is recorded as one discovery call to the OIDC Tool, a failed one too, never the issuer's address (#234)", async () => {
+    const calls: ExternalApiCall[] = [];
+    const externalApis = { record: (call: ExternalApiCall) => void calls.push(call) };
+
+    await fetchDiscoveryDocument("https://sso.jobbbox.fr/tenant-42/.well-known/openid-configuration", { fetch: async () => Response.json(DISCOVERY), externalApis });
+    await fetchDiscoveryDocument("https://sso.jobbbox.fr/tenant-42/.well-known/openid-configuration", { fetch: async () => new Response("", { status: 503 }), externalApis, log: () => {} });
+
+    expect(calls.map(({ provider, operation, ok, httpStatus }) => ({ provider, operation, ok, httpStatus }))).toEqual([
+      { provider: "oidc", operation: "discovery", ok: true, httpStatus: 200 },
+      { provider: "oidc", operation: "discovery", ok: false, httpStatus: 503 },
+    ]);
+    expect(JSON.stringify(calls)).not.toMatch(/jobbbox|tenant|well-known/);
   });
 
   it("is null for an answer that is not a usable discovery document", async () => {

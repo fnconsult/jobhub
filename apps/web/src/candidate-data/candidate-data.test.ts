@@ -444,6 +444,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         durationMinutes: 60,
         videoLink: "https://meet.google.com/abc-defg-hij",
         note: "Préparer mon pitch.",
+        changedBy: "candidate",
       },
     ]);
     expect(exported.applications[0]!.coachReviews).toEqual([

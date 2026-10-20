@@ -36,6 +36,8 @@ const DAY_MS = 86_400_000;
 const toUtc = (day: string): number => Date.parse(`${day}T00:00:00Z`);
 const fromUtc = (time: number): string => new Date(time).toISOString().slice(0, 10);
 const addDays = (day: string, count: number): string => fromUtc(toUtc(day) + count * DAY_MS);
+/** The day after `day`. */
+export const dayAfter = (day: string): string => addDays(day, 1);
 /** The Monday on or before `day`. */
 const mondayOf = (day: string): string => addDays(day, -((new Date(toUtc(day)).getUTCDay() + 6) % 7));
 /** The seven days from `monday` on. */

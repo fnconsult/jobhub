@@ -57,7 +57,7 @@ const focused = (page: Page) =>
 test.describe("the sidebar layout of the Candidate's pages", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test("every Candidate page sits in it, with the Profile switcher, labelled links and the Text Size control", async ({ page }) => {
+  test("every Candidate page sits in it, with the Profile switcher, labelled links and signing out", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("sidebar-pages"));
     const profileId = await createProfile(page, "Directrice administrative et financière");
 
@@ -97,7 +97,8 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     await page.goto("/compte");
     await expect(sidebarNav(page).getByRole("link", { name: fr.sidebar.jobSearches })).toHaveAttribute("href", `/recherches?profil=${profileId}`);
     await expect(page.getByRole("navigation", { name: fr.profileSwitcher.label })).toBeVisible();
-    await expect(page.getByLabel(fr.textSize.label)).toBeVisible();
+    // The Text Size setting moved to Mon compte → Préférences.
+    await expect(page.getByLabel(fr.textSize.label)).toHaveCount(0);
     await expect(page.getByRole("button", { name: fr.account.signOut })).toBeVisible();
 
     // The links lead to their pages.
@@ -107,6 +108,8 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
 
     // Only catalogue strings, at the ADR-0009 floor.
     const allowed = new Set(catalogueStrings(fr));
+    // The Usage Meter's percentage, a catalogue string with the week's number in it.
+    allowed.add(fr.usageMeter.percent.replace("{{percent}}", "0"));
     for (const t of await renderedTexts(page)) {
       expect.soft(allowed.has(t.text), `"${t.text}" comes from the catalogue`).toBe(true);
       expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
@@ -158,8 +161,8 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
       fr.app.name,
       fr.profileSwitcher.choose,
       ...NAV_LABELS,
-      // The Text Size select reads as its current choice.
-      fr.textSize.standard,
+      // The Usage Meter reads as its title and the week's percentage.
+      `${fr.usageMeter.title} ${fr.usageMeter.percent.replace("{{percent}}", "0")}`,
       fr.nav.account,
       fr.account.signOut,
       fr.sidebar.collapse,
@@ -209,7 +212,7 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     // Agrandir: a modal drawer over the page, which keeps its place beneath; Escape brings it back.
     await panel.getByRole("button", { name: fr.coachPanel.widen }).click();
     const drawerPanel = page.getByRole("dialog", { name: fr.coachPanel.title });
-    expect((await drawerPanel.boundingBox())!.width).toBeCloseTo(64 * 16, 0);
+    expect((await drawerPanel.boundingBox())!.width).toBeCloseTo(64 * 17, 0); // 64rem at the standard text size (17px)
     expect((await page.locator("main").boundingBox())!.width).toBeCloseTo(main.width, 0);
     // Modal: the page beneath is out of reach.
     await expect(page.getByRole("main")).toHaveCount(0);
@@ -223,7 +226,8 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
   });
 
   test("with no room beside the page for its Sections, the sidebar lists them, the main menu one arrow away", async ({ page }) => {
-    await page.setViewportSize({ width: 1100, height: 800 });
+    // Room for the Sections beside the page at the standard text size (17px), until the Coach Panel docks.
+    await page.setViewportSize({ width: 1170, height: 800 });
     await signInWithMagicLink(page, newAddress("sidebar-sections"));
     await page.goto("/compte/relances");
     const inPage = page.getByRole("main").getByRole("navigation", { name: fr.account.sections.sectionsLabel });

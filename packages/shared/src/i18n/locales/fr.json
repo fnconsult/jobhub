@@ -10,9 +10,11 @@
   },
   "textSize": {
     "label": "Taille du texte",
+    "small": "Petit",
     "standard": "Standard",
-    "large": "Grande",
-    "xlarge": "Très grande"
+    "large": "Moyen",
+    "xlarge": "Grand",
+    "hint": "Mémorisée sur cet appareil."
   },
   "notFound": {
     "title": "Page introuvable",
@@ -52,7 +54,7 @@
       "useProfile": "Utiliser l'un de mes profils",
       "scoreNotFound": "Cette offre ou ce profil n'est plus disponible. Choisissez un autre profil ou capturez l'offre de nouveau.",
       "rescore": "Recalculer le Match Score",
-      "rescoreConfirm": "Un nouveau calcul utilise un Match Score de votre forfait du mois. Le résultat ne change que si l'offre ou votre profil a changé.",
+      "rescoreConfirm": "Un nouveau calcul utilise un Match Score de votre forfait de la semaine. Le résultat ne change que si l'offre ou votre profil a changé.",
       "rescoreConfirmAction": "Confirmer le recalcul",
       "rescoreCancel": "Annuler",
       "rescored": "Match Score recalculé à {{time}}.",
@@ -139,6 +141,13 @@
     "subscription": "Abonnement",
     "mainMenu": "Menu principal",
     "agenda": "Agenda"
+  },
+  "usageMeter": {
+    "title": "Utilisation cette semaine",
+    "percent": "{{percent}} %",
+    "unlimited": "Illimitée",
+    "valueText": "{{used}} sur {{allowed}} utilisés ({{percent}} %)",
+    "subscription": "Voir mon abonnement"
   },
   "signIn": {
     "title": "Se connecter à Jobbbox",
@@ -600,14 +609,14 @@
       "used": {
         "profiles_one": "L'offre {{plan}} comprend {{count}} profil.",
         "profiles_other": "L'offre {{plan}} comprend {{count}} profils.",
-        "matchScores_one": "Vous avez utilisé le Match Score compris ce mois-ci dans l'offre {{plan}}.",
-        "matchScores_other": "Vous avez utilisé les {{count}} Match Scores compris ce mois-ci dans l'offre {{plan}}.",
-        "atsScores_one": "Vous avez utilisé l'ATS Score compris ce mois-ci dans l'offre {{plan}}.",
-        "atsScores_other": "Vous avez utilisé les {{count}} ATS Scores compris ce mois-ci dans l'offre {{plan}}.",
-        "enrichedContacts_one": "Vous avez utilisé le contact enrichi compris ce mois-ci dans l'offre {{plan}}.",
-        "enrichedContacts_other": "Vous avez utilisé les {{count}} contacts enrichis compris ce mois-ci dans l'offre {{plan}}.",
-        "jobSearches_one": "Vous avez utilisé la recherche d'offres comprise ce mois-ci dans l'offre {{plan}}.",
-        "jobSearches_other": "Vous avez utilisé les {{count}} recherches d'offres comprises ce mois-ci dans l'offre {{plan}}."
+        "matchScores_one": "Vous avez utilisé le Match Score compris cette semaine dans l'offre {{plan}}.",
+        "matchScores_other": "Vous avez utilisé les {{count}} Match Scores compris cette semaine dans l'offre {{plan}}.",
+        "atsScores_one": "Vous avez utilisé l'ATS Score compris cette semaine dans l'offre {{plan}}.",
+        "atsScores_other": "Vous avez utilisé les {{count}} ATS Scores compris cette semaine dans l'offre {{plan}}.",
+        "enrichedContacts_one": "Vous avez utilisé le contact enrichi compris cette semaine dans l'offre {{plan}}.",
+        "enrichedContacts_other": "Vous avez utilisé les {{count}} contacts enrichis compris cette semaine dans l'offre {{plan}}.",
+        "jobSearches_one": "Vous avez utilisé la recherche d'offres comprise cette semaine dans l'offre {{plan}}.",
+        "jobSearches_other": "Vous avez utilisé les {{count}} recherches d'offres comprises cette semaine dans l'offre {{plan}}."
       },
       "notIncluded": {
         "profiles": "La création de profils n'est pas comprise dans l'offre {{plan}}.",
@@ -622,7 +631,7 @@
       "upgradeUse": "Avec l'offre {{plan}}, vous pouvez en faire davantage.",
       "upgradeIncludes": "L'offre {{plan}} les comprend.",
       "upgradeIncludesIt": "L'offre {{plan}} la comprend.",
-      "renews": "Votre quota se renouvelle le 1er du mois.",
+      "renews": "Votre quota se renouvelle chaque lundi.",
       "noMore": "Vous ne pouvez pas en créer davantage.",
       "action": "Découvrir l'offre {{plan}}",
       "upgradeIncludesDailyDigest": "L'offre {{plan}} le comprend."
@@ -636,14 +645,14 @@
       "currentPlan": "Votre offre actuelle : {{plan}}",
       "currentPlanUntil": "Votre offre actuelle : {{plan}} jusqu'au {{date}}",
       "checkoutSuccess": "Merci ! Votre paiement est enregistré. Votre nouvelle offre s'affiche ici dès que Stripe nous l'a confirmée, en général en quelques secondes.",
-      "usageTitle": "Votre utilisation ce mois-ci",
+      "usageTitle": "Votre utilisation cette semaine",
       "usage": "{{used}} sur {{limit}}",
       "usageUnlimited": "{{used}} (illimité)",
       "comparisonTitle": "Les offres",
       "quota": "Ce qui est compris",
       "unlimited": "Illimité",
       "notIncluded": "Non compris",
-      "perMonth": "{{count}} par mois",
+      "perWeek": "{{count}} par semaine",
       "choose": "Choisir l'offre {{plan}}",
       "current": "Votre offre",
       "manage": "Gérer mon abonnement",
@@ -911,10 +920,25 @@
       "intro": "Les modifications s'appliquent immédiatement à tous les candidats de l'offre. Laissez un champ vide pour « illimité ».",
       "plan": "Offre {{plan}}",
       "limitHelp": "Nombre, ou vide pour illimité",
-      "monthly": "par mois",
+      "weekly": "par semaine",
       "save": "Enregistrer l'offre {{plan}}",
       "saved": "Quotas de l'offre {{plan}} enregistrés.",
-      "invalid": "Vérifiez les valeurs : des nombres entiers positifs, ou vide pour illimité."
+      "invalid": "Vérifiez les valeurs : des nombres entiers positifs, ou vide pour illimité.",
+      "reset": {
+        "title": "Remettre à zéro l'usage de la semaine",
+        "intro": "Les quotas se comptent par semaine, du lundi 0 h (heure de Paris). Remettre à zéro efface l'usage de la semaine en cours de tous les candidats, pour tous les quotas : chacun repart de zéro jusqu'à lundi prochain. Les semaines passées sont conservées.",
+        "reason": "Raison de la remise à zéro",
+        "reasonHelp": "Obligatoire. Elle est enregistrée dans le journal du back office.",
+        "confirm": "Je confirme la remise à zéro de l'usage de la semaine pour tous les candidats.",
+        "submit": "Remettre à zéro pour tous les candidats",
+        "done_one": "Usage de la semaine remis à zéro : {{count}} candidat concerné.",
+        "done_other": "Usage de la semaine remis à zéro : {{count}} candidats concernés.",
+        "refused": "Rien n'a été remis à zéro : indiquez une raison et cochez la confirmation.",
+        "journalFields": {
+          "reason": "Raison",
+          "candidates": "Candidats concernés"
+        }
+      }
     },
     "coupons": {
       "title": "Codes promo",
@@ -1223,7 +1247,8 @@
         "viewed": "Consultation",
         "validated": "Validation",
         "archived": "Archivage",
-        "restored": "Rétablissement"
+        "restored": "Rétablissement",
+        "reset": "Remise à zéro"
       },
       "none": "Aucune modification enregistrée.",
       "caption": "Modifications du back office, des plus récentes aux plus anciennes",
@@ -2013,7 +2038,7 @@
       "discovery_failed": "Les sites d'offres d'emploi n'ont pas pu être consultés.",
       "other": "Un problème technique l'a interrompue."
     },
-    "notCounted": "Elle n'est pas comptée dans vos recherches d'offres du mois.",
+    "notCounted": "Elle n'est pas comptée dans vos recherches d'offres de la semaine.",
     "notifications": {
       "label": "Recherches d'offres terminées",
       "done_zero": "Votre recherche d'offres pour « {{profile}} » est terminée : aucune offre trouvée.",
@@ -2094,7 +2119,7 @@
   },
   "enrichedContacts": {
     "title": "Contacts enrichis",
-    "intro": "Trouvez les personnes qui occupent les fonctions à contacter chez l'employeur, puis obtenez leurs coordonnées auprès d'un fournisseur de données sous licence. Chaque contact dont vous obtenez les coordonnées compte dans votre quota mensuel.",
+    "intro": "Trouvez les personnes qui occupent les fonctions à contacter chez l'employeur, puis obtenez leurs coordonnées auprès d'un fournisseur de données sous licence. Chaque contact dont vous obtenez les coordonnées compte dans votre quota hebdomadaire.",
     "needsDossier": "Constituez d'abord le dossier entreprise : il indique les fonctions à rechercher.",
     "searchUnsupported": "Le fournisseur de données actuel ne permet pas de rechercher des personnes par fonction.",
     "find": "Rechercher des contacts",
@@ -2104,7 +2129,7 @@
     "foundNone": "Aucune personne trouvée pour l'instant.",
     "reveal": "Obtenir les coordonnées",
     "revealFor": "Obtenir les coordonnées de {{name}}",
-    "revealHint": "Chaque demande de coordonnées compte pour un contact enrichi dans votre quota du mois. Rien n'est décompté si le fournisseur n'en a pas.",
+    "revealHint": "Chaque demande de coordonnées compte pour un contact enrichi dans votre quota de la semaine. Rien n'est décompté si le fournisseur n'en a pas.",
     "revealing": "Demande en cours…",
     "contactsTitle": "Vos contacts enrichis",
     "email": "E-mail",
@@ -2515,7 +2540,7 @@
     "startedAll_other": "{{count}} recherches lancées.",
     "failedFor": "Pas de recherche pour « {{profile}} » : {{reason}}",
     "failureReasons": {
-      "quota": "vous avez utilisé toutes les recherches d'offres de votre offre ce mois-ci.",
+      "quota": "vous avez utilisé toutes les recherches d'offres de votre offre cette semaine.",
       "archived": "ce profil est archivé.",
       "generic": "elle n'a pas pu être lancée. Vérifiez votre connexion et réessayez."
     },

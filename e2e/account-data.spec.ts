@@ -238,6 +238,8 @@ test.describe("exporting my data and deleting my account", () => {
     expect(contacts.find((c) => c.id === found[0].id)).toMatchObject({ provider: "apollo", foundAt: expect.any(String), retrievedAt: expect.any(String) });
     expect(contacts.some((c) => c.emails.length > 0)).toBe(true);
     expect(exported.coachAccess).toEqual([expect.objectContaining({ coach: { id: coach.id, name: coach.name }, grantedAt: expect.any(String) })]);
+    // The one revealed contact counts against this week's Plan Quota, by the Monday the week starts on (ADR-0032).
+    expect(exported.quotaUsage).toContainEqual({ quota: "enrichedContacts", week: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), used: 1 });
 
     const raw = JSON.stringify(exported);
     expect(raw).not.toContain(otherData.profileId);

@@ -144,7 +144,7 @@ test.describe("ATS Score", () => {
     await openSection(page, S["ats-score"]);
     await expect(section).toContainText("Calculé sur la version 3 de votre CV de référence.");
 
-    // The Free Plan's one ATS Score of the month was the first computation: recomputing after fixes did not use it.
+    // The Free Plan's one ATS Score of the week was the first computation: recomputing after fixes did not use it.
     await section.getByRole("button", { name: fr.atsScore.recompute }).click();
     await expect(section.getByRole("alert")).toContainText(fr.billing.quotaReached.title);
   });

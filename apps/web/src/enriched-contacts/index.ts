@@ -16,7 +16,7 @@
  *    confirmed signed (see `./config`): nothing is found or revealed.
  *  - Premium only: a Plan whose quota has no Enriched Contacts gets the Upgrade
  *    Prompt before any provider is asked. Each reveal counts one Enriched Contact
- *    against the monthly Plan Quota; a reveal the provider could not answer is
+ *    against the weekly Plan Quota; a reveal the provider could not answer is
  *    given back, and revealing someone again costs nothing.
  *  - Who to look for comes from the built Company Dossier: the employer's name and
  *    website, and its Suggested Contact Roles as job titles. Where: the country
@@ -70,7 +70,7 @@ export interface EnrichedContactsState {
 
 export type EnrichedContactsResult =
   | { ok: true; state: EnrichedContactsState }
-  /** The Candidate's Plan has no Enriched Contacts, or none left this month. */
+  /** The Candidate's Plan has no Enriched Contacts, or none left this week. */
   | { ok: false; error: "quota_exceeded"; refusal: QuotaRefusal }
   | {
       ok: false;
@@ -83,7 +83,7 @@ export type EnrichedContactsResult =
         | "unavailable"; /** The provider could not answer. Nothing counted; try again later. */
     };
 
-/** The monthly Enriched Contacts quota, as billing gives it (`allows`, `use`, `release` of "enrichedContacts"). */
+/** The weekly Enriched Contacts quota, as billing gives it (`allows`, `use`, `release` of "enrichedContacts"). */
 export interface EnrichedContactQuota {
   allows(candidateId: string): Promise<QuotaDecision>;
   use(candidateId: string): Promise<QuotaDecision>;

@@ -182,8 +182,11 @@ export interface CandidateDataExport {
   account: ExportedAccount | null;
   /** The Candidate's Plan, from Stripe (its identifiers there are left out), or null on the Free Plan from the start. */
   plan: { plan: Plan; subscriptionStatus: string | null; endsAt: Date | null } | null;
-  /** How much of each monthly Plan Quota the Candidate used, newest month first. */
-  quotaUsage: { quota: string; month: string; used: number }[];
+  /**
+   * How much of each weekly Plan Quota the Candidate used, newest first: `week` is the Monday
+   * it starts on ("2026-10-12"), or the month ("2026-10") for uses counted monthly before ADR-0032.
+   */
+  quotaUsage: { quota: string; week: string; used: number }[];
   /** The Candidate's EU AI consent (ADR-0007), or null when they have not given it (or withdrew it). */
   euAiConsent: { givenAt: Date } | null;
   /** The Follow-up Delays the Candidate set, or null while they keep the defaults. */
@@ -464,7 +467,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           `SELECT plan, stripe_status AS "subscriptionStatus", ends_at AS "endsAt" FROM candidate_plan WHERE candidate_id = $1`,
           candidateId,
         ),
-        rowsOf<CandidateDataExport["quotaUsage"][number]>(`SELECT quota, month, used FROM quota_usage WHERE candidate_id = $1 ORDER BY month DESC, quota`, candidateId),
+        rowsOf<CandidateDataExport["quotaUsage"][number]>(`SELECT quota, week, used FROM quota_usage WHERE candidate_id = $1 ORDER BY week DESC, quota`, candidateId),
         rowOf<{ givenAt: Date }>(`SELECT given_at AS "givenAt" FROM eu_ai_consent WHERE candidate_id = $1`, candidateId),
         rowOf<FollowUpDelays>(`SELECT after_applied AS "afterApplied", after_follow_up AS "afterFollowUp" FROM follow_up_delay WHERE candidate_id = $1`, candidateId),
         exportCoachConversations(candidateId),

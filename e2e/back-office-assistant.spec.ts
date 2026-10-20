@@ -73,7 +73,7 @@ test.describe("Back Office Assistant", () => {
     await expect(lastReply(page)).toContainText("E2E: system prompt");
     const prompt = await systemPromptShown(show);
     expect(prompt).toContain("Quotas des offres (Plan Quotas)");
-    expect(prompt).toContain("Match Scores par mois");
+    expect(prompt).toContain("Match Scores par semaine");
     expect(prompt).toContain("Journal du Back Office");
     expect(prompt).toContain("Rôles de l'Administrateur : Super-admin.");
     expect(prompt).not.toContain(MISTRAL_KEY);
@@ -108,7 +108,7 @@ test.describe("Back Office Assistant", () => {
     expect(prompt).toContain("Hors des rôles de l'Administrateur");
     expect(prompt).toContain("Clés des fournisseurs (Provider Secrets)");
     // Plan Quota figures and the Journal are outside their roles: never in the prompt.
-    expect(prompt).not.toContain("Match Scores par mois");
+    expect(prompt).not.toContain("Match Scores par semaine");
     expect(prompt).not.toContain("Les 30 derniers");
     expect(prompt).not.toContain(MISTRAL_KEY);
 

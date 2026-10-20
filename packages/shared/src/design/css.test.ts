@@ -15,6 +15,8 @@ describe("renderDesignCss", () => {
   });
 
   it("applies each text-size setting through a data attribute on the root element", () => {
+    expect(css).toMatch(/html\[data-text-size="small"\]\s*\{\s*font-size: 16px;/);
+    expect(css).toMatch(/html\[data-text-size="standard"\]\s*\{\s*font-size: 17px;/);
     expect(css).toMatch(/html\[data-text-size="large"\]\s*\{\s*font-size: 18px;/);
     expect(css).toMatch(/html\[data-text-size="xlarge"\]\s*\{\s*font-size: 20px;/);
   });

@@ -97,7 +97,7 @@ describe.skipIf(!connectionString)("Enriched Contacts (needs Postgres: DATABASE_
     });
   }
 
-  /** Lets the Free Plan have `count` Enriched Contacts a month, as the Premium Plan does. */
+  /** Lets the Free Plan have `count` Enriched Contacts a week, as the Premium Plan does. */
   const includeEnrichedContacts = (count: number | null) => t.billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, enrichedContacts: count });
 
   async function saveApplication(owner: string) {
@@ -175,7 +175,7 @@ describe.skipIf(!connectionString)("Enriched Contacts (needs Postgres: DATABASE_
     expect(searches[0]!.jobTitles).toEqual(expect.arrayContaining(["DRH", "Directeur des ressources humaines", "Responsable recrutement", "Talent Acquisition"]));
     expect(reveals).toEqual([]);
     // Finding people reveals nothing: no Enriched Contact is counted yet.
-    expect((await t.billing.entitlements(marie)).usedThisMonth.enrichedContacts).toBe(0);
+    expect((await t.billing.entitlements(marie)).usedThisWeek.enrichedContacts).toBe(0);
   });
 
   it("looks for people in the country the Job Offer's location names", async () => {
@@ -235,7 +235,7 @@ describe.skipIf(!connectionString)("Enriched Contacts (needs Postgres: DATABASE_
     expect(await contacts.find(marie, applicationId)).toEqual({ ok: false, error: "no_dossier" });
   });
 
-  it("reveals a found person's contact details, counted against the monthly Plan Quota, with their source and retrieval date", async () => {
+  it("reveals a found person's contact details, counted against the weekly Plan Quota, with their source and retrieval date", async () => {
     const { provider, reveals } = fakeProvider();
     const contacts = contactsWith(provider);
     await includeEnrichedContacts(20);
@@ -262,16 +262,16 @@ describe.skipIf(!connectionString)("Enriched Contacts (needs Postgres: DATABASE_
       },
     });
     expect(reveals).toEqual(["p-claire"]);
-    expect((await t.billing.entitlements(marie)).usedThisMonth.enrichedContacts).toBe(1);
+    expect((await t.billing.entitlements(marie)).usedThisWeek.enrichedContacts).toBe(1);
     expect(await contacts.contact(marie, applicationId, claire!.id)).toMatchObject({ name: "Claire Martin", emails: ["claire.martin@acme-industrie.fr"] });
 
     // Revealing it again neither asks the provider nor counts twice.
     await contacts.reveal(marie, applicationId, claire!.id);
     expect(reveals).toEqual(["p-claire"]);
-    expect((await t.billing.entitlements(marie)).usedThisMonth.enrichedContacts).toBe(1);
+    expect((await t.billing.entitlements(marie)).usedThisWeek.enrichedContacts).toBe(1);
   });
 
-  it("stops at the monthly Plan Quota, before asking the provider", async () => {
+  it("stops at the weekly Plan Quota, before asking the provider", async () => {
     const { provider, reveals } = fakeProvider();
     const contacts = contactsWith(provider);
     await includeEnrichedContacts(1);
@@ -298,7 +298,7 @@ describe.skipIf(!connectionString)("Enriched Contacts (needs Postgres: DATABASE_
     // Hugo is unknown to the fake provider: no details.
     const working = contactsWith(fakeProvider().provider);
     expect(await working.reveal(marie, applicationId, hugo!.id)).toEqual({ ok: false, error: "no_details" });
-    expect((await t.billing.entitlements(marie)).usedThisMonth.enrichedContacts).toBe(0);
+    expect((await t.billing.entitlements(marie)).usedThisWeek.enrichedContacts).toBe(0);
   });
 
   it("cannot search with a provider that only enriches known profiles (Kaspr)", async () => {

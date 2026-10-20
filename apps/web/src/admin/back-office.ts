@@ -72,9 +72,10 @@ export type SecretAction = (typeof SECRET_ACTIONS)[number];
  * What was done to the target. `retired` keeps its history (a Human Coach), `removed`
  * deletes it (a search site). `viewed`: an AI Message Log was read (#218), the only read the
  * Back Office Audit records. `validated`, `archived` and `restored`: a Playbook Version was
- * Human-validated, a Coaching Playbook archived or restored (#225).
+ * Human-validated, a Coaching Playbook archived or restored (#225). `reset`: the week's Plan Quota
+ * usage of every Candidate was forgotten (ADR-0032).
  */
-export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | "tested" | "viewed" | "validated" | "archived" | "restored" | SecretAction;
+export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | "tested" | "viewed" | "validated" | "archived" | "restored" | "reset" | SecretAction;
 
 export const isSecretAction = (
   action: BackOfficeAction,
@@ -125,6 +126,7 @@ export interface BackOfficeDeps {
   billing: Pick<
     Billing,
     | "setPlanQuotas"
+    | "resetWeeklyUsage"
     | "createPlan"
     | "updatePlan"
     | "movePlan"
@@ -161,6 +163,14 @@ export interface BackOffice {
     plan: Plan,
     quotas: PlanQuotas,
   ): Promise<void>;
+  /**
+   * Forgets this week's Plan Quota usage of every Candidate (see Billing.resetWeeklyUsage),
+   * recorded with the Administrator's reason; refused, and nothing reset, without one.
+   */
+  resetWeeklyUsage(
+    actor: BackOfficeActor,
+    reason: string,
+  ): Promise<{ ok: true; candidates: number } | { ok: false; error: "reason_required" }>;
   /**
    * Creates a Coupon in Stripe; `input` is untrusted (see Billing.createCoupon). Stripe is called before the
    * audit transaction; if the entry cannot be recorded, the code is deactivated again. Nothing is recorded when refused.
@@ -403,6 +413,17 @@ export function createBackOffice(
               }
             : null,
       );
+    },
+
+    async resetWeeklyUsage(actor, reason) {
+      const why = reason.trim();
+      if (!why) return { ok: false, error: "reason_required" };
+      const { candidates } = await record(
+        actor,
+        (within) => deps.billing.resetWeeklyUsage(within),
+        (reset) => ({ section: "plan_quotas", target: reset.week, action: "reset", before: null, after: { reason: why, candidates: reset.candidates } }),
+      );
+      return { ok: true, candidates };
     },
 
     async createCoupon(actor, input) {

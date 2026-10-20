@@ -21,7 +21,7 @@ export function getAiUsageLog(): UsageLog {
   return usage;
 }
 
-/** Where the app's calls to external APIs (contact enrichment) are recorded; none without a database. */
+/** Where the app's calls to external APIs (contact enrichment, Stripe, mail, sign-in...) are recorded; none without a database. */
 export function getExternalApiLog(): ExternalApiLog {
   externalApis ??= process.env.DATABASE_URL ? createPostgresExternalApiLog(sharedPool()) : { record: () => {} };
   return externalApis;

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { checkoutSessionEvent, FAKE_STRIPE_COACHING_SESSION_PRICES, FAKE_STRIPE_PRICES, FAKE_STRIPE_PRODUCTS, fakeCustomerId, signedEvent, subscriptionEvent } from "./fake-stripe";
+import type { ExternalApiCall } from "@jobhub/shared";
 import { BillingError, createBilling, STARTING_PLAN_QUOTAS } from "./index";
 import { connectionString, startTestBilling, type TestBilling } from "./test-support";
 
@@ -769,4 +770,58 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
     const { payload, signature } = signedEvent(event);
     await t.billing.handleStripeWebhook(payload, signature);
   }
+});
+
+describe.skipIf(!connectionString)("Stripe calls, as recorded (needs Postgres: DATABASE_URL)", () => {
+  let t: TestBilling;
+  const calls: ExternalApiCall[] = [];
+  beforeEach(async () => {
+    calls.length = 0;
+    t = await startTestBilling({ externalApis: { record: (call) => void calls.push(call) } });
+  });
+  afterEach(async () => {
+    await t.stop();
+  });
+
+  it("records each Stripe call once, by its API method, with its outcome and duration", async () => {
+    const marie = await t.signUp("marie.dupont@example.fr");
+    calls.length = 0;
+
+    await t.billing.startCheckout(marie, "standard");
+    await t.billing.openCustomerPortal(marie.id);
+
+    expect(calls.map(({ provider, operation, ok, httpStatus }) => ({ provider, operation, ok, httpStatus }))).toEqual(
+      expect.arrayContaining([
+        { provider: "stripe", operation: "customers.create", ok: true, httpStatus: 200 },
+        { provider: "stripe", operation: "checkout.sessions.create", ok: true, httpStatus: 200 },
+        { provider: "stripe", operation: "billingPortal.sessions.create", ok: true, httpStatus: 200 },
+      ]),
+    );
+    expect(calls.filter((call) => call.operation === "checkout.sessions.create")).toHaveLength(1);
+    for (const call of calls) expect(call.durationMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it("records each webhook received, refused ones too", async () => {
+    const marie = await t.signUp("marie.dupont@example.fr");
+    await t.billing.startCheckout(marie, "standard");
+    calls.length = 0;
+
+    const { payload, signature } = signedEvent(subscriptionEvent("customer.subscription.created", { customer: fakeCustomerId(marie.email), price: FAKE_STRIPE_PRICES.standard, status: "active" }));
+    await t.billing.handleStripeWebhook(payload, signature);
+    await expect(t.billing.handleStripeWebhook(payload, "t=1,v1=forged")).rejects.toThrow();
+
+    expect(calls.map(({ operation, ok }) => ({ operation, ok }))).toEqual([
+      { operation: "webhooks.constructEvent", ok: true },
+      { operation: "webhooks.constructEvent", ok: false },
+    ]);
+  });
+
+  it("never records who it was for, what was sent or the key", async () => {
+    const marie = await t.signUp("marie.dupont@example.fr");
+
+    await t.billing.startCheckout(marie, "standard");
+
+    expect(calls.length).toBeGreaterThan(0);
+    expect(JSON.stringify(calls)).not.toMatch(new RegExp([marie.id, "marie", fakeCustomerId(marie.email), "sk_test", "price_"].join("|"), "i"));
+  });
 });

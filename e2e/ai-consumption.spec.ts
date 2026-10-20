@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 
-// Issue #218: the Back Office's AI consumption report (Consommation IA) counts every AI
+// Issue #218 (and #259, the Outcome and Failure Reason of each call): the Back Office's AI consumption report (Consommation IA) counts every AI
 // call, and the AI Message Log (Journaux IA) keeps what each said for 30 days, for
 // super-admins only, every log opened written to the Journal. The AI is faked inside the
 // server (fake-mistral.mjs); the Back Office Assistant makes the call here, under its own task.
@@ -57,7 +57,18 @@ test.describe("AI consumption and AI message logs", () => {
     await page.getByRole("button", { name: admin.aiMessages.apply }).click();
     const rows = page.getByRole("table", { name: admin.aiMessages.caption }).getByRole("row").filter({ hasText: SUPER_ADMIN });
     await expect(rows.first()).toContainText(admin.aiUsage.tasks.back_office_assistant);
+    await expect(rows.first()).toContainText(admin.aiMessages.outcomes.ok);
     await expect(page.getByRole("table", { name: admin.aiMessages.caption })).not.toContainText(question);
+    // Filtered by Outcome and Failure Reason too (#259), every filter kept in the URL: no failed call here.
+    await page.getByLabel(admin.aiMessages.result).selectOption("failed");
+    await page.getByLabel(admin.aiMessages.reason).selectOption("provider_unavailable");
+    await page.getByRole("button", { name: admin.aiMessages.apply }).click();
+    await expect(page).toHaveURL(/outcome=failed/);
+    await expect(page).toHaveURL(/reason=provider_unavailable/);
+    await expect(page.getByText(admin.aiMessages.none)).toBeVisible();
+    await page.getByLabel(admin.aiMessages.result).selectOption("ok");
+    await page.getByLabel(admin.aiMessages.reason).selectOption("");
+    await page.getByRole("button", { name: admin.aiMessages.apply }).click();
     await rows.first().getByRole("link", { name: admin.aiMessages.open }).click();
     await expect(page.getByRole("status")).toHaveText(admin.aiMessages.audited);
     await expect(page.getByRole("main")).toContainText(question.replace(MISTRAL_KEY, "[redacted]"));

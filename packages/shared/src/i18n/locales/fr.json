@@ -1382,8 +1382,6 @@
       "candidate": "Candidat",
       "noCandidate": "Aucun (invité)",
       "result": "Résultat",
-      "ok": "Réussi",
-      "failed": "Échec",
       "open": "Ouvrir",
       "openLabel": "Ouvrir le journal du {{at}}",
       "none": "Aucun journal ne correspond.",
@@ -1401,7 +1399,28 @@
         "assistant": "Réponse précédente"
       },
       "reply": "Réponse",
-      "noReply": "Aucune réponse : l'appel a échoué."
+      "noReply": "Aucune réponse : l'appel a échoué.",
+      "outcomes": {
+        "ok": "OK",
+        "warning": "Avertissement",
+        "failed": "Échec"
+      },
+      "anyOutcome": "Tous",
+      "reason": "Raison",
+      "anyReason": "Toutes",
+      "notSent": "non envoyé",
+      "noProvider": "Aucun fournisseur",
+      "why": "Pourquoi",
+      "reasonUnknown": "Raison non enregistrée (appel antérieur aux raisons d'échec).",
+      "technical": "Détail technique",
+      "technicalFields": {
+        "class": "Type d'erreur",
+        "provider": "Fournisseur",
+        "status": "Statut HTTP",
+        "message": "Message"
+      },
+      "noTechnical": "Aucun détail technique enregistré.",
+      "noReplyNotSent": "Aucune réponse : l'appel n'a pas été envoyé."
     },
     "coachingPlaybooks": {
       "title": "Playbooks de coaching",

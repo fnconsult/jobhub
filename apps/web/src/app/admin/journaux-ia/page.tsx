@@ -1,4 +1,5 @@
 import type { AiTask } from "@jobhub/ai";
+import { FAILURE_REASONS, OUTCOMES } from "@jobhub/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireBackOffice } from "@/admin/server";
@@ -21,7 +22,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Super-admins find an AI Message Log (#218): newest first, filtered by task, model, Candidate
- * email and day. The list shows no text; opening a log writes the view to the Back Office Audit.
+ * email, day, Outcome and Failure Reason (#259). The list shows no text, only how each call ended
+ * and why; opening a log writes the view to the Back Office Audit.
  */
 export default async function AiMessagesPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const { access } = await requireBackOffice("aiMessages");
@@ -59,6 +61,28 @@ export default async function AiMessagesPage({ searchParams }: { searchParams: P
           <label htmlFor="ai-messages-day">{t("admin.aiMessages.day")}</label>
           <input id="ai-messages-day" name="day" type="date" className="input" defaultValue={filter.day ?? ""} />
         </div>
+        <div className="field">
+          <label htmlFor="ai-messages-outcome">{t("admin.aiMessages.result")}</label>
+          <select id="ai-messages-outcome" name="outcome" className="input" defaultValue={filter.outcome ?? ""}>
+            <option value="">{t("admin.aiMessages.anyOutcome")}</option>
+            {OUTCOMES.map((outcome) => (
+              <option key={outcome} value={outcome}>
+                {t(`admin.aiMessages.outcomes.${outcome}`)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="ai-messages-reason">{t("admin.aiMessages.reason")}</label>
+          <select id="ai-messages-reason" name="reason" className="input" defaultValue={filter.reason ?? ""}>
+            <option value="">{t("admin.aiMessages.anyReason")}</option>
+            {FAILURE_REASONS.map((reason) => (
+              <option key={reason} value={reason}>
+                {t(`failureReasons.${reason}`)}
+              </option>
+            ))}
+          </select>
+        </div>
         <div>
           <button type="submit" className="button">
             {t("admin.aiMessages.apply")}
@@ -94,11 +118,13 @@ export default async function AiMessagesPage({ searchParams }: { searchParams: P
                       <time dateTime={log.at.toISOString()}>{at.format(log.at)}</time>
                     </th>
                     <td>{AI_TASKS.includes(log.task) ? t(`admin.aiUsage.tasks.${log.task as Task}`) : log.task}</td>
-                    <td>
-                      {log.provider} {log.model}
-                    </td>
+                    <td>{log.provider ? `${log.provider} ${log.model ?? ""}` : t("admin.aiMessages.noProvider")}</td>
                     <td>{log.candidate?.email ?? t("admin.aiMessages.noCandidate")}</td>
-                    <td>{log.ok ? t("admin.aiMessages.ok") : t("admin.aiMessages.failed")}</td>
+                    <td>
+                      {t(`admin.aiMessages.outcomes.${log.outcome}`)}
+                      {log.reason ? ` · ${t(`failureReasons.${log.reason}`)}` : null}
+                      {log.sent ? null : ` · ${t("admin.aiMessages.notSent")}`}
+                    </td>
                     <td>
                       <Link href={routes.adminAiMessage(log.id)} prefetch={false} aria-label={t("admin.aiMessages.openLabel", { at: at.format(log.at) })}>
                         {t("admin.aiMessages.open")}

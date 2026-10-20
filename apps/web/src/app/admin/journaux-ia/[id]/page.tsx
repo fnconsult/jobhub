@@ -19,7 +19,10 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t("admin.aiMessages.title")} · ${t("admin.title")}`, robots: { index: false } };
 }
 
-/** A super-admin reads one AI Message Log (#218); the view is written to the Back Office Audit as it is read. */
+/**
+ * A super-admin reads one AI Message Log (#218); the view is written to the Back Office Audit as it is read.
+ * A call that failed or warned says why (#259): its Failure Reason's wording, then its technical reason.
+ */
 export default async function AiMessagePage({ params }: Params) {
   const { access, administrator } = await requireBackOffice("aiMessages");
   const log = await getAiMessageLogs().open(administrator, (await params).id);
@@ -52,13 +55,14 @@ export default async function AiMessagePage({ params }: Params) {
         <dt>{t("admin.aiMessages.task")}</dt>
         <dd>{AI_TASKS.includes(log.task) ? t(`admin.aiUsage.tasks.${log.task as Task}`) : log.task}</dd>
         <dt>{t("admin.aiMessages.provider")}</dt>
-        <dd>
-          {log.provider} {log.model}
-        </dd>
+        <dd>{log.provider ? `${log.provider} ${log.model ?? ""}` : t("admin.aiMessages.noProvider")}</dd>
         <dt>{t("admin.aiMessages.candidate")}</dt>
         <dd>{log.candidate?.email ?? t("admin.aiMessages.noCandidate")}</dd>
         <dt>{t("admin.aiMessages.result")}</dt>
-        <dd>{log.ok ? t("admin.aiMessages.ok") : t("admin.aiMessages.failed")}</dd>
+        <dd>
+          {t(`admin.aiMessages.outcomes.${log.outcome}`)}
+          {log.sent ? null : ` · ${t("admin.aiMessages.notSent")}`}
+        </dd>
         <dt>{t("admin.aiMessages.tokens")}</dt>
         <dd>
           {number.format(log.inputTokens)}, {number.format(log.cachedInputTokens)}, {number.format(log.outputTokens)}
@@ -68,6 +72,36 @@ export default async function AiMessagePage({ params }: Params) {
         <dt>{t("admin.aiMessages.duration")}</dt>
         <dd>{milliseconds.format(log.durationMs)}</dd>
       </dl>
+
+      {log.outcome === "ok" ? null : (
+        <section aria-labelledby="ai-message-why">
+          <h2 id="ai-message-why">{t("admin.aiMessages.why")}</h2>
+          <p>{log.reason ? t(`failureReasons.${log.reason}`) : t("admin.aiMessages.reasonUnknown")}</p>
+          <h3>{t("admin.aiMessages.technical")}</h3>
+          {log.technicalReason ? (
+            <dl className="props" aria-label={t("admin.aiMessages.technical")}>
+              <dt>{t("admin.aiMessages.technicalFields.class")}</dt>
+              <dd>{log.technicalReason.class}</dd>
+              {log.technicalReason.provider ? (
+                <>
+                  <dt>{t("admin.aiMessages.technicalFields.provider")}</dt>
+                  <dd>{log.technicalReason.provider}</dd>
+                </>
+              ) : null}
+              {log.technicalReason.status === undefined ? null : (
+                <>
+                  <dt>{t("admin.aiMessages.technicalFields.status")}</dt>
+                  <dd>{log.technicalReason.status}</dd>
+                </>
+              )}
+              <dt>{t("admin.aiMessages.technicalFields.message")}</dt>
+              <dd className="ai-message-text">{log.technicalReason.message}</dd>
+            </dl>
+          ) : (
+            <p>{t("admin.aiMessages.noTechnical")}</p>
+          )}
+        </section>
+      )}
 
       {log.system ? (
         <>
@@ -87,7 +121,7 @@ export default async function AiMessagePage({ params }: Params) {
       </ol>
 
       <h2>{t("admin.aiMessages.reply")}</h2>
-      {log.reply === null ? <p>{t("admin.aiMessages.noReply")}</p> : <div className="draft ai-message-text">{log.reply}</div>}
+      {log.reply === null ? <p>{log.sent ? t("admin.aiMessages.noReply") : t("admin.aiMessages.noReplyNotSent")}</p> : <div className="draft ai-message-text">{log.reply}</div>}
     </BackOfficeLayout>
   );
 }

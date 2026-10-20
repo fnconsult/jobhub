@@ -1382,8 +1382,6 @@
       "candidate": "Candidate",
       "noCandidate": "None (Guest)",
       "result": "Result",
-      "ok": "Succeeded",
-      "failed": "Failed",
       "open": "Open",
       "openLabel": "Open the log of {{at}}",
       "none": "No log matches.",
@@ -1401,7 +1399,28 @@
         "assistant": "Earlier reply"
       },
       "reply": "Reply",
-      "noReply": "No reply: the call failed."
+      "noReply": "No reply: the call failed.",
+      "outcomes": {
+        "ok": "OK",
+        "warning": "Warning",
+        "failed": "Failed"
+      },
+      "anyOutcome": "All",
+      "reason": "Reason",
+      "anyReason": "All",
+      "notSent": "not sent",
+      "noProvider": "No provider",
+      "why": "Why",
+      "reasonUnknown": "Reason not recorded (a call made before failure reasons were).",
+      "technical": "Technical detail",
+      "technicalFields": {
+        "class": "Error type",
+        "provider": "Provider",
+        "status": "HTTP status",
+        "message": "Message"
+      },
+      "noTechnical": "No technical detail recorded.",
+      "noReplyNotSent": "No reply: the call was not sent."
     },
     "coachingPlaybooks": {
       "title": "Coaching Playbooks",

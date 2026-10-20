@@ -215,7 +215,8 @@ const optionalText = (max: number) =>
     .transform((value) => value || null);
 
 const scheduleSchema = z.object({
-  scheduledAt: frenchDateTime,
+  /** Blank is "required", not "invalid". */
+  scheduledAt: z.string().trim().min(1).pipe(frenchDateTime),
   /** Blank is none. */
   durationMinutes: z
     .union([z.number().int().min(5).max(600), z.literal("")])

@@ -329,7 +329,12 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
       const refused = await coaches.scheduleSession(marie, session.id, { scheduledAt: "", durationMinutes: 0, videoLink: "javascript:alert(1)" });
 
       expect(refused.ok).toBe(false);
-      expect(refused.ok === false && "errors" in refused ? refused.errors.map((error) => error.field).sort() : []).toEqual(["durationMinutes", "scheduledAt", "videoLink"]);
+      expect(refused.ok === false && "errors" in refused ? refused.errors.sort((a, b) => a.field.localeCompare(b.field)) : []).toEqual([
+        { field: "durationMinutes", code: "invalid" },
+        { field: "scheduledAt", code: "required" },
+        { field: "videoLink", code: "invalid" },
+      ]);
+      expect(await coaches.scheduleSession(marie, session.id, { scheduledAt: "le 22 octobre" })).toEqual({ ok: false, errors: [{ field: "scheduledAt", code: "invalid" }] });
       expect(await coaches.sessions(marie)).toEqual([expect.objectContaining({ scheduledAt: null })]);
     });
 

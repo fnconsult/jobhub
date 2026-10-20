@@ -2634,5 +2634,15 @@
     "groupTitle": "Offres pour « {{profile}} »",
     "laneLabel": "Offres trouvées pour « {{profile}} », à faire défiler de côté",
     "searchThisProfile": "Chercher pour ce profil seul"
+  },
+  "failureReasons": {
+    "provider_unavailable": "Fournisseur indisponible",
+    "provider_rejected": "Appel refusé par le fournisseur",
+    "rate_limited": "Limite d'appels du fournisseur atteinte",
+    "key_missing": "Clé d'API absente",
+    "route_missing": "Aucun fournisseur configuré pour cette tâche",
+    "data_residency": "Règle de résidence des données",
+    "invalid_reply": "Réponse illisible",
+    "other": "Erreur inattendue"
   }
 }

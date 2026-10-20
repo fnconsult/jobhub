@@ -2634,5 +2634,15 @@
     "groupTitle": "Job offers for \"{{profile}}\"",
     "laneLabel": "Job offers found for \"{{profile}}\", scroll sideways",
     "searchThisProfile": "Search for this profile alone"
+  },
+  "failureReasons": {
+    "provider_unavailable": "Provider unavailable",
+    "provider_rejected": "Call rejected by the provider",
+    "rate_limited": "Provider rate limit reached",
+    "key_missing": "API key missing",
+    "route_missing": "No provider configured for this task",
+    "data_residency": "Data residency rule",
+    "invalid_reply": "Unreadable reply",
+    "other": "Unexpected error"
   }
 }

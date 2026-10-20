@@ -3182,3 +3182,259 @@ textarea.title-edit {
 .agenda-item-with-action .agenda-item-link {
   flex: 1 1 18rem;
 }
+
+/* The Agenda's views (#251, ADR-0028): « Liste », « Semaine », « Mois » as links styled as a
+   segmented control; the view shown is bold and shaded, not marked by colour alone. */
+.agenda-views {
+  display: inline-flex;
+  align-self: flex-start;
+  max-width: 100%;
+  margin-bottom: var(--space-6);
+  overflow: hidden;
+  border: 1px solid var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.agenda-views a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-4);
+  color: var(--color-text);
+  text-decoration: none;
+  background: var(--color-background);
+}
+
+.agenda-views a + a {
+  border-left: 1px solid var(--color-text-secondary);
+}
+
+.agenda-views a:hover {
+  background: var(--color-surface-hover);
+}
+
+.agenda-views a[aria-current="page"] {
+  font-weight: 600;
+  background: var(--color-surface-hover);
+  box-shadow: inset 0 -3px 0 var(--color-text);
+}
+
+.agenda-period-title::first-letter {
+  text-transform: uppercase;
+}
+
+.agenda-period-nav {
+  gap: var(--space-2);
+}
+
+.agenda-period-nav .button {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+}
+
+.agenda-nothing {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+/* A past Agenda Item in a week or month view: dimmed like the past ones of the list. */
+.agenda-item-past .agenda-item-link {
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border-style: dashed;
+}
+
+.agenda-item-past .agenda-item-time,
+.agenda-item-past .agenda-item-title {
+  font-weight: 400;
+}
+
+/* An item's kind, told apart by shape as well as colour: a disc for an Interview, a hollow
+   diamond for a Coaching Session. The same markers sit in the month grid and its key. */
+.agenda-marker {
+  display: inline-block;
+  flex: none;
+  width: 0.625rem;
+  height: 0.625rem;
+  margin-right: var(--space-1);
+  vertical-align: middle;
+}
+
+.agenda-marker-interview {
+  background: var(--color-accent);
+  border-radius: 50%;
+}
+
+.agenda-marker-coachingSession {
+  border: 2px solid var(--color-text);
+  transform: rotate(45deg) scale(0.85);
+}
+
+/* The week: seven day columns on a wide screen, the days stacked below 64rem. */
+.agenda-week {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.agenda-week-day h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-body);
+}
+
+.agenda-today h3 {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.25em;
+}
+
+@media (width >= 64rem) {
+  .agenda-week {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+
+  .agenda-week-day {
+    min-width: 0;
+    padding: var(--space-2);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .agenda-week .agenda-item-link {
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-2);
+    overflow-wrap: anywhere;
+  }
+
+  .agenda-week .agenda-item-what {
+    flex-direction: column;
+  }
+
+  .agenda-week .agenda-item-with-action .agenda-item-link {
+    flex-basis: 100%;
+  }
+}
+
+/* The month: a table of day buttons, as wide as the page and never wider (375 px included). */
+.agenda-month {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.agenda-month th {
+  padding: var(--space-1) 0;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.agenda-month abbr {
+  text-decoration: none;
+}
+
+.agenda-month td {
+  padding: 2px;
+  vertical-align: top;
+}
+
+.agenda-month-day {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: center;
+  width: 100%;
+  min-height: 4.5rem;
+  padding: var(--space-1);
+  font: inherit;
+  color: var(--color-text);
+  cursor: pointer;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.agenda-month-day:hover {
+  background: var(--color-surface-hover);
+}
+
+.agenda-month-day-past {
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+}
+
+.agenda-month-number {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Today: its number ringed and bold. */
+.agenda-month-day.agenda-today .agenda-month-number {
+  padding: 0 var(--space-1);
+  font-weight: 600;
+  border: 2px solid var(--color-text);
+  border-radius: var(--radius-sm);
+}
+
+/* The day chosen: filled, bold and framed, its items listed below the grid. */
+.agenda-month-day[aria-pressed="true"] {
+  font-weight: 600;
+  color: var(--color-on-accent);
+  background: var(--color-text);
+  border-color: var(--color-text);
+}
+
+.agenda-month-day[aria-pressed="true"] .agenda-marker-interview {
+  background: var(--color-on-accent);
+}
+
+.agenda-month-day[aria-pressed="true"] .agenda-marker-coachingSession,
+.agenda-month-day[aria-pressed="true"].agenda-today .agenda-month-number {
+  border-color: var(--color-on-accent);
+}
+
+.agenda-markers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.agenda-markers .agenda-marker {
+  margin: 0;
+}
+
+.agenda-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+  padding: 0;
+  margin: 0;
+  color: var(--color-text-secondary);
+  list-style: none;
+}
+
+@media (width < 40rem) {
+  .agenda-month td {
+    padding: 1px;
+  }
+
+  .agenda-month-day {
+    min-height: var(--control-height);
+    padding: 2px 0;
+    gap: 2px;
+  }
+
+  .agenda-markers-more {
+    display: none;
+  }
+}

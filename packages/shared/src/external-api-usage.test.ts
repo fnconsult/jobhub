@@ -289,3 +289,18 @@ describe("a client that does not speak HTTP, as recorded", () => {
     expect(calls).toEqual([expect.objectContaining({ provider: "brevo_smtp", operation: "send", ok: true, httpStatus: null })]);
   });
 });
+
+describe("what a recorded call is named", () => {
+  it("never holds an email address or an id shaped like a Candidate's, whatever the path or the name", async () => {
+    const calls: ExternalApiCall[] = [];
+    const log = { record: (call: ExternalApiCall) => void calls.push(call) };
+
+    await recordingFetch(answering(200), log, { provider: "kaspr" })("https://api.kaspr.io/people/marie.dupont%40example.fr/3f2b8c1e-9a4d-4e2f-8b7a-1c2d3e4f5a6b", {
+      method: "GET",
+      headers: {},
+    });
+    await recordingFetch(answering(200), log, { provider: "job_site", operation: () => "page_read jean@acme.fr" })("https://acme.fr/x", { method: "GET", headers: {} });
+
+    expect(calls.map((call) => call.operation)).toEqual(["GET /people/[email]/[id]", "page_read [email]"]);
+  });
+});

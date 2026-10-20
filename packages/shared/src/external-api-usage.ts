@@ -2,7 +2,8 @@
  * External API usage (CONTEXT.md, #218): every call Jobbbox makes to a provider that is not an
  * LLM (France Travail, contact enrichment...), as the Back Office's AI consumption report counts it.
  * A call is recorded with its provider, operation, time, duration, outcome and estimated cost,
- * never its payload, query string, Candidate or credentials.
+ * never its payload, query string, Candidate or credentials: its operation holds no secret, email
+ * address or UUID (a Candidate's id is one), whoever named it.
  *
  *   const fetch = recordingFetch(globalThis.fetch, externalApis, { provider: "france_travail", costEur: () => 0 });
  *   const stripe = recordingClient(new Stripe(key), externalApis, { provider: "stripe" });
@@ -46,7 +47,7 @@ export interface RecordingOptions {
 
 export interface RecordingFetchOptions extends RecordingOptions {
   /**
-   * The operation a call is recorded as, from its method and URL; scrubbed of secrets.
+   * The operation a call is recorded as, from its method and URL; scrubbed of secrets, email addresses and UUIDs.
    * Default: the method and the decoded path ("GET /v2/offres"), no query string.
    */
   operation?: (method: string, url: URL) => string;
@@ -66,7 +67,7 @@ function operationOf(url: unknown, init: { method?: string } | undefined): strin
   } catch {
     path = href.split("?")[0] ?? "";
   }
-  return `${methodOf(url, init)} ${scrubSecrets(safelyDecoded(path))}`;
+  return `${methodOf(url, init)} ${safelyDecoded(path)}`;
 }
 
 /** `path` with its escapes decoded; as it is when one is malformed ("100%zz"). */
@@ -77,6 +78,12 @@ function safelyDecoded(path: string): string {
     return path;
   }
 }
+
+const EMAIL = /[^\s/@]+@[^\s/@]+\.[a-z]{2,}/gi;
+const UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
+
+/** `operation` as recorded: no email address, no id shaped like a Candidate's (a UUID), no secret. */
+const recordable = (operation: string): string => scrubSecrets(operation.replace(EMAIL, "[email]").replace(UUID, "[id]"));
 
 /**
  * Starts timing one call; the function it returns records it, once it answered `httpStatus`
@@ -92,7 +99,7 @@ function startCall(log: ExternalApiLog, options: RecordingOptions, operationOfCa
     const started = clock();
     return (httpStatus, ok) => {
       try {
-        const operation = operationOfCall();
+        const operation = recordable(operationOfCall());
         const call: ExternalApiCall = {
           provider: options.provider,
           operation,
@@ -117,7 +124,7 @@ function startCall(log: ExternalApiLog, options: RecordingOptions, operationOfCa
 export function recordingFetch<F extends FetchLike>(fetch: F, log: ExternalApiLog, options: RecordingFetchOptions): F {
   const name = options.operation;
   const recording = async (url: unknown, init?: { method?: string }) => {
-    const done = startCall(log, options, () => (name ? scrubSecrets(name(methodOf(url, init), new URL(hrefOf(url)))) : operationOf(url, init)));
+    const done = startCall(log, options, () => (name ? name(methodOf(url, init), new URL(hrefOf(url))) : operationOf(url, init)));
     let response: Response;
     try {
       response = await fetch(url, init);

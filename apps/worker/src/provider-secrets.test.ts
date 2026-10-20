@@ -17,9 +17,9 @@ const MISTRAL_OLD = "mistral-key-old-0123456789";
 const MISTRAL_NEW = "mistral-key-new-9876543210";
 
 /** The Provider Secrets the database holds, as the test edits them. */
-function database(initial: StoredSecrets = {}) {
+function database(initial: StoredSecrets = {}, env: Record<string, string> = ENV) {
   const stored = { current: initial };
-  return { stored, resolver: createSecretResolver({ load: async () => stored.current, env: ENV, log: () => {} }) };
+  return { stored, resolver: createSecretResolver({ load: async () => stored.current, env, log: () => {} }) };
 }
 
 /** Mistral and France Travail, faked: each request's key is recorded, a revoked one refused (echoed back, as some providers do). */
@@ -40,6 +40,12 @@ function fakeProviders() {
       return Response.json({ access_token: "token", expires_in: 1500 });
     }
     if (request.url.includes("api.francetravail.io")) return new Response(null, { status: 204 });
+    if (request.url.startsWith("https://data.fantastic.jobs/")) {
+      const key = request.headers.get("authorization")!.replace("Bearer ", "");
+      keysSent.push(key);
+      if (key.includes("revoked")) return new Response(JSON.stringify({ message: "Invalid API key" }), { status: 401 });
+      return new Response("[]", { headers: { "content-type": "application/json", "x-api-jobs-this-request": "2" } });
+    }
     throw new Error(`unexpected ${request.url}`);
   });
   return { fetch: fetch as unknown as typeof globalThis.fetch, keysSent };
@@ -121,6 +127,67 @@ describe("the worker's clients, on Provider Secrets (#208)", () => {
     await resolver.refresh();
 
     expect(worker.franceTravail()).not.toBeNull();
+  });
+
+  describe("Fantastic.jobs, on its Provider Secret FANTASTIC_JOBS_API_KEY (#243)", () => {
+    const search = (worker: ReturnType<typeof workerClients>) =>
+      worker.fantasticJobs()!.search({ targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] }, { max: 10, now: new Date() });
+
+    it("uses the key entered in the Back Office over the environment's", async () => {
+      const { resolver } = database({ FANTASTIC_JOBS_API_KEY: { value: "fj-key-back-office-0123", row: "r1" } }, { ...ENV, FANTASTIC_JOBS_API_KEY: "fj-key-env-0123456789" });
+      await resolver.refresh();
+      const providers = fakeProviders();
+
+      expect(await search(clients(resolver, providers.fetch, []))).toMatchObject({ ok: true, offers: [] });
+      expect(providers.keysSent).toEqual(["fj-key-back-office-0123"]);
+    });
+
+    it("falls back on the environment's key while none is entered in the Back Office", async () => {
+      const { resolver } = database({}, { ...ENV, FANTASTIC_JOBS_API_KEY: "fj-key-env-0123456789" });
+      await resolver.refresh();
+      const providers = fakeProviders();
+
+      await search(clients(resolver, providers.fetch, []));
+
+      expect(providers.keysSent).toEqual(["fj-key-env-0123456789"]);
+    });
+
+    it("is off without its key, and on once it is entered, without a restart", async () => {
+      const { stored, resolver } = database();
+      await resolver.refresh();
+      const worker = clients(resolver, fakeProviders().fetch, []);
+
+      expect(worker.fantasticJobs()).toBeNull();
+      stored.current = { FANTASTIC_JOBS_API_KEY: { value: "fj-key-0123456789", row: "r1" } };
+      await resolver.refresh();
+
+      expect(worker.fantasticJobs()).not.toBeNull();
+    });
+
+    it("asks once more with the key just replaced when Fantastic.jobs rejects the old one", async () => {
+      const { stored, resolver } = database({ FANTASTIC_JOBS_API_KEY: { value: "fj-key-revoked-0123", row: "r1" } });
+      await resolver.refresh();
+      const providers = fakeProviders();
+      const worker = clients(resolver, providers.fetch, []);
+      stored.current = { FANTASTIC_JOBS_API_KEY: { value: "fj-key-fresh-0123456", row: "r2" } };
+
+      expect(await search(worker)).toMatchObject({ ok: true });
+      expect(providers.keysSent).toEqual(["fj-key-revoked-0123", "fj-key-fresh-0123456"]);
+    });
+
+    it("records each call as an external API call, with the estimated cost of the jobs charged, without its query or key (#218)", async () => {
+      const { resolver } = database({ FANTASTIC_JOBS_API_KEY: { value: "fj-key-0123456789", row: "r1" } });
+      await resolver.refresh();
+      const calls: ExternalApiCall[] = [];
+      const worker = workerClients({ resolver, production: false, jobOffers: {} as never, fetch: fakeProviders().fetch, externalApis: { record: (call) => void calls.push(call) } });
+
+      await search(worker);
+
+      expect(calls.map(({ provider, operation, ok, httpStatus, costEur }) => ({ provider, operation, ok, httpStatus, costEur }))).toEqual([
+        { provider: "fantastic_jobs", operation: "GET /v1/active-ats", ok: true, httpStatus: 200, costEur: 0.016 },
+      ]);
+      expect(JSON.stringify(calls)).not.toMatch(/fj-key|DAF|Lyon/);
+    });
   });
 
   it("logs no secret value: not when discovery is off, a key is refused and retried, nor in AI usage lines", async () => {

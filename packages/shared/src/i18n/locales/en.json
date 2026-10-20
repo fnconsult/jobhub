@@ -1045,6 +1045,7 @@
         "source": "Source",
         "names": {
           "france_travail": "France Travail API",
+          "fantastic_jobs": "Fantastic.jobs API (ATS postings)",
           "web_search": "Web search (search provider)",
           "ats_apis": "Public ATS APIs (Greenhouse, Lever, Ashby)"
         }
@@ -1093,7 +1094,7 @@
     },
     "providerSecrets": {
       "title": "Provider keys",
-      "intro": "The keys of third-party services (AI, France Travail, contact enrichment, Stripe, email). A key entered here is encrypted and replaces the environment's within a minute, with no deployment. A key entered is never shown again: only its last 4 characters are.",
+      "intro": "The keys of third-party services (AI, France Travail, Fantastic.jobs, contact enrichment, Stripe, email). A key entered here is encrypted and replaces the environment's within a minute, with no deployment. A key entered is never shown again: only its last 4 characters are.",
       "caption": "Provider keys and their source",
       "key": "Key",
       "source": "Source",
@@ -1116,6 +1117,7 @@
         "anthropic": "Anthropic Claude (direct API, outside the EU)",
         "bedrock": "Anthropic Claude (AWS Bedrock, EU)",
         "france-travail": "France Travail",
+        "fantastic-jobs": "Fantastic.jobs",
         "lusha": "Lusha",
         "kaspr": "Kaspr",
         "apollo": "Apollo",

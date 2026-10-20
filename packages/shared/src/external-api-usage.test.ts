@@ -156,4 +156,25 @@ describe("an external API's calls, recorded whatever happens while recording", (
 
     expect(calls.map((call) => call.costEur)).toEqual([0.17, 0]);
   });
+
+  it("prices a call by what its answer's headers say was charged, unknown when no answer came", async () => {
+    const calls: ExternalApiCall[] = [];
+    const charged: Fetch = async () => new Response("[]", { headers: { "x-api-jobs-this-request": "3" } });
+    const costEur = (_status: number | null, _operation: string, response: Response | null) =>
+      response?.headers.has("x-api-jobs-this-request") ? Number(response.headers.get("x-api-jobs-this-request")) * 0.01 : null;
+    const fetch = recordingFetch(charged, { record: (call) => void calls.push(call) }, { provider: "fantastic_jobs", costEur });
+    const failing: Fetch = async () => {
+      throw new TypeError("fetch failed");
+    };
+    const down = recordingFetch(
+      failing,
+      { record: (call) => void calls.push(call) },
+      { provider: "fantastic_jobs", costEur },
+    );
+
+    await fetch("https://data.fantastic.jobs/v1/active-ats?title=DAF", { method: "GET", headers: {} });
+    await down("https://data.fantastic.jobs/v1/active-ats", { method: "GET", headers: {} }).catch(() => {});
+
+    expect(calls.map((call) => call.costEur)).toEqual([0.03, null]);
+  });
 });

@@ -43,6 +43,30 @@ describe("testing a provider's keys with its cheapest authenticated call", () =>
     expect(Object.fromEntries(form)).toMatchObject({ grant_type: "client_credentials", client_id: "id", client_secret: "secret" });
   });
 
+  it("Fantastic.jobs: asks active-ats for no job (none charged) with the API key as a bearer token", async () => {
+    const { fetch, requests } = fakeFetch(200, []);
+
+    expect(await createConnectionTester({ fetch })("fantastic-jobs", { FANTASTIC_JOBS_API_KEY: "fj-key" })).toEqual({ ok: true });
+
+    const url = new URL(requests[0]!.url);
+    expect(url.origin + url.pathname).toBe("https://data.fantastic.jobs/v1/active-ats");
+    // No job has id 0, and at most 1 could come: the test spends one API request, no Jobs credit.
+    expect(Object.fromEntries(url.searchParams)).toEqual({ id: "0", limit: "1", time_frame: "1h" });
+    expect(requests[0]!.headers.get("authorization")).toBe("Bearer fj-key");
+  });
+
+  it("Fantastic.jobs: a key it rejects fails, a missing one fails without a call, the e2e fake is used when named", async () => {
+    const rejected = fakeFetch(401, { message: "Invalid API key" });
+    const none = fakeFetch();
+    const fake = fakeFetch(200, []);
+
+    expect(await createConnectionTester({ fetch: rejected.fetch })("fantastic-jobs", { FANTASTIC_JOBS_API_KEY: "bad" })).toEqual({ ok: false, detail: expect.stringContaining("HTTP 401") });
+    expect(await createConnectionTester({ fetch: none.fetch })("fantastic-jobs", {})).toEqual({ ok: false, detail: "missing FANTASTIC_JOBS_API_KEY" });
+    expect(none.requests).toEqual([]);
+    await createConnectionTester({ fetch: fake.fetch })("fantastic-jobs", { FANTASTIC_JOBS_API_KEY: "fj-key", FANTASTIC_JOBS_API_URL: "http://127.0.0.1:9997/v1/" });
+    expect(fake.requests[0]!.url).toMatch(/^http:\/\/127\.0\.0\.1:9997\/v1\/active-ats\?/);
+  });
+
   it("a refusal is a failed test, with the status", async () => {
     const { fetch } = fakeFetch(401, { message: "Unauthorized" });
 

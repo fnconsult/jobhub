@@ -1045,6 +1045,7 @@
         "source": "Source",
         "names": {
           "france_travail": "API France Travail",
+          "fantastic_jobs": "API Fantastic.jobs (offres des ATS)",
           "web_search": "Recherche web (fournisseur de recherche)",
           "ats_apis": "API publiques des ATS (Greenhouse, Lever, Ashby)"
         }
@@ -1093,7 +1094,7 @@
     },
     "providerSecrets": {
       "title": "Clés des fournisseurs",
-      "intro": "Les clés des services tiers (IA, France Travail, enrichissement de contacts, Stripe, e-mail). Une clé saisie ici est chiffrée et remplace celle de l'environnement en moins d'une minute, sans redéploiement. Une clé saisie n'est jamais réaffichée : seuls ses 4 derniers caractères le sont.",
+      "intro": "Les clés des services tiers (IA, France Travail, Fantastic.jobs, enrichissement de contacts, Stripe, e-mail). Une clé saisie ici est chiffrée et remplace celle de l'environnement en moins d'une minute, sans redéploiement. Une clé saisie n'est jamais réaffichée : seuls ses 4 derniers caractères le sont.",
       "caption": "Clés des fournisseurs et leur source",
       "key": "Clé",
       "source": "Source",
@@ -1116,6 +1117,7 @@
         "anthropic": "Anthropic Claude (API directe, hors UE)",
         "bedrock": "Anthropic Claude (AWS Bedrock, UE)",
         "france-travail": "France Travail",
+        "fantastic-jobs": "Fantastic.jobs",
         "lusha": "Lusha",
         "kaspr": "Kaspr",
         "apollo": "Apollo",

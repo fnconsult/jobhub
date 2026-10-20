@@ -8,7 +8,7 @@
  */
 
 /** Who a Provider Secret is for; keys of one provider are tested together. */
-export const SECRET_PROVIDERS = ["mistral", "perplexity", "anthropic", "bedrock", "france-travail", "lusha", "kaspr", "apollo", "stripe", "brevo"] as const;
+export const SECRET_PROVIDERS = ["mistral", "perplexity", "anthropic", "bedrock", "france-travail", "fantastic-jobs", "lusha", "kaspr", "apollo", "stripe", "brevo"] as const;
 export type SecretProvider = (typeof SECRET_PROVIDERS)[number];
 
 export const PROVIDER_SECRETS = [
@@ -19,6 +19,8 @@ export const PROVIDER_SECRETS = [
   { name: "AWS_BEARER_TOKEN_BEDROCK", provider: "bedrock" },
   { name: "FRANCE_TRAVAIL_CLIENT_ID", provider: "france-travail" },
   { name: "FRANCE_TRAVAIL_CLIENT_SECRET", provider: "france-travail" },
+  // Fantastic.jobs: its API of ATS postings, a Job discovery source (#243). Each job it returns is charged.
+  { name: "FANTASTIC_JOBS_API_KEY", provider: "fantastic-jobs" },
   // The contact-enrichment API key: only the active provider's (CONTACT_ENRICHMENT_PROVIDER) is used.
   { name: "LUSHA_API_KEY", provider: "lusha" },
   { name: "KASPR_API_KEY", provider: "kaspr" },
@@ -42,6 +44,7 @@ export const providerOf = (name: ProviderSecretName): SecretProvider => PROVIDER
 export const AI_SECRET_NAMES = ["MISTRAL_API_KEY", "PERPLEXITY_API_KEY", "ANTHROPIC_API_KEY", "AWS_BEARER_TOKEN_BEDROCK"] as const satisfies readonly ProviderSecretName[];
 export const STRIPE_SECRET_NAMES = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"] as const satisfies readonly ProviderSecretName[];
 export const FRANCE_TRAVAIL_SECRET_NAMES = ["FRANCE_TRAVAIL_CLIENT_ID", "FRANCE_TRAVAIL_CLIENT_SECRET"] as const satisfies readonly ProviderSecretName[];
+export const FANTASTIC_JOBS_SECRET_NAMES = ["FANTASTIC_JOBS_API_KEY"] as const satisfies readonly ProviderSecretName[];
 export const CONTACT_ENRICHMENT_SECRET_NAMES = ["LUSHA_API_KEY", "KASPR_API_KEY", "APOLLO_API_KEY"] as const satisfies readonly ProviderSecretName[];
 export const MAIL_SECRET_NAMES = ["BREVO_API_KEY", "SMTP_URL"] as const satisfies readonly ProviderSecretName[];
 

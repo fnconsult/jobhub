@@ -33,8 +33,12 @@ export interface ExternalApiLog {
 export interface RecordingFetchOptions {
   /** A registered Tool's (TOOLS): a call to an unregistered tool does not type-check. */
   provider: ExternalApiProvider;
-  /** The estimated cost in € of a call to `operation` that answered `status` (null: none came); null when not known. Default: not known. */
-  costEur?: (status: number | null, operation: string) => number | null;
+  /**
+   * The estimated cost in € of a call to `operation` that answered `status` (null: none came), read from its
+   * `response` headers when the provider states there what it charged (its body is the caller's); null when not known.
+   * Default: not known.
+   */
+  costEur?: (status: number | null, operation: string, response: Response | null) => number | null;
   now?: () => Date;
   /** Milliseconds. Default: performance.now. */
   clock?: () => number;
@@ -76,7 +80,8 @@ export function recordingFetch<F extends FetchLike>(fetch: F, log: ExternalApiLo
     const at = now();
     const started = clock();
     /** Builds and records the call, all of it guarded: recording never fails the call it records. */
-    const done = (httpStatus: number | null) => {
+    const done = (response: Response | null) => {
+      const httpStatus = response?.status ?? null;
       try {
         const operation = operationOf(url, init);
         const call: ExternalApiCall = {
@@ -86,7 +91,7 @@ export function recordingFetch<F extends FetchLike>(fetch: F, log: ExternalApiLo
           durationMs: Math.round(clock() - started),
           ok: httpStatus !== null && httpStatus >= 200 && httpStatus < 300,
           httpStatus,
-          costEur: options.costEur?.(httpStatus, operation) ?? null,
+          costEur: options.costEur?.(httpStatus, operation, response) ?? null,
         };
         void Promise.resolve(log.record(call)).catch(failed);
       } catch (error) {
@@ -100,7 +105,7 @@ export function recordingFetch<F extends FetchLike>(fetch: F, log: ExternalApiLo
       done(null);
       throw error;
     }
-    done(response.status);
+    done(response);
     return response;
   };
   return recording as F;

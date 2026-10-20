@@ -7,16 +7,27 @@
  *   worker.discovery();     // Job discovery, or why it is unavailable: asked on each job
  *   worker.ai;              // the AI layer (Follow-ups)
  *   worker.franceTravail(); // France Travail, or null without its credentials
+ *   worker.fantasticJobs(); // Fantastic.jobs, or null without FANTASTIC_JOBS_API_KEY
  *   worker.mailer;          // BREVO_API_KEY or SMTP_URL (Brevo)
  *
- * A key refused by its provider (401/403, an SMTP 535, France Travail's refusal) is
+ * A key refused by its provider (401/403, an SMTP 535, France Travail's or Fantastic.jobs' refusal) is
  * read again from the database and the call made once more if it changed.
  */
 import { AiConfigError, createAiLayerFromEnv, type AiLayer, type CandidateIdentity, type UsageLog } from "@jobhub/ai";
 import { recordingFetch, type ExternalApiLog } from "@jobhub/shared";
 import { mailerFromEnv } from "@jobhub/web/mailers";
-import { AI_SECRET_NAMES, FRANCE_TRAVAIL_SECRET_NAMES, liveObject, MAIL_SECRET_NAMES, rebuilding, type SecretResolver } from "@jobhub/web/provider-secrets";
-import { createJobDiscovery, franceTravailFromEnv, type FranceTravail, type JobDiscovery, type JobDiscoveryOptions } from "./job-discovery";
+import { AI_SECRET_NAMES, FANTASTIC_JOBS_SECRET_NAMES, FRANCE_TRAVAIL_SECRET_NAMES, liveObject, MAIL_SECRET_NAMES, rebuilding, type SecretResolver } from "@jobhub/web/provider-secrets";
+import {
+  chargedCostEur,
+  createJobDiscovery,
+  eurPerJobFromEnv,
+  fantasticJobsFromEnv,
+  franceTravailFromEnv,
+  type FantasticJobs,
+  type FranceTravail,
+  type JobDiscovery,
+  type JobDiscoveryOptions,
+} from "./job-discovery";
 import type { DiscoveryUnavailable } from "./jobs";
 
 type Env = Record<string, string | undefined>;
@@ -39,7 +50,7 @@ export interface WorkerClientsOptions {
   fetch?: typeof globalThis.fetch;
   /** Default: one JSON line per AI call on stdout. */
   usage?: UsageLog;
-  /** Where each call to France Travail and the job boards is recorded (AI Usage's external APIs). Default: nowhere. */
+  /** Where each call to France Travail, Fantastic.jobs and the job boards is recorded (AI Usage's external APIs). Default: nowhere. */
   externalApis?: ExternalApiLog;
   log?: (line: string) => void;
 }
@@ -48,11 +59,18 @@ export interface WorkerClients {
   discovery(): JobDiscovery | DiscoveryUnavailable;
   ai: AiLayer;
   franceTravail(): FranceTravail | null;
+  fantasticJobs(): FantasticJobs | null;
   mailer: ReturnType<typeof mailerFromEnv>;
 }
 
 /** France Travail when its credentials were just cleared mid-call: refused, like a withdrawn access. */
 const FRANCE_TRAVAIL_OFF: FranceTravail = { search: async () => ({ ok: false, reason: "refused", detail: "credentials cleared", calls: 0 }) };
+
+/** Fantastic.jobs when its key was just cleared mid-call: refused, like a rejected key. */
+const FANTASTIC_JOBS_OFF: FantasticJobs = { search: async () => ({ ok: false, reason: "refused", detail: "key cleared", calls: 0 }) };
+
+/** A search answer by which the provider turned the key down: worth asking again with a key just replaced. */
+const refusedSearch = (answer: unknown) => (answer as { ok?: boolean; reason?: string }).ok === false && (answer as { reason?: string }).reason === "refused";
 
 export function workerClients(options: WorkerClientsOptions): WorkerClients {
   const { resolver } = options;
@@ -66,9 +84,25 @@ export function workerClients(options: WorkerClientsOptions): WorkerClients {
     ? recordingFetch(options.fetch ?? globalThis.fetch, options.externalApis, { provider: "france_travail", costEur: () => 0 })
     : options.fetch;
   const liveFranceTravail = liveObject(resolver, FRANCE_TRAVAIL_SECRET_NAMES, (env) => franceTravailFromEnv(env, { fetch: franceTravailFetch }) ?? FRANCE_TRAVAIL_OFF, {
-    refused: (answer) => (answer as { ok?: boolean; reason?: string }).ok === false && (answer as { reason?: string }).reason === "refused",
+    refused: refusedSearch,
   });
   const franceTravail = () => (franceTravailConfigured() ? liveFranceTravail : null);
+
+  const fantasticJobsConfigured = rebuilding(resolver, FANTASTIC_JOBS_SECRET_NAMES, (env) => fantasticJobsFromEnv(env) !== null);
+  const liveFantasticJobs = liveObject(
+    resolver,
+    FANTASTIC_JOBS_SECRET_NAMES,
+    (env) => {
+      // Each call is recorded with the estimated cost of the jobs it says it charged.
+      const eurPerJob = eurPerJobFromEnv(env);
+      const fetch = options.externalApis
+        ? recordingFetch(options.fetch ?? globalThis.fetch, options.externalApis, { provider: "fantastic_jobs", costEur: (_, __, response) => (response ? chargedCostEur(response.headers, eurPerJob) : null) })
+        : options.fetch;
+      return fantasticJobsFromEnv(env, { fetch }) ?? FANTASTIC_JOBS_OFF;
+    },
+    { refused: refusedSearch },
+  );
+  const fantasticJobs = () => (fantasticJobsConfigured() ? liveFantasticJobs : null);
 
   // Built again whenever an AI key changes: a key entered later turns Job discovery on.
   const discovery = rebuilding(resolver, AI_SECRET_NAMES, (env): JobDiscovery | DiscoveryUnavailable => {
@@ -80,8 +114,8 @@ export function workerClients(options: WorkerClientsOptions): WorkerClients {
       log(`[worker] Job discovery is unavailable: ${error.message}`);
       return { unavailable: error.message };
     }
-    return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, franceTravail, settings: options.settings, taskPlaybooks: options.taskPlaybooks, fetch: options.fetch, externalApis: options.externalApis });
+    return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, franceTravail, fantasticJobs, settings: options.settings, taskPlaybooks: options.taskPlaybooks, fetch: options.fetch, externalApis: options.externalApis });
   });
 
-  return { discovery, ai, franceTravail, mailer: liveObject(resolver, MAIL_SECRET_NAMES, mailerFromEnv) };
+  return { discovery, ai, franceTravail, fantasticJobs, mailer: liveObject(resolver, MAIL_SECRET_NAMES, mailerFromEnv) };
 }

@@ -2,6 +2,7 @@
  * The connection test of each provider behind a Provider Secret: its cheapest
  * authenticated call, made with the keys in `env` (the one being saved over those
  * in use). AI providers list their models, France Travail gives an OAuth token,
+ * Fantastic.jobs answers a search for no job (one API request, no Jobs credit),
  * Stripe its balance, Brevo its account (or its SMTP relay is verified), the contact-enrichment
  * provider answers its account call. Nothing is spent and nothing is stored.
  *
@@ -26,6 +27,9 @@ export interface ConnectionTesterDeps {
 /** France Travail's token endpoint and scope, as the worker's client uses them (apps/worker/src/job-discovery/france-travail/api.ts). */
 const FRANCE_TRAVAIL_TOKEN_URL = "https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=%2Fpartenaire";
 const FRANCE_TRAVAIL_SCOPE = "api_offresdemploiv2 o2dsoffre";
+
+/** Fantastic.jobs' API, as the worker's client uses it (apps/worker/src/job-discovery/fantastic-jobs/api.ts). */
+const FANTASTIC_JOBS_API_URL = "https://data.fantastic.jobs/v1";
 
 /** The contact-enrichment providers' API origins, and their e2e override. */
 const CONTACT_API: Record<"lusha" | "kaspr" | "apollo", string> = {
@@ -107,6 +111,13 @@ export function createConnectionTester(deps: ConnectionTesterDeps = {}): Connect
         headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
         body: new URLSearchParams({ grant_type: "client_credentials", client_id: found.FRANCE_TRAVAIL_CLIENT_ID, client_secret: found.FRANCE_TRAVAIL_CLIENT_SECRET, scope: FRANCE_TRAVAIL_SCOPE }),
       });
+    },
+    async "fantastic-jobs"(env) {
+      const found = keys(env, "FANTASTIC_JOBS_API_KEY");
+      if ("missing" in found) return failed(`missing ${found.missing}`);
+      const api = env.FANTASTIC_JOBS_API_URL?.trim().replace(/\/+$/, "") || FANTASTIC_JOBS_API_URL;
+      // No job has id 0, and at most 1 could come: one API request is spent, no Jobs credit.
+      return bearer(`${api}/active-ats?${new URLSearchParams({ id: "0", limit: "1", time_frame: "1h" })}`, found.FANTASTIC_JOBS_API_KEY);
     },
     async lusha(env) {
       const found = keys(env, "LUSHA_API_KEY");

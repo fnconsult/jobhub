@@ -107,7 +107,7 @@ export { MAX_POSTING_AGE_DAYS } from "@jobhub/shared";
 export { DEFAULT_BUDGET, jobDiscoveryBudgetFromEnv, type JobDiscoveryBudget } from "./budget";
 export type { RefusalReason } from "./polite-fetch";
 export { franceTravailFromEnv, type FranceTravail } from "./france-travail";
-export { fantasticJobsFromEnv, type FantasticJobs } from "./fantastic-jobs";
+export { chargedCostEur, eurPerJobFromEnv, fantasticJobsFromEnv, type FantasticJobs } from "./fantastic-jobs";
 
 /** Where Job Offers are stored. Satisfied by the web app's Job Offers module. */
 export interface JobOfferStore {
@@ -220,6 +220,17 @@ export const DEFAULT_USER_AGENT = "JobbboxBot/1.0 (+https://jobbbox.fr/robot)";
  * Shared with the Back Office, which never lets them be a Job discovery site.
  */
 export { FORBIDDEN_SITES } from "@jobhub/shared";
+
+/** A job API searched before the web (France Travail, Fantastic.jobs): what Job discovery needs of it. */
+interface JobApi {
+  search(
+    criteria: SearchCriteria,
+    options: { max: number; now: Date; location?: string },
+  ): Promise<
+    | { ok: true; offers: { url: string; details: JobOfferDetails }[]; calls: number; costEur?: number }
+    | { ok: false; reason: "refused" | "failed"; detail: string; calls: number }
+  >;
+}
 
 /** One web search of a run: a query of the Job Search's plan, restricted to one Job discovery site or not. */
 interface PlannedSearch {
@@ -420,12 +431,12 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
        * Offers left, each captured like a posting read (at its page, dated by the API) or found stored, and counted in
        * its part of the report. Never throws.
        */
-      const searchJobApi = async (api: FranceTravail | FantasticJobs, metrics: FranceTravailMetrics | FantasticJobsMetrics, location: string) => {
+      const searchJobApi = async (api: JobApi, metrics: FranceTravailMetrics | FantasticJobsMetrics, location: string) => {
         const before = found.size;
         const max = Math.max(Math.ceil(budget.jobOffers * share) - found.size, 1);
         const result = await api.search(criteria, { max, now: new Date(clock.now()), location });
         metrics.calls += result.calls;
-        if (result.ok && "costEur" in result && "costEur" in metrics) metrics.costEur = Math.round((metrics.costEur + result.costEur) * 1e6) / 1e6;
+        if (result.ok && result.costEur !== undefined && "costEur" in metrics) metrics.costEur = Math.round((metrics.costEur + result.costEur) * 1e6) / 1e6;
         // One location searched is enough for the run to have searched the API.
         if (metrics.status !== "searched") metrics.status = result.ok ? "searched" : result.reason;
         for (const offer of result.ok ? result.offers : []) {

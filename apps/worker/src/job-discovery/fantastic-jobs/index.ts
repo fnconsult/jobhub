@@ -76,16 +76,29 @@ export function createFantasticJobs(options: FantasticJobsOptions): FantasticJob
         if (REFUSED.has(answer.status)) throw new Refused(`active-ats refused (${answer.status})`);
         if (!answer.ok) throw new Error(`active-ats answered ${answer.status}`);
         const jobs: unknown = await answer.json();
-        const charged = Number(answer.headers.get("x-api-jobs-this-request"));
-        const returned = Array.isArray(jobs) ? jobs.length : 0;
-        const costEur = (answer.headers.has("x-api-jobs-this-request") && Number.isFinite(charged) ? charged : returned) * eurPerJob;
-        return { ok: true, offers: readJobs(jobs), calls, costEur: Math.round(costEur * 1e6) / 1e6 };
+        // Without the count charged, every job returned is.
+        const costEur = chargedCostEur(answer.headers, eurPerJob) ?? eurOf(Array.isArray(jobs) ? jobs.length : 0, eurPerJob);
+        return { ok: true, offers: readJobs(jobs), calls, costEur };
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);
         return { ok: false, reason: error instanceof Refused ? "refused" : "failed", detail, calls };
       }
     },
   };
+}
+
+const eurOf = (jobs: number, eurPerJob: number) => Math.round(jobs * eurPerJob * 1e6) / 1e6;
+
+/** The estimated € of the jobs an answer says it charged (`x-api-jobs-this-request`); null when it does not say. */
+export function chargedCostEur(headers: Headers, eurPerJob: number = DEFAULT_EUR_PER_JOB): number | null {
+  const charged = Number(headers.get("x-api-jobs-this-request") ?? NaN);
+  return Number.isFinite(charged) && charged >= 0 ? eurOf(charged, eurPerJob) : null;
+}
+
+/** The estimated € of a job: FANTASTIC_JOBS_EUR_PER_JOB (the plan's price), else DEFAULT_EUR_PER_JOB. */
+export function eurPerJobFromEnv(env: Record<string, string | undefined>): number {
+  const eurPerJob = Number(env.FANTASTIC_JOBS_EUR_PER_JOB?.trim() || NaN);
+  return Number.isFinite(eurPerJob) && eurPerJob >= 0 ? eurPerJob : DEFAULT_EUR_PER_JOB;
 }
 
 /** Fantastic.jobs from FANTASTIC_JOBS_API_KEY (and FANTASTIC_JOBS_API_URL, FANTASTIC_JOBS_EUR_PER_JOB), or null without a key. */
@@ -96,6 +109,5 @@ export function fantasticJobsFromEnv(
   const apiKey = env.FANTASTIC_JOBS_API_KEY?.trim();
   if (!apiKey) return null;
   const apiUrl = env.FANTASTIC_JOBS_API_URL?.trim();
-  const eurPerJob = Number(env.FANTASTIC_JOBS_EUR_PER_JOB?.trim() || NaN);
-  return createFantasticJobs({ ...options, apiKey, ...(apiUrl && { apiUrl }), ...(Number.isFinite(eurPerJob) && eurPerJob >= 0 && { eurPerJob }) });
+  return createFantasticJobs({ ...options, apiKey, ...(apiUrl && { apiUrl }), eurPerJob: eurPerJobFromEnv(env) });
 }

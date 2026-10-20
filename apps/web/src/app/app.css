@@ -2727,25 +2727,122 @@ textarea.title-edit {
   align-items: center;
 }
 
-/* Search Criteria (ADR-0025): a place per row with its "Retirer" button, and a group of checkboxes
-   without a frame where a property row already names it. */
-.location-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  width: 100%;
-}
-
-.location-field-row {
+/* Search Criteria (ADR-0025, #235): the places as chips on one line, then the input that suggests
+   more; and a group of checkboxes without a frame where a property row already names it. */
+.places-field {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
   align-items: center;
+  width: 100%;
+  min-width: 0;
 }
 
-.location-field-row input {
-  flex: 1 1 14rem;
+/* The list's items sit on the field's own line, beside the input. */
+.place-chips {
+  display: contents;
+}
+
+.place-chip {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  max-width: 100%;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+  list-style: none;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+}
+
+.place-chip > span {
+  padding: var(--space-1) 0;
+}
+
+.place-chip-remove {
+  display: inline-flex;
+  flex: none;
+  gap: var(--space-1);
+  align-items: center;
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  padding: 0 var(--space-3) 0 var(--space-2);
+  margin-right: calc(-1 * var(--space-3));
+  font: inherit;
+  color: var(--color-text);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+}
+
+.place-chip-remove:hover {
+  background: var(--color-surface-hover);
+}
+
+.place-chip-remove:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.place-combobox {
+  position: relative;
+  flex: 1 1 12rem;
   min-width: 0;
+}
+
+.place-combobox input {
+  width: 100%;
+  margin-left: 0;
+}
+
+.place-options {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  width: max(100%, 16rem);
+  max-width: calc(100vw - 2 * var(--space-4));
+  padding: var(--space-1) 0;
+  margin: 0;
+  list-style: none;
+  background: var(--color-background);
+  border: 1px solid var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-menu);
+}
+
+.place-options[hidden] {
+  display: none;
+}
+
+.place-option {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+  justify-content: space-between;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.place-option:hover,
+.place-option[aria-selected="true"] {
+  background: var(--color-surface-hover);
+}
+
+.place-option[aria-selected="true"] {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.place-option-kind {
+  color: var(--color-text-secondary);
 }
 
 .inline-fieldset {

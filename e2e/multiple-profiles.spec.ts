@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
+import { placeNames, removePlace, typePlace } from "./support/locations";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
 
@@ -174,7 +175,7 @@ test.describe("several Profiles per Candidate", () => {
     await expect(criteria.getByLabel(fr.cvReview.targetRole, { exact: true })).toHaveValue("");
     await expect(page.getByLabel(fr.cvReview.fullName)).toHaveValue("");
     await criteria.getByLabel(fr.cvReview.targetRole, { exact: true }).fill("Consultante transformation");
-    await criteria.getByLabel(fr.cvReview.locationItem.replace("{{number}}", "1"), { exact: true }).fill("Paris");
+    await typePlace(criteria, "Paris");
     await page.getByLabel(fr.cvReview.fullName).fill("Marie Dupont");
     await page.getByRole("button", { name: fr.cvReview.save }).click();
 
@@ -336,13 +337,17 @@ test.describe("editing a Profile's Search Criteria (issue #70)", () => {
     await criteria.getByLabel(fr.cvReview.targetRole).fill("Directrice administrative et financière");
     await criteria.getByLabel(fr.cvReview.targetRole).press("Tab");
     await expect(criteria.getByRole("status").filter({ hasText: fr.profilePage.criteriaSaved })).toHaveCount(1);
-    await criteria.getByLabel(fr.cvReview.locationItem.replace("{{number}}", "1"), { exact: true }).fill("Paris");
-    await criteria.getByLabel(fr.cvReview.locationItem.replace("{{number}}", "1"), { exact: true }).press("Enter");
+    // Paris in place of Lyon: added, then Lyon removed, each saved at once (#235).
+    await typePlace(criteria, "Paris");
     await expect(criteria.getByRole("status").filter({ hasText: fr.profilePage.criteriaSaved })).toHaveCount(2);
+    await Promise.all([
+      page.waitForResponse((response) => response.request().method() === "PATCH" && !(response.request().postData() ?? "").includes("Lyon")),
+      removePlace(criteria, "Lyon").click(),
+    ]);
 
     await page.reload();
     await expect(criteria.getByLabel(fr.cvReview.targetRole)).toHaveValue("Directrice administrative et financière");
-    await expect(criteria.getByLabel(fr.cvReview.locationItem.replace("{{number}}", "1"), { exact: true })).toHaveValue("Paris");
+    await expect(placeNames(criteria)).toHaveText(["Paris"]);
     await expect(criteria.getByRole("group", { name: fr.cvReview.contractType }).getByRole("checkbox", { name: fr.cvReview.contractTypes.cdi })).toBeChecked();
     // The name is not tied to the target role: the Candidate renames the Profile separately.
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice financière");
@@ -387,7 +392,7 @@ test.describe("editing a Profile's Search Criteria (issue #70)", () => {
     expect((await patch({ name: "DAF industrie" })).status()).toBe(200);
     await page.goto(`/profils/${id}`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("DAF industrie");
-    await expect(criteriaOf(page).getByLabel(fr.cvReview.locationItem.replace("{{number}}", "1"), { exact: true })).toHaveValue("Lyon");
+    await expect(placeNames(criteriaOf(page))).toHaveText(["Lyon"]);
   });
 });
 

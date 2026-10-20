@@ -34,6 +34,13 @@ export function SearchCriteriaDialog({ profileId, profileName, searchCriteria }:
         <Dialog.Content
           className="dialog"
           aria-describedby={undefined}
+          onEscapeKeyDown={(event) => {
+            // Escape in the Locations input closes its suggestions, then empties it (#235); only then the dialog.
+            const target = event.target;
+            if (target instanceof HTMLInputElement && target.getAttribute("role") === "combobox" && (target.getAttribute("aria-expanded") === "true" || target.value !== "")) {
+              event.preventDefault();
+            }
+          }}
           onOpenAutoFocus={(event) => {
             // Focus on the dialog itself, which is announced by its title: on the first field, the
             // target role would be selected whole, one keystroke away from being replaced.

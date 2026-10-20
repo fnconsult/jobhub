@@ -210,7 +210,11 @@ Downloading an Application's saved Tailored CV or Cover Letter as a PDF or Word 
 _Avoid_: Download, print
 
 **Search Criteria**:
-The job-search parameters of a Profile: one target role, one minimum salary, and any number of locations (up to five), contract types and remote-work options; none chosen means no preference. A Job Offer meets a criterion as soon as it meets one of its values. The Candidate can change them on an active Profile, each change saving as soon as it is made; this never renames the Profile, and Match Scores and Tailored CVs already kept are not recomputed. An Archived Profile's Search Criteria are read-only until it is restored.
+The job-search parameters of a Profile: one target role, one minimum salary, and any number of locations (up to five, entered as chips: chosen from Place suggestions or typed, kept as text, two being the same when they match without case or accents), contract types and remote-work options; none chosen means no preference. A Job Offer meets a criterion as soon as it meets one of its values. The Candidate can change them on an active Profile, each change saving as soon as it is made; this never renames the Profile, and Match Scores and Tailored CVs already kept are not recomputed. An Archived Profile's Search Criteria are read-only until it is restored.
+
+**Place suggestion**:
+A commune, département or région offered while the Candidate types a location, from the French public geographic API. Choosing one only fills in its name; the location stays plain text, and typing a place not suggested is fine.
+_Avoid_: Autocomplete (alone)
 _Avoid_: Filters, preferences
 
 **Onboarding Questionnaire**:

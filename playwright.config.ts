@@ -18,7 +18,8 @@ import { webPort as e2eWebPort } from "./e2e/support/ports";
 // and so are the French company register and Perplexity's web search behind
 // Company Dossiers (e2e/support/fake-company-sources.mjs), and so is Apollo, the
 // contact-data provider behind Enriched Contacts (e2e/support/fake-contact-provider.mjs), and so is
-// the careers site of a Job Offer link pasted in the Coach Panel (e2e/support/fake-coach-link-sites.mjs).
+// the careers site of a Job Offer link pasted in the Coach Panel (e2e/support/fake-coach-link-sites.mjs), and so is
+// geo.api.gouv.fr, which suggests the Search Criteria's places (e2e/support/fake-geo-api.mjs).
 // Stripe is a fake HTTP API (apps/web/src/billing/fake-stripe.ts) on
 // E2E_STRIPE_URL; webhooks are signed with its test secret. ADMIN_EMAILS names
 // the e2e Administrators: permanent super-admins (#204). SECRETS_MASTER_KEYS lets
@@ -104,6 +105,7 @@ export default defineConfig({
         `--import=${path.resolve("e2e/support/fake-company-sources.mjs")}`,
         `--import=${path.resolve("e2e/support/fake-contact-provider.mjs")}`,
         `--import=${path.resolve("e2e/support/fake-coach-link-sites.mjs")}`,
+        `--import=${path.resolve("e2e/support/fake-geo-api.mjs")}`,
       ].join(" "),
       STRIPE_SECRET_KEY: "sk_test_fake",
       STRIPE_WEBHOOK_SECRET: "whsec_test_fake",

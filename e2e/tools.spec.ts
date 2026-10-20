@@ -54,7 +54,7 @@ test.describe("Tools (Outils)", () => {
     await page.goto("/admin/outils");
     await expect(page).toHaveTitle(`${tools.title} · ${admin.title}`);
     await expect(page.getByRole("navigation", { name: admin.nav.label }).getByRole("link", { name: admin.sections.tools })).toHaveAttribute("aria-current", "page");
-    for (const category of ["ai_model", "web_search", "job_discovery", "company_data", "contact_enrichment", "billing", "mail", "sign_in"]) {
+    for (const category of ["ai_model", "web_search", "job_discovery", "company_data", "contact_enrichment", "billing", "mail", "sign_in", "geolocation"]) {
       await expect(page.getByRole("heading", { level: 2, name: tools.categories[category] })).toBeVisible();
     }
     for (const name of ["Perplexity", "Brave Search", "Tavily", "Linkup"]) await expect(toolRow(page, "web_search", name)).toBeVisible();
@@ -96,6 +96,42 @@ test.describe("Tools (Outils)", () => {
     await page.goto("/admin/outils/stripe");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Stripe");
     expect((await page.goto("/admin/outils/linkedin"))?.status()).toBe(404);
+  });
+
+  test("every place suggestion asks geo.api.gouv.fr, listed under Géolocalisation, and each of its calls is traced (#235)", async ({ page, request }) => {
+    // Anonymous visitors get no suggestion.
+    expect((await request.get(`${origin}/api/places?q=loire`)).status()).toBe(401);
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    // A query of its own, so the API is asked (not this server's cache): communes, départements and régions.
+    const query = `loire ${Date.now()}`;
+    const suggested = await page.request.get(`/api/places?q=${encodeURIComponent("loire")}`);
+    expect(suggested.status()).toBe(200);
+    expect((await suggested.json()).places).toEqual([
+      { name: "Loire-sur-Rhône (69)", kind: "commune" },
+      { name: "Loire", kind: "departement" },
+      { name: "Loire-Atlantique", kind: "departement" },
+      { name: "Pays de la Loire", kind: "region" },
+    ]);
+    // Fewer than three characters: nothing is asked.
+    expect((await (await page.request.get("/api/places?q=lo")).json()).places).toEqual([]);
+    expect((await (await page.request.get(`/api/places?q=${encodeURIComponent(query)}`)).json()).places).toEqual([]);
+
+    await page.goto("/admin/outils");
+    const geo = toolRow(page, "geolocation", "geo.api.gouv.fr");
+    await expect(geo).toContainText(tools.statuses.no_key_needed);
+    await expect(async () => {
+      await page.reload();
+      await expect(geo.getByRole("cell").nth(4)).not.toHaveText("0", { timeout: 1_000 });
+    }).toPass();
+    await geo.getByRole("link", { name: "geo.api.gouv.fr" }).click();
+    await expect(page).toHaveURL(/\/admin\/outils\/geo-api-gouv$/);
+    await expect(page.getByRole("definition").filter({ hasText: tools.residencies.eu })).toBeVisible();
+    const calls = page.getByRole("table", { name: tr(tools.callsCaption, { name: "geo.api.gouv.fr" }) });
+    for (const operation of ["GET /communes", "GET /departements", "GET /regions"]) {
+      await expect(calls.getByRole("row").filter({ hasText: operation }).first()).toContainText(tools.ok);
+    }
+    // Never the place asked for.
+    await expect(page.getByRole("main")).not.toContainText(query);
   });
 
   test("Support reads the Tools without a way into Clés; other roles and Candidates get a 404", async ({ page, browser }) => {

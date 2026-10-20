@@ -338,9 +338,18 @@
     "scratchIntro": "Fill in your master CV and search criteria, then save your profile.",
     "locations": "Locations",
     "locationsHint": "Up to 5 places: a job offer near any one of them suits you.",
-    "locationItem": "Location {{number}}",
-    "addLocation": "Add a location",
-    "removeLocation": "Remove location {{number}}",
+    "removeLocation": "Remove {{place}}",
+    "removePlace": "Remove",
+    "placeInput": "Add a place",
+    "placeInputHint": "Type at least 3 letters to see suggestions, or a place then Enter.",
+    "noPlaceFound": "No suggestion: Enter adds “{{place}}” as typed.",
+    "placeAlreadyListed": "“{{place}}” is already in your list.",
+    "placesFull": "{{max}} places at most: remove one to add another.",
+    "placeKinds": {
+      "commune": "Town",
+      "departement": "Département",
+      "region": "Region"
+    },
     "anyOfHint": "Tick everything that suits you. Nothing ticked: no preference."
   },
   "cvEditor": {

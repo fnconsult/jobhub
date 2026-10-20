@@ -12,12 +12,13 @@ describe("the Tools", () => {
       ["billing", ["stripe"]],
       ["mail", ["brevo-api", "brevo-smtp"]],
       ["sign_in", ["google", "apple", "microsoft", "oidc"]],
+      ["geolocation", ["geo-api-gouv"]],
     ]);
   });
 
   it("leaves out the categories no Tool is in yet", () => {
-    expect(TOOL_CATEGORIES).toContain("geolocation");
-    expect(toolsByCategory().map(({ category }) => category)).not.toContain("geolocation");
+    expect(TOOL_CATEGORIES).toContain("reference_data");
+    expect(toolsByCategory().map(({ category }) => category)).not.toContain("reference_data");
   });
 
   it("each have a unique id, a name and a purpose in French and in English", () => {
@@ -45,6 +46,7 @@ describe("the Tools", () => {
     expect(toolById("brave")?.keys).toEqual(["BRAVE_SEARCH_API_KEY"]);
     expect(toolById("greenhouse")?.keys).toEqual([]);
     expect(toolById("recherche-entreprises")?.keys).toEqual([]);
+    expect(toolById("geo-api-gouv")?.keys).toEqual([]);
   });
 
   it("are unknown by any other id", () => {
@@ -58,6 +60,7 @@ describe("the Tool a recorded call was made to", () => {
     expect(toolOfUsage({ table: "external_api_usage", provider: "france_travail" })?.id).toBe("france-travail");
     expect(toolOfUsage({ table: "external_api_usage", provider: "recherche_entreprises" })?.id).toBe("recherche-entreprises");
     expect(toolOfUsage({ table: "external_api_usage", provider: "lusha" })?.id).toBe("lusha");
+    expect(toolOfUsage({ table: "external_api_usage", provider: "geo-api-gouv" })?.id).toBe("geo-api-gouv");
   });
 
   it("is found by its AI provider id and, for Claude, the endpoint that served it", () => {

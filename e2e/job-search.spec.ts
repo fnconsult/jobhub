@@ -373,7 +373,7 @@ test.describe("On-demand AI Coach job search", () => {
     const prompt = page.getByRole("alert").filter({ hasText: "Vous avez atteint la limite de votre offre" });
     await expect(prompt).toContainText("Vous avez utilisé les 3 recherches d'offres comprises ce mois-ci dans l'offre Gratuite.");
     await expect(prompt.getByRole("link", { name: "Découvrir l'offre Standard" })).toHaveAttribute("href", "/abonnement");
-    await expect(page).toHaveURL(new RegExp(`/profils/${profileId}$`));
+    await expect(page).toHaveURL(new RegExp(`/recherches\\?profil=${profileId}$`));
   });
 
   // Issue #16: a Job Offer no longer published at its source is left out of Job Search results.

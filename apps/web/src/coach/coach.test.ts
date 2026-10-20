@@ -558,6 +558,23 @@ describe("the item In view, in full", () => {
     expect(contextOf(provider)).toContain("jeudi 22 octobre 2026 à 14:30 : entretien pour DAF H/F chez Acme Industrie [annulé le 19 octobre 2026]");
   });
 
+  it("the Agenda goes through Redaction like every AI call (ADR-0007): an email address or phone number in a note or a link never leaves", async () => {
+    const { coach, provider } = coachWith({
+      workspace: {
+        agenda: [
+          interviewItem("2026-10-22T12:30:00.000Z", { note: "Rappeler la DRH au 06 98 76 54 32 ou à drh@acme-industrie.fr" }),
+          coachingSessionItem("2026-10-23T08:00:00.000Z", { videoLink: "https://visio.example.fr/rejoindre?invite=marie.dupont@example.fr" }),
+        ],
+      },
+    });
+
+    await ask(coach, { kind: "agenda", id: "agenda" });
+
+    const sent = JSON.stringify(provider.calls.at(-1));
+    expect(sent).toContain("Rappeler la DRH");
+    for (const value of ["06 98 76 54 32", "drh@acme-industrie.fr", "marie.dupont@example.fr"]) expect(sent).not.toContain(value);
+  });
+
   it("the Agenda with nothing in the next 30 days says so", async () => {
     const { coach, provider } = coachWith();
 

@@ -112,6 +112,13 @@ export interface AiLayer {
    * each with the models a route names for it, then those it offers.
    */
   agentModels(): AgentModelChoice[];
+  /**
+   * The same layer for an Eval Run (#231, ADR-0023): each text call is recorded in AI Usage on the `eval` task
+   * and for no Candidate (Eval Cases are fictional), yet keeps the route and data rules of its own task, so the
+   * AI Coach and its Playbook Agents are played on the EU-resident endpoints they use for Candidates. The AI
+   * judge's own calls are of the `eval` task. An Eval Run makes no web search: those methods refuse.
+   */
+  forEval(): AiLayer;
 }
 
 export interface Route {
@@ -298,30 +305,33 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     };
   }
 
+  /** One text call, recorded in AI Usage as `recordedAs` (its own task, or `eval` for an Eval Run). */
+  async function generateAs(request: GenerateRequest, recordedAs: TextTask): Promise<GenerateResult> {
+    const messages = typeof request.prompt === "string" ? [{ role: "user" as const, content: request.prompt }] : request.prompt;
+    const { route, identity } = await routeForCall(request, messages);
+    const provider = providerFor(route, identity || TEXT_TASKS[request.task].personalData);
+    // Checked again per call: the rule must hold even if a provider changes at runtime.
+    assertAllowed(request.task, provider, identity);
+    const output = await recorded(
+      { candidateId: request.candidateId, task: recordedAs },
+      provider,
+      route,
+      { ...(request.system === undefined ? {} : { system: request.system }), messages },
+      () =>
+        provider.generate!({
+          model: route.model,
+          system: request.system,
+          messages,
+          maxTokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
+          ...(request.effort ? { effort: request.effort } : {}),
+        }),
+      (reply) => reply.text,
+    );
+    return { text: output.text, provider: provider.id, model: output.model, usage: output.usage };
+  }
+
   const layer: AiLayer = {
-    async generate(request) {
-      const messages = typeof request.prompt === "string" ? [{ role: "user" as const, content: request.prompt }] : request.prompt;
-      const { route, identity } = await routeForCall(request, messages);
-      const provider = providerFor(route, identity || TEXT_TASKS[request.task].personalData);
-      // Checked again per call: the rule must hold even if a provider changes at runtime.
-      assertAllowed(request.task, provider, identity);
-      const output = await recorded(
-        { candidateId: request.candidateId, task: request.task },
-        provider,
-        route,
-        { ...(request.system === undefined ? {} : { system: request.system }), messages },
-        () =>
-          provider.generate!({
-            model: route.model,
-            system: request.system,
-            messages,
-            maxTokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
-            ...(request.effort ? { effort: request.effort } : {}),
-          }),
-        (reply) => reply.text,
-      );
-      return { text: output.text, provider: provider.id, model: output.model, usage: output.usage };
-    },
+    generate: (request) => generateAs(request, request.task),
 
     async planJobSearch({ candidateId, criteria }) {
       const pages = Math.max(1, searchProvider().provider.searchPages ?? 1);
@@ -365,6 +375,19 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       }
       return choices;
     },
+
+    forEval: () => evalLayer,
+  };
+  const noSearch = async (): Promise<never> => {
+    throw new AiConfigError("An Eval Run makes no web search");
+  };
+  const evalLayer: AiLayer = {
+    generate: (request) => generateAs({ ...request, candidateId: null }, "eval"),
+    planJobSearch: noSearch,
+    searchWeb: noSearch,
+    searchCompany: noSearch,
+    agentModels: () => layer.agentModels(),
+    forEval: () => evalLayer,
   };
   return layer;
 }

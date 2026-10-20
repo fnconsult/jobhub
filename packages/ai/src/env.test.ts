@@ -115,6 +115,18 @@ describe("AI layer configured from the environment", () => {
     expect(() => createAiLayerFromEnv({ ...env, AI_GUARDRAIL_PROVIDER: "openai", OPENAI_API_KEY: "sk", OPENAI_DATA_RESIDENCY: "us" })).toThrow(DataResidencyError);
   });
 
+  it("judges Eval Runs with the coaching provider and model unless AI_EVAL_PROVIDER says otherwise, outside the EU allowed (#231)", async () => {
+    const { fetch, hosts } = recordingFetch();
+    const usage = createMemoryUsageLog();
+    const env = { ...base, AI_COACHING_PROVIDER: "mistral", MISTRAL_API_KEY: "mk" };
+
+    await createAiLayerFromEnv(env, { fetch, usage }).generate({ task: "eval", candidateId: null, prompt: "Note" });
+    await createAiLayerFromEnv({ ...env, AI_EVAL_PROVIDER: "openai", OPENAI_API_KEY: "sk", OPENAI_DATA_RESIDENCY: "us" }, { fetch, usage }).generate({ task: "eval", candidateId: null, prompt: "Note" });
+
+    expect(hosts).toEqual(["api.mistral.ai", "api.openai.com"]);
+    expect(usage.entries.map((e) => e.task)).toEqual(["eval", "eval"]);
+  });
+
   it("refuses to start when a personal-data task is routed to the direct Anthropic API", () => {
     expect(() => createAiLayerFromEnv({ ...base, ANTHROPIC_ENDPOINT: "direct", ANTHROPIC_API_KEY: "sk", MISTRAL_API_KEY: "mk", AI_SCORING_PROVIDER: "anthropic" })).toThrow(DataResidencyError);
   });

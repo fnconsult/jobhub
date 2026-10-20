@@ -1258,7 +1258,8 @@
         "job_titles": "Job title variants",
         "web_search": "Web search",
         "back_office_assistant": "Back Office Assistant",
-        "guardrail": "Guardrails"
+        "guardrail": "Guardrails",
+        "eval": "Evaluations"
       }
     },
     "aiMessages": {

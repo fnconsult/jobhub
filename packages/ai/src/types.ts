@@ -22,6 +22,12 @@ export const TEXT_TASKS = {
   back_office_assistant: { personalData: true },
   /** Guardrail checks (#228, ADR-0022): what a Candidate or Administrator typed, and the AI Coach's or Back Office Assistant's reply. */
   guardrail: { personalData: true },
+  /**
+   * Eval Runs (#231, ADR-0023): the AI judge scoring a reply against an Eval Case's criteria. Eval Cases are
+   * fictional, so the judge need not be EU-resident. The calls an Eval Run plays (the AI Coach, its Playbook
+   * Agents, its Guardrails) are recorded on this task too, but keep their own task's data rules (`AiLayer.forEval`).
+   */
+  eval: { personalData: false },
   /** Reading an uploaded CV into a structured Master CV: reads CVs. */
   cv_parsing: { personalData: true },
   /** Extracting structured fields from a Job Offer: public posting text only. */

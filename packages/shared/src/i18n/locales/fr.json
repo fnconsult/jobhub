@@ -1258,7 +1258,8 @@
         "job_titles": "Variantes d'intitulés",
         "web_search": "Recherche web",
         "back_office_assistant": "Assistant du back office",
-        "guardrail": "Garde-fous"
+        "guardrail": "Garde-fous",
+        "eval": "Évaluations"
       }
     },
     "aiMessages": {

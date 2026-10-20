@@ -518,7 +518,17 @@
     },
     "blocked": "Blocked message",
     "widen": "Widen",
-    "narrow": "Narrow"
+    "narrow": "Narrow",
+    "jobOfferLink": {
+      "read": "I read this job offer and added it to Jobbbox. It is to be processed: open it to see its Match Score and follow it with one of your profiles.",
+      "forbiddenSite": "I can't read job offers on LinkedIn, Indeed or Glassdoor: their terms of use forbid it. Open the job offer in your browser and add it with the Jobbbox extension.",
+      "unreadable": "I couldn't read this page: the site doesn't allow it, asks you to sign in or doesn't answer. Open the job offer in your browser and add it with the Jobbbox extension.",
+      "notAJobOffer": "This page doesn't seem to be a single job offer (a list of job offers, for example). Send me the link to one job offer, or add it with the Jobbbox extension.",
+      "card": "Job offer added",
+      "toProcess": "To process",
+      "followed": "Followed",
+      "open": "Open the job offer"
+    }
   },
   "coachMemory": {
     "open": "Coach memory",

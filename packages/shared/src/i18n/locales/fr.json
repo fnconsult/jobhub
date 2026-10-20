@@ -518,7 +518,17 @@
     },
     "blocked": "Message bloqué",
     "widen": "Agrandir",
-    "narrow": "Réduire"
+    "narrow": "Réduire",
+    "jobOfferLink": {
+      "read": "J'ai lu cette offre et je l'ai ajoutée à Jobbbox. Elle est à traiter : ouvrez-la pour voir son score de correspondance et la suivre avec l'un de vos profils.",
+      "forbiddenSite": "Je ne peux pas lire les offres de LinkedIn, Indeed ou Glassdoor : leurs conditions d'utilisation l'interdisent. Ouvrez l'offre dans votre navigateur et ajoutez-la avec l'extension Jobbbox.",
+      "unreadable": "Je n'ai pas pu lire cette page : le site ne l'autorise pas, demande une connexion ou ne répond pas. Ouvrez l'offre dans votre navigateur et ajoutez-la avec l'extension Jobbbox.",
+      "notAJobOffer": "Cette page ne semble pas être une offre d'emploi précise (une liste d'offres, par exemple). Envoyez-moi le lien d'une seule offre, ou ajoutez-la avec l'extension Jobbbox.",
+      "card": "Offre ajoutée",
+      "toProcess": "À traiter",
+      "followed": "Suivie",
+      "open": "Ouvrir l'offre"
+    }
   },
   "coachMemory": {
     "open": "Mémoire du coach",

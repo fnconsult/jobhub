@@ -12,7 +12,8 @@
  * A page we may not or cannot read tells us nothing, and the Job Offer stays as
  * it is until the next re-check.
  */
-import { createPoliteFetcher, DEFAULT_USER_AGENT, htmlToText, jobPostingValidThrough, readJobPosting, type Clock, type RefusalReason } from "@jobhub/shared/page-reading";
+import type { ExternalApiLog } from "@jobhub/shared";
+import { createPoliteFetcher, DEFAULT_USER_AGENT, htmlToText, jobPostingValidThrough, readJobPosting, recordingSiteFetch, type Clock, type RefusalReason } from "@jobhub/shared/page-reading";
 import { FORBIDDEN_SITES } from "../job-discovery";
 
 /** What one re-check learnt: still published, no longer published ("gone"), or nothing (not read). */
@@ -30,6 +31,8 @@ export interface SourceRecheckOptions {
   store: SourceCheckStore;
   /** Default: the global fetch. */
   fetch?: typeof globalThis.fetch;
+  /** Where each page read is recorded: a `page_read` of its site's domain, never its URL (#234). Default: nowhere. */
+  externalApis?: ExternalApiLog;
   userAgent?: string;
   /** Default: FORBIDDEN_SITES. */
   forbiddenSites?: readonly string[];
@@ -107,8 +110,9 @@ function pageOutcome(sourceUrl: string, page: { url: string; html: string }, now
 export function createSourceRecheck(options: SourceRecheckOptions): SourceRecheck {
   return {
     async run(now) {
+      const fetch = options.fetch ?? globalThis.fetch;
       const fetcher = createPoliteFetcher({
-        fetch: options.fetch ?? globalThis.fetch,
+        fetch: options.externalApis ? recordingSiteFetch(fetch, options.externalApis) : fetch,
         userAgent: options.userAgent ?? DEFAULT_USER_AGENT,
         forbiddenSites: options.forbiddenSites ?? FORBIDDEN_SITES,
         timeoutMs: 15_000,

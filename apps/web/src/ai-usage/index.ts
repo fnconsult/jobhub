@@ -230,8 +230,8 @@ export interface AiUsageReport {
     /** Everything: AI calls with their tools, and external APIs. */
     costEur: number;
   };
-  /** Most calls first. */
-  byModel: (AiUsageRow & { provider: string; model: string })[];
+  /** Most calls first; provider and model null for the calls stopped before any was chosen (#259). */
+  byModel: (AiUsageRow & { provider: string | null; model: string | null })[];
   byTask: (AiUsageRow & { task: string })[];
   /** Per day ("2026-10-17") or per month ("2026-10"), Paris time, newest first; only those with calls. */
   byTime: (AiUsageRow & { bucket: string })[];

@@ -81,4 +81,34 @@ test.describe("AI consumption and AI message logs", () => {
     await expect(entry.first()).toContainText(admin.journal.actions.viewed);
     await expect(entry.first()).toContainText(SUPER_ADMIN);
   });
+
+  test("a failed AI call is listed as failed with its Failure Reason; its log says « Pourquoi », then the technical reason (#259)", async ({ page }) => {
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    await page.goto("/admin/journaux-ia");
+    // The Guardrails' AI check of this question gets a 503 (fake-mistral.mjs): that call fails, the question goes through.
+    await askAssistant(page, `E2E_GUARDRAIL_DOWN Bonjour ${Date.now()}`);
+
+    await page.getByLabel(admin.aiMessages.email).fill(SUPER_ADMIN);
+    await page.getByLabel(admin.aiMessages.task).selectOption("guardrail");
+    await page.getByLabel(admin.aiMessages.result).selectOption("failed");
+    await page.getByLabel(admin.aiMessages.reason).selectOption("provider_unavailable");
+    const rows = page.getByRole("table", { name: admin.aiMessages.caption }).getByRole("row").filter({ hasText: SUPER_ADMIN });
+    // The call is recorded just after it failed, never on its way: the list may need asking again.
+    await expect(async () => {
+      await page.getByRole("button", { name: admin.aiMessages.apply }).click();
+      await expect(rows.first()).toBeVisible({ timeout: 1_000 });
+    }).toPass();
+    await expect(page).toHaveURL(/outcome=failed/);
+    await expect(page).toHaveURL(/reason=provider_unavailable/);
+    await expect(rows.first()).toContainText(`${admin.aiMessages.outcomes.failed} · ${fr.failureReasons.provider_unavailable}`);
+    await expect(rows.first()).not.toContainText(admin.aiMessages.notSent);
+
+    await rows.first().getByRole("link", { name: admin.aiMessages.open }).click();
+    const why = page.getByRole("region", { name: admin.aiMessages.why });
+    await expect(why).toContainText(fr.failureReasons.provider_unavailable);
+    const technical = why.getByRole("definition");
+    await expect(technical.filter({ hasText: "AiProviderError" })).toBeVisible();
+    await expect(technical.filter({ hasText: /^503$/ })).toBeVisible();
+    await expect(page.getByRole("main")).not.toContainText(MISTRAL_KEY);
+  });
 });

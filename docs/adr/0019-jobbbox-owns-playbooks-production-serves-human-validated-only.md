@@ -1,5 +1,7 @@
 # Jobbbox owns the coaching playbooks, and production serves only human-validated ones
 
+_Partly superseded by ADR-0021: playbooks now live in the database, edited in the Back Office, each with a Playbook Agent. The human-validation rule stands._
+
 The Coaching Playbooks, their Sources and the Core Digest live in this repo (`packages/coach-knowledge`), imported once from the devarq `job-hub` playbooks (commit 8e46906); the devarq copy is frozen and no longer edited. In production the AI Coach is given only knowledge marked `validé (<name>, <date>)` by a named person. A review by an AI (auto, Claude, IA, AI, LLM) never counts. The reason is that the playbooks give advice on a Candidate's career and cite figures and studies: an unreviewed rule or a wrong figure said with the AI Coach's authority to a person over 40 does real harm, and ADR-0006 already holds that we never invent facts.
 
 ## Considered Options

@@ -49,6 +49,8 @@ export const routes = {
   subscription: "/abonnement",
   /** The Candidate's Human Coaches: Coaching Sessions and Coach Access. */
   coaching: "/coachs",
+  /** One of the Candidate's Coaching Sessions, on the Human Coaches page: where an Agenda Item for it leads. */
+  coachingSession: (id: string) => `/coachs#seance-${id}`,
   /** A Human Coach's own pages: the Candidates who granted them Coach Access. */
   coachSpace: "/espace-coach",
   coachSpaceCandidate: (candidateId: string) => `/espace-coach/${encodeURIComponent(candidateId)}`,

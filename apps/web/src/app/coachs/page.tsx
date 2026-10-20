@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { agendaPeriod } from "@/agenda";
+import { INTERVIEW_TIME_ZONE, interviewWallClock } from "@/applications";
 import { getCurrentCandidate } from "@/auth/server";
 import { getBilling } from "@/billing/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
+import { CoachingSessionDialog } from "@/components/CoachingSessionDialog";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
@@ -27,7 +31,8 @@ async function changeCoachAccess(form: FormData) {
 
 /**
  * The Candidate's Human Coaches: book (and pay for) a Coaching Session, pick its time on
- * the Human Coach's Cal.com page once paid, and grant or revoke Coach Access.
+ * the Human Coach's Cal.com page once paid, then enter that date here (ADR-0027), and grant
+ * or revoke Coach Access. A dated Coaching Session links to the Agenda, « Voir dans l'agenda ».
  */
 export default async function HumanCoachesPage({ searchParams }: { searchParams: Promise<{ session?: string; error?: string }> }) {
   const candidate = await getCurrentCandidate();
@@ -47,7 +52,9 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
       }),
   ]);
   const money = (amount: number, currency: string) => new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount / 100);
-  const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" });
+  const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: INTERVIEW_TIME_ZONE });
+  const dateTime = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
+  const now = new Date();
 
   return (
     <CandidateLayout candidateId={candidate.id} title={t("humanCoaches.title")}>
@@ -67,16 +74,43 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
         <section className="stack" aria-labelledby="sessions-title">
           <h2 id="sessions-title">{t("humanCoaches.sessionsTitle")}</h2>
           <ul className="stack">
-            {sessions.map((paid) => (
-              <li key={paid.id} className="stack">
-                <p>{t("humanCoaches.sessionPaidOn", { name: paid.coach.name, date: date.format(paid.paidAt) })}</p>
-                <p>
-                  <a className="button button-primary" href={paid.coach.bookingUrl} rel="noopener noreferrer" target="_blank">
-                    {t("humanCoaches.pickSlot", { name: paid.coach.name })}
-                  </a>
-                </p>
-              </li>
-            ))}
+            {sessions.map((paid) =>
+              paid.scheduledAt ? (
+                <li key={paid.id} id={`seance-${paid.id}`} className="stack">
+                  <p>
+                    <strong>{t("humanCoaches.sessionOn", { name: paid.coach.name, date: dateTime.format(paid.scheduledAt) })}</strong>
+                  </p>
+                  {paid.durationMinutes ? <p>{t("humanCoaches.sessionDuration", { count: paid.durationMinutes })}</p> : null}
+                  {paid.videoLink ? (
+                    <p>
+                      <a href={paid.videoLink} rel="noopener noreferrer" target="_blank">
+                        {t("humanCoaches.joinVideo", { name: paid.coach.name })}
+                      </a>
+                    </p>
+                  ) : null}
+                  {paid.note ? <p>{paid.note}</p> : null}
+                  <p className="hint">{t("humanCoaches.sessionPaidOn", { name: paid.coach.name, date: date.format(paid.paidAt) })}</p>
+                  <div className="actions">
+                    <Link href={routes.agenda(agendaPeriod(paid.scheduledAt, now) === "past")}>{t("humanCoaches.seeInAgenda")}</Link>
+                    <CoachingSessionDialog
+                      session={{ id: paid.id, scheduledAt: interviewWallClock(paid.scheduledAt), durationMinutes: paid.durationMinutes, videoLink: paid.videoLink, note: paid.note }}
+                      coachName={paid.coach.name}
+                    />
+                  </div>
+                </li>
+              ) : (
+                <li key={paid.id} id={`seance-${paid.id}`} className="stack">
+                  <p>{t("humanCoaches.sessionPaidOn", { name: paid.coach.name, date: date.format(paid.paidAt) })}</p>
+                  <p>{t("humanCoaches.toSchedule")}</p>
+                  <div className="actions">
+                    <a className="button button-primary" href={paid.coach.bookingUrl} rel="noopener noreferrer" target="_blank">
+                      {t("humanCoaches.pickSlot", { name: paid.coach.name })}
+                    </a>
+                    <CoachingSessionDialog session={{ id: paid.id, scheduledAt: "", durationMinutes: null, videoLink: null, note: null }} coachName={paid.coach.name} />
+                  </div>
+                </li>
+              ),
+            )}
           </ul>
         </section>
       ) : null}

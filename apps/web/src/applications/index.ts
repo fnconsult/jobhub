@@ -192,6 +192,42 @@ export function interviewEndsAt({ scheduledAt, durationMinutes }: Pick<Interview
   return new Date(scheduledAt.getTime() + (durationMinutes ?? INTERVIEW_DEFAULT_DURATION_MINUTES) * 60_000);
 }
 
+/** A run of an Interview's place, a link (`href`) when it is an http or https web address. */
+export interface InterviewPlacePart {
+  text: string;
+  href?: string;
+}
+
+const WEB_ADDRESS = /https?:\/\/[^\s<>"]+/gi;
+/** What ends a sentence rather than a web address. */
+const TRAILING_PUNCTUATION = /[.,;:!?'"»]$/;
+
+/**
+ * An Interview's place cut into runs of text and links, for showing it: each http or
+ * https web address in it becomes a link (never another scheme), without the punctuation
+ * that follows it in a sentence or a closing bracket it does not open.
+ */
+export function interviewPlaceParts(place: string): InterviewPlacePart[] {
+  const parts: InterviewPlacePart[] = [];
+  const text = (value: string) => {
+    if (!value) return;
+    const last = parts.at(-1);
+    if (last && last.href === undefined) last.text += value;
+    else parts.push({ text: value });
+  };
+  let from = 0;
+  for (const match of place.matchAll(WEB_ADDRESS)) {
+    let address = match[0];
+    while (TRAILING_PUNCTUATION.test(address) || (address.endsWith(")") && address.split("(").length < address.split(")").length)) address = address.slice(0, -1);
+    text(place.slice(from, match.index));
+    if (URL.canParse(address)) parts.push({ text: address, href: address });
+    else text(address);
+    from = match.index + address.length;
+  }
+  text(place.slice(from));
+  return parts;
+}
+
 /** A form's empty field ("") means nothing was said. */
 const blankAsNull = (value: unknown) => (value === "" ? null : value);
 

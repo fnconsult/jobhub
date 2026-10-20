@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createJobOffers, createSourceChecks, forgetExpiredGuestCaptures, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
-import { createApplications, interviewWallClock, migrateApplications, type Applications } from "./index";
+import { createApplications, interviewEndsAt, interviewPlaceParts, interviewWallClock, migrateApplications, type Applications } from "./index";
 
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -24,6 +24,40 @@ describe("interviewWallClock", () => {
     expect(interviewWallClock(new Date("2026-11-12T13:30:00.000Z"))).toBe("2026-11-12T14:30"); // winter: UTC+1
     expect(interviewWallClock(new Date("2026-06-03T07:00:00.000Z"))).toBe("2026-06-03T09:00"); // summer: UTC+2
     expect(interviewWallClock(new Date("2026-12-31T23:05:00.000Z"))).toBe("2027-01-01T00:05");
+  });
+});
+
+describe("interviewEndsAt", () => {
+  it("ends an Interview its duration after it starts, an hour when the Candidate did not say", () => {
+    expect(interviewEndsAt({ scheduledAt: new Date("2026-11-12T13:30:00.000Z"), durationMinutes: 45 })).toEqual(new Date("2026-11-12T14:15:00.000Z"));
+    expect(interviewEndsAt({ scheduledAt: new Date("2026-11-12T13:30:00.000Z"), durationMinutes: null })).toEqual(new Date("2026-11-12T14:30:00.000Z"));
+  });
+});
+
+describe("interviewPlaceParts", () => {
+  it("makes a whole http or https link a link", () => {
+    expect(interviewPlaceParts("https://meet.example.com/abc-defg")).toEqual([{ text: "https://meet.example.com/abc-defg", href: "https://meet.example.com/abc-defg" }]);
+    expect(interviewPlaceParts("http://visio.example.fr/salle?id=4")).toEqual([{ text: "http://visio.example.fr/salle?id=4", href: "http://visio.example.fr/salle?id=4" }]);
+  });
+
+  it("links the web address within a place written in words, leaving out the punctuation that ends a sentence", () => {
+    expect(interviewPlaceParts("Teams : https://teams.example.com/l/x, code 123.")).toEqual([
+      { text: "Teams : " },
+      { text: "https://teams.example.com/l/x", href: "https://teams.example.com/l/x" },
+      { text: ", code 123." },
+    ]);
+    expect(interviewPlaceParts("Lien (https://zoom.example.com/j/9).")).toEqual([
+      { text: "Lien (" },
+      { text: "https://zoom.example.com/j/9", href: "https://zoom.example.com/j/9" },
+      { text: ")." },
+    ]);
+  });
+
+  it("links nothing but http and https", () => {
+    expect(interviewPlaceParts("12 rue de la Paix, 75002 Paris")).toEqual([{ text: "12 rue de la Paix, 75002 Paris" }]);
+    expect(interviewPlaceParts("javascript:alert(1)")).toEqual([{ text: "javascript:alert(1)" }]);
+    expect(interviewPlaceParts("ftp://files.example.com/plan.pdf")).toEqual([{ text: "ftp://files.example.com/plan.pdf" }]);
+    expect(interviewPlaceParts("")).toEqual([]);
   });
 });
 

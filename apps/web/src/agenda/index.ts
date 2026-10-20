@@ -16,14 +16,13 @@
  * Every read is scoped to the Candidate.
  */
 import type { Pool } from "pg";
-import { INTERVIEW_TIME_ZONE, interviewDayStart } from "../applications";
+import { INTERVIEW_TIME_ZONE, interviewDayStart, type Interview } from "../applications";
 
 /** One Interview, as the Agenda shows it; it leads to its Application's Interviews Section. */
-export interface InterviewAgendaItem {
+export interface InterviewAgendaItem extends Pick<Interview, "scheduledAt" | "durationMinutes" | "format" | "place"> {
   kind: "interview";
   /** The Interview's id. */
   id: string;
-  scheduledAt: Date;
   applicationId: string;
   /** The Job Offer's title. */
   jobTitle: string;
@@ -84,8 +83,17 @@ export function createAgenda(database: Pool): Agenda {
   /** The Candidate's Interviews in `period`, in its order. */
   async function interviews(candidateId: string, period: AgendaPeriod, now: Date): Promise<AgendaItem[]> {
     const upcoming = period === "upcoming";
-    const { rows } = await database.query<{ id: string; scheduled_at: Date; application_id: string; title: string; employer: string | null }>(
-      `SELECT i.id, i.scheduled_at, a.id AS application_id, o.title, o.employer
+    const { rows } = await database.query<{
+      id: string;
+      scheduled_at: Date;
+      duration_minutes: number | null;
+      format: Interview["format"];
+      place: string;
+      application_id: string;
+      title: string;
+      employer: string | null;
+    }>(
+      `SELECT i.id, i.scheduled_at, i.duration_minutes, i.format, i.place, a.id AS application_id, o.title, o.employer
          FROM interview i
          JOIN application a ON a.id = i.application_id
          JOIN job_offer o ON o.id = a.job_offer_id
@@ -97,6 +105,9 @@ export function createAgenda(database: Pool): Agenda {
       kind: "interview",
       id: row.id,
       scheduledAt: row.scheduled_at,
+      durationMinutes: row.duration_minutes,
+      format: row.format,
+      place: row.place,
       applicationId: row.application_id,
       jobTitle: row.title,
       ...(row.employer ? { employer: row.employer } : {}),

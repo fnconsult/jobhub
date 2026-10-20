@@ -304,6 +304,39 @@ test.describe("Applications", () => {
     await expect(reloaded).toContainText("20 novembre 2026");
   });
 
+  test("an Interview's duration, format and place are saved, edited and shown, only an http(s) link clickable (#247)", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("application-interview-details"));
+    const applicationId = await saveApplication(page, await captureOffer(page), await createProfile(page, "DAF"));
+    await page.goto(`/candidatures/${applicationId}/entretiens`);
+    await page.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.interview });
+    const interviews = page.getByRole("region", { name: fr.application.interviewsTitle });
+    await interviews.getByLabel(fr.application.interviewDate).fill("2026-11-12T14:30");
+    await interviews.getByLabel(fr.application.interviewFormat).selectOption({ label: fr.interviewFormats.on_site });
+    await interviews.getByLabel(fr.application.interviewPlace).fill("javascript:alert(1)");
+    await interviews.getByRole("button", { name: fr.application.addInterview }).click();
+
+    const item = interviews.getByRole("listitem");
+    await expect(item).toHaveCount(1);
+    // No duration: shown as lasting an hour.
+    await expect(item).toContainText("14:30 – 15:30");
+    await expect(item).toContainText(fr.interviewFormats.on_site);
+    await expect(item).toContainText("javascript:alert(1)");
+    await expect(item.getByRole("link")).toHaveCount(0);
+
+    await item.getByRole("button", { name: /^Modifier l'entretien du/ }).click();
+    await expect(item.getByLabel(fr.application.interviewFormat)).toHaveValue("on_site");
+    await item.getByLabel(fr.application.interviewDuration).fill("90");
+    await item.getByLabel(fr.application.interviewFormat).selectOption({ label: fr.interviewFormats.video });
+    await item.getByLabel(fr.application.interviewPlace).fill("http://visio.example.fr/salle-4");
+    await item.getByRole("button", { name: fr.application.saveInterview }).click();
+
+    await expect(item).toContainText("14:30 – 16:00");
+    await expect(item).toContainText(fr.interviewFormats.video);
+    await expect(item.getByRole("link", { name: "http://visio.example.fr/salle-4" })).toHaveAttribute("href", "http://visio.example.fr/salle-4");
+    await page.reload();
+    await expect(page.getByRole("region", { name: fr.application.interviewsTitle }).getByRole("listitem")).toContainText("14:30 – 16:00");
+  });
+
   test("the Candidate switches the Profile an Application uses, and its Match Score follows", async ({ page, browser }) => {
     // Two Profiles: more than the Free Plan holds.
     const email = newAddress("application-profile");

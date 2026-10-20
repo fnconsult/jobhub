@@ -252,6 +252,22 @@ test.describe("the Profile page as a document", () => {
     await expect(page.getByRole("button", { name: fr.jobSearch.start, exact: true })).toHaveCount(0);
     await expect(page.locator(`a[href="/job-digests#job-digest-${id}"]`)).toHaveCount(0);
   });
+
+  test("the Job Search and the Job Digest stay reachable without the Profile page (#238)", async ({ page }) => {
+    const id = await candidateWithProfile(page, "profile-reach");
+    await page.goto(`/profils/${id}`);
+    await expect(page.getByRole("button", { name: fr.jobSearch.start, exact: true })).toHaveCount(0);
+    await expect(page.locator("main").locator('a[href*="job-digest"]')).toHaveCount(0);
+
+    // A Job Search starts from Recherches d'offres.
+    await page.goto(`/recherches?profil=${id}`);
+    await expect(page.getByRole("button", { name: fr.jobSearch.start, exact: true })).toBeVisible();
+
+    // The Job Digest is reached from the sidebar.
+    await page.goto(`/profils/${id}`);
+    await page.locator('a[href="/job-digests"]').first().click();
+    await expect(page).toHaveURL(/\/job-digests$/);
+  });
 });
 
 test.describe("the Profile page on the ADR-0009 floor", () => {

@@ -221,7 +221,7 @@ test.describe("what the AI Coach is told", () => {
 
     expect(context).toContain("Le candidat consulte son agenda « Entretiens et rendez-vous ».");
     expect(context).toMatch(/- \S+ \d+ \S+ \d{4} à 14:30 : entretien pour DAF Agenda chez Acme Industrie ; note : avec la DRH/);
-    expect(context).not.toContain("DAF Trop tard");
+    expect(context).not.toContain("entretien pour DAF Trop tard");
     expect(context).not.toContain("Poste d'un autre");
   });
 

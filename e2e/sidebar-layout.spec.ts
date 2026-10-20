@@ -41,7 +41,7 @@ const coachButton = (page: Page) => page.getByRole("button", { name: fr.coachPan
 const coachPanel = (page: Page) => page.getByRole("complementary", { name: fr.coachPanel.title });
 const drawer = (page: Page) => page.getByRole("dialog", { name: fr.sidebar.menu });
 
-const NAV_LABELS = [fr.nav.applications, fr.sidebar.jobSearches, fr.sidebar.jobDigests, fr.account.humanCoaches];
+const NAV_LABELS = [fr.nav.applications, fr.sidebar.agenda, fr.sidebar.jobSearches, fr.sidebar.jobDigests, fr.account.humanCoaches];
 /** Mon compte sits in the sidebar's foot, above signing out; the Subscription is one of its Sections. */
 const accountLink = (page: Page) => page.getByRole("link", { name: fr.nav.account, exact: true });
 
@@ -149,7 +149,8 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     await expect(skip).toBeInViewport();
 
     const order: string[] = [];
-    for (let i = 0; i < 12; i++) {
+    const stops = NAV_LABELS.length + 8;
+    for (let i = 0; i < stops; i++) {
       await page.keyboard.press("Tab");
       order.push(await focused(page));
     }
@@ -163,7 +164,7 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
       fr.account.signOut,
       fr.sidebar.collapse,
       fr.coachPanel.open,
-      order[11],
+      order[stops - 1],
     ]);
     // After the top bar comes the page itself.
     expect(await page.evaluate(() => !!document.activeElement?.closest("main"))).toBe(true);

@@ -1848,6 +1848,11 @@
     "rejected": "Refusée",
     "abandoned": "Abandonnée"
   },
+  "interviewFormats": {
+    "video": "Visio",
+    "phone": "Téléphone",
+    "on_site": "Sur place"
+  },
   "applications": {
     "title": "Mes candidatures",
     "viewsLabel": "Affichage des candidatures",
@@ -1877,13 +1882,26 @@
   },
   "agenda": {
     "title": "Entretiens et rendez-vous",
-    "none": "Aucun rendez-vous à venir. Ajoutez vos entretiens depuis chaque candidature, dans sa partie « Entretiens ».",
+    "none": "Aucun rendez-vous à venir. Ajoutez un entretien avec « Ajouter un entretien », ou depuis chaque candidature, dans sa partie « Entretiens ».",
     "nonePast": "Aucun rendez-vous passé.",
     "showPast": "Voir les rendez-vous passés",
     "showUpcoming": "Voir les rendez-vous à venir",
     "pastTitle": "Rendez-vous passés",
     "upcomingTitle": "À venir",
     "interview": "Entretien",
+    "add": "Ajouter un entretien",
+    "addDialog": {
+      "title": "Ajouter un entretien",
+      "close": "Fermer",
+      "application": "Candidature",
+      "chooseApplication": "Choisissez une candidature",
+      "none": "Aucune candidature en cours. Enregistrez d’abord une offre pour y noter un entretien.",
+      "moveToInterview": "Passer la candidature à Entretien",
+      "moveToInterviewHint": "Elle est à l’étape « {{status}} ». Un entretien ne s’ajoute qu’à une candidature à l’étape « Entretien ».",
+      "notMoved": "Rien n’a été enregistré : un entretien ne s’ajoute qu’à une candidature à l’étape « Entretien ». Cochez « Passer la candidature à Entretien » pour l’ajouter.",
+      "submit": "Ajouter l’entretien",
+      "added": "Entretien ajouté."
+    },
     "toSchedule": "À planifier",
     "toScheduleIntro": "Vos séances de coaching payées n'ont pas encore de date. Réservez votre créneau sur la page Cal.com du coach, puis saisissez la date ici.",
     "coachingSession": "Séance de coaching",
@@ -1901,6 +1919,13 @@
     "interviewsNone": "Aucun entretien enregistré pour l'instant.",
     "interviewsHint": "Vous pourrez noter vos entretiens quand la candidature sera au statut « Entretien ».",
     "interviewDate": "Date et heure de l'entretien (heure de Paris)",
+    "interviewDuration": "Durée en minutes (facultatif)",
+    "interviewDurationHint": "Sans durée, l’entretien est affiché sur une heure.",
+    "interviewFormat": "Format (facultatif)",
+    "interviewFormatNone": "Non précisé",
+    "interviewPlace": "Lieu ou lien (facultatif)",
+    "interviewPlaceHint": "Une adresse, ou le lien de la visio : il devient cliquable.",
+    "interviewUntil": "jusqu’à {{time}}",
     "interviewNote": "Note (facultatif)",
     "interviewNoteHint": "Par exemple : avec la DRH, en visioconférence.",
     "addInterview": "Ajouter l'entretien",

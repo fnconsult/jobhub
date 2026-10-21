@@ -190,7 +190,13 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     const application = await saveApplication(candidateId, profileId);
     await jobOffers.summarize(application.jobOffer.id, async () => ({ summary: "Acme Industrie recrute son DAF." }));
     await applications.change(candidateId, application.id, { status: "interview" });
-    await applications.addInterview(candidateId, application.id, { scheduledAt: "2026-11-12T14:30", note: "avec la DRH" });
+    await applications.addInterview(candidateId, application.id, {
+      scheduledAt: "2026-11-12T14:30",
+      note: "avec la DRH",
+      durationMinutes: 45,
+      format: "on_site",
+      place: "12 rue de la Paix, Paris",
+    });
     const proposed = await tailoredCvs.propose(candidateId, application.id, {});
     if (!proposed.ok) throw new Error(`fixture Tailored CV refused: ${JSON.stringify(proposed)}`);
     const { revision, changes } = proposed.tailoredCv.proposal!;
@@ -206,7 +212,15 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         status: "interview",
         profile: { id: profileId, name: "DAF" },
         jobOffer: expect.objectContaining({ title: "DAF H/F", employer: "Acme Industrie", summary: "Acme Industrie recrute son DAF." }),
-        interviews: [expect.objectContaining({ note: "avec la DRH", scheduledAt: new Date("2026-11-12T13:30:00Z") })],
+        interviews: [
+          expect.objectContaining({
+            note: "avec la DRH",
+            scheduledAt: new Date("2026-11-12T13:30:00Z"),
+            durationMinutes: 45,
+            format: "on_site",
+            place: "12 rue de la Paix, Paris",
+          }),
+        ],
         tailoredDocuments: {
           documentLanguage: "fr",
           tailoredCv: expect.objectContaining({ content: expect.objectContaining({ headline: "DAF groupe industriel" }) }),

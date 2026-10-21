@@ -1041,6 +1041,32 @@ th[aria-sort] .sort-mark {
   font-weight: 600;
 }
 
+/* An Interview's format and place or link (#247), on the Agenda and in the Interviews Section. */
+.interview-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.interview-format {
+  color: var(--color-text-secondary);
+}
+
+/* « Ajouter un entretien » above the Agenda's list (#247). */
+.agenda-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+
+.agenda-actions p {
+  margin: 0;
+}
+
 .match-score-value {
   margin: 0;
   font-size: var(--font-size-h2);
@@ -3057,17 +3083,24 @@ textarea.title-edit {
   list-style: none;
 }
 
+/* One Agenda Item: the link to its Application, then its format and place (#247), whose own link sits outside it. */
+.agenda-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
 .agenda-item-link {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-4);
   align-items: baseline;
-  padding: var(--space-3);
   color: var(--color-text);
   text-decoration: none;
-  background: var(--color-background);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
 }
 
 .agenda-item-link:hover .agenda-item-title {
@@ -3077,6 +3110,7 @@ textarea.title-edit {
 .agenda-item-time {
   min-width: 4rem;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .agenda-item-what {
@@ -3094,10 +3128,14 @@ textarea.title-edit {
   font-weight: 600;
 }
 
-.agenda-past .agenda-item-link {
+.agenda-past .agenda-item {
   color: var(--color-text-secondary);
   background: var(--color-surface);
   border-style: dashed;
+}
+
+.agenda-past .agenda-item-link {
+  color: var(--color-text-secondary);
 }
 
 .agenda-past .agenda-item-time,

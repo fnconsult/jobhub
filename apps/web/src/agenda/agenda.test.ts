@@ -52,8 +52,8 @@ describe.skipIf(!connectionString)("Agenda (needs Postgres: DATABASE_URL)", () =
     return saved.application.id;
   }
 
-  async function addInterview(owner: string, applicationId: string, scheduledAt: string) {
-    const added = await applications.addInterview(owner, applicationId, { scheduledAt });
+  async function addInterview(owner: string, applicationId: string, scheduledAt: string, details: object = {}) {
+    const added = await applications.addInterview(owner, applicationId, { scheduledAt, ...details });
     if (!added.ok) throw new Error("fixture Interview refused");
   }
 
@@ -88,8 +88,29 @@ describe.skipIf(!connectionString)("Agenda (needs Postgres: DATABASE_URL)", () =
     expect(await agenda.days(candidateId, { period: "upcoming", now: NOW })).toEqual([
       {
         day: "2026-10-22",
-        items: [{ kind: "interview", id: expect.any(String), scheduledAt: new Date("2026-10-22T12:30:00.000Z"), applicationId: mine, jobTitle: "DAF H/F", employer: "Acme Industrie" }],
+        items: [
+          {
+            kind: "interview",
+            id: expect.any(String),
+            scheduledAt: new Date("2026-10-22T12:30:00.000Z"),
+            durationMinutes: null,
+            format: null,
+            place: "",
+            applicationId: mine,
+            jobTitle: "DAF H/F",
+            employer: "Acme Industrie",
+          },
+        ],
       },
+    ]);
+  });
+
+  it("shows what the Candidate needs on the day: the Interview's duration, format and place or link", async () => {
+    const applicationId = await applicationInInterview(candidateId, "DAF H/F", "Acme Industrie");
+    await addInterview(candidateId, applicationId, "2026-10-22T14:30", { durationMinutes: 45, format: "video", place: "https://meet.example.com/abc" });
+
+    expect((await agenda.days(candidateId, { period: "upcoming", now: NOW }))[0]?.items).toMatchObject([
+      { durationMinutes: 45, format: "video", place: "https://meet.example.com/abc" },
     ]);
   });
 

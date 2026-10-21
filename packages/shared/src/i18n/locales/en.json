@@ -1848,6 +1848,11 @@
     "rejected": "Rejected",
     "abandoned": "Abandoned"
   },
+  "interviewFormats": {
+    "video": "Video call",
+    "phone": "Phone",
+    "on_site": "On site"
+  },
   "applications": {
     "title": "My applications",
     "viewsLabel": "How applications are shown",
@@ -1877,13 +1882,26 @@
   },
   "agenda": {
     "title": "Interviews and appointments",
-    "none": "No upcoming appointments. Add your interviews from each application, in its « Interviews » part.",
+    "none": "No upcoming appointments. Add an interview with « Add an interview », or from each application, in its « Interviews » part.",
     "nonePast": "No past appointments.",
     "showPast": "See past appointments",
     "showUpcoming": "See upcoming appointments",
     "pastTitle": "Past appointments",
     "upcomingTitle": "Upcoming",
     "interview": "Interview",
+    "add": "Add an interview",
+    "addDialog": {
+      "title": "Add an interview",
+      "close": "Close",
+      "application": "Application",
+      "chooseApplication": "Choose an application",
+      "none": "No ongoing applications. Save a job offer first to record an interview for it.",
+      "moveToInterview": "Move the application to Interview",
+      "moveToInterviewHint": "It is at the « {{status}} » stage. An interview can only be added to an application at the « Interview » stage.",
+      "notMoved": "Nothing was saved: an interview can only be added to an application at the « Interview » stage. Tick « Move the application to Interview » to add it.",
+      "submit": "Add the interview",
+      "added": "Interview added."
+    },
     "toSchedule": "To schedule",
     "toScheduleIntro": "Your paid coaching sessions have no date yet. Book your time on the coach's Cal.com page, then enter the date here.",
     "coachingSession": "Coaching session",
@@ -1901,6 +1919,13 @@
     "interviewsNone": "No interviews recorded yet.",
     "interviewsHint": "You can record your interviews once the application is at the \"Interview\" status.",
     "interviewDate": "Interview date and time (Paris time)",
+    "interviewDuration": "Duration in minutes (optional)",
+    "interviewDurationHint": "Without a duration, the interview is shown as lasting an hour.",
+    "interviewFormat": "Format (optional)",
+    "interviewFormatNone": "Not specified",
+    "interviewPlace": "Place or link (optional)",
+    "interviewPlaceHint": "An address, or the video call link: it becomes clickable.",
+    "interviewUntil": "until {{time}}",
     "interviewNote": "Note (optional)",
     "interviewNoteHint": "For example: with the HR director, by video call.",
     "addInterview": "Add the interview",

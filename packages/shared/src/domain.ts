@@ -22,6 +22,14 @@ export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
  */
 export const FINAL_APPLICATION_STATUSES = ["accepted", "rejected", "abandoned"] as const satisfies readonly ApplicationStatus[];
 
+/** How an Interview takes place. */
+export const INTERVIEW_FORMATS = [
+  "video", // Visio
+  "phone", // Téléphone
+  "on_site", // Sur place
+] as const;
+export type InterviewFormat = (typeof INTERVIEW_FORMATS)[number];
+
 /**
  * The subscription tier a Candidate is on, by its permanent key ("free", "standard",
  * "premium", or one an Administrator created in the Back Office). Plans live in the

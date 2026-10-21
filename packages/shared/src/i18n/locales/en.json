@@ -1998,7 +1998,7 @@
     "calendarFile": {
       "add": "Add to my calendar",
       "addFor": "Add to my calendar: {{what}}, {{date}}",
-      "hint": ".ics file. If the date changes, download it again.",
+      "hint": ".ics file: if the date changes, you will need to download it again.",
       "interviewTitle": "Interview — {{job}}, {{employer}}",
       "interviewTitleNoEmployer": "Interview — {{job}}",
       "sessionTitle": "Session with {{name}}",

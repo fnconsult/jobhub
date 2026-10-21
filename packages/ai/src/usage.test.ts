@@ -63,6 +63,16 @@ it("writes a failed call's Failure Reason code, never its technical reason, whic
   expect(lines[0]).not.toContain("Marie Dupont");
 });
 
+it("writes a warning call's codes, never their details, which only go with the transcript (#260)", () => {
+  const lines: string[] = [];
+  const log = createConsoleUsageLog((line) => lines.push(line));
+
+  log.record({ ...entry, outcome: "warning", reason: "identity_unavailable", warnings: [{ reason: "identity_unavailable", detail: "identity lookup failed: database down" }] });
+
+  expect(JSON.parse(lines[0]!)).toMatchObject({ outcome: "warning", reason: "identity_unavailable", warnings: ["identity_unavailable"] });
+  expect(lines[0]).not.toContain("database down");
+});
+
 it("hands each call to every usage log, whichever of them fails", async () => {
   const kept = createMemoryUsageLog();
   const log = allUsageLogs([{ record: () => Promise.reject(new Error("insert failed")) }, { record: () => { throw new Error("down"); } }, kept], () => {});

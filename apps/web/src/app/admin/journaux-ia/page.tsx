@@ -22,8 +22,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Super-admins find an AI Message Log (#218): newest first, filtered by task, model, Candidate
- * email, day, Outcome and Failure Reason (#259). The list shows no text, only how each call ended
- * and why; opening a log writes the view to the Back Office Audit.
+ * email, day, Outcome and Failure Reason (#259), a warning's code too (#260). The list shows no text, only how each
+ * call ended and why; opening a log writes the view to the Back Office Audit.
  */
 export default async function AiMessagesPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const { access } = await requireBackOffice("aiMessages");
@@ -122,7 +122,7 @@ export default async function AiMessagesPage({ searchParams }: { searchParams: P
                     <td>{log.candidate?.email ?? t("admin.aiMessages.noCandidate")}</td>
                     <td>
                       {t(`admin.aiMessages.outcomes.${log.outcome}`)}
-                      {log.reason ? ` · ${t(`failureReasons.${log.reason}`)}` : null}
+                      {[log.reason, ...log.warnings.filter((warning) => warning !== log.reason)].flatMap((reason) => (reason ? [` · ${t(`failureReasons.${reason}`)}`] : []))}
                       {log.sent ? null : ` · ${t("admin.aiMessages.notSent")}`}
                     </td>
                     <td>

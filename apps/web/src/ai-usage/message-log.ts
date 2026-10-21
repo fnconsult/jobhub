@@ -10,7 +10,7 @@
  * the view to the Back Office Audit, in the same transaction, so no log is read without a trace.
  * A Candidate's logs are in their data export and go with their account.
  */
-import { SEARCH_TASK, TEXT_TASKS, type Message } from "@jobhub/ai";
+import { SEARCH_TASK, TEXT_TASKS, type AiWarning, type Message } from "@jobhub/ai";
 import { FAILURE_REASONS, OUTCOMES, type FailureReason, type Outcome, type TechnicalReason } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
@@ -26,6 +26,8 @@ export interface AiMessageLogSummary {
   outcome: Outcome;
   /** The Failure Reason's code; null when ok, and for a failure recorded before reasons were (#259). */
   reason: FailureReason | null;
+  /** The codes of its feature's warnings (#260): a warning's reason first; beside a failed call's own reason. */
+  warnings: FailureReason[];
   /** False for a call stopped before it was sent (missing key or route, data residency). */
   sent: boolean;
   /** Null for a call made for no Candidate (a Guest). */
@@ -44,6 +46,8 @@ export interface AiMessageLog extends AiMessageLogSummary {
   durationMs: number;
   /** What the error said (class, provider, HTTP status, message: scrubbed, redacted, cut); null when ok. */
   technicalReason: TechnicalReason | null;
+  /** Each warning with what happened (written by the code, scrubbed, redacted by shape, cut). */
+  warningDetails: AiWarning[];
 }
 
 export interface AiMessageLogs {
@@ -81,7 +85,7 @@ export function aiMessageLogFilter(input: unknown): AiMessageLogFilter {
   return parsed.success ? Object.fromEntries(Object.entries(parsed.data).filter(([, value]) => value !== undefined)) : {};
 }
 
-const SUMMARY = `SELECT m.id, m.at, u.task, u.provider, u.model, u.outcome, u.reason, m.sent,
+const SUMMARY = `SELECT m.id, m.at, u.task, u.provider, u.model, u.outcome, u.reason, u.warnings, m.sent,
                         CASE WHEN c.id IS NULL THEN NULL ELSE json_build_object('id', c.id, 'email', c.email) END AS candidate`;
 const FROM = `FROM ai_message_log m JOIN ai_usage u ON u.id = m.usage_id LEFT JOIN candidate c ON c.id = m.candidate_id`;
 
@@ -99,7 +103,8 @@ export function createAiMessageLogs(database: Pool, deps: { backOffice: Pick<Bac
       if (filter.model) where((param) => `u.model = ${param}`, filter.model);
       if (filter.email) where((param) => `lower(c.email) = ${param}`, filter.email);
       if (filter.outcome) where((param) => `u.outcome = ${param}`, filter.outcome);
-      if (filter.reason) where((param) => `u.reason = ${param}`, filter.reason);
+      // A code, whether the call's reason or one of its warnings (a failed call's).
+      if (filter.reason) where((param) => `(u.reason = ${param} OR ${param} = ANY (u.warnings))`, filter.reason);
       if (filter.day) where((param) => `(m.at AT TIME ZONE 'Europe/Paris')::date = ${param}::date`, filter.day);
       params.push(LIST_LIMIT);
       const { rows } = await database.query<AiMessageLogSummary>(
@@ -117,7 +122,7 @@ export function createAiMessageLogs(database: Pool, deps: { backOffice: Pick<Bac
           const { rows } = await within.query<AiMessageLog>(
             `${SUMMARY}, m.system, m.messages, m.reply, u.input_tokens AS "inputTokens", u.output_tokens AS "outputTokens",
                     u.cached_input_tokens AS "cachedInputTokens", u.cost_eur AS "costEur", u.duration_ms AS "durationMs",
-                    m.technical_reason AS "technicalReason"
+                    m.technical_reason AS "technicalReason", m.warnings AS "warningDetails"
                ${FROM} WHERE m.id = $1`,
             [id],
           );

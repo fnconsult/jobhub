@@ -294,7 +294,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     await Promise.all(pending);
 
     expect((await candidateData.export(candidateId)).aiMessageLog).toEqual([
-      { id: expect.any(String), at: new Date("2026-10-17T08:00:00Z"), task: "coaching", provider: "mistral", model: "fake-mistral", outcome: "ok", reason: null, system: null, messages: [{ role: "user", content: "Merci" }], reply: "Bonjour Marie" },
+      { id: expect.any(String), at: new Date("2026-10-17T08:00:00Z"), task: "coaching", provider: "mistral", model: "fake-mistral", outcome: "ok", reason: null, warnings: [], system: null, messages: [{ role: "user", content: "Merci" }], reply: "Bonjour Marie" },
       expect.objectContaining({ at: new Date("2026-10-16T08:00:00Z"), system: "Tu es le coach.", messages: [{ role: "user", content: "Bonjour" }] }),
     ]);
 
@@ -320,6 +320,26 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(log).not.toHaveProperty("technicalReason");
     // Its id and time are left out: a random id or a time's milliseconds may hold "503".
     expect(JSON.stringify({ ...log, id: null, at: null })).not.toMatch(/AiProviderError|upstream connect error|503/);
+  });
+
+  it("the export holds an AI call's warnings, code and wording, never what happened (#260)", async () => {
+    const usage = createPostgresUsageLog(database);
+    const pending: Promise<unknown>[] = [];
+    const ai = createAiLayer({
+      providers: [createFakeProvider({ id: "mistral" })],
+      routes: { coaching: "mistral" },
+      usage: { record: (entry) => void pending.push(Promise.resolve(usage.record(entry))) },
+    });
+    await ai.generate({ task: "coaching", candidateId, prompt: "Bonjour", warnings: [{ reason: "playbook_agent_skipped", detail: "Playbook Agent negociation v2 left out (AiProviderError)" }] });
+    await Promise.all(pending);
+
+    const [log] = (await candidateData.export(candidateId)).aiMessageLog;
+    expect(log).toMatchObject({
+      outcome: "warning",
+      reason: { code: "playbook_agent_skipped", wording: "Playbook Agent laissé de côté : réponse sans son avis" },
+      warnings: [{ code: "playbook_agent_skipped", wording: "Playbook Agent laissé de côté : réponse sans son avis" }],
+    });
+    expect(JSON.stringify(log)).not.toContain("negociation v2");
   });
 
   it("the export holds each Profile's ATS Score, or null when its Master CV was never scored", async () => {

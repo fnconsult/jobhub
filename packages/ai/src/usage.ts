@@ -3,12 +3,14 @@ import type { UsageLog } from "./types";
 /**
  * Writes one JSON line per AI call to stdout (collected by CloudWatch in production).
  * Each line carries the Candidate and token counts, which Plan Quotas are computed from.
- * Never what the call said (its transcript) nor its technical Failure Reason: personal data, kept only by the AI Message Log.
+ * Never what the call said (its transcript), its technical Failure Reason nor its warnings' details: personal data, or
+ * near it, kept only by the AI Message Log. Its warnings' codes are written.
  */
 export function createConsoleUsageLog(write: (line: string) => void = (line) => console.info(line)): UsageLog {
   return {
     record(entry) {
-      write(JSON.stringify({ event: "ai_usage", ...entry, transcript: undefined, technicalReason: undefined, at: entry.at.toISOString() }));
+      const warnings = entry.warnings?.map((warning) => warning.reason);
+      write(JSON.stringify({ event: "ai_usage", ...entry, transcript: undefined, technicalReason: undefined, warnings, at: entry.at.toISOString() }));
     },
   };
 }

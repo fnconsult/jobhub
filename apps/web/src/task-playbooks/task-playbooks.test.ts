@@ -11,9 +11,12 @@ function layer(reply = "{}") {
   const mistral = createFakeProvider({ id: "mistral", reply });
   const claude = createFakeProvider({ id: "anthropic", reply, models: ["claude-opus-5-5"] });
   const tavily = createFakeProvider({ id: "tavily", residency: "outside_eu", models: ["basic", "advanced"] });
-  const ai = createAiLayer({ providers: [mistral, claude, tavily], routes: { writing: "mistral", cv_parsing: "mistral", coaching: "mistral" }, usage: createMemoryUsageLog(), warn: () => {} });
-  return { ai, mistral, claude };
+  const usage = createMemoryUsageLog();
+  const ai = createAiLayer({ providers: [mistral, claude, tavily], routes: { writing: "mistral", cv_parsing: "mistral", coaching: "mistral", web_search: "tavily" }, usage, warn: () => {} });
+  return { ai, mistral, claude, usage };
 }
+
+const quiet = () => {};
 
 describe("what an AI task runs with (ADR-0026)", () => {
   it("is its served version: its text, a section of it, and its Playbook Agent's route and effort", async () => {
@@ -22,8 +25,8 @@ describe("what an AI task runs with (ADR-0026)", () => {
 
     expect(run.version).toBe(2);
     expect(run.text("en")).toBe("Adapt.");
-    expect(run.agent).toEqual({ route: { provider: "anthropic", model: "claude-opus-5-5" }, effort: "high" });
-    expect(run.instructions("fr")).toEqual({ text: "Adapte.", route: { provider: "anthropic", model: "claude-opus-5-5" }, effort: "high" });
+    expect(run.agent).toEqual({ route: { provider: "anthropic", model: "claude-opus-5-5" }, effort: "high", warnings: [] });
+    expect(run.instructions("fr")).toEqual({ text: "Adapte.", route: { provider: "anthropic", model: "claude-opus-5-5" }, effort: "high", warnings: [] });
   });
 
   it("is its built-in text on the task's configured route, with a warning, when no version is served or it cannot be read", async () => {
@@ -34,7 +37,8 @@ describe("what an AI task runs with (ADR-0026)", () => {
     const failing = await taskRun(async () => Promise.reject(new Error("database down")), "cv-reading", ai, (message) => warnings.push(message));
 
     for (const run of [none, failing]) {
-      expect(run).toMatchObject({ version: null, agent: {} });
+      expect(run).toMatchObject({ version: null, agent: { warnings: [expect.anything()] } });
+      expect(run.agent).not.toHaveProperty("route");
       expect(run.text()).toBe(builtInInstructions("cv-reading"));
     }
     expect(warnings).toEqual([expect.stringMatching(/no version of task Playbook "cv-reading" is served/), expect.stringMatching(/could not be read: database down/)]);
@@ -46,7 +50,7 @@ describe("what an AI task runs with (ADR-0026)", () => {
 
     const run = await taskRun(servedTasks({ "tailored-cv": { content: "## fr\n\nAdapte.", agent: taskAgent("openai", "gpt-5") } }), "tailored-cv", ai, (message) => warnings.push(message));
 
-    expect(run.agent).toEqual({});
+    expect(run.agent).not.toHaveProperty("route");
     expect(run.text("en")).toBe(builtInInstructions("tailored-cv", "en"));
     expect(warnings).toHaveLength(2);
   });
@@ -79,6 +83,59 @@ describe("what an AI task runs with (ADR-0026)", () => {
     expect(await servedTaskRun(servedTasks({}), "job-offer-reading", ai)).toBeNull();
     expect(await servedTaskRun(undefined, "job-offer-reading", ai)).toBeNull();
     expect((await servedTaskRun(servedTasks({ "job-offer-reading": { content: "- résumé" } }), "job-offer-reading", ai))?.text()).toBe("- résumé");
+  });
+});
+
+describe("a Task Playbook's fallback is recorded on the AI call it runs, Outcome warning (#260)", () => {
+  /** The AI Usage entry of one call made the way the AI tasks make it: `...run.agent` spread in. */
+  async function recordedCall(run: Awaited<ReturnType<typeof taskRun>>, section?: string) {
+    const { ai, usage } = layer();
+    await ai.generate({ task: "writing", candidateId: "cand-1", system: run.text(section), prompt: "Lettre", ...run.agent });
+    return usage.entries[0]!;
+  }
+
+  it("no version served: task_playbook_fallback, the built-in text used", async () => {
+    const entry = await recordedCall(await taskRun(servedTasks({}), "cover-letter", layer().ai, quiet));
+
+    expect(entry).toMatchObject({ outcome: "warning", reason: "task_playbook_fallback", warnings: [{ reason: "task_playbook_fallback", detail: expect.stringContaining('"cover-letter"') }] });
+  });
+
+  it("its served version could not be read: task_playbook_unreadable", async () => {
+    const entry = await recordedCall(await taskRun(async () => Promise.reject(new Error("database down")), "cover-letter", layer().ai, quiet));
+
+    expect(entry).toMatchObject({ outcome: "warning", reason: "task_playbook_unreadable", warnings: [{ reason: "task_playbook_unreadable", detail: expect.stringContaining("database down") }] });
+  });
+
+  it("its served version lacks the section the call needs: task_playbook_section_missing", async () => {
+    const entry = await recordedCall(await taskRun(servedTasks({ "tailored-cv": { content: "## fr\n\nAdapte." } }), "tailored-cv", layer().ai, quiet), "en");
+
+    expect(entry).toMatchObject({ outcome: "warning", reason: "task_playbook_section_missing", warnings: [{ reason: "task_playbook_section_missing", detail: expect.stringMatching(/"tailored-cv" v2 has no section "en"/) }] });
+  });
+
+  it("its Playbook Agent is no longer offered: task_playbook_agent_not_offered, the configured route used", async () => {
+    const entry = await recordedCall(await taskRun(servedTasks({ "tailored-cv": { content: "Adapte.", agent: taskAgent("openai", "gpt-5") } }), "tailored-cv", layer().ai, quiet));
+
+    expect(entry).toMatchObject({ provider: "mistral", outcome: "warning", reason: "task_playbook_agent_not_offered", warnings: [{ reason: "task_playbook_agent_not_offered", detail: expect.stringContaining("openai gpt-5") }] });
+  });
+
+  it("its web-search provider is no longer offered: task_playbook_search_not_offered on its search", async () => {
+    const { ai, usage } = layer();
+    const run = await taskRun(servedTasks({ "company-facts-search": { content: "Qui est {{entreprise}} ?", search: { provider: "linkup", model: null } } }), "company-facts-search", ai, quiet);
+
+    await ai.searchCompany({ candidateId: "cand-1", employer: "Acme", instructions: run.text(), route: run.searchRoute, warnings: run.warnings });
+
+    expect(usage.entries[0]).toMatchObject({ task: "web_search", outcome: "warning", reason: "task_playbook_search_not_offered", warnings: [{ reason: "task_playbook_search_not_offered", detail: expect.stringContaining("linkup") }] });
+  });
+
+  it("a served version run as it is leaves the call ok", async () => {
+    const entry = await recordedCall(await taskRun(servedTasks({ "tailored-cv": { content: "Adapte.", agent: taskAgent("anthropic", "claude-opus-5-5") } }), "tailored-cv", layer().ai, quiet));
+
+    expect(entry).toMatchObject({ outcome: "ok" });
+    expect(entry).not.toHaveProperty("warnings");
+  });
+
+  it("without a reader (a caller not wired to the database), the built-in text is used silently", async () => {
+    expect(await recordedCall(await taskRun(undefined, "cover-letter", layer().ai, quiet))).toMatchObject({ outcome: "ok" });
   });
 });
 

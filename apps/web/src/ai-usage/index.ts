@@ -5,7 +5,7 @@
  * One module in front of Postgres:
  *  - `createPostgresUsageLog(database)`, the AI layer's UsageLog in the web app and the worker:
  *    one `ai_usage` row per call (task, provider, endpoint, model, tokens, estimated €, Outcome and
- *    Failure Reason code, duration; `ok` is kept as "not failed") and one `ai_tool_usage` row per tool its model used: no Candidate id, no text.
+ *    Failure Reason code, its warnings' codes, duration; `ok` is kept as "not failed") and one `ai_tool_usage` row per tool its model used: no Candidate id, no text.
  *  - `createPostgresExternalApiLog(database)`, where `recordingFetch` records the calls to
  *    France Travail and the contact enrichment providers: `external_api_usage`, no payload.
  *  - `aiUsageReport(database, aiUsagePeriod(key, now))`: totals and breakdowns of a period.
@@ -88,18 +88,19 @@ export function createPostgresUsageLog(database: Pick<Pool, "query">, options: P
         const scrub = (text: string) => scrubStoredText(text, known);
         const { system, messages, reply } = entry.transcript;
         const technical = entry.technicalReason;
+        const warnings = entry.warnings ?? [];
         await database.query(
           `WITH usage AS (
-             INSERT INTO ai_usage (at, task, provider, endpoint, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, ok, duration_ms, outcome, reason)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10 <> 'failed', $11, $10, $17) RETURNING id
+             INSERT INTO ai_usage (at, task, provider, endpoint, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, ok, duration_ms, outcome, reason, warnings)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10 <> 'failed', $11, $10, $17, $20::text[]) RETURNING id
            ), tools AS (
              INSERT INTO ai_tool_usage (usage_id, name, count, ok, duration_ms, cost_eur)
              SELECT usage.id, tool.name, tool.count, tool.ok, tool."durationMs", tool."costEur"
                FROM usage, jsonb_to_recordset($12::jsonb) AS tool (name text, count integer, ok boolean, "durationMs" integer, "costEur" double precision)
            )
-           INSERT INTO ai_message_log (usage_id, candidate_id, at, system, messages, reply, sent, technical_reason)
+           INSERT INTO ai_message_log (usage_id, candidate_id, at, system, messages, reply, sent, technical_reason, warnings)
            -- A Guest's call is kept without a Candidate; a Candidate's only while they exist: never a log without its owner.
-           SELECT usage.id, $13, $1, $14, $15::jsonb, $16, $18, $19::jsonb FROM usage
+           SELECT usage.id, $13, $1, $14, $15::jsonb, $16, $18, $19::jsonb, $21::jsonb FROM usage
             WHERE $13::text IS NULL OR EXISTS (SELECT 1 FROM candidate WHERE id = $13)`,
           [
             entry.at,
@@ -122,6 +123,9 @@ export function createPostgresUsageLog(database: Pick<Pool, "query">, options: P
             entry.sent,
             // The keys in use scrubbed too, then cut again: the AI layer scrubbed what looks like one.
             technical ? JSON.stringify({ ...technical, message: cleanTechnicalMessage(scrub(technical.message)) }) : null,
+            // The warnings' codes are counted with the usage; what happened goes with the text (#260).
+            warnings.map((warning) => warning.reason),
+            JSON.stringify(warnings.map(({ reason, detail }) => (detail === undefined ? { reason } : { reason, detail: cleanTechnicalMessage(scrub(detail)) }))),
           ],
         );
       } catch (error) {
@@ -415,5 +419,9 @@ export async function migrateAiUsage(database: Pick<Pool, "query">): Promise<voi
     -- What the AI Message Log adds: whether the call left, and the technical reason (super-admins only, 30 days).
     ALTER TABLE ai_message_log ADD COLUMN IF NOT EXISTS sent boolean NOT NULL DEFAULT true;
     ALTER TABLE ai_message_log ADD COLUMN IF NOT EXISTS technical_reason jsonb;
+    -- The warnings of the feature a call served (#260): their codes counted with the usage (a failed call's beside its
+    -- own reason), what happened kept with the text.
+    ALTER TABLE ai_usage ADD COLUMN IF NOT EXISTS warnings text[] NOT NULL DEFAULT '{}';
+    ALTER TABLE ai_message_log ADD COLUMN IF NOT EXISTS warnings jsonb NOT NULL DEFAULT '[]';
   `);
 }

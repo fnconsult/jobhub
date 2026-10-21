@@ -1,3 +1,5 @@
+import { AiProviderError, createAiLayer, readOfferFields } from "@jobhub/ai";
+import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import type { MasterCvContent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -189,9 +191,9 @@ describe.skipIf(!connectionString)("Match Scoring (needs Postgres: DATABASE_URL)
           asked.push(id);
           return extra.decision ?? { allowed: true, remaining: 5 };
         },
-        readOfferText: async (jobOffer, candidateId) => {
+        readOfferText: async (jobOffer, candidateId, call) => {
           reads.push({ jobOfferId: jobOffer.id, candidateId, content: jobOffer.content });
-          return read(jobOffer, candidateId);
+          return read(jobOffer, candidateId, call);
         },
         warn: (message) => warnings.push(message),
         ...(extra.textReadTimeoutMs ? { textReadTimeoutMs: extra.textReadTimeoutMs } : {}),
@@ -294,6 +296,53 @@ describe.skipIf(!connectionString)("Match Scoring (needs Postgres: DATABASE_URL)
 
       answer();
       await expect.poll(async () => (await jobOffers.get(id))?.location).toBe("Lyon");
+    });
+
+    describe("records on the AI call reading the text why the Match Score is from the structured data only (#260)", () => {
+      /** The AI layer reading the text on a fake provider, as the app wires it (`readOfferFields`). */
+      function aiReading(provider: Parameters<typeof createFakeProvider>[0]) {
+        const usage = createMemoryUsageLog();
+        const ai = createAiLayer({ providers: [createFakeProvider({ id: "mistral", ...provider })], routes: { offer_analysis: "mistral" }, usage, warn: () => {} });
+        const read: OfferTextReader = (jobOffer, candidateId, call) => readOfferFields(ai, { candidateId, jobOffer, ...call });
+        return { read, usage };
+      }
+
+      it("the AI call failed: its own reason, and match_score_text_unread", async () => {
+        const id = await textOnlyJobOffer();
+        const { read, usage } = aiReading({ fail: new AiProviderError("mistral", "HTTP 503", 503) });
+
+        await readingScoring(read).reading.score(candidateId, { jobOfferId: id, cv: masterCv, searchCriteria });
+
+        expect(usage.entries).toEqual([expect.objectContaining({ task: "offer_analysis", outcome: "failed", reason: "provider_unavailable", warnings: [{ reason: "match_score_text_unread" }] })]);
+      });
+
+      it("its reply could not be read: warning match_score_text_unread", async () => {
+        const id = await textOnlyJobOffer();
+        const { read, usage } = aiReading({ reply: "Je ne peux pas lire cette offre." });
+
+        const result = await readingScoring(read).reading.score(candidateId, { jobOfferId: id, cv: masterCv, searchCriteria });
+
+        expect(result).toMatchObject({ ok: true, matchScore: { offerTextUnread: true } });
+        expect(usage.entries).toEqual([expect.objectContaining({ outcome: "warning", reason: "match_score_text_unread", warnings: [{ reason: "match_score_text_unread", detail: "the reply is not a JSON object" }] })]);
+      });
+
+      it("it was too slow: the call, recorded once it answers, is warning match_score_too_slow", async () => {
+        const id = await textOnlyJobOffer();
+        let answer!: () => void;
+        const answered = new Promise<void>((resolve) => (answer = resolve));
+        const { read, usage } = aiReading({ reply: '{"location": "Lyon"}' });
+        const slow: OfferTextReader = async (jobOffer, candidateId, call) => {
+          await answered;
+          return read(jobOffer, candidateId, call);
+        };
+
+        const result = await readingScoring(slow, { textReadTimeoutMs: 50 }).reading.score(null, { jobOfferId: id, cv: masterCv });
+        expect(result).toMatchObject({ ok: true, matchScore: { offerTextUnread: true } });
+
+        answer();
+        await expect.poll(() => usage.entries.length).toBe(1);
+        expect(usage.entries[0]).toMatchObject({ outcome: "warning", reason: "match_score_too_slow", warnings: [{ reason: "match_score_too_slow", detail: "stopped waiting after 50 ms" }] });
+      });
     });
 
     it("never reads the text of a Match Score the Plan Quota refuses", async () => {

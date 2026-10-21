@@ -209,7 +209,8 @@
       "signIn": "Connexion",
       "preferences": "Préférences",
       "tools": "Outils",
-      "data": "Mes données"
+      "data": "Mes données",
+      "reminders": "Rappels"
     },
     "tools": {
       "title": "Outils",
@@ -2815,6 +2816,14 @@
       "seeAgenda": "Retrouvez-les dans votre agenda :\n{{url}}",
       "signature": "L'équipe Jobbbox",
       "settings": "Ne plus recevoir ces rappels :\n{{url}}"
+    },
+    "settings": {
+      "title": "Rappels de rendez-vous",
+      "explanation": "La veille de chaque entretien ou séance de coaching prévus, à 18 h (heure de Paris), Jobbbox vous envoie un e-mail avec l’heure et le lieu ou le lien de vos rendez-vous du lendemain. Votre coach humain n’en reçoit pas.",
+      "label": "Recevoir un rappel par e-mail la veille de mes rendez-vous",
+      "on": "Rappels activés.",
+      "off": "Rappels désactivés.",
+      "error": "Votre choix n’a pas pu être enregistré. Réessayez."
     }
   }
 }

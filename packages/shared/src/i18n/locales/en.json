@@ -209,7 +209,8 @@
       "signIn": "Sign-in",
       "preferences": "Preferences",
       "tools": "Tools",
-      "data": "My data"
+      "data": "My data",
+      "reminders": "Reminders"
     },
     "tools": {
       "title": "Tools",
@@ -2815,6 +2816,14 @@
       "seeAgenda": "Find them in your agenda:\n{{url}}",
       "signature": "The Jobbbox team",
       "settings": "Stop receiving these reminders:\n{{url}}"
+    },
+    "settings": {
+      "title": "Appointment reminders",
+      "explanation": "The day before each planned interview or coaching session, at 6 p.m. (Paris time), Jobbbox emails you the time and the place or link of the next day’s appointments. Your human coach does not receive one.",
+      "label": "Get an email reminder the day before my appointments",
+      "on": "Reminders on.",
+      "off": "Reminders off.",
+      "error": "Your choice could not be saved. Please try again."
     }
   }
 }

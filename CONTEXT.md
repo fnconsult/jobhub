@@ -436,6 +436,15 @@ The collective term for an Application's Tailored CV, Cover Letter and Outreach 
 The Candidate's page « Entretiens et rendez-vous », in the Sidebar after Mes candidatures: their Agenda Items as a list (the default: upcoming ones grouped by day, past ones on request, newest first), a week (Monday to Sunday, one column per day) or a month, each view and period with its own address. Unscheduled Coaching Sessions sit at the top. Past Agenda Items stay, shown dimmed; nothing is removed automatically.
 _Avoid_: Calendar, planning, schedule
 
+**Day the Agenda is on**:
+The day an Agenda address names along with its view. In the month it is also the chosen day, whose Agenda Items are listed below the grid. « Précédent » and « Suivant » go to the 1st of the previous or next month (or a week back or forward), « Aujourd'hui » to today. An unknown view or invalid day falls back to the list on today.
+
+**Remembered view**:
+The last view a Candidate picked, kept in that browser. The Agenda's own links always name their view, so only the Sidebar link (the Agenda with no view) restores it; the past list stays a list.
+
+**Past Agenda Item**:
+An Agenda Item dated before today in French time, shown dimmed in every view. Earlier today is not past. In the month an Interview is marked by a disc and a Coaching Session by a hollow diamond, so they differ by shape and not only by colour.
+
 **Agenda Item**:
 An Interview or a dated Coaching Session, as the Agenda shows it. An Interview links to its Application's Interviews Section, a Coaching Session to its Human Coach. Not a thing of its own: the two keep their own rules.
 _Avoid_: Appointment, event, meeting

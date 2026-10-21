@@ -147,6 +147,63 @@ describe.skipIf(!connectionString)("Appointment Reminders (needs Postgres: DATAB
     expect(outbox[1]!.text).toContain("11:00");
   });
 
+  describe("Coaching Sessions", () => {
+    let paid = 0;
+    /** A Human Coach named `name`. */
+    async function addCoach(name: string) {
+      const added = await coaches.add({ name, email: `${name.split(" ")[0]!.toLowerCase()}@rh-conseil.fr`, bookingUrl: `https://cal.com/${name.split(" ")[0]!.toLowerCase()}/seance` });
+      if (!added.ok) throw new Error("fixture Human Coach refused");
+      return added.coach;
+    }
+    /** A Coaching Session `owner` paid with `coachId`; its id. */
+    async function paySession(owner: string, coachId: string) {
+      paid += 1;
+      await coaches.recordPaidSession({ checkoutSessionId: `cs_reminder_${paid}`, candidateId: owner, coachId, amount: 9000, currency: "eur" });
+      return (await coaches.sessions(owner))[0]!.id;
+    }
+
+    it("lists a dated Coaching Session with its Human Coach and video link in the same email as an Interview; the Human Coach gets none", async () => {
+      const sophie = await addCoach("Sophie Martin");
+      const sessionId = await paySession(marie, sophie.id);
+      await coaches.scheduleSession(marie, sessionId, { scheduledAt: "2026-10-21T14:00", videoLink: "https://meet.google.com/abc" });
+      await interview(marie, "2026-10-21T09:00");
+
+      at(REMINDER_TIME);
+      await reminders.sendDue();
+
+      expect(outbox.map((message) => message.to)).toEqual(["marie.dupont@example.fr"]);
+      const text = outbox[0]!.text;
+      expect(text).toContain("Sophie Martin");
+      expect(text).toContain("https://meet.google.com/abc");
+      expect(text.indexOf("09:00")).toBeLessThan(text.indexOf("14:00"));
+    });
+
+    it("sends nothing for a cancelled Coaching Session", async () => {
+      const sophie = await addCoach("Sophie Martin");
+      const sessionId = await paySession(marie, sophie.id);
+      await coaches.scheduleSession(marie, sessionId, { scheduledAt: "2026-10-21T14:00" });
+      await coaches.cancelSession(marie, sessionId);
+
+      at(REMINDER_TIME);
+      await reminders.sendDue();
+
+      expect(outbox).toEqual([]);
+    });
+  });
+
+  it("emails each Candidate only their own Agenda Items", async () => {
+    await interview(marie, "2026-10-21T09:00", { title: "DAF H/F" });
+    await interview(paul, "2026-10-21T10:00", { title: "Contrôleur de gestion" });
+
+    at(REMINDER_TIME);
+    await reminders.sendDue();
+
+    const forPaul = outbox.find((message) => message.to === "paul.martin@example.fr")!;
+    expect(outbox).toHaveLength(2);
+    expect(forPaul.text).toContain("Contrôleur de gestion");
+    expect(forPaul.text).not.toContain("DAF H/F");
+  });
+
   it("sends nothing for the day after tomorrow, nor for later today", async () => {
     await interview(marie, "2026-10-22T09:00", { title: "Après-demain" });
     await interview(marie, "2026-10-20T20:00", { title: "Ce soir" });

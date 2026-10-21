@@ -1,12 +1,19 @@
 /**
  * Appointment Reminders (CONTEXT.md): the email Jobbbox sends the Candidate at
  * 18:00 French time the day before their Agenda Items still planned, in their
- * Interface Language.
+ * Interface Language. The Human Coach gets none.
  *
  * One deep module in front of Postgres. Callers get `createAppointmentReminders(database, deps)`:
  *  - `sendDue`: the worker's side, run by its cron at REMINDER_HOUR (REMINDER_TIME_ZONE).
- *    Each Candidate gets one email listing their Agenda Items of the next day.
+ *    Each Candidate gets one email listing their Agenda Items of the next day (French time):
+ *    Interviews not cancelled and dated Coaching Sessions, each with its time, place or link,
+ *    and a link to the Agenda. An item whose date was entered or last changed after that
+ *    REMINDER_HOUR gets none. One reminder per item and per date: running it again, or on two
+ *    workers at once, sends nothing twice, and a Rescheduled item gets one for its new date.
+ *
+ * The reminders sent are kept, and deleted with their item and with the account.
  */
+import type { InterviewFormat } from "@jobhub/shared";
 import { createI18n } from "@jobhub/shared/i18n";
 import type { Pool } from "pg";
 import { frenchDateTime, frenchDayStart, INTERVIEW_TIME_ZONE, interviewWallClock } from "../applications";
@@ -27,65 +34,129 @@ export interface AppointmentRemindersDeps {
 }
 
 export interface AppointmentReminders {
-  /** Emails each Candidate their Agenda Items of the day after the latest REMINDER_HOUR at or before now. */
+  /**
+   * Emails each Candidate their Agenda Items of the day after the latest REMINDER_HOUR at or before now, those
+   * not reminded yet for their date. How many emails went, listing how many Agenda Items.
+   */
   sendDue(): Promise<{ emails: number; items: number }>;
 }
 
 /** One Agenda Item, as a reminder lists it. */
-interface ReminderItem {
-  /** The table it is a row of, and its id there. */
-  table: AgendaItemTable;
+type ReminderItem = {
   id: string;
   candidateId: string;
   scheduledAt: Date;
-  title: string;
-  employer: string | null;
-  place: string;
-}
-
-const HH_MM = (local: string) => local.slice(11, 16);
+  durationMinutes: number | null;
+  note: string | null;
+} & (
+  | { table: "interview"; title: string; employer: string | null; format: InterviewFormat | null; place: string }
+  | { table: "coaching_session"; coach: string; videoLink: string | null }
+);
 
 /** The day (French time, "2026-10-20") of the latest reminder time at or before `now`, and that time. */
 function latestReminder(now: Date): { day: string; at: Date } {
   const wallClock = interviewWallClock(now);
   let day = wallClock.slice(0, 10);
-  const hour = `${String(REMINDER_HOUR).padStart(2, "0")}:00`;
-  if (HH_MM(wallClock) < hour) day = interviewWallClock(new Date(frenchDayStart(day).getTime() - 1)).slice(0, 10);
-  return { day, at: frenchDateTime.parse(`${day}T${hour}`) };
+  const time = `${String(REMINDER_HOUR).padStart(2, "0")}:00`;
+  if (wallClock.slice(11) < time) day = interviewWallClock(new Date(frenchDayStart(day).getTime() - 1)).slice(0, 10);
+  return { day, at: frenchDateTime.parse(`${day}T${time}`) };
 }
+
+/** The column of `appointment_reminder` naming an item of each Agenda Item table. */
+const ITEM_COLUMN: Record<AgendaItemTable, string> = { interview: "interview_id", coaching_session: "coaching_session_id" };
 
 export function createAppointmentReminders(database: Pool, deps: AppointmentRemindersDeps): AppointmentReminders {
   const now = deps.now ?? (() => new Date());
 
-  async function due(): Promise<ReminderItem[]> {
-    const { day, at } = latestReminder(now());
+  /** The Agenda Items to remind at `at`: still planned, not started, dated on the day after the reminder's, their date set by then. */
+  async function due(at: Date): Promise<ReminderItem[]> {
+    const { day, at: reminderAt } = latestReminder(at);
     const tomorrow = dayAfter(day);
-    const { rows } = await database.query<{ id: string; candidate_id: string; scheduled_at: Date; title: string; employer: string | null; place: string }>(
-      `SELECT i.id, a.candidate_id, i.scheduled_at, o.title, o.employer, i.place
-         FROM interview i
-         JOIN application a ON a.id = i.application_id
-         JOIN job_offer o ON o.id = a.job_offer_id
-        WHERE i.scheduled_at >= $1 AND i.scheduled_at < $2 AND i.cancelled_at IS NULL AND i.date_set_at <= $3
-        ORDER BY i.scheduled_at`,
-      [frenchDayStart(tomorrow), frenchDayStart(dayAfter(tomorrow)), at],
-    );
-    return rows.map((row) => ({ table: "interview" as const, id: row.id, candidateId: row.candidate_id, scheduledAt: row.scheduled_at, title: row.title, employer: row.employer, place: row.place }));
+    const window = [frenchDayStart(tomorrow), frenchDayStart(dayAfter(tomorrow)), reminderAt, at];
+    const [interviews, sessions] = await Promise.all([
+      database.query<{ id: string; candidate_id: string; scheduled_at: Date; duration_minutes: number | null; note: string; title: string; employer: string | null; format: InterviewFormat | null; place: string }>(
+        `SELECT i.id, a.candidate_id, i.scheduled_at, i.duration_minutes, i.note, o.title, o.employer, i.format, i.place
+           FROM interview i
+           JOIN application a ON a.id = i.application_id
+           JOIN job_offer o ON o.id = a.job_offer_id
+          WHERE i.scheduled_at >= $1 AND i.scheduled_at < $2 AND i.date_set_at <= $3 AND i.scheduled_at > $4
+            AND i.cancelled_at IS NULL`,
+        window,
+      ),
+      // A cancelled Coaching Session has no date: it is Unscheduled again.
+      database.query<{ id: string; candidate_id: string; scheduled_at: Date; duration_minutes: number | null; note: string | null; coach: string; video_link: string | null }>(
+        `SELECT s.id, s.candidate_id, s.scheduled_at, s.duration_minutes, s.note, h.name AS coach, s.video_link
+           FROM coaching_session s
+           JOIN human_coach h ON h.id = s.coach_id
+          WHERE s.scheduled_at >= $1 AND s.scheduled_at < $2 AND s.date_set_at <= $3 AND s.scheduled_at > $4`,
+        window,
+      ),
+    ]);
+    const items: ReminderItem[] = [
+      ...interviews.rows.map((row): ReminderItem => ({
+        table: "interview",
+        id: row.id,
+        candidateId: row.candidate_id,
+        scheduledAt: row.scheduled_at,
+        durationMinutes: row.duration_minutes,
+        note: row.note || null,
+        title: row.title,
+        employer: row.employer,
+        format: row.format,
+        place: row.place,
+      })),
+      ...sessions.rows.map((row): ReminderItem => ({
+        table: "coaching_session",
+        id: row.id,
+        candidateId: row.candidate_id,
+        scheduledAt: row.scheduled_at,
+        durationMinutes: row.duration_minutes,
+        note: row.note || null,
+        coach: row.coach,
+        videoLink: row.video_link,
+      })),
+    ];
+    return items.sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime());
   }
 
+  /** Emails the Candidate their `items` (all on one day), in their Interface Language. */
   async function email(candidateId: string, items: ReminderItem[]): Promise<void> {
     const { rows } = await database.query<{ email: string; interfaceLanguage: string | null }>(`SELECT email, "interfaceLanguage" FROM candidate WHERE id = $1`, [candidateId]);
     const candidate = rows[0];
     if (!candidate) return;
-    const { t } = createI18n(candidate.interfaceLanguage);
-    const lines = items.map((item) =>
-      [`- ${HH_MM(interviewWallClock(item.scheduledAt))} · ${item.title}${item.employer ? ` (${item.employer})` : ""}`, item.place ? `  ${item.place}` : null]
-        .filter(Boolean)
-        .join("\n"),
-    );
+    const i18n = createI18n(candidate.interfaceLanguage);
+    const { t } = i18n;
+    const time = new Intl.DateTimeFormat(i18n.language, { timeStyle: "short", timeZone: REMINDER_TIME_ZONE });
+    const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: "full", timeZone: REMINDER_TIME_ZONE }).format(items[0]!.scheduledAt);
+    const count = items.length;
+    const lines = items.map((item) => {
+      const at = time.format(item.scheduledAt);
+      const details =
+        item.table === "interview"
+          ? [
+              item.employer ? t("appointmentReminder.email.interviewAt", { time: at, title: item.title, employer: item.employer }) : t("appointmentReminder.email.interview", { time: at, title: item.title }),
+              item.format ? t("appointmentReminder.email.format", { format: t(`interviewFormats.${item.format}`) }) : null,
+              item.place ? t("appointmentReminder.email.place", { place: item.place }) : null,
+            ]
+          : [t("appointmentReminder.email.coachingSession", { time: at, coach: item.coach }), item.videoLink ? t("appointmentReminder.email.videoLink", { url: item.videoLink }) : null];
+      const [heading, ...rest] = [
+        ...details,
+        item.durationMinutes ? t("appointmentReminder.email.duration", { count: item.durationMinutes }) : null,
+        item.note ? t("appointmentReminder.email.note", { note: item.note }) : null,
+      ].filter((line): line is string => Boolean(line));
+      return [`- ${heading}`, ...rest.map((line) => `  ${line}`)].join("\n");
+    });
     await deps.mailer.send({
       to: candidate.email,
-      subject: t("appointmentReminder.email.subject", { count: items.length }),
-      text: [lines.join("\n\n"), new URL(routes.agenda(), deps.baseURL).toString()].join("\n\n"),
+      subject: t("appointmentReminder.email.subject", { count, date }),
+      text: [
+        t("appointmentReminder.email.intro", { count, date }),
+        lines.join("\n\n"),
+        t("appointmentReminder.email.seeAgenda", { url: new URL(routes.agendaList(), deps.baseURL).toString() }),
+        t("appointmentReminder.email.signature"),
+        "--",
+        t("appointmentReminder.email.settings", { url: new URL(routes.accountReminders, deps.baseURL).toString() }),
+      ].join("\n\n"),
     });
   }
 
@@ -93,7 +164,7 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
    * Claims the Candidate's `items` not reminded yet for their date, and emails those, in one transaction:
    * a second worker waits on the claim, then finds them taken; a failed email gives them back. The items claimed.
    */
-  async function remind(candidateId: string, items: ReminderItem[]): Promise<ReminderItem[]> {
+  async function remind(candidateId: string, items: ReminderItem[], sentAt: Date): Promise<ReminderItem[]> {
     const client = await database.connect();
     try {
       await client.query("BEGIN");
@@ -101,7 +172,7 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
       for (const item of items) {
         const { rowCount } = await client.query(
           `INSERT INTO appointment_reminder (candidate_id, ${ITEM_COLUMN[item.table]}, scheduled_at, sent_at) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
-          [candidateId, item.id, item.scheduledAt, now()],
+          [candidateId, item.id, item.scheduledAt, sentAt],
         );
         if (rowCount) claimed.push(item);
       }
@@ -118,12 +189,13 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
 
   return {
     async sendDue() {
+      const at = now();
       const byCandidate = new Map<string, ReminderItem[]>();
-      for (const item of await due()) byCandidate.set(item.candidateId, [...(byCandidate.get(item.candidateId) ?? []), item]);
+      for (const item of await due(at)) byCandidate.set(item.candidateId, [...(byCandidate.get(item.candidateId) ?? []), item]);
       let emails = 0;
       let items = 0;
       for (const [candidateId, candidateItems] of byCandidate) {
-        const claimed = await remind(candidateId, candidateItems);
+        const claimed = await remind(candidateId, candidateItems, at);
         if (claimed.length > 0) emails += 1;
         items += claimed.length;
       }
@@ -131,9 +203,6 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
     },
   };
 }
-
-/** The column of `appointment_reminder` naming an item of each Agenda Item table. */
-const ITEM_COLUMN: Record<AgendaItemTable, string> = { interview: "interview_id", coaching_session: "coaching_session_id" };
 
 /** Creates or upgrades the Appointment Reminders' tables. Run after Applications and Human Coaches. Safe to run repeatedly. */
 export async function migrateAppointmentReminders(database: Pool): Promise<void> {

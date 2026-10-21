@@ -236,6 +236,21 @@ test.describe("what the AI Coach is told", () => {
     expect(context.match(/: entretien pour Prochain chez Acme Industrie/g)).toHaveLength(3);
   });
 
+  test("stays within about 12k tokens with many Agenda Items In view, keeping the Candidate summary (#254)", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("ctx-agenda-cap"));
+    const profileId = await createProfile(page, "Directrice financière");
+    // 130 Interviews with the longest note allowed would be some 16k tokens on their own.
+    const times = Array.from({ length: 130 }, (_, n) => `${parisDay(1 + (n % 28))}T${String(8 + Math.floor(n / 28)).padStart(2, "0")}:00`);
+    await interviewsFor(page, profileId, "Beaucoup", times, "Préparer ce point. ".repeat(26).slice(0, 500));
+
+    const context = await contextOf(page, { kind: "agenda", id: "agenda" });
+
+    expect(tokens(context)).toBeLessThanOrEqual(12_000);
+    expect(tokens(context)).toBeGreaterThan(11_000);
+    expect(context).toContain("Le candidat s'appelle Marie (prénom seulement).");
+    expect(context).toContain("Le candidat consulte son agenda « Entretiens et rendez-vous ».");
+  });
+
   test("summarises the 5 latest Applications with their status, the top 5 Job Offers by Match Score, and the onboarding answers", async ({ page }) => {
     const email = newAddress("ctx-summaries");
     await signInWithMagicLink(page, email);

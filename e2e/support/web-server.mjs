@@ -1,4 +1,6 @@
 // Starts the built web app for the e2e suite (playwright.config.ts `webServer`).
+// 0. Refuses a build older than its sources (e2e/support/stale-build.mjs): the
+//    suite would pass or fail on code that is no longer the branch's.
 // 1. Creates a throwaway Postgres database (E2E_DATABASE_URL) and builds its
 //    tables with the public migration CLI, `npm run db:migrate`.
 // 2. Starts a fake Stripe API on E2E_STRIPE_PORT (the app reaches it through
@@ -10,6 +12,13 @@ import { createWriteStream, mkdirSync } from "node:fs";
 import path from "node:path";
 import pg from "pg";
 import { startFakeStripe } from "../../apps/web/src/billing/fake-stripe.ts";
+import { staleBuildMessage } from "./stale-build.mjs";
+
+const stale = staleBuildMessage(path.resolve(import.meta.dirname, "../.."));
+if (stale) {
+  process.stderr.write(`${stale}\n`);
+  process.exit(1);
+}
 
 const databaseUrl = new URL(process.env.E2E_DATABASE_URL);
 const name = databaseUrl.pathname.slice(1);

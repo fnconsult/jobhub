@@ -17,6 +17,9 @@ export function signInProvidersWorker(database: Pool, deps: { cipher: SecretCiph
       record: async () => {
         throw new Error("The worker makes no Back Office change");
       },
+      recordFailure: async () => {
+        throw new Error("The worker makes no Back Office attempt");
+      },
     },
   });
   return { regenerateAppleClientSecrets: () => providers.regenerateAppleClientSecrets() };

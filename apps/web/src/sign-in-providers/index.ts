@@ -110,7 +110,7 @@ export type SaveResult = { ok: true; id: string } | { ok: false; error: SaveErro
 export interface SignInProvidersDeps {
   /** Null without SECRETS_MASTER_KEYS: no secret can be saved, nor opened. */
   cipher: SecretCipher | null;
-  backOffice: Pick<BackOffice, "record">;
+  backOffice: Pick<BackOffice, "record" | "recordFailure">;
   /** The process environment: Google's fallback. */
   env: Env;
   now?: () => Date;
@@ -337,6 +337,22 @@ export function createSignInProviders(database: Pool, deps: SignInProvidersDeps)
 
   const announce = (within: Queryable) => within.query("SELECT pg_notify($1, '')", [SIGN_IN_PROVIDERS_CHANNEL]);
 
+  /**
+   * A test sign-in that came back with its nonce after its time was up: forgotten, and recorded once as a
+   * failed test of the super-admin who started it (#263). A nonce nobody issued is no one's: nothing is recorded.
+   */
+  async function recordExpiredTest(id: string, nonce: string): Promise<void> {
+    const { rows } = await database.query<{ test_started_by_id: string; test_started_by_email: string }>(
+      `WITH expired AS (SELECT test_started_by_id, test_started_by_email FROM sign_in_provider WHERE id = $1 AND NOT enabled AND test_nonce_hash = $2)
+       UPDATE sign_in_provider SET test_nonce_hash = NULL, test_started_at = NULL, test_started_by_id = NULL, test_started_by_email = NULL
+       FROM expired WHERE id = $1 AND test_nonce_hash = $2 RETURNING expired.test_started_by_id, expired.test_started_by_email`,
+      [id, hashOf(nonce)],
+    );
+    const starter = rows[0];
+    if (!starter) return;
+    await deps.backOffice.recordFailure({ id: starter.test_started_by_id, email: starter.test_started_by_email }, { section: "sign_in_providers", target: id, tried: "tested", reason: "test_expired" });
+  }
+
   async function requireSso(within: Queryable = database): Promise<boolean> {
     const { rows } = await within.query<{ value: unknown }>("SELECT value FROM sign_in_setting WHERE name = $1", [REQUIRE_SSO]);
     return rows[0]?.value === true;
@@ -432,7 +448,12 @@ export function createSignInProviders(database: Pool, deps: SignInProvidersDeps)
         Object.keys(replaced).length > 0;
       const testedAt = credentialsChanged ? null : existing.tested_at;
       const enabled = fields.enabled === true;
-      if (enabled && !existing?.enabled && !testedAt) return { ok: false, error: "not_tested" };
+      // Business refusals are recorded (#263), what was tried and the field at fault; never a value.
+      const tried = existing ? "updated" : "added";
+      if (enabled && !existing?.enabled && !testedAt) {
+        await deps.backOffice.recordFailure(actor, { section: "sign_in_providers", target: id, tried, reason: "not_tested", field: "enabled" });
+        return { ok: false, error: "not_tested" };
+      }
 
       let apple: { clientSecret: string; expiresAt: Date; generatedAt: Date } | null = null;
       if (kind.signsClientSecret && (credentialsChanged || !secrets.clientSecret)) {
@@ -440,8 +461,16 @@ export function createSignInProviders(database: Pool, deps: SignInProvidersDeps)
         try {
           apple = { ...appleClientSecret({ teamId: secrets.teamId!, keyId: secrets.keyId!, privateKey: secrets.privateKey!, clientId }, generatedAt), generatedAt };
         } catch (error) {
-          if (error instanceof AppleKeyError) return { ok: false, error: "invalid_apple_key" };
-          throw error;
+          if (!(error instanceof AppleKeyError)) throw error;
+          await deps.backOffice.recordFailure(actor, {
+            section: "sign_in_providers",
+            target: id,
+            tried,
+            reason: "invalid_apple_key",
+            field: "privateKey",
+            technical: { class: error.name, message: error.message },
+          });
+          return { ok: false, error: "invalid_apple_key" };
         }
       }
 
@@ -573,7 +602,10 @@ export function createSignInProviders(database: Pool, deps: SignInProvidersDeps)
         [id, hashOf(nonce), since],
       );
       const starter = rows[0];
-      if (!starter) return false;
+      if (!starter) {
+        await recordExpiredTest(id, nonce);
+        return false;
+      }
       return deps.backOffice.record(
         { id: starter.test_started_by_id, email: starter.test_started_by_email },
         async (within) => {

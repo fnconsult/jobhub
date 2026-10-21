@@ -56,7 +56,8 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
     provider: "anthropic",
     endpoint: "bedrock eu-west-3",
     model: "claude-opus-5",
-    ok: true,
+    outcome: "ok",
+    sent: true,
     durationMs: 900,
     costEur: 0.5,
     inputTokens: 1000,
@@ -80,7 +81,7 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
   async function seed() {
     const ai = createPostgresUsageLog(database);
     await ai.record(aiCall({}));
-    await ai.record(aiCall({ ok: false, costEur: 0, at: new Date("2026-10-19T09:00:00Z") }));
+    await ai.record(aiCall({ outcome: "failed", reason: "provider_unavailable", costEur: 0, at: new Date("2026-10-19T09:00:00Z") }));
     // A web search tool's fee counts in its call's cost.
     await ai.record(aiCall({ costEur: 0.25, tools: [{ name: "web_search", count: 2, ok: true, durationMs: 400, costEur: 0.02 }], at: new Date("2026-10-18T09:00:00Z") }));
     await ai.record(aiCall({ endpoint: "api.anthropic.com", task: "offer_analysis", costEur: 0.1 }));
@@ -168,6 +169,20 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
       "anthropic-bedrock coaching · claude-opus-5",
     ]);
     expect(JSON.stringify(latest)).not.toMatch(/Jeanne|Secret system text/);
+  });
+
+  it("lists, among the latest calls, only the failed ones or only the succeeded ones when asked (the Journal's Résultat filter, #263)", async () => {
+    await seed();
+
+    const failed = await latestToolCalls(database, { ok: false, limit: 2 });
+    const succeeded = await latestToolCalls(database, { ok: true });
+
+    expect(failed.map(({ tool: called, call }) => [called.id, call.at.toISOString(), call.ok])).toEqual([
+      ["anthropic-bedrock", "2026-10-19T09:00:00.000Z", false],
+      ["france-travail", "2026-10-19T07:05:00.000Z", false],
+    ]);
+    expect(succeeded.length).toBeGreaterThan(0);
+    expect(succeeded.every(({ call }) => call.ok)).toBe(true);
   });
 
   it("lists, among the latest calls, only those since a time when asked", async () => {

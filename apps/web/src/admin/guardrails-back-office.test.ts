@@ -54,7 +54,7 @@ describe.skipIf(!connectionString)("Guardrails' Back Office writes and their Bac
     await testAuth.stop();
   }, 60_000);
 
-  const entries = async () => (await backOffice.journal({ section: "guardrails" })).reverse().map(({ actor: { email }, target, action, before, after }) => ({ email, target, action, before, after }));
+  const entries = async () => (await backOffice.journal({ section: "guardrails", outcome: "succeeded" })).reverse().map(({ actor: { email }, target, action, before, after }) => ({ email, target, action, before, after }));
 
   it("records each setting changed, message saved and message validated; refused or unchanged ones record nothing", async () => {
     expect(await changes.setSetting(claire, "harmful_advice", "flag")).toMatchObject({ ok: true, changed: true });
@@ -97,14 +97,24 @@ describe.skipIf(!connectionString)("Guardrails' Back Office writes and their Bac
       expect((await store.config.current()).settings.harmful_advice).toBe("flag");
     });
 
-    it("is refused, and nothing recorded, when it lets through a case the distress, personal data leak or secret disclosure Guardrail must block", async () => {
+    it("is refused, and left as a failed entry, when it lets through a case the distress, personal data leak or secret disclosure Guardrail must block", async () => {
       refused = [{ case: { id: "secret-after-injection" } } as GuardrailsRun["refused"][number]];
 
       const saved = await changes.setSetting(claire, "prompt_injection", "flag");
 
       expect(saved).toMatchObject({ ok: false, error: "eval_refused", run: { id: "run-1" }, refused: [{ case: { id: "secret-after-injection" } }] });
       expect((await store.config.current()).settings.prompt_injection).toBe("block");
-      expect(await entries()).toEqual([]);
+      expect(await backOffice.journal({ section: "guardrails" })).toMatchObject([
+        {
+          actor: { email: "claire@jobbbox.fr" },
+          target: "prompt_injection",
+          action: "refused",
+          outcome: "failed",
+          before: null,
+          after: null,
+          failure: { reason: "eval_refused", tried: "updated", field: "setting", technical: { class: "EvalRun", message: "run-1: secret-after-injection" } },
+        },
+      ]);
     });
 
     it("plays no Eval Case when the setting is unchanged or refused, nor when a Guardrail message changes", async () => {

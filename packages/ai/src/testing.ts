@@ -36,6 +36,8 @@ export interface FakeProviderOptions {
   pages?: number;
   /** The models it offers a Playbook Agent. Default: its default model alone. */
   models?: string[];
+  /** Thrown by every call (generation and search), after it is counted: a provider that fails, e.g. with an AiProviderError. */
+  fail?: Error;
 }
 
 export interface FakeProvider extends AiProvider {
@@ -65,12 +67,14 @@ export function createFakeProvider(options: FakeProviderOptions = {}): FakeProvi
     ...(options.pages ? { searchPages: options.pages } : {}),
     async generate(input): Promise<TextOutput> {
       calls.push(input);
+      if (options.fail) throw options.fail;
       const reply = options.reply ?? "fake reply";
       return { text: typeof reply === "function" ? reply(input) : reply, model: input.model ?? `fake-${id}`, usage, ...(options.tools ? { tools: options.tools } : {}) };
     },
     async search(query, { model, filters, page }): Promise<SearchOutput> {
       queries.push(query);
       searches.push({ query, model, filters, ...(page ? { page } : {}) });
+      if (options.fail) throw options.fail;
       const sources = typeof options.sources === "function" ? options.sources(query, { model, filters, page }) : (options.sources ?? []);
       return {
         answer: options.answer ?? "fake answer",

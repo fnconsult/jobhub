@@ -22,6 +22,11 @@ interface UsageLine {
   model: string;
   inputTokens: number;
   outputTokens: number;
+  outcome: "ok" | "warning" | "failed";
+  reason?: string;
+  sent: boolean;
+  costEur: number;
+  technicalReason?: unknown;
   at: string;
 }
 
@@ -303,7 +308,7 @@ test.describe("AI layer: Perplexity's Agent API (issue #74)", () => {
     const r = runAi({ ...KEYS }, [{ ...search(), criteria: { ...search().criteria, targetRole: "E2E_PROVIDER_DOWN" } } as HarnessCall]);
     expect(r.startup).toEqual({ ok: true });
     expect(r.outcomes[0]).toMatchObject({ ok: false });
-    expect(r.usage).toEqual([expect.objectContaining({ ok: false, inputTokens: 0, outputTokens: 0 })]);
+    expect(r.usage).toEqual([expect.objectContaining({ outcome: "failed", inputTokens: 0, outputTokens: 0 })]);
   });
 });
 
@@ -335,9 +340,30 @@ test.describe("AI layer: token usage is logged per Candidate", () => {
     expect(r.outcomes[0]).toMatchObject({ ok: false, error: { name: "AiProviderError" } });
     expect(r.outcomes[1]).toMatchObject({ ok: true });
     expect(r.usage).toEqual([
-      expect.objectContaining({ candidateId: "cand-1", task: "scoring", ok: false, inputTokens: 0, outputTokens: 0 }),
-      expect.objectContaining({ candidateId: "cand-1", task: "scoring", ok: true }),
+      expect.objectContaining({ candidateId: "cand-1", task: "scoring", outcome: "failed", inputTokens: 0, outputTokens: 0 }),
+      expect.objectContaining({ candidateId: "cand-1", task: "scoring", outcome: "ok" }),
     ]);
+  });
+});
+
+test.describe("AI layer: Failure Reasons (#259)", () => {
+  test("a provider's 503 is logged as failed, provider_unavailable, sent, with no technical reason in the usage log", () => {
+    const r = runAi({ ...KEYS, AI_SCORING_PROVIDER: "mistral" }, [{ kind: "generate", task: "scoring", candidateId: "cand-1", prompt: "E2E_PROVIDER_DOWN" }]);
+    expect(r.outcomes[0]).toMatchObject({ ok: false, error: { name: "AiProviderError", message: expect.stringContaining("503") } });
+    expect(r.usage).toEqual([expect.objectContaining({ provider: "mistral", outcome: "failed", reason: "provider_unavailable", sent: true, costEur: 0 })]);
+    // The technical reason is personal data: only the AI Message Log keeps it.
+    expect(r.usage[0]).not.toHaveProperty("technicalReason");
+  });
+
+  test("a route naming a provider whose key was never entered is logged as failed, key_missing, not sent, at no cost; the caller still gets the AiConfigError", () => {
+    const r = runAi({ ...KEYS, OPENAI_API_KEY: "", AI_WRITING_PROVIDER: "mistral" }, [
+      // OpenAI serves no task here, so its key is not needed at start-up.
+      { kind: "generate", task: "writing", candidateId: "cand-1", prompt: "Une lettre", route: { provider: "openai", model: "gpt-5" } },
+    ]);
+    expect(r.startup).toEqual({ ok: true });
+    expect(r.outcomes[0]).toMatchObject({ ok: false, error: { name: "AiConfigError" } });
+    expect(r.requests).toEqual([]);
+    expect(r.usage).toEqual([expect.objectContaining({ task: "writing", provider: "openai", outcome: "failed", reason: "key_missing", sent: false, costEur: 0, inputTokens: 0, outputTokens: 0 })]);
   });
 });
 
@@ -440,7 +466,7 @@ test.describe("AI layer: pluggable web search providers (issue #110)", () => {
       const r = runAi(route(provider), [{ ...search(), criteria: { ...search().criteria, targetRole: "E2E_PROVIDER_DOWN" } } as HarnessCall]);
       expect(r.startup).toEqual({ ok: true });
       expect(r.outcomes[0]).toMatchObject({ ok: false, error: { name: "AiProviderError" } });
-      expect(r.usage).toEqual([expect.objectContaining({ ok: false, inputTokens: 0, outputTokens: 0 })]);
+      expect(r.usage).toEqual([expect.objectContaining({ outcome: "failed", inputTokens: 0, outputTokens: 0 })]);
     });
   }
 

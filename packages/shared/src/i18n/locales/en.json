@@ -516,6 +516,7 @@
     "inViewJobOffer": "the job offer \"{{name}}\"",
     "inViewJobSearch": "the job search for the profile \"{{name}}\"",
     "inViewJobDigest": "the job digest for the profile \"{{name}}\"",
+    "inViewAgenda": "your interviews and appointments for the next 30 days",
     "nothingInView": "Ask your question: your coach answers from what you tell them.",
     "welcome": "Hello, I'm your coach. How can I help you?",
     "messageLabel": "Your message",
@@ -1233,7 +1234,7 @@
     },
     "journal": {
       "title": "Change journal",
-      "intro": "Every change made in the back office: who, what, before and after, when. Secret values are never recorded, only that they were replaced. Each entry is kept {{years}} years.",
+      "intro": "Every change made in the back office: who, what, before and after, when; and every attempt refused or failed, with its reason, without the values entered. Secret values are never recorded, only that they were replaced. Each entry is kept {{years}} years.",
       "filter": "Show",
       "all": "All",
       "sections": {
@@ -1257,7 +1258,7 @@
         "updated": "Changed",
         "retired": "Retired",
         "removed": "Removed",
-        "tested": "Test sign-in passed",
+        "tested": "Connection test",
         "replaced": "Replaced",
         "replaced_despite_failed_test": "Replaced despite a failed test",
         "cleared": "Cleared",
@@ -1265,7 +1266,8 @@
         "validated": "Validation",
         "archived": "Archive",
         "restored": "Restore",
-        "reset": "Reset"
+        "reset": "Reset",
+        "refused": "Attempt refused"
       },
       "none": "No change recorded.",
       "caption": "Back office changes, newest first",
@@ -1298,7 +1300,28 @@
       "byJobbbox": "Jobbbox (tool call)",
       "toolCall": "Call",
       "toolCallResult": "{{outcome}}, {{duration}}",
-      "toolsLimit": "Only the {{count}} most recent lines are shown."
+      "toolsLimit": "Only the {{count}} most recent lines are shown.",
+      "outcome": "Result",
+      "outcomes": {
+        "succeeded": "Succeeded",
+        "failed": "Failed"
+      },
+      "outcomeFilter": "Result",
+      "outcomeFilters": {
+        "all": "All",
+        "succeeded": "Succeeded",
+        "failed": "Failed"
+      },
+      "failed": "{{tried}}: {{reason}}",
+      "fieldAtFault": "Field at fault: {{field}}",
+      "value": "Value",
+      "technicalDetail": "Technical detail",
+      "technical": {
+        "class": "Type",
+        "provider": "Provider",
+        "status": "HTTP status",
+        "message": "Message"
+      }
     },
     "aiUsage": {
       "title": "AI consumption",
@@ -1383,8 +1406,6 @@
       "candidate": "Candidate",
       "noCandidate": "None (Guest)",
       "result": "Result",
-      "ok": "Succeeded",
-      "failed": "Failed",
       "open": "Open",
       "openLabel": "Open the log of {{at}}",
       "none": "No log matches.",
@@ -1402,7 +1423,28 @@
         "assistant": "Earlier reply"
       },
       "reply": "Reply",
-      "noReply": "No reply: the call failed."
+      "noReply": "No reply: the call failed.",
+      "outcomes": {
+        "ok": "OK",
+        "warning": "Warning",
+        "failed": "Failed"
+      },
+      "anyOutcome": "All",
+      "reason": "Reason",
+      "anyReason": "All",
+      "notSent": "not sent",
+      "noProvider": "No provider",
+      "why": "Why",
+      "reasonUnknown": "Reason not recorded (a call made before failure reasons were).",
+      "technical": "Technical detail",
+      "technicalFields": {
+        "class": "Error type",
+        "provider": "Provider",
+        "status": "HTTP status",
+        "message": "Message"
+      },
+      "noTechnical": "No technical detail recorded.",
+      "noReplyNotSent": "No reply: the call was not sent."
     },
     "coachingPlaybooks": {
       "title": "Coaching Playbooks",
@@ -1680,7 +1722,8 @@
           "application": "An Application",
           "job_offer": "A Job Offer",
           "job_search": "A Job Search",
-          "job_digest": "A Job Digest"
+          "job_digest": "A Job Digest",
+          "agenda": "The Agenda"
         }
       },
       "runs": {
@@ -1915,7 +1958,8 @@
     "toScheduleIntro": "Your paid coaching sessions have no date yet. Book your time on the coach's Cal.com page, then enter the date here.",
     "coachingSession": "Coaching session",
     "withCoach": "with {{name}}",
-    "duration": "{{count}} min"
+    "duration": "{{count}} min",
+    "changedByCoach": "changed by the coach"
   },
   "application": {
     "statusLabel": "Status",
@@ -2487,7 +2531,8 @@
     "sessionDuration": "Duration: {{count}} minutes",
     "joinVideo": "Join the video call with {{name}}",
     "seeInAgenda": "See in the agenda",
-    "toSchedule": "No date yet: book your time on Cal.com, then enter the date."
+    "toSchedule": "No date yet: book your time on Cal.com, then enter the date.",
+    "changedByCoach": "Date changed by {{name}}"
   },
   "coachingSession": {
     "enterDate": "I've booked: enter the date",
@@ -2509,7 +2554,9 @@
     "invalidDuration": "Enter a duration between 5 and 600 minutes, or leave it empty.",
     "invalidVideoLink": "Enter a link starting with http:// or https://, or leave it empty.",
     "invalidNote": "The note must be 500 characters at most.",
-    "error": "Saving failed. Check your connection and try again."
+    "error": "Saving failed. Check your connection and try again.",
+    "coachEnterDate": "Enter the date",
+    "coachEnterDateFor": "Enter the date of the session with {{name}}"
   },
   "coachReviews": {
     "title": "Your coaches' reviews",
@@ -2543,7 +2590,17 @@
     "reviewInvalid": "Choose a document already written and write your review.",
     "reviewNothing": "The candidate has no application documents to review yet.",
     "status": "Status: {{status}}",
-    "applicationStatus": "({{status}}, since {{date}})"
+    "applicationStatus": "({{status}}, since {{date}})",
+    "candidatesTitle": "Candidates with coach access",
+    "sessionsTitle": "My coaching sessions",
+    "sessionsIntro": "The sessions candidates paid for with you. Enter or correct the date booked and the video link: the candidate finds them in their agenda.",
+    "sessionsNone": "No paid session yet.",
+    "unnamedCandidate": "Unnamed candidate",
+    "sessionToSchedule": "To schedule",
+    "sessionOn": "On {{date}} (Paris time)",
+    "sessionDuration": "{{count}} min",
+    "sessionPaidOn": "Paid on {{date}}",
+    "joinVideo": "Video link with {{name}}"
   },
   "jobDigest": {
     "sectionTitle": "Job Digest",
@@ -2634,5 +2691,27 @@
     "groupTitle": "Job offers for \"{{profile}}\"",
     "laneLabel": "Job offers found for \"{{profile}}\", scroll sideways",
     "searchThisProfile": "Search for this profile alone"
+  },
+  "failureReasons": {
+    "provider_unavailable": "Provider unavailable",
+    "provider_rejected": "Call rejected by the provider",
+    "rate_limited": "Provider rate limit reached",
+    "key_missing": "API key missing",
+    "route_missing": "No provider configured for this task",
+    "data_residency": "Data residency rule",
+    "invalid_reply": "Unreadable reply",
+    "test_failed": "Connection test failed",
+    "test_expired": "Test sign-in expired",
+    "not_tested": "Enabled without a passed test sign-in",
+    "invalid_apple_key": "Apple private key unreadable",
+    "not_latest_version": "No longer the latest version",
+    "already_validated": "Version already validated",
+    "own_version": "Version written by the same person",
+    "no_eval_run": "No Eval Run on this version",
+    "eval_refused": "Refused by the Eval Run",
+    "last_super_admin": "Last super-admin",
+    "unknown_account": "Account not found",
+    "stripe_refused": "Refused by Stripe",
+    "other": "Unexpected error"
   }
 }

@@ -516,6 +516,7 @@
     "inViewJobOffer": "l'offre « {{name}} »",
     "inViewJobSearch": "la recherche d'offres du profil « {{name}} »",
     "inViewJobDigest": "la sélection d'offres du profil « {{name}} »",
+    "inViewAgenda": "vos entretiens et rendez-vous des 30 prochains jours",
     "nothingInView": "Posez votre question : votre coach vous répond à partir de ce que vous lui dites.",
     "welcome": "Bonjour, je suis votre coach. Comment puis-je vous aider ?",
     "messageLabel": "Votre message",
@@ -1233,7 +1234,7 @@
     },
     "journal": {
       "title": "Journal des modifications",
-      "intro": "Chaque modification faite dans le back office : qui, quoi, avant et après, quand. Les valeurs secrètes ne sont jamais enregistrées, seulement leur remplacement. Chaque entrée est conservée {{years}} ans.",
+      "intro": "Chaque modification faite dans le back office : qui, quoi, avant et après, quand ; et chaque tentative refusée ou échouée, avec sa raison, sans les valeurs saisies. Les valeurs secrètes ne sont jamais enregistrées, seulement leur remplacement. Chaque entrée est conservée {{years}} ans.",
       "filter": "Afficher",
       "all": "Tout",
       "sections": {
@@ -1257,7 +1258,7 @@
         "updated": "Modification",
         "retired": "Retrait",
         "removed": "Suppression",
-        "tested": "Test de connexion réussi",
+        "tested": "Test de connexion",
         "replaced": "Remplacement",
         "replaced_despite_failed_test": "Remplacement malgré un test échoué",
         "cleared": "Effacement",
@@ -1265,7 +1266,8 @@
         "validated": "Validation",
         "archived": "Archivage",
         "restored": "Rétablissement",
-        "reset": "Remise à zéro"
+        "reset": "Remise à zéro",
+        "refused": "Tentative refusée"
       },
       "none": "Aucune modification enregistrée.",
       "caption": "Modifications du back office, des plus récentes aux plus anciennes",
@@ -1298,7 +1300,28 @@
       "byJobbbox": "Jobbbox (appel d'outil)",
       "toolCall": "Appel",
       "toolCallResult": "{{outcome}}, {{duration}}",
-      "toolsLimit": "Seules les {{count}} lignes les plus récentes sont affichées."
+      "toolsLimit": "Seules les {{count}} lignes les plus récentes sont affichées.",
+      "outcome": "Résultat",
+      "outcomes": {
+        "succeeded": "Réussi",
+        "failed": "Échec"
+      },
+      "outcomeFilter": "Résultat",
+      "outcomeFilters": {
+        "all": "Tous",
+        "succeeded": "Réussis",
+        "failed": "Échecs"
+      },
+      "failed": "{{tried}} : {{reason}}",
+      "fieldAtFault": "Champ en cause : {{field}}",
+      "value": "Valeur",
+      "technicalDetail": "Détail technique",
+      "technical": {
+        "class": "Type",
+        "provider": "Fournisseur",
+        "status": "Statut HTTP",
+        "message": "Message"
+      }
     },
     "aiUsage": {
       "title": "Consommation IA",
@@ -1383,8 +1406,6 @@
       "candidate": "Candidat",
       "noCandidate": "Aucun (invité)",
       "result": "Résultat",
-      "ok": "Réussi",
-      "failed": "Échec",
       "open": "Ouvrir",
       "openLabel": "Ouvrir le journal du {{at}}",
       "none": "Aucun journal ne correspond.",
@@ -1402,7 +1423,28 @@
         "assistant": "Réponse précédente"
       },
       "reply": "Réponse",
-      "noReply": "Aucune réponse : l'appel a échoué."
+      "noReply": "Aucune réponse : l'appel a échoué.",
+      "outcomes": {
+        "ok": "OK",
+        "warning": "Avertissement",
+        "failed": "Échec"
+      },
+      "anyOutcome": "Tous",
+      "reason": "Raison",
+      "anyReason": "Toutes",
+      "notSent": "non envoyé",
+      "noProvider": "Aucun fournisseur",
+      "why": "Pourquoi",
+      "reasonUnknown": "Raison non enregistrée (appel antérieur aux raisons d'échec).",
+      "technical": "Détail technique",
+      "technicalFields": {
+        "class": "Type d'erreur",
+        "provider": "Fournisseur",
+        "status": "Statut HTTP",
+        "message": "Message"
+      },
+      "noTechnical": "Aucun détail technique enregistré.",
+      "noReplyNotSent": "Aucune réponse : l'appel n'a pas été envoyé."
     },
     "coachingPlaybooks": {
       "title": "Playbooks de coaching",
@@ -1680,7 +1722,8 @@
           "application": "Une candidature",
           "job_offer": "Une offre d'emploi",
           "job_search": "Une recherche d'offres",
-          "job_digest": "Un Job Digest"
+          "job_digest": "Un Job Digest",
+          "agenda": "L'agenda"
         }
       },
       "runs": {
@@ -1915,7 +1958,8 @@
     "toScheduleIntro": "Vos séances de coaching payées n'ont pas encore de date. Réservez votre créneau sur la page Cal.com du coach, puis saisissez la date ici.",
     "coachingSession": "Séance de coaching",
     "withCoach": "avec {{name}}",
-    "duration": "{{count}} min"
+    "duration": "{{count}} min",
+    "changedByCoach": "modifié par le coach"
   },
   "application": {
     "statusLabel": "Statut",
@@ -2487,7 +2531,8 @@
     "sessionDuration": "Durée : {{count}} minutes",
     "joinVideo": "Rejoindre la visio avec {{name}}",
     "seeInAgenda": "Voir dans l'agenda",
-    "toSchedule": "Pas encore de date : réservez votre créneau sur Cal.com, puis saisissez la date."
+    "toSchedule": "Pas encore de date : réservez votre créneau sur Cal.com, puis saisissez la date.",
+    "changedByCoach": "Date modifiée par {{name}}"
   },
   "coachingSession": {
     "enterDate": "J'ai réservé : saisir la date",
@@ -2509,7 +2554,9 @@
     "invalidDuration": "Saisissez une durée entre 5 et 600 minutes, ou laissez vide.",
     "invalidVideoLink": "Saisissez un lien qui commence par http:// ou https://, ou laissez vide.",
     "invalidNote": "La note ne doit pas dépasser 500 caractères.",
-    "error": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez."
+    "error": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez.",
+    "coachEnterDate": "Saisir la date",
+    "coachEnterDateFor": "Saisir la date de la séance avec {{name}}"
   },
   "coachReviews": {
     "title": "Avis de vos coachs",
@@ -2543,7 +2590,17 @@
     "reviewInvalid": "Choisissez un document déjà rédigé et écrivez votre avis.",
     "reviewNothing": "Le candidat n'a encore aucun document de candidature à commenter.",
     "status": "Statut : {{status}}",
-    "applicationStatus": "({{status}}, depuis le {{date}})"
+    "applicationStatus": "({{status}}, depuis le {{date}})",
+    "candidatesTitle": "Candidats avec accès coach",
+    "sessionsTitle": "Mes séances de coaching",
+    "sessionsIntro": "Les séances que des candidats ont payées avec vous. Saisissez ou corrigez la date réservée et le lien de la visio : le candidat les retrouve dans son agenda.",
+    "sessionsNone": "Aucune séance payée pour l'instant.",
+    "unnamedCandidate": "Candidat sans nom",
+    "sessionToSchedule": "À planifier",
+    "sessionOn": "Le {{date}} (heure de Paris)",
+    "sessionDuration": "{{count}} min",
+    "sessionPaidOn": "Payée le {{date}}",
+    "joinVideo": "Lien de la visio avec {{name}}"
   },
   "jobDigest": {
     "sectionTitle": "Job Digest",
@@ -2634,5 +2691,27 @@
     "groupTitle": "Offres pour « {{profile}} »",
     "laneLabel": "Offres trouvées pour « {{profile}} », à faire défiler de côté",
     "searchThisProfile": "Chercher pour ce profil seul"
+  },
+  "failureReasons": {
+    "provider_unavailable": "Fournisseur indisponible",
+    "provider_rejected": "Appel refusé par le fournisseur",
+    "rate_limited": "Limite d'appels du fournisseur atteinte",
+    "key_missing": "Clé d'API absente",
+    "route_missing": "Aucun fournisseur configuré pour cette tâche",
+    "data_residency": "Règle de résidence des données",
+    "invalid_reply": "Réponse illisible",
+    "test_failed": "Test de connexion échoué",
+    "test_expired": "Connexion de test expirée",
+    "not_tested": "Activation sans connexion de test réussie",
+    "invalid_apple_key": "Clé privée Apple illisible",
+    "not_latest_version": "Version qui n'est plus la dernière",
+    "already_validated": "Version déjà validée",
+    "own_version": "Version écrite par la même personne",
+    "no_eval_run": "Aucune Eval Run sur cette version",
+    "eval_refused": "Refusé par l'Eval Run",
+    "last_super_admin": "Dernier super-admin",
+    "unknown_account": "Compte introuvable",
+    "stripe_refused": "Refusé par Stripe",
+    "other": "Erreur inattendue"
   }
 }

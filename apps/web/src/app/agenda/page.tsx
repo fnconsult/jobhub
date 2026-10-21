@@ -9,6 +9,7 @@ import { getApplications } from "@/applications/server";
 import { getCurrentCandidate } from "@/auth/server";
 import { AddInterviewDialog, type InterviewableApplication } from "@/components/AddInterviewDialog";
 import { CandidateLayout } from "@/components/CandidateLayout";
+import { CoachInView } from "@/components/CoachPanel";
 import { CoachingSessionDialog } from "@/components/CoachingSessionDialog";
 import { InterviewFacts, InterviewTimes } from "@/components/InterviewDetails";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -16,6 +17,8 @@ import { routes, type ApplicationSection } from "@/routes";
 
 /** Where an Interview leads: its Application's Interviews Section. */
 const INTERVIEWS: ApplicationSection = "entretiens";
+/** What the AI Coach has In view here: the Agenda (its next 30 days, whichever period is shown). */
+const AGENDA_IN_VIEW = { kind: "agenda", id: "agenda" } as const;
 /** The address's value for the past Agenda Items (see routes.agenda). */
 const PAST = "passes";
 
@@ -35,6 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * Session to its Human Coach on the Human Coaches page. Unscheduled Coaching
  * Sessions sit at the top, « À planifier », with each Human Coach's booking link.
  * « Ajouter un entretien » adds an Interview to one of the ongoing Applications (#247).
+ * The AI Coach has the Agenda In view: its Agenda Items of the next 30 days.
  */
 export default async function AgendaPage({ searchParams }: { searchParams: Promise<{ periode?: string }> }) {
   const candidate = await getCurrentCandidate();
@@ -60,6 +64,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
       <div className="agenda-actions">
         <AddInterviewDialog applications={ongoing} />
       </div>
+      <CoachInView {...AGENDA_IN_VIEW} name={t("agenda.title")} />
       {unscheduled.length > 0 ? <ToSchedule sessions={unscheduled} formatDate={(value) => paidOn.format(value)} t={t} /> : null}
       <section className={past ? "agenda agenda-past" : "agenda"} aria-labelledby="agenda-period-title">
         <div className="section-head">
@@ -110,7 +115,7 @@ function ToSchedule({ sessions, formatDate, t }: { sessions: UnscheduledCoaching
               <a className="button button-primary" href={session.coach.bookingUrl} rel="noopener noreferrer" target="_blank">
                 {t("humanCoaches.pickSlot", { name: session.coach.name })}
               </a>
-              <CoachingSessionDialog session={{ id: session.id, scheduledAt: "", durationMinutes: null, videoLink: null, note: null }} coachName={session.coach.name} />
+              <CoachingSessionDialog session={{ id: session.id, scheduledAt: "", durationMinutes: null, videoLink: null, note: null }} withName={session.coach.name} />
             </div>
           </li>
         ))}
@@ -124,7 +129,11 @@ function Item({ item, time, t }: { item: AgendaItem; time: Intl.DateTimeFormat; 
   return item.kind === "interview" ? <InterviewItem item={item} time={time} t={t} /> : <CoachingSessionItem item={item} time={time} t={t} />;
 }
 
-/** A dated Coaching Session: its time, its Human Coach and duration, leading to them on the Human Coaches page; its date can be edited here. */
+/**
+ * A dated Coaching Session: its time, its Human Coach and duration, and « modifié par le coach » when
+ * the Human Coach was the last to change its date, leading to them on the Human Coaches page; its date
+ * can be edited here.
+ */
 function CoachingSessionItem({ item, time, t }: { item: CoachingSessionAgendaItem; time: Intl.DateTimeFormat; t: T }) {
   return (
     <li className="agenda-item agenda-item-with-action">
@@ -136,11 +145,12 @@ function CoachingSessionItem({ item, time, t }: { item: CoachingSessionAgendaIte
           <span className="agenda-item-kind">{t("agenda.coachingSession")}</span>
           <span className="agenda-item-title">{t("agenda.withCoach", { name: item.coach.name })}</span>
           {item.durationMinutes ? <span className="agenda-item-employer">{t("agenda.duration", { count: item.durationMinutes })}</span> : null}
+          {item.changedBy === "coach" ? <span className="agenda-item-changed">{t("agenda.changedByCoach")}</span> : null}
         </span>
       </Link>
       <CoachingSessionDialog
         session={{ id: item.id, scheduledAt: interviewWallClock(item.scheduledAt), durationMinutes: item.durationMinutes ?? null, videoLink: item.videoLink ?? null, note: item.note ?? null }}
-        coachName={item.coach.name}
+        withName={item.coach.name}
         className="button button-quiet"
       />
     </li>

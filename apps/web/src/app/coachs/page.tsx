@@ -89,12 +89,13 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
                     </p>
                   ) : null}
                   {paid.note ? <p>{paid.note}</p> : null}
+                  {paid.changedBy === "coach" ? <p className="hint">{t("humanCoaches.changedByCoach", { name: paid.coach.name })}</p> : null}
                   <p className="hint">{t("humanCoaches.sessionPaidOn", { name: paid.coach.name, date: date.format(paid.paidAt) })}</p>
                   <div className="actions">
                     <Link href={routes.agenda(agendaPeriod(paid.scheduledAt, now) === "past")}>{t("humanCoaches.seeInAgenda")}</Link>
                     <CoachingSessionDialog
                       session={{ id: paid.id, scheduledAt: interviewWallClock(paid.scheduledAt), durationMinutes: paid.durationMinutes, videoLink: paid.videoLink, note: paid.note }}
-                      coachName={paid.coach.name}
+                      withName={paid.coach.name}
                     />
                   </div>
                 </li>
@@ -106,7 +107,7 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
                     <a className="button button-primary" href={paid.coach.bookingUrl} rel="noopener noreferrer" target="_blank">
                       {t("humanCoaches.pickSlot", { name: paid.coach.name })}
                     </a>
-                    <CoachingSessionDialog session={{ id: paid.id, scheduledAt: "", durationMinutes: null, videoLink: null, note: null }} coachName={paid.coach.name} />
+                    <CoachingSessionDialog session={{ id: paid.id, scheduledAt: "", durationMinutes: null, videoLink: null, note: null }} withName={paid.coach.name} />
                   </div>
                 </li>
               ),

@@ -136,7 +136,7 @@ test.describe("the Back Office's Coaching Playbooks", () => {
     await expect(page.getByRole("row").filter({ hasText: id })).toContainText(playbooks.archived);
 
     // The Journal: create, validation, new version, archive, each linking to its version.
-    await page.goto("/admin/journal?section=coaching_playbooks");
+    await page.goto("/admin/journal?section=coaching_playbooks&outcome=succeeded");
     const rows = page.getByRole("row").filter({ hasText: id });
     await expect(rows).toHaveCount(4);
     await expect(rows.nth(0)).toContainText(admin.journal.actions.archived);
@@ -144,6 +144,15 @@ test.describe("the Back Office's Coaching Playbooks", () => {
     await expect(rows.nth(2)).toContainText(admin.journal.actions.validated);
     await expect(rows.nth(3)).toContainText(admin.journal.actions.added);
     await expect(rows.nth(3)).toContainText(editorEmail);
+    // And the two validations refused (#263): by its author, then without an Eval Run; each failed, with its reason.
+    await page.goto("/admin/journal?section=coaching_playbooks&outcome=failed");
+    const refused = page.getByRole("row").filter({ hasText: id });
+    await expect(refused).toHaveCount(2);
+    await expect(refused.nth(0)).toContainText(admin.journal.actions.refused);
+    await expect(refused.nth(0)).toContainText(admin.journal.outcomes.failed);
+    await expect(refused.nth(0)).toContainText(tr(admin.journal.failed, { tried: admin.journal.actions.validated, reason: fr.failureReasons.no_eval_run }));
+    await expect(refused.nth(1)).toContainText(tr(admin.journal.failed, { tried: admin.journal.actions.validated, reason: fr.failureReasons.own_version }));
+    await page.goto("/admin/journal?section=coaching_playbooks&outcome=succeeded");
     await rows.nth(2).getByRole("link", { name: tr(admin.journal.viewVersion, { version: "1" }) }).click();
     await expect(page).toHaveURL(new RegExp(`/admin/playbooks/${id}\\?version=1$`));
 

@@ -1,4 +1,4 @@
-import { createAiLayer } from "@jobhub/ai";
+import { AiProviderError, createAiLayer } from "@jobhub/ai";
 import { createPostgresUsageLog } from "../ai-usage";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import type { MasterCvContent } from "@jobhub/shared";
@@ -294,7 +294,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     await Promise.all(pending);
 
     expect((await candidateData.export(candidateId)).aiMessageLog).toEqual([
-      { id: expect.any(String), at: new Date("2026-10-17T08:00:00Z"), task: "coaching", provider: "mistral", model: "fake-mistral", system: null, messages: [{ role: "user", content: "Merci" }], reply: "Bonjour Marie" },
+      { id: expect.any(String), at: new Date("2026-10-17T08:00:00Z"), task: "coaching", provider: "mistral", model: "fake-mistral", outcome: "ok", reason: null, system: null, messages: [{ role: "user", content: "Merci" }], reply: "Bonjour Marie" },
       expect.objectContaining({ at: new Date("2026-10-16T08:00:00Z"), system: "Tu es le coach.", messages: [{ role: "user", content: "Bonjour" }] }),
     ]);
 
@@ -302,6 +302,24 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
 
     const { rows } = await database.query(`SELECT candidate_id FROM ai_message_log`);
     expect(rows).toEqual([{ candidate_id: other }]);
+  });
+
+  it("the export holds a failed AI call's Outcome, Failure Reason code and wording, never its technical reason (#259)", async () => {
+    const usage = createPostgresUsageLog(database);
+    const pending: Promise<unknown>[] = [];
+    const ai = createAiLayer({
+      providers: [createFakeProvider({ id: "mistral", fail: new AiProviderError("mistral", "HTTP 503 upstream connect error, prompt « Bonjour »", 503) })],
+      routes: { coaching: "mistral" },
+      usage: { record: (entry) => void pending.push(Promise.resolve(usage.record(entry))) },
+    });
+    await expect(ai.generate({ task: "coaching", candidateId, prompt: "Bonjour" })).rejects.toThrow();
+    await Promise.all(pending);
+
+    const [log] = (await candidateData.export(candidateId)).aiMessageLog;
+    expect(log).toMatchObject({ outcome: "failed", reason: { code: "provider_unavailable", wording: "Fournisseur indisponible" }, reply: null });
+    expect(log).not.toHaveProperty("technicalReason");
+    // Its id and time are left out: a random id or a time's milliseconds may hold "503".
+    expect(JSON.stringify({ ...log, id: null, at: null })).not.toMatch(/AiProviderError|upstream connect error|503/);
   });
 
   it("the export holds each Profile's ATS Score, or null when its Master CV was never scored", async () => {
@@ -444,6 +462,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         durationMinutes: 60,
         videoLink: "https://meet.google.com/abc-defg-hij",
         note: "Préparer mon pitch.",
+        changedBy: "candidate",
       },
     ]);
     expect(exported.applications[0]!.coachReviews).toEqual([

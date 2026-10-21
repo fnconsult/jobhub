@@ -9,7 +9,8 @@
  *
  * A new Guardrail setting is saved only after the Guardrails' Eval Cases have been played on it, the other
  * settings as they are (ADR-0023, #231): it is refused, and nothing recorded, when it lets through a case the
- * distress, personal data leak or secret disclosure Guardrail must block. An unchanged or unusable setting, and a
+ * distress, personal data leak or secret disclosure Guardrail must block, and the refusal is recorded as a failed
+ * attempt (`eval_refused`, #263) naming the Eval Run and the cases let through. An unchanged or unusable setting, and a
  * Guardrail message, play no Eval Case.
  */
 import type { EvalRun, Evals, GuardrailsRun } from "../evals";
@@ -35,7 +36,7 @@ const recordedMessage = (message: GuardrailMessageVersion) => ({ language: messa
 
 export function createGuardrailsBackOffice(
   store: Pick<GuardrailStore, "config" | "setSetting" | "saveMessage" | "validateMessage">,
-  backOffice: Pick<BackOffice, "record">,
+  backOffice: Pick<BackOffice, "record" | "recordFailure">,
   evals: Pick<Evals, "runGuardrails">,
 ): GuardrailsBackOffice {
   const record = (actor: BackOfficeActor, id: string, setting: unknown) =>
@@ -52,7 +53,17 @@ export function createGuardrailsBackOffice(
       // Unchanged or unusable: the store says which, and nothing is played.
       if (!changes) return record(actor, id, setting);
       const { run, refused } = await evals.runGuardrails(actor, { ...settings, [id]: setting as GuardrailSetting });
-      if (refused.length > 0) return { ok: false, error: "eval_refused", run, refused };
+      if (refused.length > 0) {
+        await backOffice.recordFailure(actor, {
+          section: SECTION,
+          target: id,
+          tried: "updated",
+          reason: "eval_refused",
+          field: "setting",
+          technical: { class: "EvalRun", message: `${run.id}: ${refused.map(({ case: refusedCase }) => refusedCase.id).join(", ")}` },
+        });
+        return { ok: false, error: "eval_refused", run, refused };
+      }
       return { ...(await record(actor, id, setting)), run };
     },
 

@@ -11,4 +11,5 @@ export * from "./search-sites";
 export { scrubSecrets, scrubStoredText } from "./scrub-secrets";
 export * from "./external-api-usage";
 export * from "./tools";
+export * from "./failure-reasons";
 export * from "./sectors";

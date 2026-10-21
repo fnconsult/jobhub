@@ -64,6 +64,8 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
         action: "updated",
         before: STARTING_PLAN_QUOTAS.standard,
         after: quotas,
+        outcome: "succeeded",
+        failure: null,
       },
     ]);
   });
@@ -88,6 +90,8 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
         action: "reset",
         before: null,
         after: { reason: "Recherches d'offres en panne mardi", candidates: 1 },
+        outcome: "succeeded",
+        failure: null,
       },
     ]);
   });
@@ -110,9 +114,18 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
       expect(await plansOffice.updatePlan(claire, "essentiel", { ...essential, status: "offered", features: ["coachingSessionDiscount"] })).toMatchObject({ ok: true });
       expect(await plansOffice.movePlan(claire, "essentiel", "down")).toEqual({ ok: true, before: 4, after: 3 });
       expect(await plansOffice.movePlan(claire, "free", "up")).toEqual({ ok: false, error: "free_plan_built_in" });
+      expect(await plansOffice.createPlan(claire, { ...essential, key: "inconnu", stripeProductId: "prod_NotInStripe" })).toEqual({ ok: false, error: "product_not_found" });
+      expect(await plansOffice.journal({ outcome: "failed" })).toMatchObject([
+        {
+          section: "plans",
+          target: "inconnu",
+          action: "refused",
+          failure: { reason: "stripe_refused", tried: "added", field: "stripeProductId", technical: { provider: "stripe", status: 404, message: "resource_missing: No such product: 'prod_NotInStripe'" } },
+        },
+      ]);
 
       const recorded = { name: { fr: "Essentiel", en: "Essential" }, status: "hidden", stripeProductId: FAKE_STRIPE_PRODUCTS.essential, features: [] };
-      expect((await plansOffice.journal()).map(({ section, target, action, before, after }) => ({ section, target, action, before, after }))).toEqual([
+      expect((await plansOffice.journal({ outcome: "succeeded" })).map(({ section, target, action, before, after }) => ({ section, target, action, before, after }))).toEqual([
         { section: "plans", target: "essentiel", action: "updated", before: { rank: 4 }, after: { rank: 3 } },
         { section: "plans", target: "essentiel", action: "updated", before: recorded, after: { ...recorded, status: "offered", features: ["coachingSessionDiscount"] } },
         { section: "plans", target: "essentiel", action: "added", before: null, after: { ...recorded, rank: 4, quotas: { ...STARTING_PLAN_QUOTAS.premium } } },
@@ -162,6 +175,20 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
       expect(await couponsOffice.deactivateCoupon(claire, created.coupon.id)).toMatchObject({ ok: true });
       expect(await couponsOffice.deactivateCoupon(claire, "promo_unknown")).toEqual({ ok: false, error: "unknown_coupon" });
 
+      // Refused by Stripe: in the Journal as failed, with Stripe's code and message (#263).
+      expect(await couponsOffice.journal({ section: "coupons", outcome: "failed" })).toMatchObject([
+        {
+          target: "promo_unknown",
+          action: "refused",
+          failure: {
+            reason: "stripe_refused",
+            tried: "updated",
+            field: null,
+            technical: { class: "StripeInvalidRequestError", provider: "stripe", status: 404, message: "resource_missing: No such promotion code: 'promo_unknown'" },
+          },
+        },
+      ]);
+
       const terms = {
         code: "PRINTEMPS50",
         discount: { percentOff: 50 },
@@ -171,7 +198,7 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
         maxRedemptions: 100,
         firstPaymentOnly: true,
       };
-      expect((await couponsOffice.journal({ section: "coupons" })).map(({ section, target, action, before, after }) => ({ section, target, action, before, after }))).toEqual([
+      expect((await couponsOffice.journal({ section: "coupons", outcome: "succeeded" })).map(({ section, target, action, before, after }) => ({ section, target, action, before, after }))).toEqual([
         { section: "coupons", target: "PRINTEMPS50", action: "updated", before: { active: true }, after: { active: false } },
         { section: "coupons", target: "PRINTEMPS50", action: "added", before: null, after: terms },
       ]);
@@ -261,6 +288,68 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
     expect((await backOffice.journal({ section: "plan_quotas" })).map((entry) => entry.target)).toEqual(["premium", "free"]);
     expect((await backOffice.journal({ section: "human_coaches" })).map((entry) => entry.target)).toEqual(["luc@rh-conseil.fr"]);
     expect(await backOffice.journal({ section: "roles" })).toEqual([]);
+  });
+
+  it("a refused attempt is recorded as failed and its write undone: what was tried, on which target, the field at fault and its Failure Reason", async () => {
+    const refused = await backOffice.record(
+      claire,
+      async (within) => {
+        await billing.setPlanQuotas("standard", { ...STARTING_PLAN_QUOTAS.standard, matchScores: 1 }, within);
+        return { refused: "last_super_admin" as const };
+      },
+      () => ({ section: "roles", target: "luc@rh-conseil.fr", tried: "updated", reason: "last_super_admin", field: "roles" }),
+    );
+
+    expect(refused).toEqual({ refused: "last_super_admin" });
+    expect((await billing.planQuotas()).standard).toEqual(STARTING_PLAN_QUOTAS.standard);
+    expect(await backOffice.journal()).toEqual([
+      {
+        id: expect.any(String),
+        at: expect.any(Date),
+        actor: { candidateId: claire.id, email: "claire@jobbbox.fr" },
+        section: "roles",
+        target: "luc@rh-conseil.fr",
+        action: "refused",
+        outcome: "failed",
+        before: null,
+        after: null,
+        failure: { reason: "last_super_admin", tried: "updated", field: "roles", technical: null },
+      },
+    ]);
+  });
+
+  it("a failed test is recorded with its technical reason, scrubbed of keys and cut at 500 characters", async () => {
+    const key = "sk-proj-0123456789abcdefghij";
+
+    await backOffice.recordFailure(claire, {
+      section: "provider_secrets",
+      target: "MISTRAL_API_KEY",
+      tried: "tested",
+      reason: "test_failed",
+      technical: { class: "ConnectionTest", provider: "mistral", status: 401, message: `HTTP 401 {"message":"Unauthorized: ${key}"} ${"invalid key, ".repeat(60)}` },
+    });
+
+    const [entry] = await backOffice.journal();
+    expect(entry).toMatchObject({
+      section: "provider_secrets",
+      target: "MISTRAL_API_KEY",
+      action: "tested",
+      outcome: "failed",
+      failure: { reason: "test_failed", tried: "tested", field: null, technical: { class: "ConnectionTest", provider: "mistral", status: 401 } },
+    });
+    expect(entry!.failure!.technical!.message).toHaveLength(500);
+    expect(JSON.stringify(entry)).not.toContain(key);
+  });
+
+  it("the Journal lists the succeeded or the failed entries, with or without a section", async () => {
+    await backOffice.setPlanQuotas(claire, "free", { ...STARTING_PLAN_QUOTAS.free, matchScores: 5 });
+    await backOffice.recordFailure(claire, { section: "roles", target: "luc@rh-conseil.fr", tried: "updated", reason: "unknown_account" });
+    await backOffice.recordFailure(claire, { section: "plan_quotas", target: "free", tried: "updated", reason: "other" });
+
+    expect((await backOffice.journal({ outcome: "failed" })).map((entry) => entry.target)).toEqual(["free", "luc@rh-conseil.fr"]);
+    expect((await backOffice.journal({ outcome: "succeeded" })).map((entry) => [entry.target, entry.outcome, entry.failure])).toEqual([["free", "succeeded", null]]);
+    expect((await backOffice.journal({ section: "roles", outcome: "failed" })).map((entry) => entry.target)).toEqual(["luc@rh-conseil.fr"]);
+    expect(await backOffice.journal({ section: "roles", outcome: "succeeded" })).toEqual([]);
   });
 
   it("the Journal stays newest first past entry 9, 99... (entries are ordered as numbers)", async () => {

@@ -15,7 +15,7 @@ The Candidate deletes their own account, confirmed by typing their email address
 _Avoid_: Account closure, deactivation
 
 **Data export**:
-One JSON file the Candidate downloads holding all their personal data, what they made and what Jobbbox worked out or obtained about them (GDPR art. 15 and 20): their account (sign-in methods and sessions), Plan and Plan Quota use, EU AI Consent, Follow-up Delays and Appointment Reminder setting; their Profiles (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and the Job Digests sent); their Applications (Job Offer, Interviews with their Reschedule history, Match Score, Tailored Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach Conversations with every message, Coach Memory, Action Cards, Coach Access and Coaching Sessions (with their date, video link and Reschedule history); their AI Message Log. It leaves out secrets (sign-in tokens and passwords, the Job Digest unsubscribe link), Human Coaches' email addresses and booking links, Stripe's and the contact data providers' identifiers, and the Coach Message Cost. Every table tied to a Candidate must land in it.
+One JSON file the Candidate downloads holding all their personal data, what they made and what Jobbbox worked out or obtained about them (GDPR art. 15 and 20): their account (sign-in methods and sessions), Plan and Plan Quota use, EU AI Consent, Follow-up Delays and Appointment Reminder setting; their Profiles (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and the Job Digests sent); their Applications (Job Offer, Interviews with their Reschedule history, Match Score, Tailored Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach Conversations with every message, Coach Memory, Action Cards, Coach Access and Coaching Sessions (with their date, who last changed it, video link and Reschedule history); their AI Message Log. It leaves out secrets (sign-in tokens and passwords, the Job Digest unsubscribe link), Human Coaches' email addresses and booking links, Stripe's and the contact data providers' identifiers, and the Coach Message Cost. Every table tied to a Candidate must land in it.
 _Avoid_: Backup, data dump
 
 **EU AI Consent**:
@@ -57,7 +57,7 @@ A real HR professional, selected by Jobbbox, whom a Candidate can book for paid 
 _Avoid_: Advisor, consultant, recruiter
 
 **Coaching Session**:
-A booked, paid video meeting between a Candidate and a Human Coach. Recorded when its payment is confirmed, without a date: the Candidate then books a time on the Human Coach's Cal.com page, and that time reaches Jobbbox only when the Candidate or the Human Coach enters it (date and time in French time, optional duration, video link and note). Until then it is an Unscheduled Coaching Session. Never deleted by the Candidate.
+A booked, paid video meeting between a Candidate and a Human Coach. Recorded when its payment is confirmed, without a date: the Candidate then books a time on the Human Coach's Cal.com page, and that time reaches Jobbbox only when the Candidate or the Human Coach enters it (date and time in French time, optional duration, video link and note; the note is the Candidate's alone, a Human Coach never sees or changes it). It keeps who last entered or changed its date, the Candidate or the Human Coach, and the Agenda says « modifié par le coach » when it was the coach. Until then it is an Unscheduled Coaching Session. Never deleted by the Candidate.
 _Avoid_: Appointment, call, meeting
 
 **Unscheduled Coaching Session**:
@@ -73,7 +73,7 @@ A Human Coach's feedback on one Tailored Document of an Application. The Candida
 _Avoid_: Comment, annotation
 
 **Coach space**:
-A Human Coach's pages: the Candidates who granted Coach Access, their Profiles and Applications (read-only), the form for Coach Reviews, and their own Coaching Sessions with each Candidate, whose date and video link they can enter or correct. They see no Agenda.
+A Human Coach's pages: the Candidates who granted Coach Access, their Profiles and Applications (read-only), the form for Coach Reviews, and their own Coaching Sessions (the Candidate shown as first name and last initial, no Coach Access needed), whose date, duration and video link they can enter or correct. They see no Agenda.
 _Avoid_: Coach dashboard
 
 **Retired Human Coach**:
@@ -85,7 +85,7 @@ The side panel, available from every page, where the Candidate talks with the AI
 _Avoid_: Chat, chatbot, sidebar
 
 **Coach context**:
-What the AI Coach is told before each reply: always the Candidate summary and the Coach Memory, plus the item In view, plus summaries of the rest (onboarding answers, latest Applications, top Job Offers, the next three Agenda Items), within a size cap. Summaries are trimmed before the item In view.
+What the AI Coach is told before each reply: always the Candidate summary and the Coach Memory, plus the item In view, plus summaries of the rest (onboarding answers, latest Applications, top Job Offers, the next three Agenda Items from now on, none of them cancelled), within a size cap. Summaries are trimmed before the item In view.
 
 **Candidate summary**:
 The Candidate's first name and, for each active Profile, its target role, Search Criteria and seniority (from years of experience). Never the rest of the Identity block.
@@ -599,23 +599,31 @@ A super-admin setting, off by default: the Back Office asks an Administrator sig
 _Avoid_: Enforced SSO, mandatory SSO
 
 **Back Office Audit**:
-The record of every change an Administrator makes in the Back Office (roles, Plans, Plan Quotas, Coupons, Human Coaches, Coaching Playbooks, their Eval Cases, Core Digest and Sources, including validated, archived and restored, Guardrails, Provider Secrets, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites): who, when, what and the values before and after; and of every AI Message Log a super-admin opens. Secret values are never recorded, only that they were replaced (possibly despite a failed connection test) or cleared. Kept for 3 years, then purged. Jobbbox's own record, so it survives the Administrator's account deletion (their id is cleared, their email at the time stays) and is not part of their data export.
+The record of every change an Administrator makes in the Back Office (roles, Plans, Plan Quotas, Coupons, Human Coaches, Coaching Playbooks, their Eval Cases, Core Digest and Sources, including validated, archived and restored, Guardrails, Provider Secrets, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites): who, when, what and the values before and after; and of every AI Message Log a super-admin opens. Secret values are never recorded, only that they were replaced (possibly despite a failed connection test) or cleared. It also records every attempt that failed or was refused, with its Outcome and Failure Reason: a connection or sign-in test that failed, a save or validation refused by a business rule (a Playbook not validated, a Guardrail setting refused by its Eval Run, the last super-admin, Stripe refusing a Plan or Coupon), and an Administrator opening a section outside their Back Office Roles; a form field left empty or too long is only shown on the page. A refused attempt never keeps the values entered, only what was tried, on which target, and the field at fault. Kept for 3 years, then purged. Jobbbox's own record, so it survives the Administrator's account deletion (their id is cleared, their email at the time stays) and is not part of their data export.
 _Avoid_: Audit log, history, activity feed
 
+**Outcome**:
+How an AI call or a Back Office action ended: ok (succeeded), warning (an AI call that worked while its feature ran degraded, such as a Task Playbook falling back to its built-in text, Redaction by shape alone or a Playbook Agent left out of a reply) or failed (an AI call that failed or was never sent, a Back Office attempt refused or failed). The Back Office Audit only uses succeeded and failed.
+_Avoid_: Status, result code
+
+**Failure Reason**:
+Why something failed or warned, in two parts. The functional reason is a stable code from one catalog fixed in the code (`provider_unavailable`, `key_missing`, `data_residency`, `guardrail_timeout`, `test_failed`, `eval_refused`, `last_super_admin`, …), each with a French wording an Administrator understands; an unknown error is `other` (« Erreur inattendue »). The technical reason is the error's class, the provider, the HTTP status and its message, scrubbed of keys and secrets, passed through Redaction and cut at 500 characters. The code goes where counts are kept (AI Usage, Guardrail Triggers, 24 months, Support reads them); the technical reason only goes with the text it explains (the AI Message Log, 30 days) or in the Back Office Audit (3 years), both read by super-admins only.
+_Avoid_: Error message, error code, cause
+
 **Journal**:
-The Back Office page where Administrators read the Back Office Audit, newest first, filterable by section. Those allowed to read the Tools also have the Outils section, which lists the Tools' calls beside the entries.
+The Back Office page where Administrators read the Back Office Audit, newest first, filterable by section and by Outcome (succeeded or failed). A failed entry shows its Failure Reason in French, its technical detail behind « Détail technique ». Those allowed to read the Tools also have the Outils section, which lists the Tools' calls beside the entries.
 _Avoid_: Audit page, changelog
 
 **AI Usage**:
-What every AI call cost Jobbbox, whatever its task (not only AI Coach replies): when, task, provider, endpoint, model, input, output and cached input tokens, estimated cost in euros at list prices (the same prices as the Coach Message Cost), duration, success or failure; with each tool its model used (a web search, priced per search) and every call to an external API (France Travail, the French company register, the job boards, contact enrichment: provider, operation, HTTP status, cost when known). No Candidate and no text: aggregates of no one, so outside the Data export and kept 24 months whatever happens to accounts. Super-admins and Support read it on the Back Office's Consommation IA page, per period.
+What every AI call cost Jobbbox, whatever its task (not only AI Coach replies): when, task, provider, endpoint, model, input, output and cached input tokens, estimated cost in euros at list prices (the same prices as the Coach Message Cost), duration, Outcome (ok, warning or failed) and the Failure Reason's code, also for a call stopped before it was sent (missing configuration, data residency); with each tool its model used (a web search, priced per search) and every call to an external API (France Travail, the French company register, the job boards, contact enrichment: provider, operation, HTTP status, cost when known). No Candidate and no text: aggregates of no one, so outside the Data export and kept 24 months whatever happens to accounts. Super-admins and Support read it on the Back Office's Consommation IA page, per period, with failures and warnings counted per Failure Reason (also on Outils).
 _Avoid_: AI bill, token log, metering
 
 **AI Message Log**:
-What one AI call said, as sent: its system text and messages after Redaction, and the reply as it came, keys and secrets scrubbed, with the Candidate it was made for (none for a Guest). Kept 30 days for quality and debugging, then purged; deleted with the account and in the Candidate's Data export. Only super-admins read it, on the Back Office's Journaux IA page, and every log they open is written to the Back Office Audit.
+What one AI call said, as sent: its system text and messages after Redaction, and the reply as it came (none when the call failed, or was not sent), keys and secrets scrubbed, with the Candidate it was made for (none for a Guest), and the call's Outcome with its Failure Reason, technical detail included. Kept 30 days for quality and debugging, then purged; deleted with the account and in the Candidate's Data export. The Candidate's Data export holds each failed call's Failure Reason code and French wording, never its technical detail. Only super-admins read it, on the Back Office's Journaux IA page, filterable by Outcome and Failure Reason, and every log they open is written to the Back Office Audit.
 _Avoid_: Prompt log, transcript, chat history
 
 **Guardrail Trigger**:
-One time a Guardrail blocked, flagged or could not check a message or reply: which Guardrail, its setting, what it did, for which agent, and when. No Candidate, no Coach Conversation and no text: aggregates of no one, so outside the Data export and kept 24 months. Super-admins and Support read them per day in the Back Office; the text, if needed, is in the AI Message Log. No one is alerted when a Candidate expresses distress.
+One time a Guardrail blocked, flagged or could not check a message or reply: which Guardrail, its setting, what it did, for which agent, and when; when it could not check, why, as a Failure Reason code only (timeout, a verdict that was not valid, the provider's error). No Candidate, no Coach Conversation and no text: aggregates of no one, so outside the Data export and kept 24 months. Super-admins and Support read them per day in the Back Office; the text, if needed, is in the AI Message Log. No one is alerted when a Candidate expresses distress.
 _Avoid_: Guardrail log, incident, alert
 
 **Back Office Assistant**:

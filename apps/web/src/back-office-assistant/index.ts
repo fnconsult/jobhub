@@ -29,6 +29,7 @@
  */
 import { costInEur, type AiLayer, type GenerateResult } from "@jobhub/ai";
 import type { Plan, PlanFeature, PlanQuotas } from "@jobhub/shared";
+import { failureReasonWording } from "@jobhub/shared/i18n";
 import * as z from "zod";
 import { BACK_OFFICE_ROLES, type BackOfficeAccess, type BackOfficeResource, type BackOfficeRole } from "../admin/access";
 import type { Administrator } from "../admin/administrators";
@@ -245,7 +246,7 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
       "Ce que coûtent les appels à l'IA (toutes les tâches, pas seulement le coach IA), les outils utilisés par les modèles (recherche web) et les API externes (France Travail, Fantastic.jobs, enrichissement de contacts), sur les 30 derniers jours (heure de Paris). Estimations aux prix publics, en euros. Agrégats seulement : aucun candidat, aucun texte.",
       `Total : ${calls(totals)}, ${totals.inputTokens} jetons en entrée, ${totals.cachedInputTokens} en cache, ${totals.outputTokens} en sortie ; coût total ${eur(totals.costEur)} (dont outils ${eur(totals.toolsCostEur)}, API externes ${eur(totals.externalCostEur)}).`,
       "Par fournisseur et modèle :",
-      ...byModel.map((row) => `- ${row.provider} ${row.model} : ${calls(row)}, ${eur(row.costEur)}`),
+      ...byModel.map((row) => `- ${row.provider ? `${row.provider} ${row.model ?? ""}`.trim() : "aucun fournisseur (non envoyé)"} : ${calls(row)}, ${eur(row.costEur)}`),
       "Par tâche :",
       ...byTask.map((row) => `- ${row.task} : ${calls(row)}, ${eur(row.costEur)}`),
       "Outils :",
@@ -374,7 +375,7 @@ const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
   updated: "modification",
   retired: "retrait",
   removed: "suppression",
-  tested: "test de connexion réussi",
+  tested: "test de connexion",
   replaced: "remplacement",
   replaced_despite_failed_test: "remplacement malgré un test échoué",
   cleared: "effacement",
@@ -383,10 +384,18 @@ const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
   archived: "archivage",
   restored: "rétablissement",
   reset: "remise à zéro",
+  refused: "tentative refusée",
 };
 
-/** A Journal entry for the assistant: never a secret (none is recorded), never an address, Human Coaches by name. */
+/**
+ * A Journal entry for the assistant: never a secret (none is recorded), never an address, Human Coaches by name.
+ * A failed attempt says what was tried and its Failure Reason's wording, never its technical detail.
+ */
 function journalLine(entry: BackOfficeAuditEntry): string {
+  if (entry.failure) {
+    const tried = entry.action === "refused" ? `${ACTIONS.refused} (${ACTIONS[entry.failure.tried]})` : ACTIONS[entry.action];
+    return `${JOURNAL_SECTIONS[entry.section]}, ${tried} de ${entry.target} ; échec : ${failureReasonWording(entry.failure.reason)}`;
+  }
   const named = (value: Recorded) => (value && typeof value === "object" && !Array.isArray(value) && typeof value.name === "string" ? value.name : null);
   const target = entry.section === "human_coaches" ? untrusted(named(entry.after) ?? named(entry.before) ?? "un coach") : entry.target;
   const values =

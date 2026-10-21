@@ -99,9 +99,49 @@ test.describe("Provider Secrets (the Clés section)", () => {
     await page.goto("/admin/journal?section=provider_secrets");
     const entries = page.getByRole("row").filter({ hasText: NAME });
     await expect(entries.first()).toContainText(admin.journal.actions.cleared);
-    await expect(entries.nth(1)).toContainText(admin.journal.actions.replaced_despite_failed_test);
-    await expect(entries.nth(1)).toContainText(admin.journal.secret.replaced_despite_failed_test);
+    // The Test button's failed test, then the save anyway, then the save its test refused (#263).
+    await expect(entries.nth(1)).toContainText(admin.journal.actions.tested);
+    await expect(entries.nth(1)).toContainText(admin.journal.outcomes.failed);
+    await expect(entries.nth(1)).toContainText(fr.failureReasons.test_failed);
+    await expect(entries.nth(2)).toContainText(admin.journal.actions.replaced_despite_failed_test);
+    await expect(entries.nth(2)).toContainText(admin.journal.secret.replaced_despite_failed_test);
+    await expect(entries.nth(2)).toContainText(admin.journal.outcomes.succeeded);
+    await expect(entries.nth(3)).toContainText(admin.journal.actions.refused);
+    await expect(entries.nth(3)).toContainText(tr(admin.journal.failed, { tried: admin.journal.actions.replaced, reason: fr.failureReasons.test_failed }));
+    await expect(entries.nth(3)).toContainText(tr(admin.journal.fieldAtFault, { field: admin.journal.value }));
+
+    // Only the failures, still of this section; each one's technical detail on demand.
+    await page.getByRole("navigation", { name: admin.journal.outcomeFilter }).getByRole("link", { name: admin.journal.outcomeFilters.failed }).click();
+    await expect(page).toHaveURL(/\/admin\/journal\?section=provider_secrets&outcome=failed$/);
+    await expect(entries).toHaveCount(2);
+    const detail = entries.nth(1).locator("details");
+    await expect(detail.getByText(admin.journal.technical.status)).toBeHidden();
+    await detail.getByText(admin.journal.technicalDetail).click();
+    await expect(detail.getByText(admin.journal.technical.status)).toBeVisible();
+    await expect(detail.getByRole("definition").filter({ hasText: /^401$/ })).toBeVisible();
     await expectNowhere(page, refused);
+  });
+
+  test("an empty or too-long value is refused by the form and leaves no entry in the Journal (#263)", async ({ page }) => {
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    const entries = () => page.request.get("/admin/journal?section=provider_secrets").then((response) => response.text());
+    const count = (html: string) => (html.match(new RegExp(NAME, "g")) ?? []).length;
+    const before = count(await entries());
+
+    // Empty: the browser's own `required` is bypassed, as a hand-made request would.
+    await page.goto("/admin/cles");
+    await page.locator("summary", { hasText: tr(keys.replaceLegend, { name: NAME }) }).click();
+    await page.locator(`#value-${NAME}`).evaluate((input) => input.removeAttribute("required"));
+    await page.getByRole("button", { name: tr(keys.replace, { name: NAME }) }).click();
+    await expect(page.getByRole("main").getByRole("alert").first()).toHaveText(keys.errors.empty);
+
+    // Too long (over 4096 characters).
+    await replace(page, NAME, "x".repeat(4097));
+    await expect(page.getByRole("main").getByRole("alert").first()).toHaveText(keys.errors.too_long);
+    await expect(row(page, NAME)).toContainText(keys.sources.missing);
+
+    expect(count(await entries()), "Journal entries").toBe(before);
+    await expectNowhere(page, "x".repeat(4097));
   });
 
   test("a key that passes its test is used over env, and never sent back: page, Journal, log, data export", async ({ page }) => {
@@ -118,7 +158,11 @@ test.describe("Provider Secrets (the Clés section)", () => {
     await expect(page.getByRole("main").getByRole("status")).toHaveText(tr(keys.testPassed, { name: NAME }));
 
     await page.goto("/admin/journal?section=provider_secrets");
-    await expect(page.getByRole("row").filter({ hasText: NAME }).first()).toContainText(admin.journal.secret.replaced);
+    // The Test button's passed test (#263), then the replacement.
+    const entries = page.getByRole("row").filter({ hasText: NAME });
+    await expect(entries.first()).toContainText(admin.journal.actions.tested);
+    await expect(entries.first()).toContainText(admin.journal.outcomes.succeeded);
+    await expect(entries.nth(1)).toContainText(admin.journal.secret.replaced);
 
     await page.goto("/compte/donnees");
     const section = page.getByRole("region", { name: fr.accountData.title });

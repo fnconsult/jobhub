@@ -127,3 +127,16 @@ export async function approveAtIssuer(page: Page, identity: Record<string, unkno
     await route.fulfill({ status: 302, headers: { location: callback.toString() } });
   });
 }
+
+/** Plays the OIDC issuer's authorize page for `page`: the person, or the issuer, refuses the sign-in with OAuth `error`. */
+export async function refuseAtIssuer(page: Page, error: string): Promise<void> {
+  await fromNewAddress(page);
+  await page.unroute(`${FAKE_OIDC_ISSUER}/**`);
+  await page.route(`${FAKE_OIDC_ISSUER}/**`, async (route) => {
+    const authorize = new URL(route.request().url());
+    const callback = new URL(authorize.searchParams.get("redirect_uri")!);
+    callback.searchParams.set("error", error);
+    callback.searchParams.set("state", authorize.searchParams.get("state") ?? "");
+    await route.fulfill({ status: 302, headers: { location: callback.toString() } });
+  });
+}

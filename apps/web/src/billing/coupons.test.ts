@@ -156,7 +156,11 @@ describe.skipIf(!connectionString)("Coupons (needs Postgres: DATABASE_URL)", () 
       expect(await t.billing.deactivateCoupon(spring.coupon.id)).toMatchObject({ ok: true, changed: false });
       expect(t.stripe.callsTo(`/v1/promotion_codes/${spring.coupon.id}`).filter((call) => call.method === "POST")).toHaveLength(writes);
       expect(await t.billing.coupons()).toMatchObject([{ code: "PRINTEMPS50", active: false }]);
-      expect(await t.billing.deactivateCoupon("promo_unknown")).toEqual({ ok: false, error: "unknown_coupon" });
+      expect(await t.billing.deactivateCoupon("promo_unknown")).toEqual({
+        ok: false,
+        error: "unknown_coupon",
+        failure: { reason: "stripe_refused", technical: { class: "StripeInvalidRequestError", provider: "stripe", status: 404, message: "resource_missing: No such promotion code: 'promo_unknown'" } },
+      });
     });
 
     it("reactivates a code whose deactivation could not be recorded", async () => {

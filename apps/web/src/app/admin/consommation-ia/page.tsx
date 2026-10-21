@@ -2,7 +2,7 @@ import { EUR_PER_USD, SEARCH_TASK, TEXT_TASKS } from "@jobhub/ai";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireBackOffice } from "@/admin/server";
-import { aiUsageMonths, aiUsagePeriod, type AiUsageRow } from "@/ai-usage";
+import { aiUsageMonths, aiUsagePeriod, type AiUsageRow, type FailureReasonCount } from "@/ai-usage";
 import { aiUsageReportOf } from "@/ai-usage/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -23,7 +23,8 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * Super-admins and Support follow what AI costs (#218): every AI call, the tools its model used
  * and the external API calls, over a period, in totals and per provider and model, task and day
- * (or month). Read-only.
+ * (or month), and its failed and warned calls per Failure Reason (#262): codes and their wording only,
+ * never a technical reason. Read-only.
  */
 export default async function AiUsagePage({ searchParams }: { searchParams: Promise<{ periode?: string }> }) {
   const { access } = await requireBackOffice("aiUsage");
@@ -70,6 +71,27 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
       <th scope="col">{t("admin.aiUsage.cost")}</th>
     </>
   );
+
+  /** The columns every count per Failure Reason shares: its code, wording and Outcome, and how many calls. */
+  const reasonCells = (row: FailureReasonCount) => (
+    <>
+      <td>
+        <code>{row.reason}</code>
+      </td>
+      <td>{t(`failureReasons.${row.reason}`)}</td>
+      <td>{t(`admin.aiMessages.outcomes.${row.outcome}`)}</td>
+      <td>{number.format(row.calls)}</td>
+    </>
+  );
+  const reasonHeads = (
+    <>
+      <th scope="col">{t("admin.aiUsage.code")}</th>
+      <th scope="col">{t("admin.aiUsage.reason")}</th>
+      <th scope="col">{t("admin.aiUsage.outcome")}</th>
+      <th scope="col">{t("admin.aiUsage.calls")}</th>
+    </>
+  );
+  const { failureReasons } = report;
 
   return (
     <BackOfficeLayout access={access} title={t("admin.aiUsage.title")}>
@@ -206,6 +228,72 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
                       <time dateTime={row.bucket}>{bucketName(row.bucket)}</time>
                     </th>
                     {usageCells(row)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      <h2>{t("admin.aiUsage.reasonsTitle")}</h2>
+      <p>{t("admin.aiUsage.reasonsIntro")}</p>
+      {failureReasons.total.length === 0 ? (
+        <p>{t("admin.aiUsage.noReasons")}</p>
+      ) : (
+        <>
+          <div className="table-scroll">
+            <table className="application-table">
+              <caption>{t("admin.aiUsage.reasonsCaption")}</caption>
+              <thead>
+                <tr>{reasonHeads}</tr>
+              </thead>
+              <tbody>
+                {failureReasons.total.map((row) => (
+                  <tr key={`${row.outcome} ${row.reason}`}>{reasonCells(row)}</tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <h3>{t("admin.aiUsage.reasonsByModelTitle")}</h3>
+          <div className="table-scroll">
+            <table className="application-table">
+              <caption>{t("admin.aiUsage.reasonsByModelCaption")}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">{t("admin.aiUsage.provider")}</th>
+                  <th scope="col">{t("admin.aiUsage.model")}</th>
+                  {reasonHeads}
+                </tr>
+              </thead>
+              <tbody>
+                {failureReasons.byModel.map((row) => (
+                  <tr key={`${row.provider} ${row.model} ${row.outcome} ${row.reason}`}>
+                    <th scope="row">{row.provider ?? t("admin.aiMessages.noProvider")}</th>
+                    <td>{row.model ?? "—"}</td>
+                    {reasonCells(row)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <h3>{t("admin.aiUsage.reasonsByTaskTitle")}</h3>
+          <div className="table-scroll">
+            <table className="application-table">
+              <caption>{t("admin.aiUsage.reasonsByTaskCaption")}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">{t("admin.aiUsage.task")}</th>
+                  {reasonHeads}
+                </tr>
+              </thead>
+              <tbody>
+                {failureReasons.byTask.map((row) => (
+                  <tr key={`${row.task} ${row.outcome} ${row.reason}`}>
+                    <th scope="row">{taskName(row.task)}</th>
+                    {reasonCells(row)}
                   </tr>
                 ))}
               </tbody>

@@ -1385,7 +1385,18 @@
         "back_office_assistant": "Back Office Assistant",
         "guardrail": "Guardrails",
         "eval": "Evaluations"
-      }
+      },
+      "reasonsTitle": "Failures and warnings per reason",
+      "reasonsIntro": "The period's failed and warned AI calls, counted per reason. Codes and wording only: never the technical reason.",
+      "reasonsCaption": "Failed and warned AI calls, per reason",
+      "reasonsByModelTitle": "By provider, model and reason",
+      "reasonsByModelCaption": "Failed and warned AI calls, by provider, model and reason",
+      "reasonsByTaskTitle": "By task and reason",
+      "reasonsByTaskCaption": "Failed and warned AI calls, by task and reason",
+      "code": "Code",
+      "reason": "Reason",
+      "outcome": "Outcome",
+      "noReasons": "No failures nor warnings in this period."
     },
     "aiMessages": {
       "title": "AI message logs",
@@ -1874,7 +1885,13 @@
       "ok": "OK",
       "failed": "Failed",
       "httpStatus": "HTTP {{status}}",
-      "noAnswer": "No answer"
+      "noAnswer": "No answer",
+      "reasonsTitle": "Failures and warnings per reason (30 d)",
+      "reasonsCaption": "Failed and warned calls to {{name}} over 30 days, per reason",
+      "noReasons": "No failed or warned AI call over 30 days.",
+      "code": "Code",
+      "reason": "Reason",
+      "warning": "Warning"
     }
   },
   "backOfficeAssistant": {

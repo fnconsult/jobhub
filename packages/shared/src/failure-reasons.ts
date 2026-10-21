@@ -1,5 +1,5 @@
 /**
- * Failure Reasons (CONTEXT.md, ADR-0030): why an AI call (and, in later issues, a Back Office action)
+ * Failure Reasons (CONTEXT.md, ADR-0030): why an AI call, a Back Office attempt or a Guardrail's check
  * failed or warned, in two parts.
  *
  *  - The functional reason: a stable code from FAILURE_REASONS, with its wording in every interface
@@ -88,6 +88,13 @@ export const FAILURE_REASONS = [
   "unknown_account",
   /** Stripe refused a Plan's product or a Coupon. */
   "stripe_refused",
+  // A Guardrail that could not check (#261): its Guardrail Trigger records why.
+  /** The Guardrail's AI check gave no verdict in time. */
+  "guardrail_timeout",
+  /** The Guardrail's AI check answered with something that was not a valid verdict. */
+  "invalid_verdict",
+  /** The Guardrail's AI check failed: the AI call threw. */
+  "provider_error",
   "other",
 ] as const;
 export type FailureReason = (typeof FAILURE_REASONS)[number];
@@ -126,8 +133,14 @@ export const AI_CALL_FAILURE_REASONS: readonly FailureReason[] = [
   "other",
 ];
 
+/** Why a Guardrail could not check (#261): what a Guardrail Trigger with action `unavailable` records. Never `other`. */
+export const GUARDRAIL_FAILURE_REASONS = ["guardrail_timeout", "invalid_verdict", "provider_error"] as const satisfies readonly FailureReason[];
+export type GuardrailFailureReason = (typeof GUARDRAIL_FAILURE_REASONS)[number];
+
 /** The codes a Back Office attempt can fail with (#263): the Back Office Audit's. */
-export const BACK_OFFICE_FAILURE_REASONS: readonly FailureReason[] = FAILURE_REASONS.filter((reason) => !AI_CALL_FAILURE_REASONS.includes(reason) || reason === "other");
+export const BACK_OFFICE_FAILURE_REASONS: readonly FailureReason[] = FAILURE_REASONS.filter(
+  (reason) => reason === "other" || (!AI_CALL_FAILURE_REASONS.includes(reason) && !(GUARDRAIL_FAILURE_REASONS as readonly FailureReason[]).includes(reason)),
+);
 
 export function isFailureReason(value: unknown): value is FailureReason {
   return typeof value === "string" && (FAILURE_REASONS as readonly string[]).includes(value);

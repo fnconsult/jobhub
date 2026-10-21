@@ -92,6 +92,11 @@ globalThis.fetch = async (input, init) => {
   const system = String(body.messages?.find((message) => message.role === "system")?.content ?? "");
   if (system.startsWith("Tu contrôles le message") || system.startsWith("Tu contrôles la réponse")) {
     if (prompt.includes("E2E_GUARDRAIL_DOWN")) return new Response("upstream unavailable", { status: 503 });
+    // Only the per-reason count test (#262) asks for this, so its rate_limited count grows by its own calls alone.
+    if (prompt.includes("E2E_GUARDRAIL_RATE_LIMITED")) return new Response("too many requests", { status: 429 });
+    // No verdict within the check's time (#261: guardrail_timeout), and a verdict that is not JSON (invalid_verdict).
+    if (prompt.includes("E2E_GUARDRAIL_SLOW")) await new Promise((resolve) => setTimeout(resolve, 12_000));
+    if (prompt.includes("E2E_GUARDRAIL_GARBLED")) return completion(body, "this is not a verdict");
     // A provider refusing with an error that echoes the key, an email address and a long text (#259: stored scrubbed, redacted and cut).
     if (prompt.includes("E2E_GUARDRAIL_ECHO")) return new Response(`invalid key e2e-mistral-key for contact echo.person@example.fr ${"padding text ".repeat(80)}END_OF_ECHO`, { status: 400 });
     const verdict = system.startsWith("Tu contrôles le message")

@@ -229,7 +229,7 @@ test.describe("AI consumption and AI message logs", () => {
     await signInWithMagicLink(page, SUPER_ADMIN);
     const reasonCount = async (path: string, caption: string) => {
       await page.goto(path);
-      const row = page.getByRole("table", { name: caption }).getByRole("row").filter({ hasText: "provider_unavailable" });
+      const row = page.getByRole("table", { name: caption }).getByRole("row").filter({ hasText: "rate_limited" });
       if ((await row.count()) === 0) return 0;
       return Number(await row.first().getByRole("cell").last().innerText());
     };
@@ -237,10 +237,11 @@ test.describe("AI consumption and AI message logs", () => {
     const beforeReport = await reasonCount("/admin/consommation-ia", admin.aiUsage.reasonsCaption);
     const beforeTool = await reasonCount("/admin/outils/mistral", toolCaption);
 
-    // Two Candidates each talk to the Coach once: the Guardrails' AI check fails (503) once per message.
+    // Two Candidates each talk to the Coach once: the Guardrails' AI check is refused (429) once per message.
+    // No other test makes a call fail as rate_limited, so specs running alongside do not race the count.
     for (const prefix of ["reasons-count-a", "reasons-count-b"]) {
       const candidate = await personPage(browser, newAddress(prefix));
-      const talked = await candidate.request.post("/api/coach", { headers: { origin }, data: { message: "E2E_GUARDRAIL_DOWN Comment relancer Acme ?" } });
+      const talked = await candidate.request.post("/api/coach", { headers: { origin }, data: { message: "E2E_GUARDRAIL_RATE_LIMITED Comment relancer Acme ?" } });
       expect(talked.status(), await talked.text()).toBe(200);
     }
 

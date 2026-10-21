@@ -7,8 +7,9 @@ import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getEvals } from "@/evals/server";
 import { GUARDRAIL_LANGUAGES, GUARDRAIL_SETTINGS, type GuardrailId, type GuardrailLanguage } from "@/guardrails";
+import { GUARDRAIL_FAILURE_REASONS } from "@jobhub/shared";
 import { getGuardrailStore, guardrailTriggersOfLastDays } from "@/guardrails/server";
-import { TRIGGER_RETENTION_MONTHS, type GuardrailMessageVersion } from "@/guardrails/store";
+import { TRIGGER_RETENTION_MONTHS, type GuardrailMessageVersion, type GuardrailTriggerDay } from "@/guardrails/store";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 import Link from "next/link";
@@ -35,6 +36,9 @@ const isNotice = (value: unknown): value is Notice => typeof value === "string" 
 
 /** How many days of Guardrail Triggers the page shows. */
 const TRIGGER_DAYS = 30;
+
+/** The reasons a day's unavailable checks are counted under, in this order; `unrecorded` last (#261). */
+const UNAVAILABLE_REASONS = [...GUARDRAIL_FAILURE_REASONS, "unrecorded"] as const satisfies readonly (keyof GuardrailTriggerDay["unavailableBy"])[];
 
 export async function generateMetadata(): Promise<Metadata> {
   // Metadata renders apart from the page: without this, the 404 shown to
@@ -81,7 +85,7 @@ async function validateMessage(form: FormData) {
  * The Guardrails (ADR-0022, #228): fixed in code, tuned here. Super-admins set each to block or flag only
  * (distress, personal data leak and secret disclosure always block) and write its Guardrail messages,
  * which another Administrator validates; Support reads. The Guardrail Triggers, per day and per Guardrail,
- * name no one and hold no text.
+ * name no one and hold no text; the unavailable checks are counted per Failure Reason (#261).
  */
 export default async function GuardrailsPage({ searchParams }: { searchParams: Promise<{ notice?: string; run?: string; cases?: string }> }) {
   const { access, canWrite } = await requireBackOffice("guardrails");
@@ -264,7 +268,21 @@ export default async function GuardrailsPage({ searchParams }: { searchParams: P
                     <td>{name(day.guardrail)}</td>
                     <td>{number.format(day.blocked)}</td>
                     <td>{number.format(day.flagged)}</td>
-                    <td>{number.format(day.unavailable)}</td>
+                    <td>
+                      {number.format(day.unavailable)}
+                      {day.unavailable > 0 ? (
+                        <ul className="trigger-reasons" aria-label={t("admin.guardrails.triggers.byReasonLabel")}>
+                          {UNAVAILABLE_REASONS.filter((reason) => day.unavailableBy[reason] > 0).map((reason) => (
+                            <li key={reason}>
+                              {t("admin.guardrails.triggers.byReason", {
+                                reason: reason === "unrecorded" ? t("admin.guardrails.triggers.reasonUnrecorded") : t(`failureReasons.${reason}`),
+                                count: number.format(day.unavailableBy[reason]),
+                              })}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </td>
                   </tr>
                 ))}
               </tbody>

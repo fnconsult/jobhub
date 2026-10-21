@@ -1672,13 +1672,16 @@
       },
       "triggers": {
         "title": "Déclenchements",
-        "intro": "Chaque blocage, signalement ou contrôle indisponible des {{days}} derniers jours, par jour (heure de Paris) et par garde-fou. Aucun candidat, aucune conversation, aucun texte : le texte, si besoin, reste dans les journaux IA (30 jours). Conservés {{months}} mois.",
+        "intro": "Chaque blocage, signalement ou contrôle indisponible des {{days}} derniers jours, par jour (heure de Paris) et par garde-fou, les contrôles indisponibles comptés par raison. Aucun candidat, aucune conversation, aucun texte : le texte, si besoin, reste dans les journaux IA (30 jours). Conservés {{months}} mois.",
         "caption": "Déclenchements des garde-fous par jour",
         "none": "Aucun déclenchement sur la période.",
         "day": "Jour",
         "blocked": "Bloqués",
         "flagged": "Signalés",
-        "unavailable": "Contrôle indisponible"
+        "unavailable": "Contrôle indisponible",
+        "byReason": "{{reason}} : {{count}}",
+        "reasonUnrecorded": "Raison non enregistrée",
+        "byReasonLabel": "Contrôles indisponibles par raison"
       },
       "notices": {
         "settingSaved": "Réglage enregistré, après avoir joué les cas d'évaluation des garde-fous avec lui.",
@@ -2758,6 +2761,9 @@
     "last_super_admin": "Dernier super-admin",
     "unknown_account": "Compte introuvable",
     "stripe_refused": "Refusé par Stripe",
+    "guardrail_timeout": "Contrôle trop long",
+    "invalid_verdict": "Verdict du contrôle illisible",
+    "provider_error": "Erreur du fournisseur",
     "other": "Erreur inattendue"
   },
   "agendaChanges": {

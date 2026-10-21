@@ -119,18 +119,39 @@ describe.skipIf(!connectionString)("Guardrail settings, Guardrail messages and G
     it("are counted per day (Paris time) and per Guardrail, with no Candidate, no conversation and no text", async () => {
       await store.triggers.record({ guardrail: "prompt_injection", setting: "block", action: "blocked", agent: "ai_coach", at: at("2026-10-19T08:00:00Z") });
       await store.triggers.record({ guardrail: "prompt_injection", setting: "flag", action: "flagged", agent: "back_office_assistant", at: at("2026-10-19T09:00:00Z") });
-      await store.triggers.record({ guardrail: "distress", setting: "block", action: "unavailable", agent: "ai_coach", at: at("2026-10-19T22:30:00Z") });
+      await store.triggers.record({ guardrail: "distress", setting: "block", action: "unavailable", reason: "guardrail_timeout", agent: "ai_coach", at: at("2026-10-19T22:30:00Z") });
       await store.triggers.record({ guardrail: "distress", setting: "block", action: "blocked", agent: "ai_coach", at: at("2026-10-18T12:00:00Z") });
 
       const days = await store.triggersPerDay(at("2026-10-01T00:00:00Z"));
 
       expect(days).toEqual([
-        { day: "2026-10-20", guardrail: "distress", blocked: 0, flagged: 0, unavailable: 1 },
-        { day: "2026-10-19", guardrail: "prompt_injection", blocked: 1, flagged: 1, unavailable: 0 },
-        { day: "2026-10-18", guardrail: "distress", blocked: 1, flagged: 0, unavailable: 0 },
+        { day: "2026-10-20", guardrail: "distress", blocked: 0, flagged: 0, unavailable: 1, unavailableBy: { guardrail_timeout: 1, invalid_verdict: 0, provider_error: 0, unrecorded: 0 } },
+        { day: "2026-10-19", guardrail: "prompt_injection", blocked: 1, flagged: 1, unavailable: 0, unavailableBy: { guardrail_timeout: 0, invalid_verdict: 0, provider_error: 0, unrecorded: 0 } },
+        { day: "2026-10-18", guardrail: "distress", blocked: 1, flagged: 0, unavailable: 0, unavailableBy: { guardrail_timeout: 0, invalid_verdict: 0, provider_error: 0, unrecorded: 0 } },
       ]);
       const { rows } = await database.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'guardrail_trigger' ORDER BY ordinal_position");
-      expect(rows.map((row) => row.column_name)).toEqual(["id", "guardrail", "setting", "action", "agent", "at"]);
+      expect(rows.map((row) => row.column_name)).toEqual(["id", "guardrail", "setting", "action", "agent", "at", "reason"]);
+    });
+
+    it("count the checks that could not be made per Failure Reason; one recorded before reasons were is unrecorded", async () => {
+      const day = at("2026-10-19T10:00:00Z");
+      for (const reason of ["guardrail_timeout", "guardrail_timeout", "invalid_verdict", "provider_error"] as const) {
+        await store.triggers.record({ guardrail: "harmful_advice", setting: "block", action: "unavailable", reason, agent: "ai_coach", at: day });
+      }
+      await database.query("INSERT INTO guardrail_trigger (guardrail, setting, action, agent, at) VALUES ('harmful_advice', 'block', 'unavailable', 'ai_coach', $1)", [day]);
+
+      expect(await store.triggersPerDay(at("2026-10-01T00:00:00Z"))).toEqual([
+        { day: "2026-10-19", guardrail: "harmful_advice", blocked: 0, flagged: 0, unavailable: 5, unavailableBy: { guardrail_timeout: 2, invalid_verdict: 1, provider_error: 1, unrecorded: 1 } },
+      ]);
+    });
+
+    it("keep a reason only for a check that could not be made, and only a Guardrail's Failure Reason code", async () => {
+      const insert = (action: string, reason: string) =>
+        database.query("INSERT INTO guardrail_trigger (guardrail, setting, action, agent, at, reason) VALUES ('distress', 'block', $1, 'ai_coach', now(), $2)", [action, reason]);
+
+      await expect(insert("blocked", "guardrail_timeout")).rejects.toThrow();
+      await expect(insert("unavailable", "Marie a écrit…")).rejects.toThrow();
+      await expect(insert("unavailable", "other")).rejects.toThrow();
     });
 
     it(`are kept ${TRIGGER_RETENTION_MONTHS} months, then purged`, async () => {

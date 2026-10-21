@@ -1,6 +1,7 @@
 import { allUsageLogs, createConsoleUsageLog } from "@jobhub/ai";
 import { createPostgresExternalApiLog, createPostgresUsageLog, knownSecrets } from "@jobhub/web/ai-usage";
 import { createApplications } from "@jobhub/web/applications";
+import { createAppointmentReminders } from "@jobhub/web/appointment-reminders";
 import { candidateIdentityOf } from "@jobhub/web/candidate-identity";
 import { createBilling } from "@jobhub/web/billing";
 import { createEuAiConsents } from "@jobhub/web/eu-ai-consent";
@@ -104,6 +105,8 @@ const jobs = createJobs({
     baseURL,
     ...jobDigestsConfigFromEnv(process.env),
   }),
+  // The email the day before each Agenda Item, in the Candidate's Interface Language; links to the web app.
+  appointmentReminders: createAppointmentReminders(database, { mailer, baseURL }),
   providerSecrets: providerSecrets.reader,
   referenceData,
   signInProviders: signInProvidersWorker(database, { cipher: secretCipherFromEnv(process.env), env: process.env }),

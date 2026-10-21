@@ -14,7 +14,7 @@ import { createGuardrailStore, migrateGuardrails } from "@jobhub/web/guardrails"
 import { JobDiscoveryError, type DiscoverRequest, type DiscoveryReport } from "./job-discovery";
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
 import type { DueJobDigest, JobDigestResult } from "@jobhub/web/job-digests";
-import { AI_USAGE_PURGE, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { AI_USAGE_PURGE, APPOINTMENT_REMINDERS, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -393,6 +393,27 @@ describe("the Follow-ups job", () => {
     expect(job?.cron).toBe("0 6 * * 1-5");
     await job!.handler({});
     expect(runs).toEqual([now]);
+  });
+});
+
+describe("the Appointment Reminders job", () => {
+  it("emails, every day at 18:00 French time, the Appointment Reminders due, saying how many", async () => {
+    const logs: string[] = [];
+    const sendDue = vi.fn(async () => ({ emails: 2, items: 3 }));
+    const job = createJobs({ ...otherDeps, database: noDatabase, appointmentReminders: { sendDue }, log: (line) => logs.push(line) })[APPOINTMENT_REMINDERS]!;
+
+    expect(job).toMatchObject({ cron: "0 18 * * *", tz: "Europe/Paris" });
+    await job.handler({});
+
+    expect(sendDue).toHaveBeenCalledTimes(1);
+    expect(logs).toEqual(["[appointment-reminders] 2 Appointment Reminder(s) sent, for 3 Agenda Item(s)"]);
+  });
+
+  it("does nothing without Appointment Reminders, or before the web app has created their tables", async () => {
+    await expect(createJobs({ ...otherDeps, database: noDatabase })[APPOINTMENT_REMINDERS]!.handler({})).resolves.toBeUndefined();
+    const missingTable = Object.assign(new Error("relation does not exist"), { code: "42P01" });
+    const sendDue = vi.fn(async () => Promise.reject(missingTable));
+    await expect(createJobs({ ...otherDeps, database: noDatabase, appointmentReminders: { sendDue } })[APPOINTMENT_REMINDERS]!.handler({})).resolves.toBeUndefined();
   });
 });
 

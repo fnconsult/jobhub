@@ -2,6 +2,7 @@ import { FUNNEL_MATCH_SCORE, noDiscoveryMetrics, scoreMatch, type CvContent, typ
 import type { Pool } from "pg";
 import type { FollowUps } from "@jobhub/web/follow-ups";
 
+import { REMINDER_HOUR, REMINDER_TIME_ZONE, type AppointmentReminders } from "@jobhub/web/appointment-reminders";
 import { MESSAGE_LOG_RETENTION_DAYS, purgeExpiredAiUsage, RETENTION_MONTHS as AI_USAGE_RETENTION_MONTHS } from "@jobhub/web/ai-usage";
 import { purgeExpiredBackOfficeAudit, RETENTION_YEARS as BACK_OFFICE_AUDIT_RETENTION_YEARS } from "@jobhub/web/back-office";
 import { purgeStaleAssistantConversations, RETENTION_MONTHS as ASSISTANT_RETENTION_MONTHS } from "@jobhub/web/back-office-assistant";
@@ -41,6 +42,12 @@ export const JOB_DIGEST_SCHEDULE = "job-digest.schedule";
  * are too few. A failed Job discovery is not retried before the next Job Digest.
  */
 export const JOB_DIGEST_RUN = "job-digest.run";
+
+/**
+ * Queue name, run every day at 18:00 Europe/Paris: email each Candidate an Appointment Reminder of
+ * their Agenda Items of the next day. Safe to run again: one reminder per item and per date.
+ */
+export const APPOINTMENT_REMINDERS = "appointment-reminders.send";
 
 /** Queue name: re-check the sources of the Job Offers due (those Candidates are applying to), to find Expired Job Offers. Runs daily. */
 export const SOURCE_RECHECK = "job-offers.recheck-sources";
@@ -113,6 +120,8 @@ export interface JobsDeps {
   providerSecrets?: { reencrypt(): Promise<number> };
   /** The Sign-in Providers, whose Apple client secret is signed again monthly. Without them, nothing to sign. */
   signInProviders?: { regenerateAppleClientSecrets(): Promise<{ regenerated: string[]; failed: AppleFailure[] }> };
+  /** The Appointment Reminders, sent daily. Satisfied by the web app's Appointment Reminders module. Without them, nothing to send. */
+  appointmentReminders?: Pick<AppointmentReminders, "sendDue">;
   /** The reference data, refreshed monthly. Satisfied by the web app's reference data module. Without it, nothing to refresh. */
   referenceData?: Pick<ReferenceData, "refresh">;
   /** Emails the super-admins that an Apple client secret could not be signed again. */
@@ -266,6 +275,17 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           if ((error as { code?: string }).code !== UNDEFINED_TABLE) throw error;
         }
       },
+    },
+
+    // The day before, at 18:00 French time (the hour never falls in a change of time). Safe to run again.
+    [APPOINTMENT_REMINDERS]: {
+      cron: `0 ${REMINDER_HOUR} * * *`,
+      tz: REMINDER_TIME_ZONE,
+      handler: () =>
+        onceTablesExist(async () => {
+          const sent = await deps.appointmentReminders?.sendDue();
+          if (sent) log(`[appointment-reminders] ${sent.emails} Appointment Reminder(s) sent, for ${sent.items} Agenda Item(s)`);
+        }),
     },
 
     [JOB_DIGEST_RUN]: {

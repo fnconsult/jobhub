@@ -11,10 +11,12 @@ import { getApplications } from "@/applications/server";
 import { getCurrentCandidate } from "@/auth/server";
 import { AgendaDayButton, AgendaViewMemory } from "@/components/AgendaControls";
 import { AddInterviewDialog, type InterviewableApplication } from "@/components/AddInterviewDialog";
+import { CancelAgendaItemButton } from "@/components/CancelAgendaItemButton";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { CoachInView } from "@/components/CoachPanel";
 import { CoachingSessionDialog } from "@/components/CoachingSessionDialog";
 import { InterviewFacts, InterviewTimes } from "@/components/InterviewDetails";
+import { RescheduleHistory } from "@/components/RescheduleHistory";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes, type ApplicationSection } from "@/routes";
 
@@ -62,6 +64,10 @@ interface Formats {
   range: (first: string, last: string) => string;
   /** Whether an Agenda Item is past: before today, as in the list. */
   isPast: (item: AgendaItem) => boolean;
+  /** When a date changed, and the dates changed from and to: "22 octobre 2026 à 14:30". */
+  changedAt: Intl.DateTimeFormat;
+  /** The day an item was cancelled, or a session paid: "22 octobre 2026". */
+  day: Intl.DateTimeFormat;
 }
 
 /** A calendar day at noon UTC: always that same day in French time, so `Intl` writes it in Europe/Paris. */
@@ -86,6 +92,8 @@ function formatsFor(locale: string, now: Date): Formats {
     month: dayIn({ month: "long", year: "numeric" }),
     range: (first, last) => range.formatRange(noonOf(first), noonOf(last)),
     isPast: (item) => agendaPeriod(item.scheduledAt, now) === "past",
+    changedAt: new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", ...zone }),
+    day: new Intl.DateTimeFormat(locale, { dateStyle: "long", ...zone }),
   };
 }
 
@@ -102,7 +110,10 @@ function formatsFor(locale: string, now: Date): Formats {
  * Past items are dimmed. An Interview leads to its Application's Interviews
  * Section, a Coaching Session to its Human Coach on the Human Coaches page.
  * Unscheduled Coaching Sessions sit at the top, « À planifier », with each Human
- * Coach's booking link, and in no view.
+ * Coach's booking link and the cancellation of one dated before, and in no view.
+ * In every view, a Cancelled Interview stays, struck through, with its date of
+ * cancellation; a Rescheduled item says when it was first planned, with an
+ * « Historique » of every change; a dated Coaching Session can be cancelled.
  * The AI Coach has the Agenda In view: its Agenda Items of the next 30 days.
  */
 export default async function AgendaPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -119,7 +130,6 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
     .filter((application) => !isArchivedApplication(application))
     .map(({ id, status, jobOffer }) => ({ id, status, jobTitle: jobOffer.title, ...(jobOffer.employer ? { employer: jobOffer.employer } : {}) }));
   const formats = formatsFor(locale, now);
-  const paidOn = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: INTERVIEW_TIME_ZONE });
   const today = frenchDay(now);
 
   let content;
@@ -146,7 +156,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
       </div>
       <ViewSwitch view={address.view} date={address.date} t={t} />
       <CoachInView {...AGENDA_IN_VIEW} name={t("agenda.title")} />
-      {unscheduled.length > 0 ? <ToSchedule sessions={unscheduled} formatDate={(value) => paidOn.format(value)} t={t} /> : null}
+      {unscheduled.length > 0 ? <ToSchedule sessions={unscheduled} formats={formats} t={t} /> : null}
       {content}
     </CandidateLayout>
   );
@@ -335,10 +345,11 @@ function monthDayClass(day: string, today: string): string {
 }
 
 /**
- * « À planifier »: the Unscheduled Coaching Sessions, paid but with no date yet. Each names its
- * Human Coach, leads to their Cal.com booking page and lets the Candidate enter the date booked.
+ * « À planifier »: the Unscheduled Coaching Sessions, paid but with no date yet, or cancelled. Each names its
+ * Human Coach, leads to their Cal.com booking page and lets the Candidate enter the date booked; a cancelled
+ * one keeps its history.
  */
-function ToSchedule({ sessions, formatDate, t }: { sessions: UnscheduledCoachingSession[]; formatDate: (value: Date) => string; t: T }) {
+function ToSchedule({ sessions, formats, t }: { sessions: UnscheduledCoachingSession[]; formats: Formats; t: T }) {
   return (
     <section className="agenda-to-schedule" aria-labelledby="agenda-to-schedule-title">
       <h2 id="agenda-to-schedule-title">{t("agenda.toSchedule")}</h2>
@@ -346,7 +357,8 @@ function ToSchedule({ sessions, formatDate, t }: { sessions: UnscheduledCoaching
       <ul className="agenda-items">
         {sessions.map((session) => (
           <li key={session.id} className="agenda-unscheduled">
-            <p className="agenda-item-title">{t("humanCoaches.sessionPaidOn", { name: session.coach.name, date: formatDate(session.paidAt) })}</p>
+            <p className="agenda-item-title">{t("humanCoaches.sessionPaidOn", { name: session.coach.name, date: formats.day.format(session.paidAt) })}</p>
+            <RescheduleHistory reschedules={session.reschedules} coachName={session.coach.name} dateTime={formats.changedAt} t={t} />
             <div className="actions">
               <a className="button button-primary" href={session.coach.bookingUrl} rel="noopener noreferrer" target="_blank">
                 {t("humanCoaches.pickSlot", { name: session.coach.name })}
@@ -366,9 +378,9 @@ function Items({ items, formats, t }: { items: AgendaItem[]; formats: Formats; t
     <ul className="agenda-items">
       {items.map((item) =>
         item.kind === "interview" ? (
-          <InterviewItem key={`${item.kind}-${item.id}`} item={item} past={formats.isPast(item)} time={formats.timeFormat} t={t} />
+          <InterviewItem key={`${item.kind}-${item.id}`} item={item} past={formats.isPast(item)} formats={formats} t={t} />
         ) : (
-          <CoachingSessionItem key={`${item.kind}-${item.id}`} item={item} past={formats.isPast(item)} formatTime={formats.time} t={t} />
+          <CoachingSessionItem key={`${item.kind}-${item.id}`} item={item} past={formats.isPast(item)} formats={formats} t={t} />
         ),
       )}
     </ul>
@@ -377,15 +389,15 @@ function Items({ items, formats, t }: { items: AgendaItem[]; formats: Formats; t
 
 /**
  * A dated Coaching Session: its time, its Human Coach and duration, and « modifié par le coach » when
- * the Human Coach was the last to change its date, leading to them on the Human Coaches page; its date
- * can be edited here.
+ * the Human Coach was the last to change its date, leading to them on the Human Coaches page;
+ * its Reschedule history, and its date can be edited, or the session cancelled, here.
  */
-function CoachingSessionItem({ item, past, formatTime, t }: { item: CoachingSessionAgendaItem; past: boolean; formatTime: (value: Date) => string; t: T }) {
+function CoachingSessionItem({ item, past, formats, t }: { item: CoachingSessionAgendaItem; past: boolean; formats: Formats; t: T }) {
   return (
     <li className={past ? "agenda-item agenda-item-with-action agenda-item-past" : "agenda-item agenda-item-with-action"}>
       <Link className="agenda-item-link" href={routes.coachingSession(item.id)}>
         <time className="agenda-item-time" dateTime={item.scheduledAt.toISOString()}>
-          {formatTime(item.scheduledAt)}
+          {formats.time(item.scheduledAt)}
         </time>
         <span className="agenda-item-what">
           <span className="agenda-item-kind">
@@ -402,31 +414,42 @@ function CoachingSessionItem({ item, past, formatTime, t }: { item: CoachingSess
         withName={item.coach.name}
         className="button button-quiet"
       />
+      <RescheduleHistory reschedules={item.reschedules} coachName={item.coach.name} dateTime={formats.changedAt} t={t} />
+      <CancelAgendaItemButton
+        url={`/api/coaching/sessions/${item.id}/cancel`}
+        label={t("agendaChanges.cancelSession")}
+        name={t("agendaChanges.cancelSessionFor", { name: item.coach.name })}
+        question={t("agendaChanges.cancelSessionConfirm")}
+      />
     </li>
   );
 }
 
 /**
  * An Interview: its start and end times and the Job Offer's title and company, leading to
- * its Application's Interviews Section; then its format and place, a link in it clickable.
+ * its Application's Interviews Section; then its format and place, a link in it clickable,
+ * and its Reschedule history. A Cancelled Interview is struck through, with its date of cancellation.
  */
-function InterviewItem({ item, past, time, t }: { item: InterviewAgendaItem; past: boolean; time: Intl.DateTimeFormat; t: T }) {
+function InterviewItem({ item, past, formats, t }: { item: InterviewAgendaItem; past: boolean; formats: Formats; t: T }) {
+  const className = ["agenda-item", past ? "agenda-item-past" : "", item.cancelledAt ? "agenda-item-cancelled" : ""].filter(Boolean).join(" ");
   return (
-    <li className={past ? "agenda-item agenda-item-past" : "agenda-item"}>
+    <li className={className}>
       <Link className="agenda-item-link" href={routes.applicationSection(item.applicationId, INTERVIEWS)}>
         <span className="agenda-item-time">
-          <InterviewTimes interview={item} time={time} />
+          <InterviewTimes interview={item} time={formats.timeFormat} />
         </span>
         <span className="agenda-item-what">
           <span className="agenda-item-kind">
             <span className="agenda-marker agenda-marker-interview" aria-hidden="true" />
-            {t("agenda.interview")}
+            {t(item.cancelledAt ? "agendaChanges.cancelledInterview" : "agenda.interview")}
           </span>
           <span className="agenda-item-title">{item.jobTitle}</span>
           {item.employer ? <span className="agenda-item-employer">{item.employer}</span> : null}
         </span>
       </Link>
+      {item.cancelledAt ? <p className="cancelled-on">{t("agendaChanges.cancelledOn", { date: formats.day.format(item.cancelledAt) })}</p> : null}
       <InterviewFacts interview={item} t={t} />
+      <RescheduleHistory reschedules={item.reschedules} dateTime={formats.changedAt} t={t} />
     </li>
   );
 }

@@ -1996,7 +1996,7 @@
     "interviewNote": "Note (facultatif)",
     "interviewNoteHint": "Par exemple : avec la DRH, en visioconférence.",
     "addInterview": "Ajouter l'entretien",
-    "removeInterview": "Retirer l'entretien du {{date}}",
+    "removeInterview": "Supprimer l'entretien du {{date}}",
     "editInterview": "Modifier l'entretien du {{date}}",
     "saveInterview": "Enregistrer l'entretien",
     "cancelInterviewEdit": "Annuler",
@@ -2727,5 +2727,26 @@
     "unknown_account": "Compte introuvable",
     "stripe_refused": "Refusé par Stripe",
     "other": "Erreur inattendue"
+  },
+  "agendaChanges": {
+    "rescheduled": "Reporté · initialement prévu le {{date}}",
+    "history": "Historique",
+    "historyRescheduled": "{{at}} : reporté du {{from}} au {{to}}, par {{by}}",
+    "historyCancelled": "{{at}} : annulé (prévu le {{from}}), par {{by}}",
+    "byYou": "vous",
+    "byCoach": "le coach",
+    "cancelledOn": "Annulé le {{date}}",
+    "cancelledInterview": "Entretien annulé",
+    "cancelInterview": "Annuler l'entretien",
+    "cancelInterviewFor": "Annuler l'entretien du {{date}}",
+    "cancelInterviewConfirm": "Annuler cet entretien ? Il reste dans votre agenda et dans cette candidature, barré, avec la date d'annulation.",
+    "cancelSession": "Annuler la séance",
+    "cancelSessionFor": "Annuler la séance avec {{name}}",
+    "cancelSessionConfirm": "Annuler cette séance ? Sa date est effacée et elle revient dans « À planifier » : vous pourrez réserver un autre créneau. Un éventuel remboursement se règle avec le coach, hors de Jobbbox.",
+    "confirm": "Oui, annuler",
+    "keep": "Non, garder",
+    "working": "Annulation…",
+    "error": "L'annulation a échoué. Vérifiez votre connexion et réessayez.",
+    "removeHint": "« Supprimer » efface un entretien saisi par erreur, sans laisser de trace. « Annuler » le garde, barré."
   }
 }

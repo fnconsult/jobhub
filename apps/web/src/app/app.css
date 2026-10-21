@@ -952,6 +952,13 @@ th[aria-sort] .sort-mark {
   font-weight: 400;
 }
 
+/* Garde-fous: a day's unavailable checks, one line per Failure Reason under the total (#261). */
+.trigger-reasons {
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
 /* Back Office Journal: the section filter on one wrapping line, each change on its own line. */
 .journal-filter {
   display: flex;

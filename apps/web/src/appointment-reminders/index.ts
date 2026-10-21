@@ -4,6 +4,8 @@
  * Interface Language. The Human Coach gets none.
  *
  * One deep module in front of Postgres. Callers get `createAppointmentReminders(database, deps)`:
+ *  - `enabled` and `setEnabled`: the Candidate's setting in Mon compte's Rappels Section, on until
+ *    they switch it off. Every Plan has it; it counts against no Plan Quota.
  *  - `sendDue`: the worker's side, run by its cron at REMINDER_HOUR (REMINDER_TIME_ZONE).
  *    Each Candidate gets one email listing their Agenda Items of the next day (French time):
  *    Interviews not cancelled and dated Coaching Sessions, each with its time, place or link,
@@ -34,6 +36,10 @@ export interface AppointmentRemindersDeps {
 }
 
 export interface AppointmentReminders {
+  /** Whether the Candidate receives Appointment Reminders: on until they switch them off. */
+  enabled(candidateId: string): Promise<boolean>;
+  /** Switches the Candidate's Appointment Reminders on or off. */
+  setEnabled(candidateId: string, enabled: boolean): Promise<void>;
   /**
    * Emails each Candidate their Agenda Items of the day after the latest REMINDER_HOUR at or before now, those
    * not reminded yet for their date. How many emails went, listing how many Agenda Items.
@@ -62,13 +68,16 @@ function latestReminder(now: Date): { day: string; at: Date } {
   return { day, at: frenchDateTime.parse(`${day}T${time}`) };
 }
 
+/** The SQL condition that the Candidate `column` names did not switch Appointment Reminders off. */
+const REMINDERS_ON = (column: string) => `NOT EXISTS (SELECT 1 FROM appointment_reminder_setting r WHERE r.candidate_id = ${column} AND NOT r.enabled)`;
+
 /** The column of `appointment_reminder` naming an item of each Agenda Item table. */
 const ITEM_COLUMN: Record<AgendaItemTable, string> = { interview: "interview_id", coaching_session: "coaching_session_id" };
 
 export function createAppointmentReminders(database: Pool, deps: AppointmentRemindersDeps): AppointmentReminders {
   const now = deps.now ?? (() => new Date());
 
-  /** The Agenda Items to remind at `at`: still planned, not started, dated on the day after the reminder's, their date set by then. */
+  /** The Agenda Items to remind at `at`, of the Candidates who did not switch Appointment Reminders off: still planned, not started, dated on the day after the reminder's, their date set by then. */
   async function due(at: Date): Promise<ReminderItem[]> {
     const { day, at: reminderAt } = latestReminder(at);
     const tomorrow = dayAfter(day);
@@ -80,7 +89,7 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
            JOIN application a ON a.id = i.application_id
            JOIN job_offer o ON o.id = a.job_offer_id
           WHERE i.scheduled_at >= $1 AND i.scheduled_at < $2 AND i.date_set_at <= $3 AND i.scheduled_at > $4
-            AND i.cancelled_at IS NULL`,
+            AND i.cancelled_at IS NULL AND ${REMINDERS_ON("a.candidate_id")}`,
         window,
       ),
       // A cancelled Coaching Session has no date: it is Unscheduled again.
@@ -88,7 +97,8 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
         `SELECT s.id, s.candidate_id, s.scheduled_at, s.duration_minutes, s.note, h.name AS coach, s.video_link
            FROM coaching_session s
            JOIN human_coach h ON h.id = s.coach_id
-          WHERE s.scheduled_at >= $1 AND s.scheduled_at < $2 AND s.date_set_at <= $3 AND s.scheduled_at > $4`,
+          WHERE s.scheduled_at >= $1 AND s.scheduled_at < $2 AND s.date_set_at <= $3 AND s.scheduled_at > $4
+            AND ${REMINDERS_ON("s.candidate_id")}`,
         window,
       ),
     ]);
@@ -188,6 +198,20 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
   }
 
   return {
+    async enabled(candidateId) {
+      const { rows } = await database.query<{ enabled: boolean }>(`SELECT enabled FROM appointment_reminder_setting WHERE candidate_id = $1`, [candidateId]);
+      return rows[0]?.enabled ?? true;
+    },
+
+    async setEnabled(candidateId, enabled) {
+      await database.query(
+        `INSERT INTO appointment_reminder_setting (candidate_id, enabled, changed_at) VALUES ($1, $2, $3)
+         ON CONFLICT (candidate_id) DO UPDATE SET enabled = EXCLUDED.enabled, changed_at = EXCLUDED.changed_at
+         WHERE appointment_reminder_setting.enabled <> EXCLUDED.enabled`,
+        [candidateId, enabled, now()],
+      );
+    },
+
     async sendDue() {
       const at = now();
       const byCandidate = new Map<string, ReminderItem[]>();
@@ -207,6 +231,13 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
 /** Creates or upgrades the Appointment Reminders' tables. Run after Applications and Human Coaches. Safe to run repeatedly. */
 export async function migrateAppointmentReminders(database: Pool): Promise<void> {
   await database.query(`
+    -- The Candidate's Appointment Reminder setting (Mon compte, Rappels); none means on, the default.
+    CREATE TABLE IF NOT EXISTS appointment_reminder_setting (
+      candidate_id text PRIMARY KEY REFERENCES candidate (id) ON DELETE CASCADE,
+      enabled boolean NOT NULL,
+      -- When it was last switched on or off.
+      changed_at timestamptz NOT NULL
+    );
     -- The Appointment Reminders sent: one per Agenda Item and per date (a Rescheduled item gets one for its new date).
     CREATE TABLE IF NOT EXISTS appointment_reminder (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

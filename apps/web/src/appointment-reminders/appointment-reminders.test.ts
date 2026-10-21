@@ -191,6 +191,45 @@ describe.skipIf(!connectionString)("Appointment Reminders (needs Postgres: DATAB
     });
   });
 
+  it("writes the email in the Candidate's Interface Language: French by default, English when they chose it", async () => {
+    await database.query(`UPDATE candidate SET "interfaceLanguage" = 'en' WHERE id = $1`, [paul]);
+    await interview(marie, "2026-10-21T09:00", { place: "Lyon" });
+    await interview(paul, "2026-10-21T14:30", { place: "Paris" });
+
+    at(REMINDER_TIME);
+    await reminders.sendDue();
+
+    const forMarie = outbox.find((message) => message.to === "marie.dupont@example.fr")!;
+    const forPaul = outbox.find((message) => message.to === "paul.martin@example.fr")!;
+    expect(forMarie.subject).toBe("Rappel : votre rendez-vous de demain, mercredi 21 octobre 2026");
+    expect(forMarie.text).toContain("09:00 · Entretien : DAF H/F chez Acme Industrie");
+    expect(forMarie.text).toContain("Lieu ou lien : Lyon");
+    expect(forPaul.subject).toBe("Reminder: your appointment tomorrow, Wednesday, October 21, 2026");
+    expect(forPaul.text).toContain("2:30 PM · Interview: DAF H/F at Acme Industrie");
+    expect(forPaul.text).toContain("Place or link: Paris");
+    expect(forPaul.text).toContain("https://app.jobbbox.fr/compte/rappels");
+  });
+
+  it("sends nothing to a Candidate who switched Appointment Reminders off, and again once switched back on", async () => {
+    expect(await reminders.enabled(marie)).toBe(true);
+    await reminders.setEnabled(marie, false);
+    await interview(marie, "2026-10-21T09:00");
+    await interview(paul, "2026-10-21T09:00");
+
+    at(REMINDER_TIME);
+    await reminders.sendDue();
+
+    expect(await reminders.enabled(marie)).toBe(false);
+    expect(outbox.map((message) => message.to)).toEqual(["paul.martin@example.fr"]);
+
+    await reminders.setEnabled(marie, true);
+    await interview(marie, "2026-10-22T09:00");
+    at("2026-10-21T16:00:00.000Z");
+    await reminders.sendDue();
+
+    expect(outbox.map((message) => message.to)).toEqual(["paul.martin@example.fr", "marie.dupont@example.fr"]);
+  });
+
   it("emails each Candidate only their own Agenda Items", async () => {
     await interview(marie, "2026-10-21T09:00", { title: "DAF H/F" });
     await interview(paul, "2026-10-21T10:00", { title: "Contrôleur de gestion" });

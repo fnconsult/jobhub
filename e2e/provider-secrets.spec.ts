@@ -122,6 +122,28 @@ test.describe("Provider Secrets (the Clés section)", () => {
     await expectNowhere(page, refused);
   });
 
+  test("an empty or too-long value is refused by the form and leaves no entry in the Journal (#263)", async ({ page }) => {
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    const entries = () => page.request.get("/admin/journal?section=provider_secrets").then((response) => response.text());
+    const count = (html: string) => (html.match(new RegExp(NAME, "g")) ?? []).length;
+    const before = count(await entries());
+
+    // Empty: the browser's own `required` is bypassed, as a hand-made request would.
+    await page.goto("/admin/cles");
+    await page.locator("summary", { hasText: tr(keys.replaceLegend, { name: NAME }) }).click();
+    await page.locator(`#value-${NAME}`).evaluate((input) => input.removeAttribute("required"));
+    await page.getByRole("button", { name: tr(keys.replace, { name: NAME }) }).click();
+    await expect(page.getByRole("main").getByRole("alert").first()).toHaveText(keys.errors.empty);
+
+    // Too long (over 4096 characters).
+    await replace(page, NAME, "x".repeat(4097));
+    await expect(page.getByRole("main").getByRole("alert").first()).toHaveText(keys.errors.too_long);
+    await expect(row(page, NAME)).toContainText(keys.sources.missing);
+
+    expect(count(await entries()), "Journal entries").toBe(before);
+    await expectNowhere(page, "x".repeat(4097));
+  });
+
   test("a key that passes its test is used over env, and never sent back: page, Journal, log, data export", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
     const valid = `e2e-lusha-valid-${unique()}`;

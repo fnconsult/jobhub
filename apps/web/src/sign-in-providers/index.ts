@@ -62,6 +62,8 @@ const TEST_SIGN_IN_MINUTES = 10;
 const DISCOVERY_TIMEOUT_MS = 5_000;
 const DISCOVERY_CACHE_MS = 60 * 60_000;
 const hashOf = (nonce: string) => createHash("sha256").update(nonce).digest("hex");
+/** The shape of Better Auth's error codes (`invalid_code`, `state_mismatch`, a provider's `access_denied`...). */
+const ERROR_CODE = /^[A-Za-z0-9_.-]{1,100}$/;
 
 /** Where a provider's secret in use comes from; `unreadable`: a row that does not open. */
 export type SignInSecretSource = "database" | "env" | "missing" | "unreadable";
@@ -154,6 +156,13 @@ export interface SignInProviders {
    * enabled), recorded in the Back Office Audit as the super-admin who started it.
    */
   completeTestSignIn(id: string, nonce: string): Promise<boolean>;
+  /**
+   * The test sign-in `actor` started through provider `id` came back failed: the provider or Better Auth
+   * refused it (a wrong client secret failing the token exchange, a sign-in cancelled...) and sent them back to
+   * Connexion with Better Auth's `error` code. True, once, while that test is pending: it is over, and recorded
+   * as a failed test with that code (an error that is not a code is kept as `unknown`).
+   */
+  failTestSignIn(actor: Pick<BackOfficeActor, "id" | "email">, id: string, error: string): Promise<boolean>;
   /** The configuration in use, with its secrets: for the Better Auth instance only. */
   load(): Promise<SignInConfiguration>;
   /**
@@ -621,6 +630,38 @@ export function createSignInProviders(database: Pool, deps: SignInProvidersDeps)
         },
         (passed) => (passed ? { section: "sign_in_providers", target: id, action: "tested", before: null, after: null } : null),
       );
+    },
+
+    async failTestSignIn(actor, id, error) {
+      const since = new Date(now().getTime() - TEST_SIGN_IN_MINUTES * 60_000);
+      // One statement: the pending test is over and announced (the provider unregistered everywhere) together.
+      const { rows } = await database.query<{ type: SignInProviderType; test_started_by_email: string }>(
+        `WITH failed AS (
+           SELECT type, test_started_by_email FROM sign_in_provider
+           WHERE id = $1 AND NOT enabled AND test_nonce_hash IS NOT NULL AND test_started_by_id = $2 AND test_started_at > $3
+         ),
+         ended AS (
+           UPDATE sign_in_provider SET test_nonce_hash = NULL, test_started_at = NULL, test_started_by_id = NULL, test_started_by_email = NULL
+           FROM failed WHERE id = $1 AND test_nonce_hash IS NOT NULL AND test_started_by_id = $2 AND test_started_at > $3
+           RETURNING failed.type, failed.test_started_by_email
+         ),
+         announced AS (SELECT pg_notify($4, '') FROM ended)
+         SELECT ended.* FROM ended LEFT JOIN announced ON true`,
+        [id, actor.id, since, SIGN_IN_PROVIDERS_CHANNEL],
+      );
+      const ended = rows[0];
+      if (!ended) return false;
+      await deps.backOffice.recordFailure(
+        { id: actor.id, email: ended.test_started_by_email },
+        {
+          section: "sign_in_providers",
+          target: id,
+          tried: "tested",
+          reason: "test_failed",
+          technical: { class: "SignInCallback", provider: ended.type, message: ERROR_CODE.test(error) ? error : "unknown" },
+        },
+      );
+      return true;
     },
 
     async load() {

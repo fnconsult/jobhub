@@ -258,6 +258,46 @@ describe.skipIf(!connectionString)("Sign-in Providers in the database (needs Pos
       ]);
     });
 
+    it("that came back failed (the provider or the token exchange refused it) is recorded once as a failed test of the super-admin who started it, with Better Auth's code (#263)", async () => {
+      await providers.save(claire, oidc());
+      const started = await providers.startTestSignIn(claire, "jobbbox-sso");
+      if (!started.ok) throw new Error(started.error);
+      const paul = { id: "another-administrator", email: "paul@jobbbox.fr" };
+
+      // Only the super-admin who started it fails it: another one coming back to Connexion with ?testFailed does not.
+      expect(await providers.failTestSignIn(paul, "jobbbox-sso", "invalid_code")).toBe(false);
+      expect(await providers.failTestSignIn(claire, "jobbbox-sso", "invalid_code")).toBe(true);
+      // Connexion shown again (a reload): recorded once, the test is over.
+      expect(await providers.failTestSignIn(claire, "jobbbox-sso", "invalid_code")).toBe(false);
+      expect((await providers.load()).providers[0]).toMatchObject({ testPending: false });
+      expect(await providers.completeTestSignIn("jobbbox-sso", started.nonce)).toBe(false);
+
+      expect(await backOffice.journal({ section: "sign_in_providers", outcome: "failed" })).toMatchObject([
+        {
+          target: "jobbbox-sso",
+          action: "tested",
+          actor: { candidateId: claire.id, email: "claire@jobbbox.fr" },
+          failure: { reason: "test_failed", tried: "tested", field: null, technical: { class: "SignInCallback", provider: "oidc", message: "invalid_code" } },
+        },
+      ]);
+    });
+
+    it("that came back failed after its time, or never started, is not recorded as failed; an error that is not a code is kept as unknown", async () => {
+      await providers.save(claire, oidc());
+      expect(await providers.failTestSignIn(claire, "jobbbox-sso", "access_denied")).toBe(false);
+
+      const started = await providers.startTestSignIn(claire, "jobbbox-sso");
+      if (!started.ok) throw new Error(started.error);
+      expect(await providers.failTestSignIn(claire, "jobbbox-sso", "<script>alert(1)</script> and some words")).toBe(true);
+      const [entry] = await backOffice.journal({ section: "sign_in_providers", outcome: "failed" });
+      expect(entry!.failure!.technical!.message).toBe("unknown");
+
+      await providers.startTestSignIn(claire, "jobbbox-sso");
+      now = new Date(now.getTime() + 11 * 60_000);
+      expect(await providers.failTestSignIn(claire, "jobbbox-sso", "access_denied")).toBe(false);
+      expect(await backOffice.journal({ section: "sign_in_providers", outcome: "failed" })).toHaveLength(1);
+    });
+
     it("is recorded in the Back Office Audit, as the super-admin who started it", async () => {
       await providers.save(claire, oidc());
       const started = await providers.startTestSignIn(claire, "jobbbox-sso");

@@ -117,10 +117,16 @@ type Search = { saved?: string; removed?: string; tested?: string; testFailed?: 
  * write-only: never sent back to the browser.
  */
 export default async function SignInProvidersPage({ searchParams }: { searchParams: Promise<Search> }) {
-  const { access, canWrite } = await requireBackOffice("ssoProviders");
+  const { administrator, access, canWrite } = await requireBackOffice("ssoProviders");
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
   const search = await searchParams;
+  // Back from a test sign-in the provider or Better Auth refused (#263): the test this super-admin started is
+  // over, recorded as failed with Better Auth's code (`error`). Once: shown again, there is no test to fail.
+  if (typeof search.testFailed === "string" && canWrite) {
+    const failed = await getSignInProviders().failTestSignIn(administrator, search.testFailed, typeof search.error === "string" ? search.error : "unknown");
+    if (failed) await applyLatestSignIn();
+  }
   const [providers, settings] = await Promise.all([getSignInProviders().list(), getSignInProviders().settings()]);
   const canSave = canWrite && secretCipherFromEnv(process.env) !== null;
   const origin = new URL(process.env.APP_URL || "http://localhost:3000").origin;

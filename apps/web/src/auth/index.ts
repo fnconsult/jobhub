@@ -14,6 +14,7 @@
  * Who may sign in through which provider, which ones link by email, and how each
  * session was signed in are decided here, on every OAuth callback (see signInHooks).
  */
+import type { ExternalApiLog } from "@jobhub/shared";
 import { createI18n, DEFAULT_LOCALE, isSupportedLocale, SUPPORTED_LOCALES } from "@jobhub/shared/i18n";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { APIError, createAuthMiddleware, getOAuthState } from "better-auth/api";
@@ -24,6 +25,7 @@ import type { Pool } from "pg";
 import * as z from "zod";
 import { routes } from "../routes";
 import { withDiscoveryDocuments } from "./discovery-documents";
+import { recordingSignInCalls } from "./sign-in-calls";
 import { MAGIC_LINK, SIGN_IN_ERRORS, TEST_SIGN_IN, type SignInConfiguration } from "../sign-in-providers/catalog";
 import { betterAuthSignIn, oauthSignInDecision, trustedProviderIds } from "../sign-in-providers/policy";
 
@@ -84,6 +86,8 @@ export interface AuthConfig {
    * share the web app's session, so they may act for the signed-in Candidate.
    */
   extensionOrigins?: string[] | undefined;
+  /** Where the calls a provider's callback makes to it (token, keys, user info) are recorded (#234), never who signed in. Default: nowhere. */
+  externalApis?: ExternalApiLog | undefined;
 }
 
 /** How long a magic link stays valid. */
@@ -337,7 +341,13 @@ export function createAuth(config: AuthConfig) {
   // Its start reads the OIDC providers' discovery documents from memory: it waits on no issuer.
   const discovered = new Map<string, Record<string, unknown>>();
   for (const provider of config.signIn?.configuration.providers ?? []) if (provider.discoveryUrl && provider.discovery) discovered.set(provider.discoveryUrl, provider.discovery);
-  return withDiscoveryDocuments(discovered, () => betterAuth(authOptions(config)));
+  const auth = withDiscoveryDocuments(discovered, () => betterAuth(authOptions(config)));
+  const { externalApis } = config;
+  if (externalApis) {
+    const handle = auth.handler;
+    auth.handler = (request: Request) => recordingSignInCalls(request, externalApis, () => handle(request));
+  }
+  return auth;
 }
 
 export type Auth = ReturnType<typeof createAuth>;

@@ -1,4 +1,4 @@
-import { FUNNEL_MATCH_SCORE, noDiscoveryMetrics, scoreMatch, type CvContent, type DiscoveryMetrics, type SearchCriteria } from "@jobhub/shared";
+import { FUNNEL_MATCH_SCORE, noDiscoveryMetrics, scoreMatch, type CvContent, type DiscoveryMetrics, type ExternalApiLog, type SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type { FollowUps } from "@jobhub/web/follow-ups";
 
@@ -122,6 +122,8 @@ export interface JobsDeps {
   log?: (line: string) => void;
   /** How the worker reaches job sites. Default: the global fetch. */
   fetch?: typeof globalThis.fetch;
+  /** Where the source re-check's page reads are recorded (AI Usage's external APIs). Default: nowhere. */
+  externalApis?: ExternalApiLog;
 }
 
 /** What Job discovery needs of a Profile: its Search Criteria to search, its Master CV to score what it found. */
@@ -421,7 +423,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
       cron: "0 4 * * *",
       handler: () =>
         onceTablesExist(async () => {
-          const recheck = createSourceRecheck({ store: createSourceChecks(deps.database), fetch: deps.fetch });
+          const recheck = createSourceRecheck({ store: createSourceChecks(deps.database), fetch: deps.fetch, externalApis: deps.externalApis });
           const report = await recheck.run(now());
           log(
             `[source-recheck] ${report.checked} Job Offer(s) re-checked, ${report.gone.length} gone, ${report.expired.length} expired, ${report.unknown.length} unread`,

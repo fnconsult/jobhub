@@ -52,7 +52,7 @@ const application: Application = {
   createdAt: new Date("2026-09-20T09:00:00Z"),
   jobOffer,
   profile: { id: profile.id, name: profile.name },
-  interviews: [{ id: "i1", scheduledAt: new Date("2026-10-20T14:00:00Z"), note: "avec la DRH" }],
+  interviews: [{ id: "i1", scheduledAt: new Date("2026-10-20T14:00:00Z"), note: "avec la DRH", durationMinutes: null, format: null, place: "" }],
   matchScore,
 };
 

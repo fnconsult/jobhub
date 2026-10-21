@@ -1,3 +1,4 @@
+import type { ExternalApiCall } from "@jobhub/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BASE_URL, connectionString, cookiesFrom, signInWithMagicLink, startTestAuth, testProvider, testSignIn, type TestAuth } from "./test-support";
 
@@ -106,5 +107,20 @@ describe.skipIf(!connectionString)("Google sign-in (needs Postgres: DATABASE_URL
     const location = new URL(callback.headers.get("location")!, BASE_URL);
     expect(location.origin + location.pathname).toBe(`${BASE_URL}/connexion`);
     expect(location.searchParams.get("error")).toBeTruthy();
+  });
+
+  it("records the call to Google's token endpoint as one call to the Google Tool, never who signed in (#234)", async () => {
+    const calls: ExternalApiCall[] = [];
+    await testAuth.stop();
+    testAuth = await startTestAuth({
+      signIn: testSignIn([testProvider({ id: "google", type: "google", ...google })]),
+      externalApis: { record: (call) => void calls.push(call) },
+    });
+    googleAnswers({ sub: "google-123", email: "jean.martin@gmail.com", email_verified: true, name: "Jean Martin" });
+
+    await signInWithGoogle();
+
+    expect(calls.map(({ provider, operation, ok, httpStatus }) => ({ provider, operation, ok, httpStatus }))).toEqual([{ provider: "google", operation: "token", ok: true, httpStatus: 200 }]);
+    expect(JSON.stringify(calls)).not.toMatch(/jean|google-123|google-code|googleapis/i);
   });
 });

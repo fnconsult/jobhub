@@ -1,6 +1,7 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { headers } from "next/headers";
 import { permanentSuperAdminsFromEnv } from "@/admin/access";
+import { getExternalApiLog } from "@/ai-usage/external-api-log";
 import { MAIL_SECRET_NAMES } from "@/provider-secrets/catalog";
 import { liveObject } from "@/provider-secrets/resolver";
 import { getSecretResolver } from "@/provider-secrets/server";
@@ -19,9 +20,12 @@ const REBUILD_WAIT_MS = 5_000;
 const holder = globalThis as { __jobhubAuthInstances?: ReturnType<typeof swapWhenReady<Auth>> };
 const instances = () => (holder.__jobhubAuthInstances ??= swapWhenReady<Auth>((auth) => auth.$context));
 
-/** The app's mailer: BREVO_API_KEY or SMTP_URL from the Provider Secrets (Brevo), else env, rebuilt when it is replaced in the Back Office. */
+/**
+ * The app's mailer: BREVO_API_KEY or SMTP_URL from the Provider Secrets (Brevo), else env, rebuilt when it is
+ * replaced in the Back Office. Each email sent is recorded in AI Usage's external APIs, never who it was for.
+ */
 export function getMailer(): Mailer {
-  mailer ??= liveObject(getSecretResolver(), MAIL_SECRET_NAMES, mailerFromEnv);
+  mailer ??= liveObject(getSecretResolver(), MAIL_SECRET_NAMES, (env) => mailerFromEnv(env, { externalApis: getExternalApiLog() }));
   return mailer;
 }
 
@@ -57,7 +61,7 @@ function signInSetup(configuration: SignInConfiguration): SignInSetup {
 export function getAuth(): Auth {
   const configuration = currentSignInConfiguration();
   return instances().get(configuration.version, () =>
-    createAuth({ ...authConfigFromEnv(getSecretResolver().current().env), mailer: getMailer(), signIn: signInSetup(configuration) }),
+    createAuth({ ...authConfigFromEnv(getSecretResolver().current().env), mailer: getMailer(), signIn: signInSetup(configuration), externalApis: getExternalApiLog() }),
   );
 }
 

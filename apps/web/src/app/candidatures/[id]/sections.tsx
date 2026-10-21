@@ -8,6 +8,7 @@ import { INTERVIEW_TIME_ZONE, interviewWallClock } from "@/applications";
 import { requireOwnApplication } from "@/applications/server";
 import { ActionCardList, type ActionCardView } from "@/components/ActionCardList";
 import { AddInterviewForm, EditInterview, RemoveInterviewButton } from "@/components/ApplicationControls";
+import { InterviewFacts, InterviewTimes } from "@/components/InterviewDetails";
 import { CoachReviewList } from "@/components/CoachReviewList";
 import { CompanyDossierView } from "@/components/CompanyDossierView";
 import { EnrichedContactsPanel } from "@/components/EnrichedContactsPanel";
@@ -175,6 +176,8 @@ function SectionView({ data, section }: { data: ApplicationPageData; section: Ap
  */
 function Interviews({ data: { application, t, locale, agendaHref } }: { data: ApplicationPageData }) {
   const dateTime = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
+  const date = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeZone: INTERVIEW_TIME_ZONE });
+  const time = new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
   const { interviews } = application;
   return (
     <section className="section" aria-labelledby="interviews-title">
@@ -188,12 +191,22 @@ function Interviews({ data: { application, t, locale, agendaHref } }: { data: Ap
             const when = dateTime.format(interview.scheduledAt);
             return (
               <li key={interview.id} className="interview">
-                <p className="interview-date">{when}</p>
+                <p className="interview-date">
+                  {date.format(interview.scheduledAt)}, <InterviewTimes interview={interview} time={time} />
+                </p>
+                <InterviewFacts interview={interview} t={t} />
                 {interview.note ? <p>{interview.note}</p> : null}
                 <div className="actions">
                   <EditInterview
                     applicationId={application.id}
-                    interview={{ id: interview.id, scheduledAt: interviewWallClock(interview.scheduledAt), note: interview.note }}
+                    interview={{
+                      id: interview.id,
+                      scheduledAt: interviewWallClock(interview.scheduledAt),
+                      durationMinutes: interview.durationMinutes === null ? "" : String(interview.durationMinutes),
+                      format: interview.format ?? "",
+                      place: interview.place,
+                      note: interview.note,
+                    }}
                     label={t("application.editInterview", { date: when })}
                   />
                   <RemoveInterviewButton applicationId={application.id} interviewId={interview.id} label={t("application.removeInterview", { date: when })} />

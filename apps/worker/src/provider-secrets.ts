@@ -52,7 +52,7 @@ export interface WorkerClientsOptions {
   fetch?: typeof globalThis.fetch;
   /** Default: one JSON line per AI call on stdout. */
   usage?: UsageLog;
-  /** Where each call to France Travail, Fantastic.jobs and the job boards is recorded (AI Usage's external APIs). Default: nowhere. */
+  /** Where each call to France Travail, the job boards, other sites' pages and Brevo is recorded (AI Usage's external APIs). Default: nowhere. */
   externalApis?: ExternalApiLog;
   log?: (line: string) => void;
 }
@@ -119,5 +119,6 @@ export function workerClients(options: WorkerClientsOptions): WorkerClients {
     return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, franceTravail, fantasticJobs, settings: options.settings, taskPlaybooks: options.taskPlaybooks, industries: options.industries, fetch: options.fetch, externalApis: options.externalApis });
   });
 
-  return { discovery, ai, franceTravail, fantasticJobs, mailer: liveObject(resolver, MAIL_SECRET_NAMES, mailerFromEnv) };
+  // Each email sent is recorded with the other external API calls, never who it was for.
+  return { discovery, ai, franceTravail, fantasticJobs, mailer: liveObject(resolver, MAIL_SECRET_NAMES, (env) => mailerFromEnv(env, { externalApis: options.externalApis })) };
 }

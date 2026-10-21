@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { recordingFetch, type ExternalApiCall } from "./external-api-usage";
+import { recordingClient, recordingFetch, type ExternalApiCall } from "./external-api-usage";
 
 /** An adapter's fetch: a URL and what to send. */
 type Fetch = (url: string, init: { method: string; headers: Record<string, string>; body?: string }) => Promise<Response>;
@@ -176,5 +176,152 @@ describe("an external API's calls, recorded whatever happens while recording", (
     await down("https://data.fantastic.jobs/v1/active-ats", { method: "GET", headers: {} }).catch(() => {});
 
     expect(calls.map((call) => call.costEur)).toEqual([0.03, null]);
+  });
+});
+
+describe("an external API's calls, named by the caller", () => {
+  it("records the operation the caller names instead of the method and path", async () => {
+    const calls: ExternalApiCall[] = [];
+    const fetch = recordingFetch(answering(200), { record: (call) => void calls.push(call) }, { provider: "mistral", operation: () => "connection_test" });
+
+    await fetch("https://api.mistral.ai/v1/models", { method: "GET", headers: {} });
+
+    expect(calls).toEqual([expect.objectContaining({ provider: "mistral", operation: "connection_test", ok: true, httpStatus: 200 })]);
+  });
+
+  it("gives the caller the method and URL to name it from, and scrubs what it names", async () => {
+    const calls: ExternalApiCall[] = [];
+    const fetch = recordingFetch(answering(200), { record: (call) => void calls.push(call) }, {
+      provider: "job_site",
+      operation: (method, url) => `${method} ${url.hostname} sk_live_abcdefghijklmnop`,
+    });
+
+    await fetch("https://jobs.example.com/offre/42?email=marie@example.com", { method: "GET", headers: {} });
+
+    expect(calls[0]!.operation).toBe("GET jobs.example.com [redacted]");
+  });
+});
+
+/** A client shaped like an SDK's: resources holding methods, nested, some synchronous. */
+function fakeSdk(clock: { now: number }) {
+  return {
+    apiKey: "sk_live_abcdefghijklmnop",
+    checkout: {
+      sessions: {
+        prefix: "cs_",
+        async create(params: { customer: string }) {
+          clock.now += 80;
+          return { id: `${this.prefix}1`, customer: params.customer };
+        },
+      },
+    },
+    customers: {
+      async retrieve(id: string) {
+        throw Object.assign(new Error(`No such customer: ${id}`), { statusCode: 404 });
+      },
+    },
+    webhooks: {
+      constructEvent(payload: string, signature: string) {
+        if (signature !== "good") throw new Error("No signatures found matching the expected signature");
+        return { type: "checkout.session.completed", payload };
+      },
+    },
+    list() {
+      const promise = Promise.resolve([1, 2]) as Promise<number[]> & { autoPagingToArray(): Promise<number[]> };
+      promise.autoPagingToArray = async () => [1, 2, 3];
+      return promise;
+    },
+  };
+}
+
+describe("an SDK's calls, as recorded", () => {
+  it("records each method called by its path, with its outcome and duration; it answers as the SDK does", async () => {
+    const calls: ExternalApiCall[] = [];
+    const clock = { now: 0 };
+    const sdk = recordingClient(fakeSdk(clock), { record: (call) => void calls.push(call) }, {
+      provider: "stripe",
+      clock: () => clock.now,
+      now: () => new Date("2026-10-20T08:00:00Z"),
+    });
+
+    await expect(sdk.checkout.sessions.create({ customer: "cus_123" })).resolves.toEqual({ id: "cs_1", customer: "cus_123" });
+    await expect(sdk.customers.retrieve("cus_123")).rejects.toThrow("No such customer");
+
+    expect(calls).toEqual([
+      { provider: "stripe", operation: "checkout.sessions.create", at: new Date("2026-10-20T08:00:00Z"), durationMs: 80, ok: true, httpStatus: 200, costEur: null },
+      { provider: "stripe", operation: "customers.retrieve", at: new Date("2026-10-20T08:00:00Z"), durationMs: 0, ok: false, httpStatus: 404, costEur: null },
+    ]);
+  });
+
+  it("records a synchronous method too, and one that fails without a status", () => {
+    const calls: ExternalApiCall[] = [];
+    const sdk = recordingClient(fakeSdk({ now: 0 }), { record: (call) => void calls.push(call) }, { provider: "stripe" });
+
+    expect(sdk.webhooks.constructEvent("{}", "good")).toEqual({ type: "checkout.session.completed", payload: "{}" });
+    expect(() => sdk.webhooks.constructEvent("{}", "forged")).toThrow("No signatures");
+
+    expect(calls.map(({ operation, ok, httpStatus }) => ({ operation, ok, httpStatus }))).toEqual([
+      { operation: "webhooks.constructEvent", ok: true, httpStatus: 200 },
+      { operation: "webhooks.constructEvent", ok: false, httpStatus: null },
+    ]);
+  });
+
+  it("gives back what a method returns, its own extra methods included", async () => {
+    const sdk = recordingClient(fakeSdk({ now: 0 }), { record: () => {} }, { provider: "stripe" });
+
+    await expect(sdk.list().autoPagingToArray()).resolves.toEqual([1, 2, 3]);
+    expect(sdk.apiKey).toBe("sk_live_abcdefghijklmnop");
+  });
+
+  it("never records the arguments, the answer or the error's message", async () => {
+    const calls: ExternalApiCall[] = [];
+    const sdk = recordingClient(fakeSdk({ now: 0 }), { record: (call) => void calls.push(call) }, { provider: "stripe" });
+
+    await sdk.checkout.sessions.create({ customer: "cus_marie" });
+    await sdk.customers.retrieve("cus_marie").catch(() => {});
+
+    expect(JSON.stringify(calls)).not.toMatch(/marie|cs_1|No such/);
+  });
+
+  it("answers whatever the log does: it throws, rejects or never settles", async () => {
+    for (const log of [
+      {
+        record: () => {
+          throw new Error("down");
+        },
+      },
+      { record: () => Promise.reject(new Error("insert failed")) },
+      { record: () => new Promise<void>(() => {}) },
+    ]) {
+      const sdk = recordingClient(fakeSdk({ now: 0 }), log, { provider: "stripe", warn: () => {} });
+      await expect(sdk.checkout.sessions.create({ customer: "cus_1" })).resolves.toMatchObject({ id: "cs_1" });
+      expect(sdk.webhooks.constructEvent("{}", "good")).toMatchObject({ type: "checkout.session.completed" });
+    }
+  });
+});
+
+describe("a client that does not speak HTTP, as recorded", () => {
+  it("records a call that returns as ok without an HTTP status when told so", async () => {
+    const calls: ExternalApiCall[] = [];
+    const smtp = recordingClient({ async send() {} }, { record: (call) => void calls.push(call) }, { provider: "brevo_smtp", answeredStatus: null });
+
+    await smtp.send();
+
+    expect(calls).toEqual([expect.objectContaining({ provider: "brevo_smtp", operation: "send", ok: true, httpStatus: null })]);
+  });
+});
+
+describe("what a recorded call is named", () => {
+  it("never holds an email address or an id shaped like a Candidate's, whatever the path or the name", async () => {
+    const calls: ExternalApiCall[] = [];
+    const log = { record: (call: ExternalApiCall) => void calls.push(call) };
+
+    await recordingFetch(answering(200), log, { provider: "kaspr" })("https://api.kaspr.io/people/marie.dupont%40example.fr/3f2b8c1e-9a4d-4e2f-8b7a-1c2d3e4f5a6b", {
+      method: "GET",
+      headers: {},
+    });
+    await recordingFetch(answering(200), log, { provider: "job_site", operation: () => "page_read jean@acme.fr" })("https://acme.fr/x", { method: "GET", headers: {} });
+
+    expect(calls.map((call) => call.operation)).toEqual(["GET /people/[email]/[id]", "page_read [email]"]);
   });
 });

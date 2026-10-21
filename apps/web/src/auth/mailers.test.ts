@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ExternalApiCall } from "@jobhub/shared";
 import { BrevoApiError, brevoApiMailer, mailerFromEnv, parseSender } from "./mailers";
 
 const reply = (status: number, body = "{}") => new Response(body, { status });
@@ -60,5 +61,71 @@ describe("mailerFromEnv", () => {
     expect(() => mailerFromEnv(production)).toThrow(/BREVO_API_KEY or SMTP_URL/);
     expect(() => mailerFromEnv({ ...production, BREVO_API_KEY: "xkeysib-1" })).not.toThrow();
     expect(() => mailerFromEnv({ NODE_ENV: "production", BREVO_API_KEY: "xkeysib-1" })).toThrow(/MAIL_FROM/);
+  });
+});
+
+describe("the emails sent, as recorded", () => {
+  const production = { NODE_ENV: "production", MAIL_FROM: "Jobbbox <bonjour@jobbbox.fr>" };
+  const message = { to: "marie.dupont@example.fr", subject: "Votre lien de connexion", text: "https://jobbbox.ai/api/auth/magic-link/verify?token=abc" };
+
+  it("records each email sent through Brevo's API, with its status and duration; never who it was for nor what it said", async () => {
+    const calls: ExternalApiCall[] = [];
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(reply(201)).mockResolvedValueOnce(reply(401));
+    try {
+      const mailer = mailerFromEnv({ ...production, BREVO_API_KEY: "xkeysib-abcdefghijkl" }, { externalApis: { record: (call) => void calls.push(call) } });
+      await mailer.send(message);
+      await expect(mailer.send(message)).rejects.toBeInstanceOf(BrevoApiError);
+    } finally {
+      fetch.mockRestore();
+    }
+
+    expect(calls.map(({ provider, operation, ok, httpStatus }) => ({ provider, operation, ok, httpStatus }))).toEqual([
+      { provider: "brevo", operation: "send", ok: true, httpStatus: 201 },
+      { provider: "brevo", operation: "send", ok: false, httpStatus: 401 },
+    ]);
+    expect(JSON.stringify(calls)).not.toMatch(/marie|example\.fr|lien|token|xkeysib/i);
+  });
+
+  it("records each email sent through the SMTP relay, a refused one too", async () => {
+    const calls: ExternalApiCall[] = [];
+    const mailer = mailerFromEnv(
+      { ...production, SMTP_URL: "smtp://user:secret@smtp-relay.brevo.com:587" },
+      {
+        externalApis: { record: (call) => void calls.push(call) },
+        smtpTransport: { sendMail: vi.fn().mockResolvedValueOnce({}).mockRejectedValueOnce(Object.assign(new Error("Mailbox unavailable"), { responseCode: 550 })) },
+      },
+    );
+
+    await mailer.send(message);
+    await expect(mailer.send(message)).rejects.toThrow("Mailbox unavailable");
+
+    expect(calls.map(({ provider, operation, ok, httpStatus }) => ({ provider, operation, ok, httpStatus }))).toEqual([
+      { provider: "brevo_smtp", operation: "send", ok: true, httpStatus: null },
+      { provider: "brevo_smtp", operation: "send", ok: false, httpStatus: null },
+    ]);
+    expect(JSON.stringify(calls)).not.toMatch(/marie|secret|token/i);
+  });
+
+  it("records nothing for the console, which sends nothing", async () => {
+    const calls: ExternalApiCall[] = [];
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    try {
+      await mailerFromEnv({ MAIL_TRANSPORT: "console" }, { externalApis: { record: (call) => void calls.push(call) } }).send(message);
+    } finally {
+      info.mockRestore();
+    }
+    expect(calls).toEqual([]);
+  });
+
+  it("sends the email even when it cannot be recorded", async () => {
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(reply(201));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const mailer = mailerFromEnv({ ...production, BREVO_API_KEY: "xkeysib-1" }, { externalApis: { record: () => Promise.reject(new Error("insert failed")) } });
+      await expect(mailer.send(message)).resolves.toBeUndefined();
+    } finally {
+      fetch.mockRestore();
+      warn.mockRestore();
+    }
   });
 });

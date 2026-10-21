@@ -109,7 +109,7 @@ import {
   metaRobots,
   readJobPosting,
   realClock,
-  recordingJobBoardFetch,
+  recordingSiteFetch,
   type Clock,
   type JsonResult,
   type RefusalReason,
@@ -138,7 +138,7 @@ export interface JobDiscoveryOptions {
   jobOffers: JobOfferStore;
   /** Default: the global fetch. */
   fetch?: typeof globalThis.fetch;
-  /** Where each call to a job board (Greenhouse, Lever, Ashby, APEC) is recorded (AI Usage's external APIs). Default: nowhere. */
+  /** Where each call to a job board (Greenhouse, Lever, Ashby, APEC) and each page read on another site (by its domain) is recorded (AI Usage's external APIs). Default: nowhere. */
   externalApis?: ExternalApiLog;
   /** How the crawler introduces itself to sites (and the name robots.txt rules address). */
   userAgent?: string;
@@ -311,7 +311,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
       };
       const fetch = options.fetch ?? globalThis.fetch;
       const fetcher = createPoliteFetcher({
-        fetch: options.externalApis ? recordingJobBoardFetch(fetch, options.externalApis) : fetch,
+        fetch: options.externalApis ? recordingSiteFetch(fetch, options.externalApis) : fetch,
         userAgent,
         forbiddenSites,
         timeoutMs: 15_000,

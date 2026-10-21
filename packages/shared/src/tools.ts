@@ -8,7 +8,8 @@
  *   toolOfUsage({ table, provider, ... }) the Tool a recorded call was made to
  *
  * A Tool's calls are recorded in one place: `ai_usage` (AI models and web search, by AI provider
- * id and, for Claude, endpoint) or `external_api_usage` (any other API, by provider id).
+ * id and, for Claude, endpoint) or `external_api_usage` (any other API, by provider id). An AI
+ * Tool's other calls (its key's connection test, #234) go to `external_api_usage` under its own id.
  * Data residency (ADR-0007) is said only where it was established: "unknown" otherwise.
  */
 
@@ -38,8 +39,11 @@ export interface Translated {
 
 /** Where a Tool's calls are recorded. */
 export type ToolUsage =
-  /** An AI model or web search: `ai_usage.provider`, and the start of `ai_usage.endpoint` when one provider is several Tools (Claude). */
-  | { table: "ai_usage"; provider: string; endpoint?: string }
+  /**
+   * An AI model or web search: `ai_usage.provider`, and the start of `ai_usage.endpoint` when one provider is several Tools (Claude).
+   * `external`: the `external_api_usage.provider` its calls that are not AI calls are recorded under (its key's connection test).
+   */
+  | { table: "ai_usage"; provider: string; endpoint?: string; external?: string }
   /** Any other API, through `recordingFetch`: `external_api_usage.provider`. */
   | { table: "external_api_usage"; provider: string };
 
@@ -100,7 +104,7 @@ export const TOOLS = [
     module: ANTHROPIC_MODULE,
     runsIn: "both",
     keys: ["ANTHROPIC_API_KEY"],
-    usage: { table: "ai_usage", provider: "anthropic", endpoint: "api.anthropic.com" },
+    usage: { table: "ai_usage", provider: "anthropic", endpoint: "api.anthropic.com", external: "anthropic" },
     residency: "outside_eu",
   },
   {
@@ -114,7 +118,7 @@ export const TOOLS = [
     module: ANTHROPIC_MODULE,
     runsIn: "both",
     keys: ["AWS_BEARER_TOKEN_BEDROCK"],
-    usage: { table: "ai_usage", provider: "anthropic", endpoint: "bedrock " },
+    usage: { table: "ai_usage", provider: "anthropic", endpoint: "bedrock ", external: "anthropic_bedrock" },
     residency: "eu",
     residencyNote: { fr: "Dans l'UE dans une région eu-* (eu-west-3 par défaut).", en: "In the EU in an eu-* region (eu-west-3 by default)." },
   },
@@ -144,7 +148,7 @@ export const TOOLS = [
     module: CHAT_COMPLETIONS_MODULE,
     runsIn: "both",
     keys: ["MISTRAL_API_KEY"],
-    usage: { table: "ai_usage", provider: "mistral" },
+    usage: { table: "ai_usage", provider: "mistral", external: "mistral" },
     residency: "eu",
     residencyNote: { fr: "Dans l'UE par défaut (api.mistral.ai).", en: "In the EU by default (api.mistral.ai)." },
   },
@@ -171,7 +175,7 @@ export const TOOLS = [
     module: "packages/ai/src/providers/perplexity.ts",
     runsIn: "both",
     keys: ["PERPLEXITY_API_KEY"],
-    usage: { table: "ai_usage", provider: "perplexity" },
+    usage: { table: "ai_usage", provider: "perplexity", external: "perplexity" },
     residency: "outside_eu",
   },
   {
@@ -284,6 +288,21 @@ export const TOOLS = [
     usage: { table: "external_api_usage", provider: "apec" },
     residency: "eu",
     residencyNote: { fr: "Opérateur français ; aucune donnée personnelle envoyée.", en: "French operator; no personal data sent." },
+  },
+  {
+    id: "job-site",
+    name: "Sites d'emploi",
+    purpose: {
+      fr: "Pages des autres sites d'emploi et d'entreprise : lues par la recherche d'offres et par la vérification des offres suivies. Seul le domaine du site est enregistré, jamais l'adresse de la page.",
+      en: "Pages of other job and company sites: read by Job discovery and by the source re-check. Only the site's domain is recorded, never the page's address.",
+    },
+    category: "job_discovery",
+    module: "apps/worker/src/job-discovery/polite-fetch.ts",
+    runsIn: "worker",
+    keys: [],
+    usage: { table: "external_api_usage", provider: "job_site" },
+    residency: "unknown",
+    residencyNote: { fr: "Selon le site ; aucune donnée personnelle envoyée.", en: "Depends on the site; no personal data sent." },
   },
   {
     id: "recherche-entreprises",
@@ -476,8 +495,18 @@ export const TOOLS = [
 
 export type ToolId = (typeof TOOLS)[number]["id"];
 
-/** The providers recorded in `external_api_usage`: what `recordingFetch` may be given. */
-export type ExternalApiProvider = Extract<(typeof TOOLS)[number]["usage"], { table: "external_api_usage" }>["provider"];
+type Usages = (typeof TOOLS)[number]["usage"];
+
+/** The providers recorded in `external_api_usage`: what `recordingFetch` and `recordingClient` may be given. */
+export type ExternalApiProvider = Extract<Usages, { table: "external_api_usage" }>["provider"] | Extract<Usages, { external: string }>["external"];
+
+/** The `external_api_usage.provider` ids `tool`'s calls are recorded under: none for an AI Tool without a connection test. */
+export function externalApiProvidersOf(tool: Tool): string[] {
+  const usage = tool.usage;
+  if (!usage) return [];
+  if (usage.table === "external_api_usage") return [usage.provider];
+  return usage.external ? [usage.external] : [];
+}
 
 /** The providers recorded in `ai_usage`: every AI provider id must be one. */
 export type AiUsageProvider = Extract<(typeof TOOLS)[number]["usage"], { table: "ai_usage" }>["provider"];
@@ -499,9 +528,10 @@ export type RecordedCall = { table: "ai_usage"; provider: string; endpoint: stri
 
 /** The Tool a recorded call was made to; none when its provider is not registered. */
 export function toolOfUsage(call: RecordedCall): Tool | undefined {
+  if (call.table === "external_api_usage") return (TOOLS as readonly Tool[]).find((tool) => externalApiProvidersOf(tool).includes(call.provider));
   return (TOOLS as readonly Tool[]).find((tool) => {
     const usage = tool.usage;
-    if (!usage || usage.table !== call.table || usage.provider !== call.provider) return false;
-    return usage.table !== "ai_usage" || usage.endpoint === undefined || (call.table === "ai_usage" && call.endpoint.startsWith(usage.endpoint));
+    if (!usage || usage.table !== "ai_usage" || usage.provider !== call.provider) return false;
+    return usage.endpoint === undefined || call.endpoint.startsWith(usage.endpoint);
   });
 }

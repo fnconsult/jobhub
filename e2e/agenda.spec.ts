@@ -28,25 +28,38 @@ const parisDay = (offset: number) => new Intl.DateTimeFormat("en-CA", { timeZone
 
 /** An Application at "Entretien" on a Job Offer `title` at Acme Industrie, with Interviews at `times` (French time, "2026-10-30T23:30"). */
 async function applicationWithInterviews(page: Page, title: string, times: string[]): Promise<string> {
+  const applicationId = await applicationAt(page, await createProfile(page), title, "interview");
+  for (const scheduledAt of times) {
+    const added = await page.request.post(`/api/applications/${applicationId}/interviews`, { headers: { origin }, data: { scheduledAt } });
+    expect(added.ok(), await added.text()).toBe(true);
+  }
+  return applicationId;
+}
+
+/** The Candidate's Profile (the Free Plan holds one), for their Applications. */
+async function createProfile(page: Page): Promise<string> {
   const profile = await page.request.post("/api/profiles", {
     headers: { origin },
     data: { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: ["cdi"] } },
   });
   expect(profile.status(), await profile.text()).toBe(201);
+  return (await profile.json()).id;
+}
+
+/** An Application with Profile `profileId` at `status` on a Job Offer `title` at Acme Industrie. */
+async function applicationAt(page: Page, profileId: string, title: string, status: string): Promise<string> {
   const tag = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const offer = await page.request.post("/api/job-offers", {
     headers: { origin },
     data: { source: { url: `https://www.apec.fr/offres/agenda-${tag}` }, title, content: `Acme Industrie recrute (réf. ${tag}).`, employer: "Acme Industrie", location: "Lyon" },
   });
   expect(offer.status(), await offer.text()).toBe(200);
-  const saved = await page.request.post("/api/applications", { headers: { origin }, data: { jobOfferId: (await offer.json()).id, profileId: (await profile.json()).id } });
+  const saved = await page.request.post("/api/applications", { headers: { origin }, data: { jobOfferId: (await offer.json()).id, profileId } });
   expect(saved.ok(), await saved.text()).toBe(true);
   const applicationId: string = (await saved.json()).id;
-  const changed = await page.request.patch(`/api/applications/${applicationId}`, { headers: { origin }, data: { status: "interview" } });
-  expect(changed.ok(), await changed.text()).toBe(true);
-  for (const scheduledAt of times) {
-    const added = await page.request.post(`/api/applications/${applicationId}/interviews`, { headers: { origin }, data: { scheduledAt } });
-    expect(added.ok(), await added.text()).toBe(true);
+  if (status !== "to_apply") {
+    const changed = await page.request.patch(`/api/applications/${applicationId}`, { headers: { origin }, data: { status } });
+    expect(changed.ok(), await changed.text()).toBe(true);
   }
   return applicationId;
 }
@@ -112,6 +125,119 @@ test.describe("the Agenda", () => {
     await expect(other.getByText(fr.agenda.none)).toBeVisible();
     await expect(other.getByText("Contrôleur de gestion")).toHaveCount(0);
     await other.close();
+  });
+});
+
+// Issue #247: Interviews carry a duration, a format and a place or link, and are added
+// from the Agenda too, moving the Application to "Entretien" when the Candidate confirms.
+test.describe("adding an Interview from the Agenda", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  const addButton = (page: Page) => page.getByRole("button", { name: fr.agenda.add, exact: true });
+  const dialog = (page: Page) => page.getByRole("dialog", { name: fr.agenda.addDialog.title });
+
+  test("moves an Application at « Postulée » to « Entretien » and adds the Interview, its link clickable", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("agenda-add-move"));
+    const day = parisDay(3);
+    const profileId = await createProfile(page);
+    const applicationId = await applicationAt(page, profileId, "DAF H/F", "applied");
+    await applicationAt(page, profileId, "Ancienne offre", "rejected"); // not ongoing: not offered
+
+    await page.goto("/agenda");
+    await addButton(page).click();
+    const form = dialog(page);
+    const picker = form.getByLabel(fr.agenda.addDialog.application);
+    await expect(picker).toBeFocused();
+    await expect(picker.locator("option")).toHaveText([fr.agenda.addDialog.chooseApplication, `DAF H/F · Acme Industrie · ${fr.applicationStatuses.applied}`]);
+    await picker.selectOption({ label: `DAF H/F · Acme Industrie · ${fr.applicationStatuses.applied}` });
+    const move = form.getByRole("checkbox", { name: fr.agenda.addDialog.moveToInterview });
+    await expect(move).toBeChecked();
+    await form.getByLabel(fr.application.interviewDate).fill(`${day}T14:30`);
+    await form.getByLabel(fr.application.interviewDuration).fill("45");
+    await form.getByLabel(fr.application.interviewFormat).selectOption({ label: fr.interviewFormats.video });
+    await form.getByLabel(fr.application.interviewPlace).fill("Teams : https://meet.example.com/abc");
+    await form.getByRole("button", { name: fr.agenda.addDialog.submit }).click();
+
+    await expect(dialog(page)).toHaveCount(0);
+    await expect(addButton(page)).toBeFocused();
+    const item = page.getByRole("region", { name: fr.agenda.upcomingTitle }).getByRole("listitem");
+    await expect(item).toHaveCount(1);
+    await expect(item).toContainText("14:30 – 15:15");
+    await expect(item).toContainText(fr.interviewFormats.video);
+    await expect(item.getByRole("link", { name: "https://meet.example.com/abc" })).toHaveAttribute("href", "https://meet.example.com/abc");
+
+    // Both saved in that one request: the Application is now at « Entretien », with the Interview.
+    await page.goto(`/candidatures/${applicationId}/entretiens`);
+    await expect(page.getByLabel(fr.application.statusLabel).first()).toHaveValue("interview");
+    const interviews = page.getByRole("region", { name: fr.application.interviewsTitle });
+    await expect(interviews.getByRole("listitem")).toContainText("14:30 – 15:15");
+    await expect(interviews.getByRole("link", { name: "https://meet.example.com/abc" })).toBeVisible();
+  });
+
+  test("saves nothing when the box is unchecked, and says why", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("agenda-add-unchecked"));
+    const applicationId = await applicationAt(page, await createProfile(page), "Contrôleur de gestion", "applied");
+
+    await page.goto("/agenda");
+    await addButton(page).click();
+    const form = dialog(page);
+    await form.getByLabel(fr.agenda.addDialog.application).selectOption({ label: `Contrôleur de gestion · Acme Industrie · ${fr.applicationStatuses.applied}` });
+    await form.getByRole("checkbox", { name: fr.agenda.addDialog.moveToInterview }).uncheck();
+    await form.getByLabel(fr.application.interviewDate).fill(`${parisDay(2)}T10:00`);
+    await form.getByRole("button", { name: fr.agenda.addDialog.submit }).click();
+
+    await expect(form.getByRole("alert")).toHaveText(fr.agenda.addDialog.notMoved);
+    await page.keyboard.press("Escape");
+    await page.goto(`/candidatures/${applicationId}/entretiens`);
+    await expect(page.getByLabel(fr.application.statusLabel).first()).toHaveValue("applied");
+    await expect(page.getByRole("region", { name: fr.application.interviewsTitle })).toContainText(fr.application.interviewsNone);
+    // The server still refuses an Interview on an Application not at « Entretien ».
+    const refused = await page.request.post(`/api/applications/${applicationId}/interviews`, { headers: { origin }, data: { scheduledAt: `${parisDay(2)}T10:00` } });
+    expect(refused.status()).toBe(409);
+    expect(await refused.json()).toEqual({ error: "not_in_interview" });
+  });
+
+  test("is operated with the keyboard and gives the focus back on closing", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("agenda-add-keyboard"));
+    await applicationAt(page, await createProfile(page), "DAF H/F", "interview");
+
+    await page.goto("/agenda");
+    await addButton(page).focus();
+    await page.keyboard.press("Enter");
+    await expect(dialog(page)).toBeVisible();
+    await expect(dialog(page).getByLabel(fr.agenda.addDialog.application)).toBeFocused();
+    // At « Entretien » already: no box to check.
+    await dialog(page).getByLabel(fr.agenda.addDialog.application).selectOption({ label: `DAF H/F · Acme Industrie · ${fr.applicationStatuses.interview}` });
+    await expect(dialog(page).getByRole("checkbox")).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(dialog(page)).toHaveCount(0);
+    await expect(addButton(page)).toBeFocused();
+
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Shift+Tab");
+    await expect(dialog(page).getByLabel(fr.agenda.addDialog.application)).toBeFocused();
+    await dialog(page).getByRole("button", { name: fr.agenda.addDialog.close }).press("Enter");
+    await expect(dialog(page)).toHaveCount(0);
+    await expect(addButton(page)).toBeFocused();
+  });
+});
+
+test.describe("the Data export (#247)", () => {
+  test("carries each Interview's duration, format and place", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("agenda-export"));
+    const applicationId = await applicationAt(page, await createProfile(page), "DAF H/F", "interview");
+    const added = await page.request.post(`/api/applications/${applicationId}/interviews`, {
+      headers: { origin },
+      data: { scheduledAt: "2026-11-12T14:30", durationMinutes: 45, format: "video", place: "https://meet.example.com/abc" },
+    });
+    expect(added.ok(), await added.text()).toBe(true);
+
+    const exported = await (await page.request.get("/api/account/export")).json();
+    const application = exported.applications.find((a: { id: string }) => a.id === applicationId);
+    expect(application.interviews).toEqual([
+      expect.objectContaining({ durationMinutes: 45, format: "video", place: "https://meet.example.com/abc" }),
+    ]);
   });
 });
 

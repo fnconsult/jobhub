@@ -1,4 +1,5 @@
 import { getBackOffice } from "@/admin/server";
+import { getExternalApiLog } from "@/ai-usage/external-api-log";
 import { sharedPool } from "@/database/pool";
 import { secretCipherFromEnv } from "./cipher";
 import { createConnectionTester } from "./connection-tests";
@@ -42,7 +43,8 @@ export function getProviderSecrets(): ProviderSecrets {
     cipher: secretCipherFromEnv(process.env),
     backOffice: getBackOffice(),
     env: process.env,
-    testConnection: createConnectionTester(),
+    // Each test's call is recorded as a connection_test of its Tool (Outils).
+    testConnection: createConnectionTester({ externalApis: getExternalApiLog() }),
   });
   return holder.__jobhubProviderSecretsStore;
 }

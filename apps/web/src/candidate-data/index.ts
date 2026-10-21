@@ -94,7 +94,8 @@ export interface ExportedAccount {
 }
 
 /**
- * An Application as the Candidate keeps it: its Job Offer, Interviews, Match Score (worked out from
+ * An Application as the Candidate keeps it: its Job Offer, Interviews (date and time, duration, format,
+ * place or link, note), Match Score (worked out from
  * their Profile, as the app shows it), Tailored Documents, and what the app and Human Coaches added to it.
  */
 export interface ExportedApplication extends Application {
@@ -235,7 +236,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   job_digest_subscription: "profiles[].jobDigest (no unsubscribe token)",
   job_digest: "profiles[].jobDigests",
   application: "applications",
-  interview: "applications[].interviews",
+  interview: "applications[].interviews (with their duration, format and place)",
   tailored_cv: "applications[].tailoredDocuments",
   tailored_document: "applications[].tailoredDocuments",
   follow_up_sent: "applications[].followUps",

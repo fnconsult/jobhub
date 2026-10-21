@@ -1,19 +1,20 @@
 /**
  * The guard on the Tools (#233): every provider a call is recorded for, in `ai_usage` or in
  * `external_api_usage`, anywhere in the code, is a registered Tool. Adding a call to an
- * unregistered tool fails here (and, for `recordingFetch`, at type-check).
+ * unregistered tool fails here (and, for `recordingFetch` and `recordingClient`, at type-check).
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { PROVIDER_IDS } from "@jobhub/ai";
-import { TOOLS } from "@jobhub/shared";
+import { externalApiProvidersOf, TOOLS } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { CONTACT_PROVIDERS } from "../enriched-contacts/providers/types";
 import { PROVIDER_SECRETS } from "../provider-secrets/catalog";
 
 const ROOT = new URL("../../../../", import.meta.url).pathname;
 
-const registered = (table: "ai_usage" | "external_api_usage") => TOOLS.flatMap((tool) => (tool.usage?.table === table ? [tool.usage.provider as string] : []));
+const registered = (table: "ai_usage" | "external_api_usage") =>
+  table === "external_api_usage" ? TOOLS.flatMap((tool) => externalApiProvidersOf(tool)) : TOOLS.flatMap((tool) => (tool.usage?.table === table ? [tool.usage.provider as string] : []));
 
 /** Every source file of the apps and packages, tests left out. */
 function sourceFiles(): string[] {
@@ -32,11 +33,11 @@ function sourceFiles(): string[] {
 }
 
 /**
- * The provider ids a source records external API calls for: in a file calling `recordingFetch`,
- * every `provider: "..."` and every `[/host/, "provider"]` pair (a host-to-provider table).
+ * The provider ids a source records external API calls for: in a file calling `recordingFetch` or
+ * `recordingClient`, every `provider: "..."` and every `[/host/, "provider"]` pair (a host-to-provider table).
  */
 function recordedProviderIds(source: string): string[] {
-  if (!source.includes("recordingFetch(")) return [];
+  if (!/\brecording(Fetch|Client)\(/.test(source)) return [];
   const literals = [...source.matchAll(/provider:\s*"([^"]+)"/g), ...source.matchAll(/\/,\s*"([^"]+)"\s*\]/g)];
   return literals.map((match) => match[1]!);
 }
@@ -47,13 +48,17 @@ describe("the guard on the Tools", () => {
       recordedProviderIds(`const fetch = recordingFetch(globalThis.fetch, log, { provider: "acme_api" });
         const BOARDS = [[/(^|\\.)acme\\.io$/, "acme_board"]];`),
     ).toEqual(["acme_api", "acme_board"]);
+    expect(recordedProviderIds(`const sdk = recordingClient(new Acme(key), log, { provider: "acme_sdk" });`)).toEqual(["acme_sdk"]);
     expect(recordedProviderIds(`const route = { provider: "mistral" };`)).toEqual([]);
   });
 
   it("finds every external API provider recorded in the code among the Tools", () => {
     const found = sourceFiles().flatMap((file) => recordedProviderIds(readFileSync(file, "utf8")).map((provider) => ({ provider, file: relative(ROOT, file) })));
-    // The scan sees the calls of today: France Travail (web and worker), the French register and the job boards.
-    expect(found.map(({ provider }) => provider)).toEqual(expect.arrayContaining(["france_travail", "recherche_entreprises", "greenhouse", "lever", "ashby", "apec"]));
+    // The scan sees the calls of today: France Travail (web and worker), the French register, the job boards and other sites'
+    // pages, Stripe, Brevo (API and SMTP) and OIDC discovery (#234).
+    expect(found.map(({ provider }) => provider)).toEqual(
+      expect.arrayContaining(["france_travail", "recherche_entreprises", "greenhouse", "lever", "ashby", "apec", "job_site", "stripe", "brevo", "brevo_smtp", "oidc"]),
+    );
     const external = registered("external_api_usage");
     expect(found.filter(({ provider }) => !external.includes(provider))).toEqual([]);
   });

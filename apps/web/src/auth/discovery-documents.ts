@@ -7,31 +7,23 @@
  *
  * The answers apply only within `withDiscoveryDocuments` (AsyncLocalStorage, which the
  * instance's start inherits): every other request this process makes goes to the network.
+ * The fetch in use is wrapped once, for this and sign-in-calls.ts (fetch-layers.ts).
  */
 import { AsyncLocalStorage } from "node:async_hooks";
+import { addFetchLayer, type FetchLayer } from "./fetch-layers";
 
 const documents = new AsyncLocalStorage<ReadonlyMap<string, Record<string, unknown>>>();
-const SERVES = Symbol("serves discovery documents");
-
 const urlOf = (input: Request | string | URL): string => (input instanceof Request ? input.url : String(input));
 
-/** Wraps the fetch in use (again, if something replaced it since) so it answers from `documents` within them. */
-function install(): void {
-  const current = globalThis.fetch as typeof fetch & { [SERVES]?: true };
-  if (current[SERVES]) return;
-  const serving = Object.assign(
-    (input: Request | string | URL, init?: RequestInit): Promise<Response> => {
-      const document = documents.getStore()?.get(urlOf(input));
-      return document ? Promise.resolve(Response.json(document)) : current(input, init);
-    },
-    { [SERVES]: true as const },
-  );
-  globalThis.fetch = serving as typeof fetch;
-}
+/** Answers a discovery document from `documents` within them; passes any other call on. */
+const serveDiscoveryDocuments: FetchLayer = (input, init, next) => {
+  const document = documents.getStore()?.get(urlOf(input));
+  return document ? Promise.resolve(Response.json(document)) : next(input, init);
+};
 
 /** Runs `start` (building a Better Auth instance) with each of `byUrl`'s discovery documents answered from memory. */
 export function withDiscoveryDocuments<T>(byUrl: ReadonlyMap<string, Record<string, unknown>>, start: () => T): T {
   if (byUrl.size === 0) return start();
-  install();
+  addFetchLayer(serveDiscoveryDocuments);
   return documents.run(byUrl, start);
 }

@@ -5,12 +5,13 @@
  *   toolStatus(tool, state)               configured, a key missing, not configured, or no key needed
  *   toolsOverview(database, state, now)   every Tool, by category, with its last 30 days' figures
  *   toolCalls(database, tool)             one Tool's latest calls, newest first
+ *   latestToolCalls(database, options)    every Tool's latest calls together, newest first (the Journal)
  *
  * Read-only. Nothing here holds a payload or a secret: a key is only said to have a value or not,
  * and a call is its time, operation, outcome, duration and cost (`ai_usage`, `ai_tool_usage`,
  * `external_api_usage`), never what it said.
  */
-import { toolOfUsage, toolsByCategory, type RecordedCall, type Tool, type ToolCategory } from "@jobhub/shared";
+import { externalApiProvidersOf, toolOfUsage, toolsByCategory, type RecordedCall, type Tool, type ToolCategory } from "@jobhub/shared";
 import type { Pool } from "pg";
 
 type Env = Record<string, string | undefined>;
@@ -111,26 +112,57 @@ export interface ToolCall {
 /** How many calls a Tool's page lists by default. */
 export const LATEST_CALLS = 50;
 
-/** `tool`'s latest calls, newest first; none when its calls are not recorded. */
+/** An external API call's columns, as a ToolCall. */
+const EXTERNAL_CALL = `at, operation, ok, http_status AS "httpStatus", duration_ms AS "durationMs", cost_eur AS "costEur"`;
+/** An AI call's columns, as a ToolCall: its cost counts its tools' fees. */
+const AI_CALL = `u.at, u.task || ' · ' || u.model AS operation, u.ok, NULL::int AS "httpStatus", u.duration_ms AS "durationMs",
+            u.cost_eur + coalesce((SELECT sum(t.cost_eur) FROM ai_tool_usage t WHERE t.usage_id = u.id), 0) AS "costEur"`;
+
+/** `tool`'s latest calls, newest first, its AI calls and its other calls together; none when its calls are not recorded. */
 export async function toolCalls(database: Pick<Pool, "query">, tool: Tool, options: { limit?: number } = {}): Promise<ToolCall[]> {
   const limit = options.limit ?? LATEST_CALLS;
   const usage = tool.usage;
   if (!usage) return [];
-  if (usage.table === "external_api_usage") {
-    const { rows } = await database.query<ToolCall>(
-      `SELECT at, operation, ok, http_status AS "httpStatus", duration_ms AS "durationMs", cost_eur AS "costEur"
-         FROM external_api_usage WHERE provider = $1 ORDER BY at DESC, id DESC LIMIT $2`,
-      [usage.provider, limit],
-    );
-    return rows;
-  }
-  const { rows } = await database.query<ToolCall>(
-    `SELECT u.at, u.task || ' · ' || u.model AS operation, u.ok, NULL::int AS "httpStatus", u.duration_ms AS "durationMs",
-            u.cost_eur + coalesce((SELECT sum(t.cost_eur) FROM ai_tool_usage t WHERE t.usage_id = u.id), 0) AS "costEur"
-       FROM ai_usage u
-      WHERE u.provider = $1 AND starts_with(u.endpoint, $2)
-      ORDER BY u.at DESC, u.id DESC LIMIT $3`,
-    [usage.provider, usage.endpoint ?? "", limit],
-  );
+  const external = `SELECT ${EXTERNAL_CALL}, lpad(id::text, 20, '0') AS id FROM external_api_usage WHERE provider = ANY($1::text[])`;
+  const { rows } =
+    usage.table === "external_api_usage"
+      ? await database.query<ToolCall>(`SELECT ${EXTERNAL_CALL} FROM external_api_usage WHERE provider = ANY($1::text[]) ORDER BY at DESC, id DESC LIMIT $2`, [
+          externalApiProvidersOf(tool),
+          limit,
+        ])
+      : await database.query<ToolCall>(
+          `SELECT at, operation, ok, "httpStatus", "durationMs", "costEur" FROM (
+             ${external}
+             UNION ALL
+             SELECT ${AI_CALL}, u.id::text FROM ai_usage u WHERE u.provider = $2 AND starts_with(u.endpoint, $3)
+           ) calls ORDER BY at DESC, id DESC LIMIT $4`,
+          [externalApiProvidersOf(tool), usage.provider, usage.endpoint ?? "", limit],
+        );
   return rows;
+}
+
+/** A call, with the Tool it was made to. */
+export interface CalledTool {
+  tool: Tool;
+  call: ToolCall;
+}
+
+/**
+ * Every Tool's latest calls together, newest first: at most `limit`, made at or after `since`
+ * when given. A call to a provider no Tool
+ * holds (the guard test keeps them out) is left out.
+ */
+export async function latestToolCalls(database: Pick<Pool, "query">, options: { limit?: number; since?: Date } = {}): Promise<CalledTool[]> {
+  const { rows } = await database.query<ToolCall & { table: RecordedCall["table"]; provider: string; endpoint: string | null }>(
+    `SELECT "table", provider, endpoint, at, operation, ok, "httpStatus", "durationMs", "costEur" FROM (
+       SELECT 'external_api_usage' AS "table", provider, NULL AS endpoint, ${EXTERNAL_CALL}, lpad(id::text, 20, '0') AS id FROM external_api_usage WHERE $1::timestamptz IS NULL OR at >= $1
+       UNION ALL
+       SELECT 'ai_usage', u.provider, u.endpoint, ${AI_CALL}, u.id::text FROM ai_usage u WHERE $1::timestamptz IS NULL OR u.at >= $1
+     ) calls ORDER BY at DESC, "table", id DESC LIMIT $2`,
+    [options.since ?? null, options.limit ?? LATEST_CALLS],
+  );
+  return rows.flatMap(({ table, provider, endpoint, ...call }) => {
+    const tool = toolOfUsage(table === "ai_usage" ? { table, provider, endpoint: endpoint ?? "" } : { table, provider });
+    return tool ? [{ tool, call }] : [];
+  });
 }

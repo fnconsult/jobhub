@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createJobOffers, createSourceChecks, forgetExpiredGuestCaptures, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
-import { createApplications, interviewWallClock, migrateApplications, type Applications } from "./index";
+import { createApplications, interviewEndsAt, interviewPlaceParts, interviewWallClock, migrateApplications, type Applications } from "./index";
 
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -24,6 +24,40 @@ describe("interviewWallClock", () => {
     expect(interviewWallClock(new Date("2026-11-12T13:30:00.000Z"))).toBe("2026-11-12T14:30"); // winter: UTC+1
     expect(interviewWallClock(new Date("2026-06-03T07:00:00.000Z"))).toBe("2026-06-03T09:00"); // summer: UTC+2
     expect(interviewWallClock(new Date("2026-12-31T23:05:00.000Z"))).toBe("2027-01-01T00:05");
+  });
+});
+
+describe("interviewEndsAt", () => {
+  it("ends an Interview its duration after it starts, an hour when the Candidate did not say", () => {
+    expect(interviewEndsAt({ scheduledAt: new Date("2026-11-12T13:30:00.000Z"), durationMinutes: 45 })).toEqual(new Date("2026-11-12T14:15:00.000Z"));
+    expect(interviewEndsAt({ scheduledAt: new Date("2026-11-12T13:30:00.000Z"), durationMinutes: null })).toEqual(new Date("2026-11-12T14:30:00.000Z"));
+  });
+});
+
+describe("interviewPlaceParts", () => {
+  it("makes a whole http or https link a link", () => {
+    expect(interviewPlaceParts("https://meet.example.com/abc-defg")).toEqual([{ text: "https://meet.example.com/abc-defg", href: "https://meet.example.com/abc-defg" }]);
+    expect(interviewPlaceParts("http://visio.example.fr/salle?id=4")).toEqual([{ text: "http://visio.example.fr/salle?id=4", href: "http://visio.example.fr/salle?id=4" }]);
+  });
+
+  it("links the web address within a place written in words, leaving out the punctuation that ends a sentence", () => {
+    expect(interviewPlaceParts("Teams : https://teams.example.com/l/x, code 123.")).toEqual([
+      { text: "Teams : " },
+      { text: "https://teams.example.com/l/x", href: "https://teams.example.com/l/x" },
+      { text: ", code 123." },
+    ]);
+    expect(interviewPlaceParts("Lien (https://zoom.example.com/j/9).")).toEqual([
+      { text: "Lien (" },
+      { text: "https://zoom.example.com/j/9", href: "https://zoom.example.com/j/9" },
+      { text: ")." },
+    ]);
+  });
+
+  it("links nothing but http and https", () => {
+    expect(interviewPlaceParts("12 rue de la Paix, 75002 Paris")).toEqual([{ text: "12 rue de la Paix, 75002 Paris" }]);
+    expect(interviewPlaceParts("javascript:alert(1)")).toEqual([{ text: "javascript:alert(1)" }]);
+    expect(interviewPlaceParts("ftp://files.example.com/plan.pdf")).toEqual([{ text: "ftp://files.example.com/plan.pdf" }]);
+    expect(interviewPlaceParts("")).toEqual([]);
   });
 });
 
@@ -283,6 +317,29 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
       });
     });
 
+    it("moves an Application to \"Entretien\" and adds the Interview together, when asked to", async () => {
+      const application = await save({ jobOfferId, profileId });
+      await applications.change(candidateId, application.id, { status: "applied" });
+
+      const added = await applications.addInterview(candidateId, application.id, { scheduledAt: "2026-11-04T09:00", format: "phone", moveToInterview: true });
+
+      expect(added).toMatchObject({ ok: true, application: { status: "interview", interviews: [{ scheduledAt: new Date("2026-11-04T08:00:00.000Z"), format: "phone" }] } });
+    });
+
+    it("saves neither the move to \"Entretien\" nor the Interview when the Interview cannot be added", async () => {
+      const application = await save({ jobOfferId, profileId });
+      await applications.change(candidateId, application.id, { status: "applied" });
+      // Postgres refusing the Interview once the Application has moved, as a broken connection or a constraint would.
+      await database.query(`
+        CREATE FUNCTION refuse_interview() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'refused'; END $$;
+        CREATE TRIGGER refuse_interview BEFORE INSERT ON interview FOR EACH ROW EXECUTE FUNCTION refuse_interview();
+      `);
+
+      await expect(applications.addInterview(candidateId, application.id, { scheduledAt: "2026-11-04T09:00", moveToInterview: true })).rejects.toThrow();
+
+      expect(await applications.get(candidateId, application.id)).toMatchObject({ status: "applied", interviews: [] });
+    });
+
     it("keeps the Interviews when the Application moves on from \"Entretien\"", async () => {
       const applicationId = await inInterview();
       await applications.addInterview(candidateId, applicationId, { scheduledAt: "2026-11-04T09:00:00.000Z" });
@@ -355,6 +412,51 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
       expect(await applications.editInterview(candidateId, applicationId, "00000000-0000-4000-8000-000000000000", { note: "x" })).toEqual({ ok: false, error: "not_found" });
       expect(await applications.editInterview(candidateId, applicationId, "pas-un-id", { note: "x" })).toEqual({ ok: false, error: "not_found" });
       expect((await applications.get(candidateId, applicationId))?.interviews).toMatchObject([{ scheduledAt: new Date("2026-11-04T09:00:00.000Z"), note: "" }]);
+    });
+
+    it("holds what the Candidate needs on the day: a duration, a format and a place or link, each optional", async () => {
+      const applicationId = await inInterview();
+
+      await applications.addInterview(candidateId, applicationId, { scheduledAt: "2026-11-04T09:00", durationMinutes: 45, format: "video", place: "  https://meet.example.com/abc " });
+      const added = await applications.addInterview(candidateId, applicationId, { scheduledAt: "2026-11-11T14:30" });
+
+      expect(added).toMatchObject({
+        ok: true,
+        application: {
+          interviews: [
+            { durationMinutes: 45, format: "video", place: "https://meet.example.com/abc" },
+            { durationMinutes: null, format: null, place: "" },
+          ],
+        },
+      });
+      expect((await applications.list(candidateId))[0]?.interviews[0]).toMatchObject({ durationMinutes: 45, format: "video", place: "https://meet.example.com/abc" });
+    });
+
+    it("refuses a duration that is not a whole number of minutes, an unknown format and a place over 500 characters", async () => {
+      const applicationId = await inInterview();
+
+      expect(
+        await applications.addInterview(candidateId, applicationId, { scheduledAt: "2026-11-04T09:00", durationMinutes: 0, format: "telepathy", place: "x".repeat(501) }),
+      ).toMatchObject({ ok: false, errors: [{ field: "durationMinutes" }, { field: "format" }, { field: "place" }] });
+      expect(await applications.addInterview(candidateId, applicationId, { scheduledAt: "2026-11-04T09:00", durationMinutes: 12.5 })).toMatchObject({
+        ok: false,
+        errors: [{ field: "durationMinutes" }],
+      });
+    });
+
+    it("edits an Interview's duration, format and place, and clears them", async () => {
+      const applicationId = await inInterview();
+      const added = await applications.addInterview(candidateId, applicationId, { scheduledAt: "2026-11-04T09:00", note: "Avec la DRH" });
+      const interviewId = added.ok ? added.application.interviews[0]!.id : "";
+
+      const edited = await applications.editInterview(candidateId, applicationId, interviewId, { durationMinutes: 90, format: "on_site", place: "12 rue de la Paix, Paris" });
+      const cleared = await applications.editInterview(candidateId, applicationId, interviewId, { durationMinutes: null, format: null, place: "" });
+
+      expect(edited).toMatchObject({
+        ok: true,
+        application: { interviews: [{ note: "Avec la DRH", durationMinutes: 90, format: "on_site", place: "12 rue de la Paix, Paris" }] },
+      });
+      expect(cleared).toMatchObject({ ok: true, application: { interviews: [{ note: "Avec la DRH", durationMinutes: null, format: null, place: "" }] } });
     });
 
     it("removes an Interview the Candidate added by mistake", async () => {

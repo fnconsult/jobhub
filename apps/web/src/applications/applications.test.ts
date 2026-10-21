@@ -385,6 +385,116 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
       });
     });
 
+    describe("Reschedules and cancelling (fixed clock)", () => {
+      /** What the clock says: starts on Tuesday 20 October 2026, 10:00 French time. */
+      let now: Date;
+      let clocked: Applications;
+      const later = (minutes: number) => {
+        now = new Date(now.getTime() + minutes * 60_000);
+      };
+
+      beforeEach(() => {
+        now = new Date("2026-10-20T08:00:00.000Z");
+        clocked = createApplications(database, { jobOffers, profiles, now: () => now });
+      });
+
+      async function enteredInterview(scheduledAt = "2026-11-04T09:00") {
+        const applicationId = await inInterview();
+        const added = await clocked.addInterview(candidateId, applicationId, { scheduledAt });
+        if (!added.ok) throw new Error("fixture Interview refused");
+        return { applicationId, interviewId: added.application.interviews[0]!.id };
+      }
+
+      it("records nothing when the date changes 30 minutes after it was entered: a correction", async () => {
+        const { applicationId, interviewId } = await enteredInterview();
+        later(30);
+
+        const edited = await clocked.editInterview(candidateId, applicationId, interviewId, { scheduledAt: "2026-11-05T09:00" });
+
+        expect(edited).toMatchObject({ ok: true, application: { interviews: [{ scheduledAt: new Date("2026-11-05T08:00:00.000Z"), reschedules: [] }] } });
+      });
+
+      it("records a Reschedule, by the Candidate, when the date changes 2 hours after it was entered", async () => {
+        const { applicationId, interviewId } = await enteredInterview();
+        later(120);
+
+        const edited = await clocked.editInterview(candidateId, applicationId, interviewId, { scheduledAt: "2026-11-05T09:00" });
+
+        expect(edited).toMatchObject({
+          ok: true,
+          application: {
+            interviews: [
+              {
+                scheduledAt: new Date("2026-11-05T08:00:00.000Z"),
+                reschedules: [{ previousAt: new Date("2026-11-04T08:00:00.000Z"), newAt: new Date("2026-11-05T08:00:00.000Z"), by: "candidate", at: new Date("2026-10-20T10:00:00.000Z") }],
+              },
+            ],
+          },
+        });
+      });
+
+      it("keeps every Reschedule in order; a correction within the hour after one leaves no trace, and the hour counts from the last change", async () => {
+        const { applicationId, interviewId } = await enteredInterview("2026-11-04T09:00");
+        later(120);
+        await clocked.editInterview(candidateId, applicationId, interviewId, { scheduledAt: "2026-11-05T09:00" });
+        later(20);
+        await clocked.editInterview(candidateId, applicationId, interviewId, { scheduledAt: "2026-11-05T10:00" }); // a correction of the Reschedule
+        later(50);
+        await clocked.editInterview(candidateId, applicationId, interviewId, { scheduledAt: "2026-11-05T11:00" }); // 50 minutes after the correction
+        later(24 * 60);
+        await clocked.editInterview(candidateId, applicationId, interviewId, { scheduledAt: "2026-11-12T09:00" });
+
+        const [interview] = (await clocked.get(candidateId, applicationId))!.interviews;
+        expect(interview!.reschedules.map(({ previousAt, newAt }) => [previousAt.toISOString(), newAt!.toISOString()])).toEqual([
+          ["2026-11-04T08:00:00.000Z", "2026-11-05T08:00:00.000Z"],
+          ["2026-11-05T10:00:00.000Z", "2026-11-12T08:00:00.000Z"],
+        ]);
+      });
+
+      it("records nothing when the date stays the same or only the note changes", async () => {
+        const { applicationId, interviewId } = await enteredInterview();
+        later(120);
+
+        await clocked.editInterview(candidateId, applicationId, interviewId, { scheduledAt: "2026-11-04T09:00", note: "Avec la DRH" });
+        later(120);
+        await clocked.editInterview(candidateId, applicationId, interviewId, { scheduledAt: "2026-11-05T09:00" });
+
+        // The note changed in between: the date was set long before, so this is a Reschedule all the same.
+        expect((await clocked.get(candidateId, applicationId))!.interviews[0]!.reschedules).toHaveLength(1);
+      });
+
+      it("a cancelled Interview stays, with the date it was cancelled; cancelling it again keeps that date", async () => {
+        const { applicationId, interviewId } = await enteredInterview();
+        later(60 * 24);
+
+        const cancelled = await clocked.cancelInterview(candidateId, applicationId, interviewId);
+        later(10);
+        await clocked.cancelInterview(candidateId, applicationId, interviewId);
+
+        expect(cancelled).toMatchObject({ ok: true, application: { interviews: [{ id: interviewId, scheduledAt: new Date("2026-11-04T08:00:00.000Z"), cancelledAt: new Date("2026-10-21T08:00:00.000Z") }] } });
+        expect((await clocked.get(candidateId, applicationId))!.interviews[0]!.cancelledAt).toEqual(new Date("2026-10-21T08:00:00.000Z"));
+        expect((await clocked.list(candidateId))[0]!.interviews[0]!.cancelledAt).toEqual(new Date("2026-10-21T08:00:00.000Z"));
+      });
+
+      it("an Interview not cancelled says so, and someone else's or an unknown one cannot be cancelled", async () => {
+        const { applicationId, interviewId } = await enteredInterview();
+
+        expect((await clocked.get(candidateId, applicationId))!.interviews[0]!.cancelledAt).toBeNull();
+        expect(await clocked.cancelInterview(otherCandidateId, applicationId, interviewId)).toEqual({ ok: false, error: "not_found" });
+        expect(await clocked.cancelInterview(candidateId, applicationId, "00000000-0000-4000-8000-000000000000")).toEqual({ ok: false, error: "not_found" });
+        expect(await clocked.cancelInterview(candidateId, applicationId, "pas-un-id")).toEqual({ ok: false, error: "not_found" });
+        expect((await clocked.get(candidateId, applicationId))!.interviews[0]!.cancelledAt).toBeNull();
+      });
+
+      it("someone else's Interview cannot be Rescheduled", async () => {
+        const { applicationId, interviewId } = await enteredInterview();
+        later(120);
+
+        expect(await clocked.editInterview(otherCandidateId, applicationId, interviewId, { scheduledAt: "2026-11-05T09:00" })).toEqual({ ok: false, error: "not_found" });
+        expect((await clocked.get(candidateId, applicationId))!.interviews[0]).toMatchObject({ scheduledAt: new Date("2026-11-04T08:00:00.000Z"), reschedules: [] });
+      });
+    });
+
     it("changes only what an edit names, even once the Application has moved on from \"Entretien\"", async () => {
       const applicationId = await inInterview();
       const added = await applications.addInterview(candidateId, applicationId, { scheduledAt: "2026-11-04T09:00:00.000Z", note: "Avec la DRH" });

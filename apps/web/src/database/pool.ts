@@ -1,4 +1,4 @@
-import { Pool } from "pg";
+import { Pool, type PoolClient } from "pg";
 
 type Env = Record<string, string | undefined>;
 
@@ -27,4 +27,23 @@ export function sharedPool(env: Env = process.env): Pool {
   const pool = new Pool({ connectionString, max: Number(env.DATABASE_POOL_MAX) || DEFAULT_MAX });
   pools.set(connectionString, pool);
   return pool;
+}
+
+/**
+ * Runs `work` in one transaction on a client of `database`: committed when it returns,
+ * rolled back (and the error rethrown) when it throws.
+ */
+export async function inTransaction<T>(database: Pool, work: (client: PoolClient) => Promise<T>): Promise<T> {
+  const client = await database.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await work(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }

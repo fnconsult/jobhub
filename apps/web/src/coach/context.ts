@@ -366,7 +366,9 @@ function applicationText(application: Application): string {
     `Statut : ${APPLICATION_STATUS[application.status]} depuis le ${day(application.statusChangedAt)} (enregistrée le ${day(application.createdAt)}).`,
     application.reportedUnavailableAt ? `Le candidat a signalé que l'offre n'est plus publiée (le ${day(application.reportedUnavailableAt)}).` : "",
     application.interviews.length
-      ? ["Entretiens :", ...application.interviews.map((interview) => `- le ${day(interview.scheduledAt)}${interview.note ? ` : ${interview.note}` : ""}`)].join("\n")
+      ? ["Entretiens :", ...application.interviews.map(
+          (interview) => `- le ${day(interview.scheduledAt)}${interview.cancelledAt ? ` [annulé le ${day(interview.cancelledAt)}]` : ""}${interview.note ? ` : ${interview.note}` : ""}`,
+        )].join("\n")
       : "",
     `${matchScoreText(application.matchScore)}.`,
     jobOfferText(application.jobOffer),

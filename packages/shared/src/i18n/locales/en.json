@@ -223,7 +223,7 @@
     "title": "My data",
     "exportHint": "Download all your personal data in one file (JSON). It contains:",
     "exportContents": {
-      "account": "your account: email address, name, language, sign-in methods and sessions, plan and quota use, European AI consent, follow-up delays;",
+      "account": "your account: email address, name, language, sign-in methods and sessions, plan and quota use, European AI consent, follow-up delays, appointment reminder setting and reminders sent;",
       "profiles": "your profiles: search criteria, every version of your CV, ATS Score, job searches, Job Digest settings and the Job Digests sent;",
       "applications": "your applications: job offer, interviews, match score, tailored CV, cover letter, outreach message, follow-ups sent, coach reviews, enriched contacts and company dossier;",
       "coaching": "your conversations with the AI coach, your coach memory (what it remembers about you), your coach's proposals, the access you granted to human coaches and the coaching sessions you paid for, with their date, duration, video call link and your note."

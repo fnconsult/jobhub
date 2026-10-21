@@ -943,6 +943,51 @@ describe("consulting Playbook Agents before replying (ADR-0021)", () => {
     expect(warnings).toHaveLength(1);
   });
 
+  it("records each Playbook Agent left out on the AI Coach reply call: Outcome warning, playbook_agent_skipped, naming the agent, never its advice (#260)", async () => {
+    const { coach, provider, usage } = coachWith({
+      served: SERVED,
+      choose: '["interview-psychology", "freelance-mission-positioning"]',
+      advise: (id) => {
+        if (id === "freelance-mission-positioning") throw new Error("Mistral is down: Avis secret du playbook");
+        return `Avis du playbook ${id} : préparez des exemples [S24].`;
+      },
+    });
+
+    await coach.reply("marie", { messages: conversation });
+
+    const reply = usage.entries.at(-1)!;
+    expect(reply.transcript.system).toBe(contextOf(provider));
+    expect(reply).toMatchObject({
+      outcome: "warning",
+      reason: "playbook_agent_skipped",
+      warnings: [{ reason: "playbook_agent_skipped", detail: expect.stringMatching(/freelance-mission-positioning v1 .*mistral.*Error/) }],
+    });
+    expect(JSON.stringify(reply.warnings)).not.toMatch(/Avis secret|Marie/);
+    // The consultations themselves are their own calls: the one that failed is recorded as failed.
+    expect(usage.entries.filter((entry) => entry.outcome === "failed")).toHaveLength(1);
+  });
+
+  it("records Playbook Agents that could not be chosen on the AI Coach reply call: playbook_agent_skipped (#260)", async () => {
+    const { coach, usage } = coachWith({
+      served: SERVED,
+      choose: () => {
+        throw new Error("upstream down");
+      },
+    });
+
+    await coach.reply("marie", { messages: conversation });
+
+    expect(usage.entries.at(-1)).toMatchObject({ outcome: "warning", reason: "playbook_agent_skipped", warnings: [{ reason: "playbook_agent_skipped", detail: expect.stringMatching(/could not be chosen/) }] });
+  });
+
+  it("keeps the AI Coach reply call ok when every Playbook Agent chosen advised", async () => {
+    const { coach, usage } = coachWith({ served: SERVED, choose: '["interview-psychology"]' });
+
+    await coach.reply("marie", { messages: conversation });
+
+    expect(usage.entries.at(-1)).toMatchObject({ outcome: "ok" });
+  });
+
   it("counts every call in the Coach Message Cost, and says what each consultation cost", async () => {
     const { coach, usage } = coachWith({ served: SERVED, choose: '["interview-psychology"]' });
 

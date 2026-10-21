@@ -40,7 +40,7 @@
  * `context`, a fictional Coach context told as is in place of a Candidate's workspace, and `consult`, the
  * Coaching Playbook whose Playbook Agent the reply always consults first, besides those chosen.
  */
-import { costInEur, type AiLayer, type GenerateResult, type ProviderId } from "@jobhub/ai";
+import { costInEur, type AiLayer, type AiWarning, type GenerateResult, type ProviderId } from "@jobhub/ai";
 import { createI18n } from "@jobhub/shared/i18n";
 import type { JobOffer } from "@jobhub/shared";
 import { findJobOfferLink, type JobOfferLinkResult, type JobOfferLinks } from "../job-offer-links";
@@ -210,9 +210,13 @@ export function createCoach(deps: CoachDeps): Coach {
         const prepare = async () => {
           const served = await deps.playbooks.served();
           const instructions = [PERSONA, GROUNDING_RULES, digestText(served.coreDigest)].filter(Boolean).join("\n\n");
+          // The Playbook Agents left out, recorded on the reply call (#260): who, never what they said.
+          const skipped: AiWarning[] = [];
           // The choice reads the conversation and what is In view alone, so it comes first: the context then keeps room for the advice chosen.
           const chosen = await choosePlaybookAgents(deps.ai, candidateId, served.playbooks, { messages, inView: focus?.kind }).catch((error: unknown) => {
-            warn("Playbook Agents could not be chosen: replying without them", { error: error instanceof Error ? error.name : "unknown" });
+            const name = error instanceof Error ? error.name : "unknown";
+            warn("Playbook Agents could not be chosen: replying without them", { error: name });
+            skipped.push({ reason: "playbook_agent_skipped", detail: `Playbook Agents could not be chosen (${name}): replying without them` });
             return { chosen: [], call: null };
           });
           const choice = { ...chosen, chosen: withConsulted(served, chosen.chosen) };
@@ -226,7 +230,9 @@ export function createCoach(deps: CoachDeps): Coach {
             choice.chosen.map((playbook) =>
               consultPlaybookAgent(deps.ai, candidateId, playbook, { context, messages, timeoutMs }).catch((error: unknown) => {
                 const { id, version, agent } = playbook;
-                warn("A Playbook Agent was left out of the reply", { playbook: id, version, provider: agent.provider, model: agent.model, error: error instanceof Error ? error.name : "unknown" });
+                const name = error instanceof Error ? error.name : "unknown";
+                warn("A Playbook Agent was left out of the reply", { playbook: id, version, provider: agent.provider, model: agent.model, error: name });
+                skipped.push({ reason: "playbook_agent_skipped", detail: `Playbook Agent ${id} v${version} (${agent.provider} ${agent.model ?? "default model"}) left out of the reply (${name})` });
                 return null;
               }),
             ),
@@ -237,6 +243,7 @@ export function createCoach(deps: CoachDeps): Coach {
             served,
             choice,
             advice,
+            skipped,
             system: [instructions, ...knowledge, context].join("\n\n"),
             // What a reply must never copy: the AI Coach's rules and the coaching knowledge it was given.
             secrets: [PERSONA, GROUNDING_RULES, served.coreDigest?.content ?? "", ...choice.chosen.map((playbook) => playbook.content)],
@@ -253,6 +260,7 @@ export function createCoach(deps: CoachDeps): Coach {
             // First name only, the Master CV's identity stripped (#126): the AI layer's scan stays the safety net (#121).
             containsIdentity: false,
             prompt: messages,
+            warnings: prepared.skipped,
           });
           written.push(result);
           return { text: result.text.trim(), secrets: prepared.secrets };

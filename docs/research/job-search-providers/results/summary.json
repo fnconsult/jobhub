@@ -1,0 +1,45 @@
+{
+  "outcome": {
+    "kind": "incomplete",
+    "notRun": [
+      "brave",
+      "tavily",
+      "linkup"
+    ]
+  },
+  "rows": [
+    {
+      "provider": "perplexity",
+      "cases": 10,
+      "providerUrls": 100,
+      "singlePostings": 15,
+      "readableSinglePostings": 3,
+      "refusedBeforeRead": 54,
+      "readButNotAnOffer": 45,
+      "offersAfterDedup": 1,
+      "score60plus": 0,
+      "fresh30d": 1,
+      "medianSeconds": 13.7145,
+      "searchEur": 0.0136,
+      "costEur": 0.14712,
+      "perSearchEur": 220.6,
+      "singlePostingUrls": [
+        "https://www.meteojob.com/jobs/57045761",
+        "https://candidat.francetravail.fr/offres/recherche/detail/6321650",
+        "https://candidat.francetravail.fr/offres/recherche/detail/6737046",
+        "https://candidat.francetravail.fr/offres/recherche/detail/6863998",
+        "https://candidat.francetravail.fr/offres/recherche/detail/6703546",
+        "https://www.cadremploi.fr/emploi/detail_offre?offreId=156545452231953613",
+        "https://www.meteojob.com/jobs/54813660",
+        "https://www.hellowork.com/fr-fr/emplois/75026364.html",
+        "https://emploi.lefigaro.fr/offres-emploi/156547516944938682",
+        "https://fr.trabajo.org/offre-3999-b9b524fd30f0b19738125f634a0cfeeb",
+        "https://www.hellowork.com/fr-fr/emplois/83488983.html",
+        "https://www.hellowork.com/fr-fr/emplois/79630654.html",
+        "https://www.hellowork.com/fr-fr/emplois/77654473.html",
+        "https://www.roberthalf.com/fr/fr/offres-emploi/courbevoie-ile-de-france/chef-de-projet-transformation-finance-fh",
+        "https://www.cadremploi.fr/emploi/detail_offre?offreId=156549916712976018"
+      ]
+    }
+  ]
+}

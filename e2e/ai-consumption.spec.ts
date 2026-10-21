@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Browser, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
@@ -15,6 +15,25 @@ const origin = process.env.E2E_WEB_ORIGIN!;
 const SUPER_ADMIN = "ai-office@e2e.jobbbox.test";
 /** The Provider Secret the e2e server runs with (playwright.config.ts): it must never be stored. */
 const MISTRAL_KEY = "e2e-mistral-key";
+
+const tr = (template: string, values: Record<string, string>) => template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
+
+/** A signed-in page of its own (cookies apart), as for another person on another computer. */
+async function personPage(browser: Browser, email: string): Promise<Page> {
+  const context = await browser.newContext({ baseURL: origin, locale: "en-US" });
+  const page = await context.newPage();
+  await signInWithMagicLink(page, email);
+  return page;
+}
+
+/** The super-admin grants `role` to the account with `email` on the Administrateurs page. */
+async function grant(superAdmin: Page, email: string, role: string) {
+  await superAdmin.goto("/admin/administrateurs");
+  await superAdmin.getByLabel(admin.administrators.grantEmail).fill(email);
+  await superAdmin.getByRole("checkbox", { name: admin.roles[role] }).check();
+  await superAdmin.getByRole("button", { name: admin.administrators.grant }).click();
+  await expect(superAdmin.getByRole("status")).toHaveText(tr(admin.administrators.granted, { roles: admin.roles[role] }));
+}
 
 const assistant = (page: Page) => page.getByRole("complementary", { name: assistantTexts.title });
 
@@ -162,5 +181,47 @@ test.describe("AI consumption and AI message logs", () => {
     expect(raw).not.toContain("AiProviderError");
     expect(raw).not.toContain("technicalReason");
     expect(raw).not.toContain("503");
+  });
+
+  test("Support sees the failures and warnings per Failure Reason on Consommation IA and on a Tool's page, never a technical reason (#262)", async ({ page, browser }) => {
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    const support = newAddress("reasons-support");
+    const supportPage = await personPage(browser, support);
+    await grant(page, support, "support");
+    // The Guardrails' AI check of this question gets a 503 (fake-mistral.mjs): a failed call, provider_unavailable.
+    await page.goto("/admin/consommation-ia");
+    await askAssistant(page, `E2E_GUARDRAIL_DOWN Combien ? ${Date.now()}`);
+
+    const reasons = supportPage.getByRole("table", { name: admin.aiUsage.reasonsCaption });
+    const unavailable = reasons.getByRole("row").filter({ hasText: "provider_unavailable" });
+    // Recorded just after the call failed: the report may need a reload to count it.
+    await supportPage.goto("/admin/consommation-ia");
+    await expect(async () => {
+      await supportPage.reload();
+      await expect(unavailable).toBeVisible({ timeout: 1_000 });
+    }).toPass();
+    await expect(supportPage.getByRole("heading", { level: 2, name: admin.aiUsage.reasonsTitle })).toBeVisible();
+    await expect(reasons.getByRole("columnheader")).toHaveText([admin.aiUsage.code, admin.aiUsage.reason, admin.aiUsage.outcome, admin.aiUsage.calls]);
+    await expect(unavailable.getByRole("cell")).toHaveText(["provider_unavailable", fr.failureReasons.provider_unavailable, admin.aiMessages.outcomes.failed, /^\d+$/]);
+    const byTask = supportPage.getByRole("table", { name: admin.aiUsage.reasonsByTaskCaption }).getByRole("row").filter({ hasText: admin.aiUsage.tasks.guardrail });
+    await expect(byTask.filter({ hasText: "provider_unavailable" })).toBeVisible();
+    const byModel = supportPage.getByRole("table", { name: admin.aiUsage.reasonsByModelCaption }).getByRole("row").filter({ hasText: "mistral" });
+    await expect(byModel.filter({ hasText: "provider_unavailable" }).first()).toBeVisible();
+
+    // Mistral's page: the same counts over 30 days, and the failed call says its reason's wording.
+    await supportPage.goto("/admin/outils/mistral");
+    const toolReasons = supportPage.getByRole("table", { name: tr(admin.tools.reasonsCaption, { name: "Mistral AI" }) });
+    await expect(toolReasons.getByRole("row").filter({ hasText: "provider_unavailable" })).toContainText(fr.failureReasons.provider_unavailable);
+    const calls = supportPage.getByRole("table", { name: tr(admin.tools.callsCaption, { name: "Mistral AI" }) });
+    await expect(calls.getByRole("row").filter({ hasText: "guardrail · " }).filter({ hasText: fr.failureReasons.provider_unavailable }).first()).toContainText(
+      `${admin.tools.failed} · ${fr.failureReasons.provider_unavailable}`,
+    );
+
+    // Codes and wording only: no technical reason anywhere on these pages.
+    for (const path of ["/admin/consommation-ia", "/admin/outils/mistral", "/admin/outils"]) {
+      await supportPage.goto(path);
+      const text = await supportPage.getByRole("main").innerText();
+      for (const technical of ["AiProviderError", "upstream unavailable", admin.aiMessages.why]) expect(text, path).not.toContain(technical);
+    }
   });
 });

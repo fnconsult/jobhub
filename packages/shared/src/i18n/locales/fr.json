@@ -1385,7 +1385,18 @@
         "back_office_assistant": "Assistant du back office",
         "guardrail": "Garde-fous",
         "eval": "Évaluations"
-      }
+      },
+      "reasonsTitle": "Échecs et avertissements par raison",
+      "reasonsIntro": "Les appels à l'IA échoués ou en avertissement de la période, comptés par raison. Codes et libellés seulement : jamais la raison technique.",
+      "reasonsCaption": "Appels à l'IA échoués ou en avertissement, par raison",
+      "reasonsByModelTitle": "Par fournisseur, modèle et raison",
+      "reasonsByModelCaption": "Appels à l'IA échoués ou en avertissement, par fournisseur, modèle et raison",
+      "reasonsByTaskTitle": "Par tâche et raison",
+      "reasonsByTaskCaption": "Appels à l'IA échoués ou en avertissement, par tâche et raison",
+      "code": "Code",
+      "reason": "Raison",
+      "outcome": "Résultat",
+      "noReasons": "Aucun échec ni avertissement sur cette période."
     },
     "aiMessages": {
       "title": "Journaux IA",
@@ -1873,7 +1884,13 @@
       "ok": "OK",
       "failed": "Échec",
       "httpStatus": "HTTP {{status}}",
-      "noAnswer": "Pas de réponse"
+      "noAnswer": "Pas de réponse",
+      "reasonsTitle": "Échecs et avertissements par raison (30 j)",
+      "reasonsCaption": "Appels à {{name}} échoués ou en avertissement sur 30 jours, par raison",
+      "noReasons": "Aucun appel à l'IA échoué ou en avertissement sur 30 jours.",
+      "code": "Code",
+      "reason": "Raison",
+      "warning": "Avertissement"
     }
   },
   "backOfficeAssistant": {

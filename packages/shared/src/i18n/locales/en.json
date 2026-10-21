@@ -1385,7 +1385,18 @@
         "back_office_assistant": "Back Office Assistant",
         "guardrail": "Guardrails",
         "eval": "Evaluations"
-      }
+      },
+      "reasonsTitle": "Failures and warnings per reason",
+      "reasonsIntro": "The period's failed and warned AI calls, counted per reason. Codes and wording only: never the technical reason.",
+      "reasonsCaption": "Failed and warned AI calls, per reason",
+      "reasonsByModelTitle": "By provider, model and reason",
+      "reasonsByModelCaption": "Failed and warned AI calls, by provider, model and reason",
+      "reasonsByTaskTitle": "By task and reason",
+      "reasonsByTaskCaption": "Failed and warned AI calls, by task and reason",
+      "code": "Code",
+      "reason": "Reason",
+      "outcome": "Outcome",
+      "noReasons": "No failures nor warnings in this period."
     },
     "aiMessages": {
       "title": "AI message logs",
@@ -1441,6 +1452,7 @@
         "status": "HTTP status",
         "message": "Message"
       },
+      "warnings": "Warnings",
       "noTechnical": "No technical detail recorded.",
       "noReplyNotSent": "No reply: the call was not sent."
     },
@@ -1876,7 +1888,13 @@
       "ok": "OK",
       "failed": "Failed",
       "httpStatus": "HTTP {{status}}",
-      "noAnswer": "No answer"
+      "noAnswer": "No answer",
+      "reasonsTitle": "Failures and warnings per reason (30 d)",
+      "reasonsCaption": "Failed and warned calls to {{name}} over 30 days, per reason",
+      "noReasons": "No failed or warned AI call over 30 days.",
+      "code": "Code",
+      "reason": "Reason",
+      "warning": "Warning"
     }
   },
   "backOfficeAssistant": {
@@ -1959,7 +1977,24 @@
     "toScheduleIntro": "Your paid coaching sessions have no date yet. Book your time on the coach's Cal.com page, then enter the date here.",
     "coachingSession": "Coaching session",
     "withCoach": "with {{name}}",
-    "duration": "{{count}} min"
+    "duration": "{{count}} min",
+    "viewsLabel": "Agenda view",
+    "listView": "List",
+    "weekView": "Week",
+    "monthView": "Month",
+    "weekNavLabel": "Change week",
+    "monthNavLabel": "Change month",
+    "previous": "Previous",
+    "today": "Today",
+    "next": "Next",
+    "weekTitle": "Week of {{range}}",
+    "nothing": "Nothing planned",
+    "nothingThatDay": "Nothing planned that day.",
+    "dayItems_zero": "{{date}}: no appointments",
+    "dayItems_one": "{{date}}: {{count}} appointment",
+    "dayItems_other": "{{date}}: {{count}} appointments",
+    "legendLabel": "Key",
+    "changedByCoach": "changed by the coach"
   },
   "application": {
     "statusLabel": "Status",
@@ -1982,10 +2017,10 @@
     "interviewNote": "Note (optional)",
     "interviewNoteHint": "For example: with the HR director, by video call.",
     "addInterview": "Add the interview",
-    "removeInterview": "Remove the interview of {{date}}",
+    "removeInterview": "Delete the interview of {{date}}",
     "editInterview": "Edit the interview of {{date}}",
     "saveInterview": "Save the interview",
-    "cancelInterviewEdit": "Cancel",
+    "cancelInterviewEdit": "Close without saving",
     "working": "Saving…",
     "backToApplications": "Back to my applications",
     "expiredNotice": "Your application and its status stay as they are: you decide what happens next.",
@@ -2531,7 +2566,8 @@
     "sessionDuration": "Duration: {{count}} minutes",
     "joinVideo": "Join the video call with {{name}}",
     "seeInAgenda": "See in the agenda",
-    "toSchedule": "No date yet: book your time on Cal.com, then enter the date."
+    "toSchedule": "No date yet: book your time on Cal.com, then enter the date.",
+    "changedByCoach": "Date changed by {{name}}"
   },
   "coachingSession": {
     "enterDate": "I've booked: enter the date",
@@ -2553,7 +2589,9 @@
     "invalidDuration": "Enter a duration between 5 and 600 minutes, or leave it empty.",
     "invalidVideoLink": "Enter a link starting with http:// or https://, or leave it empty.",
     "invalidNote": "The note must be 500 characters at most.",
-    "error": "Saving failed. Check your connection and try again."
+    "error": "Saving failed. Check your connection and try again.",
+    "coachEnterDate": "Enter the date",
+    "coachEnterDateFor": "Enter the date of the session with {{name}}"
   },
   "coachReviews": {
     "title": "Your coaches' reviews",
@@ -2587,7 +2625,17 @@
     "reviewInvalid": "Choose a document already written and write your review.",
     "reviewNothing": "The candidate has no application documents to review yet.",
     "status": "Status: {{status}}",
-    "applicationStatus": "({{status}}, since {{date}})"
+    "applicationStatus": "({{status}}, since {{date}})",
+    "candidatesTitle": "Candidates with coach access",
+    "sessionsTitle": "My coaching sessions",
+    "sessionsIntro": "The sessions candidates paid for with you. Enter or correct the date booked and the video link: the candidate finds them in their agenda.",
+    "sessionsNone": "No paid session yet.",
+    "unnamedCandidate": "Unnamed candidate",
+    "sessionToSchedule": "To schedule",
+    "sessionOn": "On {{date}} (Paris time)",
+    "sessionDuration": "{{count}} min",
+    "sessionPaidOn": "Paid on {{date}}",
+    "joinVideo": "Video link with {{name}}"
   },
   "jobDigest": {
     "sectionTitle": "Job Digest",
@@ -2687,6 +2735,20 @@
     "route_missing": "No provider configured for this task",
     "data_residency": "Data residency rule",
     "invalid_reply": "Unreadable reply",
+    "task_playbook_fallback": "No Task Playbook version served: built-in text used",
+    "task_playbook_unreadable": "Task Playbook could not be read: built-in text used",
+    "task_playbook_section_missing": "Section missing from the Task Playbook: built-in text used",
+    "task_playbook_agent_not_offered": "Task Playbook's Playbook Agent not offered: configured route used",
+    "task_playbook_search_not_offered": "Task Playbook's web search not offered: configured route used",
+    "playbook_agent_skipped": "Playbook Agent left out: reply without its advice",
+    "identity_unavailable": "Identity unavailable: redacted by shape alone (emails, phone numbers)",
+    "identity_undeclared": "Undeclared identity found: call treated as identity-bearing",
+    "job_titles_unavailable": "Searching with the Search Criteria title alone",
+    "company_news_unavailable": "Company Dossier built without news",
+    "cv_reading_fallback": "CV read by rules, without the AI",
+    "tailored_cv_refused": "Reply refused: no Tailored CV proposed from it",
+    "match_score_text_unread": "Job Offer text unread: Match Score from its structured data only",
+    "match_score_too_slow": "Job Offer reading too slow: Match Score from its structured data only",
     "test_failed": "Connection test failed",
     "test_expired": "Test sign-in expired",
     "not_tested": "Enabled without a passed test sign-in",
@@ -2703,5 +2765,26 @@
     "invalid_verdict": "Unreadable check verdict",
     "provider_error": "Provider error",
     "other": "Unexpected error"
+  },
+  "agendaChanges": {
+    "rescheduled": "Rescheduled · first planned for {{date}}",
+    "history": "History",
+    "historyRescheduled": "{{at}}: moved from {{from}} to {{to}}, by {{by}}",
+    "historyCancelled": "{{at}}: cancelled (planned for {{from}}), by {{by}}",
+    "byYou": "you",
+    "byCoach": "the coach",
+    "cancelledOn": "Cancelled on {{date}}",
+    "cancelledInterview": "Cancelled interview",
+    "cancelInterview": "Cancel the interview",
+    "cancelInterviewFor": "Cancel the interview of {{date}}",
+    "cancelInterviewConfirm": "Cancel this interview? It stays in your agenda and in this application, struck through, with the date it was cancelled.",
+    "cancelSession": "Cancel the session",
+    "cancelSessionFor": "Cancel the session with {{name}}",
+    "cancelSessionConfirm": "Cancel this session? Its date is cleared and it goes back to \"To schedule\": you can book another time. Any refund is settled with the coach, outside Jobbbox.",
+    "confirm": "Yes, cancel",
+    "keep": "No, keep it",
+    "working": "Cancelling…",
+    "error": "Cancelling failed. Check your connection and try again.",
+    "removeHint": "\"Delete\" erases an interview entered by mistake, leaving no trace. \"Cancel\" keeps it, struck through."
   }
 }

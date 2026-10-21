@@ -53,7 +53,7 @@ const application: Application = {
   createdAt: new Date("2026-09-20T09:00:00Z"),
   jobOffer,
   profile: { id: profile.id, name: profile.name },
-  interviews: [{ id: "i1", scheduledAt: new Date("2026-10-20T14:00:00Z"), note: "avec la DRH", durationMinutes: null, format: null, place: "" }],
+  interviews: [{ id: "i1", scheduledAt: new Date("2026-10-20T14:00:00Z"), note: "avec la DRH", durationMinutes: null, format: null, place: "", cancelledAt: null, reschedules: [] }],
   matchScore,
 };
 
@@ -88,6 +88,7 @@ const interviewItem = (scheduledAt: string, more: Partial<Extract<AgendaItem, { 
   durationMinutes: null,
   format: null,
   place: "",
+  reschedules: [],
   ...more,
 });
 
@@ -97,6 +98,8 @@ const coachingSessionItem = (scheduledAt: string, more: Partial<Extract<AgendaIt
   id: `session-${scheduledAt}`,
   scheduledAt: new Date(scheduledAt),
   coach: { id: "coach-sophie", name: "Sophie Martin" },
+  changedBy: "candidate",
+  reschedules: [],
   ...more,
 });
 
@@ -496,6 +499,15 @@ describe("the item In view, in full", () => {
     expect(context).toContain(`${matchScore.score}/100`);
     expect(context).toContain("Power BI");
     expect(context).toContain("vous pilotez la clôture mensuelle");
+  });
+
+  it("an Application: a Cancelled Interview is said to be cancelled", async () => {
+    const cancelled: Application = { ...application, interviews: [{ ...application.interviews[0]!, cancelledAt: new Date("2026-10-19T09:00:00Z") }] };
+    const { coach, provider } = coachWith({ workspace: { applications: [cancelled] } });
+
+    await ask(coach, { kind: "application", id: application.id });
+
+    expect(contextOf(provider)).toContain("- le 2026-10-20 [annulé le 2026-10-19] : avec la DRH");
   });
 
   it("a Job Offer: the whole posting", async () => {
@@ -941,6 +953,51 @@ describe("consulting Playbook Agents before replying (ADR-0021)", () => {
 
     expect(await coach.reply("marie", { messages: conversation })).toMatchObject({ ok: true, playbooks: [{ id: "core-digest", version: "3" }] });
     expect(warnings).toHaveLength(1);
+  });
+
+  it("records each Playbook Agent left out on the AI Coach reply call: Outcome warning, playbook_agent_skipped, naming the agent, never its advice (#260)", async () => {
+    const { coach, provider, usage } = coachWith({
+      served: SERVED,
+      choose: '["interview-psychology", "freelance-mission-positioning"]',
+      advise: (id) => {
+        if (id === "freelance-mission-positioning") throw new Error("Mistral is down: Avis secret du playbook");
+        return `Avis du playbook ${id} : préparez des exemples [S24].`;
+      },
+    });
+
+    await coach.reply("marie", { messages: conversation });
+
+    const reply = usage.entries.at(-1)!;
+    expect(reply.transcript.system).toBe(contextOf(provider));
+    expect(reply).toMatchObject({
+      outcome: "warning",
+      reason: "playbook_agent_skipped",
+      warnings: [{ reason: "playbook_agent_skipped", detail: expect.stringMatching(/freelance-mission-positioning v1 .*mistral.*Error/) }],
+    });
+    expect(JSON.stringify(reply.warnings)).not.toMatch(/Avis secret|Marie/);
+    // The consultations themselves are their own calls: the one that failed is recorded as failed.
+    expect(usage.entries.filter((entry) => entry.outcome === "failed")).toHaveLength(1);
+  });
+
+  it("records Playbook Agents that could not be chosen on the AI Coach reply call: playbook_agent_skipped (#260)", async () => {
+    const { coach, usage } = coachWith({
+      served: SERVED,
+      choose: () => {
+        throw new Error("upstream down");
+      },
+    });
+
+    await coach.reply("marie", { messages: conversation });
+
+    expect(usage.entries.at(-1)).toMatchObject({ outcome: "warning", reason: "playbook_agent_skipped", warnings: [{ reason: "playbook_agent_skipped", detail: expect.stringMatching(/could not be chosen/) }] });
+  });
+
+  it("keeps the AI Coach reply call ok when every Playbook Agent chosen advised", async () => {
+    const { coach, usage } = coachWith({ served: SERVED, choose: '["interview-psychology"]' });
+
+    await coach.reply("marie", { messages: conversation });
+
+    expect(usage.entries.at(-1)).toMatchObject({ outcome: "ok" });
   });
 
   it("counts every call in the Coach Message Cost, and says what each consultation cost", async () => {

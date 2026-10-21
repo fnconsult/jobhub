@@ -4,6 +4,7 @@ import { checkoutSessionEvent, FAKE_STRIPE_COACHING_SESSION_PRICES, signedEvent 
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
+import { submitToStripe } from "./support/stripe-checkout";
 
 // Issue #24: Human Coaches, added in the Back Office with their Cal.com booking
 // link; Coaching Sessions paid through Stripe Checkout at the single Coaching
@@ -104,14 +105,9 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     await expect(page.getByText(/Prix d'une séance : 90,00/)).toBeVisible();
     await expect(page.getByRole("link", { name: tr(hc.pickSlot, { name: coach.name }) })).toHaveCount(0);
 
-    await page.route("https://*.stripe.test/**", (route) => route.fulfill({ body: "Stripe" }));
-    const [response] = await Promise.all([
-      page.waitForResponse((r) => new URL(r.url()).pathname === "/api/coaching/checkout"),
-      page.getByRole("button", { name: tr(hc.book, { name: coach.name }) }).click(),
-    ]);
+    const response = await submitToStripe(page, "/api/coaching/checkout", tr(hc.book, { name: coach.name }));
     expect(response.status()).toBe(303);
     expect(response.headers().location).toMatch(/^https:\/\/checkout\.stripe\.test\//);
-    await page.waitForURL((url) => url.hostname.endsWith(".stripe.test") || url.protocol === "chrome-error:");
     const [checkout] = await checkoutsFor(coachId);
     expect(checkout).toMatchObject({ mode: "payment", "line_items[0][price]": FAKE_STRIPE_COACHING_SESSION_PRICES.regular, "metadata[purpose]": "coaching_session" });
 
@@ -210,6 +206,56 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     await expect(page.getByRole("region", { name: fr.agenda.upcomingTitle }).getByRole("listitem")).toContainText("23:30");
   });
 
+  // Issue #250: a cancelled Coaching Session goes back under « À planifier », its cancellation in its
+  // « Historique », whether the Candidate or its Human Coach cancelled it.
+  test("cancelled from the Agenda by the Candidate, or by its Human Coach, a Coaching Session is back under « À planifier » with its history", async ({ page, browser }) => {
+    const admin = await personPage(browser, ADMINISTRATOR);
+    const coachEmail = newAddress("coach-cancel");
+    const coach = await addCoach(admin, coachEmail);
+    const coachId = await coachIdOf(admin, coach.name);
+    await admin.context().close();
+    await signInWithMagicLink(page, newAddress("coaching-cancel"));
+    await page.request.post("/api/coaching/checkout", { form: { coachId }, headers: { origin }, maxRedirects: 0 });
+    const [started] = await checkoutsFor(coachId);
+    const { payload, signature } = signedEvent(
+      checkoutSessionEvent("checkout.session.completed", { id: `cs_e2e_${unique()}`, candidateId: started!["metadata[candidate_id]"]!, coachId, amount: 9000, currency: "eur", paymentStatus: "paid" }),
+    );
+    expect((await page.request.post("/api/billing/webhook", { data: payload, headers: { "stripe-signature": signature, "content-type": "application/json" } })).status()).toBe(200);
+    const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date(Date.now() + 3 * 86_400_000));
+    const [session] = (await (await page.request.get("/api/account/export")).json()).coachingSessions;
+    const schedule = () => page.request.patch(`/api/coaching/sessions/${session.id}`, { data: { scheduledAt: `${day}T10:00` }, headers: { origin } });
+    expect((await schedule()).ok()).toBe(true);
+
+    await page.goto("/agenda");
+    const upcoming = page.getByRole("region", { name: fr.agenda.upcomingTitle });
+    await upcoming.getByRole("button", { name: tr(fr.agendaChanges.cancelSessionFor, { name: coach.name }) }).click();
+    await expect(upcoming.getByRole("group", { name: fr.agendaChanges.cancelSessionConfirm })).toBeVisible();
+    await upcoming.getByRole("button", { name: fr.agendaChanges.confirm }).click();
+
+    const toSchedule = page.getByRole("region", { name: fr.agenda.toSchedule });
+    await expect(toSchedule).toBeVisible();
+    await expect(page.getByText(fr.agenda.none)).toBeVisible();
+    await toSchedule.getByText(fr.agendaChanges.history).click();
+    await expect(toSchedule.getByRole("listitem").getByRole("listitem")).toContainText(/annulé \(prévu le .* 10:00\), par vous/);
+
+    // Booked again, then cancelled by the Human Coach from their Coach space.
+    expect((await schedule()).ok()).toBe(true);
+    const other = await personPage(browser, newAddress("coach-cancel-other"));
+    expect((await other.request.post(`/api/coach-space/sessions/${session.id}/cancel`, { headers: { origin } })).status()).toBe(404);
+    await other.context().close();
+    const coachPage = await personPage(browser, coachEmail);
+    expect((await coachPage.request.post(`/api/coach-space/sessions/${session.id}/cancel`, { headers: { origin } })).status()).toBe(200);
+    await coachPage.context().close();
+
+    await page.reload();
+    await toSchedule.getByText(fr.agendaChanges.history).click();
+    const history = toSchedule.getByRole("listitem").getByRole("listitem");
+    await expect(history).toHaveCount(2);
+    await expect(history.last()).toContainText(`par ${coach.name}`);
+    const exported = await (await page.request.get("/api/account/export")).json();
+    expect(exported.coachingSessions[0].reschedules).toEqual([expect.objectContaining({ newAt: null, by: "candidate" }), expect.objectContaining({ newAt: null, by: "coach" })]);
+  });
+
   // Issue #248: a Retired Human Coach's past sessions still show on the Agenda, and the Data export
   // holds the date, duration, video link and note of a Coaching Session, never the booking link.
   test("a Retired Human Coach's past Coaching Session still shows, and the Data export holds its details but no booking link", async ({ page, browser }) => {
@@ -255,6 +301,79 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
       expect.objectContaining({ coach: { id: coachId, name: coach.name }, scheduledAt: expect.any(String), durationMinutes: 45, videoLink: "https://meet.google.com/abc-defg-hij", note: "Préparer mon pitch." }),
     ]);
     expect(JSON.stringify(exported)).not.toContain(coach.bookingUrl);
+  });
+
+  // Issue #249: the Human Coach enters or corrects the date and video link of their own Coaching
+  // Sessions in the Coach space, without Coach Access; the Candidate's Agenda says the coach changed
+  // it. Another Human Coach and a Retired Human Coach are refused.
+  test("a Human Coach enters the date of their own Coaching Session in the Coach space; the Candidate's Agenda shows it, changed by the coach", async ({ page, browser }) => {
+    const admin = await personPage(browser, ADMINISTRATOR);
+    const coachEmail = newAddress("coach");
+    const coach = await addCoach(admin, coachEmail);
+    const coachId = await coachIdOf(admin, coach.name);
+    const otherCoachEmail = newAddress("coach-other");
+    await addCoach(admin, otherCoachEmail);
+    await signInWithMagicLink(page, newAddress("coaching-by-coach"));
+    const named = await page.request.post("/api/auth/update-user", { data: { name: "Marie Dupont" }, headers: { origin } });
+    expect(named.ok(), await named.text()).toBe(true);
+    await page.request.post("/api/coaching/checkout", { form: { coachId }, headers: { origin }, maxRedirects: 0 });
+    const [started] = await checkoutsFor(coachId);
+    const { payload, signature } = signedEvent(
+      checkoutSessionEvent("checkout.session.completed", { id: `cs_e2e_${unique()}`, candidateId: started!["metadata[candidate_id]"]!, coachId, amount: 9000, currency: "eur", paymentStatus: "paid" }),
+    );
+    const delivered = await page.request.post("/api/billing/webhook", { data: payload, headers: { "stripe-signature": signature, "content-type": "application/json" } });
+    expect(delivered.status()).toBe(200);
+
+    // No Coach Access granted: the coach still sees the session, naming the Candidate « Marie D. ».
+    const coachPage = await personPage(browser, coachEmail);
+    await coachPage.goto("/espace-coach");
+    const sessions = coachPage.getByRole("region", { name: space.sessionsTitle });
+    const session = sessions.getByRole("listitem").filter({ hasText: "Marie D." });
+    await expect(session).toHaveCount(1);
+    await expect(session).toContainText(space.sessionToSchedule);
+    await expect(sessions).not.toContainText("Marie Dupont");
+    await expect(coachPage.getByRole("region", { name: space.candidatesTitle })).toContainText(space.none);
+
+    const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date(Date.now() + 4 * 86_400_000));
+    await session.getByRole("button", { name: tr(fr.coachingSession.coachEnterDateFor, { name: "Marie D." }) }).click();
+    const dialog = coachPage.getByRole("dialog", { name: tr(fr.coachingSession.title, { name: "Marie D." }) });
+    await expect(dialog.getByLabel(fr.coachingSession.note)).toHaveCount(0);
+    await dialog.getByLabel(fr.coachingSession.date).fill(`${day}T18:15`);
+    await dialog.getByLabel(fr.coachingSession.duration).fill("45");
+    await dialog.getByLabel(fr.coachingSession.videoLink).fill("https://meet.google.com/coa-chco-ach");
+    await dialog.getByRole("button", { name: fr.coachingSession.save }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(session).toContainText("18:15");
+    await expect(session).not.toContainText(space.sessionToSchedule);
+    await expect(session.getByRole("link", { name: tr(space.joinVideo, { name: "Marie D." }) })).toHaveAttribute("href", "https://meet.google.com/coa-chco-ach");
+    const sessionId = (await session.getAttribute("id"))!.replace("seance-", "");
+
+    await page.goto("/agenda");
+    await expect(page.getByRole("region", { name: fr.agenda.toSchedule })).toHaveCount(0);
+    const item = page.getByRole("region", { name: fr.agenda.upcomingTitle }).getByRole("listitem");
+    await expect(item).toContainText("18:15");
+    await expect(item).toContainText(tr(fr.agenda.withCoach, { name: coach.name }));
+    await expect(item).toContainText(fr.agenda.changedByCoach);
+
+    // Another Human Coach neither sees nor edits it.
+    const otherCoach = await personPage(browser, otherCoachEmail);
+    await otherCoach.goto("/espace-coach");
+    await expect(otherCoach.getByRole("region", { name: space.sessionsTitle })).toContainText(space.sessionsNone);
+    const refused = await otherCoach.request.patch(`/api/coach-space/sessions/${sessionId}`, { data: { scheduledAt: `${day}T09:00` }, headers: { origin } });
+    expect(refused.status()).toBe(404);
+    await otherCoach.context().close();
+
+    // Retired, the Human Coach can no longer edit it; the Candidate keeps it.
+    await admin.goto("/admin/coachs");
+    await admin.getByRole("button", { name: tr(fr.admin.humanCoaches.retire, { name: coach.name }) }).click();
+    await expect(admin.getByRole("status")).toHaveText(fr.admin.humanCoaches.retired);
+    await admin.context().close();
+    const retired = await coachPage.request.patch(`/api/coach-space/sessions/${sessionId}`, { data: { scheduledAt: `${day}T09:00` }, headers: { origin } });
+    expect(retired.status()).toBe(404);
+    expect((await coachPage.goto("/espace-coach"))?.status()).toBe(404);
+    await coachPage.context().close();
+    await page.reload();
+    await expect(page.getByRole("region", { name: fr.agenda.upcomingTitle }).getByRole("listitem")).toContainText("18:15");
   });
 
   test("a Premium Candidate pays the discounted Coaching Session Price", async ({ page, browser }) => {

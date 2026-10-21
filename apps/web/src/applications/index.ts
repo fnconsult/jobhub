@@ -17,8 +17,11 @@
  *      only, never the shared Job Offer); either keeps its status: nothing changes
  *      it automatically;
  *    - `addInterview` (only while it is at "Entretien", or moving it there in the same
- *      change), `editInterview` and `removeInterview`. Interviews are kept when the
- *      Application moves on.
+ *      change), `editInterview`, `cancelInterview` and `removeInterview`. Interviews are
+ *      kept when the Application moves on. A date change more than an hour after the date
+ *      was entered or last changed is a Reschedule, kept in the Interview's Reschedule
+ *      history; a Cancelled Interview stays, with its date of cancellation; removing one
+ *      (an entry made by mistake) leaves no trace.
  * Every read and change is scoped to the Candidate; inputs are untrusted (they
  * come from the browser) and problems come back as results, never exceptions.
  * Applications are deleted with the account (ADR-0010), their Job Offers are kept.
@@ -26,8 +29,10 @@
 import { APPLICATION_STATUSES, INTERVIEW_FORMATS, scoreMatch, type ApplicationStatus, type InterviewFormat, type JobOffer, type MatchScore } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
+import { inTransaction } from "../database/pool";
 import type { JobOffers } from "../job-offers";
 import type { Profiles } from "../profiles";
+import { migrateRescheduleHistory, rescheduleHistories, setAgendaItemDate, type Reschedule } from "../reschedules";
 import { fieldErrors, type FieldError } from "../validation";
 
 export type { FieldError as ApplicationFieldError } from "../validation";
@@ -44,6 +49,10 @@ export interface Interview {
   format: InterviewFormat | null;
   /** Where it takes place, or the link to join it. Empty when nothing. */
   place: string;
+  /** When the Candidate cancelled it, or null: a Cancelled Interview stays, struck through. */
+  cancelledAt: Date | null;
+  /** Its Reschedule history, oldest first: every date change made more than an hour after the date was set. */
+  reschedules: Reschedule[];
 }
 
 export interface Application {
@@ -123,7 +132,12 @@ export interface Applications {
    * the Application Status, like removing one: Interviews are kept when it moves on.
    */
   editInterview(candidateId: string, applicationId: string, interviewId: string, input: unknown): Promise<ApplicationChangeResult>;
-  /** Removes one of the Application's Interviews. */
+  /**
+   * Cancels one of the Application's Interviews: it stays, with the date it was cancelled (kept when
+   * cancelled again). Allowed whatever the Application Status.
+   */
+  cancelInterview(candidateId: string, applicationId: string, interviewId: string): Promise<ApplicationChangeResult>;
+  /** Removes one of the Application's Interviews, entered by mistake: it leaves no trace, its Reschedule history neither. */
   removeInterview(candidateId: string, applicationId: string, interviewId: string): Promise<ApplicationChangeResult>;
 }
 
@@ -173,7 +187,12 @@ export function interviewWallClock(scheduledAt: Date): string {
 
 /** The instant the day `instant` falls on, in French time, begins: its midnight there (never skipped: France changes the clocks at 2 or 3 a.m.). */
 export function interviewDayStart(instant: Date): Date {
-  return wallClockIn(`${interviewWallClock(instant).slice(0, 10)}T00:00`, INTERVIEW_TIME_ZONE);
+  return frenchDayStart(interviewWallClock(instant).slice(0, 10));
+}
+
+/** The instant a day in French time ("2026-10-22") begins: its midnight there. */
+export function frenchDayStart(day: string): Date {
+  return wallClockIn(`${day}T00:00`, INTERVIEW_TIME_ZONE);
 }
 
 /**
@@ -258,8 +277,8 @@ const interviewEditSchema = z.object({
   place: interviewFields.place.optional(),
 });
 
-/** The `interview` column each editable field is kept in. */
-const INTERVIEW_COLUMNS = { scheduledAt: "scheduled_at", note: "note", durationMinutes: "duration_minutes", format: "format", place: "place" } as const;
+/** The `interview` column each editable field but the date is kept in: the date changes through `setAgendaItemDate`, for its Reschedules. */
+const INTERVIEW_COLUMNS = { note: "note", durationMinutes: "duration_minutes", format: "format", place: "place" } as const;
 
 const NOT_FOUND = { ok: false, error: "not_found" } as const;
 const found = (application: Application | null): ApplicationChangeResult => (application ? { ok: true, application } : NOT_FOUND);
@@ -278,7 +297,16 @@ const COLUMNS = "id, job_offer_id, profile_id, status, status_changed_at, create
 
 export function createApplications(
   database: Pool,
-  { jobOffers, profiles }: { jobOffers: Pick<JobOffers, "get" | "keepForCandidate">; profiles: Pick<Profiles, "get"> },
+  {
+    jobOffers,
+    profiles,
+    now = () => new Date(),
+  }: {
+    jobOffers: Pick<JobOffers, "get" | "keepForCandidate">;
+    profiles: Pick<Profiles, "get">;
+    /** The clock Interview dates are entered, Rescheduled and cancelled by. */
+    now?: () => Date;
+  },
 ): Applications {
   /** The Interviews of each Application, oldest first. */
   async function interviewsOf(applicationIds: string[]): Promise<Map<string, Interview[]>> {
@@ -290,10 +318,16 @@ export function createApplications(
       duration_minutes: number | null;
       format: InterviewFormat | null;
       place: string;
+      cancelled_at: Date | null;
     }>(
-      `SELECT id, application_id, scheduled_at, note, duration_minutes, format, place
+      `SELECT id, application_id, scheduled_at, note, duration_minutes, format, place, cancelled_at
          FROM interview WHERE application_id = ANY($1) ORDER BY scheduled_at, created_at`,
       [applicationIds],
+    );
+    const histories = await rescheduleHistories(
+      database,
+      "interview",
+      rows.map((row) => row.id),
     );
     const byApplication = new Map(applicationIds.map((applicationId) => [applicationId, [] as Interview[]]));
     for (const row of rows)
@@ -304,6 +338,8 @@ export function createApplications(
         durationMinutes: row.duration_minutes,
         format: row.format,
         place: row.place,
+        cancelledAt: row.cancelled_at,
+        reschedules: histories.get(row.id)!,
       });
     return byApplication;
   }
@@ -445,14 +481,10 @@ export function createApplications(
           `UPDATE application SET status = 'interview', status_changed_at = now() WHERE id = $1 AND candidate_id = $2 AND status <> 'interview'`,
           [applicationId, candidateId],
         );
-        await client.query(`INSERT INTO interview (application_id, scheduled_at, note, duration_minutes, format, place) VALUES ($1, $2, $3, $4, $5, $6)`, [
-          applicationId,
-          scheduledAt,
-          note,
-          durationMinutes,
-          format,
-          place,
-        ]);
+        await client.query(
+          `INSERT INTO interview (application_id, scheduled_at, date_set_at, note, duration_minutes, format, place) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [applicationId, scheduledAt, now(), note, durationMinutes, format, place],
+        );
         await client.query("COMMIT");
       } catch (error) {
         await client.query("ROLLBACK");
@@ -467,14 +499,33 @@ export function createApplications(
       const parsed = interviewEditSchema.safeParse(input, { reportInput: true });
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       if (!UUID.test(applicationId) || !UUID.test(interviewId)) return NOT_FOUND;
+      const { scheduledAt } = parsed.data;
       const changes = (Object.keys(INTERVIEW_COLUMNS) as (keyof typeof INTERVIEW_COLUMNS)[]).filter((field) => parsed.data[field] !== undefined);
       // Nothing named still checks the Interview is theirs.
       const set = changes.length > 0 ? changes.map((field, index) => `${INTERVIEW_COLUMNS[field]} = $${index + 4}`).join(", ") : "id = i.id";
+      const edited = await inTransaction(database, async (client) => {
+        const { rowCount } = await client.query(
+          `UPDATE interview i SET ${set}
+             FROM application a
+            WHERE i.id = $1 AND i.application_id = a.id AND a.id = $2 AND a.candidate_id = $3`,
+          [interviewId, applicationId, candidateId, ...changes.map((field) => parsed.data[field])],
+        );
+        if (rowCount === 0) return false;
+        if (scheduledAt !== undefined) await setAgendaItemDate(client, { table: "interview", id: interviewId }, { to: scheduledAt, by: "candidate", now: now() });
+        return true;
+      });
+      if (!edited) return NOT_FOUND;
+      return found(await get(candidateId, applicationId));
+    },
+
+    async cancelInterview(candidateId, applicationId, interviewId) {
+      if (!UUID.test(applicationId) || !UUID.test(interviewId)) return NOT_FOUND;
+      // Cancelled again, it keeps the date it was first cancelled.
       const { rowCount } = await database.query(
-        `UPDATE interview i SET ${set}
+        `UPDATE interview i SET cancelled_at = COALESCE(i.cancelled_at, $4)
            FROM application a
           WHERE i.id = $1 AND i.application_id = a.id AND a.id = $2 AND a.candidate_id = $3`,
-        [interviewId, applicationId, candidateId, ...changes.map((field) => parsed.data[field])],
+        [interviewId, applicationId, candidateId, now()],
       );
       if (rowCount === 0) return NOT_FOUND;
       return found(await get(candidateId, applicationId));
@@ -521,5 +572,8 @@ export async function migrateApplications(database: Pool): Promise<void> {
     ALTER TABLE interview ADD COLUMN IF NOT EXISTS duration_minutes integer CHECK (duration_minutes BETWEEN 1 AND 1440);
     ALTER TABLE interview ADD COLUMN IF NOT EXISTS format text CHECK (format IN (${INTERVIEW_FORMATS.map((format) => `'${format}'`).join(", ")}));
     ALTER TABLE interview ADD COLUMN IF NOT EXISTS place text NOT NULL DEFAULT '';
+    -- A Cancelled Interview stays, with the date it was cancelled (#250).
+    ALTER TABLE interview ADD COLUMN IF NOT EXISTS cancelled_at timestamptz;
   `);
+  await migrateRescheduleHistory(database, "interview", { enteredAt: "created_at" });
 }

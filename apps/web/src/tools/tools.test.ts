@@ -99,14 +99,20 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
     const overview = await toolsOverview(database, { env: { AWS_BEARER_TOKEN_BEDROCK: "token" }, signInTypes: [] }, now);
     const row = (id: string) => overview.flatMap((group) => group.rows).find((candidate) => candidate.tool.id === id)!;
 
-    expect(row("anthropic-bedrock").figures).toEqual({ calls: 3, failures: 1, costEur: expect.closeTo(0.77, 9) });
+    expect(row("anthropic-bedrock").figures).toEqual({
+      calls: 3,
+      failures: 1,
+      costEur: expect.closeTo(0.77, 9),
+      reasons: [{ outcome: "failed", reason: "provider_unavailable", calls: 1 }],
+    });
     expect(row("anthropic-bedrock").status).toBe("configured");
-    expect(row("anthropic").figures).toEqual({ calls: 1, failures: 0, costEur: expect.closeTo(0.1, 9) });
+    expect(row("anthropic").figures).toEqual({ calls: 1, failures: 0, costEur: expect.closeTo(0.1, 9), reasons: [] });
     expect(row("anthropic").status).toBe("key_missing");
-    expect(row("france-travail").figures).toEqual({ calls: 2, failures: 1, costEur: 0 });
+    // An external API's failures have no Failure Reason: only AI Usage keeps codes.
+    expect(row("france-travail").figures).toEqual({ calls: 2, failures: 1, costEur: 0, reasons: [] });
     // No call's cost known: not a cost of 0.
-    expect(row("lusha").figures).toEqual({ calls: 1, failures: 0, costEur: null });
-    expect(row("mistral").figures).toEqual({ calls: 0, failures: 0, costEur: null });
+    expect(row("lusha").figures).toEqual({ calls: 1, failures: 0, costEur: null, reasons: [] });
+    expect(row("mistral").figures).toEqual({ calls: 0, failures: 0, costEur: null, reasons: [] });
   });
 
   it("groups the Tools by category, in the catalog's order", async () => {
@@ -120,18 +126,57 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
     await seed();
 
     expect(await toolCalls(database, tool("france-travail"))).toEqual([
-      { at: new Date("2026-10-19T07:05:00Z"), operation: "GET /partenaire/offresdemploi/v2/offres/search", ok: false, httpStatus: 429, durationMs: 300, costEur: 0 },
-      { at: new Date("2026-10-19T07:00:00Z"), operation: "GET /partenaire/offresdemploi/v2/offres/search", ok: true, httpStatus: 200, durationMs: 300, costEur: 0 },
+      { at: new Date("2026-10-19T07:05:00Z"), operation: "GET /partenaire/offresdemploi/v2/offres/search", ok: false, outcome: "failed", reason: null, httpStatus: 429, durationMs: 300, costEur: 0 },
+      { at: new Date("2026-10-19T07:00:00Z"), operation: "GET /partenaire/offresdemploi/v2/offres/search", ok: true, outcome: "ok", reason: null, httpStatus: 200, durationMs: 300, costEur: 0 },
     ]);
     const bedrock = await toolCalls(database, tool("anthropic-bedrock"));
-    expect(bedrock.map((call) => [call.at.toISOString(), call.ok])).toEqual([
-      ["2026-10-19T09:00:00.000Z", false],
-      ["2026-10-19T08:00:00.000Z", true],
-      ["2026-10-18T09:00:00.000Z", true],
-      ["2026-09-19T09:00:00.000Z", true],
+    expect(bedrock.map((call) => [call.at.toISOString(), call.ok, call.outcome, call.reason])).toEqual([
+      ["2026-10-19T09:00:00.000Z", false, "failed", "provider_unavailable"],
+      ["2026-10-19T08:00:00.000Z", true, "ok", null],
+      ["2026-10-18T09:00:00.000Z", true, "ok", null],
+      ["2026-09-19T09:00:00.000Z", true, "ok", null],
     ]);
-    expect(bedrock[2]).toEqual({ at: new Date("2026-10-18T09:00:00Z"), operation: "coaching · claude-opus-5", ok: true, httpStatus: null, durationMs: 900, costEur: expect.closeTo(0.27, 9) });
+    expect(bedrock[2]).toEqual({
+      at: new Date("2026-10-18T09:00:00Z"),
+      operation: "coaching · claude-opus-5",
+      ok: true,
+      outcome: "ok",
+      reason: null,
+      httpStatus: null,
+      durationMs: 900,
+      costEur: expect.closeTo(0.27, 9),
+    });
     expect(JSON.stringify(bedrock)).not.toMatch(/Jeanne|Secret system text/);
+  });
+
+  it("counts an AI Tool's failed and warned calls of the last 30 days per Failure Reason, and lists each call's code, never its technical reason (#262)", async () => {
+    const ai = createPostgresUsageLog(database);
+    const technicalReason = { class: "AiProviderError", provider: "mistral", status: 503, message: "upstream down for jeanne@example.fr" };
+    const mistralCall = (overrides: Partial<UsageEntry>) => aiCall({ provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-large", ...overrides });
+    await ai.record(mistralCall({}));
+    await ai.record(mistralCall({ outcome: "failed", reason: "provider_unavailable", technicalReason, costEur: 0 }));
+    await ai.record(mistralCall({ outcome: "failed", reason: "provider_unavailable", technicalReason, costEur: 0, task: "scoring" }));
+    await ai.record(mistralCall({ outcome: "failed", reason: "rate_limited", technicalReason, costEur: 0 }));
+    await ai.record(mistralCall({ outcome: "warning", reason: "other" }));
+    // Never sent: no endpoint, still Mistral's.
+    await ai.record(mistralCall({ outcome: "failed", reason: "key_missing", endpoint: null, sent: false, costEur: 0, at: new Date("2026-10-19T10:00:00Z") }));
+    // Older than 30 days, and another Tool's.
+    await ai.record(mistralCall({ outcome: "failed", reason: "rate_limited", at: new Date("2026-09-19T09:00:00Z") }));
+    await ai.record(aiCall({ outcome: "failed", reason: "invalid_reply" }));
+
+    const overview = await toolsOverview(database, { env: {}, signInTypes: [] }, now);
+    const mistral = overview.flatMap((group) => group.rows).find((row) => row.tool.id === "mistral")!;
+
+    expect(mistral.figures?.reasons).toEqual([
+      { outcome: "failed", reason: "provider_unavailable", calls: 2 },
+      { outcome: "failed", reason: "key_missing", calls: 1 },
+      { outcome: "failed", reason: "rate_limited", calls: 1 },
+      { outcome: "warning", reason: "other", calls: 1 },
+    ]);
+    const calls = await toolCalls(database, tool("mistral"));
+    expect(calls[0]).toMatchObject({ at: new Date("2026-10-19T10:00:00Z"), ok: false, outcome: "failed", reason: "key_missing" });
+    expect(calls.filter((call) => call.outcome === "warning")).toEqual([expect.objectContaining({ ok: true, reason: "other" })]);
+    expect(JSON.stringify({ overview, calls })).not.toMatch(/AiProviderError|upstream down|jeanne/);
   });
 
   it("lists at most the number of calls asked, and none for a Tool whose calls are not recorded", async () => {
@@ -149,11 +194,11 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
     );
 
     expect(await toolCalls(database, tool("mistral"))).toEqual([
-      { at: new Date("2026-10-19T09:00:00Z"), operation: "connection_test", ok: false, httpStatus: 401, durationMs: 120, costEur: null },
-      { at: new Date("2026-10-19T08:00:00Z"), operation: "coaching · mistral-large", ok: true, httpStatus: null, durationMs: 900, costEur: 0.5 },
+      { at: new Date("2026-10-19T09:00:00Z"), operation: "connection_test", ok: false, outcome: "failed", reason: null, httpStatus: 401, durationMs: 120, costEur: null },
+      { at: new Date("2026-10-19T08:00:00Z"), operation: "coaching · mistral-large", ok: true, outcome: "ok", reason: null, httpStatus: null, durationMs: 900, costEur: 0.5 },
     ]);
     const overview = await toolsOverview(database, { env: {}, signInTypes: [] }, now);
-    expect(overview.flatMap((group) => group.rows).find((row) => row.tool.id === "mistral")!.figures).toEqual({ calls: 2, failures: 1, costEur: 0.5 });
+    expect(overview.flatMap((group) => group.rows).find((row) => row.tool.id === "mistral")!.figures).toEqual({ calls: 2, failures: 1, costEur: 0.5, reasons: [] });
   });
 
   it("lists the latest calls to every Tool together, newest first, each with its Tool", async () => {

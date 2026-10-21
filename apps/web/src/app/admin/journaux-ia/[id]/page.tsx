@@ -21,7 +21,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * A super-admin reads one AI Message Log (#218); the view is written to the Back Office Audit as it is read.
- * A call that failed or warned says why (#259): its Failure Reason's wording, then its technical reason.
+ * A call that failed or warned says why (#259): its Failure Reason's wording, then its feature's warnings, each with what
+ * happened (#260), then its technical reason.
  */
 export default async function AiMessagePage({ params }: Params) {
   const { access, administrator } = await requireBackOffice("aiMessages");
@@ -76,9 +77,27 @@ export default async function AiMessagePage({ params }: Params) {
       {log.outcome === "ok" ? null : (
         <section aria-labelledby="ai-message-why">
           <h2 id="ai-message-why">{t("admin.aiMessages.why")}</h2>
-          <p>{log.reason ? t(`failureReasons.${log.reason}`) : t("admin.aiMessages.reasonUnknown")}</p>
-          <h3>{t("admin.aiMessages.technical")}</h3>
-          {log.technicalReason ? (
+          {log.outcome === "warning" && log.warningDetails.length > 0 ? null : <p>{log.reason ? t(`failureReasons.${log.reason}`) : t("admin.aiMessages.reasonUnknown")}</p>}
+          {log.warningDetails.length > 0 ? (
+            <>
+              {log.outcome === "warning" ? null : <h3>{t("admin.aiMessages.warnings")}</h3>}
+              <ul aria-label={t("admin.aiMessages.warnings")}>
+                {log.warningDetails.map((warning, index) => (
+                  <li key={index}>
+                    {t(`failureReasons.${warning.reason}`)}
+                    {warning.detail ? (
+                      <>
+                        {" · "}
+                        <span className="ai-message-text">{warning.detail}</span>
+                      </>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+          {log.outcome === "warning" && !log.technicalReason ? null : <h3>{t("admin.aiMessages.technical")}</h3>}
+          {log.outcome === "warning" && !log.technicalReason ? null : log.technicalReason ? (
             <dl className="props" aria-label={t("admin.aiMessages.technical")}>
               <dt>{t("admin.aiMessages.technicalFields.class")}</dt>
               <dd>{log.technicalReason.class}</dd>

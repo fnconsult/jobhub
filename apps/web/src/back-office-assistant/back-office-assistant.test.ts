@@ -99,6 +99,7 @@ function backOfficeData() {
         byTime: [{ bucket: "2026-10-17", calls: 400, failures: 1, ...row, costEur: 1.5 }],
         tools: [{ provider: "perplexity", name: "web_search", calls: 300, failures: 0, costEur: 1.29 }],
         externalApis: [{ provider: "france_travail", operation: "GET /partenaire/offresdemploi/v2/offres/search", calls: 450, failures: 3, costEur: 0 }],
+        failureReasons: { total: [], byModel: [], byTask: [] },
       };
     },
     async administrators() {

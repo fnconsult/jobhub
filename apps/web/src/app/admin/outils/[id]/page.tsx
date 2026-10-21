@@ -21,8 +21,9 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 /**
- * One Tool (#233): what it is, whether it is configured, its last 30 days' figures and its latest
- * calls, each with when, what, its outcome, duration and cost. Never a payload nor a secret.
+ * One Tool (#233): what it is, whether it is configured, its last 30 days' figures (with its failed and
+ * warned AI calls per Failure Reason, #262) and its latest calls, each with when, what, its outcome (and
+ * reason's wording), duration and cost. Never a payload, a secret nor a technical reason.
  */
 export default async function ToolPage({ params }: Params) {
   const { access } = await requireBackOffice("tools");
@@ -40,8 +41,11 @@ export default async function ToolPage({ params }: Params) {
   const cost = (value: number | null) => (value === null ? t("admin.tools.unknownCost") : eur.format(value));
   const outcome = (call: ToolCall) => {
     const status = call.httpStatus === null ? null : t("admin.tools.httpStatus", { status: call.httpStatus });
+    // An AI call's Failure Reason, by its wording: never its technical reason.
+    const reason = call.reason ? ` · ${t(`failureReasons.${call.reason}`)}` : "";
+    if (call.outcome === "warning") return `${t("admin.tools.warning")}${reason}`;
     if (call.ok) return status ? `${t("admin.tools.ok")} (${status})` : t("admin.tools.ok");
-    return `${t("admin.tools.failed")} (${status ?? t("admin.tools.noAnswer")})`;
+    return `${t("admin.tools.failed")}${reason || ` (${status ?? t("admin.tools.noAnswer")})`}`;
   };
 
   return (
@@ -103,6 +107,41 @@ export default async function ToolPage({ params }: Params) {
             <dt>{t("admin.tools.cost")}</dt>
             <dd>{cost(row.figures.costEur)}</dd>
           </dl>
+
+          {tool.usage?.table === "ai_usage" ? (
+            <>
+              <h3>{t("admin.tools.reasonsTitle")}</h3>
+              {row.figures.reasons.length === 0 ? (
+                <p>{t("admin.tools.noReasons")}</p>
+              ) : (
+                <div className="table-scroll">
+                  <table className="application-table">
+                    <caption>{t("admin.tools.reasonsCaption", { name: tool.name })}</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">{t("admin.tools.code")}</th>
+                        <th scope="col">{t("admin.tools.reason")}</th>
+                        <th scope="col">{t("admin.tools.outcome")}</th>
+                        <th scope="col">{t("admin.tools.calls")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {row.figures.reasons.map((count) => (
+                        <tr key={`${count.outcome} ${count.reason}`}>
+                          <td>
+                            <code>{count.reason}</code>
+                          </td>
+                          <td>{t(`failureReasons.${count.reason}`)}</td>
+                          <td>{count.outcome === "warning" ? t("admin.tools.warning") : t("admin.tools.failed")}</td>
+                          <td>{number.format(count.calls)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          ) : null}
         </>
       ) : null}
 

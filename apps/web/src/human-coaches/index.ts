@@ -6,14 +6,18 @@
  *  - who are the Human Coaches?        `add`, `list`, `retire` (Back Office), `coachSignedIn`
  *  - whom may they read?               `grantAccess`, `revokeAccess`, `accessGranted` (the Candidate's Coach Access)
  *  - what do they read?                `candidates`, `candidateFile`, `application` (read only)
- *  - what did the Candidate pay for?  `recordPaidSession` (Stripe's webhook), `sessions`, `scheduleSession`
+ *  - what did the Candidate pay for?  `recordPaidSession` (Stripe's webhook), `sessions`, `scheduleSession`, `cancelSession`
+ *  - whom does the coach meet?         `coachSessions`, `scheduleCoachedSession`, `cancelCoachedSession` (the Coach space)
+ * A date change more than an hour after the date was entered or last changed is a Reschedule, kept in the
+ * session's Reschedule history; a cancellation clears the date (back to Unscheduled) and is kept there too.
  * and `migrateHumanCoaches(database)` creates its tables.
  */
 import type { Pool } from "pg";
-import type { Queryable } from "../database/pool";
+import { inTransaction, type Queryable } from "../database/pool";
 import * as z from "zod";
 import { frenchDateTime, type Application, type Applications, type ApplicationSummary } from "../applications";
 import type { Profile, Profiles } from "../profiles";
+import { migrateRescheduleHistory, rescheduleHistories, setAgendaItemDate, type Reschedule, type RescheduledBy } from "../reschedules";
 import type { SavedTailoredCv, TailoredCvs } from "../tailored-cv";
 import type { CoverLetter, OutreachMessage, TailoredDocuments } from "../tailored-documents";
 import { fieldErrors, type FieldError } from "../validation";
@@ -90,7 +94,38 @@ export interface CoachingSession {
   /** Where it takes place: an http(s) link. */
   videoLink: string | null;
   note: string | null;
+  /** Who last entered or changed its date: the Agenda says « modifié par le coach » for "coach". Null while never dated. */
+  changedBy: SessionEditor | null;
+  /** Its Reschedule history, oldest first: Reschedules, and cancellations (`newAt` null), by the Candidate or the Human Coach. */
+  reschedules: Reschedule[];
 }
+
+/** Who enters or changes a Coaching Session's date (ADR-0027). */
+export type SessionEditor = "candidate" | "coach";
+
+/**
+ * One of a Human Coach's own Coaching Sessions, as the Coach space shows it. The session itself is the
+ * relationship, so no Coach Access is needed: it names the Candidate (first name and last initial),
+ * nothing of their Profiles or Applications, and leaves out their note.
+ */
+export interface CoachedSession {
+  id: string;
+  /** "Marie D.": the first name and last initial of the Candidate's account name; empty when they gave none. */
+  candidateName: string;
+  paidAt: Date;
+  /** Null while it is an Unscheduled Coaching Session (« À planifier »). */
+  scheduledAt: Date | null;
+  durationMinutes: number | null;
+  videoLink: string | null;
+  /** Its Reschedule history, oldest first, as the Coach space shows it. */
+  reschedules: Reschedule[];
+}
+
+export type ScheduleCoachedSessionResult =
+  | { ok: true; session: CoachedSession }
+  | { ok: false; errors: FieldError[] }
+  /** No such Coaching Session of this Human Coach, or they are retired. */
+  | { ok: false; error: "not_found" };
 
 export type ScheduleSessionResult =
   | { ok: true; session: CoachingSession }
@@ -119,6 +154,8 @@ export interface HumanCoachesDeps {
   applications: Pick<Applications, "list" | "get">;
   tailoredDocuments: Pick<TailoredDocuments, "get">;
   tailoredCvs: Pick<TailoredCvs, "get">;
+  /** The clock Coaching Session dates are entered, Rescheduled and cancelled by. */
+  now?: () => Date;
 }
 
 export interface HumanCoaches {
@@ -173,6 +210,32 @@ export interface HumanCoaches {
    * "not_found" for anyone else's session. A Candidate never deletes a Coaching Session.
    */
   scheduleSession(candidateId: string, sessionId: string, input: unknown): Promise<ScheduleSessionResult>;
+
+  /**
+   * The (not retired) Human Coach's own Coaching Sessions, with every Candidate, whether or not they
+   * granted Coach Access: Unscheduled ones first (oldest paid first), then the dated ones, latest first.
+   * Empty for a Retired Human Coach (ADR-0016) or an unknown one.
+   */
+  coachSessions(coachId: string): Promise<CoachedSession[]>;
+  /**
+   * The (not retired) Human Coach enters or corrects the date of one of their own Coaching Sessions
+   * (ADR-0027). `input` is untrusted: { scheduledAt (French time without an offset), durationMinutes?,
+   * videoLink? (http or https) }; it replaces those three and keeps the Candidate's note. The change is
+   * recorded as the coach's. "not_found" for another coach's session, or for a Retired Human Coach.
+   */
+  scheduleCoachedSession(coachId: string, sessionId: string, input: unknown): Promise<ScheduleCoachedSessionResult>;
+
+  /**
+   * The Candidate cancels one of their own Coaching Sessions: its date is cleared, so it is Unscheduled again
+   * (« À planifier »), and the cancellation is kept in its Reschedule history. Refunds are handled outside
+   * Jobbbox. Cancelling an Unscheduled one changes nothing. "not_found" for anyone else's session.
+   */
+  cancelSession(candidateId: string, sessionId: string): Promise<ScheduleSessionResult>;
+  /**
+   * The (not retired) Human Coach cancels one of their own Coaching Sessions, as `cancelSession` does,
+   * recorded as theirs. "not_found" for another coach's session, or for a Retired Human Coach.
+   */
+  cancelCoachedSession(coachId: string, sessionId: string): Promise<{ ok: true } | { ok: false; error: "not_found" }>;
 }
 
 /** Cal.com's hosted sites (cal.com, its EU instance cal.eu, and their subdomains). */
@@ -226,6 +289,9 @@ const scheduleSchema = z.object({
   note: optionalText(500),
 });
 
+/** What a Human Coach enters: the Candidate's note is not theirs to change. */
+const coachScheduleSchema = scheduleSchema.omit({ note: true });
+
 interface CoachRow {
   id: string;
   name: string;
@@ -256,10 +322,21 @@ const reviewFrom = (row: ReviewRow): CoachReview => ({
   createdAt: row.created_at,
 });
 
+/** "Marie D.": the first word of `fullName` and the initial of its last word. */
+function firstNameAndLastInitial(fullName: string): string {
+  const words = fullName.trim().split(/\s+/).filter(Boolean);
+  const first = words[0] ?? "";
+  if (words.length < 2) return first;
+  const initial = Array.from(words.at(-1)!)[0]!.toLocaleUpperCase("fr");
+  return `${first} ${initial}.`;
+}
+
 const COACH_COLUMNS = "id, name, email, booking_url, bio";
 const coachFrom = (row: CoachRow): HumanCoach => ({ id: row.id, name: row.name, email: row.email, bookingUrl: row.booking_url, bio: row.bio });
 
 export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): HumanCoaches {
+  const now = deps.now ?? (() => new Date());
+
   /** The Candidate, if they granted this (not retired) Human Coach Coach Access. */
   async function coachedCandidate(coachId: string, candidateId: string): Promise<CoachedCandidate | null> {
     if (!UUID.test(coachId)) return null;
@@ -307,13 +384,28 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
   /** The Candidate's Coaching Sessions (or the one `sessionId` names), newest first. */
   async function sessionsOf(candidateId: string, sessionId?: string): Promise<CoachingSession[]> {
     const { rows } = await database.query<
-      CoachRow & { session_id: string; amount: number; currency: string; paid_at: Date; scheduled_at: Date | null; duration_minutes: number | null; video_link: string | null; note: string | null }
+      CoachRow & {
+        session_id: string;
+        amount: number;
+        currency: string;
+        paid_at: Date;
+        scheduled_at: Date | null;
+        duration_minutes: number | null;
+        video_link: string | null;
+        note: string | null;
+        changed_by: SessionEditor | null;
+      }
     >(
-      `SELECT s.id AS session_id, s.amount, s.currency, s.paid_at, s.scheduled_at, s.duration_minutes, s.video_link, s.note,
+      `SELECT s.id AS session_id, s.amount, s.currency, s.paid_at, s.scheduled_at, s.duration_minutes, s.video_link, s.note, s.changed_by,
               h.id, h.name, h.email, h.booking_url, h.bio
        FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id
        WHERE s.candidate_id = $1 AND ($2::uuid IS NULL OR s.id = $2) ORDER BY s.paid_at DESC, s.id`,
       [candidateId, sessionId ?? null],
+    );
+    const histories = await rescheduleHistories(
+      database,
+      "coaching_session",
+      rows.map((row) => row.session_id),
     );
     return rows.map((row) => ({
       id: row.session_id,
@@ -325,7 +417,73 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       durationMinutes: row.duration_minutes,
       videoLink: row.video_link,
       note: row.note,
+      changedBy: row.changed_by,
+      reschedules: histories.get(row.session_id)!,
     }));
+  }
+
+  /** The (not retired) Human Coach's Coaching Sessions (or the one `sessionId` names), « À planifier » first, then latest first. */
+  async function coachSessionsOf(coachId: string, sessionId?: string): Promise<CoachedSession[]> {
+    if (!UUID.test(coachId)) return [];
+    const { rows } = await database.query<{ id: string; candidate_name: string | null; paid_at: Date; scheduled_at: Date | null; duration_minutes: number | null; video_link: string | null }>(
+      `SELECT s.id, c.name AS candidate_name, s.paid_at, s.scheduled_at, s.duration_minutes, s.video_link
+         FROM coaching_session s
+         JOIN human_coach h ON h.id = s.coach_id AND h.retired_at IS NULL
+         JOIN candidate c ON c.id = s.candidate_id
+        WHERE s.coach_id = $1 AND ($2::uuid IS NULL OR s.id = $2)
+        ORDER BY s.scheduled_at DESC NULLS FIRST, s.paid_at, s.id`,
+      [coachId, sessionId ?? null],
+    );
+    const histories = await rescheduleHistories(database, "coaching_session", rows.map((row) => row.id));
+    return rows.map((row) => ({
+      id: row.id,
+      candidateName: firstNameAndLastInitial(row.candidate_name ?? ""),
+      paidAt: row.paid_at,
+      scheduledAt: row.scheduled_at,
+      durationMinutes: row.duration_minutes,
+      videoLink: row.video_link,
+      reschedules: histories.get(row.id)!,
+    }));
+  }
+
+  /**
+   * Sets the date of the Coaching Session `sessionId` names, if `owned` (a condition on `coaching_session s`
+   * with `$1` the session's id) finds it, and `fields`: its duration, video link and note, when given. The
+   * date goes through `setAgendaItemDate`, which keeps its Reschedules. False when not found.
+   */
+  async function setSessionDate(
+    sessionId: string,
+    owned: { where: string; params: unknown[] },
+    change: { to: Date | null; by: RescheduledBy; fields?: { durationMinutes: number | null; videoLink: string | null; note?: string | null } },
+  ): Promise<boolean> {
+    return inTransaction(database, async (client) => {
+      const { rows } = await client.query(`SELECT s.id FROM coaching_session s WHERE s.id = $1 AND ${owned.where} FOR UPDATE OF s`, [sessionId, ...owned.params]);
+      if (!rows[0]) return false;
+      if (change.fields) {
+        const { durationMinutes, videoLink, note } = change.fields;
+        if (note === undefined) {
+          await client.query(`UPDATE coaching_session SET duration_minutes = $2, video_link = $3 WHERE id = $1`, [sessionId, durationMinutes, videoLink]);
+        } else {
+          await client.query(`UPDATE coaching_session SET duration_minutes = $2, video_link = $3, note = $4 WHERE id = $1`, [sessionId, durationMinutes, videoLink, note]);
+        }
+      }
+      const changed = await setAgendaItemDate(client, { table: "coaching_session", id: sessionId }, { to: change.to, by: change.by, now: now() });
+      // Who last entered or changed the date (« modifié par le coach »), kept beside the Reschedule history.
+      if (changed) await client.query(`UPDATE coaching_session SET changed_by = $2 WHERE id = $1`, [sessionId, change.by]);
+      return changed;
+    });
+  }
+
+  /** The Candidate's own session, after a change: the result to give back. */
+  async function sessionResult(candidateId: string, sessionId: string, changed: boolean): Promise<ScheduleSessionResult> {
+    const session = changed ? (await sessionsOf(candidateId, sessionId))[0] : undefined;
+    return session ? { ok: true, session } : { ok: false, error: "not_found" };
+  }
+
+  /** The Human Coach's own session, after a change: the result to give back. */
+  async function coachSessionResult(coachId: string, sessionId: string, changed: boolean): Promise<ScheduleCoachedSessionResult> {
+    const session = changed ? (await coachSessionsOf(coachId, sessionId))[0] : undefined;
+    return session ? { ok: true, session } : { ok: false, error: "not_found" };
   }
 
   const DOCUMENT_OF = { tailored_cv: "tailoredCv", cover_letter: "coverLetter", outreach_message: "outreachMessage" } as const;
@@ -452,18 +610,44 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       return sessionsOf(candidateId);
     },
 
+    coachSessions: (coachId) => coachSessionsOf(coachId),
+
+    async scheduleCoachedSession(coachId, sessionId, input) {
+      const parsed = coachScheduleSchema.safeParse(input, { reportInput: true });
+      if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+      if (!UUID.test(coachId) || !UUID.test(sessionId)) return { ok: false, error: "not_found" };
+      const { scheduledAt, durationMinutes, videoLink } = parsed.data;
+      const changed = await setSessionDate(
+        sessionId,
+        { where: "s.coach_id = $2 AND EXISTS (SELECT 1 FROM human_coach h WHERE h.id = s.coach_id AND h.retired_at IS NULL)", params: [coachId] },
+        { to: scheduledAt, by: "coach", fields: { durationMinutes, videoLink } },
+      );
+      return coachSessionResult(coachId, sessionId, changed);
+    },
+
     async scheduleSession(candidateId, sessionId, input) {
       const parsed = scheduleSchema.safeParse(input, { reportInput: true });
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       if (!UUID.test(sessionId)) return { ok: false, error: "not_found" };
       const { scheduledAt, durationMinutes, videoLink, note } = parsed.data;
-      const { rowCount } = await database.query(
-        `UPDATE coaching_session SET scheduled_at = $3, duration_minutes = $4, video_link = $5, note = $6
-         WHERE id = $1 AND candidate_id = $2`,
-        [sessionId, candidateId, scheduledAt, durationMinutes, videoLink, note],
+      const changed = await setSessionDate(sessionId, { where: "s.candidate_id = $2", params: [candidateId] }, { to: scheduledAt, by: "candidate", fields: { durationMinutes, videoLink, note } });
+      return sessionResult(candidateId, sessionId, changed);
+    },
+
+    async cancelSession(candidateId, sessionId) {
+      if (!UUID.test(sessionId)) return { ok: false, error: "not_found" };
+      const changed = await setSessionDate(sessionId, { where: "s.candidate_id = $2", params: [candidateId] }, { to: null, by: "candidate" });
+      return sessionResult(candidateId, sessionId, changed);
+    },
+
+    async cancelCoachedSession(coachId, sessionId) {
+      if (!UUID.test(coachId) || !UUID.test(sessionId)) return { ok: false, error: "not_found" };
+      const changed = await setSessionDate(
+        sessionId,
+        { where: "s.coach_id = $2 AND EXISTS (SELECT 1 FROM human_coach h WHERE h.id = s.coach_id AND h.retired_at IS NULL)", params: [coachId] },
+        { to: null, by: "coach" },
       );
-      const session = rowCount ? (await sessionsOf(candidateId, sessionId))[0] : undefined;
-      return session ? { ok: true, session } : { ok: false, error: "not_found" };
+      return changed ? { ok: true } : { ok: false, error: "not_found" };
     },
   };
 }
@@ -513,5 +697,10 @@ export async function migrateHumanCoaches(database: Pool): Promise<void> {
     ALTER TABLE coaching_session ADD COLUMN IF NOT EXISTS duration_minutes integer CHECK (duration_minutes > 0);
     ALTER TABLE coaching_session ADD COLUMN IF NOT EXISTS video_link text;
     ALTER TABLE coaching_session ADD COLUMN IF NOT EXISTS note text;
+    -- Who last entered or changed its date (#249): the Candidate or the Human Coach; null while never dated.
+    ALTER TABLE coaching_session ADD COLUMN IF NOT EXISTS changed_by text CHECK (changed_by IN ('candidate', 'coach'));
+    UPDATE coaching_session SET changed_by = 'candidate' WHERE changed_by IS NULL AND scheduled_at IS NOT NULL;
   `);
+  // Dates entered before Reschedules were kept are taken as entered when the session was paid.
+  await migrateRescheduleHistory(database, "coaching_session", { enteredAt: "paid_at" });
 }

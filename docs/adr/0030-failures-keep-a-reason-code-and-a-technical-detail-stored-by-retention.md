@@ -20,6 +20,8 @@ A call stopped before it was sent is recorded as failed and « non envoyé », w
 
 The Back Office Audit now also records failed or refused attempts that change nothing: connection and sign-in tests, business refusals (validation, Eval Run, last super-admin, Stripe) and an Administrator opening a section outside their Back Office Roles. It never records form input errors (empty, too long), the values a refused save carried, or visitors without a Back Office Role.
 
+**Warnings (#260).** A degraded path is recorded on the AI call it concerns as an AI call warning: a code from the same catalog and a scrubbed detail. A call that worked with warnings has Outcome warning and its first warning as its reason; a failed call keeps its own reason, with its warnings stored beside it in `ai_usage.warnings` (codes) and `ai_message_log.warnings` (code and detail). Details stay with the AI Message Log (30 days, super-admins only). Degraded paths with no call to carry them stay on the console.
+
 ## Considered Options
 
 - **Free text only:** readable, but neither filterable nor countable, and too easily a carrier of personal data kept for years.

@@ -17,6 +17,7 @@
 import { builtInInstructions, fillSlots, slotsIn } from "@jobhub/coach-knowledge/tasks";
 import type { Route } from "./ai-layer";
 import { clean, taskQueryText } from "./search-query";
+import type { AiWarning } from "./types";
 
 export interface CompanyNewsRequest {
   candidateId: string | null;
@@ -33,6 +34,8 @@ export interface CompanyNewsRequest {
   instructions?: string;
   /** The web-search provider and model instead of the configured one: the task Playbook's (ADR-0026). */
   route?: Route;
+  /** The degraded paths its feature took (a task Playbook's fallback), recorded with the search (#260). */
+  warnings?: AiWarning[];
 }
 
 /** One article about the employer: never its text. */

@@ -1385,7 +1385,18 @@
         "back_office_assistant": "Assistant du back office",
         "guardrail": "Garde-fous",
         "eval": "Évaluations"
-      }
+      },
+      "reasonsTitle": "Échecs et avertissements par raison",
+      "reasonsIntro": "Les appels à l'IA échoués ou en avertissement de la période, comptés par raison. Codes et libellés seulement : jamais la raison technique.",
+      "reasonsCaption": "Appels à l'IA échoués ou en avertissement, par raison",
+      "reasonsByModelTitle": "Par fournisseur, modèle et raison",
+      "reasonsByModelCaption": "Appels à l'IA échoués ou en avertissement, par fournisseur, modèle et raison",
+      "reasonsByTaskTitle": "Par tâche et raison",
+      "reasonsByTaskCaption": "Appels à l'IA échoués ou en avertissement, par tâche et raison",
+      "code": "Code",
+      "reason": "Raison",
+      "outcome": "Résultat",
+      "noReasons": "Aucun échec ni avertissement sur cette période."
     },
     "aiMessages": {
       "title": "Journaux IA",
@@ -1441,6 +1452,7 @@
         "status": "Statut HTTP",
         "message": "Message"
       },
+      "warnings": "Avertissements",
       "noTechnical": "Aucun détail technique enregistré.",
       "noReplyNotSent": "Aucune réponse : l'appel n'a pas été envoyé."
     },
@@ -1876,7 +1888,13 @@
       "ok": "OK",
       "failed": "Échec",
       "httpStatus": "HTTP {{status}}",
-      "noAnswer": "Pas de réponse"
+      "noAnswer": "Pas de réponse",
+      "reasonsTitle": "Échecs et avertissements par raison (30 j)",
+      "reasonsCaption": "Appels à {{name}} échoués ou en avertissement sur 30 jours, par raison",
+      "noReasons": "Aucun appel à l'IA échoué ou en avertissement sur 30 jours.",
+      "code": "Code",
+      "reason": "Raison",
+      "warning": "Avertissement"
     }
   },
   "backOfficeAssistant": {
@@ -1959,7 +1977,24 @@
     "toScheduleIntro": "Vos séances de coaching payées n'ont pas encore de date. Réservez votre créneau sur la page Cal.com du coach, puis saisissez la date ici.",
     "coachingSession": "Séance de coaching",
     "withCoach": "avec {{name}}",
-    "duration": "{{count}} min"
+    "duration": "{{count}} min",
+    "viewsLabel": "Affichage de l'agenda",
+    "listView": "Liste",
+    "weekView": "Semaine",
+    "monthView": "Mois",
+    "weekNavLabel": "Changer de semaine",
+    "monthNavLabel": "Changer de mois",
+    "previous": "Précédent",
+    "today": "Aujourd'hui",
+    "next": "Suivant",
+    "weekTitle": "Semaine du {{range}}",
+    "nothing": "Rien de prévu",
+    "nothingThatDay": "Rien de prévu ce jour-là.",
+    "dayItems_zero": "{{date}} : aucun rendez-vous",
+    "dayItems_one": "{{date}} : {{count}} rendez-vous",
+    "dayItems_other": "{{date}} : {{count}} rendez-vous",
+    "legendLabel": "Légende",
+    "changedByCoach": "modifié par le coach"
   },
   "application": {
     "statusLabel": "Statut",
@@ -1982,10 +2017,10 @@
     "interviewNote": "Note (facultatif)",
     "interviewNoteHint": "Par exemple : avec la DRH, en visioconférence.",
     "addInterview": "Ajouter l'entretien",
-    "removeInterview": "Retirer l'entretien du {{date}}",
+    "removeInterview": "Supprimer l'entretien du {{date}}",
     "editInterview": "Modifier l'entretien du {{date}}",
     "saveInterview": "Enregistrer l'entretien",
-    "cancelInterviewEdit": "Annuler",
+    "cancelInterviewEdit": "Fermer sans enregistrer",
     "working": "Enregistrement…",
     "backToApplications": "Retour à mes candidatures",
     "expiredNotice": "Votre candidature et son statut restent tels quels : c'est vous qui décidez de la suite.",
@@ -2531,7 +2566,8 @@
     "sessionDuration": "Durée : {{count}} minutes",
     "joinVideo": "Rejoindre la visio avec {{name}}",
     "seeInAgenda": "Voir dans l'agenda",
-    "toSchedule": "Pas encore de date : réservez votre créneau sur Cal.com, puis saisissez la date."
+    "toSchedule": "Pas encore de date : réservez votre créneau sur Cal.com, puis saisissez la date.",
+    "changedByCoach": "Date modifiée par {{name}}"
   },
   "coachingSession": {
     "enterDate": "J'ai réservé : saisir la date",
@@ -2553,7 +2589,9 @@
     "invalidDuration": "Saisissez une durée entre 5 et 600 minutes, ou laissez vide.",
     "invalidVideoLink": "Saisissez un lien qui commence par http:// ou https://, ou laissez vide.",
     "invalidNote": "La note ne doit pas dépasser 500 caractères.",
-    "error": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez."
+    "error": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez.",
+    "coachEnterDate": "Saisir la date",
+    "coachEnterDateFor": "Saisir la date de la séance avec {{name}}"
   },
   "coachReviews": {
     "title": "Avis de vos coachs",
@@ -2587,7 +2625,17 @@
     "reviewInvalid": "Choisissez un document déjà rédigé et écrivez votre avis.",
     "reviewNothing": "Le candidat n'a encore aucun document de candidature à commenter.",
     "status": "Statut : {{status}}",
-    "applicationStatus": "({{status}}, depuis le {{date}})"
+    "applicationStatus": "({{status}}, depuis le {{date}})",
+    "candidatesTitle": "Candidats avec accès coach",
+    "sessionsTitle": "Mes séances de coaching",
+    "sessionsIntro": "Les séances que des candidats ont payées avec vous. Saisissez ou corrigez la date réservée et le lien de la visio : le candidat les retrouve dans son agenda.",
+    "sessionsNone": "Aucune séance payée pour l'instant.",
+    "unnamedCandidate": "Candidat sans nom",
+    "sessionToSchedule": "À planifier",
+    "sessionOn": "Le {{date}} (heure de Paris)",
+    "sessionDuration": "{{count}} min",
+    "sessionPaidOn": "Payée le {{date}}",
+    "joinVideo": "Lien de la visio avec {{name}}"
   },
   "jobDigest": {
     "sectionTitle": "Job Digest",
@@ -2687,6 +2735,20 @@
     "route_missing": "Aucun fournisseur configuré pour cette tâche",
     "data_residency": "Règle de résidence des données",
     "invalid_reply": "Réponse illisible",
+    "task_playbook_fallback": "Aucune version du Task Playbook servie : texte intégré utilisé",
+    "task_playbook_unreadable": "Task Playbook illisible : texte intégré utilisé",
+    "task_playbook_section_missing": "Section absente du Task Playbook : texte intégré utilisé",
+    "task_playbook_agent_not_offered": "Playbook Agent du Task Playbook non proposé : route configurée utilisée",
+    "task_playbook_search_not_offered": "Recherche web du Task Playbook non proposée : route configurée utilisée",
+    "playbook_agent_skipped": "Playbook Agent laissé de côté : réponse sans son avis",
+    "identity_unavailable": "Identité indisponible : Redaction par la seule forme (e-mails, téléphones)",
+    "identity_undeclared": "Identité non déclarée trouvée : appel traité comme porteur d'identité",
+    "job_titles_unavailable": "Recherche avec le seul titre des Critères",
+    "company_news_unavailable": "Company Dossier construit sans actualités",
+    "cv_reading_fallback": "CV lu par les règles, sans l'IA",
+    "tailored_cv_refused": "Réponse refusée : aucun Tailored CV proposé à partir d'elle",
+    "match_score_text_unread": "Texte de l'offre non lu : Match Score sur ses seules données structurées",
+    "match_score_too_slow": "Lecture de l'offre trop lente : Match Score sur ses seules données structurées",
     "test_failed": "Test de connexion échoué",
     "test_expired": "Connexion de test expirée",
     "not_tested": "Activation sans connexion de test réussie",
@@ -2703,5 +2765,26 @@
     "invalid_verdict": "Verdict du contrôle illisible",
     "provider_error": "Erreur du fournisseur",
     "other": "Erreur inattendue"
+  },
+  "agendaChanges": {
+    "rescheduled": "Reporté · initialement prévu le {{date}}",
+    "history": "Historique",
+    "historyRescheduled": "{{at}} : reporté du {{from}} au {{to}}, par {{by}}",
+    "historyCancelled": "{{at}} : annulé (prévu le {{from}}), par {{by}}",
+    "byYou": "vous",
+    "byCoach": "le coach",
+    "cancelledOn": "Annulé le {{date}}",
+    "cancelledInterview": "Entretien annulé",
+    "cancelInterview": "Annuler l'entretien",
+    "cancelInterviewFor": "Annuler l'entretien du {{date}}",
+    "cancelInterviewConfirm": "Annuler cet entretien ? Il reste dans votre agenda et dans cette candidature, barré, avec la date d'annulation.",
+    "cancelSession": "Annuler la séance",
+    "cancelSessionFor": "Annuler la séance avec {{name}}",
+    "cancelSessionConfirm": "Annuler cette séance ? Sa date est effacée et elle revient dans « À planifier » : vous pourrez réserver un autre créneau. Un éventuel remboursement se règle avec le coach, hors de Jobbbox.",
+    "confirm": "Oui, annuler",
+    "keep": "Non, garder",
+    "working": "Annulation…",
+    "error": "L'annulation a échoué. Vérifiez votre connexion et réessayez.",
+    "removeHint": "« Supprimer » efface un entretien saisi par erreur, sans laisser de trace. « Annuler » le garde, barré."
   }
 }

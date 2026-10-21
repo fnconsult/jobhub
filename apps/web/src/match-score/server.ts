@@ -19,9 +19,9 @@ export function getMatchScoring(): MatchScoring {
     jobOffers: getJobOffers(),
     profiles: getProfiles(),
     matchScoreQuota: (candidateId) => getBilling().use(candidateId, "matchScores"),
-    readOfferText: async (jobOffer, candidateId) => {
+    readOfferText: async (jobOffer, candidateId, call) => {
       const reading = await servedTaskRun(getTaskPlaybooks(), "job-offer-reading", getAi());
-      return readOfferFields(getAi(), { candidateId, jobOffer, reading: reading?.instructions() ?? null });
+      return readOfferFields(getAi(), { candidateId, jobOffer, reading: reading?.instructions() ?? null, ...call });
     },
   });
   return instance;

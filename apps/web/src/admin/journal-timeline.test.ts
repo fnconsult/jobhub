@@ -18,7 +18,7 @@ const entry = (id: string, at: string): BackOfficeAuditEntry => ({
 });
 const call = (toolId: string, at: string, ok = true): CalledTool => ({
   tool: toolById(toolId)!,
-  call: { at: new Date(at), operation: "checkout.sessions.create", ok, httpStatus: ok ? 200 : 500, durationMs: 300, costEur: null },
+  call: { at: new Date(at), operation: "checkout.sessions.create", ok, outcome: ok ? "ok" : "failed", reason: null, httpStatus: ok ? 200 : 500, durationMs: 300, costEur: null },
 });
 
 describe("the Journal with its Outils filter: the Back Office changes and the tool calls, together", () => {

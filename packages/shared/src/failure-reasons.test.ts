@@ -179,6 +179,12 @@ describe("Failure Reason catalog", () => {
     expect(failureReasonWording("job_titles_unavailable")).toBe("Recherche avec le seul titre des Critères");
     expect(failureReasonWording("company_news_unavailable")).toBe("Company Dossier construit sans actualités");
     expect(failureReasonWording("identity_unavailable", "en")).toBe("Identity unavailable: redacted by shape alone (emails, phone numbers)");
+    // Fixed wording: no slot a Candidate's text could fill.
+    for (const code of AI_CALL_WARNINGS) {
+      expect(code).toMatch(/^[a-z_]+$/);
+      expect(failureReasonWording(code, "fr")).not.toMatch(/\{\{/);
+      expect(failureReasonWording(code, "en")).not.toMatch(/\{\{/);
+    }
   });
 
   it("tells a code from any other value", () => {

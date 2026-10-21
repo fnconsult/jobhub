@@ -85,6 +85,9 @@ const interviewItem = (scheduledAt: string, more: Partial<Extract<AgendaItem, { 
   applicationId: application.id,
   jobTitle: "DAF H/F",
   employer: "Acme Industrie",
+  durationMinutes: null,
+  format: null,
+  place: "",
   ...more,
 });
 

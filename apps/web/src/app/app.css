@@ -3149,6 +3149,12 @@ textarea.title-edit {
   font-weight: 600;
 }
 
+/* « modifié par le coach » (#249): the Human Coach last changed the Coaching Session's date. */
+.agenda-item-changed {
+  font-style: italic;
+  color: var(--color-text-secondary);
+}
+
 .agenda-past .agenda-item {
   color: var(--color-text-secondary);
   background: var(--color-surface);

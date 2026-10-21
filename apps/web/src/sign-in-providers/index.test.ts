@@ -214,6 +214,10 @@ describe.skipIf(!connectionString)("Sign-in Providers in the database (needs Pos
     await providers.save(claire, oidc({ enabled: false, secrets: {} }));
     expect(await providers.save(claire, oidc({ enabled: true, secrets: {} }))).toEqual({ ok: false, error: "not_tested" });
     expect((await providers.load()).providers[0]).toMatchObject({ clientSecret: "rotated-secret-0000000000" });
+
+    // Each refusal is in the Journal (#263): what was tried and the field at fault.
+    const refused = { target: "jobbbox-sso", action: "refused", failure: { reason: "not_tested", tried: "updated", field: "enabled", technical: null } };
+    expect((await backOffice.journal({ section: "sign_in_providers", outcome: "failed" })).map(({ target, action, failure }) => ({ target, action, failure }))).toEqual([refused, refused]);
   });
 
   describe("a test sign-in", () => {
@@ -247,6 +251,51 @@ describe.skipIf(!connectionString)("Sign-in Providers in the database (needs Pos
 
       expect((await providers.load()).providers[0]).toMatchObject({ testPending: false });
       expect(await providers.completeTestSignIn("jobbbox-sso", started.nonce)).toBe(false);
+      // Recorded as the super-admin who started it (#263); a nonce nobody issued is not.
+      expect(await providers.completeTestSignIn("jobbbox-sso", "a-nonce-nobody-issued")).toBe(false);
+      expect(await backOffice.journal({ section: "sign_in_providers", outcome: "failed" })).toMatchObject([
+        { target: "jobbbox-sso", action: "tested", actor: { candidateId: claire.id, email: "claire@jobbbox.fr" }, failure: { reason: "test_expired", tried: "tested", field: null, technical: null } },
+      ]);
+    });
+
+    it("that came back failed (the provider or the token exchange refused it) is recorded once as a failed test of the super-admin who started it, with Better Auth's code (#263)", async () => {
+      await providers.save(claire, oidc());
+      const started = await providers.startTestSignIn(claire, "jobbbox-sso");
+      if (!started.ok) throw new Error(started.error);
+      const paul = { id: "another-administrator", email: "paul@jobbbox.fr" };
+
+      // Only the super-admin who started it fails it: another one coming back to Connexion with ?testFailed does not.
+      expect(await providers.failTestSignIn(paul, "jobbbox-sso", "invalid_code")).toBe(false);
+      expect(await providers.failTestSignIn(claire, "jobbbox-sso", "invalid_code")).toBe(true);
+      // Connexion shown again (a reload): recorded once, the test is over.
+      expect(await providers.failTestSignIn(claire, "jobbbox-sso", "invalid_code")).toBe(false);
+      expect((await providers.load()).providers[0]).toMatchObject({ testPending: false });
+      expect(await providers.completeTestSignIn("jobbbox-sso", started.nonce)).toBe(false);
+
+      expect(await backOffice.journal({ section: "sign_in_providers", outcome: "failed" })).toMatchObject([
+        {
+          target: "jobbbox-sso",
+          action: "tested",
+          actor: { candidateId: claire.id, email: "claire@jobbbox.fr" },
+          failure: { reason: "test_failed", tried: "tested", field: null, technical: { class: "SignInCallback", provider: "oidc", message: "invalid_code" } },
+        },
+      ]);
+    });
+
+    it("that came back failed after its time, or never started, is not recorded as failed; an error that is not a code is kept as unknown", async () => {
+      await providers.save(claire, oidc());
+      expect(await providers.failTestSignIn(claire, "jobbbox-sso", "access_denied")).toBe(false);
+
+      const started = await providers.startTestSignIn(claire, "jobbbox-sso");
+      if (!started.ok) throw new Error(started.error);
+      expect(await providers.failTestSignIn(claire, "jobbbox-sso", "<script>alert(1)</script> and some words")).toBe(true);
+      const [entry] = await backOffice.journal({ section: "sign_in_providers", outcome: "failed" });
+      expect(entry!.failure!.technical!.message).toBe("unknown");
+
+      await providers.startTestSignIn(claire, "jobbbox-sso");
+      now = new Date(now.getTime() + 11 * 60_000);
+      expect(await providers.failTestSignIn(claire, "jobbbox-sso", "access_denied")).toBe(false);
+      expect(await backOffice.journal({ section: "sign_in_providers", outcome: "failed" })).toHaveLength(1);
     });
 
     it("is recorded in the Back Office Audit, as the super-admin who started it", async () => {
@@ -398,8 +447,15 @@ describe.skipIf(!connectionString)("Sign-in Providers in the database (needs Pos
       expect(inUse?.clientSecret.split(".")).toHaveLength(3);
     });
 
-    it("refuses a .p8 key that does not sign", async () => {
+    it("refuses a .p8 key that does not sign, and records the refusal without the key", async () => {
       expect(await providers.save(claire, apple({ secrets: { teamId: "ABCDE12345", keyId: "KEY1234567", privateKey: "not a key" } }))).toEqual({ ok: false, error: "invalid_apple_key" });
+
+      const journal = await backOffice.journal({ section: "sign_in_providers" });
+      expect(journal).toMatchObject([
+        { target: "apple", action: "refused", outcome: "failed", before: null, after: null, failure: { reason: "invalid_apple_key", tried: "added", field: "privateKey", technical: { class: "AppleKeyError" } } },
+      ]);
+      expect(JSON.stringify(journal)).not.toContain("not a key");
+      expect(JSON.stringify(journal)).not.toContain("KEY1234567");
     });
 
     it("signs a new client secret once a month, and says which failed", async () => {

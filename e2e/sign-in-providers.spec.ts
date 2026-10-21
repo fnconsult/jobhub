@@ -2,7 +2,7 @@ import { generateKeyPairSync } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { newAddress } from "./support/mailbox";
-import { approveAtIssuer, FAKE_OIDC_ISSUER, signInByEmail, startSignInServer, SSO_SUPER_ADMIN, type SignInServer } from "./support/sign-in-server";
+import { approveAtIssuer, FAKE_OIDC_ISSUER, refuseAtIssuer, signInByEmail, startSignInServer, SSO_SUPER_ADMIN, type SignInServer } from "./support/sign-in-server";
 
 // Issue #209: Sign-in Providers configured from the Back Office. A super-admin adds a
 // generic OIDC provider in the Connexion section, tests it by signing in, then enables it:
@@ -106,6 +106,22 @@ test.describe("Sign-in Providers (the Connexion section)", () => {
     await expect(provider).toContainText(sp.notTested);
     const callbackUrl = (await provider.locator("dd code.wrap-anywhere").textContent())!;
     expect(callbackUrl).toBe(`${server.origin}/api/auth/callback/${SSO.id}`);
+
+    // A test sign-in the issuer refuses: Connexion says so, and the Journal keeps it as a failed test,
+    // with Better Auth's code as its technical detail (#263). Shown again, it is not recorded twice.
+    await refuseAtIssuer(superAdmin, "access_denied");
+    await provider.getByRole("button", { name: tr(sp.test, { name: SSO.name }) }).click();
+    await expect(superAdmin).toHaveURL(new RegExp(`/admin/connexion\\?testFailed=${SSO.id}&error=access_denied`));
+    await expect(superAdmin.getByRole("main").getByRole("alert")).toHaveText(tr(sp.testFailed, { name: SSO.name }));
+    await superAdmin.reload();
+    await superAdmin.goto(`${server.origin}/admin/journal?section=sign_in_providers&outcome=failed`);
+    const failedTests = superAdmin.getByRole("row").filter({ hasText: tr(fr.admin.journal.failed, { tried: fr.admin.journal.actions.tested, reason: fr.failureReasons.test_failed }) });
+    await expect(failedTests).toHaveCount(1);
+    await expect(failedTests).toContainText(SSO.id);
+    await expect(failedTests).toContainText(fr.admin.journal.outcomes.failed);
+    await failedTests.getByText(fr.admin.journal.technicalDetail).click();
+    await expect(failedTests.locator("code")).toHaveText("access_denied");
+    await superAdmin.goto(`${server.origin}/admin/connexion`);
 
     // The test sign-in: the super-admin signs in at the issuer, comes back, nothing is created.
     let redirectUri = "";

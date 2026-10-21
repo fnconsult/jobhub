@@ -74,9 +74,11 @@ describe.skipIf(!connectionString)("Administrators and their Back Office Roles (
     });
   });
 
-  it("refuses an email with no account, and records nothing: there are no pending grants", async () => {
-    expect(await administrators.grant(claire, "nobody@jobbbox.fr", ["support"])).toEqual({ ok: false, error: "unknown_account" });
-    expect(await backOffice.journal()).toEqual([]);
+  it("refuses an email with no account, and records the refusal: there are no pending grants", async () => {
+    expect(await administrators.grant(claire, " Nobody@jobbbox.fr ", ["support"])).toEqual({ ok: false, error: "unknown_account" });
+    expect(await backOffice.journal()).toMatchObject([
+      { section: "roles", target: "nobody@jobbbox.fr", action: "refused", outcome: "failed", before: null, after: null, failure: { reason: "unknown_account", tried: "added", field: "email", technical: null } },
+    ]);
   });
 
   it("refuses a grant with no known role", async () => {
@@ -188,6 +190,9 @@ describe.skipIf(!connectionString)("Administrators and their Back Office Roles (
 
       expect(await bare.revoke(paul, paul.id, "super-admin")).toEqual({ ok: false, error: "last_super_admin" });
       expect((await bare.access(paul)).isSuperAdmin).toBe(true);
+      expect((await backOffice.journal({ outcome: "failed" })).map(({ actor, target, action, failure }) => ({ by: actor.email, target, action, failure }))).toEqual([
+        { by: "paul@jobbbox.fr", target: "paul@jobbbox.fr", action: "refused", failure: { reason: "last_super_admin", tried: "updated", field: "roles", technical: null } },
+      ]);
     });
 
     it("a super-admin whose role was just revoked cannot grant any more", async () => {

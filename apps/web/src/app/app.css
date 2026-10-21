@@ -973,6 +973,27 @@ th[aria-sort] .sort-mark {
   overflow-wrap: anywhere;
 }
 
+/* A failed attempt's reason, then its technical detail on demand (#263). */
+nav + nav > .journal-filter {
+  margin-top: var(--space-2);
+}
+
+.application-table td > p {
+  margin: 0;
+}
+
+.journal-technical dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-2) 0 0;
+}
+
+.journal-technical dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 /* A percentage width gives a select no min-content width, so the table would
    squeeze the status column until the Application Status is cut off. Here the
    select takes the width of its longest status instead. */
@@ -3126,6 +3147,12 @@ textarea.title-edit {
 
 .agenda-item-title {
   font-weight: 600;
+}
+
+/* « modifié par le coach » (#249): the Human Coach last changed the Coaching Session's date. */
+.agenda-item-changed {
+  font-style: italic;
+  color: var(--color-text-secondary);
 }
 
 .agenda-past .agenda-item {

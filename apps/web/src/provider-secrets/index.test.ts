@@ -94,7 +94,27 @@ describe.skipIf(!connectionString)("Provider Secrets, encrypted in the database 
     expect(replaced).toEqual({ ok: false, error: "test_failed", detail: expect.any(String) });
     expect(JSON.stringify(replaced)).not.toContain(VALUE);
     expect(await secrets.load()).toEqual({});
-    expect(await backOffice.journal()).toEqual([]);
+  });
+
+  it("a key saved with a failing test leaves a failed entry with test_failed and the tester's status, and no secret value", async () => {
+    tester.mockResolvedValue({ ok: false, detail: `HTTP 401 invalid key ${VALUE}` });
+
+    await secrets.replace(claire, "MISTRAL_API_KEY", VALUE, { saveAnyway: false });
+
+    expect(await backOffice.journal()).toMatchObject([
+      {
+        section: "provider_secrets",
+        target: "MISTRAL_API_KEY",
+        action: "refused",
+        outcome: "failed",
+        before: null,
+        after: null,
+        failure: { reason: "test_failed", tried: "replaced", field: "value", technical: { class: "ConnectionTest", provider: "mistral", status: 401 } },
+      },
+    ]);
+    const { rows } = await database.query("SELECT * FROM back_office_audit");
+    expect(JSON.stringify(rows)).not.toContain(VALUE);
+    expect(JSON.stringify(rows)).not.toContain(VALUE.slice(-4));
   });
 
   it("a failed test's reason says nothing of any key in use either", async () => {
@@ -130,6 +150,7 @@ describe.skipIf(!connectionString)("Provider Secrets, encrypted in the database 
   it("refuses an unknown key, an empty value, and any key without SECRETS_MASTER_KEYS", async () => {
     expect(await secrets.replace(claire, "DATABASE_URL", "postgres://x", { saveAnyway: true })).toEqual({ ok: false, error: "unknown_secret" });
     expect(await secrets.replace(claire, "MISTRAL_API_KEY", "   ", { saveAnyway: true })).toEqual({ ok: false, error: "empty" });
+    expect(await secrets.replace(claire, "MISTRAL_API_KEY", "k".repeat(5000), { saveAnyway: true })).toEqual({ ok: false, error: "too_long" });
     expect(await secrets.clear(claire, "AUTH_SECRET")).toEqual({ ok: false, error: "unknown_secret" });
     expect(await providerSecrets(ENV).replace(claire, "MISTRAL_API_KEY", VALUE, { saveAnyway: true })).toEqual({ ok: false, error: "no_master_key" });
     expect(tester).not.toHaveBeenCalled();
@@ -169,16 +190,31 @@ describe.skipIf(!connectionString)("Provider Secrets, encrypted in the database 
   });
 
   it("tests the key in use: the database's, else env's", async () => {
-    expect(await secrets.test("STRIPE_SECRET_KEY")).toEqual({ ok: true });
+    expect(await secrets.test(claire, "STRIPE_SECRET_KEY")).toEqual({ ok: true });
     expect(tester).toHaveBeenLastCalledWith("stripe", expect.objectContaining({ STRIPE_SECRET_KEY: ENV.STRIPE_SECRET_KEY }));
     await secrets.replace(claire, "MISTRAL_API_KEY", VALUE, { saveAnyway: false });
     tester.mockResolvedValue({ ok: false, detail: `refused ${VALUE}` });
 
-    const tested = await secrets.test("MISTRAL_API_KEY");
+    const tested = await secrets.test(claire, "MISTRAL_API_KEY");
 
     expect(tested).toEqual({ ok: false, detail: expect.not.stringContaining(VALUE) });
     expect(tester).toHaveBeenLastCalledWith("mistral", expect.objectContaining({ MISTRAL_API_KEY: VALUE }));
-    expect(await secrets.test("PERPLEXITY_API_KEY")).toEqual({ ok: false, detail: "missing" });
+    expect(await secrets.test(claire, "PERPLEXITY_API_KEY")).toEqual({ ok: false, detail: "missing" });
+  });
+
+  it("the Test button's result is recorded, passed or failed, never the key", async () => {
+    await secrets.test(claire, "STRIPE_SECRET_KEY");
+    tester.mockResolvedValue({ ok: false, detail: `HTTP 403 forbidden for ${ENV.MISTRAL_API_KEY}` });
+    await secrets.test(claire, "MISTRAL_API_KEY");
+    await secrets.test(claire, "PERPLEXITY_API_KEY");
+
+    expect((await backOffice.journal()).map(({ target, action, outcome, failure }) => ({ target, action, outcome, failure }))).toEqual([
+      { target: "PERPLEXITY_API_KEY", action: "tested", outcome: "failed", failure: { reason: "key_missing", tried: "tested", field: null, technical: { class: "ConnectionTest", provider: "perplexity", message: "missing" } } },
+      { target: "MISTRAL_API_KEY", action: "tested", outcome: "failed", failure: { reason: "test_failed", tried: "tested", field: null, technical: { class: "ConnectionTest", provider: "mistral", status: 403, message: expect.any(String) } } },
+      { target: "STRIPE_SECRET_KEY", action: "tested", outcome: "succeeded", failure: null },
+    ]);
+    const { rows } = await database.query("SELECT * FROM back_office_audit");
+    expect(JSON.stringify(rows)).not.toContain(ENV.MISTRAL_API_KEY);
   });
 
   it("tells every listener, web and worker, once a change is committed", async () => {

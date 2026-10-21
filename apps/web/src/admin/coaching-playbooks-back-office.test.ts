@@ -49,7 +49,7 @@ describe.skipIf(!connectionString)("Coaching Playbooks' Back Office writes and t
     await testAuth.stop();
   }, 60_000);
 
-  const entries = async () => (await backOffice.journal()).reverse().map(({ actor: { email }, section, target, action, before, after }) => ({ email, section, target, action, before, after }));
+  const entries = async () => (await backOffice.journal({ outcome: "succeeded" })).reverse().map(({ actor: { email }, section, target, action, before, after }) => ({ email, section, target, action, before, after }));
 
   it("records each create, version, validation and archive, with the version it concerns; refused ones record nothing", async () => {
     expect(await changes.create(claire, { id: "salary-negotiation", content: "# Salaire [S1]", ...agent })).toMatchObject({ ok: true });
@@ -93,6 +93,37 @@ describe.skipIf(!connectionString)("Coaching Playbooks' Back Office writes and t
       { email: "paul@jobbbox.fr", section: "coaching_playbooks", target: "salary-negotiation", action: "archived", before: { version: 2, archived: false }, after: { version: 2, archived: true } },
       { email: "paul@jobbbox.fr", section: "coaching_playbooks", target: "salary-negotiation", action: "restored", before: { version: 2, archived: true }, after: { version: 2, archived: false } },
     ]);
+  });
+
+  it("a refused validation leaves a failed entry with its Failure Reason; an unknown version records nothing", async () => {
+    const noEvalRun = createCoachingPlaybooksBackOffice(
+      createCoachingPlaybooks(database, { serving: "latest", agentModels: () => [{ provider: "mistral", endpoint: "api.mistral.ai", residency: "eu", models: [{ model: "mistral-medium-3-5", effort: "medium_as_high", residency: "eu" }] }], evalRunOn: async () => false }),
+      backOffice,
+    );
+    await changes.create(claire, { id: "salary-negotiation", content: "# Salaire [S1]", ...agent });
+    expect(await changes.validate(claire, "salary-negotiation", 1)).toEqual({ ok: false, error: "own_version" });
+    expect(await changes.validate(paul, "salary-negotiation", 1)).toMatchObject({ ok: true });
+    expect(await changes.validate(paul, "salary-negotiation", 1)).toEqual({ ok: false, error: "already_validated" });
+    await changes.save(claire, "salary-negotiation", { content: "# Salaire v2 [S1]", ...agent });
+    expect(await changes.validate(paul, "salary-negotiation", 1)).toEqual({ ok: false, error: "not_latest" });
+    expect(await noEvalRun.validate(paul, "salary-negotiation", 2)).toEqual({ ok: false, error: "no_eval_run" });
+    expect(await changes.validate(paul, "salary-negotiation", 9)).toEqual({ ok: false, error: "not_found" });
+
+    const failed = (email: string, reason: string) => ({
+      email,
+      target: "salary-negotiation",
+      action: "refused",
+      before: null,
+      after: null,
+      failure: { reason, tried: "validated", field: "version", technical: null },
+    });
+    expect((await backOffice.journal({ outcome: "failed" })).reverse().map(({ actor: { email }, target, action, before, after, failure }) => ({ email, target, action, before, after, failure }))).toEqual([
+      failed("claire@jobbbox.fr", "own_version"),
+      failed("paul@jobbbox.fr", "already_validated"),
+      failed("paul@jobbbox.fr", "not_latest_version"),
+      failed("paul@jobbbox.fr", "no_eval_run"),
+    ]);
+    expect((await playbooks.history("salary-negotiation"))!.versions[0]!.validation).toBeNull();
   });
 
   it("records a version of the Core Digest or the Sources list without a Playbook Agent", async () => {

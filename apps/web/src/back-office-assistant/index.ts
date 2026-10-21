@@ -29,6 +29,7 @@
  */
 import { costInEur, type AiLayer, type GenerateResult } from "@jobhub/ai";
 import type { Plan, PlanFeature, PlanQuotas } from "@jobhub/shared";
+import { failureReasonWording } from "@jobhub/shared/i18n";
 import * as z from "zod";
 import { BACK_OFFICE_ROLES, type BackOfficeAccess, type BackOfficeResource, type BackOfficeRole } from "../admin/access";
 import type { Administrator } from "../admin/administrators";
@@ -374,7 +375,7 @@ const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
   updated: "modification",
   retired: "retrait",
   removed: "suppression",
-  tested: "test de connexion réussi",
+  tested: "test de connexion",
   replaced: "remplacement",
   replaced_despite_failed_test: "remplacement malgré un test échoué",
   cleared: "effacement",
@@ -383,10 +384,18 @@ const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
   archived: "archivage",
   restored: "rétablissement",
   reset: "remise à zéro",
+  refused: "tentative refusée",
 };
 
-/** A Journal entry for the assistant: never a secret (none is recorded), never an address, Human Coaches by name. */
+/**
+ * A Journal entry for the assistant: never a secret (none is recorded), never an address, Human Coaches by name.
+ * A failed attempt says what was tried and its Failure Reason's wording, never its technical detail.
+ */
 function journalLine(entry: BackOfficeAuditEntry): string {
+  if (entry.failure) {
+    const tried = entry.action === "refused" ? `${ACTIONS.refused} (${ACTIONS[entry.failure.tried]})` : ACTIONS[entry.action];
+    return `${JOURNAL_SECTIONS[entry.section]}, ${tried} de ${entry.target} ; échec : ${failureReasonWording(entry.failure.reason)}`;
+  }
   const named = (value: Recorded) => (value && typeof value === "object" && !Array.isArray(value) && typeof value.name === "string" ? value.name : null);
   const target = entry.section === "human_coaches" ? untrusted(named(entry.after) ?? named(entry.before) ?? "un coach") : entry.target;
   const values =

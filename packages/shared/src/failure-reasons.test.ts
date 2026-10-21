@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FAILURE_REASONS, failureOf, isFailureReason, TECHNICAL_REASON_MAX_LENGTH } from "./failure-reasons";
+import { AI_CALL_FAILURE_REASONS, BACK_OFFICE_FAILURE_REASONS, FAILURE_REASONS, failureOf, isFailureReason, TECHNICAL_REASON_MAX_LENGTH } from "./failure-reasons";
 import { failureReasonWording } from "./i18n";
 
 /** Shaped like the AI layer's errors (packages/ai/src/errors.ts), which this module cannot import. */
@@ -84,14 +84,55 @@ describe("Failure Reason of an error", () => {
 });
 
 describe("Failure Reason catalog", () => {
-  it("holds the codes of AI calls, each with a French and an English wording", () => {
-    expect(FAILURE_REASONS).toEqual(["provider_unavailable", "provider_rejected", "rate_limited", "key_missing", "route_missing", "data_residency", "invalid_reply", "other"]);
+  it("holds the codes of AI calls and of Back Office attempts, each with a French and an English wording", () => {
+    expect(FAILURE_REASONS).toEqual([
+      "provider_unavailable",
+      "provider_rejected",
+      "rate_limited",
+      "key_missing",
+      "route_missing",
+      "data_residency",
+      "invalid_reply",
+      "test_failed",
+      "test_expired",
+      "not_tested",
+      "invalid_apple_key",
+      "not_latest_version",
+      "already_validated",
+      "own_version",
+      "no_eval_run",
+      "eval_refused",
+      "last_super_admin",
+      "unknown_account",
+      "stripe_refused",
+      "other",
+    ]);
+    expect(failureReasonWording("eval_refused")).toBe("Refusé par l'Eval Run");
     expect(failureReasonWording("other")).toBe("Erreur inattendue");
     expect(failureReasonWording("key_missing", "en")).toBe("API key missing");
     for (const code of FAILURE_REASONS) {
       expect(failureReasonWording(code, "fr")).not.toMatch(/failureReasons\./);
       expect(failureReasonWording(code, "en")).not.toMatch(/failureReasons\./);
     }
+  });
+
+  it("tells the codes of AI calls from those of Back Office attempts; both may be other", () => {
+    expect(AI_CALL_FAILURE_REASONS).toEqual(["provider_unavailable", "provider_rejected", "rate_limited", "key_missing", "route_missing", "data_residency", "invalid_reply", "other"]);
+    expect(BACK_OFFICE_FAILURE_REASONS).toEqual([
+      "test_failed",
+      "test_expired",
+      "not_tested",
+      "invalid_apple_key",
+      "not_latest_version",
+      "already_validated",
+      "own_version",
+      "no_eval_run",
+      "eval_refused",
+      "last_super_admin",
+      "unknown_account",
+      "stripe_refused",
+      "other",
+    ]);
   });
 
   it("tells a code from any other value", () => {

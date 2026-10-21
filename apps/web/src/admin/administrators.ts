@@ -18,7 +18,7 @@
 import type { Pool } from "pg";
 import type { Queryable } from "../database/pool";
 import { backOfficeAccess, BACK_OFFICE_ROLES, isBackOfficeRole, type BackOfficeAccess, type BackOfficeRole, type PermanentSuperAdmins } from "./access";
-import type { BackOffice, BackOfficeChange } from "./back-office";
+import type { BackOffice, BackOfficeAttempt, BackOfficeChange } from "./back-office";
 
 /** A signed-in person, as the Back Office sees them. */
 export interface Person {
@@ -54,8 +54,8 @@ type RevokeError = "forbidden" | "own_super_admin" | "permanent" | "last_super_a
 export type GrantResult = { ok: true } | { ok: false; error: GrantError };
 export type RevokeResult = { ok: true } | { ok: false; error: RevokeError };
 
-/** What a grant or revoke's transaction did: refused, or changed one account's roles. */
-type Outcome<Error> = { refused: Error } | { email: string; before: BackOfficeRole[]; after: BackOfficeRole[] };
+/** What a grant or revoke's transaction did: refused (on the account with `email`, when known), or changed one account's roles. */
+type Outcome<Error> = { refused: Error; email?: string } | { email: string; before: BackOfficeRole[]; after: BackOfficeRole[] };
 
 interface AccountRow {
   id: string;
@@ -71,13 +71,14 @@ export interface Administrators {
   /**
    * `actor` gives `roles` (untrusted: unknown ones are ignored) to the Candidate account
    * with `email`, on top of those they hold. Super-admins only; an email with no account,
-   * or not verified, is refused, nothing is kept for later.
+   * or not verified, is refused, nothing is kept for later. An email with no account is recorded as a
+   * refused attempt (#263).
    */
   grant(actor: Person, email: string, roles: readonly unknown[]): Promise<GrantResult>;
   /**
    * `actor` takes `role` (untrusted) from the Candidate `candidateId`; a role they do not
    * hold changes nothing. Super-admins only, never their own super-admin role, never
-   * an ADMIN_EMAILS member's, never the last super-admin's.
+   * an ADMIN_EMAILS member's, never the last super-admin's (recorded as a refused attempt, #263).
    */
   revoke(actor: Person, candidateId: string, role: unknown): Promise<RevokeResult>;
 }
@@ -168,7 +169,7 @@ export function createAdministrators(database: Pool, deps: AdministratorsDeps): 
           if (!(await isSuperAdminWithin(within, actor.id))) return { refused: "forbidden" };
           const { rows } = await within.query<AccountRow>(`SELECT id, email, "emailVerified" FROM candidate WHERE lower(email) = lower($1) FOR UPDATE`, [email.trim()]);
           const account = rows[0];
-          if (!account) return { refused: "unknown_account" };
+          if (!account) return { refused: "unknown_account", email: email.trim().toLowerCase() };
           // Roles count only for a verified email: a grant to anyone else would give nothing, yet.
           if (!account.emailVerified) return { refused: "unverified_account" };
           const before = await storedRoles(account.id, within);
@@ -180,7 +181,12 @@ export function createAdministrators(database: Pool, deps: AdministratorsDeps): 
           );
           return { email: account.email.toLowerCase(), before, after: inOrder([...before, ...roles]) };
         },
-        (done) => ("refused" in done ? null : rolesChange(done.email, done.before, done.after)),
+        (done): BackOfficeAttempt | null =>
+          "refused" in done
+            ? done.refused === "unknown_account" && done.email
+              ? { section: "roles", target: done.email, tried: "added", reason: "unknown_account", field: "email" }
+              : null
+            : rolesChange(done.email, done.before, done.after),
       );
       return "refused" in outcome ? { ok: false, error: outcome.refused } : { ok: true };
     },
@@ -197,13 +203,20 @@ export function createAdministrators(database: Pool, deps: AdministratorsDeps): 
           const before = await storedRoles(candidateId, within);
           if (role === "super-admin") {
             if (deps.isPermanentSuperAdmin(account)) return { refused: "permanent" };
-            if (before.includes(role) && (await superAdminCount(within)) <= 1) return { refused: "last_super_admin" };
+            if (before.includes(role) && (await superAdminCount(within)) <= 1) return { refused: "last_super_admin", email: account.email.toLowerCase() };
             if (candidateId === actor.id) return { refused: "own_super_admin" };
           }
           await within.query("DELETE FROM administrator_role WHERE candidate_id = $1 AND role = $2", [candidateId, role]);
           return { email: account.email.toLowerCase(), before, after: before.filter((held) => held !== role) };
         },
-        (done) => (done === null || "refused" in done ? null : rolesChange(done.email, done.before, done.after)),
+        (done): BackOfficeAttempt | null =>
+          done === null
+            ? null
+            : "refused" in done
+              ? done.refused === "last_super_admin" && done.email
+                ? { section: "roles", target: done.email, tried: "updated", reason: "last_super_admin", field: "roles" }
+                : null
+              : rolesChange(done.email, done.before, done.after),
       );
       return outcome !== null && "refused" in outcome ? { ok: false, error: outcome.refused } : { ok: true };
     },

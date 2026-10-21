@@ -149,17 +149,20 @@ export interface CalledTool {
 
 /**
  * Every Tool's latest calls together, newest first: at most `limit`, made at or after `since`
- * when given. A call to a provider no Tool
- * holds (the guard test keeps them out) is left out.
+ * when given, and only those that succeeded (`ok: true`) or failed (`ok: false`) when given, the
+ * limit counting only those. A call to a provider no Tool holds (the guard test keeps them out) is
+ * left out.
  */
-export async function latestToolCalls(database: Pick<Pool, "query">, options: { limit?: number; since?: Date } = {}): Promise<CalledTool[]> {
+export async function latestToolCalls(database: Pick<Pool, "query">, options: { limit?: number; since?: Date; ok?: boolean } = {}): Promise<CalledTool[]> {
   const { rows } = await database.query<ToolCall & { table: RecordedCall["table"]; provider: string; endpoint: string | null }>(
     `SELECT "table", provider, endpoint, at, operation, ok, "httpStatus", "durationMs", "costEur" FROM (
-       SELECT 'external_api_usage' AS "table", provider, NULL AS endpoint, ${EXTERNAL_CALL}, lpad(id::text, 20, '0') AS id FROM external_api_usage WHERE $1::timestamptz IS NULL OR at >= $1
+       SELECT 'external_api_usage' AS "table", provider, NULL AS endpoint, ${EXTERNAL_CALL}, lpad(id::text, 20, '0') AS id FROM external_api_usage
+         WHERE ($1::timestamptz IS NULL OR at >= $1) AND ($3::boolean IS NULL OR ok = $3)
        UNION ALL
-       SELECT 'ai_usage', u.provider, u.endpoint, ${AI_CALL}, u.id::text FROM ai_usage u WHERE $1::timestamptz IS NULL OR u.at >= $1
+       SELECT 'ai_usage', u.provider, u.endpoint, ${AI_CALL}, u.id::text FROM ai_usage u
+         WHERE ($1::timestamptz IS NULL OR u.at >= $1) AND ($3::boolean IS NULL OR u.ok = $3)
      ) calls ORDER BY at DESC, "table", id DESC LIMIT $2`,
-    [options.since ?? null, options.limit ?? LATEST_CALLS],
+    [options.since ?? null, options.limit ?? LATEST_CALLS, options.ok ?? null],
   );
   return rows.flatMap(({ table, provider, endpoint, ...call }) => {
     const tool = toolOfUsage(table === "ai_usage" ? { table, provider, endpoint: endpoint ?? "" } : { table, provider });

@@ -97,6 +97,7 @@ const coachingSessionItem = (scheduledAt: string, more: Partial<Extract<AgendaIt
   id: `session-${scheduledAt}`,
   scheduledAt: new Date(scheduledAt),
   coach: { id: "coach-sophie", name: "Sophie Martin" },
+  changedBy: "candidate",
   ...more,
 });
 

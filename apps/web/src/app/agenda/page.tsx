@@ -351,7 +351,7 @@ function ToSchedule({ sessions, formatDate, t }: { sessions: UnscheduledCoaching
               <a className="button button-primary" href={session.coach.bookingUrl} rel="noopener noreferrer" target="_blank">
                 {t("humanCoaches.pickSlot", { name: session.coach.name })}
               </a>
-              <CoachingSessionDialog session={{ id: session.id, scheduledAt: "", durationMinutes: null, videoLink: null, note: null }} coachName={session.coach.name} />
+              <CoachingSessionDialog session={{ id: session.id, scheduledAt: "", durationMinutes: null, videoLink: null, note: null }} withName={session.coach.name} />
             </div>
           </li>
         ))}
@@ -375,7 +375,11 @@ function Items({ items, formats, t }: { items: AgendaItem[]; formats: Formats; t
   );
 }
 
-/** A dated Coaching Session: its time, its Human Coach and duration, leading to them on the Human Coaches page; its date can be edited here. */
+/**
+ * A dated Coaching Session: its time, its Human Coach and duration, and « modifié par le coach » when
+ * the Human Coach was the last to change its date, leading to them on the Human Coaches page; its date
+ * can be edited here.
+ */
 function CoachingSessionItem({ item, past, formatTime, t }: { item: CoachingSessionAgendaItem; past: boolean; formatTime: (value: Date) => string; t: T }) {
   return (
     <li className={past ? "agenda-item agenda-item-with-action agenda-item-past" : "agenda-item agenda-item-with-action"}>
@@ -390,11 +394,12 @@ function CoachingSessionItem({ item, past, formatTime, t }: { item: CoachingSess
           </span>
           <span className="agenda-item-title">{t("agenda.withCoach", { name: item.coach.name })}</span>
           {item.durationMinutes ? <span className="agenda-item-employer">{t("agenda.duration", { count: item.durationMinutes })}</span> : null}
+          {item.changedBy === "coach" ? <span className="agenda-item-changed">{t("agenda.changedByCoach")}</span> : null}
         </span>
       </Link>
       <CoachingSessionDialog
         session={{ id: item.id, scheduledAt: interviewWallClock(item.scheduledAt), durationMinutes: item.durationMinutes ?? null, videoLink: item.videoLink ?? null, note: item.note ?? null }}
-        coachName={item.coach.name}
+        withName={item.coach.name}
         className="button button-quiet"
       />
     </li>

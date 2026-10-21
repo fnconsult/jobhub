@@ -13,7 +13,9 @@
  * connection) and `migrateProviderSecrets(database)`.
  *
  * Every replace and clear is made, recorded in the Back Office Audit (without the
- * value) and announced with NOTIFY in one transaction. A value goes in, never out:
+ * value) and announced with NOTIFY in one transaction. A save refused by its failed test, and
+ * every test of the key in use, passed or failed, are recorded too (#263), with the tester's
+ * scrubbed detail as technical reason. A value goes in, never out:
  * only `load` returns values, and nothing that leaves this module for a page, a log
  * or an audit entry carries one. The table names no Candidate (an Administrator by
  * email only), so it stays out of a Candidate's data export.
@@ -21,7 +23,7 @@
 import { randomUUID } from "node:crypto";
 import { scrubSecrets } from "@jobhub/shared";
 import type { Pool } from "pg";
-import type { BackOffice, BackOfficeActor, SecretAction } from "../admin/back-office";
+import type { BackOffice, BackOfficeActor, BackOfficeFailure, SecretAction } from "../admin/back-office";
 import type { Queryable } from "../database/pool";
 import { fingerprintOf, isProviderSecretName, PROVIDER_SECRETS, PROVIDER_SECRET_NAMES, providerOf, type ProviderSecretName, type SecretProvider } from "./catalog";
 import type { SealedSecret, SecretCipher } from "./cipher";
@@ -36,6 +38,9 @@ export const PROVIDER_SECRETS_CHANNEL = "provider_secrets_changed";
 
 /** The longest value accepted. */
 const MAX_LENGTH = 4096;
+
+/** A test's detail when the key has no value at all. */
+const MISSING = "missing";
 
 /** Whether a provider accepts the keys in `env`: its cheapest authenticated call. The detail may be scrubbed further. */
 export type ConnectionTestResult = { ok: true } | { ok: false; detail: string };
@@ -70,7 +75,7 @@ export type ClearResult = { ok: true } | { ok: false; error: "unknown_secret" };
 export interface ProviderSecretsDeps {
   /** Null without SECRETS_MASTER_KEYS: nothing can be saved, env alone is used. */
   cipher: SecretCipher | null;
-  backOffice: Pick<BackOffice, "record">;
+  backOffice: Pick<BackOffice, "record" | "recordFailure">;
   /** The process environment, the fallback. */
   env: Env;
   testConnection: ConnectionTester;
@@ -87,8 +92,8 @@ export interface ProviderSecrets {
   replace(actor: BackOfficeActor, name: unknown, value: unknown, options: { saveAnyway: boolean }): Promise<ReplaceResult>;
   /** `actor` clears key `name` (untrusted) from the database: env's value is used again. */
   clear(actor: BackOfficeActor, name: unknown): Promise<ClearResult>;
-  /** Tests the provider of key `name` with the keys in use. */
-  test(name: ProviderSecretName): Promise<ConnectionTestResult>;
+  /** `actor` tests the provider of key `name` with the keys in use; recorded, passed or failed. */
+  test(actor: BackOfficeActor, name: ProviderSecretName): Promise<ConnectionTestResult>;
   /** The values the database holds that open, by name. Rows that do not open are left out (and said, without value). */
   load(): Promise<StoredSecrets>;
   /** Re-encrypts every row not under the newest master key; how many. */
@@ -204,6 +209,19 @@ export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps)
     }
   }
 
+  /** A failed test as the Back Office Audit keeps it: the tester's (scrubbed) detail and the HTTP status it quotes. */
+  const failedTest = (name: ProviderSecretName, tried: "replaced" | "tested", detail: string): BackOfficeFailure => {
+    const status = /\bHTTP (\d{3})\b/.exec(detail)?.[1];
+    return {
+      section: "provider_secrets",
+      target: name,
+      tried,
+      reason: detail === MISSING ? "key_missing" : "test_failed",
+      ...(tried === "replaced" ? { field: "value" } : {}),
+      technical: { class: "ConnectionTest", provider: providerOf(name), ...(status ? { status: Number(status) } : {}), message: detail },
+    };
+  };
+
   /** Runs `write` and records `action` on `name`, then announces the change, all in one transaction. */
   async function recorded(actor: BackOfficeActor, name: ProviderSecretName, write: (within: Queryable) => Promise<boolean>, action: SecretAction): Promise<void> {
     await deps.backOffice.record(
@@ -254,7 +272,10 @@ export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps)
       const provider = providerOf(name);
       const inUse = await envInUse();
       const tested = await testWith(provider, { ...inUse, [name]: value }, [value, ...keysIn(inUse)]);
-      if (!tested.ok && !saveAnyway) return { ok: false, error: "test_failed", detail: tested.detail };
+      if (!tested.ok && !saveAnyway) {
+        await deps.backOffice.recordFailure(actor, failedTest(name, "replaced", tested.detail));
+        return { ok: false, error: "test_failed", detail: tested.detail };
+      }
 
       const id = randomUUID();
       const sealed = cipher.seal(value, { provider, name, row: id });
@@ -282,10 +303,12 @@ export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps)
       return { ok: true };
     },
 
-    async test(name) {
+    async test(actor, name) {
       const env = await envInUse();
-      if (!env[name]?.trim()) return { ok: false, detail: "missing" };
-      return testWith(providerOf(name), env, keysIn(env));
+      const tested: ConnectionTestResult = env[name]?.trim() ? await testWith(providerOf(name), env, keysIn(env)) : { ok: false, detail: MISSING };
+      if (tested.ok) await deps.backOffice.record(actor, async () => null, () => ({ section: "provider_secrets", target: name, action: "tested", before: null, after: null }));
+      else await deps.backOffice.recordFailure(actor, failedTest(name, "tested", tested.detail));
+      return tested;
     },
   };
 }

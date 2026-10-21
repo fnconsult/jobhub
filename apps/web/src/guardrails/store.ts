@@ -15,12 +15,14 @@
  *  - `serving: "validated"` (production) serves the latest Human-validated message of each language,
  *    `"latest"` (every other environment) the latest; until there is one, the default text from code
  *    applies. A distress message must give the 3114 helpline.
- *  - A Guardrail Trigger holds which Guardrail, its setting, what it did, for which agent, and when: no
- *    Candidate, no Coach Conversation, no text. Kept TRIGGER_RETENTION_MONTHS, outside the Data export.
+ *  - A Guardrail Trigger holds which Guardrail, its setting, what it did, for which agent, and when, and, when it
+ *    could not check, why (a Failure Reason code, #261): no Candidate, no Coach Conversation, no text. Kept
+ *    TRIGGER_RETENTION_MONTHS, outside the Data export. One recorded before reasons were counts as `unrecorded`.
  *
  * Every write takes an optional `within`: it then runs in the caller's transaction, as the Back Office
  * does to record it in the Back Office Audit (see admin/guardrails-back-office.ts). Inputs are untrusted.
  */
+import { GUARDRAIL_FAILURE_REASONS, type GuardrailFailureReason } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type { Queryable } from "../database/pool";
 import {
@@ -79,6 +81,8 @@ export interface GuardrailTriggerDay {
   blocked: number;
   flagged: number;
   unavailable: number;
+  /** The `unavailable` ones per Failure Reason; `unrecorded`: recorded before reasons were (#261). */
+  unavailableBy: Record<GuardrailFailureReason | "unrecorded", number>;
 }
 
 export type SetSettingResult =
@@ -135,6 +139,11 @@ export async function migrateGuardrails(database: Pool): Promise<void> {
       at timestamptz NOT NULL
     );
     CREATE INDEX IF NOT EXISTS guardrail_trigger_at_idx ON guardrail_trigger (at);
+    -- Why a Guardrail could not check (#261): a Failure Reason code, only with action 'unavailable'; none on rows before.
+    ALTER TABLE guardrail_trigger ADD COLUMN IF NOT EXISTS reason text;
+    ALTER TABLE guardrail_trigger DROP CONSTRAINT IF EXISTS guardrail_trigger_reason_check;
+    ALTER TABLE guardrail_trigger ADD CONSTRAINT guardrail_trigger_reason_check
+      CHECK (reason IS NULL OR (action = 'unavailable' AND reason IN (${GUARDRAIL_FAILURE_REASONS.map((reason) => `'${reason}'`).join(", ")})));
   `);
 }
 
@@ -168,6 +177,7 @@ const messageFrom = (row: MessageRow): GuardrailMessageVersion => ({
   validation: row.validated_at ? { name: row.validated_by_name ?? "", email: row.validated_by_email ?? "", at: row.validated_at } : null,
 });
 
+const isGuardrailFailureReason = (value: unknown): value is GuardrailFailureReason => GUARDRAIL_FAILURE_REASONS.includes(value as GuardrailFailureReason);
 const isLanguage = (value: unknown): value is GuardrailLanguage => GUARDRAIL_LANGUAGES.includes(value as GuardrailLanguage);
 const isSetting = (value: unknown): value is GuardrailSetting => GUARDRAIL_SETTINGS.includes(value as GuardrailSetting);
 const normalEmail = (email: string) => email.trim().toLowerCase();
@@ -205,12 +215,13 @@ export function createGuardrailStore(database: Pool, deps: { serving: GuardrailM
 
     triggers: {
       async record(trigger) {
-        await database.query("INSERT INTO guardrail_trigger (guardrail, setting, action, agent, at) VALUES ($1, $2, $3, $4, $5)", [
+        await database.query("INSERT INTO guardrail_trigger (guardrail, setting, action, agent, at, reason) VALUES ($1, $2, $3, $4, $5, $6)", [
           trigger.guardrail,
           trigger.setting,
           trigger.action,
           trigger.agent,
           trigger.at,
+          trigger.action === "unavailable" ? trigger.reason : null,
         ]);
       },
     },
@@ -276,15 +287,23 @@ export function createGuardrailStore(database: Pool, deps: { serving: GuardrailM
     },
 
     async triggersPerDay(since) {
-      const { rows } = await database.query<{ day: string; guardrail: GuardrailId; action: GuardrailAction; n: number }>(
-        `SELECT to_char(at AT TIME ZONE 'Europe/Paris', 'YYYY-MM-DD') AS day, guardrail, action, count(*)::int AS n
-           FROM guardrail_trigger WHERE at >= $1 GROUP BY 1, 2, 3`,
+      const { rows } = await database.query<{ day: string; guardrail: GuardrailId; action: GuardrailAction; reason: string | null; n: number }>(
+        `SELECT to_char(at AT TIME ZONE 'Europe/Paris', 'YYYY-MM-DD') AS day, guardrail, action, reason, count(*)::int AS n
+           FROM guardrail_trigger WHERE at >= $1 GROUP BY 1, 2, 3, 4`,
         [since],
       );
       const days = new Map<string, GuardrailTriggerDay>();
       for (const row of rows) {
-        const day = days.get(key(row.day, row.guardrail)) ?? { day: row.day, guardrail: row.guardrail, blocked: 0, flagged: 0, unavailable: 0 };
+        const day = days.get(key(row.day, row.guardrail)) ?? {
+          day: row.day,
+          guardrail: row.guardrail,
+          blocked: 0,
+          flagged: 0,
+          unavailable: 0,
+          unavailableBy: { ...Object.fromEntries(GUARDRAIL_FAILURE_REASONS.map((reason) => [reason, 0])), unrecorded: 0 } as GuardrailTriggerDay["unavailableBy"],
+        };
         day[row.action] += row.n;
+        if (row.action === "unavailable") day.unavailableBy[isGuardrailFailureReason(row.reason) ? row.reason : "unrecorded"] += row.n;
         days.set(key(row.day, row.guardrail), day);
       }
       return [...days.values()].sort((a, b) => b.day.localeCompare(a.day) || GUARDRAIL_IDS.indexOf(a.guardrail) - GUARDRAIL_IDS.indexOf(b.guardrail));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AI_CALL_FAILURE_REASONS, AI_CALL_WARNINGS, BACK_OFFICE_FAILURE_REASONS, FAILURE_REASONS, failureOf, isFailureReason, TECHNICAL_REASON_MAX_LENGTH } from "./failure-reasons";
+import { AI_CALL_FAILURE_REASONS, AI_CALL_WARNINGS, BACK_OFFICE_FAILURE_REASONS, FAILURE_REASONS, GUARDRAIL_FAILURE_REASONS, failureOf, isFailureReason, TECHNICAL_REASON_MAX_LENGTH } from "./failure-reasons";
 import { failureReasonWording } from "./i18n";
 
 /** Shaped like the AI layer's errors (packages/ai/src/errors.ts), which this module cannot import. */
@@ -119,8 +119,14 @@ describe("Failure Reason catalog", () => {
       "last_super_admin",
       "unknown_account",
       "stripe_refused",
+      "guardrail_timeout",
+      "invalid_verdict",
+      "provider_error",
       "other",
     ]);
+    expect(failureReasonWording("guardrail_timeout")).toBe("Contrôle trop long");
+    expect(failureReasonWording("invalid_verdict")).toBe("Verdict du contrôle illisible");
+    expect(failureReasonWording("provider_error")).toBe("Erreur du fournisseur");
     expect(failureReasonWording("eval_refused")).toBe("Refusé par l'Eval Run");
     expect(failureReasonWording("other")).toBe("Erreur inattendue");
     expect(failureReasonWording("key_missing", "en")).toBe("API key missing");
@@ -157,6 +163,10 @@ describe("Failure Reason catalog", () => {
       "stripe_refused",
       "other",
     ]);
+  });
+
+  it("tells why a Guardrail could not check: timeout, a verdict that was not valid, the provider's error; never other", () => {
+    expect(GUARDRAIL_FAILURE_REASONS).toEqual(["guardrail_timeout", "invalid_verdict", "provider_error"]);
   });
 
   it("words each AI call warning (#260) by what the feature did instead, naming no Candidate", () => {

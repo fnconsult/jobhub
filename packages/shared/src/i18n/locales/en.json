@@ -1672,13 +1672,16 @@
       },
       "triggers": {
         "title": "Triggers",
-        "intro": "Each block, flag or unavailable check of the last {{days}} days, per day (Paris time) and per guardrail. No Candidate, no conversation, no text: the text, if needed, stays in the AI message logs (30 days). Kept {{months}} months.",
+        "intro": "Each block, flag or unavailable check of the last {{days}} days, per day (Paris time) and per guardrail, unavailable checks counted by reason. No Candidate, no conversation, no text: the text, if needed, stays in the AI message logs (30 days). Kept {{months}} months.",
         "caption": "Guardrail triggers per day",
         "none": "No trigger over the period.",
         "day": "Day",
         "blocked": "Blocked",
         "flagged": "Flagged",
-        "unavailable": "Check unavailable"
+        "unavailable": "Check unavailable",
+        "byReason": "{{reason}}: {{count}}",
+        "reasonUnrecorded": "Reason not recorded",
+        "byReasonLabel": "Unavailable checks by reason"
       },
       "notices": {
         "settingSaved": "Setting saved, after the Guardrails' Eval Cases were played on it.",
@@ -2758,6 +2761,9 @@
     "last_super_admin": "Last super-admin",
     "unknown_account": "Account not found",
     "stripe_refused": "Refused by Stripe",
+    "guardrail_timeout": "Check took too long",
+    "invalid_verdict": "Unreadable check verdict",
+    "provider_error": "Provider error",
     "other": "Unexpected error"
   },
   "agendaChanges": {

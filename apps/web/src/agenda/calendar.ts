@@ -57,17 +57,20 @@ export function calendarPeriod(view: CalendarView, date: string): CalendarPeriod
   return { first, last, weeks, previous: monthBefore(first), next };
 }
 
-/** The 1st of the month after the one `first` (a 1st) opens. */
-function monthAfter(first: string): string {
+/** The 1st of the month `offset` months from the one `first` (a 1st) opens. */
+function monthsFrom(first: string, offset: number): string {
   const [year, month] = first.split("-").map(Number) as [number, number];
-  return fromUtc(Date.UTC(year, month, 1));
+  // setUTCFullYear, not Date.UTC: Date.UTC reads years 0 to 99 as 1900 to 1999.
+  const date = new Date(0);
+  date.setUTCFullYear(year, month - 1 + offset, 1);
+  return fromUtc(date.getTime());
 }
 
+/** The 1st of the month after the one `first` (a 1st) opens. */
+const monthAfter = (first: string): string => monthsFrom(first, 1);
+
 /** The 1st of the month before the one `first` (a 1st) opens. */
-function monthBefore(first: string): string {
-  const [year, month] = first.split("-").map(Number) as [number, number];
-  return fromUtc(Date.UTC(year, month - 2, 1));
-}
+const monthBefore = (first: string): string => monthsFrom(first, -1);
 
 /** What an Agenda address asks for. */
 export interface AgendaAddress {
@@ -86,8 +89,16 @@ export function frenchDay(instant: Date): string {
   return FRENCH_DAY.format(instant);
 }
 
-/** A real calendar day written "2026-10-22" (not "2026-02-30"). */
-const isDay = (value: unknown): value is string => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(toUtc(value)) && fromUtc(toUtc(value)) === value;
+/**
+ * The days an address may name. Far-off days (year 1, year 9999) would only
+ * build absurd periods and links past what dates can be written as "YYYY-MM-DD".
+ */
+const FIRST_DAY = "1970-01-01";
+const LAST_DAY = "2100-12-31";
+
+/** A real calendar day written "2026-10-22" (not "2026-02-30"), from 1970 to 2100. */
+const isDay = (value: unknown): value is string =>
+  typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && value >= FIRST_DAY && value <= LAST_DAY && !Number.isNaN(toUtc(value)) && fromUtc(toUtc(value)) === value;
 
 /** The view and day an Agenda address (`?vue=semaine&date=2026-10-20`) asks for: the list on today (`now`'s day in French time) for anything else. */
 export function readAgendaAddress(params: { vue?: string | string[]; date?: string | string[] }, now: Date): AgendaAddress {

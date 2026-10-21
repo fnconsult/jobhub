@@ -51,6 +51,16 @@ describe("calendarPeriod: the month", () => {
     expect(calendarPeriod("mois", "2027-01-31").previous).toBe("2026-12-01");
   });
 
+  it("counts months in the year the date names, even a year below 100 (no 1900s shift)", () => {
+    const june50 = calendarPeriod("mois", "0050-06-15");
+    expect(june50.first).toBe("0050-06-01");
+    expect(june50.last).toBe("0050-06-30");
+    expect(june50.weeks.length).toBeLessThanOrEqual(6);
+    expect(june50.previous).toBe("0050-05-01");
+    expect(june50.next).toBe("0050-07-01");
+    expect(calendarPeriod("mois", "0099-12-31").next).toBe("0100-01-01");
+  });
+
   it("keeps whole days across the clock changes (end of March, end of October)", () => {
     expect(calendarPeriod("semaine", "2026-03-29").weeks[0]).toEqual(["2026-03-23", "2026-03-24", "2026-03-25", "2026-03-26", "2026-03-27", "2026-03-28", "2026-03-29"]);
     expect(calendarPeriod("semaine", "2026-10-25").weeks[0]).toEqual(["2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23", "2026-10-24", "2026-10-25"]);
@@ -78,6 +88,12 @@ describe("readAgendaAddress: the view and date an address asks for", () => {
     for (const date of ["2026-02-30", "2026-13-01", "demain", "2026-1-5", ""]) {
       expect(readAgendaAddress({ vue: "mois", date }, NOW).date).toBe("2026-10-26");
     }
+    // Days outside the calendar the Agenda covers (1970 to 2100) would build absurd periods.
+    for (const date of ["0001-01-01", "0050-06-15", "1969-12-31", "2101-01-01", "9999-12-31"]) {
+      expect(readAgendaAddress({ vue: "mois", date }, NOW).date).toBe("2026-10-26");
+    }
+    expect(readAgendaAddress({ vue: "mois", date: "1970-01-01" }, NOW).date).toBe("1970-01-01");
+    expect(readAgendaAddress({ vue: "mois", date: "2100-12-31" }, NOW).date).toBe("2100-12-31");
     expect(readAgendaAddress({ vue: ["mois", "semaine"], date: ["2026-11-04"] }, NOW)).toEqual({ view: "liste", date: "2026-10-26", chosen: false });
   });
 });

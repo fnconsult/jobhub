@@ -99,8 +99,26 @@ test.describe("Provider Secrets (the Clés section)", () => {
     await page.goto("/admin/journal?section=provider_secrets");
     const entries = page.getByRole("row").filter({ hasText: NAME });
     await expect(entries.first()).toContainText(admin.journal.actions.cleared);
-    await expect(entries.nth(1)).toContainText(admin.journal.actions.replaced_despite_failed_test);
-    await expect(entries.nth(1)).toContainText(admin.journal.secret.replaced_despite_failed_test);
+    // The Test button's failed test, then the save anyway, then the save its test refused (#263).
+    await expect(entries.nth(1)).toContainText(admin.journal.actions.tested);
+    await expect(entries.nth(1)).toContainText(admin.journal.outcomes.failed);
+    await expect(entries.nth(1)).toContainText(fr.failureReasons.test_failed);
+    await expect(entries.nth(2)).toContainText(admin.journal.actions.replaced_despite_failed_test);
+    await expect(entries.nth(2)).toContainText(admin.journal.secret.replaced_despite_failed_test);
+    await expect(entries.nth(2)).toContainText(admin.journal.outcomes.succeeded);
+    await expect(entries.nth(3)).toContainText(admin.journal.actions.refused);
+    await expect(entries.nth(3)).toContainText(tr(admin.journal.failed, { tried: admin.journal.actions.replaced, reason: fr.failureReasons.test_failed }));
+    await expect(entries.nth(3)).toContainText(tr(admin.journal.fieldAtFault, { field: admin.journal.value }));
+
+    // Only the failures, still of this section; each one's technical detail on demand.
+    await page.getByRole("navigation", { name: admin.journal.outcomeFilter }).getByRole("link", { name: admin.journal.outcomeFilters.failed }).click();
+    await expect(page).toHaveURL(/\/admin\/journal\?section=provider_secrets&outcome=failed$/);
+    await expect(entries).toHaveCount(2);
+    const detail = entries.nth(1).locator("details");
+    await expect(detail.getByText(admin.journal.technical.status)).toBeHidden();
+    await detail.getByText(admin.journal.technicalDetail).click();
+    await expect(detail.getByText(admin.journal.technical.status)).toBeVisible();
+    await expect(detail.getByRole("definition").filter({ hasText: /^401$/ })).toBeVisible();
     await expectNowhere(page, refused);
   });
 

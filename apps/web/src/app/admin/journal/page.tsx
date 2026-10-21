@@ -13,7 +13,17 @@ import {
 import type { Metadata } from "next";
 import Link from "next/link";
 import { isBackOfficeRole } from "@/admin/access";
-import { BACK_OFFICE_SECTIONS, isBackOfficeSection, isSecretAction, RETENTION_YEARS, type BackOfficeAuditEntry, type BackOfficeSection, type Recorded } from "@/admin/back-office";
+import {
+  BACK_OFFICE_OUTCOMES,
+  BACK_OFFICE_SECTIONS,
+  isBackOfficeOutcome,
+  isBackOfficeSection,
+  isSecretAction,
+  RETENTION_YEARS,
+  type BackOfficeAuditEntry,
+  type BackOfficeSection,
+  type Recorded,
+} from "@/admin/back-office";
 import { journalChanges, type JournalChange } from "@/admin/journal-changes";
 import { journalTimeline, type JournalLine } from "@/admin/journal-timeline";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
@@ -96,17 +106,23 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * Administrators read the Back Office Audit: every change made in the Back Office, newest first, by
  * section. With the Outils filter (those who may read the Tools), the calls to the Tools beside them.
+ * Every attempt that failed or was refused is there too (#263): its Résultat, its Failure Reason in
+ * Changes, and its technical detail behind « Détail technique ». The Résultat filter combines with the
+ * section's in the URL.
  */
-export default async function JournalPage({ searchParams }: { searchParams: Promise<{ section?: string }> }) {
+export default async function JournalPage({ searchParams }: { searchParams: Promise<{ section?: string; outcome?: string }> }) {
   const { access } = await requireBackOffice("audit");
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
-  const requested = (await searchParams).section;
+  const { section: requested, outcome: requestedOutcome } = await searchParams;
   const readsTools = access.can("tools", "read");
   const withTools = requested === TOOLS_FILTER && readsTools;
   const section = isBackOfficeSection(requested) ? requested : undefined;
+  const outcome = isBackOfficeOutcome(requestedOutcome) ? requestedOutcome : undefined;
+  /** The section filter as the URL holds it, kept when the Résultat filter changes. */
+  const shownSection = withTools ? TOOLS_FILTER : section;
   const [entries, plans, toolCalls] = await Promise.all([
-    getBackOffice().journal({ section, limit: LIMIT }),
+    getBackOffice().journal({ section, outcome, limit: LIMIT }),
     getBilling().plans(),
     withTools ? latestToolCallsNow(LIMIT) : Promise.resolve([]),
   ]);
@@ -147,6 +163,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     if (entrySection === "coaching_playbooks" && PLAYBOOK_FIELDS.includes(field as PlaybookField)) return t(`admin.coachingPlaybooks.journalFields.${field as PlaybookField}`);
     if (entrySection === "guardrails" && GUARDRAIL_FIELDS.includes(field as GuardrailField)) return t(`admin.guardrails.journalFields.${field as GuardrailField}`);
     if (entrySection === "eval_cases" && EVAL_CASE_FIELDS.includes(field as EvalCaseField)) return t(`admin.evals.journalFields.${field as EvalCaseField}`);
+    if (entrySection === "provider_secrets" && field === "value") return t("admin.journal.value");
     if (field === "id") return t("admin.journal.id");
     return field;
   };
@@ -214,18 +231,29 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
         <ul className="journal-filter">
           {[undefined, ...BACK_OFFICE_SECTIONS].map((option) => (
             <li key={option ?? "all"}>
-              <Link href={routes.adminJournal(option)} aria-current={option === section && !withTools ? CURRENT : undefined}>
+              <Link href={routes.adminJournal({ section: option, outcome })} aria-current={option === section && !withTools ? CURRENT : undefined}>
                 {option ? t(`admin.journal.sections.${option}`) : t("admin.journal.all")}
               </Link>
             </li>
           ))}
           {readsTools ? (
             <li>
-              <Link href={routes.adminJournal(TOOLS_FILTER)} aria-current={withTools ? CURRENT : undefined}>
+              <Link href={routes.adminJournal({ section: TOOLS_FILTER, outcome })} aria-current={withTools ? CURRENT : undefined}>
                 {t("admin.journal.tools")}
               </Link>
             </li>
           ) : null}
+        </ul>
+      </nav>
+      <nav aria-label={t("admin.journal.outcomeFilter")}>
+        <ul className="journal-filter">
+          {[undefined, ...BACK_OFFICE_OUTCOMES].map((option) => (
+            <li key={option ?? "all"}>
+              <Link href={routes.adminJournal({ section: shownSection, outcome: option })} aria-current={option === outcome ? CURRENT : undefined}>
+                {t(`admin.journal.outcomeFilters.${option ?? "all"}`)}
+              </Link>
+            </li>
+          ))}
         </ul>
       </nav>
       {withTools ? <p>{t("admin.journal.toolsIntro")}</p> : null}
@@ -242,6 +270,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
                 <th scope="col">{t("admin.journal.section")}</th>
                 <th scope="col">{t("admin.journal.target")}</th>
                 <th scope="col">{t("admin.journal.action")}</th>
+                <th scope="col">{t("admin.journal.outcome")}</th>
                 <th scope="col">{t("admin.journal.changes")}</th>
               </tr>
             </thead>
@@ -262,6 +291,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
                       <td>
                         {t("admin.journal.toolCall")} <code>{call.operation}</code>
                       </td>
+                      <td>{t(`admin.journal.outcomes.${call.ok ? "succeeded" : "failed"}`)}</td>
                       <td>{callResult(call)}</td>
                     </tr>
                   );
@@ -300,8 +330,39 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
                       ) : null}
                     </td>
                     <td>{t(`admin.journal.actions.${entry.action}`)}</td>
+                    <td>{t(`admin.journal.outcomes.${entry.outcome}`)}</td>
                     <td>
-                      {entry.action === "viewed" ? null : isSecretAction(entry.action) ? (
+                      {entry.failure ? (
+                        <>
+                          <p>{t("admin.journal.failed", { tried: t(`admin.journal.actions.${entry.failure.tried}`), reason: t(`failureReasons.${entry.failure.reason}`) })}</p>
+                          {entry.failure.field ? <p>{t("admin.journal.fieldAtFault", { field: fieldName(entry.section, entry.failure.field) })}</p> : null}
+                          {entry.failure.technical ? (
+                            <details className="journal-technical">
+                              <summary>{t("admin.journal.technicalDetail")}</summary>
+                              <dl>
+                                <dt>{t("admin.journal.technical.class")}</dt>
+                                <dd>{entry.failure.technical.class}</dd>
+                                {entry.failure.technical.provider ? (
+                                  <>
+                                    <dt>{t("admin.journal.technical.provider")}</dt>
+                                    <dd>{entry.failure.technical.provider}</dd>
+                                  </>
+                                ) : null}
+                                {entry.failure.technical.status === undefined ? null : (
+                                  <>
+                                    <dt>{t("admin.journal.technical.status")}</dt>
+                                    <dd>{entry.failure.technical.status}</dd>
+                                  </>
+                                )}
+                                <dt>{t("admin.journal.technical.message")}</dt>
+                                <dd>
+                                  <code>{entry.failure.technical.message}</code>
+                                </dd>
+                              </dl>
+                            </details>
+                          ) : null}
+                        </>
+                      ) : entry.action === "viewed" ? null : isSecretAction(entry.action) ? (
                         t(`admin.journal.secret.${entry.action}`)
                       ) : changes.length === 0 ? (
                         t("admin.journal.unchanged")

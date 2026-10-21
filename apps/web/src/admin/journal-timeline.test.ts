@@ -13,6 +13,8 @@ const entry = (id: string, at: string): BackOfficeAuditEntry => ({
   action: "updated",
   before: { name: "Standard" },
   after: { name: "Standard+" },
+  outcome: "succeeded",
+  failure: null,
 });
 const call = (toolId: string, at: string): CalledTool => ({
   tool: toolById(toolId)!,

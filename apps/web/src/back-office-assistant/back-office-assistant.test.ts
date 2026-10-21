@@ -112,6 +112,18 @@ function backOfficeData() {
       reads.push("journal");
       const entries: BackOfficeAuditEntry[] = [
         {
+          id: "4",
+          at: new Date("2026-10-15T09:00:00Z"),
+          actor: { candidateId: "a1", email: "claire@jobbbox.fr" },
+          section: "guardrails",
+          target: "prompt_injection",
+          action: "refused",
+          before: null,
+          after: null,
+          outcome: "failed",
+          failure: { reason: "eval_refused", tried: "updated", field: "setting", technical: { class: "EvalRun", message: "run-7: secret-after-injection" } },
+        },
+        {
           id: "3",
           at: new Date("2026-10-14T09:00:00Z"),
           actor: { candidateId: "a1", email: "claire@jobbbox.fr" },
@@ -120,6 +132,8 @@ function backOfficeData() {
           action: "replaced",
           before: null,
           after: null,
+          outcome: "succeeded",
+          failure: null,
         },
         {
           id: "2",
@@ -130,6 +144,8 @@ function backOfficeData() {
           action: "added",
           before: null,
           after: { roles: ["coach-manager"] },
+          outcome: "succeeded",
+          failure: null,
         },
         {
           id: "1",
@@ -140,6 +156,8 @@ function backOfficeData() {
           action: "updated",
           before: { matchScores: 100 },
           after: { matchScores: 4321 },
+          outcome: "succeeded",
+          failure: null,
         },
       ];
       return entries;
@@ -291,6 +309,9 @@ describe("Back Office Assistant", () => {
       expect(data.reads.sort()).toEqual(["administrators", "aiUsage", "coachCost", "coupons", "humanCoaches", "journal", "planQuotas", "plans"]);
       // That the key was replaced is in the Journal; its value never is, nor is any address.
       expect(prompt()).toContain("remplacement de MISTRAL_API_KEY");
+      // A refused attempt says why, never its technical detail.
+      expect(prompt()).toContain("garde-fous, tentative refusée (modification) de prompt_injection ; échec : Refusé par l'Eval Run");
+      expect(prompt()).not.toContain("secret-after-injection");
       expect(prompt()).not.toContain(SECRET);
       expect(prompt()).not.toMatch(/@/);
       expect(prompt()).not.toContain("cal.com/sophie-laurent");

@@ -80,7 +80,7 @@ export async function readCvWithAi(cvText: string, ai: () => AiLayer, candidateI
       containsIdentity: true,
       ...run.agent,
       fallback: "cv_reading_fallback",
-      unusable: (text) => (readingSchema.safeParse(jsonIn(text)).success ? null : NOT_USABLE),
+      unusable: (text) => (readingSchema.safeParse(jsonIn(text)).success ? null : { reason: "cv_reading_fallback", detail: NOT_USABLE }),
     }));
   } catch (error) {
     console.warn("[cv] AI reading of a CV failed, using the rule-based outline:", error instanceof Error ? error.message : error);

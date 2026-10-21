@@ -41,14 +41,14 @@ export interface GenerateRequest {
   warnings?: AiWarning[];
   /**
    * What the feature does without this call (#260), e.g. `cv_reading_fallback`: recorded with the call when it
-   * fails or is never sent (it keeps its own Failure Reason), and as its warning when `unusable` refuses its reply.
+   * fails or is never sent, beside its own Failure Reason.
    */
   fallback?: FailureReason;
   /**
-   * Why the feature cannot use the reply (written by the code, never the reply's text), or null when it can. A
-   * refused reply records the call as warning, its reason `fallback` (`invalid_reply` without one).
+   * Whether the feature can use the reply (#260): null when it can, else the warning to record the call with, its
+   * detail written by the code (why, a length), never the reply's text.
    */
-  unusable?: (reply: string) => string | null;
+  unusable?: (reply: string) => AiWarning | null;
 }
 
 /**
@@ -217,10 +217,10 @@ export interface Route {
 interface CallNotes<T> {
   /** Its warnings, read when the call is recorded. */
   warnings: () => readonly AiWarning[];
-  /** What the feature does without it: recorded with it when it fails, or as its warning when `unusable` refuses its reply. */
+  /** What the feature does without it: recorded with it when it fails. */
   fallback?: FailureReason;
-  /** Why the feature cannot use its output, or null when it can. */
-  unusable?: (output: T) => string | null;
+  /** The warning of an output the feature cannot use, or null when it can. */
+  unusable?: (output: T) => AiWarning | null;
 }
 
 export interface AiLayerOptions {
@@ -445,8 +445,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     const durationMs = Math.round(clock() - started);
     const called = output.tools ?? (search ? [{ name: "web_search", count: 1 }] : []);
     const priced = { provider: provider.id, model: output.model };
-    const refused = unusableReply(notes, output);
-    const warnings = recordable(notes.warnings(), refused === null ? undefined : { reason: notes.fallback ?? "invalid_reply", detail: refused });
+    const warnings = recordable(notes.warnings(), unusableReply(notes, output) ?? undefined);
     log({
       ...base,
       model: output.model,
@@ -461,13 +460,13 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     return output;
   }
 
-  /** Why the feature cannot use `output` (`CallNotes.unusable`), or null; a check that throws refuses it. */
-  function unusableReply<T>(notes: CallNotes<T>, output: T): string | null {
+  /** The warning of an `output` its feature cannot use (`CallNotes.unusable`), or null; a check that throws refuses it. */
+  function unusableReply<T>(notes: CallNotes<T>, output: T): AiWarning | null {
     if (!notes.unusable) return null;
     try {
       return notes.unusable(output);
     } catch (error) {
-      return `the reply could not be checked (${error instanceof Error ? error.name : "unknown"})`;
+      return { reason: notes.fallback ?? "invalid_reply", detail: `the reply could not be checked (${error instanceof Error ? error.name : "unknown"})` };
     }
   }
 

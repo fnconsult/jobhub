@@ -177,7 +177,7 @@ export async function readOfferFields(
     ...agentOf(reading),
     warnings,
     ...(fallback ? { fallback } : {}),
-    unusable: (reply) => (parseJson(reply) ? null : NOT_A_JSON_OBJECT),
+    unusable: (reply) => (parseJson(reply) ? null : { reason: fallback ?? "invalid_reply", detail: NOT_A_JSON_OBJECT }),
   });
   const reply = parseJson(text);
   if (!reply) throw new Error(`The offer_analysis reply: ${NOT_A_JSON_OBJECT}`);

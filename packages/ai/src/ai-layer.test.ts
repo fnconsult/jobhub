@@ -597,7 +597,7 @@ describe("the warnings of an AI call: its feature ran degraded (#260, ADR-0030)"
       candidateId: "cand-1",
       prompt: "CV",
       fallback: "cv_reading_fallback",
-      unusable: (reply) => (reply.startsWith("{") ? null : "the reply is not usable JSON"),
+      unusable: (reply) => (reply.startsWith("{") ? null : { reason: "cv_reading_fallback", detail: "the reply is not usable JSON" }),
     });
 
     expect(result.text).toBe("Je ne peux pas.");

@@ -66,7 +66,14 @@ export async function askForTailoredCv(ai: AiLayer, request: GenerateRequest): P
   for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
     let generated;
     try {
-      generated = await ai.generate(request);
+      generated = await ai.generate({
+        ...request,
+        // A refused reply's call is recorded as warning (#260): why and how long, never its text.
+        unusable: (text) => {
+          const read = replyIn(text);
+          return read.ok ? null : { reason: "tailored_cv_refused", detail: `reason=${read.reason} length=${text.length}` };
+        },
+      });
     } catch (error) {
       console.warn("[tailored-cv] the AI Coach could not propose a Tailored CV:", error instanceof Error ? error.message : error);
       return null;

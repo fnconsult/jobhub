@@ -122,6 +122,31 @@ describe.skipIf(!connectionString)("Appointment Reminders (needs Postgres: DATAB
     expect(outbox).toEqual([]);
   });
 
+  it("sends nothing twice when the job runs again, or on two workers at once", async () => {
+    await interview(marie, "2026-10-21T09:00");
+
+    at(REMINDER_TIME);
+    await Promise.all([reminders.sendDue(), reminders.sendDue()]);
+    at("2026-10-20T16:30:00.000Z");
+    await reminders.sendDue();
+
+    expect(outbox).toHaveLength(1);
+  });
+
+  it("reminds a Rescheduled Interview again for its new date", async () => {
+    const { applicationId, id } = await interview(marie, "2026-10-21T09:00");
+    at(REMINDER_TIME);
+    await reminders.sendDue();
+    at("2026-10-21T05:00:00.000Z"); // 07:00 on the day: moved to the next day
+    await applications.editInterview(marie, applicationId, id, { scheduledAt: "2026-10-22T11:00" });
+
+    at("2026-10-21T16:00:00.000Z");
+    await reminders.sendDue();
+
+    expect(outbox).toHaveLength(2);
+    expect(outbox[1]!.text).toContain("11:00");
+  });
+
   it("sends nothing for the day after tomorrow, nor for later today", async () => {
     await interview(marie, "2026-10-22T09:00", { title: "Après-demain" });
     await interview(marie, "2026-10-20T20:00", { title: "Ce soir" });

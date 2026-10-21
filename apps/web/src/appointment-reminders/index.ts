@@ -12,6 +12,7 @@ import type { Pool } from "pg";
 import { frenchDateTime, frenchDayStart, INTERVIEW_TIME_ZONE, interviewWallClock } from "../applications";
 import { dayAfter } from "../agenda/calendar";
 import type { Mailer } from "../auth";
+import type { AgendaItemTable } from "../reschedules";
 import { routes } from "../routes";
 
 /** Appointment Reminders go out at 18:00 French time, the day before. */
@@ -32,6 +33,9 @@ export interface AppointmentReminders {
 
 /** One Agenda Item, as a reminder lists it. */
 interface ReminderItem {
+  /** The table it is a row of, and its id there. */
+  table: AgendaItemTable;
+  id: string;
   candidateId: string;
   scheduledAt: Date;
   title: string;
@@ -56,8 +60,8 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
   async function due(): Promise<ReminderItem[]> {
     const { day, at } = latestReminder(now());
     const tomorrow = dayAfter(day);
-    const { rows } = await database.query<{ candidate_id: string; scheduled_at: Date; title: string; employer: string | null; place: string }>(
-      `SELECT a.candidate_id, i.scheduled_at, o.title, o.employer, i.place
+    const { rows } = await database.query<{ id: string; candidate_id: string; scheduled_at: Date; title: string; employer: string | null; place: string }>(
+      `SELECT i.id, a.candidate_id, i.scheduled_at, o.title, o.employer, i.place
          FROM interview i
          JOIN application a ON a.id = i.application_id
          JOIN job_offer o ON o.id = a.job_offer_id
@@ -65,7 +69,7 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
         ORDER BY i.scheduled_at`,
       [frenchDayStart(tomorrow), frenchDayStart(dayAfter(tomorrow)), at],
     );
-    return rows.map((row) => ({ candidateId: row.candidate_id, scheduledAt: row.scheduled_at, title: row.title, employer: row.employer, place: row.place }));
+    return rows.map((row) => ({ table: "interview" as const, id: row.id, candidateId: row.candidate_id, scheduledAt: row.scheduled_at, title: row.title, employer: row.employer, place: row.place }));
   }
 
   async function email(candidateId: string, items: ReminderItem[]): Promise<void> {
@@ -85,17 +89,68 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
     });
   }
 
+  /**
+   * Claims the Candidate's `items` not reminded yet for their date, and emails those, in one transaction:
+   * a second worker waits on the claim, then finds them taken; a failed email gives them back. The items claimed.
+   */
+  async function remind(candidateId: string, items: ReminderItem[]): Promise<ReminderItem[]> {
+    const client = await database.connect();
+    try {
+      await client.query("BEGIN");
+      const claimed: ReminderItem[] = [];
+      for (const item of items) {
+        const { rowCount } = await client.query(
+          `INSERT INTO appointment_reminder (candidate_id, ${ITEM_COLUMN[item.table]}, scheduled_at, sent_at) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
+          [candidateId, item.id, item.scheduledAt, now()],
+        );
+        if (rowCount) claimed.push(item);
+      }
+      if (claimed.length > 0) await email(candidateId, claimed);
+      await client.query("COMMIT");
+      return claimed;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   return {
     async sendDue() {
       const byCandidate = new Map<string, ReminderItem[]>();
       for (const item of await due()) byCandidate.set(item.candidateId, [...(byCandidate.get(item.candidateId) ?? []), item]);
-      for (const [candidateId, items] of byCandidate) await email(candidateId, items);
-      return { emails: byCandidate.size, items: [...byCandidate.values()].flat().length };
+      let emails = 0;
+      let items = 0;
+      for (const [candidateId, candidateItems] of byCandidate) {
+        const claimed = await remind(candidateId, candidateItems);
+        if (claimed.length > 0) emails += 1;
+        items += claimed.length;
+      }
+      return { emails, items };
     },
   };
 }
 
+/** The column of `appointment_reminder` naming an item of each Agenda Item table. */
+const ITEM_COLUMN: Record<AgendaItemTable, string> = { interview: "interview_id", coaching_session: "coaching_session_id" };
+
 /** Creates or upgrades the Appointment Reminders' tables. Run after Applications and Human Coaches. Safe to run repeatedly. */
 export async function migrateAppointmentReminders(database: Pool): Promise<void> {
-  void database;
+  await database.query(`
+    -- The Appointment Reminders sent: one per Agenda Item and per date (a Rescheduled item gets one for its new date).
+    CREATE TABLE IF NOT EXISTS appointment_reminder (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      candidate_id text NOT NULL REFERENCES candidate (id) ON DELETE CASCADE,
+      interview_id uuid REFERENCES interview (id) ON DELETE CASCADE,
+      coaching_session_id uuid REFERENCES coaching_session (id) ON DELETE CASCADE,
+      -- The item's date the reminder was for.
+      scheduled_at timestamptz NOT NULL,
+      sent_at timestamptz NOT NULL,
+      CHECK ((interview_id IS NULL) <> (coaching_session_id IS NULL)),
+      UNIQUE (interview_id, scheduled_at),
+      UNIQUE (coaching_session_id, scheduled_at)
+    );
+    CREATE INDEX IF NOT EXISTS appointment_reminder_candidate_id_idx ON appointment_reminder (candidate_id);
+  `);
 }

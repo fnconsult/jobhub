@@ -25,7 +25,8 @@
  *     keeps its explained breakdown. If the AI fails or is too slow, the result
  *     is the phase 1 score, flagged `offerTextUnread`.
  */
-import { matchScoreReliability, scoreMatch, type JobOffer, type MatchInput, type MatchScore } from "@jobhub/shared";
+import type { AiWarning } from "@jobhub/ai";
+import { matchScoreReliability, scoreMatch, type FailureReason, type JobOffer, type MatchInput, type MatchScore } from "@jobhub/shared";
 import * as z from "zod";
 import type { QuotaDecision } from "../billing";
 import type { QuotaRefusal } from "../billing/upgrade-prompt";
@@ -51,9 +52,20 @@ export type MatchScoreQuota = (candidateId: string) => Promise<QuotaDecision>;
 
 /**
  * What an AI reads in a Job Offer's text (its title and text, never a CV): the `offer_analysis`
- * task. Throws when it cannot read it.
+ * task. Throws when it cannot read it. `call`: what the Match Score says of that AI call (#260), to pass
+ * on to it (`readOfferFields` takes it as is): recorded with it.
  */
-export type OfferTextReader = (jobOffer: JobOffer, candidateId: string | null) => Promise<FieldsFromText>;
+export type OfferTextReader = (jobOffer: JobOffer, candidateId: string | null, call: OfferTextCall) => Promise<FieldsFromText>;
+
+/**
+ * What the Match Score says of the AI call reading a Job Offer's text (#260): what it does when the call fails or
+ * its reply cannot be read (`match_score_text_unread`), and its warnings, read when the call is recorded, where
+ * `match_score_too_slow` is added when the Match Score stops waiting for it.
+ */
+export interface OfferTextCall {
+  fallback: FailureReason;
+  warnings: AiWarning[];
+}
 
 /** A reliable phase 1 Match Score this high needs no AI reading of the Job Offer's text. */
 export const ENOUGH_FROM_STRUCTURED_DATA = 70;
@@ -104,14 +116,15 @@ export function createMatchScoring({
   warn?: (message: string, details: Record<string, unknown>) => void;
 }): MatchScoring {
   /** One reading per Job Offer at a time: a second Match Score waits for the first one's. */
-  const reading = new Map<string, Promise<JobOffer | null>>();
+  const reading = new Map<string, { filling: Promise<JobOffer | null>; call: OfferTextCall }>();
 
   /** The Job Offer with the fields its text gave (now or before), or null when the AI could not read it in time. */
   function filledFromText(jobOffer: JobOffer, candidateId: string | null, read: OfferTextReader): Promise<JobOffer | null> {
-    let filling = reading.get(jobOffer.id);
-    if (!filling) {
-      filling = jobOffers
-        .fillFromText(jobOffer.id, (stored) => read(stored, candidateId))
+    let current = reading.get(jobOffer.id);
+    if (!current) {
+      const call: OfferTextCall = { fallback: "match_score_text_unread", warnings: [] };
+      const filling = jobOffers
+        .fillFromText(jobOffer.id, (stored) => read(stored, candidateId, call))
         .catch((error: unknown) => {
           warn("Job Offer text unread: Match Score from its structured data only", {
             jobOfferId: jobOffer.id,
@@ -120,12 +133,18 @@ export function createMatchScoring({
           return null;
         })
         .finally(() => reading.delete(jobOffer.id));
-      reading.set(jobOffer.id, filling);
+      current = { filling, call };
+      reading.set(jobOffer.id, current);
     }
+    const { filling, call } = current;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<null>((resolve) => {
       timer = setTimeout(() => {
         warn("Job Offer text reading too slow: Match Score from its structured data only", { jobOfferId: jobOffer.id });
+        // Recorded with the AI call when it ends; one already recorded keeps this on the console only.
+        if (!call.warnings.some((warning) => warning.reason === "match_score_too_slow")) {
+          call.warnings.push({ reason: "match_score_too_slow", detail: `stopped waiting after ${textReadTimeoutMs} ms` });
+        }
         resolve(null);
       }, textReadTimeoutMs);
     });

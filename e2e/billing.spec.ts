@@ -5,6 +5,7 @@ import { renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
+import { submitToStripe } from "./support/stripe-checkout";
 
 // Issue #22: Plans, Stripe billing (checkout, customer portal, webhooks) and
 // Plan Quotas edited in the back office. Stripe is the fake API on E2E_STRIPE_URL.
@@ -20,14 +21,8 @@ async function stripeCalls(path: string): Promise<{ params: Record<string, strin
 
 /** Submits a form by its button; returns where the server sends the browser (Stripe's pages are not loaded). */
 async function formRedirect(page: Page, path: string, button: string) {
-  await page.route("https://*.stripe.test/**", (route) => route.fulfill({ body: "Stripe" }));
-  const [response] = await Promise.all([
-    page.waitForResponse((r) => new URL(r.url()).pathname === path),
-    page.getByRole("button", { name: button }).click(),
-  ]);
+  const response = await submitToStripe(page, path, button);
   expect(response.status()).toBe(303);
-  // Let the browser finish following the redirect, or it interrupts the test's next page.goto.
-  await page.waitForURL((url) => url.hostname.endsWith(".stripe.test") || url.protocol === "chrome-error:");
   return response.headers().location;
 }
 

@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { fakeCustomerId, FAKE_STRIPE_PRICES, signedEvent, subscriptionEvent } from "../apps/web/src/billing/fake-stripe";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { submitToStripe } from "./support/stripe-checkout";
 
 // Issue #207: Coupons, Stripe promotion codes created from the Back Office (Codes promo) in the fake
 // Stripe (E2E_STRIPE_URL). A shared link /abonnement?code=… tells the Candidate what the code gives and
@@ -34,15 +35,9 @@ async function choose(page: Page, plan: string) {
 
 /** Clicks a button that sends the browser to Stripe Checkout; Stripe's page is not loaded. */
 async function toCheckout(page: Page, button: string) {
-  await page.route("https://*.stripe.test/**", (route) => route.fulfill({ body: "Stripe" }));
-  const [response] = await Promise.all([
-    page.waitForResponse((r) => new URL(r.url()).pathname === "/api/billing/checkout"),
-    page.getByRole("button", { name: button }).click(),
-  ]);
+  const response = await submitToStripe(page, "/api/billing/checkout", button);
   expect(response.status()).toBe(303);
   expect(response.headers().location).toMatch(/^https:\/\/checkout\.stripe\.test\//);
-  // Let the browser finish following the redirect, or it interrupts the next page.goto.
-  await page.waitForURL((url) => url.hostname === "checkout.stripe.test" || url.protocol === "chrome-error:", { waitUntil: "commit" });
 }
 
 test.describe("Coupons", () => {

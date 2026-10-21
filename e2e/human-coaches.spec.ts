@@ -4,6 +4,7 @@ import { checkoutSessionEvent, FAKE_STRIPE_COACHING_SESSION_PRICES, signedEvent 
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
+import { submitToStripe } from "./support/stripe-checkout";
 
 // Issue #24: Human Coaches, added in the Back Office with their Cal.com booking
 // link; Coaching Sessions paid through Stripe Checkout at the single Coaching
@@ -104,14 +105,9 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     await expect(page.getByText(/Prix d'une séance : 90,00/)).toBeVisible();
     await expect(page.getByRole("link", { name: tr(hc.pickSlot, { name: coach.name }) })).toHaveCount(0);
 
-    await page.route("https://*.stripe.test/**", (route) => route.fulfill({ body: "Stripe" }));
-    const [response] = await Promise.all([
-      page.waitForResponse((r) => new URL(r.url()).pathname === "/api/coaching/checkout"),
-      page.getByRole("button", { name: tr(hc.book, { name: coach.name }) }).click(),
-    ]);
+    const response = await submitToStripe(page, "/api/coaching/checkout", tr(hc.book, { name: coach.name }));
     expect(response.status()).toBe(303);
     expect(response.headers().location).toMatch(/^https:\/\/checkout\.stripe\.test\//);
-    await page.waitForURL((url) => url.hostname.endsWith(".stripe.test") || url.protocol === "chrome-error:");
     const [checkout] = await checkoutsFor(coachId);
     expect(checkout).toMatchObject({ mode: "payment", "line_items[0][price]": FAKE_STRIPE_COACHING_SESSION_PRICES.regular, "metadata[purpose]": "coaching_session" });
 

@@ -88,7 +88,7 @@ const ANTHROPIC_ENDPOINTS = ["auto", "bedrock", "vertex", "direct"] as const;
  * The direct API comes first: with both, tasks without personal data use it (ai-layer.ts).
  */
 function anthropicEndpoints(env: Env): AnthropicEndpoint[] {
-  const bedrock = (): AnthropicEndpoint => ({ kind: "bedrock", region: env.BEDROCK_REGION?.trim() || "eu-west-3", apiKey: env.AWS_BEARER_TOKEN_BEDROCK?.trim() || undefined });
+  const bedrock = (): AnthropicEndpoint => ({ kind: "bedrock", region: env.BEDROCK_REGION?.trim() || "eu-north-1", apiKey: env.AWS_BEARER_TOKEN_BEDROCK?.trim() || undefined });
   switch (oneOf(env, "ANTHROPIC_ENDPOINT", ANTHROPIC_ENDPOINTS, "auto")) {
     case "direct":
       return [{ kind: "direct", apiKey: required(env, "ANTHROPIC_API_KEY") }];

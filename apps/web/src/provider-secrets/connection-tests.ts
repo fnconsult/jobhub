@@ -135,7 +135,7 @@ export function createConnectionTester(deps: ConnectionTesterDeps = {}): Connect
     },
     async bedrock(env, { bearer }) {
       const found = keys(env, "AWS_BEARER_TOKEN_BEDROCK");
-      const region = env.BEDROCK_REGION?.trim() || "eu-west-3";
+      const region = env.BEDROCK_REGION?.trim() || "eu-north-1";
       return "missing" in found ? failed(`missing ${found.missing}`) : bearer(`https://bedrock-mantle.${region}.api.aws/v1/models`, found.AWS_BEARER_TOKEN_BEDROCK);
     },
     async "france-travail"(env, { call }) {

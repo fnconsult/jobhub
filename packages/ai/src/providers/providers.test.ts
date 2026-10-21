@@ -54,7 +54,7 @@ describe("Anthropic provider", () => {
     expect(provider.endpoint).toBe("bedrock eu-west-3");
     expect(new URL(requests[0]!.url).hostname).toBe("bedrock-mantle.eu-west-3.api.aws");
     expect(requests[0]!.body).toMatchObject({
-      model: "anthropic.claude-opus-5-5",
+      model: "anthropic.claude-opus-5",
       system: "Tu es le AI Coach.",
       max_tokens: 1000,
       messages: [{ role: "user", content: "Améliore mon CV" }],
@@ -322,11 +322,11 @@ describe("effort, as a Playbook Agent asks for it (#225)", () => {
 });
 
 describe("the models a provider offers a Playbook Agent (#225)", () => {
-  it("names Claude's models as its endpoint does: with Bedrock's prefix on Bedrock", () => {
+  it("names the Claude models its endpoint serves: older ones, with Bedrock's prefix, on Bedrock", () => {
     expect(createAnthropicProvider({ endpoint: { kind: "bedrock", region: "eu-west-3" } }).models).toEqual([
-      "anthropic.claude-opus-5-5",
-      "anthropic.claude-sonnet-5-5",
-      "anthropic.claude-haiku-5-5",
+      "anthropic.claude-opus-5",
+      "anthropic.claude-sonnet-5",
+      "anthropic.claude-haiku-4-5",
     ]);
     expect(createAnthropicProvider({ endpoint: { kind: "vertex", region: "europe-west1", projectId: "p" } }).models).toEqual(["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]);
   });

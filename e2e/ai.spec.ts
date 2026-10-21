@@ -94,7 +94,7 @@ test.describe("AI layer: one module hides the provider, routing is configuration
       hosts[provider] = r.requests[0]!.host;
     }
     expect(hosts).toEqual({
-      anthropic: "bedrock-mantle.eu-west-3.api.aws",
+      anthropic: "bedrock-mantle.eu-north-1.api.aws",
       mistral: "api.mistral.ai",
       openai: "eu.api.openai.com",
     });
@@ -129,21 +129,21 @@ test.describe("AI layer: one module hides the provider, routing is configuration
   test("with no routing configured, text tasks default to Claude on Bedrock EU and search to Perplexity", () => {
     const r = runAi({ AWS_BEARER_TOKEN_BEDROCK: "test-bedrock-key", PERPLEXITY_API_KEY: "test-perplexity-key" }, [score(), search()]);
     ok(r);
-    expect(r.requests.map((req) => req.host)).toEqual(["bedrock-mantle.eu-west-3.api.aws", "api.perplexity.ai"]);
+    expect(r.requests.map((req) => req.host)).toEqual(["bedrock-mantle.eu-north-1.api.aws", "api.perplexity.ai"]);
   });
 });
 
 test.describe("AI layer: provider adapters", () => {
-  test("Anthropic on AWS Bedrock eu-west-3 (the default endpoint)", () => {
+  test("Anthropic on AWS Bedrock eu-north-1 (the default endpoint)", () => {
     const r = runAi({ AWS_BEARER_TOKEN_BEDROCK: "test-bedrock-key", PERPLEXITY_API_KEY: "p" }, [score()]);
     ok(r);
     const [request] = r.requests;
-    expect(request!.url).toBe("https://bedrock-mantle.eu-west-3.api.aws/anthropic/v1/messages");
+    expect(request!.url).toBe("https://bedrock-mantle.eu-north-1.api.aws/anthropic/v1/messages");
     const body = JSON.parse(request!.body);
     // The guardrail (ADR-0007, 2026-10-20) took the email and phone out, and told the model so.
     expect(body.system).toMatch(/^Score this CV against the offer\.\n+Note : des données personnelles ont été remplacées/);
     expect(body.messages).toEqual([{ role: "user", content: REDACTED_CV }]);
-    expect(r.outcomes[0]).toMatchObject({ ok: true, value: { text: "reply from bedrock-mantle.eu-west-3.api.aws", provider: "anthropic" } });
+    expect(r.outcomes[0]).toMatchObject({ ok: true, value: { text: "reply from bedrock-mantle.eu-north-1.api.aws", provider: "anthropic" } });
   });
 
   test("Anthropic on Vertex AI in an EU location is accepted for personal-data tasks at start-up", () => {
@@ -318,7 +318,7 @@ test.describe("AI layer: token usage is logged per Candidate", () => {
     ok(r);
     expect(r.usage).toHaveLength(4);
     expect(r.usage).toEqual([
-      expect.objectContaining({ candidateId: "cand-1", task: "scoring", provider: "anthropic", endpoint: "bedrock eu-west-3", inputTokens: 200, outputTokens: 50 }),
+      expect.objectContaining({ candidateId: "cand-1", task: "scoring", provider: "anthropic", endpoint: "bedrock eu-north-1", inputTokens: 200, outputTokens: 50 }),
       expect.objectContaining({ candidateId: "cand-1", task: "writing", provider: "mistral", endpoint: "api.mistral.ai", inputTokens: 120, outputTokens: 30 }),
       expect.objectContaining({ candidateId: "cand-2", task: "web_search", provider: "perplexity", inputTokens: 120, outputTokens: 30 }),
       expect.objectContaining({ candidateId: null, task: "scoring", inputTokens: 200, outputTokens: 50 }),
@@ -539,14 +539,14 @@ test.describe("AI layer: identity routing under EU AI consent (issue #121)", () 
   test("consent but no identity: the task's configured provider", () => {
     const r = runAi(routing, [letter("cand-consenting", false, "Résume cette offre : DAF H/F à Lyon")]);
     ok(r);
-    expect(r.requests.map((req) => req.host)).toEqual(["bedrock-mantle.eu-west-3.api.aws"]);
+    expect(r.requests.map((req) => req.host)).toEqual(["bedrock-mantle.eu-north-1.api.aws"]);
     expect(r.usage[0]).toMatchObject({ provider: "anthropic" });
   });
 
   test("no consent: the task's configured provider, even with identity", () => {
     const r = runAi(routing, [letter("cand-other", true)]);
     ok(r);
-    expect(r.requests.map((req) => req.host)).toEqual(["bedrock-mantle.eu-west-3.api.aws"]);
+    expect(r.requests.map((req) => req.host)).toEqual(["bedrock-mantle.eu-north-1.api.aws"]);
     expect(r.usage[0]).toMatchObject({ provider: "anthropic" });
   });
 
@@ -565,7 +565,7 @@ test.describe("AI layer: identity routing under EU AI consent (issue #121)", () 
   test("an undeclared phone number without consent is not rerouted", () => {
     const r = runAi(routing, [{ kind: "generate", task: "coaching", candidateId: "cand-other", prompt: "Appelez le 06 12 34 56 78" }]);
     ok(r);
-    expect(r.requests.map((req) => req.host)).toEqual(["bedrock-mantle.eu-west-3.api.aws"]);
+    expect(r.requests.map((req) => req.host)).toEqual(["bedrock-mantle.eu-north-1.api.aws"]);
     expect(r.stderr).not.toMatch(/undeclared identity/i);
   });
 });

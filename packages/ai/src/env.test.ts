@@ -27,14 +27,14 @@ const WEB_SEARCH_HOSTS = ["api.search.brave.com", "api.tavily.com", "api.linkup.
 const base = { AWS_BEARER_TOKEN_BEDROCK: "bedrock-key", PERPLEXITY_API_KEY: "pk" };
 
 describe("AI layer configured from the environment", () => {
-  it("defaults to Claude on Bedrock eu-west-3 for text tasks and Perplexity for web search", async () => {
+  it("defaults to Claude on Bedrock eu-north-1 for text tasks and Perplexity for web search", async () => {
     const { fetch, hosts } = recordingFetch();
     const ai = createAiLayerFromEnv(base, { fetch, usage: createMemoryUsageLog() });
 
     await ai.generate({ task: "scoring", candidateId: "c", prompt: "CV" });
     await ai.searchWeb({ candidateId: "c", criteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] } });
 
-    expect(hosts).toEqual(["bedrock-mantle.eu-west-3.api.aws", "api.perplexity.ai"]);
+    expect(hosts).toEqual(["bedrock-mantle.eu-north-1.api.aws", "api.perplexity.ai"]);
   });
 
   it("switches the provider of one task by configuration alone", async () => {
@@ -48,7 +48,7 @@ describe("AI layer configured from the environment", () => {
     await ai.generate({ task: "writing", candidateId: "c", prompt: "Lettre" });
     await ai.generate({ task: "coaching", candidateId: "c", prompt: "Bonjour" });
 
-    expect(hosts).toEqual(["api.mistral.ai", "bedrock-mantle.eu-west-3.api.aws"]);
+    expect(hosts).toEqual(["api.mistral.ai", "bedrock-mantle.eu-north-1.api.aws"]);
     expect(usage.entries.map((e) => [e.task, e.provider])).toEqual([
       ["writing", "mistral"],
       ["coaching", "anthropic"],
@@ -83,7 +83,7 @@ describe("AI layer configured from the environment", () => {
     await createAiLayerFromEnv(env, { fetch, usage }).planJobSearch({ candidateId: "c", criteria });
     await createAiLayerFromEnv({ ...env, AI_JOB_TITLES_PROVIDER: "anthropic" }, { fetch, usage }).planJobSearch({ candidateId: "c", criteria });
 
-    expect(hosts).toEqual(["api.mistral.ai", "bedrock-mantle.eu-west-3.api.aws"]);
+    expect(hosts).toEqual(["api.mistral.ai", "bedrock-mantle.eu-north-1.api.aws"]);
     expect(usage.entries.map((e) => e.task)).toEqual(["job_titles", "job_titles"]);
   });
 
@@ -95,7 +95,7 @@ describe("AI layer configured from the environment", () => {
     await createAiLayerFromEnv(env, { fetch, usage }).generate({ task: "back_office_assistant", candidateId: "a", prompt: "Combien ?" });
     await createAiLayerFromEnv({ ...env, AI_BACK_OFFICE_ASSISTANT_PROVIDER: "anthropic" }, { fetch, usage }).generate({ task: "back_office_assistant", candidateId: "a", prompt: "Combien ?" });
 
-    expect(hosts).toEqual(["api.mistral.ai", "bedrock-mantle.eu-west-3.api.aws"]);
+    expect(hosts).toEqual(["api.mistral.ai", "bedrock-mantle.eu-north-1.api.aws"]);
     expect(usage.entries.map((e) => e.task)).toEqual(["back_office_assistant", "back_office_assistant"]);
     // Outside the EU too, once configured: every call is redacted (ADR-0007 amendment, 2026-10-20).
     expect(() => createAiLayerFromEnv({ ...env, AI_BACK_OFFICE_ASSISTANT_PROVIDER: "openai", OPENAI_API_KEY: "sk", OPENAI_DATA_RESIDENCY: "us" })).not.toThrow();
@@ -109,7 +109,7 @@ describe("AI layer configured from the environment", () => {
     await createAiLayerFromEnv(env, { fetch, usage }).generate({ task: "guardrail", candidateId: "c", prompt: "Bonjour" });
     await createAiLayerFromEnv({ ...env, AI_GUARDRAIL_PROVIDER: "anthropic" }, { fetch, usage }).generate({ task: "guardrail", candidateId: "c", prompt: "Bonjour" });
 
-    expect(hosts).toEqual(["api.mistral.ai", "bedrock-mantle.eu-west-3.api.aws"]);
+    expect(hosts).toEqual(["api.mistral.ai", "bedrock-mantle.eu-north-1.api.aws"]);
     expect(usage.entries.map((e) => e.task)).toEqual(["guardrail", "guardrail"]);
     // Outside the EU too, once configured: every call is redacted (ADR-0007 amendment, 2026-10-20).
     expect(() => createAiLayerFromEnv({ ...env, AI_GUARDRAIL_PROVIDER: "openai", OPENAI_API_KEY: "sk", OPENAI_DATA_RESIDENCY: "us" })).not.toThrow();
@@ -152,12 +152,12 @@ describe("AI layer configured from the environment", () => {
     });
 
     it("with the Bedrock key alone: Claude on Bedrock for every task", async () => {
-      expect((await run({ ...keys, AWS_BEARER_TOKEN_BEDROCK: "bk" })).hosts).toEqual(["bedrock-mantle.eu-west-3.api.aws", "bedrock-mantle.eu-west-3.api.aws"]);
+      expect((await run({ ...keys, AWS_BEARER_TOKEN_BEDROCK: "bk" })).hosts).toEqual(["bedrock-mantle.eu-north-1.api.aws", "bedrock-mantle.eu-north-1.api.aws"]);
     });
 
     it("with both keys: Bedrock for personal data, the direct API for public tasks", async () => {
       expect(await run({ ...keys, ANTHROPIC_API_KEY: "sk-ant", AWS_BEARER_TOKEN_BEDROCK: "bk" })).toEqual({
-        hosts: ["bedrock-mantle.eu-west-3.api.aws", "api.anthropic.com"],
+        hosts: ["bedrock-mantle.eu-north-1.api.aws", "api.anthropic.com"],
         providers: ["anthropic", "anthropic"],
       });
     });
@@ -216,7 +216,7 @@ describe("AI layer configured from the environment", () => {
       await ai.generate({ task: "coaching", candidateId: "consenting", prompt: "Bonjour" });
       await ai.generate({ task: "coaching", candidateId: "other", containsIdentity: true, prompt: "Je suis Jean Martin" });
 
-      expect(hosts).toEqual(["api.mistral.ai", "bedrock-mantle.eu-west-3.api.aws", "bedrock-mantle.eu-west-3.api.aws"]);
+      expect(hosts).toEqual(["api.mistral.ai", "bedrock-mantle.eu-north-1.api.aws", "bedrock-mantle.eu-north-1.api.aws"]);
       expect(usage.entries[0]).toMatchObject({ provider: "mistral", model: "m" });
     });
 

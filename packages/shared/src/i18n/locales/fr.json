@@ -2662,6 +2662,18 @@
     "route_missing": "Aucun fournisseur configuré pour cette tâche",
     "data_residency": "Règle de résidence des données",
     "invalid_reply": "Réponse illisible",
+    "test_failed": "Test de connexion échoué",
+    "test_expired": "Connexion de test expirée",
+    "not_tested": "Activation sans connexion de test réussie",
+    "invalid_apple_key": "Clé privée Apple illisible",
+    "not_latest_version": "Version qui n'est plus la dernière",
+    "already_validated": "Version déjà validée",
+    "own_version": "Version écrite par la même personne",
+    "no_eval_run": "Aucune Eval Run sur cette version",
+    "eval_refused": "Refusé par l'Eval Run",
+    "last_super_admin": "Dernier super-admin",
+    "unknown_account": "Compte introuvable",
+    "stripe_refused": "Refusé par Stripe",
     "other": "Erreur inattendue"
   }
 }

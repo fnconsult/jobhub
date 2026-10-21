@@ -2662,6 +2662,18 @@
     "route_missing": "No provider configured for this task",
     "data_residency": "Data residency rule",
     "invalid_reply": "Unreadable reply",
+    "test_failed": "Connection test failed",
+    "test_expired": "Test sign-in expired",
+    "not_tested": "Enabled without a passed test sign-in",
+    "invalid_apple_key": "Apple private key unreadable",
+    "not_latest_version": "No longer the latest version",
+    "already_validated": "Version already validated",
+    "own_version": "Version written by the same person",
+    "no_eval_run": "No Eval Run on this version",
+    "eval_refused": "Refused by the Eval Run",
+    "last_super_admin": "Last super-admin",
+    "unknown_account": "Account not found",
+    "stripe_refused": "Refused by Stripe",
     "other": "Unexpected error"
   }
 }

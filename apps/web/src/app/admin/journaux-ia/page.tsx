@@ -1,5 +1,5 @@
 import type { AiTask } from "@jobhub/ai";
-import { FAILURE_REASONS, OUTCOMES } from "@jobhub/shared";
+import { AI_CALL_FAILURE_REASONS, OUTCOMES } from "@jobhub/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireBackOffice } from "@/admin/server";
@@ -76,7 +76,7 @@ export default async function AiMessagesPage({ searchParams }: { searchParams: P
           <label htmlFor="ai-messages-reason">{t("admin.aiMessages.reason")}</label>
           <select id="ai-messages-reason" name="reason" className="input" defaultValue={filter.reason ?? ""}>
             <option value="">{t("admin.aiMessages.anyReason")}</option>
-            {FAILURE_REASONS.map((reason) => (
+            {AI_CALL_FAILURE_REASONS.map((reason) => (
               <option key={reason} value={reason}>
                 {t(`failureReasons.${reason}`)}
               </option>

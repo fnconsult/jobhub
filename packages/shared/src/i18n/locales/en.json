@@ -360,7 +360,22 @@
       "departement": "Département",
       "region": "Region"
     },
-    "anyOfHint": "Tick everything that suits you. Nothing ticked: no preference."
+    "anyOfHint": "Tick everything that suits you. Nothing ticked: no preference.",
+    "sectors": "Sectors",
+    "subsectors": "Subsectors",
+    "domains": "Domains",
+    "sectorsHint": "The employers' sectors (INSEE's NAF): a job offer in any one of them suits you. None: no preference.",
+    "subsectorsHint": "To narrow the sectors chosen. None: the whole sector.",
+    "subsectorsNeedSector": "Choose a sector first.",
+    "domainsHint": "The job's professional domains (France Travail's ROME): any one will do. None: no preference.",
+    "industryInputs": {
+      "sectors": "Add a sector",
+      "subsectors": "Add a subsector",
+      "domains": "Add a domain"
+    },
+    "industryInputHint": "Type to filter the list, then arrows and Enter to choose.",
+    "noIndustryFound": "Nothing matches “{{query}}”.",
+    "removeChoice": "Remove {{label}}"
   },
   "cvEditor": {
     "title": "Edit my Master CV",
@@ -2016,6 +2031,8 @@
       "close": "Close"
     },
     "remoteWork": "Remote work: {{option}}",
+    "sectorsWanted": "Sector: {{sectors}}",
+    "domainsWanted": "Domain: {{domains}}",
     "resultsLabel": "Job offers found",
     "scoreLabel": "Match Score: ",
     "outOf": "/ 100",

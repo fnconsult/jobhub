@@ -29,6 +29,7 @@ import { migrateJobOffers } from "./job-offers/index";
 import { migrateJobSearches } from "./job-searches/index";
 import { migrateProfiles } from "./profiles/index";
 import { migrateProviderSecrets } from "./provider-secrets/index";
+import { migrateReferenceData } from "./reference-data/index";
 import { migrateSearchSites } from "./search-sites/index";
 import { migrateSignInProviders } from "./sign-in-providers/index";
 import { migrateTailoredCvs } from "./tailored-cv/index";
@@ -75,6 +76,7 @@ export async function migrateDatabase(
     ["Coaching Playbooks, the Core Digest, the Sources list and the task Playbooks are up to date", () => migrateCoachingPlaybooks(database, () => importedPlaybooks(env))],
     ["Guardrails are up to date", () => migrateGuardrails(database)],
     ["Eval Cases and Eval Runs are up to date", () => migrateEvals(database)],
+    ["Reference data is up to date", () => migrateReferenceData(database)],
   ];
   for (const [done, migrate] of steps) {
     await migrate();

@@ -88,6 +88,12 @@ export interface SearchCriteria {
   contractTypes: ContractType[];
   /** Any of them will do; none means no preference. */
   remoteWorkOptions: RemoteWork[];
+  /** Sectors: NAF rév. 2 sections ("C"), any of which will do; none means no preference (./sectors.ts). */
+  sectors: string[];
+  /** Subsectors: NAF rév. 2 divisions ("29"), each within one of the `sectors`. */
+  subsectors: string[];
+  /** Domains: ROME 4.0 professional domains ("M13"), any of which will do; none means no preference. */
+  domains: string[];
 }
 
 /** What two places are compared by: trimmed, without case or accents ("Île-de-France" is "ile-de-france"). */

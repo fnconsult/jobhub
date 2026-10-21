@@ -9,7 +9,7 @@
  * access is granted, and replace fixtures/france-travail/*.synthetic.json with
  * captured answers.
  */
-import { MAX_POSTING_AGE_DAYS, type ContractType, type JobOfferDetails, type SalaryRange, type SearchCriteria } from "@jobhub/shared";
+import { MAX_POSTING_AGE_DAYS, searchedSubsectors, type ContractType, type JobOfferDetails, type SalaryRange, type SearchCriteria } from "@jobhub/shared";
 import { romeCodesFor } from "./rome";
 
 /** OAuth2 client-credentials token endpoint, in the "/partenaire" realm. */
@@ -129,7 +129,9 @@ const isoSeconds = (date: Date) => date.toISOString().replace(/\.\d{3}Z$/, "Z");
  * The search for `criteria` near `location`, one of its locations (France Travail
  * filters by one area at a time, so Job discovery searches each location in turn,
  * ADR-0025): by the ROME codes of its title, else by the title's keywords; in that
- * area when France Travail knows it, and in any of its contract types; created in
+ * area when France Travail knows it, in any of its contract types, Subsectors (NAF divisions:
+ * those chosen, and every one of a Sector chosen without one) and Domains (ROME 4.0
+ * professional domains, #236); created in
  * the last MAX_POSTING_AGE_DAYS days; the first `max` offers (at most MAX_RANGE).
  */
 export function searchParams(
@@ -143,6 +145,11 @@ export function searchParams(
   for (const [name, value] of Object.entries(area(location))) params.set(name, value);
   // Several contract types are one comma-separated filter, any of which will do.
   if (criteria.contractTypes.length > 0) params.set("typeContrat", [...new Set(criteria.contractTypes.map((type) => CONTRACT_CODES[type]))].join(","));
+  // UNVERIFIED like the rest (docs/research/issue-236.md): `secteurActivite` taking NAF divisions and
+  // `domaine` ROME professional domains, several of each comma-separated like `typeContrat`.
+  const subsectors = searchedSubsectors(criteria);
+  if (subsectors.length > 0) params.set("secteurActivite", subsectors.join(","));
+  if (criteria.domains.length > 0) params.set("domaine", criteria.domains.join(","));
   params.set("minCreationDate", isoSeconds(new Date(now.getTime() - MAX_POSTING_AGE_DAYS * 24 * 60 * 60 * 1000)));
   params.set("maxCreationDate", isoSeconds(now));
   params.set("range", `0-${Math.min(Math.max(max, 1), MAX_RANGE) - 1}`);

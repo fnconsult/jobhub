@@ -122,6 +122,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "profile",
         "provider_secret", // issue #208: Provider Secrets, encrypted
         "quota_usage",
+        "reference_label", // issue #236: NAF sectors and subsectors, ROME domains, with their labels; no Candidate data
         "session",
         "sign_in_provider", // issue #209: Sign-in Providers configured in the Back Office
         "sign_in_setting", // issue #209: Require SSO for Administrators

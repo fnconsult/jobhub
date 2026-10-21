@@ -75,7 +75,9 @@ import {
   isOnDomain,
   isPostingTooOld,
   MAX_POSTING_AGE_DAYS,
+  NO_INDUSTRY_REFERENCE,
   type DiscoveryMetrics,
+  type IndustryReference,
   type JobDiscoverySettings,
   type FranceTravailMetrics,
   type JobOffer,
@@ -150,6 +152,11 @@ export interface JobDiscoveryOptions {
    * Job Offer Summary and sector written when the LLM reads a page (default: none written).
    */
   taskPlaybooks?: TaskPlaybookReader;
+  /**
+   * The NAF and ROME-domain labels (#236), read at the start of each run: the web searches name the
+   * Sectors wanted by them. Default, and when it throws: none, so no Sector is named.
+   */
+  industries?: () => Promise<IndustryReference>;
 }
 
 export interface DiscoverRequest {
@@ -219,6 +226,17 @@ interface PlannedSearch {
   site?: string;
 }
 
+/** The Sectors' labels; when they cannot be read, the run goes on without naming any. */
+async function readIndustries(industries: JobDiscoveryOptions["industries"]): Promise<IndustryReference> {
+  if (!industries) return NO_INDUSTRY_REFERENCE;
+  try {
+    return await industries();
+  } catch (error) {
+    console.warn(`[job-discovery] the Sectors' labels could not be read, the web searches name none: ${error instanceof Error ? error.message : String(error)}`);
+    return NO_INDUSTRY_REFERENCE;
+  }
+}
+
 /** Where the Back Office's settings come from; when they cannot be read, the run goes on with the defaults. */
 async function readSettings(settings: JobDiscoveryOptions["settings"]): Promise<JobDiscoverySettings> {
   if (!settings) return DEFAULT_JOB_DISCOVERY_SETTINGS;
@@ -245,6 +263,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
     async discover({ candidateId, criteria }) {
       const startedAt = clock.now();
       const settings = await readSettings(options.settings);
+      const industries = await readIndustries(options.industries);
       const configuredFranceTravail = typeof options.franceTravail === "function" ? options.franceTravail() : options.franceTravail;
       const franceTravail = settings.sources.france_travail ? configuredFranceTravail : null;
       /** Job discovery sites searched on purpose; a forbidden site never is, whatever the settings say. */
@@ -453,7 +472,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           const before = found.size;
           const { query, site } = next.query;
           const filters = site ? { ...searchFilters, includeDomains: [site] } : searchFilters;
-          const search = await ai.searchWeb({ candidateId, criteria, query, page: next.page, filters, location, route: queryWording.searchRoute });
+          const search = await ai.searchWeb({ candidateId, criteria, query, page: next.page, filters, location, route: queryWording.searchRoute, industries });
           // The answer text only points at pages to read: a Job Offer always comes from a page read.
           const fresh = [...new Set([...search.sources, ...urlsIn(search.answer)])].filter((url) => !providerUrls.has(url));
           for (const url of fresh) providerUrls.add(url);

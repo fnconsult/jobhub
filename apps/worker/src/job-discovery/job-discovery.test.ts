@@ -1,7 +1,7 @@
 import { createAiLayer } from "@jobhub/ai";
 import type { SearchOptions } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
-import { DEFAULT_JOB_DISCOVERY_SETTINGS, type JobDiscoverySettings, type JobOffer, type SearchCriteria } from "@jobhub/shared";
+import { DEFAULT_JOB_DISCOVERY_SETTINGS, type IndustryReference, type JobDiscoverySettings, type JobOffer, type SearchCriteria } from "@jobhub/shared";
 import type { TaskPlaybookReader } from "@jobhub/web/task-playbooks";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -18,7 +18,7 @@ const criteria: SearchCriteria = {
   targetRole: "Directeur financier",
   locations: ["Lyon"],
   contractTypes: ["cdi"],
-  remoteWorkOptions: ["hybrid"],
+  remoteWorkOptions: ["hybrid"], sectors: [], subsectors: [], domains: [],
   minSalary: 110_000,
 };
 
@@ -107,6 +107,8 @@ function setup(options: {
   taskPlaybooks?: TaskPlaybookReader;
   /** Another web-search provider configured, which a task Playbook may name. */
   otherSearch?: FakeProvider;
+  /** The NAF and ROME-domain labels (#236). */
+  industries?: () => Promise<IndustryReference>;
 }) {
   const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, sourceDates: options.sourceDates, answer: options.answer, pages: options.searchPages });
   const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}', usage: options.llmUsage });
@@ -119,7 +121,7 @@ function setup(options: {
   const clock = fakeClock(options.now?.getTime());
   const web = fakeWeb(options.pages, clock);
   const jobOffers = memoryJobOffers(options.existing);
-  const discovery = createJobDiscovery({ ai, jobOffers, fetch: web.fetch, clock, budget: options.budget, franceTravail: options.franceTravail, settings: options.settings, taskPlaybooks: options.taskPlaybooks });
+  const discovery = createJobDiscovery({ ai, jobOffers, fetch: web.fetch, clock, budget: options.budget, franceTravail: options.franceTravail, settings: options.settings, taskPlaybooks: options.taskPlaybooks, industries: options.industries });
   return { discovery, search, llm, titles, web, jobOffers };
 }
 
@@ -182,11 +184,39 @@ describe("Job discovery", () => {
 
     await discovery.discover({
       candidateId: "candidate-1",
-      criteria: { targetRole: "DAF jean.dupont@mail.fr 06 12 34 56 78", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] },
+      criteria: { targetRole: "DAF jean.dupont@mail.fr 06 12 34 56 78", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] },
     });
 
     expect(titles.calls.map((call) => call.messages)).toEqual([[{ role: "user", content: "DAF" }]]);
     expect(search.queries).toEqual(["Offre d'emploi « DAF » à Lyon", 'Job offer "DAF" in Lyon']);
+  });
+
+  describe("Sectors (#236)", () => {
+    const industries = async (): Promise<IndustryReference> => ({
+      sectors: [{ code: "K", label: { fr: "Activités financières et d'assurance", en: "Financial and insurance activities" } }],
+      subsectors: [],
+      domains: [],
+    });
+    const inFinance: SearchCriteria = { targetRole: "Directeur financier", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: ["K"], subsectors: [], domains: [] };
+
+    it("names the Sectors wanted by their labels, read at the start of the run, in each web search", async () => {
+      const { discovery, search } = setup({ sources: [], pages: {}, industries });
+
+      await discovery.discover({ candidateId: "candidate-1", criteria: inFinance });
+
+      expect(search.queries).toEqual([
+        "Offre d'emploi « Directeur financier » à Lyon, secteur Activités financières et d'assurance",
+        'Job offer "Directeur financier" in Lyon, Financial and insurance activities sector',
+      ]);
+    });
+
+    it("searches without naming them when their labels cannot be read", async () => {
+      const { discovery, search } = setup({ sources: [], pages: {}, industries: () => Promise.reject(new Error("no database")) });
+
+      await discovery.discover({ candidateId: "candidate-1", criteria: inFinance });
+
+      expect(search.queries).toEqual(["Offre d'emploi « Directeur financier » à Lyon", 'Job offer "Directeur financier" in Lyon']);
+    });
   });
 
   describe("searching with job title variants in French and English, page after page (#112)", () => {

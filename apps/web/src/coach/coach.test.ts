@@ -1,7 +1,7 @@
 import { costInEur, createAiLayer, type AiProvider, type TextInput } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import { describe, expect, it } from "vitest";
-import { scoreMatch, type JobOffer } from "@jobhub/shared";
+import { scoreMatch, type IndustryReference, type JobOffer } from "@jobhub/shared";
 import type { Application } from "@/applications";
 import type { ServedKnowledge } from "@/coaching-playbooks";
 import type { JobDigest } from "@/job-digests";
@@ -15,7 +15,7 @@ const profile: Profile = {
   id: "11111111-1111-4111-8111-111111111111",
   name: "Directrice financière",
   archived: false,
-  searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"], minSalary: 120000, contractTypes: ["cdi"], remoteWorkOptions: [] },
+  searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"], minSalary: 120000, contractTypes: ["cdi"], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] },
   masterCv: {
     version: 2,
     content: {
@@ -190,6 +190,7 @@ function answering({ reply = "Bonjour Marie, que puis-je faire pour vous ?", cho
 function coachWith(
   options: Answers & {
     workspace?: Partial<Workspace>;
+    industries?: () => Promise<IndustryReference>;
     served?: ServedKnowledge;
     claude?: AiProvider;
     agentTimeoutMs?: number;
@@ -225,6 +226,7 @@ function coachWith(
     ...(options.guarded ? { guardrails } : {}),
     playbooks: servedOf(options.served ?? NO_AGENTS),
     ...sourcesOf({ ...emptyWorkspace(), ...options.workspace }),
+    ...(options.industries ? { industries: options.industries } : {}),
     ...(options.agentTimeoutMs ? { agentTimeoutMs: options.agentTimeoutMs } : {}),
     ...(options.jobOfferLinks ? { jobOfferLinks: options.jobOfferLinks } : {}),
     warn: (message, details) => warnings.push({ message, details }),
@@ -544,7 +546,7 @@ describe("the rest, summarised", () => {
       ...profile,
       id: "77777777-7777-4777-8777-777777777777",
       name: "Consultante transformation",
-      searchCriteria: { targetRole: "Consultante transformation finance", locations: ["Paris"], contractTypes: [], remoteWorkOptions: [] },
+      searchCriteria: { targetRole: "Consultante transformation finance", locations: ["Paris"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] },
       masterCv: { version: 1, content: { ...profile.masterCv.content, headline: "Consultante en transformation finance", summary: "Vingt ans à piloter des projets ERP." } },
     };
     const archived: Profile = { ...consultant, id: "88888888-8888-4888-8888-888888888888", name: "Ancien profil", archived: true, masterCv: { version: 1, content: { ...consultant.masterCv.content, headline: "Ancien titre" } } };
@@ -561,13 +563,40 @@ describe("the rest, summarised", () => {
   it("each active Profile's Search Criteria with every value wanted, any one of which will do (ADR-0025)", async () => {
     const twoRegions: Profile = {
       ...profile,
-      searchCriteria: { ...profile.searchCriteria, locations: ["Lyon", "Bordeaux"], contractTypes: ["cdi", "freelance"], remoteWorkOptions: ["hybrid", "full_remote"] },
+      searchCriteria: { ...profile.searchCriteria, locations: ["Lyon", "Bordeaux"], contractTypes: ["cdi", "freelance"], remoteWorkOptions: ["hybrid", "full_remote"], sectors: [], subsectors: [], domains: [] },
     };
     const { coach, provider } = coachWith({ workspace: { profiles: [twoRegions] } });
 
     await ask(coach);
 
     expect(contextOf(provider)).toContain("lieux Lyon ou Bordeaux, salaire minimum 120000 € brut annuel, contrat CDI ou freelance, travail hybride ou télétravail complet");
+  });
+});
+
+describe("Sectors and Domains in the AI Coach's context (#236)", () => {
+  const industries = async (): Promise<IndustryReference> => ({
+    sectors: [{ code: "K", label: { fr: "Activités financières et d'assurance", en: "Financial and insurance activities" } }],
+    subsectors: [{ code: "64", parent: "K", label: { fr: "Activités des services financiers, hors assurance et caisses de retraite" } }],
+    domains: [{ code: "M13", parent: "M", label: { fr: "Direction d'entreprise" } }],
+  });
+  const inFinance: Profile = { ...profile, searchCriteria: { ...profile.searchCriteria, sectors: ["K"], subsectors: ["64"], domains: ["M13"] } };
+
+  it("are named by their French labels, for each active Profile and the Profile in view", async () => {
+    const { coach, provider } = coachWith({ workspace: { profiles: [inFinance] }, industries });
+
+    await ask(coach, { kind: "profile", id: inFinance.id });
+
+    const words = "secteur Activités des services financiers, hors assurance et caisses de retraite, domaine Direction d'entreprise";
+    expect(contextOf(provider).split(words)).toHaveLength(3);
+  });
+
+  it("are left out when their labels cannot be read", async () => {
+    const { coach, provider } = coachWith({ workspace: { profiles: [inFinance] }, industries: () => Promise.reject(new Error("no database")) });
+
+    await ask(coach);
+
+    expect(contextOf(provider)).not.toContain("secteur");
+    expect(contextOf(provider)).toContain("contrat CDI");
   });
 });
 

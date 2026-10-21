@@ -43,7 +43,8 @@ export function JobOfferSummary({ applicationId, summary, needsReading }: { appl
   if (state.kind === "none") return null;
   if (state.kind === "pending") {
     return (
-      <p className="hint job-offer-summary" role="status">
+      // aria-live without role="status": the page's own status message (the Application Status saved) stays the one status on it.
+      <p className="hint job-offer-summary" aria-live="polite">
         {t("jobOffer.summaryPending")}
       </p>
     );

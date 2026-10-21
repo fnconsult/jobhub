@@ -100,7 +100,7 @@ describe("web search", () => {
     locations: ["Lyon"],
     minSalary: 90000,
     contractTypes: ["cdi"],
-    remoteWorkOptions: ["hybrid"],
+    remoteWorkOptions: ["hybrid"], sectors: [], subsectors: [], domains: [],
   };
 
   it("sends the search provider a query built only from Search Criteria, and logs its usage", async () => {
@@ -138,7 +138,7 @@ describe("web search", () => {
 
     await ai.searchWeb({
       candidateId: "cand-1",
-      criteria: { targetRole: "DAF jean.dupont@mail.fr\nappelez le 06 12 34 56 78", locations: ["Paris +33 6 12 34 56 78"], contractTypes: [], remoteWorkOptions: [] },
+      criteria: { targetRole: "DAF jean.dupont@mail.fr\nappelez le 06 12 34 56 78", locations: ["Paris +33 6 12 34 56 78"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] },
     });
 
     expect(perplexity.queries[0]).toBe("Offre d'emploi « DAF appelez le » à Paris");

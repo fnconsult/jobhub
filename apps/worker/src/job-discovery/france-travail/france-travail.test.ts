@@ -8,7 +8,7 @@ const SEARCH_ANSWER = readFileSync(new URL("../fixtures/france-travail/search.sy
 
 const NOW = new Date("2026-10-15T12:00:00Z");
 
-const criteria: SearchCriteria = { targetRole: "Directrice administrative et financière", locations: ["Lyon"], contractTypes: ["cdi"], remoteWorkOptions: [] };
+const criteria: SearchCriteria = { targetRole: "Directrice administrative et financière", locations: ["Lyon"], contractTypes: ["cdi"], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] };
 
 interface Answer {
   status?: number;
@@ -126,7 +126,7 @@ describe("France Travail search", () => {
   it("searches by the title's keywords when it names no ROME job, and all of France for a place it does not know", async () => {
     const { api, franceTravail } = setup();
 
-    await franceTravail.search({ targetRole: "Chef de projet tisserand (H/F)", locations: ["Télétravail"], contractTypes: [], remoteWorkOptions: [] }, { max: 10, now: NOW });
+    await franceTravail.search({ targetRole: "Chef de projet tisserand (H/F)", locations: ["Télétravail"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] }, { max: 10, now: NOW });
 
     const params = api.search().url.searchParams;
     expect(params.get("motsCles")).toBe("chef,projet,tisserand");
@@ -172,6 +172,26 @@ describe("France Travail search", () => {
     const params = api.search().url.searchParams;
     expect(params.get("departement")).toBe("33");
     expect(params.get("typeContrat")).toBe("CDI,LIB");
+  });
+
+  it("filters by the Subsectors chosen, every Subsector of a Sector chosen without one, and the Domains chosen (#236)", async () => {
+    const { api, franceTravail } = setup();
+
+    await franceTravail.search({ ...criteria, sectors: ["C", "K"], subsectors: ["29"], domains: ["C13", "M13"] }, { max: 30, now: NOW });
+
+    const params = api.search().url.searchParams;
+    expect(params.get("secteurActivite")).toBe("29,64,65,66");
+    expect(params.get("domaine")).toBe("C13,M13");
+  });
+
+  it("filters by no sector nor domain when none is chosen", async () => {
+    const { api, franceTravail } = setup();
+
+    await franceTravail.search(criteria, { max: 30, now: NOW });
+
+    const params = api.search().url.searchParams;
+    expect(params.has("secteurActivite")).toBe(false);
+    expect(params.has("domaine")).toBe(false);
   });
 
   it("asks for no more than 150 offers, the most one answer gives", async () => {

@@ -214,12 +214,28 @@ Downloading an Application's saved Tailored CV or Cover Letter as a PDF or Word 
 _Avoid_: Download, print
 
 **Search Criteria**:
-The job-search parameters of a Profile: one target role, one minimum salary, and any number of locations (up to five, entered as chips: chosen from Place suggestions or typed, kept as text, two being the same when they match without case or accents), contract types and remote-work options; none chosen means no preference. A Job Offer meets a criterion as soon as it meets one of its values. The Candidate can change them on an active Profile, each change saving as soon as it is made; this never renames the Profile, and Match Scores and Tailored CVs already kept are not recomputed. An Archived Profile's Search Criteria are read-only until it is restored.
+The job-search parameters of a Profile: one target role, one minimum salary, and any number of locations (up to five, entered as chips: chosen from Place suggestions or typed, kept as text, two being the same when they match without case or accents), contract types, remote-work options, Sectors, Subsectors and Domains (kept as codes); none chosen means no preference. A Job Offer meets a criterion as soon as it meets one of its values. Sectors, Subsectors and Domains steer Job discovery only: the Match Score does not compare them. Search Criteria saved or sent before they existed read as none chosen. The Candidate can change them on an active Profile, each change saving as soon as it is made; this never renames the Profile, and Match Scores and Tailored CVs already kept are not recomputed. An Archived Profile's Search Criteria are read-only until it is restored.
+_Avoid_: Filters, preferences
+
+**Sector**:
+A kind of employer the Search Criteria look for: a section of INSEE's NAF rév. 2 nomenclature (A to U, e.g. C, Industrie manufacturière), kept as its code and shown by its label from the Reference data. A Sector chosen without any of its Subsectors searches all of them. Not the sector the AI reads on a Job Offer, which is free text.
+_Avoid_: Industry, activity, NAF code (alone)
+
+**Subsector**:
+A division of NAF rév. 2 (two digits, e.g. 29, Industrie automobile), within one Sector. Only the Subsectors of the Sectors chosen are offered; choosing one chooses its Sector, and removing a Sector removes its Subsectors. Said in words in place of its Sector.
+_Avoid_: Sub-sector, division (alone)
+
+**Domain**:
+A kind of work the Search Criteria look for: a ROME 4.0 professional domain of France Travail (a letter and two digits, e.g. M13, Direction d'entreprise, under its grand domain M), kept as its code and shown by its label from the Reference data. Sent to the France Travail search; web search queries do not name it.
+_Avoid_: Field, ROME code (which names one job), grand domain (the letter above it)
+
+**Reference data**:
+The labels of the Sectors, Subsectors and Domains, from public nomenclatures: NAF rév. 2 from INSEE (French and English) and the ROME 4.0 professional domains from France Travail's open data (French only), each source a Tool sent no data. Kept in the database, fetched on first need and refreshed monthly by the worker; a source that fails keeps the labels it had; a code with no label yet is shown as its code in the inputs and left out of the criteria in words. Which codes the Search Criteria accept, and which Sector each Subsector belongs to, is fixed in the code, not reference data. Tied to no Candidate: not in the Personal Data Export. NAF 2025 replaces NAF rév. 2 in January 2027.
+_Avoid_: Référentiel (in code and English), lookup table
 
 **Place suggestion**:
 A commune, département or région offered while the Candidate types a location, from the French public geographic API. Choosing one only fills in its name; the location stays plain text, and typing a place not suggested is fine.
 _Avoid_: Autocomplete (alone)
-_Avoid_: Filters, preferences
 
 **Onboarding Questionnaire**:
 The guided interview, one question at a time, that builds a Master CV when the Candidate has no CV to upload. Scripted, so it cannot invent facts; its result is reviewed like an uploaded CV.
@@ -264,7 +280,7 @@ A message shown on every workspace page when a Job Search stops being searching:
 _Avoid_: Alert, toast, Action Card
 
 **Job Search query**:
-One job title (the Search Criteria title or a Job title variant) worded in French or English; a Job Search has up to 6. Each gets its first page of results, and a next page only while the last gave a New readable posting.
+One job title (the Search Criteria title or a Job title variant) worded in French or English, with the Search Criteria's places, contract types, remote-work options, minimum salary and Sectors (by their labels, in the query's language where NAF has it); a Job Search has up to 6. Each gets its first page of results, and a next page only while the last gave a New readable posting.
 
 **Job title variant**:
 Another title for the same job, suggested by an AI step given the Search Criteria title only (no other Candidate data). Used to word more Job Search queries.
@@ -276,7 +292,7 @@ A Job Offer a results page gave that the run had not found yet. It is what lets 
 The limits that end one run of Job discovery (a Job Search or a Job Digest top-up), whichever comes first: a number of Job Offers found (new or already stored), an estimated spend in euros, or a duration. Defaults: 30 Job Offers, EUR 0.08, 90 seconds. The result page being read when a limit is reached is finished, so a run can go slightly past it.
 
 **France Travail search**:
-The first source of a Job discovery run when France Travail is configured: the official job-offer API of France Travail, searched with the Search Criteria. Its Job Offers count toward the Job discovery budget; when they fill it, the AI plan and web search are skipped. Losing access is a normal outcome, never a failed run.
+The first source of a Job discovery run when France Travail is configured: the official job-offer API of France Travail, searched with the Search Criteria: by their contract types, Subsectors (with every Subsector of a Sector chosen without any) and Domains, any of which will do. Its Job Offers count toward the Job discovery budget; when they fill it, the AI plan and web search are skipped. Losing access is a normal outcome, never a failed run.
 
 **France Travail status**:
 How the France Travail search went in one run, part of the Discovery metrics: off (not configured), searched, refused (access withdrawn or credentials rejected) or failed (any other error).
@@ -564,7 +580,7 @@ A third-party key (an AI provider's, France Travail's, the contact-enrichment pr
 _Avoid_: API key setting, credential, config secret
 
 **Tool**:
-An external service the application calls at runtime, from the web app or the worker: an AI model, web search, a job board API, the company register, a contact-enrichment provider, Stripe, Brevo or a Sign-in Provider. Each is registered in one catalog with its purpose, the keys it needs, where its calls are recorded and its data residency (in the EU, outside the EU, or not established); a provider missing from the catalog fails the tests. The Back Office's Outils section shows each Tool's state (configured, key missing, not configured) and its last 30 days of calls, failures and cost, and its latest calls without any payload. Super-admins and Support read it. Not a tool an AI model uses during a call (a web search it runs), which is only counted in AI Usage.
+An external service the application calls at runtime, from the web app or the worker: an AI model, web search, a job board API, the company register, a contact-enrichment provider, a source of Reference data or of Place suggestions, Stripe, Brevo or a Sign-in Provider. Each is registered in one catalog with its purpose, the keys it needs, where its calls are recorded and its data residency (in the EU, outside the EU, or not established); a provider missing from the catalog fails the tests. The Back Office's Outils section shows each Tool's state (configured, key missing, not configured) and its last 30 days of calls, failures and cost, and its latest calls without any payload. Super-admins and Support read it. Not a tool an AI model uses during a call (a web search it runs), which is only counted in AI Usage.
 _Avoid_: Integration, connector, service
 
 **Sign-in Provider**:

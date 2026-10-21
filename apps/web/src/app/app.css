@@ -2915,6 +2915,12 @@ textarea.title-edit {
   box-shadow: var(--shadow-menu);
 }
 
+/* A long list of options (the Sectors, #236) scrolls within its popup. */
+.place-options-scroll {
+  max-height: 18rem;
+  overflow-y: auto;
+}
+
 .place-options[hidden] {
   display: none;
 }

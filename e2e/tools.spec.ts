@@ -54,7 +54,7 @@ test.describe("Tools (Outils)", () => {
     await page.goto("/admin/outils");
     await expect(page).toHaveTitle(`${tools.title} · ${admin.title}`);
     await expect(page.getByRole("navigation", { name: admin.nav.label }).getByRole("link", { name: admin.sections.tools })).toHaveAttribute("aria-current", "page");
-    for (const category of ["ai_model", "web_search", "job_discovery", "company_data", "contact_enrichment", "billing", "mail", "sign_in", "geolocation"]) {
+    for (const category of ["ai_model", "web_search", "job_discovery", "company_data", "contact_enrichment", "billing", "mail", "sign_in", "geolocation", "reference_data"]) {
       await expect(page.getByRole("heading", { level: 2, name: tools.categories[category] })).toBeVisible();
     }
     for (const name of ["Perplexity", "Brave Search", "Tavily", "Linkup"]) await expect(toolRow(page, "web_search", name)).toBeVisible();
@@ -132,6 +132,39 @@ test.describe("Tools (Outils)", () => {
     }
     // Never the place asked for.
     await expect(page.getByRole("main")).not.toContainText(query);
+  });
+
+  test("the Sectors' and Domains' labels come from INSEE and France Travail's ROME open data, listed under Référentiels, each call traced (#236)", async ({ page, request }) => {
+    // Anonymous visitors get no labels.
+    expect((await request.get(`${origin}/api/reference-data`)).status()).toBe(401);
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    // Read from the reference data, which asked both sources (faked) the first time it was read.
+    const labels = await (await page.request.get("/api/reference-data")).json();
+    expect(labels.sectors).toHaveLength(21);
+    expect(labels.subsectors).toHaveLength(88);
+    expect(labels.sectors).toContainEqual({ code: "K", label: { fr: "Activités financières et d'assurance", en: "Financial and insurance activities" } });
+    expect(labels.domains).toContainEqual({ code: "M13", parent: "M", label: { fr: "Direction d'entreprise" } });
+
+    await page.goto("/admin/outils");
+    await expect(page.getByRole("heading", { level: 2, name: tools.categories.reference_data })).toBeVisible();
+    for (const [id, name, operation] of [
+      ["insee-naf", "INSEE (rdf.insee.fr)", "GET /sparql"],
+      ["rome-open-data", "ROME open data (France Travail)", "GET /api-nomenclatureemploi/v1/open-data/json"],
+    ] as const) {
+      await page.goto("/admin/outils");
+      const row = toolRow(page, "reference_data", name.replace(/[()]/g, "\\$&"));
+      await expect(row).toContainText(tools.statuses.no_key_needed);
+      // Recorded just after the call: a reload may be needed.
+      await expect(async () => {
+        await page.reload();
+        await expect(row.getByRole("cell").nth(4)).not.toHaveText("0", { timeout: 1_000 });
+      }).toPass();
+      await row.getByRole("link", { name }).click();
+      await expect(page).toHaveURL(new RegExp(`/admin/outils/${id}$`));
+      await expect(page.getByRole("definition").filter({ hasText: tools.residencies.eu })).toBeVisible();
+      const calls = page.getByRole("table", { name: tr(tools.callsCaption, { name }) });
+      await expect(calls.getByRole("row").filter({ hasText: operation }).first()).toContainText(tools.ok);
+    }
   });
 
   test("Support reads the Tools without a way into Clés; other roles and Candidates get a 404", async ({ page, browser }) => {

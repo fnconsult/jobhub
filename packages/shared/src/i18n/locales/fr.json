@@ -360,7 +360,22 @@
       "departement": "Département",
       "region": "Région"
     },
-    "anyOfHint": "Cochez tout ce qui vous convient. Rien de coché : pas de préférence."
+    "anyOfHint": "Cochez tout ce qui vous convient. Rien de coché : pas de préférence.",
+    "sectors": "Secteurs",
+    "subsectors": "Sous-secteurs",
+    "domains": "Domaines",
+    "sectorsHint": "Les secteurs d'activité des employeurs (NAF de l'INSEE) : une offre dans l'un d'eux vous correspond. Aucun : pas de préférence.",
+    "subsectorsHint": "Pour préciser les secteurs choisis. Aucun : tout le secteur.",
+    "subsectorsNeedSector": "Choisissez d'abord un secteur.",
+    "domainsHint": "Les domaines professionnels du métier (ROME de France Travail) : un seul suffit. Aucun : pas de préférence.",
+    "industryInputs": {
+      "sectors": "Ajouter un secteur",
+      "subsectors": "Ajouter un sous-secteur",
+      "domains": "Ajouter un domaine"
+    },
+    "industryInputHint": "Tapez pour filtrer la liste, flèches puis Entrée pour choisir.",
+    "noIndustryFound": "Rien ne correspond à « {{query}} ».",
+    "removeChoice": "Retirer {{label}}"
   },
   "cvEditor": {
     "title": "Modifier mon CV de référence",
@@ -2016,6 +2031,8 @@
       "close": "Fermer"
     },
     "remoteWork": "Télétravail : {{option}}",
+    "sectorsWanted": "Secteur : {{sectors}}",
+    "domainsWanted": "Domaine : {{domains}}",
     "resultsLabel": "Offres trouvées",
     "scoreLabel": "Score de correspondance : ",
     "outOf": "/ 100",

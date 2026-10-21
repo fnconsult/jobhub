@@ -16,7 +16,7 @@
  * data export and outlive account deletion.
  */
 import type { Message, UsageLog } from "@jobhub/ai";
-import { cleanTechnicalMessage, scrubStoredText, type ExternalApiCall, type ExternalApiLog } from "@jobhub/shared";
+import { cleanTechnicalMessage, FAILURE_REASONS, scrubStoredText, type ExternalApiCall, type ExternalApiLog, type FailureReason, type Outcome } from "@jobhub/shared";
 import type { Pool } from "pg";
 
 /** How long AI usage and external API calls are kept. */
@@ -209,6 +209,16 @@ export interface AiUsageRow {
   costEur: number;
 }
 
+/**
+ * How many of a group of AI calls failed or warned with one Failure Reason (#262): its code only, never
+ * a technical reason. A call recorded without a code (before #259), or with one no longer in the catalog, is `other`.
+ */
+export interface FailureReasonCount {
+  outcome: Exclude<Outcome, "ok">;
+  reason: FailureReason;
+  calls: number;
+}
+
 export interface AiUsageReport {
   period: AiUsagePeriod;
   totals: {
@@ -239,6 +249,12 @@ export interface AiUsageReport {
   tools: { provider: string; name: string; calls: number; failures: number; costEur: number | null }[];
   /** Per provider and operation, most calls first. `costEur` is null when no call's cost is known. */
   externalApis: { provider: string; operation: string; calls: number; failures: number; costEur: number | null }[];
+  /** The failed and warned calls per Outcome and Failure Reason, in all and per provider and model and per task; most calls first, failures before warnings. */
+  failureReasons: {
+    total: FailureReasonCount[];
+    byModel: (FailureReasonCount & { provider: string | null; model: string | null })[];
+    byTask: (FailureReasonCount & { task: string })[];
+  };
 }
 
 /** `column` within the period: $1 and $2 are its Paris dates. */
@@ -260,7 +276,8 @@ const REPORT = `
       FROM ai_usage u JOIN ai_tool_usage t ON t.usage_id = u.id
      WHERE ${within("u.at")}
   ), calls AS MATERIALIZED (
-    SELECT u.provider, u.model, u.task, u.ok, u.input_tokens, u.output_tokens, u.cached_input_tokens,
+    SELECT u.provider, u.model, u.task, u.ok, u.outcome,
+           CASE WHEN u.reason = ANY($4::text[]) THEN u.reason ELSE 'other' END AS reason, u.input_tokens, u.output_tokens, u.cached_input_tokens,
            u.cost_eur + coalesce(fees.cost, 0) AS cost, to_char(u.at AT TIME ZONE '${TIME_ZONE}', $3) AS bucket
       FROM ai_usage u
       LEFT JOIN (SELECT usage_id, sum(cost_eur) AS cost FROM tools GROUP BY usage_id) fees ON fees.usage_id = u.id
@@ -274,6 +291,16 @@ const REPORT = `
        FROM (SELECT json_build_object('task', task, ${ROW})::jsonb AS row FROM calls GROUP BY task) g) AS "byTask",
     (SELECT coalesce(json_agg(row ORDER BY row->>'bucket' DESC), '[]')
        FROM (SELECT json_build_object('bucket', bucket, ${ROW})::jsonb AS row FROM calls GROUP BY bucket) g) AS "byTime",
+    -- The failed and warned calls per Failure Reason: codes only.
+    (SELECT coalesce(json_agg(row ORDER BY (row->>'calls')::int DESC, row->>'outcome', row->>'reason'), '[]')
+       FROM (SELECT json_build_object('outcome', outcome, 'reason', reason, 'calls', count(*))::jsonb AS row
+               FROM calls WHERE outcome <> 'ok' GROUP BY outcome, reason) g) AS "failuresTotal",
+    (SELECT coalesce(json_agg(row ORDER BY (row->>'calls')::int DESC, row->>'outcome', row->>'provider' NULLS LAST, row->>'model' NULLS LAST, row->>'reason'), '[]')
+       FROM (SELECT json_build_object('provider', provider, 'model', model, 'outcome', outcome, 'reason', reason, 'calls', count(*))::jsonb AS row
+               FROM calls WHERE outcome <> 'ok' GROUP BY provider, model, outcome, reason) g) AS "failuresByModel",
+    (SELECT coalesce(json_agg(row ORDER BY (row->>'calls')::int DESC, row->>'outcome', row->>'task', row->>'reason'), '[]')
+       FROM (SELECT json_build_object('task', task, 'outcome', outcome, 'reason', reason, 'calls', count(*))::jsonb AS row
+               FROM calls WHERE outcome <> 'ok' GROUP BY task, outcome, reason) g) AS "failuresByTask",
     -- Uses and failed uses in one unit: each row counts \`count\` uses.
     (SELECT coalesce(json_agg(row ORDER BY (row->>'calls')::int DESC, row->>'provider', row->>'name'), '[]')
        FROM (SELECT json_build_object('provider', provider, 'name', name, 'calls', sum(count), 'failures', coalesce(sum(count) FILTER (WHERE NOT ok), 0),
@@ -286,12 +313,14 @@ const REPORT = `
 
 /** The AI consumption of `period`, as the Back Office's report shows it. Estimates at list prices, in €. */
 export async function aiUsageReport(database: Pick<Pool, "query">, period: AiUsagePeriod): Promise<AiUsageReport> {
-  const { rows } = await database.query<Omit<AiUsageReport, "period" | "totals"> & { total: AiUsageRow }>(REPORT, [
-    period.from,
-    period.to,
-    period.per === "day" ? "YYYY-MM-DD" : "YYYY-MM",
-  ]);
-  const { total: calls, byModel, byTask, byTime, tools, externalApis } = rows[0]!;
+  type Rows = Omit<AiUsageReport, "period" | "totals" | "failureReasons"> & {
+    total: AiUsageRow;
+    failuresTotal: AiUsageReport["failureReasons"]["total"];
+    failuresByModel: AiUsageReport["failureReasons"]["byModel"];
+    failuresByTask: AiUsageReport["failureReasons"]["byTask"];
+  };
+  const { rows } = await database.query<Rows>(REPORT, [period.from, period.to, period.per === "day" ? "YYYY-MM-DD" : "YYYY-MM", FAILURE_REASONS]);
+  const { total: calls, byModel, byTask, byTime, tools, externalApis, failuresTotal, failuresByModel, failuresByTask } = rows[0]!;
   const toolCalls = tools.reduce((sum, tool) => sum + tool.calls, 0);
   const toolsCostEur = tools.reduce((sum, tool) => sum + (tool.costEur ?? 0), 0);
   const externalCalls = externalApis.reduce((sum, api) => sum + api.calls, 0);
@@ -318,6 +347,7 @@ export async function aiUsageReport(database: Pick<Pool, "query">, period: AiUsa
     byTime,
     tools,
     externalApis,
+    failureReasons: { total: failuresTotal, byModel: failuresByModel, byTask: failuresByTask },
   };
 }
 

@@ -5,7 +5,8 @@ import { useTranslation } from "react-i18next";
 
 /**
  * The Candidate's Appointment Reminders: the email the day before their Agenda Items, at 18:00
- * French time. On by default; switched off or on again here, saved as soon as it changes.
+ * French time. On by default; switched off or on again here, saved as soon as it changes (shown at
+ * once, put back when it could not be saved).
  */
 export function AppointmentRemindersForm({ enabled: initial }: { enabled: boolean }) {
   const { t } = useTranslation();
@@ -16,6 +17,7 @@ export function AppointmentRemindersForm({ enabled: initial }: { enabled: boolea
   const [failed, setFailed] = useState(false);
 
   async function change(next: boolean) {
+    setEnabled(next);
     setWorking(true);
     setFailed(false);
     setSaved(false);
@@ -26,9 +28,9 @@ export function AppointmentRemindersForm({ enabled: initial }: { enabled: boolea
         body: JSON.stringify({ enabled: next }),
       });
       if (!response.ok) throw new Error(String(response.status));
-      setEnabled(next);
       setSaved(true);
     } catch {
+      setEnabled(!next);
       setFailed(true);
     } finally {
       setWorking(false);

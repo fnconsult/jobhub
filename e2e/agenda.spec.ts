@@ -247,6 +247,62 @@ test.describe("adding an Interview from the Agenda", () => {
   });
 });
 
+// Issue #250: « Annuler » keeps a Cancelled Interview, struck through, with its date of cancellation,
+// on the Agenda and in its Application's Interviews Section; « Supprimer » leaves no trace.
+test.describe("cancelling an Interview (#250)", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+  const tr = (template: string, values: Record<string, string>) => template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
+
+  test("asks first, then keeps the Interview struck through with « Annulé le … », on the Agenda too; the export holds the cancellation", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("agenda-cancel"));
+    const applicationId = await applicationWithInterviews(page, "DAF H/F", [`${parisDay(4)}T14:30`]);
+
+    await page.goto(`/candidatures/${applicationId}/entretiens`);
+    const interviews = page.getByRole("region", { name: fr.application.interviewsTitle });
+    const cancel = interviews.getByRole("button", { name: /^Annuler l'entretien du/ });
+    await cancel.click();
+    await expect(interviews.getByRole("group", { name: fr.agendaChanges.cancelInterviewConfirm })).toBeVisible();
+    await expect(interviews.getByRole("button", { name: fr.agendaChanges.confirm })).toBeFocused();
+    await interviews.getByRole("button", { name: fr.agendaChanges.keep }).click();
+    await expect(cancel).toBeFocused();
+    await expect(interviews.getByText(/^Annulé le/)).toHaveCount(0);
+
+    await cancel.click();
+    await interviews.getByRole("button", { name: fr.agendaChanges.confirm }).click();
+    const cancelledOn = tr(fr.agendaChanges.cancelledOn, { date: new Intl.DateTimeFormat("fr", { dateStyle: "long", timeZone: "Europe/Paris" }).format(new Date()) });
+    await expect(interviews.getByRole("listitem")).toContainText(cancelledOn);
+    await expect(interviews.getByRole("listitem")).toContainText("14:30");
+    await expect(interviews.getByRole("button", { name: /^Annuler l'entretien du/ })).toHaveCount(0);
+    await expect(interviews.getByText(fr.agendaChanges.removeHint)).toBeVisible();
+
+    await page.goto("/agenda");
+    const item = page.getByRole("region", { name: fr.agenda.upcomingTitle }).getByRole("listitem");
+    await expect(item).toHaveCount(1);
+    await expect(item).toContainText(fr.agendaChanges.cancelledInterview);
+    await expect(item).toContainText(cancelledOn);
+    await expect(item.locator(".agenda-item-time")).toHaveCSS("text-decoration-line", "line-through");
+
+    const exported = await (await page.request.get("/api/account/export")).json();
+    const application = exported.applications.find((a: { id: string }) => a.id === applicationId);
+    expect(application.interviews).toEqual([expect.objectContaining({ cancelledAt: expect.any(String), reschedules: [] })]);
+  });
+
+  test("only the Candidate's own Interview can be cancelled", async ({ page, browser }) => {
+    await signInWithMagicLink(page, newAddress("agenda-cancel-owner"));
+    const applicationId = await applicationWithInterviews(page, "DAF H/F", [`${parisDay(4)}T14:30`]);
+    await page.goto(`/candidatures/${applicationId}/entretiens`);
+    const interviewId = (await (await page.request.get("/api/account/export")).json()).applications[0].interviews[0].id as string;
+
+    const other = await browser.newPage();
+    await signInWithMagicLink(other, newAddress("agenda-cancel-other"));
+    const refused = await other.request.post(`/api/applications/${applicationId}/interviews/${interviewId}/cancel`, { headers: { origin } });
+    expect(refused.status()).toBe(404);
+    await other.close();
+    await page.reload();
+    await expect(page.getByRole("region", { name: fr.application.interviewsTitle }).getByText(/^Annulé le/)).toHaveCount(0);
+  });
+});
+
 test.describe("the Data export (#247)", () => {
   test("carries each Interview's duration, format and place", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("agenda-export"));

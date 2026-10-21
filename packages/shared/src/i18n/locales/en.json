@@ -1999,7 +1999,7 @@
     "removeInterview": "Delete the interview of {{date}}",
     "editInterview": "Edit the interview of {{date}}",
     "saveInterview": "Save the interview",
-    "cancelInterviewEdit": "Cancel",
+    "cancelInterviewEdit": "Close without saving",
     "working": "Saving…",
     "backToApplications": "Back to my applications",
     "expiredNotice": "Your application and its status stay as they are: you decide what happens next.",

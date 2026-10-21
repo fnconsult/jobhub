@@ -1999,7 +1999,7 @@
     "removeInterview": "Supprimer l'entretien du {{date}}",
     "editInterview": "Modifier l'entretien du {{date}}",
     "saveInterview": "Enregistrer l'entretien",
-    "cancelInterviewEdit": "Annuler",
+    "cancelInterviewEdit": "Fermer sans enregistrer",
     "working": "Enregistrement…",
     "backToApplications": "Retour à mes candidatures",
     "expiredNotice": "Votre candidature et son statut restent tels quels : c'est vous qui décidez de la suite.",

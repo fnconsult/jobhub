@@ -156,6 +156,50 @@ describe.skipIf(!connectionString)("Agenda (needs Postgres: DATABASE_URL)", () =
     ]);
   });
 
+  describe("daysBetween: a week or month view's days", () => {
+    it("lists the period's Agenda Items oldest first, past and upcoming alike, and nothing outside it", async () => {
+      const applicationId = await applicationInInterview(candidateId, "DAF H/F", "Acme Industrie");
+      const theirs = await applicationInInterview(otherCandidateId, "Contrôleur de gestion", "Globex");
+      await addInterview(candidateId, applicationId, "2026-10-18T23:59"); // the Sunday before
+      await addInterview(candidateId, applicationId, "2026-10-22T14:30");
+      await addInterview(candidateId, applicationId, "2026-10-19T00:00"); // Monday's very start, before now
+      await addInterview(candidateId, applicationId, "2026-10-26T00:00"); // the Monday after
+      await addInterview(otherCandidateId, theirs, "2026-10-21T09:00");
+
+      expect(shape(await agenda.daysBetween(candidateId, { first: "2026-10-19", last: "2026-10-25" }))).toEqual([
+        ["2026-10-19", ["2026-10-18T22:00:00.000Z"]],
+        ["2026-10-22", ["2026-10-22T12:30:00.000Z"]],
+      ]);
+    });
+
+    it("puts the Agenda Items of the week the clocks go back (end of October) on the right day", async () => {
+      const applicationId = await applicationInInterview(candidateId, "DAF H/F", "Acme Industrie");
+      await addInterview(candidateId, applicationId, "2026-10-19T00:30"); // Monday, summer time: 22:30 UTC on Sunday 18
+      await addInterview(candidateId, applicationId, "2026-10-25T01:30"); // Sunday, before the change (UTC+2)
+      await addInterview(candidateId, applicationId, "2026-10-25T23:30"); // Sunday, after the change (UTC+1): 22:30 UTC
+      await addInterview(candidateId, applicationId, "2026-10-26T00:30"); // the next Monday: 23:30 UTC on Sunday 25
+
+      expect(shape(await agenda.daysBetween(candidateId, { first: "2026-10-19", last: "2026-10-25" }))).toEqual([
+        ["2026-10-19", ["2026-10-18T22:30:00.000Z"]],
+        ["2026-10-25", ["2026-10-24T23:30:00.000Z", "2026-10-25T22:30:00.000Z"]],
+      ]);
+      expect(shape(await agenda.daysBetween(candidateId, { first: "2026-10-26", last: "2026-11-01" }))).toEqual([["2026-10-26", ["2026-10-25T23:30:00.000Z"]]]);
+    });
+
+    it("puts the Agenda Items of the week the clocks go forward (end of March) on the right day", async () => {
+      const applicationId = await applicationInInterview(candidateId, "DAF H/F", "Acme Industrie");
+      await addInterview(candidateId, applicationId, "2026-03-23T00:30"); // Monday, winter time: 23:30 UTC on Sunday 22
+      await addInterview(candidateId, applicationId, "2026-03-29T23:30"); // Sunday, after the change (UTC+2): 21:30 UTC
+      await addInterview(candidateId, applicationId, "2026-03-30T00:30"); // the next Monday: 22:30 UTC on Sunday 29
+
+      expect(shape(await agenda.daysBetween(candidateId, { first: "2026-03-23", last: "2026-03-29" }))).toEqual([
+        ["2026-03-23", ["2026-03-22T23:30:00.000Z"]],
+        ["2026-03-29", ["2026-03-29T21:30:00.000Z"]],
+      ]);
+      expect(shape(await agenda.daysBetween(candidateId, { first: "2026-03-30", last: "2026-04-05" }))).toEqual([["2026-03-30", ["2026-03-29T22:30:00.000Z"]]]);
+    });
+  });
+
   it("is empty when the Candidate has no Interview", async () => {
     expect(await agenda.days(candidateId, { period: "upcoming", now: NOW })).toEqual([]);
     expect(await agenda.days(candidateId, { period: "past", now: NOW })).toEqual([]);
@@ -211,8 +255,41 @@ describe.skipIf(!connectionString)("Agenda (needs Postgres: DATABASE_URL)", () =
           day: "2026-10-22",
           items: [
             expect.objectContaining({ kind: "interview", scheduledAt: new Date("2026-10-22T12:30:00.000Z") }),
-            { kind: "coachingSession", id: sessionId, scheduledAt: new Date("2026-10-22T21:30:00.000Z"), coach: { id: sophie.id, name: "Sophie Martin" }, durationMinutes: 45, videoLink: "https://meet.google.com/abc" },
+            { kind: "coachingSession", id: sessionId, scheduledAt: new Date("2026-10-22T21:30:00.000Z"), coach: { id: sophie.id, name: "Sophie Martin" }, durationMinutes: 45, videoLink: "https://meet.google.com/abc", changedBy: "candidate" },
           ],
+        },
+      ]);
+    });
+
+    it("reflects a date the Human Coach entered or corrected, saying the coach changed it", async () => {
+      const sophie = await addCoach("Sophie Martin");
+      const sessionId = await paySession(candidateId, sophie.id);
+      await coaches.scheduleSession(candidateId, sessionId, { scheduledAt: "2026-10-22T10:00", note: "Préparer mon pitch." });
+
+      await coaches.scheduleCoachedSession(sophie.id, sessionId, { scheduledAt: "2026-10-23T11:00", durationMinutes: 60, videoLink: "https://meet.google.com/xyz" });
+
+      expect(await agenda.days(candidateId, { period: "upcoming", now: NOW })).toEqual([
+        {
+          day: "2026-10-23",
+          items: [
+            { kind: "coachingSession", id: sessionId, scheduledAt: new Date("2026-10-23T09:00:00.000Z"), coach: { id: sophie.id, name: "Sophie Martin" }, durationMinutes: 60, videoLink: "https://meet.google.com/xyz", note: "Préparer mon pitch.", changedBy: "coach" },
+          ],
+        },
+      ]);
+    });
+
+    it("a week or month view shows dated Coaching Sessions among the Interviews, never Unscheduled ones", async () => {
+      const sophie = await addCoach("Sophie Martin");
+      const dated = await paySession(candidateId, sophie.id);
+      await paySession(candidateId, sophie.id);
+      await coaches.scheduleSession(candidateId, dated, { scheduledAt: "2026-10-22T09:00" });
+      const applicationId = await applicationInInterview(candidateId, "DAF H/F", "Acme Industrie");
+      await addInterview(candidateId, applicationId, "2026-10-22T14:30");
+
+      expect(await agenda.daysBetween(candidateId, { first: "2026-10-01", last: "2026-10-31" })).toEqual([
+        {
+          day: "2026-10-22",
+          items: [expect.objectContaining({ kind: "coachingSession", id: dated }), expect.objectContaining({ kind: "interview", scheduledAt: new Date("2026-10-22T12:30:00.000Z") })],
         },
       ]);
     });

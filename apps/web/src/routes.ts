@@ -1,3 +1,5 @@
+import type { CalendarView } from "./agenda/calendar";
+
 /** The Sections of a Profile's page, in order (ADR-0024). */
 export const PROFILE_SECTIONS = ["propositions", "cv-de-reference", "ats-score", "telecharger", "gerer"] as const;
 export type ProfileSection = (typeof PROFILE_SECTIONS)[number];
@@ -34,8 +36,15 @@ export const routes = {
   editMasterCv: (id: string) => `/profils/${id}/cv`,
   masterCvVersions: (id: string) => `/profils/${id}/versions`,
   applications: "/candidatures",
-  /** The Agenda (« Entretiens et rendez-vous »): upcoming Agenda Items by default, with `past`, the past ones. */
+  /**
+   * The Agenda (« Entretiens et rendez-vous »): in the view last picked in this browser (the list by default),
+   * or, with `past`, the past Agenda Items as a list.
+   */
   agenda: (past = false) => (past ? "/agenda?periode=passes" : "/agenda"),
+  /** The Agenda as a list, whatever view was last picked: upcoming Agenda Items, with `past` the past ones. */
+  agendaList: (past = false) => `/agenda?vue=liste${past ? "&periode=passes" : ""}`,
+  /** The Agenda's week or month around `date` (a day in French time, "2026-10-20"), today's when left out (ADR-0028). */
+  agendaCalendar: (view: CalendarView, date?: string) => `/agenda?vue=${view}${date ? `&date=${date}` : ""}`,
   applicationsBoard: "/candidatures?vue=tableau",
   application: (id: string) => `/candidatures/${id}`,
   /** A Section of an Application's page (ADR-0024); `application` itself shows the first one there is. */

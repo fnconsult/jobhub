@@ -173,7 +173,12 @@ export function interviewWallClock(scheduledAt: Date): string {
 
 /** The instant the day `instant` falls on, in French time, begins: its midnight there (never skipped: France changes the clocks at 2 or 3 a.m.). */
 export function interviewDayStart(instant: Date): Date {
-  return wallClockIn(`${interviewWallClock(instant).slice(0, 10)}T00:00`, INTERVIEW_TIME_ZONE);
+  return frenchDayStart(interviewWallClock(instant).slice(0, 10));
+}
+
+/** The instant a day in French time ("2026-10-22") begins: its midnight there. */
+export function frenchDayStart(day: string): Date {
+  return wallClockIn(`${day}T00:00`, INTERVIEW_TIME_ZONE);
 }
 
 /**

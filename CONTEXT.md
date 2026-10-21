@@ -15,7 +15,7 @@ The Candidate deletes their own account, confirmed by typing their email address
 _Avoid_: Account closure, deactivation
 
 **Data export**:
-One JSON file the Candidate downloads holding all their personal data, what they made and what Jobbbox worked out or obtained about them (GDPR art. 15 and 20): their account (sign-in methods and sessions), Plan and Plan Quota use, EU AI Consent, Follow-up Delays and Appointment Reminder setting; their Profiles (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and the Job Digests sent); their Applications (Job Offer, Interviews with their Reschedule history, Match Score, Tailored Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach Conversations with every message, Coach Memory, Action Cards, Coach Access and Coaching Sessions (with their date, video link and Reschedule history); their AI Message Log. It leaves out secrets (sign-in tokens and passwords, the Job Digest unsubscribe link), Human Coaches' email addresses and booking links, Stripe's and the contact data providers' identifiers, and the Coach Message Cost. Every table tied to a Candidate must land in it.
+One JSON file the Candidate downloads holding all their personal data, what they made and what Jobbbox worked out or obtained about them (GDPR art. 15 and 20): their account (sign-in methods and sessions), Plan and Plan Quota use, EU AI Consent, Follow-up Delays and Appointment Reminder setting; their Profiles (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and the Job Digests sent); their Applications (Job Offer, Interviews with their Reschedule history, Match Score, Tailored Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach Conversations with every message, Coach Memory, Action Cards, Coach Access and Coaching Sessions (with their date, who last changed it, video link and Reschedule history); their AI Message Log. It leaves out secrets (sign-in tokens and passwords, the Job Digest unsubscribe link), Human Coaches' email addresses and booking links, Stripe's and the contact data providers' identifiers, and the Coach Message Cost. Every table tied to a Candidate must land in it.
 _Avoid_: Backup, data dump
 
 **EU AI Consent**:
@@ -57,7 +57,7 @@ A real HR professional, selected by Jobbbox, whom a Candidate can book for paid 
 _Avoid_: Advisor, consultant, recruiter
 
 **Coaching Session**:
-A booked, paid video meeting between a Candidate and a Human Coach. Recorded when its payment is confirmed, without a date: the Candidate then books a time on the Human Coach's Cal.com page, and that time reaches Jobbbox only when the Candidate or the Human Coach enters it (date and time in French time, optional duration, video link and note). Until then it is an Unscheduled Coaching Session. Never deleted by the Candidate.
+A booked, paid video meeting between a Candidate and a Human Coach. Recorded when its payment is confirmed, without a date: the Candidate then books a time on the Human Coach's Cal.com page, and that time reaches Jobbbox only when the Candidate or the Human Coach enters it (date and time in French time, optional duration, video link and note; the note is the Candidate's alone, a Human Coach never sees or changes it). It keeps who last entered or changed its date, the Candidate or the Human Coach, and the Agenda says « modifié par le coach » when it was the coach. Until then it is an Unscheduled Coaching Session. Never deleted by the Candidate.
 _Avoid_: Appointment, call, meeting
 
 **Unscheduled Coaching Session**:
@@ -73,7 +73,7 @@ A Human Coach's feedback on one Tailored Document of an Application. The Candida
 _Avoid_: Comment, annotation
 
 **Coach space**:
-A Human Coach's pages: the Candidates who granted Coach Access, their Profiles and Applications (read-only), the form for Coach Reviews, and their own Coaching Sessions with each Candidate, whose date and video link they can enter or correct. They see no Agenda.
+A Human Coach's pages: the Candidates who granted Coach Access, their Profiles and Applications (read-only), the form for Coach Reviews, and their own Coaching Sessions (the Candidate shown as first name and last initial, no Coach Access needed), whose date, duration and video link they can enter or correct. They see no Agenda.
 _Avoid_: Coach dashboard
 
 **Retired Human Coach**:
@@ -435,6 +435,15 @@ The collective term for an Application's Tailored CV, Cover Letter and Outreach 
 **Agenda**:
 The Candidate's page « Entretiens et rendez-vous », in the Sidebar after Mes candidatures: their Agenda Items as a list (the default: upcoming ones grouped by day, past ones on request, newest first), a week (Monday to Sunday, one column per day) or a month, each view and period with its own address. Unscheduled Coaching Sessions sit at the top. Past Agenda Items stay, shown dimmed; nothing is removed automatically.
 _Avoid_: Calendar, planning, schedule
+
+**Day the Agenda is on**:
+The day an Agenda address names along with its view. In the month it is also the chosen day, whose Agenda Items are listed below the grid. « Précédent » and « Suivant » go to the 1st of the previous or next month (or a week back or forward), « Aujourd'hui » to today. An unknown view or invalid day falls back to the list on today.
+
+**Remembered view**:
+The last view a Candidate picked, kept in that browser. The Agenda's own links always name their view, so only the Sidebar link (the Agenda with no view) restores it; the past list stays a list.
+
+**Past Agenda Item**:
+An Agenda Item dated before today in French time, shown dimmed in every view. Earlier today is not past. In the month an Interview is marked by a disc and a Coaching Session by a hollow diamond, so they differ by shape and not only by colour.
 
 **Agenda Item**:
 An Interview or a dated Coaching Session, as the Agenda shows it. An Interview links to its Application's Interviews Section, a Coaching Session to its Human Coach. Not a thing of its own: the two keep their own rules.

@@ -1957,7 +1957,24 @@
     "toScheduleIntro": "Vos séances de coaching payées n'ont pas encore de date. Réservez votre créneau sur la page Cal.com du coach, puis saisissez la date ici.",
     "coachingSession": "Séance de coaching",
     "withCoach": "avec {{name}}",
-    "duration": "{{count}} min"
+    "duration": "{{count}} min",
+    "viewsLabel": "Affichage de l'agenda",
+    "listView": "Liste",
+    "weekView": "Semaine",
+    "monthView": "Mois",
+    "weekNavLabel": "Changer de semaine",
+    "monthNavLabel": "Changer de mois",
+    "previous": "Précédent",
+    "today": "Aujourd'hui",
+    "next": "Suivant",
+    "weekTitle": "Semaine du {{range}}",
+    "nothing": "Rien de prévu",
+    "nothingThatDay": "Rien de prévu ce jour-là.",
+    "dayItems_zero": "{{date}} : aucun rendez-vous",
+    "dayItems_one": "{{date}} : {{count}} rendez-vous",
+    "dayItems_other": "{{date}} : {{count}} rendez-vous",
+    "legendLabel": "Légende",
+    "changedByCoach": "modifié par le coach"
   },
   "application": {
     "statusLabel": "Statut",
@@ -2529,7 +2546,8 @@
     "sessionDuration": "Durée : {{count}} minutes",
     "joinVideo": "Rejoindre la visio avec {{name}}",
     "seeInAgenda": "Voir dans l'agenda",
-    "toSchedule": "Pas encore de date : réservez votre créneau sur Cal.com, puis saisissez la date."
+    "toSchedule": "Pas encore de date : réservez votre créneau sur Cal.com, puis saisissez la date.",
+    "changedByCoach": "Date modifiée par {{name}}"
   },
   "coachingSession": {
     "enterDate": "J'ai réservé : saisir la date",
@@ -2551,7 +2569,9 @@
     "invalidDuration": "Saisissez une durée entre 5 et 600 minutes, ou laissez vide.",
     "invalidVideoLink": "Saisissez un lien qui commence par http:// ou https://, ou laissez vide.",
     "invalidNote": "La note ne doit pas dépasser 500 caractères.",
-    "error": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez."
+    "error": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez.",
+    "coachEnterDate": "Saisir la date",
+    "coachEnterDateFor": "Saisir la date de la séance avec {{name}}"
   },
   "coachReviews": {
     "title": "Avis de vos coachs",
@@ -2585,7 +2605,17 @@
     "reviewInvalid": "Choisissez un document déjà rédigé et écrivez votre avis.",
     "reviewNothing": "Le candidat n'a encore aucun document de candidature à commenter.",
     "status": "Statut : {{status}}",
-    "applicationStatus": "({{status}}, depuis le {{date}})"
+    "applicationStatus": "({{status}}, depuis le {{date}})",
+    "candidatesTitle": "Candidats avec accès coach",
+    "sessionsTitle": "Mes séances de coaching",
+    "sessionsIntro": "Les séances que des candidats ont payées avec vous. Saisissez ou corrigez la date réservée et le lien de la visio : le candidat les retrouve dans son agenda.",
+    "sessionsNone": "Aucune séance payée pour l'instant.",
+    "unnamedCandidate": "Candidat sans nom",
+    "sessionToSchedule": "À planifier",
+    "sessionOn": "Le {{date}} (heure de Paris)",
+    "sessionDuration": "{{count}} min",
+    "sessionPaidOn": "Payée le {{date}}",
+    "joinVideo": "Lien de la visio avec {{name}}"
   },
   "jobDigest": {
     "sectionTitle": "Job Digest",

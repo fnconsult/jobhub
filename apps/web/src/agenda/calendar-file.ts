@@ -57,6 +57,32 @@ const text = (value: string) =>
     .replace(/,/g, "\\,")
     .replace(/\r\n|\r|\n/g, "\\n");
 
+/** Octets a content line may take, its line break left out (s3.1). */
+const LINE_OCTETS = 75;
+const utf8 = new TextEncoder();
+
+/**
+ * `line` folded (s3.1): cut before it passes LINE_OCTETS octets, each following line starting with
+ * a space (which counts in its octets). Cuts fall between characters, never inside one.
+ */
+function fold(line: string): string {
+  const folded: string[] = [];
+  let current = "";
+  let octets = 0;
+  for (const character of line) {
+    const size = utf8.encode(character).length;
+    if (octets + size > LINE_OCTETS) {
+      folded.push(current);
+      current = " ";
+      octets = 1;
+    }
+    current += character;
+    octets += size;
+  }
+  folded.push(current);
+  return folded.join("\r\n");
+}
+
 /** The first http or https web address in `value`, as it is shown linked on the Agenda, if it is a valid URI. */
 function webAddressIn(value: string | undefined): string | undefined {
   const href = value ? interviewPlaceParts(value).find((part) => part.href)?.href : undefined;
@@ -96,5 +122,5 @@ export function calendarFile(item: AgendaItem, options: CalendarFileOptions): st
     "END:VEVENT",
     "END:VCALENDAR",
   ];
-  return lines.map((line) => `${line}\r\n`).join("");
+  return lines.map((line) => `${fold(line)}\r\n`).join("");
 }

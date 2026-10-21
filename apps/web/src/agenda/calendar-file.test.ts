@@ -133,4 +133,26 @@ describe("calendarFile", () => {
     expect(property(file, "DESCRIPTION")).toBe("DESCRIPTION:Code\\\\porte\\; 2e étage\\, bureau 4\\nEND:VEVENT\\nBEGIN:VEVENT\\nfin\\n\\nDans votre agenda Jobbbox : https://app.jobbbox.fr/agenda");
     expect(lines(file).filter((line) => line === "BEGIN:VEVENT")).toHaveLength(1);
   });
+
+  it("folds lines longer than 75 octets, counting octets and never splitting a UTF-8 character", () => {
+    const note = "Rendez-vous à l'accueil — demander Mme Léa Étienne, responsable RH ; prévoir une pièce d'identité. ".repeat(4);
+    const file = calendarFile({ ...interview, jobTitle: "Directeur administratif et financier — groupe industriel européen", note }, { now: NOW, agendaUrl: AGENDA_URL, locale: "fr" })!;
+    const physical = file.split("\r\n").slice(0, -1);
+    for (const line of physical) {
+      expect(Buffer.byteLength(line, "utf8")).toBeLessThanOrEqual(75);
+      // No character was cut in two (it would decode as U+FFFD).
+      expect(line).not.toContain("\uFFFD");
+    }
+    expect(physical.some((line) => line.startsWith(" "))).toBe(true);
+    // Unfolded, the text is whole again.
+    expect(property(file, "SUMMARY")).toBe("SUMMARY:Entretien — Directeur administratif et financier — groupe industriel européen\\, Acme Industrie");
+    expect(property(file, "DESCRIPTION")).toContain(note.replace(/,/g, "\\,").replace(/;/g, "\\;"));
+  });
+
+  it("folds a line made only of multi-octet characters on character boundaries", () => {
+    const file = calendarFile({ ...interview, jobTitle: "é".repeat(100) }, { now: NOW, agendaUrl: AGENDA_URL, locale: "fr" })!;
+    const summary = file.split("\r\n").filter((line, index, all) => line.startsWith("SUMMARY:") || (line.startsWith(" ") && all.slice(0, index).some((l) => l.startsWith("SUMMARY:"))));
+    expect(summary.map((line) => Buffer.byteLength(line, "utf8"))).toEqual(expect.arrayContaining([75]));
+    expect(property(file, "SUMMARY")).toBe(`SUMMARY:Entretien — ${"é".repeat(100)}\\, Acme Industrie`);
+  });
 });

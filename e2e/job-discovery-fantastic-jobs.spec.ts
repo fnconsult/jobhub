@@ -330,7 +330,12 @@ test.describe("Fantastic.jobs as a Job discovery source with its own Provider Se
   /** Fantastic.jobs' row of Back Office's Consommation IA (external APIs): calls so far and their estimated cost in €. */
   async function externalUsage(): Promise<{ calls: number; costEur: number }> {
     await office.goto("/admin/consommation-ia");
-    const rows = office.getByRole("table", { name: admin.aiUsage.externalCaption }).getByRole("row").filter({ has: office.getByRole("rowheader", { name: "fantastic_jobs" }) });
+    // The searches' row: the key's connection tests are recorded under fantastic_jobs too (#234), as "connection_test".
+    const rows = office
+      .getByRole("table", { name: admin.aiUsage.externalCaption })
+      .getByRole("row")
+      .filter({ has: office.getByRole("rowheader", { name: "fantastic_jobs" }) })
+      .filter({ hasText: "/v1/active-ats" });
     if ((await rows.count()) === 0) return { calls: 0, costEur: 0 };
     const cells = await rows.first().getByRole("cell").allInnerTexts();
     // cells: operation, calls, failures, cost ("0,096 €")

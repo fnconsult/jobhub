@@ -40,3 +40,5 @@ declare module "i18next" {
     resources: { translation: typeof fr };
   }
 }
+
+export { failureReasonWording } from "./failure-reason-wording";

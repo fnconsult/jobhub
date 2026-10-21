@@ -4,8 +4,8 @@
  *
  * One module in front of Postgres:
  *  - `createPostgresUsageLog(database)`, the AI layer's UsageLog in the web app and the worker:
- *    one `ai_usage` row per call (task, provider, endpoint, model, tokens, estimated €, outcome,
- *    duration) and one `ai_tool_usage` row per tool its model used: no Candidate id, no text.
+ *    one `ai_usage` row per call (task, provider, endpoint, model, tokens, estimated €, Outcome and
+ *    Failure Reason code, duration; `ok` is kept as "not failed") and one `ai_tool_usage` row per tool its model used: no Candidate id, no text.
  *  - `createPostgresExternalApiLog(database)`, where `recordingFetch` records the calls to
  *    France Travail and the contact enrichment providers: `external_api_usage`, no payload.
  *  - `aiUsageReport(database, aiUsagePeriod(key, now))`: totals and breakdowns of a period.
@@ -16,7 +16,7 @@
  * data export and outlive account deletion.
  */
 import type { Message, UsageLog } from "@jobhub/ai";
-import { scrubStoredText, type ExternalApiCall, type ExternalApiLog } from "@jobhub/shared";
+import { cleanTechnicalMessage, scrubStoredText, type ExternalApiCall, type ExternalApiLog } from "@jobhub/shared";
 import type { Pool } from "pg";
 
 /** How long AI usage and external API calls are kept. */
@@ -87,18 +87,19 @@ export function createPostgresUsageLog(database: Pick<Pool, "query">, options: P
         const known = options.secrets?.() ?? [];
         const scrub = (text: string) => scrubStoredText(text, known);
         const { system, messages, reply } = entry.transcript;
+        const technical = entry.technicalReason;
         await database.query(
           `WITH usage AS (
-             INSERT INTO ai_usage (at, task, provider, endpoint, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, ok, duration_ms)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id
+             INSERT INTO ai_usage (at, task, provider, endpoint, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, ok, duration_ms, outcome, reason)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10 <> 'failed', $11, $10, $17) RETURNING id
            ), tools AS (
              INSERT INTO ai_tool_usage (usage_id, name, count, ok, duration_ms, cost_eur)
              SELECT usage.id, tool.name, tool.count, tool.ok, tool."durationMs", tool."costEur"
                FROM usage, jsonb_to_recordset($12::jsonb) AS tool (name text, count integer, ok boolean, "durationMs" integer, "costEur" double precision)
            )
-           INSERT INTO ai_message_log (usage_id, candidate_id, at, system, messages, reply)
+           INSERT INTO ai_message_log (usage_id, candidate_id, at, system, messages, reply, sent, technical_reason)
            -- A Guest's call is kept without a Candidate; a Candidate's only while they exist: never a log without its owner.
-           SELECT usage.id, $13, $1, $14, $15::jsonb, $16 FROM usage
+           SELECT usage.id, $13, $1, $14, $15::jsonb, $16, $18, $19::jsonb FROM usage
             WHERE $13::text IS NULL OR EXISTS (SELECT 1 FROM candidate WHERE id = $13)`,
           [
             entry.at,
@@ -110,13 +111,17 @@ export function createPostgresUsageLog(database: Pick<Pool, "query">, options: P
             entry.outputTokens,
             entry.cachedInputTokens ?? 0,
             entry.costEur,
-            entry.ok,
+            entry.outcome,
             entry.durationMs,
             JSON.stringify(entry.tools),
             entry.candidateId,
             system === undefined ? null : capped(scrub(system), MESSAGE_LOG_MAX_LENGTH),
             JSON.stringify(cappedMessages(messages.map((message) => ({ role: message.role, content: scrub(message.content) })))),
             reply === null ? null : capped(scrub(reply), MESSAGE_LOG_MAX_LENGTH),
+            entry.reason ?? null,
+            entry.sent,
+            // The keys in use scrubbed too, then cut again: the AI layer scrubbed what looks like one.
+            technical ? JSON.stringify({ ...technical, message: cleanTechnicalMessage(scrub(technical.message)) }) : null,
           ],
         );
       } catch (error) {
@@ -225,8 +230,8 @@ export interface AiUsageReport {
     /** Everything: AI calls with their tools, and external APIs. */
     costEur: number;
   };
-  /** Most calls first. */
-  byModel: (AiUsageRow & { provider: string; model: string })[];
+  /** Most calls first; provider and model null for the calls stopped before any was chosen (#259). */
+  byModel: (AiUsageRow & { provider: string | null; model: string | null })[];
   byTask: (AiUsageRow & { task: string })[];
   /** Per day ("2026-10-17") or per month ("2026-10"), Paris time, newest first; only those with calls. */
   byTime: (AiUsageRow & { bucket: string })[];
@@ -395,5 +400,20 @@ export async function migrateAiUsage(database: Pick<Pool, "query">): Promise<voi
     DROP INDEX IF EXISTS ai_message_log_candidate_idx;
     CREATE INDEX IF NOT EXISTS ai_message_log_candidate_at_idx ON ai_message_log (candidate_id, at DESC);
     CREATE INDEX IF NOT EXISTS ai_message_log_usage_idx ON ai_message_log (usage_id);
+    -- Failure Reasons (#259, ADR-0030): the Outcome (ok, warning, failed) and the reason's code, counted
+    -- in AI Usage; "ok" stays, meaning "not failed". A call stopped before it was sent has no endpoint,
+    -- and none of provider or model when no route served its task. Calls recorded before have no reason.
+    DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'ai_usage' AND column_name = 'outcome') THEN
+        ALTER TABLE ai_usage ADD COLUMN outcome text NOT NULL DEFAULT 'ok';
+        UPDATE ai_usage SET outcome = 'failed' WHERE NOT ok;
+      END IF;
+    END $$;
+    ALTER TABLE ai_usage ADD COLUMN IF NOT EXISTS reason text;
+    ALTER TABLE ai_usage ALTER COLUMN provider DROP NOT NULL, ALTER COLUMN endpoint DROP NOT NULL, ALTER COLUMN model DROP NOT NULL;
+    CREATE INDEX IF NOT EXISTS ai_usage_outcome_at_idx ON ai_usage (outcome, at DESC);
+    -- What the AI Message Log adds: whether the call left, and the technical reason (super-admins only, 30 days).
+    ALTER TABLE ai_message_log ADD COLUMN IF NOT EXISTS sent boolean NOT NULL DEFAULT true;
+    ALTER TABLE ai_message_log ADD COLUMN IF NOT EXISTS technical_reason jsonb;
   `);
 }

@@ -140,7 +140,7 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): AiPr
           ...(!apiError && { cause: error }),
         });
       }
-      if (message.stop_reason === "refusal") throw new AiProviderError("anthropic", "Claude declined the request (refusal)");
+      if (message.stop_reason === "refusal") throw new AiProviderError("anthropic", "Claude declined the request (refusal)", undefined, { reason: "provider_rejected" });
       const text = message.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("");
       return {
         text,

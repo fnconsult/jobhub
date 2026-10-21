@@ -147,6 +147,18 @@ describe.skipIf(!connectionString)("AI Usage (needs Postgres: DATABASE_URL)", ()
     expect(report.byTime[1]).toMatchObject({ inputTokens: MILLION, outputTokens: MILLION / 10, cachedInputTokens: 2_000 });
   });
 
+  it("counts a call stopped before any provider was chosen as a failure with no provider nor model, at no cost (#259)", async () => {
+    now = new Date("2026-10-17T08:00:00Z");
+    // No route serves the writing task: the call is never sent.
+    await expect(ai.generate({ task: "writing", candidateId: null, prompt: "Écris" })).rejects.toThrow();
+    await settled();
+
+    const report = await aiUsageReport(database, aiUsagePeriod("7d", now));
+
+    expect(report.byModel).toEqual([expect.objectContaining({ provider: null, model: null, calls: 1, failures: 1, costEur: 0 })]);
+    expect(report.totals).toMatchObject({ calls: 1, failures: 1, inputTokens: 0, costEur: 0 });
+  });
+
   it("lists the tools the models used and the external APIs called, with failures and cost when known", async () => {
     await seed();
 
@@ -213,7 +225,8 @@ function entry() {
     model: "mistral-small-latest",
     inputTokens: 10,
     outputTokens: 5,
-    ok: true,
+    outcome: "ok" as const,
+    sent: true,
     durationMs: 12,
     costEur: 0.001,
     tools: [],

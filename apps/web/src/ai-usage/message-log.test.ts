@@ -1,4 +1,4 @@
-import { createAiLayer, type AiLayer, type UsageLog } from "@jobhub/ai";
+import { AiConfigError, AiProviderError, createAiLayer, type AiLayer, type UsageLog } from "@jobhub/ai";
 import { createFakeProvider } from "@jobhub/ai/testing";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -62,7 +62,9 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
       task: "coaching",
       provider: "mistral",
       model: "fake-mistral",
-      ok: true,
+      outcome: "ok",
+      reason: null,
+      sent: true,
       candidate: { id: marie, email: "marie.dupont@example.fr" },
     });
     expect(await logs.open(admin, summary!.id)).toMatchObject({
@@ -74,6 +76,7 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
       outputTokens: 5,
       costEur: expect.any(Number),
       durationMs: expect.any(Number),
+      technicalReason: null,
     });
   });
 
@@ -138,7 +141,7 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
     let asked = 0;
     const usage = createPostgresUsageLog(database, { secrets: () => (asked++, []) });
 
-    const recorded = usage.record({ candidateId: null, task: "scoring", provider: "mistral", endpoint: "fake", model: "m", inputTokens: 1, outputTokens: 1, ok: true, durationMs: 1, costEur: 0, tools: [], transcript: { messages: [{ role: "user", content: "Score" }], reply: "82" }, at: now });
+    const recorded = usage.record({ candidateId: null, task: "scoring", provider: "mistral", endpoint: "fake", model: "m", inputTokens: 1, outputTokens: 1, outcome: "ok", sent: true, durationMs: 1, costEur: 0, tools: [], transcript: { messages: [{ role: "user", content: "Score" }], reply: "82" }, at: now });
 
     expect(asked).toBe(0);
     await recorded;
@@ -156,7 +159,7 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
     await settled();
 
     const [summary] = await logs.list();
-    expect(summary).toMatchObject({ ok: false, candidate: null });
+    expect(summary).toMatchObject({ outcome: "failed", reason: "other", sent: true, candidate: null });
     expect(await logs.open(admin, summary!.id)).toMatchObject({ messages: [{ role: "user", content: "Score" }], reply: null });
   });
 
@@ -198,5 +201,68 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
     await database.query(`DELETE FROM candidate WHERE id = $1`, [marie]);
 
     expect(await logs.list()).toEqual([]);
+  });
+
+  describe("the Failure Reason of each failed call (#259)", () => {
+    const failingWith = (fail: Error) =>
+      createAiLayer({
+        providers: [createFakeProvider({ id: "mistral", fail })],
+        routes: { coaching: "mistral", scoring: "mistral" },
+        usage: { record: (entry) => void pending.push(Promise.resolve(createPostgresUsageLog(database, { secrets: () => [PROVIDER_KEY] }).record(entry))) },
+        now: () => now,
+        warn: () => {},
+      });
+
+    it("keeps a provider's 503 as failed, provider_unavailable, with the provider and status 503 in the technical reason", async () => {
+      await expect(failingWith(new AiProviderError("mistral", "HTTP 503 Service Unavailable", 503)).generate({ task: "coaching", candidateId: marie, prompt: "Bonjour" })).rejects.toThrow();
+      await settled();
+
+      const [summary] = await logs.list();
+      expect(summary).toMatchObject({ outcome: "failed", reason: "provider_unavailable", sent: true });
+      expect(await logs.open(admin, summary!.id)).toMatchObject({
+        reply: null,
+        technicalReason: { class: "AiProviderError", provider: "mistral", status: 503, message: "mistral: HTTP 503 Service Unavailable" },
+      });
+      const { rows } = await database.query(`SELECT outcome, reason, ok FROM ai_usage`);
+      expect(rows).toEqual([{ outcome: "failed", reason: "provider_unavailable", ok: false }]);
+    });
+
+    it("keeps a call never sent for a missing key as failed, not sent, key_missing, at no cost, with its redacted text", async () => {
+      await expect(ai.generate({ task: "coaching", candidateId: marie, prompt: "Écris à marie.dupont@example.fr", route: { provider: "openai", model: "gpt-5" } })).rejects.toThrow(AiConfigError);
+      await settled();
+
+      const [summary] = await logs.list();
+      expect(summary).toMatchObject({ provider: "openai", model: "gpt-5", outcome: "failed", reason: "key_missing", sent: false });
+      expect(await logs.open(admin, summary!.id)).toMatchObject({ costEur: 0, inputTokens: 0, outputTokens: 0, reply: null, messages: [{ role: "user", content: "Écris à [E-MAIL]" }] });
+    });
+
+    it("stores a technical message holding a Provider Secret, an email or more than 500 characters scrubbed, redacted and cut", async () => {
+      const echo = `HTTP 400 key ${PROVIDER_KEY} refused for marie.dupont@example.fr ${"et ainsi de suite ".repeat(40)}`;
+      await expect(failingWith(new AiProviderError("mistral", echo, 400)).generate({ task: "coaching", candidateId: marie, prompt: "Bonjour" })).rejects.toThrow();
+      await settled();
+
+      const [summary] = await logs.list();
+      const { technicalReason } = (await logs.open(admin, summary!.id))!;
+      expect(technicalReason!.message).not.toContain(PROVIDER_KEY);
+      expect(technicalReason!.message).toContain("[redacted]");
+      expect(technicalReason!.message).not.toContain("marie.dupont@example.fr");
+      expect(technicalReason!.message.length).toBeLessThanOrEqual(500);
+    });
+
+    it("lists by Outcome and by Failure Reason, combined with the other filters", async () => {
+      await ai.generate({ task: "coaching", candidateId: marie, prompt: "Un" });
+      await expect(failingWith(new AiProviderError("mistral", "HTTP 503", 503)).generate({ task: "scoring", candidateId: marie, prompt: "Deux" })).rejects.toThrow();
+      await expect(failingWith(new AiProviderError("mistral", "HTTP 429", 429)).generate({ task: "coaching", candidateId: marie, prompt: "Trois" })).rejects.toThrow();
+      await settled();
+
+      const listed = async (filter: unknown) => (await logs.list(filter)).map((log) => `${log.task} ${log.outcome} ${log.reason}`).sort();
+      expect(await listed({ outcome: "ok" })).toEqual(["coaching ok null"]);
+      expect(await listed({ outcome: "failed" })).toEqual(["coaching failed rate_limited", "scoring failed provider_unavailable"]);
+      expect(await listed({ outcome: "warning" })).toEqual([]);
+      expect(await listed({ reason: "rate_limited" })).toEqual(["coaching failed rate_limited"]);
+      expect(await listed({ outcome: "failed", task: "scoring" })).toEqual(["scoring failed provider_unavailable"]);
+      // A value that cannot be read is no filter.
+      expect(await listed({ outcome: "nope", reason: "nope" })).toHaveLength(3);
+    });
   });
 });

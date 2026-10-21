@@ -5,11 +5,13 @@
  * there is one; purged with `purgeExpiredAiUsage`.
  *
  * Personal data, read by super-admins only (the `aiMessages` resource), on the Journaux IA page:
- * `list` shows who, when, which task and model, never the text; `open` shows the text and writes
+ * `list` shows who, when, which task and model, the Outcome and Failure Reason, never the text; `open`
+ * shows the text and the technical reason, and writes
  * the view to the Back Office Audit, in the same transaction, so no log is read without a trace.
  * A Candidate's logs are in their data export and go with their account.
  */
 import { SEARCH_TASK, TEXT_TASKS, type Message } from "@jobhub/ai";
+import { FAILURE_REASONS, OUTCOMES, type FailureReason, type Outcome, type TechnicalReason } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { BackOffice, BackOfficeActor } from "../admin/back-office";
@@ -18,9 +20,14 @@ export interface AiMessageLogSummary {
   id: string;
   at: Date;
   task: string;
-  provider: string;
-  model: string;
-  ok: boolean;
+  /** Null for a call stopped before any provider was chosen. */
+  provider: string | null;
+  model: string | null;
+  outcome: Outcome;
+  /** The Failure Reason's code; null when ok, and for a failure recorded before reasons were (#259). */
+  reason: FailureReason | null;
+  /** False for a call stopped before it was sent (missing key or route, data residency). */
+  sent: boolean;
   /** Null for a call made for no Candidate (a Guest). */
   candidate: { id: string; email: string } | null;
 }
@@ -35,12 +42,14 @@ export interface AiMessageLog extends AiMessageLogSummary {
   cachedInputTokens: number;
   costEur: number;
   durationMs: number;
+  /** What the error said (class, provider, HTTP status, message: scrubbed, redacted, cut); null when ok. */
+  technicalReason: TechnicalReason | null;
 }
 
 export interface AiMessageLogs {
   /**
    * The newest logs first, at most LIST_LIMIT. `filter` is untrusted (the page's query string):
-   * `{ task?, model?, email?, day? }`, `day` a Paris date ("2026-10-17"); a field that cannot be read is ignored.
+   * `{ task?, model?, email?, day?, outcome?, reason? }`, `day` a Paris date ("2026-10-17"); a field that cannot be read is ignored.
    */
   list(filter?: unknown): Promise<AiMessageLogSummary[]>;
   /** One log with its text, the view written to the Back Office Audit; null (nothing written) when there is none. */
@@ -60,6 +69,8 @@ const filterSchema = z.object({
   model: z.string().trim().min(1).max(200).optional().catch(undefined),
   email: z.string().trim().toLowerCase().min(1).max(320).optional().catch(undefined),
   day: z.iso.date().optional().catch(undefined),
+  outcome: z.enum(OUTCOMES).optional().catch(undefined),
+  reason: z.enum(FAILURE_REASONS).optional().catch(undefined),
 });
 
 export type AiMessageLogFilter = z.infer<typeof filterSchema>;
@@ -70,7 +81,7 @@ export function aiMessageLogFilter(input: unknown): AiMessageLogFilter {
   return parsed.success ? Object.fromEntries(Object.entries(parsed.data).filter(([, value]) => value !== undefined)) : {};
 }
 
-const SUMMARY = `SELECT m.id, m.at, u.task, u.provider, u.model, u.ok,
+const SUMMARY = `SELECT m.id, m.at, u.task, u.provider, u.model, u.outcome, u.reason, m.sent,
                         CASE WHEN c.id IS NULL THEN NULL ELSE json_build_object('id', c.id, 'email', c.email) END AS candidate`;
 const FROM = `FROM ai_message_log m JOIN ai_usage u ON u.id = m.usage_id LEFT JOIN candidate c ON c.id = m.candidate_id`;
 
@@ -87,6 +98,8 @@ export function createAiMessageLogs(database: Pool, deps: { backOffice: Pick<Bac
       if (filter.task) where((param) => `u.task = ${param}`, filter.task);
       if (filter.model) where((param) => `u.model = ${param}`, filter.model);
       if (filter.email) where((param) => `lower(c.email) = ${param}`, filter.email);
+      if (filter.outcome) where((param) => `u.outcome = ${param}`, filter.outcome);
+      if (filter.reason) where((param) => `u.reason = ${param}`, filter.reason);
       if (filter.day) where((param) => `(m.at AT TIME ZONE 'Europe/Paris')::date = ${param}::date`, filter.day);
       params.push(LIST_LIMIT);
       const { rows } = await database.query<AiMessageLogSummary>(
@@ -103,7 +116,8 @@ export function createAiMessageLogs(database: Pool, deps: { backOffice: Pick<Bac
         async (within) => {
           const { rows } = await within.query<AiMessageLog>(
             `${SUMMARY}, m.system, m.messages, m.reply, u.input_tokens AS "inputTokens", u.output_tokens AS "outputTokens",
-                    u.cached_input_tokens AS "cachedInputTokens", u.cost_eur AS "costEur", u.duration_ms AS "durationMs"
+                    u.cached_input_tokens AS "cachedInputTokens", u.cost_eur AS "costEur", u.duration_ms AS "durationMs",
+                    m.technical_reason AS "technicalReason"
                ${FROM} WHERE m.id = $1`,
             [id],
           );

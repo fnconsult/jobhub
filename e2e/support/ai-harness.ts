@@ -16,7 +16,7 @@ import path from "node:path";
 import { createAiLayerFromEnv } from "@jobhub/ai";
 
 export type HarnessCall =
-  | { kind: "generate"; task: string; candidateId: string | null; system?: string; prompt: string; containsIdentity?: boolean }
+  | { kind: "generate"; task: string; candidateId: string | null; system?: string; prompt: string; containsIdentity?: boolean; route?: { provider: string; model?: string } }
   | { kind: "search"; candidateId: string | null; criteria: Record<string, unknown>; filters?: Record<string, unknown> };
 
 export interface HarnessRequest {
@@ -120,7 +120,7 @@ async function main() {
       try {
         const value =
           call.kind === "generate"
-            ? await ai.generate({ task: call.task as never, candidateId: call.candidateId, system: call.system, prompt: call.prompt, containsIdentity: call.containsIdentity })
+            ? await ai.generate({ task: call.task as never, candidateId: call.candidateId, system: call.system, prompt: call.prompt, containsIdentity: call.containsIdentity, route: call.route as never })
             : await ai.searchWeb({ candidateId: call.candidateId, criteria: call.criteria as never, filters: call.filters as never });
         result.outcomes.push({ ok: true, value: value as unknown as Record<string, unknown> });
       } catch (error) {

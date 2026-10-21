@@ -1,4 +1,4 @@
-import type { IndustryReference, SearchCriteria } from "@jobhub/shared";
+import { failureOf, type Failure, type IndustryReference, type SearchCriteria } from "@jobhub/shared";
 import { findIdentity } from "./identity-scan";
 import { buildCompanyQuery, buildSearchQuery, jobSearchQueries, jobTitlesPrompt, type JobSearchQuery, type QueryLanguage } from "./search-query";
 import { buildCompanyNewsQuery, COMPANY_NEWS_MAX_AGE_DAYS, companyNewsIn, type CompanyNewsArticle, type CompanyNewsRequest } from "./company-news";
@@ -247,7 +247,8 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     const naming = route.model ? all.filter((p) => p.models?.includes(route.model!)) : [];
     const candidates = naming.length > 0 ? naming : all;
     const provider = euFirst ? (candidates.find((p) => p.residency === "eu") ?? candidates[0]) : candidates[0];
-    if (!provider) throw new AiConfigError(`AI provider "${route.provider}" is not configured`);
+    // Its key was never entered: a provider is configured with its key.
+    if (!provider) throw new AiConfigError(`AI provider "${route.provider}" is not configured`, { reason: "key_missing" });
     return provider;
   };
 
@@ -329,6 +330,13 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     return { route: identityRoute, identity: true };
   }
 
+  /** What is known of the Candidate's identity; none for a Guest. Never fails. */
+  const identityOrNone = (task: AiTask, candidateId: string | null) => (candidateId === null ? Promise.resolve(null) : identityFor(candidateId, task));
+
+  /** The Failure Reason of `error` (ADR-0030), its technical message redacted with what is known of the Candidate. Never fails. */
+  const failureWith = (error: unknown, identity: CandidateIdentity | null): Failure =>
+    failureOf(error, { redact: (text) => redactIdentity([text], identity).texts[0] ?? text });
+
   /**
    * Records one call's usage without waiting for it: a usage log that throws, rejects or is slow
    * never fails nor delays the call. Its failure is only warned about.
@@ -364,8 +372,24 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       output = await call();
     } catch (error) {
       const durationMs = Math.round(clock() - started);
-      const tools = search ? [{ name: "web_search", count: 1, ok: false, durationMs, costEur: 0 }] : [];
-      log({ ...base, model: route.model ?? provider.defaultModel ?? provider.id, inputTokens: 0, outputTokens: 0, ok: false, durationMs, costEur: 0, tools, transcript: { ...said, reply: null } });
+      // A key or a residency rule missing inside the provider (the identity route's stand-in): nothing left.
+      const sent = !(error instanceof AiConfigError || error instanceof DataResidencyError);
+      const { reason, technical } = failureWith(error, await identityOrNone(entry.task, entry.candidateId));
+      const tools = search && sent ? [{ name: "web_search", count: 1, ok: false, durationMs, costEur: 0 }] : [];
+      log({
+        ...base,
+        model: route.model ?? provider.defaultModel ?? provider.id,
+        inputTokens: 0,
+        outputTokens: 0,
+        outcome: "failed",
+        reason,
+        technicalReason: technical,
+        sent,
+        durationMs,
+        costEur: 0,
+        tools,
+        transcript: { ...said, reply: null },
+      });
       throw error;
     }
     const durationMs = Math.round(clock() - started);
@@ -375,13 +399,47 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       ...base,
       model: output.model,
       ...output.usage,
-      ok: true,
+      outcome: "ok",
+      sent: true,
       durationMs,
       costEur: costInEur({ ...priced, usage: output.usage }),
       tools: called.map((tool) => ({ name: tool.name, count: tool.count, ok: tool.ok ?? true, durationMs, costEur: toolCostInEur(priced, tool) })),
       transcript: { ...said, reply: replyOf(output) },
     });
     return output;
+  }
+
+  /**
+   * Records a call stopped before it was sent (ADR-0030): failed, not sent, no tokens nor cost, with what it would
+   * have said, redacted. Its provider and model are what was chosen, else its task's configured route. Never fails:
+   * the caller then throws `error`.
+   */
+  async function notSent(error: unknown, entry: Pick<UsageEntry, "candidateId" | "task">, chosen: { route?: Route; provider?: AiProvider }, said: Omit<Transcript, "reply">): Promise<void> {
+    try {
+      const configured = options.routes[entry.task];
+      const route = chosen.route ?? (typeof configured === "string" ? { provider: configured } : configured);
+      const identity = await identityOrNone(entry.task, entry.candidateId);
+      const [system = "", ...contents] = redactIdentity([said.system ?? "", ...said.messages.map((message) => message.content)], identity).texts;
+      const { reason, technical } = failureWith(error, identity);
+      log({
+        ...entry,
+        provider: chosen.provider?.id ?? route?.provider ?? null,
+        endpoint: chosen.provider?.endpoint ?? null,
+        model: route?.model ?? chosen.provider?.defaultModel ?? null,
+        inputTokens: 0,
+        outputTokens: 0,
+        outcome: "failed",
+        reason,
+        technicalReason: technical,
+        sent: false,
+        durationMs: 0,
+        costEur: 0,
+        tools: [],
+        transcript: { ...(said.system === undefined ? {} : { system }), messages: said.messages.map((message, index) => ({ role: message.role, content: contents[index] ?? "" })), reply: null },
+      });
+    } catch (failure) {
+      warn("AI usage not recorded", { task: entry.task, error: failure instanceof Error ? failure.message : String(failure) });
+    }
   }
 
   /** The configured web-search route, or `override` (a task Playbook's): either must name a provider that searches. */
@@ -394,11 +452,18 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
 
   /** `query` must be built by search-query.ts: nothing else ever reaches the search provider, and it is redacted too. */
   async function search(candidateId: string | null, query: string, filters?: SearchFilters, page?: number, override?: Route): Promise<SearchResult> {
-    // A filter names websites, a time window and a country (ADR-0007): a country is a code, never free text.
-    if (filters?.country !== undefined && !COUNTRY_CODE.test(filters.country)) {
-      throw new DataResidencyError("A web search's country filter must be a two-letter country code (ISO 3166-1 alpha-2)");
+    let chosen: { route: Route; provider: AiProvider };
+    try {
+      // A filter names websites, a time window and a country (ADR-0007): a country is a code, never free text.
+      if (filters?.country !== undefined && !COUNTRY_CODE.test(filters.country)) {
+        throw new DataResidencyError("A web search's country filter must be a two-letter country code (ISO 3166-1 alpha-2)");
+      }
+      chosen = searchProvider(override);
+    } catch (error) {
+      await notSent(error, { candidateId, task: SEARCH_TASK }, { route: override }, { messages: [{ role: "user", content: query }] });
+      throw error;
     }
-    const { route, provider } = searchProvider(override);
+    const { route, provider } = chosen;
     const [sent = ""] = (await redacted(SEARCH_TASK, candidateId, [query])).texts;
     const output = await recorded(
       { candidateId, task: SEARCH_TASK },
@@ -421,11 +486,19 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
   /** One text call, recorded in AI Usage as `recordedAs` (its own task, or `eval` for an Eval Run). */
   async function generateAs(request: GenerateRequest, recordedAs: TextTask): Promise<GenerateResult> {
     const messages = typeof request.prompt === "string" ? [{ role: "user" as const, content: request.prompt }] : request.prompt;
-    // Routed on what the call says (the identity scan), then redacted: what leaves is never the Candidate's identity.
-    const { route, identity } = await routeForCall(request, messages);
-    const provider = providerFor(route, identity || TEXT_TASKS[request.task].personalData);
-    // Checked again per call: the rule must hold even if a provider changes at runtime.
-    assertAllowed(request.task, provider, identity);
+    const chosen: { route?: Route; provider?: AiProvider } = { route: request.route };
+    let identity: boolean;
+    try {
+      // Routed on what the call says (the identity scan), then redacted: what leaves is never the Candidate's identity.
+      ({ route: chosen.route, identity } = await routeForCall(request, messages));
+      chosen.provider = providerFor(chosen.route, identity || TEXT_TASKS[request.task].personalData);
+      // Checked again per call: the rule must hold even if a provider changes at runtime.
+      assertAllowed(request.task, chosen.provider, identity);
+    } catch (error) {
+      await notSent(error, { candidateId: request.candidateId, task: recordedAs }, chosen, { ...(request.system === undefined ? {} : { system: request.system }), messages });
+      throw error;
+    }
+    const { route, provider } = chosen as { route: Route; provider: AiProvider };
     const redaction = await redacted(request.task, request.candidateId, [request.system ?? "", ...messages.map((message) => message.content)]);
     const [redactedSystem = "", ...contents] = redaction.texts;
     // The model is told to keep the placeholders as they are, so they can be put back in its reply.
@@ -510,7 +583,9 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     forEval: () => evalLayer,
   };
   const noSearch = async (): Promise<never> => {
-    throw new AiConfigError("An Eval Run makes no web search");
+    const error = new AiConfigError("An Eval Run makes no web search");
+    await notSent(error, { candidateId: null, task: SEARCH_TASK }, {}, { messages: [] });
+    throw error;
   };
   const evalLayer: AiLayer = {
     generate: (request) => generateAs({ ...request, candidateId: null }, "eval"),

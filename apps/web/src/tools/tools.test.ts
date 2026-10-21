@@ -56,7 +56,8 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
     provider: "anthropic",
     endpoint: "bedrock eu-west-3",
     model: "claude-opus-5",
-    ok: true,
+    outcome: "ok",
+    sent: true,
     durationMs: 900,
     costEur: 0.5,
     inputTokens: 1000,
@@ -80,7 +81,7 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
   async function seed() {
     const ai = createPostgresUsageLog(database);
     await ai.record(aiCall({}));
-    await ai.record(aiCall({ ok: false, costEur: 0, at: new Date("2026-10-19T09:00:00Z") }));
+    await ai.record(aiCall({ outcome: "failed", reason: "provider_unavailable", costEur: 0, at: new Date("2026-10-19T09:00:00Z") }));
     // A web search tool's fee counts in its call's cost.
     await ai.record(aiCall({ costEur: 0.25, tools: [{ name: "web_search", count: 2, ok: true, durationMs: 400, costEur: 0.02 }], at: new Date("2026-10-18T09:00:00Z") }));
     await ai.record(aiCall({ endpoint: "api.anthropic.com", task: "offer_analysis", costEur: 0.1 }));

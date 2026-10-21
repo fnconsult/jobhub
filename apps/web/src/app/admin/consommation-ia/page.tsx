@@ -159,8 +159,8 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
               <tbody>
                 {report.byModel.map((row) => (
                   <tr key={`${row.provider} ${row.model}`}>
-                    <th scope="row">{row.provider}</th>
-                    <td>{row.model}</td>
+                    <th scope="row">{row.provider ?? t("admin.aiMessages.noProvider")}</th>
+                    <td>{row.model ?? "—"}</td>
                     {usageCells(row)}
                   </tr>
                 ))}

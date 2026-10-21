@@ -11,7 +11,8 @@ const entry: UsageEntry = {
   model: "anthropic.claude-opus-5-5",
   inputTokens: 1200,
   outputTokens: 300,
-  ok: true,
+  outcome: "ok",
+  sent: true,
   durationMs: 840,
   costEur: 0.009,
   tools: [],
@@ -35,7 +36,8 @@ it("writes one JSON line per AI call with the Candidate and token usage, never w
       model: "anthropic.claude-opus-5-5",
       inputTokens: 1200,
       outputTokens: 300,
-      ok: true,
+      outcome: "ok",
+      sent: true,
       durationMs: 840,
       costEur: 0.009,
       tools: [],
@@ -43,6 +45,22 @@ it("writes one JSON line per AI call with the Candidate and token usage, never w
     },
   ]);
   expect(lines.join("")).not.toContain("Marie Dupont");
+});
+
+it("writes a failed call's Failure Reason code, never its technical reason, which may echo the prompt (#259)", () => {
+  const lines: string[] = [];
+  const log = createConsoleUsageLog((line) => lines.push(line));
+
+  log.record({
+    ...entry,
+    outcome: "failed",
+    reason: "provider_rejected",
+    technicalReason: { class: "AiProviderError", provider: "anthropic", status: 400, message: "anthropic: prompt « Le CV de Marie Dupont » too long" },
+  });
+
+  expect(JSON.parse(lines[0]!)).toMatchObject({ outcome: "failed", reason: "provider_rejected" });
+  expect(lines[0]).not.toContain("technicalReason");
+  expect(lines[0]).not.toContain("Marie Dupont");
 });
 
 it("hands each call to every usage log, whichever of them fails", async () => {

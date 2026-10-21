@@ -103,7 +103,7 @@ test.describe("Appointment Reminders", () => {
     await signInWithMagicLink(page, email);
     const { applicationId } = await interviewAt(page, `${parisDay(2)}T09:00`);
     const application = await (await page.request.get(`/api/applications/${applicationId}`)).json();
-    const interviewId = (application.interviews ?? application.application?.interviews).at(-1).id as string;
+    const interviewId = (application.interviews as { id: string }[]).at(-1)!.id;
     const cancelled = await page.request.post(`/api/applications/${applicationId}/interviews/${interviewId}/cancel`, { headers: { origin } });
     expect(cancelled.ok(), await cancelled.text()).toBe(true);
 

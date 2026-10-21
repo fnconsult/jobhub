@@ -26,7 +26,7 @@ Setting up an environment (GitHub Environment, SSH key, folder, `.env`): `script
 | Database (Postgres, also holds the job queue) | RDS for PostgreSQL 17, encrypted, automated backups | eu-west-3 |
 | Files (uploaded CVs, exported documents) | S3, encrypted, versioned | eu-west-3 |
 | Transactional email (magic links, Job Digests) | SES | eu-west-3 |
-| Claude (default AI provider) | Bedrock | eu-west-3 |
+| Claude (default AI provider) | Bedrock (Claude Opus 5; bedrock-mantle is not served in eu-west-3) | eu-north-1 |
 | Logs and metrics | CloudWatch | eu-west-3 |
 
 Rules:

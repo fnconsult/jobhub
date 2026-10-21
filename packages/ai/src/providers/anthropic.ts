@@ -28,9 +28,10 @@ export interface AnthropicProviderOptions {
   maxRetries?: number;
 }
 
-const DEFAULT_MODEL = "claude-opus-5-5";
 /** The Claude models offered a Playbook Agent (#225), the default first. */
-const MODELS = [DEFAULT_MODEL, "claude-sonnet-5-5", "claude-haiku-5-5"];
+const MODELS = ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"];
+/** Bedrock serves older ones in the EU: no 5.5 model in eu-north-1 (October 2026). */
+const BEDROCK_MODELS = ["claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5"];
 
 /** Claude's `input_tokens` leave out the input read from and written to its prompt cache. */
 function usageOf(usage: Anthropic.Usage): TokenUsage {
@@ -109,13 +110,14 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): AiPr
   const { endpoint } = options;
   // Bedrock names Claude's models with its own prefix.
   const named = (model: string) => (endpoint.kind === "bedrock" ? `anthropic.${model}` : model);
-  const defaultModel = options.defaultModel ?? named(DEFAULT_MODEL);
+  const catalog = endpoint.kind === "bedrock" ? BEDROCK_MODELS : MODELS;
+  const defaultModel = options.defaultModel ?? named(catalog[0]!);
   let client: MessagesClient | undefined;
 
   return {
     id: "anthropic",
     defaultModel,
-    models: [...new Set([defaultModel, ...MODELS.map(named)])],
+    models: [...new Set([defaultModel, ...catalog.map(named)])],
     endpoint: endpoint.kind === "direct" ? "api.anthropic.com" : `${endpoint.kind} ${endpoint.region}`,
     residency: residencyOf(endpoint),
 

@@ -54,16 +54,16 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
   const now = deps.now ?? (() => new Date());
 
   async function due(): Promise<ReminderItem[]> {
-    const { day } = latestReminder(now());
+    const { day, at } = latestReminder(now());
     const tomorrow = dayAfter(day);
     const { rows } = await database.query<{ candidate_id: string; scheduled_at: Date; title: string; employer: string | null; place: string }>(
       `SELECT a.candidate_id, i.scheduled_at, o.title, o.employer, i.place
          FROM interview i
          JOIN application a ON a.id = i.application_id
          JOIN job_offer o ON o.id = a.job_offer_id
-        WHERE i.scheduled_at >= $1 AND i.scheduled_at < $2
+        WHERE i.scheduled_at >= $1 AND i.scheduled_at < $2 AND i.cancelled_at IS NULL AND i.date_set_at <= $3
         ORDER BY i.scheduled_at`,
-      [frenchDayStart(tomorrow), frenchDayStart(dayAfter(tomorrow))],
+      [frenchDayStart(tomorrow), frenchDayStart(dayAfter(tomorrow)), at],
     );
     return rows.map((row) => ({ candidateId: row.candidate_id, scheduledAt: row.scheduled_at, title: row.title, employer: row.employer, place: row.place }));
   }

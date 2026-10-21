@@ -102,4 +102,33 @@ describe.skipIf(!connectionString)("Appointment Reminders (needs Postgres: DATAB
     expect(outbox[0]!.text).toContain("12 rue de la République, Lyon");
     expect(outbox[0]!.text).toContain("https://app.jobbbox.fr/agenda");
   });
+
+  it("sends nothing for a Cancelled Interview", async () => {
+    const { applicationId, id } = await interview(marie, "2026-10-21T09:00");
+    await applications.cancelInterview(marie, applicationId, id);
+
+    at(REMINDER_TIME);
+    await reminders.sendDue();
+
+    expect(outbox).toEqual([]);
+  });
+
+  it("sends nothing for an Agenda Item entered after 18:00 for tomorrow, even when the job runs later that evening", async () => {
+    at(EVENING);
+    await interview(marie, "2026-10-21T09:00");
+
+    await reminders.sendDue();
+
+    expect(outbox).toEqual([]);
+  });
+
+  it("sends nothing for the day after tomorrow, nor for later today", async () => {
+    await interview(marie, "2026-10-22T09:00", { title: "Après-demain" });
+    await interview(marie, "2026-10-20T20:00", { title: "Ce soir" });
+
+    at(REMINDER_TIME);
+    await reminders.sendDue();
+
+    expect(outbox).toEqual([]);
+  });
 });

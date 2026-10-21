@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CoachingSessionAgendaItem, InterviewAgendaItem } from "./index";
-import { calendarFile } from "./calendar-file";
+import { agendaItemRefFrom, calendarFile, calendarFileUrl } from "./calendar-file";
 
 const NOW = new Date("2026-10-20T08:00:00.000Z");
 const AGENDA_URL = "https://app.jobbbox.fr/agenda";
@@ -171,5 +171,15 @@ describe("a Rescheduled Agenda Item", () => {
       reschedules: [{ previousAt: new Date("2026-10-21T12:30:00.000Z"), newAt: interview.scheduledAt, by: "candidate", at: new Date("2026-10-19T08:00:00.000Z") }],
     };
     expect(lines(calendarFile(moved, { now: NOW, agendaUrl: AGENDA_URL, locale: "fr" })!)).toContain("SEQUENCE:1");
+  });
+});
+
+describe("the Calendar file's address", () => {
+  it("names the Agenda Item, and reads back to it", () => {
+    expect(calendarFileUrl({ kind: "interview", id: interview.id })).toBe(`/api/agenda/interviews/${interview.id}/calendar.ics`);
+    expect(calendarFileUrl({ kind: "coachingSession", id: session.id })).toBe(`/api/agenda/coaching-sessions/${session.id}/calendar.ics`);
+    expect(agendaItemRefFrom("interviews", interview.id)).toEqual({ kind: "interview", id: interview.id });
+    expect(agendaItemRefFrom("coaching-sessions", session.id)).toEqual({ kind: "coachingSession", id: session.id });
+    expect(agendaItemRefFrom("applications", interview.id)).toBeNull();
   });
 });

@@ -8,7 +8,7 @@
  */
 import { createI18n, type Locale } from "@jobhub/shared/i18n";
 import { INTERVIEW_TIME_ZONE, interviewEndsAt, interviewPlaceParts, interviewWallClock } from "../applications";
-import type { AgendaItem } from "./index";
+import type { AgendaItem, AgendaItemRef } from "./index";
 
 /** The domain that makes an Agenda Item's UID globally unique. */
 const UID_DOMAIN = "jobbbox.fr";
@@ -90,12 +90,15 @@ function webAddressIn(value: string | undefined): string | undefined {
   return new URL(href).href === href ? href : undefined;
 }
 
+/** Whether `item` has a Calendar file: every dated Agenda Item but a Cancelled one. */
+export const hasCalendarFile = (item: AgendaItem) => !(item.kind === "interview" && item.cancelledAt);
+
 /**
  * The Calendar file of `item`, or null for a Cancelled Agenda Item, which has none. Its SEQUENCE
  * counts the item's Reschedules: each new download is a later revision of the same event.
  */
 export function calendarFile(item: AgendaItem, options: CalendarFileOptions): string | null {
-  if (item.kind === "interview" && item.cancelledAt) return null;
+  if (!hasCalendarFile(item)) return null;
   const t = createI18n(options.locale).t;
   const uid = `${item.kind === "interview" ? "interview" : "coaching-session"}-${item.id}@${UID_DOMAIN}`;
   const endsAt = interviewEndsAt({ scheduledAt: item.scheduledAt, durationMinutes: item.durationMinutes ?? null });
@@ -128,4 +131,16 @@ export function calendarFile(item: AgendaItem, options: CalendarFileOptions): st
     "END:VCALENDAR",
   ];
   return lines.map((line) => `${fold(line)}\r\n`).join("");
+}
+
+/** The kind of Agenda Item as the Calendar file's address names it. */
+const URL_KINDS = { interview: "interviews", coachingSession: "coaching-sessions" } as const satisfies Record<AgendaItemRef["kind"], string>;
+
+/** Where the Calendar file of the Agenda Item `ref` is downloaded. */
+export const calendarFileUrl = ({ kind, id }: AgendaItemRef) => `/api/agenda/${URL_KINDS[kind]}/${encodeURIComponent(id)}/calendar.ics`;
+
+/** The Agenda Item a Calendar file's address names (`kind` and `id` as in calendarFileUrl), or null for an unknown kind. */
+export function agendaItemRefFrom(kind: string, id: string): AgendaItemRef | null {
+  const found = (Object.keys(URL_KINDS) as AgendaItemRef["kind"][]).find((key) => URL_KINDS[key] === kind);
+  return found ? { kind: found, id } : null;
 }

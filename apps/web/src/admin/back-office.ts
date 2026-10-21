@@ -110,18 +110,37 @@ export type BackOfficeChange = {
 );
 
 /**
+ * The fields an attempt in each section can fail on (#263): the only ones a BackOfficeFailure may name,
+ * so the Journal has a label for every one (journal-fields.ts).
+ */
+export const FAILURE_FIELDS = {
+  roles: ["email", "roles"],
+  plans: ["stripeProductId"],
+  coupons: ["code"],
+  provider_secrets: ["value"],
+  sign_in_providers: ["enabled", "privateKey"],
+  coaching_playbooks: ["version"],
+  guardrails: ["setting"],
+} as const satisfies Partial<Record<BackOfficeSection, readonly string[]>>;
+
+/** The fields an attempt in `S` can fail on. */
+export type FailureField<S extends BackOfficeSection> = S extends keyof typeof FAILURE_FIELDS ? (typeof FAILURE_FIELDS)[S][number] : never;
+
+/**
  * An attempt that failed or was refused (#263): what was `tried` on `target`, the `field` at fault, and
  * why. Never the values entered. A failed test is recorded as `tested`; anything else as `refused`.
  */
-export interface BackOfficeFailure {
-  section: BackOfficeSection;
-  target: string;
-  tried: Exclude<BackOfficeAction, "refused">;
-  reason: FailureReason;
-  field?: string;
-  /** Its message is scrubbed of keys and cut at 500 characters before it is kept. */
-  technical?: TechnicalReason;
-}
+export type BackOfficeFailure = {
+  [S in BackOfficeSection]: {
+    section: S;
+    target: string;
+    tried: Exclude<BackOfficeAction, "refused">;
+    reason: FailureReason;
+    field?: FailureField<S>;
+    /** Its message is scrubbed of keys and cut at 500 characters before it is kept. */
+    technical?: TechnicalReason;
+  };
+}[BackOfficeSection];
 
 /** What `record` keeps of a write: a change, a refusal, or nothing (null). */
 export type BackOfficeAttempt = BackOfficeChange | BackOfficeFailure;

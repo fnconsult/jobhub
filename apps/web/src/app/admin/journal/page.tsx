@@ -1,12 +1,10 @@
 import {
   JOB_DIGEST_FREQUENCIES,
   JOB_DISCOVERY_SOURCES,
-  LIMITED_QUOTAS,
   PLAN_FEATURES,
   PLAN_STATUSES,
   type JobDigestFrequency,
   type JobDiscoverySource,
-  type LimitedQuota,
   type PlanFeature,
   type PlanStatus,
 } from "@jobhub/shared";
@@ -25,6 +23,7 @@ import {
   type Recorded,
 } from "@/admin/back-office";
 import { journalChanges, type JournalChange } from "@/admin/journal-changes";
+import { journalFieldName, SEARCH_SITES_SECTIONS } from "@/admin/journal-fields";
 import { journalTimeline, type JournalLine } from "@/admin/journal-timeline";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
 import { couponDiscountLabel } from "@/billing/coupon-label";
@@ -40,35 +39,6 @@ import { latestToolCallsNow } from "@/tools/server";
 /** How many entries the Journal shows at most. */
 const LIMIT = 200;
 
-/** The Human Coach fields the Human Coaches page already names. */
-const HUMAN_COACH_FIELDS = ["name", "email", "bookingUrl", "bio"] as const;
-type HumanCoachField = (typeof HUMAN_COACH_FIELDS)[number];
-
-/** The sections recording the sites Jobbbox searches: their entries hold `enabled` and, for Job Sites, `postingPages`. */
-const SEARCH_SITES_SECTIONS: readonly BackOfficeSection[] = ["job_discovery_sources", "job_discovery_sites", "job_sites"];
-/** A Sign-in Provider's recorded fields, by the Connexion page's label for each. */
-const SIGN_IN_PROVIDER_FIELDS = {
-  type: "type",
-  displayName: "displayName",
-  clientId: "clientId",
-  discoveryUrl: "discoveryUrl",
-  tenantId: "tenantId",
-  appBundleIdentifier: "appBundleIdentifier",
-  enabled: "enabledLabel",
-  shownToCandidates: "shownToCandidatesLabel",
-  allowedForAdministrators: "allowedForAdministratorsLabel",
-  trustedForLinking: "trustedLabel",
-  secretsReplaced: "secrets",
-} as const;
-
-/** A Plan's recorded fields, by the Plans page's label for each. */
-const PLAN_FIELDS = ["name", "status", "stripeProductId", "features", "rank", "quotas"] as const;
-type PlanField = (typeof PLAN_FIELDS)[number];
-
-/** A Playbook Version's recorded fields (#225), each with its label. */
-const PLAYBOOK_FIELDS = ["version", "provider", "model", "effort", "consultWhen", "rulesCharacters", "validatedBy", "validatedAt", "archived"] as const;
-type PlaybookField = (typeof PLAYBOOK_FIELDS)[number];
-
 /** The version a Coaching Playbooks entry concerns, recorded after (or before) the change. */
 const versionOf = (entry: BackOfficeAuditEntry): number | null => {
   for (const value of [entry.after, entry.before]) {
@@ -76,18 +46,6 @@ const versionOf = (entry: BackOfficeAuditEntry): number | null => {
   }
   return null;
 };
-
-/** An Eval Case's recorded fields (#231), each with its label. */
-const EVAL_CASE_FIELDS = ["caseId", "title", "context", "message", "inViewKind", "inViewText", "criteria"] as const;
-type EvalCaseField = (typeof EVAL_CASE_FIELDS)[number];
-
-/** A Guardrail's recorded fields (#228): its setting, or a Guardrail message's language, version, text and validation. */
-const GUARDRAIL_FIELDS = ["setting", "language", "version", "text", "validatedBy", "validatedAt"] as const;
-type GuardrailField = (typeof GUARDRAIL_FIELDS)[number];
-
-/** A Coupon's recorded fields, by the Codes promo page's label for each. */
-const COUPON_FIELDS = ["code", "discount", "duration", "plans", "expiresAt", "maxRedemptions", "firstPaymentOnly", "active"] as const;
-type CouponField = (typeof COUPON_FIELDS)[number];
 
 /** `aria-current` of the link to the section being shown. */
 const CURRENT = "page";
@@ -146,27 +104,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     return t("admin.journal.toolCallResult", { outcome, duration: milliseconds.format(call.durationMs) });
   };
 
-  const fieldName = (entrySection: BackOfficeSection, field: string): string => {
-    if (entrySection === "plan_quotas" && (LIMITED_QUOTAS.includes(field as LimitedQuota) || field === "jobDigest")) {
-      return t(`billing.quotas.${field as LimitedQuota | "jobDigest"}`);
-    }
-    if (entrySection === "plan_quotas" && (field === "reason" || field === "candidates")) return t(`admin.planQuotas.reset.journalFields.${field}`);
-    if (entrySection === "human_coaches" && HUMAN_COACH_FIELDS.includes(field as HumanCoachField)) return t(`admin.humanCoaches.${field as HumanCoachField}`);
-    if (entrySection === "roles" && field === "roles") return t("admin.administrators.roles");
-    if (SEARCH_SITES_SECTIONS.includes(entrySection) && field === "enabled") return t("admin.searchSites.status");
-    if (entrySection === "job_sites" && field === "postingPages") return t("admin.searchSites.jobSites.postingPages");
-    if (entrySection === "plans" && PLAN_FIELDS.includes(field as PlanField)) return t(`admin.plans.fields.${field as PlanField}`);
-    if (entrySection === "coupons" && COUPON_FIELDS.includes(field as CouponField)) return t(`admin.coupons.fields.${field as CouponField}`);
-    if (entrySection === "sign_in_providers" && field in SIGN_IN_PROVIDER_FIELDS) {
-      return t(`admin.signInProviders.${SIGN_IN_PROVIDER_FIELDS[field as keyof typeof SIGN_IN_PROVIDER_FIELDS]}`);
-    }
-    if (entrySection === "coaching_playbooks" && PLAYBOOK_FIELDS.includes(field as PlaybookField)) return t(`admin.coachingPlaybooks.journalFields.${field as PlaybookField}`);
-    if (entrySection === "guardrails" && GUARDRAIL_FIELDS.includes(field as GuardrailField)) return t(`admin.guardrails.journalFields.${field as GuardrailField}`);
-    if (entrySection === "eval_cases" && EVAL_CASE_FIELDS.includes(field as EvalCaseField)) return t(`admin.evals.journalFields.${field as EvalCaseField}`);
-    if (entrySection === "provider_secrets" && field === "value") return t("admin.journal.value");
-    if (field === "id") return t("admin.journal.id");
-    return field;
-  };
+  const fieldName = (entrySection: BackOfficeSection, field: string): string => journalFieldName(t, entrySection, field);
   const shown = (entrySection: BackOfficeSection, field: string | null, value: Recorded): string => {
     if (entrySection === "job_sites" && field === "postingPages" && value === null) return t("admin.searchSites.jobSites.anyPostingPage");
     if (SEARCH_SITES_SECTIONS.includes(entrySection) && field === "enabled" && typeof value === "boolean") {

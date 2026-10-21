@@ -1232,7 +1232,7 @@
     },
     "journal": {
       "title": "Journal des modifications",
-      "intro": "Chaque modification faite dans le back office : qui, quoi, avant et après, quand. Les valeurs secrètes ne sont jamais enregistrées, seulement leur remplacement. Chaque entrée est conservée {{years}} ans.",
+      "intro": "Chaque modification faite dans le back office : qui, quoi, avant et après, quand ; et chaque tentative refusée ou échouée, avec sa raison, sans les valeurs saisies. Les valeurs secrètes ne sont jamais enregistrées, seulement leur remplacement. Chaque entrée est conservée {{years}} ans.",
       "filter": "Afficher",
       "all": "Tout",
       "sections": {
@@ -1256,7 +1256,7 @@
         "updated": "Modification",
         "retired": "Retrait",
         "removed": "Suppression",
-        "tested": "Test de connexion réussi",
+        "tested": "Test de connexion",
         "replaced": "Remplacement",
         "replaced_despite_failed_test": "Remplacement malgré un test échoué",
         "cleared": "Effacement",
@@ -1264,7 +1264,8 @@
         "validated": "Validation",
         "archived": "Archivage",
         "restored": "Rétablissement",
-        "reset": "Remise à zéro"
+        "reset": "Remise à zéro",
+        "refused": "Tentative refusée"
       },
       "none": "Aucune modification enregistrée.",
       "caption": "Modifications du back office, des plus récentes aux plus anciennes",
@@ -1297,7 +1298,28 @@
       "byJobbbox": "Jobbbox (appel d'outil)",
       "toolCall": "Appel",
       "toolCallResult": "{{outcome}}, {{duration}}",
-      "toolsLimit": "Seules les {{count}} lignes les plus récentes sont affichées."
+      "toolsLimit": "Seules les {{count}} lignes les plus récentes sont affichées.",
+      "outcome": "Résultat",
+      "outcomes": {
+        "succeeded": "Réussi",
+        "failed": "Échec"
+      },
+      "outcomeFilter": "Résultat",
+      "outcomeFilters": {
+        "all": "Tous",
+        "succeeded": "Réussis",
+        "failed": "Échecs"
+      },
+      "failed": "{{tried}} : {{reason}}",
+      "fieldAtFault": "Champ en cause : {{field}}",
+      "value": "Valeur",
+      "technicalDetail": "Détail technique",
+      "technical": {
+        "class": "Type",
+        "provider": "Fournisseur",
+        "status": "Statut HTTP",
+        "message": "Message"
+      }
     },
     "aiUsage": {
       "title": "Consommation IA",
@@ -2662,6 +2684,18 @@
     "route_missing": "Aucun fournisseur configuré pour cette tâche",
     "data_residency": "Règle de résidence des données",
     "invalid_reply": "Réponse illisible",
+    "test_failed": "Test de connexion échoué",
+    "test_expired": "Connexion de test expirée",
+    "not_tested": "Activation sans connexion de test réussie",
+    "invalid_apple_key": "Clé privée Apple illisible",
+    "not_latest_version": "Version qui n'est plus la dernière",
+    "already_validated": "Version déjà validée",
+    "own_version": "Version écrite par la même personne",
+    "no_eval_run": "Aucune Eval Run sur cette version",
+    "eval_refused": "Refusé par l'Eval Run",
+    "last_super_admin": "Dernier super-admin",
+    "unknown_account": "Compte introuvable",
+    "stripe_refused": "Refusé par Stripe",
     "other": "Erreur inattendue"
   }
 }

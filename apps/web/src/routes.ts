@@ -93,6 +93,9 @@ export const routes = {
   adminAiMessage: (id: string) => `/admin/journaux-ia/${encodeURIComponent(id)}`,
   /** Administrators and their Back Office Roles. */
   adminAdministrators: "/admin/administrateurs",
-  /** The Back Office Audit, newest first; with a section, only its changes. */
-  adminJournal: (section?: string) => (section ? `/admin/journal?section=${encodeURIComponent(section)}` : "/admin/journal"),
+  /** The Back Office Audit, newest first; with a section, only its changes; with an Outcome, only the succeeded or the failed. */
+  adminJournal: (filter: { section?: string; outcome?: string } = {}) => {
+    const query = new URLSearchParams(Object.entries(filter).filter((entry): entry is [string, string] => Boolean(entry[1]))).toString();
+    return query ? `/admin/journal?${query}` : "/admin/journal";
+  },
 } as const;

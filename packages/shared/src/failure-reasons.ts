@@ -35,9 +35,39 @@ export const FAILURE_REASONS = [
   "data_residency",
   /** The provider answered with something that could not be read. */
   "invalid_reply",
+  // Back Office attempts that failed or were refused (#263): the Back Office Audit records them.
+  /** A connection test, or a test sign-in, did not pass. */
+  "test_failed",
+  /** A test sign-in came back after its time was up. */
+  "test_expired",
+  /** A Sign-in Provider enabled before a test sign-in passed with its credentials. */
+  "not_tested",
+  /** Apple's private key could not sign a client secret. */
+  "invalid_apple_key",
+  /** A Playbook Version validated while a newer one exists. */
+  "not_latest_version",
+  "already_validated",
+  /** A Playbook Version validated by one of its authors. */
+  "own_version",
+  /** A Coaching Playbook's version validated before any Eval Run was played on it. */
+  "no_eval_run",
+  /** A Guardrail setting that let through an Eval Case it must block. */
+  "eval_refused",
+  /** The last super-admin's role cannot be revoked. */
+  "last_super_admin",
+  /** No account holds that email. */
+  "unknown_account",
+  /** Stripe refused a Plan's product or a Coupon. */
+  "stripe_refused",
   "other",
 ] as const;
 export type FailureReason = (typeof FAILURE_REASONS)[number];
+
+/** The codes an AI call can fail or warn with: the Journaux IA's Raison filter. */
+export const AI_CALL_FAILURE_REASONS: readonly FailureReason[] = ["provider_unavailable", "provider_rejected", "rate_limited", "key_missing", "route_missing", "data_residency", "invalid_reply", "other"];
+
+/** The codes a Back Office attempt can fail with (#263): the Back Office Audit's. */
+export const BACK_OFFICE_FAILURE_REASONS: readonly FailureReason[] = FAILURE_REASONS.filter((reason) => !AI_CALL_FAILURE_REASONS.includes(reason) || reason === "other");
 
 export function isFailureReason(value: unknown): value is FailureReason {
   return typeof value === "string" && (FAILURE_REASONS as readonly string[]).includes(value);

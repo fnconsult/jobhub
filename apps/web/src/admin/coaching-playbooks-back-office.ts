@@ -3,7 +3,8 @@
  *
  * `createCoachingPlaybooksBackOffice(playbooks, backOffice)` mirrors the Coaching Playbooks' writes
  * with the Administrator making them: each runs through the Back Office's `record`, so the change and
- * its entry share one transaction. A refused write, an unchanged save and an archive that changes
+ * its entry share one transaction. A refused validation is recorded as a failed attempt with its
+ * Failure Reason (#263); any other refused write, an unchanged save and an archive that changes
  * nothing record nothing. Every entry targets the Coaching Playbook (or "core-digest", "sources") and
  * names the version it concerns, so the Journal can link to it. A version's rules are recorded by their
  * length only: the version itself, kept forever, holds them.
@@ -16,7 +17,8 @@ import type {
   SavePlaybookResult,
   ValidatePlaybookResult,
 } from "../coaching-playbooks";
-import type { BackOffice, BackOfficeActor, BackOfficeChange, Recorded } from "./back-office";
+import type { FailureReason } from "@jobhub/shared";
+import type { BackOffice, BackOfficeActor, BackOfficeAttempt, BackOfficeChange, Recorded } from "./back-office";
 
 export interface CoachingPlaybooksBackOffice {
   create(actor: BackOfficeActor, input: unknown): Promise<CreatePlaybookResult>;
@@ -34,6 +36,14 @@ const recordedVersion = (version: PlaybookVersion): { [key: string]: Recorded } 
 });
 
 const SECTION = "coaching_playbooks";
+
+/** A validation refused by a business rule, by its Failure Reason; an unknown version is not one. */
+const VALIDATION_REFUSALS: Record<Exclude<Extract<ValidatePlaybookResult, { ok: false }>["error"], "not_found">, FailureReason> = {
+  not_latest: "not_latest_version",
+  already_validated: "already_validated",
+  own_version: "own_version",
+  no_eval_run: "no_eval_run",
+};
 
 export function createCoachingPlaybooksBackOffice(playbooks: CoachingPlaybooks, backOffice: Pick<BackOffice, "record">): CoachingPlaybooksBackOffice {
   return {
@@ -59,16 +69,18 @@ export function createCoachingPlaybooksBackOffice(playbooks: CoachingPlaybooks, 
       return backOffice.record(
         actor,
         (within) => playbooks.validate(actor, id, version, within),
-        (validated): BackOfficeChange | null =>
-          validated.ok
-            ? {
+        (validated): BackOfficeAttempt | null =>
+          !validated.ok
+            ? validated.error === "not_found"
+              ? null
+              : { section: SECTION, target: id, tried: "validated", reason: VALIDATION_REFUSALS[validated.error], field: "version" }
+            : {
                 section: SECTION,
                 target: id,
                 action: "validated",
                 before: { version, validatedBy: null },
                 after: { version, validatedBy: validated.version.validation!.name, validatedAt: validated.version.validation!.at.toISOString() },
-              }
-            : null,
+              },
       );
     },
 

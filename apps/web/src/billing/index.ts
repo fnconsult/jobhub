@@ -26,6 +26,7 @@ import {
   type PlanFeature,
   type PlanQuotas,
   type WeeklyQuota,
+  type Failure,
 } from "@jobhub/shared";
 import type { Locale } from "@jobhub/shared/i18n";
 import type { Pool } from "pg";
@@ -287,6 +288,28 @@ const byStartingOrder = (a: string, b: string) => {
   const rank = (key: string) => (order.includes(key) ? order.indexOf(key) : order.length);
   return rank(a) - rank(b) || a.localeCompare(b);
 };
+
+/**
+ * Why Stripe refused, or did not answer, a Back Office write (#263): a 4xx is `stripe_refused`, anything
+ * else `provider_unavailable`; Stripe's error code and message are the technical reason.
+ */
+export function stripeFailure(error: unknown): Failure {
+  const stripeError = error instanceof Stripe.errors.StripeError ? error : null;
+  const status = stripeError?.statusCode;
+  const message = error instanceof Error ? error.message : String(error);
+  return {
+    reason: status !== undefined && status >= 400 && status < 500 ? "stripe_refused" : "provider_unavailable",
+    technical: {
+      class: stripeError?.type ?? (error instanceof Error ? error.name : "unknown"),
+      provider: "stripe",
+      ...(status === undefined ? {} : { status }),
+      message: stripeError?.code ? `${stripeError.code}: ${message}` : message,
+    },
+  };
+}
+
+/** Why a product cannot be a Plan's; with `failure` when Stripe itself refused it or did not answer. */
+export type StripeProductProblem = { error: PlanError; failure?: Failure };
 
 /** For writes made in a transaction that already asked Stripe about the product (`checkStripeProduct`). */
 export interface PlanWriteOptions {
@@ -595,22 +618,28 @@ export function createBilling(config: BillingConfig) {
    * a recurring default Price. Asked quickly, never retried: run it before any transaction opens.
    */
   async function stripeProductProblem(product: string): Promise<PlanError | null> {
-    if (!PRODUCT_ID.test(product)) return "not_a_product_id";
-    if (!config.stripe) return "stripe_unavailable";
+    return (await stripeProductCheck(product))?.error ?? null;
+  }
+
+  /** As `stripeProductProblem`, with Stripe's own error when it refused the product or did not answer. */
+  async function stripeProductCheck(product: string): Promise<StripeProductProblem | null> {
+    const problem = (error: PlanError): StripeProductProblem => ({ error });
+    if (!PRODUCT_ID.test(product)) return problem("not_a_product_id");
+    if (!config.stripe) return problem("stripe_unavailable");
     try {
       const fetched = await stripe().client.products.retrieve(product, {}, QUICK);
-      if (!fetched.active) return "product_archived";
+      if (!fetched.active) return problem("product_archived");
       const priceId = idOf(fetched.default_price);
-      if (!priceId) return "no_recurring_default_price";
+      if (!priceId) return problem("no_recurring_default_price");
       productCache.set(product, { at: now().getTime(), defaultPrice: priceId });
       priceCache.delete(priceId);
       const { interval } = await amountOf(priceId, QUICK);
-      return BILLING_INTERVALS.includes(interval as BillingInterval) ? null : "no_recurring_default_price";
+      return BILLING_INTERVALS.includes(interval as BillingInterval) ? null : problem("no_recurring_default_price");
     } catch (error) {
-      if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") return "product_not_found";
-      if (error instanceof Error && /has no fixed amount/.test(error.message)) return "no_recurring_default_price";
+      if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") return { error: "product_not_found", failure: stripeFailure(error) };
+      if (error instanceof Error && /has no fixed amount/.test(error.message)) return problem("no_recurring_default_price");
       console.error("[billing] could not check a Stripe product", error);
-      return "stripe_unavailable";
+      return { error: "stripe_unavailable", failure: stripeFailure(error) };
     }
   }
 
@@ -1161,9 +1190,9 @@ export function createBilling(config: BillingConfig) {
     /**
      * Asks Stripe whether `product` may be a Plan's (exists, active, recurring default Price), quickly.
      * For callers that write in a transaction: ask first, then pass `productChecked` to `createPlan` /
-     * `updatePlan`, so no transaction waits on Stripe.
+     * `updatePlan`, so no transaction waits on Stripe. With Stripe's own error when it refused or did not answer.
      */
-    checkStripeProduct: stripeProductProblem,
+    checkStripeProduct: stripeProductCheck,
 
     /**
      * Changes a Plan (Back Office) from untrusted `input`: `{ name: { fr, en }, status,
@@ -1258,9 +1287,9 @@ export function createBilling(config: BillingConfig) {
       } catch (error) {
         // A coupon without its code would only clutter Stripe.
         if (couponId) await client.coupons.del(couponId, QUICK).catch((cleanup: unknown) => console.error("[billing] could not delete a coupon left without its code", cleanup));
-        if (error instanceof Stripe.errors.StripeInvalidRequestError && error.param === "code") return { ok: false, error: "code_taken" };
+        if (error instanceof Stripe.errors.StripeInvalidRequestError && error.param === "code") return { ok: false, error: "code_taken", failure: stripeFailure(error) };
         console.error("[billing] could not create a Coupon in Stripe", error);
-        return { ok: false, error: "stripe_unavailable" };
+        return { ok: false, error: "stripe_unavailable", failure: stripeFailure(error) };
       }
     },
 
@@ -1301,9 +1330,9 @@ export function createBilling(config: BillingConfig) {
         codeLookups.forget();
         return { ok: true, before, after, changed: true };
       } catch (error) {
-        if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") return { ok: false, error: "unknown_coupon" };
+        if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") return { ok: false, error: "unknown_coupon", failure: stripeFailure(error) };
         console.error("[billing] could not deactivate a Coupon in Stripe", error);
-        return { ok: false, error: "stripe_unavailable" };
+        return { ok: false, error: "stripe_unavailable", failure: stripeFailure(error) };
       }
     },
 

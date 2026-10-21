@@ -1232,7 +1232,7 @@
     },
     "journal": {
       "title": "Change journal",
-      "intro": "Every change made in the back office: who, what, before and after, when. Secret values are never recorded, only that they were replaced. Each entry is kept {{years}} years.",
+      "intro": "Every change made in the back office: who, what, before and after, when; and every attempt refused or failed, with its reason, without the values entered. Secret values are never recorded, only that they were replaced. Each entry is kept {{years}} years.",
       "filter": "Show",
       "all": "All",
       "sections": {
@@ -1256,7 +1256,7 @@
         "updated": "Changed",
         "retired": "Retired",
         "removed": "Removed",
-        "tested": "Test sign-in passed",
+        "tested": "Connection test",
         "replaced": "Replaced",
         "replaced_despite_failed_test": "Replaced despite a failed test",
         "cleared": "Cleared",
@@ -1264,7 +1264,8 @@
         "validated": "Validation",
         "archived": "Archive",
         "restored": "Restore",
-        "reset": "Reset"
+        "reset": "Reset",
+        "refused": "Attempt refused"
       },
       "none": "No change recorded.",
       "caption": "Back office changes, newest first",
@@ -1297,7 +1298,28 @@
       "byJobbbox": "Jobbbox (tool call)",
       "toolCall": "Call",
       "toolCallResult": "{{outcome}}, {{duration}}",
-      "toolsLimit": "Only the {{count}} most recent lines are shown."
+      "toolsLimit": "Only the {{count}} most recent lines are shown.",
+      "outcome": "Result",
+      "outcomes": {
+        "succeeded": "Succeeded",
+        "failed": "Failed"
+      },
+      "outcomeFilter": "Result",
+      "outcomeFilters": {
+        "all": "All",
+        "succeeded": "Succeeded",
+        "failed": "Failed"
+      },
+      "failed": "{{tried}}: {{reason}}",
+      "fieldAtFault": "Field at fault: {{field}}",
+      "value": "Value",
+      "technicalDetail": "Technical detail",
+      "technical": {
+        "class": "Type",
+        "provider": "Provider",
+        "status": "HTTP status",
+        "message": "Message"
+      }
     },
     "aiUsage": {
       "title": "AI consumption",
@@ -2662,6 +2684,18 @@
     "route_missing": "No provider configured for this task",
     "data_residency": "Data residency rule",
     "invalid_reply": "Unreadable reply",
+    "test_failed": "Connection test failed",
+    "test_expired": "Test sign-in expired",
+    "not_tested": "Enabled without a passed test sign-in",
+    "invalid_apple_key": "Apple private key unreadable",
+    "not_latest_version": "No longer the latest version",
+    "already_validated": "Version already validated",
+    "own_version": "Version written by the same person",
+    "no_eval_run": "No Eval Run on this version",
+    "eval_refused": "Refused by the Eval Run",
+    "last_super_admin": "Last super-admin",
+    "unknown_account": "Account not found",
+    "stripe_refused": "Refused by Stripe",
     "other": "Unexpected error"
   }
 }

@@ -6,18 +6,21 @@
  *                                          `createCoupon`, `deactivateCoupon`,
  *                                          `addHumanCoach`, `retireHumanCoach`
  *  - record any other Back Office write    `record`, the one seam every write goes through
- *  - read the record                       `journal`, newest first, by section
+ *  - record an attempt that failed         `recordFailure`, or `record` when its write is refused
+ *  - read the record                       `journal`, newest first, by section and by Outcome
  * and `purgeExpiredBackOfficeAudit(database, now)` (the worker, daily) and
  * `migrateBackOfficeAudit(database)`.
  *
  * A change and its entry are kept together or not at all: both go in one
  * transaction. An entry names its Administrator by Candidate id and by the email
  * they had then, so it outlives their account (the id becomes null). Secret
- * values are never recorded, only that they were replaced. Entries are Jobbbox's
+ * values are never recorded, only that they were replaced. An attempt that failed or was refused
+ * (#263, ADR-0030) is recorded on its own, outside the write it undoes: what was tried, on which
+ * target, the field at fault and its Failure Reason, never the values entered. Entries are Jobbbox's
  * operations record, not the Administrator's personal data export; they are kept
  * RETENTION_YEARS.
  */
-import { FREE_PLAN, type Plan, type PlanQuotas } from "@jobhub/shared";
+import { cleanTechnicalMessage, FREE_PLAN, type FailureReason, type Plan, type PlanQuotas, type TechnicalReason } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type {
   Billing,
@@ -75,7 +78,13 @@ export type SecretAction = (typeof SECRET_ACTIONS)[number];
  * Human-validated, a Coaching Playbook archived or restored (#225). `reset`: the week's Plan Quota
  * usage of every Candidate was forgotten (ADR-0032).
  */
-export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | "tested" | "viewed" | "validated" | "archived" | "restored" | "reset" | SecretAction;
+export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | "tested" | "viewed" | "validated" | "archived" | "restored" | "reset" | "refused" | SecretAction;
+
+/** How a Back Office attempt ended (the Outcome, CONTEXT.md): the Back Office Audit only uses these two. */
+export const BACK_OFFICE_OUTCOMES = ["succeeded", "failed"] as const;
+export type BackOfficeOutcome = (typeof BACK_OFFICE_OUTCOMES)[number];
+
+export const isBackOfficeOutcome = (value: unknown): value is BackOfficeOutcome => BACK_OFFICE_OUTCOMES.includes(value as BackOfficeOutcome);
 
 export const isSecretAction = (
   action: BackOfficeAction,
@@ -100,6 +109,44 @@ export type BackOfficeChange = {
   | { action: SecretAction }
 );
 
+/**
+ * The fields an attempt in each section can fail on (#263): the only ones a BackOfficeFailure may name,
+ * so the Journal has a label for every one (journal-fields.ts).
+ */
+export const FAILURE_FIELDS = {
+  roles: ["email", "roles"],
+  plans: ["stripeProductId"],
+  coupons: ["code"],
+  provider_secrets: ["value"],
+  sign_in_providers: ["enabled", "privateKey"],
+  coaching_playbooks: ["version"],
+  guardrails: ["setting"],
+} as const satisfies Partial<Record<BackOfficeSection, readonly string[]>>;
+
+/** The fields an attempt in `S` can fail on. */
+export type FailureField<S extends BackOfficeSection> = S extends keyof typeof FAILURE_FIELDS ? (typeof FAILURE_FIELDS)[S][number] : never;
+
+/**
+ * An attempt that failed or was refused (#263): what was `tried` on `target`, the `field` at fault, and
+ * why. Never the values entered. A failed test is recorded as `tested`; anything else as `refused`.
+ */
+export type BackOfficeFailure = {
+  [S in BackOfficeSection]: {
+    section: S;
+    target: string;
+    tried: Exclude<BackOfficeAction, "refused">;
+    reason: FailureReason;
+    field?: FailureField<S>;
+    /** Its message is scrubbed of keys and cut at 500 characters before it is kept. */
+    technical?: TechnicalReason;
+  };
+}[BackOfficeSection];
+
+/** What `record` keeps of a write: a change, a refusal, or nothing (null). */
+export type BackOfficeAttempt = BackOfficeChange | BackOfficeFailure;
+
+const isFailure = (attempt: BackOfficeAttempt): attempt is BackOfficeFailure => "reason" in attempt;
+
 /** The Administrator making a change, as signed in. */
 export interface BackOfficeActor {
   /** Their Candidate id. */
@@ -118,8 +165,11 @@ export interface BackOfficeAuditEntry {
   action: BackOfficeAction;
   /** Null when there was nothing before (added), and for a secret. */
   before: Recorded;
-  /** Null when there is nothing after (retired, removed), and for a secret. */
+  /** Null when there is nothing after (retired, removed), for a secret, and for a failed attempt. */
   after: Recorded;
+  outcome: BackOfficeOutcome;
+  /** Why a failed attempt failed; null when it succeeded. */
+  failure: { reason: FailureReason; tried: BackOfficeAction; field: string | null; technical: TechnicalReason | null } | null;
 }
 
 export interface BackOfficeDeps {
@@ -140,7 +190,7 @@ export interface BackOfficeDeps {
 }
 
 export interface BackOffice {
-  /** Creates a Plan, hidden; `input` is untrusted (see Billing.createPlan); nothing is recorded when refused. */
+  /** Creates a Plan, hidden; `input` is untrusted (see Billing.createPlan); a product Stripe refuses is recorded as a failed attempt, nothing else refused is. */
   createPlan(
     actor: BackOfficeActor,
     input: unknown,
@@ -173,7 +223,8 @@ export interface BackOffice {
   ): Promise<{ ok: true; candidates: number } | { ok: false; error: "reason_required" }>;
   /**
    * Creates a Coupon in Stripe; `input` is untrusted (see Billing.createCoupon). Stripe is called before the
-   * audit transaction; if the entry cannot be recorded, the code is deactivated again. Nothing is recorded when refused.
+   * audit transaction; if the entry cannot be recorded, the code is deactivated again. When Stripe refuses it, or does
+   * not answer, that is recorded as a failed attempt; nothing is recorded for any other refusal.
    */
   createCoupon(
     actor: BackOfficeActor,
@@ -181,7 +232,8 @@ export interface BackOffice {
   ): Promise<CouponResult<{ coupon: Coupon }>>;
   /**
    * Deactivates a Coupon in Stripe (see Billing.deactivateCoupon), before the audit transaction; reactivated
-   * if the entry cannot be recorded. Nothing is recorded when refused or when it was inactive already.
+   * if the entry cannot be recorded. Stripe's refusal is recorded as a failed attempt; nothing else is when refused, nor
+   * when it was inactive already.
    */
   deactivateCoupon(
     actor: BackOfficeActor,
@@ -198,15 +250,20 @@ export interface BackOffice {
    * Runs one Back Office write and records it, in one transaction: `write` runs on the
    * transaction it is given, then `changeOf` says what it changed (null: nothing to record).
    * If the write, or recording it, fails, neither is kept and the error is thrown.
+   * When `changeOf` says the write was refused (a BackOfficeFailure), the write is undone and
+   * the refusal recorded on its own.
    */
   record<T>(
     actor: BackOfficeActor,
     write: (within: Queryable) => Promise<T>,
-    changeOf: (result: T) => BackOfficeChange | null,
+    changeOf: (result: T) => BackOfficeAttempt | null,
   ): Promise<T>;
-  /** The Back Office Audit, newest first: everything, or one section. At most `limit` entries (default 200). */
+  /** Records an attempt that failed or was refused, outside any write (#263). */
+  recordFailure(actor: BackOfficeActor, failure: BackOfficeFailure): Promise<void>;
+  /** The Back Office Audit, newest first: everything, or one section, one Outcome, or both. At most `limit` entries (default 200). */
   journal(filter?: {
     section?: BackOfficeSection;
+    outcome?: BackOfficeOutcome;
     limit?: number;
   }): Promise<BackOfficeAuditEntry[]>;
 }
@@ -221,6 +278,11 @@ interface EntryRow {
   action: BackOfficeAction;
   before: Recorded;
   after: Recorded;
+  outcome: BackOfficeOutcome;
+  reason: FailureReason | null;
+  tried: BackOfficeAction | null;
+  field: string | null;
+  technical_reason: TechnicalReason | null;
 }
 
 const entryFrom = (row: EntryRow): BackOfficeAuditEntry => ({
@@ -232,6 +294,19 @@ const entryFrom = (row: EntryRow): BackOfficeAuditEntry => ({
   action: row.action,
   before: row.before,
   after: row.after,
+  outcome: row.outcome,
+  failure:
+    row.outcome === "failed"
+      ? { reason: row.reason ?? "other", tried: row.tried ?? row.action, field: row.field, technical: row.technical_reason }
+      : null,
+});
+
+/** A technical reason as kept: its message scrubbed of keys and cut. */
+const keptTechnical = (technical: TechnicalReason): TechnicalReason => ({
+  class: technical.class,
+  ...(technical.provider === undefined ? {} : { provider: technical.provider }),
+  ...(technical.status === undefined ? {} : { status: technical.status }),
+  message: cleanTechnicalMessage(technical.message),
 });
 
 /** A recorded value as a jsonb parameter; nothing is SQL NULL. */
@@ -245,6 +320,18 @@ const productOf = (input: unknown): string => {
       ? (input as { stripeProductId?: unknown }).stripeProductId
       : undefined;
   return typeof product === "string" ? product.trim() : "";
+};
+
+/** The Plan key named in an untrusted Plan form, trimmed; "" when none. */
+const keyOf = (input: unknown): string => {
+  const key = typeof input === "object" && input !== null ? (input as { key?: unknown }).key : undefined;
+  return typeof key === "string" ? key.trim() : "";
+};
+
+/** The Coupon code named in an untrusted Coupon form, trimmed and in capitals; "" when none. */
+const codeOf = (input: unknown): string => {
+  const code = typeof input === "object" && input !== null ? (input as { code?: unknown }).code : undefined;
+  return typeof code === "string" ? code.trim().toUpperCase() : "";
 };
 
 /** A Plan's quotas as recorded. */
@@ -281,16 +368,42 @@ export function createBackOffice(
   database: Pool,
   deps: BackOfficeDeps,
 ): BackOffice {
+  async function recordFailure(actor: BackOfficeActor, failure: BackOfficeFailure): Promise<void> {
+    await database.query(
+      `INSERT INTO back_office_audit (candidate_id, actor_email, section, target, action, outcome, reason, tried, field, technical_reason)
+       VALUES ($1, $2, $3, $4, $5, 'failed', $6, $7, $8, $9::jsonb)`,
+      [
+        actor.id,
+        actor.email.trim().toLowerCase(),
+        failure.section,
+        failure.target,
+        failure.tried === "tested" ? "tested" : "refused",
+        failure.reason,
+        failure.tried,
+        failure.field ?? null,
+        failure.technical ? JSON.stringify(keptTechnical(failure.technical)) : null,
+      ],
+    );
+  }
+
   async function record<T>(
     actor: BackOfficeActor,
     write: (within: Queryable) => Promise<T>,
-    changeOf: (result: T) => BackOfficeChange | null,
+    changeOf: (result: T) => BackOfficeAttempt | null,
   ): Promise<T> {
     const client = await database.connect();
+    let refused: BackOfficeFailure | null = null;
+    let result: T;
     try {
       await client.query("BEGIN");
-      const result = await write(client);
+      result = await write(client);
       const change = changeOf(result);
+      if (change && isFailure(change)) {
+        // Refused: whatever the write did is undone; the refusal is recorded on its own, below.
+        refused = change;
+        await client.query("ROLLBACK");
+        return result;
+      }
       if (change) {
         const secret = isSecretAction(change.action);
         await client.query(
@@ -314,16 +427,21 @@ export function createBackOffice(
       throw error;
     } finally {
       client.release();
+      if (refused) await recordFailure(actor, refused);
     }
   }
 
   return {
     record,
+    recordFailure,
 
     async createPlan(actor, input) {
       // Stripe is asked before the transaction opens, so none waits on it.
       const problem = await deps.billing.checkStripeProduct(productOf(input));
-      if (problem) return { ok: false, error: problem };
+      if (problem) {
+        if (problem.failure) await recordFailure(actor, { section: "plans", target: keyOf(input), tried: "added", field: "stripeProductId", ...problem.failure });
+        return { ok: false, error: problem.error };
+      }
       const created = await record(
         actor,
         (within) =>
@@ -360,7 +478,10 @@ export function createBackOffice(
         current.key !== FREE_PLAN
       ) {
         const problem = await deps.billing.checkStripeProduct(product);
-        if (problem) return { ok: false, error: problem };
+        if (problem) {
+          if (problem.failure) await recordFailure(actor, { section: "plans", target: plan, tried: "updated", field: "stripeProductId", ...problem.failure });
+          return { ok: false, error: problem.error };
+        }
         productChecked = true;
       }
       const updated = await record(
@@ -429,7 +550,10 @@ export function createBackOffice(
     async createCoupon(actor, input) {
       // Stripe is the Coupon's only home, written before the transaction opens, so none waits on it.
       const created = await deps.billing.createCoupon(input);
-      if (!created.ok) return created;
+      if (!created.ok) {
+        if (created.failure) await recordFailure(actor, { section: "coupons", target: codeOf(input), tried: "added", ...(created.error === "code_taken" ? { field: "code" } : {}), ...created.failure });
+        return { ok: false, error: created.error };
+      }
       try {
         await record(
           actor,
@@ -455,7 +579,10 @@ export function createBackOffice(
     async deactivateCoupon(actor, id) {
       // As for createCoupon: Stripe first, outside the transaction; undone there if the entry cannot be recorded.
       const deactivated = await deps.billing.deactivateCoupon(id);
-      if (!deactivated.ok) return deactivated;
+      if (!deactivated.ok) {
+        if (deactivated.failure) await recordFailure(actor, { section: "coupons", target: id, tried: "updated", ...deactivated.failure });
+        return { ok: false, error: deactivated.error };
+      }
       if (!deactivated.changed) return { ok: true };
       try {
         await record(
@@ -510,13 +637,13 @@ export function createBackOffice(
       );
     },
 
-    async journal({ section, limit = 200 } = {}) {
+    async journal({ section, outcome, limit = 200 } = {}) {
       // Ordered by the table's id, a number: a bare "id" would be the text column selected (10 before 9).
       const { rows } = await database.query<EntryRow>(
-        `SELECT id::text, created_at, candidate_id, actor_email, section, target, action, before, after
-         FROM back_office_audit WHERE $1::text IS NULL OR section = $1
+        `SELECT id::text, created_at, candidate_id, actor_email, section, target, action, before, after, outcome, reason, tried, field, technical_reason
+         FROM back_office_audit WHERE ($1::text IS NULL OR section = $1) AND ($3::text IS NULL OR outcome = $3)
          ORDER BY back_office_audit.id DESC LIMIT $2`,
-        [section ?? null, limit],
+        [section ?? null, limit, outcome ?? null],
       );
       return rows.map(entryFrom);
     },
@@ -552,6 +679,14 @@ export async function migrateBackOfficeAudit(database: Pool): Promise<void> {
       after jsonb,
       created_at timestamptz NOT NULL DEFAULT clock_timestamp()
     );
+    -- An attempt that failed or was refused (#263): its Outcome, Failure Reason code, what was tried,
+    -- the field at fault and the technical reason (scrubbed and cut). Never the values entered.
+    ALTER TABLE back_office_audit ADD COLUMN IF NOT EXISTS outcome text NOT NULL DEFAULT 'succeeded';
+    ALTER TABLE back_office_audit ADD COLUMN IF NOT EXISTS reason text;
+    ALTER TABLE back_office_audit ADD COLUMN IF NOT EXISTS tried text;
+    ALTER TABLE back_office_audit ADD COLUMN IF NOT EXISTS field text;
+    ALTER TABLE back_office_audit ADD COLUMN IF NOT EXISTS technical_reason jsonb;
+    CREATE INDEX IF NOT EXISTS back_office_audit_outcome_idx ON back_office_audit (outcome, id DESC);
     CREATE INDEX IF NOT EXISTS back_office_audit_section_idx ON back_office_audit (section, id DESC);
     CREATE INDEX IF NOT EXISTS back_office_audit_created_at_idx ON back_office_audit (created_at);
     CREATE INDEX IF NOT EXISTS back_office_audit_candidate_id_idx ON back_office_audit (candidate_id);

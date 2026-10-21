@@ -56,10 +56,10 @@ async function clearSecret(form: FormData) {
 
 async function testSecret(form: FormData) {
   "use server";
-  await requireBackOffice("providerSecrets", "write");
+  const { administrator } = await requireBackOffice("providerSecrets", "write");
   const name = form.get("name");
   if (!isProviderSecretName(name)) redirect(back({ error: "unknown_secret" }));
-  const tested = await getProviderSecrets().test(name);
+  const tested = await getProviderSecrets().test(administrator, name);
   redirect(back({ tested: name, result: tested.ok ? "passed" : "failed", status: tested.ok ? undefined : statusIn(tested.detail) }));
 }
 

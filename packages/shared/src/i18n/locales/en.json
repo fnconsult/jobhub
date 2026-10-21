@@ -2696,6 +2696,9 @@
     "last_super_admin": "Last super-admin",
     "unknown_account": "Account not found",
     "stripe_refused": "Refused by Stripe",
+    "guardrail_timeout": "Check took too long",
+    "invalid_verdict": "Unreadable check verdict",
+    "provider_error": "Provider error",
     "other": "Unexpected error"
   }
 }

@@ -22,10 +22,11 @@
  * Guardrails always block, whatever their setting says: distress answers with the distress Guardrail message
  * (the 3114 helpline), never shown as a block; a leak or a secret is replaced at once. An AI check that fails or
  * does not answer within `timeoutMs` lets the text through; the fixed rules still apply. Each block, flag or
- * unavailable check is recorded as a Guardrail Trigger, which names no one and holds no text. No one is alerted.
+ * unavailable check is recorded as a Guardrail Trigger, which names no one and holds no text; an unavailable one
+ * says why, as a Failure Reason code (`guardrail_timeout`, `invalid_verdict`, `provider_error`). No one is alerted.
  */
 import { identityIn, type AiLayer, type GenerateResult } from "@jobhub/ai";
-import { scrubStoredText } from "@jobhub/shared";
+import { scrubStoredText, type GuardrailFailureReason } from "@jobhub/shared";
 
 /** The Guardrails, each by its stable id. */
 export const GUARDRAIL_IDS = ["prompt_injection", "personal_data_leak", "secret_disclosure", "harmful_advice", "distress"] as const;
@@ -89,14 +90,16 @@ export const DEFAULT_GUARDRAIL_MESSAGES: GuardrailMessages = {
 /** What a Guardrail did: blocked, flagged (let through, recorded), or could not check (the AI check was unavailable). */
 export type GuardrailAction = "blocked" | "flagged" | "unavailable";
 
-/** One time a Guardrail blocked, flagged or could not check: no Candidate, no Coach Conversation, no text. */
-export interface GuardrailTrigger {
+/**
+ * One time a Guardrail blocked, flagged or could not check: no Candidate, no Coach Conversation, no text.
+ * `reason`: why it could not check, only with action `unavailable` (a Failure Reason code, never text).
+ */
+export type GuardrailTrigger = {
   guardrail: GuardrailId;
   setting: GuardrailSetting;
-  action: GuardrailAction;
   agent: GuardrailAgent;
   at: Date;
-}
+} & ({ action: "blocked" | "flagged"; reason?: never } | { action: "unavailable"; reason: GuardrailFailureReason });
 
 /** Each Guardrail's setting and the Guardrail messages served in this environment. */
 export interface GuardrailConfig {
@@ -272,18 +275,20 @@ export function createGuardrails(deps: GuardrailsDeps): Guardrails {
       const { settings, messages } = await deps.config.current();
       const checks: GenerateResult[] = [];
       const settingOf = (id: GuardrailId): GuardrailSetting => (ALWAYS_ON_GUARDRAILS.includes(id) ? "block" : settings[id] === "flag" ? "flag" : "block");
-      const record = (guardrail: GuardrailId, action: GuardrailAction) => {
-        const trigger: GuardrailTrigger = { guardrail, setting: settingOf(guardrail), action, agent, at: now() };
+      const record = (guardrail: GuardrailId, action: "blocked" | "flagged" | { unavailable: GuardrailFailureReason }) => {
+        const common = { guardrail, setting: settingOf(guardrail), agent, at: now() };
+        const trigger: GuardrailTrigger = typeof action === "string" ? { ...common, action } : { ...common, action: "unavailable", reason: action.unavailable };
         Promise.resolve()
           .then(() => deps.triggers.record(trigger))
-          .catch((error: unknown) => warn("a Guardrail Trigger could not be recorded", { guardrail, action, error: error instanceof Error ? error.name : "unknown" }));
+          .catch((error: unknown) => warn("a Guardrail Trigger could not be recorded", { guardrail, action: trigger.action, error: error instanceof Error ? error.name : "unknown" }));
       };
       const answer = (id: GuardrailId) => messages[id]?.[request.language] || DEFAULT_GUARDRAIL_MESSAGES[id][request.language];
 
-      /** One AI check on `text` for `guardrails`: what it found, or null when it could not tell (each Guardrail recorded unavailable). */
+      /** One AI check on `text` for `guardrails`: what it found; nothing when it could not tell (each Guardrail recorded unavailable, with why). */
       async function aiCheck(kind: "input" | "output", text: string, guardrails: readonly GuardrailId[]): Promise<GuardrailId[]> {
         if (guardrails.length === 0) return [];
         let timer: ReturnType<typeof setTimeout> | undefined;
+        let reason: GuardrailFailureReason;
         try {
           const call = await Promise.race([
             deps.ai.generate({
@@ -301,12 +306,14 @@ export function createGuardrails(deps: GuardrailsDeps): Guardrails {
           checks.push(call);
           const found = verdictOf(call.text, guardrails);
           if (found) return found;
-        } catch {
+          reason = "invalid_verdict";
+        } catch (error) {
           // Unavailable: recorded below, the text goes through.
+          reason = error instanceof GuardrailCheckTimeout ? "guardrail_timeout" : "provider_error";
         } finally {
           clearTimeout(timer);
         }
-        for (const id of guardrails) record(id, "unavailable");
+        for (const id of guardrails) record(id, { unavailable: reason });
         return [];
       }
 

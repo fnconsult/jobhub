@@ -2696,6 +2696,9 @@
     "last_super_admin": "Dernier super-admin",
     "unknown_account": "Compte introuvable",
     "stripe_refused": "Refusé par Stripe",
+    "guardrail_timeout": "Contrôle trop long",
+    "invalid_verdict": "Verdict du contrôle illisible",
+    "provider_error": "Erreur du fournisseur",
     "other": "Erreur inattendue"
   }
 }

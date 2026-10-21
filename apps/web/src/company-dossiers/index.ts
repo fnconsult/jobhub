@@ -444,6 +444,7 @@ export function createCompanyDossiers(
       employer,
       instructions: run.text(),
       route: run.searchRoute,
+      warnings: run.warnings,
       ...(dossier.source === "french_register" ? { registeredName: dossier.name } : {}),
       ...(dossier.source === "web" && dossier.website ? { website: dossier.website } : {}),
     });
@@ -458,7 +459,7 @@ export function createCompanyDossiers(
     if (match) return registerDossier(employer, match, builtAt);
     if (soleTraderNamed || sirenIn(employer)) return null;
     const run = await taskRun(taskPlaybooks, "company-facts-search", ai);
-    const found = await ai.searchCompany({ candidateId, employer, instructions: run.text(), route: run.searchRoute });
+    const found = await ai.searchCompany({ candidateId, employer, instructions: run.text(), route: run.searchRoute, warnings: run.warnings });
     const webSiren = webSirenIn(found.answer);
     if (webSiren) {
       const listed = (await register.search(webSiren)).companies.find((company) => company.siren === webSiren);

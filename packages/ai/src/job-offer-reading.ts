@@ -12,8 +12,9 @@
  * `offer_analysis` task, which carries no personal data (ADR-0007). A page's text is framed as data
  * between <page> and </page>, which it cannot close, and is never an instruction (ADR-0022).
  */
-import { CONTRACT_TYPES, JOB_OFFER_SECTOR_MAX_CHARS, JOB_OFFER_SUMMARY_MAX_CHARS, REMOTE_WORK_OPTIONS, type JobOfferDetails } from "@jobhub/shared";
+import { CONTRACT_TYPES, JOB_OFFER_SECTOR_MAX_CHARS, JOB_OFFER_SUMMARY_MAX_CHARS, REMOTE_WORK_OPTIONS, type FailureReason, type JobOfferDetails } from "@jobhub/shared";
 import type { AiLayer, GenerateRequest, TaskInstructions } from "./ai-layer";
+import type { AiWarning } from "./types";
 
 /** Enough text for any real posting, while keeping the call cheap. */
 const MAX_PAGE_CHARS = 30_000;
@@ -57,9 +58,11 @@ Réponds uniquement par un objet JSON, sans texte autour :
 ${fieldsRules(reading)}`;
 
 /** The task Playbook's Playbook Agent, when served: its route and effort. */
-const agentOf = (reading: TaskInstructions | null): Pick<GenerateRequest, "route" | "effort"> => ({
+/** The task Playbook's agent and warnings, as `ai.generate` takes them. */
+const agentOf = (reading: TaskInstructions | null): Pick<GenerateRequest, "route" | "effort" | "warnings"> => ({
   ...(reading?.route ? { route: reading.route } : {}),
   ...(reading?.effort ? { effort: reading.effort } : {}),
+  ...(reading?.warnings ? { warnings: reading.warnings } : {}),
 });
 
 /** A page's text between <page> and </page>, any <page> or </page> tag inside it swapped for look-alikes so it cannot close its frame. */
@@ -148,11 +151,21 @@ export async function readJobPage(ai: AiLayer, candidateId: string | null, pageT
  * The fields a Job Offer's text states (its title and text only). Empty when it states none;
  * throws what the AI layer throws, or when the reply is not a JSON object. `reading`: the served
  * "job-offer-reading" task Playbook; without it, no summary or sector.
+ * `fallback`: what the caller does without the fields (#260), recorded with a call that fails or whose reply
+ * is not a JSON object. `warnings`: the caller's, recorded with the call (see `GenerateRequest.warnings`); the
+ * task Playbook's are added to them, and the caller may still add one while the call runs.
  */
 export async function readOfferFields(
   ai: AiLayer,
-  { candidateId, jobOffer, reading = null }: { candidateId: string | null; jobOffer: Pick<JobOfferDetails, "title" | "content">; reading?: TaskInstructions | null },
+  {
+    candidateId,
+    jobOffer,
+    reading = null,
+    fallback,
+    warnings = [],
+  }: { candidateId: string | null; jobOffer: Pick<JobOfferDetails, "title" | "content">; reading?: TaskInstructions | null; fallback?: FailureReason; warnings?: AiWarning[] },
 ): Promise<OfferFields> {
+  for (const warning of reading?.warnings ?? []) if (!warnings.includes(warning)) warnings.push(warning);
   const { text } = await ai.generate({
     task: "offer_analysis",
     candidateId,
@@ -162,8 +175,13 @@ export async function readOfferFields(
     maxTokens: 1024,
     containsIdentity: false,
     ...agentOf(reading),
+    warnings,
+    ...(fallback ? { fallback } : {}),
+    unusable: (reply) => (parseJson(reply) ? null : NOT_A_JSON_OBJECT),
   });
   const reply = parseJson(text);
-  if (!reply) throw new Error("The offer_analysis reply is not a JSON object");
+  if (!reply) throw new Error(`The offer_analysis reply: ${NOT_A_JSON_OBJECT}`);
   return fieldsFrom(reply, reading !== null);
 }
+
+const NOT_A_JSON_OBJECT = "the reply is not a JSON object";

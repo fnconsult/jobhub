@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { AiConfigError, createAiLayer, DataResidencyError } from "./ai-layer";
 import { AiProviderError } from "./errors";
 import { createFakeProvider, createMemoryUsageLog } from "./testing";
+import type { AiWarning } from "./types";
 
 describe("AI layer", () => {
   it("routes a task to the provider configured for it and logs token usage for the Candidate", async () => {
@@ -458,5 +459,170 @@ describe("the Failure Reason of every failed AI call (#259, ADR-0030)", () => {
     expect(usage.entries[0]).toMatchObject({ outcome: "ok", sent: true });
     expect(usage.entries[0]).not.toHaveProperty("reason");
     expect(usage.entries[0]).not.toHaveProperty("technicalReason");
+  });
+});
+
+describe("the warnings of an AI call: its feature ran degraded (#260, ADR-0030)", () => {
+  it("records a call made while its feature runs degraded (a Task Playbook fallback) as warning, the first warning its reason, each with what happened", async () => {
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [createFakeProvider({ id: "mistral" })], routes: { cv_parsing: "mistral" }, usage });
+
+    await ai.generate({
+      task: "cv_parsing",
+      candidateId: "cand-1",
+      prompt: "CV",
+      warnings: [
+        { reason: "task_playbook_fallback", detail: 'task Playbook "cv-reading": no version served' },
+        { reason: "task_playbook_agent_not_offered", detail: "openai gpt-5" },
+      ],
+    });
+
+    expect(usage.entries).toEqual([
+      expect.objectContaining({
+        outcome: "warning",
+        reason: "task_playbook_fallback",
+        warnings: [
+          { reason: "task_playbook_fallback", detail: 'task Playbook "cv-reading": no version served' },
+          { reason: "task_playbook_agent_not_offered", detail: "openai gpt-5" },
+        ],
+        sent: true,
+        inputTokens: 10,
+      }),
+    ]);
+    expect(usage.entries[0]).not.toHaveProperty("technicalReason");
+  });
+
+  it("reads them when the call is recorded: a warning added while the call runs is recorded with it", async () => {
+    const usage = createMemoryUsageLog();
+    const warnings: AiWarning[] = [];
+    const reader = createFakeProvider({
+      id: "anthropic",
+      reply: () => {
+        warnings.push({ reason: "match_score_too_slow", detail: "stopped waiting after 20000 ms" });
+        return "{}";
+      },
+    });
+    const ai = createAiLayer({ providers: [reader], routes: { offer_analysis: "anthropic" }, usage });
+
+    await ai.generate({ task: "offer_analysis", candidateId: null, prompt: "Chef de projet", warnings });
+
+    expect(usage.entries[0]).toMatchObject({ outcome: "warning", reason: "match_score_too_slow", warnings: [{ reason: "match_score_too_slow", detail: "stopped waiting after 20000 ms" }] });
+  });
+
+  it("records a call whose Candidate's identity could not be read, redacted by shape alone, as warning identity_unavailable", async () => {
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({
+      providers: [createFakeProvider({ id: "anthropic" })],
+      routes: { writing: "anthropic" },
+      usage,
+      identityOf: async () => Promise.reject(new Error("database down")),
+      warn: () => {},
+    });
+
+    await ai.generate({ task: "writing", candidateId: "cand-1", prompt: "Marie Dupont, marie.dupont@example.fr" });
+
+    expect(usage.entries).toEqual([
+      expect.objectContaining({ outcome: "warning", reason: "identity_unavailable", warnings: [{ reason: "identity_unavailable", detail: "identity lookup failed: database down" }] }),
+    ]);
+  });
+
+  it("records a call carrying identity it did not declare as warning identity_undeclared, naming the kinds found, never their values", async () => {
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({
+      providers: [createFakeProvider({ id: "anthropic" }), createFakeProvider({ id: "mistral" })],
+      routes: { coaching: "anthropic" },
+      usage,
+      euAiConsent: async () => true,
+      warn: () => {},
+    });
+
+    await ai.generate({ task: "coaching", candidateId: "cand-1", prompt: "Appelez-moi au 06 12 34 56 78" });
+
+    expect(usage.entries).toEqual([expect.objectContaining({ provider: "mistral", outcome: "warning", reason: "identity_undeclared", warnings: [{ reason: "identity_undeclared", detail: "found: phone" }] })]);
+    expect(JSON.stringify(usage.entries[0]!.warnings)).not.toContain("06 12");
+  });
+
+  it("records the failed job title variants call with its own reason, and what the Job Search does instead: job_titles_unavailable", async () => {
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({
+      providers: [createFakeProvider({ id: "mistral", fail: new AiProviderError("mistral", "HTTP 503", 503) }), createFakeProvider({ id: "perplexity" })],
+      routes: { job_titles: "mistral", web_search: "perplexity" },
+      usage,
+      warn: () => {},
+    });
+
+    const plan = await ai.planJobSearch({ candidateId: "cand-1", criteria: { targetRole: "DAF", locations: ["Paris"] } as unknown as SearchCriteria });
+
+    expect(plan.call).toBeNull();
+    expect(usage.entries).toEqual([expect.objectContaining({ task: "job_titles", outcome: "failed", reason: "provider_unavailable", warnings: [{ reason: "job_titles_unavailable" }] })]);
+  });
+
+  it("records a job title variants call never sent (its key missing) with job_titles_unavailable too", async () => {
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [createFakeProvider({ id: "mistral" }), createFakeProvider({ id: "perplexity" })], routes: { job_titles: "mistral", web_search: "perplexity" }, usage, warn: () => {} });
+
+    await ai.planJobSearch({
+      candidateId: "cand-1",
+      criteria: { targetRole: "DAF", locations: ["Paris"] } as unknown as SearchCriteria,
+      instructions: { titles: { text: "Variantes", route: { provider: "openai", model: "gpt-5" } }, openings: { fr: "{{intitulé}} {{lieu}}", en: "{{intitulé}} {{lieu}}" } },
+    });
+
+    expect(usage.entries).toEqual([expect.objectContaining({ outcome: "failed", reason: "key_missing", sent: false, warnings: [{ reason: "job_titles_unavailable" }] })]);
+  });
+
+  it("records the failed Company News search with its own reason, and company_news_unavailable: the Company Dossier is built without them", async () => {
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [createFakeProvider({ id: "perplexity", fail: new AiProviderError("perplexity", "HTTP 429", 429) })], routes: { web_search: "perplexity" }, usage, warn: () => {} });
+
+    expect(await ai.searchCompanyNews({ candidateId: "cand-1", employer: "Acme" })).toEqual([]);
+
+    expect(usage.entries).toEqual([expect.objectContaining({ task: "web_search", outcome: "failed", reason: "rate_limited", warnings: [{ reason: "company_news_unavailable" }] })]);
+  });
+
+  it("records a search made while its task Playbook fell back as warning", async () => {
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [createFakeProvider({ id: "perplexity" })], routes: { web_search: "perplexity" }, usage });
+
+    await ai.searchCompany({ candidateId: null, employer: "Acme", warnings: [{ reason: "task_playbook_search_not_offered", detail: "tavily advanced" }] });
+
+    expect(usage.entries[0]).toMatchObject({ outcome: "warning", reason: "task_playbook_search_not_offered" });
+  });
+
+  it("records a call whose reply its feature cannot use as warning, its reason what the feature does instead", async () => {
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [createFakeProvider({ id: "anthropic", reply: "Je ne peux pas." })], routes: { cv_parsing: "anthropic" }, usage });
+
+    const result = await ai.generate({
+      task: "cv_parsing",
+      candidateId: "cand-1",
+      prompt: "CV",
+      fallback: "cv_reading_fallback",
+      unusable: (reply) => (reply.startsWith("{") ? null : "the reply is not usable JSON"),
+    });
+
+    expect(result.text).toBe("Je ne peux pas.");
+    expect(usage.entries[0]).toMatchObject({ outcome: "warning", reason: "cv_reading_fallback", warnings: [{ reason: "cv_reading_fallback", detail: "the reply is not usable JSON" }] });
+  });
+
+  it("keeps a call whose reply its feature can use ok, its fallback unused", async () => {
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [createFakeProvider({ id: "anthropic", reply: "{}" })], routes: { cv_parsing: "anthropic" }, usage });
+
+    await ai.generate({ task: "cv_parsing", candidateId: "cand-1", prompt: "CV", fallback: "cv_reading_fallback", unusable: () => null });
+
+    expect(usage.entries[0]).toMatchObject({ outcome: "ok" });
+    expect(usage.entries[0]).not.toHaveProperty("warnings");
+  });
+
+  it("keeps a warning's detail scrubbed of keys, redacted by shape and cut at 500 characters", async () => {
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [createFakeProvider({ id: "anthropic" })], routes: { writing: "anthropic" }, usage });
+
+    await ai.generate({ task: "writing", candidateId: null, prompt: "Une lettre", warnings: [{ reason: "task_playbook_unreadable", detail: `sk-proj-4f9a1c2b7d8e3f6a5b4c marie@example.fr ${"x".repeat(600)}` }] });
+
+    const detail = usage.entries[0]!.warnings![0]!.detail!;
+    expect(detail).not.toContain("sk-proj-4f9a1c2b7d8e3f6a5b4c");
+    expect(detail).not.toContain("marie@example.fr");
+    expect(detail.length).toBeLessThanOrEqual(500);
   });
 });

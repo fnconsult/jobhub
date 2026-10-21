@@ -171,7 +171,7 @@ export interface BackOfficeDeps {
 }
 
 export interface BackOffice {
-  /** Creates a Plan, hidden; `input` is untrusted (see Billing.createPlan); nothing is recorded when refused. */
+  /** Creates a Plan, hidden; `input` is untrusted (see Billing.createPlan); a product Stripe refuses is recorded as a failed attempt, nothing else refused is. */
   createPlan(
     actor: BackOfficeActor,
     input: unknown,
@@ -204,7 +204,8 @@ export interface BackOffice {
   ): Promise<{ ok: true; candidates: number } | { ok: false; error: "reason_required" }>;
   /**
    * Creates a Coupon in Stripe; `input` is untrusted (see Billing.createCoupon). Stripe is called before the
-   * audit transaction; if the entry cannot be recorded, the code is deactivated again. Nothing is recorded when refused.
+   * audit transaction; if the entry cannot be recorded, the code is deactivated again. When Stripe refuses it, or does
+   * not answer, that is recorded as a failed attempt; nothing is recorded for any other refusal.
    */
   createCoupon(
     actor: BackOfficeActor,
@@ -212,7 +213,8 @@ export interface BackOffice {
   ): Promise<CouponResult<{ coupon: Coupon }>>;
   /**
    * Deactivates a Coupon in Stripe (see Billing.deactivateCoupon), before the audit transaction; reactivated
-   * if the entry cannot be recorded. Nothing is recorded when refused or when it was inactive already.
+   * if the entry cannot be recorded. Stripe's refusal is recorded as a failed attempt; nothing else is when refused, nor
+   * when it was inactive already.
    */
   deactivateCoupon(
     actor: BackOfficeActor,
@@ -299,6 +301,18 @@ const productOf = (input: unknown): string => {
       ? (input as { stripeProductId?: unknown }).stripeProductId
       : undefined;
   return typeof product === "string" ? product.trim() : "";
+};
+
+/** The Plan key named in an untrusted Plan form, trimmed; "" when none. */
+const keyOf = (input: unknown): string => {
+  const key = typeof input === "object" && input !== null ? (input as { key?: unknown }).key : undefined;
+  return typeof key === "string" ? key.trim() : "";
+};
+
+/** The Coupon code named in an untrusted Coupon form, trimmed and in capitals; "" when none. */
+const codeOf = (input: unknown): string => {
+  const code = typeof input === "object" && input !== null ? (input as { code?: unknown }).code : undefined;
+  return typeof code === "string" ? code.trim().toUpperCase() : "";
 };
 
 /** A Plan's quotas as recorded. */
@@ -405,7 +419,10 @@ export function createBackOffice(
     async createPlan(actor, input) {
       // Stripe is asked before the transaction opens, so none waits on it.
       const problem = await deps.billing.checkStripeProduct(productOf(input));
-      if (problem) return { ok: false, error: problem };
+      if (problem) {
+        if (problem.failure) await recordFailure(actor, { section: "plans", target: keyOf(input), tried: "added", field: "stripeProductId", ...problem.failure });
+        return { ok: false, error: problem.error };
+      }
       const created = await record(
         actor,
         (within) =>
@@ -442,7 +459,10 @@ export function createBackOffice(
         current.key !== FREE_PLAN
       ) {
         const problem = await deps.billing.checkStripeProduct(product);
-        if (problem) return { ok: false, error: problem };
+        if (problem) {
+          if (problem.failure) await recordFailure(actor, { section: "plans", target: plan, tried: "updated", field: "stripeProductId", ...problem.failure });
+          return { ok: false, error: problem.error };
+        }
         productChecked = true;
       }
       const updated = await record(
@@ -511,7 +531,10 @@ export function createBackOffice(
     async createCoupon(actor, input) {
       // Stripe is the Coupon's only home, written before the transaction opens, so none waits on it.
       const created = await deps.billing.createCoupon(input);
-      if (!created.ok) return created;
+      if (!created.ok) {
+        if (created.failure) await recordFailure(actor, { section: "coupons", target: codeOf(input), tried: "added", ...(created.error === "code_taken" ? { field: "code" } : {}), ...created.failure });
+        return { ok: false, error: created.error };
+      }
       try {
         await record(
           actor,
@@ -537,7 +560,10 @@ export function createBackOffice(
     async deactivateCoupon(actor, id) {
       // As for createCoupon: Stripe first, outside the transaction; undone there if the entry cannot be recorded.
       const deactivated = await deps.billing.deactivateCoupon(id);
-      if (!deactivated.ok) return deactivated;
+      if (!deactivated.ok) {
+        if (deactivated.failure) await recordFailure(actor, { section: "coupons", target: id, tried: "updated", ...deactivated.failure });
+        return { ok: false, error: deactivated.error };
+      }
       if (!deactivated.changed) return { ok: true };
       try {
         await record(

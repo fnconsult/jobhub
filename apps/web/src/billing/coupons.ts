@@ -12,7 +12,7 @@
  * and deactivates them; a deactivated code can no longer be redeemed, while discounts
  * already given run their course.
  */
-import { FREE_PLAN, type Plan } from "@jobhub/shared";
+import { FREE_PLAN, type Failure, type Plan } from "@jobhub/shared";
 import Stripe from "stripe";
 import * as z from "zod";
 import type { PlanDefinition } from "./plans";
@@ -81,7 +81,8 @@ export type CouponError =
   /** Stripe is not configured or could not be reached. */
   | "stripe_unavailable";
 
-export type CouponResult<T> = ({ ok: true } & T) | { ok: false; error: CouponError };
+/** `failure`: Stripe's own error, when Stripe refused the write or did not answer (#263). */
+export type CouponResult<T> = ({ ok: true } & T) | { ok: false; error: CouponError; failure?: Failure };
 
 /** The currency of fixed-amount Coupons: Jobbbox's Plans are priced in euros. */
 export const COUPON_CURRENCY = "eur";

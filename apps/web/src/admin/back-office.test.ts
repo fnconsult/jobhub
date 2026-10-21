@@ -114,9 +114,18 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
       expect(await plansOffice.updatePlan(claire, "essentiel", { ...essential, status: "offered", features: ["coachingSessionDiscount"] })).toMatchObject({ ok: true });
       expect(await plansOffice.movePlan(claire, "essentiel", "down")).toEqual({ ok: true, before: 4, after: 3 });
       expect(await plansOffice.movePlan(claire, "free", "up")).toEqual({ ok: false, error: "free_plan_built_in" });
+      expect(await plansOffice.createPlan(claire, { ...essential, key: "inconnu", stripeProductId: "prod_NotInStripe" })).toEqual({ ok: false, error: "product_not_found" });
+      expect(await plansOffice.journal({ outcome: "failed" })).toMatchObject([
+        {
+          section: "plans",
+          target: "inconnu",
+          action: "refused",
+          failure: { reason: "stripe_refused", tried: "added", field: "stripeProductId", technical: { provider: "stripe", status: 404, message: "resource_missing: No such product: 'prod_NotInStripe'" } },
+        },
+      ]);
 
       const recorded = { name: { fr: "Essentiel", en: "Essential" }, status: "hidden", stripeProductId: FAKE_STRIPE_PRODUCTS.essential, features: [] };
-      expect((await plansOffice.journal()).map(({ section, target, action, before, after }) => ({ section, target, action, before, after }))).toEqual([
+      expect((await plansOffice.journal({ outcome: "succeeded" })).map(({ section, target, action, before, after }) => ({ section, target, action, before, after }))).toEqual([
         { section: "plans", target: "essentiel", action: "updated", before: { rank: 4 }, after: { rank: 3 } },
         { section: "plans", target: "essentiel", action: "updated", before: recorded, after: { ...recorded, status: "offered", features: ["coachingSessionDiscount"] } },
         { section: "plans", target: "essentiel", action: "added", before: null, after: { ...recorded, rank: 4, quotas: { ...STARTING_PLAN_QUOTAS.premium } } },
@@ -166,6 +175,20 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
       expect(await couponsOffice.deactivateCoupon(claire, created.coupon.id)).toMatchObject({ ok: true });
       expect(await couponsOffice.deactivateCoupon(claire, "promo_unknown")).toEqual({ ok: false, error: "unknown_coupon" });
 
+      // Refused by Stripe: in the Journal as failed, with Stripe's code and message (#263).
+      expect(await couponsOffice.journal({ section: "coupons", outcome: "failed" })).toMatchObject([
+        {
+          target: "promo_unknown",
+          action: "refused",
+          failure: {
+            reason: "stripe_refused",
+            tried: "updated",
+            field: null,
+            technical: { class: "StripeInvalidRequestError", provider: "stripe", status: 404, message: "resource_missing: No such promotion code: 'promo_unknown'" },
+          },
+        },
+      ]);
+
       const terms = {
         code: "PRINTEMPS50",
         discount: { percentOff: 50 },
@@ -175,7 +198,7 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
         maxRedemptions: 100,
         firstPaymentOnly: true,
       };
-      expect((await couponsOffice.journal({ section: "coupons" })).map(({ section, target, action, before, after }) => ({ section, target, action, before, after }))).toEqual([
+      expect((await couponsOffice.journal({ section: "coupons", outcome: "succeeded" })).map(({ section, target, action, before, after }) => ({ section, target, action, before, after }))).toEqual([
         { section: "coupons", target: "PRINTEMPS50", action: "updated", before: { active: true }, after: { active: false } },
         { section: "coupons", target: "PRINTEMPS50", action: "added", before: null, after: terms },
       ]);

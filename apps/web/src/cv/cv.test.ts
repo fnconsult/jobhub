@@ -1,4 +1,4 @@
-import { AiConfigError, createAiLayer, type AiLayer } from "@jobhub/ai";
+import { AiConfigError, AiProviderError, createAiLayer, type AiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import { describe, expect, it, vi } from "vitest";
 import { draftFromCv } from "./index";
@@ -293,6 +293,35 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
 
       expect(draft.masterCv.fullName).toBe("Marie Dupont");
       expect(draft.masterCv.experience).toHaveLength(2);
+    });
+
+    it("records the failed AI reading with its own Failure Reason, and cv_reading_fallback: the CV is read by rules (#260)", async () => {
+      const usage = createMemoryUsageLog();
+      const ai = createAiLayer({ providers: [createFakeProvider({ fail: new AiProviderError("anthropic", "HTTP 503", 503) })], routes: { cv_parsing: "anthropic" }, usage });
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      try {
+        await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai: () => ai, candidateId: "c1" });
+      } finally {
+        warn.mockRestore();
+      }
+
+      expect(usage.entries).toEqual([expect.objectContaining({ task: "cv_parsing", outcome: "failed", reason: "provider_unavailable", warnings: [{ reason: "cv_reading_fallback" }] })]);
+    });
+
+    it("records an AI reading whose reply is not the CV's JSON as warning cv_reading_fallback, naming no part of the CV (#260)", async () => {
+      const usage = createMemoryUsageLog();
+      const ai = createAiLayer({ providers: [createFakeProvider({ reply: "Voici le CV de Marie Dupont, directrice financière." })], routes: { cv_parsing: "anthropic" }, usage });
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      try {
+        const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai: () => ai, candidateId: "c1" });
+        expect(draft.masterCv.fullName).toBe("Marie Dupont");
+      } finally {
+        warn.mockRestore();
+      }
+
+      expect(usage.entries).toEqual([expect.objectContaining({ outcome: "warning", reason: "cv_reading_fallback", warnings: [{ reason: "cv_reading_fallback", detail: "the reply is not usable JSON" }] })]);
     });
 
     it("falls back to the rule-based reading, with one warning naming the missing setting, when the AI configuration is invalid", async () => {

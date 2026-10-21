@@ -63,14 +63,25 @@ function jsonIn(reply: string): unknown {
 /**
  * `ai` is resolved here, inside the fallback: an invalid AI configuration
  * (`AiConfigError`, whose message names the missing setting, never its value)
- * falls back to the rule-based outline like any other AI failure.
+ * falls back to the rule-based outline like any other AI failure. A failed call, or one
+ * whose reply is not usable JSON, is recorded with `cv_reading_fallback` (#260); an AI
+ * layer that cannot be built makes no call, so its warning stays on the console.
  */
 export async function readCvWithAi(cvText: string, ai: () => AiLayer, candidateId: string, taskPlaybooks?: TaskPlaybookReader): Promise<CvDraft | null> {
   let reply: string;
   try {
     const layer = ai();
     const run = await taskRun(taskPlaybooks, "cv-reading", layer);
-    ({ text: reply } = await layer.generate({ task: "cv_parsing", candidateId, system: `${run.text()}\n${SHAPE}`, prompt: `CV :\n${cvText}`, containsIdentity: true, ...run.agent }));
+    ({ text: reply } = await layer.generate({
+      task: "cv_parsing",
+      candidateId,
+      system: `${run.text()}\n${SHAPE}`,
+      prompt: `CV :\n${cvText}`,
+      containsIdentity: true,
+      ...run.agent,
+      fallback: "cv_reading_fallback",
+      unusable: (text) => (readingSchema.safeParse(jsonIn(text)).success ? null : NOT_USABLE),
+    }));
   } catch (error) {
     console.warn("[cv] AI reading of a CV failed, using the rule-based outline:", error instanceof Error ? error.message : error);
     return null;
@@ -82,3 +93,6 @@ export async function readCvWithAi(cvText: string, ai: () => AiLayer, candidateI
   }
   return parsed.data;
 }
+
+/** Why a reply is not used: written by the code, never a part of the CV. */
+const NOT_USABLE = "the reply is not usable JSON";

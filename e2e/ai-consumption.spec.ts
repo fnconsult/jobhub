@@ -224,4 +224,31 @@ test.describe("AI consumption and AI message logs", () => {
       for (const technical of ["AiProviderError", "upstream unavailable", admin.aiMessages.why]) expect(text, path).not.toContain(technical);
     }
   });
+
+  test("the counts per Failure Reason grow by exactly the failed calls made, on Consommation IA and on the Tool's page (#262)", async ({ page, browser }) => {
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    const reasonCount = async (path: string, caption: string) => {
+      await page.goto(path);
+      const row = page.getByRole("table", { name: caption }).getByRole("row").filter({ hasText: "provider_unavailable" });
+      if ((await row.count()) === 0) return 0;
+      return Number(await row.first().getByRole("cell").last().innerText());
+    };
+    const toolCaption = tr(admin.tools.reasonsCaption, { name: "Mistral AI" });
+    const beforeReport = await reasonCount("/admin/consommation-ia", admin.aiUsage.reasonsCaption);
+    const beforeTool = await reasonCount("/admin/outils/mistral", toolCaption);
+
+    // Two Candidates each talk to the Coach once: the Guardrails' AI check fails (503) once per message.
+    for (const prefix of ["reasons-count-a", "reasons-count-b"]) {
+      const candidate = await personPage(browser, newAddress(prefix));
+      const talked = await candidate.request.post("/api/coach", { headers: { origin }, data: { message: "E2E_GUARDRAIL_DOWN Comment relancer Acme ?" } });
+      expect(talked.status(), await talked.text()).toBe(200);
+    }
+
+    await expect(async () => {
+      expect(await reasonCount("/admin/consommation-ia", admin.aiUsage.reasonsCaption)).toBe(beforeReport + 2);
+    }).toPass();
+    await expect(async () => {
+      expect(await reasonCount("/admin/outils/mistral", toolCaption)).toBe(beforeTool + 2);
+    }).toPass();
+  });
 });

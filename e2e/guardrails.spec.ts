@@ -518,6 +518,27 @@ test.describe("Guardrails: untrusted content reaches the AI Coach and the Playbo
 });
 
 test.describe("Guardrail Triggers: why a Guardrail could not check (#261)", () => {
+  test("each cause of an unavailable check records its Failure Reason code: no verdict in time, a verdict that is not JSON, a failed AI call", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("gr-reasons"));
+    const lastReason = (guardrail: string) =>
+      withDatabase(async (db) => (await db.query("SELECT reason FROM guardrail_trigger WHERE action = 'unavailable' AND guardrail = $1 ORDER BY id DESC LIMIT 1", [guardrail])).rows[0]?.reason);
+    const cases = [
+      { marker: "E2E_GUARDRAIL_SLOW", reason: "guardrail_timeout" },
+      { marker: "E2E_GUARDRAIL_GARBLED", reason: "invalid_verdict" },
+      { marker: "E2E_GUARDRAIL_DOWN", reason: "provider_error" },
+    ];
+    for (const each of cases) {
+      let sent!: Sent;
+      const count = await recorded("prompt_injection", "unavailable", "ai_coach", async () => {
+        sent = await send(page, `${each.marker} Bonjour`);
+      });
+      // The check could not decide: the message goes through, and the trigger says why.
+      expect(sent.blocked, each.marker).toEqual({ message: false, reply: false });
+      expect(count, each.marker).toBe(1);
+      expect(await lastReason("prompt_injection"), each.marker).toBe(each.reason);
+    }
+  });
+
   test("Garde-fous counts the unavailable checks per Failure Reason, in French; one recorded before reasons were shows « raison non enregistrée »; Support reads them", async ({ page, browser }) => {
     // A day of the last 30 no other test writes to, for one Guardrail: its counts are this test's own.
     const at = new Date(Date.now() - 20 * 86_400_000);

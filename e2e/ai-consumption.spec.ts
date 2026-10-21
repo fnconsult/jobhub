@@ -230,7 +230,7 @@ test.describe("AI consumption and AI message logs", () => {
     }
   });
 
-  test("the counts per Failure Reason grow by exactly the failed calls made, on Consommation IA and on the Tool's page (#262)", async ({ page, browser }) => {
+  test("the counts per Failure Reason grow by the failed calls made, on Consommation IA and on the Tool's page (#262)", async ({ page, browser }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
     const reasonCount = async (path: string, caption: string) => {
       await page.goto(path);
@@ -249,11 +249,13 @@ test.describe("AI consumption and AI message logs", () => {
       expect(talked.status(), await talked.text()).toBe(200);
     }
 
+    // At least these two: other spec files run in parallel (guardrails, ai) and may fail Mistral calls
+    // the same way meanwhile, so an exact count fails at random.
     await expect(async () => {
-      expect(await reasonCount("/admin/consommation-ia", admin.aiUsage.reasonsCaption)).toBe(beforeReport + 2);
+      expect(await reasonCount("/admin/consommation-ia", admin.aiUsage.reasonsCaption)).toBeGreaterThanOrEqual(beforeReport + 2);
     }).toPass();
     await expect(async () => {
-      expect(await reasonCount("/admin/outils/mistral", toolCaption)).toBe(beforeTool + 2);
+      expect(await reasonCount("/admin/outils/mistral", toolCaption)).toBeGreaterThanOrEqual(beforeTool + 2);
     }).toPass();
   });
 });

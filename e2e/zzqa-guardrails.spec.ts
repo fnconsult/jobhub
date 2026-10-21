@@ -8,8 +8,8 @@ test("qa261", async ({ browser }) => {
   await db.query("DELETE FROM guardrail_trigger WHERE guardrail='harmful_advice'");
   for (const r of ["provider_error", "provider_error", null]) await db.query("INSERT INTO guardrail_trigger (guardrail,setting,action,agent,at,reason) VALUES ('harmful_advice','block','unavailable','ai_coach',$1,$2)", [at, r]);
   await db.query("INSERT INTO guardrail_trigger (guardrail,setting,action,agent,at) VALUES ('harmful_advice','block','blocked','ai_coach',$1)", [at]);
-  let bad = ""; try { await db.query("INSERT INTO guardrail_trigger (guardrail,setting,action,agent,at,reason) VALUES ('harmful_advice','block','blocked','ai_coach',now(),'provider_error')"); } catch (e: any) { bad = e.code; }
-  try { await db.query("INSERT INTO guardrail_trigger (guardrail,setting,action,agent,at,reason) VALUES ('harmful_advice','block','unavailable','ai_coach',now(),'bogus')"); } catch (e: any) { bad += " " + e.code; }
+  let bad = ""; try { await db.query("INSERT INTO guardrail_trigger (guardrail,setting,action,agent,at,reason) VALUES ('harmful_advice','block','blocked','ai_coach',now(),'provider_error')"); } catch (e) { bad = (e as { code?: string }).code ?? ""; }
+  try { await db.query("INSERT INTO guardrail_trigger (guardrail,setting,action,agent,at,reason) VALUES ('harmful_advice','block','unavailable','ai_coach',now(),'bogus')"); } catch (e) { bad += " " + (e as { code?: string }).code; }
   console.log("CHECK-VIOLATIONS", bad);
   for (const locale of ["fr-FR", "en-US"]) {
     const ctx = await browser.newContext({ baseURL: process.env.E2E_WEB_ORIGIN, locale });

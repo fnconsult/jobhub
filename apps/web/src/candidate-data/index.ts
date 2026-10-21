@@ -37,6 +37,7 @@ import type { CoachingSession, CoachReview } from "../human-coaches";
 import type { ChosenFrequency } from "../job-digests";
 import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
 import type { MasterCvVersion, Profiles } from "../profiles";
+import { rescheduleHistories } from "../reschedules";
 import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
 import type { ApplicationDrafts, TailoredDocuments } from "../tailored-documents";
 
@@ -199,14 +200,17 @@ export interface CandidateDataExport {
   backOfficeAssistantConversations: ExportedAssistantConversation[];
   /** The Human Coaches the Candidate granted Coach Access to, oldest first. */
   coachAccess: { coach: CoachNamed; grantedAt: Date }[];
-  /** The Coaching Sessions the Candidate paid for, newest first, with the date, duration, video link and note entered and who last changed the date; never the Human Coach's booking link. */
+  /**
+   * The Coaching Sessions the Candidate paid for, newest first, with the date, duration, video link and note entered, who last changed the date,
+   * and their Reschedule history (cancellations included); never the Human Coach's booking link.
+   */
   coachingSessions: (Omit<CoachingSession, "coach"> & { coach: CoachNamed })[];
   /** Every Action Card the AI Coach proposed, pending or decided, newest first. */
   actionCards: ExportedActionCard[];
   /**
    * What the Candidate's own AI calls said in the last 30 days (the AI Message Log), newest first:
    * prompt and reply, secrets scrubbed, without what each cost; how each ended, with a failed call's
-   * Failure Reason code and French wording, never its technical reason (ADR-0030).
+   * Failure Reason code and French wording, never its technical reason (ADR-0030), and its warnings' (#260).
    */
   aiMessageLog: ExportedAiMessageLog[];
   /** What the Candidate confirmed the AI Coach should remember, oldest first. */
@@ -216,6 +220,9 @@ export interface CandidateDataExport {
   /** Newest first. */
   applications: ExportedApplication[];
 }
+
+/** A Failure Reason as the Data export holds it: its code and French wording. */
+const worded = (code: FailureReason) => ({ code, wording: failureReasonWording(code) });
 
 /** One AI Message Log entry, as the Candidate's Data export holds it. */
 export interface ExportedAiMessageLog {
@@ -228,6 +235,8 @@ export interface ExportedAiMessageLog {
   outcome: Outcome;
   /** Why it failed or warned; null when ok (and for a failure recorded before reasons were). */
   reason: { code: FailureReason; wording: string } | null;
+  /** What its feature did instead (#260), each code with its wording; never what happened, which is technical. */
+  warnings: { code: FailureReason; wording: string }[];
   system: string | null;
   messages: { role: string; content: string }[];
   reply: string | null;
@@ -254,7 +263,8 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   job_digest_subscription: "profiles[].jobDigest (no unsubscribe token)",
   job_digest: "profiles[].jobDigests",
   application: "applications",
-  interview: "applications[].interviews (with their duration, format and place)",
+  interview: "applications[].interviews (with their duration, format, place and date of cancellation)",
+  interview_reschedule: "applications[].interviews[].reschedules (their Reschedule history)",
   tailored_cv: "applications[].tailoredDocuments",
   tailored_document: "applications[].tailoredDocuments",
   follow_up_sent: "applications[].followUps",
@@ -265,11 +275,12 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coach_message: "coachConversations[].messages (blocked ones marked, a Job Offer card's Job Offer named; no AI costs)",
   coach_access: "coachAccess",
   coaching_session: "coachingSessions, with their date, duration, video link, note and who last changed the date (no Stripe identifiers, no booking link)",
+  coaching_session_reschedule: "coachingSessions[].reschedules (their Reschedule history, cancellations included)",
   action_card: "actionCards",
   coach_memory_item: "coachMemory",
   back_office_assistant_conversation: "backOfficeAssistantConversations",
   back_office_assistant_message: "backOfficeAssistantConversations[].messages (blocked ones marked; no AI costs)",
-  ai_message_log: "aiMessageLog (no AI costs, a Failure Reason's code and wording but not its technical reason)",
+  ai_message_log: "aiMessageLog (no AI costs, a Failure Reason's and warnings' code and wording but not their technical detail)",
 };
 
 /**
@@ -458,6 +469,21 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
     }));
   }
 
+  async function exportCoachingSessions(candidateId: string): Promise<CandidateDataExport["coachingSessions"]> {
+    const sessions = await rowsOf<Omit<CandidateDataExport["coachingSessions"][number], "reschedules">>(
+      `SELECT s.id, json_build_object('id', h.id, 'name', h.name) AS coach, s.amount, s.currency, s.paid_at AS "paidAt",
+              s.scheduled_at AS "scheduledAt", s.duration_minutes AS "durationMinutes", s.video_link AS "videoLink", s.note, s.changed_by AS "changedBy"
+         FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id WHERE s.candidate_id = $1 ORDER BY s.paid_at DESC, s.id`,
+      candidateId,
+    );
+    const histories = await rescheduleHistories(
+      database,
+      "coaching_session",
+      sessions.map((session) => session.id),
+    );
+    return sessions.map((session) => ({ ...session, reschedules: histories.get(session.id)! }));
+  }
+
   async function exportAssistantConversations(candidateId: string): Promise<ExportedAssistantConversation[]> {
     const [conversations, messagesOf] = await Promise.all([
       rowsOf<Omit<ExportedAssistantConversation, "messages">>(
@@ -496,12 +522,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
              FROM coach_access a JOIN human_coach h ON h.id = a.coach_id WHERE a.candidate_id = $1 ORDER BY a.granted_at, h.id`,
           candidateId,
         ),
-        rowsOf<CandidateDataExport["coachingSessions"][number]>(
-          `SELECT s.id, json_build_object('id', h.id, 'name', h.name) AS coach, s.amount, s.currency, s.paid_at AS "paidAt",
-                  s.scheduled_at AS "scheduledAt", s.duration_minutes AS "durationMinutes", s.video_link AS "videoLink", s.note, s.changed_by AS "changedBy"
-             FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id WHERE s.candidate_id = $1 ORDER BY s.paid_at DESC, s.id`,
-          candidateId,
-        ),
+        exportCoachingSessions(candidateId),
         rowsOf<ExportedActionCard>(
           `SELECT id, kind, title, body, json_build_object('kind', focus_kind, 'id', focus_id) AS focus, payload, status, created_at AS "createdAt", decided_at AS "decidedAt"
              FROM action_card WHERE candidate_id = $1 ORDER BY created_at DESC, id`,
@@ -511,11 +532,17 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           `SELECT id, kind, text, created_at AS "createdAt", updated_at AS "updatedAt" FROM coach_memory_item WHERE candidate_id = $1 ORDER BY created_at, id`,
           candidateId,
         ),
-        rowsOf<Omit<ExportedAiMessageLog, "reason"> & { reason: string | null }>(
-          `SELECT m.id, m.at, u.task, u.provider, u.model, u.outcome, u.reason, m.system, m.messages, m.reply
+        rowsOf<Omit<ExportedAiMessageLog, "reason" | "warnings"> & { reason: string | null; warnings: string[] }>(
+          `SELECT m.id, m.at, u.task, u.provider, u.model, u.outcome, u.reason, u.warnings, m.system, m.messages, m.reply
              FROM ai_message_log m JOIN ai_usage u ON u.id = m.usage_id WHERE m.candidate_id = $1 ORDER BY m.at DESC, m.id`,
           candidateId,
-        ).then((logs) => logs.map(({ reason, ...log }): ExportedAiMessageLog => ({ ...log, reason: isFailureReason(reason) ? { code: reason, wording: failureReasonWording(reason) } : null }))),
+        ).then((logs) =>
+          logs.map(({ reason, warnings, ...log }): ExportedAiMessageLog => ({
+            ...log,
+            reason: isFailureReason(reason) ? worded(reason) : null,
+            warnings: warnings.filter(isFailureReason).map(worded),
+          })),
+        ),
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);

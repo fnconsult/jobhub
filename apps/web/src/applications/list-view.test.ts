@@ -54,9 +54,9 @@ describe("the Applications list's filters and sorting", () => {
 
   it("sorts by job offer, Profile, Status in the pipeline's order, or next interview to come (none last)", () => {
     const all = [
-      application("1", { jobOffer: { id: "o1", title: "Contrôleur" }, status: "interview", interviews: [{ id: "i", scheduledAt: new Date("2026-10-25T09:00:00Z"), note: "", durationMinutes: null, format: null, place: "" }] }),
+      application("1", { jobOffer: { id: "o1", title: "Contrôleur" }, status: "interview", interviews: [{ id: "i", scheduledAt: new Date("2026-10-25T09:00:00Z"), note: "", durationMinutes: null, format: null, place: "", cancelledAt: null, reschedules: [] }] }),
       application("2", { jobOffer: { id: "o2", title: "Acheteur" }, status: "to_apply", profileName: "Zoé" }),
-      application("3", { jobOffer: { id: "o3", title: "Directeur" }, status: "offer_received", interviews: [{ id: "j", scheduledAt: new Date("2026-10-21T09:00:00Z"), note: "", durationMinutes: null, format: null, place: "" }] }),
+      application("3", { jobOffer: { id: "o3", title: "Directeur" }, status: "offer_received", interviews: [{ id: "j", scheduledAt: new Date("2026-10-21T09:00:00Z"), note: "", durationMinutes: null, format: null, place: "", cancelledAt: null, reschedules: [] }] }),
     ];
     expect(ids(viewApplications(all, view({ tri: "offre" }), "fr", now))).toEqual(["2", "1", "3"]);
     expect(ids(viewApplications(all, view({ tri: "offre", ordre: "desc" }), "fr", now))).toEqual(["3", "1", "2"]);
@@ -64,6 +64,16 @@ describe("the Applications list's filters and sorting", () => {
     expect(ids(viewApplications(all, view({ tri: "statut" }), "fr", now))).toEqual(["2", "1", "3"]);
     expect(ids(viewApplications(all, view({ tri: "entretiens" }), "fr", now))).toEqual(["3", "1", "2"]);
     expect(ids(viewApplications(all, view({ tri: "entretiens", ordre: "desc" }), "fr", now))).toEqual(["1", "3", "2"]);
+  });
+
+  it("leaves a Cancelled Interview out of the next interview to come", () => {
+    const interview = (id: string, scheduledAt: string, cancelledAt: Date | null) => ({ id, scheduledAt: new Date(scheduledAt), note: "", durationMinutes: null, format: null, place: "", cancelledAt, reschedules: [] });
+    const all = [
+      application("1", { interviews: [interview("i", "2026-10-21T09:00:00Z", now), interview("i2", "2026-10-30T09:00:00Z", null)] }),
+      application("2", { interviews: [interview("j", "2026-10-25T09:00:00Z", null)] }),
+      application("3", { interviews: [interview("k", "2026-10-20T09:00:00Z", now)] }),
+    ];
+    expect(ids(viewApplications(all, view({ tri: "entretiens" }), "fr", now))).toEqual(["2", "1", "3"]);
   });
 
   it("writes the view back into an address, defaults left out", () => {

@@ -347,6 +347,100 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
       expect(await coaches.sessions(marie)).toEqual([expect.objectContaining({ scheduledAt: null })]);
     });
 
+    describe("Reschedules and cancelling (fixed clock)", () => {
+      /** What the clock says: starts on Tuesday 20 October 2026, 10:00 French time. */
+      let now: Date;
+      let clocked: HumanCoaches;
+      const later = (minutes: number) => {
+        now = new Date(now.getTime() + minutes * 60_000);
+      };
+
+      beforeEach(() => {
+        now = new Date("2026-10-20T08:00:00.000Z");
+        clocked = createHumanCoaches(database, { profiles, applications, tailoredDocuments: { get: async () => null }, tailoredCvs: { get: async () => null }, now: () => now });
+      });
+
+      /** Marie's Coaching Session with Sophie, its date entered now: 22 October, 14:00 French time. */
+      async function datedSession() {
+        const paid = await paidSession();
+        await clocked.scheduleSession(paid.marie, paid.session.id, { scheduledAt: "2026-10-22T14:00" });
+        return paid;
+      }
+
+      it("records nothing when the Candidate changes the date 30 minutes after entering it, and a Reschedule 2 hours after", async () => {
+        const { marie, session } = await datedSession();
+
+        later(30);
+        await clocked.scheduleSession(marie, session.id, { scheduledAt: "2026-10-22T15:00" });
+        expect((await clocked.sessions(marie))[0]!.reschedules).toEqual([]);
+
+        later(120);
+        const rescheduled = await clocked.scheduleSession(marie, session.id, { scheduledAt: "2026-10-23T09:00" });
+        expect(rescheduled).toMatchObject({
+          ok: true,
+          session: { scheduledAt: new Date("2026-10-23T07:00:00.000Z"), reschedules: [{ previousAt: new Date("2026-10-22T13:00:00.000Z"), newAt: new Date("2026-10-23T07:00:00.000Z"), by: "candidate", at: now }] },
+        });
+      });
+
+      it("the Candidate cancels it: its date is cleared, back to Unscheduled, the cancellation kept in its history", async () => {
+        const { marie, session } = await datedSession();
+        later(10);
+
+        expect(await clocked.cancelSession(marie, session.id)).toMatchObject({
+          ok: true,
+          session: { scheduledAt: null, reschedules: [{ previousAt: new Date("2026-10-22T12:00:00.000Z"), newAt: null, by: "candidate", at: now }] },
+        });
+        expect((await clocked.sessions(marie))[0]).toMatchObject({ scheduledAt: null });
+      });
+
+      it("a date entered again after a cancellation is no Reschedule; changing it later is one", async () => {
+        const { marie, session } = await datedSession();
+        later(240);
+        await clocked.cancelSession(marie, session.id);
+        later(240);
+        await clocked.scheduleSession(marie, session.id, { scheduledAt: "2026-10-29T14:00" });
+        later(30);
+        await clocked.scheduleSession(marie, session.id, { scheduledAt: "2026-10-29T15:00" });
+        later(120);
+        await clocked.scheduleSession(marie, session.id, { scheduledAt: "2026-10-30T15:00" });
+
+        expect((await clocked.sessions(marie))[0]!.reschedules.map(({ previousAt, newAt }) => [previousAt.toISOString(), newAt?.toISOString() ?? null])).toEqual([
+          ["2026-10-22T12:00:00.000Z", null],
+          ["2026-10-29T14:00:00.000Z", "2026-10-30T14:00:00.000Z"],
+        ]);
+      });
+
+      it("its Human Coach cancels it too, recorded as theirs; no other Human Coach can, nor a retired one", async () => {
+        const { sophie, marie, session } = await datedSession();
+        const other = await clocked.add({ name: "Paul Durand", email: "paul.durand@rh-conseil.fr", bookingUrl: "https://cal.com/paul-durand/seance" });
+        if (!other.ok) throw new Error("fixture refused");
+
+        expect(await clocked.cancelCoachedSession(other.coach.id, session.id)).toEqual({ ok: false, error: "not_found" });
+        expect(await clocked.cancelCoachedSession(sophie.id, "not-a-session")).toEqual({ ok: false, error: "not_found" });
+        expect((await clocked.sessions(marie))[0]).toMatchObject({ scheduledAt: new Date("2026-10-22T12:00:00.000Z") });
+
+        expect(await clocked.cancelCoachedSession(sophie.id, session.id)).toEqual({ ok: true });
+        expect((await clocked.sessions(marie))[0]).toMatchObject({ scheduledAt: null, reschedules: [{ newAt: null, by: "coach" }] });
+
+        await clocked.scheduleSession(marie, session.id, { scheduledAt: "2026-10-29T14:00" });
+        await clocked.retire(sophie.id);
+        expect(await clocked.cancelCoachedSession(sophie.id, session.id)).toEqual({ ok: false, error: "not_found" });
+      });
+
+      it("a Candidate cancels only their own Coaching Sessions; cancelling an Unscheduled one changes nothing", async () => {
+        const { marie, session } = await datedSession();
+        const paul = await signUp("paul.martin@example.fr");
+
+        expect(await clocked.cancelSession(paul, session.id)).toEqual({ ok: false, error: "not_found" });
+        expect(await clocked.cancelSession(paul, "not-a-session")).toEqual({ ok: false, error: "not_found" });
+        expect((await clocked.sessions(marie))[0]).toMatchObject({ scheduledAt: new Date("2026-10-22T12:00:00.000Z") });
+
+        await clocked.cancelSession(marie, session.id);
+        await clocked.cancelSession(marie, session.id);
+        expect((await clocked.sessions(marie))[0]!.reschedules).toHaveLength(1);
+      });
+    });
+
     it("a Retired Human Coach's Coaching Sessions keep their date", async () => {
       const { sophie, marie, session } = await paidSession();
       await coaches.scheduleSession(marie, session.id, { scheduledAt: "2026-10-13T10:00" });
@@ -381,8 +475,8 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
 
         // « À planifier » first, then the dated ones, latest first.
         expect(sessions).toEqual([
-          { id: expect.any(String), candidateName: "éric T.", paidAt: expect.any(Date), scheduledAt: null, durationMinutes: null, videoLink: null },
-          { id: marieWithSophie!.id, candidateName: "Marie D.", paidAt: expect.any(Date), scheduledAt: new Date("2026-10-22T12:30:00.000Z"), durationMinutes: 60, videoLink: "https://meet.google.com/abc" },
+          { id: expect.any(String), candidateName: "éric T.", paidAt: expect.any(Date), scheduledAt: null, durationMinutes: null, videoLink: null, reschedules: [] },
+          { id: marieWithSophie!.id, candidateName: "Marie D.", paidAt: expect.any(Date), scheduledAt: new Date("2026-10-22T12:30:00.000Z"), durationMinutes: 60, videoLink: "https://meet.google.com/abc", reschedules: [] },
         ]);
         expect(JSON.stringify(sessions)).not.toContain("Mon pitch.");
         expect(JSON.stringify(sessions)).not.toContain("example.fr");

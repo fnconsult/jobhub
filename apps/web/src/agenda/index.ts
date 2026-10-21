@@ -7,17 +7,23 @@
  * One deep module in front of Postgres. Callers get `createAgenda(database)`:
  *  - `days`: the signed-in Candidate's Agenda Items for a period, grouped by day
  *    in French time (Europe/Paris, like Interviews), ready to show;
+ *  - `daysBetween`: their Agenda Items from one day to another, for a week or
+ *    month view (see `./calendar`), oldest first, past and upcoming alike;
  *  - `unscheduled`: their Unscheduled Coaching Sessions (paid, no date yet), for
  *    the « À planifier » box, with each Human Coach's booking link.
  *  - "upcoming": from the start of today on, oldest first, so that today's
  *    items stay together, even those earlier today;
  *  - "past": before today, newest first (days and the items within them).
  * Today is `now`'s day in French time; `agendaPeriod` says where an instant goes.
+ * Each item and Unscheduled Coaching Session comes with its Reschedule history; a
+ * Cancelled Interview stays, with its date of cancellation.
  * Every read is scoped to the Candidate.
  */
 import type { Pool } from "pg";
-import { INTERVIEW_TIME_ZONE, interviewDayStart, type Interview } from "../applications";
+import { frenchDayStart, interviewDayStart, type Interview } from "../applications";
+import { dayAfter, frenchDay } from "./calendar";
 import type { SessionEditor } from "../human-coaches";
+import { rescheduleHistories, type Reschedule } from "../reschedules";
 
 /** One Interview, as the Agenda shows it; it leads to its Application's Interviews Section. */
 export interface InterviewAgendaItem extends Pick<Interview, "scheduledAt" | "durationMinutes" | "format" | "place"> {
@@ -31,8 +37,10 @@ export interface InterviewAgendaItem extends Pick<Interview, "scheduledAt" | "du
   employer?: string;
   /** What the Candidate noted about it, e.g. "avec la DRH", when they did. */
   note?: string;
-  /** When the Candidate cancelled it: a Cancelled Agenda Item stays on the Agenda, struck through (#250). */
+  /** When the Candidate cancelled it: a Cancelled Agenda Item stays on the Agenda, struck through. */
   cancelledAt?: Date;
+  /** Its Reschedule history, oldest first. */
+  reschedules: Reschedule[];
 }
 
 /** One dated Coaching Session, as the Agenda shows it; it leads to its Human Coach on the Human Coaches page. */
@@ -47,6 +55,8 @@ export interface CoachingSessionAgendaItem {
   note?: string;
   /** Who last entered or changed its date: « modifié par le coach » for "coach". */
   changedBy: SessionEditor;
+  /** Its Reschedule history, oldest first: a cancellation before it was dated again included. */
+  reschedules: Reschedule[];
 }
 
 export type AgendaItem = InterviewAgendaItem | CoachingSessionAgendaItem;
@@ -56,6 +66,8 @@ export interface UnscheduledCoachingSession {
   id: string;
   coach: { id: string; name: string; bookingUrl: string };
   paidAt: Date;
+  /** Its Reschedule history, oldest first: its cancellation, when it was dated before. */
+  reschedules: Reschedule[];
 }
 
 /** One day of the Agenda, in French time, with its items in the period's order. */
@@ -70,15 +82,45 @@ export type AgendaPeriod = "upcoming" | "past";
 export interface Agenda {
   /** The Candidate's Agenda Items for `period`, split at the start of `now`'s day, grouped by day in French time. */
   days(candidateId: string, options: { period: AgendaPeriod; now: Date }): Promise<AgendaDay[]>;
-  /** The Candidate's Unscheduled Coaching Sessions, oldest paid first. Never in `days`. */
+  /** The Candidate's Agenda Items from the start of `first` to the end of `last` (days in French time), grouped by day, oldest first. */
+  daysBetween(candidateId: string, days: { first: string; last: string }): Promise<AgendaDay[]>;
+  /** The Candidate's Unscheduled Coaching Sessions, oldest paid first. Never in `days` nor `daysBetween`. */
   unscheduled(candidateId: string): Promise<UnscheduledCoachingSession[]>;
 }
 
-const DAY = new Intl.DateTimeFormat("en-CA", { timeZone: INTERVIEW_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit" });
+/** Which Agenda Items a read takes: from `from` on, and before `before`, when they say; in time order, or the reverse. */
+interface Window {
+  from?: Date;
+  before?: Date;
+  newestFirst: boolean;
+}
 
-/** The day `instant` falls on in French time, "2026-10-22". */
-function agendaDay(instant: Date): string {
-  return DAY.format(instant);
+/** The window of an Agenda period, split at the start of `now`'s day in French time. */
+const periodWindow = (period: AgendaPeriod, now: Date): Window =>
+  period === "upcoming" ? { from: interviewDayStart(now), newestFirst: false } : { before: interviewDayStart(now), newestFirst: true };
+
+/** The SQL condition on `column` for `window`, its parameters numbered from $2. */
+function windowCondition(column: string, window: Window): { sql: string; values: Date[] } {
+  const conditions: string[] = [];
+  const values: Date[] = [];
+  if (window.from) conditions.push(`${column} >= $${values.push(window.from) + 1}`);
+  if (window.before) conditions.push(`${column} < $${values.push(window.before) + 1}`);
+  return { sql: conditions.join(" AND "), values };
+}
+
+/** Agenda Items in their window's order, grouped by day in French time. */
+function byDay(items: AgendaItem[], window: Window): AgendaDay[] {
+  const direction = window.newestFirst ? -1 : 1;
+  // Each source comes in the window's order; sorting is stable, so that order holds for items at the same time.
+  const sorted = [...items].sort((a, b) => direction * (a.scheduledAt.getTime() - b.scheduledAt.getTime()));
+  const days: AgendaDay[] = [];
+  for (const item of sorted) {
+    const day = frenchDay(item.scheduledAt);
+    const last = days.at(-1);
+    if (last?.day === day) last.items.push(item);
+    else days.push({ day, items: [item] });
+  }
+  return days;
 }
 
 /** The period an Agenda Item at `instant` is in: "upcoming" from the start of today (`now`'s day in French time) on, "past" before. */
@@ -87,9 +129,10 @@ export function agendaPeriod(instant: Date, now: Date): AgendaPeriod {
 }
 
 export function createAgenda(database: Pool): Agenda {
-  /** The Candidate's Interviews in `period`, in its order. */
-  async function interviews(candidateId: string, period: AgendaPeriod, now: Date): Promise<AgendaItem[]> {
-    const upcoming = period === "upcoming";
+  /** The Candidate's Interviews in `window`, in its order. */
+  async function interviews(candidateId: string, window: Window): Promise<AgendaItem[]> {
+    const condition = windowCondition("i.scheduled_at", window);
+    const order = window.newestFirst ? "DESC" : "ASC";
     const { rows } = await database.query<{
       id: string;
       scheduled_at: Date;
@@ -100,14 +143,20 @@ export function createAgenda(database: Pool): Agenda {
       application_id: string;
       title: string;
       employer: string | null;
+      cancelled_at: Date | null;
     }>(
-      `SELECT i.id, i.scheduled_at, i.duration_minutes, i.format, i.place, i.note, a.id AS application_id, o.title, o.employer
+      `SELECT i.id, i.scheduled_at, i.duration_minutes, i.format, i.place, i.note, i.cancelled_at, a.id AS application_id, o.title, o.employer
          FROM interview i
          JOIN application a ON a.id = i.application_id
          JOIN job_offer o ON o.id = a.job_offer_id
-        WHERE a.candidate_id = $1 AND ${upcoming ? "i.scheduled_at >= $2" : "i.scheduled_at < $2"}
-        ORDER BY i.scheduled_at ${upcoming ? "ASC" : "DESC"}, i.created_at ${upcoming ? "ASC" : "DESC"}`,
-      [candidateId, interviewDayStart(now)],
+        WHERE a.candidate_id = $1 AND ${condition.sql}
+        ORDER BY i.scheduled_at ${order}, i.created_at ${order}`,
+      [candidateId, ...condition.values],
+    );
+    const histories = await rescheduleHistories(
+      database,
+      "interview",
+      rows.map((row) => row.id),
     );
     return rows.map((row) => ({
       kind: "interview",
@@ -120,19 +169,27 @@ export function createAgenda(database: Pool): Agenda {
       jobTitle: row.title,
       ...(row.employer ? { employer: row.employer } : {}),
       ...(row.note ? { note: row.note } : {}),
+      ...(row.cancelled_at ? { cancelledAt: row.cancelled_at } : {}),
+      reschedules: histories.get(row.id)!,
     }));
   }
 
-  /** The Candidate's dated Coaching Sessions in `period`, in its order. */
-  async function coachingSessions(candidateId: string, period: AgendaPeriod, now: Date): Promise<AgendaItem[]> {
-    const upcoming = period === "upcoming";
+  /** The Candidate's dated Coaching Sessions in `window`, in its order. */
+  async function coachingSessions(candidateId: string, window: Window): Promise<AgendaItem[]> {
+    const condition = windowCondition("s.scheduled_at", window);
+    const order = window.newestFirst ? "DESC" : "ASC";
     const { rows } = await database.query<{ id: string; scheduled_at: Date; coach_id: string; coach_name: string; duration_minutes: number | null; video_link: string | null; note: string | null; changed_by: SessionEditor | null }>(
       `SELECT s.id, s.scheduled_at, h.id AS coach_id, h.name AS coach_name, s.duration_minutes, s.video_link, s.note, s.changed_by
          FROM coaching_session s
          JOIN human_coach h ON h.id = s.coach_id
-        WHERE s.candidate_id = $1 AND ${upcoming ? "s.scheduled_at >= $2" : "s.scheduled_at < $2"}
-        ORDER BY s.scheduled_at ${upcoming ? "ASC" : "DESC"}, s.paid_at ${upcoming ? "ASC" : "DESC"}`,
-      [candidateId, interviewDayStart(now)],
+        WHERE s.candidate_id = $1 AND ${condition.sql}
+        ORDER BY s.scheduled_at ${order}, s.paid_at ${order}`,
+      [candidateId, ...condition.values],
+    );
+    const histories = await rescheduleHistories(
+      database,
+      "coaching_session",
+      rows.map((row) => row.id),
     );
     return rows.map((row) => ({
       kind: "coachingSession",
@@ -143,23 +200,23 @@ export function createAgenda(database: Pool): Agenda {
       ...(row.video_link ? { videoLink: row.video_link } : {}),
       ...(row.note ? { note: row.note } : {}),
       changedBy: row.changed_by ?? "candidate",
+      reschedules: histories.get(row.id)!,
     }));
+  }
+
+  /** The Candidate's Interviews and dated Coaching Sessions in `window`, grouped by day. */
+  async function itemsByDay(candidateId: string, window: Window): Promise<AgendaDay[]> {
+    const [byInterview, bySession] = await Promise.all([interviews(candidateId, window), coachingSessions(candidateId, window)]);
+    return byDay([...byInterview, ...bySession], window);
   }
 
   return {
     async days(candidateId, { period, now }) {
-      const [byInterview, bySession] = await Promise.all([interviews(candidateId, period, now), coachingSessions(candidateId, period, now)]);
-      const direction = period === "upcoming" ? 1 : -1;
-      // Each source comes in the period's order; sorting is stable, so that order holds for items at the same time.
-      const items = [...byInterview, ...bySession].sort((a, b) => direction * (a.scheduledAt.getTime() - b.scheduledAt.getTime()));
-      const days: AgendaDay[] = [];
-      for (const item of items) {
-        const day = agendaDay(item.scheduledAt);
-        const last = days.at(-1);
-        if (last?.day === day) last.items.push(item);
-        else days.push({ day, items: [item] });
-      }
-      return days;
+      return itemsByDay(candidateId, periodWindow(period, now));
+    },
+
+    async daysBetween(candidateId, { first, last }) {
+      return itemsByDay(candidateId, { from: frenchDayStart(first), before: frenchDayStart(dayAfter(last)), newestFirst: false });
     },
 
     async unscheduled(candidateId) {
@@ -171,7 +228,12 @@ export function createAgenda(database: Pool): Agenda {
           ORDER BY s.paid_at, s.id`,
         [candidateId],
       );
-      return rows.map((row) => ({ id: row.id, coach: { id: row.coach_id, name: row.coach_name, bookingUrl: row.booking_url }, paidAt: row.paid_at }));
+      const histories = await rescheduleHistories(
+        database,
+        "coaching_session",
+        rows.map((row) => row.id),
+      );
+      return rows.map((row) => ({ id: row.id, coach: { id: row.coach_id, name: row.coach_name, bookingUrl: row.booking_url }, paidAt: row.paid_at, reschedules: histories.get(row.id)! }));
     },
   };
 }

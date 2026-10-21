@@ -1,4 +1,4 @@
-import { failureOf, type Failure, type IndustryReference, type SearchCriteria } from "@jobhub/shared";
+import { cleanTechnicalMessage, failureOf, type Failure, type FailureReason, type IndustryReference, type SearchCriteria } from "@jobhub/shared";
 import { findIdentity } from "./identity-scan";
 import { buildCompanyQuery, buildSearchQuery, jobSearchQueries, jobTitlesPrompt, type JobSearchQuery, type QueryLanguage } from "./search-query";
 import { buildCompanyNewsQuery, COMPANY_NEWS_MAX_AGE_DAYS, companyNewsIn, type CompanyNewsArticle, type CompanyNewsRequest } from "./company-news";
@@ -7,7 +7,7 @@ import { effortHandling, type Effort, type EffortHandling } from "./effort";
 import { AiConfigError, DataResidencyError } from "./errors";
 import { redactIdentity, REDACTION_NOTE, type CandidateIdentity, type Redaction } from "./redaction";
 import { SEARCH_TASK, TEXT_TASKS } from "./types";
-import type { AiProvider, AiTask, Message, ProviderId, Residency, SearchFilters, TextTask, TokenUsage, ToolCall, Transcript, UsageEntry, UsageLog } from "./types";
+import type { AiProvider, AiTask, AiWarning, Message, ProviderId, Residency, SearchFilters, TextOutput, TextTask, TokenUsage, ToolCall, Transcript, UsageEntry, UsageLog } from "./types";
 
 export { AiConfigError, DataResidencyError };
 
@@ -33,6 +33,22 @@ export interface GenerateRequest {
   route?: Route;
   /** How hard the model should think; left out by a model that has no such setting (see `agentModels`). */
   effort?: Effort;
+  /**
+   * The degraded paths the feature this call serves took (#260, ADR-0030): a Task Playbook fallback, a Playbook
+   * Agent left out… recorded with the call, then Outcome warning when it works. Read when the call is recorded,
+   * so one added while it runs (a Match Score that stopped waiting for it) is recorded too.
+   */
+  warnings?: AiWarning[];
+  /**
+   * What the feature does without this call (#260), e.g. `cv_reading_fallback`: recorded with the call when it
+   * fails or is never sent, beside its own Failure Reason.
+   */
+  fallback?: FailureReason;
+  /**
+   * Whether the feature can use the reply (#260): null when it can, else the warning to record the call with, its
+   * detail written by the code (why, a length), never the reply's text.
+   */
+  unusable?: (reply: string) => AiWarning | null;
 }
 
 /**
@@ -46,6 +62,8 @@ export interface TaskInstructions {
   route?: Route;
   /** The Playbook Agent's effort; none: the model's own. */
   effort?: Effort;
+  /** How the task Playbook fell back (#260): recorded with each call it runs. */
+  warnings?: AiWarning[];
 }
 
 /**
@@ -95,6 +113,8 @@ export interface SearchRequest {
   location?: string;
   /** The NAF labels the Search Criteria's Sectors are named by (#236); without them, none is named. */
   industries?: IndustryReference;
+  /** The degraded paths its feature took (a task Playbook's fallback), recorded with the search (see `GenerateRequest.warnings`). */
+  warnings?: AiWarning[];
 }
 
 export interface JobSearchPlanRequest {
@@ -139,6 +159,8 @@ export interface CompanySearchRequest {
   instructions?: string;
   /** The web-search provider and model instead of the configured one (see `SearchRequest.route`). */
   route?: Route;
+  /** The degraded paths its feature took (a task Playbook's fallback), recorded with the search (see `GenerateRequest.warnings`). */
+  warnings?: AiWarning[];
 }
 
 export interface SearchResult {
@@ -189,6 +211,16 @@ export interface AiLayer {
 export interface Route {
   provider: ProviderId;
   model?: string;
+}
+
+/** What the feature an AI call serves says of it (#260), recorded with it. */
+interface CallNotes<T> {
+  /** Its warnings, read when the call is recorded. */
+  warnings: () => readonly AiWarning[];
+  /** What the feature does without it: recorded with it when it fails. */
+  fallback?: FailureReason;
+  /** The warning of an output the feature cannot use, or null when it can. */
+  unusable?: (output: T) => AiWarning | null;
 }
 
 export interface AiLayerOptions {
@@ -287,9 +319,9 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
    * What is known of the Candidate's identity, kept a minute. Never fails: a lookup that throws or rejects
    * is warned about (never its values) and the call is redacted by shape alone.
    */
-  async function identityFor(candidateId: string, task: AiTask): Promise<CandidateIdentity | null> {
+  async function identityFor(candidateId: string, task: AiTask): Promise<{ identity: CandidateIdentity | null; warning?: AiWarning }> {
     const lookup = options.identityOf;
-    if (!lookup) return null;
+    if (!lookup) return { identity: null };
     const at = now().getTime();
     let cached = identities.get(candidateId);
     if (!cached || at - cached.at > IDENTITY_CACHE_MS) {
@@ -298,20 +330,24 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       identities.set(candidateId, cached);
     }
     try {
-      return await cached.identity;
+      return { identity: await cached.identity };
     } catch (error) {
       if (identities.get(candidateId) === cached) identities.delete(candidateId);
-      warn("Candidate identity unavailable: the call is redacted by shape alone (emails, phone numbers)", { task, candidateId, error: error instanceof Error ? error.message : String(error) });
-      return null;
+      const message = error instanceof Error ? error.message : String(error);
+      warn("Candidate identity unavailable: the call is redacted by shape alone (emails, phone numbers)", { task, candidateId, error: message });
+      return { identity: null, warning: { reason: "identity_unavailable", detail: `identity lookup failed: ${message}` } };
     }
   }
 
-  /** `texts` with the Candidate's identity taken out (redaction.ts); how many of each kind is warned about, never the values. */
-  async function redacted(task: AiTask, candidateId: string | null, texts: string[]): Promise<Redaction> {
-    const identity = candidateId === null ? null : await identityFor(candidateId, task);
+  /**
+   * `texts` with the Candidate's identity taken out (redaction.ts); how many of each kind is warned about, never the
+   * values. With `identity_unavailable` when it was redacted by shape alone, the identity unread.
+   */
+  async function redacted(task: AiTask, candidateId: string | null, texts: string[]): Promise<{ redaction: Redaction; warnings: AiWarning[] }> {
+    const { identity, warning } = candidateId === null ? { identity: null } : await identityFor(candidateId, task);
     const redaction = redactIdentity(texts, identity);
     if (redaction.redacted) warn("Identity redacted before the AI call", { task, candidateId, redacted: redaction.counts });
-    return redaction;
+    return { redaction, warnings: warning ? [warning] : [] };
   }
 
   /**
@@ -319,23 +355,34 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
    * A call that does not declare identity is still scanned for a phone number or email address: a hit
    * counts as identity and is logged (never the prompt itself), so the call site can be fixed.
    */
-  async function routeForCall(request: GenerateRequest, messages: Message[]): Promise<{ route: Route; identity: boolean }> {
+  async function routeForCall(request: GenerateRequest, messages: Message[]): Promise<{ route: Route; identity: boolean; warning?: AiWarning }> {
     const { candidateId, task } = request;
     const byTask = () => ({ route: request.route ?? routeFor(task), identity: false });
     if (candidateId === null || !options.euAiConsent) return byTask();
     const undeclared = request.containsIdentity ? [] : findIdentity([request.system ?? "", ...messages.map((m) => m.content)]);
     if (!request.containsIdentity && undeclared.length === 0) return byTask();
     if (!(await options.euAiConsent(candidateId))) return byTask();
-    if (undeclared.length > 0) warn("Undeclared identity in an AI call: routed as identity-bearing", { task, candidateId, found: undeclared });
-    return { route: identityRoute, identity: true };
+    if (undeclared.length === 0) return { route: identityRoute, identity: true };
+    warn("Undeclared identity in an AI call: routed as identity-bearing", { task, candidateId, found: undeclared });
+    return { route: identityRoute, identity: true, warning: { reason: "identity_undeclared", detail: `found: ${undeclared.join(", ")}` } };
   }
 
   /** What is known of the Candidate's identity; none for a Guest. Never fails. */
-  const identityOrNone = (task: AiTask, candidateId: string | null) => (candidateId === null ? Promise.resolve(null) : identityFor(candidateId, task));
+  const identityOrNone = async (task: AiTask, candidateId: string | null) => (candidateId === null ? null : (await identityFor(candidateId, task)).identity);
 
   /** The Failure Reason of `error` (ADR-0030), its technical message redacted with what is known of the Candidate. Never fails. */
   const failureWith = (error: unknown, identity: CandidateIdentity | null): Failure =>
     failureOf(error, { redact: (text) => redactIdentity([text], identity).texts[0] ?? text });
+
+  /**
+   * The warnings as recorded (#260): each detail scrubbed of keys, redacted by shape and cut, as a technical
+   * message is; `fallback`, when given, last.
+   */
+  const recordable = (warnings: readonly AiWarning[], fallback?: AiWarning): AiWarning[] =>
+    [...warnings, ...(fallback ? [fallback] : [])].map(({ reason, detail }) => ({
+      reason,
+      ...(detail === undefined ? {} : { detail: cleanTechnicalMessage(detail, { redact: (text) => redactIdentity([text], null).texts[0] ?? text }) }),
+    }));
 
   /**
    * Records one call's usage without waiting for it: a usage log that throws, rejects or is slow
@@ -354,7 +401,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
   /**
    * Makes a provider call and records its usage, failed or not, with what it said. A failed call has
    * no tokens and costs nothing; its model is the route's, else the provider's default. A web
-   * search uses the `web_search` tool once unless the provider says otherwise.
+   * search uses the `web_search` tool once unless the provider says otherwise. `notes`: what its feature says of it (#260).
    */
   async function recorded<T extends { model: string; usage: TokenUsage; tools?: ToolCall[] }>(
     entry: Pick<UsageEntry, "candidateId" | "task">,
@@ -363,6 +410,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     said: Omit<Transcript, "reply">,
     call: () => Promise<T>,
     replyOf: (output: T) => string,
+    notes: CallNotes<T>,
   ): Promise<T> {
     const base = { ...entry, provider: provider.id, endpoint: provider.endpoint };
     const search = entry.task === SEARCH_TASK;
@@ -376,6 +424,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       const sent = !(error instanceof AiConfigError || error instanceof DataResidencyError);
       const { reason, technical } = failureWith(error, await identityOrNone(entry.task, entry.candidateId));
       const tools = search && sent ? [{ name: "web_search", count: 1, ok: false, durationMs, costEur: 0 }] : [];
+      const warnings = recordable(notes.warnings(), notes.fallback ? { reason: notes.fallback } : undefined);
       log({
         ...base,
         model: route.model ?? provider.defaultModel ?? provider.id,
@@ -384,6 +433,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
         outcome: "failed",
         reason,
         technicalReason: technical,
+        ...(warnings.length > 0 ? { warnings } : {}),
         sent,
         durationMs,
         costEur: 0,
@@ -395,11 +445,12 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     const durationMs = Math.round(clock() - started);
     const called = output.tools ?? (search ? [{ name: "web_search", count: 1 }] : []);
     const priced = { provider: provider.id, model: output.model };
+    const warnings = recordable(notes.warnings(), unusableReply(notes, output) ?? undefined);
     log({
       ...base,
       model: output.model,
       ...output.usage,
-      outcome: "ok",
+      ...(warnings[0] ? { outcome: "warning", reason: warnings[0].reason, warnings } : { outcome: "ok" }),
       sent: true,
       durationMs,
       costEur: costInEur({ ...priced, usage: output.usage }),
@@ -409,18 +460,35 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     return output;
   }
 
+  /** The warning of an `output` its feature cannot use (`CallNotes.unusable`), or null; a check that throws refuses it. */
+  function unusableReply<T>(notes: CallNotes<T>, output: T): AiWarning | null {
+    if (!notes.unusable) return null;
+    try {
+      return notes.unusable(output);
+    } catch (error) {
+      return { reason: notes.fallback ?? "invalid_reply", detail: `the reply could not be checked (${error instanceof Error ? error.name : "unknown"})` };
+    }
+  }
+
   /**
    * Records a call stopped before it was sent (ADR-0030): failed, not sent, no tokens nor cost, with what it would
    * have said, redacted. Its provider and model are what was chosen, else its task's configured route. Never fails:
    * the caller then throws `error`.
    */
-  async function notSent(error: unknown, entry: Pick<UsageEntry, "candidateId" | "task">, chosen: { route?: Route; provider?: AiProvider }, said: Omit<Transcript, "reply">): Promise<void> {
+  async function notSent(
+    error: unknown,
+    entry: Pick<UsageEntry, "candidateId" | "task">,
+    chosen: { route?: Route; provider?: AiProvider },
+    said: Omit<Transcript, "reply">,
+    notes: Omit<CallNotes<never>, "unusable"> = { warnings: () => [] },
+  ): Promise<void> {
     try {
       const configured = options.routes[entry.task];
       const route = chosen.route ?? (typeof configured === "string" ? { provider: configured } : configured);
       const identity = await identityOrNone(entry.task, entry.candidateId);
       const [system = "", ...contents] = redactIdentity([said.system ?? "", ...said.messages.map((message) => message.content)], identity).texts;
       const { reason, technical } = failureWith(error, identity);
+      const warnings = recordable(notes.warnings(), notes.fallback ? { reason: notes.fallback } : undefined);
       log({
         ...entry,
         provider: chosen.provider?.id ?? route?.provider ?? null,
@@ -431,6 +499,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
         outcome: "failed",
         reason,
         technicalReason: technical,
+        ...(warnings.length > 0 ? { warnings } : {}),
         sent: false,
         durationMs: 0,
         costEur: 0,
@@ -450,8 +519,28 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     return { route, provider };
   };
 
-  /** `query` must be built by search-query.ts: nothing else ever reaches the search provider, and it is redacted too. */
-  async function search(candidateId: string | null, query: string, filters?: SearchFilters, page?: number, override?: Route): Promise<SearchResult> {
+  /**
+   * `query` must be built by search-query.ts: nothing else ever reaches the search provider, and it is redacted too.
+   * `override`: a task Playbook's web-search route; `warnings` and `fallback`: what its feature says of it (#260).
+   */
+  async function search({
+    candidateId,
+    query,
+    filters,
+    page,
+    override,
+    warnings = [],
+    fallback,
+  }: {
+    candidateId: string | null;
+    query: string;
+    filters?: SearchFilters;
+    page?: number;
+    override?: Route;
+    warnings?: AiWarning[];
+    fallback?: FailureReason;
+  }): Promise<SearchResult> {
+    const fed = { warnings: () => warnings, ...(fallback ? { fallback } : {}) };
     let chosen: { route: Route; provider: AiProvider };
     try {
       // A filter names websites, a time window and a country (ADR-0007): a country is a code, never free text.
@@ -460,11 +549,12 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       }
       chosen = searchProvider(override);
     } catch (error) {
-      await notSent(error, { candidateId, task: SEARCH_TASK }, { route: override }, { messages: [{ role: "user", content: query }] });
+      await notSent(error, { candidateId, task: SEARCH_TASK }, { route: override }, { messages: [{ role: "user", content: query }] }, fed);
       throw error;
     }
     const { route, provider } = chosen;
-    const [sent = ""] = (await redacted(SEARCH_TASK, candidateId, [query])).texts;
+    const { redaction, warnings: redactionWarnings } = await redacted(SEARCH_TASK, candidateId, [query]);
+    const [sent = ""] = redaction.texts;
     const output = await recorded(
       { candidateId, task: SEARCH_TASK },
       provider,
@@ -472,6 +562,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       { messages: [{ role: "user", content: sent }] },
       () => provider.search!(sent, { model: route.model, filters, ...(page && page > 1 ? { page } : {}) }),
       (answer) => answer.answer,
+      { ...fed, warnings: () => [...warnings, ...redactionWarnings] },
     );
     return {
       answer: output.answer,
@@ -487,19 +578,30 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
   async function generateAs(request: GenerateRequest, recordedAs: TextTask): Promise<GenerateResult> {
     const messages = typeof request.prompt === "string" ? [{ role: "user" as const, content: request.prompt }] : request.prompt;
     const chosen: { route?: Route; provider?: AiProvider } = { route: request.route };
+    // What the feature says of the call (#260), its own warnings first, then the AI layer's.
+    const warnings: AiWarning[] = [];
+    const notes: CallNotes<TextOutput> = {
+      warnings: () => [...(request.warnings ?? []), ...warnings],
+      ...(request.fallback ? { fallback: request.fallback } : {}),
+    };
     let identity: boolean;
     try {
       // Routed on what the call says (the identity scan), then redacted: what leaves is never the Candidate's identity.
-      ({ route: chosen.route, identity } = await routeForCall(request, messages));
+      let undeclared: AiWarning | undefined;
+      ({ route: chosen.route, identity, warning: undeclared } = await routeForCall(request, messages));
+      if (undeclared) warnings.push(undeclared);
       chosen.provider = providerFor(chosen.route, identity || TEXT_TASKS[request.task].personalData);
       // Checked again per call: the rule must hold even if a provider changes at runtime.
       assertAllowed(request.task, chosen.provider, identity);
     } catch (error) {
-      await notSent(error, { candidateId: request.candidateId, task: recordedAs }, chosen, { ...(request.system === undefined ? {} : { system: request.system }), messages });
+      await notSent(error, { candidateId: request.candidateId, task: recordedAs }, chosen, { ...(request.system === undefined ? {} : { system: request.system }), messages }, notes);
       throw error;
     }
     const { route, provider } = chosen as { route: Route; provider: AiProvider };
-    const redaction = await redacted(request.task, request.candidateId, [request.system ?? "", ...messages.map((message) => message.content)]);
+    const { redaction, warnings: redactionWarnings } = await redacted(request.task, request.candidateId, [request.system ?? "", ...messages.map((message) => message.content)]);
+    warnings.push(...redactionWarnings);
+    const unusable = request.unusable;
+    if (unusable) notes.unusable = (output) => unusable(redaction.restore(output.text));
     const [redactedSystem = "", ...contents] = redaction.texts;
     // The model is told to keep the placeholders as they are, so they can be put back in its reply.
     const system = redaction.redacted ? [redactedSystem, REDACTION_NOTE].filter(Boolean).join("\n\n") : request.system;
@@ -519,6 +621,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
           ...(request.effort ? { effort: request.effort } : {}),
         }),
       (reply) => reply.text,
+      notes,
     );
     return { text: redaction.restore(output.text), provider: provider.id, model: output.model, usage: output.usage };
   }
@@ -540,6 +643,8 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
           maxTokens: JOB_TITLES_MAX_TOKENS,
           ...(titles?.route ? { route: titles.route } : {}),
           ...(titles?.effort ? { effort: titles.effort } : {}),
+          ...(titles?.warnings ? { warnings: titles.warnings } : {}),
+          fallback: "job_titles_unavailable",
         });
       } catch (error) {
         warn("Job title variants unavailable: searching with the Search Criteria title alone", {
@@ -551,16 +656,35 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     },
 
     async searchWeb(request) {
-      return search(request.candidateId, buildSearchQuery(request.criteria, request.query, request.location ?? request.criteria.locations[0], request.industries), request.filters, request.page, request.route);
+      return search({
+        candidateId: request.candidateId,
+        query: buildSearchQuery(request.criteria, request.query, request.location ?? request.criteria.locations[0], request.industries),
+        ...(request.filters ? { filters: request.filters } : {}),
+        ...(request.page ? { page: request.page } : {}),
+        ...(request.route ? { override: request.route } : {}),
+        ...(request.warnings ? { warnings: request.warnings } : {}),
+      });
     },
 
     async searchCompany(request) {
-      return search(request.candidateId, buildCompanyQuery(request.employer, request.instructions), undefined, undefined, request.route);
+      return search({
+        candidateId: request.candidateId,
+        query: buildCompanyQuery(request.employer, request.instructions),
+        ...(request.route ? { override: request.route } : {}),
+        ...(request.warnings ? { warnings: request.warnings } : {}),
+      });
     },
 
     async searchCompanyNews(request) {
       try {
-        const found = await search(request.candidateId, buildCompanyNewsQuery(request), { maxAgeDays: COMPANY_NEWS_MAX_AGE_DAYS }, undefined, request.route);
+        const found = await search({
+          candidateId: request.candidateId,
+          query: buildCompanyNewsQuery(request),
+          filters: { maxAgeDays: COMPANY_NEWS_MAX_AGE_DAYS },
+          ...(request.route ? { override: request.route } : {}),
+          ...(request.warnings ? { warnings: request.warnings } : {}),
+          fallback: "company_news_unavailable",
+        });
         const companyNames = [request.employer, request.registeredName ?? "", request.website ?? ""].filter(Boolean);
         return companyNewsIn(found.answer, { now: now(), companyNames, ...(found.sourceDates ? { sourceDates: found.sourceDates } : {}) });
       } catch (error) {

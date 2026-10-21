@@ -1,6 +1,6 @@
-import { createAiLayer, type AiLayer, type UsageLog } from "@jobhub/ai";
+import { createAiLayer, type AiLayer, type UsageEntry, type UsageLog } from "@jobhub/ai";
 import { createFakeProvider } from "@jobhub/ai/testing";
-import { recordingFetch, type ExternalApiCall } from "@jobhub/shared";
+import { recordingFetch, type ExternalApiCall, type FailureReason } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, startTestAuth, type TestAuth } from "../auth/test-support";
@@ -159,6 +159,55 @@ describe.skipIf(!connectionString)("AI Usage (needs Postgres: DATABASE_URL)", ()
     expect(report.totals).toMatchObject({ calls: 1, failures: 1, inputTokens: 0, costEur: 0 });
   });
 
+  it("counts the period's failures and warnings per Failure Reason, in all and per model and task, without any text (#262)", async () => {
+    const usage = createPostgresUsageLog(database);
+    const at = new Date("2026-10-17T08:00:00Z");
+    const technicalReason = { class: "AiProviderError", provider: "mistral", status: 503, message: "upstream down for jeanne@example.fr" };
+    const failed = (reason: FailureReason, overrides: Partial<UsageEntry> = {}): UsageEntry => ({ ...entry(), at, outcome: "failed", reason, technicalReason, ...overrides });
+    await usage.record({ ...entry(), at });
+    await usage.record(failed("provider_unavailable"));
+    await usage.record(failed("provider_unavailable"));
+    await usage.record(failed("provider_unavailable", { task: "coaching", provider: "anthropic", model: "claude-opus-5" }));
+    await usage.record(failed("rate_limited", { task: "coaching", provider: "anthropic", model: "claude-opus-5" }));
+    await usage.record(failed("key_missing", { provider: null, endpoint: null, model: null, sent: false, costEur: 0 }));
+    await usage.record({ ...entry(), at, outcome: "warning", reason: "other" });
+    // A failure recorded before Failure Reasons (#259), and one whose code left the catalog: both « other ».
+    await usage.record(failed("provider_unavailable"));
+    await database.query(`UPDATE ai_usage SET reason = NULL WHERE id = (SELECT id FROM ai_usage WHERE reason = 'provider_unavailable' AND task = 'scoring' LIMIT 1)`);
+    await usage.record(failed("other"));
+    await database.query(`UPDATE ai_usage SET reason = 'no_longer_a_code' WHERE reason = 'other' AND outcome = 'failed'`);
+    // Outside the period.
+    await usage.record(failed("rate_limited", { at: new Date("2026-09-01T08:00:00Z") }));
+
+    const report = await aiUsageReport(database, aiUsagePeriod("7d", now));
+
+    expect(report.failureReasons.total).toEqual([
+      { outcome: "failed", reason: "provider_unavailable", calls: 3 },
+      { outcome: "failed", reason: "other", calls: 2 },
+      { outcome: "failed", reason: "key_missing", calls: 1 },
+      { outcome: "failed", reason: "rate_limited", calls: 1 },
+      { outcome: "warning", reason: "other", calls: 1 },
+    ]);
+    expect(report.failureReasons.byModel).toEqual([
+      { provider: "mistral", model: "mistral-small-latest", outcome: "failed", reason: "other", calls: 2 },
+      { provider: "mistral", model: "mistral-small-latest", outcome: "failed", reason: "provider_unavailable", calls: 2 },
+      { provider: "anthropic", model: "claude-opus-5", outcome: "failed", reason: "provider_unavailable", calls: 1 },
+      { provider: "anthropic", model: "claude-opus-5", outcome: "failed", reason: "rate_limited", calls: 1 },
+      { provider: null, model: null, outcome: "failed", reason: "key_missing", calls: 1 },
+      { provider: "mistral", model: "mistral-small-latest", outcome: "warning", reason: "other", calls: 1 },
+    ]);
+    expect(report.failureReasons.byTask).toEqual([
+      { task: "scoring", outcome: "failed", reason: "other", calls: 2 },
+      { task: "scoring", outcome: "failed", reason: "provider_unavailable", calls: 2 },
+      { task: "coaching", outcome: "failed", reason: "provider_unavailable", calls: 1 },
+      { task: "coaching", outcome: "failed", reason: "rate_limited", calls: 1 },
+      { task: "scoring", outcome: "failed", reason: "key_missing", calls: 1 },
+      { task: "scoring", outcome: "warning", reason: "other", calls: 1 },
+    ]);
+    // Codes only: never the technical reason nor what a call said.
+    expect(JSON.stringify(report)).not.toMatch(/AiProviderError|upstream down|jeanne|Score/);
+  });
+
   it("lists the tools the models used and the external APIs called, with failures and cost when known", async () => {
     await seed();
 
@@ -193,7 +242,7 @@ describe.skipIf(!connectionString)("AI Usage (needs Postgres: DATABASE_URL)", ()
     const report = await aiUsageReport(database, aiUsagePeriod("7d", now));
 
     expect(report.totals).toMatchObject({ calls: 0, failures: 0, costEur: 0, externalCalls: 0 });
-    expect(report).toMatchObject({ byModel: [], byTask: [], byTime: [], tools: [], externalApis: [] });
+    expect(report).toMatchObject({ byModel: [], byTask: [], byTime: [], tools: [], externalApis: [], failureReasons: { total: [], byModel: [], byTask: [] } });
   });
 
   it("never fails the AI call when its usage cannot be recorded, and says so", async () => {
@@ -216,7 +265,7 @@ describe.skipIf(!connectionString)("AI Usage (needs Postgres: DATABASE_URL)", ()
   });
 });
 
-function entry() {
+function entry(): Omit<UsageEntry, "at"> {
   return {
     candidateId: null,
     task: "scoring" as const,

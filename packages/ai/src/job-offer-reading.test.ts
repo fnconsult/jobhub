@@ -55,6 +55,29 @@ describe("reading a Job Offer's fields from its text (#94)", () => {
 
     await expect(readOfferFields(ai, { candidateId: null, jobOffer })).rejects.toThrow();
   });
+
+  it("records a reply that is not a JSON object as warning, its reason what the caller does without it (#260)", async () => {
+    const { ai, usage } = setUp("Je ne peux pas lire cette offre.");
+
+    await expect(readOfferFields(ai, { candidateId: null, jobOffer, fallback: "match_score_text_unread" })).rejects.toThrow();
+
+    expect(usage.entries).toEqual([
+      expect.objectContaining({ outcome: "warning", reason: "match_score_text_unread", warnings: [{ reason: "match_score_text_unread", detail: "the reply is not a JSON object" }] }),
+    ]);
+  });
+
+  it("records with the call the warnings its caller passes, and those of its task Playbook (#260)", async () => {
+    const { ai, usage } = setUp("{}");
+
+    await readOfferFields(ai, {
+      candidateId: null,
+      jobOffer,
+      reading: { text: "Lis l'offre.", warnings: [{ reason: "task_playbook_section_missing" }] },
+      warnings: [{ reason: "match_score_too_slow" }],
+    });
+
+    expect(usage.entries[0]).toMatchObject({ outcome: "warning", warnings: [{ reason: "match_score_too_slow" }, { reason: "task_playbook_section_missing" }] });
+  });
 });
 
 describe("the Job Offer Summary, read with the fields when its task Playbook is served (ADR-0026)", () => {

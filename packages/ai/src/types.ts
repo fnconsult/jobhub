@@ -164,6 +164,17 @@ export interface Transcript {
   reply: string | null;
 }
 
+/**
+ * A degraded path the feature an AI call serves took (ADR-0030, #260): a Task Playbook fallback, a Playbook
+ * Agent left out, Redaction by shape alone… Its code (from the Failure Reason catalog), and what happened,
+ * written by the code: never the Candidate's text.
+ */
+export interface AiWarning {
+  reason: FailureReason;
+  /** e.g. `task Playbook "cv-reading" v3 has no section "fr"`; scrubbed, redacted by shape and cut when recorded. */
+  detail?: string;
+}
+
 export interface UsageEntry extends TokenUsage {
   /** null for a Guest (browser extension without an account). */
   candidateId: string | null;
@@ -186,6 +197,12 @@ export interface UsageEntry extends TokenUsage {
    * only the AI Message Log keeps it, as it keeps the transcript.
    */
   technicalReason?: TechnicalReason;
+  /**
+   * The warnings of the feature the call served (#260), when it took a degraded path: a call that worked is
+   * Outcome warning with the first as its reason; a failed one keeps its own reason and carries them besides.
+   * Absent when none. Their details only go with the transcript (the AI Message Log).
+   */
+  warnings?: AiWarning[];
   /** Whether the call left for its provider; false for one stopped before (missing key or route, data residency), which costs nothing. */
   sent: boolean;
   /** How long the provider took to answer or fail; 0 for a call stopped before it was sent. */

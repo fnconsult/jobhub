@@ -50,6 +50,15 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
   });
 
   const settled = () => Promise.all(pending);
+  /** The same layer on a provider failing with `fail`. */
+  const failingWith = (fail: Error) =>
+    createAiLayer({
+      providers: [createFakeProvider({ id: "mistral", fail })],
+      routes: { coaching: "mistral", scoring: "mistral" },
+      usage: { record: (entry) => void pending.push(Promise.resolve(createPostgresUsageLog(database, { secrets: () => [PROVIDER_KEY] }).record(entry))) },
+      now: () => now,
+      warn: () => {},
+    });
 
   it("keeps what each AI call said, with its Candidate, for a super-admin to read", async () => {
     await ai.generate({ task: "coaching", candidateId: marie, system: "Tu es le coach.", prompt: [{ role: "user", content: "Comment négocier ?" }] });
@@ -64,6 +73,7 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
       model: "fake-mistral",
       outcome: "ok",
       reason: null,
+      warnings: [],
       sent: true,
       candidate: { id: marie, email: "marie.dupont@example.fr" },
     });
@@ -77,6 +87,7 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
       costEur: expect.any(Number),
       durationMs: expect.any(Number),
       technicalReason: null,
+      warningDetails: [],
     });
   });
 
@@ -204,15 +215,6 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
   });
 
   describe("the Failure Reason of each failed call (#259)", () => {
-    const failingWith = (fail: Error) =>
-      createAiLayer({
-        providers: [createFakeProvider({ id: "mistral", fail })],
-        routes: { coaching: "mistral", scoring: "mistral" },
-        usage: { record: (entry) => void pending.push(Promise.resolve(createPostgresUsageLog(database, { secrets: () => [PROVIDER_KEY] }).record(entry))) },
-        now: () => now,
-        warn: () => {},
-      });
-
     it("keeps a provider's 503 as failed, provider_unavailable, with the provider and status 503 in the technical reason", async () => {
       await expect(failingWith(new AiProviderError("mistral", "HTTP 503 Service Unavailable", 503)).generate({ task: "coaching", candidateId: marie, prompt: "Bonjour" })).rejects.toThrow();
       await settled();
@@ -263,6 +265,46 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
       expect(await listed({ outcome: "failed", task: "scoring" })).toEqual(["scoring failed provider_unavailable"]);
       // A value that cannot be read is no filter.
       expect(await listed({ outcome: "nope", reason: "nope" })).toHaveLength(3);
+    });
+  });
+
+  describe("the warnings of each AI call: its feature ran degraded (#260)", () => {
+    it("keeps a call that worked while its feature ran degraded as warning, its first warning its reason, each warning's detail for a super-admin", async () => {
+      await ai.generate({
+        task: "coaching",
+        candidateId: marie,
+        prompt: "Bonjour",
+        warnings: [{ reason: "playbook_agent_skipped", detail: "Playbook Agent negociation v2 left out (AiProviderError)" }, { reason: "task_playbook_fallback" }],
+      });
+      await settled();
+
+      const [summary] = await logs.list();
+      expect(summary).toMatchObject({ outcome: "warning", reason: "playbook_agent_skipped", warnings: ["playbook_agent_skipped", "task_playbook_fallback"], sent: true });
+      expect(await logs.open(admin, summary!.id)).toMatchObject({
+        technicalReason: null,
+        warningDetails: [{ reason: "playbook_agent_skipped", detail: "Playbook Agent negociation v2 left out (AiProviderError)" }, { reason: "task_playbook_fallback" }],
+      });
+      const { rows } = await database.query(`SELECT outcome, reason, warnings, ok FROM ai_usage`);
+      expect(rows).toEqual([{ outcome: "warning", reason: "playbook_agent_skipped", warnings: ["playbook_agent_skipped", "task_playbook_fallback"], ok: true }]);
+    });
+
+    it("keeps a failed call's own reason, and what its feature did without it beside", async () => {
+      await expect(failingWith(new AiProviderError("mistral", "HTTP 503", 503)).generate({ task: "scoring", candidateId: marie, prompt: "Deux", fallback: "cv_reading_fallback" })).rejects.toThrow();
+      await settled();
+
+      const [summary] = await logs.list();
+      expect(summary).toMatchObject({ outcome: "failed", reason: "provider_unavailable", warnings: ["cv_reading_fallback"] });
+    });
+
+    it("lists the warnings with Résultat « avertissement », and by Raison a call warned or failed with that code", async () => {
+      await ai.generate({ task: "coaching", candidateId: marie, prompt: "Un" });
+      await ai.generate({ task: "coaching", candidateId: marie, prompt: "Deux", warnings: [{ reason: "identity_unavailable" }] });
+      await expect(failingWith(new AiProviderError("mistral", "HTTP 503", 503)).generate({ task: "scoring", candidateId: marie, prompt: "Trois", fallback: "identity_unavailable" })).rejects.toThrow();
+      await settled();
+
+      const listed = async (filter: unknown) => (await logs.list(filter)).map((log) => `${log.task} ${log.outcome} ${log.reason}`).sort();
+      expect(await listed({ outcome: "warning" })).toEqual(["coaching warning identity_unavailable"]);
+      expect(await listed({ reason: "identity_unavailable" })).toEqual(["coaching warning identity_unavailable", "scoring failed provider_unavailable"]);
     });
   });
 });

@@ -8,12 +8,14 @@ import { INTERVIEW_TIME_ZONE, interviewWallClock } from "@/applications";
 import { requireOwnApplication } from "@/applications/server";
 import { ActionCardList, type ActionCardView } from "@/components/ActionCardList";
 import { AddInterviewForm, EditInterview, RemoveInterviewButton } from "@/components/ApplicationControls";
+import { CancelAgendaItemButton } from "@/components/CancelAgendaItemButton";
 import { InterviewFacts, InterviewTimes } from "@/components/InterviewDetails";
 import { CoachReviewList } from "@/components/CoachReviewList";
 import { CompanyDossierView } from "@/components/CompanyDossierView";
 import { EnrichedContactsPanel } from "@/components/EnrichedContactsPanel";
 import { JobOfferView } from "@/components/JobOfferView";
 import { MatchScoreView } from "@/components/MatchScoreView";
+import { RescheduleHistory } from "@/components/RescheduleHistory";
 import { TailoredDocuments } from "@/components/TailoredDocuments";
 import { getCompanyDossiers } from "@/company-dossiers/server";
 import { getEnrichedContacts } from "@/enriched-contacts/server";
@@ -170,14 +172,17 @@ function SectionView({ data, section }: { data: ApplicationPageData; section: Ap
 }
 
 /**
- * The Application's Interviews: each one changed or removed in place, and a form
- * to add one while it is at the interview stage. A link leads to the Agenda: its
- * past Agenda Items when all the Interviews here are past.
+ * The Application's Interviews: each one changed, cancelled or removed in place, and a form
+ * to add one while it is at the interview stage. A Cancelled Interview stays, struck through,
+ * with its date of cancellation; a Rescheduled one says when it was first planned, with its
+ * history. A link leads to the Agenda: its past Agenda Items when all the Interviews here are past.
  */
 function Interviews({ data: { application, t, locale, agendaHref } }: { data: ApplicationPageData }) {
   const dateTime = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeZone: INTERVIEW_TIME_ZONE });
   const time = new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
+  const changedAt = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
+  const cancelledOn = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: INTERVIEW_TIME_ZONE });
   const { interviews } = application;
   return (
     <section className="section" aria-labelledby="interviews-title">
@@ -190,12 +195,14 @@ function Interviews({ data: { application, t, locale, agendaHref } }: { data: Ap
           {interviews.map((interview) => {
             const when = dateTime.format(interview.scheduledAt);
             return (
-              <li key={interview.id} className="interview">
+              <li key={interview.id} className={interview.cancelledAt ? "interview interview-cancelled" : "interview"}>
                 <p className="interview-date">
                   {date.format(interview.scheduledAt)}, <InterviewTimes interview={interview} time={time} />
                 </p>
+                {interview.cancelledAt ? <p className="cancelled-on">{t("agendaChanges.cancelledOn", { date: cancelledOn.format(interview.cancelledAt) })}</p> : null}
                 <InterviewFacts interview={interview} t={t} />
                 {interview.note ? <p>{interview.note}</p> : null}
+                <RescheduleHistory reschedules={interview.reschedules} dateTime={changedAt} t={t} />
                 <div className="actions">
                   <EditInterview
                     applicationId={application.id}
@@ -209,6 +216,14 @@ function Interviews({ data: { application, t, locale, agendaHref } }: { data: Ap
                     }}
                     label={t("application.editInterview", { date: when })}
                   />
+                  {interview.cancelledAt ? null : (
+                    <CancelAgendaItemButton
+                      url={`/api/applications/${application.id}/interviews/${interview.id}/cancel`}
+                      label={t("agendaChanges.cancelInterview")}
+                      name={t("agendaChanges.cancelInterviewFor", { date: when })}
+                      question={t("agendaChanges.cancelInterviewConfirm")}
+                    />
+                  )}
                   <RemoveInterviewButton applicationId={application.id} interviewId={interview.id} label={t("application.removeInterview", { date: when })} />
                 </div>
               </li>
@@ -218,6 +233,7 @@ function Interviews({ data: { application, t, locale, agendaHref } }: { data: Ap
       ) : (
         <p>{t("application.interviewsNone")}</p>
       )}
+      {interviews.length > 0 ? <p className="hint">{t("agendaChanges.removeHint")}</p> : null}
       {application.status === "interview" ? <AddInterviewForm applicationId={application.id} /> : <p className="hint">{t("application.interviewsHint")}</p>}
     </section>
   );

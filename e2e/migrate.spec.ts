@@ -95,6 +95,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "coach_review", // issue #24: Coach Reviews of Tailored Documents
         "coaching_playbook", // issue #225: the Coaching Playbooks, the Core Digest and the Sources list
         "coaching_session", // issue #24: Coaching Sessions paid through Stripe
+        "coaching_session_reschedule", // issue #250: a Coaching Session's Reschedule history
         "company_dossier", // issue #17
         "enriched_contact", // issue #23: Enriched Contacts, with their source provider and retrieval date
         "eu_ai_consent", // issue #121: the Candidate's dated EU AI consent
@@ -109,6 +110,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "guardrail_trigger", // issue #228: each block, flag or unavailable check, no Candidate, no text
         "human_coach", // issue #24: Human Coaches and their Cal.com booking links
         "interview",
+        "interview_reschedule", // issue #250: an Interview's Reschedule history
         "job_digest", // issue #15: the Job Digests sent for each Profile
         "job_digest_subscription", // issue #15: opt-in per Profile
         "job_discovery_site", // issue #188: the sites Job discovery searches, set in the Back Office
@@ -184,6 +186,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "coach_review", from_column: "coach_id", to_table: "human_coach" },
         { from_table: "coaching_session", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coaching_session", from_column: "coach_id", to_table: "human_coach" },
+        // Reschedule histories (issue #250) go with their Interview or Coaching Session.
+        { from_table: "coaching_session_reschedule", from_column: "coaching_session_id", to_table: "coaching_session" },
         // A Company Dossier (issue #17) goes with its Application.
         { from_table: "company_dossier", from_column: "application_id", to_table: "application" },
         // Enriched Contacts (issue #23) go with their Application.
@@ -196,6 +200,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "follow_up_delay", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "follow_up_sent", from_column: "application_id", to_table: "application" },
         { from_table: "interview", from_column: "application_id", to_table: "application" },
+        { from_table: "interview_reschedule", from_column: "interview_id", to_table: "interview" },
         // Job Digests and their opt-ins (issue #15) go with their Profile (ADR-0010).
         { from_table: "job_digest", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "job_digest", from_column: "profile_id", to_table: "profile" },

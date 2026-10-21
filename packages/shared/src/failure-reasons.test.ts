@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AI_CALL_FAILURE_REASONS, BACK_OFFICE_FAILURE_REASONS, FAILURE_REASONS, failureOf, isFailureReason, TECHNICAL_REASON_MAX_LENGTH } from "./failure-reasons";
+import { AI_CALL_FAILURE_REASONS, AI_CALL_WARNINGS, BACK_OFFICE_FAILURE_REASONS, FAILURE_REASONS, failureOf, isFailureReason, TECHNICAL_REASON_MAX_LENGTH } from "./failure-reasons";
 import { failureReasonWording } from "./i18n";
 
 /** Shaped like the AI layer's errors (packages/ai/src/errors.ts), which this module cannot import. */
@@ -93,6 +93,20 @@ describe("Failure Reason catalog", () => {
       "route_missing",
       "data_residency",
       "invalid_reply",
+      "task_playbook_fallback",
+      "task_playbook_unreadable",
+      "task_playbook_section_missing",
+      "task_playbook_agent_not_offered",
+      "task_playbook_search_not_offered",
+      "playbook_agent_skipped",
+      "identity_unavailable",
+      "identity_undeclared",
+      "job_titles_unavailable",
+      "company_news_unavailable",
+      "cv_reading_fallback",
+      "tailored_cv_refused",
+      "match_score_text_unread",
+      "match_score_too_slow",
       "test_failed",
       "test_expired",
       "not_tested",
@@ -117,7 +131,17 @@ describe("Failure Reason catalog", () => {
   });
 
   it("tells the codes of AI calls from those of Back Office attempts; both may be other", () => {
-    expect(AI_CALL_FAILURE_REASONS).toEqual(["provider_unavailable", "provider_rejected", "rate_limited", "key_missing", "route_missing", "data_residency", "invalid_reply", "other"]);
+    expect(AI_CALL_FAILURE_REASONS).toEqual([
+      "provider_unavailable",
+      "provider_rejected",
+      "rate_limited",
+      "key_missing",
+      "route_missing",
+      "data_residency",
+      "invalid_reply",
+      ...AI_CALL_WARNINGS,
+      "other",
+    ]);
     expect(BACK_OFFICE_FAILURE_REASONS).toEqual([
       "test_failed",
       "test_expired",
@@ -135,8 +159,37 @@ describe("Failure Reason catalog", () => {
     ]);
   });
 
+  it("words each AI call warning (#260) by what the feature did instead, naming no Candidate", () => {
+    expect(AI_CALL_WARNINGS).toEqual([
+      "task_playbook_fallback",
+      "task_playbook_unreadable",
+      "task_playbook_section_missing",
+      "task_playbook_agent_not_offered",
+      "task_playbook_search_not_offered",
+      "playbook_agent_skipped",
+      "identity_unavailable",
+      "identity_undeclared",
+      "job_titles_unavailable",
+      "company_news_unavailable",
+      "cv_reading_fallback",
+      "tailored_cv_refused",
+      "match_score_text_unread",
+      "match_score_too_slow",
+    ]);
+    expect(failureReasonWording("job_titles_unavailable")).toBe("Recherche avec le seul titre des Critères");
+    expect(failureReasonWording("company_news_unavailable")).toBe("Company Dossier construit sans actualités");
+    expect(failureReasonWording("identity_unavailable", "en")).toBe("Identity unavailable: redacted by shape alone (emails, phone numbers)");
+    // Fixed wording: no slot a Candidate's text could fill.
+    for (const code of AI_CALL_WARNINGS) {
+      expect(code).toMatch(/^[a-z_]+$/);
+      expect(failureReasonWording(code, "fr")).not.toMatch(/\{\{/);
+      expect(failureReasonWording(code, "en")).not.toMatch(/\{\{/);
+    }
+  });
+
   it("tells a code from any other value", () => {
     expect(isFailureReason("rate_limited")).toBe(true);
+    expect(isFailureReason("task_playbook_fallback")).toBe(true);
     expect(isFailureReason("nope")).toBe(false);
     expect(isFailureReason(undefined)).toBe(false);
   });

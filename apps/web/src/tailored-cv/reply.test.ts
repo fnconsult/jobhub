@@ -65,6 +65,16 @@ describe("asking the AI Coach for a Tailored CV", () => {
     expect(usage.entries).toHaveLength(2);
   });
 
+  it("records each refused reply's call as warning tailored_cv_refused, with why and its length, never its text (#260)", async () => {
+    replies = [PROSE, VALID];
+
+    await ask();
+
+    expect(usage.entries.map((entry) => entry.outcome)).toEqual(["warning", "ok"]);
+    expect(usage.entries[0]).toMatchObject({ reason: "tailored_cv_refused", warnings: [{ reason: "tailored_cv_refused", detail: `reason=no_json length=${PROSE.length}` }] });
+    expect(JSON.stringify(usage.entries[0]!.warnings)).not.toContain("Groupe Seb");
+  });
+
   it("a valid first reply is asked for once, with no warning", async () => {
     replies = [VALID];
 

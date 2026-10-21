@@ -391,6 +391,66 @@ test.describe("the Agenda's week and month views at 375 px", () => {
   });
 });
 
+/**
+ * What of the week view does not fit: words cut across two lines, or lying outside their day's
+ * column or their item's card (hidden under the next column, or scrolling the page sideways).
+ */
+const weekMisfits = (page: Page) =>
+  page.evaluate(() => {
+    const misfits: string[] = [];
+    const outside = (inner: DOMRect, outer: DOMRect) => inner.left < outer.left - 0.5 || inner.right > outer.right + 0.5;
+    for (const box of document.querySelectorAll<HTMLElement>(".agenda-week-day, .agenda-week .agenda-item")) {
+      const bounds = box.getBoundingClientRect();
+      const walker = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
+        for (const word of node.data.matchAll(/\S+/g)) {
+          const range = document.createRange();
+          range.setStart(node, word.index);
+          range.setEnd(node, word.index + word[0].length);
+          const lines = [...range.getClientRects()].filter((rect) => rect.width > 0);
+          if (lines.length > 1) misfits.push(`« ${word[0]} » is cut across ${lines.length} lines`);
+          if (lines.some((rect) => outside(rect, bounds))) misfits.push(`« ${word[0]} » overflows its ${box.className}`);
+        }
+      }
+    }
+    if (document.documentElement.scrollWidth > window.innerWidth) misfits.push(`the page scrolls sideways (${document.documentElement.scrollWidth} px)`);
+    return misfits;
+  });
+
+/** The tops of the week's seven days: all equal when they are columns, all different when stacked. */
+const weekDayTops = (page: Page) => page.locator(".agenda-week > li").evaluateAll((days) => days.map((day) => Math.round(day.getBoundingClientRect().top)));
+
+// QA on #251: the seven columns came at a 64rem viewport, with the Sidebar taking 17rem of it, so
+// at 1024 px each was 88 px wide: times hidden under the next column, words cut, the page sideways.
+test.describe("the Agenda's week view beside the Sidebar", () => {
+  test("shows each item whole, its times and words inside its card and day, at every width and text size", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("agenda-week-desktop"));
+    const day = parisDay(2);
+    await applicationWithInterviews(page, "Directeur administratif et financier H/F", [`${day}T09:30`, `${day}T14:00`, `${plusDays(day, 1)}T23:30`]);
+
+    for (const textSize of ["standard", "xlarge"]) {
+      for (const width of [1024, 1280, 1440, 1920]) {
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto(`/agenda?vue=semaine&date=${day}`);
+        await page.evaluate((size) => localStorage.setItem("jobbbox.textSize", size), textSize);
+        await page.reload();
+        await expect(page.locator("html")).toHaveAttribute("data-text-size", textSize);
+        await expect(page.locator(".agenda-week .agenda-item")).toHaveCount(3);
+        expect(await weekMisfits(page), `${width} px, ${textSize} text`).toEqual([]);
+        // Seven columns when they have room for their items, else the days stacked: never in between.
+        const tops = new Set(await weekDayTops(page));
+        expect(tops.size === 1 || tops.size === 7, `${width} px, ${textSize} text: ${[...tops].join(", ")}`).toBe(true);
+      }
+    }
+    // A 1440 px desktop at the standard text size has room for the seven columns.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.evaluate(() => localStorage.setItem("jobbbox.textSize", "standard"));
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-text-size", "standard");
+    expect(new Set(await weekDayTops(page)).size).toBe(1);
+  });
+});
+
 test("screenshots of the week and month views at 3 widths", async ({ page }, testInfo) => {
   await signInWithMagicLink(page, newAddress("agenda-screens"));
   const day = parisDay(2);

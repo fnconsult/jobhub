@@ -3239,10 +3239,13 @@ textarea.title-edit {
 }
 
 /* A past Agenda Item in a week or month view: dimmed like the past ones of the list. */
-.agenda-item-past .agenda-item-link {
-  color: var(--color-text-secondary);
+.agenda-item-past {
   background: var(--color-surface);
   border-style: dashed;
+}
+
+.agenda-item-past .agenda-item-link {
+  color: var(--color-text-secondary);
 }
 
 .agenda-item-past .agenda-item-time,
@@ -3271,7 +3274,13 @@ textarea.title-edit {
   transform: rotate(45deg) scale(0.85);
 }
 
-/* The week: seven day columns on a wide screen, the days stacked below 64rem. */
+/* The week: seven day columns when the page's column has room for them, the days stacked
+   otherwise. The room is the page's own width (a container query on `.workspace > .page`), not
+   the window's: the Sidebar (17rem) and a docked Coach Panel take their share of the window,
+   and at a 64rem window the seven columns were 88 px wide, their times hidden under the next.
+   54rem leaves each column (less the 0.5rem gaps, and its card's padding and border) about
+   6.25rem, which holds a semibold « administratif » (6rem) and each of an item's two times;
+   the range wraps after its dash. It is in rem, so a larger Text Size needs a wider page. */
 .agenda-week {
   display: flex;
   flex-direction: column;
@@ -3292,26 +3301,37 @@ textarea.title-edit {
   text-underline-offset: 0.25em;
 }
 
-@media (width >= 64rem) {
+@container (width >= 54rem) {
   .agenda-week {
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: var(--space-2);
   }
 
+  /* A rule above each day, not a box around it: a box's padding would take its items' room. */
   .agenda-week-day {
     min-width: 0;
+    padding-top: var(--space-2);
+    border-top: 2px solid var(--color-border);
+  }
+
+  .agenda-week .agenda-item {
     padding: var(--space-2);
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
   }
 
   .agenda-week .agenda-item-link {
     flex-direction: column;
     gap: var(--space-1);
-    padding: var(--space-2);
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
+  }
+
+  .agenda-week .agenda-item-time {
+    min-width: 0;
+    white-space: normal;
+  }
+
+  .agenda-week .agenda-item-time time {
+    white-space: nowrap;
   }
 
   .agenda-week .agenda-item-what {

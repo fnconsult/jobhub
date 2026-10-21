@@ -86,4 +86,51 @@ describe("calendarFile", () => {
       expect(body.indexOf("END:VTIMEZONE")).toBeLessThan(body.indexOf("BEGIN:VEVENT"));
     }
   });
+
+  it("lasts an hour when the Interview's duration is not known", () => {
+    const file = calendarFile({ ...interview, durationMinutes: null }, { now: NOW, agendaUrl: AGENDA_URL, locale: "fr" })!;
+    expect(property(file, "DTEND")).toBe("DTEND;TZID=Europe/Paris:20261022T153000");
+  });
+
+  it("names an Interview by its Job Offer and company, a Coaching Session by its Human Coach, in the Interface Language", () => {
+    expect(property(calendarFile(interview, { now: NOW, agendaUrl: AGENDA_URL, locale: "fr" })!, "SUMMARY")).toBe("SUMMARY:Entretien — Directrice financière\\, Acme Industrie");
+    expect(property(calendarFile({ ...interview, employer: undefined }, { now: NOW, agendaUrl: AGENDA_URL, locale: "fr" })!, "SUMMARY")).toBe("SUMMARY:Entretien — Directrice financière");
+    expect(property(calendarFile(interview, { now: NOW, agendaUrl: AGENDA_URL, locale: "en" })!, "SUMMARY")).toBe("SUMMARY:Interview — Directrice financière\\, Acme Industrie");
+    expect(property(calendarFile(session, { now: NOW, agendaUrl: AGENDA_URL, locale: "fr" })!, "SUMMARY")).toBe("SUMMARY:Séance avec Claire Martin");
+    expect(property(calendarFile(session, { now: NOW, agendaUrl: AGENDA_URL, locale: "en" })!, "SUMMARY")).toBe("SUMMARY:Session with Claire Martin");
+  });
+
+  it("gives the place or the video link as LOCATION, and a web address in it as URL", () => {
+    const onSite = calendarFile(interview, { now: NOW, agendaUrl: AGENDA_URL, locale: "fr" })!;
+    expect(property(onSite, "LOCATION")).toBe("LOCATION:12 rue de la Paix\\, Paris");
+    expect(property(onSite, "URL")).toBeUndefined();
+
+    const video = calendarFile({ ...interview, format: "video", place: "Teams : https://teams.example.com/l/meetup-join/19%3Ameeting?ctx=a,b." }, { now: NOW, agendaUrl: AGENDA_URL, locale: "fr" })!;
+    expect(property(video, "LOCATION")).toBe("LOCATION:Teams : https://teams.example.com/l/meetup-join/19%3Ameeting?ctx=a\\,b.");
+    // A URI is not TEXT: no escaping, and no punctuation that ends the sentence.
+    expect(property(video, "URL")).toBe("URL:https://teams.example.com/l/meetup-join/19%3Ameeting?ctx=a,b");
+
+    const coaching = calendarFile(session, { now: NOW, agendaUrl: AGENDA_URL, locale: "fr" })!;
+    expect(property(coaching, "LOCATION")).toBe("LOCATION:https://meet.example.com/abc-def");
+    expect(property(coaching, "URL")).toBe("URL:https://meet.example.com/abc-def");
+
+    const nowhere = calendarFile({ ...interview, place: "" }, { now: NOW, agendaUrl: AGENDA_URL, locale: "fr" })!;
+    expect(property(nowhere, "LOCATION")).toBeUndefined();
+    expect(property(calendarFile({ ...session, videoLink: undefined }, { now: NOW, agendaUrl: AGENDA_URL, locale: "fr" })!, "LOCATION")).toBeUndefined();
+  });
+
+  it("describes the item with its note and a link back to the Agenda", () => {
+    const file = calendarFile({ ...interview, note: "avec la DRH" }, { now: NOW, agendaUrl: AGENDA_URL, locale: "fr" })!;
+    expect(property(file, "DESCRIPTION")).toBe("DESCRIPTION:avec la DRH\\n\\nDans votre agenda Jobbbox : https://app.jobbbox.fr/agenda");
+    const noNote = calendarFile(session, { now: NOW, agendaUrl: AGENDA_URL, locale: "en" })!;
+    expect(property(noNote, "DESCRIPTION")).toBe("DESCRIPTION:In your Jobbbox agenda: https://app.jobbbox.fr/agenda");
+  });
+
+  it("escapes backslashes, semicolons, commas and line breaks in text, so a note cannot add properties", () => {
+    const note = "Code\\porte; 2e étage, bureau 4\r\nEND:VEVENT\nBEGIN:VEVENT\rfin";
+    const file = calendarFile({ ...interview, jobTitle: "DAF; H/F", employer: "Dupont, Durand & Cie", note }, { now: NOW, agendaUrl: AGENDA_URL, locale: "fr" })!;
+    expect(property(file, "SUMMARY")).toBe("SUMMARY:Entretien — DAF\\; H/F\\, Dupont\\, Durand & Cie");
+    expect(property(file, "DESCRIPTION")).toBe("DESCRIPTION:Code\\\\porte\\; 2e étage\\, bureau 4\\nEND:VEVENT\\nBEGIN:VEVENT\\nfin\\n\\nDans votre agenda Jobbbox : https://app.jobbbox.fr/agenda");
+    expect(lines(file).filter((line) => line === "BEGIN:VEVENT")).toHaveLength(1);
+  });
 });

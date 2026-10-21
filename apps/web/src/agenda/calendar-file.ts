@@ -6,8 +6,8 @@
  * never converted to UTC. The UID is stable per Agenda Item, so a later download names the
  * same event. Text is escaped and lines are folded at 75 octets, never inside a UTF-8 character.
  */
-import type { Locale } from "@jobhub/shared/i18n";
-import { INTERVIEW_TIME_ZONE, interviewEndsAt, interviewWallClock } from "../applications";
+import { createI18n, type Locale } from "@jobhub/shared/i18n";
+import { INTERVIEW_TIME_ZONE, interviewEndsAt, interviewPlaceParts, interviewWallClock } from "../applications";
 import type { AgendaItem } from "./index";
 
 /** The domain that makes an Agenda Item's UID globally unique. */
@@ -49,10 +49,35 @@ const frenchDateTime = (instant: Date) => `${interviewWallClock(instant).replace
 /** `instant` in UTC, as an iCalendar DATE-TIME: "20261020T080000Z". */
 const utcDateTime = (instant: Date) => `${instant.toISOString().slice(0, 19).replace(/[-:]/g, "")}Z`;
 
+/** `value` as an iCalendar TEXT value (s3.3.11): backslash first, then semicolons, commas and every line break. */
+const text = (value: string) =>
+  value
+    .replace(/\\/g, "\\\\")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,")
+    .replace(/\r\n|\r|\n/g, "\\n");
+
+/** The first http or https web address in `value`, as it is shown linked on the Agenda, if it is a valid URI. */
+function webAddressIn(value: string | undefined): string | undefined {
+  const href = value ? interviewPlaceParts(value).find((part) => part.href)?.href : undefined;
+  if (!href || !URL.canParse(href)) return undefined;
+  return new URL(href).href === href ? href : undefined;
+}
+
 /** The Calendar file of `item`. */
 export function calendarFile(item: AgendaItem, options: CalendarFileOptions): string | null {
+  const t = createI18n(options.locale).t;
   const uid = `${item.kind === "interview" ? "interview" : "coaching-session"}-${item.id}@${UID_DOMAIN}`;
   const endsAt = interviewEndsAt({ scheduledAt: item.scheduledAt, durationMinutes: item.durationMinutes ?? null });
+  const summary =
+    item.kind === "interview"
+      ? item.employer
+        ? t("agenda.calendarFile.interviewTitle", { job: item.jobTitle, employer: item.employer })
+        : t("agenda.calendarFile.interviewTitleNoEmployer", { job: item.jobTitle })
+      : t("agenda.calendarFile.sessionTitle", { name: item.coach.name });
+  const location = item.kind === "interview" ? item.place : item.videoLink;
+  const url = webAddressIn(location);
+  const description = [item.note, t("agenda.calendarFile.seeInAgenda", { url: options.agendaUrl })].filter(Boolean).join("\n\n");
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -64,6 +89,10 @@ export function calendarFile(item: AgendaItem, options: CalendarFileOptions): st
     `DTSTAMP:${utcDateTime(options.now)}`,
     `DTSTART;TZID=${INTERVIEW_TIME_ZONE}:${frenchDateTime(item.scheduledAt)}`,
     `DTEND;TZID=${INTERVIEW_TIME_ZONE}:${frenchDateTime(endsAt)}`,
+    `SUMMARY:${text(summary)}`,
+    ...(location ? [`LOCATION:${text(location)}`] : []),
+    ...(url ? [`URL:${url}`] : []),
+    `DESCRIPTION:${text(description)}`,
     "END:VEVENT",
     "END:VCALENDAR",
   ];

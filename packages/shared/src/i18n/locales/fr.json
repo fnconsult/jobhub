@@ -1994,7 +1994,18 @@
     "dayItems_one": "{{date}} : {{count}} rendez-vous",
     "dayItems_other": "{{date}} : {{count}} rendez-vous",
     "legendLabel": "Légende",
-    "changedByCoach": "modifié par le coach"
+    "changedByCoach": "modifié par le coach",
+    "calendarFile": {
+      "add": "Ajouter à mon calendrier",
+      "addFor": "Ajouter à mon calendrier : {{what}}, {{date}}",
+      "hint": "Fichier .ics. Si la date change, téléchargez-le à nouveau.",
+      "interviewTitle": "Entretien — {{job}}, {{employer}}",
+      "interviewTitleNoEmployer": "Entretien — {{job}}",
+      "sessionTitle": "Séance avec {{name}}",
+      "seeInAgenda": "Dans votre agenda Jobbbox : {{url}}",
+      "fileName": "entretien-{{day}}.ics",
+      "sessionFileName": "seance-{{day}}.ics"
+    }
   },
   "application": {
     "statusLabel": "Statut",

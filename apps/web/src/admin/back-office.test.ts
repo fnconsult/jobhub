@@ -4,7 +4,7 @@ import { createApplications, migrateApplications } from "../applications";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createBilling, migrateBilling, STARTING_PLAN_QUOTAS, weekInFrance, type Billing } from "../billing";
 import { FAKE_STRIPE_PRODUCTS, FAKE_STRIPE_SECRET_KEY, FAKE_STRIPE_WEBHOOK_SECRET, startFakeStripe } from "../billing/fake-stripe";
-import { createHumanCoaches, migrateHumanCoaches } from "../human-coaches";
+import { createHumanCoaches, migrateHumanCoaches, type HumanCoaches } from "../human-coaches";
 import { createJobOffers, migrateJobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles } from "../profiles";
 import { createBackOffice, migrateBackOfficeAudit, type BackOffice, type BackOfficeActor } from "./back-office";
@@ -13,6 +13,7 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
   let testAuth: TestAuth;
   let database: Pool;
   let billing: Billing;
+  let humanCoaches: HumanCoaches;
   let backOffice: BackOffice;
   let claire: BackOfficeActor;
 
@@ -34,7 +35,7 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
     billing = createBilling({ database, baseURL: "http://localhost:3000" });
     const profiles = createProfiles(database);
     const applications = createApplications(database, { jobOffers: createJobOffers(database), profiles });
-    const humanCoaches = createHumanCoaches(database, {
+    humanCoaches = createHumanCoaches(database, {
       profiles,
       applications,
       tailoredDocuments: { get: async () => null },
@@ -350,6 +351,50 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
     expect((await backOffice.journal({ outcome: "succeeded" })).map((entry) => [entry.target, entry.outcome, entry.failure])).toEqual([["free", "succeeded", null]]);
     expect((await backOffice.journal({ section: "roles", outcome: "failed" })).map((entry) => entry.target)).toEqual(["luc@rh-conseil.fr"]);
     expect(await backOffice.journal({ section: "roles", outcome: "succeeded" })).toEqual([]);
+  });
+
+  it("an Administrator opening a section outside their Back Office Roles leaves one denied entry per section and minute (#264)", async () => {
+    let now = new Date("2026-10-21T10:00:05Z");
+    const clocked = createBackOffice(database, { billing, humanCoaches, now: () => now });
+
+    await clocked.recordDenied(claire, "aiMessages", "read");
+    now = new Date("2026-10-21T10:00:50Z");
+    await clocked.recordDenied(claire, "aiMessages", "read");
+
+    expect(await clocked.journal()).toEqual([
+      {
+        id: expect.any(String),
+        at: new Date("2026-10-21T10:00:05Z"),
+        actor: { candidateId: claire.id, email: "claire@jobbbox.fr" },
+        section: "ai_messages",
+        target: "/admin/journaux-ia",
+        action: "denied",
+        outcome: "failed",
+        before: null,
+        after: null,
+        failure: { reason: "role_missing", tried: "viewed", field: null, technical: null },
+      },
+    ]);
+
+    await clocked.recordDenied(claire, "audit", "read");
+    await clocked.recordDenied(claire, "plans", "write");
+    now = new Date("2026-10-21T10:01:02Z");
+    await clocked.recordDenied(claire, "aiMessages", "read");
+    expect((await clocked.journal()).map((entry) => [entry.section, entry.action, entry.failure?.tried])).toEqual([
+      ["ai_messages", "denied", "viewed"],
+      ["plans", "denied", "updated"],
+      ["journal", "denied", "viewed"],
+      ["ai_messages", "denied", "viewed"],
+    ]);
+  });
+
+  it("two requests denied at the same moment leave one entry (#264)", async () => {
+    const now = new Date("2026-10-21T10:00:05Z");
+    const clocked = createBackOffice(database, { billing, humanCoaches, now: () => now });
+
+    await Promise.all([clocked.recordDenied(claire, "aiMessages", "read"), clocked.recordDenied(claire, "aiMessages", "read")]);
+
+    expect(await clocked.journal()).toHaveLength(1);
   });
 
   it("the Journal stays newest first past entry 9, 99... (entries are ordered as numbers)", async () => {

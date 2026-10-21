@@ -7,6 +7,8 @@
  *                                          `addHumanCoach`, `retireHumanCoach`
  *  - record any other Back Office write    `record`, the one seam every write goes through
  *  - record an attempt that failed         `recordFailure`, or `record` when its write is refused
+ *  - record a section opened outside       `recordDenied`, at most once per Administrator, section and minute
+ *    the Administrator's Back Office Roles
  *  - read the record                       `journal`, newest first, by section and by Outcome
  * and `purgeExpiredBackOfficeAudit(database, now)` (the worker, daily) and
  * `migrateBackOfficeAudit(database)`.
@@ -31,6 +33,9 @@ import type {
 } from "../billing";
 import type { Queryable } from "../database/pool";
 import type { AddHumanCoachResult, HumanCoaches } from "../human-coaches";
+import { routes } from "../routes";
+import type { BackOfficeResource, Permission } from "./access";
+import { BACK_OFFICE_PAGES } from "./back-office-nav";
 
 /** How long a Back Office Audit entry is kept. */
 export const RETENTION_YEARS = 3;
@@ -51,6 +56,13 @@ export const BACK_OFFICE_SECTIONS = [
   "coaching_playbooks",
   "eval_cases",
   "guardrails",
+  // Sections only an Administrator denied entry is in (#264): the pages that change nothing.
+  "eval_runs",
+  "coach_message_cost",
+  "ai_usage",
+  "search_sites",
+  "tool_pages",
+  "journal",
 ] as const;
 export type BackOfficeSection = (typeof BACK_OFFICE_SECTIONS)[number];
 
@@ -76,9 +88,10 @@ export type SecretAction = (typeof SECRET_ACTIONS)[number];
  * deletes it (a search site). `viewed`: an AI Message Log was read (#218), the only read the
  * Back Office Audit records. `validated`, `archived` and `restored`: a Playbook Version was
  * Human-validated, a Coaching Playbook archived or restored (#225). `reset`: the week's Plan Quota
- * usage of every Candidate was forgotten (ADR-0032).
+ * usage of every Candidate was forgotten (ADR-0032). `refused`: an attempt refused or failed (#263); `denied`: an Administrator
+ * opened a section outside their Back Office Roles (#264).
  */
-export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | "tested" | "viewed" | "validated" | "archived" | "restored" | "reset" | "refused" | SecretAction;
+export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | "tested" | "viewed" | "validated" | "archived" | "restored" | "reset" | "refused" | "denied" | SecretAction;
 
 /** How a Back Office attempt ended (the Outcome, CONTEXT.md): the Back Office Audit only uses these two. */
 export const BACK_OFFICE_OUTCOMES = ["succeeded", "failed"] as const;
@@ -134,7 +147,7 @@ export type BackOfficeFailure = {
   [S in BackOfficeSection]: {
     section: S;
     target: string;
-    tried: Exclude<BackOfficeAction, "refused">;
+    tried: Exclude<BackOfficeAction, "refused" | "denied">;
     reason: FailureReason;
     field?: FailureField<S>;
     /** Its message is scrubbed of keys and cut at 500 characters before it is kept. */
@@ -172,6 +185,30 @@ export interface BackOfficeAuditEntry {
   failure: { reason: FailureReason; tried: BackOfficeAction; field: string | null; technical: TechnicalReason | null } | null;
 }
 
+/** The section an Administrator denied a resource is recorded in (#264), one for each resource. */
+const DENIED_SECTIONS = {
+  roles: "roles",
+  audit: "journal",
+  planQuotas: "plan_quotas",
+  plans: "plans",
+  coupons: "coupons",
+  humanCoaches: "human_coaches",
+  coachMessageCost: "coach_message_cost",
+  providerSecrets: "provider_secrets",
+  ssoProviders: "sign_in_providers",
+  searchSites: "search_sites",
+  aiUsage: "ai_usage",
+  aiMessages: "ai_messages",
+  coachingPlaybooks: "coaching_playbooks",
+  guardrails: "guardrails",
+  tools: "tool_pages",
+  evalRuns: "eval_runs",
+} as const satisfies Record<BackOfficeResource, BackOfficeSection>;
+
+/** The page an Administrator was denied `resource` on: the Back Office page it covers; Eval Runs are played from the Coaching Playbooks. */
+const deniedPage = (resource: BackOfficeResource): string =>
+  Object.values(BACK_OFFICE_PAGES).find((page) => page.resource === resource)?.href ?? routes.adminCoachingPlaybooks;
+
 export interface BackOfficeDeps {
   billing: Pick<
     Billing,
@@ -187,6 +224,8 @@ export interface BackOfficeDeps {
     | "reactivateCoupon"
   >;
   humanCoaches: Pick<HumanCoaches, "add" | "retire">;
+  /** The time an Administrator denied entry is recorded at (its minute keeps one entry); the database's clock otherwise. */
+  now?: () => Date;
 }
 
 export interface BackOffice {
@@ -260,6 +299,12 @@ export interface BackOffice {
   ): Promise<T>;
   /** Records an attempt that failed or was refused, outside any write (#263). */
   recordFailure(actor: BackOfficeActor, failure: BackOfficeFailure): Promise<void>;
+  /**
+   * Records an Administrator denied `permission` on `resource` by their Back Office Roles (#264): a failed `denied` entry in
+   * the resource's section, on its page, Failure Reason `role_missing`. At most one per Administrator, section and minute:
+   * a reload, or two requests at once, add nothing.
+   */
+  recordDenied(actor: BackOfficeActor, resource: BackOfficeResource, permission: Permission): Promise<void>;
   /** The Back Office Audit, newest first: everything, or one section, one Outcome, or both. At most `limit` entries (default 200). */
   journal(filter?: {
     section?: BackOfficeSection;
@@ -386,6 +431,16 @@ export function createBackOffice(
     );
   }
 
+  async function recordDenied(actor: BackOfficeActor, resource: BackOfficeResource, permission: Permission): Promise<void> {
+    // The unique index on the Administrator, section and minute of a denied entry keeps the first one.
+    await database.query(
+      `INSERT INTO back_office_audit (candidate_id, actor_email, section, target, action, outcome, reason, tried, created_at)
+       VALUES ($1, $2, $3, $4, 'denied', 'failed', 'role_missing', $5, COALESCE($6::timestamptz, clock_timestamp()))
+       ON CONFLICT DO NOTHING`,
+      [actor.id, actor.email.trim().toLowerCase(), DENIED_SECTIONS[resource], deniedPage(resource), permission === "write" ? "updated" : "viewed", deps.now?.() ?? null],
+    );
+  }
+
   async function record<T>(
     actor: BackOfficeActor,
     write: (within: Queryable) => Promise<T>,
@@ -434,6 +489,7 @@ export function createBackOffice(
   return {
     record,
     recordFailure,
+    recordDenied,
 
     async createPlan(actor, input) {
       // Stripe is asked before the transaction opens, so none waits on it.
@@ -686,6 +742,9 @@ export async function migrateBackOfficeAudit(database: Pool): Promise<void> {
     ALTER TABLE back_office_audit ADD COLUMN IF NOT EXISTS tried text;
     ALTER TABLE back_office_audit ADD COLUMN IF NOT EXISTS field text;
     ALTER TABLE back_office_audit ADD COLUMN IF NOT EXISTS technical_reason jsonb;
+    -- An Administrator opening a section outside their Back Office Roles (#264): one entry per Administrator, section and minute.
+    CREATE UNIQUE INDEX IF NOT EXISTS back_office_audit_denied_minute_idx
+      ON back_office_audit (candidate_id, section, date_trunc('minute', created_at, 'UTC')) WHERE action = 'denied';
     CREATE INDEX IF NOT EXISTS back_office_audit_outcome_idx ON back_office_audit (outcome, id DESC);
     CREATE INDEX IF NOT EXISTS back_office_audit_section_idx ON back_office_audit (section, id DESC);
     CREATE INDEX IF NOT EXISTS back_office_audit_created_at_idx ON back_office_audit (created_at);

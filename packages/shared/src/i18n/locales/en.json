@@ -1250,7 +1250,13 @@
         "ai_messages": "AI message logs",
         "coaching_playbooks": "Coaching Playbooks",
         "guardrails": "Guardrails",
-        "eval_cases": "Eval Cases"
+        "eval_cases": "Eval Cases",
+        "eval_runs": "Eval Runs",
+        "coach_message_cost": "Coach cost",
+        "ai_usage": "AI consumption",
+        "search_sites": "Search sites",
+        "tool_pages": "Tools pages",
+        "journal": "Journal"
       },
       "actions": {
         "added": "Added",
@@ -1266,7 +1272,8 @@
         "archived": "Archive",
         "restored": "Restore",
         "reset": "Reset",
-        "refused": "Attempt refused"
+        "refused": "Attempt refused",
+        "denied": "Access denied"
       },
       "none": "No change recorded.",
       "caption": "Back office changes, newest first",
@@ -2773,6 +2780,7 @@
     "last_super_admin": "Last super-admin",
     "unknown_account": "Account not found",
     "stripe_refused": "Refused by Stripe",
+    "role_missing": "Section outside their roles",
     "guardrail_timeout": "Check took too long",
     "invalid_verdict": "Unreadable check verdict",
     "provider_error": "Provider error",

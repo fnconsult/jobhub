@@ -368,6 +368,12 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   coaching_playbooks: "playbooks de coaching",
   eval_cases: "cas d'évaluation",
   guardrails: "garde-fous",
+  eval_runs: "Eval Runs",
+  coach_message_cost: "coût coach",
+  ai_usage: "consommation IA",
+  search_sites: "sites de recherche",
+  tool_pages: "pages Outils",
+  journal: "journal",
 };
 
 const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
@@ -385,6 +391,7 @@ const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
   restored: "rétablissement",
   reset: "remise à zéro",
   refused: "tentative refusée",
+  denied: "accès refusé",
 };
 
 /**
@@ -393,7 +400,7 @@ const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
  */
 function journalLine(entry: BackOfficeAuditEntry): string {
   if (entry.failure) {
-    const tried = entry.action === "refused" ? `${ACTIONS.refused} (${ACTIONS[entry.failure.tried]})` : ACTIONS[entry.action];
+    const tried = entry.action === "refused" || entry.action === "denied" ? `${ACTIONS[entry.action]} (${ACTIONS[entry.failure.tried]})` : ACTIONS[entry.action];
     return `${JOURNAL_SECTIONS[entry.section]}, ${tried} de ${entry.target} ; échec : ${failureReasonWording(entry.failure.reason)}`;
   }
   const named = (value: Recorded) => (value && typeof value === "object" && !Array.isArray(value) && typeof value.name === "string" ? value.name : null);

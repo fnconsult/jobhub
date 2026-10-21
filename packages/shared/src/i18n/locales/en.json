@@ -2797,5 +2797,24 @@
     "working": "Cancelling…",
     "error": "Cancelling failed. Check your connection and try again.",
     "removeHint": "\"Delete\" erases an interview entered by mistake, leaving no trace. \"Cancel\" keeps it, struck through."
+  },
+  "appointmentReminder": {
+    "email": {
+      "subject_one": "Reminder: your appointment tomorrow, {{date}}",
+      "subject_other": "Reminder: your {{count}} appointments tomorrow, {{date}}",
+      "intro_one": "Hello,\n\nTo help you prepare, here is your appointment tomorrow, {{date}}:",
+      "intro_other": "Hello,\n\nTo help you prepare, here are your {{count}} appointments tomorrow, {{date}}:",
+      "interview": "{{time}} · Interview: {{title}}",
+      "interviewAt": "{{time}} · Interview: {{title}} at {{employer}}",
+      "coachingSession": "{{time}} · Coaching session with {{coach}}",
+      "duration": "Duration: {{count}} min",
+      "format": "Format: {{format}}",
+      "place": "Place or link: {{place}}",
+      "videoLink": "Link: {{url}}",
+      "note": "Note: {{note}}",
+      "seeAgenda": "Find them in your agenda:\n{{url}}",
+      "signature": "The Jobbbox team",
+      "settings": "Stop receiving these reminders:\n{{url}}"
+    }
   }
 }

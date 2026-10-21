@@ -2797,5 +2797,24 @@
     "working": "Annulation…",
     "error": "L'annulation a échoué. Vérifiez votre connexion et réessayez.",
     "removeHint": "« Supprimer » efface un entretien saisi par erreur, sans laisser de trace. « Annuler » le garde, barré."
+  },
+  "appointmentReminder": {
+    "email": {
+      "subject_one": "Rappel : votre rendez-vous de demain, {{date}}",
+      "subject_other": "Rappel : vos {{count}} rendez-vous de demain, {{date}}",
+      "intro_one": "Bonjour,\n\nPour vous y préparer, voici votre rendez-vous de demain, {{date}} :",
+      "intro_other": "Bonjour,\n\nPour vous y préparer, voici vos {{count}} rendez-vous de demain, {{date}} :",
+      "interview": "{{time}} · Entretien : {{title}}",
+      "interviewAt": "{{time}} · Entretien : {{title}} chez {{employer}}",
+      "coachingSession": "{{time}} · Séance de coaching avec {{coach}}",
+      "duration": "Durée : {{count}} min",
+      "format": "Format : {{format}}",
+      "place": "Lieu ou lien : {{place}}",
+      "videoLink": "Lien : {{url}}",
+      "note": "Note : {{note}}",
+      "seeAgenda": "Retrouvez-les dans votre agenda :\n{{url}}",
+      "signature": "L'équipe Jobbbox",
+      "settings": "Ne plus recevoir ces rappels :\n{{url}}"
+    }
   }
 }

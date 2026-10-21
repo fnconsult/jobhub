@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { signInWithMagicLink } from "./support/candidate";
+import { approveAtGoogle, signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
 // Issue #233: the Back Office's Outils section lists every external tool the app calls, by
@@ -92,10 +92,39 @@ test.describe("Tools (Outils)", () => {
     await page.getByRole("link", { name: tools.back }).click();
     await expect(page).toHaveURL(/\/admin\/outils$/);
 
-    // A Tool whose calls are not traced yet, and an id that is no Tool.
+    // Another Tool's page, and an id that is no Tool.
     await page.goto("/admin/outils/stripe");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Stripe");
     expect((await page.goto("/admin/outils/linkedin"))?.status()).toBe(404);
+  });
+
+  test("a Stripe call shows on Stripe's page and in the Journal with the Outils filter, beside the Back Office changes, never what it carried (#234)", async ({ page }) => {
+    const journal = admin.journal;
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    // A webhook delivery Stripe did not sign: refused, and recorded as a failed call.
+    const forged = await page.request.post("/api/billing/webhook", { data: '{"id":"evt_forged_e2e"}', headers: { "stripe-signature": "t=1,v1=forged", "content-type": "application/json" } });
+    expect(forged.status()).toBe(400);
+
+    await page.goto("/admin/outils/stripe");
+    const calls = page.getByRole("table", { name: tr(tools.callsCaption, { name: "Stripe" }) });
+    await expect(async () => {
+      await page.reload();
+      await expect(calls.getByRole("row").filter({ hasText: "webhooks.constructEvent" }).first()).toContainText(tools.failed, { timeout: 1_000 });
+    }).toPass();
+    await expect(page.getByRole("main")).not.toContainText("evt_forged_e2e");
+
+    await page.goto("/admin/journal");
+    await page.getByRole("navigation", { name: journal.filter }).getByRole("link", { name: journal.tools, exact: true }).click();
+    await expect(page).toHaveURL(/\/admin\/journal\?section=tools$/);
+    await expect(page.getByRole("navigation", { name: journal.filter }).getByRole("link", { name: journal.tools, exact: true })).toHaveAttribute("aria-current", "page");
+    const lines = page.getByRole("table", { name: journal.toolsCaption });
+    const stripeCall = lines.getByRole("row").filter({ hasText: "webhooks.constructEvent" }).first();
+    await expect(stripeCall).toContainText(journal.byJobbbox);
+    await expect(stripeCall.getByRole("link", { name: "Stripe" })).toHaveAttribute("href", "/admin/outils/stripe");
+    // Newest first, whatever they are.
+    const times = await lines.locator("tbody time").evaluateAll((elements) => elements.map((element) => element.getAttribute("datetime")!));
+    expect(times).toEqual([...times].sort().reverse());
+    await expect(page.getByRole("main")).not.toContainText("evt_forged_e2e");
   });
 
   test("every place suggestion asks geo.api.gouv.fr, listed under Géolocalisation, and each of its calls is traced (#235)", async ({ page, request }) => {
@@ -165,6 +194,49 @@ test.describe("Tools (Outils)", () => {
       const calls = page.getByRole("table", { name: tr(tools.callsCaption, { name }) });
       await expect(calls.getByRole("row").filter({ hasText: operation }).first()).toContainText(tools.ok);
     }
+  });
+
+  test("a Google sign-in and a refused key test are each one call on their Tool's page and in the Journal, never who signed in nor what was sent (#234)", async ({ page, browser }) => {
+    const journal = admin.journal;
+    const keys = admin.providerSecrets;
+    const candidateEmail = newAddress("traced-person");
+    const sub = `google-sub-${Date.now()}`;
+    const candidate = await browser.newContext({ baseURL: origin });
+    const candidatePage = await candidate.newPage();
+    await approveAtGoogle(candidatePage, { sub, email: candidateEmail, email_verified: true, name: "Traced Person" }, origin);
+    await candidatePage.goto("/connexion");
+    await candidatePage.getByRole("button", { name: fr.signIn.continueWith.replace("{{provider}}", "Google") }).click();
+    await expect(candidatePage).toHaveURL(`${origin}/compte`);
+    const candidateId = (await (await candidatePage.request.get("/api/auth/get-session")).json()).user.id as string;
+    await candidate.close();
+
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    // A key its provider refuses: tested, so one connection-test call to Lusha.
+    await page.goto("/admin/cles");
+    await page.locator("summary", { hasText: tr(keys.replaceLegend, { name: "LUSHA_API_KEY" }) }).click();
+    await page.getByLabel(tr(keys.newValue, { name: "LUSHA_API_KEY" })).fill(`e2e-traced-secret-${Date.now()}`);
+    await page.getByRole("button", { name: tr(keys.replace, { name: "LUSHA_API_KEY" }) }).click();
+    await expect(page.getByRole("main").getByRole("alert").first()).toHaveText(tr(keys.errors.test_failed, { name: "LUSHA_API_KEY" }));
+
+    for (const [id, name] of [["google", "Google"], ["lusha", "Lusha"]] as const) {
+      await page.goto(`/admin/outils/${id}`);
+      const calls = page.getByRole("table", { name: tr(tools.callsCaption, { name }) });
+      await expect(async () => {
+        await page.reload();
+        await expect(calls.getByRole("row").nth(1)).toBeVisible({ timeout: 1_000 });
+      }).toPass();
+      const text = await page.getByRole("main").innerText();
+      for (const forbidden of [candidateEmail, candidateId, sub, "e2e-traced-secret", "Traced Person"]) expect(text, `${name} page`).not.toContain(forbidden);
+    }
+    await page.goto("/admin/outils/lusha");
+    await expect(page.getByRole("table", { name: tr(tools.callsCaption, { name: "Lusha" }) }).getByRole("row").filter({ hasText: "connection_test" }).first()).toContainText(tools.failed);
+
+    await page.goto("/admin/journal?section=tools");
+    const lines = page.getByRole("table", { name: journal.toolsCaption });
+    await expect(lines.getByRole("row").filter({ hasText: "connection_test" }).first()).toBeVisible();
+    await expect(lines.getByRole("link", { name: "Google", exact: true }).first()).toHaveAttribute("href", "/admin/outils/google");
+    const all = await page.getByRole("main").innerText();
+    for (const forbidden of [candidateEmail, candidateId, sub, "e2e-traced-secret"]) expect(all, "Journal").not.toContain(forbidden);
   });
 
   test("Support reads the Tools without a way into Clés; other roles and Candidates get a 404", async ({ page, browser }) => {

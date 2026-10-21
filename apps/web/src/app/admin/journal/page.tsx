@@ -15,6 +15,7 @@ import Link from "next/link";
 import { isBackOfficeRole } from "@/admin/access";
 import { BACK_OFFICE_SECTIONS, isBackOfficeSection, isSecretAction, RETENTION_YEARS, type BackOfficeAuditEntry, type BackOfficeSection, type Recorded } from "@/admin/back-office";
 import { journalChanges, type JournalChange } from "@/admin/journal-changes";
+import { journalTimeline, type JournalLine } from "@/admin/journal-timeline";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
 import { couponDiscountLabel } from "@/billing/coupon-label";
 import { getBilling } from "@/billing/server";
@@ -23,6 +24,8 @@ import { GUARDRAIL_LANGUAGES, GUARDRAIL_SETTINGS, isGuardrailId, type GuardrailL
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
+import type { ToolCall } from "@/tools";
+import { latestToolCallsNow } from "@/tools/server";
 
 /** How many entries the Journal shows at most. */
 const LIMIT = 200;
@@ -79,6 +82,9 @@ type CouponField = (typeof COUPON_FIELDS)[number];
 /** `aria-current` of the link to the section being shown. */
 const CURRENT = "page";
 
+/** The Outils filter (#234): the calls to the Tools, next to every Back Office change. */
+const TOOLS_FILTER = "tools";
+
 export async function generateMetadata(): Promise<Metadata> {
   // Metadata renders apart from the page: without this, the 404 shown to
   // non-Administrators would still carry the back office's title.
@@ -87,14 +93,24 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t("admin.journal.title")} · ${t("admin.title")}`, robots: { index: false } };
 }
 
-/** Administrators read the Back Office Audit: every change made in the Back Office, newest first, by section. */
+/**
+ * Administrators read the Back Office Audit: every change made in the Back Office, newest first, by
+ * section. With the Outils filter (those who may read the Tools), the calls to the Tools beside them.
+ */
 export default async function JournalPage({ searchParams }: { searchParams: Promise<{ section?: string }> }) {
   const { access } = await requireBackOffice("audit");
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
   const requested = (await searchParams).section;
+  const readsTools = access.can("tools", "read");
+  const withTools = requested === TOOLS_FILTER && readsTools;
   const section = isBackOfficeSection(requested) ? requested : undefined;
-  const [entries, plans] = await Promise.all([getBackOffice().journal({ section, limit: LIMIT }), getBilling().plans()]);
+  const [entries, plans, toolCalls] = await Promise.all([
+    getBackOffice().journal({ section, limit: LIMIT }),
+    getBilling().plans(),
+    withTools ? latestToolCallsNow(LIMIT) : Promise.resolve([]),
+  ]);
+  const lines: JournalLine[] = journalTimeline(entries, toolCalls, LIMIT);
   /** What an entry changed, named as the Back Office names it: a Plan as it is named now; an unknown key stays as recorded. */
   const target = (entry: BackOfficeAuditEntry): string => {
     if (entry.section === "plans" || entry.section === "plan_quotas") return plans.find((plan) => plan.key === entry.target)?.name[locale] ?? entry.target;
@@ -106,6 +122,13 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
   };
   const at = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" });
   const number = new Intl.NumberFormat(locale);
+  const milliseconds = new Intl.NumberFormat(locale, { style: "unit", unit: "millisecond" });
+  /** A tool call's outcome, as the Tool's Outils page says it, and how long it took. */
+  const callResult = (call: ToolCall): string => {
+    const status = call.httpStatus === null ? null : t("admin.tools.httpStatus", { status: call.httpStatus });
+    const outcome = call.ok ? (status ? `${t("admin.tools.ok")} (${status})` : t("admin.tools.ok")) : `${t("admin.tools.failed")} (${status ?? t("admin.tools.noAnswer")})`;
+    return t("admin.journal.toolCallResult", { outcome, duration: milliseconds.format(call.durationMs) });
+  };
 
   const fieldName = (entrySection: BackOfficeSection, field: string): string => {
     if (entrySection === "plan_quotas" && (LIMITED_QUOTAS.includes(field as LimitedQuota) || field === "jobDigest")) {
@@ -191,19 +214,27 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
         <ul className="journal-filter">
           {[undefined, ...BACK_OFFICE_SECTIONS].map((option) => (
             <li key={option ?? "all"}>
-              <Link href={routes.adminJournal(option)} aria-current={option === section ? CURRENT : undefined}>
+              <Link href={routes.adminJournal(option)} aria-current={option === section && !withTools ? CURRENT : undefined}>
                 {option ? t(`admin.journal.sections.${option}`) : t("admin.journal.all")}
               </Link>
             </li>
           ))}
+          {readsTools ? (
+            <li>
+              <Link href={routes.adminJournal(TOOLS_FILTER)} aria-current={withTools ? CURRENT : undefined}>
+                {t("admin.journal.tools")}
+              </Link>
+            </li>
+          ) : null}
         </ul>
       </nav>
-      {entries.length === 0 ? (
+      {withTools ? <p>{t("admin.journal.toolsIntro")}</p> : null}
+      {lines.length === 0 ? (
         <p>{t("admin.journal.none")}</p>
       ) : (
         <div className="table-scroll">
           <table className="application-table">
-            <caption>{t("admin.journal.caption")}</caption>
+            <caption>{t(withTools ? "admin.journal.toolsCaption" : "admin.journal.caption")}</caption>
             <thead>
               <tr>
                 <th scope="col">{t("admin.journal.at")}</th>
@@ -215,7 +246,27 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
               </tr>
             </thead>
             <tbody>
-              {entries.map((entry) => {
+              {lines.map((line, index) => {
+                if (line.kind === "tool_call") {
+                  const { tool, call } = line;
+                  return (
+                    <tr key={`call-${call.at.toISOString()}-${index}`} data-kind="tool-call">
+                      <th scope="row">
+                        <time dateTime={call.at.toISOString()}>{at.format(call.at)}</time>
+                      </th>
+                      <td>{t("admin.journal.byJobbbox")}</td>
+                      <td>{t("admin.journal.tools")}</td>
+                      <td>
+                        <Link href={routes.adminTool(tool.id)}>{tool.name}</Link>
+                      </td>
+                      <td>
+                        {t("admin.journal.toolCall")} <code>{call.operation}</code>
+                      </td>
+                      <td>{callResult(call)}</td>
+                    </tr>
+                  );
+                }
+                const { entry } = line;
                 const changes = journalChanges(entry.before, entry.after);
                 return (
                   <tr key={entry.id}>
@@ -269,7 +320,11 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
           </table>
         </div>
       )}
-      {entries.length === LIMIT ? <p>{t("admin.journal.limit", { count: String(LIMIT) })}</p> : null}
+      {withTools ? (
+        lines.length === LIMIT ? <p>{t("admin.journal.toolsLimit", { count: String(LIMIT) })}</p> : null
+      ) : entries.length === LIMIT ? (
+        <p>{t("admin.journal.limit", { count: String(LIMIT) })}</p>
+      ) : null}
     </BackOfficeLayout>
   );
 }

@@ -4,7 +4,7 @@ import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createPostgresExternalApiLog, createPostgresUsageLog, migrateAiUsage } from "../ai-usage";
 import { connectionString, startTestAuth, type TestAuth } from "../auth/test-support";
-import { toolCalls, toolStatus, toolsOverview } from "./index";
+import { latestToolCalls, toolCalls, toolStatus, toolsOverview } from "./index";
 
 const tool = (id: string): Tool => toolById(id)!;
 
@@ -138,5 +138,48 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
 
     expect(await toolCalls(database, tool("anthropic-bedrock"), { limit: 2 })).toHaveLength(2);
     expect(await toolCalls(database, { ...tool("stripe"), usage: null })).toEqual([]);
+  });
+
+  it("lists an AI Tool's key connection tests among its calls, and counts them in its figures", async () => {
+    const ai = createPostgresUsageLog(database);
+    await ai.record(aiCall({ provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-large", at: new Date("2026-10-19T08:00:00Z") }));
+    await createPostgresExternalApiLog(database).record(
+      externalCall({ provider: "mistral", operation: "connection_test", ok: false, httpStatus: 401, durationMs: 120, costEur: null, at: new Date("2026-10-19T09:00:00Z") }),
+    );
+
+    expect(await toolCalls(database, tool("mistral"))).toEqual([
+      { at: new Date("2026-10-19T09:00:00Z"), operation: "connection_test", ok: false, httpStatus: 401, durationMs: 120, costEur: null },
+      { at: new Date("2026-10-19T08:00:00Z"), operation: "coaching · mistral-large", ok: true, httpStatus: null, durationMs: 900, costEur: 0.5 },
+    ]);
+    const overview = await toolsOverview(database, { env: {}, signInTypes: [] }, now);
+    expect(overview.flatMap((group) => group.rows).find((row) => row.tool.id === "mistral")!.figures).toEqual({ calls: 2, failures: 1, costEur: 0.5 });
+  });
+
+  it("lists the latest calls to every Tool together, newest first, each with its Tool", async () => {
+    await seed();
+
+    const latest = await latestToolCalls(database, { limit: 3 });
+
+    expect(latest.map(({ call }) => call.at.toISOString())).toEqual(["2026-10-19T09:00:00.000Z", "2026-10-19T08:00:00.000Z", "2026-10-19T08:00:00.000Z"]);
+    expect(latest[0]).toEqual({ tool: tool("anthropic-bedrock"), call: expect.objectContaining({ operation: "coaching · claude-opus-5", ok: false }) });
+    // At the same time, in no particular order.
+    expect(latest.slice(1).map(({ tool: called, call }) => `${called.id} ${call.operation}`).sort()).toEqual([
+      "anthropic offer_analysis · claude-opus-5",
+      "anthropic-bedrock coaching · claude-opus-5",
+    ]);
+    expect(JSON.stringify(latest)).not.toMatch(/Jeanne|Secret system text/);
+  });
+
+  it("lists, among the latest calls, only those since a time when asked", async () => {
+    await seed();
+
+    const latest = await latestToolCalls(database, { since: new Date("2026-10-19T07:01:00Z") });
+
+    expect(latest.map(({ tool: called, call }) => [called.id, call.at.toISOString()])).toEqual([
+      ["anthropic-bedrock", "2026-10-19T09:00:00.000Z"],
+      expect.anything(),
+      expect.anything(),
+      ["france-travail", "2026-10-19T07:05:00.000Z"],
+    ]);
   });
 });

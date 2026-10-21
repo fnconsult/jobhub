@@ -580,7 +580,7 @@ A third-party key (an AI provider's, France Travail's, the contact-enrichment pr
 _Avoid_: API key setting, credential, config secret
 
 **Tool**:
-An external service the application calls at runtime, from the web app or the worker: an AI model, web search, a job board API, the company register, a contact-enrichment provider, a source of Reference data or of Place suggestions, Stripe, Brevo or a Sign-in Provider. Each is registered in one catalog with its purpose, the keys it needs, where its calls are recorded and its data residency (in the EU, outside the EU, or not established); a provider missing from the catalog fails the tests. The Back Office's Outils section shows each Tool's state (configured, key missing, not configured) and its last 30 days of calls, failures and cost, and its latest calls without any payload. Super-admins and Support read it. Not a tool an AI model uses during a call (a web search it runs), which is only counted in AI Usage.
+An external service the application calls at runtime, from the web app or the worker: an AI model, web search, a job board API, the company register, a contact-enrichment provider, a source of Reference data or of Place suggestions, Stripe, Brevo or a Sign-in Provider. Each is registered in one catalog with its purpose, the keys it needs, where its calls are recorded and its data residency (in the EU, outside the EU, or not established); a provider missing from the catalog fails the tests. The Back Office's Outils section shows each Tool's state (configured, key missing, not configured) and its last 30 days of calls, failures and cost, and its latest calls without any payload. Every external call is recorded, whatever the Tool (AI models, Stripe, Brevo emails, sign-in, connection tests of Provider Secrets, and the Job Site pages read, named by their domain only, under the Tool Job Site), and never carries an address, a Candidate, a URL, an answer or a secret. Super-admins and Support read it. Not a tool an AI model uses during a call (a web search it runs), which is only counted in AI Usage.
 _Avoid_: Integration, connector, service
 
 **Sign-in Provider**:
@@ -596,7 +596,7 @@ The record of every change an Administrator makes in the Back Office (roles, Pla
 _Avoid_: Audit log, history, activity feed
 
 **Journal**:
-The Back Office page where Administrators read the Back Office Audit, newest first, filterable by section.
+The Back Office page where Administrators read the Back Office Audit, newest first, filterable by section. Those allowed to read the Tools also have the Outils section, which lists the Tools' calls beside the entries.
 _Avoid_: Audit page, changelog
 
 **AI Usage**:

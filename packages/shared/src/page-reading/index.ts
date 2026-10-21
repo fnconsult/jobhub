@@ -10,7 +10,7 @@ export { countJobPostings, jobPostingValidThrough, listedPostingUrls, readJobPos
 export {
   createPoliteFetcher,
   realClock,
-  recordingJobBoardFetch,
+  recordingSiteFetch,
   type Clock,
   type JsonResult,
   type PageResult,

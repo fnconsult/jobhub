@@ -1,4 +1,5 @@
 import { getBackOffice } from "@/admin/server";
+import { getExternalApiLog } from "@/ai-usage/external-api-log";
 import { sharedPool } from "@/database/pool";
 import { secretCipherFromEnv } from "@/provider-secrets/cipher";
 import type { SignInConfiguration } from "./catalog";
@@ -12,7 +13,12 @@ const holder = globalThis as { __jobhubSignInProviders?: SignInProviders; __jobh
 
 /** The Back Office's Sign-in Providers (the Connexion section). One per process. */
 export function getSignInProviders(): SignInProviders {
-  holder.__jobhubSignInProviders ??= createSignInProviders(sharedPool(), { cipher: secretCipherFromEnv(process.env), backOffice: getBackOffice(), env: process.env });
+  holder.__jobhubSignInProviders ??= createSignInProviders(sharedPool(), {
+    cipher: secretCipherFromEnv(process.env),
+    backOffice: getBackOffice(),
+    env: process.env,
+    externalApis: getExternalApiLog(),
+  });
   return holder.__jobhubSignInProviders;
 }
 

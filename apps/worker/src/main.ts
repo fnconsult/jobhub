@@ -52,10 +52,11 @@ const referenceData = createReferenceData(database, { externalApis: createPostgr
 // AI consent, and every call is redacted of their identity before it leaves (ADR-0007).
 // Every AI call goes to stdout and to AI Usage with its AI Message Log (every key in use
 // scrubbed); every France Travail call to AI Usage's external APIs. Neither waits on the insert.
+const externalApis = createPostgresExternalApiLog(database);
 const worker = workerClients({
   resolver: secrets,
   usage: allUsageLogs([createConsoleUsageLog(), createPostgresUsageLog(database, { secrets: () => knownSecrets(secrets.current().env) })]),
-  externalApis: createPostgresExternalApiLog(database),
+  externalApis,
   production: process.env.NODE_ENV === "production",
   jobOffers,
   budget: jobDiscoveryBudgetFromEnv(process.env),
@@ -111,6 +112,8 @@ const jobs = createJobs({
     const email = appleFailureEmail(failed, baseURL);
     for (const to of await superAdminEmails(database, permanentSuperAdminsFromEnv(process.env))) await mailer.send({ to, ...email });
   },
+  // The source re-check's page reads, as Job discovery's: a page_read of each site's domain.
+  externalApis,
   enqueue: async (name, data) => {
     if (!started.runner) throw new Error("the job runner has not started yet");
     await started.runner.enqueue(name, data);

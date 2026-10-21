@@ -23,6 +23,7 @@
  * seconds. Google's client secret falls back to env's GOOGLE_CLIENT_SECRET, and env's
  * Google client is seeded as a provider once, by the migration.
  */
+import { recordingFetch, type ExternalApiLog } from "@jobhub/shared";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 import type { BackOffice, BackOfficeActor, Recorded } from "../admin/back-office";
@@ -117,6 +118,8 @@ export interface SignInProvidersDeps {
   log?: (line: string) => void;
   /** An OIDC issuer's discovery document, or null. Default: fetchDiscoveryDocument (5 s at most), kept an hour. */
   fetchDiscovery?: (url: string) => Promise<Record<string, unknown> | null>;
+  /** Where each discovery document read is recorded, as a call to the OIDC Tool (#234). Default: nowhere. */
+  externalApis?: ExternalApiLog;
 }
 
 /** An Apple client secret that could not be signed again. */
@@ -246,14 +249,17 @@ function isDiscoveryUrl(value: string): boolean {
 /**
  * An OIDC issuer's discovery document at `url`, or null when it does not come within `timeoutMs`
  * or is not one (no https issuer, no authorization endpoint). Said in the log, without secrets.
+ * Recorded in `externalApis` as a `discovery` call to the OIDC Tool: never the issuer's address.
  */
 export async function fetchDiscoveryDocument(
   url: string,
-  options: { fetch?: (url: string, init?: RequestInit) => Promise<Response>; timeoutMs?: number; log?: (line: string) => void } = {},
+  options: { fetch?: (url: string, init?: RequestInit) => Promise<Response>; timeoutMs?: number; log?: (line: string) => void; externalApis?: ExternalApiLog } = {},
 ): Promise<Record<string, unknown> | null> {
   const log = options.log ?? ((line: string) => console.warn(line));
+  const plainFetch = options.fetch ?? ((address: string, init?: RequestInit) => globalThis.fetch(address, init));
+  const fetch = options.externalApis ? recordingFetch(plainFetch, options.externalApis, { provider: "oidc", operation: () => "discovery" }) : plainFetch;
   try {
-    const response = await (options.fetch ?? globalThis.fetch)(url, { signal: AbortSignal.timeout(options.timeoutMs ?? DISCOVERY_TIMEOUT_MS), headers: { accept: "application/json" } });
+    const response = await fetch(url, { signal: AbortSignal.timeout(options.timeoutMs ?? DISCOVERY_TIMEOUT_MS), headers: { accept: "application/json" } });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const document = (await response.json()) as Record<string, unknown>;
     if (typeof document.issuer !== "string" || !URL.canParse(document.issuer)) throw new Error("no issuer");
@@ -273,7 +279,7 @@ export function createSignInProviders(database: Pool, deps: SignInProvidersDeps)
   async function discoveryOf(url: string): Promise<Record<string, unknown> | null> {
     const cached = discoveries.get(url);
     if (cached && cached.until > Date.now()) return cached.document;
-    const document = await (deps.fetchDiscovery ?? ((address: string) => fetchDiscoveryDocument(address, { log })))(url);
+    const document = await (deps.fetchDiscovery ?? ((address: string) => fetchDiscoveryDocument(address, { log, externalApis: deps.externalApis })))(url);
     if (document) discoveries.set(url, { document, until: Date.now() + DISCOVERY_CACHE_MS });
     else discoveries.delete(url);
     return document;

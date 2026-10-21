@@ -29,6 +29,7 @@ import {
 } from "@jobhub/shared";
 import type { Locale } from "@jobhub/shared/i18n";
 import type { Pool } from "pg";
+import { recordingClient, type ExternalApiLog } from "@jobhub/shared";
 import Stripe from "stripe";
 import type { Queryable } from "../database/pool";
 import * as z from "zod";
@@ -70,6 +71,8 @@ export interface BillingConfig {
    * throws, the webhook fails and Stripe retries the delivery.
    */
   onCoachingSessionPaid?: (paid: PaidCoachingSession) => Promise<unknown>;
+  /** Where each Stripe call, webhooks received included, is recorded (#234): its API method, never its parameters. Default: nowhere. */
+  externalApis?: ExternalApiLog;
 }
 
 /** How a Candidate checks out. */
@@ -460,10 +463,11 @@ export function createBilling(config: BillingConfig) {
     if (!config.stripe) throw new BillingError("stripe_not_configured");
     if (!stripeClient) {
       const api = config.stripe.apiUrl ? new URL(config.stripe.apiUrl) : undefined;
-      stripeClient = new Stripe(config.stripe.secretKey, {
+      const client = new Stripe(config.stripe.secretKey, {
         maxNetworkRetries: 2,
         ...(api && { host: api.hostname, port: api.port, protocol: api.protocol === "http:" ? "http" : "https" }),
       });
+      stripeClient = config.externalApis ? recordingClient(client, config.externalApis, { provider: "stripe" }) : client;
     }
     return { client: stripeClient, config: config.stripe };
   }

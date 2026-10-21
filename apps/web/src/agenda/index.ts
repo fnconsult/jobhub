@@ -28,6 +28,10 @@ export interface InterviewAgendaItem extends Pick<Interview, "scheduledAt" | "du
   jobTitle: string;
   /** The Job Offer's company, when it says. */
   employer?: string;
+  /** What the Candidate noted about it, e.g. "avec la DRH", when they did. */
+  note?: string;
+  /** When the Candidate cancelled it: a Cancelled Agenda Item stays on the Agenda, struck through (#250). */
+  cancelledAt?: Date;
 }
 
 /** One dated Coaching Session, as the Agenda shows it; it leads to its Human Coach on the Human Coaches page. */
@@ -89,11 +93,12 @@ export function createAgenda(database: Pool): Agenda {
       duration_minutes: number | null;
       format: Interview["format"];
       place: string;
+      note: string;
       application_id: string;
       title: string;
       employer: string | null;
     }>(
-      `SELECT i.id, i.scheduled_at, i.duration_minutes, i.format, i.place, a.id AS application_id, o.title, o.employer
+      `SELECT i.id, i.scheduled_at, i.duration_minutes, i.format, i.place, i.note, a.id AS application_id, o.title, o.employer
          FROM interview i
          JOIN application a ON a.id = i.application_id
          JOIN job_offer o ON o.id = a.job_offer_id
@@ -111,6 +116,7 @@ export function createAgenda(database: Pool): Agenda {
       applicationId: row.application_id,
       jobTitle: row.title,
       ...(row.employer ? { employer: row.employer } : {}),
+      ...(row.note ? { note: row.note } : {}),
     }));
   }
 

@@ -85,7 +85,7 @@ The side panel, available from every page, where the Candidate talks with the AI
 _Avoid_: Chat, chatbot, sidebar
 
 **Coach context**:
-What the AI Coach is told before each reply: always the Candidate summary and the Coach Memory, plus the item In view, plus summaries of the rest (onboarding answers, latest Applications, top Job Offers, the next three Agenda Items), within a size cap. Summaries are trimmed before the item In view.
+What the AI Coach is told before each reply: always the Candidate summary and the Coach Memory, plus the item In view, plus summaries of the rest (onboarding answers, latest Applications, top Job Offers, the next three Agenda Items from now on, none of them cancelled), within a size cap. Summaries are trimmed before the item In view.
 
 **Candidate summary**:
 The Candidate's first name and, for each active Profile, its target role, Search Criteria and seniority (from years of experience). Never the rest of the Identity block.

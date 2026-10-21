@@ -1,3 +1,4 @@
+import { getAgenda } from "@/agenda/server";
 import { getAi } from "@/ai/server";
 import { getApplications } from "@/applications/server";
 import { getCoachMemory } from "@/coach-memory/server";
@@ -16,7 +17,7 @@ let instance: Coach | undefined;
 /**
  * The app's AI Coach, on the app's AI layer, reading the Candidate's workspace and Coach Memory (#125),
  * drawing on the Core Digest and the Playbook Agents served in this environment (ADR-0021), behind its Guardrails (ADR-0022),
- * reading a Job Offer from a link the Candidate pastes.
+ * reading a Job Offer from a link the Candidate pastes, and the Candidate's Agenda (#254).
  */
 export function getCoach(): Coach {
   instance ??= (() => {
@@ -35,6 +36,12 @@ export function getCoach(): Coach {
         async latest(candidateId, profileId) {
           const latest = (await jobDigests.settings(candidateId, profileId))?.digests[0];
           return latest ? jobDigests.get(candidateId, latest.id) : null;
+        },
+      },
+      agenda: {
+        async upcoming(candidateId, now) {
+          const days = await getAgenda().days(candidateId, { period: "upcoming", now });
+          return days.flatMap((day) => day.items);
         },
       },
       // Each active Profile's Sectors and Domains, by their labels (#236).

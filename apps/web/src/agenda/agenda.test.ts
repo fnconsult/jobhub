@@ -162,6 +162,16 @@ describe.skipIf(!connectionString)("Agenda (needs Postgres: DATABASE_URL)", () =
     expect(await agenda.unscheduled(candidateId)).toEqual([]);
   });
 
+  it("gives an Interview's note, when the Candidate wrote one", async () => {
+    const applicationId = await applicationInInterview(candidateId, "DAF H/F", "Acme Industrie");
+    await addInterview(candidateId, applicationId, "2026-10-22T14:30", { note: "avec la DRH" });
+    await addInterview(candidateId, applicationId, "2026-10-23T09:00");
+
+    const [first, second] = (await agenda.days(candidateId, { period: "upcoming", now: NOW })).flatMap((day) => day.items);
+    expect(first).toMatchObject({ kind: "interview", note: "avec la DRH" });
+    expect(second).not.toHaveProperty("note");
+  });
+
   describe("Coaching Sessions", () => {
     let paid = 0;
     /** A Human Coach named `name`, with their Cal.com booking link. */

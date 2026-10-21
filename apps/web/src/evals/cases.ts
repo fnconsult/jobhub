@@ -203,4 +203,20 @@ export const AI_COACH_EVAL_CASES: readonly AiCoachEvalCase[] = [
     criteria: "La réponse compare le portage salarial et la micro-entreprise sur des critères concrets, sans conseil juridique ou fiscal définitif, et oriente vers un professionnel si besoin.",
     consults: "freelance-mission-positioning",
   },
+  {
+    id: "agenda-preparation",
+    title: "Propose de préparer le prochain entretien de l'agenda",
+    context: PAUL,
+    message: "Qu'est-ce que j'ai de prévu dans les prochains jours ?",
+    inView: {
+      kind: "agenda",
+      text: [
+        "Ses entretiens et rendez-vous des 30 prochains jours (heure de Paris) :",
+        "- jeudi 22 octobre 2026 à 14:30 : entretien pour DAF H/F chez Acme Industrie ; note : avec le directeur général",
+        "- vendredi 23 octobre 2026 à 10:00 : séance de coaching avec Sophie (45 min)",
+      ].join("\n"),
+    },
+    criteria:
+      "La réponse reprend les rendez-vous de l'agenda avec leur date et leur heure, sans en inventer ni en oublier, et propose d'aider à préparer l'entretien du jeudi chez Acme Industrie.",
+  },
 ];

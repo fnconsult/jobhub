@@ -93,6 +93,20 @@ async function storeResults(kind: "job_search" | "job_digest", candidate: string
   }
 }
 
+/** The day `offset` days from now, in French time ("2026-10-30"). */
+const parisDay = (offset: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date(Date.now() + offset * 86_400_000));
+
+/** An Application at "Entretien" on a Job Offer `title`, with an Interview at each of `times` (French time, "2026-10-30T14:30"). */
+async function interviewsFor(page: Page, profileId: string, title: string, times: string[], note = ""): Promise<void> {
+  const applicationId = await saveApplication(page, await captureOffer(page, title, SKILLS), profileId);
+  const moved = await page.request.patch(`/api/applications/${applicationId}`, { headers: { origin }, data: { status: "interview" } });
+  expect(moved.ok(), await moved.text()).toBe(true);
+  for (const scheduledAt of times) {
+    const added = await page.request.post(`/api/applications/${applicationId}/interviews`, { headers: { origin }, data: { scheduledAt, ...(note ? { note } : {}) } });
+    expect(added.ok(), await added.text()).toBe(true);
+  }
+}
+
 /** The context the AI Coach was sent along with the Candidate's message. */
 async function contextOf(page: Page, focus?: { kind: string; id: string }): Promise<string> {
   const show = showSystemPrompt();
@@ -191,6 +205,50 @@ test.describe("what the AI Coach is told", () => {
     expect(context).toContain("pour son profil « Directrice financière »");
     expect(context).toMatch(/- Sélection A chez Acme Industrie \(Lyon\) : score \d+\/100/);
     expect(context).toMatch(/- Sélection B chez Acme Industrie \(Lyon\) : score \d+\/100/);
+  });
+
+  test("puts the Agenda in view (#254): the Candidate's own Agenda Items of the next 30 days, with their notes", async ({ page, browser }) => {
+    const other = await browser.newPage();
+    await signInWithMagicLink(other, newAddress("ctx-agenda-other"));
+    await interviewsFor(other, await createProfile(other, "Contrôleur de gestion"), "Poste d'un autre", [`${parisDay(3)}T09:00`]);
+    await other.close();
+    await signInWithMagicLink(page, newAddress("ctx-agenda"));
+    const profileId = await createProfile(page, "Directrice financière");
+    await interviewsFor(page, profileId, "DAF Agenda", [`${parisDay(2)}T14:30`], "avec la DRH");
+    await interviewsFor(page, profileId, "DAF Trop tard", [`${parisDay(40)}T10:00`]);
+
+    const context = await contextOf(page, { kind: "agenda", id: "agenda" });
+
+    expect(context).toContain("Le candidat consulte son agenda « Entretiens et rendez-vous ».");
+    expect(context).toMatch(/- \S+ \d+ \S+ \d{4} à 14:30 : entretien pour DAF Agenda chez Acme Industrie ; note : avec la DRH/);
+    expect(context).not.toContain("entretien pour DAF Trop tard");
+    expect(context).not.toContain("Poste d'un autre");
+  });
+
+  test("summarises the next three Agenda Items on any page (#254)", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("ctx-agenda-next"));
+    const profileId = await createProfile(page, "Directrice financière");
+    await interviewsFor(page, profileId, "Prochain", [1, 2, 3, 4].map((day) => `${parisDay(day)}T10:00`));
+
+    const context = await contextOf(page);
+
+    expect(context).toContain("Ses 3 prochains entretiens et rendez-vous (heure de Paris) :");
+    expect(context.match(/: entretien pour Prochain chez Acme Industrie/g)).toHaveLength(3);
+  });
+
+  test("stays within about 12k tokens with many Agenda Items In view, keeping the Candidate summary (#254)", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("ctx-agenda-cap"));
+    const profileId = await createProfile(page, "Directrice financière");
+    // 130 Interviews with the longest note allowed would be some 16k tokens on their own.
+    const times = Array.from({ length: 130 }, (_, n) => `${parisDay(1 + (n % 28))}T${String(8 + Math.floor(n / 28)).padStart(2, "0")}:00`);
+    await interviewsFor(page, profileId, "Beaucoup", times, "Préparer ce point. ".repeat(26).slice(0, 500));
+
+    const context = await contextOf(page, { kind: "agenda", id: "agenda" });
+
+    expect(tokens(context)).toBeLessThanOrEqual(12_000);
+    expect(tokens(context)).toBeGreaterThan(11_000);
+    expect(context).toContain("Le candidat s'appelle Marie (prénom seulement).");
+    expect(context).toContain("Le candidat consulte son agenda « Entretiens et rendez-vous ».");
   });
 
   test("summarises the 5 latest Applications with their status, the top 5 Job Offers by Match Score, and the onboarding answers", async ({ page }) => {

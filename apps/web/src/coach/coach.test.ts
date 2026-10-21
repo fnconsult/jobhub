@@ -2,7 +2,8 @@ import { costInEur, createAiLayer, type AiProvider, type TextInput } from "@jobh
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import { describe, expect, it } from "vitest";
 import { scoreMatch, type IndustryReference, type JobOffer } from "@jobhub/shared";
-import type { Application } from "@/applications";
+import type { AgendaItem } from "@/agenda";
+import { interviewDayStart, type Application } from "../applications";
 import type { ServedKnowledge } from "@/coaching-playbooks";
 import type { JobDigest } from "@/job-digests";
 import type { JobSearch } from "@/job-searches";
@@ -73,6 +74,32 @@ const jobDigest: JobDigest = {
   results: [{ jobOffer: { ...jobOffer, id: "66666666-6666-4666-8666-666666666666", title: "Directeur administratif et financier" }, matchScore, applicationId: null }],
 };
 
+/** "Now" for the AI Coach: Tuesday 20 October 2026, 10:00 French time (UTC+2). */
+const NOW = new Date("2026-10-20T08:00:00.000Z");
+
+/** An Interview on the Agenda, at `scheduledAt` (UTC). */
+const interviewItem = (scheduledAt: string, more: Partial<Extract<AgendaItem, { kind: "interview" }>> = {}): AgendaItem => ({
+  kind: "interview",
+  id: `interview-${scheduledAt}`,
+  scheduledAt: new Date(scheduledAt),
+  applicationId: application.id,
+  jobTitle: "DAF H/F",
+  employer: "Acme Industrie",
+  durationMinutes: null,
+  format: null,
+  place: "",
+  ...more,
+});
+
+/** A dated Coaching Session on the Agenda, at `scheduledAt` (UTC). */
+const coachingSessionItem = (scheduledAt: string, more: Partial<Extract<AgendaItem, { kind: "coachingSession" }>> = {}): AgendaItem => ({
+  kind: "coachingSession",
+  id: `session-${scheduledAt}`,
+  scheduledAt: new Date(scheduledAt),
+  coach: { id: "coach-sophie", name: "Sophie Martin" },
+  ...more,
+});
+
 /** Marie's workspace, as the AI Coach reads it: only Marie can see what is in it. */
 interface Workspace {
   profiles: Profile[];
@@ -81,10 +108,12 @@ interface Workspace {
   jobSearches: JobSearch[];
   jobDigests: JobDigest[];
   memory: string[];
+  /** Her dated Agenda Items, past and upcoming, in any order. */
+  agenda: AgendaItem[];
 }
 
 function emptyWorkspace(): Workspace {
-  return { profiles: [profile], applications: [], jobOffers: [], jobSearches: [], jobDigests: [], memory: [] };
+  return { profiles: [profile], applications: [], jobOffers: [], jobSearches: [], jobDigests: [], memory: [], agenda: [] };
 }
 
 function sourcesOf(workspace: Workspace): CoachSources {
@@ -117,6 +146,14 @@ function sourcesOf(workspace: Workspace): CoachSources {
       latest: async (candidateId, profileId) => mine(candidateId, workspace.jobDigests).find((d) => d.profile.id === profileId) ?? null,
     },
     coachMemory: { items: async (candidateId) => mine(candidateId, workspace.memory) },
+    // As the Agenda gives them: from the start of today in French time on, oldest first.
+    agenda: {
+      upcoming: async (candidateId, now) =>
+        mine(candidateId, workspace.agenda)
+          .filter((item) => item.scheduledAt >= interviewDayStart(now))
+          .sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime()),
+    },
+    now: () => NOW,
   };
 }
 
@@ -492,6 +529,72 @@ describe("the item In view, in full", () => {
     expect(context).toContain(`Directeur administratif et financier chez Acme Industrie (Lyon) : score ${matchScore.score}/100`);
   });
 
+  it("the Agenda: its Agenda Items of the next 30 days in French time, with each one's kind, job title and company or Human Coach, and note", async () => {
+    const { coach, provider } = coachWith({
+      workspace: {
+        agenda: [
+          interviewItem("2026-10-22T12:30:00.000Z", { note: "avec la DRH" }),
+          coachingSessionItem("2026-10-23T08:00:00.000Z", { durationMinutes: 45, videoLink: "https://meet.google.com/abc-defg-hij", note: "Préparer l'entretien chez Acme" }),
+          interviewItem("2026-11-18T09:00:00.000Z", { jobTitle: "Contrôleur de gestion", employer: "Globex" }), // in 29 days
+          interviewItem("2026-11-20T09:00:00.000Z", { jobTitle: "Directeur financier", employer: "Initech" }), // in 31 days
+          interviewItem("2026-10-13T08:00:00.000Z", { jobTitle: "Responsable comptable", employer: "Umbrella" }), // last week
+        ],
+      },
+    });
+
+    await ask(coach, { kind: "agenda", id: "agenda" });
+
+    const context = contextOf(provider);
+    expect(context).toContain("Le candidat consulte son agenda");
+    expect(context).toContain("jeudi 22 octobre 2026 à 14:30 : entretien pour DAF H/F chez Acme Industrie ; note : avec la DRH");
+    expect(context).toContain("vendredi 23 octobre 2026 à 10:00 : séance de coaching avec Sophie Martin (45 min) ; lien de visio : https://meet.google.com/abc-defg-hij ; note : Préparer l'entretien chez Acme");
+    expect(context).toContain("Contrôleur de gestion chez Globex");
+    expect(context).not.toContain("Initech");
+    expect(context).not.toContain("Umbrella");
+  });
+
+  it("the Agenda: a Cancelled Interview, as the Agenda shows it, says it is cancelled", async () => {
+    const { coach, provider } = coachWith({ workspace: { agenda: [interviewItem("2026-10-22T12:30:00.000Z", { cancelledAt: new Date("2026-10-19T10:00:00.000Z") })] } });
+
+    await ask(coach, { kind: "agenda", id: "agenda" });
+
+    expect(contextOf(provider)).toContain("jeudi 22 octobre 2026 à 14:30 : entretien pour DAF H/F chez Acme Industrie [annulé le 19 octobre 2026]");
+  });
+
+  it("the Agenda goes through Redaction like every AI call (ADR-0007): an email address or phone number in a note or a link never leaves", async () => {
+    const { coach, provider } = coachWith({
+      workspace: {
+        agenda: [
+          interviewItem("2026-10-22T12:30:00.000Z", { note: "Rappeler la DRH au 06 98 76 54 32 ou à drh@acme-industrie.fr" }),
+          coachingSessionItem("2026-10-23T08:00:00.000Z", { videoLink: "https://visio.example.fr/rejoindre?invite=marie.dupont@example.fr" }),
+        ],
+      },
+    });
+
+    await ask(coach, { kind: "agenda", id: "agenda" });
+
+    const sent = JSON.stringify(provider.calls.at(-1));
+    expect(sent).toContain("Rappeler la DRH");
+    for (const value of ["06 98 76 54 32", "drh@acme-industrie.fr", "marie.dupont@example.fr"]) expect(sent).not.toContain(value);
+  });
+
+  it("the Agenda with nothing in the next 30 days says so", async () => {
+    const { coach, provider } = coachWith();
+
+    await ask(coach, { kind: "agenda", id: "agenda" });
+
+    expect(contextOf(provider)).toContain("Aucun entretien ni rendez-vous dans les 30 prochains jours.");
+  });
+
+  it("nothing of another Candidate's Agenda", async () => {
+    const { coach, provider } = coachWith({ workspace: { agenda: [interviewItem("2026-10-22T12:30:00.000Z", { note: "avec la DRH" })] } });
+
+    await coach.reply("someone-else", { messages: [{ from: "candidate", text: "Et mon agenda ?" }], focus: { kind: "agenda", id: "agenda" } });
+
+    expect(contextOf(provider)).not.toContain("Acme Industrie");
+    expect(contextOf(provider)).not.toContain("avec la DRH");
+  });
+
   it("nothing of an Application, Job Search or Job Digest that is someone else's", async () => {
     const { coach, provider } = coachWith({ workspace: { applications: [application], jobSearches: [jobSearch], jobDigests: [jobDigest] } });
 
@@ -558,6 +661,39 @@ describe("the rest, summarised", () => {
     expect(context).toContain("Consultante transformation finance");
     expect(context).toContain("Vingt ans à piloter des projets ERP.");
     expect(context).not.toContain("Ancien titre");
+  });
+
+  it("the next three Agenda Items from now on, one line each, none that is cancelled", async () => {
+    const { coach, provider } = coachWith({
+      workspace: {
+        agenda: [
+          interviewItem("2026-10-20T06:00:00.000Z", { jobTitle: "Ce matin", employer: "Avant" }), // 08:00 today, over
+          interviewItem("2026-10-21T08:00:00.000Z", { jobTitle: "Annulé", employer: "Hooli", cancelledAt: new Date("2026-10-19T10:00:00.000Z") }),
+          interviewItem("2026-10-22T12:30:00.000Z", { note: "avec la DRH" }),
+          coachingSessionItem("2026-10-23T08:00:00.000Z", { durationMinutes: 45 }),
+          interviewItem("2026-10-27T09:00:00.000Z", { jobTitle: "Contrôleur de gestion", employer: "Globex" }),
+          interviewItem("2026-10-28T09:00:00.000Z", { jobTitle: "Quatrième", employer: "Initech" }),
+        ],
+      },
+    });
+
+    await ask(coach);
+
+    const context = contextOf(provider);
+    expect(context).toContain("Ses 3 prochains entretiens et rendez-vous (heure de Paris) :");
+    expect(context).toContain("- jeudi 22 octobre 2026 à 14:30 : entretien pour DAF H/F chez Acme Industrie ; note : avec la DRH");
+    expect(context).toContain("- vendredi 23 octobre 2026 à 10:00 : séance de coaching avec Sophie Martin (45 min)");
+    expect(context).toContain("- mardi 27 octobre 2026 à 10:00 : entretien pour Contrôleur de gestion chez Globex");
+    for (const left of ["Quatrième", "Annulé", "Ce matin"]) expect(context).not.toContain(left);
+  });
+
+  it("not the next three Agenda Items again when the Agenda is In view", async () => {
+    const { coach, provider } = coachWith({ workspace: { agenda: [interviewItem("2026-10-22T12:30:00.000Z")] } });
+
+    await ask(coach, { kind: "agenda", id: "agenda" });
+
+    expect(contextOf(provider)).not.toContain("prochains entretiens et rendez-vous (heure de Paris)");
+    expect(contextOf(provider).match(/DAF H\/F chez Acme Industrie/g)).toHaveLength(1);
   });
 
   it("each active Profile's Search Criteria with every value wanted, any one of which will do (ADR-0025)", async () => {
@@ -646,6 +782,34 @@ describe("the context's cap: about 12k tokens", () => {
     expect(system).not.toContain("Fin de l'avis.");
     expect(system).toContain("Début de l'offre.");
     expect(system).not.toContain("Fin de l'offre.");
+  });
+
+  it("holds with many Agenda Items: the Agenda In view is cut after its first items, the Candidate summary kept", async () => {
+    const many = Array.from({ length: 600 }, (_, n) =>
+      interviewItem(new Date(NOW.getTime() + (n + 1) * 60 * 60 * 1000).toISOString(), { jobTitle: `Poste ${n}`, note: text(40, `note${n}`) }),
+    );
+    const { coach, provider } = coachWith({ workspace: { agenda: many } });
+
+    await ask(coach, { kind: "agenda", id: "agenda" });
+
+    const system = contextOf(provider);
+    expect(estimateTokens(system)).toBeLessThanOrEqual(COACH_CONTEXT_MAX_TOKENS);
+    expect(system).toContain("entretien pour Poste 0 chez Acme Industrie");
+    expect(system).not.toContain("Poste 599 ");
+    expect(system).toMatch(/19 ans d'expérience/);
+  });
+
+  it("trims the next Agenda Items before the item In view", async () => {
+    const posting = { ...jobOffer, content: text(11_000, "mission") };
+    const agenda = [1, 2, 3].map((n) => interviewItem(`2026-10-2${n}T08:00:00.000Z`, { jobTitle: `Poste ${n}`, note: text(300, `note${n}`) }));
+    const { coach, provider } = coachWith({ workspace: { jobOffers: [posting], agenda } });
+
+    await ask(coach, { kind: "job_offer", id: posting.id });
+
+    const system = contextOf(provider);
+    expect(estimateTokens(system)).toBeLessThanOrEqual(COACH_CONTEXT_MAX_TOKENS);
+    expect(system).toContain(posting.content);
+    expect(system).not.toContain("Poste 3 ");
   });
 
   it("cuts the item In view when it alone is over the cap, still telling the Candidate summary", async () => {

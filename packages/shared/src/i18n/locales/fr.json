@@ -516,6 +516,7 @@
     "inViewJobOffer": "l'offre « {{name}} »",
     "inViewJobSearch": "la recherche d'offres du profil « {{name}} »",
     "inViewJobDigest": "la sélection d'offres du profil « {{name}} »",
+    "inViewAgenda": "vos entretiens et rendez-vous des 30 prochains jours",
     "nothingInView": "Posez votre question : votre coach vous répond à partir de ce que vous lui dites.",
     "welcome": "Bonjour, je suis votre coach. Comment puis-je vous aider ?",
     "messageLabel": "Votre message",
@@ -1678,7 +1679,8 @@
           "application": "Une candidature",
           "job_offer": "Une offre d'emploi",
           "job_search": "Une recherche d'offres",
-          "job_digest": "Un Job Digest"
+          "job_digest": "Un Job Digest",
+          "agenda": "L'agenda"
         }
       },
       "runs": {

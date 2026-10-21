@@ -15,12 +15,15 @@
  *    items stay together, even those earlier today;
  *  - "past": before today, newest first (days and the items within them).
  * Today is `now`'s day in French time; `agendaPeriod` says where an instant goes.
+ * Each item and Unscheduled Coaching Session comes with its Reschedule history; a
+ * Cancelled Interview stays, with its date of cancellation.
  * Every read is scoped to the Candidate.
  */
 import type { Pool } from "pg";
 import { frenchDayStart, interviewDayStart, type Interview } from "../applications";
 import { dayAfter, frenchDay } from "./calendar";
 import type { SessionEditor } from "../human-coaches";
+import { rescheduleHistories, type Reschedule } from "../reschedules";
 
 /** One Interview, as the Agenda shows it; it leads to its Application's Interviews Section. */
 export interface InterviewAgendaItem extends Pick<Interview, "scheduledAt" | "durationMinutes" | "format" | "place"> {
@@ -34,8 +37,10 @@ export interface InterviewAgendaItem extends Pick<Interview, "scheduledAt" | "du
   employer?: string;
   /** What the Candidate noted about it, e.g. "avec la DRH", when they did. */
   note?: string;
-  /** When the Candidate cancelled it: a Cancelled Agenda Item stays on the Agenda, struck through (#250). */
+  /** When the Candidate cancelled it: a Cancelled Agenda Item stays on the Agenda, struck through. */
   cancelledAt?: Date;
+  /** Its Reschedule history, oldest first. */
+  reschedules: Reschedule[];
 }
 
 /** One dated Coaching Session, as the Agenda shows it; it leads to its Human Coach on the Human Coaches page. */
@@ -50,6 +55,8 @@ export interface CoachingSessionAgendaItem {
   note?: string;
   /** Who last entered or changed its date: « modifié par le coach » for "coach". */
   changedBy: SessionEditor;
+  /** Its Reschedule history, oldest first: a cancellation before it was dated again included. */
+  reschedules: Reschedule[];
 }
 
 export type AgendaItem = InterviewAgendaItem | CoachingSessionAgendaItem;
@@ -59,6 +66,8 @@ export interface UnscheduledCoachingSession {
   id: string;
   coach: { id: string; name: string; bookingUrl: string };
   paidAt: Date;
+  /** Its Reschedule history, oldest first: its cancellation, when it was dated before. */
+  reschedules: Reschedule[];
 }
 
 /** One day of the Agenda, in French time, with its items in the period's order. */
@@ -134,14 +143,20 @@ export function createAgenda(database: Pool): Agenda {
       application_id: string;
       title: string;
       employer: string | null;
+      cancelled_at: Date | null;
     }>(
-      `SELECT i.id, i.scheduled_at, i.duration_minutes, i.format, i.place, i.note, a.id AS application_id, o.title, o.employer
+      `SELECT i.id, i.scheduled_at, i.duration_minutes, i.format, i.place, i.note, i.cancelled_at, a.id AS application_id, o.title, o.employer
          FROM interview i
          JOIN application a ON a.id = i.application_id
          JOIN job_offer o ON o.id = a.job_offer_id
         WHERE a.candidate_id = $1 AND ${condition.sql}
         ORDER BY i.scheduled_at ${order}, i.created_at ${order}`,
       [candidateId, ...condition.values],
+    );
+    const histories = await rescheduleHistories(
+      database,
+      "interview",
+      rows.map((row) => row.id),
     );
     return rows.map((row) => ({
       kind: "interview",
@@ -154,6 +169,8 @@ export function createAgenda(database: Pool): Agenda {
       jobTitle: row.title,
       ...(row.employer ? { employer: row.employer } : {}),
       ...(row.note ? { note: row.note } : {}),
+      ...(row.cancelled_at ? { cancelledAt: row.cancelled_at } : {}),
+      reschedules: histories.get(row.id)!,
     }));
   }
 
@@ -169,6 +186,11 @@ export function createAgenda(database: Pool): Agenda {
         ORDER BY s.scheduled_at ${order}, s.paid_at ${order}`,
       [candidateId, ...condition.values],
     );
+    const histories = await rescheduleHistories(
+      database,
+      "coaching_session",
+      rows.map((row) => row.id),
+    );
     return rows.map((row) => ({
       kind: "coachingSession",
       id: row.id,
@@ -178,6 +200,7 @@ export function createAgenda(database: Pool): Agenda {
       ...(row.video_link ? { videoLink: row.video_link } : {}),
       ...(row.note ? { note: row.note } : {}),
       changedBy: row.changed_by ?? "candidate",
+      reschedules: histories.get(row.id)!,
     }));
   }
 
@@ -205,7 +228,12 @@ export function createAgenda(database: Pool): Agenda {
           ORDER BY s.paid_at, s.id`,
         [candidateId],
       );
-      return rows.map((row) => ({ id: row.id, coach: { id: row.coach_id, name: row.coach_name, bookingUrl: row.booking_url }, paidAt: row.paid_at }));
+      const histories = await rescheduleHistories(
+        database,
+        "coaching_session",
+        rows.map((row) => row.id),
+      );
+      return rows.map((row) => ({ id: row.id, coach: { id: row.coach_id, name: row.coach_name, bookingUrl: row.booking_url }, paidAt: row.paid_at, reschedules: histories.get(row.id)! }));
     },
   };
 }

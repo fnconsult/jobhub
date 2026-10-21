@@ -88,6 +88,7 @@ const interviewItem = (scheduledAt: string, more: Partial<Extract<AgendaItem, { 
   durationMinutes: null,
   format: null,
   place: "",
+  reschedules: [],
   ...more,
 });
 

@@ -362,7 +362,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
                             </details>
                           ) : null}
                         </>
-                      ) : entry.action === "viewed" ? null : isSecretAction(entry.action) ? (
+                      ) : entry.action === "viewed" || entry.action === "tested" ? null : isSecretAction(entry.action) ? (
                         t(`admin.journal.secret.${entry.action}`)
                       ) : changes.length === 0 ? (
                         t("admin.journal.unchanged")

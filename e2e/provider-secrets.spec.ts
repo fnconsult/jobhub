@@ -136,7 +136,11 @@ test.describe("Provider Secrets (the Clés section)", () => {
     await expect(page.getByRole("main").getByRole("status")).toHaveText(tr(keys.testPassed, { name: NAME }));
 
     await page.goto("/admin/journal?section=provider_secrets");
-    await expect(page.getByRole("row").filter({ hasText: NAME }).first()).toContainText(admin.journal.secret.replaced);
+    // The Test button's passed test (#263), then the replacement.
+    const entries = page.getByRole("row").filter({ hasText: NAME });
+    await expect(entries.first()).toContainText(admin.journal.actions.tested);
+    await expect(entries.first()).toContainText(admin.journal.outcomes.succeeded);
+    await expect(entries.nth(1)).toContainText(admin.journal.secret.replaced);
 
     await page.goto("/compte/donnees");
     const section = page.getByRole("region", { name: fr.accountData.title });

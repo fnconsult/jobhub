@@ -206,7 +206,7 @@ export interface CandidateDataExport {
   /**
    * What the Candidate's own AI calls said in the last 30 days (the AI Message Log), newest first:
    * prompt and reply, secrets scrubbed, without what each cost; how each ended, with a failed call's
-   * Failure Reason code and French wording, never its technical reason (ADR-0030).
+   * Failure Reason code and French wording, never its technical reason (ADR-0030), and its warnings' (#260).
    */
   aiMessageLog: ExportedAiMessageLog[];
   /** What the Candidate confirmed the AI Coach should remember, oldest first. */
@@ -216,6 +216,9 @@ export interface CandidateDataExport {
   /** Newest first. */
   applications: ExportedApplication[];
 }
+
+/** A Failure Reason as the Data export holds it: its code and French wording. */
+const worded = (code: FailureReason) => ({ code, wording: failureReasonWording(code) });
 
 /** One AI Message Log entry, as the Candidate's Data export holds it. */
 export interface ExportedAiMessageLog {
@@ -228,6 +231,8 @@ export interface ExportedAiMessageLog {
   outcome: Outcome;
   /** Why it failed or warned; null when ok (and for a failure recorded before reasons were). */
   reason: { code: FailureReason; wording: string } | null;
+  /** What its feature did instead (#260), each code with its wording; never what happened, which is technical. */
+  warnings: { code: FailureReason; wording: string }[];
   system: string | null;
   messages: { role: string; content: string }[];
   reply: string | null;
@@ -269,7 +274,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coach_memory_item: "coachMemory",
   back_office_assistant_conversation: "backOfficeAssistantConversations",
   back_office_assistant_message: "backOfficeAssistantConversations[].messages (blocked ones marked; no AI costs)",
-  ai_message_log: "aiMessageLog (no AI costs, a Failure Reason's code and wording but not its technical reason)",
+  ai_message_log: "aiMessageLog (no AI costs, a Failure Reason's and warnings' code and wording but not their technical detail)",
 };
 
 /**
@@ -511,11 +516,17 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           `SELECT id, kind, text, created_at AS "createdAt", updated_at AS "updatedAt" FROM coach_memory_item WHERE candidate_id = $1 ORDER BY created_at, id`,
           candidateId,
         ),
-        rowsOf<Omit<ExportedAiMessageLog, "reason"> & { reason: string | null }>(
-          `SELECT m.id, m.at, u.task, u.provider, u.model, u.outcome, u.reason, m.system, m.messages, m.reply
+        rowsOf<Omit<ExportedAiMessageLog, "reason" | "warnings"> & { reason: string | null; warnings: string[] }>(
+          `SELECT m.id, m.at, u.task, u.provider, u.model, u.outcome, u.reason, u.warnings, m.system, m.messages, m.reply
              FROM ai_message_log m JOIN ai_usage u ON u.id = m.usage_id WHERE m.candidate_id = $1 ORDER BY m.at DESC, m.id`,
           candidateId,
-        ).then((logs) => logs.map(({ reason, ...log }): ExportedAiMessageLog => ({ ...log, reason: isFailureReason(reason) ? { code: reason, wording: failureReasonWording(reason) } : null }))),
+        ).then((logs) =>
+          logs.map(({ reason, warnings, ...log }): ExportedAiMessageLog => ({
+            ...log,
+            reason: isFailureReason(reason) ? worded(reason) : null,
+            warnings: warnings.filter(isFailureReason).map(worded),
+          })),
+        ),
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);

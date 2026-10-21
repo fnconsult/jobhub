@@ -1441,6 +1441,7 @@
         "status": "HTTP status",
         "message": "Message"
       },
+      "warnings": "Warnings",
       "noTechnical": "No technical detail recorded.",
       "noReplyNotSent": "No reply: the call was not sent."
     },

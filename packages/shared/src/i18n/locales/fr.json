@@ -1441,6 +1441,7 @@
         "status": "Statut HTTP",
         "message": "Message"
       },
+      "warnings": "Avertissements",
       "noTechnical": "Aucun détail technique enregistré.",
       "noReplyNotSent": "Aucune réponse : l'appel n'a pas été envoyé."
     },

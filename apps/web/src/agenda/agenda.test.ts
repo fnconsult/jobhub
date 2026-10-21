@@ -99,6 +99,7 @@ describe.skipIf(!connectionString)("Agenda (needs Postgres: DATABASE_URL)", () =
             applicationId: mine,
             jobTitle: "DAF H/F",
             employer: "Acme Industrie",
+            reschedules: [],
           },
         ],
       },
@@ -216,6 +217,41 @@ describe.skipIf(!connectionString)("Agenda (needs Postgres: DATABASE_URL)", () =
     expect(second).not.toHaveProperty("note");
   });
 
+  it("a Cancelled Interview stays, with its date of cancellation, among the upcoming and then the past Agenda Items", async () => {
+    const applicationId = await applicationInInterview(candidateId, "DAF H/F", "Acme Industrie");
+    await addInterview(candidateId, applicationId, "2026-10-22T14:30");
+    await addInterview(candidateId, applicationId, "2026-10-13T14:30");
+    const [past, upcoming] = (await applications.get(candidateId, applicationId))!.interviews;
+    await applications.cancelInterview(candidateId, applicationId, upcoming!.id);
+    await applications.cancelInterview(candidateId, applicationId, past!.id);
+
+    expect((await agenda.days(candidateId, { period: "upcoming", now: NOW }))[0]?.items).toMatchObject([{ id: upcoming!.id, cancelledAt: expect.any(Date) }]);
+    expect((await agenda.days(candidateId, { period: "past", now: NOW }))[0]?.items).toMatchObject([{ id: past!.id, cancelledAt: expect.any(Date) }]);
+  });
+
+  it("gives each Agenda Item its Reschedule history, oldest first, with who made each change", async () => {
+    let clock = new Date("2026-10-19T08:00:00.000Z");
+    const clocked = createApplications(database, { jobOffers, profiles, now: () => clock });
+    const applicationId = await applicationInInterview(candidateId, "DAF H/F", "Acme Industrie");
+    const added = await clocked.addInterview(candidateId, applicationId, { scheduledAt: "2026-10-22T14:30" });
+    const interviewId = added.ok ? added.application.interviews[0]!.id : "";
+    clock = new Date("2026-10-19T12:00:00.000Z");
+    await clocked.editInterview(candidateId, applicationId, interviewId, { scheduledAt: "2026-10-23T09:00" });
+    clock = new Date("2026-10-20T07:00:00.000Z");
+    await clocked.editInterview(candidateId, applicationId, interviewId, { scheduledAt: "2026-10-24T09:00" });
+
+    expect((await agenda.days(candidateId, { period: "upcoming", now: NOW }))[0]?.items).toMatchObject([
+      {
+        id: interviewId,
+        scheduledAt: new Date("2026-10-24T07:00:00.000Z"),
+        reschedules: [
+          { previousAt: new Date("2026-10-22T12:30:00.000Z"), newAt: new Date("2026-10-23T07:00:00.000Z"), by: "candidate", at: new Date("2026-10-19T12:00:00.000Z") },
+          { previousAt: new Date("2026-10-23T07:00:00.000Z"), newAt: new Date("2026-10-24T07:00:00.000Z"), by: "candidate", at: new Date("2026-10-20T07:00:00.000Z") },
+        ],
+      },
+    ]);
+  });
+
   describe("Coaching Sessions", () => {
     let paid = 0;
     /** A Human Coach named `name`, with their Cal.com booking link. */
@@ -236,7 +272,7 @@ describe.skipIf(!connectionString)("Agenda (needs Postgres: DATABASE_URL)", () =
       const sessionId = await paySession(candidateId, sophie.id);
       await paySession(otherCandidateId, sophie.id);
 
-      expect(await agenda.unscheduled(candidateId)).toEqual([{ id: sessionId, coach: { id: sophie.id, name: "Sophie Martin", bookingUrl: "https://cal.com/sophie/seance" }, paidAt: expect.any(Date) }]);
+      expect(await agenda.unscheduled(candidateId)).toEqual([{ id: sessionId, coach: { id: sophie.id, name: "Sophie Martin", bookingUrl: "https://cal.com/sophie/seance" }, paidAt: expect.any(Date), reschedules: [] }]);
       expect(await agenda.days(candidateId, { period: "upcoming", now: NOW })).toEqual([]);
       expect(await agenda.days(candidateId, { period: "past", now: NOW })).toEqual([]);
     });
@@ -255,7 +291,7 @@ describe.skipIf(!connectionString)("Agenda (needs Postgres: DATABASE_URL)", () =
           day: "2026-10-22",
           items: [
             expect.objectContaining({ kind: "interview", scheduledAt: new Date("2026-10-22T12:30:00.000Z") }),
-            { kind: "coachingSession", id: sessionId, scheduledAt: new Date("2026-10-22T21:30:00.000Z"), coach: { id: sophie.id, name: "Sophie Martin" }, durationMinutes: 45, videoLink: "https://meet.google.com/abc", changedBy: "candidate" },
+            { kind: "coachingSession", id: sessionId, scheduledAt: new Date("2026-10-22T21:30:00.000Z"), coach: { id: sophie.id, name: "Sophie Martin" }, durationMinutes: 45, videoLink: "https://meet.google.com/abc", changedBy: "candidate", reschedules: [] },
           ],
         },
       ]);
@@ -272,7 +308,7 @@ describe.skipIf(!connectionString)("Agenda (needs Postgres: DATABASE_URL)", () =
         {
           day: "2026-10-23",
           items: [
-            { kind: "coachingSession", id: sessionId, scheduledAt: new Date("2026-10-23T09:00:00.000Z"), coach: { id: sophie.id, name: "Sophie Martin" }, durationMinutes: 60, videoLink: "https://meet.google.com/xyz", note: "Préparer mon pitch.", changedBy: "coach" },
+            { kind: "coachingSession", id: sessionId, scheduledAt: new Date("2026-10-23T09:00:00.000Z"), coach: { id: sophie.id, name: "Sophie Martin" }, durationMinutes: 60, videoLink: "https://meet.google.com/xyz", note: "Préparer mon pitch.", changedBy: "coach", reschedules: [] },
           ],
         },
       ]);
@@ -292,6 +328,17 @@ describe.skipIf(!connectionString)("Agenda (needs Postgres: DATABASE_URL)", () =
           items: [expect.objectContaining({ kind: "coachingSession", id: dated }), expect.objectContaining({ kind: "interview", scheduledAt: new Date("2026-10-22T12:30:00.000Z") })],
         },
       ]);
+    });
+
+    it("a cancelled Coaching Session is back under « À planifier », its cancellation in its history, and leaves the dated lists", async () => {
+      const sophie = await addCoach("Sophie Martin");
+      const sessionId = await paySession(candidateId, sophie.id);
+      await coaches.scheduleSession(candidateId, sessionId, { scheduledAt: "2026-10-22T14:00" });
+
+      await coaches.cancelSession(candidateId, sessionId);
+
+      expect(await agenda.days(candidateId, { period: "upcoming", now: NOW })).toEqual([]);
+      expect(await agenda.unscheduled(candidateId)).toMatchObject([{ id: sessionId, reschedules: [{ previousAt: new Date("2026-10-22T12:00:00.000Z"), newAt: null, by: "candidate" }] }]);
     });
 
     it("shows only the Candidate's own Coaching Sessions", async () => {

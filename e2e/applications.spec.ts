@@ -294,7 +294,7 @@ test.describe("Applications", () => {
     await expect(interviews).not.toContainText("Brouillon");
 
     // Remove the edited one.
-    await interviews.getByRole("listitem").last().getByRole("button", { name: /^Retirer l'entretien du/ }).click();
+    await interviews.getByRole("listitem").last().getByRole("button", { name: /^Supprimer l'entretien du/ }).click();
     await expect(interviews.getByRole("listitem")).toHaveCount(1);
     await expect(interviews.getByRole("listitem")).toContainText("20 novembre 2026");
 
@@ -416,7 +416,7 @@ test.describe("Applications", () => {
     }
     await expect(interviews.getByRole("listitem")).toHaveCount(2);
 
-    await interviews.getByRole("listitem").first().getByRole("button", { name: /^Retirer l'entretien du .*4 novembre 2026/ }).click();
+    await interviews.getByRole("listitem").first().getByRole("button", { name: /^Supprimer l'entretien du .*4 novembre 2026/ }).click();
     await expect(interviews.getByRole("listitem")).toHaveCount(1);
     await expect(interviews.getByRole("listitem")).toContainText("12 novembre 2026");
 

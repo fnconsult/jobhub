@@ -5,8 +5,10 @@ import { agendaPeriod } from "@/agenda";
 import { INTERVIEW_TIME_ZONE, interviewWallClock } from "@/applications";
 import { getCurrentCandidate } from "@/auth/server";
 import { getBilling } from "@/billing/server";
+import { CancelAgendaItemButton } from "@/components/CancelAgendaItemButton";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { CoachingSessionDialog } from "@/components/CoachingSessionDialog";
+import { RescheduleHistory } from "@/components/RescheduleHistory";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
@@ -32,7 +34,8 @@ async function changeCoachAccess(form: FormData) {
 /**
  * The Candidate's Human Coaches: book (and pay for) a Coaching Session, pick its time on
  * the Human Coach's Cal.com page once paid, then enter that date here (ADR-0027), and grant
- * or revoke Coach Access. A dated Coaching Session links to the Agenda, « Voir dans l'agenda ».
+ * or revoke Coach Access. A dated Coaching Session links to the Agenda, « Voir dans l'agenda », and
+ * can be cancelled, back to « À planifier »; each one shows its Reschedule history.
  */
 export default async function HumanCoachesPage({ searchParams }: { searchParams: Promise<{ session?: string; error?: string }> }) {
   const candidate = await getCurrentCandidate();
@@ -54,6 +57,7 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
   const money = (amount: number, currency: string) => new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount / 100);
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: INTERVIEW_TIME_ZONE });
   const dateTime = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
+  const changedAt = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
   const now = new Date();
 
   return (
@@ -91,11 +95,18 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
                   {paid.note ? <p>{paid.note}</p> : null}
                   {paid.changedBy === "coach" ? <p className="hint">{t("humanCoaches.changedByCoach", { name: paid.coach.name })}</p> : null}
                   <p className="hint">{t("humanCoaches.sessionPaidOn", { name: paid.coach.name, date: date.format(paid.paidAt) })}</p>
+                  <RescheduleHistory reschedules={paid.reschedules} coachName={paid.coach.name} dateTime={changedAt} t={t} />
                   <div className="actions">
                     <Link href={routes.agenda(agendaPeriod(paid.scheduledAt, now) === "past")}>{t("humanCoaches.seeInAgenda")}</Link>
                     <CoachingSessionDialog
                       session={{ id: paid.id, scheduledAt: interviewWallClock(paid.scheduledAt), durationMinutes: paid.durationMinutes, videoLink: paid.videoLink, note: paid.note }}
                       withName={paid.coach.name}
+                    />
+                    <CancelAgendaItemButton
+                      url={`/api/coaching/sessions/${paid.id}/cancel`}
+                      label={t("agendaChanges.cancelSession")}
+                      name={t("agendaChanges.cancelSessionFor", { name: paid.coach.name })}
+                      question={t("agendaChanges.cancelSessionConfirm")}
                     />
                   </div>
                 </li>
@@ -103,6 +114,7 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
                 <li key={paid.id} id={`seance-${paid.id}`} className="stack">
                   <p>{t("humanCoaches.sessionPaidOn", { name: paid.coach.name, date: date.format(paid.paidAt) })}</p>
                   <p>{t("humanCoaches.toSchedule")}</p>
+                  <RescheduleHistory reschedules={paid.reschedules} coachName={paid.coach.name} dateTime={changedAt} t={t} />
                   <div className="actions">
                     <a className="button button-primary" href={paid.coach.bookingUrl} rel="noopener noreferrer" target="_blank">
                       {t("humanCoaches.pickSlot", { name: paid.coach.name })}

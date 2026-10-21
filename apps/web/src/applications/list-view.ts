@@ -41,9 +41,12 @@ export function isArchivedApplication(application: ApplicationSummary): boolean 
   return (FINAL_APPLICATION_STATUSES as readonly ApplicationStatus[]).includes(application.status) || application.profile.archived;
 }
 
-/** The next interview still to come, or null. */
+/** The next interview still to come, not cancelled, or null. */
 function nextInterview(application: ApplicationSummary, now: Date): number | null {
-  const upcoming = application.interviews.map((interview) => interview.scheduledAt.getTime()).filter((at) => at >= now.getTime());
+  const upcoming = application.interviews
+    .filter((interview) => interview.cancelledAt === null)
+    .map((interview) => interview.scheduledAt.getTime())
+    .filter((at) => at >= now.getTime());
   return upcoming.length > 0 ? Math.min(...upcoming) : null;
 }
 

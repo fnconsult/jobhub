@@ -53,7 +53,7 @@ const application: Application = {
   createdAt: new Date("2026-09-20T09:00:00Z"),
   jobOffer,
   profile: { id: profile.id, name: profile.name },
-  interviews: [{ id: "i1", scheduledAt: new Date("2026-10-20T14:00:00Z"), note: "avec la DRH", durationMinutes: null, format: null, place: "" }],
+  interviews: [{ id: "i1", scheduledAt: new Date("2026-10-20T14:00:00Z"), note: "avec la DRH", durationMinutes: null, format: null, place: "", cancelledAt: null, reschedules: [] }],
   matchScore,
 };
 
@@ -88,6 +88,7 @@ const interviewItem = (scheduledAt: string, more: Partial<Extract<AgendaItem, { 
   durationMinutes: null,
   format: null,
   place: "",
+  reschedules: [],
   ...more,
 });
 
@@ -98,6 +99,7 @@ const coachingSessionItem = (scheduledAt: string, more: Partial<Extract<AgendaIt
   scheduledAt: new Date(scheduledAt),
   coach: { id: "coach-sophie", name: "Sophie Martin" },
   changedBy: "candidate",
+  reschedules: [],
   ...more,
 });
 
@@ -497,6 +499,15 @@ describe("the item In view, in full", () => {
     expect(context).toContain(`${matchScore.score}/100`);
     expect(context).toContain("Power BI");
     expect(context).toContain("vous pilotez la clôture mensuelle");
+  });
+
+  it("an Application: a Cancelled Interview is said to be cancelled", async () => {
+    const cancelled: Application = { ...application, interviews: [{ ...application.interviews[0]!, cancelledAt: new Date("2026-10-19T09:00:00Z") }] };
+    const { coach, provider } = coachWith({ workspace: { applications: [cancelled] } });
+
+    await ask(coach, { kind: "application", id: application.id });
+
+    expect(contextOf(provider)).toContain("- le 2026-10-20 [annulé le 2026-10-19] : avec la DRH");
   });
 
   it("a Job Offer: the whole posting", async () => {

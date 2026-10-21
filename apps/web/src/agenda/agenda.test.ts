@@ -291,7 +291,7 @@ describe.skipIf(!connectionString)("Agenda (needs Postgres: DATABASE_URL)", () =
           day: "2026-10-22",
           items: [
             expect.objectContaining({ kind: "interview", scheduledAt: new Date("2026-10-22T12:30:00.000Z") }),
-            { kind: "coachingSession", id: sessionId, scheduledAt: new Date("2026-10-22T21:30:00.000Z"), coach: { id: sophie.id, name: "Sophie Martin" }, durationMinutes: 45, videoLink: "https://meet.google.com/abc", changedBy: "candidate" },
+            { kind: "coachingSession", id: sessionId, scheduledAt: new Date("2026-10-22T21:30:00.000Z"), coach: { id: sophie.id, name: "Sophie Martin" }, durationMinutes: 45, videoLink: "https://meet.google.com/abc", changedBy: "candidate", reschedules: [] },
           ],
         },
       ]);
@@ -308,7 +308,7 @@ describe.skipIf(!connectionString)("Agenda (needs Postgres: DATABASE_URL)", () =
         {
           day: "2026-10-23",
           items: [
-            { kind: "coachingSession", id: sessionId, scheduledAt: new Date("2026-10-23T09:00:00.000Z"), coach: { id: sophie.id, name: "Sophie Martin" }, durationMinutes: 60, videoLink: "https://meet.google.com/xyz", note: "Préparer mon pitch.", changedBy: "coach" },
+            { kind: "coachingSession", id: sessionId, scheduledAt: new Date("2026-10-23T09:00:00.000Z"), coach: { id: sophie.id, name: "Sophie Martin" }, durationMinutes: 60, videoLink: "https://meet.google.com/xyz", note: "Préparer mon pitch.", changedBy: "coach", reschedules: [] },
           ],
         },
       ]);

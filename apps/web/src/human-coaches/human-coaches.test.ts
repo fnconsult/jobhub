@@ -475,8 +475,8 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
 
         // « À planifier » first, then the dated ones, latest first.
         expect(sessions).toEqual([
-          { id: expect.any(String), candidateName: "éric T.", paidAt: expect.any(Date), scheduledAt: null, durationMinutes: null, videoLink: null },
-          { id: marieWithSophie!.id, candidateName: "Marie D.", paidAt: expect.any(Date), scheduledAt: new Date("2026-10-22T12:30:00.000Z"), durationMinutes: 60, videoLink: "https://meet.google.com/abc" },
+          { id: expect.any(String), candidateName: "éric T.", paidAt: expect.any(Date), scheduledAt: null, durationMinutes: null, videoLink: null, reschedules: [] },
+          { id: marieWithSophie!.id, candidateName: "Marie D.", paidAt: expect.any(Date), scheduledAt: new Date("2026-10-22T12:30:00.000Z"), durationMinutes: 60, videoLink: "https://meet.google.com/abc", reschedules: [] },
         ]);
         expect(JSON.stringify(sessions)).not.toContain("Mon pitch.");
         expect(JSON.stringify(sessions)).not.toContain("example.fr");

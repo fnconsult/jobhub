@@ -24,7 +24,7 @@ import {
 } from "@/admin/back-office";
 import { journalChanges, type JournalChange } from "@/admin/journal-changes";
 import { journalFieldName, SEARCH_SITES_SECTIONS } from "@/admin/journal-fields";
-import { journalTimeline, type JournalLine } from "@/admin/journal-timeline";
+import { journalTimeline, toolCallOk, type JournalLine } from "@/admin/journal-timeline";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
 import { couponDiscountLabel } from "@/billing/coupon-label";
 import { getBilling } from "@/billing/server";
@@ -82,9 +82,9 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
   const [entries, plans, toolCalls] = await Promise.all([
     getBackOffice().journal({ section, outcome, limit: LIMIT }),
     getBilling().plans(),
-    withTools ? latestToolCallsNow(LIMIT) : Promise.resolve([]),
+    withTools ? latestToolCallsNow(LIMIT, { ok: outcome && toolCallOk(outcome) }) : Promise.resolve([]),
   ]);
-  const lines: JournalLine[] = journalTimeline(entries, toolCalls, LIMIT);
+  const lines: JournalLine[] = journalTimeline(entries, toolCalls, LIMIT, outcome);
   /** What an entry changed, named as the Back Office names it: a Plan as it is named now; an unknown key stays as recorded. */
   const target = (entry: BackOfficeAuditEntry): string => {
     if (entry.section === "plans" || entry.section === "plan_quotas") return plans.find((plan) => plan.key === entry.target)?.name[locale] ?? entry.target;

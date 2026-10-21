@@ -25,7 +25,7 @@ export async function toolPage(tool: Tool): Promise<{ row: ToolRow; calls: ToolC
 }
 
 /** Every Tool's `limit` latest calls together, newest first, as the Journal's Outils filter lists them; none without a database. */
-export async function latestToolCallsNow(limit: number): Promise<CalledTool[]> {
+export async function latestToolCallsNow(limit: number, options: { ok?: boolean } = {}): Promise<CalledTool[]> {
   if (!process.env.DATABASE_URL) return [];
-  return latestToolCalls(sharedPool(), { limit });
+  return latestToolCalls(sharedPool(), { limit, ...options });
 }

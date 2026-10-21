@@ -171,6 +171,20 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
     expect(JSON.stringify(latest)).not.toMatch(/Jeanne|Secret system text/);
   });
 
+  it("lists, among the latest calls, only the failed ones or only the succeeded ones when asked (the Journal's Résultat filter, #263)", async () => {
+    await seed();
+
+    const failed = await latestToolCalls(database, { ok: false, limit: 2 });
+    const succeeded = await latestToolCalls(database, { ok: true });
+
+    expect(failed.map(({ tool: called, call }) => [called.id, call.at.toISOString(), call.ok])).toEqual([
+      ["anthropic-bedrock", "2026-10-19T09:00:00.000Z", false],
+      ["france-travail", "2026-10-19T07:05:00.000Z", false],
+    ]);
+    expect(succeeded.length).toBeGreaterThan(0);
+    expect(succeeded.every(({ call }) => call.ok)).toBe(true);
+  });
+
   it("lists, among the latest calls, only those since a time when asked", async () => {
     await seed();
 

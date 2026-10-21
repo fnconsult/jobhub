@@ -318,7 +318,8 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     const [log] = (await candidateData.export(candidateId)).aiMessageLog;
     expect(log).toMatchObject({ outcome: "failed", reason: { code: "provider_unavailable", wording: "Fournisseur indisponible" }, reply: null });
     expect(log).not.toHaveProperty("technicalReason");
-    expect(JSON.stringify(log)).not.toMatch(/AiProviderError|upstream connect error|503/);
+    // Its id and time are left out: a random id or a time's milliseconds may hold "503".
+    expect(JSON.stringify({ ...log, id: null, at: null })).not.toMatch(/AiProviderError|upstream connect error|503/);
   });
 
   it("the export holds each Profile's ATS Score, or null when its Master CV was never scored", async () => {

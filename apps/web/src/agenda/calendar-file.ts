@@ -90,8 +90,12 @@ function webAddressIn(value: string | undefined): string | undefined {
   return new URL(href).href === href ? href : undefined;
 }
 
-/** The Calendar file of `item`. */
+/**
+ * The Calendar file of `item`, or null for a Cancelled Agenda Item, which has none. Its SEQUENCE
+ * counts the item's Reschedules: each new download is a later revision of the same event.
+ */
 export function calendarFile(item: AgendaItem, options: CalendarFileOptions): string | null {
+  if (item.kind === "interview" && item.cancelledAt) return null;
   const t = createI18n(options.locale).t;
   const uid = `${item.kind === "interview" ? "interview" : "coaching-session"}-${item.id}@${UID_DOMAIN}`;
   const endsAt = interviewEndsAt({ scheduledAt: item.scheduledAt, durationMinutes: item.durationMinutes ?? null });
@@ -113,6 +117,7 @@ export function calendarFile(item: AgendaItem, options: CalendarFileOptions): st
     "BEGIN:VEVENT",
     `UID:${uid}`,
     `DTSTAMP:${utcDateTime(options.now)}`,
+    `SEQUENCE:${item.reschedules.length}`,
     `DTSTART;TZID=${INTERVIEW_TIME_ZONE}:${frenchDateTime(item.scheduledAt)}`,
     `DTEND;TZID=${INTERVIEW_TIME_ZONE}:${frenchDateTime(endsAt)}`,
     `SUMMARY:${text(summary)}`,

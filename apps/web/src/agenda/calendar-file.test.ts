@@ -156,3 +156,20 @@ describe("calendarFile", () => {
     expect(property(file, "SUMMARY")).toBe(`SUMMARY:Entretien — ${"é".repeat(100)}\\, Acme Industrie`);
   });
 });
+
+describe("a Cancelled Agenda Item", () => {
+  it("has no Calendar file", () => {
+    expect(calendarFile({ ...interview, cancelledAt: new Date("2026-10-21T09:00:00.000Z") }, { now: NOW, agendaUrl: AGENDA_URL, locale: "fr" })).toBeNull();
+  });
+});
+
+describe("a Rescheduled Agenda Item", () => {
+  it("counts its Reschedules in SEQUENCE, so a new download is a newer revision of the same event", () => {
+    expect(lines(calendarFile(interview, { now: NOW, agendaUrl: AGENDA_URL, locale: "fr" })!)).toContain("SEQUENCE:0");
+    const moved: InterviewAgendaItem = {
+      ...interview,
+      reschedules: [{ previousAt: new Date("2026-10-21T12:30:00.000Z"), newAt: interview.scheduledAt, by: "candidate", at: new Date("2026-10-19T08:00:00.000Z") }],
+    };
+    expect(lines(calendarFile(moved, { now: NOW, agendaUrl: AGENDA_URL, locale: "fr" })!)).toContain("SEQUENCE:1");
+  });
+});

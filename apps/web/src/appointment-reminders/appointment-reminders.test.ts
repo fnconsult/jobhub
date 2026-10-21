@@ -133,6 +133,31 @@ describe.skipIf(!connectionString)("Appointment Reminders (needs Postgres: DATAB
     expect(outbox).toHaveLength(1);
   });
 
+  it("still emails the other Candidates when one email fails, and sends the failed one on the next run", async () => {
+    await interview(marie, "2026-10-21T09:00");
+    await interview(paul, "2026-10-21T10:00");
+    let down = true;
+    const flaky = createAppointmentReminders(database, {
+      mailer: {
+        send: async (message) => {
+          if (down && message.to === "marie.dupont@example.fr") throw new Error("mailbox unavailable");
+          outbox.push(message);
+        },
+      },
+      baseURL: "https://app.jobbbox.fr",
+      now: () => clock.now,
+    });
+
+    at(REMINDER_TIME);
+    expect(await flaky.sendDue()).toEqual({ emails: 1, items: 1, failed: 1 });
+    expect(outbox.map((message) => message.to)).toEqual(["paul.martin@example.fr"]);
+
+    down = false;
+    at("2026-10-20T16:30:00.000Z");
+    expect(await flaky.sendDue()).toEqual({ emails: 1, items: 1, failed: 0 });
+    expect(outbox.map((message) => message.to)).toEqual(["paul.martin@example.fr", "marie.dupont@example.fr"]);
+  });
+
   it("reminds a Rescheduled Interview again for its new date", async () => {
     const { applicationId, id } = await interview(marie, "2026-10-21T09:00");
     at(REMINDER_TIME);

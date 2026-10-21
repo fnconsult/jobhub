@@ -42,9 +42,10 @@ export interface AppointmentReminders {
   setEnabled(candidateId: string, enabled: boolean): Promise<void>;
   /**
    * Emails each Candidate their Agenda Items of the day after the latest REMINDER_HOUR at or before now, those
-   * not reminded yet for their date. How many emails went, listing how many Agenda Items.
+   * not reminded yet for their date. How many emails went, listing how many Agenda Items, and how many could not
+   * be sent: those Candidates' items are left to the next run, the other Candidates' emails go all the same.
    */
-  sendDue(): Promise<{ emails: number; items: number }>;
+  sendDue(): Promise<{ emails: number; items: number; failed: number }>;
 }
 
 /** One Agenda Item, as a reminder lists it. */
@@ -218,12 +219,17 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
       for (const item of await due(at)) byCandidate.set(item.candidateId, [...(byCandidate.get(item.candidateId) ?? []), item]);
       let emails = 0;
       let items = 0;
+      let failed = 0;
       for (const [candidateId, candidateItems] of byCandidate) {
-        const claimed = await remind(candidateId, candidateItems, at);
-        if (claimed.length > 0) emails += 1;
-        items += claimed.length;
+        try {
+          const claimed = await remind(candidateId, candidateItems, at);
+          if (claimed.length > 0) emails += 1;
+          items += claimed.length;
+        } catch {
+          failed += 1;
+        }
       }
-      return { emails, items };
+      return { emails, items, failed };
     },
   };
 }

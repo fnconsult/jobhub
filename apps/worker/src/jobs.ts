@@ -284,7 +284,11 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
       handler: () =>
         onceTablesExist(async () => {
           const sent = await deps.appointmentReminders?.sendDue();
-          if (sent) log(`[appointment-reminders] ${sent.emails} Appointment Reminder(s) sent, for ${sent.items} Agenda Item(s)`);
+          if (!sent) return;
+          log(
+            `[appointment-reminders] ${sent.emails} Appointment Reminder(s) sent, for ${sent.items} Agenda Item(s)` +
+              (sent.failed ? `; ${sent.failed} could not be sent, left to the next run` : ""),
+          );
         }),
     },
 

@@ -5,6 +5,7 @@ import { CoachInView } from "@/components/CoachPanel";
 import { ProfileTitle, SearchCriteriaProperties } from "@/components/ProfileInlineEdits";
 import { SectionsLayout } from "@/components/SectionsLayout";
 import { getServerT } from "@/i18n/server";
+import { readIndustryReference } from "@/reference-data/server";
 import { routes } from "@/routes";
 import { ArchivedCriteria, loadProfilePage } from "./profile-page";
 
@@ -31,6 +32,8 @@ export default async function ProfileLayout({ params, children }: Params & { chi
   const { candidateId, profile, inView, locale, sections } = await loadProfilePage((await params).id);
   const t = await getServerT();
   const criteria = profile.searchCriteria;
+  // An archived Profile's Sectors and Domains are read by their labels (#236); an active one's inputs fetch them.
+  const industries = profile.archived ? await readIndustryReference() : null;
   return (
     <CandidateLayout
       candidateId={candidateId}
@@ -42,7 +45,7 @@ export default async function ProfileLayout({ params, children }: Params & { chi
           <p className="eyebrow">{t("profilePage.eyebrow")}</p>
           {profile.archived ? <p className="notice">{t("profileActions.archivedNotice")}</p> : null}
           {profile.archived ? (
-            <ArchivedCriteria criteria={criteria} locale={locale} t={t} />
+            <ArchivedCriteria criteria={criteria} locale={locale} t={t} industries={industries ?? { sectors: [], subsectors: [], domains: [] }} />
           ) : (
             <SearchCriteriaProperties key={`criteria-${profile.id}`} profileId={profile.id} searchCriteria={criteria} />
           )}

@@ -2,7 +2,8 @@
  * Fetching a page the way ADR-0002 allows: robots.txt first, as ourselves,
  * and giving up (never working around it) at the first sign of bot protection.
  */
-import { recordingFetch, type ExternalApiLog, type ExternalApiProvider } from "@jobhub/shared";
+import { recordingFetch, type ExternalApiLog } from "../external-api-usage";
+import type { ExternalApiProvider } from "../tools";
 import { htmlToText } from "./html";
 import { countJobPostings } from "./job-posting";
 import { robotsAllow, robotsCrawlDelay } from "./robots";
@@ -139,7 +140,13 @@ async function readText(response: Response, maxBytes: number): Promise<string | 
     }
     chunks.push(value);
   }
-  return new TextDecoder().decode(Buffer.concat(chunks));
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
 }
 
 /** A fetcher for one discovery run: robots.txt is read once per site. */
@@ -282,17 +289,44 @@ const JOB_BOARDS: [host: RegExp, provider: ExternalApiProvider][] = [
   [/(^|\.)apec\.fr$/, "apec"],
 ];
 
-/** `fetch`, with each call to a job board (JOB_BOARDS) recorded in `log`; other sites' pages are not recorded. */
-export function recordingJobBoardFetch(fetch: typeof globalThis.fetch, log: ExternalApiLog): typeof globalThis.fetch {
+/** Second-level labels under a country code that are a public suffix themselves (co.uk, com.au, gouv.fr...). */
+const SECOND_LEVEL_SUFFIXES = new Set(["co", "com", "org", "net", "gov", "gouv", "ac", "edu", "asso", "or", "ne", "go"]);
+
+/**
+ * The domain a site's host is registered under ("careers.acme.fr" → "acme.fr", "jobs.bbc.co.uk" →
+ * "bbc.co.uk"): the label before its public suffix, which is its last label, or its last two when the
+ * second last is a usual second-level suffix of a country code. An IP address or a single label as is.
+ */
+export function registrableDomain(host: string): string {
+  const name = host.toLowerCase().replace(/\.$/, "");
+  if (/^[\d.]+$/.test(name) || name.includes(":")) return name;
+  const labels = name.split(".");
+  if (labels.length <= 2) return name;
+  const [secondLast, last] = labels.slice(-2) as [string, string];
+  const suffixLabels = last.length === 2 && SECOND_LEVEL_SUFFIXES.has(secondLast) ? 2 : 1;
+  return labels.slice(-(suffixLabels + 1)).join(".");
+}
+
+/** A page read on a site that is not a job board, as recorded: its site's registrable domain alone, never its URL. */
+const pageRead = (_method: string, url: URL) => `page_read ${registrableDomain(url.hostname)}`;
+
+/**
+ * `fetch`, with each call recorded in `log` as a free external API call: to a job board (JOB_BOARDS)
+ * under that board, by method and path (#218); to any other site under `job_site`, as a `page_read`
+ * of its registrable domain, never the page's URL (#234).
+ */
+export function recordingSiteFetch(fetch: typeof globalThis.fetch, log: ExternalApiLog): typeof globalThis.fetch {
   const recording = new Map(JOB_BOARDS.map(([, provider]) => [provider, recordingFetch(fetch, log, { provider, costEur: () => 0 })]));
+  const otherSite = recordingFetch(fetch, log, { provider: "job_site", operation: pageRead, costEur: () => 0 });
   return (input, init) => {
     let host = "";
     try {
       host = new URL(input instanceof Request ? input.url : String(input)).hostname;
     } catch {
       // Not a URL: fetch says so.
+      return fetch(input, init);
     }
     const board = JOB_BOARDS.find(([pattern]) => pattern.test(host))?.[1];
-    return (board ? recording.get(board)! : fetch)(input, init);
+    return (board ? recording.get(board)! : otherSite)(input, init);
   };
 }

@@ -16,13 +16,14 @@
  *      and so is one Reported Unavailable (`reportedUnavailableAt`, that Application
  *      only, never the shared Job Offer); either keeps its status: nothing changes
  *      it automatically;
- *    - `addInterview` (only while it is at "Entretien"), `editInterview` and `removeInterview`.
- *      Interviews are kept when the Application moves on.
+ *    - `addInterview` (only while it is at "Entretien", or moving it there in the same
+ *      change), `editInterview` and `removeInterview`. Interviews are kept when the
+ *      Application moves on.
  * Every read and change is scoped to the Candidate; inputs are untrusted (they
  * come from the browser) and problems come back as results, never exceptions.
  * Applications are deleted with the account (ADR-0010), their Job Offers are kept.
  */
-import { APPLICATION_STATUSES, scoreMatch, type ApplicationStatus, type JobOffer, type MatchScore } from "@jobhub/shared";
+import { APPLICATION_STATUSES, INTERVIEW_FORMATS, scoreMatch, type ApplicationStatus, type InterviewFormat, type JobOffer, type MatchScore } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { JobOffers } from "../job-offers";
@@ -37,6 +38,12 @@ export interface Interview {
   scheduledAt: Date;
   /** What the Candidate noted about it, e.g. "avec la DRH". Empty when nothing. */
   note: string;
+  /** How long it lasts, in minutes, or null when the Candidate did not say (shown as INTERVIEW_DEFAULT_DURATION_MINUTES). */
+  durationMinutes: number | null;
+  /** How it takes place, or null when the Candidate did not say. */
+  format: InterviewFormat | null;
+  /** Where it takes place, or the link to join it. Empty when nothing. */
+  place: string;
 }
 
 export interface Application {
@@ -102,11 +109,17 @@ export interface Applications {
    * `input`: { status }, { profileId } or { reportedUnavailable }.
    */
   change(candidateId: string, applicationId: string, input: unknown): Promise<ApplicationChangeResult>;
-  /** Adds a dated Interview. `input`: { scheduledAt (ISO 8601 date and time), note? }. */
+  /**
+   * Adds a dated Interview. `input`: { scheduledAt (ISO 8601 date and time), note?, durationMinutes?,
+   * format?, place?, moveToInterview? }. Refused ("not_in_interview") unless the Application is at
+   * "Entretien", or `moveToInterview` is true: the Application is then moved to "Entretien" and the
+   * Interview added together, or neither is saved.
+   */
   addInterview(candidateId: string, applicationId: string, input: unknown): Promise<AddInterviewResult>;
   /**
-   * Edits one of the Application's Interviews: its date and time, its note, or both.
-   * `input`: { scheduledAt?, note? }, read as `addInterview` reads them. Allowed whatever
+   * Edits one of the Application's Interviews, changing only the fields `input` names:
+   * { scheduledAt?, note?, durationMinutes?, format?, place? }, read as `addInterview` reads them
+   * (null, or "", clears the duration or the format). Allowed whatever
    * the Application Status, like removing one: Interviews are kept when it moves on.
    */
   editInterview(candidateId: string, applicationId: string, interviewId: string, input: unknown): Promise<ApplicationChangeResult>;
@@ -158,15 +171,95 @@ export function interviewWallClock(scheduledAt: Date): string {
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
 }
 
+/** The instant the day `instant` falls on, in French time, begins: its midnight there (never skipped: France changes the clocks at 2 or 3 a.m.). */
+export function interviewDayStart(instant: Date): Date {
+  return wallClockIn(`${interviewWallClock(instant).slice(0, 10)}T00:00`, INTERVIEW_TIME_ZONE);
+}
+
+/**
+ * A date and time read from a form: ISO 8601, French time when typed without an offset
+ * ("2026-11-12T14:30", a datetime-local value). For Interviews and Coaching Sessions alike.
+ */
+export const frenchDateTime = z.iso
+  .datetime({ offset: true, local: true })
+  .transform((value) => (/(Z|[+-]\d{2}:?\d{2})$/.test(value) ? new Date(value) : wallClockIn(value, INTERVIEW_TIME_ZONE)));
+
+/** How long an Interview is shown to last when the Candidate did not say. */
+export const INTERVIEW_DEFAULT_DURATION_MINUTES = 60;
+
+/** When an Interview ends: its duration after it starts, INTERVIEW_DEFAULT_DURATION_MINUTES when it has none. */
+export function interviewEndsAt({ scheduledAt, durationMinutes }: Pick<Interview, "scheduledAt" | "durationMinutes">): Date {
+  return new Date(scheduledAt.getTime() + (durationMinutes ?? INTERVIEW_DEFAULT_DURATION_MINUTES) * 60_000);
+}
+
+/** A run of an Interview's place, a link (`href`) when it is an http or https web address. */
+export interface InterviewPlacePart {
+  text: string;
+  href?: string;
+}
+
+const WEB_ADDRESS = /https?:\/\/[^\s<>"]+/gi;
+/** What ends a sentence rather than a web address. */
+const TRAILING_PUNCTUATION = /[.,;:!?'"»]$/;
+
+/**
+ * An Interview's place cut into runs of text and links, for showing it: each http or
+ * https web address in it becomes a link (never another scheme), without the punctuation
+ * that follows it in a sentence or a closing bracket it does not open.
+ */
+export function interviewPlaceParts(place: string): InterviewPlacePart[] {
+  const parts: InterviewPlacePart[] = [];
+  const text = (value: string) => {
+    if (!value) return;
+    const last = parts.at(-1);
+    if (last && last.href === undefined) last.text += value;
+    else parts.push({ text: value });
+  };
+  let from = 0;
+  for (const match of place.matchAll(WEB_ADDRESS)) {
+    let address = match[0];
+    while (TRAILING_PUNCTUATION.test(address) || (address.endsWith(")") && address.split("(").length < address.split(")").length)) address = address.slice(0, -1);
+    text(place.slice(from, match.index));
+    if (URL.canParse(address)) parts.push({ text: address, href: address });
+    else text(address);
+    from = match.index + address.length;
+  }
+  text(place.slice(from));
+  return parts;
+}
+
+/** A form's empty field ("") means nothing was said. */
+const blankAsNull = (value: unknown) => (value === "" ? null : value);
+
+const interviewFields = {
+  scheduledAt: frenchDateTime,
+  note: z.string().trim().max(500),
+  /** Up to a day. */
+  durationMinutes: z.preprocess(blankAsNull, z.number().int().positive().max(1440).nullable()),
+  format: z.preprocess(blankAsNull, z.enum(INTERVIEW_FORMATS).nullable()),
+  place: z.string().trim().max(500),
+};
+
 const interviewSchema = z.object({
-  scheduledAt: z.iso
-    .datetime({ offset: true, local: true })
-    .transform((value) => (/(Z|[+-]\d{2}:?\d{2})$/.test(value) ? new Date(value) : wallClockIn(value, INTERVIEW_TIME_ZONE))),
-  note: z.string().trim().max(500).default(""),
+  scheduledAt: interviewFields.scheduledAt,
+  note: interviewFields.note.default(""),
+  durationMinutes: interviewFields.durationMinutes.default(null),
+  format: interviewFields.format.default(null),
+  place: interviewFields.place.default(""),
+  moveToInterview: z.boolean().default(false),
 });
 
 /** An edit changes only the fields it names. */
-const interviewEditSchema = z.object({ scheduledAt: interviewSchema.shape.scheduledAt.optional(), note: z.string().trim().max(500).optional() });
+const interviewEditSchema = z.object({
+  scheduledAt: interviewFields.scheduledAt.optional(),
+  note: interviewFields.note.optional(),
+  durationMinutes: interviewFields.durationMinutes.optional(),
+  format: interviewFields.format.optional(),
+  place: interviewFields.place.optional(),
+});
+
+/** The `interview` column each editable field is kept in. */
+const INTERVIEW_COLUMNS = { scheduledAt: "scheduled_at", note: "note", durationMinutes: "duration_minutes", format: "format", place: "place" } as const;
 
 const NOT_FOUND = { ok: false, error: "not_found" } as const;
 const found = (application: Application | null): ApplicationChangeResult => (application ? { ok: true, application } : NOT_FOUND);
@@ -189,12 +282,29 @@ export function createApplications(
 ): Applications {
   /** The Interviews of each Application, oldest first. */
   async function interviewsOf(applicationIds: string[]): Promise<Map<string, Interview[]>> {
-    const { rows } = await database.query<{ id: string; application_id: string; scheduled_at: Date; note: string }>(
-      `SELECT id, application_id, scheduled_at, note FROM interview WHERE application_id = ANY($1) ORDER BY scheduled_at, created_at`,
+    const { rows } = await database.query<{
+      id: string;
+      application_id: string;
+      scheduled_at: Date;
+      note: string;
+      duration_minutes: number | null;
+      format: InterviewFormat | null;
+      place: string;
+    }>(
+      `SELECT id, application_id, scheduled_at, note, duration_minutes, format, place
+         FROM interview WHERE application_id = ANY($1) ORDER BY scheduled_at, created_at`,
       [applicationIds],
     );
     const byApplication = new Map(applicationIds.map((applicationId) => [applicationId, [] as Interview[]]));
-    for (const row of rows) byApplication.get(row.application_id)!.push({ id: row.id, scheduledAt: row.scheduled_at, note: row.note });
+    for (const row of rows)
+      byApplication.get(row.application_id)!.push({
+        id: row.id,
+        scheduledAt: row.scheduled_at,
+        note: row.note,
+        durationMinutes: row.duration_minutes,
+        format: row.format,
+        place: row.place,
+      });
     return byApplication;
   }
 
@@ -325,12 +435,31 @@ export function createApplications(
         [applicationId, candidateId],
       );
       if (!rows[0]) return NOT_FOUND;
-      if (rows[0].status !== "interview") return { ok: false, error: "not_in_interview" };
-      await database.query(`INSERT INTO interview (application_id, scheduled_at, note) VALUES ($1, $2, $3)`, [
-        applicationId,
-        parsed.data.scheduledAt,
-        parsed.data.note,
-      ]);
+      const { scheduledAt, note, durationMinutes, format, place, moveToInterview } = parsed.data;
+      if (rows[0].status !== "interview" && !moveToInterview) return { ok: false, error: "not_in_interview" };
+      // Moved to "Entretien" and the Interview added together, or neither.
+      const client = await database.connect();
+      try {
+        await client.query("BEGIN");
+        await client.query(
+          `UPDATE application SET status = 'interview', status_changed_at = now() WHERE id = $1 AND candidate_id = $2 AND status <> 'interview'`,
+          [applicationId, candidateId],
+        );
+        await client.query(`INSERT INTO interview (application_id, scheduled_at, note, duration_minutes, format, place) VALUES ($1, $2, $3, $4, $5, $6)`, [
+          applicationId,
+          scheduledAt,
+          note,
+          durationMinutes,
+          format,
+          place,
+        ]);
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
       return found(await get(candidateId, applicationId));
     },
 
@@ -338,11 +467,14 @@ export function createApplications(
       const parsed = interviewEditSchema.safeParse(input, { reportInput: true });
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       if (!UUID.test(applicationId) || !UUID.test(interviewId)) return NOT_FOUND;
+      const changes = (Object.keys(INTERVIEW_COLUMNS) as (keyof typeof INTERVIEW_COLUMNS)[]).filter((field) => parsed.data[field] !== undefined);
+      // Nothing named still checks the Interview is theirs.
+      const set = changes.length > 0 ? changes.map((field, index) => `${INTERVIEW_COLUMNS[field]} = $${index + 4}`).join(", ") : "id = i.id";
       const { rowCount } = await database.query(
-        `UPDATE interview i SET scheduled_at = COALESCE($4, i.scheduled_at), note = COALESCE($5, i.note)
+        `UPDATE interview i SET ${set}
            FROM application a
           WHERE i.id = $1 AND i.application_id = a.id AND a.id = $2 AND a.candidate_id = $3`,
-        [interviewId, applicationId, candidateId, parsed.data.scheduledAt ?? null, parsed.data.note ?? null],
+        [interviewId, applicationId, candidateId, ...changes.map((field) => parsed.data[field])],
       );
       if (rowCount === 0) return NOT_FOUND;
       return found(await get(candidateId, applicationId));
@@ -385,5 +517,9 @@ export async function migrateApplications(database: Pool): Promise<void> {
     CREATE INDEX IF NOT EXISTS interview_application_id_idx ON interview (application_id);
     -- Reported Unavailable: since when the Candidate reports its Job Offer no longer published (this Application only).
     ALTER TABLE application ADD COLUMN IF NOT EXISTS reported_unavailable_at timestamptz;
+    -- What the Candidate needs on the day (#247): each optional.
+    ALTER TABLE interview ADD COLUMN IF NOT EXISTS duration_minutes integer CHECK (duration_minutes BETWEEN 1 AND 1440);
+    ALTER TABLE interview ADD COLUMN IF NOT EXISTS format text CHECK (format IN (${INTERVIEW_FORMATS.map((format) => `'${format}'`).join(", ")}));
+    ALTER TABLE interview ADD COLUMN IF NOT EXISTS place text NOT NULL DEFAULT '';
   `);
 }

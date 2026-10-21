@@ -7,6 +7,7 @@ import pg from "pg";
 import { PgBoss } from "pg-boss";
 import { renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
+import { placeInput, placeNames, placeOptions, removePlace, typePlace } from "./support/locations";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
 
@@ -70,8 +71,11 @@ function startWorker() {
   for (const stream of [worker.stdout!, worker.stderr!]) stream.on("data", (chunk) => (workerOutput += chunk));
 }
 
-async function signInWithProfile(page: Page): Promise<string> {
-  await signInWithMagicLink(page, newAddress("job-search"));
+/** Signs a new Candidate in with one Profile; on the Free Plan (1 Job Search a week) unless `plan` says otherwise. */
+async function signInWithProfile(page: Page, plan?: "standard"): Promise<string> {
+  const email = newAddress("job-search");
+  await signInWithMagicLink(page, email);
+  if (plan) await subscribe(page, email, plan);
   const created = await page.request.post("/api/profiles", { headers: { origin }, data: { masterCv, searchCriteria } });
   expect(created.status(), await created.text()).toBe(201);
   return (await created.json()).id as string;
@@ -81,7 +85,7 @@ async function candidateIdOf(page: Page): Promise<string> {
   return (await (await page.request.get("/api/auth/get-session")).json()).user.id as string;
 }
 
-/** This month's Job Searches as /abonnement shows them, e.g. "1 sur 3". */
+/** This week's Job Searches as /abonnement shows them, e.g. "1 sur 7". */
 async function jobSearchesUsed(page: Page): Promise<string> {
   await page.goto("/abonnement");
   return (await page.locator("dl > div").filter({ has: page.getByText("Recherches d'offres", { exact: true }) }).locator("dd").innerText()).trim();
@@ -108,13 +112,31 @@ async function changeMinSalaryInDialog(page: Page, criteriaLine: Locator, profil
   await button.click();
   const dialog = page.getByRole("dialog", { name: `Critères de recherche · ${profileName}` });
   await expect(dialog).toBeVisible();
-  // Only the Search Criteria, labels beside their values as on the Profile page.
-  await expect(dialog.getByRole("term")).toHaveText(["Poste recherché", "Lieux", "Salaire annuel brut minimum (en euros)", "Type de contrat", "Télétravail"]);
+  // Only the Search Criteria, labels beside their values as on the Profile page, Sectors and Domains among them (#236).
+  await expect(dialog.getByRole("term")).toHaveText([
+    "Poste recherché",
+    "Lieux",
+    "Salaire annuel brut minimum (en euros)",
+    "Type de contrat",
+    "Télétravail",
+    "Secteurs",
+    "Sous-secteurs",
+    "Domaines",
+  ]);
   await expect(dialog.getByLabel("Poste recherché")).toHaveValue(searchCriteria.targetRole);
   const salary = dialog.getByLabel("Salaire annuel brut minimum (en euros)");
   await salary.fill("90000");
   await salary.press("Tab");
   await expect(dialog.getByRole("status").filter({ hasText: "Critères enregistrés" })).toHaveCount(1);
+  // The Locations field as on the Profile page (#235): a place added, then removed, each saved at once.
+  await typePlace(dialog, "Remote");
+  await expect(placeNames(dialog)).toHaveText(["Lyon", "Remote"]);
+  await expect(dialog.getByRole("status").filter({ hasText: "Critères enregistrés" })).toHaveCount(2);
+  await Promise.all([
+    page.waitForResponse((response) => response.request().method() === "PATCH" && !(response.request().postData() ?? "").includes("Remote")),
+    removePlace(dialog, "Remote").click(),
+  ]);
+  await expect(placeNames(dialog)).toHaveText(["Lyon"]);
   await dialog.getByRole("button", { name: "Fermer", exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(button).toBeFocused();
@@ -304,29 +326,30 @@ test.describe("On-demand AI Coach job search", () => {
   // Issue #74: only a Job Search that can run counts against the Plan Quota.
   test("a Job Search that finds Job Offers uses one Job Search of the Plan Quota", async ({ page }) => {
     const profileId = await signInWithProfile(page);
-    expect(await jobSearchesUsed(page)).toBe("0 sur 3");
+    expect(await jobSearchesUsed(page)).toBe("0 sur 1");
 
     await searchFromProfile(page, profileId);
     const results = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2 }) });
     await expect(results, workerOutput).toHaveCount(2, { timeout: 90_000 });
 
-    expect(await jobSearchesUsed(page)).toBe("1 sur 3");
+    expect(await jobSearchesUsed(page)).toBe("1 sur 1");
   });
 
   test("a Job Search the worker records as failed gives its use back, once, even if reported failed again", async ({ page }) => {
-    const profileId = await signInWithProfile(page);
+    // Standard (7 Job Searches a week): room for the search that works and the one that fails.
+    const profileId = await signInWithProfile(page, "standard");
     const candidateId = await candidateIdOf(page);
     // One search that works, so the count has something to lose if a failure were given back twice.
     await searchFromProfile(page, profileId);
     await expect(page.getByText(/^Score de correspondance : \d+ \/ 100(, partiel)?$/).first(), workerOutput).toBeVisible({ timeout: 90_000 });
-    expect(await jobSearchesUsed(page)).toBe("1 sur 3");
+    expect(await jobSearchesUsed(page)).toBe("1 sur 7");
 
     writeFileSync(searchDownFlag, "");
     try {
       const jobSearchId = await searchFromProfile(page, profileId);
       await expect(page.getByText("La recherche n'a pas abouti. Réessayez dans quelques instants."), workerOutput).toBeVisible({ timeout: 90_000 });
       await expect.poll(() => failedRuns(profileId), { message: workerOutput }).toBe(1);
-      expect(await jobSearchesUsed(page)).toBe("1 sur 3");
+      expect(await jobSearchesUsed(page)).toBe("1 sur 7");
 
       // The same Job discovery runs again (a redelivered job) and fails again: nothing more is given back.
       const boss = new PgBoss({ connectionString: databaseUrl });
@@ -337,7 +360,7 @@ test.describe("On-demand AI Coach job search", () => {
         await boss.stop({ graceful: false });
       }
       await expect.poll(() => failedRuns(profileId), { timeout: 60_000, message: workerOutput }).toBe(2);
-      expect(await jobSearchesUsed(page)).toBe("1 sur 3");
+      expect(await jobSearchesUsed(page)).toBe("1 sur 7");
       await page.goto(`/recherches/${jobSearchId}`);
       await expect(page.getByText("La recherche n'a pas abouti. Réessayez dans quelques instants.")).toBeVisible();
     } finally {
@@ -348,7 +371,7 @@ test.describe("On-demand AI Coach job search", () => {
   test("a Job Search that cannot be queued for the worker shows as failed and leaves the Plan Quota unchanged", async ({ page }) => {
     const profileId = await signInWithProfile(page);
     const candidateId = await candidateIdOf(page);
-    expect(await jobSearchesUsed(page)).toBe("0 sur 3");
+    expect(await jobSearchesUsed(page)).toBe("0 sur 1");
 
     // The job queue refuses this Candidate's Job discovery, as an unreachable queue would.
     const trigger = `e2e_refuse_${tag}`;
@@ -368,7 +391,7 @@ test.describe("On-demand AI Coach job search", () => {
 
       await searchFromProfile(page, profileId);
       await expect(page.getByText("La recherche n'a pas abouti. Réessayez dans quelques instants.")).toBeVisible();
-      expect(await jobSearchesUsed(page)).toBe("0 sur 3");
+      expect(await jobSearchesUsed(page)).toBe("0 sur 1");
     } finally {
       await client.query(`DROP TRIGGER IF EXISTS ${trigger} ON pgboss.job; DROP FUNCTION IF EXISTS pgboss.${trigger}();`);
       await client.end();
@@ -377,12 +400,10 @@ test.describe("On-demand AI Coach job search", () => {
 
   test("stops a Free Candidate at the Plan Quota of Job Searches with an Upgrade Prompt, without searching", async ({ page }) => {
     const profileId = await signInWithProfile(page);
-    const searches: string[] = [];
-    for (let i = 0; i < 3; i++) {
-      const started = await page.request.post("/api/job-searches", { headers: { origin }, data: { profileId } });
-      expect(started.status(), await started.text()).toBe(201);
-      searches.push((await started.json()).id);
-    }
+    // The Free Plan's one Job Search of the week.
+    const started = await page.request.post("/api/job-searches", { headers: { origin }, data: { profileId } });
+    expect(started.status(), await started.text()).toBe(201);
+    const searches: string[] = [(await started.json()).id];
     // Let this worker finish them, so no Job discovery is left queued for the next spec's worker.
     for (const id of searches) {
       await expect
@@ -394,14 +415,15 @@ test.describe("On-demand AI Coach job search", () => {
     await page.getByRole("button", { name: "Chercher des offres", exact: true }).click();
 
     const prompt = page.getByRole("alert").filter({ hasText: "Vous avez atteint la limite de votre offre" });
-    await expect(prompt).toContainText("Vous avez utilisé les 3 recherches d'offres comprises ce mois-ci dans l'offre Gratuite.");
+    await expect(prompt).toContainText("Vous avez utilisé la recherche d'offres comprise cette semaine dans l'offre Gratuite.");
     await expect(prompt.getByRole("link", { name: "Découvrir l'offre Standard" })).toHaveAttribute("href", "/abonnement");
     await expect(page).toHaveURL(new RegExp(`/recherches\\?profil=${profileId}$`));
   });
 
   // Issue #16: a Job Offer no longer published at its source is left out of Job Search results.
   test("leaves Expired Job Offers out of the results", async ({ page }) => {
-    const profileId = await signInWithProfile(page);
+    // Standard: two Job Searches, more than the Free Plan's one a week.
+    const profileId = await signInWithProfile(page, "standard");
     await searchFromProfile(page, profileId);
     const results = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2 }) });
     await expect(results, workerOutput).toHaveCount(2, { timeout: 90_000 });
@@ -451,7 +473,8 @@ test.describe("On-demand AI Coach job search", () => {
     const offersIn = (scope: Locator, page: Page, level: number) => scope.getByRole("listitem").filter({ has: page.getByRole("heading", { level }) });
 
     test("for one Profile: its Search Criteria, the search button, a search running, then its latest Job Offers", async ({ page }) => {
-      const profileId = await signInWithProfile(page);
+      // Standard: two Job Searches, more than the Free Plan's one a week.
+      const profileId = await signInWithProfile(page, "standard");
       // No Profile named: the first active one.
       await page.goto("/recherches");
       await expect(page).toHaveURL(`${origin}/recherches?profil=${profileId}`);
@@ -513,12 +536,15 @@ test.describe("On-demand AI Coach job search", () => {
           expect(await dialog.evaluate((element) => element.contains(document.activeElement)), `focus after ${i + 1} Tab at ${size.width}px`).toBe(true);
         }
 
+        // The place suggestions shown (#235): measured with the rest.
+        await placeInput(dialog).fill("loire");
+        await expect(placeOptions(dialog)).toHaveCount(4);
         for (const text of (await renderedTexts(page)).filter((item) => item.fontSizePx > 0)) {
           expect.soft(text.fontSizePx, `font size of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(16);
           expect.soft(text.contrast, `contrast of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(4.5);
         }
         // Every control is at least 2.75rem (44px) tall, as on the Profile page (a checkbox's target is its label).
-        for (const target of await dialog.getByRole("button").or(dialog.getByRole("textbox")).all()) {
+        for (const target of await dialog.getByRole("button").or(dialog.getByRole("textbox")).or(dialog.getByRole("combobox")).or(dialog.getByRole("option")).all()) {
           if (!(await target.isVisible())) continue;
           const box = (await target.boundingBox())!;
           expect.soft(box.height, `height of ${await target.evaluate((element) => element.outerHTML.slice(0, 80))} at ${size.width}px`).toBeGreaterThanOrEqual(44);
@@ -536,6 +562,13 @@ test.describe("On-demand AI Coach job search", () => {
 
         if (screenshots) await page.screenshot({ path: path.join(screenshots, `criteria-dialog-${size.width}.png`) });
 
+        // Escape closes the suggestions, then empties the input, the dialog still open; then it closes the dialog.
+        await placeInput(dialog).press("Escape");
+        await expect(placeOptions(dialog)).toHaveCount(0);
+        await expect(dialog).toBeVisible();
+        await placeInput(dialog).press("Escape");
+        await expect(placeInput(dialog)).toHaveValue("");
+        await expect(dialog).toBeVisible();
         await page.keyboard.press("Escape");
         await expect(dialog).toHaveCount(0);
         await expect(button).toBeFocused();
@@ -593,7 +626,7 @@ test.describe("On-demand AI Coach job search", () => {
       await expect(offersIn(panel, page, 4), workerOutput).toHaveCount(2, { timeout: 90_000 });
 
       // One Job Search each, both counted against the Plan Quota.
-      expect(await jobSearchesUsed(page)).toBe("2 sur 30");
+      expect(await jobSearchesUsed(page)).toBe("2 sur 7");
       const searchIds: string[] = [];
       for (const profileId of [first, second]) {
         await page.goto(`/recherches?profil=${profileId}`);
@@ -645,12 +678,10 @@ test.describe("On-demand AI Coach job search", () => {
 
     test("says which Profile got no Job Search when the Plan Quota is used up", async ({ page }) => {
       const profileId = await signInWithProfile(page);
-      const searches: string[] = [];
-      for (let i = 0; i < 3; i++) {
-        const started = await page.request.post("/api/job-searches", { headers: { origin }, data: { profileId } });
-        expect(started.status(), await started.text()).toBe(201);
-        searches.push((await started.json()).id);
-      }
+      // The Free Plan's one Job Search of the week.
+      const started = await page.request.post("/api/job-searches", { headers: { origin }, data: { profileId } });
+      expect(started.status(), await started.text()).toBe(201);
+      const searches: string[] = [(await started.json()).id];
       // Let this worker finish them, so no Job discovery is left queued for the next spec's worker.
       for (const id of searches) {
         await expect
@@ -662,14 +693,14 @@ test.describe("On-demand AI Coach job search", () => {
       await page.getByRole("button", { name: "Chercher pour mon profil (1 recherche)" }).click();
 
       await expect(
-        page.getByRole("alert").getByText(`Pas de recherche pour « ${searchCriteria.targetRole} » : vous avez utilisé toutes les recherches d'offres de votre offre ce mois-ci.`),
+        page.getByRole("alert").getByText(`Pas de recherche pour « ${searchCriteria.targetRole} » : vous avez utilisé toutes les recherches d'offres de votre offre cette semaine.`),
       ).toBeVisible();
       await expect(page.getByRole("alert").filter({ hasText: "Vous avez atteint la limite de votre offre" }).getByRole("link", { name: "Découvrir l'offre Standard" })).toHaveAttribute(
         "href",
         "/abonnement",
       );
       await expect(page.getByRole("main").getByText(/recherches? lancées?\./)).toHaveCount(0);
-      expect(await jobSearchesUsed(page)).toBe("3 sur 3");
+      expect(await jobSearchesUsed(page)).toBe("1 sur 1");
     });
   });
 
@@ -743,7 +774,7 @@ test.describe("On-demand AI Coach job search", () => {
       } finally {
         rmSync(searchDownFlag, { force: true });
       }
-      const reason = "Les sites d'offres d'emploi n'ont pas pu être consultés. Elle n'est pas comptée dans vos recherches d'offres du mois.";
+      const reason = "Les sites d'offres d'emploi n'ont pas pu être consultés. Elle n'est pas comptée dans vos recherches d'offres de la semaine.";
       await expect(page.getByText(reason)).toBeVisible();
       await expectReadable(page, [reason]);
       await expect(page.getByRole("link", { name: "Voir la recherche" })).toHaveAttribute("href", `/recherches/${jobSearchId}`);

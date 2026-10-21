@@ -89,10 +89,10 @@ describe("the Jobbbox API, from the extension", () => {
     expect(await api.score("jo-1", { profileId: "p-1" })).toEqual({ ok: false, error: "signed_out" });
   });
 
-  it("passes on the Upgrade Prompt when the Candidate's Plan allows no more Match Scores this month", async () => {
+  it("passes on the Upgrade Prompt when the Candidate's Plan allows no more Match Scores this week", async () => {
     const prompt = {
       title: "You have reached your Plan's limit",
-      message: "You have used the 3 Match Scores included this month in the Free Plan. Upgrade to Standard to use more.",
+      message: "You have used the 3 Match Scores included this week in the Free Plan. Upgrade to Standard to use more.",
       upgradeTo: "standard",
       action: "Upgrade to Standard",
       href: "/abonnement",

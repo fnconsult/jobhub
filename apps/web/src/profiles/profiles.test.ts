@@ -16,7 +16,7 @@ const masterCv: MasterCvContent = {
   languages: [{ name: "Anglais", level: "courant" }],
 };
 
-const criteria: SearchCriteria = { targetRole: "Directrice financière", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] };
+const criteria: SearchCriteria = { targetRole: "Directrice financière", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] };
 
 describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", () => {
   let testAuth: TestAuth;
@@ -50,7 +50,16 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
   it("creates a Profile from a reviewed CV, with its Search Criteria and version 1 of its Master CV", async () => {
     const created = await profiles.create(candidateId, {
       masterCv,
-      searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"], minSalary: 120000, contractTypes: ["cdi"], remoteWorkOptions: ["hybrid"] },
+      searchCriteria: {
+        targetRole: "Directrice financière",
+        locations: ["Lyon"],
+        minSalary: 120000,
+        contractTypes: ["cdi"],
+        remoteWorkOptions: ["hybrid"],
+        sectors: ["K"],
+        subsectors: ["64"],
+        domains: ["C13"],
+      },
     });
 
     expect(created.ok).toBe(true);
@@ -59,7 +68,16 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
       id: created.profile.id,
       name: "Directrice financière",
       archived: false,
-      searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"], minSalary: 120000, contractTypes: ["cdi"], remoteWorkOptions: ["hybrid"] },
+      searchCriteria: {
+        targetRole: "Directrice financière",
+        locations: ["Lyon"],
+        minSalary: 120000,
+        contractTypes: ["cdi"],
+        remoteWorkOptions: ["hybrid"],
+        sectors: ["K"],
+        subsectors: ["64"],
+        domains: ["C13"],
+      },
       masterCv: { version: 1, content: masterCv },
     });
     expect(await profiles.list(candidateId)).toEqual([{ id: created.profile.id, name: "Directrice financière", archived: false }]);
@@ -71,7 +89,7 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
       searchCriteria: { targetRole: "  DAF  ", locations: [" Lyon "] },
     });
 
-    expect(created.ok && created.profile.searchCriteria).toEqual({ targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] });
+    expect(created.ok && created.profile.searchCriteria).toEqual({ targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] });
     expect(created.ok && created.profile.masterCv.content.skills).toEqual(["IFRS", "SAP"]);
     expect(created.ok && created.profile.masterCv.content.experience).toEqual(masterCv.experience);
   });
@@ -106,7 +124,7 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
         },
       });
 
-      const searchCriteria = { targetRole: "DAF", locations: ["Lyon", "Bordeaux", "Nantes (44)"], contractTypes: ["cdi", "freelance"], remoteWorkOptions: ["hybrid", "full_remote"] };
+      const searchCriteria = { targetRole: "DAF", locations: ["Lyon", "Bordeaux", "Nantes (44)"], contractTypes: ["cdi", "freelance"], remoteWorkOptions: ["hybrid", "full_remote"], sectors: [], subsectors: [], domains: [] };
       expect(created).toMatchObject({ ok: true, profile: { searchCriteria } });
       expect(created.ok && (await profiles.get(candidateId, created.profile.id))?.searchCriteria).toEqual(searchCriteria);
     });
@@ -126,7 +144,7 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
         searchCriteria: { targetRole: "DAF", location: "Lyon", contractType: "cdi", remoteWork: "hybrid" },
       });
 
-      expect(created.ok && created.profile.searchCriteria).toEqual({ targetRole: "DAF", locations: ["Lyon"], contractTypes: ["cdi"], remoteWorkOptions: ["hybrid"] });
+      expect(created.ok && created.profile.searchCriteria).toEqual({ targetRole: "DAF", locations: ["Lyon"], contractTypes: ["cdi"], remoteWorkOptions: ["hybrid"], sectors: [], subsectors: [], domains: [] });
       expect(await profiles.create(candidateId, { masterCv, searchCriteria: { targetRole: "DAF", location: " " } })).toEqual({
         ok: false,
         errors: [{ field: "searchCriteria.locations", code: "required" }],
@@ -172,8 +190,15 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
         minSalary: 120000,
         contractTypes: ["cdi"],
         remoteWorkOptions: ["hybrid"],
+        sectors: [], subsectors: [], domains: [],
       });
-      expect((await profiles.get(candidateId, consultant!))?.searchCriteria).toEqual({ targetRole: "Consultante", locations: ["Paris"], contractTypes: [], remoteWorkOptions: [] });
+      expect((await profiles.get(candidateId, consultant!))?.searchCriteria).toEqual({
+        targetRole: "Consultante",
+        locations: ["Paris"],
+        contractTypes: [],
+        remoteWorkOptions: [],
+        sectors: [], subsectors: [], domains: [],
+      });
       // The single-value columns no longer stop a Profile from being created.
       expect(await profiles.create(candidateId, { masterCv, searchCriteria: criteria })).toMatchObject({ ok: true });
     });
@@ -370,7 +395,16 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
         searchCriteria: { targetRole: "  DAF industrie ", locations: ["Paris", "Lyon"], minSalary: 130000, contractTypes: ["cdi", "freelance"], remoteWorkOptions: ["hybrid"] },
       });
 
-      const searchCriteria = { targetRole: "DAF industrie", locations: ["Paris", "Lyon"], minSalary: 130000, contractTypes: ["cdi", "freelance"], remoteWorkOptions: ["hybrid"] };
+      const searchCriteria = {
+        targetRole: "DAF industrie",
+        locations: ["Paris", "Lyon"],
+        minSalary: 130000,
+        contractTypes: ["cdi", "freelance"],
+        remoteWorkOptions: ["hybrid"],
+        sectors: [],
+        subsectors: [],
+        domains: [],
+      };
       expect(changed).toMatchObject({ ok: true, profile: { id: profile.id, name: "Directrice financière", searchCriteria } });
       expect(await profiles.get(candidateId, profile.id)).toMatchObject({ name: "Directrice financière", searchCriteria });
     });
@@ -390,6 +424,38 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
       expect(await profiles.changeSearchCriteria(candidateId, profile.id, { searchCriteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: ["stage"] } })).toEqual({
         ok: false,
         errors: [{ field: "searchCriteria.contractTypes.0", code: "invalid" }],
+      });
+      expect((await profiles.get(candidateId, profile.id))?.searchCriteria).toEqual(criteria);
+    });
+
+    it("saves Sectors, Subsectors and Domains, several each, the Sector of each Subsector chosen with it", async () => {
+      const profile = await createdProfile();
+
+      const changed = await profiles.changeSearchCriteria(candidateId, profile.id, {
+        searchCriteria: { ...criteria, sectors: ["K"], subsectors: ["29", "64", "29"], domains: ["M13", "C13"] },
+      });
+
+      const searchCriteria = { ...criteria, sectors: ["C", "K"], subsectors: ["29", "64"], domains: ["C13", "M13"] };
+      expect(changed).toMatchObject({ ok: true, profile: { searchCriteria } });
+      expect((await profiles.get(candidateId, profile.id))?.searchCriteria).toEqual(searchCriteria);
+
+      // Sent without them (an older client): none.
+      await profiles.changeSearchCriteria(candidateId, profile.id, { searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } });
+      expect((await profiles.get(candidateId, profile.id))?.searchCriteria).toMatchObject({ sectors: [], subsectors: [], domains: [] });
+    });
+
+    it("refuses a Sector, Subsector or Domain no nomenclature has, and changes nothing", async () => {
+      const profile = await createdProfile();
+
+      expect(
+        await profiles.changeSearchCriteria(candidateId, profile.id, { searchCriteria: { ...criteria, sectors: ["Z"], subsectors: ["04"], domains: ["management"] } }),
+      ).toEqual({
+        ok: false,
+        errors: [
+          { field: "searchCriteria.sectors.0", code: "invalid" },
+          { field: "searchCriteria.subsectors.0", code: "invalid" },
+          { field: "searchCriteria.domains.0", code: "invalid" },
+        ],
       });
       expect((await profiles.get(candidateId, profile.id))?.searchCriteria).toEqual(criteria);
     });

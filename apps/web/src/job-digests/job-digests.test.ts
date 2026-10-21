@@ -399,7 +399,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       const { digest } = await jobDigests.deliver(candidateId, profileId, async () => [await strong("DAF trouvée")]);
 
       expect(digest?.results).toHaveLength(2);
-      expect((await billing.entitlements(candidateId)).usedThisMonth).toMatchObject({ matchScores: 0, jobSearches: 0 });
+      expect((await billing.entitlements(candidateId)).usedThisWeek).toMatchObject({ matchScores: 0, jobSearches: 0 });
     });
 
     it("does nothing, Job discovery included, when the Candidate did not opt in, their Plan has none, or the Profile is archived", async () => {

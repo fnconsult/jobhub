@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { currentIsAdministrator } from "@/admin/server";
-import { getPaymentFailedNotice } from "@/billing/server";
+import { getBilling, getPaymentFailedNotice } from "@/billing/server";
+import { usageMeter, type UsageMeter } from "@/billing/usage-meter";
 import { JobSearchNotifications } from "@/components/JobSearchNotifications";
 import { PaymentFailedBanner } from "@/components/PaymentFailedNotice";
 import { SidebarLayout } from "@/components/SidebarLayout";
@@ -8,6 +9,17 @@ import { getRequestLocale } from "@/i18n/server";
 import { currentHumanCoach } from "@/human-coaches/server";
 import { getJobSearches } from "@/job-searches/server";
 import { getProfiles } from "@/profiles/server";
+
+/** The sidebar's Usage Meter; never fails the page: without billing, there is no meter. */
+async function weekUsage(candidateId: string): Promise<UsageMeter | null> {
+  try {
+    const { quotas, usedThisWeek } = await getBilling().entitlements(candidateId);
+    return usageMeter(quotas, usedThisWeek);
+  } catch (error) {
+    console.error("[billing] could not read the week's usage", error);
+    return null;
+  }
+}
 
 /**
  * The frame of every signed-in Candidate's page: the sidebar layout (see
@@ -32,13 +44,14 @@ export async function CandidateLayout({
   wide?: boolean;
   children: ReactNode;
 }) {
-  const [profiles, canAddProfile, paymentFailed, jobSearchNotifications, humanCoach, isAdministrator] = await Promise.all([
+  const [profiles, canAddProfile, paymentFailed, jobSearchNotifications, humanCoach, isAdministrator, usage] = await Promise.all([
     getProfiles().list(candidateId),
     getProfiles().canAddProfile(candidateId),
     getRequestLocale().then((locale) => getPaymentFailedNotice(candidateId, locale)),
     getJobSearches().notifications(candidateId),
     currentHumanCoach(),
     currentIsAdministrator(),
+    weekUsage(candidateId),
   ]);
   return (
     <SidebarLayout
@@ -47,6 +60,7 @@ export async function CandidateLayout({
       canAddProfile={canAddProfile}
       isHumanCoach={Boolean(humanCoach)}
       isAdministrator={isAdministrator}
+      usage={usage}
       title={title}
       wide={wide}
     >

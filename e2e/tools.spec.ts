@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { signInWithMagicLink } from "./support/candidate";
+import { approveAtGoogle, signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
 // Issue #233: the Back Office's Outils section lists every external tool the app calls, by
@@ -54,7 +54,7 @@ test.describe("Tools (Outils)", () => {
     await page.goto("/admin/outils");
     await expect(page).toHaveTitle(`${tools.title} · ${admin.title}`);
     await expect(page.getByRole("navigation", { name: admin.nav.label }).getByRole("link", { name: admin.sections.tools })).toHaveAttribute("aria-current", "page");
-    for (const category of ["ai_model", "web_search", "job_discovery", "company_data", "contact_enrichment", "billing", "mail", "sign_in"]) {
+    for (const category of ["ai_model", "web_search", "job_discovery", "company_data", "contact_enrichment", "billing", "mail", "sign_in", "geolocation", "reference_data"]) {
       await expect(page.getByRole("heading", { level: 2, name: tools.categories[category] })).toBeVisible();
     }
     for (const name of ["Perplexity", "Brave Search", "Tavily", "Linkup"]) await expect(toolRow(page, "web_search", name)).toBeVisible();
@@ -92,10 +92,151 @@ test.describe("Tools (Outils)", () => {
     await page.getByRole("link", { name: tools.back }).click();
     await expect(page).toHaveURL(/\/admin\/outils$/);
 
-    // A Tool whose calls are not traced yet, and an id that is no Tool.
+    // Another Tool's page, and an id that is no Tool.
     await page.goto("/admin/outils/stripe");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Stripe");
     expect((await page.goto("/admin/outils/linkedin"))?.status()).toBe(404);
+  });
+
+  test("a Stripe call shows on Stripe's page and in the Journal with the Outils filter, beside the Back Office changes, never what it carried (#234)", async ({ page }) => {
+    const journal = admin.journal;
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    // A webhook delivery Stripe did not sign: refused, and recorded as a failed call.
+    const forged = await page.request.post("/api/billing/webhook", { data: '{"id":"evt_forged_e2e"}', headers: { "stripe-signature": "t=1,v1=forged", "content-type": "application/json" } });
+    expect(forged.status()).toBe(400);
+
+    await page.goto("/admin/outils/stripe");
+    const calls = page.getByRole("table", { name: tr(tools.callsCaption, { name: "Stripe" }) });
+    await expect(async () => {
+      await page.reload();
+      await expect(calls.getByRole("row").filter({ hasText: "webhooks.constructEvent" }).first()).toContainText(tools.failed, { timeout: 1_000 });
+    }).toPass();
+    await expect(page.getByRole("main")).not.toContainText("evt_forged_e2e");
+
+    await page.goto("/admin/journal");
+    await page.getByRole("navigation", { name: journal.filter }).getByRole("link", { name: journal.tools, exact: true }).click();
+    await expect(page).toHaveURL(/\/admin\/journal\?section=tools$/);
+    await expect(page.getByRole("navigation", { name: journal.filter }).getByRole("link", { name: journal.tools, exact: true })).toHaveAttribute("aria-current", "page");
+    const lines = page.getByRole("table", { name: journal.toolsCaption });
+    const stripeCall = lines.getByRole("row").filter({ hasText: "webhooks.constructEvent" }).first();
+    await expect(stripeCall).toContainText(journal.byJobbbox);
+    await expect(stripeCall.getByRole("link", { name: "Stripe" })).toHaveAttribute("href", "/admin/outils/stripe");
+    // Newest first, whatever they are.
+    const times = await lines.locator("tbody time").evaluateAll((elements) => elements.map((element) => element.getAttribute("datetime")!));
+    expect(times).toEqual([...times].sort().reverse());
+    await expect(page.getByRole("main")).not.toContainText("evt_forged_e2e");
+  });
+
+  test("every place suggestion asks geo.api.gouv.fr, listed under Géolocalisation, and each of its calls is traced (#235)", async ({ page, request }) => {
+    // Anonymous visitors get no suggestion.
+    expect((await request.get(`${origin}/api/places?q=loire`)).status()).toBe(401);
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    // A query of its own, so the API is asked (not this server's cache): communes, départements and régions.
+    const query = `loire ${Date.now()}`;
+    const suggested = await page.request.get(`/api/places?q=${encodeURIComponent("loire")}`);
+    expect(suggested.status()).toBe(200);
+    expect((await suggested.json()).places).toEqual([
+      { name: "Loire-sur-Rhône (69)", kind: "commune" },
+      { name: "Loire", kind: "departement" },
+      { name: "Loire-Atlantique", kind: "departement" },
+      { name: "Pays de la Loire", kind: "region" },
+    ]);
+    // Fewer than three characters: nothing is asked.
+    expect((await (await page.request.get("/api/places?q=lo")).json()).places).toEqual([]);
+    expect((await (await page.request.get(`/api/places?q=${encodeURIComponent(query)}`)).json()).places).toEqual([]);
+
+    await page.goto("/admin/outils");
+    const geo = toolRow(page, "geolocation", "geo.api.gouv.fr");
+    await expect(geo).toContainText(tools.statuses.no_key_needed);
+    await expect(async () => {
+      await page.reload();
+      await expect(geo.getByRole("cell").nth(4)).not.toHaveText("0", { timeout: 1_000 });
+    }).toPass();
+    await geo.getByRole("link", { name: "geo.api.gouv.fr" }).click();
+    await expect(page).toHaveURL(/\/admin\/outils\/geo-api-gouv$/);
+    await expect(page.getByRole("definition").filter({ hasText: tools.residencies.eu })).toBeVisible();
+    const calls = page.getByRole("table", { name: tr(tools.callsCaption, { name: "geo.api.gouv.fr" }) });
+    for (const operation of ["GET /communes", "GET /departements", "GET /regions"]) {
+      await expect(calls.getByRole("row").filter({ hasText: operation }).first()).toContainText(tools.ok);
+    }
+    // Never the place asked for.
+    await expect(page.getByRole("main")).not.toContainText(query);
+  });
+
+  test("the Sectors' and Domains' labels come from INSEE and France Travail's ROME open data, listed under Référentiels, each call traced (#236)", async ({ page, request }) => {
+    // Anonymous visitors get no labels.
+    expect((await request.get(`${origin}/api/reference-data`)).status()).toBe(401);
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    // Read from the reference data, which asked both sources (faked) the first time it was read.
+    const labels = await (await page.request.get("/api/reference-data")).json();
+    expect(labels.sectors).toHaveLength(21);
+    expect(labels.subsectors).toHaveLength(88);
+    expect(labels.sectors).toContainEqual({ code: "K", label: { fr: "Activités financières et d'assurance", en: "Financial and insurance activities" } });
+    expect(labels.domains).toContainEqual({ code: "M13", parent: "M", label: { fr: "Direction d'entreprise" } });
+
+    await page.goto("/admin/outils");
+    await expect(page.getByRole("heading", { level: 2, name: tools.categories.reference_data })).toBeVisible();
+    for (const [id, name, operation] of [
+      ["insee-naf", "INSEE (rdf.insee.fr)", "GET /sparql"],
+      ["rome-open-data", "ROME open data (France Travail)", "GET /api-nomenclatureemploi/v1/open-data/json"],
+    ] as const) {
+      await page.goto("/admin/outils");
+      const row = toolRow(page, "reference_data", name.replace(/[()]/g, "\\$&"));
+      await expect(row).toContainText(tools.statuses.no_key_needed);
+      // Recorded just after the call: a reload may be needed.
+      await expect(async () => {
+        await page.reload();
+        await expect(row.getByRole("cell").nth(4)).not.toHaveText("0", { timeout: 1_000 });
+      }).toPass();
+      await row.getByRole("link", { name }).click();
+      await expect(page).toHaveURL(new RegExp(`/admin/outils/${id}$`));
+      await expect(page.getByRole("definition").filter({ hasText: tools.residencies.eu })).toBeVisible();
+      const calls = page.getByRole("table", { name: tr(tools.callsCaption, { name }) });
+      await expect(calls.getByRole("row").filter({ hasText: operation }).first()).toContainText(tools.ok);
+    }
+  });
+
+  test("a Google sign-in and a refused key test are each one call on their Tool's page and in the Journal, never who signed in nor what was sent (#234)", async ({ page, browser }) => {
+    const journal = admin.journal;
+    const keys = admin.providerSecrets;
+    const candidateEmail = newAddress("traced-person");
+    const sub = `google-sub-${Date.now()}`;
+    const candidate = await browser.newContext({ baseURL: origin });
+    const candidatePage = await candidate.newPage();
+    await approveAtGoogle(candidatePage, { sub, email: candidateEmail, email_verified: true, name: "Traced Person" }, origin);
+    await candidatePage.goto("/connexion");
+    await candidatePage.getByRole("button", { name: fr.signIn.continueWith.replace("{{provider}}", "Google") }).click();
+    await expect(candidatePage).toHaveURL(`${origin}/compte`);
+    const candidateId = (await (await candidatePage.request.get("/api/auth/get-session")).json()).user.id as string;
+    await candidate.close();
+
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    // A key its provider refuses: tested, so one connection-test call to Lusha.
+    await page.goto("/admin/cles");
+    await page.locator("summary", { hasText: tr(keys.replaceLegend, { name: "LUSHA_API_KEY" }) }).click();
+    await page.getByLabel(tr(keys.newValue, { name: "LUSHA_API_KEY" })).fill(`e2e-traced-secret-${Date.now()}`);
+    await page.getByRole("button", { name: tr(keys.replace, { name: "LUSHA_API_KEY" }) }).click();
+    await expect(page.getByRole("main").getByRole("alert").first()).toHaveText(tr(keys.errors.test_failed, { name: "LUSHA_API_KEY" }));
+
+    for (const [id, name] of [["google", "Google"], ["lusha", "Lusha"]] as const) {
+      await page.goto(`/admin/outils/${id}`);
+      const calls = page.getByRole("table", { name: tr(tools.callsCaption, { name }) });
+      await expect(async () => {
+        await page.reload();
+        await expect(calls.getByRole("row").nth(1)).toBeVisible({ timeout: 1_000 });
+      }).toPass();
+      const text = await page.getByRole("main").innerText();
+      for (const forbidden of [candidateEmail, candidateId, sub, "e2e-traced-secret", "Traced Person"]) expect(text, `${name} page`).not.toContain(forbidden);
+    }
+    await page.goto("/admin/outils/lusha");
+    await expect(page.getByRole("table", { name: tr(tools.callsCaption, { name: "Lusha" }) }).getByRole("row").filter({ hasText: "connection_test" }).first()).toContainText(tools.failed);
+
+    await page.goto("/admin/journal?section=tools");
+    const lines = page.getByRole("table", { name: journal.toolsCaption });
+    await expect(lines.getByRole("row").filter({ hasText: "connection_test" }).first()).toBeVisible();
+    await expect(lines.getByRole("link", { name: "Google", exact: true }).first()).toHaveAttribute("href", "/admin/outils/google");
+    const all = await page.getByRole("main").innerText();
+    for (const forbidden of [candidateEmail, candidateId, sub, "e2e-traced-secret"]) expect(all, "Journal").not.toContain(forbidden);
   });
 
   test("Support reads the Tools without a way into Clés; other roles and Candidates get a 404", async ({ page, browser }) => {

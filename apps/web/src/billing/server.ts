@@ -1,4 +1,5 @@
 import type { Locale } from "@jobhub/shared/i18n";
+import { getExternalApiLog } from "@/ai-usage/external-api-log";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { STRIPE_SECRET_NAMES } from "@/provider-secrets/catalog";
 import { liveObject } from "@/provider-secrets/resolver";
@@ -12,11 +13,11 @@ let instance: Billing | undefined;
 /**
  * The app's billing module, configured from the environment with the Provider Secrets
  * over it, and rebuilt when the Stripe keys are replaced in the Back Office. Paid
- * Coaching Sessions go to the Human Coaches module.
+ * Coaching Sessions go to the Human Coaches module; each Stripe call to AI Usage's external APIs.
  */
 export function getBilling(): Billing {
   instance ??= liveObject(getSecretResolver(), STRIPE_SECRET_NAMES, (env) =>
-    createBilling({ ...billingConfigFromEnv(env), onCoachingSessionPaid: (paid) => getHumanCoaches().recordPaidSession(paid) }),
+    createBilling({ ...billingConfigFromEnv(env), onCoachingSessionPaid: (paid) => getHumanCoaches().recordPaidSession(paid), externalApis: getExternalApiLog() }),
   );
   return instance;
 }

@@ -31,6 +31,8 @@ export interface WorkerClientsOptions {
   settings?: JobDiscoveryOptions["settings"];
   /** The task Playbooks Job discovery runs with (ADR-0026), read at the start of each run. */
   taskPlaybooks?: JobDiscoveryOptions["taskPlaybooks"];
+  /** The NAF and ROME-domain labels the web searches name the Sectors wanted by (#236). */
+  industries?: JobDiscoveryOptions["industries"];
   /** Whether a Candidate gave EU AI consent (ADR-0007). */
   euAiConsent?: (candidateId: string) => Promise<boolean>;
   /** What is known of a Candidate's identity, taken out of each of their AI calls (ADR-0007). Default: emails and phone numbers alone. */
@@ -39,7 +41,7 @@ export interface WorkerClientsOptions {
   fetch?: typeof globalThis.fetch;
   /** Default: one JSON line per AI call on stdout. */
   usage?: UsageLog;
-  /** Where each call to France Travail and the job boards is recorded (AI Usage's external APIs). Default: nowhere. */
+  /** Where each call to France Travail, the job boards, other sites' pages and Brevo is recorded (AI Usage's external APIs). Default: nowhere. */
   externalApis?: ExternalApiLog;
   log?: (line: string) => void;
 }
@@ -80,8 +82,9 @@ export function workerClients(options: WorkerClientsOptions): WorkerClients {
       log(`[worker] Job discovery is unavailable: ${error.message}`);
       return { unavailable: error.message };
     }
-    return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, franceTravail, settings: options.settings, taskPlaybooks: options.taskPlaybooks, fetch: options.fetch, externalApis: options.externalApis });
+    return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, franceTravail, settings: options.settings, taskPlaybooks: options.taskPlaybooks, industries: options.industries, fetch: options.fetch, externalApis: options.externalApis });
   });
 
-  return { discovery, ai, franceTravail, mailer: liveObject(resolver, MAIL_SECRET_NAMES, mailerFromEnv) };
+  // Each email sent is recorded with the other external API calls, never who it was for.
+  return { discovery, ai, franceTravail, mailer: liveObject(resolver, MAIL_SECRET_NAMES, (env) => mailerFromEnv(env, { externalApis: options.externalApis })) };
 }

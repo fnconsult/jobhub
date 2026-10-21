@@ -10,10 +10,9 @@
  * board: never a list of boards, never another employer's postings.
  */
 import { isPostingTooOld, MAX_POSTING_AGE_DAYS, type JobOfferDetails, type RemoteWork, type SalaryRange } from "@jobhub/shared";
-import { decodeEntities, htmlToText } from "./html";
-import type { JsonResult, RefusalReason } from "./polite-fetch";
+import { decodeEntities, htmlToText, type JsonResult, type RefusalReason } from "@jobhub/shared/page-reading";
 
-export type { JsonResult } from "./polite-fetch";
+export type { JsonResult } from "@jobhub/shared/page-reading";
 
 export { MAX_POSTING_AGE_DAYS };
 

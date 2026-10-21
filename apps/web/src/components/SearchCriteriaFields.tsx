@@ -1,38 +1,49 @@
 "use client";
 
 import { CONTRACT_TYPES, MAX_SEARCH_LOCATIONS, REMOTE_WORK_OPTIONS, type ContractType, type RemoteWork, type SearchCriteria } from "@jobhub/shared";
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProfileFieldError } from "@/profiles";
 import { PROFILE_NAME_MAX_LENGTH } from "@/profiles/limits";
+import { MIN_PLACE_QUERY_LENGTH, type PlaceSuggestion } from "@/places/geo-api";
 import { TextField } from "./form-fields";
+import { Icons } from "./icons";
+import { INDUSTRY_FIELDS } from "./industry-choices";
+import { IndustryInput, useIndustryReference } from "./IndustryInputs";
+import { addPlace, movedOption } from "./places-input";
 
 /** Search Criteria as a form holds them: what the inputs show. */
 export interface CriteriaFields {
   targetRole: string;
-  /** One input per place, at least one (left blank when none is known yet). */
+  /** The places, as chips: none when none is known yet. */
   locations: string[];
   minSalary: string;
   contractTypes: ContractType[];
   remoteWorkOptions: RemoteWork[];
+  /** Codes (#236): NAF sections, NAF divisions within them, ROME professional domains. */
+  sectors: string[];
+  subsectors: string[];
+  domains: string[];
 }
 
 /** What the inputs show for saved (or drafted) Search Criteria. */
 export function criteriaFieldsOf(criteria: Partial<SearchCriteria>): CriteriaFields {
   return {
     targetRole: criteria.targetRole ?? "",
-    locations: criteria.locations?.length ? [...criteria.locations] : [""],
+    locations: [...(criteria.locations ?? [])],
     minSalary: criteria.minSalary === undefined ? "" : String(criteria.minSalary),
     contractTypes: [...(criteria.contractTypes ?? [])],
     remoteWorkOptions: [...(criteria.remoteWorkOptions ?? [])],
+    sectors: [...(criteria.sectors ?? [])],
+    subsectors: [...(criteria.subsectors ?? [])],
+    domains: [...(criteria.domains ?? [])],
   };
 }
 
 /**
  * The Search Criteria to send to the server: blank optional fields left out, a
  * salary typed with spaces or dots read as a whole number (anything else is sent
- * as typed, for the server to call invalid). Blank places are left for the
- * server to drop.
+ * as typed, for the server to call invalid).
  */
 export function searchCriteriaInput(criteria: CriteriaFields): Record<string, unknown> {
   const salary = criteria.minSalary.replace(/[\s.]/g, "");
@@ -42,6 +53,9 @@ export function searchCriteriaInput(criteria: CriteriaFields): Record<string, un
     ...(salary ? { minSalary: /^\d+$/.test(salary) ? Number(salary) : salary } : {}),
     contractTypes: criteria.contractTypes,
     remoteWorkOptions: criteria.remoteWorkOptions,
+    sectors: criteria.sectors,
+    subsectors: criteria.subsectors,
+    domains: criteria.domains,
   };
 }
 
@@ -54,6 +68,9 @@ export function useSearchCriteriaLabels(): Record<string, string> {
     "searchCriteria.minSalary": t("cvReview.minSalary"),
     "searchCriteria.contractTypes": t("cvReview.contractType"),
     "searchCriteria.remoteWorkOptions": t("cvReview.remoteWork"),
+    "searchCriteria.sectors": t("cvReview.sectors"),
+    "searchCriteria.subsectors": t("cvReview.subsectors"),
+    "searchCriteria.domains": t("cvReview.domains"),
   };
 }
 
@@ -73,6 +90,8 @@ export function SearchCriteriaFields(props: { value: CriteriaFields; onChange: (
     contractTypes: errorFor(errors, "contractTypes"),
     remoteWorkOptions: errorFor(errors, "remoteWorkOptions"),
   };
+  const reference = useIndustryReference();
+  const industry = { sectors: value.sectors, subsectors: value.subsectors, domains: value.domains };
   return (
     <>
       <TextField
@@ -83,10 +102,13 @@ export function SearchCriteriaFields(props: { value: CriteriaFields; onChange: (
         maxLength={PROFILE_NAME_MAX_LENGTH}
         required
       />
-      <LocationFields value={value.locations} onChange={(locations) => onChange({ locations })} error={error.locations} />
+      <LocationsInput value={value.locations} onChange={(locations) => onChange({ locations })} error={error.locations} />
       <TextField label={t("cvReview.minSalary")} value={value.minSalary} onChange={(minSalary) => onChange({ minSalary })} error={error.minSalary} numeric />
       <ContractTypeChoices value={value.contractTypes} onChange={(contractTypes) => onChange({ contractTypes })} error={error.contractTypes} />
       <RemoteWorkChoices value={value.remoteWorkOptions} onChange={(remoteWorkOptions) => onChange({ remoteWorkOptions })} error={error.remoteWorkOptions} />
+      {INDUSTRY_FIELDS.map((field) => (
+        <IndustryInput key={field} field={field} value={industry} reference={reference} onChange={onChange} error={errorFor(errors, field)} />
+      ))}
     </>
   );
 }
@@ -102,98 +124,221 @@ function ErrorMessage({ error, id }: { error: ProfileFieldError | undefined; id:
   );
 }
 
+/** Suggestions already fetched in this page, by query: typing back over a query asks nothing again. */
+const suggested = new Map<string, PlaceSuggestion[]>();
+
+/** The places `/api/places` suggests for `query`; none when it cannot answer. */
+async function suggestPlaces(query: string, signal: AbortSignal): Promise<PlaceSuggestion[]> {
+  const kept = suggested.get(query);
+  if (kept) return kept;
+  const response = await fetch(`/api/places?q=${encodeURIComponent(query)}`, { signal });
+  const body = response.ok ? await response.json().catch(() => null) : null;
+  const places: PlaceSuggestion[] = Array.isArray(body?.places) ? body.places : [];
+  if (response.ok) suggested.set(query, places);
+  return places;
+}
+
+/** How long typing pauses before suggestions are asked for. */
+const SUGGEST_DELAY_MS = 250;
+
 /**
- * The places to search, one text input each, up to MAX_SEARCH_LOCATIONS: "Ajouter un lieu"
- * adds an input (and moves the keyboard focus to it), each place after the first has its own
- * "Retirer" button. `onLeave` is told when the Candidate leaves an input (inline saving).
+ * The places to search (#235), up to MAX_SEARCH_LOCATIONS: chips on one line, each with its
+ * "Retirer" button, then one input (an ARIA 1.2 combobox) that suggests communes, départements and
+ * régions from 3 characters. Choosing a suggestion, or Enter on a place typed as it is, adds a chip;
+ * a place already there is refused with a message. The input goes at MAX_SEARCH_LOCATIONS places.
+ * The keyboard focus stays on the input after a chip is added or removed. `onChange` gets each new
+ * list of places. `keepOne`: the last place has no "Retirer" (saved at once, Locations is required).
  */
-export function LocationFields(props: {
+export function LocationsInput(props: {
   value: string[];
   onChange: (locations: string[]) => void;
-  onLeave?: (locations: string[]) => void;
-  /** Removing a place: by default the same as a change. */
-  onRemove?: (locations: string[]) => void;
   error?: ProfileFieldError | undefined;
-  /** Shown under each input, e.g. the inline "Lieu enregistré" flag. */
-  notice?: (index: number) => ReactNode;
+  /** On a property list, whose row already names it: no frame, the legend for screen readers only. */
   inline?: boolean;
+  keepOne?: boolean;
 }) {
   const { t } = useTranslation();
   const id = useId();
   const { value, onChange } = props;
+  const [query, setQuery] = useState("");
+  /** The suggestions for `query` (the trimmed text they were asked for); none asked for yet: null. */
+  const [suggestions, setSuggestions] = useState<{ query: string; places: PlaceSuggestion[] } | null>(null);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState<number | null>(null);
+  const [refusal, setRefusal] = useState<string | null>(null);
+  const input = useRef<HTMLInputElement>(null);
   const container = useRef<HTMLFieldSetElement>(null);
-  /** Where the keyboard focus goes after the next render: an input added, or the button after a removal. */
-  const focusNext = useRef<number | "add" | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const request = useRef<AbortController | null>(null);
+  /** Where the keyboard focus goes after the next render, once a chip is added or removed. */
+  const refocus = useRef(false);
   useEffect(() => {
-    const next = focusNext.current;
-    if (next === null) return;
-    focusNext.current = null;
-    const target =
-      next === "add"
-        ? (container.current?.querySelector<HTMLElement>("[data-add-location]") ?? container.current?.querySelector<HTMLElement>(`[data-location="${value.length - 1}"]`))
-        : container.current?.querySelector<HTMLElement>(`[data-location="${next}"]`);
-    target?.focus();
+    if (!refocus.current) return;
+    refocus.current = false;
+    const chips = container.current?.querySelectorAll<HTMLElement>("[data-remove-place]");
+    (input.current ?? chips?.[chips.length - 1])?.focus();
   });
-  const described = (index: number) => [`${id}-hint`, props.error && index === 0 ? `${id}-error` : ""].filter(Boolean).join(" ");
-  const replace = (index: number, location: string) => value.map((each, at) => (at === index ? location : each));
+  useEffect(
+    () => () => {
+      clearTimeout(timer.current);
+      request.current?.abort();
+    },
+    [],
+  );
+
+  const full = value.length >= MAX_SEARCH_LOCATIONS;
+  const typed = query.trim();
+  const answered = suggestions !== null && suggestions.query === typed ? suggestions.places : null;
+  const expanded = open && !!answered && answered.length > 0;
+  const message = refusal ?? (answered && answered.length === 0 ? t("cvReview.noPlaceFound", { place: typed }) : null);
+
+  function search(text: string) {
+    clearTimeout(timer.current);
+    request.current?.abort();
+    const wanted = text.trim();
+    if (wanted.length < MIN_PLACE_QUERY_LENGTH) return;
+    timer.current = setTimeout(() => {
+      const controller = new AbortController();
+      request.current = controller;
+      suggestPlaces(wanted, controller.signal)
+        .catch(() => [])
+        .then((places) => {
+          if (controller.signal.aborted) return;
+          setSuggestions({ query: wanted, places });
+          setActive(null);
+          setOpen(true);
+        });
+    }, SUGGEST_DELAY_MS);
+  }
+
+  function add(place: string) {
+    const result = addPlace(value, place);
+    if ("refused" in result) {
+      if (result.refused === "duplicate") setRefusal(t("cvReview.placeAlreadyListed", { place: place.trim() }));
+      setOpen(false);
+      return;
+    }
+    clearTimeout(timer.current);
+    request.current?.abort();
+    setQuery("");
+    setSuggestions(null);
+    setOpen(false);
+    setActive(null);
+    setRefusal(null);
+    refocus.current = true;
+    onChange(result.places);
+  }
+
+  function remove(index: number) {
+    setRefusal(null);
+    refocus.current = true;
+    onChange(value.filter((_, at) => at !== index));
+  }
+
+  const optionId = (index: number) => `${id}-option-${index}`;
+  const described = [`${id}-hint`, `${id}-input-hint`, message ? `${id}-message` : "", props.error ? `${id}-error` : ""].filter(Boolean).join(" ");
   return (
     <fieldset className={props.inline ? "inline-fieldset" : "fieldset"} ref={container} aria-describedby={`${id}-hint`}>
       <legend className={props.inline ? "visually-hidden" : undefined}>{t("cvReview.locations")}</legend>
       <p id={`${id}-hint`} className="hint">
         {t("cvReview.locationsHint")}
       </p>
-      {value.map((location, index) => (
-        <div className="location-field" key={index}>
-          <label htmlFor={`${id}-${index}`}>{t("cvReview.locationItem", { number: index + 1 })}</label>
-          <div className="location-field-row">
+      <div className="places-field">
+        <ul className="place-chips" role="list">
+          {value.map((place, index) => (
+            <li className="place-chip" key={`${index}-${place}`}>
+              <span>{place}</span>
+              {props.keepOne && value.length === 1 ? null : (
+                <button type="button" className="place-chip-remove" data-remove-place aria-label={t("cvReview.removeLocation", { place })} onClick={() => remove(index)}>
+                  <Icons.close />
+                  {t("cvReview.removePlace")}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+        {full ? null : (
+          <div className="place-combobox">
+            <label htmlFor={`${id}-input`} className="visually-hidden">
+              {t("cvReview.placeInput")}
+            </label>
             <input
-              id={`${id}-${index}`}
-              data-location={index}
+              id={`${id}-input`}
+              ref={input}
               type="text"
+              role="combobox"
+              autoComplete="off"
               className={props.inline ? "inline-edit" : "input"}
-              value={location}
-              required={index === 0}
-              aria-invalid={props.error && index === 0 ? true : undefined}
-              aria-describedby={described(index)}
-              onChange={(event) => onChange(replace(index, event.target.value))}
-              onBlur={(event) => props.onLeave?.(replace(index, event.target.value))}
+              value={query}
+              aria-expanded={expanded}
+              aria-controls={`${id}-listbox`}
+              aria-autocomplete="list"
+              aria-activedescendant={expanded && active !== null ? optionId(active) : undefined}
+              aria-invalid={props.error ? true : undefined}
+              aria-describedby={described}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setRefusal(null);
+                setActive(null);
+                search(event.target.value);
+              }}
+              onBlur={() => {
+                setOpen(false);
+                setActive(null);
+              }}
               onKeyDown={(event) => {
-                if (event.key === "Enter" && props.inline) {
+                const places = answered ?? [];
+                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                  if (places.length === 0) return;
                   event.preventDefault();
-                  event.currentTarget.blur();
+                  setOpen(true);
+                  setActive(movedOption(expanded ? active : null, places.length, event.key === "ArrowDown" ? "down" : "up"));
+                } else if (event.key === "Enter") {
+                  // Never the form's submit while a place is typed.
+                  if (!typed) return;
+                  event.preventDefault();
+                  add(expanded && active !== null ? places[active]!.name : query);
+                } else if (event.key === "Escape") {
+                  if (expanded) {
+                    event.preventDefault();
+                    setOpen(false);
+                    setActive(null);
+                  } else if (query) {
+                    event.preventDefault();
+                    setQuery("");
+                    setRefusal(null);
+                    search("");
+                  }
                 }
               }}
             />
-            {index > 0 ? (
-              <button
-                type="button"
-                className="button"
-                onClick={() => {
-                  focusNext.current = "add";
-                  (props.onRemove ?? onChange)(value.filter((_, at) => at !== index));
-                }}
-              >
-                {t("cvReview.removeLocation", { number: index + 1 })}
-              </button>
-            ) : null}
+            <ul id={`${id}-listbox`} role="listbox" className="place-options" aria-label={t("cvReview.locations")} hidden={!expanded}>
+              {(expanded ? answered : []).map((place, index) => (
+                <li
+                  key={`${place.kind}-${place.name}`}
+                  id={optionId(index)}
+                  role="option"
+                  aria-selected={index === active}
+                  className="place-option"
+                  // The focus stays on the input.
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => add(place.name)}
+                >
+                  <span>{place.name}</span>
+                  <span className="place-option-kind">{t(`cvReview.placeKinds.${place.kind}`)}</span>
+                </li>
+              ))}
+            </ul>
           </div>
-          {props.notice?.(index)}
-        </div>
-      ))}
+        )}
+      </div>
+      <p id={`${id}-input-hint`} className="hint">
+        {full ? t("cvReview.placesFull", { max: MAX_SEARCH_LOCATIONS }) : t("cvReview.placeInputHint")}
+      </p>
+      <p id={`${id}-message`} className="hint" role="status">
+        {message}
+      </p>
       <ErrorMessage error={props.error} id={`${id}-error`} />
-      {value.length < MAX_SEARCH_LOCATIONS ? (
-        <button
-          type="button"
-          className="button"
-          data-add-location
-          onClick={() => {
-            focusNext.current = value.length;
-            onChange([...value, ""]);
-          }}
-        >
-          {t("cvReview.addLocation")}
-        </button>
-      ) : null}
     </fieldset>
   );
 }

@@ -94,7 +94,8 @@ export interface ExportedAccount {
 }
 
 /**
- * An Application as the Candidate keeps it: its Job Offer, Interviews, Match Score (worked out from
+ * An Application as the Candidate keeps it: its Job Offer, Interviews (date and time, duration, format,
+ * place or link, note), Match Score (worked out from
  * their Profile, as the app shows it), Tailored Documents, and what the app and Human Coaches added to it.
  */
 export interface ExportedApplication extends Application {
@@ -153,7 +154,8 @@ export interface ExportedCoachConversation {
   createdAt: Date;
   lastMessageAt: Date;
   /** Oldest first. */
-  messages: (CoachMessage & { sentAt: Date })[];
+  /** `jobOfferId`: the Job Offer of a reply's Job Offer card. */
+  messages: (Omit<CoachMessage, "jobOffer"> & { jobOfferId?: string; sentAt: Date })[];
 }
 
 /** A conversation an Administrator had with the Back Office Assistant, every message included (what each reply cost is internal, left out). */
@@ -181,8 +183,11 @@ export interface CandidateDataExport {
   account: ExportedAccount | null;
   /** The Candidate's Plan, from Stripe (its identifiers there are left out), or null on the Free Plan from the start. */
   plan: { plan: Plan; subscriptionStatus: string | null; endsAt: Date | null } | null;
-  /** How much of each monthly Plan Quota the Candidate used, newest month first. */
-  quotaUsage: { quota: string; month: string; used: number }[];
+  /**
+   * How much of each weekly Plan Quota the Candidate used, newest first: `week` is the Monday
+   * it starts on ("2026-10-12"), or the month ("2026-10") for uses counted monthly before ADR-0032.
+   */
+  quotaUsage: { quota: string; week: string; used: number }[];
   /** The Candidate's EU AI consent (ADR-0007), or null when they have not given it (or withdrew it). */
   euAiConsent: { givenAt: Date } | null;
   /** The Follow-up Delays the Candidate set, or null while they keep the defaults. */
@@ -193,7 +198,7 @@ export interface CandidateDataExport {
   backOfficeAssistantConversations: ExportedAssistantConversation[];
   /** The Human Coaches the Candidate granted Coach Access to, oldest first. */
   coachAccess: { coach: CoachNamed; grantedAt: Date }[];
-  /** The Coaching Sessions the Candidate paid for, newest first. */
+  /** The Coaching Sessions the Candidate paid for, newest first, with the date, duration, video link and note entered; never the Human Coach's booking link. */
   coachingSessions: (Omit<CoachingSession, "coach"> & { coach: CoachNamed })[];
   /** Every Action Card the AI Coach proposed, pending or decided, newest first. */
   actionCards: ExportedActionCard[];
@@ -231,7 +236,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   job_digest_subscription: "profiles[].jobDigest (no unsubscribe token)",
   job_digest: "profiles[].jobDigests",
   application: "applications",
-  interview: "applications[].interviews",
+  interview: "applications[].interviews (with their duration, format and place)",
   tailored_cv: "applications[].tailoredDocuments",
   tailored_document: "applications[].tailoredDocuments",
   follow_up_sent: "applications[].followUps",
@@ -239,9 +244,9 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   enriched_contact: "applications[].enrichedContacts (no provider identifiers)",
   company_dossier: "applications[].companyDossier",
   coach_conversation: "coachConversations",
-  coach_message: "coachConversations[].messages (blocked ones marked; no AI costs)",
+  coach_message: "coachConversations[].messages (blocked ones marked, a Job Offer card's Job Offer named; no AI costs)",
   coach_access: "coachAccess",
-  coaching_session: "coachingSessions (no Stripe identifiers)",
+  coaching_session: "coachingSessions, with their date, duration, video link and note (no Stripe identifiers, no booking link)",
   action_card: "actionCards",
   coach_memory_item: "coachMemory",
   back_office_assistant_conversation: "backOfficeAssistantConversations",
@@ -422,16 +427,16 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         candidateId,
       ),
       grouped<ExportedCoachConversation["messages"][number]>(
-        `SELECT m.conversation_id AS key, m.author AS "from", m.text, CASE WHEN m.blocked THEN true END AS blocked, m.created_at AS "sentAt"
+        `SELECT m.conversation_id AS key, m.author AS "from", m.text, CASE WHEN m.blocked THEN true END AS blocked, m.job_offer_id AS "jobOfferId", m.created_at AS "sentAt"
            FROM coach_message m JOIN coach_conversation c ON c.id = m.conversation_id
           WHERE c.candidate_id = $1 ORDER BY m.seq`,
         candidateId,
       ),
     ]);
-    // A Blocked message (#228) says so; the others carry no mark.
+    // A Blocked message (#228) says so, a reply with a Job Offer card names its Job Offer; the others carry no mark.
     return conversations.map((conversation) => ({
       ...conversation,
-      messages: messagesOf(conversation.id).map(({ blocked, ...message }) => (blocked ? { ...message, blocked } : message)),
+      messages: messagesOf(conversation.id).map(({ blocked, jobOfferId, ...message }) => ({ ...message, ...(blocked ? { blocked } : {}), ...(jobOfferId ? { jobOfferId } : {}) })),
     }));
   }
 
@@ -463,7 +468,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           `SELECT plan, stripe_status AS "subscriptionStatus", ends_at AS "endsAt" FROM candidate_plan WHERE candidate_id = $1`,
           candidateId,
         ),
-        rowsOf<CandidateDataExport["quotaUsage"][number]>(`SELECT quota, month, used FROM quota_usage WHERE candidate_id = $1 ORDER BY month DESC, quota`, candidateId),
+        rowsOf<CandidateDataExport["quotaUsage"][number]>(`SELECT quota, week, used FROM quota_usage WHERE candidate_id = $1 ORDER BY week DESC, quota`, candidateId),
         rowOf<{ givenAt: Date }>(`SELECT given_at AS "givenAt" FROM eu_ai_consent WHERE candidate_id = $1`, candidateId),
         rowOf<FollowUpDelays>(`SELECT after_applied AS "afterApplied", after_follow_up AS "afterFollowUp" FROM follow_up_delay WHERE candidate_id = $1`, candidateId),
         exportCoachConversations(candidateId),
@@ -474,7 +479,8 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           candidateId,
         ),
         rowsOf<CandidateDataExport["coachingSessions"][number]>(
-          `SELECT s.id, json_build_object('id', h.id, 'name', h.name) AS coach, s.amount, s.currency, s.paid_at AS "paidAt"
+          `SELECT s.id, json_build_object('id', h.id, 'name', h.name) AS coach, s.amount, s.currency, s.paid_at AS "paidAt",
+                  s.scheduled_at AS "scheduledAt", s.duration_minutes AS "durationMinutes", s.video_link AS "videoLink", s.note
              FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id WHERE s.candidate_id = $1 ORDER BY s.paid_at DESC, s.id`,
           candidateId,
         ),

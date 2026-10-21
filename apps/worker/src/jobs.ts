@@ -1,4 +1,4 @@
-import { FUNNEL_MATCH_SCORE, noDiscoveryMetrics, scoreMatch, type CvContent, type DiscoveryMetrics, type SearchCriteria } from "@jobhub/shared";
+import { FUNNEL_MATCH_SCORE, noDiscoveryMetrics, scoreMatch, type CvContent, type DiscoveryMetrics, type ExternalApiLog, type SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type { FollowUps } from "@jobhub/web/follow-ups";
 
@@ -13,6 +13,7 @@ import { JOB_DISCOVERY_QUEUE, type JobSearchReports } from "@jobhub/web/job-sear
 import { JobDiscoveryError, type DiscoveryReport, type JobDiscovery } from "./job-discovery";
 import { createSourceRecheck } from "./source-recheck";
 import type { JobDefinition } from "./job-runner";
+import type { ReferenceData } from "@jobhub/web/reference-data";
 
 /**
  * Queue name: search the web for Job Offers matching one Profile.
@@ -73,6 +74,12 @@ export const PROVIDER_SECRETS_REENCRYPT = "provider-secrets.reencrypt";
  */
 export const APPLE_CLIENT_SECRETS = "sign-in-providers.apple-client-secret";
 
+/**
+ * Queue name: ask INSEE and France Travail again for the Sectors', Subsectors' and Domains' labels
+ * (#236, the reference data). Monthly; a source that fails keeps the labels it had.
+ */
+export const REFERENCE_DATA_REFRESH = "reference-data.refresh";
+
 /** An Apple client secret that could not be signed again; `firstFailure`: the streak starts, the super-admins are not told yet. */
 type AppleFailure = { id: string; reason: "missing_secret" | "invalid_apple_key" | "no_master_key"; firstFailure: boolean };
 
@@ -106,6 +113,8 @@ export interface JobsDeps {
   providerSecrets?: { reencrypt(): Promise<number> };
   /** The Sign-in Providers, whose Apple client secret is signed again monthly. Without them, nothing to sign. */
   signInProviders?: { regenerateAppleClientSecrets(): Promise<{ regenerated: string[]; failed: AppleFailure[] }> };
+  /** The reference data, refreshed monthly. Satisfied by the web app's reference data module. Without it, nothing to refresh. */
+  referenceData?: Pick<ReferenceData, "refresh">;
   /** Emails the super-admins that an Apple client secret could not be signed again. */
   alertAppleFailure?: (failed: AppleFailure[]) => Promise<void>;
   /** Queues another job of this worker. */
@@ -113,6 +122,8 @@ export interface JobsDeps {
   log?: (line: string) => void;
   /** How the worker reaches job sites. Default: the global fetch. */
   fetch?: typeof globalThis.fetch;
+  /** Where the source re-check's page reads are recorded (AI Usage's external APIs). Default: nowhere. */
+  externalApis?: ExternalApiLog;
 }
 
 /** What Job discovery needs of a Profile: its Search Criteria to search, its Master CV to score what it found. */
@@ -343,6 +354,21 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         }),
     },
 
+    // The 2nd of each month (the ROME is published twice a year, NAF changes in January 2027). Safe to run again.
+    [REFERENCE_DATA_REFRESH]: {
+      cron: "0 5 2 * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const report = await deps.referenceData?.refresh();
+          if (!report) return;
+          log(
+            `[reference-data] ${Object.entries(report)
+              .map(([source, outcome]) => (outcome === "refreshed" ? `${source}: refreshed` : `${source}: failed (${outcome.failed}), its labels kept`))
+              .join(", ")}`,
+          );
+        }),
+    },
+
     // Back Office Assistant conversations are kept 12 months after their last message. Safe to run again.
     [BACK_OFFICE_ASSISTANT_PURGE]: {
       cron: "35 3 * * *",
@@ -393,7 +419,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
       cron: "0 4 * * *",
       handler: () =>
         onceTablesExist(async () => {
-          const recheck = createSourceRecheck({ store: createSourceChecks(deps.database), fetch: deps.fetch });
+          const recheck = createSourceRecheck({ store: createSourceChecks(deps.database), fetch: deps.fetch, externalApis: deps.externalApis });
           const report = await recheck.run(now());
           log(
             `[source-recheck] ${report.checked} Job Offer(s) re-checked, ${report.gone.length} gone, ${report.expired.length} expired, ${report.unknown.length} unread`,

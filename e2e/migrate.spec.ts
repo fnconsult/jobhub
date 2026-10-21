@@ -122,6 +122,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "profile",
         "provider_secret", // issue #208: Provider Secrets, encrypted
         "quota_usage",
+        "reference_label", // issue #236: NAF sectors and subsectors, ROME domains, with their labels; no Candidate data
         "session",
         "sign_in_provider", // issue #209: Sign-in Providers configured in the Back Office
         "sign_in_setting", // issue #209: Require SSO for Administrators
@@ -176,6 +177,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // Coach Memory (issue #125) goes with its Candidate.
         { from_table: "coach_memory_item", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coach_message", from_column: "conversation_id", to_table: "coach_conversation" },
+        // A reply's Job Offer card points to its Job Offer (cleared if the offer is ever deleted).
+        { from_table: "coach_message", from_column: "job_offer_id", to_table: "job_offer" },
         { from_table: "coach_review", from_column: "application_id", to_table: "application" },
         { from_table: "coach_review", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coach_review", from_column: "coach_id", to_table: "human_coach" },
@@ -213,15 +216,32 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "tailored_cv", from_column: "application_id", to_table: "application" },
         { from_table: "tailored_document", from_column: "application_id", to_table: "application" },
       ]);
-      // The Plans start with the quotas of issue #22, plus monthly Job Searches (issue #14); re-running keeps them.
-      const quotas = await db.query(
-        "SELECT plan, profiles, match_scores, ats_scores, enriched_contacts, job_searches, job_digest FROM plan_quota ORDER BY profiles NULLS LAST",
-      );
-      expect(quotas.rows).toEqual([
-        { plan: "free", profiles: 1, match_scores: 3, ats_scores: 1, enriched_contacts: 0, job_searches: 3, job_digest: "none" },
-        { plan: "standard", profiles: 3, match_scores: null, ats_scores: null, enriched_contacts: 0, job_searches: 30, job_digest: "weekly" },
-        { plan: "premium", profiles: null, match_scores: null, ats_scores: null, enriched_contacts: 20, job_searches: null, job_digest: "daily" },
-      ]);
+      // The Plans start with the quotas of issue #22, plus Job Searches (issue #14), counted per week (ADR-0032); re-running keeps them.
+      const startingQuotas = [
+        { plan: "free", profiles: 1, match_scores: 1, ats_scores: 1, enriched_contacts: 0, job_searches: 1, job_digest: "none" },
+        { plan: "standard", profiles: 3, match_scores: null, ats_scores: null, enriched_contacts: 0, job_searches: 7, job_digest: "weekly" },
+        { plan: "premium", profiles: null, match_scores: null, ats_scores: null, enriched_contacts: 5, job_searches: null, job_digest: "daily" },
+      ];
+      const quotas = () =>
+        db.query("SELECT plan, profiles, match_scores, ats_scores, enriched_contacts, job_searches, job_digest FROM plan_quota ORDER BY profiles NULLS LAST");
+      expect((await quotas()).rows).toEqual(startingQuotas);
+      // Plan Quota usage is counted by the week (the Monday it starts on), not by the month.
+      const usageColumns = async () =>
+        (
+          await db.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'quota_usage' ORDER BY column_name")
+        ).rows.map((r) => r.column_name as string);
+      expect(await usageColumns()).toEqual(["candidate_id", "quota", "used", "week"]);
+
+      // A database from before weekly quotas: its `month` column becomes `week`, and the monthly starting
+      // amounts become weekly ones; an amount an Administrator changed is kept as it is.
+      await db.query("ALTER TABLE quota_usage RENAME COLUMN week TO month");
+      await db.query("UPDATE plan_quota SET match_scores = 3, job_searches = 3 WHERE plan = 'free'");
+      await db.query("UPDATE plan_quota SET job_searches = 30 WHERE plan = 'standard'");
+      await db.query("UPDATE plan_quota SET enriched_contacts = 12 WHERE plan = 'premium'");
+      const upgraded = migrate();
+      expect(upgraded.status, upgraded.stderr).toBe(0);
+      expect(await usageColumns()).toEqual(["candidate_id", "quota", "used", "week"]);
+      expect((await quotas()).rows).toEqual(startingQuotas.map((row) => (row.plan === "premium" ? { ...row, enriched_contacts: 12 } : row)));
     } finally {
       await db.end();
     }

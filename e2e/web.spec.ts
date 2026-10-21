@@ -17,7 +17,7 @@ test.describe("web app", () => {
     await expect(page).toHaveTitle("Jobbbox");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Bienvenue sur Jobbbox");
     await expect(page.getByLabel("Taille du texte")).toBeVisible();
-    await expect(page.getByLabel("Taille du texte").locator("option")).toHaveText(["Standard", "Grande", "Très grande"]);
+    await expect(page.getByLabel("Taille du texte").locator("option")).toHaveText(["Petit", "Standard", "Moyen", "Grand"]);
   });
 
   test("every visible string comes from the French catalogue (no hard-coded copy)", async ({ page }) => {
@@ -48,13 +48,17 @@ test.describe("web app", () => {
     const select = page.getByLabel("Taille du texte");
 
     await expect(html).toHaveAttribute("data-text-size", "standard");
+    expect(await bodyFontSize()).toBe("17px");
+
+    await select.selectOption({ label: "Petit" });
+    await expect(html).toHaveAttribute("data-text-size", "small");
     expect(await bodyFontSize()).toBe("16px");
 
-    await select.selectOption({ label: "Grande" });
+    await select.selectOption({ label: "Moyen" });
     await expect(html).toHaveAttribute("data-text-size", "large");
     expect(await bodyFontSize()).toBe("18px");
 
-    await select.selectOption({ label: "Très grande" });
+    await select.selectOption({ label: "Grand" });
     await expect(html).toHaveAttribute("data-text-size", "xlarge");
     expect(await bodyFontSize()).toBe("20px");
     expect(await page.evaluate(() => localStorage.getItem("jobbbox.textSize"))).toBe("xlarge");
@@ -71,7 +75,7 @@ test.describe("web app", () => {
     await page.addInitScript(() => localStorage.setItem("jobbbox.textSize", "gigantic"));
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("data-text-size", "standard");
-    expect(await page.evaluate(() => getComputedStyle(document.body).fontSize)).toBe("16px");
+    expect(await page.evaluate(() => getComputedStyle(document.body).fontSize)).toBe("17px");
   });
 });
 

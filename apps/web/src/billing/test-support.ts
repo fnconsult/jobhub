@@ -24,6 +24,8 @@ export async function startTestBilling(overrides: Partial<BillingConfig> = {}) {
       apiUrl: stripe.url,
     },
     onCoachingSessionPaid: async (paid) => void coachingSessionsPaid.push(paid),
+    // Stripe's calls recorded as the app does, nowhere: every test goes through the recording client.
+    externalApis: { record: () => {} },
     now: () => clock.now,
     ...overrides,
   };

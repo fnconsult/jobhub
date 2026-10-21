@@ -51,6 +51,41 @@
   border-radius: var(--radius-sm);
 }
 
+/* Préférences: the Text Size slider, its four steps named under the track. */
+.text-size-slider {
+  align-self: stretch;
+  width: 100%;
+  max-width: 28rem;
+}
+
+.text-size-slider label {
+  font-weight: 600;
+}
+
+.text-size-slider input[type="range"] {
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.text-size-steps {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-text-secondary);
+}
+
+.text-size-steps li[data-current] {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
 .button {
   padding: var(--space-2) var(--space-4);
   background: var(--color-background);
@@ -337,6 +372,24 @@ textarea.input {
   display: block;
   color: var(--color-text-secondary);
   font-style: italic;
+}
+
+/* A Job Offer card: the Job Offer a reply read from a pasted link, and the way to its page. */
+.job-offer-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-accent);
+  border-radius: var(--radius-md);
+}
+
+.job-offer-card .job-offer-card-title {
+  font-weight: 600;
 }
 
 .chat-form {
@@ -988,6 +1041,32 @@ th[aria-sort] .sort-mark {
   font-weight: 600;
 }
 
+/* An Interview's format and place or link (#247), on the Agenda and in the Interviews Section. */
+.interview-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.interview-format {
+  color: var(--color-text-secondary);
+}
+
+/* « Ajouter un entretien » above the Agenda's list (#247). */
+.agenda-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+
+.agenda-actions p {
+  margin: 0;
+}
+
 .match-score-value {
   margin: 0;
   font-size: var(--font-size-h2);
@@ -1372,17 +1451,86 @@ html[data-sidebar="closed"] .sidebar-docked {
   border-top: 1px solid var(--color-border);
 }
 
-.sidebar .text-size-control {
-  flex-direction: column;
-  align-items: stretch;
+/* The Usage Meter (ADR-0032): the week's Plan Quotas as one bar, its detail under the button. */
+.usage-meter {
+  padding-inline: var(--space-2);
 }
 
-.sidebar .text-size-control label {
+.usage-meter-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text);
+  font: inherit;
+  text-align: start;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.usage-meter-toggle:hover {
+  background: var(--color-surface-hover);
+}
+
+.usage-meter-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-2);
   font-weight: 600;
 }
 
-.sidebar .text-size-control select {
-  min-height: var(--control-height);
+.usage-meter-head > :last-child {
+  white-space: nowrap;
+}
+
+.usage-meter-bar {
+  display: block;
+  height: 0.5rem;
+  overflow: hidden;
+  background: var(--color-background);
+  border: 1px solid var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.usage-meter-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--color-accent);
+}
+
+.usage-meter-detail {
+  padding: 0 var(--space-3) var(--space-2);
+}
+
+.usage-meter-detail dl {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-2);
+}
+
+.usage-meter-detail dl > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 var(--space-2);
+}
+
+.usage-meter-detail dt {
+  font-weight: 400;
+}
+
+.usage-meter-detail dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.usage-meter-detail .hint {
+  margin: 0 0 var(--space-2);
 }
 
 .sidebar-collapse,
@@ -1393,10 +1541,6 @@ html[data-sidebar="closed"] .sidebar-docked {
 /* The foot's links and buttons line their icons up with the menu's above. */
 .sidebar-foot {
   padding-inline: 0;
-}
-
-.sidebar-foot .text-size-control {
-  padding-inline: var(--space-2);
 }
 
 .sidebar-foot .button-quiet {
@@ -2709,25 +2853,128 @@ textarea.title-edit {
   align-items: center;
 }
 
-/* Search Criteria (ADR-0025): a place per row with its "Retirer" button, and a group of checkboxes
-   without a frame where a property row already names it. */
-.location-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  width: 100%;
-}
-
-.location-field-row {
+/* Search Criteria (ADR-0025, #235): the places as chips on one line, then the input that suggests
+   more; and a group of checkboxes without a frame where a property row already names it. */
+.places-field {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
   align-items: center;
+  width: 100%;
+  min-width: 0;
 }
 
-.location-field-row input {
-  flex: 1 1 14rem;
+/* The list's items sit on the field's own line, beside the input. */
+.place-chips {
+  display: contents;
+}
+
+.place-chip {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  max-width: 100%;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+  list-style: none;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+}
+
+.place-chip > span {
+  padding: var(--space-1) 0;
+}
+
+.place-chip-remove {
+  display: inline-flex;
+  flex: none;
+  gap: var(--space-1);
+  align-items: center;
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  padding: 0 var(--space-3) 0 var(--space-2);
+  margin-right: calc(-1 * var(--space-3));
+  font: inherit;
+  color: var(--color-text);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+}
+
+.place-chip-remove:hover {
+  background: var(--color-surface-hover);
+}
+
+.place-chip-remove:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.place-combobox {
+  position: relative;
+  flex: 1 1 12rem;
   min-width: 0;
+}
+
+.place-combobox input {
+  width: 100%;
+  margin-left: 0;
+}
+
+.place-options {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  width: max(100%, 16rem);
+  max-width: calc(100vw - 2 * var(--space-4));
+  padding: var(--space-1) 0;
+  margin: 0;
+  list-style: none;
+  background: var(--color-background);
+  border: 1px solid var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-menu);
+}
+
+/* A long list of options (the Sectors, #236) scrolls within its popup. */
+.place-options-scroll {
+  max-height: 18rem;
+  overflow-y: auto;
+}
+
+.place-options[hidden] {
+  display: none;
+}
+
+.place-option {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+  justify-content: space-between;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.place-option:hover,
+.place-option[aria-selected="true"] {
+  background: var(--color-surface-hover);
+}
+
+.place-option[aria-selected="true"] {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.place-option-kind {
+  color: var(--color-text-secondary);
 }
 
 .inline-fieldset {
@@ -2813,4 +3060,125 @@ textarea.title-edit {
   overflow-wrap: anywhere;
   font-family: inherit;
   margin: 0;
+}
+
+/* The Agenda (#246): upcoming Agenda Items by day; the past ones dimmed. */
+.agenda {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.agenda-day h3 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-h3);
+}
+
+.agenda-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+/* One Agenda Item: the link to its Application, then its format and place (#247), whose own link sits outside it. */
+.agenda-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.agenda-item-link {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: baseline;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.agenda-item-link:hover .agenda-item-title {
+  text-decoration: underline;
+}
+
+.agenda-item-time {
+  min-width: 4rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.agenda-item-what {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+}
+
+.agenda-item-kind {
+  color: var(--color-text-secondary);
+}
+
+.agenda-item-title {
+  font-weight: 600;
+}
+
+.agenda-past .agenda-item {
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border-style: dashed;
+}
+
+.agenda-past .agenda-item-link {
+  color: var(--color-text-secondary);
+}
+
+.agenda-past .agenda-item-time,
+.agenda-past .agenda-item-title {
+  font-weight: 400;
+}
+
+/* « À planifier » (#248): the Unscheduled Coaching Sessions at the top of the Agenda, each with its
+   Human Coach's booking link and the button to enter the date booked. */
+.agenda-to-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  margin-bottom: var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.agenda-to-schedule h2,
+.agenda-to-schedule p {
+  margin: 0;
+}
+
+.agenda-unscheduled {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+/* A dated Coaching Session: its link, then the button to edit its date beside it (below on a phone). */
+.agenda-item-with-action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.agenda-item-with-action .agenda-item-link {
+  flex: 1 1 18rem;
 }

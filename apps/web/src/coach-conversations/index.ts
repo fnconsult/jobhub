@@ -23,14 +23,17 @@
  * both saved, marked as blocked without naming the Guardrail, and are no longer given to the AI Coach; a
  * reply replaced by its Guardrail message is marked as blocked too; a distress answer never is. `language`
  * is the Candidate's, for the Guardrail message.
+ * A reply to a Job Offer link is saved with its Job Offer card, which reopens with the conversation, `followed`
+ * once the Candidate has saved that Job Offer as an Application; the AI Coach is only ever given the reply's text.
  * Kept RETENTION_MONTHS after their last message (`purgeStaleCoachConversations`,
  * run daily by the worker) and deleted with the account (ADR-0010). Human
  * Coaches never read them: Coach Access covers Profiles and Applications only.
  */
+import type { JobOffer } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import { COACH_FOCUS_KINDS, type Coach, type CoachMessageCost, type PlaybookConsultation, type PlaybookUsed } from "../coach";
-import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, type CoachMessage } from "../coach/conversation";
+import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, type CoachMessage, type JobOfferCard } from "../coach/conversation";
 import type { GuardrailLanguage } from "../guardrails";
 import type { Profiles } from "../profiles";
 
@@ -46,9 +49,9 @@ export interface CoachConversation extends CoachConversationSummary {
   messages: CoachMessage[];
 }
 
-/** `blocked`: whether the Candidate's message and the reply were marked as blocked (#228). */
+/** `blocked`: whether the Candidate's message and the reply were marked as blocked (#228). `jobOffer`: the reply's Job Offer card, if any. */
 export type SendResult =
-  | { ok: true; conversation: CoachConversationSummary; reply: string; blocked: { message: boolean; reply: boolean } }
+  | { ok: true; conversation: CoachConversationSummary; reply: string; blocked: { message: boolean; reply: boolean }; jobOffer?: JobOfferCard }
   | { ok: false; error: "invalid" | "not_found" | "unavailable" };
 
 export type RenameResult = { ok: true; conversation: CoachConversationSummary } | { ok: false; error: "invalid" | "not_found" };
@@ -120,15 +123,24 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     return rows[0] ? summaryFrom(rows[0]) : null;
   }
 
-  /** The last `limit` messages of a conversation, oldest first. */
-  async function lastMessages(conversationId: string, limit: number | null): Promise<CoachMessage[]> {
-    const { rows } = await database.query<CoachMessage & { blocked: boolean }>(
-      `SELECT author AS "from", text, blocked FROM (
-         SELECT author, text, blocked, seq FROM coach_message WHERE conversation_id = $1 ORDER BY seq DESC LIMIT $2
-       ) recent ORDER BY seq`,
-      [conversationId, limit],
+  /** The last `limit` messages of the Candidate's conversation, oldest first, each reply with its Job Offer card. */
+  async function lastMessages(candidateId: string, conversationId: string, limit: number | null): Promise<CoachMessage[]> {
+    const { rows } = await database.query<Omit<CoachMessage, "jobOffer"> & { blocked: boolean; jobOffer: JobOfferCard | null }>(
+      `SELECT recent.author AS "from", recent.text, recent.blocked,
+              CASE WHEN o.id IS NULL THEN NULL ELSE jsonb_strip_nulls(jsonb_build_object('id', o.id, 'title', o.title, 'employer', o.employer, 'followed', a.id IS NOT NULL)) END AS "jobOffer"
+         FROM (SELECT author, text, blocked, job_offer_id, seq FROM coach_message WHERE conversation_id = $1 ORDER BY seq DESC LIMIT $2) recent
+         LEFT JOIN job_offer o ON o.id = recent.job_offer_id
+         LEFT JOIN application a ON a.job_offer_id = o.id AND a.candidate_id = $3
+        ORDER BY recent.seq`,
+      [conversationId, limit, candidateId],
     );
-    return rows.map(({ blocked, ...message }) => (blocked ? { ...message, blocked: true } : message));
+    return rows.map(({ blocked, jobOffer, ...message }) => ({ ...message, ...(blocked ? { blocked: true as const } : {}), ...(jobOffer ? { jobOffer } : {}) }));
+  }
+
+  /** The Job Offer card of a reply's Job Offer, as the Candidate sees it now. */
+  async function cardOf(candidateId: string, jobOffer: Pick<JobOffer, "id" | "title" | "employer">): Promise<JobOfferCard> {
+    const { rows } = await database.query(`SELECT 1 FROM application WHERE candidate_id = $1 AND job_offer_id = $2`, [candidateId, jobOffer.id]);
+    return { id: jobOffer.id, title: jobOffer.title, ...(jobOffer.employer ? { employer: jobOffer.employer } : {}), followed: rows.length > 0 };
   }
 
   return {
@@ -139,12 +151,12 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
 
       const existing = conversationId ? await find(candidateId, conversationId) : null;
       if (conversationId && !existing) return { ok: false, error: "not_found" };
-      const history = existing ? await lastMessages(existing.id, MAX_MESSAGES) : [];
+      const history = existing ? await lastMessages(candidateId, existing.id, MAX_MESSAGES) : [];
 
       const answer = await deps.coach.reply(
         candidateId,
         {
-          messages: [...withoutBlockedMessages(history), { from: "candidate", text: message }],
+          messages: [...withoutBlockedMessages(history).map(({ from, text }) => ({ from, text })), { from: "candidate", text: message }],
           ...(focus ? { focus: { kind: focus.kind, id: focus.id } } : {}),
         },
         options.language ? { language: options.language } : undefined,
@@ -168,8 +180,8 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
         }
         await client.query(`INSERT INTO coach_message (conversation_id, author, text, created_at, blocked) VALUES ($1, 'candidate', $2, $3, $4)`, [id, message, sentAt, blocked.message]);
         await client.query(
-          `INSERT INTO coach_message (conversation_id, author, text, created_at, provider, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, playbooks, consultations, blocked)
-           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          `INSERT INTO coach_message (conversation_id, author, text, created_at, provider, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, playbooks, consultations, blocked, job_offer_id)
+           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
           [
             id,
             answer.reply,
@@ -183,13 +195,14 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
             JSON.stringify(answer.playbooks),
             JSON.stringify(answer.consultations),
             blocked.reply,
+            answer.jobOffer?.id ?? null,
           ],
         );
         await client.query(`UPDATE coach_conversation SET last_message_at = $2 WHERE id = $1`, [id, sentAt]);
         await client.query("COMMIT");
         const conversation = await find(candidateId, id);
         if (!conversation) return { ok: false, error: "not_found" }; // deleted meanwhile
-        return { ok: true, conversation, reply: answer.reply, blocked };
+        return { ok: true, conversation, reply: answer.reply, blocked, ...(answer.jobOffer ? { jobOffer: await cardOf(candidateId, answer.jobOffer) } : {}) };
       } catch (error) {
         await client.query("ROLLBACK").catch(() => {});
         throw error;
@@ -208,7 +221,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     async open(candidateId, conversationId) {
       const conversation = await find(candidateId, conversationId);
       if (!conversation) return null;
-      return { ...conversation, messages: await lastMessages(conversation.id, null) };
+      return { ...conversation, messages: await lastMessages(candidateId, conversation.id, null) };
     },
 
     async rename(candidateId, conversationId, title) {
@@ -355,7 +368,7 @@ export async function purgeStaleCoachConversations(database: Pick<Pool, "query">
   return rowCount ?? 0;
 }
 
-/** Creates or upgrades the Coach Conversation tables. Run after the Profile tables. Safe to run repeatedly. */
+/** Creates or upgrades the Coach Conversation tables. Run after the Profile, Job Offer and Application tables. Safe to run repeatedly. */
 export async function migrateCoachConversations(database: Pool): Promise<void> {
   await database.query(`
     CREATE TABLE IF NOT EXISTS coach_conversation (
@@ -391,5 +404,7 @@ export async function migrateCoachConversations(database: Pool): Promise<void> {
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS consultations jsonb;
     -- A Blocked message (#228): a Candidate message a Guardrail stopped, or the Guardrail message answering it or replacing a reply.
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS blocked boolean NOT NULL DEFAULT false;
+    -- The Job Offer an AI Coach reply read from a link the Candidate pasted, shown as its Job Offer card; null otherwise.
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS job_offer_id uuid REFERENCES job_offer (id) ON DELETE SET NULL;
   `);
 }

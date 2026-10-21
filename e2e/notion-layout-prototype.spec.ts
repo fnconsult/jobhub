@@ -570,23 +570,25 @@ test.describe("ADR-0009 accessibility floor", () => {
     await open(page, "candidature");
     const sizeOf = () => page.evaluate(() => ({ body: parseFloat(getComputedStyle(document.body).fontSize), h1: parseFloat(getComputedStyle(document.querySelector("article:not([hidden]) h1")!).fontSize) }));
     const standard = await sizeOf();
-    expect(standard.body).toBe(designTokens.fontSize.body);
+    expect(standard.body).toBe(designTokens.fontSize.body * designTokens.textSize.standard);
+    // Each setting scales every size from the same base: the sizes at a factor of 1.
+    const base = { body: standard.body / designTokens.textSize.standard, h1: standard.h1 / designTokens.textSize.standard };
     const group = sidebar(page).getByRole("group", { name: "Taille du texte" });
     await expect(group.getByRole("button", { name: "Standard" })).toHaveAttribute("aria-pressed", "true");
 
     await group.getByRole("button", { name: "Grande", exact: true }).click();
     await expect(group.getByRole("button", { name: "Grande", exact: true })).toHaveAttribute("aria-pressed", "true");
     const large = await sizeOf();
-    expect(large.body).toBeCloseTo(standard.body * designTokens.textSize.large, 1);
-    expect(large.h1).toBeCloseTo(standard.h1 * designTokens.textSize.large, 1);
+    expect(large.body).toBeCloseTo(base.body * designTokens.textSize.large, 1);
+    expect(large.h1).toBeCloseTo(base.h1 * designTokens.textSize.large, 1);
 
     await group.getByRole("button", { name: "Très grande" }).click();
-    expect((await sizeOf()).body).toBeCloseTo(standard.body * designTokens.textSize.xlarge, 1);
+    expect((await sizeOf()).body).toBeCloseTo(base.body * designTokens.textSize.xlarge, 1);
     expect(await page.evaluate((key) => localStorage.getItem(key), TEXT_SIZE_STORAGE_KEY)).toBe("xlarge");
 
     await page.reload();
     await expect(sidebar(page).getByRole("button", { name: "Très grande" })).toHaveAttribute("aria-pressed", "true");
-    expect((await sizeOf()).body).toBeCloseTo(standard.body * designTokens.textSize.xlarge, 1);
+    expect((await sizeOf()).body).toBeCloseTo(base.body * designTokens.textSize.xlarge, 1);
   });
 
   test("text stays above 16px and contrasted at the largest text size", async ({ page }) => {

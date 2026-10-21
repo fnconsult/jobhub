@@ -1,16 +1,18 @@
 "use client";
 
-import { distinctLocations, type SearchCriteria } from "@jobhub/shared";
+import type { SearchCriteria } from "@jobhub/shared";
 import { useRouter } from "next/navigation";
-import { useId, useRef, useState, type ComponentType } from "react";
+import { Fragment, useId, useRef, useState, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProfileFieldError } from "@/profiles";
 import { PROFILE_NAME_MAX_LENGTH } from "@/profiles/limits";
+import { INDUSTRY_FIELDS } from "./industry-choices";
+import { IndustryInput, useIndustryLabels, useIndustryReference, type IndustryValue } from "./IndustryInputs";
 import { GrowingTextarea, InlineNotice, useInlineEdit, type InlineSaveResult } from "./InlineEdit";
 import {
   ContractTypeChoices,
   criteriaFieldsOf,
-  LocationFields,
+  LocationsInput,
   RemoteWorkChoices,
   searchCriteriaInput,
   type ChoicesProps,
@@ -89,9 +91,10 @@ export function ProfileTitle({ profileId, name }: { profileId: string; name: str
 
 /**
  * An active Profile's Search Criteria as a property list, each value edited in
- * place and saved on change: a text when the Candidate leaves it, a place when
- * they leave its input or remove it, a contract type or remote-work option as
- * soon as it is ticked or unticked. Changing them does not rename the Profile.
+ * place and saved on change: a text when the Candidate leaves it, a place as
+ * soon as it is added or removed, a contract type or remote-work option as
+ * soon as it is ticked or unticked, a Sector, Subsector or Domain as soon as it is
+ * chosen or removed (#236). Changing them does not rename the Profile.
  */
 export function SearchCriteriaProperties({ profileId, searchCriteria }: { profileId: string; searchCriteria: SearchCriteria }) {
   const { t } = useTranslation();
@@ -120,6 +123,7 @@ export function SearchCriteriaProperties({ profileId, searchCriteria }: { profil
     minSalary: (minSalary: string) => saveCriteria({ minSalary }, "minSalary"),
     contractTypes: (contractTypes: CriteriaFields["contractTypes"]) => saveCriteria({ contractTypes }, "contractTypes"),
     remoteWorkOptions: (remoteWorkOptions: CriteriaFields["remoteWorkOptions"]) => saveCriteria({ remoteWorkOptions }, "remoteWorkOptions"),
+    industry: (industry: IndustryValue, field: keyof IndustryValue) => saveCriteria(industry, field),
   };
   return (
     <div role="group" aria-label={t("cvReview.searchCriteria")}>
@@ -140,6 +144,7 @@ export function SearchCriteriaProperties({ profileId, searchCriteria }: { profil
           save={saves.remoteWorkOptions}
           hint={t("searchCriteriaEditor.hint")}
         />
+        <IndustryProperties saved={{ sectors: initial.sectors, subsectors: initial.subsectors, domains: initial.domains }} save={saves.industry} />
       </dl>
     </div>
   );
@@ -147,30 +152,25 @@ export function SearchCriteriaProperties({ profileId, searchCriteria }: { profil
 
 type Notice = { kind: "saved" } | { kind: "error"; message: string } | null;
 
-const sameList = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((value, index) => value === b[index]);
-
 /**
- * The Search Criteria's places, up to five, on a property row. A place saves when the Candidate
- * leaves its input or removes it; with every place left blank, the saved ones come back (one is required).
+ * The Search Criteria's places, up to five, as chips on a property row (#235): each place added
+ * or removed saves at once; a refused change puts the saved places back. The last place stays
+ * (Locations is required).
  */
 function LocationsProperty({ saved: initial, save }: { saved: string[]; save: (locations: string[]) => Promise<InlineSaveResult> }) {
   const { t } = useTranslation();
-  const [locations, setLocations] = useState(initial.length ? initial : [""]);
+  const [locations, setLocations] = useState(initial);
   const saved = useRef(initial);
   const [notice, setNotice] = useState<Notice>(null);
-  async function commit(next: string[]) {
-    const kept = distinctLocations(next);
-    if (kept.length === 0) {
-      setLocations(saved.current.length ? saved.current : [""]);
-      return;
-    }
-    if (sameList(kept, saved.current)) return;
+  async function change(next: string[]) {
+    setLocations(next);
     setNotice(null);
-    const result = await save(kept);
+    const result = await save(next);
     if (result.ok) {
-      saved.current = kept;
+      saved.current = next;
       setNotice({ kind: "saved" });
     } else {
+      setLocations(saved.current);
       setNotice({ kind: "error", message: result.message });
     }
   }
@@ -178,18 +178,48 @@ function LocationsProperty({ saved: initial, save }: { saved: string[]; save: (l
     <>
       <dt>{t("cvReview.locations")}</dt>
       <dd>
-        <LocationFields
-          inline
-          value={locations}
-          onChange={setLocations}
-          onLeave={(next) => void commit(next)}
-          onRemove={(next) => {
-            setLocations(next);
-            void commit(next);
-          }}
-        />
+        <LocationsInput inline keepOne value={locations} onChange={(next) => void change(next)} />
         <InlineNotice notice={notice} savedLabel={t("profilePage.criteriaSaved")} />
       </dd>
+    </>
+  );
+}
+
+/**
+ * The Sectors, Subsectors and Domains (#236) on three property rows, each a combobox with chips: a
+ * choice made or removed saves at once (a Sector removed takes its Subsectors with it); a refused
+ * one puts the saved choices back. The Subsectors offered are those of the Sectors chosen.
+ */
+function IndustryProperties({ saved: initial, save }: { saved: IndustryValue; save: (value: IndustryValue, field: keyof IndustryValue) => Promise<InlineSaveResult> }) {
+  const { t } = useTranslation();
+  const reference = useIndustryReference();
+  const labels = useIndustryLabels();
+  const [value, setValue] = useState(initial);
+  const saved = useRef(initial);
+  const [notice, setNotice] = useState<{ field: keyof IndustryValue; notice: Notice } | null>(null);
+  async function change(next: IndustryValue, field: keyof IndustryValue) {
+    setValue(next);
+    setNotice(null);
+    const result = await save(next, field);
+    if (result.ok) {
+      saved.current = next;
+      setNotice({ field, notice: { kind: "saved" } });
+    } else {
+      setValue(saved.current);
+      setNotice({ field, notice: { kind: "error", message: result.message } });
+    }
+  }
+  return (
+    <>
+      {INDUSTRY_FIELDS.map((field) => (
+        <Fragment key={field}>
+          <dt>{labels[field]}</dt>
+          <dd>
+            <IndustryInput inline field={field} value={value} reference={reference} onChange={(next) => void change(next, field)} />
+            <InlineNotice notice={notice?.field === field ? notice.notice : null} savedLabel={t("profilePage.criteriaSaved")} />
+          </dd>
+        </Fragment>
+      ))}
     </>
   );
 }

@@ -4,7 +4,7 @@ import { createAiLayer } from "./ai-layer";
 import { AiConfigError } from "./errors";
 import { createFakeProvider, createMemoryUsageLog } from "./testing";
 
-const criteria: SearchCriteria = { targetRole: "Directeur Financier", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] };
+const criteria: SearchCriteria = { targetRole: "Directeur Financier", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] };
 
 /**
  * A task Playbook's web-search provider (ADR-0026): its searches go to the provider and model (or depth)

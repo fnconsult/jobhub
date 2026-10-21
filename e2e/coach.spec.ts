@@ -6,6 +6,7 @@ import pg from "pg";
 import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { catalogueStrings, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
+import { placeNames } from "./support/locations";
 import { newAddress } from "./support/mailbox";
 import { chooseInPanelMenu } from "./support/coach-panel";
 
@@ -143,7 +144,7 @@ test.describe("onboarding with the AI Coach", () => {
     await expect(page.getByText(fr.questionnaire.reviewIntro)).toBeVisible();
     const criteria = page.getByRole("group", { name: fr.cvReview.searchCriteria });
     await expect(criteria.getByLabel(fr.cvReview.targetRole, { exact: true })).toHaveValue("Directrice financière");
-    await expect(criteria.getByLabel(fr.cvReview.locationItem.replace("{{number}}", "1"), { exact: true })).toHaveValue("Lyon");
+    await expect(placeNames(criteria)).toHaveText(["Lyon"]);
     await expect(page.getByLabel(fr.cvReview.fullName)).toHaveValue("Marie Dupont");
     await expect(page.getByLabel(fr.cvReview.email)).toHaveValue("marie.dupont@example.fr");
     await expect(page.getByRole("group", { name: "Poste 2" }).getByLabel(fr.cvReview.employer)).toHaveValue("Renault");
@@ -217,6 +218,8 @@ test.describe("onboarding with the AI Coach", () => {
     await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
     await expect(answerBox(page)).toBeVisible();
     const allowed = new Set(catalogueStrings(fr));
+    // The Usage Meter's percentage, a catalogue string with the week's number in it.
+    allowed.add(fr.usageMeter.percent.replace("{{percent}}", "0"));
     for (const t of await renderedTexts(page)) {
       expect.soft(allowed.has(t.text), `"${t.text}" comes from the catalogue`).toBe(true);
       expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);

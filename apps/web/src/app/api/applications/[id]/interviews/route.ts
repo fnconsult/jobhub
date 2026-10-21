@@ -5,7 +5,10 @@ import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
 
 /**
  * Adds a dated Interview to an Application at "Entretien".
- * Body: { scheduledAt, note? }: an ISO 8601 date and time; without an offset, it is French time.
+ * Body: { scheduledAt, note?, durationMinutes?, format?, place?, moveToInterview? }: `scheduledAt` is
+ * an ISO 8601 date and time, French time without an offset; `format` is "video", "phone" or "on_site".
+ * With `moveToInterview: true` (from the Agenda), an Application at another status is moved to
+ * "Entretien" and the Interview added in this one request, or neither is saved.
  * 200 { id } · 400 { errors } · 401 · 403 · 404 · 409 { error: "not_in_interview" }
  */
 export async function POST(request: Request, { params }: RouteContext<"/api/applications/[id]/interviews">) {

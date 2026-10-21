@@ -6,6 +6,7 @@ import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } f
 import { secretCipherFromEnv } from "../provider-secrets/cipher";
 import { listenForNotifications } from "../database/listen";
 import { createProviderSecrets, migrateProviderSecrets } from "../provider-secrets/index";
+import type { ExternalApiCall } from "@jobhub/shared";
 import { configurationFromEnv, createSignInProviders, fetchDiscoveryDocument, migrateSignInProviders, SIGN_IN_PROVIDERS_CHANNEL, type SignInProviders } from "./index";
 
 type Env = Record<string, string | undefined>;
@@ -65,6 +66,20 @@ describe("fetchDiscoveryDocument", () => {
     expect(Date.now() - started).toBeLessThan(2000);
   });
 
+  it("is recorded as one discovery call to the OIDC Tool, a failed one too, never the issuer's address (#234)", async () => {
+    const calls: ExternalApiCall[] = [];
+    const externalApis = { record: (call: ExternalApiCall) => void calls.push(call) };
+
+    await fetchDiscoveryDocument("https://sso.jobbbox.fr/tenant-42/.well-known/openid-configuration", { fetch: async () => Response.json(DISCOVERY), externalApis });
+    await fetchDiscoveryDocument("https://sso.jobbbox.fr/tenant-42/.well-known/openid-configuration", { fetch: async () => new Response("", { status: 503 }), externalApis, log: () => {} });
+
+    expect(calls.map(({ provider, operation, ok, httpStatus }) => ({ provider, operation, ok, httpStatus }))).toEqual([
+      { provider: "oidc", operation: "discovery", ok: true, httpStatus: 200 },
+      { provider: "oidc", operation: "discovery", ok: false, httpStatus: 503 },
+    ]);
+    expect(JSON.stringify(calls)).not.toMatch(/jobbbox|tenant|well-known/);
+  });
+
   it("is null for an answer that is not a usable discovery document", async () => {
     for (const answer of [new Response("nope", { status: 500 }), Response.json({ issuer: "not a url", authorization_endpoint: "x" }), Response.json({ issuer: "https://sso.jobbbox.fr" })]) {
       expect(await fetchDiscoveryDocument("https://sso.jobbbox.fr/.well-known/openid-configuration", { fetch: async () => answer, log: () => {} })).toBeNull();
@@ -100,7 +115,7 @@ describe.skipIf(!connectionString)("Sign-in Providers in the database (needs Pos
     await migrateBackOfficeAudit(database);
     await migrateProviderSecrets(database);
     await migrateSignInProviders(database, {});
-    backOffice = createBackOffice(database, { billing: { setPlanQuotas: async () => ({}) as never, createPlan: async () => ({}) as never, updatePlan: async () => ({}) as never, movePlan: async () => ({}) as never, checkStripeProduct: async () => null, plans: async () => [], createCoupon: async () => ({}) as never, deactivateCoupon: async () => ({}) as never, reactivateCoupon: async () => ({}) as never }, humanCoaches: { add: async () => ({}) as never, retire: async () => null } });
+    backOffice = createBackOffice(database, { billing: { setPlanQuotas: async () => ({}) as never, resetWeeklyUsage: async () => ({}) as never, createPlan: async () => ({}) as never, updatePlan: async () => ({}) as never, movePlan: async () => ({}) as never, checkStripeProduct: async () => null, plans: async () => [], createCoupon: async () => ({}) as never, deactivateCoupon: async () => ({}) as never, reactivateCoupon: async () => ({}) as never }, humanCoaches: { add: async () => ({}) as never, retire: async () => null } });
     const cookie = await signInWithMagicLink(testAuth, "claire@jobbbox.fr");
     const { user } = await (await testAuth.request("/api/auth/get-session", { cookie })).json();
     claire = { id: user.id, email: user.email };

@@ -85,9 +85,9 @@ test.describe("Enriched Contacts", () => {
     await expect(section.getByRole("alert")).toHaveText(t.noDetails);
     await expect(found.getByText("Hugo Be***d")).toBeVisible();
 
-    // Premium's monthly Plan Quota counts Claire's details, and only hers.
+    // Premium's weekly Plan Quota counts Claire's details, and only hers.
     await page.goto("/abonnement");
-    await expect(page.locator("dl").locator("div").filter({ hasText: "Contacts enrichis" }).locator("dd")).toHaveText("1 sur 20");
+    await expect(page.locator("dl").locator("div").filter({ hasText: "Contacts enrichis" }).locator("dd")).toHaveText("1 sur 5");
     await page.goBack();
 
     // The Outreach Message can be addressed to Claire: named in the draft, and the mail link is to her.

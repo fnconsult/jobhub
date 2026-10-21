@@ -25,7 +25,7 @@
  * Job Searches belong to their Profile and are deleted with it (ADR-0010); the
  * Job Offers they found are kept.
  */
-import { noDiscoveryMetrics, rankByMatchScore, scoreMatch, type DiscoveryMetrics, type JobOffer, type MatchScore, type MonthlyQuota, type SearchCriteria } from "@jobhub/shared";
+import { noDiscoveryMetrics, rankByMatchScore, scoreMatch, type DiscoveryMetrics, type JobOffer, type MatchScore, type WeeklyQuota, type SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { Applications } from "../applications";
@@ -84,7 +84,7 @@ export type StartJobSearchResult =
   | { ok: false; error: "not_found" }
   /** Archived Profiles are set aside: restore it to search for it. */
   | { ok: false; error: "archived" }
-  /** The Plan Quota of Job Searches is used up this month. */
+  /** The Plan Quota of Job Searches is used up this week. */
   | { ok: false; error: "quota_exceeded"; refusal: Extract<QuotaDecision, { allowed: false }> };
 
 /** What Job discovery reported for a Job Search, with what it measured (none: it did not run). */
@@ -139,17 +139,17 @@ export interface JobSearchesDeps {
   profiles: Pick<Profiles, "get">;
   jobOffers: Pick<JobOffers, "get">;
   applications: Pick<Applications, "list">;
-  /** The billing module's monthly quotas. */
+  /** The billing module's weekly quotas. */
   quotas: JobSearchQuotas;
   /** Where background jobs are queued for the worker. */
   queue: { send(name: string, data: object): Promise<void> };
   now?: () => Date;
 }
 
-/** What Job Searches need of the billing module's monthly quotas: use one to start, give it back on failure. */
+/** What Job Searches need of the billing module's weekly quotas: use one to start, give it back on failure. */
 export interface JobSearchQuotas {
-  use(candidateId: string, quota: MonthlyQuota): Promise<QuotaDecision>;
-  release(candidateId: string, quota: MonthlyQuota): Promise<void>;
+  use(candidateId: string, quota: WeeklyQuota): Promise<QuotaDecision>;
+  release(candidateId: string, quota: WeeklyQuota): Promise<void>;
 }
 
 /** Creates or upgrades the Job Search table. Run after the Profiles' and Job Offers' migrations. */

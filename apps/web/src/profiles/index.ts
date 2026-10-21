@@ -15,6 +15,10 @@
 import {
   CONTRACT_TYPES,
   distinctLocations,
+  industryChoices,
+  isDomain,
+  isSector,
+  isSubsector,
   MAX_SEARCH_LOCATIONS,
   REMOTE_WORK_OPTIONS,
   type MasterCvContent,
@@ -169,21 +173,30 @@ const chosenAmong =
   (chosen: T[]): T[] =>
     all.filter((option) => chosen.includes(option));
 
+/** A list of nomenclature codes (#236): none when not sent, as older clients do; each a code `known` names. */
+const codes = (known: (code: string) => boolean) => z.array(z.string().refine(known)).default([]);
+
 /**
  * Search Criteria as the browser sends them (ADR-0025): a target role, one to
  * MAX_SEARCH_LOCATIONS locations (trimmed, blanks dropped, each place once), and
- * any number of contract types and remote-work options (none: no preference).
+ * any number of contract types, remote-work options, Sectors, Subsectors and Domains
+ * (none: no preference; choosing a Subsector chooses its Sector, #236).
  */
 export const searchCriteriaSchema = z.preprocess(
   fromSingleValues,
-  z.object({
+  z
+    .object({
     // The Profile is named after it, so it obeys the same limit as a Profile name.
     targetRole: required.max(PROFILE_NAME_MAX_LENGTH),
     locations: z.array(z.string()).transform(distinctLocations).pipe(z.array(z.string()).min(1).max(MAX_SEARCH_LOCATIONS)),
     minSalary: z.number().int().positive().max(10_000_000).optional(),
     contractTypes: z.array(z.enum(CONTRACT_TYPES)).default([]).transform(chosenAmong(CONTRACT_TYPES)),
     remoteWorkOptions: z.array(z.enum(REMOTE_WORK_OPTIONS)).default([]).transform(chosenAmong(REMOTE_WORK_OPTIONS)),
-  }),
+    sectors: codes(isSector),
+    subsectors: codes(isSubsector),
+    domains: codes(isDomain),
+  })
+    .transform(({ sectors, subsectors, domains, ...rest }) => ({ ...rest, ...industryChoices({ sectors, subsectors, domains }) })),
 );
 
 const changeCriteriaSchema = z.object({ searchCriteria: searchCriteriaSchema });
@@ -199,6 +212,9 @@ interface ProfileRow {
   min_salary: number | null;
   contract_types: SearchCriteria["contractTypes"];
   remote_work_options: SearchCriteria["remoteWorkOptions"];
+  sectors: string[];
+  subsectors: string[];
+  domains: string[];
   version: number;
   content: MasterCvContent;
 }
@@ -209,6 +225,9 @@ function profileFrom(row: ProfileRow): Profile {
     locations: row.locations,
     contractTypes: row.contract_types,
     remoteWorkOptions: row.remote_work_options,
+    sectors: row.sectors,
+    subsectors: row.subsectors,
+    domains: row.domains,
   };
   if (row.min_salary !== null) searchCriteria.minSalary = row.min_salary;
   return { id: row.id, name: row.name, archived: row.archived, searchCriteria, masterCv: { version: row.version, content: row.content } };
@@ -269,7 +288,7 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
   async function get(candidateId: string, profileId: string): Promise<Profile | null> {
     if (!UUID.test(profileId)) return null;
     const { rows } = await database.query<ProfileRow>(
-      `SELECT p.id, p.name, p.archived_at IS NOT NULL AS archived, p.target_role, p.locations, p.min_salary, p.contract_types, p.remote_work_options, v.version, v.content
+      `SELECT p.id, p.name, p.archived_at IS NOT NULL AS archived, p.target_role, p.locations, p.min_salary, p.contract_types, p.remote_work_options, p.sectors, p.subsectors, p.domains, v.version, v.content
          FROM profile p
          JOIN master_cv_version v ON v.profile_id = p.id
         WHERE p.id = $1 AND p.candidate_id = $2
@@ -288,8 +307,8 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
     return transaction(async (client) => {
       if (!(await roomForOneMore(candidateId, client))) return QUOTA_REACHED;
       const { rows } = await client.query<{ id: string }>(
-        `INSERT INTO profile (candidate_id, name, target_role, locations, min_salary, contract_types, remote_work_options)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+        `INSERT INTO profile (candidate_id, name, target_role, locations, min_salary, contract_types, remote_work_options, sectors, subsectors, domains)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
         [
           candidateId,
           name,
@@ -298,6 +317,9 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
           searchCriteria.minSalary ?? null,
           searchCriteria.contractTypes,
           searchCriteria.remoteWorkOptions,
+          searchCriteria.sectors,
+          searchCriteria.subsectors,
+          searchCriteria.domains,
         ],
       );
       const id = rows[0]!.id;
@@ -409,7 +431,8 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
       const { searchCriteria } = parsed.data;
       // archived_at IS NULL: an archive landing meanwhile wins.
       const { rowCount } = await database.query(
-        `UPDATE profile SET target_role = $3, locations = $4, min_salary = $5, contract_types = $6, remote_work_options = $7
+        `UPDATE profile SET target_role = $3, locations = $4, min_salary = $5, contract_types = $6, remote_work_options = $7,
+                            sectors = $8, subsectors = $9, domains = $10
           WHERE id = $1 AND candidate_id = $2 AND archived_at IS NULL`,
         [
           profileId,
@@ -419,6 +442,9 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
           searchCriteria.minSalary ?? null,
           searchCriteria.contractTypes,
           searchCriteria.remoteWorkOptions,
+          searchCriteria.sectors,
+          searchCriteria.subsectors,
+          searchCriteria.domains,
         ],
       );
       return rowCount ? { ok: true, profile: { ...profile, searchCriteria } } : ARCHIVED;
@@ -460,6 +486,9 @@ export async function migrateProfiles(database: Pool): Promise<void> {
       min_salary integer,
       contract_types text[] NOT NULL DEFAULT '{}',
       remote_work_options text[] NOT NULL DEFAULT '{}',
+      sectors text[] NOT NULL DEFAULT '{}',
+      subsectors text[] NOT NULL DEFAULT '{}',
+      domains text[] NOT NULL DEFAULT '{}',
       created_at timestamptz NOT NULL DEFAULT now()
     );
   `);
@@ -486,6 +515,9 @@ export async function migrateProfiles(database: Pool): Promise<void> {
   `);
   await database.query(`
     ALTER TABLE profile ADD COLUMN IF NOT EXISTS archived_at timestamptz;
+    ALTER TABLE profile ADD COLUMN IF NOT EXISTS sectors text[] NOT NULL DEFAULT '{}';
+    ALTER TABLE profile ADD COLUMN IF NOT EXISTS subsectors text[] NOT NULL DEFAULT '{}';
+    ALTER TABLE profile ADD COLUMN IF NOT EXISTS domains text[] NOT NULL DEFAULT '{}';
     CREATE INDEX IF NOT EXISTS profile_candidate_id_idx ON profile (candidate_id);
     CREATE TABLE IF NOT EXISTS master_cv_version (
       profile_id uuid NOT NULL REFERENCES profile (id) ON DELETE CASCADE,

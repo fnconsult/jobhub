@@ -6,13 +6,14 @@ import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { ApplicationFieldError } from "@/applications";
 import type { MatchScoreFigure, MatchScoreReason } from "@/components/job-search-words";
+import { EMPTY_INTERVIEW_DRAFT, InterviewFields, interviewBody, type InterviewDraft } from "@/components/InterviewFields";
 import { ProfileMatchScore } from "@/components/MatchScoreWhy";
 import { routes } from "@/routes";
 
 type Outcome = "saved" | "failed" | null;
 
-/** Sends one change to the app; true when it was saved. */
-async function send(url: string, method: "POST" | "PATCH" | "DELETE", body?: object): Promise<{ ok: boolean; result: Record<string, unknown> }> {
+/** Sends one change to the app; `ok` when it was saved, with what the app answered. */
+export async function send(url: string, method: "POST" | "PATCH" | "DELETE", body?: object): Promise<{ ok: boolean; result: Record<string, unknown> }> {
   try {
     const response = await fetch(url, {
       method,
@@ -138,11 +139,11 @@ export function AddInterviewForm({ applicationId }: { applicationId: string }) {
 }
 
 /**
- * Edits one Interview's date, time and note: a button that opens the Interview form
- * filled in with them. `scheduledAt` is its date and time as typed in French time
- * ("2026-11-12T14:30"); `label` names the Interview, e.g. "Modifier l'entretien du …".
+ * Edits one Interview: a button that opens the Interview form filled in with it.
+ * `interview` holds its values as typed (`InterviewDraft`: its date and time in French
+ * time, "2026-11-12T14:30"); `label` names the Interview, e.g. "Modifier l'entretien du …".
  */
-export function EditInterview(props: { applicationId: string; interview: { id: string; scheduledAt: string; note: string }; label: string }) {
+export function EditInterview(props: { applicationId: string; interview: { id: string } & InterviewDraft; label: string }) {
   const [editing, setEditing] = useState(false);
   if (!editing)
     return (
@@ -154,16 +155,15 @@ export function EditInterview(props: { applicationId: string; interview: { id: s
 }
 
 /**
- * The Interview form: its date and time (French time) and note. Without `interview`
- * it adds one and empties itself; with it, it saves that Interview's changes, or
- * `onClose`s on cancel, then on saving.
+ * The Interview form: its date and time (French time), duration, format, place or link,
+ * and note. Without `interview` it adds one and empties itself; with it, it saves that
+ * Interview's changes, or `onClose`s on cancel, then on saving.
  */
-function InterviewForm({ applicationId, interview, onClose }: { applicationId: string; interview?: { id: string; scheduledAt: string; note: string }; onClose?: () => void }) {
+function InterviewForm({ applicationId, interview, onClose }: { applicationId: string; interview?: { id: string } & InterviewDraft; onClose?: () => void }) {
   const { t } = useTranslation();
   const router = useRouter();
   const id = useId();
-  const [scheduledAt, setScheduledAt] = useState(interview?.scheduledAt ?? "");
-  const [note, setNote] = useState(interview?.note ?? "");
+  const [draft, setDraft] = useState<InterviewDraft>(interview ?? EMPTY_INTERVIEW_DRAFT);
   const [working, setWorking] = useState(false);
   const [errors, setErrors] = useState<ApplicationFieldError[]>([]);
   const [failed, setFailed] = useState(false);
@@ -173,50 +173,23 @@ function InterviewForm({ applicationId, interview, onClose }: { applicationId: s
     setWorking(true);
     setFailed(false);
     // A datetime-local value ("2026-11-12T14:30") is French time: the app reads it so.
+    const body = interviewBody(draft);
     const { ok, result } = interview
-      ? await send(`/api/applications/${applicationId}/interviews/${interview.id}`, "PATCH", { scheduledAt, note })
-      : await send(`/api/applications/${applicationId}/interviews`, "POST", { scheduledAt, note });
+      ? await send(`/api/applications/${applicationId}/interviews/${interview.id}`, "PATCH", body)
+      : await send(`/api/applications/${applicationId}/interviews`, "POST", body);
     setWorking(false);
     if (ok) {
       setErrors([]);
       if (interview) onClose?.();
-      else {
-        setScheduledAt("");
-        setNote("");
-      }
+      else setDraft(EMPTY_INTERVIEW_DRAFT);
       router.refresh();
     } else if (Array.isArray(result.errors)) setErrors(result.errors as ApplicationFieldError[]);
     else setFailed(true);
   }
 
-  const dateError = errors.find((error) => error.field === "scheduledAt");
   return (
     <form className="stack" onSubmit={submit} noValidate>
-      <div className="field">
-        <label htmlFor={`${id}-date`}>{t("application.interviewDate")}</label>
-        <input
-          id={`${id}-date`}
-          className="input"
-          type="datetime-local"
-          required
-          value={scheduledAt}
-          aria-invalid={dateError ? true : undefined}
-          aria-describedby={dateError ? `${id}-date-error` : undefined}
-          onChange={(event) => setScheduledAt(event.target.value)}
-        />
-        {dateError ? (
-          <p id={`${id}-date-error`} className="field-error">
-            {t(dateError.code === "required" ? "cvReview.required" : "cvReview.invalidValue")}
-          </p>
-        ) : null}
-      </div>
-      <div className="field">
-        <label htmlFor={`${id}-note`}>{t("application.interviewNote")}</label>
-        <p id={`${id}-note-hint`} className="hint">
-          {t("application.interviewNoteHint")}
-        </p>
-        <input id={`${id}-note`} className="input" maxLength={500} value={note} aria-describedby={`${id}-note-hint`} onChange={(event) => setNote(event.target.value)} />
-      </div>
+      <InterviewFields id={id} draft={draft} onChange={setDraft} errors={errors} />
       <div className="actions">
         <button className="button button-primary" type="submit" disabled={working}>
           {working ? t("application.working") : t(interview ? "application.saveInterview" : "application.addInterview")}

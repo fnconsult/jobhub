@@ -1,11 +1,14 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import type { ActionCard } from "@/action-cards";
 import { getActionCards } from "@/action-cards/server";
+import { agendaPeriod } from "@/agenda";
 import { INTERVIEW_TIME_ZONE, interviewWallClock } from "@/applications";
 import { requireOwnApplication } from "@/applications/server";
 import { ActionCardList, type ActionCardView } from "@/components/ActionCardList";
 import { AddInterviewForm, EditInterview, RemoveInterviewButton } from "@/components/ApplicationControls";
+import { InterviewFacts, InterviewTimes } from "@/components/InterviewDetails";
 import { CoachReviewList } from "@/components/CoachReviewList";
 import { CompanyDossierView } from "@/components/CompanyDossierView";
 import { EnrichedContactsPanel } from "@/components/EnrichedContactsPanel";
@@ -18,7 +21,7 @@ import { ABANDON_CARD, FOLLOW_UP_CARD, followUpCardApplies, type FollowUpPayload
 import { getHumanCoaches } from "@/human-coaches/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getProfiles } from "@/profiles/server";
-import { APPLICATION_SECTIONS, type ApplicationSection } from "@/routes";
+import { APPLICATION_SECTIONS, routes, type ApplicationSection } from "@/routes";
 import { getTailoredCvs } from "@/tailored-cv/server";
 import { getTailoredDocuments } from "@/tailored-documents/server";
 
@@ -76,7 +79,11 @@ export const loadApplicationPage = cache(async (id: string) => {
     offre: true,
   };
   const sections = APPLICATION_SECTIONS.filter((section) => present[section]);
-  return { candidateId, application, t, locale, inView, cards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts, coachReviews, sections };
+  // The Agenda, at its past Agenda Items when every Interview here is past there (before today).
+  const now = new Date();
+  const allPast = application.interviews.length > 0 && application.interviews.every((interview) => agendaPeriod(interview.scheduledAt, now) === "past");
+  const agendaHref = routes.agenda(allPast);
+  return { candidateId, application, t, locale, inView, cards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts, coachReviews, sections, agendaHref };
 });
 
 /** Always there, as is the Job Offer. */
@@ -162,14 +169,21 @@ function SectionView({ data, section }: { data: ApplicationPageData; section: Ap
   }
 }
 
-/** The Application's Interviews: each one changed or removed in place, and a form to add one while it is at the interview stage. */
-function Interviews({ data: { application, t, locale } }: { data: ApplicationPageData }) {
+/**
+ * The Application's Interviews: each one changed or removed in place, and a form
+ * to add one while it is at the interview stage. A link leads to the Agenda: its
+ * past Agenda Items when all the Interviews here are past.
+ */
+function Interviews({ data: { application, t, locale, agendaHref } }: { data: ApplicationPageData }) {
   const dateTime = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
+  const date = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeZone: INTERVIEW_TIME_ZONE });
+  const time = new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
   const { interviews } = application;
   return (
     <section className="section" aria-labelledby="interviews-title">
       <div className="section-head">
         <h2 id="interviews-title">{t("application.interviewsTitle")}</h2>
+        <Link href={agendaHref}>{t("application.seeInAgenda")}</Link>
       </div>
       {interviews.length > 0 ? (
         <ul className="interview-list">
@@ -177,12 +191,22 @@ function Interviews({ data: { application, t, locale } }: { data: ApplicationPag
             const when = dateTime.format(interview.scheduledAt);
             return (
               <li key={interview.id} className="interview">
-                <p className="interview-date">{when}</p>
+                <p className="interview-date">
+                  {date.format(interview.scheduledAt)}, <InterviewTimes interview={interview} time={time} />
+                </p>
+                <InterviewFacts interview={interview} t={t} />
                 {interview.note ? <p>{interview.note}</p> : null}
                 <div className="actions">
                   <EditInterview
                     applicationId={application.id}
-                    interview={{ id: interview.id, scheduledAt: interviewWallClock(interview.scheduledAt), note: interview.note }}
+                    interview={{
+                      id: interview.id,
+                      scheduledAt: interviewWallClock(interview.scheduledAt),
+                      durationMinutes: interview.durationMinutes === null ? "" : String(interview.durationMinutes),
+                      format: interview.format ?? "",
+                      place: interview.place,
+                      note: interview.note,
+                    }}
                     label={t("application.editInterview", { date: when })}
                   />
                   <RemoveInterviewButton applicationId={application.id} interviewId={interview.id} label={t("application.removeInterview", { date: when })} />

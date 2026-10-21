@@ -6,13 +6,13 @@ const STANDARD = { fr: "Standard", en: "Standard" };
 const PREMIUM = { fr: "Premium", en: "Premium" };
 
 describe("upgrade prompts", () => {
-  it("tells a Free Candidate they used this month's Match Scores and which Plan gives more", () => {
+  it("tells a Free Candidate they used this week's Match Scores and which Plan gives more", () => {
     const prompt = upgradePrompt({ allowed: false, quota: "matchScores", plan: "free", planName: FREE, limit: 3, upgradeTo: "standard", upgradeToName: STANDARD }, "fr");
 
     expect(prompt).toEqual({
       title: "Vous avez atteint la limite de votre offre",
       message:
-        "Vous avez utilisé les 3 Match Scores compris ce mois-ci dans l'offre Gratuite. Avec l'offre Standard, vous pouvez en faire davantage.",
+        "Vous avez utilisé les 3 Match Scores compris cette semaine dans l'offre Gratuite. Avec l'offre Standard, vous pouvez en faire davantage.",
       upgradeTo: "standard",
       action: "Découvrir l'offre Standard",
       href: "/abonnement",
@@ -24,7 +24,7 @@ describe("upgrade prompts", () => {
     const decision = { allowed: false, quota: "matchScores", plan: "free", planName: { fr: "Découverte", en: "Discovery" }, limit: 3, upgradeTo: "essentiel", upgradeToName: essential } as const;
 
     expect(upgradePrompt(decision, "en")).toMatchObject({
-      message: "You have used the 3 Match Scores included this month in the Discovery Plan. The Essential Plan lets you do more.",
+      message: "You have used the 3 Match Scores included this week in the Discovery Plan. The Essential Plan lets you do more.",
       action: "See the Essential Plan",
     });
   });
@@ -60,7 +60,7 @@ describe("upgrade prompts", () => {
     const prompt = upgradePrompt({ allowed: false, quota: "enrichedContacts", plan: "premium", planName: PREMIUM, limit: 20, upgradeTo: null, upgradeToName: null }, "fr");
 
     expect(prompt.message).toBe(
-      "Vous avez utilisé les 20 contacts enrichis compris ce mois-ci dans l'offre Premium. Votre quota se renouvelle le 1er du mois.",
+      "Vous avez utilisé les 20 contacts enrichis compris cette semaine dans l'offre Premium. Votre quota se renouvelle chaque lundi.",
     );
     expect(prompt.action).toBeNull();
   });
@@ -77,7 +77,7 @@ describe("upgrade prompts", () => {
       upgradeTo: "standard",
       prompt: {
         title: "You have reached your Plan's limit",
-        message: "You have used the 1 ATS Score included this month in the Free Plan. The Standard Plan lets you do more.",
+        message: "You have used the 1 ATS Score included this week in the Free Plan. The Standard Plan lets you do more.",
         upgradeTo: "standard",
         action: "See the Standard Plan",
         href: "/abonnement",

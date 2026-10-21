@@ -1,7 +1,7 @@
 /**
  * France Travail: searching its Offres d'emploi API for postings matching a
  * Profile's Search Criteria, by its structured filters (ROME job codes, area,
- * contract type) rather than free text, with each offer's creation date as its
+ * contract type, NAF divisions, ROME professional domains) rather than free text, with each offer's creation date as its
  * Posting date.
  *
  *   const franceTravail = franceTravailFromEnv(process.env); // null: not configured, Job discovery goes without it

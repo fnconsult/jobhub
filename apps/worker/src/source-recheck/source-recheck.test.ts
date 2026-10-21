@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ExternalApiCall } from "@jobhub/shared";
 import { createSourceRecheck, type SourceCheckOutcome, type SourceCheckStore } from "./index";
 
 interface Page {
@@ -273,5 +274,21 @@ describe("re-checking within ADR-0002 rules", () => {
     await createSourceRecheck({ store, fetch }).run(NOW);
 
     expect(userAgents.every((agent) => agent?.startsWith("JobbboxBot/"))).toBe(true);
+  });
+});
+
+describe("re-checking, as recorded (#234)", () => {
+  it("records each page it reads as a page_read of the site's domain, never the Job Offer, its URL or the page", async () => {
+    const calls: ExternalApiCall[] = [];
+    const web = fakeWeb({ "https://emploi.example.fr/robots.txt": { body: "User-agent: *\nAllow: /", headers: { "content-type": "text/plain" } }, [OFFER]: { body: posting() } });
+    const store = memoryStore([{ id: "offer-1", sourceUrl: OFFER }]);
+
+    await createSourceRecheck({ store, fetch: web.fetch, externalApis: { record: (call) => void calls.push(call) } }).run(NOW);
+
+    expect(calls.map(({ provider, operation, ok, httpStatus }) => ({ provider, operation, ok, httpStatus }))).toEqual([
+      { provider: "job_site", operation: "page_read example.fr", ok: true, httpStatus: 200 },
+      { provider: "job_site", operation: "page_read example.fr", ok: true, httpStatus: 200 },
+    ]);
+    expect(JSON.stringify(calls)).not.toMatch(/offer-1|offres|daf|emploi\.|DAF/);
   });
 });

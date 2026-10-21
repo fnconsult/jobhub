@@ -54,9 +54,9 @@ describe("the Applications list's filters and sorting", () => {
 
   it("sorts by job offer, Profile, Status in the pipeline's order, or next interview to come (none last)", () => {
     const all = [
-      application("1", { jobOffer: { id: "o1", title: "Contrôleur" }, status: "interview", interviews: [{ id: "i", scheduledAt: new Date("2026-10-25T09:00:00Z"), note: "" }] }),
+      application("1", { jobOffer: { id: "o1", title: "Contrôleur" }, status: "interview", interviews: [{ id: "i", scheduledAt: new Date("2026-10-25T09:00:00Z"), note: "", durationMinutes: null, format: null, place: "" }] }),
       application("2", { jobOffer: { id: "o2", title: "Acheteur" }, status: "to_apply", profileName: "Zoé" }),
-      application("3", { jobOffer: { id: "o3", title: "Directeur" }, status: "offer_received", interviews: [{ id: "j", scheduledAt: new Date("2026-10-21T09:00:00Z"), note: "" }] }),
+      application("3", { jobOffer: { id: "o3", title: "Directeur" }, status: "offer_received", interviews: [{ id: "j", scheduledAt: new Date("2026-10-21T09:00:00Z"), note: "", durationMinutes: null, format: null, place: "" }] }),
     ];
     expect(ids(viewApplications(all, view({ tri: "offre" }), "fr", now))).toEqual(["2", "1", "3"]);
     expect(ids(viewApplications(all, view({ tri: "offre", ordre: "desc" }), "fr", now))).toEqual(["3", "1", "2"]);

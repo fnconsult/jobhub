@@ -4,8 +4,9 @@ import { getApplications } from "@/applications/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
 
 /**
- * Edits one of an Application's Interviews: its date and time, its note, or both.
- * Body: { scheduledAt?, note? }, as for adding one (a date and time without an offset is French time).
+ * Edits one of an Application's Interviews, changing only the fields the body names.
+ * Body: { scheduledAt?, note?, durationMinutes?, format?, place? }, as for adding one (a date and time
+ * without an offset is French time; null or "" clears the duration or the format).
  * 200 { id } · 400 { errors } · 401 · 403 · 404
  */
 export async function PATCH(request: Request, { params }: RouteContext<"/api/applications/[id]/interviews/[interviewId]">) {

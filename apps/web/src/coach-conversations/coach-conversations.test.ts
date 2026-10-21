@@ -2,6 +2,8 @@ import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import type { CoachMessageCost, CoachReply } from "../coach";
+import { createApplications, migrateApplications } from "../applications";
+import { createJobOffers, migrateJobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles } from "../profiles";
 import { coachCostPerDay, coachCostPerPlaybookAgent, createCoachConversations, migrateCoachConversations, purgeStaleCoachConversations, type CoachConversations } from "./index";
 
@@ -51,6 +53,8 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     testAuth = await startTestAuth();
     database = testAuth.auth.options.database as Pool;
     await migrateProfiles(database);
+    await migrateJobOffers(database);
+    await migrateApplications(database);
     await migrateCoachConversations(database);
     await migrateCoachConversations(database); // safe to run twice
     marie = await candidate("marie.dupont@example.fr");
@@ -385,6 +389,32 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
 
       expect(asked[1]!.input.messages).toEqual([{ from: "candidate", text: "Bonjour" }]);
     });
+  });
+
+  it("saves the Job Offer card a reply carries: the conversation reopens with it, to process until the Candidate follows the Job Offer", async () => {
+    const jobOffers = createJobOffers(database);
+    const captured = await jobOffers.capture({ source: { url: "https://carrieres.example.fr/daf" }, title: "DAF H/F", content: "Groupe Seb recrute son DAF.", employer: "Groupe Seb" });
+    if (!captured.ok) throw new Error("not captured");
+    coachReply = () => ({ ok: true, reply: "J'ai lu cette offre.", outcome: "replied", cost: null, playbooks: [], consultations: [], jobOffer: captured.jobOffer });
+
+    const sent = await conversations.send(marie, { message: "https://carrieres.example.fr/daf" });
+    if (!sent.ok) throw new Error("refused");
+
+    const card = { id: captured.jobOffer.id, title: "DAF H/F", employer: "Groupe Seb", followed: false };
+    expect(sent).toMatchObject({ reply: "J'ai lu cette offre.", jobOffer: card });
+    expect((await conversations.open(marie, sent.conversation.id))?.messages).toEqual([
+      { from: "candidate", text: "https://carrieres.example.fr/daf" },
+      { from: "coach", text: "J'ai lu cette offre.", jobOffer: card },
+    ]);
+    // The conversation goes on: the AI Coach is given the reply's text, never the card.
+    coachReply = (n) => ({ ok: true, reply: `Réponse ${n}`, outcome: "replied", cost: cost(0.01), playbooks: [], consultations: [] });
+    await conversations.send(marie, { conversationId: sent.conversation.id, message: "Merci" });
+    expect(asked.at(-1)!.input.messages[1]).toEqual({ from: "coach", text: "J'ai lu cette offre." });
+
+    const profile = await createProfiles(database).create(marie, { masterCv, searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] } });
+    if (!profile.ok) throw new Error("no profile");
+    await createApplications(database, { jobOffers, profiles: createProfiles(database) }).save(marie, { jobOfferId: captured.jobOffer.id, profileId: profile.profile.id });
+    expect((await conversations.open(marie, sent.conversation.id))?.messages[1]).toEqual({ from: "coach", text: "J'ai lu cette offre.", jobOffer: { ...card, followed: true } });
   });
 
   it("names a new conversation after the start of its first message", async () => {

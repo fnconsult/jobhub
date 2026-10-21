@@ -4,8 +4,7 @@
  * a few of its links to the individual postings on the same site; each followed
  * link is then read like any result page (ADR-0002).
  */
-import { decodeEntities, metaRobots } from "./html";
-import { listedPostingUrls } from "./job-posting";
+import { decodeEntities, listedPostingUrls, metaRobots } from "@jobhub/shared/page-reading";
 
 /** How many postings of one listing page are followed. */
 export const MAX_FOLLOWED_LINKS = 5;

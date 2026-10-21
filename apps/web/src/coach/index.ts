@@ -30,11 +30,20 @@
  * each consultation cost (`consultations`), and which Core Digest and Playbook Versions it drew on
  * (`playbooks`), so they can be recorded with the message: estimates from list prices, frozen then.
  *
+ * A Job Offer link (`jobOfferLinks`): a link in the Candidate's latest message is read as a Job Offer (see
+ * ../job-offer-links) once the Guardrails let the message through, and a set reply answers it in the Candidate's
+ * `language`, in place of the AI Coach's: the Job Offer it captured (`jobOffer`, shown as a Job Offer card,
+ * awaiting processing on its page), or why there is none (a Forbidden site, an unreadable page, not one job
+ * posting). The reply's text holds nothing from the page, so the conversation later given to the AI Coach does not.
+ *
  * Eval Runs (ADR-0023, #231) play the whole reply the same way, with two differences given at construction:
  * `context`, a fictional Coach context told as is in place of a Candidate's workspace, and `consult`, the
  * Coaching Playbook whose Playbook Agent the reply always consults first, besides those chosen.
  */
 import { costInEur, type AiLayer, type GenerateResult, type ProviderId } from "@jobhub/ai";
+import { createI18n } from "@jobhub/shared/i18n";
+import type { JobOffer } from "@jobhub/shared";
+import { findJobOfferLink, type JobOfferLinkResult, type JobOfferLinks } from "../job-offer-links";
 import type { GuardedReply, GuardrailLanguage, Guardrails } from "../guardrails";
 import { CORE_DIGEST, type CoachingPlaybooks, type ServedKnowledge } from "../coaching-playbooks";
 import * as z from "zod";
@@ -79,10 +88,11 @@ export type CoachReplyOutcome = GuardedReply["outcome"];
 /**
  * `playbooks`: the Core Digest and the Coaching Playbooks the reply drew on, with their versions (none when nothing is served).
  * `consultations`: the Playbook Agents that answered, each with its cost (already in `cost`).
- * `cost`: null when no AI call was made (distress words answered by the distress Guardrail message).
+ * `cost`: null when no AI call was made (distress words answered by the distress Guardrail message, a Job Offer link without Guardrails).
+ * `jobOffer`: the Job Offer read from the link in the Candidate's message, when there is one.
  */
 export type CoachReply =
-  | { ok: true; reply: string; outcome: CoachReplyOutcome; cost: CoachMessageCost | null; playbooks: PlaybookUsed[]; consultations: PlaybookConsultation[] }
+  | { ok: true; reply: string; outcome: CoachReplyOutcome; cost: CoachMessageCost | null; playbooks: PlaybookUsed[]; consultations: PlaybookConsultation[]; jobOffer?: JobOffer }
   | { ok: false; error: "invalid" | "unavailable" };
 
 export interface Coach {
@@ -108,6 +118,8 @@ export interface CoachOptions {
   warn?: (message: string, details: Record<string, unknown>) => void;
   /** A Coaching Playbook's Eval Run: the served Coaching Playbook every reply consults first, besides those chosen. */
   consult?: string;
+  /** Reads a Job Offer from a link in the Candidate's latest message. Without it, a link is just text. */
+  jobOfferLinks?: Pick<JobOfferLinks, "read">;
 }
 
 /**
@@ -158,6 +170,13 @@ function sourcesText(served: ServedKnowledge, texts: string[]): string {
     .map((source) => `[${source.id}] ${source.author}, ${source.year} : ${source.title}`);
   while (lines.length > 0 && estimateTokens(["<sources>", ...lines, "</sources>"].join("\n")) > SOURCES_MAX_TOKENS) lines.pop();
   return lines.length > 0 ? ["<sources>", ...lines, "</sources>"].join("\n") : "";
+}
+
+/** The set reply to a Job Offer link, in the Candidate's language: nothing in it comes from the page. */
+function jobOfferLinkReply(result: JobOfferLinkResult, language: GuardrailLanguage): string {
+  const { t } = createI18n(language);
+  if (result.ok) return t("coachPanel.jobOfferLink.read");
+  return t(result.reason === "forbidden_site" ? "coachPanel.jobOfferLink.forbiddenSite" : result.reason === "unreadable" ? "coachPanel.jobOfferLink.unreadable" : "coachPanel.jobOfferLink.notAJobOffer");
 }
 
 const costOf = (calls: GenerateResult[]) => ({
@@ -239,15 +258,24 @@ export function createCoach(deps: CoachDeps): Coach {
           return { text: result.text.trim(), secrets: prepared.secrets };
         };
         const latest = messages.at(-1)!.content;
+        const language = options.language ?? "fr";
+        // A link in the latest message is read once, after the Guardrails let the message through, even when its reply is checked twice.
+        const link = deps.jobOfferLinks ? findJobOfferLink(latest) : null;
+        let linked: JobOfferLinkResult | undefined;
+        const answerLink = async (url: string) => {
+          linked ??= await deps.jobOfferLinks!.read(candidateId, url);
+          return { text: jobOfferLinkReply(linked, language), secrets: [] };
+        };
+        const reply = link ? () => answerLink(link) : write;
         const guarded: GuardedReply = deps.guardrails
           ? await deps.guardrails.guard("ai_coach", {
               candidateId,
-              language: options.language ?? "fr",
+              language,
               message: latest,
               written: messages.filter((message) => message.role === "user").map((message) => message.content),
-              reply: write,
+              reply,
             })
-          : { text: (await write(null)).text, outcome: "replied", checks: [] };
+          : { text: (await reply(null)).text, outcome: "replied", checks: [] };
 
         const advice = prepared?.advice ?? [];
         const calls = [...(prepared?.choice.call ? [prepared.choice.call] : []), ...advice.map((each) => each.call), ...written, ...guarded.checks];
@@ -271,6 +299,7 @@ export function createCoach(deps: CoachDeps): Coach {
           cost: answeredBy ? { provider: answeredBy.provider, model: answeredBy.model, ...costOf(calls) } : null,
           playbooks,
           consultations,
+          ...(linked?.ok && guarded.outcome === "replied" ? { jobOffer: linked.jobOffer } : {}),
         };
       } catch (error) {
         console.warn("[coach] the AI Coach could not reply:", error instanceof Error ? error.message : error);

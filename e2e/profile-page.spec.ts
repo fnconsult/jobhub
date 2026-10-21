@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { fromCatalogue, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
+import { placeInput, placeNames, placeOptions, removePlace, typePlace } from "./support/locations";
 import { newAddress } from "./support/mailbox";
 
 // Issue #137: the Profile page redesigned as in the approved prototype (#132):
@@ -28,11 +29,11 @@ const masterCv = {
 };
 
 /** Signs a new Candidate in with one Profile, and returns its id. */
-async function candidateWithProfile(page: Page, label: string): Promise<string> {
+async function candidateWithProfile(page: Page, label: string, locations = ["Lyon"], more: Record<string, string[]> = {}): Promise<string> {
   await signInWithMagicLink(page, newAddress(label));
   const created = await page.request.post("/api/profiles", {
     headers: { origin },
-    data: { masterCv, searchCriteria: { targetRole: "Directrice administrative et financière", locations: ["Lyon"], minSalary: 85000, contractTypes: ["cdi"] } },
+    data: { masterCv, searchCriteria: { targetRole: "Directrice administrative et financière", locations, minSalary: 85000, contractTypes: ["cdi"], ...more } },
   });
   expect(created.status()).toBe(201);
   return (await created.json()).id;
@@ -40,8 +41,8 @@ async function candidateWithProfile(page: Page, label: string): Promise<string> 
 
 const title = (page: Page) => page.getByLabel(fr.profileActions.name, { exact: true });
 const criteria = (page: Page) => page.getByRole("group", { name: fr.cvReview.searchCriteria });
-/** The input of the Search Criteria's n-th place ("Lieu 1"), ADR-0025. */
-const place = (page: Page, number: number) => criteria(page).getByLabel(fr.cvReview.locationItem.replace("{{number}}", String(number)), { exact: true });
+/** The Search Criteria's places, as chips (ADR-0025, #235). */
+const places = (page: Page) => placeNames(criteria(page));
 /** One checkbox of the contract types or remote-work options. */
 const choice = (page: Page, legend: string, option: string) => criteria(page).getByRole("group", { name: legend }).getByRole("checkbox", { name: option, exact: true });
 const masterCvSection = (page: Page) => page.getByRole("region", { name: fr.profile.masterCv });
@@ -62,7 +63,7 @@ test.describe("the Profile page as a document", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice administrative et financière");
     await expect(title(page)).toHaveValue("Directrice administrative et financière");
     await expect(criteria(page).getByLabel(fr.cvReview.targetRole)).toHaveValue("Directrice administrative et financière");
-    await expect(place(page, 1)).toHaveValue("Lyon");
+    await expect(places(page)).toHaveText(["Lyon"]);
     await expect(criteria(page).getByLabel(fr.cvReview.minSalary)).toHaveValue("85000");
     await expect(choice(page, fr.cvReview.contractType, fr.cvReview.contractTypes.cdi)).toBeChecked();
     await expect(choice(page, fr.cvReview.contractType, fr.cvReview.contractTypes.cdd)).not.toBeChecked();
@@ -105,9 +106,8 @@ test.describe("the Profile page as a document", () => {
     await title(page).press("Escape");
     await expect(title(page)).toHaveValue("DAF industrie");
 
-    // A text criterion saves when the Candidate leaves it, a checkbox as soon as it is ticked.
-    await place(page, 1).fill("Lyon et 50 km autour");
-    await place(page, 1).press("Tab");
+    // A place saves as soon as it is added, a checkbox as soon as it is ticked.
+    await typePlace(criteria(page), "Lyon et 50 km autour");
     await expect(criteria(page).getByRole("status").filter({ hasText: fr.profilePage.criteriaSaved })).toHaveCount(1);
     await choice(page, fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.hybrid).check();
     await expect(criteria(page).getByRole("status").filter({ hasText: fr.profilePage.criteriaSaved })).toHaveCount(2);
@@ -121,7 +121,7 @@ test.describe("the Profile page as a document", () => {
 
     await page.reload();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("DAF industrie");
-    await expect(place(page, 1)).toHaveValue("Lyon et 50 km autour");
+    await expect(places(page)).toHaveText(["Lyon", "Lyon et 50 km autour"]);
     await expect(choice(page, fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.hybrid)).toBeChecked();
     await expect(criteria(page).getByLabel(fr.cvReview.minSalary)).toHaveValue("85000");
     // The name does not follow the target role.
@@ -133,12 +133,17 @@ test.describe("the Profile page as a document", () => {
     await page.goto(`/profils/${id}`);
     const saved = () => criteria(page).getByRole("status").filter({ hasText: fr.profilePage.criteriaSaved });
 
-    // A second place: "Ajouter un lieu" adds its input and moves the focus to it; leaving it saves.
-    await criteria(page).getByRole("button", { name: fr.cvReview.addLocation }).click();
-    await expect(place(page, 2)).toBeFocused();
-    await place(page, 2).fill("Bordeaux");
-    await place(page, 2).press("Tab");
+    // A second place, chosen among the suggestions with the keyboard: it saves at once, the focus back on the input.
+    await placeInput(criteria(page)).fill("bord");
+    await expect(placeOptions(page)).toHaveText([`Bordeaux (33)${fr.cvReview.placeKinds.commune}`]);
+    await expect(placeInput(criteria(page))).toHaveAttribute("aria-expanded", "true");
+    await placeInput(criteria(page)).press("ArrowDown");
+    await expect(placeInput(criteria(page))).toHaveAttribute("aria-activedescendant", (await placeOptions(page).first().getAttribute("id"))!);
+    await placeInput(criteria(page)).press("Enter");
+    await expect(places(page)).toHaveText(["Lyon", "Bordeaux (33)"]);
     await expect(saved()).toHaveCount(1);
+    await expect(placeInput(criteria(page))).toBeFocused();
+    await expect(placeInput(criteria(page))).toHaveValue("");
     // Freelance as well as CDI: both stay ticked.
     await choice(page, fr.cvReview.contractType, fr.cvReview.contractTypes.freelance).check();
     await choice(page, fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.hybrid).check();
@@ -150,34 +155,89 @@ test.describe("the Profile page as a document", () => {
     await expect(choice(page, fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.full_remote)).toBeChecked();
 
     await page.reload();
-    await expect(place(page, 1)).toHaveValue("Lyon");
-    await expect(place(page, 2)).toHaveValue("Bordeaux");
+    await expect(places(page)).toHaveText(["Lyon", "Bordeaux (33)"]);
     await expect(choice(page, fr.cvReview.contractType, fr.cvReview.contractTypes.cdi)).toBeChecked();
     await expect(choice(page, fr.cvReview.contractType, fr.cvReview.contractTypes.freelance)).toBeChecked();
     await expect(choice(page, fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.hybrid)).toBeChecked();
     await expect(choice(page, fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.full_remote)).toBeChecked();
 
-    // Up to five places; each after the first has its own "Retirer" button, in words.
-    for (const [number, city] of [[3, "Nantes"], [4, "Lille"], [5, "Rennes"]] as const) {
-      await criteria(page).getByRole("button", { name: fr.cvReview.addLocation }).click();
-      await place(page, number).fill(city);
-      await place(page, number).press("Tab");
-    }
-    await expect(criteria(page).getByRole("button", { name: fr.cvReview.addLocation })).toHaveCount(0);
-    await expect(criteria(page).getByRole("button", { name: fr.cvReview.removeLocation.replace("{{number}}", "1") })).toHaveCount(0);
-    // Removing a place saves at once: the page is reloaded once that save is done, the removal's own
-    // (the places without Bordeaux), not the one still in flight from leaving Rennes.
-    const removal = (body: string) => body.includes("Rennes") && !body.includes("Bordeaux");
+    // Communes, départements and régions are suggested; Escape closes the suggestions, then empties the input.
+    await placeInput(criteria(page)).fill("loire");
+    await expect(placeOptions(page)).toHaveText([
+      `Loire-sur-Rhône (69)${fr.cvReview.placeKinds.commune}`,
+      `Loire${fr.cvReview.placeKinds.departement}`,
+      `Loire-Atlantique${fr.cvReview.placeKinds.departement}`,
+      `Pays de la Loire${fr.cvReview.placeKinds.region}`,
+    ]);
+    await placeInput(criteria(page)).press("ArrowUp");
+    await expect(placeOptions(page).last()).toHaveAttribute("aria-selected", "true");
+    await placeInput(criteria(page)).press("Escape");
+    await expect(placeInput(criteria(page))).toHaveAttribute("aria-expanded", "false");
+    await expect(placeOptions(page)).toHaveCount(0);
+    await expect(placeInput(criteria(page))).toHaveValue("loire");
+    await placeInput(criteria(page)).press("Escape");
+    await expect(placeInput(criteria(page))).toHaveValue("");
+
+    // A suggestion can be clicked too.
+    await placeInput(criteria(page)).fill("loire");
+    await Promise.all([
+      page.waitForResponse((response) => response.request().method() === "PATCH" && (response.request().postData() ?? "").includes("Pays de la Loire")),
+      placeOptions(page).filter({ hasText: "Pays de la Loire" }).click(),
+    ]);
+    await expect(places(page)).toHaveText(["Lyon", "Bordeaux (33)", "Pays de la Loire"]);
+    await expect(placeInput(criteria(page))).toBeFocused();
+
+    // A place already there, written with another case or without its accents, is refused with a message.
+    await placeInput(criteria(page)).fill("pays de la loire");
+    await placeInput(criteria(page)).press("Enter");
+    await expect(criteria(page).getByRole("status").filter({ hasText: fr.cvReview.placeAlreadyListed.replace("{{place}}", "pays de la loire") })).toBeVisible();
+    await expect(places(page)).toHaveText(["Lyon", "Bordeaux (33)", "Pays de la Loire"]);
+
+    // A place with no suggestion (a foreign city) is said so, and added as typed with Enter.
+    await placeInput(criteria(page)).fill("Genève");
+    await expect(criteria(page).getByRole("status").filter({ hasText: fr.cvReview.noPlaceFound.replace("{{place}}", "Genève") })).toBeVisible();
+    await placeInput(criteria(page)).press("Enter");
+    await typePlace(criteria(page), "Remote");
+    await expect(places(page)).toHaveText(["Lyon", "Bordeaux (33)", "Pays de la Loire", "Genève", "Remote"]);
+
+    // Five places at most: the input goes, and says why; each place has its own "Retirer" button, in words.
+    await expect(placeInput(criteria(page))).toHaveCount(0);
+    await expect(criteria(page).getByText(fr.cvReview.placesFull.replace("{{max}}", "5"))).toBeVisible();
+    await expect(removePlace(criteria(page), "Lyon")).toHaveText(fr.cvReview.removePlace);
+    // Removing a place saves at once (the places without Bordeaux), the focus back on the input.
+    const removal = (body: string) => body.includes("Remote") && !body.includes("Bordeaux");
     await Promise.all([
       page.waitForResponse((response) => response.request().method() === "PATCH" && response.url().includes("/api/profiles/") && removal(response.request().postData() ?? "")),
-      criteria(page).getByRole("button", { name: fr.cvReview.removeLocation.replace("{{number}}", "2") }).click(),
+      removePlace(criteria(page), "Bordeaux (33)").click(),
     ]);
-    await expect(criteria(page).getByRole("button", { name: fr.cvReview.addLocation })).toBeFocused();
+    await expect(placeInput(criteria(page))).toBeFocused();
 
     await page.reload();
-    await expect(place(page, 2)).toHaveValue("Nantes");
-    await expect(place(page, 4)).toHaveValue("Rennes");
-    await expect(place(page, 5)).toHaveCount(0);
+    await expect(places(page)).toHaveText(["Lyon", "Pays de la Loire", "Genève", "Remote"]);
+  });
+
+  test("suggestions start at three characters: two list nothing, three list the matching places (#235)", async ({ page }) => {
+    const id = await candidateWithProfile(page, "profile-three-chars");
+    await page.goto(`/profils/${id}`);
+    await placeInput(criteria(page)).fill("lo");
+    await expect(placeInput(criteria(page))).toHaveAttribute("aria-expanded", "false");
+    await expect(placeOptions(page)).toHaveCount(0);
+    await placeInput(criteria(page)).fill("loi");
+    await expect(placeOptions(page).first()).toBeVisible();
+    await expect(placeInput(criteria(page))).toHaveAttribute("aria-expanded", "true");
+  });
+
+  test("the last place cannot be removed: Locations is required", async ({ page }) => {
+    const id = await candidateWithProfile(page, "profile-last-place", ["Lyon", "Paris"]);
+    await page.goto(`/profils/${id}`);
+    await Promise.all([
+      page.waitForResponse((response) => response.request().method() === "PATCH" && response.url().includes("/api/profiles/")),
+      removePlace(criteria(page), "Lyon").click(),
+    ]);
+    await expect(places(page)).toHaveText(["Paris"]);
+    await expect(removePlace(criteria(page), "Paris")).toHaveCount(0);
+    await page.reload();
+    await expect(places(page)).toHaveText(["Paris"]);
   });
 
   test("Master CV edits gather into one new version, or are cancelled", async ({ page }) => {
@@ -238,6 +298,66 @@ test.describe("the Profile page as a document", () => {
     await expect(cv.getByLabel(fr.cvReview.headline)).toHaveValue(masterCv.headline);
   });
 
+  test("Sectors, Subsectors and Domains are chosen as chips, the Subsectors offered limited to the Sectors chosen, each change saving (#236)", async ({ page }) => {
+    const id = await candidateWithProfile(page, "profile-sectors");
+    await page.goto(`/profils/${id}`);
+    const sectorInput = criteria(page).getByRole("combobox", { name: fr.cvReview.industryInputs.sectors, exact: true });
+    const subsectorInput = criteria(page).getByRole("combobox", { name: fr.cvReview.industryInputs.subsectors, exact: true });
+    const domainInput = criteria(page).getByRole("combobox", { name: fr.cvReview.industryInputs.domains, exact: true });
+    const chips = (legend: string) => criteria(page).getByRole("group", { name: legend, exact: true }).getByRole("listitem").locator("> span");
+    const options = criteria(page).getByRole("listbox").getByRole("option");
+    const patched = (includes: string) =>
+      page.waitForResponse((response) => response.request().method() === "PATCH" && (response.request().postData() ?? "").includes(includes));
+
+    // No Subsector without a Sector.
+    await expect(subsectorInput).toBeDisabled();
+    await expect(criteria(page).getByText(fr.cvReview.subsectorsNeedSector)).toBeVisible();
+
+    // A Sector, found by typing part of its label, chosen with the keyboard: it saves at once.
+    await sectorInput.fill("financ");
+    await expect(options).toHaveText(["Activités financières et d'assurance"]);
+    await sectorInput.press("ArrowDown");
+    await Promise.all([patched('"sectors":["K"]'), sectorInput.press("Enter")]);
+    await expect(chips(fr.cvReview.sectors)).toHaveText(["Activités financières et d'assurance"]);
+    await expect(sectorInput).toBeFocused();
+
+    // The Subsectors offered are those of the Sector chosen alone, each said with its Sector.
+    await subsectorInput.click();
+    await expect(options).toHaveText([
+      "Activités des services financiers, hors assurance et caisses de retraiteActivités financières et d'assurance",
+      "AssuranceActivités financières et d'assurance",
+      "Activités auxiliaires de services financiers et d'assuranceActivités financières et d'assurance",
+    ]);
+    await Promise.all([patched('"subsectors":["64"]'), options.first().click()]);
+    await expect(chips(fr.cvReview.subsectors)).toHaveText(["Activités des services financiers, hors assurance et caisses de retraite"]);
+
+    // A Domain, by its ROME label.
+    await domainInput.fill("direction d'entreprise");
+    await Promise.all([patched('"domains":["M13"]'), domainInput.press("Enter")]);
+    await expect(chips(fr.cvReview.domains)).toHaveText(["Direction d'entreprise"]);
+
+    await page.reload();
+    await expect(chips(fr.cvReview.sectors)).toHaveText(["Activités financières et d'assurance"]);
+    await expect(chips(fr.cvReview.subsectors)).toHaveText(["Activités des services financiers, hors assurance et caisses de retraite"]);
+    await expect(chips(fr.cvReview.domains)).toHaveText(["Direction d'entreprise"]);
+
+    // In the Search Criteria in words on Recherches d'offres.
+    await page.goto(`/recherches?profil=${id}`);
+    await expect(page.getByText(/· Secteur : Activités des services financiers, hors assurance et caisses de retraite · Domaine : Direction d'entreprise$/)).toBeVisible();
+
+    // Removing the Sector takes its Subsector with it, in one save.
+    await page.goto(`/profils/${id}`);
+    await Promise.all([
+      patched('"sectors":[],"subsectors":[]'),
+      criteria(page).getByRole("button", { name: fr.cvReview.removeChoice.replace("{{label}}", "Activités financières et d'assurance"), exact: true }).click(),
+    ]);
+    await expect(chips(fr.cvReview.subsectors)).toHaveCount(0);
+    await expect(subsectorInput).toBeDisabled();
+    await page.reload();
+    await expect(chips(fr.cvReview.sectors)).toHaveCount(0);
+    await expect(chips(fr.cvReview.domains)).toHaveText(["Direction d'entreprise"]);
+  });
+
   test("an archived Profile shows its Search Criteria read-only", async ({ page }) => {
     const id = await candidateWithProfile(page, "profile-archived");
     const archived = await page.request.patch(`/api/profiles/${id}`, { headers: { origin }, data: { archived: true } });
@@ -247,7 +367,7 @@ test.describe("the Profile page as a document", () => {
     const properties = page.getByRole("term");
     await expect(properties.filter({ hasText: fr.cvReview.locations })).toBeVisible();
     await expect(page.getByRole("definition").filter({ hasText: /^Lyon$/ })).toBeVisible();
-    await expect(page.getByRole("textbox", { name: fr.cvReview.locationItem.replace("{{number}}", "1"), exact: true })).toHaveCount(0);
+    await expect(placeInput(page)).toHaveCount(0);
     await expect(page.getByRole("checkbox")).toHaveCount(0);
     await expect(page.getByRole("button", { name: fr.jobSearch.start, exact: true })).toHaveCount(0);
     await expect(page.locator(`a[href="/job-digests#job-digest-${id}"]`)).toHaveCount(0);
@@ -277,10 +397,13 @@ test.describe("the Profile page on the ADR-0009 floor", () => {
   ]) {
     test(`at ${viewport.width}px: catalogue strings, 16px and AA contrast, visible edit affordances, 44px targets, no sideways scroll`, async ({ page }) => {
       await page.setViewportSize(viewport);
-      const id = await candidateWithProfile(page, `profile-floor-${viewport.width}`);
+      const id = await candidateWithProfile(page, `profile-floor-${viewport.width}`, ["Lyon", "Saint-Étienne-de-Saint-Geoirs (38)"]);
       await page.goto(`/profils/${id}/cv-de-reference`);
       await masterCvSection(page).getByLabel(fr.cvReview.headline).fill("DAF");
       await expect(saveBar(page)).toBeVisible();
+      // The place suggestions shown, as the Candidate reads them.
+      await placeInput(criteria(page)).fill("loire");
+      await expect(placeOptions(page)).toHaveCount(4);
 
       const own = new Set(
         [
@@ -288,11 +411,19 @@ test.describe("the Profile page on the ADR-0009 floor", () => {
           ...masterCv.experience.flatMap((job) => [`${job.title} · ${job.employer}`, `${job.period} · ${job.location}`]),
           "Directrice administrative et financière",
           fr.profileSwitcher.current.replace("{{name}}", "Directrice administrative et financière"),
-          // Each place's label, numbered.
-          ...[1, 2, 3, 4, 5].map((number) => fr.cvReview.locationItem.replace("{{number}}", String(number))),
+          // The places, as chips, and the places suggested.
+          "Lyon",
+          "Saint-Étienne-de-Saint-Geoirs (38)",
+          "Loire-sur-Rhône (69)",
+          "Loire",
+          "Loire-Atlantique",
+          "Pays de la Loire",
         ].map((text) => text.trim()),
       );
-      const known = fromCatalogue(fr);
+      const catalogue = fromCatalogue(fr);
+      // The Usage Meter's percentage, a catalogue string with the week's number in it.
+      const meter = fr.usageMeter.percent.replace("{{percent}}", "0");
+      const known = (text: string) => text === meter || catalogue(text);
       for (const t of await renderedTexts(page)) {
         // Values in fields are the Candidate's own text.
         if (t.tag === "select" || t.tag === "textarea" || own.has(t.text)) continue;
@@ -309,7 +440,8 @@ test.describe("the Profile page on the ADR-0009 floor", () => {
         await expect(field).toHaveCSS("border-bottom-style", "dashed");
       }
       // Every control of the page is at least 2.75rem (44px) tall.
-      for (const control of await page.locator("main").getByRole("button").or(page.locator("main").getByRole("textbox")).or(page.locator("main select")).all()) {
+      const main = page.locator("main");
+      for (const control of await main.getByRole("button").or(main.getByRole("textbox")).or(main.getByRole("combobox")).or(main.getByRole("option")).or(main.locator("select")).all()) {
         if (!(await control.isVisible())) continue;
         const box = (await control.boundingBox())!;
         expect.soft(box.height, `height of ${await control.evaluate((el) => el.outerHTML.slice(0, 80))}`).toBeGreaterThanOrEqual(44);
@@ -368,7 +500,7 @@ test.describe("the Profile page's Sections (ADR-0024)", () => {
     await expect(masterCvSection(page)).toHaveCount(0);
     // The page's head stays on every Section.
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice administrative et financière");
-    await expect(place(page, 1)).toHaveValue("Lyon");
+    await expect(places(page)).toHaveText(["Lyon"]);
 
     await sectionLink(page, s.telecharger).click();
     await expect(page).toHaveURL(new RegExp(`/profils/${id}/telecharger$`));
@@ -414,7 +546,12 @@ test.describe("the Profile page's Sections (ADR-0024)", () => {
 });
 
 test("screenshots of the Profile page at 375, 900 and 1440px, with unsaved Master CV edits", async ({ page }, testInfo) => {
-  const id = await candidateWithProfile(page, "profile-screens");
+  // Several places, as chips with their "Retirer" buttons (#235); Sectors, a Subsector and a Domain (#236).
+  const id = await candidateWithProfile(page, "profile-screens", ["Lyon", "Bordeaux (33)", "Saint-Étienne-de-Saint-Geoirs (38)"], {
+    sectors: ["C", "K"],
+    subsectors: ["29"],
+    domains: ["M13"],
+  });
   const dir = process.env.PROFILE_SCREENSHOTS_DIR;
   if (dir) mkdirSync(dir, { recursive: true });
   for (const [width, height] of [

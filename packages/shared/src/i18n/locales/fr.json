@@ -10,9 +10,11 @@
   },
   "textSize": {
     "label": "Taille du texte",
+    "small": "Petit",
     "standard": "Standard",
-    "large": "Grande",
-    "xlarge": "Très grande"
+    "large": "Moyen",
+    "xlarge": "Grand",
+    "hint": "Mémorisée sur cet appareil."
   },
   "notFound": {
     "title": "Page introuvable",
@@ -52,7 +54,7 @@
       "useProfile": "Utiliser l'un de mes profils",
       "scoreNotFound": "Cette offre ou ce profil n'est plus disponible. Choisissez un autre profil ou capturez l'offre de nouveau.",
       "rescore": "Recalculer le Match Score",
-      "rescoreConfirm": "Un nouveau calcul utilise un Match Score de votre forfait du mois. Le résultat ne change que si l'offre ou votre profil a changé.",
+      "rescoreConfirm": "Un nouveau calcul utilise un Match Score de votre forfait de la semaine. Le résultat ne change que si l'offre ou votre profil a changé.",
       "rescoreConfirmAction": "Confirmer le recalcul",
       "rescoreCancel": "Annuler",
       "rescored": "Match Score recalculé à {{time}}.",
@@ -137,7 +139,15 @@
     "jobSearches": "Recherches d'offres",
     "jobDigests": "Job Digests",
     "subscription": "Abonnement",
-    "mainMenu": "Menu principal"
+    "mainMenu": "Menu principal",
+    "agenda": "Agenda"
+  },
+  "usageMeter": {
+    "title": "Utilisation cette semaine",
+    "percent": "{{percent}} %",
+    "unlimited": "Illimitée",
+    "valueText": "{{used}} sur {{allowed}} utilisés ({{percent}} %)",
+    "subscription": "Voir mon abonnement"
   },
   "signIn": {
     "title": "Se connecter à Jobbbox",
@@ -216,7 +226,7 @@
       "account": "votre compte : adresse e-mail, nom, langue, moyens et sessions de connexion, abonnement et utilisation de vos quotas, accord pour l'IA européenne, délais de relance ;",
       "profiles": "vos profils : critères de recherche, toutes les versions de votre CV, ATS Score, recherches d'offres, réglages et envois du Job Digest ;",
       "applications": "vos candidatures : offre, entretiens, score de correspondance, CV adapté, lettre de motivation, message d'approche, relances envoyées, avis des coachs, contacts enrichis et dossier entreprise ;",
-      "coaching": "vos conversations avec le coach IA, la mémoire du coach (ce qu'il retient de vous), les propositions de votre coach, les accès accordés aux coachs humains et vos séances de coaching payées."
+      "coaching": "vos conversations avec le coach IA, la mémoire du coach (ce qu'il retient de vous), les propositions de votre coach, les accès accordés aux coachs humains et vos séances de coaching payées, avec leur date, leur durée, leur lien de visio et votre note."
     },
     "exportLeftOut": "Il ne contient pas vos secrets de connexion (jetons, lien de désabonnement), les adresses e-mail des coachs humains, les identifiants internes de nos prestataires (Stripe, fournisseurs de contacts) ni le coût de chaque réponse de l'IA.",
     "export": "Télécharger toutes mes données",
@@ -338,10 +348,34 @@
     "scratchIntro": "Remplissez votre CV de référence et vos critères de recherche, puis enregistrez votre profil.",
     "locations": "Lieux",
     "locationsHint": "Jusqu'à 5 lieux : une offre proche de l'un d'eux vous correspond.",
-    "locationItem": "Lieu {{number}}",
-    "addLocation": "Ajouter un lieu",
-    "removeLocation": "Retirer le lieu {{number}}",
-    "anyOfHint": "Cochez tout ce qui vous convient. Rien de coché : pas de préférence."
+    "removeLocation": "Retirer {{place}}",
+    "removePlace": "Retirer",
+    "placeInput": "Ajouter un lieu",
+    "placeInputHint": "Tapez au moins 3 lettres pour voir des suggestions, ou un lieu puis Entrée.",
+    "noPlaceFound": "Aucune suggestion : Entrée ajoute « {{place}} » tel quel.",
+    "placeAlreadyListed": "« {{place}} » est déjà dans votre liste.",
+    "placesFull": "{{max}} lieux au plus : retirez-en un pour en ajouter un autre.",
+    "placeKinds": {
+      "commune": "Commune",
+      "departement": "Département",
+      "region": "Région"
+    },
+    "anyOfHint": "Cochez tout ce qui vous convient. Rien de coché : pas de préférence.",
+    "sectors": "Secteurs",
+    "subsectors": "Sous-secteurs",
+    "domains": "Domaines",
+    "sectorsHint": "Les secteurs d'activité des employeurs (NAF de l'INSEE) : une offre dans l'un d'eux vous correspond. Aucun : pas de préférence.",
+    "subsectorsHint": "Pour préciser les secteurs choisis. Aucun : tout le secteur.",
+    "subsectorsNeedSector": "Choisissez d'abord un secteur.",
+    "domainsHint": "Les domaines professionnels du métier (ROME de France Travail) : un seul suffit. Aucun : pas de préférence.",
+    "industryInputs": {
+      "sectors": "Ajouter un secteur",
+      "subsectors": "Ajouter un sous-secteur",
+      "domains": "Ajouter un domaine"
+    },
+    "industryInputHint": "Tapez pour filtrer la liste, flèches puis Entrée pour choisir.",
+    "noIndustryFound": "Rien ne correspond à « {{query}} ».",
+    "removeChoice": "Retirer {{label}}"
   },
   "cvEditor": {
     "title": "Modifier mon CV de référence",
@@ -518,7 +552,17 @@
     },
     "blocked": "Message bloqué",
     "widen": "Agrandir",
-    "narrow": "Réduire"
+    "narrow": "Réduire",
+    "jobOfferLink": {
+      "read": "J'ai lu cette offre et je l'ai ajoutée à Jobbbox. Elle est à traiter : ouvrez-la pour voir son score de correspondance et la suivre avec l'un de vos profils.",
+      "forbiddenSite": "Je ne peux pas lire les offres de LinkedIn, Indeed ou Glassdoor : leurs conditions d'utilisation l'interdisent. Ouvrez l'offre dans votre navigateur et ajoutez-la avec l'extension Jobbbox.",
+      "unreadable": "Je n'ai pas pu lire cette page : le site ne l'autorise pas, demande une connexion ou ne répond pas. Ouvrez l'offre dans votre navigateur et ajoutez-la avec l'extension Jobbbox.",
+      "notAJobOffer": "Cette page ne semble pas être une offre d'emploi précise (une liste d'offres, par exemple). Envoyez-moi le lien d'une seule offre, ou ajoutez-la avec l'extension Jobbbox.",
+      "card": "Offre ajoutée",
+      "toProcess": "À traiter",
+      "followed": "Suivie",
+      "open": "Ouvrir l'offre"
+    }
   },
   "coachMemory": {
     "open": "Mémoire du coach",
@@ -580,14 +624,14 @@
       "used": {
         "profiles_one": "L'offre {{plan}} comprend {{count}} profil.",
         "profiles_other": "L'offre {{plan}} comprend {{count}} profils.",
-        "matchScores_one": "Vous avez utilisé le Match Score compris ce mois-ci dans l'offre {{plan}}.",
-        "matchScores_other": "Vous avez utilisé les {{count}} Match Scores compris ce mois-ci dans l'offre {{plan}}.",
-        "atsScores_one": "Vous avez utilisé l'ATS Score compris ce mois-ci dans l'offre {{plan}}.",
-        "atsScores_other": "Vous avez utilisé les {{count}} ATS Scores compris ce mois-ci dans l'offre {{plan}}.",
-        "enrichedContacts_one": "Vous avez utilisé le contact enrichi compris ce mois-ci dans l'offre {{plan}}.",
-        "enrichedContacts_other": "Vous avez utilisé les {{count}} contacts enrichis compris ce mois-ci dans l'offre {{plan}}.",
-        "jobSearches_one": "Vous avez utilisé la recherche d'offres comprise ce mois-ci dans l'offre {{plan}}.",
-        "jobSearches_other": "Vous avez utilisé les {{count}} recherches d'offres comprises ce mois-ci dans l'offre {{plan}}."
+        "matchScores_one": "Vous avez utilisé le Match Score compris cette semaine dans l'offre {{plan}}.",
+        "matchScores_other": "Vous avez utilisé les {{count}} Match Scores compris cette semaine dans l'offre {{plan}}.",
+        "atsScores_one": "Vous avez utilisé l'ATS Score compris cette semaine dans l'offre {{plan}}.",
+        "atsScores_other": "Vous avez utilisé les {{count}} ATS Scores compris cette semaine dans l'offre {{plan}}.",
+        "enrichedContacts_one": "Vous avez utilisé le contact enrichi compris cette semaine dans l'offre {{plan}}.",
+        "enrichedContacts_other": "Vous avez utilisé les {{count}} contacts enrichis compris cette semaine dans l'offre {{plan}}.",
+        "jobSearches_one": "Vous avez utilisé la recherche d'offres comprise cette semaine dans l'offre {{plan}}.",
+        "jobSearches_other": "Vous avez utilisé les {{count}} recherches d'offres comprises cette semaine dans l'offre {{plan}}."
       },
       "notIncluded": {
         "profiles": "La création de profils n'est pas comprise dans l'offre {{plan}}.",
@@ -602,7 +646,7 @@
       "upgradeUse": "Avec l'offre {{plan}}, vous pouvez en faire davantage.",
       "upgradeIncludes": "L'offre {{plan}} les comprend.",
       "upgradeIncludesIt": "L'offre {{plan}} la comprend.",
-      "renews": "Votre quota se renouvelle le 1er du mois.",
+      "renews": "Votre quota se renouvelle chaque lundi.",
       "noMore": "Vous ne pouvez pas en créer davantage.",
       "action": "Découvrir l'offre {{plan}}",
       "upgradeIncludesDailyDigest": "L'offre {{plan}} le comprend."
@@ -616,14 +660,14 @@
       "currentPlan": "Votre offre actuelle : {{plan}}",
       "currentPlanUntil": "Votre offre actuelle : {{plan}} jusqu'au {{date}}",
       "checkoutSuccess": "Merci ! Votre paiement est enregistré. Votre nouvelle offre s'affiche ici dès que Stripe nous l'a confirmée, en général en quelques secondes.",
-      "usageTitle": "Votre utilisation ce mois-ci",
+      "usageTitle": "Votre utilisation cette semaine",
       "usage": "{{used}} sur {{limit}}",
       "usageUnlimited": "{{used}} (illimité)",
       "comparisonTitle": "Les offres",
       "quota": "Ce qui est compris",
       "unlimited": "Illimité",
       "notIncluded": "Non compris",
-      "perMonth": "{{count}} par mois",
+      "perWeek": "{{count}} par semaine",
       "choose": "Choisir l'offre {{plan}}",
       "current": "Votre offre",
       "manage": "Gérer mon abonnement",
@@ -891,10 +935,25 @@
       "intro": "Les modifications s'appliquent immédiatement à tous les candidats de l'offre. Laissez un champ vide pour « illimité ».",
       "plan": "Offre {{plan}}",
       "limitHelp": "Nombre, ou vide pour illimité",
-      "monthly": "par mois",
+      "weekly": "par semaine",
       "save": "Enregistrer l'offre {{plan}}",
       "saved": "Quotas de l'offre {{plan}} enregistrés.",
-      "invalid": "Vérifiez les valeurs : des nombres entiers positifs, ou vide pour illimité."
+      "invalid": "Vérifiez les valeurs : des nombres entiers positifs, ou vide pour illimité.",
+      "reset": {
+        "title": "Remettre à zéro l'usage de la semaine",
+        "intro": "Les quotas se comptent par semaine, du lundi 0 h (heure de Paris). Remettre à zéro efface l'usage de la semaine en cours de tous les candidats, pour tous les quotas : chacun repart de zéro jusqu'à lundi prochain. Les semaines passées sont conservées.",
+        "reason": "Raison de la remise à zéro",
+        "reasonHelp": "Obligatoire. Elle est enregistrée dans le journal du back office.",
+        "confirm": "Je confirme la remise à zéro de l'usage de la semaine pour tous les candidats.",
+        "submit": "Remettre à zéro pour tous les candidats",
+        "done_one": "Usage de la semaine remis à zéro : {{count}} candidat concerné.",
+        "done_other": "Usage de la semaine remis à zéro : {{count}} candidats concernés.",
+        "refused": "Rien n'a été remis à zéro : indiquez une raison et cochez la confirmation.",
+        "journalFields": {
+          "reason": "Raison",
+          "candidates": "Candidats concernés"
+        }
+      }
     },
     "coupons": {
       "title": "Codes promo",
@@ -1203,7 +1262,8 @@
         "viewed": "Consultation",
         "validated": "Validation",
         "archived": "Archivage",
-        "restored": "Rétablissement"
+        "restored": "Rétablissement",
+        "reset": "Remise à zéro"
       },
       "none": "Aucune modification enregistrée.",
       "caption": "Modifications du back office, des plus récentes aux plus anciennes",
@@ -1229,11 +1289,18 @@
       "id": "Identifiant",
       "viewVersion": "voir la version {{version}}",
       "viewGuardrail": "voir le garde-fou",
-      "viewEvalCases": "voir les cas d'évaluation"
+      "viewEvalCases": "voir les cas d'évaluation",
+      "tools": "Outils",
+      "toolsIntro": "Avec le filtre Outils, chaque appel aux outils externes (Stripe, Brevo, connexion, tests de connexion, pages lues…) apparaît à côté des modifications du back office, du plus récent au plus ancien. Un appel n'est enregistré qu'avec son outil, son opération, son résultat et sa durée : ni contenu, ni candidat, ni secret.",
+      "toolsCaption": "Modifications du back office et appels aux outils, des plus récents aux plus anciens",
+      "byJobbbox": "Jobbbox (appel d'outil)",
+      "toolCall": "Appel",
+      "toolCallResult": "{{outcome}}, {{duration}}",
+      "toolsLimit": "Seules les {{count}} lignes les plus récentes sont affichées."
     },
     "aiUsage": {
       "title": "Consommation IA",
-      "intro": "Chaque appel à l'IA (toutes les tâches, pas seulement l'AI Coach), les outils que les modèles utilisent et les appels aux API externes (France Travail, enrichissement de contacts), sur la période choisie (heure de Paris).",
+      "intro": "Chaque appel à l'IA (toutes les tâches, pas seulement l'AI Coach), les outils que les modèles utilisent et les appels aux outils externes (France Travail, enrichissement de contacts, Stripe, Brevo, connexion, pages lues…), sur la période choisie (heure de Paris).",
       "estimate": "Estimations aux prix publics des fournisseurs, en dollars convertis à {{rate}} € pour 1 $ (une hypothèse, pas le cours du jour), figées au moment de chaque appel. Agrégats seulement : ni candidat, ni texte.",
       "coachCostLink": "Médiane et 90e centile du coût d'une réponse de l'AI Coach : Coût coach",
       "period": "Période",
@@ -1788,6 +1855,11 @@
     "rejected": "Refusée",
     "abandoned": "Abandonnée"
   },
+  "interviewFormats": {
+    "video": "Visio",
+    "phone": "Téléphone",
+    "on_site": "Sur place"
+  },
   "applications": {
     "title": "Mes candidatures",
     "viewsLabel": "Affichage des candidatures",
@@ -1815,6 +1887,34 @@
     "archivedHidden_one": "{{count}} candidature archivée est masquée.",
     "archivedHidden_other": "{{count}} candidatures archivées sont masquées."
   },
+  "agenda": {
+    "title": "Entretiens et rendez-vous",
+    "none": "Aucun rendez-vous à venir. Ajoutez un entretien avec « Ajouter un entretien », ou depuis chaque candidature, dans sa partie « Entretiens ».",
+    "nonePast": "Aucun rendez-vous passé.",
+    "showPast": "Voir les rendez-vous passés",
+    "showUpcoming": "Voir les rendez-vous à venir",
+    "pastTitle": "Rendez-vous passés",
+    "upcomingTitle": "À venir",
+    "interview": "Entretien",
+    "add": "Ajouter un entretien",
+    "addDialog": {
+      "title": "Ajouter un entretien",
+      "close": "Fermer",
+      "application": "Candidature",
+      "chooseApplication": "Choisissez une candidature",
+      "none": "Aucune candidature en cours. Enregistrez d’abord une offre pour y noter un entretien.",
+      "moveToInterview": "Passer la candidature à Entretien",
+      "moveToInterviewHint": "Elle est à l’étape « {{status}} ». Un entretien ne s’ajoute qu’à une candidature à l’étape « Entretien ».",
+      "notMoved": "Rien n’a été enregistré : un entretien ne s’ajoute qu’à une candidature à l’étape « Entretien ». Cochez « Passer la candidature à Entretien » pour l’ajouter.",
+      "submit": "Ajouter l’entretien",
+      "added": "Entretien ajouté."
+    },
+    "toSchedule": "À planifier",
+    "toScheduleIntro": "Vos séances de coaching payées n'ont pas encore de date. Réservez votre créneau sur la page Cal.com du coach, puis saisissez la date ici.",
+    "coachingSession": "Séance de coaching",
+    "withCoach": "avec {{name}}",
+    "duration": "{{count}} min"
+  },
   "application": {
     "statusLabel": "Statut",
     "statusSaved": "Statut enregistré",
@@ -1826,6 +1926,13 @@
     "interviewsNone": "Aucun entretien enregistré pour l'instant.",
     "interviewsHint": "Vous pourrez noter vos entretiens quand la candidature sera au statut « Entretien ».",
     "interviewDate": "Date et heure de l'entretien (heure de Paris)",
+    "interviewDuration": "Durée en minutes (facultatif)",
+    "interviewDurationHint": "Sans durée, l’entretien est affiché sur une heure.",
+    "interviewFormat": "Format (facultatif)",
+    "interviewFormatNone": "Non précisé",
+    "interviewPlace": "Lieu ou lien (facultatif)",
+    "interviewPlaceHint": "Une adresse, ou le lien de la visio : il devient cliquable.",
+    "interviewUntil": "jusqu’à {{time}}",
     "interviewNote": "Note (facultatif)",
     "interviewNoteHint": "Par exemple : avec la DRH, en visioconférence.",
     "addInterview": "Ajouter l'entretien",
@@ -1857,7 +1964,8 @@
       "dossier": "Dossier entreprise",
       "contacts": "Contacts",
       "offre": "L'offre"
-    }
+    },
+    "seeInAgenda": "Voir dans l'agenda"
   },
   "jobOffer": {
     "details": "En bref",
@@ -1955,6 +2063,8 @@
       "close": "Fermer"
     },
     "remoteWork": "Télétravail : {{option}}",
+    "sectorsWanted": "Secteur : {{sectors}}",
+    "domainsWanted": "Domaine : {{domains}}",
     "resultsLabel": "Offres trouvées",
     "scoreLabel": "Score de correspondance : ",
     "outOf": "/ 100",
@@ -1982,7 +2092,7 @@
       "discovery_failed": "Les sites d'offres d'emploi n'ont pas pu être consultés.",
       "other": "Un problème technique l'a interrompue."
     },
-    "notCounted": "Elle n'est pas comptée dans vos recherches d'offres du mois.",
+    "notCounted": "Elle n'est pas comptée dans vos recherches d'offres de la semaine.",
     "notifications": {
       "label": "Recherches d'offres terminées",
       "done_zero": "Votre recherche d'offres pour « {{profile}} » est terminée : aucune offre trouvée.",
@@ -2063,7 +2173,7 @@
   },
   "enrichedContacts": {
     "title": "Contacts enrichis",
-    "intro": "Trouvez les personnes qui occupent les fonctions à contacter chez l'employeur, puis obtenez leurs coordonnées auprès d'un fournisseur de données sous licence. Chaque contact dont vous obtenez les coordonnées compte dans votre quota mensuel.",
+    "intro": "Trouvez les personnes qui occupent les fonctions à contacter chez l'employeur, puis obtenez leurs coordonnées auprès d'un fournisseur de données sous licence. Chaque contact dont vous obtenez les coordonnées compte dans votre quota hebdomadaire.",
     "needsDossier": "Constituez d'abord le dossier entreprise : il indique les fonctions à rechercher.",
     "searchUnsupported": "Le fournisseur de données actuel ne permet pas de rechercher des personnes par fonction.",
     "find": "Rechercher des contacts",
@@ -2073,7 +2183,7 @@
     "foundNone": "Aucune personne trouvée pour l'instant.",
     "reveal": "Obtenir les coordonnées",
     "revealFor": "Obtenir les coordonnées de {{name}}",
-    "revealHint": "Chaque demande de coordonnées compte pour un contact enrichi dans votre quota du mois. Rien n'est décompté si le fournisseur n'en a pas.",
+    "revealHint": "Chaque demande de coordonnées compte pour un contact enrichi dans votre quota de la semaine. Rien n'est décompté si le fournisseur n'en a pas.",
     "revealing": "Demande en cours…",
     "contactsTitle": "Vos contacts enrichis",
     "email": "E-mail",
@@ -2370,7 +2480,34 @@
     "accessNotGranted": "{{name}} n'a pas accès à vos profils et candidatures.",
     "grant": "Donner l'accès à {{name}}",
     "revoke": "Retirer l'accès à {{name}}",
-    "listTitle": "Choisir un coach"
+    "listTitle": "Choisir un coach",
+    "sessionOn": "Séance avec {{name}}, le {{date}}",
+    "sessionDuration": "Durée : {{count}} minutes",
+    "joinVideo": "Rejoindre la visio avec {{name}}",
+    "seeInAgenda": "Voir dans l'agenda",
+    "toSchedule": "Pas encore de date : réservez votre créneau sur Cal.com, puis saisissez la date."
+  },
+  "coachingSession": {
+    "enterDate": "J'ai réservé : saisir la date",
+    "enterDateFor": "J'ai réservé : saisir la date de la séance avec {{name}}",
+    "edit": "Modifier la date",
+    "editFor": "Modifier la date de la séance avec {{name}}",
+    "title": "Séance avec {{name}}",
+    "close": "Fermer",
+    "date": "Date et heure de la séance (heure de Paris)",
+    "duration": "Durée en minutes (facultatif)",
+    "videoLink": "Lien de la visio (facultatif)",
+    "videoLinkHint": "Le lien reçu à la réservation, qui commence par https://",
+    "note": "Note (facultatif)",
+    "save": "Enregistrer",
+    "working": "Enregistrement…",
+    "cancel": "Annuler",
+    "requiredDate": "Saisissez la date et l'heure de la séance.",
+    "invalidDate": "Cette date n'est pas valide. Saisissez la date et l'heure de la séance.",
+    "invalidDuration": "Saisissez une durée entre 5 et 600 minutes, ou laissez vide.",
+    "invalidVideoLink": "Saisissez un lien qui commence par http:// ou https://, ou laissez vide.",
+    "invalidNote": "La note ne doit pas dépasser 500 caractères.",
+    "error": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez."
   },
   "coachReviews": {
     "title": "Avis de vos coachs",
@@ -2484,7 +2621,7 @@
     "startedAll_other": "{{count}} recherches lancées.",
     "failedFor": "Pas de recherche pour « {{profile}} » : {{reason}}",
     "failureReasons": {
-      "quota": "vous avez utilisé toutes les recherches d'offres de votre offre ce mois-ci.",
+      "quota": "vous avez utilisé toutes les recherches d'offres de votre offre cette semaine.",
       "archived": "ce profil est archivé.",
       "generic": "elle n'a pas pu être lancée. Vérifiez votre connexion et réessayez."
     },

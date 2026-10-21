@@ -1,5 +1,5 @@
 import { builtInInstructions, fillSlots, slotsIn, taskPlaybookSeed } from "@jobhub/coach-knowledge/tasks";
-import type { ContractType, RemoteWork, SearchCriteria } from "@jobhub/shared";
+import { industryLabels, NO_INDUSTRY_REFERENCE, type ContractType, type IndustryReference, type RemoteWork, type SearchCriteria } from "@jobhub/shared";
 import { DataResidencyError } from "./errors";
 
 /** The languages a Job Search words its queries in. */
@@ -50,6 +50,8 @@ interface Wording {
   /** Several values of one criterion, any of which will do: "CDI ou freelance". */
   anyOf: string;
   salary(amount: number): string;
+  /** The Sectors wanted, already joined: "secteur Industrie automobile ou Banque". */
+  sectors(labels: string): string;
 }
 
 const WORDING: Record<QueryLanguage, Wording> = {
@@ -59,12 +61,14 @@ const WORDING: Record<QueryLanguage, Wording> = {
     anyOf: " ou ",
     salary: (amount) =>
       `salaire à partir de ${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(amount).replace(/\s/g, " ")} € brut annuel`,
+    sectors: (labels) => `secteur ${labels}`,
   },
   en: {
     contract: { cdi: "permanent contract", cdd: "fixed-term contract", freelance: "freelance", interim: "temporary work" },
     remote: { on_site: "on site", hybrid: "hybrid remote work", full_remote: "fully remote work" },
     anyOf: " or ",
     salary: (amount) => `salary from €${new Intl.NumberFormat("en-GB", { maximumFractionDigits: 0 }).format(amount)} gross per year`,
+    sectors: (labels) => `${labels} sector`,
   },
 };
 
@@ -84,9 +88,16 @@ export function clean(text: string): string {
  * title and the language; by default, the Search Criteria's own title in French. A query names
  * one place, `location`, one of the Search Criteria's (the first by default): a Job Search runs
  * one search per location (ADR-0025); the contract types and remote-work options wanted are all
- * in each ("CDI ou freelance").
+ * in each ("CDI ou freelance"). The Sectors wanted are named by their labels in `industries`, the
+ * public NAF nomenclature's (#236), in the query's language where it has one: never by a code,
+ * and not at all without them.
  */
-export function buildSearchQuery(criteria: SearchCriteria, query?: JobSearchQuery, location: string | undefined = criteria.locations[0]): string {
+export function buildSearchQuery(
+  criteria: SearchCriteria,
+  query?: JobSearchQuery,
+  location: string | undefined = criteria.locations[0],
+  industries: IndustryReference = NO_INDUSTRY_REFERENCE,
+): string {
   const opening = query === undefined ? openingFor("fr") : issued.get(query);
   if (opening === undefined) {
     throw new DataResidencyError("A Job Search query must be one planJobSearch issued: no other job title may reach the web-search provider");
@@ -102,6 +113,8 @@ export function buildSearchQuery(criteria: SearchCriteria, query?: JobSearchQuer
   if (typeof criteria.minSalary === "number" && Number.isFinite(criteria.minSalary) && criteria.minSalary > 0) {
     parts.push(wording.salary(criteria.minSalary));
   }
+  const sectors = industryLabels(criteria, industries, query?.language ?? "fr").sectors.map(clean).filter(Boolean);
+  if (sectors.length > 0) parts.push(wording.sectors(anyOf(sectors)));
   return parts.join(", ");
 }
 

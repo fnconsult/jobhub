@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { docxCv, MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { catalogueStrings, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
+import { placeInput, placeNames, placeOptions, removePlace } from "./support/locations";
 import { newAddress } from "./support/mailbox";
 
 // Issue #4: a signed-in Candidate uploads a PDF or Word CV; it is read into a
@@ -39,7 +40,7 @@ test.describe("creating the first Profile from a CV", () => {
     // The parsed CV and pre-filled Search Criteria, ready for review.
     await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
     await expect(criteriaOf(page).getByLabel(fr.cvReview.targetRole, { exact: true })).toHaveValue("Directrice financière (lu par l'IA)");
-    await expect(criteriaOf(page).getByLabel(fr.cvReview.locationItem.replace("{{number}}", "1"), { exact: true })).toHaveValue("Lyon");
+    await expect(placeNames(criteriaOf(page))).toHaveText(["Lyon"]);
     await expect(page.getByLabel(fr.cvReview.fullName)).toHaveValue("Marie Dupont");
     await expect(page.getByLabel(fr.cvReview.headline)).toHaveValue("Directrice financière");
     const job1 = page.getByRole("group", { name: "Poste 1" });
@@ -62,8 +63,10 @@ test.describe("creating the first Profile from a CV", () => {
     await page.getByRole("group", { name: fr.cvReview.contractType }).getByRole("checkbox", { name: fr.cvReview.contractTypes.freelance }).check();
     await page.getByRole("group", { name: fr.cvReview.remoteWork }).getByRole("checkbox", { name: fr.cvReview.remoteWorkOptions.hybrid }).check();
     // A second place to search (ADR-0025).
-    await criteriaOf(page).getByRole("button", { name: fr.cvReview.addLocation }).click();
-    await criteriaOf(page).getByLabel(fr.cvReview.locationItem.replace("{{number}}", "2"), { exact: true }).fill("Grenoble");
+    await placeInput(criteriaOf(page)).fill("Gren");
+    await placeOptions(page).filter({ hasText: "Grenoble (38)" }).click();
+    await expect(placeNames(criteriaOf(page))).toHaveText(["Lyon", "Grenoble (38)"]);
+    await expect(placeInput(criteriaOf(page))).toBeFocused();
     await job1.getByLabel(fr.cvReview.period).fill("2015 – 2025");
     await page.getByRole("button", { name: fr.cvReview.addExperience }).click();
     const job2 = page.getByRole("group", { name: "Poste 2" });
@@ -87,7 +90,7 @@ test.describe("creating the first Profile from a CV", () => {
     await expect(checked(fr.cvReview.contractType)).toHaveCount(2);
     await expect(option(fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.hybrid)).toBeChecked();
     await expect(checked(fr.cvReview.remoteWork)).toHaveCount(1);
-    await expect(savedCriteria.getByLabel(fr.cvReview.locationItem.replace("{{number}}", "2"), { exact: true })).toHaveValue("Grenoble");
+    await expect(placeNames(savedCriteria)).toHaveText(["Lyon", "Grenoble (38)"]);
     await expect(page.getByRole("region", { name: fr.profile.masterCv }).getByText(/^Version 1 · /)).toBeVisible();
     // The whole Master CV, as its version page shows it.
     await page.goto(`${new URL(page.url()).pathname}/versions/1`);
@@ -134,7 +137,7 @@ test.describe("creating the first Profile from a CV", () => {
     await uploadCv(page, pdfFile([...MARIE_DUPONT_CV, "Centres d'intérêt", "E2E_AI_DOWN"]));
 
     await expect(criteriaOf(page).getByLabel(fr.cvReview.targetRole, { exact: true })).toHaveValue("Directrice financière");
-    await expect(criteriaOf(page).getByLabel(fr.cvReview.locationItem.replace("{{number}}", "1"), { exact: true })).toHaveValue("Lyon (69003)");
+    await expect(placeNames(criteriaOf(page))).toHaveText(["Lyon (69003)"]);
     await expect(page.getByRole("group", { name: "Poste 2" }).getByLabel(fr.cvReview.employer)).toHaveValue("Renault");
     await expect(page.getByRole("group", { name: "Langue 2" }).getByLabel(fr.cvReview.level)).toHaveValue("notions");
   });
@@ -143,7 +146,8 @@ test.describe("creating the first Profile from a CV", () => {
     await signInWithMagicLink(page, newAddress("required"));
     await uploadCv(page, pdfFile(MARIE_DUPONT_CV));
     await criteriaOf(page).getByLabel(fr.cvReview.targetRole, { exact: true }).fill("");
-    await criteriaOf(page).getByLabel(fr.cvReview.locationItem.replace("{{number}}", "1"), { exact: true }).fill("  ");
+    await removePlace(criteriaOf(page), "Lyon").click();
+    await expect(placeNames(criteriaOf(page))).toHaveCount(0);
     await page.getByRole("button", { name: fr.cvReview.save }).click();
 
     await expect(page.locator(".notice[role=alert]")).toHaveText(`Certains champs sont à compléter ou à corriger : ${fr.cvReview.targetRole}, ${fr.cvReview.locations}.`);
@@ -211,6 +215,8 @@ test.describe("creating the first Profile from a CV", () => {
     await signInWithMagicLink(page, newAddress("floor"));
     await page.goto("/profils/nouveau");
     const allowed = new Set(catalogueStrings(fr));
+    // The Usage Meter's percentage, a catalogue string with the week's number in it.
+    allowed.add(fr.usageMeter.percent.replace("{{percent}}", "0"));
     for (const t of await renderedTexts(page)) {
       expect.soft(allowed.has(t.text), `"${t.text}" comes from the catalogue`).toBe(true);
       expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);

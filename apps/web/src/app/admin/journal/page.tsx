@@ -111,6 +111,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     if (entrySection === "plan_quotas" && (LIMITED_QUOTAS.includes(field as LimitedQuota) || field === "jobDigest")) {
       return t(`billing.quotas.${field as LimitedQuota | "jobDigest"}`);
     }
+    if (entrySection === "plan_quotas" && (field === "reason" || field === "candidates")) return t(`admin.planQuotas.reset.journalFields.${field}`);
     if (entrySection === "human_coaches" && HUMAN_COACH_FIELDS.includes(field as HumanCoachField)) return t(`admin.humanCoaches.${field as HumanCoachField}`);
     if (entrySection === "roles" && field === "roles") return t("admin.administrators.roles");
     if (SEARCH_SITES_SECTIONS.includes(entrySection) && field === "enabled") return t("admin.searchSites.status");

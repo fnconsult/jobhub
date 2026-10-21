@@ -1,4 +1,4 @@
-import { FREE_PLAN, LIMITED_QUOTAS, MONTHLY_QUOTAS, type PlanQuotas } from "@jobhub/shared";
+import { FREE_PLAN, LIMITED_QUOTAS, WEEKLY_QUOTAS, type PlanQuotas } from "@jobhub/shared";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentCandidate } from "@/auth/server";
@@ -27,7 +27,7 @@ const QUOTA_ROWS = [...LIMITED_QUOTAS, "jobDigest"] as const satisfies readonly 
 const MAX_CODE_LENGTH = 40;
 
 /**
- * Mon compte's Subscription Section (ADR-0024), at its own address: the Candidate's Plan (and the discount their subscription gets), this month's usage, the offered
+ * Mon compte's Subscription Section (ADR-0024), at its own address: the Candidate's Plan (and the discount their subscription gets), this week's usage, the offered
  * Plans side by side in rank order with their prices, and the way to Stripe (and their invoices there).
  * A hidden Plan is not compared, even the Candidate's. A shared link's `?code=` is checked and carried
  * to Checkout, where it applies to the Plans it is for; checkout works without it all the same.
@@ -40,7 +40,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   const { checkout, error, code: codeParam, codeRefused, plan: refusedPlan } = await searchParams;
   const code = typeof codeParam === "string" ? codeParam.trim().slice(0, MAX_CODE_LENGTH) : "";
   const billing = getBilling();
-  const [{ plan, stripeStatus, endsAt, quotas, usedThisMonth }, plans, allQuotas, prices, hasInvoices, discount] = await Promise.all([
+  const [{ plan, stripeStatus, endsAt, quotas, usedThisWeek }, plans, allQuotas, prices, hasInvoices, discount] = await Promise.all([
     billing.entitlements(candidate.id),
     billing.plans(),
     billing.planQuotas(),
@@ -97,13 +97,13 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
 
       <h3>{t("billing.page.usageTitle")}</h3>
       <dl className="usage-tiles">
-        {MONTHLY_QUOTAS.filter((quota) => quotas[quota] !== 0).map((quota) => (
+        {WEEKLY_QUOTAS.filter((quota) => quotas[quota] !== 0).map((quota) => (
           <div key={quota}>
             <dt>{t(`billing.quotas.${quota}`)}</dt>
             <dd>
               {quotas[quota] === null
-                ? t("billing.page.usageUnlimited", { used: usedThisMonth[quota] })
-                : t("billing.page.usage", { used: usedThisMonth[quota], limit: quotas[quota] })}
+                ? t("billing.page.usageUnlimited", { used: usedThisWeek[quota] })
+                : t("billing.page.usage", { used: usedThisWeek[quota], limit: quotas[quota] })}
             </dd>
           </div>
         ))}

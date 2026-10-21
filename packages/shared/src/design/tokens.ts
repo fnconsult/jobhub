@@ -37,9 +37,14 @@ export const designTokens = {
   fontFamily: {
     sans: 'ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif',
   },
-  /** Multipliers applied to every type size by the Candidate's text-size setting. */
+  /**
+   * Multipliers applied to every type size by the Candidate's text-size
+   * setting, smallest first (the slider's order). "small" is the 16px floor;
+   * "large" and "xlarge" keep their keys so a remembered setting reads the same.
+   */
   textSize: {
-    standard: 1,
+    small: 1,
+    standard: 1.0625,
     large: 1.125,
     xlarge: 1.25,
   },

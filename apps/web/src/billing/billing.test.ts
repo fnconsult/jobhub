@@ -24,10 +24,10 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
     expect(entitlements.plan).toBe("free");
     expect(entitlements.quotas).toEqual({
       profiles: 1,
-      matchScores: 3,
+      matchScores: 1,
       atsScores: 1,
       enrichedContacts: 0,
-      jobSearches: 3,
+      jobSearches: 1,
       jobDigest: "none",
     });
   });
@@ -35,9 +35,9 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
   describe("Plan Quotas in the back office", () => {
     it("lists every Plan's quotas, starting with the ones Jobbbox launches with", async () => {
       expect(await t.billing.planQuotas()).toEqual({
-        free: { profiles: 1, matchScores: 3, atsScores: 1, enrichedContacts: 0, jobSearches: 3, jobDigest: "none" },
-        standard: { profiles: 3, matchScores: null, atsScores: null, enrichedContacts: 0, jobSearches: 30, jobDigest: "weekly" },
-        premium: { profiles: null, matchScores: null, atsScores: null, enrichedContacts: 20, jobSearches: null, jobDigest: "daily" },
+        free: { profiles: 1, matchScores: 1, atsScores: 1, enrichedContacts: 0, jobSearches: 1, jobDigest: "none" },
+        standard: { profiles: 3, matchScores: null, atsScores: null, enrichedContacts: 0, jobSearches: 7, jobDigest: "weekly" },
+        premium: { profiles: null, matchScores: null, atsScores: null, enrichedContacts: 5, jobSearches: null, jobDigest: "daily" },
       });
     });
 
@@ -45,11 +45,12 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       const marie = await t.signUp("marie.dupont@example.fr");
       await t.billing.use(marie.id, "matchScores");
 
-      await t.billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, matchScores: 1, jobDigest: "weekly" });
+      await t.billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, matchScores: 2, jobDigest: "weekly" });
       await t.migrateAgain();
 
-      expect((await t.billing.entitlements(marie.id)).quotas).toMatchObject({ matchScores: 1, jobDigest: "weekly" });
-      expect(await t.billing.use(marie.id, "matchScores")).toMatchObject({ allowed: false, limit: 1 });
+      expect((await t.billing.entitlements(marie.id)).quotas).toMatchObject({ matchScores: 2, jobDigest: "weekly" });
+      expect(await t.billing.use(marie.id, "matchScores")).toEqual({ allowed: true, remaining: 0 });
+      expect(await t.billing.use(marie.id, "matchScores")).toMatchObject({ allowed: false, limit: 2 });
     });
 
     it("gives a database migrated before Job Searches had a quota their starting quotas", async () => {
@@ -57,13 +58,43 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
 
       await t.migrateAgain();
 
-      expect(await t.billing.planQuotas()).toMatchObject({ free: { jobSearches: 3 }, standard: { jobSearches: 30 }, premium: { jobSearches: null } });
+      expect(await t.billing.planQuotas()).toMatchObject({ free: { jobSearches: 1 }, standard: { jobSearches: 7 }, premium: { jobSearches: null } });
+    });
+
+    it("turns a database counting by the month into one counting by the week, once (ADR-0032)", async () => {
+      // As before weekly counting: a `month` column, the monthly starting amounts, one amount an Administrator edited.
+      const marie = await t.signUp("marie.dupont@example.fr");
+      await t.database.query("ALTER TABLE quota_usage RENAME COLUMN week TO month");
+      await t.database.query("INSERT INTO quota_usage (candidate_id, quota, month, used) VALUES ($1, 'matchScores', '2026-10', 3)", [marie.id]);
+      await t.database.query("UPDATE plan_quota SET match_scores = 3, ats_scores = 2, job_searches = 3 WHERE plan = 'free'");
+      await t.database.query("UPDATE plan_quota SET job_searches = 30 WHERE plan = 'standard'");
+      await t.database.query("UPDATE plan_quota SET enriched_contacts = 20 WHERE plan = 'premium'");
+
+      await t.migrateAgain();
+
+      // Each amount still at its monthly starting value is divided by about 4.3 weeks, rounded up;
+      // one an Administrator edited, 0 and unlimited stay as they are.
+      expect(await t.billing.planQuotas()).toMatchObject({
+        free: { matchScores: 1, atsScores: 2, enrichedContacts: 0, jobSearches: 1 },
+        standard: { matchScores: null, jobSearches: 7 },
+        premium: { enrichedContacts: 5, jobSearches: null },
+      });
+      // The month's uses are history: the week starts at nothing.
+      expect((await t.billing.entitlements(marie.id)).usedThisWeek.matchScores).toBe(0);
+      const { rows } = await t.database.query("SELECT week, used FROM quota_usage WHERE candidate_id = $1", [marie.id]);
+      expect(rows).toEqual([{ week: "2026-10", used: 3 }]);
+
+      // Later migrations leave the weekly amounts alone.
+      await t.billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, matchScores: 4 });
+      await t.migrateAgain();
+      expect((await t.billing.planQuotas()).free?.matchScores).toBe(4);
     });
   });
 
-  describe("monthly quotas, enforced server-side", () => {
-    it("lets a Free Candidate compute 3 Match Scores a month, then asks them to upgrade to Standard", async () => {
+  describe("weekly quotas, enforced server-side", () => {
+    it("lets a Free Candidate compute 3 Match Scores a week when their Plan grants 3, then asks them to upgrade to Standard", async () => {
       const marie = await t.signUp("marie.dupont@example.fr");
+      await t.billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, matchScores: 3 });
 
       const allowed = [];
       for (let i = 0; i < 3; i++) allowed.push(await t.billing.use(marie.id, "matchScores"));
@@ -74,15 +105,27 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       expect(refused).toEqual({ allowed: false, quota: "matchScores", plan: "free", planName: FREE, limit: 3, upgradeTo: "standard", upgradeToName: STANDARD });
     });
 
-    it("starts counting again on the first day of the month, in French time", async () => {
+    it("starts counting again each Monday at midnight, in French time", async () => {
       const marie = await t.signUp("marie.dupont@example.fr");
-      t.clock.now = new Date("2026-10-31T22:30:00Z"); // 23:30 in Paris, still October
+      t.clock.now = new Date("2026-10-18T21:30:00Z"); // 23:30 on Sunday 18 October in Paris
       await t.billing.use(marie.id, "atsScores");
       expect((await t.billing.use(marie.id, "atsScores")).allowed).toBe(false);
 
-      t.clock.now = new Date("2026-10-31T23:30:00Z"); // 00:30 on 1 November in Paris
+      t.clock.now = new Date("2026-10-18T22:30:00Z"); // 00:30 on Monday 19 October in Paris
 
       expect(await t.billing.use(marie.id, "atsScores")).toEqual({ allowed: true, remaining: 0 });
+    });
+
+    it("counts a week across the change to winter time and the turn of the month", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      t.clock.now = new Date("2026-10-26T08:00:00Z"); // Monday 26 October, after the clocks went back
+      await t.billing.use(marie.id, "atsScores");
+
+      t.clock.now = new Date("2026-11-01T22:59:00Z"); // 23:59 on Sunday 1 November in Paris: the same week
+      expect((await t.billing.use(marie.id, "atsScores")).allowed).toBe(false);
+
+      t.clock.now = new Date("2026-11-01T23:00:00Z"); // midnight on Monday 2 November in Paris
+      expect((await t.billing.use(marie.id, "atsScores")).allowed).toBe(true);
     });
 
     it("never refuses a quota the Plan leaves unlimited", async () => {
@@ -98,18 +141,20 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       const marie = await t.signUp("marie.dupont@example.fr");
       const jean = await t.signUp("jean.martin@example.fr");
 
+      await t.billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, matchScores: 3 });
+
       const decisions = await Promise.all(Array.from({ length: 8 }, () => t.billing.use(marie.id, "matchScores")));
 
       expect(decisions.filter((decision) => decision.allowed)).toHaveLength(3);
       expect(await t.billing.use(jean.id, "matchScores")).toEqual({ allowed: true, remaining: 2 });
     });
 
-    it("lets a Free Candidate start 3 Job Searches a month, then asks them to upgrade to Standard", async () => {
+    it("lets a Free Candidate start 1 Job Search a week, then asks them to upgrade to Standard", async () => {
       const marie = await t.signUp("marie.dupont@example.fr");
 
-      for (let i = 0; i < 3; i++) expect((await t.billing.use(marie.id, "jobSearches")).allowed).toBe(true);
+      expect((await t.billing.use(marie.id, "jobSearches")).allowed).toBe(true);
 
-      expect(await t.billing.use(marie.id, "jobSearches")).toEqual({ allowed: false, quota: "jobSearches", plan: "free", planName: FREE, limit: 3, upgradeTo: "standard", upgradeToName: STANDARD });
+      expect(await t.billing.use(marie.id, "jobSearches")).toEqual({ allowed: false, quota: "jobSearches", plan: "free", planName: FREE, limit: 1, upgradeTo: "standard", upgradeToName: STANDARD });
     });
 
     it("points a Free Candidate wanting Enriched Contacts to Premium, the first Plan that has any", async () => {
@@ -131,7 +176,7 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       await t.billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, enrichedContacts: 1 });
       expect(await t.billing.allows(marie.id, "enrichedContacts")).toEqual({ allowed: true, remaining: 0 });
       expect(await t.billing.allows(marie.id, "enrichedContacts")).toEqual({ allowed: true, remaining: 0 });
-      expect((await t.billing.entitlements(marie.id)).usedThisMonth.enrichedContacts).toBe(0);
+      expect((await t.billing.entitlements(marie.id)).usedThisWeek.enrichedContacts).toBe(0);
     });
 
     it("gives back a use whose work could not be done", async () => {
@@ -142,7 +187,7 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       await t.billing.release(marie.id, "enrichedContacts");
       await t.billing.release(marie.id, "enrichedContacts");
 
-      expect((await t.billing.entitlements(marie.id)).usedThisMonth.enrichedContacts).toBe(0);
+      expect((await t.billing.entitlements(marie.id)).usedThisWeek.enrichedContacts).toBe(0);
       expect((await t.billing.use(marie.id, "enrichedContacts")).allowed).toBe(true);
     });
   });
@@ -163,14 +208,34 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
     });
   });
 
-  it("tells a Candidate how much of each monthly quota they have used this month", async () => {
+  it("tells a Candidate how much of each weekly quota they have used this week", async () => {
     const marie = await t.signUp("marie.dupont@example.fr");
+    await t.billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, matchScores: 3 });
     await t.billing.use(marie.id, "matchScores");
     await t.billing.use(marie.id, "matchScores");
-    t.clock.now = new Date("2026-11-02T10:00:00+01:00");
+    expect((await t.billing.entitlements(marie.id)).usedThisWeek).toEqual({ matchScores: 2, atsScores: 0, enrichedContacts: 0, jobSearches: 0 });
+    t.clock.now = new Date("2026-10-19T10:00:00+02:00"); // the next Monday
     await t.billing.use(marie.id, "atsScores");
 
-    expect((await t.billing.entitlements(marie.id)).usedThisMonth).toEqual({ matchScores: 0, atsScores: 1, enrichedContacts: 0, jobSearches: 0 });
+    expect((await t.billing.entitlements(marie.id)).usedThisWeek).toEqual({ matchScores: 0, atsScores: 1, enrichedContacts: 0, jobSearches: 0 });
+  });
+
+  it("resets this week's usage of every Candidate, and only this week's", async () => {
+    const marie = await t.signUp("marie.dupont@example.fr");
+    const jean = await t.signUp("jean.martin@example.fr");
+    t.clock.now = new Date("2026-10-08T10:00:00+02:00"); // the week before
+    await t.billing.use(marie.id, "matchScores");
+    t.clock.now = new Date("2026-10-15T10:00:00+02:00");
+    await t.billing.use(marie.id, "matchScores");
+    await t.billing.use(jean.id, "jobSearches");
+
+    expect(await t.billing.resetWeeklyUsage()).toEqual({ week: "2026-10-12", candidates: 2 });
+
+    expect((await t.billing.entitlements(marie.id)).usedThisWeek.matchScores).toBe(0);
+    expect((await t.billing.entitlements(jean.id)).usedThisWeek.jobSearches).toBe(0);
+    expect((await t.billing.use(marie.id, "matchScores")).allowed).toBe(true);
+    const { rows } = await t.database.query("SELECT week FROM quota_usage WHERE candidate_id = $1 ORDER BY week", [marie.id]);
+    expect(rows.map((row) => row.week)).toEqual(["2026-10-05", "2026-10-12"]);
   });
 
   describe("Stripe checkout", () => {
@@ -355,7 +420,7 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
 
       const entitlements = await t.billing.entitlements(marie.id);
       expect(entitlements.plan).toBe("standard");
-      expect(entitlements.quotas).toEqual({ profiles: 3, matchScores: null, atsScores: null, enrichedContacts: 0, jobSearches: 30, jobDigest: "weekly" });
+      expect(entitlements.quotas).toEqual({ profiles: 3, matchScores: null, atsScores: null, enrichedContacts: 0, jobSearches: 7, jobDigest: "weekly" });
     });
 
     it("follows a change of Plan made in the customer portal", async () => {
@@ -366,7 +431,7 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
 
       const entitlements = await t.billing.entitlements(marie.id);
       expect(entitlements.plan).toBe("premium");
-      expect(entitlements.quotas).toEqual({ profiles: null, matchScores: null, atsScores: null, enrichedContacts: 20, jobSearches: null, jobDigest: "daily" });
+      expect(entitlements.quotas).toEqual({ profiles: null, matchScores: null, atsScores: null, enrichedContacts: 5, jobSearches: null, jobDigest: "daily" });
     });
 
     it("keeps the Plan while Stripe retries a failed payment, and drops to Free once the subscription ends", async () => {
@@ -545,18 +610,18 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       expect((await t.billing.entitlements(marie.id)).plan).toBe("free");
     });
 
-    it("lets a Premium Candidate who used their 20 Enriched Contacts know no Plan offers more", async () => {
+    it("lets a Premium Candidate who used their 5 Enriched Contacts know no Plan offers more", async () => {
       const marie = await subscribed("marie.dupont@example.fr", "premium");
       await deliver(subscriptionEvent("customer.subscription.created", { customer: marie.customer, price: FAKE_STRIPE_PRICES.premium, status: "active" }));
 
-      for (let i = 0; i < 20; i++) await t.billing.use(marie.id, "enrichedContacts");
+      for (let i = 0; i < 5; i++) await t.billing.use(marie.id, "enrichedContacts");
 
       expect(await t.billing.use(marie.id, "enrichedContacts")).toEqual({
         allowed: false,
         quota: "enrichedContacts",
         plan: "premium",
         planName: PREMIUM,
-        limit: 20,
+        limit: 5,
         upgradeTo: null, upgradeToName: null,
       });
     });

@@ -1,4 +1,4 @@
-import type { SearchCriteria } from "@jobhub/shared";
+import { referenceLabels, type IndustryReference, type SearchCriteria } from "@jobhub/shared";
 import { notFound, redirect } from "next/navigation";
 import { Fragment, cache } from "react";
 import { getActionCards } from "@/action-cards/server";
@@ -120,8 +120,10 @@ async function AtsScore({ page, t }: { page: Page; t: T }) {
 }
 
 /** An archived Profile's Search Criteria: read-only until it is restored. */
-export function ArchivedCriteria({ criteria, locale, t }: { criteria: SearchCriteria; locale: string; t: T }) {
+export function ArchivedCriteria({ criteria, locale, t, industries }: { criteria: SearchCriteria; locale: string; t: T; industries: IndustryReference }) {
   const notSpecified = t("profile.notSpecified");
+  const language = locale.startsWith("en") ? "en" : "fr";
+  const labels = (codes: string[], entries: IndustryReference["sectors"]) => anyOfInWords(referenceLabels(codes, entries, language), locale) || notSpecified;
   const properties: [string, string][] = [
     [t("cvReview.targetRole"), criteria.targetRole],
     [t("cvReview.locations"), anyOfInWords(criteria.locations, locale)],
@@ -131,6 +133,9 @@ export function ArchivedCriteria({ criteria, locale, t }: { criteria: SearchCrit
     ],
     [t("cvReview.contractType"), contractTypesInWords(criteria.contractTypes, t, locale) || notSpecified],
     [t("cvReview.remoteWork"), remoteWorkOptionsInWords(criteria.remoteWorkOptions, t, locale) || notSpecified],
+    [t("cvReview.sectors"), labels(criteria.sectors, industries.sectors)],
+    [t("cvReview.subsectors"), labels(criteria.subsectors, industries.subsectors)],
+    [t("cvReview.domains"), labels(criteria.domains, industries.domains)],
   ];
   return (
     <dl className="props" aria-label={t("cvReview.searchCriteria")}>

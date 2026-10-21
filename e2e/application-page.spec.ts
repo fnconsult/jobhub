@@ -38,12 +38,14 @@ async function openApplication(page: Page, label: string): Promise<{ id: string;
     headers: { origin },
   });
   expect(profile.status(), await profile.text()).toBe(201);
-  const sourceUrl = `https://www.apec.fr/offres/daf-${unique()}`;
+  // A Job Offer of its own (one per content), so what one test does to it (its summary written) is not another's.
+  const ref = unique();
+  const sourceUrl = `https://www.apec.fr/offres/daf-${ref}`;
   const captured = await page.request.post("/api/job-offers", {
     data: {
       source: { url: sourceUrl },
       title: TITLE,
-      content: "Groupe Ferlac recrute son DAF. Vous pilotez la consolidation IFRS et la trésorerie du groupe.",
+      content: `Groupe Ferlac recrute son DAF (réf. ${ref}). Vous pilotez la consolidation IFRS et la trésorerie du groupe.`,
       employer: "Groupe Ferlac",
       location: "Villeurbanne (69)",
       contractType: "cdi",
@@ -91,7 +93,7 @@ test.describe("the Application page", () => {
     const summary = head.locator(`dl[aria-label="${fr.jobOffer.summaryLabel}"]`);
     await expect(summary.locator("dt")).toHaveText(fr.jobOffer.summaryLabel);
     await expect(summary.locator("dd")).toHaveText(`Résumé du poste : ${TITLE}.`);
-    await expect(head.getByRole("status").filter({ hasText: fr.jobOffer.summaryPending })).toHaveCount(0);
+    await expect(head.getByText(fr.jobOffer.summaryPending)).toHaveCount(0);
     // Stored: shown straight away when the page is shown again.
     await page.reload();
     await expect(summary.locator("dd")).toHaveText(`Résumé du poste : ${TITLE}.`);
@@ -131,6 +133,29 @@ test.describe("the Application page", () => {
     await expect(page.getByRole("banner")).toContainText(fr.application.sections.correspondance);
 
     await expectAccessibilityFloor(page);
+  });
+
+  // The Job Offer Summary's "in progress" line is said politely, without being a second status on the
+  // page: the page's own status message (here, the Application Status saved) stays the one status.
+  test("while the Job Offer Summary is being written, the status saved is the page's one status", async ({ page }) => {
+    // The summary is held back until the status is changed.
+    let releaseSummary = () => {};
+    const summaryHeld = new Promise<void>((resolve) => (releaseSummary = resolve));
+    await page.route("**/api/applications/*/job-offer-summary", async (route) => {
+      await summaryHeld;
+      await route.continue();
+    });
+    await openApplication(page, "application-page-summary-pending");
+    const head = page.getByRole("main").locator("header").first();
+    await expect(head.getByText(fr.jobOffer.summaryPending)).toBeVisible();
+
+    await page.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.applied });
+    await expect(page.getByRole("status")).toHaveText(fr.application.statusSaved);
+    await expect(head.getByText(fr.jobOffer.summaryPending)).toBeVisible();
+
+    releaseSummary();
+    await expect(head.locator(`dl[aria-label="${fr.jobOffer.summaryLabel}"]`).locator("dd")).toHaveText(`Résumé du poste : ${TITLE}.`);
+    await expect(head.getByText(fr.jobOffer.summaryPending)).toHaveCount(0);
   });
 
   test("the Match Score's breakdown gives each criterion's verdict in words first", async ({ page }) => {

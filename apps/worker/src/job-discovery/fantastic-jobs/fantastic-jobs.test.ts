@@ -8,7 +8,7 @@ const ACTIVE_ATS = readFileSync(new URL("../fixtures/fantastic-jobs/active-ats.j
 
 const NOW = new Date("2026-10-20T12:00:00Z");
 
-const criteria: SearchCriteria = { targetRole: "Chef de projet", locations: ["Paris"], contractTypes: [], remoteWorkOptions: [] };
+const criteria: SearchCriteria = { targetRole: "Chef de projet", locations: ["Paris"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] };
 
 interface Answer {
   status?: number;

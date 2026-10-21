@@ -2,6 +2,7 @@ import { expect, request as playwrightRequest, test, type APIRequestContext } fr
 import { signInWithMagicLink } from "./support/candidate";
 import { e2eExtensionDir, unpackedExtensionId } from "./support/extension";
 import { newAddress } from "./support/mailbox";
+import { subscribe } from "./support/plan";
 
 // Issue #9: a Job Offer is captured over HTTP (shared, deduplicated by source
 // URL and content) and a CV, Master or Tailored, gets a Match Score against
@@ -177,7 +178,10 @@ test.describe("Match Score", () => {
   });
 
   test("a signed-in Candidate gets the Match Score of a Profile's Master CV, against that Profile's Search Criteria", async ({ page }) => {
-    await signInWithMagicLink(page, newAddress("match-master"));
+    // Standard: two Match Scores, more than the Free Plan's one a week.
+    const email = newAddress("match-master");
+    await signInWithMagicLink(page, email);
+    await subscribe(page, email, "standard");
     const saved = await page.request.post("/api/profiles", { data: { masterCv, searchCriteria }, headers: { origin } });
     expect(saved.status(), await saved.text()).toBe(201);
     const { id: profileId } = await saved.json();

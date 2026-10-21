@@ -174,10 +174,10 @@ const withoutEmails = (text: string) => text.replace(EMAIL, "[adresse masquée]"
 
 const QUOTA_NAMES: Record<keyof PlanQuotas, string> = {
   profiles: "profils détenus à la fois",
-  matchScores: "Match Scores par mois",
-  atsScores: "ATS Scores par mois",
-  enrichedContacts: "contacts enrichis par mois",
-  jobSearches: "recherches d'offres par mois",
+  matchScores: "Match Scores par semaine",
+  atsScores: "ATS Scores par semaine",
+  enrichedContacts: "contacts enrichis par semaine",
+  jobSearches: "recherches d'offres par semaine",
   jobDigest: "fréquence du Job Digest",
 };
 
@@ -217,7 +217,7 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
     );
     return [
       heading("planQuotas"),
-      "Limites d'usage de chaque offre. Les quotas mensuels se comptent par mois civil (heure de Paris). Une modification s'applique immédiatement à tous les candidats de l'offre. Un candidat qui atteint un quota voit une invitation à passer à l'offre supérieure (Upgrade Prompt).",
+      "Limites d'usage de chaque offre. Les quotas hebdomadaires se comptent par semaine, du lundi 0 h (heure de Paris). Une modification s'applique immédiatement à tous les candidats de l'offre. Un candidat qui atteint un quota voit une invitation à passer à l'offre supérieure (Upgrade Prompt).",
       ...lines,
     ].join("\n");
   },
@@ -382,6 +382,7 @@ const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
   validated: "validation",
   archived: "archivage",
   restored: "rétablissement",
+  reset: "remise à zéro",
 };
 
 /** A Journal entry for the assistant: never a secret (none is recorded), never an address, Human Coaches by name. */

@@ -84,7 +84,9 @@ import {
   isOnDomain,
   isPostingTooOld,
   MAX_POSTING_AGE_DAYS,
+  NO_INDUSTRY_REFERENCE,
   type DiscoveryMetrics,
+  type IndustryReference,
   type JobDiscoverySettings,
   type FantasticJobsMetrics,
   type FranceTravailMetrics,
@@ -97,15 +99,25 @@ import { readAtsPosting } from "./ats";
 import { DEFAULT_BUDGET, type JobDiscoveryBudget } from "./budget";
 import type { FantasticJobs } from "./fantastic-jobs";
 import type { FranceTravail } from "./france-travail";
-import { htmlToText, metaRobots } from "./html";
-import { countJobPostings, readJobPosting } from "./job-posting";
 import { listingPageLinks } from "./listing-page";
 import { searchPages } from "./search-pages";
-import { createPoliteFetcher, realClock, recordingJobBoardFetch, type Clock, type JsonResult, type RefusalReason } from "./polite-fetch";
+import {
+  countJobPostings,
+  createPoliteFetcher,
+  DEFAULT_USER_AGENT,
+  htmlToText,
+  metaRobots,
+  readJobPosting,
+  realClock,
+  recordingJobBoardFetch,
+  type Clock,
+  type JsonResult,
+  type RefusalReason,
+} from "@jobhub/shared/page-reading";
 
 export { MAX_POSTING_AGE_DAYS } from "@jobhub/shared";
 export { DEFAULT_BUDGET, jobDiscoveryBudgetFromEnv, type JobDiscoveryBudget } from "./budget";
-export type { RefusalReason } from "./polite-fetch";
+export type { RefusalReason } from "@jobhub/shared/page-reading";
 export { franceTravailFromEnv, type FranceTravail } from "./france-travail";
 export { chargedCostEur, eurPerJobFromEnv, fantasticJobsFromEnv, type FantasticJobs } from "./fantastic-jobs";
 
@@ -157,6 +169,11 @@ export interface JobDiscoveryOptions {
    * Job Offer Summary and sector written when the LLM reads a page (default: none written).
    */
   taskPlaybooks?: TaskPlaybookReader;
+  /**
+   * The NAF and ROME-domain labels (#236), read at the start of each run: the web searches name the
+   * Sectors wanted by them. Default, and when it throws: none, so no Sector is named.
+   */
+  industries?: () => Promise<IndustryReference>;
 }
 
 export interface DiscoverRequest {
@@ -212,7 +229,7 @@ export interface JobDiscovery {
 /** Job Searches look for jobs in France: the provider favours French pages. */
 const SEARCH_COUNTRY = "FR";
 
-export const DEFAULT_USER_AGENT = "JobbboxBot/1.0 (+https://jobbbox.fr/robot)";
+export { DEFAULT_USER_AGENT } from "@jobhub/shared/page-reading";
 
 /**
  * Sites whose terms of use forbid automated access (ADR-0002). They are covered
@@ -237,6 +254,17 @@ interface PlannedSearch {
   query: JobSearchQuery;
   /** The Job discovery site the search is restricted to. */
   site?: string;
+}
+
+/** The Sectors' labels; when they cannot be read, the run goes on without naming any. */
+async function readIndustries(industries: JobDiscoveryOptions["industries"]): Promise<IndustryReference> {
+  if (!industries) return NO_INDUSTRY_REFERENCE;
+  try {
+    return await industries();
+  } catch (error) {
+    console.warn(`[job-discovery] the Sectors' labels could not be read, the web searches name none: ${error instanceof Error ? error.message : String(error)}`);
+    return NO_INDUSTRY_REFERENCE;
+  }
 }
 
 /** Where the Back Office's settings come from; when they cannot be read, the run goes on with the defaults. */
@@ -265,6 +293,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
     async discover({ candidateId, criteria }) {
       const startedAt = clock.now();
       const settings = await readSettings(options.settings);
+      const industries = await readIndustries(options.industries);
       const configuredFranceTravail = typeof options.franceTravail === "function" ? options.franceTravail() : options.franceTravail;
       const franceTravail = settings.sources.france_travail ? configuredFranceTravail : null;
       const configuredFantasticJobs = typeof options.fantasticJobs === "function" ? options.fantasticJobs() : options.fantasticJobs;
@@ -478,7 +507,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           const before = found.size;
           const { query, site } = next.query;
           const filters = site ? { ...searchFilters, includeDomains: [site] } : searchFilters;
-          const search = await ai.searchWeb({ candidateId, criteria, query, page: next.page, filters, location, route: queryWording.searchRoute });
+          const search = await ai.searchWeb({ candidateId, criteria, query, page: next.page, filters, location, route: queryWording.searchRoute, industries });
           // The answer text only points at pages to read: a Job Offer always comes from a page read.
           const fresh = [...new Set([...search.sources, ...urlsIn(search.answer)])].filter((url) => !providerUrls.has(url));
           for (const url of fresh) providerUrls.add(url);

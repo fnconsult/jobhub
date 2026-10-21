@@ -6,6 +6,8 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Icons } from "@/components/icons";
 import { ProfileSwitcherMenu } from "@/components/ProfileSwitcherMenu";
+import { UsageMeter } from "@/components/UsageMeter";
+import type { UsageMeter as Meter } from "@/billing/usage-meter";
 import { accountLink, sidebarNav, type SidebarNavKey } from "@/components/sidebar-nav";
 import { CURRENT, SidebarShell } from "@/components/SidebarShell";
 import { routes } from "@/routes";
@@ -14,6 +16,7 @@ export type SidebarProfile = { id: string; name: string; archived: boolean };
 
 const LABELS = {
   applications: "nav.applications",
+  agenda: "sidebar.agenda",
   jobSearches: "sidebar.jobSearches",
   jobDigests: "sidebar.jobDigests",
   humanCoaches: "account.humanCoaches",
@@ -23,7 +26,8 @@ const LABELS = {
 
 /**
  * The sidebar layout of the Candidate's pages (#132, #134): the sidebar shell
- * (see SidebarShell) with the Profile switcher and the Candidate's labelled links.
+ * (see SidebarShell) with the Profile switcher and the Candidate's labelled links,
+ * and in its foot the Usage Meter of the week's Plan Quotas (null when billing could not be read).
  */
 export function SidebarLayout({
   profiles,
@@ -31,6 +35,7 @@ export function SidebarLayout({
   canAddProfile,
   isHumanCoach = false,
   isAdministrator = false,
+  usage = null,
   title,
   wide = false,
   children,
@@ -40,6 +45,7 @@ export function SidebarLayout({
   canAddProfile: boolean;
   isHumanCoach?: boolean;
   isAdministrator?: boolean;
+  usage?: Meter | null;
   title?: ReactNode;
   wide?: boolean;
   children: ReactNode;
@@ -57,10 +63,13 @@ export function SidebarLayout({
       title={title}
       wide={wide}
       foot={(closeDrawer) => (
-        <Link className="sidebar-link" href={account.href} aria-current={account.current ? CURRENT : undefined} onClick={closeDrawer}>
-          <Icons.account />
-          {t("nav.account")}
-        </Link>
+        <>
+          {usage ? <UsageMeter meter={usage} onNavigate={closeDrawer} /> : null}
+          <Link className="sidebar-link" href={account.href} aria-current={account.current ? CURRENT : undefined} onClick={closeDrawer}>
+            <Icons.account />
+            {t("nav.account")}
+          </Link>
+        </>
       )}
       top={
         profiles.length > 0 ? (

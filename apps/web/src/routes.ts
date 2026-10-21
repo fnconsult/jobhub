@@ -34,6 +34,8 @@ export const routes = {
   editMasterCv: (id: string) => `/profils/${id}/cv`,
   masterCvVersions: (id: string) => `/profils/${id}/versions`,
   applications: "/candidatures",
+  /** The Agenda (« Entretiens et rendez-vous »): upcoming Agenda Items by default, with `past`, the past ones. */
+  agenda: (past = false) => (past ? "/agenda?periode=passes" : "/agenda"),
   applicationsBoard: "/candidatures?vue=tableau",
   application: (id: string) => `/candidatures/${id}`,
   /** A Section of an Application's page (ADR-0024); `application` itself shows the first one there is. */
@@ -47,6 +49,8 @@ export const routes = {
   subscription: "/abonnement",
   /** The Candidate's Human Coaches: Coaching Sessions and Coach Access. */
   coaching: "/coachs",
+  /** One of the Candidate's Coaching Sessions, on the Human Coaches page: where an Agenda Item for it leads. */
+  coachingSession: (id: string) => `/coachs#seance-${id}`,
   /** A Human Coach's own pages: the Candidates who granted them Coach Access. */
   coachSpace: "/espace-coach",
   coachSpaceCandidate: (candidateId: string) => `/espace-coach/${encodeURIComponent(candidateId)}`,

@@ -25,7 +25,7 @@ const jobOffer: JobOffer = { id: "jo-1", source: { url: "https://www.apec.fr/off
 const otherJobOffer: JobOffer = { ...jobOffer, id: "jo-2", source: { url: "https://www.apec.fr/offre/2" } };
 const cv = { fullName: "Marie Dupont", skills: ["IFRS"] } as CvContent;
 const otherCv = { fullName: "Marie Dupont", skills: ["IFRS", "SAP"] } as CvContent;
-const prompt: UpgradePrompt = { message: "Your Plan includes 3 Match Scores a month.", action: "Upgrade", href: "/abonnement" };
+const prompt: UpgradePrompt = { message: "Your Plan includes 3 Match Scores a week.", action: "Upgrade", href: "/abonnement" };
 
 /** `/api/match-score`, counting the Match Scores it computes; past `quota`, it refuses with the Upgrade Prompt. */
 function matchScoreApi({ quota = Infinity } = {}) {

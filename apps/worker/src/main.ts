@@ -12,6 +12,7 @@ import { mailerFromEnv } from "@jobhub/web/mailers";
 import { createProfiles } from "@jobhub/web/profiles";
 import { permanentSuperAdminsFromEnv, superAdminEmails } from "@jobhub/web/administrators";
 import { secretCipherFromEnv, watchProviderSecrets } from "@jobhub/web/provider-secrets";
+import { createReferenceData } from "@jobhub/web/reference-data";
 import { createSearchSites } from "@jobhub/web/search-sites";
 import { appleFailureEmail, signInProvidersWorker } from "@jobhub/web/sign-in-providers";
 import { taskPlaybooksReader } from "@jobhub/web/task-playbooks";
@@ -40,6 +41,8 @@ const secrets = providerSecrets.resolver;
 const profiles = createProfiles(database);
 const jobOffers = createJobOffers(database);
 const searchSites = createSearchSites(database);
+// The Sectors', Subsectors' and Domains' labels (#236): refreshed monthly, read by each Job discovery run.
+const referenceData = createReferenceData(database, { externalApis: createPostgresExternalApiLog(database) });
 
 // Job discovery needs the AI layer; the other jobs do not (Follow-ups fall back to
 // a template). Without AI configuration (e.g. the local docker-compose stack with no
@@ -58,6 +61,8 @@ const worker = workerClients({
   budget: jobDiscoveryBudgetFromEnv(process.env),
   // The Job discovery sources and sites Administrators set in the Back Office, read at the start of each run.
   settings: () => searchSites.jobDiscoverySettings(),
+  // The web searches name the Sectors wanted by their labels.
+  industries: () => referenceData.read(),
   // The task Playbooks at the version this environment serves (JOBHUB_TARGET), as the web app reads them.
   taskPlaybooks: taskPlaybooksReader(database, process.env),
   euAiConsent: (candidateId) => euAiConsents.has(candidateId),
@@ -101,6 +106,7 @@ const jobs = createJobs({
     ...jobDigestsConfigFromEnv(process.env),
   }),
   providerSecrets: providerSecrets.reader,
+  referenceData,
   signInProviders: signInProvidersWorker(database, { cipher: secretCipherFromEnv(process.env), env: process.env }),
   // Every super-admin hears of it: Apple sign-in stops once the client secret in use expires.
   alertAppleFailure: async (failed) => {

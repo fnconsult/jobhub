@@ -1,4 +1,4 @@
-import { LIMITED_QUOTAS, JOB_DIGEST_FREQUENCIES, MONTHLY_QUOTAS, type MonthlyQuota } from "@jobhub/shared";
+import { LIMITED_QUOTAS, JOB_DIGEST_FREQUENCIES, WEEKLY_QUOTAS, type WeeklyQuota } from "@jobhub/shared";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { planQuotasFromForm } from "@/admin/plan-quotas-form";
@@ -26,12 +26,28 @@ async function savePlanQuotas(form: FormData) {
   redirect(`${routes.adminPlanQuotas}?saved=${submitted.plan}`);
 }
 
-/** Administrators edit each Plan's quotas, in rank order, hidden Plans included; empty means unlimited. */
-export default async function PlanQuotasPage({ searchParams }: { searchParams: Promise<{ saved?: string; invalid?: string }> }) {
+async function resetWeeklyUsage(form: FormData) {
+  "use server";
+  const { administrator } = await requireBackOffice("planQuotas", "write");
+  const confirmed = form.get("confirm") === "on";
+  const result = confirmed ? await getBackOffice().resetWeeklyUsage(administrator, String(form.get("reason") ?? "")) : null;
+  if (!result?.ok) redirect(`${routes.adminPlanQuotas}?resetRefused=1#reset-usage`);
+  redirect(`${routes.adminPlanQuotas}?reset=${result.candidates}#reset-usage`);
+}
+
+/**
+ * Administrators edit each Plan's quotas, in rank order, hidden Plans included; empty means unlimited.
+ * Below, those who may change them can reset this week's usage of every Candidate, with a reason (ADR-0032).
+ */
+export default async function PlanQuotasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ saved?: string; invalid?: string; reset?: string; resetRefused?: string }>;
+}) {
   const { access, canWrite } = await requireBackOffice("planQuotas");
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
-  const { saved, invalid } = await searchParams;
+  const { saved, invalid, reset, resetRefused } = await searchParams;
   const [plans, quotas] = await Promise.all([getBilling().plans(), getBilling().planQuotas()]);
   const savedPlan = plans.find((plan) => plan.key === saved);
 
@@ -62,11 +78,11 @@ export default async function PlanQuotasPage({ searchParams }: { searchParams: P
             </legend>
             {LIMITED_QUOTAS.map((quota) => {
               const id = `${plan}-${quota}`;
-              const monthly = MONTHLY_QUOTAS.includes(quota as MonthlyQuota);
+              const weekly = WEEKLY_QUOTAS.includes(quota as WeeklyQuota);
               return (
                 <div key={quota} className="stack">
                   <label htmlFor={id}>
-                    {monthly ? `${t(`billing.quotas.${quota}`)} (${t("admin.planQuotas.monthly")})` : t(`billing.quotas.${quota}`)}
+                    {weekly ? `${t(`billing.quotas.${quota}`)} (${t("admin.planQuotas.weekly")})` : t(`billing.quotas.${quota}`)}
                   </label>
                   <input
                     id={id}
@@ -99,6 +115,34 @@ export default async function PlanQuotasPage({ searchParams }: { searchParams: P
           </fieldset>
         </BackOfficeForm>
       ))}
+      {canWrite ? (
+        <form className="stack quota-form" action={resetWeeklyUsage} aria-labelledby="reset-usage">
+          <h2 id="reset-usage">{t("admin.planQuotas.reset.title")}</h2>
+          <p>{t("admin.planQuotas.reset.intro")}</p>
+          {reset !== undefined ? (
+            <p className="notice" role="status">
+              {t("admin.planQuotas.reset.done", { count: Number(reset) || 0 })}
+            </p>
+          ) : null}
+          {resetRefused ? (
+            <p className="notice" role="alert">
+              {t("admin.planQuotas.reset.refused")}
+            </p>
+          ) : null}
+          <div className="stack">
+            <label htmlFor="reset-reason">{t("admin.planQuotas.reset.reason")}</label>
+            <textarea id="reset-reason" className="input" name="reason" rows={3} required aria-describedby="reset-reason-help" />
+            <p id="reset-reason-help">{t("admin.planQuotas.reset.reasonHelp")}</p>
+          </div>
+          <label className="choice">
+            <input type="checkbox" name="confirm" required />
+            {t("admin.planQuotas.reset.confirm")}
+          </label>
+          <button className="button button-danger" type="submit">
+            {t("admin.planQuotas.reset.submit")}
+          </button>
+        </form>
+      ) : null}
     </BackOfficeLayout>
   );
 }

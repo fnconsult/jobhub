@@ -158,10 +158,21 @@ export function interviewWallClock(scheduledAt: Date): string {
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
 }
 
+/** The instant the day `instant` falls on, in French time, begins: its midnight there (never skipped: France changes the clocks at 2 or 3 a.m.). */
+export function interviewDayStart(instant: Date): Date {
+  return wallClockIn(`${interviewWallClock(instant).slice(0, 10)}T00:00`, INTERVIEW_TIME_ZONE);
+}
+
+/**
+ * A date and time read from a form: ISO 8601, French time when typed without an offset
+ * ("2026-11-12T14:30", a datetime-local value). For Interviews and Coaching Sessions alike.
+ */
+export const frenchDateTime = z.iso
+  .datetime({ offset: true, local: true })
+  .transform((value) => (/(Z|[+-]\d{2}:?\d{2})$/.test(value) ? new Date(value) : wallClockIn(value, INTERVIEW_TIME_ZONE)));
+
 const interviewSchema = z.object({
-  scheduledAt: z.iso
-    .datetime({ offset: true, local: true })
-    .transform((value) => (/(Z|[+-]\d{2}:?\d{2})$/.test(value) ? new Date(value) : wallClockIn(value, INTERVIEW_TIME_ZONE))),
+  scheduledAt: frenchDateTime,
   note: z.string().trim().max(500).default(""),
 });
 

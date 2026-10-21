@@ -3,7 +3,8 @@
  * https://schema.org/JobPosting — fields are loosely typed in the wild, so every
  * read is defensive: a field we cannot make sense of is left out.
  */
-import { parseStatedDate, type ContractType, type JobOfferDetails, type RemoteWork, type SalaryRange } from "@jobhub/shared";
+import type { ContractType, JobOfferDetails, RemoteWork, SalaryRange } from "../domain";
+import { parseStatedDate } from "../posting-date";
 import { decodeEntities, htmlToText, jsonLdBlocks } from "./html";
 
 type Json = Record<string, unknown>;
@@ -107,14 +108,19 @@ function salary(posting: Json): SalaryRange | undefined {
   return range;
 }
 
+/** Longer than this, it is a sentence about the job, not a skill. */
+const MAX_SKILL_CHARS = 120;
+
 function skills(posting: Json): string[] | undefined {
   const items = asArray(posting.skills).flatMap((skill) => {
+    // Some sites write their skills as HTML: one per list item, prose around them.
+    if (typeof skill === "string" && /<[a-z][^>]*>/i.test(skill)) return htmlToText(skill).split("\n");
     const value = text(skill);
     if (!value) return [];
     // A single string often lists skills separated by commas.
     return typeof skill === "string" && !Array.isArray(posting.skills) ? value.split(/\s*[,;]\s*/) : [value];
   });
-  const kept = items.filter(Boolean);
+  const kept = items.map((item) => item.replace(/[\s.,;:]+$/, "").trim()).filter((item) => item && item.length <= MAX_SKILL_CHARS);
   return kept.length ? kept : undefined;
 }
 

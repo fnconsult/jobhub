@@ -206,7 +206,7 @@ test.describe("Applications", () => {
     const selects = page.locator("tbody").getByLabel(fr.application.statusLabel);
     await expect(selects).toHaveCount(2);
 
-    for (const size of ["standard", "large", "xlarge"]) {
+    for (const size of ["small", "standard", "large", "xlarge"]) {
       await page.evaluate((value) => (document.documentElement.dataset.textSize = value), size);
       // Each select is at least as wide as its longest Application Status label, plus its padding and arrow.
       const fits = await selects.evaluateAll((elements) =>

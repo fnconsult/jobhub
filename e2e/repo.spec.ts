@@ -115,3 +115,29 @@ test.describe("ADR-0007 amendment: identity routing (issue #121)", () => {
     expect(text).toMatch(/log/i);
   });
 });
+
+// Issue #236: Sectors, Subsectors and Domains are Search Criteria, named in the glossary and on record in ADR-0025.
+test.describe("Search Criteria's Sectors, Subsectors and Domains are documented (issue #236)", () => {
+  const entry = (glossary: string, term: string) => new RegExp(`^\\*\\*${term}\\*\\*:\\n([^\\n]+)`, "m").exec(glossary)?.[1];
+
+  test("the glossary defines them and the Reference data, and Search Criteria lists them", () => {
+    const glossary = read("CONTEXT.md");
+    expect(entry(glossary, "Search Criteria"), "the Search Criteria entry").toMatch(/Sectors, Subsectors and Domains/);
+    expect(entry(glossary, "Sector"), "a Sector entry").toMatch(/NAF rév\. 2/);
+    expect(entry(glossary, "Subsector"), "a Subsector entry").toMatch(/division/);
+    expect(entry(glossary, "Domain"), "a Domain entry").toMatch(/ROME 4\.0 professional domain/);
+    const reference = entry(glossary, "Reference data");
+    expect(reference, "a Reference data entry").toMatch(/INSEE/);
+    expect(reference).toMatch(/France Travail/);
+    expect(reference).toMatch(/monthly/);
+  });
+
+  test("ADR-0025 has an addendum for them", () => {
+    const adr = read("docs/adr/0025-search-criteria-take-several-values-one-is-enough.md");
+    const addendum = /^Addendum \(#236\): (.+)$/m.exec(adr)?.[1];
+    expect(addendum, "an addendum (#236)").toBeDefined();
+    for (const term of ["Sectors", "Subsectors", "Domains", "NAF rév. 2", "ROME 4.0", "secteurActivite", "domaine", "Match Score", "ADR-0007"]) {
+      expect(addendum).toContain(term);
+    }
+  });
+});

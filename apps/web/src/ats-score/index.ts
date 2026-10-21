@@ -45,7 +45,7 @@ export type AnalyseResult =
   | { ok: true; atsScore: KeptAtsScore }
   /** No such Profile for this Candidate. */
   | { ok: false; error: "not_found" }
-  /** The Candidate's Plan Quota allows no more ATS Scores this month. */
+  /** The Candidate's Plan Quota allows no more ATS Scores this week. */
   | { ok: false; error: "quota_exceeded"; refusal: QuotaRefusal };
 
 /** Records one ATS Score for the Candidate if their Plan allows it (billing's `use(candidateId, "atsScores")`). */

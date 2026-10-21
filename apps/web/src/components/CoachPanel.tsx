@@ -2,11 +2,12 @@
 
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import type { ParseKeys } from "i18next";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import type { CoachFocus } from "@/coach";
 import { coachReplyBlocks, type Inline } from "@/coach/reply-text";
-import type { CoachMessage } from "@/coach/conversation";
+import type { CoachMessage, JobOfferCard as JobOfferCardData } from "@/coach/conversation";
 import { CoachConversationList, type ConversationSummary } from "@/components/CoachConversationList";
 import { CoachMemoryProposals, CoachMemoryView } from "@/components/CoachMemory";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -104,7 +105,7 @@ type Status = "idle" | "sending" | "unavailable" | "invalid";
 export type PanelKind = "coach" | "backOfficeAssistant";
 
 /** What a message's author is called on the server, for each panel. */
-type ServerMessage = { from: "candidate" | "coach" | "administrator" | "assistant"; text: string; blocked?: true };
+type ServerMessage = { from: "candidate" | "coach" | "administrator" | "assistant"; text: string; blocked?: true; jobOffer?: JobOfferCardData };
 
 /** Everything that differs between the two panels. */
 interface PanelConfig {
@@ -167,6 +168,7 @@ const asPanelMessage = (message: ServerMessage): CoachMessage => ({
   from: message.from === "candidate" || message.from === "administrator" ? "candidate" : "coach",
   text: message.text,
   ...(message.blocked ? { blocked: true as const } : {}),
+  ...(message.jobOffer ? { jobOffer: message.jobOffer } : {}),
 });
 
 function remember(storageKey: string, conversationId: string | null) {
@@ -222,6 +224,26 @@ function CoachReplyText({ text }: { text: string }) {
         ),
       )}
     </>
+  );
+}
+
+/**
+ * A Job Offer card: the Job Offer an AI Coach reply read from a pasted link, linking to its page, where the
+ * Candidate processes it. "À traiter" until they follow it; its state said in words, never by colour alone.
+ */
+function JobOfferCard({ jobOffer }: { jobOffer: JobOfferCardData }) {
+  const { t } = useTranslation();
+  return (
+    <article className="job-offer-card" aria-label={t("coachPanel.jobOfferLink.card")}>
+      <span className="pill" data-tone={jobOffer.followed ? "success" : "accent"}>
+        {t(jobOffer.followed ? "coachPanel.jobOfferLink.followed" : "coachPanel.jobOfferLink.toProcess")}
+      </span>
+      <p className="job-offer-card-title">{jobOffer.title}</p>
+      {jobOffer.employer ? <p className="hint">{jobOffer.employer}</p> : null}
+      <Link className="button" href={routes.jobOffer(jobOffer.id)}>
+        {t("coachPanel.jobOfferLink.open")}
+      </Link>
+    </article>
   );
 }
 
@@ -404,7 +426,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
         setMessages([
           ...messages,
           { from: "candidate", text, ...(blocked?.message ? { blocked: true as const } : {}) },
-          { from: "coach", text: body.reply, ...(blocked?.reply ? { blocked: true as const } : {}) },
+          { from: "coach", text: body.reply, ...(blocked?.reply ? { blocked: true as const } : {}), ...(body.jobOffer ? { jobOffer: body.jobOffer as JobOfferCardData } : {}) },
         ]);
         setStatus("idle");
       } else if (response.status === 404) {
@@ -544,6 +566,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                         <span className="chat-author">{message.from === "coach" ? t(texts.author) : t("questionnaire.you")}</span>
                         {message.blocked ? <span className="chat-blocked-label">{t("coachPanel.blocked")}</span> : null}
                         {message.from === "coach" ? <CoachReplyText text={message.text} /> : <p>{message.text}</p>}
+                        {message.jobOffer ? <JobOfferCard jobOffer={message.jobOffer} /> : null}
                       </li>
                     ))}
                   </ol>

@@ -17,7 +17,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createAiLayerFromEnv, buildSearchQuery, type AiLayer, type UsageEntry } from "@jobhub/ai";
 import { scoreMatch, type CvContent, type JobOffer, type JobOfferDetails, type SearchCriteria } from "@jobhub/shared";
 import { createJobDiscovery, type JobOfferStore } from "../../../apps/worker/src/job-discovery/index";
-import { htmlToText, jsonLdBlocks } from "../../../apps/worker/src/job-discovery/html";
+import { htmlToText, jsonLdBlocks } from "../../../packages/shared/src/page-reading/html";
 
 // Prices (USD per 1M tokens / per call), looked up 2026-10-12. See README "Cost".
 const PRICES = {

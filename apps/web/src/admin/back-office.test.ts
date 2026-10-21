@@ -2,7 +2,7 @@ import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApplications, migrateApplications } from "../applications";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
-import { createBilling, migrateBilling, STARTING_PLAN_QUOTAS, type Billing } from "../billing";
+import { createBilling, migrateBilling, STARTING_PLAN_QUOTAS, weekInFrance, type Billing } from "../billing";
 import { FAKE_STRIPE_PRODUCTS, FAKE_STRIPE_SECRET_KEY, FAKE_STRIPE_WEBHOOK_SECRET, startFakeStripe } from "../billing/fake-stripe";
 import { createHumanCoaches, migrateHumanCoaches } from "../human-coaches";
 import { createJobOffers, migrateJobOffers } from "../job-offers";
@@ -64,6 +64,30 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
         action: "updated",
         before: STARTING_PLAN_QUOTAS.standard,
         after: quotas,
+      },
+    ]);
+  });
+
+  it("resetting this week's usage of every Candidate records one entry with its reason; none without a reason", async () => {
+    await billing.use(claire.id, "matchScores");
+
+    expect(await backOffice.resetWeeklyUsage(claire, "   ")).toEqual({ ok: false, error: "reason_required" });
+    expect((await billing.entitlements(claire.id)).usedThisWeek.matchScores).toBe(1);
+    expect(await backOffice.journal()).toEqual([]);
+
+    expect(await backOffice.resetWeeklyUsage(claire, "  Recherches d'offres en panne mardi  ")).toEqual({ ok: true, candidates: 1 });
+
+    expect((await billing.entitlements(claire.id)).usedThisWeek.matchScores).toBe(0);
+    expect(await backOffice.journal()).toEqual([
+      {
+        id: expect.any(String),
+        at: expect.any(Date),
+        actor: { candidateId: claire.id, email: "claire@jobbbox.fr" },
+        section: "plan_quotas",
+        target: weekInFrance(new Date()),
+        action: "reset",
+        before: null,
+        after: { reason: "Recherches d'offres en panne mardi", candidates: 1 },
       },
     ]);
   });

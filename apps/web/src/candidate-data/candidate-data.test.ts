@@ -171,7 +171,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         id: profileId,
         name: "DAF",
         archived: false,
-        searchCriteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] },
+        searchCriteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] },
         masterCvVersions: [
           expect.objectContaining({ version: 2, restoredFrom: null, content: { ...masterCv, summary: "20 ans de finance." } }),
           expect.objectContaining({ version: 1, restoredFrom: null, content: masterCv }),
@@ -402,7 +402,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(JSON.stringify(exported)).not.toContain("secret-agent-model");
   });
 
-  it("the export holds the Coach Access the Candidate granted, the Coaching Sessions they paid and the Coach Reviews of their Applications, naming each Human Coach but not their email", async () => {
+  it("the export holds the Coach Access the Candidate granted, the Coaching Sessions they paid with their date, duration, video link and note, and the Coach Reviews of their Applications, naming each Human Coach but not their email or booking link", async () => {
     const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));
     await tailoredDocuments.draft(candidateId, application.id, { document: "cover_letter" });
     const humanCoaches = createHumanCoaches(database, { profiles, applications, tailoredDocuments, tailoredCvs });
@@ -411,17 +411,32 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     const coach = added.coach;
     await humanCoaches.grantAccess(candidateId, coach.id);
     await humanCoaches.recordPaidSession({ checkoutSessionId: "cs_test_1", candidateId, coachId: coach.id, amount: 9000, currency: "eur" });
+    const [session] = await humanCoaches.sessions(candidateId);
+    await humanCoaches.scheduleSession(candidateId, session!.id, { scheduledAt: "2026-10-22T14:30", durationMinutes: 60, videoLink: "https://meet.google.com/abc-defg-hij", note: "Préparer mon pitch." });
     const reviewed = await humanCoaches.review(coach.id, candidateId, application.id, { document: "cover_letter", text: "Ouvrez sur votre dernier poste." });
     if (!reviewed.ok) throw new Error("fixture Coach Review refused");
 
     const exported = await candidateData.export(candidateId);
 
     expect(exported.coachAccess).toEqual([{ coach: { id: coach.id, name: "Sophie Martin" }, grantedAt: expect.any(Date) }]);
-    expect(exported.coachingSessions).toEqual([{ id: expect.any(String), coach: { id: coach.id, name: "Sophie Martin" }, amount: 9000, currency: "eur", paidAt: expect.any(Date) }]);
+    expect(exported.coachingSessions).toEqual([
+      {
+        id: session!.id,
+        coach: { id: coach.id, name: "Sophie Martin" },
+        amount: 9000,
+        currency: "eur",
+        paidAt: expect.any(Date),
+        scheduledAt: new Date("2026-10-22T12:30:00.000Z"),
+        durationMinutes: 60,
+        videoLink: "https://meet.google.com/abc-defg-hij",
+        note: "Préparer mon pitch.",
+      },
+    ]);
     expect(exported.applications[0]!.coachReviews).toEqual([
       { id: reviewed.review.id, coach: { id: coach.id, name: "Sophie Martin" }, document: "cover_letter", text: "Ouvrez sur votre dernier poste.", createdAt: expect.any(Date) },
     ]);
     expect(JSON.stringify(exported)).not.toContain("sophie.coach@example.fr");
+    expect(JSON.stringify(exported)).not.toContain("https://cal.com/sophie/seance");
   });
 
   it("the export holds the Enriched Contacts obtained for each Application, revealed or only found, with where they come from", async () => {
@@ -495,14 +510,14 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
        VALUES ($1, 'standard', 'cus_secret_customer', 'sub_secret_subscription', 'active', true, '2026-11-30T00:00:00Z')`,
       [candidateId],
     );
-    await database.query(`INSERT INTO quota_usage (candidate_id, quota, month, used) VALUES ($1, 'matchScores', '2026-09', 4), ($1, 'atsScores', '2026-10', 2)`, [candidateId]);
+    await database.query(`INSERT INTO quota_usage (candidate_id, quota, week, used) VALUES ($1, 'matchScores', '2026-09', 4), ($1, 'atsScores', '2026-10-12', 2)`, [candidateId]);
 
     const exported = await candidateData.export(candidateId);
 
     expect(exported.plan).toEqual({ plan: "standard", subscriptionStatus: "active", endsAt: new Date("2026-11-30T00:00:00Z") });
     expect(exported.quotaUsage).toEqual([
-      { quota: "atsScores", month: "2026-10", used: 2 },
-      { quota: "matchScores", month: "2026-09", used: 4 },
+      { quota: "atsScores", week: "2026-10-12", used: 2 },
+      { quota: "matchScores", week: "2026-09", used: 4 },
     ]);
     expect(JSON.stringify(exported)).not.toMatch(/cus_secret_customer|sub_secret_subscription/);
   });

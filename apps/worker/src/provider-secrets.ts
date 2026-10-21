@@ -42,6 +42,8 @@ export interface WorkerClientsOptions {
   settings?: JobDiscoveryOptions["settings"];
   /** The task Playbooks Job discovery runs with (ADR-0026), read at the start of each run. */
   taskPlaybooks?: JobDiscoveryOptions["taskPlaybooks"];
+  /** The NAF and ROME-domain labels the web searches name the Sectors wanted by (#236). */
+  industries?: JobDiscoveryOptions["industries"];
   /** Whether a Candidate gave EU AI consent (ADR-0007). */
   euAiConsent?: (candidateId: string) => Promise<boolean>;
   /** What is known of a Candidate's identity, taken out of each of their AI calls (ADR-0007). Default: emails and phone numbers alone. */
@@ -114,7 +116,7 @@ export function workerClients(options: WorkerClientsOptions): WorkerClients {
       log(`[worker] Job discovery is unavailable: ${error.message}`);
       return { unavailable: error.message };
     }
-    return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, franceTravail, fantasticJobs, settings: options.settings, taskPlaybooks: options.taskPlaybooks, fetch: options.fetch, externalApis: options.externalApis });
+    return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, franceTravail, fantasticJobs, settings: options.settings, taskPlaybooks: options.taskPlaybooks, industries: options.industries, fetch: options.fetch, externalApis: options.externalApis });
   });
 
   return { discovery, ai, franceTravail, fantasticJobs, mailer: liveObject(resolver, MAIL_SECRET_NAMES, mailerFromEnv) };

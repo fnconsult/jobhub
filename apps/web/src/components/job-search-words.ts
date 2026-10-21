@@ -1,8 +1,11 @@
 import {
+  industryLabels,
   matchScoreReliability,
+  NO_INDUSTRY_REFERENCE,
   wantedValues,
   type ContractType,
   type CriterionStatus,
+  type IndustryReference,
   type MatchScore,
   type MatchScoreReliability,
   type RemoteWork,
@@ -27,15 +30,20 @@ export function remoteWorkOptionsInWords(options: readonly RemoteWork[], t: TFun
 
 /**
  * A Profile's Search Criteria in one line ("Lyon ou Bordeaux · CDI ou Indépendant
- * (freelance) · 85 000 € brut par an minimum · Télétravail : Hybride"), leaving out
- * what the Candidate did not specify. The target role is not repeated: the Job
- * Search page names it.
+ * (freelance) · 85 000 € brut par an minimum · Télétravail : Hybride · Secteur :
+ * Industrie automobile · Domaine : Direction d'entreprise"), leaving out what the
+ * Candidate did not specify. The target role is not repeated: the Job Search page
+ * names it. Sectors and Domains are named by their labels in `industries` (#236), in
+ * English on an English page where the nomenclature has it; none without them.
  */
-export function searchCriteriaInWords(criteria: SearchCriteria, t: TFunction, locale: string): string {
+export function searchCriteriaInWords(criteria: SearchCriteria, t: TFunction, locale: string, industries: IndustryReference = NO_INDUSTRY_REFERENCE): string {
   const parts = [anyOfInWords(criteria.locations, locale)];
   if (criteria.contractTypes.length > 0) parts.push(contractTypesInWords(criteria.contractTypes, t, locale));
   if (criteria.minSalary !== undefined) parts.push(t("profile.salary", { amount: new Intl.NumberFormat(locale).format(criteria.minSalary) }));
   if (criteria.remoteWorkOptions.length > 0) parts.push(t("jobSearch.remoteWork", { option: remoteWorkOptionsInWords(criteria.remoteWorkOptions, t, locale) }));
+  const { sectors, domains } = industryLabels(criteria, industries, locale.startsWith("en") ? "en" : "fr");
+  if (sectors.length > 0) parts.push(t("jobSearch.sectorsWanted", { sectors: anyOfInWords(sectors, locale) }));
+  if (domains.length > 0) parts.push(t("jobSearch.domainsWanted", { domains: anyOfInWords(domains, locale) }));
   return parts.filter(Boolean).join(" · ");
 }
 

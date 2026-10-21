@@ -96,7 +96,7 @@ describe("the worker's clients, on Provider Secrets (#208)", () => {
     const worker = clients(resolver, providers.fetch, []);
     stored.current = { ...stored.current, FRANCE_TRAVAIL_CLIENT_SECRET: { value: "ft-secret-fresh", row: "r3" } };
 
-    const result = await worker.franceTravail()!.search({ targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] }, { max: 10, now: new Date() });
+    const result = await worker.franceTravail()!.search({ targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] }, { max: 10, now: new Date() });
 
     expect(result).toMatchObject({ ok: true, offers: [] });
     expect(providers.keysSent).toEqual(["ft-secret-revoked", "ft-secret-fresh"]);
@@ -108,7 +108,7 @@ describe("the worker's clients, on Provider Secrets (#208)", () => {
     const calls: ExternalApiCall[] = [];
     const worker = workerClients({ resolver, production: false, jobOffers: {} as never, fetch: fakeProviders().fetch, externalApis: { record: (call) => void calls.push(call) } });
 
-    await worker.franceTravail()!.search({ targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] }, { max: 10, now: new Date() });
+    await worker.franceTravail()!.search({ targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] }, { max: 10, now: new Date() });
 
     expect(calls.map(({ provider, ok, httpStatus, costEur }) => ({ provider, ok, httpStatus, costEur }))).toEqual([
       { provider: "france_travail", ok: true, httpStatus: 200, costEur: 0 },
@@ -131,7 +131,7 @@ describe("the worker's clients, on Provider Secrets (#208)", () => {
 
   describe("Fantastic.jobs, on its Provider Secret FANTASTIC_JOBS_API_KEY (#243)", () => {
     const search = (worker: ReturnType<typeof workerClients>) =>
-      worker.fantasticJobs()!.search({ targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] }, { max: 10, now: new Date() });
+      worker.fantasticJobs()!.search({ targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] }, { max: 10, now: new Date() });
 
     it("uses the key entered in the Back Office over the environment's", async () => {
       const { resolver } = database({ FANTASTIC_JOBS_API_KEY: { value: "fj-key-back-office-0123", row: "r1" } }, { ...ENV, FANTASTIC_JOBS_API_KEY: "fj-key-env-0123456789" });

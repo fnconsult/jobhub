@@ -4,16 +4,19 @@ import { getCoachMemory } from "@/coach-memory/server";
 import { getCoachingPlaybooks } from "@/coaching-playbooks/server";
 import { getGuardrails } from "@/guardrails/server";
 import { getJobDigests } from "@/job-digests/server";
+import { getJobOfferLinks } from "@/job-offer-links/server";
 import { getJobOffers } from "@/job-offers/server";
 import { getJobSearches } from "@/job-searches/server";
 import { getProfiles } from "@/profiles/server";
+import { readIndustryReference } from "@/reference-data/server";
 import { createCoach, type Coach } from "./index";
 
 let instance: Coach | undefined;
 
 /**
  * The app's AI Coach, on the app's AI layer, reading the Candidate's workspace and Coach Memory (#125),
- * drawing on the Core Digest and the Playbook Agents served in this environment (ADR-0021), behind its Guardrails (ADR-0022).
+ * drawing on the Core Digest and the Playbook Agents served in this environment (ADR-0021), behind its Guardrails (ADR-0022),
+ * reading a Job Offer from a link the Candidate pastes.
  */
 export function getCoach(): Coach {
   instance ??= (() => {
@@ -22,6 +25,7 @@ export function getCoach(): Coach {
       ai: getAi(),
       playbooks: getCoachingPlaybooks(),
       guardrails: getGuardrails(),
+      jobOfferLinks: getJobOfferLinks(),
       profiles: getProfiles(),
       applications: getApplications(),
       jobOffers: getJobOffers(),
@@ -33,6 +37,8 @@ export function getCoach(): Coach {
           return latest ? jobDigests.get(candidateId, latest.id) : null;
         },
       },
+      // Each active Profile's Sectors and Domains, by their labels (#236).
+      industries: readIndustryReference,
       // Coach Memory needs Coach Conversations, which need the AI Coach: resolved on first use, not at construction.
       coachMemory: {
         async items(candidateId) {

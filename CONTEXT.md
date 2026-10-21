@@ -15,7 +15,7 @@ The Candidate deletes their own account, confirmed by typing their email address
 _Avoid_: Account closure, deactivation
 
 **Data export**:
-One JSON file the Candidate downloads holding all their personal data, what they made and what Jobbbox worked out or obtained about them (GDPR art. 15 and 20): their account (sign-in methods and sessions), Plan and Plan Quota use, EU AI Consent and Follow-up Delays; their Profiles (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and the Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach Conversations with every message, Coach Memory, Action Cards, Coach Access and Coaching Sessions; their AI Message Log. It leaves out secrets (sign-in tokens and passwords, the Job Digest unsubscribe link), Human Coaches' email addresses and booking links, Stripe's and the contact data providers' identifiers, and the Coach Message Cost. Every table tied to a Candidate must land in it.
+One JSON file the Candidate downloads holding all their personal data, what they made and what Jobbbox worked out or obtained about them (GDPR art. 15 and 20): their account (sign-in methods and sessions), Plan and Plan Quota use, EU AI Consent, Follow-up Delays and Appointment Reminder setting; their Profiles (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and the Job Digests sent); their Applications (Job Offer, Interviews with their Reschedule history, Match Score, Tailored Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach Conversations with every message, Coach Memory, Action Cards, Coach Access and Coaching Sessions (with their date, video link and Reschedule history); their AI Message Log. It leaves out secrets (sign-in tokens and passwords, the Job Digest unsubscribe link), Human Coaches' email addresses and booking links, Stripe's and the contact data providers' identifiers, and the Coach Message Cost. Every table tied to a Candidate must land in it.
 _Avoid_: Backup, data dump
 
 **EU AI Consent**:
@@ -57,8 +57,12 @@ A real HR professional, selected by Jobbbox, whom a Candidate can book for paid 
 _Avoid_: Advisor, consultant, recruiter
 
 **Coaching Session**:
-A booked, paid video meeting between a Candidate and a Human Coach.
+A booked, paid video meeting between a Candidate and a Human Coach. Recorded when its payment is confirmed, without a date: the Candidate then books a time on the Human Coach's Cal.com page, and that time reaches Jobbbox only when the Candidate or the Human Coach enters it (date and time in French time, optional duration, video link and note). Until then it is an Unscheduled Coaching Session. Never deleted by the Candidate.
 _Avoid_: Appointment, call, meeting
+
+**Unscheduled Coaching Session**:
+A paid Coaching Session with no date entered yet, or whose date was cleared by a cancellation. Shown at the top of the Agenda as « À planifier », with the Human Coach's booking link; not in the week or month views. One a Coach manager marked as refunded in the Back Office leaves the Agenda.
+_Avoid_: Pending session, draft session
 
 **Coach Access**:
 The Candidate's explicit consent allowing a Human Coach to read their Profiles and Applications.
@@ -69,7 +73,7 @@ A Human Coach's feedback on one Tailored Document of an Application. The Candida
 _Avoid_: Comment, annotation
 
 **Coach space**:
-A Human Coach's read-only pages: the Candidates who granted Coach Access, their Profiles and Applications, and the form for Coach Reviews.
+A Human Coach's pages: the Candidates who granted Coach Access, their Profiles and Applications (read-only), the form for Coach Reviews, and their own Coaching Sessions with each Candidate, whose date and video link they can enter or correct. They see no Agenda.
 _Avoid_: Coach dashboard
 
 **Retired Human Coach**:
@@ -81,7 +85,7 @@ The side panel, available from every page, where the Candidate talks with the AI
 _Avoid_: Chat, chatbot, sidebar
 
 **Coach context**:
-What the AI Coach is told before each reply: always the Candidate summary and the Coach Memory, plus the item In view, plus summaries of the rest (onboarding answers, latest Applications, top Job Offers), within a size cap. Summaries are trimmed before the item In view.
+What the AI Coach is told before each reply: always the Candidate summary and the Coach Memory, plus the item In view, plus summaries of the rest (onboarding answers, latest Applications, top Job Offers, the next three Agenda Items), within a size cap. Summaries are trimmed before the item In view.
 
 **Candidate summary**:
 The Candidate's first name and, for each active Profile, its target role, Search Criteria and seniority (from years of experience). Never the rest of the Identity block.
@@ -105,7 +109,7 @@ EUR 0.03 per AI Coach reply, judged on the daily median and p90 of the Coach Mes
 Input tokens the AI provider reads from its prompt cache rather than processing again; priced apart from the rest of the input.
 
 **In view**:
-The Profile, Application, Job Offer, Job Search or Job Digest the page the Candidate is on shows. The Coach Panel and AI Coach use it as context, and only if it belongs to the Candidate.
+The Profile, Application, Job Offer, Job Search or Job Digest the page the Candidate is on shows, or, on the Agenda, the Agenda Items of the next 30 days. The Coach Panel and AI Coach use it as context, and only if it belongs to the Candidate.
 _Avoid_: Focus, current item, selected
 
 **Action Card**:
@@ -210,12 +214,28 @@ Downloading an Application's saved Tailored CV or Cover Letter as a PDF or Word 
 _Avoid_: Download, print
 
 **Search Criteria**:
-The job-search parameters of a Profile: one target role, one minimum salary, and any number of locations (up to five, entered as chips: chosen from Place suggestions or typed, kept as text, two being the same when they match without case or accents), contract types and remote-work options; none chosen means no preference. A Job Offer meets a criterion as soon as it meets one of its values. The Candidate can change them on an active Profile, each change saving as soon as it is made; this never renames the Profile, and Match Scores and Tailored CVs already kept are not recomputed. An Archived Profile's Search Criteria are read-only until it is restored.
+The job-search parameters of a Profile: one target role, one minimum salary, and any number of locations (up to five, entered as chips: chosen from Place suggestions or typed, kept as text, two being the same when they match without case or accents), contract types, remote-work options, Sectors, Subsectors and Domains (kept as codes); none chosen means no preference. A Job Offer meets a criterion as soon as it meets one of its values. Sectors, Subsectors and Domains steer Job discovery only: the Match Score does not compare them. Search Criteria saved or sent before they existed read as none chosen. The Candidate can change them on an active Profile, each change saving as soon as it is made; this never renames the Profile, and Match Scores and Tailored CVs already kept are not recomputed. An Archived Profile's Search Criteria are read-only until it is restored.
+_Avoid_: Filters, preferences
+
+**Sector**:
+A kind of employer the Search Criteria look for: a section of INSEE's NAF rév. 2 nomenclature (A to U, e.g. C, Industrie manufacturière), kept as its code and shown by its label from the Reference data. A Sector chosen without any of its Subsectors searches all of them. Not the sector the AI reads on a Job Offer, which is free text.
+_Avoid_: Industry, activity, NAF code (alone)
+
+**Subsector**:
+A division of NAF rév. 2 (two digits, e.g. 29, Industrie automobile), within one Sector. Only the Subsectors of the Sectors chosen are offered; choosing one chooses its Sector, and removing a Sector removes its Subsectors. Said in words in place of its Sector.
+_Avoid_: Sub-sector, division (alone)
+
+**Domain**:
+A kind of work the Search Criteria look for: a ROME 4.0 professional domain of France Travail (a letter and two digits, e.g. M13, Direction d'entreprise, under its grand domain M), kept as its code and shown by its label from the Reference data. Sent to the France Travail search; web search queries do not name it.
+_Avoid_: Field, ROME code (which names one job), grand domain (the letter above it)
+
+**Reference data**:
+The labels of the Sectors, Subsectors and Domains, from public nomenclatures: NAF rév. 2 from INSEE (French and English) and the ROME 4.0 professional domains from France Travail's open data (French only), each source a Tool sent no data. Kept in the database, fetched on first need and refreshed monthly by the worker; a source that fails keeps the labels it had; a code with no label yet is shown as its code in the inputs and left out of the criteria in words. Which codes the Search Criteria accept, and which Sector each Subsector belongs to, is fixed in the code, not reference data. Tied to no Candidate: not in the Personal Data Export. NAF 2025 replaces NAF rév. 2 in January 2027.
+_Avoid_: Référentiel (in code and English), lookup table
 
 **Place suggestion**:
 A commune, département or région offered while the Candidate types a location, from the French public geographic API. Choosing one only fills in its name; the location stays plain text, and typing a place not suggested is fine.
 _Avoid_: Autocomplete (alone)
-_Avoid_: Filters, preferences
 
 **Onboarding Questionnaire**:
 The guided interview, one question at a time, that builds a Master CV when the Candidate has no CV to upload. Scripted, so it cannot invent facts; its result is reviewed like an uploaded CV.
@@ -224,7 +244,7 @@ _Avoid_: Form, survey
 ### Job offers
 
 **Job Offer**:
-A job posting, captured by the extension or found by the AI Coach's search. One Job Offer can be referenced by many Candidates. Carries a Job Offer Summary and, read by the AI with it, its employer's sector and sub-sector (or domain).
+A job posting, captured by the extension, read from a Job Offer link or found by the AI Coach's search. One Job Offer can be referenced by many Candidates. Carries a Job Offer Summary and, read by the AI with it, its employer's sector and sub-sector (or domain).
 _Avoid_: Job, posting, ad, vacancy, offer (alone)
 
 **Job Offer Summary**:
@@ -234,6 +254,14 @@ _Avoid_: Abstract, description
 **Capture**:
 The act of the browser extension turning the job page the person is viewing into a Job Offer, either detected automatically or triggered manually.
 _Avoid_: Scrape, import, clip
+
+**Job Offer link**:
+A link to one job posting the Candidate pastes in a Coach Panel message. Once the Guardrails let the message through, Jobbbox reads the page the way Job discovery reads one (robots rules, as itself, giving up at bot protection or a sign-in), takes its JobPosting data or has the AI read its text as data, and stores it as a Job Offer like a Capture. The AI Coach answers with a set reply and a Job Offer card instead of its own reply. A Forbidden site is never read: the reply sends the Candidate to the extension, as it does for a page that cannot be read.
+_Avoid_: URL import, scrape
+
+**Job Offer card**:
+The card in an AI Coach reply to a Job Offer link: the Job Offer's title and employer and a link to its page. "À traiter" until the Candidate follows it (saves it as an Application), which gives it its Match Score and At a glance; then "Suivie". Not an Action Card: nothing is accepted or dismissed. Saved with the Coach Conversation; never given to the AI Coach.
+_Avoid_: Action Card, preview, link card
 
 **Job discovery**:
 The AI Coach's search of the web for Job Offers matching a Profile's Search Criteria. Contrast with Capture, which starts from a page the person is viewing. URLs named in the search provider's answer are read like its sources, but the answer itself never makes a Job Offer.
@@ -252,7 +280,7 @@ A message shown on every workspace page when a Job Search stops being searching:
 _Avoid_: Alert, toast, Action Card
 
 **Job Search query**:
-One job title (the Search Criteria title or a Job title variant) worded in French or English; a Job Search has up to 6. Each gets its first page of results, and a next page only while the last gave a New readable posting.
+One job title (the Search Criteria title or a Job title variant) worded in French or English, with the Search Criteria's places, contract types, remote-work options, minimum salary and Sectors (by their labels, in the query's language where NAF has it); a Job Search has up to 6. Each gets its first page of results, and a next page only while the last gave a New readable posting.
 
 **Job title variant**:
 Another title for the same job, suggested by an AI step given the Search Criteria title only (no other Candidate data). Used to word more Job Search queries.
@@ -264,7 +292,7 @@ A Job Offer a results page gave that the run had not found yet. It is what lets 
 The limits that end one run of Job discovery (a Job Search or a Job Digest top-up), whichever comes first: a number of Job Offers found (new or already stored), an estimated spend in euros, or a duration. Defaults: 30 Job Offers, EUR 0.08, 90 seconds. The result page being read when a limit is reached is finished, so a run can go slightly past it.
 
 **France Travail search**:
-The first source of a Job discovery run when France Travail is configured: the official job-offer API of France Travail, searched with the Search Criteria. Its Job Offers count toward the Job discovery budget; when they fill it, the Fantastic.jobs search, the AI plan and web search are skipped. Losing access is a normal outcome, never a failed run.
+The first source of a Job discovery run when France Travail is configured: the official job-offer API of France Travail, searched with the Search Criteria: by their contract types, Subsectors (with every Subsector of a Sector chosen without any) and Domains, any of which will do. Its Job Offers count toward the Job discovery budget; when they fill it, the Fantastic.jobs search, the AI plan and web search are skipped. Losing access is a normal outcome, never a failed run.
 
 **France Travail status**:
 How the France Travail search went in one run, part of the Discovery metrics: off (not configured), searched, refused (access withdrawn or credentials rejected) or failed (any other error).
@@ -302,7 +330,7 @@ When a Job Offer was first published, as its source states it. Sources, stronges
 _Avoid_: Publication date (when unknown), created date
 
 **Forbidden site**:
-A site whose terms forbid crawling (LinkedIn, Indeed, Glassdoor). Job discovery never fetches it, and it can never be a Job discovery site; only Capture covers it.
+A site whose terms forbid crawling (LinkedIn, Indeed, Glassdoor). Job discovery never fetches it, it can never be a Job discovery site, and a Job Offer link to it is never read; only Capture covers it.
 
 **Expired Job Offer**:
 A Job Offer that is no longer published at its source: two re-checks in a row found it gone (404/410, past its closing date, or sent away from its page). Only Job Offers an ongoing Application follows (not at Acceptée, Refusée or Abandonnée) are re-checked. A live re-check in between starts the count again, and an expired offer found published again stops being expired. Its Applications are flagged, but their Application Status is never changed automatically. Left out of Job Digests and Job Search results.
@@ -361,7 +389,7 @@ An Application at an end state (Acceptée, Refusée, Abandonnée) or whose Profi
 _Avoid_: Closed application, old application
 
 **Interview**:
-One dated interview round within an Application. Added only while the Application is at "Entretien", and kept if it moves on; it can be edited (date, time, note) or removed at any status. Times are French time (Europe/Paris).
+One dated interview round within an Application: date and time in French time (Europe/Paris), optional duration, format (video, phone or on site), place or link, and a note. Entered by the Candidate, from the Application or from the Agenda, never detected or imported. Added only while the Application is at "Entretien": adding one from the Agenda to an Application at another status offers to move it to "Entretien", which the Candidate confirms. Kept if the Application moves on, archived ones included. It can be edited, Rescheduled or Cancelled at any status; deleting it is for an entry made by mistake and leaves no trace.
 _Avoid_: Meeting, call
 
 **Follow-up**:
@@ -409,6 +437,32 @@ _Avoid_: Mail, InMail, message (alone)
 **Tailored Documents**:
 The collective term for an Application's Tailored CV, Cover Letter and Outreach Message.
 
+### Agenda
+
+**Agenda**:
+The Candidate's page « Entretiens et rendez-vous », in the Sidebar after Mes candidatures: their Agenda Items as a list (the default: upcoming ones grouped by day, past ones on request, newest first), a week (Monday to Sunday, one column per day) or a month, each view and period with its own address. Unscheduled Coaching Sessions sit at the top. Past Agenda Items stay, shown dimmed; nothing is removed automatically.
+_Avoid_: Calendar, planning, schedule
+
+**Agenda Item**:
+An Interview or a dated Coaching Session, as the Agenda shows it. An Interview links to its Application's Interviews Section, a Coaching Session to its Human Coach. Not a thing of its own: the two keep their own rules.
+_Avoid_: Appointment, event, meeting
+
+**Reschedule**:
+A change of an Agenda Item's date and time made more than an hour after it was entered or last changed; a change within that hour is a correction and leaves no trace. Each Reschedule is kept in the item's Reschedule history (previous date, new date, by whom, when), and the item shows « Reporté », with the date first planned.
+_Avoid_: Move, edit (for a date change)
+
+**Cancelled Agenda Item**:
+An Agenda Item the Candidate (or, for a Coaching Session, the Human Coach) marked as cancelled. A Cancelled Interview stays on the Agenda struck through, with the date of cancellation. A Cancelled Coaching Session goes back to Unscheduled, the cancellation kept in its Reschedule history; refunds are handled outside Jobbbox. No Appointment Reminder and no Calendar file for it.
+_Avoid_: Deleted appointment
+
+**Appointment Reminder**:
+The email Jobbbox sends the Candidate at 18:00 French time the day before an Agenda Item still planned, in their Interface Language. On by default, switched off in Mon compte's Rappels Section; on every Plan, against no Plan Quota. None for an Agenda Item entered after that time. The Human Coach gets none.
+_Avoid_: Notification, alert, Follow-up
+
+**Calendar file**:
+One Agenda Item as a downloadable .ics file (« Ajouter à mon calendrier »), in French time. Jobbbox offers no calendar subscription or sync: a later change needs a new download.
+_Avoid_: Calendar sync, feed
+
 ### Scoring
 
 **Match Score**:
@@ -451,11 +505,11 @@ The language the Jobbbox interface is shown in. French by default. Independent o
 _Avoid_: Locale (in domain discussions), UI language
 
 **Text Size**:
-The Candidate's choice of how large all interface text is shown (Standard, Grande, Très grande). The smallest choice already meets the body-text floor, so it can only enlarge text.
+The Candidate's choice of how large all interface text is shown, on a four-step slider in Mon compte's Préférences: Petit, Standard, Moyen, Grand (16, 17, 18 and 20px body text). Petit sits on the body-text floor, so no step shrinks text below it. Remembered on that device; the pages read without signing in keep a select for it.
 _Avoid_: Zoom, font setting
 
 **Sidebar**:
-The menu down the side of the Candidate's pages: Profile switcher, links to their pages, and at its foot Text Size, Mon compte and signing out. The Candidate can hide it, and the choice is remembered in that browser. On narrow screens it becomes a drawer opened from the Top Bar's Menu button.
+The menu down the side of the Candidate's pages: Profile switcher, links to their pages, and at its foot the Usage Meter, Mon compte and signing out. The Candidate can hide it, and the choice is remembered in that browser. On narrow screens it becomes a drawer opened from the Top Bar's Menu button.
 _Avoid_: Navigation bar, workspace header
 
 **Top Bar**:
@@ -463,7 +517,7 @@ The bar above every page beside the Sidebar: the page's title, the Menu button w
 _Avoid_: Header, navbar
 
 **Section**:
-One part of a long page, with its own address: Mon compte's Profils, Abonnement, Relances or Mes données, a Profile's or an Application's parts, a Back Office section. On wide screens a page's Sections are listed beside it, or in the Sidebar in place of its links when the page has no room (the main menu one arrow away); on phones the list is the page and each Section opens as a drawer, its title in the Top Bar leading back to the list.
+One part of a long page, with its own address: Mon compte's Profils, Abonnement, Relances, Rappels or Mes données, a Profile's or an Application's parts, a Back Office section. On wide screens a page's Sections are listed beside it, or in the Sidebar in place of its links when the page has no room (the main menu one arrow away); on phones the list is the page and each Section opens as a drawer, its title in the Top Bar leading back to the list.
 _Avoid_: Tab, sub-page, panel
 
 ### Delivery
@@ -499,8 +553,12 @@ What a Plan costs each billing interval, shown in the plan comparison: the defau
 _Avoid_: Tariff, fee
 
 **Plan Quota**:
-A configurable usage limit attached to a Plan: Profiles held at once, Match Scores, ATS Scores and Enriched Contacts per calendar month (French time), and the Job Digest frequency. A quota can be unlimited or not included at all. Changed by Administrators; a change applies at once to every Candidate on the Plan.
-_Avoid_: Limit, allowance, credits
+A configurable usage limit attached to a Plan: Profiles held at once, Match Scores, ATS Scores, Job Searches and Enriched Contacts per week (from Monday 00:00, French time), and the Job Digest frequency. A quota can be unlimited or not included at all. Changed by Administrators; a change applies at once to every Candidate on the Plan. Administrators who may change them can also reset the week's usage of every Candidate, giving a reason the Back Office Audit records.
+_Avoid_: Limit, allowance, credits, monthly quota
+
+**Usage Meter**:
+The bar at the foot of the Sidebar showing how much of the week's Plan Quotas the Candidate has used: every use over every use the Plan grants, so each quota weighs what the Plan grants of it; unlimited and not-included quotas weigh nothing. Its button shows each quota's use and the Job Digest frequency, and leads to the subscription page.
+_Avoid_: Credits bar, usage gauge
 
 **Coupon**:
 A code a Candidate types at Plan checkout, or brings in a shared link (`/abonnement?code=…`), for a discount on a Plan: a percentage, or a fixed amount in euros, off once, for N months or for as long as the subscription lasts, on the Plans it names, with an optional expiry, maximum redemptions and an optional first-payment-only restriction (Stripe's: refused to anyone who has already paid anything, a Coaching Session included; not "first subscription"). A Stripe coupon and its promotion code, created by Plans managers in the Back Office's Codes promo section; Stripe counts its redemptions. Its terms never change; deactivated, it can no longer be redeemed, while discounts already given run their course. A code brought to checkout that does not apply (another Plan, expired, refused by Stripe, not checkable) is refused with the reason, never dropped silently: the Candidate may go on without it. A 100 % Coupon subscribes without a card; when its free period ends with no card, the Candidate is back on Free at once. A fixed amount for as long as the subscription lasts must stay below the Plans' prices. The subscription page shows the discount a subscription is getting. Coaching Sessions take no Coupon.
@@ -529,7 +587,7 @@ A third-party key (an AI provider's, France Travail's, Fantastic.jobs', the cont
 _Avoid_: API key setting, credential, config secret
 
 **Tool**:
-An external service the application calls at runtime, from the web app or the worker: an AI model, web search, a job board API, the company register, a contact-enrichment provider, Stripe, Brevo or a Sign-in Provider. Each is registered in one catalog with its purpose, the keys it needs, where its calls are recorded and its data residency (in the EU, outside the EU, or not established); a provider missing from the catalog fails the tests. The Back Office's Outils section shows each Tool's state (configured, key missing, not configured) and its last 30 days of calls, failures and cost, and its latest calls without any payload. Super-admins and Support read it. Not a tool an AI model uses during a call (a web search it runs), which is only counted in AI Usage.
+An external service the application calls at runtime, from the web app or the worker: an AI model, web search, a job board API, the company register, a contact-enrichment provider, a source of Reference data or of Place suggestions, Stripe, Brevo or a Sign-in Provider. Each is registered in one catalog with its purpose, the keys it needs, where its calls are recorded and its data residency (in the EU, outside the EU, or not established); a provider missing from the catalog fails the tests. The Back Office's Outils section shows each Tool's state (configured, key missing, not configured) and its last 30 days of calls, failures and cost, and its latest calls without any payload. Super-admins and Support read it. Not a tool an AI model uses during a call (a web search it runs), which is only counted in AI Usage.
 _Avoid_: Integration, connector, service
 
 **Sign-in Provider**:

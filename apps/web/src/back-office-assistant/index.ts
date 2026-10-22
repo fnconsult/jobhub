@@ -246,8 +246,11 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
       heading("aiUsage"),
       "Ce que coûtent les appels à l'IA (toutes les tâches, pas seulement le coach IA), les outils utilisés par les modèles (recherche web) et les API externes (France Travail, Fantastic.jobs, enrichissement de contacts), sur les 30 derniers jours (heure de Paris). Estimations aux prix publics, en euros. Agrégats seulement : aucun candidat, aucun texte.",
       `Total : ${calls(totals)}, ${totals.inputTokens} jetons en entrée, ${totals.cachedInputTokens} en cache, ${totals.outputTokens} en sortie ; coût total ${eur(totals.costEur)} (dont outils ${eur(totals.toolsCostEur)}, API externes ${eur(totals.externalCostEur)}).`,
-      "Par fournisseur et modèle :",
-      ...byModel.map((row) => `- ${row.provider ? `${row.provider} ${row.model ?? ""}`.trim() : "aucun fournisseur (non envoyé)"} : ${calls(row)}, ${eur(row.costEur)}`),
+      "Par fournisseur, point d'accès et modèle :",
+      ...byModel.map(
+        (row) =>
+          `- ${row.provider ? `${row.provider}${row.endpoint ? ` (${row.endpoint})` : ""} ${row.model ?? ""}`.trim() : "aucun fournisseur (non envoyé)"} : ${calls(row)}, ${eur(row.costEur)}`,
+      ),
       "Par tâche :",
       ...byTask.map((row) => `- ${row.task} : ${calls(row)}, ${eur(row.costEur)}`),
       "Outils :",

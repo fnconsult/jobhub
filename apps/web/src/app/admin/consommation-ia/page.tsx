@@ -22,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Super-admins and Support follow what AI costs (#218): every AI call, the tools its model used
- * and the external API calls, over a period, in totals and per provider and model, task and day
+ * and the external API calls, over a period, in totals and per provider, endpoint and model, task and day
  * (or month), and its failed and warned calls per Failure Reason (#262): codes and their wording only,
  * never a technical reason. Read-only.
  */
@@ -174,14 +174,16 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
               <thead>
                 <tr>
                   <th scope="col">{t("admin.aiUsage.provider")}</th>
+                  <th scope="col">{t("admin.aiUsage.endpoint")}</th>
                   <th scope="col">{t("admin.aiUsage.model")}</th>
                   {usageHeads}
                 </tr>
               </thead>
               <tbody>
                 {report.byModel.map((row) => (
-                  <tr key={`${row.provider} ${row.model}`}>
+                  <tr key={`${row.provider} ${row.endpoint} ${row.model}`}>
                     <th scope="row">{row.provider ?? t("admin.aiMessages.noProvider")}</th>
+                    <td>{row.endpoint ?? "—"}</td>
                     <td>{row.model ?? "—"}</td>
                     {usageCells(row)}
                   </tr>

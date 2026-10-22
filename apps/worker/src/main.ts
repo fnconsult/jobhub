@@ -67,6 +67,8 @@ const referenceData = createReferenceData(database, { externalApis: createPostgr
 const externalApis = createPostgresExternalApiLog(database);
 const worker = workerClients({
   resolver: secrets,
+  // The AI routing set on Paramètres (#301): the AI layer is rebuilt when it changes, within seconds.
+  platformSettings: platformSettings.resolver,
   usage: allUsageLogs([createConsoleUsageLog(), createPostgresUsageLog(database, { secrets: () => knownSecrets(secrets.current().env) })]),
   externalApis,
   production: process.env.NODE_ENV === "production",

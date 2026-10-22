@@ -15,11 +15,23 @@ const envOnly: PlatformSettingsResolver = {
 
 /**
  * The Platform Settings in use in this process: the Back Office's, else env's, else the
- * code's defaults. Started on first use (Paramètres); without DATABASE_URL (a build, some
- * tests), env and the defaults alone. The apps still read env until the editing slices.
+ * code's defaults. Started before the server serves (instrumentation.ts); without DATABASE_URL
+ * (a build, some tests), env and the defaults alone.
  */
 export function getPlatformSettingsResolver(): PlatformSettingsResolver {
   if (!process.env.DATABASE_URL) return envOnly;
+  return watched().resolver;
+}
+
+function watched(): WatchedPlatformSettings {
   holder.__jobhubPlatformSettings ??= watchPlatformSettings({ database: sharedPool(), env: process.env });
-  return holder.__jobhubPlatformSettings.resolver;
+  return holder.__jobhubPlatformSettings;
+}
+
+/**
+ * Reads the Platform Settings a first time and starts listening for changes: the server awaits it before
+ * serving (instrumentation.ts), so the first AI call is already routed as the Back Office set it (#301).
+ */
+export async function startPlatformSettings(): Promise<void> {
+  if (process.env.DATABASE_URL) await watched().ready;
 }

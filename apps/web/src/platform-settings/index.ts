@@ -4,8 +4,10 @@
  * deletes it.
  *
  *  - `platformSettingsReader(database).load()` is what the resolver (./resolver.ts) reads.
- *  - `platformSettingsStore(database, env)` also sets and restores an editable setting
+ *  - `platformSettingsStore(database, env, { check })` also sets and restores an editable setting
  *    (`isEditable`), parsed as env's value is, and says its value and source before and after.
+ *    `check` is asked about each change first, with the settings in use before and after it (an AI
+ *    route the AI layer would refuse, a model that fails its test call, #301): what it refuses is not kept.
  *    Each change is announced with NOTIFY on PLATFORM_SETTINGS_CHANNEL in the transaction it is
  *    given (the Back Office records it in the same one), so it is in use within seconds in the
  *    web app and the worker.
@@ -13,6 +15,7 @@
  * The table names no Candidate (an Administrator by email only), so it stays out of a
  * Candidate's data export.
  */
+import type { FailureReason, TechnicalReason } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type { Queryable } from "../database/pool";
 import { isEditable, parseSetting, platformSetting } from "./catalog";
@@ -50,12 +53,34 @@ export interface PlatformSettingState {
 /** `changed`: false when the Back Office already held that value (set), or held none (restore): nothing written. */
 export type PlatformSettingChange = { ok: true; changed: boolean; before: PlatformSettingState; after: PlatformSettingState };
 
+type Env = Record<string, string | undefined>;
+
+/** Why a change's check refused it: its Failure Reason, and the technical detail (not secret). */
+export interface PlatformSettingRefusal {
+  reason: FailureReason;
+  technical: TechnicalReason;
+}
+
+/** A change about to be written: env with the Back Office's values over it, before and after. */
+export interface ProposedPlatformSettingChange {
+  name: string;
+  before: Env;
+  after: Env;
+}
+
+/** Asked about each change before it is written: null to let it through. */
+export type PlatformSettingCheck = (change: ProposedPlatformSettingChange) => Promise<PlatformSettingRefusal | null>;
+
+/** A change its check refused (#301): nothing was written. */
+export type RefusedPlatformSettingChange = { ok: false; error: "refused" } & PlatformSettingRefusal;
+
 /**
  * Why a value is refused: `invalid`, the setting does not take it (out of its bounds, not of its type);
- * `empty`, nothing entered; `not_editable`, not a Platform Setting super-admins edit (yet).
+ * `empty`, nothing entered; `not_editable`, not a Platform Setting super-admins edit (yet); `refused`, its
+ * check turned the change down.
  */
-export type SetPlatformSettingResult = PlatformSettingChange | { ok: false; error: "invalid" | "empty" | "not_editable" };
-export type RestorePlatformSettingResult = PlatformSettingChange | { ok: false; error: "not_editable" };
+export type SetPlatformSettingResult = PlatformSettingChange | RefusedPlatformSettingChange | { ok: false; error: "invalid" | "empty" | "not_editable" };
+export type RestorePlatformSettingResult = PlatformSettingChange | RefusedPlatformSettingChange | { ok: false; error: "not_editable" };
 
 export interface PlatformSettingsStore extends PlatformSettingsReader {
   /** Sets `name` to `raw`, as its parser takes it (trimmed, a number as a number: "0.150" is "0.15"), by the Administrator `email`. */
@@ -64,20 +89,32 @@ export interface PlatformSettingsStore extends PlatformSettingsReader {
   restore(name: string, within?: Queryable): Promise<RestorePlatformSettingResult>;
 }
 
-export function platformSettingsStore(database: Queryable, env: Record<string, string | undefined>): PlatformSettingsStore {
+export function platformSettingsStore(database: Queryable, env: Env, options: { check?: PlatformSettingCheck } = {}): PlatformSettingsStore {
   /** The value and source of `name` in use, given what the Back Office holds. */
   const stateOf = (stored: StoredPlatformSettings, name: string): PlatformSettingState => {
     const { value, source } = snapshotOfSettings(env, stored).setting(name)!;
     return { value, source };
   };
 
-  /** Runs `write` on `within` when the setting changes, announcing it; says the setting before and after. */
-  async function change(within: Queryable, name: string, write: ((stored: StoredPlatformSettings) => Promise<boolean>)): Promise<PlatformSettingChange> {
+  /**
+   * Changes `name` on `within` to what `proposed` makes of the Back Office's values (null: nothing to
+   * change), once its check lets it through, and announces it; says the setting before and after.
+   */
+  async function change(
+    within: Queryable,
+    name: string,
+    proposed: (stored: StoredPlatformSettings) => StoredPlatformSettings | null,
+    write: () => Promise<unknown>,
+  ): Promise<PlatformSettingChange | RefusedPlatformSettingChange> {
     // The row is locked while it changes, so two Administrators saving at once each record what they replaced.
     await within.query("SELECT 1 FROM platform_setting WHERE name = $1 FOR UPDATE", [name]);
     const stored = await platformSettingsReader(within).load();
     const before = stateOf(stored, name);
-    if (!(await write(stored))) return { ok: true, changed: false, before, after: before };
+    const next = proposed(stored);
+    if (!next) return { ok: true, changed: false, before, after: before };
+    const refusal = await options.check?.({ name, before: snapshotOfSettings(env, stored).env, after: snapshotOfSettings(env, next).env });
+    if (refusal) return { ok: false, error: "refused", ...refusal };
+    await write();
     await within.query("SELECT pg_notify($1, '')", [PLATFORM_SETTINGS_CHANNEL]);
     return { ok: true, changed: true, before, after: stateOf(await platformSettingsReader(within).load(), name) };
   }
@@ -92,25 +129,28 @@ export function platformSettingsStore(database: Queryable, env: Record<string, s
       const parsed = parseSetting(setting, raw);
       if (!parsed.ok) return { ok: false, error: "invalid" };
       const value = String(parsed.value);
-      return change(within, name, async (stored) => {
-        if (stored[name]?.value === value) return false;
-        await within.query(
-          `INSERT INTO platform_setting (name, value, updated_by_email) VALUES ($1, $2, $3)
-           ON CONFLICT (name) DO UPDATE SET value = excluded.value, updated_by_email = excluded.updated_by_email, updated_at = now()`,
-          [name, value, email.trim().toLowerCase()],
-        );
-        return true;
-      });
+      return change(
+        within,
+        name,
+        (stored) => (stored[name]?.value === value ? null : { ...stored, [name]: { value, updatedBy: email, updatedAt: new Date() } }),
+        () =>
+          within.query(
+            `INSERT INTO platform_setting (name, value, updated_by_email) VALUES ($1, $2, $3)
+             ON CONFLICT (name) DO UPDATE SET value = excluded.value, updated_by_email = excluded.updated_by_email, updated_at = now()`,
+            [name, value, email.trim().toLowerCase()],
+          ),
+      );
     },
 
     async restore(name, within = database) {
       const setting = platformSetting(name);
       if (!setting || !isEditable(setting)) return { ok: false, error: "not_editable" };
-      return change(within, name, async (stored) => {
-        if (!stored[name]) return false;
-        await within.query("DELETE FROM platform_setting WHERE name = $1", [name]);
-        return true;
-      });
+      return change(
+        within,
+        name,
+        (stored) => (stored[name] ? Object.fromEntries(Object.entries(stored).filter(([kept]) => kept !== name)) : null),
+        () => within.query("DELETE FROM platform_setting WHERE name = $1", [name]),
+      );
     },
   };
 }

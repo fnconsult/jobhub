@@ -8,8 +8,8 @@
  *   resolver.current().setting("ANTHROPIC_ENDPOINT");          // its value, source and default
  *   resolver.current().env;                                    // env with the Back Office's values over it
  *
- * Until the editing slices, nothing writes the table: the apps still read env, and
- * Paramètres shows what is in use.
+ * The Job Digest, Job discovery (#299) and the AI layer (#301) read their settings through it;
+ * the other groups still read env until their editing slice, and Paramètres shows what is in use.
  */
 import { cachedRead, type CachedRead } from "../database/cached-read";
 import { parseSetting, PLATFORM_SETTINGS, type PlatformSetting } from "./catalog";

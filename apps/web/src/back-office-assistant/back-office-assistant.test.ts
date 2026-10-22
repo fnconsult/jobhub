@@ -94,7 +94,7 @@ function backOfficeData() {
       return {
         period: { key: "30d", from: "2026-09-18", to: "2026-10-18", per: "day" },
         totals: { calls: 9876, failures: 12, ...row, callsCostEur: 41.5, toolCalls: 300, toolsCostEur: 1.29, externalCalls: 450, externalFailures: 3, externalCostEur: 0, costEur: 41.5 },
-        byModel: [{ provider: "mistral", model: "mistral-large-latest", calls: 9000, failures: 10, ...row, costEur: 40 }],
+        byModel: [{ provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-large-latest", calls: 9000, failures: 10, ...row, costEur: 40 }],
         byTask: [{ task: "coaching", calls: 7000, failures: 5, ...row, costEur: 30 }],
         byTime: [{ bucket: "2026-10-17", calls: 400, failures: 1, ...row, costEur: 1.5 }],
         tools: [{ provider: "perplexity", name: "web_search", calls: 300, failures: 0, costEur: 1.29 }],
@@ -294,7 +294,7 @@ describe("Back Office Assistant", () => {
 
     expect(prompt()).toContain("9876 appels");
     expect(prompt()).toContain("41.50 €");
-    expect(prompt()).toContain("mistral mistral-large-latest : 9000 appels");
+    expect(prompt()).toContain("mistral (api.mistral.ai) mistral-large-latest : 9000 appels");
     expect(prompt()).toContain("coaching : 7000 appels");
     expect(prompt()).toContain("perplexity web_search : 300 utilisations");
     expect(prompt()).toContain("france_travail GET /partenaire/offresdemploi/v2/offres/search : 450 appels, 3 en échec");

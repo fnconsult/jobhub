@@ -91,7 +91,7 @@ describe.skipIf(!connectionString)("Platform Settings in the database (needs Pos
       expect(await store.set("JOB_DISCOVERY_BUDGET_SECONDS", "900", "ops@jobbbox.ai")).toEqual({ ok: false, error: "invalid" });
       expect(await store.set("JOB_DISCOVERY_BUDGET_JOB_OFFERS", "trente", "ops@jobbbox.ai")).toEqual({ ok: false, error: "invalid" });
       expect(await store.set("JOB_DIGEST_TARGET_COUNT", "  ", "ops@jobbbox.ai")).toEqual({ ok: false, error: "empty" });
-      expect(await store.set("ANTHROPIC_ENDPOINT", "vertex", "ops@jobbbox.ai")).toEqual({ ok: false, error: "not_editable" });
+      expect(await store.set("MAIL_FROM", "Jobbbox <bonjour@jobbbox.ai>", "ops@jobbbox.ai")).toEqual({ ok: false, error: "not_editable" });
       expect(await store.set("AUTH_SECRET", "x", "ops@jobbbox.ai")).toEqual({ ok: false, error: "not_editable" });
 
       expect(await platformSettingsReader(database.pool).load()).toEqual({});
@@ -112,6 +112,35 @@ describe.skipIf(!connectionString)("Platform Settings in the database (needs Pos
       expect(await store.restore("JOB_DIGEST_MIN_MATCH_SCORE")).toMatchObject({ ok: true, changed: false });
       expect(await store.restore("MAIL_FROM")).toEqual({ ok: false, error: "not_editable" });
       expect(await platformSettingsReader(database.pool).load()).toEqual({});
+    });
+
+    it("asks its check about a change, with the settings in use before and after it, and keeps nothing it refuses (#301)", async () => {
+      const technical = { class: "DataResidencyError", message: "AI_SCORING_PROVIDER: outside the EU" };
+      const check = vi.fn(async ({ after }: { name: string; before: Record<string, string | undefined>; after: Record<string, string | undefined> }) =>
+        after.AI_SCORING_PROVIDER === "openai" ? { reason: "data_residency" as const, technical } : null,
+      );
+      const store = platformSettingsStore(database.pool, { ...env, ANTHROPIC_ENDPOINT: "bedrock" }, { check });
+
+      expect(await store.set("AI_SCORING_PROVIDER", "openai", "ops@jobbbox.ai")).toEqual({ ok: false, error: "refused", reason: "data_residency", technical });
+      expect(check).toHaveBeenLastCalledWith({
+        name: "AI_SCORING_PROVIDER",
+        before: expect.not.objectContaining({ AI_SCORING_PROVIDER: expect.anything() }),
+        after: expect.objectContaining({ ANTHROPIC_ENDPOINT: "bedrock", AI_SCORING_PROVIDER: "openai" }),
+      });
+      expect(await platformSettingsReader(database.pool).load()).toEqual({});
+
+      expect(await store.set("ANTHROPIC_ENDPOINT", "auto", "ops@jobbbox.ai")).toMatchObject({ ok: true, changed: true, before: { value: "bedrock", source: "env" }, after: { value: "auto", source: "back_office" } });
+      // « Rétablir » is a change too: back to env's bedrock, asked about first.
+      expect(await store.restore("ANTHROPIC_ENDPOINT")).toMatchObject({ ok: true, changed: true, after: { value: "bedrock", source: "env" } });
+      expect(check).toHaveBeenLastCalledWith({
+        name: "ANTHROPIC_ENDPOINT",
+        before: expect.objectContaining({ ANTHROPIC_ENDPOINT: "auto" }),
+        after: expect.objectContaining({ ANTHROPIC_ENDPOINT: "bedrock" }),
+      });
+      // Nothing changes: nothing to ask.
+      check.mockClear();
+      expect(await store.restore("ANTHROPIC_ENDPOINT")).toMatchObject({ ok: true, changed: false });
+      expect(check).not.toHaveBeenCalled();
     });
 
     it("announces each change, so a watching process uses it within seconds", async () => {

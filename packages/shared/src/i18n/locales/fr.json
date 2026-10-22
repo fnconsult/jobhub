@@ -1247,26 +1247,31 @@
       "save": "Enregistrer",
       "restore": "Rétablir",
       "restoreHelp": "Efface la valeur du back office : celle de l'environnement s'applique, sinon le défaut du code.",
-      "editIntro": "Les réglages du Job Digest et de la recherche d'offres se modifient ici : une valeur enregistrée s'applique au prochain passage du worker, sans redémarrage. Chaque modification et chaque tentative refusée est inscrite au Journal.",
+      "editIntro": "Le routage de l'IA, les réglages du Job Digest et ceux de la recherche d'offres se modifient ici : une valeur enregistrée s'applique en quelques secondes dans l'application et le worker, sans redémarrage. Une modification du routage de l'IA est vérifiée avant d'être enregistrée : une route que la couche IA refuserait (données personnelles hors UE, clé manquante) est refusée, et un modèle nommé est testé par un appel. Chaque modification et chaque tentative refusée est inscrite au Journal.",
       "rules": {
         "whole": "un nombre entier de {{min}} à {{max}}",
         "wholeAboveMin": "un nombre entier supérieur à {{min}}, jusqu'à {{max}}",
         "decimal": "un nombre de {{min}} à {{max}}",
-        "decimalAboveMin": "un nombre supérieur à {{min}}, jusqu'à {{max}}"
+        "decimalAboveMin": "un nombre supérieur à {{min}}, jusqu'à {{max}}",
+        "choice": "l'une des valeurs {{values}}",
+        "text": "du texte",
+        "model": "un modèle de {{provider}}, choisi dans la liste ou saisi ; il est testé par un appel à l'enregistrement"
       },
       "notices": {
-        "saved": "{{name}} enregistré : la nouvelle valeur s'applique au prochain passage, sans redémarrage.",
+        "saved": "{{name}} enregistré : la nouvelle valeur s'applique en quelques secondes, sans redémarrage.",
         "unchanged": "{{name}} avait déjà cette valeur : rien n'a changé.",
         "restored": "{{name}} rétabli : la valeur de l'environnement s'applique, sinon le défaut du code.",
         "notRestored": "{{name}} n'avait pas de valeur dans le back office : rien n'a changé.",
         "invalid": "Valeur refusée pour {{name}} : il faut {{rule}}. La tentative est inscrite au Journal.",
         "empty": "Saisissez une valeur pour {{name}}.",
-        "not_editable": "{{name}} ne se modifie pas encore ici."
+        "not_editable": "{{name}} ne se modifie pas encore ici.",
+        "refused": "{{name}} n'a pas été modifié : {{reason}}. La tentative est inscrite au Journal."
       },
       "journalFields": {
         "value": "Valeur",
         "source": "Source"
-      }
+      },
+      "refusedDetail": "Détail :"
     },
     "administrators": {
       "title": "Administrateurs",
@@ -1433,9 +1438,10 @@
       "totalCost": "Coût total",
       "unknownCost": "inconnu",
       "none": "Aucun appel sur cette période.",
-      "byModelTitle": "Par fournisseur et modèle",
-      "byModelCaption": "Appels à l'IA par fournisseur et modèle",
+      "byModelTitle": "Par fournisseur, point d'accès et modèle",
+      "byModelCaption": "Appels à l'IA par fournisseur, point d'accès et modèle",
       "provider": "Fournisseur",
+      "endpoint": "Point d'accès",
       "model": "Modèle",
       "byTaskTitle": "Par tâche",
       "byTaskCaption": "Appels à l'IA par tâche",

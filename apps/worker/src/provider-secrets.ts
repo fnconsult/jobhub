@@ -5,17 +5,19 @@
  *
  *   const worker = workerClients({ resolver, production, jobOffers, budget });
  *   worker.discovery();     // Job discovery, or why it is unavailable: asked on each job
- *   worker.ai;              // the AI layer (Follow-ups)
+ *   worker.ai;              // the AI layer (Follow-ups), routed by the AI routing Platform Settings (#301)
  *   worker.franceTravail(); // France Travail, or null without its credentials
  *   worker.fantasticJobs(); // Fantastic.jobs, or null without FANTASTIC_JOBS_API_KEY
  *   worker.mailer;          // BREVO_API_KEY or SMTP_URL (Brevo)
  *
- * A key refused by its provider (401/403, an SMTP 535, France Travail's or Fantastic.jobs' refusal) is
+ * The AI layer is also rebuilt when an AI routing Platform Setting changes (`platformSettings`), so a provider, model or
+ * endpoint set on Paramètres is used for the next call. A key refused by its provider (401/403, an SMTP 535, France Travail's or Fantastic.jobs' refusal) is
  * read again from the database and the call made once more if it changed.
  */
 import { AiConfigError, createAiLayerFromEnv, type AiLayer, type CandidateIdentity, type UsageLog } from "@jobhub/ai";
 import { recordingFetch, type ExternalApiLog } from "@jobhub/shared";
 import { mailerFromEnv } from "@jobhub/web/mailers";
+import { AI_ROUTING_NAMES, withPlatformSettings, type PlatformSettingsResolver } from "@jobhub/web/platform-settings";
 import { AI_SECRET_NAMES, FANTASTIC_JOBS_SECRET_NAMES, FRANCE_TRAVAIL_SECRET_NAMES, liveObject, MAIL_SECRET_NAMES, rebuilding, type SecretResolver } from "@jobhub/web/provider-secrets";
 import {
   chargedCostEur,
@@ -34,6 +36,8 @@ type Env = Record<string, string | undefined>;
 
 export interface WorkerClientsOptions {
   resolver: SecretResolver;
+  /** The Platform Settings in use (ADR-0033): the AI layer follows the AI routing ones. Without it, env's routing alone. */
+  platformSettings?: PlatformSettingsResolver;
   /** In production a missing AI key fails Job discovery loudly; elsewhere it is unavailable, with the reason. */
   production: boolean;
   jobOffers: JobDiscoveryOptions["jobOffers"];
@@ -78,7 +82,10 @@ export function workerClients(options: WorkerClientsOptions): WorkerClients {
   const { resolver } = options;
   const log = options.log ?? ((line: string) => console.info(line));
   const buildAi = (env: Env) => createAiLayerFromEnv(env, { euAiConsent: options.euAiConsent, identityOf: options.identityOf, fetch: options.fetch, usage: options.usage });
-  const ai = liveObject(resolver, AI_SECRET_NAMES, buildAi);
+  // The AI layer's keys and its routing: rebuilt when one of either changes.
+  const aiResolver = options.platformSettings ? withPlatformSettings(resolver, options.platformSettings) : resolver;
+  const aiNames = [...AI_SECRET_NAMES, ...AI_ROUTING_NAMES];
+  const ai = liveObject(aiResolver, aiNames, buildAi);
 
   const franceTravailConfigured = rebuilding(resolver, FRANCE_TRAVAIL_SECRET_NAMES, (env) => franceTravailFromEnv(env) !== null);
   // France Travail's API is free: each call is recorded at no cost.
@@ -106,8 +113,8 @@ export function workerClients(options: WorkerClientsOptions): WorkerClients {
   );
   const fantasticJobs = () => (fantasticJobsConfigured() ? liveFantasticJobs : null);
 
-  // Built again whenever an AI key changes: a key entered later turns Job discovery on.
-  const discovery = rebuilding(resolver, AI_SECRET_NAMES, (env): JobDiscovery | DiscoveryUnavailable => {
+  // Built again whenever an AI key or routing setting changes: a key entered later turns Job discovery on.
+  const discovery = rebuilding(aiResolver, aiNames, (env): JobDiscovery | DiscoveryUnavailable => {
     try {
       buildAi(env);
     } catch (error) {

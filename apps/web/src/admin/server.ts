@@ -7,7 +7,10 @@ import { sharedPool } from "@/database/pool";
 import { getGuardrailStore } from "@/guardrails/server";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { routes } from "@/routes";
+import { getAiUsageLog } from "@/ai-usage/server";
 import { platformSettingsStore } from "@/platform-settings";
+import { aiRoutingCheck } from "@/platform-settings/ai-routing";
+import { getSecretResolver } from "@/provider-secrets/server";
 import { getSearchSites } from "@/search-sites/server";
 import { needsSsoForBackOffice } from "@/sign-in-providers/policy";
 import { currentSignInConfiguration } from "@/sign-in-providers/server";
@@ -64,9 +67,14 @@ export function getEvalCasesBackOffice(): EvalCasesBackOffice {
   return evalCasesBackOffice;
 }
 
-/** The Platform Settings' Back Office writes (Paramètres), each recorded in the Back Office Audit (#299). */
+/**
+ * The Platform Settings' Back Office writes (Paramètres), each recorded in the Back Office Audit (#299). An AI
+ * routing change is checked first as the AI layer would build it, with the Provider Secrets in use (#301); each
+ * model test call it makes is recorded in AI Usage, as the app's other AI calls.
+ */
 export function getPlatformSettingsBackOffice(): PlatformSettingsBackOffice {
-  platformSettingsBackOffice ??= createPlatformSettingsBackOffice(platformSettingsStore(sharedPool(), process.env), getBackOffice());
+  const check = aiRoutingCheck(() => getSecretResolver().current().env, { usage: getAiUsageLog() });
+  platformSettingsBackOffice ??= createPlatformSettingsBackOffice(platformSettingsStore(sharedPool(), process.env, { check }), getBackOffice());
   return platformSettingsBackOffice;
 }
 

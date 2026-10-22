@@ -244,8 +244,12 @@ export interface AiUsageReport {
     /** Everything: AI calls with their tools, and external APIs. */
     costEur: number;
   };
-  /** Most calls first; provider and model null for the calls stopped before any was chosen (#259). */
-  byModel: (AiUsageRow & { provider: string | null; model: string | null })[];
+  /**
+   * Per provider, endpoint and model, most calls first: a model reached through two endpoints (Claude on Bedrock and
+   * on its direct API) is two rows, so a change of ANTHROPIC_ENDPOINT shows (#301). Provider, endpoint and model null
+   * for the calls stopped before any was chosen (#259); endpoint null for one stopped before it reached one.
+   */
+  byModel: (AiUsageRow & { provider: string | null; endpoint: string | null; model: string | null })[];
   byTask: (AiUsageRow & { task: string })[];
   /** Per day ("2026-10-17") or per month ("2026-10"), Paris time, newest first; only those with calls. */
   byTime: (AiUsageRow & { bucket: string })[];
@@ -280,7 +284,7 @@ const REPORT = `
       FROM ai_usage u JOIN ai_tool_usage t ON t.usage_id = u.id
      WHERE ${within("u.at")}
   ), calls AS MATERIALIZED (
-    SELECT u.provider, u.model, u.task, u.ok, u.outcome,
+    SELECT u.provider, u.endpoint, u.model, u.task, u.ok, u.outcome,
            CASE WHEN u.reason = ANY($4::text[]) THEN u.reason ELSE 'other' END AS reason, u.input_tokens, u.output_tokens, u.cached_input_tokens,
            u.cost_eur + coalesce(fees.cost, 0) AS cost, to_char(u.at AT TIME ZONE '${TIME_ZONE}', $3) AS bucket
       FROM ai_usage u
@@ -289,8 +293,8 @@ const REPORT = `
   )
   SELECT
     (SELECT json_build_object(${ROW}) FROM calls) AS total,
-    (SELECT coalesce(json_agg(row ORDER BY (row->>'calls')::int DESC, row->>'provider', row->>'model'), '[]')
-       FROM (SELECT json_build_object('provider', provider, 'model', model, ${ROW})::jsonb AS row FROM calls GROUP BY provider, model) g) AS "byModel",
+    (SELECT coalesce(json_agg(row ORDER BY (row->>'calls')::int DESC, row->>'provider', row->>'endpoint', row->>'model'), '[]')
+       FROM (SELECT json_build_object('provider', provider, 'endpoint', endpoint, 'model', model, ${ROW})::jsonb AS row FROM calls GROUP BY provider, endpoint, model) g) AS "byModel",
     (SELECT coalesce(json_agg(row ORDER BY (row->>'calls')::int DESC, row->>'task'), '[]')
        FROM (SELECT json_build_object('task', task, ${ROW})::jsonb AS row FROM calls GROUP BY task) g) AS "byTask",
     (SELECT coalesce(json_agg(row ORDER BY row->>'bucket' DESC), '[]')

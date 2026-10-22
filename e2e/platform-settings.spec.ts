@@ -14,6 +14,9 @@ import { newAddress } from "./support/mailbox";
 // Issue #301: they change AI routing too, each change checked as the AI layer would build it: a
 // route with personal data outside the EU is refused with its reason, and a model typed is tested
 // with a call (the fake Mistral refuses a model named "…inexistant…", e2e/support/fake-mistral.mjs).
+// Issue #303: they set the extension's Chrome Web Store page there, an https URL only; Mon compte's
+// Outils offers it within seconds, and « coming soon » again once it is « Rétablir »'d (the e2e server
+// sets no EXTENSION_STORE_URL).
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const admin = fr.admin;
 const texts = admin.platformSettings;
@@ -287,6 +290,81 @@ test.describe("Platform Settings (Paramètres)", () => {
       await expect(refused).toHaveCount(1);
       await expect(refused).toContainText(tr(admin.journal.failed, { tried: admin.journal.actions.updated, reason: fr.failureReasons.test_failed }));
       await expect(refused).not.toContainText("mistral-inexistant-9");
+    });
+  });
+
+  test.describe("editing the extension's store page (#303)", () => {
+    const STORE = "EXTENSION_STORE_URL";
+    const PAGE = "https://chromewebstore.google.com/detail/jobbbox/abcdefghijklmnopabcdefghijklmnop";
+    // Whatever happens, the specs sharing this server find no store page, as env leaves it.
+    test.afterAll(async () => {
+      const client = new Client({ connectionString: process.env.E2E_DATABASE_URL });
+      await client.connect();
+      try {
+        await client.query("DELETE FROM platform_setting WHERE name = $1", [STORE]);
+        await client.query("SELECT pg_notify('platform_settings_changed', '')");
+      } finally {
+        await client.end();
+      }
+    });
+
+    test("a saved https URL is offered in Mon compte without a restart, a non-https one is refused, « Rétablir » shows « coming soon » again, all in the Journal", async ({ page, browser }) => {
+      const candidate = await personPage(browser, newAddress("store-page"));
+      const extension = candidate.getByRole("region", { name: fr.account.tools.extensionTitle });
+      const install = extension.getByRole("link", { name: fr.account.tools.install });
+      await candidate.goto("/compte/outils");
+      await expect(extension.getByText(fr.account.tools.soon)).toBeVisible();
+      await expect(install).toHaveCount(0);
+
+      await signInWithMagicLink(page, SUPER_ADMIN);
+      await page.goto(PATH);
+      const setting = row(page, STORE);
+      const field = setting.getByRole("textbox", { name: tr(texts.newValue, { name: STORE }) });
+      await expect(setting).toContainText(tr(texts.accepted, { rule: texts.rules.url }));
+      await expect(setting.getByRole("cell").nth(1)).toHaveText(texts.sources.default);
+
+      await field.fill("http://chromewebstore.google.com/detail/jobbbox");
+      await setting.getByRole("button", { name: texts.save }).click();
+      await expect(page.getByRole("alert").filter({ hasText: STORE })).toHaveText(tr(texts.notices.invalid, { name: STORE, rule: texts.rules.url }));
+      await expect(setting.getByRole("cell").nth(0)).toHaveText(texts.empty);
+
+      await field.fill(PAGE);
+      await setting.getByRole("button", { name: texts.save }).click();
+      await expect(page.getByRole("status").filter({ hasText: STORE })).toHaveText(tr(texts.notices.saved, { name: STORE }));
+      await expect(setting.getByRole("cell").nth(0)).toHaveText(PAGE);
+      await expect(setting.getByRole("cell").nth(1)).toContainText(texts.sources.back_office);
+
+      // Mon compte reads it through the resolver: in use within seconds, no restart.
+      await expect(async () => {
+        await candidate.reload();
+        await expect(install).toHaveAttribute("href", PAGE, { timeout: 1_000 });
+      }).toPass({ timeout: 15_000 });
+      await expect(extension.getByText(fr.account.tools.soon)).toHaveCount(0);
+
+      await setting.getByRole("button", { name: texts.restore }).click();
+      await expect(page.getByRole("status").filter({ hasText: STORE })).toHaveText(tr(texts.notices.restored, { name: STORE }));
+      await expect(setting.getByRole("cell").nth(0)).toHaveText(texts.empty);
+      await expect(setting.getByRole("cell").nth(1)).toHaveText(texts.sources.default);
+
+      await expect(async () => {
+        await candidate.reload();
+        await expect(extension.getByText(fr.account.tools.soon)).toBeVisible({ timeout: 1_000 });
+      }).toPass({ timeout: 15_000 });
+      await expect(install).toHaveCount(0);
+
+      await page.goto("/admin/journal?section=platform_settings");
+      const value = texts.journalFields.value;
+      const entries = page.getByRole("row").filter({ hasText: STORE }).filter({ hasText: SUPER_ADMIN });
+      const saved = entries.filter({ hasText: admin.journal.actions.updated }).filter({ hasText: admin.journal.outcomes.succeeded });
+      await expect(saved).toHaveCount(1);
+      await expect(saved).toContainText(tr(admin.journal.changed, { field: value, before: admin.journal.empty, after: PAGE }));
+      const restored = entries.filter({ hasText: admin.journal.actions.restored_to_default });
+      await expect(restored).toHaveCount(1);
+      await expect(restored).toContainText(tr(admin.journal.changed, { field: value, before: PAGE, after: admin.journal.empty }));
+      const refused = entries.filter({ hasText: admin.journal.actions.refused });
+      await expect(refused).toHaveCount(1);
+      await expect(refused).toContainText(tr(admin.journal.failed, { tried: admin.journal.actions.updated, reason: fr.failureReasons.invalid_value }));
+      await expect(refused).not.toContainText("http://chromewebstore.google.com");
     });
   });
 

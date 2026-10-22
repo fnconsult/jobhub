@@ -36,4 +36,5 @@ How the apps use it:
 ## Consequences
 
 - `.env.example` and `docs/ops` say which variables are now Platform Settings, and that a Back Office value wins.
+- A production build needs `MAIL_FROM` in env or on Paramètres; the code's default (`bonjour@localhost`) is used only outside production.
 - The settings are cut into slices that ship one at a time: the read-only page first, then editing for the worker's settings, `MAIL_FROM`, AI routing, Enriched Contacts, `EXTENSION_STORE_URL`, and the Tools' view.

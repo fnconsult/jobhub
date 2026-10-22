@@ -4,6 +4,7 @@ import { getAuth, getCurrentCandidate, getMailer } from "@/auth/server";
 import { getBilling } from "@/billing/server";
 import { sharedPool } from "@/database/pool";
 import { getJobOffers } from "@/job-offers/server";
+import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { getProfiles } from "@/profiles/server";
 import { routes } from "@/routes";
 import { createJobDigests, jobDigestsConfigFromEnv, type JobDigest, type JobDigests } from "./index";
@@ -23,7 +24,8 @@ export function getJobDigests(): JobDigests {
     billing: getBilling(),
     mailer: getMailer(),
     baseURL: String(getAuth().options.baseURL),
-    ...jobDigestsConfigFromEnv(process.env),
+    // The Platform Settings in use (Back Office, env, default), read at each delivery.
+    config: () => jobDigestsConfigFromEnv(getPlatformSettingsResolver().current().env),
   });
   return instance;
 }

@@ -28,6 +28,11 @@ import { fakeCustomerId, FAKE_STRIPE_PRICES, signedEvent, subscriptionEvent } fr
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const en = JSON.parse(readFileSync("packages/shared/src/i18n/locales/en.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
+const admin = fr.admin;
+const settingsTexts = admin.platformSettings;
+// A super-admin of its own (playwright.config.ts's ADMIN_EMAILS): the one setting this spec edits, Paramètres.
+const SUPER_ADMIN = "digest-threshold-office@e2e.jobbbox.test";
+const THRESHOLD = "JOB_DIGEST_MIN_MATCH_SCORE";
 const databaseUrl = process.env.E2E_DATABASE_URL!;
 const tag = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const workDir = path.join(os.tmpdir(), `jobhub-e2e-job-digest-${tag}`);
@@ -240,6 +245,71 @@ test.describe("Job Digest", () => {
     }
     rmSync(workDir, { recursive: true, force: true });
     await forgetStoredElsewhere();
+    // Whatever happened, the next spec finds the threshold as env and the code leave it.
+    const database = new Client({ connectionString: databaseUrl });
+    await database.connect();
+    try {
+      await database.query("DELETE FROM platform_setting WHERE name = $1", [THRESHOLD]);
+      await database.query("SELECT pg_notify('platform_settings_changed', '')");
+    } finally {
+      await database.end();
+    }
+  });
+
+  test("the Match Score a Job Digest needs follows Paramètres within seconds, no worker restart: a Back Office value over the code's default, « Rétablir » back to it (#299)", async ({ page, browser }) => {
+    await signIn(page, "digest-threshold", "standard");
+    // Job Offers the Profile fits poorly: another city, another contract, a salary above what they pay. Under the
+    // default threshold (60) none qualifies.
+    const poorFit = {
+      masterCv: { ...masterCv, fullName: "Boris Boulanger", headline: "Boulanger pâtissier", summary: "Un an de pétrin.", experience: [{ title: "Boulanger", employer: "Fournil", location: "Marseille", period: "2023 – 2024", description: "Pain." }], skills: ["Pain"] },
+      searchCriteria: { targetRole: "Boulanger", locations: ["Marseille"], contractTypes: ["cdd"], minSalary: 200_000 },
+    };
+    const createPoorFitProfile = async () => {
+      const created = await page.request.post("/api/profiles", { headers: { origin }, data: poorFit });
+      expect(created.status(), await created.text()).toBe(201);
+      const id = (await created.json()).id as string;
+      await optIn(page, id);
+      await optedInLastWeek(id);
+      return id;
+    };
+    const first = await createPoorFitProfile();
+
+    const context = await browser.newContext({ baseURL: origin, locale: "en-US" });
+    const office = await context.newPage();
+    try {
+      await signInWithMagicLink(office, SUPER_ADMIN);
+      await office.goto("/admin/parametres");
+      const setting = office.locator(`tr[data-setting="${THRESHOLD}"]`);
+      const sourceOf = () => setting.getByRole("cell").nth(1);
+      await expect(setting.getByRole("cell").nth(0)).toHaveText("60");
+
+      // The code's default: the Job Offers do not reach 60, nothing is sent.
+      await scheduleTick();
+      expect(await waitForDigestRun(first, 1)).toBe(`[job-digest] profile ${first}: nothing to send, Job discovery ran`);
+
+      // The Back Office lowers the threshold; the running worker applies it to the next Job Digest.
+      await setting.getByRole("textbox", { name: settingsTexts.newValue.replace("{{name}}", THRESHOLD) }).fill("0");
+      await setting.getByRole("button", { name: settingsTexts.save }).click();
+      await expect(office.getByRole("status").filter({ hasText: THRESHOLD })).toHaveText(settingsTexts.notices.saved.replace("{{name}}", THRESHOLD));
+      await expect(sourceOf()).toContainText(settingsTexts.sources.back_office);
+      // NOTIFY reaches the worker within seconds; its 60 s refresh is the fallback.
+      await new Promise((resolve) => setTimeout(resolve, 3_000));
+      const second = await createPoorFitProfile();
+      await scheduleTick();
+      expect(await waitForDigestRun(second, 1)).toMatch(new RegExp(`^\\[job-digest\\] profile ${second}: Job Digest sent \\(\\d+ Job Offer\\(s\\)\\)`));
+
+      // « Rétablir »: the code's default again, nothing qualifies.
+      await setting.getByRole("button", { name: settingsTexts.restore }).click();
+      await expect(office.getByRole("status").filter({ hasText: THRESHOLD })).toHaveText(settingsTexts.notices.restored.replace("{{name}}", THRESHOLD));
+      await expect(sourceOf()).toHaveText(settingsTexts.sources.default);
+      await new Promise((resolve) => setTimeout(resolve, 3_000));
+      // Opted in only now: a tick makes every Profile due, so one opted in earlier would have been decided under the lowered threshold.
+      const third = await createPoorFitProfile();
+      await scheduleTick();
+      expect(await waitForDigestRun(third, 1)).toBe(`[job-digest] profile ${third}: nothing to send, Job discovery ran`);
+    } finally {
+      await context.close();
+    }
   });
 
   test("is not included in the Free Plan: opting in shows the Upgrade Prompt, and no Job Digest is made", async ({ page }) => {

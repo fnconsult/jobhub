@@ -391,6 +391,7 @@ const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
   validated: "validation",
   archived: "archivage",
   restored: "rétablissement",
+  restored_to_default: "rétablissement au défaut",
   reset: "remise à zéro",
   refused: "tentative refusée",
   denied: "accès refusé",

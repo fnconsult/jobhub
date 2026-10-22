@@ -141,6 +141,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
       if (field === "language" && GUARDRAIL_LANGUAGES.includes(value as GuardrailLanguage)) return t(`admin.guardrails.languages.${value as GuardrailLanguage}`);
       if (field === "validatedAt" && typeof value === "string") return at.format(new Date(value));
     }
+    if (entrySection === "platform_settings" && field === "source" && (value === "back_office" || value === "env" || value === "default")) return t(`admin.platformSettings.sources.${value}`);
     if (entrySection === "eval_cases" && field === "inViewKind" && EVAL_IN_VIEW_KINDS.includes(value as EvalInView["kind"])) return t(`admin.evals.cases.inViewKinds.${value as EvalInView["kind"]}`);
     if (value === null) return t(entrySection === "plan_quotas" ? "admin.journal.unlimited" : "admin.journal.empty");
     if (entrySection === "plan_quotas" && field === "jobDigest" && JOB_DIGEST_FREQUENCIES.includes(value as JobDigestFrequency)) {

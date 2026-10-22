@@ -90,6 +90,8 @@ export const FAILURE_REASONS = [
   "stripe_refused",
   /** An Administrator opened a section outside their Back Office Roles (#264). */
   "role_missing",
+  /** A Platform Setting's value out of its bounds or not of its type (#299). */
+  "invalid_value",
   // A Guardrail that could not check (#261): its Guardrail Trigger records why.
   /** The Guardrail's AI check gave no verdict in time. */
   "guardrail_timeout",

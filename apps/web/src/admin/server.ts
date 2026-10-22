@@ -7,6 +7,7 @@ import { sharedPool } from "@/database/pool";
 import { getGuardrailStore } from "@/guardrails/server";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { routes } from "@/routes";
+import { platformSettingsStore } from "@/platform-settings";
 import { getSearchSites } from "@/search-sites/server";
 import { needsSsoForBackOffice } from "@/sign-in-providers/policy";
 import { currentSignInConfiguration } from "@/sign-in-providers/server";
@@ -16,6 +17,7 @@ import { createBackOffice, type BackOffice } from "./back-office";
 import { createCoachingPlaybooksBackOffice, type CoachingPlaybooksBackOffice } from "./coaching-playbooks-back-office";
 import { createEvalCasesBackOffice, type EvalCasesBackOffice } from "./eval-cases-back-office";
 import { createGuardrailsBackOffice, type GuardrailsBackOffice } from "./guardrails-back-office";
+import { createPlatformSettingsBackOffice, type PlatformSettingsBackOffice } from "./platform-settings-back-office";
 import { createSearchSitesBackOffice, type SearchSitesBackOffice } from "./search-sites-back-office";
 
 let backOffice: BackOffice | undefined;
@@ -24,6 +26,7 @@ let searchSitesBackOffice: SearchSitesBackOffice | undefined;
 let coachingPlaybooksBackOffice: CoachingPlaybooksBackOffice | undefined;
 let guardrailsBackOffice: GuardrailsBackOffice | undefined;
 let evalCasesBackOffice: EvalCasesBackOffice | undefined;
+let platformSettingsBackOffice: PlatformSettingsBackOffice | undefined;
 
 /** The app's Back Office writes and their Back Office Audit, on the database named by DATABASE_URL. */
 export function getBackOffice(): BackOffice {
@@ -59,6 +62,12 @@ export function getGuardrailsBackOffice(): GuardrailsBackOffice {
 export function getEvalCasesBackOffice(): EvalCasesBackOffice {
   evalCasesBackOffice ??= createEvalCasesBackOffice(getEvals(), getBackOffice());
   return evalCasesBackOffice;
+}
+
+/** The Platform Settings' Back Office writes (Paramètres), each recorded in the Back Office Audit (#299). */
+export function getPlatformSettingsBackOffice(): PlatformSettingsBackOffice {
+  platformSettingsBackOffice ??= createPlatformSettingsBackOffice(platformSettingsStore(sharedPool(), process.env), getBackOffice());
+  return platformSettingsBackOffice;
 }
 
 /** Whether the person signed in on this request is an Administrator (holds any Back Office Role). */

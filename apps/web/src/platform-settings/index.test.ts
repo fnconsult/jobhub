@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createThrowawayDatabase } from "../test-support/throwaway-database";
-import { migratePlatformSettings, PLATFORM_SETTINGS_CHANNEL, platformSettingsReader } from "./index";
+import { migratePlatformSettings, PLATFORM_SETTINGS_CHANNEL, platformSettingsReader, platformSettingsStore } from "./index";
 import { watchPlatformSettings, type WatchedPlatformSettings } from "./watch";
 
 const connectionString = process.env.DATABASE_URL;
@@ -54,5 +54,76 @@ describe.skipIf(!connectionString)("Platform Settings in the database (needs Pos
     await set("JOB_DIGEST_TARGET_COUNT", "12");
 
     await vi.waitFor(() => expect(watched!.resolver.current().setting("JOB_DIGEST_TARGET_COUNT")).toMatchObject({ value: "12", source: "back_office" }), { timeout: 5_000 });
+  });
+
+  describe("set and restored by the Back Office", () => {
+    const env = { JOB_DIGEST_TARGET_COUNT: "8" };
+
+    it("sets an editable setting as its parser takes it, saying its value and source before and after", async () => {
+      const store = platformSettingsStore(database.pool, env);
+
+      expect(await store.set("JOB_DIGEST_MIN_MATCH_SCORE", " 75 ", "ops@jobbbox.ai")).toEqual({
+        ok: true,
+        changed: true,
+        before: { value: "60", source: "default" },
+        after: { value: "75", source: "back_office" },
+      });
+      expect(await store.set("JOB_DISCOVERY_BUDGET_EUR", "0.150", "ops@jobbbox.ai")).toMatchObject({ ok: true, after: { value: "0.15", source: "back_office" } });
+      expect(await store.set("JOB_DIGEST_TARGET_COUNT", "12", "ops@jobbbox.ai")).toMatchObject({ before: { value: "8", source: "env" }, after: { value: "12", source: "back_office" } });
+
+      const stored = await platformSettingsReader(database.pool).load();
+      expect(stored.JOB_DIGEST_MIN_MATCH_SCORE).toMatchObject({ value: "75", updatedBy: "ops@jobbbox.ai" });
+    });
+
+    it("says a value already set is unchanged", async () => {
+      const store = platformSettingsStore(database.pool, env);
+      await store.set("JOB_DIGEST_MIN_MATCH_SCORE", "75", "ops@jobbbox.ai");
+
+      expect(await store.set("JOB_DIGEST_MIN_MATCH_SCORE", "75.0", "other@jobbbox.ai")).toMatchObject({ ok: true, changed: false });
+      expect((await platformSettingsReader(database.pool).load()).JOB_DIGEST_MIN_MATCH_SCORE?.updatedBy).toBe("ops@jobbbox.ai");
+    });
+
+    it("refuses a value out of the setting's bounds or of its type, an empty one, and a setting not editable yet, keeping nothing", async () => {
+      const store = platformSettingsStore(database.pool, env);
+
+      expect(await store.set("JOB_DIGEST_MIN_MATCH_SCORE", "120", "ops@jobbbox.ai")).toEqual({ ok: false, error: "invalid" });
+      expect(await store.set("JOB_DIGEST_FIRST_LOOK_BACK_DAYS", "1.5", "ops@jobbbox.ai")).toEqual({ ok: false, error: "invalid" });
+      expect(await store.set("JOB_DISCOVERY_BUDGET_SECONDS", "900", "ops@jobbbox.ai")).toEqual({ ok: false, error: "invalid" });
+      expect(await store.set("JOB_DISCOVERY_BUDGET_JOB_OFFERS", "trente", "ops@jobbbox.ai")).toEqual({ ok: false, error: "invalid" });
+      expect(await store.set("JOB_DIGEST_TARGET_COUNT", "  ", "ops@jobbbox.ai")).toEqual({ ok: false, error: "empty" });
+      expect(await store.set("ANTHROPIC_ENDPOINT", "vertex", "ops@jobbbox.ai")).toEqual({ ok: false, error: "not_editable" });
+      expect(await store.set("AUTH_SECRET", "x", "ops@jobbbox.ai")).toEqual({ ok: false, error: "not_editable" });
+
+      expect(await platformSettingsReader(database.pool).load()).toEqual({});
+    });
+
+    it("restores a setting to env's value, else the code's default; one the Back Office did not set is unchanged", async () => {
+      const store = platformSettingsStore(database.pool, env);
+      await store.set("JOB_DIGEST_TARGET_COUNT", "12", "ops@jobbbox.ai");
+      await store.set("JOB_DIGEST_MIN_MATCH_SCORE", "75", "ops@jobbbox.ai");
+
+      expect(await store.restore("JOB_DIGEST_TARGET_COUNT")).toEqual({
+        ok: true,
+        changed: true,
+        before: { value: "12", source: "back_office" },
+        after: { value: "8", source: "env" },
+      });
+      expect(await store.restore("JOB_DIGEST_MIN_MATCH_SCORE")).toMatchObject({ ok: true, changed: true, after: { value: "60", source: "default" } });
+      expect(await store.restore("JOB_DIGEST_MIN_MATCH_SCORE")).toMatchObject({ ok: true, changed: false });
+      expect(await store.restore("MAIL_FROM")).toEqual({ ok: false, error: "not_editable" });
+      expect(await platformSettingsReader(database.pool).load()).toEqual({});
+    });
+
+    it("announces each change, so a watching process uses it within seconds", async () => {
+      watched = watchPlatformSettings({ database: database.pool, env, log: vi.fn() });
+      await watched.ready;
+      const store = platformSettingsStore(database.pool, env);
+
+      await store.set("JOB_DIGEST_TARGET_COUNT", "12", "ops@jobbbox.ai");
+      await vi.waitFor(() => expect(watched!.resolver.current().setting("JOB_DIGEST_TARGET_COUNT")).toMatchObject({ value: "12", source: "back_office" }), { timeout: 5_000 });
+
+      await store.restore("JOB_DIGEST_TARGET_COUNT");
+      await vi.waitFor(() => expect(watched!.resolver.current().setting("JOB_DIGEST_TARGET_COUNT")).toMatchObject({ value: "8", source: "env" }), { timeout: 5_000 });
+    });
   });
 });

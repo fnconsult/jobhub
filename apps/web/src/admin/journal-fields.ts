@@ -71,6 +71,7 @@ export function journalFieldName(t: TFunction, section: BackOfficeSection, field
   if (section === "guardrails" && GUARDRAIL_FIELDS.includes(field as GuardrailField)) return t(`admin.guardrails.journalFields.${field as GuardrailField}`);
   if (section === "eval_cases" && EVAL_CASE_FIELDS.includes(field as EvalCaseField)) return t(`admin.evals.journalFields.${field as EvalCaseField}`);
   if (section === "provider_secrets" && field === "value") return t("admin.journal.value");
+  if (section === "platform_settings" && (field === "value" || field === "source")) return t(`admin.platformSettings.journalFields.${field}`);
   if (field === "id") return t("admin.journal.id");
   return field;
 }

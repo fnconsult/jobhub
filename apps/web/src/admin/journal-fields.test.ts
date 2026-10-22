@@ -30,6 +30,12 @@ describe("journalFieldName", () => {
     expect(journalFieldName(t, "sign_in_providers", "privateKey")).toBe("Clé privée (.p8)");
   });
 
+  it("names a Platform Setting's recorded value and source (#299)", () => {
+    const t = createI18n("fr").t;
+    expect(journalFieldName(t, "platform_settings", "value")).toBe("Valeur");
+    expect(journalFieldName(t, "platform_settings", "source")).toBe("Source");
+  });
+
   it("is given only the fields declared for its section by a failure", () => {
     const declared: BackOfficeFailure = { section: "roles", target: "a@b.fr", tried: "added", reason: "unknown_account", field: "email" };
     // @ts-expect-error a field not declared in FAILURE_FIELDS for the section would have no label.
@@ -47,6 +53,10 @@ describe("the Journal's sections", () => {
 
     it("names a denied access", () => {
       expect(onlyIn(locale)("admin.journal.actions.denied")).not.toMatch(/^admin\.journal\./);
+    });
+
+    it("names a Platform Setting restored to default (#299)", () => {
+      expect(onlyIn(locale)("admin.journal.actions.restored_to_default")).not.toMatch(/^admin\.journal\./);
     });
   });
 });

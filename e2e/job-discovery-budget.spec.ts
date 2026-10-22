@@ -7,11 +7,13 @@ import pg from "pg";
 import { PgBoss } from "pg-boss";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { platformSettingsStore } from "../apps/web/src/platform-settings/index";
 
 // Issue #113: a Job discovery run is bounded by a budget, not by a count of result pages: it
 // keeps reading pages until it holds 30 Job Offers, has spent EUR 0.08 on AI calls, or has run
 // 90 s, whichever comes first (each limit configurable by env), and the 15-minute Job Search
-// timeout stays the safety net. Driven through the public entry point: the worker
+// timeout stays the safety net. A budget saved on Paramètres wins over env's and reaches a running
+// worker's next run (#299). Driven through the public entry point: the worker
 // (apps/worker, `tsx src/main.ts`) working the "job-discovery.run" queue on the app's database,
 // started with the budget's env variables, plus the built web app for the timeout. The outside
 // world is e2e/support/fake-job-sites.mjs in volume mode: the web search returns many postings,
@@ -182,6 +184,35 @@ test.describe("Job discovery budget (#113)", () => {
     expect(run.report).toMatch(/: 4 Job Offer\(s\), 0 page\(s\) skipped/);
     expect(run.stored).toHaveLength(4);
     expect(run.pagesRead).toBe(4);
+  });
+
+  test("a budget saved on Paramètres applies to the running worker's next run, over env, without a restart (#299)", async () => {
+    const tag = `${runId}s${++scenario}`;
+    const worker = startWorker(tag, { count: 20, kind: "jsonld" }, { JOB_DISCOVERY_BUDGET_JOB_OFFERS: "4" });
+    const database = new pg.Pool({ connectionString: databaseUrl });
+    // The Back Office's write (Paramètres): the value, and its NOTIFY.
+    const settings = platformSettingsStore(database, {});
+    const reports = () => worker.output.split("\n").filter((line) => line.startsWith(`[job-discovery] profile ${profileId}:`));
+    try {
+      await expect.poll(() => worker.output, { timeout: 60_000 }).toMatch(/\[worker\] running \d+ job\(s\)/);
+      await enqueueDiscovery();
+      await expect.poll(() => reports().length, { timeout: 90_000, message: worker.output }).toBe(1);
+      expect(reports()[0]).toMatch(/: 4 Job Offer\(s\), 0 page\(s\) skipped/);
+
+      expect(await settings.set("JOB_DISCOVERY_BUDGET_JOB_OFFERS", "7", "settings-office@e2e.jobbbox.test")).toMatchObject({ ok: true, changed: true });
+      // NOTIFY reaches the worker within seconds; its 60 s refresh is the fallback.
+      await new Promise((resolve) => setTimeout(resolve, 3_000));
+      await enqueueDiscovery();
+      await expect.poll(() => reports().length, { timeout: 90_000, message: worker.output }).toBe(2);
+
+      // The four Job Offers of the first run are found again, and three more: the Back Office's 7, not env's 4.
+      expect(reports()[1]).toMatch(/: 7 Job Offer\(s\), 0 page\(s\) skipped/);
+      expect(await storedJobOffers(tag)).toHaveLength(7);
+    } finally {
+      await worker.stop();
+      await settings.restore("JOB_DISCOVERY_BUDGET_JOB_OFFERS");
+      await database.end();
+    }
   });
 
   test("JOB_DISCOVERY_BUDGET_EUR sets what a run may spend on AI calls before it stops", async () => {

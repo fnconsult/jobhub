@@ -76,10 +76,11 @@ const BY_NAME = new Map(PLATFORM_SETTINGS.map((setting) => [setting.name, settin
 export const platformSetting = (name: string): PlatformSetting | undefined => BY_NAME.get(name);
 
 /**
- * The groups super-admins edit on Paramètres so far (#299): the worker's Job Digest and Job discovery.
- * The others are shown read-only until their slice of ADR-0033 ships.
+ * The groups super-admins edit on Paramètres so far: the worker's Job Digest and Job discovery (#299),
+ * and AI routing (#301), each change of which is checked as the AI layer would build it. The others are
+ * shown read-only until their slice of ADR-0033 ships.
  */
-const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = ["job_digest", "job_discovery"];
+const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = ["ai_routing", "job_digest", "job_discovery"];
 
 /** Whether super-admins set `setting` on Paramètres (and « Rétablir » it). */
 export const isEditable = (setting: PlatformSetting): boolean => EDITABLE_GROUPS.includes(setting.group);

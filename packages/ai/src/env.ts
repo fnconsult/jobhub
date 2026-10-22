@@ -221,6 +221,15 @@ export function taskRouteFromEnv(env: Env, task: AiTask): Route {
   return routesFromEnv(env, env.AI_FAKE?.trim() === "true")[task];
 }
 
+/**
+ * The provider whose model each model setting names, as `env` routes it, without needing any key:
+ * AI_<TASK>_MODEL its task's provider, AI_IDENTITY_MODEL Mistral's. What Paramètres offers known models by (#301).
+ */
+export function modelSettingProviders(env: Env): Record<string, ProviderId> {
+  const routes = routesFromEnv(env, env.AI_FAKE?.trim() === "true");
+  return { ...Object.fromEntries(TASKS.map((task) => [taskKey(task, "MODEL"), routes[task].provider])), AI_IDENTITY_MODEL: IDENTITY_PROVIDER };
+}
+
 /** One AI route as the environment sets it: a task's, or the identity route under EU AI consent. */
 export interface RoutedTarget {
   target: AiTask | "identity";

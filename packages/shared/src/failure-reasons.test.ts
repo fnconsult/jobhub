@@ -153,6 +153,10 @@ describe("Failure Reason catalog", () => {
       "other",
     ]);
     expect(BACK_OFFICE_FAILURE_REASONS).toEqual([
+      // An AI routing Platform Setting refused on save as the AI layer would refuse it (#301).
+      "key_missing",
+      "route_missing",
+      "data_residency",
       "test_failed",
       "test_expired",
       "not_tested",

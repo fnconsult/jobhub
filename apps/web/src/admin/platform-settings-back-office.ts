@@ -5,10 +5,13 @@
  * Administrator making them: each runs through the Back Office's `record`, so the change, its NOTIFY and
  * its entry share one transaction. A save is recorded as `updated`, « Rétablir » as `restored_to_default`,
  * each with the setting's value and source before and after (not secret). A value the setting refuses is
- * recorded as a refused save (`invalid_value`, field `value`), without the value entered. An unchanged
- * value, an empty field (only shown on the page) and a setting not editable record nothing.
+ * recorded as a refused save (`invalid_value`, field `value`), without the value entered. A change its check
+ * refuses (an AI route the AI layer would refuse, a model that fails its test call, #301) is recorded as a
+ * refused save or « Rétablir » with the check's Failure Reason and technical detail, the value entered taken
+ * out of it. An unchanged value, an empty field (only shown on the page) and a setting not editable record nothing.
  */
-import type { PlatformSettingChange, PlatformSettingsStore, RestorePlatformSettingResult, SetPlatformSettingResult } from "../platform-settings";
+import type { TechnicalReason } from "@jobhub/shared";
+import type { PlatformSettingChange, PlatformSettingsStore, RefusedPlatformSettingChange, RestorePlatformSettingResult, SetPlatformSettingResult } from "../platform-settings";
 import type { BackOffice, BackOfficeActor, BackOfficeAttempt } from "./back-office";
 
 export interface PlatformSettingsBackOffice {
@@ -18,9 +21,26 @@ export interface PlatformSettingsBackOffice {
 
 const SECTION = "platform_settings";
 
+const escaped = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** `technical` without `entered` where it stands as a word of its own (a model's name, not a part of a host). */
+function withoutValue(technical: TechnicalReason, entered: string | null): TechnicalReason {
+  const value = entered?.trim();
+  if (!value) return technical;
+  return { ...technical, message: technical.message.replace(new RegExp(`(?<![\\w.-])${escaped(value)}(?![\\w.-])`, "g"), "…") };
+}
+
 export function createPlatformSettingsBackOffice(store: Pick<PlatformSettingsStore, "set" | "restore">, backOffice: Pick<BackOffice, "record">): PlatformSettingsBackOffice {
   const changed = (name: string, action: "updated" | "restored_to_default", done: PlatformSettingChange): BackOfficeAttempt | null =>
     done.changed ? { section: SECTION, target: name, action, before: { ...done.before }, after: { ...done.after } } : null;
+  const refused = (name: string, tried: "updated" | "restored_to_default", done: RefusedPlatformSettingChange, entered: string | null): BackOfficeAttempt => ({
+    section: SECTION,
+    target: name,
+    tried,
+    reason: done.reason,
+    field: "value",
+    technical: withoutValue(done.technical, entered),
+  });
 
   return {
     set(actor, name, raw) {
@@ -30,9 +50,11 @@ export function createPlatformSettingsBackOffice(store: Pick<PlatformSettingsSto
         (done) =>
           done.ok
             ? changed(name, "updated", done)
-            : done.error === "invalid"
-              ? { section: SECTION, target: name, tried: "updated", reason: "invalid_value", field: "value" }
-              : null,
+            : done.error === "refused"
+              ? refused(name, "updated", done, raw)
+              : done.error === "invalid"
+                ? { section: SECTION, target: name, tried: "updated", reason: "invalid_value", field: "value" }
+                : null,
       );
     },
 
@@ -40,7 +62,7 @@ export function createPlatformSettingsBackOffice(store: Pick<PlatformSettingsSto
       return backOffice.record(
         actor,
         (within) => store.restore(name, within),
-        (done) => (done.ok ? changed(name, "restored_to_default", done) : null),
+        (done) => (done.ok ? changed(name, "restored_to_default", done) : done.error === "refused" ? refused(name, "restored_to_default", done, null) : null),
       );
     },
   };

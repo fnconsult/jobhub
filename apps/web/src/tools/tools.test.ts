@@ -4,35 +4,86 @@ import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createPostgresExternalApiLog, createPostgresUsageLog, migrateAiUsage } from "../ai-usage";
 import { connectionString, startTestAuth, type TestAuth } from "../auth/test-support";
-import { latestToolCalls, toolCalls, toolStatus, toolsOverview } from "./index";
+import { snapshotOfSettings, type StoredPlatformSettings } from "../platform-settings/resolver";
+import { latestToolCalls, toolCalls, toolStatus, toolsOverview, type ToolsState } from "./index";
 
 const tool = (id: string): Tool => toolById(id)!;
 
+/** The state a Tool's status is read from: `env` (Provider Secrets over it), the Platform Settings it resolves to with what the Back Office set over it. */
+const stateOf = (env: Record<string, string> = {}, options: { stored?: StoredPlatformSettings; signInTypes?: string[] } = {}): ToolsState => ({
+  env,
+  signInTypes: options.signInTypes ?? [],
+  settings: snapshotOfSettings(env, options.stored ?? {}),
+});
+
 describe("a Tool's status", () => {
-  const nothingEnabled = { env: {}, signInTypes: [] };
+  const nothingEnabled = stateOf();
 
   it("is configured when every key it needs has a value, from env or the Provider Secrets", () => {
-    expect(toolStatus(tool("france-travail"), { ...nothingEnabled, env: { FRANCE_TRAVAIL_CLIENT_ID: "id", FRANCE_TRAVAIL_CLIENT_SECRET: "secret" } })).toEqual({
+    expect(toolStatus(tool("france-travail"), stateOf({ FRANCE_TRAVAIL_CLIENT_ID: "id", FRANCE_TRAVAIL_CLIENT_SECRET: "secret" }))).toMatchObject({
       status: "configured",
       missingKeys: [],
     });
   });
 
   it("is a key missing when one is empty or absent, naming it", () => {
-    expect(toolStatus(tool("france-travail"), { ...nothingEnabled, env: { FRANCE_TRAVAIL_CLIENT_ID: "id", FRANCE_TRAVAIL_CLIENT_SECRET: " " } })).toEqual({
+    expect(toolStatus(tool("france-travail"), stateOf({ FRANCE_TRAVAIL_CLIENT_ID: "id", FRANCE_TRAVAIL_CLIENT_SECRET: " " }))).toMatchObject({
       status: "key_missing",
       missingKeys: ["FRANCE_TRAVAIL_CLIENT_SECRET"],
     });
-    expect(toolStatus(tool("brave"), nothingEnabled)).toEqual({ status: "key_missing", missingKeys: ["BRAVE_SEARCH_API_KEY"] });
+    expect(toolStatus(tool("brave"), nothingEnabled)).toMatchObject({ status: "key_missing", missingKeys: ["BRAVE_SEARCH_API_KEY"] });
   });
 
   it("needs no key for a public API", () => {
-    expect(toolStatus(tool("greenhouse"), nothingEnabled)).toEqual({ status: "no_key_needed", missingKeys: [] });
+    expect(toolStatus(tool("greenhouse"), nothingEnabled)).toMatchObject({ status: "no_key_needed", missingKeys: [] });
   });
 
   it("is, for a sign-in Tool, whether a Sign-in Provider of its type is enabled", () => {
-    expect(toolStatus(tool("google"), { env: {}, signInTypes: ["google"] })).toEqual({ status: "configured", missingKeys: [] });
-    expect(toolStatus(tool("apple"), { env: {}, signInTypes: ["google"] })).toEqual({ status: "not_configured", missingKeys: [] });
+    expect(toolStatus(tool("google"), stateOf({}, { signInTypes: ["google"] }))).toMatchObject({ status: "configured", missingKeys: [] });
+    expect(toolStatus(tool("apple"), stateOf({}, { signInTypes: ["google"] }))).toMatchObject({ status: "not_configured", missingKeys: [] });
+  });
+
+  it("is a setting missing when one the Tool cannot be called without is empty, naming it", () => {
+    expect(toolStatus(tool("anthropic-vertex"), stateOf({ ANTHROPIC_ENDPOINT: "vertex" }))).toMatchObject({ status: "setting_missing", missingSettings: ["VERTEX_PROJECT_ID"] });
+    expect(toolStatus(tool("anthropic-vertex"), stateOf({ ANTHROPIC_ENDPOINT: "vertex", VERTEX_PROJECT_ID: "jobbbox" }))).toMatchObject({ status: "configured", missingSettings: [] });
+  });
+
+  it("is off while a setting turns it off: Enriched Contacts without a signed DPA, another provider chosen, Claude on Vertex on another endpoint, mail to the console", () => {
+    const lusha = { LUSHA_API_KEY: "key", CONTACT_ENRICHMENT_PROVIDER: "lusha" };
+    expect(toolStatus(tool("lusha"), stateOf(lusha))).toMatchObject({ status: "disabled" });
+    expect(toolStatus(tool("lusha"), stateOf({ ...lusha, CONTACT_ENRICHMENT_DPA_SIGNED: "true" }))).toMatchObject({ status: "configured" });
+    // Compared as the code reads it: the provider in lower case.
+    expect(toolStatus(tool("lusha"), stateOf({ ...lusha, CONTACT_ENRICHMENT_PROVIDER: "Lusha", CONTACT_ENRICHMENT_DPA_SIGNED: "true" }))).toMatchObject({ status: "configured" });
+    expect(toolStatus(tool("kaspr"), stateOf({ ...lusha, KASPR_API_KEY: "key", CONTACT_ENRICHMENT_DPA_SIGNED: "true" }))).toMatchObject({ status: "disabled" });
+    // Off comes first: a Tool that is not called needs none of its keys nor settings.
+    expect(toolStatus(tool("apollo"), nothingEnabled)).toMatchObject({ status: "disabled", missingKeys: ["APOLLO_API_KEY"] });
+    expect(toolStatus(tool("anthropic-vertex"), nothingEnabled)).toMatchObject({ status: "disabled", missingSettings: ["VERTEX_PROJECT_ID"] });
+    expect(toolStatus(tool("brevo-api"), stateOf({ BREVO_API_KEY: "key", MAIL_TRANSPORT: "console" }))).toMatchObject({ status: "disabled" });
+    expect(toolStatus(tool("brevo-api"), stateOf({ BREVO_API_KEY: "key" }))).toMatchObject({ status: "configured" });
+  });
+
+  it("names each of the Tool's settings with its value in use and where it comes from", () => {
+    const stored = { ANTHROPIC_ENDPOINT: { value: "vertex", updatedBy: "admin@jobbbox.ai", updatedAt: new Date("2026-10-20T10:00:00Z") } };
+    expect(toolStatus(tool("anthropic-vertex"), stateOf({ VERTEX_REGION: "europe-west9" }, { stored })).settings).toEqual([
+      { name: "ANTHROPIC_ENDPOINT", value: "vertex", source: "back_office", differsFromDefault: false },
+      { name: "VERTEX_REGION", value: "europe-west9", source: "env", differsFromDefault: true },
+      { name: "VERTEX_PROJECT_ID", value: "", source: "default", differsFromDefault: false },
+    ]);
+    // A setting only env holds, as Paramètres shows it: from env, with no default to differ from.
+    expect(toolStatus(tool("brevo-smtp"), stateOf({ MAIL_TRANSPORT: "console" })).settings).toEqual([
+      { name: "MAIL_FROM", value: "Jobbbox <bonjour@localhost>", source: "default", differsFromDefault: false },
+      { name: "MAIL_TRANSPORT", value: "console", source: "env", differsFromDefault: false },
+    ]);
+  });
+
+  it("carries the « env » badge when one of its settings comes from env and differs from its default", () => {
+    expect(toolStatus(tool("anthropic-bedrock"), stateOf({ ANTHROPIC_ENDPOINT: "bedrock" })).settingsFromEnv).toEqual(["ANTHROPIC_ENDPOINT"]);
+    // Env holding the default, the default itself, or the Back Office's value: no badge.
+    expect(toolStatus(tool("anthropic-bedrock"), stateOf({ ANTHROPIC_ENDPOINT: "auto", BEDROCK_REGION: "eu-north-1" })).settingsFromEnv).toEqual([]);
+    expect(toolStatus(tool("anthropic-bedrock"), nothingEnabled).settingsFromEnv).toEqual([]);
+    const stored = { ANTHROPIC_ENDPOINT: { value: "bedrock", updatedBy: "admin@jobbbox.ai", updatedAt: new Date("2026-10-20T10:00:00Z") } };
+    expect(toolStatus(tool("anthropic-bedrock"), stateOf({ ANTHROPIC_ENDPOINT: "direct" }, { stored })).settingsFromEnv).toEqual([]);
+    expect(toolStatus(tool("greenhouse"), stateOf({ ANTHROPIC_ENDPOINT: "bedrock" })).settingsFromEnv).toEqual([]);
   });
 });
 
@@ -96,7 +147,7 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
   it("adds up each Tool's calls, failures and cost over the last 30 days, Claude per endpoint", async () => {
     await seed();
 
-    const overview = await toolsOverview(database, { env: { AWS_BEARER_TOKEN_BEDROCK: "token" }, signInTypes: [] }, now);
+    const overview = await toolsOverview(database, stateOf({ AWS_BEARER_TOKEN_BEDROCK: "token" }), now);
     const row = (id: string) => overview.flatMap((group) => group.rows).find((candidate) => candidate.tool.id === id)!;
 
     expect(row("anthropic-bedrock").figures).toEqual({
@@ -115,8 +166,18 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
     expect(row("mistral").figures).toEqual({ calls: 0, failures: 0, costEur: null, reasons: [] });
   });
 
+  it("shows each Tool's state with its Platform Settings: a setting missing, off, and the « env » badge", async () => {
+    const overview = await toolsOverview(database, stateOf({ ANTHROPIC_ENDPOINT: "vertex", LUSHA_API_KEY: "key", CONTACT_ENRICHMENT_PROVIDER: "lusha" }), now);
+    const row = (id: string) => overview.flatMap((group) => group.rows).find((candidate) => candidate.tool.id === id)!;
+
+    expect(row("anthropic-vertex")).toMatchObject({ status: "setting_missing", missingSettings: ["VERTEX_PROJECT_ID"], settingsFromEnv: ["ANTHROPIC_ENDPOINT"] });
+    expect(row("lusha")).toMatchObject({ status: "disabled", settingsFromEnv: ["CONTACT_ENRICHMENT_PROVIDER"] });
+    expect(row("anthropic-bedrock").settingsFromEnv).toEqual(["ANTHROPIC_ENDPOINT"]);
+    expect(row("mistral").settingsFromEnv).toEqual([]);
+  });
+
   it("groups the Tools by category, in the catalog's order", async () => {
-    const overview = await toolsOverview(database, { env: {}, signInTypes: [] }, now);
+    const overview = await toolsOverview(database, stateOf(), now);
 
     expect(overview.map((group) => group.category)).toEqual(["ai_model", "web_search", "job_discovery", "company_data", "contact_enrichment", "billing", "mail", "sign_in", "geolocation", "reference_data"]);
     expect(overview[0]!.rows.map((row) => row.tool.id)).toEqual(["anthropic", "anthropic-bedrock", "anthropic-vertex", "mistral", "openai"]);
@@ -164,7 +225,7 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
     await ai.record(mistralCall({ outcome: "failed", reason: "rate_limited", at: new Date("2026-09-19T09:00:00Z") }));
     await ai.record(aiCall({ outcome: "failed", reason: "invalid_reply" }));
 
-    const overview = await toolsOverview(database, { env: {}, signInTypes: [] }, now);
+    const overview = await toolsOverview(database, stateOf(), now);
     const mistral = overview.flatMap((group) => group.rows).find((row) => row.tool.id === "mistral")!;
 
     expect(mistral.figures?.reasons).toEqual([
@@ -197,7 +258,7 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
       { at: new Date("2026-10-19T09:00:00Z"), operation: "connection_test", ok: false, outcome: "failed", reason: null, httpStatus: 401, durationMs: 120, costEur: null },
       { at: new Date("2026-10-19T08:00:00Z"), operation: "coaching · mistral-large", ok: true, outcome: "ok", reason: null, httpStatus: null, durationMs: 900, costEur: 0.5 },
     ]);
-    const overview = await toolsOverview(database, { env: {}, signInTypes: [] }, now);
+    const overview = await toolsOverview(database, stateOf(), now);
     expect(overview.flatMap((group) => group.rows).find((row) => row.tool.id === "mistral")!.figures).toEqual({ calls: 2, failures: 1, costEur: 0.5, reasons: [] });
   });
 

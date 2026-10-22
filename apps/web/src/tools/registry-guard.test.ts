@@ -7,11 +7,14 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { PROVIDER_IDS, TEXT_TASKS } from "@jobhub/ai";
-import { externalApiProvidersOf, TOOLS } from "@jobhub/shared";
+import { externalApiProvidersOf, TOOLS, type Tool } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { CONTACT_PROVIDERS } from "../enriched-contacts/providers/types";
 import { ENV_ONLY_SETTINGS, PLATFORM_SETTINGS, platformSetting } from "../platform-settings/catalog";
 import { PROVIDER_SECRETS } from "../provider-secrets/catalog";
+
+/** The Tools, each with the settings it may name. */
+const tools = TOOLS as readonly Tool[];
 
 const ROOT = new URL("../../../../", import.meta.url).pathname;
 
@@ -82,7 +85,7 @@ describe("the guard on the Tools", () => {
 
   it("finds every setting a Tool names on Paramètres: a Platform Setting, or one env holds that Paramètres shows read-only", () => {
     const shownReadOnly = (name: string) => (ENV_ONLY_SETTINGS as Record<string, { kind: string }>)[name]?.kind === "read_only";
-    const unknown = TOOLS.flatMap((tool) => (tool.settings ?? []).filter(({ name }) => !platformSetting(name) && !shownReadOnly(name)).map(({ name }) => `${tool.id}: ${name}`));
+    const unknown = tools.flatMap((tool) => (tool.settings ?? []).filter(({ name }) => !platformSetting(name) && !shownReadOnly(name)).map(({ name }) => `${tool.id}: ${name}`));
     expect(unknown).toEqual([]);
   });
 
@@ -91,7 +94,7 @@ describe("the guard on the Tools", () => {
     // are its providers'), the Job Digest's thresholds and the extension's store page.
     const taskRouting = Object.keys(TEXT_TASKS).flatMap((task) => [`AI_${task.toUpperCase()}_PROVIDER`, `AI_${task.toUpperCase()}_MODEL`]);
     const tiedToNoProvider = (name: string) => taskRouting.includes(name) || name.startsWith("JOB_DIGEST_") || name === "EXTENSION_STORE_URL";
-    const attached = new Set(TOOLS.flatMap((tool) => (tool.settings ?? []).map(({ name }) => name)));
+    const attached = new Set(tools.flatMap((tool) => (tool.settings ?? []).map(({ name }) => name)));
     expect(PLATFORM_SETTINGS.map(({ name }) => name).filter((name) => !tiedToNoProvider(name) && !attached.has(name))).toEqual([]);
   });
 });

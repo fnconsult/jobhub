@@ -56,6 +56,7 @@ import type { Applications } from "../applications";
 import type { Mailer } from "../auth";
 import type { Billing, PlanName } from "../billing";
 import type { JobOffers } from "../job-offers";
+import { readNumberSetting } from "../platform-settings/catalog";
 import type { Profile, Profiles } from "../profiles";
 import { routes } from "../routes";
 import { DIGEST_TIME_ZONE, latestSlot } from "./schedule";
@@ -194,14 +195,15 @@ export interface JobDigestsDeps {
   now?: () => Date;
 }
 
-export const DEFAULT_MIN_MATCH_SCORE = 60;
-export const DEFAULT_TARGET_COUNT = 10;
+// The code's defaults are the Platform Settings catalog's (ADR-0033): one source of truth for each.
+export const DEFAULT_MIN_MATCH_SCORE = readNumberSetting({}, "JOB_DIGEST_MIN_MATCH_SCORE");
+export const DEFAULT_TARGET_COUNT = readNumberSetting({}, "JOB_DIGEST_TARGET_COUNT");
 /** Job Offers listed in a Job Digest's email, at most; the page lists them all. */
 export const EMAIL_MAX_RESULTS = 10;
 /** Job Digests listed on the Profile page. */
 export const LATEST_DIGESTS = 5;
 /** How many days back the first Job Digest of a Profile looks for stored Job Offers. */
-export const DEFAULT_FIRST_LOOK_BACK_DAYS = 7;
+export const DEFAULT_FIRST_LOOK_BACK_DAYS = readNumberSetting({}, "JOB_DIGEST_FIRST_LOOK_BACK_DAYS");
 const DAY_MS = 86_400_000;
 /** Stored Job Offers scored for one Job Digest, at most (the most recent). */
 const POOL_MAX = 1_000;
@@ -211,17 +213,10 @@ const POOL_MAX = 1_000;
  * JOB_DIGEST_MIN_MATCH_SCORE, JOB_DIGEST_TARGET_COUNT and JOB_DIGEST_FIRST_LOOK_BACK_DAYS.
  */
 export function jobDigestsConfigFromEnv(env: Record<string, string | undefined>): { minMatchScore: number; targetCount: number; firstLookBackDays: number } {
-  const read = (name: string, fallback: number, min: number, max: number) => {
-    const raw = env[name]?.trim();
-    if (!raw) return fallback;
-    const value = Number(raw);
-    if (!Number.isInteger(value) || value < min || value > max) throw new Error(`${name} must be a whole number from ${min} to ${max} (got "${raw}")`);
-    return value;
-  };
   return {
-    minMatchScore: read("JOB_DIGEST_MIN_MATCH_SCORE", DEFAULT_MIN_MATCH_SCORE, 0, 100),
-    targetCount: read("JOB_DIGEST_TARGET_COUNT", DEFAULT_TARGET_COUNT, 1, 100),
-    firstLookBackDays: read("JOB_DIGEST_FIRST_LOOK_BACK_DAYS", DEFAULT_FIRST_LOOK_BACK_DAYS, 0, 90),
+    minMatchScore: readNumberSetting(env, "JOB_DIGEST_MIN_MATCH_SCORE"),
+    targetCount: readNumberSetting(env, "JOB_DIGEST_TARGET_COUNT"),
+    firstLookBackDays: readNumberSetting(env, "JOB_DIGEST_FIRST_LOOK_BACK_DAYS"),
   };
 }
 

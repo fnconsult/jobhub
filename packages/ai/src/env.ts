@@ -31,6 +31,35 @@ const DEFAULT_TASK = { job_titles: "offer_analysis", back_office_assistant: "coa
 
 const taskKey = (task: AiTask, suffix: "PROVIDER" | "MODEL") => `AI_${task.toUpperCase()}_${suffix}`;
 
+const ANTHROPIC_ENDPOINTS = ["auto", "bedrock", "vertex", "direct"] as const;
+const OPENAI_DATA_RESIDENCIES = ["eu", "us"] as const;
+
+/** The code's defaults of the AI layer's settings that are not keys: what it uses when env sets nothing. */
+const DEFAULTS = {
+  ANTHROPIC_ENDPOINT: "auto",
+  BEDROCK_REGION: "eu-north-1",
+  VERTEX_REGION: "europe-west1",
+  OPENAI_DATA_RESIDENCY: "eu",
+} as const;
+
+/**
+ * The AI layer's routing settings (ADR-0033's Platform Settings for AI routing): each with its code default
+ * (empty: the code sets nothing, e.g. a model left to its provider's default, or a task taking another
+ * task's provider) and, for a choice, the values env may hold. The keys and AI_FAKE are not among them.
+ */
+export const AI_ROUTING_SETTINGS: ReadonlyArray<{ name: string; default: string; values?: readonly string[] }> = [
+  { name: "ANTHROPIC_ENDPOINT", default: DEFAULTS.ANTHROPIC_ENDPOINT, values: ANTHROPIC_ENDPOINTS },
+  { name: "BEDROCK_REGION", default: DEFAULTS.BEDROCK_REGION },
+  { name: "VERTEX_REGION", default: DEFAULTS.VERTEX_REGION },
+  { name: "VERTEX_PROJECT_ID", default: "" },
+  { name: "OPENAI_DATA_RESIDENCY", default: DEFAULTS.OPENAI_DATA_RESIDENCY, values: OPENAI_DATA_RESIDENCIES },
+  ...TASKS.flatMap((task) => [
+    { name: taskKey(task, "PROVIDER"), default: task in DEFAULT_TASK ? "" : DEFAULT_PROVIDER[task as keyof typeof DEFAULT_PROVIDER], values: PROVIDER_IDS },
+    { name: taskKey(task, "MODEL"), default: "" },
+  ]),
+  { name: "AI_IDENTITY_MODEL", default: "" },
+];
+
 /** Every environment variable the AI layer reads. `.env.example` must list them all. */
 export const AI_ENV_KEYS = [
   "AI_FAKE",
@@ -79,8 +108,6 @@ function oneOf<T extends string>(env: Env, key: string, allowed: readonly T[], f
   return value as T;
 }
 
-const ANTHROPIC_ENDPOINTS = ["auto", "bedrock", "vertex", "direct"] as const;
-
 /**
  * Where Claude is reached (ANTHROPIC_ENDPOINT). `auto`, the default, follows the keys entered:
  * the direct API with ANTHROPIC_API_KEY, Bedrock with AWS_BEARER_TOKEN_BEDROCK, both with both
@@ -91,14 +118,14 @@ const ANTHROPIC_ENDPOINTS = ["auto", "bedrock", "vertex", "direct"] as const;
  * (a Playbook Agent's, offered outside the EU) reaches it.
  */
 function anthropicEndpoints(env: Env): AnthropicEndpoint[] {
-  const bedrock = (): AnthropicEndpoint => ({ kind: "bedrock", region: env.BEDROCK_REGION?.trim() || "eu-north-1", apiKey: env.AWS_BEARER_TOKEN_BEDROCK?.trim() || undefined });
+  const bedrock = (): AnthropicEndpoint => ({ kind: "bedrock", region: env.BEDROCK_REGION?.trim() || DEFAULTS.BEDROCK_REGION, apiKey: env.AWS_BEARER_TOKEN_BEDROCK?.trim() || undefined });
   const directKey = env.ANTHROPIC_API_KEY?.trim();
   const andDirect = (endpoint: AnthropicEndpoint): AnthropicEndpoint[] => (directKey ? [endpoint, { kind: "direct", apiKey: directKey }] : [endpoint]);
-  switch (oneOf(env, "ANTHROPIC_ENDPOINT", ANTHROPIC_ENDPOINTS, "auto")) {
+  switch (oneOf(env, "ANTHROPIC_ENDPOINT", ANTHROPIC_ENDPOINTS, DEFAULTS.ANTHROPIC_ENDPOINT)) {
     case "direct":
       return [{ kind: "direct", apiKey: required(env, "ANTHROPIC_API_KEY") }];
     case "vertex":
-      return andDirect({ kind: "vertex", region: env.VERTEX_REGION?.trim() || "europe-west1", projectId: required(env, "VERTEX_PROJECT_ID") });
+      return andDirect({ kind: "vertex", region: env.VERTEX_REGION?.trim() || DEFAULTS.VERTEX_REGION, projectId: required(env, "VERTEX_PROJECT_ID") });
     case "bedrock":
       return andDirect(bedrock());
     case "auto": {
@@ -111,7 +138,7 @@ function anthropicEndpoints(env: Env): AnthropicEndpoint[] {
 
 /** Whether Claude is reached through an EU-resident endpoint, so it is the default for tasks with personal data. */
 function anthropicInEu(env: Env): boolean {
-  const kind = oneOf(env, "ANTHROPIC_ENDPOINT", ANTHROPIC_ENDPOINTS, "auto");
+  const kind = oneOf(env, "ANTHROPIC_ENDPOINT", ANTHROPIC_ENDPOINTS, DEFAULTS.ANTHROPIC_ENDPOINT);
   if (kind === "auto") return !env.ANTHROPIC_API_KEY?.trim() || Boolean(env.AWS_BEARER_TOKEN_BEDROCK?.trim());
   return kind !== "direct";
 }
@@ -128,7 +155,7 @@ function buildProvider(id: Exclude<ProviderId, "anthropic">, env: Env, fetch: ty
     case "openai":
       return createOpenAiProvider({
         apiKey: required(env, "OPENAI_API_KEY"),
-        dataResidency: oneOf(env, "OPENAI_DATA_RESIDENCY", ["eu", "us"] as const, "eu"),
+        dataResidency: oneOf(env, "OPENAI_DATA_RESIDENCY", OPENAI_DATA_RESIDENCIES, DEFAULTS.OPENAI_DATA_RESIDENCY),
         fetch,
       });
     case "perplexity":

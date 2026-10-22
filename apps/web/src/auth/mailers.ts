@@ -77,6 +77,9 @@ export interface MailerOptions {
   smtpTransport?: SmtpTransport;
 }
 
+/** The sender outside production when MAIL_FROM is not set (production requires it): the code's default of MAIL_FROM. */
+export const DEVELOPMENT_MAIL_FROM = "Jobbbox <bonjour@localhost>";
+
 /**
  * The mailer the environment names (see .env.example): Brevo's API with BREVO_API_KEY,
  * else SMTP_URL; the console in development without either, or with MAIL_TRANSPORT=console
@@ -87,7 +90,7 @@ export function mailerFromEnv(env: Record<string, string | undefined>, options: 
   const brevoApiKey = env.BREVO_API_KEY?.trim();
   if (env.MAIL_TRANSPORT === "console" || (!production && !brevoApiKey && !env.SMTP_URL)) return consoleMailer();
   if (!brevoApiKey && !env.SMTP_URL) throw new Error("Missing environment variable BREVO_API_KEY or SMTP_URL");
-  const from = env.MAIL_FROM || (production ? undefined : "Jobbbox <bonjour@localhost>");
+  const from = env.MAIL_FROM || (production ? undefined : DEVELOPMENT_MAIL_FROM);
   if (!from) throw new Error("Missing environment variable MAIL_FROM");
   const { externalApis } = options;
   if (brevoApiKey) {

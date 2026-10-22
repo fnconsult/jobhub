@@ -32,7 +32,7 @@ export type {
   SearchResult,
   TaskInstructions,
 } from "./ai-layer";
-export { AI_ENV_KEYS, createAiLayerFromEnv, taskRouteFromEnv } from "./env";
+export { AI_ENV_KEYS, AI_ROUTING_SETTINGS, createAiLayerFromEnv, taskRouteFromEnv } from "./env";
 export type { AiLayerDeps } from "./env";
 export { findIdentity, identityIn } from "./identity-scan";
 export type { IdentityHit } from "./identity-scan";

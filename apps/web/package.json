@@ -21,6 +21,7 @@
     "./search-sites": "./src/search-sites/index.ts",
     "./mailers": "./src/auth/mailers.ts",
     "./provider-secrets": "./src/provider-secrets/worker.ts",
+    "./platform-settings": "./src/platform-settings/worker.ts",
     "./sign-in-providers": "./src/sign-in-providers/worker.ts",
     "./administrators": "./src/admin/worker.ts",
     "./ai-usage": "./src/ai-usage/index.ts",

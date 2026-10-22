@@ -1240,6 +1240,32 @@
       "elsewhere": {
         "title": "Réglés dans leur propre section",
         "intro": "Ces réglages ont leur section dans le back office :"
+      },
+      "change": "Modifier",
+      "newValue": "Nouvelle valeur de {{name}}",
+      "accepted": "Valeur acceptée : {{rule}}.",
+      "save": "Enregistrer",
+      "restore": "Rétablir",
+      "restoreHelp": "Efface la valeur du back office : celle de l'environnement s'applique, sinon le défaut du code.",
+      "editIntro": "Les réglages du Job Digest et de la recherche d'offres se modifient ici : une valeur enregistrée s'applique au prochain passage du worker, sans redémarrage. Chaque modification et chaque tentative refusée est inscrite au Journal.",
+      "rules": {
+        "whole": "un nombre entier de {{min}} à {{max}}",
+        "wholeAboveMin": "un nombre entier supérieur à {{min}}, jusqu'à {{max}}",
+        "decimal": "un nombre de {{min}} à {{max}}",
+        "decimalAboveMin": "un nombre supérieur à {{min}}, jusqu'à {{max}}"
+      },
+      "notices": {
+        "saved": "{{name}} enregistré : la nouvelle valeur s'applique au prochain passage, sans redémarrage.",
+        "unchanged": "{{name}} avait déjà cette valeur : rien n'a changé.",
+        "restored": "{{name}} rétabli : la valeur de l'environnement s'applique, sinon le défaut du code.",
+        "notRestored": "{{name}} n'avait pas de valeur dans le back office : rien n'a changé.",
+        "invalid": "Valeur refusée pour {{name}} : il faut {{rule}}. La tentative est inscrite au Journal.",
+        "empty": "Saisissez une valeur pour {{name}}.",
+        "not_editable": "{{name}} ne se modifie pas encore ici."
+      },
+      "journalFields": {
+        "value": "Valeur",
+        "source": "Source"
       }
     },
     "administrators": {
@@ -1316,6 +1342,7 @@
         "validated": "Validation",
         "archived": "Archivage",
         "restored": "Rétablissement",
+        "restored_to_default": "Rétablissement au défaut",
         "reset": "Remise à zéro",
         "refused": "Tentative refusée",
         "denied": "Accès refusé"
@@ -2826,6 +2853,7 @@
     "unknown_account": "Compte introuvable",
     "stripe_refused": "Refusé par Stripe",
     "role_missing": "Section hors de ses rôles",
+    "invalid_value": "Valeur refusée par le réglage",
     "guardrail_timeout": "Contrôle trop long",
     "invalid_verdict": "Verdict du contrôle illisible",
     "provider_error": "Erreur du fournisseur",

@@ -120,6 +120,7 @@ describe("Failure Reason catalog", () => {
       "unknown_account",
       "stripe_refused",
       "role_missing",
+      "invalid_value",
       "guardrail_timeout",
       "invalid_verdict",
       "provider_error",
@@ -131,6 +132,7 @@ describe("Failure Reason catalog", () => {
     expect(failureReasonWording("eval_refused")).toBe("Refusé par l'Eval Run");
     expect(failureReasonWording("other")).toBe("Erreur inattendue");
     expect(failureReasonWording("role_missing")).toBe("Section hors de ses rôles");
+    expect(failureReasonWording("invalid_value")).toBe("Valeur refusée par le réglage");
     expect(failureReasonWording("key_missing", "en")).toBe("API key missing");
     for (const code of FAILURE_REASONS) {
       expect(failureReasonWording(code, "fr")).not.toMatch(/failureReasons\./);
@@ -164,6 +166,7 @@ describe("Failure Reason catalog", () => {
       "unknown_account",
       "stripe_refused",
       "role_missing",
+      "invalid_value",
       "other",
     ]);
   });

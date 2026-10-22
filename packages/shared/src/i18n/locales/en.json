@@ -1240,6 +1240,32 @@
       "elsewhere": {
         "title": "Set in their own section",
         "intro": "These settings have their own back office section:"
+      },
+      "change": "Change",
+      "newValue": "New value of {{name}}",
+      "accepted": "Accepted value: {{rule}}.",
+      "save": "Save",
+      "restore": "Restore",
+      "restoreHelp": "Clears the Back Office's value: env's applies, else the code's default.",
+      "editIntro": "The Job Digest and Job discovery settings are changed here: a saved value applies to the worker's next run, without a restart. Each change and each refused attempt goes to the Journal.",
+      "rules": {
+        "whole": "a whole number from {{min}} to {{max}}",
+        "wholeAboveMin": "a whole number above {{min}}, up to {{max}}",
+        "decimal": "a number from {{min}} to {{max}}",
+        "decimalAboveMin": "a number above {{min}}, up to {{max}}"
+      },
+      "notices": {
+        "saved": "{{name}} saved: the new value applies to the next run, without a restart.",
+        "unchanged": "{{name}} already had this value: nothing changed.",
+        "restored": "{{name}} restored: env's value applies, else the code's default.",
+        "notRestored": "{{name}} had no Back Office value: nothing changed.",
+        "invalid": "Value refused for {{name}}: it takes {{rule}}. The attempt is in the Journal.",
+        "empty": "Enter a value for {{name}}.",
+        "not_editable": "{{name}} cannot be changed here yet."
+      },
+      "journalFields": {
+        "value": "Value",
+        "source": "Source"
       }
     },
     "administrators": {
@@ -1316,6 +1342,7 @@
         "validated": "Validation",
         "archived": "Archive",
         "restored": "Restore",
+        "restored_to_default": "Restored to default",
         "reset": "Reset",
         "refused": "Attempt refused",
         "denied": "Access denied"
@@ -2826,6 +2853,7 @@
     "unknown_account": "Account not found",
     "stripe_refused": "Refused by Stripe",
     "role_missing": "Section outside their roles",
+    "invalid_value": "Value the setting does not take",
     "guardrail_timeout": "Check took too long",
     "invalid_verdict": "Unreadable check verdict",
     "provider_error": "Provider error",

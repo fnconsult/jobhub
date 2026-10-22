@@ -89,10 +89,25 @@ export type SecretAction = (typeof SECRET_ACTIONS)[number];
  * deletes it (a search site). `viewed`: an AI Message Log was read (#218), the only read the
  * Back Office Audit records. `validated`, `archived` and `restored`: a Playbook Version was
  * Human-validated, a Coaching Playbook archived or restored (#225). `reset`: the week's Plan Quota
- * usage of every Candidate was forgotten (ADR-0032). `refused`: an attempt refused or failed (#263); `denied`: an Administrator
- * opened a section outside their Back Office Roles (#264).
+ * usage of every Candidate was forgotten (ADR-0032). `restored_to_default`: a Platform Setting's Back Office value was cleared
+ * (« Rétablir »), env's or the code's default in use again (#299). `refused`: an attempt refused or failed (#263); `denied`: an
+ * Administrator opened a section outside their Back Office Roles (#264).
  */
-export type BackOfficeAction = "added" | "updated" | "retired" | "removed" | "tested" | "viewed" | "validated" | "archived" | "restored" | "reset" | "refused" | "denied" | SecretAction;
+export type BackOfficeAction =
+  | "added"
+  | "updated"
+  | "retired"
+  | "removed"
+  | "tested"
+  | "viewed"
+  | "validated"
+  | "archived"
+  | "restored"
+  | "restored_to_default"
+  | "reset"
+  | "refused"
+  | "denied"
+  | SecretAction;
 
 /** How a Back Office attempt ended (the Outcome, CONTEXT.md): the Back Office Audit only uses these two. */
 export const BACK_OFFICE_OUTCOMES = ["succeeded", "failed"] as const;
@@ -132,6 +147,7 @@ export const FAILURE_FIELDS = {
   plans: ["stripeProductId"],
   coupons: ["code"],
   provider_secrets: ["value"],
+  platform_settings: ["value"],
   sign_in_providers: ["enabled", "privateKey"],
   coaching_playbooks: ["version"],
   guardrails: ["setting"],

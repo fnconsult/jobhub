@@ -161,6 +161,24 @@ describe.skipIf(!connectionString)("Platform Settings in the database (needs Pos
       expect(check).not.toHaveBeenCalled();
     });
 
+    it("sets the extension's store page to an https URL only, and « Rétablir » goes back to env's, else none: « coming soon » (#303)", async () => {
+      const page = "https://chromewebstore.google.com/detail/jobbbox/abcdefghijklmnopabcdefghijklmnop";
+      const store = platformSettingsStore(database.pool, env);
+
+      expect(await store.set("EXTENSION_STORE_URL", "http://chromewebstore.google.com/detail/jobbbox", "ops@jobbbox.ai")).toEqual({ ok: false, error: "invalid" });
+      expect(await store.set("EXTENSION_STORE_URL", page, "ops@jobbbox.ai")).toEqual({
+        ok: true,
+        changed: true,
+        before: { value: "", source: "default" },
+        after: { value: page, source: "back_office" },
+      });
+      expect(await store.restore("EXTENSION_STORE_URL")).toMatchObject({ ok: true, changed: true, after: { value: "", source: "default" } });
+
+      const withEnv = platformSettingsStore(database.pool, { EXTENSION_STORE_URL: "https://example.test/extension" });
+      await withEnv.set("EXTENSION_STORE_URL", page, "ops@jobbbox.ai");
+      expect(await withEnv.restore("EXTENSION_STORE_URL")).toMatchObject({ ok: true, changed: true, after: { value: "https://example.test/extension", source: "env" } });
+    });
+
     it("announces each change, so a watching process uses it within seconds", async () => {
       watched = watchPlatformSettings({ database: database.pool, env, log: vi.fn() });
       await watched.ready;

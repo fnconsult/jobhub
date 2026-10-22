@@ -1,11 +1,14 @@
+import { modelSettingProviders, type ProviderId } from "@jobhub/ai";
+import { isFailureReason } from "@jobhub/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getPlatformSettingsBackOffice, requireBackOffice } from "@/admin/server";
 import { BACK_OFFICE_PAGES, type BackOfficePage } from "@/admin/back-office-nav";
+import { getAi } from "@/ai/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getRequestLocale, getServerT } from "@/i18n/server";
-import { isEditable, PLATFORM_SETTING_GROUPS, platformSetting, type PlatformSettingGroup, type PlatformSettingType } from "@/platform-settings/catalog";
+import { isEditable, PLATFORM_SETTING_GROUPS, platformSetting, type PlatformSetting, type PlatformSettingGroup, type PlatformSettingType } from "@/platform-settings/catalog";
 import { envOnlySettingsShown, type ShownValue } from "@/platform-settings/env-only";
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { SOURCE_TONE } from "./tone";
@@ -15,19 +18,39 @@ import { routes } from "@/routes";
 const ELSEWHERE: BackOfficePage[] = ["planQuotas", "guardrails", "coachCost", "providerSecrets"];
 
 /** What the page says after a save or « Rétablir »: a key under admin.platformSettings.notices, and whether it is an error. */
-const NOTICES = { saved: false, unchanged: false, restored: false, notRestored: false, invalid: true, empty: true, not_editable: true, unconfirmed: true, restoreUnconfirmed: true } as const;
+const NOTICES = { saved: false, unchanged: false, restored: false, notRestored: false, invalid: true, empty: true, not_editable: true, refused: true, unconfirmed: true, restoreUnconfirmed: true } as const;
 type Notice = keyof typeof NOTICES;
 const isNotice = (value: unknown): value is Notice => typeof value === "string" && Object.hasOwn(NOTICES, value);
 
-/** Back to Paramètres, at the setting's row, saying how it went. */
-const back = (notice: Notice, name: string): never =>
-  redirect(`${routes.adminPlatformSettings}?${new URLSearchParams({ notice, setting: name })}#setting-${name}`);
+/** The longest technical detail of a refusal carried back to the page; the Journal keeps it whole. */
+const DETAIL_MAX_LENGTH = 300;
+
+/** Back to Paramètres, at the setting's row, saying how it went; a refused change with its Failure Reason and technical detail (#301). */
+const back = (notice: Notice, name: string, refusal?: { reason: string; technical: { message: string } }): never =>
+  redirect(
+    `${routes.adminPlatformSettings}?${new URLSearchParams({ notice, setting: name, ...(refusal ? { reason: refusal.reason, detail: refusal.technical.message.slice(0, DETAIL_MAX_LENGTH) } : {}) })}#setting-${name}`,
+  );
+
+/** An AI routing setting naming a model: picked from its provider's known models, or typed, and tested on save (#301). */
+const isModelSetting = (setting: PlatformSetting) => setting.group === "ai_routing" && setting.name.endsWith("_MODEL");
+
+/** The models each configured provider is known to serve, for the model settings' suggestions; none when the AI layer cannot be built. */
+function knownModels(): Map<ProviderId, string[]> {
+  try {
+    const ai = getAi();
+    return new Map([...ai.agentModels(), ...ai.searchModels()].map((choice) => [choice.provider, choice.models.map((each) => each.model)]));
+  } catch {
+    return new Map();
+  }
+}
 
 /** The form field carrying the super-admin's confirmation (the DPA marked signed, #302). */
 const CONFIRMED = "yes";
 const confirmed = (form: FormData) => form.get("confirmed") === CONFIRMED;
 /** What a boolean setting takes, as env holds it. */
 const BOOLEAN_VALUES = ["false", "true"] as const;
+/** The values a choice or boolean setting takes, in the order its list shows them. */
+const choicesOf = (type: PlatformSettingType): readonly string[] => (type.kind === "choice" ? type.values : type.kind === "boolean" ? BOOLEAN_VALUES : []);
 
 /**
  * A super-admin saves a value, parsed as env's is; a value the setting refuses is recorded in the Journal (#299).
@@ -38,7 +61,8 @@ async function saveSetting(form: FormData) {
   const { administrator } = await requireBackOffice("platformSettings", "write");
   const name = String(form.get("name") ?? "");
   const done = await getPlatformSettingsBackOffice().set(administrator, name, String(form.get("value") ?? ""), { confirmed: confirmed(form) });
-  back(done.ok ? (done.changed ? "saved" : "unchanged") : done.error, name);
+  if (!done.ok && done.error === "refused") back("refused", name, done);
+  back(done.ok ? (done.changed ? "saved" : "unchanged") : (done.error as Exclude<typeof done.error, "refused">), name);
 }
 
 /** « Rétablir »: the Back Office's value is cleared, env's is used, else the code's default (#299); env's DPA marked signed is confirmed first (#302). */
@@ -47,7 +71,8 @@ async function restoreSetting(form: FormData) {
   const { administrator } = await requireBackOffice("platformSettings", "write");
   const name = String(form.get("name") ?? "");
   const done = await getPlatformSettingsBackOffice().restore(administrator, name, { confirmed: confirmed(form) });
-  back(done.ok ? (done.changed ? "restored" : "notRestored") : done.error === "unconfirmed" ? "restoreUnconfirmed" : done.error, name);
+  if (!done.ok && done.error === "refused") back("refused", name, done);
+  back(done.ok ? (done.changed ? "restored" : "notRestored") : done.error === "unconfirmed" ? "restoreUnconfirmed" : (done.error as Exclude<typeof done.error, "refused" | "unconfirmed">), name);
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -63,26 +88,44 @@ export async function generateMetadata(): Promise<Metadata> {
  * use, where it comes from (the Back Office, env, the code's default) and the code's default,
  * a value from env that differs from the default flagged; then, read-only, the settings only
  * env holds, secrets never shown; and links to the settings that have their own section.
- * Super-admins change the Job Digest's and Job discovery's settings, or « Rétablir » them (#299),
- * and Enriched Contacts' provider and DPA (#302), the DPA marked signed only once they confirm it;
- * Support sees no edit control.
+ * Super-admins change the AI routing (#301), the email sender (#300), the Job Digest's and Job discovery's
+ * settings (#299), Enriched Contacts' provider and DPA (#302, the DPA marked signed only once they confirm it),
+ * the extension's store page (#303, an https URL; « Rétablir » for none, "coming soon"), or « Rétablir » them;
+ * an AI routing change the AI layer would refuse, or whose model fails its test call, is refused with its reason;
+ * Support sees no edit control. MAIL_TRANSPORT stays env's, read-only.
  */
-export default async function PlatformSettingsPage({ searchParams }: { searchParams: Promise<{ notice?: string; setting?: string }> }) {
+export default async function PlatformSettingsPage({ searchParams }: { searchParams: Promise<{ notice?: string; setting?: string; reason?: string; detail?: string }> }) {
   const { access, canWrite } = await requireBackOffice("platformSettings");
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
-  const { notice, setting: noticed } = await searchParams;
+  const { notice, setting: noticed, reason, detail } = await searchParams;
   const shownNotice = isNotice(notice) && noticed ? platformSetting(noticed) : undefined;
   /** The setting whose value waits for the super-admin's confirmation: only the DPA marked signed asks for one (#302). */
   const confirming = canWrite && shownNotice?.confirm !== undefined && (notice === "unconfirmed" || notice === "restoreUnconfirmed") ? shownNotice : undefined;
   const number = new Intl.NumberFormat(locale);
-  /** What a setting takes, as its notices and help say it: "un nombre entier de 0 à 100". */
+  /** What a setting takes, as its notices and help say it: "un nombre entier de 0 à 100", "un expéditeur d'e-mail…". */
   const rule = (type: PlatformSettingType): string => {
+    if (type.kind === "choice") return t("admin.platformSettings.rules.choice", { values: type.values.join(", ") });
+    if (type.kind === "text") return t("admin.platformSettings.rules.text");
+    if (type.kind === "url") return t("admin.platformSettings.rules.url");
+    if (type.kind === "sender") return t("admin.platformSettings.rules.sender");
     if (type.kind !== "number") return "";
     const key = `${type.whole ? "whole" : "decimal"}${type.aboveMin ? "AboveMin" : ""}` as const;
     return t(`admin.platformSettings.rules.${key}`, { min: number.format(type.min), max: number.format(type.max) });
   };
-  const { settings } = await getPlatformSettingsResolver().refresh();
+  const { settings, env: settingsEnv } = await getPlatformSettingsResolver().refresh();
+  const refusedReason = notice === "refused" && isFailureReason(reason) ? t(`failureReasons.${reason}`) : "";
+  // The provider whose model each model setting names, and the models it is known to serve.
+  let modelProviders: Record<string, ProviderId> = {};
+  try {
+    modelProviders = modelSettingProviders(settingsEnv);
+  } catch {
+    // A routing value the code refuses: no suggestions, a model can still be typed.
+  }
+  const models = canWrite ? knownModels() : new Map<ProviderId, string[]>();
+  /** What a setting takes, as its help says it; a model setting: its provider's known models or another, tested on save. */
+  const accepted = (setting: PlatformSetting): string =>
+    isModelSetting(setting) ? t("admin.platformSettings.rules.model", { provider: modelProviders[setting.name] ?? "" }) : rule(setting.type);
   const envOnly = envOnlySettingsShown(process.env);
   const at = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" });
   const differing = settings.filter((setting) => setting.differsFromDefault).length;
@@ -121,9 +164,14 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
           <Link href={`${routes.adminPlatformSettings}#setting-${confirming.name}`}>{t("admin.platformSettings.confirmDpa.cancel")}</Link>
         </section>
       ) : shownNotice && isNotice(notice) ? (
-        <p className="notice" role={NOTICES[notice] ? "alert" : "status"}>
-          {t(`admin.platformSettings.notices.${notice}`, { name: shownNotice.name, rule: rule(shownNotice.type) })}
-        </p>
+        <div className="notice stack" role={NOTICES[notice] ? "alert" : "status"}>
+          <p>{t(`admin.platformSettings.notices.${notice}`, { name: shownNotice.name, rule: rule(shownNotice.type), reason: refusedReason })}</p>
+          {notice === "refused" && detail ? (
+            <p>
+              {t("admin.platformSettings.refusedDetail")} <code>{detail}</code>
+            </p>
+          ) : null}
+        </div>
       ) : null}
       {differing > 0 ? (
         <p className="notice" role="status">
@@ -189,28 +237,36 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
                                 </label>
                                 {setting.type.kind === "choice" || setting.type.kind === "boolean" ? (
                                   // The values the setting takes; "none" first for a provider (#302).
-                                  <select id={`value-${setting.name}`} className="input" name="value" defaultValue={setting.value}>
-                                    {(setting.type.kind === "choice" ? setting.type.values : BOOLEAN_VALUES).map((choice) => (
+                                  <select id={`value-${setting.name}`} className="input" name="value" defaultValue={setting.value} aria-describedby={`rule-${setting.name}`}>
+                                    {setting.value && !choicesOf(setting.type).includes(setting.value) ? null : <option value="" disabled hidden />}
+                                    {choicesOf(setting.type).map((choice) => (
                                       <option key={choice} value={choice}>
                                         {choice}
                                       </option>
                                     ))}
                                   </select>
                                 ) : (
-                                  <>
-                                    {/* No min or max: the server checks the bounds, so a refused value is in the Journal. */}
-                                    <input
-                                      id={`value-${setting.name}`}
-                                      className="input"
-                                      name="value"
-                                      type="text"
-                                      inputMode={setting.type.kind === "number" && setting.type.whole ? "numeric" : "decimal"}
-                                      defaultValue={setting.value}
-                                      aria-describedby={`rule-${setting.name}`}
-                                    />
-                                    <p id={`rule-${setting.name}`}>{t("admin.platformSettings.accepted", { rule: rule(setting.type) })}</p>
-                                  </>
+                                  /* No min or max: the server checks the bounds, so a refused value is in the Journal. A model is
+                                     picked from its provider's known models or typed (« autre »): it is tested on save. */
+                                  <input
+                                    id={`value-${setting.name}`}
+                                    className="input"
+                                    name="value"
+                                    type="text"
+                                    inputMode={setting.type.kind === "sender" ? "email" : setting.type.kind === "number" ? (setting.type.whole ? "numeric" : "decimal") : setting.type.kind === "url" ? "url" : undefined}
+                                    list={isModelSetting(setting) ? `models-${setting.name}` : undefined}
+                                    defaultValue={setting.value}
+                                    aria-describedby={`rule-${setting.name}`}
+                                  />
                                 )}
+                                {isModelSetting(setting) ? (
+                                  <datalist id={`models-${setting.name}`}>
+                                    {(models.get(modelProviders[setting.name]!) ?? []).map((model) => (
+                                      <option key={model} value={model} />
+                                    ))}
+                                  </datalist>
+                                ) : null}
+                                <p id={`rule-${setting.name}`}>{t("admin.platformSettings.accepted", { rule: accepted(setting) })}</p>
                                 <button className="button button-primary" type="submit">
                                   {t("admin.platformSettings.save")}
                                 </button>

@@ -124,16 +124,16 @@ describe.skipIf(!connectionString)("AI Usage (needs Postgres: DATABASE_URL)", ()
     });
   });
 
-  it("breaks the calls down by provider and model, by task and per day, newest day first", async () => {
+  it("breaks the calls down by provider, endpoint and model, by task and per day, newest day first", async () => {
     await seed();
 
     const report = await aiUsageReport(database, aiUsagePeriod("7d", now));
 
     const row = (calls: number, failures: number, costEur: number) => ({ calls, failures, costEur: expect.closeTo(costEur, 9) });
     expect(report.byModel).toMatchObject([
-      { provider: "mistral", model: "mistral-small-latest", ...row(2, 1, mistral) },
-      { provider: "anthropic", model: "fake-anthropic", ...row(1, 0, claude) },
-      { provider: "brave", model: "fake-brave", ...row(1, 0, braveSearch) },
+      { provider: "mistral", endpoint: "fake mistral", model: "mistral-small-latest", ...row(2, 1, mistral) },
+      { provider: "anthropic", endpoint: "fake anthropic", model: "fake-anthropic", ...row(1, 0, claude) },
+      { provider: "brave", endpoint: "fake brave", model: "fake-brave", ...row(1, 0, braveSearch) },
     ]);
     expect(report.byTask).toMatchObject([
       { task: "scoring", ...row(2, 1, mistral) },
@@ -147,6 +147,22 @@ describe.skipIf(!connectionString)("AI Usage (needs Postgres: DATABASE_URL)", ()
     expect(report.byTime[1]).toMatchObject({ inputTokens: MILLION, outputTokens: MILLION / 10, cachedInputTokens: 2_000 });
   });
 
+  it("shows each endpoint a model was reached through apart: Claude on Bedrock, then on its direct API once ANTHROPIC_ENDPOINT is auto (#301)", async () => {
+    const usage = createPostgresUsageLog(database);
+    const at = new Date("2026-10-17T08:00:00Z");
+    const claudeCall = (endpoint: string): UsageEntry => ({ ...entry(), at, task: "offer_analysis", provider: "anthropic", endpoint, model: "claude-opus-5" });
+    await usage.record(claudeCall("bedrock eu-north-1"));
+    await usage.record(claudeCall("bedrock eu-north-1"));
+    await usage.record(claudeCall("api.anthropic.com"));
+
+    const report = await aiUsageReport(database, aiUsagePeriod("7d", now));
+
+    expect(report.byModel).toMatchObject([
+      { provider: "anthropic", endpoint: "bedrock eu-north-1", model: "claude-opus-5", calls: 2 },
+      { provider: "anthropic", endpoint: "api.anthropic.com", model: "claude-opus-5", calls: 1 },
+    ]);
+  });
+
   it("counts a call stopped before any provider was chosen as a failure with no provider nor model, at no cost (#259)", async () => {
     now = new Date("2026-10-17T08:00:00Z");
     // No route serves the writing task: the call is never sent.
@@ -155,7 +171,7 @@ describe.skipIf(!connectionString)("AI Usage (needs Postgres: DATABASE_URL)", ()
 
     const report = await aiUsageReport(database, aiUsagePeriod("7d", now));
 
-    expect(report.byModel).toEqual([expect.objectContaining({ provider: null, model: null, calls: 1, failures: 1, costEur: 0 })]);
+    expect(report.byModel).toEqual([expect.objectContaining({ provider: null, endpoint: null, model: null, calls: 1, failures: 1, costEur: 0 })]);
     expect(report.totals).toMatchObject({ calls: 1, failures: 1, inputTokens: 0, costEur: 0 });
   });
 

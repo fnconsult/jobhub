@@ -1,0 +1,31 @@
+# Research for #301: AI routing editable on Paramètres
+
+Checked 2026-10-22, only what implementation needs: where a model list comes from per provider, what the cheapest test call is, and what "EU" means per provider for the save-time check. Verified items cite the owner's docs; the rest is marked **Unverified**.
+
+## 1. Model lists ("picked from the provider's known models")
+- **Anthropic direct** (verified): `GET https://api.anthropic.com/v1/models`, header `anthropic-version`, key as `x-api-key` or `Authorization: Bearer`. Paginated by cursor (`after_id`, `limit` 1-1000, default 20; read `has_more`/`last_id`). Each entry has `id`, `display_name`, `lifecycle` (`active`|`deprecated`|`retired`), `retires_at`. Retired models are hidden unless asked; "inference requests naming it fail". Show `active` only for new picks. Source: https://platform.claude.com/docs/en/api/models-list
+- **Bedrock** (verified): the catalogue is the control-plane `ListFoundationModels` (`GET /foundation-models`, filters `byProvider`, `byInferenceType`, `byOutputModality`; returns `modelId`, `modelLifecycle.status`). It lists regional foundation models, not cross-region inference profiles; those come from `ListInferenceProfiles` per source region. Errors: 403 AccessDenied, 429 throttling. Sources: https://docs.aws.amazon.com/bedrock/latest/APIReference/API_ListFoundationModels.html, https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html. **Unverified**: whether `AWS_BEARER_TOKEN_BEDROCK` is accepted by the control plane, and the model-id form the Mantle endpoint used by `providers/anthropic.ts` accepts. Until checked, keep the static `BEDROCK_MODELS` list for Bedrock and rely on the test call.
+- **Mistral** (verified): `GET https://api.mistral.ai/v1/models`, Bearer key; entries carry `id`, `capabilities` (e.g. `completion_chat`), `aliases`, `archived`. Filter on `completion_chat` and not `archived`. Source: https://docs.mistral.ai/api/endpoint/models
+- **OpenAI**: `GET /v1/models` exists. **Unverified**: the API reference returned 403 to our fetch; and whether it works on `eu.api.openai.com`. Check with a live key.
+- **Vertex AI, Perplexity, Brave, Tavily, Linkup**: **Unverified** (the Vertex partner-model page was too large to read; the search providers' model lists not checked). Static lists plus "autre" are the safe default.
+
+Implication: list endpoints need a working key, so the picker must fall back to a static list (as `providers/anthropic.ts` does) when the key is missing, and always allow "autre".
+
+## 2. The save-time test call and its Failure Reasons
+- **Anthropic** (verified): an unknown or retired model is a 404 `not_found_error` or 400 `invalid_request_error`; 401 `authentication_error` is the key; 403 `permission_error`; 429 `rate_limit_error` (also a spend cap, with no `retry-after`, which keeps failing); 402 `billing_error`; 5xx/529 transient. The SDK retries 429/5xx twice by default: use `maxRetries: 0` for the test so a transient fault is not read as success or delayed. Source: https://platform.claude.com/docs/en/api/errors
+- Cheapest call: a `messages` request with `max_tokens: 1`. The `count_tokens` endpoint takes a model and "without creating" a message, but whether it validates the model, is free, and exists on Bedrock/Vertex was **not confirmed** (the page was only partly read); do not rely on it.
+- Model-specific 400s are not "model does not exist": e.g. newer models reject `thinking: disabled`/`enabled`, prefill, forced `tool_choice`, and Sonnet 5.5 rejects `disabled` (needs `between_tools`). The test request must be plain (a single user message, no thinking, no tool_choice, no prefill) so that a 400 means the model or key, not the request. Source: https://platform.claude.com/docs/en/api/errors
+- Mistral and OpenAI: unknown-model error shape **Unverified** (Mistral's models page does not describe it). Map by HTTP status (404/400 model; 401/403 key; 429; 5xx) and store the provider's message as the Failure Reason.
+
+## 3. "EU" per provider (what the save check may assume)
+- **OpenAI** (verified): residency is per project, chosen when the project is created; requests go to `https://eu.api.openai.com`, or a Global-project key can target the EU prefix per request. Non-US regions need approval (ZDR or Modified Abuse Monitoring, plus a Modified Retention amendment). Chat Completions and Responses are supported in the EU; `store=true` is not allowed outside the US. Only the EU table's models are served: a model outside it cannot be EU-routed. EU-resident models carry a 10% price uplift. Files/vector stores: EU storage but no regional processing. Source: https://developers.openai.com/api/docs/guides/your-data
+  Implication: `OPENAI_DATA_RESIDENCY=eu` is only true if the key belongs to an approved EU project or the EU host is used; the code cannot tell from the key. The test call on the EU host is the only check, and it should use a model from the EU table.
+- **Bedrock** (verified): a `eu.` inference-profile prefix does not by itself prove EU-only routing. AWS says to call `GetInferenceProfile` from each source region and check every destination region in `models[].modelArn`; a geography profile's destination list "will never change", but profiles can differ per source region. Global profiles route to all commercial regions. Source: https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html
+  Implication: a `BEDROCK_REGION` of `eu-*` is not enough if a global profile is chosen; the EU check should refuse global profile ids and, ideally, resolve destinations.
+- **Vertex**: region list and Claude model availability per EU region **Unverified**.
+- **Anthropic direct**: no EU residency claim was found or checked; the repo already treats `direct` as non-EU (`anthropicInEu`).
+
+## 4. Open questions for the implementer
+1. Live-check: OpenAI `GET /v1/models` on the EU host; Bedrock bearer key against the control plane; Vertex EU regions and ids.
+2. Test calls cost money and hit rate limits: run only on save, only for values that changed, one call per distinct (provider, model, endpoint).
+3. The "cheapest" call for web search providers (Perplexity, Brave, Tavily, Linkup) was not researched.

@@ -13,24 +13,25 @@ const envOnly: PlatformSettingsResolver = {
   refresh: async () => snapshotOfSettings(process.env, {}),
 };
 
-function watched(): WatchedPlatformSettings {
-  holder.__jobhubPlatformSettings ??= watchPlatformSettings({ database: sharedPool(), env: process.env });
-  return holder.__jobhubPlatformSettings;
-}
-
 /**
  * The Platform Settings in use in this process: the Back Office's, else env's, else the
- * code's defaults. Without DATABASE_URL (a build, some tests), env and the defaults alone.
+ * code's defaults. Started before the server serves (instrumentation.ts); without DATABASE_URL
+ * (a build, some tests), env and the defaults alone. The mailer reads MAIL_FROM through it (#300).
  */
 export function getPlatformSettingsResolver(): PlatformSettingsResolver {
   if (!process.env.DATABASE_URL) return envOnly;
   return watched().resolver;
 }
 
+function watched(): WatchedPlatformSettings {
+  holder.__jobhubPlatformSettings ??= watchPlatformSettings({ database: sharedPool(), env: process.env });
+  return holder.__jobhubPlatformSettings;
+}
+
 /**
- * Reads the Platform Settings a first time and starts listening for changes: the server awaits it
- * before serving (instrumentation.ts), so the first request already uses the Back Office's values,
- * a DPA marked not signed there among them (#302).
+ * Reads the Platform Settings a first time and starts listening for changes: the server awaits it before
+ * serving (instrumentation.ts), so the first AI call is already routed as the Back Office set it (#301), and a
+ * DPA marked not signed there is already in force (#302).
  */
 export async function startPlatformSettings(): Promise<void> {
   if (process.env.DATABASE_URL) await watched().ready;

@@ -12,7 +12,7 @@
  * Provider Secret (a test scans the code for them).
  */
 import { AI_ROUTING_SETTINGS } from "@jobhub/ai";
-import { DEVELOPMENT_MAIL_FROM } from "../auth/mailers";
+import { DEVELOPMENT_MAIL_FROM, isSender } from "../auth/mailers";
 import { CONTACT_PROVIDERS, NO_PROVIDER } from "../enriched-contacts/providers/types";
 import { SEARCH_TIMEOUT_MS } from "../job-searches";
 
@@ -27,6 +27,10 @@ export type PlatformSettingType =
   /** A number up to `max`, from `min` (or above it, with `aboveMin`); `whole`: no decimals. */
   | { kind: "number"; whole: boolean; min: number; max: number; aboveMin?: boolean }
   | { kind: "text" }
+  /** An https URL (#303): a page people are sent to, never over plain http. */
+  | { kind: "url" }
+  /** An email sender our mailers send as: "Jobbbox <hello@jobbbox.ai>", or a bare address. */
+  | { kind: "sender" }
   /** "true" or "false". */
   | { kind: "boolean" };
 
@@ -56,7 +60,7 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
       default: setting.default,
     }),
   ),
-  { name: "MAIL_FROM", group: "email", type: { kind: "text" }, default: DEVELOPMENT_MAIL_FROM },
+  { name: "MAIL_FROM", group: "email", type: { kind: "sender" }, default: DEVELOPMENT_MAIL_FROM },
   // The Job Digest (worker): lowest Match Score, how many Job Offers it aims for, how far back a Profile's first one looks.
   { name: "JOB_DIGEST_MIN_MATCH_SCORE", group: "job_digest", type: whole(0, 100), default: "60" },
   { name: "JOB_DIGEST_TARGET_COUNT", group: "job_digest", type: whole(1, 100), default: "10" },
@@ -71,7 +75,7 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
   // The code cannot tell whether the agreement exists: marking it signed is a deliberate, confirmed step.
   { name: "CONTACT_ENRICHMENT_DPA_SIGNED", group: "enriched_contacts", type: { kind: "boolean" }, default: "false", confirm: "true" },
   // The browser extension's Chrome Web Store page; empty: "coming soon".
-  { name: "EXTENSION_STORE_URL", group: "extension", type: { kind: "text" }, default: "" },
+  { name: "EXTENSION_STORE_URL", group: "extension", type: { kind: "url" }, default: "" },
 ];
 
 const BY_NAME = new Map(PLATFORM_SETTINGS.map((setting) => [setting.name, setting]));
@@ -81,9 +85,10 @@ export const platformSetting = (name: string): PlatformSetting | undefined => BY
 
 /**
  * The groups super-admins edit on Paramètres so far: the worker's Job Digest and Job discovery (#299),
- * Enriched Contacts (#302). The others are shown read-only until their slice of ADR-0033 ships.
+ * AI routing (#301), the email sender (#300), Enriched Contacts (#302) and the extension's store page (#303).
+ * The others are shown read-only until their slice of ADR-0033 ships.
  */
-const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = ["job_digest", "job_discovery", "enriched_contacts"];
+const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = ["ai_routing", "email", "job_digest", "job_discovery", "enriched_contacts", "extension"];
 
 /** Whether super-admins set `setting` on Paramètres (and « Rétablir » it). */
 export const isEditable = (setting: PlatformSetting): boolean => EDITABLE_GROUPS.includes(setting.group);
@@ -106,8 +111,22 @@ function rule(type: PlatformSettingType): string {
       return `a ${type.whole ? "whole " : ""}number ${type.aboveMin ? `above ${type.min}, up to ${type.max}` : `from ${type.min} to ${type.max}`}`;
     case "text":
       return "some text";
+    case "url":
+      return "an https URL";
+    case "sender":
+      return "an email sender, such as Jobbbox <hello@jobbbox.ai>";
     case "boolean":
       return "true or false";
+  }
+}
+
+/** Whether `value` is an absolute https URL naming a host. */
+function isHttpsUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.hostname !== "";
+  } catch {
+    return false;
   }
 }
 
@@ -129,6 +148,10 @@ export function parseSetting(setting: PlatformSetting, raw: string): ParsedSetti
     }
     case "text":
       return { ok: true, value };
+    case "url":
+      return isHttpsUrl(value) ? { ok: true, value } : refused;
+    case "sender":
+      return isSender(value) ? { ok: true, value } : refused;
     case "boolean":
       return value === "true" || value === "false" ? { ok: true, value: value === "true" } : refused;
   }

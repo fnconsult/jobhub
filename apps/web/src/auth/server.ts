@@ -2,15 +2,15 @@ import { getSessionCookie } from "better-auth/cookies";
 import { headers } from "next/headers";
 import { permanentSuperAdminsFromEnv } from "@/admin/access";
 import { getExternalApiLog } from "@/ai-usage/external-api-log";
-import { MAIL_SECRET_NAMES } from "@/provider-secrets/catalog";
-import { liveObject } from "@/provider-secrets/resolver";
+import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { getSecretResolver } from "@/provider-secrets/server";
 import type { SignInConfiguration } from "@/sign-in-providers/catalog";
 import { APPLE_ORIGIN } from "@/sign-in-providers/policy";
 import { currentSignInConfiguration, getSignInProviders, refreshSignInConfiguration } from "@/sign-in-providers/server";
-import { authConfigFromEnv, mailerFromEnv } from "./config";
+import { authConfigFromEnv } from "./config";
 import { createAuth, type Auth, type Mailer, type SignInSetup } from "./index";
 import { swapWhenReady } from "./instances";
+import { liveMailer } from "./mailers";
 
 let mailer: Mailer | undefined;
 /** How long a change made in this process waits for the rebuilt sign-in to have started. */
@@ -21,11 +21,12 @@ const holder = globalThis as { __jobhubAuthInstances?: ReturnType<typeof swapWhe
 const instances = () => (holder.__jobhubAuthInstances ??= swapWhenReady<Auth>((auth) => auth.$context));
 
 /**
- * The app's mailer: BREVO_API_KEY or SMTP_URL from the Provider Secrets (Brevo), else env, rebuilt when it is
- * replaced in the Back Office. Each email sent is recorded in AI Usage's external APIs, never who it was for.
+ * The app's mailer: BREVO_API_KEY or SMTP_URL from the Provider Secrets (Brevo), else env, and MAIL_FROM from
+ * Paramètres, else env, else the code's default; rebuilt when one of them changes in the Back Office, so the next
+ * sign-in email uses it (#300). Each email sent is recorded in AI Usage's external APIs, never who it was for.
  */
 export function getMailer(): Mailer {
-  mailer ??= liveObject(getSecretResolver(), MAIL_SECRET_NAMES, (env) => mailerFromEnv(env, { externalApis: getExternalApiLog() }));
+  mailer ??= liveMailer({ secrets: getSecretResolver(), settings: getPlatformSettingsResolver() }, { externalApis: getExternalApiLog() });
   return mailer;
 }
 
@@ -61,7 +62,11 @@ function signInSetup(configuration: SignInConfiguration): SignInSetup {
 export function getAuth(): Auth {
   const configuration = currentSignInConfiguration();
   return instances().get(configuration.version, () =>
-    createAuth({ ...authConfigFromEnv(getSecretResolver().current().env), mailer: getMailer(), signIn: signInSetup(configuration), externalApis: getExternalApiLog() }),
+    createAuth({
+      ...authConfigFromEnv(getSecretResolver().current().env, { mailer: getMailer() }),
+      signIn: signInSetup(configuration),
+      externalApis: getExternalApiLog(),
+    }),
   );
 }
 

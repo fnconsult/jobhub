@@ -82,3 +82,5 @@ Its limits, stated plainly:
 - Names Jobbbox does not know slip through: a newly uploaded CV whose name differs from the account's (the first upload, before any Master CV exists), a referee's or a former manager's name, a name written with a typo. Names cannot be told apart from other words by their shape.
 - A last name shorter than three letters is not matched, to avoid false hits on ordinary words; a postal address is matched only as the Master CV writes it.
 - A company sharing the Candidate's last name is redacted too (« Dupont Conseil » becomes « [NOM DE FAMILLE] Conseil » in a web search).
+
+Exception (ADR-0033, #301): a save on the Back Office's Paramètres that would route a task with personal data, or the identity route, outside the EU is refused with `data_residency`. Only saves there are checked; a configuration from env still starts as above.

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { AI_ENV_KEYS, createAiLayerFromEnv, taskRouteFromEnv } from "./env";
+import { AI_ENV_KEYS, createAiLayerFromEnv, modelSettingProviders, taskRouteFromEnv } from "./env";
 import { AiConfigError } from "./errors";
 import { createMemoryUsageLog } from "./testing";
 
@@ -311,6 +311,13 @@ describe("AI layer configured from the environment", () => {
       // Claude reached only outside the EU: the AI Coach is on Mistral.
       expect(taskRouteFromEnv({ ANTHROPIC_API_KEY: "ak" }, "coaching")).toEqual({ provider: "mistral" });
     });
+  });
+
+  it("says which provider each model setting names a model of, without any key (#301)", () => {
+    const providers = modelSettingProviders({ AI_COACHING_PROVIDER: "mistral", AI_WEB_SEARCH_PROVIDER: "tavily" });
+
+    expect(providers).toMatchObject({ AI_SCORING_MODEL: "anthropic", AI_COACHING_MODEL: "mistral", AI_GUARDRAIL_MODEL: "mistral", AI_WEB_SEARCH_MODEL: "tavily", AI_IDENTITY_MODEL: "mistral" });
+    expect(Object.keys(providers)).toHaveLength(11);
   });
 
   describe("web-search providers a task Playbook may choose (ADR-0026)", () => {

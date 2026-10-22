@@ -1247,15 +1247,20 @@
       "save": "Save",
       "restore": "Restore",
       "restoreHelp": "Clears the Back Office's value: env's applies, else the code's default.",
-      "editIntro": "The Job Digest, Job discovery and Enriched Contacts settings are changed here: a saved value applies without a restart. Each change and each refused attempt goes to the Journal.",
+      "editIntro": "AI routing, the email sender, the Job Digest, Job discovery and Enriched Contacts settings, and the extension's store page are changed here: a saved value applies within seconds in the app and the worker, without a restart (the next email, for the sender). An AI routing change is checked before it is saved: a route the AI layer would refuse (personal data outside the EU, a key missing) is refused, and a model named is tested with a call. Each change and each refused attempt goes to the Journal.",
       "rules": {
         "whole": "a whole number from {{min}} to {{max}}",
         "wholeAboveMin": "a whole number above {{min}}, up to {{max}}",
         "decimal": "a number from {{min}} to {{max}}",
-        "decimalAboveMin": "a number above {{min}}, up to {{max}}"
+        "decimalAboveMin": "a number above {{min}}, up to {{max}}",
+        "choice": "one of {{values}}",
+        "text": "some text",
+        "model": "a {{provider}} model, picked from the list or typed; it is tested with a call on save",
+        "url": "an https URL",
+        "sender": "an email sender, such as Jobbbox <hello@jobbbox.ai>"
       },
       "notices": {
-        "saved": "{{name}} saved: the new value applies without a restart.",
+        "saved": "{{name}} saved: the new value applies within seconds, without a restart.",
         "unchanged": "{{name}} already had this value: nothing changed.",
         "restored": "{{name}} restored: env's value applies, else the code's default.",
         "notRestored": "{{name}} had no Back Office value: nothing changed.",
@@ -1263,7 +1268,8 @@
         "empty": "Enter a value for {{name}}.",
         "not_editable": "{{name}} cannot be changed here yet.",
         "unconfirmed": "{{name}} waits for your confirmation.",
-        "restoreUnconfirmed": "Restoring {{name}} waits for your confirmation."
+        "restoreUnconfirmed": "Restoring {{name}} waits for your confirmation.",
+        "refused": "{{name}} was not changed: {{reason}}. The attempt is in the Journal."
       },
       "journalFields": {
         "value": "Value",
@@ -1275,7 +1281,8 @@
         "question": "Do you confirm the data-processing agreement (DPA) with the Enriched Contacts provider is signed? The code cannot check it: once the DPA is marked signed, Enriched Contacts turn on as soon as a provider is chosen and its key is in Keys. The confirmation goes to the Journal.",
         "yes": "Yes, the DPA is signed",
         "cancel": "Cancel"
-      }
+      },
+      "refusedDetail": "Detail:"
     },
     "administrators": {
       "title": "Administrators",
@@ -1442,9 +1449,10 @@
       "totalCost": "Total cost",
       "unknownCost": "unknown",
       "none": "No calls in this period.",
-      "byModelTitle": "By provider and model",
-      "byModelCaption": "AI calls by provider and model",
+      "byModelTitle": "By provider, endpoint and model",
+      "byModelCaption": "AI calls by provider, endpoint and model",
       "provider": "Provider",
+      "endpoint": "Endpoint",
       "model": "Model",
       "byTaskTitle": "By task",
       "byTaskCaption": "AI calls by task",

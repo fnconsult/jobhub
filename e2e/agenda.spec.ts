@@ -546,7 +546,8 @@ const weekDayTops = (page: Page) => page.locator(".agenda-week > li").evaluateAl
 test.describe("the Agenda's week view beside the Sidebar", () => {
   test("shows each item whole, its times and words inside its card and day, at every width and text size", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("agenda-week-desktop"));
-    const day = parisDay(2);
+    // Next week's Tuesday, so the day after is in the same week whatever today is (two days on, a Friday gave a Sunday).
+    const day = plusDays(mondayOf(parisDay(7)), 1);
     await applicationWithInterviews(page, "Directeur administratif et financier H/F", [`${day}T09:30`, `${day}T14:00`, `${plusDays(day, 1)}T23:30`]);
 
     for (const textSize of ["standard", "xlarge"]) {

@@ -33,9 +33,12 @@ const settingsTexts = admin.platformSettings;
 // A super-admin of its own (playwright.config.ts's ADMIN_EMAILS): the one setting this spec edits, Paramètres.
 const SUPER_ADMIN = "digest-threshold-office@e2e.jobbbox.test";
 const THRESHOLD = "JOB_DIGEST_MIN_MATCH_SCORE";
+// The sender this spec saves on Paramètres (#300): only this spec changes MAIL_FROM, so a sign-in elsewhere meanwhile is unaffected but for its sender.
+const MAIL_FROM = "MAIL_FROM";
 const databaseUrl = process.env.E2E_DATABASE_URL!;
 const tag = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const workDir = path.join(os.tmpdir(), `jobhub-e2e-job-digest-${tag}`);
+const SENDER = `Jobbbox E2E <digest-${tag}@jobbbox.test>`;
 
 /** The two Job Offers the fake job sites publish for this run (see fake-job-sites.mjs). */
 const DAF = `Directeur administratif et financier (H/F) – réf. ${tag}`;
@@ -160,9 +163,9 @@ async function waitForDigestRun(profileId: string, count: number): Promise<strin
   return digestReports(profileId)[count - 1]!;
 }
 
-type Email = { subject: string; text: string };
+type Email = { from: string; subject: string; text: string };
 
-/** The emails the worker sent to `address`, oldest first. */
+/** The emails the worker sent to `address`, oldest first, with the sender printed under their first line. */
 function emailsTo(address: string): Email[] {
   const marker = `[mail] to ${address}: `;
   return workerOutput
@@ -170,7 +173,8 @@ function emailsTo(address: string): Email[] {
     .filter((block) => block.startsWith(marker))
     .map((block) => {
       const [first, ...rest] = block.trimEnd().split("\n");
-      return { subject: first!.slice(marker.length), text: rest.join("\n") };
+      const from = rest[0]?.startsWith("From: ") ? rest.shift()!.slice("From: ".length) : "";
+      return { from, subject: first!.slice(marker.length), text: rest.join("\n") };
     });
 }
 
@@ -249,7 +253,7 @@ test.describe("Job Digest", () => {
     const database = new Client({ connectionString: databaseUrl });
     await database.connect();
     try {
-      await database.query("DELETE FROM platform_setting WHERE name = $1", [THRESHOLD]);
+      await database.query("DELETE FROM platform_setting WHERE name = ANY($1::text[])", [[THRESHOLD, MAIL_FROM]]);
       await database.query("SELECT pg_notify('platform_settings_changed', '')");
     } finally {
       await database.end();
@@ -307,6 +311,70 @@ test.describe("Job Digest", () => {
       const third = await createPoorFitProfile();
       await scheduleTick();
       expect(await waitForDigestRun(third, 1)).toBe(`[job-digest] profile ${third}: nothing to send, Job discovery ran`);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("the next sign-in email and the next Job Digest are sent as the MAIL_FROM saved on Paramètres, no restart; « Rétablir » goes back, all in the Journal (#300)", async ({ page, browser }) => {
+    const address = await signIn(page, "digest-sender", "standard");
+    const profileId = await createProfile(page);
+    await optIn(page, profileId);
+    await optedInLastWeek(profileId);
+
+    const context = await browser.newContext({ baseURL: origin, locale: "en-US" });
+    const office = await context.newPage();
+    /** The sign-in email a person new to Jobbbox receives, signing up in a browser of their own. */
+    const newcomerSignIn = async (label: string) => {
+      const newcomer = await browser.newContext({ baseURL: origin, locale: "fr-FR" });
+      try {
+        return await signInWithMagicLink(await newcomer.newPage(), newAddress(label));
+      } finally {
+        await newcomer.close();
+      }
+    };
+    try {
+      await signInWithMagicLink(office, SUPER_ADMIN);
+      await office.goto("/admin/parametres");
+      const setting = office.locator(`tr[data-setting="${MAIL_FROM}"]`);
+      const valueOf = () => setting.getByRole("cell").nth(0);
+      // Env's sender, else the code's: what « Rétablir » goes back to.
+      const before = (await valueOf().innerText()).trim();
+      // MAIL_TRANSPORT stays env's: shown, never a field.
+      await expect(office.locator('tr[data-setting="MAIL_TRANSPORT"]').getByRole("textbox")).toHaveCount(0);
+
+      await setting.getByRole("textbox", { name: settingsTexts.newValue.replace("{{name}}", MAIL_FROM) }).fill(SENDER);
+      await setting.getByRole("button", { name: settingsTexts.save }).click();
+      await expect(office.getByRole("status").filter({ hasText: MAIL_FROM })).toHaveText(settingsTexts.notices.saved.replace("{{name}}", MAIL_FROM));
+      await expect(valueOf()).toHaveText(SENDER);
+      await expect(setting.getByRole("cell").nth(1)).toContainText(settingsTexts.sources.back_office);
+      // NOTIFY reaches the web app and the worker within seconds; their 60 s refresh is the fallback.
+      await new Promise((resolve) => setTimeout(resolve, 3_000));
+
+      // The web app's next sign-in email.
+      expect((await newcomerSignIn("digest-sender-newcomer")).from).toBe(SENDER);
+      // The running worker's next Job Digest.
+      await scheduleTick();
+      expect(await waitForDigestRun(profileId, 1)).toMatch(new RegExp(`^\\[job-digest\\] profile ${profileId}: Job Digest sent`));
+      await expect.poll(() => emailsTo(address).length).toBe(1);
+      expect(emailsTo(address)[0]!.from).toBe(SENDER);
+
+      // « Rétablir »: the next email goes out as before.
+      await setting.getByRole("button", { name: settingsTexts.restore }).click();
+      await expect(office.getByRole("status").filter({ hasText: MAIL_FROM })).toHaveText(settingsTexts.notices.restored.replace("{{name}}", MAIL_FROM));
+      await expect(valueOf()).toHaveText(before);
+      await new Promise((resolve) => setTimeout(resolve, 3_000));
+      expect((await newcomerSignIn("digest-sender-after")).from).toBe(before);
+
+      await office.goto("/admin/journal?section=platform_settings");
+      const entries = office.getByRole("row").filter({ hasText: MAIL_FROM }).filter({ hasText: SENDER });
+      const value = settingsTexts.journalFields.value;
+      await expect(entries.filter({ hasText: admin.journal.actions.updated })).toContainText(
+        admin.journal.changed.replace("{{field}}", value).replace("{{before}}", before).replace("{{after}}", SENDER),
+      );
+      await expect(entries.filter({ hasText: admin.journal.actions.restored_to_default })).toContainText(
+        admin.journal.changed.replace("{{field}}", value).replace("{{before}}", SENDER).replace("{{after}}", before),
+      );
     } finally {
       await context.close();
     }

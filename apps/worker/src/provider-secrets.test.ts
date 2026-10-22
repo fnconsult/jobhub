@@ -1,3 +1,4 @@
+import { createPlatformSettingsResolver, type StoredPlatformSettings } from "@jobhub/web/platform-settings";
 import { createSecretResolver, type StoredSecrets } from "@jobhub/web/provider-secrets";
 import type { ExternalApiCall } from "@jobhub/shared";
 import { describe, expect, it, vi } from "vitest";
@@ -207,5 +208,59 @@ describe("the worker's clients, on Provider Secrets (#208)", () => {
 
     expect(lines.length).toBeGreaterThan(2);
     for (const value of ["mistral-key-revoked-55555555", MISTRAL_NEW, ENV.PERPLEXITY_API_KEY]) expect(lines.join("\n")).not.toContain(value);
+  });
+});
+
+describe("the worker's AI layer, on the AI routing Platform Settings (#301)", () => {
+  it("routes the next AI call as the Back Office set it, without a restart; env's routing while it sets nothing", async () => {
+    const { resolver } = database({ MISTRAL_API_KEY: { value: MISTRAL_NEW, row: "r1" } });
+    const stored: { current: StoredPlatformSettings } = { current: {} };
+    const settings = createPlatformSettingsResolver({ load: async () => stored.current, env: ENV, log: () => {} });
+    await Promise.all([resolver.refresh(), settings.refresh()]);
+    const asked: string[] = [];
+    const { fetch } = fakeProviders();
+    const asking = (async (input: string | URL | Request, init?: RequestInit) => {
+      asked.push(JSON.parse(String(init?.body)).model);
+      return fetch(input, init);
+    }) as typeof globalThis.fetch;
+    const worker = workerClients({ resolver, platformSettings: settings, production: false, jobOffers: {} as never, fetch: asking, usage: { record: () => {} } });
+
+    await worker.ai.generate(generate);
+    stored.current = { AI_SCORING_MODEL: { value: "mistral-small-latest", updatedBy: "ops@jobbbox.ai", updatedAt: new Date() } };
+    await settings.refresh();
+    await worker.ai.generate(generate);
+
+    expect(asked).toEqual(["mistral-large-latest", "mistral-small-latest"]);
+    });
+  });
+
+describe("the worker's mailer, on Provider Secrets and Platform Settings (#300)", () => {
+  it("sends its next email (a Job Digest) as the MAIL_FROM saved on Paramètres, without a restart", async () => {
+    const env = { ...ENV, BREVO_API_KEY: "xkeysib-env", MAIL_FROM: "Jobbbox <bonjour@jobbbox.fr>" };
+    const { resolver } = database({}, env);
+    const saved: { current: StoredPlatformSettings } = { current: {} };
+    const settings = createPlatformSettingsResolver({ load: async () => saved.current, env, log: () => {} });
+    await Promise.all([resolver.refresh(), settings.refresh()]);
+    const senders: unknown[] = [];
+    const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async (_, init) => {
+      senders.push(JSON.parse(init!.body as string).sender);
+      return new Response("{}", { status: 201 });
+    });
+    try {
+      const worker = workerClients({ resolver, platformSettings: settings, production: false, jobOffers: {} as never, fetch: fakeProviders().fetch });
+      const digest = { to: "marie.dupont@example.fr", subject: "Votre Job Digest", text: "3 offres" };
+
+      await worker.mailer.send(digest);
+      saved.current = { MAIL_FROM: { value: "Jobbbox <hello@jobbbox.ai>", updatedBy: "ops@jobbbox.ai", updatedAt: new Date() } };
+      await settings.refresh();
+      await worker.mailer.send(digest);
+    } finally {
+      fetch.mockRestore();
+    }
+
+    expect(senders).toEqual([
+      { name: "Jobbbox", email: "bonjour@jobbbox.fr" },
+      { name: "Jobbbox", email: "hello@jobbbox.ai" },
+    ]);
   });
 });

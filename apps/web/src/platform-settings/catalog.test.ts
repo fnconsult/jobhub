@@ -92,17 +92,35 @@ describe("the Platform Settings catalog", () => {
     expect(parseSetting(setting("CONTACT_ENRICHMENT_DPA_SIGNED"), "yes")).toMatchObject({ ok: false });
     expect(parseSetting(setting("MAIL_FROM"), "Jobbbox <hello@jobbbox.ai>")).toEqual({ ok: true, value: "Jobbbox <hello@jobbbox.ai>" });
   });
+
+  it("takes the extension's store page as an https URL only (#303)", () => {
+    const store = platformSetting("EXTENSION_STORE_URL")!;
+    const page = "https://chromewebstore.google.com/detail/jobbbox/abcdefghijklmnopabcdefghijklmnop";
+    expect(parseSetting(store, ` ${page} `)).toEqual({ ok: true, value: page });
+    expect(parseSetting(store, "http://chromewebstore.google.com/detail/jobbbox")).toMatchObject({ ok: false, error: expect.stringContaining("an https URL") });
+    expect(parseSetting(store, "chromewebstore.google.com/detail/jobbbox")).toMatchObject({ ok: false });
+    expect(parseSetting(store, "javascript:alert(1)")).toMatchObject({ ok: false });
+    expect(parseSetting(store, "https://")).toMatchObject({ ok: false });
+  });
+
+  it("takes as MAIL_FROM an email sender, with or without a name, and refuses anything else", () => {
+    const mailFrom = platformSetting("MAIL_FROM")!;
+    expect(parseSetting(mailFrom, " hello@jobbbox.ai ")).toEqual({ ok: true, value: "hello@jobbbox.ai" });
+    expect(parseSetting(mailFrom, '"Jobbbox" <hello@jobbbox.ai>')).toEqual({ ok: true, value: '"Jobbbox" <hello@jobbbox.ai>' });
+    expect(parseSetting(mailFrom, "<hello@jobbbox.ai>")).toMatchObject({ ok: true });
+    for (const refused of ["Jobbbox", "Jobbbox <hello>", "hello@", "@jobbbox.ai", "Jobbbox <hello@jobbbox.ai", "hello @jobbbox.ai", "a@b.ai, c@d.ai", "Jobbbox <hello@jobbbox.ai>\r\nBcc: x@y.z"]) {
+      expect(parseSetting(mailFrom, refused), refused).toMatchObject({ ok: false });
+    }
+  });
 });
 
 describe("which Platform Settings super-admins edit on Paramètres", () => {
   const setting = (name: string) => platformSetting(name)!;
 
-  it("are the Job Digest's, Job discovery's and Enriched Contacts' so far (#299, #302)", () => {
-    expect(isEditable(setting("JOB_DIGEST_TARGET_COUNT"))).toBe(true);
-    expect(isEditable(setting("JOB_DISCOVERY_BUDGET_EUR"))).toBe(true);
-    expect(isEditable(setting("CONTACT_ENRICHMENT_PROVIDER"))).toBe(true);
-    expect(isEditable(setting("CONTACT_ENRICHMENT_DPA_SIGNED"))).toBe(true);
-    expect(isEditable(setting("ANTHROPIC_ENDPOINT"))).toBe(false);
+  it("are every group's, now that each slice of ADR-0033 has shipped (#299, #300, #301, #302, #303)", () => {
+    for (const name of ["ANTHROPIC_ENDPOINT", "MAIL_FROM", "JOB_DIGEST_TARGET_COUNT", "JOB_DISCOVERY_BUDGET_EUR", "CONTACT_ENRICHMENT_PROVIDER", "CONTACT_ENRICHMENT_DPA_SIGNED", "EXTENSION_STORE_URL"]) {
+      expect(isEditable(setting(name)), name).toBe(true);
+    }
   });
 
   it("asks a super-admin to confirm a DPA marked signed, and nothing else (ADR-0015, #302)", () => {

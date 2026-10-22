@@ -7,7 +7,7 @@
  *    one `ai_usage` row per call (task, provider, endpoint, model, tokens, estimated €, Outcome and
  *    Failure Reason code, its warnings' codes, duration; `ok` is kept as "not failed") and one `ai_tool_usage` row per tool its model used: no Candidate id, no text.
  *  - `createPostgresExternalApiLog(database)`, where `recordingFetch` records the calls to
- *    France Travail and the contact enrichment providers: `external_api_usage`, no payload.
+ *    France Travail, Fantastic.jobs and the contact enrichment providers: `external_api_usage`, no payload.
  *  - `aiUsageReport(database, aiUsagePeriod(key, now))`: totals and breakdowns of a period.
  *  - `purgeExpiredAiUsage(database, now)`, run nightly by the worker: rows are kept RETENTION_MONTHS.
  * What each call said is kept apart, in the AI Message Log (`./message-log`), 30 days.

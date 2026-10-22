@@ -23,7 +23,7 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 
 | | |
 | --- | --- |
-| Purpose | Let super-admins replace the third-party keys the app uses (AI providers, France Travail, contact enrichment, Stripe, Brevo) without a deployment, and show who last changed each one. |
+| Purpose | Let super-admins replace the third-party keys the app uses (AI providers, France Travail, Fantastic.jobs, contact enrichment, Stripe, Brevo) without a deployment, and show who last changed each one. |
 | Legal basis | Legitimate interest (GDPR art. 6(1)(f)): security and accountability of Jobbbox's own administration. |
 | People concerned | Administrators (super-admins) who replaced a key. |
 | Data | Per key: the value, encrypted (AES-256-GCM, ADR-0020); the email address of the super-admin who last replaced it, and when. No Candidate id. |
@@ -54,7 +54,7 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 
 | | |
 | --- | --- |
-| Purpose | Follow what AI costs Jobbbox: every AI call (all tasks), the tools its model used and every call to an external tool (France Travail, the French company register, the job boards and other sites' pages, contact enrichment, Stripe, Brevo, the sign-in providers, the Provider Secrets' connection tests, #234), in the Back Office's AI consumption report, Outils pages and Journal. |
+| Purpose | Follow what AI costs Jobbbox: every AI call (all tasks), the tools its model used and every call to an external tool (France Travail, Fantastic.jobs, the French company register, the job boards and other sites' pages, contact enrichment, Stripe, Brevo, the sign-in providers, the Provider Secrets' connection tests, #234), in the Back Office's AI consumption report, Outils pages and Journal. |
 | Legal basis | Legitimate interest (GDPR art. 6(1)(f)): knowing and controlling what the service costs to run. The rows name no one; for the 30 days its AI Message Log is kept, a call's row can be joined to the Candidate it was made for, and is personal data then; after that it is not. |
 | People concerned | Candidates, Administrators (Back Office Assistant) and Guests whose AI calls these are, indirectly and for 30 days through the AI Message Log; after that, none. |
 | Data | Per AI call: when, task, provider, endpoint, model, tokens (input, output, cached input), estimated cost, duration, success or failure; per tool used: its name, how many uses, success, cost when billed. Per external API call: provider, operation (an API's HTTP method and path, no query string; an SDK's method, such as Stripe's `checkout.sessions.create`; `send` for an email; `token`, `keys`, `userinfo` or `discovery` for a sign-in; `connection_test`; `page_read` and the site's registrable domain alone for a page read on another site, never its URL), HTTP status, duration, cost when known. No Candidate id, no email address, no prompt or reply text, no payload, no key (operations are scrubbed of anything shaped like an email address, a UUID or a credential). |

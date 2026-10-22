@@ -81,6 +81,8 @@ if (!baseURL) {
 
 // France Travail is searched only with its client credentials (access is on request): without them, Job discovery goes without it.
 if (!worker.franceTravail()) console.info("[worker] France Travail is off: FRANCE_TRAVAIL_CLIENT_ID and FRANCE_TRAVAIL_CLIENT_SECRET are not both set");
+// Fantastic.jobs is searched only with its key (Back Office → Clés, else env): without it, Job discovery goes without it.
+if (!worker.fantasticJobs()) console.info("[worker] Fantastic.jobs is off: FANTASTIC_JOBS_API_KEY is not set");
 // Fails at start-up, as before, where the mailer cannot be built (production without BREVO_API_KEY or SMTP_URL).
 mailerFromEnv(secrets.current().env);
 const mailer = worker.mailer;

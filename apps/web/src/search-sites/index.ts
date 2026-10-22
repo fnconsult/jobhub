@@ -118,6 +118,11 @@ export async function migrateSearchSites(database: Pool): Promise<void> {
   );
   // A pattern no longer built into the extension becomes an added Job Site: it can then be removed.
   await database.query("UPDATE extension_job_site SET built_in = false WHERE built_in AND NOT (pattern = ANY($1::text[]))", [[...BUILT_IN_JOB_SITES]]);
+  // A source added to the code since the table was created (Fantastic.jobs, #243) must pass its check.
+  await database.query(`
+    ALTER TABLE job_discovery_source DROP CONSTRAINT IF EXISTS job_discovery_source_source_check;
+    ALTER TABLE job_discovery_source ADD CONSTRAINT job_discovery_source_source_check CHECK (source IN (${JOB_DISCOVERY_SOURCES.map((source) => `'${source}'`).join(", ")}));
+  `);
   await database.query("INSERT INTO job_discovery_source (source) SELECT unnest($1::text[]) ON CONFLICT (source) DO NOTHING", [[...JOB_DISCOVERY_SOURCES]]);
 }
 

@@ -12,7 +12,7 @@
 // Every request the worker sends is appended, as one JSON line
 // { url, method, headers, body }, to E2E_DISCOVERY_LOG, so the test can check
 // what left the worker and what was never requested. Nothing reaches the network.
-import { appendFileSync, existsSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
 
 const tag = process.env.E2E_DISCOVERY_TAG ?? "local";
 const logFile = process.env.E2E_DISCOVERY_LOG;
@@ -300,6 +300,39 @@ function franceTravailSite(url) {
 }
 const FT_HOSTS = ["entreprise.francetravail.fr", "api.francetravail.io", "candidat.francetravail.fr"];
 
+// Fantastic.jobs mode (e2e/job-discovery-fantastic-jobs.spec.ts, #243): when E2E_DISCOVERY_FJ is set, Fantastic.jobs' active-ats
+// answers a search made with the key E2E_DISCOVERY_FJ_KEY (any other: 401) as follows (the web search still returns the default pages):
+//  - "ok": E2E_DISCOVERY_FJ_COUNT jobs (as many as the request's `limit` allows) shaped like the real answer captured in
+//    apps/worker/src/job-discovery/fixtures/fantastic-jobs/active-ats.json, posted 2 days ago, with the count charged in x-api-jobs-this-request;
+//  - "key-rejected": HTTP 401; "quota": HTTP 429; "failed": HTTP 500.
+// The jobs' own pages (ATS sites) are never part of the fake web: they must never be requested.
+const fjMode = process.env.E2E_DISCOVERY_FJ ?? "";
+const fjCount = Number(process.env.E2E_DISCOVERY_FJ_COUNT ?? 3);
+const fjKey = process.env.E2E_DISCOVERY_FJ_KEY ?? "";
+export const FJ_POSTED_MS = Date.now() - 2 * 24 * 60 * 60 * 1000;
+const fjFixture = JSON.parse(readFileSync(new URL("../../apps/worker/src/job-discovery/fixtures/fantastic-jobs/active-ats.json", import.meta.url), "utf8"));
+const fjJob = (n) => {
+  const base = fjFixture[(n - 1) % fjFixture.length];
+  return {
+    ...base,
+    id: n,
+    title: `${base.title} – Fantastic ${n} – réf. ${tag}`,
+    url: `https://ats-e2e.example/fantastic/${tag}/${n}`,
+    description_text: `${base.description_text}\n\nOffre Fantastic.jobs ${n} (réf. ${tag}).`,
+    date_posted: new Date(FJ_POSTED_MS).toISOString().replace("Z", ""),
+  };
+};
+
+function fantasticJobsSite(request, url) {
+  const key = /^Bearer (.*)$/.exec(request.headers.get("authorization") ?? "")?.[1] ?? "";
+  if (fjMode === "key-rejected" || key !== fjKey) return Response.json({ message: "Invalid API key" }, { status: 401 });
+  if (fjMode === "quota") return Response.json({ message: "Monthly Jobs credits exhausted" }, { status: 429 });
+  if (fjMode === "failed") return Response.json({ message: "boom" }, { status: 500 });
+  const limit = Number(url.searchParams.get("limit") ?? 100);
+  const jobs = Array.from({ length: Math.min(fjCount, limit) }, (_, n) => fjJob(n + 1));
+  return Response.json(jobs, { headers: { "x-api-jobs-this-request": String(jobs.length) } });
+}
+
 const volumePage = (n) => `https://volume-e2e.example/offre/${n}-${tag}`;
 
 /** What the fake web search returns, in order. */
@@ -403,6 +436,7 @@ globalThis.fetch = async (input, init = {}) => {
   }
   if (url.origin === "https://api.mistral.ai") return mistral(JSON.parse(body || "{}"));
 
+  if (fjMode && url.hostname === "data.fantastic.jobs") return fantasticJobsSite(request, url);
   if (ftMode && FT_HOSTS.includes(url.hostname)) return franceTravailSite(url);
   if (freshness && url.hostname === FRESHNESS_HOST) return freshnessSite(url);
   if (ats && ATS_HOSTS.includes(url.hostname)) return atsSite(url);

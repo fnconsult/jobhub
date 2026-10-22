@@ -120,6 +120,13 @@ globalThis.fetch = async (input, init) => {
     if (key !== LUSHA_KEY && !key.startsWith("e2e-lusha-valid-")) return Response.json({ statusCode: 401, message: `Invalid api_key ${key}` }, { status: 401 });
     return Response.json({ usage: { credits: { used: 0, total: 100 } } });
   }
+  // Fantastic.jobs' active-ats, the Clés section's connection test (#243): a search for no job. A key starting
+  // e2e-fj-valid- is accepted; any other is refused (401), echoed back in the answer to check it is scrubbed.
+  if (url.href.startsWith("https://data.fantastic.jobs/v1/active-ats")) {
+    const key = /^Bearer (.*)$/.exec(new Headers(init?.headers).get("authorization") ?? "")?.[1] ?? "";
+    if (!key.startsWith("e2e-fj-valid-")) return Response.json({ message: `Invalid API key ${key}` }, { status: 401 });
+    return Response.json([], { headers: { "x-api-jobs-this-request": "0" } });
+  }
   if (`${url.origin}/api/v1` !== API) return realFetch(input, init);
   const headers = new Headers(init?.headers);
   if (headers.get("x-api-key") !== KEY) return Response.json({ error: "Invalid access credentials." }, { status: 401 });

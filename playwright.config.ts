@@ -67,7 +67,7 @@ export default defineConfig({
     { name: "prototype", testMatch: /notion-layout-prototype\.spec\.ts/, use: { ...devices["Desktop Chrome"], locale: "fr-FR" } },
     // The worker's background jobs, run by `tsx src/main.ts` against the web server's database.
     // One spec at a time: each starts its own worker on the same queue, which would take the other's jobs.
-    { name: "worker", testMatch: /(job-(discovery|search|digest)|job-discovery-budget|job-discovery-listing-pages|job-discovery-ats|job-discovery-france-travail|job-freshness|job-search-metrics|follow-ups|expired-job-offers(-confirmation)?)\.spec\.ts/, workers: 1 },
+    { name: "worker", testMatch: /(job-(discovery|search|digest)|job-discovery-budget|job-discovery-listing-pages|job-discovery-ats|job-discovery-france-travail|job-discovery-fantastic-jobs|job-freshness|job-search-metrics|follow-ups|expired-job-offers(-confirmation)?)\.spec\.ts/, workers: 1 },
     // One spec at a time: root-env and worker-env both write the repo-root .env (the compose
     // worker reads it, #64); root-env and dev-servers (the web app's and the extension's dev
     // servers started in either order, #71) both run `npm run dev`, plan-prices-dev (#103) runs
@@ -117,7 +117,7 @@ export default defineConfig({
       STRIPE_PRICE_COACHING_SESSION: "price_coaching_session",
       STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_coaching_session_premium",
       STRIPE_API_URL: process.env.E2E_STRIPE_URL,
-      ADMIN_EMAILS: "back-office@e2e.jobbbox.test,coach-office@e2e.jobbbox.test,account-office@e2e.jobbbox.test,cost-office@e2e.jobbbox.test,playbook-office@e2e.jobbbox.test,playbook-validator-office@e2e.jobbbox.test,journal-office@e2e.jobbbox.test,audit-departing-office@e2e.jobbbox.test,roles-office@e2e.jobbbox.test,keys-office@e2e.jobbbox.test,assistant-office@e2e.jobbbox.test,ai-office@e2e.jobbbox.test,guardrails-office@e2e.jobbbox.test,guardrails-validator-office@e2e.jobbbox.test,eval-runs-office@e2e.jobbbox.test,tools-office@e2e.jobbbox.test,ai-warnings-office@e2e.jobbbox.test",
+      ADMIN_EMAILS: "back-office@e2e.jobbbox.test,coach-office@e2e.jobbbox.test,account-office@e2e.jobbbox.test,cost-office@e2e.jobbbox.test,playbook-office@e2e.jobbbox.test,playbook-validator-office@e2e.jobbbox.test,journal-office@e2e.jobbbox.test,audit-departing-office@e2e.jobbbox.test,roles-office@e2e.jobbbox.test,keys-office@e2e.jobbbox.test,assistant-office@e2e.jobbbox.test,ai-office@e2e.jobbbox.test,guardrails-office@e2e.jobbbox.test,guardrails-validator-office@e2e.jobbbox.test,eval-runs-office@e2e.jobbbox.test,tools-office@e2e.jobbbox.test,ai-warnings-office@e2e.jobbbox.test,fantastic-office@e2e.jobbbox.test",
       // Provider Secrets (#208): an obviously fake master key, for the Clés section.
       SECRETS_MASTER_KEYS: "1:ZTJlLW9ubHktbWFzdGVyLWtleS1lMmUtb25seS0wMDA=",
       // Enriched Contacts (#23) on Apollo, faked; the DPA flag stands for the signed agreement.
@@ -125,6 +125,8 @@ export default defineConfig({
       APOLLO_API_KEY: "e2e-apollo-key",
       // No Lusha key, whatever the shell has: the Clés specs (#208) enter one.
       LUSHA_API_KEY: "",
+      // No Fantastic.jobs key either: its spec (#243) enters one in the Clés section.
+      FANTASTIC_JOBS_API_KEY: "",
       CONTACT_ENRICHMENT_DPA_SIGNED: "true",
     },
   },

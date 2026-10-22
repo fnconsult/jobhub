@@ -146,7 +146,7 @@ interface DiscoveryProfile {
  * What a Job discovery run measured, as a Job Search or Job Digest keeps it: its
  * funnel down to the Job Offers the Profile matches (Match Score of
  * FUNNEL_MATCH_SCORE or more against its current Master CV), skipped pages by reason, cost,
- * and France Travail's part.
+ * and the job APIs' parts (France Travail's, Fantastic.jobs').
  */
 function metricsOf(report: DiscoveryReport, profile: DiscoveryProfile): DiscoveryMetrics {
   const metrics = noDiscoveryMetrics();
@@ -157,6 +157,7 @@ function metricsOf(report: DiscoveryReport, profile: DiscoveryProfile): Discover
   for (const { reason } of report.skipped) metrics.skipped[reason]++;
   metrics.costEur = report.costEur;
   metrics.franceTravail = { ...report.franceTravail };
+  metrics.fantasticJobs = { ...report.fantasticJobs };
   return metrics;
 }
 
@@ -227,13 +228,16 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           .filter(([, count]) => count > 0)
           .map(([reason, count]) => `${reason}: ${count}`)
           .join(", ");
-        const { franceTravail } = report;
+        const { franceTravail, fantasticJobs } = report;
         log(
           `[job-discovery] profile ${target.profileId}: ${report.jobOffers.length} Job Offer(s), ` +
             `${report.skipped.length} page(s) skipped${detail ? ` (${detail})` : ""}` +
             (franceTravail.status === "off"
               ? ""
-              : `, France Travail ${franceTravail.status} (${franceTravail.offers} Job Offer(s), ${franceTravail.calls} call(s))`),
+              : `, France Travail ${franceTravail.status} (${franceTravail.offers} Job Offer(s), ${franceTravail.calls} call(s))`) +
+            (fantasticJobs.status === "off"
+              ? ""
+              : `, Fantastic.jobs ${fantasticJobs.status} (${fantasticJobs.offers} Job Offer(s), ${fantasticJobs.calls} call(s), €${fantasticJobs.costEur})`),
         );
       },
     },

@@ -24,11 +24,14 @@ export type SkipReason = (typeof SKIP_REASONS)[number];
 export const FUNNEL_MATCH_SCORE = 60;
 
 /**
- * How France Travail's search went in a run: `off` (not configured), `searched`,
- * `refused` (France Travail turned us away: access withdrawn or not granted) or `failed`.
+ * How a job API's search (France Travail, Fantastic.jobs) went in a run: `off` (not configured,
+ * or its source disabled), `searched`, `refused` (it turned us away: access withdrawn or not
+ * granted, the key rejected, the quota spent) or `failed`.
  */
-export const FRANCE_TRAVAIL_STATUSES = ["off", "searched", "refused", "failed"] as const;
-export type FranceTravailStatus = (typeof FRANCE_TRAVAIL_STATUSES)[number];
+export const JOB_API_STATUSES = ["off", "searched", "refused", "failed"] as const;
+export type JobApiStatus = (typeof JOB_API_STATUSES)[number];
+export const FRANCE_TRAVAIL_STATUSES = JOB_API_STATUSES;
+export type FranceTravailStatus = JobApiStatus;
 
 /** France Travail's part of a run. Its offers are also counted in the funnel, as extracted or already stored. */
 export interface FranceTravailMetrics {
@@ -39,6 +42,17 @@ export interface FranceTravailMetrics {
   calls: number;
 }
 
+/** Fantastic.jobs' part of a run (#243). Its offers are also counted in the funnel, as extracted or already stored. */
+export interface FantasticJobsMetrics {
+  status: JobApiStatus;
+  /** Job Offers it gave, new or already stored, after the freshness rule. */
+  offers: number;
+  /** Calls made to it: one search per location. */
+  calls: number;
+  /** Estimated cost in € of the jobs it returned (each one charged), kept apart from the AI calls' `costEur`. */
+  costEur: number;
+}
+
 export interface DiscoveryMetrics {
   /** How many results reached each stage, in order. */
   funnel: {
@@ -46,9 +60,9 @@ export interface DiscoveryMetrics {
     providerUrls: number;
     /** Result pages read, the postings followed from listing pages included. */
     fetched: number;
-    /** Job Offers extracted from the pages read (and France Travail's offers), before deduplication. */
+    /** Job Offers extracted from the pages read (and the job APIs' offers), before deduplication. */
     extracted: number;
-    /** Results (and France Travail's offers) that led to a Job Offer already stored, without reading the page. */
+    /** Results (and the job APIs' offers) that led to a Job Offer already stored, without reading the page. */
     alreadyStored: number;
     /** Distinct Job Offers found, new or already stored. */
     afterDedup: number;
@@ -61,6 +75,8 @@ export interface DiscoveryMetrics {
   costEur: number;
   /** France Travail's part; absent for a run that never searched (or ran before France Travail was added). */
   franceTravail?: FranceTravailMetrics;
+  /** Fantastic.jobs' part; absent for a run from before Fantastic.jobs was added. */
+  fantasticJobs?: FantasticJobsMetrics;
 }
 
 /** The metrics of a run where Job discovery found nothing, or never ran. */

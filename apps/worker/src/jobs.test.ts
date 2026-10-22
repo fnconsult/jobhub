@@ -59,6 +59,7 @@ function discoveryReport(report: Partial<DiscoveryReport> = {}): DiscoveryReport
     funnel: { providerUrls: 0, fetched: 0, extracted: 0, alreadyStored: 0 },
     costEur: 0,
     franceTravail: { status: "off", offers: 0, calls: 0 },
+    fantasticJobs: { status: "off", offers: 0, calls: 0, costEur: 0 },
     ...report,
   };
 }
@@ -79,6 +80,7 @@ const measuredRun = discoveryReport({
   funnel: { providerUrls: 6, fetched: 3, extracted: 2, alreadyStored: 1 },
   costEur: 0.0123,
   franceTravail: { status: "searched", offers: 1, calls: 2 },
+  fantasticJobs: { status: "searched", offers: 3, calls: 1, costEur: 0.024 },
 });
 
 /** What the Job Search or Job Digest keeps of `measuredRun`. */
@@ -87,6 +89,7 @@ const measuredMetrics = {
   skipped: { robots: 0, site_terms: 1, bot_protection: 0, login_wall: 0, not_public: 0, gone: 2, unreachable: 0, not_a_job_offer: 1, invalid: 0, too_old: 0, site_disabled: 0 },
   costEur: 0.0123,
   franceTravail: { status: "searched", offers: 1, calls: 2 },
+  fantasticJobs: { status: "searched", offers: 3, calls: 1, costEur: 0.024 },
 };
 
 /**
@@ -170,6 +173,19 @@ describe("the Job discovery job", () => {
     expect([...searched.logs, ...refused.logs]).toEqual([
       "[job-discovery] profile profile-1: 2 Job Offer(s), 0 page(s) skipped, France Travail searched (1 Job Offer(s), 2 call(s))",
       "[job-discovery] profile profile-1: 0 Job Offer(s), 0 page(s) skipped, France Travail refused (0 Job Offer(s), 2 call(s))",
+    ]);
+  });
+
+  it("logs Fantastic.jobs' part, with its estimated cost, when its key is set", async () => {
+    const searched = setup(async () => discoveryReport({ jobOffers: found, fantasticJobs: { status: "searched", offers: 2, calls: 1, costEur: 0.016 } }));
+    const refused = setup(async () => discoveryReport({ fantasticJobs: { status: "refused", offers: 0, calls: 1, costEur: 0 } }));
+
+    await searched.run({ candidateId: "candidate-1", profileId: "profile-1" });
+    await refused.run({ candidateId: "candidate-1", profileId: "profile-1" });
+
+    expect([...searched.logs, ...refused.logs]).toEqual([
+      "[job-discovery] profile profile-1: 2 Job Offer(s), 0 page(s) skipped, Fantastic.jobs searched (2 Job Offer(s), 1 call(s), €0.016)",
+      "[job-discovery] profile profile-1: 0 Job Offer(s), 0 page(s) skipped, Fantastic.jobs refused (0 Job Offer(s), 1 call(s), €0)",
     ]);
   });
 
@@ -356,7 +372,7 @@ describe("Job discovery asked for on each job (#208)", () => {
   it("runs once its keys appear, without a restart: the getter is asked again on each job", async () => {
     const logs: string[] = [];
     let current: Exclude<JobsDeps["discovery"], () => unknown> = { unavailable: "Missing environment variable MISTRAL_API_KEY" };
-    const discover = vi.fn(async () => ({ jobOffers: [], skipped: [], funnel: { providerUrls: 0, pagesRead: 0, extracted: 0 }, costEur: 0, franceTravail: { status: "off", offers: 0, calls: 0 } }));
+    const discover = vi.fn(async () => ({ jobOffers: [], skipped: [], funnel: { providerUrls: 0, pagesRead: 0, extracted: 0 }, costEur: 0, franceTravail: { status: "off", offers: 0, calls: 0 }, fantasticJobs: { status: "off", offers: 0, calls: 0, costEur: 0 } }));
     const jobs = createJobs({
       ...otherDeps,
       database: noDatabase,

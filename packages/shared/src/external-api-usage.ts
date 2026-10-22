@@ -36,8 +36,12 @@ export interface ExternalApiLog {
 export interface RecordingOptions {
   /** A registered Tool's (TOOLS): a call to an unregistered tool does not type-check. */
   provider: ExternalApiProvider;
-  /** The estimated cost in € of a call to `operation` that answered `status` (null: none came); null when not known. Default: not known. */
-  costEur?: (status: number | null, operation: string) => number | null;
+  /**
+   * The estimated cost in € of a call to `operation` that answered `status` (null: none came), read from its
+   * `response` headers when the provider states there what it charged (its body is the caller's; null for an SDK's
+   * call or when none came); null when not known. Default: not known.
+   */
+  costEur?: (status: number | null, operation: string, response: Response | null) => number | null;
   now?: () => Date;
   /** Milliseconds. Default: performance.now. */
   clock?: () => number;
@@ -87,9 +91,9 @@ const recordable = (operation: string): string => scrubSecrets(operation.replace
 
 /**
  * Starts timing one call; the function it returns records it, once it answered `httpStatus`
- * (null: no answer). Everything is guarded: recording never fails nor delays the call it records.
+ * (null: no answer) with `response` when a fetch gave one. Everything is guarded: recording never fails nor delays the call it records.
  */
-function startCall(log: ExternalApiLog, options: RecordingOptions, operationOfCall: () => string): (httpStatus: number | null, ok?: boolean) => void {
+function startCall(log: ExternalApiLog, options: RecordingOptions, operationOfCall: () => string): (httpStatus: number | null, ok?: boolean, response?: Response | null) => void {
   const now = options.now ?? (() => new Date());
   const clock = options.clock ?? (() => performance.now());
   const warn = options.warn ?? ((message: string, error: unknown) => console.warn(`[external-api] ${message}`, error instanceof Error ? error.message : error));
@@ -97,7 +101,7 @@ function startCall(log: ExternalApiLog, options: RecordingOptions, operationOfCa
   try {
     const at = now();
     const started = clock();
-    return (httpStatus, ok) => {
+    return (httpStatus, ok, response) => {
       try {
         const operation = recordable(operationOfCall());
         const call: ExternalApiCall = {
@@ -107,7 +111,7 @@ function startCall(log: ExternalApiLog, options: RecordingOptions, operationOfCa
           durationMs: Math.round(clock() - started),
           ok: ok ?? (httpStatus !== null && httpStatus >= 200 && httpStatus < 300),
           httpStatus,
-          costEur: options.costEur?.(httpStatus, operation) ?? null,
+          costEur: options.costEur?.(httpStatus, operation, response ?? null) ?? null,
         };
         void Promise.resolve(log.record(call)).catch(failed);
       } catch (error) {
@@ -132,7 +136,7 @@ export function recordingFetch<F extends FetchLike>(fetch: F, log: ExternalApiLo
       done(null);
       throw error;
     }
-    done(response.status);
+    done(response.status, undefined, response);
     return response;
   };
   return recording as F;

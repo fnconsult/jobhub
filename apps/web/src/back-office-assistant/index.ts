@@ -226,7 +226,7 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
   async providerSecrets() {
     return [
       heading("providerSecrets"),
-      "Les clés des services tiers (IA, France Travail, enrichissement de contacts, Stripe, envoi d'e-mails par Brevo), saisies par les super-admins dans le Back Office et chiffrées. Elles sont en écriture seule : on les remplace, on ne les relit jamais ; une empreinte permet de vérifier laquelle est en place, et chaque remplacement est noté au Journal sans la valeur. Sans clé saisie, l'application prend celle de son environnement. Vous ne connaissez aucune valeur, même masquée.",
+      "Les clés des services tiers (IA, France Travail, Fantastic.jobs, enrichissement de contacts, Stripe, envoi d'e-mails par Brevo), saisies par les super-admins dans le Back Office et chiffrées. Elles sont en écriture seule : on les remplace, on ne les relit jamais ; une empreinte permet de vérifier laquelle est en place, et chaque remplacement est noté au Journal sans la valeur. Sans clé saisie, l'application prend celle de son environnement. Vous ne connaissez aucune valeur, même masquée.",
     ].join("\n");
   },
 
@@ -243,7 +243,7 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
     const calls = (row: { calls: number; failures: number }, unit = "appels") => `${row.calls} ${unit}${row.failures ? `, ${row.failures} en échec` : ""}`;
     return [
       heading("aiUsage"),
-      "Ce que coûtent les appels à l'IA (toutes les tâches, pas seulement le coach IA), les outils utilisés par les modèles (recherche web) et les API externes (France Travail, enrichissement de contacts), sur les 30 derniers jours (heure de Paris). Estimations aux prix publics, en euros. Agrégats seulement : aucun candidat, aucun texte.",
+      "Ce que coûtent les appels à l'IA (toutes les tâches, pas seulement le coach IA), les outils utilisés par les modèles (recherche web) et les API externes (France Travail, Fantastic.jobs, enrichissement de contacts), sur les 30 derniers jours (heure de Paris). Estimations aux prix publics, en euros. Agrégats seulement : aucun candidat, aucun texte.",
       `Total : ${calls(totals)}, ${totals.inputTokens} jetons en entrée, ${totals.cachedInputTokens} en cache, ${totals.outputTokens} en sortie ; coût total ${eur(totals.costEur)} (dont outils ${eur(totals.toolsCostEur)}, API externes ${eur(totals.externalCostEur)}).`,
       "Par fournisseur et modèle :",
       ...byModel.map((row) => `- ${row.provider ? `${row.provider} ${row.model ?? ""}`.trim() : "aucun fournisseur (non envoyé)"} : ${calls(row)}, ${eur(row.costEur)}`),

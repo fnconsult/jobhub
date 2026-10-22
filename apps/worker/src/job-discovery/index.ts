@@ -36,9 +36,18 @@
  * dated by its creation. France Travail refusing or failing never fails the run:
  * it is counted (`franceTravail` in the report) and the web search goes on.
  *
+ * When Fantastic.jobs' key is set (see fantastic-jobs/), a run then searches its
+ * ATS postings (`active-ats`: employers' own career pages) by the Search Criteria
+ * title and location, the same way: for no more Job Offers than the budget has
+ * left (each job it returns is charged), each captured at its ATS page and dated
+ * by its posting, or found stored. Its refusal (key rejected, quota spent) or
+ * failure never fails the run either: it is counted (`fantasticJobs` in the
+ * report, with its estimated cost, kept apart from the AI calls') and the run
+ * goes on with the other sources.
+ *
  * Administrators set the Job discovery sources and sites in the Back Office (#188),
  * read at the start of each run (`settings`): a disabled source (France Travail,
- * the web search, the ATS APIs) is skipped; each enabled Job discovery site adds
+ * Fantastic.jobs, the web search, the ATS APIs) is skipped; each enabled Job discovery site adds
  * one web search, the plan's first query restricted to that site, after the
  * plan's own queries; a result page on a disabled site is skipped
  * (`site_disabled`). When the settings cannot be read, every source is searched
@@ -46,10 +55,10 @@
  *
  * A run searches and reads result pages in order until its budget runs out: 30
  * Job Offers, €0.08 or 90 s by default, whichever comes first (see JobDiscoveryBudget).
- * France Travail's offers count toward it like any other Job Offers, and its time too.
+ * France Travail's and Fantastic.jobs' offers count toward it like any other Job Offers, and their time too.
  *
  * Search Criteria with several locations (ADR-0025) get one search per location,
- * in their order (France Travail, then the web searches, for each), each query
+ * in their order (France Travail, Fantastic.jobs, then the web searches, for each), each query
  * naming every contract type and remote-work option wanted. The budget is shared
  * between the locations, never multiplied: of n locations, the k-th searches until
  * the run has used k/n of each limit (Job Offers, euros, seconds), so a location
@@ -79,6 +88,7 @@ import {
   type DiscoveryMetrics,
   type IndustryReference,
   type JobDiscoverySettings,
+  type FantasticJobsMetrics,
   type FranceTravailMetrics,
   type JobOffer,
   type JobOfferDetails,
@@ -87,6 +97,7 @@ import {
 } from "@jobhub/shared";
 import { readAtsPosting } from "./ats";
 import { DEFAULT_BUDGET, type JobDiscoveryBudget } from "./budget";
+import type { FantasticJobs } from "./fantastic-jobs";
 import type { FranceTravail } from "./france-travail";
 import { listingPageLinks } from "./listing-page";
 import { searchPages } from "./search-pages";
@@ -108,6 +119,7 @@ export { MAX_POSTING_AGE_DAYS } from "@jobhub/shared";
 export { DEFAULT_BUDGET, jobDiscoveryBudgetFromEnv, type JobDiscoveryBudget } from "./budget";
 export type { RefusalReason } from "@jobhub/shared/page-reading";
 export { franceTravailFromEnv, type FranceTravail } from "./france-travail";
+export { chargedCostEur, eurPerJobFromEnv, fantasticJobsFromEnv, type FantasticJobs } from "./fantastic-jobs";
 
 /** Where Job Offers are stored. Satisfied by the web app's Job Offers module. */
 export interface JobOfferStore {
@@ -141,6 +153,11 @@ export interface JobDiscoveryOptions {
    * A getter is asked on each run: the worker's follows its Provider Secrets (#208).
    */
   franceTravail?: FranceTravail | null | (() => FranceTravail | null);
+  /**
+   * Fantastic.jobs' ATS postings, searched after France Travail. Default: none (its status is then `off`).
+   * A getter is asked on each run: the worker's follows its Provider Secret (FANTASTIC_JOBS_API_KEY).
+   */
+  fantasticJobs?: FantasticJobs | null | (() => FantasticJobs | null);
   /**
    * The Job discovery sources and sites Administrators set in the Back Office, read at the start
    * of each run. Default, and when it throws: every source on, no site listed.
@@ -187,6 +204,8 @@ export interface DiscoveryReport {
   costEur: number;
   /** France Travail's part of the run (its offers are in the funnel too). */
   franceTravail: FranceTravailMetrics;
+  /** Fantastic.jobs' part of the run (its offers are in the funnel too), with its estimated cost, not in `costEur`. */
+  fantasticJobs: FantasticJobsMetrics;
 }
 
 /** The funnel's stages up to deduplication. Provider URLs are looked at in order until the budget runs out. */
@@ -218,6 +237,17 @@ export { DEFAULT_USER_AGENT } from "@jobhub/shared/page-reading";
  * Shared with the Back Office, which never lets them be a Job discovery site.
  */
 export { FORBIDDEN_SITES } from "@jobhub/shared";
+
+/** A job API searched before the web (France Travail, Fantastic.jobs): what Job discovery needs of it. */
+interface JobApi {
+  search(
+    criteria: SearchCriteria,
+    options: { max: number; now: Date; location?: string },
+  ): Promise<
+    | { ok: true; offers: { url: string; details: JobOfferDetails }[]; calls: number; costEur?: number }
+    | { ok: false; reason: "refused" | "failed"; detail: string; calls: number }
+  >;
+}
 
 /** One web search of a run: a query of the Job Search's plan, restricted to one Job discovery site or not. */
 interface PlannedSearch {
@@ -266,6 +296,8 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
       const industries = await readIndustries(options.industries);
       const configuredFranceTravail = typeof options.franceTravail === "function" ? options.franceTravail() : options.franceTravail;
       const franceTravail = settings.sources.france_travail ? configuredFranceTravail : null;
+      const configuredFantasticJobs = typeof options.fantasticJobs === "function" ? options.fantasticJobs() : options.fantasticJobs;
+      const fantasticJobs = settings.sources.fantastic_jobs ? configuredFantasticJobs : null;
       /** Job discovery sites searched on purpose; a forbidden site never is, whatever the settings say. */
       const searchedSites = settings.sites.filter((site) => site.enabled && !isForbiddenSite(site.domain, forbiddenSites)).map((site) => site.domain);
       const disabledSites = settings.sites.filter((site) => !site.enabled).map((site) => site.domain);
@@ -293,6 +325,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         funnel: { providerUrls: 0, fetched: 0, extracted: 0, alreadyStored: 0 },
         costEur: 0,
         franceTravail: { status: "off", offers: 0, calls: 0 },
+        fantasticJobs: { status: "off", offers: 0, calls: 0, costEur: 0 },
       };
       const ai = costing(options.ai, (eur) => (report.costEur += eur));
       const [queryWording, offerReading] = await Promise.all([
@@ -423,16 +456,18 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
       };
 
       /**
-       * France Travail's offers for the Search Criteria, no more than the budget's Job Offers left, each captured
-       * like a posting read (at its France Travail page, dated by its creation) or found stored. Never throws.
+       * A job API's offers (France Travail's, Fantastic.jobs') for the Search Criteria, no more than the budget's Job
+       * Offers left, each captured like a posting read (at its page, dated by the API) or found stored, and counted in
+       * its part of the report. Never throws.
        */
-      const searchFranceTravail = async (franceTravail: FranceTravail, location: string) => {
+      const searchJobApi = async (api: JobApi, metrics: FranceTravailMetrics | FantasticJobsMetrics, location: string) => {
         const before = found.size;
         const max = Math.max(Math.ceil(budget.jobOffers * share) - found.size, 1);
-        const result = await franceTravail.search(criteria, { max, now: new Date(clock.now()), location });
-        report.franceTravail.calls += result.calls;
-        // One location searched is enough for the run to have searched France Travail.
-        if (report.franceTravail.status !== "searched") report.franceTravail.status = result.ok ? "searched" : result.reason;
+        const result = await api.search(criteria, { max, now: new Date(clock.now()), location });
+        metrics.calls += result.calls;
+        if (result.ok && result.costEur !== undefined && "costEur" in metrics) metrics.costEur = Math.round((metrics.costEur + result.costEur) * 1e6) / 1e6;
+        // One location searched is enough for the run to have searched the API.
+        if (metrics.status !== "searched") metrics.status = result.ok ? "searched" : result.reason;
         for (const offer of result.ok ? result.offers : []) {
           if (budgetSpent()) break;
           if (seen.has(offer.url)) continue;
@@ -441,7 +476,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           if (known) alreadyStored(offer.url, known);
           else await capture(offer.url, offer.details, undefined);
         }
-        report.franceTravail.offers += found.size - before;
+        metrics.offers += found.size - before;
       };
 
       /** URLs the provider gave in this run, each counted once in the funnel. */
@@ -487,9 +522,16 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
 
       try {
         const { locations } = criteria;
+        // Fantastic.jobs is searched once a run, at the first location the budget leaves room for: every call
+        // spends one of its plan's API requests (a hard limit) and its jobs Jobs credits (ADR-0031).
+        let fantasticJobsSearched = false;
         for (const [index, location] of locations.entries()) {
           share = (index + 1) / locations.length;
-          if (franceTravail && !budgetSpent()) await searchFranceTravail(franceTravail, location);
+          if (franceTravail && !budgetSpent()) await searchJobApi(franceTravail, report.franceTravail, location);
+          if (fantasticJobs && !fantasticJobsSearched && !budgetSpent()) {
+            fantasticJobsSearched = true;
+            await searchJobApi(fantasticJobs, report.fantasticJobs, location);
+          }
           if (budgetSpent() || !settings.sources.web_search) continue;
           await searchTheWeb(location);
         }

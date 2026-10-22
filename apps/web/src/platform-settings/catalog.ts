@@ -125,3 +125,56 @@ export function readNumberSetting(env: Record<string, string | undefined>, name:
   if (!parsed.ok) throw new Error(parsed.error);
   return parsed.value as number;
 }
+
+/** Why a variable stays in env alone, never set in the Back Office. */
+export type EnvOnlyKind =
+  /** Needed before the database can be read, or to open what it holds: Paramètres shows it, read-only. */
+  | "bootstrap"
+  /** Shown on Paramètres, read-only, but not editable there (yet): MAIL_TRANSPORT, Stripe Prices. */
+  | "read_only"
+  /** A key outside the Provider Secrets (a provider not offered in Clés, a Sign-in Provider's fallback): never shown. */
+  | "secret"
+  /** Set by the runtime or the deployment, not by an Administrator: never shown. */
+  | "deployment"
+  /** Another API origin for the e2e suite's fakes: never shown. */
+  | "test";
+
+/** How Paramètres shows a variable only env holds: its value, a URL without its password, only whether it is set, or a keyring's versions. */
+export type EnvOnlyShown = false | "value" | "without_password" | "set_or_missing" | "key_versions";
+
+/**
+ * Every variable the code reads that is neither a Platform Setting nor a Provider Secret, in the
+ * order Paramètres shows those it shows.
+ */
+export const ENV_ONLY_SETTINGS = {
+  DATABASE_URL: { kind: "bootstrap", shown: "without_password" },
+  AUTH_SECRET: { kind: "bootstrap", shown: "set_or_missing" },
+  SECRETS_MASTER_KEYS: { kind: "bootstrap", shown: "key_versions" },
+  APP_URL: { kind: "bootstrap", shown: "value" },
+  ADMIN_EMAILS: { kind: "bootstrap", shown: "value" },
+  JOBHUB_TARGET: { kind: "bootstrap", shown: "value" },
+  AI_FAKE: { kind: "bootstrap", shown: "value" },
+  MAIL_TRANSPORT: { kind: "read_only", shown: "value" },
+  // Fallbacks on their way out (#206), and the Coaching Session Prices.
+  STRIPE_PRICE_STANDARD: { kind: "read_only", shown: "value" },
+  STRIPE_PRICE_PREMIUM: { kind: "read_only", shown: "value" },
+  STRIPE_PRICE_COACHING_SESSION: { kind: "read_only", shown: "value" },
+  STRIPE_PRICE_COACHING_SESSION_PREMIUM: { kind: "read_only", shown: "value" },
+  OPENAI_API_KEY: { kind: "secret", shown: false },
+  BRAVE_SEARCH_API_KEY: { kind: "secret", shown: false },
+  TAVILY_API_KEY: { kind: "secret", shown: false },
+  LINKUP_API_KEY: { kind: "secret", shown: false },
+  // The Google client the Sign-in Providers are seeded with (Connexion), and its secret's fallback.
+  GOOGLE_CLIENT_ID: { kind: "secret", shown: false },
+  GOOGLE_CLIENT_SECRET: { kind: "secret", shown: false },
+  NODE_ENV: { kind: "deployment", shown: false },
+  NEXT_RUNTIME: { kind: "deployment", shown: false },
+  DATABASE_POOL_MAX: { kind: "deployment", shown: false },
+  EXTENSION_ORIGINS: { kind: "deployment", shown: false },
+  WXT_WEB_ORIGIN: { kind: "deployment", shown: false },
+  BREVO_API_URL: { kind: "test", shown: false },
+  STRIPE_API_URL: { kind: "test", shown: false },
+  CONTACT_ENRICHMENT_API_URL: { kind: "test", shown: false },
+} as const satisfies Record<string, { kind: EnvOnlyKind; shown: EnvOnlyShown }>;
+
+export type EnvOnlySettingName = keyof typeof ENV_ONLY_SETTINGS;

@@ -51,6 +51,38 @@ describe("the Tools", () => {
     expect(toolById("rome-open-data")?.keys).toEqual([]);
   });
 
+  it("name the Platform Settings they depend on, none for most", () => {
+    const names = (id: string) => (toolById(id)?.settings ?? []).map((setting) => setting.name);
+    expect(names("anthropic")).toEqual(["ANTHROPIC_ENDPOINT"]);
+    expect(names("anthropic-bedrock")).toEqual(["ANTHROPIC_ENDPOINT", "BEDROCK_REGION"]);
+    expect(names("anthropic-vertex")).toEqual(["ANTHROPIC_ENDPOINT", "VERTEX_REGION", "VERTEX_PROJECT_ID"]);
+    expect(names("openai")).toEqual(["OPENAI_DATA_RESIDENCY"]);
+    expect(names("mistral")).toEqual(["AI_IDENTITY_MODEL"]);
+    for (const id of ["perplexity", "brave", "tavily", "linkup"]) expect(names(id), id).toEqual(["AI_WEB_SEARCH_PROVIDER", "AI_WEB_SEARCH_MODEL"]);
+    for (const id of ["brevo-api", "brevo-smtp"]) expect(names(id), id).toEqual(["MAIL_FROM", "MAIL_TRANSPORT"]);
+    for (const id of ["lusha", "kaspr", "apollo"]) expect(names(id), id).toEqual(["CONTACT_ENRICHMENT_PROVIDER", "CONTACT_ENRICHMENT_DPA_SIGNED"]);
+    expect(names("stripe")).toEqual(["STRIPE_PRICE_STANDARD", "STRIPE_PRICE_PREMIUM", "STRIPE_PRICE_COACHING_SESSION", "STRIPE_PRICE_COACHING_SESSION_PREMIUM"]);
+    for (const id of ["france-travail", "job-site"]) expect(names(id), id).toEqual(["JOB_DISCOVERY_BUDGET_JOB_OFFERS", "JOB_DISCOVERY_BUDGET_EUR", "JOB_DISCOVERY_BUDGET_SECONDS"]);
+    expect(names("greenhouse")).toEqual([]);
+  });
+
+  it("say which of their settings they cannot be called without, and which turn them off", () => {
+    // Claude on Vertex is only called with ANTHROPIC_ENDPOINT=vertex, and needs its project.
+    expect(toolById("anthropic-vertex")?.keys).toEqual([]);
+    expect(toolById("anthropic-vertex")?.settings).toEqual([
+      { name: "ANTHROPIC_ENDPOINT", enabledWhen: ["vertex"] },
+      { name: "VERTEX_REGION" },
+      { name: "VERTEX_PROJECT_ID", required: true },
+    ]);
+    // Only the chosen contact-enrichment provider is called, and only once its DPA is signed.
+    expect(toolById("kaspr")?.settings).toEqual([
+      { name: "CONTACT_ENRICHMENT_PROVIDER", enabledWhen: ["kaspr"] },
+      { name: "CONTACT_ENRICHMENT_DPA_SIGNED", enabledWhen: ["true"] },
+    ]);
+    // MAIL_TRANSPORT=console writes emails to the server's log: Brevo is not called.
+    expect(toolById("brevo-api")?.settings).toEqual([{ name: "MAIL_FROM" }, { name: "MAIL_TRANSPORT", disabledWhen: ["console"] }]);
+  });
+
   it("are unknown by any other id", () => {
     expect(toolById("linkedin")).toBeUndefined();
     expect(toolById("toString")).toBeUndefined();

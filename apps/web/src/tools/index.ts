@@ -2,7 +2,8 @@
  * The Tools as the Back Office's Outils section shows them (#233): every Tool of the catalog
  * (`TOOLS`, @jobhub/shared), whether it is configured, and its calls as AI Usage recorded them.
  *
- *   toolStatus(tool, state)               configured, a key missing, not configured, or no key needed
+ *   toolStatus(tool, state)               configured, off, a key or setting missing, not configured, or no key needed;
+ *                                         its Platform Settings' values, those from env that differ from their default
  *   toolsOverview(database, state, now)   every Tool, by category, with its last 30 days' figures
  *   toolCalls(database, tool)             one Tool's latest calls, newest first
  *   latestToolCalls(database, options)    every Tool's latest calls together, newest first (the Journal)
@@ -10,11 +11,25 @@
  * Read-only. Nothing here holds a payload or a secret: a key is only said to have a value or not,
  * and a call is its time, operation, outcome, duration and cost (`ai_usage`, `ai_tool_usage`,
  * `external_api_usage`), never what it said; a failed or warned AI call, its Failure Reason's code
- * (#262), never its technical reason.
+ * (#262), never its technical reason. A Tool's Platform Settings (#304) are not secret: their
+ * values are shown, Paramètres staying the only place they are changed.
  */
-import { externalApiProvidersOf, isFailureReason, toolOfUsage, toolsByCategory, type FailureReason, type Outcome, type RecordedCall, type Tool, type ToolCategory } from "@jobhub/shared";
+import {
+  externalApiProvidersOf,
+  isFailureReason,
+  toolOfUsage,
+  toolsByCategory,
+  type FailureReason,
+  type Outcome,
+  type RecordedCall,
+  type Tool,
+  type ToolCategory,
+  type ToolSetting,
+} from "@jobhub/shared";
 import type { Pool } from "pg";
 import type { FailureReasonCount } from "../ai-usage";
+import { parseSetting, platformSetting } from "../platform-settings/catalog";
+import type { PlatformSettingSource, PlatformSettingsSnapshot } from "../platform-settings/resolver";
 
 type Env = Record<string, string | undefined>;
 
@@ -24,16 +39,84 @@ export interface ToolsState {
   env: Env;
   /** The types of the Sign-in Providers enabled. */
   signInTypes: readonly string[];
+  /** The Platform Settings in use: the Back Office's, else env's, else the code's defaults. */
+  settings: Pick<PlatformSettingsSnapshot, "setting">;
 }
 
-export type ToolStatus = "configured" | "key_missing" | "not_configured" | "no_key_needed";
+/**
+ * `disabled`: a setting turns it off (« désactivé »); `setting_missing`: one it cannot be called
+ * without is empty (« paramètre manquant »).
+ */
+export type ToolStatus = "configured" | "disabled" | "key_missing" | "setting_missing" | "not_configured" | "no_key_needed";
 
-/** Whether `tool` can be called: every key it needs has a value; a sign-in Tool, a Sign-in Provider of its type is enabled. */
-export function toolStatus(tool: Tool, state: ToolsState): { status: ToolStatus; missingKeys: string[] } {
-  if (tool.signIn) return { status: state.signInTypes.includes(tool.signIn) ? "configured" : "not_configured", missingKeys: [] };
-  if (tool.keys.length === 0) return { status: "no_key_needed", missingKeys: [] };
+/** A setting of a Tool with its value in use, as its Outils page shows it. */
+export interface ToolSettingValue {
+  name: string;
+  /** As env would hold it; empty when nothing sets it. */
+  value: string;
+  /** A setting only env holds (MAIL_TRANSPORT, the Stripe Prices) is from env, or its empty default. */
+  source: PlatformSettingSource;
+  /** From env, and not the code's default: the « env » badge. */
+  differsFromDefault: boolean;
+}
+
+/** A Tool's status, and what it is read from. */
+export interface ToolState {
+  status: ToolStatus;
+  /** The keys it needs that have no value. */
+  missingKeys: string[];
+  /** The settings it cannot be called without that are empty. */
+  missingSettings: string[];
+  /** Its settings, in the catalog's order. */
+  settings: ToolSettingValue[];
+  /** Its settings from env that differ from their default: the « env » badge when any. */
+  settingsFromEnv: string[];
+}
+
+function settingValue(name: string, state: ToolsState): ToolSettingValue {
+  const resolved = state.settings.setting(name);
+  if (resolved) return { name, value: resolved.value, source: resolved.source, differsFromDefault: resolved.differsFromDefault };
+  const value = state.env[name]?.trim() ?? "";
+  return { name, value, source: value ? "env" : "default", differsFromDefault: false };
+}
+
+/** `value` as the code reads it: a Platform Setting's parsed (the provider in lower case), else as written. */
+function asRead(name: string, value: string): string {
+  const setting = platformSetting(name);
+  const parsed = setting && value ? parseSetting(setting, value) : null;
+  return parsed?.ok ? String(parsed.value) : value;
+}
+
+/** Whether `setting`, holding `value`, turns its Tool off. */
+function turnsOff(setting: ToolSetting, value: string): boolean {
+  const read = asRead(setting.name, value);
+  return (setting.enabledWhen !== undefined && !setting.enabledWhen.includes(read)) || (setting.disabledWhen?.includes(read) ?? false);
+}
+
+/**
+ * Whether `tool` can be called. A sign-in Tool: a Sign-in Provider of its type is enabled. Any
+ * other: off while one of its settings turns it off; else every key it needs has a value, then
+ * every setting it cannot be called without.
+ */
+export function toolStatus(tool: Tool, state: ToolsState): ToolState {
+  const declared = tool.settings ?? [];
+  const values = declared.map((setting) => settingValue(setting.name, state));
   const missingKeys = tool.keys.filter((key) => !state.env[key]?.trim());
-  return { status: missingKeys.length === 0 ? "configured" : "key_missing", missingKeys };
+  const missingSettings = declared.filter((setting, index) => setting.required && !values[index]!.value).map((setting) => setting.name);
+  const read = {
+    missingKeys,
+    missingSettings,
+    settings: values,
+    settingsFromEnv: values.filter((value) => value.differsFromDefault).map((value) => value.name),
+  };
+  const status = (): ToolStatus => {
+    if (tool.signIn) return state.signInTypes.includes(tool.signIn) ? "configured" : "not_configured";
+    if (declared.some((setting, index) => turnsOff(setting, values[index]!.value))) return "disabled";
+    if (missingKeys.length > 0) return "key_missing";
+    if (missingSettings.length > 0) return "setting_missing";
+    return tool.keys.length === 0 && !declared.some((setting) => setting.required) ? "no_key_needed" : "configured";
+  };
+  return { status: status(), ...read };
 }
 
 /** How many calls a Tool had, how many failed, and their estimated € (null when no call's cost is known). */
@@ -61,10 +144,8 @@ function counted(counts: FailureReasonCount[], count: FailureReasonCount): Failu
   return added.sort((a, b) => b.calls - a.calls || a.outcome.localeCompare(b.outcome) || a.reason.localeCompare(b.reason));
 }
 
-export interface ToolRow {
+export interface ToolRow extends ToolState {
   tool: Tool;
-  status: ToolStatus;
-  missingKeys: string[];
   /** Over the last FIGURES_DAYS days; null when the Tool's calls are not recorded. */
   figures: ToolFigures | null;
 }

@@ -6,10 +6,8 @@ import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { PLATFORM_SETTING_GROUPS } from "@/platform-settings/catalog";
 import { envOnlySettingsShown, type ShownValue } from "@/platform-settings/env-only";
-import type { PlatformSettingSource } from "@/platform-settings/resolver";
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
-
-const SOURCE_TONE: Record<PlatformSettingSource, "success" | "accent" | undefined> = { back_office: "success", env: "accent", default: undefined };
+import { SOURCE_TONE } from "./tone";
 
 /** The settings with a section of their own, linked from Paramètres (ADR-0033). */
 const ELSEWHERE: BackOfficePage[] = ["planQuotas", "guardrails", "coachCost", "providerSecrets"];
@@ -77,7 +75,7 @@ export default async function PlatformSettingsPage() {
                 {settings
                   .filter((setting) => setting.group === group)
                   .map((setting) => (
-                    <tr key={setting.name} data-setting={setting.name}>
+                    <tr key={setting.name} id={`setting-${setting.name}`} data-setting={setting.name}>
                       <th scope="row">
                         <code>{setting.name}</code>
                       </th>
@@ -131,7 +129,7 @@ export default async function PlatformSettingsPage() {
             </thead>
             <tbody>
               {envOnly.map((row) => (
-                <tr key={row.name} data-setting={row.name}>
+                <tr key={row.name} id={`setting-${row.name}`} data-setting={row.name}>
                   <th scope="row">
                     <code>{row.name}</code>
                   </th>

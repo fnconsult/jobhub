@@ -98,6 +98,40 @@ test.describe("Tools (Outils)", () => {
     expect((await page.goto("/admin/outils/linkedin"))?.status()).toBe(404);
   });
 
+  test("a Tool's state accounts for its Platform Settings, and its page lists them read-only, linked to their row on Paramètres (#304)", async ({ page }) => {
+    const settings = admin.platformSettings;
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    await page.goto("/admin/outils");
+    // The e2e server runs with ANTHROPIC_ENDPOINT=bedrock from env (playwright.config.ts): Claude's Tools carry the « env » badge.
+    const envBadge = tr(tools.envBadgeLabel, { settings: "ANTHROPIC_ENDPOINT" });
+    await expect(toolRow(page, "ai_model", "Claude \\(AWS Bedrock\\)").getByTitle(envBadge)).toHaveText(new RegExp(`^${tools.envBadge}`));
+    await expect(toolRow(page, "ai_model", "Mistral AI").getByTitle(envBadge)).toHaveCount(0);
+    // Off: Claude on Vertex on another endpoint, Lusha while Apollo is the provider chosen, Brevo while mails go to the console.
+    await expect(toolRow(page, "ai_model", "Claude \\(Google Vertex AI\\)")).toContainText(tools.statuses.disabled);
+    await expect(toolRow(page, "contact_enrichment", "Lusha")).toContainText(tools.statuses.disabled);
+    await expect(toolRow(page, "contact_enrichment", "Apollo")).toContainText(tools.statuses.configured);
+    await expect(toolRow(page, "mail", "Brevo \\(API\\)")).toContainText(tools.statuses.disabled);
+
+    await page.goto("/admin/outils/anthropic-bedrock");
+    const table = page.getByRole("table", { name: tr(tools.settingsCaption, { name: "Claude (AWS Bedrock)" }) });
+    const endpoint = table.getByRole("row").filter({ has: page.getByRole("rowheader", { name: "ANTHROPIC_ENDPOINT" }) });
+    await expect(endpoint).toContainText("bedrock");
+    await expect(endpoint).toContainText(settings.sources.env);
+    await expect(endpoint).toContainText(settings.differsFlag);
+    await expect(table.getByRole("row").filter({ has: page.getByRole("rowheader", { name: "BEDROCK_REGION" }) })).toContainText(settings.sources.default);
+    // Paramètres stays the only place it is changed: nothing to edit here.
+    await expect(page.getByRole("main").getByRole("textbox")).toHaveCount(0);
+    await endpoint.getByRole("link", { name: "ANTHROPIC_ENDPOINT" }).click();
+    await expect(page).toHaveURL(/\/admin\/parametres#setting-ANTHROPIC_ENDPOINT$/);
+    await expect(page.locator("#setting-ANTHROPIC_ENDPOINT")).toContainText("bedrock");
+
+    // A setting only env holds, as Paramètres shows it: the Stripe Prices.
+    await page.goto("/admin/outils/stripe");
+    const prices = page.getByRole("table", { name: tr(tools.settingsCaption, { name: "Stripe" }) });
+    await expect(prices.getByRole("row").filter({ has: page.getByRole("rowheader", { name: "STRIPE_PRICE_STANDARD" }) })).toContainText("price_standard_monthly");
+    await expect(prices.getByRole("link", { name: "STRIPE_PRICE_STANDARD" })).toHaveAttribute("href", "/admin/parametres#setting-STRIPE_PRICE_STANDARD");
+  });
+
   test("a Stripe call shows on Stripe's page and in the Journal with the Outils filter, beside the Back Office changes, never what it carried (#234)", async ({ page }) => {
     const journal = admin.journal;
     await signInWithMagicLink(page, SUPER_ADMIN);
@@ -239,7 +273,7 @@ test.describe("Tools (Outils)", () => {
     for (const forbidden of [candidateEmail, candidateId, sub, "e2e-traced-secret"]) expect(all, "Journal").not.toContain(forbidden);
   });
 
-  test("Support reads the Tools without a way into Clés; other roles and Candidates get a 404", async ({ page, browser }) => {
+  test("Support reads the Tools without a way into Clés but with its way into Paramètres; other roles and Candidates get a 404", async ({ page, browser }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
     const support = newAddress("tools-support");
     const plans = newAddress("tools-plans");
@@ -253,6 +287,8 @@ test.describe("Tools (Outils)", () => {
     await expect(mistral).toContainText("MISTRAL_API_KEY");
     await expect(mistral.getByRole("link", { name: "MISTRAL_API_KEY" })).toHaveCount(0);
     expect((await supportPage.goto("/admin/outils/mistral"))?.status()).toBe(200);
+    // Support reads Paramètres: a Tool's settings are linked to it (#304).
+    await expect(supportPage.getByRole("main").getByRole("link", { name: "AI_IDENTITY_MODEL" })).toHaveAttribute("href", "/admin/parametres#setting-AI_IDENTITY_MODEL");
 
     for (const other of [plansPage, candidatePage]) {
       for (const path of ["/admin/outils", "/admin/outils/mistral"]) {

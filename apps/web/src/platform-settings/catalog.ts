@@ -75,6 +75,15 @@ const BY_NAME = new Map(PLATFORM_SETTINGS.map((setting) => [setting.name, settin
 /** The Platform Setting named `name`, if it is one. */
 export const platformSetting = (name: string): PlatformSetting | undefined => BY_NAME.get(name);
 
+/**
+ * The groups super-admins edit on Paramètres so far (#299): the worker's Job Digest and Job discovery.
+ * The others are shown read-only until their slice of ADR-0033 ships.
+ */
+const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = ["job_digest", "job_discovery"];
+
+/** Whether super-admins set `setting` on Paramètres (and « Rétablir » it). */
+export const isEditable = (setting: PlatformSetting): boolean => EDITABLE_GROUPS.includes(setting.group);
+
 export type ParsedSetting = { ok: true; value: string | number | boolean } | { ok: false; error: string };
 
 /** What `type` asks of a value, said as in an error: "a whole number from 0 to 100". */

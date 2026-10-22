@@ -21,6 +21,7 @@ import { createAssistantConversations } from "../back-office-assistant/conversat
 import { createProfiles, type Profiles } from "../profiles";
 import { createTailoredCvs } from "../tailored-cv";
 import { createTailoredDocuments } from "../tailored-documents";
+import { createAppointmentReminders } from "../appointment-reminders";
 import { createCandidateData, type CandidateData } from "./index";
 
 const masterCv: MasterCvContent = {
@@ -252,6 +253,30 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
 
     expect(exported.followUpDelays).toEqual({ afterApplied: 5, afterFollowUp: 12 });
     expect(exported.applications[0]!.followUps).toEqual([{ sentAt: new Date("2026-09-20T09:00:00Z") }, { sentAt: new Date("2026-10-02T09:00:00Z") }]);
+  });
+
+  it("the export holds the Candidate's Appointment Reminder setting (on until switched off) and the Appointment Reminders sent, newest first", async () => {
+    let now = new Date("2026-10-19T08:00:00.000Z");
+    const clock = () => now;
+    const reminders = createAppointmentReminders(database, { mailer: { send: async () => {} }, baseURL: BASE_URL, now: clock });
+    const clockedApplications = createApplications(database, { jobOffers, profiles, now: clock });
+    const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));
+    await applications.change(candidateId, application.id, { status: "interview" });
+    const added = await clockedApplications.addInterview(candidateId, application.id, { scheduledAt: "2026-10-20T14:30" });
+    const interviewId = added.ok ? added.application.interviews[0]!.id : "";
+
+    expect((await candidateData.export(candidateId)).appointmentReminders).toEqual({ enabled: true, changedAt: null, sent: [] });
+
+    now = new Date("2026-10-19T16:00:00.000Z"); // 18:00 in Paris, the day before
+    await reminders.sendDue();
+    now = new Date("2026-10-21T09:00:00.000Z");
+    await reminders.setEnabled(candidateId, false);
+
+    expect((await candidateData.export(candidateId)).appointmentReminders).toEqual({
+      enabled: false,
+      changedAt: now,
+      sent: [{ agendaItem: { kind: "interview", id: interviewId }, scheduledAt: new Date("2026-10-20T12:30:00.000Z"), sentAt: new Date("2026-10-19T16:00:00.000Z") }],
+    });
   });
 
   it("the export holds every Action Card the AI Coach proposed, pending or decided, newest first", async () => {

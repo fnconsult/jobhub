@@ -82,6 +82,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "ai_tool_usage", // issue #218: the tools each AI call's model used
         "ai_usage", // issue #218: every AI call's tokens and cost, no Candidate
         "application",
+        "appointment_reminder", // issue #253: the Appointment Reminders sent, one per Agenda Item and date
+        "appointment_reminder_setting", // issue #253: Appointment Reminders switched off or on in Mon compte
         "ats_score", // issue #8: the ATS Score last computed for each Profile
         "back_office_assistant_conversation", // issue #205: an Administrator's Back Office Assistant conversations
         "back_office_assistant_message", // issue #205: their messages
@@ -162,6 +164,11 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "application", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "application", from_column: "job_offer_id", to_table: "job_offer" },
         { from_table: "application", from_column: "profile_id", to_table: "profile" },
+        // Appointment Reminders (issue #253) go with their Candidate and their Interview or Coaching Session.
+        { from_table: "appointment_reminder", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "appointment_reminder", from_column: "coaching_session_id", to_table: "coaching_session" },
+        { from_table: "appointment_reminder", from_column: "interview_id", to_table: "interview" },
+        { from_table: "appointment_reminder_setting", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "ats_score", from_column: "profile_id", to_table: "profile" },
         // issue #205: an Administrator's Back Office Assistant conversations, deleted with their account
         { from_table: "back_office_assistant_conversation", from_column: "candidate_id", to_table: "candidate" },

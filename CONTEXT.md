@@ -458,7 +458,7 @@ An Agenda Item the Candidate (or, for a Coaching Session, the Human Coach) marke
 _Avoid_: Deleted appointment
 
 **Appointment Reminder**:
-The email Jobbbox sends the Candidate at 18:00 French time the day before an Agenda Item still planned, in their Interface Language. On by default, switched off in Mon compte's Rappels Section; on every Plan, against no Plan Quota. None for an Agenda Item entered after that time. The Human Coach gets none.
+The email Jobbbox sends the Candidate at 18:00 French time the day before an Agenda Item still planned, in their Interface Language. On by default, switched off in Mon compte's Rappels Section; on every Plan, against no Plan Quota. None for an Agenda Item whose date was entered or last changed (Rescheduled included) after that time. One email per Candidate for the whole next day; a Rescheduled Agenda Item gets a new one for its new date. A Cancelled Agenda Item gets none; an Archived Application's Interview or a Retired Human Coach's Coaching Session still does. A late run still reminds items not yet started. The email links to the Rappels Section to switch reminders off. The Human Coach gets none.
 _Avoid_: Notification, alert, Follow-up
 
 **Calendar file**:

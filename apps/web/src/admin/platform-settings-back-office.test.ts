@@ -135,12 +135,50 @@ describe.skipIf(!connectionString)("Platform Settings' Back Office writes and th
     expect(await platformSettingsReader(database).load()).toEqual({ ANTHROPIC_ENDPOINT: expect.objectContaining({ value: "auto" }) });
   });
 
+  it("records MAIL_FROM's save, « Rétablir » and refusal, the sender before and after, never the sender refused (#300)", async () => {
+    expect(await changes.set(claire, "MAIL_FROM", "Jobbbox <hello@jobbbox.ai>")).toMatchObject({ ok: true, changed: true });
+    expect(await changes.set(claire, "MAIL_FROM", "Jobbbox <hello>")).toEqual({ ok: false, error: "invalid" });
+    expect(await changes.restore(claire, "MAIL_FROM")).toMatchObject({ ok: true, changed: true });
+
+    const entries = await journal();
+    expect(entries).toEqual([
+      {
+        email: "claire@jobbbox.fr",
+        target: "MAIL_FROM",
+        action: "updated",
+        outcome: "succeeded",
+        before: { value: "Jobbbox <bonjour@localhost>", source: "default" },
+        after: { value: "Jobbbox <hello@jobbbox.ai>", source: "back_office" },
+        failure: null,
+      },
+      {
+        email: "claire@jobbbox.fr",
+        target: "MAIL_FROM",
+        action: "refused",
+        outcome: "failed",
+        before: null,
+        after: null,
+        failure: { reason: "invalid_value", tried: "updated", field: "value", technical: null },
+      },
+      {
+        email: "claire@jobbbox.fr",
+        target: "MAIL_FROM",
+        action: "restored_to_default",
+        outcome: "succeeded",
+        before: { value: "Jobbbox <hello@jobbbox.ai>", source: "back_office" },
+        after: { value: "Jobbbox <bonjour@localhost>", source: "default" },
+        failure: null,
+      },
+    ]);
+    expect(JSON.stringify(entries)).not.toContain("<hello>");
+  });
+
   it("records nothing for an unchanged value, an empty field, a setting not editable, or « Rétablir » on a setting the Back Office did not set", async () => {
     await changes.set(claire, "JOB_DIGEST_MIN_MATCH_SCORE", "75");
 
     expect(await changes.set(claire, "JOB_DIGEST_MIN_MATCH_SCORE", "75")).toMatchObject({ ok: true, changed: false });
     expect(await changes.set(claire, "JOB_DIGEST_MIN_MATCH_SCORE", "")).toEqual({ ok: false, error: "empty" });
-    expect(await changes.set(claire, "MAIL_FROM", "Jobbbox <bonjour@jobbbox.ai>")).toEqual({ ok: false, error: "not_editable" });
+    expect(await changes.set(claire, "MAIL_TRANSPORT", "smtp")).toEqual({ ok: false, error: "not_editable" });
     expect(await changes.restore(claire, "JOB_DISCOVERY_BUDGET_EUR")).toMatchObject({ ok: true, changed: false });
 
     expect(await journal()).toHaveLength(1);

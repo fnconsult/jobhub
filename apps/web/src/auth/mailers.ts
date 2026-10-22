@@ -25,6 +25,21 @@ export function parseSender(from: string): { name?: string; email: string } {
   return name ? { name, email: rawEmail.trim() } : { email: rawEmail.trim() };
 }
 
+/** An email address as a sender takes it: one address, no spaces, no list separators. */
+const ADDRESS = /^[^\s@<>()",;:\\[\]]+@[^\s@<>()",;:\\[\].][^\s@<>()",;:\\[\]]*$/;
+
+/**
+ * Whether `from` names one sender our mailers can send as (MAIL_FROM): "hello@jobbbox.ai",
+ * "Jobbbox <hello@jobbbox.ai>" or '"Jobbbox" <hello@jobbbox.ai>'. Never a list, never a line break
+ * (no header slipped in after it).
+ */
+export function isSender(from: string): boolean {
+  const value = from.trim();
+  if (/[\r\n]/.test(value)) return false;
+  const named = /^(?:"[^"\\]*"|[^"<>,;]*?)\s*<([^<>]*)>$/.exec(value);
+  return ADDRESS.test(named ? named[1]! : value);
+}
+
 /** Sends emails through Brevo's transactional email API, with an API key (xkeysib-…). */
 export function brevoApiMailer(apiKey: string, from: string, options: { apiUrl?: string; fetch?: (url: string, init: RequestInit) => Promise<Response> } = {}): Mailer {
   const fetch = options.fetch ?? globalThis.fetch;

@@ -91,4 +91,14 @@ describe("the Platform Settings catalog", () => {
     expect(parseSetting(setting("CONTACT_ENRICHMENT_DPA_SIGNED"), "yes")).toMatchObject({ ok: false });
     expect(parseSetting(setting("MAIL_FROM"), "Jobbbox <hello@jobbbox.ai>")).toEqual({ ok: true, value: "Jobbbox <hello@jobbbox.ai>" });
   });
+
+  it("takes as MAIL_FROM an email sender, with or without a name, and refuses anything else", () => {
+    const mailFrom = platformSetting("MAIL_FROM")!;
+    expect(parseSetting(mailFrom, " hello@jobbbox.ai ")).toEqual({ ok: true, value: "hello@jobbbox.ai" });
+    expect(parseSetting(mailFrom, '"Jobbbox" <hello@jobbbox.ai>')).toEqual({ ok: true, value: '"Jobbbox" <hello@jobbbox.ai>' });
+    expect(parseSetting(mailFrom, "<hello@jobbbox.ai>")).toMatchObject({ ok: true });
+    for (const refused of ["Jobbbox", "Jobbbox <hello>", "hello@", "@jobbbox.ai", "Jobbbox <hello@jobbbox.ai", "hello @jobbbox.ai", "a@b.ai, c@d.ai", "Jobbbox <hello@jobbbox.ai>\r\nBcc: x@y.z"]) {
+      expect(parseSetting(mailFrom, refused), refused).toMatchObject({ ok: false });
+    }
+  });
 });

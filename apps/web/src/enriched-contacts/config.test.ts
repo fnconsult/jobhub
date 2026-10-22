@@ -29,6 +29,15 @@ describe("contact enrichment configuration", () => {
     expect(contactEnrichmentFromEnv({ CONTACT_ENRICHMENT_PROVIDER: "apollo", APOLLO_API_KEY: "key", CONTACT_ENRICHMENT_DPA_SIGNED: "no" })).toMatchObject({ provider: null });
   });
 
+  it("is off while the DPA is not confirmed signed, whatever the provider and key: none chosen, one without its key (ADR-0015, #302)", () => {
+    expect(contactEnrichmentFromEnv({ CONTACT_ENRICHMENT_PROVIDER: "lusha" })).toEqual({ provider: null, disabledBecause: "dpa_not_signed" });
+    expect(contactEnrichmentFromEnv({ CONTACT_ENRICHMENT_PROVIDER: "none", CONTACT_ENRICHMENT_DPA_SIGNED: "true" })).toEqual({ provider: null, disabledBecause: "no_provider" });
+  });
+
+  it("is off, not failing, once the DPA is signed for a provider whose key is not in Clés yet (#302)", () => {
+    expect(contactEnrichmentFromEnv({ CONTACT_ENRICHMENT_PROVIDER: "kaspr", CONTACT_ENRICHMENT_DPA_SIGNED: "true", LUSHA_API_KEY: "key" })).toEqual({ provider: null, disabledBecause: "no_key" });
+  });
+
   it.each([
     ["lusha", "LUSHA_API_KEY"],
     ["kaspr", "KASPR_API_KEY"],
@@ -38,9 +47,8 @@ describe("contact enrichment configuration", () => {
     expect(config.provider?.id).toBe(name);
   });
 
-  it("refuses an unknown provider, or a chosen one without its key", () => {
+  it("refuses an unknown provider", () => {
     expect(() => contactEnrichmentFromEnv({ CONTACT_ENRICHMENT_PROVIDER: "clearbit", CONTACT_ENRICHMENT_DPA_SIGNED: "true" })).toThrow(/CONTACT_ENRICHMENT_PROVIDER/);
-    expect(() => contactEnrichmentFromEnv({ CONTACT_ENRICHMENT_PROVIDER: "lusha", CONTACT_ENRICHMENT_DPA_SIGNED: "true" })).toThrow(/LUSHA_API_KEY/);
   });
 });
 

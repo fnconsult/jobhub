@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseSetting, PLATFORM_SETTINGS, platformSetting } from "./catalog";
+import { asksConfirmation, isEditable, parseSetting, PLATFORM_SETTINGS, platformSetting } from "./catalog";
 
 /** Every Platform Setting ADR-0033 lists, by name. */
 const ADR_0033 = [
@@ -87,8 +87,29 @@ describe("the Platform Settings catalog", () => {
     expect(parseSetting(setting("JOB_DISCOVERY_BUDGET_SECONDS"), "600")).toEqual({ ok: true, value: 600 });
     expect(parseSetting(setting("JOB_DISCOVERY_BUDGET_SECONDS"), "601")).toMatchObject({ ok: false });
     expect(parseSetting(setting("CONTACT_ENRICHMENT_PROVIDER"), "Lusha")).toEqual({ ok: true, value: "lusha" });
+    expect(parseSetting(setting("CONTACT_ENRICHMENT_PROVIDER"), "none")).toEqual({ ok: true, value: "none" });
     expect(parseSetting(setting("CONTACT_ENRICHMENT_DPA_SIGNED"), "true")).toEqual({ ok: true, value: true });
     expect(parseSetting(setting("CONTACT_ENRICHMENT_DPA_SIGNED"), "yes")).toMatchObject({ ok: false });
     expect(parseSetting(setting("MAIL_FROM"), "Jobbbox <hello@jobbbox.ai>")).toEqual({ ok: true, value: "Jobbbox <hello@jobbbox.ai>" });
+  });
+});
+
+describe("which Platform Settings super-admins edit on Paramètres", () => {
+  const setting = (name: string) => platformSetting(name)!;
+
+  it("are the Job Digest's, Job discovery's and Enriched Contacts' so far (#299, #302)", () => {
+    expect(isEditable(setting("JOB_DIGEST_TARGET_COUNT"))).toBe(true);
+    expect(isEditable(setting("JOB_DISCOVERY_BUDGET_EUR"))).toBe(true);
+    expect(isEditable(setting("CONTACT_ENRICHMENT_PROVIDER"))).toBe(true);
+    expect(isEditable(setting("CONTACT_ENRICHMENT_DPA_SIGNED"))).toBe(true);
+    expect(isEditable(setting("ANTHROPIC_ENDPOINT"))).toBe(false);
+  });
+
+  it("asks a super-admin to confirm a DPA marked signed, and nothing else (ADR-0015, #302)", () => {
+    expect(asksConfirmation(setting("CONTACT_ENRICHMENT_DPA_SIGNED"), "true")).toBe(true);
+    expect(asksConfirmation(setting("CONTACT_ENRICHMENT_DPA_SIGNED"), " true ")).toBe(true);
+    expect(asksConfirmation(setting("CONTACT_ENRICHMENT_DPA_SIGNED"), "false")).toBe(false);
+    expect(asksConfirmation(setting("CONTACT_ENRICHMENT_PROVIDER"), "lusha")).toBe(false);
+    expect(asksConfirmation(setting("JOB_DIGEST_TARGET_COUNT"), "12")).toBe(false);
   });
 });

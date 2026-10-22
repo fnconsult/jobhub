@@ -5,7 +5,7 @@ import { liveObject, type SecretResolver } from "../provider-secrets/resolver";
 import { createApolloProvider } from "./providers/apollo";
 import { createKasprProvider } from "./providers/kaspr";
 import { createLushaProvider } from "./providers/lusha";
-import { CONTACT_PROVIDERS, type ContactEnrichmentProvider, type ContactProviderId } from "./providers/types";
+import { CONTACT_PROVIDERS, NO_PROVIDER, type ContactEnrichmentProvider, type ContactProviderId } from "./providers/types";
 
 type Env = Record<string, string | undefined>;
 
@@ -24,25 +24,32 @@ export interface ContactEnrichmentDeps {
 
 export type ContactEnrichmentConfig =
   | { provider: ContactEnrichmentProvider }
-  /** Enriched Contacts are off: no provider chosen, or its data-processing agreement is not confirmed signed. */
-  | { provider: null; disabledBecause: "no_provider" | "dpa_not_signed" };
+  /**
+   * Enriched Contacts are off: no provider chosen (or "none"), its data-processing agreement not
+   * confirmed signed, or the chosen provider's key not set (Clés, else env).
+   */
+  | { provider: null; disabledBecause: "no_provider" | "dpa_not_signed" | "no_key" };
+
+/** The Platform Settings Enriched Contacts read (ADR-0015, ADR-0033): set on Paramètres, over env. */
+export const CONTACT_ENRICHMENT_SETTING_NAMES = ["CONTACT_ENRICHMENT_PROVIDER", "CONTACT_ENRICHMENT_DPA_SIGNED"] as const;
 
 /**
- * The active contact-enrichment provider, from environment variables (see
- * .env.example; secrets come from the secret manager in production). Enriched
- * Contacts stay off unless a provider is chosen and CONTACT_ENRICHMENT_DPA_SIGNED
- * is "true". A provider chosen without its key, or an unknown one, is a configuration error.
+ * The active contact-enrichment provider, from the values in use (the Platform Settings
+ * CONTACT_ENRICHMENT_PROVIDER and CONTACT_ENRICHMENT_DPA_SIGNED, the Provider Secret of the
+ * chosen provider's key; see .env.example). Enriched Contacts stay off unless a provider is
+ * chosen and CONTACT_ENRICHMENT_DPA_SIGNED is "true", whatever the key; then off too until
+ * the provider's key is set. An unknown provider is a configuration error.
  */
 export function contactEnrichmentFromEnv(env: Env, deps: ContactEnrichmentDeps = {}): ContactEnrichmentConfig {
   const name = env.CONTACT_ENRICHMENT_PROVIDER?.trim().toLowerCase();
-  if (!name) return { provider: null, disabledBecause: "no_provider" };
+  if (!name || name === NO_PROVIDER) return { provider: null, disabledBecause: "no_provider" };
   if (!(CONTACT_PROVIDERS as readonly string[]).includes(name)) {
-    throw new Error(`CONTACT_ENRICHMENT_PROVIDER must be one of ${CONTACT_PROVIDERS.join(", ")}; got "${name}"`);
+    throw new Error(`CONTACT_ENRICHMENT_PROVIDER must be one of ${[NO_PROVIDER, ...CONTACT_PROVIDERS].join(", ")}; got "${name}"`);
   }
+  if (env.CONTACT_ENRICHMENT_DPA_SIGNED !== "true") return { provider: null, disabledBecause: "dpa_not_signed" };
   const id = name as ContactProviderId;
   const apiKey = env[KEY_VARIABLES[id]];
-  if (!apiKey) throw new Error(`Missing environment variable ${KEY_VARIABLES[id]} for CONTACT_ENRICHMENT_PROVIDER=${id}`);
-  if (env.CONTACT_ENRICHMENT_DPA_SIGNED !== "true") return { provider: null, disabledBecause: "dpa_not_signed" };
+  if (!apiKey) return { provider: null, disabledBecause: "no_key" };
   const baseUrl = env.CONTACT_ENRICHMENT_API_URL || undefined;
   const fetch = deps.externalApis ? recordingFetch(globalThis.fetch, deps.externalApis, {
         provider: id,

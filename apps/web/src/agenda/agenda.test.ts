@@ -252,6 +252,47 @@ describe.skipIf(!connectionString)("Agenda (needs Postgres: DATABASE_URL)", () =
     ]);
   });
 
+  describe("item: one Agenda Item, for its Calendar file", () => {
+    it("is the Candidate's Interview, as the lists show it, cancelled or not", async () => {
+      const applicationId = await applicationInInterview(candidateId, "DAF H/F", "Acme Industrie");
+      await addInterview(candidateId, applicationId, "2026-10-22T14:30", { note: "avec la DRH", durationMinutes: 45, place: "Lyon" });
+      const [listed] = (await agenda.days(candidateId, { period: "upcoming", now: NOW })).flatMap((day) => day.items);
+
+      expect(await agenda.item(candidateId, { kind: "interview", id: listed!.id })).toEqual(listed);
+
+      await applications.cancelInterview(candidateId, applicationId, listed!.id);
+      expect(await agenda.item(candidateId, { kind: "interview", id: listed!.id })).toMatchObject({ id: listed!.id, cancelledAt: expect.any(Date) });
+    });
+
+    it("is null for another Candidate's Interview, an unknown id, or an id that is not a uuid", async () => {
+      const theirs = await applicationInInterview(otherCandidateId, "Contrôleur de gestion", "Globex");
+      await addInterview(otherCandidateId, theirs, "2026-10-22T09:00");
+      const [their] = (await agenda.days(otherCandidateId, { period: "upcoming", now: NOW })).flatMap((day) => day.items);
+
+      expect(await agenda.item(candidateId, { kind: "interview", id: their!.id })).toBeNull();
+      expect(await agenda.item(candidateId, { kind: "interview", id: "00000000-0000-4000-8000-000000000000" })).toBeNull();
+      expect(await agenda.item(candidateId, { kind: "interview", id: "not-a-uuid" })).toBeNull();
+      // The id of an Interview is not that of a Coaching Session.
+      expect(await agenda.item(otherCandidateId, { kind: "coachingSession", id: their!.id })).toBeNull();
+    });
+
+    it("is the Candidate's dated Coaching Session, and null once it is cancelled (back to Unscheduled) or another Candidate's", async () => {
+      const sophie = await coaches.add({ name: "Sophie Martin", email: "sophie@rh-conseil.fr", bookingUrl: "https://cal.com/sophie/seance" });
+      if (!sophie.ok) throw new Error("fixture Human Coach refused");
+      await coaches.recordPaidSession({ checkoutSessionId: "cs_item", candidateId, coachId: sophie.coach.id, amount: 9000, currency: "eur" });
+      const sessionId = (await coaches.sessions(candidateId))[0]!.id;
+      expect(await agenda.item(candidateId, { kind: "coachingSession", id: sessionId })).toBeNull();
+
+      await coaches.scheduleSession(candidateId, sessionId, { scheduledAt: "2026-10-22T10:00", videoLink: "https://meet.google.com/abc" });
+      const [listed] = (await agenda.days(candidateId, { period: "upcoming", now: NOW })).flatMap((day) => day.items);
+      expect(await agenda.item(candidateId, { kind: "coachingSession", id: sessionId })).toEqual(listed);
+      expect(await agenda.item(otherCandidateId, { kind: "coachingSession", id: sessionId })).toBeNull();
+
+      await coaches.cancelSession(candidateId, sessionId);
+      expect(await agenda.item(candidateId, { kind: "coachingSession", id: sessionId })).toBeNull();
+    });
+  });
+
   describe("Coaching Sessions", () => {
     let paid = 0;
     /** A Human Coach named `name`, with their Cal.com booking link. */

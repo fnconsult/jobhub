@@ -3534,10 +3534,24 @@ textarea.title-edit {
   margin: var(--space-1) 0 0;
 }
 
-/* Beside a dated Coaching Session's link and buttons, its history and the question before cancelling take a row each. */
+/* Beside a dated Coaching Session's link and buttons, its history, its Calendar file and the question before cancelling take a row each. */
 .agenda-item-with-action .reschedules,
+.agenda-item-with-action .agenda-calendar-file,
 .agenda-item-with-action .cancel-confirm {
   flex-basis: 100%;
+}
+
+/* « Ajouter à mon calendrier » (#252, ADR-0029): the Calendar file's link, and why a later change needs a new download. */
+.agenda-calendar-file {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+  margin: 0;
+}
+
+.agenda-calendar-file-hint {
+  color: var(--color-text-secondary);
 }
 
 .cancel-confirm {

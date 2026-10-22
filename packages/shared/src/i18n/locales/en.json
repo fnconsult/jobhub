@@ -1994,7 +1994,18 @@
     "dayItems_one": "{{date}}: {{count}} appointment",
     "dayItems_other": "{{date}}: {{count}} appointments",
     "legendLabel": "Key",
-    "changedByCoach": "changed by the coach"
+    "changedByCoach": "changed by the coach",
+    "calendarFile": {
+      "add": "Add to my calendar",
+      "addFor": "Add to my calendar: {{what}}, {{date}}",
+      "hint": ".ics file: if the date changes, you will need to download it again.",
+      "interviewTitle": "Interview — {{job}}, {{employer}}",
+      "interviewTitleNoEmployer": "Interview — {{job}}",
+      "sessionTitle": "Session with {{name}}",
+      "seeInAgenda": "In your Jobbbox agenda: {{url}}",
+      "fileName": "interview-{{day}}.ics",
+      "sessionFileName": "session-{{day}}.ics"
+    }
   },
   "application": {
     "statusLabel": "Status",

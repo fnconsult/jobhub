@@ -95,7 +95,7 @@ function setup(options: {
   pages: Record<string, Page>;
   reply?: string | (() => string);
   existing?: JobOffer[];
-  budget?: Partial<JobDiscoveryBudget>;
+  budget?: Partial<JobDiscoveryBudget> | (() => Partial<JobDiscoveryBudget>);
   /** Tokens each LLM read uses. */
   llmUsage?: { inputTokens: number; outputTokens: number };
   /** When the run starts. Default: the epoch. */
@@ -1215,6 +1215,17 @@ describe("Job discovery", () => {
       const { discovery } = setup({ sources: urls, pages: pagesFor(urls, posting), budget: { jobOffers: 2 } });
 
       expect((await discovery.discover({ candidateId: "c", criteria })).jobOffers).toHaveLength(2);
+    });
+
+    it("asks for its budget on each run: one changed in the Back Office applies to the next run, without a restart", async () => {
+      const urls = postings(5);
+      let budget: Partial<JobDiscoveryBudget> = { jobOffers: 2 };
+      const { discovery } = setup({ sources: urls, pages: pagesFor(urls, posting), budget: () => budget });
+      expect((await discovery.discover({ candidateId: "c", criteria })).jobOffers).toHaveLength(2);
+
+      budget = { jobOffers: 4 };
+
+      expect((await discovery.discover({ candidateId: "c", criteria })).jobOffers).toHaveLength(4);
     });
 
     describe("with several locations, one search each, sharing the budget (ADR-0025)", () => {

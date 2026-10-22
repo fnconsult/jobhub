@@ -144,8 +144,11 @@ export interface JobDiscoveryOptions {
   userAgent?: string;
   /** Hosts whose terms of use forbid crawling. Default: FORBIDDEN_SITES. */
   forbiddenSites?: readonly string[];
-  /** When a run stops reading result pages. Default: DEFAULT_BUDGET. */
-  budget?: Partial<JobDiscoveryBudget>;
+  /**
+   * When a run stops reading result pages; what it leaves out is DEFAULT_BUDGET's. A getter is asked on
+   * each run: the worker's follows its Platform Settings, so a change applies to the next run (#299).
+   */
+  budget?: Partial<JobDiscoveryBudget> | (() => Partial<JobDiscoveryBudget>);
   /** For waiting out robots.txt Crawl-delay and timing the budget. Default: real time. */
   clock?: Clock;
   /**
@@ -279,7 +282,6 @@ async function readSettings(settings: JobDiscoveryOptions["settings"]): Promise<
 }
 
 export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
-  const budget = { ...DEFAULT_BUDGET, ...options.budget };
   const clock = options.clock ?? realClock;
   const userAgent = options.userAgent ?? DEFAULT_USER_AGENT;
   const forbiddenSites: readonly string[] = options.forbiddenSites ?? FORBIDDEN_SITES;
@@ -292,6 +294,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
   return {
     async discover({ candidateId, criteria }) {
       const startedAt = clock.now();
+      const budget: JobDiscoveryBudget = { ...DEFAULT_BUDGET, ...(typeof options.budget === "function" ? options.budget() : options.budget) };
       const settings = await readSettings(options.settings);
       const industries = await readIndustries(options.industries);
       const configuredFranceTravail = typeof options.franceTravail === "function" ? options.franceTravail() : options.franceTravail;

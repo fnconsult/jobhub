@@ -69,3 +69,13 @@ export function contactEnrichmentFromSecrets(resolver: SecretResolver, deps: Con
   const configured = config.provider;
   return { provider: liveObject(resolver, CONTACT_ENRICHMENT_SECRET_NAMES, (env) => contactEnrichmentFromEnv(env, deps).provider ?? configured) };
 }
+
+/**
+ * What `build` makes from the contact-enrichment configuration in use, standing in for it: built
+ * again when the provider's key changes in Clés, or CONTACT_ENRICHMENT_PROVIDER or
+ * CONTACT_ENRICHMENT_DPA_SIGNED on Paramètres (#302), so either applies without a restart.
+ * `resolver` holds both (`secretsOverPlatformSettings`).
+ */
+export function liveContactEnrichment<T extends object>(resolver: SecretResolver, build: (config: ContactEnrichmentConfig) => T, deps: ContactEnrichmentDeps = {}): T {
+  return liveObject(resolver, [...CONTACT_ENRICHMENT_SECRET_NAMES, ...CONTACT_ENRICHMENT_SETTING_NAMES], () => build(contactEnrichmentFromSecrets(resolver, deps)));
+}

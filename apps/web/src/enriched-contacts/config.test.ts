@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createSecretResolver, type StoredSecrets } from "../provider-secrets/resolver";
 import type { ExternalApiCall } from "@jobhub/shared";
-import { contactEnrichmentFromEnv, contactEnrichmentFromSecrets } from "./config";
+import { createPlatformSettingsResolver, secretsOverPlatformSettings, type StoredPlatformSettings } from "../platform-settings/resolver";
+import { contactEnrichmentFromEnv, contactEnrichmentFromSecrets, liveContactEnrichment } from "./config";
 
 describe("contact enrichment configuration", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -79,5 +80,46 @@ describe("contact enrichment on Provider Secrets (#208)", () => {
     const resolver = createSecretResolver({ load: async () => ({}), env: {} });
 
     expect(contactEnrichmentFromSecrets(resolver)).toEqual({ provider: null, disabledBecause: "no_provider" });
+  });
+});
+
+describe("contact enrichment on Paramètres (#302)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const set = (values: Record<string, string>): StoredPlatformSettings =>
+    Object.fromEntries(Object.entries(values).map(([name, value]) => [name, { value, updatedBy: "ops@jobbbox.ai", updatedAt: new Date() }]));
+
+  it("follows the provider and DPA set on Paramètres without a restart, the active provider's key still from Clés", async () => {
+    const settings = { current: set({}) };
+    const secrets = createSecretResolver({
+      load: async () => ({ LUSHA_API_KEY: { value: "lusha-from-cles", row: "r1" }, APOLLO_API_KEY: { value: "apollo-from-cles", row: "r2" } }),
+      env: { CONTACT_ENRICHMENT_PROVIDER: "apollo", LUSHA_API_KEY: "lusha-from-env" },
+    });
+    const platformSettings = createPlatformSettingsResolver({ load: async () => settings.current, env: { CONTACT_ENRICHMENT_PROVIDER: "apollo" } });
+    const inUse = secretsOverPlatformSettings(secrets, platformSettings);
+    await inUse.refresh();
+    const enrichment = liveContactEnrichment(inUse, (config) => config);
+
+    // env chose Apollo, with its key in Clés: off until the DPA is marked signed.
+    expect(enrichment.provider).toBeNull();
+
+    settings.current = set({ CONTACT_ENRICHMENT_DPA_SIGNED: "true" });
+    await platformSettings.refresh();
+    expect(enrichment.provider?.id).toBe("apollo");
+
+    settings.current = set({ CONTACT_ENRICHMENT_DPA_SIGNED: "true", CONTACT_ENRICHMENT_PROVIDER: "lusha" });
+    await platformSettings.refresh();
+    const keysSent: string[] = [];
+    vi.stubGlobal("fetch", async (_url: string, init: { headers: Record<string, string> }) => {
+      keysSent.push(init.headers.api_key!);
+      return Response.json({ results: [] });
+    });
+    await enrichment.provider!.findPeople!({ companyName: "Acme", jobTitles: ["DRH"], limit: 10 });
+    expect(enrichment.provider?.id).toBe("lusha");
+    expect(keysSent).toEqual(["lusha-from-cles"]);
+
+    settings.current = set({ CONTACT_ENRICHMENT_DPA_SIGNED: "true", CONTACT_ENRICHMENT_PROVIDER: "none" });
+    await platformSettings.refresh();
+    expect({ provider: enrichment.provider, disabledBecause: "disabledBecause" in enrichment ? enrichment.disabledBecause : null }).toEqual({ provider: null, disabledBecause: "no_provider" });
   });
 });

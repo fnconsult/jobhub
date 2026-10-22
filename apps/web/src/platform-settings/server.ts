@@ -13,13 +13,25 @@ const envOnly: PlatformSettingsResolver = {
   refresh: async () => snapshotOfSettings(process.env, {}),
 };
 
+function watched(): WatchedPlatformSettings {
+  holder.__jobhubPlatformSettings ??= watchPlatformSettings({ database: sharedPool(), env: process.env });
+  return holder.__jobhubPlatformSettings;
+}
+
 /**
  * The Platform Settings in use in this process: the Back Office's, else env's, else the
- * code's defaults. Started on first use (Paramètres); without DATABASE_URL (a build, some
- * tests), env and the defaults alone. The apps still read env until the editing slices.
+ * code's defaults. Without DATABASE_URL (a build, some tests), env and the defaults alone.
  */
 export function getPlatformSettingsResolver(): PlatformSettingsResolver {
   if (!process.env.DATABASE_URL) return envOnly;
-  holder.__jobhubPlatformSettings ??= watchPlatformSettings({ database: sharedPool(), env: process.env });
-  return holder.__jobhubPlatformSettings.resolver;
+  return watched().resolver;
+}
+
+/**
+ * Reads the Platform Settings a first time and starts listening for changes: the server awaits it
+ * before serving (instrumentation.ts), so the first request already uses the Back Office's values,
+ * a DPA marked not signed there among them (#302).
+ */
+export async function startPlatformSettings(): Promise<void> {
+  if (process.env.DATABASE_URL) await watched().ready;
 }

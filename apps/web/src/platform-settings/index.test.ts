@@ -91,7 +91,7 @@ describe.skipIf(!connectionString)("Platform Settings in the database (needs Pos
       expect(await store.set("JOB_DISCOVERY_BUDGET_SECONDS", "900", "ops@jobbbox.ai")).toEqual({ ok: false, error: "invalid" });
       expect(await store.set("JOB_DISCOVERY_BUDGET_JOB_OFFERS", "trente", "ops@jobbbox.ai")).toEqual({ ok: false, error: "invalid" });
       expect(await store.set("JOB_DIGEST_TARGET_COUNT", "  ", "ops@jobbbox.ai")).toEqual({ ok: false, error: "empty" });
-      expect(await store.set("MAIL_FROM", "Jobbbox <bonjour@jobbbox.ai>", "ops@jobbbox.ai")).toEqual({ ok: false, error: "not_editable" });
+      expect(await store.set("MAIL_TRANSPORT", "brevo", "ops@jobbbox.ai")).toEqual({ ok: false, error: "not_editable" });
       expect(await store.set("AUTH_SECRET", "x", "ops@jobbbox.ai")).toEqual({ ok: false, error: "not_editable" });
 
       expect(await platformSettingsReader(database.pool).load()).toEqual({});

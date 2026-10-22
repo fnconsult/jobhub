@@ -7,11 +7,15 @@
 //    STRIPE_API_URL, set in playwright.config.ts).
 // 3. Runs `next start`, copying its output to E2E_SERVER_LOG: with
 //    MAIL_TRANSPORT=console, that log is the Candidates' mailbox.
+// This launcher, npx and next-server each exit when their parent is gone
+// (e2e/support/exit-with-parent.mjs): a Playwright run killed outright no longer
+// leaves a next-server spinning on its dead stdout.
 import { spawn, spawnSync } from "node:child_process";
 import { createWriteStream, mkdirSync } from "node:fs";
 import path from "node:path";
 import pg from "pg";
 import { startFakeStripe } from "../../apps/web/src/billing/fake-stripe.ts";
+import { exitWithParentEnv } from "./exit-with-parent.mjs";
 import { staleBuildMessage } from "./stale-build.mjs";
 
 const stale = staleBuildMessage(path.resolve(import.meta.dirname, "../.."));
@@ -41,7 +45,7 @@ const logFile = process.env.E2E_SERVER_LOG;
 mkdirSync(path.dirname(logFile), { recursive: true });
 const log = createWriteStream(logFile, { flags: "w" });
 const server = spawn("npx", ["next", "start", "apps/web", "-p", process.env.E2E_WEB_PORT], {
-  env,
+  env: exitWithParentEnv(env),
   stdio: ["ignore", "pipe", "pipe"],
 });
 for (const stream of [server.stdout, server.stderr]) {

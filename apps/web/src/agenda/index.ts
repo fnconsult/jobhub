@@ -10,7 +10,8 @@
  *  - `daysBetween`: their Agenda Items from one day to another, for a week or
  *    month view (see `./calendar`), oldest first, past and upcoming alike;
  *  - `unscheduled`: their Unscheduled Coaching Sessions (paid, no date yet), for
- *    the « À planifier » box, with each Human Coach's booking link.
+ *    the « À planifier » box, with each Human Coach's booking link;
+ *  - `item`: one of their Agenda Items, as the lists show it, for its Calendar file.
  *  - "upcoming": from the start of today on, oldest first, so that today's
  *    items stay together, even those earlier today;
  *  - "past": before today, newest first (days and the items within them).
@@ -79,6 +80,12 @@ export interface AgendaDay {
 
 export type AgendaPeriod = "upcoming" | "past";
 
+/** Which Agenda Item: an Interview or a Coaching Session, by its own id. */
+export interface AgendaItemRef {
+  kind: AgendaItem["kind"];
+  id: string;
+}
+
 export interface Agenda {
   /** The Candidate's Agenda Items for `period`, split at the start of `now`'s day, grouped by day in French time. */
   days(candidateId: string, options: { period: AgendaPeriod; now: Date }): Promise<AgendaDay[]>;
@@ -86,25 +93,34 @@ export interface Agenda {
   daysBetween(candidateId: string, days: { first: string; last: string }): Promise<AgendaDay[]>;
   /** The Candidate's Unscheduled Coaching Sessions, oldest paid first. Never in `days` nor `daysBetween`. */
   unscheduled(candidateId: string): Promise<UnscheduledCoachingSession[]>;
+  /**
+   * One of the Candidate's Agenda Items, a Cancelled Interview included; null when it is not theirs, not
+   * found, or a Coaching Session with no date (Unscheduled, or cancelled and so Unscheduled again).
+   */
+  item(candidateId: string, ref: AgendaItemRef): Promise<AgendaItem | null>;
 }
 
-/** Which Agenda Items a read takes: from `from` on, and before `before`, when they say; in time order, or the reverse. */
+/** Which Agenda Items a read takes: from `from` on, and before `before`, when they say, or the one with id `id`; in time order, or the reverse. */
 interface Window {
   from?: Date;
   before?: Date;
+  id?: string;
   newestFirst: boolean;
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** The window of an Agenda period, split at the start of `now`'s day in French time. */
 const periodWindow = (period: AgendaPeriod, now: Date): Window =>
   period === "upcoming" ? { from: interviewDayStart(now), newestFirst: false } : { before: interviewDayStart(now), newestFirst: true };
 
-/** The SQL condition on `column` for `window`, its parameters numbered from $2. */
-function windowCondition(column: string, window: Window): { sql: string; values: Date[] } {
-  const conditions: string[] = [];
-  const values: Date[] = [];
-  if (window.from) conditions.push(`${column} >= $${values.push(window.from) + 1}`);
-  if (window.before) conditions.push(`${column} < $${values.push(window.before) + 1}`);
+/** The SQL condition on the dated items of table `alias` for `window`, its parameters numbered from $2. */
+function windowCondition(alias: string, window: Window): { sql: string; values: (Date | string)[] } {
+  const conditions = [`${alias}.scheduled_at IS NOT NULL`];
+  const values: (Date | string)[] = [];
+  if (window.from) conditions.push(`${alias}.scheduled_at >= $${values.push(window.from) + 1}`);
+  if (window.before) conditions.push(`${alias}.scheduled_at < $${values.push(window.before) + 1}`);
+  if (window.id !== undefined) conditions.push(`${alias}.id = $${values.push(window.id) + 1}`);
   return { sql: conditions.join(" AND "), values };
 }
 
@@ -131,7 +147,7 @@ export function agendaPeriod(instant: Date, now: Date): AgendaPeriod {
 export function createAgenda(database: Pool): Agenda {
   /** The Candidate's Interviews in `window`, in its order. */
   async function interviews(candidateId: string, window: Window): Promise<AgendaItem[]> {
-    const condition = windowCondition("i.scheduled_at", window);
+    const condition = windowCondition("i", window);
     const order = window.newestFirst ? "DESC" : "ASC";
     const { rows } = await database.query<{
       id: string;
@@ -176,7 +192,7 @@ export function createAgenda(database: Pool): Agenda {
 
   /** The Candidate's dated Coaching Sessions in `window`, in its order. */
   async function coachingSessions(candidateId: string, window: Window): Promise<AgendaItem[]> {
-    const condition = windowCondition("s.scheduled_at", window);
+    const condition = windowCondition("s", window);
     const order = window.newestFirst ? "DESC" : "ASC";
     const { rows } = await database.query<{ id: string; scheduled_at: Date; coach_id: string; coach_name: string; duration_minutes: number | null; video_link: string | null; note: string | null; changed_by: SessionEditor | null }>(
       `SELECT s.id, s.scheduled_at, h.id AS coach_id, h.name AS coach_name, s.duration_minutes, s.video_link, s.note, s.changed_by
@@ -234,6 +250,13 @@ export function createAgenda(database: Pool): Agenda {
         rows.map((row) => row.id),
       );
       return rows.map((row) => ({ id: row.id, coach: { id: row.coach_id, name: row.coach_name, bookingUrl: row.booking_url }, paidAt: row.paid_at, reschedules: histories.get(row.id)! }));
+    },
+
+    async item(candidateId, { kind, id }) {
+      if (!UUID.test(id)) return null;
+      const window: Window = { id, newestFirst: false };
+      const [found] = await (kind === "interview" ? interviews(candidateId, window) : coachingSessions(candidateId, window));
+      return found ?? null;
     },
   };
 }

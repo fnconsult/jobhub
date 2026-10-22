@@ -252,6 +252,56 @@ describe("AI layer configured from the environment", () => {
       ]);
     });
 
+    describe("Claude's direct API, its key entered in the Back Office, outside the EU", () => {
+      const keys = { PERPLEXITY_API_KEY: "pk", MISTRAL_API_KEY: "mk", ANTHROPIC_API_KEY: "sk-ant" };
+      const direct = { provider: "anthropic", model: "claude-opus-5-5" } as const;
+      const cases: [string, Record<string, string>][] = [
+        ["with the Bedrock token too", { ...keys, AWS_BEARER_TOKEN_BEDROCK: "bk" }],
+        ["alone", keys],
+        // An .env made before ANTHROPIC_ENDPOINT=auto (#224) still says bedrock.
+        ["with the Bedrock token too, under ANTHROPIC_ENDPOINT=bedrock", { ...keys, AWS_BEARER_TOKEN_BEDROCK: "bk", ANTHROPIC_ENDPOINT: "bedrock" }],
+        ["alone, under ANTHROPIC_ENDPOINT=bedrock", { ...keys, ANTHROPIC_ENDPOINT: "bedrock" }],
+      ];
+
+      it.each(cases)("is offered %s, its models marked outside the EU", (_, env) => {
+        const claude = createAiLayerFromEnv(env, { usage: createMemoryUsageLog() }).agentModels().find((choice) => choice.provider === "anthropic");
+        expect(claude?.endpoint).toContain("api.anthropic.com");
+        expect(claude?.models.filter((each) => each.residency === "outside_eu").map((each) => each.model)).toEqual(["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]);
+      });
+
+      it.each(cases)("serves a Playbook Agent %s, redacted, and a consenting Candidate's identity still goes to Mistral", async (_, env) => {
+        const bodies: { host: string; body: string }[] = [];
+        const { fetch: answer } = recordingFetch();
+        const fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+          const request = new Request(input, init);
+          bodies.push({ host: new URL(request.url).hostname, body: await request.clone().text() });
+          return answer(request);
+        }) as typeof globalThis.fetch;
+        const ai = createAiLayerFromEnv(env, {
+          fetch,
+          usage: createMemoryUsageLog(),
+          euAiConsent: async (candidateId) => candidateId === "consenting",
+          identityOf: async () => ({ fullName: "Marie Dupont", firstName: "Marie", lastName: "Dupont" }),
+        });
+
+        await ai.generate({ task: "coaching", candidateId: "c", route: direct, prompt: "Je suis Marie Dupont" });
+        await ai.generate({ task: "coaching", candidateId: "consenting", containsIdentity: true, route: direct, prompt: "Je suis Marie Dupont" });
+
+        expect(bodies.map((each) => each.host)).toEqual(["api.anthropic.com", "api.mistral.ai"]);
+        expect(bodies[0]!.body).not.toContain("Dupont");
+      });
+
+      it("leaves every task on Bedrock under ANTHROPIC_ENDPOINT=bedrock", async () => {
+        const { fetch, hosts } = recordingFetch();
+        const ai = createAiLayerFromEnv({ ...keys, AWS_BEARER_TOKEN_BEDROCK: "bk", ANTHROPIC_ENDPOINT: "bedrock" }, { fetch, usage: createMemoryUsageLog() });
+
+        await ai.generate({ task: "scoring", candidateId: "c", prompt: "CV" });
+        await ai.generate({ task: "offer_analysis", candidateId: "c", prompt: "Offre" });
+
+        expect(hosts).toEqual(["bedrock-mantle.eu-north-1.api.aws", "bedrock-mantle.eu-north-1.api.aws"]);
+      });
+    });
+
     it("are given by default the AI Coach's route: its provider and model", () => {
       expect(taskRouteFromEnv(base, "coaching")).toEqual({ provider: "anthropic" });
       expect(taskRouteFromEnv({ ...base, AI_COACHING_PROVIDER: "mistral", AI_COACHING_MODEL: "mistral-medium-3-5" }, "coaching")).toEqual({

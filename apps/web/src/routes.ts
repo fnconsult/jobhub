@@ -18,6 +18,7 @@ export const routes = {
   /** Mon compte's Sections (ADR-0024); `account` itself shows the first, the Profiles. */
   accountProfiles: "/compte/profils",
   accountFollowUps: "/compte/relances",
+  accountReminders: "/compte/rappels",
   accountEuAi: "/compte/ia-europeenne",
   accountSignIn: "/compte/connexion",
   accountPreferences: "/compte/preferences",

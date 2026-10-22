@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { AgendaDay, AgendaItem, CoachingSessionAgendaItem, InterviewAgendaItem, UnscheduledCoachingSession } from "@/agenda";
 import { agendaPeriod } from "@/agenda";
+import { calendarFileUrl, hasCalendarFile } from "@/agenda/calendar-file";
 import { calendarPeriod, frenchDay, readAgendaAddress, type AgendaView, type CalendarPeriod, type CalendarView } from "@/agenda/calendar";
 import { getAgenda } from "@/agenda/server";
 import { INTERVIEW_TIME_ZONE, interviewWallClock } from "@/applications";
@@ -414,6 +415,7 @@ function CoachingSessionItem({ item, past, formats, t }: { item: CoachingSession
         withName={item.coach.name}
         className="button button-quiet"
       />
+      {past ? null : <CalendarFileLink item={item} what={t("agenda.calendarFile.sessionTitle", { name: item.coach.name })} formats={formats} t={t} />}
       <RescheduleHistory reschedules={item.reschedules} coachName={item.coach.name} dateTime={formats.changedAt} t={t} />
       <CancelAgendaItemButton
         url={`/api/coaching/sessions/${item.id}/cancel`}
@@ -449,7 +451,33 @@ function InterviewItem({ item, past, formats, t }: { item: InterviewAgendaItem; 
       </Link>
       {item.cancelledAt ? <p className="cancelled-on">{t("agendaChanges.cancelledOn", { date: formats.day.format(item.cancelledAt) })}</p> : null}
       <InterviewFacts interview={item} t={t} />
+      {past ? null : <CalendarFileLink item={item} what={item.jobTitle} formats={formats} t={t} />}
       <RescheduleHistory reschedules={item.reschedules} dateTime={formats.changedAt} t={t} />
     </li>
+  );
+}
+
+/**
+ * « Ajouter à mon calendrier »: an upcoming Agenda Item's Calendar file (ADR-0029), with the hint that a
+ * later change needs a new download. None for a Cancelled Agenda Item. Its accessible name says which item
+ * (`what`) and when, since the Agenda lists several.
+ */
+function CalendarFileLink({ item, what, formats, t }: { item: AgendaItem; what: string; formats: Formats; t: T }) {
+  if (!hasCalendarFile(item)) return null;
+  const hintId = `calendar-file-hint-${item.kind}-${item.id}`;
+  return (
+    <p className="agenda-calendar-file">
+      <a
+        href={calendarFileUrl(item)}
+        download
+        aria-label={t("agenda.calendarFile.addFor", { what, date: formats.changedAt.format(item.scheduledAt) })}
+        aria-describedby={hintId}
+      >
+        {t("agenda.calendarFile.add")}
+      </a>
+      <span id={hintId} className="agenda-calendar-file-hint">
+        {t("agenda.calendarFile.hint")}
+      </span>
+    </p>
   );
 }

@@ -118,7 +118,8 @@ test.describe("the Agenda", () => {
     await expect(item).toContainText("DAF H/F");
     await expect(item).toContainText("Acme Industrie");
 
-    await item.getByRole("link").click();
+    // Its first link leads to the Interviews Section; the other is its Calendar file (#252).
+    await item.getByRole("link").first().click();
     await expect(page).toHaveURL(new RegExp(`/candidatures/${applicationId}/entretiens$`));
     await page.getByRole("region", { name: fr.application.interviewsTitle }).getByRole("link", { name: fr.application.seeInAgenda }).click();
     await expect(page).toHaveURL(/\/agenda$/);
@@ -605,5 +606,87 @@ test.describe("the Agenda on a phone", () => {
     const link = drawer.getByRole("navigation", { name: fr.sidebar.label }).getByRole("link", { name: fr.sidebar.agenda, exact: true });
     await expect(link).toBeVisible();
     await expect(link).toHaveAttribute("aria-current", "page");
+  });
+});
+
+// Issue #252: « Ajouter à mon calendrier » downloads an upcoming Agenda Item as a Calendar file (ADR-0029).
+test.describe("the Calendar file (#252)", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+  /** The Calendar file's content lines, unfolded (RFC 5545 s3.1). */
+  const unfolded = (file: string) => file.replace(/\r\n[ \t]/g, "").split("\r\n");
+  const calendarLinks = (page: Page) => page.getByRole("link", { name: new RegExp(`^${fr.agenda.calendarFile.add}`) });
+
+  test("an upcoming Interview offers « Ajouter à mon calendrier », with the hint, and downloads it in French time", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("agenda-ics"));
+    const day = parisDay(6);
+    const applicationId = await applicationAt(page, await createProfile(page), "DAF H/F", "interview");
+    const added = await page.request.post(`/api/applications/${applicationId}/interviews`, {
+      headers: { origin },
+      data: { scheduledAt: `${day}T14:30`, durationMinutes: 45, format: "video", place: "https://meet.example.com/abc", note: "avec la DRH, 2e étage" },
+    });
+    expect(added.ok(), await added.text()).toBe(true);
+    // A past Interview has no link.
+    await page.request.post(`/api/applications/${applicationId}/interviews`, { headers: { origin }, data: { scheduledAt: `${parisDay(-3)}T10:00` } });
+
+    await page.goto("/agenda");
+    const link = calendarLinks(page);
+    await expect(link).toHaveCount(1);
+    await expect(link).toHaveText(fr.agenda.calendarFile.add);
+    await expect(link).toHaveAccessibleName(new RegExp(`^${fr.agenda.calendarFile.add} : DAF H/F, `));
+    await expect(link).toHaveAccessibleDescription(fr.agenda.calendarFile.hint);
+    await expect(page.getByText(fr.agenda.calendarFile.hint)).toBeVisible();
+
+    const download = page.waitForEvent("download");
+    await link.click();
+    expect((await download).suggestedFilename()).toBe(`entretien-${day}.ics`);
+
+    const response = await page.request.get((await link.getAttribute("href"))!);
+    expect(response.status()).toBe(200);
+    expect(response.headers()["content-type"]).toBe("text/calendar; charset=utf-8");
+    const file = await response.text();
+    for (const line of file.split("\r\n")) expect(Buffer.byteLength(line, "utf8")).toBeLessThanOrEqual(75);
+    const lines = unfolded(file);
+    const compact = day.replace(/-/g, "");
+    expect(lines).toEqual(
+      expect.arrayContaining([
+        "BEGIN:VCALENDAR",
+        "TZID:Europe/Paris",
+        `DTSTART;TZID=Europe/Paris:${compact}T143000`,
+        `DTEND;TZID=Europe/Paris:${compact}T151500`,
+        "SUMMARY:Entretien — DAF H/F\\, Acme Industrie",
+        "LOCATION:https://meet.example.com/abc",
+        "URL:https://meet.example.com/abc",
+        `DESCRIPTION:avec la DRH\\, 2e étage\\n\\nDans votre agenda Jobbbox : ${origin}/agenda`,
+      ]),
+    );
+    expect(lines.find((line) => line.startsWith("UID:"))).toMatch(/^UID:interview-[0-9a-f-]{36}@jobbbox\.fr$/);
+  });
+
+  test("another Candidate's Agenda Item returns 404", async ({ page, browser }) => {
+    await signInWithMagicLink(page, newAddress("agenda-ics-owner"));
+    await applicationWithInterviews(page, "DAF H/F", [`${parisDay(4)}T14:30`]);
+    await page.goto("/agenda");
+    const href = (await calendarLinks(page).getAttribute("href"))!;
+    expect((await page.request.get(href)).status()).toBe(200);
+
+    const other = await browser.newPage();
+    await signInWithMagicLink(other, newAddress("agenda-ics-other"));
+    expect((await other.request.get(href)).status()).toBe(404);
+    await other.close();
+  });
+
+  test("a Cancelled Interview has no link and its file returns 404", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("agenda-ics-cancel"));
+    const applicationId = await applicationWithInterviews(page, "DAF H/F", [`${parisDay(4)}T14:30`]);
+    await page.goto("/agenda");
+    const href = (await calendarLinks(page).getAttribute("href"))!;
+    const interviewId = (await (await page.request.get("/api/account/export")).json()).applications[0].interviews[0].id as string;
+
+    const cancelled = await page.request.post(`/api/applications/${applicationId}/interviews/${interviewId}/cancel`, { headers: { origin } });
+    expect(cancelled.ok(), await cancelled.text()).toBe(true);
+    await page.reload();
+    await expect(page.getByRole("region", { name: fr.agenda.upcomingTitle }).getByRole("listitem")).toContainText(fr.agendaChanges.cancelledInterview);
+    await expect(calendarLinks(page)).toHaveCount(0);
+    expect((await page.request.get(href)).status()).toBe(404);
   });
 });

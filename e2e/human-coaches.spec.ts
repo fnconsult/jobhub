@@ -186,8 +186,13 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     await expect(item).toContainText(tr(fr.agenda.withCoach, { name: coach.name }));
     await expect(item).toContainText(tr(fr.agenda.duration, { count: "60" }));
 
-    const link = item.getByRole("link");
+    // Its first link leads to its Human Coach; the other is its Calendar file (#252).
+    const link = item.getByRole("link").first();
     const sessionId = (await link.getAttribute("href"))!.split("#seance-")[1]!;
+    const calendarFile = await page.request.get((await item.getByRole("link", { name: new RegExp(`^${fr.agenda.calendarFile.add}`) }).getAttribute("href"))!);
+    expect(calendarFile.status()).toBe(200);
+    const calendarLines = (await calendarFile.text()).replace(/\r\n[ \t]/g, "").split("\r\n");
+    expect(calendarLines).toEqual(expect.arrayContaining([`SUMMARY:${tr(fr.agenda.calendarFile.sessionTitle, { name: coach.name })}`, "URL:https://meet.google.com/abc-defg-hij"]));
     await link.click();
     await expect(page).toHaveURL(new RegExp(`/coachs#seance-${sessionId}$`));
     const session = page.locator(`#seance-${sessionId}`);

@@ -5,7 +5,8 @@
  * One deep module. Callers get `createCandidateData(database, deps)`:
  *  - `export` all the Candidate's personal data (GDPR art. 15 / 20, #171): what they made and
  *    what the app worked out or obtained about them. Their account (sign-in methods and
- *    sessions), Plan and Plan Quota use, EU AI consent and Follow-up Delays; their Profiles
+ *    sessions), Plan and Plan Quota use, EU AI consent, Follow-up Delays, Appointment Reminder setting and the
+ *    Appointment Reminders sent; their Profiles
  *    (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and
  *    Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored
  *    Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach
@@ -194,6 +195,8 @@ export interface CandidateDataExport {
   euAiConsent: { givenAt: Date } | null;
   /** The Follow-up Delays the Candidate set, or null while they keep the defaults. */
   followUpDelays: FollowUpDelays | null;
+  /** The Candidate's Appointment Reminder setting and the Appointment Reminders sent. */
+  appointmentReminders: ExportedAppointmentReminders;
   /** Every Coach Conversation, most recently active first. */
   coachConversations: ExportedCoachConversation[];
   /** As an Administrator: every Back Office Assistant conversation, most recently active first. */
@@ -223,6 +226,16 @@ export interface CandidateDataExport {
 
 /** A Failure Reason as the Data export holds it: its code and French wording. */
 const worded = (code: FailureReason) => ({ code, wording: failureReasonWording(code) });
+
+/** The Candidate's Appointment Reminders, as their Data export holds them. */
+export interface ExportedAppointmentReminders {
+  /** Whether they receive them: on until they switch them off. */
+  enabled: boolean;
+  /** When they last switched them on or off; null while never. */
+  changedAt: Date | null;
+  /** The Appointment Reminders sent, newest first: for which Agenda Item, at which of its dates. */
+  sent: { agendaItem: { kind: "interview" | "coachingSession"; id: string }; scheduledAt: Date; sentAt: Date }[];
+}
 
 /** One AI Message Log entry, as the Candidate's Data export holds it. */
 export interface ExportedAiMessageLog {
@@ -256,6 +269,8 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   quota_usage: "quotaUsage",
   eu_ai_consent: "euAiConsent",
   follow_up_delay: "followUpDelays",
+  appointment_reminder_setting: "appointmentReminders.enabled and changedAt",
+  appointment_reminder: "appointmentReminders.sent",
   profile: "profiles",
   master_cv_version: "profiles[].masterCvVersions",
   ats_score: "profiles[].atsScore",
@@ -446,6 +461,19 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
     return (await rowsOf<T>(sql, candidateId))[0] ?? null;
   }
 
+  async function exportAppointmentReminders(candidateId: string): Promise<ExportedAppointmentReminders> {
+    const [setting, sent] = await Promise.all([
+      rowOf<{ enabled: boolean; changedAt: Date }>(`SELECT enabled, changed_at AS "changedAt" FROM appointment_reminder_setting WHERE candidate_id = $1`, candidateId),
+      rowsOf<ExportedAppointmentReminders["sent"][number]>(
+        `SELECT json_build_object('kind', CASE WHEN interview_id IS NOT NULL THEN 'interview' ELSE 'coachingSession' END, 'id', coalesce(interview_id, coaching_session_id)) AS "agendaItem",
+                scheduled_at AS "scheduledAt", sent_at AS "sentAt"
+           FROM appointment_reminder WHERE candidate_id = $1 ORDER BY sent_at DESC, scheduled_at DESC, id`,
+        candidateId,
+      ),
+    ]);
+    return { enabled: setting?.enabled ?? true, changedAt: setting?.changedAt ?? null, sent };
+  }
+
   async function exportCoachConversations(candidateId: string): Promise<ExportedCoachConversation[]> {
     const [conversations, messagesOf] = await Promise.all([
       rowsOf<Omit<ExportedCoachConversation, "messages">>(
@@ -506,7 +534,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   return {
     async export(candidateId) {
-      const [account, plan, quotaUsage, euAiConsent, followUpDelays, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, profiles, applications] = await Promise.all([
+      const [account, plan, quotaUsage, euAiConsent, followUpDelays, appointmentReminders, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
         rowOf<NonNullable<CandidateDataExport["plan"]>>(
           `SELECT plan, stripe_status AS "subscriptionStatus", ends_at AS "endsAt" FROM candidate_plan WHERE candidate_id = $1`,
@@ -515,6 +543,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         rowsOf<CandidateDataExport["quotaUsage"][number]>(`SELECT quota, week, used FROM quota_usage WHERE candidate_id = $1 ORDER BY week DESC, quota`, candidateId),
         rowOf<{ givenAt: Date }>(`SELECT given_at AS "givenAt" FROM eu_ai_consent WHERE candidate_id = $1`, candidateId),
         rowOf<FollowUpDelays>(`SELECT after_applied AS "afterApplied", after_follow_up AS "afterFollowUp" FROM follow_up_delay WHERE candidate_id = $1`, candidateId),
+        exportAppointmentReminders(candidateId),
         exportCoachConversations(candidateId),
         exportAssistantConversations(candidateId),
         rowsOf<CandidateDataExport["coachAccess"][number]>(
@@ -546,7 +575,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, plan, quotaUsage, euAiConsent, followUpDelays, profiles, applications, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog };
+      return { exportedAt: new Date(), account, plan, quotaUsage, euAiConsent, followUpDelays, appointmentReminders, profiles, applications, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog };
     },
 
     async delete(candidateId) {

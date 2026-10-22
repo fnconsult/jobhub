@@ -15,6 +15,7 @@
     "./follow-ups/env": "./src/follow-ups/env.ts",
     "./job-digests": "./src/job-digests/index.ts",
     "./applications": "./src/applications/index.ts",
+    "./appointment-reminders": "./src/appointment-reminders/index.ts",
     "./coach-conversations": "./src/coach-conversations/index.ts",
     "./eu-ai-consent": "./src/eu-ai-consent/index.ts",
     "./search-sites": "./src/search-sites/index.ts",

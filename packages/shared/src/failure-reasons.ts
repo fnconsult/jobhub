@@ -88,6 +88,8 @@ export const FAILURE_REASONS = [
   "unknown_account",
   /** Stripe refused a Plan's product or a Coupon. */
   "stripe_refused",
+  /** An Administrator opened a section outside their Back Office Roles (#264). */
+  "role_missing",
   // A Guardrail that could not check (#261): its Guardrail Trigger records why.
   /** The Guardrail's AI check gave no verdict in time. */
   "guardrail_timeout",

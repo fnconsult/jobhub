@@ -209,7 +209,8 @@
       "signIn": "Connexion",
       "preferences": "Préférences",
       "tools": "Outils",
-      "data": "Mes données"
+      "data": "Mes données",
+      "reminders": "Rappels"
     },
     "tools": {
       "title": "Outils",
@@ -223,7 +224,7 @@
     "title": "Mes données",
     "exportHint": "Téléchargez toutes vos données personnelles dans un seul fichier (JSON). Il contient :",
     "exportContents": {
-      "account": "votre compte : adresse e-mail, nom, langue, moyens et sessions de connexion, abonnement et utilisation de vos quotas, accord pour l'IA européenne, délais de relance ;",
+      "account": "votre compte : adresse e-mail, nom, langue, moyens et sessions de connexion, abonnement et utilisation de vos quotas, accord pour l'IA européenne, délais de relance, réglage et envois des rappels de rendez-vous ;",
       "profiles": "vos profils : critères de recherche, toutes les versions de votre CV, ATS Score, recherches d'offres, réglages et envois du Job Digest ;",
       "applications": "vos candidatures : offre, entretiens, score de correspondance, CV adapté, lettre de motivation, message d'approche, relances envoyées, avis des coachs, contacts enrichis et dossier entreprise ;",
       "coaching": "vos conversations avec le coach IA, la mémoire du coach (ce qu'il retient de vous), les propositions de votre coach, les accès accordés aux coachs humains et vos séances de coaching payées, avec leur date, leur durée, leur lien de visio et votre note."
@@ -1249,7 +1250,13 @@
         "ai_messages": "Journaux IA",
         "coaching_playbooks": "Playbooks de coaching",
         "guardrails": "Garde-fous",
-        "eval_cases": "Cas d'évaluation"
+        "eval_cases": "Cas d'évaluation",
+        "eval_runs": "Eval Runs",
+        "coach_message_cost": "Coût coach",
+        "ai_usage": "Consommation IA",
+        "search_sites": "Sites de recherche",
+        "tool_pages": "Pages Outils",
+        "journal": "Journal"
       },
       "actions": {
         "added": "Ajout",
@@ -1265,7 +1272,8 @@
         "archived": "Archivage",
         "restored": "Rétablissement",
         "reset": "Remise à zéro",
-        "refused": "Tentative refusée"
+        "refused": "Tentative refusée",
+        "denied": "Accès refusé"
       },
       "none": "Aucune modification enregistrée.",
       "caption": "Modifications du back office, des plus récentes aux plus anciennes",
@@ -1994,7 +2002,18 @@
     "dayItems_one": "{{date}} : {{count}} rendez-vous",
     "dayItems_other": "{{date}} : {{count}} rendez-vous",
     "legendLabel": "Légende",
-    "changedByCoach": "modifié par le coach"
+    "changedByCoach": "modifié par le coach",
+    "calendarFile": {
+      "add": "Ajouter à mon calendrier",
+      "addFor": "Ajouter à mon calendrier : {{what}}, {{date}}",
+      "hint": "Fichier .ics : si la date change, il faudra le télécharger à nouveau.",
+      "interviewTitle": "Entretien — {{job}}, {{employer}}",
+      "interviewTitleNoEmployer": "Entretien — {{job}}",
+      "sessionTitle": "Séance avec {{name}}",
+      "seeInAgenda": "Dans votre agenda Jobbbox : {{url}}",
+      "fileName": "entretien-{{day}}.ics",
+      "sessionFileName": "seance-{{day}}.ics"
+    }
   },
   "application": {
     "statusLabel": "Statut",
@@ -2761,6 +2780,7 @@
     "last_super_admin": "Dernier super-admin",
     "unknown_account": "Compte introuvable",
     "stripe_refused": "Refusé par Stripe",
+    "role_missing": "Section hors de ses rôles",
     "guardrail_timeout": "Contrôle trop long",
     "invalid_verdict": "Verdict du contrôle illisible",
     "provider_error": "Erreur du fournisseur",
@@ -2786,5 +2806,32 @@
     "working": "Annulation…",
     "error": "L'annulation a échoué. Vérifiez votre connexion et réessayez.",
     "removeHint": "« Supprimer » efface un entretien saisi par erreur, sans laisser de trace. « Annuler » le garde, barré."
+  },
+  "appointmentReminder": {
+    "email": {
+      "subject_one": "Rappel : votre rendez-vous de demain, {{date}}",
+      "subject_other": "Rappel : vos {{count}} rendez-vous de demain, {{date}}",
+      "intro_one": "Bonjour,\n\nPour vous y préparer, voici votre rendez-vous de demain, {{date}} :",
+      "intro_other": "Bonjour,\n\nPour vous y préparer, voici vos {{count}} rendez-vous de demain, {{date}} :",
+      "interview": "{{time}} · Entretien : {{title}}",
+      "interviewAt": "{{time}} · Entretien : {{title}} chez {{employer}}",
+      "coachingSession": "{{time}} · Séance de coaching avec {{coach}}",
+      "duration": "Durée : {{count}} min",
+      "format": "Format : {{format}}",
+      "place": "Lieu ou lien : {{place}}",
+      "videoLink": "Lien : {{url}}",
+      "note": "Note : {{note}}",
+      "seeAgenda": "Retrouvez-les dans votre agenda :\n{{url}}",
+      "signature": "L'équipe Jobbbox",
+      "settings": "Ne plus recevoir ces rappels :\n{{url}}"
+    },
+    "settings": {
+      "title": "Rappels de rendez-vous",
+      "explanation": "La veille de chaque entretien ou séance de coaching prévus, à 18 h (heure de Paris), Jobbbox vous envoie un e-mail avec l’heure et le lieu ou le lien de vos rendez-vous du lendemain. Votre coach humain n’en reçoit pas.",
+      "label": "Recevoir un rappel par e-mail la veille de mes rendez-vous",
+      "on": "Rappels activés.",
+      "off": "Rappels désactivés.",
+      "error": "Votre choix n’a pas pu être enregistré. Réessayez."
+    }
   }
 }

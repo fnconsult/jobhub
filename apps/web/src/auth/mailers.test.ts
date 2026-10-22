@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ExternalApiCall } from "@jobhub/shared";
-import { BrevoApiError, brevoApiMailer, mailerFromEnv, parseSender } from "./mailers";
+import { createPlatformSettingsResolver, type StoredPlatformSettings } from "../platform-settings/resolver";
+import { createSecretResolver, type StoredSecrets } from "../provider-secrets/resolver";
+import { BrevoApiError, brevoApiMailer, liveMailer, mailerFromEnv, parseSender } from "./mailers";
 
 const reply = (status: number, body = "{}") => new Response(body, { status });
 
@@ -127,5 +129,98 @@ describe("the emails sent, as recorded", () => {
       fetch.mockRestore();
       warn.mockRestore();
     }
+  });
+});
+
+describe("liveMailer: the app's and the worker's mailer, on the Provider Secrets and the Platform Settings in use (#300)", () => {
+  const message = { to: "marie.dupont@example.fr", subject: "Votre lien de connexion", text: "https://jobbbox.ai/api/auth/magic-link/verify?token=abc" };
+
+  /** Brevo's key in the Clés section and MAIL_FROM on Paramètres, as a test edits them, over `env`. */
+  function backOffice(env: Record<string, string>) {
+    const secrets: { current: StoredSecrets } = { current: {} };
+    const settings: { current: StoredPlatformSettings } = { current: {} };
+    const sources = {
+      secrets: createSecretResolver({ load: async () => secrets.current, env, log: () => {} }),
+      settings: createPlatformSettingsResolver({ load: async () => settings.current, env, log: () => {} }),
+    };
+    return {
+      sources,
+      setKey: (value: string) => (secrets.current = { BREVO_API_KEY: { value, row: value } }),
+      setSender: (value: string) => (settings.current = { MAIL_FROM: { value, updatedBy: "ops@jobbbox.ai", updatedAt: new Date() } }),
+      restoreSender: () => (settings.current = {}),
+      refresh: () => Promise.all([sources.secrets.refresh(), sources.settings.refresh()]),
+    };
+  }
+
+  /** What each email was sent through Brevo with: its key and its sender. */
+  function brevo() {
+    const sent: { key: string; sender: unknown }[] = [];
+    const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async (_, init) => {
+      sent.push({ key: (init!.headers as Record<string, string>)["api-key"]!, sender: JSON.parse(init!.body as string).sender });
+      return reply(201);
+    });
+    return { sent, restore: () => fetch.mockRestore() };
+  }
+
+  it("sends the next email as the sender saved on Paramètres, and as env's again once restored, without being built again", async () => {
+    const office = backOffice({ NODE_ENV: "production", BREVO_API_KEY: "xkeysib-env", MAIL_FROM: "Jobbbox <bonjour@jobbbox.fr>" });
+    await office.refresh();
+    const mailer = liveMailer(office.sources);
+    const api = brevo();
+    try {
+      await mailer.send(message);
+      office.setSender("Jobbbox <hello@jobbbox.ai>");
+      await office.refresh();
+      await mailer.send(message);
+      office.restoreSender();
+      await office.refresh();
+      await mailer.send(message);
+    } finally {
+      api.restore();
+    }
+
+    expect(api.sent.map(({ sender }) => sender)).toEqual([
+      { name: "Jobbbox", email: "bonjour@jobbbox.fr" },
+      { name: "Jobbbox", email: "hello@jobbbox.ai" },
+      { name: "Jobbbox", email: "bonjour@jobbbox.fr" },
+    ]);
+  });
+
+  it("keeps the sender saved on Paramètres when Brevo's key is replaced in the Clés section, and the other way round", async () => {
+    const office = backOffice({ NODE_ENV: "production", BREVO_API_KEY: "xkeysib-env", MAIL_FROM: "bonjour@jobbbox.fr" });
+    office.setSender("hello@jobbbox.ai");
+    await office.refresh();
+    const mailer = liveMailer(office.sources);
+    const api = brevo();
+    try {
+      await mailer.send(message);
+      office.setKey("xkeysib-back-office");
+      await office.refresh();
+      await mailer.send(message);
+    } finally {
+      api.restore();
+    }
+
+    expect(api.sent).toEqual([
+      { key: "xkeysib-env", sender: { email: "hello@jobbbox.ai" } },
+      { key: "xkeysib-back-office", sender: { email: "hello@jobbbox.ai" } },
+    ]);
+  });
+
+  it("sends in production with a sender only Paramètres holds; with none anywhere, the email fails naming MAIL_FROM", async () => {
+    const office = backOffice({ NODE_ENV: "production", BREVO_API_KEY: "xkeysib-env" });
+    await office.refresh();
+    const mailer = liveMailer(office.sources);
+    const api = brevo();
+    try {
+      await expect(async () => mailer.send(message)).rejects.toThrow(/MAIL_FROM/);
+      office.setSender("Jobbbox <hello@jobbbox.ai>");
+      await office.refresh();
+      await mailer.send(message);
+    } finally {
+      api.restore();
+    }
+
+    expect(api.sent.map(({ sender }) => sender)).toEqual([{ name: "Jobbbox", email: "hello@jobbbox.ai" }]);
   });
 });

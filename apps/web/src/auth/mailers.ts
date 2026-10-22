@@ -1,5 +1,9 @@
 import { recordingClient, recordingFetch, type ExternalApiLog } from "@jobhub/shared";
 import nodemailer from "nodemailer";
+import type { PlatformSettingsResolver } from "../platform-settings/resolver";
+import { secretsWithSettings } from "../platform-settings/secrets-with-settings";
+import { MAIL_SECRET_NAMES } from "../provider-secrets/catalog";
+import { liveObject, type SecretResolver } from "../provider-secrets/resolver";
 import type { Mailer, MailMessage } from "./index";
 
 /** Brevo's transactional email API (EU provider, ADR-0007). BREVO_API_URL overrides it (e2e). */
@@ -114,4 +118,17 @@ export function mailerFromEnv(env: Record<string, string | undefined>, options: 
   }
   const smtp = smtpMailer(env.SMTP_URL!, from, options.smtpTransport);
   return externalApis ? recordingClient(smtp, externalApis, { provider: "brevo_smtp", answeredStatus: null }) : smtp;
+}
+
+/** What the mailers are built from: Brevo's key or SMTP relay (Provider Secrets), and the sender (a Platform Setting). */
+export const MAILER_NAMES = [...MAIL_SECRET_NAMES, "MAIL_FROM"] as const;
+
+/**
+ * The web app's and the worker's mailer (`mailerFromEnv`), built from the Provider Secrets and the
+ * Platform Settings in use, and rebuilt when one it reads changes: a key replaced in Clés or a
+ * `MAIL_FROM` saved on Paramètres is used by the next email, without a restart (#300).
+ * A mailer that cannot be built (production with no sender anywhere) fails the email it was asked to send.
+ */
+export function liveMailer(sources: { secrets: SecretResolver; settings: PlatformSettingsResolver }, options: MailerOptions = {}): Mailer {
+  return liveObject(secretsWithSettings(sources.secrets, sources.settings), MAILER_NAMES, (env) => mailerFromEnv(env, options));
 }

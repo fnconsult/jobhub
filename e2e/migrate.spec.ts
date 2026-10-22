@@ -122,6 +122,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "master_cv_version",
         "plan", // issue #206: the Plans Administrators define
         "plan_quota",
+        "platform_setting", // issue #298: Platform Settings set in the Back Office, over env
         "playbook_version", // issue #225: every Playbook Version, kept forever
         "profile",
         "provider_secret", // issue #208: Provider Secrets, encrypted

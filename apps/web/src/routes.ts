@@ -91,6 +91,8 @@ export const routes = {
   adminTool: (id: string) => `/admin/outils/${encodeURIComponent(id)}`,
   /** The Provider Secrets (Clés): third-party keys, super-admins only. */
   adminProviderSecrets: "/admin/cles",
+  /** The Platform Settings (Paramètres, #298): every one with its value in use and its source; super-admins and Support. */
+  adminPlatformSettings: "/admin/parametres",
   /** The Sign-in Providers (Connexion) and Require SSO for Administrators, super-admins only. */
   adminSignInProviders: "/admin/connexion",
   /** The AI consumption report (Consommation IA), over a period ("7d", "2026-09"...): super-admins and Support. */

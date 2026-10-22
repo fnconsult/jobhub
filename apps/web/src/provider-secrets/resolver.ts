@@ -12,6 +12,8 @@
  * what was there (env alone until a first read succeeds).
  */
 
+import { cachedRead } from "../database/cached-read";
+
 type Env = Record<string, string | undefined>;
 
 /** The Provider Secrets the database holds, decrypted, by name; `row` changes whenever the value does. */
@@ -35,8 +37,7 @@ export interface SecretResolver {
   refresh(): Promise<SecretsSnapshot>;
 }
 
-/** How long a read of the database is used before it is read again. */
-export const TTL_MS = 60_000;
+export { TTL_MS } from "../database/cached-read";
 
 export interface SecretResolverOptions {
   /** Reads the database's Provider Secrets. */
@@ -61,55 +62,14 @@ export function snapshotOf(env: Env, stored: StoredSecrets): SecretsSnapshot {
 }
 
 export function createSecretResolver(options: SecretResolverOptions): SecretResolver {
-  const ttlMs = options.ttlMs ?? TTL_MS;
-  const now = options.now ?? Date.now;
-  const log = options.log ?? ((line: string) => console.warn(line));
-  let snapshot = snapshotOf(options.env, {});
-  let readAt: number | null = null;
-  let reading: Promise<SecretsSnapshot> | null = null;
-  let queued: Promise<SecretsSnapshot> | null = null;
-
-  function read(): Promise<SecretsSnapshot> {
-    return options
-      .load()
-      .then(
-        (stored) => {
-          snapshot = snapshotOf(options.env, stored);
-          return snapshot;
-        },
-        (error: unknown) => {
-          // The error is the database's (connection, missing table, a row that does not open), never a value.
-          log(`[provider-secrets] could not read the database, keeping the values in use: ${error instanceof Error ? error.message : String(error)}`);
-          return snapshot;
-        },
-      )
-      .finally(() => {
-        readAt = now();
-        reading = null;
-      });
-  }
-
-  /**
-   * Reads now; while a read is in flight, one more read is queued after it (shared by
-   * every caller meanwhile): the read in flight may predate the change that asked.
-   */
-  function refresh(): Promise<SecretsSnapshot> {
-    if (!reading) return (reading = read());
-    queued ??= reading.then(() => {
-      queued = null;
-      return (reading = read());
-    });
-    return queued;
-  }
-
-  return {
-    current() {
-      // A stale cache joins a read in flight: it only needs one newer than the TTL.
-      if (!reading && readAt !== null && now() - readAt >= ttlMs) void refresh();
-      return snapshot;
-    },
-    refresh,
-  };
+  return cachedRead({
+    load: async () => snapshotOf(options.env, await options.load()),
+    initial: snapshotOf(options.env, {}),
+    label: "provider-secrets",
+    ttlMs: options.ttlMs,
+    now: options.now,
+    log: options.log,
+  });
 }
 
 /**

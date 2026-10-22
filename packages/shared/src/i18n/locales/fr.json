@@ -756,6 +756,7 @@
       "humanCoaches": "Coachs",
       "coachCost": "Coût coach",
       "providerSecrets": "Clés",
+      "platformSettings": "Paramètres",
       "signInProviders": "Connexion",
       "searchSites": "Sites de recherche",
       "administrators": "Administrateurs",
@@ -1200,6 +1201,47 @@
         "no_master_key": "Enregistrement désactivé : SECRETS_MASTER_KEYS n'est pas défini."
       }
     },
+    "platformSettings": {
+      "title": "Paramètres",
+      "intro": "Les réglages non secrets de la plateforme : où l'IA est appelée et avec quels modèles, l'expéditeur des e-mails, les seuils du Job Digest, le budget de la recherche d'offres, les contacts enrichis et la page de l'extension. Une valeur saisie dans le back office l'emporte sur l'environnement du serveur, qui l'emporte sur la valeur par défaut du code.",
+      "differs_one": "{{count}} réglage vient de l'environnement et diffère de la valeur par défaut du code : vérifiez qu'il est voulu.",
+      "differs_other": "{{count}} réglages viennent de l'environnement et diffèrent de la valeur par défaut du code : vérifiez qu'ils sont voulus.",
+      "groups": {
+        "ai_routing": "Routage de l'IA",
+        "email": "E-mail",
+        "job_digest": "Job Digest",
+        "job_discovery": "Recherche d'offres",
+        "enriched_contacts": "Contacts enrichis",
+        "extension": "Extension du navigateur"
+      },
+      "setting": "Réglage",
+      "value": "Valeur en vigueur",
+      "source": "Source",
+      "default": "Défaut du code",
+      "sources": {
+        "back_office": "Back office",
+        "env": "Environnement",
+        "default": "Défaut du code"
+      },
+      "empty": "(aucune)",
+      "differsFlag": "Diffère du défaut",
+      "invalidFlag": "Refusée par le code",
+      "setBy": "{{email}}, le {{at}}",
+      "envOnly": {
+        "title": "Réglages de l'environnement",
+        "intro": "Ces réglages ne viennent que de l'environnement du serveur et ne se changent pas ici. Les secrets ne sont jamais affichés : seulement s'ils sont définis.",
+        "caption": "Réglages de l'environnement, en lecture seule",
+        "set": "Défini",
+        "missing": "Non défini",
+        "unreadable": "Défini, illisible",
+        "keyVersions": "Défini (versions : {{versions}})",
+        "mailToConsole": "MAIL_TRANSPORT=console : les e-mails ne partent pas, ils sont seulement écrits dans le journal du serveur."
+      },
+      "elsewhere": {
+        "title": "Réglés dans leur propre section",
+        "intro": "Ces réglages ont leur section dans le back office :"
+      }
+    },
     "administrators": {
       "title": "Administrateurs",
       "intro": "Les membres de l'équipe Jobbbox qui ont accès au back office, et leurs rôles. Un rôle retiré ne donne plus accès dès la page suivante.",
@@ -1245,6 +1287,7 @@
         "coupons": "Codes promo",
         "human_coaches": "Coachs humains",
         "provider_secrets": "Clés des fournisseurs",
+        "platform_settings": "Paramètres de la plateforme",
         "job_discovery_sources": "Sources de la recherche d'offres",
         "job_discovery_sites": "Sites de la recherche d'offres",
         "job_sites": "Sites de l'extension",

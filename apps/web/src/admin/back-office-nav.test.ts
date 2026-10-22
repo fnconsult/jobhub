@@ -28,6 +28,7 @@ describe("the Back Office navigation", () => {
         "platform",
         [
           ["providerSecrets", "/admin/cles"],
+          ["platformSettings", "/admin/parametres"],
           ["signInProviders", "/admin/connexion"],
           ["aiUsage", "/admin/consommation-ia"],
           ["aiMessages", "/admin/journaux-ia"],
@@ -70,6 +71,7 @@ describe("the Back Office navigation", () => {
     expect(sections(backOfficeNav(backOfficeAccess(["support"])))[2]).toEqual([
       "platform",
       [
+        ["platformSettings", "/admin/parametres"],
         ["signInProviders", "/admin/connexion"],
         ["aiUsage", "/admin/consommation-ia"],
         ["searchSites", "/admin/sites"],

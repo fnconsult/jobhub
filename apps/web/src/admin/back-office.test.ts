@@ -388,6 +388,12 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
     ]);
   });
 
+  it("an Administrator denied the Platform Settings is recorded in their section, on Paramètres (#298)", async () => {
+    await backOffice.recordDenied(claire, "platformSettings", "read");
+
+    expect((await backOffice.journal()).map((entry) => [entry.section, entry.target, entry.action])).toEqual([["platform_settings", "/admin/parametres", "denied"]]);
+  });
+
   it("two requests denied at the same moment leave one entry (#264)", async () => {
     const now = new Date("2026-10-21T10:00:05Z");
     const clocked = createBackOffice(database, { billing, humanCoaches, now: () => now });

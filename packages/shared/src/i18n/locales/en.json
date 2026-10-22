@@ -756,6 +756,7 @@
       "humanCoaches": "Coaches",
       "coachCost": "Coach cost",
       "providerSecrets": "Keys",
+      "platformSettings": "Settings",
       "signInProviders": "Sign-in",
       "searchSites": "Search sites",
       "administrators": "Administrators",
@@ -1200,6 +1201,47 @@
         "no_master_key": "Saving is off: SECRETS_MASTER_KEYS is not set."
       }
     },
+    "platformSettings": {
+      "title": "Settings",
+      "intro": "The platform's non-secret settings: where AI is reached and with which models, the email sender, the Job Digest's thresholds, the Job discovery budget, Enriched Contacts and the extension's page. A value set in the back office wins over the server's environment, which wins over the code's default.",
+      "differs_one": "{{count}} setting comes from the environment and differs from the code's default: check that it is intended.",
+      "differs_other": "{{count}} settings come from the environment and differ from the code's default: check that they are intended.",
+      "groups": {
+        "ai_routing": "AI routing",
+        "email": "Email",
+        "job_digest": "Job Digest",
+        "job_discovery": "Job discovery",
+        "enriched_contacts": "Enriched Contacts",
+        "extension": "Browser extension"
+      },
+      "setting": "Setting",
+      "value": "Value in use",
+      "source": "Source",
+      "default": "Code default",
+      "sources": {
+        "back_office": "Back office",
+        "env": "Environment",
+        "default": "Code default"
+      },
+      "empty": "(none)",
+      "differsFlag": "Differs from default",
+      "invalidFlag": "Refused by the code",
+      "setBy": "{{email}}, on {{at}}",
+      "envOnly": {
+        "title": "Environment settings",
+        "intro": "These settings only come from the server's environment and are not changed here. Secrets are never shown: only whether they are set.",
+        "caption": "Environment settings, read-only",
+        "set": "Set",
+        "missing": "Not set",
+        "unreadable": "Set, unreadable",
+        "keyVersions": "Set (versions: {{versions}})",
+        "mailToConsole": "MAIL_TRANSPORT=console: emails are not sent, only written to the server log."
+      },
+      "elsewhere": {
+        "title": "Set in their own section",
+        "intro": "These settings have their own back office section:"
+      }
+    },
     "administrators": {
       "title": "Administrators",
       "intro": "The Jobbbox team members who can use the back office, and their roles. A revoked role stops giving access from the next page.",
@@ -1245,6 +1287,7 @@
         "coupons": "Coupons",
         "human_coaches": "Human Coaches",
         "provider_secrets": "Provider keys",
+        "platform_settings": "Platform settings",
         "job_discovery_sources": "Job discovery sources",
         "job_discovery_sites": "Job discovery sites",
         "job_sites": "Extension sites",

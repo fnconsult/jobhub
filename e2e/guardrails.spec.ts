@@ -140,7 +140,14 @@ test.describe("the Back Office's Guardrails", () => {
     await expect(page).toHaveURL(/notice=settingSaved.*#harmful_advice$/);
     await expect(notice(page)).toHaveText(guardrails.notices.settingSaved);
     await page.goto("/admin/journal?section=guardrails");
-    const rows = page.getByRole("table").getByRole("row").filter({ hasText: admin.journal.sections.guardrails });
+    // This test's two Administrators' entries: other specs leave theirs in the section too, e.g. an
+    // Administrator without the Guardrails role opening the page leaves a denied entry (#264).
+    const ours = new RegExp(`^(${SUPER_ADMIN}|${VALIDATOR})$`.replaceAll(".", "\\."));
+    const rows = page
+      .getByRole("table")
+      .getByRole("row")
+      .filter({ hasText: admin.journal.sections.guardrails })
+      .filter({ has: page.getByRole("cell", { name: ours }) });
     await expect(rows).toHaveCount(4);
     await expect(rows.nth(0)).toContainText(guardrails.names.harmful_advice);
     await expect(rows.nth(1)).toContainText(admin.journal.actions.validated);

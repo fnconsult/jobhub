@@ -113,6 +113,18 @@ function backOfficeData() {
       reads.push("journal");
       const entries: BackOfficeAuditEntry[] = [
         {
+          id: "5",
+          at: new Date("2026-10-16T09:00:00Z"),
+          actor: { candidateId: "a2", email: "paul@jobbbox.fr" },
+          section: "ai_messages",
+          target: "/admin/journaux-ia",
+          action: "denied",
+          before: null,
+          after: null,
+          outcome: "failed",
+          failure: { reason: "role_missing", tried: "viewed", field: null, technical: null },
+        },
+        {
           id: "4",
           at: new Date("2026-10-15T09:00:00Z"),
           actor: { candidateId: "a1", email: "claire@jobbbox.fr" },
@@ -312,6 +324,8 @@ describe("Back Office Assistant", () => {
       expect(prompt()).toContain("remplacement de MISTRAL_API_KEY");
       // A refused attempt says why, never its technical detail.
       expect(prompt()).toContain("garde-fous, tentative refusée (modification) de prompt_injection ; échec : Refusé par l'Eval Run");
+      // So does a section opened outside the Administrator's roles (#264).
+      expect(prompt()).toContain("journaux IA, accès refusé (consultation) de /admin/journaux-ia ; échec : Section hors de ses rôles");
       expect(prompt()).not.toContain("secret-after-injection");
       expect(prompt()).not.toContain(SECRET);
       expect(prompt()).not.toMatch(/@/);

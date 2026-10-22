@@ -111,6 +111,8 @@ export async function backOfficeAdministrator(): Promise<{ id: string; access: A
  * With Require SSO for Administrators on, an Administrator signed in by magic link is
  * sent to the Back Office sign-in to sign in again with a provider allowed for them
  * (ADMIN_EMAILS super-admins excepted); their Candidate pages are untouched.
+ * An Administrator denied `resource` by their roles is recorded in the Back Office Audit (#264),
+ * once per section and minute; a visitor with no Back Office Role, or signed out, is not.
  * Every Back Office page and write calls it first.
  */
 export async function requireBackOffice(
@@ -121,7 +123,13 @@ export async function requireBackOffice(
   if (standing.state === "anonymous" || standing.state === "needs_sso") redirect(routes.backOfficeSignIn);
   if (standing.state === "not_administrator") notFound();
   const { person: administrator, access } = standing;
-  if (resource && !access.can(resource, permission)) notFound();
+  if (resource && !access.can(resource, permission)) {
+    // In the Journal (#264); the answer stays a 404 whether or not it could be recorded.
+    await getBackOffice()
+      .recordDenied({ id: administrator.id, email: administrator.email }, resource, permission)
+      .catch((error: unknown) => console.error("Back Office Audit: an Administrator's denied access could not be recorded", error));
+    notFound();
+  }
   return {
     administrator,
     access,

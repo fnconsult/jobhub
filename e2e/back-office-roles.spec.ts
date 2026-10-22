@@ -289,4 +289,32 @@ test.describe("Back Office Roles", () => {
     // A Coach manager does not read it.
     expect((await person.goto(SECTIONS.journal))?.status()).toBe(404);
   });
+
+  test("an Administrator opening a section outside their roles is in the Journal, once a minute; a Candidate with no role is not (#264)", async ({ page, browser }) => {
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    const support = newAddress("denied-support");
+    const supportPage = await personPage(browser, support);
+    await grant(page, support, ["support"]);
+    const candidate = newAddress("denied-candidate");
+    const candidatePage = await personPage(browser, candidate);
+    // One entry per minute: the page and its reload must fall in the same one (the server's clock is this machine's).
+    const second = new Date().getSeconds();
+    if (second >= 45) await page.waitForTimeout((61 - second) * 1000);
+
+    expect((await supportPage.goto(SECTIONS.aiMessages))?.status()).toBe(404);
+    expect((await supportPage.reload())?.status()).toBe(404);
+    expect((await candidatePage.goto("/admin"))?.status()).toBe(404);
+
+    await page.goto(`${SECTIONS.journal}?section=ai_messages&outcome=failed`);
+    const denied = page.getByRole("row").filter({ hasText: support });
+    await expect(denied).toHaveCount(1);
+    await expect(denied).toContainText(admin.journal.sections.ai_messages);
+    await expect(denied).toContainText(SECTIONS.aiMessages);
+    await expect(denied).toContainText(admin.journal.actions.denied);
+    await expect(denied).toContainText(admin.journal.outcomes.failed);
+    await expect(denied).toContainText(tr(admin.journal.failed, { tried: admin.journal.actions.viewed, reason: fr.failureReasons.role_missing }));
+    // Nobody to attribute it to: a Candidate with no Back Office Role leaves nothing.
+    await page.goto(SECTIONS.journal);
+    await expect(page.getByRole("row").filter({ hasText: candidate })).toHaveCount(0);
+  });
 });

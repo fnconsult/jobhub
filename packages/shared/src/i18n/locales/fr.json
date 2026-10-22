@@ -1250,7 +1250,13 @@
         "ai_messages": "Journaux IA",
         "coaching_playbooks": "Playbooks de coaching",
         "guardrails": "Garde-fous",
-        "eval_cases": "Cas d'évaluation"
+        "eval_cases": "Cas d'évaluation",
+        "eval_runs": "Eval Runs",
+        "coach_message_cost": "Coût coach",
+        "ai_usage": "Consommation IA",
+        "search_sites": "Sites de recherche",
+        "tool_pages": "Pages Outils",
+        "journal": "Journal"
       },
       "actions": {
         "added": "Ajout",
@@ -1266,7 +1272,8 @@
         "archived": "Archivage",
         "restored": "Rétablissement",
         "reset": "Remise à zéro",
-        "refused": "Tentative refusée"
+        "refused": "Tentative refusée",
+        "denied": "Accès refusé"
       },
       "none": "Aucune modification enregistrée.",
       "caption": "Modifications du back office, des plus récentes aux plus anciennes",
@@ -2773,6 +2780,7 @@
     "last_super_admin": "Dernier super-admin",
     "unknown_account": "Compte introuvable",
     "stripe_refused": "Refusé par Stripe",
+    "role_missing": "Section hors de ses rôles",
     "guardrail_timeout": "Contrôle trop long",
     "invalid_verdict": "Verdict du contrôle illisible",
     "provider_error": "Erreur du fournisseur",

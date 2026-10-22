@@ -1,4 +1,4 @@
-import { createAiLayer, type AiLayer, type Route } from "./ai-layer";
+import { createAiLayer, endpointFor, type AiLayer, type Route } from "./ai-layer";
 import { AiConfigError } from "./errors";
 import { createAnthropicProvider, type AnthropicEndpoint } from "./providers/anthropic";
 import { createMistralProvider, createOpenAiProvider } from "./providers/chat-completions";
@@ -143,8 +143,9 @@ function anthropicInEu(env: Env): boolean {
   return kind !== "direct";
 }
 
-function buildProviders(id: ProviderId, env: Env, fetch: typeof globalThis.fetch | undefined): AiProvider[] {
-  if (id === "anthropic") return anthropicEndpoints(env).map((endpoint) => createAnthropicProvider({ endpoint, fetch }));
+/** `maxRetries`: Claude's SDK retries (default 2); a test call makes none, so a transient fault is not read as a pass. */
+function buildProviders(id: ProviderId, env: Env, fetch: typeof globalThis.fetch | undefined, maxRetries?: number): AiProvider[] {
+  if (id === "anthropic") return anthropicEndpoints(env).map((endpoint) => createAnthropicProvider({ endpoint, fetch, ...(maxRetries === undefined ? {} : { maxRetries }) }));
   return [buildProvider(id, env, fetch)];
 }
 
@@ -218,6 +219,49 @@ function routesFromEnv(env: Env, fake: boolean): Record<AiTask, Route> {
  */
 export function taskRouteFromEnv(env: Env, task: AiTask): Route {
   return routesFromEnv(env, env.AI_FAKE?.trim() === "true")[task];
+}
+
+/** One AI route as the environment sets it: a task's, or the identity route under EU AI consent. */
+export interface RoutedTarget {
+  target: AiTask | "identity";
+  /** The settings naming its provider and its model (the identity route's provider is fixed: Mistral). */
+  providerSetting: string;
+  modelSetting: string;
+  route: Route;
+  /** Whether its calls carry personal data: a text task's, or the identity route's. */
+  personalData: boolean;
+  /** The endpoint it reaches, as the AI layer chooses it; none when its provider cannot be built (a key missing). */
+  endpoint?: AiProvider;
+}
+
+/**
+ * Every AI route `env` sets, with the endpoint each reaches, built as `createAiLayerFromEnv` builds them
+ * (fakes under AI_FAKE). A provider that cannot be built leaves its routes without an endpoint; a value
+ * a setting refuses (an unknown provider) throws, as at start-up.
+ */
+export function routedTargets(env: Env, deps: { fetch?: typeof globalThis.fetch; maxRetries?: number } = {}): RoutedTarget[] {
+  const fake = env.AI_FAKE?.trim() === "true";
+  const routes = routesFromEnv(env, fake);
+  const built = new Map<ProviderId, AiProvider[]>();
+  const providersOf = (id: ProviderId): AiProvider[] => {
+    if (!built.has(id)) {
+      try {
+        built.set(id, fake ? [createFakeProvider({ id })] : buildProviders(id, env, deps.fetch, deps.maxRetries));
+      } catch {
+        built.set(id, []);
+      }
+    }
+    return built.get(id)!;
+  };
+  const targets: RoutedTarget[] = TASKS.map((task) => {
+    const route = routes[task];
+    const personalData = task !== SEARCH_TASK && TEXT_TASKS[task as TextTask].personalData;
+    return { target: task, providerSetting: taskKey(task, "PROVIDER"), modelSetting: taskKey(task, "MODEL"), route, personalData, endpoint: endpointFor(providersOf(route.provider), route, personalData) };
+  });
+  const identityRoute: Route = { provider: IDENTITY_PROVIDER, ...(env.AI_IDENTITY_MODEL?.trim() ? { model: env.AI_IDENTITY_MODEL.trim() } : {}) };
+  const identity = fake ? createFakeProvider({ id: IDENTITY_PROVIDER }) : env.MISTRAL_API_KEY?.trim() ? endpointFor(providersOf(IDENTITY_PROVIDER), identityRoute, true) : undefined;
+  targets.push({ target: "identity", providerSetting: "AI_IDENTITY_MODEL", modelSetting: "AI_IDENTITY_MODEL", route: identityRoute, personalData: true, endpoint: identity });
+  return targets;
 }
 
 /**

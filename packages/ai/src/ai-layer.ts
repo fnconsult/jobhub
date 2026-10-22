@@ -259,6 +259,20 @@ const IDENTITY_CACHE_MS = 60_000;
 /** Candidates whose identity is kept at most; past it, all are read again. */
 const IDENTITY_CACHE_SIZE = 1_000;
 
+/**
+ * The endpoint a route reaches among `providers`, or none when its provider is not configured. A provider
+ * may be reached through several endpoints (Claude: the direct API, then Bedrock). A model only some of
+ * them name (Bedrock prefixes Claude's) takes one of those. Among them, a call with personal data (`euFirst`:
+ * its task's, or the identity of a consenting Candidate) takes the first EU-resident one when there is one,
+ * a preference rather than a rule; any other call, the first one listed.
+ */
+export function endpointFor(providers: readonly AiProvider[], route: Route, euFirst = false): AiProvider | undefined {
+  const all = providers.filter((p) => p.id === route.provider);
+  const naming = route.model ? all.filter((p) => p.models?.includes(route.model!)) : [];
+  const candidates = naming.length > 0 ? naming : all;
+  return euFirst ? (candidates.find((p) => p.residency === "eu") ?? candidates[0]) : candidates[0];
+}
+
 export function createAiLayer(options: AiLayerOptions): AiLayer {
   const now = options.now ?? (() => new Date());
   const clock = options.clock ?? (() => performance.now());
@@ -268,17 +282,8 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     if (!route) throw new AiConfigError(`No provider configured for AI task "${task}"`);
     return typeof route === "string" ? { provider: route } : route;
   };
-  /**
-   * A provider may be reached through several endpoints (Claude: the direct API, then Bedrock). A model
-   * only some of them name (Bedrock prefixes Claude's) takes one of those. Among them, a call with personal
-   * data (its task's, or the identity of a consenting Candidate) takes the first EU-resident one when there
-   * is one, a preference rather than a rule; any other call, the first one listed.
-   */
   const providerFor = (route: Route, euFirst = false): AiProvider => {
-    const all = options.providers.filter((p) => p.id === route.provider);
-    const naming = route.model ? all.filter((p) => p.models?.includes(route.model!)) : [];
-    const candidates = naming.length > 0 ? naming : all;
-    const provider = euFirst ? (candidates.find((p) => p.residency === "eu") ?? candidates[0]) : candidates[0];
+    const provider = endpointFor(options.providers, route, euFirst);
     // Its key was never entered: a provider is configured with its key.
     if (!provider) throw new AiConfigError(`AI provider "${route.provider}" is not configured`, { reason: "key_missing" });
     return provider;

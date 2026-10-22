@@ -91,4 +91,14 @@ describe("the Platform Settings catalog", () => {
     expect(parseSetting(setting("CONTACT_ENRICHMENT_DPA_SIGNED"), "yes")).toMatchObject({ ok: false });
     expect(parseSetting(setting("MAIL_FROM"), "Jobbbox <hello@jobbbox.ai>")).toEqual({ ok: true, value: "Jobbbox <hello@jobbbox.ai>" });
   });
+
+  it("takes the extension's store page as an https URL only (#303)", () => {
+    const store = platformSetting("EXTENSION_STORE_URL")!;
+    const page = "https://chromewebstore.google.com/detail/jobbbox/abcdefghijklmnopabcdefghijklmnop";
+    expect(parseSetting(store, ` ${page} `)).toEqual({ ok: true, value: page });
+    expect(parseSetting(store, "http://chromewebstore.google.com/detail/jobbbox")).toMatchObject({ ok: false, error: expect.stringContaining("an https URL") });
+    expect(parseSetting(store, "chromewebstore.google.com/detail/jobbbox")).toMatchObject({ ok: false });
+    expect(parseSetting(store, "javascript:alert(1)")).toMatchObject({ ok: false });
+    expect(parseSetting(store, "https://")).toMatchObject({ ok: false });
+  });
 });

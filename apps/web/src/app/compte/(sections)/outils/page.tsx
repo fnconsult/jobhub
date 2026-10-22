@@ -1,12 +1,15 @@
 import { getServerT } from "@/i18n/server";
+import { extensionStorePage } from "@/platform-settings/extension-store";
+import { getPlatformSettingsResolver } from "@/platform-settings/server";
 
 /**
  * Mon compte's Tools Section: the browser extension, installed from the Chrome Web Store
- * (EXTENSION_STORE_URL); until it is published there, a word that it is coming.
+ * (EXTENSION_STORE_URL, a Platform Setting set on Paramètres, in use within seconds, #303);
+ * until it is published there, a word that it is coming.
  */
 export default async function AccountToolsPage() {
   const t = await getServerT();
-  const storeUrl = process.env.EXTENSION_STORE_URL?.trim();
+  const storeUrl = extensionStorePage(getPlatformSettingsResolver().current());
   return (
     <section className="stack" aria-labelledby="tools-title">
       <h2 id="tools-title">{t("account.tools.title")}</h2>

@@ -77,7 +77,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * use, where it comes from (the Back Office, env, the code's default) and the code's default,
  * a value from env that differs from the default flagged; then, read-only, the settings only
  * env holds, secrets never shown; and links to the settings that have their own section.
- * Super-admins change the AI routing (#301), the Job Digest's and Job discovery's settings (#299), or « Rétablir » them;
+ * Super-admins change the AI routing (#301), the Job Digest's and Job discovery's settings (#299), the extension's
+ * store page (#303, an https URL; « Rétablir » for none, "coming soon"), or « Rétablir » them;
  * an AI routing change the AI layer would refuse, or whose model fails its test call, is refused with its reason;
  * Support sees no edit control.
  */
@@ -92,6 +93,7 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
   const rule = (type: PlatformSettingType): string => {
     if (type.kind === "choice") return t("admin.platformSettings.rules.choice", { values: type.values.join(", ") });
     if (type.kind === "text") return t("admin.platformSettings.rules.text");
+    if (type.kind === "url") return t("admin.platformSettings.rules.url");
     if (type.kind !== "number") return "";
     const key = `${type.whole ? "whole" : "decimal"}${type.aboveMin ? "AboveMin" : ""}` as const;
     return t(`admin.platformSettings.rules.${key}`, { min: number.format(type.min), max: number.format(type.max) });
@@ -220,7 +222,7 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
                                     className="input"
                                     name="value"
                                     type="text"
-                                    inputMode={setting.type.kind === "number" ? (setting.type.whole ? "numeric" : "decimal") : undefined}
+                                    inputMode={setting.type.kind === "number" ? (setting.type.whole ? "numeric" : "decimal") : setting.type.kind === "url" ? "url" : undefined}
                                     list={isModelSetting(setting) ? `models-${setting.name}` : undefined}
                                     defaultValue={setting.value}
                                     aria-describedby={`rule-${setting.name}`}

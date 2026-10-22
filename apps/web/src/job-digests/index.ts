@@ -18,7 +18,9 @@
  *      the Candidate's Interface Language).
  *  - `migrateJobDigests(database)` creates / upgrades the tables.
  *  - `jobDigestsConfigFromEnv(env)`: the Match Score threshold, target count
- *    and how far back the first Job Digest of a Profile looks.
+ *    and how far back the first Job Digest of a Profile looks; the worker reads
+ *    it at each delivery (`deps.config`) from the Platform Settings in use, so a
+ *    change in the Back Office applies to the next Job Digest (#299).
  *
  * Selecting a Job Digest's Job Offers: the Job Offers stored since the
  * Profile's previous Job Digest (a week back for the first, by default), whoever stored
@@ -183,16 +185,26 @@ export interface JobDigestsDeps {
   mailer: Mailer;
   /** Public origin of the web app; the email's links point here. */
   baseURL: string;
+  /**
+   * The Match Score threshold, target count and first look-back, read at each delivery, so a
+   * Platform Setting changed in the Back Office applies to the next Job Digest without a restart
+   * (#299). One left out keeps the code's default.
+   */
+  config?: () => Partial<JobDigestsConfig>;
+  now?: () => Date;
+}
+
+/** What a Job Digest selects its Job Offers with: the Platform Settings JOB_DIGEST_* (ADR-0033). */
+export interface JobDigestsConfig {
   /** Lowest Match Score a Job Offer needs to be in a Job Digest. Default DEFAULT_MIN_MATCH_SCORE. */
-  minMatchScore?: number;
+  minMatchScore: number;
   /** How many Job Offers a Job Digest aims for, and holds at most. Default DEFAULT_TARGET_COUNT. */
-  targetCount?: number;
+  targetCount: number;
   /**
    * How many days back the first Job Digest of a Profile looks for stored Job
    * Offers. Default DEFAULT_FIRST_LOOK_BACK_DAYS; 0: it is what Job discovery finds.
    */
-  firstLookBackDays?: number;
-  now?: () => Date;
+  firstLookBackDays: number;
 }
 
 // The code's defaults are the Platform Settings catalog's (ADR-0033): one source of truth for each.
@@ -212,7 +224,7 @@ const POOL_MAX = 1_000;
  * The Match Score threshold, target count and first look-back, from
  * JOB_DIGEST_MIN_MATCH_SCORE, JOB_DIGEST_TARGET_COUNT and JOB_DIGEST_FIRST_LOOK_BACK_DAYS.
  */
-export function jobDigestsConfigFromEnv(env: Record<string, string | undefined>): { minMatchScore: number; targetCount: number; firstLookBackDays: number } {
+export function jobDigestsConfigFromEnv(env: Record<string, string | undefined>): JobDigestsConfig {
   return {
     minMatchScore: readNumberSetting(env, "JOB_DIGEST_MIN_MATCH_SCORE"),
     targetCount: readNumberSetting(env, "JOB_DIGEST_TARGET_COUNT"),
@@ -289,9 +301,13 @@ type Scored = { jobOffer: JobOffer; matchScore: MatchScore };
 
 export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDigests {
   const now = deps.now ?? (() => new Date());
-  const minMatchScore = deps.minMatchScore ?? DEFAULT_MIN_MATCH_SCORE;
-  const targetCount = deps.targetCount ?? DEFAULT_TARGET_COUNT;
-  const firstLookBackMs = (deps.firstLookBackDays ?? DEFAULT_FIRST_LOOK_BACK_DAYS) * DAY_MS;
+  /** The configuration in use now: read again for each delivery. */
+  const config = (): JobDigestsConfig => ({
+    minMatchScore: DEFAULT_MIN_MATCH_SCORE,
+    targetCount: DEFAULT_TARGET_COUNT,
+    firstLookBackDays: DEFAULT_FIRST_LOOK_BACK_DAYS,
+    ...deps.config?.(),
+  });
 
   async function planOf(candidateId: string): Promise<{ plan: Plan; frequency: JobDigestFrequency }> {
     const { plan, quotas } = await deps.billing.entitlements(candidateId);
@@ -363,13 +379,13 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
   }
 
   /** The ids of the Job Offers stored since the Profile's previous Job Digest (or the look-back), most recent first. */
-  async function poolOf(candidateId: string, profileId: string, at: Date): Promise<string[]> {
+  async function poolOf(candidateId: string, profileId: string, at: Date, firstLookBackDays: number): Promise<string[]> {
     const { rows } = await database.query<{ id: string }>(
       `SELECT id FROM job_offer
         WHERE created_at > COALESCE((SELECT max(sent_at) FROM job_digest WHERE profile_id = $1 AND candidate_id = $2), $3)
           AND created_at <= $4 AND guest_expires_at IS NULL AND expired_at IS NULL
         ORDER BY created_at DESC LIMIT $5`,
-      [profileId, candidateId, new Date(at.getTime() - firstLookBackMs), at, POOL_MAX],
+      [profileId, candidateId, new Date(at.getTime() - firstLookBackDays * DAY_MS), at, POOL_MAX],
     );
     return rows.map((row) => row.id);
   }
@@ -387,7 +403,7 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
   }
 
   /** Never-shown Job Offers among `ids`, scored for the Profile, from the threshold up. */
-  async function qualifying(profile: Profile, ids: string[], excluded: Set<string>, at: Date): Promise<Scored[]> {
+  async function qualifying(profile: Profile, ids: string[], excluded: Set<string>, at: Date, minMatchScore: number): Promise<Scored[]> {
     const fresh = [...new Set(ids)].filter((id) => UUID.test(id) && !excluded.has(id));
     return (await scored(profile, await eligible(fresh, at))).filter(({ matchScore }) => matchScore.score >= minMatchScore);
   }
@@ -535,15 +551,16 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
       if (!subscription || (await planOf(candidateId)).frequency === "none") return nothing;
 
       const at = now();
+      const { minMatchScore, targetCount, firstLookBackDays } = config();
       const shown = await shownTo(candidateId, profile.id);
-      let picked = await qualifying(profile, await poolOf(candidateId, profile.id, at), shown, at);
+      let picked = await qualifying(profile, await poolOf(candidateId, profile.id, at, firstLookBackDays), shown, at, minMatchScore);
       let discovery: JobDigestDelivery["discovery"] = "not_run";
       if (picked.length < targetCount) {
         try {
           const found = await discover();
           discovery = "ran";
           const taken = new Set([...shown, ...picked.map(({ jobOffer }) => jobOffer.id)]);
-          picked = rankByMatchScore([...picked, ...(await qualifying(profile, found, taken, at))]);
+          picked = rankByMatchScore([...picked, ...(await qualifying(profile, found, taken, at, minMatchScore))]);
         } catch (error) {
           // Not retried: the next scheduled Job Digest runs Job discovery again.
           discovery = "failed";

@@ -8,7 +8,7 @@ import { createBilling, migrateBilling, type Billing } from "../billing";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createJobSearches, migrateJobSearches, type JobSearches } from "../job-searches";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
-import { createJobDigests, migrateJobDigests, type JobDigestDiscovery, type JobDigests, type JobDigestsDeps } from "./index";
+import { createJobDigests, migrateJobDigests, type JobDigestDiscovery, type JobDigests, type JobDigestsConfig } from "./index";
 
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -89,7 +89,8 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
     if (!result.ok) throw new Error(`fixture subscription refused: ${JSON.stringify(result)}`);
   }
 
-  function digestsWith(config: Partial<Pick<JobDigestsDeps, "minMatchScore" | "targetCount" | "firstLookBackDays">>): JobDigests {
+  /** The Job Digests with `config` read at each delivery: change it, and the next one uses it. */
+  function digestsWith(config: Partial<JobDigestsConfig>): JobDigests {
     return createJobDigests(database, {
       profiles,
       jobOffers,
@@ -98,7 +99,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       mailer: { send: async (message) => void outbox.push(message) },
       baseURL: "https://app.jobbbox.fr",
       now: () => clock.now,
-      ...config,
+      config: () => config,
     });
   }
 
@@ -361,6 +362,19 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       const { digest } = await jobDigests.deliver(candidateId, profileId, async () => []);
 
       expect(digest?.results.map(({ jobOffer, matchScore }) => [jobOffer.id, matchScore.score])).toEqual([[half, 50]]);
+    });
+
+    it("reads its threshold at each delivery: one changed in the Back Office applies to the next Job Digest, without a restart", async () => {
+      const config: Partial<JobDigestsConfig> = { minMatchScore: 60 };
+      jobDigests = digestsWith(config);
+      const half = await capture("Comptable", { location: "Lyon", contractType: "cdd", skills: ["IFRS", "Excel"] });
+      await subscribed();
+      expect(await jobDigests.deliver(candidateId, profileId, async () => [])).toMatchObject({ digest: null });
+
+      config.minMatchScore = 50;
+      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => []);
+
+      expect(digest?.results.map(({ jobOffer }) => jobOffer.id)).toEqual([half]);
     });
 
     it("sends what the stored Job Offers gave when Job discovery fails, and nothing when they gave nothing", async () => {

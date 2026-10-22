@@ -82,6 +82,15 @@ describe("the check of an AI routing change on Paramètres (#301)", () => {
     expect(refusal).toMatchObject({ reason: "data_residency" });
   });
 
+  it("records the test call of a model the change names in AI Usage", async () => {
+    const usage = createMemoryUsageLog();
+    const recording = aiRoutingCheck(() => ({ AWS_BEARER_TOKEN_BEDROCK: "bk", PERPLEXITY_API_KEY: "pk" }), { fetch: claudeFetch, usage });
+
+    expect(await recording({ name: "AI_SCORING_MODEL", before: settingsEnv, after: { ...settingsEnv, AI_SCORING_MODEL: "anthropic.claude-sonnet-5" } })).toBeNull();
+
+    expect(usage.entries).toEqual([expect.objectContaining({ task: "scoring", provider: "anthropic", endpoint: "bedrock eu-north-1", outcome: "ok", candidateId: null })]);
+  });
+
   it("lets a valid change through, and leaves the other Platform Settings to their own rules", async () => {
     expect(await check({ name: "ANTHROPIC_ENDPOINT", before: settingsEnv, after: { ANTHROPIC_ENDPOINT: "auto" } })).toBeNull();
     expect(await check({ name: "JOB_DIGEST_TARGET_COUNT", before: { ...settingsEnv, AI_SCORING_PROVIDER: "perplexity" }, after: { ...settingsEnv, AI_SCORING_PROVIDER: "perplexity", JOB_DIGEST_TARGET_COUNT: "12" } })).toBeNull();

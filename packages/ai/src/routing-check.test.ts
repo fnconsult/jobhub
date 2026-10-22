@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { checkAiRoutingChange } from "./routing-check";
+import { createMemoryUsageLog } from "./testing";
 
 /** Claude on Bedrock (EU) for the text tasks, Perplexity for web search: the defaults with their keys. */
 const base = { AWS_BEARER_TOKEN_BEDROCK: "bedrock-key", PERPLEXITY_API_KEY: "pk" };
@@ -25,6 +26,41 @@ describe("checkAiRoutingChange: an AI routing change checked as the AI layer wou
     const outside = { ...base, OPENAI_API_KEY: "ok", OPENAI_DATA_RESIDENCY: "us", AI_SCORING_PROVIDER: "openai" };
 
     expect(await checkAiRoutingChange(outside, { ...outside, BEDROCK_REGION: "eu-west-3" })).toBeNull();
+  });
+
+  describe("checks EU data residency even where the configuration in use already has a problem", () => {
+    const outsideForScoring = { OPENAI_API_KEY: "ok", OPENAI_DATA_RESIDENCY: "us", AI_SCORING_PROVIDER: "openai" };
+
+    it("when a key the configuration in use needs is missing", async () => {
+      // Writing on Mistral without its key: the AI layer would not start, before as after.
+      const broken = { ...base, AI_WRITING_PROVIDER: "mistral" };
+
+      const refusal = await checkAiRoutingChange(broken, { ...broken, ...outsideForScoring });
+
+      expect(refusal?.reason).toBe("data_residency");
+      expect(refusal?.technical.message).toMatch(/scoring/);
+    });
+
+    it("when a task is routed to a provider that cannot serve it", async () => {
+      // Offer analysis on a web-search provider, and Claude only on the direct API (outside the EU) with Bedrock in the US.
+      const broken = { PERPLEXITY_API_KEY: "pk", ANTHROPIC_API_KEY: "sk-ant", ANTHROPIC_ENDPOINT: "direct", AI_OFFER_ANALYSIS_PROVIDER: "perplexity" };
+      const onBedrock = { ...broken, ANTHROPIC_ENDPOINT: "bedrock", AWS_BEARER_TOKEN_BEDROCK: "bedrock-key", AI_SCORING_PROVIDER: "anthropic" };
+
+      const refusal = await checkAiRoutingChange(onBedrock, { ...onBedrock, BEDROCK_REGION: "us-east-1" });
+
+      expect(refusal?.reason).toBe("data_residency");
+      expect(refusal?.technical.message).toMatch(/bedrock us-east-1/);
+    });
+
+    it("for a route whose key is still missing, as it would go once the key is entered", async () => {
+      // OpenAI, in the US, already named for a task without personal data but without its key.
+      const keyless = { ...base, OPENAI_DATA_RESIDENCY: "us", AI_OFFER_ANALYSIS_PROVIDER: "openai" };
+
+      const refusal = await checkAiRoutingChange(keyless, { ...keyless, AI_SCORING_PROVIDER: "openai" });
+
+      expect(refusal?.reason).toBe("data_residency");
+      expect(refusal?.technical.message).toMatch(/scoring/);
+    });
   });
 
   it("refuses a route whose provider's key is missing, naming the key", async () => {
@@ -87,6 +123,33 @@ describe("checkAiRoutingChange: an AI routing change checked as the AI layer wou
       expect(refusal?.reason).toBe("test_failed");
       expect(refusal?.technical.message).toMatch(/AI_IDENTITY_MODEL/);
       expect(calls).toEqual([{ host: "api.mistral.ai", model: "mistral-nope", maxTokens: 1 }]);
+    });
+
+    it("records each test call in AI Usage, for no Candidate, on the task whose route it tests", async () => {
+      const { fetch } = providerFetch({ unknownModels: ["mistral-nope"] });
+      const usage = createMemoryUsageLog();
+      const keys = { ...base, MISTRAL_API_KEY: "mk" };
+
+      await checkAiRoutingChange(keys, { ...keys, AI_SCORING_MODEL: "anthropic.claude-sonnet-5", AI_IDENTITY_MODEL: "mistral-nope" }, { fetch, usage });
+      await Promise.resolve();
+
+      expect(usage.entries).toEqual([
+        expect.objectContaining({ candidateId: null, task: "scoring", provider: "anthropic", endpoint: "bedrock eu-north-1", model: "anthropic.claude-sonnet-5", outcome: "ok", inputTokens: 3, outputTokens: 1, sent: true }),
+        expect.objectContaining({ candidateId: null, task: "writing", provider: "mistral", model: "mistral-nope", outcome: "failed", sent: true, costEur: 0 }),
+      ]);
+      expect(usage.entries[0]!.costEur).toBeGreaterThan(0);
+      expect(usage.entries[1]!.reason).toBeDefined();
+    });
+
+    it("records the web search's test in AI Usage with its search", async () => {
+      const { fetch } = providerFetch();
+      const usage = createMemoryUsageLog();
+
+      expect(await checkAiRoutingChange(base, { ...base, AI_WEB_SEARCH_MODEL: "sonar-pro" }, { fetch, usage })).toBeNull();
+      await Promise.resolve();
+
+      expect(usage.entries).toEqual([expect.objectContaining({ candidateId: null, task: "web_search", provider: "perplexity", model: "sonar-pro", outcome: "ok" })]);
+      expect(usage.entries[0]!.tools).toEqual([expect.objectContaining({ name: "web_search", count: 1, ok: true })]);
     });
 
     it("calls no provider with AI_FAKE", async () => {

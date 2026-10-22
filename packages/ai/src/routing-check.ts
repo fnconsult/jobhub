@@ -6,9 +6,10 @@
  *   if (refusal) // refusal.reason, refusal.technical (the setting at fault and why)
  */
 import { cleanTechnicalMessage, failureOf, type FailureReason, type TechnicalReason } from "@jobhub/shared";
+import { createAiLayer } from "./ai-layer";
 import { AI_ENV_KEYS, createAiLayerFromEnv, routedTargets, type RoutedTarget } from "./env";
 import { AiConfigError, AiProviderError, DataResidencyError } from "./errors";
-import type { AiProvider } from "./types";
+import { SEARCH_TASK, type TextTask, type UsageLog } from "./types";
 
 type Env = Record<string, string | undefined>;
 
@@ -31,23 +32,56 @@ function buildProblem(env: Env): AiRoutingRefusal | null {
   }
 }
 
-/** What is wrong with the routes `env` sets. */
+/**
+ * `env` with every key a provider cannot be built without entered, where none is: those keys only keep a route
+ * from starting, never change where it goes. So a route waiting for its key is judged where it will go once the key
+ * is entered in Clés, which runs no routing check. Claude's keys choose its endpoint under ANTHROPIC_ENDPOINT=auto:
+ * its direct API's is entered only where ANTHROPIC_ENDPOINT=direct requires it.
+ */
+function withRequiredKeysEntered(env: Env): Env {
+  const entered: Env = { ...env };
+  const required = [
+    ...AI_ENV_KEYS.filter((name) => name.endsWith("_API_KEY") && name !== "ANTHROPIC_API_KEY"),
+    "VERTEX_PROJECT_ID",
+    ...(env.ANTHROPIC_ENDPOINT?.trim() === "direct" ? ["ANTHROPIC_API_KEY"] : []),
+  ];
+  for (const name of required) if (!env[name]?.trim()) entered[name] = "not-entered-yet";
+  return entered;
+}
+
+/**
+ * The routes of `env` that would take personal data outside the EU, each a problem of its own. Checked whatever
+ * else is wrong with `env` (a key missing, a provider that cannot serve its task): the AI layer only prefers EU
+ * endpoints at runtime, so this check is the one rule. None when a value a setting refuses keeps the routes from
+ * being read: `buildProblem` names it.
+ */
+function residencyProblems(env: Env): AiRoutingRefusal[] {
+  let targets: RoutedTarget[];
+  try {
+    targets = routedTargets(withRequiredKeysEntered(env));
+  } catch {
+    return [];
+  }
+  return targets.flatMap(({ target, providerSetting, personalData, endpoint }): AiRoutingRefusal[] =>
+    !personalData || !endpoint || endpoint.residency === "eu"
+      ? []
+      : [
+          {
+            reason: "data_residency",
+            technical: {
+              class: "DataResidencyError",
+              provider: endpoint.id,
+              message: `${providerSetting}: the ${target} task carries personal data and would reach ${endpoint.id} through ${endpoint.endpoint}, outside the EU`,
+            },
+          },
+        ],
+  );
+}
+
+/** What is wrong with the routes `env` sets: why the AI layer would not start, and each route leaving the EU with personal data. */
 function problemsOf(env: Env): AiRoutingRefusal[] {
   const built = buildProblem(env);
-  if (built) return [built];
-  const problems: AiRoutingRefusal[] = [];
-  for (const { target, providerSetting, personalData, endpoint } of routedTargets(env)) {
-    if (!personalData || !endpoint || endpoint.residency === "eu") continue;
-    problems.push({
-      reason: "data_residency",
-      technical: {
-        class: "DataResidencyError",
-        provider: endpoint.id,
-        message: `${providerSetting}: the ${target} task carries personal data and would reach ${endpoint.id} through ${endpoint.endpoint}, outside the EU`,
-      },
-    });
-  }
-  return problems;
+  return [...(built ? [built] : []), ...residencyProblems(env)];
 }
 
 export interface AiRoutingCheckDeps {
@@ -55,19 +89,34 @@ export interface AiRoutingCheckDeps {
   fetch?: typeof globalThis.fetch;
   /** How long one test call may take. Default: 20 s. */
   timeoutMs?: number;
+  /** Where each test call is recorded in AI Usage, as any AI call: for no Candidate, on the task whose route it tests. Default: nowhere. */
+  usage?: UsageLog;
 }
 
-/** The query a web-search model is tested with: a company's name, nothing of anyone. */
+/** The employer a web-search model is tested with: a company's name, nothing of anyone. */
 const TEST_QUERY = "Jobbbox";
 
-/** The cheapest call `endpoint` takes: one token of text, or one search. */
-async function testCall(endpoint: AiProvider, model: string, timeoutMs: number): Promise<void> {
-  const call = endpoint.generate
-    ? endpoint.generate({ model, messages: [{ role: "user", content: "Réponds OK." }], maxTokens: 1 })
-    : endpoint.search!(TEST_QUERY, { model });
+/**
+ * The task a test of `target`'s route is recorded on: its own; the identity route's, which serves any task with
+ * personal data of a consenting Candidate, on Tailored Documents' (`writing`), the calls it most often takes.
+ */
+const recordedAs = (target: RoutedTarget["target"]): TextTask => (target === "identity" ? "writing" : (target as TextTask));
+
+/**
+ * The cheapest call `target`'s endpoint takes, one token of text or one search, made through an AI layer of that
+ * endpoint alone, so it is redacted and recorded in AI Usage (cost, Outcome, Failure Reason) as any AI call is.
+ */
+async function testCall(target: RoutedTarget, deps: AiRoutingCheckDeps): Promise<void> {
+  const { endpoint, route } = target;
+  const timeoutMs = deps.timeoutMs ?? 20_000;
+  const ai = createAiLayer({ providers: [endpoint!], routes: {}, usage: deps.usage ?? { record: () => {} } });
+  const call =
+    target.target === SEARCH_TASK
+      ? ai.searchCompany({ candidateId: null, employer: TEST_QUERY, instructions: "{{entreprise}}", route })
+      : ai.generate({ task: recordedAs(target.target), candidateId: null, prompt: "Réponds OK.", maxTokens: 1, route });
   let timer: ReturnType<typeof setTimeout> | undefined;
   const late = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new AiProviderError(endpoint.id, `no answer within ${timeoutMs} ms`)), timeoutMs);
+    timer = setTimeout(() => reject(new AiProviderError(endpoint!.id, `no answer within ${timeoutMs} ms`)), timeoutMs);
   });
   try {
     await Promise.race([call, late]);
@@ -98,7 +147,7 @@ async function failedModel(before: Env, after: Env, deps: AiRoutingCheckDeps): P
     inUse.add(route);
     const endpoint = target.endpoint!;
     try {
-      await testCall(endpoint, target.route.model!, deps.timeoutMs ?? 20_000);
+      await testCall(target, deps);
     } catch (error) {
       const { technical } = failureOf(error, { secrets });
       const message = `${target.modelSetting}: ${target.route.model} failed its test call on ${endpoint.id} (${endpoint.endpoint}): ${technical.message}`;
@@ -114,7 +163,8 @@ async function failedModel(before: Env, after: Env, deps: AiRoutingCheckDeps): P
  *  - The AI layer must start on `after`: no key missing, no provider that cannot serve its task.
  *  - No task with personal data may reach an endpoint outside the EU.
  *  - Each model a route names that `before` did not use there passes its test call (one token, or one search).
- * A problem the configuration already had before the change does not block it.
+ * A problem the configuration already had before the change does not block it; each is weighed on its own, so a
+ * configuration already broken (a key missing) still has its residency checked.
  */
 export async function checkAiRoutingChange(before: Env, after: Env, deps: AiRoutingCheckDeps = {}): Promise<AiRoutingRefusal | null> {
   const known = new Set(problemsOf(before).map((problem) => problem.technical.message));

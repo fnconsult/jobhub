@@ -13,6 +13,26 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 
+## Effort
+
+Every ticket a skill creates (`/to-tickets`, `/triage`, `/wayfinder`…) carries an **Effort** section, after its acceptance criteria and before **Blocked by**: a size and the work that drives it, in one line.
+
+| Size | Agent working time |
+| ---- | ------------------ |
+| XS   | ¼ day or less      |
+| S    | ½ day              |
+| M    | 1–1.5 days         |
+| L    | 2–3 days           |
+| XL   | more than 3 days: split it before publishing |
+
+```
+## Effort
+
+**M (1–1,5 j)** — form, « Rétablir », Journal entries, worker reads the resolver.
+```
+
+When a skill publishes several tickets, it also publishes a tracking issue (label `enhancement`, never `ready-for-agent`) whose body tables each ticket's blockers and effort, the total and the critical path, with the tickets attached as sub-issues.
+
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads this flag.)_

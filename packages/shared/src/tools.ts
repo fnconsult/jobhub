@@ -11,6 +11,8 @@
  * id and, for Claude, endpoint) or `external_api_usage` (any other API, by provider id). An AI
  * Tool's other calls (its key's connection test, #234) go to `external_api_usage` under its own id.
  * Data residency (ADR-0007) is said only where it was established: "unknown" otherwise.
+ * A Tool also names the Platform Settings it depends on (ADR-0033, #304): Paramètres stays the
+ * only place they are changed; the Outils section shows them and accounts for them in its state.
  */
 
 /** What a Tool is for, in the Back Office's order. */
@@ -47,6 +49,20 @@ export type ToolUsage =
   /** Any other API, through `recordingFetch`: `external_api_usage.provider`. */
   | { table: "external_api_usage"; provider: string };
 
+/**
+ * A setting a Tool depends on: a Platform Setting, or a setting only env holds that Paramètres
+ * shows (MAIL_TRANSPORT, the Stripe Prices). Its value is compared as the code reads it.
+ */
+export interface ToolSetting {
+  name: string;
+  /** The Tool cannot be called while it is empty: « paramètre manquant ». */
+  required?: true;
+  /** The Tool is off unless the setting holds one of these values: « désactivé ». */
+  enabledWhen?: readonly string[];
+  /** The Tool is off while the setting holds one of these values: « désactivé ». */
+  disabledWhen?: readonly string[];
+}
+
 export interface Tool {
   /** Stable, used in its Outils page's address. */
   id: string;
@@ -58,6 +74,8 @@ export interface Tool {
   runsIn: "web" | "worker" | "both";
   /** The environment variables it cannot be called without (Provider Secrets among them); none for a public API. */
   keys: readonly string[];
+  /** The settings it depends on, in the order its page lists them; none when absent. */
+  settings?: readonly ToolSetting[];
   /** For a sign-in Tool, the type of Sign-in Provider it is: it is configured when one of that type is enabled. */
   signIn?: "google" | "apple" | "microsoft" | "oidc";
   /** Null while its calls are not recorded. */
@@ -87,6 +105,15 @@ const ENRICHMENT_PURPOSE: Translated = {
   fr: "Enrichissement de contacts : coordonnées professionnelles d'un contact chez un employeur. Seul le fournisseur actif est appelé.",
   en: "Contact enrichment: a contact's work details at an employer. Only the active provider is called.",
 };
+const WEB_SEARCH_SETTINGS: readonly ToolSetting[] = [{ name: "AI_WEB_SEARCH_PROVIDER" }, { name: "AI_WEB_SEARCH_MODEL" }];
+const JOB_DISCOVERY_BUDGET: readonly ToolSetting[] = [{ name: "JOB_DISCOVERY_BUDGET_JOB_OFFERS" }, { name: "JOB_DISCOVERY_BUDGET_EUR" }, { name: "JOB_DISCOVERY_BUDGET_SECONDS" }];
+/** Only the chosen provider is called, and only once its data-processing agreement is signed (ADR-0015). */
+const ENRICHMENT_SETTINGS = (provider: string): readonly ToolSetting[] => [
+  { name: "CONTACT_ENRICHMENT_PROVIDER", enabledWhen: [provider] },
+  { name: "CONTACT_ENRICHMENT_DPA_SIGNED", enabledWhen: ["true"] },
+];
+/** MAIL_TRANSPORT=console writes the emails to the server's log: Brevo is not called. */
+const MAIL_SETTINGS: readonly ToolSetting[] = [{ name: "MAIL_FROM" }, { name: "MAIL_TRANSPORT", disabledWhen: ["console"] }];
 const SIGN_IN_PURPOSE = (name: string): Translated => ({
   fr: `Connexion avec ${name}, pour les candidats et les administrateurs.`,
   en: `Sign-in with ${name}, for Candidates and Administrators.`,
@@ -104,6 +131,7 @@ export const TOOLS = [
     module: ANTHROPIC_MODULE,
     runsIn: "both",
     keys: ["ANTHROPIC_API_KEY"],
+    settings: [{ name: "ANTHROPIC_ENDPOINT" }],
     usage: { table: "ai_usage", provider: "anthropic", endpoint: "api.anthropic.com", external: "anthropic" },
     residency: "outside_eu",
   },
@@ -118,6 +146,7 @@ export const TOOLS = [
     module: ANTHROPIC_MODULE,
     runsIn: "both",
     keys: ["AWS_BEARER_TOKEN_BEDROCK"],
+    settings: [{ name: "ANTHROPIC_ENDPOINT" }, { name: "BEDROCK_REGION" }],
     usage: { table: "ai_usage", provider: "anthropic", endpoint: "bedrock ", external: "anthropic_bedrock" },
     residency: "eu",
     residencyNote: { fr: "Dans l'UE dans une région eu-* (eu-west-3 par défaut).", en: "In the EU in an eu-* region (eu-west-3 by default)." },
@@ -132,7 +161,8 @@ export const TOOLS = [
     category: "ai_model",
     module: ANTHROPIC_MODULE,
     runsIn: "both",
-    keys: ["VERTEX_PROJECT_ID"],
+    keys: [],
+    settings: [{ name: "ANTHROPIC_ENDPOINT", enabledWhen: ["vertex"] }, { name: "VERTEX_REGION" }, { name: "VERTEX_PROJECT_ID", required: true }],
     usage: { table: "ai_usage", provider: "anthropic", endpoint: "vertex " },
     residency: "eu",
     residencyNote: { fr: "Dans l'UE dans une région europe-* ou « eu » (europe-west1 par défaut).", en: "In the EU in a europe-* or \"eu\" region (europe-west1 by default)." },
@@ -148,6 +178,7 @@ export const TOOLS = [
     module: CHAT_COMPLETIONS_MODULE,
     runsIn: "both",
     keys: ["MISTRAL_API_KEY"],
+    settings: [{ name: "AI_IDENTITY_MODEL" }],
     usage: { table: "ai_usage", provider: "mistral", external: "mistral" },
     residency: "eu",
     residencyNote: { fr: "Dans l'UE par défaut (api.mistral.ai).", en: "In the EU by default (api.mistral.ai)." },
@@ -163,6 +194,7 @@ export const TOOLS = [
     module: CHAT_COMPLETIONS_MODULE,
     runsIn: "both",
     keys: ["OPENAI_API_KEY"],
+    settings: [{ name: "OPENAI_DATA_RESIDENCY" }],
     usage: { table: "ai_usage", provider: "openai" },
     residency: "outside_eu",
     residencyNote: { fr: "Dans l'UE seulement avec un projet OpenAI en région UE.", en: "In the EU only with an OpenAI project in the EU region." },
@@ -175,6 +207,7 @@ export const TOOLS = [
     module: "packages/ai/src/providers/perplexity.ts",
     runsIn: "both",
     keys: ["PERPLEXITY_API_KEY"],
+    settings: WEB_SEARCH_SETTINGS,
     usage: { table: "ai_usage", provider: "perplexity", external: "perplexity" },
     residency: "outside_eu",
   },
@@ -186,6 +219,7 @@ export const TOOLS = [
     module: "packages/ai/src/providers/brave.ts",
     runsIn: "both",
     keys: ["BRAVE_SEARCH_API_KEY"],
+    settings: WEB_SEARCH_SETTINGS,
     usage: { table: "ai_usage", provider: "brave" },
     residency: "outside_eu",
   },
@@ -197,6 +231,7 @@ export const TOOLS = [
     module: "packages/ai/src/providers/tavily.ts",
     runsIn: "both",
     keys: ["TAVILY_API_KEY"],
+    settings: WEB_SEARCH_SETTINGS,
     usage: { table: "ai_usage", provider: "tavily" },
     residency: "outside_eu",
   },
@@ -208,6 +243,7 @@ export const TOOLS = [
     module: "packages/ai/src/providers/linkup.ts",
     runsIn: "both",
     keys: ["LINKUP_API_KEY"],
+    settings: WEB_SEARCH_SETTINGS,
     usage: { table: "ai_usage", provider: "linkup" },
     residency: "outside_eu",
   },
@@ -222,6 +258,7 @@ export const TOOLS = [
     module: "apps/worker/src/job-discovery/france-travail/api.ts",
     runsIn: "worker",
     keys: ["FRANCE_TRAVAIL_CLIENT_ID", "FRANCE_TRAVAIL_CLIENT_SECRET"],
+    settings: JOB_DISCOVERY_BUDGET,
     usage: { table: "external_api_usage", provider: "france_travail" },
     residency: "eu",
     residencyNote: { fr: "Service public français ; aucune donnée personnelle envoyée.", en: "French public service; no personal data sent." },
@@ -300,6 +337,7 @@ export const TOOLS = [
     module: "apps/worker/src/job-discovery/polite-fetch.ts",
     runsIn: "worker",
     keys: [],
+    settings: JOB_DISCOVERY_BUDGET,
     usage: { table: "external_api_usage", provider: "job_site" },
     residency: "unknown",
     residencyNote: { fr: "Selon le site ; aucune donnée personnelle envoyée.", en: "Depends on the site; no personal data sent." },
@@ -327,6 +365,7 @@ export const TOOLS = [
     module: `${ENRICHMENT_MODULE}/lusha.ts`,
     runsIn: "web",
     keys: ["LUSHA_API_KEY"],
+    settings: ENRICHMENT_SETTINGS("lusha"),
     usage: { table: "external_api_usage", provider: "lusha" },
     residency: "outside_eu",
   },
@@ -338,6 +377,7 @@ export const TOOLS = [
     module: `${ENRICHMENT_MODULE}/kaspr.ts`,
     runsIn: "web",
     keys: ["KASPR_API_KEY"],
+    settings: ENRICHMENT_SETTINGS("kaspr"),
     usage: { table: "external_api_usage", provider: "kaspr" },
     residency: "unknown",
   },
@@ -349,6 +389,7 @@ export const TOOLS = [
     module: `${ENRICHMENT_MODULE}/apollo.ts`,
     runsIn: "web",
     keys: ["APOLLO_API_KEY"],
+    settings: ENRICHMENT_SETTINGS("apollo"),
     usage: { table: "external_api_usage", provider: "apollo" },
     residency: "outside_eu",
   },
@@ -363,6 +404,7 @@ export const TOOLS = [
     module: "apps/web/src/billing/index.ts",
     runsIn: "web",
     keys: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
+    settings: [{ name: "STRIPE_PRICE_STANDARD" }, { name: "STRIPE_PRICE_PREMIUM" }, { name: "STRIPE_PRICE_COACHING_SESSION" }, { name: "STRIPE_PRICE_COACHING_SESSION_PREMIUM" }],
     usage: { table: "external_api_usage", provider: "stripe" },
     residency: "outside_eu",
   },
@@ -377,6 +419,7 @@ export const TOOLS = [
     module: MAILER_MODULE,
     runsIn: "both",
     keys: ["BREVO_API_KEY"],
+    settings: MAIL_SETTINGS,
     usage: { table: "external_api_usage", provider: "brevo" },
     residency: "unknown",
   },
@@ -391,6 +434,7 @@ export const TOOLS = [
     module: MAILER_MODULE,
     runsIn: "both",
     keys: ["SMTP_URL"],
+    settings: MAIL_SETTINGS,
     usage: { table: "external_api_usage", provider: "brevo_smtp" },
     residency: "unknown",
   },

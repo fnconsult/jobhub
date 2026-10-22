@@ -7,6 +7,7 @@ import { isProviderSecretName } from "@/provider-secrets/catalog";
 import { routes } from "@/routes";
 import type { ToolFigures } from "@/tools";
 import { toolsOverviewNow } from "@/tools/server";
+import { EnvBadge } from "./EnvBadge";
 import { STATUS_TONE } from "./tone";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -21,6 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * Super-admins and Support see every external tool the app calls (#233), by category: what it is
  * for, where it runs and processes data, whether it is configured, and its last 30 days' calls.
  * Read-only; a key is only said to be there or not, linked to Clés for those who can open it.
+ * Its state accounts for its Platform Settings (#304): off, a setting missing, the « env » badge.
  */
 export default async function ToolsPage() {
   const { access } = await requireBackOffice("tools");
@@ -63,7 +65,7 @@ export default async function ToolsPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ tool, status, missingKeys, figures }) => (
+                {rows.map(({ tool, status, missingKeys, missingSettings, settingsFromEnv, figures }) => (
                   <tr key={tool.id}>
                     <th scope="row">
                       <Link href={routes.adminTool(tool.id)}>{tool.name}</Link>
@@ -75,7 +77,9 @@ export default async function ToolsPage() {
                       <span className="pill" data-tone={STATUS_TONE[status]}>
                         {t(`admin.tools.statuses.${status}`)}
                       </span>
+                      {settingsFromEnv.length > 0 ? <> <EnvBadge text={t("admin.tools.envBadge")} label={t("admin.tools.envBadgeLabel", { settings: settingsFromEnv.join(", ") })} /></> : null}
                       {missingKeys.length > 0 ? <p>{t("admin.tools.missingKeys", { keys: missingKeys.join(", ") })}</p> : null}
+                      {missingSettings.length > 0 ? <p>{t("admin.tools.missingSettings", { settings: missingSettings.join(", ") })}</p> : null}
                     </td>
                     <td>
                       {tool.keys.length === 0

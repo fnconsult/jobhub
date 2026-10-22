@@ -93,6 +93,8 @@ export const routes = {
   adminProviderSecrets: "/admin/cles",
   /** The Platform Settings (Paramètres, #298): every one with its value in use and its source; super-admins and Support. */
   adminPlatformSettings: "/admin/parametres",
+  /** One Platform Setting's row on Paramètres (#304), or one env holds that it shows. */
+  adminPlatformSetting: (name: string) => `/admin/parametres#setting-${encodeURIComponent(name)}`,
   /** The Sign-in Providers (Connexion) and Require SSO for Administrators, super-admins only. */
   adminSignInProviders: "/admin/connexion",
   /** The AI consumption report (Consommation IA), over a period ("7d", "2026-09"...): super-admins and Support. */

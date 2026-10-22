@@ -1942,11 +1942,16 @@
       },
       "statuses": {
         "configured": "Configuré",
+        "disabled": "Désactivé",
         "key_missing": "Clé manquante",
+        "setting_missing": "Paramètre manquant",
         "not_configured": "Non configuré",
         "no_key_needed": "Sans clé"
       },
       "missingKeys": "Manque : {{keys}}",
+      "missingSettings": "À régler dans Paramètres : {{settings}}",
+      "envBadge": "env",
+      "envBadgeLabel": "Vient de l'environnement et diffère de la valeur par défaut du code : {{settings}}",
       "noKeys": "Aucune",
       "notTraced": "Non tracé",
       "unknownCost": "Inconnu",
@@ -1974,7 +1979,10 @@
       "noReasons": "Aucun appel à l'IA échoué ou en avertissement sur 30 jours.",
       "code": "Code",
       "reason": "Raison",
-      "warning": "Avertissement"
+      "warning": "Avertissement",
+      "settingsTitle": "Paramètres",
+      "settingsIntro": "Les réglages de la plateforme dont dépend cet outil, en lecture seule : ils se changent dans Paramètres.",
+      "settingsCaption": "Paramètres de {{name}}"
     }
   },
   "backOfficeAssistant": {

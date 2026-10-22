@@ -9,6 +9,8 @@ import { isProviderSecretName } from "@/provider-secrets/catalog";
 import { routes } from "@/routes";
 import { LATEST_CALLS, type ToolCall } from "@/tools";
 import { toolPage } from "@/tools/server";
+import { SOURCE_TONE } from "../../parametres/tone";
+import { EnvBadge } from "../EnvBadge";
 import { STATUS_TONE } from "../tone";
 
 type Params = { params: Promise<{ id: string }> };
@@ -24,6 +26,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  * One Tool (#233): what it is, whether it is configured, its last 30 days' figures (with its failed and
  * warned AI calls per Failure Reason, #262) and its latest calls, each with when, what, its outcome (and
  * reason's wording), duration and cost. Never a payload, a secret nor a technical reason.
+ * And its Platform Settings (#304), read-only with their value and source, each linked to its row
+ * on Paramètres for those who can read it: Paramètres stays the only place they are changed.
  */
 export default async function ToolPage({ params }: Params) {
   const { access } = await requireBackOffice("tools");
@@ -33,6 +37,7 @@ export default async function ToolPage({ params }: Params) {
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
   const readsSecrets = access.can("providerSecrets", "read");
+  const readsSettings = access.can("platformSettings", "read");
 
   const number = new Intl.NumberFormat(locale);
   const eur = new Intl.NumberFormat(locale, { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 6 });
@@ -64,7 +69,14 @@ export default async function ToolPage({ params }: Params) {
           <span className="pill" data-tone={STATUS_TONE[row.status]}>
             {t(`admin.tools.statuses.${row.status}`)}
           </span>
+          {row.settingsFromEnv.length > 0 ? (
+            <>
+              {" "}
+              <EnvBadge text={t("admin.tools.envBadge")} label={t("admin.tools.envBadgeLabel", { settings: row.settingsFromEnv.join(", ") })} />
+            </>
+          ) : null}
           {row.missingKeys.length > 0 ? <> {t("admin.tools.missingKeys", { keys: row.missingKeys.join(", ") })}</> : null}
+          {row.missingSettings.length > 0 ? <> {t("admin.tools.missingSettings", { settings: row.missingSettings.join(", ") })}</> : null}
         </dd>
         <dt>{t("admin.tools.keys")}</dt>
         <dd>
@@ -95,6 +107,56 @@ export default async function ToolPage({ params }: Params) {
           <code>{tool.module}</code>
         </dd>
       </dl>
+
+      {row.settings.length > 0 ? (
+        <section className="stack" aria-labelledby="tool-settings">
+          <h2 id="tool-settings">{t("admin.tools.settingsTitle")}</h2>
+          <p>{t("admin.tools.settingsIntro")}</p>
+          <div className="table-scroll">
+            <table className="application-table">
+              <caption className="visually-hidden">{t("admin.tools.settingsCaption", { name: tool.name })}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">{t("admin.platformSettings.setting")}</th>
+                  <th scope="col">{t("admin.platformSettings.value")}</th>
+                  <th scope="col">{t("admin.platformSettings.source")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {row.settings.map((setting) => (
+                  <tr key={setting.name} data-setting={setting.name}>
+                    <th scope="row">
+                      {readsSettings ? (
+                        <Link href={routes.adminPlatformSetting(setting.name)}>
+                          <code>{setting.name}</code>
+                        </Link>
+                      ) : (
+                        <code>{setting.name}</code>
+                      )}
+                    </th>
+                    <td>
+                      {setting.value ? <code>{setting.value}</code> : t("admin.platformSettings.empty")}
+                      {setting.differsFromDefault ? (
+                        <>
+                          {" "}
+                          <strong className="pill" data-tone="danger">
+                            {t("admin.platformSettings.differsFlag")}
+                          </strong>
+                        </>
+                      ) : null}
+                    </td>
+                    <td>
+                      <span className="pill" data-tone={SOURCE_TONE[setting.source]}>
+                        {t(`admin.platformSettings.sources.${setting.source}`)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
 
       {row.figures ? (
         <>

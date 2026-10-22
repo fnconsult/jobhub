@@ -1942,11 +1942,16 @@
       },
       "statuses": {
         "configured": "Configured",
+        "disabled": "Disabled",
         "key_missing": "Key missing",
+        "setting_missing": "Setting missing",
         "not_configured": "Not configured",
         "no_key_needed": "No key needed"
       },
       "missingKeys": "Missing: {{keys}}",
+      "missingSettings": "To set on Settings: {{settings}}",
+      "envBadge": "env",
+      "envBadgeLabel": "From the environment, and not the code's default: {{settings}}",
       "noKeys": "None",
       "notTraced": "Not traced",
       "unknownCost": "Unknown",
@@ -1974,7 +1979,10 @@
       "noReasons": "No failed or warned AI call over 30 days.",
       "code": "Code",
       "reason": "Reason",
-      "warning": "Warning"
+      "warning": "Warning",
+      "settingsTitle": "Settings",
+      "settingsIntro": "The platform settings this Tool depends on, read-only: they are changed on Settings.",
+      "settingsCaption": "Settings of {{name}}"
     }
   },
   "backOfficeAssistant": {

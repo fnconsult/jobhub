@@ -2,14 +2,19 @@
  * The guard on the Tools (#233): every provider a call is recorded for, in `ai_usage` or in
  * `external_api_usage`, anywhere in the code, is a registered Tool. Adding a call to an
  * unregistered tool fails here (and, for `recordingFetch` and `recordingClient`, at type-check).
+ * And every Platform Setting tied to a provider is a setting of a Tool (#304).
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { PROVIDER_IDS } from "@jobhub/ai";
-import { externalApiProvidersOf, TOOLS } from "@jobhub/shared";
+import { PROVIDER_IDS, TEXT_TASKS } from "@jobhub/ai";
+import { externalApiProvidersOf, TOOLS, type Tool } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { CONTACT_PROVIDERS } from "../enriched-contacts/providers/types";
+import { ENV_ONLY_SETTINGS, PLATFORM_SETTINGS, platformSetting } from "../platform-settings/catalog";
 import { PROVIDER_SECRETS } from "../provider-secrets/catalog";
+
+/** The Tools, each with the settings it may name. */
+const tools = TOOLS as readonly Tool[];
 
 const ROOT = new URL("../../../../", import.meta.url).pathname;
 
@@ -76,5 +81,20 @@ describe("the guard on the Tools", () => {
   it("finds every Provider Secret among the keys of a Tool", () => {
     const keys = TOOLS.flatMap((tool) => tool.keys as readonly string[]);
     expect(PROVIDER_SECRETS.map((secret) => secret.name).filter((name) => !keys.includes(name))).toEqual([]);
+  });
+
+  it("finds every setting a Tool names on Paramètres: a Platform Setting, or one env holds that Paramètres shows read-only", () => {
+    const shownReadOnly = (name: string) => (ENV_ONLY_SETTINGS as Record<string, { kind: string }>)[name]?.kind === "read_only";
+    const unknown = tools.flatMap((tool) => (tool.settings ?? []).filter(({ name }) => !platformSetting(name) && !shownReadOnly(name)).map(({ name }) => `${tool.id}: ${name}`));
+    expect(unknown).toEqual([]);
+  });
+
+  it("finds every Platform Setting tied to a provider among the settings of a Tool", () => {
+    // Tied to no provider: which provider and model each text task uses (any of the AI models; the web search's
+    // are its providers'), the Job Digest's thresholds and the extension's store page.
+    const taskRouting = Object.keys(TEXT_TASKS).flatMap((task) => [`AI_${task.toUpperCase()}_PROVIDER`, `AI_${task.toUpperCase()}_MODEL`]);
+    const tiedToNoProvider = (name: string) => taskRouting.includes(name) || name.startsWith("JOB_DIGEST_") || name === "EXTENSION_STORE_URL";
+    const attached = new Set(tools.flatMap((tool) => (tool.settings ?? []).map(({ name }) => name)));
+    expect(PLATFORM_SETTINGS.map(({ name }) => name).filter((name) => !tiedToNoProvider(name) && !attached.has(name))).toEqual([]);
   });
 });

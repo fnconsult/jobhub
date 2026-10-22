@@ -1,18 +1,23 @@
 import type { Tool, ToolCategory } from "@jobhub/shared";
 import { sharedPool } from "@/database/pool";
+import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { getSecretResolver } from "@/provider-secrets/server";
 import { getSignInProviders } from "@/sign-in-providers/server";
 import { latestToolCalls, toolCalls, toolsOverview, type CalledTool, type ToolCall, type ToolRow, type ToolsState } from "./index";
 
-/** The values in use (Provider Secrets over env) and the Sign-in Providers enabled; none without a database. */
+/**
+ * The values in use (Provider Secrets over env), the Platform Settings in use (read now, as
+ * Paramètres reads them) and the Sign-in Providers enabled; none without a database.
+ */
 async function currentState(): Promise<ToolsState> {
   const env = getSecretResolver().current().env;
-  if (!process.env.DATABASE_URL) return { env, signInTypes: [] };
+  const settings = await getPlatformSettingsResolver().refresh();
+  if (!process.env.DATABASE_URL) return { env, signInTypes: [], settings };
   const providers = await getSignInProviders().list();
-  return { env, signInTypes: providers.filter((provider) => provider.enabled).map((provider) => provider.type) };
+  return { env, signInTypes: providers.filter((provider) => provider.enabled).map((provider) => provider.type), settings };
 }
 
-/** Every Tool, by category, with its status and its last 30 days' calls, as the Outils page lists them. */
+/** Every Tool, by category, with its status, its settings and its last 30 days' calls, as the Outils page lists them. */
 export async function toolsOverviewNow(): Promise<{ category: ToolCategory; rows: ToolRow[] }[]> {
   return toolsOverview(sharedPool(), await currentState(), new Date());
 }

@@ -273,8 +273,6 @@ test.describe("Job Digest", () => {
       return id;
     };
     const first = await createPoorFitProfile();
-    const second = await createPoorFitProfile();
-    const third = await createPoorFitProfile();
 
     const context = await browser.newContext({ baseURL: origin, locale: "en-US" });
     const office = await context.newPage();
@@ -296,6 +294,7 @@ test.describe("Job Digest", () => {
       await expect(sourceOf()).toContainText(settingsTexts.sources.back_office);
       // NOTIFY reaches the worker within seconds; its 60 s refresh is the fallback.
       await new Promise((resolve) => setTimeout(resolve, 3_000));
+      const second = await createPoorFitProfile();
       await scheduleTick();
       expect(await waitForDigestRun(second, 1)).toMatch(new RegExp(`^\\[job-digest\\] profile ${second}: Job Digest sent \\(\\d+ Job Offer\\(s\\)\\)`));
 
@@ -304,6 +303,8 @@ test.describe("Job Digest", () => {
       await expect(office.getByRole("status").filter({ hasText: THRESHOLD })).toHaveText(settingsTexts.notices.restored.replace("{{name}}", THRESHOLD));
       await expect(sourceOf()).toHaveText(settingsTexts.sources.default);
       await new Promise((resolve) => setTimeout(resolve, 3_000));
+      // Opted in only now: a tick makes every Profile due, so one opted in earlier would have been decided under the lowered threshold.
+      const third = await createPoorFitProfile();
       await scheduleTick();
       expect(await waitForDigestRun(third, 1)).toBe(`[job-digest] profile ${third}: nothing to send, Job discovery ran`);
     } finally {

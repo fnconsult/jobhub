@@ -8,7 +8,7 @@
  *   worker.ai;              // the AI layer (Follow-ups), routed by the AI routing Platform Settings (#301)
  *   worker.franceTravail(); // France Travail, or null without its credentials
  *   worker.fantasticJobs(); // Fantastic.jobs, or null without FANTASTIC_JOBS_API_KEY
- *   worker.mailer;          // BREVO_API_KEY or SMTP_URL (Brevo)
+ *   worker.mailer;          // BREVO_API_KEY or SMTP_URL (Brevo), and MAIL_FROM from the Platform Settings (#300)
  *
  * The AI layer is also rebuilt when an AI routing Platform Setting changes (`platformSettings`), so a provider, model or
  * endpoint set on Paramètres is used for the next call. A key refused by its provider (401/403, an SMTP 535, France Travail's or Fantastic.jobs' refusal) is
@@ -16,9 +16,9 @@
  */
 import { AiConfigError, createAiLayerFromEnv, type AiLayer, type CandidateIdentity, type UsageLog } from "@jobhub/ai";
 import { recordingFetch, type ExternalApiLog } from "@jobhub/shared";
-import { mailerFromEnv } from "@jobhub/web/mailers";
-import { AI_ROUTING_NAMES, withPlatformSettings, type PlatformSettingsResolver } from "@jobhub/web/platform-settings";
-import { AI_SECRET_NAMES, FANTASTIC_JOBS_SECRET_NAMES, FRANCE_TRAVAIL_SECRET_NAMES, liveObject, MAIL_SECRET_NAMES, rebuilding, type SecretResolver } from "@jobhub/web/provider-secrets";
+import { liveMailer } from "@jobhub/web/mailers";
+import { AI_ROUTING_NAMES, createPlatformSettingsResolver, withPlatformSettings, type PlatformSettingsResolver } from "@jobhub/web/platform-settings";
+import { AI_SECRET_NAMES, FANTASTIC_JOBS_SECRET_NAMES, FRANCE_TRAVAIL_SECRET_NAMES, liveObject, rebuilding, type SecretResolver } from "@jobhub/web/provider-secrets";
 import {
   chargedCostEur,
   createJobDiscovery,
@@ -36,7 +36,7 @@ type Env = Record<string, string | undefined>;
 
 export interface WorkerClientsOptions {
   resolver: SecretResolver;
-  /** The Platform Settings in use (ADR-0033): the AI layer follows the AI routing ones. Without it, env's routing alone. */
+  /** The Platform Settings in use (ADR-0033): the AI layer follows the AI routing ones, the mailer its MAIL_FROM. Without it, env's alone. */
   platformSettings?: PlatformSettingsResolver;
   /** In production a missing AI key fails Job discovery loudly; elsewhere it is unavailable, with the reason. */
   production: boolean;
@@ -66,7 +66,7 @@ export interface WorkerClients {
   ai: AiLayer;
   franceTravail(): FranceTravail | null;
   fantasticJobs(): FantasticJobs | null;
-  mailer: ReturnType<typeof mailerFromEnv>;
+  mailer: ReturnType<typeof liveMailer>;
 }
 
 /** France Travail when its credentials were just cleared mid-call: refused, like a withdrawn access. */
@@ -126,6 +126,8 @@ export function workerClients(options: WorkerClientsOptions): WorkerClients {
     return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, franceTravail, fantasticJobs, settings: options.settings, taskPlaybooks: options.taskPlaybooks, industries: options.industries, fetch: options.fetch, externalApis: options.externalApis });
   });
 
-  // Each email sent is recorded with the other external API calls, never who it was for.
-  return { discovery, ai, franceTravail, fantasticJobs, mailer: liveObject(resolver, MAIL_SECRET_NAMES, (env) => mailerFromEnv(env, { externalApis: options.externalApis })) };
+  // Rebuilt when Brevo's key or MAIL_FROM changes in the Back Office. Each email sent is recorded with the other
+  // external API calls, never who it was for.
+  const settings = options.platformSettings ?? createPlatformSettingsResolver({ load: async () => ({}), env: {} });
+  return { discovery, ai, franceTravail, fantasticJobs, mailer: liveMailer({ secrets: resolver, settings }, { externalApis: options.externalApis }) };
 }

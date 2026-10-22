@@ -12,7 +12,7 @@
  * Provider Secret (a test scans the code for them).
  */
 import { AI_ROUTING_SETTINGS } from "@jobhub/ai";
-import { DEVELOPMENT_MAIL_FROM } from "../auth/mailers";
+import { DEVELOPMENT_MAIL_FROM, isSender } from "../auth/mailers";
 import { CONTACT_PROVIDERS } from "../enriched-contacts/providers/types";
 import { SEARCH_TIMEOUT_MS } from "../job-searches";
 
@@ -29,6 +29,8 @@ export type PlatformSettingType =
   | { kind: "text" }
   /** An https URL (#303): a page people are sent to, never over plain http. */
   | { kind: "url" }
+  /** An email sender our mailers send as: "Jobbbox <hello@jobbbox.ai>", or a bare address. */
+  | { kind: "sender" }
   /** "true" or "false". */
   | { kind: "boolean" };
 
@@ -56,7 +58,7 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
       default: setting.default,
     }),
   ),
-  { name: "MAIL_FROM", group: "email", type: { kind: "text" }, default: DEVELOPMENT_MAIL_FROM },
+  { name: "MAIL_FROM", group: "email", type: { kind: "sender" }, default: DEVELOPMENT_MAIL_FROM },
   // The Job Digest (worker): lowest Match Score, how many Job Offers it aims for, how far back a Profile's first one looks.
   { name: "JOB_DIGEST_MIN_MATCH_SCORE", group: "job_digest", type: whole(0, 100), default: "60" },
   { name: "JOB_DIGEST_TARGET_COUNT", group: "job_digest", type: whole(1, 100), default: "10" },
@@ -79,10 +81,10 @@ export const platformSetting = (name: string): PlatformSetting | undefined => BY
 
 /**
  * The groups super-admins edit on Paramètres so far: the worker's Job Digest and Job discovery (#299),
- * AI routing (#301), each change of which is checked as the AI layer would build it, and the extension's
- * store page (#303). The others are shown read-only until their slice of ADR-0033 ships.
+ * AI routing (#301), the email sender (#300) and the extension's store page (#303). The others are shown
+ * read-only until their slice of ADR-0033 ships.
  */
-const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = ["ai_routing", "job_digest", "job_discovery", "extension"];
+const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = ["ai_routing", "email", "job_digest", "job_discovery", "extension"];
 
 /** Whether super-admins set `setting` on Paramètres (and « Rétablir » it). */
 export const isEditable = (setting: PlatformSetting): boolean => EDITABLE_GROUPS.includes(setting.group);
@@ -100,6 +102,8 @@ function rule(type: PlatformSettingType): string {
       return "some text";
     case "url":
       return "an https URL";
+    case "sender":
+      return "an email sender, such as Jobbbox <hello@jobbbox.ai>";
     case "boolean":
       return "true or false";
   }
@@ -135,6 +139,8 @@ export function parseSetting(setting: PlatformSetting, raw: string): ParsedSetti
       return { ok: true, value };
     case "url":
       return isHttpsUrl(value) ? { ok: true, value } : refused;
+    case "sender":
+      return isSender(value) ? { ok: true, value } : refused;
     case "boolean":
       return value === "true" || value === "false" ? { ok: true, value: value === "true" } : refused;
   }

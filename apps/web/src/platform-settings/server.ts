@@ -16,7 +16,7 @@ const envOnly: PlatformSettingsResolver = {
 /**
  * The Platform Settings in use in this process: the Back Office's, else env's, else the
  * code's defaults. Started before the server serves (instrumentation.ts); without DATABASE_URL
- * (a build, some tests), env and the defaults alone.
+ * (a build, some tests), env and the defaults alone. The mailer reads MAIL_FROM through it (#300).
  */
 export function getPlatformSettingsResolver(): PlatformSettingsResolver {
   if (!process.env.DATABASE_URL) return envOnly;

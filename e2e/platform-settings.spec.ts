@@ -26,6 +26,8 @@ const tr = (template: string, values: Record<string, string>) => template.replac
 const row = (page: Page, name: string) => page.locator(`tr[data-setting="${name}"]`);
 /** The setting this spec changes: barely below its default (60), so a worker spec running meanwhile is unaffected. */
 const EDITED = "JOB_DIGEST_MIN_MATCH_SCORE";
+/** The one editable setting the e2e server has from env (playwright.config.ts): 75, the code's default being 90. */
+const FROM_ENV = "JOB_DISCOVERY_BUDGET_SECONDS";
 
 /** A signed-in page of its own (cookies apart), as for another person on another computer. */
 async function personPage(browser: Browser, email: string): Promise<Page> {
@@ -98,7 +100,7 @@ test.describe("Platform Settings (Paramètres)", () => {
       const client = new Client({ connectionString: process.env.E2E_DATABASE_URL });
       await client.connect();
       try {
-        await client.query("DELETE FROM platform_setting WHERE name = $1", [EDITED]);
+        await client.query("DELETE FROM platform_setting WHERE name = ANY($1::text[])", [[EDITED, FROM_ENV]]);
         await client.query("SELECT pg_notify('platform_settings_changed', '')");
       } finally {
         await client.end();
@@ -149,6 +151,42 @@ test.describe("Platform Settings (Paramètres)", () => {
       await expect(refused).toContainText(tr(admin.journal.failed, { tried: admin.journal.actions.updated, reason: fr.failureReasons.invalid_value }));
       await expect(refused).toContainText(tr(admin.journal.fieldAtFault, { field: value }));
       await expect(refused).not.toContainText("120");
+    });
+
+    test("« Rétablir » falls back to the value env holds, not the code's default, and the source follows; the Journal has the before and after of each step", async ({ page }) => {
+      await signInWithMagicLink(page, SUPER_ADMIN);
+      await page.goto(PATH);
+      const setting = row(page, FROM_ENV);
+      const field = setting.getByRole("textbox", { name: tr(texts.newValue, { name: FROM_ENV }) });
+      await expect(setting.getByRole("cell").nth(0)).toContainText("75");
+      await expect(setting.getByRole("cell").nth(1)).toHaveText(texts.sources.env);
+      await expect(setting.getByRole("cell").nth(2)).toHaveText("90");
+      await expect(setting.getByRole("button", { name: texts.restore })).toHaveCount(0);
+
+      await field.fill("120");
+      await setting.getByRole("button", { name: texts.save }).click();
+      await expect(page.getByRole("status").filter({ hasText: FROM_ENV })).toHaveText(tr(texts.notices.saved, { name: FROM_ENV }));
+      await expect(setting.getByRole("cell").nth(0)).toHaveText("120");
+      await expect(setting.getByRole("cell").nth(1)).toContainText(texts.sources.back_office);
+
+      await setting.getByRole("button", { name: texts.restore }).click();
+      await expect(page.getByRole("status").filter({ hasText: FROM_ENV })).toHaveText(tr(texts.notices.restored, { name: FROM_ENV }));
+      await expect(setting.getByRole("cell").nth(0)).toContainText("75");
+      await expect(setting.getByRole("cell").nth(1)).toHaveText(texts.sources.env);
+      await expect(setting.getByRole("button", { name: texts.restore })).toHaveCount(0);
+
+      await page.goto("/admin/journal?section=platform_settings");
+      const value = texts.journalFields.value;
+      const source = texts.journalFields.source;
+      const entries = page.getByRole("row").filter({ hasText: FROM_ENV }).filter({ hasText: SUPER_ADMIN });
+      const saved = entries.filter({ hasText: admin.journal.actions.updated });
+      await expect(saved).toHaveCount(1);
+      await expect(saved).toContainText(tr(admin.journal.changed, { field: value, before: "75", after: "120" }));
+      await expect(saved).toContainText(tr(admin.journal.changed, { field: source, before: texts.sources.env, after: texts.sources.back_office }));
+      const restored = entries.filter({ hasText: admin.journal.actions.restored_to_default });
+      await expect(restored).toHaveCount(1);
+      await expect(restored).toContainText(tr(admin.journal.changed, { field: value, before: "120", after: "75" }));
+      await expect(restored).toContainText(tr(admin.journal.changed, { field: source, before: texts.sources.back_office, after: texts.sources.env }));
     });
   });
 

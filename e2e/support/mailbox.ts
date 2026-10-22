@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { expect } from "@playwright/test";
 
-export type Email = { to: string; subject: string; text: string };
+/** `from`: the sender (MAIL_FROM) the console mailer printed under the first line; `text` leaves it out. */
+export type Email = { to: string; from: string; subject: string; text: string };
 
 /** Emails the e2e web server printed (MAIL_TRANSPORT=console) to its log, oldest first. */
 export function emailsTo(address: string): Email[] {
@@ -15,7 +16,8 @@ export function emailsIn(log: string, address: string): Email[] {
     .filter((block) => block.startsWith(`[mail] to ${address}: `))
     .map((block) => {
       const [first, ...rest] = block.split("\n");
-      return { to: address, subject: first!.slice(`[mail] to ${address}: `.length), text: rest.join("\n") };
+      const from = rest[0]?.startsWith("From: ") ? rest.shift()!.slice("From: ".length) : "";
+      return { to: address, from, subject: first!.slice(`[mail] to ${address}: `.length), text: rest.join("\n") };
     });
 }
 

@@ -1,5 +1,9 @@
 import { recordingClient, recordingFetch, type ExternalApiLog } from "@jobhub/shared";
 import nodemailer from "nodemailer";
+import type { PlatformSettingsResolver } from "../platform-settings/resolver";
+import { secretsWithSettings } from "../platform-settings/secrets-with-settings";
+import { MAIL_SECRET_NAMES } from "../provider-secrets/catalog";
+import { liveObject, type SecretResolver } from "../provider-secrets/resolver";
 import type { Mailer, MailMessage } from "./index";
 
 /** Brevo's transactional email API (EU provider, ADR-0007). BREVO_API_URL overrides it (e2e). */
@@ -23,6 +27,21 @@ export function parseSender(from: string): { name?: string; email: string } {
   const [, rawName = "", rawEmail = ""] = match;
   const name = rawName.trim();
   return name ? { name, email: rawEmail.trim() } : { email: rawEmail.trim() };
+}
+
+/** An email address as a sender takes it: one address, no spaces, no list separators. */
+const ADDRESS = /^[^\s@<>()",;:\\[\]]+@[^\s@<>()",;:\\[\].][^\s@<>()",;:\\[\]]*$/;
+
+/**
+ * Whether `from` names one sender our mailers can send as (MAIL_FROM): "hello@jobbbox.ai",
+ * "Jobbbox <hello@jobbbox.ai>" or '"Jobbbox" <hello@jobbbox.ai>'. Never a list, never a line break
+ * (no header slipped in after it).
+ */
+export function isSender(from: string): boolean {
+  const value = from.trim();
+  if (/[\r\n]/.test(value)) return false;
+  const named = /^(?:"[^"\\]*"|[^"<>,;]*?)\s*<([^<>]*)>$/.exec(value);
+  return ADDRESS.test(named ? named[1]! : value);
 }
 
 /** Sends emails through Brevo's transactional email API, with an API key (xkeysib-…). */
@@ -61,11 +80,11 @@ export function smtpMailer(smtpUrl: string, from: string, transport: SmtpTranspo
   };
 }
 
-/** Development only: prints emails (and their sign-in links) to the server console. */
-export function consoleMailer(): Mailer {
+/** Development only: prints emails (and their sign-in links) to the server console, the sender under the first line (e2e reads it). */
+export function consoleMailer(from: string = DEVELOPMENT_MAIL_FROM): Mailer {
   return {
     async send(message: MailMessage) {
-      console.info(`[mail] to ${message.to}: ${message.subject}\n${message.text}`);
+      console.info(`[mail] to ${message.to}: ${message.subject}\nFrom: ${from}\n${message.text}`);
     },
   };
 }
@@ -88,7 +107,7 @@ export const DEVELOPMENT_MAIL_FROM = "Jobbbox <bonjour@localhost>";
 export function mailerFromEnv(env: Record<string, string | undefined>, options: MailerOptions = {}): Mailer {
   const production = env.NODE_ENV === "production";
   const brevoApiKey = env.BREVO_API_KEY?.trim();
-  if (env.MAIL_TRANSPORT === "console" || (!production && !brevoApiKey && !env.SMTP_URL)) return consoleMailer();
+  if (env.MAIL_TRANSPORT === "console" || (!production && !brevoApiKey && !env.SMTP_URL)) return consoleMailer(env.MAIL_FROM || DEVELOPMENT_MAIL_FROM);
   if (!brevoApiKey && !env.SMTP_URL) throw new Error("Missing environment variable BREVO_API_KEY or SMTP_URL");
   const from = env.MAIL_FROM || (production ? undefined : DEVELOPMENT_MAIL_FROM);
   if (!from) throw new Error("Missing environment variable MAIL_FROM");
@@ -99,4 +118,17 @@ export function mailerFromEnv(env: Record<string, string | undefined>, options: 
   }
   const smtp = smtpMailer(env.SMTP_URL!, from, options.smtpTransport);
   return externalApis ? recordingClient(smtp, externalApis, { provider: "brevo_smtp", answeredStatus: null }) : smtp;
+}
+
+/** What the mailers are built from: Brevo's key or SMTP relay (Provider Secrets), and the sender (a Platform Setting). */
+export const MAILER_NAMES = [...MAIL_SECRET_NAMES, "MAIL_FROM"] as const;
+
+/**
+ * The web app's and the worker's mailer (`mailerFromEnv`), built from the Provider Secrets and the
+ * Platform Settings in use, and rebuilt when one it reads changes: a key replaced in Clés or a
+ * `MAIL_FROM` saved on Paramètres is used by the next email, without a restart (#300).
+ * A mailer that cannot be built (production with no sender anywhere) fails the email it was asked to send.
+ */
+export function liveMailer(sources: { secrets: SecretResolver; settings: PlatformSettingsResolver }, options: MailerOptions = {}): Mailer {
+  return liveObject(secretsWithSettings(sources.secrets, sources.settings), MAILER_NAMES, (env) => mailerFromEnv(env, options));
 }

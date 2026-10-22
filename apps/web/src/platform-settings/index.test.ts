@@ -91,9 +91,27 @@ describe.skipIf(!connectionString)("Platform Settings in the database (needs Pos
       expect(await store.set("JOB_DISCOVERY_BUDGET_SECONDS", "900", "ops@jobbbox.ai")).toEqual({ ok: false, error: "invalid" });
       expect(await store.set("JOB_DISCOVERY_BUDGET_JOB_OFFERS", "trente", "ops@jobbbox.ai")).toEqual({ ok: false, error: "invalid" });
       expect(await store.set("JOB_DIGEST_TARGET_COUNT", "  ", "ops@jobbbox.ai")).toEqual({ ok: false, error: "empty" });
-      expect(await store.set("MAIL_FROM", "Jobbbox <bonjour@jobbbox.ai>", "ops@jobbbox.ai")).toEqual({ ok: false, error: "not_editable" });
+      expect(await store.set("MAIL_TRANSPORT", "brevo", "ops@jobbbox.ai")).toEqual({ ok: false, error: "not_editable" });
       expect(await store.set("AUTH_SECRET", "x", "ops@jobbbox.ai")).toEqual({ ok: false, error: "not_editable" });
 
+      expect(await platformSettingsReader(database.pool).load()).toEqual({});
+    });
+
+    it("sets MAIL_FROM to an email sender and refuses anything else; MAIL_TRANSPORT stays env's alone", async () => {
+      const store = platformSettingsStore(database.pool, { MAIL_FROM: "Jobbbox <bonjour@jobbbox.fr>", MAIL_TRANSPORT: "console" });
+
+      expect(await store.set("MAIL_FROM", " Jobbbox <hello@jobbbox.ai> ", "ops@jobbbox.ai")).toEqual({
+        ok: true,
+        changed: true,
+        before: { value: "Jobbbox <bonjour@jobbbox.fr>", source: "env" },
+        after: { value: "Jobbbox <hello@jobbbox.ai>", source: "back_office" },
+      });
+      expect(await store.set("MAIL_FROM", "Jobbbox", "ops@jobbbox.ai")).toEqual({ ok: false, error: "invalid" });
+      expect(await store.set("MAIL_FROM", "Jobbbox <hello@jobbbox.ai>\nBcc: someone@example.fr", "ops@jobbbox.ai")).toEqual({ ok: false, error: "invalid" });
+      expect(await store.set("MAIL_TRANSPORT", "brevo", "ops@jobbbox.ai")).toEqual({ ok: false, error: "not_editable" });
+      expect(await store.restore("MAIL_TRANSPORT")).toEqual({ ok: false, error: "not_editable" });
+
+      expect(await store.restore("MAIL_FROM")).toMatchObject({ ok: true, changed: true, after: { value: "Jobbbox <bonjour@jobbbox.fr>", source: "env" } });
       expect(await platformSettingsReader(database.pool).load()).toEqual({});
     });
 
@@ -110,7 +128,7 @@ describe.skipIf(!connectionString)("Platform Settings in the database (needs Pos
       });
       expect(await store.restore("JOB_DIGEST_MIN_MATCH_SCORE")).toMatchObject({ ok: true, changed: true, after: { value: "60", source: "default" } });
       expect(await store.restore("JOB_DIGEST_MIN_MATCH_SCORE")).toMatchObject({ ok: true, changed: false });
-      expect(await store.restore("MAIL_FROM")).toEqual({ ok: false, error: "not_editable" });
+      expect(await store.restore("MAIL_TRANSPORT")).toEqual({ ok: false, error: "not_editable" });
       expect(await platformSettingsReader(database.pool).load()).toEqual({});
     });
 

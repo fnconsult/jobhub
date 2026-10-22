@@ -1247,7 +1247,7 @@
       "save": "Save",
       "restore": "Restore",
       "restoreHelp": "Clears the Back Office's value: env's applies, else the code's default.",
-      "editIntro": "AI routing, the Job Digest and Job discovery settings are changed here: a saved value applies within seconds in the app and the worker, without a restart. An AI routing change is checked before it is saved: a route the AI layer would refuse (personal data outside the EU, a key missing) is refused, and a model named is tested with a call. Each change and each refused attempt goes to the Journal.",
+      "editIntro": "AI routing, the email sender, the Job Digest and Job discovery settings are changed here: a saved value applies within seconds in the app and the worker, without a restart (the next email, for the sender). An AI routing change is checked before it is saved: a route the AI layer would refuse (personal data outside the EU, a key missing) is refused, and a model named is tested with a call. Each change and each refused attempt goes to the Journal.",
       "rules": {
         "whole": "a whole number from {{min}} to {{max}}",
         "wholeAboveMin": "a whole number above {{min}}, up to {{max}}",
@@ -1255,7 +1255,8 @@
         "decimalAboveMin": "a number above {{min}}, up to {{max}}",
         "choice": "one of {{values}}",
         "text": "some text",
-        "model": "a {{provider}} model, picked from the list or typed; it is tested with a call on save"
+        "model": "a {{provider}} model, picked from the list or typed; it is tested with a call on save",
+        "sender": "an email sender, such as Jobbbox <hello@jobbbox.ai>"
       },
       "notices": {
         "saved": "{{name}} saved: the new value applies within seconds, without a restart.",

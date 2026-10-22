@@ -10,7 +10,7 @@ import { createJobDigests, jobDigestsConfigFromEnv } from "@jobhub/web/job-diges
 import { createJobOffers } from "@jobhub/web/job-offers";
 import { createJobSearchReports } from "@jobhub/web/job-searches";
 import { mailerFromEnv } from "@jobhub/web/mailers";
-import { watchPlatformSettings } from "@jobhub/web/platform-settings";
+import { secretsWithSettings, watchPlatformSettings } from "@jobhub/web/platform-settings";
 import { createProfiles } from "@jobhub/web/profiles";
 import { permanentSuperAdminsFromEnv, superAdminEmails } from "@jobhub/web/administrators";
 import { secretCipherFromEnv, watchProviderSecrets } from "@jobhub/web/provider-secrets";
@@ -42,8 +42,8 @@ const secrets = providerSecrets.resolver;
 
 // Platform Settings (ADR-0033): the values super-admins set on Paramètres over env's, over the
 // code's defaults, kept current the same way. The Job Digest and Job discovery read theirs at each
-// run, so a change applies to the next one without a restart (#299). A value env holds that the
-// code refuses still stops the worker here, at start-up.
+// run, so a change applies to the next one without a restart (#299), and the mailer is rebuilt when
+// MAIL_FROM changes (#300). A value env holds that the code refuses still stops the worker here, at start-up.
 const platformSettings = watchPlatformSettings({ database, env: process.env });
 await platformSettings.ready;
 const settingsEnv = () => platformSettings.resolver.current().env;
@@ -96,8 +96,9 @@ if (!baseURL) {
 if (!worker.franceTravail()) console.info("[worker] France Travail is off: FRANCE_TRAVAIL_CLIENT_ID and FRANCE_TRAVAIL_CLIENT_SECRET are not both set");
 // Fantastic.jobs is searched only with its key (Back Office → Clés, else env): without it, Job discovery goes without it.
 if (!worker.fantasticJobs()) console.info("[worker] Fantastic.jobs is off: FANTASTIC_JOBS_API_KEY is not set");
-// Fails at start-up, as before, where the mailer cannot be built (production without BREVO_API_KEY or SMTP_URL).
-mailerFromEnv(secrets.current().env);
+// Fails at start-up, as before, where the mailer cannot be built (production without BREVO_API_KEY or SMTP_URL,
+// or without MAIL_FROM in env or on Paramètres).
+mailerFromEnv(secretsWithSettings(secrets, platformSettings.resolver).current().env);
 const mailer = worker.mailer;
 
 const billing = createBilling({ database, baseURL });

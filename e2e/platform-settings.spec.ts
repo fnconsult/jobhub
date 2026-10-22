@@ -14,6 +14,8 @@ import { newAddress } from "./support/mailbox";
 // Issue #301: they change AI routing too, each change checked as the AI layer would build it: a
 // route with personal data outside the EU is refused with its reason, and a model typed is tested
 // with a call (the fake Mistral refuses a model named "…inexistant…", e2e/support/fake-mistral.mjs).
+// Issue #300: and MAIL_FROM, refused unless it names one email sender; MAIL_TRANSPORT stays read-only. Saving one
+// and the emails sent with it are in job-digest.spec.ts: the one spec that changes MAIL_FROM.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const admin = fr.admin;
 const texts = admin.platformSettings;
@@ -117,8 +119,8 @@ test.describe("Platform Settings (Paramètres)", () => {
       const setting = row(page, EDITED);
       const field = setting.getByRole("textbox", { name: tr(texts.newValue, { name: EDITED }) });
       await expect(setting).toContainText(tr(texts.accepted, { rule: tr(texts.rules.whole, { min: "0", max: "100" }) }));
-      // The sender's address is not editable yet: no field.
-      await expect(row(page, "MAIL_FROM").getByRole("textbox")).toHaveCount(0);
+      // MAIL_TRANSPORT stays env's, read-only: no field.
+      await expect(row(page, "MAIL_TRANSPORT").getByRole("textbox")).toHaveCount(0);
 
       await field.fill("59");
       await setting.getByRole("button", { name: texts.save }).click();
@@ -288,6 +290,28 @@ test.describe("Platform Settings (Paramètres)", () => {
       await expect(refused).toContainText(tr(admin.journal.failed, { tried: admin.journal.actions.updated, reason: fr.failureReasons.test_failed }));
       await expect(refused).not.toContainText("mistral-inexistant-9");
     });
+  });
+
+  test("a sender MAIL_FROM does not take is refused and in the Journal without it; MAIL_TRANSPORT has no field (#300)", async ({ page }) => {
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    await page.goto(PATH);
+    const setting = row(page, "MAIL_FROM");
+    const before = (await setting.getByRole("cell").nth(0).innerText()).trim();
+    await expect(setting).toContainText(tr(texts.accepted, { rule: texts.rules.sender }));
+    await expect(row(page, "MAIL_TRANSPORT").getByRole("textbox")).toHaveCount(0);
+    await expect(row(page, "MAIL_TRANSPORT").getByRole("button")).toHaveCount(0);
+
+    const refusedSender = `Jobbbox <refused-${Date.now()}>`;
+    await setting.getByRole("textbox", { name: tr(texts.newValue, { name: "MAIL_FROM" }) }).fill(refusedSender);
+    await setting.getByRole("button", { name: texts.save }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "MAIL_FROM" })).toHaveText(tr(texts.notices.invalid, { name: "MAIL_FROM", rule: texts.rules.sender }));
+    await expect(setting.getByRole("cell").nth(0)).toHaveText(before);
+
+    await page.goto("/admin/journal?section=platform_settings&outcome=failed");
+    const refused = page.getByRole("row").filter({ hasText: "MAIL_FROM" }).filter({ hasText: SUPER_ADMIN }).filter({ hasText: admin.journal.actions.refused });
+    await expect(refused.first()).toContainText(tr(admin.journal.failed, { tried: admin.journal.actions.updated, reason: fr.failureReasons.invalid_value }));
+    await expect(refused.first()).toContainText(tr(admin.journal.fieldAtFault, { field: texts.journalFields.value }));
+    await expect(page.getByRole("main")).not.toContainText(refusedSender);
   });
 
   test("Support reads Paramètres; another role is denied it, and that is in the Journal", async ({ page, browser }) => {

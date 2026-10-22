@@ -30,6 +30,14 @@ describe("authConfigFromEnv", () => {
     expect(() => authConfigFromEnv({ ...base, NODE_ENV: "production", SMTP_URL: undefined })).toThrow(/BREVO_API_KEY or SMTP_URL/);
   });
 
+  it("in production, takes the mailer it is given (the web app's, whose MAIL_FROM may be on Paramètres alone) without requiring MAIL_FROM in env (#300)", () => {
+    const mailer = { send: async () => {} };
+    const production = { ...base, NODE_ENV: "production", SMTP_URL: undefined, BREVO_API_KEY: "xkeysib-1", MAIL_FROM: undefined };
+
+    expect(() => authConfigFromEnv(production)).toThrow(/MAIL_FROM/);
+    expect(authConfigFromEnv(production, { mailer }).mailer).toBe(mailer);
+  });
+
   it("runs in development with defaults, printing sign-in emails to the console", () => {
     const config = authConfigFromEnv({ DATABASE_URL: base.DATABASE_URL, NODE_ENV: "development" });
     expect(config.baseURL).toBe("http://localhost:3000");

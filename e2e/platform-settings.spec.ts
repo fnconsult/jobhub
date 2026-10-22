@@ -119,8 +119,8 @@ test.describe("Platform Settings (Paramètres)", () => {
       const setting = row(page, EDITED);
       const field = setting.getByRole("textbox", { name: tr(texts.newValue, { name: EDITED }) });
       await expect(setting).toContainText(tr(texts.accepted, { rule: tr(texts.rules.whole, { min: "0", max: "100" }) }));
-      // The sender's address is not editable yet: no field.
-      await expect(row(page, "MAIL_FROM").getByRole("textbox")).toHaveCount(0);
+      // MAIL_TRANSPORT stays env's, read-only: no field.
+      await expect(row(page, "MAIL_TRANSPORT").getByRole("textbox")).toHaveCount(0);
 
       await field.fill("59");
       await setting.getByRole("button", { name: texts.save }).click();

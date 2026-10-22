@@ -92,6 +92,7 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
   const rule = (type: PlatformSettingType): string => {
     if (type.kind === "choice") return t("admin.platformSettings.rules.choice", { values: type.values.join(", ") });
     if (type.kind === "text") return t("admin.platformSettings.rules.text");
+    if (type.kind === "sender") return t("admin.platformSettings.rules.sender");
     if (type.kind !== "number") return "";
     const key = `${type.whole ? "whole" : "decimal"}${type.aboveMin ? "AboveMin" : ""}` as const;
     return t(`admin.platformSettings.rules.${key}`, { min: number.format(type.min), max: number.format(type.max) });

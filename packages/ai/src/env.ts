@@ -86,20 +86,24 @@ const ANTHROPIC_ENDPOINTS = ["auto", "bedrock", "vertex", "direct"] as const;
  * the direct API with ANTHROPIC_API_KEY, Bedrock with AWS_BEARER_TOKEN_BEDROCK, both with both
  * keys, and Bedrock through the AWS credential chain (e.g. the ECS task role) with neither.
  * The direct API comes first: with both, tasks without personal data use it (ai-layer.ts).
+ * `bedrock` or `vertex` (an older .env's setting) keeps every task on that endpoint, and an
+ * ANTHROPIC_API_KEY entered adds the direct API after it: only a route naming one of its models
+ * (a Playbook Agent's, offered outside the EU) reaches it.
  */
 function anthropicEndpoints(env: Env): AnthropicEndpoint[] {
   const bedrock = (): AnthropicEndpoint => ({ kind: "bedrock", region: env.BEDROCK_REGION?.trim() || "eu-north-1", apiKey: env.AWS_BEARER_TOKEN_BEDROCK?.trim() || undefined });
+  const directKey = env.ANTHROPIC_API_KEY?.trim();
+  const andDirect = (endpoint: AnthropicEndpoint): AnthropicEndpoint[] => (directKey ? [endpoint, { kind: "direct", apiKey: directKey }] : [endpoint]);
   switch (oneOf(env, "ANTHROPIC_ENDPOINT", ANTHROPIC_ENDPOINTS, "auto")) {
     case "direct":
       return [{ kind: "direct", apiKey: required(env, "ANTHROPIC_API_KEY") }];
     case "vertex":
-      return [{ kind: "vertex", region: env.VERTEX_REGION?.trim() || "europe-west1", projectId: required(env, "VERTEX_PROJECT_ID") }];
+      return andDirect({ kind: "vertex", region: env.VERTEX_REGION?.trim() || "europe-west1", projectId: required(env, "VERTEX_PROJECT_ID") });
     case "bedrock":
-      return [bedrock()];
+      return andDirect(bedrock());
     case "auto": {
-      const direct = env.ANTHROPIC_API_KEY?.trim();
-      const endpoints: AnthropicEndpoint[] = direct ? [{ kind: "direct", apiKey: direct }] : [];
-      if (!direct || env.AWS_BEARER_TOKEN_BEDROCK?.trim()) endpoints.push(bedrock());
+      const endpoints: AnthropicEndpoint[] = directKey ? [{ kind: "direct", apiKey: directKey }] : [];
+      if (!directKey || env.AWS_BEARER_TOKEN_BEDROCK?.trim()) endpoints.push(bedrock());
       return endpoints;
     }
   }

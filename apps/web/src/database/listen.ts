@@ -13,10 +13,11 @@ export async function listenForNotifications(
   database: Pick<Pool, "connect">,
   channel: string,
   onChange: () => void,
-  options: { log?: (line: string) => void; reconnectMs?: number; maxReconnectMs?: number } = {},
+  options: { log?: (line: string) => void; /** Names the listener in what is logged. Default: "provider-secrets". */ label?: string; reconnectMs?: number; maxReconnectMs?: number } = {},
 ): Promise<() => Promise<void>> {
   if (!/^[a-z_]+$/.test(channel)) throw new Error(`Not a channel name: ${channel}`);
   const log = options.log ?? ((line: string) => console.warn(line));
+  const label = options.label ?? "provider-secrets";
   const firstDelay = options.reconnectMs ?? 1_000;
   const maxDelay = options.maxReconnectMs ?? 60_000;
   let delay = firstDelay;
@@ -41,7 +42,7 @@ export async function listenForNotifications(
     try {
       listening = await database.connect();
     } catch (error) {
-      log(`[provider-secrets] cannot listen for changes, trying again in ${delay} ms: ${error instanceof Error ? error.message : String(error)}`);
+      log(`[${label}] cannot listen for changes, trying again in ${delay} ms: ${error instanceof Error ? error.message : String(error)}`);
       return again();
     }
     const detach = () => {
@@ -49,7 +50,7 @@ export async function listenForNotifications(
       listening.off("error", dropped);
     };
     const dropped = (error: Error) => {
-      log(`[provider-secrets] stopped listening for changes, trying again in ${delay} ms: ${error.message}`);
+      log(`[${label}] stopped listening for changes, trying again in ${delay} ms: ${error.message}`);
       detach();
       if (client?.connection === listening) client = null;
       listening.release(error);

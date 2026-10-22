@@ -28,6 +28,7 @@ import { migrateHumanCoaches } from "./human-coaches/index";
 import { migrateJobDigests } from "./job-digests/index";
 import { migrateJobOffers } from "./job-offers/index";
 import { migrateJobSearches } from "./job-searches/index";
+import { migratePlatformSettings } from "./platform-settings/index";
 import { migrateProfiles } from "./profiles/index";
 import { migrateProviderSecrets } from "./provider-secrets/index";
 import { migrateReferenceData } from "./reference-data/index";
@@ -72,6 +73,7 @@ export async function migrateDatabase(
     ["Back Office Audit is up to date", () => migrateBackOfficeAudit(database)],
     ["Back Office Roles are up to date", () => migrateAdministratorRoles(database)],
     ["Provider Secrets are up to date", () => migrateProviderSecrets(database)],
+    ["Platform Settings are up to date", () => migratePlatformSettings(database)],
     ["Sign-in Providers are up to date", () => migrateSignInProviders(database, env)],
     ["Back Office Assistant conversations are up to date", () => migrateAssistantConversations(database)],
     ["AI Usage is up to date", () => migrateAiUsage(database)],

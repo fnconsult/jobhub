@@ -1247,7 +1247,7 @@
       "save": "Save",
       "restore": "Restore",
       "restoreHelp": "Clears the Back Office's value: env's applies, else the code's default.",
-      "editIntro": "The Job Digest and Job discovery settings are changed here: a saved value applies to the worker's next run, without a restart. Each change and each refused attempt goes to the Journal.",
+      "editIntro": "The Job Digest, Job discovery and Enriched Contacts settings are changed here: a saved value applies without a restart. Each change and each refused attempt goes to the Journal.",
       "rules": {
         "whole": "a whole number from {{min}} to {{max}}",
         "wholeAboveMin": "a whole number above {{min}}, up to {{max}}",
@@ -1255,17 +1255,26 @@
         "decimalAboveMin": "a number above {{min}}, up to {{max}}"
       },
       "notices": {
-        "saved": "{{name}} saved: the new value applies to the next run, without a restart.",
+        "saved": "{{name}} saved: the new value applies without a restart.",
         "unchanged": "{{name}} already had this value: nothing changed.",
         "restored": "{{name}} restored: env's value applies, else the code's default.",
         "notRestored": "{{name}} had no Back Office value: nothing changed.",
         "invalid": "Value refused for {{name}}: it takes {{rule}}. The attempt is in the Journal.",
         "empty": "Enter a value for {{name}}.",
-        "not_editable": "{{name}} cannot be changed here yet."
+        "not_editable": "{{name}} cannot be changed here yet.",
+        "unconfirmed": "{{name}} waits for your confirmation.",
+        "restoreUnconfirmed": "Restoring {{name}} waits for your confirmation."
       },
       "journalFields": {
         "value": "Value",
         "source": "Source"
+      },
+      "enrichedContactsHelp": "Enriched Contacts stay off until the DPA is marked signed, whatever the provider and its key. The chosen provider's key is entered in Keys.",
+      "confirmDpa": {
+        "title": "Mark the DPA signed?",
+        "question": "Do you confirm the data-processing agreement (DPA) with the Enriched Contacts provider is signed? The code cannot check it: once the DPA is marked signed, Enriched Contacts turn on as soon as a provider is chosen and its key is in Keys. The confirmation goes to the Journal.",
+        "yes": "Yes, the DPA is signed",
+        "cancel": "Cancel"
       }
     },
     "administrators": {

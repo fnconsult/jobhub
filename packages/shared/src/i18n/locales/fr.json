@@ -1247,7 +1247,7 @@
       "save": "Enregistrer",
       "restore": "Rétablir",
       "restoreHelp": "Efface la valeur du back office : celle de l'environnement s'applique, sinon le défaut du code.",
-      "editIntro": "Les réglages du Job Digest et de la recherche d'offres se modifient ici : une valeur enregistrée s'applique au prochain passage du worker, sans redémarrage. Chaque modification et chaque tentative refusée est inscrite au Journal.",
+      "editIntro": "Les réglages du Job Digest, de la recherche d'offres et des contacts enrichis se modifient ici : une valeur enregistrée s'applique sans redémarrage. Chaque modification et chaque tentative refusée est inscrite au Journal.",
       "rules": {
         "whole": "un nombre entier de {{min}} à {{max}}",
         "wholeAboveMin": "un nombre entier supérieur à {{min}}, jusqu'à {{max}}",
@@ -1255,17 +1255,26 @@
         "decimalAboveMin": "un nombre supérieur à {{min}}, jusqu'à {{max}}"
       },
       "notices": {
-        "saved": "{{name}} enregistré : la nouvelle valeur s'applique au prochain passage, sans redémarrage.",
+        "saved": "{{name}} enregistré : la nouvelle valeur s'applique sans redémarrage.",
         "unchanged": "{{name}} avait déjà cette valeur : rien n'a changé.",
         "restored": "{{name}} rétabli : la valeur de l'environnement s'applique, sinon le défaut du code.",
         "notRestored": "{{name}} n'avait pas de valeur dans le back office : rien n'a changé.",
         "invalid": "Valeur refusée pour {{name}} : il faut {{rule}}. La tentative est inscrite au Journal.",
         "empty": "Saisissez une valeur pour {{name}}.",
-        "not_editable": "{{name}} ne se modifie pas encore ici."
+        "not_editable": "{{name}} ne se modifie pas encore ici.",
+        "unconfirmed": "{{name}} attend votre confirmation.",
+        "restoreUnconfirmed": "Le rétablissement de {{name}} attend votre confirmation."
       },
       "journalFields": {
         "value": "Valeur",
         "source": "Source"
+      },
+      "enrichedContactsHelp": "Les contacts enrichis restent désactivés tant que le DPA n'est pas marqué signé, quels que soient le fournisseur et sa clé. La clé du fournisseur choisi se saisit dans Clés.",
+      "confirmDpa": {
+        "title": "Marquer le DPA signé ?",
+        "question": "Confirmez-vous que l'accord de traitement des données (DPA) avec le fournisseur des contacts enrichis est signé ? Le code ne peut pas le vérifier : une fois le DPA marqué signé, les contacts enrichis s'activent dès qu'un fournisseur est choisi et que sa clé est dans Clés. La confirmation est inscrite au Journal.",
+        "yes": "Oui, le DPA est signé",
+        "cancel": "Annuler"
       }
     },
     "administrators": {

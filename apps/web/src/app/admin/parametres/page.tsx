@@ -15,7 +15,7 @@ import { routes } from "@/routes";
 const ELSEWHERE: BackOfficePage[] = ["planQuotas", "guardrails", "coachCost", "providerSecrets"];
 
 /** What the page says after a save or « Rétablir »: a key under admin.platformSettings.notices, and whether it is an error. */
-const NOTICES = { saved: false, unchanged: false, restored: false, notRestored: false, invalid: true, empty: true, not_editable: true } as const;
+const NOTICES = { saved: false, unchanged: false, restored: false, notRestored: false, invalid: true, empty: true, not_editable: true, unconfirmed: true, restoreUnconfirmed: true } as const;
 type Notice = keyof typeof NOTICES;
 const isNotice = (value: unknown): value is Notice => typeof value === "string" && Object.hasOwn(NOTICES, value);
 
@@ -23,22 +23,31 @@ const isNotice = (value: unknown): value is Notice => typeof value === "string" 
 const back = (notice: Notice, name: string): never =>
   redirect(`${routes.adminPlatformSettings}?${new URLSearchParams({ notice, setting: name })}#setting-${name}`);
 
-/** A super-admin saves a value, parsed as env's is; a value the setting refuses is recorded in the Journal (#299). */
+/** The form field carrying the super-admin's confirmation (the DPA marked signed, #302). */
+const CONFIRMED = "yes";
+const confirmed = (form: FormData) => form.get("confirmed") === CONFIRMED;
+/** What a boolean setting takes, as env holds it. */
+const BOOLEAN_VALUES = ["false", "true"] as const;
+
+/**
+ * A super-admin saves a value, parsed as env's is; a value the setting refuses is recorded in the Journal (#299).
+ * The DPA marked signed is asked to be confirmed first (#302).
+ */
 async function saveSetting(form: FormData) {
   "use server";
   const { administrator } = await requireBackOffice("platformSettings", "write");
   const name = String(form.get("name") ?? "");
-  const done = await getPlatformSettingsBackOffice().set(administrator, name, String(form.get("value") ?? ""));
+  const done = await getPlatformSettingsBackOffice().set(administrator, name, String(form.get("value") ?? ""), { confirmed: confirmed(form) });
   back(done.ok ? (done.changed ? "saved" : "unchanged") : done.error, name);
 }
 
-/** « Rétablir »: the Back Office's value is cleared, env's is used, else the code's default (#299). */
+/** « Rétablir »: the Back Office's value is cleared, env's is used, else the code's default (#299); env's DPA marked signed is confirmed first (#302). */
 async function restoreSetting(form: FormData) {
   "use server";
   const { administrator } = await requireBackOffice("platformSettings", "write");
   const name = String(form.get("name") ?? "");
-  const done = await getPlatformSettingsBackOffice().restore(administrator, name);
-  back(done.ok ? (done.changed ? "restored" : "notRestored") : done.error, name);
+  const done = await getPlatformSettingsBackOffice().restore(administrator, name, { confirmed: confirmed(form) });
+  back(done.ok ? (done.changed ? "restored" : "notRestored") : done.error === "unconfirmed" ? "restoreUnconfirmed" : done.error, name);
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -54,7 +63,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * use, where it comes from (the Back Office, env, the code's default) and the code's default,
  * a value from env that differs from the default flagged; then, read-only, the settings only
  * env holds, secrets never shown; and links to the settings that have their own section.
- * Super-admins change the Job Digest's and Job discovery's settings, or « Rétablir » them (#299);
+ * Super-admins change the Job Digest's and Job discovery's settings, or « Rétablir » them (#299),
+ * and Enriched Contacts' provider and DPA (#302), the DPA marked signed only once they confirm it;
  * Support sees no edit control.
  */
 export default async function PlatformSettingsPage({ searchParams }: { searchParams: Promise<{ notice?: string; setting?: string }> }) {
@@ -63,6 +73,8 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
   const t = await getServerT(locale);
   const { notice, setting: noticed } = await searchParams;
   const shownNotice = isNotice(notice) && noticed ? platformSetting(noticed) : undefined;
+  /** The setting whose value waits for the super-admin's confirmation: only the DPA marked signed asks for one (#302). */
+  const confirming = canWrite && shownNotice?.confirm !== undefined && (notice === "unconfirmed" || notice === "restoreUnconfirmed") ? shownNotice : undefined;
   const number = new Intl.NumberFormat(locale);
   /** What a setting takes, as its notices and help say it: "un nombre entier de 0 à 100". */
   const rule = (type: PlatformSettingType): string => {
@@ -94,7 +106,21 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
     <BackOfficeLayout access={access} title={t("admin.platformSettings.title")}>
       <p className="lead">{t("admin.platformSettings.intro")}</p>
       <p>{canWrite ? t("admin.platformSettings.editIntro") : t("admin.readOnly")}</p>
-      {shownNotice && isNotice(notice) ? (
+      {confirming ? (
+        <section className="notice stack" role="alert" aria-labelledby="confirm-setting">
+          <h2 id="confirm-setting">{t("admin.platformSettings.confirmDpa.title")}</h2>
+          <p>{t("admin.platformSettings.confirmDpa.question")}</p>
+          <form className="stack" action={notice === "restoreUnconfirmed" ? restoreSetting : saveSetting}>
+            <input type="hidden" name="name" value={confirming.name} />
+            <input type="hidden" name="value" value={confirming.confirm} />
+            <input type="hidden" name="confirmed" value={CONFIRMED} />
+            <button className="button button-primary" type="submit">
+              {t("admin.platformSettings.confirmDpa.yes")}
+            </button>
+          </form>
+          <Link href={`${routes.adminPlatformSettings}#setting-${confirming.name}`}>{t("admin.platformSettings.confirmDpa.cancel")}</Link>
+        </section>
+      ) : shownNotice && isNotice(notice) ? (
         <p className="notice" role={NOTICES[notice] ? "alert" : "status"}>
           {t(`admin.platformSettings.notices.${notice}`, { name: shownNotice.name, rule: rule(shownNotice.type) })}
         </p>
@@ -108,6 +134,7 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
       {PLATFORM_SETTING_GROUPS.map((group) => (
         <section key={group} className="stack" aria-labelledby={`settings-${group}`}>
           <h2 id={`settings-${group}`}>{t(`admin.platformSettings.groups.${group}`)}</h2>
+          {group === "enriched_contacts" ? <p>{t("admin.platformSettings.enrichedContactsHelp")}</p> : null}
           <div className="table-scroll">
             <table className="application-table">
               <caption className="visually-hidden">{t(`admin.platformSettings.groups.${group}`)}</caption>
@@ -160,17 +187,30 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
                                 <label className="visually-hidden" htmlFor={`value-${setting.name}`}>
                                   {t("admin.platformSettings.newValue", { name: setting.name })}
                                 </label>
-                                {/* No min or max: the server checks the bounds, so a refused value is in the Journal. */}
-                                <input
-                                  id={`value-${setting.name}`}
-                                  className="input"
-                                  name="value"
-                                  type="text"
-                                  inputMode={setting.type.kind === "number" && setting.type.whole ? "numeric" : "decimal"}
-                                  defaultValue={setting.value}
-                                  aria-describedby={`rule-${setting.name}`}
-                                />
-                                <p id={`rule-${setting.name}`}>{t("admin.platformSettings.accepted", { rule: rule(setting.type) })}</p>
+                                {setting.type.kind === "choice" || setting.type.kind === "boolean" ? (
+                                  // The values the setting takes; "none" first for a provider (#302).
+                                  <select id={`value-${setting.name}`} className="input" name="value" defaultValue={setting.value}>
+                                    {(setting.type.kind === "choice" ? setting.type.values : BOOLEAN_VALUES).map((choice) => (
+                                      <option key={choice} value={choice}>
+                                        {choice}
+                                      </option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <>
+                                    {/* No min or max: the server checks the bounds, so a refused value is in the Journal. */}
+                                    <input
+                                      id={`value-${setting.name}`}
+                                      className="input"
+                                      name="value"
+                                      type="text"
+                                      inputMode={setting.type.kind === "number" && setting.type.whole ? "numeric" : "decimal"}
+                                      defaultValue={setting.value}
+                                      aria-describedby={`rule-${setting.name}`}
+                                    />
+                                    <p id={`rule-${setting.name}`}>{t("admin.platformSettings.accepted", { rule: rule(setting.type) })}</p>
+                                  </>
+                                )}
                                 <button className="button button-primary" type="submit">
                                   {t("admin.platformSettings.save")}
                                 </button>

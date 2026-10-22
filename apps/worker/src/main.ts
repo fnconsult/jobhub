@@ -10,6 +10,7 @@ import { createJobDigests, jobDigestsConfigFromEnv } from "@jobhub/web/job-diges
 import { createJobOffers } from "@jobhub/web/job-offers";
 import { createJobSearchReports } from "@jobhub/web/job-searches";
 import { mailerFromEnv } from "@jobhub/web/mailers";
+import { watchPlatformSettings } from "@jobhub/web/platform-settings";
 import { createProfiles } from "@jobhub/web/profiles";
 import { permanentSuperAdminsFromEnv, superAdminEmails } from "@jobhub/web/administrators";
 import { secretCipherFromEnv, watchProviderSecrets } from "@jobhub/web/provider-secrets";
@@ -39,6 +40,16 @@ const providerSecrets = watchProviderSecrets({ database, env: process.env });
 await providerSecrets.ready;
 const secrets = providerSecrets.resolver;
 
+// Platform Settings (ADR-0033): the values super-admins set on Paramètres over env's, over the
+// code's defaults, kept current the same way. The Job Digest and Job discovery read theirs at each
+// run, so a change applies to the next one without a restart (#299). A value env holds that the
+// code refuses still stops the worker here, at start-up.
+const platformSettings = watchPlatformSettings({ database, env: process.env });
+await platformSettings.ready;
+const settingsEnv = () => platformSettings.resolver.current().env;
+jobDiscoveryBudgetFromEnv(settingsEnv());
+jobDigestsConfigFromEnv(settingsEnv());
+
 const profiles = createProfiles(database);
 const jobOffers = createJobOffers(database);
 const searchSites = createSearchSites(database);
@@ -60,7 +71,7 @@ const worker = workerClients({
   externalApis,
   production: process.env.NODE_ENV === "production",
   jobOffers,
-  budget: jobDiscoveryBudgetFromEnv(process.env),
+  budget: () => jobDiscoveryBudgetFromEnv(settingsEnv()),
   // The Job discovery sources and sites Administrators set in the Back Office, read at the start of each run.
   settings: () => searchSites.jobDiscoverySettings(),
   // The web searches name the Sectors wanted by their labels.
@@ -105,7 +116,7 @@ const jobs = createJobs({
     billing,
     mailer,
     baseURL,
-    ...jobDigestsConfigFromEnv(process.env),
+    config: () => jobDigestsConfigFromEnv(settingsEnv()),
   }),
   // The email the day before each Agenda Item, in the Candidate's Interface Language; links to the web app.
   appointmentReminders: createAppointmentReminders(database, { mailer, baseURL }),
@@ -137,6 +148,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     void runner
       .stop()
       .then(() => providerSecrets.stop())
+      .then(() => platformSettings.stop())
       .then(() => database.end())
       .then(() => process.exit(0));
   });

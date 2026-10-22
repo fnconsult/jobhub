@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseSetting, PLATFORM_SETTINGS, platformSetting } from "./catalog";
+import { asksConfirmation, isEditable, parseSetting, PLATFORM_SETTINGS, platformSetting } from "./catalog";
 
 /** Every Platform Setting ADR-0033 lists, by name. */
 const ADR_0033 = [
@@ -87,6 +87,7 @@ describe("the Platform Settings catalog", () => {
     expect(parseSetting(setting("JOB_DISCOVERY_BUDGET_SECONDS"), "600")).toEqual({ ok: true, value: 600 });
     expect(parseSetting(setting("JOB_DISCOVERY_BUDGET_SECONDS"), "601")).toMatchObject({ ok: false });
     expect(parseSetting(setting("CONTACT_ENRICHMENT_PROVIDER"), "Lusha")).toEqual({ ok: true, value: "lusha" });
+    expect(parseSetting(setting("CONTACT_ENRICHMENT_PROVIDER"), "none")).toEqual({ ok: true, value: "none" });
     expect(parseSetting(setting("CONTACT_ENRICHMENT_DPA_SIGNED"), "true")).toEqual({ ok: true, value: true });
     expect(parseSetting(setting("CONTACT_ENRICHMENT_DPA_SIGNED"), "yes")).toMatchObject({ ok: false });
     expect(parseSetting(setting("MAIL_FROM"), "Jobbbox <hello@jobbbox.ai>")).toEqual({ ok: true, value: "Jobbbox <hello@jobbbox.ai>" });
@@ -110,5 +111,23 @@ describe("the Platform Settings catalog", () => {
     for (const refused of ["Jobbbox", "Jobbbox <hello>", "hello@", "@jobbbox.ai", "Jobbbox <hello@jobbbox.ai", "hello @jobbbox.ai", "a@b.ai, c@d.ai", "Jobbbox <hello@jobbbox.ai>\r\nBcc: x@y.z"]) {
       expect(parseSetting(mailFrom, refused), refused).toMatchObject({ ok: false });
     }
+  });
+});
+
+describe("which Platform Settings super-admins edit on Paramètres", () => {
+  const setting = (name: string) => platformSetting(name)!;
+
+  it("are every group's, now that each slice of ADR-0033 has shipped (#299, #300, #301, #302, #303)", () => {
+    for (const name of ["ANTHROPIC_ENDPOINT", "MAIL_FROM", "JOB_DIGEST_TARGET_COUNT", "JOB_DISCOVERY_BUDGET_EUR", "CONTACT_ENRICHMENT_PROVIDER", "CONTACT_ENRICHMENT_DPA_SIGNED", "EXTENSION_STORE_URL"]) {
+      expect(isEditable(setting(name)), name).toBe(true);
+    }
+  });
+
+  it("asks a super-admin to confirm a DPA marked signed, and nothing else (ADR-0015, #302)", () => {
+    expect(asksConfirmation(setting("CONTACT_ENRICHMENT_DPA_SIGNED"), "true")).toBe(true);
+    expect(asksConfirmation(setting("CONTACT_ENRICHMENT_DPA_SIGNED"), " true ")).toBe(true);
+    expect(asksConfirmation(setting("CONTACT_ENRICHMENT_DPA_SIGNED"), "false")).toBe(false);
+    expect(asksConfirmation(setting("CONTACT_ENRICHMENT_PROVIDER"), "lusha")).toBe(false);
+    expect(asksConfirmation(setting("JOB_DIGEST_TARGET_COUNT"), "12")).toBe(false);
   });
 });

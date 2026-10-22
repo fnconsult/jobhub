@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { expect as baseExpect, test, type Browser, type Page } from "@playwright/test";
+import { Client } from "pg";
 import { derivedPort } from "./support/ports";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
@@ -318,6 +319,96 @@ test.describe("Enriched Contacts configuration", () => {
       const find = await page.request.post(`${server.origin}/api/applications/${id}/enriched-contacts`, { headers: { origin: server.origin } });
       expect(await find.json()).toEqual({ error: "search_unsupported" });
     } finally {
+      server.stop();
+    }
+  });
+});
+
+// Issue #302 (ADR-0015, ADR-0033): a super-admin chooses the provider and marks the DPA signed on
+// Paramètres, over env; Enriched Contacts follow without a restart, the provider's key from Clés (else
+// env). The server here is started on Lusha with the DPA not signed; the Back Office's values it gets
+// (Apollo, signed) are the suite's server's env, so the specs running meanwhile see no change.
+test.describe("Enriched Contacts set on Paramètres (#302)", () => {
+  test.describe.configure({ mode: "serial", timeout: 180_000 });
+  const SETTINGS = ["CONTACT_ENRICHMENT_PROVIDER", "CONTACT_ENRICHMENT_DPA_SIGNED"];
+  // Its own permanent super-admin (playwright.config.ts): two sign-ins of one address at once can pick up each other's link.
+  const SUPER_ADMIN = "contacts-settings-office@e2e.jobbbox.test";
+  const admin = fr.admin;
+  const texts = admin.platformSettings;
+  const tr = (template: string, values: Record<string, string>) => template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
+
+  test.afterAll(async () => {
+    const client = new Client({ connectionString: process.env.E2E_DATABASE_URL });
+    await client.connect();
+    try {
+      await client.query("DELETE FROM platform_setting WHERE name = ANY($1::text[])", [SETTINGS]);
+      await client.query("SELECT pg_notify('platform_settings_changed', '')");
+    } finally {
+      await client.end();
+    }
+  });
+
+  test("off until the DPA is marked signed and confirmed, then on the provider chosen there, without a restart; both changes in the Journal", async ({ page, browser }) => {
+    const { id } = await openApplication(page, { plan: "premium" });
+    const server = await startConfiguredServer(780, {
+      CONTACT_ENRICHMENT_PROVIDER: "lusha",
+      LUSHA_API_KEY: "e2e-lusha-key",
+      APOLLO_API_KEY: "e2e-apollo-key",
+      CONTACT_ENRICHMENT_DPA_SIGNED: "false",
+      // A permanent super-admin there too: the suite's ADMIN_EMAILS are its server's alone.
+      ADMIN_EMAILS: SUPER_ADMIN,
+    });
+    const state = async () => (await page.request.get(`${server.origin}/api/applications/${id}/enriched-contacts`)).json();
+    const context = await browser.newContext({ baseURL: origin, locale: "en-US" });
+    try {
+      const office = await context.newPage();
+      await signInWithMagicLink(office, SUPER_ADMIN);
+      await office.goto(`${server.origin}/admin/parametres`);
+      await expect(office.getByText(texts.enrichedContactsHelp)).toBeVisible();
+      const provider = office.locator('tr[data-setting="CONTACT_ENRICHMENT_PROVIDER"]');
+      const dpa = office.locator('tr[data-setting="CONTACT_ENRICHMENT_DPA_SIGNED"]');
+      // env's provider, flagged as differing from the code's default (none).
+      await expect(provider.getByRole("cell").nth(0)).toContainText("lusha");
+      await expect(dpa.getByRole("cell").nth(0)).toHaveText("false");
+      expect(await state()).toMatchObject({ enabled: false });
+
+      // Apollo chosen: still off, the DPA not being signed.
+      await provider.getByRole("combobox", { name: tr(texts.newValue, { name: "CONTACT_ENRICHMENT_PROVIDER" }) }).selectOption("apollo");
+      await provider.getByRole("button", { name: texts.save }).click();
+      await expect(office.getByRole("status").filter({ hasText: "CONTACT_ENRICHMENT_PROVIDER" })).toHaveText(tr(texts.notices.saved, { name: "CONTACT_ENRICHMENT_PROVIDER" }));
+      await expect(provider.getByRole("cell").nth(0)).toHaveText("apollo");
+      expect(await state()).toMatchObject({ enabled: false });
+
+      // Marking the DPA signed asks first: nothing changes until it is confirmed.
+      await dpa.getByRole("combobox", { name: tr(texts.newValue, { name: "CONTACT_ENRICHMENT_DPA_SIGNED" }) }).selectOption("true");
+      await dpa.getByRole("button", { name: texts.save }).click();
+      const asked = office.getByRole("alert").filter({ hasText: texts.confirmDpa.title });
+      await expect(asked).toContainText(texts.confirmDpa.question);
+      await expect(dpa.getByRole("cell").nth(0)).toHaveText("false");
+      expect(await state()).toMatchObject({ enabled: false });
+
+      await asked.getByRole("button", { name: texts.confirmDpa.yes }).click();
+      await expect(office.getByRole("status").filter({ hasText: "CONTACT_ENRICHMENT_DPA_SIGNED" })).toHaveText(tr(texts.notices.saved, { name: "CONTACT_ENRICHMENT_DPA_SIGNED" }));
+      await expect(dpa.getByRole("cell").nth(0)).toHaveText("true");
+      await expect(dpa.getByRole("cell").nth(1)).toContainText(texts.sources.back_office);
+
+      // On, without a restart, on Apollo (its people, not Lusha's).
+      await expect.poll(async () => (await state()).enabled).toBe(true);
+      await page.goto(`${server.origin}/candidatures/${id}/contacts`);
+      await page.waitForLoadState("networkidle");
+      const section = page.getByRole("region", { name: t.title });
+      await section.getByRole("button", { name: t.find }).click();
+      await expect(section.getByRole("group", { name: t.foundTitle }).getByText("Claire Ma***n")).toBeVisible();
+
+      await office.goto(`${server.origin}/admin/journal?section=platform_settings`);
+      const entries = office.getByRole("row").filter({ hasText: SUPER_ADMIN }).filter({ hasText: admin.journal.actions.updated });
+      const value = texts.journalFields.value;
+      await expect(entries.filter({ hasText: "CONTACT_ENRICHMENT_PROVIDER" })).toContainText(tr(admin.journal.changed, { field: value, before: "lusha", after: "apollo" }));
+      const signed = entries.filter({ hasText: "CONTACT_ENRICHMENT_DPA_SIGNED" });
+      await expect(signed).toHaveCount(1);
+      await expect(signed).toContainText(tr(admin.journal.changed, { field: value, before: "false", after: "true" }));
+    } finally {
+      await context.close();
       server.stop();
     }
   });

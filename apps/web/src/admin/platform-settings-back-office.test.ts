@@ -91,6 +91,36 @@ describe.skipIf(!connectionString)("Platform Settings' Back Office writes and th
     expect(await platformSettingsReader(database).load()).toEqual({});
   });
 
+  it("asks for confirmation before the DPA is marked signed, recording nothing until then; confirmed, it is an entry with its value before and after (#302)", async () => {
+    expect(await changes.set(claire, "CONTACT_ENRICHMENT_PROVIDER", "Apollo")).toMatchObject({ ok: true, changed: true });
+    expect(await changes.set(claire, "CONTACT_ENRICHMENT_DPA_SIGNED", "true")).toEqual({ ok: false, error: "unconfirmed" });
+    expect((await platformSettingsReader(database).load()).CONTACT_ENRICHMENT_DPA_SIGNED).toBeUndefined();
+
+    expect(await changes.set(claire, "CONTACT_ENRICHMENT_DPA_SIGNED", "true", { confirmed: true })).toMatchObject({ ok: true, changed: true });
+    // Marking it not signed again needs no confirmation.
+    expect(await changes.set(claire, "CONTACT_ENRICHMENT_DPA_SIGNED", "false")).toMatchObject({ ok: true, changed: true });
+
+    expect((await journal()).map(({ target, action, before, after }) => ({ target, action, before, after }))).toEqual([
+      { target: "CONTACT_ENRICHMENT_PROVIDER", action: "updated", before: { value: "", source: "default" }, after: { value: "apollo", source: "back_office" } },
+      { target: "CONTACT_ENRICHMENT_DPA_SIGNED", action: "updated", before: { value: "false", source: "default" }, after: { value: "true", source: "back_office" } },
+      { target: "CONTACT_ENRICHMENT_DPA_SIGNED", action: "updated", before: { value: "true", source: "back_office" }, after: { value: "false", source: "back_office" } },
+    ]);
+  });
+
+  it("asks for confirmation before « Rétablir » falls back to env's DPA marked signed (#302)", async () => {
+    const fromEnv = createPlatformSettingsBackOffice(platformSettingsStore(database, { CONTACT_ENRICHMENT_DPA_SIGNED: "true" }), backOffice);
+    await fromEnv.set(claire, "CONTACT_ENRICHMENT_DPA_SIGNED", "false");
+
+    expect(await fromEnv.restore(claire, "CONTACT_ENRICHMENT_DPA_SIGNED")).toEqual({ ok: false, error: "unconfirmed" });
+    expect((await platformSettingsReader(database).load()).CONTACT_ENRICHMENT_DPA_SIGNED?.value).toBe("false");
+    expect(await fromEnv.restore(claire, "CONTACT_ENRICHMENT_DPA_SIGNED", { confirmed: true })).toMatchObject({ ok: true, changed: true, after: { value: "true", source: "env" } });
+    // Back to the code's default (not signed): nothing to confirm.
+    expect(await changes.set(claire, "CONTACT_ENRICHMENT_DPA_SIGNED", "false")).toMatchObject({ ok: true, changed: true });
+    expect(await changes.restore(claire, "CONTACT_ENRICHMENT_DPA_SIGNED")).toMatchObject({ ok: true, changed: true, after: { value: "false", source: "default" } });
+
+    expect((await journal()).map(({ action }) => action)).toEqual(["updated", "restored_to_default", "updated", "restored_to_default"]);
+  });
+
   it("records a change its check refuses (#301) with its Failure Reason and technical detail, never the value entered", async () => {
     const refusing = createPlatformSettingsBackOffice(
       platformSettingsStore(database, { ANTHROPIC_ENDPOINT: "bedrock" }, {

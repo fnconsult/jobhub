@@ -87,6 +87,8 @@ export interface PlatformSettingsStore extends PlatformSettingsReader {
   set(name: string, raw: string, email: string, within?: Queryable): Promise<SetPlatformSettingResult>;
   /** « Rétablir »: clears the Back Office's value of `name`, so env's is used, else the code's default. */
   restore(name: string, within?: Queryable): Promise<RestorePlatformSettingResult>;
+  /** What « Rétablir » falls back to for `name`: env's value, else the code's default (#302). */
+  fallback(name: string): PlatformSettingState | undefined;
 }
 
 export function platformSettingsStore(database: Queryable, env: Env, options: { check?: PlatformSettingCheck } = {}): PlatformSettingsStore {
@@ -121,6 +123,8 @@ export function platformSettingsStore(database: Queryable, env: Env, options: { 
 
   return {
     ...platformSettingsReader(database),
+
+    fallback: (name) => (platformSetting(name) ? stateOf({}, name) : undefined),
 
     async set(name, raw, email, within = database) {
       const setting = platformSetting(name);

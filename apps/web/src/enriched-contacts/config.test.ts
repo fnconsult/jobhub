@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createSecretResolver, type StoredSecrets } from "../provider-secrets/resolver";
 import type { ExternalApiCall } from "@jobhub/shared";
-import { contactEnrichmentFromEnv, contactEnrichmentFromSecrets } from "./config";
+import { createPlatformSettingsResolver, secretsOverPlatformSettings, type StoredPlatformSettings } from "../platform-settings/resolver";
+import { contactEnrichmentFromEnv, contactEnrichmentFromSecrets, liveContactEnrichment } from "./config";
 
 describe("contact enrichment configuration", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -29,6 +30,15 @@ describe("contact enrichment configuration", () => {
     expect(contactEnrichmentFromEnv({ CONTACT_ENRICHMENT_PROVIDER: "apollo", APOLLO_API_KEY: "key", CONTACT_ENRICHMENT_DPA_SIGNED: "no" })).toMatchObject({ provider: null });
   });
 
+  it("is off while the DPA is not confirmed signed, whatever the provider and key: none chosen, one without its key (ADR-0015, #302)", () => {
+    expect(contactEnrichmentFromEnv({ CONTACT_ENRICHMENT_PROVIDER: "lusha" })).toEqual({ provider: null, disabledBecause: "dpa_not_signed" });
+    expect(contactEnrichmentFromEnv({ CONTACT_ENRICHMENT_PROVIDER: "none", CONTACT_ENRICHMENT_DPA_SIGNED: "true" })).toEqual({ provider: null, disabledBecause: "no_provider" });
+  });
+
+  it("is off, not failing, once the DPA is signed for a provider whose key is not in Clés yet (#302)", () => {
+    expect(contactEnrichmentFromEnv({ CONTACT_ENRICHMENT_PROVIDER: "kaspr", CONTACT_ENRICHMENT_DPA_SIGNED: "true", LUSHA_API_KEY: "key" })).toEqual({ provider: null, disabledBecause: "no_key" });
+  });
+
   it.each([
     ["lusha", "LUSHA_API_KEY"],
     ["kaspr", "KASPR_API_KEY"],
@@ -38,9 +48,8 @@ describe("contact enrichment configuration", () => {
     expect(config.provider?.id).toBe(name);
   });
 
-  it("refuses an unknown provider, or a chosen one without its key", () => {
+  it("refuses an unknown provider", () => {
     expect(() => contactEnrichmentFromEnv({ CONTACT_ENRICHMENT_PROVIDER: "clearbit", CONTACT_ENRICHMENT_DPA_SIGNED: "true" })).toThrow(/CONTACT_ENRICHMENT_PROVIDER/);
-    expect(() => contactEnrichmentFromEnv({ CONTACT_ENRICHMENT_PROVIDER: "lusha", CONTACT_ENRICHMENT_DPA_SIGNED: "true" })).toThrow(/LUSHA_API_KEY/);
   });
 });
 
@@ -71,5 +80,46 @@ describe("contact enrichment on Provider Secrets (#208)", () => {
     const resolver = createSecretResolver({ load: async () => ({}), env: {} });
 
     expect(contactEnrichmentFromSecrets(resolver)).toEqual({ provider: null, disabledBecause: "no_provider" });
+  });
+});
+
+describe("contact enrichment on Paramètres (#302)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const set = (values: Record<string, string>): StoredPlatformSettings =>
+    Object.fromEntries(Object.entries(values).map(([name, value]) => [name, { value, updatedBy: "ops@jobbbox.ai", updatedAt: new Date() }]));
+
+  it("follows the provider and DPA set on Paramètres without a restart, the active provider's key still from Clés", async () => {
+    const settings = { current: set({}) };
+    const secrets = createSecretResolver({
+      load: async () => ({ LUSHA_API_KEY: { value: "lusha-from-cles", row: "r1" }, APOLLO_API_KEY: { value: "apollo-from-cles", row: "r2" } }),
+      env: { CONTACT_ENRICHMENT_PROVIDER: "apollo", LUSHA_API_KEY: "lusha-from-env" },
+    });
+    const platformSettings = createPlatformSettingsResolver({ load: async () => settings.current, env: { CONTACT_ENRICHMENT_PROVIDER: "apollo" } });
+    const inUse = secretsOverPlatformSettings(secrets, platformSettings);
+    await inUse.refresh();
+    const enrichment = liveContactEnrichment(inUse, (config) => config);
+
+    // env chose Apollo, with its key in Clés: off until the DPA is marked signed.
+    expect(enrichment.provider).toBeNull();
+
+    settings.current = set({ CONTACT_ENRICHMENT_DPA_SIGNED: "true" });
+    await platformSettings.refresh();
+    expect(enrichment.provider?.id).toBe("apollo");
+
+    settings.current = set({ CONTACT_ENRICHMENT_DPA_SIGNED: "true", CONTACT_ENRICHMENT_PROVIDER: "lusha" });
+    await platformSettings.refresh();
+    const keysSent: string[] = [];
+    vi.stubGlobal("fetch", async (_url: string, init: { headers: Record<string, string> }) => {
+      keysSent.push(init.headers.api_key!);
+      return Response.json({ results: [] });
+    });
+    await enrichment.provider!.findPeople!({ companyName: "Acme", jobTitles: ["DRH"], limit: 10 });
+    expect(enrichment.provider?.id).toBe("lusha");
+    expect(keysSent).toEqual(["lusha-from-cles"]);
+
+    settings.current = set({ CONTACT_ENRICHMENT_DPA_SIGNED: "true", CONTACT_ENRICHMENT_PROVIDER: "none" });
+    await platformSettings.refresh();
+    expect({ provider: enrichment.provider, disabledBecause: "disabledBecause" in enrichment ? enrichment.disabledBecause : null }).toEqual({ provider: null, disabledBecause: "no_provider" });
   });
 });

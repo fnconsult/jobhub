@@ -30,7 +30,8 @@ function watched(): WatchedPlatformSettings {
 
 /**
  * Reads the Platform Settings a first time and starts listening for changes: the server awaits it before
- * serving (instrumentation.ts), so the first AI call is already routed as the Back Office set it (#301).
+ * serving (instrumentation.ts), so the first AI call is already routed as the Back Office set it (#301), and a
+ * DPA marked not signed there is already in force (#302).
  */
 export async function startPlatformSettings(): Promise<void> {
   if (process.env.DATABASE_URL) await watched().ready;

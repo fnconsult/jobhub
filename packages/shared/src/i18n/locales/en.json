@@ -1247,7 +1247,7 @@
       "save": "Save",
       "restore": "Restore",
       "restoreHelp": "Clears the Back Office's value: env's applies, else the code's default.",
-      "editIntro": "AI routing, the email sender, the Job Digest and Job discovery settings, and the extension's store page are changed here: a saved value applies within seconds in the app and the worker, without a restart (the next email, for the sender). An AI routing change is checked before it is saved: a route the AI layer would refuse (personal data outside the EU, a key missing) is refused, and a model named is tested with a call. Each change and each refused attempt goes to the Journal.",
+      "editIntro": "AI routing, the email sender, the Job Digest, Job discovery and Enriched Contacts settings, and the extension's store page are changed here: a saved value applies within seconds in the app and the worker, without a restart (the next email, for the sender). An AI routing change is checked before it is saved: a route the AI layer would refuse (personal data outside the EU, a key missing) is refused, and a model named is tested with a call. Each change and each refused attempt goes to the Journal.",
       "rules": {
         "whole": "a whole number from {{min}} to {{max}}",
         "wholeAboveMin": "a whole number above {{min}}, up to {{max}}",
@@ -1267,11 +1267,20 @@
         "invalid": "Value refused for {{name}}: it takes {{rule}}. The attempt is in the Journal.",
         "empty": "Enter a value for {{name}}.",
         "not_editable": "{{name}} cannot be changed here yet.",
+        "unconfirmed": "{{name}} waits for your confirmation.",
+        "restoreUnconfirmed": "Restoring {{name}} waits for your confirmation.",
         "refused": "{{name}} was not changed: {{reason}}. The attempt is in the Journal."
       },
       "journalFields": {
         "value": "Value",
         "source": "Source"
+      },
+      "enrichedContactsHelp": "Enriched Contacts stay off until the DPA is marked signed, whatever the provider and its key. The chosen provider's key is entered in Keys.",
+      "confirmDpa": {
+        "title": "Mark the DPA signed?",
+        "question": "Do you confirm the data-processing agreement (DPA) with the Enriched Contacts provider is signed? The code cannot check it: once the DPA is marked signed, Enriched Contacts turn on as soon as a provider is chosen and its key is in Keys. The confirmation goes to the Journal.",
+        "yes": "Yes, the DPA is signed",
+        "cancel": "Cancel"
       },
       "refusedDetail": "Detail:"
     },

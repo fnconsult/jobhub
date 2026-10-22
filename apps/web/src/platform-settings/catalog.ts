@@ -13,7 +13,7 @@
  */
 import { AI_ROUTING_SETTINGS } from "@jobhub/ai";
 import { DEVELOPMENT_MAIL_FROM, isSender } from "../auth/mailers";
-import { CONTACT_PROVIDERS } from "../enriched-contacts/providers/types";
+import { CONTACT_PROVIDERS, NO_PROVIDER } from "../enriched-contacts/providers/types";
 import { SEARCH_TIMEOUT_MS } from "../job-searches";
 
 /** The groups Paramètres shows the Platform Settings in, in order. */
@@ -41,6 +41,8 @@ export interface PlatformSetting {
   type: PlatformSettingType;
   /** The code's default, as env would hold it; empty: the code sets nothing (a provider's default model, another task's provider, off). */
   default: string;
+  /** The value a super-admin confirms before it is set on Paramètres: a DPA marked signed (ADR-0015, #302). */
+  confirm?: string;
 }
 
 /** The longest a Job discovery run may go: 5 minutes inside the 15-minute Job Search timeout, which stays the safety net. */
@@ -68,8 +70,10 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
   { name: "JOB_DISCOVERY_BUDGET_EUR", group: "job_discovery", type: aboveZero(10, false), default: "0.08" },
   { name: "JOB_DISCOVERY_BUDGET_SECONDS", group: "job_discovery", type: aboveZero(MAX_DISCOVERY_SECONDS, true), default: "90" },
   // Enriched Contacts (ADR-0015): off without a provider, or until its DPA is signed.
-  { name: "CONTACT_ENRICHMENT_PROVIDER", group: "enriched_contacts", type: { kind: "choice", values: CONTACT_PROVIDERS, lowerCase: true }, default: "" },
-  { name: "CONTACT_ENRICHMENT_DPA_SIGNED", group: "enriched_contacts", type: { kind: "boolean" }, default: "false" },
+  // "none" turns them off from Paramètres, over a provider env chose (#302).
+  { name: "CONTACT_ENRICHMENT_PROVIDER", group: "enriched_contacts", type: { kind: "choice", values: [NO_PROVIDER, ...CONTACT_PROVIDERS], lowerCase: true }, default: "" },
+  // The code cannot tell whether the agreement exists: marking it signed is a deliberate, confirmed step.
+  { name: "CONTACT_ENRICHMENT_DPA_SIGNED", group: "enriched_contacts", type: { kind: "boolean" }, default: "false", confirm: "true" },
   // The browser extension's Chrome Web Store page; empty: "coming soon".
   { name: "EXTENSION_STORE_URL", group: "extension", type: { kind: "url" }, default: "" },
 ];
@@ -81,13 +85,20 @@ export const platformSetting = (name: string): PlatformSetting | undefined => BY
 
 /**
  * The groups super-admins edit on Paramètres so far: the worker's Job Digest and Job discovery (#299),
- * AI routing (#301), the email sender (#300) and the extension's store page (#303). The others are shown
- * read-only until their slice of ADR-0033 ships.
+ * AI routing (#301), the email sender (#300), Enriched Contacts (#302) and the extension's store page (#303).
+ * The others are shown read-only until their slice of ADR-0033 ships.
  */
-const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = ["ai_routing", "email", "job_digest", "job_discovery", "extension"];
+const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = ["ai_routing", "email", "job_digest", "job_discovery", "enriched_contacts", "extension"];
 
 /** Whether super-admins set `setting` on Paramètres (and « Rétablir » it). */
 export const isEditable = (setting: PlatformSetting): boolean => EDITABLE_GROUPS.includes(setting.group);
+
+/** Whether setting `setting` to `raw` waits for the super-admin's confirmation: a DPA marked signed (#302). */
+export function asksConfirmation(setting: PlatformSetting, raw: string): boolean {
+  if (setting.confirm === undefined) return false;
+  const parsed = parseSetting(setting, raw);
+  return parsed.ok && String(parsed.value) === setting.confirm;
+}
 
 export type ParsedSetting = { ok: true; value: string | number | boolean } | { ok: false; error: string };
 

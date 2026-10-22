@@ -11,6 +11,9 @@ import type { CountryCode } from "../countries";
 export const CONTACT_PROVIDERS = ["lusha", "kaspr", "apollo"] as const;
 export type ContactProviderId = (typeof CONTACT_PROVIDERS)[number];
 
+/** CONTACT_ENRICHMENT_PROVIDER's value for no provider: Enriched Contacts off (#302), as when it is left empty. */
+export const NO_PROVIDER = "none";
+
 /** Who to look for: people holding one of `jobTitles` at the company. */
 export interface PeopleSearch {
   companyName: string;

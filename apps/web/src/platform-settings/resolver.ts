@@ -12,7 +12,8 @@
  * the other groups still read env until their editing slice, and Paramètres shows what is in use.
  */
 import { cachedRead, type CachedRead } from "../database/cached-read";
-import { parseSetting, PLATFORM_SETTINGS, type PlatformSetting } from "./catalog";
+import type { SecretResolver, SecretsSnapshot } from "../provider-secrets/resolver";
+import { parseSetting, PLATFORM_SETTINGS, platformSetting, type PlatformSetting } from "./catalog";
 
 type Env = Record<string, string | undefined>;
 
@@ -115,4 +116,30 @@ export function createPlatformSettingsResolver(options: PlatformSettingsResolver
     now: options.now,
     log: options.log,
   });
+}
+
+/** The Provider Secrets in use with the Back Office's Platform Settings over env's: what a client reading both is built from. */
+function secretsOverSettings(secrets: SecretsSnapshot, settings: PlatformSettingsSnapshot): SecretsSnapshot {
+  const env: Env = { ...secrets.env };
+  for (const setting of settings.settings) if (setting.source === "back_office") env[setting.name] = setting.value;
+  return {
+    env,
+    source: secrets.source,
+    versionOf: (names) => names.map((name) => (platformSetting(name) ? settings.versionOf([name]) : secrets.versionOf([name]))).join(","),
+  };
+}
+
+/**
+ * A resolver of the values a client reads among both the Provider Secrets (Clés) and the Platform
+ * Settings (Paramètres): its `env` holds each in use, and its `versionOf` changes when either does,
+ * so `liveObject` rebuilds the client on a key replaced or a setting changed (#302). `refresh` reads both.
+ */
+export function secretsOverPlatformSettings(secrets: SecretResolver, settings: PlatformSettingsResolver): SecretResolver {
+  return {
+    current: () => secretsOverSettings(secrets.current(), settings.current()),
+    refresh: async () => {
+      const [fromSecrets, fromSettings] = await Promise.all([secrets.refresh(), settings.refresh()]);
+      return secretsOverSettings(fromSecrets, fromSettings);
+    },
+  };
 }

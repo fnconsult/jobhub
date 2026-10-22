@@ -37,3 +37,4 @@ How the apps use it:
 
 - `.env.example` and `docs/ops` say which variables are now Platform Settings, and that a Back Office value wins.
 - The settings are cut into slices that ship one at a time: the read-only page first, then editing for the worker's settings, `MAIL_FROM`, AI routing, Enriched Contacts, `EXTENSION_STORE_URL`, and the Tools' view.
+- Enriched Contacts (#302): the DPA flag is checked first, so the feature is off with the DPA unsigned whatever the provider and key; a missing key with the DPA signed turns it off (reason `no_key`) instead of throwing, which refines ADR-0015's "off unless provider, key and DPA". `CONTACT_ENRICHMENT_PROVIDER=none` lets the Back Office turn it off over env. Marking the DPA signed on Paramètres, or « Rétablir » falling back to an env `true`, needs an explicit confirmation enforced on the server: a setting can declare a value that asks for it.

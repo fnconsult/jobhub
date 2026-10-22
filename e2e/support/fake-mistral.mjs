@@ -17,6 +17,8 @@
 // In English, it translates "Anglais"/"courant" into "English"/"fluent", keeping
 // the language's id, as a real AI Coach writing in the Document Language would.
 // Asked to translate the Job Offer's words (#68), it gives each word back as it is.
+// A model whose name holds "inexistant" is refused as Mistral refuses a model it does not serve (400 "Invalid
+// model"), so a model typed on Paramètres fails its test call (#301).
 // A Job Offer holding "E2E_CV_REPLIES=<kind>,<kind>…@<id>" scripts its replies
 // instead, one kind per call for that id (the last one repeats): "prose" (the CV
 // retold in prose, no JSON), "truncated" (the JSON cut short), "bad_json" (a JSON
@@ -87,6 +89,10 @@ globalThis.fetch = async (input, init) => {
   const body = JSON.parse(input instanceof Request ? await input.text() : String(init?.body ?? "{}"));
   const prompt = String(body.messages?.at(-1)?.content ?? "");
   if (prompt.includes("E2E_AI_DOWN")) return new Response("upstream unavailable", { status: 503 });
+  // A model Mistral does not serve, as its API refuses it: what a model typed on Paramètres fails its test call with (#301).
+  if (String(body.model ?? "").includes("inexistant")) {
+    return new Response(JSON.stringify({ object: "error", message: `Invalid model: ${body.model}`, type: "invalid_model", code: "1500" }), { status: 400, headers: { "content-type": "application/json" } });
+  }
 
   let content = "fake reply";
   const system = String(body.messages?.find((message) => message.role === "system")?.content ?? "");

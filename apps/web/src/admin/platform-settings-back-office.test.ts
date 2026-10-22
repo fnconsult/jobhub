@@ -91,6 +91,22 @@ describe.skipIf(!connectionString)("Platform Settings' Back Office writes and th
     expect(await platformSettingsReader(database).load()).toEqual({});
   });
 
+  it("asks for confirmation before the DPA is marked signed, recording nothing until then; confirmed, it is an entry with its value before and after (#302)", async () => {
+    expect(await changes.set(claire, "CONTACT_ENRICHMENT_PROVIDER", "Apollo")).toMatchObject({ ok: true, changed: true });
+    expect(await changes.set(claire, "CONTACT_ENRICHMENT_DPA_SIGNED", "true")).toEqual({ ok: false, error: "unconfirmed" });
+    expect((await platformSettingsReader(database).load()).CONTACT_ENRICHMENT_DPA_SIGNED).toBeUndefined();
+
+    expect(await changes.set(claire, "CONTACT_ENRICHMENT_DPA_SIGNED", "true", { confirmed: true })).toMatchObject({ ok: true, changed: true });
+    // Marking it not signed again needs no confirmation.
+    expect(await changes.set(claire, "CONTACT_ENRICHMENT_DPA_SIGNED", "false")).toMatchObject({ ok: true, changed: true });
+
+    expect((await journal()).map(({ target, action, before, after }) => ({ target, action, before, after }))).toEqual([
+      { target: "CONTACT_ENRICHMENT_PROVIDER", action: "updated", before: { value: "", source: "default" }, after: { value: "apollo", source: "back_office" } },
+      { target: "CONTACT_ENRICHMENT_DPA_SIGNED", action: "updated", before: { value: "false", source: "default" }, after: { value: "true", source: "back_office" } },
+      { target: "CONTACT_ENRICHMENT_DPA_SIGNED", action: "updated", before: { value: "true", source: "back_office" }, after: { value: "false", source: "back_office" } },
+    ]);
+  });
+
   it("records nothing for an unchanged value, an empty field, a setting not editable, or « Rétablir » on a setting the Back Office did not set", async () => {
     await changes.set(claire, "JOB_DIGEST_MIN_MATCH_SCORE", "75");
 

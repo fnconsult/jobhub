@@ -7,12 +7,20 @@
  * each with the setting's value and source before and after (not secret). A value the setting refuses is
  * recorded as a refused save (`invalid_value`, field `value`), without the value entered. An unchanged
  * value, an empty field (only shown on the page) and a setting not editable record nothing.
+ *
+ * A value that asks for confirmation (`asksConfirmation`: the DPA marked signed, ADR-0015, #302) is
+ * set only once the Administrator confirmed it (`confirmed`); until then it is `unconfirmed`, nothing
+ * written or recorded, and the page asks.
  */
 import type { PlatformSettingChange, PlatformSettingsStore, RestorePlatformSettingResult, SetPlatformSettingResult } from "../platform-settings";
+import { asksConfirmation, platformSetting } from "../platform-settings/catalog";
 import type { BackOffice, BackOfficeActor, BackOfficeAttempt } from "./back-office";
 
+/** `unconfirmed`: the value waits for the Administrator's confirmation (a DPA marked signed). */
+export type SetPlatformSettingByAdministratorResult = SetPlatformSettingResult | { ok: false; error: "unconfirmed" };
+
 export interface PlatformSettingsBackOffice {
-  set(actor: BackOfficeActor, name: string, raw: string): Promise<SetPlatformSettingResult>;
+  set(actor: BackOfficeActor, name: string, raw: string, options?: { confirmed?: boolean }): Promise<SetPlatformSettingByAdministratorResult>;
   restore(actor: BackOfficeActor, name: string): Promise<RestorePlatformSettingResult>;
 }
 
@@ -23,7 +31,9 @@ export function createPlatformSettingsBackOffice(store: Pick<PlatformSettingsSto
     done.changed ? { section: SECTION, target: name, action, before: { ...done.before }, after: { ...done.after } } : null;
 
   return {
-    set(actor, name, raw) {
+    async set(actor, name, raw, { confirmed = false } = {}) {
+      const setting = platformSetting(name);
+      if (setting && !confirmed && asksConfirmation(setting, raw)) return { ok: false, error: "unconfirmed" };
       return backOffice.record(
         actor,
         (within) => store.set(name, raw, actor.email, within),

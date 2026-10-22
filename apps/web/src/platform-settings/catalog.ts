@@ -172,9 +172,14 @@ export const ENV_ONLY_SETTINGS = {
   DATABASE_POOL_MAX: { kind: "deployment", shown: false },
   EXTENSION_ORIGINS: { kind: "deployment", shown: false },
   WXT_WEB_ORIGIN: { kind: "deployment", shown: false },
+  // Fantastic.jobs (ADR-0031): the € per job of the plan an environment pays for, and the jobs one search may spend.
+  // ADR-0033 does not list them as Platform Settings: they stay in env until an amendment makes them one.
+  FANTASTIC_JOBS_EUR_PER_JOB: { kind: "deployment", shown: false },
+  FANTASTIC_JOBS_MAX_PER_SEARCH: { kind: "deployment", shown: false },
   BREVO_API_URL: { kind: "test", shown: false },
   STRIPE_API_URL: { kind: "test", shown: false },
   CONTACT_ENRICHMENT_API_URL: { kind: "test", shown: false },
+  FANTASTIC_JOBS_API_URL: { kind: "test", shown: false },
 } as const satisfies Record<string, { kind: EnvOnlyKind; shown: EnvOnlyShown }>;
 
 export type EnvOnlySettingName = keyof typeof ENV_ONLY_SETTINGS;

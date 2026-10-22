@@ -41,6 +41,8 @@ const PATHS = {
   searchSites: ["M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z", "M3 12h18M12 3c2.5 2.5 3.8 5.5 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.5-3.8-9S9.5 5.5 12 3z"],
   // A key: Provider Secrets (#208).
   providerSecrets: ["M8 9a4 4 0 1 0 0 8 4 4 0 0 0 0-8z", "M11 11l9-9M16 6l3 3M14 8l2 2"],
+  // Three sliders: the Platform Settings (#298).
+  platformSettings: ["M4 6h16M4 12h16M4 18h16", "M14 4v4M8 10v4M16 16v4"],
   // A door with an arrow in: Sign-in Providers (#209).
   signInProviders: ["M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4", "M10 16l4-4-4-4M14 12H4"],
   // A rising line on axes: AI consumption (#218).

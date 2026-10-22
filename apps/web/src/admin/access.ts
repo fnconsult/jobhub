@@ -25,6 +25,8 @@ const statements = {
   humanCoaches: ["read", "write"],
   coachMessageCost: ["read"],
   providerSecrets: ["read", "write"],
+  /** The Platform Settings (Paramètres, #298, ADR-0033): non-secret settings, shown with their source; write covers changing and restoring them. */
+  platformSettings: ["read", "write"],
   ssoProviders: ["read", "write"],
   /** The sites Jobbbox searches: Job discovery sources and sites, and the extension's Job Sites. */
   searchSites: ["read", "write"],
@@ -73,6 +75,7 @@ const ROLES = {
     guardrails: READ,
     tools: READ,
     evalRuns: READ,
+    platformSettings: READ,
   }),
 } satisfies Record<BackOfficeRole, unknown>;
 

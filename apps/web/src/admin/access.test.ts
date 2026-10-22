@@ -110,6 +110,14 @@ describe("Back Office access", () => {
     for (const role of ["plans-manager", "coach-manager", "playbook-editor"] as const) expect(backOfficeAccess([role]).can("tools", "read"), role).toBe(false);
   });
 
+  it("super-admins read and change the Platform Settings; Support only reads them; no other role sees them (#298)", () => {
+    expect(backOfficeAccess(["super-admin"]).can("platformSettings", "read")).toBe(true);
+    expect(backOfficeAccess(["super-admin"]).can("platformSettings", "write")).toBe(true);
+    expect(backOfficeAccess(["support"]).can("platformSettings", "read")).toBe(true);
+    expect(backOfficeAccess(["support"]).can("platformSettings", "write")).toBe(false);
+    for (const role of ["plans-manager", "coach-manager", "playbook-editor"] as const) expect(backOfficeAccess([role]).can("platformSettings", "read"), role).toBe(false);
+  });
+
   it("several roles add up", () => {
     const access = backOfficeAccess(["support", "coach-manager"]);
 

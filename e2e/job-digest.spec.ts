@@ -160,9 +160,9 @@ async function waitForDigestRun(profileId: string, count: number): Promise<strin
   return digestReports(profileId)[count - 1]!;
 }
 
-type Email = { subject: string; text: string };
+type Email = { from: string; subject: string; text: string };
 
-/** The emails the worker sent to `address`, oldest first. */
+/** The emails the worker sent to `address`, oldest first, with the sender printed under their first line. */
 function emailsTo(address: string): Email[] {
   const marker = `[mail] to ${address}: `;
   return workerOutput
@@ -170,7 +170,8 @@ function emailsTo(address: string): Email[] {
     .filter((block) => block.startsWith(marker))
     .map((block) => {
       const [first, ...rest] = block.trimEnd().split("\n");
-      return { subject: first!.slice(marker.length), text: rest.join("\n") };
+      const from = rest[0]?.startsWith("From: ") ? rest.shift()!.slice("From: ".length) : "";
+      return { from, subject: first!.slice(marker.length), text: rest.join("\n") };
     });
 }
 

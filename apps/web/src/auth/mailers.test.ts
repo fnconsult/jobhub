@@ -49,6 +49,20 @@ describe("parseSender", () => {
 describe("mailerFromEnv", () => {
   const production = { NODE_ENV: "production", MAIL_FROM: "Jobbbox <bonjour@jobbbox.fr>" };
 
+  it("prints each email to the console with its sender, under its first line, when MAIL_TRANSPORT is console", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    try {
+      await mailerFromEnv({ MAIL_TRANSPORT: "console", MAIL_FROM: "Jobbbox <hello@jobbbox.ai>" }).send({ to: "ada@example.com", subject: "Your link", text: "Hello" });
+      await mailerFromEnv({ MAIL_TRANSPORT: "console" }).send({ to: "ada@example.com", subject: "Your link", text: "Hello" });
+      expect(info.mock.calls.map(([line]) => line)).toEqual([
+        "[mail] to ada@example.com: Your link\nFrom: Jobbbox <hello@jobbbox.ai>\nHello",
+        "[mail] to ada@example.com: Your link\nFrom: Jobbbox <bonjour@localhost>\nHello",
+      ]);
+    } finally {
+      info.mockRestore();
+    }
+  });
+
   it("prefers Brevo's API key over SMTP_URL", async () => {
     const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(reply(201));
     try {

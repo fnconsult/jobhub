@@ -80,11 +80,11 @@ export function smtpMailer(smtpUrl: string, from: string, transport: SmtpTranspo
   };
 }
 
-/** Development only: prints emails (and their sign-in links) to the server console. */
-export function consoleMailer(): Mailer {
+/** Development only: prints emails (and their sign-in links) to the server console, the sender under the first line (e2e reads it). */
+export function consoleMailer(from: string = DEVELOPMENT_MAIL_FROM): Mailer {
   return {
     async send(message: MailMessage) {
-      console.info(`[mail] to ${message.to}: ${message.subject}\n${message.text}`);
+      console.info(`[mail] to ${message.to}: ${message.subject}\nFrom: ${from}\n${message.text}`);
     },
   };
 }
@@ -107,7 +107,7 @@ export const DEVELOPMENT_MAIL_FROM = "Jobbbox <bonjour@localhost>";
 export function mailerFromEnv(env: Record<string, string | undefined>, options: MailerOptions = {}): Mailer {
   const production = env.NODE_ENV === "production";
   const brevoApiKey = env.BREVO_API_KEY?.trim();
-  if (env.MAIL_TRANSPORT === "console" || (!production && !brevoApiKey && !env.SMTP_URL)) return consoleMailer();
+  if (env.MAIL_TRANSPORT === "console" || (!production && !brevoApiKey && !env.SMTP_URL)) return consoleMailer(env.MAIL_FROM || DEVELOPMENT_MAIL_FROM);
   if (!brevoApiKey && !env.SMTP_URL) throw new Error("Missing environment variable BREVO_API_KEY or SMTP_URL");
   const from = env.MAIL_FROM || (production ? undefined : DEVELOPMENT_MAIL_FROM);
   if (!from) throw new Error("Missing environment variable MAIL_FROM");

@@ -107,6 +107,20 @@ describe.skipIf(!connectionString)("Platform Settings' Back Office writes and th
     ]);
   });
 
+  it("asks for confirmation before « Rétablir » falls back to env's DPA marked signed (#302)", async () => {
+    const fromEnv = createPlatformSettingsBackOffice(platformSettingsStore(database, { CONTACT_ENRICHMENT_DPA_SIGNED: "true" }), backOffice);
+    await fromEnv.set(claire, "CONTACT_ENRICHMENT_DPA_SIGNED", "false");
+
+    expect(await fromEnv.restore(claire, "CONTACT_ENRICHMENT_DPA_SIGNED")).toEqual({ ok: false, error: "unconfirmed" });
+    expect((await platformSettingsReader(database).load()).CONTACT_ENRICHMENT_DPA_SIGNED?.value).toBe("false");
+    expect(await fromEnv.restore(claire, "CONTACT_ENRICHMENT_DPA_SIGNED", { confirmed: true })).toMatchObject({ ok: true, changed: true, after: { value: "true", source: "env" } });
+    // Back to the code's default (not signed): nothing to confirm.
+    expect(await changes.set(claire, "CONTACT_ENRICHMENT_DPA_SIGNED", "false")).toMatchObject({ ok: true, changed: true });
+    expect(await changes.restore(claire, "CONTACT_ENRICHMENT_DPA_SIGNED")).toMatchObject({ ok: true, changed: true, after: { value: "false", source: "default" } });
+
+    expect((await journal()).map(({ action }) => action)).toEqual(["updated", "restored_to_default", "updated", "restored_to_default"]);
+  });
+
   it("records nothing for an unchanged value, an empty field, a setting not editable, or « Rétablir » on a setting the Back Office did not set", async () => {
     await changes.set(claire, "JOB_DIGEST_MIN_MATCH_SCORE", "75");
 

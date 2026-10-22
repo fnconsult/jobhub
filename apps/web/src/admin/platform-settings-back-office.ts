@@ -9,8 +9,9 @@
  * value, an empty field (only shown on the page) and a setting not editable record nothing.
  *
  * A value that asks for confirmation (`asksConfirmation`: the DPA marked signed, ADR-0015, #302) is
- * set only once the Administrator confirmed it (`confirmed`); until then it is `unconfirmed`, nothing
- * written or recorded, and the page asks.
+ * set only once the Administrator confirmed it (`confirmed`), and so is « Rétablir » falling back to
+ * it (env's DPA marked signed); until then it is `unconfirmed`, nothing written or recorded, and the
+ * page asks.
  */
 import type { PlatformSettingChange, PlatformSettingsStore, RestorePlatformSettingResult, SetPlatformSettingResult } from "../platform-settings";
 import { asksConfirmation, platformSetting } from "../platform-settings/catalog";
@@ -18,15 +19,16 @@ import type { BackOffice, BackOfficeActor, BackOfficeAttempt } from "./back-offi
 
 /** `unconfirmed`: the value waits for the Administrator's confirmation (a DPA marked signed). */
 export type SetPlatformSettingByAdministratorResult = SetPlatformSettingResult | { ok: false; error: "unconfirmed" };
+export type RestorePlatformSettingByAdministratorResult = RestorePlatformSettingResult | { ok: false; error: "unconfirmed" };
 
 export interface PlatformSettingsBackOffice {
   set(actor: BackOfficeActor, name: string, raw: string, options?: { confirmed?: boolean }): Promise<SetPlatformSettingByAdministratorResult>;
-  restore(actor: BackOfficeActor, name: string): Promise<RestorePlatformSettingResult>;
+  restore(actor: BackOfficeActor, name: string, options?: { confirmed?: boolean }): Promise<RestorePlatformSettingByAdministratorResult>;
 }
 
 const SECTION = "platform_settings";
 
-export function createPlatformSettingsBackOffice(store: Pick<PlatformSettingsStore, "set" | "restore">, backOffice: Pick<BackOffice, "record">): PlatformSettingsBackOffice {
+export function createPlatformSettingsBackOffice(store: Pick<PlatformSettingsStore, "set" | "restore" | "fallback">, backOffice: Pick<BackOffice, "record">): PlatformSettingsBackOffice {
   const changed = (name: string, action: "updated" | "restored_to_default", done: PlatformSettingChange): BackOfficeAttempt | null =>
     done.changed ? { section: SECTION, target: name, action, before: { ...done.before }, after: { ...done.after } } : null;
 
@@ -46,7 +48,10 @@ export function createPlatformSettingsBackOffice(store: Pick<PlatformSettingsSto
       );
     },
 
-    restore(actor, name) {
+    async restore(actor, name, { confirmed = false } = {}) {
+      const setting = platformSetting(name);
+      const fallback = store.fallback(name);
+      if (setting && fallback && !confirmed && asksConfirmation(setting, fallback.value)) return { ok: false, error: "unconfirmed" };
       return backOffice.record(
         actor,
         (within) => store.restore(name, within),

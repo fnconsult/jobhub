@@ -16,10 +16,12 @@
  * The Posting date the page states is trusted, as Job discovery's is; the Job Offer Summary and sector
  * are read only while `reading` (the "job-offer-reading" task Playbook) is served. The Job Offer's
  * analysis (its Match Score, At a glance) is left to its page, where the Candidate follows it.
+ * A Job Offer read is captured with its Provenance: the page read and the model that read it, on the
+ * site of its page, naming no Candidate.
  */
-import { readJobPage, type AiLayer, type ProvenanceRecorder, type TaskInstructions } from "@jobhub/ai";
+import { createProvenanceRecorder, readJobPage, type AiLayer, type ProvenanceRecorder, type TaskInstructions } from "@jobhub/ai";
 import { believablePostingDate, FORBIDDEN_SITES, isForbiddenSite, type JobOffer } from "@jobhub/shared";
-import { countJobPostings, createPoliteFetcher, DEFAULT_USER_AGENT, htmlToText, metaRobots, readJobPosting, type Clock } from "@jobhub/shared/page-reading";
+import { countJobPostings, createPoliteFetcher, DEFAULT_USER_AGENT, htmlToText, metaRobots, pageReadTool, readJobPosting, type Clock } from "@jobhub/shared/page-reading";
 import type { JobOffers } from "../job-offers";
 
 export type JobOfferLinkResult = { ok: true; jobOffer: JobOffer } | { ok: false; reason: "forbidden_site" | "unreadable" | "not_a_job_offer" };
@@ -90,9 +92,10 @@ export function createJobOfferLinks(deps: JobOfferLinksDeps): JobOfferLinks {
           maxBytes: MAX_BYTES,
           ...(deps.clock ? { clock: deps.clock } : {}),
         });
+        const reading = createProvenanceRecorder(provenance ? provenance.aiFor("read_job_page") : deps.ai, deps.clock ? { now: () => new Date(deps.clock!.now()) } : {});
         // A redirect to a page already stored gives its Job Offer.
-        const fetchPage = () => fetcher.page(url, (target) => deps.jobOffers.findBySourceUrl(target));
-        const page = provenance ? await recordedPageRead(provenance, fetchPage) : await fetchPage();
+        const fetchPage = () => reading.step({ tool: pageReadTool(url) }, () => fetcher.page(url, (target) => deps.jobOffers.findBySourceUrl(target)));
+        const page = provenance ? await recordedPageRead(provenance, pageReadTool(url), fetchPage) : await fetchPage();
         if (page.ok === "known") {
           provenance?.site(page.known.source.url ?? url);
           return { ok: true, jobOffer: page.known };
@@ -102,14 +105,14 @@ export function createJobOfferLinks(deps: JobOfferLinksDeps): JobOfferLinks {
         provenance?.site(page.url);
 
         let details = readJobPosting(page.html);
-        const ai = provenance ? provenance.aiFor("read_job_page") : deps.ai;
-        if (!details && countJobPostings(page.html) <= 1) details = await readJobPage(ai, candidateId, htmlToText(page.html), (await deps.reading?.()) ?? null);
+        if (!details && countJobPostings(page.html) <= 1) details = await readJobPage(reading.aiFor("read_job_page"), candidateId, htmlToText(page.html), (await deps.reading?.()) ?? null);
         if (!details) return { ok: false, reason: "not_a_job_offer" };
 
         // What the server read from the page itself is trusted, as Job discovery's is: never a date from a browser.
         const { postedAt: stated, summary, sector, subsector, ...untrusted } = details;
         const postedAt = believablePostingDate(stated, new Date());
-        const trusted = { ...(postedAt && { postedAt }), ...(summary && { summary }), ...(sector && { sector }), ...(subsector && { subsector }) };
+        reading.site(page.url);
+        const trusted = { ...(postedAt && { postedAt }), ...(summary && { summary }), ...(sector && { sector }), ...(subsector && { subsector }), provenance: reading.provenance() };
         const captured = await deps.jobOffers.capture({ source: { url: page.url }, ...untrusted }, "candidate", trusted);
         return captured.ok ? { ok: true, jobOffer: captured.jobOffer } : { ok: false, reason: "not_a_job_offer" };
       } catch (error) {
@@ -129,9 +132,9 @@ class PageNotRead<T> extends Error {
 }
 
 /** The page read as one Tool step of the reply's Provenance: failed when the page could not be read. */
-async function recordedPageRead<T extends { ok: boolean | "known" }>(provenance: ReadProvenance, read: () => Promise<T>): Promise<T> {
+async function recordedPageRead<T extends { ok: boolean | "known" }>(provenance: ReadProvenance, tool: ReturnType<typeof pageReadTool>, read: () => Promise<T>): Promise<T> {
   try {
-    return await provenance.step({ tool: "job-site" }, async () => {
+    return await provenance.step({ tool }, async () => {
       const page = await read();
       if (page.ok === false) throw new PageNotRead(page);
       return page;

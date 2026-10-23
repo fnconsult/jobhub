@@ -659,6 +659,10 @@ _Avoid_: Footer, metadata line, usage line
 The object of the page in view when a Coach reply was asked: an Application, a Job Offer or a Profile. Kept with the reply so AI Activity can count the reply with that page, and in the Data export.
 _Avoid_: Context, subject, target
 
+**Joined Provenance**:
+The one Provenance of a content made by two actions (an offer found by a Job Search then read, or read then summarized later): the steps of both in order, each site once with the links of both, the first start, and the wall-clock times summed, never the time between the actions. A Job Offer found by a Job Search keeps the search step that found it, the listing page that led to it, its ATS API or page read and the reading model. A capture that fills the summary of an existing Job Offer keeps the Provenance the offer already has. A Job Offer captured by the browser extension has none.
+_Avoid_: Merged trace
+
 **Provenance site**:
 A site whose pages a piece of content was built from, kept in its Provenance with the links read: an offer page, a job board, the company register, the Candidate's own Master CV and Profile. Shown to the Candidate under « Sources »; a link never points to a LinkedIn profile, a page naming a person, an Enriched Contact, an address inside Jobbbox other than the Candidate's own pages, a signed or tokenised address or a query string. Not a coaching Source (`[S12]`). Either a website (by domain, `www.` removed) or the Candidate's own pages, kept as relative paths (Profils, Candidatures, Recherches, Offres, Job Digests). Steps that ran the same Activity, task or Tool, provider, endpoint, model and Outcome are shown folded into one, with a count.
 _Avoid_: Source (alone), citation, reference

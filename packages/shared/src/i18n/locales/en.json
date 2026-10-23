@@ -2945,5 +2945,8 @@
       "off": "Reminders off.",
       "error": "Your choice could not be saved. Please try again."
     }
+  },
+  "aiActivity": {
+    "modelNotRecorded": "model not recorded"
   }
 }

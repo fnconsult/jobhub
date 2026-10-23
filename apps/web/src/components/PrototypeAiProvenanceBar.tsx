@@ -648,7 +648,11 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
       <style>{`@media (width >= 64rem) {
         .coach-panel:not(.coach-panel-wide) { top: var(--space-2); right: var(--space-2); bottom: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
         .with-coach-panel { margin-right: calc(var(--coach-width) + var(--space-2)); }
-      }`}</style>
+        /* Its header ends on the top bar's line: the card starts --space-2 lower, so the header is that much shorter. */
+        .coach-panel:not(.coach-panel-wide) .coach-panel-header { box-sizing: border-box; min-height: 0; height: calc(var(--proto-topbar-height, 3.5rem) - var(--space-2) - 1px); padding-block: 0; }
+      }
+      /* The top bar's last button ends where the pane ends: --space-2 from the column's edge. */
+      .topbar { padding-right: var(--space-2); }`}</style>
       {open ? (
         <aside
           id="proto-provenance-pane"
@@ -786,7 +790,10 @@ function useWorkspaceBox() {
       document.documentElement.style.setProperty("--proto-bar-width", `${box.width}px`);
       document.documentElement.style.setProperty("--proto-bar-right", `${window.innerWidth - box.right}px`);
       const topbar = workspace.querySelector(".topbar")?.getBoundingClientRect();
-      if (topbar) document.documentElement.style.setProperty("--proto-bar-top", `${topbar.bottom}px`);
+      if (topbar) {
+        document.documentElement.style.setProperty("--proto-bar-top", `${topbar.bottom}px`);
+        document.documentElement.style.setProperty("--proto-topbar-height", `${topbar.height}px`);
+      }
     };
     update();
     const observer = new ResizeObserver(update);

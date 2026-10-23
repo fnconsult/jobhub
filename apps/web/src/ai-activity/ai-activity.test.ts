@@ -1,6 +1,6 @@
 import { rulesProvenance, type Provenance } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { applicationPage, jobDigestPage, jobOfferPage, jobSearchPage, profilePage, type PageSources } from "./index";
+import { applicationDocumentsPage, applicationPage, jobDigestPage, jobOfferPage, jobSearchPage, profilePage, type PageSources } from "./index";
 import { aiActivityPane, byRulesOnly } from "./pane";
 
 /** The Job Offer: found by a web search, its page read, then read by Claude Haiku. */

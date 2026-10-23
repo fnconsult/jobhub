@@ -40,7 +40,7 @@ const profile = { id: "p1", name: "DAF", archived: false, masterCv: { version: 1
 const savedCv: ApplicationTailoredCv = {
   documentLanguage: "en",
   proposal: null,
-  saved: { language: "en", masterCvVersion: 1, content: tailored, matchScore: { master: 60, tailored: 80 }, savedAt: new Date() },
+  saved: { language: "en", masterCvVersion: 1, content: tailored, matchScore: { master: 60, tailored: 80 }, savedAt: new Date(), provenance: null },
 };
 
 const letterText = "Dear Sir or Madam,\n\nI am applying for the CFO position.\n\nYours faithfully,";

@@ -209,7 +209,7 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
     it("a Human Coach reads the Application's saved Tailored CV, Cover Letter and Outreach Message", async () => {
       const { sophie, marie } = await coachedApplication();
       drafts.set(marie.applicationId, { documentLanguage: "fr", coverLetter, outreachMessage: null });
-      const saved = { language: "fr" as const, masterCvVersion: 1, content: masterCv, matchScore: { master: 60, tailored: 75 }, savedAt: now };
+      const saved = { language: "fr" as const, masterCvVersion: 1, content: masterCv, matchScore: { master: 60, tailored: 75 }, savedAt: now, provenance: null };
       tailoredCvs.set(marie.applicationId, { documentLanguage: "fr", proposal: null, saved });
 
       const read = await coaches.application(sophie.id, marie.id, marie.applicationId);

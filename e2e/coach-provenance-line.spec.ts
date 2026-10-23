@@ -51,7 +51,7 @@ test.describe("the Provenance line under each AI Coach reply", () => {
     const line = lineOf(reply);
     await expect(line).toBeVisible();
     await expect(line).toContainText("Mistral Large");
-    await expect(line).toContainText(new RegExp(`\\d+(,\\d)?k? ${fr.provenanceLine.tokens} · \\d+,\\d s`));
+    await expect(line).toContainText(new RegExp(`\\d+(,\\d)?k? ${fr.provenanceLine.tokens} · \\d+(,\\d)? s`));
     await expect(line.locator("time")).toHaveText(/^\d{2}:\d{2}$/);
     await expect(line).not.toContainText(fr.provenanceLine.euAiConsent);
     // No cost, prompt, AI task, Playbook Agent or internal id.

@@ -2851,6 +2851,7 @@
     "route_missing": "No provider configured for this task",
     "data_residency": "Data residency rule",
     "invalid_reply": "Unreadable reply",
+    "stopped": "Stopped by the person",
     "task_playbook_fallback": "No Task Playbook version served: built-in text used",
     "task_playbook_unreadable": "Task Playbook could not be read: built-in text used",
     "task_playbook_section_missing": "Section missing from the Task Playbook: built-in text used",

@@ -35,6 +35,8 @@ export const FAILURE_REASONS = [
   "data_residency",
   /** The provider answered with something that could not be read. */
   "invalid_reply",
+  /** The person stopped it (its AbortSignal aborted, #325): failed, with no tokens. */
+  "stopped",
   // AI call warnings (#260): the feature a call serves ran degraded; each code says what it did instead.
   /** No version of the Task Playbook is served: its built-in text is used. */
   "task_playbook_fallback",
@@ -133,6 +135,7 @@ export const AI_CALL_FAILURE_REASONS: readonly FailureReason[] = [
   "route_missing",
   "data_residency",
   "invalid_reply",
+  "stopped",
   ...AI_CALL_WARNINGS,
   "other",
 ];
@@ -200,6 +203,9 @@ function reasonOf(name: string, status: number | undefined, carried: unknown): F
       return "route_missing";
     case "DataResidencyError":
       return "data_residency";
+    // What an AbortSignal rejects with when aborted without a reason of its own.
+    case "AbortError":
+      return "stopped";
     case "AiProviderError":
       if (status === undefined || status === 408 || status >= 500) return "provider_unavailable";
       if (status === 429) return "rate_limited";

@@ -36,10 +36,11 @@
  * Coaches never read them: Coach Access covers Profiles and Applications only.
  */
 import { activityOf } from "@jobhub/ai";
-import { readProvenance, type JobOffer, type Provenance } from "@jobhub/shared";
+import { readProvenance, type FailureReason, type JobOffer, type Provenance, type ProvenanceEvent } from "@jobhub/shared";
+import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 import * as z from "zod";
-import { COACH_FOCUS_KINDS, type Coach, type CoachMessageCost, type PlaybookConsultation, type PlaybookUsed } from "../coach";
+import { COACH_FOCUS_KINDS, type Coach, type CoachMessageCost, type CoachReply, type PlaybookConsultation, type PlaybookUsed } from "../coach";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, type CoachMessage, type JobOfferCard } from "../coach/conversation";
 import type { GuardrailLanguage } from "../guardrails";
 import type { Profiles } from "../profiles";
@@ -65,6 +66,8 @@ export interface CoachConversation extends CoachConversationSummary {
 /**
  * `blocked`: whether the Candidate's message and the reply were marked as blocked (#228). `jobOffer`: the reply's Job Offer card, if any.
  * `provenance`: what served the reply (#327); `at`: when it was saved, an ISO date.
+ * `stopped` (#328): the Candidate stopped the reply; their message is saved in `conversation`, with no reply.
+ * `unavailable`: the AI Coach could not answer, `reason` its Failure Reason; nothing is saved.
  */
 export type SendResult =
   | {
@@ -76,12 +79,28 @@ export type SendResult =
       provenance: Provenance;
       at: string;
     }
-  | { ok: false; error: "invalid" | "not_found" | "unavailable" };
+  | { ok: false; error: "stopped"; conversation: CoachConversationSummary }
+  | { ok: false; error: "unavailable"; reason: FailureReason }
+  | { ok: false; error: "invalid" | "not_found" };
+
+/**
+ * What `send` tells as it goes (#328): first the conversation the message goes to (a new one is named already, though
+ * saved only with the message), then each step of the reply as it starts and ends.
+ */
+export type CoachEvent = { type: "conversation"; conversation: CoachConversationSummary } | ProvenanceEvent;
+
+export interface SendOptions {
+  /** The Candidate's, for a Guardrail message. */
+  language?: GuardrailLanguage;
+  /** The Candidate's Stop (#328): the reply's AI calls are aborted, and only the Candidate's message is saved. */
+  signal?: AbortSignal;
+  onEvent?: (event: CoachEvent) => void;
+}
 
 export type RenameResult = { ok: true; conversation: CoachConversationSummary } | { ok: false; error: "invalid" | "not_found" };
 
 export interface CoachConversations {
-  send(candidateId: string, input: unknown, options?: { language?: GuardrailLanguage }): Promise<SendResult>;
+  send(candidateId: string, input: unknown, options?: SendOptions): Promise<SendResult>;
   /** The Candidate's conversations, most recently active first. */
   list(candidateId: string): Promise<CoachConversationSummary[]>;
   open(candidateId: string, conversationId: string): Promise<CoachConversation | null>;
@@ -224,10 +243,22 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
       const parsed = sendSchema.safeParse(input);
       if (!parsed.success) return { ok: false, error: "invalid" };
       const { conversationId, message, focus } = parsed.data;
+      const { signal, onEvent } = options;
+      const emit = (event: CoachEvent) => {
+        try {
+          onEvent?.(event);
+        } catch {
+          // The live view is a convenience: the reply goes on without it.
+        }
+      };
 
       const existing = conversationId ? await find(candidateId, conversationId) : null;
       if (conversationId && !existing) return { ok: false, error: "not_found" };
       const history = existing ? await lastMessages(candidateId, existing.id, MAX_MESSAGES) : [];
+      // A new conversation gets its id now, so a Stop keeps the message in the conversation the Candidate was told of.
+      const profile = existing ? null : await profileInView(candidateId, focus);
+      const conversation: CoachConversationSummary = existing ?? { id: randomUUID(), title: titleFrom(message), profile, lastMessageAt: now() };
+      emit({ type: "conversation", conversation });
 
       const answer = await deps.coach.reply(
         candidateId,
@@ -235,69 +266,30 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
           messages: [...withoutBlockedMessages(history).map(({ from, text }) => ({ from, text })), { from: "candidate", text: message }],
           ...(focus ? { focus: { kind: focus.kind, id: focus.id } } : {}),
         },
-        options.language ? { language: options.language } : undefined,
+        { ...(options.language ? { language: options.language } : {}), ...(signal ? { signal } : {}), ...(onEvent ? { onEvent: emit } : {}) },
       );
-      if (!answer.ok) return answer;
+      if (!answer.ok && answer.error !== "stopped") return answer;
+      if (!answer.ok || signal?.aborted) {
+        // Stopped, even once the reply came back: nothing is saved as a reply (#316 answer 11), the question stays.
+        await save(candidateId, conversation, !existing, { message, blocked: false }, null, now());
+        const saved = await find(candidateId, conversation.id);
+        return saved ? { ok: false, error: "stopped", conversation: saved } : { ok: false, error: "not_found" };
+      }
 
       const sentAt = now();
-      const { cost } = answer;
-      const replyFocus = focusOf(focus);
       const blocked = { message: answer.outcome === "blocked_message", reply: answer.outcome === "blocked_message" || answer.outcome === "blocked_reply" };
-      const client = await database.connect();
-      try {
-        await client.query("BEGIN");
-        let id = existing?.id;
-        if (!id) {
-          const profileId = await profileInView(candidateId, focus);
-          const { rows } = await client.query<{ id: string }>(
-            `INSERT INTO coach_conversation (candidate_id, profile_id, title, created_at, last_message_at, ai_disclosure) VALUES ($1, $2, $3, $4, $4, true) RETURNING id`,
-            [candidateId, profileId, titleFrom(message), sentAt],
-          );
-          id = rows[0]!.id;
-        }
-        await client.query(`INSERT INTO coach_message (conversation_id, author, text, created_at, blocked) VALUES ($1, 'candidate', $2, $3, $4)`, [id, message, sentAt, blocked.message]);
-        await client.query(
-          `INSERT INTO coach_message (conversation_id, author, text, created_at, provider, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, playbooks, consultations, blocked, job_offer_id,
-                                     provenance, focus_kind, focus_id)
-           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
-          [
-            id,
-            answer.reply,
-            sentAt,
-            cost?.provider ?? null,
-            cost?.model ?? null,
-            cost?.inputTokens ?? null,
-            cost?.outputTokens ?? null,
-            cost?.cachedInputTokens ?? null,
-            cost?.eur ?? null,
-            JSON.stringify(answer.playbooks),
-            JSON.stringify(answer.consultations),
-            blocked.reply,
-            answer.jobOffer?.id ?? null,
-            JSON.stringify(answer.provenance),
-            replyFocus?.kind ?? null,
-            replyFocus?.id ?? null,
-          ],
-        );
-        await client.query(`UPDATE coach_conversation SET last_message_at = $2 WHERE id = $1`, [id, sentAt]);
-        await client.query("COMMIT");
-        const conversation = await find(candidateId, id);
-        if (!conversation) return { ok: false, error: "not_found" }; // deleted meanwhile
-        return {
-          ok: true,
-          conversation,
-          reply: answer.reply,
-          blocked,
-          ...(answer.jobOffer ? { jobOffer: await cardOf(candidateId, answer.jobOffer) } : {}),
-          provenance: answer.provenance,
-          at: sentAt.toISOString(),
-        };
-      } catch (error) {
-        await client.query("ROLLBACK").catch(() => {});
-        throw error;
-      } finally {
-        client.release();
-      }
+      await save(candidateId, conversation, !existing, { message, blocked: blocked.message }, { answer, blocked: blocked.reply, focus: focusOf(focus) }, sentAt);
+      const saved = await find(candidateId, conversation.id);
+      if (!saved) return { ok: false, error: "not_found" }; // deleted meanwhile
+      return {
+        ok: true,
+        conversation: saved,
+        reply: answer.reply,
+        blocked,
+        ...(answer.jobOffer ? { jobOffer: await cardOf(candidateId, answer.jobOffer) } : {}),
+        provenance: answer.provenance,
+        at: sentAt.toISOString(),
+      };
     },
 
     async list(candidateId) {
@@ -333,11 +325,72 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     },
   };
 
+  /**
+   * Saves the Candidate's message and the AI Coach's reply together, `reply` null when it was stopped, with the conversation
+   * when it is `isNew`; the conversation's last message is then `sentAt`.
+   */
+  async function save(
+    candidateId: string,
+    conversation: CoachConversationSummary,
+    isNew: boolean,
+    asked: { message: string; blocked: boolean },
+    reply: { answer: Extract<CoachReply, { ok: true }>; blocked: boolean; focus: { kind: FocusKind; id: string } | null } | null,
+    sentAt: Date,
+  ): Promise<void> {
+    const client = await database.connect();
+    try {
+      await client.query("BEGIN");
+      const { id } = conversation;
+      if (isNew) {
+        await client.query(
+          `INSERT INTO coach_conversation (id, candidate_id, profile_id, title, created_at, last_message_at, ai_disclosure) VALUES ($1, $2, $3, $4, $5, $5, true)`,
+          [id, candidateId, conversation.profile?.id ?? null, conversation.title, sentAt],
+        );
+      }
+      await client.query(`INSERT INTO coach_message (conversation_id, author, text, created_at, blocked) VALUES ($1, 'candidate', $2, $3, $4)`, [id, asked.message, sentAt, asked.blocked]);
+      if (reply) {
+        const { answer } = reply;
+        const { cost } = answer;
+        await client.query(
+          `INSERT INTO coach_message (conversation_id, author, text, created_at, provider, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, playbooks, consultations, blocked, job_offer_id,
+                                     provenance, focus_kind, focus_id)
+           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+          [
+            id,
+            answer.reply,
+            sentAt,
+            cost?.provider ?? null,
+            cost?.model ?? null,
+            cost?.inputTokens ?? null,
+            cost?.outputTokens ?? null,
+            cost?.cachedInputTokens ?? null,
+            cost?.eur ?? null,
+            JSON.stringify(answer.playbooks),
+            JSON.stringify(answer.consultations),
+            reply.blocked,
+            answer.jobOffer?.id ?? null,
+            JSON.stringify(answer.provenance),
+            reply.focus?.kind ?? null,
+            reply.focus?.id ?? null,
+          ],
+        );
+      }
+      await client.query(`UPDATE coach_conversation SET last_message_at = $2 WHERE id = $1`, [id, sentAt]);
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   /** The Profile in view, or the one the page in view shows, if it is the Candidate's: the one a new conversation is attached to. */
-  async function profileInView(candidateId: string, focus: FocusInput): Promise<string | null> {
+  async function profileInView(candidateId: string, focus: FocusInput): Promise<{ id: string; name: string } | null> {
     const profileId = focus?.kind === "profile" ? focus.id : focus?.profileId;
     if (!profileId) return null;
-    return (await deps.profiles.get(candidateId, profileId))?.id ?? null;
+    const profile = await deps.profiles.get(candidateId, profileId);
+    return profile ? { id: profile.id, name: profile.name } : null;
   }
 }
 

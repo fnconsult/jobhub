@@ -599,7 +599,7 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
     // The page column makes room for the pane, as it does for the docked Coach Panel.
     const main = document.querySelector<HTMLElement>(".workspace > main");
     if (!main || !open || window.innerWidth < 1024) return;
-    main.style.paddingRight = "calc(min(22rem, 90vw) + 2rem)";
+    main.style.paddingRight = "calc(min(22rem, 90vw) + 2rem + var(--space-2))";
     return () => {
       main.style.paddingRight = "";
     };
@@ -642,25 +642,30 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
   return (
     <>
       {slot ? createPortal(toggle, slot) : null}
-      {/* Rounder corners for both top-bar buttons (the user's request); the real
-          change would go to .topbar .coach-panel-toggle in app.css. */}
-      <style>{`#proto-tasks-toggle, .topbar .coach-panel-toggle { border-radius: var(--radius-lg); }`}</style>
+      {/* The pane and the docked Coach Panel float as cards with the notices' radius
+          (--radius-md), inset by --space-2 (the user's request); the real change
+          would go to .coach-panel in app.css. */}
+      <style>{`@media (width >= 64rem) {
+        .coach-panel:not(.coach-panel-wide) { top: var(--space-2); right: var(--space-2); bottom: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+        .with-coach-panel { margin-right: calc(var(--coach-width) + var(--space-2)); }
+      }`}</style>
       {open ? (
         <aside
           id="proto-provenance-pane"
           aria-label="Sources, modèles et outils de cette page"
           style={{
             position: "fixed",
-            top: "var(--proto-bar-top, 4rem)",
-            bottom: 0,
-            right: "var(--proto-bar-right, 0px)",
+            top: "calc(var(--proto-bar-top, 4rem) + var(--space-2))",
+            bottom: "var(--space-2)",
+            right: "calc(var(--proto-bar-right, 0px) + var(--space-2))",
             width: "min(22rem, 90vw)",
             overflowY: "auto",
             zIndex: 15,
             boxSizing: "border-box",
             padding: "0.75em 1em 4em",
             background: "var(--color-surface)",
-            borderLeft: "1px solid var(--color-border)",
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-md)",
             fontSize: tiny ? "9px" : "calc(0.8125rem - 1px)",
             lineHeight: 1.45,
           }}

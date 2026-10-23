@@ -241,60 +241,79 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     return { id: jobOffer.id, title: jobOffer.title, ...(jobOffer.employer ? { employer: jobOffer.employer } : {}), followed: rows.length > 0 };
   }
 
+  /**
+   * Each conversation's latest send, until it has saved what it saves (#328). A message sent while the one before is still
+   * being answered or saved, right after a Stop, waits for it: it then follows it in the conversation, which for a new
+   * conversation only exists once that first message is saved. Within this server process: the app runs one.
+   */
+  const sending = new Map<string, Promise<unknown>>();
+  function inTurn<T>(conversationId: string, run: () => Promise<T>): Promise<T> {
+    const turn = (sending.get(conversationId) ?? Promise.resolve()).then(run);
+    const done = turn.catch(() => undefined);
+    sending.set(conversationId, done);
+    void done.then(() => {
+      if (sending.get(conversationId) === done) sending.delete(conversationId);
+    });
+    return turn;
+  }
+
   return {
     async send(candidateId, input, options = {}) {
       const parsed = sendSchema.safeParse(input);
       if (!parsed.success) return { ok: false, error: "invalid" };
       const { conversationId, message, focus } = parsed.data;
-      const { signal, onEvent } = options;
-      const emit = (event: CoachEvent) => {
-        try {
-          onEvent?.(event);
-        } catch {
-          // The live view is a convenience: the reply goes on without it.
-        }
-      };
-
-      const existing = conversationId ? await find(candidateId, conversationId) : null;
-      if (conversationId && !existing) return { ok: false, error: "not_found" };
-      const history = existing ? await lastMessages(candidateId, existing.id, MAX_MESSAGES, true) : [];
       // A new conversation gets its id now, so a Stop keeps the message in the conversation the Candidate was told of.
-      const profile = existing ? null : await profileInView(candidateId, focus);
-      const conversation: CoachConversationSummary = existing ?? { id: randomUUID(), title: titleFrom(message), profile, lastMessageAt: now() };
-      emit({ type: "conversation", conversation });
+      const id = conversationId ?? randomUUID();
+      return inTurn(id, async (): Promise<SendResult> => {
+        const { signal, onEvent } = options;
+        const emit = (event: CoachEvent) => {
+          try {
+            onEvent?.(event);
+          } catch {
+            // The live view is a convenience: the reply goes on without it.
+          }
+        };
 
-      const answer = await deps.coach.reply(
-        candidateId,
-        {
-          messages: [...withoutBlockedMessages(history).map(({ from, text }) => ({ from, text })), { from: "candidate", text: message }],
-          ...(focus ? { focus: { kind: focus.kind, id: focus.id } } : {}),
-        },
-        { ...(options.language ? { language: options.language } : {}), ...(signal ? { signal } : {}), ...(onEvent ? { onEvent: emit } : {}) },
-      );
-      if (!answer.ok && answer.error !== "stopped") return answer;
-      if (!answer.ok || signal?.aborted) {
-        // Stopped, even once the reply came back: nothing is saved as a reply (#316 answer 11), the question stays. Shown, never
-        // blocked, but kept from the AI Coach unless the input Guardrails had let it through: else a Stop would get round them.
-        const passed = answer.ok ? answer.outcome === "replied" || answer.outcome === "blocked_reply" : answer.messagePassed;
-        await save(candidateId, conversation, !existing, { message, blocked: false, unchecked: !passed }, null, now());
+        const existing = conversationId ? await find(candidateId, conversationId) : null;
+        if (conversationId && !existing) return { ok: false, error: "not_found" };
+        const history = existing ? await lastMessages(candidateId, existing.id, MAX_MESSAGES, true) : [];
+        const profile = existing ? null : await profileInView(candidateId, focus);
+        const conversation: CoachConversationSummary = existing ?? { id, title: titleFrom(message), profile, lastMessageAt: now() };
+        emit({ type: "conversation", conversation });
+
+        const answer = await deps.coach.reply(
+          candidateId,
+          {
+            messages: [...withoutBlockedMessages(history).map(({ from, text }) => ({ from, text })), { from: "candidate", text: message }],
+            ...(focus ? { focus: { kind: focus.kind, id: focus.id } } : {}),
+          },
+          { ...(options.language ? { language: options.language } : {}), ...(signal ? { signal } : {}), ...(onEvent ? { onEvent: emit } : {}) },
+        );
+        if (!answer.ok && answer.error !== "stopped") return answer;
+        if (!answer.ok || signal?.aborted) {
+          // Stopped, even once the reply came back: nothing is saved as a reply (#316 answer 11), the question stays. Shown, never
+          // blocked, but kept from the AI Coach unless the input Guardrails had let it through: else a Stop would get round them.
+          const passed = answer.ok ? answer.outcome === "replied" || answer.outcome === "blocked_reply" : answer.messagePassed;
+          await save(candidateId, conversation, !existing, { message, blocked: false, unchecked: !passed }, null, now());
+          const saved = await find(candidateId, conversation.id);
+          return saved ? { ok: false, error: "stopped", conversation: saved } : { ok: false, error: "not_found" };
+        }
+
+        const sentAt = now();
+        const blocked = { message: answer.outcome === "blocked_message", reply: answer.outcome === "blocked_message" || answer.outcome === "blocked_reply" };
+        await save(candidateId, conversation, !existing, { message, blocked: blocked.message }, { answer, blocked: blocked.reply, focus: focusOf(focus) }, sentAt);
         const saved = await find(candidateId, conversation.id);
-        return saved ? { ok: false, error: "stopped", conversation: saved } : { ok: false, error: "not_found" };
-      }
-
-      const sentAt = now();
-      const blocked = { message: answer.outcome === "blocked_message", reply: answer.outcome === "blocked_message" || answer.outcome === "blocked_reply" };
-      await save(candidateId, conversation, !existing, { message, blocked: blocked.message }, { answer, blocked: blocked.reply, focus: focusOf(focus) }, sentAt);
-      const saved = await find(candidateId, conversation.id);
-      if (!saved) return { ok: false, error: "not_found" }; // deleted meanwhile
-      return {
-        ok: true,
-        conversation: saved,
-        reply: answer.reply,
-        blocked,
-        ...(answer.jobOffer ? { jobOffer: await cardOf(candidateId, answer.jobOffer) } : {}),
-        provenance: answer.provenance,
-        at: sentAt.toISOString(),
-      };
+        if (!saved) return { ok: false, error: "not_found" }; // deleted meanwhile
+        return {
+          ok: true,
+          conversation: saved,
+          reply: answer.reply,
+          blocked,
+          ...(answer.jobOffer ? { jobOffer: await cardOf(candidateId, answer.jobOffer) } : {}),
+          provenance: answer.provenance,
+          at: sentAt.toISOString(),
+        };
+      });
     },
 
     async list(candidateId) {

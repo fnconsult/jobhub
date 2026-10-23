@@ -114,6 +114,30 @@ test.describe("each step of an AI Coach reply live, and Stop", () => {
     await expect(messagesOf(panelOf(page))).toHaveCount(4);
   });
 
+  test("Stop during the input Guardrail check aborts it at once (AI Usage: stopped), and a message sent right after follows the stopped question", async ({ page }) => {
+    const { email, panel } = await openPanel(page, "live-stop-guardrail");
+    const askedAt = new Date();
+
+    // The input check takes 12 s (past its 8 s timeout) unless it is aborted.
+    await ask(panel, "Salut E2E_GUARDRAIL_SLOW");
+    await expect(stepOf(panel)).toBeVisible();
+    await panel.getByRole("button", { name: fr.coachPanel.stop, exact: true }).click();
+    await expect(messagesOf(panel).last()).toContainText(fr.coachPanel.stopped);
+
+    // Sent at once, before the stopped question may be saved: it waits for it, then is answered in the same conversation.
+    await ask(panel, "Bonjour");
+    await expect(messagesOf(panel)).toHaveCount(5);
+    await expect(panel.getByRole("alert")).toHaveCount(0);
+    expect(await savedMessages(email)).toEqual([
+      { author: "candidate", text: "Salut E2E_GUARDRAIL_SLOW" },
+      { author: "candidate", text: "Bonjour" },
+      { author: "coach", text: expect.any(String) },
+    ]);
+    // The check's AI request was aborted, well before its timeout: AI Usage records it stopped.
+    const stoppedChecks = () => query(`SELECT 1 FROM ai_usage WHERE task = 'guardrail' AND at >= $1 AND reason = 'stopped'`, [askedAt]);
+    await expect.poll(async () => (await stoppedChecks()).length, { timeout: 3_000 }).toBe(1);
+  });
+
   test("a failed reply says its translated Failure Reason in light red, never the technical message", async ({ page }) => {
     const { email, panel } = await openPanel(page, "live-failure");
 

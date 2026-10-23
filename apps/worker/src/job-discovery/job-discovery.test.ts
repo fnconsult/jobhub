@@ -73,7 +73,8 @@ function memoryJobOffers(existing: JobOffer[] = []): JobOfferStore & { all: JobO
     async capture(input, _capturedBy, trusted) {
       captures.push({ input, trusted });
       // Like the real store, a Job Offer does not carry its Provenance: it is read apart.
-      const { provenance: _provenance, ...facts } = trusted ?? {};
+      const facts = { ...trusted };
+      delete facts.provenance;
       const offer = { ...(input as Omit<JobOffer, "id">), ...facts };
       const same = all.find((o) => o.source.url === offer.source.url || o.content === offer.content);
       if (same) return { ok: true, jobOffer: same };

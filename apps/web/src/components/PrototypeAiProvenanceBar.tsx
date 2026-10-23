@@ -145,11 +145,59 @@ function VariantC({ elements }: { elements: Element[] }) {
             aria-expanded={shown === e.what}
             style={{ font: "inherit", color: "inherit", background: "none", border: 0, padding: 0, cursor: "pointer", textDecoration: "underline dotted" }}
           >
-            {e.what} : {e.model?.split(" ")[0] ?? "—"}
+            <Logo label={e.model ?? e.what} /> {e.what} : {e.model?.split(" ")[0] ?? "—"}
           </button>
         ))}
       </div>
     </div>
+  );
+}
+
+// Logos: the site's own /favicon.ico, straight from the browser (PROTOTYPE: in
+// production this leaks the Candidate's IP to each site, so they would be served
+// from our own assets). A label with no known site gets a letter or a glyph.
+const LOGOS: [RegExp, string][] = [
+  [/claude|anthropic/i, "anthropic.com"],
+  [/mistral/i, "mistral.ai"],
+  [/sonar|perplexity|actualités/i, "perplexity.ai"],
+  [/france travail/i, "francetravail.fr"],
+  [/fantastic/i, "fantastic.jobs"],
+  [/welcometothejungle/i, "www.welcometothejungle.com"],
+  [/annuaire|recherche d'entreprises|insee/i, "annuaire-entreprises.data.gouv.fr"],
+];
+const GLYPHS: [RegExp, string][] = [
+  [/cv|profil|candidature|critères/i, "👤"],
+  [/lecture de page|pages des offres|offre$|^offre/i, "🌐"],
+  [/règles|match score/i, "J"],
+  [/greenhouse|lever|ashby|carrières/i, "🏢"],
+];
+
+function Logo({ label }: { label: string }) {
+  const [failed, setFailed] = useState(false);
+  const domain = LOGOS.find(([re]) => re.test(label))?.[1];
+  const box: CSSProperties = { width: "1.15em", height: "1.15em", flex: "none", borderRadius: 3, verticalAlign: "-0.2em", display: "inline-flex", alignItems: "center", justifyContent: "center" };
+  if (domain && !failed)
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={`https://${domain}/favicon.ico`} alt="" style={box} onError={() => setFailed(true)} />;
+  const glyph = GLYPHS.find(([re]) => re.test(label))?.[1] ?? label.trim()[0]?.toUpperCase();
+  return (
+    <span aria-hidden style={{ ...box, background: "var(--color-border)", fontSize: "0.75em", fontWeight: 600 }}>
+      {glyph}
+    </span>
+  );
+}
+
+// Bedrock models get AWS's logo beside the model's own.
+function Labelled({ label, mono: isMono }: { label: string; mono?: boolean }) {
+  return (
+    <span style={{ display: "inline-flex", gap: "0.4em", alignItems: "center" }}>
+      <Logo label={label} />
+      {/bedrock/i.test(label) ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src="https://aws.amazon.com/favicon.ico" alt="" style={{ width: "1.15em", height: "1.15em", borderRadius: 3 }} />
+      ) : null}
+      <span style={isMono ? mono : undefined}>{label}</span>
+    </span>
   );
 }
 
@@ -248,22 +296,22 @@ function VariantD({ elements, tiny }: { elements: Element[]; tiny: boolean }) {
               <Section title="Modèles" count={models.length}>
                 {models.map((m) => (
                   <li key={m} style={row}>
-                    <span style={mono}>{m}</span>
+                    <Labelled label={m} mono />
                   </li>
                 ))}
               </Section>
               <Section title="Sources" count={sources.length}>
                 {sources.map((x) => (
                   <li key={x} style={row}>
-                    <span>{x}</span>
+                    <Labelled label={x} />
                   </li>
                 ))}
               </Section>
               <Section title="Outils" count={tools.length}>
                 {tools.map((x) => (
                   <li key={x} style={{ padding: "0.2em 0" }}>
-                    <div>{x}</div>
-                    <div style={{ ...dim, fontSize: "0.9em" }}>{usedBy(elements, (e) => e.tools?.includes(x) ?? false)}</div>
+                    <Labelled label={x} />
+                    <div style={{ ...dim, fontSize: "0.9em", paddingLeft: "1.55em" }}>{usedBy(elements, (e) => e.tools?.includes(x) ?? false)}</div>
                   </li>
                 ))}
               </Section>
@@ -274,8 +322,12 @@ function VariantD({ elements, tiny }: { elements: Element[]; tiny: boolean }) {
                       <strong>{e.what}</strong>
                       <span style={dim}>{e.at ?? ""}</span>
                     </div>
-                    <div style={mono}>{short(e.model)}</div>
-                    <div style={dim}>{[...e.sources, ...(e.tools ?? [])].join(" · ")}</div>
+                    <Labelled label={short(e.model)} mono />
+                    <div style={{ ...dim, display: "flex", flexWrap: "wrap", gap: "0.2em 0.5em", marginTop: "0.2em" }} title={[...e.sources, ...(e.tools ?? [])].join(" · ")}>
+                      {uniq([...e.sources, ...(e.tools ?? [])]).map((x) => (
+                        <Logo key={x} label={x} />
+                      ))}
+                    </div>
                   </li>
                 ))}
               </Section>

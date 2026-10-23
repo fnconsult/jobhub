@@ -16,7 +16,7 @@
 import { describeModel, markOf, residencyOf, whereItRan, type Provenance, type ProvenanceSite, type Translated } from "@jobhub/shared";
 
 /** What a page shows that AI may have produced, each the content a Provenance is kept with. */
-export const ELEMENT_KINDS = ["job_offer", "coach_reply", "job_search", "job_digest", "tailored_cv", "tailored_documents", "company_dossier", "action_card"] as const;
+export const ELEMENT_KINDS = ["job_offer", "coach_reply", "job_search", "job_digest", "tailored_cv", "tailored_documents", "company_dossier", "action_card", "ats_score"] as const;
 export type ElementKind = (typeof ELEMENT_KINDS)[number];
 
 export interface ActivityModel {
@@ -47,7 +47,7 @@ export interface ActivityTool {
 
 export interface ActivityElement {
   kind: ElementKind;
-  /** A Job Offer's title. */
+  /** A Job Offer's title, an Action Card's. */
   name?: string;
   /** When its action started, else when it was made; null when not known. */
   at: string | null;
@@ -70,7 +70,10 @@ export interface AiActivityPane {
   /** `usedBy`: the elements that used it, by their place in `elements`. */
   tools: (ActivityTool & { usedBy: number[] })[];
   elements: ActivityElement[];
-  /** What the closed button says, « 3 modèles · 10,9k tokens · 21,5 s »; null on a page with no recorded AI content (the button then shows its label). */
+  /**
+   * What the closed button says, « 3 modèles · 10,9k tokens · 21,5 s »; null on a page where no model served what it
+   * shows (none recorded, or Jobbbox's rules alone): the button then shows its label.
+   */
   summary: { models: number; tokens: number | null; ms: number | null } | null;
 }
 
@@ -106,6 +109,12 @@ function addSite(sites: ProvenanceSite[], site: ProvenanceSite): void {
   if (same) same.links = [...new Set([...same.links, ...site.links])];
   else sites.push(structuredClone(site));
 }
+
+/**
+ * Whether Jobbbox's rules alone made the element, no model (an ATS Score, an ATS Fix, a Job Digest's Match Scores):
+ * Par élément says « Calcul » where a model would be named.
+ */
+export const byRulesOnly = (served: NonNullable<ActivityElement["served"]>): boolean => served.models.length === 0 && served.tools.some((tool) => tool.name === null);
 
 /** One element of the page, as the pane shows it: what served it, read from its Provenance (null when none was kept). */
 export function activityElement(kind: ElementKind, provenance: Provenance | null, made: { name?: string; at?: string | null } = {}): ActivityElement {
@@ -146,10 +155,8 @@ export function aiActivityPane(elements: ActivityElement[]): AiActivityPane {
   const sites: ProvenanceSite[] = [];
   let tokens: number | null = null;
   let ms: number | null = null;
-  let recorded = false;
   elements.forEach((element, index) => {
     if (!element.served) return;
-    recorded = true;
     tokens = add(tokens, element.served.tokens);
     ms = add(ms, element.served.ms);
     for (const model of element.served.models) addModel(models, model);
@@ -159,5 +166,5 @@ export function aiActivityPane(elements: ActivityElement[]): AiActivityPane {
     }
     for (const site of element.served.sites) addSite(sites, site);
   });
-  return { models, total: { tokens, ms }, sites, tools, elements, summary: recorded ? { models: models.length, tokens, ms } : null };
+  return { models, total: { tokens, ms }, sites, tools, elements, summary: models.length > 0 ? { models: models.length, tokens, ms } : null };
 }

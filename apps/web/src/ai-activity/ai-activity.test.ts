@@ -1,7 +1,7 @@
-import type { Provenance } from "@jobhub/shared";
+import { rulesProvenance, type Provenance } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { applicationPage, jobDigestPage, jobOfferPage, jobSearchPage, profilePage, type PageSources } from "./index";
-import { aiActivityPane } from "./pane";
+import { aiActivityPane, byRulesOnly } from "./pane";
 
 /** The Job Offer: found by a web search, its page read, then read by Claude Haiku. */
 const read: Provenance = {
@@ -117,6 +117,17 @@ describe("AI Activity's page loaders (#332)", () => {
     ]);
   });
 
+  it("shows a new Job Digest from its Provenance (#336): its Match Scores, « Calcul » with no model, then its top-up run", async () => {
+    const scoring = rulesProvenance("match_score", { at: new Date("2026-10-21T06:00:00Z"), ms: 8 });
+    const [alone] = await jobDigestPage(sources(), { sentAt: new Date("2026-10-21T06:00:00Z"), provenance: scoring, results: [] });
+    const [toppedUp] = await jobDigestPage(sources(), { sentAt: new Date("2026-10-21T06:00:00Z"), provenance: { ...read, steps: [...scoring.steps, ...read.steps] }, results: [] });
+
+    expect(alone).toMatchObject({ kind: "job_digest", at: "2026-10-21T06:00:00.000Z", served: { models: [], tools: [{ name: null, ms: 8 }] } });
+    expect(byRulesOnly(alone!.served!)).toBe(true);
+    expect(toppedUp!.served!.models.map((model) => model.name)).toEqual(["Perplexity", "Claude Haiku 4.5"]);
+    expect(byRulesOnly(toppedUp!.served!)).toBe(false);
+  });
+
   it("shows `/candidatures/[id]/*`'s Job Offer, what was made for it (« non enregistré » until their slices land) and the Coach replies about the Application", async () => {
     const elements = await applicationPage(sources(), CANDIDATE, { id: APPLICATION, jobOffer: { id: OFFER, title: "DAF Lyon" } }, [
       { kind: "tailored_cv", at: new Date("2026-10-22T09:00:00Z") },
@@ -129,6 +140,42 @@ describe("AI Activity's page loaders (#332)", () => {
       { kind: "company_dossier", at: null, recorded: false },
       { kind: "coach_reply", at: "2026-10-23T10:40:00.000Z", recorded: true },
     ]);
+  });
+
+  it("shows `/profils/[id]/*`'s ATS Score and ATS Fix cards as « Calcul » with no model, and an Action Card proposed before as « non enregistré » (#336)", async () => {
+    const at = new Date("2026-10-24T09:00:00Z");
+    const elements = await profilePage(sources({ replies: [] }), CANDIDATE, { id: PROFILE }, [
+      { kind: "ats_score", provenance: rulesProvenance("ats_score", { at }) },
+      { kind: "action_card", name: "Ajoutez « IFRS » à vos compétences", provenance: rulesProvenance("ats_fixes", { at, ms: 2 }) },
+      { kind: "action_card", name: "Ajoutez « SAP » à vos compétences", at, provenance: null },
+    ]);
+    const pane = aiActivityPane(elements);
+
+    expect(elements.map(({ kind, name, served }) => ({ kind, name, byRules: served ? byRulesOnly(served) : null }))).toEqual([
+      { kind: "ats_score", name: undefined, byRules: true },
+      { kind: "action_card", name: "Ajoutez « IFRS » à vos compétences", byRules: true },
+      { kind: "action_card", name: "Ajoutez « SAP » à vos compétences", byRules: null },
+    ]);
+    expect(pane.models).toEqual([]);
+    expect(pane.tools).toEqual([{ name: null, ms: 2, usedBy: [0, 1] }]);
+    // No model served the page: the closed button shows its label, not « 0 modèle ».
+    expect(pane.summary).toBeNull();
+  });
+
+  it("shows `/candidatures/[id]/*`'s Follow-up card with the model that wrote it (#336)", async () => {
+    const wrote: Provenance = {
+      v: 1,
+      steps: [{ kind: "ai", activity: "write", task: "writing", provider: "anthropic", endpoint: "bedrock eu-north-1", model: "anthropic.claude-sonnet-5", tokens: { input: 900, output: 120 }, ms: 2100, at: "2026-11-12T06:00:00.000Z", outcome: "ok", count: 1 }],
+      sites: [],
+      startedAt: "2026-11-12T06:00:00.000Z",
+      wallMs: 2100,
+    };
+    const elements = await applicationPage(sources({ replies: [] }), CANDIDATE, { id: APPLICATION, jobOffer: { id: OFFER, title: "DAF Lyon" } }, [
+      { kind: "action_card", name: "Relancer : DAF Lyon", provenance: wrote },
+    ]);
+
+    expect(elements[1]).toMatchObject({ kind: "action_card", name: "Relancer : DAF Lyon", at: "2026-11-12T06:00:00.000Z", served: { models: [{ name: "Claude Sonnet 5", tokens: 1020 }] } });
+    expect(aiActivityPane(elements).summary).toMatchObject({ models: 3 });
   });
 
   it("shows `/profils/[id]/*`'s Action Cards, « non enregistré », and the Coach replies about the Profile", async () => {

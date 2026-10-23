@@ -662,6 +662,7 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
       }
       .usage-meter-detail dl { gap: 2px; margin-bottom: var(--space-1); }
       .usage-meter-detail .hint { margin-bottom: var(--space-1); font-size: inherit; }
+      .usage-meter-renews { margin-top: calc(-1 * var(--space-1)); font-size: 0.75rem; font-weight: 400; color: var(--color-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       /* The pane's scrollbar shows only while the pointer is over it or it scrolls. */
       #proto-provenance-pane { scrollbar-width: thin; scrollbar-color: transparent transparent; }
       #proto-provenance-pane:hover, #proto-provenance-pane.proto-scrolling { scrollbar-color: var(--color-text-secondary) transparent; }

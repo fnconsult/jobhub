@@ -56,6 +56,8 @@ export function UsageMeter({
             <span style={{ width: `${meter.percent}%` }} />
           </span>
         )}
+        {/* PROTOTYPE: when the week's quotas start again, on one line under the bar. */}
+        <span className="usage-meter-renews">{t("usageMeter.renews")}</span>
       </button>
       {/* Rendered only while open: the page's own usage list (/abonnement) stays the only one there. */}
       {open ? (
@@ -78,7 +80,6 @@ export function UsageMeter({
               <dd>{t(`billing.jobDigest.${meter.jobDigest}`)}</dd>
             </div>
           </dl>
-          <p className="hint">{t("billing.quotaReached.renews")}</p>
           <Link href={routes.subscription} onClick={onNavigate}>
             {t("usageMeter.subscription")}
           </Link>

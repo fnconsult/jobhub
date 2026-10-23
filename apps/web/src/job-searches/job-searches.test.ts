@@ -477,7 +477,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       expect(await jobSearches.notifications(candidateId)).toEqual({
         notifications: [],
         searching: true,
-        running: [{ jobSearchId: jobSearch.id, profile: { id: profileId, name: "DAF" }, startedAt: jobSearch.startedAt, steps: [] }],
+        running: [{ jobSearchId: jobSearch.id, profile: { id: profileId, name: "DAF" }, startedAt: jobSearch.startedAt.toISOString(), steps: [] }],
       });
 
       await jobSearches.record(jobSearch.id, { jobOfferIds: [daf, controleur] });
@@ -521,7 +521,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       await reports.progress(jobSearch.id, [titlesEnded, franceTravail]);
 
       expect((await jobSearches.notifications(candidateId)).running).toEqual([
-        { jobSearchId: jobSearch.id, profile: { id: profileId, name: "DAF" }, startedAt: jobSearch.startedAt, steps: [titlesEnded, franceTravail] },
+        { jobSearchId: jobSearch.id, profile: { id: profileId, name: "DAF" }, startedAt: jobSearch.startedAt.toISOString(), steps: [titlesEnded, franceTravail] },
       ]);
       expect((await jobSearches.notifications(otherCandidateId)).running).toEqual([]);
     });

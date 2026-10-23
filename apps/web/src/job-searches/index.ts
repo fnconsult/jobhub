@@ -117,7 +117,8 @@ export type JobSearchOutcome = ({ jobOfferIds: string[] } | { failed: string }) 
 export interface RunningJobSearch {
   jobSearchId: string;
   profile: { id: string; name: string };
-  startedAt: Date;
+  /** ISO: the same over the poll's JSON as in the page's first render. */
+  startedAt: string;
   /** Each step's latest event, in order: started, or ended in its place. None before the worker's first step. */
   steps: ProvenanceEvent[];
 }
@@ -427,7 +428,7 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
         }));
       const running: RunningJobSearch[] = rows
         .filter((row) => row.status === "searching")
-        .map((row) => ({ jobSearchId: row.id, profile: { id: row.profile_id, name: row.profile_name }, startedAt: row.started_at, steps: readRunProgress(row.progress) }));
+        .map((row) => ({ jobSearchId: row.id, profile: { id: row.profile_id, name: row.profile_name }, startedAt: row.started_at.toISOString(), steps: readRunProgress(row.progress) }));
       return { notifications, searching: running.length > 0, running };
     },
     async dismissNotification(candidateId, jobSearchId) {

@@ -169,7 +169,7 @@ function recorderOf(ai: AiLayer, action: Action, wider: readonly Kept[]): Proven
       const kept = provenanceLink(link);
       if (!kept) return;
       for (const { sites } of all) {
-        const site = kept.startsWith("/") ? siteOf(sites, { kind: "candidate", links: [] }) : siteOf(sites, { kind: "web", domain: siteDomainOf(kept), links: [] });
+        const site: ProvenanceSite = kept.startsWith("/") ? siteOf(sites, { kind: "candidate", links: [] }) : siteOf(sites, { kind: "web", domain: siteDomainOf(kept), links: [] });
         if (!site.links.includes(kept)) site.links.push(kept);
       }
     },

@@ -65,6 +65,7 @@ const jobSearch: JobSearch = {
   startedAt: new Date("2026-10-10T08:00:00Z"),
   results: [{ jobOffer, matchScore, applicationId: null }],
   metrics: null,
+  provenance: null,
 };
 
 const jobDigest: JobDigest = {

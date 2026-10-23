@@ -4,13 +4,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { JobSearchNotification } from "@/job-searches";
+import type { JobSearchNotification, RunningJobSearch } from "@/job-searches";
 import { routes } from "@/routes";
+
+/** How often a page asks again while one of the Candidate's Job Searches is searching (ADR-0034). */
+const JOB_SEARCH_POLL_MS = 1500;
 
 export interface JobSearchNotificationsState {
   notifications: JobSearchNotification[];
   /** One of the Candidate's Job Searches is still searching: more may come. */
   searching: boolean;
+  /** The Job Searches still searching, with their live steps so far (AI Activity's « En cours ailleurs », #330). */
+  running: RunningJobSearch[];
 }
 
 /**
@@ -19,11 +24,12 @@ export interface JobSearchNotificationsState {
  * failed in plain words. Each stays until they close it or open the Job Search.
  *
  * It checks again on every page change (a Job Search may just have started) and,
- * while one is searching, every few seconds. One polite live region, present
+ * while one is searching, every 1.5 s, which also brings each running search's
+ * steps so far (#330); it stops once none is searching (done, failed or stopped). One polite live region, present
  * from the start, so a screen reader announces each new notification. Left out
  * on the page of the Job Search it is about, which shows the outcome itself.
  */
-export function JobSearchNotifications({ initial, everyMs = 5000 }: { initial: JobSearchNotificationsState; everyMs?: number }) {
+export function JobSearchNotifications({ initial, everyMs = JOB_SEARCH_POLL_MS }: { initial: JobSearchNotificationsState; everyMs?: number }) {
   const { t } = useTranslation();
   const pathname = usePathname();
   const [state, setState] = useState(initial);

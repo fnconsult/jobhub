@@ -10,7 +10,7 @@ Coaching platform for job seekers aged 40+ in France. Vocabulary: [`CONTEXT.md`]
 | `apps/extension` | Chrome MV3 extension (WXT) |
 | `apps/worker` | Background-job runner (pg-boss on Postgres) |
 | `packages/shared` | Domain types, translations (`@jobhub/shared/i18n`) and design tokens (`@jobhub/shared/design`) |
-| `packages/ai` | Provider-agnostic AI layer (`@jobhub/ai`, server-side only): Anthropic, Mistral, OpenAI; web search: Perplexity, Brave, Tavily, Linkup; fake provider in `@jobhub/ai/testing` |
+| `packages/ai` | Provider-agnostic AI layer (`@jobhub/ai`, server-side only): Anthropic, Mistral, OpenAI; web search: Perplexity, Brave, Tavily, Linkup; fake provider in `@jobhub/ai/testing` (`pending` waits for the request's `signal`); every result carries call facts, and a request's `signal` stops the call (Failure Reason `stopped`) |
 | `packages/coach-knowledge` | The coaching knowledge files the one-off import reads (`@jobhub/coach-knowledge`, server-side only): `readCoachKnowledgeFiles()`, and the `[Sn]` / Sources table Markdown helpers |
 
 ## Getting started

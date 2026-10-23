@@ -22,6 +22,8 @@ The Back Office Audit now also records failed or refused attempts that change no
 
 **Warnings (#260).** A degraded path is recorded on the AI call it concerns as an AI call warning: a code from the same catalog and a scrubbed detail. A call that worked with warnings has Outcome warning and its first warning as its reason; a failed call keeps its own reason, with its warnings stored beside it in `ai_usage.warnings` (codes) and `ai_message_log.warnings` (code and detail). Details stay with the AI Message Log (30 days, super-admins only). Degraded paths with no call to carry them stay on the console.
 
+**Stopped (#325).** An AI call stopped through its AbortSignal is a failed call with code `stopped`, no tokens and no cost, and `sent: false` if stopped before it left. It rejects with the signal's own reason, never wrapped as a provider error. Company News still never fails, except when stopped.
+
 ## Considered Options
 
 - **Free text only:** readable, but neither filterable nor countable, and too easily a carrier of personal data kept for years.

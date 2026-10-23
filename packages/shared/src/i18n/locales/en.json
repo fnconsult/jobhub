@@ -2982,6 +2982,36 @@
       "read": "Reading",
       "compute": "Computing",
       "check": "Checking"
+    },
+    "label": "AI activity",
+    "title": "This page",
+    "close": "Close",
+    "models_one": "{{count}} model",
+    "models_other": "{{count}} models",
+    "tokens": "{{tokens}} tokens",
+    "sections": {
+      "models": "Models",
+      "sources": "Sources",
+      "tools": "Tools",
+      "byElement": "By item"
+    },
+    "measure": "tokens · time",
+    "measureHint": "a technical measure, not counted against your quotas",
+    "total": "Total",
+    "yourData": "Your data: Master CV, Profile, criteria",
+    "noAi": "No content made by AI on this page",
+    "newTab": "(new tab)",
+    "rules": "Jobbbox rules",
+    "usedBy": "For: {{elements}}",
+    "kinds": {
+      "job_offer": "Job offer",
+      "coach_reply": "Coach reply",
+      "job_search": "Job search",
+      "job_digest": "Job Digest",
+      "tailored_cv": "Tailored CV",
+      "tailored_documents": "Tailored documents",
+      "company_dossier": "Company dossier",
+      "action_card": "Coach proposal"
     }
   }
 }

@@ -1,13 +1,26 @@
+import { getCoachConversations } from "@/coach-conversations/server";
 import { getJobOffers } from "@/job-offers/server";
-import { getJobSearches } from "@/job-searches/server";
-import { jobOfferPage, jobSearchPage, type ActivityElement } from "./index";
+import { applicationPage, jobDigestPage, jobOfferPage, jobSearchPage, profilePage, type ActivityElement, type PageSources } from "./index";
 
-/** `/offres/[id]`'s elements for AI Activity, read from the app's Job Offers. */
-export function loadJobOfferPage(id: string): Promise<ActivityElement[]> {
-  return jobOfferPage(getJobOffers(), id);
+const sources = (): PageSources => ({ jobOffers: getJobOffers(), coachReplies: getCoachConversations() });
+
+/** Never fails the page: without its Provenance read, the pane shows nothing (and the error is logged). */
+async function quietly(load: (sources: PageSources) => Promise<ActivityElement[]>): Promise<ActivityElement[]> {
+  try {
+    return await load(sources());
+  } catch (error) {
+    console.error("[ai-activity] could not read the page's Provenance", error);
+    return [];
+  }
 }
 
-/** `/recherches/[id]`'s elements for AI Activity, the Candidate's Job Search and the Job Offers it found. */
-export function loadJobSearchPage(candidateId: string, id: string): Promise<ActivityElement[]> {
-  return jobSearchPage(getJobSearches(), getJobOffers(), candidateId, id);
-}
+type Rest<F> = F extends (sources: PageSources, ...rest: infer R) => unknown ? R : never;
+
+/** AI Activity's elements of each Candidate page type, read from the app's Job Offers and Coach Conversations (see ./index). */
+export const loadAiActivity = {
+  jobOffer: (...args: Rest<typeof jobOfferPage>) => quietly((s) => jobOfferPage(s, ...args)),
+  jobSearches: (...args: Rest<typeof jobSearchPage>) => quietly((s) => jobSearchPage(s, ...args)),
+  jobDigest: (...args: Rest<typeof jobDigestPage>) => quietly((s) => jobDigestPage(s, ...args)),
+  application: (...args: Rest<typeof applicationPage>) => quietly((s) => applicationPage(s, ...args)),
+  profile: (...args: Rest<typeof profilePage>) => quietly((s) => profilePage(s, ...args)),
+};

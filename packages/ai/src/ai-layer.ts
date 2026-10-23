@@ -1,4 +1,4 @@
-import { cleanTechnicalMessage, failureOf, type Failure, type FailureReason, type IndustryReference, type SearchCriteria } from "@jobhub/shared";
+import { cleanTechnicalMessage, failureOf, type Failure, type FailureReason, type IndustryReference, type Outcome, type SearchCriteria } from "@jobhub/shared";
 import { findIdentity } from "./identity-scan";
 import { buildCompanyQuery, buildSearchQuery, jobSearchQueries, jobTitlesPrompt, type JobSearchQuery, type QueryLanguage } from "./search-query";
 import { buildCompanyNewsQuery, COMPANY_NEWS_MAX_AGE_DAYS, companyNewsIn, type CompanyNewsArticle, type CompanyNewsRequest } from "./company-news";
@@ -84,7 +84,20 @@ export interface AgentModelChoice {
   models: { model: string; effort: EffortHandling; residency: Residency }[];
 }
 
-export interface GenerateResult {
+/**
+ * How one call that worked went, as AI Usage records it (ADR-0034): what the caller keeps in a result's Provenance.
+ * A call that failed throws instead.
+ */
+export interface CallFacts {
+  /** The endpoint that served it, with its region when it has one, e.g. "bedrock eu-north-1" or "api.mistral.ai". */
+  endpoint: string;
+  /** How long the provider took to answer. */
+  durationMs: number;
+  /** ok, or warning when the feature it served ran degraded (its warnings, or a reply it could not use). */
+  outcome: Exclude<Outcome, "failed">;
+}
+
+export interface GenerateResult extends CallFacts {
   text: string;
   provider: ProviderId;
   model: string;
@@ -163,7 +176,7 @@ export interface CompanySearchRequest {
   warnings?: AiWarning[];
 }
 
-export interface SearchResult {
+export interface SearchResult extends CallFacts {
   answer: string;
   sources: string[];
   /** The date the provider states for some sources (by URL); may be a last-updated date. Absent when it dates none. */
@@ -416,7 +429,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     call: () => Promise<T>,
     replyOf: (output: T) => string,
     notes: CallNotes<T>,
-  ): Promise<T> {
+  ): Promise<{ output: T } & CallFacts> {
     const base = { ...entry, provider: provider.id, endpoint: provider.endpoint };
     const search = entry.task === SEARCH_TASK;
     const started = clock();
@@ -451,18 +464,19 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     const called = output.tools ?? (search ? [{ name: "web_search", count: 1 }] : []);
     const priced = { provider: provider.id, model: output.model };
     const warnings = recordable(notes.warnings(), unusableReply(notes, output) ?? undefined);
+    const outcome = warnings[0] ? "warning" : "ok";
     log({
       ...base,
       model: output.model,
       ...output.usage,
-      ...(warnings[0] ? { outcome: "warning", reason: warnings[0].reason, warnings } : { outcome: "ok" }),
+      ...(warnings[0] ? { outcome, reason: warnings[0].reason, warnings } : { outcome }),
       sent: true,
       durationMs,
       costEur: costInEur({ ...priced, usage: output.usage }),
       tools: called.map((tool) => ({ name: tool.name, count: tool.count, ok: tool.ok ?? true, durationMs, costEur: toolCostInEur(priced, tool) })),
       transcript: { ...said, reply: replyOf(output) },
     });
-    return output;
+    return { output, endpoint: provider.endpoint, durationMs, outcome };
   }
 
   /** The warning of an `output` its feature cannot use (`CallNotes.unusable`), or null; a check that throws refuses it. */
@@ -560,7 +574,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     const { route, provider } = chosen;
     const { redaction, warnings: redactionWarnings } = await redacted(SEARCH_TASK, candidateId, [query]);
     const [sent = ""] = redaction.texts;
-    const output = await recorded(
+    const { output, ...facts } = await recorded(
       { candidateId, task: SEARCH_TASK },
       provider,
       route,
@@ -576,6 +590,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       provider: provider.id,
       model: output.model,
       usage: output.usage,
+      ...facts,
     };
   }
 
@@ -611,7 +626,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     // The model is told to keep the placeholders as they are, so they can be put back in its reply.
     const system = redaction.redacted ? [redactedSystem, REDACTION_NOTE].filter(Boolean).join("\n\n") : request.system;
     const sent = messages.map((message, index) => ({ ...message, content: contents[index] ?? "" }));
-    const output = await recorded(
+    const { output, ...facts } = await recorded(
       { candidateId: request.candidateId, task: recordedAs },
       provider,
       route,
@@ -628,7 +643,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       (reply) => reply.text,
       notes,
     );
-    return { text: redaction.restore(output.text), provider: provider.id, model: output.model, usage: output.usage };
+    return { text: redaction.restore(output.text), provider: provider.id, model: output.model, usage: output.usage, ...facts };
   }
 
   const layer: AiLayer = {

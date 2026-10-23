@@ -21,6 +21,7 @@ export type {
   AgentModelChoice,
   AiLayer,
   AiLayerOptions,
+  CallFacts,
   CompanySearchRequest,
   GenerateRequest,
   GenerateResult,

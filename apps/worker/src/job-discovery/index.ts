@@ -198,6 +198,11 @@ export interface DiscoverRequest {
   criteria: SearchCriteria;
   /** Where each step of the run goes as it starts and ends (the Job Search's progress). Default: nowhere. */
   onEvent?: (event: ProvenanceEvent) => void;
+  /**
+   * Stops the run (the Candidate stopped their Job Search, #331): once it aborts, no step starts any more, the AI call
+   * on its way is stopped (its step `stopped`), and the run reports what it found until then, as when its budget is spent.
+   */
+  signal?: AbortSignal;
 }
 
 /**

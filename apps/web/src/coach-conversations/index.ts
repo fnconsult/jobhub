@@ -10,7 +10,8 @@
  *    in view when it starts, or to the Profile the page in view shows: `focus.profileId`) and both messages are saved together. Nothing is
  *    saved when the AI Coach cannot answer, so the Candidate can send again;
  *  - `list` the Candidate's conversations, most recently active first;
- *  - `open` one with its messages; `rename` it; `delete` it.
+ *  - `open` one with its messages; `rename` it; `delete` it;
+ *  - `repliesAbout` a page's object: the replies whose focus it is, from any conversation, for AI Activity.
  * Every new conversation opens with the AI disclosure (#324, AI Act art. 50(1)): the AI Coach's fixed
  * first message saying it is an AI, not a person. It is fixed text, not an AI reply (no AI call, no
  * Plan Quota, no Coach Message Cost), so only the conversation records that it opened with it.
@@ -108,6 +109,18 @@ export interface CoachConversations {
   rename(candidateId: string, conversationId: string, title: unknown): Promise<RenameResult>;
   /** Deletes the conversation and its messages; false when there is none of the Candidate's to delete. */
   delete(candidateId: string, conversationId: string): Promise<boolean>;
+  /**
+   * The Candidate's AI Coach replies whose focus is `focus` (an Application, a Job Offer or a Profile), from any of their
+   * conversations, oldest first: when each was saved and its Provenance (a partial one for a reply saved before, null when
+   * none was kept), never its text. What AI Activity counts with that object's page.
+   */
+  repliesAbout(candidateId: string, focus: { kind: FocusKind; id: string }): Promise<ReplyAbout[]>;
+}
+
+/** An AI Coach reply as AI Activity counts it with its focus's page: when it was saved, an ISO date, and what served it. */
+export interface ReplyAbout {
+  at: string;
+  provenance: Provenance | null;
 }
 
 export interface CoachConversationsDeps {
@@ -134,8 +147,8 @@ const sendSchema = z.object({
 type FocusInput = z.infer<typeof sendSchema>["focus"];
 
 /** The page objects a reply's focus can be (#327): what AI Activity counts the reply with. */
-const FOCUS_KINDS = ["application", "job_offer", "profile"] as const;
-type FocusKind = (typeof FOCUS_KINDS)[number];
+export const FOCUS_KINDS = ["application", "job_offer", "profile"] as const;
+export type FocusKind = (typeof FOCUS_KINDS)[number];
 
 /** The reply's focus: the page's object in view, when it is an Application, a Job Offer or a Profile, by its id. */
 function focusOf(focus: FocusInput): { kind: FocusKind; id: string } | null {
@@ -340,6 +353,18 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
       ]);
       const conversation = rowCount ? await find(candidateId, conversationId) : null;
       return conversation ? { ok: true, conversation } : { ok: false, error: "not_found" };
+    },
+
+    async repliesAbout(candidateId, focus) {
+      if (!(FOCUS_KINDS as readonly string[]).includes(focus.kind) || !UUID.test(focus.id)) return [];
+      const { rows } = await database.query<SavedReply>(
+        `SELECT ${SAVED_REPLY_COLUMNS}
+           FROM coach_message m JOIN coach_conversation c ON c.id = m.conversation_id
+          WHERE c.candidate_id = $1 AND m.author = 'coach' AND m.focus_kind = $2 AND m.focus_id = $3
+          ORDER BY m.created_at, m.seq`,
+        [candidateId, focus.kind, focus.id],
+      );
+      return rows.map((row) => ({ at: row.at.toISOString(), provenance: savedReplyProvenance(row) }));
     },
 
     async delete(candidateId, conversationId) {

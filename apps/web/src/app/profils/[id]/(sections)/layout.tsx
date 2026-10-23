@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { loadAiActivity } from "@/ai-activity/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { CoachInView } from "@/components/CoachPanel";
 import { ProfileTitle, SearchCriteriaProperties } from "@/components/ProfileInlineEdits";
@@ -29,8 +30,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  * Job Digest is on the Job Digests page: neither is offered here (#238).
  */
 export default async function ProfileLayout({ params, children }: Params & { children: ReactNode }) {
-  const { candidateId, profile, inView, locale, sections } = await loadProfilePage((await params).id);
-  const t = await getServerT();
+  const { candidateId, profile, inView, locale, sections, cards } = await loadProfilePage((await params).id);
+  const [t, aiActivity] = await Promise.all([getServerT(), loadAiActivity.profile(candidateId, { id: profile.id }, cards.map((card) => ({ kind: "action_card", at: card.createdAt })))]);
   const criteria = profile.searchCriteria;
   // An archived Profile's Sectors and Domains are read by their labels (#236); an active one's inputs fetch them.
   const industries = profile.archived ? await readIndustryReference() : null;
@@ -38,6 +39,7 @@ export default async function ProfileLayout({ params, children }: Params & { chi
     <CandidateLayout
       candidateId={candidateId}
       currentProfileId={profile.id}
+      aiActivity={aiActivity}
       title={<ProfileTitle key={`title-${profile.id}`} profileId={profile.id} name={profile.name} />}
     >
       <article className="document">

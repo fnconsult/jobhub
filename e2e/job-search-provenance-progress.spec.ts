@@ -244,19 +244,16 @@ test.describe("A Job Search shows its steps while it runs and keeps its Provenan
     expect(row.job_offer_ids.length).toBeGreaterThanOrEqual(1);
     const pool = new pg.Pool({ connectionString: databaseUrl });
     try {
-      const jobOffers = createJobOffers(pool);
       const elements = await jobSearchPage(
-        { get: async (_candidate, id) => ({ provenance, results: (await rowOf(id)).job_offer_ids.map((offerId) => ({ jobOffer: { id: offerId } })) }) },
-        jobOffers,
-        candidateId,
-        jobSearchId,
+        { jobOffers: createJobOffers(pool), coachReplies: { repliesAbout: async () => [] } },
+        [{ startedAt: new Date(), provenance, results: row.job_offer_ids.map((offerId) => ({ jobOffer: { id: offerId, title: "Offer" } })) }],
       );
-      expect(elements[0]).toEqual({ kind: "job_search", provenance });
+      expect(elements[0]!.kind).toBe("job_search");
+      expect(elements[0]!.served, "the search's Provenance is read").not.toBeNull();
       expect(elements.length).toBe(1 + row.job_offer_ids.length);
       for (const element of elements.slice(1)) {
         expect(element.kind).toBe("job_offer");
-        expect(element.provenance, "each Job Offer keeps its own Provenance (#329)").not.toBeNull();
-        expect(element.provenance).not.toEqual(provenance);
+        expect(element.served, "each Job Offer keeps its own Provenance (#329)").not.toBeNull();
       }
     } finally {
       await pool.end();

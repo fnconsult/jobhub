@@ -427,5 +427,23 @@ describe.skipIf(!connectionString)("Job Offers (needs Postgres: DATABASE_URL)", 
 
       expect(await jobOffers.provenance(id)).toEqual(summarized);
     });
+
+    it("is read for many offers at once, as AI Activity lists a page's (#332): each id given, none for an unknown one", async () => {
+      const read = await jobOffers.capture(posting, "candidate", { provenance: found });
+      const other = await jobOffers.capture({
+        ...posting,
+        title: "Contrôleur de gestion H/F",
+        employer: "Biomérieux",
+        content: "Vous suivez la performance des usines.",
+        source: { ...posting.source, url: "https://www.welcometothejungle.com/fr/companies/biomerieux/jobs/cdg-lyon" },
+      });
+      if (!read.ok || !other.ok) throw new Error("not captured");
+      const unknown = "00000000-0000-4000-8000-000000000000";
+
+      const provenances = await jobOffers.provenances([read.jobOffer.id, other.jobOffer.id, unknown, "not-an-id"]);
+
+      expect(provenances).toEqual(new Map([[read.jobOffer.id, found], [other.jobOffer.id, null], [unknown, null], ["not-an-id", null]]));
+      expect(await jobOffers.provenances([])).toEqual(new Map());
+    });
   });
 });

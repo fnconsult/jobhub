@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import type { ParseKeys } from "i18next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -37,9 +37,26 @@ type Control = {
   register: (button: HTMLButtonElement | null) => (() => void) | undefined;
   /** The button's words. */
   label: ParseKeys;
+  /** The AI Coach replies given here about the object of the page in view (#332). */
+  repliesInView: readonly ReplyInView[];
 };
 
 const CoachPanelControl = createContext<Control | null>(null);
+
+/**
+ * An AI Coach reply given in this browser while a page's object (an Application, a Job Offer or a Profile) was in view:
+ * AI Activity counts it with that page at once (#332), before the page is next loaded with it.
+ */
+export type ReplyInView = { provenance: Provenance | null; at: string };
+const NO_REPLIES: readonly ReplyInView[] = [];
+/** The page objects a reply is kept with as its focus (coach-conversations), so counted with their page. */
+const FOCUS_KINDS: ReadonlySet<string> = new Set(["application", "job_offer", "profile"]);
+const focusKey = (inView: InView) => `${inView.kind}:${inView.id}`;
+
+/** The AI Coach replies given in this browser about the object of the page in view; none outside a Coach Panel. */
+export function useCoachRepliesInView(): readonly ReplyInView[] {
+  return useContext(CoachPanelControl)?.repliesInView ?? NO_REPLIES;
+}
 
 /** The menu opens under the conversation's title, from its start. */
 const MENU_ALIGN = "start";
@@ -377,6 +394,10 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   // Agrandir: the panel widens into a modal drawer over the page (ADR-0024); never remembered.
   const [wide, setWide] = useState(false);
   const focusMoved = useRef(false);
+  // The replies given about a page's object, by its focus key, for AI Activity (#332).
+  const [repliesGiven, setRepliesGiven] = useState<readonly (ReplyInView & { focus: string })[]>([]);
+  const inViewKey = inView ? focusKey(inView) : null;
+  const repliesInView = useMemo(() => repliesGiven.filter((reply) => reply.focus === inViewKey), [repliesGiven, inViewKey]);
 
   useEffect(() => {
     if (open) input.current?.focus();
@@ -486,6 +507,8 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     event.preventDefault();
     const text = draft.trim();
     if (!text || status === "sending" || restoring) return;
+    // What the reply is about, as the server keeps it: counted with that page in AI Activity.
+    const about = kind === "coach" && inView && FOCUS_KINDS.has(inView.kind) ? focusKey(inView) : null;
     const shown: PanelMessage[] = [...messages, { from: "candidate", text }];
     setMessages(shown);
     setDraft("");
@@ -522,6 +545,8 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
           ...(typeof body.at === "string" ? { provenance: body.provenance ?? null, at: body.at } : {}),
         },
       ]);
+      const at = body.at;
+      if (about && typeof at === "string") setRepliesGiven((given) => [...given, { focus: about, provenance: body.provenance ?? null, at }]);
       setStatus("idle");
     };
     const gone = () => {
@@ -599,7 +624,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   // The conversation's first message: the AI disclosure, or the welcome of a panel without one or of a conversation saved before it.
   const opening = texts.aiDisclosure && aiDisclosure ? texts.aiDisclosure : texts.welcome;
 
-  const control: Control = { open, panelId: `${id}-panel`, toggle: () => (open ? close() : openPanel()), register, label: texts.open };
+  const control: Control = { open, panelId: `${id}-panel`, toggle: () => (open ? close() : openPanel()), register, label: texts.open, repliesInView };
 
   return (
     <SetInView.Provider value={setInView}>

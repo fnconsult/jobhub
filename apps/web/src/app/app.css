@@ -3721,3 +3721,341 @@ textarea.title-edit {
 .cancel-confirm p {
   margin: 0;
 }
+
+/* ---------- AI Activity (#314, #332): the Top Bar's button and the « Cette page » pane ----------
+   Everything in rem, so it follows the Text Size. The button sits left of « Mon coach », as high;
+   at rest its words are the page's summary, metadata (#317), or its label on a page with no AI content
+   (never an icon alone, ADR-0009); open, its label and a close icon. */
+.topbar .ai-activity-toggle {
+  display: inline-flex;
+  flex: 0 1 auto;
+  gap: var(--space-2);
+  align-items: center;
+  min-width: 0;
+  min-height: var(--control-height);
+  padding-inline: var(--space-3);
+}
+
+/* Beside a summary, its name is for screen readers; the summary says what the eye needs. */
+.ai-activity-toggle-summarised .ai-activity-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.ai-activity-summary {
+  min-width: 0;
+  max-width: 18rem;
+  overflow: hidden;
+  color: var(--color-text-meta);
+  font-size: var(--font-size-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* On a phone: the short label, no summary. */
+@media (width < 40rem) {
+  .ai-activity-toggle-summarised .ai-activity-label {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+  }
+
+  .ai-activity-summary {
+    display: none;
+  }
+}
+
+/* The pane: a card (--radius-md) inset by --space-2, 22rem wide, its body scrolling under a thin
+   scrollbar always shown, with a fade at the bottom while there is more. */
+.ai-activity-pane {
+  position: relative;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 22rem;
+  max-width: calc(100vw - 2 * var(--space-2));
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.ai-activity-pane[data-more]::after {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 1px;
+  left: 1px;
+  height: 2.5rem;
+  pointer-events: none;
+  content: "";
+  background: linear-gradient(to bottom, transparent, var(--color-surface));
+  border-bottom-left-radius: var(--radius-md);
+}
+
+.ai-activity-head {
+  display: flex;
+  flex: none;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ai-activity-head h2 {
+  margin: 0;
+  font-size: var(--font-size-h3);
+}
+
+.ai-activity-head h2:focus {
+  outline: none;
+}
+
+.ai-activity-head h2:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.ai-activity-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: var(--space-2) var(--space-4) var(--space-6);
+  overflow-y: scroll;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+
+.ai-activity-empty {
+  margin: var(--space-2) 0;
+}
+
+.ai-activity-section + .ai-activity-section {
+  border-top: 1px solid var(--color-border);
+}
+
+.ai-activity-section-head {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ai-activity-section-head h3 {
+  margin: 0;
+  font-size: inherit;
+}
+
+.ai-activity-disclosure {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  min-height: var(--control-height);
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.ai-activity-section-head .ai-activity-disclosure {
+  font-weight: 600;
+}
+
+.ai-activity-disclosure[aria-expanded="false"] .icon {
+  transform: rotate(-90deg);
+}
+
+.ai-activity-list,
+.ai-activity-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.ai-activity-links {
+  gap: var(--space-1);
+  margin: 0 0 var(--space-2) var(--space-6);
+}
+
+.ai-activity-links a {
+  overflow-wrap: anywhere;
+}
+
+.ai-activity-row {
+  display: flex;
+  gap: var(--space-3);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.ai-activity-total {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.ai-activity-model,
+.ai-activity-tool {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ai-activity-tool {
+  flex-direction: row;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.ai-activity-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  color: var(--color-text-meta);
+  font-size: var(--font-size-meta);
+}
+
+/* Metadata (#317): tokens and time, where a model ran, the hour, what used a Tool. */
+.ai-activity-meta,
+.ai-activity-measure {
+  margin: 0;
+  color: var(--color-text-meta);
+  font-size: var(--font-size-meta);
+}
+
+.ai-activity-measure {
+  flex: none;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-activity-total .ai-activity-measure {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.ai-activity-element p {
+  margin: 0;
+}
+
+.ai-activity-element-model code {
+  margin-left: var(--space-1);
+  color: var(--color-text-meta);
+  font-size: var(--font-size-meta);
+}
+
+.ai-activity-glyphs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.ai-activity-glyph,
+.ai-activity-logo {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--radius-sm);
+}
+
+.ai-activity-glyph {
+  font-weight: 600;
+  background: var(--color-surface-hover);
+}
+
+.ai-activity-site {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  overflow-wrap: anywhere;
+}
+
+/* From 64rem the pane is a card on the right of the page's column, the page making room for it. */
+@media (width >= 64rem) {
+  .workspace:has(> .ai-activity-pane) {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-content: start;
+  }
+
+  .workspace:has(> .ai-activity-pane) > .topbar {
+    grid-column: 1 / -1;
+  }
+
+  .ai-activity-pane {
+    position: sticky;
+    top: calc(var(--topbar-height, 3.5rem) + var(--space-2));
+    align-self: start;
+    max-height: calc(100dvh - var(--topbar-height, 3.5rem) - 2 * var(--space-2));
+    margin: var(--space-2) var(--space-2) var(--space-2) 0;
+  }
+
+  /* The docked Coach Panel is a card the same way. */
+  .coach-panel:not(.coach-panel-wide) {
+    top: var(--space-2);
+    right: var(--space-2);
+    bottom: var(--space-2);
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .with-coach-panel {
+    margin-right: calc(var(--coach-width) + var(--space-2));
+  }
+}
+
+/* Under 81.25rem (1300px) with the Coach Panel docked, no room for both beside the page: a drawer over it. */
+@media (width >= 64rem) and (width < 81.25rem) {
+  .with-coach-panel .workspace:has(> .ai-activity-pane) {
+    display: flex;
+  }
+
+  .with-coach-panel .ai-activity-pane {
+    position: fixed;
+    /* Stretched between its insets: aligned at the start, Chrome would size it to its content. */
+    align-self: stretch;
+    top: calc(var(--topbar-height, 3.5rem) + var(--space-2));
+    right: calc(var(--coach-width) + 2 * var(--space-2));
+    bottom: var(--space-2);
+    z-index: 20;
+    max-height: none;
+    margin: 0;
+    box-shadow: var(--shadow-overlay);
+  }
+}
+
+/* Below 64rem: a sheet from the bottom of the screen, with its title and its Close button. */
+@media (width < 64rem) {
+  .ai-activity-pane {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 25;
+    width: auto;
+    max-width: none;
+    max-height: 85dvh;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    border-bottom: 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    box-shadow: var(--shadow-overlay);
+  }
+}

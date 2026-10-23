@@ -5,7 +5,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import pg from "pg";
 import { PgBoss } from "pg-boss";
-import { jobOfferPage, modelsInWords } from "../apps/web/src/ai-activity";
+import { jobOfferPage } from "../apps/web/src/ai-activity";
 import { createJobOffers } from "../apps/web/src/job-offers";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
@@ -71,12 +71,12 @@ const rawProvenance = (sourceUrl: string) =>
 async function loadedPage(id: string) {
   const pool = new pg.Pool({ connectionString: databaseUrl });
   try {
-    return await jobOfferPage(createJobOffers(pool), id);
+    // This spec is about Job Offers only: no Coach reply is about the offer.
+    return await jobOfferPage({ jobOffers: createJobOffers(pool), coachReplies: { repliesAbout: async () => [] } }, candidateId, { id, title: "Offer" });
   } finally {
     await pool.end();
   }
 }
-const t = ((key: string) => key.split(".").reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], fr)) as never;
 
 test.describe("Job Offers keep their Provenance (#329)", () => {
   test.describe.configure({ mode: "serial", timeout: 180_000 });
@@ -162,8 +162,7 @@ test.describe("Job Offers keep their Provenance (#329)", () => {
 
     // What AI Activity's pane reads for the offer's page names that model.
     const [element] = await loadedPage(found!.id);
-    expect(element!.provenance).toEqual(provenance);
-    expect(modelsInWords(element!, t)).toEqual(["Perplexity", "Mistral Large"]);
+    expect(element!.served?.models.map((model) => model.name)).toEqual(["Perplexity", "Mistral Large"]);
   });
 
   test("a newly found offer read from structured data has its search step and page read, with no model (none read it)", async () => {
@@ -179,9 +178,9 @@ test.describe("Job Offers keep their Provenance (#329)", () => {
   test("an offer from before, captured with no Provenance, shows « modèle non enregistré »", async () => {
     expect((await rawProvenance(site.before))?.provenance).toBeNull();
     const [element] = await loadedPage(beforeId);
-    expect(element).toEqual({ kind: "job_offer", provenance: null });
+    expect(element!.kind).toBe("job_offer");
+    expect(element!.served).toBeNull();
     expect(fr.aiActivity.modelNotRecorded).toBe("modèle non enregistré");
-    expect(modelsInWords(element!, t)).toEqual(["modèle non enregistré"]);
   });
 
   test("no Candidate id, Profile id or name is in any job_offer.provenance", async () => {

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { AiActivityButton, AiActivityPane } from "@/components/AiActivity";
 import { CoachPanelToggle } from "@/components/CoachPanel";
 import { Icons } from "@/components/icons";
 import { SignOutButton } from "@/components/SignOutButton";
@@ -46,8 +47,9 @@ function setHidden(hidden: boolean) {
 /**
  * The sidebar layout (#132, #134), whatever the sidebar holds: a skip link, the
  * sidebar (brand, `top`, the `nav`, signing out), the Top
- * Bar with the Menu button, the page's `title` and the Coach Panel button, and
- * the page as `<main>`. `title` is the page's `<h1>`: a string, or an element that
+ * Bar with the Menu button, the page's `title`, the AI Activity button and the
+ * Coach Panel button, and the page as `<main>`, AI Activity's pane beside it (both
+ * only inside an AiActivityProvider: Candidate pages, never the Back Office). `title` is the page's `<h1>`: a string, or an element that
  * is one itself (an editable title). Pages never render their own (ADR-0024).
  *
  * On a wide screen the sidebar sits beside the page and can be hidden
@@ -287,11 +289,13 @@ export function SidebarShell({
                   </>
                 )}
               </div>
+              <AiActivityButton />
               <CoachPanelToggle />
             </header>
             <main id={MAIN_ID} tabIndex={-1} className={wide ? "page page-wide" : "page"}>
               {children}
             </main>
+            <AiActivityPane />
           </div>
         </div>
       </SidebarSections.Provider>

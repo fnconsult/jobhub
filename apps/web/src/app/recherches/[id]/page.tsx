@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { loadAiActivity } from "@/ai-activity/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { CoachInView } from "@/components/CoachPanel";
 import { Icons } from "@/components/icons";
@@ -35,14 +36,14 @@ const STATUS_TONE = { searching: undefined, done: "success", failed: "danger", s
  */
 export default async function JobSearchPage({ params }: Params) {
   const { candidateId, jobSearch } = await requireOwnJobSearch((await params).id);
-  const [t, locale, industries] = await Promise.all([getServerT(), getRequestLocale(), readIndustryReference()]);
+  const [t, locale, industries, aiActivity] = await Promise.all([getServerT(), getRequestLocale(), readIndustryReference(), loadAiActivity.jobSearches([jobSearch])]);
   const { profile, status, results } = jobSearch;
   // This page shows how the Job Search ended: no need to notify the Candidate of it any more.
   if (status !== "searching") await getJobSearches().dismissNotification(candidateId, jobSearch.id);
   const inView = { kind: "job_search", id: jobSearch.id, name: profile.name, profileId: profile.id } as const;
   const startedAt = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeStyle: "short", timeZone: "Europe/Paris" }).format(jobSearch.startedAt);
   return (
-    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id} title={t("jobSearch.title", { profile: profile.name })}>
+    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id} title={t("jobSearch.title", { profile: profile.name })} aiActivity={aiActivity}>
       <header className="page-head">
         <p className="eyebrow">{t("jobSearch.sectionTitle")}</p>
         <dl className="props">

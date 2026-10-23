@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { ActivityElement } from "@/ai-activity/pane";
 import { currentIsAdministrator } from "@/admin/server";
 import { getBilling, getPaymentFailedNotice } from "@/billing/server";
 import { usageMeter, type UsageMeter } from "@/billing/usage-meter";
@@ -29,19 +30,23 @@ async function weekUsage(candidateId: string): Promise<UsageMeter | null> {
  * is the Profile in view (or the one a Job Search or Job Digest belongs to):
  * the Profile switcher names it and the sidebar's Profile links lead to it.
  * `title` is the page's `<h1>`, shown in the Top Bar (see SidebarShell).
- * `wide` gives the page room for a board.
+ * `wide` gives the page room for a board. `aiActivity`: the page's elements for
+ * AI Activity's pane, from its page type's loader (ai-activity/server); none on a
+ * page with no AI content.
  */
 export async function CandidateLayout({
   candidateId,
   currentProfileId,
   title,
   wide,
+  aiActivity,
   children,
 }: {
   candidateId: string;
   currentProfileId?: string;
   title?: ReactNode;
   wide?: boolean;
+  aiActivity?: readonly ActivityElement[];
   children: ReactNode;
 }) {
   const [profiles, canAddProfile, paymentFailed, jobSearchNotifications, humanCoach, isAdministrator, usage] = await Promise.all([
@@ -63,6 +68,7 @@ export async function CandidateLayout({
       usage={usage}
       title={title}
       wide={wide}
+      aiActivity={aiActivity}
     >
       {paymentFailed ? <PaymentFailedBanner notice={paymentFailed} /> : null}
       {jobSearchNotifications ? <JobSearchNotifications initial={jobSearchNotifications} /> : null}

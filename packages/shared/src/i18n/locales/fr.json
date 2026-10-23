@@ -2973,6 +2973,8 @@
   },
   "aiActivity": {
     "modelNotRecorded": "modèle non enregistré",
+    "stop": "Arrêter",
+    "stoppedAt": "Arrêtée à {{time}}",
     "steps": {
       "think": "Réflexion",
       "think_write": "Réflexion puis rédaction",

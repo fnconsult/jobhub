@@ -2973,6 +2973,8 @@
   },
   "aiActivity": {
     "modelNotRecorded": "model not recorded",
+    "stop": "Stop",
+    "stoppedAt": "Stopped at {{time}}",
     "steps": {
       "think": "Thinking",
       "think_write": "Thinking, then writing",

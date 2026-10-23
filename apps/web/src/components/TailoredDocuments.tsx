@@ -1,6 +1,6 @@
 "use client";
 
-import { DOCUMENT_LANGUAGES, type DocumentLanguage } from "@jobhub/shared";
+import { DOCUMENT_LANGUAGES, type DocumentLanguage, type Provenance } from "@jobhub/shared";
 import * as Tabs from "@radix-ui/react-tabs";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -8,6 +8,8 @@ import type { ApplicationDrafts } from "@/tailored-documents";
 import { OUTREACH_CHANNELS, TAILORED_DOCUMENTS, type OutreachChannel, type TailoredDocumentKind } from "@/tailored-documents/kinds";
 import { mailLink } from "@/tailored-documents/mail-link";
 import { ApplicationExportForm } from "./ApplicationExportForm";
+import { LiveActionStatus, useLiveAction } from "./LiveAction";
+import { ProvenanceLine } from "./ProvenanceLine";
 import { TailoredCvReview, type TailoredCv } from "./TailoredCvReview";
 
 type Status = "drafting" | "drafted" | "saved" | "copied" | "copyFailed" | "required" | "unavailable" | "notAContact" | "error" | null;
@@ -20,20 +22,28 @@ export interface Recipient {
   email?: string;
 }
 
-/** Drafts as they come from the server: dates are not needed here. */
+/** What served a draft and when it was drafted (#334), for the line under it. */
+type Served = { provenance?: Provenance | null; draftedAt?: string | Date };
+
+/** Drafts as they come from the server. */
 type Drafts = Pick<ApplicationDrafts, "documentLanguage"> & {
-  coverLetter: { language: DocumentLanguage; text: string } | null;
-  outreachMessage: { language: DocumentLanguage; text: string; subject: string; channel: OutreachChannel; contactRoles: string[]; contact: Recipient | null } | null;
+  coverLetter: ({ language: DocumentLanguage; text: string } & Served) | null;
+  outreachMessage: ({ language: DocumentLanguage; text: string; subject: string; channel: OutreachChannel; contactRoles: string[]; contact: Recipient | null } & Served) | null;
 };
+
+/** What a failed request means for the Candidate. */
+function statusOf(status: number, method: "POST" | "PATCH"): Status {
+  if (status === 503) return "unavailable";
+  if (status === 400) return "required";
+  if (status === 404 && method === "POST") return "notAContact";
+  return "error";
+}
 
 async function send(url: string, method: "POST" | "PATCH", body: object): Promise<{ drafts?: Drafts; status: Status }> {
   try {
     const response = await fetch(url, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     if (response.ok) return { drafts: (await response.json()) as Drafts, status: null };
-    if (response.status === 503) return { status: "unavailable" };
-    if (response.status === 400) return { status: "required" };
-    if (response.status === 404 && method === "POST") return { status: "notAContact" };
-    return { status: "error" };
+    return { status: statusOf(response.status, method) };
   } catch {
     return { status: "error" };
   }
@@ -154,15 +164,20 @@ function DraftEditor({
   const [channel, setChannel] = useState<OutreachChannel>(outreach?.channel ?? "email");
   const [recipientId, setRecipientId] = useState(outreach?.contact && recipients.some((r) => r.id === outreach.contact?.id) ? outreach.contact.id : "");
   const [status, setStatus] = useState<Status>(null);
+  // Drafting runs live, each step shown, and the Candidate can stop it (#334).
+  const action = useLiveAction();
   const isOutreach = document === "outreach_message";
   const drafted = draft && "channel" in draft ? draft : null;
   const contactRoles = drafted?.contactRoles ?? [];
 
   async function write() {
     setStatus("drafting");
-    const result = await send(url, "POST", isOutreach ? { document, language, channel, ...(recipientId && { contactId: recipientId }) } : { document, language });
-    const next = result.drafts?.[document === "cover_letter" ? "coverLetter" : "outreachMessage"];
-    if (!next) return setStatus(result.status ?? "error");
+    const outcome = await action.run<Drafts>(url, isOutreach ? { document, language, channel, ...(recipientId && { contactId: recipientId }) } : { document, language });
+    // Stopped: nothing was kept, the draft shown stays; the stopped line says so.
+    if ("stopped" in outcome) return setStatus(null);
+    if (!outcome.ok) return setStatus(statusOf(outcome.status, "POST"));
+    const next = outcome.body[document === "cover_letter" ? "coverLetter" : "outreachMessage"];
+    if (!next) return setStatus("error");
     setDraft(next);
     setText(next.text);
     if ("subject" in next) setSubject(next.subject);
@@ -221,10 +236,12 @@ function DraftEditor({
           <button className="button button-primary" type="button" onClick={write} disabled={status === "drafting"}>
             {status === "drafting" ? t("tailoredDocuments.drafting") : t(`${keys}.draft`)}
           </button>
+          <LiveActionStatus action={action} />
         </>
       ) : (
         <>
           <p className="hint">{t(`tailoredDocuments.writtenIn.${draft.language}`)}</p>
+          {draft.draftedAt ? <ProvenanceLine provenance={draft.provenance ?? null} at={new Date(draft.draftedAt).toISOString()} /> : null}
           {drafted?.contact ? (
             <p>{t("tailoredDocuments.outreachMessage.addressedTo", { name: drafted.contact.jobTitle ? `${drafted.contact.name} (${drafted.contact.jobTitle})` : drafted.contact.name })}</p>
           ) : null}
@@ -277,6 +294,7 @@ function DraftEditor({
           <button className="button" type="button" onClick={write} disabled={status === "drafting"} aria-describedby={`${id}-redraft-hint`}>
             {status === "drafting" ? t("tailoredDocuments.drafting") : t("tailoredDocuments.redraft")}
           </button>
+          <LiveActionStatus action={action} />
         </>
       )}
       <StatusMessage status={status} />

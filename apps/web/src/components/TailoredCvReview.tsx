@@ -1,11 +1,13 @@
 "use client";
 
-import type { CvContent, DocumentLanguage } from "@jobhub/shared";
+import type { CvContent, DocumentLanguage, Provenance } from "@jobhub/shared";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { APPLICATION_EXPORTS } from "@/application-exports/kinds";
 import type { CvChange } from "@/tailored-cv/changes";
 import { ApplicationExportForm } from "./ApplicationExportForm";
+import { LiveActionStatus, useLiveAction } from "./LiveAction";
+import { ProvenanceLine } from "./ProvenanceLine";
 import { SkillTags } from "@/components/SkillTags";
 
 type Status = "proposing" | "proposed" | "saving" | "saved" | "unavailable" | "masterCvChanged" | "proposalChanged" | "error" | null;
@@ -23,20 +25,26 @@ export interface TailoredCv {
     /** The Job Offer's words were checked against the Master CV through a translation. */
     offerWordingTranslated?: boolean;
     matchScore: { master: number; tailored: number };
+    /** What served it, and when (#334), for the line under it. */
+    provenance?: Provenance | null;
+    proposedAt?: string | Date;
   } | null;
-  saved: { language: DocumentLanguage; content: CvContent; matchScore: { master: number; tailored: number }; savedAt: string | Date } | null;
+  saved: { language: DocumentLanguage; content: CvContent; matchScore: { master: number; tailored: number }; savedAt: string | Date; provenance?: Provenance | null } | null;
+}
+
+/** What a failed request means for the Candidate. */
+function statusOf(status: number, error: unknown): Status {
+  if (status === 503) return "unavailable";
+  if (status === 409) return error === "proposal_changed" ? "proposalChanged" : "masterCvChanged";
+  return "error";
 }
 
 async function send(url: string, method: "POST" | "PATCH", body?: object): Promise<{ tailoredCv?: TailoredCv; status: Status }> {
   try {
     const response = await fetch(url, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body ?? {}) });
     if (response.ok) return { tailoredCv: (await response.json()) as TailoredCv, status: null };
-    if (response.status === 503) return { status: "unavailable" };
-    if (response.status === 409) {
-      const { error } = (await response.json().catch(() => ({}))) as { error?: string };
-      return { status: error === "proposal_changed" ? "proposalChanged" : "masterCvChanged" };
-    }
-    return { status: "error" };
+    const { error } = (await response.json().catch(() => ({}))) as { error?: string };
+    return { status: statusOf(response.status, error) };
   } catch {
     return { status: "error" };
   }
@@ -61,6 +69,8 @@ export function TailoredCvReview({ applicationId, initial, language, locale }: {
   const url = `/api/applications/${applicationId}/tailored-cv`;
   const [state, setState] = useState(initial);
   const [status, setStatus] = useState<Status>(null);
+  // Proposing runs live, each step shown, and the Candidate can stop it (#334).
+  const action = useLiveAction();
   /** The Candidate's accept (true) or reject (false) of each change of the proposal under review, by id. */
   const [decisions, setDecisions] = useState<Record<string, boolean>>({});
   const { proposal, saved } = state;
@@ -75,7 +85,12 @@ export function TailoredCvReview({ applicationId, initial, language, locale }: {
 
   const propose = async () => {
     setStatus("proposing");
-    await run(send(url, "POST", { language }), "proposed");
+    const outcome = await action.run<TailoredCv>(url, { language });
+    // Stopped: nothing was kept, the proposal shown stays; the stopped line says so.
+    if ("stopped" in outcome) return setStatus(null);
+    if (!outcome.ok) return setStatus(statusOf(outcome.status, outcome.body.error));
+    setState(outcome.body);
+    setStatus("proposed");
     // Another proposal: its changes are reviewed afresh.
     setDecisions({});
   };
@@ -111,6 +126,7 @@ export function TailoredCvReview({ applicationId, initial, language, locale }: {
             {t("tailoredCv.savedOn", { date: new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(new Date(saved.savedAt)) })}{" "}
             {t(`tailoredCv.writtenIn.${saved.language}`)}
           </p>
+          <ProvenanceLine provenance={saved.provenance ?? null} at={new Date(saved.savedAt).toISOString()} />
           <ScoreComparison score={saved.matchScore} />
           <CvSummary cv={saved.content} />
           <ApplicationExportForm applicationId={applicationId} document={APPLICATION_EXPORTS[0]} />
@@ -121,6 +137,7 @@ export function TailoredCvReview({ applicationId, initial, language, locale }: {
         <div className="stack" role="group" aria-labelledby={`${id}-proposal`}>
           <h3 id={`${id}-proposal`}>{t("tailoredCv.proposalTitle")}</h3>
           <p className="hint">{t(`tailoredCv.writtenIn.${proposal.language}`)}</p>
+          {proposal.proposedAt ? <ProvenanceLine provenance={proposal.provenance ?? null} at={new Date(proposal.proposedAt).toISOString()} /> : null}
           <ScoreComparison score={proposal.matchScore} />
 
           {proposal.questions.length > 0 ? (
@@ -172,6 +189,7 @@ export function TailoredCvReview({ applicationId, initial, language, locale }: {
               {status === "proposing" ? t("tailoredCv.proposing") : t("tailoredCv.proposeAgain")}
             </button>
           </div>
+          <LiveActionStatus action={action} />
         </div>
       ) : (
         <>
@@ -179,6 +197,7 @@ export function TailoredCvReview({ applicationId, initial, language, locale }: {
           <button className="button button-primary" type="button" onClick={propose} disabled={status === "proposing"}>
             {status === "proposing" ? t("tailoredCv.proposing") : t("tailoredCv.propose")}
           </button>
+          <LiveActionStatus action={action} />
         </>
       )}
       <StatusMessage status={status} />

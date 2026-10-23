@@ -2247,7 +2247,13 @@
     "title": "Job offers found for \"{{profile}}\"",
     "startedAt": "Search started on {{date}}",
     "searching": "Your coach is searching for job offers. This can take a minute or two: this page updates by itself.",
+    "stop": "Stop the search",
+    "stopping": "Stopping…",
+    "stopError": "The search could not be stopped. Check your connection and try again.",
     "failed": "The search did not succeed. Please try again in a few moments.",
+    "stopped_zero": "You stopped this search before it found a job offer. It does not count toward this week's job searches.",
+    "stopped_one": "You stopped this search: the job offer found until then is kept.",
+    "stopped_other": "You stopped this search: the {{count}} job offers found until then are kept.",
     "noResults": "Your coach found no job offers this time. You can widen this profile's search criteria, then search again.",
     "resultsIntro_one": "{{count}} job offer found, ranked by how well it matches your master CV.",
     "resultsIntro_other": "{{count}} job offers found, from the closest to your master CV to the least close.",
@@ -2263,7 +2269,8 @@
     "statuses": {
       "searching": "In progress",
       "done": "Finished",
-      "failed": "Did not succeed"
+      "failed": "Did not succeed",
+      "stopped": "Stopped"
     },
     "startedOn": "Started on",
     "criteria": "Criteria",
@@ -2302,13 +2309,28 @@
       "discovery_failed": "The job sites could not be reached.",
       "other": "A technical problem stopped it."
     },
+    "steps": {
+      "think": "preparing the search",
+      "think_write": "writing",
+      "write": "writing",
+      "search": "searching the job sources",
+      "web_search": "searching the web",
+      "read": "reading the job offers",
+      "compute": "computing the match scores"
+    },
     "notCounted": "It does not count toward this week's job searches.",
+    "keptBeforeFailure_one": "The job offer found before it failed is kept.",
+    "keptBeforeFailure_other": "The {{count}} job offers found before it failed are kept.",
     "notifications": {
       "label": "Finished job searches",
       "done_zero": "Your job search for \"{{profile}}\" is finished: no job offers found.",
       "done_one": "Your job search for \"{{profile}}\" is finished: {{count}} job offer found.",
       "done_other": "Your job search for \"{{profile}}\" is finished: {{count}} job offers found.",
-      "failed": "Your job search for \"{{profile}}\" did not succeed.",
+      "stopped_zero": "Search stopped at {{time}}: no job offers found for \"{{profile}}\".",
+      "stopped_one": "Search stopped at {{time}}: {{count}} job offer found for \"{{profile}}\", kept.",
+      "stopped_other": "Search stopped at {{time}}: {{count}} job offers found for \"{{profile}}\", kept.",
+      "failed": "Search failed at {{time}}: your job search for \"{{profile}}\" did not succeed.",
+      "failedStep": "Search failed at {{time}}, while {{step}}: your job search for \"{{profile}}\" did not succeed.",
       "seeResults": "See the job offers",
       "seeSearch": "See the search",
       "dismiss": "Close"

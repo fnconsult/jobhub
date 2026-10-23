@@ -40,6 +40,7 @@ import {
   readProvenance,
   readRunProgress,
   scoreMatch,
+  type Activity,
   type DiscoveryMetrics,
   type JobOffer,
   type MatchScore,
@@ -137,12 +138,18 @@ export interface RunningJobSearch {
 
 /**
  * What the Candidate is told, on any page, once a Job Search they started has
- * finished: how many Job Offers it found, or why it failed.
+ * finished: how many Job Offers it found; or when they stopped it (« Recherche arrêtée à 10:42 »), or when it failed
+ * (« Recherche échouée à 12:04 »), at which step and why, each with the Job Offers it kept (#331).
  */
 export interface JobSearchNotification {
   jobSearchId: string;
   profile: { id: string; name: string };
-  outcome: { status: "done"; found: number } | { status: "failed"; failure: JobSearchFailure };
+  outcome:
+    | { status: "done"; found: number }
+    /** `at`: ISO, when it stopped. */
+    | { status: "stopped"; at: string; found: number }
+    /** `at`: ISO, when it failed; `step`: the Activity of the last step that failed in its run, null when none did (or it kept no run). */
+    | { status: "failed"; failure: JobSearchFailure; at: string; step: Activity | null; found: number };
 }
 
 export interface JobSearches {
@@ -445,9 +452,11 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
         failure: string | null;
         found: number;
         started_at: Date;
+        finished_at: Date | null;
         progress: unknown;
+        provenance: unknown;
       }>(
-        `SELECT s.id, s.profile_id, p.name AS profile_name, s.status, s.failure, s.started_at, s.progress,
+        `SELECT s.id, s.profile_id, p.name AS profile_name, s.status, s.failure, s.started_at, s.finished_at, s.progress, s.provenance,
                 (SELECT count(*)::int FROM job_offer o WHERE o.id = ANY (s.job_offer_ids) AND o.expired_at IS NULL) AS found
          FROM job_search s JOIN profile p ON p.id = s.profile_id
          WHERE s.candidate_id = $1 AND (s.notification_pending OR s.status = 'searching')
@@ -459,7 +468,7 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
         .map((row) => ({
           jobSearchId: row.id,
           profile: { id: row.profile_id, name: row.profile_name },
-          outcome: row.status === "done" ? { status: "done", found: row.found } : { status: "failed", failure: failureOf(row.failure) },
+          outcome: outcomeOf(row),
         }));
       const running: RunningJobSearch[] = rows
         .filter((row) => row.status === "searching")
@@ -482,6 +491,16 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
       await database.query("UPDATE job_search SET notification_pending = false WHERE id = $1 AND candidate_id = $2", [jobSearchId, candidateId]);
     },
   };
+}
+
+/** How a finished Job Search ended, as its notification tells it. */
+function outcomeOf(row: { status: JobSearchStatus; failure: string | null; found: number; finished_at: Date | null; provenance: unknown }): JobSearchNotification["outcome"] {
+  const { found } = row;
+  if (row.status === "done") return { status: "done", found };
+  const at = (row.finished_at ?? new Date(0)).toISOString();
+  if (row.status === "stopped") return { status: "stopped", at, found };
+  const step = (readProvenance(row.provenance)?.steps ?? []).filter((ran) => ran.outcome === "failed").at(-1)?.activity ?? null;
+  return { status: "failed", failure: failureOf(row.failure), at, step, found };
 }
 
 const FAILURES: readonly JobSearchFailure[] = ["timeout", "queue_unavailable", "profile_unavailable", "unavailable", "discovery_failed"];

@@ -408,6 +408,20 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     ]);
   });
 
+  it("the export holds a Job Search the Candidate stopped, and when they asked to stop it (#331)", async () => {
+    const profileId = await createProfile(candidateId, "DAF");
+    await database.query(
+      `INSERT INTO job_search (candidate_id, profile_id, status, started_at, stop_requested_at, finished_at) VALUES ($1, $2, 'stopped', '2026-10-01T08:00:00Z', '2026-10-01T08:00:40Z', '2026-10-01T08:00:41Z')`,
+      [candidateId, profileId],
+    );
+    await database.query(`INSERT INTO job_search (candidate_id, profile_id, status, started_at, finished_at) VALUES ($1, $2, 'done', '2026-09-01T08:00:00Z', '2026-09-01T08:04:00Z')`, [candidateId, profileId]);
+
+    const [stopped, done] = (await candidateData.export(candidateId)).profiles[0]!.jobSearches;
+
+    expect(stopped).toMatchObject({ status: "stopped", stopRequestedAt: new Date("2026-10-01T08:00:40Z"), finishedAt: new Date("2026-10-01T08:00:41Z") });
+    expect(done).not.toHaveProperty("stopRequestedAt");
+  });
+
   it("the export holds a Job Search's Provenance, when it was kept, and never its live steps (#330)", async () => {
     const profileId = await createProfile(candidateId, "DAF");
     const provenance: Provenance = {

@@ -2247,7 +2247,13 @@
     "title": "Offres trouvées pour « {{profile}} »",
     "startedAt": "Recherche lancée le {{date}}",
     "searching": "Votre coach cherche des offres. Cela peut prendre une à deux minutes : cette page se met à jour toute seule.",
+    "stop": "Arrêter la recherche",
+    "stopping": "Arrêt en cours…",
+    "stopError": "La recherche n'a pas pu être arrêtée. Vérifiez votre connexion et réessayez.",
     "failed": "La recherche n'a pas abouti. Réessayez dans quelques instants.",
+    "stopped_zero": "Vous avez arrêté cette recherche avant qu'elle ne trouve une offre. Elle n'est pas comptée dans vos recherches d'offres de la semaine.",
+    "stopped_one": "Vous avez arrêté cette recherche : l'offre trouvée jusque-là est gardée.",
+    "stopped_other": "Vous avez arrêté cette recherche : les {{count}} offres trouvées jusque-là sont gardées.",
     "noResults": "Votre coach n'a trouvé aucune offre cette fois-ci. Vous pouvez élargir les critères de recherche de ce profil, puis relancer une recherche.",
     "resultsIntro_one": "{{count}} offre trouvée, classée selon sa correspondance avec votre CV de référence.",
     "resultsIntro_other": "{{count}} offres trouvées, de la plus proche à la moins proche de votre CV de référence.",
@@ -2263,7 +2269,8 @@
     "statuses": {
       "searching": "En cours",
       "done": "Terminée",
-      "failed": "N'a pas abouti"
+      "failed": "N'a pas abouti",
+      "stopped": "Arrêtée"
     },
     "startedOn": "Lancée le",
     "criteria": "Critères",
@@ -2302,13 +2309,28 @@
       "discovery_failed": "Les sites d'offres d'emploi n'ont pas pu être consultés.",
       "other": "Un problème technique l'a interrompue."
     },
+    "steps": {
+      "think": "la préparation de la recherche",
+      "think_write": "la rédaction",
+      "write": "la rédaction",
+      "search": "la recherche dans les sources d'offres",
+      "web_search": "la recherche sur le web",
+      "read": "la lecture des offres",
+      "compute": "le calcul des scores de correspondance"
+    },
     "notCounted": "Elle n'est pas comptée dans vos recherches d'offres de la semaine.",
+    "keptBeforeFailure_one": "L'offre trouvée avant l'échec est gardée.",
+    "keptBeforeFailure_other": "Les {{count}} offres trouvées avant l'échec sont gardées.",
     "notifications": {
       "label": "Recherches d'offres terminées",
       "done_zero": "Votre recherche d'offres pour « {{profile}} » est terminée : aucune offre trouvée.",
       "done_one": "Votre recherche d'offres pour « {{profile}} » est terminée : {{count}} offre trouvée.",
       "done_other": "Votre recherche d'offres pour « {{profile}} » est terminée : {{count}} offres trouvées.",
-      "failed": "Votre recherche d'offres pour « {{profile}} » n'a pas abouti.",
+      "stopped_zero": "Recherche arrêtée à {{time}} : aucune offre trouvée pour « {{profile}} ».",
+      "stopped_one": "Recherche arrêtée à {{time}} : {{count}} offre trouvée pour « {{profile}} », gardée.",
+      "stopped_other": "Recherche arrêtée à {{time}} : {{count}} offres trouvées pour « {{profile}} », gardées.",
+      "failed": "Recherche échouée à {{time}} : votre recherche d'offres pour « {{profile}} » n'a pas abouti.",
+      "failedStep": "Recherche échouée à {{time}}, pendant {{step}} : votre recherche d'offres pour « {{profile}} » n'a pas abouti.",
       "seeResults": "Voir les offres",
       "seeSearch": "Voir la recherche",
       "dismiss": "Fermer"

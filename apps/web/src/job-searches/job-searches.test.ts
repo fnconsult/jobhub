@@ -447,7 +447,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       expect((await jobSearches.notifications(candidateId)).notifications).toHaveLength(1);
     });
 
-    it("tells the Candidate a Job Search failed, and why, including one the worker never answered", async () => {
+    it("tells the Candidate a Job Search failed, when, and why, including one the worker never answered", async () => {
       const failed = await started();
       await jobSearches.record(failed.id, { failed: "discovery_failed" });
       const forgotten = await started();
@@ -455,8 +455,8 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
 
       expect(await jobSearches.notifications(candidateId)).toEqual({
         notifications: [
-          { jobSearchId: forgotten.id, profile: { id: profileId, name: "DAF" }, outcome: { status: "failed", failure: "timeout" } },
-          { jobSearchId: failed.id, profile: { id: profileId, name: "DAF" }, outcome: { status: "failed", failure: "discovery_failed" } },
+          { jobSearchId: forgotten.id, profile: { id: profileId, name: "DAF" }, outcome: { status: "failed", failure: "timeout", at: clock.now.toISOString(), step: null, found: 0 } },
+          { jobSearchId: failed.id, profile: { id: profileId, name: "DAF" }, outcome: { status: "failed", failure: "discovery_failed", at: "2026-10-15T08:00:00.000Z", step: null, found: 0 } },
         ],
         searching: false,
         running: [],
@@ -467,7 +467,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       const failed = await started();
       await jobSearches.record(failed.id, { failed: "something new" });
 
-      expect((await jobSearches.notifications(candidateId)).notifications.map((notification) => notification.outcome)).toEqual([{ status: "failed", failure: "other" }]);
+      expect((await jobSearches.notifications(candidateId)).notifications.map((notification) => notification.outcome)).toMatchObject([{ status: "failed", failure: "other" }]);
     });
 
     it("tells the Candidate a Job Search is done, with the number of Job Offers found", async () => {
@@ -554,6 +554,45 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       await reports.record(kept.id, { stopped: true, jobOfferIds: [daf] });
 
       expect(await used()).toBe(1);
+    });
+
+    it("tells the Candidate when it was stopped, and the Job Offers it kept", async () => {
+      const daf = await capture("DAF H/F", { location: "Lyon" });
+      const jobSearch = await started();
+      clock.now = new Date("2026-10-15T10:42:00+02:00");
+
+      await reports.record(jobSearch.id, { stopped: true, jobOfferIds: [daf] });
+
+      expect((await jobSearches.notifications(candidateId)).notifications).toEqual([
+        { jobSearchId: jobSearch.id, profile: { id: profileId, name: "DAF" }, outcome: { status: "stopped", at: "2026-10-15T08:42:00.000Z", found: 1 } },
+      ]);
+    });
+
+    it("tells the Candidate when a Job Search failed, at which step, why, and the Job Offers it kept", async () => {
+      const daf = await capture("DAF H/F", { location: "Lyon" });
+      const jobSearch = await started();
+      clock.now = new Date("2026-10-15T12:04:00+02:00");
+      const provenance: Provenance = {
+        v: 1,
+        steps: [
+          { kind: "tool", activity: "search", tool: "france-travail", ms: 640, at: "2026-10-15T10:00:02.200Z", outcome: "ok", count: 1 },
+          { kind: "tool", activity: "read", tool: "job-site", ms: 900, at: "2026-10-15T10:00:03.000Z", outcome: "failed", count: 1 },
+          { kind: "ai", activity: "web_search", task: "web_search", ms: 300, at: "2026-10-15T10:00:04.000Z", outcome: "failed", count: 1 },
+        ],
+        sites: [],
+        startedAt: "2026-10-15T10:00:00.000Z",
+        wallMs: 4400,
+      };
+
+      await reports.record(jobSearch.id, { failed: "discovery_failed", jobOfferIds: [daf], provenance });
+
+      expect((await jobSearches.notifications(candidateId)).notifications).toEqual([
+        {
+          jobSearchId: jobSearch.id,
+          profile: { id: profileId, name: "DAF" },
+          outcome: { status: "failed", failure: "discovery_failed", at: "2026-10-15T10:04:00.000Z", step: "web_search", found: 1 },
+        },
+      ]);
     });
 
     it("failed part-way, it keeps the Job Offers it had found (regression: they were dropped)", async () => {

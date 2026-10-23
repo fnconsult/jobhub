@@ -97,15 +97,16 @@ const fmt = (n: number) => (n < 1000 ? `${n}` : `${(n / 1000).toLocaleString("fr
 const both = (tokens: number, ms: number) => [tokens ? fmt(tokens) : "", ms ? dur(ms) : ""].filter(Boolean).join(" · ");
 
 // A simulated Job Search, as the pane would receive it live (SSE or polling).
-type Step = { after: number; text: string; logo: string; model?: string; tool?: string; tokens?: number; ms: number; at?: number };
+type Step = { after: number; text: string; logo: string; model?: string; tool?: string; tokens?: number; ms: number; at?: number; activity: Activity; doing: string };
 const RUN: Step[] = [
-  { after: 400, text: "Variantes de l'intitulé", logo: "mistral", model: "mistral-medium", tokens: 312, ms: 790 },
-  { after: 1400, text: "API France Travail · 18 offres", logo: "France Travail", tool: "API France Travail", ms: 1320 },
-  { after: 2300, text: "API Fantastic.jobs · 10 offres", logo: "Fantastic.jobs", tool: "API Fantastic.jobs", ms: 2050 },
-  { after: 3300, text: "Recherche web · 3 requêtes", logo: "Perplexity", model: "sonar (Perplexity)", tool: "Recherche web (Perplexity)", tokens: 2140, ms: 5600 },
-  { after: 4600, text: "Lecture de page · 12 pages", logo: "Lecture de page", tool: "Lecture de page", ms: 8900 },
-  { after: 5800, text: "Résumés des offres · 12", logo: "claude", model: "claude-haiku-4-5 (Bedrock eu-north-1)", tokens: 8420, ms: 13700 },
-  { after: 6800, text: "Match Score · 40 offres classées", logo: "règles", tool: "Calcul du Match Score", ms: 160 },
+  // `after` is when the step ends; it runs from the previous step's end. `activity` picks the glyph while it runs.
+  { after: 1600, text: "Variantes de l'intitulé", logo: "mistral", model: "mistral-medium", tokens: 312, ms: 790, activity: "think", doing: "Variantes de l'intitulé (mistral-medium)" },
+  { after: 3200, text: "API France Travail · 18 offres", logo: "France Travail", tool: "API France Travail", ms: 1320, activity: "search", doing: "Recherche sur France Travail" },
+  { after: 4600, text: "API Fantastic.jobs · 10 offres", logo: "Fantastic.jobs", tool: "API Fantastic.jobs", ms: 2050, activity: "search", doing: "Recherche sur Fantastic.jobs" },
+  { after: 7600, text: "Recherche web · 3 requêtes", logo: "Perplexity", model: "sonar (Perplexity)", tool: "Recherche web (Perplexity)", tokens: 2140, ms: 5600, activity: "searchRead", doing: "Recherche web (sonar)" },
+  { after: 10000, text: "Lecture de page · 12 pages", logo: "Lecture de page", tool: "Lecture de page", ms: 8900, activity: "read", doing: "Lecture des pages d'offres" },
+  { after: 13400, text: "Résumés des offres · 12", logo: "claude", model: "claude-haiku-4-5 (Bedrock eu-north-1)", tokens: 8420, ms: 13700, activity: "thinkWrite", doing: "Résumés des offres (claude-haiku-4-5)" },
+  { after: 14800, text: "Match Score · 40 offres classées", logo: "règles", tool: "Calcul du Match Score", ms: 160, activity: "compute", doing: "Calcul des Match Scores" },
 ];
 export type Run = { running: boolean; log: Step[] };
 
@@ -129,42 +130,78 @@ function useSimulatedRun(autostart: boolean) {
 }
 
 // Line icons in the app's style (icons.tsx: 24 grid, stroke 1.5). At rest the
-// button shows the tasks icon; during an action it plays brain → magnifier →
-// feather → a book opening page by page. Under prefers-reduced-motion it stays
-// on the tasks icon (ADR-0009).
+// button shows the tasks icon. During an action it shows what the action is
+// doing right now, animated, and morphs into the next activity's icon when the
+// step changes. Under prefers-reduced-motion it shows that activity's icon, still.
 const TASKS = ["M10 6h10M10 12h10M10 18h10", "M4 6l1.2 1.2L7.5 5", "M4 12l1.2 1.2 2.3-2.2", "M4 18l1.2 1.2 2.3-2.2"];
-const BOOK_OPEN = ["M3 5c3-1 6-1 9 1v14c-3-2-6-2-9-1z", "M21 5c-3-1-6-1-9 1v14c3-2 6-2 9-1z"];
-const FRAMES: { d: string[]; ms: number; morph?: number }[] = [
-  // Brain: two hemispheres and the fold between them.
-  {
-    d: [
-      "M12 5a3 3 0 0 0-5.6-1.2A3 3 0 0 0 4 8a3 3 0 0 0 .2 5A3 3 0 0 0 7 17.6 3 3 0 0 0 12 19z",
-      "M12 5a3 3 0 0 1 5.6-1.2A3 3 0 0 1 20 8a3 3 0 0 1-.2 5 3 3 0 0 1-2.8 4.6A3 3 0 0 1 12 19z",
-      "M12 5v14M8 9.5c1 0 2 .6 2 2M16 9.5c-1 0-2 .6-2 2",
-    ],
-    ms: 380,
-  },
-  // Magnifier (the Job Searches' icon).
-  { d: ["M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z", "M20 20l-4-4"], ms: 380 },
-  // Feather.
-  { d: ["M20.2 3.8a6 6 0 0 0-8.5 0L5 10.5V19h8.5l6.7-6.7a6 6 0 0 0 0-8.5z", "M16 8L3 21", "M17.5 15H9"], ms: 380 },
-  // A book: closed, opened, then three pages turning from right to left.
-  { d: ["M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z", "M5 18a2 2 0 0 1 2-2h12"], ms: 260 },
-  { d: BOOK_OPEN, ms: 200 },
-  { d: [...BOOK_OPEN, "M12 6c2-1.6 4-2.4 6-2.6v14c-2 .2-4 1-6 2.6"], ms: 30, morph: 170 },
-  { d: [...BOOK_OPEN, "M12 6c.4-1.8.9-3 1.4-4v14c-.5 1-1 2.2-1.4 4"], ms: 0, morph: 170 },
-  { d: [...BOOK_OPEN, "M12 6c-2-1.6-4-2.4-6-2.6v14c2 .2 4 1 6 2.6"], ms: 30, morph: 120 },
-  { d: BOOK_OPEN, ms: 0, morph: 120 },
-  { d: [...BOOK_OPEN, "M12 6c2-1.6 4-2.4 6-2.6v14c-2 .2-4 1-6 2.6"], ms: 30, morph: 170 },
-  { d: [...BOOK_OPEN, "M12 6c.4-1.8.9-3 1.4-4v14c-.5 1-1 2.2-1.4 4"], ms: 0, morph: 170 },
-  { d: [...BOOK_OPEN, "M12 6c-2-1.6-4-2.4-6-2.6v14c2 .2 4 1 6 2.6"], ms: 30, morph: 120 },
-  { d: BOOK_OPEN, ms: 0, morph: 120 },
-  { d: [...BOOK_OPEN, "M12 6c2-1.6 4-2.4 6-2.6v14c-2 .2-4 1-6 2.6"], ms: 30, morph: 170 },
-  { d: [...BOOK_OPEN, "M12 6c.4-1.8.9-3 1.4-4v14c-.5 1-1 2.2-1.4 4"], ms: 0, morph: 170 },
-  { d: [...BOOK_OPEN, "M12 6c-2-1.6-4-2.4-6-2.6v14c2 .2 4 1 6 2.6"], ms: 30, morph: 120 },
-  { d: BOOK_OPEN, ms: 0, morph: 120 },
-  { d: BOOK_OPEN, ms: 260 },
+
+type Frame = { d: string[]; ms: number; morph?: number };
+
+// Brain: two hemispheres; the folds inside shift and sparks flicker above, « it thinks ».
+const HEMIS = [
+  "M12 5a3 3 0 0 0-5.6-1.2A3 3 0 0 0 4 8a3 3 0 0 0 .2 5A3 3 0 0 0 7 17.6 3 3 0 0 0 12 19z",
+  "M12 5a3 3 0 0 1 5.6-1.2A3 3 0 0 1 20 8a3 3 0 0 1-.2 5 3 3 0 0 1-2.8 4.6A3 3 0 0 1 12 19z",
 ];
+const BRAIN: Frame[] = [
+  { d: [...HEMIS, "M12 5v14", "M8 9.5c1 0 2 .6 2 2M16 9.5c-1 0-2 .6-2 2"], ms: 160 },
+  { d: [...HEMIS, "M12 5v14", "M7.5 12c1.2-.4 2.2.2 2.5 1.4M16.5 12c-1.2-.4-2.2.2-2.5 1.4", "M12 1.2v1.3"], ms: 120 },
+  { d: [...HEMIS, "M12 5v14", "M8 8c1.4.2 2 1.2 1.8 2.4M16 8c-1.4.2-2 1.2-1.8 2.4", "M20.8 3.2l-1 .9"], ms: 120 },
+  { d: [...HEMIS, "M12 5v14", "M7.6 14.5c1.2.2 2 1 2 2M16.4 14.5c-1.2.2-2 1-2 2", "M3.2 3.2l1 .9"], ms: 120 },
+];
+
+// Magnifier: the lens sweeps over a page, « it searches ».
+const lens = (x: number, y: number) => [`M${x} ${y - 6}a6 6 0 1 0 0 12 6 6 0 0 0 0-12z`, `M${x + 4.3} ${y + 4.3}L${x + 8.5} ${y + 8.5}`];
+const SEARCH: Frame[] = [
+  { d: lens(10, 10), ms: 120 },
+  { d: lens(8, 9), ms: 60, morph: 260 },
+  { d: lens(11, 8), ms: 60, morph: 260 },
+  { d: lens(9, 11), ms: 60, morph: 260 },
+];
+
+// Book: it opens and turns its pages, « it reads ».
+const BOOK_OPEN = ["M3 5c3-1 6-1 9 1v14c-3-2-6-2-9-1z", "M21 5c-3-1-6-1-9 1v14c3-2 6-2 9-1z"];
+const PAGE_R = "M12 6c2-1.6 4-2.4 6-2.6v14c-2 .2-4 1-6 2.6";
+const PAGE_M = "M12 6c.4-1.8.9-3 1.4-4v14c-.5 1-1 2.2-1.4 4";
+const PAGE_L = "M12 6c-2-1.6-4-2.4-6-2.6v14c2 .2 4 1 6 2.6";
+const READ: Frame[] = [
+  { d: BOOK_OPEN, ms: 120, morph: 120 },
+  { d: [...BOOK_OPEN, PAGE_R], ms: 30, morph: 170 },
+  { d: [...BOOK_OPEN, PAGE_M], ms: 0, morph: 170 },
+  { d: [...BOOK_OPEN, PAGE_L], ms: 30, morph: 120 },
+];
+
+// Web search: the magnifier sweeps, then the book of results opens and is read.
+const SEARCH_READ: Frame[] = [...SEARCH, { d: ["M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z", "M5 18a2 2 0 0 1 2-2h12"], ms: 120 }, ...READ, ...READ];
+
+// Feather: it writes a line that grows under it, « it writes ».
+const FEATHER = ["M20.2 3.8a6 6 0 0 0-8.5 0L6 9.5V16h6.5l5.7-5.7a6 6 0 0 0 0-8.5z", "M15 7L4 18", "M16.5 12.5H9"];
+const WRITE: Frame[] = [
+  { d: [...FEATHER, "M3 21h1"], ms: 80 },
+  { d: [...FEATHER, "M3 21h8"], ms: 60, morph: 360 },
+  { d: [...FEATHER, "M3 21h14"], ms: 120, morph: 360 },
+];
+
+// A model writes its text: the brain thinks, then the feather writes.
+const THINK_WRITE: Frame[] = [...BRAIN, ...BRAIN, ...WRITE, ...WRITE];
+
+// Checklist: the ticks appear one by one, « it checks and ranks ».
+const COMPUTE: Frame[] = [
+  { d: ["M10 6h10M10 12h10M10 18h10"], ms: 120 },
+  { d: ["M10 6h10M10 12h10M10 18h10", "M4 6l1.2 1.2L7.5 5"], ms: 120 },
+  { d: ["M10 6h10M10 12h10M10 18h10", "M4 6l1.2 1.2L7.5 5", "M4 12l1.2 1.2 2.3-2.2"], ms: 120 },
+  { d: TASKS, ms: 260 },
+];
+
+export type Activity = "think" | "thinkWrite" | "search" | "searchRead" | "read" | "write" | "compute";
+const ACTIVITIES: Record<Activity, { frames: Frame[]; still: string[]; label: string; when: string }> = {
+  think: { frames: BRAIN, still: BRAIN[0].d, label: "Réflexion", when: "un modèle raisonne ou classe (variantes de l'intitulé, Match Score par l'IA)" },
+  thinkWrite: { frames: THINK_WRITE, still: BRAIN[0].d, label: "Rédaction par un modèle", when: "un modèle écrit un texte (résumés, CV adapté, lettre, dossier)" },
+  search: { frames: SEARCH, still: lens(10, 10), label: "Recherche", when: "une API de recherche est appelée (France Travail, Fantastic.jobs, ATS, Recherche d'entreprises)" },
+  searchRead: { frames: SEARCH_READ, still: lens(10, 10), label: "Recherche web", when: "une recherche web trouve des pages puis en lit les résultats (Perplexity)" },
+  read: { frames: READ, still: BOOK_OPEN, label: "Lecture", when: "des pages d'offres ou un CV sont lus" },
+  write: { frames: WRITE, still: FEATHER, label: "Écriture", when: "un document est mis en forme (export, brouillon)" },
+  compute: { frames: COMPUTE, still: TASKS, label: "Calcul", when: "des règles sans IA tournent (Score ATS, Match Score)" },
+};
 
 function Glyph({ d, active }: { d: string[]; active?: boolean }) {
   return (
@@ -187,88 +224,101 @@ function Glyph({ d, active }: { d: string[]; active?: boolean }) {
   );
 }
 
-// The glyph morphs from one stage to the next: every stage is split into its
-// strokes, each stroke resampled into POINTS points (getPointAtLength), and the
-// points interpolated frame by frame. Stages with fewer strokes pad with
-// invisible ones, which fade in or out. No library (see #279's findings).
+// The glyph morphs: every frame is split into its strokes, each stroke resampled
+// into POINTS points (getPointAtLength), and the points interpolated frame by
+// frame. Frames with fewer strokes pad with invisible ones, which fade in or out.
+// When the activity changes, the glyph morphs from what it shows now into the new
+// activity's first frame. No library (see #279's findings).
 const POINTS = 40;
-const STROKES = 5;
-type Shape = { pts: [number, number][]; on: number }[];
-let shapes: Shape[] | null = null;
+const STROKES = 6;
+type Pt = [number, number];
+type Shape = { pts: Pt[]; on: number }[];
+const cache = new Map<string, Shape>();
+let probe: SVGPathElement | null = null;
 
-function strokesOf(d: string[]) {
-  return d.flatMap((path) => path.split(/(?=M)/).map((x) => x.trim()).filter(Boolean));
-}
-
-function resample(d: string, probe: SVGPathElement): [number, number][] {
-  probe.setAttribute("d", d);
-  const length = probe.getTotalLength();
-  return Array.from({ length: POINTS }, (_, k) => {
-    const point = probe.getPointAtLength((length * k) / (POINTS - 1));
-    return [point.x, point.y];
-  });
-}
-
-function shapesOnce(): Shape[] {
-  if (shapes) return shapes;
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  const probe = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  svg.style.position = "absolute";
-  svg.style.visibility = "hidden";
-  svg.appendChild(probe);
-  document.body.appendChild(svg);
-  shapes = FRAMES.map(({ d }) => {
-    const strokes = strokesOf(d).map((x) => ({ pts: resample(x, probe), on: 1 }));
-    // Padding strokes sit, collapsed, on the stage's centre, so they grow out of it.
-    while (strokes.length < STROKES) strokes.push({ pts: Array.from({ length: POINTS }, () => [12, 12] as [number, number]), on: 0 });
-    return strokes.slice(0, STROKES);
-  });
-  svg.remove();
-  return shapes;
+function shapeOf(d: string[]): Shape {
+  const key = d.join("|");
+  const hit = cache.get(key);
+  if (hit) return hit;
+  if (!probe) {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    probe = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    svg.style.position = "absolute";
+    svg.style.visibility = "hidden";
+    svg.appendChild(probe);
+    document.body.appendChild(svg);
+  }
+  const p = probe;
+  const strokes = d
+    .flatMap((path) => path.split(/(?=M)/).map((x) => x.trim()).filter(Boolean))
+    .map((x) => {
+      p.setAttribute("d", x);
+      const length = p.getTotalLength();
+      const pts = Array.from({ length: POINTS }, (_, k) => {
+        const point = p.getPointAtLength((length * k) / (POINTS - 1));
+        return [point.x, point.y] as Pt;
+      });
+      return { pts, on: 1 };
+    });
+  // Padding strokes sit, collapsed, on the centre, so they grow out of it.
+  while (strokes.length < STROKES) strokes.push({ pts: Array.from({ length: POINTS }, () => [12, 12] as Pt), on: 0 });
+  const shape = strokes.slice(0, STROKES);
+  cache.set(key, shape);
+  return shape;
 }
 
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-const toPath = (pts: [number, number][]) => "M" + pts.map(([x, y]) => `${x.toFixed(2)} ${y.toFixed(2)}`).join("L");
+const toPath = (pts: Pt[]) => "M" + pts.map(([x, y]) => `${x.toFixed(2)} ${y.toFixed(2)}`).join("L");
+const mix = (a: Shape, b: Shape, m: number): Shape =>
+  a.map((s, k) => ({ pts: s.pts.map(([x, y], j) => [x + (b[k].pts[j][0] - x) * m, y + (b[k].pts[j][1] - y) * m] as Pt), on: s.on + (b[k].on - s.on) * m }));
 
-function Spinner() {
+function Spinner({ activity }: { activity: Activity }) {
   const ref = useRef<SVGSVGElement>(null);
+  const shown = useRef<Shape | null>(null);
   const [still, setStill] = useState(false);
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return setStill(true);
-    const all = shapesOnce();
+    const frames = ACTIVITIES[activity].frames;
+    const shapes = frames.map((f) => shapeOf(f.d));
     const paths = [...(ref.current?.querySelectorAll("path") ?? [])];
-    // Each stage holds for its ms, then morphs into the next over MORPH ms.
     const MORPH = 280;
-    const morphOf = (k: number) => FRAMES[k].morph ?? MORPH;
+    const ENTER = 320;
+    const morphOf = (k: number) => frames[k].morph ?? MORPH;
     const starts: number[] = [];
     let total = 0;
-    FRAMES.forEach((f, k) => {
+    frames.forEach((f, k) => {
       starts.push(total);
       total += f.ms + morphOf(k);
     });
+    // Entering: from what is on screen (the previous activity) into this one's first frame.
+    const entering = shown.current;
     let raf = 0;
     const t0 = performance.now();
-    const tick = (now: number) => {
-      const t = (now - t0) % total;
-      let i = starts.findIndex((st, k) => t >= st && t < (starts[k + 1] ?? total));
-      if (i < 0) i = 0;
-      const into = t - starts[i];
-      const from = all[i];
-      const to = all[(i + 1) % all.length];
-      const m = into <= FRAMES[i].ms ? 0 : ease(Math.min(1, (into - FRAMES[i].ms) / morphOf(i)));
+    const draw = (shape: Shape) => {
+      shown.current = shape;
       paths.forEach((el, k) => {
-        const a = from[k];
-        const b = to[k];
-        const pts = a.pts.map(([x, y], j) => [x + (b.pts[j][0] - x) * m, y + (b.pts[j][1] - y) * m] as [number, number]);
-        el.setAttribute("d", toPath(pts));
-        el.setAttribute("opacity", String(a.on + (b.on - a.on) * m));
+        el.setAttribute("d", toPath(shape[k].pts));
+        el.setAttribute("opacity", String(shape[k].on));
       });
+    };
+    const tick = (now: number) => {
+      const elapsed = now - t0;
+      if (entering && elapsed < ENTER) {
+        draw(mix(entering, shapes[0], ease(elapsed / ENTER)));
+      } else {
+        const t = (elapsed - (entering ? ENTER : 0)) % total;
+        let i = starts.findIndex((st, k) => t >= st && t < (starts[k + 1] ?? total));
+        if (i < 0) i = 0;
+        const into = t - starts[i];
+        const m = into <= frames[i].ms ? 0 : ease(Math.min(1, (into - frames[i].ms) / morphOf(i)));
+        draw(mix(shapes[i], shapes[(i + 1) % shapes.length], m));
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, []);
-  if (still) return <Glyph d={TASKS} active />;
+  }, [activity]);
+  if (still) return <Glyph d={ACTIVITIES[activity].still} active />;
   return (
     <svg
       ref={ref}
@@ -287,6 +337,25 @@ function Spinner() {
         <path key={k} />
       ))}
     </svg>
+  );
+}
+
+// The prototype's legend: every activity, animated, with when it shows.
+function GlyphLegend() {
+  return (
+    <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+      {(Object.keys(ACTIVITIES) as Activity[]).map((key) => (
+        <li key={key} style={{ display: "flex", gap: "0.6em", alignItems: "flex-start", padding: "0.3em 0" }}>
+          <span style={{ fontSize: "1.3em", lineHeight: 1 }}>
+            <Spinner activity={key} />
+          </span>
+          <span>
+            <strong>{ACTIVITIES[key].label}</strong>
+            <span style={{ display: "block", color: "var(--color-text-secondary)", fontSize: "0.92em" }}>{ACTIVITIES[key].when}</span>
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -620,6 +689,8 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
     (elements.some((e) => e.tools?.includes(t)) ? (TOOL_MS[t] ?? 1000) : 0) +
     run.log.filter((x) => x.tool === t && !x.model).reduce((n, x) => n + x.ms, 0);
   const runTools = uniq(run.log.filter((x) => x.tool).map((x) => x.tool!));
+  // What the run is doing now: the first step not yet finished.
+  const current = run.running ? RUN[run.log.length] : undefined;
   const sources = uniq(elements.flatMap((e) => e.sources));
   const tools = uniq([...elements.flatMap((e) => e.tools ?? []), ...runTools]);
   const toggle = (
@@ -630,13 +701,13 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
       aria-expanded={open}
       aria-controls="proto-provenance-pane"
       // Icon only, as asked: the name lives in aria-label and the tooltip (ADR-0009 wants a visible label: to settle in #317).
-      aria-label={run.running ? "Recherche en cours : sources, modèles et outils" : "Sources, modèles et outils de cette page"}
-      title={run.running ? "Recherche en cours…" : "Sources, modèles et outils"}
+      aria-label={current ? `En cours : ${current.doing}` : "Sources, modèles et outils de cette page"}
+      title={current ? `${current.doing}…` : "Sources, modèles et outils"}
       onClick={() => setOpen(!open)}
       // Same box as .topbar .coach-panel-toggle: no shrinking, the control height, square.
       style={{ marginLeft: "auto", flex: "none", minHeight: "var(--control-height)", minWidth: "var(--control-height)", padding: "0 var(--space-3)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
     >
-      {run.running ? <Spinner /> : <Glyph d={TASKS} />}
+      {current ? <Spinner activity={current.activity} /> : <Glyph d={TASKS} />}
     </button>
   );
   return (
@@ -705,7 +776,7 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
             <section aria-live="polite" style={{ padding: "0.5em 0" }}>
               <div style={{ ...row, color: "var(--color-text-secondary)" }}>
                 <span>
-                  {run.running ? <Spinner /> : "✓"} {run.running ? "Recherche d'offres en cours" : "Dernière recherche"}
+                  {current ? <Spinner activity={current.activity} /> : "✓"} {run.running ? "Recherche d'offres en cours" : "Dernière recherche"}
                 </span>
                 <span style={{ fontVariantNumeric: "tabular-nums", textAlign: "right" }}>
                   {both(run.log.reduce((n, x) => n + (x.tokens ?? 0), 0), run.log.reduce((n, x) => n + x.ms, 0))}
@@ -728,7 +799,11 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
                 ))}
                 {run.running ? (
                   <li style={{ ...dim, padding: "0.2em 0" }}>
-                    <Spinner /> …
+                    {current ? (
+                      <>
+                        <Spinner activity={current.activity} /> {current.doing}…
+                      </>
+                    ) : null}
                   </li>
                 ) : null}
               </ol>
@@ -772,6 +847,11 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
                     <div style={{ ...dim, fontSize: "0.9em", paddingLeft: "1.55em" }}>{usedBy(elements, (e) => e.tools?.includes(x) ?? false)}</div>
                   </li>
                 ))}
+              </Section>
+              <Section title="Icône pendant une action (prototype)" count={7}>
+                <li>
+                  <GlyphLegend />
+                </li>
               </Section>
               <Section title="Par élément" count={elements.length}>
                 {elements.map((e) => (

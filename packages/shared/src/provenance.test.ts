@@ -130,7 +130,7 @@ describe("two Provenances joined, the later action after the earlier one (#329)"
   it("lists a site both name once, with the links of both", () => {
     const again: Provenance = { ...read, sites: [{ kind: "web", domain: "apec.fr", links: ["https://www.apec.fr/offre/1", "https://www.apec.fr/offre/2"] }] };
 
-    expect(joinProvenance(read, again).sites).toEqual([{ kind: "web", domain: "apec.fr", links: ["https://www.apec.fr/offre/1", "https://www.apec.fr/offre/2"] }]);
+    expect(joinProvenance(read, again)?.sites).toEqual([{ kind: "web", domain: "apec.fr", links: ["https://www.apec.fr/offre/1", "https://www.apec.fr/offre/2"] }]);
   });
 
   it("is the Provenance known when the other is none (« modèle non enregistré »)", () => {

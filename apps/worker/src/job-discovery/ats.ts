@@ -51,6 +51,8 @@ interface AtsPosting {
 
 /** One ATS: the API URL for a posting URL it hosts, and how to read the API's answer. */
 interface Ats {
+  /** The ATS as a Tool: a step of the Job Offer's Provenance. */
+  tool: "greenhouse" | "lever" | "ashby";
   /** The API URL of the posting `url` names, or null when `url` is not one of its postings. */
   apiUrl(url: URL): string | null;
   /** The posting, or null when the answer does not hold it. */
@@ -58,6 +60,7 @@ interface Ats {
 }
 
 const greenhouse: Ats = {
+  tool: "greenhouse",
   apiUrl(url) {
     if (!/^(job-)?boards\.greenhouse\.io$/i.test(url.hostname)) return null;
     const match = /^\/([^/]+)\/jobs\/(\d+)\/?$/.exec(url.pathname);
@@ -103,6 +106,7 @@ function leverSalary(range: unknown): SalaryRange | undefined {
 }
 
 const lever: Ats = {
+  tool: "lever",
   apiUrl(url) {
     const host = /^jobs\.(eu\.)?lever\.co$/i.exec(url.hostname);
     if (!host) return null;
@@ -137,6 +141,7 @@ const lever: Ats = {
  * read and the posting picked from it by id. Absent from it means closed.
  */
 const ashby: Ats = {
+  tool: "ashby",
   apiUrl(url) {
     if (url.hostname.toLowerCase() !== "jobs.ashbyhq.com") return null;
     const match = /^\/([^/]+)\/([0-9a-f-]{36})(\/application)?\/?$/i.exec(url.pathname);
@@ -163,6 +168,13 @@ const ashby: Ats = {
 };
 
 const ATS: readonly Ats[] = [greenhouse, lever, ashby];
+
+/** The ATS whose API `readAtsPosting` reads for `address` (a Tool), or null when it is not a Greenhouse, Lever or Ashby posting. */
+export function atsToolOf(address: string): Ats["tool"] | null {
+  if (!URL.canParse(address)) return null;
+  const url = new URL(address);
+  return ATS.find((ats) => ats.apiUrl(url) !== null)?.tool ?? null;
+}
 
 /**
  * The posting a Greenhouse, Lever or Ashby URL names, read through that ATS's

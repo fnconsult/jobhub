@@ -950,6 +950,16 @@ function useWorkspaceBox() {
   }, []);
 }
 
+// Two exchanges in turn: a plain question, then one that makes the Coach search the web.
+const COACH_DEMOS = [
+  { question: "Comment présenter ma reconversion dans ma lettre ?", reply: "Commencez par ce qui relie vos deux métiers : la gestion d'équipe et le pilotage budgétaire. Puis dites en une phrase pourquoi vous changez, sans vous justifier.", ms: 4600 },
+  { question: "Trouve-moi des entreprises qui recrutent des directeurs financiers à Lyon.", reply: "J'en ai trouvé trois qui publient en ce moment : un groupe de distribution, une ETI industrielle et une scale-up de la santé. Voulez-vous que je lance une recherche d'offres sur votre profil ?", ms: 8200 },
+];
+let coachDemoTurn = 0;
+function coachDemo() {
+  window.dispatchEvent(new CustomEvent("proto-coach-demo", { detail: COACH_DEMOS[coachDemoTurn++ % COACH_DEMOS.length] }));
+}
+
 export function PrototypeAiProvenanceBar() {
   useWorkspaceBox();
   const pathname = usePathname();
@@ -1005,6 +1015,9 @@ export function PrototypeAiProvenanceBar() {
             <button type="button" onClick={() => start("docs")} disabled={run.running} style={{ color: "inherit", background: "#333", border: 0, borderRadius: 999, padding: "2px 10px", cursor: "pointer" }}>
               ▶ documents
             </button>
+            <button type="button" onClick={coachDemo} style={{ color: "inherit", background: "#333", border: 0, borderRadius: 999, padding: "2px 10px", cursor: "pointer" }}>
+              ▶ coach
+            </button>
           </>
         ) : null}
         <button type="button" onClick={() => go(1)} style={{ color: "inherit", background: "none", border: 0, cursor: "pointer" }}>
@@ -1012,5 +1025,88 @@ export function PrototypeAiProvenanceBar() {
         </button>
       </div>
     </>
+  );
+}
+
+/*
+ * PROTOTYPE — the Coach Panel and the Back Office Assistant: before each reply,
+ * the glyph of what the AI is doing now; after each reply, the run's results.
+ * Stubbed: the real model and tokens are on coach_message, the steps are not
+ * sent yet (#319).
+ */
+type ReplyStage = { activity: Activity; doing: string; ms: number };
+const REPLY_STAGES: ReplyStage[] = [
+  { activity: "read", doing: "Lecture de ce que vous consultez", ms: 1200 },
+  { activity: "think", doing: "Réflexion (claude-sonnet-5)", ms: 1800 },
+  { activity: "thinkWrite", doing: "Rédaction de la réponse", ms: 99_000 },
+];
+const REPLY_STAGES_SEARCH: ReplyStage[] = [
+  { activity: "read", doing: "Lecture de votre profil", ms: 1000 },
+  { activity: "think", doing: "Réflexion (claude-sonnet-5)", ms: 1400 },
+  { activity: "searchRead", doing: "Recherche web (sonar)", ms: 3200 },
+  { activity: "thinkWrite", doing: "Rédaction de la réponse", ms: 99_000 },
+];
+const wantsSearch = (text: string) => /offre|cherche|trouve|entreprise|recrute|salaire/i.test(text);
+
+export function PrototypeReplyActivity({ question }: { question: string }) {
+  const stages = wantsSearch(question) ? REPLY_STAGES_SEARCH : REPLY_STAGES;
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (i >= stages.length - 1) return;
+    const id = window.setTimeout(() => setI(i + 1), stages[i].ms);
+    return () => window.clearTimeout(id);
+  }, [i, stages]);
+  if (process.env.NODE_ENV === "production") return null;
+  const stage = stages[i];
+  return (
+    <span style={{ display: "inline-flex", gap: "0.5em", alignItems: "center", color: "var(--color-text-secondary)", fontSize: "0.875rem" }}>
+      <span style={{ fontSize: "1.2em", lineHeight: 1 }}>
+        <Spinner activity={stage.activity} />
+      </span>
+      {stage.doing}…
+    </span>
+  );
+}
+
+export type ProtoReplyResult = { model: string; tokens: number; ms: number; tools: string[]; sources: string[]; at: number };
+
+export function protoResultFor(question: string): ProtoReplyResult {
+  const search = wantsSearch(question);
+  return {
+    model: "claude-sonnet-5 (Bedrock eu-north-1)",
+    tokens: search ? 6840 : 2310 + (question.length % 900),
+    ms: search ? 8200 : 3400 + (question.length % 1500),
+    tools: search ? ["Recherche web (Perplexity)", "Lecture de page"] : [],
+    sources: search ? ["Votre Profil", "Pages des offres"] : ["Votre CV de référence"],
+    at: Date.now(),
+  };
+}
+
+// One quiet line under a reply: the model, its tokens and time, the tools, the hour.
+export function PrototypeReplyResult({ result }: { result: ProtoReplyResult }) {
+  if (process.env.NODE_ENV === "production") return null;
+  return (
+    <span style={{ display: "flex", flexWrap: "wrap", gap: "0.2em 0.6em", alignItems: "center", marginTop: "0.5em", color: "var(--color-text-secondary)", fontSize: "0.75rem" }}>
+      <span style={{ display: "inline-flex", gap: "0.35em", alignItems: "center" }}>
+        <Logo label={result.model} />
+        <span style={mono}>{short(result.model)}</span>
+      </span>
+      <span>{both(result.tokens, result.ms)}</span>
+      {result.tools.map((x) => (
+        <span key={x} style={{ display: "inline-flex", gap: "0.3em", alignItems: "center" }}>
+          <Logo label={x} />
+          {x}
+        </span>
+      ))}
+      {result.sources.map((x) => (
+        <WithLinks key={x} label={x}>
+          <span style={{ display: "inline-flex", gap: "0.3em", alignItems: "center" }}>
+            <Logo label={x} />
+            {x}
+          </span>
+        </WithLinks>
+      ))}
+      <span>{when(result.at)}</span>
+    </span>
   );
 }

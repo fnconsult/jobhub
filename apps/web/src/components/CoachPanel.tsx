@@ -12,6 +12,7 @@ import { CoachConversationList, type ConversationSummary } from "@/components/Co
 import { CoachMemoryProposals, CoachMemoryView } from "@/components/CoachMemory";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icons } from "@/components/icons";
+import { PrototypeReplyActivity, PrototypeReplyResult, protoResultFor, type ProtoReplyResult } from "@/components/PrototypeAiProvenanceBar";
 import { StartJobSearchButton } from "@/components/JobSearchControls";
 import { routes } from "@/routes";
 
@@ -275,6 +276,29 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   const [inView, setInViewState] = useState<InView | null>(null);
   const [conversation, setConversation] = useState<ConversationSummary | null>(null);
   const [messages, setMessages] = useState<CoachMessage[]>([]);
+  // PROTOTYPE: each reply's run results, by the reply's index (stubbed, see PrototypeReplyResult).
+  const [protoResults, setProtoResults] = useState<Record<number, ProtoReplyResult>>({});
+  const [protoQuestion, setProtoQuestion] = useState("");
+  // PROTOTYPE: « ▶ coach » in the prototype switcher plays an exchange without calling the AI.
+  useEffect(() => {
+    const play = (event: Event) => {
+      const { question, reply, ms } = (event as CustomEvent<{ question: string; reply: string; ms: number }>).detail;
+      setOpen(true);
+      setView("chat");
+      setProtoQuestion(question);
+      setStatus("sending");
+      setMessages((m) => [...m, { from: "candidate", text: question }]);
+      window.setTimeout(() => {
+        setMessages((m) => {
+          setProtoResults((r) => ({ ...r, [m.length]: protoResultFor(question) }));
+          return [...m, { from: "coach", text: reply }];
+        });
+        setStatus("idle");
+      }, ms);
+    };
+    window.addEventListener("proto-coach-demo", play);
+    return () => window.removeEventListener("proto-coach-demo", play);
+  }, []);
   const [restoring, setRestoring] = useState(false);
   const [view, setView] = useState<"chat" | "list" | "memory">("chat");
   const [conversations, setConversations] = useState<ConversationSummary[] | null>(null);
@@ -401,6 +425,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     setMessages(shown);
     setDraft("");
     setStatus("sending");
+    setProtoQuestion(text);
     const giveBack = (error: Status) => {
       // Give the Candidate their message back to retry or shorten it.
       setMessages(messages);
@@ -429,6 +454,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
           { from: "candidate", text, ...(blocked?.message ? { blocked: true as const } : {}) },
           { from: "coach", text: body.reply, ...(blocked?.reply ? { blocked: true as const } : {}), ...(body.jobOffer ? { jobOffer: body.jobOffer as JobOfferCardData } : {}) },
         ]);
+        setProtoResults((r) => ({ ...r, [messages.length + 1]: protoResultFor(text) }));
         setStatus("idle");
       } else if (response.status === 404) {
         // Deleted meanwhile (another tab, or kept past its 12 months): the message starts a new one.
@@ -559,21 +585,24 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                   {restoring ? <p role="status">{t("coachPanel.loading")}</p> : null}
                   <ol className="chat coach-panel-messages" aria-label={t(texts.messagesLabel)} aria-live="polite">
                     <li className="chat-message chat-coach">
-                      <span className="chat-author">{t(texts.author)}</span>
+                      {/* PROTOTYPE: no visible author (the user's request); screen readers still hear it. */}
+                      <span className="visually-hidden">{t(texts.author)}</span>
                       <p>{t(texts.welcome)}</p>
                     </li>
                     {messages.map((message, index) => (
                       <li key={index} className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}${message.blocked ? " chat-blocked" : ""}`}>
-                        <span className="chat-author">{message.from === "coach" ? t(texts.author) : t("questionnaire.you")}</span>
+                        <span className="visually-hidden">{message.from === "coach" ? t(texts.author) : t("questionnaire.you")}</span>
                         {message.blocked ? <span className="chat-blocked-label">{t("coachPanel.blocked")}</span> : null}
                         {message.from === "coach" ? <CoachReplyText text={message.text} /> : <p>{message.text}</p>}
                         {message.jobOffer ? <JobOfferCard jobOffer={message.jobOffer} /> : null}
+                        {protoResults[index] ? <PrototypeReplyResult result={protoResults[index]} /> : null}
                       </li>
                     ))}
                   </ol>
                   {status === "sending" ? (
-                    <p className="notice" role="status">
-                      {t(texts.thinking)}
+                    <p role="status" aria-label={t(texts.thinking)} style={{ margin: 0 }}>
+                      {/* PROTOTYPE: the glyph of what the AI is doing now, instead of « … rédige sa réponse ». */}
+                      <PrototypeReplyActivity question={protoQuestion} />
                     </p>
                   ) : null}
                   {status === "unavailable" || status === "invalid" ? (

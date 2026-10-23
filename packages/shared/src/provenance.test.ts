@@ -64,7 +64,7 @@ describe("no field of a Provenance can hold a Candidate id, a cost or text", () 
   it("has no such field, by type", () => {
     expectTypeOf<keyof Provenance>().toEqualTypeOf<"v" | "steps" | "sites" | "startedAt" | "wallMs">();
     expectTypeOf<keyof Extract<ProvenanceStep, { kind: "ai" }>>().toEqualTypeOf<
-      "kind" | "activity" | "task" | "provider" | "endpoint" | "model" | "tokens" | "ms" | "at" | "outcome" | "count"
+      "kind" | "activity" | "task" | "provider" | "endpoint" | "model" | "tokens" | "euAiConsent" | "ms" | "at" | "outcome" | "count"
     >();
     expectTypeOf<keyof Extract<ProvenanceStep, { kind: "tool" }>>().toEqualTypeOf<"kind" | "activity" | "tool" | "ms" | "at" | "outcome" | "count">();
     expectTypeOf<keyof Extract<ProvenanceStep, { kind: "rules" }>>().toEqualTypeOf<"kind" | "activity" | "rule" | "ms" | "at" | "outcome" | "count">();

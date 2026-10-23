@@ -268,7 +268,8 @@ test.describe("the Coach Panel", () => {
     await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
     await askCoach(page, "Bonjour E2E_AI_DOWN");
 
-    await expect(coachPanel(page).getByRole("alert")).toHaveText(fr.coachPanel.errors.unavailable);
+    // Why, by its Failure Reason in words (#328): never the provider's technical message.
+    await expect(coachPanel(page).getByRole("alert")).toHaveText(fr.coachPanel.failed.replace("{{reason}}", fr.failureReasons.provider_unavailable));
     await expect(coachPanel(page).getByLabel(fr.coachPanel.messageLabel)).toHaveValue("Bonjour E2E_AI_DOWN");
   });
 

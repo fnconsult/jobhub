@@ -3,7 +3,7 @@
  * in its result's Provenance. It wraps the AI layer, the way Job discovery's `costing` wrapper does, and times
  * the Tools and rules the action calls.
  *
- *   const recorder = createProvenanceRecorder(ai, { onEvent });   // the action starts
+ *   const recorder = createProvenanceRecorder(ai, { onEvent, signal });   // the action starts; its Stop stops every AI call
  *   await recorder.ai.generate({ task: "writing", ... });          // an AI step, its task's Activity
  *   await recorder.aiFor("read_job_page").generate({ ... });       // a feature step's own Activity
  *   await recorder.step({ tool: "france-travail" }, () => ...);    // a Tool call, timed
@@ -41,6 +41,11 @@ export interface ProvenanceRecorderOptions {
   onEvent?: (event: ProvenanceEvent) => void;
   /** Default: the system clock. The action starts when the recorder is made. */
   now?: () => Date;
+  /**
+   * Stops the action (#328): every AI call through the recorder is sent with it, besides the call's own, so once it
+   * aborts each call rejects and is recorded stopped (Failure Reason `stopped` in AI Usage).
+   */
+  signal?: AbortSignal;
 }
 
 export interface ProvenanceRecorder {
@@ -72,6 +77,7 @@ export function createProvenanceRecorder(ai: AiLayer, options: ProvenanceRecorde
   let lastId = 0;
   const action: Action = {
     now,
+    signal: options.signal,
     nextId: () => ++lastId,
     emit(event) {
       try {
@@ -84,9 +90,11 @@ export function createProvenanceRecorder(ai: AiLayer, options: ProvenanceRecorde
   return recorderOf(ai, action, []);
 }
 
-/** What the recorders of one action share: its clock, its event ids and its sink. */
+/** What the recorders of one action share: its clock, its Stop, its event ids and its sink. */
 interface Action {
   now: () => Date;
+  /** The action's Stop: every AI call of every recorder of the action (its parts too) is sent with it. */
+  signal?: AbortSignal;
   nextId: () => number;
   emit: (event: ProvenanceEvent) => void;
 }
@@ -139,13 +147,30 @@ function recorderOf(ai: AiLayer, action: Action, wider: readonly Kept[]): Proven
   /** A call that returns a call that may have failed (null) instead of throwing. */
   const maybeCall = (call: CallFacts | null): Partial<ProvenanceStep> => (call ? callStep(call) : { outcome: "failed" });
 
+  /** The request with the action's signal besides its own. */
+  function stoppable<R extends { signal?: AbortSignal }>(request: R): R {
+    const stop = action.signal;
+    if (!stop) return request;
+    return { ...request, signal: request.signal ? AbortSignal.any([request.signal, stop]) : stop };
+  }
+
   function layer(activity?: Activity): AiLayer {
     const as = (task: TextTask | "web_search") => activity ?? activityOf({ kind: "ai", task });
+    const searched = (request: { signal?: AbortSignal }, send: () => Promise<SearchResult>) => record({ kind: "ai", task: "web_search" }, as("web_search"), send, callStep, request.signal);
     return {
-      generate: (request) => record({ kind: "ai", task: request.task }, as(request.task), () => ai.generate(request), callStep, request.signal),
+      generate: (request) => {
+        const sent = stoppable(request);
+        return record({ kind: "ai", task: request.task }, as(request.task), () => ai.generate(sent), callStep, sent.signal);
+      },
       planJobSearch: (request) => record({ kind: "ai", task: "job_titles" }, as("job_titles"), () => ai.planJobSearch(request), (plan) => maybeCall(plan.call)),
-      searchWeb: (request) => record({ kind: "ai", task: "web_search" }, as("web_search"), () => ai.searchWeb(request), callStep, request.signal),
-      searchCompany: (request) => record({ kind: "ai", task: "web_search" }, as("web_search"), () => ai.searchCompany(request), callStep, request.signal),
+      searchWeb: (request) => {
+        const sent = stoppable(request);
+        return searched(sent, () => ai.searchWeb(sent));
+      },
+      searchCompany: (request) => {
+        const sent = stoppable(request);
+        return searched(sent, () => ai.searchCompany(sent));
+      },
       searchCompanyNews: async (request) => (await recordedNews(request)).articles,
       searchCompanyNewsWithCall: (request) => recordedNews(request),
       agentModels: () => ai.agentModels(),
@@ -154,7 +179,8 @@ function recorderOf(ai: AiLayer, action: Action, wider: readonly Kept[]): Proven
       forEval: () => ai.forEval(),
     };
     function recordedNews(request: Parameters<AiLayer["searchCompanyNewsWithCall"]>[0]) {
-      return record({ kind: "ai", task: "web_search" }, as("web_search"), () => ai.searchCompanyNewsWithCall(request), (news) => maybeCall(news.call), request.signal);
+      const sent = stoppable(request);
+      return record({ kind: "ai", task: "web_search" }, as("web_search"), () => ai.searchCompanyNewsWithCall(sent), (news) => maybeCall(news.call), sent.signal);
     }
   }
 

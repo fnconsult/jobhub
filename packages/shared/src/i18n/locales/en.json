@@ -524,6 +524,9 @@
     "aiDisclosure": "I am an AI coach, not a person: an artificial intelligence program from Jobbbox. To talk to a person, you can book a session with a human coach. How can I help you?",
     "messageLabel": "Your message",
     "send": "Send",
+    "stop": "Stop",
+    "stopped": "Reply stopped",
+    "failed": "Your coach could not reply: {{reason}}. Try again in a moment.",
     "thinking": "Your coach is writing a reply…",
     "errors": {
       "unavailable": "Your coach can't reply right now. Please try again in a few moments.",
@@ -2969,6 +2972,16 @@
     }
   },
   "aiActivity": {
-    "modelNotRecorded": "model not recorded"
+    "modelNotRecorded": "model not recorded",
+    "steps": {
+      "think": "Thinking",
+      "think_write": "Thinking, then writing",
+      "write": "Writing",
+      "search": "Searching",
+      "web_search": "Searching the web",
+      "read": "Reading",
+      "compute": "Computing",
+      "check": "Checking"
+    }
   }
 }

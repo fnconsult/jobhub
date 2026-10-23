@@ -168,7 +168,7 @@ A named check on a Candidate's or Administrator's message to the AI Coach or Bac
 _Avoid_: Filter, moderation, safety layer
 
 **Blocked message**:
-A Candidate message a Guardrail stops before the AI Coach sees it, or an AI Coach reply a Guardrail stops before the Candidate does. A blocked message is answered by the Guardrail message; a blocked reply is written again once, told what was wrong, then replaced by the Guardrail message if still blocked (a leak or a secret is replaced at once). Both stay in the Coach Conversation, marked as blocked without naming the Guardrail; a distress Guardrail's answer is never shown as a block. A Guardrail set to flag only lets everything through and records it.
+A Candidate message a Guardrail stops before the AI Coach sees it, or an AI Coach reply a Guardrail stops before the Candidate does. A blocked message is answered by the Guardrail message; a blocked reply is written again once, told what was wrong, then replaced by the Guardrail message if still blocked (a leak or a secret is replaced at once). Both stay in the Coach Conversation, marked as blocked without naming the Guardrail; a distress Guardrail's answer is never shown as a block. A Guardrail set to flag only lets everything through and records it. A question the Candidate stops before the input Guardrails let it through is not blocked, and stays in the Coach Conversation unmarked, but is never sent to the AI Coach; a check the Stop ends records no Guardrail Trigger.
 _Avoid_: Rejected message, filtered reply
 
 **Guardrail message**:
@@ -673,6 +673,14 @@ _Avoid_: Source (alone), citation, reference
 **Activity**:
 What one step of an AI action is doing, fixed in the code per step and by default per AI task or Tool, never per Playbook: think, think then write, write, search, web search, read or compute (rules, no AI). It picks the glyph AI Activity shows while the step runs.
 _Avoid_: Status, phase, stage
+
+**Step label**:
+What AI Activity calls a running step: its Activity, or « check » for a Guardrail's check. Worded in French and English.
+_Avoid_: Step name, status
+
+**Stop**:
+The Candidate ends an AI Coach reply on its way with « Arrêter » (the « Envoyer » button, no confirmation). Every AI call of the reply is aborted (AI Usage `stopped`). The question is kept in the Coach Conversation, no reply is saved, and « Réponse arrêtée » shows the tokens and time spent. A stopped reply counts against no Plan Quota.
+_Avoid_: Cancel, abort
 
 **Run progress**:
 The live steps of an AI action that runs in the worker (a Job Search), kept on its row only while it searches: the latest event of each step, an ended step replacing its start. It feeds AI Activity's live steps, including « En cours ailleurs », through the page's poll (every 1.5 s while an action runs). Cleared when the action finishes or times out, so it is never in the Data export; the Provenance, kept with the result, is.

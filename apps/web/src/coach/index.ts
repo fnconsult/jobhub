@@ -45,7 +45,7 @@
  */
 import { costInEur, createProvenanceRecorder, type AiLayer, type AiWarning, type GenerateResult, type ProviderId } from "@jobhub/ai";
 import { createI18n } from "@jobhub/shared/i18n";
-import type { JobOffer, Provenance } from "@jobhub/shared";
+import { failureOf, type FailureReason, type JobOffer, type Provenance, type ProvenanceEvent } from "@jobhub/shared";
 import { findJobOfferLink, type JobOfferLinkResult, type JobOfferLinks } from "../job-offer-links";
 import type { GuardedReply, GuardrailLanguage, Guardrails } from "../guardrails";
 import { CORE_DIGEST, type CoachingPlaybooks, type ServedKnowledge } from "../coaching-playbooks";
@@ -94,6 +94,9 @@ export type CoachReplyOutcome = GuardedReply["outcome"];
  * `cost`: null when no AI call was made (distress words answered by the distress Guardrail message, a Job Offer link without Guardrails).
  * `jobOffer`: the Job Offer read from the link in the Candidate's message, when there is one.
  * `provenance`: what served the reply, step by step (#327), to keep with it.
+ * `stopped`: the Candidate stopped it (#328), `messagePassed` saying whether the Candidate's message had gone through the input
+ * Guardrails by then (the reply was being written): a message that had not must never reach the AI Coach later.
+ * `reason`: why it is `unavailable`, its Failure Reason (never the technical message).
  */
 export type CoachReply =
   | {
@@ -106,11 +109,21 @@ export type CoachReply =
       jobOffer?: JobOffer;
       provenance: Provenance;
     }
-  | { ok: false; error: "invalid" | "unavailable" };
+  | { ok: false; error: "invalid" }
+  | { ok: false; error: "stopped"; messagePassed: boolean }
+  | { ok: false; error: "unavailable"; reason: FailureReason };
+
+export interface CoachReplyOptions {
+  /** The Candidate's, for a Guardrail message. Default French. */
+  language?: GuardrailLanguage;
+  /** The Candidate's Stop (#328): every AI call of the reply is aborted, and there is no reply. */
+  signal?: AbortSignal;
+  /** Each step of the reply as it starts and ends (#328), for the Coach Panel to show live. */
+  onEvent?: (event: ProvenanceEvent) => void;
+}
 
 export interface Coach {
-  /** `language`: the Candidate's, for a Guardrail message. Default French. */
-  reply(candidateId: string, input: unknown, options?: { language?: GuardrailLanguage }): Promise<CoachReply>;
+  reply(candidateId: string, input: unknown, options?: CoachReplyOptions): Promise<CoachReply>;
 }
 
 /** A Coach context given as is, within `maxTokens` (an Eval Case's fictional one): what the AI Coach then knows of the Candidate. */
@@ -214,13 +227,18 @@ export function createCoach(deps: CoachDeps): Coach {
     async reply(candidateId, input, options = {}) {
       const parsed = inputSchema.safeParse(input);
       if (!parsed.success) return { ok: false, error: "invalid" };
+      const { signal, onEvent } = options;
+      // Whether the latest message went through the input Guardrails: they only ask for the reply once it has.
+      let messagePassed = false;
+      const stopped = () => ({ ok: false as const, error: "stopped" as const, messagePassed });
+      if (signal?.aborted) return stopped();
       const { focus } = parsed.data;
       const messages = recentConversation(parsed.data.messages).map((message) => ({
         role: message.from === "candidate" ? ("user" as const) : ("assistant" as const),
         content: message.text,
       }));
       // The reply's steps, each AI call through it: what is kept with the reply as its Provenance.
-      const recorder = createProvenanceRecorder(deps.ai);
+      const recorder = createProvenanceRecorder(deps.ai, { ...(signal ? { signal } : {}), ...(onEvent ? { onEvent } : {}) });
       try {
         /** Everything before the reply itself, done once even when the reply is written again. */
         const prepare = async () => {
@@ -290,13 +308,17 @@ export function createCoach(deps: CoachDeps): Coach {
           linked ??= await deps.jobOfferLinks!.read(candidateId, url, recorder);
           return { text: jobOfferLinkReply(linked, language), secrets: [] };
         };
-        const reply = link ? () => answerLink(link) : write;
+        const reply = (feedback: string | null) => {
+          messagePassed = true;
+          return link ? answerLink(link) : write(feedback);
+        };
         const guarded: GuardedReply = deps.guardrails
           ? await deps.guardrails.guard("ai_coach", {
               candidateId,
               language,
               ai: recorder.ai,
               message: latest,
+              ...(signal ? { signal } : {}),
               written: messages.filter((message) => message.role === "user").map((message) => message.content),
               reply,
             })
@@ -312,6 +334,8 @@ export function createCoach(deps: CoachDeps): Coach {
           model: call.model,
           ...costOf([call]),
         }));
+        // Stopped once the reply was written, or by a step that let the Stop through: no reply.
+        if (signal?.aborted) return stopped();
         const served = prepared?.served;
         const playbooks: PlaybookUsed[] = [
           ...(served?.coreDigest ? [{ id: CORE_DIGEST, version: String(served.coreDigest.version) }] : []),
@@ -328,8 +352,9 @@ export function createCoach(deps: CoachDeps): Coach {
           provenance: recorder.provenance(),
         };
       } catch (error) {
+        if (signal?.aborted) return stopped();
         console.warn("[coach] the AI Coach could not reply:", error instanceof Error ? error.message : error);
-        return { ok: false, error: "unavailable" };
+        return { ok: false, error: "unavailable", reason: failureOf(error).reason };
       }
     },
   };

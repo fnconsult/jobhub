@@ -199,3 +199,24 @@ export type StartedStep = {
  * by its `id` within the action, before it is folded into the stored Provenance.
  */
 export type ProvenanceEvent = { type: "step_started"; id: number; step: StartedStep } | { type: "step_ended"; id: number; step: ProvenanceStep };
+
+const UNKNOWN_YET = { ms: true, outcome: true, count: true } as const;
+const startedStep = z.discriminatedUnion("kind", [
+  aiStep.omit({ ...UNKNOWN_YET, provider: true, endpoint: true, model: true, tokens: true, euAiConsent: true }),
+  toolStep.omit(UNKNOWN_YET),
+  rulesStep.omit(UNKNOWN_YET),
+]);
+const eventId = z.number().int().positive();
+const provenanceEvent = z.discriminatedUnion("type", [
+  z.strictObject({ type: z.literal("step_started"), id: eventId, step: startedStep }),
+  z.strictObject({ type: z.literal("step_ended"), id: eventId, step }),
+]);
+
+/**
+ * A step's event as stored or sent (a Job Search's progress on its row): null when it is not one, or names
+ * anything a Provenance never keeps (no field may be a Candidate id, a cost or any text).
+ */
+export function readProvenanceEvent(stored: unknown): ProvenanceEvent | null {
+  const parsed = provenanceEvent.safeParse(stored);
+  return parsed.success ? (parsed.data as ProvenanceEvent) : null;
+}

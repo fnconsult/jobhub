@@ -14,6 +14,7 @@ export * from "./tools";
 export * from "./failure-reasons";
 export * from "./sectors";
 export * from "./provenance";
+export * from "./run-progress";
 export * from "./provenance-link";
 export * from "./ai-models";
 export * from "./provenance-marks";

@@ -38,7 +38,9 @@ const TOKENS: Record<string, number> = {
   "CV de référence (lecture du CV importé)": 6740,
 };
 const withTokens = (elements: Element[]) => elements.map((e) => (e.model && !e.model.startsWith("règles") ? { ...e, tokens: TOKENS[e.what] ?? 1500 } : e));
-const fmt = (n: number) => `${n.toLocaleString("fr-FR")} tokens`;
+// Tokens in k from 1 000 on: « 312 tokens », « 2,1 k tokens », « 27,4 k tokens ».
+const fmt = (n: number) =>
+  n < 1000 ? `${n} tokens` : `${(n / 1000).toLocaleString("fr-FR", { maximumFractionDigits: n < 100_000 ? 1 : 0 })} k tokens`;
 
 // A simulated Job Search, as the pane would receive it live (SSE or polling).
 type Step = { after: number; text: string; logo: string; model?: string; tokens?: number };
@@ -401,8 +403,88 @@ function Logo({ label }: { label: string }) {
 }
 
 // Bedrock models get AWS's logo beside the model's own.
+// The links behind a label, stubbed: what the stored result would keep (a source's
+// page, the offers read, a model's documentation). Shown on hover or focus.
+const LINKS: [RegExp, string[]][] = [
+  [/claude-haiku/i, ["https://docs.anthropic.com/en/docs/about-claude/models", "https://aws.amazon.com/bedrock/claude/"]],
+  [/claude/i, ["https://docs.anthropic.com/en/docs/about-claude/models", "https://aws.amazon.com/bedrock/claude/"]],
+  [/mistral/i, ["https://docs.mistral.ai/getting-started/models/"]],
+  [/sonar/i, ["https://docs.perplexity.ai/models/models/sonar"]],
+  [/france travail/i, ["https://francetravail.io/data/api/offres-emploi"]],
+  [/fantastic/i, ["https://fantastic.jobs/api"]],
+  [/perplexity|recherche web/i, ["https://www.perplexity.ai"]],
+  [/annuaire|recherche d'entreprises/i, ["https://annuaire-entreprises.data.gouv.fr"]],
+  [/welcometothejungle/i, ["https://www.welcometothejungle.com/fr/jobs"]],
+  [/greenhouse|lever|ashby|carrières/i, ["https://boards.greenhouse.io", "https://jobs.lever.co", "https://jobs.ashbyhq.com"]],
+  [/pages des offres|lecture de page/i, ["https://www.welcometothejungle.com/fr/jobs", "https://candidat.francetravail.fr/offres/recherche", "https://boards.greenhouse.io"]],
+];
+const linksOf = (label: string) => LINKS.find(([re]) => re.test(label))?.[1] ?? [];
+
+// Hover (or keyboard focus) shows the label's links, clickable, in a small card.
+function WithLinks({ label, children }: { label: string; children: ReactNode }) {
+  const [shown, setShownState] = useState(false);
+  const links = linksOf(label);
+  // One card at a time: opening one closes the others.
+  const me = useRef(Symbol(label));
+  useEffect(() => {
+    const close = (event: Event) => {
+      if ((event as CustomEvent).detail !== me.current) setShownState(false);
+    };
+    window.addEventListener("proto-link-card", close);
+    return () => window.removeEventListener("proto-link-card", close);
+  }, []);
+  const setShown = (value: boolean) => {
+    if (value) window.dispatchEvent(new CustomEvent("proto-link-card", { detail: me.current }));
+    setShownState(value);
+  };
+  if (!links.length) return <>{children}</>;
+  return (
+    <span
+      style={{ position: "relative", display: "inline-flex" }}
+      onMouseEnter={() => setShown(true)}
+      onMouseLeave={() => setShown(false)}
+      onFocus={() => setShown(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node)) setShown(false);
+      }}
+    >
+      <span tabIndex={0} style={{ textDecoration: "underline dotted", textUnderlineOffset: "0.2em", cursor: "default" }}>
+        {children}
+      </span>
+      {shown ? (
+        <span
+          role="tooltip"
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            zIndex: 5,
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.2em",
+            width: "max-content",
+            maxWidth: "19em",
+            padding: "0.4em 0.6em",
+            background: "var(--color-background)",
+            border: "1px solid var(--color-border)",
+            borderRadius: 6,
+            boxShadow: "var(--shadow-menu)",
+          }}
+        >
+          {links.map((href) => (
+            <a key={href} href={href} target="_blank" rel="noopener noreferrer" style={{ overflowWrap: "anywhere", fontSize: "0.9em" }}>
+              {href.replace(/^https:\/\//, "")} ↗
+            </a>
+          ))}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 function Labelled({ label, mono: isMono }: { label: string; mono?: boolean }) {
   return (
+    <WithLinks label={label}>
     <span style={{ display: "inline-flex", gap: "0.4em", alignItems: "center" }}>
       <Logo label={label} />
       {/bedrock/i.test(label) ? (
@@ -411,6 +493,7 @@ function Labelled({ label, mono: isMono }: { label: string; mono?: boolean }) {
       ) : null}
       <span style={isMono ? mono : undefined}>{label}</span>
     </span>
+    </WithLinks>
   );
 }
 
@@ -533,7 +616,7 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
                     <span style={{ display: "inline-flex", gap: "0.4em", alignItems: "flex-start" }}>
                       <Logo label={x.model ?? x.logo} />
                       <span>
-                        {x.text}
+                        <WithLinks label={x.model ? x.text : x.logo}>{x.text}</WithLinks>
                         {x.model ? <span style={{ ...mono, ...dim, display: "block", fontSize: "0.85em" }}>{short(x.model)}</span> : null}
                       </span>
                     </span>

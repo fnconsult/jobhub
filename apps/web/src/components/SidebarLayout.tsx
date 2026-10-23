@@ -68,50 +68,50 @@ export function SidebarLayout({
 
   return (
     <AiActivityProvider elements={aiActivity}>
-    <SidebarShell
-      brand={{ href: routes.home, label: t("app.name") }}
-      title={title}
-      wide={wide}
-      foot={(closeDrawer) => (
-        <>
-          {usage ? <UsageMeter meter={usage} onNavigate={closeDrawer} /> : null}
-          <Link className="sidebar-link" href={account.href} aria-current={account.current ? CURRENT : undefined} onClick={closeDrawer}>
-            <Icons.account />
-            {t("nav.account")}
-          </Link>
-        </>
-      )}
-      top={
-        profiles.length > 0 ? (
-          <ProfileSwitcherMenu
-            // Keyed by the current Profile so it opens closed again after switching.
-            key={currentProfileId ?? ""}
-            profiles={switcherProfiles}
-            current={current ? { id: current.id, name: current.name } : undefined}
-            canAdd={canAddProfile}
-          />
-        ) : null
-      }
-      nav={(closeDrawer) => (
-        <nav className="sidebar-nav" aria-label={t("sidebar.label")}>
-          <ul>
-            {items.map((item) => {
-              const NavIcon = Icons[item.key];
-              return (
-                <li key={item.key}>
-                  <Link className="sidebar-link" href={item.href} aria-current={item.current ? CURRENT : undefined} onClick={closeDrawer}>
-                    <NavIcon />
-                    {t(LABELS[item.key])}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-      )}
-    >
-      {children}
-    </SidebarShell>
+      <SidebarShell
+        brand={{ href: routes.home, label: t("app.name") }}
+        title={title}
+        wide={wide}
+        foot={(closeDrawer) => (
+          <>
+            {usage ? <UsageMeter meter={usage} onNavigate={closeDrawer} /> : null}
+            <Link className="sidebar-link" href={account.href} aria-current={account.current ? CURRENT : undefined} onClick={closeDrawer}>
+              <Icons.account />
+              {t("nav.account")}
+            </Link>
+          </>
+        )}
+        top={
+          profiles.length > 0 ? (
+            <ProfileSwitcherMenu
+              // Keyed by the current Profile so it opens closed again after switching.
+              key={currentProfileId ?? ""}
+              profiles={switcherProfiles}
+              current={current ? { id: current.id, name: current.name } : undefined}
+              canAdd={canAddProfile}
+            />
+          ) : null
+        }
+        nav={(closeDrawer) => (
+          <nav className="sidebar-nav" aria-label={t("sidebar.label")}>
+            <ul>
+              {items.map((item) => {
+                const NavIcon = Icons[item.key];
+                return (
+                  <li key={item.key}>
+                    <Link className="sidebar-link" href={item.href} aria-current={item.current ? CURRENT : undefined} onClick={closeDrawer}>
+                      <NavIcon />
+                      {t(LABELS[item.key])}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+        )}
+      >
+        {children}
+      </SidebarShell>
     </AiActivityProvider>
   );
 }

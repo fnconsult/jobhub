@@ -37,6 +37,8 @@ type Control = {
   register: (button: HTMLButtonElement | null) => (() => void) | undefined;
   /** The button's words. */
   label: ParseKeys;
+  /** The AI Coach replies given here about the object of the page in view (#332). */
+  repliesInView: readonly ReplyInView[];
 };
 
 const CoachPanelControl = createContext<Control | null>(null);
@@ -46,14 +48,14 @@ const CoachPanelControl = createContext<Control | null>(null);
  * AI Activity counts it with that page at once (#332), before the page is next loaded with it.
  */
 export type ReplyInView = { provenance: Provenance | null; at: string };
-const RepliesInView = createContext<readonly ReplyInView[]>([]);
+const NO_REPLIES: readonly ReplyInView[] = [];
 /** The page objects a reply is kept with as its focus (coach-conversations), so counted with their page. */
 const FOCUS_KINDS: ReadonlySet<string> = new Set(["application", "job_offer", "profile"]);
 const focusKey = (inView: InView) => `${inView.kind}:${inView.id}`;
 
 /** The AI Coach replies given in this browser about the object of the page in view; none outside a Coach Panel. */
 export function useCoachRepliesInView(): readonly ReplyInView[] {
-  return useContext(RepliesInView);
+  return useContext(CoachPanelControl)?.repliesInView ?? NO_REPLIES;
 }
 
 /** The menu opens under the conversation's title, from its start. */
@@ -621,11 +623,10 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   // The conversation's first message: the AI disclosure, or the welcome of a panel without one or of a conversation saved before it.
   const opening = texts.aiDisclosure && aiDisclosure ? texts.aiDisclosure : texts.welcome;
 
-  const control: Control = { open, panelId: `${id}-panel`, toggle: () => (open ? close() : openPanel()), register, label: texts.open };
+  const control: Control = { open, panelId: `${id}-panel`, toggle: () => (open ? close() : openPanel()), register, label: texts.open, repliesInView };
 
   return (
     <SetInView.Provider value={setInView}>
-      <RepliesInView.Provider value={repliesInView}>
       <CoachPanelControl.Provider value={control}>
         {/* A widened panel is modal: the page beneath is out of reach until it narrows or closes. */}
         <div className={open ? "with-coach-panel" : undefined} inert={open && wide} aria-hidden={(open && wide) || undefined}>
@@ -843,7 +844,6 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
         ) : null}
         <CoachPanelToggle floating />
       </CoachPanelControl.Provider>
-      </RepliesInView.Provider>
     </SetInView.Provider>
   );
 }

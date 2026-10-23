@@ -626,7 +626,12 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                       <p>{t(texts.welcome)}</p>
                     </li>
                     {messages.map((message, index) => (
-                      <li key={index} className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}${message.blocked ? " chat-blocked" : ""}`}>
+                      <li
+                        key={index}
+                        className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}${message.blocked ? " chat-blocked" : ""}`}
+                        // PROTOTYPE: a stopped reply in a very light red (the user's request).
+                        style={protoResults[index]?.stopped ? { background: "var(--color-danger-surface)" } : undefined}
+                      >
                         <span className="visually-hidden">{message.from === "coach" ? t(texts.author) : t("questionnaire.you")}</span>
                         {message.blocked ? <span className="chat-blocked-label">{t("coachPanel.blocked")}</span> : null}
                         {message.from === "coach" ? (
@@ -650,7 +655,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                     </p>
                   ) : null}
                   {status === "unavailable" || status === "invalid" ? (
-                    <p className="notice" role="alert">
+                    <p className="notice" role="alert" style={{ background: "var(--color-danger-surface)" /* PROTOTYPE: a failed reply, very light red */ }}>
                       {t(status === "unavailable" ? texts.unavailable : "coachPanel.errors.invalid")}
                     </p>
                   ) : null}

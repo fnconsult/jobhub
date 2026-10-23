@@ -117,22 +117,31 @@ const RUN_DOCS: Step[] = [
   { after: 13000, text: "Vérification : aucun fait inventé", logo: "règles", tool: "Garde-fou faits du CV", ms: 240, activity: "compute", doing: "Vérification des faits (ADR-0006)" },
 ];
 const RUNS = {
-  search: { steps: RUN, live: "Recherche d'offres en cours", done: "Dernière recherche", stopped: "Recherche arrêtée" },
-  docs: { steps: RUN_DOCS, live: "Rédaction des documents en cours", done: "Derniers documents", stopped: "Rédaction arrêtée" },
+  search: { steps: RUN, live: "Recherche d'offres en cours", done: "Dernière recherche", stopped: "Recherche arrêtée", failed: "Recherche échouée" },
+  docs: { steps: RUN_DOCS, live: "Rédaction des documents en cours", done: "Derniers documents", stopped: "Rédaction arrêtée", failed: "Rédaction échouée" },
 };
 type RunKind = keyof typeof RUNS;
-export type Run = { running: boolean; log: Step[]; kind: RunKind; stoppedAt?: number };
+export type Run = { running: boolean; log: Step[]; kind: RunKind; stoppedAt?: number; failed?: { at: number; step: Step; reason: string } };
 
 function useSimulatedRun(autostart: RunKind | null) {
   const [run, setRun] = useState<Run>({ running: false, log: [], kind: "search" });
   // Each start cancels the previous one's pending steps (Strict Mode runs effects twice).
   const timers = useRef<number[]>([]);
-  const start = (kind: RunKind = "search") => {
+  // `failAt`: the step that fails (« ▶ échec »), ending the run there.
+  const start = (kind: RunKind = "search", failAt?: number) => {
     timers.current.forEach((id) => window.clearTimeout(id));
     const steps = RUNS[kind].steps;
     setRun({ running: true, log: [], kind });
     timers.current = steps.map((step, i) =>
-      window.setTimeout(() => setRun((r) => ({ ...r, running: i < steps.length - 1, log: [...r.log, { ...step, at: Date.now() }] })), step.after),
+      window.setTimeout(() => {
+        if (failAt !== undefined && i > failAt) return;
+        if (i === failAt) {
+          timers.current.forEach((id) => window.clearTimeout(id));
+          setRun((r) => ({ ...r, running: false, failed: { at: Date.now(), step, reason: "Perplexity n'a pas répondu (délai dépassé)" } }));
+          return;
+        }
+        setRun((r) => ({ ...r, running: i < steps.length - 1, log: [...r.log, { ...step, at: Date.now() }] }));
+      }, step.after),
     );
   };
   // « Arrêter »: the steps not done are dropped; those done stay with their tokens and time (#316).
@@ -868,11 +877,25 @@ function VariantD({ elements, tiny, run, coach, onStop }: { elements: Element[];
             </section>
           ) : null}
           {run.running || run.log.length ? (
-            <section aria-live="polite" style={{ padding: "0.5em 0" }}>
+            <section
+              aria-live="polite"
+              // Stopped or failed: highlighted in a very light red (the user's request), said in words too.
+              style={
+                run.stoppedAt || run.failed
+                  ? { padding: "0.5em 0.6em", margin: "0.3em -0.6em", background: "var(--color-danger-surface)", borderRadius: "var(--radius-sm)" }
+                  : { padding: "0.5em 0" }
+              }
+            >
               <div style={{ ...row, color: "var(--color-text-secondary)" }}>
                 <span>
-                  {pageStep ? <Spinner activity={pageStep.activity} /> : run.stoppedAt ? "■" : "✓"}{" "}
-                  {run.running ? RUNS[run.kind].live : run.stoppedAt ? `${RUNS[run.kind].stopped} à ${when(run.stoppedAt)}` : RUNS[run.kind].done}
+                  {pageStep ? <Spinner activity={pageStep.activity} /> : run.failed ? "✕" : run.stoppedAt ? "■" : "✓"}{" "}
+                  {run.running
+                    ? RUNS[run.kind].live
+                    : run.failed
+                      ? `${RUNS[run.kind].failed} à ${when(run.failed.at)}`
+                      : run.stoppedAt
+                        ? `${RUNS[run.kind].stopped} à ${when(run.stoppedAt)}`
+                        : RUNS[run.kind].done}
                 </span>
                 {run.running ? <StopButton onClick={onStop} label={`Arrêter : ${RUNS[run.kind].live}`} /> : null}
                 <span style={{ fontVariantNumeric: "tabular-nums", textAlign: "right" }}>
@@ -894,6 +917,18 @@ function VariantD({ elements, tiny, run, coach, onStop }: { elements: Element[];
                     </span>
                   </li>
                 ))}
+                {run.failed ? (
+                  <li style={{ ...row, color: "var(--color-danger)" }}>
+                    <span style={{ display: "inline-flex", gap: "0.4em", alignItems: "flex-start" }}>
+                      <Logo label={run.failed.step.model ?? run.failed.step.logo} />
+                      <span>
+                        {run.failed.step.doing} : échec
+                        <span style={{ display: "block", fontSize: "0.9em" }}>{run.failed.reason}</span>
+                      </span>
+                    </span>
+                    <span style={{ whiteSpace: "nowrap" }}>{when(run.failed.at)}</span>
+                  </li>
+                ) : null}
                 {run.running ? (
                   <li style={{ ...dim, padding: "0.2em 0" }}>
                     {current ? (
@@ -952,7 +987,14 @@ function VariantD({ elements, tiny, run, coach, onStop }: { elements: Element[];
               </Section>
               <Section title="Par élément" count={elements.length}>
                 {elements.map((e) => (
-                  <li key={e.what} style={{ padding: "0.4em 0" }}>
+                  <li
+                    key={e.what}
+                    style={
+                      e.what.includes("(arrêtée)")
+                        ? { padding: "0.4em 0.6em", margin: "0.2em -0.6em", background: "var(--color-danger-surface)", borderRadius: "var(--radius-sm)" }
+                        : { padding: "0.4em 0" }
+                    }
+                  >
                     <div style={row}>
                       <strong>{e.what}</strong>
                       <span style={dim}>{when(e.at)}</span>
@@ -1108,6 +1150,9 @@ export function PrototypeAiProvenanceBar() {
             </button>
             <button type="button" onClick={coachDemo} style={{ color: "inherit", background: "#333", border: 0, borderRadius: 999, padding: "2px 10px", cursor: "pointer" }}>
               ▶ coach
+            </button>
+            <button type="button" onClick={() => start("search", 3)} disabled={run.running} style={{ color: "inherit", background: "#333", border: 0, borderRadius: 999, padding: "2px 10px", cursor: "pointer" }}>
+              ▶ échec
             </button>
           </>
         ) : null}

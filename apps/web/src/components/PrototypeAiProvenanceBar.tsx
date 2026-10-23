@@ -72,20 +72,68 @@ function useSimulatedRun(autostart: boolean) {
   return { run, start };
 }
 
-// Claude Code's spinner glyphs; still under prefers-reduced-motion (ADR-0009).
-const FRAMES = ["·", "✢", "✳", "✶", "✻", "✽", "✻", "✶", "✳", "✢"];
+// Line icons in the app's style (icons.tsx: 24 grid, stroke 1.5). At rest the
+// button shows the tasks icon; during an action it plays brain → magnifier →
+// feather → a book opening page by page. Under prefers-reduced-motion it stays
+// on the tasks icon (ADR-0009).
+const TASKS = ["M10 6h10M10 12h10M10 18h10", "M4 6l1.2 1.2L7.5 5", "M4 12l1.2 1.2 2.3-2.2", "M4 18l1.2 1.2 2.3-2.2"];
+const BOOK_OPEN = ["M3 5c3-1 6-1 9 1v14c-3-2-6-2-9-1z", "M21 5c-3-1-6-1-9 1v14c3-2 6-2 9-1z"];
+const FRAMES: { d: string[]; ms: number }[] = [
+  // Brain: two hemispheres and the fold between them.
+  {
+    d: [
+      "M12 5a3 3 0 0 0-5.6-1.2A3 3 0 0 0 4 8a3 3 0 0 0 .2 5A3 3 0 0 0 7 17.6 3 3 0 0 0 12 19z",
+      "M12 5a3 3 0 0 1 5.6-1.2A3 3 0 0 1 20 8a3 3 0 0 1-.2 5 3 3 0 0 1-2.8 4.6A3 3 0 0 1 12 19z",
+      "M12 5v14M8 9.5c1 0 2 .6 2 2M16 9.5c-1 0-2 .6-2 2",
+    ],
+    ms: 520,
+  },
+  // Magnifier (the Job Searches' icon).
+  { d: ["M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z", "M20 20l-4-4"], ms: 520 },
+  // Feather.
+  { d: ["M20.2 3.8a6 6 0 0 0-8.5 0L5 10.5V19h8.5l6.7-6.7a6 6 0 0 0 0-8.5z", "M16 8L3 21", "M17.5 15H9"], ms: 520 },
+  // A book: closed, opened, then three pages turning from right to left.
+  { d: ["M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z", "M5 18a2 2 0 0 1 2-2h12"], ms: 260 },
+  { d: BOOK_OPEN, ms: 200 },
+  { d: [...BOOK_OPEN, "M12 6c2-1.6 4-2.4 6-2.6v14c-2 .2-4 1-6 2.6"], ms: 140 },
+  { d: [...BOOK_OPEN, "M12 6c.4-1.8.9-3 1.4-4v14c-.5 1-1 2.2-1.4 4"], ms: 140 },
+  { d: [...BOOK_OPEN, "M12 6c-2-1.6-4-2.4-6-2.6v14c2 .2 4 1 6 2.6"], ms: 140 },
+  { d: [...BOOK_OPEN, "M12 6c2-1.6 4-2.4 6-2.6v14c-2 .2-4 1-6 2.6"], ms: 140 },
+  { d: [...BOOK_OPEN, "M12 6c.4-1.8.9-3 1.4-4v14c-.5 1-1 2.2-1.4 4"], ms: 140 },
+  { d: [...BOOK_OPEN, "M12 6c-2-1.6-4-2.4-6-2.6v14c2 .2 4 1 6 2.6"], ms: 140 },
+  { d: BOOK_OPEN, ms: 260 },
+];
+
+function Glyph({ d, active }: { d: string[]; active?: boolean }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      width="1.15em"
+      height="1.15em"
+      fill="none"
+      stroke={active ? "#d97757" : "currentColor"}
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ flex: "none", verticalAlign: "-0.2em" }}
+    >
+      {d.map((path) => (
+        <path key={path} d={path} />
+      ))}
+    </svg>
+  );
+}
+
 function Spinner() {
   const [i, setI] = useState(0);
+  const [still, setStill] = useState(false);
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const id = window.setInterval(() => setI((n) => (n + 1) % FRAMES.length), 120);
-    return () => window.clearInterval(id);
-  }, []);
-  return (
-    <span aria-hidden style={{ display: "inline-block", width: "1em", textAlign: "center", color: "#d97757" }}>
-      {FRAMES[i]}
-    </span>
-  );
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return setStill(true);
+    const id = window.setTimeout(() => setI((n) => (n + 1) % FRAMES.length), FRAMES[i].ms);
+    return () => window.clearTimeout(id);
+  }, [i]);
+  return <Glyph d={still ? TASKS : FRAMES[i].d} active />;
 }
 
 const COACH: Element = { what: "Coach IA (panneau)", sources: ["Votre CV de référence", "Votre Profil"], model: "claude-sonnet-5 (Bedrock eu-north-1)", tools: ["Recherche web (Perplexity)", "Lecture de page"] };
@@ -330,8 +378,8 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
   const sources = uniq(elements.flatMap((e) => e.sources));
   const tools = uniq(elements.flatMap((e) => e.tools ?? []));
   const toggle = (
-    <button type="button" className="button button-quiet" aria-expanded={open} aria-controls="proto-provenance-pane" onClick={() => setOpen(!open)}>
-      {run.running ? <Spinner /> : "ⓘ"} {run.running ? "Recherche en cours…" : "Sources et IA"}
+    <button type="button" className="button button-quiet" aria-expanded={open} aria-controls="proto-provenance-pane" onClick={() => setOpen(!open)} style={{ display: "inline-flex", gap: "0.4em", alignItems: "center" }}>
+      {run.running ? <Spinner /> : <Glyph d={TASKS} />} {run.running ? "Recherche en cours…" : "Sources et IA"}
       {allModels.length ? ` · ${allModels.length}` : ""}
     </button>
   );

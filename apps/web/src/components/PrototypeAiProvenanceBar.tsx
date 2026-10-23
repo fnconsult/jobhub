@@ -10,16 +10,83 @@
  *   C — per element: 9 px segments, one per element, each opening its detail.
  *   D — like Claude Code's session pane: a top-bar button opens a panel on the
  *       right of the page column listing models, sources and tools, then each
- *       element. &size=9 forces 9 px.
+ *       element. &size=9 forces 9 px. Tokens per model and in total.
+ *       « ▶ simuler » in the switcher (or &run=1) plays a Job Search: the button
+ *       spins (Claude Code's glyph) and the pane fills step by step, live.
  * The data is STUBBED per route: no result table stores its model today
  * (only coach_message does), so nothing real can be shown yet.
  */
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
-type Element = { what: string; sources: string[]; model?: string; tools?: string[]; at?: string };
+type Element = { what: string; sources: string[]; model?: string; tools?: string[]; at?: string; tokens?: number };
+
+// Stubbed token counts per element (input + output), as ai_usage would sum them.
+const TOKENS: Record<string, number> = {
+  "Offres trouvées": 2140,
+  "Variantes de l'intitulé": 312,
+  "Résumés des offres": 8420,
+  "Coach IA (panneau)": 5630,
+  "Résumé de l'offre": 1180,
+  "Dossier entreprise": 14250,
+  "CV adapté": 9870,
+  "Lettre de motivation": 4310,
+  Propositions: 2650,
+  "Corrections proposées": 3020,
+  "CV de référence (lecture du CV importé)": 6740,
+};
+const withTokens = (elements: Element[]) => elements.map((e) => (e.model && !e.model.startsWith("règles") ? { ...e, tokens: TOKENS[e.what] ?? 1500 } : e));
+const fmt = (n: number) => `${n.toLocaleString("fr-FR")} tokens`;
+
+// A simulated Job Search, as the pane would receive it live (SSE or polling).
+type Step = { after: number; text: string; logo: string; model?: string; tokens?: number };
+const RUN: Step[] = [
+  { after: 400, text: "Variantes de l'intitulé", logo: "mistral", model: "mistral-medium", tokens: 312 },
+  { after: 1400, text: "API France Travail · 18 offres", logo: "France Travail" },
+  { after: 2300, text: "API Fantastic.jobs · 10 offres", logo: "Fantastic.jobs" },
+  { after: 3300, text: "Recherche web · 3 requêtes", logo: "Perplexity", model: "sonar (Perplexity)", tokens: 2140 },
+  { after: 4600, text: "Lecture de page · 12 pages", logo: "Lecture de page" },
+  { after: 5800, text: "Résumés des offres · 12", logo: "claude", model: "claude-haiku-4-5 (Bedrock eu-north-1)", tokens: 8420 },
+  { after: 6800, text: "Match Score · 40 offres classées", logo: "règles" },
+];
+export type Run = { running: boolean; log: Step[] };
+
+function useSimulatedRun(autostart: boolean) {
+  const [run, setRun] = useState<Run>({ running: false, log: [] });
+  // Each start cancels the previous one's pending steps (Strict Mode runs effects twice).
+  const timers = useRef<number[]>([]);
+  const start = () => {
+    timers.current.forEach((id) => window.clearTimeout(id));
+    setRun({ running: true, log: [] });
+    timers.current = RUN.map((step, i) =>
+      window.setTimeout(() => setRun((r) => ({ running: i < RUN.length - 1, log: [...r.log, step] })), step.after),
+    );
+  };
+  useEffect(() => {
+    if (autostart) start();
+    return () => timers.current.forEach((id) => window.clearTimeout(id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return { run, start };
+}
+
+// Claude Code's spinner glyphs; still under prefers-reduced-motion (ADR-0009).
+const FRAMES = ["·", "✢", "✳", "✶", "✻", "✽", "✻", "✶", "✳", "✢"];
+function Spinner() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const id = window.setInterval(() => setI((n) => (n + 1) % FRAMES.length), 120);
+    return () => window.clearInterval(id);
+  }, []);
+  return (
+    <span aria-hidden style={{ display: "inline-block", width: "1em", textAlign: "center", color: "#d97757" }}>
+      {FRAMES[i]}
+    </span>
+  );
+}
 
 const COACH: Element = { what: "Coach IA (panneau)", sources: ["Votre CV de référence", "Votre Profil"], model: "claude-sonnet-5 (Bedrock eu-north-1)", tools: ["Recherche web (Perplexity)", "Lecture de page"] };
 
@@ -230,7 +297,7 @@ const dim: CSSProperties = { color: "var(--color-text-secondary)" };
 // What a value is used by, for the right-hand column of a summary row.
 const usedBy = (elements: Element[], has: (e: Element) => boolean) => elements.filter(has).map((e) => e.what).join(", ");
 
-function VariantD({ elements, tiny }: { elements: Element[]; tiny: boolean }) {
+function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean; run: Run }) {
   const [open, setOpen] = useState(true);
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   useEffect(() => {
@@ -253,11 +320,19 @@ function VariantD({ elements, tiny }: { elements: Element[]; tiny: boolean }) {
     };
   }, [open]);
   const models = uniq(elements.filter((e) => e.model).map((e) => e.model!));
+  // Tokens per model: the page's stored content plus what the running action has spent so far.
+  const tokensOf = (m: string) =>
+    elements.filter((e) => e.model === m).reduce((n, e) => n + (e.tokens ?? 0), 0) +
+    run.log.filter((x) => x.model === m).reduce((n, x) => n + (x.tokens ?? 0), 0);
+  const runModels = uniq(run.log.filter((x) => x.model).map((x) => x.model!)).filter((m) => !models.includes(m));
+  const allModels = [...models, ...runModels];
+  const total = allModels.reduce((n, m) => n + tokensOf(m), 0);
   const sources = uniq(elements.flatMap((e) => e.sources));
   const tools = uniq(elements.flatMap((e) => e.tools ?? []));
   const toggle = (
     <button type="button" className="button button-quiet" aria-expanded={open} aria-controls="proto-provenance-pane" onClick={() => setOpen(!open)}>
-      ⓘ Sources et IA{elements.length ? ` · ${models.length}` : ""}
+      {run.running ? <Spinner /> : "ⓘ"} {run.running ? "Recherche en cours…" : "Sources et IA"}
+      {allModels.length ? ` · ${allModels.length}` : ""}
     </button>
   );
   return (
@@ -289,16 +364,51 @@ function VariantD({ elements, tiny }: { elements: Element[]; tiny: boolean }) {
               ✕
             </button>
           </header>
-          {elements.length === 0 ? (
+          {run.running || run.log.length ? (
+            <section aria-live="polite" style={{ padding: "0.5em 0" }}>
+              <div style={{ ...row, color: "var(--color-text-secondary)" }}>
+                <span>
+                  {run.running ? <Spinner /> : "✓"} {run.running ? "Recherche d'offres en cours" : "Dernière recherche"}
+                </span>
+                <span style={{ fontVariantNumeric: "tabular-nums" }}>{fmt(run.log.reduce((n, x) => n + (x.tokens ?? 0), 0))}</span>
+              </div>
+              <ol style={{ listStyle: "none", margin: 0, padding: "0 0 0 1em" }}>
+                {run.log.map((x) => (
+                  <li key={x.text} style={{ ...row, animation: "proto-fade-in 300ms ease-out" }}>
+                    <span style={{ display: "inline-flex", gap: "0.4em", alignItems: "flex-start" }}>
+                      <Logo label={x.model ?? x.logo} />
+                      <span>
+                        {x.text}
+                        {x.model ? <span style={{ ...mono, ...dim, display: "block", fontSize: "0.85em" }}>{short(x.model)}</span> : null}
+                      </span>
+                    </span>
+                    <span style={{ ...dim, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{x.tokens ? fmt(x.tokens) : ""}</span>
+                  </li>
+                ))}
+                {run.running ? (
+                  <li style={{ ...dim, padding: "0.2em 0" }}>
+                    <Spinner /> …
+                  </li>
+                ) : null}
+              </ol>
+              <style>{`@keyframes proto-fade-in { from { opacity: 0; transform: translateY(-2px) } } @media (prefers-reduced-motion: reduce) { [style*="proto-fade-in"] { animation: none !important } }`}</style>
+            </section>
+          ) : null}
+          {elements.length === 0 && !run.log.length ? (
             <p style={dim}>Aucun contenu produit par l'IA sur cette page.</p>
           ) : (
             <>
-              <Section title="Modèles" count={models.length}>
-                {models.map((m) => (
+              <Section title="Modèles" count={allModels.length}>
+                {allModels.map((m) => (
                   <li key={m} style={row}>
                     <Labelled label={m} mono />
+                    <span style={{ ...dim, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{tokensOf(m) ? fmt(tokensOf(m)) : "—"}</span>
                   </li>
                 ))}
+                <li style={{ ...row, borderTop: "1px solid var(--color-border)", marginTop: "0.3em", paddingTop: "0.4em" }}>
+                  <strong>Total</strong>
+                  <strong style={{ whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{fmt(total)}</strong>
+                </li>
               </Section>
               <Section title="Sources" count={sources.length}>
                 {sources.map((x) => (
@@ -374,7 +484,8 @@ export function PrototypeAiProvenanceBar() {
   const raw = params.get("variant");
   const variant: Key = raw && raw in VARIANTS ? (raw as Key) : "D";
   const withCoach = params.get("coach") === "1";
-  const elements = [...stubFor(pathname), ...(withCoach ? [COACH] : [])];
+  const elements = withTokens([...stubFor(pathname), ...(withCoach ? [COACH] : [])]);
+  const { run, start } = useSimulatedRun(params.get("run") === "1");
 
   const go = (step: number) => {
     const next = KEYS[(KEYS.indexOf(variant) + step + KEYS.length) % KEYS.length];
@@ -400,7 +511,7 @@ export function PrototypeAiProvenanceBar() {
       {variant === "A" ? <VariantA elements={elements} /> : null}
       {variant === "B" ? <VariantB elements={elements} /> : null}
       {variant === "C" ? <VariantC elements={elements} /> : null}
-      {variant === "D" ? <VariantD elements={elements} tiny={params.get("size") === "9"} /> : null}
+      {variant === "D" ? <VariantD elements={elements} tiny={params.get("size") === "9"} run={run} /> : null}
       <div
         style={{ position: "fixed", left: "50%", bottom: 64, transform: "translateX(-50%)", zIndex: 50, display: "flex", gap: 8, alignItems: "center", padding: "6px 12px", borderRadius: 999, background: "#111", color: "#fff", fontSize: 14, boxShadow: "0 4px 16px rgb(0 0 0 / 30%)" }}
       >
@@ -410,6 +521,11 @@ export function PrototypeAiProvenanceBar() {
         <span>
           PROTOTYPE {variant} ({VARIANTS[variant]}) · {elements.length} élément(s)
         </span>
+        {variant === "D" ? (
+          <button type="button" onClick={start} disabled={run.running} style={{ color: "inherit", background: "#333", border: 0, borderRadius: 999, padding: "2px 10px", cursor: "pointer" }}>
+            ▶ simuler
+          </button>
+        ) : null}
         <button type="button" onClick={() => go(1)} style={{ color: "inherit", background: "none", border: 0, cursor: "pointer" }}>
           →
         </button>

@@ -568,6 +568,16 @@
       "open": "Ouvrir l'offre"
     }
   },
+  "provenanceLine": {
+    "unrecorded": "modèle non enregistré",
+    "euAiConsent": "consentement IA UE",
+    "outsideEu": "hors UE",
+    "measure": "mesure technique, non décomptée de vos quotas",
+    "tokens": "jetons",
+    "sources": "Sources ({{count}})",
+    "yourData": "Vos données",
+    "newTab": "(nouvel onglet)"
+  },
   "coachMemory": {
     "open": "Mémoire du coach",
     "title": "Mémoire du coach",

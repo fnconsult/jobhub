@@ -9,6 +9,7 @@ export { decodeEntities, htmlToText, jsonLdBlocks, metaRobots } from "./html";
 export { countJobPostings, jobPostingValidThrough, listedPostingUrls, readJobPosting } from "./job-posting";
 export {
   createPoliteFetcher,
+  pageReadTool,
   realClock,
   recordingSiteFetch,
   type Clock,

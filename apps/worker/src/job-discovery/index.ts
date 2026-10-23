@@ -113,6 +113,7 @@ import {
   DEFAULT_USER_AGENT,
   htmlToText,
   metaRobots,
+  pageReadTool,
   readJobPosting,
   realClock,
   recordingSiteFetch,
@@ -443,7 +444,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           return;
         }
         // A result can redirect to a page captured earlier (in this run or before): use that Job Offer.
-        const page = await reading.step({ tool: pageTool(url) }, () => fetcher.page(url, storedAt));
+        const page = await reading.step({ tool: pageReadTool(url) }, () => fetcher.page(url, storedAt));
         if (page.ok === "known") {
           alreadyStored(url, page.known);
           return;
@@ -573,15 +574,6 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
       return report;
     },
   };
-}
-
-/** The Tool reading a page: APEC's offer pages, or any other site's. */
-function pageTool(url: string): "apec" | "job-site" {
-  try {
-    return isOnDomain(new URL(url).hostname, "apec.fr") ? "apec" : "job-site";
-  } catch {
-    return "job-site";
-  }
 }
 
 /** The web addresses written in a text, in order (a Markdown link's too), without the punctuation that follows them. */

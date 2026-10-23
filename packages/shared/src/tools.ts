@@ -149,7 +149,7 @@ export const TOOLS = [
     settings: [{ name: "ANTHROPIC_ENDPOINT" }, { name: "BEDROCK_REGION" }],
     usage: { table: "ai_usage", provider: "anthropic", endpoint: "bedrock ", external: "anthropic_bedrock" },
     residency: "eu",
-    residencyNote: { fr: "Dans l'UE dans une région eu-* (eu-west-3 par défaut).", en: "In the EU in an eu-* region (eu-west-3 by default)." },
+    residencyNote: { fr: "Dans l'UE dans une région eu-* (eu-north-1 par défaut).", en: "In the EU in an eu-* region (eu-north-1 by default)." },
   },
   {
     id: "anthropic-vertex",

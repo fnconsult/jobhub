@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { AI_ENV_KEYS, createAiLayerFromEnv, modelSettingProviders, taskRouteFromEnv } from "./env";
+import { TOOLS } from "@jobhub/shared";
+import { AI_ENV_KEYS, AI_ROUTING_SETTINGS, createAiLayerFromEnv, modelSettingProviders, taskRouteFromEnv } from "./env";
 import { AiConfigError } from "./errors";
 import { createMemoryUsageLog } from "./testing";
 
@@ -339,6 +340,15 @@ describe("AI layer configured from the environment", () => {
     it("put the configured web-search model first", () => {
       expect(searchOf({ ...base, AI_WEB_SEARCH_MODEL: "sonar-pro" })[0]!.models.map((each) => each.model)).toEqual(["sonar-pro", "openai/gpt-6-luna"]);
     });
+  });
+
+  it("the Bedrock Tool's residency note names the region Bedrock takes by default (#325)", () => {
+    const region = AI_ROUTING_SETTINGS.find((setting) => setting.name === "BEDROCK_REGION")!.default;
+    const note = TOOLS.find((tool) => tool.id === "anthropic-bedrock")!.residencyNote!;
+
+    expect(region).toBe("eu-north-1");
+    expect(note.fr).toContain(`${region} par défaut`);
+    expect(note.en).toContain(`${region} by default`);
   });
 
   it(".env.example lists every key the AI layer reads", () => {

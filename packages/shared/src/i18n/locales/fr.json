@@ -2969,6 +2969,16 @@
     }
   },
   "aiActivity": {
-    "modelNotRecorded": "modèle non enregistré"
+    "modelNotRecorded": "modèle non enregistré",
+    "steps": {
+      "think": "Réflexion",
+      "think_write": "Réflexion puis rédaction",
+      "write": "Rédaction",
+      "search": "Recherche",
+      "web_search": "Recherche web",
+      "read": "Lecture",
+      "compute": "Calcul",
+      "check": "Vérification"
+    }
   }
 }

@@ -136,6 +136,8 @@ export interface JobOffers {
    * them today. Null when it has none (« modèle non enregistré »), or there is none with this id.
    */
   provenance(id: string): Promise<Provenance | null>;
+  /** Each of `ids`'s Provenance, as `provenance` reads it, in one read: what AI Activity lists for a page of Job Offers. */
+  provenances(ids: readonly string[]): Promise<Map<string, Provenance | null>>;
 }
 
 /** Drops NUL characters: text scraped from a page can carry them, and Postgres cannot store them in text columns. */
@@ -467,6 +469,15 @@ export function createJobOffers(database: Pool): JobOffers {
       if (!UUID.test(id)) return null;
       const { rows } = await database.query<{ provenance: unknown }>(`SELECT provenance FROM job_offer WHERE id = $1`, [id]);
       return readProvenance(rows[0]?.provenance);
+    },
+
+    async provenances(ids) {
+      const valid = ids.filter((id) => UUID.test(id));
+      const { rows } = valid.length
+        ? await database.query<{ id: string; provenance: unknown }>(`SELECT id, provenance FROM job_offer WHERE id = ANY($1::uuid[])`, [valid])
+        : { rows: [] };
+      const stored = new Map(rows.map((row) => [row.id, readProvenance(row.provenance)]));
+      return new Map(ids.map((id) => [id, stored.get(id) ?? null]));
     },
   };
 }

@@ -599,7 +599,7 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
     // The page column makes room for the pane, as it does for the docked Coach Panel.
     const main = document.querySelector<HTMLElement>(".workspace > main");
     if (!main || !open || window.innerWidth < 1024) return;
-    main.style.paddingRight = "calc(min(22rem, 90vw) + 2rem + var(--space-2))";
+    main.style.paddingRight = "calc(min(19rem, 90vw) + 2rem + var(--space-2))";
     return () => {
       main.style.paddingRight = "";
     };
@@ -660,9 +660,10 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
           style={{
             position: "fixed",
             top: "calc(var(--proto-bar-top, 4rem) + var(--space-2))",
-            bottom: "var(--space-2)",
+            // As tall as its content, at most down to the viewport's foot.
+            maxHeight: "calc(100dvh - var(--proto-bar-top, 4rem) - 2 * var(--space-2))",
             right: "calc(var(--proto-bar-right, 0px) + var(--space-2))",
-            width: "min(22rem, 90vw)",
+            width: "min(19rem, 90vw)",
             overflowY: "auto",
             zIndex: 15,
             boxSizing: "border-box",
@@ -691,7 +692,13 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
                 </span>
               </div>
               <ol style={{ listStyle: "none", margin: 0, padding: 0 }}>
-                {run.log.map((x) => (
+                {/* Newest step first: what just happened sits at the top. */}
+                {run.running ? (
+                  <li style={{ ...dim, padding: "0.2em 0" }}>
+                    <Spinner /> …
+                  </li>
+                ) : null}
+                {[...run.log].reverse().map((x) => (
                   <li key={x.text} style={{ ...row, animation: "proto-fade-in 300ms ease-out" }}>
                     <span style={{ display: "inline-flex", gap: "0.4em", alignItems: "flex-start" }}>
                       <Logo label={x.model ?? x.logo} />
@@ -705,11 +712,6 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
                     </span>
                   </li>
                 ))}
-                {run.running ? (
-                  <li style={{ ...dim, padding: "0.2em 0" }}>
-                    <Spinner /> …
-                  </li>
-                ) : null}
               </ol>
               <style>{`@keyframes proto-fade-in { from { opacity: 0; transform: translateY(-2px) } } @media (prefers-reduced-motion: reduce) { [style*="proto-fade-in"] { animation: none !important } }`}</style>
             </section>

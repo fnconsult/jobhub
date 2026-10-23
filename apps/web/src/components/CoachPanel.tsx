@@ -545,7 +545,8 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
           ...(typeof body.at === "string" ? { provenance: body.provenance ?? null, at: body.at } : {}),
         },
       ]);
-      if (about && typeof body.at === "string") setRepliesGiven((given) => [...given, { focus: about, provenance: body.provenance ?? null, at: body.at }]);
+      const at = body.at;
+      if (about && typeof at === "string") setRepliesGiven((given) => [...given, { focus: about, provenance: body.provenance ?? null, at }]);
       setStatus("idle");
     };
     const gone = () => {

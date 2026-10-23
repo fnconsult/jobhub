@@ -8,32 +8,36 @@
  *   B — readable (ADR-0009): a 14 px collapsed line « Sources et IA » that opens
  *       a table, one row per AI-produced element.
  *   C — per element: 9 px segments, one per element, each opening its detail.
+ *   D — like Claude Code's session pane: a top-bar button opens a panel on the
+ *       right of the page column listing models, sources and tools, then each
+ *       element. &size=9 forces 9 px.
  * The data is STUBBED per route: no result table stores its model today
  * (only coach_message does), so nothing real can be shown yet.
  */
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
-type Element = { what: string; sources: string[]; model?: string; at?: string };
+type Element = { what: string; sources: string[]; model?: string; tools?: string[]; at?: string };
 
-const COACH: Element = { what: "Coach IA (panneau)", sources: ["Votre CV de référence", "Votre Profil"], model: "claude-sonnet-5 (Bedrock eu-north-1)" };
+const COACH: Element = { what: "Coach IA (panneau)", sources: ["Votre CV de référence", "Votre Profil"], model: "claude-sonnet-5 (Bedrock eu-north-1)", tools: ["Recherche web (Perplexity)", "Lecture de page"] };
 
 function stubFor(path: string): Element[] {
   if (/^\/offres\//.test(path))
     return [
-      { what: "Résumé de l'offre", sources: ["welcometothejungle.com"], model: "claude-haiku-4-5 (Bedrock eu-north-1)", at: "22/10/2026" },
-      { what: "Pourquoi ce Match Score", sources: ["Offre", "Votre CV de référence"], model: "règles Jobbbox (sans IA)" },
+      { what: "Résumé de l'offre", sources: ["welcometothejungle.com"], model: "claude-haiku-4-5 (Bedrock eu-north-1)", tools: ["Lecture de page"], at: "22/10/2026" },
+      { what: "Pourquoi ce Match Score", sources: ["Offre", "Votre CV de référence"], model: "règles Jobbbox (sans IA)", tools: ["Calcul du Match Score"] },
     ];
   if (/^\/recherches|^\/job-digests\/./.test(path))
     return [
-      { what: "Offres trouvées", sources: ["France Travail", "Fantastic.jobs", "Perplexity (recherche web)", "Sites carrières (Greenhouse, Lever)"], model: "sonar (Perplexity)", at: "23/10/2026" },
+      { what: "Offres trouvées", sources: ["France Travail", "Fantastic.jobs", "Perplexity (recherche web)", "Sites carrières (Greenhouse, Lever)"], model: "sonar (Perplexity)", tools: ["API France Travail", "API Fantastic.jobs", "Recherche web (Perplexity)", "API Greenhouse / Lever / Ashby", "Lecture de page"], at: "23/10/2026" },
       { what: "Variantes de l'intitulé", sources: ["Vos critères de recherche"], model: "mistral-medium" },
-      { what: "Résumés des offres", sources: ["Pages des offres"], model: "claude-haiku-4-5 (Bedrock eu-north-1)" },
+      { what: "Résumés des offres", sources: ["Pages des offres"], model: "claude-haiku-4-5 (Bedrock eu-north-1)", tools: ["Lecture de page"] },
     ];
   if (/^\/candidatures\/[^/]+\/dossier/.test(path))
     return [
-      { what: "Dossier entreprise", sources: ["Annuaire des entreprises (INSEE)", "Perplexity (recherche web)"], model: "anthropic.claude-opus-5 (Bedrock eu-north-1)", at: "20/10/2026" },
+      { what: "Dossier entreprise", sources: ["Annuaire des entreprises (INSEE)", "Perplexity (recherche web)"], model: "anthropic.claude-opus-5 (Bedrock eu-north-1)", tools: ["API Recherche d'entreprises", "Recherche web (Perplexity)", "Actualités (Perplexity)"], at: "20/10/2026" },
     ];
   if (/^\/candidatures\/[^/]+\/documents/.test(path))
     return [
@@ -75,9 +79,10 @@ function VariantA({ elements }: { elements: Element[] }) {
   if (ai.length === 0) return null;
   const sources = uniq(elements.flatMap((e) => e.sources)).join(", ");
   const models = uniq(ai.map((e) => e.model!)).join(", ");
+  const tools = uniq(elements.flatMap((e) => e.tools ?? [])).join(", ");
   return (
-    <div style={{ ...bar, fontSize: "9px", lineHeight: 1.4, padding: "2px 8px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`Sources : ${sources} · Modèles : ${models}`}>
-      Sources : {sources} · Modèles : {models}
+    <div style={{ ...bar, fontSize: "9px", lineHeight: 1.4, padding: "2px 8px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`Sources : ${sources} · Modèles : ${models} · Outils : ${tools}`}>
+      Sources : {sources} · Modèles : {models} · Outils : {tools}
     </div>
   );
 }
@@ -98,6 +103,7 @@ function VariantB({ elements }: { elements: Element[] }) {
               <th>Élément</th>
               <th>Sources</th>
               <th>Modèle</th>
+              <th>Outils</th>
               <th>Produit le</th>
             </tr>
           </thead>
@@ -107,6 +113,7 @@ function VariantB({ elements }: { elements: Element[] }) {
                 <td>{e.what}</td>
                 <td>{e.sources.join(", ")}</td>
                 <td>{e.model ?? "—"}</td>
+                <td>{e.tools?.join(", ") ?? "—"}</td>
                 <td>{e.at ?? "—"}</td>
               </tr>
             ))}
@@ -146,7 +153,141 @@ function VariantC({ elements }: { elements: Element[] }) {
   );
 }
 
-const VARIANTS = { A: "9 px, une ligne par page", B: "lisible, repliable, tableau", C: "9 px, par élément" } as const;
+const short = (model?: string) => model?.split(" ")[0] ?? "—";
+
+function Section({ title, count, children }: { title: string; count: number; children: ReactNode }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <section style={{ borderTop: "1px solid var(--color-border)", padding: "0.5em 0" }}>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        style={{ font: "inherit", width: "100%", display: "flex", justifyContent: "space-between", background: "none", border: 0, padding: "0.25em 0", cursor: "pointer", color: "var(--color-text-secondary)" }}
+      >
+        <span>
+          {open ? "▾" : "▸"} {title}
+        </span>
+        <span>{count}</span>
+      </button>
+      {open ? <ul style={{ listStyle: "none", margin: 0, padding: "0 0 0 1em" }}>{children}</ul> : null}
+    </section>
+  );
+}
+
+const mono: CSSProperties = { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: "0.95em" };
+const row: CSSProperties = { display: "flex", justifyContent: "space-between", gap: "1em", padding: "0.2em 0" };
+const dim: CSSProperties = { color: "var(--color-text-secondary)" };
+
+// What a value is used by, for the right-hand column of a summary row.
+const usedBy = (elements: Element[], has: (e: Element) => boolean) => elements.filter(has).map((e) => e.what).join(", ");
+
+function VariantD({ elements, tiny }: { elements: Element[]; tiny: boolean }) {
+  const [open, setOpen] = useState(true);
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    // Mount the toggle in the top bar, just before « Mon coach » (prototype hack).
+    const topbar = document.querySelector(".topbar");
+    if (!topbar) return;
+    const span = document.createElement("span");
+    span.style.marginLeft = "auto";
+    topbar.insertBefore(span, topbar.lastElementChild);
+    setSlot(span);
+    return () => span.remove();
+  }, []);
+  useEffect(() => {
+    // The page column makes room for the pane, as it does for the docked Coach Panel.
+    const main = document.querySelector<HTMLElement>(".workspace > main");
+    if (!main || !open || window.innerWidth < 1024) return;
+    main.style.paddingRight = "calc(min(22rem, 90vw) + 2rem)";
+    return () => {
+      main.style.paddingRight = "";
+    };
+  }, [open]);
+  const models = uniq(elements.filter((e) => e.model).map((e) => e.model!));
+  const sources = uniq(elements.flatMap((e) => e.sources));
+  const tools = uniq(elements.flatMap((e) => e.tools ?? []));
+  const toggle = (
+    <button type="button" className="button button-quiet" aria-expanded={open} aria-controls="proto-provenance-pane" onClick={() => setOpen(!open)}>
+      ⓘ Sources et IA{elements.length ? ` · ${models.length}` : ""}
+    </button>
+  );
+  return (
+    <>
+      {slot ? createPortal(toggle, slot) : null}
+      {open ? (
+        <aside
+          id="proto-provenance-pane"
+          aria-label="Sources, modèles et outils de cette page"
+          style={{
+            position: "fixed",
+            top: "var(--proto-bar-top, 4rem)",
+            bottom: 0,
+            right: "var(--proto-bar-right, 0px)",
+            width: "min(22rem, 90vw)",
+            overflowY: "auto",
+            zIndex: 15,
+            boxSizing: "border-box",
+            padding: "0.75em 1em 4em",
+            background: "var(--color-surface)",
+            borderLeft: "1px solid var(--color-border)",
+            fontSize: tiny ? "9px" : "0.8125rem",
+            lineHeight: 1.45,
+          }}
+        >
+          <header style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", paddingBottom: "0.5em" }}>
+            <strong>Cette page</strong>
+            <button type="button" onClick={() => setOpen(false)} aria-label="Fermer" style={{ font: "inherit", background: "none", border: 0, cursor: "pointer", ...dim }}>
+              ✕
+            </button>
+          </header>
+          {elements.length === 0 ? (
+            <p style={dim}>Aucun contenu produit par l'IA sur cette page.</p>
+          ) : (
+            <>
+              <Section title="Modèles" count={models.length}>
+                {models.map((m) => (
+                  <li key={m} style={row}>
+                    <span style={mono}>{m}</span>
+                  </li>
+                ))}
+              </Section>
+              <Section title="Sources" count={sources.length}>
+                {sources.map((x) => (
+                  <li key={x} style={row}>
+                    <span>{x}</span>
+                  </li>
+                ))}
+              </Section>
+              <Section title="Outils" count={tools.length}>
+                {tools.map((x) => (
+                  <li key={x} style={{ padding: "0.2em 0" }}>
+                    <div>{x}</div>
+                    <div style={{ ...dim, fontSize: "0.9em" }}>{usedBy(elements, (e) => e.tools?.includes(x) ?? false)}</div>
+                  </li>
+                ))}
+              </Section>
+              <Section title="Par élément" count={elements.length}>
+                {elements.map((e) => (
+                  <li key={e.what} style={{ padding: "0.4em 0" }}>
+                    <div style={row}>
+                      <strong>{e.what}</strong>
+                      <span style={dim}>{e.at ?? ""}</span>
+                    </div>
+                    <div style={mono}>{short(e.model)}</div>
+                    <div style={dim}>{[...e.sources, ...(e.tools ?? [])].join(" · ")}</div>
+                  </li>
+                ))}
+              </Section>
+            </>
+          )}
+        </aside>
+      ) : null}
+    </>
+  );
+}
+
+const VARIANTS = { A: "9 px, une ligne par page", B: "lisible, repliable, tableau", C: "9 px, par élément", D: "panneau de session, à droite" } as const;
 type Key = keyof typeof VARIANTS;
 const KEYS = Object.keys(VARIANTS) as Key[];
 
@@ -158,6 +299,9 @@ function useWorkspaceBox() {
       const box = workspace.getBoundingClientRect();
       document.documentElement.style.setProperty("--proto-bar-left", `${box.left}px`);
       document.documentElement.style.setProperty("--proto-bar-width", `${box.width}px`);
+      document.documentElement.style.setProperty("--proto-bar-right", `${window.innerWidth - box.right}px`);
+      const topbar = workspace.querySelector(".topbar")?.getBoundingClientRect();
+      if (topbar) document.documentElement.style.setProperty("--proto-bar-top", `${topbar.bottom}px`);
     };
     update();
     const observer = new ResizeObserver(update);
@@ -176,7 +320,7 @@ export function PrototypeAiProvenanceBar() {
   const params = useSearchParams();
   const router = useRouter();
   const raw = params.get("variant");
-  const variant: Key = raw && raw in VARIANTS ? (raw as Key) : "A";
+  const variant: Key = raw && raw in VARIANTS ? (raw as Key) : "D";
   const withCoach = params.get("coach") === "1";
   const elements = [...stubFor(pathname), ...(withCoach ? [COACH] : [])];
 
@@ -204,6 +348,7 @@ export function PrototypeAiProvenanceBar() {
       {variant === "A" ? <VariantA elements={elements} /> : null}
       {variant === "B" ? <VariantB elements={elements} /> : null}
       {variant === "C" ? <VariantC elements={elements} /> : null}
+      {variant === "D" ? <VariantD elements={elements} tiny={params.get("size") === "9"} /> : null}
       <div
         style={{ position: "fixed", left: "50%", bottom: 64, transform: "translateX(-50%)", zIndex: 50, display: "flex", gap: 8, alignItems: "center", padding: "6px 12px", borderRadius: 999, background: "#111", color: "#fff", fontSize: 14, boxShadow: "0 4px 16px rgb(0 0 0 / 30%)" }}
       >

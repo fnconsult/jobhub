@@ -51,6 +51,29 @@ describe("a ProvenanceRecorder", () => {
     expect(readProvenance(JSON.parse(JSON.stringify(provenance)))).toEqual(provenance);
   });
 
+  it("keeps that a call went to the identity route under the Candidate's EU AI Consent, and folds it apart (#327)", async () => {
+    const mistral = createFakeProvider({ id: "mistral", reply: "Lettre" });
+    const ai = createAiLayer({
+      providers: [createFakeProvider({ id: "anthropic", reply: "Lettre" }), mistral],
+      routes: { writing: "anthropic" },
+      identityRoute: { provider: "mistral", model: "mistral-large-latest" },
+      euAiConsent: async () => true,
+      usage: createMemoryUsageLog(),
+    });
+    const recorder = createProvenanceRecorder(ai);
+
+    await recorder.ai.generate({ task: "writing", candidateId: "c1", containsIdentity: true, prompt: "Lettre de Marie Dupont" });
+    await recorder.ai.generate({ task: "writing", candidateId: "c1", prompt: "Lettre" });
+
+    const provenance = recorder.provenance();
+    expect(provenance.steps).toMatchObject([
+      { kind: "ai", provider: "mistral", euAiConsent: true },
+      { kind: "ai", provider: "anthropic" },
+    ]);
+    expect(provenance.steps[1]).not.toHaveProperty("euAiConsent");
+    expect(readProvenance(JSON.parse(JSON.stringify(provenance)))).toEqual(provenance);
+  });
+
   it("records a feature step's calls with its Activity", async () => {
     const recorder = createProvenanceRecorder(aiLayer());
 

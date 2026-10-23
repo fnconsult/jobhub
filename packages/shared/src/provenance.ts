@@ -66,6 +66,8 @@ const aiStep = z.strictObject({
   model: identifier(MODEL).optional(),
   /** Input counts the cached input too. */
   tokens: z.strictObject({ input: count, output: count }).optional(),
+  /** The call carried the Candidate's identity and went to the identity route under their EU AI Consent (« consentement IA UE »). */
+  euAiConsent: z.literal(true).optional(),
 });
 const toolStep = z.strictObject({
   kind: z.literal("tool"),
@@ -131,7 +133,7 @@ export function storableProvenance(provenance: Provenance): Provenance {
 
 /** What a step is before it ends: its Activity and what it runs, never its model (the AI layer picks the route as it sends). */
 export type StartedStep = {
-  [K in ProvenanceStep["kind"]]: Omit<Extract<ProvenanceStep, { kind: K }>, "ms" | "outcome" | "count" | "provider" | "endpoint" | "model" | "tokens">;
+  [K in ProvenanceStep["kind"]]: Omit<Extract<ProvenanceStep, { kind: K }>, "ms" | "outcome" | "count" | "provider" | "endpoint" | "model" | "tokens" | "euAiConsent">;
 }[ProvenanceStep["kind"]];
 
 /**

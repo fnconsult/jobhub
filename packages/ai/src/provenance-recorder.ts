@@ -57,7 +57,7 @@ export interface ProvenanceRecorder {
 type Subject = { kind: "ai"; task: TextTask | "web_search" } | { kind: "tool"; tool: StepTool } | { kind: "rules"; rule: ProvenanceRule };
 
 /** What an AI call that worked says of itself. */
-type CallFacts = Pick<GenerateResult | SearchResult, "provider" | "endpoint" | "model" | "usage" | "durationMs" | "outcome">;
+type CallFacts = Pick<GenerateResult | SearchResult, "provider" | "endpoint" | "model" | "usage" | "durationMs" | "outcome"> & Pick<GenerateResult, "euAiConsent">;
 
 export function createProvenanceRecorder(ai: AiLayer, options: ProvenanceRecorderOptions = {}): ProvenanceRecorder {
   const now = options.now ?? (() => new Date());
@@ -104,6 +104,7 @@ export function createProvenanceRecorder(ai: AiLayer, options: ProvenanceRecorde
     tokens: { input: call.usage.inputTokens + (call.usage.cachedInputTokens ?? 0), output: call.usage.outputTokens },
     ms: Math.round(call.durationMs),
     outcome: call.outcome,
+    ...(call.euAiConsent ? { euAiConsent: true as const } : {}),
   });
   /** A call that returns a call that may have failed (null) instead of throwing. */
   const maybeCall = (call: CallFacts | null): Partial<ProvenanceStep> => (call ? callStep(call) : { outcome: "failed" });
@@ -155,7 +156,7 @@ function siteOf(sites: ProvenanceSite[], site: ProvenanceSite): ProvenanceSite {
 
 /** What a step is, for folding: two calls alike in all of it are one step. */
 function foldKey(step: ProvenanceStep): string {
-  const what = step.kind === "ai" ? [step.task, step.provider, step.endpoint, step.model] : [step.kind === "tool" ? step.tool : step.rule];
+  const what = step.kind === "ai" ? [step.task, step.provider, step.endpoint, step.model, step.euAiConsent === true] : [step.kind === "tool" ? step.tool : step.rule];
   return JSON.stringify([step.kind, step.activity, step.outcome, ...what]);
 }
 

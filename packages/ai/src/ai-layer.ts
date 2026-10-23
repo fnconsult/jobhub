@@ -107,6 +107,11 @@ export interface GenerateResult extends CallFacts {
   provider: ProviderId;
   model: string;
   usage: TokenUsage;
+  /**
+   * Present when the call carried the Candidate's identity and went to the identity route under their
+   * EU AI Consent (ADR-0007 amendment, #121): what AI Activity shows as « consentement IA UE » (#327).
+   */
+  euAiConsent?: true;
 }
 
 export interface SearchRequest {
@@ -676,7 +681,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       notes,
       request.signal,
     );
-    return { text: redaction.restore(output.text), provider: provider.id, model: output.model, usage: output.usage, ...facts };
+    return { text: redaction.restore(output.text), provider: provider.id, model: output.model, usage: output.usage, ...facts, ...(identity ? { euAiConsent: true as const } : {}) };
   }
 
   const layer: AiLayer = {

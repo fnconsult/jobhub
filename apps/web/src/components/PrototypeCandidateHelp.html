@@ -1,0 +1,533 @@
+<meta charset="utf-8">
+<title>Jobbbox Aide prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+  PROTOTYPE (throwaway, never merged): branch prototype/candidate-help.
+  Question: where does the Candidate's help live, and how is it reached without crowding the frame?
+  Three variants of the Candidate frame (Sidebar, Top Bar, Coach Panel), switchable from the bar at the bottom (← →, or #A #B #C).
+  Assumption: a self-contained page rather than a route in apps/web, so it opens on a phone over Remote Control
+  with no database or sign-in. Tokens are copied from packages/shared/src/design/tokens.ts (light only, ADR-0024).
+  No AI call anywhere: the coach's replies are canned.
+-->
+<style>
+:root {
+  /* Jobbbox tokens (packages/shared/src/design/tokens.ts), light only like the app */
+  --bg: #ffffff; --surface: #f7f7f5; --surface-hover: #efeeec; --border: #e3e2e0;
+  --danger-surface: #fdf0ee; --text: #37352f; --text-2: #5a5955; --meta: #6b6a67;
+  --accent: #1f5fbf; --accent-surface: #eaf1fb; --on-accent: #ffffff; --glyph: #d97757;
+  --proto: #1b1a17; --proto-text: #ffffff;
+  --fs: 16px; --lh: 1.6;
+  --coach-width: clamp(22rem, 34vw, 32rem);
+  --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+html, body { height: 100%; }
+body { margin: 0; display: flex; flex-direction: column; background: #d9d8d5; color: var(--text); font-family: var(--sans); }
+.stage-wrap { flex: 1; min-height: 0; display: flex; justify-content: center; }
+.stage { position: relative; container-type: inline-size; width: 100%; height: 100%; overflow: hidden; background: var(--bg);
+  font-size: var(--fs); line-height: var(--lh); }
+.stage.phone { width: 390px; max-width: 100%; border-inline: 1px solid var(--border); }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+a { color: var(--accent); }
+
+.button { display: inline-flex; align-items: center; gap: 0.4em; min-height: 44px; padding: 0 0.9em; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg); cursor: pointer; white-space: nowrap; }
+.button:hover { background: var(--surface-hover); }
+.button-quiet { border-color: transparent; background: transparent; }
+.button-primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.button-primary:hover { background: #1a51a3; }
+.button-framed { border-color: var(--border); }
+.icon { width: 1.1em; height: 1.1em; flex: none; }
+
+/* Frame */
+.app { display: flex; height: 100%; }
+.sidebar { width: 15rem; flex: none; display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--border); padding: 0.75rem; gap: 0.25rem; overflow-y: auto; }
+.brand { font-weight: 600; font-size: 1.25em; padding: 0.25rem 0.5rem 0.75rem; }
+.profile-switch { border: 1px solid var(--border); background: var(--bg); border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; }
+.profile-switch small { display: block; color: var(--meta); font-size: 0.8125rem; }
+.nav-link { display: block; text-align: left; width: 100%; padding: 0.45rem 0.75rem; border-radius: 6px; border: 0; background: none; cursor: pointer; text-decoration: none; color: var(--text); }
+.nav-link:hover { background: var(--surface-hover); }
+.nav-link[aria-current="page"] { font-weight: 600; background: var(--surface-hover); }
+.sidebar-foot { margin-top: auto; display: flex; flex-direction: column; gap: 0.25rem; border-top: 1px solid var(--border); padding-top: 0.75rem; }
+.usage { padding: 0.25rem 0.75rem 0.5rem; }
+.usage-head { display: flex; justify-content: space-between; font-size: 0.8125rem; color: var(--meta); }
+.usage-bar { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; margin-top: 0.3rem; }
+.usage-bar span { display: block; height: 100%; width: 42%; background: var(--accent); }
+.nav-help { display: flex; align-items: center; gap: 0.5em; }
+.proto-new { outline: 2px dashed var(--glyph); outline-offset: 2px; border-radius: 6px; }
+
+.workspace { flex: 1; min-width: 0; display: flex; flex-direction: column; transition: margin-right .2s; }
+.app.docked .workspace { margin-right: var(--coach-width); }
+.topbar { display: flex; align-items: center; gap: 0.5rem; min-height: 3.5rem; padding: 0.4rem 1rem; border-bottom: 1px solid var(--border); }
+.topbar-title { flex: 1; min-width: 0; font-weight: 600; font-size: 1.125em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-title .crumb { font-weight: 400; color: var(--text-2); }
+.menu-toggle { display: none; }
+.tasks-btn { color: var(--text-2); }
+.page { flex: 1; overflow-y: auto; padding: 2rem 1.5rem 3rem; }
+.page-inner { max-width: 44rem; }
+.page h2 { font-size: 1.25em; margin: 2rem 0 0.5rem; }
+.card { border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; }
+.score { display: flex; align-items: baseline; gap: 0.75rem; }
+.score strong { font-size: 2em; }
+.term { background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: help; text-decoration: underline dotted var(--accent); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.term:hover { color: var(--accent); }
+.empty { background: var(--surface); border-radius: 10px; padding: 1rem 1.25rem; }
+.empty p { margin: 0 0 0.25rem; }
+.linkish { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; }
+
+/* Coach Panel */
+.panel { position: absolute; top: 0; right: 0; bottom: 0; width: var(--coach-width); background: var(--bg); border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; z-index: 30; }
+.panel[hidden] { display: none; }
+.panel-head { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); }
+.panel-row { display: flex; align-items: center; gap: 0.25rem; }
+.panel-title { flex: 1; min-width: 0; font-weight: 600; display: flex; align-items: center; gap: 0.35em; }
+.segmented { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 3px; }
+.segmented button { min-height: 40px; border: 0; border-radius: 6px; background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4em; }
+.segmented button[aria-pressed="true"] { background: var(--bg); font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / .12); }
+.panel-body { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 1rem; }
+.panel-foot { border-top: 1px solid var(--border); padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.composer { display: flex; align-items: flex-end; gap: 0.5rem; border: 1px solid var(--text-2); border-radius: 10px; padding: 0.4rem 0.4rem 0.4rem 0.75rem; }
+.composer textarea { flex: 1; border: 0; resize: none; min-height: 2.6em; max-height: 8em; background: none; padding: 0.35rem 0; }
+.composer textarea:focus { outline: none; }
+.composer:focus-within { outline: 3px solid var(--accent); outline-offset: 1px; }
+.meta { font-size: 0.8125rem; color: var(--meta); }
+.msg-me { align-self: flex-end; max-width: 85%; background: var(--surface-hover); border-radius: 10px; padding: 0.5rem 0.8rem; }
+.msg-coach { max-width: 95%; }
+.msg-coach .glyph { color: var(--glyph); margin-right: 0.35em; }
+.thinking .glyph { display: inline-block; animation: spin 1.2s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .thinking .glyph { animation: none; } }
+
+.search { display: flex; align-items: center; gap: 0.5rem; border: 1px solid var(--text-2); border-radius: 8px; padding: 0 0.75rem; min-height: 44px; }
+.search input { flex: 1; border: 0; background: none; min-height: 42px; }
+.search input:focus { outline: none; }
+.search:focus-within { outline: 3px solid var(--accent); outline-offset: 1px; }
+.help-section h3 { font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--meta); margin: 0 0 0.4rem; font-weight: 600; }
+.help-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.help-list button { width: 100%; text-align: left; background: none; border: 0; border-radius: 6px; padding: 0.55rem 0.5rem; cursor: pointer; display: flex; gap: 0.5rem; align-items: baseline; }
+.help-list button:hover { background: var(--surface); }
+.help-list .kind { font-size: 0.8125rem; color: var(--meta); margin-left: auto; flex: none; }
+.this-page { background: var(--accent-surface); border-radius: 10px; padding: 0.9rem 1rem; }
+.this-page h3 { color: var(--accent); }
+.this-page p { margin: 0 0 0.5rem; }
+.article h2 { font-size: 1.25em; margin: 0.25rem 0 0.5rem; }
+.article p { margin: 0 0 0.75rem; }
+.miss { background: var(--surface); border-radius: 10px; padding: 0.9rem 1rem; }
+.miss p { margin: 0 0 0.5rem; }
+.feedback { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.field { display: flex; flex-direction: column; gap: 0.25rem; }
+.field input, .field textarea, .field select { border: 1px solid var(--text-2); border-radius: 6px; padding: 0.55rem 0.7rem; min-height: 44px; background: var(--bg); }
+.sent { background: #eaf5ee; color: #1e6e3a; border-radius: 10px; padding: 0.9rem 1rem; }
+.suggest { border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem; }
+.suggest h3 { margin: 0.25rem 0.5rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.chip { border: 1px solid var(--border); background: var(--bg); border-radius: 999px; padding: 0.4rem 0.85rem; cursor: pointer; min-height: 40px; }
+.chip:hover { background: var(--surface); }
+.ai-tag { display: inline-block; font-size: 0.8125rem; color: var(--meta); }
+
+/* Narrow: sidebar becomes a drawer, panel takes the whole screen (ADR-0024) */
+@container (max-width: 64rem) {
+  .app.docked .workspace { margin-right: 0; }
+  .panel { width: 100%; border-left: 0; }
+}
+@container (max-width: 48rem) {
+  .sidebar { position: absolute; inset: 0 auto 0 0; z-index: 25; box-shadow: 4px 0 16px rgb(0 0 0 / .15); }
+  .app:not(.menu-open) .sidebar { display: none; }
+  .menu-toggle { display: inline-flex; }
+  .page { padding: 1.25rem 1rem 3rem; }
+  .hide-narrow { display: none; }
+}
+
+/* Prototype switcher: not part of the design */
+.proto-bar { flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; background: var(--proto); color: var(--proto-text);
+  padding-block: 6px calc(6px + env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  font-size: 13px; line-height: 1.3; }
+.proto-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.proto-bar button { background: #34332f; color: var(--proto-text); border: 0; border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 13px; }
+.proto-bar button:hover { background: #4a4944; }
+.proto-label { font-weight: 600; padding: 0 4px; text-align: center; }
+.proto-state { opacity: 0.75; font-size: 12px; text-align: center; }
+</style>
+
+<div class="stage-wrap"><div class="stage" id="stage"></div></div>
+<div class="proto-bar" role="region" aria-label="Prototype">
+  <div class="proto-row">
+    <button type="button" id="prev" aria-label="Variante précédente">←</button>
+    <span class="proto-label" id="variant-label"></span>
+    <button type="button" id="next" aria-label="Variante suivante">→</button>
+    <button type="button" id="phone">Téléphone</button>
+    <button type="button" id="size">Texte 16 px</button>
+    <button type="button" id="reset">Remettre à zéro</button>
+  </div>
+  <div class="proto-state" id="proto-state"></div>
+</div>
+
+<script>
+const VARIANTS = {
+  A: "A · « Aide et coach » + Coach | Aide + Aide dans le menu",
+  B: "B · Deux boutons : « Aide » et « Mon coach »",
+  C: "C · Une seule question : l'aide d'abord, le coach ensuite",
+};
+const KEYS = Object.keys(VARIANTS);
+
+const PAGES = {
+  candidature: { nav: "Mes candidatures", title: "Contrôleur de gestion · Groupe Arvel", crumb: "Correspondance", help: "page-candidature" },
+  profil: { nav: "Mes profils", title: "Directeur administratif et financier", crumb: "CV de référence", help: "page-profil" },
+};
+
+// Help Articles: how-to of a page, glossary, FAQ. Synonyms are what a Help editor adds from the unanswered questions.
+const ARTICLES = [
+  { id: "page-candidature", kind: "Cette page", title: "La page d'une candidature",
+    body: ["Elle rassemble tout ce qui concerne une offre que vous suivez : l'offre, le score de correspondance, vos documents adaptés, vos entretiens et vos relances.",
+           "Commencez par « Correspondance » pour voir ce qui colle et ce qui manque, puis préparez votre CV adapté dans « Documents »."],
+    syn: "candidature offre suivre suivie postuler" },
+  { id: "page-profil", kind: "Cette page", title: "La page d'un profil",
+    body: ["Un profil, c'est un métier que vous visez : votre CV de référence, vos critères de recherche et votre score ATS.",
+           "Améliorez d'abord votre score ATS : chaque correction proposée s'accepte ou se refuse une par une."],
+    syn: "profil métier critères cv" },
+  { id: "g-match", kind: "Glossaire", title: "Score de correspondance",
+    body: ["Une note sur 100 qui dit à quel point votre CV de référence correspond à une offre : métier, compétences, expérience, lieu, salaire.",
+           "Au-dessus de 70, l'offre vaut la peine. Le détail montre ce qui manque, critère par critère."],
+    syn: "match score note correspondance compatibilité pourcentage" },
+  { id: "g-ats", kind: "Glossaire", title: "Score ATS",
+    body: ["Les recruteurs utilisent des logiciels (ATS) qui lisent votre CV avant un humain. Le score ATS dit si ces logiciels liront bien le vôtre.",
+           "Il se calcule sans IA, par des règles fixes. Les corrections proposées pour l'améliorer, elles, viennent de votre coach."],
+    syn: "ats logiciel robot lecture cv lisible" },
+  { id: "g-propositions", kind: "Glossaire", title: "Propositions de votre coach",
+    body: ["Votre coach place des propositions dans vos pages : une correction de CV, une relance à envoyer, une candidature à abandonner.",
+           "Vous acceptez ou refusez chacune. Rien n'est fait sans votre accord. Elles apparaissent après un score ATS, ou quand une candidature attend une réponse depuis longtemps."],
+    syn: "proposition action card carte suggestion obtenir accepter refuser" },
+  { id: "g-cvref", kind: "Glossaire", title: "CV de référence",
+    body: ["Votre CV complet, celui d'où partent tous vos CV adaptés. Jobbbox n'y ajoute jamais rien que vous n'ayez dit.",
+           "Chaque enregistrement crée une version ; vous pouvez revenir à une version précédente."],
+    syn: "cv référence master principal version" },
+  { id: "faq-quota", kind: "Questions", title: "Quand mon quota se renouvelle-t-il ?",
+    body: ["Chaque lundi à 0 h. La barre « Utilisation cette semaine », en bas du menu, montre où vous en êtes.",
+           "Parler à votre coach ne compte pas dans le quota."],
+    syn: "quota limite renouvelle lundi semaine plus de recherches utilisation" },
+  { id: "faq-relance", kind: "Questions", title: "Comment relancer un recruteur ?",
+    body: ["Quand une candidature reste « Postulée » trop longtemps, votre coach propose un e-mail de relance dans la page de la candidature.",
+           "Jobbbox n'envoie rien à votre place : copiez le texte, envoyez-le depuis votre messagerie, puis marquez-le comme envoyé."],
+    syn: "relance relancer suivi recruteur rappeler réponse email mail" },
+  { id: "faq-texte", kind: "Questions", title: "Comment agrandir le texte ?",
+    body: ["Dans Mon compte, section Préférences : la réglette « Taille du texte » a quatre crans. Votre choix est gardé sur cet appareil."],
+    syn: "texte taille police lire agrandir écriture petit" },
+  { id: "faq-ia", kind: "Questions", title: "Est-ce que l'aide utilise l'IA ?",
+    body: ["Non. L'aide est écrite par l'équipe Jobbbox et relue. Seul votre coach répond avec l'IA, et ses réponses le disent.",
+           "Quand l'aide n'a pas la réponse, votre question est notée, sans votre nom, pour que l'équipe écrive l'article qui manque."],
+    syn: "ia intelligence artificielle robot coach aide humain" },
+  { id: "faq-donnees", kind: "Questions", title: "Comment récupérer ou supprimer mes données ?",
+    body: ["Dans Mon compte, section Mes données : téléchargez un fichier avec tout ce que Jobbbox garde sur vous, ou supprimez votre compte."],
+    syn: "données rgpd supprimer compte export télécharger" },
+];
+const byId = Object.fromEntries(ARTICLES.map((a) => [a.id, a]));
+
+const norm = (s) => s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9 ]/g, " ");
+const STOP = new Set("le la les un une des de du d l a au aux et ou en mon ma mes je j est ce que qui pour comment quand pourquoi quel quelle sur dans avec pas plus faire se s il elle on y c qu".split(" "));
+function search(q) {
+  const words = norm(q).split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w));
+  if (!words.length) return [];
+  return ARTICLES.map((a) => {
+    const hay = norm(a.title + " " + a.syn + " " + a.body.join(" "));
+    const title = norm(a.title + " " + a.syn);
+    let score = 0;
+    for (const w of words) { const stem = w.slice(0, Math.max(4, w.length - 2)); if (title.includes(stem)) score += 3; else if (hay.includes(stem)) score += 1; }
+    return { a, score };
+  }).filter((r) => r.score >= 2).sort((x, y) => y.score - x.score).slice(0, 4).map((r) => r.a);
+}
+
+const SIZES = [16, 17, 18, 20];
+const fresh = () => ({
+  variant: KEYS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "A",
+  page: "candidature", open: false, view: "aide", lastView: null,
+  aide: { screen: "home" }, query: "", messages: [], thinking: false,
+  menuOpen: false, phone: false, size: 0, unanswered: [],
+});
+let S = fresh();
+
+const $ = (sel) => document.querySelector(sel);
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const ICON = {
+  help: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14"/><circle cx="12" cy="17" r=".6" fill="currentColor"/></svg>',
+  coach: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>',
+  tasks: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h9"/></svg>',
+  menu: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
+  search: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.5-4.5"/></svg>',
+  back: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg>',
+};
+
+function narrow() { return $("#stage").clientWidth <= 768; }
+
+/* ---------- Frame ---------- */
+function sidebar() {
+  const link = (key) => `<button class="nav-link" type="button" data-page="${key}" ${S.page === key ? 'aria-current="page"' : ""}>${PAGES[key].nav}</button>`;
+  const helpLink = S.variant === "A"
+    ? `<button class="nav-link nav-help proto-new" type="button" data-open="aide">${ICON.help} Aide</button>` : "";
+  return `<nav class="sidebar" aria-label="Navigation principale">
+    <div class="brand">Jobbbox</div>
+    <div class="profile-switch"><small>Profil</small>Directeur administratif et financier</div>
+    <button class="nav-link" type="button" disabled>Accueil</button>
+    ${link("profil")}
+    <button class="nav-link" type="button" disabled>Recherches d'offres</button>
+    ${link("candidature")}
+    <button class="nav-link" type="button" disabled>Agenda</button>
+    <button class="nav-link" type="button" disabled>Coachs</button>
+    <div class="sidebar-foot">
+      <div class="usage"><div class="usage-head"><span>Utilisation cette semaine</span><span>42 %</span></div><div class="usage-bar"><span></span></div></div>
+      ${helpLink}
+      <button class="nav-link" type="button" disabled>Mon compte</button>
+      <button class="nav-link" type="button" disabled>Se déconnecter</button>
+    </div>
+  </nav>`;
+}
+
+function topbarButtons() {
+  if (S.open && !narrow()) return ""; // the panel's own header takes over while it is open (ADR-0024)
+  const tasks = `<button class="button button-framed tasks-btn" type="button" title="Tâches de cette page (#314)">${ICON.tasks}<span class="hide-narrow">Tâches</span></button>`;
+  if (S.variant === "A") return tasks + `<button class="button proto-new" type="button" data-open="last">${ICON.help} ${narrow() ? "Aide" : "Aide et coach"}</button>`;
+  if (S.variant === "B") return tasks + `<button class="button proto-new" type="button" data-open="aide">${ICON.help} Aide</button><button class="button" type="button" data-open="coach">${ICON.coach} Mon coach</button>`;
+  return tasks + `<button class="button proto-new" type="button" data-open="coach">${ICON.help} ${narrow() ? "Aide" : "Aide et coach"}</button>`;
+}
+
+function page() {
+  if (S.page === "profil") return `<div class="page-inner">
+    <h2 style="margin-top:0">Votre <button class="term" type="button" data-term="g-ats">score ATS</button></h2>
+    <div class="card score"><strong>64</strong><span>sur 100 · lu correctement par la plupart des logiciels de recrutement</span></div>
+    <h2>Propositions</h2>
+    <div class="card"><p style="margin:0 0 .5rem"><strong>3 corrections proposées</strong> pour votre CV de référence</p>
+      <p class="meta" style="margin:0">Remplacer « Responsable admin. & fi. » par l'intitulé complet · Ajouter vos dates de poste · …</p></div>
+    <h2>CV de référence</h2>
+    <p>Version 7, enregistrée le 21 octobre. Votre <button class="term" type="button" data-term="g-cvref">CV de référence</button> sert de base à tous vos CV adaptés.</p>
+  </div>`;
+  return `<div class="page-inner">
+    <h2 style="margin-top:0"><button class="term" type="button" data-term="g-match">Score de correspondance</button></h2>
+    <div class="card score"><strong>78</strong><span>sur 100 · bonne correspondance</span></div>
+    <p>Ce qui colle : contrôle de gestion, consolidation, SAP. Ce qui manque : l'anglais courant est demandé, votre CV dit « professionnel ».</p>
+    <h2>Propositions</h2>
+    <div class="empty"><p>Aucune proposition pour l'instant.</p>
+      <button class="linkish" type="button" data-term="g-propositions">D'où viennent les propositions ?</button></div>
+    <h2>Relances</h2>
+    <p>Postulée le 9 octobre, sans réponse. Votre coach proposera une relance à partir du 23 octobre.</p>
+  </div>`;
+}
+
+/* ---------- Panel ---------- */
+function panel() {
+  if (!S.open) return `<aside class="panel" hidden></aside>`;
+  const close = `<button class="button button-quiet" type="button" data-close>Fermer</button>`;
+  let head, body, foot = "";
+  if (S.variant === "A") {
+    head = `<div class="panel-row"><div class="segmented proto-new" role="group" aria-label="Aide ou coach" style="flex:1">
+        <button type="button" data-view="coach" aria-pressed="${S.view === "coach"}">${ICON.coach} Coach</button>
+        <button type="button" data-view="aide" aria-pressed="${S.view === "aide"}">${ICON.help} Aide</button>
+      </div>${close}</div>
+      ${S.view === "coach" ? `<div class="panel-row"><span class="panel-title">Nouvelle conversation ▾</span></div>` : ""}`;
+    [body, foot] = S.view === "coach" ? coachView() : aideView(true);
+  } else if (S.variant === "B") {
+    const other = S.view === "coach" ? `<button class="button button-quiet" type="button" data-view="aide">${ICON.help} Aide</button>` : `<button class="button button-quiet" type="button" data-view="coach">${ICON.coach} Mon coach</button>`;
+    head = `<div class="panel-row"><span class="panel-title">${S.view === "coach" ? ICON.coach + " Nouvelle conversation ▾" : ICON.help + " Aide"}</span>${other}${close}</div>`;
+    [body, foot] = S.view === "coach" ? coachView() : aideView(true);
+  } else {
+    head = `<div class="panel-row"><span class="panel-title">${ICON.help} Aide et coach · Nouvelle conversation ▾</span>${close}</div>`;
+    [body, foot] = unifiedView();
+  }
+  return `<aside class="panel" aria-label="Aide et coach"><div class="panel-head">${head}</div><div class="panel-body" id="panel-body">${body}</div>${foot ? `<div class="panel-foot">${foot}</div>` : ""}</aside>`;
+}
+
+function articleList(list) {
+  return `<ul class="help-list">${list.map((a) => `<li><button type="button" data-article="${a.id}"><span>${esc(a.title)}</span><span class="kind">${a.kind}</span></button></li>`).join("")}</ul>`;
+}
+
+function messagesHtml() {
+  return S.messages.map((m) => m.me
+    ? `<div class="msg-me">${esc(m.text)}</div>`
+    : `<div class="msg-coach"><span class="glyph" aria-hidden="true">✳</span>${esc(m.text)}<div class="meta" style="margin-top:.35rem">Réponse de votre coach · IA · prototype, aucun appel réel</div></div>`).join("")
+    + (S.thinking ? `<div class="msg-coach thinking meta"><span class="glyph" aria-hidden="true">✳</span>Votre coach réfléchit…</div>` : "");
+}
+
+function coachView() {
+  const body = S.messages.length ? messagesHtml() : `<p>Bonjour, je suis votre coach. Comment puis-je vous aider ?</p>`;
+  const foot = `<form class="composer" data-send><textarea id="coach-input" rows="1" aria-label="Votre message" placeholder="Votre message"></textarea><button class="button button-primary" type="submit">Envoyer</button></form>
+    <div class="meta">Votre coach voit : ${PAGES[S.page].title}</div>`;
+  return [body, foot];
+}
+
+function aideView(withBridge) {
+  const a = S.aide;
+  const back = `<button class="button button-quiet" type="button" data-aide-home style="align-self:flex-start;margin-left:-.5rem">${ICON.back} Toute l'aide</button>`;
+  if (a.screen === "article") {
+    const art = byId[a.id];
+    return [`${back}<article class="article"><div class="meta">${art.kind}</div><h2>${esc(art.title)}</h2>${art.body.map((p) => `<p>${esc(p)}</p>`).join("")}</article>
+      <div class="feedback"><span>Cet article vous a aidé ?</span><button class="button" type="button" data-fb>Oui</button><button class="button" type="button" data-fb>Non</button></div>
+      ${withBridge ? `<button class="button" type="button" data-ask="${esc("À propos de « " + art.title + " » : ")}" style="align-self:flex-start">${ICON.coach} Demander à mon coach</button>` : ""}`, ""];
+  }
+  if (a.screen === "contact") {
+    return [`${back}<h2 style="margin:0">Contacter l'équipe</h2><p class="meta" style="margin:0">Une personne de l'équipe Jobbbox vous répond par e-mail sous deux jours ouvrés. Nous joignons la page où vous êtes et votre formule.</p>
+      <form class="article" data-contact style="display:flex;flex-direction:column;gap:.75rem">
+        <div class="field"><label for="c-subject">Sujet</label><select id="c-subject"><option>Une question sur Jobbbox</option><option>Un problème sur une page</option><option>Mon abonnement</option><option>Mes données</option></select></div>
+        <div class="field"><label for="c-msg">Votre message</label><textarea id="c-msg" rows="5"></textarea></div>
+        <button class="button button-primary" type="submit" style="align-self:flex-start">Envoyer le message</button>
+      </form>`, ""];
+  }
+  if (a.screen === "sent") return [`${back}<div class="sent" role="status"><strong>Message envoyé.</strong><br>Nous vous répondons à votre adresse e-mail sous deux jours ouvrés.</div>`, ""];
+  const body = `
+    <div class="search">${ICON.search}<input id="help-search" type="search" aria-label="Rechercher dans l'aide" placeholder="Rechercher dans l'aide" value="${esc(S.query)}"></div>
+    <div id="help-results"></div>`;
+  const foot = `<button class="button button-quiet" type="button" data-contact-open style="align-self:flex-start">Contacter l'équipe</button>`;
+  return [body, foot];
+}
+
+function aideResults(withBridge) {
+  if (S.query.trim().length < 3) {
+    const here = byId[PAGES[S.page].help];
+    return `<section class="this-page help-section"><h3>Sur cette page</h3><p><strong>${esc(here.title)}</strong></p><p>${esc(here.body[0])}</p>
+        <button class="linkish" type="button" data-article="${here.id}">Lire la suite</button></section>
+      <section class="help-section"><h3>Mots à connaître</h3>${articleList(ARTICLES.filter((x) => x.kind === "Glossaire"))}</section>
+      <section class="help-section"><h3>Questions fréquentes</h3>${articleList(ARTICLES.filter((x) => x.kind === "Questions"))}</section>`;
+  }
+  const found = search(S.query);
+  if (found.length) return `<section class="help-section"><h3>${found.length} article${found.length > 1 ? "s" : ""}</h3>${articleList(found)}</section>
+    ${withBridge ? `<p class="meta">Pas ce que vous cherchiez ? <button class="linkish" type="button" data-ask-query>Demander à mon coach</button></p>` : ""}`;
+  return `<div class="miss"><p><strong>Pas d'article sur « ${esc(S.query.trim())} ».</strong></p>
+      <p>Votre coach peut vous répondre avec l'IA. Votre question est aussi notée, sans votre nom, pour que l'équipe écrive l'article qui manque.</p>
+      ${withBridge ? `<button class="button button-primary" type="button" data-ask-query>${ICON.coach} Demander à mon coach</button>` : `<button class="button" type="button" data-contact-open>Contacter l'équipe</button>`}</div>`;
+}
+
+function unifiedView() {
+  const q = S.draft || "";
+  const found = q.trim().length >= 3 ? search(q) : [];
+  const here = byId[PAGES[S.page].help];
+  let body = "";
+  if (!S.messages.length) {
+    body = `<p>Bonjour. Posez votre question : je cherche d'abord dans l'aide de Jobbbox, et votre coach répond si l'aide n'a pas la réponse.</p>
+      <section class="this-page help-section"><h3>Sur cette page</h3><p><strong>${esc(here.title)}</strong></p><p>${esc(here.body[0])}</p>
+        <button class="linkish" type="button" data-article="${here.id}">Lire la suite</button></section>
+      <section class="help-section"><h3>Souvent demandé</h3><div class="chips">${["faq-quota", "faq-relance", "faq-texte"].map((id) => `<button class="chip" type="button" data-article="${id}">${esc(byId[id].title)}</button>`).join("")}</div></section>`;
+  } else body = messagesHtml();
+  if (S.aide.screen === "article") {
+    const art = byId[S.aide.id];
+    body += `<article class="article card"><div class="meta">Aide · ${art.kind} · écrit par l'équipe Jobbbox</div><h2>${esc(art.title)}</h2>${art.body.map((p) => `<p>${esc(p)}</p>`).join("")}
+      <div class="feedback"><span>Cela répond à votre question ?</span><button class="button" type="button" data-fb>Oui</button><button class="button" type="button" data-ask="${esc("À propos de « " + art.title + " » : ")}">Non, demander au coach</button></div></article>`;
+  }
+  const foot = `<div id="suggest">${suggestHtml(found)}</div>
+    <form class="composer" data-send-unified><textarea id="unified-input" rows="1" aria-label="Votre question" placeholder="Votre question">${esc(q)}</textarea><button class="button button-primary" type="submit">Envoyer au coach</button></form>
+    <div class="meta" style="display:flex;justify-content:space-between;gap:.5rem;flex-wrap:wrap"><span>Votre coach voit : ${PAGES[S.page].title}</span><button class="linkish" type="button" data-contact-c>Contacter l'équipe</button></div>`;
+  return [body, foot];
+}
+function suggestHtml(found) {
+  if (!found.length) return "";
+  return `<div class="suggest"><h3 class="meta">Dans l'aide, sans IA</h3>${articleList(found)}</div>`;
+}
+
+/* ---------- Render and events ---------- */
+function render() {
+  const st = $("#stage");
+  st.classList.toggle("phone", S.phone);
+  st.style.setProperty("--fs", SIZES[S.size] + "px");
+  const p = PAGES[S.page];
+  st.innerHTML = `<div class="app ${S.open && !narrow() ? "docked" : ""} ${S.menuOpen ? "menu-open" : ""}">
+    ${sidebar()}
+    <div class="workspace">
+      <header class="topbar">
+        <button class="button button-quiet menu-toggle" type="button" data-menu>${ICON.menu} Menu</button>
+        <div class="topbar-title">${esc(p.title)} <span class="crumb">› ${p.crumb}</span></div>
+        ${topbarButtons()}
+      </header>
+      <main class="page">${page()}</main>
+    </div>
+    ${panel()}
+  </div>`;
+  if (S.open && S.variant !== "C" && S.view === "aide" && S.aide.screen === "home") $("#help-results").innerHTML = aideResults(true);
+  $("#variant-label").textContent = VARIANTS[S.variant];
+  $("#phone").textContent = S.phone ? "Bureau" : "Téléphone";
+  $("#size").textContent = "Texte " + SIZES[S.size] + " px";
+  const remembered = S.variant === "A" ? ` · rouvre sur : ${S.lastView ?? "Aide (1re fois)"}` : "";
+  $("#proto-state").textContent = `Panneau ${S.open ? "ouvert" : "fermé"}${S.open ? " · vue " + (S.variant === "C" ? "unique" : S.view) : ""}${remembered} · questions sans réponse notées : ${S.unanswered.length}`;
+  if (location.hash.slice(1) !== S.variant) history.replaceState(null, "", "#" + S.variant);
+}
+
+function openPanel(which) {
+  S.open = true; S.menuOpen = false;
+  if (which === "last") S.view = S.lastView ?? "aide";
+  else if (which) S.view = which;
+  if (S.variant === "C") S.view = "coach";
+  S.lastView = S.view;
+  S.aide = { screen: "home" };
+}
+function askCoach(text, fromMiss) {
+  if (fromMiss) S.unanswered.push(text);
+  S.view = "coach"; S.lastView = "coach"; S.aide = { screen: "home" };
+  sendToCoach(text);
+}
+function sendToCoach(text) {
+  if (!text.trim()) return;
+  S.messages.push({ me: true, text }); S.thinking = true; S.draft = ""; render();
+  setTimeout(() => {
+    S.thinking = false;
+    S.messages.push({ text: "Voici ce que je vous propose, à partir de votre profil et de la page ouverte. (Dans le vrai produit, cette réponse vient du modèle ; ici elle est écrite d'avance.)" });
+    render(); const b = $("#panel-body"); if (b) b.scrollTop = b.scrollHeight;
+  }, 900);
+}
+
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("button"); if (!t || !t.closest("#stage")) return;
+  const d = t.dataset;
+  if (d.page) { S.page = d.page; S.menuOpen = false; }
+  else if (d.open) openPanel(d.open);
+  else if ("close" in d) S.open = false;
+  else if (d.view) { S.view = d.view; S.lastView = d.view; S.aide = { screen: "home" }; }
+  else if (d.term) { openPanel(S.variant === "C" ? "coach" : "aide"); S.aide = { screen: "article", id: d.term }; }
+  else if (d.article) S.aide = { screen: "article", id: d.article };
+  else if ("aideHome" in d) S.aide = { screen: "home" };
+  else if ("contactOpen" in d) S.aide = { screen: "contact" };
+  else if ("contactC" in d) { S.aide = { screen: "contact" }; return renderContactC(); }
+  else if ("askQuery" in d) return askCoach(S.query.trim(), true);
+  else if (d.ask) { if (S.variant === "C") { S.draft = d.ask; S.aide = { screen: "home" }; render(); $("#unified-input")?.focus(); return; } S.view = "coach"; S.lastView = "coach"; S.aide = { screen: "home" }; render(); const i = $("#coach-input"); i.value = d.ask; i.focus(); return; }
+  else if ("fb" in d) { t.parentElement.innerHTML = `<span role="status">Merci, c'est noté.</span>`; return; }
+  else if ("menu" in d) S.menuOpen = !S.menuOpen;
+  else return;
+  render();
+});
+function renderContactC() {
+  // Variant C has no Aide view: the contact form replaces the conversation until sent.
+  render();
+  $("#panel-body").innerHTML = aideView(false)[0].replace(/data-aide-home/, "data-close-contact");
+  $("#panel-body").querySelector("[data-close-contact]").addEventListener("click", () => { S.aide = { screen: "home" }; render(); });
+}
+
+document.addEventListener("input", (e) => {
+  if (e.target.id === "help-search") { S.query = e.target.value; $("#help-results").innerHTML = aideResults(true); }
+  if (e.target.id === "unified-input") { S.draft = e.target.value; $("#suggest").innerHTML = suggestHtml(e.target.value.trim().length >= 3 ? search(e.target.value) : []); }
+});
+document.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const f = e.target;
+  if ("send" in f.dataset) sendToCoach($("#coach-input").value);
+  else if ("sendUnified" in f.dataset) {
+    const q = $("#unified-input").value;
+    if (q.trim() && !search(q).length) S.unanswered.push(q);
+    sendToCoach(q);
+  } else if ("contact" in f.dataset) { S.aide = { screen: "sent" }; if (S.variant === "C") { render(); $("#panel-body").innerHTML = aideView(false)[0]; return; } render(); }
+});
+document.addEventListener("keydown", (e) => {
+  if (e.target.closest("input, textarea, select, [contenteditable]")) {
+    if (e.key === "Enter" && !e.shiftKey && e.target.tagName === "TEXTAREA") { e.preventDefault(); e.target.form?.requestSubmit(); }
+    return;
+  }
+  if (e.key === "ArrowRight") cycle(1);
+  if (e.key === "ArrowLeft") cycle(-1);
+  if (e.key === "Escape" && S.open) { S.open = false; render(); }
+});
+function cycle(n) { const i = KEYS.indexOf(S.variant); S.variant = KEYS[(i + n + KEYS.length) % KEYS.length]; S.open = false; S.aide = { screen: "home" }; render(); }
+$("#prev").onclick = () => cycle(-1);
+$("#next").onclick = () => cycle(1);
+$("#phone").onclick = () => { S.phone = !S.phone; render(); };
+$("#size").onclick = () => { S.size = (S.size + 1) % SIZES.length; render(); };
+$("#reset").onclick = () => { const v = S.variant, ph = S.phone; S = fresh(); S.variant = v; S.phone = ph; render(); };
+window.addEventListener("hashchange", () => { const v = location.hash.slice(1); if (KEYS.includes(v) && v !== S.variant) { S.variant = v; S.open = false; render(); } });
+let wasNarrow = null;
+new ResizeObserver(() => { const n = narrow(); if (n !== wasNarrow) { wasNarrow = n; render(); } }).observe(document.querySelector(".stage-wrap"));
+render();
+</script>

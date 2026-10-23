@@ -662,11 +662,20 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
       }
       .usage-meter-detail dl { gap: 2px; margin-bottom: var(--space-1); }
       .usage-meter-detail .hint { margin-bottom: var(--space-1); font-size: inherit; }
+      /* The pane's scrollbar shows only while the pointer is over it or it scrolls. */
+      #proto-provenance-pane { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+      #proto-provenance-pane:hover, #proto-provenance-pane.proto-scrolling { scrollbar-color: var(--color-text-secondary) transparent; }
       /* The top bar's last button ends where the pane ends: --space-2 from the column's edge. */
       .topbar { padding-right: var(--space-2); }`}</style>
       {open ? (
         <aside
           id="proto-provenance-pane"
+          onScroll={(event) => {
+            const pane = event.currentTarget;
+            pane.classList.add("proto-scrolling");
+            window.clearTimeout(Number(pane.dataset.scrollTimer));
+            pane.dataset.scrollTimer = String(window.setTimeout(() => pane.classList.remove("proto-scrolling"), 800));
+          }}
           aria-label="Sources, modèles et outils de cette page"
           style={{
             position: "fixed",

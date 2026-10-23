@@ -1,4 +1,4 @@
-import type { MasterCvContent, Plan } from "@jobhub/shared";
+import type { MasterCvContent, Plan, Provenance } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApplications, migrateApplications, type Applications } from "../applications";
@@ -24,6 +24,9 @@ const masterCv: MasterCvContent = {
 };
 
 const HOUR = 3_600_000;
+
+/** What Job discovery found: these Job Offers, and its run's Provenance (none kept, unless given). */
+const discovered = (...jobOfferIds: string[]) => ({ jobOfferIds, provenance: null });
 
 /** Job discovery that must not run. */
 const noDiscovery: JobDigestDiscovery = async () => {
@@ -238,7 +241,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       await weak("Contrôleur de gestion");
       await subscribed();
 
-      const { digest, discovery } = await jobDigests.deliver(candidateId, profileId, async () => []);
+      const { digest, discovery } = await jobDigests.deliver(candidateId, profileId, async () => discovered());
 
       expect(digest?.results.map(({ jobOffer, matchScore }) => [jobOffer.id, matchScore.score])).toEqual([
         [best, 100],
@@ -255,7 +258,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       const undated = await strong("DAF H/F – sans date");
       await subscribed();
 
-      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => []);
+      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => discovered());
 
       expect(digest?.results.map(({ jobOffer, matchScore }) => [jobOffer.id, matchScore.score])).toEqual([
         [dated, 100],
@@ -268,13 +271,13 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       await strong("Trop ancienne", { storedAt: new Date(clock.now.getTime() - 8 * 24 * HOUR) });
       const lastWeek = await strong("De la semaine", { storedAt: new Date(clock.now.getTime() - 6 * 24 * HOUR) });
       await subscribed();
-      const first = await jobDigests.deliver(candidateId, profileId, async () => []);
+      const first = await jobDigests.deliver(candidateId, profileId, async () => discovered());
       expect(first.digest?.results.map((result) => result.jobOffer.id)).toEqual([lastWeek]);
 
       later(24);
       await strong("Avant le premier Job Digest", { storedAt: new Date(clock.now.getTime() - 25 * HOUR) });
       const since = await strong("Depuis");
-      const second = await jobDigests.deliver(candidateId, profileId, async () => []);
+      const second = await jobDigests.deliver(candidateId, profileId, async () => discovered());
 
       expect(second.digest?.results.map((result) => result.jobOffer.id)).toEqual([since]);
     });
@@ -286,7 +289,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       await subscribed();
       const found = await strong("Trouvée par Job discovery");
 
-      const { digest, discovery } = await jobDigests.deliver(candidateId, profileId, async () => [found]);
+      const { digest, discovery } = await jobDigests.deliver(candidateId, profileId, async () => discovered(found));
 
       expect(discovery).toBe("ran");
       expect(digest?.results.map((result) => result.jobOffer.id)).toEqual([found]);
@@ -295,7 +298,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
     it("leaves out Guest-only and Expired Job Offers, and those already shown: in a Job Digest, a Job Search, or saved as an Application", async () => {
       const inDigest = await strong("Déjà dans un Job Digest");
       await subscribed();
-      await jobDigests.deliver(candidateId, profileId, async () => []);
+      await jobDigests.deliver(candidateId, profileId, async () => discovered());
       later(1);
       const guestOnly = await strong("Capturée par un invité", { guest: true });
       const expired = await strong("Expirée");
@@ -310,7 +313,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       const fresh = await strong("Nouvelle");
 
       // Job discovery finds them all again: still left out.
-      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => [inDigest, guestOnly, expired, saved, searched, fresh]);
+      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => discovered(inDigest, guestOnly, expired, saved, searched, fresh));
 
       expect(digest?.results.map((result) => result.jobOffer.id)).toEqual([fresh]);
     });
@@ -327,7 +330,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       await jobSearches.record(stopped.jobSearch.id, { stopped: true, jobOfferIds: [keptByStopped] });
       const fresh = await strong("Nouvelle");
 
-      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => [keptByFailed, keptByStopped, fresh]);
+      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => discovered(keptByFailed, keptByStopped, fresh));
 
       expect(digest?.results.map((result) => result.jobOffer.id)).toEqual([fresh]);
     });
@@ -350,7 +353,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       const foundWeak = await weak("Trouvée, mais loin");
       const short = await jobDigests.deliver(candidateId, profileId, async () => {
         const found = await strong("DAF trouvée", { storedAt: new Date(clock.now.getTime() + 1) });
-        return [found, foundWeak];
+        return discovered(found, foundWeak);
       });
 
       expect(short.discovery).toBe("ran");
@@ -376,7 +379,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       const half = await capture("Comptable", { location: "Lyon", contractType: "cdd", skills: ["IFRS", "Excel"] });
       await subscribed();
 
-      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => []);
+      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => discovered());
 
       expect(digest?.results.map(({ jobOffer, matchScore }) => [jobOffer.id, matchScore.score])).toEqual([[half, 50]]);
     });
@@ -386,10 +389,10 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       jobDigests = digestsWith(config);
       const half = await capture("Comptable", { location: "Lyon", contractType: "cdd", skills: ["IFRS", "Excel"] });
       await subscribed();
-      expect(await jobDigests.deliver(candidateId, profileId, async () => [])).toMatchObject({ digest: null });
+      expect(await jobDigests.deliver(candidateId, profileId, async () => discovered())).toMatchObject({ digest: null });
 
       config.minMatchScore = 50;
-      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => []);
+      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => discovered());
 
       expect(digest?.results.map(({ jobOffer }) => jobOffer.id)).toEqual([half]);
     });
@@ -416,7 +419,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       await weak("Contrôleur de gestion");
       await subscribed();
 
-      expect(await jobDigests.deliver(candidateId, profileId, async () => [await weak("Assistant comptable")])).toEqual({ digest: null, discovery: "ran" });
+      expect(await jobDigests.deliver(candidateId, profileId, async () => discovered(await weak("Assistant comptable")))).toEqual({ digest: null, discovery: "ran" });
       expect(outbox).toEqual([]);
       expect((await jobDigests.settings(candidateId, profileId))?.digests).toEqual([]);
     });
@@ -427,7 +430,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       await strong("DAF H/F");
       await subscribed();
 
-      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => [await strong("DAF trouvée")]);
+      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => discovered(await strong("DAF trouvée")));
 
       expect(digest?.results).toHaveLength(2);
       expect((await billing.entitlements(candidateId)).usedThisWeek).toMatchObject({ matchScores: 0, jobSearches: 0 });
@@ -455,7 +458,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       const best = await strong("DAF H/F");
       const second = await capture("Responsable financier", { location: "Lyon", contractType: "cdd", skills: ["IFRS", "SAP", "Excel"] });
       await subscribed();
-      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => []);
+      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => discovered());
       const application = await applications.save(candidateId, { jobOfferId: second, profileId });
       if (!application.ok) throw new Error("fixture Application refused");
 
@@ -485,17 +488,54 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       await strong("DAF H/F – sans date");
       await subscribed();
 
-      await jobDigests.deliver(candidateId, profileId, async () => []);
+      await jobDigests.deliver(candidateId, profileId, async () => discovered());
 
       const [dated, undated] = outbox[0]!.text.split("\n\n").filter((block) => block.startsWith("- DAF H/F"));
       expect(dated).toContain("publiée le 2 octobre 2026");
       expect(undated).toContain("date de publication : date inconnue");
     });
 
+    it("keeps what made it (#336): its Match Scores, Jobbbox's rules, then the run of Job discovery that topped it up", async () => {
+      const run: Provenance = {
+        v: 1,
+        steps: [{ kind: "ai", activity: "web_search", task: "web_search", provider: "perplexity", endpoint: "api.perplexity.ai", model: "sonar", tokens: { input: 300, output: 800 }, ms: 4100, at: "2026-10-23T10:00:00.000Z", outcome: "ok", count: 1 }],
+        sites: [{ kind: "web", domain: "apec.fr", links: ["https://www.apec.fr/offre/1"] }],
+        startedAt: "2026-10-23T10:00:00.000Z",
+        wallMs: 4200,
+      };
+      await strong("DAF H/F");
+      await subscribed();
+
+      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => ({ jobOfferIds: [], provenance: run }));
+
+      const scoring = { kind: "rules", activity: "compute", rule: "match_score", at: clock.now.toISOString(), outcome: "ok", count: 1 };
+      expect(digest?.provenance).toMatchObject({ steps: [scoring, run.steps[0]], sites: run.sites });
+      expect((await jobDigests.get(candidateId, digest!.id))?.provenance).toEqual(digest!.provenance);
+    });
+
+    it("is made by Jobbbox's rules alone when the stored Job Offers were enough, « Calcul » with no model (#336)", async () => {
+      jobDigests = digestsWith({ targetCount: 1 });
+      await strong("DAF H/F");
+      await subscribed();
+
+      const { digest } = await jobDigests.deliver(candidateId, profileId, noDiscovery);
+
+      expect(digest?.provenance?.steps).toEqual([{ kind: "rules", activity: "compute", rule: "match_score", ms: 0, at: clock.now.toISOString(), outcome: "ok", count: 1 }]);
+    });
+
+    it("shows a Job Digest sent before its Provenance was kept as « non enregistré » (#336)", async () => {
+      await strong("DAF H/F");
+      await subscribed();
+      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => discovered());
+      await database.query("UPDATE job_digest SET provenance = NULL WHERE id = $1", [digest!.id]);
+
+      expect((await jobDigests.get(candidateId, digest!.id))?.provenance).toBeNull();
+    });
+
     it("belongs to its Candidate", async () => {
       await strong("DAF H/F");
       await subscribed();
-      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => []);
+      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => discovered());
 
       expect(await jobDigests.get(otherCandidateId, digest!.id)).toBeNull();
       expect(await jobDigests.get(candidateId, "not-a-digest")).toBeNull();
@@ -508,7 +548,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       await strong("DAF H/F");
       await subscribed();
 
-      await jobDigests.deliver(candidateId, profileId, async () => []);
+      await jobDigests.deliver(candidateId, profileId, async () => discovered());
 
       const email = outbox[0]!;
       expect(email.subject).toContain("1 new job offer");
@@ -586,7 +626,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       expect(await jobDigests.claimDue()).toEqual([]);
 
       await strong("DAF H/F");
-      await jobDigests.deliver(candidateId, profileId, async () => []);
+      await jobDigests.deliver(candidateId, profileId, async () => discovered());
       const token = new URL(outbox.at(-1)!.headers!["List-Unsubscribe"]!.slice(1, -1)).searchParams.get("token")!;
       await jobDigests.unsubscribeByToken(token);
       later(24);

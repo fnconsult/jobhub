@@ -78,7 +78,7 @@ function useSimulatedRun(autostart: boolean) {
 // on the tasks icon (ADR-0009).
 const TASKS = ["M10 6h10M10 12h10M10 18h10", "M4 6l1.2 1.2L7.5 5", "M4 12l1.2 1.2 2.3-2.2", "M4 18l1.2 1.2 2.3-2.2"];
 const BOOK_OPEN = ["M3 5c3-1 6-1 9 1v14c-3-2-6-2-9-1z", "M21 5c-3-1-6-1-9 1v14c3-2 6-2 9-1z"];
-const FRAMES: { d: string[]; ms: number }[] = [
+const FRAMES: { d: string[]; ms: number; morph?: number }[] = [
   // Brain: two hemispheres and the fold between them.
   {
     d: [
@@ -86,21 +86,27 @@ const FRAMES: { d: string[]; ms: number }[] = [
       "M12 5a3 3 0 0 1 5.6-1.2A3 3 0 0 1 20 8a3 3 0 0 1-.2 5 3 3 0 0 1-2.8 4.6A3 3 0 0 1 12 19z",
       "M12 5v14M8 9.5c1 0 2 .6 2 2M16 9.5c-1 0-2 .6-2 2",
     ],
-    ms: 520,
+    ms: 380,
   },
   // Magnifier (the Job Searches' icon).
-  { d: ["M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z", "M20 20l-4-4"], ms: 520 },
+  { d: ["M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z", "M20 20l-4-4"], ms: 380 },
   // Feather.
-  { d: ["M20.2 3.8a6 6 0 0 0-8.5 0L5 10.5V19h8.5l6.7-6.7a6 6 0 0 0 0-8.5z", "M16 8L3 21", "M17.5 15H9"], ms: 520 },
+  { d: ["M20.2 3.8a6 6 0 0 0-8.5 0L5 10.5V19h8.5l6.7-6.7a6 6 0 0 0 0-8.5z", "M16 8L3 21", "M17.5 15H9"], ms: 380 },
   // A book: closed, opened, then three pages turning from right to left.
   { d: ["M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z", "M5 18a2 2 0 0 1 2-2h12"], ms: 260 },
   { d: BOOK_OPEN, ms: 200 },
-  { d: [...BOOK_OPEN, "M12 6c2-1.6 4-2.4 6-2.6v14c-2 .2-4 1-6 2.6"], ms: 140 },
-  { d: [...BOOK_OPEN, "M12 6c.4-1.8.9-3 1.4-4v14c-.5 1-1 2.2-1.4 4"], ms: 140 },
-  { d: [...BOOK_OPEN, "M12 6c-2-1.6-4-2.4-6-2.6v14c2 .2 4 1 6 2.6"], ms: 140 },
-  { d: [...BOOK_OPEN, "M12 6c2-1.6 4-2.4 6-2.6v14c-2 .2-4 1-6 2.6"], ms: 140 },
-  { d: [...BOOK_OPEN, "M12 6c.4-1.8.9-3 1.4-4v14c-.5 1-1 2.2-1.4 4"], ms: 140 },
-  { d: [...BOOK_OPEN, "M12 6c-2-1.6-4-2.4-6-2.6v14c2 .2 4 1 6 2.6"], ms: 140 },
+  { d: [...BOOK_OPEN, "M12 6c2-1.6 4-2.4 6-2.6v14c-2 .2-4 1-6 2.6"], ms: 30, morph: 170 },
+  { d: [...BOOK_OPEN, "M12 6c.4-1.8.9-3 1.4-4v14c-.5 1-1 2.2-1.4 4"], ms: 0, morph: 170 },
+  { d: [...BOOK_OPEN, "M12 6c-2-1.6-4-2.4-6-2.6v14c2 .2 4 1 6 2.6"], ms: 30, morph: 120 },
+  { d: BOOK_OPEN, ms: 0, morph: 120 },
+  { d: [...BOOK_OPEN, "M12 6c2-1.6 4-2.4 6-2.6v14c-2 .2-4 1-6 2.6"], ms: 30, morph: 170 },
+  { d: [...BOOK_OPEN, "M12 6c.4-1.8.9-3 1.4-4v14c-.5 1-1 2.2-1.4 4"], ms: 0, morph: 170 },
+  { d: [...BOOK_OPEN, "M12 6c-2-1.6-4-2.4-6-2.6v14c2 .2 4 1 6 2.6"], ms: 30, morph: 120 },
+  { d: BOOK_OPEN, ms: 0, morph: 120 },
+  { d: [...BOOK_OPEN, "M12 6c2-1.6 4-2.4 6-2.6v14c-2 .2-4 1-6 2.6"], ms: 30, morph: 170 },
+  { d: [...BOOK_OPEN, "M12 6c.4-1.8.9-3 1.4-4v14c-.5 1-1 2.2-1.4 4"], ms: 0, morph: 170 },
+  { d: [...BOOK_OPEN, "M12 6c-2-1.6-4-2.4-6-2.6v14c2 .2 4 1 6 2.6"], ms: 30, morph: 120 },
+  { d: BOOK_OPEN, ms: 0, morph: 120 },
   { d: BOOK_OPEN, ms: 260 },
 ];
 
@@ -125,15 +131,107 @@ function Glyph({ d, active }: { d: string[]; active?: boolean }) {
   );
 }
 
+// The glyph morphs from one stage to the next: every stage is split into its
+// strokes, each stroke resampled into POINTS points (getPointAtLength), and the
+// points interpolated frame by frame. Stages with fewer strokes pad with
+// invisible ones, which fade in or out. No library (see #279's findings).
+const POINTS = 40;
+const STROKES = 5;
+type Shape = { pts: [number, number][]; on: number }[];
+let shapes: Shape[] | null = null;
+
+function strokesOf(d: string[]) {
+  return d.flatMap((path) => path.split(/(?=M)/).map((x) => x.trim()).filter(Boolean));
+}
+
+function resample(d: string, probe: SVGPathElement): [number, number][] {
+  probe.setAttribute("d", d);
+  const length = probe.getTotalLength();
+  return Array.from({ length: POINTS }, (_, k) => {
+    const point = probe.getPointAtLength((length * k) / (POINTS - 1));
+    return [point.x, point.y];
+  });
+}
+
+function shapesOnce(): Shape[] {
+  if (shapes) return shapes;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  const probe = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  svg.style.position = "absolute";
+  svg.style.visibility = "hidden";
+  svg.appendChild(probe);
+  document.body.appendChild(svg);
+  shapes = FRAMES.map(({ d }) => {
+    const strokes = strokesOf(d).map((x) => ({ pts: resample(x, probe), on: 1 }));
+    // Padding strokes sit, collapsed, on the stage's centre, so they grow out of it.
+    while (strokes.length < STROKES) strokes.push({ pts: Array.from({ length: POINTS }, () => [12, 12] as [number, number]), on: 0 });
+    return strokes.slice(0, STROKES);
+  });
+  svg.remove();
+  return shapes;
+}
+
+const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+const toPath = (pts: [number, number][]) => "M" + pts.map(([x, y]) => `${x.toFixed(2)} ${y.toFixed(2)}`).join("L");
+
 function Spinner() {
-  const [i, setI] = useState(0);
+  const ref = useRef<SVGSVGElement>(null);
   const [still, setStill] = useState(false);
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return setStill(true);
-    const id = window.setTimeout(() => setI((n) => (n + 1) % FRAMES.length), FRAMES[i].ms);
-    return () => window.clearTimeout(id);
-  }, [i]);
-  return <Glyph d={still ? TASKS : FRAMES[i].d} active />;
+    const all = shapesOnce();
+    const paths = [...(ref.current?.querySelectorAll("path") ?? [])];
+    // Each stage holds for its ms, then morphs into the next over MORPH ms.
+    const MORPH = 280;
+    const morphOf = (k: number) => FRAMES[k].morph ?? MORPH;
+    const starts: number[] = [];
+    let total = 0;
+    FRAMES.forEach((f, k) => {
+      starts.push(total);
+      total += f.ms + morphOf(k);
+    });
+    let raf = 0;
+    const t0 = performance.now();
+    const tick = (now: number) => {
+      const t = (now - t0) % total;
+      let i = starts.findIndex((st, k) => t >= st && t < (starts[k + 1] ?? total));
+      if (i < 0) i = 0;
+      const into = t - starts[i];
+      const from = all[i];
+      const to = all[(i + 1) % all.length];
+      const m = into <= FRAMES[i].ms ? 0 : ease(Math.min(1, (into - FRAMES[i].ms) / morphOf(i)));
+      paths.forEach((el, k) => {
+        const a = from[k];
+        const b = to[k];
+        const pts = a.pts.map(([x, y], j) => [x + (b.pts[j][0] - x) * m, y + (b.pts[j][1] - y) * m] as [number, number]);
+        el.setAttribute("d", toPath(pts));
+        el.setAttribute("opacity", String(a.on + (b.on - a.on) * m));
+      });
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  if (still) return <Glyph d={TASKS} active />;
+  return (
+    <svg
+      ref={ref}
+      aria-hidden
+      viewBox="0 0 24 24"
+      width="1.15em"
+      height="1.15em"
+      fill="none"
+      stroke="#d97757"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ flex: "none", verticalAlign: "-0.2em" }}
+    >
+      {Array.from({ length: STROKES }, (_, k) => (
+        <path key={k} />
+      ))}
+    </svg>
+  );
 }
 
 const COACH: Element = { what: "Coach IA (panneau)", sources: ["Votre CV de référence", "Votre Profil"], model: "claude-sonnet-5 (Bedrock eu-north-1)", tools: ["Recherche web (Perplexity)", "Lecture de page"] };
@@ -378,9 +476,18 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
   const sources = uniq(elements.flatMap((e) => e.sources));
   const tools = uniq(elements.flatMap((e) => e.tools ?? []));
   const toggle = (
-    <button type="button" className="button button-quiet" aria-expanded={open} aria-controls="proto-provenance-pane" onClick={() => setOpen(!open)} style={{ display: "inline-flex", gap: "0.4em", alignItems: "center" }}>
-      {run.running ? <Spinner /> : <Glyph d={TASKS} />} {run.running ? "Recherche en cours…" : "Sources et IA"}
-      {allModels.length ? ` · ${allModels.length}` : ""}
+    <button
+      type="button"
+      className="button"
+      aria-expanded={open}
+      aria-controls="proto-provenance-pane"
+      // Icon only, as asked: the name lives in aria-label and the tooltip (ADR-0009 wants a visible label: to settle in #317).
+      aria-label={run.running ? "Recherche en cours : sources, modèles et outils" : "Sources, modèles et outils de cette page"}
+      title={run.running ? "Recherche en cours…" : "Sources, modèles et outils"}
+      onClick={() => setOpen(!open)}
+      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: "var(--control-height)", paddingInline: "0.6rem", fontSize: "1.1rem" }}
+    >
+      {run.running ? <Spinner /> : <Glyph d={TASKS} />}
     </button>
   );
   return (

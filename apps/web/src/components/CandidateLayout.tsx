@@ -1,8 +1,9 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { currentIsAdministrator } from "@/admin/server";
 import { getBilling, getPaymentFailedNotice } from "@/billing/server";
 import { usageMeter, type UsageMeter } from "@/billing/usage-meter";
 import { JobSearchNotifications } from "@/components/JobSearchNotifications";
+import { PrototypeAiProvenanceBar } from "@/components/PrototypeAiProvenanceBar";
 import { PaymentFailedBanner } from "@/components/PaymentFailedNotice";
 import { SidebarLayout } from "@/components/SidebarLayout";
 import { getRequestLocale } from "@/i18n/server";
@@ -67,6 +68,10 @@ export async function CandidateLayout({
       {paymentFailed ? <PaymentFailedBanner notice={paymentFailed} /> : null}
       {jobSearchNotifications ? <JobSearchNotifications initial={jobSearchNotifications} /> : null}
       {children}
+      {/* PROTOTYPE: sources and AI models bar, throwaway */}
+      <Suspense fallback={null}>
+        <PrototypeAiProvenanceBar />
+      </Suspense>
     </SidebarLayout>
   );
 }

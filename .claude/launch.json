@@ -1,0 +1,21 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-proto",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "next",
+        "dev",
+        "apps/web",
+        "-p",
+        "3100"
+      ],
+      "port": 3100,
+      "env": {
+        "APP_URL": "http://localhost:3100",
+        "MAIL_TRANSPORT": "console"
+      }
+    }
+  ]
+}

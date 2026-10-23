@@ -129,6 +129,29 @@ export function storableProvenance(provenance: Provenance): Provenance {
   return provenanceSchema.parse({ ...provenance, steps });
 }
 
+/**
+ * One content's Provenance made of two actions, `later` run after `earlier` (a Job Offer: the search that found it,
+ * then its page read; or its reading, then its summary written another day): the steps of both in order, each site
+ * once with the links of both, the first start, and the time both took (their wall-clock times summed, never the
+ * time between them). Either may be none, made before Provenance was kept; both none is none.
+ */
+export function joinProvenance(earlier: Provenance | null, later: Provenance | null): Provenance | null {
+  if (!earlier || !later) return earlier ?? later;
+  const sites = structuredClone(earlier.sites);
+  for (const site of later.sites) {
+    const same = sites.find((other) => other.kind === site.kind && (other.kind === "candidate" || (site.kind === "web" && other.domain === site.domain)));
+    if (same) same.links = [...new Set([...same.links, ...site.links])];
+    else sites.push(structuredClone(site));
+  }
+  return {
+    v: 1,
+    steps: [...earlier.steps, ...later.steps],
+    sites,
+    startedAt: earlier.startedAt <= later.startedAt ? earlier.startedAt : later.startedAt,
+    wallMs: earlier.wallMs + later.wallMs,
+  };
+}
+
 /** What a step is before it ends: its Activity and what it runs, never its model (the AI layer picks the route as it sends). */
 export type StartedStep = {
   [K in ProvenanceStep["kind"]]: Omit<Extract<ProvenanceStep, { kind: K }>, "ms" | "outcome" | "count" | "provider" | "endpoint" | "model" | "tokens">;

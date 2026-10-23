@@ -77,6 +77,7 @@ export function createProvenanceRecorder(ai: AiLayer, options: ProvenanceRecorde
   let lastId = 0;
   const action: Action = {
     now,
+    signal: options.signal,
     nextId: () => ++lastId,
     emit(event) {
       try {
@@ -89,9 +90,11 @@ export function createProvenanceRecorder(ai: AiLayer, options: ProvenanceRecorde
   return recorderOf(ai, action, []);
 }
 
-/** What the recorders of one action share: its clock, its event ids and its sink. */
+/** What the recorders of one action share: its clock, its Stop, its event ids and its sink. */
 interface Action {
   now: () => Date;
+  /** The action's Stop: every AI call of every recorder of the action (its parts too) is sent with it. */
+  signal?: AbortSignal;
   nextId: () => number;
   emit: (event: ProvenanceEvent) => void;
 }
@@ -146,9 +149,9 @@ function recorderOf(ai: AiLayer, action: Action, wider: readonly Kept[]): Proven
 
   /** The request with the action's signal besides its own. */
   function stoppable<R extends { signal?: AbortSignal }>(request: R): R {
-    const action = options.signal;
-    if (!action) return request;
-    return { ...request, signal: request.signal ? AbortSignal.any([request.signal, action]) : action };
+    const stop = action.signal;
+    if (!stop) return request;
+    return { ...request, signal: request.signal ? AbortSignal.any([request.signal, stop]) : stop };
   }
 
   function layer(activity?: Activity): AiLayer {

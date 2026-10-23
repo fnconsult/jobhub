@@ -154,6 +154,22 @@ describe("a ProvenanceRecorder", () => {
     ]);
   });
 
+  it("stops the AI calls of the action's parts with the action's signal too (#328)", async () => {
+    const provider = createFakeProvider({ pending: true });
+    const pending = createAiLayer({ providers: [provider], routes: { writing: "anthropic" }, usage: createMemoryUsageLog() });
+    const stop = new AbortController();
+    const recorder = createProvenanceRecorder(pending, { signal: stop.signal });
+    const part = recorder.part();
+
+    const writing = part.ai.generate({ task: "writing", candidateId: null, prompt: "Lettre" });
+    await vi.waitFor(() => expect(provider.calls).toHaveLength(1));
+    stop.abort();
+    await expect(writing).rejects.toBeDefined();
+
+    expect(provider.calls[0]?.signal?.aborted).toBe(true);
+    expect(part.provenance().steps).toMatchObject([{ kind: "ai", task: "writing", outcome: "stopped" }]);
+  });
+
   it("emits step_started and step_ended for each call, to its sink", async () => {
     const events: ProvenanceEvent[] = [];
     const recorder = createProvenanceRecorder(aiLayer(), { onEvent: (event) => events.push(event), now: steppingClock() });

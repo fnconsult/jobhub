@@ -90,7 +90,7 @@ const TOKENS: Record<string, number> = {
   "CV de référence (lecture du CV importé)": 6740,
 };
 const withTokens = (elements: Element[]) =>
-  elements.map((e) => (e.model && !e.model.startsWith("règles") ? { ...e, tokens: TOKENS[e.what] ?? 1500, ms: MS[e.what] ?? 3000 } : e));
+  elements.map((e) => (e.model && !e.model.startsWith("règles") ? { ...e, tokens: e.tokens ?? TOKENS[e.what] ?? 1500, ms: e.ms ?? MS[e.what] ?? 3000 } : e));
 // Tokens, the k stuck to the number from 1 000 on: « 312 », « 2,1k », « 27,4k ».
 const fmt = (n: number) => (n < 1000 ? `${n}` : `${(n / 1000).toLocaleString("fr-FR", { maximumFractionDigits: n < 100_000 ? 1 : 0 })}k`);
 // Tokens and time on one line: « 2,1k · 6,4 s ».
@@ -680,7 +680,7 @@ const dim: CSSProperties = { color: "var(--color-text-secondary)" };
 // What a value is used by, for the right-hand column of a summary row.
 const usedBy = (elements: Element[], has: (e: Element) => boolean) => elements.filter(has).map((e) => e.what).join(", ");
 
-function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean; run: Run }) {
+function VariantD({ elements, tiny, run, coach }: { elements: Element[]; tiny: boolean; run: Run; coach: CoachLive }) {
   const [open, setOpen] = useState(true);
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   useEffect(() => {
@@ -721,7 +721,10 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
     run.log.filter((x) => x.tool === t && !x.model).reduce((n, x) => n + x.ms, 0);
   const runTools = uniq(run.log.filter((x) => x.tool).map((x) => x.tool!));
   // What the run is doing now: the first step not yet finished.
-  const current = run.running ? RUNS[run.kind].steps[run.log.length] : undefined;
+  const pageStep = run.running ? RUNS[run.kind].steps[run.log.length] : undefined;
+  const coachStage = coach?.stages[coach.stages.length - 1];
+  // The glyph follows the page's action, or else the Coach's reply on its way.
+  const current = pageStep ?? (coachStage ? { activity: coachStage.activity, doing: `Coach : ${coachStage.doing.charAt(0).toLowerCase()}${coachStage.doing.slice(1)}` } : undefined);
   const sources = uniq(elements.flatMap((e) => e.sources));
   const tools = uniq([...elements.flatMap((e) => e.tools ?? []), ...runTools]);
   // Closed, the words of what the icon shows sit left of its frame, outside it.
@@ -815,6 +818,24 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
               ✕
             </button>
           </header>
+          {coach ? (
+            <section aria-live="polite" style={{ padding: "0.5em 0", borderBottom: "1px solid var(--color-border)" }}>
+              <div style={{ ...row, color: "var(--color-text-secondary)" }}>
+                <span>
+                  {coachStage ? <Spinner activity={coachStage.activity} /> : null} Coach : réponse en cours
+                </span>
+              </div>
+              <div style={{ ...dim, fontSize: "0.92em", padding: "0.1em 0 0.3em" }}>« {coach.question} »</div>
+              <ol style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                {coach.stages.map((x, k) => (
+                  <li key={x.doing} style={{ ...row, justifyContent: "flex-start", gap: "0.4em", animation: "proto-fade-in 300ms ease-out" }}>
+                    {k === coach.stages.length - 1 ? <Spinner activity={x.activity} /> : <span style={{ width: "1.15em", textAlign: "center" }}>✓</span>}
+                    <span>{x.doing}</span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
           {run.running || run.log.length ? (
             <section aria-live="polite" style={{ padding: "0.5em 0" }}>
               <div style={{ ...row, color: "var(--color-text-secondary)" }}>
@@ -950,6 +971,32 @@ function useWorkspaceBox() {
   }, []);
 }
 
+// The Coach's replies, as the tasks pane sees them: the one on its way (its stages so
+// far) and those done, which join the page's elements and totals.
+type CoachLive = { question: string; stages: ReplyStage[] } | null;
+function useCoachFeed() {
+  const [live, setLive] = useState<CoachLive>(null);
+  const [done, setDone] = useState<(ProtoReplyResult & { question: string })[]>([]);
+  useEffect(() => {
+    const step = (event: Event) => {
+      const { question, stage, index } = (event as CustomEvent<{ question: string; stage: ReplyStage; index: number }>).detail;
+      setLive((l) => ({ question, stages: index === 0 || !l || l.question !== question ? [stage] : [...l.stages.slice(0, index), stage] }));
+    };
+    const finish = (event: Event) => {
+      const detail = (event as CustomEvent<ProtoReplyResult & { question: string }>).detail;
+      setLive(null);
+      setDone((d) => [...d, detail]);
+    };
+    window.addEventListener("proto-coach-step", step);
+    window.addEventListener("proto-coach-done", finish);
+    return () => {
+      window.removeEventListener("proto-coach-step", step);
+      window.removeEventListener("proto-coach-done", finish);
+    };
+  }, []);
+  return { live, done };
+}
+
 // Two exchanges in turn: a plain question, then one that makes the Coach search the web.
 const COACH_DEMOS = [
   { question: "Comment présenter ma reconversion dans ma lettre ?", reply: "Commencez par ce qui relie vos deux métiers : la gestion d'équipe et le pilotage budgétaire. Puis dites en une phrase pourquoi vous changez, sans vous justifier.", ms: 4600 },
@@ -969,7 +1016,18 @@ export function PrototypeAiProvenanceBar() {
   const variant: Key = raw && raw in VARIANTS ? (raw as Key) : "D";
   const withCoach = params.get("coach") === "1";
   shiftDays = params.get("lendemain") === "1" ? 1 : 0;
-  const elements = withTokens([...stubFor(pathname), ...(withCoach ? [COACH] : [])]);
+  const coach = useCoachFeed();
+  // The page's own content, combined with what the Coach answered on it.
+  const coachElements: Element[] = coach.done.map((r) => ({
+    what: `Coach IA · « ${r.question.length > 38 ? `${r.question.slice(0, 38)}…` : r.question} »`,
+    sources: r.sources,
+    model: r.model,
+    tools: r.tools,
+    at: r.at,
+    tokens: r.tokens,
+    ms: r.ms,
+  }));
+  const elements = withTokens([...stubFor(pathname), ...(withCoach ? [COACH] : []), ...coachElements]);
   const runParam = params.get("run");
   const { run, start } = useSimulatedRun(runParam === "1" ? "search" : runParam === "docs" ? "docs" : null);
 
@@ -997,7 +1055,7 @@ export function PrototypeAiProvenanceBar() {
       {variant === "A" ? <VariantA elements={elements} /> : null}
       {variant === "B" ? <VariantB elements={elements} /> : null}
       {variant === "C" ? <VariantC elements={elements} /> : null}
-      {variant === "D" ? <VariantD elements={elements} tiny={params.get("size") === "9"} run={run} /> : null}
+      {variant === "D" ? <VariantD elements={elements} tiny={params.get("size") === "9"} run={run} coach={coach.live} /> : null}
       <div
         style={{ position: "fixed", left: "50%", bottom: 64, transform: "translateX(-50%)", zIndex: 50, display: "flex", gap: 8, alignItems: "center", padding: "6px 12px", borderRadius: 999, background: "#111", color: "#fff", fontSize: 14, boxShadow: "0 4px 16px rgb(0 0 0 / 30%)" }}
       >
@@ -1052,10 +1110,12 @@ export function PrototypeReplyActivity({ question }: { question: string }) {
   const stages = wantsSearch(question) ? REPLY_STAGES_SEARCH : REPLY_STAGES;
   const [i, setI] = useState(0);
   useEffect(() => {
+    // The tasks pane follows the Coach: each stage is announced as it starts.
+    window.dispatchEvent(new CustomEvent("proto-coach-step", { detail: { question, stage: stages[i], index: i } }));
     if (i >= stages.length - 1) return;
     const id = window.setTimeout(() => setI(i + 1), stages[i].ms);
     return () => window.clearTimeout(id);
-  }, [i, stages]);
+  }, [i, stages, question]);
   if (process.env.NODE_ENV === "production") return null;
   const stage = stages[i];
   return (

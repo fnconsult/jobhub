@@ -289,10 +289,12 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
       setStatus("sending");
       setMessages((m) => [...m, { from: "candidate", text: question }]);
       window.setTimeout(() => {
+        const result = protoResultFor(question);
         setMessages((m) => {
-          setProtoResults((r) => ({ ...r, [m.length]: protoResultFor(question) }));
+          setProtoResults((r) => ({ ...r, [m.length]: result }));
           return [...m, { from: "coach", text: reply }];
         });
+        window.dispatchEvent(new CustomEvent("proto-coach-done", { detail: { ...result, question } }));
         setStatus("idle");
       }, ms);
     };
@@ -454,7 +456,9 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
           { from: "candidate", text, ...(blocked?.message ? { blocked: true as const } : {}) },
           { from: "coach", text: body.reply, ...(blocked?.reply ? { blocked: true as const } : {}), ...(body.jobOffer ? { jobOffer: body.jobOffer as JobOfferCardData } : {}) },
         ]);
-        setProtoResults((r) => ({ ...r, [messages.length + 1]: protoResultFor(text) }));
+        const result = protoResultFor(text);
+        setProtoResults((r) => ({ ...r, [messages.length + 1]: result }));
+        window.dispatchEvent(new CustomEvent("proto-coach-done", { detail: { ...result, question: text } }));
         setStatus("idle");
       } else if (response.status === 404) {
         // Deleted meanwhile (another tab, or kept past its 12 months): the message starts a new one.

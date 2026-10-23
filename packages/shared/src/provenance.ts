@@ -114,3 +114,30 @@ export function readProvenance(stored: unknown): Provenance | null {
   const parsed = provenanceSchema.safeParse(stored);
   return parsed.success ? parsed.data : null;
 }
+
+/**
+ * The Provenance as it may be stored: an AI step's provider, endpoint or model whose shape is not one a Provenance
+ * keeps is left out (a provider answering with an odd model id), and each site keeps the links the link filter allows.
+ */
+export function storableProvenance(provenance: Provenance): Provenance {
+  const steps = provenance.steps.map((stored) => {
+    if (stored.kind !== "ai") return stored;
+    const kept = { ...stored };
+    if (kept.provider !== undefined && !AI_PROVIDERS.has(kept.provider)) delete kept.provider;
+    if (kept.endpoint !== undefined && !identifier(ENDPOINT).safeParse(kept.endpoint).success) delete kept.endpoint;
+    if (kept.model !== undefined && !identifier(MODEL).safeParse(kept.model).success) delete kept.model;
+    return kept;
+  });
+  return provenanceSchema.parse({ ...provenance, steps });
+}
+
+/** What a step is before it ends: its Activity and what it runs, never its model (the AI layer picks the route as it sends). */
+export type StartedStep = {
+  [K in ProvenanceStep["kind"]]: Omit<Extract<ProvenanceStep, { kind: K }>, "ms" | "outcome" | "count" | "provider" | "endpoint" | "model" | "tokens">;
+}[ProvenanceStep["kind"]];
+
+/**
+ * The live events of an action's steps, the same over every transport (#319 §4): each call starts and ends once,
+ * by its `id` within the action, before it is folded into the stored Provenance.
+ */
+export type ProvenanceEvent = { type: "step_started"; id: number; step: StartedStep } | { type: "step_ended"; id: number; step: ProvenanceStep };

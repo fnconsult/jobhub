@@ -14,6 +14,7 @@ export function renderDesignCss(tokens: DesignTokens): string {
   const vars = [
     ...Object.entries(tokens.color).map(([k, v]) => `--color-${kebab(k)}: ${v};`),
     ...Object.entries(tokens.fontSize).map(([k, v]) => `--font-size-${k}: ${rem(v, base)};`),
+    `--font-size-meta: ${rem(tokens.metaFontSize, base)};`,
     ...Object.entries(tokens.lineHeight).map(([k, v]) => `--line-height-${k}: ${v};`),
     ...Object.entries(tokens.radius).map(([k, v]) => `--radius-${k}: ${v}px;`),
     ...Object.entries(tokens.space).map(([k, v]) => `--space-${k}: ${rem(v, base)};`),

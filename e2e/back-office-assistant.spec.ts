@@ -58,6 +58,9 @@ test.describe("Back Office Assistant", () => {
     await openAssistant(page);
     await expect(assistant(page)).toContainText(assistantTexts.welcome);
     await expect(assistant(page)).toContainText(assistantTexts.readOnly);
+    // It says it is an AI (#324): « Assistant IA » by the message box, and as the panel's title.
+    await expect(assistant(page).locator("form").getByText(assistantTexts.badge, { exact: true })).toBeVisible();
+    await expect(assistant(page).getByRole("heading", { level: 2, name: assistantTexts.title })).toBeVisible();
     // Only one panel is mounted on a Back Office page: the assistant, not the Candidate's Coach Panel too.
     // Each panel renders a floating button, and the open assistant's steps aside: none is left.
     await expect(page.locator(".coach-panel-toggle-floating")).toHaveCount(0);

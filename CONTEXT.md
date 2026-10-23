@@ -52,6 +52,10 @@ _Avoid_: Temporary account, trial
 The AI agent persona that guides the Candidate through onboarding, CV improvement, job search, application preparation and follow-up. It always says it is an AI and not a person (AI Act art. 50(1)): a fixed first message in every Coach Conversation, a « Coach IA » badge by the message box and as the Coach Panel's title, and a truthful answer when asked. Its replies show no author name; each is followed by its Provenance.
 _Avoid_: Bot, assistant, agent (in user-facing language)
 
+**AI disclosure**:
+The AI Coach's fixed first message in a new Coach Conversation, saying it is an AI and not a person and that a Human Coach can be booked. Shown by the Coach Panel, not sent by the AI Coach: no AI call, no Plan Quota use, no Coach Message Cost, and not in the Coach context. A Coach Conversation made before it was introduced has none.
+_Avoid_: Welcome message
+
 **Human Coach**:
 A real HR professional, selected by Jobbbox, whom a Candidate can book for paid sessions on top of the AI Coach.
 _Avoid_: Advisor, consultant, recruiter

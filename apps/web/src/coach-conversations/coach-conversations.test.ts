@@ -97,6 +97,24 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     ]);
   });
 
+  it("opens every new conversation with the AI Coach saying it is an AI (#324), without asking the AI Coach for it", async () => {
+    const sent = await conversations.send(marie, { message: "Bonjour" });
+    if (!sent.ok) throw new Error("refused");
+
+    expect(await conversations.open(marie, sent.conversation.id)).toMatchObject({ aiDisclosure: true, messages: [{ from: "candidate" }, { from: "coach" }] });
+    expect(asked).toHaveLength(1);
+    expect(asked[0]!.input.messages).toEqual([{ from: "candidate", text: "Bonjour" }]);
+  });
+
+  it("does not add the AI disclosure to a conversation saved before it existed", async () => {
+    const { rows } = await database.query<{ id: string }>(`INSERT INTO coach_conversation (candidate_id, title) VALUES ($1, 'Ancienne') RETURNING id`, [marie]);
+    const id = rows[0]!.id;
+
+    await conversations.send(marie, { conversationId: id, message: "Toujours là ?" });
+
+    expect(await conversations.open(marie, id)).toMatchObject({ aiDisclosure: false });
+  });
+
   it("keeps several conversations per Candidate, most recently active first, each attached to the Profile in view when it started", async () => {
     const profile = await createProfiles(database).create(marie, { masterCv, searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] } });
     if (!profile.ok) throw new Error("fixture refused");

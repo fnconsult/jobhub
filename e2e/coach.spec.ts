@@ -242,7 +242,7 @@ test.describe("the Coach Panel", () => {
     // On the account page, no Profile is in view.
     await page.goto("/compte");
     await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
-    await expect(coachPanel(page)).toContainText(fr.coachPanel.welcome);
+    await expect(coachPanel(page)).toContainText(fr.coachPanel.aiDisclosure);
     await expect(coachPanel(page)).toContainText(fr.coachPanel.nothingInView);
     await expect(coachPanel(page).getByLabel(fr.coachPanel.messageLabel)).toBeFocused();
     await askCoach(page, "Bonjour");

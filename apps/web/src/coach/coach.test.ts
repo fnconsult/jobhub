@@ -301,6 +301,15 @@ describe("talking with the AI Coach in the Coach Panel", () => {
     expect(usage.entries).toMatchObject([{ candidateId: "marie", task: "coaching" }]);
   });
 
+  it("is told, in its own instructions rather than a Coaching Playbook, to answer truthfully that it is an AI whenever asked (#324)", async () => {
+    const { coach, provider } = coachWith();
+
+    await coach.reply("marie", { messages: [{ from: "candidate", text: "Vous êtes une vraie personne ?" }] });
+
+    expect(contextOf(provider)).toContain("Tu es une intelligence artificielle, pas une personne");
+    expect(contextOf(provider)).toMatch(/ne prétends jamais être humain/);
+  });
+
   it("says what its reply cost: the provider and model, the tokens in, out and cached, and the estimated cost in €", async () => {
     const provider = createFakeProvider({ id: "mistral", reply: "Bonjour", usage: { inputTokens: 1_000, outputTokens: 200, cachedInputTokens: 3_000 } });
     const ai = createAiLayer({ providers: [provider], routes: { coaching: { provider: "mistral", model: "mistral-large-latest" } }, usage: createMemoryUsageLog() });

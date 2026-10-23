@@ -470,6 +470,15 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   border-bottom: 1px solid var(--color-border);
 }
 
+/* The panel's title, « Coach IA »: says the AI is an AI at every width (AI Act art. 50(1), #324). */
+.coach-panel-title {
+  flex: none;
+  margin: 0;
+  padding-inline: var(--space-2);
+  font-size: var(--font-size-h3);
+  white-space: nowrap;
+}
+
 /* The panel's one menu: the conversation's title. */
 .coach-panel-menu-button {
   display: inline-flex;
@@ -603,8 +612,12 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   color: var(--color-text-secondary);
 }
 
-.coach-panel-composer .button {
-  align-self: flex-end;
+/* Under the message: the « Coach IA » badge (#324), then Send. */
+.coach-panel-composer-actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
 }
 
 /* What goes with the message: one line, opened for the whole text. */

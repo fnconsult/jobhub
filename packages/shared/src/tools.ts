@@ -83,6 +83,11 @@ export interface Tool {
   residency: ToolResidency;
   /** What the residency depends on, when it does. */
   residencyNote?: Translated;
+  /**
+   * Its logo, one of the web app's own assets, shown by AI Activity: set only once its owner allowed it in writing
+   * (#318). None by default: AI Activity then names the Tool in text. Never a third-party favicon.
+   */
+  logo?: `/logos/${string}`;
 }
 
 const ANTHROPIC_MODULE = "packages/ai/src/providers/anthropic.ts";

@@ -688,17 +688,17 @@ const dim: CSSProperties = { color: "var(--color-text-secondary)" };
 // What a value is used by, for the right-hand column of a summary row.
 const usedBy = (elements: Element[], has: (e: Element) => boolean) => elements.filter(has).map((e) => e.what).join(", ");
 
-// The pane's « Arrêter »: quiet, framed, beside the live section's title.
+// « Arrêter » in the tasks: the stop icon alone, named by aria-label and a tooltip (the user's request).
 function StopButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={label}
-      style={{ font: "inherit", fontSize: "0.92em", display: "inline-flex", gap: "0.35em", alignItems: "center", padding: "0.1em 0.6em", background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", cursor: "pointer", color: "var(--color-text)" }}
+      title="Arrêter"
+      style={{ flex: "none", display: "inline-flex", alignItems: "center", justifyContent: "center", width: "1.7em", height: "1.7em", padding: 0, background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", cursor: "pointer", color: "var(--color-text)" }}
     >
       <span aria-hidden style={{ width: "0.6em", height: "0.6em", background: "currentColor", borderRadius: 1 }} />
-      Arrêter
     </button>
   );
 }
@@ -761,6 +761,13 @@ function VariantD({ elements, tiny, run, coach, onStop }: { elements: Element[];
       >
         {words}
       </span>
+    ) : null}
+    {/* Closed, while something runs: its stop icon beside the words (the user's request; #316 had none here). */}
+    {!open && current ? (
+      <StopButton
+        onClick={pageStep ? onStop : () => window.dispatchEvent(new Event("proto-coach-stop"))}
+        label={`Arrêter : ${current.doing}`}
+      />
     ) : null}
     <button
       id="proto-tasks-toggle"

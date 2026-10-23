@@ -489,6 +489,55 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       });
     });
   });
+  describe("stopping a Job Search (#331)", () => {
+    const used = async () => (await billing.entitlements(candidateId)).usedThisWeek.jobSearches;
+    let reports: ReturnType<typeof createJobSearchReports>;
+    beforeEach(() => {
+      reports = createJobSearchReports(testAuth.auth.options.database as Pool, { quotas: billing, now: () => clock.now });
+    });
+
+    it("stopped mid-search, it is 'stopped', with the Job Offers found so far and the Provenance of the steps it finished", async () => {
+      const daf = await capture("DAF H/F", { location: "Lyon" });
+      const jobSearch = await started();
+      const provenance: Provenance = {
+        v: 1,
+        steps: [
+          { kind: "tool", activity: "search", tool: "france-travail", ms: 640, at: "2026-10-15T08:00:02.200Z", outcome: "ok", count: 1 },
+          { kind: "ai", activity: "web_search", task: "web_search", ms: 300, at: "2026-10-15T08:00:03.000Z", outcome: "stopped", count: 1 },
+        ],
+        sites: [],
+        startedAt: "2026-10-15T08:00:00.000Z",
+        wallMs: 3400,
+      };
+
+      await reports.record(jobSearch.id, { stopped: true, jobOfferIds: [daf], provenance });
+
+      expect(await jobSearches.get(candidateId, jobSearch.id)).toMatchObject({ status: "stopped", failure: null, results: [{ jobOffer: { id: daf } }], provenance });
+      expect(await jobSearches.notifications(candidateId)).toMatchObject({ searching: false, running: [] });
+    });
+
+    it("stopped with no Job Offer kept, it gives its use back; with Job Offers kept, it counts", async () => {
+      const daf = await capture("DAF H/F", { location: "Lyon" });
+      const empty = await started();
+      const kept = await started();
+
+      await reports.record(empty.id, { stopped: true, jobOfferIds: [] });
+      await reports.record(empty.id, { stopped: true, jobOfferIds: [] });
+      await reports.record(kept.id, { stopped: true, jobOfferIds: [daf] });
+
+      expect(await used()).toBe(1);
+    });
+
+    it("failed part-way, it keeps the Job Offers it had found (regression: they were dropped)", async () => {
+      const daf = await capture("DAF H/F", { location: "Lyon" });
+      const jobSearch = await started();
+
+      await reports.record(jobSearch.id, { failed: "discovery_failed", jobOfferIds: [daf] });
+
+      expect(await jobSearches.get(candidateId, jobSearch.id)).toMatchObject({ status: "failed", failure: "discovery_failed", results: [{ jobOffer: { id: daf } }] });
+    });
+  });
+
   describe("a Job Search's Provenance and live progress (#330)", () => {
     const at = "2026-10-15T08:00:01.000Z";
     const titles: ProvenanceEvent = { type: "step_started", id: 1, step: { kind: "ai", activity: "think", task: "job_titles", at } };

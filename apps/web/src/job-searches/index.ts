@@ -58,7 +58,8 @@ export const JOB_DISCOVERY_QUEUE = "job-discovery.run";
 /** How long a Job Search may wait for the worker before it is shown as failed. */
 export const SEARCH_TIMEOUT_MS = 15 * 60 * 1000;
 
-export type JobSearchStatus = "searching" | "done" | "failed";
+/** `stopped`: the Candidate stopped it while it searched (#331); it keeps what it had found. */
+export type JobSearchStatus = "searching" | "done" | "failed" | "stopped";
 
 /** Why a Job Search failed. */
 export type JobSearchFailure = "timeout" | "queue_unavailable" | "profile_unavailable" | "unavailable" | "discovery_failed" | "other";
@@ -88,7 +89,7 @@ export interface JobSearch {
   startedAt: Date;
   /**
    * Best Match Score first; at an equal one, dated Job Offers before undated ones, then in the order
-   * Job discovery found them. Empty until the search is done.
+   * Job discovery found them. Empty while it searches; a stopped or failed one has those it had found.
    */
   results: JobSearchResult[];
   /** Null while it is searching (and for Job Searches finished before metrics were kept). */
@@ -110,8 +111,15 @@ export type StartJobSearchResult =
   /** The Plan Quota of Job Searches is used up this week. */
   | { ok: false; error: "quota_exceeded"; refusal: Extract<QuotaDecision, { allowed: false }> };
 
-/** What Job discovery reported for a Job Search, with what it measured and the run's Provenance (none: it did not run). */
-export type JobSearchOutcome = ({ jobOfferIds: string[] } | { failed: string }) & { metrics?: DiscoveryMetrics; provenance?: Provenance };
+/**
+ * What Job discovery reported for a Job Search, with what it measured and the run's Provenance (none: it did not run):
+ * the Job Offers found, or why it failed, or that the Candidate stopped it (#331), each with the Job Offers found until then.
+ */
+export type JobSearchOutcome = (
+  | { jobOfferIds: string[] }
+  | { failed: string; jobOfferIds?: string[] }
+  | { stopped: true; jobOfferIds: string[] }
+) & { metrics?: DiscoveryMetrics; provenance?: Provenance };
 
 /** A Job Search still searching, with its live steps so far, for AI Activity on any page (« En cours ailleurs »). */
 export interface RunningJobSearch {
@@ -144,7 +152,7 @@ export interface JobSearches {
   searching(candidateId: string, profileId: string): Promise<JobSearch | null>;
   /**
    * Records the outcome of Job discovery for a Job Search still searching; later reports are ignored.
-   * A failure gives the Job Search's Plan Quota use back, at most once per Job Search.
+   * A failure, or a stop that kept no Job Offer, gives the Job Search's Plan Quota use back, at most once per Job Search.
    */
   record(jobSearchId: string, outcome: JobSearchOutcome): Promise<void>;
   /**
@@ -195,7 +203,7 @@ export async function migrateJobSearches(database: Pool): Promise<void> {
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       candidate_id text NOT NULL REFERENCES candidate (id) ON DELETE CASCADE,
       profile_id uuid NOT NULL REFERENCES profile (id) ON DELETE CASCADE,
-      status text NOT NULL DEFAULT 'searching' CHECK (status IN ('searching', 'done', 'failed')),
+      status text NOT NULL DEFAULT 'searching',
       job_offer_ids uuid[] NOT NULL DEFAULT '{}',
       failure text,
       started_at timestamptz NOT NULL,
@@ -210,6 +218,9 @@ export async function migrateJobSearches(database: Pool): Promise<void> {
     ALTER TABLE job_search ADD COLUMN IF NOT EXISTS provenance jsonb;
     -- Its live steps while it searches (each step's latest event), written by the worker; null once it is over.
     ALTER TABLE job_search ADD COLUMN IF NOT EXISTS progress jsonb;
+    -- A Job Search the Candidate stopped (#331).
+    ALTER TABLE job_search DROP CONSTRAINT IF EXISTS job_search_status_check;
+    ALTER TABLE job_search ADD CONSTRAINT job_search_status_check CHECK (status IN ('searching', 'done', 'failed', 'stopped'));
     CREATE INDEX IF NOT EXISTS job_search_candidate_profile_idx ON job_search (candidate_id, profile_id, started_at DESC);
   `);
 }
@@ -243,7 +254,9 @@ export function createJobSearchReports(
   return {
     async record(jobSearchId, outcome) {
       if (!UUID.test(jobSearchId)) return;
-      const done = "jobOfferIds" in outcome;
+      const status: JobSearchStatus = "failed" in outcome ? "failed" : "stopped" in outcome ? "stopped" : "done";
+      // A stopped or failed Job Search keeps the Job Offers it had found.
+      const jobOfferIds = (outcome.jobOfferIds ?? []).filter((id) => UUID.test(id));
       // A Provenance naming an id, or of a shape this version does not know, is not kept.
       const provenance = readProvenance(outcome.provenance);
       // Only the one report that moves the Job Search out of 'searching' gets a row back.
@@ -254,15 +267,17 @@ export function createJobSearchReports(
          RETURNING candidate_id`,
         [
           jobSearchId,
-          done ? "done" : "failed",
-          done ? outcome.jobOfferIds.filter((id) => UUID.test(id)) : [],
-          done ? null : outcome.failed,
+          status,
+          jobOfferIds,
+          "failed" in outcome ? outcome.failed : null,
           now(),
           JSON.stringify(outcome.metrics ?? noDiscoveryMetrics()),
           provenance ? JSON.stringify(provenance) : null,
         ],
       );
-      if (!done && rows[0]) await quotas.release(rows[0].candidate_id, "jobSearches");
+      // A failed Job Search is not counted; a stopped one only when it kept a Job Offer.
+      const counted = status === "done" || (status === "stopped" && jobOfferIds.length > 0);
+      if (!counted && rows[0]) await quotas.release(rows[0].candidate_id, "jobSearches");
     },
     async progress(jobSearchId, steps) {
       if (!UUID.test(jobSearchId)) return;
@@ -309,7 +324,7 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
     const status = row.status;
 
     let results: JobSearchResult[] = [];
-    if (status === "done" && row.job_offer_ids.length > 0) {
+    if (status !== "searching" && row.job_offer_ids.length > 0) {
       const [found, saved] = await Promise.all([
         Promise.all(row.job_offer_ids.map((id) => deps.jobOffers.get(id))),
         deps.applications.list(candidateId),

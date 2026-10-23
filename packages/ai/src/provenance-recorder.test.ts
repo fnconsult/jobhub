@@ -146,6 +146,7 @@ describe("a ProvenanceRecorder", () => {
     recorder.site("https://boards.greenhouse.io/acme/jobs/4567890");
     recorder.site("/profils/4b1c");
     recorder.site("/admin/outils");
+    recorder.site("http://intranet/offre/1");
 
     expect(recorder.provenance().sites).toEqual([
       { kind: "web", domain: "apec.fr", links: ["https://www.apec.fr/offre/1", "https://apec.fr/offre/2"] },

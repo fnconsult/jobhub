@@ -65,6 +65,8 @@ describe("the link filter for Provenance sites", () => {
       ["a token in the path", "https://careers.example.com/share/9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"],
       ["a signed JSON Web Token in the path", "https://careers.example.com/magic/eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.c2lnbmF0dXJl"],
       ["an address with a user and password", "https://jean:secret@careers.example.com/offer/1"],
+      ["an IP address", "http://192.168.1.10/offre/1"],
+      ["a host that is no domain", "http://intranet/offre/1"],
       ["an address too long", `https://careers.example.com/${"a/".repeat(1100)}`],
     ])("%s", (_, link) => {
       expect(provenanceLink(link)).toBeNull();

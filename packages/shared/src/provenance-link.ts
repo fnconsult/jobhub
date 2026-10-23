@@ -40,6 +40,14 @@ const TOKEN_SEGMENT = /[A-Za-z0-9+=]{32,}|eyJ[\w-]+\.[\w-]+/;
 
 const MAX_LENGTH = 2000;
 
+/** A site's domain as a Provenance site names it, e.g. `apec.fr`: a name with a top-level domain, never an IP address. */
+export const SITE_DOMAIN = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
+
+/** The site a web link the link filter kept is on, `www.` left out: `apec.fr`. */
+export function siteDomainOf(link: string): string {
+  return new URL(link).hostname.replace(/^www\./, "");
+}
+
 /** The link as a Provenance site may keep and show it, or null when it may not be kept. */
 export function provenanceLink(link: string): string | null {
   if (link.length > MAX_LENGTH) return null;
@@ -49,6 +57,7 @@ export function provenanceLink(link: string): string | null {
   if (url.protocol !== "https:" && url.protocol !== "http:") return null;
   if (url.username || url.password) return null;
   if (JOBBBOX_DOMAINS.some((domain) => isOn(url.hostname, domain))) return ownPage(url);
+  if (!SITE_DOMAIN.test(url.hostname)) return null;
   if (isPersonPage(url) && !isLinkedInOffer(url)) return null;
   if (Object.values(ENRICHMENT_HOSTS).some((host) => isOn(url.hostname, host))) return null;
   if (isTokenised(url)) return null;

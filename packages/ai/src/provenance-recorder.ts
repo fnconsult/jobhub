@@ -19,6 +19,7 @@
 import {
   failureOf,
   provenanceLink,
+  siteDomainOf,
   storableProvenance,
   type Activity,
   type Provenance,
@@ -136,7 +137,7 @@ export function createProvenanceRecorder(ai: AiLayer, options: ProvenanceRecorde
     site(link) {
       const kept = provenanceLink(link);
       if (!kept) return;
-      const site = kept.startsWith("/") ? siteOf(sites, { kind: "candidate", links: [] }) : siteOf(sites, { kind: "web", domain: new URL(kept).hostname.replace(/^www\./, ""), links: [] });
+      const site = kept.startsWith("/") ? siteOf(sites, { kind: "candidate", links: [] }) : siteOf(sites, { kind: "web", domain: siteDomainOf(kept), links: [] });
       if (!site.links.includes(kept)) site.links.push(kept);
     },
     provenance: () =>

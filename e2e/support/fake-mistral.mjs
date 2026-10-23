@@ -103,7 +103,8 @@ globalThis.fetch = async (input, init) => {
     // Only the per-reason count test (#262) asks for this, so its rate_limited count grows by its own calls alone.
     if (prompt.includes("E2E_GUARDRAIL_RATE_LIMITED")) return new Response("too many requests", { status: 429 });
     // No verdict within the check's time (#261: guardrail_timeout), and a verdict that is not JSON (invalid_verdict).
-    if (prompt.includes("E2E_GUARDRAIL_SLOW")) await new Promise((resolve) => setTimeout(resolve, 12_000));
+    // Aborted meanwhile (the Candidate's Stop, #328), it rejects with the signal's reason at once, as fetch does.
+    if (prompt.includes("E2E_GUARDRAIL_SLOW")) await answerAfter(12_000, input instanceof Request ? input.signal : init?.signal);
     if (prompt.includes("E2E_GUARDRAIL_GARBLED")) return completion(body, "this is not a verdict");
     // A provider refusing with an error that echoes the key, an email address and a long text (#259: stored scrubbed, redacted and cut).
     if (prompt.includes("E2E_GUARDRAIL_ECHO")) return new Response(`invalid key e2e-mistral-key for contact echo.person@example.fr ${"padding text ".repeat(80)}END_OF_ECHO`, { status: 400 });

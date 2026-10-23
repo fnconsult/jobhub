@@ -1,6 +1,6 @@
-import { createAiLayer, type GenerateResult, type TextInput } from "@jobhub/ai";
+import { createAiLayer, createMistralProvider, createProvenanceRecorder, type GenerateResult, type TextInput } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   ALWAYS_ON_GUARDRAILS,
   createGuardrails,
@@ -392,6 +392,39 @@ describe("a Stop during an AI check (#328)", () => {
     await expect(guardrails.guard("ai_coach", request("Bonjour", writer(["Bonjour Marie"]).reply, { signal: stop.signal }))).rejects.toMatchObject({ name: "AbortError" });
 
     await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(triggers).toEqual([]);
+  });
+
+  it("aborts the check's HTTP request through the reply's ProvenanceRecorder at once, not at the check's timeout; AI Usage records it stopped", async () => {
+    // The real AI layer and Mistral adapter, over a fetch that never answers until its request is aborted, as fetch does.
+    const requests: AbortSignal[] = [];
+    const fetch = (async (_url: string | URL | Request, init?: RequestInit) =>
+      new Promise((_, reject) => {
+        const signal = init!.signal!;
+        requests.push(signal);
+        signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+      })) as typeof globalThis.fetch;
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [createMistralProvider({ apiKey: "k", fetch })], routes: { guardrail: "mistral" }, usage });
+    const triggers: GuardrailTrigger[] = [];
+    const guardrails = createGuardrails({
+      ai,
+      config: { current: async () => ({ settings: Object.fromEntries(GUARDRAIL_IDS.map((id) => [id, "block"])) as Record<GuardrailId, GuardrailSetting>, messages: DEFAULT_GUARDRAIL_MESSAGES }) },
+      triggers: { record: (trigger) => void triggers.push(trigger) },
+      timeoutMs: 60_000,
+    });
+    const stop = new AbortController();
+    const recorder = createProvenanceRecorder(ai, { signal: stop.signal });
+
+    const guarded = guardrails.guard("ai_coach", request("Bonjour", writer(["Bonjour Marie"]).reply, { ai: recorder.ai, signal: stop.signal }));
+    await vi.waitFor(() => expect(requests).toHaveLength(1));
+    const stoppedAt = Date.now();
+    stop.abort();
+
+    await expect(guarded).rejects.toMatchObject({ name: "AbortError" });
+    expect(Date.now() - stoppedAt).toBeLessThan(500);
+    expect(requests[0]!.aborted).toBe(true);
+    expect(usage.entries).toMatchObject([{ task: "guardrail", outcome: "failed", reason: "stopped" }]);
     expect(triggers).toEqual([]);
   });
 });

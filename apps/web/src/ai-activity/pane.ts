@@ -70,7 +70,7 @@ export interface AiActivityPane {
   /** `usedBy`: the elements that used it, by their place in `elements`. */
   tools: (ActivityTool & { usedBy: number[] })[];
   elements: ActivityElement[];
-  /** What the closed button says, « 3 modèles · 10,9k tokens · 21,5 s »; null on a page with no recorded AI content (no words). */
+  /** What the closed button says, « 3 modèles · 10,9k tokens · 21,5 s »; null on a page with no recorded AI content (the button then shows its label). */
   summary: { models: number; tokens: number | null; ms: number | null } | null;
 }
 

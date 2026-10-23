@@ -66,8 +66,9 @@ function useSummary(summary: AiActivityPane["summary"]): string | null {
 }
 
 /**
- * The button: at rest the tasks icon and the page's summary (no words on a page with no AI); open, its label « Activité IA »
- * and a close icon. On a phone, its short label. Renders nothing outside AiActivityProvider.
+ * The button: at rest the tasks icon and the page's summary, or its label « Activité IA » on a page with no AI (never an
+ * icon alone, ADR-0009); open, its label and a close icon. On a phone, its short label. Renders nothing outside
+ * AiActivityProvider.
  */
 export function AiActivityButton() {
   const { t } = useTranslation();
@@ -75,10 +76,13 @@ export function AiActivityButton() {
   const summary = useSummary(control?.pane.summary ?? null);
   if (!control) return null;
   const { open, paneId, toggle, close, button } = control;
+  // The summary stands in for the label on screen only when it is shown: closed, and on a page with AI content.
+  const summarised = !open && summary !== null;
+  const className = open ? "button ai-activity-toggle ai-activity-toggle-open" : summarised ? "button ai-activity-toggle ai-activity-toggle-summarised" : "button ai-activity-toggle";
   return (
     <button
       ref={button}
-      className={open ? "button ai-activity-toggle ai-activity-toggle-open" : "button ai-activity-toggle"}
+      className={className}
       type="button"
       aria-expanded={open}
       aria-controls={paneId}
@@ -91,7 +95,7 @@ export function AiActivityButton() {
       {open ? <Icons.close /> : <Icons.aiActivity />}
       <span className="ai-activity-label">{t("aiActivity.label")}</span>
       {/* A space between them in the button's name: « Activité IA 3 modèles · … ». */}
-      {!open && summary ? <span className="ai-activity-summary"> {summary}</span> : null}
+      {summarised ? <span className="ai-activity-summary"> {summary}</span> : null}
     </button>
   );
 }

@@ -166,7 +166,7 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
       fr.nav.account,
       fr.account.signOut,
       fr.sidebar.collapse,
-      // AI Activity (#332): a page with no AI content, so its button has no words but its name.
+      // AI Activity (#332): a page with no AI content, so its button shows only its label.
       fr.aiActivity.label,
       fr.coachPanel.open,
       order[stops - 1],

@@ -85,7 +85,7 @@ describe("AI Activity's « Cette page » pane (#332)", () => {
     expect(pane.summary).toEqual({ models: 2, tokens: 3800, ms: 6400 });
   });
 
-  it("has no summary, so the closed button shows no words, on a page with no AI content, or none recorded", () => {
+  it("has no summary, so the closed button shows its label, on a page with no AI content, or none recorded", () => {
     expect(aiActivityPane([])).toMatchObject({ models: [], tools: [], sites: [], elements: [], summary: null });
     expect(aiActivityPane([activityElement("job_search", null)]).summary).toBeNull();
   });

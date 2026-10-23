@@ -155,11 +155,18 @@ test.describe("AI Activity (#332)", () => {
     await expect(button).toHaveAttribute("aria-expanded", "false");
   });
 
-  test("a page with no AI content: no words on the button, and the pane says so", async ({ page }) => {
+  test("a page with no AI content: no summary, the button shows its label « Activité IA », and the pane says so", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("ai-activity-none"));
     await page.goto("/candidatures");
     const button = aiActivityButton(page);
+    await expect(button).toHaveAttribute("aria-expanded", "false");
     await expect(button.locator(".ai-activity-summary")).toHaveCount(0);
+    // ADR-0009: never an icon alone. With no summary to read, the label is on screen at rest, not only in the name.
+    const label = button.getByText(fr.aiActivity.label, { exact: true });
+    await expect(label).toBeVisible();
+    const box = (await label.boundingBox())!;
+    expect(box.width).toBeGreaterThan(box.height);
+    expect(await label.evaluate((element) => getComputedStyle(element).clipPath)).toBe("none");
 
     await button.click();
     await expect(paneOf(page)).toContainText(fr.aiActivity.noAi);

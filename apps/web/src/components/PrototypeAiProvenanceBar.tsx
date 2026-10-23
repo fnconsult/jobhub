@@ -108,21 +108,32 @@ const RUN: Step[] = [
   { after: 14400, text: "Résumés des offres · 12", logo: "claude", model: "claude-haiku-4-5 (Bedrock eu-north-1)", tokens: 8420, ms: 13700, activity: "thinkWrite", doing: "Résumés des offres (claude-haiku-4-5)" },
   { after: 15800, text: "Match Score · 40 offres classées", logo: "règles", tool: "Calcul du Match Score", ms: 160, activity: "compute", doing: "Calcul des Match Scores" },
 ];
-export type Run = { running: boolean; log: Step[] };
+// Tailored Documents being drafted, on the Candidature's Documents section.
+const RUN_DOCS: Step[] = [
+  { after: 1800, text: "Lecture de l'offre", logo: "Lecture de page", tool: "Lecture de page", ms: 1100, activity: "read", doing: "Lecture de l'offre" },
+  { after: 3800, text: "Analyse du CV et de l'offre", logo: "claude", model: "anthropic.claude-opus-5 (Bedrock eu-north-1)", tokens: 3120, ms: 4200, activity: "think", doing: "Analyse du CV et de l'offre (claude-opus-5)" },
+  { after: 8000, text: "CV adapté rédigé", logo: "claude", model: "anthropic.claude-opus-5 (Bedrock eu-north-1)", tokens: 9870, ms: 27400, activity: "write", doing: "Rédaction du CV adapté (claude-opus-5)" },
+  { after: 11800, text: "Lettre de motivation rédigée", logo: "mistral", model: "mistral-medium (consentement IA UE)", tokens: 4310, ms: 12800, activity: "write", doing: "Rédaction de la lettre (mistral-medium)" },
+  { after: 13000, text: "Vérification : aucun fait inventé", logo: "règles", tool: "Garde-fou faits du CV", ms: 240, activity: "compute", doing: "Vérification des faits (ADR-0006)" },
+];
+const RUNS = { search: { steps: RUN, live: "Recherche d'offres en cours", done: "Dernière recherche" }, docs: { steps: RUN_DOCS, live: "Rédaction des documents en cours", done: "Derniers documents" } };
+type RunKind = keyof typeof RUNS;
+export type Run = { running: boolean; log: Step[]; kind: RunKind };
 
-function useSimulatedRun(autostart: boolean) {
-  const [run, setRun] = useState<Run>({ running: false, log: [] });
+function useSimulatedRun(autostart: RunKind | null) {
+  const [run, setRun] = useState<Run>({ running: false, log: [], kind: "search" });
   // Each start cancels the previous one's pending steps (Strict Mode runs effects twice).
   const timers = useRef<number[]>([]);
-  const start = () => {
+  const start = (kind: RunKind = "search") => {
     timers.current.forEach((id) => window.clearTimeout(id));
-    setRun({ running: true, log: [] });
-    timers.current = RUN.map((step, i) =>
-      window.setTimeout(() => setRun((r) => ({ running: i < RUN.length - 1, log: [...r.log, { ...step, at: Date.now() }] })), step.after),
+    const steps = RUNS[kind].steps;
+    setRun({ running: true, log: [], kind });
+    timers.current = steps.map((step, i) =>
+      window.setTimeout(() => setRun((r) => ({ ...r, running: i < steps.length - 1, log: [...r.log, { ...step, at: Date.now() }] })), step.after),
     );
   };
   useEffect(() => {
-    if (autostart) start();
+    if (autostart) start(autostart);
     return () => timers.current.forEach((id) => window.clearTimeout(id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -181,12 +192,25 @@ const GLOBE: Frame[] = [GLOBE_FRAME(6), GLOBE_FRAME(3.5), GLOBE_FRAME(0.6), GLOB
 // Web search: the magnifier sweeps, the globe turns, then the book of results is read.
 const SEARCH_READ: Frame[] = [SEARCH[0], SEARCH[1], SEARCH[2], ...GLOBE, ...GLOBE, { d: ["M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z", "M5 18a2 2 0 0 1 2-2h12"], ms: 120 }, ...READ, ...READ];
 
-// Feather: it writes a line that grows under it, « it writes ».
-const FEATHER = ["M20.2 3.8a6 6 0 0 0-8.5 0L6 9.5V16h6.5l5.7-5.7a6 6 0 0 0 0-8.5z", "M15 7L4 18", "M16.5 12.5H9"];
+// Feather: its nib, at (x, y), writes; drawn with relative commands so it moves whole.
+const quill = (x: number, y: number, k = 0.72) => {
+  const n = (v: number) => +(v * k).toFixed(2);
+  return [
+    `M${(x + n(16.2)).toFixed(2)} ${(y + n(-14.2)).toFixed(2)}a${n(6)} ${n(6)} 0 0 0 ${n(-8.5)} 0l${n(-5.7)} ${n(5.7)}v${n(6.5)}h${n(6.5)}l${n(5.7)} ${n(-5.7)}a${n(6)} ${n(6)} 0 0 0 0 ${n(-8.5)}z`,
+    `M${(x + n(11)).toFixed(2)} ${(y + n(-11)).toFixed(2)}l${n(-11)} ${n(11)}`,
+    `M${(x + n(12.5)).toFixed(2)} ${(y + n(-5.5)).toFixed(2)}h${n(-7.5)}`,
+  ];
+};
+const FEATHER = quill(4, 18, 1);
+// The nib runs along the line, up and down like handwriting, and the line grows behind it.
 const WRITE: Frame[] = [
-  { d: [...FEATHER, "M3 21h1"], ms: 80 },
-  { d: [...FEATHER, "M3 21h8"], ms: 60, morph: 360 },
-  { d: [...FEATHER, "M3 21h14"], ms: 120, morph: 360 },
+  // The nib travels from x 2.5 to 8.5 so the feather (about 12 wide at k 0.66) stays in the 24 grid.
+  { d: [...quill(2.5, 19.6, 0.66), "M2 21.2h.5"], ms: 60, morph: 200 },
+  { d: [...quill(3.7, 18.8, 0.66), "M2 21.2h1.7"], ms: 0, morph: 200 },
+  { d: [...quill(4.9, 19.8, 0.66), "M2 21.2h2.9"], ms: 0, morph: 200 },
+  { d: [...quill(6.1, 18.8, 0.66), "M2 21.2h4.1"], ms: 0, morph: 200 },
+  { d: [...quill(7.3, 19.8, 0.66), "M2 21.2h5.3"], ms: 0, morph: 200 },
+  { d: [...quill(8.5, 19, 0.66), "M2 21.2h6.5"], ms: 160, morph: 320 },
 ];
 
 // A model writes its text: the brain thinks, then the feather writes.
@@ -203,11 +227,11 @@ const COMPUTE: Frame[] = [
 export type Activity = "think" | "thinkWrite" | "search" | "searchRead" | "read" | "write" | "compute";
 const ACTIVITIES: Record<Activity, { frames: Frame[]; still: string[]; label: string; when: string }> = {
   think: { frames: BRAIN, still: BRAIN[0].d, label: "Réflexion", when: "un modèle raisonne ou classe (variantes de l'intitulé, Match Score par l'IA)" },
-  thinkWrite: { frames: THINK_WRITE, still: BRAIN[0].d, label: "Rédaction par un modèle", when: "un modèle écrit un texte (résumés, CV adapté, lettre, dossier)" },
+  thinkWrite: { frames: THINK_WRITE, still: BRAIN[0].d, label: "Réflexion puis rédaction", when: "un modèle écrit un texte court (résumés des offres, Dossier entreprise)" },
   search: { frames: SEARCH, still: lens(10, 10), label: "Recherche", when: "une API de recherche est appelée (France Travail, Fantastic.jobs, ATS, Recherche d'entreprises)" },
   searchRead: { frames: SEARCH_READ, still: lens(10, 10), label: "Recherche web", when: "loupe, globe, livre : une recherche web part sur le web puis lit les résultats (Perplexity)" },
   read: { frames: READ, still: BOOK_OPEN, label: "Lecture", when: "des pages d'offres ou un CV sont lus" },
-  write: { frames: WRITE, still: FEATHER, label: "Écriture", when: "un document est mis en forme (export, brouillon)" },
+  write: { frames: WRITE, still: FEATHER, label: "Rédaction d'un document", when: "un modèle rédige un document : la plume écrit (CV adapté, lettre de motivation)" },
   compute: { frames: COMPUTE, still: TASKS, label: "Calcul", when: "des règles sans IA tournent (Score ATS, Match Score)" },
 };
 
@@ -698,7 +722,7 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
     run.log.filter((x) => x.tool === t && !x.model).reduce((n, x) => n + x.ms, 0);
   const runTools = uniq(run.log.filter((x) => x.tool).map((x) => x.tool!));
   // What the run is doing now: the first step not yet finished.
-  const current = run.running ? RUN[run.log.length] : undefined;
+  const current = run.running ? RUNS[run.kind].steps[run.log.length] : undefined;
   const sources = uniq(elements.flatMap((e) => e.sources));
   const tools = uniq([...elements.flatMap((e) => e.tools ?? []), ...runTools]);
   const toggle = (
@@ -713,8 +737,14 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
       title={current ? `${current.doing}…` : "Sources, modèles et outils"}
       onClick={() => setOpen(!open)}
       // Same box as .topbar .coach-panel-toggle: no shrinking, the control height, square.
-      style={{ marginLeft: "auto", flex: "none", minHeight: "var(--control-height)", minWidth: "var(--control-height)", padding: "0 var(--space-3)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+      style={{ marginLeft: "auto", flex: "none", minHeight: "var(--control-height)", minWidth: "var(--control-height)", padding: "0 var(--space-3)", display: "inline-flex", gap: "var(--space-2)", alignItems: "center", justifyContent: "center" }}
     >
+      {/* Closed, the button says in words what the icon means (and meets ADR-0009). */}
+      {!open ? (
+        <span style={{ maxWidth: "16rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {current ? `${current.doing}…` : allModels.length ? `${allModels.length} modèle${allModels.length > 1 ? "s" : ""} · ${both(total, totalMs)}` : "Sources et IA"}
+        </span>
+      ) : null}
       {current ? <Spinner activity={current.activity} /> : <Glyph d={TASKS} />}
     </button>
   );
@@ -784,7 +814,7 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
             <section aria-live="polite" style={{ padding: "0.5em 0" }}>
               <div style={{ ...row, color: "var(--color-text-secondary)" }}>
                 <span>
-                  {current ? <Spinner activity={current.activity} /> : "✓"} {run.running ? "Recherche d'offres en cours" : "Dernière recherche"}
+                  {current ? <Spinner activity={current.activity} /> : "✓"} {run.running ? RUNS[run.kind].live : RUNS[run.kind].done}
                 </span>
                 <span style={{ fontVariantNumeric: "tabular-nums", textAlign: "right" }}>
                   {both(run.log.reduce((n, x) => n + (x.tokens ?? 0), 0), run.log.reduce((n, x) => n + x.ms, 0))}
@@ -925,7 +955,8 @@ export function PrototypeAiProvenanceBar() {
   const withCoach = params.get("coach") === "1";
   shiftDays = params.get("lendemain") === "1" ? 1 : 0;
   const elements = withTokens([...stubFor(pathname), ...(withCoach ? [COACH] : [])]);
-  const { run, start } = useSimulatedRun(params.get("run") === "1");
+  const runParam = params.get("run");
+  const { run, start } = useSimulatedRun(runParam === "1" ? "search" : runParam === "docs" ? "docs" : null);
 
   const go = (step: number) => {
     const next = KEYS[(KEYS.indexOf(variant) + step + KEYS.length) % KEYS.length];
@@ -962,9 +993,14 @@ export function PrototypeAiProvenanceBar() {
           PROTOTYPE {variant} ({VARIANTS[variant]}) · {elements.length} élément(s)
         </span>
         {variant === "D" ? (
-          <button type="button" onClick={start} disabled={run.running} style={{ color: "inherit", background: "#333", border: 0, borderRadius: 999, padding: "2px 10px", cursor: "pointer" }}>
-            ▶ simuler
-          </button>
+          <>
+            <button type="button" onClick={() => start("search")} disabled={run.running} style={{ color: "inherit", background: "#333", border: 0, borderRadius: 999, padding: "2px 10px", cursor: "pointer" }}>
+              ▶ recherche
+            </button>
+            <button type="button" onClick={() => start("docs")} disabled={run.running} style={{ color: "inherit", background: "#333", border: 0, borderRadius: 999, padding: "2px 10px", cursor: "pointer" }}>
+              ▶ documents
+            </button>
+          </>
         ) : null}
         <button type="button" onClick={() => go(1)} style={{ color: "inherit", background: "none", border: 0, cursor: "pointer" }}>
           →

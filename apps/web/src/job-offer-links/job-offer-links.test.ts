@@ -202,6 +202,16 @@ describe("reading a Job Offer from a link the Candidate pasted", () => {
       expect(recorder.provenance().sites).toEqual([]);
     });
 
+    it("keeps the page of a Job Offer already stored as a Provenance site, without a page read", async () => {
+      const stored: JobOffer = { id: "offer-known", source: { url: POSTING_URL }, title: "DAF H/F", content: "Groupe Seb recrute son DAF." };
+      const { links, ai } = setUp({}, { stored: [stored] });
+      const recorder = createProvenanceRecorder(ai);
+
+      await links.read("cand-1", POSTING_URL, recorder);
+
+      expect(recorder.provenance()).toMatchObject({ steps: [], sites: [{ kind: "web", domain: "carrieres.groupe-seb.fr", links: [POSTING_URL] }] });
+    });
+
     it("records nothing for a Forbidden site, never requested", async () => {
       const { links, ai } = setUp({});
       const recorder = createProvenanceRecorder(ai);

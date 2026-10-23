@@ -75,8 +75,12 @@ export function createJobOfferLinks(deps: JobOfferLinksDeps): JobOfferLinks {
       if (host === null) return { ok: false, reason: "unreadable" };
       if (isForbiddenSite(host, FORBIDDEN_SITES)) return { ok: false, reason: "forbidden_site" };
       try {
+        // A Job Offer already read from this page: the reply is built from that page, not read again.
         const stored = await deps.jobOffers.findBySourceUrl(url);
-        if (stored) return { ok: true, jobOffer: stored };
+        if (stored) {
+          provenance?.site(stored.source.url ?? url);
+          return { ok: true, jobOffer: stored };
+        }
 
         const fetcher = createPoliteFetcher({
           fetch: deps.fetch ?? globalThis.fetch,
@@ -89,7 +93,10 @@ export function createJobOfferLinks(deps: JobOfferLinksDeps): JobOfferLinks {
         // A redirect to a page already stored gives its Job Offer.
         const fetchPage = () => fetcher.page(url, (target) => deps.jobOffers.findBySourceUrl(target));
         const page = provenance ? await recordedPageRead(provenance, fetchPage) : await fetchPage();
-        if (page.ok === "known") return { ok: true, jobOffer: page.known };
+        if (page.ok === "known") {
+          provenance?.site(page.known.source.url ?? url);
+          return { ok: true, jobOffer: page.known };
+        }
         if (!page.ok) return { ok: false, reason: page.reason === "site_terms" ? "forbidden_site" : "unreadable" };
         if (metaRobots(page.html).some((value) => /\b(noindex|none)\b/.test(value))) return { ok: false, reason: "unreadable" };
         provenance?.site(page.url);

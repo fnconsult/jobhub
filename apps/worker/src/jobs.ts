@@ -243,6 +243,11 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
             `[job-discovery] profile ${target.profileId}: skipped, Job discovery is unavailable (${discovery.unavailable})`,
           );
         }
+        // Stopped before the worker began it: nothing to run.
+        if (jobSearchId && (await deps.jobSearches.stopRequested(jobSearchId))) {
+          await deps.jobSearches.record(jobSearchId, { stopped: true, jobOfferIds: [] });
+          return log(`[job-discovery] profile ${target.profileId}: stopped by the Candidate before it began`);
+        }
         // The Candidate is waiting for this Job Search: each step of the run is written on it as it starts and ends.
         const progress = jobSearchId ? createRunProgress((steps) => deps.jobSearches.progress(jobSearchId, steps)) : null;
         /** What the run measured, its Match Scores recorded as a step of it, and its Provenance; the live steps written first. */

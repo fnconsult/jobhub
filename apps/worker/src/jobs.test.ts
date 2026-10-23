@@ -386,6 +386,15 @@ describe("the Job discovery job, for a Job Search the Candidate stops (#331)", (
     expect(recorded).toEqual([["search-1", expect.objectContaining({ stopped: true, jobOfferIds: ["offer-strong"] })]]);
   });
 
+  it("does not run Job discovery for a Job Search stopped before the worker began it: it is recorded stopped, with nothing found", async () => {
+    const { run, recorded, runs } = setup(searchingUntilStopped, [], undefined, undefined, { requested: true });
+
+    await run({ candidateId: "candidate-1", profileId: "profile-1", jobSearchId: "search-1" });
+
+    expect(runs).toEqual([]);
+    expect(recorded).toEqual([["search-1", { stopped: true, jobOfferIds: [] }]]);
+  });
+
   it("gives no stop to a run no Candidate is waiting on", async () => {
     const { run, runs } = setup();
 

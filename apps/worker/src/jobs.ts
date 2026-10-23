@@ -21,9 +21,14 @@ import type { ReferenceData } from "@jobhub/web/reference-data";
  * Data: { candidateId, profileId, jobSearchId? }; with a `jobSearchId` (a Job
  * Search the Candidate started), the outcome is reported to that Job Search, with
  * the run's Provenance (its Match Scores included), and each step of the run is
- * written on it as it starts and ends, for the page polling it (#330).
+ * written on it as it starts and ends, for the page polling it (#330). While it runs,
+ * the worker asks every STOP_CHECK_MS whether the Candidate stopped it (#331): the run
+ * then stops and the Job Search is recorded stopped, with the Job Offers found until then.
  */
 export const JOB_DISCOVERY = JOB_DISCOVERY_QUEUE;
+
+/** How often a running Job Search is asked whether its Candidate stopped it. */
+export const STOP_CHECK_MS = 1000;
 
 /** Queue name: fail the Job Searches the worker never answered, giving their Plan Quota use back. */
 export const JOB_SEARCH_TIMEOUTS = "job-searches.expire";
@@ -114,6 +119,8 @@ export interface JobsDeps {
    * never answered time out. Satisfied by the web app's Job Searches module.
    */
   jobSearches: JobSearchReports;
+  /** How often a running Job Search is asked whether its Candidate stopped it. Default: STOP_CHECK_MS. */
+  stopCheckMs?: number;
   /** Satisfied by the web app's Follow-ups module. */
   followUps: Pick<FollowUps, "proposeDue">;
   /** The worker's side of Job Digests. Satisfied by the web app's Job Digests module. */
@@ -161,6 +168,29 @@ function metricsOf(report: DiscoveryReport, profile: DiscoveryProfile): Discover
   metrics.franceTravail = { ...report.franceTravail };
   metrics.fantasticJobs = { ...report.fantasticJobs };
   return metrics;
+}
+
+/**
+ * Asks `requested` every `everyMs` until it says yes, then aborts `signal`; `end` stops asking.
+ * A question that fails is asked again next time.
+ */
+function watchStop(requested: () => Promise<boolean>, everyMs: number): { signal: AbortSignal; end(): void } {
+  const controller = new AbortController();
+  let asking = false;
+  const timer = setInterval(() => {
+    if (asking) return;
+    asking = true;
+    requested()
+      .then((yes) => {
+        if (yes) {
+          clearInterval(timer);
+          controller.abort(new DOMException("The Candidate stopped the Job Search", "AbortError"));
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => (asking = false));
+  }, everyMs);
+  return { signal: controller.signal, end: () => clearInterval(timer) };
 }
 
 function discoveryTarget(data: unknown): { candidateId: string; profileId: string; jobSearchId?: string } | null {
@@ -213,6 +243,11 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
             `[job-discovery] profile ${target.profileId}: skipped, Job discovery is unavailable (${discovery.unavailable})`,
           );
         }
+        // Stopped before the worker began it: nothing to run.
+        if (jobSearchId && (await deps.jobSearches.stopRequested(jobSearchId))) {
+          await deps.jobSearches.record(jobSearchId, { stopped: true, jobOfferIds: [] });
+          return log(`[job-discovery] profile ${target.profileId}: stopped by the Candidate before it began`);
+        }
         // The Candidate is waiting for this Job Search: each step of the run is written on it as it starts and ends.
         const progress = jobSearchId ? createRunProgress((steps) => deps.jobSearches.progress(jobSearchId, steps)) : null;
         /** What the run measured, its Match Scores recorded as a step of it, and its Provenance; the live steps written first. */
@@ -221,22 +256,37 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           await progress?.flush();
           return { metrics, provenance: found.run.provenance() };
         };
+        const idsOf = (found: DiscoveryReport) => found.jobOffers.map((jobOffer) => jobOffer.id);
+        // The Candidate can stop this Job Search: asked again and again while it runs.
+        const stop = jobSearchId ? watchStop(() => deps.jobSearches.stopRequested(jobSearchId), deps.stopCheckMs ?? STOP_CHECK_MS) : null;
         let report;
         try {
-          report = await discovery.discover({ candidateId: target.candidateId, criteria: profile.searchCriteria, onEvent: progress?.onEvent });
+          report = await discovery.discover({ candidateId: target.candidateId, criteria: profile.searchCriteria, onEvent: progress?.onEvent, signal: stop?.signal });
         } catch (error) {
+          stop?.end();
           // The Candidate is waiting for this Job Search: say it failed rather than retry it later.
           if (!jobSearchId) throw error;
           if (error instanceof JobDiscoveryError) {
-            await deps.jobSearches.record(jobSearchId, { failed: "discovery_failed", ...(await measured(error.partial)) });
+            const partial = { jobOfferIds: idsOf(error.partial), ...(await measured(error.partial)) };
+            // Stopping it broke what was on its way: it is stopped, not failed.
+            if (stop?.signal.aborted) {
+              await deps.jobSearches.record(jobSearchId, { stopped: true, ...partial });
+              return log(`[job-discovery] profile ${target.profileId}: stopped by the Candidate, ${partial.jobOfferIds.length} Job Offer(s) kept`);
+            }
+            await deps.jobSearches.record(jobSearchId, { failed: "discovery_failed", ...partial });
           } else {
             await progress?.flush();
             await fail("discovery_failed");
           }
           return log(`[job-discovery] profile ${target.profileId}: failed (${error instanceof Error ? error.message : String(error)})`);
         }
+        stop?.end();
         const { metrics, provenance } = await measured(report);
-        if (jobSearchId) await deps.jobSearches.record(jobSearchId, { jobOfferIds: report.jobOffers.map((jobOffer) => jobOffer.id), metrics, provenance });
+        if (jobSearchId && stop?.signal.aborted) {
+          await deps.jobSearches.record(jobSearchId, { stopped: true, jobOfferIds: idsOf(report), metrics, provenance });
+          return log(`[job-discovery] profile ${target.profileId}: stopped by the Candidate, ${report.jobOffers.length} Job Offer(s) kept`);
+        }
+        if (jobSearchId) await deps.jobSearches.record(jobSearchId, { jobOfferIds: idsOf(report), metrics, provenance });
         const detail = Object.entries(metrics.skipped)
           .filter(([, count]) => count > 0)
           .map(([reason, count]) => `${reason}: ${count}`)

@@ -156,6 +156,43 @@ export function SaveSearchResultButton({ jobOfferId, profileId, describedBy }: {
   );
 }
 
+/**
+ * Stops the Candidate's Job Search still searching (#331): the worker stops it between two steps and keeps the Job
+ * Offers found until then; the page, refreshing itself, then shows it stopped.
+ */
+export function StopJobSearchButton({ jobSearchId }: { jobSearchId: string }) {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const [stopping, setStopping] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  async function stop() {
+    setStopping(true);
+    setFailed(false);
+    const { status } = await post(`/api/job-searches/${encodeURIComponent(jobSearchId)}/stop`, {});
+    // 409: it ended meanwhile; the page shows how.
+    if (status === 202 || status === 409) {
+      router.refresh();
+      return;
+    }
+    setStopping(false);
+    setFailed(true);
+  }
+
+  return (
+    <div className="stack">
+      <button className="button" type="button" onClick={stop} disabled={stopping}>
+        {stopping ? t("jobSearch.stopping") : t("jobSearch.stop")}
+      </button>
+      {failed ? (
+        <p className="field-error" role="alert">
+          {t("jobSearch.stopError")}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 /** While the AI Coach is still searching, reloads the page's data every few seconds. Renders nothing. */
 export function RefreshWhileSearching({ everyMs = 3000 }: { everyMs?: number }) {
   const router = useRouter();

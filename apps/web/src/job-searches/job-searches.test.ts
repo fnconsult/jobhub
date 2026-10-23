@@ -447,7 +447,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       expect((await jobSearches.notifications(candidateId)).notifications).toHaveLength(1);
     });
 
-    it("tells the Candidate a Job Search failed, and why, including one the worker never answered", async () => {
+    it("tells the Candidate a Job Search failed, when, and why, including one the worker never answered", async () => {
       const failed = await started();
       await jobSearches.record(failed.id, { failed: "discovery_failed" });
       const forgotten = await started();
@@ -455,8 +455,8 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
 
       expect(await jobSearches.notifications(candidateId)).toEqual({
         notifications: [
-          { jobSearchId: forgotten.id, profile: { id: profileId, name: "DAF" }, outcome: { status: "failed", failure: "timeout" } },
-          { jobSearchId: failed.id, profile: { id: profileId, name: "DAF" }, outcome: { status: "failed", failure: "discovery_failed" } },
+          { jobSearchId: forgotten.id, profile: { id: profileId, name: "DAF" }, outcome: { status: "failed", failure: "timeout", at: clock.now.toISOString(), step: null, found: 0 } },
+          { jobSearchId: failed.id, profile: { id: profileId, name: "DAF" }, outcome: { status: "failed", failure: "discovery_failed", at: "2026-10-15T08:00:00.000Z", step: null, found: 0 } },
         ],
         searching: false,
         running: [],
@@ -467,7 +467,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       const failed = await started();
       await jobSearches.record(failed.id, { failed: "something new" });
 
-      expect((await jobSearches.notifications(candidateId)).notifications.map((notification) => notification.outcome)).toEqual([{ status: "failed", failure: "other" }]);
+      expect((await jobSearches.notifications(candidateId)).notifications.map((notification) => notification.outcome)).toMatchObject([{ status: "failed", failure: "other" }]);
     });
 
     it("tells the Candidate a Job Search is done, with the number of Job Offers found", async () => {
@@ -489,6 +489,122 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       });
     });
   });
+  describe("stopping a Job Search (#331)", () => {
+    const used = async () => (await billing.entitlements(candidateId)).usedThisWeek.jobSearches;
+    let reports: ReturnType<typeof createJobSearchReports>;
+    beforeEach(() => {
+      reports = createJobSearchReports(testAuth.auth.options.database as Pool, { quotas: billing, now: () => clock.now });
+    });
+
+    it("the Candidate stops their Job Search: the worker is asked to, and writes the outcome itself", async () => {
+      const jobSearch = await started();
+      expect(await reports.stopRequested(jobSearch.id)).toBe(false);
+
+      expect(await jobSearches.stop(candidateId, jobSearch.id)).toEqual({ ok: true });
+
+      expect(await reports.stopRequested(jobSearch.id)).toBe(true);
+      expect((await jobSearches.get(candidateId, jobSearch.id))?.status).toBe("searching");
+    });
+
+    it("another Candidate cannot stop it", async () => {
+      const jobSearch = await started();
+
+      expect(await jobSearches.stop(otherCandidateId, jobSearch.id)).toEqual({ ok: false, error: "forbidden" });
+
+      expect(await reports.stopRequested(jobSearch.id)).toBe(false);
+    });
+
+    it("there is nothing to stop once it is over, nor for a Job Search that does not exist", async () => {
+      const jobSearch = await started();
+      await reports.record(jobSearch.id, { jobOfferIds: [] });
+
+      expect(await jobSearches.stop(candidateId, jobSearch.id)).toEqual({ ok: false, error: "over" });
+      expect(await jobSearches.stop(candidateId, "00000000-0000-4000-8000-000000000000")).toEqual({ ok: false, error: "not_found" });
+      expect(await jobSearches.stop(candidateId, "not-a-uuid")).toEqual({ ok: false, error: "not_found" });
+      expect(await reports.stopRequested("not-a-uuid")).toBe(false);
+    });
+
+    it("stopped mid-search, it is 'stopped', with the Job Offers found so far and the Provenance of the steps it finished", async () => {
+      const daf = await capture("DAF H/F", { location: "Lyon" });
+      const jobSearch = await started();
+      const provenance: Provenance = {
+        v: 1,
+        steps: [
+          { kind: "tool", activity: "search", tool: "france-travail", ms: 640, at: "2026-10-15T08:00:02.200Z", outcome: "ok", count: 1 },
+          { kind: "ai", activity: "web_search", task: "web_search", ms: 300, at: "2026-10-15T08:00:03.000Z", outcome: "stopped", count: 1 },
+        ],
+        sites: [],
+        startedAt: "2026-10-15T08:00:00.000Z",
+        wallMs: 3400,
+      };
+
+      await reports.record(jobSearch.id, { stopped: true, jobOfferIds: [daf], provenance });
+
+      expect(await jobSearches.get(candidateId, jobSearch.id)).toMatchObject({ status: "stopped", failure: null, results: [{ jobOffer: { id: daf } }], provenance });
+      expect(await jobSearches.notifications(candidateId)).toMatchObject({ searching: false, running: [] });
+    });
+
+    it("stopped with no Job Offer kept, it gives its use back; with Job Offers kept, it counts", async () => {
+      const daf = await capture("DAF H/F", { location: "Lyon" });
+      const empty = await started();
+      const kept = await started();
+
+      await reports.record(empty.id, { stopped: true, jobOfferIds: [] });
+      await reports.record(empty.id, { stopped: true, jobOfferIds: [] });
+      await reports.record(kept.id, { stopped: true, jobOfferIds: [daf] });
+
+      expect(await used()).toBe(1);
+    });
+
+    it("tells the Candidate when it was stopped, and the Job Offers it kept", async () => {
+      const daf = await capture("DAF H/F", { location: "Lyon" });
+      const jobSearch = await started();
+      clock.now = new Date("2026-10-15T10:42:00+02:00");
+
+      await reports.record(jobSearch.id, { stopped: true, jobOfferIds: [daf] });
+
+      expect((await jobSearches.notifications(candidateId)).notifications).toEqual([
+        { jobSearchId: jobSearch.id, profile: { id: profileId, name: "DAF" }, outcome: { status: "stopped", at: "2026-10-15T08:42:00.000Z", found: 1 } },
+      ]);
+    });
+
+    it("tells the Candidate when a Job Search failed, at which step, why, and the Job Offers it kept", async () => {
+      const daf = await capture("DAF H/F", { location: "Lyon" });
+      const jobSearch = await started();
+      clock.now = new Date("2026-10-15T12:04:00+02:00");
+      const provenance: Provenance = {
+        v: 1,
+        steps: [
+          { kind: "tool", activity: "search", tool: "france-travail", ms: 640, at: "2026-10-15T10:00:02.200Z", outcome: "ok", count: 1 },
+          { kind: "tool", activity: "read", tool: "job-site", ms: 900, at: "2026-10-15T10:00:03.000Z", outcome: "failed", count: 1 },
+          { kind: "ai", activity: "web_search", task: "web_search", ms: 300, at: "2026-10-15T10:00:04.000Z", outcome: "failed", count: 1 },
+        ],
+        sites: [],
+        startedAt: "2026-10-15T10:00:00.000Z",
+        wallMs: 4400,
+      };
+
+      await reports.record(jobSearch.id, { failed: "discovery_failed", jobOfferIds: [daf], provenance });
+
+      expect((await jobSearches.notifications(candidateId)).notifications).toEqual([
+        {
+          jobSearchId: jobSearch.id,
+          profile: { id: profileId, name: "DAF" },
+          outcome: { status: "failed", failure: "discovery_failed", at: "2026-10-15T10:04:00.000Z", step: "web_search", found: 1 },
+        },
+      ]);
+    });
+
+    it("failed part-way, it keeps the Job Offers it had found (regression: they were dropped)", async () => {
+      const daf = await capture("DAF H/F", { location: "Lyon" });
+      const jobSearch = await started();
+
+      await reports.record(jobSearch.id, { failed: "discovery_failed", jobOfferIds: [daf] });
+
+      expect(await jobSearches.get(candidateId, jobSearch.id)).toMatchObject({ status: "failed", failure: "discovery_failed", results: [{ jobOffer: { id: daf } }] });
+    });
+  });
+
   describe("a Job Search's Provenance and live progress (#330)", () => {
     const at = "2026-10-15T08:00:01.000Z";
     const titles: ProvenanceEvent = { type: "step_started", id: 1, step: { kind: "ai", activity: "think", task: "job_titles", at } };

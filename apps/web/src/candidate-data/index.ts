@@ -80,6 +80,8 @@ export interface ExportedJobSearch {
   startedAt: Date;
   /** Null while it is searching. */
   finishedAt: Date | null;
+  /** When the Candidate asked to stop it (#331); absent unless they did. */
+  stopRequestedAt?: Date;
   /** The Job Offers it found, in the order Job discovery found them. */
   jobOfferIds: string[];
   /** What served it (ADR-0034), when it was kept. */
@@ -350,7 +352,8 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         candidateId,
       ),
       grouped<ExportedJobSearch>(
-      `SELECT profile_id AS key, id, status, failure, started_at AS "startedAt", finished_at AS "finishedAt", job_offer_ids::text[] AS "jobOfferIds", provenance
+      `SELECT profile_id AS key, id, status, failure, started_at AS "startedAt", finished_at AS "finishedAt", job_offer_ids::text[] AS "jobOfferIds", provenance,
+              stop_requested_at AS "stopRequestedAt"
          FROM job_search WHERE candidate_id = $1 ORDER BY started_at DESC, id`,
         candidateId,
       ),
@@ -375,9 +378,9 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           searchCriteria: profile.searchCriteria,
           masterCvVersions: versions,
           atsScore: atsScoresOf(id)[0] ?? null,
-          jobSearches: jobSearchesOf(id).map(({ provenance, ...jobSearch }) => {
+          jobSearches: jobSearchesOf(id).map(({ provenance, stopRequestedAt, ...jobSearch }) => {
             const kept = readProvenance(provenance);
-            return kept ? { ...jobSearch, provenance: kept } : jobSearch;
+            return { ...jobSearch, ...(stopRequestedAt && { stopRequestedAt }), ...(kept && { provenance: kept }) };
           }),
           jobDigest: jobDigestSettingsOf(id)[0] ?? null,
           jobDigests: jobDigestsOf(id),

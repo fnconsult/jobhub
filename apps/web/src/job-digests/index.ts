@@ -365,12 +365,12 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
     };
   }
 
-  /** The Job Offers this Profile was already shown: in its Job Digests or Job Searches, or saved by the Candidate. */
+  /** The Job Offers this Profile was already shown: in its Job Digests or Job Searches (done, stopped or failed: all show what they kept), or saved by the Candidate. */
   async function shownTo(candidateId: string, profileId: string): Promise<Set<string>> {
     const [{ rows }, saved] = await Promise.all([
       database.query<{ id: string }>(
         `SELECT unnest(job_offer_ids) AS id FROM job_digest WHERE profile_id = $1 AND candidate_id = $2
-         UNION SELECT unnest(job_offer_ids) FROM job_search WHERE profile_id = $1 AND candidate_id = $2 AND status = 'done'`,
+         UNION SELECT unnest(job_offer_ids) FROM job_search WHERE profile_id = $1 AND candidate_id = $2 AND status <> 'searching'`,
         [profileId, candidateId],
       ),
       deps.applications.list(candidateId),

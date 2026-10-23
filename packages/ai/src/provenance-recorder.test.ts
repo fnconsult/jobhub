@@ -1,5 +1,5 @@
 import { readProvenance, type ProvenanceEvent, type SearchCriteria } from "@jobhub/shared";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createAiLayer } from "./ai-layer";
 import { createProvenanceRecorder } from "./provenance-recorder";
 import { createFakeProvider, createMemoryUsageLog } from "./testing";
@@ -132,6 +132,26 @@ describe("a ProvenanceRecorder", () => {
     await expect(call).rejects.toBeDefined();
 
     expect(recorder.provenance().steps).toMatchObject([{ kind: "ai", task: "writing", outcome: "stopped" }]);
+  });
+
+  it("stops every AI call of the action with the action's own signal (#328), each recorded stopped", async () => {
+    const provider = createFakeProvider({ pending: true });
+    const pending = createAiLayer({ providers: [provider], routes: { writing: "anthropic", guardrail: "anthropic" }, usage: createMemoryUsageLog() });
+    const stop = new AbortController();
+    const recorder = createProvenanceRecorder(pending, { signal: stop.signal });
+
+    const writing = recorder.ai.generate({ task: "writing", candidateId: null, prompt: "Lettre" });
+    const check = recorder.aiFor("coach_choice").generate({ task: "guardrail", candidateId: null, prompt: "Vérifie" });
+    await vi.waitFor(() => expect(provider.calls).toHaveLength(2));
+    stop.abort();
+    await expect(writing).rejects.toBeDefined();
+    await expect(check).rejects.toBeDefined();
+
+    expect(provider.calls.map((call) => call.signal?.aborted)).toEqual([true, true]);
+    expect(recorder.provenance().steps).toMatchObject([
+      { kind: "ai", task: "writing", outcome: "stopped" },
+      { kind: "ai", task: "guardrail", outcome: "stopped" },
+    ]);
   });
 
   it("emits step_started and step_ended for each call, to its sink", async () => {

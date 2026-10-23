@@ -51,6 +51,8 @@ export { createPerplexityProvider } from "./providers/perplexity";
 export { createBraveProvider } from "./providers/brave";
 export { createLinkupProvider } from "./providers/linkup";
 export { createTavilyProvider } from "./providers/tavily";
+export { activityOf, FEATURE_STEPS, TOOL_STEPS } from "./activity";
+export type { FeatureStep, StepSubject, StepTool } from "./activity";
 export { readJobPage, readOfferFields } from "./job-offer-reading";
 export type { OfferFields } from "./job-offer-reading";
 export { buildCompanyQuery, buildSearchQuery, COMPANY_FACTS } from "./search-query";

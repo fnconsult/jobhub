@@ -30,7 +30,7 @@ import { matchScoreReliability, scoreMatch, type FailureReason, type JobOffer, t
 import * as z from "zod";
 import type { QuotaDecision } from "../billing";
 import type { QuotaRefusal } from "../billing/upgrade-prompt";
-import type { FieldsFromText, JobOffers } from "../job-offers";
+import type { JobOffers, TextReading } from "../job-offers";
 import { cvContentSchema, searchCriteriaSchema, type Profiles } from "../profiles";
 import { fieldErrors, type FieldError } from "../validation";
 
@@ -55,7 +55,7 @@ export type MatchScoreQuota = (candidateId: string) => Promise<QuotaDecision>;
  * task. Throws when it cannot read it. `call`: what the Match Score says of that AI call (#260), to pass
  * on to it (`readOfferFields` takes it as is): recorded with it.
  */
-export type OfferTextReader = (jobOffer: JobOffer, candidateId: string | null, call: OfferTextCall) => Promise<FieldsFromText>;
+export type OfferTextReader = (jobOffer: JobOffer, candidateId: string | null, call: OfferTextCall) => Promise<TextReading>;
 
 /**
  * What the Match Score says of the AI call reading a Job Offer's text (#260): what it does when the call fails or

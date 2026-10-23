@@ -651,6 +651,14 @@ _Avoid_: Metadata, usage
 What served one piece of content a Candidate sees (a Job Search, a Job Offer's reading and summary, a Tailored CV or Tailored Document, a Company Dossier, a Master CV Version read from a file, an Action Card, a Job Digest, an AI Coach reply), fixed when it is made and kept with it: its steps, each with its Activity, its AI task or Tool, for an AI step the provider, where it ran (endpoint and region) and the model that actually served, tokens in and out, and its duration, start time and Outcome (stopped included); its Provenance sites; and its start time and wall-clock duration. No Candidate, no cost, no text. Lives and is deleted with its content, so it is in the Data export with it. Content made before it existed, or whose Provenance was not kept, shows « modèle non enregistré » and counts in no total; nothing is estimated. Not AI Usage, which counts calls for Jobbbox and names no one, and never linked to it.
 _Avoid_: Metadata, trace, lineage, usage
 
+**Provenance line**:
+The quiet line under each saved AI Coach or Back Office Assistant reply: the models by display name and where they ran, the « consentement IA UE » or « hors UE » chip when that route served a call, tokens, time, Tools, and the Provenance sites behind a disclosure button. Never cost, prompt, AI task, Playbook Agent or identifier. A reply made before Provenance existed shows what its saved provider, model and tokens allow (a partial Provenance, time unknown and so not shown), or « modèle non enregistré » when no model was saved.
+_Avoid_: Footer, metadata line, usage line
+
+**Focus**:
+The object of the page in view when a Coach reply was asked: an Application, a Job Offer or a Profile. Kept with the reply so AI Activity can count the reply with that page, and in the Data export.
+_Avoid_: Context, subject, target
+
 **Joined Provenance**:
 The one Provenance of a content made by two actions (an offer found by a Job Search then read, or read then summarized later): the steps of both in order, each site once with the links of both, the first start, and the wall-clock times summed, never the time between the actions. A Job Offer found by a Job Search keeps the search step that found it, the listing page that led to it, its ATS API or page read and the reading model. A capture that fills the summary of an existing Job Offer keeps the Provenance the offer already has. A Job Offer captured by the browser extension has none.
 _Avoid_: Merged trace

@@ -66,6 +66,8 @@ const aiStep = z.strictObject({
   model: identifier(MODEL).optional(),
   /** Input counts the cached input too. */
   tokens: z.strictObject({ input: count, output: count }).optional(),
+  /** The call carried the Candidate's identity and went to the identity route under their EU AI Consent (« consentement IA UE »). */
+  euAiConsent: z.literal(true).optional(),
 });
 const toolStep = z.strictObject({
   kind: z.literal("tool"),
@@ -105,12 +107,47 @@ export type ProvenanceSite = z.output<typeof site>;
 export type Provenance = z.output<typeof provenanceSchema>;
 
 /**
+ * What a result saved before Provenance was kept still says of the AI that made it, in its own columns
+ * (an AI Coach reply's provider, model and tokens): enough for a partial Provenance.
+ */
+export interface SavedAiFacts {
+  activity: Activity;
+  task: string;
+  provider: string | null;
+  model: string | null;
+  /** Input not read from the provider's prompt cache. */
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  cachedInputTokens?: number | null;
+  /** When the result was saved. */
+  at: Date;
+}
+
+/**
  * The Provenance stored in a result's jsonb column; null when none was kept or it is not one this version knows.
  * Its sites keep only the links the link filter allows today.
+ *
+ * With `saved`, a result saved before Provenance was kept (or with one this version cannot read) gets a partial one, read from its own columns on the fly:
+ * one AI step with who answered and its tokens, no endpoint, no sites, its times unknown (0); still null when no
+ * model was saved either (« modèle non enregistré »).
  */
-export function readProvenance(stored: unknown): Provenance | null {
+export function readProvenance(stored: unknown, saved?: SavedAiFacts): Provenance | null {
   const parsed = provenanceSchema.safeParse(stored);
-  return parsed.success ? parsed.data : null;
+  if (parsed.success) return parsed.data;
+  return saved ? partialProvenance(saved) : null;
+}
+
+function partialProvenance(saved: SavedAiFacts): Provenance | null {
+  if (!saved.provider || !saved.model) return null;
+  const at = saved.at.toISOString();
+  const tokens =
+    saved.inputTokens == null || saved.outputTokens == null ? {} : { tokens: { input: saved.inputTokens + (saved.cachedInputTokens ?? 0), output: saved.outputTokens } };
+  const step = { kind: "ai", activity: saved.activity, task: saved.task, provider: saved.provider, model: saved.model, ...tokens, ms: 0, at, outcome: "ok", count: 1 };
+  try {
+    return storableProvenance({ v: 1, steps: [step as ProvenanceStep], sites: [], startedAt: at, wallMs: 0 });
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -154,7 +191,7 @@ export function joinProvenance(earlier: Provenance | null, later: Provenance | n
 
 /** What a step is before it ends: its Activity and what it runs, never its model (the AI layer picks the route as it sends). */
 export type StartedStep = {
-  [K in ProvenanceStep["kind"]]: Omit<Extract<ProvenanceStep, { kind: K }>, "ms" | "outcome" | "count" | "provider" | "endpoint" | "model" | "tokens">;
+  [K in ProvenanceStep["kind"]]: Omit<Extract<ProvenanceStep, { kind: K }>, "ms" | "outcome" | "count" | "provider" | "endpoint" | "model" | "tokens" | "euAiConsent">;
 }[ProvenanceStep["kind"]];
 
 /**

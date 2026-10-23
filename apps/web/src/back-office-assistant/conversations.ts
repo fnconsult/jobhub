@@ -11,6 +11,8 @@
  *    messages; `rename` it; `delete` it.
  * Every read and change is scoped to the Administrator: another's conversation is
  * "not found". Never throws for bad input: an error code comes back.
+ * Each reply is saved with its Provenance (#327), given back with it and when the conversation reopens; a reply saved before
+ * gets a partial one, read on the fly from its provider and model.
  * Each reply is saved with the Back Office sections it was told about. Saved history
  * goes back to the assistant only within the roles the Administrator holds now: a
  * reply drawing on a section they can no longer read is replayed as OUT_OF_ROLE_REPLY,
@@ -24,6 +26,8 @@
  * export, deleted with their account (ADR-0010), and purged RETENTION_MONTHS after
  * their last message (`purgeStaleAssistantConversations`, run daily by the worker).
  */
+import { activityOf } from "@jobhub/ai";
+import { readProvenance, type Provenance } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, type AssistantMessage } from "./conversation";
@@ -41,8 +45,9 @@ export interface AssistantConversation extends AssistantConversationSummary {
   messages: AssistantMessage[];
 }
 
+/** `provenance`: what served the reply (#327); `at`: when it was saved, an ISO date. */
 export type AssistantSendResult =
-  | { ok: true; conversation: AssistantConversationSummary; reply: string; blocked: { message: boolean; reply: boolean } }
+  | { ok: true; conversation: AssistantConversationSummary; reply: string; blocked: { message: boolean; reply: boolean }; provenance: Provenance; at: string }
   | { ok: false; error: "invalid" | "not_found" | "unavailable" };
 
 export type AssistantRenameResult = { ok: true; conversation: AssistantConversationSummary } | { ok: false; error: "invalid" | "not_found" };
@@ -88,6 +93,23 @@ const sendSchema = z.object({
 
 const SUMMARY = `SELECT id, title, last_message_at AS "lastMessageAt" FROM back_office_assistant_conversation`;
 
+/** What a saved reply kept of what served it, as `SAVED_ASSISTANT_REPLY_COLUMNS` reads it (aliased `m`). */
+export interface SavedAssistantReply {
+  provenance: unknown;
+  provider: string | null;
+  model: string | null;
+  at: Date;
+}
+
+export const SAVED_ASSISTANT_REPLY_COLUMNS = `m.provenance, m.provider, m.model, m.created_at AS at`;
+
+/** A saved reply's Provenance: the one stored, else a partial one from its provider and model (no tokens were kept), else none. */
+export function savedAssistantReplyProvenance(reply: SavedAssistantReply): Provenance | null {
+  return readProvenance(reply.provenance, { activity: activityOf({ kind: "ai", task: "back_office_assistant" }), task: "back_office_assistant", ...reply });
+}
+
+type SavedMessage = Omit<AssistantMessage, "blocked"> & { sections: BackOfficeResource[] | null; blocked: boolean };
+
 function titleFrom(message: string): string {
   const words = message.replace(/\s+/g, " ").trim();
   return words.length <= MAX_TITLE_LENGTH ? words : `${words.slice(0, MAX_TITLE_LENGTH - 1).trimEnd()}…`;
@@ -103,14 +125,20 @@ export function createAssistantConversations(database: Pool, deps: AssistantConv
   }
 
   /** The last `limit` messages of a conversation (all with null), oldest first; replies with the sections they drew on. */
-  async function lastMessages(conversationId: string, limit: number | null): Promise<(AssistantMessage & { sections: BackOfficeResource[] | null; blocked: boolean })[]> {
-    const { rows } = await database.query<Omit<AssistantMessage, "blocked"> & { sections: BackOfficeResource[] | null; blocked: boolean }>(
-      `SELECT author AS "from", text, sections, blocked FROM (
-         SELECT author, text, sections, blocked, seq FROM back_office_assistant_message WHERE conversation_id = $1 ORDER BY seq DESC LIMIT $2
-       ) recent ORDER BY seq`,
+  async function lastMessages(conversationId: string, limit: number | null): Promise<SavedMessage[]> {
+    const { rows } = await database.query<Pick<AssistantMessage, "from" | "text"> & SavedAssistantReply & { sections: BackOfficeResource[] | null; blocked: boolean }>(
+      `SELECT m.author AS "from", m.text, m.sections, m.blocked, ${SAVED_ASSISTANT_REPLY_COLUMNS} FROM (
+         SELECT * FROM back_office_assistant_message WHERE conversation_id = $1 ORDER BY seq DESC LIMIT $2
+       ) m ORDER BY m.seq`,
       [conversationId, limit],
     );
-    return rows as (AssistantMessage & { sections: BackOfficeResource[] | null; blocked: boolean })[];
+    return rows.map((row) => ({
+      from: row.from,
+      text: row.text,
+      sections: row.sections,
+      blocked: row.blocked,
+      ...(row.from === "assistant" ? { provenance: savedAssistantReplyProvenance(row), at: row.at.toISOString() } : {}),
+    }));
   }
 
   /** The saved history as the assistant may be told it now: replies outside `administrator`'s current roles withdrawn. */
@@ -159,9 +187,9 @@ export function createAssistantConversations(database: Pool, deps: AssistantConv
           blocked.message,
         ]);
         await client.query(
-          `INSERT INTO back_office_assistant_message (conversation_id, author, text, created_at, provider, model, cost_eur, sections, blocked)
-           VALUES ($1, 'assistant', $2, $3, $4, $5, $6, $7, $8)`,
-          [id, answer.reply, sentAt, cost.provider, cost.model, cost.eur, answer.sections, blocked.reply],
+          `INSERT INTO back_office_assistant_message (conversation_id, author, text, created_at, provider, model, cost_eur, sections, blocked, provenance)
+           VALUES ($1, 'assistant', $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [id, answer.reply, sentAt, cost.provider, cost.model, cost.eur, answer.sections, blocked.reply, JSON.stringify(answer.provenance)],
         );
         await client.query(`UPDATE back_office_assistant_conversation SET last_message_at = $2 WHERE id = $1`, [id, sentAt]);
         await client.query("COMMIT");
@@ -175,7 +203,7 @@ export function createAssistantConversations(database: Pool, deps: AssistantConv
       }
       const conversation = id ? await find(administrator.id, id) : null;
       if (!conversation) return { ok: false, error: "not_found" }; // deleted meanwhile
-      return { ok: true, conversation, reply: answer.reply, blocked };
+      return { ok: true, conversation, reply: answer.reply, blocked, provenance: answer.provenance, at: sentAt.toISOString() };
     },
 
     async list(administratorId) {
@@ -189,7 +217,15 @@ export function createAssistantConversations(database: Pool, deps: AssistantConv
       const conversation = await find(administratorId, conversationId);
       if (!conversation) return null;
       const messages = await lastMessages(conversation.id, null);
-      return { ...conversation, messages: messages.map(({ from, text, blocked }) => (blocked ? { from, text, blocked: true } : { from, text })) };
+      return {
+        ...conversation,
+        messages: messages.map(({ from, text, blocked, provenance, at }) => ({
+          from,
+          text,
+          ...(blocked ? { blocked: true as const } : {}),
+          ...(from === "assistant" ? { provenance: provenance ?? null, ...(at ? { at } : {}) } : {}),
+        })),
+      };
     },
 
     async rename(administratorId, conversationId, title) {
@@ -257,6 +293,8 @@ export async function migrateAssistantConversations(database: Pool): Promise<voi
     ALTER TABLE back_office_assistant_message ADD COLUMN IF NOT EXISTS sections text[];
     -- A Blocked message (#228): a question a Guardrail stopped, or the Guardrail message answering it or replacing a reply.
     ALTER TABLE back_office_assistant_message ADD COLUMN IF NOT EXISTS blocked boolean NOT NULL DEFAULT false;
+    -- What served each reply (ADR-0034, #327); null before (a partial one is read from provider and model).
+    ALTER TABLE back_office_assistant_message ADD COLUMN IF NOT EXISTS provenance jsonb;
     CREATE INDEX IF NOT EXISTS back_office_assistant_message_conversation_idx ON back_office_assistant_message (conversation_id, seq);
   `);
 }

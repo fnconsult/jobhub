@@ -13,7 +13,9 @@ import { CoachMemoryProposals, CoachMemoryView } from "@/components/CoachMemory"
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icons } from "@/components/icons";
 import { StartJobSearchButton } from "@/components/JobSearchControls";
+import { ProvenanceLine } from "@/components/ProvenanceLine";
 import { routes } from "@/routes";
+import type { Provenance } from "@jobhub/shared";
 
 /**
  * What a page shows, as the Coach Panel tells the Candidate and the AI Coach.
@@ -106,7 +108,15 @@ type Status = "idle" | "sending" | "unavailable" | "invalid";
 export type PanelKind = "coach" | "backOfficeAssistant";
 
 /** What a message's author is called on the server, for each panel. */
-type ServerMessage = { from: "candidate" | "coach" | "administrator" | "assistant"; text: string; blocked?: true; jobOffer?: JobOfferCardData };
+type ServerMessage = {
+  from: "candidate" | "coach" | "administrator" | "assistant";
+  text: string;
+  blocked?: true;
+  jobOffer?: JobOfferCardData;
+  /** On a reply: what served it (#327), null when nothing was kept, and when it was saved. */
+  provenance?: Provenance | null;
+  at?: string;
+};
 
 /** Everything that differs between the two panels. */
 interface PanelConfig {
@@ -182,6 +192,7 @@ const asPanelMessage = (message: ServerMessage): CoachMessage => ({
   text: message.text,
   ...(message.blocked ? { blocked: true as const } : {}),
   ...(message.jobOffer ? { jobOffer: message.jobOffer } : {}),
+  ...(message.at ? { provenance: message.provenance ?? null, at: message.at } : {}),
 });
 
 function remember(storageKey: string, conversationId: string | null) {
@@ -447,7 +458,13 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
         setMessages([
           ...messages,
           { from: "candidate", text, ...(blocked?.message ? { blocked: true as const } : {}) },
-          { from: "coach", text: body.reply, ...(blocked?.reply ? { blocked: true as const } : {}), ...(body.jobOffer ? { jobOffer: body.jobOffer as JobOfferCardData } : {}) },
+          {
+            from: "coach",
+            text: body.reply,
+            ...(blocked?.reply ? { blocked: true as const } : {}),
+            ...(body.jobOffer ? { jobOffer: body.jobOffer as JobOfferCardData } : {}),
+            ...(typeof body.at === "string" ? { provenance: (body.provenance as Provenance | undefined) ?? null, at: body.at } : {}),
+          },
         ]);
         setStatus("idle");
       } else if (response.status === 404) {
@@ -585,16 +602,18 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                     {/* Until a reopened conversation is back, which opening it had is not known yet. */}
                     {restoring ? null : (
                       <li className="chat-message chat-coach">
-                        <span className="chat-author">{t(texts.author)}</span>
+                        {/* No visible author (#317, #327): screen readers still hear who speaks. */}
+                        <span className="visually-hidden">{t(texts.author)}</span>
                         <p>{t(opening)}</p>
                       </li>
                     )}
                     {messages.map((message, index) => (
                       <li key={index} className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}${message.blocked ? " chat-blocked" : ""}`}>
-                        <span className="chat-author">{message.from === "coach" ? t(texts.author) : t("questionnaire.you")}</span>
+                        <span className="visually-hidden">{message.from === "coach" ? t(texts.author) : t("questionnaire.you")}</span>
                         {message.blocked ? <span className="chat-blocked-label">{t("coachPanel.blocked")}</span> : null}
                         {message.from === "coach" ? <CoachReplyText text={message.text} /> : <p>{message.text}</p>}
                         {message.jobOffer ? <JobOfferCard jobOffer={message.jobOffer} /> : null}
+                        {message.from === "coach" && message.at ? <ProvenanceLine provenance={message.provenance ?? null} at={message.at} /> : null}
                       </li>
                     ))}
                   </ol>

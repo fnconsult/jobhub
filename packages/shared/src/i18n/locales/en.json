@@ -568,6 +568,16 @@
       "open": "Open the job offer"
     }
   },
+  "provenanceLine": {
+    "unrecorded": "model not recorded",
+    "euAiConsent": "EU AI consent",
+    "outsideEu": "outside the EU",
+    "measure": "a technical measure, not counted against your quotas",
+    "tokens": "tokens",
+    "sources": "Sources ({{count}})",
+    "yourData": "Your data",
+    "newTab": "(new tab)"
+  },
   "coachMemory": {
     "open": "Coach memory",
     "title": "Coach memory",

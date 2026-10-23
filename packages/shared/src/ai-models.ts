@@ -48,7 +48,7 @@ export function describeModel(model: string, provider?: string): { name: string;
   return MODELS[catalogueId(model)] ?? { name: model, provider: null };
 }
 
-type Residency = "eu" | "outside_eu";
+export type Residency = "eu" | "outside_eu";
 
 const RESIDENCY: Record<Residency, Translated> = { eu: { fr: "UE", en: "EU" }, outside_eu: { fr: "hors UE", en: "outside the EU" } };
 
@@ -104,6 +104,14 @@ const PLATFORMS: Record<string, { name: string; regions: Record<string, Region> 
   bedrock: { name: "AWS Bedrock", regions: BEDROCK_REGIONS },
   vertex: { name: "Google Vertex AI", regions: VERTEX_REGIONS },
 };
+
+/** Whether an endpoint processes data in the EU or outside it; null for one not in the catalogue. */
+export function residencyOf(endpoint: string): Residency | null {
+  const host = HOSTS[endpoint];
+  if (host) return host.residency;
+  const [kind = "", regionId = ""] = endpoint.split(" ");
+  return PLATFORMS[kind]?.regions[regionId]?.residency ?? null;
+}
 
 /** Where an endpoint runs, in words, e.g. « AWS Bedrock · UE (Stockholm) »; an unknown one raw. */
 export function whereItRan(endpoint: string): Translated {

@@ -19,16 +19,22 @@
  * A Job Offer read is captured with its Provenance: the page read and the model that read it, on the
  * site of its page, naming no Candidate.
  */
-import { createProvenanceRecorder, readJobPage, type AiLayer, type TaskInstructions } from "@jobhub/ai";
+import { createProvenanceRecorder, readJobPage, type AiLayer, type ProvenanceRecorder, type TaskInstructions } from "@jobhub/ai";
 import { believablePostingDate, FORBIDDEN_SITES, isForbiddenSite, type JobOffer } from "@jobhub/shared";
 import { countJobPostings, createPoliteFetcher, DEFAULT_USER_AGENT, htmlToText, metaRobots, pageReadTool, readJobPosting, type Clock } from "@jobhub/shared/page-reading";
 import type { JobOffers } from "../job-offers";
 
 export type JobOfferLinkResult = { ok: true; jobOffer: JobOffer } | { ok: false; reason: "forbidden_site" | "unreadable" | "not_a_job_offer" };
 
+/** Where a read records its steps: the reply's ProvenanceRecorder (#327). */
+export type ReadProvenance = Pick<ProvenanceRecorder, "aiFor" | "step" | "site">;
+
 export interface JobOfferLinks {
-  /** The Job Offer at `url`, read for the Candidate (`candidateId`, for AI Usage), or why there is none. */
-  read(candidateId: string, url: string): Promise<JobOfferLinkResult>;
+  /**
+   * The Job Offer at `url`, read for the Candidate (`candidateId`, for AI Usage), or why there is none.
+   * With `provenance`, the page read is recorded there: its Tool, the AI reading it, and the page as a Provenance site.
+   */
+  read(candidateId: string, url: string, provenance?: ReadProvenance): Promise<JobOfferLinkResult>;
 }
 
 export interface JobOfferLinksDeps {
@@ -66,13 +72,17 @@ const hostOf = (url: string) => {
 
 export function createJobOfferLinks(deps: JobOfferLinksDeps): JobOfferLinks {
   return {
-    async read(candidateId, url) {
+    async read(candidateId, url, provenance) {
       const host = hostOf(url);
       if (host === null) return { ok: false, reason: "unreadable" };
       if (isForbiddenSite(host, FORBIDDEN_SITES)) return { ok: false, reason: "forbidden_site" };
       try {
+        // A Job Offer already read from this page: the reply is built from that page, not read again.
         const stored = await deps.jobOffers.findBySourceUrl(url);
-        if (stored) return { ok: true, jobOffer: stored };
+        if (stored) {
+          provenance?.site(stored.source.url ?? url);
+          return { ok: true, jobOffer: stored };
+        }
 
         const fetcher = createPoliteFetcher({
           fetch: deps.fetch ?? globalThis.fetch,
@@ -82,12 +92,17 @@ export function createJobOfferLinks(deps: JobOfferLinksDeps): JobOfferLinks {
           maxBytes: MAX_BYTES,
           ...(deps.clock ? { clock: deps.clock } : {}),
         });
-        const reading = createProvenanceRecorder(deps.ai, deps.clock ? { now: () => new Date(deps.clock!.now()) } : {});
+        const reading = createProvenanceRecorder(provenance ? provenance.aiFor("read_job_page") : deps.ai, deps.clock ? { now: () => new Date(deps.clock!.now()) } : {});
         // A redirect to a page already stored gives its Job Offer.
-        const page = await reading.step({ tool: pageReadTool(url) }, () => fetcher.page(url, (target) => deps.jobOffers.findBySourceUrl(target)));
-        if (page.ok === "known") return { ok: true, jobOffer: page.known };
+        const fetchPage = () => reading.step({ tool: pageReadTool(url) }, () => fetcher.page(url, (target) => deps.jobOffers.findBySourceUrl(target)));
+        const page = provenance ? await recordedPageRead(provenance, pageReadTool(url), fetchPage) : await fetchPage();
+        if (page.ok === "known") {
+          provenance?.site(page.known.source.url ?? url);
+          return { ok: true, jobOffer: page.known };
+        }
         if (!page.ok) return { ok: false, reason: page.reason === "site_terms" ? "forbidden_site" : "unreadable" };
         if (metaRobots(page.html).some((value) => /\b(noindex|none)\b/.test(value))) return { ok: false, reason: "unreadable" };
+        provenance?.site(page.url);
 
         let details = readJobPosting(page.html);
         if (!details && countJobPostings(page.html) <= 1) details = await readJobPage(reading.aiFor("read_job_page"), candidateId, htmlToText(page.html), (await deps.reading?.()) ?? null);
@@ -97,8 +112,7 @@ export function createJobOfferLinks(deps: JobOfferLinksDeps): JobOfferLinks {
         const { postedAt: stated, summary, sector, subsector, ...untrusted } = details;
         const postedAt = believablePostingDate(stated, new Date());
         reading.site(page.url);
-        const provenance = reading.provenance();
-        const trusted = { ...(postedAt && { postedAt }), ...(summary && { summary }), ...(sector && { sector }), ...(subsector && { subsector }), provenance };
+        const trusted = { ...(postedAt && { postedAt }), ...(summary && { summary }), ...(sector && { sector }), ...(subsector && { subsector }), provenance: reading.provenance() };
         const captured = await deps.jobOffers.capture({ source: { url: page.url }, ...untrusted }, "candidate", trusted);
         return captured.ok ? { ok: true, jobOffer: captured.jobOffer } : { ok: false, reason: "not_a_job_offer" };
       } catch (error) {
@@ -107,4 +121,26 @@ export function createJobOfferLinks(deps: JobOfferLinksDeps): JobOfferLinks {
       }
     },
   };
+}
+
+/** A page that could not be read, carried out of its Provenance step so the step is recorded as failed. */
+class PageNotRead<T> extends Error {
+  override name = "PageNotRead";
+  constructor(readonly page: T) {
+    super("page not read");
+  }
+}
+
+/** The page read as one Tool step of the reply's Provenance: failed when the page could not be read. */
+async function recordedPageRead<T extends { ok: boolean | "known" }>(provenance: ReadProvenance, tool: ReturnType<typeof pageReadTool>, read: () => Promise<T>): Promise<T> {
+  try {
+    return await provenance.step({ tool }, async () => {
+      const page = await read();
+      if (page.ok === false) throw new PageNotRead(page);
+      return page;
+    });
+  } catch (error) {
+    if (error instanceof PageNotRead) return error.page as T;
+    throw error;
+  }
 }

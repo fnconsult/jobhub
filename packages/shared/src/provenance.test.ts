@@ -32,6 +32,56 @@ describe("a Provenance read from its jsonb column", () => {
     expect(readProvenance(undefined)).toBeNull();
   });
 
+  describe("for a result saved before Provenance was kept, with who answered and its tokens (#327)", () => {
+    const saved = {
+      activity: "think_write",
+      task: "coaching",
+      provider: "anthropic",
+      model: "claude-opus-5-5",
+      inputTokens: 1200,
+      outputTokens: 300,
+      cachedInputTokens: 800,
+      at: new Date("2026-10-01T08:15:00.000Z"),
+    } as const;
+
+    it("is a partial Provenance read from them: one AI step, its times unknown (0), no endpoint, no sites", () => {
+      expect(readProvenance(null, saved)).toEqual({
+        v: 1,
+        steps: [
+          {
+            kind: "ai",
+            activity: "think_write",
+            task: "coaching",
+            provider: "anthropic",
+            model: "claude-opus-5-5",
+            tokens: { input: 2000, output: 300 },
+            ms: 0,
+            at: "2026-10-01T08:15:00.000Z",
+            outcome: "ok",
+            count: 1,
+          },
+        ],
+        sites: [],
+        startedAt: "2026-10-01T08:15:00.000Z",
+        wallMs: 0,
+      });
+    });
+
+    it("is the stored one when there is one", () => {
+      expect(readProvenance(JSON.parse(JSON.stringify(provenance)), saved)).toEqual(provenance);
+    });
+
+    it("is none when no model was saved either (« modèle non enregistré »)", () => {
+      expect(readProvenance(null, { ...saved, provider: null, model: null })).toBeNull();
+    });
+
+    it("leaves out tokens it does not have, and a model whose shape a Provenance does not keep", () => {
+      const partial = readProvenance(null, { ...saved, inputTokens: null, outputTokens: null, cachedInputTokens: null, model: "a model with spaces" });
+      expect(partial?.steps).toEqual([expect.not.objectContaining({ tokens: expect.anything() })]);
+      expect(partial?.steps[0]).not.toHaveProperty("model");
+    });
+  });
+
   it("is none when it is not one this version knows", () => {
     expect(readProvenance({ ...provenance, v: 2 })).toBeNull();
     expect(readProvenance({ steps: [] })).toBeNull();
@@ -64,7 +114,7 @@ describe("no field of a Provenance can hold a Candidate id, a cost or text", () 
   it("has no such field, by type", () => {
     expectTypeOf<keyof Provenance>().toEqualTypeOf<"v" | "steps" | "sites" | "startedAt" | "wallMs">();
     expectTypeOf<keyof Extract<ProvenanceStep, { kind: "ai" }>>().toEqualTypeOf<
-      "kind" | "activity" | "task" | "provider" | "endpoint" | "model" | "tokens" | "ms" | "at" | "outcome" | "count"
+      "kind" | "activity" | "task" | "provider" | "endpoint" | "model" | "tokens" | "euAiConsent" | "ms" | "at" | "outcome" | "count"
     >();
     expectTypeOf<keyof Extract<ProvenanceStep, { kind: "tool" }>>().toEqualTypeOf<"kind" | "activity" | "tool" | "ms" | "at" | "outcome" | "count">();
     expectTypeOf<keyof Extract<ProvenanceStep, { kind: "rules" }>>().toEqualTypeOf<"kind" | "activity" | "rule" | "ms" | "at" | "outcome" | "count">();

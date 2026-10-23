@@ -26,13 +26,17 @@
  * both saved, marked as blocked without naming the Guardrail, and are no longer given to the AI Coach; a
  * reply replaced by its Guardrail message is marked as blocked too; a distress answer never is. `language`
  * is the Candidate's, for the Guardrail message.
+ * Each AI Coach reply is saved with its Provenance (ADR-0034, #327), given back with it and when the conversation reopens, and
+ * with its focus: the page's object in view when it was asked (an Application, a Job Offer or a Profile), for AI Activity.
+ * A reply saved before Provenance was kept gets a partial one, read on the fly from its provider, model and tokens.
  * A reply to a Job Offer link is saved with its Job Offer card, which reopens with the conversation, `followed`
  * once the Candidate has saved that Job Offer as an Application; the AI Coach is only ever given the reply's text.
  * Kept RETENTION_MONTHS after their last message (`purgeStaleCoachConversations`,
  * run daily by the worker) and deleted with the account (ADR-0010). Human
  * Coaches never read them: Coach Access covers Profiles and Applications only.
  */
-import type { JobOffer } from "@jobhub/shared";
+import { activityOf } from "@jobhub/ai";
+import { readProvenance, type JobOffer, type Provenance } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import { COACH_FOCUS_KINDS, type Coach, type CoachMessageCost, type PlaybookConsultation, type PlaybookUsed } from "../coach";
@@ -58,9 +62,20 @@ export interface CoachConversation extends CoachConversationSummary {
   messages: CoachMessage[];
 }
 
-/** `blocked`: whether the Candidate's message and the reply were marked as blocked (#228). `jobOffer`: the reply's Job Offer card, if any. */
+/**
+ * `blocked`: whether the Candidate's message and the reply were marked as blocked (#228). `jobOffer`: the reply's Job Offer card, if any.
+ * `provenance`: what served the reply (#327); `at`: when it was saved, an ISO date.
+ */
 export type SendResult =
-  | { ok: true; conversation: CoachConversationSummary; reply: string; blocked: { message: boolean; reply: boolean }; jobOffer?: JobOfferCard }
+  | {
+      ok: true;
+      conversation: CoachConversationSummary;
+      reply: string;
+      blocked: { message: boolean; reply: boolean };
+      jobOffer?: JobOfferCard;
+      provenance: Provenance;
+      at: string;
+    }
   | { ok: false; error: "invalid" | "not_found" | "unavailable" };
 
 export type RenameResult = { ok: true; conversation: CoachConversationSummary } | { ok: false; error: "invalid" | "not_found" };
@@ -98,6 +113,46 @@ const sendSchema = z.object({
 });
 
 type FocusInput = z.infer<typeof sendSchema>["focus"];
+
+/** The page objects a reply's focus can be (#327): what AI Activity counts the reply with. */
+const FOCUS_KINDS = ["application", "job_offer", "profile"] as const;
+type FocusKind = (typeof FOCUS_KINDS)[number];
+
+/** The reply's focus: the page's object in view, when it is an Application, a Job Offer or a Profile, by its id. */
+function focusOf(focus: FocusInput): { kind: FocusKind; id: string } | null {
+  if (!focus || !(FOCUS_KINDS as readonly string[]).includes(focus.kind) || !UUID.test(focus.id)) return null;
+  return { kind: focus.kind as FocusKind, id: focus.id };
+}
+
+/** What a saved AI Coach reply kept of what served it, as `SAVED_REPLY_COLUMNS` reads it from `coach_message` (aliased `m`). */
+export interface SavedReply {
+  provenance: unknown;
+  provider: string | null;
+  model: string | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  cachedInputTokens: number | null;
+  at: Date;
+}
+
+export const SAVED_REPLY_COLUMNS = `m.provenance, m.provider, m.model, m.input_tokens AS "inputTokens", m.output_tokens AS "outputTokens",
+       m.cached_input_tokens AS "cachedInputTokens", m.created_at AS at`;
+
+/**
+ * A saved AI Coach reply's Provenance (#327): the one stored, else a partial one read on the fly from its provider, model and
+ * tokens (a reply saved before Provenance was kept), else none (« modèle non enregistré »).
+ */
+export function savedReplyProvenance(reply: SavedReply): Provenance | null {
+  return readProvenance(reply.provenance, { activity: activityOf({ kind: "ai", task: "coaching" }), task: "coaching", ...reply });
+}
+
+/** A saved message as read back, with what an AI Coach reply kept of what served it. */
+interface MessageRow extends SavedReply {
+  from: CoachMessage["from"];
+  text: string;
+  blocked: boolean;
+  jobOffer: JobOfferCard | null;
+}
 
 interface ConversationRow {
   id: string;
@@ -139,16 +194,23 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
 
   /** The last `limit` messages of the Candidate's conversation, oldest first, each reply with its Job Offer card. */
   async function lastMessages(candidateId: string, conversationId: string, limit: number | null): Promise<CoachMessage[]> {
-    const { rows } = await database.query<Omit<CoachMessage, "jobOffer"> & { blocked: boolean; jobOffer: JobOfferCard | null }>(
+    const { rows } = await database.query<MessageRow>(
       `SELECT recent.author AS "from", recent.text, recent.blocked,
-              CASE WHEN o.id IS NULL THEN NULL ELSE jsonb_strip_nulls(jsonb_build_object('id', o.id, 'title', o.title, 'employer', o.employer, 'followed', a.id IS NOT NULL)) END AS "jobOffer"
-         FROM (SELECT author, text, blocked, job_offer_id, seq FROM coach_message WHERE conversation_id = $1 ORDER BY seq DESC LIMIT $2) recent
+              CASE WHEN o.id IS NULL THEN NULL ELSE jsonb_strip_nulls(jsonb_build_object('id', o.id, 'title', o.title, 'employer', o.employer, 'followed', a.id IS NOT NULL)) END AS "jobOffer",
+              ${SAVED_REPLY_COLUMNS.replaceAll("m.", "recent.")}
+         FROM (SELECT * FROM coach_message WHERE conversation_id = $1 ORDER BY seq DESC LIMIT $2) recent
          LEFT JOIN job_offer o ON o.id = recent.job_offer_id
          LEFT JOIN application a ON a.job_offer_id = o.id AND a.candidate_id = $3
         ORDER BY recent.seq`,
       [conversationId, limit, candidateId],
     );
-    return rows.map(({ blocked, jobOffer, ...message }) => ({ ...message, ...(blocked ? { blocked: true as const } : {}), ...(jobOffer ? { jobOffer } : {}) }));
+    return rows.map((row) => ({
+      from: row.from,
+      text: row.text,
+      ...(row.blocked ? { blocked: true as const } : {}),
+      ...(row.jobOffer ? { jobOffer: row.jobOffer } : {}),
+      ...(row.from === "coach" ? { provenance: savedReplyProvenance(row), at: row.at.toISOString() } : {}),
+    }));
   }
 
   /** The Job Offer card of a reply's Job Offer, as the Candidate sees it now. */
@@ -179,6 +241,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
 
       const sentAt = now();
       const { cost } = answer;
+      const replyFocus = focusOf(focus);
       const blocked = { message: answer.outcome === "blocked_message", reply: answer.outcome === "blocked_message" || answer.outcome === "blocked_reply" };
       const client = await database.connect();
       try {
@@ -194,8 +257,9 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
         }
         await client.query(`INSERT INTO coach_message (conversation_id, author, text, created_at, blocked) VALUES ($1, 'candidate', $2, $3, $4)`, [id, message, sentAt, blocked.message]);
         await client.query(
-          `INSERT INTO coach_message (conversation_id, author, text, created_at, provider, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, playbooks, consultations, blocked, job_offer_id)
-           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+          `INSERT INTO coach_message (conversation_id, author, text, created_at, provider, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, playbooks, consultations, blocked, job_offer_id,
+                                     provenance, focus_kind, focus_id)
+           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
           [
             id,
             answer.reply,
@@ -210,13 +274,24 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
             JSON.stringify(answer.consultations),
             blocked.reply,
             answer.jobOffer?.id ?? null,
+            JSON.stringify(answer.provenance),
+            replyFocus?.kind ?? null,
+            replyFocus?.id ?? null,
           ],
         );
         await client.query(`UPDATE coach_conversation SET last_message_at = $2 WHERE id = $1`, [id, sentAt]);
         await client.query("COMMIT");
         const conversation = await find(candidateId, id);
         if (!conversation) return { ok: false, error: "not_found" }; // deleted meanwhile
-        return { ok: true, conversation, reply: answer.reply, blocked, ...(answer.jobOffer ? { jobOffer: await cardOf(candidateId, answer.jobOffer) } : {}) };
+        return {
+          ok: true,
+          conversation,
+          reply: answer.reply,
+          blocked,
+          ...(answer.jobOffer ? { jobOffer: await cardOf(candidateId, answer.jobOffer) } : {}),
+          provenance: answer.provenance,
+          at: sentAt.toISOString(),
+        };
       } catch (error) {
         await client.query("ROLLBACK").catch(() => {});
         throw error;
@@ -420,6 +495,12 @@ export async function migrateCoachConversations(database: Pool): Promise<void> {
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS blocked boolean NOT NULL DEFAULT false;
     -- The Job Offer an AI Coach reply read from a link the Candidate pasted, shown as its Job Offer card; null otherwise.
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS job_offer_id uuid REFERENCES job_offer (id) ON DELETE SET NULL;
+    -- What served each AI Coach reply (ADR-0034, #327): its Provenance, null before (a partial one is read from provider, model and tokens).
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS provenance jsonb;
+    -- The page's object in view when a reply was asked (#327): an Application, a Job Offer or a Profile; null otherwise and before.
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS focus_kind text CHECK (focus_kind IN ('application', 'job_offer', 'profile'));
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS focus_id uuid;
+    CREATE INDEX IF NOT EXISTS coach_message_focus_idx ON coach_message (focus_kind, focus_id) WHERE focus_id IS NOT NULL;
     -- Whether the conversation opened with the AI disclosure (#324): true for every new one, false for those saved before.
     ALTER TABLE coach_conversation ADD COLUMN IF NOT EXISTS ai_disclosure boolean NOT NULL DEFAULT false;
   `);

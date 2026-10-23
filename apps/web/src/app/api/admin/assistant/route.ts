@@ -11,7 +11,8 @@ const STATUS = { invalid: 400, not_found: 404, unavailable: 503 } as const;
  * The Administrator's next message to the Back Office Assistant, and its reply, both saved.
  * Body: { conversationId?, message }; without `conversationId` a new conversation starts.
  * A Guardrail message answers in the Administrator's Interface Language; `blocked` says whether the question and the reply are Blocked messages (#228).
- * 200 { conversation, reply, blocked: { message, reply } } · 400 { error: "invalid" } · 403 · 404 (not an Administrator, or { error: "not_found" }) · 503 { error: "unavailable" }
+ * `provenance` says what served the reply (#327) and `at` when it was saved, for the line under it.
+ * 200 { conversation, reply, blocked: { message, reply }, provenance, at } · 400 { error: "invalid" } · 403 · 404 (not an Administrator, or { error: "not_found" }) · 503 { error: "unavailable" }
  */
 export async function POST(request: Request) {
   if (!isFromTrustedOrigin(request)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
@@ -20,6 +21,9 @@ export async function POST(request: Request) {
 
   const body: unknown = await request.json().catch(() => undefined);
   const result = await getAssistantConversations().send(asking, body, { language: guardrailLanguage(localeOf(await getCurrentCandidate())) });
-  if (result.ok) return NextResponse.json({ conversation: result.conversation, reply: result.reply, blocked: result.blocked });
+  if (result.ok) {
+    const { conversation, reply, blocked, provenance, at } = result;
+    return NextResponse.json({ conversation, reply, blocked, provenance, at });
+  }
   return NextResponse.json({ error: result.error }, { status: STATUS[result.error] });
 }

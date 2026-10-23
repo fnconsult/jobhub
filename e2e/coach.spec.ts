@@ -430,8 +430,10 @@ test.describe("AI Coach cost", () => {
     await signInWithMagicLink(page, newAddress("coach-cost"));
     const sent = await page.request.post("/api/coach", { headers: { origin }, data: { message: "Combien coûte ma question ?" } });
     expect(sent.status(), await sent.text()).toBe(200);
-    // What the Candidate gets back says nothing of the cost.
-    expect(JSON.stringify(await sent.json())).not.toMatch(/cost|eur|tokens/i);
+    // What the Candidate gets back says nothing of the cost: its Provenance (#327) carries the tokens, a technical measure, never euros.
+    const body = await sent.json();
+    expect(JSON.stringify(body)).not.toMatch(/cost|eur/i);
+    expect(body.provenance.steps.at(-1)).toMatchObject({ task: "coaching", model: "mistral-large-latest", tokens: { input: 100, output: 50 } });
 
     const context = await browser.newContext({ baseURL: origin, locale: "en-US" });
     const admin = await context.newPage();

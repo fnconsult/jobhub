@@ -44,4 +44,11 @@ describe("auditDesignTokens (ADR-0009 accessibility floor)", () => {
       expect.objectContaining({ rule: "min-body-size", token: "textSize.small" }),
     );
   });
+
+  it("flags metadata text below 13px, or in a grey under AA (ADR-0009 amendment, #317)", () => {
+    expect(auditDesignTokens({ ...designTokens, metaFontSize: 12 })).toContainEqual(expect.objectContaining({ rule: "min-body-size", token: "metaFontSize" }));
+    expect(auditDesignTokens({ ...designTokens, color: { ...designTokens.color, textMeta: "#9b9a97" } })).toContainEqual(
+      expect.objectContaining({ rule: "contrast", token: "textMeta" }),
+    );
+  });
 });

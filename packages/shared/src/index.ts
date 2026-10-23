@@ -17,3 +17,4 @@ export * from "./provenance";
 export * from "./provenance-link";
 export * from "./ai-models";
 export * from "./provenance-marks";
+export * from "./provenance-line";

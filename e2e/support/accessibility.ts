@@ -13,9 +13,15 @@ export type RenderedText = {
  * Collects every visible piece of text on the page as the browser rendered it:
  * computed font size, text colour, the effective background behind it, and the
  * WCAG 2.1 contrast ratio between the two (computed from the spec formula).
+ * Metadata text is left out: the ADR-0009 amendment (#317) lets it be smaller than body text,
+ * at least 13px in #6b6a67 (5.4:1), e.g. AI Activity's summary and the Provenance line. Smaller
+ * text in that colour is still collected, and so held to the body-text floor.
  */
 export async function renderedTexts(page: Page): Promise<RenderedText[]> {
   return page.evaluate(() => {
+    // Metadata text (ADR-0009 amendment): #6b6a67, at least 13px.
+    const META_COLOR = "rgb(107, 106, 103)";
+    const MIN_META_PX = 13;
     const parse = (value: string): [number, number, number, number] => {
       const m = value.match(/rgba?\(([^)]+)\)/);
       if (!m) throw new Error(`Unexpected colour: ${value}`);
@@ -47,6 +53,7 @@ export async function renderedTexts(page: Page): Promise<RenderedText[]> {
       const rect = el.getBoundingClientRect();
       if (style.visibility === "hidden" || style.display === "none" || rect.width === 0) continue;
       const color = style.color;
+      if (color === META_COLOR && parseFloat(style.fontSize) >= MIN_META_PX) continue;
       const background = backgroundOf(el);
       const [l1, l2] = [luminance(parse(color)), luminance(parse(background))].sort((a, b) => b - a);
       results.push({

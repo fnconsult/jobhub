@@ -4029,6 +4029,8 @@ textarea.title-edit {
 
   .with-coach-panel .ai-activity-pane {
     position: fixed;
+    /* Stretched between its insets: aligned at the start, Chrome would size it to its content. */
+    align-self: stretch;
     top: calc(var(--topbar-height, 3.5rem) + var(--space-2));
     right: calc(var(--coach-width) + 2 * var(--space-2));
     bottom: var(--space-2);

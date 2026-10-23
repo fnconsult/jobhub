@@ -90,7 +90,8 @@ export function AiActivityButton() {
     >
       {open ? <Icons.close /> : <Icons.aiActivity />}
       <span className="ai-activity-label">{t("aiActivity.label")}</span>
-      {!open && summary ? <span className="ai-activity-summary">{summary}</span> : null}
+      {/* A space between them in the button's name: « Activité IA 3 modèles · … ». */}
+      {!open && summary ? <span className="ai-activity-summary"> {summary}</span> : null}
     </button>
   );
 }

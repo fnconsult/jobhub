@@ -152,7 +152,7 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     await expect(skip).toBeInViewport();
 
     const order: string[] = [];
-    const stops = NAV_LABELS.length + 8;
+    const stops = NAV_LABELS.length + 9;
     for (let i = 0; i < stops; i++) {
       await page.keyboard.press("Tab");
       order.push(await focused(page));
@@ -166,6 +166,8 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
       fr.nav.account,
       fr.account.signOut,
       fr.sidebar.collapse,
+      // AI Activity (#332): a page with no AI content, so its button has no words but its name.
+      fr.aiActivity.label,
       fr.coachPanel.open,
       order[stops - 1],
     ]);
@@ -193,16 +195,18 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     // Its Fermer button closes it: the top bar's steps aside meanwhile.
     await expect(coachButton(page)).toHaveCount(0);
     const box = (await panel.boundingBox())!;
-    expect(box.x + box.width).toBeCloseTo(1440, 0);
+    // A card inset by --space-2 (0.5rem, 8.5px at the standard text size), as AI Activity's pane (#332).
+    const inset = 0.5 * 17;
+    expect(box.x + box.width).toBeCloseTo(1440 - inset, 0);
     // A third of the window, between 27rem and 36rem.
     expect(box.width).toBeCloseTo(0.34 * 1440, 0);
-    expect(box.height).toBeCloseTo(900, 0);
+    expect(box.height).toBeCloseTo(900 - 2 * inset, 0);
     // Docked: the page stays beside it, not under it.
     const main = (await page.getByRole("main").boundingBox())!;
     expect(main.x + main.width).toBeLessThanOrEqual(box.x + 1);
     // The message box stays at the bottom of the panel.
     const form = (await panel.locator("form").boundingBox())!;
-    expect(form.y + form.height).toBeGreaterThan(900 - 32);
+    expect(form.y + form.height).toBeGreaterThan(900 - inset - 32);
 
     for (const t of await renderedTexts(page)) {
       expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);

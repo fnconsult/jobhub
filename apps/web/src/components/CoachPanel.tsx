@@ -120,9 +120,18 @@ interface PanelConfig {
     /** What the page has in view goes with each message, and the Job Search it allows. */
     inView: boolean;
   };
-  texts: Record<"open" | "title" | "welcome" | "thinking" | "unavailable" | "messagesLabel" | "author" | "retention" | "noConversations", ParseKeys> & {
+  /**
+   * `title`, the panel's visible title, and `badge`, by the message box, say the AI is an AI (AI Act art. 50(1), #324),
+   * whatever the width and in every conversation.
+   */
+  texts: Record<"open" | "title" | "badge" | "welcome" | "thinking" | "unavailable" | "messagesLabel" | "author" | "retention" | "noConversations", ParseKeys> & {
     /** Shown where the Coach Panel says what is in view, for a panel that follows nothing in view. */
     context?: ParseKeys;
+    /**
+     * The fixed first message of every new conversation, saying the AI is an AI, not a person (#324): never an AI
+     * reply. It replaces the welcome; a conversation saved before it existed keeps the welcome.
+     */
+    aiDisclosure?: ParseKeys;
   };
 }
 
@@ -135,7 +144,9 @@ const PANELS: Record<PanelKind, PanelConfig> = {
     texts: {
       open: "coachPanel.open",
       title: "coachPanel.title",
+      badge: "coachPanel.badge",
       welcome: "coachPanel.welcome",
+      aiDisclosure: "coachPanel.aiDisclosure",
       thinking: "coachPanel.thinking",
       unavailable: "coachPanel.errors.unavailable",
       messagesLabel: "coachPanel.messagesLabel",
@@ -152,6 +163,7 @@ const PANELS: Record<PanelKind, PanelConfig> = {
     texts: {
       open: "backOfficeAssistant.open",
       title: "backOfficeAssistant.title",
+      badge: "backOfficeAssistant.badge",
       welcome: "backOfficeAssistant.welcome",
       thinking: "backOfficeAssistant.thinking",
       unavailable: "backOfficeAssistant.unavailable",
@@ -249,11 +261,14 @@ function JobOfferCard({ jobOffer }: { jobOffer: JobOfferCardData }) {
 }
 
 /** A saved conversation with its messages, or null when it is gone or cannot be read. */
-async function fetchConversation(endpoint: string, conversationId: string): Promise<{ conversation: ConversationSummary & { messages: CoachMessage[] } } | { gone: boolean }> {
+async function fetchConversation(
+  endpoint: string,
+  conversationId: string,
+): Promise<{ conversation: ConversationSummary & { aiDisclosure: boolean; messages: CoachMessage[] } } | { gone: boolean }> {
   const response = await fetch(`${endpoint}/${encodeURIComponent(conversationId)}`).catch(() => null);
   if (!response?.ok) return { gone: response?.status === 404 };
-  const { conversation } = (await response.json()) as { conversation: ConversationSummary & { messages: ServerMessage[] } };
-  return { conversation: { ...conversation, messages: conversation.messages.map(asPanelMessage) } };
+  const { conversation } = (await response.json()) as { conversation: ConversationSummary & { aiDisclosure?: boolean; messages: ServerMessage[] } };
+  return { conversation: { ...conversation, aiDisclosure: conversation.aiDisclosure === true, messages: conversation.messages.map(asPanelMessage) } };
 }
 
 /**
@@ -274,6 +289,8 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   const [open, setOpen] = useState(false);
   const [inView, setInViewState] = useState<InView | null>(null);
   const [conversation, setConversation] = useState<ConversationSummary | null>(null);
+  // Whether the conversation in view opened with the AI disclosure: a new one does, until it is saved.
+  const [aiDisclosure, setAiDisclosure] = useState(true);
   const [messages, setMessages] = useState<CoachMessage[]>([]);
   const [restoring, setRestoring] = useState(false);
   const [view, setView] = useState<"chat" | "list" | "memory">("chat");
@@ -306,8 +323,9 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     setRestoring(true);
     void fetchConversation(panel.conversations, conversationId).then((found) => {
       if ("conversation" in found) {
-        const { messages: saved, ...summary } = found.conversation;
+        const { messages: saved, aiDisclosure: disclosed, ...summary } = found.conversation;
         setConversation(summary);
+        setAiDisclosure(disclosed);
         setMessages(saved);
       } else if (found.gone) remember(panel.storageKey, null);
       setRestoring(false);
@@ -354,6 +372,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
 
   function startNewConversation() {
     setConversation(null);
+    setAiDisclosure(true);
     setMessages([]);
     setStatus("idle");
     remember(panel.storageKey, null);
@@ -384,8 +403,9 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
       if (found.gone) setConversations((list) => list?.filter((item) => item.id !== conversationId) ?? null);
       return false;
     }
-    const { messages: saved, ...summary } = found.conversation;
+    const { messages: saved, aiDisclosure: disclosed, ...summary } = found.conversation;
     setConversation(summary);
+    setAiDisclosure(disclosed);
     setMessages(saved);
     setStatus("idle");
     remember(panel.storageKey, summary.id);
@@ -433,6 +453,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
       } else if (response.status === 404) {
         // Deleted meanwhile (another tab, or kept past its 12 months): the message starts a new one.
         setConversation(null);
+        setAiDisclosure(true);
         remember(panel.storageKey, null);
         setMessages([]);
         setDraft(text);
@@ -451,6 +472,8 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
 
   const contextText = panel.features.inView || !texts.context ? inViewLabel : t(texts.context);
   const conversationTitle = conversation ? conversation.title : t("coachPanel.newConversation");
+  // The conversation's first message: the AI disclosure, or the welcome of a panel without one or of a conversation saved before it.
+  const opening = texts.aiDisclosure && aiDisclosure ? texts.aiDisclosure : texts.welcome;
 
   const control: Control = { open, panelId: `${id}-panel`, toggle: () => (open ? close() : openPanel()), register, label: texts.open };
 
@@ -472,7 +495,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
             onKeyDown={onKeyDown}
           >
             <div className="coach-panel-header">
-              <h2 id={`${id}-title`} className="visually-hidden">
+              <h2 id={`${id}-title`} className="coach-panel-title">
                 {t(texts.title)}
               </h2>
               <DropdownMenu.Root modal={false}>
@@ -546,6 +569,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                     setConversations((list) => list?.filter((item) => item.id !== deletedId) ?? null);
                     if (conversation?.id === deletedId) {
                       setConversation(null);
+                      setAiDisclosure(true);
                       setMessages([]);
                       remember(panel.storageKey, null);
                     }
@@ -558,10 +582,13 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                   <h3 className="visually-hidden">{conversationTitle}</h3>
                   {restoring ? <p role="status">{t("coachPanel.loading")}</p> : null}
                   <ol className="chat coach-panel-messages" aria-label={t(texts.messagesLabel)} aria-live="polite">
-                    <li className="chat-message chat-coach">
-                      <span className="chat-author">{t(texts.author)}</span>
-                      <p>{t(texts.welcome)}</p>
-                    </li>
+                    {/* Until a reopened conversation is back, which opening it had is not known yet. */}
+                    {restoring ? null : (
+                      <li className="chat-message chat-coach">
+                        <span className="chat-author">{t(texts.author)}</span>
+                        <p>{t(opening)}</p>
+                      </li>
+                    )}
                     {messages.map((message, index) => (
                       <li key={index} className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}${message.blocked ? " chat-blocked" : ""}`}>
                         <span className="chat-author">{message.from === "coach" ? t(texts.author) : t("questionnaire.you")}</span>
@@ -604,9 +631,15 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                         }
                       }}
                     />
-                    <button className="button button-primary" type="submit" disabled={status === "sending" || restoring}>
-                      {t("coachPanel.send")}
-                    </button>
+                    <div className="coach-panel-composer-actions">
+                      {/* Says, by the message box, that the one answering is an AI (#324). */}
+                      <span className="pill coach-panel-badge" data-tone="accent">
+                        {t(texts.badge)}
+                      </span>
+                      <button className="button button-primary" type="submit" disabled={status === "sending" || restoring}>
+                        {t("coachPanel.send")}
+                      </button>
+                    </div>
                   </div>
                   {/* What goes with the message: one line, opened for the whole text (and the Job Search). */}
                   <details className="coach-panel-context">

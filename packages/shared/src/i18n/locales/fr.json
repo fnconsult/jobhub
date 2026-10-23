@@ -509,7 +509,8 @@
   },
   "coachPanel": {
     "open": "Mon coach",
-    "title": "Votre coach",
+    "title": "Coach IA",
+    "badge": "Coach IA",
     "close": "Fermer",
     "inView": "Vous consultez : {{label}}",
     "inViewProfile": "le profil « {{name}} »",
@@ -520,6 +521,7 @@
     "inViewAgenda": "vos entretiens et rendez-vous des 30 prochains jours",
     "nothingInView": "Posez votre question : votre coach vous répond à partir de ce que vous lui dites.",
     "welcome": "Bonjour, je suis votre coach. Comment puis-je vous aider ?",
+    "aiDisclosure": "Je suis un coach IA, pas une personne : un programme d'intelligence artificielle de Jobbbox. Pour parler à une personne, vous pouvez réserver une séance avec un coach humain. Comment puis-je vous aider ?",
     "messageLabel": "Votre message",
     "send": "Envoyer",
     "thinking": "Votre coach rédige sa réponse…",
@@ -2005,6 +2007,7 @@
   "backOfficeAssistant": {
     "open": "Assistant",
     "title": "Assistant du back office",
+    "badge": "Assistant IA",
     "welcome": "Bonjour, je suis l'assistant du back office. Posez-moi vos questions sur les données et les réglages de vos sections.",
     "readOnly": "Lecture seule : l'assistant répond à partir des sections que vos rôles couvrent et ne modifie jamais rien.",
     "thinking": "L'assistant rédige sa réponse…",

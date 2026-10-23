@@ -509,7 +509,8 @@
   },
   "coachPanel": {
     "open": "My coach",
-    "title": "Your coach",
+    "title": "AI Coach",
+    "badge": "AI Coach",
     "close": "Close",
     "inView": "You are viewing: {{label}}",
     "inViewProfile": "the profile \"{{name}}\"",
@@ -520,6 +521,7 @@
     "inViewAgenda": "your interviews and appointments for the next 30 days",
     "nothingInView": "Ask your question: your coach answers from what you tell them.",
     "welcome": "Hello, I'm your coach. How can I help you?",
+    "aiDisclosure": "I am an AI coach, not a person: an artificial intelligence program from Jobbbox. To talk to a person, you can book a session with a human coach. How can I help you?",
     "messageLabel": "Your message",
     "send": "Send",
     "thinking": "Your coach is writing a reply…",
@@ -2005,6 +2007,7 @@
   "backOfficeAssistant": {
     "open": "Assistant",
     "title": "Back office assistant",
+    "badge": "AI Assistant",
     "welcome": "Hello, I am the back office assistant. Ask me about the data and settings of your sections.",
     "readOnly": "Read-only: the assistant answers from the sections your roles cover and never changes anything.",
     "thinking": "The assistant is writing its reply…",

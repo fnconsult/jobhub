@@ -657,7 +657,7 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
             padding: "0.75em 1em 4em",
             background: "var(--color-surface)",
             borderLeft: "1px solid var(--color-border)",
-            fontSize: tiny ? "9px" : "0.8125rem",
+            fontSize: tiny ? "9px" : "calc(0.8125rem - 1px)",
             lineHeight: 1.45,
           }}
         >

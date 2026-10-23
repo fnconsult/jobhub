@@ -732,7 +732,7 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
     {!open ? (
       <span
         onClick={() => setOpen(true)}
-        style={{ marginLeft: "auto", maxWidth: "18rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text-secondary)", fontSize: "0.8125rem", cursor: "pointer" }}
+        style={{ marginLeft: "auto", maxWidth: "18rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#9b9a97" /* light grey, no token: under AA contrast, see ADR-0009 */, fontSize: "0.8125rem", cursor: "pointer" }}
       >
         {words}
       </span>

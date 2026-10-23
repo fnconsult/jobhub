@@ -27,7 +27,8 @@
  * "back-office-assistant" task Playbook's (ADR-0026); what it never reveals, refuses and treats as
  * data is added here, whatever they say.
  */
-import { costInEur, type AiLayer, type GenerateResult } from "@jobhub/ai";
+import { costInEur, createProvenanceRecorder, type AiLayer, type GenerateResult } from "@jobhub/ai";
+import type { Provenance } from "@jobhub/shared";
 import type { Plan, PlanFeature, PlanQuotas } from "@jobhub/shared";
 import { failureReasonWording } from "@jobhub/shared/i18n";
 import * as z from "zod";
@@ -75,9 +76,10 @@ export interface AskingAdministrator {
 /**
  * `sections`: the Back Office sections the reply was told about (those the Administrator could read then),
  * so a saved reply is replayed only to someone who can still read them all.
+ * `provenance`: what served the reply, the Guardrail checks and the reply itself, with the model of each (#327).
  */
 export type AssistantReply =
-  | { ok: true; reply: string; outcome: GuardedReply["outcome"]; cost: CoachMessageCost; sections: BackOfficeResource[] }
+  | { ok: true; reply: string; outcome: GuardedReply["outcome"]; cost: CoachMessageCost; sections: BackOfficeResource[]; provenance: Provenance }
   | { ok: false; error: "invalid" | "unavailable" };
 
 export interface BackOfficeAssistant {
@@ -443,12 +445,14 @@ export function createBackOfficeAssistant(deps: BackOfficeAssistantDeps): BackOf
       const parsed = inputSchema.safeParse(input);
       if (!parsed.success) return { ok: false, error: "invalid" };
       const messages = recentMessages(parsed.data.messages);
+      // The reply's steps, each AI call through it: what is kept with the reply as its Provenance (#327).
+      const recorder = createProvenanceRecorder(deps.ai);
       try {
         const written: GenerateResult[] = [];
         const write = async (feedback: string | null) => {
           const [context, run] = await Promise.all([assistantContext(deps.sources, administrator.access), taskRun(deps.taskPlaybooks, "back-office-assistant", deps.ai)]);
           const instructions = `${run.text()}\n${GUARDS}`;
-          const result = await deps.ai.generate({
+          const result = await recorder.ai.generate({
             // Its own task, so it is counted apart from the AI Coach; routed like coaching.
             task: "back_office_assistant",
             // The Administrator's own account: their EU AI consent routes what they type (#121).
@@ -469,6 +473,7 @@ export function createBackOfficeAssistant(deps: BackOfficeAssistantDeps): BackOf
           ? await deps.guardrails.guard("back_office_assistant", {
               candidateId: administrator.id,
               language: options.language ?? "fr",
+              ai: recorder.ai,
               message: messages.at(-1)!.text,
               written: messages.filter((message) => message.from === "administrator").map((message) => message.text),
               reply: write,
@@ -491,6 +496,7 @@ export function createBackOfficeAssistant(deps: BackOfficeAssistantDeps): BackOf
             eur: calls.reduce((sum, call) => sum + costInEur(call), 0),
           },
           sections: readableSections(administrator.access),
+          provenance: recorder.provenance(),
         };
       } catch (error) {
         console.warn("[back-office-assistant] the assistant could not reply:", error instanceof Error ? error.message : error);

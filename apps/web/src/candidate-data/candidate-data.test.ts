@@ -127,7 +127,14 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(JSON.stringify(exported)).not.toContain("someone-else");
   });
 
-  it("the export holds the Administrator's Back Office Assistant conversations with every message, not what the replies cost", async () => {
+  it("the export holds the Administrator's Back Office Assistant conversations with every message and each reply's Provenance (#327), not what the replies cost", async () => {
+    const provenance: Provenance = {
+      v: 1,
+      steps: [{ kind: "ai", activity: "think_write", task: "back_office_assistant", provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-large-latest", tokens: { input: 1, output: 1 }, ms: 700, at: "2026-10-13T08:00:00.000Z", outcome: "ok", count: 1 }],
+      sites: [],
+      startedAt: "2026-10-13T08:00:00.000Z",
+      wallMs: 800,
+    };
     const conversations = createAssistantConversations(database, {
       assistant: {
         reply: async () => ({
@@ -136,6 +143,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
           outcome: "replied",
           cost: { provider: "mistral", model: "secret-assistant-model", inputTokens: 1, outputTokens: 1, cachedInputTokens: 0, eur: 0.001 },
           sections: ["planQuotas"],
+          provenance,
         }),
       },
     });
@@ -152,7 +160,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         lastMessageAt: expect.any(Date),
         messages: [
           { from: "administrator", text: "Quotas Premium ?", sentAt: expect.any(Date) },
-          { from: "assistant", text: "Premium : 4321 Match Scores par mois.", sentAt: expect.any(Date) },
+          { from: "assistant", text: "Premium : 4321 Match Scores par mois.", sentAt: expect.any(Date), provenance },
         ],
       },
     ]);

@@ -357,9 +357,13 @@ describe("Back Office Assistant", () => {
     await assistant.reply({ id: "other", access }, asked("Le coach jean.martin@example.fr est-il listé ?"));
     await assistant.reply({ id: "consenting", access }, asked("Combien de coachs ?"));
 
-    expect(mistral.calls).toHaveLength(1);
+    const consenting = await assistant.reply({ id: "consenting", access }, asked("Mon numéro : 06 12 34 56 78, est-il listé ?"));
+
+    expect(mistral.calls).toHaveLength(2);
     expect(claude.calls).toHaveLength(2);
-    expect(usage.entries.map((entry) => entry.candidateId)).toEqual(["consenting", "other", "consenting"]);
+    expect(usage.entries.map((entry) => entry.candidateId)).toEqual(["consenting", "other", "consenting", "consenting"]);
+    // Its Provenance says Mistral served it under the Administrator's EU AI Consent (#327).
+    expect(consenting).toMatchObject({ ok: true, provenance: { steps: [{ kind: "ai", task: "back_office_assistant", provider: "mistral", euAiConsent: true }] } });
   });
 
   it("refuses a malformed conversation, and says so when the AI cannot answer", async () => {
@@ -485,6 +489,18 @@ describe("Back Office Assistant", () => {
 
       expect(await key.assistant.reply(key.administrator, asked("La clé Mistral ?"))).toMatchObject({ reply: DEFAULT_GUARDRAIL_MESSAGES.secret_disclosure.fr, outcome: "blocked_reply" });
       expect(await email.assistant.reply(email.administrator, asked("Qui est Sophie ?"))).toMatchObject({ reply: DEFAULT_GUARDRAIL_MESSAGES.personal_data_leak.fr, outcome: "blocked_reply" });
+    });
+
+    it("records the Guardrail checks and the reply in the reply's Provenance (#327)", async () => {
+      const { assistant, administrator } = guardedFor({});
+
+      const result = await assistant.reply(administrator, asked("Combien de coachs ?"));
+
+      if (!result.ok) throw new Error("no reply");
+      expect(result.provenance.steps).toEqual([
+        expect.objectContaining({ kind: "ai", task: "guardrail", activity: "think", provider: "mistral", count: 2 }),
+        expect.objectContaining({ kind: "ai", task: "back_office_assistant", activity: "think_write", provider: "mistral", count: 1 }),
+      ]);
     });
 
     it("has no distress nor out-of-scope advice Guardrail, and counts the checks in what the reply cost", async () => {

@@ -7,12 +7,17 @@ import { useTranslation } from "react-i18next";
 import { Icons } from "@/components/icons";
 import { ProfileSwitcherMenu } from "@/components/ProfileSwitcherMenu";
 import { UsageMeter } from "@/components/UsageMeter";
+import { AiActivityProvider } from "@/components/AiActivity";
+import type { ActivityElement } from "@/ai-activity/pane";
 import type { UsageMeter as Meter } from "@/billing/usage-meter";
 import { accountLink, sidebarNav, type SidebarNavKey } from "@/components/sidebar-nav";
 import { CURRENT, SidebarShell } from "@/components/SidebarShell";
 import { routes } from "@/routes";
 
 export type SidebarProfile = { id: string; name: string; archived: boolean };
+
+/** A page with no AI content. */
+const NO_AI_ACTIVITY: readonly ActivityElement[] = [];
 
 const LABELS = {
   applications: "nav.applications",
@@ -28,6 +33,8 @@ const LABELS = {
  * The sidebar layout of the Candidate's pages (#132, #134): the sidebar shell
  * (see SidebarShell) with the Profile switcher and the Candidate's labelled links,
  * and in its foot the Usage Meter of the week's Plan Quotas (null when billing could not be read).
+ * Its Top Bar has AI Activity's button, its pane the page's `aiActivity` elements (none: « Aucun contenu
+ * produit par l'IA sur cette page »).
  */
 export function SidebarLayout({
   profiles,
@@ -38,6 +45,7 @@ export function SidebarLayout({
   usage = null,
   title,
   wide = false,
+  aiActivity = NO_AI_ACTIVITY,
   children,
 }: {
   profiles: ReadonlyArray<SidebarProfile>;
@@ -48,6 +56,7 @@ export function SidebarLayout({
   usage?: Meter | null;
   title?: ReactNode;
   wide?: boolean;
+  aiActivity?: readonly ActivityElement[];
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -58,6 +67,7 @@ export function SidebarLayout({
   const current = profiles.find((profile) => profile.id === currentProfileId);
 
   return (
+    <AiActivityProvider elements={aiActivity}>
     <SidebarShell
       brand={{ href: routes.home, label: t("app.name") }}
       title={title}
@@ -102,5 +112,6 @@ export function SidebarLayout({
     >
       {children}
     </SidebarShell>
+    </AiActivityProvider>
   );
 }

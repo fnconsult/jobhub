@@ -90,7 +90,7 @@ function addModel(models: ActivityModel[], model: ActivityModel): void {
   same.ms = add(same.ms, model.ms);
 }
 
-function addTool(tools: ActivityTool[], tool: ActivityTool): ActivityTool {
+function addTool<T extends ActivityTool>(tools: T[], tool: T): T {
   const same = tools.find((other) => other.name === tool.name);
   if (!same) {
     const kept = { ...tool };
@@ -154,7 +154,7 @@ export function aiActivityPane(elements: ActivityElement[]): AiActivityPane {
     ms = add(ms, element.served.ms);
     for (const model of element.served.models) addModel(models, model);
     for (const tool of element.served.tools) {
-      const kept = addTool(tools, { ...tool, usedBy: [] }) as AiActivityPane["tools"][number];
+      const kept = addTool(tools, { ...tool, usedBy: [] as number[] });
       if (!kept.usedBy.includes(index)) kept.usedBy.push(index);
     }
     for (const site of element.served.sites) addSite(sites, site);

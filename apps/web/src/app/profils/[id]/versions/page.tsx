@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { loadAiActivity } from "@/ai-activity/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { RestoreVersionButton } from "@/components/RestoreVersionButton";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -21,7 +22,7 @@ export default async function MasterCvVersionsPage({ params }: Params) {
   const t = await getServerT();
   const dateFormat = new Intl.DateTimeFormat(await getRequestLocale(), { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Paris" });
   return (
-    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id} title={t("versions.title")}>
+    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id} title={t("versions.title")} aiActivity={await loadAiActivity.profile(candidateId, { id: profile.id }, [])}>
       <p className="lead">{profile.name}</p>
       <p>{t("versions.intro")}</p>
       <ol className="version-list">

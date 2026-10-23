@@ -24,6 +24,8 @@ const PATHS = {
   // A door with an arrow out: signing out.
   signOut: ["M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4", "M9 16l-4-4 4-4", "M5 12h11"],
   coach: ["M4 5h16v11H9l-5 4z", "M8 9h8M8 12h5"],
+  // A list of ticked tasks: AI Activity (#332).
+  aiActivity: ["M10 6h10M10 12h10M10 18h10", "M4 6l1.2 1.2L7.5 5", "M4 12l1.2 1.2 2.3-2.2", "M4 18l1.2 1.2 2.3-2.2"],
   add: ["M12 5v14M5 12h14"],
   conversations: ["M4 6h16M4 12h16M4 18h10"],
   searchAgain: ["M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3M18 3v4h-4M6 21v-4h4"],

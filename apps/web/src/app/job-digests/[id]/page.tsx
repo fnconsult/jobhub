@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { loadAiActivity } from "@/ai-activity/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { CoachInView } from "@/components/CoachPanel";
 import { JobOfferResults } from "@/components/JobOfferResults";
@@ -22,12 +23,12 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  */
 export default async function JobDigestPage({ params }: Params) {
   const { candidateId, jobDigest } = await requireOwnJobDigest((await params).id);
-  const [t, locale] = await Promise.all([getServerT(), getRequestLocale()]);
+  const [t, locale, aiActivity] = await Promise.all([getServerT(), getRequestLocale(), loadAiActivity.jobDigest(jobDigest)]);
   const { profile, results } = jobDigest;
   const inView = { kind: "job_digest", id: jobDigest.id, name: profile.name, profileId: profile.id } as const;
   const sentAt = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(jobDigest.sentAt);
   return (
-    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id} title={t("jobDigest.page.title", { profile: profile.name })}>
+    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id} title={t("jobDigest.page.title", { profile: profile.name })} aiActivity={aiActivity}>
       <p>
         <Link href={routes.profile(profile.id)}>{t("jobDigest.page.backToProfile")}</Link>
       </p>

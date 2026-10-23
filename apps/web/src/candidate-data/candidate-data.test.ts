@@ -408,6 +408,32 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     ]);
   });
 
+  it("the export holds a Job Search's Provenance, when it was kept, and never its live steps (#330)", async () => {
+    const profileId = await createProfile(candidateId, "DAF");
+    const provenance: Provenance = {
+      v: 1,
+      steps: [{ kind: "tool", activity: "search", tool: "france-travail", ms: 640, at: "2026-10-01T08:00:01.000Z", outcome: "ok", count: 1 }],
+      sites: [],
+      startedAt: "2026-10-01T08:00:00.000Z",
+      wallMs: 9100,
+    };
+    await database.query(
+      `INSERT INTO job_search (candidate_id, profile_id, status, started_at, finished_at, provenance) VALUES ($1, $2, 'done', '2026-10-01T08:00:00Z', '2026-10-01T08:04:00Z', $3::jsonb)`,
+      [candidateId, profileId, JSON.stringify(provenance)],
+    );
+    await database.query(`INSERT INTO job_search (candidate_id, profile_id, status, started_at, progress) VALUES ($1, $2, 'searching', '2026-10-05T08:00:00Z', '[]'::jsonb)`, [
+      candidateId,
+      profileId,
+    ]);
+
+    const [searching, done] = (await candidateData.export(candidateId)).profiles[0]!.jobSearches;
+
+    expect(done).toMatchObject({ status: "done", provenance });
+    expect(searching).toMatchObject({ status: "searching" });
+    expect(searching).not.toHaveProperty("provenance");
+    expect(searching).not.toHaveProperty("progress");
+  });
+
   it("the export holds each Profile's Job Digest settings and the Job Digests sent, but not the secret unsubscribe link", async () => {
     const profileId = await createProfile(candidateId, "DAF");
     const otherProfileId = await createProfile(candidateId, "DSI");

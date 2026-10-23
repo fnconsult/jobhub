@@ -14,9 +14,14 @@
  *      even one that expired after the search;
  *    - `record` what Job discovery found (or why it could not run): the worker's
  *      side, also alone as `createJobSearchReports(database, { quotas })`, with
- *      `expireTimedOut`, which the worker runs on a schedule. Every finished or
+ *      `progress` and `expireTimedOut`, which the worker runs on a schedule. Every finished or
  *      failed Job Search keeps its metrics: what Job discovery measured (zero
- *      when it never ran) and how long the Candidate waited.
+ *      when it never ran) and how long the Candidate waited; and its Provenance
+ *      (ADR-0034), when the run kept one: its job title variants, each source, web
+ *      search, page read and summary, and its Match Scores, folded, with its wall-clock time;
+ *    - `progress`: while it searches, the worker writes its live steps after each one starts
+ *      and ends (the same events as the web streams'), and `notifications`, which every page
+ *      polls while one is searching, gives them back (« En cours ailleurs »), until it is over.
  *  - `migrateJobSearches(database)` creates / upgrades the table.
  * Every read is scoped to the Candidate; `start`'s input is untrusted (it comes
  * from the browser) and problems come back as results, never exceptions. A
@@ -25,7 +30,20 @@
  * Job Searches belong to their Profile and are deleted with it (ADR-0010); the
  * Job Offers they found are kept.
  */
-import { noDiscoveryMetrics, rankByMatchScore, scoreMatch, type DiscoveryMetrics, type JobOffer, type MatchScore, type WeeklyQuota, type SearchCriteria } from "@jobhub/shared";
+import {
+  noDiscoveryMetrics,
+  rankByMatchScore,
+  readProvenance,
+  readRunProgress,
+  scoreMatch,
+  type DiscoveryMetrics,
+  type JobOffer,
+  type MatchScore,
+  type Provenance,
+  type ProvenanceEvent,
+  type WeeklyQuota,
+  type SearchCriteria,
+} from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { Applications } from "../applications";
@@ -75,6 +93,11 @@ export interface JobSearch {
   results: JobSearchResult[];
   /** Null while it is searching (and for Job Searches finished before metrics were kept). */
   metrics: JobSearchMetrics | null;
+  /**
+   * What served it (ADR-0034): null while it is searching, when it failed before Job discovery ran, and for
+   * one finished before Provenance was kept (« modèle non enregistré »).
+   */
+  provenance: Provenance | null;
 }
 
 export type StartJobSearchResult =
@@ -87,8 +110,17 @@ export type StartJobSearchResult =
   /** The Plan Quota of Job Searches is used up this week. */
   | { ok: false; error: "quota_exceeded"; refusal: Extract<QuotaDecision, { allowed: false }> };
 
-/** What Job discovery reported for a Job Search, with what it measured (none: it did not run). */
-export type JobSearchOutcome = ({ jobOfferIds: string[] } | { failed: string }) & { metrics?: DiscoveryMetrics };
+/** What Job discovery reported for a Job Search, with what it measured and the run's Provenance (none: it did not run). */
+export type JobSearchOutcome = ({ jobOfferIds: string[] } | { failed: string }) & { metrics?: DiscoveryMetrics; provenance?: Provenance };
+
+/** A Job Search still searching, with its live steps so far, for AI Activity on any page (« En cours ailleurs »). */
+export interface RunningJobSearch {
+  jobSearchId: string;
+  profile: { id: string; name: string };
+  startedAt: Date;
+  /** Each step's latest event, in order: started, or ended in its place. None before the worker's first step. */
+  steps: ProvenanceEvent[];
+}
 
 /**
  * What the Candidate is told, on any page, once a Job Search they started has
@@ -115,10 +147,11 @@ export interface JobSearches {
    */
   record(jobSearchId: string, outcome: JobSearchOutcome): Promise<void>;
   /**
-   * The Candidate's Job Search notifications not dismissed yet, newest first, and
-   * whether one of their Job Searches is still searching (more may come).
+   * The Candidate's Job Search notifications not dismissed yet, newest first, whether one of their Job Searches
+   * is still searching (more may come), and those searching, with their live steps: what every page polls,
+   * every 1.5 s while one is searching, and no more once none is.
    */
-  notifications(candidateId: string): Promise<{ notifications: JobSearchNotification[]; searching: boolean }>;
+  notifications(candidateId: string): Promise<{ notifications: JobSearchNotification[]; searching: boolean; running: RunningJobSearch[] }>;
   /**
    * Stops telling the Candidate about their finished Job Search (they closed the
    * notification, or opened the Job Search). Nothing for anyone else's, or one still searching.
@@ -128,6 +161,8 @@ export interface JobSearches {
 
 /** The worker's side of Job Searches: Job discovery's reports, and the searches it never answered. */
 export interface JobSearchReports extends Pick<JobSearches, "record"> {
+  /** Writes the live steps of a Job Search still searching (each step's latest event); nothing once it is over. */
+  progress(jobSearchId: string, steps: ProvenanceEvent[]): Promise<void>;
   /**
    * Fails ('timeout') every Job Search still searching after SEARCH_TIMEOUT_MS and
    * gives each one's Plan Quota use back. Returns how many it failed.
@@ -170,6 +205,10 @@ export async function migrateJobSearches(database: Pool): Promise<void> {
     -- Set when it finishes, until the Candidate dismisses its notification (or opens it).
     -- Job Searches finished before notifications existed have none.
     ALTER TABLE job_search ADD COLUMN IF NOT EXISTS notification_pending boolean NOT NULL DEFAULT false;
+    -- What served it (ADR-0034), set with the outcome; null: « modèle non enregistré ».
+    ALTER TABLE job_search ADD COLUMN IF NOT EXISTS provenance jsonb;
+    -- Its live steps while it searches (each step's latest event), written by the worker; null once it is over.
+    ALTER TABLE job_search ADD COLUMN IF NOT EXISTS progress jsonb;
     CREATE INDEX IF NOT EXISTS job_search_candidate_profile_idx ON job_search (candidate_id, profile_id, started_at DESC);
   `);
 }
@@ -182,6 +221,7 @@ interface JobSearchRow {
   job_offer_ids: string[];
   started_at: Date;
   metrics: JobSearchMetrics | null;
+  provenance?: unknown;
 }
 
 /** The metrics column for an outcome reported at $at: what was measured, and the time since the Job Search started. */
@@ -203,9 +243,12 @@ export function createJobSearchReports(
     async record(jobSearchId, outcome) {
       if (!UUID.test(jobSearchId)) return;
       const done = "jobOfferIds" in outcome;
+      // A Provenance naming an id, or of a shape this version does not know, is not kept.
+      const provenance = readProvenance(outcome.provenance);
       // Only the one report that moves the Job Search out of 'searching' gets a row back.
       const { rows } = await database.query<{ candidate_id: string }>(
-        `UPDATE job_search SET status = $2, job_offer_ids = $3, failure = $4, finished_at = $5, metrics = ${METRICS_AT("$6", "$5")}, notification_pending = true
+        `UPDATE job_search SET status = $2, job_offer_ids = $3, failure = $4, finished_at = $5, metrics = ${METRICS_AT("$6", "$5")}, notification_pending = true,
+                provenance = $7::jsonb, progress = NULL
          WHERE id = $1 AND status = 'searching'
          RETURNING candidate_id`,
         [
@@ -215,9 +258,15 @@ export function createJobSearchReports(
           done ? null : outcome.failed,
           now(),
           JSON.stringify(outcome.metrics ?? noDiscoveryMetrics()),
+          provenance ? JSON.stringify(provenance) : null,
         ],
       );
       if (!done && rows[0]) await quotas.release(rows[0].candidate_id, "jobSearches");
+    },
+    async progress(jobSearchId, steps) {
+      if (!UUID.test(jobSearchId)) return;
+      // Only steps' events are written: nothing a Provenance never keeps.
+      await database.query("UPDATE job_search SET progress = $2::jsonb WHERE id = $1 AND status = 'searching'", [jobSearchId, JSON.stringify(readRunProgress(steps))]);
     },
     expireTimedOut: () => expireTimedOut(database, { quotas, now }),
   };
@@ -233,7 +282,7 @@ async function expireTimedOut(
   candidateId?: string,
 ): Promise<number> {
   const { rows } = await database.query<{ candidate_id: string }>(
-    `UPDATE job_search SET status = 'failed', failure = 'timeout', finished_at = $1, metrics = ${METRICS_AT("$3", "$1")}, notification_pending = true
+    `UPDATE job_search SET status = 'failed', failure = 'timeout', finished_at = $1, metrics = ${METRICS_AT("$3", "$1")}, notification_pending = true, progress = NULL
      WHERE status = 'searching' AND started_at < $2 AND ($4::text IS NULL OR candidate_id = $4)
      RETURNING candidate_id`,
     [now(), new Date(now().getTime() - SEARCH_TIMEOUT_MS), JSON.stringify(noDiscoveryMetrics()), candidateId ?? null],
@@ -285,13 +334,14 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
       startedAt: row.started_at,
       results,
       metrics: row.metrics,
+      provenance: readProvenance(row.provenance),
     };
   }
 
   async function get(candidateId: string, jobSearchId: string): Promise<JobSearch | null> {
     if (!UUID.test(jobSearchId)) return null;
     const { rows } = await database.query<JobSearchRow>(
-      "SELECT id, profile_id, status, failure, job_offer_ids, started_at, metrics FROM job_search WHERE id = $1 AND candidate_id = $2",
+      "SELECT id, profile_id, status, failure, job_offer_ids, started_at, metrics, provenance FROM job_search WHERE id = $1 AND candidate_id = $2",
       [jobSearchId, candidateId],
     );
     return rows[0] ? jobSearchFrom(candidateId, rows[0]) : null;
@@ -325,13 +375,13 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
         if (failed) return { ok: true, jobSearch: failed };
       }
       const { id, status, started_at: startedAt, metrics } = row;
-      return { ok: true, jobSearch: { id, profile: { id: profile.id, name: profile.name, searchCriteria: profile.searchCriteria }, status, failure: null, startedAt, results: [], metrics } };
+      return { ok: true, jobSearch: { id, profile: { id: profile.id, name: profile.name, searchCriteria: profile.searchCriteria }, status, failure: null, startedAt, results: [], metrics, provenance: null } };
     },
     get,
     async latest(candidateId, profileId) {
       if (!UUID.test(profileId)) return null;
       const { rows } = await database.query<JobSearchRow>(
-        `SELECT id, profile_id, status, job_offer_ids, started_at, metrics FROM job_search
+        `SELECT id, profile_id, status, job_offer_ids, started_at, metrics, provenance FROM job_search
          WHERE candidate_id = $1 AND profile_id = $2 AND status = 'done' ORDER BY started_at DESC LIMIT 1`,
         [candidateId, profileId],
       );
@@ -340,7 +390,7 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
     async searching(candidateId, profileId) {
       if (!UUID.test(profileId)) return null;
       const { rows } = await database.query<JobSearchRow>(
-        `SELECT id, profile_id, status, failure, job_offer_ids, started_at, metrics FROM job_search
+        `SELECT id, profile_id, status, failure, job_offer_ids, started_at, metrics, provenance FROM job_search
          WHERE candidate_id = $1 AND profile_id = $2 AND status = 'searching' ORDER BY started_at DESC LIMIT 1`,
         [candidateId, profileId],
       );
@@ -351,8 +401,17 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
     async notifications(candidateId) {
       // A search the worker never answered is over: say so rather than wait on it.
       await expireTimedOut(database, { quotas: deps.quotas, now }, candidateId);
-      const { rows } = await database.query<{ id: string; profile_id: string; profile_name: string; status: JobSearchStatus; failure: string | null; found: number }>(
-        `SELECT s.id, s.profile_id, p.name AS profile_name, s.status, s.failure,
+      const { rows } = await database.query<{
+        id: string;
+        profile_id: string;
+        profile_name: string;
+        status: JobSearchStatus;
+        failure: string | null;
+        found: number;
+        started_at: Date;
+        progress: unknown;
+      }>(
+        `SELECT s.id, s.profile_id, p.name AS profile_name, s.status, s.failure, s.started_at, s.progress,
                 (SELECT count(*)::int FROM job_offer o WHERE o.id = ANY (s.job_offer_ids) AND o.expired_at IS NULL) AS found
          FROM job_search s JOIN profile p ON p.id = s.profile_id
          WHERE s.candidate_id = $1 AND (s.notification_pending OR s.status = 'searching')
@@ -366,7 +425,10 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
           profile: { id: row.profile_id, name: row.profile_name },
           outcome: row.status === "done" ? { status: "done", found: row.found } : { status: "failed", failure: failureOf(row.failure) },
         }));
-      return { notifications, searching: rows.some((row) => row.status === "searching") };
+      const running: RunningJobSearch[] = rows
+        .filter((row) => row.status === "searching")
+        .map((row) => ({ jobSearchId: row.id, profile: { id: row.profile_id, name: row.profile_name }, startedAt: row.started_at, steps: readRunProgress(row.progress) }));
+      return { notifications, searching: running.length > 0, running };
     },
     async dismissNotification(candidateId, jobSearchId) {
       if (!UUID.test(jobSearchId)) return;

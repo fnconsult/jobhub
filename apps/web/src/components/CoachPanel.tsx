@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import type { ParseKeys } from "i18next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -13,7 +13,11 @@ import { CoachMemoryProposals, CoachMemoryView } from "@/components/CoachMemory"
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icons } from "@/components/icons";
 import { StartJobSearchButton } from "@/components/JobSearchControls";
+import { ActivityGlyph } from "@/components/ActivityGlyph";
+import { ProvenanceLine } from "@/components/ProvenanceLine";
+import { readNdjson } from "@/ndjson";
 import { routes } from "@/routes";
+import { formatDuration, formatTokens, isFailureReason, type Activity, type FailureReason, type Provenance, type ProvenanceStep, type StepLabel } from "@jobhub/shared";
 
 /**
  * What a page shows, as the Coach Panel tells the Candidate and the AI Coach.
@@ -33,9 +37,26 @@ type Control = {
   register: (button: HTMLButtonElement | null) => (() => void) | undefined;
   /** The button's words. */
   label: ParseKeys;
+  /** The AI Coach replies given here about the object of the page in view (#332). */
+  repliesInView: readonly ReplyInView[];
 };
 
 const CoachPanelControl = createContext<Control | null>(null);
+
+/**
+ * An AI Coach reply given in this browser while a page's object (an Application, a Job Offer or a Profile) was in view:
+ * AI Activity counts it with that page at once (#332), before the page is next loaded with it.
+ */
+export type ReplyInView = { provenance: Provenance | null; at: string };
+const NO_REPLIES: readonly ReplyInView[] = [];
+/** The page objects a reply is kept with as its focus (coach-conversations), so counted with their page. */
+const FOCUS_KINDS: ReadonlySet<string> = new Set(["application", "job_offer", "profile"]);
+const focusKey = (inView: InView) => `${inView.kind}:${inView.id}`;
+
+/** The AI Coach replies given in this browser about the object of the page in view; none outside a Coach Panel. */
+export function useCoachRepliesInView(): readonly ReplyInView[] {
+  return useContext(CoachPanelControl)?.repliesInView ?? NO_REPLIES;
+}
 
 /** The menu opens under the conversation's title, from its start. */
 const MENU_ALIGN = "start";
@@ -97,6 +118,37 @@ const IN_VIEW_LABEL = {
 
 type Status = "idle" | "sending" | "unavailable" | "invalid";
 
+/** A reply the Candidate stopped (#328): shown in its place until the conversation reopens, with what it had spent. */
+type StoppedReply = { from: "stopped"; tokens: number; ms: number };
+
+/** What the panel lists: the saved messages, and the replies stopped since it opened. */
+type PanelMessage = CoachMessage | StoppedReply;
+
+/** A reply on its way, live (#328): the step under way, with its Activity and label, and the tokens spent so far. */
+type Live = { step: { activity: Activity; label: StepLabel } | null; tokens: number };
+
+/** What POST /api/coach streams (see its route). */
+type LiveEvent =
+  | { type: "conversation"; conversation: ConversationSummary }
+  | { type: "step_started"; step: { activity: Activity }; label: StepLabel }
+  | { type: "step_ended"; step: ProvenanceStep }
+  | ({ type: "reply" } & ReplyBody)
+  | { type: "stopped"; conversation: ConversationSummary }
+  | { type: "failed"; error: string; reason?: string };
+
+/** A saved reply, as the server gives it back. */
+type ReplyBody = {
+  conversation: ConversationSummary;
+  reply: string;
+  blocked?: { message?: boolean; reply?: boolean };
+  jobOffer?: JobOfferCardData;
+  provenance?: Provenance | null;
+  at?: string;
+};
+
+/** The tokens a step spent: none for one stopped or failed (providers say nothing then). */
+const tokensOf = (step: ProvenanceStep) => (step.kind === "ai" && step.tokens ? step.tokens.input + step.tokens.output : 0);
+
 /**
  * Which panel it is: the Candidate's Coach Panel, with the AI Coach, or the
  * Back Office Assistant (#205), the same panel for Administrators in the Back
@@ -106,7 +158,15 @@ type Status = "idle" | "sending" | "unavailable" | "invalid";
 export type PanelKind = "coach" | "backOfficeAssistant";
 
 /** What a message's author is called on the server, for each panel. */
-type ServerMessage = { from: "candidate" | "coach" | "administrator" | "assistant"; text: string; blocked?: true; jobOffer?: JobOfferCardData };
+type ServerMessage = {
+  from: "candidate" | "coach" | "administrator" | "assistant";
+  text: string;
+  blocked?: true;
+  jobOffer?: JobOfferCardData;
+  /** On a reply: what served it (#327), null when nothing was kept, and when it was saved. */
+  provenance?: Provenance | null;
+  at?: string;
+};
 
 /** Everything that differs between the two panels. */
 interface PanelConfig {
@@ -117,12 +177,23 @@ interface PanelConfig {
   features: {
     /** The Coach Memory view and its proposals. */
     memory: boolean;
+    /** Each step of a reply shown live, and « Arrêter » while it is on its way (#328). */
+    live: boolean;
     /** What the page has in view goes with each message, and the Job Search it allows. */
     inView: boolean;
   };
-  texts: Record<"open" | "title" | "welcome" | "thinking" | "unavailable" | "messagesLabel" | "author" | "retention" | "noConversations", ParseKeys> & {
+  /**
+   * `title`, the panel's visible title, and `badge`, by the message box, say the AI is an AI (AI Act art. 50(1), #324),
+   * whatever the width and in every conversation.
+   */
+  texts: Record<"open" | "title" | "badge" | "welcome" | "thinking" | "unavailable" | "messagesLabel" | "author" | "retention" | "noConversations", ParseKeys> & {
     /** Shown where the Coach Panel says what is in view, for a panel that follows nothing in view. */
     context?: ParseKeys;
+    /**
+     * The fixed first message of every new conversation, saying the AI is an AI, not a person (#324): never an AI
+     * reply. It replaces the welcome; a conversation saved before it existed keeps the welcome.
+     */
+    aiDisclosure?: ParseKeys;
   };
 }
 
@@ -131,11 +202,13 @@ const PANELS: Record<PanelKind, PanelConfig> = {
     send: "/api/coach",
     conversations: "/api/coach/conversations",
     storageKey: "jobhub.coachConversation",
-    features: { memory: true, inView: true },
+    features: { memory: true, inView: true, live: true },
     texts: {
       open: "coachPanel.open",
       title: "coachPanel.title",
+      badge: "coachPanel.badge",
       welcome: "coachPanel.welcome",
+      aiDisclosure: "coachPanel.aiDisclosure",
       thinking: "coachPanel.thinking",
       unavailable: "coachPanel.errors.unavailable",
       messagesLabel: "coachPanel.messagesLabel",
@@ -148,10 +221,11 @@ const PANELS: Record<PanelKind, PanelConfig> = {
     send: "/api/admin/assistant",
     conversations: "/api/admin/assistant/conversations",
     storageKey: "jobhub.backOfficeAssistantConversation",
-    features: { memory: false, inView: false },
+    features: { memory: false, inView: false, live: false },
     texts: {
       open: "backOfficeAssistant.open",
       title: "backOfficeAssistant.title",
+      badge: "backOfficeAssistant.badge",
       welcome: "backOfficeAssistant.welcome",
       thinking: "backOfficeAssistant.thinking",
       unavailable: "backOfficeAssistant.unavailable",
@@ -170,6 +244,7 @@ const asPanelMessage = (message: ServerMessage): CoachMessage => ({
   text: message.text,
   ...(message.blocked ? { blocked: true as const } : {}),
   ...(message.jobOffer ? { jobOffer: message.jobOffer } : {}),
+  ...(message.at ? { provenance: message.provenance ?? null, at: message.at } : {}),
 });
 
 function remember(storageKey: string, conversationId: string | null) {
@@ -228,6 +303,24 @@ function CoachReplyText({ text }: { text: string }) {
   );
 }
 
+/** « Réponse arrêtée » (#328), in light red, with the tokens and time the stopped reply had spent: no confirmation, no reply saved. */
+function StoppedReplyLine({ reply }: { reply: StoppedReply }) {
+  const { t, i18n } = useTranslation();
+  const language = i18n.language === "en" ? "en" : "fr";
+  return (
+    <p>
+      {t("coachPanel.stopped")}
+      <span className="chat-stopped-spent">
+        {" · "}
+        {formatTokens(reply.tokens, language)}
+        <span className="visually-hidden"> {t("provenanceLine.tokens")}</span>
+        {" · "}
+        {formatDuration(reply.ms, language)}
+      </span>
+    </p>
+  );
+}
+
 /**
  * A Job Offer card: the Job Offer an AI Coach reply read from a pasted link, linking to its page, where the
  * Candidate processes it. "À traiter" until they follow it; its state said in words, never by colour alone.
@@ -249,11 +342,14 @@ function JobOfferCard({ jobOffer }: { jobOffer: JobOfferCardData }) {
 }
 
 /** A saved conversation with its messages, or null when it is gone or cannot be read. */
-async function fetchConversation(endpoint: string, conversationId: string): Promise<{ conversation: ConversationSummary & { messages: CoachMessage[] } } | { gone: boolean }> {
+async function fetchConversation(
+  endpoint: string,
+  conversationId: string,
+): Promise<{ conversation: ConversationSummary & { aiDisclosure: boolean; messages: CoachMessage[] } } | { gone: boolean }> {
   const response = await fetch(`${endpoint}/${encodeURIComponent(conversationId)}`).catch(() => null);
   if (!response?.ok) return { gone: response?.status === 404 };
-  const { conversation } = (await response.json()) as { conversation: ConversationSummary & { messages: ServerMessage[] } };
-  return { conversation: { ...conversation, messages: conversation.messages.map(asPanelMessage) } };
+  const { conversation } = (await response.json()) as { conversation: ConversationSummary & { aiDisclosure?: boolean; messages: ServerMessage[] } };
+  return { conversation: { ...conversation, aiDisclosure: conversation.aiDisclosure === true, messages: conversation.messages.map(asPanelMessage) } };
 }
 
 /**
@@ -274,13 +370,20 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   const [open, setOpen] = useState(false);
   const [inView, setInViewState] = useState<InView | null>(null);
   const [conversation, setConversation] = useState<ConversationSummary | null>(null);
-  const [messages, setMessages] = useState<CoachMessage[]>([]);
+  // Whether the conversation in view opened with the AI disclosure: a new one does, until it is saved.
+  const [aiDisclosure, setAiDisclosure] = useState(true);
+  const [messages, setMessages] = useState<PanelMessage[]>([]);
   const [restoring, setRestoring] = useState(false);
   const [view, setView] = useState<"chat" | "list" | "memory">("chat");
   const [conversations, setConversations] = useState<ConversationSummary[] | null>(null);
   const [listFailed, setListFailed] = useState(false);
   const [draft, setDraft] = useState("");
   const [status, setStatus] = useState<Status>("idle");
+  // Why the last reply failed, its Failure Reason in words (#328), never the technical message.
+  const [failure, setFailure] = useState<FailureReason | null>(null);
+  const [live, setLive] = useState<Live | null>(null);
+  // Aborts the reply on its way: the Candidate's Stop.
+  const stopper = useRef<AbortController | null>(null);
   const [focusInput, setFocusInput] = useState(0);
   const restored = useRef(false);
   const toggles = useRef(new Set<HTMLButtonElement>());
@@ -291,6 +394,10 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   // Agrandir: the panel widens into a modal drawer over the page (ADR-0024); never remembered.
   const [wide, setWide] = useState(false);
   const focusMoved = useRef(false);
+  // The replies given about a page's object, by its focus key, for AI Activity (#332).
+  const [repliesGiven, setRepliesGiven] = useState<readonly (ReplyInView & { focus: string })[]>([]);
+  const inViewKey = inView ? focusKey(inView) : null;
+  const repliesInView = useMemo(() => repliesGiven.filter((reply) => reply.focus === inViewKey), [repliesGiven, inViewKey]);
 
   useEffect(() => {
     if (open) input.current?.focus();
@@ -306,8 +413,9 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     setRestoring(true);
     void fetchConversation(panel.conversations, conversationId).then((found) => {
       if ("conversation" in found) {
-        const { messages: saved, ...summary } = found.conversation;
+        const { messages: saved, aiDisclosure: disclosed, ...summary } = found.conversation;
         setConversation(summary);
+        setAiDisclosure(disclosed);
         setMessages(saved);
       } else if (found.gone) remember(panel.storageKey, null);
       setRestoring(false);
@@ -354,6 +462,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
 
   function startNewConversation() {
     setConversation(null);
+    setAiDisclosure(true);
     setMessages([]);
     setStatus("idle");
     remember(panel.storageKey, null);
@@ -384,8 +493,9 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
       if (found.gone) setConversations((list) => list?.filter((item) => item.id !== conversationId) ?? null);
       return false;
     }
-    const { messages: saved, ...summary } = found.conversation;
+    const { messages: saved, aiDisclosure: disclosed, ...summary } = found.conversation;
     setConversation(summary);
+    setAiDisclosure(disclosed);
     setMessages(saved);
     setStatus("idle");
     remember(panel.storageKey, summary.id);
@@ -397,49 +507,109 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     event.preventDefault();
     const text = draft.trim();
     if (!text || status === "sending" || restoring) return;
-    const shown: CoachMessage[] = [...messages, { from: "candidate", text }];
+    // What the reply is about, as the server keeps it: counted with that page in AI Activity.
+    const about = kind === "coach" && inView && FOCUS_KINDS.has(inView.kind) ? focusKey(inView) : null;
+    const shown: PanelMessage[] = [...messages, { from: "candidate", text }];
     setMessages(shown);
     setDraft("");
     setStatus("sending");
-    const giveBack = (error: Status) => {
+    setFailure(null);
+    const stop = new AbortController();
+    stopper.current = stop;
+    const startedAt = Date.now();
+    let spent = 0;
+    // The conversation the message goes to, once the server says (a new one is named already): where a Stop keeps it.
+    let asked: ConversationSummary | null = conversation;
+    if (panel.features.live) setLive({ step: null, tokens: 0 });
+
+    const giveBack = (error: Status, reason?: unknown) => {
       // Give the Candidate their message back to retry or shorten it.
       setMessages(messages);
       setDraft(text);
       setStatus(error);
+      setFailure(isFailureReason(reason) ? reason : null);
     };
+    const answered = (body: ReplyBody) => {
+      setConversation(body.conversation);
+      remember(panel.storageKey, body.conversation.id);
+      // A Blocked message (#228): the Guardrail is never named, only that the message or the reply was blocked.
+      const blocked = body.blocked;
+      setMessages([
+        ...messages,
+        { from: "candidate", text, ...(blocked?.message ? { blocked: true as const } : {}) },
+        {
+          from: "coach",
+          text: body.reply,
+          ...(blocked?.reply ? { blocked: true as const } : {}),
+          ...(body.jobOffer ? { jobOffer: body.jobOffer } : {}),
+          ...(typeof body.at === "string" ? { provenance: body.provenance ?? null, at: body.at } : {}),
+        },
+      ]);
+      const at = body.at;
+      if (about && typeof at === "string") setRepliesGiven((given) => [...given, { focus: about, provenance: body.provenance ?? null, at }]);
+      setStatus("idle");
+    };
+    const gone = () => {
+      // Deleted meanwhile (another tab, or kept past its 12 months): the message starts a new one.
+      setConversation(null);
+      setAiDisclosure(true);
+      remember(panel.storageKey, null);
+      setMessages([]);
+      setDraft(text);
+      setStatus("unavailable");
+    };
+    // Stopped (#316 answer 11): the question stays, saved in its conversation; « Réponse arrêtée » stands in for the reply.
+    const stopped = (where: ConversationSummary | null) => {
+      if (where) {
+        setConversation(where);
+        remember(panel.storageKey, where.id);
+      }
+      setMessages([...shown, { from: "stopped", tokens: spent, ms: Date.now() - startedAt }]);
+      setStatus("idle");
+    };
+
     try {
       const response = await fetch(panel.send, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...(panel.features.live ? { accept: "application/x-ndjson" } : {}) },
         // The server holds the conversation: only the new message goes.
         body: JSON.stringify({
           ...(conversation ? { conversationId: conversation.id } : {}),
           message: text,
           ...(inView && panel.features.inView ? { focus: { kind: inView.kind, id: inView.id, ...(inView.profileId ? { profileId: inView.profileId } : {}) } } : {}),
         }),
+        signal: stop.signal,
       });
+      if (response.ok && response.body && response.headers.get("content-type")?.startsWith("application/x-ndjson")) {
+        let ended = false;
+        await readNdjson(response.body, (received) => {
+          const event = received as LiveEvent;
+          if (event.type === "conversation") asked = event.conversation;
+          else if (event.type === "step_started") setLive({ step: { activity: event.step.activity, label: event.label }, tokens: spent });
+          else if (event.type === "step_ended") {
+            spent += tokensOf(event.step);
+            setLive((was) => (was ? { ...was, tokens: spent } : was));
+          } else {
+            ended = true;
+            if (event.type === "reply") answered(event);
+            else if (event.type === "stopped") stopped(event.conversation);
+            else if (event.error === "not_found") gone();
+            else giveBack(event.error === "invalid" ? "invalid" : "unavailable", event.reason);
+          }
+        });
+        if (!ended) throw new Error("the reply was cut short");
+        return;
+      }
       const body = await response.json().catch(() => ({}));
-      if (response.ok && typeof body.reply === "string") {
-        setConversation(body.conversation);
-        remember(panel.storageKey, body.conversation.id);
-        // A Blocked message (#228): the Guardrail is never named, only that the message or the reply was blocked.
-        const blocked = body.blocked as { message?: boolean; reply?: boolean } | undefined;
-        setMessages([
-          ...messages,
-          { from: "candidate", text, ...(blocked?.message ? { blocked: true as const } : {}) },
-          { from: "coach", text: body.reply, ...(blocked?.reply ? { blocked: true as const } : {}), ...(body.jobOffer ? { jobOffer: body.jobOffer as JobOfferCardData } : {}) },
-        ]);
-        setStatus("idle");
-      } else if (response.status === 404) {
-        // Deleted meanwhile (another tab, or kept past its 12 months): the message starts a new one.
-        setConversation(null);
-        remember(panel.storageKey, null);
-        setMessages([]);
-        setDraft(text);
-        setStatus("unavailable");
-      } else giveBack(body.error === "invalid" ? "invalid" : "unavailable");
+      if (response.ok && typeof body.reply === "string") answered(body as ReplyBody);
+      else if (response.status === 404) gone();
+      else giveBack(body.error === "invalid" ? "invalid" : "unavailable", body.reason);
     } catch {
-      giveBack("unavailable");
+      if (stop.signal.aborted) stopped(asked);
+      else giveBack("unavailable");
+    } finally {
+      stopper.current = null;
+      setLive(null);
     }
   }
 
@@ -451,8 +621,10 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
 
   const contextText = panel.features.inView || !texts.context ? inViewLabel : t(texts.context);
   const conversationTitle = conversation ? conversation.title : t("coachPanel.newConversation");
+  // The conversation's first message: the AI disclosure, or the welcome of a panel without one or of a conversation saved before it.
+  const opening = texts.aiDisclosure && aiDisclosure ? texts.aiDisclosure : texts.welcome;
 
-  const control: Control = { open, panelId: `${id}-panel`, toggle: () => (open ? close() : openPanel()), register, label: texts.open };
+  const control: Control = { open, panelId: `${id}-panel`, toggle: () => (open ? close() : openPanel()), register, label: texts.open, repliesInView };
 
   return (
     <SetInView.Provider value={setInView}>
@@ -472,7 +644,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
             onKeyDown={onKeyDown}
           >
             <div className="coach-panel-header">
-              <h2 id={`${id}-title`} className="visually-hidden">
+              <h2 id={`${id}-title`} className="coach-panel-title">
                 {t(texts.title)}
               </h2>
               <DropdownMenu.Root modal={false}>
@@ -546,6 +718,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                     setConversations((list) => list?.filter((item) => item.id !== deletedId) ?? null);
                     if (conversation?.id === deletedId) {
                       setConversation(null);
+                      setAiDisclosure(true);
                       setMessages([]);
                       remember(panel.storageKey, null);
                     }
@@ -558,27 +731,56 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                   <h3 className="visually-hidden">{conversationTitle}</h3>
                   {restoring ? <p role="status">{t("coachPanel.loading")}</p> : null}
                   <ol className="chat coach-panel-messages" aria-label={t(texts.messagesLabel)} aria-live="polite">
-                    <li className="chat-message chat-coach">
-                      <span className="chat-author">{t(texts.author)}</span>
-                      <p>{t(texts.welcome)}</p>
-                    </li>
-                    {messages.map((message, index) => (
+                    {/* Until a reopened conversation is back, which opening it had is not known yet. */}
+                    {restoring ? null : (
+                      <li className="chat-message chat-coach">
+                        {/* No visible author (#317, #327): screen readers still hear who speaks. */}
+                        <span className="visually-hidden">{t(texts.author)}</span>
+                        <p>{t(opening)}</p>
+                      </li>
+                    )}
+                    {messages.map((message, index) =>
+                      message.from === "stopped" ? (
+                        <li key={index} className="chat-message chat-coach chat-stopped">
+                          <span className="visually-hidden">{t(texts.author)}</span>
+                          <StoppedReplyLine reply={message} />
+                        </li>
+                      ) : (
                       <li key={index} className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}${message.blocked ? " chat-blocked" : ""}`}>
-                        <span className="chat-author">{message.from === "coach" ? t(texts.author) : t("questionnaire.you")}</span>
+                        <span className="visually-hidden">{message.from === "coach" ? t(texts.author) : t("questionnaire.you")}</span>
                         {message.blocked ? <span className="chat-blocked-label">{t("coachPanel.blocked")}</span> : null}
                         {message.from === "coach" ? <CoachReplyText text={message.text} /> : <p>{message.text}</p>}
                         {message.jobOffer ? <JobOfferCard jobOffer={message.jobOffer} /> : null}
+                        {message.from === "coach" && message.at ? <ProvenanceLine provenance={message.provenance ?? null} at={message.at} /> : null}
                       </li>
-                    ))}
+                      ),
+                    )}
                   </ol>
-                  {status === "sending" ? (
+                  {status === "sending" && live ? (
+                    <>
+                      {/* Only the start is announced (the reply, or its Stop, is announced by the list): each step is shown, not read out. */}
+                      <p className="visually-hidden" role="status">
+                        {t(texts.thinking)}
+                      </p>
+                      {live.step ? (
+                        <p className="coach-panel-step">
+                          <ActivityGlyph activity={live.step.activity} />
+                          {t(`aiActivity.steps.${live.step.label}`)}
+                        </p>
+                      ) : null}
+                    </>
+                  ) : status === "sending" ? (
                     <p className="notice" role="status">
                       {t(texts.thinking)}
                     </p>
                   ) : null}
                   {status === "unavailable" || status === "invalid" ? (
-                    <p className="notice" role="alert">
-                      {t(status === "unavailable" ? texts.unavailable : "coachPanel.errors.invalid")}
+                    <p className={failure ? "notice notice-failed" : "notice"} role="alert">
+                      {status === "invalid"
+                        ? t("coachPanel.errors.invalid")
+                        : failure
+                          ? t("coachPanel.failed", { reason: t(`failureReasons.${failure}`) })
+                          : t(texts.unavailable)}
                     </p>
                   ) : null}
                   <div ref={messagesEnd} aria-hidden="true" />
@@ -604,9 +806,22 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                         }
                       }}
                     />
-                    <button className="button button-primary" type="submit" disabled={status === "sending" || restoring}>
-                      {t("coachPanel.send")}
-                    </button>
+                    <div className="coach-panel-composer-actions">
+                      {/* Says, by the message box, that the one answering is an AI (#324). */}
+                      <span className="pill coach-panel-badge" data-tone="accent">
+                        {t(texts.badge)}
+                      </span>
+                      {/* While a reply is on its way « Envoyer » becomes « Arrêter » (#328), the same button, so focus stays on it. */}
+                      {status === "sending" && panel.features.live ? (
+                        <button key="send" className="button" type="button" onClick={() => stopper.current?.abort()}>
+                          {t("coachPanel.stop")}
+                        </button>
+                      ) : (
+                        <button key="send" className="button button-primary" type="submit" disabled={status === "sending" || restoring}>
+                          {t("coachPanel.send")}
+                        </button>
+                      )}
+                    </div>
                   </div>
                   {/* What goes with the message: one line, opened for the whole text (and the Job Search). */}
                   <details className="coach-panel-context">

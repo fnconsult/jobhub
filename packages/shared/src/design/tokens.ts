@@ -15,6 +15,8 @@ export const designTokens = {
     // Text colours: every one must read at AA (4.5:1) on every surface.
     text: "#37352f",
     textSecondary: "#5a5955",
+    // Metadata (a token count, a time, the line under a Coach reply): AA on every surface (ADR-0009 amendment).
+    textMeta: "#6b6a67",
     accent: "#1f5fbf",
     danger: "#b42318",
     success: "#1e6e3a",
@@ -30,6 +32,8 @@ export const designTokens = {
     h2: 24,
     h1: 32,
   },
+  /** Metadata type size in px at the "small" setting (ADR-0009 amendment, #317): never body text, never below 13px. */
+  metaFontSize: 13,
   lineHeight: {
     body: 1.6,
     heading: 1.25,

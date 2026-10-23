@@ -72,9 +72,21 @@
  *
  * Each run is measured (its funnel and cost in €), also when it fails: the
  * error is then a JobDiscoveryError carrying what the run measured until then.
+ *
+ * Each Job Offer captured is handed its Provenance (`TrustedFacts.provenance`): how it was found (the web
+ * search, or France Travail's or Fantastic.jobs' search), the listing page that led to it, its ATS API or page
+ * read and the model that read the page (its summary's), on the site of its page. It names no Candidate.
+ *
+ * A run the Candidate stops (its request's `signal`, #331) starts no step after, its AI call on its way is stopped,
+ * and it reports what it found until then, as a run whose budget is spent: it does not fail.
+ *
+ * The run itself is recorded too (#330): every step of it (the job title variants, each source, each web
+ * search, page read and the model that read it), each told to the request's `onEvent` as it starts and ends,
+ * and kept, folded, in the report's `run`, which the caller goes on recording into (its Match Scores) before
+ * it stores the run's Provenance. A failed run's partial report has it too.
  */
 import type { ExternalApiLog } from "@jobhub/shared";
-import { costInEur, readJobPage, type AiLayer, type JobSearchQuery, type SearchFilters } from "@jobhub/ai";
+import { costInEur, createProvenanceRecorder, readJobPage, type AiLayer, type JobSearchQuery, type ProvenanceRecorder, type SearchFilters, type StepTool } from "@jobhub/ai";
 import { servedTaskRun, taskRun, type TaskPlaybookReader } from "@jobhub/web/task-playbooks";
 import {
   believablePostingDate,
@@ -83,6 +95,7 @@ import {
   isForbiddenSite,
   isOnDomain,
   isPostingTooOld,
+  joinProvenance,
   MAX_POSTING_AGE_DAYS,
   NO_INDUSTRY_REFERENCE,
   type DiscoveryMetrics,
@@ -92,10 +105,12 @@ import {
   type FranceTravailMetrics,
   type JobOffer,
   type JobOfferDetails,
+  type Provenance,
+  type ProvenanceEvent,
   type SearchCriteria,
   type SkipReason as CountedSkipReason,
 } from "@jobhub/shared";
-import { readAtsPosting } from "./ats";
+import { atsToolOf, readAtsPosting } from "./ats";
 import { DEFAULT_BUDGET, type JobDiscoveryBudget } from "./budget";
 import type { FantasticJobs } from "./fantastic-jobs";
 import type { FranceTravail } from "./france-travail";
@@ -107,6 +122,7 @@ import {
   DEFAULT_USER_AGENT,
   htmlToText,
   metaRobots,
+  pageReadTool,
   readJobPosting,
   realClock,
   recordingSiteFetch,
@@ -129,7 +145,7 @@ export interface JobOfferStore {
   capture(
     input: { source: { url: string } } & Omit<JobOfferDetails, "postedAt" | "summary" | "sector" | "subsector">,
     capturedBy?: "candidate" | "guest",
-    trusted?: { postedAt?: Date; summary?: string; sector?: string; subsector?: string },
+    trusted?: { postedAt?: Date; summary?: string; sector?: string; subsector?: string; provenance?: Provenance },
   ): Promise<{ ok: true; jobOffer: JobOffer } | { ok: false; errors: unknown[] }>;
 }
 
@@ -183,6 +199,13 @@ export interface DiscoverRequest {
   /** The Candidate the search runs for (for AI usage and Plan Quotas). */
   candidateId: string;
   criteria: SearchCriteria;
+  /** Where each step of the run goes as it starts and ends (the Job Search's progress). Default: nowhere. */
+  onEvent?: (event: ProvenanceEvent) => void;
+  /**
+   * Stops the run (the Candidate stopped their Job Search, #331): once it aborts, no step starts any more, the AI call
+   * on its way is stopped (its step `stopped`), and the run reports what it found until then, as when its budget is spent.
+   */
+  signal?: AbortSignal;
 }
 
 /**
@@ -209,6 +232,11 @@ export interface DiscoveryReport {
   franceTravail: FranceTravailMetrics;
   /** Fantastic.jobs' part of the run (its offers are in the funnel too), with its estimated cost, not in `costEur`. */
   fantasticJobs: FantasticJobsMetrics;
+  /**
+   * The run's steps, recorded as it ran: the caller records its own after it (the Match Scores) and stores
+   * `run.provenance()`, the run's Provenance, folded, with its wall-clock time until then.
+   */
+  run: ProvenanceRecorder;
 }
 
 /** The funnel's stages up to deduplication. Provider URLs are looked at in order until the budget runs out. */
@@ -292,7 +320,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
   const searchFilters: SearchFilters = { excludeDomains: [...forbiddenSites], maxAgeDays: MAX_POSTING_AGE_DAYS, country: SEARCH_COUNTRY };
 
   return {
-    async discover({ candidateId, criteria }) {
+    async discover({ candidateId, criteria, onEvent, signal }) {
       const startedAt = clock.now();
       const budget: JobDiscoveryBudget = { ...DEFAULT_BUDGET, ...(typeof options.budget === "function" ? options.budget() : options.budget) };
       const settings = await readSettings(options.settings);
@@ -322,6 +350,8 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         clock,
       });
       const found = new Map<string, JobOffer>();
+      const ai = costing(stoppable(options.ai, signal), (eur) => (report.costEur += eur));
+      const run = createProvenanceRecorder(ai, { now: () => new Date(clock.now()), onEvent });
       const report: DiscoveryReport = {
         jobOffers: [],
         skipped: [],
@@ -329,17 +359,27 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         costEur: 0,
         franceTravail: { status: "off", offers: 0, calls: 0 },
         fantasticJobs: { status: "off", offers: 0, calls: 0, costEur: 0 },
+        run,
       };
-      const ai = costing(options.ai, (eur) => (report.costEur += eur));
+      /** The steps of one search or one page read, for the Provenance of the Job Offers it leads to: steps of the run too. */
+      const recording = () => run.part();
+      /** `howFound`, the steps that led to a Job Offer, on the site of its page `url`. */
+      const onItsPage = (howFound: Provenance | null, url: string) => {
+        const page = recording();
+        page.site(url);
+        return joinProvenance(howFound, page.provenance());
+      };
       const [queryWording, offerReading] = await Promise.all([
         taskRun(options.taskPlaybooks, "job-search-queries", options.ai),
         servedTaskRun(options.taskPlaybooks, "job-offer-reading", options.ai),
       ]);
-      const reading = offerReading?.instructions() ?? null;
+      const offerReadingInstructions = offerReading?.instructions() ?? null;
       const { funnel, skipped } = report;
       /** The share of the budget the location being searched may use up to (k/n for the k-th of n locations). */
       let share = 1;
+      // The Candidate stopping the run spends it too: no step starts after.
       const budgetSpent = () =>
+        signal?.aborted === true ||
         found.size >= budget.jobOffers * share ||
         report.costEur >= budget.spendEur * share ||
         clock.now() - startedAt >= budget.seconds * 1000 * share;
@@ -371,9 +411,9 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
        * more than 30 days ago. That date is the one its ATS or its JobPosting data states, else the search provider's
        * (`searchDate`, weaker: it may be when the page was last updated); a date in the future is no date.
        * The store may answer with a Job Offer stored earlier with the same text (a mirror, an aggregator): that one
-       * keeps its own Posting date, so the rule is applied to it too.
+       * keeps its own Posting date, so the rule is applied to it too. `howFound`: the steps that led to it, for its Provenance.
        */
-      const capture = async (url: string, details: JobOfferDetails, searchDate: Date | undefined) => {
+      const capture = async (url: string, details: JobOfferDetails, searchDate: Date | undefined, howFound: Provenance | null) => {
         const now = new Date(clock.now());
         const { postedAt: stated, summary, sector, subsector, ...untrusted } = details;
         const postedAt = believablePostingDate(stated, now) ?? believablePostingDate(searchDate, now);
@@ -384,7 +424,14 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         funnel.extracted++;
         // The Posting date is what the worker read from the source itself, and the Job Offer Summary what its AI wrote
         // from the page: trusted, unlike anything a browser sends.
-        const trusted = { ...(postedAt && { postedAt }), ...(summary && { summary }), ...(sector && { sector }), ...(subsector && { subsector }) };
+        const provenance = onItsPage(howFound, url);
+        const trusted = {
+          ...(postedAt && { postedAt }),
+          ...(summary && { summary }),
+          ...(sector && { sector }),
+          ...(subsector && { subsector }),
+          ...(provenance && { provenance }),
+        };
         const captured = await options.jobOffers.capture({ source: { url }, ...untrusted }, "candidate", trusted);
         if (!captured.ok) skipped.push({ url, reason: "invalid" });
         else if (isPostingTooOld(captured.jobOffer.postedAt, now)) skipped.push({ url, reason: "too_old" });
@@ -393,9 +440,9 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
 
       /**
        * Reads one page, and when `follow` and it is a listing page, the postings it links to.
-       * `searchDate`: the date the search provider states for it.
+       * `searchDate`: the date the search provider states for it; `howFound`: the steps that led to it.
        */
-      const read = async (url: string, follow: boolean, searchDate?: Date): Promise<void> => {
+      const read = async (url: string, follow: boolean, searchDate: Date | undefined, howFound: Provenance | null): Promise<void> => {
         if (seen.has(url)) return;
         seen.add(url);
         if (onDisabledSite(url)) {
@@ -409,18 +456,20 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         }
         // A Greenhouse, Lever or Ashby posting is read through its ATS's JSON API, which states its date and status;
         // when that API cannot be read, its page is read below like any other.
-        const ats = settings.sources.ats_apis ? await readAtsPosting(url, { fetchJson: fetchAtsJson, now: new Date(clock.now()) }) : null;
+        const reading = recording();
+        const atsTool = settings.sources.ats_apis ? atsToolOf(url) : null;
+        const ats = atsTool ? await reading.step({ tool: atsTool }, () => readAtsPosting(url, { fetchJson: fetchAtsJson, now: new Date(clock.now()) })) : null;
         if (ats) {
           if (!ats.ok) {
             skipped.push({ url, reason: ats.reason });
             return;
           }
           funnel.fetched++;
-          await capture(url, ats.details, searchDate);
+          await capture(url, ats.details, searchDate, joinProvenance(howFound, reading.provenance()));
           return;
         }
         // A result can redirect to a page captured earlier (in this run or before): use that Job Offer.
-        const page = await fetcher.page(url, storedAt);
+        const page = await reading.step({ tool: pageReadTool(url) }, () => fetcher.page(url, storedAt));
         if (page.ok === "known") {
           alreadyStored(url, page.known);
           return;
@@ -435,7 +484,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         const followListing = async () => {
           for (const link of links) {
             if (budgetSpent()) break;
-            await read(link, false);
+            await read(link, false, undefined, joinProvenance(howFound, reading.provenance()));
           }
         };
         // A page asking not to be indexed is never a Job Offer; its links may still be followed, unless it says nofollow.
@@ -450,23 +499,25 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           await followListing();
           return;
         }
-        if (!details && countJobPostings(page.html) <= 1) details = await readJobPage(ai, candidateId, htmlToText(page.html), reading);
+        if (!details && countJobPostings(page.html) <= 1) details = await readJobPage(reading.aiFor("read_job_page"), candidateId, htmlToText(page.html), offerReadingInstructions);
         if (!details) {
           skipped.push({ url, reason: "not_a_job_offer" });
           return;
         }
-        await capture(page.url, details, searchDate);
+        await capture(page.url, details, searchDate, joinProvenance(howFound, reading.provenance()));
       };
 
       /**
        * A job API's offers (France Travail's, Fantastic.jobs') for the Search Criteria, no more than the budget's Job
        * Offers left, each captured like a posting read (at its page, dated by the API) or found stored, and counted in
-       * its part of the report. Never throws.
+       * its part of the report. Never throws. `tool`: the API, as its offers' Provenance names it.
        */
-      const searchJobApi = async (api: JobApi, metrics: FranceTravailMetrics | FantasticJobsMetrics, location: string) => {
+      const searchJobApi = async (api: JobApi, tool: StepTool, metrics: FranceTravailMetrics | FantasticJobsMetrics, location: string) => {
         const before = found.size;
         const max = Math.max(Math.ceil(budget.jobOffers * share) - found.size, 1);
-        const result = await api.search(criteria, { max, now: new Date(clock.now()), location });
+        const searching = recording();
+        const result = await searching.step({ tool }, () => api.search(criteria, { max, now: new Date(clock.now()), location }));
+        const searched = searching.provenance();
         metrics.calls += result.calls;
         if (result.ok && result.costEur !== undefined && "costEur" in metrics) metrics.costEur = Math.round((metrics.costEur + result.costEur) * 1e6) / 1e6;
         // One location searched is enough for the run to have searched the API.
@@ -477,7 +528,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           seen.add(offer.url);
           const known = await storedAt(offer.url);
           if (known) alreadyStored(offer.url, known);
-          else await capture(offer.url, offer.details, undefined);
+          else await capture(offer.url, offer.details, undefined, searched);
         }
         metrics.offers += found.size - before;
       };
@@ -489,7 +540,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
 
       /** The web searches for one location, within its share of the budget. */
       const searchTheWeb = async (location: string) => {
-        plan ??= await ai.planJobSearch({
+        plan ??= await run.ai.planJobSearch({
           candidateId,
           criteria,
           instructions: {
@@ -510,14 +561,16 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           const before = found.size;
           const { query, site } = next.query;
           const filters = site ? { ...searchFilters, includeDomains: [site] } : searchFilters;
-          const search = await ai.searchWeb({ candidateId, criteria, query, page: next.page, filters, location, route: queryWording.searchRoute, industries, warnings: queryWording.warnings });
+          const searching = recording();
+          const search = await searching.ai.searchWeb({ candidateId, criteria, query, page: next.page, filters, location, route: queryWording.searchRoute, industries, warnings: queryWording.warnings });
+          const searched = searching.provenance();
           // The answer text only points at pages to read: a Job Offer always comes from a page read.
           const fresh = [...new Set([...search.sources, ...urlsIn(search.answer)])].filter((url) => !providerUrls.has(url));
           for (const url of fresh) providerUrls.add(url);
           funnel.providerUrls = providerUrls.size;
           for (const url of fresh) {
             if (budgetSpent()) break;
-            await read(url, true, search.sourceDates?.[url]);
+            await read(url, true, search.sourceDates?.[url], searched);
           }
           pager.gave(next, found.size - before);
         }
@@ -530,16 +583,18 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         let fantasticJobsSearched = false;
         for (const [index, location] of locations.entries()) {
           share = (index + 1) / locations.length;
-          if (franceTravail && !budgetSpent()) await searchJobApi(franceTravail, report.franceTravail, location);
+          if (franceTravail && !budgetSpent()) await searchJobApi(franceTravail, "france-travail", report.franceTravail, location);
           if (fantasticJobs && !fantasticJobsSearched && !budgetSpent()) {
             fantasticJobsSearched = true;
-            await searchJobApi(fantasticJobs, report.fantasticJobs, location);
+            await searchJobApi(fantasticJobs, "fantastic-jobs", report.fantasticJobs, location);
           }
           if (budgetSpent() || !settings.sources.web_search) continue;
           await searchTheWeb(location);
         }
       } catch (error) {
         report.jobOffers = [...found.values()];
+        // Stopped by the Candidate, the AI call on its way broke: the run reports what it found, as when stopped between steps.
+        if (signal?.aborted) return report;
         throw new JobDiscoveryError(report, error);
       }
       report.jobOffers = [...found.values()];
@@ -551,6 +606,23 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
 /** The web addresses written in a text, in order (a Markdown link's too), without the punctuation that follows them. */
 function urlsIn(text: string): string[] {
   return (text.match(/https?:\/\/[^\s<>"'`()[\]{}«»]+/g) ?? []).map((url) => url.replace(/[.,;:!?]+$/, ""));
+}
+
+/** The AI layer, each call it sends stopped once `signal` aborts (#331). Without a signal, the layer itself. */
+function stoppable(ai: AiLayer, signal: AbortSignal | undefined): AiLayer {
+  if (!signal) return ai;
+  return {
+    generate: (request) => ai.generate({ ...request, signal }),
+    // The job title step is short, and never fails: it runs to its end.
+    planJobSearch: (request) => ai.planJobSearch(request),
+    searchWeb: (request) => ai.searchWeb({ ...request, signal }),
+    searchCompany: (request) => ai.searchCompany({ ...request, signal }),
+    searchCompanyNews: (request) => ai.searchCompanyNews({ ...request, signal }),
+    searchCompanyNewsWithCall: (request) => ai.searchCompanyNewsWithCall({ ...request, signal }),
+    agentModels: () => ai.agentModels(),
+    searchModels: () => ai.searchModels(),
+    forEval: () => stoppable(ai.forEval(), signal),
+  };
 }
 
 /** The AI layer, telling `spend` the cost in € of each call made through it. */
@@ -578,6 +650,7 @@ function costing(ai: AiLayer, spend: (eur: number) => void): AiLayer {
     },
     // Only a Company Dossier searches for Company News: Job discovery never does.
     searchCompanyNews: (request) => ai.searchCompanyNews(request),
+    searchCompanyNewsWithCall: (request) => ai.searchCompanyNewsWithCall(request),
     agentModels: () => ai.agentModels(),
     searchModels: () => ai.searchModels(),
     forEval: () => costing(ai.forEval(), spend),

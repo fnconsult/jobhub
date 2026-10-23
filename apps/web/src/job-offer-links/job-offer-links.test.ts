@@ -1,6 +1,6 @@
-import { createAiLayer } from "@jobhub/ai";
+import { createAiLayer, createProvenanceRecorder } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
-import type { JobOffer } from "@jobhub/shared";
+import type { JobOffer, Provenance } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import type { JobOffers } from "../job-offers";
 import { createJobOfferLinks, findJobOfferLink } from "./index";
@@ -53,7 +53,7 @@ function setUp(pages: Record<string, Page | "down">, { reply = '{"isJobOffer": f
   const ai = createAiLayer({ providers: [llm], routes: { offer_analysis: "mistral" }, euAiConsent: async () => false, warn: () => {}, usage });
   const { jobOffers, captures } = memoryJobOffers(stored);
   const links = createJobOfferLinks({ ai, jobOffers, fetch: web.fetch, clock: { now: () => Date.now(), sleep: async () => {} } });
-  return { links, web, llm, usage, captures };
+  return { links, web, llm, usage, captures, ai };
 }
 
 const POSTING_URL = "https://carrieres.groupe-seb.fr/offres/daf-lyon";
@@ -113,7 +113,7 @@ describe("reading a Job Offer from a link the Candidate pasted", () => {
     expect(captures).toHaveLength(1);
     expect(captures[0]).toMatchObject({ input: { source: { url: POSTING_URL }, title: "Directeur administratif et financier H/F" }, capturedBy: "candidate" });
     expect(captures[0]!.input).not.toHaveProperty("postedAt");
-    expect(captures[0]!.trusted).toEqual({ postedAt: new Date("2026-10-12") });
+    expect(captures[0]!.trusted).toEqual({ postedAt: new Date("2026-10-12"), provenance: expect.any(Object) });
     expect(llm.calls).toEqual([]);
   });
 
@@ -173,5 +173,83 @@ describe("reading a Job Offer from a link the Candidate pasted", () => {
     expect(await links.read("cand-1", POSTING_URL)).toEqual({ ok: true, jobOffer: stored });
     expect(web.requests).toEqual([]);
     expect(captures).toEqual([]);
+  });
+
+  describe("recorded in the reply's Provenance (#327)", () => {
+    it("records the page read as its Tool, the AI reading it, and the page as a Provenance site", async () => {
+      const { links, ai } = setUp(
+        { "https://carrieres.groupe-seb.fr/robots.txt": ROBOTS_ALLOW, [POSTING_URL]: { body: plainPage } },
+        { reply: '{"isJobOffer": true, "title": "DAF H/F", "content": "Groupe Seb recrute son DAF à Lyon."}' },
+      );
+      const recorder = createProvenanceRecorder(ai);
+
+      await links.read("cand-1", POSTING_URL, recorder);
+
+      expect(recorder.provenance().steps).toEqual([
+        expect.objectContaining({ kind: "tool", tool: "job-site", activity: "read", outcome: "ok" }),
+        expect.objectContaining({ kind: "ai", task: "offer_analysis", activity: "read", provider: "mistral", outcome: "ok" }),
+      ]);
+      expect(recorder.provenance().sites).toEqual([{ kind: "web", domain: "carrieres.groupe-seb.fr", links: [POSTING_URL] }]);
+    });
+
+    it("records a page that could not be read as a failed Tool step, with no site", async () => {
+      const { links, ai } = setUp({ "https://carrieres.groupe-seb.fr/robots.txt": ROBOTS_ALLOW });
+      const recorder = createProvenanceRecorder(ai);
+
+      expect(await links.read("cand-1", POSTING_URL, recorder)).toEqual({ ok: false, reason: "unreadable" });
+
+      expect(recorder.provenance().steps).toEqual([expect.objectContaining({ kind: "tool", tool: "job-site", outcome: "failed" })]);
+      expect(recorder.provenance().sites).toEqual([]);
+    });
+
+    it("keeps the page of a Job Offer already stored as a Provenance site, without a page read", async () => {
+      const stored: JobOffer = { id: "offer-known", source: { url: POSTING_URL }, title: "DAF H/F", content: "Groupe Seb recrute son DAF." };
+      const { links, ai } = setUp({}, { stored: [stored] });
+      const recorder = createProvenanceRecorder(ai);
+
+      await links.read("cand-1", POSTING_URL, recorder);
+
+      expect(recorder.provenance()).toMatchObject({ steps: [], sites: [{ kind: "web", domain: "carrieres.groupe-seb.fr", links: [POSTING_URL] }] });
+    });
+
+    it("records nothing for a Forbidden site, never requested", async () => {
+      const { links, ai } = setUp({});
+      const recorder = createProvenanceRecorder(ai);
+
+      await links.read("cand-1", "https://www.linkedin.com/jobs/view/123", recorder);
+
+      expect(recorder.provenance()).toMatchObject({ steps: [], sites: [] });
+    });
+  });
+});
+
+describe("the Provenance of a Job Offer read from a link (#329)", () => {
+  const CANDIDATE = "3f2b8c1e-9d4a-4e6f-8a1b-2c3d4e5f6a7b";
+  const what = (provenance: Provenance) =>
+    provenance.steps.map((step) => ({ kind: step.kind, activity: step.activity, ...(step.kind === "ai" ? { task: step.task, provider: step.provider, model: step.model } : step.kind === "tool" ? { tool: step.tool } : {}) }));
+
+  it("is its page read and the model that read it, on the site of its page, naming no Candidate", async () => {
+    const { links, captures } = setUp(
+      { "https://carrieres.groupe-seb.fr/robots.txt": ROBOTS_ALLOW, [POSTING_URL]: { body: plainPage } },
+      { reply: '{"isJobOffer": true, "title": "DAF H/F", "content": "Groupe Seb recrute son DAF à Lyon."}' },
+    );
+
+    await links.read(CANDIDATE, POSTING_URL);
+
+    const { provenance } = captures[0]!.trusted as { provenance: Provenance };
+    expect(what(provenance)).toEqual([
+      { kind: "tool", activity: "read", tool: "job-site" },
+      { kind: "ai", activity: "read", task: "offer_analysis", provider: "mistral", model: "fake-mistral" },
+    ]);
+    expect(provenance.sites).toEqual([{ kind: "web", domain: "carrieres.groupe-seb.fr", links: [POSTING_URL] }]);
+    expect(JSON.stringify(provenance)).not.toContain(CANDIDATE);
+  });
+
+  it("is its page read alone when the page states its JobPosting", async () => {
+    const { links, captures } = setUp({ "https://carrieres.groupe-seb.fr/robots.txt": ROBOTS_ALLOW, [POSTING_URL]: { body: jsonLdPage } });
+
+    await links.read(CANDIDATE, POSTING_URL);
+
+    expect(what((captures[0]!.trusted as { provenance: Provenance }).provenance)).toEqual([{ kind: "tool", activity: "read", tool: "job-site" }]);
   });
 });

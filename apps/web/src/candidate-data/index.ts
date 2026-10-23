@@ -24,13 +24,15 @@
  *    be referenced by other Candidates: they are kept.
  */
 import { failureReasonWording } from "@jobhub/shared/i18n";
-import { isFailureReason, type FailureReason, type Outcome, type Plan, type SearchCriteria } from "@jobhub/shared";
+import { isFailureReason, readProvenance, type FailureReason, type Outcome, type Plan, type Provenance, type SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type { ActionCard } from "../action-cards";
 import type { Application, Applications } from "../applications";
 import type { KeptAtsScore } from "../ats-score";
 import type { AssistantMessage } from "../back-office-assistant";
+import { SAVED_ASSISTANT_REPLY_COLUMNS, savedAssistantReplyProvenance, type SavedAssistantReply } from "../back-office-assistant/conversations";
 import type { CoachMessage } from "../coach";
+import { SAVED_REPLY_COLUMNS, savedReplyProvenance, type SavedReply } from "../coach-conversations";
 import type { CompanyDossier } from "../company-dossiers";
 import type { ContactProviderId } from "../enriched-contacts";
 import type { FollowUpDelays } from "../follow-ups";
@@ -78,8 +80,12 @@ export interface ExportedJobSearch {
   startedAt: Date;
   /** Null while it is searching. */
   finishedAt: Date | null;
+  /** When the Candidate asked to stop it (#331); absent unless they did. */
+  stopRequestedAt?: Date;
   /** The Job Offers it found, in the order Job discovery found them. */
   jobOfferIds: string[];
+  /** What served it (ADR-0034), when it was kept. */
+  provenance?: Provenance;
 }
 
 /** The Candidate's account itself (its secrets, such as sign-in tokens, are left out). */
@@ -157,8 +163,16 @@ export interface ExportedCoachConversation {
   createdAt: Date;
   lastMessageAt: Date;
   /** Oldest first. */
-  /** `jobOfferId`: the Job Offer of a reply's Job Offer card. */
-  messages: (Omit<CoachMessage, "jobOffer"> & { jobOfferId?: string; sentAt: Date })[];
+  /**
+   * `jobOfferId`: the Job Offer of a reply's Job Offer card. `provenance`: what served a reply (#327), when it is known.
+   * `focus`: the page's object in view when a reply was asked (an Application, a Job Offer or a Profile).
+   */
+  messages: (Omit<CoachMessage, "jobOffer" | "at" | "provenance"> & {
+    jobOfferId?: string;
+    sentAt: Date;
+    provenance?: Provenance;
+    focus?: { kind: "application" | "job_offer" | "profile"; id: string };
+  })[];
 }
 
 /** A conversation an Administrator had with the Back Office Assistant, every message included (what each reply cost is internal, left out). */
@@ -167,8 +181,8 @@ export interface ExportedAssistantConversation {
   title: string;
   createdAt: Date;
   lastMessageAt: Date;
-  /** Oldest first. */
-  messages: (AssistantMessage & { sentAt: Date })[];
+  /** Oldest first. `provenance`: what served a reply (#327), when it is known. */
+  messages: (Omit<AssistantMessage, "provenance" | "at"> & { sentAt: Date; provenance?: Provenance })[];
 }
 
 /** A Human Coach as the export names them: their email and booking link are theirs, left out. */
@@ -274,7 +288,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   profile: "profiles",
   master_cv_version: "profiles[].masterCvVersions",
   ats_score: "profiles[].atsScore",
-  job_search: "profiles[].jobSearches",
+  job_search: "profiles[].jobSearches (each one's Provenance, not its live steps)",
   job_digest_subscription: "profiles[].jobDigest (no unsubscribe token)",
   job_digest: "profiles[].jobDigests",
   application: "applications",
@@ -287,14 +301,14 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   enriched_contact: "applications[].enrichedContacts (no provider identifiers)",
   company_dossier: "applications[].companyDossier",
   coach_conversation: "coachConversations",
-  coach_message: "coachConversations[].messages (blocked ones marked, a Job Offer card's Job Offer named; no AI costs)",
+  coach_message: "coachConversations[].messages (blocked ones marked, a Job Offer card's Job Offer named, each reply's Provenance and focus; no AI costs)",
   coach_access: "coachAccess",
   coaching_session: "coachingSessions, with their date, duration, video link, note and who last changed the date (no Stripe identifiers, no booking link)",
   coaching_session_reschedule: "coachingSessions[].reschedules (their Reschedule history, cancellations included)",
   action_card: "actionCards",
   coach_memory_item: "coachMemory",
   back_office_assistant_conversation: "backOfficeAssistantConversations",
-  back_office_assistant_message: "backOfficeAssistantConversations[].messages (blocked ones marked; no AI costs)",
+  back_office_assistant_message: "backOfficeAssistantConversations[].messages (blocked ones marked, each reply's Provenance; no AI costs)",
   ai_message_log: "aiMessageLog (no AI costs, a Failure Reason's and warnings' code and wording but not their technical detail)",
 };
 
@@ -338,7 +352,8 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         candidateId,
       ),
       grouped<ExportedJobSearch>(
-      `SELECT profile_id AS key, id, status, failure, started_at AS "startedAt", finished_at AS "finishedAt", job_offer_ids::text[] AS "jobOfferIds"
+      `SELECT profile_id AS key, id, status, failure, started_at AS "startedAt", finished_at AS "finishedAt", job_offer_ids::text[] AS "jobOfferIds", provenance,
+              stop_requested_at AS "stopRequestedAt"
          FROM job_search WHERE candidate_id = $1 ORDER BY started_at DESC, id`,
         candidateId,
       ),
@@ -363,7 +378,10 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           searchCriteria: profile.searchCriteria,
           masterCvVersions: versions,
           atsScore: atsScoresOf(id)[0] ?? null,
-          jobSearches: jobSearchesOf(id),
+          jobSearches: jobSearchesOf(id).map(({ provenance, stopRequestedAt, ...jobSearch }) => {
+            const kept = readProvenance(provenance);
+            return { ...jobSearch, ...(stopRequestedAt && { stopRequestedAt }), ...(kept && { provenance: kept }) };
+          }),
           jobDigest: jobDigestSettingsOf(id)[0] ?? null,
           jobDigests: jobDigestsOf(id),
         };
@@ -483,17 +501,33 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           WHERE c.candidate_id = $1 ORDER BY c.last_message_at DESC, c.id`,
         candidateId,
       ),
-      grouped<ExportedCoachConversation["messages"][number]>(
-        `SELECT m.conversation_id AS key, m.author AS "from", m.text, CASE WHEN m.blocked THEN true END AS blocked, m.job_offer_id AS "jobOfferId", m.created_at AS "sentAt"
+      grouped<
+        Pick<ExportedCoachConversation["messages"][number], "from" | "text" | "sentAt"> &
+          SavedReply & { blocked: true | null; jobOfferId: string | null; focusKind: "application" | "job_offer" | "profile" | null; focusId: string | null }
+      >(
+        `SELECT m.conversation_id AS key, m.author AS "from", m.text, CASE WHEN m.blocked THEN true END AS blocked, m.job_offer_id AS "jobOfferId", m.created_at AS "sentAt",
+                m.focus_kind AS "focusKind", m.focus_id AS "focusId", ${SAVED_REPLY_COLUMNS}
            FROM coach_message m JOIN coach_conversation c ON c.id = m.conversation_id
           WHERE c.candidate_id = $1 ORDER BY m.seq`,
         candidateId,
       ),
     ]);
-    // A Blocked message (#228) says so, a reply with a Job Offer card names its Job Offer; the others carry no mark.
+    // A Blocked message (#228) says so, a reply with a Job Offer card names its Job Offer, a reply says what served it (#327)
+    // and what was in view; the others carry no mark. Never what a reply cost.
     return conversations.map((conversation) => ({
       ...conversation,
-      messages: messagesOf(conversation.id).map(({ blocked, jobOfferId, ...message }) => ({ ...message, ...(blocked ? { blocked } : {}), ...(jobOfferId ? { jobOfferId } : {}) })),
+      messages: messagesOf(conversation.id).map((message) => {
+        const provenance = message.from === "coach" ? savedReplyProvenance(message) : null;
+        return {
+          from: message.from,
+          text: message.text,
+          sentAt: message.sentAt,
+          ...(message.blocked ? { blocked: message.blocked } : {}),
+          ...(message.jobOfferId ? { jobOfferId: message.jobOfferId } : {}),
+          ...(provenance ? { provenance } : {}),
+          ...(message.focusKind && message.focusId ? { focus: { kind: message.focusKind, id: message.focusId } } : {}),
+        };
+      }),
     }));
   }
 
@@ -519,8 +553,8 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
            FROM back_office_assistant_conversation WHERE candidate_id = $1 ORDER BY last_message_at DESC, id`,
         candidateId,
       ),
-      grouped<ExportedAssistantConversation["messages"][number]>(
-        `SELECT m.conversation_id AS key, m.author AS "from", m.text, CASE WHEN m.blocked THEN true END AS blocked, m.created_at AS "sentAt"
+      grouped<Pick<ExportedAssistantConversation["messages"][number], "from" | "text" | "sentAt"> & SavedAssistantReply & { blocked: true | null }>(
+        `SELECT m.conversation_id AS key, m.author AS "from", m.text, CASE WHEN m.blocked THEN true END AS blocked, m.created_at AS "sentAt", ${SAVED_ASSISTANT_REPLY_COLUMNS}
            FROM back_office_assistant_message m JOIN back_office_assistant_conversation c ON c.id = m.conversation_id
           WHERE c.candidate_id = $1 ORDER BY m.seq`,
         candidateId,
@@ -528,7 +562,10 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
     ]);
     return conversations.map((conversation) => ({
       ...conversation,
-      messages: messagesOf(conversation.id).map(({ blocked, ...message }) => (blocked ? { ...message, blocked } : message)),
+      messages: messagesOf(conversation.id).map((message) => {
+        const provenance = message.from === "assistant" ? savedAssistantReplyProvenance(message) : null;
+        return { from: message.from, text: message.text, sentAt: message.sentAt, ...(message.blocked ? { blocked: message.blocked } : {}), ...(provenance ? { provenance } : {}) };
+      }),
     }));
   }
 

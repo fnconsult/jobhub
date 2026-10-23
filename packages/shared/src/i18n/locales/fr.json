@@ -509,7 +509,8 @@
   },
   "coachPanel": {
     "open": "Mon coach",
-    "title": "Votre coach",
+    "title": "Coach IA",
+    "badge": "Coach IA",
     "close": "Fermer",
     "inView": "Vous consultez : {{label}}",
     "inViewProfile": "le profil « {{name}} »",
@@ -520,8 +521,12 @@
     "inViewAgenda": "vos entretiens et rendez-vous des 30 prochains jours",
     "nothingInView": "Posez votre question : votre coach vous répond à partir de ce que vous lui dites.",
     "welcome": "Bonjour, je suis votre coach. Comment puis-je vous aider ?",
+    "aiDisclosure": "Je suis un coach IA, pas une personne : un programme d'intelligence artificielle de Jobbbox. Pour parler à une personne, vous pouvez réserver une séance avec un coach humain. Comment puis-je vous aider ?",
     "messageLabel": "Votre message",
     "send": "Envoyer",
+    "stop": "Arrêter",
+    "stopped": "Réponse arrêtée",
+    "failed": "Votre coach n'a pas pu répondre : {{reason}}. Réessayez dans quelques instants.",
     "thinking": "Votre coach rédige sa réponse…",
     "errors": {
       "unavailable": "Votre coach ne peut pas répondre pour le moment. Réessayez dans quelques instants.",
@@ -565,6 +570,16 @@
       "followed": "Suivie",
       "open": "Ouvrir l'offre"
     }
+  },
+  "provenanceLine": {
+    "unrecorded": "modèle non enregistré",
+    "euAiConsent": "consentement IA UE",
+    "outsideEu": "hors UE",
+    "measure": "mesure technique, non décomptée de vos quotas",
+    "tokens": "jetons",
+    "sources": "Sources ({{count}})",
+    "yourData": "Vos données",
+    "newTab": "(nouvel onglet)"
   },
   "coachMemory": {
     "open": "Mémoire du coach",
@@ -2005,6 +2020,7 @@
   "backOfficeAssistant": {
     "open": "Assistant",
     "title": "Assistant du back office",
+    "badge": "Assistant IA",
     "welcome": "Bonjour, je suis l'assistant du back office. Posez-moi vos questions sur les données et les réglages de vos sections.",
     "readOnly": "Lecture seule : l'assistant répond à partir des sections que vos rôles couvrent et ne modifie jamais rien.",
     "thinking": "L'assistant rédige sa réponse…",
@@ -2234,7 +2250,13 @@
     "title": "Offres trouvées pour « {{profile}} »",
     "startedAt": "Recherche lancée le {{date}}",
     "searching": "Votre coach cherche des offres. Cela peut prendre une à deux minutes : cette page se met à jour toute seule.",
+    "stop": "Arrêter la recherche",
+    "stopping": "Arrêt en cours…",
+    "stopError": "La recherche n'a pas pu être arrêtée. Vérifiez votre connexion et réessayez.",
     "failed": "La recherche n'a pas abouti. Réessayez dans quelques instants.",
+    "stopped_zero": "Vous avez arrêté cette recherche avant qu'elle ne trouve une offre. Elle n'est pas comptée dans vos recherches d'offres de la semaine.",
+    "stopped_one": "Vous avez arrêté cette recherche : l'offre trouvée jusque-là est gardée.",
+    "stopped_other": "Vous avez arrêté cette recherche : les {{count}} offres trouvées jusque-là sont gardées.",
     "noResults": "Votre coach n'a trouvé aucune offre cette fois-ci. Vous pouvez élargir les critères de recherche de ce profil, puis relancer une recherche.",
     "resultsIntro_one": "{{count}} offre trouvée, classée selon sa correspondance avec votre CV de référence.",
     "resultsIntro_other": "{{count}} offres trouvées, de la plus proche à la moins proche de votre CV de référence.",
@@ -2250,7 +2272,8 @@
     "statuses": {
       "searching": "En cours",
       "done": "Terminée",
-      "failed": "N'a pas abouti"
+      "failed": "N'a pas abouti",
+      "stopped": "Arrêtée"
     },
     "startedOn": "Lancée le",
     "criteria": "Critères",
@@ -2289,13 +2312,28 @@
       "discovery_failed": "Les sites d'offres d'emploi n'ont pas pu être consultés.",
       "other": "Un problème technique l'a interrompue."
     },
+    "steps": {
+      "think": "la préparation de la recherche",
+      "think_write": "la rédaction",
+      "write": "la rédaction",
+      "search": "la recherche dans les sources d'offres",
+      "web_search": "la recherche sur le web",
+      "read": "la lecture des offres",
+      "compute": "le calcul des scores de correspondance"
+    },
     "notCounted": "Elle n'est pas comptée dans vos recherches d'offres de la semaine.",
+    "keptBeforeFailure_one": "L'offre trouvée avant l'échec est gardée.",
+    "keptBeforeFailure_other": "Les {{count}} offres trouvées avant l'échec sont gardées.",
     "notifications": {
       "label": "Recherches d'offres terminées",
       "done_zero": "Votre recherche d'offres pour « {{profile}} » est terminée : aucune offre trouvée.",
       "done_one": "Votre recherche d'offres pour « {{profile}} » est terminée : {{count}} offre trouvée.",
       "done_other": "Votre recherche d'offres pour « {{profile}} » est terminée : {{count}} offres trouvées.",
-      "failed": "Votre recherche d'offres pour « {{profile}} » n'a pas abouti.",
+      "stopped_zero": "Recherche arrêtée à {{time}} : aucune offre trouvée pour « {{profile}} ».",
+      "stopped_one": "Recherche arrêtée à {{time}} : {{count}} offre trouvée pour « {{profile}} », gardée.",
+      "stopped_other": "Recherche arrêtée à {{time}} : {{count}} offres trouvées pour « {{profile}} », gardées.",
+      "failed": "Recherche échouée à {{time}} : votre recherche d'offres pour « {{profile}} » n'a pas abouti.",
+      "failedStep": "Recherche échouée à {{time}}, pendant {{step}} : votre recherche d'offres pour « {{profile}} » n'a pas abouti.",
       "seeResults": "Voir les offres",
       "seeSearch": "Voir la recherche",
       "dismiss": "Fermer"
@@ -2851,6 +2889,7 @@
     "route_missing": "Aucun fournisseur configuré pour cette tâche",
     "data_residency": "Règle de résidence des données",
     "invalid_reply": "Réponse illisible",
+    "stopped": "Arrêtée par la personne",
     "task_playbook_fallback": "Aucune version du Task Playbook servie : texte intégré utilisé",
     "task_playbook_unreadable": "Task Playbook illisible : texte intégré utilisé",
     "task_playbook_section_missing": "Section absente du Task Playbook : texte intégré utilisé",
@@ -2930,6 +2969,49 @@
       "on": "Rappels activés.",
       "off": "Rappels désactivés.",
       "error": "Votre choix n’a pas pu être enregistré. Réessayez."
+    }
+  },
+  "aiActivity": {
+    "modelNotRecorded": "modèle non enregistré",
+    "steps": {
+      "think": "Réflexion",
+      "think_write": "Réflexion puis rédaction",
+      "write": "Rédaction",
+      "search": "Recherche",
+      "web_search": "Recherche web",
+      "read": "Lecture",
+      "compute": "Calcul",
+      "check": "Vérification"
+    },
+    "label": "Activité IA",
+    "title": "Cette page",
+    "close": "Fermer",
+    "models_one": "{{count}} modèle",
+    "models_other": "{{count}} modèles",
+    "tokens": "{{tokens}} tokens",
+    "sections": {
+      "models": "Modèles",
+      "sources": "Sources",
+      "tools": "Outils",
+      "byElement": "Par élément"
+    },
+    "measure": "tokens · durée",
+    "measureHint": "mesure technique, non décomptée de vos quotas",
+    "total": "Total",
+    "yourData": "Vos données : CV de référence, Profil, critères",
+    "noAi": "Aucun contenu produit par l'IA sur cette page",
+    "newTab": "(nouvel onglet)",
+    "rules": "Règles Jobbbox",
+    "usedBy": "Pour : {{elements}}",
+    "kinds": {
+      "job_offer": "Offre d'emploi",
+      "coach_reply": "Réponse du coach",
+      "job_search": "Recherche d'offres",
+      "job_digest": "Job Digest",
+      "tailored_cv": "CV adapté",
+      "tailored_documents": "Documents adaptés",
+      "company_dossier": "Dossier entreprise",
+      "action_card": "Proposition du coach"
     }
   }
 }

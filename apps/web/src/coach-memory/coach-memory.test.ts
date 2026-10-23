@@ -32,6 +32,7 @@ describe.skipIf(!connectionString)("Coach Memory (needs Postgres: DATABASE_URL)"
       title: "Ma recherche",
       profile: null,
       lastMessageAt: new Date(),
+      aiDisclosure: true,
       messages: [
         { from: "candidate", text: "Je veux un poste de DAF à Lyon, pas plus de 2 jours de déplacement par mois." },
         { from: "coach", text: "Entendu. Visez-vous l'industrie ?" },

@@ -116,8 +116,15 @@ export interface GuardRequest {
   candidateId: string;
   /** The language the Guardrail message is shown in. */
   language: GuardrailLanguage;
+  /** The AI layer this request's AI checks go through: the reply's ProvenanceRecorder, to keep them in its Provenance (#327). Default: the Guardrails' own. */
+  ai?: AiLayer;
   /** The latest message, as typed: what the input checks read. */
   message: string;
+  /**
+   * The Candidate's Stop (#328). A check it ends is not a check that could not be made: nothing is let through and no Guardrail
+   * Trigger is recorded, the guard rejects with the Stop's reason.
+   */
+  signal?: AbortSignal;
   /** Everything the Candidate wrote in the conversation: an email address or phone number in it is theirs. */
   written: string[];
   /**
@@ -291,13 +298,14 @@ export function createGuardrails(deps: GuardrailsDeps): Guardrails {
         let reason: GuardrailFailureReason;
         try {
           const call = await Promise.race([
-            deps.ai.generate({
+            (request.ai ?? deps.ai).generate({
               task: "guardrail",
               candidateId: request.candidateId,
               system: checkSystem(kind, guardrails),
               prompt: [{ role: "user", content: framed(kind === "input" ? "message" : "reponse", text) }],
               maxTokens: 100,
               containsIdentity: false,
+              ...(request.signal ? { signal: request.signal } : {}),
             }),
             new Promise<never>((_, reject) => {
               timer = setTimeout(() => reject(new GuardrailCheckTimeout(`no verdict within ${timeoutMs} ms`)), timeoutMs);
@@ -308,6 +316,8 @@ export function createGuardrails(deps: GuardrailsDeps): Guardrails {
           if (found) return found;
           reason = "invalid_verdict";
         } catch (error) {
+          // Stopped: the check never answered, so it fails closed; failing open is for a check that could not be made (ADR-0022).
+          if (request.signal?.aborted) throw request.signal.reason ?? error;
           // Unavailable: recorded below, the text goes through.
           reason = error instanceof GuardrailCheckTimeout ? "guardrail_timeout" : "provider_error";
         } finally {

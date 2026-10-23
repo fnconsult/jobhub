@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { loadAiActivity } from "@/ai-activity/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { MasterCvEditor } from "@/components/MasterCvEditor";
 import { getServerT } from "@/i18n/server";
@@ -17,7 +18,7 @@ export default async function EditMasterCvPage({ params }: Params) {
   const { candidateId, profile } = await requireOwnProfile((await params).id);
   const t = await getServerT();
   return (
-    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id} title={t("cvEditor.title")}>
+    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id} title={t("cvEditor.title")} aiActivity={await loadAiActivity.profile(candidateId, { id: profile.id }, [])}>
       <p className="lead">{profile.name}</p>
       <p>{t("cvEditor.intro")}</p>
       <p>{t("cvEditor.editingVersion", { version: profile.masterCv.version })}</p>

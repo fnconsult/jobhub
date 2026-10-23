@@ -14,6 +14,11 @@ describe("renderDesignCss", () => {
     expect(css).toContain("--font-size-h1: 2rem;");
   });
 
+  it("gives metadata its own size and colour, 0.8125rem (13px) in #6b6a67 (ADR-0009 amendment, #317)", () => {
+    expect(css).toContain("--font-size-meta: 0.8125rem;");
+    expect(css).toContain("--color-text-meta: #6b6a67;");
+  });
+
   it("applies each text-size setting through a data attribute on the root element", () => {
     expect(css).toMatch(/html\[data-text-size="small"\]\s*\{\s*font-size: 16px;/);
     expect(css).toMatch(/html\[data-text-size="standard"\]\s*\{\s*font-size: 17px;/);

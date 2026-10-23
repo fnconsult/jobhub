@@ -38,6 +38,11 @@ export interface FakeProviderOptions {
   models?: string[];
   /** Thrown by every call (generation and search), after it is counted: a provider that fails, e.g. with an AiProviderError. */
   fail?: Error;
+  /**
+   * Every call, once counted, never answers: it waits for its signal to abort, then rejects with the signal's
+   * reason, as `fetch` does (#325). Default: it answers at once.
+   */
+  pending?: boolean;
 }
 
 export interface FakeProvider extends AiProvider {
@@ -55,6 +60,12 @@ export function createFakeProvider(options: FakeProviderOptions = {}): FakeProvi
   const calls: TextInput[] = [];
   const queries: string[] = [];
   const searches: FakeProvider["searches"] = [];
+  /** Settles with nothing, or rejects as `fetch` does once `signal` aborts (`pending` never settles otherwise). */
+  const answering = (signal: AbortSignal | undefined): Promise<void> => {
+    if (signal?.aborted) return Promise.reject(signal.reason);
+    if (!options.pending) return Promise.resolve();
+    return new Promise((_, reject) => signal?.addEventListener("abort", () => reject(signal.reason), { once: true }));
+  };
   return {
     id,
     endpoint: `fake ${id}`,
@@ -67,13 +78,15 @@ export function createFakeProvider(options: FakeProviderOptions = {}): FakeProvi
     ...(options.pages ? { searchPages: options.pages } : {}),
     async generate(input): Promise<TextOutput> {
       calls.push(input);
+      await answering(input.signal);
       if (options.fail) throw options.fail;
       const reply = options.reply ?? "fake reply";
       return { text: typeof reply === "function" ? reply(input) : reply, model: input.model ?? `fake-${id}`, usage, ...(options.tools ? { tools: options.tools } : {}) };
     },
-    async search(query, { model, filters, page }): Promise<SearchOutput> {
+    async search(query, { model, filters, page, signal }): Promise<SearchOutput> {
       queries.push(query);
-      searches.push({ query, model, filters, ...(page ? { page } : {}) });
+      searches.push({ query, model, filters, ...(page ? { page } : {}), ...(signal ? { signal } : {}) });
+      await answering(signal);
       if (options.fail) throw options.fail;
       const sources = typeof options.sources === "function" ? options.sources(query, { model, filters, page }) : (options.sources ?? []);
       return {

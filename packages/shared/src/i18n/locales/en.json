@@ -509,7 +509,8 @@
   },
   "coachPanel": {
     "open": "My coach",
-    "title": "Your coach",
+    "title": "AI Coach",
+    "badge": "AI Coach",
     "close": "Close",
     "inView": "You are viewing: {{label}}",
     "inViewProfile": "the profile \"{{name}}\"",
@@ -520,8 +521,12 @@
     "inViewAgenda": "your interviews and appointments for the next 30 days",
     "nothingInView": "Ask your question: your coach answers from what you tell them.",
     "welcome": "Hello, I'm your coach. How can I help you?",
+    "aiDisclosure": "I am an AI coach, not a person: an artificial intelligence program from Jobbbox. To talk to a person, you can book a session with a human coach. How can I help you?",
     "messageLabel": "Your message",
     "send": "Send",
+    "stop": "Stop",
+    "stopped": "Reply stopped",
+    "failed": "Your coach could not reply: {{reason}}. Try again in a moment.",
     "thinking": "Your coach is writing a reply…",
     "errors": {
       "unavailable": "Your coach can't reply right now. Please try again in a few moments.",
@@ -565,6 +570,16 @@
       "followed": "Followed",
       "open": "Open the job offer"
     }
+  },
+  "provenanceLine": {
+    "unrecorded": "model not recorded",
+    "euAiConsent": "EU AI consent",
+    "outsideEu": "outside the EU",
+    "measure": "a technical measure, not counted against your quotas",
+    "tokens": "tokens",
+    "sources": "Sources ({{count}})",
+    "yourData": "Your data",
+    "newTab": "(new tab)"
   },
   "coachMemory": {
     "open": "Coach memory",
@@ -2005,6 +2020,7 @@
   "backOfficeAssistant": {
     "open": "Assistant",
     "title": "Back office assistant",
+    "badge": "AI Assistant",
     "welcome": "Hello, I am the back office assistant. Ask me about the data and settings of your sections.",
     "readOnly": "Read-only: the assistant answers from the sections your roles cover and never changes anything.",
     "thinking": "The assistant is writing its reply…",
@@ -2234,7 +2250,13 @@
     "title": "Job offers found for \"{{profile}}\"",
     "startedAt": "Search started on {{date}}",
     "searching": "Your coach is searching for job offers. This can take a minute or two: this page updates by itself.",
+    "stop": "Stop the search",
+    "stopping": "Stopping…",
+    "stopError": "The search could not be stopped. Check your connection and try again.",
     "failed": "The search did not succeed. Please try again in a few moments.",
+    "stopped_zero": "You stopped this search before it found a job offer. It does not count toward this week's job searches.",
+    "stopped_one": "You stopped this search: the job offer found until then is kept.",
+    "stopped_other": "You stopped this search: the {{count}} job offers found until then are kept.",
     "noResults": "Your coach found no job offers this time. You can widen this profile's search criteria, then search again.",
     "resultsIntro_one": "{{count}} job offer found, ranked by how well it matches your master CV.",
     "resultsIntro_other": "{{count}} job offers found, from the closest to your master CV to the least close.",
@@ -2250,7 +2272,8 @@
     "statuses": {
       "searching": "In progress",
       "done": "Finished",
-      "failed": "Did not succeed"
+      "failed": "Did not succeed",
+      "stopped": "Stopped"
     },
     "startedOn": "Started on",
     "criteria": "Criteria",
@@ -2289,13 +2312,28 @@
       "discovery_failed": "The job sites could not be reached.",
       "other": "A technical problem stopped it."
     },
+    "steps": {
+      "think": "preparing the search",
+      "think_write": "writing",
+      "write": "writing",
+      "search": "searching the job sources",
+      "web_search": "searching the web",
+      "read": "reading the job offers",
+      "compute": "computing the match scores"
+    },
     "notCounted": "It does not count toward this week's job searches.",
+    "keptBeforeFailure_one": "The job offer found before it failed is kept.",
+    "keptBeforeFailure_other": "The {{count}} job offers found before it failed are kept.",
     "notifications": {
       "label": "Finished job searches",
       "done_zero": "Your job search for \"{{profile}}\" is finished: no job offers found.",
       "done_one": "Your job search for \"{{profile}}\" is finished: {{count}} job offer found.",
       "done_other": "Your job search for \"{{profile}}\" is finished: {{count}} job offers found.",
-      "failed": "Your job search for \"{{profile}}\" did not succeed.",
+      "stopped_zero": "Search stopped at {{time}}: no job offers found for \"{{profile}}\".",
+      "stopped_one": "Search stopped at {{time}}: {{count}} job offer found for \"{{profile}}\", kept.",
+      "stopped_other": "Search stopped at {{time}}: {{count}} job offers found for \"{{profile}}\", kept.",
+      "failed": "Search failed at {{time}}: your job search for \"{{profile}}\" did not succeed.",
+      "failedStep": "Search failed at {{time}}, while {{step}}: your job search for \"{{profile}}\" did not succeed.",
       "seeResults": "See the job offers",
       "seeSearch": "See the search",
       "dismiss": "Close"
@@ -2851,6 +2889,7 @@
     "route_missing": "No provider configured for this task",
     "data_residency": "Data residency rule",
     "invalid_reply": "Unreadable reply",
+    "stopped": "Stopped by the person",
     "task_playbook_fallback": "No Task Playbook version served: built-in text used",
     "task_playbook_unreadable": "Task Playbook could not be read: built-in text used",
     "task_playbook_section_missing": "Section missing from the Task Playbook: built-in text used",
@@ -2930,6 +2969,49 @@
       "on": "Reminders on.",
       "off": "Reminders off.",
       "error": "Your choice could not be saved. Please try again."
+    }
+  },
+  "aiActivity": {
+    "modelNotRecorded": "model not recorded",
+    "steps": {
+      "think": "Thinking",
+      "think_write": "Thinking, then writing",
+      "write": "Writing",
+      "search": "Searching",
+      "web_search": "Searching the web",
+      "read": "Reading",
+      "compute": "Computing",
+      "check": "Checking"
+    },
+    "label": "AI activity",
+    "title": "This page",
+    "close": "Close",
+    "models_one": "{{count}} model",
+    "models_other": "{{count}} models",
+    "tokens": "{{tokens}} tokens",
+    "sections": {
+      "models": "Models",
+      "sources": "Sources",
+      "tools": "Tools",
+      "byElement": "By item"
+    },
+    "measure": "tokens · time",
+    "measureHint": "a technical measure, not counted against your quotas",
+    "total": "Total",
+    "yourData": "Your data: Master CV, Profile, criteria",
+    "noAi": "No content made by AI on this page",
+    "newTab": "(new tab)",
+    "rules": "Jobbbox rules",
+    "usedBy": "For: {{elements}}",
+    "kinds": {
+      "job_offer": "Job offer",
+      "coach_reply": "Coach reply",
+      "job_search": "Job search",
+      "job_digest": "Job Digest",
+      "tailored_cv": "Tailored CV",
+      "tailored_documents": "Tailored documents",
+      "company_dossier": "Company dossier",
+      "action_card": "Coach proposal"
     }
   }
 }

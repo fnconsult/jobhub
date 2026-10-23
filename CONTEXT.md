@@ -15,7 +15,7 @@ The Candidate deletes their own account, confirmed by typing their email address
 _Avoid_: Account closure, deactivation
 
 **Data export**:
-One JSON file the Candidate downloads holding all their personal data, what they made and what Jobbbox worked out or obtained about them (GDPR art. 15 and 20): their account (sign-in methods and sessions), Plan and Plan Quota use, EU AI Consent, Follow-up Delays and Appointment Reminder setting; their Profiles (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and the Job Digests sent); their Applications (Job Offer, Interviews with their Reschedule history, Match Score, Tailored Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach Conversations with every message, Coach Memory, Action Cards, Coach Access and Coaching Sessions (with their date, who last changed it, video link and Reschedule history); their AI Message Log. It leaves out secrets (sign-in tokens and passwords, the Job Digest unsubscribe link), Human Coaches' email addresses and booking links, Stripe's and the contact data providers' identifiers, and the Coach Message Cost. Every table tied to a Candidate must land in it.
+One JSON file the Candidate downloads holding all their personal data, what they made and what Jobbbox worked out or obtained about them (GDPR art. 15 and 20): their account (sign-in methods and sessions), Plan and Plan Quota use, EU AI Consent, Follow-up Delays and Appointment Reminder setting; their Profiles (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and the Job Digests sent); their Applications (Job Offer, Interviews with their Reschedule history, Match Score, Tailored Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach Conversations with every message, the Provenance of each of these results, Coach Memory, Action Cards, Coach Access and Coaching Sessions (with their date, who last changed it, video link and Reschedule history); their AI Message Log. It leaves out secrets (sign-in tokens and passwords, the Job Digest unsubscribe link), Human Coaches' email addresses and booking links, Stripe's and the contact data providers' identifiers, and the Coach Message Cost. Every table tied to a Candidate must land in it.
 _Avoid_: Backup, data dump
 
 **EU AI Consent**:
@@ -49,8 +49,12 @@ _Avoid_: Temporary account, trial
 ### Coaching
 
 **AI Coach**:
-The AI agent persona that guides the Candidate through onboarding, CV improvement, job search, application preparation and follow-up.
+The AI agent persona that guides the Candidate through onboarding, CV improvement, job search, application preparation and follow-up. It always says it is an AI and not a person (AI Act art. 50(1)): a fixed first message in every Coach Conversation, a « Coach IA » badge by the message box and as the Coach Panel's title, and a truthful answer when asked. Its replies show no author name; each is followed by its Provenance.
 _Avoid_: Bot, assistant, agent (in user-facing language)
+
+**AI disclosure**:
+The AI Coach's fixed first message in a new Coach Conversation, saying it is an AI and not a person and that a Human Coach can be booked. Shown by the Coach Panel, not sent by the AI Coach: no AI call, no Plan Quota use, no Coach Message Cost, and not in the Coach context. A Coach Conversation made before it was introduced has none.
+_Avoid_: Welcome message
 
 **Human Coach**:
 A real HR professional, selected by Jobbbox, whom a Candidate can book for paid sessions on top of the AI Coach.
@@ -81,7 +85,7 @@ A Human Coach no longer listed to Candidates and who can no longer read anything
 _Avoid_: Deleted coach
 
 **Coach Panel**:
-The side panel, available from every page, where the Candidate asks for help and talks with the AI Coach; its Top Bar button reads « Aide et coach » (« Aide » on phones). On wide screens it sits beside the page, and the Candidate can widen it into a drawer over the page; on phones it takes the whole screen. Its one menu, the conversation's title, holds a new conversation, the saved Coach Conversations and the Coach Memory. Its one box takes the Candidate's question: while they type, matching Help Articles are suggested above it, without AI; sending it asks the AI Coach. With no message yet, it shows the Help Article of the page in view and a few frequent questions. Its foot leads to a Signalement (« Signaler un problème », « Proposer une idée », « Poser une question »).
+The side panel, available from every page, where the Candidate asks for help and talks with the AI Coach; its Top Bar button reads « Aide et coach » (« Aide » on phones). On wide screens it sits beside the page as a card, like AI Activity's pane, and the Candidate can widen it into a drawer over the page; on phones it takes the whole screen. Its one menu, the conversation's title, holds a new conversation, the saved Coach Conversations and the Coach Memory. Its one box takes the Candidate's question: while they type, matching Help Articles are suggested above it, without AI; sending it asks the AI Coach. With no message yet, it shows the Help Article of the page in view and a few frequent questions. Its foot leads to a Signalement (« Signaler un problème », « Proposer une idée », « Poser une question »).
 _Avoid_: Chat, chatbot, sidebar, help menu
 
 **Help Article**:
@@ -107,7 +111,7 @@ The key facts (goals, constraints, decisions) the AI Coach keeps about a Candida
 _Avoid_: Profile notes, chat history
 
 **Coach Message Cost**:
-What one AI Coach reply cost, the Playbook Agent choice, every Playbook Agent consulted and Guardrail checks included: provider, model, input, output and cached input tokens, and the estimated cost in euros at list prices, fixed when the reply is saved. Kept with the reply, so it goes when the Coach Conversation does. Seen by Administrators only, as a median and p90 per day, never by Candidates.
+What one AI Coach reply cost, the Playbook Agent choice, every Playbook Agent consulted and Guardrail checks included: provider, model, input, output and cached input tokens, and the estimated cost in euros at list prices, fixed when the reply is saved. Kept with the reply, so it goes when the Coach Conversation does. Its euros are seen by Administrators only, as a median and p90 per day, never by Candidates; the Candidate sees only the reply's Provenance (model, tokens, time).
 _Avoid_: Bill, price
 
 **Coach cost target**:
@@ -172,7 +176,7 @@ A named check on a Candidate's or Administrator's message to the AI Coach or Bac
 _Avoid_: Filter, moderation, safety layer
 
 **Blocked message**:
-A Candidate message a Guardrail stops before the AI Coach sees it, or an AI Coach reply a Guardrail stops before the Candidate does. A blocked message is answered by the Guardrail message; a blocked reply is written again once, told what was wrong, then replaced by the Guardrail message if still blocked (a leak or a secret is replaced at once). Both stay in the Coach Conversation, marked as blocked without naming the Guardrail; a distress Guardrail's answer is never shown as a block. A Guardrail set to flag only lets everything through and records it.
+A Candidate message a Guardrail stops before the AI Coach sees it, or an AI Coach reply a Guardrail stops before the Candidate does. A blocked message is answered by the Guardrail message; a blocked reply is written again once, told what was wrong, then replaced by the Guardrail message if still blocked (a leak or a secret is replaced at once). Both stay in the Coach Conversation, marked as blocked without naming the Guardrail; a distress Guardrail's answer is never shown as a block. A Guardrail set to flag only lets everything through and records it. A question the Candidate stops before the input Guardrails let it through is not blocked, and stays in the Coach Conversation unmarked, but is never sent to the AI Coach; a check the Stop ends records no Guardrail Trigger.
 _Avoid_: Rejected message, filtered reply
 
 **Guardrail message**:
@@ -280,11 +284,14 @@ A result page that lists several postings (a job board's search results, a caree
 _Avoid_: Results page, index page
 
 **Job Search**:
-One run of Job discovery that a Candidate starts for a Profile, and its outcome: searching, done or failed. Started from the Recherches d'offres page, for one Profile or for all their active Profiles at once (one Job Search each); the Coach Panel and "Relancer une recherche" on a Job Search's page start one for a single Profile. A Profile's page does not offer it. With several locations it searches each of them within the one Job discovery budget. It counts one against the Plan Quota, and the use is given back if the search fails or times out. A search nobody has finished after 15 minutes is failed. Its page shows the Match Scores against the Profile's current Search Criteria; a Job Search keeps no copy of the criteria it was run with.
+One run of Job discovery that a Candidate starts for a Profile, and its outcome: searching, done, failed or stopped. Started from the Recherches d'offres page, for one Profile or for all their active Profiles at once (one Job Search each); the Coach Panel and "Relancer une recherche" on a Job Search's page start one for a single Profile. A Profile's page does not offer it. With several locations it searches each of them within the one Job discovery budget. It counts one against the Plan Quota, and the use is given back if the search fails, times out or is stopped without keeping a Job Offer. The Candidate can stop it from its page or from AI Activity (a Stop request); a stopped or failed search keeps, and links, the Job Offers it had already found. A search nobody has finished after 15 minutes is failed. Its page shows the Match Scores against the Profile's current Search Criteria; a Job Search keeps no copy of the criteria it was run with.
 _Avoid_: Search (alone, ambiguous with Search Criteria)
 
+**Stop request**:
+The Candidate's request to stop a searching Job Search. The worker applies it between steps (within about a second; an AI call in flight is cancelled, a page already being read is finished), then records the Job Search as stopped. A Job Search stopped before the worker picked it up runs nothing. Only the Candidate who owns the Job Search can make one, and only while it is searching.
+
 **Job Search Notification**:
-A message shown on every workspace page when a Job Search stops being searching: how many published Job Offers it found, or why it failed (and that it does not count toward the Plan Quota). In-app only, no email. It stays until the Candidate closes it or opens that Job Search, and is hidden on that Job Search's own page.
+A message shown on every workspace page when a Job Search stops being searching: how many published Job Offers it found, or, for a stopped search, when it was stopped (and that it does not count toward the Plan Quota when it kept none), or, for a failed one, when and during which step it failed, why, and the Job Offers it kept. Times are Paris time. In-app only, no email. It stays until the Candidate closes it or opens that Job Search, and is hidden on that Job Search's own page.
 _Avoid_: Alert, toast, Action Card
 
 **Job Search query**:
@@ -628,7 +635,7 @@ How an AI call or a Back Office action ended: ok (succeeded), warning (an AI cal
 _Avoid_: Status, result code
 
 **Failure Reason**:
-Why something failed or warned, in two parts. The functional reason is a stable code from one catalog fixed in the code (`provider_unavailable`, `key_missing`, `data_residency`, `guardrail_timeout`, `invalid_verdict`, `provider_error`, `test_failed`, `eval_refused`, `last_super_admin`, `role_missing`, `invalid_value`, …), each with a French wording an Administrator understands; the three Guardrail codes (`guardrail_timeout`, `invalid_verdict`, `provider_error`) are used only by a Guardrail Trigger that could not check, and `provider_error` there is the check's own failure, not the AI call's classification (that stays in the call's AI Usage entry); an unknown error is `other` (« Erreur inattendue »), and so is a failed or warned call recorded with no code or with a code no longer in the catalog. The technical reason is the error's class, the provider, the HTTP status and its message, scrubbed of keys and secrets, passed through Redaction and cut at 500 characters. The code goes where counts are kept (AI Usage, Guardrail Triggers, 24 months, Support reads them); the technical reason only goes with the text it explains (the AI Message Log, 30 days) or in the Back Office Audit (3 years), both read by super-admins only.
+Why something failed or warned, in two parts. The functional reason is a stable code from one catalog fixed in the code (`provider_unavailable`, `key_missing`, `data_residency`, `guardrail_timeout`, `invalid_verdict`, `provider_error`, `test_failed`, `eval_refused`, `last_super_admin`, `role_missing`, `invalid_value`, `stopped` (the Candidate stopped the action; for an AI call, no tokens and no cost, and not sent if stopped before it left), …), each with a French wording an Administrator understands; the three Guardrail codes (`guardrail_timeout`, `invalid_verdict`, `provider_error`) are used only by a Guardrail Trigger that could not check, and `provider_error` there is the check's own failure, not the AI call's classification (that stays in the call's AI Usage entry); an unknown error is `other` (« Erreur inattendue »), and so is a failed or warned call recorded with no code or with a code no longer in the catalog. The technical reason is the error's class, the provider, the HTTP status and its message, scrubbed of keys and secrets, passed through Redaction and cut at 500 characters. The code goes where counts are kept (AI Usage, Guardrail Triggers, 24 months, Support reads them); the technical reason only goes with the text it explains (the AI Message Log, 30 days) or in the Back Office Audit (3 years), both read by super-admins only.
 _Avoid_: Error message, error code, cause
 
 **AI call warning**:
@@ -646,6 +653,61 @@ _Avoid_: AI bill, token log, metering
 **AI Message Log**:
 What one AI call said, as sent: its system text and messages after Redaction, and the reply as it came (none when the call failed, or was not sent), keys and secrets scrubbed, with the Candidate it was made for (none for a Guest), and the call's Outcome with its Failure Reason, technical detail included. Kept 30 days for quality and debugging, then purged; deleted with the account and in the Candidate's Data export. The Candidate's Data export holds each failed call's Failure Reason code and French wording, never its technical detail. Only super-admins read it, on the Back Office's Journaux IA page, filterable by Outcome and Failure Reason, and every log they open is written to the Back Office Audit.
 _Avoid_: Prompt log, transcript, chat history
+
+**Call facts**:
+What every AI call result carries about the call itself: the endpoint with its region, the duration and the Outcome (ok or warning), the same values written to AI Usage, so Provenance can keep them. A call the Candidate stops fails with Failure Reason `stopped`; a Company News search is the only search that otherwise never fails, and it now fails when stopped, so the Company Dossier is not built without news.
+_Avoid_: Metadata, usage
+
+**Provenance**:
+What served one piece of content a Candidate sees (a Job Search, a Job Offer's reading and summary, a Tailored CV or Tailored Document, a Company Dossier, a Master CV Version read from a file, an Action Card, a Job Digest, an AI Coach reply), fixed when it is made and kept with it: its steps, each with its Activity, its AI task or Tool, for an AI step the provider, where it ran (endpoint and region) and the model that actually served, tokens in and out, and its duration, start time and Outcome (stopped included); its Provenance sites; and its start time and wall-clock duration. No Candidate, no cost, no text. Lives and is deleted with its content, so it is in the Data export with it. Content made before it existed, or whose Provenance was not kept, shows « modèle non enregistré » and counts in no total; nothing is estimated. Not AI Usage, which counts calls for Jobbbox and names no one, and never linked to it.
+_Avoid_: Metadata, trace, lineage, usage
+
+**Provenance line**:
+The quiet line under each saved AI Coach or Back Office Assistant reply: the models by display name and where they ran, the « consentement IA UE » or « hors UE » chip when that route served a call, tokens, time, Tools, and the Provenance sites behind a disclosure button. Never cost, prompt, AI task, Playbook Agent or identifier. A reply made before Provenance existed shows what its saved provider, model and tokens allow (a partial Provenance, time unknown and so not shown), or « modèle non enregistré » when no model was saved.
+_Avoid_: Footer, metadata line, usage line
+
+**Focus**:
+The object of the page in view when a Coach reply was asked: an Application, a Job Offer or a Profile. Kept with the reply so AI Activity can count the reply with that page, and in the Data export.
+_Avoid_: Context, subject, target
+
+**Joined Provenance**:
+The one Provenance of a content made by two actions (an offer found by a Job Search then read, or read then summarized later): the steps of both in order, each site once with the links of both, the first start, and the wall-clock times summed, never the time between the actions. A Job Offer found by a Job Search keeps the search step that found it, the listing page that led to it, its ATS API or page read and the reading model. A capture that fills the summary of an existing Job Offer keeps the Provenance the offer already has. A Job Offer captured by the browser extension has none.
+_Avoid_: Merged trace
+
+**Provenance site**:
+A site whose pages a piece of content was built from, kept in its Provenance with the links read: an offer page, a job board, the company register, the Candidate's own Master CV and Profile. Shown to the Candidate under « Sources »; a link never points to a LinkedIn profile, a page naming a person, an Enriched Contact, an address inside Jobbbox other than the Candidate's own pages, a signed or tokenised address or a query string. Not a coaching Source (`[S12]`). Either a website (by domain, `www.` removed) or the Candidate's own pages, kept as relative paths (Profils, Candidatures, Recherches, Offres, Job Digests). Steps that ran the same Activity, task or Tool, provider, endpoint, model and Outcome are shown folded into one, with a count.
+_Avoid_: Source (alone), citation, reference
+
+**Activity**:
+What one step of an AI action is doing, fixed in the code per step and by default per AI task or Tool, never per Playbook: think, think then write, write, search, web search, read or compute (rules, no AI). It picks the glyph AI Activity shows while the step runs.
+_Avoid_: Status, phase, stage
+
+**Step label**:
+What AI Activity calls a running step: its Activity, or « check » for a Guardrail's check. Worded in French and English.
+_Avoid_: Step name, status
+
+**Stop**:
+The Candidate ends an AI Coach reply on its way with « Arrêter » (the « Envoyer » button, no confirmation). Every AI call of the reply is aborted (AI Usage `stopped`). The question is kept in the Coach Conversation, no reply is saved, and « Réponse arrêtée » shows the tokens and time spent. A stopped reply counts against no Plan Quota.
+_Avoid_: Cancel, abort
+
+**Run progress**:
+The live steps of an AI action that runs in the worker (a Job Search), kept on its row only while it searches: the latest event of each step, an ended step replacing its start. It feeds AI Activity's live steps, including « En cours ailleurs », through the page's poll (every 1.5 s while an action runs). Cleared when the action finishes or times out, so it is never in the Data export; the Provenance, kept with the result, is.
+_Avoid_: Status, log
+
+**Part**:
+One Job Offer's search and reading inside a Job Search. It has its own Provenance (the Job Offer's), and its steps and sites are also recorded on the Job Search's run.
+_Avoid_: Sub-search, task
+
+**Provenance rule**:A step of Provenance with no AI call and no Tool, done by the code's own rules: Match Score (one step of a Job Search's Provenance, scoring every Job Offer found), ATS Score, ATS fixes, offer freshness and offer deduplication. Its Activity is compute. A Guardrail check is not one: it is an AI call (think).
+_Avoid_: Computation, script, algorithm
+
+**AI Activity**:
+The button in the Candidate's top bar, left of « Mon coach », and the pane it opens, « Cette page »: which models (with tokens and time), Provenance sites and Tools produced what the page shows, summed for the page and listed per element, read from each element's Provenance; the AI Coach replies given while the page's object was in view count with the page. While an AI action of the Candidate runs (on this page or « En cours ailleurs »), it shows each step live with its Activity's glyph and a stop icon; a stopped or failed action is shown in light red, in words, with its finished steps. Never in the Back Office, never cost, prompts, the Playbook Agent, Back Office settings or internal identifiers; tokens are labelled a technical measure, not counted against Plan Quotas, and never appear in the Usage Meter. Models are named for people (« Claude Opus 5 »), with where they ran (« AWS Bedrock · UE ») and the EU AI Consent or outside-the-EU route when that served the call; providers are named in text, with a logo only where its owner allowed it in writing.
+_Avoid_: Session pane, sources bar, tasks panel
+
+**AI Activity element**:
+One item AI Activity lists under « Par élément » with its own Provenance: a Job Offer, an AI Coach reply, a Job Search, and so on. One without a recorded Provenance shows « modèle non enregistré » and counts in no total. Each Provenance site appears once in the page's Sources, however many elements read it.
+_Avoid_: Row, entry
 
 **Guardrail Trigger**:
 One time a Guardrail blocked, flagged or could not check a message or reply: which Guardrail, its setting, what it did, for which agent, and when; when it could not check, why, as a Failure Reason code only (timeout, a verdict that was not valid, the provider's error). No Candidate, no Coach Conversation and no text: aggregates of no one, so outside the Data export and kept 24 months. Super-admins and Support read them per day in the Back Office; the text, if needed, is in the AI Message Log. No one is alerted when a Candidate expresses distress.

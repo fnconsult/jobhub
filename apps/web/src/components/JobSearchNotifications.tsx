@@ -4,26 +4,34 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { JobSearchNotification } from "@/job-searches";
+import { formatTimeOfDay } from "@jobhub/shared";
+import type { JobSearchNotification, RunningJobSearch } from "@/job-searches";
 import { routes } from "@/routes";
+
+/** How often a page asks again while one of the Candidate's Job Searches is searching (ADR-0034). */
+const JOB_SEARCH_POLL_MS = 1500;
 
 export interface JobSearchNotificationsState {
   notifications: JobSearchNotification[];
   /** One of the Candidate's Job Searches is still searching: more may come. */
   searching: boolean;
+  /** The Job Searches still searching, with their live steps so far (AI Activity's « En cours ailleurs », #330). */
+  running: RunningJobSearch[];
 }
 
 /**
  * Tells the Candidate, atop every page of the signed-in workspace, that a Job
- * Search they started has finished: how many Job Offers it found, or why it
- * failed in plain words. Each stays until they close it or open the Job Search.
+ * Search they started has finished: how many Job Offers it found; or when they
+ * stopped it, or when it failed, at which step and why in plain words, with the
+ * Job Offers it kept (#331). Each stays until they close it or open the Job Search.
  *
  * It checks again on every page change (a Job Search may just have started) and,
- * while one is searching, every few seconds. One polite live region, present
+ * while one is searching, every 1.5 s, which also brings each running search's
+ * steps so far (#330); it stops once none is searching (done, failed or stopped). One polite live region, present
  * from the start, so a screen reader announces each new notification. Left out
  * on the page of the Job Search it is about, which shows the outcome itself.
  */
-export function JobSearchNotifications({ initial, everyMs = 5000 }: { initial: JobSearchNotificationsState; everyMs?: number }) {
+export function JobSearchNotifications({ initial, everyMs = JOB_SEARCH_POLL_MS }: { initial: JobSearchNotificationsState; everyMs?: number }) {
   const { t } = useTranslation();
   const pathname = usePathname();
   const [state, setState] = useState(initial);
@@ -80,6 +88,12 @@ export function JobSearchNotifications({ initial, everyMs = 5000 }: { initial: J
   );
 }
 
+/** The time of day it ended, in Paris time: « 10:42 », or with its date when it was another day. */
+function useEndedAt(at: string): string {
+  const { i18n } = useTranslation();
+  return formatTimeOfDay(new Date(at), new Date(), i18n.language === "en" ? "en" : "fr", { timeZone: "Europe/Paris" });
+}
+
 function Notification({ notification, onDismiss }: { notification: JobSearchNotification; onDismiss: () => void }) {
   const { t } = useTranslation();
   const { jobSearchId, profile, outcome } = notification;
@@ -87,23 +101,47 @@ function Notification({ notification, onDismiss }: { notification: JobSearchNoti
   return (
     <li className={`notice job-search-notification job-search-notification-${outcome.status}`}>
       <div id={messageId}>
-        {outcome.status === "done" ? (
-          <p>{t("jobSearch.notifications.done", { profile: profile.name, count: outcome.found })}</p>
-        ) : (
-          <>
-            <p>{t("jobSearch.notifications.failed", { profile: profile.name })}</p>
-            <p>{`${t(`jobSearch.failureReasons.${outcome.failure}`)} ${t("jobSearch.notCounted")}`}</p>
-          </>
-        )}
+        {outcome.status === "done" ? <p>{t("jobSearch.notifications.done", { profile: profile.name, count: outcome.found })}</p> : null}
+        {outcome.status === "stopped" ? <Stopped profile={profile.name} at={outcome.at} found={outcome.found} /> : null}
+        {outcome.status === "failed" ? <Failed profile={profile.name} outcome={outcome} /> : null}
       </div>
       <div className="actions">
         <Link className="button button-primary" href={routes.jobSearch(jobSearchId)} aria-describedby={messageId}>
-          {outcome.status === "done" && outcome.found > 0 ? t("jobSearch.notifications.seeResults") : t("jobSearch.notifications.seeSearch")}
+          {outcome.found > 0 ? t("jobSearch.notifications.seeResults") : t("jobSearch.notifications.seeSearch")}
         </Link>
         <button className="button" type="button" onClick={onDismiss} aria-describedby={messageId}>
           {t("jobSearch.notifications.dismiss")}
         </button>
       </div>
     </li>
+  );
+}
+
+/** « Recherche arrêtée à 10:42 », with the Job Offers kept, or that it is not counted when it kept none. */
+function Stopped({ profile, at, found }: { profile: string; at: string; found: number }) {
+  const { t } = useTranslation();
+  const time = useEndedAt(at);
+  return (
+    <>
+      <p>{t("jobSearch.notifications.stopped", { profile, time, count: found })}</p>
+      {found === 0 ? <p>{t("jobSearch.notCounted")}</p> : null}
+    </>
+  );
+}
+
+/** « Recherche échouée à 12:04 », at which step, why, and the Job Offers kept. */
+function Failed({ profile, outcome }: { profile: string; outcome: Extract<JobSearchNotification["outcome"], { status: "failed" }> }) {
+  const { t } = useTranslation();
+  const time = useEndedAt(outcome.at);
+  const kept = outcome.found > 0 ? ` ${t("jobSearch.keptBeforeFailure", { count: outcome.found })}` : "";
+  return (
+    <>
+      <p>
+        {outcome.step
+          ? t("jobSearch.notifications.failedStep", { profile, time, step: t(`jobSearch.steps.${outcome.step}`) })
+          : t("jobSearch.notifications.failed", { profile, time })}
+      </p>
+      <p>{`${t(`jobSearch.failureReasons.${outcome.failure}`)}${kept} ${t("jobSearch.notCounted")}`}</p>
+    </>
   );
 }

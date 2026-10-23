@@ -1,7 +1,7 @@
 import { AiProviderError, createAiLayer } from "@jobhub/ai";
 import { createPostgresUsageLog } from "../ai-usage";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
-import type { MasterCvContent } from "@jobhub/shared";
+import type { MasterCvContent, Provenance } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApplications, type Applications } from "../applications";
@@ -127,7 +127,14 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(JSON.stringify(exported)).not.toContain("someone-else");
   });
 
-  it("the export holds the Administrator's Back Office Assistant conversations with every message, not what the replies cost", async () => {
+  it("the export holds the Administrator's Back Office Assistant conversations with every message and each reply's Provenance (#327), not what the replies cost", async () => {
+    const provenance: Provenance = {
+      v: 1,
+      steps: [{ kind: "ai", activity: "think_write", task: "back_office_assistant", provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-large-latest", tokens: { input: 1, output: 1 }, ms: 700, at: "2026-10-13T08:00:00.000Z", outcome: "ok", count: 1 }],
+      sites: [],
+      startedAt: "2026-10-13T08:00:00.000Z",
+      wallMs: 800,
+    };
     const conversations = createAssistantConversations(database, {
       assistant: {
         reply: async () => ({
@@ -136,6 +143,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
           outcome: "replied",
           cost: { provider: "mistral", model: "secret-assistant-model", inputTokens: 1, outputTokens: 1, cachedInputTokens: 0, eur: 0.001 },
           sections: ["planQuotas"],
+          provenance,
         }),
       },
     });
@@ -152,7 +160,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         lastMessageAt: expect.any(Date),
         messages: [
           { from: "administrator", text: "Quotas Premium ?", sentAt: expect.any(Date) },
-          { from: "assistant", text: "Premium : 4321 Match Scores par mois.", sentAt: expect.any(Date) },
+          { from: "assistant", text: "Premium : 4321 Match Scores par mois.", sentAt: expect.any(Date), provenance },
         ],
       },
     ]);
@@ -400,6 +408,46 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     ]);
   });
 
+  it("the export holds a Job Search the Candidate stopped, and when they asked to stop it (#331)", async () => {
+    const profileId = await createProfile(candidateId, "DAF");
+    await database.query(
+      `INSERT INTO job_search (candidate_id, profile_id, status, started_at, stop_requested_at, finished_at) VALUES ($1, $2, 'stopped', '2026-10-01T08:00:00Z', '2026-10-01T08:00:40Z', '2026-10-01T08:00:41Z')`,
+      [candidateId, profileId],
+    );
+    await database.query(`INSERT INTO job_search (candidate_id, profile_id, status, started_at, finished_at) VALUES ($1, $2, 'done', '2026-09-01T08:00:00Z', '2026-09-01T08:04:00Z')`, [candidateId, profileId]);
+
+    const [stopped, done] = (await candidateData.export(candidateId)).profiles[0]!.jobSearches;
+
+    expect(stopped).toMatchObject({ status: "stopped", stopRequestedAt: new Date("2026-10-01T08:00:40Z"), finishedAt: new Date("2026-10-01T08:00:41Z") });
+    expect(done).not.toHaveProperty("stopRequestedAt");
+  });
+
+  it("the export holds a Job Search's Provenance, when it was kept, and never its live steps (#330)", async () => {
+    const profileId = await createProfile(candidateId, "DAF");
+    const provenance: Provenance = {
+      v: 1,
+      steps: [{ kind: "tool", activity: "search", tool: "france-travail", ms: 640, at: "2026-10-01T08:00:01.000Z", outcome: "ok", count: 1 }],
+      sites: [],
+      startedAt: "2026-10-01T08:00:00.000Z",
+      wallMs: 9100,
+    };
+    await database.query(
+      `INSERT INTO job_search (candidate_id, profile_id, status, started_at, finished_at, provenance) VALUES ($1, $2, 'done', '2026-10-01T08:00:00Z', '2026-10-01T08:04:00Z', $3::jsonb)`,
+      [candidateId, profileId, JSON.stringify(provenance)],
+    );
+    await database.query(`INSERT INTO job_search (candidate_id, profile_id, status, started_at, progress) VALUES ($1, $2, 'searching', '2026-10-05T08:00:00Z', '[]'::jsonb)`, [
+      candidateId,
+      profileId,
+    ]);
+
+    const [searching, done] = (await candidateData.export(candidateId)).profiles[0]!.jobSearches;
+
+    expect(done).toMatchObject({ status: "done", provenance });
+    expect(searching).toMatchObject({ status: "searching" });
+    expect(searching).not.toHaveProperty("provenance");
+    expect(searching).not.toHaveProperty("progress");
+  });
+
   it("the export holds each Profile's Job Digest settings and the Job Digests sent, but not the secret unsubscribe link", async () => {
     const profileId = await createProfile(candidateId, "DAF");
     const otherProfileId = await createProfile(candidateId, "DSI");
@@ -427,10 +475,17 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(JSON.stringify(exported)).not.toContain("secret-unsubscribe-token");
   });
 
-  it("the export holds every Coach Conversation with all its messages, the Candidate's and the AI Coach's, blocked ones marked (#228), but not what each reply cost", async () => {
+  it("the export holds every Coach Conversation with all its messages, the Candidate's and the AI Coach's, blocked ones marked (#228), each reply's Provenance and focus (#327), but not what each reply cost", async () => {
     const profileId = await createProfile(candidateId, "DAF");
     let replies = 0;
     const cost = { provider: "mistral" as const, model: "secret-model-name", inputTokens: 10, outputTokens: 5, cachedInputTokens: 0, eur: 0.01 };
+    const provenance: Provenance = {
+      v: 1,
+      steps: [{ kind: "ai", activity: "think_write", task: "coaching", provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-large-latest", tokens: { input: 10, output: 5 }, ms: 900, at: "2026-10-13T08:00:00.000Z", outcome: "ok", count: 1 }],
+      sites: [],
+      startedAt: "2026-10-13T08:00:00.000Z",
+      wallMs: 1000,
+    };
     const conversations = createCoachConversations(database, {
       coach: {
         reply: async () => ({
@@ -440,6 +495,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
           cost,
           playbooks: [],
           consultations: [{ playbookId: "interview-psychology", version: 1, ...cost, model: "secret-agent-model" }],
+          provenance,
         }),
       },
       profiles,
@@ -461,7 +517,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         lastMessageAt: expect.any(Date),
         messages: [
           { from: "candidate", text: "Bonjour", blocked: true, sentAt: expect.any(Date) },
-          { from: "coach", text: "Réponse 3", blocked: true, sentAt: expect.any(Date) },
+          { from: "coach", text: "Réponse 3", blocked: true, sentAt: expect.any(Date), provenance },
         ],
       },
       expect.objectContaining({
@@ -469,9 +525,9 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         profile: { id: profileId, name: "DAF" },
         messages: [
           { from: "candidate", text: "Comment relancer Acme ?", sentAt: expect.any(Date) },
-          { from: "coach", text: "Réponse 1", sentAt: expect.any(Date) },
+          { from: "coach", text: "Réponse 1", sentAt: expect.any(Date), provenance, focus: { kind: "profile", id: profileId } },
           { from: "candidate", text: "Et après une semaine ?", sentAt: expect.any(Date) },
-          { from: "coach", text: "Réponse 2", sentAt: expect.any(Date) },
+          { from: "coach", text: "Réponse 2", sentAt: expect.any(Date), provenance },
         ],
       }),
     ]);

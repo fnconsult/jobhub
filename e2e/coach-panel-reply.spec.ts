@@ -32,8 +32,8 @@ test.describe("Coach Panel replies", () => {
     expect(shown).not.toMatch(/(^|\s)\*\S/);
     expect(shown).not.toMatch(/^\s*- /m);
 
-    // "Vous" throughout: the same as the app and the Coach's greeting.
-    await expect(coachPanel(page).getByText(fr.coachPanel.welcome)).toContainText("vous");
+    // "Vous" throughout: the same as the app and the Coach's first message.
+    await expect(coachPanel(page).getByText(fr.coachPanel.aiDisclosure)).toContainText("vous");
     expect(shown).toContain("Vous visez");
     expect(shown).toContain("Vos compétences");
     expect(shown).not.toMatch(/\b(tu|ton|ta|tes)\b/i);

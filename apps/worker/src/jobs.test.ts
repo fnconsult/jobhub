@@ -1,4 +1,5 @@
-import type { MasterCvContent, SearchCriteria } from "@jobhub/shared";
+import { createProvenanceRecorder, type AiLayer } from "@jobhub/ai";
+import type { MasterCvContent, ProvenanceEvent, SearchCriteria } from "@jobhub/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createJobOffers, migrateJobOffers } from "@jobhub/web/job-offers";
 import { createProfiles, migrateProfiles } from "@jobhub/web/profiles";
@@ -51,9 +52,13 @@ const found = [
   { id: "offer-2", source: {}, title: "Directeur financier", content: "Directeur financier à Lyon." },
 ];
 
-/** What Job discovery reports: the Job Offers found, and what it measured. */
+/** A run's recorder for a fake Job discovery: its steps are timed Tools and rules, no AI call. */
+const runRecorder = (onEvent?: (event: ProvenanceEvent) => void) => createProvenanceRecorder({} as AiLayer, { onEvent });
+
+/** What Job discovery reports: the Job Offers found, what it measured, and the run's steps. */
 function discoveryReport(report: Partial<DiscoveryReport> = {}): DiscoveryReport {
   return {
+    run: runRecorder(),
     jobOffers: [],
     skipped: [],
     funnel: { providerUrls: 0, fetched: 0, extracted: 0, alreadyStored: 0 },
@@ -103,10 +108,15 @@ function setup(
   due: DueJobDigest[] = [],
   digestPlan: DigestPlan = { runsDiscovery: true },
   now?: () => Date,
+  /** The Candidate asked to stop their Job Search (#331): `stopRequested` answers it. */
+  stop: { requested: boolean } = { requested: false },
 ) {
   const runs: DiscoverRequest[] = [];
   const logs: string[] = [];
   const recorded: [string, JobSearchOutcome][] = [];
+  /** Each write of a Job Search's live steps, and each outcome, in the order they came. */
+  const written: string[] = [];
+  const progressed: [string, ProvenanceEvent[]][] = [];
   const enqueued: { name: string; data: object }[] = [];
   /** Per delivery: the Candidate, the Profile, and what Job discovery gave the Job Digest (or how it failed). */
   const delivered: [string, string, string[] | string | null][] = [];
@@ -119,7 +129,19 @@ function setup(
         return discoveryReport({ skipped: [{ url: "https://fr.linkedin.com/jobs/1", reason: "site_terms" }] });
       },
     },
-    jobSearches: { record: async (id, outcome) => void recorded.push([id, outcome]), expireTimedOut: async () => 0 },
+    jobSearches: {
+      record: async (id, outcome) => {
+        recorded.push([id, outcome]);
+        written.push(`outcome ${id}`);
+      },
+      progress: async (id, steps) => {
+        progressed.push([id, steps]);
+        written.push(`progress ${id}`);
+      },
+      stopRequested: async () => stop.requested,
+      expireTimedOut: async () => 0,
+    },
+    stopCheckMs: 5,
     followUps: { proposeDue: async () => {} },
     profiles: {
       async get(candidateId, profileId) {
@@ -150,7 +172,7 @@ function setup(
     log: (line) => logs.push(line),
     now,
   });
-  return { jobs, run: jobs[JOB_DISCOVERY]!.handler, runs, logs, recorded, enqueued, delivered };
+  return { jobs, run: jobs[JOB_DISCOVERY]!.handler, runs, logs, recorded, written, progressed, enqueued, delivered };
 }
 
 describe("the Job discovery job", () => {
@@ -159,7 +181,7 @@ describe("the Job discovery job", () => {
 
     await run({ candidateId: "candidate-1", profileId: "profile-1" });
 
-    expect(runs).toEqual([{ candidateId: "candidate-1", criteria }]);
+    expect(runs).toEqual([{ candidateId: "candidate-1", criteria, onEvent: undefined }]);
     expect(logs).toEqual(["[job-discovery] profile profile-1: 0 Job Offer(s), 1 page(s) skipped (site_terms: 1)"]);
   });
 
@@ -214,7 +236,7 @@ describe("the Job discovery job, for a Job Search the Candidate started", () => 
 
     await run({ candidateId: "candidate-1", profileId: "profile-1", jobSearchId: "search-1" });
 
-    expect(recorded).toEqual([["search-1", { jobOfferIds: ["offer-strong", "offer-weak"], metrics: measuredMetrics }]]);
+    expect(recorded).toEqual([["search-1", { jobOfferIds: ["offer-strong", "offer-weak"], metrics: measuredMetrics, provenance: expect.any(Object) }]]);
   });
 
   it("counts in the funnel only the Job Offers with a Match Score of 60 or more against the Profile's Master CV", async () => {
@@ -225,12 +247,14 @@ describe("the Job discovery job, for a Job Search the Candidate started", () => 
     expect(recorded[0]![1]).toMatchObject({ metrics: { funnel: { afterDedup: 4, matched: 2 } } });
   });
 
-  it("reports what Job discovery measured before it broke", async () => {
+  it("reports what Job discovery found and measured before it broke: its Job Offers are kept (#331)", async () => {
     const { run, recorded } = setup(async () => Promise.reject(new JobDiscoveryError(measuredRun, new Error("LLM down"))));
 
     await run({ candidateId: "candidate-1", profileId: "profile-1", jobSearchId: "search-1" });
 
-    expect(recorded).toEqual([["search-1", { failed: "discovery_failed", metrics: measuredMetrics }]]);
+    expect(recorded).toEqual([
+      ["search-1", { failed: "discovery_failed", jobOfferIds: ["offer-strong", "offer-weak"], metrics: measuredMetrics, provenance: expect.any(Object) }],
+    ]);
   });
 
   it("reports the Job Search as failed when its Profile is gone or archived", async () => {
@@ -252,6 +276,131 @@ describe("the Job discovery job, for a Job Search the Candidate started", () => 
 
     expect(recorded).toEqual([["search-1", { failed: "discovery_failed" }]]);
     expect(logs).toEqual(["[job-discovery] profile profile-1: failed (Perplexity answered 500)"]);
+  });
+});
+
+describe("the Job discovery job, for a Job Search the Candidate started: its Provenance and live steps (#330)", () => {
+  /** A Job discovery that searches France Travail, telling the request's sink, then reports. */
+  const searchingFranceTravail = async (request: DiscoverRequest) => {
+    const run = runRecorder(request.onEvent);
+    await run.step({ tool: "france-travail" }, async () => []);
+    return discoveryReport({ jobOffers: [strongMatch], run });
+  };
+  const subjects = (events: ProvenanceEvent[]) =>
+    events.map(({ type, step }) => `${type} ${"tool" in step ? step.tool : "rule" in step ? step.rule : step.task}`);
+
+  it("writes on the Job Search each step of the run as it starts and ends, its Match Scores too, the last before its outcome", async () => {
+    const { run, progressed, written } = setup(searchingFranceTravail);
+
+    await run({ candidateId: "candidate-1", profileId: "profile-1", jobSearchId: "search-1" });
+
+    expect(progressed.every(([id]) => id === "search-1")).toBe(true);
+    expect(subjects(progressed.at(-1)![1])).toEqual(["step_ended france-travail", "step_ended match_score"]);
+    expect(written.at(-1)).toBe("outcome search-1");
+  });
+
+  it("keeps with the Job Search the run's Provenance: its steps, its Match Scores included", async () => {
+    const { run, recorded } = setup(searchingFranceTravail);
+
+    await run({ candidateId: "candidate-1", profileId: "profile-1", jobSearchId: "search-1" });
+
+    const { provenance } = recorded[0]![1];
+    expect(provenance?.steps).toMatchObject([
+      { kind: "tool", tool: "france-travail", outcome: "ok" },
+      { kind: "rules", rule: "match_score", outcome: "ok" },
+    ]);
+  });
+
+  it("keeps with a failed Job Search the Provenance of the steps it ran", async () => {
+    const { run, recorded } = setup(async (request) => {
+      const partial = await searchingFranceTravail(request);
+      await partial.run.step({ tool: "job-site" }, () => Promise.reject(new Error("timeout"))).catch(() => undefined);
+      throw new JobDiscoveryError(partial, new Error("LLM down"));
+    });
+
+    await run({ candidateId: "candidate-1", profileId: "profile-1", jobSearchId: "search-1" });
+
+    expect(recorded[0]![1]).toMatchObject({ failed: "discovery_failed" });
+    expect(recorded[0]![1].provenance?.steps).toMatchObject([
+      { kind: "tool", tool: "france-travail", outcome: "ok" },
+      { kind: "tool", tool: "job-site", outcome: "failed" },
+      { kind: "rules", rule: "match_score" },
+    ]);
+  });
+
+  it("writes no live steps for a run no Candidate is waiting on", async () => {
+    const { run, runs, progressed } = setup(searchingFranceTravail);
+
+    await run({ candidateId: "candidate-1", profileId: "profile-1" });
+
+    expect(runs[0]!.onEvent).toBeUndefined();
+    expect(progressed).toEqual([]);
+  });
+});
+
+describe("the Job discovery job, for a Job Search the Candidate stops (#331)", () => {
+  /** A Job discovery that searches France Travail, then searches the web until its signal aborts, then reports what it found. */
+  const searchingUntilStopped = async (request: DiscoverRequest) => {
+    const run = runRecorder(request.onEvent);
+    await run.step({ tool: "france-travail" }, async () => []);
+    await run.step({ tool: "job-site" }, () => new Promise<void>((resolve) => request.signal?.addEventListener("abort", () => resolve())));
+    return discoveryReport({ jobOffers: [strongMatch], run });
+  };
+
+  it("stops the run once the Candidate asks, and records the Job Search stopped, with the Job Offers found and the steps it finished", async () => {
+    const stop = { requested: false };
+    const { run, recorded, runs } = setup(searchingUntilStopped, [], undefined, undefined, stop);
+
+    const running = run({ candidateId: "candidate-1", profileId: "profile-1", jobSearchId: "search-1" });
+    await vi.waitFor(() => expect(runs).toHaveLength(1));
+    stop.requested = true;
+    await running;
+
+    expect(runs[0]!.signal?.aborted).toBe(true);
+    expect(recorded).toEqual([["search-1", { stopped: true, jobOfferIds: ["offer-strong"], metrics: expect.any(Object), provenance: expect.any(Object) }]]);
+    expect(recorded[0]![1].provenance?.steps).toMatchObject([
+      { kind: "tool", tool: "france-travail", outcome: "ok" },
+      { kind: "tool", tool: "job-site", outcome: "ok" },
+      { kind: "rules", rule: "match_score", outcome: "ok" },
+    ]);
+  });
+
+  it("records it stopped, not failed, when the stop made Job discovery break", async () => {
+    const stop = { requested: false };
+    const { run, recorded, runs } = setup(
+      async (request) => {
+        await new Promise((resolve) => request.signal?.addEventListener("abort", resolve));
+        throw new JobDiscoveryError(discoveryReport({ jobOffers: [strongMatch] }), request.signal?.reason);
+      },
+      [],
+      undefined,
+      undefined,
+      stop,
+    );
+
+    const running = run({ candidateId: "candidate-1", profileId: "profile-1", jobSearchId: "search-1" });
+    await vi.waitFor(() => expect(runs).toHaveLength(1));
+    stop.requested = true;
+    await running;
+
+    expect(recorded).toEqual([["search-1", expect.objectContaining({ stopped: true, jobOfferIds: ["offer-strong"] })]]);
+  });
+
+  it("does not run Job discovery for a Job Search stopped before the worker began it: it is recorded stopped, with nothing found", async () => {
+    const { run, recorded, runs } = setup(searchingUntilStopped, [], undefined, undefined, { requested: true });
+
+    await run({ candidateId: "candidate-1", profileId: "profile-1", jobSearchId: "search-1" });
+
+    expect(runs).toEqual([]);
+    expect(recorded).toEqual([["search-1", { stopped: true, jobOfferIds: [] }]]);
+  });
+
+  it("gives no stop to a run no Candidate is waiting on", async () => {
+    const { run, runs } = setup();
+
+    await run({ candidateId: "candidate-1", profileId: "profile-1" });
+
+    expect(runs[0]!.signal).toBeUndefined();
   });
 });
 
@@ -338,7 +487,7 @@ describe("the worker without an AI layer", () => {
       database: noDatabase,
       discovery: { unavailable: "Missing environment variable PERPLEXITY_API_KEY" },
       profiles: { get: async () => ({ archived: false, searchCriteria: criteria, masterCv: { content: masterCv } }) },
-      jobSearches: { record: async (id, outcome) => void recorded.push([id, outcome]), expireTimedOut: async () => 0 },
+      jobSearches: { record: async (id, outcome) => void recorded.push([id, outcome]), progress: async () => {}, stopRequested: async () => false, expireTimedOut: async () => 0 },
       followUps: { proposeDue: async () => {} },
       jobDigests: {
         claimDue: async () => [],
@@ -372,7 +521,7 @@ describe("Job discovery asked for on each job (#208)", () => {
   it("runs once its keys appear, without a restart: the getter is asked again on each job", async () => {
     const logs: string[] = [];
     let current: Exclude<JobsDeps["discovery"], () => unknown> = { unavailable: "Missing environment variable MISTRAL_API_KEY" };
-    const discover = vi.fn(async () => ({ jobOffers: [], skipped: [], funnel: { providerUrls: 0, pagesRead: 0, extracted: 0 }, costEur: 0, franceTravail: { status: "off", offers: 0, calls: 0 }, fantasticJobs: { status: "off", offers: 0, calls: 0, costEur: 0 } }));
+    const discover = vi.fn(async () => discoveryReport());
     const jobs = createJobs({
       ...otherDeps,
       database: noDatabase,
@@ -393,7 +542,7 @@ describe("Job discovery asked for on each job (#208)", () => {
 const otherDeps = {
   discovery: { unavailable: "not under test" },
   profiles: { get: async () => null },
-  jobSearches: { record: async () => {}, expireTimedOut: async () => 0 },
+  jobSearches: { record: async () => {}, progress: async () => {}, stopRequested: async () => false, expireTimedOut: async () => 0 },
   followUps: { proposeDue: async () => {} },
   jobDigests: noJobDigests,
   enqueue: async () => {},
@@ -487,7 +636,7 @@ describe("the Job Search timeouts job", () => {
     const job = createJobs({
       ...otherDeps,
       database: noDatabase,
-      jobSearches: { record: async () => {}, expireTimedOut: async () => ++expired },
+      jobSearches: { record: async () => {}, progress: async () => {}, stopRequested: async () => false, expireTimedOut: async () => ++expired },
       log: (line) => void logs.push(line),
     })[JOB_SEARCH_TIMEOUTS];
 
@@ -501,7 +650,7 @@ describe("the Job Search timeouts job", () => {
     const job = createJobs({
       ...otherDeps,
       database: noDatabase,
-      jobSearches: { record: async () => {}, expireTimedOut: async () => Promise.reject(Object.assign(new Error("no table"), { code: "42P01" })) },
+      jobSearches: { record: async () => {}, progress: async () => {}, stopRequested: async () => false, expireTimedOut: async () => Promise.reject(Object.assign(new Error("no table"), { code: "42P01" })) },
     })[JOB_SEARCH_TIMEOUTS];
 
     await expect(job!.handler({})).resolves.toBeUndefined();
@@ -609,6 +758,7 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
             reply: "Bonjour Marie",
             outcome: "replied",
             cost: { provider: "mistral", model: "mistral-large-latest", inputTokens: 100, outputTokens: 50, cachedInputTokens: 0, eur: 0.0001 },
+            provenance: { v: 1, steps: [], sites: [], startedAt: "2026-10-13T08:00:00.000Z", wallMs: 0 },
             playbooks: [],
             consultations: [],
           }),
@@ -648,6 +798,7 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
             outcome: "replied",
             cost: { provider: "mistral", model: "mistral-large-latest", inputTokens: 100, outputTokens: 50, cachedInputTokens: 0, eur: 0.0001 },
             sections: ["planQuotas"],
+            provenance: { v: 1, steps: [], sites: [], startedAt: "2026-10-13T08:00:00.000Z", wallMs: 0 },
           }),
         },
       });

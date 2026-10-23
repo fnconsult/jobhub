@@ -377,7 +377,7 @@ function applicationText(application: Application): string {
     .join("\n");
 }
 
-const JOB_SEARCH_STATUS = { searching: "en cours", done: "terminée", failed: "échouée" } as const;
+const JOB_SEARCH_STATUS = { searching: "en cours", done: "terminée", failed: "échouée", stopped: "arrêtée par le candidat" } as const;
 
 function jobSearchText(jobSearch: JobSearch): string {
   return [

@@ -59,6 +59,8 @@
 // message also holds "E2E_STUBBORN" ("[at]", "[sp]", "[dash]" in the text become "@", a space and "-", so a reply can hold
 // an email address, a phone number or a key the message does not). "E2E_COACH_COPY_SYSTEM" has the AI Coach reply its whole system prompt.
 // "E2E_AGENT_LEAK" has a Playbook Agent's advice hold a third party's email address.
+// "E2E_COACH_SLOW=<ms>" has the AI Coach's reply (not the Guardrails' checks) take that long, so the Coach Panel shows its
+// steps live; aborted meanwhile (the Candidate's Stop, #328), it rejects with the signal's reason, as fetch does.
 //
 // For the offer analysis behind a Company Dossier (task offer_analysis), a posting
 // whose displayed employer starts with "Cabinet" is a recruiting agency's, and its
@@ -101,7 +103,8 @@ globalThis.fetch = async (input, init) => {
     // Only the per-reason count test (#262) asks for this, so its rate_limited count grows by its own calls alone.
     if (prompt.includes("E2E_GUARDRAIL_RATE_LIMITED")) return new Response("too many requests", { status: 429 });
     // No verdict within the check's time (#261: guardrail_timeout), and a verdict that is not JSON (invalid_verdict).
-    if (prompt.includes("E2E_GUARDRAIL_SLOW")) await new Promise((resolve) => setTimeout(resolve, 12_000));
+    // Aborted meanwhile (the Candidate's Stop, #328), it rejects with the signal's reason at once, as fetch does.
+    if (prompt.includes("E2E_GUARDRAIL_SLOW")) await answerAfter(12_000, input instanceof Request ? input.signal : init?.signal);
     if (prompt.includes("E2E_GUARDRAIL_GARBLED")) return completion(body, "this is not a verdict");
     // A provider refusing with an error that echoes the key, an email address and a long text (#259: stored scrubbed, redacted and cut).
     if (prompt.includes("E2E_GUARDRAIL_ECHO")) return new Response(`invalid key e2e-mistral-key for contact echo.person@example.fr ${"padding text ".repeat(80)}END_OF_ECHO`, { status: 400 });
@@ -126,6 +129,8 @@ globalThis.fetch = async (input, init) => {
     content = `Avis du Playbook Agent ${playbook[1]} (version ${playbook[2]}, modèle ${body.model}, effort ${body.reasoning_effort ?? "aucun"}) : préparez trois exemples [S24].`;
     if (prompt.includes("E2E_AGENT_LEAK")) content += " Contact : agent.tiers@exemple.fr";
   }
+  const slow = /E2E_COACH_SLOW=(\d+)/.exec(prompt)?.[1];
+  if (slow && system.includes("coach Jobbbox")) await answerAfter(Number(slow), input instanceof Request ? input.signal : init?.signal);
   if (system.includes("coach Jobbbox")) {
     const inView = /Le candidat consulte son profil « (.+?) »/.exec(system)?.[1];
     const turns = body.messages.filter((message) => message.role !== "system").length;
@@ -252,6 +257,15 @@ function saidText(said, system, prompt) {
   if (system.includes("Ta réponse précédente a été bloquée") && !prompt.includes("E2E_STUBBORN")) return "Voici une réponse recentrée sur votre recherche d'emploi.";
   // "[at]", "[sp]", "[dash]" stand for "@", " " and "-": the reply holds what the message does not (an email address the Candidate never wrote).
   return said.replaceAll("[at]", "@").replaceAll("[sp]", " ").replaceAll("[dash]", "-");
+}
+
+/** Waits `ms`, or rejects with `signal`'s reason once it aborts, as fetch does. */
+function answerAfter(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason);
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener("abort", () => (clearTimeout(timer), reject(signal.reason)), { once: true });
+  });
 }
 
 /** A chat completion answering `content`. */

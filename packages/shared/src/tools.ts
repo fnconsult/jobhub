@@ -83,6 +83,11 @@ export interface Tool {
   residency: ToolResidency;
   /** What the residency depends on, when it does. */
   residencyNote?: Translated;
+  /**
+   * Its logo, one of the web app's own assets, shown by AI Activity: set only once its owner allowed it in writing
+   * (#318). None by default: AI Activity then names the Tool in text. Never a third-party favicon.
+   */
+  logo?: `/logos/${string}`;
 }
 
 const ANTHROPIC_MODULE = "packages/ai/src/providers/anthropic.ts";
@@ -149,7 +154,7 @@ export const TOOLS = [
     settings: [{ name: "ANTHROPIC_ENDPOINT" }, { name: "BEDROCK_REGION" }],
     usage: { table: "ai_usage", provider: "anthropic", endpoint: "bedrock ", external: "anthropic_bedrock" },
     residency: "eu",
-    residencyNote: { fr: "Dans l'UE dans une région eu-* (eu-west-3 par défaut).", en: "In the EU in an eu-* region (eu-west-3 by default)." },
+    residencyNote: { fr: "Dans l'UE dans une région eu-* (eu-north-1 par défaut).", en: "In the EU in an eu-* region (eu-north-1 by default)." },
   },
   {
     id: "anthropic-vertex",

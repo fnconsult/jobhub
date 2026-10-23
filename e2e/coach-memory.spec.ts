@@ -15,6 +15,8 @@ const origin = process.env.E2E_WEB_ORIGIN!;
 
 const coachPanel = (page: Page) => page.getByRole("complementary", { name: fr.coachPanel.title });
 const messages = (page: Page) => coachPanel(page).getByRole("list", { name: fr.coachPanel.messagesLabel }).getByRole("listitem");
+/** The words of the latest message, without the Provenance line under a reply (#327). */
+const lastWords = (page: Page) => messages(page).last().locator("p").last();
 
 async function askCoach(page: Page, text: string) {
   await coachPanel(page).getByLabel(fr.coachPanel.messageLabel).fill(text);
@@ -30,9 +32,9 @@ test.describe("Coach Memory", () => {
     await signInWithMagicLink(page, newAddress("coach-memory"));
     await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
     await askCoach(page, "Je vise un poste de DAF à Lyon");
-    await expect(messages(page).last()).toHaveText(/Je ne vois aucun profil\. \(1 message\)$/);
+    await expect(lastWords(page)).toHaveText(/Je ne vois aucun profil\. \(1 message\)$/);
     await askCoach(page, "Je ne veux plus travailler dans la banque");
-    await expect(messages(page).last()).toHaveText(/\(3 messages\)$/);
+    await expect(lastWords(page)).toHaveText(/\(3 messages\)$/);
 
     // The AI Coach proposes; nothing is saved yet.
     await coachPanel(page).getByRole("button", { name: fr.coachMemory.propose }).click();
@@ -51,7 +53,7 @@ test.describe("Coach Memory", () => {
     // The Coach Memory goes with the next message, in this conversation or a new one.
     await chooseInPanelMenu(coachPanel(page), fr.coachPanel.newConversation);
     await askCoach(page, "Par où commencer ?");
-    await expect(messages(page).last()).toHaveText(/\(1 message\) Mémoire : 1 élément\.$/);
+    await expect(lastWords(page)).toHaveText(/\(1 message\) Mémoire : 1 élément\.$/);
 
     // The Candidate sees it in the Coach Panel, and edits its kind and words.
     await chooseInPanelMenu(coachPanel(page), fr.coachMemory.open);
@@ -81,7 +83,7 @@ test.describe("Coach Memory", () => {
     expect(await memoryItems(page)).toEqual([]);
     await chooseInPanelMenu(coachPanel(page), fr.coachPanel.backToConversation);
     await askCoach(page, "Et ensuite ?");
-    await expect(messages(page).last()).toHaveText(/\(3 messages\)$/);
+    await expect(lastWords(page)).toHaveText(/\(3 messages\)$/);
   });
 
   test("refuses anonymous visitors and other sites, and never shows or changes another Candidate's Coach Memory", async ({ page, browser }) => {

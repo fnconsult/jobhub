@@ -35,7 +35,7 @@ describe("identity routing under EU AI consent", () => {
       prompt: "Lettre signée Marie Dupont",
     });
 
-    expect(result).toMatchObject({ text: "from mistral", provider: "mistral", model: "mistral-large-latest" });
+    expect(result).toMatchObject({ text: "from mistral", provider: "mistral", model: "mistral-large-latest", euAiConsent: true });
     expect(mistral.calls).toHaveLength(1);
     expect(claude.calls).toHaveLength(0);
     expect(usage.entries).toEqual([expect.objectContaining({ candidateId: "cand-consenting", task: "writing", provider: "mistral" })]);
@@ -47,6 +47,8 @@ describe("identity routing under EU AI consent", () => {
     const result = await ai.generate({ task: "writing", candidateId: "cand-consenting", prompt: "Résume cette offre : DAF H/F à Lyon" });
 
     expect(result.provider).toBe("anthropic");
+    // Served by its task's route: not the EU AI consent route, so AI Activity shows no « consentement IA UE » chip (#327).
+    expect(result).not.toHaveProperty("euAiConsent");
     expect(claude.calls).toHaveLength(1);
     expect(mistral.calls).toHaveLength(0);
   });

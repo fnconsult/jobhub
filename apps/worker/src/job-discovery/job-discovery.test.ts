@@ -1,7 +1,7 @@
 import { createAiLayer } from "@jobhub/ai";
 import type { SearchOptions } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
-import { DEFAULT_JOB_DISCOVERY_SETTINGS, type IndustryReference, type JobDiscoverySettings, type JobOffer, type SearchCriteria } from "@jobhub/shared";
+import { DEFAULT_JOB_DISCOVERY_SETTINGS, type IndustryReference, type Provenance, type ProvenanceEvent, type JobDiscoverySettings, type JobOffer, type SearchCriteria } from "@jobhub/shared";
 import type { TaskPlaybookReader } from "@jobhub/web/task-playbooks";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -61,9 +61,9 @@ function fakeWeb(pages: Record<string, Page>, clock: FakeClock) {
 }
 
 /** Job Offers kept in memory, deduplicated by source URL like the real store. */
-function memoryJobOffers(existing: JobOffer[] = []): JobOfferStore & { all: JobOffer[]; captures: { input: object; trusted?: object }[] } {
+function memoryJobOffers(existing: JobOffer[] = []): JobOfferStore & { all: JobOffer[]; captures: { input: object; trusted?: { provenance?: Provenance } }[] } {
   const all = [...existing];
-  const captures: { input: object; trusted?: object }[] = [];
+  const captures: { input: object; trusted?: { provenance?: Provenance } }[] = [];
   return {
     all,
     captures,
@@ -72,7 +72,10 @@ function memoryJobOffers(existing: JobOffer[] = []): JobOfferStore & { all: JobO
     },
     async capture(input, _capturedBy, trusted) {
       captures.push({ input, trusted });
-      const offer = { ...(input as Omit<JobOffer, "id">), ...trusted };
+      // Like the real store, a Job Offer does not carry its Provenance: it is read apart.
+      const facts = { ...trusted };
+      delete facts.provenance;
+      const offer = { ...(input as Omit<JobOffer, "id">), ...facts };
       const same = all.find((o) => o.source.url === offer.source.url || o.content === offer.content);
       if (same) return { ok: true, jobOffer: same };
       const jobOffer = { id: `offer-${all.length + 1}`, ...offer };
@@ -112,8 +115,10 @@ function setup(options: {
   otherSearch?: FakeProvider;
   /** The NAF and ROME-domain labels (#236). */
   industries?: () => Promise<IndustryReference>;
+  /** Each web search waits for its signal to abort (#331). */
+  searchPending?: boolean;
 }) {
-  const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, sourceDates: options.sourceDates, answer: options.answer, pages: options.searchPages });
+  const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, sourceDates: options.sourceDates, answer: options.answer, pages: options.searchPages, pending: options.searchPending });
   const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}', usage: options.llmUsage });
   const titles = createFakeProvider({ id: "mistral", reply: options.titles ?? "{}" });
   const ai = createAiLayer({
@@ -509,7 +514,7 @@ describe("Job discovery", () => {
 
       expect(jobOffers.captures).toHaveLength(1);
       expect(jobOffers.captures[0]!.input).not.toHaveProperty("summary");
-      expect(jobOffers.captures[0]!.trusted).toEqual({ summary: "Groupe Seb recrute son DAF à Lyon." });
+      expect(jobOffers.captures[0]!.trusted).toEqual({ summary: "Groupe Seb recrute son DAF à Lyon.", provenance: expect.any(Object) });
       expect(llm.calls[0]!.system).toMatch(/- "summary" : deux phrases\.$/);
     });
 
@@ -523,7 +528,7 @@ describe("Job discovery", () => {
 
       await discovery.discover({ candidateId: "c", criteria });
 
-      expect(jobOffers.captures[0]!.trusted).toEqual({});
+      expect(jobOffers.captures[0]!.trusted).toEqual({ provenance: expect.any(Object) });
       expect(llm.calls[0]!.system).not.toMatch(/summary|sector/);
     });
 
@@ -1165,6 +1170,42 @@ describe("Job discovery", () => {
     });
   });
 
+  describe("stopped by the Candidate (#331)", () => {
+    const urls = ["https://emplois.example.fr/offres/1", "https://emplois.example.fr/offres/2", "https://emplois.example.fr/offres/3"];
+    const postings = Object.fromEntries(urls.map((url, index) => [url, { body: jobPostingPage({ title: `DAF ${index + 1}`, description: `Poste de DAF numéro ${index + 1}.` }) }]));
+
+    it("starts no step once its signal aborts, and reports what it found until then rather than failing", async () => {
+      const { discovery, web } = setup({ sources: urls, pages: postings });
+      const stop = new AbortController();
+      // The Candidate stops it as the first page read ends.
+      const onEvent = (event: ProvenanceEvent) => {
+        if (event.type === "step_ended" && event.step.kind === "tool" && event.step.tool === "job-site") stop.abort();
+      };
+
+      const report = await discovery.discover({ candidateId: "c", criteria, onEvent, signal: stop.signal });
+
+      expect(report.jobOffers.map((jobOffer) => jobOffer.title)).toEqual(["DAF 1"]);
+      expect(web.fetched()).not.toContain(urls[1]);
+    });
+
+    it("stops the AI call on its way: its step is kept 'stopped', with the steps finished before it", async () => {
+      const { discovery, search } = setup({ sources: urls, pages: postings, searchPending: true });
+      const stop = new AbortController();
+      const onEvent = (event: ProvenanceEvent) => {
+        if (event.type === "step_started" && event.step.kind === "ai" && event.step.task === "web_search") setTimeout(() => stop.abort(), 0);
+      };
+
+      const report = await discovery.discover({ candidateId: "c", criteria, onEvent, signal: stop.signal });
+
+      expect(search.searches[0]?.signal).toBe(stop.signal);
+      expect(report.jobOffers).toEqual([]);
+      expect(report.run.provenance()?.steps.map((step) => [step.kind === "ai" ? step.task : step.kind, step.outcome])).toEqual([
+        ["job_titles", "ok"],
+        ["web_search", "stopped"],
+      ]);
+    });
+  });
+
   describe("staying within the budget: 30 Job Offers, €0.08 or 90 s, whichever comes first", () => {
     const postings = (count: number) =>
       Array.from({ length: count }, (_, index) => `https://emplois.example.fr/offres/${index + 1}`);
@@ -1629,6 +1670,191 @@ describe("Job discovery", () => {
       expect(searches).toEqual([30]);
       expect(report.franceTravail.status).toBe("searched");
       expect(search.searches.every((s) => s.filters?.includeDomains === undefined)).toBe(true);
+    });
+  });
+
+  describe("the Provenance of each Job Offer found (#329)", () => {
+    const NOW = new Date("2026-10-15T12:00:00Z");
+    const provenanceOf = (jobOffers: ReturnType<typeof memoryJobOffers>, url: string) =>
+      jobOffers.captures.find((capture) => (capture.input as { source: { url: string } }).source.url === url)?.trusted?.provenance;
+    const what = (provenance: Provenance | undefined) =>
+      provenance?.steps.map((step) => ({ kind: step.kind, activity: step.activity, ...(step.kind === "ai" ? { task: step.task, provider: step.provider, model: step.model } : step.kind === "tool" ? { tool: step.tool } : { rule: step.rule }) }));
+
+    it("is its web search, its page read and the model that read the page, on the site of its page", async () => {
+      const { discovery, jobOffers } = setup({
+        sources: [DAF_URL],
+        pages: { [DAF_URL]: { body: "<html><body><h1>DAF H/F</h1><p>Groupe Seb recrute son DAF.</p></body></html>" } },
+        reply: '{"isJobOffer": true, "title": "DAF H/F", "content": "Groupe Seb recrute son DAF.", "summary": "Groupe Seb recrute son DAF à Lyon."}',
+        taskPlaybooks: servedTasks({ "job-offer-reading": { content: '- "summary" : deux phrases.' } }),
+        now: NOW,
+      });
+
+      await discovery.discover({ candidateId: "3f2b8c1e-9d4a-4e6f-8a1b-2c3d4e5f6a7b", criteria });
+
+      const provenance = provenanceOf(jobOffers, DAF_URL);
+      expect(what(provenance)).toEqual([
+        { kind: "ai", activity: "web_search", task: "web_search", provider: "perplexity", model: "fake-perplexity" },
+        { kind: "tool", activity: "read", tool: "job-site" },
+        { kind: "ai", activity: "read", task: "offer_analysis", provider: "anthropic", model: "fake-anthropic" },
+      ]);
+      expect(provenance?.sites).toEqual([{ kind: "web", domain: "emplois.example.fr", links: [DAF_URL] }]);
+      expect(provenance?.startedAt).toBe(NOW.toISOString());
+      expect(JSON.stringify(provenance)).not.toContain("3f2b8c1e-9d4a-4e6f-8a1b-2c3d4e5f6a7b");
+    });
+
+    it("has no model reading the page when the page states its JobPosting", async () => {
+      const { discovery, jobOffers } = setup({ sources: [DAF_URL], pages: { [DAF_URL]: { body: jobPostingPage({ title: "DAF H/F", description: "Groupe Seb recrute son DAF." }) } } });
+
+      await discovery.discover({ candidateId: "c", criteria });
+
+      expect(what(provenanceOf(jobOffers, DAF_URL))).toEqual([
+        { kind: "ai", activity: "web_search", task: "web_search", provider: "perplexity", model: "fake-perplexity" },
+        { kind: "tool", activity: "read", tool: "job-site" },
+      ]);
+    });
+
+    it("has the listing page read that led to a posting before the posting's own", async () => {
+      const LISTING = "https://emplois.example.fr/offres?q=daf";
+      const POSTING = "https://emplois.example.fr/offres/1-daf-lyon";
+      const paths = ["/offres/1-daf-lyon", "/offres/2-daf-paris", "/offres/3-daf-nantes"];
+      const { discovery, jobOffers } = setup({
+        sources: [LISTING],
+        pages: {
+          [LISTING]: { body: `<html><body><h1>Offres DAF</h1><ul>${paths.map((path) => `<li><a href="${path}">Offre</a></li>`).join("")}</ul></body></html>` },
+          [POSTING]: { body: jobPostingPage({ title: "DAF H/F", description: "Groupe Seb recrute son DAF." }) },
+        },
+      });
+
+      await discovery.discover({ candidateId: "c", criteria });
+
+      const provenance = provenanceOf(jobOffers, POSTING);
+      expect(what(provenance)).toEqual([
+        { kind: "ai", activity: "web_search", task: "web_search", provider: "perplexity", model: "fake-perplexity" },
+        { kind: "tool", activity: "read", tool: "job-site" },
+        { kind: "tool", activity: "read", tool: "job-site" },
+      ]);
+      expect(provenance?.sites).toEqual([{ kind: "web", domain: "emplois.example.fr", links: [POSTING] }]);
+    });
+
+    it("is its ATS's API read for a Greenhouse posting", async () => {
+      const GREENHOUSE = "https://job-boards.greenhouse.io/gitlab/jobs/8860302002";
+      const { discovery, jobOffers } = setup({
+        sources: [GREENHOUSE],
+        pages: {
+          "https://boards-api.greenhouse.io/v1/boards/gitlab/jobs/8860302002": {
+            body: readFileSync(new URL("./fixtures/ats/greenhouse-job.json", import.meta.url), "utf8"),
+            headers: { "content-type": "application/json; charset=utf-8" },
+          },
+        },
+        now: new Date("2026-10-05T08:00:00Z"),
+      });
+
+      await discovery.discover({ candidateId: "c", criteria });
+
+      const provenance = provenanceOf(jobOffers, GREENHOUSE);
+      expect(what(provenance)).toEqual([
+        { kind: "ai", activity: "web_search", task: "web_search", provider: "perplexity", model: "fake-perplexity" },
+        { kind: "tool", activity: "search", tool: "greenhouse" },
+      ]);
+      expect(provenance?.sites).toEqual([{ kind: "web", domain: "job-boards.greenhouse.io", links: [GREENHOUSE] }]);
+    });
+
+    it("is the job board's search for a France Travail or Fantastic.jobs offer", async () => {
+      const FT = "https://candidat.francetravail.fr/offres/recherche/detail/201A";
+      const ATS = "https://careers.example.com/jobs/42";
+      const franceTravail: FranceTravail = {
+        search: async () => ({ ok: true, calls: 1, offers: [{ url: FT, details: { title: "DAF", content: "Offre France Travail.", postedAt: NOW } }] }),
+      };
+      const fantasticJobs: FantasticJobs = {
+        search: async () => ({ ok: true, calls: 1, costEur: 0.003, offers: [{ url: ATS, details: { title: "RAF", content: "Offre Fantastic.jobs.", postedAt: NOW } }] }),
+      };
+      const { discovery, jobOffers } = setup({ sources: [], pages: {}, now: NOW, franceTravail, fantasticJobs });
+
+      await discovery.discover({ candidateId: "c", criteria });
+
+      expect(what(provenanceOf(jobOffers, FT))).toEqual([{ kind: "tool", activity: "search", tool: "france-travail" }]);
+      expect(provenanceOf(jobOffers, FT)?.sites).toEqual([{ kind: "web", domain: "candidat.francetravail.fr", links: [FT] }]);
+      expect(what(provenanceOf(jobOffers, ATS))).toEqual([{ kind: "tool", activity: "search", tool: "fantastic-jobs" }]);
+    });
+  });
+  describe("the Provenance of the run, and its steps as they run (#330)", () => {
+    const NOW = new Date("2026-10-15T12:00:00Z");
+    const FT = "https://candidat.francetravail.fr/offres/recherche/detail/201A";
+    const franceTravail: FranceTravail = {
+      search: async () => ({ ok: true, calls: 1, offers: [{ url: FT, details: { title: "DAF", content: "Offre France Travail.", postedAt: NOW } }] }),
+    };
+    const page = { [DAF_URL]: { body: "<html><body><h1>DAF H/F</h1><p>Groupe Seb recrute son DAF.</p></body></html>" } };
+    const reply = '{"isJobOffer": true, "title": "DAF H/F", "content": "Groupe Seb recrute son DAF."}';
+    const what = (provenance: Provenance) =>
+      provenance.steps.map((step) => ({ kind: step.kind, ...(step.kind === "ai" ? { task: step.task, model: step.model } : step.kind === "tool" ? { tool: step.tool } : { rule: step.rule }), count: step.count }));
+
+    it("is every step of the run: the job title variants, each source, the web searches, the page reads and the model that read them, folded, with the sites read and its wall-clock time", async () => {
+      const { discovery } = setup({ sources: [DAF_URL], pages: page, reply, franceTravail, now: NOW });
+
+      const report = await discovery.discover({ candidateId: "3f2b8c1e-9d4a-4e6f-8a1b-2c3d4e5f6a7b", criteria });
+
+      const provenance = report.run.provenance();
+      expect(what(provenance)).toEqual([
+        { kind: "tool", tool: "france-travail", count: 1 },
+        { kind: "ai", task: "job_titles", model: "fake-mistral", count: 1 },
+        { kind: "ai", task: "web_search", model: "fake-perplexity", count: 2 },
+        { kind: "tool", tool: "job-site", count: 1 },
+        { kind: "ai", task: "offer_analysis", model: "fake-anthropic", count: 1 },
+      ]);
+      expect(provenance.sites).toEqual([
+        { kind: "web", domain: "candidat.francetravail.fr", links: [FT] },
+        { kind: "web", domain: "emplois.example.fr", links: [DAF_URL] },
+      ]);
+      expect(provenance.startedAt).toBe(NOW.toISOString());
+      expect(JSON.stringify(provenance)).not.toContain("3f2b8c1e-9d4a-4e6f-8a1b-2c3d4e5f6a7b");
+    });
+
+    it("takes the steps the caller adds after the search, such as its Match Scores", async () => {
+      const { discovery } = setup({ sources: [], pages: {}, now: NOW });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+      await report.run.step({ rule: "match_score" }, () => 72);
+
+      expect(report.run.provenance().steps.at(-1)).toMatchObject({ kind: "rules", rule: "match_score", outcome: "ok" });
+    });
+
+    it("tells the request's sink each step as it starts, then as it ended, each by its own id", async () => {
+      const events: ProvenanceEvent[] = [];
+      const { discovery } = setup({ sources: [DAF_URL], pages: page, reply, franceTravail, now: NOW });
+
+      await discovery.discover({ candidateId: "c", criteria, onEvent: (event) => events.push(event) });
+
+      const started = events.filter((event) => event.type === "step_started");
+      expect(started.map((event) => ("task" in event.step ? event.step.task : "tool" in event.step ? event.step.tool : event.step.rule))).toEqual([
+        "france-travail",
+        "job_titles",
+        "web_search",
+        "job-site",
+        "offer_analysis",
+        "web_search",
+      ]);
+      expect(new Set(started.map((event) => event.id)).size).toBe(started.length);
+      for (const { id } of started) expect(events.filter((event) => event.id === id).map((event) => event.type)).toEqual(["step_started", "step_ended"]);
+    });
+
+    it("keeps, for a run that failed, the steps it ran until then, the failed one included", async () => {
+      const { discovery } = setup({
+        sources: [DAF_URL],
+        pages: page,
+        reply: () => {
+          throw new Error("LLM down");
+        },
+      });
+
+      const failure = (await discovery.discover({ candidateId: "c", criteria }).catch((error: unknown) => error)) as JobDiscoveryError;
+
+      expect(what(failure.partial.run.provenance()).map(({ kind, ...step }) => ("task" in step ? step.task : "tool" in step ? step.tool : kind))).toEqual([
+        "job_titles",
+        "web_search",
+        "job-site",
+        "offer_analysis",
+      ]);
+      expect(failure.partial.run.provenance().steps.at(-1)).toMatchObject({ kind: "ai", task: "offer_analysis", outcome: "failed" });
     });
   });
 });

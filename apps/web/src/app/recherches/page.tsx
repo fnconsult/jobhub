@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentCandidate } from "@/auth/server";
+import { loadAiActivity } from "@/ai-activity/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { CoachInView } from "@/components/CoachPanel";
 import { Icons } from "@/components/icons";
@@ -27,6 +28,10 @@ type T = Awaited<ReturnType<typeof getServerT>>;
 type Profile = { id: string; name: string };
 /** Where a Profile's Job Searches stand: the one still searching, and the latest done one. */
 type Standing = { profile: Profile; searching: JobSearch | null; latest: JobSearch | null };
+
+/** The Job Searches the page shows, for AI Activity: each Profile's search under way and its latest done one. */
+const searchesShown = (standings: readonly Standing[]): JobSearch[] =>
+  standings.flatMap(({ searching, latest }) => [searching, latest].filter((search): search is JobSearch => search !== null));
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT();
@@ -74,11 +79,12 @@ export default async function JobSearchesPage({ searchParams }: { searchParams: 
     const [standing, full] = await Promise.all([standingOf(chosen), getProfiles().get(candidate.id, chosen.id)]);
     if (!full) notFound();
     const { searching, latest } = standing;
+    const aiActivity = await loadAiActivity.jobSearches(searchesShown([standing]));
     const inView = latest
       ? ({ kind: "job_search", id: latest.id, name: chosen.name, profileId: chosen.id } as const)
       : ({ kind: "profile", id: chosen.id, name: chosen.name } as const);
     return (
-      <CandidateLayout candidateId={candidate.id} currentProfileId={chosen.id} title={t("sidebar.jobSearches")}>
+      <CandidateLayout candidateId={candidate.id} currentProfileId={chosen.id} title={t("sidebar.jobSearches")} aiActivity={aiActivity}>
         <CoachInView {...inView} />
         <header className="page-head job-searches-head">
           <p className="lead">{t("jobSearchesPage.intro")}</p>
@@ -109,8 +115,9 @@ export default async function JobSearchesPage({ searchParams }: { searchParams: 
   }
 
   const standings = await Promise.all(active.map(standingOf));
+  const aiActivity = await loadAiActivity.jobSearches(searchesShown(standings));
   return (
-    <CandidateLayout candidateId={candidate.id} title={t("sidebar.jobSearches")} wide={lanes}>
+    <CandidateLayout candidateId={candidate.id} title={t("sidebar.jobSearches")} wide={lanes} aiActivity={aiActivity}>
       <header className="page-head job-searches-head">
         <p className="lead">{t("jobSearchesPage.intro")}</p>
         <ProfileChooser profiles={active} chosen={ALL} lanes={lanes} t={t} />

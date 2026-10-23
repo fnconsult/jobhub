@@ -2,6 +2,7 @@ import { readOfferFields } from "@jobhub/ai";
 import { getAi } from "../ai/server";
 import { getBilling } from "../billing/server";
 import { getJobOffers } from "../job-offers/server";
+import { recordedReading } from "../job-offers/summary-reading";
 import { getProfiles } from "../profiles/server";
 import { servedTaskRun } from "../task-playbooks";
 import { getTaskPlaybooks } from "../task-playbooks/server";
@@ -12,7 +13,8 @@ let instance: MatchScoring | undefined;
 /**
  * The app's Match Scoring module, on the app's Job Offers and Profiles, counting Match Scores against Plan Quotas.
  * Its phase 2 reads a Job Offer's text (title and text only, no CV, no identity) as the `offer_analysis` task,
- * with its Job Offer Summary and sector only while the "job-offer-reading" task Playbook is served (ADR-0026).
+ * with its Job Offer Summary and sector only while the "job-offer-reading" task Playbook is served (ADR-0026),
+ * kept with that reading's Provenance.
  */
 export function getMatchScoring(): MatchScoring {
   instance ??= createMatchScoring({
@@ -21,7 +23,7 @@ export function getMatchScoring(): MatchScoring {
     matchScoreQuota: (candidateId) => getBilling().use(candidateId, "matchScores"),
     readOfferText: async (jobOffer, candidateId, call) => {
       const reading = await servedTaskRun(getTaskPlaybooks(), "job-offer-reading", getAi());
-      return readOfferFields(getAi(), { candidateId, jobOffer, reading: reading?.instructions() ?? null, ...call });
+      return recordedReading(getAi(), jobOffer, (ai) => readOfferFields(ai, { candidateId, jobOffer, reading: reading?.instructions() ?? null, ...call }));
     },
   });
   return instance;

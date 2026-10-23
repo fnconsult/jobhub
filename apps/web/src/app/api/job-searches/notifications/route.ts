@@ -4,8 +4,9 @@ import { getJobSearches } from "@/job-searches/server";
 
 /**
  * The signed-in Candidate's Job Search notifications not dismissed yet, and
- * whether one of their Job Searches is still searching.
- * 200 { notifications, searching } · 401
+ * whether one of their Job Searches is still searching, and those searching with
+ * their live steps (#330): every page polls it every 1.5 s while one is.
+ * 200 { notifications, searching, running } · 401
  */
 export async function GET() {
   const candidate = await getCurrentCandidate();

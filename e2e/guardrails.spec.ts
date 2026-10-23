@@ -39,7 +39,9 @@ async function send(page: Page, message: string) {
 async function messagesOf(page: Page, conversationId: string) {
   const response = await page.request.get(`/api/coach/conversations/${conversationId}`);
   expect(response.status()).toBe(200);
-  return (await response.json()).conversation.messages as { from: string; text: string; blocked?: true }[];
+  // What each reply says of what served it (#327) is left out: these tests are about what was blocked.
+  const messages = (await response.json()).conversation.messages as { from: string; text: string; blocked?: true }[];
+  return messages.map(({ from, text, blocked }) => ({ from, text, ...(blocked ? { blocked } : {}) }));
 }
 
 const notice = (page: Page) => page.getByRole("main").getByRole("status");
@@ -435,7 +437,9 @@ test.describe("Guardrails: distress, unavailable checks, no alert", () => {
     const other = exported.coachConversations.find((each: { id: string }) => each.id === normal.conversation.id);
     expect(other?.messages.some((message: { blocked?: boolean }) => message.blocked)).toBe(false);
     // No Guardrail is named next to the conversation, and the triggers are outside the export.
-    expect(Object.keys(conversation.messages[1]).sort()).toEqual(["blocked", "from", "sentAt", "text"]);
+    expect(Object.keys(conversation.messages[1]).sort()).toEqual(["blocked", "from", "provenance", "sentAt", "text"]);
+    // Its Provenance (#327) says an AI check ran, never which Guardrail blocked it.
+    expect(JSON.stringify(conversation.messages[1].provenance)).not.toMatch(/prompt_injection|injection/i);
     expect(Object.keys(exported).join(" ")).not.toMatch(/trigger/i);
     expect(raw).not.toContain("guardrail_trigger");
   });

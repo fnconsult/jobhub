@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import type { Made } from "@/ai-activity";
+import { loadAiActivity } from "@/ai-activity/server";
 import { INTERVIEW_TIME_ZONE } from "@/applications";
 import { ApplicationProfileSelect, ApplicationStatusSelect, ReportUnavailableButton } from "@/components/ApplicationControls";
 import { CandidateLayout } from "@/components/CandidateLayout";
@@ -33,7 +35,15 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  * a contact-data provider is on) and the full Job Offer.
  */
 export default async function ApplicationLayout({ params, children }: Params & { children: ReactNode }) {
-  const { candidateId, application, t, locale, inView, profiles, sections } = await loadApplicationPage((await params).id);
+  const { candidateId, application, t, locale, inView, profiles, sections, cards, companyDossier, tailoredCv, drafts } = await loadApplicationPage((await params).id);
+  // What AI made for the Application, its slices keeping no Provenance yet: « modèle non enregistré » in AI Activity.
+  const made: Made[] = [
+    ...(tailoredCv && (tailoredCv.proposal || tailoredCv.saved) ? [{ kind: "tailored_cv" as const }] : []),
+    ...(drafts && (drafts.coverLetter || drafts.outreachMessage) ? [{ kind: "tailored_documents" as const }] : []),
+    ...(companyDossier?.status === "built" ? [{ kind: "company_dossier" as const, at: companyDossier.dossier.builtAt }] : []),
+    ...cards.map(() => ({ kind: "action_card" as const })),
+  ];
+  const aiActivity = await loadAiActivity.application(candidateId, { id: application.id, jobOffer: { id: application.jobOffer.id, title: application.jobOffer.title } }, made);
   // Active Profiles to pick from, and the one in use even if it was archived since.
   const choices = profiles.filter((profile) => !profile.archived || profile.id === application.profile.id).map(({ id, name }) => ({ id, name }));
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: INTERVIEW_TIME_ZONE });
@@ -41,7 +51,7 @@ export default async function ApplicationLayout({ params, children }: Params & {
   const { jobOffer } = application;
   const site = jobOfferSite(jobOffer);
   return (
-    <CandidateLayout candidateId={candidateId} title={jobOffer.title}>
+    <CandidateLayout candidateId={candidateId} title={jobOffer.title} aiActivity={aiActivity}>
       <div className="doc">
         <header className="page-head">
           <p className="eyebrow">

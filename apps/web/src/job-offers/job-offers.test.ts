@@ -1,3 +1,4 @@
+import type { Provenance } from "@jobhub/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createThrowawayDatabase } from "../test-support/throwaway-database";
 import { createJobOffers, createSourceChecks, forgetExpiredGuestCaptures, migrateJobOffers, type JobOffers } from "./index";
@@ -15,6 +16,27 @@ const posting = {
   salary: { min: 110_000, max: 130_000 },
   skills: ["IFRS", "Consolidation"],
   requiredExperienceYears: 15,
+};
+
+/** How Job discovery found and read a posting: its web search, its page read, and the model that wrote its summary. */
+const found: Provenance = {
+  v: 1,
+  steps: [
+    { kind: "ai", activity: "web_search", task: "web_search", provider: "perplexity", endpoint: "api.perplexity.ai", model: "sonar", tokens: { input: 300, output: 800 }, ms: 4100, at: "2026-10-23T10:00:00.000Z", outcome: "ok", count: 1 },
+    { kind: "tool", activity: "read", tool: "job-site", ms: 900, at: "2026-10-23T10:00:05.000Z", outcome: "ok", count: 1 },
+    { kind: "ai", activity: "read", task: "offer_analysis", provider: "anthropic", endpoint: "bedrock eu-north-1", model: "anthropic.claude-haiku-4-5", tokens: { input: 6000, output: 700 }, ms: 3900, at: "2026-10-23T10:00:06.000Z", outcome: "ok", count: 1 },
+  ],
+  sites: [{ kind: "web", domain: "welcometothejungle.com", links: ["https://www.welcometothejungle.com/fr/companies/seb/jobs/daf-lyon"] }],
+  startedAt: "2026-10-23T10:00:00.000Z",
+  wallMs: 9100,
+};
+/** The summary written later, when its Application page was first shown. */
+const summarized: Provenance = {
+  v: 1,
+  steps: [{ kind: "ai", activity: "think_write", task: "offer_analysis", provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-medium-3-5", tokens: { input: 2000, output: 200 }, ms: 1500, at: "2026-10-24T08:00:00.000Z", outcome: "ok", count: 1 }],
+  sites: [{ kind: "web", domain: "welcometothejungle.com", links: ["https://www.welcometothejungle.com/fr/companies/seb/jobs/daf-lyon"] }],
+  startedAt: "2026-10-24T08:00:00.000Z",
+  wallMs: 1600,
 };
 
 describe.skipIf(!connectionString)("Job Offers (needs Postgres: DATABASE_URL)", () => {
@@ -344,6 +366,84 @@ describe.skipIf(!connectionString)("Job Offers (needs Postgres: DATABASE_URL)", 
       await migrateJobOffers(throwaway.pool);
 
       expect(await jobOffers.get(id)).toMatchObject({ summary: "Lead a team of 12 in London." });
+    });
+  });
+
+  describe("its Provenance (#329)", () => {
+    it("is how the reading that captured it found and read it", async () => {
+      const read = await jobOffers.capture(posting, "candidate", { summary: "Le groupe recrute son DAF.", provenance: found });
+
+      expect(await jobOffers.provenance(read.ok ? read.jobOffer.id : "")).toEqual(found);
+    });
+
+    it("is none for an offer captured before Provenance was kept, or sent by a browser (« modèle non enregistré »)", async () => {
+      const captured = await jobOffers.capture({ ...posting, provenance: found });
+
+      expect(await jobOffers.provenance(captured.ok ? captured.jobOffer.id : "")).toBeNull();
+      expect(await jobOffers.provenance("00000000-0000-4000-8000-000000000000")).toBeNull();
+      expect(await jobOffers.provenance("not-an-id")).toBeNull();
+    });
+
+    it("is none rather than one holding an id, whatever field it is in", async () => {
+      const candidateId = "3f2b8c1e-9d4a-4e6f-8a1b-2c3d4e5f6a7b";
+      const naming = { ...found, steps: [{ ...found.steps[0]!, task: `web_search_${candidateId}` }] } as Provenance;
+
+      const read = await jobOffers.capture(posting, "candidate", { provenance: naming });
+
+      expect(await jobOffers.provenance(read.ok ? read.jobOffer.id : "")).toBeNull();
+      const { rows } = await throwaway.pool.query<{ stored: string }>(`SELECT provenance::text AS stored FROM job_offer`);
+      expect(rows.map((row) => row.stored ?? "").join()).not.toContain(candidateId);
+    });
+
+    it("is the capture's that writes the summary of an offer stored without one", async () => {
+      const first = await jobOffers.capture(posting);
+      const again = await jobOffers.capture(posting, "candidate", { summary: "Le groupe recrute son DAF.", provenance: found });
+
+      expect(await jobOffers.provenance(again.ok ? again.jobOffer.id : "")).toEqual(found);
+      expect(first.ok && again.ok && again.jobOffer.id).toBe(first.ok && first.jobOffer.id);
+    });
+
+    it("keeps how it was first found when it is found again", async () => {
+      const first = await jobOffers.capture(posting, "candidate", { summary: "Le groupe recrute son DAF.", provenance: found });
+      await jobOffers.capture(posting, "candidate", { summary: "Autre résumé.", provenance: summarized });
+
+      expect(await jobOffers.provenance(first.ok ? first.jobOffer.id : "")).toEqual(found);
+    });
+
+    it("gains the reading that wrote its summary later, after how it was found", async () => {
+      const read = await jobOffers.capture(posting, "candidate", { provenance: found });
+      const id = read.ok ? read.jobOffer.id : "";
+
+      await jobOffers.summarize(id, async () => ({ summary: "Le groupe recrute son DAF.", provenance: summarized }));
+
+      expect(await jobOffers.provenance(id)).toEqual({ ...found, steps: [...found.steps, ...summarized.steps], wallMs: 10_700 });
+    });
+
+    it("is the summary's alone for an offer captured before Provenance was kept", async () => {
+      const captured = await jobOffers.capture(posting);
+      const id = captured.ok ? captured.jobOffer.id : "";
+
+      await jobOffers.fillFromText(id, async () => ({ location: "Lyon", summary: "Le groupe recrute son DAF.", provenance: summarized }));
+
+      expect(await jobOffers.provenance(id)).toEqual(summarized);
+    });
+
+    it("is read for many offers at once, as AI Activity lists a page's (#332): each id given, none for an unknown one", async () => {
+      const read = await jobOffers.capture(posting, "candidate", { provenance: found });
+      const other = await jobOffers.capture({
+        ...posting,
+        title: "Contrôleur de gestion H/F",
+        employer: "Biomérieux",
+        content: "Vous suivez la performance des usines.",
+        source: { ...posting.source, url: "https://www.welcometothejungle.com/fr/companies/biomerieux/jobs/cdg-lyon" },
+      });
+      if (!read.ok || !other.ok) throw new Error("not captured");
+      const unknown = "00000000-0000-4000-8000-000000000000";
+
+      const provenances = await jobOffers.provenances([read.jobOffer.id, other.jobOffer.id, unknown, "not-an-id"]);
+
+      expect(provenances).toEqual(new Map([[read.jobOffer.id, found], [other.jobOffer.id, null], [unknown, null], ["not-an-id", null]]));
+      expect(await jobOffers.provenances([])).toEqual(new Map());
     });
   });
 });

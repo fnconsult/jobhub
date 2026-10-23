@@ -6,9 +6,18 @@
  * the worker (which purges Coach Conversations) bundle it.
  */
 
+import type { Provenance } from "@jobhub/shared";
+
 export interface CoachMessage {
   from: "candidate" | "coach";
   text: string;
+  /**
+   * On a saved AI Coach reply: what served it (#327), read from what was stored with it, a partial one for a reply saved
+   * before Provenance was kept, or null when nothing was (« modèle non enregistré »). Never given to the AI Coach.
+   */
+  provenance?: Provenance | null;
+  /** On a saved AI Coach reply: when it was saved, an ISO date, for the hour its Provenance line shows. */
+  at?: string;
   /** A Blocked message (#228): a Candidate message a Guardrail stopped, or the Guardrail message that answered it or replaced a reply. Which Guardrail is never said. */
   blocked?: true;
   /** On an AI Coach reply to a Job Offer link: the Job Offer card it shows. Never given to the AI Coach. */

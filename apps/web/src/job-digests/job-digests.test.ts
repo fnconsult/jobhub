@@ -315,6 +315,23 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       expect(digest?.results.map((result) => result.jobOffer.id)).toEqual([fresh]);
     });
 
+    it("leaves out the Job Offers a failed or a stopped Job Search kept and showed (#331)", async () => {
+      await subscribed();
+      const keptByFailed = await strong("Gardée par une recherche échouée");
+      const failed = await jobSearches.start(candidateId, { profileId });
+      if (!failed.ok) throw new Error("fixture Job Search refused");
+      await jobSearches.record(failed.jobSearch.id, { failed: "discovery_failed", jobOfferIds: [keptByFailed] });
+      const keptByStopped = await strong("Gardée par une recherche arrêtée");
+      const stopped = await jobSearches.start(candidateId, { profileId });
+      if (!stopped.ok) throw new Error("fixture Job Search refused");
+      await jobSearches.record(stopped.jobSearch.id, { stopped: true, jobOfferIds: [keptByStopped] });
+      const fresh = await strong("Nouvelle");
+
+      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => [keptByFailed, keptByStopped, fresh]);
+
+      expect(digest?.results.map((result) => result.jobOffer.id)).toEqual([fresh]);
+    });
+
     it("runs Job discovery only when the stored Job Offers give fewer than the target count", async () => {
       jobDigests = digestsWith({ targetCount: 2 });
       await subscribed();

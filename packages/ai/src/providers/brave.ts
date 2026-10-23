@@ -36,7 +36,7 @@ export function createBraveProvider(options: BraveProviderOptions): AiProvider {
     endpoint: "api.search.brave.com",
     residency: "outside_eu",
     searchPages: PAGES,
-    async search(query, { filters, page = 1 }): Promise<SearchOutput> {
+    async search(query, { filters, page = 1, signal }): Promise<SearchOutput> {
       const today = now();
       const sites = domainsOf(filters?.includeDomains);
       const since = sinceDateOf(filters, today);
@@ -50,7 +50,7 @@ export function createBraveProvider(options: BraveProviderOptions): AiProvider {
 
       const response = await getJson<BraveResponse>({ provider: "brave", fetch: options.fetch }, url, {
         "x-subscription-token": options.apiKey,
-      });
+      }, signal);
       const results = (response?.web?.results ?? []).map((r) => ({
         title: plainText(r.title),
         url: r.url,

@@ -1,6 +1,8 @@
 import type { DesignTokens } from "./tokens";
 
 export const MIN_BODY_TEXT_PX = 16;
+/** Metadata text may be smaller than body text, never below this (ADR-0009 amendment, #317). */
+export const MIN_META_TEXT_PX = 13;
 export const AA_TEXT_CONTRAST = 4.5;
 export const AA_NON_TEXT_CONTRAST = 3;
 
@@ -13,7 +15,7 @@ export type AccessibilityViolation = {
 type ColorToken = keyof DesignTokens["color"];
 
 /** Colours text may take: each is audited at AA on every surface (onAccent on accent). */
-export const TEXT_COLORS: ColorToken[] = ["text", "textSecondary", "accent", "danger", "success"];
+export const TEXT_COLORS: ColorToken[] = ["text", "textSecondary", "textMeta", "accent", "danger", "success"];
 const SURFACES: ColorToken[] = ["background", "surface", "surfaceHover", "dangerSurface"];
 
 function channel(hex: string, offset: number): number {
@@ -64,6 +66,9 @@ export function auditDesignTokens(tokens: DesignTokens): AccessibilityViolation[
     if (px < MIN_BODY_TEXT_PX) {
       violations.push({ rule: "min-body-size", token: name, detail: `${name} is ${px}px, needs ${MIN_BODY_TEXT_PX}px` });
     }
+  }
+  if (tokens.metaFontSize < MIN_META_TEXT_PX) {
+    violations.push({ rule: "min-body-size", token: "metaFontSize", detail: `metadata is ${tokens.metaFontSize}px, needs ${MIN_META_TEXT_PX}px` });
   }
   for (const [setting, factor] of Object.entries(tokens.textSize)) {
     const px = tokens.fontSize.body * factor;

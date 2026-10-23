@@ -200,6 +200,23 @@ describe("the AI layer's Company News search", () => {
     expect(warnings).toEqual([expect.stringMatching(/Company News unavailable/)]);
   });
 
+  it("can return its search call with the articles, for the Company Dossier's Provenance (#325)", async () => {
+    const perplexity = createFakeProvider({ id: "perplexity", residency: "outside_eu", answer: answer(article()), sources: ["https://news.example/usine"] });
+    const ai = createAiLayer({ providers: [perplexity], routes: { web_search: "perplexity" }, usage: createMemoryUsageLog(), now: () => recent });
+
+    const news = await ai.searchCompanyNewsWithCall({ candidateId: "cand-1", employer: "Acme Industrie" });
+
+    expect(news.articles).toEqual([expect.objectContaining({ url: "https://news.example/usine" })]);
+    expect(news.call).toMatchObject({ provider: "perplexity", endpoint: "fake perplexity", model: "fake-perplexity", usage: { inputTokens: 10, outputTokens: 5 }, outcome: "ok" });
+  });
+
+  it("returns no call, and no article, when the search failed", async () => {
+    const failing = { ...createFakeProvider({ id: "perplexity", residency: "outside_eu" }), search: async () => Promise.reject(new Error("HTTP 429")) };
+    const ai = createAiLayer({ providers: [failing], routes: { web_search: "perplexity" }, usage: createMemoryUsageLog(), warn: () => {} });
+
+    expect(await ai.searchCompanyNewsWithCall({ candidateId: "cand-1", employer: "Acme" })).toEqual({ articles: [], call: null });
+  });
+
   it("never fails without a web-search provider either", async () => {
     const ai = createAiLayer({ providers: [createFakeProvider({ id: "mistral" })], routes: {}, usage: createMemoryUsageLog(), warn: () => {} });
 

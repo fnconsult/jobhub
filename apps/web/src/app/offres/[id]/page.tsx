@@ -2,6 +2,7 @@ import type { JobOffer } from "@jobhub/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { loadAiActivity } from "@/ai-activity/server";
 import { getApplications } from "@/applications/server";
 import { getCurrentCandidate } from "@/auth/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
@@ -64,7 +65,7 @@ export default async function JobOfferPage({ params, searchParams }: Params & Se
   );
   if (candidate)
     return (
-      <CandidateLayout candidateId={candidate.id} title={jobOffer.title}>
+      <CandidateLayout candidateId={candidate.id} title={jobOffer.title} aiActivity={await loadAiActivity.jobOffer(candidate.id, { id: jobOffer.id, title: jobOffer.title })}>
         {page}
       </CandidateLayout>
     );

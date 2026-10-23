@@ -29,6 +29,9 @@
  * Each reply says what it cost (`CoachMessageCost`: the choice, the consultations, the reply and the Guardrail checks), what
  * each consultation cost (`consultations`), and which Core Digest and Playbook Versions it drew on
  * (`playbooks`), so they can be recorded with the message: estimates from list prices, frozen then.
+ * And its Provenance (ADR-0034, #327), recorded as it runs by a ProvenanceRecorder: the choice, each consultation,
+ * the reply and the Guardrail checks, each with the model that served it, and a page read when the message holds
+ * a link, with its page as a Provenance site. Never a cost, a prompt or a Playbook Agent's name.
  *
  * A Job Offer link (`jobOfferLinks`): a link in the Candidate's latest message is read as a Job Offer (see
  * ../job-offer-links) once the Guardrails let the message through, and a set reply answers it in the Candidate's
@@ -40,9 +43,9 @@
  * `context`, a fictional Coach context told as is in place of a Candidate's workspace, and `consult`, the
  * Coaching Playbook whose Playbook Agent the reply always consults first, besides those chosen.
  */
-import { costInEur, type AiLayer, type AiWarning, type GenerateResult, type ProviderId } from "@jobhub/ai";
+import { costInEur, createProvenanceRecorder, type AiLayer, type AiWarning, type GenerateResult, type ProviderId } from "@jobhub/ai";
 import { createI18n } from "@jobhub/shared/i18n";
-import type { JobOffer } from "@jobhub/shared";
+import { failureOf, type FailureReason, type JobOffer, type Provenance, type ProvenanceEvent } from "@jobhub/shared";
 import { findJobOfferLink, type JobOfferLinkResult, type JobOfferLinks } from "../job-offer-links";
 import type { GuardedReply, GuardrailLanguage, Guardrails } from "../guardrails";
 import { CORE_DIGEST, type CoachingPlaybooks, type ServedKnowledge } from "../coaching-playbooks";
@@ -90,14 +93,37 @@ export type CoachReplyOutcome = GuardedReply["outcome"];
  * `consultations`: the Playbook Agents that answered, each with its cost (already in `cost`).
  * `cost`: null when no AI call was made (distress words answered by the distress Guardrail message, a Job Offer link without Guardrails).
  * `jobOffer`: the Job Offer read from the link in the Candidate's message, when there is one.
+ * `provenance`: what served the reply, step by step (#327), to keep with it.
+ * `stopped`: the Candidate stopped it (#328), `messagePassed` saying whether the Candidate's message had gone through the input
+ * Guardrails by then (the reply was being written): a message that had not must never reach the AI Coach later.
+ * `reason`: why it is `unavailable`, its Failure Reason (never the technical message).
  */
 export type CoachReply =
-  | { ok: true; reply: string; outcome: CoachReplyOutcome; cost: CoachMessageCost | null; playbooks: PlaybookUsed[]; consultations: PlaybookConsultation[]; jobOffer?: JobOffer }
-  | { ok: false; error: "invalid" | "unavailable" };
+  | {
+      ok: true;
+      reply: string;
+      outcome: CoachReplyOutcome;
+      cost: CoachMessageCost | null;
+      playbooks: PlaybookUsed[];
+      consultations: PlaybookConsultation[];
+      jobOffer?: JobOffer;
+      provenance: Provenance;
+    }
+  | { ok: false; error: "invalid" }
+  | { ok: false; error: "stopped"; messagePassed: boolean }
+  | { ok: false; error: "unavailable"; reason: FailureReason };
+
+export interface CoachReplyOptions {
+  /** The Candidate's, for a Guardrail message. Default French. */
+  language?: GuardrailLanguage;
+  /** The Candidate's Stop (#328): every AI call of the reply is aborted, and there is no reply. */
+  signal?: AbortSignal;
+  /** Each step of the reply as it starts and ends (#328), for the Coach Panel to show live. */
+  onEvent?: (event: ProvenanceEvent) => void;
+}
 
 export interface Coach {
-  /** `language`: the Candidate's, for a Guardrail message. Default French. */
-  reply(candidateId: string, input: unknown, options?: { language?: GuardrailLanguage }): Promise<CoachReply>;
+  reply(candidateId: string, input: unknown, options?: CoachReplyOptions): Promise<CoachReply>;
 }
 
 /** A Coach context given as is, within `maxTokens` (an Eval Case's fictional one): what the AI Coach then knows of the Candidate. */
@@ -143,6 +169,7 @@ const inputSchema = z.object({
 
 const PERSONA = `Tu es le coach Jobbbox : un coach emploi bienveillant et concret pour des cadres et professionnels de plus de 40 ans qui cherchent un poste en France.
 Règles :
+- Tu es une intelligence artificielle, pas une personne. Chaque fois qu'on te demande si tu es une IA, un robot ou un humain, réponds honnêtement que tu es un coach IA : ne prétends jamais être humain (AI Act, art. 50(1)).
 - Réponds dans la langue du candidat, en phrases courtes et claires, sans jargon.
 - En français, vouvoie toujours le candidat (« vous », « votre »), jamais « tu » ni « ton », même s'il te tutoie.
 - Appuie-toi uniquement sur ce que le candidat t'a dit et sur les informations ci-dessous. N'invente jamais d'expérience, de diplôme ou de chiffre.
@@ -200,11 +227,18 @@ export function createCoach(deps: CoachDeps): Coach {
     async reply(candidateId, input, options = {}) {
       const parsed = inputSchema.safeParse(input);
       if (!parsed.success) return { ok: false, error: "invalid" };
+      const { signal, onEvent } = options;
+      // Whether the latest message went through the input Guardrails: they only ask for the reply once it has.
+      let messagePassed = false;
+      const stopped = () => ({ ok: false as const, error: "stopped" as const, messagePassed });
+      if (signal?.aborted) return stopped();
       const { focus } = parsed.data;
       const messages = recentConversation(parsed.data.messages).map((message) => ({
         role: message.from === "candidate" ? ("user" as const) : ("assistant" as const),
         content: message.text,
       }));
+      // The reply's steps, each AI call through it: what is kept with the reply as its Provenance.
+      const recorder = createProvenanceRecorder(deps.ai, { ...(signal ? { signal } : {}), ...(onEvent ? { onEvent } : {}) });
       try {
         /** Everything before the reply itself, done once even when the reply is written again. */
         const prepare = async () => {
@@ -213,7 +247,7 @@ export function createCoach(deps: CoachDeps): Coach {
           // The Playbook Agents left out, recorded on the reply call (#260): who, never what they said.
           const skipped: AiWarning[] = [];
           // The choice reads the conversation and what is In view alone, so it comes first: the context then keeps room for the advice chosen.
-          const chosen = await choosePlaybookAgents(deps.ai, candidateId, served.playbooks, { messages, inView: focus?.kind }).catch((error: unknown) => {
+          const chosen = await choosePlaybookAgents(recorder.aiFor("coach_choice"), candidateId, served.playbooks, { messages, inView: focus?.kind }).catch((error: unknown) => {
             const name = error instanceof Error ? error.name : "unknown";
             warn("Playbook Agents could not be chosen: replying without them", { error: name });
             skipped.push({ reason: "playbook_agent_skipped", detail: `Playbook Agents could not be chosen (${name}): replying without them` });
@@ -228,7 +262,7 @@ export function createCoach(deps: CoachDeps): Coach {
           const context = await contextOf(candidateId, focus, COACH_CONTEXT_MAX_TOKENS - estimateTokens(instructions) - reserved - 4);
           const consulted = await Promise.all(
             choice.chosen.map((playbook) =>
-              consultPlaybookAgent(deps.ai, candidateId, playbook, { context, messages, timeoutMs }).catch((error: unknown) => {
+              consultPlaybookAgent(recorder.aiFor("playbook_agent"), candidateId, playbook, { context, messages, timeoutMs }).catch((error: unknown) => {
                 const { id, version, agent } = playbook;
                 const name = error instanceof Error ? error.name : "unknown";
                 warn("A Playbook Agent was left out of the reply", { playbook: id, version, provider: agent.provider, model: agent.model, error: name });
@@ -253,7 +287,7 @@ export function createCoach(deps: CoachDeps): Coach {
         const written: GenerateResult[] = [];
         const write = async (feedback: string | null) => {
           prepared ??= await prepare();
-          const result = await deps.ai.generate({
+          const result = await recorder.ai.generate({
             task: "coaching",
             candidateId,
             system: feedback ? `${prepared.system}\n\n${feedback}` : prepared.system,
@@ -271,15 +305,20 @@ export function createCoach(deps: CoachDeps): Coach {
         const link = deps.jobOfferLinks ? findJobOfferLink(latest) : null;
         let linked: JobOfferLinkResult | undefined;
         const answerLink = async (url: string) => {
-          linked ??= await deps.jobOfferLinks!.read(candidateId, url);
+          linked ??= await deps.jobOfferLinks!.read(candidateId, url, recorder);
           return { text: jobOfferLinkReply(linked, language), secrets: [] };
         };
-        const reply = link ? () => answerLink(link) : write;
+        const reply = (feedback: string | null) => {
+          messagePassed = true;
+          return link ? answerLink(link) : write(feedback);
+        };
         const guarded: GuardedReply = deps.guardrails
           ? await deps.guardrails.guard("ai_coach", {
               candidateId,
               language,
+              ai: recorder.ai,
               message: latest,
+              ...(signal ? { signal } : {}),
               written: messages.filter((message) => message.role === "user").map((message) => message.content),
               reply,
             })
@@ -295,6 +334,8 @@ export function createCoach(deps: CoachDeps): Coach {
           model: call.model,
           ...costOf([call]),
         }));
+        // Stopped once the reply was written, or by a step that let the Stop through: no reply.
+        if (signal?.aborted) return stopped();
         const served = prepared?.served;
         const playbooks: PlaybookUsed[] = [
           ...(served?.coreDigest ? [{ id: CORE_DIGEST, version: String(served.coreDigest.version) }] : []),
@@ -308,10 +349,12 @@ export function createCoach(deps: CoachDeps): Coach {
           playbooks,
           consultations,
           ...(linked?.ok && guarded.outcome === "replied" ? { jobOffer: linked.jobOffer } : {}),
+          provenance: recorder.provenance(),
         };
       } catch (error) {
+        if (signal?.aborted) return stopped();
         console.warn("[coach] the AI Coach could not reply:", error instanceof Error ? error.message : error);
-        return { ok: false, error: "unavailable" };
+        return { ok: false, error: "unavailable", reason: failureOf(error).reason };
       }
     },
   };

@@ -34,7 +34,7 @@ export function createTavilyProvider(options: TavilyProviderOptions): AiProvider
     models: DEPTHS,
     endpoint: "api.tavily.com",
     residency: "outside_eu",
-    async search(query, { model, filters }): Promise<SearchOutput> {
+    async search(query, { model, filters, signal }): Promise<SearchOutput> {
       const depth = model ?? DEFAULT_DEPTH;
       const includeDomains = domainsOf(filters?.includeDomains);
       const excludeDomains = domainsOf(filters?.excludeDomains);
@@ -48,7 +48,7 @@ export function createTavilyProvider(options: TavilyProviderOptions): AiProvider
         ...(includeDomains ? { include_domains: includeDomains } : {}),
         ...(excludeDomains ? { exclude_domains: excludeDomains } : {}),
         ...(since ? { start_date: since } : {}),
-      });
+      }, signal);
       const results = (response?.results ?? []).map((r) => ({ title: r.title, url: r.url, snippet: r.content, published: r.published_date }));
       return searchOutputOfResults(results, depth);
     },

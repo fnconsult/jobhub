@@ -21,7 +21,59 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
-type Element = { what: string; sources: string[]; model?: string; tools?: string[]; at?: string; tokens?: number };
+type Element = { what: string; sources: string[]; model?: string; tools?: string[]; at?: number; tokens?: number; ms?: number };
+
+// « &lendemain=1 » opens the page as if it were the next day, to see dates appear.
+let shiftDays = 0;
+const now = () => Date.now() + shiftDays * 86_400_000;
+// Stubbed production times, minutes before the prototype was loaded.
+const loadedAt = Date.now();
+const ago = (minutes: number) => loadedAt - minutes * 60_000;
+
+// The time alone when it is today; the date and the time otherwise (the year only if not this one).
+function when(at?: number) {
+  if (!at) return "";
+  const d = new Date(at);
+  const today = new Date(now());
+  const time = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  if (d.toDateString() === today.toDateString()) return time;
+  const date = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: d.getFullYear() === today.getFullYear() ? undefined : "numeric" });
+  return `${date} à ${time}`;
+}
+
+// Durations: « 320 ms », « 4,2 s », « 1 min 05 s ».
+function dur(ms: number) {
+  if (ms < 1000) return `${Math.round(ms)} ms`;
+  if (ms < 60_000) return `${(ms / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} s`;
+  const s = Math.round(ms / 1000);
+  return `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, "0")} s`;
+}
+
+// Stubbed time spent per element (its model calls) and per tool, as ai_usage.duration_ms
+// and external_api_usage would sum them.
+const MS: Record<string, number> = {
+  "Offres trouvées": 6400,
+  "Variantes de l'intitulé": 820,
+  "Résumés des offres": 14300,
+  "Coach IA (panneau)": 9100,
+  "Résumé de l'offre": 2100,
+  "Dossier entreprise": 38500,
+  "CV adapté": 27400,
+  "Lettre de motivation": 12800,
+  Propositions: 5200,
+  "Corrections proposées": 6900,
+  "CV de référence (lecture du CV importé)": 11600,
+};
+const TOOL_MS: Record<string, number> = {
+  "API France Travail": 1450,
+  "API Fantastic.jobs": 2300,
+  "Recherche web (Perplexity)": 5800,
+  "API Greenhouse / Lever / Ashby": 3100,
+  "Lecture de page": 9700,
+  "Calcul du Match Score": 180,
+  "API Recherche d'entreprises": 640,
+  "Actualités (Perplexity)": 4200,
+};
 
 // Stubbed token counts per element (input + output), as ai_usage would sum them.
 const TOKENS: Record<string, number> = {
@@ -37,21 +89,22 @@ const TOKENS: Record<string, number> = {
   "Corrections proposées": 3020,
   "CV de référence (lecture du CV importé)": 6740,
 };
-const withTokens = (elements: Element[]) => elements.map((e) => (e.model && !e.model.startsWith("règles") ? { ...e, tokens: TOKENS[e.what] ?? 1500 } : e));
+const withTokens = (elements: Element[]) =>
+  elements.map((e) => (e.model && !e.model.startsWith("règles") ? { ...e, tokens: TOKENS[e.what] ?? 1500, ms: MS[e.what] ?? 3000 } : e));
 // Tokens in k from 1 000 on: « 312 tokens », « 2,1 k tokens », « 27,4 k tokens ».
 const fmt = (n: number) =>
   n < 1000 ? `${n} tokens` : `${(n / 1000).toLocaleString("fr-FR", { maximumFractionDigits: n < 100_000 ? 1 : 0 })} k tokens`;
 
 // A simulated Job Search, as the pane would receive it live (SSE or polling).
-type Step = { after: number; text: string; logo: string; model?: string; tokens?: number };
+type Step = { after: number; text: string; logo: string; model?: string; tool?: string; tokens?: number; ms: number; at?: number };
 const RUN: Step[] = [
-  { after: 400, text: "Variantes de l'intitulé", logo: "mistral", model: "mistral-medium", tokens: 312 },
-  { after: 1400, text: "API France Travail · 18 offres", logo: "France Travail" },
-  { after: 2300, text: "API Fantastic.jobs · 10 offres", logo: "Fantastic.jobs" },
-  { after: 3300, text: "Recherche web · 3 requêtes", logo: "Perplexity", model: "sonar (Perplexity)", tokens: 2140 },
-  { after: 4600, text: "Lecture de page · 12 pages", logo: "Lecture de page" },
-  { after: 5800, text: "Résumés des offres · 12", logo: "claude", model: "claude-haiku-4-5 (Bedrock eu-north-1)", tokens: 8420 },
-  { after: 6800, text: "Match Score · 40 offres classées", logo: "règles" },
+  { after: 400, text: "Variantes de l'intitulé", logo: "mistral", model: "mistral-medium", tokens: 312, ms: 790 },
+  { after: 1400, text: "API France Travail · 18 offres", logo: "France Travail", tool: "API France Travail", ms: 1320 },
+  { after: 2300, text: "API Fantastic.jobs · 10 offres", logo: "Fantastic.jobs", tool: "API Fantastic.jobs", ms: 2050 },
+  { after: 3300, text: "Recherche web · 3 requêtes", logo: "Perplexity", model: "sonar (Perplexity)", tool: "Recherche web (Perplexity)", tokens: 2140, ms: 5600 },
+  { after: 4600, text: "Lecture de page · 12 pages", logo: "Lecture de page", tool: "Lecture de page", ms: 8900 },
+  { after: 5800, text: "Résumés des offres · 12", logo: "claude", model: "claude-haiku-4-5 (Bedrock eu-north-1)", tokens: 8420, ms: 13700 },
+  { after: 6800, text: "Match Score · 40 offres classées", logo: "règles", tool: "Calcul du Match Score", ms: 160 },
 ];
 export type Run = { running: boolean; log: Step[] };
 
@@ -63,7 +116,7 @@ function useSimulatedRun(autostart: boolean) {
     timers.current.forEach((id) => window.clearTimeout(id));
     setRun({ running: true, log: [] });
     timers.current = RUN.map((step, i) =>
-      window.setTimeout(() => setRun((r) => ({ running: i < RUN.length - 1, log: [...r.log, step] })), step.after),
+      window.setTimeout(() => setRun((r) => ({ running: i < RUN.length - 1, log: [...r.log, { ...step, at: Date.now() }] })), step.after),
     );
   };
   useEffect(() => {
@@ -236,28 +289,28 @@ function Spinner() {
   );
 }
 
-const COACH: Element = { what: "Coach IA (panneau)", sources: ["Votre CV de référence", "Votre Profil"], model: "claude-sonnet-5 (Bedrock eu-north-1)", tools: ["Recherche web (Perplexity)", "Lecture de page"] };
+const COACH: Element = { what: "Coach IA (panneau)", sources: ["Votre CV de référence", "Votre Profil"], model: "claude-sonnet-5 (Bedrock eu-north-1)", tools: ["Recherche web (Perplexity)", "Lecture de page"], at: ago(8) };
 
 function stubFor(path: string): Element[] {
   if (/^\/offres\//.test(path))
     return [
-      { what: "Résumé de l'offre", sources: ["welcometothejungle.com"], model: "claude-haiku-4-5 (Bedrock eu-north-1)", tools: ["Lecture de page"], at: "22/10/2026" },
+      { what: "Résumé de l'offre", sources: ["welcometothejungle.com"], model: "claude-haiku-4-5 (Bedrock eu-north-1)", tools: ["Lecture de page"], at: ago(1560) },
       { what: "Pourquoi ce Match Score", sources: ["Offre", "Votre CV de référence"], model: "règles Jobbbox (sans IA)", tools: ["Calcul du Match Score"] },
     ];
   if (/^\/recherches|^\/job-digests\/./.test(path))
     return [
-      { what: "Offres trouvées", sources: ["France Travail", "Fantastic.jobs", "Perplexity (recherche web)", "Sites carrières (Greenhouse, Lever)"], model: "sonar (Perplexity)", tools: ["API France Travail", "API Fantastic.jobs", "Recherche web (Perplexity)", "API Greenhouse / Lever / Ashby", "Lecture de page"], at: "23/10/2026" },
-      { what: "Variantes de l'intitulé", sources: ["Vos critères de recherche"], model: "mistral-medium" },
-      { what: "Résumés des offres", sources: ["Pages des offres"], model: "claude-haiku-4-5 (Bedrock eu-north-1)", tools: ["Lecture de page"] },
+      { what: "Offres trouvées", sources: ["France Travail", "Fantastic.jobs", "Perplexity (recherche web)", "Sites carrières (Greenhouse, Lever)"], model: "sonar (Perplexity)", tools: ["API France Travail", "API Fantastic.jobs", "Recherche web (Perplexity)", "API Greenhouse / Lever / Ashby", "Lecture de page"], at: ago(25) },
+      { what: "Variantes de l'intitulé", sources: ["Vos critères de recherche"], model: "mistral-medium", at: ago(26) },
+      { what: "Résumés des offres", sources: ["Pages des offres"], model: "claude-haiku-4-5 (Bedrock eu-north-1)", tools: ["Lecture de page"], at: ago(24) },
     ];
   if (/^\/candidatures\/[^/]+\/dossier/.test(path))
     return [
-      { what: "Dossier entreprise", sources: ["Annuaire des entreprises (INSEE)", "Perplexity (recherche web)"], model: "anthropic.claude-opus-5 (Bedrock eu-north-1)", tools: ["API Recherche d'entreprises", "Recherche web (Perplexity)", "Actualités (Perplexity)"], at: "20/10/2026" },
+      { what: "Dossier entreprise", sources: ["Annuaire des entreprises (INSEE)", "Perplexity (recherche web)"], model: "anthropic.claude-opus-5 (Bedrock eu-north-1)", tools: ["API Recherche d'entreprises", "Recherche web (Perplexity)", "Actualités (Perplexity)"], at: ago(4360) },
     ];
   if (/^\/candidatures\/[^/]+\/documents/.test(path))
     return [
-      { what: "CV adapté", sources: ["Votre CV de référence", "Offre"], model: "anthropic.claude-opus-5 (Bedrock eu-north-1)", at: "21/10/2026" },
-      { what: "Lettre de motivation", sources: ["Votre CV de référence", "Offre"], model: "mistral-medium (consentement IA UE)", at: "21/10/2026" },
+      { what: "CV adapté", sources: ["Votre CV de référence", "Offre"], model: "anthropic.claude-opus-5 (Bedrock eu-north-1)", at: ago(2895) },
+      { what: "Lettre de motivation", sources: ["Votre CV de référence", "Offre"], model: "mistral-medium (consentement IA UE)", at: ago(2895) },
     ];
   if (/^\/candidatures\/[^/]+\/propositions|^\/profils\/[^/]+\/propositions/.test(path))
     return [{ what: "Propositions", sources: ["Votre Candidature", "Offre"], model: "claude-sonnet-5 (Bedrock eu-north-1)" }];
@@ -269,7 +322,7 @@ function stubFor(path: string): Element[] {
       { what: "Corrections proposées", sources: ["Votre CV de référence"], model: "claude-sonnet-5 (Bedrock eu-north-1)" },
     ];
   if (/^\/profils\/[^/]+(\/cv-de-reference|\/cv)?$/.test(path))
-    return [{ what: "CV de référence (lecture du CV importé)", sources: ["Votre CV importé"], model: "mistral-medium (consentement IA UE)", at: "02/10/2026" }];
+    return [{ what: "CV de référence (lecture du CV importé)", sources: ["Votre CV importé"], model: "mistral-medium (consentement IA UE)", at: ago(30240) }];
   return [];
 }
 
@@ -319,7 +372,7 @@ function VariantB({ elements }: { elements: Element[] }) {
               <th>Sources</th>
               <th>Modèle</th>
               <th>Outils</th>
-              <th>Produit le</th>
+              <th>Produit</th>
             </tr>
           </thead>
           <tbody>
@@ -329,7 +382,7 @@ function VariantB({ elements }: { elements: Element[] }) {
                 <td>{e.sources.join(", ")}</td>
                 <td>{e.model ?? "—"}</td>
                 <td>{e.tools?.join(", ") ?? "—"}</td>
-                <td>{e.at ?? "—"}</td>
+                <td>{when(e.at) || "—"}</td>
               </tr>
             ))}
           </tbody>
@@ -348,7 +401,7 @@ function VariantC({ elements }: { elements: Element[] }) {
       {detail ? (
         <div style={{ padding: "4px 0", borderBottom: "1px solid var(--color-border)" }}>
           <strong>{detail.what}</strong> — Sources : {detail.sources.join(", ")} · Modèle : {detail.model ?? "—"}
-          {detail.at ? ` · le ${detail.at}` : ""}
+          {detail.at ? ` · ${when(detail.at)}` : ""}
         </div>
       ) : null}
       <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 12px" }}>
@@ -482,9 +535,8 @@ function WithLinks({ label, children }: { label: string; children: ReactNode }) 
   );
 }
 
-function Labelled({ label, mono: isMono }: { label: string; mono?: boolean }) {
-  return (
-    <WithLinks label={label}>
+function Labelled({ label, mono: isMono, links }: { label: string; mono?: boolean; links?: boolean }) {
+  const inner = (
     <span style={{ display: "inline-flex", gap: "0.4em", alignItems: "center" }}>
       <Logo label={label} />
       {/bedrock/i.test(label) ? (
@@ -493,8 +545,9 @@ function Labelled({ label, mono: isMono }: { label: string; mono?: boolean }) {
       ) : null}
       <span style={isMono ? mono : undefined}>{label}</span>
     </span>
-    </WithLinks>
   );
+  // Links are shown for sources only, never for models or tools.
+  return links ? <WithLinks label={label}>{inner}</WithLinks> : inner;
 }
 
 const short = (model?: string) => model?.split(" ")[0] ?? "—";
@@ -556,8 +609,16 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
   const runModels = uniq(run.log.filter((x) => x.model).map((x) => x.model!)).filter((m) => !models.includes(m));
   const allModels = [...models, ...runModels];
   const total = allModels.reduce((n, m) => n + tokensOf(m), 0);
+  const msOf = (m: string) =>
+    elements.filter((e) => e.model === m).reduce((n, e) => n + (e.ms ?? 0), 0) +
+    run.log.filter((x) => x.model === m).reduce((n, x) => n + x.ms, 0);
+  const totalMs = allModels.reduce((n, m) => n + msOf(m), 0);
+  const toolMs = (t: string) =>
+    (elements.some((e) => e.tools?.includes(t)) ? (TOOL_MS[t] ?? 1000) : 0) +
+    run.log.filter((x) => x.tool === t && !x.model).reduce((n, x) => n + x.ms, 0);
+  const runTools = uniq(run.log.filter((x) => x.tool).map((x) => x.tool!));
   const sources = uniq(elements.flatMap((e) => e.sources));
-  const tools = uniq(elements.flatMap((e) => e.tools ?? []));
+  const tools = uniq([...elements.flatMap((e) => e.tools ?? []), ...runTools]);
   const toggle = (
     <button
       type="button"
@@ -608,7 +669,9 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
                 <span>
                   {run.running ? <Spinner /> : "✓"} {run.running ? "Recherche d'offres en cours" : "Dernière recherche"}
                 </span>
-                <span style={{ fontVariantNumeric: "tabular-nums" }}>{fmt(run.log.reduce((n, x) => n + (x.tokens ?? 0), 0))}</span>
+                <span style={{ fontVariantNumeric: "tabular-nums", textAlign: "right" }}>
+                  {fmt(run.log.reduce((n, x) => n + (x.tokens ?? 0), 0))} · {dur(run.log.reduce((n, x) => n + x.ms, 0))}
+                </span>
               </div>
               <ol style={{ listStyle: "none", margin: 0, padding: "0 0 0 1em" }}>
                 {run.log.map((x) => (
@@ -616,11 +679,15 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
                     <span style={{ display: "inline-flex", gap: "0.4em", alignItems: "flex-start" }}>
                       <Logo label={x.model ?? x.logo} />
                       <span>
-                        <WithLinks label={x.model ? x.text : x.logo}>{x.text}</WithLinks>
+                        {x.text}
                         {x.model ? <span style={{ ...mono, ...dim, display: "block", fontSize: "0.85em" }}>{short(x.model)}</span> : null}
                       </span>
                     </span>
-                    <span style={{ ...dim, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{x.tokens ? fmt(x.tokens) : ""}</span>
+                    <span style={{ ...dim, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", textAlign: "right" }}>
+                      {x.tokens ? fmt(x.tokens) : ""}
+                      {x.tokens ? <br /> : null}
+                      {dur(x.ms)} · {when(x.at)}
+                    </span>
                   </li>
                 ))}
                 {run.running ? (
@@ -640,25 +707,36 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
                 {allModels.map((m) => (
                   <li key={m} style={row}>
                     <Labelled label={m} mono />
-                    <span style={{ ...dim, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{tokensOf(m) ? fmt(tokensOf(m)) : "—"}</span>
+                    <span style={{ ...dim, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", textAlign: "right" }}>
+                      {tokensOf(m) ? fmt(tokensOf(m)) : "—"}
+                      <br />
+                      {msOf(m) ? dur(msOf(m)) : ""}
+                    </span>
                   </li>
                 ))}
                 <li style={{ ...row, borderTop: "1px solid var(--color-border)", marginTop: "0.3em", paddingTop: "0.4em" }}>
                   <strong>Total</strong>
-                  <strong style={{ whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{fmt(total)}</strong>
+                  <strong style={{ whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", textAlign: "right" }}>
+                    {fmt(total)}
+                    <br />
+                    {dur(totalMs)}
+                  </strong>
                 </li>
               </Section>
               <Section title="Sources" count={sources.length}>
                 {sources.map((x) => (
                   <li key={x} style={row}>
-                    <Labelled label={x} />
+                    <Labelled label={x} links />
                   </li>
                 ))}
               </Section>
               <Section title="Outils" count={tools.length}>
                 {tools.map((x) => (
                   <li key={x} style={{ padding: "0.2em 0" }}>
-                    <Labelled label={x} />
+                    <div style={row}>
+                      <Labelled label={x} />
+                      <span style={{ ...dim, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", textAlign: "right" }}>{toolMs(x) ? dur(toolMs(x)) : ""}</span>
+                    </div>
                     <div style={{ ...dim, fontSize: "0.9em", paddingLeft: "1.55em" }}>{usedBy(elements, (e) => e.tools?.includes(x) ?? false)}</div>
                   </li>
                 ))}
@@ -668,7 +746,7 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
                   <li key={e.what} style={{ padding: "0.4em 0" }}>
                     <div style={row}>
                       <strong>{e.what}</strong>
-                      <span style={dim}>{e.at ?? ""}</span>
+                      <span style={dim}>{when(e.at)}</span>
                     </div>
                     <Labelled label={short(e.model)} mono />
                     <div style={{ ...dim, display: "flex", flexWrap: "wrap", gap: "0.2em 0.5em", marginTop: "0.2em" }} title={[...e.sources, ...(e.tools ?? [])].join(" · ")}>
@@ -722,6 +800,7 @@ export function PrototypeAiProvenanceBar() {
   const raw = params.get("variant");
   const variant: Key = raw && raw in VARIANTS ? (raw as Key) : "D";
   const withCoach = params.get("coach") === "1";
+  shiftDays = params.get("lendemain") === "1" ? 1 : 0;
   const elements = withTokens([...stubFor(pathname), ...(withCoach ? [COACH] : [])]);
   const { run, start } = useSimulatedRun(params.get("run") === "1");
 

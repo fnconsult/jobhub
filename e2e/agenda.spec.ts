@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { parisDay } from "./support/paris-days";
 
 // Issue #246: the Agenda (« Entretiens et rendez-vous »), from the Sidebar right
 // after Mes candidatures, lists the Candidate's Interviews: upcoming ones by day in
@@ -23,9 +24,6 @@ const masterCv = {
   skills: ["IFRS"],
   languages: [],
 };
-
-/** The day `offset` days from now, in French time ("2026-10-30"). */
-const parisDay = (offset: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date(Date.now() + offset * 86_400_000));
 
 /** The Monday on or before `day` ("2026-10-30"). */
 const mondayOf = (day: string) => {

@@ -103,10 +103,10 @@ const RUN: Step[] = [
   { after: 1600, text: "Variantes de l'intitulé", logo: "mistral", model: "mistral-medium", tokens: 312, ms: 790, activity: "think", doing: "Variantes de l'intitulé (mistral-medium)" },
   { after: 3200, text: "API France Travail · 18 offres", logo: "France Travail", tool: "API France Travail", ms: 1320, activity: "search", doing: "Recherche sur France Travail" },
   { after: 4600, text: "API Fantastic.jobs · 10 offres", logo: "Fantastic.jobs", tool: "API Fantastic.jobs", ms: 2050, activity: "search", doing: "Recherche sur Fantastic.jobs" },
-  { after: 7600, text: "Recherche web · 3 requêtes", logo: "Perplexity", model: "sonar (Perplexity)", tool: "Recherche web (Perplexity)", tokens: 2140, ms: 5600, activity: "searchRead", doing: "Recherche web (sonar)" },
-  { after: 10000, text: "Lecture de page · 12 pages", logo: "Lecture de page", tool: "Lecture de page", ms: 8900, activity: "read", doing: "Lecture des pages d'offres" },
-  { after: 13400, text: "Résumés des offres · 12", logo: "claude", model: "claude-haiku-4-5 (Bedrock eu-north-1)", tokens: 8420, ms: 13700, activity: "thinkWrite", doing: "Résumés des offres (claude-haiku-4-5)" },
-  { after: 14800, text: "Match Score · 40 offres classées", logo: "règles", tool: "Calcul du Match Score", ms: 160, activity: "compute", doing: "Calcul des Match Scores" },
+  { after: 8600, text: "Recherche web · 3 requêtes", logo: "Perplexity", model: "sonar (Perplexity)", tool: "Recherche web (Perplexity)", tokens: 2140, ms: 5600, activity: "searchRead", doing: "Recherche web (sonar)" },
+  { after: 11000, text: "Lecture de page · 12 pages", logo: "Lecture de page", tool: "Lecture de page", ms: 8900, activity: "read", doing: "Lecture des pages d'offres" },
+  { after: 14400, text: "Résumés des offres · 12", logo: "claude", model: "claude-haiku-4-5 (Bedrock eu-north-1)", tokens: 8420, ms: 13700, activity: "thinkWrite", doing: "Résumés des offres (claude-haiku-4-5)" },
+  { after: 15800, text: "Match Score · 40 offres classées", logo: "règles", tool: "Calcul du Match Score", ms: 160, activity: "compute", doing: "Calcul des Match Scores" },
 ];
 export type Run = { running: boolean; log: Step[] };
 
@@ -137,16 +137,19 @@ const TASKS = ["M10 6h10M10 12h10M10 18h10", "M4 6l1.2 1.2L7.5 5", "M4 12l1.2 1.
 
 type Frame = { d: string[]; ms: number; morph?: number };
 
-// Brain: two hemispheres; the folds inside shift and sparks flicker above, « it thinks ».
-const HEMIS = [
-  "M12 5a3 3 0 0 0-5.6-1.2A3 3 0 0 0 4 8a3 3 0 0 0 .2 5A3 3 0 0 0 7 17.6 3 3 0 0 0 12 19z",
-  "M12 5a3 3 0 0 1 5.6-1.2A3 3 0 0 1 20 8a3 3 0 0 1-.2 5 3 3 0 0 1-2.8 4.6A3 3 0 0 1 12 19z",
+// Brain, in profile (front to the left): the outline, the cerebellum and the
+// brainstem stay; the folds inside shift and sparks flicker at the front, « it thinks ».
+const PROFILE = [
+  "M6 16.5C3.8 16 2.5 14.2 2.5 12c0-1.2.4-2.3 1.1-3.1C3.7 6.6 5.6 4.8 8 4.5c1-.9 2.4-1.4 3.9-1.2 1.2-.5 2.6-.4 3.7.3 2.3.3 4.2 2 4.8 4.2 1 .7 1.6 1.9 1.6 3.2 0 2.6-2.1 4.7-4.7 4.7H6z",
+  "M14.2 16.5c0 1.6 1.3 2.8 2.9 2.8 1.5 0 2.6-1.1 2.6-2.6",
+  "M11.2 16.5l-.6 4",
 ];
+// The folds: the lateral fissure, the central sulcus, a frontal and a parietal fold.
 const BRAIN: Frame[] = [
-  { d: [...HEMIS, "M12 5v14", "M8 9.5c1 0 2 .6 2 2M16 9.5c-1 0-2 .6-2 2"], ms: 160 },
-  { d: [...HEMIS, "M12 5v14", "M7.5 12c1.2-.4 2.2.2 2.5 1.4M16.5 12c-1.2-.4-2.2.2-2.5 1.4", "M12 1.2v1.3"], ms: 120 },
-  { d: [...HEMIS, "M12 5v14", "M8 8c1.4.2 2 1.2 1.8 2.4M16 8c-1.4.2-2 1.2-1.8 2.4", "M20.8 3.2l-1 .9"], ms: 120 },
-  { d: [...HEMIS, "M12 5v14", "M7.6 14.5c1.2.2 2 1 2 2M16.4 14.5c-1.2.2-2 1-2 2", "M3.2 3.2l1 .9"], ms: 120 },
+  { d: [...PROFILE, "M4 12.6c2.5-.4 5 .2 7.2 1.8", "M12.4 3.6c-.6 2.2.6 3.6-.2 5.8-.5 1.3-.2 2.4.6 3.2", "M6.4 6.6c1.3.6 2 1.8 1.8 3.2", "M16.8 5.6c-.4 1.8.4 3.2 2 3.8"], ms: 160 },
+  { d: [...PROFILE, "M4 12.2c2.6-.8 5.2-.2 7.4 1.4", "M12.8 3.6c-.9 2.1.4 3.8-.5 5.8-.4 1.2 0 2.4.9 3.1", "M6 7.2c1.5.3 2.4 1.4 2.4 2.9", "M17.4 5.8c-.7 1.7 0 3.3 1.6 4"], ms: 120 },
+  { d: [...PROFILE, "M4 13c2.4 0 4.9.6 7 2.1", "M12 3.6c-.3 2.3.9 3.5.1 5.7-.6 1.4-.4 2.5.4 3.3", "M6.8 6.2c1.1.8 1.7 2 1.4 3.4", "M16.2 5.6c-.2 1.9.7 3.1 2.4 3.6"], ms: 120 },
+  { d: [...PROFILE, "M4 12.6c2.5-.4 5 .2 7.2 1.8", "M12.4 3.6c-.6 2.2.6 3.6-.2 5.8-.5 1.3-.2 2.4.6 3.2", "M6.4 6.6c1.3.6 2 1.8 1.8 3.2", "M16.8 5.6c-.4 1.8.4 3.2 2 3.8", "M1.2 8.4L.4 7.8M1 12H0"], ms: 140 },
 ];
 
 // Magnifier: the lens sweeps over a page, « it searches ».
@@ -170,8 +173,13 @@ const READ: Frame[] = [
   { d: [...BOOK_OPEN, PAGE_L], ms: 30, morph: 120 },
 ];
 
-// Web search: the magnifier sweeps, then the book of results opens and is read.
-const SEARCH_READ: Frame[] = [...SEARCH, { d: ["M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z", "M5 18a2 2 0 0 1 2-2h12"], ms: 120 }, ...READ, ...READ];
+// Globe: it turns (its meridian narrows and widens), « it goes out on the web ».
+const meridian = (w: number) => `M12 3a${w} 9 0 1 0 0 18a${w} 9 0 1 0 0-18z`;
+const GLOBE_FRAME = (w: number): Frame => ({ d: ["M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z", "M3 12h18", "M4.5 7.5h15M4.5 16.5h15", meridian(w)], ms: 0, morph: 220 });
+const GLOBE: Frame[] = [GLOBE_FRAME(6), GLOBE_FRAME(3.5), GLOBE_FRAME(0.6), GLOBE_FRAME(3.5)];
+
+// Web search: the magnifier sweeps, the globe turns, then the book of results is read.
+const SEARCH_READ: Frame[] = [SEARCH[0], SEARCH[1], SEARCH[2], ...GLOBE, ...GLOBE, { d: ["M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z", "M5 18a2 2 0 0 1 2-2h12"], ms: 120 }, ...READ, ...READ];
 
 // Feather: it writes a line that grows under it, « it writes ».
 const FEATHER = ["M20.2 3.8a6 6 0 0 0-8.5 0L6 9.5V16h6.5l5.7-5.7a6 6 0 0 0 0-8.5z", "M15 7L4 18", "M16.5 12.5H9"];
@@ -197,7 +205,7 @@ const ACTIVITIES: Record<Activity, { frames: Frame[]; still: string[]; label: st
   think: { frames: BRAIN, still: BRAIN[0].d, label: "Réflexion", when: "un modèle raisonne ou classe (variantes de l'intitulé, Match Score par l'IA)" },
   thinkWrite: { frames: THINK_WRITE, still: BRAIN[0].d, label: "Rédaction par un modèle", when: "un modèle écrit un texte (résumés, CV adapté, lettre, dossier)" },
   search: { frames: SEARCH, still: lens(10, 10), label: "Recherche", when: "une API de recherche est appelée (France Travail, Fantastic.jobs, ATS, Recherche d'entreprises)" },
-  searchRead: { frames: SEARCH_READ, still: lens(10, 10), label: "Recherche web", when: "une recherche web trouve des pages puis en lit les résultats (Perplexity)" },
+  searchRead: { frames: SEARCH_READ, still: lens(10, 10), label: "Recherche web", when: "loupe, globe, livre : une recherche web part sur le web puis lit les résultats (Perplexity)" },
   read: { frames: READ, still: BOOK_OPEN, label: "Lecture", when: "des pages d'offres ou un CV sont lus" },
   write: { frames: WRITE, still: FEATHER, label: "Écriture", when: "un document est mis en forme (export, brouillon)" },
   compute: { frames: COMPUTE, still: TASKS, label: "Calcul", when: "des règles sans IA tournent (Score ATS, Match Score)" },
@@ -230,7 +238,7 @@ function Glyph({ d, active }: { d: string[]; active?: boolean }) {
 // When the activity changes, the glyph morphs from what it shows now into the new
 // activity's first frame. No library (see #279's findings).
 const POINTS = 40;
-const STROKES = 6;
+const STROKES = 9;
 type Pt = [number, number];
 type Shape = { pts: Pt[]; on: number }[];
 const cache = new Map<string, Shape>();

@@ -524,6 +524,9 @@
     "aiDisclosure": "I am an AI coach, not a person: an artificial intelligence program from Jobbbox. To talk to a person, you can book a session with a human coach. How can I help you?",
     "messageLabel": "Your message",
     "send": "Send",
+    "stop": "Stop",
+    "stopped": "Reply stopped",
+    "failed": "Your coach could not reply: {{reason}}. Try again in a moment.",
     "thinking": "Your coach is writing a reply…",
     "errors": {
       "unavailable": "Your coach can't reply right now. Please try again in a few moments.",

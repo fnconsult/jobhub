@@ -524,6 +524,9 @@
     "aiDisclosure": "Je suis un coach IA, pas une personne : un programme d'intelligence artificielle de Jobbbox. Pour parler à une personne, vous pouvez réserver une séance avec un coach humain. Comment puis-je vous aider ?",
     "messageLabel": "Votre message",
     "send": "Envoyer",
+    "stop": "Arrêter",
+    "stopped": "Réponse arrêtée",
+    "failed": "Votre coach n'a pas pu répondre : {{reason}}. Réessayez dans quelques instants.",
     "thinking": "Votre coach rédige sa réponse…",
     "errors": {
       "unavailable": "Votre coach ne peut pas répondre pour le moment. Réessayez dans quelques instants.",

@@ -582,6 +582,57 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   border-color: var(--color-text);
 }
 
+/* A reply on its way (#328): the step under way, its Activity's glyph beside its label, in place of a « thinking » notice. */
+.coach-panel-step {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-secondary);
+}
+
+.activity-glyph {
+  flex: none;
+  width: 1.25em;
+  height: 1.25em;
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* It breathes while the step runs; it holds still for those who asked for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .coach-panel-step .activity-glyph {
+    animation: activity-breathe 1.2s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes activity-breathe {
+  from {
+    opacity: 0.45;
+    transform: scale(0.92);
+  }
+}
+
+/* « Réponse arrêtée » (#328) and a failed reply's Failure Reason: very light red, said in words too. */
+.coach-panel .chat-stopped {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-danger-surface);
+  border-radius: var(--radius-md);
+}
+
+.chat-stopped-spent {
+  color: var(--color-text-meta);
+  font-size: var(--font-size-meta);
+}
+
+.notice-failed {
+  background: var(--color-danger-surface);
+  border-color: var(--color-danger);
+}
+
 /* The quiet line under a reply (#327): metadata, 0.8125rem in #6b6a67, on one line that wraps. */
 .provenance-line {
   display: flex;

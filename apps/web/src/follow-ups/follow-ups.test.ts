@@ -262,7 +262,15 @@ describe.skipIf(!connectionString)("Follow-ups (needs Postgres: DATABASE_URL)", 
       generate: async ({ system }: { system: string }) => {
         prompts.push(system);
         if (prompts.length > 1) throw new Error("AI layer down");
-        return { text: '{"subject": "Ma candidature DAF", "text": "Bonjour, je reviens vers vous."}' };
+        return {
+          text: '{"subject": "Ma candidature DAF", "text": "Bonjour, je reviens vers vous."}',
+          provider: "anthropic",
+          endpoint: "bedrock eu-north-1",
+          model: "anthropic.claude-sonnet-5",
+          usage: { inputTokens: 900, outputTokens: 120 },
+          durationMs: 2100,
+          outcome: "ok",
+        };
       },
     } as unknown as NonNullable<Parameters<typeof createFollowUps>[1]["ai"]>;
     const withAi = createFollowUps(database, {
@@ -277,10 +285,16 @@ describe.skipIf(!connectionString)("Follow-ups (needs Postgres: DATABASE_URL)", 
     await withAi.proposeDue(day("2026-11-12"));
     expect((await pendingCards())[0]!.payload).toMatchObject({ subject: "Ma candidature DAF", text: "Bonjour, je reviens vers vous." });
     expect(prompts[0]).toContain("français");
+    // What wrote it (#336): the writing step, its model and tokens.
+    expect((await pendingCards())[0]!.provenance).toMatchObject({
+      steps: [{ kind: "ai", activity: "write", task: "writing", provider: "anthropic", model: "anthropic.claude-sonnet-5", tokens: { input: 900, output: 120 }, ms: 2100, outcome: "ok" }],
+    });
 
     await markSentOn(day("2026-11-12"));
     await withAi.proposeDue(day("2026-11-26"));
     expect((await pendingCards())[0]!.payload).toMatchObject({ subject: expect.stringContaining("DAF H/F"), text: expect.stringContaining("Bonjour") });
+    // Written from the template, by no model: none kept.
+    expect((await pendingCards())[0]!.provenance).toBeNull();
   });
 
   it("never proposes on, or lets anyone else act on, a Candidate's Application", async () => {

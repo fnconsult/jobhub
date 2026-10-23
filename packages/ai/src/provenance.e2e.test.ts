@@ -7,6 +7,7 @@
 import { ACTIVITIES, provenanceLink, readProvenance, TOOLS, type Provenance, type SearchCriteria } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { activityOf, createAiLayer, createProvenanceRecorder, FEATURE_STEPS, SEARCH_TASK, TEXT_TASKS, TOOL_STEPS } from "./index";
+import type { AiTask } from "./types";
 import { createFakeProvider, createMemoryUsageLog } from "./testing";
 
 const criteria: SearchCriteria = { targetRole: "Développeur", locations: ["Paris"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] };
@@ -62,7 +63,7 @@ describe("Folding keeps a 30-offer Job Search to a few dozen steps", () => {
 
 describe("A test fails when an AI task or a Tool of the catalog has no Activity", () => {
   it("gives every AI task of the AI layer an Activity", () => {
-    for (const task of [...(Object.keys(TEXT_TASKS) as (keyof typeof TEXT_TASKS)[]), SEARCH_TASK]) {
+    for (const task of [...(Object.keys(TEXT_TASKS) as (keyof typeof TEXT_TASKS)[]), SEARCH_TASK] as AiTask[]) {
       expect(ACTIVITIES, `AI task ${task}`).toContain(activityOf({ kind: "ai", task }));
     }
   });

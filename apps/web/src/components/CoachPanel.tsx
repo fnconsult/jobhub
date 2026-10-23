@@ -12,7 +12,7 @@ import { CoachConversationList, type ConversationSummary } from "@/components/Co
 import { CoachMemoryProposals, CoachMemoryView } from "@/components/CoachMemory";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icons } from "@/components/icons";
-import { PrototypeReplyActivity, PrototypeReplyResult, protoResultFor, type ProtoReplyResult } from "@/components/PrototypeAiProvenanceBar";
+import { PrototypeReplyActivity, PrototypeReplyResult, protoResultFor, protoStoppedResult, type ProtoReplyResult } from "@/components/PrototypeAiProvenanceBar";
 import { StartJobSearchButton } from "@/components/JobSearchControls";
 import { routes } from "@/routes";
 
@@ -279,6 +279,29 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   // PROTOTYPE: each reply's run results, by the reply's index (stubbed, see PrototypeReplyResult).
   const [protoResults, setProtoResults] = useState<Record<number, ProtoReplyResult>>({});
   const [protoQuestion, setProtoQuestion] = useState("");
+  // PROTOTYPE: « Arrêter » (#316). What is running: the demo's timer or the real request.
+  const protoTimer = useRef<number | undefined>(undefined);
+  const protoAbort = useRef<AbortController | null>(null);
+  const protoStarted = useRef(0);
+  const protoAsked = useRef("");
+  const stopReply = useCallback(() => {
+    window.clearTimeout(protoTimer.current);
+    // Today the server finishes the reply and saves it anyway (#319): the real build aborts the AI call.
+    protoAbort.current?.abort();
+    protoAbort.current = null;
+    const question = protoAsked.current;
+    const result = protoStoppedResult(question, performance.now() - protoStarted.current);
+    setMessages((m) => {
+      setProtoResults((r) => ({ ...r, [m.length]: result }));
+      return [...m, { from: "coach", text: "Réponse arrêtée" }];
+    });
+    window.dispatchEvent(new CustomEvent("proto-coach-done", { detail: { ...result, question } }));
+    setStatus("idle");
+  }, []);
+  useEffect(() => {
+    window.addEventListener("proto-coach-stop", stopReply);
+    return () => window.removeEventListener("proto-coach-stop", stopReply);
+  }, [stopReply]);
   // PROTOTYPE: « ▶ coach » in the prototype switcher plays an exchange without calling the AI.
   useEffect(() => {
     const play = (event: Event) => {
@@ -286,9 +309,11 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
       setOpen(true);
       setView("chat");
       setProtoQuestion(question);
+      protoAsked.current = question;
+      protoStarted.current = performance.now();
       setStatus("sending");
       setMessages((m) => [...m, { from: "candidate", text: question }]);
-      window.setTimeout(() => {
+      protoTimer.current = window.setTimeout(() => {
         const result = protoResultFor(question);
         setMessages((m) => {
           setProtoResults((r) => ({ ...r, [m.length]: result }));
@@ -428,6 +453,10 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     setDraft("");
     setStatus("sending");
     setProtoQuestion(text);
+    protoAsked.current = text;
+    protoStarted.current = performance.now();
+    const controller = new AbortController();
+    protoAbort.current = controller;
     const giveBack = (error: Status) => {
       // Give the Candidate their message back to retry or shorten it.
       setMessages(messages);
@@ -436,6 +465,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     };
     try {
       const response = await fetch(panel.send, {
+        signal: controller.signal,
         method: "POST",
         headers: { "content-type": "application/json" },
         // The server holds the conversation: only the new message goes.
@@ -469,6 +499,8 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
         setStatus("unavailable");
       } else giveBack(body.error === "invalid" ? "invalid" : "unavailable");
     } catch {
+      // Stopped: stopReply has already said so.
+      if (controller.signal.aborted) return;
       giveBack("unavailable");
     }
   }
@@ -597,7 +629,15 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                       <li key={index} className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}${message.blocked ? " chat-blocked" : ""}`}>
                         <span className="visually-hidden">{message.from === "coach" ? t(texts.author) : t("questionnaire.you")}</span>
                         {message.blocked ? <span className="chat-blocked-label">{t("coachPanel.blocked")}</span> : null}
-                        {message.from === "coach" ? <CoachReplyText text={message.text} /> : <p>{message.text}</p>}
+                        {message.from === "coach" ? (
+                          protoResults[index]?.stopped ? (
+                            <p style={{ fontStyle: "italic", color: "var(--color-text-secondary)" }}>{message.text}</p>
+                          ) : (
+                            <CoachReplyText text={message.text} />
+                          )
+                        ) : (
+                          <p>{message.text}</p>
+                        )}
                         {message.jobOffer ? <JobOfferCard jobOffer={message.jobOffer} /> : null}
                         {protoResults[index] ? <PrototypeReplyResult result={protoResults[index]} /> : null}
                       </li>
@@ -637,9 +677,17 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                         }
                       }}
                     />
-                    <button className="button button-primary" type="submit" disabled={status === "sending" || restoring}>
-                      {t("coachPanel.send")}
-                    </button>
+                    {status === "sending" ? (
+                      // PROTOTYPE: « Envoyer » becomes « Arrêter » while a reply is on its way (#316).
+                      <button className="button" type="button" onClick={stopReply}>
+                        <span aria-hidden style={{ display: "inline-block", width: "0.6em", height: "0.6em", marginRight: "0.45em", background: "currentColor", borderRadius: 1 }} />
+                        Arrêter
+                      </button>
+                    ) : (
+                      <button className="button button-primary" type="submit" disabled={restoring}>
+                        {t("coachPanel.send")}
+                      </button>
+                    )}
                   </div>
                   {/* What goes with the message: one line, opened for the whole text (and the Job Search). */}
                   <details className="coach-panel-context">

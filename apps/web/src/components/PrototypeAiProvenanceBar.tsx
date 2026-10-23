@@ -116,9 +116,12 @@ const RUN_DOCS: Step[] = [
   { after: 11800, text: "Lettre de motivation rédigée", logo: "mistral", model: "mistral-medium (consentement IA UE)", tokens: 4310, ms: 12800, activity: "write", doing: "Rédaction de la lettre (mistral-medium)" },
   { after: 13000, text: "Vérification : aucun fait inventé", logo: "règles", tool: "Garde-fou faits du CV", ms: 240, activity: "compute", doing: "Vérification des faits (ADR-0006)" },
 ];
-const RUNS = { search: { steps: RUN, live: "Recherche d'offres en cours", done: "Dernière recherche" }, docs: { steps: RUN_DOCS, live: "Rédaction des documents en cours", done: "Derniers documents" } };
+const RUNS = {
+  search: { steps: RUN, live: "Recherche d'offres en cours", done: "Dernière recherche", stopped: "Recherche arrêtée" },
+  docs: { steps: RUN_DOCS, live: "Rédaction des documents en cours", done: "Derniers documents", stopped: "Rédaction arrêtée" },
+};
 type RunKind = keyof typeof RUNS;
-export type Run = { running: boolean; log: Step[]; kind: RunKind };
+export type Run = { running: boolean; log: Step[]; kind: RunKind; stoppedAt?: number };
 
 function useSimulatedRun(autostart: RunKind | null) {
   const [run, setRun] = useState<Run>({ running: false, log: [], kind: "search" });
@@ -132,12 +135,17 @@ function useSimulatedRun(autostart: RunKind | null) {
       window.setTimeout(() => setRun((r) => ({ ...r, running: i < steps.length - 1, log: [...r.log, { ...step, at: Date.now() }] })), step.after),
     );
   };
+  // « Arrêter »: the steps not done are dropped; those done stay with their tokens and time (#316).
+  const stop = () => {
+    timers.current.forEach((id) => window.clearTimeout(id));
+    setRun((r) => ({ ...r, running: false, stoppedAt: Date.now() }));
+  };
   useEffect(() => {
     if (autostart) start(autostart);
     return () => timers.current.forEach((id) => window.clearTimeout(id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  return { run, start };
+  return { run, start, stop };
 }
 
 // Line icons in the app's style (icons.tsx: 24 grid, stroke 1.5). At rest the
@@ -680,7 +688,22 @@ const dim: CSSProperties = { color: "var(--color-text-secondary)" };
 // What a value is used by, for the right-hand column of a summary row.
 const usedBy = (elements: Element[], has: (e: Element) => boolean) => elements.filter(has).map((e) => e.what).join(", ");
 
-function VariantD({ elements, tiny, run, coach }: { elements: Element[]; tiny: boolean; run: Run; coach: CoachLive }) {
+// The pane's « Arrêter »: quiet, framed, beside the live section's title.
+function StopButton({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      style={{ font: "inherit", fontSize: "0.92em", display: "inline-flex", gap: "0.35em", alignItems: "center", padding: "0.1em 0.6em", background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", cursor: "pointer", color: "var(--color-text)" }}
+    >
+      <span aria-hidden style={{ width: "0.6em", height: "0.6em", background: "currentColor", borderRadius: 1 }} />
+      Arrêter
+    </button>
+  );
+}
+
+function VariantD({ elements, tiny, run, coach, onStop }: { elements: Element[]; tiny: boolean; run: Run; coach: CoachLive; onStop: () => void }) {
   const [open, setOpen] = useState(true);
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   useEffect(() => {
@@ -824,6 +847,7 @@ function VariantD({ elements, tiny, run, coach }: { elements: Element[]; tiny: b
                 <span>
                   {coachStage ? <Spinner activity={coachStage.activity} /> : null} Coach : réponse en cours
                 </span>
+                <StopButton onClick={() => window.dispatchEvent(new Event("proto-coach-stop"))} label="Arrêter la réponse du Coach" />
               </div>
               <div style={{ ...dim, fontSize: "0.92em", padding: "0.1em 0 0.3em" }}>« {coach.question} »</div>
               <ol style={{ listStyle: "none", margin: 0, padding: 0 }}>
@@ -840,8 +864,10 @@ function VariantD({ elements, tiny, run, coach }: { elements: Element[]; tiny: b
             <section aria-live="polite" style={{ padding: "0.5em 0" }}>
               <div style={{ ...row, color: "var(--color-text-secondary)" }}>
                 <span>
-                  {current ? <Spinner activity={current.activity} /> : "✓"} {run.running ? RUNS[run.kind].live : RUNS[run.kind].done}
+                  {pageStep ? <Spinner activity={pageStep.activity} /> : run.stoppedAt ? "■" : "✓"}{" "}
+                  {run.running ? RUNS[run.kind].live : run.stoppedAt ? `${RUNS[run.kind].stopped} à ${when(run.stoppedAt)}` : RUNS[run.kind].done}
                 </span>
+                {run.running ? <StopButton onClick={onStop} label={`Arrêter : ${RUNS[run.kind].live}`} /> : null}
                 <span style={{ fontVariantNumeric: "tabular-nums", textAlign: "right" }}>
                   {both(run.log.reduce((n, x) => n + (x.tokens ?? 0), 0), run.log.reduce((n, x) => n + x.ms, 0))}
                 </span>
@@ -1019,7 +1045,7 @@ export function PrototypeAiProvenanceBar() {
   const coach = useCoachFeed();
   // The page's own content, combined with what the Coach answered on it.
   const coachElements: Element[] = coach.done.map((r) => ({
-    what: `Coach IA · « ${r.question.length > 38 ? `${r.question.slice(0, 38)}…` : r.question} »`,
+    what: `Coach IA${r.stopped ? " (arrêtée)" : ""} · « ${r.question.length > 38 ? `${r.question.slice(0, 38)}…` : r.question} »`,
     sources: r.sources,
     model: r.model,
     tools: r.tools,
@@ -1029,7 +1055,7 @@ export function PrototypeAiProvenanceBar() {
   }));
   const elements = withTokens([...stubFor(pathname), ...(withCoach ? [COACH] : []), ...coachElements]);
   const runParam = params.get("run");
-  const { run, start } = useSimulatedRun(runParam === "1" ? "search" : runParam === "docs" ? "docs" : null);
+  const { run, start, stop } = useSimulatedRun(runParam === "1" ? "search" : runParam === "docs" ? "docs" : null);
 
   const go = (step: number) => {
     const next = KEYS[(KEYS.indexOf(variant) + step + KEYS.length) % KEYS.length];
@@ -1055,7 +1081,7 @@ export function PrototypeAiProvenanceBar() {
       {variant === "A" ? <VariantA elements={elements} /> : null}
       {variant === "B" ? <VariantB elements={elements} /> : null}
       {variant === "C" ? <VariantC elements={elements} /> : null}
-      {variant === "D" ? <VariantD elements={elements} tiny={params.get("size") === "9"} run={run} coach={coach.live} /> : null}
+      {variant === "D" ? <VariantD elements={elements} tiny={params.get("size") === "9"} run={run} coach={coach.live} onStop={stop} /> : null}
       <div
         style={{ position: "fixed", left: "50%", bottom: 64, transform: "translateX(-50%)", zIndex: 50, display: "flex", gap: 8, alignItems: "center", padding: "6px 12px", borderRadius: 999, background: "#111", color: "#fff", fontSize: 14, boxShadow: "0 4px 16px rgb(0 0 0 / 30%)" }}
       >
@@ -1128,7 +1154,14 @@ export function PrototypeReplyActivity({ question }: { question: string }) {
   );
 }
 
-export type ProtoReplyResult = { model: string; tokens: number; ms: number; tools: string[]; sources: string[]; at: number };
+export type ProtoReplyResult = { model: string; tokens: number; ms: number; tools: string[]; sources: string[]; at: number; stopped?: boolean };
+
+// What a stopped reply had spent: the time it ran, and tokens in proportion (stubbed).
+export function protoStoppedResult(question: string, ranMs: number): ProtoReplyResult {
+  const full = protoResultFor(question);
+  const part = Math.min(1, ranMs / full.ms);
+  return { ...full, tokens: Math.round(full.tokens * part * 0.6), ms: ranMs, stopped: true };
+}
 
 export function protoResultFor(question: string): ProtoReplyResult {
   const search = wantsSearch(question);
@@ -1152,6 +1185,7 @@ export function PrototypeReplyResult({ result }: { result: ProtoReplyResult }) {
         <span style={mono}>{short(result.model)}</span>
       </span>
       <span>{both(result.tokens, result.ms)}</span>
+      {result.stopped ? <span>arrêtée</span> : null}
       {result.tools.map((x) => (
         <span key={x} style={{ display: "inline-flex", gap: "0.3em", alignItems: "center" }}>
           <Logo label={x} />

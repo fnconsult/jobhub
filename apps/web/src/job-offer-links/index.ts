@@ -17,16 +17,22 @@
  * are read only while `reading` (the "job-offer-reading" task Playbook) is served. The Job Offer's
  * analysis (its Match Score, At a glance) is left to its page, where the Candidate follows it.
  */
-import { readJobPage, type AiLayer, type TaskInstructions } from "@jobhub/ai";
+import { readJobPage, type AiLayer, type ProvenanceRecorder, type TaskInstructions } from "@jobhub/ai";
 import { believablePostingDate, FORBIDDEN_SITES, isForbiddenSite, type JobOffer } from "@jobhub/shared";
 import { countJobPostings, createPoliteFetcher, DEFAULT_USER_AGENT, htmlToText, metaRobots, readJobPosting, type Clock } from "@jobhub/shared/page-reading";
 import type { JobOffers } from "../job-offers";
 
 export type JobOfferLinkResult = { ok: true; jobOffer: JobOffer } | { ok: false; reason: "forbidden_site" | "unreadable" | "not_a_job_offer" };
 
+/** Where a read records its steps: the reply's ProvenanceRecorder (#327). */
+export type ReadProvenance = Pick<ProvenanceRecorder, "aiFor" | "step" | "site">;
+
 export interface JobOfferLinks {
-  /** The Job Offer at `url`, read for the Candidate (`candidateId`, for AI Usage), or why there is none. */
-  read(candidateId: string, url: string): Promise<JobOfferLinkResult>;
+  /**
+   * The Job Offer at `url`, read for the Candidate (`candidateId`, for AI Usage), or why there is none.
+   * With `provenance`, the page read is recorded there: its Tool, the AI reading it, and the page as a Provenance site.
+   */
+  read(candidateId: string, url: string, provenance?: ReadProvenance): Promise<JobOfferLinkResult>;
 }
 
 export interface JobOfferLinksDeps {
@@ -64,7 +70,7 @@ const hostOf = (url: string) => {
 
 export function createJobOfferLinks(deps: JobOfferLinksDeps): JobOfferLinks {
   return {
-    async read(candidateId, url) {
+    async read(candidateId, url, provenance) {
       const host = hostOf(url);
       if (host === null) return { ok: false, reason: "unreadable" };
       if (isForbiddenSite(host, FORBIDDEN_SITES)) return { ok: false, reason: "forbidden_site" };
@@ -81,13 +87,16 @@ export function createJobOfferLinks(deps: JobOfferLinksDeps): JobOfferLinks {
           ...(deps.clock ? { clock: deps.clock } : {}),
         });
         // A redirect to a page already stored gives its Job Offer.
-        const page = await fetcher.page(url, (target) => deps.jobOffers.findBySourceUrl(target));
+        const fetchPage = () => fetcher.page(url, (target) => deps.jobOffers.findBySourceUrl(target));
+        const page = provenance ? await recordedPageRead(provenance, fetchPage) : await fetchPage();
         if (page.ok === "known") return { ok: true, jobOffer: page.known };
         if (!page.ok) return { ok: false, reason: page.reason === "site_terms" ? "forbidden_site" : "unreadable" };
         if (metaRobots(page.html).some((value) => /\b(noindex|none)\b/.test(value))) return { ok: false, reason: "unreadable" };
+        provenance?.site(page.url);
 
         let details = readJobPosting(page.html);
-        if (!details && countJobPostings(page.html) <= 1) details = await readJobPage(deps.ai, candidateId, htmlToText(page.html), (await deps.reading?.()) ?? null);
+        const ai = provenance ? provenance.aiFor("read_job_page") : deps.ai;
+        if (!details && countJobPostings(page.html) <= 1) details = await readJobPage(ai, candidateId, htmlToText(page.html), (await deps.reading?.()) ?? null);
         if (!details) return { ok: false, reason: "not_a_job_offer" };
 
         // What the server read from the page itself is trusted, as Job discovery's is: never a date from a browser.
@@ -102,4 +111,26 @@ export function createJobOfferLinks(deps: JobOfferLinksDeps): JobOfferLinks {
       }
     },
   };
+}
+
+/** A page that could not be read, carried out of its Provenance step so the step is recorded as failed. */
+class PageNotRead<T> extends Error {
+  override name = "PageNotRead";
+  constructor(readonly page: T) {
+    super("page not read");
+  }
+}
+
+/** The page read as one Tool step of the reply's Provenance: failed when the page could not be read. */
+async function recordedPageRead<T extends { ok: boolean | "known" }>(provenance: ReadProvenance, read: () => Promise<T>): Promise<T> {
+  try {
+    return await provenance.step({ tool: "job-site" }, async () => {
+      const page = await read();
+      if (page.ok === false) throw new PageNotRead(page);
+      return page;
+    });
+  } catch (error) {
+    if (error instanceof PageNotRead) return error.page as T;
+    throw error;
+  }
 }

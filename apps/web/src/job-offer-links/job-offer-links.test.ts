@@ -1,4 +1,4 @@
-import { createAiLayer } from "@jobhub/ai";
+import { createAiLayer, createProvenanceRecorder } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import type { JobOffer } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
@@ -53,7 +53,7 @@ function setUp(pages: Record<string, Page | "down">, { reply = '{"isJobOffer": f
   const ai = createAiLayer({ providers: [llm], routes: { offer_analysis: "mistral" }, euAiConsent: async () => false, warn: () => {}, usage });
   const { jobOffers, captures } = memoryJobOffers(stored);
   const links = createJobOfferLinks({ ai, jobOffers, fetch: web.fetch, clock: { now: () => Date.now(), sleep: async () => {} } });
-  return { links, web, llm, usage, captures };
+  return { links, web, llm, usage, captures, ai };
 }
 
 const POSTING_URL = "https://carrieres.groupe-seb.fr/offres/daf-lyon";
@@ -173,5 +173,42 @@ describe("reading a Job Offer from a link the Candidate pasted", () => {
     expect(await links.read("cand-1", POSTING_URL)).toEqual({ ok: true, jobOffer: stored });
     expect(web.requests).toEqual([]);
     expect(captures).toEqual([]);
+  });
+
+  describe("recorded in the reply's Provenance (#327)", () => {
+    it("records the page read as its Tool, the AI reading it, and the page as a Provenance site", async () => {
+      const { links, ai } = setUp(
+        { "https://carrieres.groupe-seb.fr/robots.txt": ROBOTS_ALLOW, [POSTING_URL]: { body: plainPage } },
+        { reply: '{"isJobOffer": true, "title": "DAF H/F", "content": "Groupe Seb recrute son DAF à Lyon."}' },
+      );
+      const recorder = createProvenanceRecorder(ai);
+
+      await links.read("cand-1", POSTING_URL, recorder);
+
+      expect(recorder.provenance().steps).toEqual([
+        expect.objectContaining({ kind: "tool", tool: "job-site", activity: "read", outcome: "ok" }),
+        expect.objectContaining({ kind: "ai", task: "offer_analysis", activity: "read", provider: "mistral", outcome: "ok" }),
+      ]);
+      expect(recorder.provenance().sites).toEqual([{ kind: "web", domain: "carrieres.groupe-seb.fr", links: [POSTING_URL] }]);
+    });
+
+    it("records a page that could not be read as a failed Tool step, with no site", async () => {
+      const { links, ai } = setUp({ "https://carrieres.groupe-seb.fr/robots.txt": ROBOTS_ALLOW });
+      const recorder = createProvenanceRecorder(ai);
+
+      expect(await links.read("cand-1", POSTING_URL, recorder)).toEqual({ ok: false, reason: "unreadable" });
+
+      expect(recorder.provenance().steps).toEqual([expect.objectContaining({ kind: "tool", tool: "job-site", outcome: "failed" })]);
+      expect(recorder.provenance().sites).toEqual([]);
+    });
+
+    it("records nothing for a Forbidden site, never requested", async () => {
+      const { links, ai } = setUp({});
+      const recorder = createProvenanceRecorder(ai);
+
+      await links.read("cand-1", "https://www.linkedin.com/jobs/view/123", recorder);
+
+      expect(recorder.provenance()).toMatchObject({ steps: [], sites: [] });
+    });
   });
 });

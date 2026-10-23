@@ -459,10 +459,12 @@ describe("the Candidate's identity: first name only", () => {
     const otherPhone: Profile = { ...profile, masterCv: { version: 4, content: { ...profile.masterCv.content, summary: "Mon portable perso : 07.98.76.54.32" } } };
     const coach = createCoach({ ai, playbooks: servedOf(NO_AGENTS), ...sourcesOf({ ...emptyWorkspace(), profiles: [otherPhone] }) });
 
-    await ask(coach, { kind: "profile", id: profile.id });
+    const result = await ask(coach, { kind: "profile", id: profile.id });
 
     expect(mistral.calls).toHaveLength(1);
     expect(claude.calls).toHaveLength(0);
+    // Its Provenance says Mistral served it under the Candidate's EU AI Consent (#327).
+    expect(result).toMatchObject({ ok: true, provenance: { steps: [{ kind: "ai", task: "coaching", provider: "mistral", euAiConsent: true }] } });
   });
 });
 
@@ -1274,5 +1276,52 @@ describe("a Job Offer link the Candidate pastes", () => {
 
     expect(links.read).toEqual([]);
     expect(replies(provider)).toHaveLength(1);
+  });
+});
+
+describe("the reply's Provenance (#327, ADR-0034)", () => {
+  const conversation = [{ from: "candidate" as const, text: "Comment réussir mon entretien de jeudi ?" }];
+
+  it("records each AI step of the reply: the Guardrail checks, the choice, the consultations and the reply, with the model that served each", async () => {
+    const { coach } = coachWith({ guarded: true, served: SERVED, choose: '["interview-psychology"]' });
+
+    const result = await coach.reply("marie", { messages: conversation });
+
+    if (!result.ok) throw new Error("no reply");
+    expect(result.provenance.steps).toEqual([
+      expect.objectContaining({ kind: "ai", task: "guardrail", activity: "think", provider: "mistral", outcome: "ok", count: 2 }),
+      expect.objectContaining({ kind: "ai", task: "coaching", activity: "think", provider: "mistral", count: 1 }),
+      expect.objectContaining({ kind: "ai", task: "coaching", activity: "think", provider: "anthropic", model: "anthropic.claude-haiku-5-5", count: 1 }),
+      expect.objectContaining({ kind: "ai", task: "coaching", activity: "think_write", provider: "mistral", count: 1 }),
+    ]);
+    expect(result.provenance.steps.every((step) => step.kind === "ai" && step.tokens && step.endpoint)).toBe(true);
+    expect(result.provenance.sites).toEqual([]);
+  });
+
+  it("is only the reply's step without Guardrails or Playbook Agents", async () => {
+    const { coach } = coachWith();
+
+    const result = await coach.reply("marie", { messages: conversation });
+
+    expect(result).toMatchObject({ ok: true, provenance: { v: 1, steps: [{ kind: "ai", task: "coaching", activity: "think_write", provider: "mistral" }] } });
+  });
+
+  it("holds the page read when the message holds a link: its Tool and the page as a Provenance site", async () => {
+    const LINK = "https://carrieres.example.fr/daf";
+    const { coach } = coachWith({
+      jobOfferLinks: {
+        read: async (_candidateId, url, provenance) => {
+          await provenance?.step({ tool: "job-site" }, async () => "<html>");
+          provenance?.site(url);
+          return { ok: true, jobOffer };
+        },
+      },
+    });
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: `Que pensez-vous de ${LINK} ?` }] });
+
+    if (!result.ok) throw new Error("no reply");
+    expect(result.provenance.steps).toEqual([expect.objectContaining({ kind: "tool", tool: "job-site", activity: "read", outcome: "ok" })]);
+    expect(result.provenance.sites).toEqual([{ kind: "web", domain: "carrieres.example.fr", links: [LINK] }]);
   });
 });

@@ -116,6 +116,8 @@ export interface GuardRequest {
   candidateId: string;
   /** The language the Guardrail message is shown in. */
   language: GuardrailLanguage;
+  /** The AI layer this request's AI checks go through: the reply's ProvenanceRecorder, to keep them in its Provenance (#327). Default: the Guardrails' own. */
+  ai?: AiLayer;
   /** The latest message, as typed: what the input checks read. */
   message: string;
   /** Everything the Candidate wrote in the conversation: an email address or phone number in it is theirs. */
@@ -291,7 +293,7 @@ export function createGuardrails(deps: GuardrailsDeps): Guardrails {
         let reason: GuardrailFailureReason;
         try {
           const call = await Promise.race([
-            deps.ai.generate({
+            (request.ai ?? deps.ai).generate({
               task: "guardrail",
               candidateId: request.candidateId,
               system: checkSystem(kind, guardrails),

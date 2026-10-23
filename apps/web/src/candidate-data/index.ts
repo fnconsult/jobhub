@@ -24,13 +24,14 @@
  *    be referenced by other Candidates: they are kept.
  */
 import { failureReasonWording } from "@jobhub/shared/i18n";
-import { isFailureReason, type FailureReason, type Outcome, type Plan, type SearchCriteria } from "@jobhub/shared";
+import { isFailureReason, type FailureReason, type Outcome, type Plan, type Provenance, type SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type { ActionCard } from "../action-cards";
 import type { Application, Applications } from "../applications";
 import type { KeptAtsScore } from "../ats-score";
 import type { AssistantMessage } from "../back-office-assistant";
 import type { CoachMessage } from "../coach";
+import { SAVED_REPLY_COLUMNS, savedReplyProvenance, type SavedReply } from "../coach-conversations";
 import type { CompanyDossier } from "../company-dossiers";
 import type { ContactProviderId } from "../enriched-contacts";
 import type { FollowUpDelays } from "../follow-ups";
@@ -157,8 +158,16 @@ export interface ExportedCoachConversation {
   createdAt: Date;
   lastMessageAt: Date;
   /** Oldest first. */
-  /** `jobOfferId`: the Job Offer of a reply's Job Offer card. */
-  messages: (Omit<CoachMessage, "jobOffer"> & { jobOfferId?: string; sentAt: Date })[];
+  /**
+   * `jobOfferId`: the Job Offer of a reply's Job Offer card. `provenance`: what served a reply (#327), when it is known.
+   * `focus`: the page's object in view when a reply was asked (an Application, a Job Offer or a Profile).
+   */
+  messages: (Omit<CoachMessage, "jobOffer" | "at" | "provenance"> & {
+    jobOfferId?: string;
+    sentAt: Date;
+    provenance?: Provenance;
+    focus?: { kind: "application" | "job_offer" | "profile"; id: string };
+  })[];
 }
 
 /** A conversation an Administrator had with the Back Office Assistant, every message included (what each reply cost is internal, left out). */
@@ -287,7 +296,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   enriched_contact: "applications[].enrichedContacts (no provider identifiers)",
   company_dossier: "applications[].companyDossier",
   coach_conversation: "coachConversations",
-  coach_message: "coachConversations[].messages (blocked ones marked, a Job Offer card's Job Offer named; no AI costs)",
+  coach_message: "coachConversations[].messages (blocked ones marked, a Job Offer card's Job Offer named, each reply's Provenance and focus; no AI costs)",
   coach_access: "coachAccess",
   coaching_session: "coachingSessions, with their date, duration, video link, note and who last changed the date (no Stripe identifiers, no booking link)",
   coaching_session_reschedule: "coachingSessions[].reschedules (their Reschedule history, cancellations included)",
@@ -483,17 +492,33 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           WHERE c.candidate_id = $1 ORDER BY c.last_message_at DESC, c.id`,
         candidateId,
       ),
-      grouped<ExportedCoachConversation["messages"][number]>(
-        `SELECT m.conversation_id AS key, m.author AS "from", m.text, CASE WHEN m.blocked THEN true END AS blocked, m.job_offer_id AS "jobOfferId", m.created_at AS "sentAt"
+      grouped<
+        Pick<ExportedCoachConversation["messages"][number], "from" | "text" | "sentAt"> &
+          SavedReply & { blocked: true | null; jobOfferId: string | null; focusKind: "application" | "job_offer" | "profile" | null; focusId: string | null }
+      >(
+        `SELECT m.conversation_id AS key, m.author AS "from", m.text, CASE WHEN m.blocked THEN true END AS blocked, m.job_offer_id AS "jobOfferId", m.created_at AS "sentAt",
+                m.focus_kind AS "focusKind", m.focus_id AS "focusId", ${SAVED_REPLY_COLUMNS}
            FROM coach_message m JOIN coach_conversation c ON c.id = m.conversation_id
           WHERE c.candidate_id = $1 ORDER BY m.seq`,
         candidateId,
       ),
     ]);
-    // A Blocked message (#228) says so, a reply with a Job Offer card names its Job Offer; the others carry no mark.
+    // A Blocked message (#228) says so, a reply with a Job Offer card names its Job Offer, a reply says what served it (#327)
+    // and what was in view; the others carry no mark. Never what a reply cost.
     return conversations.map((conversation) => ({
       ...conversation,
-      messages: messagesOf(conversation.id).map(({ blocked, jobOfferId, ...message }) => ({ ...message, ...(blocked ? { blocked } : {}), ...(jobOfferId ? { jobOfferId } : {}) })),
+      messages: messagesOf(conversation.id).map((message) => {
+        const provenance = message.from === "coach" ? savedReplyProvenance(message) : null;
+        return {
+          from: message.from,
+          text: message.text,
+          sentAt: message.sentAt,
+          ...(message.blocked ? { blocked: message.blocked } : {}),
+          ...(message.jobOfferId ? { jobOfferId: message.jobOfferId } : {}),
+          ...(provenance ? { provenance } : {}),
+          ...(message.focusKind && message.focusId ? { focus: { kind: message.focusKind, id: message.focusId } } : {}),
+        };
+      }),
     }));
   }
 

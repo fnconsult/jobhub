@@ -41,6 +41,7 @@
  * Every read and change is scoped to the Candidate; problems come back as results.
  */
 import { AiConfigError, AiProviderError, type AiLayer, type CompanyNewsArticle } from "@jobhub/ai";
+import { isPersonPage } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { Application, Applications } from "../applications";
@@ -269,18 +270,12 @@ const WEB_FACT_SHAPES: Record<Exclude<(typeof WEB_FACTS)[number], "website">, (t
   revenue: (text) => text.length <= 40 && isFigure(text),
 };
 
-/** Social networks, where a page is a person's profile; LinkedIn company pages excepted. */
-const PROFILE_HOSTS = ["linkedin.com", "facebook.com", "instagram.com", "twitter.com", "x.com", "tiktok.com", "threads.net", "viadeo.com"];
-
 /** A web page fit to cite as a source: http(s), and not a person's profile. */
 function isPublicPage(source: string): boolean {
   if (!URL.canParse(source)) return false;
   const url = new URL(source);
   if (url.protocol !== "https:" && url.protocol !== "http:") return false;
-  const host = url.hostname.toLowerCase();
-  const network = PROFILE_HOSTS.find((profileHost) => host === profileHost || host.endsWith(`.${profileHost}`));
-  if (!network) return true;
-  return network === "linkedin.com" && url.pathname.startsWith("/company/");
+  return !isPersonPage(url);
 }
 
 /**

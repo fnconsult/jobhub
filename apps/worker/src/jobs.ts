@@ -1,4 +1,4 @@
-import { FUNNEL_MATCH_SCORE, noDiscoveryMetrics, scoreMatch, type CvContent, type DiscoveryMetrics, type ExternalApiLog, type SearchCriteria } from "@jobhub/shared";
+import { createRunProgress, FUNNEL_MATCH_SCORE, noDiscoveryMetrics, scoreMatch, type CvContent, type DiscoveryMetrics, type ExternalApiLog, type SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type { FollowUps } from "@jobhub/web/follow-ups";
 
@@ -19,7 +19,9 @@ import type { ReferenceData } from "@jobhub/web/reference-data";
 /**
  * Queue name: search the web for Job Offers matching one Profile.
  * Data: { candidateId, profileId, jobSearchId? }; with a `jobSearchId` (a Job
- * Search the Candidate started), the outcome is reported to that Job Search.
+ * Search the Candidate started), the outcome is reported to that Job Search, with
+ * the run's Provenance (its Match Scores included), and each step of the run is
+ * written on it as it starts and ends, for the page polling it (#330).
  */
 export const JOB_DISCOVERY = JOB_DISCOVERY_QUEUE;
 
@@ -211,19 +213,30 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
             `[job-discovery] profile ${target.profileId}: skipped, Job discovery is unavailable (${discovery.unavailable})`,
           );
         }
+        // The Candidate is waiting for this Job Search: each step of the run is written on it as it starts and ends.
+        const progress = jobSearchId ? createRunProgress((steps) => deps.jobSearches.progress(jobSearchId, steps)) : null;
+        /** What the run measured, its Match Scores recorded as a step of it, and its Provenance; the live steps written first. */
+        const measured = async (found: DiscoveryReport) => {
+          const metrics = await found.run.step({ rule: "match_score" }, () => metricsOf(found, profile));
+          await progress?.flush();
+          return { metrics, provenance: found.run.provenance() };
+        };
         let report;
         try {
-          report = await discovery.discover({ candidateId: target.candidateId, criteria: profile.searchCriteria });
+          report = await discovery.discover({ candidateId: target.candidateId, criteria: profile.searchCriteria, onEvent: progress?.onEvent });
         } catch (error) {
           // The Candidate is waiting for this Job Search: say it failed rather than retry it later.
           if (!jobSearchId) throw error;
           if (error instanceof JobDiscoveryError) {
-            await deps.jobSearches.record(jobSearchId, { failed: "discovery_failed", metrics: metricsOf(error.partial, profile) });
-          } else await fail("discovery_failed");
+            await deps.jobSearches.record(jobSearchId, { failed: "discovery_failed", ...(await measured(error.partial)) });
+          } else {
+            await progress?.flush();
+            await fail("discovery_failed");
+          }
           return log(`[job-discovery] profile ${target.profileId}: failed (${error instanceof Error ? error.message : String(error)})`);
         }
-        const metrics = metricsOf(report, profile);
-        if (jobSearchId) await deps.jobSearches.record(jobSearchId, { jobOfferIds: report.jobOffers.map((jobOffer) => jobOffer.id), metrics });
+        const { metrics, provenance } = await measured(report);
+        if (jobSearchId) await deps.jobSearches.record(jobSearchId, { jobOfferIds: report.jobOffers.map((jobOffer) => jobOffer.id), metrics, provenance });
         const detail = Object.entries(metrics.skipped)
           .filter(([, count]) => count > 0)
           .map(([reason, count]) => `${reason}: ${count}`)

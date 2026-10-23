@@ -671,7 +671,15 @@ _Avoid_: Source (alone), citation, reference
 What one step of an AI action is doing, fixed in the code per step and by default per AI task or Tool, never per Playbook: think, think then write, write, search, web search, read or compute (rules, no AI). It picks the glyph AI Activity shows while the step runs.
 _Avoid_: Status, phase, stage
 
-**Provenance rule**:A step of Provenance with no AI call and no Tool, done by the code's own rules: Match Score, ATS Score, ATS fixes, offer freshness and offer deduplication. Its Activity is compute. A Guardrail check is not one: it is an AI call (think).
+**Run progress**:
+The live steps of an AI action that runs in the worker (a Job Search), kept on its row only while it searches: the latest event of each step, an ended step replacing its start. It feeds AI Activity's live steps, including « En cours ailleurs », through the page's poll (every 1.5 s while an action runs). Cleared when the action finishes or times out, so it is never in the Data export; the Provenance, kept with the result, is.
+_Avoid_: Status, log
+
+**Part**:
+One Job Offer's search and reading inside a Job Search. It has its own Provenance (the Job Offer's), and its steps and sites are also recorded on the Job Search's run.
+_Avoid_: Sub-search, task
+
+**Provenance rule**:A step of Provenance with no AI call and no Tool, done by the code's own rules: Match Score (one step of a Job Search's Provenance, scoring every Job Offer found), ATS Score, ATS fixes, offer freshness and offer deduplication. Its Activity is compute. A Guardrail check is not one: it is an AI call (think).
 _Avoid_: Computation, script, algorithm
 
 **AI Activity**:

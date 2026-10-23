@@ -24,7 +24,7 @@
  *    be referenced by other Candidates: they are kept.
  */
 import { failureReasonWording } from "@jobhub/shared/i18n";
-import { isFailureReason, type FailureReason, type Outcome, type Plan, type Provenance, type SearchCriteria } from "@jobhub/shared";
+import { isFailureReason, readProvenance, type FailureReason, type Outcome, type Plan, type Provenance, type SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type { ActionCard } from "../action-cards";
 import type { Application, Applications } from "../applications";
@@ -82,6 +82,8 @@ export interface ExportedJobSearch {
   finishedAt: Date | null;
   /** The Job Offers it found, in the order Job discovery found them. */
   jobOfferIds: string[];
+  /** What served it (ADR-0034), when it was kept. */
+  provenance?: Provenance;
 }
 
 /** The Candidate's account itself (its secrets, such as sign-in tokens, are left out). */
@@ -284,7 +286,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   profile: "profiles",
   master_cv_version: "profiles[].masterCvVersions",
   ats_score: "profiles[].atsScore",
-  job_search: "profiles[].jobSearches",
+  job_search: "profiles[].jobSearches (each one's Provenance, not its live steps)",
   job_digest_subscription: "profiles[].jobDigest (no unsubscribe token)",
   job_digest: "profiles[].jobDigests",
   application: "applications",
@@ -348,7 +350,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         candidateId,
       ),
       grouped<ExportedJobSearch>(
-      `SELECT profile_id AS key, id, status, failure, started_at AS "startedAt", finished_at AS "finishedAt", job_offer_ids::text[] AS "jobOfferIds"
+      `SELECT profile_id AS key, id, status, failure, started_at AS "startedAt", finished_at AS "finishedAt", job_offer_ids::text[] AS "jobOfferIds", provenance
          FROM job_search WHERE candidate_id = $1 ORDER BY started_at DESC, id`,
         candidateId,
       ),
@@ -373,7 +375,10 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           searchCriteria: profile.searchCriteria,
           masterCvVersions: versions,
           atsScore: atsScoresOf(id)[0] ?? null,
-          jobSearches: jobSearchesOf(id),
+          jobSearches: jobSearchesOf(id).map(({ provenance, ...jobSearch }) => {
+            const kept = readProvenance(provenance);
+            return kept ? { ...jobSearch, provenance: kept } : jobSearch;
+          }),
           jobDigest: jobDigestSettingsOf(id)[0] ?? null,
           jobDigests: jobDigestsOf(id),
         };

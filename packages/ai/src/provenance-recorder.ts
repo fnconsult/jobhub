@@ -10,6 +10,8 @@
  *   await recorder.step({ rule: "match_score" }, () => ...);       // rules, timed
  *   recorder.site(offer.sourceUrl);                                 // a Provenance site, through the link filter
  *   row.provenance = recorder.provenance();                        // what is stored, with the wall-clock time
+ *   const offer = recorder.part();                                  // one part (a Job Offer's reading): its own
+ *                                                                    // Provenance, its steps the action's too
  *
  * Each call emits `step_started` and `step_ended` to `onEvent`, unfolded; the stored Provenance folds repeated
  * calls per Activity, AI task, Tool or rule, provider, endpoint, model and Outcome into one step with a count,
@@ -52,6 +54,12 @@ export interface ProvenanceRecorder {
   site(link: string): void;
   /** The Provenance so far, as it may be stored: steps folded, the wall-clock time until now. */
   provenance(): Provenance;
+  /**
+   * A recorder for one part of the action from now on (a Job Offer's search and reading, within a Job Search):
+   * its own Provenance, starting now, while each of its steps and sites is also the action's, its events emitted
+   * with the action's ids to the action's sink.
+   */
+  part(): ProvenanceRecorder;
 }
 
 type Subject = { kind: "ai"; task: TextTask | "web_search" } | { kind: "tool"; tool: StepTool } | { kind: "rules"; rule: ProvenanceRule };
@@ -61,28 +69,50 @@ type CallFacts = Pick<GenerateResult | SearchResult, "provider" | "endpoint" | "
 
 export function createProvenanceRecorder(ai: AiLayer, options: ProvenanceRecorderOptions = {}): ProvenanceRecorder {
   const now = options.now ?? (() => new Date());
-  const startedAt = now();
-  const steps: ProvenanceStep[] = [];
-  const sites: ProvenanceSite[] = [];
   let lastId = 0;
-
-  const emit = (event: ProvenanceEvent) => {
-    try {
-      options.onEvent?.(event);
-    } catch {
-      // The live view is a convenience: the action goes on without it.
-    }
+  const action: Action = {
+    now,
+    nextId: () => ++lastId,
+    emit(event) {
+      try {
+        options.onEvent?.(event);
+      } catch {
+        // The live view is a convenience: the action goes on without it.
+      }
+    },
   };
+  return recorderOf(ai, action, []);
+}
+
+/** What the recorders of one action share: its clock, its event ids and its sink. */
+interface Action {
+  now: () => Date;
+  nextId: () => number;
+  emit: (event: ProvenanceEvent) => void;
+}
+
+/** What one recorder keeps: its steps (unfolded) and its sites. */
+interface Kept {
+  steps: ProvenanceStep[];
+  sites: ProvenanceSite[];
+}
+
+/** A recorder from now on, keeping its steps and sites, and those of `wider` (the action's, when it is a part). */
+function recorderOf(ai: AiLayer, action: Action, wider: readonly Kept[]): ProvenanceRecorder {
+  const { now, emit } = action;
+  const startedAt = now();
+  const own: Kept = { steps: [], sites: [] };
+  const all = [own, ...wider];
 
   /** Runs one step: its start and end emitted, the ended step kept. `ended` builds it from what `run` returned. */
   async function record<T>(subject: Subject, activity: Activity, run: () => T | Promise<T>, ended: (value: T) => Partial<ProvenanceStep>, signal?: AbortSignal): Promise<T> {
-    const id = ++lastId;
+    const id = action.nextId();
     const start = now();
     const started = { ...subject, activity, at: start.toISOString() } as StartedStep;
     emit({ type: "step_started", id, step: started });
     const end = (outcome: StepOutcome, facts: Partial<ProvenanceStep> = {}) => {
       const step = { ...started, ms: Math.max(0, now().getTime() - start.getTime()), outcome, count: 1, ...facts } as ProvenanceStep;
-      steps.push(step);
+      for (const kept of all) kept.steps.push(step);
       emit({ type: "step_ended", id, step });
     };
     let value: T;
@@ -138,11 +168,20 @@ export function createProvenanceRecorder(ai: AiLayer, options: ProvenanceRecorde
     site(link) {
       const kept = provenanceLink(link);
       if (!kept) return;
-      const site = kept.startsWith("/") ? siteOf(sites, { kind: "candidate", links: [] }) : siteOf(sites, { kind: "web", domain: siteDomainOf(kept), links: [] });
-      if (!site.links.includes(kept)) site.links.push(kept);
+      for (const { sites } of all) {
+        const site: ProvenanceSite = kept.startsWith("/") ? siteOf(sites, { kind: "candidate", links: [] }) : siteOf(sites, { kind: "web", domain: siteDomainOf(kept), links: [] });
+        if (!site.links.includes(kept)) site.links.push(kept);
+      }
     },
     provenance: () =>
-      storableProvenance({ v: 1, steps: folded(steps), sites: structuredClone(sites), startedAt: startedAt.toISOString(), wallMs: Math.max(0, now().getTime() - startedAt.getTime()) }),
+      storableProvenance({
+        v: 1,
+        steps: folded(own.steps),
+        sites: structuredClone(own.sites),
+        startedAt: startedAt.toISOString(),
+        wallMs: Math.max(0, now().getTime() - startedAt.getTime()),
+      }),
+    part: () => recorderOf(ai, action, all),
   };
 }
 

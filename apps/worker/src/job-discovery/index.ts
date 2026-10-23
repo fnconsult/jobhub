@@ -76,9 +76,14 @@
  * Each Job Offer captured is handed its Provenance (`TrustedFacts.provenance`): how it was found (the web
  * search, or France Travail's or Fantastic.jobs' search), the listing page that led to it, its ATS API or page
  * read and the model that read the page (its summary's), on the site of its page. It names no Candidate.
+ *
+ * The run itself is recorded too (#330): every step of it (the job title variants, each source, each web
+ * search, page read and the model that read it), each told to the request's `onEvent` as it starts and ends,
+ * and kept, folded, in the report's `run`, which the caller goes on recording into (its Match Scores) before
+ * it stores the run's Provenance. A failed run's partial report has it too.
  */
 import type { ExternalApiLog } from "@jobhub/shared";
-import { costInEur, createProvenanceRecorder, readJobPage, type AiLayer, type JobSearchQuery, type SearchFilters, type StepTool } from "@jobhub/ai";
+import { costInEur, createProvenanceRecorder, readJobPage, type AiLayer, type JobSearchQuery, type ProvenanceRecorder, type SearchFilters, type StepTool } from "@jobhub/ai";
 import { servedTaskRun, taskRun, type TaskPlaybookReader } from "@jobhub/web/task-playbooks";
 import {
   believablePostingDate,
@@ -98,6 +103,7 @@ import {
   type JobOffer,
   type JobOfferDetails,
   type Provenance,
+  type ProvenanceEvent,
   type SearchCriteria,
   type SkipReason as CountedSkipReason,
 } from "@jobhub/shared";
@@ -190,6 +196,8 @@ export interface DiscoverRequest {
   /** The Candidate the search runs for (for AI usage and Plan Quotas). */
   candidateId: string;
   criteria: SearchCriteria;
+  /** Where each step of the run goes as it starts and ends (the Job Search's progress). Default: nowhere. */
+  onEvent?: (event: ProvenanceEvent) => void;
 }
 
 /**
@@ -216,6 +224,11 @@ export interface DiscoveryReport {
   franceTravail: FranceTravailMetrics;
   /** Fantastic.jobs' part of the run (its offers are in the funnel too), with its estimated cost, not in `costEur`. */
   fantasticJobs: FantasticJobsMetrics;
+  /**
+   * The run's steps, recorded as it ran: the caller records its own after it (the Match Scores) and stores
+   * `run.provenance()`, the run's Provenance, folded, with its wall-clock time until then.
+   */
+  run: ProvenanceRecorder;
 }
 
 /** The funnel's stages up to deduplication. Provider URLs are looked at in order until the budget runs out. */
@@ -299,7 +312,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
   const searchFilters: SearchFilters = { excludeDomains: [...forbiddenSites], maxAgeDays: MAX_POSTING_AGE_DAYS, country: SEARCH_COUNTRY };
 
   return {
-    async discover({ candidateId, criteria }) {
+    async discover({ candidateId, criteria, onEvent }) {
       const startedAt = clock.now();
       const budget: JobDiscoveryBudget = { ...DEFAULT_BUDGET, ...(typeof options.budget === "function" ? options.budget() : options.budget) };
       const settings = await readSettings(options.settings);
@@ -329,6 +342,8 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         clock,
       });
       const found = new Map<string, JobOffer>();
+      const ai = costing(options.ai, (eur) => (report.costEur += eur));
+      const run = createProvenanceRecorder(ai, { now: () => new Date(clock.now()), onEvent });
       const report: DiscoveryReport = {
         jobOffers: [],
         skipped: [],
@@ -336,10 +351,10 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         costEur: 0,
         franceTravail: { status: "off", offers: 0, calls: 0 },
         fantasticJobs: { status: "off", offers: 0, calls: 0, costEur: 0 },
+        run,
       };
-      const ai = costing(options.ai, (eur) => (report.costEur += eur));
-      /** The steps of one search or one page read, for the Provenance of the Job Offers it leads to. */
-      const recording = () => createProvenanceRecorder(ai, { now: () => new Date(clock.now()) });
+      /** The steps of one search or one page read, for the Provenance of the Job Offers it leads to: steps of the run too. */
+      const recording = () => run.part();
       /** `howFound`, the steps that led to a Job Offer, on the site of its page `url`. */
       const onItsPage = (howFound: Provenance | null, url: string) => {
         const page = recording();
@@ -515,7 +530,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
 
       /** The web searches for one location, within its share of the budget. */
       const searchTheWeb = async (location: string) => {
-        plan ??= await ai.planJobSearch({
+        plan ??= await run.ai.planJobSearch({
           candidateId,
           criteria,
           instructions: {

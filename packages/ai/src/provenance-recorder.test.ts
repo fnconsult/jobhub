@@ -149,6 +149,49 @@ describe("a ProvenanceRecorder", () => {
     ]);
   });
 
+  it("records a part of the action (one Job Offer's reading) in its own Provenance and in the action's, with the action's event ids (#330)", async () => {
+    const events: ProvenanceEvent[] = [];
+    const run = createProvenanceRecorder(aiLayer(), { onEvent: (event) => events.push(event), now: steppingClock() });
+
+    await run.ai.planJobSearch({ candidateId: null, criteria });
+    const offer = run.part();
+    await offer.step({ tool: "greenhouse" }, async () => "posting");
+    await offer.aiFor("read_job_page").generate({ task: "offer_analysis", candidateId: null, prompt: "Page" });
+    offer.site("https://boards.greenhouse.io/acme/jobs/1");
+    const other = run.part();
+    await other.step({ tool: "job-site" }, async () => "page");
+
+    expect(offer.provenance()).toMatchObject({
+      steps: [
+        { kind: "tool", tool: "greenhouse" },
+        { kind: "ai", task: "offer_analysis", activity: "read" },
+      ],
+      sites: [{ kind: "web", domain: "boards.greenhouse.io" }],
+      startedAt: "2026-10-23T10:00:00.030Z",
+    });
+    expect(other.provenance().steps).toMatchObject([{ kind: "tool", tool: "job-site" }]);
+    expect(run.provenance()).toMatchObject({
+      steps: [
+        { kind: "ai", task: "job_titles" },
+        { kind: "tool", tool: "greenhouse" },
+        { kind: "ai", task: "offer_analysis" },
+        { kind: "tool", tool: "job-site" },
+      ],
+      sites: [{ kind: "web", domain: "boards.greenhouse.io", links: ["https://boards.greenhouse.io/acme/jobs/1"] }],
+      startedAt: "2026-10-23T10:00:00.000Z",
+    });
+    expect(events.map(({ type, id }) => `${type} ${id}`)).toEqual([
+      "step_started 1",
+      "step_ended 1",
+      "step_started 2",
+      "step_ended 2",
+      "step_started 3",
+      "step_ended 3",
+      "step_started 4",
+      "step_ended 4",
+    ]);
+  });
+
   it("is not stopped by a sink that throws", async () => {
     const recorder = createProvenanceRecorder(aiLayer(), {
       onEvent: () => {

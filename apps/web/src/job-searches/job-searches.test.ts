@@ -1,4 +1,4 @@
-import type { MasterCvContent } from "@jobhub/shared";
+import type { MasterCvContent, Provenance, ProvenanceEvent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApplications, migrateApplications, type Applications } from "../applications";
@@ -431,7 +431,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
 
       await jobSearches.dismissNotification(otherCandidateId, first.id);
       expect((await jobSearches.notifications(candidateId)).notifications).toHaveLength(2);
-      expect(await jobSearches.notifications(otherCandidateId)).toEqual({ notifications: [], searching: false });
+      expect(await jobSearches.notifications(otherCandidateId)).toEqual({ notifications: [], searching: false, running: [] });
 
       await jobSearches.dismissNotification(candidateId, first.id);
       await jobSearches.dismissNotification(candidateId, "not-a-uuid");
@@ -459,6 +459,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
           { jobSearchId: failed.id, profile: { id: profileId, name: "DAF" }, outcome: { status: "failed", failure: "discovery_failed" } },
         ],
         searching: false,
+        running: [],
       });
     });
 
@@ -473,14 +474,97 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       const daf = await capture("DAF H/F", { location: "Lyon" });
       const controleur = await capture("Contrôleur de gestion", { location: "Lyon" });
       const jobSearch = await started();
-      expect(await jobSearches.notifications(candidateId)).toEqual({ notifications: [], searching: true });
+      expect(await jobSearches.notifications(candidateId)).toEqual({
+        notifications: [],
+        searching: true,
+        running: [{ jobSearchId: jobSearch.id, profile: { id: profileId, name: "DAF" }, startedAt: jobSearch.startedAt.toISOString(), steps: [] }],
+      });
 
       await jobSearches.record(jobSearch.id, { jobOfferIds: [daf, controleur] });
 
       expect(await jobSearches.notifications(candidateId)).toEqual({
         notifications: [{ jobSearchId: jobSearch.id, profile: { id: profileId, name: "DAF" }, outcome: { status: "done", found: 2 } }],
         searching: false,
+        running: [],
       });
+    });
+  });
+  describe("a Job Search's Provenance and live progress (#330)", () => {
+    const at = "2026-10-15T08:00:01.000Z";
+    const titles: ProvenanceEvent = { type: "step_started", id: 1, step: { kind: "ai", activity: "think", task: "job_titles", at } };
+    const titlesEnded: ProvenanceEvent = {
+      type: "step_ended",
+      id: 1,
+      step: { kind: "ai", activity: "think", task: "job_titles", provider: "anthropic", endpoint: "bedrock eu-north-1", model: "anthropic.claude-opus-5", tokens: { input: 900, output: 40 }, ms: 1200, at, outcome: "ok", count: 1 },
+    };
+    const franceTravail: ProvenanceEvent = { type: "step_started", id: 2, step: { kind: "tool", activity: "search", tool: "france-travail", at: "2026-10-15T08:00:02.200Z" } };
+    const provenance: Provenance = {
+      v: 1,
+      steps: [
+        (titlesEnded as Extract<ProvenanceEvent, { type: "step_ended" }>).step,
+        { kind: "tool", activity: "search", tool: "france-travail", ms: 640, at: "2026-10-15T08:00:02.200Z", outcome: "ok", count: 1 },
+        { kind: "rules", activity: "compute", rule: "match_score", ms: 2, at: "2026-10-15T08:00:09.000Z", outcome: "ok", count: 2 },
+      ],
+      sites: [{ kind: "web", domain: "francetravail.fr", links: ["https://candidat.francetravail.fr/offres/recherche/detail/123ABC"] }],
+      startedAt: "2026-10-15T08:00:00.000Z",
+      wallMs: 9100,
+    };
+    let reports: ReturnType<typeof createJobSearchReports>;
+    beforeEach(() => {
+      reports = createJobSearchReports(testAuth.auth.options.database as Pool, { quotas: billing, now: () => clock.now });
+    });
+
+    it("shows, on any page's poll, the steps the worker wrote of a Job Search still searching: each one's latest", async () => {
+      const jobSearch = await started();
+
+      await reports.progress(jobSearch.id, [titles]);
+      await reports.progress(jobSearch.id, [titlesEnded, franceTravail]);
+
+      expect((await jobSearches.notifications(candidateId)).running).toEqual([
+        { jobSearchId: jobSearch.id, profile: { id: profileId, name: "DAF" }, startedAt: jobSearch.startedAt.toISOString(), steps: [titlesEnded, franceTravail] },
+      ]);
+      expect((await jobSearches.notifications(otherCandidateId)).running).toEqual([]);
+    });
+
+    it("keeps with a finished Job Search its Provenance, and its live steps are gone: nothing running to poll", async () => {
+      const daf = await capture("DAF H/F", { location: "Lyon" });
+      const jobSearch = await started();
+      await reports.progress(jobSearch.id, [titlesEnded, franceTravail]);
+
+      await reports.record(jobSearch.id, { jobOfferIds: [daf], provenance });
+
+      expect((await jobSearches.get(candidateId, jobSearch.id))?.provenance).toEqual(provenance);
+      expect(await jobSearches.notifications(candidateId)).toMatchObject({ searching: false, running: [] });
+    });
+
+    it("keeps with a failed Job Search the Provenance of the steps it ran", async () => {
+      const jobSearch = await started();
+
+      await reports.record(jobSearch.id, { failed: "discovery_failed", provenance });
+
+      expect(await jobSearches.get(candidateId, jobSearch.id)).toMatchObject({ status: "failed", provenance });
+    });
+
+    it("writes no step once the Job Search is over", async () => {
+      const jobSearch = await started();
+      await reports.record(jobSearch.id, { jobOfferIds: [] });
+
+      await reports.progress(jobSearch.id, [titles]);
+      await reports.progress("not-a-uuid", [titles]);
+
+      const { rows } = await (testAuth.auth.options.database as Pool).query("SELECT progress FROM job_search WHERE id = $1", [jobSearch.id]);
+      expect(rows[0]).toEqual({ progress: null });
+    });
+
+    it("has none for a Job Search searching, failed before Job discovery ran, or recorded without one (« modèle non enregistré »), nor one naming an id", async () => {
+      const searching = await started();
+      const unavailable = await started();
+      await reports.record(unavailable.id, { failed: "unavailable" });
+      const naming = await started();
+      const withId = { ...provenance, steps: [{ ...provenance.steps[1]!, candidateId }] } as unknown as Provenance;
+      await reports.record(naming.id, { jobOfferIds: [], provenance: withId });
+
+      for (const { id } of [searching, unavailable, naming]) expect((await jobSearches.get(candidateId, id))?.provenance).toBeNull();
     });
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Provenance, ProvenanceStep } from "./provenance";
-import { formatDuration, formatTimeOfDay, formatTokens, provenanceLine } from "./provenance-line";
+import { formatDuration, formatTimeOfDay, formatTokens, provenanceLine, spokenMeasure } from "./provenance-line";
 
 const at = "2026-10-23T08:40:00.000Z";
 const ai = (overrides: Partial<Extract<ProvenanceStep, { kind: "ai" }>> = {}): ProvenanceStep => ({
@@ -105,11 +105,15 @@ describe("the Provenance line's numbers, as AI Activity writes them (#320)", () 
   });
 
   it.each([
-    [400, "fr", "0,4 s"],
+    [0, "fr", "0 ms"],
+    [790, "fr", "790 ms"],
+    [1000, "fr", "1 s"],
+    [5600, "fr", "5,6 s"],
     [6400, "fr", "6,4 s"],
     [21_500, "fr", "21,5 s"],
     [21_500, "en", "21.5 s"],
-    [65_000, "fr", "1 min 5 s"],
+    [65_000, "fr", "1 min 05 s"],
+    [612_400, "en", "10 min 12 s"],
   ] as const)("%d ms are « %s » (%s)", (ms, language, words) => {
     expect(formatDuration(ms, language)).toBe(words);
   });
@@ -120,7 +124,25 @@ describe("the Provenance line's numbers, as AI Activity writes them (#320)", () 
 
     expect(formatTimeOfDay(new Date("2026-10-23T08:40:00.000Z"), now, "fr", zone)).toBe("10:40");
     expect(formatTimeOfDay(new Date("2026-10-22T08:15:00.000Z"), now, "fr", zone)).toBe("22/10 à 10:15");
-    expect(formatTimeOfDay(new Date("2026-10-22T08:15:00.000Z"), now, "en", zone)).toBe("22/10 at 10:15");
     expect(formatTimeOfDay(new Date("2025-10-22T08:15:00.000Z"), now, "fr", zone)).toBe("22/10/2025 à 10:15");
+  });
+
+  it("writes them by Intl in English: « 10:40 », « 22 Oct, 10:15 », « 22 Oct 2025, 10:15 »", () => {
+    const now = new Date("2026-10-23T14:00:00.000Z");
+    const zone = { timeZone: "Europe/Paris" };
+
+    expect(formatTimeOfDay(new Date("2026-10-23T08:40:00.000Z"), now, "en", zone)).toBe("10:40");
+    expect(formatTimeOfDay(new Date("2026-10-22T08:15:00.000Z"), now, "en", zone)).toBe("22 Oct, 10:15");
+    expect(formatTimeOfDay(new Date("2025-10-22T08:15:00.000Z"), now, "en", zone)).toBe("22 Oct 2025, 10:15");
+  });
+
+  it.each([
+    [2100, 6400, "fr", "2 100 tokens, 6,4 secondes"],
+    [312, 790, "fr", "312 tokens, 790 millisecondes"],
+    [10_900, 65_000, "en", "10,900 tokens, 1 minute 5 seconds"],
+    [null, 21_500, "en", "21.5 seconds"],
+    [850, null, "fr", "850 tokens"],
+  ] as const)("says %s tokens in %s ms in words for screen readers (%s)", (tokens, ms, language, words) => {
+    expect(spokenMeasure(tokens, ms, language).replace(/\u202f|\u00a0/g, " ")).toBe(words);
   });
 });

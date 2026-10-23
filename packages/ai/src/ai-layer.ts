@@ -202,6 +202,8 @@ export interface AiLayer {
    * first, none whose title may name a person (company-news.ts). Never fails: on a failed search, none.
    */
   searchCompanyNews(request: CompanyNewsRequest): Promise<CompanyNewsArticle[]>;
+  /** `searchCompanyNews`, with the search call that found the articles (null when it failed): for a Provenance (ADR-0034). */
+  searchCompanyNewsWithCall(request: CompanyNewsRequest): Promise<CompanyNews>;
   /**
    * The providers and models a Playbook Agent may use (#225): every text provider configured, outside the
    * EU too, each with the models a route names for it, then those it offers.
@@ -219,6 +221,13 @@ export interface AiLayer {
    * web-search provider configured, the configured route's model first for its provider.
    */
   searchModels(): AgentModelChoice[];
+}
+
+/** A Company Dossier's Company News, and the web search that found them. */
+export interface CompanyNews {
+  articles: CompanyNewsArticle[];
+  /** The search call; null when it failed (the articles are then none). */
+  call: SearchResult | null;
 }
 
 export interface Route {
@@ -696,6 +705,10 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     },
 
     async searchCompanyNews(request) {
+      return (await layer.searchCompanyNewsWithCall(request)).articles;
+    },
+
+    async searchCompanyNewsWithCall(request) {
       try {
         const found = await search({
           candidateId: request.candidateId,
@@ -706,13 +719,14 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
           fallback: "company_news_unavailable",
         });
         const companyNames = [request.employer, request.registeredName ?? "", request.website ?? ""].filter(Boolean);
-        return companyNewsIn(found.answer, { now: now(), companyNames, ...(found.sourceDates ? { sourceDates: found.sourceDates } : {}) });
+        const articles = companyNewsIn(found.answer, { now: now(), companyNames, ...(found.sourceDates ? { sourceDates: found.sourceDates } : {}) });
+        return { articles, call: found };
       } catch (error) {
         warn("Company News unavailable: the Company Dossier is built without it", {
           candidateId: request.candidateId,
           error: error instanceof Error ? error.message : String(error),
         });
-        return [];
+        return { articles: [], call: null };
       }
     },
 
@@ -737,6 +751,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     searchWeb: noSearch,
     searchCompany: noSearch,
     searchCompanyNews: noSearch,
+    searchCompanyNewsWithCall: noSearch,
     agentModels: () => layer.agentModels(),
     searchModels: () => layer.searchModels(),
     forEval: () => evalLayer,

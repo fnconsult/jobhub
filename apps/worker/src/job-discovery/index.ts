@@ -578,6 +578,7 @@ function costing(ai: AiLayer, spend: (eur: number) => void): AiLayer {
     },
     // Only a Company Dossier searches for Company News: Job discovery never does.
     searchCompanyNews: (request) => ai.searchCompanyNews(request),
+    searchCompanyNewsWithCall: (request) => ai.searchCompanyNewsWithCall(request),
     agentModels: () => ai.agentModels(),
     searchModels: () => ai.searchModels(),
     forEval: () => costing(ai.forEval(), spend),

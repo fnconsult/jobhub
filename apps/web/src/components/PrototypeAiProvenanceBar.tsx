@@ -587,7 +587,9 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
     const topbar = document.querySelector(".topbar");
     if (!topbar) return;
     const span = document.createElement("span");
-    span.style.marginLeft = "auto";
+    // display: contents, so the button is laid out as the top bar's own child,
+    // with the same frame, height and alignment as « Mon coach ».
+    span.style.display = "contents";
     topbar.insertBefore(span, topbar.lastElementChild);
     setSlot(span);
     return () => span.remove();
@@ -629,7 +631,8 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
       aria-label={run.running ? "Recherche en cours : sources, modèles et outils" : "Sources, modèles et outils de cette page"}
       title={run.running ? "Recherche en cours…" : "Sources, modèles et outils"}
       onClick={() => setOpen(!open)}
-      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: "var(--control-height)", paddingInline: "0.6rem", fontSize: "1.1rem" }}
+      // Same box as .topbar .coach-panel-toggle: no shrinking, the control height, square.
+      style={{ marginLeft: "auto", flex: "none", minHeight: "var(--control-height)", minWidth: "var(--control-height)", padding: "0 var(--space-3)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
     >
       {run.running ? <Spinner /> : <Glyph d={TASKS} />}
     </button>

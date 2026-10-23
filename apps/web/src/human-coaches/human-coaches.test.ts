@@ -197,7 +197,7 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
 
   describe("reviewing Tailored Documents", () => {
     const now = new Date("2026-10-09T10:00:00Z");
-    const coverLetter = { language: "fr" as const, text: "Madame, Monsieur, …", draftedAt: now, updatedAt: now };
+    const coverLetter = { language: "fr" as const, text: "Madame, Monsieur, …", draftedAt: now, updatedAt: now, provenance: null };
 
     async function coachedApplication() {
       const sophie = await addCoach();

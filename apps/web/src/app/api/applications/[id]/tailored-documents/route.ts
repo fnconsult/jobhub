@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
-import { tailoredDocumentsResponse } from "@/tailored-documents/http";
+import { actionResponse } from "@/ndjson";
+import { tailoredDocumentsOutcome, tailoredDocumentsResponse } from "@/tailored-documents/http";
 import { getTailoredDocuments } from "@/tailored-documents/server";
 
 type Context = RouteContext<"/api/applications/[id]/tailored-documents">;
@@ -14,16 +15,21 @@ export async function GET(_request: Request, { params }: Context) {
 }
 
 /**
- * The AI Coach drafts (again) the Cover Letter or the Outreach Message, replacing the stored one.
- * Body: { document: "cover_letter" | "outreach_message", language?: "fr" | "en", channel?: "email" | "inmail" }.
- * Nothing is sent (ADR-0005). 200 · 400 { errors } · 401 · 403 · 404 · 503 { error: "unavailable" }
+ * The AI Coach drafts (again) the Cover Letter or the Outreach Message, replacing the stored one, with its Provenance.
+ * Body: { document: "cover_letter" | "outreach_message", language?: "fr" | "en", channel?: "email" | "inmail", contactId? }.
+ * Nothing is sent (ADR-0005). 200 · 400 { errors } · 401 · 403 · 404 · 499 { error: "stopped" } · 503 { error: "unavailable" }
+ *
+ * Live (#334), with `Accept: application/x-ndjson`: each step as it starts and ends, then { type: "done", ...drafts }
+ * · { type: "stopped", error } · { type: "failed", status, ... } (see actionResponse). Aborting the request is the Stop:
+ * the AI call is aborted and the half-written draft discarded.
  */
 export async function POST(request: Request, { params }: Context) {
   if (!isFromTrustedOrigin(request)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const candidate = await getCurrentCandidate();
   if (!candidate) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body: unknown = await request.json().catch(() => undefined);
-  return tailoredDocumentsResponse(await getTailoredDocuments().draft(candidate.id, (await params).id, body));
+  const { id } = await params;
+  return actionResponse(request, async (live) => tailoredDocumentsOutcome(await getTailoredDocuments().draft(candidate.id, id, body, live)));
 }
 
 /**

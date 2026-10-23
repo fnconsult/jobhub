@@ -1,7 +1,7 @@
 import { createAiLayer } from "@jobhub/ai";
 import type { SearchOptions } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
-import { DEFAULT_JOB_DISCOVERY_SETTINGS, type IndustryReference, type Provenance, type JobDiscoverySettings, type JobOffer, type SearchCriteria } from "@jobhub/shared";
+import { DEFAULT_JOB_DISCOVERY_SETTINGS, type IndustryReference, type Provenance, type ProvenanceEvent, type JobDiscoverySettings, type JobOffer, type SearchCriteria } from "@jobhub/shared";
 import type { TaskPlaybookReader } from "@jobhub/web/task-playbooks";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -1737,6 +1737,86 @@ describe("Job discovery", () => {
       expect(what(provenanceOf(jobOffers, FT))).toEqual([{ kind: "tool", activity: "search", tool: "france-travail" }]);
       expect(provenanceOf(jobOffers, FT)?.sites).toEqual([{ kind: "web", domain: "candidat.francetravail.fr", links: [FT] }]);
       expect(what(provenanceOf(jobOffers, ATS))).toEqual([{ kind: "tool", activity: "search", tool: "fantastic-jobs" }]);
+    });
+  });
+  describe("the Provenance of the run, and its steps as they run (#330)", () => {
+    const NOW = new Date("2026-10-15T12:00:00Z");
+    const FT = "https://candidat.francetravail.fr/offres/recherche/detail/201A";
+    const franceTravail: FranceTravail = {
+      search: async () => ({ ok: true, calls: 1, offers: [{ url: FT, details: { title: "DAF", content: "Offre France Travail.", postedAt: NOW } }] }),
+    };
+    const page = { [DAF_URL]: { body: "<html><body><h1>DAF H/F</h1><p>Groupe Seb recrute son DAF.</p></body></html>" } };
+    const reply = '{"isJobOffer": true, "title": "DAF H/F", "content": "Groupe Seb recrute son DAF."}';
+    const what = (provenance: Provenance) =>
+      provenance.steps.map((step) => ({ kind: step.kind, ...(step.kind === "ai" ? { task: step.task, model: step.model } : step.kind === "tool" ? { tool: step.tool } : { rule: step.rule }), count: step.count }));
+
+    it("is every step of the run: the job title variants, each source, the web searches, the page reads and the model that read them, folded, with the sites read and its wall-clock time", async () => {
+      const { discovery } = setup({ sources: [DAF_URL], pages: page, reply, franceTravail, now: NOW });
+
+      const report = await discovery.discover({ candidateId: "3f2b8c1e-9d4a-4e6f-8a1b-2c3d4e5f6a7b", criteria });
+
+      const provenance = report.run.provenance();
+      expect(what(provenance)).toEqual([
+        { kind: "tool", tool: "france-travail", count: 1 },
+        { kind: "ai", task: "job_titles", model: "fake-mistral", count: 1 },
+        { kind: "ai", task: "web_search", model: "fake-perplexity", count: 2 },
+        { kind: "tool", tool: "job-site", count: 1 },
+        { kind: "ai", task: "offer_analysis", model: "fake-anthropic", count: 1 },
+      ]);
+      expect(provenance.sites).toEqual([
+        { kind: "web", domain: "candidat.francetravail.fr", links: [FT] },
+        { kind: "web", domain: "emplois.example.fr", links: [DAF_URL] },
+      ]);
+      expect(provenance.startedAt).toBe(NOW.toISOString());
+      expect(JSON.stringify(provenance)).not.toContain("3f2b8c1e-9d4a-4e6f-8a1b-2c3d4e5f6a7b");
+    });
+
+    it("takes the steps the caller adds after the search, such as its Match Scores", async () => {
+      const { discovery } = setup({ sources: [], pages: {}, now: NOW });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+      await report.run.step({ rule: "match_score" }, () => 72);
+
+      expect(report.run.provenance().steps.at(-1)).toMatchObject({ kind: "rules", rule: "match_score", outcome: "ok" });
+    });
+
+    it("tells the request's sink each step as it starts, then as it ended, each by its own id", async () => {
+      const events: ProvenanceEvent[] = [];
+      const { discovery } = setup({ sources: [DAF_URL], pages: page, reply, franceTravail, now: NOW });
+
+      await discovery.discover({ candidateId: "c", criteria, onEvent: (event) => events.push(event) });
+
+      const started = events.filter((event) => event.type === "step_started");
+      expect(started.map((event) => ("task" in event.step ? event.step.task : "tool" in event.step ? event.step.tool : event.step.rule))).toEqual([
+        "france-travail",
+        "job_titles",
+        "web_search",
+        "job-site",
+        "offer_analysis",
+        "web_search",
+      ]);
+      expect(new Set(started.map((event) => event.id)).size).toBe(started.length);
+      for (const { id } of started) expect(events.filter((event) => event.id === id).map((event) => event.type)).toEqual(["step_started", "step_ended"]);
+    });
+
+    it("keeps, for a run that failed, the steps it ran until then, the failed one included", async () => {
+      const { discovery } = setup({
+        sources: [DAF_URL],
+        pages: page,
+        reply: () => {
+          throw new Error("LLM down");
+        },
+      });
+
+      const failure = (await discovery.discover({ candidateId: "c", criteria }).catch((error: unknown) => error)) as JobDiscoveryError;
+
+      expect(what(failure.partial.run.provenance()).map(({ kind, ...step }) => ("task" in step ? step.task : "tool" in step ? step.tool : kind))).toEqual([
+        "job_titles",
+        "web_search",
+        "job-site",
+        "offer_analysis",
+      ]);
+      expect(failure.partial.run.provenance().steps.at(-1)).toMatchObject({ kind: "ai", task: "offer_analysis", outcome: "failed" });
     });
   });
 });

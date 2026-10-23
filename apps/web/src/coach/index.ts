@@ -94,7 +94,9 @@ export type CoachReplyOutcome = GuardedReply["outcome"];
  * `cost`: null when no AI call was made (distress words answered by the distress Guardrail message, a Job Offer link without Guardrails).
  * `jobOffer`: the Job Offer read from the link in the Candidate's message, when there is one.
  * `provenance`: what served the reply, step by step (#327), to keep with it.
- * `stopped`: the Candidate stopped it (#328); `reason`: why it is `unavailable`, its Failure Reason (never the technical message).
+ * `stopped`: the Candidate stopped it (#328), `messagePassed` saying whether the Candidate's message had gone through the input
+ * Guardrails by then (the reply was being written): a message that had not must never reach the AI Coach later.
+ * `reason`: why it is `unavailable`, its Failure Reason (never the technical message).
  */
 export type CoachReply =
   | {
@@ -108,7 +110,7 @@ export type CoachReply =
       provenance: Provenance;
     }
   | { ok: false; error: "invalid" }
-  | { ok: false; error: "stopped" }
+  | { ok: false; error: "stopped"; messagePassed: boolean }
   | { ok: false; error: "unavailable"; reason: FailureReason };
 
 export interface CoachReplyOptions {
@@ -226,7 +228,10 @@ export function createCoach(deps: CoachDeps): Coach {
       const parsed = inputSchema.safeParse(input);
       if (!parsed.success) return { ok: false, error: "invalid" };
       const { signal, onEvent } = options;
-      if (signal?.aborted) return { ok: false, error: "stopped" };
+      // Whether the latest message went through the input Guardrails: they only ask for the reply once it has.
+      let messagePassed = false;
+      const stopped = () => ({ ok: false as const, error: "stopped" as const, messagePassed });
+      if (signal?.aborted) return stopped();
       const { focus } = parsed.data;
       const messages = recentConversation(parsed.data.messages).map((message) => ({
         role: message.from === "candidate" ? ("user" as const) : ("assistant" as const),
@@ -303,13 +308,17 @@ export function createCoach(deps: CoachDeps): Coach {
           linked ??= await deps.jobOfferLinks!.read(candidateId, url, recorder);
           return { text: jobOfferLinkReply(linked, language), secrets: [] };
         };
-        const reply = link ? () => answerLink(link) : write;
+        const reply = (feedback: string | null) => {
+          messagePassed = true;
+          return link ? answerLink(link) : write(feedback);
+        };
         const guarded: GuardedReply = deps.guardrails
           ? await deps.guardrails.guard("ai_coach", {
               candidateId,
               language,
               ai: recorder.ai,
               message: latest,
+              ...(signal ? { signal } : {}),
               written: messages.filter((message) => message.role === "user").map((message) => message.content),
               reply,
             })
@@ -325,8 +334,8 @@ export function createCoach(deps: CoachDeps): Coach {
           model: call.model,
           ...costOf([call]),
         }));
-        // Stopped once the reply was written, or by a step that let the Stop through (a Guardrail check that fails open): no reply.
-        if (signal?.aborted) return { ok: false, error: "stopped" };
+        // Stopped once the reply was written, or by a step that let the Stop through: no reply.
+        if (signal?.aborted) return stopped();
         const served = prepared?.served;
         const playbooks: PlaybookUsed[] = [
           ...(served?.coreDigest ? [{ id: CORE_DIGEST, version: String(served.coreDigest.version) }] : []),
@@ -343,7 +352,7 @@ export function createCoach(deps: CoachDeps): Coach {
           provenance: recorder.provenance(),
         };
       } catch (error) {
-        if (signal?.aborted) return { ok: false, error: "stopped" };
+        if (signal?.aborted) return stopped();
         console.warn("[coach] the AI Coach could not reply:", error instanceof Error ? error.message : error);
         return { ok: false, error: "unavailable", reason: failureOf(error).reason };
       }

@@ -211,13 +211,16 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     return row ? summaryFrom(row) : null;
   }
 
-  /** The last `limit` messages of the Candidate's conversation, oldest first, each reply with its Job Offer card. */
-  async function lastMessages(candidateId: string, conversationId: string, limit: number | null): Promise<CoachMessage[]> {
+  /**
+   * The last `limit` messages of the Candidate's conversation, oldest first, each reply with its Job Offer card;
+   * `forCoach`: without the stopped questions the input Guardrails never let through, which the AI Coach must never be sent.
+   */
+  async function lastMessages(candidateId: string, conversationId: string, limit: number | null, forCoach = false): Promise<CoachMessage[]> {
     const { rows } = await database.query<MessageRow>(
       `SELECT recent.author AS "from", recent.text, recent.blocked,
               CASE WHEN o.id IS NULL THEN NULL ELSE jsonb_strip_nulls(jsonb_build_object('id', o.id, 'title', o.title, 'employer', o.employer, 'followed', a.id IS NOT NULL)) END AS "jobOffer",
               ${SAVED_REPLY_COLUMNS.replaceAll("m.", "recent.")}
-         FROM (SELECT * FROM coach_message WHERE conversation_id = $1 ORDER BY seq DESC LIMIT $2) recent
+         FROM (SELECT * FROM coach_message WHERE conversation_id = $1 ${forCoach ? "AND NOT unchecked" : ""} ORDER BY seq DESC LIMIT $2) recent
          LEFT JOIN job_offer o ON o.id = recent.job_offer_id
          LEFT JOIN application a ON a.job_offer_id = o.id AND a.candidate_id = $3
         ORDER BY recent.seq`,
@@ -254,7 +257,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
 
       const existing = conversationId ? await find(candidateId, conversationId) : null;
       if (conversationId && !existing) return { ok: false, error: "not_found" };
-      const history = existing ? await lastMessages(candidateId, existing.id, MAX_MESSAGES) : [];
+      const history = existing ? await lastMessages(candidateId, existing.id, MAX_MESSAGES, true) : [];
       // A new conversation gets its id now, so a Stop keeps the message in the conversation the Candidate was told of.
       const profile = existing ? null : await profileInView(candidateId, focus);
       const conversation: CoachConversationSummary = existing ?? { id: randomUUID(), title: titleFrom(message), profile, lastMessageAt: now() };
@@ -270,8 +273,10 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
       );
       if (!answer.ok && answer.error !== "stopped") return answer;
       if (!answer.ok || signal?.aborted) {
-        // Stopped, even once the reply came back: nothing is saved as a reply (#316 answer 11), the question stays.
-        await save(candidateId, conversation, !existing, { message, blocked: false }, null, now());
+        // Stopped, even once the reply came back: nothing is saved as a reply (#316 answer 11), the question stays. Shown, never
+        // blocked, but kept from the AI Coach unless the input Guardrails had let it through: else a Stop would get round them.
+        const passed = answer.ok ? answer.outcome === "replied" || answer.outcome === "blocked_reply" : answer.messagePassed;
+        await save(candidateId, conversation, !existing, { message, blocked: false, unchecked: !passed }, null, now());
         const saved = await find(candidateId, conversation.id);
         return saved ? { ok: false, error: "stopped", conversation: saved } : { ok: false, error: "not_found" };
       }
@@ -333,7 +338,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     candidateId: string,
     conversation: CoachConversationSummary,
     isNew: boolean,
-    asked: { message: string; blocked: boolean },
+    asked: { message: string; blocked: boolean; unchecked?: boolean },
     reply: { answer: Extract<CoachReply, { ok: true }>; blocked: boolean; focus: { kind: FocusKind; id: string } | null } | null,
     sentAt: Date,
   ): Promise<void> {
@@ -347,7 +352,13 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
           [id, candidateId, conversation.profile?.id ?? null, conversation.title, sentAt],
         );
       }
-      await client.query(`INSERT INTO coach_message (conversation_id, author, text, created_at, blocked) VALUES ($1, 'candidate', $2, $3, $4)`, [id, asked.message, sentAt, asked.blocked]);
+      await client.query(`INSERT INTO coach_message (conversation_id, author, text, created_at, blocked, unchecked) VALUES ($1, 'candidate', $2, $3, $4, $5)`, [
+        id,
+        asked.message,
+        sentAt,
+        asked.blocked,
+        asked.unchecked ?? false,
+      ]);
       if (reply) {
         const { answer } = reply;
         const { cost } = answer;
@@ -554,6 +565,8 @@ export async function migrateCoachConversations(database: Pool): Promise<void> {
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS focus_kind text CHECK (focus_kind IN ('application', 'job_offer', 'profile'));
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS focus_id uuid;
     CREATE INDEX IF NOT EXISTS coach_message_focus_idx ON coach_message (focus_kind, focus_id) WHERE focus_id IS NOT NULL;
+    -- A question the Candidate stopped before the input Guardrails let it through (#328): shown, never sent to the AI Coach.
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS unchecked boolean NOT NULL DEFAULT false;
     -- Whether the conversation opened with the AI disclosure (#324): true for every new one, false for those saved before.
     ALTER TABLE coach_conversation ADD COLUMN IF NOT EXISTS ai_disclosure boolean NOT NULL DEFAULT false;
   `);

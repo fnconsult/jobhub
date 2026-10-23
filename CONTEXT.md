@@ -168,7 +168,7 @@ A named check on a Candidate's or Administrator's message to the AI Coach or Bac
 _Avoid_: Filter, moderation, safety layer
 
 **Blocked message**:
-A Candidate message a Guardrail stops before the AI Coach sees it, or an AI Coach reply a Guardrail stops before the Candidate does. A blocked message is answered by the Guardrail message; a blocked reply is written again once, told what was wrong, then replaced by the Guardrail message if still blocked (a leak or a secret is replaced at once). Both stay in the Coach Conversation, marked as blocked without naming the Guardrail; a distress Guardrail's answer is never shown as a block. A Guardrail set to flag only lets everything through and records it.
+A Candidate message a Guardrail stops before the AI Coach sees it, or an AI Coach reply a Guardrail stops before the Candidate does. A blocked message is answered by the Guardrail message; a blocked reply is written again once, told what was wrong, then replaced by the Guardrail message if still blocked (a leak or a secret is replaced at once). Both stay in the Coach Conversation, marked as blocked without naming the Guardrail; a distress Guardrail's answer is never shown as a block. A Guardrail set to flag only lets everything through and records it. A question the Candidate stops before the input Guardrails let it through is not blocked, and stays in the Coach Conversation unmarked, but is never sent to the AI Coach; a check the Stop ends records no Guardrail Trigger.
 _Avoid_: Rejected message, filtered reply
 
 **Guardrail message**:

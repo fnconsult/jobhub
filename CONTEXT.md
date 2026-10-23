@@ -651,6 +651,14 @@ _Avoid_: Metadata, usage
 What served one piece of content a Candidate sees (a Job Search, a Job Offer's reading and summary, a Tailored CV or Tailored Document, a Company Dossier, a Master CV Version read from a file, an Action Card, a Job Digest, an AI Coach reply), fixed when it is made and kept with it: its steps, each with its Activity, its AI task or Tool, for an AI step the provider, where it ran (endpoint and region) and the model that actually served, tokens in and out, and its duration, start time and Outcome (stopped included); its Provenance sites; and its start time and wall-clock duration. No Candidate, no cost, no text. Lives and is deleted with its content, so it is in the Data export with it. Content made before it existed, or whose Provenance was not kept, shows « modèle non enregistré » and counts in no total; nothing is estimated. Not AI Usage, which counts calls for Jobbbox and names no one, and never linked to it.
 _Avoid_: Metadata, trace, lineage, usage
 
+**Provenance line**:
+The quiet line under each saved AI Coach or Back Office Assistant reply: the models by display name and where they ran, the « consentement IA UE » or « hors UE » chip when that route served a call, tokens, time, Tools, and the Provenance sites behind a disclosure button. Never cost, prompt, AI task, Playbook Agent or identifier. A reply made before Provenance existed shows what its saved provider, model and tokens allow (a partial Provenance, time unknown and so not shown), or « modèle non enregistré » when no model was saved.
+_Avoid_: Footer, metadata line, usage line
+
+**Focus**:
+The object of the page in view when a Coach reply was asked: an Application, a Job Offer or a Profile. Kept with the reply so AI Activity can count the reply with that page, and in the Data export.
+_Avoid_: Context, subject, target
+
 **Provenance site**:
 A site whose pages a piece of content was built from, kept in its Provenance with the links read: an offer page, a job board, the company register, the Candidate's own Master CV and Profile. Shown to the Candidate under « Sources »; a link never points to a LinkedIn profile, a page naming a person, an Enriched Contact, an address inside Jobbbox other than the Candidate's own pages, a signed or tokenised address or a query string. Not a coaching Source (`[S12]`). Either a website (by domain, `www.` removed) or the Candidate's own pages, kept as relative paths (Profils, Candidatures, Recherches, Offres, Job Digests). Steps that ran the same Activity, task or Tool, provider, endpoint, model and Outcome are shown folded into one, with a count.
 _Avoid_: Source (alone), citation, reference

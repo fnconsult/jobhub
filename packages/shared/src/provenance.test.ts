@@ -40,6 +40,20 @@ describe("a Provenance read from its jsonb column", () => {
     expect(readProvenance({ ...provenance, steps: [{ ...toolStep, tool: "unknown-tool" }] })).toBeNull();
   });
 
+  it("shows only the links the link filter allows, each on its own kind of site", () => {
+    const stored = {
+      ...provenance,
+      sites: [
+        { kind: "web", domain: "apec.fr", links: ["https://www.apec.fr/offre/1?utm_source=x", "https://www.linkedin.com/in/jean-dupont", "/profils/4b1c"] },
+        { kind: "candidate", links: ["/profils/4b1c", "/admin/outils", "https://www.apec.fr/offre/1"] },
+      ],
+    };
+    expect(readProvenance(stored)?.sites).toEqual([
+      { kind: "web", domain: "apec.fr", links: ["https://www.apec.fr/offre/1"] },
+      { kind: "candidate", links: ["/profils/4b1c"] },
+    ]);
+  });
+
   it("keeps a stopped step", () => {
     const stopped = { ...provenance, steps: [{ ...aiStep, outcome: "stopped" }] };
     expect(readProvenance(stopped)).toEqual(stopped);

@@ -12,6 +12,7 @@
  */
 import { z } from "zod";
 import { OUTCOMES } from "./failure-reasons";
+import { provenanceLink } from "./provenance-link";
 import { TOOLS, type AiUsageProvider, type ToolId } from "./tools";
 
 /**
@@ -80,12 +81,16 @@ const rulesStep = z.strictObject({
 });
 const step = z.discriminatedUnion("kind", [aiStep, toolStep, rulesStep]);
 
-const link = z.string().max(2000);
+/** The links the link filter allows (as it gives them back): a web page on a web site, a path to one of their pages on the Candidate's. */
+const links = (kind: "web" | "candidate") =>
+  z.array(z.string()).transform((stored) => [
+    ...new Set(stored.flatMap((link) => provenanceLink(link) ?? []).filter((link) => link.startsWith("/") === (kind === "candidate"))),
+  ]);
 const site = z.discriminatedUnion("kind", [
   /** A site on the web, by its domain, with the pages read. */
-  z.strictObject({ kind: z.literal("web"), domain: z.string().regex(DOMAIN), links: z.array(link) }),
+  z.strictObject({ kind: z.literal("web"), domain: z.string().regex(DOMAIN), links: links("web") }),
   /** The Candidate's own data (Master CV, Profile), with their own pages. */
-  z.strictObject({ kind: z.literal("candidate"), links: z.array(link) }),
+  z.strictObject({ kind: z.literal("candidate"), links: links("candidate") }),
 ]);
 
 const provenanceSchema = z.strictObject({
@@ -97,11 +102,14 @@ const provenanceSchema = z.strictObject({
   wallMs: count,
 });
 
-export type ProvenanceStep = z.infer<typeof step>;
-export type ProvenanceSite = z.infer<typeof site>;
-export type Provenance = z.infer<typeof provenanceSchema>;
+export type ProvenanceStep = z.output<typeof step>;
+export type ProvenanceSite = z.output<typeof site>;
+export type Provenance = z.output<typeof provenanceSchema>;
 
-/** The Provenance stored in a result's jsonb column; null when none was kept or it is not one this version knows. */
+/**
+ * The Provenance stored in a result's jsonb column; null when none was kept or it is not one this version knows.
+ * Its sites keep only the links the link filter allows today.
+ */
 export function readProvenance(stored: unknown): Provenance | null {
   const parsed = provenanceSchema.safeParse(stored);
   return parsed.success ? parsed.data : null;

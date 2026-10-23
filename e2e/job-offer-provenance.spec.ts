@@ -76,7 +76,7 @@ async function loadedPage(id: string) {
     await pool.end();
   }
 }
-const t = ((key: string) => key.split(".").reduce((node: any, part) => node?.[part], fr)) as never;
+const t = ((key: string) => key.split(".").reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], fr)) as never;
 
 test.describe("Job Offers keep their Provenance (#329)", () => {
   test.describe.configure({ mode: "serial", timeout: 180_000 });

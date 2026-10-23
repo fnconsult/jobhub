@@ -496,6 +496,34 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       reports = createJobSearchReports(testAuth.auth.options.database as Pool, { quotas: billing, now: () => clock.now });
     });
 
+    it("the Candidate stops their Job Search: the worker is asked to, and writes the outcome itself", async () => {
+      const jobSearch = await started();
+      expect(await reports.stopRequested(jobSearch.id)).toBe(false);
+
+      expect(await jobSearches.stop(candidateId, jobSearch.id)).toEqual({ ok: true });
+
+      expect(await reports.stopRequested(jobSearch.id)).toBe(true);
+      expect((await jobSearches.get(candidateId, jobSearch.id))?.status).toBe("searching");
+    });
+
+    it("another Candidate cannot stop it", async () => {
+      const jobSearch = await started();
+
+      expect(await jobSearches.stop(otherCandidateId, jobSearch.id)).toEqual({ ok: false, error: "forbidden" });
+
+      expect(await reports.stopRequested(jobSearch.id)).toBe(false);
+    });
+
+    it("there is nothing to stop once it is over, nor for a Job Search that does not exist", async () => {
+      const jobSearch = await started();
+      await reports.record(jobSearch.id, { jobOfferIds: [] });
+
+      expect(await jobSearches.stop(candidateId, jobSearch.id)).toEqual({ ok: false, error: "over" });
+      expect(await jobSearches.stop(candidateId, "00000000-0000-4000-8000-000000000000")).toEqual({ ok: false, error: "not_found" });
+      expect(await jobSearches.stop(candidateId, "not-a-uuid")).toEqual({ ok: false, error: "not_found" });
+      expect(await reports.stopRequested("not-a-uuid")).toBe(false);
+    });
+
     it("stopped mid-search, it is 'stopped', with the Job Offers found so far and the Provenance of the steps it finished", async () => {
       const daf = await capture("DAF H/F", { location: "Lyon" });
       const jobSearch = await started();

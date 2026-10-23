@@ -22,6 +22,10 @@
  *    - `progress`: while it searches, the worker writes its live steps after each one starts
  *      and ends (the same events as the web streams'), and `notifications`, which every page
  *      polls while one is searching, gives them back (« En cours ailleurs »), until it is over.
+ *    - `stop` one still searching (#331), the Candidate's own only: the worker, asking `stopRequested`
+ *      as it searches, stops between two steps and the AI call on its way, and records it 'stopped'
+ *      with the Job Offers found until then (a failed one keeps them too). A stop that kept no Job
+ *      Offer gives its Plan Quota use back.
  *  - `migrateJobSearches(database)` creates / upgrades the table.
  * Every read is scoped to the Candidate; `start`'s input is untrusted (it comes
  * from the browser) and problems come back as results, never exceptions. A
@@ -162,14 +166,24 @@ export interface JobSearches {
    */
   notifications(candidateId: string): Promise<{ notifications: JobSearchNotification[]; searching: boolean; running: RunningJobSearch[] }>;
   /**
+   * Asks the worker to stop the Candidate's Job Search still searching (#331): it stops between two steps, and the AI
+   * call on its way, then records it 'stopped' with the Job Offers found until then. `forbidden`: another Candidate's;
+   * `over`: it is no longer searching. Asking again changes nothing.
+   */
+  stop(candidateId: string, jobSearchId: string): Promise<StopJobSearchResult>;
+  /**
    * Stops telling the Candidate about their finished Job Search (they closed the
    * notification, or opened the Job Search). Nothing for anyone else's, or one still searching.
    */
   dismissNotification(candidateId: string, jobSearchId: string): Promise<void>;
 }
 
+export type StopJobSearchResult = { ok: true } | { ok: false; error: "not_found" | "forbidden" | "over" };
+
 /** The worker's side of Job Searches: Job discovery's reports, and the searches it never answered. */
 export interface JobSearchReports extends Pick<JobSearches, "record"> {
+  /** Whether the Candidate asked to stop this Job Search (#331): the worker asks while it searches. */
+  stopRequested(jobSearchId: string): Promise<boolean>;
   /** Writes the live steps of a Job Search still searching (each step's latest event); nothing once it is over. */
   progress(jobSearchId: string, steps: ProvenanceEvent[]): Promise<void>;
   /**
@@ -218,7 +232,8 @@ export async function migrateJobSearches(database: Pool): Promise<void> {
     ALTER TABLE job_search ADD COLUMN IF NOT EXISTS provenance jsonb;
     -- Its live steps while it searches (each step's latest event), written by the worker; null once it is over.
     ALTER TABLE job_search ADD COLUMN IF NOT EXISTS progress jsonb;
-    -- A Job Search the Candidate stopped (#331).
+    -- A Job Search the Candidate stopped (#331): asked at stop_requested_at, 'stopped' once the worker stops.
+    ALTER TABLE job_search ADD COLUMN IF NOT EXISTS stop_requested_at timestamptz;
     ALTER TABLE job_search DROP CONSTRAINT IF EXISTS job_search_status_check;
     ALTER TABLE job_search ADD CONSTRAINT job_search_status_check CHECK (status IN ('searching', 'done', 'failed', 'stopped'));
     CREATE INDEX IF NOT EXISTS job_search_candidate_profile_idx ON job_search (candidate_id, profile_id, started_at DESC);
@@ -283,6 +298,11 @@ export function createJobSearchReports(
       if (!UUID.test(jobSearchId)) return;
       // Only steps' events are written: nothing a Provenance never keeps.
       await database.query("UPDATE job_search SET progress = $2::jsonb WHERE id = $1 AND status = 'searching'", [jobSearchId, JSON.stringify(readRunProgress(steps))]);
+    },
+    async stopRequested(jobSearchId) {
+      if (!UUID.test(jobSearchId)) return false;
+      const { rows } = await database.query("SELECT 1 FROM job_search WHERE id = $1 AND stop_requested_at IS NOT NULL", [jobSearchId]);
+      return rows.length > 0;
     },
     expireTimedOut: () => expireTimedOut(database, { quotas, now }),
   };
@@ -445,6 +465,17 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
         .filter((row) => row.status === "searching")
         .map((row) => ({ jobSearchId: row.id, profile: { id: row.profile_id, name: row.profile_name }, startedAt: row.started_at.toISOString(), steps: readRunProgress(row.progress) }));
       return { notifications, searching: running.length > 0, running };
+    },
+    async stop(candidateId, jobSearchId) {
+      if (!UUID.test(jobSearchId)) return { ok: false, error: "not_found" };
+      const { rowCount } = await database.query(
+        "UPDATE job_search SET stop_requested_at = coalesce(stop_requested_at, $3) WHERE id = $1 AND candidate_id = $2 AND status = 'searching'",
+        [jobSearchId, candidateId, now()],
+      );
+      if (rowCount) return { ok: true };
+      const { rows } = await database.query<{ candidate_id: string }>("SELECT candidate_id FROM job_search WHERE id = $1", [jobSearchId]);
+      if (!rows[0]) return { ok: false, error: "not_found" };
+      return { ok: false, error: rows[0].candidate_id === candidateId ? "over" : "forbidden" };
     },
     async dismissNotification(candidateId, jobSearchId) {
       if (!UUID.test(jobSearchId)) return;

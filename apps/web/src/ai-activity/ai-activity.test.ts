@@ -193,3 +193,42 @@ describe("AI Activity's page loaders (#332)", () => {
     expect(elements[1]).toEqual({ kind: "coach_reply", at: "2026-09-01T08:00:00.000Z", served: null });
   });
 });
+
+describe("the Application's documents page, as AI Activity reads it (#334)", () => {
+  const APPLICATION = "2b3c4d5e-6f70-4a8b-9c0d-1e2f3a4b5c6d";
+  const CANDIDATE = "candidate-1";
+  const written = (model: string): Provenance => ({
+    v: 1,
+    steps: [{ kind: "ai", activity: "write", task: "writing", provider: "mistral", endpoint: "api.mistral.ai", model, tokens: { input: 4000, output: 900 }, ms: 8200, at: "2026-10-23T10:40:00.000Z", outcome: "ok", count: 1 }],
+    sites: [],
+    startedAt: "2026-10-23T10:40:00.000Z",
+    wallMs: 8200,
+  });
+  const saved = written("mistral-large-latest");
+  const letter = written("mistral-medium-latest");
+  const cvs = (state: { proposal: { provenance: Provenance | null } | null; saved: { provenance: Provenance | null } | null }) => ({
+    get: async (candidateId: string, id: string) => (candidateId === CANDIDATE && id === APPLICATION ? state : null),
+  });
+  const drafts = (state: { coverLetter: { provenance: Provenance | null } | null; outreachMessage: { provenance: Provenance | null } | null }) => ({
+    get: async (candidateId: string, id: string) => (candidateId === CANDIDATE && id === APPLICATION ? state : null),
+  });
+
+  it("is the saved Tailored CV, the proposal under review, the Cover Letter and the Outreach Message, each with its Provenance", async () => {
+    const page = await applicationDocumentsPage(cvs({ proposal: { provenance: written("mistral-medium-latest") }, saved: { provenance: saved } }), drafts({ coverLetter: { provenance: letter }, outreachMessage: { provenance: null } }), CANDIDATE, APPLICATION);
+
+    expect(page.map(({ kind, served }) => ({ kind, served: served !== null }))).toEqual([
+      { kind: "tailored_cv", served: true },
+      { kind: "tailored_cv", served: true },
+      { kind: "tailored_documents", served: true },
+      { kind: "tailored_documents", served: false },
+    ]);
+  });
+
+  it("is nothing for an Application that is not the Candidate's, and carries no internal id", async () => {
+    const cvsState = cvs({ proposal: null, saved: { provenance: saved } });
+    const draftsState = drafts({ coverLetter: { provenance: letter }, outreachMessage: null });
+
+    expect(await applicationDocumentsPage(cvsState, draftsState, "candidate-2", APPLICATION)).toEqual([]);
+    expect(JSON.stringify(await applicationDocumentsPage(cvsState, draftsState, CANDIDATE, APPLICATION))).not.toContain(APPLICATION);
+  });
+});

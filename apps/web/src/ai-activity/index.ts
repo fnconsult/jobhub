@@ -92,3 +92,24 @@ export async function applicationPage(sources: PageSources, candidateId: string,
 export async function profilePage(sources: PageSources, candidateId: string, profile: { id: string }, content: readonly Made[]): Promise<ActivityElement[]> {
   return [...made(content), ...(await repliesAbout(sources, candidateId, { kind: "profile", id: profile.id }))];
 }
+
+/** What the documents page needs of a Tailored CV and the drafts: each document's Provenance, when written. */
+type WithProvenance = { provenance: Provenance | null } | null;
+type TailoredCvSource = { get(candidateId: string, id: string): Promise<{ proposal: WithProvenance; saved: WithProvenance } | null> };
+type DraftsSource = { get(candidateId: string, id: string): Promise<{ coverLetter: WithProvenance; outreachMessage: WithProvenance } | null> };
+
+/**
+ * `/candidatures/[id]/documents` (#334): the Application's Tailored Documents, each written so far with its Provenance: the
+ * saved Tailored CV and the proposal under review (both « tailored_cv »), the Cover Letter and the Outreach Message (both
+ * « tailored_documents »). Nothing for an Application that is not the Candidate's.
+ */
+export async function applicationDocumentsPage(tailoredCvs: TailoredCvSource, tailoredDocuments: DraftsSource, candidateId: string, id: string): Promise<ActivityElement[]> {
+  const [tailoredCv, drafts] = await Promise.all([tailoredCvs.get(candidateId, id), tailoredDocuments.get(candidateId, id)]);
+  const documents: [ElementKind, WithProvenance | undefined][] = [
+    ["tailored_cv", tailoredCv?.saved],
+    ["tailored_cv", tailoredCv?.proposal],
+    ["tailored_documents", drafts?.coverLetter],
+    ["tailored_documents", drafts?.outreachMessage],
+  ];
+  return documents.flatMap(([kind, document]) => (document ? [activityElement(kind, document.provenance)] : []));
+}

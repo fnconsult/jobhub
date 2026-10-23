@@ -30,9 +30,23 @@
  * (`TrustedFacts.summary`). A Job Offer stored without one gets it from
  * `summarize`, the first time its Application page is shown: read once, never
  * twice at a time in this process.
+ * Its Provenance (`provenance`) is how it was obtained and its summary written: the
+ * search, job board or ATS API, page read and model of the reading that captured it
+ * (`TrustedFacts.provenance`), then the reading that wrote its summary later, if one did.
+ * Like the Job Offer, it names no Candidate. None for an offer captured before it was
+ * kept, or by the extension: « modèle non enregistré ».
  */
 import { createHash } from "node:crypto";
-import { CONTRACT_TYPES, JOB_OFFER_SECTOR_MAX_CHARS, JOB_OFFER_SUMMARY_MAX_CHARS, REMOTE_WORK_OPTIONS, type JobOffer } from "@jobhub/shared";
+import {
+  CONTRACT_TYPES,
+  JOB_OFFER_SECTOR_MAX_CHARS,
+  JOB_OFFER_SUMMARY_MAX_CHARS,
+  joinProvenance,
+  readProvenance,
+  REMOTE_WORK_OPTIONS,
+  type JobOffer,
+  type Provenance,
+} from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import { fieldErrors, type FieldError } from "../validation";
@@ -56,6 +70,9 @@ export type FieldsFromText = Pick<
   "employer" | "location" | "contractType" | "remoteWork" | "salary" | "skills" | "requiredExperienceYears" | "summary" | "sector" | "subsector"
 >;
 
+/** What `fillFromText` and `summarize` are given by their reading: the fields read, and the Provenance of that reading. */
+export type TextReading = FieldsFromText & { provenance?: Provenance };
+
 export type CaptureJobOfferResult = { ok: true; jobOffer: JobOffer } | { ok: false; errors: FieldError[] };
 
 /** Who captured a posting: a signed-in Candidate, or a Guest (no account). */
@@ -73,6 +90,8 @@ export interface TrustedFacts {
   /** The employer's sector and sub-sector, read by the same AI with the summary. */
   sector?: string;
   subsector?: string;
+  /** How the caller found and read the posting (its search, page read and model): kept with a Job Offer it stores. */
+  provenance?: Provenance;
 }
 
 // A Date the caller built from what it read, never text to coerce: nothing from a request body reaches it.
@@ -103,7 +122,7 @@ export interface JobOffers {
    * A field already stated is never replaced. Returns the Job Offer as stored afterwards, or
    * null if there is none with this id. What `read` throws is thrown, and the next call reads again.
    */
-  fillFromText(id: string, read: (jobOffer: JobOffer) => Promise<FieldsFromText>): Promise<JobOffer | null>;
+  fillFromText(id: string, read: (jobOffer: JobOffer) => Promise<TextReading>): Promise<JobOffer | null>;
   /**
    * The Job Offer with its Job Offer Summary: the stored one, else one `read` from its text, stored
    * with the fields it lacks (as `fillFromText` does). `read` is called once per Job Offer: never
@@ -111,7 +130,12 @@ export interface JobOffers {
    * reads waits for it. Null if there is none with this id. What `read` throws is thrown, and the
    * next call reads again.
    */
-  summarize(id: string, read: (jobOffer: JobOffer) => Promise<FieldsFromText>): Promise<JobOffer | null>;
+  summarize(id: string, read: (jobOffer: JobOffer) => Promise<TextReading>): Promise<JobOffer | null>;
+  /**
+   * How the Job Offer was obtained and its summary written: its Provenance, its links as the link filter allows
+   * them today. Null when it has none (« modèle non enregistré »), or there is none with this id.
+   */
+  provenance(id: string): Promise<Provenance | null>;
 }
 
 /** Drops NUL characters: text scraped from a page can carry them, and Postgres cannot store them in text columns. */
@@ -224,22 +248,28 @@ const siteName = (url: string) => new URL(url).hostname.toLowerCase().replace(/^
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type ReadRow = JobOfferRow & { text_read_at: Date | null; summary_read_at: Date | null; sector_read_at: Date | null };
+type ReadRow = JobOfferRow & { text_read_at: Date | null; summary_read_at: Date | null; sector_read_at: Date | null; provenance: unknown };
+
+/** A Provenance as it may be stored: one naming an id, or of a shape this version does not know, is not kept. */
+const storable = (provenance: Provenance | undefined): string | null => {
+  const kept = readProvenance(provenance);
+  return kept ? JSON.stringify(kept) : null;
+};
 
 export function createJobOffers(database: Pool): JobOffers {
   /** The summaries being read now, by Job Offer id: a second call waits for the first one's. */
   const summarizingNow = new Map<string, Promise<JobOffer | null>>();
 
   async function readRow(id: string): Promise<ReadRow | undefined> {
-    const { rows } = await database.query<ReadRow>(`SELECT ${COLUMNS}, text_read_at, summary_read_at, sector_read_at FROM job_offer WHERE id = $1`, [id]);
+    const { rows } = await database.query<ReadRow>(`SELECT ${COLUMNS}, text_read_at, summary_read_at, sector_read_at, provenance FROM job_offer WHERE id = $1`, [id]);
     return rows[0];
   }
 
   /**
    * Stores what `read` finds in the Job Offer's text: the fields it lacks (never replacing one stated)
-   * and its summary (unless it has one), and that its text was read, for both.
+   * and its summary (unless it has one), and that its text was read, for both; that reading's Provenance after the stored one.
    */
-  async function storeRead(row: ReadRow, read: (jobOffer: JobOffer) => Promise<FieldsFromText>): Promise<JobOffer | null> {
+  async function storeRead(row: ReadRow, read: (jobOffer: JobOffer) => Promise<TextReading>): Promise<JobOffer | null> {
     // Each field is checked as a captured posting's is: one that fails is left out, the rest kept.
     const found = await read(jobOfferFrom(row));
     const valid: Record<string, unknown> = {};
@@ -266,7 +296,8 @@ export function createJobOffers(database: Pool): JobOffers {
          subsector = CASE WHEN sector IS NULL THEN $12 ELSE subsector END,
          text_read_at = now(),
          summary_read_at = now(),
-         sector_read_at = now()
+         sector_read_at = now(),
+         provenance = COALESCE($13::jsonb, provenance)
        WHERE id = $1
        RETURNING ${COLUMNS}`,
       [
@@ -282,6 +313,7 @@ export function createJobOffers(database: Pool): JobOffers {
         (summary.success && summary.data) || null,
         (sector.success && sector.data) || null,
         (sector.success && sector.data && subsector.success && subsector.data) || null,
+        storable(joinProvenance(readProvenance(row.provenance), readProvenance(found.provenance)) ?? undefined),
       ],
     );
     return updated.rows[0] ? jobOfferFrom(updated.rows[0]) : null;
@@ -315,11 +347,11 @@ export function createJobOffers(database: Pool): JobOffers {
       const { rows } = await database.query<JobOfferRow>(
         `INSERT INTO job_offer (url_key, content_fingerprint, source_url, source_name, title, content, employer, location,
                                 contract_type, remote_work, salary_min, salary_max, skills, required_experience_years,
-                                posted_at, guest_expires_at, summary, summary_read_at, sector, subsector, sector_read_at)
+                                posted_at, guest_expires_at, summary, summary_read_at, sector, subsector, sector_read_at, provenance)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
                  CASE WHEN $16 = 'guest' THEN ${GUEST_EXPIRY_SQL} END,
                  $17::text, CASE WHEN $17::text IS NOT NULL THEN now() END,
-                 $18::text, $19::text, CASE WHEN $17::text IS NOT NULL THEN now() END)
+                 $18::text, $19::text, CASE WHEN $17::text IS NOT NULL THEN now() END, $20::jsonb)
          ON CONFLICT DO NOTHING
          RETURNING ${COLUMNS}`,
         [
@@ -341,6 +373,7 @@ export function createJobOffers(database: Pool): JobOffers {
           summary ?? null,
           sector ?? null,
           (sector && subsector) ?? null,
+          storable(trusted.provenance),
         ],
       );
       if (rows[0]) return { ok: true, jobOffer: jobOfferFrom(rows[0]) };
@@ -367,13 +400,14 @@ export function createJobOffers(database: Pool): JobOffers {
         );
         if (revived.rowCount) row.expired_at = null;
       }
-      // Stored without a summary: the one just read is kept.
+      // Stored without a summary: the one just read is kept, with how it was read when the offer has no Provenance yet.
       if (summary !== undefined && row.summary === null) {
         await database.query(
           `UPDATE job_offer SET summary = $2, summary_read_at = now(),
-                  sector = COALESCE(sector, $3), subsector = CASE WHEN sector IS NULL THEN $4 ELSE subsector END, sector_read_at = now()
+                  sector = COALESCE(sector, $3), subsector = CASE WHEN sector IS NULL THEN $4 ELSE subsector END, sector_read_at = now(),
+                  provenance = COALESCE(provenance, $5::jsonb)
             WHERE id = $1 AND summary IS NULL`,
-          [row.id, summary, sector ?? null, (sector && subsector) ?? null],
+          [row.id, summary, sector ?? null, (sector && subsector) ?? null, storable(trusted.provenance)],
         );
         row.summary = summary;
         if (row.sector === null && sector) {
@@ -428,6 +462,12 @@ export function createJobOffers(database: Pool): JobOffers {
       }
       return summarizing;
     },
+
+    async provenance(id) {
+      if (!UUID.test(id)) return null;
+      const { rows } = await database.query<{ provenance: unknown }>(`SELECT provenance FROM job_offer WHERE id = $1`, [id]);
+      return readProvenance(rows[0]?.provenance);
+    },
   };
 }
 
@@ -470,5 +510,7 @@ export async function migrateJobOffers(database: Pool): Promise<void> {
     ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS sector text;
     ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS subsector text;
     ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS sector_read_at timestamptz;
+    -- Its Provenance (ADR-0034): how it was obtained and its summary written, never a Candidate; null: « modèle non enregistré ».
+    ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS provenance jsonb;
   `);
 }

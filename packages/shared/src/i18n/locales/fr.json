@@ -2851,6 +2851,7 @@
     "route_missing": "Aucun fournisseur configuré pour cette tâche",
     "data_residency": "Règle de résidence des données",
     "invalid_reply": "Réponse illisible",
+    "stopped": "Arrêtée par la personne",
     "task_playbook_fallback": "Aucune version du Task Playbook servie : texte intégré utilisé",
     "task_playbook_unreadable": "Task Playbook illisible : texte intégré utilisé",
     "task_playbook_section_missing": "Section absente du Task Playbook : texte intégré utilisé",

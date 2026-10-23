@@ -31,7 +31,7 @@ export function createLinkupProvider(options: LinkupProviderOptions): AiProvider
     models: DEPTHS,
     endpoint: "api.linkup.so",
     residency: "outside_eu",
-    async search(query, { model, filters }): Promise<SearchOutput> {
+    async search(query, { model, filters, signal }): Promise<SearchOutput> {
       const depth = model ?? DEFAULT_DEPTH;
       const includeDomains = domainsOf(filters?.includeDomains);
       const excludeDomains = domainsOf(filters?.excludeDomains);
@@ -44,7 +44,7 @@ export function createLinkupProvider(options: LinkupProviderOptions): AiProvider
         ...(includeDomains ? { includeDomains } : {}),
         ...(excludeDomains ? { excludeDomains } : {}),
         ...(since ? { fromDate: since } : {}),
-      });
+      }, signal);
       const results = (response?.results ?? [])
         .filter((r) => r.type === "text")
         .map((r) => ({ title: r.name, url: r.url, snippet: r.content }));

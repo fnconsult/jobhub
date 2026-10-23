@@ -10,6 +10,7 @@
  *   await ai.searchWeb({ candidateId, criteria, query: plan.queries[0], page: 1, filters: { excludeDomains, maxAgeDays: 30 } });
  *   await ai.searchCompany({ candidateId, employer });
  *   await ai.searchCompanyNews({ candidateId, employer, registeredName, website }); // its Company News, never fails
+ *   await ai.searchCompanyNewsWithCall({ candidateId, employer }); // the same, with the search call (null when it failed)
  *   await readOfferFields(ai, { candidateId, jobOffer, reading }); // a Job Offer's fields, read from its text
  * A task's instructions come from its task Playbook when the caller passes them (`TaskInstructions`,
  * ADR-0026); otherwise from the built-in text, version 1 as written in `@jobhub/coach-knowledge/tasks`.
@@ -21,6 +22,8 @@ export type {
   AgentModelChoice,
   AiLayer,
   AiLayerOptions,
+  CallFacts,
+  CompanyNews,
   CompanySearchRequest,
   GenerateRequest,
   GenerateResult,

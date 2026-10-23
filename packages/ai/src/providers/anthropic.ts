@@ -83,7 +83,7 @@ function baseUrlOf(endpoint: AnthropicEndpoint): string {
 
 /** The one call the adapter makes; served identically by the direct, Bedrock and Vertex clients. */
 interface MessagesClient {
-  messages: { create(params: Anthropic.MessageCreateParamsNonStreaming): Promise<Anthropic.Message> };
+  messages: { create(params: Anthropic.MessageCreateParamsNonStreaming, options?: { signal?: AbortSignal }): Promise<Anthropic.Message> };
 }
 
 function clientFor(options: AnthropicProviderOptions): MessagesClient {
@@ -132,8 +132,10 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): AiPr
           ...(input.system ? { system: input.system } : {}),
           messages: input.messages,
           ...(input.effort && effortHandling("anthropic", model) === "native" ? { output_config: { effort: input.effort } } : {}),
-        });
+        }, input.signal ? { signal: input.signal } : undefined);
       } catch (error) {
+        // Stopped (#325): the SDK's own abort error says nothing the signal's reason does not.
+        if (input.signal?.aborted) throw input.signal.reason;
         const apiError = error instanceof Anthropic.APIError;
         // An API error's message carries the answer, scrubbed here; the error itself (headers, body) is not kept as the cause.
         const secrets = endpoint.kind === "vertex" ? [] : [endpoint.apiKey];

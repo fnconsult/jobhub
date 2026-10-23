@@ -59,7 +59,7 @@ export function createPerplexityProvider(options: PerplexityProviderOptions): Ai
     endpoint: "api.perplexity.ai",
     residency: "outside_eu",
     searchPages: PAGES,
-    async search(query, { model, filters, page }): Promise<SearchOutput> {
+    async search(query, { model, filters, page, signal }): Promise<SearchOutput> {
       const response = await postJson<AgentResponse>(client, "https://api.perplexity.ai/v1/responses", {
         preset: PRESET,
         ...(model ? { model } : {}),
@@ -67,7 +67,7 @@ export function createPerplexityProvider(options: PerplexityProviderOptions): Ai
         tools: [webSearchTool(filters, page)],
         max_output_tokens: MAX_OUTPUT_TOKENS,
         store: false,
-      });
+      }, signal);
       if (response?.status !== "completed") {
         const reason = response?.error?.message ?? `status ${response?.status ?? "missing"}`;
         throw new AiProviderError("perplexity", `search did not complete: ${reason}`, 200);

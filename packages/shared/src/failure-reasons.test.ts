@@ -51,6 +51,14 @@ describe("Failure Reason of an error", () => {
     expect(failureOf(new DataResidencyError("must be EU-resident")).reason).toBe("data_residency");
   });
 
+  it("a call the person stopped (an AbortSignal's abort error) is stopped, worded « Arrêtée par la personne » (#325)", () => {
+    const controller = new AbortController();
+    controller.abort();
+    expect(failureOf(controller.signal.reason)).toEqual({ reason: "stopped", technical: { class: "AbortError", message: "This operation was aborted" } });
+    expect(failureReasonWording("stopped")).toBe("Arrêtée par la personne");
+    expect(failureReasonWording("stopped", "en")).toBe("Stopped by the person");
+  });
+
   it("anything else is other, whatever was thrown", () => {
     expect(failureOf(new TypeError("boom"))).toEqual({ reason: "other", technical: { class: "TypeError", message: "boom" } });
     expect(failureOf("a string")).toEqual({ reason: "other", technical: { class: "unknown", message: "a string" } });
@@ -93,6 +101,7 @@ describe("Failure Reason catalog", () => {
       "route_missing",
       "data_residency",
       "invalid_reply",
+      "stopped",
       "task_playbook_fallback",
       "task_playbook_unreadable",
       "task_playbook_section_missing",
@@ -149,6 +158,7 @@ describe("Failure Reason catalog", () => {
       "route_missing",
       "data_residency",
       "invalid_reply",
+      "stopped",
       ...AI_CALL_WARNINGS,
       "other",
     ]);

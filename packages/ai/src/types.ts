@@ -74,6 +74,8 @@ export interface TextInput {
   maxTokens: number;
   /** How hard the model should think (#225); each adapter translates it, or leaves it out for a model that has no such setting (see effort.ts). */
   effort?: Effort;
+  /** Stops the call (#325): the adapter passes it to its HTTP request and rejects with its reason once aborted. */
+  signal?: AbortSignal;
 }
 
 /** A tool the model used during one call (e.g. its web search), as the provider reports it. Never its arguments or results. */
@@ -128,6 +130,8 @@ export interface SearchOptions {
   filters?: SearchFilters;
   /** Which page of results, from 1 (the default) up to the provider's `searchPages`. */
   page?: number;
+  /** Stops the search (#325): the adapter passes it to its HTTP request and rejects with its reason once aborted. */
+  signal?: AbortSignal;
 }
 
 /** The seam every provider adapter fills. */

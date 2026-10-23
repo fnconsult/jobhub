@@ -27,8 +27,8 @@ interface ChatClientOptions {
   fetch?: typeof globalThis.fetch;
 }
 
-async function postChat(options: ChatClientOptions, body: Record<string, unknown>): Promise<ChatCompletion> {
-  const completion = await postJson<ChatCompletion>(options, `${options.baseUrl}/chat/completions`, body);
+async function postChat(options: ChatClientOptions, body: Record<string, unknown>, signal?: AbortSignal): Promise<ChatCompletion> {
+  const completion = await postJson<ChatCompletion>(options, `${options.baseUrl}/chat/completions`, body, signal);
   if (!completion?.choices?.[0]) throw new AiProviderError(options.provider, "response has no choices", 200);
   return completion;
 }
@@ -103,7 +103,7 @@ export function createMistralProvider(options: TextProviderOptions): AiProvider 
     async generate(input): Promise<TextOutput> {
       const model = input.model ?? defaultModel;
       const { maxTokens, ...reasoning } = withReasoning("mistral", model, input);
-      const completion = await postChat(client, { model, max_tokens: maxTokens, messages: chatMessages(input), ...reasoning });
+      const completion = await postChat(client, { model, max_tokens: maxTokens, messages: chatMessages(input), ...reasoning }, input.signal);
       return { text: answerText(completion), model: completion.model, usage: usageOf(completion) };
     },
   };
@@ -127,7 +127,7 @@ export function createOpenAiProvider(options: OpenAiProviderOptions): AiProvider
     async generate(input): Promise<TextOutput> {
       const model = input.model ?? defaultModel;
       const { maxTokens, ...reasoning } = withReasoning("openai", model, input);
-      const completion = await postChat(client, { model, max_completion_tokens: maxTokens, messages: chatMessages(input), ...reasoning });
+      const completion = await postChat(client, { model, max_completion_tokens: maxTokens, messages: chatMessages(input), ...reasoning }, input.signal);
       return { text: answerText(completion), model: completion.model, usage: usageOf(completion) };
     },
   };

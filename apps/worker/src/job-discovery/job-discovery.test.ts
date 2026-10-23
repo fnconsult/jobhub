@@ -115,8 +115,10 @@ function setup(options: {
   otherSearch?: FakeProvider;
   /** The NAF and ROME-domain labels (#236). */
   industries?: () => Promise<IndustryReference>;
+  /** Each web search waits for its signal to abort (#331). */
+  searchPending?: boolean;
 }) {
-  const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, sourceDates: options.sourceDates, answer: options.answer, pages: options.searchPages });
+  const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, sourceDates: options.sourceDates, answer: options.answer, pages: options.searchPages, pending: options.searchPending });
   const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}', usage: options.llmUsage });
   const titles = createFakeProvider({ id: "mistral", reply: options.titles ?? "{}" });
   const ai = createAiLayer({
@@ -1165,6 +1167,42 @@ describe("Job discovery", () => {
         funnel: { providerUrls: 2, fetched: 1, extracted: 0, alreadyStored: 0 },
       });
       expect((failure as JobDiscoveryError).partial.costEur).toBeCloseTo((0.0000125 + 0.002508) * 0.86, 9);
+    });
+  });
+
+  describe("stopped by the Candidate (#331)", () => {
+    const urls = ["https://emplois.example.fr/offres/1", "https://emplois.example.fr/offres/2", "https://emplois.example.fr/offres/3"];
+    const postings = Object.fromEntries(urls.map((url, index) => [url, { body: jobPostingPage({ title: `DAF ${index + 1}`, description: `Poste de DAF numéro ${index + 1}.` }) }]));
+
+    it("starts no step once its signal aborts, and reports what it found until then rather than failing", async () => {
+      const { discovery, web } = setup({ sources: urls, pages: postings });
+      const stop = new AbortController();
+      // The Candidate stops it as the first page read ends.
+      const onEvent = (event: ProvenanceEvent) => {
+        if (event.type === "step_ended" && event.step.kind === "tool" && event.step.tool === "job-site") stop.abort();
+      };
+
+      const report = await discovery.discover({ candidateId: "c", criteria, onEvent, signal: stop.signal });
+
+      expect(report.jobOffers.map((jobOffer) => jobOffer.title)).toEqual(["DAF 1"]);
+      expect(web.fetched()).not.toContain(urls[1]);
+    });
+
+    it("stops the AI call on its way: its step is kept 'stopped', with the steps finished before it", async () => {
+      const { discovery, search } = setup({ sources: urls, pages: postings, searchPending: true });
+      const stop = new AbortController();
+      const onEvent = (event: ProvenanceEvent) => {
+        if (event.type === "step_started" && event.step.kind === "ai" && event.step.task === "web_search") setTimeout(() => stop.abort(), 0);
+      };
+
+      const report = await discovery.discover({ candidateId: "c", criteria, onEvent, signal: stop.signal });
+
+      expect(search.searches[0]?.signal).toBe(stop.signal);
+      expect(report.jobOffers).toEqual([]);
+      expect(report.run.provenance()?.steps.map((step) => [step.kind === "ai" ? step.task : step.kind, step.outcome])).toEqual([
+        ["job_titles", "ok"],
+        ["web_search", "stopped"],
+      ]);
     });
   });
 

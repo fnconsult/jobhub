@@ -77,6 +77,9 @@
  * search, or France Travail's or Fantastic.jobs' search), the listing page that led to it, its ATS API or page
  * read and the model that read the page (its summary's), on the site of its page. It names no Candidate.
  *
+ * A run the Candidate stops (its request's `signal`, #331) starts no step after, its AI call on its way is stopped,
+ * and it reports what it found until then, as a run whose budget is spent: it does not fail.
+ *
  * The run itself is recorded too (#330): every step of it (the job title variants, each source, each web
  * search, page read and the model that read it), each told to the request's `onEvent` as it starts and ends,
  * and kept, folded, in the report's `run`, which the caller goes on recording into (its Match Scores) before
@@ -317,7 +320,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
   const searchFilters: SearchFilters = { excludeDomains: [...forbiddenSites], maxAgeDays: MAX_POSTING_AGE_DAYS, country: SEARCH_COUNTRY };
 
   return {
-    async discover({ candidateId, criteria, onEvent }) {
+    async discover({ candidateId, criteria, onEvent, signal }) {
       const startedAt = clock.now();
       const budget: JobDiscoveryBudget = { ...DEFAULT_BUDGET, ...(typeof options.budget === "function" ? options.budget() : options.budget) };
       const settings = await readSettings(options.settings);
@@ -347,7 +350,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         clock,
       });
       const found = new Map<string, JobOffer>();
-      const ai = costing(options.ai, (eur) => (report.costEur += eur));
+      const ai = costing(stoppable(options.ai, signal), (eur) => (report.costEur += eur));
       const run = createProvenanceRecorder(ai, { now: () => new Date(clock.now()), onEvent });
       const report: DiscoveryReport = {
         jobOffers: [],
@@ -374,7 +377,9 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
       const { funnel, skipped } = report;
       /** The share of the budget the location being searched may use up to (k/n for the k-th of n locations). */
       let share = 1;
+      // The Candidate stopping the run spends it too: no step starts after.
       const budgetSpent = () =>
+        signal?.aborted === true ||
         found.size >= budget.jobOffers * share ||
         report.costEur >= budget.spendEur * share ||
         clock.now() - startedAt >= budget.seconds * 1000 * share;
@@ -588,6 +593,8 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         }
       } catch (error) {
         report.jobOffers = [...found.values()];
+        // Stopped by the Candidate, the AI call on its way broke: the run reports what it found, as when stopped between steps.
+        if (signal?.aborted) return report;
         throw new JobDiscoveryError(report, error);
       }
       report.jobOffers = [...found.values()];
@@ -599,6 +606,23 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
 /** The web addresses written in a text, in order (a Markdown link's too), without the punctuation that follows them. */
 function urlsIn(text: string): string[] {
   return (text.match(/https?:\/\/[^\s<>"'`()[\]{}«»]+/g) ?? []).map((url) => url.replace(/[.,;:!?]+$/, ""));
+}
+
+/** The AI layer, each call it sends stopped once `signal` aborts (#331). Without a signal, the layer itself. */
+function stoppable(ai: AiLayer, signal: AbortSignal | undefined): AiLayer {
+  if (!signal) return ai;
+  return {
+    generate: (request) => ai.generate({ ...request, signal }),
+    // The job title step is short, and never fails: it runs to its end.
+    planJobSearch: (request) => ai.planJobSearch(request),
+    searchWeb: (request) => ai.searchWeb({ ...request, signal }),
+    searchCompany: (request) => ai.searchCompany({ ...request, signal }),
+    searchCompanyNews: (request) => ai.searchCompanyNews({ ...request, signal }),
+    searchCompanyNewsWithCall: (request) => ai.searchCompanyNewsWithCall({ ...request, signal }),
+    agentModels: () => ai.agentModels(),
+    searchModels: () => ai.searchModels(),
+    forEval: () => stoppable(ai.forEval(), signal),
+  };
 }
 
 /** The AI layer, telling `spend` the cost in € of each call made through it. */

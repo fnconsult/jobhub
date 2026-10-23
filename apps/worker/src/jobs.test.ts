@@ -478,7 +478,7 @@ describe("the worker without an AI layer", () => {
       database: noDatabase,
       discovery: { unavailable: "Missing environment variable PERPLEXITY_API_KEY" },
       profiles: { get: async () => ({ archived: false, searchCriteria: criteria, masterCv: { content: masterCv } }) },
-      jobSearches: { record: async (id, outcome) => void recorded.push([id, outcome]), progress: async () => {}, expireTimedOut: async () => 0 },
+      jobSearches: { record: async (id, outcome) => void recorded.push([id, outcome]), progress: async () => {}, stopRequested: async () => false, expireTimedOut: async () => 0 },
       followUps: { proposeDue: async () => {} },
       jobDigests: {
         claimDue: async () => [],
@@ -533,7 +533,7 @@ describe("Job discovery asked for on each job (#208)", () => {
 const otherDeps = {
   discovery: { unavailable: "not under test" },
   profiles: { get: async () => null },
-  jobSearches: { record: async () => {}, progress: async () => {}, expireTimedOut: async () => 0 },
+  jobSearches: { record: async () => {}, progress: async () => {}, stopRequested: async () => false, expireTimedOut: async () => 0 },
   followUps: { proposeDue: async () => {} },
   jobDigests: noJobDigests,
   enqueue: async () => {},
@@ -627,7 +627,7 @@ describe("the Job Search timeouts job", () => {
     const job = createJobs({
       ...otherDeps,
       database: noDatabase,
-      jobSearches: { record: async () => {}, progress: async () => {}, expireTimedOut: async () => ++expired },
+      jobSearches: { record: async () => {}, progress: async () => {}, stopRequested: async () => false, expireTimedOut: async () => ++expired },
       log: (line) => void logs.push(line),
     })[JOB_SEARCH_TIMEOUTS];
 
@@ -641,7 +641,7 @@ describe("the Job Search timeouts job", () => {
     const job = createJobs({
       ...otherDeps,
       database: noDatabase,
-      jobSearches: { record: async () => {}, progress: async () => {}, expireTimedOut: async () => Promise.reject(Object.assign(new Error("no table"), { code: "42P01" })) },
+      jobSearches: { record: async () => {}, progress: async () => {}, stopRequested: async () => false, expireTimedOut: async () => Promise.reject(Object.assign(new Error("no table"), { code: "42P01" })) },
     })[JOB_SEARCH_TIMEOUTS];
 
     await expect(job!.handler({})).resolves.toBeUndefined();

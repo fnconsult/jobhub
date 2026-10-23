@@ -11,6 +11,9 @@
  *    saved when the AI Coach cannot answer, so the Candidate can send again;
  *  - `list` the Candidate's conversations, most recently active first;
  *  - `open` one with its messages; `rename` it; `delete` it.
+ * Every new conversation opens with the AI disclosure (#324, AI Act art. 50(1)): the AI Coach's fixed
+ * first message saying it is an AI, not a person. It is fixed text, not an AI reply (no AI call, no
+ * Plan Quota, no Coach Message Cost), so only the conversation records that it opened with it.
  * Every read and change is scoped to the Candidate: another Candidate's
  * conversation is "not found". Never throws for bad input: an error code comes back.
  * Each AI Coach message is saved with what it cost (provider, model, tokens in,
@@ -46,6 +49,12 @@ export interface CoachConversationSummary {
 }
 
 export interface CoachConversation extends CoachConversationSummary {
+  /**
+   * Whether it opened with the AI disclosure: the AI Coach's fixed first message saying it is an AI, not a person
+   * (AI Act art. 50(1), #324), shown before its messages. Every new conversation does; one saved before it existed
+   * does not. The disclosure is fixed text, never an AI reply, so it is not among the messages nor given to the AI Coach.
+   */
+  aiDisclosure: boolean;
   messages: CoachMessage[];
 }
 
@@ -96,9 +105,10 @@ interface ConversationRow {
   profile_id: string | null;
   profile_name: string | null;
   last_message_at: Date;
+  ai_disclosure: boolean;
 }
 
-const SUMMARY = `SELECT c.id, c.title, c.profile_id, p.name AS profile_name, c.last_message_at
+const SUMMARY = `SELECT c.id, c.title, c.profile_id, p.name AS profile_name, c.last_message_at, c.ai_disclosure
                    FROM coach_conversation c LEFT JOIN profile p ON p.id = c.profile_id`;
 
 function summaryFrom(row: ConversationRow): CoachConversationSummary {
@@ -117,10 +127,14 @@ function titleFrom(message: string): string {
 
 export function createCoachConversations(database: Pool, deps: CoachConversationsDeps): CoachConversations {
   const now = deps.now ?? (() => new Date());
-  async function find(candidateId: string, conversationId: string): Promise<CoachConversationSummary | null> {
+  async function findRow(candidateId: string, conversationId: string): Promise<ConversationRow | null> {
     if (!UUID.test(conversationId)) return null;
     const { rows } = await database.query<ConversationRow>(`${SUMMARY} WHERE c.id = $1 AND c.candidate_id = $2`, [conversationId, candidateId]);
-    return rows[0] ? summaryFrom(rows[0]) : null;
+    return rows[0] ?? null;
+  }
+  async function find(candidateId: string, conversationId: string): Promise<CoachConversationSummary | null> {
+    const row = await findRow(candidateId, conversationId);
+    return row ? summaryFrom(row) : null;
   }
 
   /** The last `limit` messages of the Candidate's conversation, oldest first, each reply with its Job Offer card. */
@@ -173,7 +187,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
         if (!id) {
           const profileId = await profileInView(candidateId, focus);
           const { rows } = await client.query<{ id: string }>(
-            `INSERT INTO coach_conversation (candidate_id, profile_id, title, created_at, last_message_at) VALUES ($1, $2, $3, $4, $4) RETURNING id`,
+            `INSERT INTO coach_conversation (candidate_id, profile_id, title, created_at, last_message_at, ai_disclosure) VALUES ($1, $2, $3, $4, $4, true) RETURNING id`,
             [candidateId, profileId, titleFrom(message), sentAt],
           );
           id = rows[0]!.id;
@@ -219,9 +233,9 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     },
 
     async open(candidateId, conversationId) {
-      const conversation = await find(candidateId, conversationId);
-      if (!conversation) return null;
-      return { ...conversation, messages: await lastMessages(candidateId, conversation.id, null) };
+      const row = await findRow(candidateId, conversationId);
+      if (!row) return null;
+      return { ...summaryFrom(row), aiDisclosure: row.ai_disclosure, messages: await lastMessages(candidateId, row.id, null) };
     },
 
     async rename(candidateId, conversationId, title) {
@@ -406,5 +420,7 @@ export async function migrateCoachConversations(database: Pool): Promise<void> {
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS blocked boolean NOT NULL DEFAULT false;
     -- The Job Offer an AI Coach reply read from a link the Candidate pasted, shown as its Job Offer card; null otherwise.
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS job_offer_id uuid REFERENCES job_offer (id) ON DELETE SET NULL;
+    -- Whether the conversation opened with the AI disclosure (#324): true for every new one, false for those saved before.
+    ALTER TABLE coach_conversation ADD COLUMN IF NOT EXISTS ai_disclosure boolean NOT NULL DEFAULT false;
   `);
 }

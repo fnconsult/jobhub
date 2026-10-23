@@ -624,6 +624,7 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
   const tools = uniq([...elements.flatMap((e) => e.tools ?? []), ...runTools]);
   const toggle = (
     <button
+      id="proto-tasks-toggle"
       type="button"
       className="button"
       aria-expanded={open}
@@ -641,6 +642,9 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
   return (
     <>
       {slot ? createPortal(toggle, slot) : null}
+      {/* Rounder corners for both top-bar buttons (the user's request); the real
+          change would go to .topbar .coach-panel-toggle in app.css. */}
+      <style>{`#proto-tasks-toggle, .topbar .coach-panel-toggle { border-radius: var(--radius-lg); }`}</style>
       {open ? (
         <aside
           id="proto-provenance-pane"

@@ -2935,5 +2935,8 @@
       "off": "Rappels désactivés.",
       "error": "Votre choix n’a pas pu être enregistré. Réessayez."
     }
+  },
+  "aiActivity": {
+    "modelNotRecorded": "modèle non enregistré"
   }
 }

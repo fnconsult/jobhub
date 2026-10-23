@@ -1,6 +1,6 @@
 import type { ExternalApiCall } from "../external-api-usage";
 import { describe, expect, it } from "vitest";
-import { recordingSiteFetch, registrableDomain } from "./polite-fetch";
+import { pageReadTool, recordingSiteFetch, registrableDomain } from "./polite-fetch";
 
 const answering = (async () => new Response("{}")) as unknown as typeof globalThis.fetch;
 
@@ -70,5 +70,14 @@ describe("a site's registrable domain", () => {
     ["WWW.Acme.FR.", "acme.fr"],
   ])("%s: %s", (host, domain) => {
     expect(registrableDomain(host)).toBe(domain);
+  });
+});
+
+describe("the Tool reading a page, as a Job Offer's Provenance names it (#329)", () => {
+  it("is APEC for its offer pages, and the job sites' for any other page", () => {
+    expect(pageReadTool("https://www.apec.fr/candidat/recherche-emploi.html/emploi/detail-offre/178")).toBe("apec");
+    expect(pageReadTool("https://carrieres.groupe-seb.fr/offres/daf")).toBe("job-site");
+    expect(pageReadTool("https://notapec.fr/offre")).toBe("job-site");
+    expect(pageReadTool("not a url")).toBe("job-site");
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { readProvenance, type Provenance, type ProvenanceSite, type ProvenanceStep } from "./provenance";
+import { joinProvenance, readProvenance, type Provenance, type ProvenanceSite, type ProvenanceStep } from "./provenance";
 
 const aiStep: ProvenanceStep = {
   kind: "ai",
@@ -104,5 +104,36 @@ describe("no field of a Provenance can hold a Candidate id, a cost or text", () 
     expect(readProvenance({ ...provenance, sites: [{ ...sites[0], label: text }] })).toBeNull();
     expect(readProvenance({ ...provenance, sites: [{ ...sites[0], domain: text }] })).toBeNull();
     expect(readProvenance({ ...provenance, startedAt: text })).toBeNull();
+  });
+});
+
+describe("two Provenances joined, the later action after the earlier one (#329)", () => {
+  const search: Provenance = {
+    v: 1,
+    steps: [{ kind: "ai", activity: "web_search", task: "web_search", provider: "perplexity", endpoint: "api.perplexity.ai", model: "sonar", tokens: { input: 300, output: 800 }, ms: 4100, at: "2026-10-23T10:00:00.000Z", outcome: "ok", count: 1 }],
+    sites: [],
+    startedAt: "2026-10-23T10:00:00.000Z",
+    wallMs: 4200,
+  };
+  const read: Provenance = {
+    v: 1,
+    steps: [toolStep, aiStep],
+    sites: [{ kind: "web", domain: "apec.fr", links: ["https://www.apec.fr/offre/1"] }],
+    startedAt: "2026-10-23T10:00:07.000Z",
+    wallMs: 9000,
+  };
+
+  it("has the steps of both in order, the sites of both, the first start, and the time both took", () => {
+    expect(joinProvenance(search, read)).toEqual({ v: 1, steps: [...search.steps, ...read.steps], sites: read.sites, startedAt: search.startedAt, wallMs: 13_200 });
+  });
+
+  it("lists a site both name once, with the links of both", () => {
+    const again: Provenance = { ...read, sites: [{ kind: "web", domain: "apec.fr", links: ["https://www.apec.fr/offre/1", "https://www.apec.fr/offre/2"] }] };
+
+    expect(joinProvenance(read, again)?.sites).toEqual([{ kind: "web", domain: "apec.fr", links: ["https://www.apec.fr/offre/1", "https://www.apec.fr/offre/2"] }]);
+  });
+
+  it("is the Provenance known when the other is none (« modèle non enregistré »)", () => {
+    expect(joinProvenance(null, read)).toEqual(read);
   });
 });

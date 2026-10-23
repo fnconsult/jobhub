@@ -53,7 +53,7 @@ export default defineConfig({
   projects: [
     {
       name: "web",
-      testMatch: /(web|database-connections|auth|agenda|account-data|back-office-audit|back-office-roles|back-office-assistant|ai-consumption|provider-secrets|sign-in-providers|profiles|master-cv|match-score|ats-score|coach|coach-ai-disclosure|coach-panel-reply|coach-job-offer-link|coach-context|coach-memory|coach-playbooks|billing|plans|coupons|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|human-coaches|eu-ai-consent|appointment-reminders|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|profile-page|coaching-playbooks-back-office|guardrails|eval-runs|tools|platform-settings|text-size-preferences|usage-meter|stripe-checkout|ai-warnings)\.spec\.ts/,
+      testMatch: /(web|database-connections|auth|agenda|account-data|back-office-audit|back-office-roles|back-office-assistant|ai-consumption|provider-secrets|sign-in-providers|profiles|master-cv|match-score|ats-score|coach|coach-ai-disclosure|coach-panel-reply|coach-job-offer-link|coach-job-offer-link-provenance|coach-context|coach-memory|coach-playbooks|billing|plans|coupons|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|human-coaches|eu-ai-consent|appointment-reminders|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|profile-page|coaching-playbooks-back-office|guardrails|eval-runs|tools|platform-settings|text-size-preferences|usage-meter|stripe-checkout|ai-warnings)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" },
     },
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },
@@ -67,7 +67,7 @@ export default defineConfig({
     { name: "prototype", testMatch: /notion-layout-prototype\.spec\.ts/, use: { ...devices["Desktop Chrome"], locale: "fr-FR" } },
     // The worker's background jobs, run by `tsx src/main.ts` against the web server's database.
     // One spec at a time: each starts its own worker on the same queue, which would take the other's jobs.
-    { name: "worker", testMatch: /(job-(discovery|search|digest)|job-discovery-budget|job-discovery-listing-pages|job-discovery-ats|job-discovery-france-travail|job-discovery-fantastic-jobs|job-freshness|job-search-metrics|follow-ups|expired-job-offers(-confirmation)?)\.spec\.ts/, workers: 1 },
+    { name: "worker", testMatch: /(job-(discovery|search|digest)|job-discovery-budget|job-discovery-listing-pages|job-discovery-ats|job-discovery-france-travail|job-discovery-fantastic-jobs|job-freshness|job-offer-provenance|job-search-metrics|follow-ups|expired-job-offers(-confirmation)?)\.spec\.ts/, workers: 1 },
     // One spec at a time: root-env and worker-env both write the repo-root .env (the compose
     // worker reads it, #64); root-env and dev-servers (the web app's and the extension's dev
     // servers started in either order, #71) both run `npm run dev`, plan-prices-dev (#103) runs

@@ -1,5 +1,9 @@
+import { createAiLayer, createProvenanceRecorder, readJobPage } from "@jobhub/ai";
+import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
+import type { Provenance } from "@jobhub/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { BASE_URL, connectionString } from "../auth/test-support";
+import { createJobOffers } from "../job-offers";
 import { migrateDatabase } from "../migrations";
 import { createThrowawayDatabase, type ThrowawayDatabase } from "../test-support/throwaway-database";
 import { EXPORTED_TABLES, OPERATIONS_RECORD_TABLES } from "./index";
@@ -113,5 +117,25 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
 
   it("shared Job Offers and Plan Quotas are not tied to any Candidate, so they are kept", () => {
     expect([...tablesTiedToCandidate()].filter((table) => KEPT.includes(table))).toEqual([]);
+  });
+
+  it("a shared Job Offer's Provenance names no Candidate, whoever's search found it (#329)", async () => {
+    const candidateId = "3f2b8c1e-9d4a-4e6f-8a1b-2c3d4e5f6a7b";
+    const llm = createFakeProvider({ id: "anthropic", reply: '{"isJobOffer": true, "title": "DAF H/F", "content": "Groupe Seb recrute son DAF."}' });
+    const ai = createAiLayer({ providers: [llm], routes: { offer_analysis: "anthropic" }, usage: createMemoryUsageLog() });
+    const reading = createProvenanceRecorder(ai);
+    const details = await readJobPage(reading.aiFor("read_job_page"), candidateId, "DAF H/F. Groupe Seb recrute son DAF.");
+    reading.site(`https://carrieres.groupe-seb.fr/offres/daf?candidate=${candidateId}`);
+    const jobOffers = createJobOffers(throwaway.pool);
+
+    await jobOffers.capture({ source: { url: "https://carrieres.groupe-seb.fr/offres/daf" }, ...details }, "candidate", { provenance: reading.provenance() });
+    const naming = { ...reading.provenance(), steps: [{ kind: "tool", activity: "read", tool: "job-site", ms: 1, at: new Date().toISOString(), outcome: "ok", count: 1, candidateId }] };
+    await jobOffers.capture({ title: "RAF", content: "Poste de RAF." }, "candidate", { provenance: naming as unknown as Provenance });
+
+    const { rows } = await throwaway.pool.query<{ provenance: string | null }>(`SELECT provenance::text AS provenance FROM job_offer ORDER BY created_at`);
+    expect(rows.map((row) => row.provenance !== null)).toEqual([true, false]);
+    expect(rows.map((row) => row.provenance ?? "").join()).not.toContain(candidateId);
+    expect(rows[0]!.provenance).toMatch(/"offer_analysis"/);
+    expect([...tablesTiedToCandidate()]).not.toContain("job_offer");
   });
 });

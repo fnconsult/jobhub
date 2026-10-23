@@ -289,6 +289,12 @@ const JOB_BOARDS: [host: RegExp, provider: ExternalApiProvider][] = [
   [/(^|\.)apec\.fr$/, "apec"],
 ];
 
+/** The Tool reading the page at `url`, as a Job Offer's Provenance names it: APEC for its offer pages, else the job sites'. */
+export function pageReadTool(url: string): "apec" | "job-site" {
+  if (!URL.canParse(url)) return "job-site";
+  return /(^|\.)apec\.fr$/i.test(new URL(url).hostname) ? "apec" : "job-site";
+}
+
 /** Second-level labels under a country code that are a public suffix themselves (co.uk, com.au, gouv.fr...). */
 const SECOND_LEVEL_SUFFIXES = new Set(["co", "com", "org", "net", "gov", "gouv", "ac", "edu", "asso", "or", "ne", "go"]);
 

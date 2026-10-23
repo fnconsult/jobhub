@@ -51,14 +51,14 @@ export interface ExportedProfile {
   searchCriteria: SearchCriteria;
   /** Newest first. */
   masterCvVersions: MasterCvVersion[];
-  /** The ATS Score of the Master CV version last scored, or null when it never was. */
-  atsScore: KeptAtsScore | null;
+  /** The ATS Score of the Master CV version last scored, or null when it never was. Its Provenance is fixed (rules), so not exported. */
+  atsScore: Omit<KeptAtsScore, "provenance"> | null;
   /** Newest first. */
   jobSearches: ExportedJobSearch[];
   /** The Candidate's Job Digest settings for the Profile, or null when they never opted in. */
   jobDigest: ExportedJobDigestSettings | null;
-  /** The Job Digests sent for the Profile, newest first. */
-  jobDigests: { id: string; sentAt: Date; jobOfferIds: string[] }[];
+  /** The Job Digests sent for the Profile, newest first, each with what made it (ADR-0034, #336) when it was kept. */
+  jobDigests: { id: string; sentAt: Date; jobOfferIds: string[]; provenance?: Provenance }[];
 }
 
 /** What the Candidate chose for a Profile's Job Digest (its unsubscribe link is a secret, left out). */
@@ -188,9 +188,11 @@ export interface ExportedAssistantConversation {
 /** A Human Coach as the export names them: their email and booking link are theirs, left out. */
 export type CoachNamed = { id: string; name: string };
 
-export interface ExportedActionCard extends ActionCard {
+export interface ExportedActionCard extends Omit<ActionCard, "provenance"> {
   /** When the Candidate accepted or dismissed it; null while pending. */
   decidedAt: Date | null;
+  /** What made it (ADR-0034, #336), when it was kept. */
+  provenance?: Provenance;
 }
 
 /** Everything the Candidate made in Jobbbox, ready to be written out as JSON. */
@@ -346,7 +348,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
   async function exportProfiles(candidateId: string): Promise<ExportedProfile[]> {
     const [summaries, atsScoresOf, jobSearchesOf, jobDigestSettingsOf, jobDigestsOf] = await Promise.all([
       deps.profiles.list(candidateId),
-      grouped<KeptAtsScore>(
+      grouped<Omit<KeptAtsScore, "provenance">>(
       `SELECT s.profile_id AS key, s.version, s.score, s.computed_at AS "computedAt" FROM ats_score s JOIN profile p ON p.id = s.profile_id
         WHERE p.candidate_id = $1`,
         candidateId,
@@ -362,8 +364,8 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
          FROM job_digest_subscription WHERE candidate_id = $1`,
         candidateId,
       ),
-      grouped<ExportedProfile["jobDigests"][number]>(
-      `SELECT profile_id AS key, id, sent_at AS "sentAt", job_offer_ids::text[] AS "jobOfferIds" FROM job_digest WHERE candidate_id = $1 ORDER BY sent_at DESC, id`,
+      grouped<Omit<ExportedProfile["jobDigests"][number], "provenance"> & { provenance: unknown }>(
+      `SELECT profile_id AS key, id, sent_at AS "sentAt", job_offer_ids::text[] AS "jobOfferIds", provenance FROM job_digest WHERE candidate_id = $1 ORDER BY sent_at DESC, id`,
         candidateId,
       ),
     ]);
@@ -383,7 +385,10 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
             return { ...jobSearch, ...(stopRequestedAt && { stopRequestedAt }), ...(kept && { provenance: kept }) };
           }),
           jobDigest: jobDigestSettingsOf(id)[0] ?? null,
-          jobDigests: jobDigestsOf(id),
+          jobDigests: jobDigestsOf(id).map(({ provenance, ...jobDigest }) => {
+            const kept = readProvenance(provenance);
+            return { ...jobDigest, ...(kept && { provenance: kept }) };
+          }),
         };
       }),
     );
@@ -589,10 +594,15 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           candidateId,
         ),
         exportCoachingSessions(candidateId),
-        rowsOf<ExportedActionCard>(
-          `SELECT id, kind, title, body, json_build_object('kind', focus_kind, 'id', focus_id) AS focus, payload, status, created_at AS "createdAt", decided_at AS "decidedAt"
+        rowsOf<Omit<ExportedActionCard, "provenance"> & { provenance: unknown }>(
+          `SELECT id, kind, title, body, json_build_object('kind', focus_kind, 'id', focus_id) AS focus, payload, status, created_at AS "createdAt", decided_at AS "decidedAt", provenance
              FROM action_card WHERE candidate_id = $1 ORDER BY created_at DESC, id`,
           candidateId,
+        ).then((cards) =>
+          cards.map(({ provenance, ...card }): ExportedActionCard => {
+            const kept = readProvenance(provenance);
+            return { ...card, ...(kept && { provenance: kept }) };
+          }),
         ),
         rowsOf<CandidateDataExport["coachMemory"][number]>(
           `SELECT id, kind, text, created_at AS "createdAt", updated_at AS "updatedAt" FROM coach_memory_item WHERE candidate_id = $1 ORDER BY created_at, id`,

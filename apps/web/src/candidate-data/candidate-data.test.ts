@@ -1,7 +1,7 @@
 import { AiProviderError, createAiLayer } from "@jobhub/ai";
 import { createPostgresUsageLog } from "../ai-usage";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
-import type { MasterCvContent, Provenance } from "@jobhub/shared";
+import { rulesProvenance, type MasterCvContent, type Provenance } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApplications, type Applications } from "../applications";
@@ -287,16 +287,17 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     });
   });
 
-  it("the export holds every Action Card the AI Coach proposed, pending or decided, newest first", async () => {
+  it("the export holds every Action Card the AI Coach proposed, pending or decided, newest first, with its Provenance when kept (#336)", async () => {
     const profileId = await createProfile(candidateId, "DAF");
     const actionCards = createActionCards(database);
-    const first = await actionCards.propose(candidateId, { kind: "ats_fix", title: "Ajoutez SAP", body: "Le mot-clé manque.", focus: { kind: "profile", id: profileId }, payload: { fix: "x" } });
+    const provenance = rulesProvenance("ats_fixes", { at: new Date("2026-10-24T09:00:00Z"), ms: 2 });
+    const first = await actionCards.propose(candidateId, { kind: "ats_fix", title: "Ajoutez SAP", body: "Le mot-clé manque.", focus: { kind: "profile", id: profileId }, payload: { fix: "x" }, provenance });
     await actionCards.decide(candidateId, first.id, "dismiss");
     const second = await actionCards.propose(candidateId, { kind: "follow_up", title: "Relancez Acme", body: "Une semaine déjà.", focus: { kind: "profile", id: profileId }, payload: null });
 
     expect((await candidateData.export(candidateId)).actionCards).toEqual([
       { id: second.id, kind: "follow_up", title: "Relancez Acme", body: "Une semaine déjà.", focus: { kind: "profile", id: profileId }, payload: null, status: "pending", createdAt: expect.any(Date), decidedAt: null },
-      expect.objectContaining({ id: first.id, title: "Ajoutez SAP", payload: { fix: "x" }, status: "dismissed", decidedAt: expect.any(Date) }),
+      expect.objectContaining({ id: first.id, title: "Ajoutez SAP", payload: { fix: "x" }, status: "dismissed", decidedAt: expect.any(Date), provenance }),
     ]);
   });
 
@@ -448,7 +449,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(searching).not.toHaveProperty("progress");
   });
 
-  it("the export holds each Profile's Job Digest settings and the Job Digests sent, but not the secret unsubscribe link", async () => {
+  it("the export holds each Profile's Job Digest settings and the Job Digests sent, with their Provenance when kept (#336), but not the secret unsubscribe link", async () => {
     const profileId = await createProfile(candidateId, "DAF");
     const otherProfileId = await createProfile(candidateId, "DSI");
     const captured = await jobOffers.capture(OFFER);
@@ -464,12 +465,22 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       profileId,
       captured.jobOffer.id,
     ]);
+    const provenance = rulesProvenance("match_score", { at: new Date("2026-09-09T06:00:00Z"), ms: 5 });
+    await database.query(`INSERT INTO job_digest (profile_id, candidate_id, job_offer_ids, sent_at, provenance) VALUES ($2, $1, ARRAY[$3::uuid], '2026-09-09T06:00:00Z', $4::jsonb)`, [
+      candidateId,
+      profileId,
+      captured.jobOffer.id,
+      JSON.stringify(provenance),
+    ]);
 
     const exported = await candidateData.export(candidateId);
 
     expect(exported.profiles.find((profile) => profile.id === profileId)).toMatchObject({
       jobDigest: { frequency: "daily", subscribedAt: new Date("2026-09-01T06:00:00Z"), unsubscribedAt: new Date("2026-09-10T12:00:00Z"), lastRunAt: new Date("2026-09-02T06:00:00Z") },
-      jobDigests: [{ id: expect.any(String), sentAt: new Date("2026-09-02T06:00:00Z"), jobOfferIds: [captured.jobOffer.id] }],
+      jobDigests: [
+        { id: expect.any(String), sentAt: new Date("2026-09-09T06:00:00Z"), jobOfferIds: [captured.jobOffer.id], provenance },
+        { id: expect.any(String), sentAt: new Date("2026-09-02T06:00:00Z"), jobOfferIds: [captured.jobOffer.id] },
+      ],
     });
     expect(exported.profiles.find((profile) => profile.id === otherProfileId)).toMatchObject({ jobDigest: null, jobDigests: [] });
     expect(JSON.stringify(exported)).not.toContain("secret-unsubscribe-token");

@@ -49,6 +49,11 @@ export interface GenerateRequest {
    * detail written by the code (why, a length), never the reply's text.
    */
   unusable?: (reply: string) => AiWarning | null;
+  /**
+   * Stops the call (#325): passed to the provider's request. Once aborted, the call rejects with the signal's reason
+   * and is recorded failed, Failure Reason `stopped`, with no tokens; not sent when it had not left yet.
+   */
+  signal?: AbortSignal;
 }
 
 /**
@@ -128,6 +133,8 @@ export interface SearchRequest {
   industries?: IndustryReference;
   /** The degraded paths its feature took (a task Playbook's fallback), recorded with the search (see `GenerateRequest.warnings`). */
   warnings?: AiWarning[];
+  /** Stops the search (see `GenerateRequest.signal`). */
+  signal?: AbortSignal;
 }
 
 export interface JobSearchPlanRequest {
@@ -174,6 +181,8 @@ export interface CompanySearchRequest {
   route?: Route;
   /** The degraded paths its feature took (a task Playbook's fallback), recorded with the search (see `GenerateRequest.warnings`). */
   warnings?: AiWarning[];
+  /** Stops the search (see `GenerateRequest.signal`). */
+  signal?: AbortSignal;
 }
 
 export interface SearchResult extends CallFacts {
@@ -199,7 +208,8 @@ export interface AiLayer {
   searchCompany(request: CompanySearchRequest): Promise<SearchResult>;
   /**
    * Searches the web for the employer's Company News: up to 5 articles from the last 12 months, newest
-   * first, none whose title may name a person (company-news.ts). Never fails: on a failed search, none.
+   * first, none whose title may name a person (company-news.ts). Never fails: on a failed search, none;
+   * only a search stopped by its signal rejects.
    */
   searchCompanyNews(request: CompanyNewsRequest): Promise<CompanyNewsArticle[]>;
   /** `searchCompanyNews`, with the search call that found the articles (null when it failed): for a Provenance (ADR-0034). */
@@ -429,6 +439,8 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
    * Makes a provider call and records its usage, failed or not, with what it said. A failed call has
    * no tokens and costs nothing; its model is the route's, else the provider's default. A web
    * search uses the `web_search` tool once unless the provider says otherwise. `notes`: what its feature says of it (#260).
+   * Once `signal` aborts, the call rejects with its reason, recorded with Failure Reason `stopped` (#325); one
+   * aborted before it left is not sent.
    */
   async function recorded<T extends { model: string; usage: TokenUsage; tools?: ToolCall[] }>(
     entry: Pick<UsageEntry, "candidateId" | "task">,
@@ -438,18 +450,25 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     call: () => Promise<T>,
     replyOf: (output: T) => string,
     notes: CallNotes<T>,
+    signal?: AbortSignal,
   ): Promise<{ output: T } & CallFacts> {
     const base = { ...entry, provider: provider.id, endpoint: provider.endpoint };
     const search = entry.task === SEARCH_TASK;
     const started = clock();
+    let left = false;
     let output: T;
     try {
+      signal?.throwIfAborted();
+      left = true;
       output = await call();
     } catch (error) {
-      const durationMs = Math.round(clock() - started);
+      const durationMs = left ? Math.round(clock() - started) : 0;
       // A key or a residency rule missing inside the provider (the identity route's stand-in): nothing left.
-      const sent = !(error instanceof AiConfigError || error instanceof DataResidencyError);
-      const { reason, technical } = failureWith(error, await identityOrNone(entry.task, entry.candidateId));
+      const sent = left && !(error instanceof AiConfigError || error instanceof DataResidencyError);
+      const stopped = signal?.aborted === true;
+      const failure = failureWith(error, await identityOrNone(entry.task, entry.candidateId));
+      const { technical } = failure;
+      const reason = stopped ? "stopped" : failure.reason;
       const tools = search && sent ? [{ name: "web_search", count: 1, ok: false, durationMs, costEur: 0 }] : [];
       const warnings = recordable(notes.warnings(), notes.fallback ? { reason: notes.fallback } : undefined);
       log({
@@ -467,7 +486,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
         tools,
         transcript: { ...said, reply: null },
       });
-      throw error;
+      throw stopped ? signal.reason : error;
     }
     const durationMs = Math.round(clock() - started);
     const called = output.tools ?? (search ? [{ name: "web_search", count: 1 }] : []);
@@ -559,6 +578,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     override,
     warnings = [],
     fallback,
+    signal,
   }: {
     candidateId: string | null;
     query: string;
@@ -567,6 +587,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     override?: Route;
     warnings?: AiWarning[];
     fallback?: FailureReason;
+    signal?: AbortSignal;
   }): Promise<SearchResult> {
     const fed = { warnings: () => warnings, ...(fallback ? { fallback } : {}) };
     let chosen: { route: Route; provider: AiProvider };
@@ -588,9 +609,10 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       provider,
       route,
       { messages: [{ role: "user", content: sent }] },
-      () => provider.search!(sent, { model: route.model, filters, ...(page && page > 1 ? { page } : {}) }),
+      () => provider.search!(sent, { model: route.model, filters, ...(page && page > 1 ? { page } : {}), ...(signal ? { signal } : {}) }),
       (answer) => answer.answer,
       { ...fed, warnings: () => [...warnings, ...redactionWarnings] },
+      signal,
     );
     return {
       answer: output.answer,
@@ -648,9 +670,11 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
           messages: sent,
           maxTokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
           ...(request.effort ? { effort: request.effort } : {}),
+          ...(request.signal ? { signal: request.signal } : {}),
         }),
       (reply) => reply.text,
       notes,
+      request.signal,
     );
     return { text: redaction.restore(output.text), provider: provider.id, model: output.model, usage: output.usage, ...facts };
   }
@@ -692,6 +716,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
         ...(request.page ? { page: request.page } : {}),
         ...(request.route ? { override: request.route } : {}),
         ...(request.warnings ? { warnings: request.warnings } : {}),
+        ...(request.signal ? { signal: request.signal } : {}),
       });
     },
 
@@ -701,6 +726,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
         query: buildCompanyQuery(request.employer, request.instructions),
         ...(request.route ? { override: request.route } : {}),
         ...(request.warnings ? { warnings: request.warnings } : {}),
+        ...(request.signal ? { signal: request.signal } : {}),
       });
     },
 
@@ -717,11 +743,14 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
           ...(request.route ? { override: request.route } : {}),
           ...(request.warnings ? { warnings: request.warnings } : {}),
           fallback: "company_news_unavailable",
+          ...(request.signal ? { signal: request.signal } : {}),
         });
         const companyNames = [request.employer, request.registeredName ?? "", request.website ?? ""].filter(Boolean);
         const articles = companyNewsIn(found.answer, { now: now(), companyNames, ...(found.sourceDates ? { sourceDates: found.sourceDates } : {}) });
         return { articles, call: found };
       } catch (error) {
+        // Stopped: the Company Dossier is not built at all.
+        if (request.signal?.aborted) throw error;
         warn("Company News unavailable: the Company Dossier is built without it", {
           candidateId: request.candidateId,
           error: error instanceof Error ? error.message : String(error),

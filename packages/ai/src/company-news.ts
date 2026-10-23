@@ -36,6 +36,8 @@ export interface CompanyNewsRequest {
   route?: Route;
   /** The degraded paths its feature took (a task Playbook's fallback), recorded with the search (#260). */
   warnings?: AiWarning[];
+  /** Stops the search (#325): it then rejects, as the only failure that is not "no article". */
+  signal?: AbortSignal;
 }
 
 /** One article about the employer: never its text. */

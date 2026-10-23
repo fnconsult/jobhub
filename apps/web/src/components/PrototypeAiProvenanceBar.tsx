@@ -725,7 +725,18 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
   const current = run.running ? RUNS[run.kind].steps[run.log.length] : undefined;
   const sources = uniq(elements.flatMap((e) => e.sources));
   const tools = uniq([...elements.flatMap((e) => e.tools ?? []), ...runTools]);
+  // Closed, the words of what the icon shows sit left of its frame, outside it.
+  const words = current ? `${current.doing}…` : allModels.length ? `${allModels.length} modèle${allModels.length > 1 ? "s" : ""} · ${both(total, totalMs)}` : "Sources et IA";
   const toggle = (
+    <>
+    {!open ? (
+      <span
+        onClick={() => setOpen(true)}
+        style={{ marginLeft: "auto", maxWidth: "18rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text-secondary)", cursor: "pointer" }}
+      >
+        {words}
+      </span>
+    ) : null}
     <button
       id="proto-tasks-toggle"
       type="button"
@@ -737,16 +748,11 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
       title={current ? `${current.doing}…` : "Sources, modèles et outils"}
       onClick={() => setOpen(!open)}
       // Same box as .topbar .coach-panel-toggle: no shrinking, the control height, square.
-      style={{ marginLeft: "auto", flex: "none", minHeight: "var(--control-height)", minWidth: "var(--control-height)", padding: "0 var(--space-3)", display: "inline-flex", gap: "var(--space-2)", alignItems: "center", justifyContent: "center" }}
+      style={{ marginLeft: open ? "auto" : 0, flex: "none", minHeight: "var(--control-height)", minWidth: "var(--control-height)", padding: "0 var(--space-3)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
     >
-      {/* Closed, the button says in words what the icon means (and meets ADR-0009). */}
-      {!open ? (
-        <span style={{ maxWidth: "16rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {current ? `${current.doing}…` : allModels.length ? `${allModels.length} modèle${allModels.length > 1 ? "s" : ""} · ${both(total, totalMs)}` : "Sources et IA"}
-        </span>
-      ) : null}
       {current ? <Spinner activity={current.activity} /> : <Glyph d={TASKS} />}
     </button>
+    </>
   );
   return (
     <>

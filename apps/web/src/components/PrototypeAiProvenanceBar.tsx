@@ -91,9 +91,10 @@ const TOKENS: Record<string, number> = {
 };
 const withTokens = (elements: Element[]) =>
   elements.map((e) => (e.model && !e.model.startsWith("règles") ? { ...e, tokens: TOKENS[e.what] ?? 1500, ms: MS[e.what] ?? 3000 } : e));
-// Tokens in k from 1 000 on: « 312 tokens », « 2,1 k tokens », « 27,4 k tokens ».
-const fmt = (n: number) =>
-  n < 1000 ? `${n} tokens` : `${(n / 1000).toLocaleString("fr-FR", { maximumFractionDigits: n < 100_000 ? 1 : 0 })} k tokens`;
+// Tokens, the k stuck to the number from 1 000 on: « 312 », « 2,1k », « 27,4k ».
+const fmt = (n: number) => (n < 1000 ? `${n}` : `${(n / 1000).toLocaleString("fr-FR", { maximumFractionDigits: n < 100_000 ? 1 : 0 })}k`);
+// Tokens and time on one line: « 2,1k · 6,4 s ».
+const both = (tokens: number, ms: number) => [tokens ? fmt(tokens) : "", ms ? dur(ms) : ""].filter(Boolean).join(" · ");
 
 // A simulated Job Search, as the pane would receive it live (SSE or polling).
 type Step = { after: number; text: string; logo: string; model?: string; tool?: string; tokens?: number; ms: number; at?: number };
@@ -673,7 +674,7 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
                   {run.running ? <Spinner /> : "✓"} {run.running ? "Recherche d'offres en cours" : "Dernière recherche"}
                 </span>
                 <span style={{ fontVariantNumeric: "tabular-nums", textAlign: "right" }}>
-                  {fmt(run.log.reduce((n, x) => n + (x.tokens ?? 0), 0))} · {dur(run.log.reduce((n, x) => n + x.ms, 0))}
+                  {both(run.log.reduce((n, x) => n + (x.tokens ?? 0), 0), run.log.reduce((n, x) => n + x.ms, 0))}
                 </span>
               </div>
               <ol style={{ listStyle: "none", margin: 0, padding: 0 }}>
@@ -687,9 +688,7 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
                       </span>
                     </span>
                     <span style={{ ...dim, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", textAlign: "right" }}>
-                      {x.tokens ? fmt(x.tokens) : ""}
-                      {x.tokens ? <br /> : null}
-                      {dur(x.ms)} · {when(x.at)}
+                      {both(x.tokens ?? 0, x.ms)} · {when(x.at)}
                     </span>
                   </li>
                 ))}
@@ -711,18 +710,14 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
                   <li key={m} style={row}>
                     <Labelled label={m} mono />
                     <span style={{ ...dim, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", textAlign: "right" }}>
-                      {tokensOf(m) ? fmt(tokensOf(m)) : "—"}
-                      <br />
-                      {msOf(m) ? dur(msOf(m)) : ""}
+                      {both(tokensOf(m), msOf(m)) || "—"}
                     </span>
                   </li>
                 ))}
                 <li style={{ ...row, borderTop: "1px solid var(--color-border)", marginTop: "0.3em", paddingTop: "0.4em" }}>
                   <strong>Total</strong>
                   <strong style={{ whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", textAlign: "right" }}>
-                    {fmt(total)}
-                    <br />
-                    {dur(totalMs)}
+                    {both(total, totalMs)}
                   </strong>
                 </li>
               </Section>

@@ -560,14 +560,14 @@ function Section({ title, count, children }: { title: string; count: number; chi
         type="button"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        style={{ font: "inherit", width: "100%", display: "flex", justifyContent: "space-between", background: "none", border: 0, padding: "0.25em 0", cursor: "pointer", color: "var(--color-text-secondary)" }}
+        style={{ font: "inherit", width: "100%", display: "flex", justifyContent: "space-between", background: "none", border: 0, padding: "0.25em 0", margin: 0, minHeight: 0, cursor: "pointer", color: "var(--color-text-secondary)", textAlign: "left" }}
       >
         <span>
           {open ? "▾" : "▸"} {title}
         </span>
         <span>{count}</span>
       </button>
-      {open ? <ul style={{ listStyle: "none", margin: 0, padding: "0 0 0 1em" }}>{children}</ul> : null}
+      {open ? <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>{children}</ul> : null}
     </section>
   );
 }
@@ -676,7 +676,7 @@ function VariantD({ elements, tiny, run }: { elements: Element[]; tiny: boolean;
                   {fmt(run.log.reduce((n, x) => n + (x.tokens ?? 0), 0))} · {dur(run.log.reduce((n, x) => n + x.ms, 0))}
                 </span>
               </div>
-              <ol style={{ listStyle: "none", margin: 0, padding: "0 0 0 1em" }}>
+              <ol style={{ listStyle: "none", margin: 0, padding: 0 }}>
                 {run.log.map((x) => (
                   <li key={x.text} style={{ ...row, animation: "proto-fade-in 300ms ease-out" }}>
                     <span style={{ display: "inline-flex", gap: "0.4em", alignItems: "flex-start" }}>

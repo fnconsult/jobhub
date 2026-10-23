@@ -204,13 +204,12 @@ const quill = (x: number, y: number, k = 0.72) => {
 const FEATHER = quill(4, 18, 1);
 // The nib runs along the line, up and down like handwriting, and the line grows behind it.
 const WRITE: Frame[] = [
-  // The nib travels from x 2.5 to 8.5 so the feather (about 12 wide at k 0.66) stays in the 24 grid.
-  { d: [...quill(2.5, 19.6, 0.66), "M2 21.2h.5"], ms: 60, morph: 200 },
-  { d: [...quill(3.7, 18.8, 0.66), "M2 21.2h1.7"], ms: 0, morph: 200 },
-  { d: [...quill(4.9, 19.8, 0.66), "M2 21.2h2.9"], ms: 0, morph: 200 },
-  { d: [...quill(6.1, 18.8, 0.66), "M2 21.2h4.1"], ms: 0, morph: 200 },
-  { d: [...quill(7.3, 19.8, 0.66), "M2 21.2h5.3"], ms: 0, morph: 200 },
-  { d: [...quill(8.5, 19, 0.66), "M2 21.2h6.5"], ms: 160, morph: 320 },
+  // Nearly full size (k 0.92), so the feather reads as one; the nib travels x 2.2 → 5.4 to stay in the 24 grid.
+  { d: [...quill(2.2, 20, 0.92), "M1.6 22h.5"], ms: 60, morph: 220 },
+  { d: [...quill(3, 19.3, 0.92), "M1.6 22h1.4"], ms: 0, morph: 220 },
+  { d: [...quill(3.8, 20.1, 0.92), "M1.6 22h2.2"], ms: 0, morph: 220 },
+  { d: [...quill(4.6, 19.3, 0.92), "M1.6 22h3"], ms: 0, morph: 220 },
+  { d: [...quill(5.4, 20, 0.92), "M1.6 22h3.8"], ms: 160, morph: 340 },
 ];
 
 // A model writes its text: the brain thinks, then the feather writes.

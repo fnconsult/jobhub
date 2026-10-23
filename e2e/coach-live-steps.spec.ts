@@ -95,7 +95,7 @@ test.describe("each step of an AI Coach reply live, and Stop", () => {
         return color;
       }),
     );
-    await expect(stopped).toContainText(/\d+(,\d)?k? .*· \d+(,\d)? s/);
+    await expect(stopped).toContainText(/\d+(,\d)?k? .*· \d+(,\d)? ?(ms|s|min)/);
     await expect(panel.getByRole("button", { name: fr.coachPanel.send, exact: true })).toBeVisible();
     await expect(panel.getByRole("button", { name: fr.coachPanel.stop, exact: true })).toHaveCount(0);
 

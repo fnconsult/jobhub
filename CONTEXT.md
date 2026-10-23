@@ -85,7 +85,7 @@ A Human Coach no longer listed to Candidates and who can no longer read anything
 _Avoid_: Deleted coach
 
 **Coach Panel**:
-The side panel, available from every page, where the Candidate talks with the AI Coach. On wide screens it sits beside the page, and the Candidate can widen it into a drawer over the page; on phones it takes the whole screen. Its one menu, the conversation's title, holds a new conversation, the saved Coach Conversations and the Coach Memory.
+The side panel, available from every page, where the Candidate talks with the AI Coach. On wide screens it sits beside the page as a card, like AI Activity's pane, and the Candidate can widen it into a drawer over the page; on phones it takes the whole screen. Its one menu, the conversation's title, holds a new conversation, the saved Coach Conversations and the Coach Memory.
 _Avoid_: Chat, chatbot, sidebar
 
 **Coach context**:
@@ -696,6 +696,10 @@ _Avoid_: Computation, script, algorithm
 **AI Activity**:
 The button in the Candidate's top bar, left of « Mon coach », and the pane it opens, « Cette page »: which models (with tokens and time), Provenance sites and Tools produced what the page shows, summed for the page and listed per element, read from each element's Provenance; the AI Coach replies given while the page's object was in view count with the page. While an AI action of the Candidate runs (on this page or « En cours ailleurs »), it shows each step live with its Activity's glyph and a stop icon; a stopped or failed action is shown in light red, in words, with its finished steps. Never in the Back Office, never cost, prompts, the Playbook Agent, Back Office settings or internal identifiers; tokens are labelled a technical measure, not counted against Plan Quotas, and never appear in the Usage Meter. Models are named for people (« Claude Opus 5 »), with where they ran (« AWS Bedrock · UE ») and the EU AI Consent or outside-the-EU route when that served the call; providers are named in text, with a logo only where its owner allowed it in writing.
 _Avoid_: Session pane, sources bar, tasks panel
+
+**AI Activity element**:
+One item AI Activity lists under « Par élément » with its own Provenance: a Job Offer, an AI Coach reply, a Job Search, and so on. One without a recorded Provenance shows « modèle non enregistré » and counts in no total. Each Provenance site appears once in the page's Sources, however many elements read it.
+_Avoid_: Row, entry
 
 **Guardrail Trigger**:
 One time a Guardrail blocked, flagged or could not check a message or reply: which Guardrail, its setting, what it did, for which agent, and when; when it could not check, why, as a Failure Reason code only (timeout, a verdict that was not valid, the provider's error). No Candidate, no Coach Conversation and no text: aggregates of no one, so outside the Data export and kept 24 months. Super-admins and Support read them per day in the Back Office; the text, if needed, is in the AI Message Log. No one is alerted when a Candidate expresses distress.

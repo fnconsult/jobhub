@@ -24,6 +24,15 @@ async function ask(panel: Locator, text: string) {
   await panel.getByRole("button", { name: fr.coachPanel.send }).click();
 }
 
+/** Each of these words is there for screen readers only: clipped to a pixel, never seen. */
+async function expectOnlyForScreenReaders(words: Locator) {
+  expect(await words.count()).toBeGreaterThan(0);
+  for (const sizes of await words.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()))) {
+    expect(sizes.width).toBeLessThanOrEqual(1);
+    expect(sizes.height).toBeLessThanOrEqual(1);
+  }
+}
+
 /** The panel passes axe (WCAG 2.1 AA), its Provenance lines and their disclosure included. */
 async function expectNoAxeViolations(page: Page, selector: string) {
   const results = await new AxeBuilder({ page }).include(selector).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
@@ -42,7 +51,7 @@ test.describe("the Provenance line under each AI Coach reply", () => {
     const line = lineOf(reply);
     await expect(line).toBeVisible();
     await expect(line).toContainText("Mistral Large");
-    await expect(line).toContainText(/\d+(,\d)?k? · \d+,\d s/);
+    await expect(line).toContainText(new RegExp(`\\d+(,\\d)?k? ${fr.provenanceLine.tokens} · \\d+,\\d s`));
     await expect(line.locator("time")).toHaveText(/^\d{2}:\d{2}$/);
     await expect(line).not.toContainText(fr.provenanceLine.euAiConsent);
     // No cost, prompt, AI task, Playbook Agent or internal id.
@@ -53,8 +62,8 @@ test.describe("the Provenance line under each AI Coach reply", () => {
     expect(await line.evaluate((element) => parseFloat(getComputedStyle(element).fontSize) / parseFloat(getComputedStyle(document.documentElement).fontSize))).toBeCloseTo(0.8125, 4);
 
     // No author is shown; screen readers hear both.
-    await expect(panelOf(page).getByText(fr.questionnaire.coach, { exact: true }).first()).toBeHidden();
-    await expect(panelOf(page).getByText(fr.questionnaire.you, { exact: true })).toBeHidden();
+    await expectOnlyForScreenReaders(panelOf(page).getByText(fr.questionnaire.coach, { exact: true }));
+    await expectOnlyForScreenReaders(panelOf(page).getByText(fr.questionnaire.you, { exact: true }));
     const tree = await panelOf(page).getByRole("list", { name: fr.coachPanel.messagesLabel }).ariaSnapshot();
     expect(tree).toContain(fr.questionnaire.coach);
     expect(tree).toContain(fr.questionnaire.you);
@@ -103,13 +112,14 @@ test.describe("the Provenance line under each AI Coach reply", () => {
     await panelOf(page).getByRole("button", { name: "Avant la provenance" }).click();
 
     const messages = messagesOf(panelOf(page), fr.coachPanel.messagesLabel);
-    await expect(messages).toHaveCount(4);
-    const partial = lineOf(messages.nth(1));
+    // The welcome first: the conversation was saved before the AI disclosure.
+    await expect(messages).toHaveCount(5);
+    const partial = lineOf(messages.nth(2));
     await expect(partial).toContainText("Mistral Large");
     await expect(partial).toContainText("2,1k");
     // Its time was not kept: none is shown.
     await expect(partial).not.toContainText(/\d s\b/);
-    await expect(lineOf(messages.nth(3))).toContainText(fr.provenanceLine.unrecorded);
+    await expect(lineOf(messages.nth(4))).toContainText(fr.provenanceLine.unrecorded);
     await expectNoAxeViolations(page, "aside.coach-panel");
   });
 
@@ -146,7 +156,7 @@ test.describe("the Provenance line under each Back Office Assistant reply", () =
     const messages = messagesOf(assistant, fr.backOfficeAssistant.messagesLabel);
     await expect(messages).toHaveCount(3);
     await expect(lineOf(messages.last())).toContainText("Mistral Large");
-    await expect(assistant.getByText(fr.backOfficeAssistant.author, { exact: true }).first()).toBeHidden();
+    await expectOnlyForScreenReaders(assistant.getByRole("list", { name: fr.backOfficeAssistant.messagesLabel }).getByText(fr.backOfficeAssistant.author, { exact: true }));
     await expectNoAxeViolations(page, "aside.coach-panel");
   });
 });

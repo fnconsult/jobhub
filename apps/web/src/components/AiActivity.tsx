@@ -6,11 +6,11 @@ import { createContext, useCallback, useContext, useEffect, useId, useMemo, useR
 import type { ParseKeys } from "i18next";
 import { useTranslation } from "react-i18next";
 import { formatDuration, formatTimeOfDay, formatTokens, PROVENANCE_GLYPHS, spokenMeasure, type Activity, type ProvenanceSite } from "@jobhub/shared";
-import { liveView, type LiveAction, type LiveView } from "@/ai-activity/live";
+import { isRunning, liveView, type LiveAction, type LiveView } from "@/ai-activity/live";
 import { activityElement, aiActivityPane, byRulesOnly, type ActivityElement, type ActivityModel, type ActivityTool, type AiActivityPane } from "@/ai-activity/pane";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
 import { useAiActivityLive } from "@/components/AiActivityLive";
-import { useCoachPanelOpen, useCoachRepliesInView } from "@/components/CoachPanel";
+import { useCoachRepliesInView } from "@/components/CoachPanel";
 import { Icons } from "@/components/icons";
 
 type Language = "fr" | "en";
@@ -30,7 +30,6 @@ type Control = {
 };
 
 const NO_ACTIONS: readonly LiveAction[] = [];
-const isRunning = (action: LiveAction) => action.status === "running" || action.status === "stopping";
 
 const AiActivityControl = createContext<Control | null>(null);
 
@@ -66,44 +65,10 @@ export function AiActivityProvider({ elements, children }: { elements: readonly 
   return (
     <AiActivityControl.Provider value={control}>
       {children}
-      <LiveAnnouncer actions={actions} pathname={pathname} />
     </AiActivityControl.Provider>
   );
 }
 
-/**
- * One polite live region: the start of an action and its end, stopped or failed, never its steps (#333). A Coach reply is
- * left to the Coach Panel while it is open, which says both itself; a Job Search's end to its notification, but on its own
- * page, where the notification is not shown.
- */
-function LiveAnnouncer({ actions, pathname }: { actions: readonly LiveAction[]; pathname: string }) {
-  const { t } = useTranslation();
-  const coachPanelOpen = useCoachPanelOpen();
-  const [seen, setSeen] = useState(actions);
-  const [said, setSaid] = useState("");
-  if (seen !== actions) {
-    setSeen(actions);
-    const told = (action: LiveAction) => (action.kind === "coach_reply" ? !coachPanelOpen : action.href === pathname);
-    const before = new Map(seen.map((action) => [action.key, action]));
-    const now = new Set(actions.map((action) => action.key));
-    let message: string | null = null;
-    for (const action of actions) {
-      const was = before.get(action.key);
-      if (!was && isRunning(action) && action.seenFromStart && (action.kind !== "coach_reply" || !coachPanelOpen)) {
-        message = t(`aiActivity.live.announce.started.${action.kind}`);
-      } else if (was && isRunning(was) && !isRunning(action) && told(action)) {
-        message = t(`aiActivity.live.announce.${action.status === "stopped" ? "stopped" : "failed"}.${action.kind}`);
-      }
-    }
-    for (const was of seen) if (!now.has(was.key) && isRunning(was) && told(was)) message = t(`aiActivity.live.announce.done.${was.kind}`);
-    if (message !== null) setSaid(message);
-  }
-  return (
-    <p className="visually-hidden" aria-live="polite">
-      {said}
-    </p>
-  );
-}
 
 function useLanguage(): Language {
   const { i18n } = useTranslation();

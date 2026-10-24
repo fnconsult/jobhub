@@ -59,10 +59,6 @@ export function useCoachRepliesInView(): readonly ReplyInView[] {
   return useContext(CoachPanelControl)?.repliesInView ?? NO_REPLIES;
 }
 
-/** Whether the Coach Panel is open: it then announces its replies itself (#333). */
-export function useCoachPanelOpen(): boolean {
-  return useContext(CoachPanelControl)?.open ?? false;
-}
 
 /** The menu opens under the conversation's title, from its start. */
 const MENU_ALIGN = "start";
@@ -411,6 +407,12 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   useEffect(() => {
     if (open) input.current?.focus();
   }, [open, focusInput]);
+
+  // Open, the Coach Panel announces its replies itself: AI Activity leaves them to it (#333).
+  const tellAiActivity = aiActivity?.coachPanel;
+  useEffect(() => {
+    tellAiActivity?.(open);
+  }, [tellAiActivity, open]);
 
   function openPanel() {
     setOpen(true);

@@ -1,8 +1,10 @@
 "use client";
 
-import { createContext, useContext, useMemo, useReducer, useRef, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
+import { createContext, useContext, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import type { ProvenanceEvent } from "@jobhub/shared";
-import { nextLive, type LiveAction, type LiveEnded } from "@/ai-activity/live";
+import { isRunning, nextLive, type LiveAction, type LiveEnded } from "@/ai-activity/live";
 import type { RunningJobSearch } from "@/job-searches";
 
 /** A Coach reply on its way, as the Coach Panel tells AI Activity about it. */
@@ -22,6 +24,8 @@ interface Live {
   jobSearches(running: readonly RunningJobSearch[], ended: readonly LiveEnded[]): void;
   /** Stops an action: a Coach reply's request is aborted, a Job Search gets a Stop request. */
   stop(key: string): void;
+  /** The Coach Panel opened or closed: open, it announces its replies itself. */
+  coachPanel(open: boolean): void;
 }
 
 const LiveContext = createContext<Live | null>(null);
@@ -30,10 +34,12 @@ const JOB_SEARCH = "job_search:";
 /**
  * Holds AI Activity's live actions (#333) above every page of a signed-in Candidate, so an action keeps showing, with its
  * step, on the page the Candidate moves to. Fed by the Coach Panel's stream and by the Job Search poll; only the Candidate's
- * own pages mount it, never the Back Office.
+ * own pages mount it, never the Back Office. It holds AI Activity's one live region too, so a page change neither loses nor
+ * repeats what it says.
  */
 export function AiActivityLiveProvider({ children }: { children: ReactNode }) {
   const [actions, dispatch] = useReducer(nextLive, []);
+  const [coachPanelOpen, setCoachPanelOpen] = useState(false);
   const stops = useRef(new Map<string, () => void>());
   const replies = useRef(0);
 
@@ -68,12 +74,52 @@ export function AiActivityLiveProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "stopping", key });
         stops.current.get(key)?.();
       },
+      coachPanel: setCoachPanelOpen,
     }),
     [],
   );
 
   const live = useMemo<Live>(() => ({ actions, ...api }), [actions, api]);
-  return <LiveContext.Provider value={live}>{children}</LiveContext.Provider>;
+  return (
+    <LiveContext.Provider value={live}>
+      {children}
+      <LiveAnnouncer actions={actions} coachPanelOpen={coachPanelOpen} />
+    </LiveContext.Provider>
+  );
+}
+
+/**
+ * One polite live region: the start of an action and its end, done, stopped or failed, never its steps (#333). A Coach
+ * reply is left to the Coach Panel while it is open, which says both itself; a Job Search's end to its notification, but on
+ * its own page, where the notification is not shown. An action found running later (a page loaded again) is not said to start.
+ */
+function LiveAnnouncer({ actions, coachPanelOpen }: { actions: readonly LiveAction[]; coachPanelOpen: boolean }) {
+  const { t } = useTranslation();
+  const pathname = usePathname();
+  const [seen, setSeen] = useState(actions);
+  const [said, setSaid] = useState("");
+  if (seen !== actions) {
+    setSeen(actions);
+    const told = (action: LiveAction) => (action.kind === "coach_reply" ? !coachPanelOpen : action.href === pathname);
+    const before = new Map(seen.map((action) => [action.key, action]));
+    const now = new Set(actions.map((action) => action.key));
+    let message: string | null = null;
+    for (const action of actions) {
+      const was = before.get(action.key);
+      if (!was && isRunning(action) && action.seenFromStart && (action.kind !== "coach_reply" || !coachPanelOpen)) {
+        message = t(`aiActivity.live.announce.started.${action.kind}`);
+      } else if (was && isRunning(was) && !isRunning(action) && told(action)) {
+        message = t(`aiActivity.live.announce.${action.status === "stopped" ? "stopped" : "failed"}.${action.kind}`);
+      }
+    }
+    for (const was of seen) if (!now.has(was.key) && isRunning(was) && told(was)) message = t(`aiActivity.live.announce.done.${was.kind}`);
+    if (message !== null) setSaid(message);
+  }
+  return (
+    <p className="visually-hidden ai-activity-announcer" aria-live="polite">
+      {said}
+    </p>
+  );
 }
 
 /** AI Activity's live actions and what feeds them; null outside AiActivityLiveProvider (the Back Office, signed-out pages). */

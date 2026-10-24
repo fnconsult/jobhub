@@ -104,7 +104,9 @@ function withEvent(action: LiveAction, event: ProvenanceEvent): LiveAction {
   return withSums({ ...action, steps });
 }
 
-const running = (action: LiveAction) => action.status === "running" || action.status === "stopping";
+/** It runs, or is being stopped. */
+export const isRunning = (action: LiveAction) => action.status === "running" || action.status === "stopping";
+const running = isRunning;
 
 /** It stopped or failed: the steps still running end so, and a failure names the step it failed in. */
 function ended(action: LiveAction, change: Extract<LiveChange, { type: "ended" }>): LiveAction {

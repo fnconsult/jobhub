@@ -1,7 +1,7 @@
 /**
  * AI Activity's live actions (CONTEXT.md « AI Activity », ADR-0034, #333): the Candidate's AI actions running now, each
- * with its steps as they land, fed by one event shape whatever the transport: a Coach reply's steps streamed on its own
- * POST, a Job Search's Run progress polled by the page.
+ * with its steps as they land, fed by one event shape whatever the transport: a Coach reply's, a Company Dossier's or a
+ * CV reading's steps streamed on its own POST (#335), a Job Search's Run progress polled by the page.
  *
  *   nextLive(actions, change)     the actions after a change: an action started, a step's event, a Stop asked, an end,
  *                                 or the Job Searches the page's poll brought
@@ -14,7 +14,10 @@ import { describeModel, stepLabel, toolById, type Activity, type ProvenanceEvent
 import type { JobSearchNotification, RunningJobSearch } from "../job-searches";
 import { routes } from "../routes";
 
-export type LiveKind = "job_search" | "coach_reply";
+export type LiveKind = "job_search" | "coach_reply" | "company_dossier" | "cv_reading";
+
+/** An action that runs in the request of the page that started it, its steps streamed back: all but a Job Search. */
+const inRequest = (kind: LiveKind) => kind !== "job_search";
 
 /** One step of a live action: running, or ended with what it took. */
 export interface LiveStep {
@@ -39,10 +42,10 @@ export interface LiveStep {
 }
 
 export interface LiveAction {
-  /** `job_search:<its id>`, or `coach_reply:<n>`. */
+  /** `job_search:<its id>`, or `<kind>:<n>` for an action run in its page's request. */
   key: string;
   kind: LiveKind;
-  /** The page it runs for: the Job Search's, or the page the Coach reply was asked from. */
+  /** The page it runs for: the Job Search's, or the page the action was started from. */
   href: string;
   /** A Job Search's Profile; null for a Coach reply. */
   name: string | null;
@@ -175,8 +178,8 @@ function jobSearches(actions: readonly LiveAction[], poll: Extract<LiveChange, {
 export function nextLive(actions: readonly LiveAction[], change: LiveChange): LiveAction[] {
   switch (change.type) {
     case "started": {
-      // A new Coach reply takes the place of the one stopped or failed before it.
-      const kept = actions.filter((action) => action.key !== change.key && (change.kind !== "coach_reply" || action.kind !== "coach_reply" || running(action)));
+      // A new Coach reply (Company Dossier, CV reading) takes the place of the one stopped or failed before it.
+      const kept = actions.filter((action) => action.key !== change.key && (!inRequest(change.kind) || action.kind !== change.kind || running(action)));
       return [...kept, started(change)];
     }
     case "step":
@@ -186,8 +189,9 @@ export function nextLive(actions: readonly LiveAction[], change: LiveChange): Li
     case "ended":
       return actions.flatMap((action) => {
         if (action.key !== change.key) return [action];
-        // A Coach reply given leaves: the reply itself shows, with its Provenance line, and joins the page's elements.
-        if (change.outcome === "done" && action.kind === "coach_reply") return [];
+        // A Coach reply given leaves: the reply itself shows, with its Provenance line, and joins the page's elements; so
+        // does a Company Dossier built or a CV read, its page showing it.
+        if (change.outcome === "done" && inRequest(action.kind)) return [];
         return [running(action) ? ended(action, change) : action];
       });
     case "job_searches":

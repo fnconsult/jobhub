@@ -532,7 +532,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     // The conversation the message goes to, once the server says (a new one is named already): where a Stop keeps it.
     let asked: ConversationSummary | null = conversation;
     if (panel.features.live) setLive({ step: null, tokens: 0 });
-    const shownLive: CoachReplyLive | null = panel.features.live && aiActivity ? aiActivity.coachReply(pathname, () => stop.abort()) : null;
+    const shownLive: CoachReplyLive | null = panel.features.live && aiActivity ? aiActivity.start("coach_reply", pathname, () => stop.abort()) : null;
 
     const giveBack = (error: Status, reason?: unknown) => {
       // Give the Candidate their message back to retry or shorten it.

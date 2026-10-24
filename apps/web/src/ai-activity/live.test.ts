@@ -73,6 +73,27 @@ describe("AI Activity's live actions", () => {
     expect(failed!.steps).toMatchObject([{ running: false, outcome: "failed" }]);
   });
 
+  describe("a Company Dossier built and a CV read, in their own request (#335)", () => {
+    const dossier: LiveChange = { type: "started", key: "company_dossier:3", kind: "company_dossier", href: "/candidatures/1/dossier", at };
+    const searching = step("company_dossier:3", { type: "step_started", id: 1, step: { kind: "tool", activity: "search", tool: "recherche-entreprises", at } });
+
+    it("shows its step under way, then goes once done: the page shows the dossier with its own Provenance", () => {
+      const [running] = apply(dossier, searching);
+      expect(running).toMatchObject({ kind: "company_dossier", status: "running", current: { activity: "search", tool: "recherche-entreprises.api.gouv.fr" } });
+
+      expect(apply(dossier, searching, { type: "ended", key: "company_dossier:3", outcome: "done", at: ended })).toEqual([]);
+      expect(apply({ ...dossier, key: "cv_reading:4", kind: "cv_reading", href: "/profils/nouveau" }, { type: "ended", key: "cv_reading:4", outcome: "done", at: ended })).toEqual([]);
+    });
+
+    it("stays stopped, with its finished steps, until the next of its kind takes its place", () => {
+      const stopped = apply(dossier, searching, { type: "ended", key: "company_dossier:3", outcome: "stopped", at: ended });
+      expect(stopped).toMatchObject([{ status: "stopped", steps: [{ outcome: "stopped" }] }]);
+
+      const next = nextLive([...stopped, ...apply(replyStarted)], { ...dossier, key: "company_dossier:5" });
+      expect(next.map((action) => action.key)).toEqual(["coach_reply:1", "company_dossier:5"]);
+    });
+  });
+
   it("the next Coach reply takes the place of the one stopped or failed before it", () => {
     const actions = apply(replyStarted, thinking, { type: "ended", key: "coach_reply:1", outcome: "stopped", at: ended }, { ...replyStarted, key: "coach_reply:2" });
     expect(actions.map((action) => action.key)).toEqual(["coach_reply:2"]);

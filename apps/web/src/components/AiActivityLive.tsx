@@ -4,22 +4,25 @@ import { usePathname } from "next/navigation";
 import { createContext, useContext, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProvenanceEvent } from "@jobhub/shared";
-import { isRunning, nextLive, type LiveAction, type LiveEnded } from "@/ai-activity/live";
+import { isRunning, nextLive, type LiveAction, type LiveEnded, type LiveKind } from "@/ai-activity/live";
 import type { RunningJobSearch } from "@/job-searches";
 
-/** A Coach reply on its way, as the Coach Panel tells AI Activity about it. */
-export interface CoachReplyLive {
-  /** Each step's start and end, as POST /api/coach streams them. */
+/** An action run in its page's request (a Coach reply, a Company Dossier, a CV reading), as that page tells AI Activity about it. */
+export interface InRequestLive {
+  /** Each step's start and end, as its POST streams them. */
   event(event: ProvenanceEvent): void;
   /** Done, stopped, or failed with its Failure Reason's i18n key (null: not known). */
   end(outcome: "done" | "stopped" | "failed", reason?: string | null): void;
 }
 
+/** A Coach reply on its way, as the Coach Panel tells AI Activity about it. */
+export type CoachReplyLive = InRequestLive;
+
 interface Live {
   /** The Candidate's AI actions running, or done, stopped or failed lately (ai-activity/live). */
   actions: readonly LiveAction[];
-  /** A Coach reply starts, asked from `href`; `stop` aborts it. */
-  coachReply(href: string, stop: () => void): CoachReplyLive;
+  /** An action of `kind` starts in a request of the page at `href` (a Coach reply, a Company Dossier, a CV reading, #335); `stop` aborts it. */
+  start(kind: Exclude<LiveKind, "job_search">, href: string, stop: () => void): InRequestLive;
   /** What the page's poll brought (JobSearchNotifications): the Job Searches searching, and those that stopped searching. */
   jobSearches(running: readonly RunningJobSearch[], ended: readonly LiveEnded[]): void;
   /** Stops an action: a Coach reply's request is aborted, a Job Search gets a Stop request. */
@@ -33,7 +36,8 @@ const JOB_SEARCH = "job_search:";
 
 /**
  * Holds AI Activity's live actions (#333) above every page of a signed-in Candidate, so an action keeps showing, with its
- * step, on the page the Candidate moves to. Fed by the Coach Panel's stream and by the Job Search poll; only the Candidate's
+ * step, on the page the Candidate moves to. Fed by the streams of the actions run in a page's request (the Coach Panel's,
+ * a Company Dossier's, a CV reading's, #335) and by the Job Search poll; only the Candidate's
  * own pages mount it, never the Back Office. It holds AI Activity's one live region too, so a page change neither loses nor
  * repeats what it says.
  */
@@ -41,14 +45,14 @@ export function AiActivityLiveProvider({ children }: { children: ReactNode }) {
   const [actions, dispatch] = useReducer(nextLive, []);
   const [coachPanelOpen, setCoachPanelOpen] = useState(false);
   const stops = useRef(new Map<string, () => void>());
-  const replies = useRef(0);
+  const started = useRef(0);
 
   const api = useMemo(
     () => ({
-      coachReply(href: string, stop: () => void): CoachReplyLive {
-        const key = `coach_reply:${++replies.current}`;
+      start(kind: Exclude<LiveKind, "job_search">, href: string, stop: () => void): InRequestLive {
+        const key = `${kind}:${++started.current}`;
         stops.current.set(key, stop);
-        dispatch({ type: "started", key, kind: "coach_reply", href, at: new Date().toISOString() });
+        dispatch({ type: "started", key, kind, href, at: new Date().toISOString() });
         return {
           event: (event) => dispatch({ type: "step", key, event }),
           end: (outcome, reason = null) => {

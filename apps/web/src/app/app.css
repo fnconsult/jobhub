@@ -621,6 +621,27 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   border-color: var(--color-danger);
 }
 
+/* An action stopped by the Candidate (#335), on its own page: very light red, said in words. */
+.notice-stopped {
+  background: var(--color-danger-surface);
+}
+
+/* An AI action run in its page's request (#335): the step under way beside « Arrêter ». */
+.streamed-action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.streamed-action-step {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
 /* The quiet line under a reply (#327): metadata, 0.8125rem in #6b6a67, on one line that wraps. */
 .provenance-line {
   display: flex;

@@ -1,34 +1,39 @@
 "use client";
 
+import { formatTimeOfDay } from "@jobhub/shared";
 import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { StreamedActionStatus, useStreamedAction, type StreamedAction } from "./StreamedAction";
 
-type Failure = "unavailable" | "failed" | "required" | "notACompany" | null;
+type Failure = "unavailable" | "failed" | "required" | "notACompany" | { stoppedAt: Date } | null;
 
-/** Sends one Company Dossier request; the failure to show, or null when it worked. */
-async function send(url: string, method: "POST" | "PUT", body?: object): Promise<Failure> {
-  try {
-    const response = await fetch(url, {
-      method,
-      headers: body ? { "content-type": "application/json" } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    if (response.ok) return null;
-    if (response.status === 503) return "unavailable";
-    if (response.status === 400) {
-      const body = (await response.json().catch(() => null)) as { errors?: { code?: string }[] } | null;
-      return body?.errors?.some((error) => error.code === "not_a_company") ? "notACompany" : "required";
-    }
-    return "failed";
-  } catch {
-    return "failed";
+/**
+ * Sends one Company Dossier request, its steps live in AI Activity (#335); the failure to show, or null when it worked.
+ * A Stop keeps what was finished: the page is refreshed either way.
+ */
+async function send(action: StreamedAction, url: string, method: "POST" | "PUT", body?: object): Promise<Failure> {
+  const outcome = await action.run(url, { method, ...(body ? { json: body } : {}) });
+  if (outcome.ok) return null;
+  if (outcome.stopped) return { stoppedAt: outcome.at };
+  if (outcome.status === 503) return "unavailable";
+  if (outcome.status === 400) {
+    const errors = (outcome.body as { errors?: { code?: string }[] }).errors;
+    return errors?.some((error) => error.code === "not_a_company") ? "notACompany" : "required";
   }
+  return "failed";
 }
 
 function FailureMessage({ failure, id }: { failure: Failure; id?: string }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   if (!failure) return null;
+  if (typeof failure === "object") {
+    return (
+      <p id={id} className="notice notice-stopped" role="status">
+        {t("companyDossier.stopped", { time: formatTimeOfDay(failure.stoppedAt, new Date(), i18n.language === "en" ? "en" : "fr") })}
+      </p>
+    );
+  }
   return (
     <p id={id} className="field-error" role="alert">
       {t(
@@ -48,23 +53,22 @@ function FailureMessage({ failure, id }: { failure: Failure; id?: string }) {
 export function BuildCompanyDossierButton({ applicationId, label }: { applicationId: string; label: string }) {
   const { t } = useTranslation();
   const router = useRouter();
-  const [working, setWorking] = useState(false);
+  const action = useStreamedAction("company_dossier");
   const [failure, setFailure] = useState<Failure>(null);
 
   async function build() {
-    setWorking(true);
     setFailure(null);
-    const result = await send(`/api/applications/${applicationId}/company-dossier`, "POST");
-    setWorking(false);
+    const result = await send(action, `/api/applications/${applicationId}/company-dossier`, "POST");
     setFailure(result);
-    if (!result) router.refresh();
+    if (!result || typeof result === "object") router.refresh();
   }
 
   return (
     <div className="stack">
-      <button className="button button-primary" type="button" onClick={build} disabled={working}>
-        {working ? t("companyDossier.working") : label}
+      <button className="button button-primary" type="button" onClick={build} disabled={action.running}>
+        {action.running ? t("companyDossier.working") : label}
       </button>
+      <StreamedActionStatus action={action} stopLabel={t("aiActivity.live.stop.company_dossier")} />
       <FailureMessage failure={failure} />
     </div>
   );
@@ -79,17 +83,15 @@ export function ConfirmEmployerForm(props: { applicationId: string; presumedEmpl
   const router = useRouter();
   const id = useId();
   const [employer, setEmployer] = useState(props.presumedEmployer ?? "");
-  const [working, setWorking] = useState(false);
+  const action = useStreamedAction("company_dossier");
   const [failure, setFailure] = useState<Failure>(null);
 
   async function confirm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setWorking(true);
     setFailure(null);
-    const result = await send(`/api/applications/${props.applicationId}/company-dossier/employer`, "PUT", { employer });
-    setWorking(false);
+    const result = await send(action, `/api/applications/${props.applicationId}/company-dossier/employer`, "PUT", { employer });
     setFailure(result);
-    if (!result) router.refresh();
+    if (!result || typeof result === "object") router.refresh();
   }
 
   return (
@@ -111,9 +113,10 @@ export function ConfirmEmployerForm(props: { applicationId: string; presumedEmpl
         />
         <FailureMessage failure={failure} id={`${id}-error`} />
       </div>
-      <button className="button button-primary" type="submit" disabled={working}>
-        {working ? t("companyDossier.working") : props.submit}
+      <button className="button button-primary" type="submit" disabled={action.running}>
+        {action.running ? t("companyDossier.working") : props.submit}
       </button>
+      <StreamedActionStatus action={action} stopLabel={t("aiActivity.live.stop.company_dossier")} />
     </form>
   );
 }

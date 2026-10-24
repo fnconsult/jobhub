@@ -1,18 +1,23 @@
 "use client";
 
-import { formatDuration, formatTimeOfDay, formatTokens, type Activity, type ProvenanceStep, type StepLabel } from "@jobhub/shared";
+import { formatDuration, formatTimeOfDay, formatTokens, type Activity, type ProvenanceEvent, type ProvenanceStep, type StepLabel } from "@jobhub/shared";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { RequestKind } from "@/ai-activity/live";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
+import { useAiActivityLive } from "@/components/AiActivityLive";
 import { readNdjson } from "@/ndjson";
 
 /**
  * An AI action a page runs in its own request (#334, ADR-0034): a Tailored CV proposed, a Cover Letter or an Outreach
  * Message drafted. Its steps show live, each with its Activity's glyph and label, beside « Arrêter »; a Stop aborts the
  * request, which aborts the AI call and keeps nothing, and the action then says « Arrêtée à 10:42 » in light red with the
- * tokens and time it had spent. No confirmation on Stop.
+ * tokens and time it had spent. No confirmation on Stop. AI Activity shows it too, as it runs (the top bar's button, its
+ * stop icon, the pane), here or « En cours ailleurs » once the Candidate moved on; done, the page is loaded again so that
+ * AI Activity's pane lists what it made with its Provenance.
  *
- *   const action = useLiveAction();
+ *   const action = useLiveAction("tailored_cv");
  *   const outcome = await action.run<Drafts>(url, body);   // what the route answered, or { stopped: true }
  *   <LiveActionStatus action={action} />                    // the step under way and « Arrêter », or the stopped line
  */
@@ -26,10 +31,10 @@ type Live = { step: { activity: Activity; label: StepLabel } | null; tokens: num
 /** An action the Candidate stopped: when, and what it had spent. */
 type Stopped = { at: Date; tokens: number; ms: number };
 
-/** What an AI action's route streams (see actionResponse). */
+/** What an AI action's route streams (see actionResponse): each step's start (with its label) and end, then how it ended. */
 type LiveEvent =
-  | { type: "step_started"; step: { activity: Activity }; label: StepLabel }
-  | { type: "step_ended"; step: ProvenanceStep }
+  | (Extract<ProvenanceEvent, { type: "step_started" }> & { label: StepLabel })
+  | Extract<ProvenanceEvent, { type: "step_ended" }>
   | { type: "done"; [field: string]: unknown }
   | { type: "stopped" }
   | { type: "failed"; status: number; error?: string; errors?: unknown };
@@ -51,10 +56,15 @@ export interface LiveAction {
   stop(): void;
 }
 
-export function useLiveAction(): LiveAction {
+/** `kind`: what AI Activity calls the action. */
+export function useLiveAction(kind: Exclude<RequestKind, "coach_reply">): LiveAction {
   const [live, setLive] = useState<Live | null>(null);
   const [stopped, setStopped] = useState<Stopped | null>(null);
   const stopper = useRef<AbortController | null>(null);
+  const aiActivity = useAiActivityLive();
+  const requestAction = aiActivity?.requestAction;
+  const pathname = usePathname();
+  const router = useRouter();
 
   const run = useCallback(async <T,>(url: string, body: object): Promise<LiveOutcome<T>> => {
     const stop = new AbortController();
@@ -63,9 +73,17 @@ export function useLiveAction(): LiveAction {
     let spent = 0;
     setStopped(null);
     setLive({ step: null, tokens: 0 });
+    // AI Activity shows it too; its stop icon aborts the same request.
+    const shown = requestAction?.(kind, pathname, () => stop.abort()) ?? null;
     const wasStopped = (): LiveOutcome<T> => {
       setStopped({ at: new Date(), tokens: spent, ms: Date.now() - startedAt });
       return { ok: false, stopped: true };
+    };
+    const ended = (outcome: LiveOutcome<T>): LiveOutcome<T> => {
+      shown?.end(outcome.ok ? "done" : "stopped" in outcome ? "stopped" : "failed");
+      // Done, what it made joins AI Activity's elements, read again from its stored Provenance.
+      if (outcome.ok) router.refresh();
+      return outcome;
     };
     try {
       const response = await fetch(url, {
@@ -75,28 +93,31 @@ export function useLiveAction(): LiveAction {
         signal: stop.signal,
       });
       if (!response.ok || !response.body || !response.headers.get("content-type")?.startsWith("application/x-ndjson")) {
-        return { ok: false, status: response.status, body: await response.json().catch(() => ({})) };
+        return ended({ ok: false, status: response.status, body: await response.json().catch(() => ({})) });
       }
       let outcome: LiveOutcome<T> | null = null;
       await readNdjson(response.body, (received) => {
         const event = received as LiveEvent;
-        if (event.type === "step_started") setLive({ step: { activity: event.step.activity, label: event.label }, tokens: spent });
-        else if (event.type === "step_ended") {
+        if (event.type === "step_started") {
+          setLive({ step: { activity: event.step.activity, label: event.label }, tokens: spent });
+          shown?.event({ type: event.type, id: event.id, step: event.step });
+        } else if (event.type === "step_ended") {
           spent += tokensOf(event.step);
           setLive((was) => (was ? { ...was, tokens: spent } : was));
+          shown?.event(event);
         } else if (event.type === "done") outcome = { ok: true, body: fieldsOf(event) as T };
         else if (event.type === "stopped") outcome = wasStopped();
         else outcome = { ok: false, status: event.status, body: fieldsOf(event) };
       });
       if (!outcome) throw new Error("the action was cut short");
-      return outcome;
+      return ended(outcome);
     } catch {
-      return stop.signal.aborted ? wasStopped() : { ok: false, status: 0, body: {} };
+      return ended(stop.signal.aborted ? wasStopped() : { ok: false, status: 0, body: {} });
     } finally {
       stopper.current = null;
       setLive(null);
     }
-  }, []);
+  }, [kind, pathname, requestAction, router]);
 
   const stop = useCallback(() => stopper.current?.abort(), []);
 

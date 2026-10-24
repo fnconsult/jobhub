@@ -70,7 +70,7 @@ export function TailoredCvReview({ applicationId, initial, language, locale }: {
   const [state, setState] = useState(initial);
   const [status, setStatus] = useState<Status>(null);
   // Proposing runs live, each step shown, and the Candidate can stop it (#334).
-  const action = useLiveAction();
+  const action = useLiveAction("tailored_cv");
   /** The Candidate's accept (true) or reject (false) of each change of the proposal under review, by id. */
   const [decisions, setDecisions] = useState<Record<string, boolean>>({});
   const { proposal, saved } = state;

@@ -165,7 +165,7 @@ function DraftEditor({
   const [recipientId, setRecipientId] = useState(outreach?.contact && recipients.some((r) => r.id === outreach.contact?.id) ? outreach.contact.id : "");
   const [status, setStatus] = useState<Status>(null);
   // Drafting runs live, each step shown, and the Candidate can stop it (#334).
-  const action = useLiveAction();
+  const action = useLiveAction("tailored_documents");
   const isOutreach = document === "outreach_message";
   const drafted = draft && "channel" in draft ? draft : null;
   const contactRoles = drafted?.contactRoles ?? [];

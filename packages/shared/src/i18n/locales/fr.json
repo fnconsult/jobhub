@@ -3030,7 +3030,9 @@
       "stepWarning": "avec un avertissement",
       "done": {
         "job_search": "Dernière recherche · {{time}}",
-        "coach_reply": "Dernière réponse · {{time}}"
+        "coach_reply": "Dernière réponse · {{time}}",
+        "tailored_cv": "CV adapté proposé · {{time}}",
+        "tailored_documents": "Document rédigé · {{time}}"
       },
       "result": {
         "think_one": "{{count}} analyse",
@@ -3055,28 +3057,40 @@
       "steps": "Étapes",
       "stop": {
         "job_search": "Arrêter la recherche d'offres",
-        "coach_reply": "Arrêter la réponse du coach"
+        "coach_reply": "Arrêter la réponse du coach",
+        "tailored_cv": "Arrêter la proposition du CV adapté",
+        "tailored_documents": "Arrêter la rédaction du document"
       },
       "open": {
         "job_search": "Ouvrir la recherche",
-        "coach_reply": "Ouvrir la page"
+        "coach_reply": "Ouvrir la page",
+        "tailored_cv": "Ouvrir les documents",
+        "tailored_documents": "Ouvrir les documents"
       },
       "announce": {
         "started": {
           "job_search": "Recherche d'offres démarrée",
-          "coach_reply": "Réponse du coach en cours"
+          "coach_reply": "Réponse du coach en cours",
+          "tailored_cv": "Proposition du CV adapté en cours",
+          "tailored_documents": "Rédaction du document en cours"
         },
         "done": {
           "job_search": "Recherche d'offres terminée",
-          "coach_reply": "Réponse du coach reçue"
+          "coach_reply": "Réponse du coach reçue",
+          "tailored_cv": "CV adapté proposé",
+          "tailored_documents": "Document rédigé"
         },
         "stopped": {
           "job_search": "Recherche d'offres arrêtée",
-          "coach_reply": "Réponse du coach arrêtée"
+          "coach_reply": "Réponse du coach arrêtée",
+          "tailored_cv": "Proposition du CV adapté arrêtée",
+          "tailored_documents": "Rédaction du document arrêtée"
         },
         "failed": {
           "job_search": "Recherche d'offres échouée",
-          "coach_reply": "Réponse du coach échouée"
+          "coach_reply": "Réponse du coach échouée",
+          "tailored_cv": "Proposition du CV adapté échouée",
+          "tailored_documents": "Rédaction du document échouée"
         }
       }
     }

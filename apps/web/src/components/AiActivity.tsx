@@ -1,10 +1,16 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import type { ParseKeys } from "i18next";
 import { useTranslation } from "react-i18next";
-import { formatDuration, formatTimeOfDay, formatTokens, PROVENANCE_GLYPHS, spokenMeasure, type ProvenanceSite } from "@jobhub/shared";
+import { formatDuration, formatTimeOfDay, formatTokens, PROVENANCE_GLYPHS, spokenMeasure, type Activity, type ProvenanceSite } from "@jobhub/shared";
+import { liveView, type LiveAction, type LiveView } from "@/ai-activity/live";
 import { activityElement, aiActivityPane, byRulesOnly, type ActivityElement, type ActivityModel, type ActivityTool, type AiActivityPane } from "@/ai-activity/pane";
-import { useCoachRepliesInView } from "@/components/CoachPanel";
+import { ActivityGlyph } from "@/components/ActivityGlyph";
+import { useAiActivityLive } from "@/components/AiActivityLive";
+import { useCoachPanelOpen, useCoachRepliesInView } from "@/components/CoachPanel";
 import { Icons } from "@/components/icons";
 
 type Language = "fr" | "en";
@@ -17,18 +23,32 @@ type Control = {
   /** Closes the pane, focus back on the button. */
   close: () => void;
   button: React.RefObject<HTMLButtonElement | null>;
+  /** The Candidate's AI actions running, or stopped or failed lately: this page's, and those « En cours ailleurs » (#333). */
+  live: LiveView;
+  /** Stops a running action. */
+  stop: (key: string) => void;
 };
+
+const NO_ACTIONS: readonly LiveAction[] = [];
+const isRunning = (action: LiveAction) => action.status === "running" || action.status === "stopping";
 
 const AiActivityControl = createContext<Control | null>(null);
 
 /**
  * AI Activity (CONTEXT.md, #314, #332): the Candidate's top-bar button, left of « Mon coach », and the « Cette page »
  * pane it opens, of the page's `elements` (one loader per page type, ai-activity/index.ts) and of the AI Coach replies
- * given here about the page's object since it loaded. Candidate pages only: the Back Office mounts no provider, so neither
- * the button nor the pane renders there.
+ * given here about the page's object since it loaded; and, live, the Candidate's AI actions as they run, here or « En cours
+ * ailleurs » (AiActivityLive, #333). Candidate pages only: the Back Office mounts no provider, so neither the button nor the
+ * pane renders there.
  */
 export function AiActivityProvider({ elements, children }: { elements: readonly ActivityElement[]; children: ReactNode }) {
   const given = useCoachRepliesInView();
+  const store = useAiActivityLive();
+  const pathname = usePathname();
+  const actions = store?.actions ?? NO_ACTIONS;
+  const live = useMemo(() => liveView(actions, pathname), [actions, pathname]);
+  const stopAction = store?.stop;
+  const stop = useCallback((key: string) => stopAction?.(key), [stopAction]);
   const [open, setOpen] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
   const paneId = useId();
@@ -42,8 +62,47 @@ export function AiActivityProvider({ elements, children }: { elements: readonly 
     setOpen(false);
     requestAnimationFrame(() => button.current?.focus());
   }, []);
-  const control: Control = { pane, open, paneId: `${paneId}-pane`, toggle: () => (open ? close() : setOpen(true)), close, button };
-  return <AiActivityControl.Provider value={control}>{children}</AiActivityControl.Provider>;
+  const control: Control = { pane, open, paneId: `${paneId}-pane`, toggle: () => (open ? close() : setOpen(true)), close, button, live, stop };
+  return (
+    <AiActivityControl.Provider value={control}>
+      {children}
+      <LiveAnnouncer actions={actions} pathname={pathname} />
+    </AiActivityControl.Provider>
+  );
+}
+
+/**
+ * One polite live region: the start of an action and its end, stopped or failed, never its steps (#333). A Coach reply is
+ * left to the Coach Panel while it is open, which says both itself; a Job Search's end to its notification, but on its own
+ * page, where the notification is not shown.
+ */
+function LiveAnnouncer({ actions, pathname }: { actions: readonly LiveAction[]; pathname: string }) {
+  const { t } = useTranslation();
+  const coachPanelOpen = useCoachPanelOpen();
+  const [seen, setSeen] = useState(actions);
+  const [said, setSaid] = useState("");
+  if (seen !== actions) {
+    setSeen(actions);
+    const told = (action: LiveAction) => (action.kind === "coach_reply" ? !coachPanelOpen : action.href === pathname);
+    const before = new Map(seen.map((action) => [action.key, action]));
+    const now = new Set(actions.map((action) => action.key));
+    let message: string | null = null;
+    for (const action of actions) {
+      const was = before.get(action.key);
+      if (!was && isRunning(action) && action.seenFromStart && (action.kind !== "coach_reply" || !coachPanelOpen)) {
+        message = t(`aiActivity.live.announce.started.${action.kind}`);
+      } else if (was && isRunning(was) && !isRunning(action) && told(action)) {
+        message = t(`aiActivity.live.announce.${action.status === "stopped" ? "stopped" : "failed"}.${action.kind}`);
+      }
+    }
+    for (const was of seen) if (!now.has(was.key) && isRunning(was) && told(was)) message = t(`aiActivity.live.announce.done.${was.kind}`);
+    if (message !== null) setSaid(message);
+  }
+  return (
+    <p className="visually-hidden" aria-live="polite">
+      {said}
+    </p>
+  );
 }
 
 function useLanguage(): Language {
@@ -76,6 +135,32 @@ export function AiActivityButton() {
   const summary = useSummary(control?.pane.summary ?? null);
   if (!control) return null;
   const { open, paneId, toggle, close, button } = control;
+  // While an action runs, the closed button shows its step under way, a stop icon beside it (#333).
+  const underWay = open ? null : control.live.underWay;
+  if (underWay) {
+    return (
+      <>
+        <button
+          ref={button}
+          className="button ai-activity-toggle ai-activity-toggle-summarised ai-activity-toggle-live"
+          type="button"
+          aria-expanded={false}
+          aria-controls={paneId}
+          title={t("aiActivity.label")}
+          onClick={toggle}
+        >
+          <ActivityGlyph activity={underWay.current?.activity ?? BEFORE_FIRST_STEP} live />
+          <span className="ai-activity-label">{t("aiActivity.label")}</span>
+          {/* A space between them in the button's name: « Activité IA Recherche web ». */}
+          <span className="ai-activity-summary">
+            {" "}
+            <StepWords action={underWay} />
+          </span>
+        </button>
+        <StopButton action={underWay} stop={control.stop} />
+      </>
+    );
+  }
   // The summary stands in for the label on screen only when it is shown: closed, and on a page with AI content.
   const summarised = !open && summary !== null;
   const className = open ? "button ai-activity-toggle ai-activity-toggle-open" : summarised ? "button ai-activity-toggle ai-activity-toggle-summarised" : "button ai-activity-toggle";
@@ -97,6 +182,130 @@ export function AiActivityButton() {
       {/* A space between them in the button's name: « Activité IA 3 modèles · … ». */}
       {summarised ? <span className="ai-activity-summary"> {summary}</span> : null}
     </button>
+  );
+}
+
+/** The glyph before an action's first step. */
+const BEFORE_FIRST_STEP: Activity = "think";
+
+/** What an action under way is doing, in words: its step, « Arrêt en cours… », or « Démarrage » before its first step. */
+function StepWords({ action }: { action: LiveAction }) {
+  const { t } = useTranslation();
+  if (action.status === "stopping") return t("aiActivity.live.stopping");
+  return action.current ? t(`aiActivity.steps.${action.current.label}`) : t("aiActivity.live.starting");
+}
+
+/** The stop icon of a running action: icon only, named by its aria-label and its tooltip; disabled once the Stop is asked. */
+function StopButton({ action, stop }: { action: LiveAction; stop: (key: string) => void }) {
+  const { t } = useTranslation();
+  const name = t(`aiActivity.live.stop.${action.kind}`);
+  return (
+    <button className="button button-quiet ai-activity-stop" type="button" aria-label={name} title={name} disabled={action.status === "stopping"} onClick={() => stop(action.key)}>
+      <Icons.stop />
+    </button>
+  );
+}
+
+/** Now, every second while an action runs: its time so far. */
+function useNow(ticking: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!ticking) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [ticking]);
+  return now;
+}
+
+/** The ended steps shown under a running action: the latest; the earlier ones are counted. */
+const ENDED_STEPS_SHOWN = 4;
+
+/**
+ * A live action in the pane (#333): its kind (and its Profile), its status in words (its time so far, or when it stopped or
+ * failed, during which step and why, in light red), its tokens and time, its steps (each with its glyph, the model or Tool
+ * that served, tokens and time) and, while it runs, its stop icon. « En cours ailleurs », a link to its page.
+ */
+function LiveSection({ action, elsewhere, stop, now }: { action: LiveAction; elsewhere: boolean; stop: (key: string) => void; now: number }) {
+  const { t } = useTranslation();
+  const language = useLanguage();
+  const titleId = useId();
+  const running = isRunning(action);
+  const title = action.name ? `${t(`aiActivity.kinds.${action.kind}`)} · ${action.name}` : t(`aiActivity.kinds.${action.kind}`);
+  const ended = action.steps.filter((step) => !step.running);
+  const earlier = Math.max(0, ended.length - ENDED_STEPS_SHOWN);
+  const shown = action.steps.filter((step) => step.running || ended.indexOf(step) >= earlier);
+  const ms = (action.endedAt ? Date.parse(action.endedAt) : now) - Date.parse(action.startedAt);
+  const at = action.endedAt ? formatTimeOfDay(new Date(action.endedAt), new Date(now), language) : "";
+  const Heading = elsewhere ? "h4" : "h3";
+  return (
+    <article className="ai-activity-live" data-status={action.status} aria-labelledby={titleId}>
+      <div className="ai-activity-row">
+        <Heading id={titleId} className="ai-activity-live-title">
+          {title}
+        </Heading>
+        {running ? <StopButton action={action} stop={stop} /> : null}
+      </div>
+      <p className="ai-activity-row ai-activity-live-status">
+        <span>
+          {action.status === "running"
+            ? t("aiActivity.live.running", { time: formatDuration(Math.max(0, ms), language) })
+            : action.status === "stopping"
+              ? t("aiActivity.live.stopping")
+              : action.status === "stopped"
+                ? t("aiActivity.live.stopped", { time: at })
+                : action.failure?.step
+                  ? t("aiActivity.live.failedStep", { time: at, step: t(`aiActivity.steps.${action.failure.step}`) })
+                  : t("aiActivity.live.failed", { time: at })}
+        </span>
+        <Measure tokens={action.tokens} ms={running ? null : Math.max(0, ms)} />
+      </p>
+      {action.status === "failed" ? <p className="ai-activity-live-reason">{action.failure?.reason ? t(action.failure.reason as ParseKeys) : t("aiActivity.live.unknownReason")}</p> : null}
+      {action.steps.length > 0 ? (
+        <ol className="ai-activity-live-steps" aria-label={t("aiActivity.live.steps")}>
+          {earlier > 0 ? <li className="ai-activity-meta">{t("aiActivity.live.earlierSteps", { count: earlier })}</li> : null}
+          {shown.map((step) => (
+            <li key={step.id} className="ai-activity-live-step" data-running={step.running || undefined}>
+              <ActivityGlyph activity={step.activity} live={step.running && running} />
+              <span className="ai-activity-live-step-words">
+                {t(`aiActivity.steps.${step.label}`)}
+                {step.model ?? step.tool ? <span className="ai-activity-meta"> · {step.model ?? step.tool}</span> : null}
+                {step.outcome === "stopped" || step.outcome === "failed" ? (
+                  <span className="ai-activity-meta"> · {t(step.outcome === "stopped" ? "aiActivity.live.stepStopped" : "aiActivity.live.stepFailed")}</span>
+                ) : null}
+              </span>
+              <Measure tokens={step.tokens} ms={step.ms} />
+            </li>
+          ))}
+        </ol>
+      ) : null}
+      {elsewhere ? (
+        <Link className="ai-activity-live-link" href={action.href}>
+          {t(`aiActivity.live.open.${action.kind}`)}
+        </Link>
+      ) : null}
+    </article>
+  );
+}
+
+/** The live actions at the top of the pane: this page's, then those « En cours ailleurs ». */
+function LiveSections({ live, stop }: { live: LiveView; stop: (key: string) => void }) {
+  const { t } = useTranslation();
+  const now = useNow([...live.here, ...live.elsewhere].some(isRunning));
+  if (live.here.length === 0 && live.elsewhere.length === 0) return null;
+  return (
+    <>
+      {live.here.map((action) => (
+        <LiveSection key={action.key} action={action} elsewhere={false} stop={stop} now={now} />
+      ))}
+      {live.elsewhere.length > 0 ? (
+        <section className="ai-activity-section ai-activity-elsewhere">
+          <h3>{t("aiActivity.live.elsewhere")}</h3>
+          {live.elsewhere.map((action) => (
+            <LiveSection key={action.key} action={action} elsewhere stop={stop} now={now} />
+          ))}
+        </section>
+      ) : null}
+    </>
   );
 }
 
@@ -136,7 +345,8 @@ export function AiActivityPane() {
   }, [open]);
 
   if (!control || !open) return null;
-  const { pane, paneId, close } = control;
+  const { pane, paneId, close, live, stop } = control;
+  const anyLive = live.here.length > 0 || live.elsewhere.length > 0;
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key !== "Escape" || event.defaultPrevented) return;
     event.stopPropagation();
@@ -155,7 +365,8 @@ export function AiActivityPane() {
         </button>
       </div>
       <div ref={body} className="ai-activity-body">
-        {pane.elements.length === 0 ? <p className="ai-activity-empty">{t("aiActivity.noAi")}</p> : <PaneSections pane={pane} />}
+        <LiveSections live={live} stop={stop} />
+        {pane.elements.length > 0 ? <PaneSections pane={pane} /> : anyLive ? null : <p className="ai-activity-empty">{t("aiActivity.noAi")}</p>}
       </div>
     </aside>
   );

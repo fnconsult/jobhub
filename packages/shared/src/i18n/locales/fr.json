@@ -3013,6 +3013,47 @@
       "company_dossier": "Dossier entreprise",
       "action_card": "Proposition du coach",
       "ats_score": "ATS Score"
+    },
+    "live": {
+      "starting": "Démarrage",
+      "elsewhere": "En cours ailleurs",
+      "running": "En cours · {{time}}",
+      "stopping": "Arrêt en cours…",
+      "stopped": "Arrêtée à {{time}}",
+      "failed": "Échec à {{time}}",
+      "failedStep": "Échec à {{time}}, pendant l'étape « {{step}} »",
+      "unknownReason": "Elle n'a pas pu aboutir.",
+      "stepStopped": "arrêtée",
+      "stepFailed": "échouée",
+      "earlierSteps_one": "{{count}} étape terminée plus tôt",
+      "earlierSteps_other": "{{count}} étapes terminées plus tôt",
+      "steps": "Étapes",
+      "stop": {
+        "job_search": "Arrêter la recherche d'offres",
+        "coach_reply": "Arrêter la réponse du coach"
+      },
+      "open": {
+        "job_search": "Ouvrir la recherche",
+        "coach_reply": "Ouvrir la page"
+      },
+      "announce": {
+        "started": {
+          "job_search": "Recherche d'offres démarrée",
+          "coach_reply": "Réponse du coach en cours"
+        },
+        "done": {
+          "job_search": "Recherche d'offres terminée",
+          "coach_reply": "Réponse du coach reçue"
+        },
+        "stopped": {
+          "job_search": "Recherche d'offres arrêtée",
+          "coach_reply": "Réponse du coach arrêtée"
+        },
+        "failed": {
+          "job_search": "Recherche d'offres échouée",
+          "coach_reply": "Réponse du coach échouée"
+        }
+      }
     }
   }
 }

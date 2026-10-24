@@ -1,9 +1,13 @@
+"use client";
+
+import { useEffect, useRef } from "react";
 import type { Activity } from "@jobhub/shared";
 
 /**
  * The glyph of an Activity (ADR-0034, #319 §5): what a running step is doing, drawn in the line icons' style (24 grid,
- * stroke 1.5; the prototype's still frames). It breathes while the step runs, and holds still under
- * prefers-reduced-motion (app.css). Decoration only: the step's label in words always sits beside it.
+ * stroke 1.5; the prototype's still frames). `live`: the step runs, so it breathes (app.css) and, when the next step's
+ * Activity takes its place, morphs into it, set from JavaScript (#333); both hold still under prefers-reduced-motion.
+ * Decoration only, hidden from screen readers: the step's label in words always sits beside it.
  */
 const BRAIN = [
   "M6 16.5C3.8 16 2.5 14.2 2.5 12c0-1.2.4-2.3 1.1-3.1C3.7 6.6 5.6 4.8 8 4.5c1-.9 2.4-1.4 3.9-1.2 1.2-.5 2.6-.4 3.7.3 2.3.3 4.2 2 4.8 4.2 1 .7 1.6 1.9 1.6 3.2 0 2.6-2.1 4.7-4.7 4.7H6z",
@@ -29,9 +33,25 @@ const PATHS: Record<Activity, readonly string[]> = {
   compute: ["M10 6h10M10 12h10M10 18h10", "M4 6l1.2 1.2L7.5 5", "M4 12l1.2 1.2 2.3-2.2", "M4 18l1.2 1.2 2.3-2.2"],
 };
 
-export function ActivityGlyph({ activity }: { activity: Activity }) {
+/** The morph from one Activity's glyph into the next: the old lines fold away as the new ones open. */
+const MORPH: Keyframe[] = [
+  { opacity: 0, transform: "scale(0.55) rotate(-25deg)" },
+  { opacity: 1, transform: "none" },
+];
+const MORPH_MS = 320;
+
+const prefersMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: no-preference)").matches;
+
+export function ActivityGlyph({ activity, live = false }: { activity: Activity; live?: boolean }) {
+  const svg = useRef<SVGSVGElement>(null);
+  const shown = useRef(activity);
+  useEffect(() => {
+    if (shown.current === activity) return;
+    shown.current = activity;
+    if (live && prefersMotion()) svg.current?.animate(MORPH, { duration: MORPH_MS, easing: "cubic-bezier(0.2, 0, 0, 1)" });
+  }, [activity, live]);
   return (
-    <svg className="activity-glyph" data-activity={activity} viewBox="0 0 24 24" aria-hidden focusable={false}>
+    <svg ref={svg} className="activity-glyph" data-activity={activity} data-live={live || undefined} viewBox="0 0 24 24" aria-hidden focusable={false}>
       {PATHS[activity].map((d) => (
         <path key={d} d={d} />
       ))}

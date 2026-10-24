@@ -69,14 +69,21 @@ describe("AI Activity's live actions", () => {
   describe("a Job Search, from the page's poll", () => {
     const id = "3f1c2a4e-0000-4000-8000-000000000001";
     const profile = { id: "p1", name: "DAF Lyon" };
-    const searching = (steps: ProvenanceEvent[]): LiveChange => ({ type: "job_searches", running: [{ jobSearchId: id, profile, startedAt: at, steps }], ended: [] });
+    const searching = (steps: ProvenanceEvent[]): LiveChange => ({ type: "job_searches", running: [{ jobSearchId: id, profile, startedAt: at, steps }], ended: [], at });
     const webSearch: ProvenanceEvent = { type: "step_started", id: 1, step: { kind: "ai", activity: "web_search", task: "web_search", at } };
-    const over = (outcome: LiveEnded["outcome"]): LiveChange => ({ type: "job_searches", running: [], ended: [{ jobSearchId: id, outcome }] });
+    const over = (outcome: LiveEnded["outcome"]): LiveChange => ({ type: "job_searches", running: [], ended: [{ jobSearchId: id, outcome }], at });
 
     it("runs on its own page, named by its Profile, with the steps the worker wrote so far", () => {
       const [action] = apply(searching([webSearch]));
       expect(action).toMatchObject({ key: `job_search:${id}`, kind: "job_search", href: `/recherches/${id}`, name: "DAF Lyon", status: "running", startedAt: at });
       expect(action!.current).toMatchObject({ activity: "web_search", label: "web_search" });
+    });
+
+    it("seen from its start, it is told as starting; found running later (a page loaded again), it is not", () => {
+      const justNow = "2026-10-24T08:00:10.000Z";
+      expect(apply(replyStarted)[0]!.seenFromStart).toBe(true);
+      expect(apply({ ...searching([]), at: justNow } as LiveChange)[0]!.seenFromStart).toBe(true);
+      expect(apply({ ...searching([]), at: "2026-10-24T08:05:00.000Z" } as LiveChange)[0]!.seenFromStart).toBe(false);
     });
 
     it("each poll brings its latest steps: an ended step in place of its start", () => {
@@ -100,14 +107,14 @@ describe("AI Activity's live actions", () => {
 
     it("its notification dismissed, or one never seen running, shows nothing", () => {
       const stopped = apply(searching([webSearch]), over({ status: "stopped", at: ended, found: 1 }));
-      expect(nextLive(stopped, { type: "job_searches", running: [], ended: [] })).toEqual([]);
+      expect(nextLive(stopped, { type: "job_searches", running: [], ended: [], at })).toEqual([]);
       expect(apply(over({ status: "failed", failure: "timeout", at: ended, step: null, found: 0 }))).toEqual([]);
     });
 
     it("a poll leaves the Coach reply on its way as it is", () => {
       const actions = apply(replyStarted, thinking, searching([webSearch]));
       expect(actions.map((action) => action.key)).toEqual(["coach_reply:1", `job_search:${id}`]);
-      expect(nextLive(actions, { type: "job_searches", running: [], ended: [] }).map((action) => action.key)).toEqual(["coach_reply:1"]);
+      expect(nextLive(actions, { type: "job_searches", running: [], ended: [], at }).map((action) => action.key)).toEqual(["coach_reply:1"]);
     });
   });
 

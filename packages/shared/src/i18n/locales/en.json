@@ -3013,6 +3013,47 @@
       "company_dossier": "Company dossier",
       "action_card": "Coach proposal",
       "ats_score": "ATS Score"
+    },
+    "live": {
+      "starting": "Starting",
+      "elsewhere": "Running elsewhere",
+      "running": "Running · {{time}}",
+      "stopping": "Stopping…",
+      "stopped": "Stopped at {{time}}",
+      "failed": "Failed at {{time}}",
+      "failedStep": "Failed at {{time}}, during the “{{step}}” step",
+      "unknownReason": "It could not finish.",
+      "stepStopped": "stopped",
+      "stepFailed": "failed",
+      "earlierSteps_one": "{{count}} step finished earlier",
+      "earlierSteps_other": "{{count}} steps finished earlier",
+      "steps": "Steps",
+      "stop": {
+        "job_search": "Stop the job search",
+        "coach_reply": "Stop the coach's reply"
+      },
+      "open": {
+        "job_search": "Open the search",
+        "coach_reply": "Open the page"
+      },
+      "announce": {
+        "started": {
+          "job_search": "Job search started",
+          "coach_reply": "Coach reply on its way"
+        },
+        "done": {
+          "job_search": "Job search finished",
+          "coach_reply": "Coach reply received"
+        },
+        "stopped": {
+          "job_search": "Job search stopped",
+          "coach_reply": "Coach reply stopped"
+        },
+        "failed": {
+          "job_search": "Job search failed",
+          "coach_reply": "Coach reply failed"
+        }
+      }
     }
   }
 }

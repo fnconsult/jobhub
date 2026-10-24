@@ -51,6 +51,8 @@ export interface LiveAction {
   tokens: number | null;
   /** When it was stopped or failed; null while it runs. */
   endedAt: string | null;
+  /** This browser saw it start (a Coach reply sent here, a Job Search first polled within moments of its start): announced as starting. */
+  seenFromStart: boolean;
   /** Why it failed, as an i18n key of its Failure Reason (null: not known), and during which step (null: none known). */
   failure: { reason: string | null; step: StepLabel | null } | null;
 }
@@ -65,8 +67,11 @@ export type LiveChange =
   | { type: "stopping"; key: string }
   /** It ended: done (it leaves, its result is the page's), stopped, or failed with its Failure Reason's i18n key and the step it failed in. */
   | { type: "ended"; key: string; outcome: "done" | "stopped" | "failed"; at: string; reason?: string | null; step?: StepLabel | null }
-  /** What the page's poll brought: the Candidate's Job Searches searching, with their Run progress, and those that stopped searching. */
-  | { type: "job_searches"; running: readonly RunningJobSearch[]; ended: readonly LiveEnded[] };
+  /** What the page's poll brought, `at` that time: the Candidate's Job Searches searching, with their Run progress, and those that stopped searching. */
+  | { type: "job_searches"; running: readonly RunningJobSearch[]; ended: readonly LiveEnded[]; at: string };
+
+/** A Job Search first polled within this time of its start was seen from its start. */
+const JUST_STARTED_MS = 15_000;
 
 /** The last of `items` that `matches` (the web app's target has no Array.prototype.findLast). */
 function lastOf<T>(items: readonly T[], matches: (item: T) => boolean): T | undefined {
@@ -116,8 +121,9 @@ function ended(action: LiveAction, change: Extract<LiveChange, { type: "ended" }
 
 const jobSearchKey = (jobSearchId: string) => `job_search:${jobSearchId}`;
 
-function started(change: { key: string; kind: LiveKind; href: string; at: string; name?: string }): LiveAction {
-  return { key: change.key, kind: change.kind, href: change.href, name: change.name ?? null, startedAt: change.at, status: "running", steps: [], current: null, tokens: null, endedAt: null, failure: null };
+function started(change: { key: string; kind: LiveKind; href: string; at: string; name?: string; seenFromStart?: boolean }): LiveAction {
+  const { key, kind, href, at } = change;
+  return { key, kind, href, name: change.name ?? null, startedAt: at, status: "running", steps: [], current: null, tokens: null, endedAt: null, seenFromStart: change.seenFromStart ?? true, failure: null };
 }
 
 /**
@@ -137,7 +143,9 @@ function jobSearches(actions: readonly LiveAction[], poll: Extract<LiveChange, {
   const known = new Set(kept.map((action) => action.key));
   for (const search of poll.running) {
     const key = jobSearchKey(search.jobSearchId);
-    if (!known.has(key)) kept.push(started({ key, kind: "job_search", href: routes.jobSearch(search.jobSearchId), at: search.startedAt, name: search.profile.name }));
+    if (known.has(key)) continue;
+    const seenFromStart = Date.parse(poll.at) - Date.parse(search.startedAt) < JUST_STARTED_MS;
+    kept.push(started({ key, kind: "job_search", href: routes.jobSearch(search.jobSearchId), at: search.startedAt, name: search.profile.name, seenFromStart }));
   }
   return kept.map((action) => {
     const search = searching.get(action.key);

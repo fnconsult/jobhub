@@ -26,6 +26,8 @@ const PATHS = {
   coach: ["M4 5h16v11H9l-5 4z", "M8 9h8M8 12h5"],
   // A list of ticked tasks: AI Activity (#332).
   aiActivity: ["M10 6h10M10 12h10M10 18h10", "M4 6l1.2 1.2L7.5 5", "M4 12l1.2 1.2 2.3-2.2", "M4 18l1.2 1.2 2.3-2.2"],
+  // Stop an AI action under way (#333): a square.
+  stop: ["M7 7h10v10H7z"],
   add: ["M12 5v14M5 12h14"],
   conversations: ["M4 6h16M4 12h16M4 18h10"],
   searchAgain: ["M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3M18 3v4h-4M6 21v-4h4"],

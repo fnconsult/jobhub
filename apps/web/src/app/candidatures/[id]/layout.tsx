@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import type { Made } from "@/ai-activity";
+import { tailoredDocumentsMade, type Made } from "@/ai-activity";
 import { loadAiActivity } from "@/ai-activity/server";
 import { INTERVIEW_TIME_ZONE } from "@/applications";
 import { dossierSites } from "@/company-dossiers";
@@ -38,12 +38,11 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  */
 export default async function ApplicationLayout({ params, children }: Params & { children: ReactNode }) {
   const { candidateId, application, t, locale, inView, profiles, sections, shownCards, companyDossier, tailoredCv, drafts } = await loadApplicationPage((await params).id);
-  // What AI made for the Application: the Action Cards with their Provenance (#336), the Company Dossier with its own
-  // (#335; one built before shows « modèle non enregistré » with the sites its source names), the rest, their slices
-  // keeping none yet, « modèle non enregistré » in AI Activity. An « Abandonnée » suggestion is worded by Jobbbox, no AI: not listed.
+  // What AI made for the Application: the Tailored CV and Documents (#334), the Action Cards (#336) and the Company Dossier
+  // (#335; one built before shows « modèle non enregistré » with the sites its source names) with their Provenance. An
+  // « Abandonnée » suggestion is worded by Jobbbox, no AI: not listed.
   const made: Made[] = [
-    ...(tailoredCv && (tailoredCv.proposal || tailoredCv.saved) ? [{ kind: "tailored_cv" as const }] : []),
-    ...(drafts && (drafts.coverLetter || drafts.outreachMessage) ? [{ kind: "tailored_documents" as const }] : []),
+    ...tailoredDocumentsMade(tailoredCv, drafts),
     ...(companyDossier?.status === "built"
       ? [
           {

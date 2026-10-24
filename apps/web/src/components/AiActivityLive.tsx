@@ -4,25 +4,26 @@ import { usePathname } from "next/navigation";
 import { createContext, useContext, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProvenanceEvent } from "@jobhub/shared";
-import { isRunning, nextLive, type LiveAction, type LiveEnded, type LiveKind } from "@/ai-activity/live";
+import { isRunning, nextLive, type LiveAction, type LiveEnded, type RequestKind } from "@/ai-activity/live";
 import type { RunningJobSearch } from "@/job-searches";
 
-/** An action run in its page's request (a Coach reply, a Company Dossier, a CV reading), as that page tells AI Activity about it. */
-export interface InRequestLive {
+/**
+ * An action run in the page's own request, as the page tells AI Activity about it: a Coach reply on its way (the Coach
+ * Panel), a Tailored CV proposed, a Cover Letter or Outreach Message drafted (#334, components/LiveAction), a Company
+ * Dossier built, an uploaded CV read (#335, components/StreamedAction).
+ */
+export interface RequestActionLive {
   /** Each step's start and end, as its POST streams them. */
   event(event: ProvenanceEvent): void;
   /** Done, stopped, or failed with its Failure Reason's i18n key (null: not known). */
   end(outcome: "done" | "stopped" | "failed", reason?: string | null): void;
 }
 
-/** A Coach reply on its way, as the Coach Panel tells AI Activity about it. */
-export type CoachReplyLive = InRequestLive;
-
 interface Live {
   /** The Candidate's AI actions running, or done, stopped or failed lately (ai-activity/live). */
   actions: readonly LiveAction[];
-  /** An action of `kind` starts in a request of the page at `href` (a Coach reply, a Company Dossier, a CV reading, #335); `stop` aborts it. */
-  start(kind: Exclude<LiveKind, "job_search">, href: string, stop: () => void): InRequestLive;
+  /** An action run in the page's request starts, asked from `href`; `stop` aborts its request. */
+  requestAction(kind: RequestKind, href: string, stop: () => void): RequestActionLive;
   /** What the page's poll brought (JobSearchNotifications): the Job Searches searching, and those that stopped searching. */
   jobSearches(running: readonly RunningJobSearch[], ended: readonly LiveEnded[]): void;
   /** Stops an action: a Coach reply's request is aborted, a Job Search gets a Stop request. */
@@ -36,8 +37,8 @@ const JOB_SEARCH = "job_search:";
 
 /**
  * Holds AI Activity's live actions (#333) above every page of a signed-in Candidate, so an action keeps showing, with its
- * step, on the page the Candidate moves to. Fed by the streams of the actions run in a page's request (the Coach Panel's,
- * a Company Dossier's, a CV reading's, #335) and by the Job Search poll; only the Candidate's
+ * step, on the page the Candidate moves to. Fed by the streams of the actions run in a page's request (a Coach reply, a
+ * Tailored CV, a Tailored Document, a Company Dossier, a CV reading) and by the Job Search poll; only the Candidate's
  * own pages mount it, never the Back Office. It holds AI Activity's one live region too, so a page change neither loses nor
  * repeats what it says.
  */
@@ -49,7 +50,7 @@ export function AiActivityLiveProvider({ children }: { children: ReactNode }) {
 
   const api = useMemo(
     () => ({
-      start(kind: Exclude<LiveKind, "job_search">, href: string, stop: () => void): InRequestLive {
+      requestAction(kind: RequestKind, href: string, stop: () => void): RequestActionLive {
         const key = `${kind}:${++started.current}`;
         stops.current.set(key, stop);
         dispatch({ type: "started", key, kind, href, at: new Date().toISOString() });
@@ -95,7 +96,8 @@ export function AiActivityLiveProvider({ children }: { children: ReactNode }) {
 /**
  * One polite live region: the start of an action and its end, done, stopped or failed, never its steps (#333). A Coach
  * reply is left to the Coach Panel while it is open, which says both itself; a Job Search's end to its notification, but on
- * its own page, where the notification is not shown. An action found running later (a page loaded again) is not said to start.
+ * its own page, where the notification is not shown; a Tailored CV or Document to its page, which says both itself, but
+ * once the Candidate moved on (#334). An action found running later (a page loaded again) is not said to start.
  */
 function LiveAnnouncer({ actions, coachPanelOpen }: { actions: readonly LiveAction[]; coachPanelOpen: boolean }) {
   const { t } = useTranslation();
@@ -104,13 +106,14 @@ function LiveAnnouncer({ actions, coachPanelOpen }: { actions: readonly LiveActi
   const [said, setSaid] = useState("");
   if (seen !== actions) {
     setSeen(actions);
-    const told = (action: LiveAction) => (action.kind === "coach_reply" ? !coachPanelOpen : action.href === pathname);
+    const told = (action: LiveAction) =>
+      action.kind === "coach_reply" ? !coachPanelOpen : action.kind === "job_search" ? action.href === pathname : action.href !== pathname;
     const before = new Map(seen.map((action) => [action.key, action]));
     const now = new Set(actions.map((action) => action.key));
     let message: string | null = null;
     for (const action of actions) {
       const was = before.get(action.key);
-      if (!was && isRunning(action) && action.seenFromStart && (action.kind !== "coach_reply" || !coachPanelOpen)) {
+      if (!was && isRunning(action) && action.seenFromStart && (action.kind === "job_search" || told(action))) {
         message = t(`aiActivity.live.announce.started.${action.kind}`);
       } else if (was && isRunning(was) && !isRunning(action) && told(action)) {
         message = t(`aiActivity.live.announce.${action.status === "done" || action.status === "stopped" ? action.status : "failed"}.${action.kind}`);

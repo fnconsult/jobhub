@@ -14,7 +14,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icons } from "@/components/icons";
 import { StartJobSearchButton } from "@/components/JobSearchControls";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
-import { AiActivityLiveProvider, useAiActivityLive, type CoachReplyLive } from "@/components/AiActivityLive";
+import { AiActivityLiveProvider, useAiActivityLive, type RequestActionLive } from "@/components/AiActivityLive";
 import { ProvenanceLine } from "@/components/ProvenanceLine";
 import { readNdjson } from "@/ndjson";
 import { routes } from "@/routes";
@@ -532,7 +532,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     // The conversation the message goes to, once the server says (a new one is named already): where a Stop keeps it.
     let asked: ConversationSummary | null = conversation;
     if (panel.features.live) setLive({ step: null, tokens: 0 });
-    const shownLive: CoachReplyLive | null = panel.features.live && aiActivity ? aiActivity.start("coach_reply", pathname, () => stop.abort()) : null;
+    const shownLive: RequestActionLive | null = panel.features.live && aiActivity ? aiActivity.requestAction("coach_reply", pathname, () => stop.abort()) : null;
 
     const giveBack = (error: Status, reason?: unknown) => {
       // Give the Candidate their message back to retry or shorten it.

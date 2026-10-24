@@ -1,6 +1,6 @@
 import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
-import type { MasterCvContent } from "@jobhub/shared";
+import type { MasterCvContent, ProvenanceEvent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApplications, migrateApplications } from "../applications";
@@ -365,6 +365,70 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
 
     expect(await documents.draft(candidateId, applicationId, { document: "cover_letter", language: "en" })).toEqual({ ok: false, error: "unavailable" });
     expect(await documents.get(candidateId, applicationId)).toMatchObject({ documentLanguage: "fr", coverLetter: { text: "Ma version" } });
+  });
+
+  it("a Cover Letter keeps its Provenance (#334): the model that wrote it, its tokens and time, the Job Offer's page and the Master CV", async () => {
+    const result = await documents.draft(candidateId, applicationId, { document: "cover_letter" });
+
+    const provenance = result.ok ? result.drafts.coverLetter?.provenance : undefined;
+    expect(provenance).toMatchObject({
+      v: 1,
+      steps: [{ kind: "ai", activity: "write", task: "writing", provider: "mistral", model: "fake-mistral", tokens: { input: 10, output: 5 }, outcome: "ok", count: 1 }],
+      sites: [
+        { kind: "web", domain: "apec.fr", links: ["https://www.apec.fr/offre/1"] },
+        { kind: "candidate", links: [expect.stringMatching(/^\/profils\/[^/]+\/cv$/)] },
+      ],
+    });
+    expect(provenance?.wallMs).toEqual(expect.any(Number));
+    expect((await documents.get(candidateId, applicationId))?.coverLetter?.provenance).toEqual(provenance);
+  });
+
+  it("each step of a drafting is told as it starts and ends (#334): writing, then its model, tokens and time", async () => {
+    const events: ProvenanceEvent[] = [];
+
+    await documents.draft(candidateId, applicationId, { document: "outreach_message" }, { onEvent: (event) => events.push(event) });
+
+    expect(events).toEqual([
+      { type: "step_started", id: 1, step: expect.objectContaining({ kind: "ai", activity: "write", task: "writing" }) },
+      { type: "step_ended", id: 1, step: expect.objectContaining({ activity: "write", model: "fake-mistral", tokens: { input: 10, output: 5 }, outcome: "ok" }) },
+    ]);
+  });
+
+  it("stopped mid-writing (#334): the AI call is aborted and recorded stopped, the half-written draft discarded, the stored one kept", async () => {
+    await documents.draft(candidateId, applicationId, { document: "cover_letter" });
+    const database = testAuth.auth.options.database as Pool;
+    const pending = createFakeProvider({ id: "mistral", pending: true });
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [pending], routes: { writing: "mistral" }, usage });
+    const stoppable = createTailoredDocuments(database, { applications: createApplications(database, { jobOffers, profiles }), profiles, ai });
+    const stop = new AbortController();
+    const events: ProvenanceEvent[] = [];
+
+    const drafting = stoppable.draft(candidateId, applicationId, { document: "cover_letter", language: "en" }, { signal: stop.signal, onEvent: (event) => events.push(event) });
+    await vi.waitFor(() => expect(pending.calls).toHaveLength(1));
+    stop.abort();
+
+    expect(await drafting).toEqual({ ok: false, error: "stopped" });
+    expect(pending.calls[0]!.signal?.aborted).toBe(true);
+    await vi.waitFor(() => expect(usage.entries).toEqual([expect.objectContaining({ task: "writing", outcome: "failed", reason: "stopped" })]));
+    expect(events.at(-1)).toMatchObject({ type: "step_ended", step: { task: "writing", outcome: "stopped" } });
+    expect(await documents.get(candidateId, applicationId)).toMatchObject({ documentLanguage: "fr", coverLetter: { text: expect.stringContaining("Votre offre"), language: "fr" } });
+  });
+
+  it("stopped before any draft was kept (#334): no Tailored Document is stored", async () => {
+    const database = testAuth.auth.options.database as Pool;
+    const pending = createFakeProvider({ id: "mistral", pending: true });
+    const ai = createAiLayer({ providers: [pending], routes: { writing: "mistral" }, usage: createMemoryUsageLog() });
+    const stoppable = createTailoredDocuments(database, { applications: createApplications(database, { jobOffers, profiles }), profiles, ai });
+    const stop = new AbortController();
+
+    const drafting = stoppable.draft(candidateId, applicationId, { document: "outreach_message" }, { signal: stop.signal });
+    await vi.waitFor(() => expect(pending.calls).toHaveLength(1));
+    stop.abort();
+
+    expect(await drafting).toEqual({ ok: false, error: "stopped" });
+    const { rows } = await database.query(`SELECT 1 FROM tailored_document WHERE application_id = $1`, [applicationId]);
+    expect(rows).toEqual([]);
   });
 
   it("an unknown document or channel is refused", async () => {

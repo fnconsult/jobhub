@@ -130,6 +130,13 @@ globalThis.fetch = async (input, init) => {
     content = `Avis du Playbook Agent ${playbook[1]} (version ${playbook[2]}, modèle ${body.model}, effort ${body.reasoning_effort ?? "aucun"}) : préparez trois exemples [S24].`;
     if (prompt.includes("E2E_AGENT_LEAK")) content += " Contact : agent.tiers@exemple.fr";
   }
+  // "E2E_WRITING_SLOW=<ms>" in a Job Offer has its Tailored CV proposed, or its Cover Letter or Outreach Message drafted,
+  // take that long (#334), so the page shows the step live; aborted meanwhile (the Candidate's Stop), it rejects with the
+  // signal's reason, as fetch does.
+  const slowWriting = /E2E_WRITING_SLOW=(\d+)/.exec(prompt)?.[1];
+  if (slowWriting && /^(?:Tu es le coach Jobbbox\. Tu (?:rédiges|adaptes)|You are the Jobbbox coach\. You (?:write|adapt))/.test(system)) {
+    await answerAfter(Number(slowWriting), input instanceof Request ? input.signal : init?.signal);
+  }
   const slow = /E2E_COACH_SLOW=(\d+)/.exec(prompt)?.[1];
   if (slow && system.includes("coach Jobbbox")) await answerAfter(Number(slow), input instanceof Request ? input.signal : init?.signal);
   if (system.includes("coach Jobbbox")) {

@@ -3036,7 +3036,9 @@
         "job_search": "Last search · {{time}}",
         "coach_reply": "Last reply · {{time}}",
         "company_dossier": "Last dossier · {{time}}",
-        "cv_reading": "Last reading · {{time}}"
+        "cv_reading": "Last reading · {{time}}",
+        "tailored_cv": "Tailored CV proposed · {{time}}",
+        "tailored_documents": "Document drafted · {{time}}"
       },
       "result": {
         "think_one": "{{count}} analysis",
@@ -3063,38 +3065,50 @@
         "job_search": "Stop the job search",
         "coach_reply": "Stop the coach's reply",
         "company_dossier": "Stop the company dossier",
-        "cv_reading": "Stop reading the CV"
+        "cv_reading": "Stop reading the CV",
+        "tailored_cv": "Stop the Tailored CV proposal",
+        "tailored_documents": "Stop drafting the document"
       },
       "open": {
         "job_search": "Open the search",
         "coach_reply": "Open the page",
         "company_dossier": "Open the dossier",
-        "cv_reading": "Open the page"
+        "cv_reading": "Open the page",
+        "tailored_cv": "Open the documents",
+        "tailored_documents": "Open the documents"
       },
       "announce": {
         "started": {
           "job_search": "Job search started",
           "coach_reply": "Coach reply on its way",
           "company_dossier": "Company dossier under way",
-          "cv_reading": "Reading the CV"
+          "cv_reading": "Reading the CV",
+          "tailored_cv": "Tailored CV proposal on its way",
+          "tailored_documents": "Document being drafted"
         },
         "done": {
           "job_search": "Job search finished",
           "coach_reply": "Coach reply received",
           "company_dossier": "Company dossier done",
-          "cv_reading": "CV read"
+          "cv_reading": "CV read",
+          "tailored_cv": "Tailored CV proposed",
+          "tailored_documents": "Document drafted"
         },
         "stopped": {
           "job_search": "Job search stopped",
           "coach_reply": "Coach reply stopped",
           "company_dossier": "Company dossier stopped",
-          "cv_reading": "CV reading stopped"
+          "cv_reading": "CV reading stopped",
+          "tailored_cv": "Tailored CV proposal stopped",
+          "tailored_documents": "Document drafting stopped"
         },
         "failed": {
           "job_search": "Job search failed",
           "coach_reply": "Coach reply failed",
           "company_dossier": "Company dossier failed",
-          "cv_reading": "CV reading failed"
+          "cv_reading": "CV reading failed",
+          "tailored_cv": "Tailored CV proposal failed",
+          "tailored_documents": "Document drafting failed"
         }
       }
     }

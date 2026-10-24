@@ -4,9 +4,9 @@ import type { Activity, ProvenanceEvent, ProvenanceStep, StartedStep, StepLabel 
 import { usePathname } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { LiveKind } from "@/ai-activity/live";
+import type { RequestKind } from "@/ai-activity/live";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
-import { useAiActivityLive, type InRequestLive } from "@/components/AiActivityLive";
+import { useAiActivityLive, type RequestActionLive } from "@/components/AiActivityLive";
 import { readNdjson } from "@/ndjson";
 
 /**
@@ -46,7 +46,7 @@ export interface StreamedAction {
   stop(): void;
 }
 
-export function useStreamedAction(kind: Exclude<LiveKind, "job_search" | "coach_reply">): StreamedAction {
+export function useStreamedAction(kind: Extract<RequestKind, "company_dossier" | "cv_reading">): StreamedAction {
   const aiActivity = useAiActivityLive();
   const pathname = usePathname();
   const [step, setStep] = useState<StreamedAction["step"]>(null);
@@ -59,7 +59,7 @@ export function useStreamedAction(kind: Exclude<LiveKind, "job_search" | "coach_
       stopper.current = stop;
       setRunning(true);
       setStep(null);
-      const live: InRequestLive | null = aiActivity ? aiActivity.start(kind, pathname, () => stop.abort()) : null;
+      const live: RequestActionLive | null = aiActivity ? aiActivity.requestAction(kind, pathname, () => stop.abort()) : null;
       const stopped = (body: Record<string, unknown> = {}): StreamedOutcome => {
         live?.end("stopped");
         return { ok: false, stopped: true, at: new Date(), body };

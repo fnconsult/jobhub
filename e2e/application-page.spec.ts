@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
-import { renderedTexts } from "./support/accessibility";
+import { fontFloorOf, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
@@ -76,7 +76,7 @@ const panel = (page: Page, name: string) => documents(page).getByRole("tabpanel"
 /** Every visible text at the ADR-0009 floor: 16px at least, 4.5:1 contrast at least. */
 async function expectAccessibilityFloor(page: Page) {
   for (const t of await renderedTexts(page)) {
-    expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
+    expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(fontFloorOf(t));
     expect.soft(t.contrast, `contrast of "${t.text}"`).toBeGreaterThanOrEqual(4.5);
   }
 }

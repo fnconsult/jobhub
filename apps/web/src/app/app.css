@@ -611,6 +611,30 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   border-radius: var(--radius-md);
 }
 
+/* A Tailored CV or Tailored Document on its way (#334): its step live beside « Arrêter ». */
+.live-action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+}
+
+.live-action-step {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+/* « Arrêtée à 10:42 » (#334): very light red, said in words too. */
+.live-action-stopped {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-danger-surface);
+  border-radius: var(--radius-md);
+}
+
+.live-action-spent,
 .chat-stopped-spent {
   color: var(--color-text-meta);
   font-size: var(--font-size-meta);

@@ -232,9 +232,10 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         ],
         tailoredDocuments: {
           documentLanguage: "fr",
-          tailoredCv: expect.objectContaining({ content: expect.objectContaining({ headline: "DAF groupe industriel" }) }),
+          // Each with its Provenance (#334): the save keeps the proposal's, the Candidate's edit keeps the drafting's.
+          tailoredCv: expect.objectContaining({ content: expect.objectContaining({ headline: "DAF groupe industriel" }), provenance: expect.objectContaining({ v: 1, steps: [expect.objectContaining({ kind: "ai", activity: "write", task: "writing" })] }) }),
           tailoredCvProposal: null,
-          coverLetter: expect.objectContaining({ text: "Madame, Monsieur, je postule." }),
+          coverLetter: expect.objectContaining({ text: "Madame, Monsieur, je postule.", provenance: expect.objectContaining({ v: 1, steps: [expect.objectContaining({ kind: "ai", activity: "write", task: "writing" })] }) }),
           outreachMessage: null,
         },
       }),

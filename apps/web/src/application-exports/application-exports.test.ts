@@ -40,13 +40,13 @@ const profile = { id: "p1", name: "DAF", archived: false, masterCv: { version: 1
 const savedCv: ApplicationTailoredCv = {
   documentLanguage: "en",
   proposal: null,
-  saved: { language: "en", masterCvVersion: 1, content: tailored, matchScore: { master: 60, tailored: 80 }, savedAt: new Date() },
+  saved: { language: "en", masterCvVersion: 1, content: tailored, matchScore: { master: 60, tailored: 80 }, savedAt: new Date(), provenance: null },
 };
 
 const letterText = "Dear Sir or Madam,\n\nI am applying for the CFO position.\n\nYours faithfully,";
 const drafts: ApplicationDrafts = {
   documentLanguage: "en",
-  coverLetter: { language: "en", text: letterText, draftedAt: new Date(), updatedAt: new Date() },
+  coverLetter: { language: "en", text: letterText, draftedAt: new Date(), updatedAt: new Date(), provenance: null },
   outreachMessage: null,
 };
 
@@ -99,7 +99,7 @@ describe("exporting an Application's saved documents", () => {
     const text =
       "**Marie Dupont**\n[Adresse]\n[Code postal, Ville]\n[Email] | [Téléphone]\n\nLyon, le [Date]\n\n**Objet : Candidature au poste de DAF**\n\n" +
       "Madame, Monsieur,\n\nJ'ai piloté la **consolidation IFRS** d'un groupe industriel.\n\nJe vous prie d'agréer mes salutations distinguées.\n\n**Marie Dupont**";
-    const french = exportsWith({ drafts: { ...drafts, coverLetter: { language: "fr", text, draftedAt: new Date(), updatedAt: new Date() } } });
+    const french = exportsWith({ drafts: { ...drafts, coverLetter: { language: "fr", text, draftedAt: new Date(), updatedAt: new Date(), provenance: null } } });
 
     for (const format of ["docx", "pdf"] as const) {
       const file = await french.file("c1", "a1", "cover_letter", { format, template: "classic" });

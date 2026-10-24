@@ -10,8 +10,8 @@
  *
  * What counts is the page's content whatever its date, and the AI Coach replies whose focus is the page's object, from
  * any conversation. Other content the page shows is `made`, with its Provenance when its slice keeps one (an Action
- * Card, an ATS Score, #336); without one (a Tailored CV…, or content made before) it is listed as « modèle non
- * enregistré », out of every total. Only what the pane shows crosses to the browser (pane.ts): never
+ * Card, an ATS Score, #336; a Tailored CV or Document, #334: `tailoredDocumentsMade`); without one (content made
+ * before) it is listed as « modèle non enregistré », out of every total. Only what the pane shows crosses to the browser (pane.ts): never
  * an internal id, cost, prompt, AI task, Playbook Agent, Outcome or technical error.
  */
 import type { Provenance, ProvenanceSite } from "@jobhub/shared";
@@ -92,4 +92,25 @@ export async function applicationPage(sources: PageSources, candidateId: string,
 /** `/profils/[id]/*`, every Section: what was made for the Profile, and the Coach replies about it. */
 export async function profilePage(sources: PageSources, candidateId: string, profile: { id: string }, content: readonly Made[]): Promise<ActivityElement[]> {
   return [...made(content), ...(await repliesAbout(sources, candidateId, { kind: "profile", id: profile.id }))];
+}
+
+/** A Tailored Document as AI Activity reads it: its Provenance, once kept. */
+type Written = { provenance: Provenance | null };
+
+/**
+ * The Application's Tailored Documents written so far (#334), as `made` for `applicationPage`, each with its Provenance
+ * and when it was written: the saved Tailored CV and the proposal under review (both « tailored_cv »), the Cover Letter
+ * and the Outreach Message (both « tailored_documents »). `/candidatures/[id]/documents` shows them; every Section lists them.
+ */
+export function tailoredDocumentsMade(
+  tailoredCv: { saved: (Written & { savedAt: Date }) | null; proposal: (Written & { proposedAt: Date }) | null } | null,
+  drafts: { coverLetter: (Written & { draftedAt: Date }) | null; outreachMessage: (Written & { draftedAt: Date }) | null } | null,
+): Made[] {
+  const documents: [ElementKind, Written | null | undefined, Date | undefined][] = [
+    ["tailored_cv", tailoredCv?.saved, tailoredCv?.saved?.savedAt],
+    ["tailored_cv", tailoredCv?.proposal, tailoredCv?.proposal?.proposedAt],
+    ["tailored_documents", drafts?.coverLetter, drafts?.coverLetter?.draftedAt],
+    ["tailored_documents", drafts?.outreachMessage, drafts?.outreachMessage?.draftedAt],
+  ];
+  return documents.flatMap(([kind, document, at]) => (document ? [{ kind, at: at ?? null, provenance: document.provenance }] : []));
 }

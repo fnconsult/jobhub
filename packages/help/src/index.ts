@@ -6,6 +6,7 @@
  *   search("comment relancer le recruteur", "fr");    // [the « Comment relancer un recruteur ? » question, …]
  */
 import { ARTICLES } from "./articles.generated";
+import { indexArticle, searchIndex, type IndexedArticle } from "./search";
 import type { HelpArticle, HelpLocale } from "./types";
 
 export { HELP_ARTICLE_KINDS, HELP_LOCALES, type HelpArticle, type HelpArticleKind, type HelpLocale } from "./types";
@@ -13,6 +14,24 @@ export { HELP_ARTICLE_KINDS, HELP_LOCALES, type HelpArticle, type HelpArticleKin
 /** Every Help Article in `locale`: the page articles, then the glossary, then the frequent questions, each by title. */
 export function articles(locale: HelpLocale): readonly HelpArticle[] {
   return ARTICLES[locale];
+}
+
+/**
+ * The Help Articles matching a Candidate's words, best first, `limit` (4) at most; none for a question no article
+ * answers. Calls no AI model and counts against nothing: accents and case make no difference, stop-words (French
+ * and English) and words of 2 letters or fewer are dropped, and each word's stem is looked for in the articles'
+ * titles and synonyms (3 points) or bodies (1 point). Only articles scoring 2 or more are returned.
+ */
+export function search(query: string, locale: HelpLocale, { limit = 4 }: { limit?: number } = {}): HelpArticle[] {
+  return searchIndex(indexed(locale), query, limit);
+}
+
+const indexes = new Map<HelpLocale, IndexedArticle[]>();
+
+function indexed(locale: HelpLocale): IndexedArticle[] {
+  let index = indexes.get(locale);
+  if (!index) indexes.set(locale, (index = ARTICLES[locale].map(indexArticle)));
+  return index;
 }
 
 /** The Help Article `id` in `locale`, or null when there is none. */

@@ -16,6 +16,8 @@ const WIDE = "(width >= 64rem)";
 /** `aria-current` of the link to the page shown. */
 export const CURRENT = "page";
 const MAIN_ID = "main";
+/** Marks what is open inside the drawer and closes on Escape before the drawer does (the Usage Meter's card). */
+const CLOSES_ON_ESCAPE = "[data-closes-on-escape]";
 
 /**
  * What a page split into Sections tells the Top Bar (ADR-0024): the Section shown, named after
@@ -238,6 +240,10 @@ export function SidebarShell({
                     event.preventDefault();
                     here.focus();
                   }
+                }}
+                onEscapeKeyDown={(event) => {
+                  // Escape closes what is open in the drawer first (the Usage Meter's card), the drawer after.
+                  if (event.target instanceof Element && event.target.closest(CLOSES_ON_ESCAPE)) event.preventDefault();
                 }}
                 onCloseAutoFocus={(event) => {
                   event.preventDefault();

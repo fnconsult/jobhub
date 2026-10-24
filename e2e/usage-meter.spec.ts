@@ -6,6 +6,7 @@ import { newAddress } from "./support/mailbox";
 // The sidebar's Usage Meter (ADR-0032): the week's Plan Quotas as one bar, each weighed by
 // what the Plan grants; its button shows each quota's use, and leads to the subscription page.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
+const en = JSON.parse(readFileSync("packages/shared/src/i18n/locales/en.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
 
 const meterButton = (page: Page) => page.getByRole("button", { name: new RegExp(`^${fr.usageMeter.title}`) });
@@ -51,10 +52,101 @@ for (const viewport of [
       await expect(detailRow(page, fr.billing.quotas.jobSearches)).toHaveText("0 sur 1");
       await expect(detailRow(page, fr.billing.quotas.enrichedContacts)).toHaveText(fr.billing.page.notIncluded);
       await expect(detailRow(page, fr.billing.quotas.jobDigest)).toHaveText(fr.billing.jobDigest.none);
-      await expect(page.getByText(fr.billing.quotaReached.renews)).toBeVisible();
 
       await page.getByRole("link", { name: fr.usageMeter.subscription }).click();
       await expect(page).toHaveURL(`${origin}/abonnement`);
     });
+
+    test("is titled « Hebdomadaire », says on one line under its bar when the quotas renew, and opens its detail upward (#321)", async ({ page }) => {
+      await signInWithMagicLink(page, newAddress(`usage-meter-321-${viewport.name}`));
+      await page.goto("/candidatures");
+      if (viewport.width < 1024) await page.getByRole("button", { name: fr.sidebar.menu, exact: true }).click();
+
+      const button = meterButton(page);
+      await expect(button.locator(".usage-meter-head > :first-child")).toHaveText("Hebdomadaire");
+      await expectRenewalOnOneLineUnderTheBar(page, "Votre quota se renouvelle lundi minuit");
+
+      // Opened, the detail is a smaller card above the meter: nothing in the sidebar's foot moves.
+      const account = page.getByRole("link", { name: fr.nav.account, exact: true }).locator("visible=true");
+      const accountBefore = (await account.boundingBox())!;
+      const buttonBefore = (await button.boundingBox())!;
+      await button.click();
+      await expect(button).toHaveAttribute("aria-expanded", "true");
+      const controls = (await button.getAttribute("aria-controls"))!;
+      const detail = page.locator(`[id="${controls}"]`);
+      await expect(detail).toBeVisible();
+      await expect(detail).toHaveClass(/usage-meter-detail/);
+      // (Vertically: on a phone the drawer may still be sliding in.)
+      expect((await account.boundingBox())!.y).toBe(accountBefore.y);
+      expect((await button.boundingBox())!.y).toBe(buttonBefore.y);
+      const card = (await detail.boundingBox())!;
+      expect(card.y + card.height).toBeLessThanOrEqual(buttonBefore.y);
+      const look = await detail.evaluate((el) => {
+        const style = getComputedStyle(el);
+        return { position: style.position, border: parseFloat(style.borderTopWidth), shadow: style.boxShadow, fontSize: parseFloat(style.fontSize), body: parseFloat(getComputedStyle(document.body).fontSize) };
+      });
+      expect(look.position).toBe("absolute");
+      expect(look.border).toBeGreaterThan(0);
+      expect(look.shadow).not.toBe("none");
+      expect(look.fontSize).toBeLessThan(look.body);
+
+      // The renewal sentence is said once, under the bar, not again in the detail.
+      await expect(detail).not.toContainText(fr.usageMeter.renews);
+      await expect(detail).not.toContainText(fr.billing.quotaReached.renews);
+      await expect(page.locator(".usage-meter-renews").locator("visible=true")).toHaveCount(1);
+
+      // Escape closes the card, the focus back on the button, the sidebar (a drawer on a phone) still open.
+      await page.keyboard.press("Escape");
+      await expect(button).toHaveAttribute("aria-expanded", "false");
+      await expect(page.locator(".usage-meter-detail")).toHaveCount(0);
+      await expect(button).toBeFocused();
+      await expect(button).toBeVisible();
+
+      // From the card's own link too.
+      await page.keyboard.press("Enter");
+      await expect(button).toHaveAttribute("aria-expanded", "true");
+      await page.getByRole("link", { name: fr.usageMeter.subscription }).focus();
+      await page.keyboard.press("Escape");
+      await expect(button).toHaveAttribute("aria-expanded", "false");
+      await expect(button).toBeFocused();
+      await expect(button).toBeVisible();
+    });
+
+    test("in English, is titled « Weekly » and keeps its longer renewal sentence on one line (#321)", async ({ page }) => {
+      await signInWithMagicLink(page, newAddress(`usage-meter-321-en-${viewport.name}`));
+      const switched = await page.request.post("/api/auth/update-user", { data: { interfaceLanguage: "en" }, headers: { origin } });
+      expect(switched.ok(), await switched.text()).toBe(true);
+      await page.goto("/candidatures");
+      if (viewport.width < 1024) await page.getByRole("button", { name: en.sidebar.menu, exact: true }).click();
+
+      const button = page.getByRole("button", { name: new RegExp(`^${en.usageMeter.title}`) });
+      await expect(button.locator(".usage-meter-head > :first-child")).toHaveText("Weekly");
+      await expectRenewalOnOneLineUnderTheBar(page, "Your quota renews Monday at midnight");
+    });
   });
+}
+
+/** The renewal sentence: under the bar, smaller than the title, on one line, cut with an ellipsis rather than wrapped. */
+async function expectRenewalOnOneLineUnderTheBar(page: Page, sentence: string) {
+  const renews = page.locator(".usage-meter-renews").locator("visible=true");
+  await expect(renews).toHaveText(sentence);
+  const bar = (await page.getByRole("progressbar").locator("visible=true").boundingBox())!;
+  const box = (await renews.boundingBox())!;
+  expect(box.y).toBeGreaterThanOrEqual(bar.y + bar.height);
+  const style = await renews.evaluate((el) => {
+    const own = getComputedStyle(el);
+    const title = getComputedStyle(el.closest(".usage-meter")!.querySelector(".usage-meter-head > :first-child")!);
+    return {
+      whiteSpace: own.whiteSpace,
+      overflow: own.overflowX,
+      textOverflow: own.textOverflow,
+      fontSize: parseFloat(own.fontSize),
+      lineHeight: parseFloat(own.lineHeight) || parseFloat(own.fontSize) * 1.6,
+      titleSize: parseFloat(title.fontSize),
+    };
+  });
+  expect(style).toMatchObject({ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" });
+  expect(style.fontSize).toBeLessThan(style.titleSize);
+  // One line: no taller than a line of its own type.
+  expect(box.height).toBeLessThanOrEqual(Math.ceil(style.lineHeight) + 1);
 }

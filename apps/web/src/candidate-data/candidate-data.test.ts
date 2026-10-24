@@ -683,6 +683,25 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(application.matchScore).toMatchObject({ score: expect.any(Number) });
   });
 
+  it("the export holds what built a Company Dossier and what read a Master CV from a file, when kept (#335)", async () => {
+    const reading = rulesProvenance("ats_score", { at: new Date("2026-10-01T09:00:00Z") });
+    const read: Provenance = { ...reading, steps: [{ kind: "ai", activity: "read", task: "cv_parsing", provider: "mistral", model: "mistral-medium-3", ms: 900, at: reading.startedAt, outcome: "ok", count: 1 }] };
+    const built: Provenance = { ...read, steps: [{ kind: "tool", activity: "search", tool: "recherche-entreprises", ms: 120, at: reading.startedAt, outcome: "ok", count: 1 }], sites: [] };
+    const created = await profiles.create(candidateId, { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] }, provenance: read });
+    if (!created.ok) throw new Error("fixture Profile refused");
+    const application = await saveApplication(candidateId, created.profile.id);
+    await database.query(`INSERT INTO company_dossier (application_id, dossier, provenance) VALUES ($1, $2, $3)`, [
+      application.id,
+      { source: "web", reliability: "less_reliable", employer: "Acme", builtAt: "2026-10-01T09:00:00.000Z", suggestedContactRoles: [], sources: [] },
+      built,
+    ]);
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.profiles[0]!.masterCvVersions).toEqual([expect.objectContaining({ version: 1, provenance: read })]);
+    expect(exported.applications[0]!.companyDossier).toMatchObject({ provenance: built });
+  });
+
   it("the export holds the Candidate's Plan and how much of each Plan Quota they used, but not their Stripe identifiers", async () => {
     expect(await candidateData.export(candidateId)).toMatchObject({ plan: null, quotaUsage: [] });
     // Set from Stripe's signed webhooks; counted as the Candidate uses the app.

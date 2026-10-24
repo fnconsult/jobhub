@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { tailoredDocumentsMade, type Made } from "@/ai-activity";
 import { loadAiActivity } from "@/ai-activity/server";
 import { INTERVIEW_TIME_ZONE } from "@/applications";
+import { dossierSites } from "@/company-dossiers";
 import { ABANDON_CARD } from "@/follow-ups";
 import { ApplicationProfileSelect, ApplicationStatusSelect, ReportUnavailableButton } from "@/components/ApplicationControls";
 import { CandidateLayout } from "@/components/CandidateLayout";
@@ -37,12 +38,21 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  */
 export default async function ApplicationLayout({ params, children }: Params & { children: ReactNode }) {
   const { candidateId, application, t, locale, inView, profiles, sections, shownCards, companyDossier, tailoredCv, drafts } = await loadApplicationPage((await params).id);
-  // What AI made for the Application: the Tailored CV and Documents (#334) and the Action Cards (#336) with their
-  // Provenance, the Company Dossier, its slice keeping none yet, « modèle non enregistré » in AI Activity. An « Abandonnée »
-  // suggestion is worded by Jobbbox, no AI: not listed.
+  // What AI made for the Application: the Tailored CV and Documents (#334), the Action Cards (#336) and the Company Dossier
+  // (#335; one built before shows « modèle non enregistré » with the sites its source names) with their Provenance. An
+  // « Abandonnée » suggestion is worded by Jobbbox, no AI: not listed.
   const made: Made[] = [
     ...tailoredDocumentsMade(tailoredCv, drafts),
-    ...(companyDossier?.status === "built" ? [{ kind: "company_dossier" as const, at: companyDossier.dossier.builtAt }] : []),
+    ...(companyDossier?.status === "built"
+      ? [
+          {
+            kind: "company_dossier" as const,
+            at: companyDossier.dossier.builtAt,
+            provenance: companyDossier.provenance ?? null,
+            ...(companyDossier.provenance ? {} : { sites: dossierSites(companyDossier.dossier) }),
+          },
+        ]
+      : []),
     ...shownCards
       .filter((card) => card.kind !== ABANDON_CARD)
       .map((card) => ({ kind: "action_card" as const, name: card.title, at: card.createdAt, provenance: card.provenance })),

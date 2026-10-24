@@ -187,6 +187,45 @@ describe("AI Activity's page loaders (#332)", () => {
     ]);
   });
 
+  describe("Company Dossier and a Master CV read from a file (#335)", () => {
+    const REGISTER = { kind: "web" as const, domain: "annuaire-entreprises.data.gouv.fr", links: ["https://annuaire-entreprises.data.gouv.fr/entreprise/552100554"] };
+    const at = "2026-10-24T08:00:00.000Z";
+
+    it("shows `/candidatures/[id]/dossier`'s Company Dossier with what built it and its sites, and one built before as « non enregistré » with the sites its source names", async () => {
+      const built: Provenance = {
+        v: 1,
+        steps: [{ kind: "tool", activity: "search", tool: "recherche-entreprises", ms: 300, at, outcome: "ok", count: 1 }],
+        sites: [REGISTER],
+        startedAt: at,
+        wallMs: 400,
+      };
+      const [, fresh] = await applicationPage(sources({ replies: [] }), CANDIDATE, { id: APPLICATION, jobOffer: { id: OFFER, title: "DAF Lyon" } }, [{ kind: "company_dossier", provenance: built }]);
+      const old = await applicationPage(sources({ offers: {}, replies: [] }), CANDIDATE, { id: APPLICATION, jobOffer: { id: OFFER, title: "DAF Lyon" } }, [
+        { kind: "company_dossier", at: new Date("2026-01-01T09:00:00Z"), provenance: null, sites: [REGISTER] },
+      ]);
+      const pane = aiActivityPane(old);
+
+      expect(fresh).toMatchObject({ kind: "company_dossier", at, served: { sites: [REGISTER], tools: [{ name: "recherche-entreprises.api.gouv.fr" }] } });
+      expect(old[1]).toEqual({ kind: "company_dossier", at: "2026-01-01T09:00:00.000Z", served: null, sites: [REGISTER] });
+      // Its sites are the page's Sources; no total counts it.
+      expect(pane.sites).toEqual([REGISTER]);
+      expect(pane.total).toEqual({ tokens: null, ms: null });
+    });
+
+    it("shows `/profils/[id]/*`'s Master CV, read from the Candidate's file, with the model that read it", async () => {
+      const read: Provenance = {
+        v: 1,
+        steps: [{ kind: "ai", activity: "read", task: "cv_parsing", provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-medium-2508", tokens: { input: 1200, output: 600 }, ms: 4200, at, outcome: "ok", count: 1 }],
+        sites: [{ kind: "candidate", links: [] }],
+        startedAt: at,
+        wallMs: 4300,
+      };
+      const [masterCv] = await profilePage(sources({ replies: [] }), CANDIDATE, { id: PROFILE }, [{ kind: "master_cv", provenance: read }]);
+
+      expect(masterCv).toMatchObject({ kind: "master_cv", at, served: { models: [{ ids: ["mistral-medium-2508"], tokens: 1800 }], sites: [{ kind: "candidate", links: [] }], ms: 4300 } });
+    });
+  });
+
   it("lists a Coach reply saved with nothing kept as « modèle non enregistré »", async () => {
     const elements = await jobOfferPage(sources({ replies: [{ at: "2026-09-01T08:00:00.000Z", provenance: null }] }), CANDIDATE, { id: OFFER, title: "DAF Lyon" });
 

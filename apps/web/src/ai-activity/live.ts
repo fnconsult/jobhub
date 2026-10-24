@@ -1,7 +1,8 @@
 /**
  * AI Activity's live actions (CONTEXT.md « AI Activity », ADR-0034, #333): the Candidate's AI actions running now, each
- * with its steps as they land, fed by one event shape whatever the transport: a Coach reply's, a Tailored CV's or a
- * Tailored Document's steps streamed on its own POST (#334), a Job Search's Run progress polled by the page.
+ * with its steps as they land, fed by one event shape whatever the transport: a Coach reply's, a Tailored CV's, a
+ * Tailored Document's (#334), a Company Dossier's or a CV reading's (#335) steps streamed on its own POST, a Job Search's
+ * Run progress polled by the page.
  *
  *   nextLive(actions, change)     the actions after a change: an action started, a step's event, a Stop asked, an end,
  *                                 or the Job Searches the page's poll brought
@@ -16,8 +17,8 @@ import { routes } from "../routes";
 
 export type LiveKind = "job_search" | RequestKind;
 
-/** An action run in the page's own request, its steps streamed on it, the request's abort its Stop (#333, #334). */
-export type RequestKind = "coach_reply" | "tailored_cv" | "tailored_documents";
+/** An action run in the page's own request, its steps streamed on it, the request's abort its Stop (#333, #334, #335). */
+export type RequestKind = "coach_reply" | "tailored_cv" | "tailored_documents" | "company_dossier" | "cv_reading";
 
 /** One step of a live action: running, or ended with what it took. */
 export interface LiveStep {
@@ -178,7 +179,8 @@ function jobSearches(actions: readonly LiveAction[], poll: Extract<LiveChange, {
 export function nextLive(actions: readonly LiveAction[], change: LiveChange): LiveAction[] {
   switch (change.type) {
     case "started": {
-      // A new action run in the page's request takes the place of the one of its kind stopped or failed before it.
+      // A new action run in the page's request takes the place of the one of its kind stopped or failed before it (a Coach reply,
+      // a Tailored CV, a Company Dossier, a CV reading…).
       const kept = actions.filter((action) => action.key !== change.key && (change.kind === "job_search" || action.kind !== change.kind || running(action)));
       return [...kept, started(change)];
     }
@@ -190,7 +192,7 @@ export function nextLive(actions: readonly LiveAction[], change: LiveChange): Li
       return actions.flatMap((action) => {
         if (action.key !== change.key) return [action];
         // An action run in the page's request leaves once done: what it made shows (a Coach reply, a Tailored CV, a Cover
-        // Letter…), with its Provenance line, and joins the page's elements.
+        // Letter, a Company Dossier, a CV read…), with its Provenance line, and joins the page's elements.
         if (change.outcome === "done" && action.kind !== "job_search") return [];
         return [running(action) ? ended(action, change) : action];
       });

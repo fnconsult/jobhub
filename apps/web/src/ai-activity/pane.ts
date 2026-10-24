@@ -16,7 +16,7 @@
 import { describeModel, markOf, residencyOf, whereItRan, type Provenance, type ProvenanceSite, type Translated } from "@jobhub/shared";
 
 /** What a page shows that AI may have produced, each the content a Provenance is kept with. */
-export const ELEMENT_KINDS = ["job_offer", "coach_reply", "job_search", "job_digest", "tailored_cv", "tailored_documents", "company_dossier", "action_card", "ats_score"] as const;
+export const ELEMENT_KINDS = ["job_offer", "coach_reply", "job_search", "job_digest", "tailored_cv", "tailored_documents", "company_dossier", "action_card", "ats_score", "master_cv"] as const;
 export type ElementKind = (typeof ELEMENT_KINDS)[number];
 
 export interface ActivityModel {
@@ -51,6 +51,11 @@ export interface ActivityElement {
   name?: string;
   /** When its action started, else when it was made; null when not known. */
   at: string | null;
+  /**
+   * The Provenance sites known of it without a Provenance (#335: a Company Dossier built before, from its own source),
+   * shown under « Sources » though it is « modèle non enregistré ».
+   */
+  sites?: ProvenanceSite[];
   /** What served it; null: « modèle non enregistré », out of the totals. */
   served: {
     models: ActivityModel[];
@@ -117,9 +122,9 @@ function addSite(sites: ProvenanceSite[], site: ProvenanceSite): void {
 export const byRulesOnly = (served: NonNullable<ActivityElement["served"]>): boolean => served.models.length === 0 && served.tools.some((tool) => tool.name === null);
 
 /** One element of the page, as the pane shows it: what served it, read from its Provenance (null when none was kept). */
-export function activityElement(kind: ElementKind, provenance: Provenance | null, made: { name?: string; at?: string | null } = {}): ActivityElement {
+export function activityElement(kind: ElementKind, provenance: Provenance | null, made: { name?: string; at?: string | null; sites?: readonly ProvenanceSite[] } = {}): ActivityElement {
   const named = made.name ? { name: made.name } : {};
-  if (!provenance) return { kind, ...named, at: made.at ?? null, served: null };
+  if (!provenance) return { kind, ...named, at: made.at ?? null, served: null, ...(made.sites?.length ? { sites: structuredClone([...made.sites]) } : {}) };
   const models: ActivityModel[] = [];
   const tools: ActivityTool[] = [];
   const sites: ProvenanceSite[] = [];
@@ -156,7 +161,10 @@ export function aiActivityPane(elements: ActivityElement[]): AiActivityPane {
   let tokens: number | null = null;
   let ms: number | null = null;
   elements.forEach((element, index) => {
-    if (!element.served) return;
+    if (!element.served) {
+      for (const site of element.sites ?? []) addSite(sites, site);
+      return;
+    }
     tokens = add(tokens, element.served.tokens);
     ms = add(ms, element.served.ms);
     for (const model of element.served.models) addModel(models, model);

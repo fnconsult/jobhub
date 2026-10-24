@@ -9,7 +9,8 @@ import type { RunningJobSearch } from "@/job-searches";
 
 /**
  * An action run in the page's own request, as the page tells AI Activity about it: a Coach reply on its way (the Coach
- * Panel), a Tailored CV proposed, a Cover Letter or Outreach Message drafted (#334, components/LiveAction).
+ * Panel), a Tailored CV proposed, a Cover Letter or Outreach Message drafted (#334, components/LiveAction), a Company
+ * Dossier built, an uploaded CV read (#335, components/StreamedAction).
  */
 export interface RequestActionLive {
   /** Each step's start and end, as its POST streams them. */
@@ -37,7 +38,7 @@ const JOB_SEARCH = "job_search:";
 /**
  * Holds AI Activity's live actions (#333) above every page of a signed-in Candidate, so an action keeps showing, with its
  * step, on the page the Candidate moves to. Fed by the streams of the actions run in a page's request (a Coach reply, a
- * Tailored CV, a Tailored Document) and by the Job Search poll; only the Candidate's
+ * Tailored CV, a Tailored Document, a Company Dossier, a CV reading) and by the Job Search poll; only the Candidate's
  * own pages mount it, never the Back Office. It holds AI Activity's one live region too, so a page change neither loses nor
  * repeats what it says.
  */

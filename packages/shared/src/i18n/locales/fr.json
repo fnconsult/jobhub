@@ -279,7 +279,8 @@
       "unknown": "Une erreur est survenue. Veuillez réessayer."
     },
     "fromScratchHint": "Pas de CV sous la main ? Remplissez vous-même votre CV de référence et vos critères de recherche.",
-    "fromScratch": "Partir de zéro"
+    "fromScratch": "Partir de zéro",
+    "stopped": "Lecture arrêtée à {{time}} : rien n'a été lu ni enregistré."
   },
   "cvReview": {
     "title": "Vérifiez votre CV et vos critères de recherche",
@@ -2404,7 +2405,8 @@
     "newsMeta": "{{outlet}}, {{date}}",
     "newsSearchedOn": "Articles trouvés le {{date}}.",
     "newsNotSearched": "Mettez le dossier à jour pour y ajouter les actualités de l'employeur.",
-    "noNews": "Aucun article récent trouvé."
+    "noNews": "Aucun article récent trouvé.",
+    "stopped": "Arrêté à {{time}} : ce qui était terminé est gardé."
   },
   "enrichedContacts": {
     "title": "Contacts enrichis",
@@ -3014,7 +3016,9 @@
       "tailored_documents": "Documents adaptés",
       "company_dossier": "Dossier entreprise",
       "action_card": "Proposition du coach",
-      "ats_score": "ATS Score"
+      "ats_score": "ATS Score",
+      "master_cv": "CV de référence, lu dans votre fichier",
+      "cv_reading": "Lecture du CV"
     },
     "live": {
       "starting": "Démarrage",
@@ -3031,6 +3035,8 @@
       "done": {
         "job_search": "Dernière recherche · {{time}}",
         "coach_reply": "Dernière réponse · {{time}}",
+        "company_dossier": "Dernier dossier · {{time}}",
+        "cv_reading": "Dernière lecture · {{time}}",
         "tailored_cv": "CV adapté proposé · {{time}}",
         "tailored_documents": "Document rédigé · {{time}}"
       },
@@ -3058,12 +3064,16 @@
       "stop": {
         "job_search": "Arrêter la recherche d'offres",
         "coach_reply": "Arrêter la réponse du coach",
+        "company_dossier": "Arrêter le dossier entreprise",
+        "cv_reading": "Arrêter la lecture du CV",
         "tailored_cv": "Arrêter la proposition du CV adapté",
         "tailored_documents": "Arrêter la rédaction du document"
       },
       "open": {
         "job_search": "Ouvrir la recherche",
         "coach_reply": "Ouvrir la page",
+        "company_dossier": "Ouvrir le dossier",
+        "cv_reading": "Ouvrir la page",
         "tailored_cv": "Ouvrir les documents",
         "tailored_documents": "Ouvrir les documents"
       },
@@ -3071,24 +3081,32 @@
         "started": {
           "job_search": "Recherche d'offres démarrée",
           "coach_reply": "Réponse du coach en cours",
+          "company_dossier": "Dossier entreprise en cours",
+          "cv_reading": "Lecture du CV en cours",
           "tailored_cv": "Proposition du CV adapté en cours",
           "tailored_documents": "Rédaction du document en cours"
         },
         "done": {
           "job_search": "Recherche d'offres terminée",
           "coach_reply": "Réponse du coach reçue",
+          "company_dossier": "Dossier entreprise terminé",
+          "cv_reading": "Lecture du CV terminée",
           "tailored_cv": "CV adapté proposé",
           "tailored_documents": "Document rédigé"
         },
         "stopped": {
           "job_search": "Recherche d'offres arrêtée",
           "coach_reply": "Réponse du coach arrêtée",
+          "company_dossier": "Dossier entreprise arrêté",
+          "cv_reading": "Lecture du CV arrêtée",
           "tailored_cv": "Proposition du CV adapté arrêtée",
           "tailored_documents": "Rédaction du document arrêtée"
         },
         "failed": {
           "job_search": "Recherche d'offres échouée",
           "coach_reply": "Réponse du coach échouée",
+          "company_dossier": "Dossier entreprise échoué",
+          "cv_reading": "Lecture du CV échouée",
           "tailored_cv": "Proposition du CV adapté échouée",
           "tailored_documents": "Rédaction du document échouée"
         }

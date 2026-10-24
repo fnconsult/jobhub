@@ -145,7 +145,7 @@ describe("each AI task reads its served task Playbook", () => {
   it("CV reading: the served instructions then the JSON shape, on its Playbook Agent, identity still declared", async () => {
     const { ai, mistral, claude } = layer();
 
-    await readCvWithAi("Marie Dupont", () => ai, "cand-1", servedTasks({ "cv-reading": { content: "Recopie le CV.", ...SERVED } }));
+    await readCvWithAi("Marie Dupont", () => ai, "cand-1", { taskPlaybooks: servedTasks({ "cv-reading": { content: "Recopie le CV.", ...SERVED } }) });
 
     expect(mistral.calls).toHaveLength(0);
     expect(claude.calls[0]).toMatchObject({ model: "claude-opus-5-5", effort: "low" });

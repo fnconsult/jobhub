@@ -14,7 +14,7 @@
  * before) it is listed as « modèle non enregistré », out of every total. Only what the pane shows crosses to the browser (pane.ts): never
  * an internal id, cost, prompt, AI task, Playbook Agent, Outcome or technical error.
  */
-import type { Provenance } from "@jobhub/shared";
+import type { Provenance, ProvenanceSite } from "@jobhub/shared";
 import type { CoachConversations } from "../coach-conversations";
 import type { JobOffers } from "../job-offers";
 import { activityElement, type ActivityElement, type ElementKind } from "./pane";
@@ -32,9 +32,10 @@ export type OfferShown = { id: string; title: string };
 
 /**
  * Content a page shows, with what made it: its Provenance, else « modèle non enregistré », dated when it was made, if
- * known. `name`: an Action Card's title.
+ * known. `name`: an Action Card's title. `sites`: without a Provenance, the sites it is known to be built from (a
+ * Company Dossier built before, from its own source, #335).
  */
-export type Made = { kind: ElementKind; at?: Date | null; name?: string; provenance?: Provenance | null };
+export type Made = { kind: ElementKind; at?: Date | null; name?: string; provenance?: Provenance | null; sites?: readonly ProvenanceSite[] };
 
 async function offers(sources: PageSources, shown: readonly OfferShown[]): Promise<ActivityElement[]> {
   const provenances = await sources.jobOffers.provenances(shown.map((offer) => offer.id));
@@ -47,7 +48,7 @@ async function repliesAbout(sources: PageSources, candidateId: string, focus: Pa
 }
 
 const made = (content: readonly Made[]): ActivityElement[] =>
-  content.map(({ kind, at, name, provenance }) => activityElement(kind, provenance ?? null, { ...(name ? { name } : {}), at: at ? at.toISOString() : null }));
+  content.map(({ kind, at, name, provenance, sites }) => activityElement(kind, provenance ?? null, { ...(name ? { name } : {}), at: at ? at.toISOString() : null, ...(sites ? { sites } : {}) }));
 
 /** `/offres/[id]`: the Job Offer, how it was found, read and summarized, and the Coach replies about it. */
 export async function jobOfferPage(sources: PageSources, candidateId: string, jobOffer: OfferShown): Promise<ActivityElement[]> {

@@ -21,8 +21,19 @@
 //
 // Its search for an employer's Company News (the query asking for "Articles de presse") answers
 // with three articles: one from last month, kept; one older than twelve months and one whose title
-// names a person (Hans Müller), which the dossier must drop. For "Sans Chiffres", with none.
+// names a person (Hans Müller), which the dossier must drop. For "Sans Chiffres", with none. For an
+// employer holding "E2E_SLOW_NEWS", it takes 30 s, or rejects at once when the Candidate stops the
+// dossier (#335), as fetch does.
 const realFetch = globalThis.fetch;
+
+/** Waits `ms`, or rejects with `signal`'s reason once it aborts, as fetch does. */
+function answerAfter(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason);
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener("abort", () => (clearTimeout(timer), reject(signal.reason)), { once: true });
+  });
+}
 
 /** The calendar day `days` ago, YYYY-MM-DD. */
 const daysAgo = (days) => new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
@@ -108,6 +119,7 @@ globalThis.fetch = async (input, init) => {
   if (url.origin === "https://api.perplexity.ai") {
     const query = JSON.stringify(init?.body ?? "");
     if (query.includes("Articles de presse")) {
+      if (query.includes("E2E_SLOW_NEWS")) await answerAfter(30_000, input instanceof Request ? input.signal : init?.signal);
       const articles = /sans chiffres/i.test(query)
         ? []
         : [

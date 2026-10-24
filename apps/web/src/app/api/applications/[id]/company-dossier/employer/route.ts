@@ -7,7 +7,7 @@ import { actionResponse } from "@/ndjson";
 /**
  * The Candidate names the employer behind an Application (confirming the Presumed Employer,
  * or another name or SIREN), and its Company Dossier is built.
- * Body: { employer }. 200 CompanyDossierState · 400 { errors } · 401 · 403 · 404 · 499 { error: "stopped", state } · 503 { error: "unavailable" }
+ * Body: { employer }. 200 CompanyDossierState · 400 { errors } · 401 · 403 · 404 · 499 { error: "stopped", state } · 503 { error: "unavailable", reason? } (its Failure Reason, #367)
  * Live, with `Accept: application/x-ndjson`, and stopped by aborting the request, as POST ../company-dossier (#335).
  */
 export async function PUT(request: Request, { params }: RouteContext<"/api/applications/[id]/company-dossier/employer">) {

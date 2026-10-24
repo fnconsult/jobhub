@@ -189,6 +189,36 @@ export function joinProvenance(earlier: Provenance | null, later: Provenance | n
   };
 }
 
+/**
+ * The Provenance of content Jobbbox's rules made alone, no AI (#336: an ATS Score, an ATS Fix, a Job Digest's
+ * Match Scores): one rules step, compute, from `at`, taking `ms` (0: not measured, time unknown), built from the
+ * Candidate's own pages `links` (each kept only as the link filter allows).
+ */
+export function rulesProvenance(rule: ProvenanceRule, run: { at: Date; ms?: number; links?: readonly string[] }): Provenance {
+  const at = run.at.toISOString();
+  const ms = Math.max(0, Math.round(run.ms ?? 0));
+  const links = [...new Set((run.links ?? []).flatMap((link) => provenanceLink(link) ?? []).filter((link) => link.startsWith("/")))];
+  return {
+    v: 1,
+    steps: [{ kind: "rules", activity: "compute", rule, ms, at, outcome: "ok", count: 1 }],
+    sites: links.length > 0 ? [{ kind: "candidate", links }] : [],
+    startedAt: at,
+    wallMs: ms,
+  };
+}
+
+/** Runs rules, timed: what they work out, and its Provenance (`rulesProvenance`). */
+export async function byRules<T>(
+  rule: ProvenanceRule,
+  run: () => T | Promise<T>,
+  options: { now?: () => Date; links?: readonly string[] } = {},
+): Promise<{ value: T; provenance: Provenance }> {
+  const now = options.now ?? (() => new Date());
+  const at = now();
+  const value = await run();
+  return { value, provenance: rulesProvenance(rule, { at, ms: now().getTime() - at.getTime(), links: options.links }) };
+}
+
 /** What a step is before it ends: its Activity and what it runs, never its model (the AI layer picks the route as it sends). */
 export type StartedStep = {
   [K in ProvenanceStep["kind"]]: Omit<Extract<ProvenanceStep, { kind: K }>, "ms" | "outcome" | "count" | "provider" | "endpoint" | "model" | "tokens" | "euAiConsent">;

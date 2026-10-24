@@ -1,3 +1,4 @@
+import { rulesProvenance } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
@@ -41,9 +42,19 @@ describe.skipIf(!connectionString)("Action Cards (needs Postgres: DATABASE_URL)"
     const cards = createActionCards(database);
     const proposed = await cards.propose(marie, proposal);
 
-    expect(proposed).toEqual({ ...proposal, id: expect.any(String), status: "pending", createdAt: expect.any(Date) });
+    expect(proposed).toEqual({ ...proposal, id: expect.any(String), status: "pending", createdAt: expect.any(Date), provenance: null });
     expect(await cards.pending(marie, PROFILE)).toEqual([proposed]);
     expect(await cards.pending(marie, OTHER_PROFILE)).toEqual([]);
+  });
+
+  it("keeps what made the card, its Provenance (#336); a card proposed before shows « non enregistré »", async () => {
+    const cards = createActionCards(database);
+    const provenance = rulesProvenance("ats_fixes", { at: new Date("2026-10-24T09:00:00Z"), ms: 3 });
+    await cards.propose(marie, { ...proposal, provenance });
+    const before = await cards.propose(marie, { ...proposal, payload: { skill: "SAP" } });
+    await database.query(`UPDATE action_card SET provenance = '{"v": 1, "text": "not one"}' WHERE id = $1`, [before.id]);
+
+    expect((await cards.pending(marie, PROFILE)).map((card) => card.provenance)).toEqual([provenance, null]);
   });
 
   it("applies an accepted card through its kind's handler, then takes it off the page", async () => {

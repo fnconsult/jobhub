@@ -4,6 +4,7 @@ import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { emailsIn, newAddress } from "./support/mailbox";
+import { parisDay } from "./support/paris-days";
 
 // Issue #253: the Appointment Reminder, emailed the day before each Agenda Item, is on by
 // default; the Candidate switches it off (and on again) in Mon compte's Rappels Section.
@@ -12,9 +13,6 @@ const en = JSON.parse(readFileSync("packages/shared/src/i18n/locales/en.json", "
 const origin = process.env.E2E_WEB_ORIGIN!;
 
 const masterCv = { fullName: "Marie Dupont", headline: "Directrice financière", email: "marie.dupont@example.fr", phone: "", location: "Lyon", summary: "", experience: [], education: [], skills: ["IFRS"], languages: [] };
-
-/** The day `offset` days from now, in French time ("2026-10-30"). */
-const parisDay = (offset: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date(Date.now() + offset * 86_400_000));
 
 /** The instant of `time` ("18:05") French time on `day` ("2026-10-30"), found without knowing the offset. */
 function parisInstant(day: string, time: string): Date {

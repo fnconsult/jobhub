@@ -46,7 +46,8 @@ export const JOB_DIGEST_SCHEDULE = "job-digest.schedule";
  * Queue name: make one Profile's Job Digest. Data: { candidateId, profileId }.
  * The Job Digests module selects its Job Offers from those already stored, and
  * runs Job discovery on the Profile's current Search Criteria only when they
- * are too few. A failed Job discovery is not retried before the next Job Digest.
+ * are too few, handing it the run's Provenance to keep (#336). A failed Job
+ * discovery is not retried before the next Job Digest.
  */
 export const JOB_DIGEST_RUN = "job-digest.run";
 
@@ -372,8 +373,10 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           if ("unavailable" in discovery) throw new Error(`Job discovery is unavailable (${discovery.unavailable})`);
           try {
             const report = await discovery.discover({ candidateId: target.candidateId, criteria: profile.searchCriteria });
+            // The run's Provenance, kept with the Job Digest (#336); the Job Digest scores what it keeps itself.
+            const provenance = report.run.provenance();
             metrics = metricsOf(report, profile);
-            return report.jobOffers.map((jobOffer) => jobOffer.id);
+            return { jobOfferIds: report.jobOffers.map((jobOffer) => jobOffer.id), provenance };
           } catch (error) {
             if (error instanceof JobDiscoveryError) metrics = metricsOf(error.partial, profile);
             throw error;

@@ -9,8 +9,9 @@
  *   await profilePage(sources, candidateId, profile, made)             `/profils/[id]/*`
  *
  * What counts is the page's content whatever its date, and the AI Coach replies whose focus is the page's object, from
- * any conversation. Content whose slice keeps no Provenance yet (a Job Search, a Job Digest, a Tailored CV…) is `made`,
- * listed as « modèle non enregistré », out of every total. Only what the pane shows crosses to the browser (pane.ts): never
+ * any conversation. Other content the page shows is `made`, with its Provenance when its slice keeps one (an Action
+ * Card, an ATS Score, #336); without one (a Tailored CV…, or content made before) it is listed as « modèle non
+ * enregistré », out of every total. Only what the pane shows crosses to the browser (pane.ts): never
  * an internal id, cost, prompt, AI task, Playbook Agent, Outcome or technical error.
  */
 import type { Provenance } from "@jobhub/shared";
@@ -18,7 +19,7 @@ import type { CoachConversations } from "../coach-conversations";
 import type { JobOffers } from "../job-offers";
 import { activityElement, type ActivityElement, type ElementKind } from "./pane";
 
-export { activityElement, aiActivityPane, ELEMENT_KINDS, type ActivityElement, type ActivityModel, type ActivityTool, type AiActivityPane, type ElementKind } from "./pane";
+export { activityElement, aiActivityPane, byRulesOnly, ELEMENT_KINDS, type ActivityElement, type ActivityModel, type ActivityTool, type AiActivityPane, type ElementKind } from "./pane";
 
 /** Where the pages' Provenance is read: the Job Offers', and the AI Coach replies' about a page's object. */
 export interface PageSources {
@@ -29,8 +30,11 @@ export interface PageSources {
 /** A Job Offer a page shows: its title names it in the pane, its id only finds its Provenance. */
 export type OfferShown = { id: string; title: string };
 
-/** Content a page shows whose slice keeps no Provenance yet: « modèle non enregistré », dated when it was made, if known. */
-export type Made = { kind: ElementKind; at?: Date | null };
+/**
+ * Content a page shows, with what made it: its Provenance, else « modèle non enregistré », dated when it was made, if
+ * known. `name`: an Action Card's title.
+ */
+export type Made = { kind: ElementKind; at?: Date | null; name?: string; provenance?: Provenance | null };
 
 async function offers(sources: PageSources, shown: readonly OfferShown[]): Promise<ActivityElement[]> {
   const provenances = await sources.jobOffers.provenances(shown.map((offer) => offer.id));
@@ -42,7 +46,8 @@ async function repliesAbout(sources: PageSources, candidateId: string, focus: Pa
   return replies.map((reply) => activityElement("coach_reply", reply.provenance, { at: reply.at }));
 }
 
-const made = (content: readonly Made[]): ActivityElement[] => content.map(({ kind, at }) => activityElement(kind, null, { at: at ? at.toISOString() : null }));
+const made = (content: readonly Made[]): ActivityElement[] =>
+  content.map(({ kind, at, name, provenance }) => activityElement(kind, provenance ?? null, { ...(name ? { name } : {}), at: at ? at.toISOString() : null }));
 
 /** `/offres/[id]`: the Job Offer, how it was found, read and summarized, and the Coach replies about it. */
 export async function jobOfferPage(sources: PageSources, candidateId: string, jobOffer: OfferShown): Promise<ActivityElement[]> {
@@ -66,9 +71,15 @@ export async function jobSearchPage(
   ]);
 }
 
-/** `/job-digests/[id]`: the Job Digest, then the Job Offers it brought. */
-export async function jobDigestPage(sources: PageSources, jobDigest: { sentAt: Date; results: readonly { jobOffer: OfferShown }[] }): Promise<ActivityElement[]> {
-  return [...made([{ kind: "job_digest", at: jobDigest.sentAt }]), ...(await offers(sources, jobDigest.results.map((result) => result.jobOffer)))];
+/** `/job-digests/[id]`: the Job Digest (its Match Scores and top-up run, once kept), then the Job Offers it brought. */
+export async function jobDigestPage(
+  sources: PageSources,
+  jobDigest: { sentAt: Date; provenance?: Provenance | null; results: readonly { jobOffer: OfferShown }[] },
+): Promise<ActivityElement[]> {
+  return [
+    ...made([{ kind: "job_digest", at: jobDigest.sentAt, provenance: jobDigest.provenance }]),
+    ...(await offers(sources, jobDigest.results.map((result) => result.jobOffer))),
+  ];
 }
 
 /** `/candidatures/[id]/*`, every Section: the Job Offer, what was made for the Application, and the Coach replies about it. */

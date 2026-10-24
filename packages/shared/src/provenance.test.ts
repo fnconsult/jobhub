@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { joinProvenance, readProvenance, type Provenance, type ProvenanceSite, type ProvenanceStep } from "./provenance";
+import { byRules, joinProvenance, readProvenance, rulesProvenance, type Provenance, type ProvenanceSite, type ProvenanceStep } from "./provenance";
 
 const aiStep: ProvenanceStep = {
   kind: "ai",
@@ -185,5 +185,32 @@ describe("two Provenances joined, the later action after the earlier one (#329)"
 
   it("is the Provenance known when the other is none (« modèle non enregistré »)", () => {
     expect(joinProvenance(null, read)).toEqual(read);
+  });
+});
+
+describe("content made by Jobbbox's rules alone, no AI (#336)", () => {
+  it("is one rules step, compute, timed from its start, with the Candidate's pages it was built from", () => {
+    expect(rulesProvenance("ats_score", { at: new Date("2026-10-24T09:00:00Z"), ms: 4, links: ["/profils/4b1c/cv-de-reference"] })).toEqual({
+      v: 1,
+      steps: [{ kind: "rules", activity: "compute", rule: "ats_score", ms: 4, at: "2026-10-24T09:00:00.000Z", outcome: "ok", count: 1 }],
+      sites: [{ kind: "candidate", links: ["/profils/4b1c/cv-de-reference"] }],
+      startedAt: "2026-10-24T09:00:00.000Z",
+      wallMs: 4,
+    });
+  });
+
+  it("knows no time when none was measured, and keeps no link the link filter refuses", () => {
+    const fixed = rulesProvenance("ats_score", { at: new Date("2026-10-24T09:00:00Z"), links: ["/admin/candidates", "https://www.linkedin.com/in/marie-dupont"] });
+
+    expect(fixed).toMatchObject({ steps: [{ ms: 0 }], sites: [], wallMs: 0 });
+    expect(readProvenance(JSON.parse(JSON.stringify(fixed)))).toEqual(fixed);
+  });
+
+  it("times what the rules work out, and gives it back with its Provenance", async () => {
+    const clock = [new Date("2026-10-24T09:00:00.000Z"), new Date("2026-10-24T09:00:00.012Z")];
+    const { value, provenance } = await byRules("ats_fixes", () => ["fix"], { now: () => clock.shift()! });
+
+    expect(value).toEqual(["fix"]);
+    expect(provenance).toMatchObject({ steps: [{ kind: "rules", rule: "ats_fixes", ms: 12, at: "2026-10-24T09:00:00.000Z" }], wallMs: 12 });
   });
 });

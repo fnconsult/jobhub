@@ -3,6 +3,7 @@ import pg from "pg";
 import { createJobSearchReports } from "../apps/web/src/job-searches";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { parisDay } from "./support/paris-days";
 import { subscribe } from "./support/plan";
 import { showSystemPrompt, systemPromptShown } from "./support/system-prompt";
 
@@ -92,9 +93,6 @@ async function storeResults(kind: "job_search" | "job_digest", candidate: string
     await db.end();
   }
 }
-
-/** The day `offset` days from now, in French time ("2026-10-30"). */
-const parisDay = (offset: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date(Date.now() + offset * 86_400_000));
 
 /** An Application at "Entretien" on a Job Offer `title`, with an Interview at each of `times` (French time, "2026-10-30T14:30"). */
 async function interviewsFor(page: Page, profileId: string, title: string, times: string[], note = ""): Promise<void> {

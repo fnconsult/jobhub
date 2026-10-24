@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { formatDuration, formatTimeOfDay, formatTokens, PROVENANCE_GLYPHS, spokenMeasure, type ProvenanceSite } from "@jobhub/shared";
-import { activityElement, aiActivityPane, type ActivityElement, type ActivityModel, type ActivityTool, type AiActivityPane } from "@/ai-activity/pane";
+import { activityElement, aiActivityPane, byRulesOnly, type ActivityElement, type ActivityModel, type ActivityTool, type AiActivityPane } from "@/ai-activity/pane";
 import { useCoachRepliesInView } from "@/components/CoachPanel";
 import { Icons } from "@/components/icons";
 
@@ -237,6 +237,8 @@ function PaneSections({ pane }: { pane: AiActivityPane }) {
                       {model.name} {model.ids.map((id) => <code key={id}>{id}</code>)}
                     </p>
                   ))}
+                  {/* Jobbbox's rules alone, no model (#336): « Calcul » where a model would be named. */}
+                  {byRulesOnly(element.served) ? <p className="ai-activity-element-model">{t("aiActivity.steps.compute")}</p> : null}
                   <Glyphs sites={element.served.sites} tools={element.served.tools} />
                 </>
               ) : (

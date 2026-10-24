@@ -69,7 +69,8 @@ export const loadApplicationPage = cache(async (id: string) => {
     getTailoredDocuments().get(candidateId, application.id),
     getHumanCoaches().reviews(candidateId, application.id),
   ]);
-  const cards = pendingCards.filter((card) => followUpCardApplies(card, application.status)).map((card) => cardView(card, t));
+  const shownCards = pendingCards.filter((card) => followUpCardApplies(card, application.status));
+  const cards = shownCards.map((card) => cardView(card, t));
   const present: Record<ApplicationSection, boolean> = {
     propositions: cards.length > 0,
     documents: Boolean(tailoredCv || drafts),
@@ -85,7 +86,7 @@ export const loadApplicationPage = cache(async (id: string) => {
   const now = new Date();
   const allPast = application.interviews.length > 0 && application.interviews.every((interview) => agendaPeriod(interview.scheduledAt, now) === "past");
   const agendaHref = routes.agenda(allPast);
-  return { candidateId, application, t, locale, inView, cards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts, coachReviews, sections, agendaHref };
+  return { candidateId, application, t, locale, inView, cards, shownCards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts, coachReviews, sections, agendaHref };
 });
 
 /** Always there, as is the Job Offer. */

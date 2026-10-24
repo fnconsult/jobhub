@@ -73,6 +73,7 @@ const jobDigest: JobDigest = {
   profile: { id: profile.id, name: profile.name },
   sentAt: new Date("2026-10-12T05:00:00Z"),
   results: [{ jobOffer: { ...jobOffer, id: "66666666-6666-4666-8666-666666666666", title: "Directeur administratif et financier" }, matchScore, applicationId: null }],
+  provenance: null,
 };
 
 /** "Now" for the AI Coach: Tuesday 20 October 2026, 10:00 French time (UTC+2). */

@@ -35,7 +35,7 @@ describe.skipIf(!connectionString)("« Questions sans réponse »: a Help editor
     await testAuth.stop();
   }, 60_000);
 
-  it("« Article écrit » and « Écarter » each record the question, its status before and after, and who", async () => {
+  it("« Article écrit » and « Écarter » each record which question (its id), its status before and after, and who", async () => {
     const [button, print] = await questions.open();
 
     expect(await changes.mark(claire, button!.id, "written")).toBe(true);
@@ -46,14 +46,22 @@ describe.skipIf(!connectionString)("« Questions sans réponse »: a Help editor
       expect.objectContaining({
         actor: { candidateId: claire.id, email: "claire@jobbbox.fr" },
         section: "unanswered_questions",
-        target: button!.question,
+        target: button!.id,
         action: "updated",
         before: { status: "open" },
         after: { status: "written" },
         outcome: "succeeded",
       }),
-      expect.objectContaining({ section: "unanswered_questions", target: print!.question, before: { status: "open" }, after: { status: "dismissed" } }),
+      expect.objectContaining({ section: "unanswered_questions", target: print!.id, before: { status: "open" }, after: { status: "dismissed" } }),
     ]);
+  });
+
+  it("keeps none of the Candidate's words in the Back Office Audit, which outlives the question by years", async () => {
+    for (const { id } of await questions.open()) await changes.mark(claire, id, "dismissed");
+
+    const recorded = JSON.stringify(await backOffice.journal());
+    expect(recorded).toContain("dismissed");
+    for (const words of ["bouton vert", "noir et blanc", "Réponse du coach"]) expect(recorded).not.toContain(words);
   });
 
   it("records nothing for one already marked, unknown, or a mark that is not one", async () => {

@@ -3,7 +3,9 @@
  *
  * `createUnansweredQuestionsBackOffice(questions, backOffice)` marks an open one « Article écrit » (written) or « Écarter »
  * (dismissed) through the Back Office's `record`, so the mark and its entry share one transaction. The entry's target is
- * the question, redacted as it is kept; nothing is recorded for one already marked, unknown, or a mark that is not one.
+ * the question's id, never its words: the Back Office Audit is kept 3 years, the question at most 30 days once marked
+ * (12 months unmarked), so no Candidate text may outlive it there. Nothing is recorded for one already marked, unknown,
+ * or a mark that is not one.
  */
 import { isUnansweredQuestionMark, type UnansweredQuestions } from "../unanswered-questions";
 import type { BackOffice, BackOfficeActor } from "./back-office";
@@ -22,7 +24,7 @@ export function createUnansweredQuestionsBackOffice(questions: Pick<UnansweredQu
         (within) => questions.mark(id, status, within),
         (done) =>
           done
-            ? { section: "unanswered_questions", target: done.after.question, action: "updated", before: { status: done.before.status }, after: { status: done.after.status } }
+            ? { section: "unanswered_questions", target: done.after.id, action: "updated", before: { status: done.before.status }, after: { status: done.after.status } }
             : null,
       );
       return marked !== null;

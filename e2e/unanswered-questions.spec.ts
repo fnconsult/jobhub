@@ -191,9 +191,10 @@ test.describe("Unanswered Questions: recorded redacted, « Questions sans répon
     await expect(helpEditor.getByRole("main").getByRole("status")).toHaveText(texts.marked.written);
     await expect(rowOf(helpEditor, ref)).toHaveCount(0);
 
-    // In the Journal: who, the question, its status before and after.
+    // In the Journal: who, which question (its id, never its words: the Journal outlives it), its status before and after.
     await page.goto("/admin/journal");
-    const entry = page.getByRole("row").filter({ hasText: ref }).first();
+    await expect(page.getByRole("main")).not.toContainText(ref);
+    const entry = page.getByRole("row").filter({ hasText: id }).first();
     await expect(entry).toContainText(helpEditorEmail);
     await expect(entry).toContainText(admin.journal.sections.unanswered_questions);
     await expect(entry).toContainText(texts.statuses.open);

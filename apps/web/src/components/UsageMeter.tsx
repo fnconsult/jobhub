@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { UsageMeter as Meter } from "@/billing/usage-meter";
-import { HelpTerm } from "@/components/HelpTerm";
+import { HelpText } from "@/components/HelpTerm";
 import { routes } from "@/routes";
 
 /**
@@ -80,9 +80,7 @@ export function UsageMeter({
             </div>
           </dl>
           <p className="hint">
-            <HelpTerm term="planQuota" words={t("helpTerms.words.planQuota")}>
-              {t("billing.quotaReached.renews")}
-            </HelpTerm>
+            <HelpText terms={{ planQuota: t("helpTerms.words.planQuota") }}>{t("billing.quotaReached.renews")}</HelpText>
           </p>
           <Link href={routes.subscription} onClick={onNavigate}>
             {t("usageMeter.subscription")}

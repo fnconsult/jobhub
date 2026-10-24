@@ -153,7 +153,10 @@
     "suffix": "(help)",
     "words": {
       "followUp": "follow-up",
-      "planQuota": "quota"
+      "planQuota": "quota",
+      "masterCv": "Master CV",
+      "tailoredCv": "tailored CV",
+      "proposals": "proposals"
     }
   },
   "emptyStateHelp": {
@@ -436,7 +439,7 @@
     "cvVersion": "Version {{version}} · saved on {{date}}",
     "skills": "Skills, one per line",
     "jobDescription": "Duties and achievements: {{job}}",
-    "fullEditorHint": "Your contact details, jobs, education and languages are edited in the full editor.",
+    "fullEditorHint": "Your contact details, jobs, education and languages are edited in the Master CV's full editor.",
     "unsaved": "Unsaved changes",
     "savebarLabel": "Changes to the Master CV",
     "cancel": "Cancel",
@@ -670,7 +673,8 @@
     "copyDraft": "Copy the draft",
     "copied": "Draft copied.",
     "copyFailed": "Copying failed: select the draft's text and copy it yourself.",
-    "none": "No proposals yet."
+    "none": "No proposals yet.",
+    "intro": "Accept or dismiss each of your coach's proposals: nothing changes without your agreement."
   },
   "billing": {
     "plans": {
@@ -2264,7 +2268,7 @@
     "partialHint_one": "Partial score: only {{count}} criterion out of 5 could be compared. On its own, it does not tell whether the job offer suits you.",
     "partialHint_other": "Partial score: only {{count}} criteria out of 5 could be compared. On their own, they do not tell whether the job offer suits you.",
     "notComputableHint": "No criterion could be compared: the job offer states nothing that can be set against your CV or your search criteria.",
-    "intro": "The master CV of the \"{{profile}}\" profile compared with this job offer and your search criteria.",
+    "intro": "The match score compares the Master CV of the \"{{profile}}\" profile with this job offer and your search criteria.",
     "unknownHint": "Criteria that cannot be compared (the job offer or your criteria say nothing about them) do not count in the score.",
     "criteria": {
       "skills": "Skills",
@@ -2481,7 +2485,7 @@
   },
   "atsScore": {
     "title": "ATS Score",
-    "intro": "How applicant tracking systems (ATS) read your Master CV for the role “{{role}}”.",
+    "intro": "The ATS Score measures how applicant tracking systems (ATS) read your Master CV for the role “{{role}}”.",
     "score": "{{score}}/100",
     "scoreLabel": "ATS Score: {{score}} out of 100",
     "readability": "Readability",
@@ -2652,7 +2656,7 @@
   },
   "tailoredCv": {
     "title": "CV tailored to the offer",
-    "factsOnly": "The coach adapts your reference CV to this offer: it rephrases, reorders, cuts and emphasises what it says, and never invents anything. What the offer asks for and your CV does not show, you are asked about.",
+    "factsOnly": "The coach adapts your Master CV to this offer: it rephrases, reorders, cuts and emphasises what it says, and never invents anything. What the offer asks for and your CV does not show, you are asked about.",
     "none": "No tailored CV yet. The coach proposes one, which you check before saving it.",
     "noneSinceSaved": "You can ask for a new proposal: the saved CV stays in place until you save another one.",
     "propose": "Propose a tailored CV",
@@ -2738,7 +2742,8 @@
     "delaysSaved": "Delays saved.",
     "delaysInvalid": "Enter a whole number of working days, from 1 to {{max}}.",
     "delaysError": "Saving failed. Check your connection and try again.",
-    "noneWaiting": "No follow-up to do yet."
+    "noneWaiting": "No follow-up to do yet.",
+    "delaysIntro": "Your coach proposes a follow-up when an application gets no news after these delays."
   },
   "humanCoaches": {
     "title": "My human coaches",

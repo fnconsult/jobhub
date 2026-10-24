@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { EmptyStateHelp, HelpTerm } from "@/components/HelpTerm";
+import { EmptyStateHelp, HelpText } from "@/components/HelpTerm";
 
 /** What the page needs to show one Action Card. */
 export interface ActionCardView {
@@ -93,8 +93,13 @@ export function ActionCardList({ cards: shown, alone = false }: { cards: ActionC
   return (
     <section className="action-cards stack" aria-labelledby={TITLE_ID}>
       <h2 id={TITLE_ID} tabIndex={-1}>
-        <HelpTerm term="proposals">{t("actionCards.title")}</HelpTerm>
+        {t("actionCards.title")}
       </h2>
+      {cards.length > 0 ? (
+        <p className="hint">
+          <HelpText terms={{ proposals: t("helpTerms.words.proposals") }}>{t("actionCards.intro")}</HelpText>
+        </p>
+      ) : null}
       {outcome && outcome.kind !== "error" ? (
         <p className="notice" role="status">
           {t(`actionCards.${outcome.kind}`)}

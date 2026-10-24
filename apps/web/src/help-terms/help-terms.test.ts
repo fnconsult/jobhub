@@ -1,6 +1,6 @@
 import { article } from "@jobhub/help";
 import { describe, expect, it } from "vitest";
-import { createMentions, EMPTY_STATE_HELP, HELP_TERMS, wordsWithin } from ".";
+import { createMentions, EMPTY_STATE_HELP, HELP_TERMS, termsWithin } from ".";
 
 describe("a term mentioned twice on a page is a button only the first time (#343)", () => {
   it("the first mention of a term on a page is the one that opens its Help Article", () => {
@@ -44,19 +44,33 @@ describe("a term mentioned twice on a page is a button only the first time (#343
   });
 });
 
-describe("the words of a sentence that name the term", () => {
-  it("splits the sentence around them, keeping the sentence's own case", () => {
-    expect(wordsWithin("Votre quota se renouvelle chaque lundi.", "quota")).toEqual(["Votre ", "quota", " se renouvelle chaque lundi."]);
-    expect(wordsWithin("Match Score with the “Cadre” profile:", "Match score")).toEqual(["", "Match Score", " with the “Cadre” profile:"]);
+describe("the terms a sentence names", () => {
+  it("splits the sentence around each term's words, keeping the sentence's own case", () => {
+    expect(termsWithin("Votre quota se renouvelle chaque lundi.", { planQuota: "quota" })).toEqual(["Votre ", { term: "planQuota", words: "quota" }, " se renouvelle chaque lundi."]);
+    expect(termsWithin("Match Score with the “Cadre” profile:", { matchScore: "Match score" })).toEqual([{ term: "matchScore", words: "Match Score" }, " with the “Cadre” profile:"]);
   });
 
-  it("takes their first occurrence", () => {
-    expect(wordsWithin("Aucun CV adapté pour l'instant. Le CV adapté…", "CV adapté")).toEqual(["Aucun ", "CV adapté", " pour l'instant. Le CV adapté…"]);
+  it("names several terms, in the order the sentence has them", () => {
+    expect(
+      termsWithin("L'ATS Score mesure comment les ATS lisent votre CV de référence.", { masterCv: "CV de référence", atsScore: "ATS Score" }),
+    ).toEqual(["L'", { term: "atsScore", words: "ATS Score" }, " mesure comment les ATS lisent votre ", { term: "masterCv", words: "CV de référence" }, "."]);
   });
 
-  it("finds nothing when the words are not in it (a language that words it otherwise): the sentence names no term", () => {
-    expect(wordsWithin("CV tailored to the offer", "Tailored CV")).toBeNull();
-    expect(wordsWithin("Le CV enregistré reste en place.", "")).toBeNull();
+  it("takes each term's first occurrence", () => {
+    expect(termsWithin("Aucun CV adapté pour l'instant. Le CV adapté…", { tailoredCv: "CV adapté" })).toEqual(["Aucun ", { term: "tailoredCv", words: "CV adapté" }, " pour l'instant. Le CV adapté…"]);
+  });
+
+  it("leaves out a term the sentence does not name (a language that words it otherwise)", () => {
+    expect(termsWithin("CV tailored to the offer", { tailoredCv: "Tailored CV" })).toEqual(["CV tailored to the offer"]);
+    expect(termsWithin("Le CV enregistré reste en place.", { masterCv: "" })).toEqual(["Le CV enregistré reste en place."]);
+  });
+
+  it("leaves out a term whose words overlap another's, named earlier", () => {
+    expect(termsWithin("Le score de correspondance du CV", { matchScore: "score de correspondance", masterCv: "correspondance du CV" })).toEqual([
+      "Le ",
+      { term: "matchScore", words: "score de correspondance" },
+      " du CV",
+    ]);
   });
 });
 

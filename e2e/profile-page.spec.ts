@@ -439,10 +439,12 @@ test.describe("the Profile page on the ADR-0009 floor", () => {
         if (await field.evaluate((el) => el === document.activeElement)) continue;
         await expect(field).toHaveCSS("border-bottom-style", "dashed");
       }
-      // Every control of the page is at least 2.75rem (44px) tall.
+      // Every control of the page is at least 2.75rem (44px) tall, but a glossary term in a sentence (#343): an inline
+      // target, as long as its line (WCAG 2.5.8's inline exception).
       const main = page.locator("main");
       for (const control of await main.getByRole("button").or(main.getByRole("textbox")).or(main.getByRole("combobox")).or(main.getByRole("option")).or(main.locator("select")).all()) {
         if (!(await control.isVisible())) continue;
+        if (await control.evaluate((el) => el.classList.contains("help-term"))) continue;
         const box = (await control.boundingBox())!;
         expect.soft(box.height, `height of ${await control.evaluate((el) => el.outerHTML.slice(0, 80))}`).toBeGreaterThanOrEqual(44);
       }

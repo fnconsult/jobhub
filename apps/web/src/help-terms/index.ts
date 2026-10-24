@@ -5,7 +5,7 @@
  *   HELP_TERMS.matchScore                         // "glossary-match-score"
  *   EMPTY_STATE_HELP.proposals                    // "glossary-proposals"
  *   mentions.isFirst(pathname, "matchScore", id)  // true for the page's first mention only
- *   wordsWithin("Votre quota se renouvelle…", "quota") // ["Votre ", "quota", " se renouvelle…"]
+ *   termsWithin("Votre quota se renouvelle…", { planQuota: "quota" }) // ["Votre ", { term: "planQuota", words: "quota" }, " se renouvelle…"]
  */
 
 /** The glossary terms a page can explain, and the glossary entry each one opens. */
@@ -61,12 +61,29 @@ export function createMentions(): Mentions {
   };
 }
 
+/** A piece of a sentence: plain text, or the words that name a term. */
+export type SentencePiece = string | { term: HelpTermName; words: string };
+
 /**
- * `text` split around the first occurrence of `words`, whatever their case: [before, the words as `text` has them,
- * after]. Null when they are not in it (a language that words the sentence otherwise): then it names no term.
+ * `text` cut into its pieces: each term's words at their first occurrence, whatever their case (kept as `text` has
+ * them), and the plain text around them, in order. A term whose words are not in `text` (a language that words the
+ * sentence otherwise), or overlap a term's named earlier in it, is left out.
  */
-export function wordsWithin(text: string, words: string): [string, string, string] | null {
-  const at = text.toLocaleLowerCase().indexOf(words.toLocaleLowerCase());
-  if (at < 0 || words.length === 0) return null;
-  return [text.slice(0, at), text.slice(at, at + words.length), text.slice(at + words.length)];
+export function termsWithin(text: string, terms: Partial<Record<HelpTermName, string>>): SentencePiece[] {
+  const folded = text.toLocaleLowerCase();
+  const found = (Object.entries(terms) as [HelpTermName, string][])
+    .filter(([, words]) => words.length > 0)
+    .map(([term, words]) => ({ term, at: folded.indexOf(words.toLocaleLowerCase()), length: words.length }))
+    .filter(({ at }) => at >= 0)
+    .sort((a, b) => a.at - b.at);
+  const pieces: SentencePiece[] = [];
+  let from = 0;
+  for (const { term, at, length } of found) {
+    if (at < from) continue;
+    if (at > from) pieces.push(text.slice(from, at));
+    pieces.push({ term, words: text.slice(at, at + length) });
+    from = at + length;
+  }
+  if (from < text.length || pieces.length === 0) pieces.push(text.slice(from));
+  return pieces;
 }

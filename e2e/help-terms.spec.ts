@@ -10,12 +10,13 @@ const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "
 const origin = process.env.E2E_WEB_ORIGIN!;
 const titleOf = (id: string) => /^title: (.+)$/m.exec(readFileSync(`packages/help/articles/fr/${id}.md`, "utf8"))![1]!;
 const SUFFIX = fr.helpTerms.suffix;
-/** A HelpTerm's accessible name: the term, then « (aide) ». */
-const termNamed = (term: string) => `${term} ${SUFFIX}`;
+/** A HelpTerm's accessible name: the term as its sentence words it (whatever the case), then « (aide) ». */
+const escaped = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const termNamed = (term: string) => new RegExp(`^${escaped(`${term} ${SUFFIX}`)}$`, "i");
 
 const panelOf = (page: Page) => page.getByRole("complementary", { name: fr.coachPanel.title });
 const cardOf = (page: Page, title: string) => panelOf(page).getByRole("article", { name: title });
-const termButton = (page: Page, term: string) => page.locator("main").getByRole("button", { name: termNamed(term), exact: true });
+const termButton = (page: Page, term: string) => page.locator("main").getByRole("button", { name: termNamed(term) });
 
 const masterCv = {
   fullName: "Catherine Morel",
@@ -100,11 +101,11 @@ for (const viewport of [
       await page.goto(`/profils/${profileId}/ats-score`);
       await opensItsArticle(page, fr.atsScore.title, "glossary-ats-score");
       await page.goto(`/profils/${profileId}/cv-de-reference`);
-      await opensItsArticle(page, fr.profile.masterCv, "glossary-master-cv");
+      await opensItsArticle(page, fr.helpTerms.words.masterCv, "glossary-master-cv");
 
       // CV adapté: the Application's Documents, before any is proposed.
       await page.goto(`/candidatures/${application.id}/documents`);
-      await opensItsArticle(page, fr.tailoredCv.tailored, "glossary-tailored-cv");
+      await opensItsArticle(page, fr.helpTerms.words.tailoredCv, "glossary-tailored-cv");
 
       // Relance: the Account's Relances.
       await page.goto("/compte/relances");
@@ -114,7 +115,7 @@ for (const viewport of [
       await page.goto("/candidatures");
       if (viewport.width < 1024) await page.getByRole("button", { name: fr.sidebar.menu, exact: true }).click();
       await page.getByRole("button", { name: new RegExp(`^${fr.usageMeter.title}`) }).click();
-      await page.getByRole("button", { name: termNamed(fr.helpTerms.words.planQuota), exact: true }).click();
+      await page.getByRole("button", { name: termNamed(fr.helpTerms.words.planQuota) }).click();
       await expect(cardOf(page, titleOf("glossary-plan-quota"))).toBeVisible();
       if (viewport.width < 768) {
         // On a phone the panel takes the whole screen.
@@ -126,13 +127,13 @@ for (const viewport of [
 }
 
 test.describe("HelpTerms and empty states (#343)", () => {
-  test("Propositions: the heading of the Action Cards opens its article", async ({ page }) => {
+  test("Propositions: the Action Cards' introduction opens its article", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("help-terms-propositions"));
     const profileId = await createProfile(page);
     await page.goto(`/profils/${profileId}/ats-score`);
     await page.getByRole("region", { name: fr.atsScore.title }).getByRole("button", { name: fr.atsScore.compute }).click();
     await expect(page).toHaveURL(`${origin}/profils/${profileId}/propositions`);
-    await opensItsArticle(page, fr.actionCards.title, "glossary-proposals");
+    await opensItsArticle(page, fr.helpTerms.words.proposals, "glossary-proposals");
   });
 
   test("a term mentioned twice on a page is a button only the first time", async ({ page }) => {
@@ -144,15 +145,15 @@ test.describe("HelpTerms and empty states (#343)", () => {
     await expect(section).toContainText(fr.atsScore.notYet);
     const mentions = section.getByText(/CV de référence/);
     await expect(mentions).toHaveCount(2);
-    await expect(section.getByRole("button", { name: termNamed(fr.profile.masterCv), exact: true })).toHaveCount(1);
+    await expect(section.getByRole("button", { name: termNamed(fr.helpTerms.words.masterCv) })).toHaveCount(1);
     // The button is in the first mention, the introduction; the second is plain text.
-    const intro = section.locator("p").filter({ hasText: "Comment les logiciels de recrutement" });
-    await expect(intro.getByRole("button", { name: termNamed(fr.profile.masterCv), exact: true })).toHaveCount(1);
+    const intro = section.locator("p").filter({ hasText: "logiciels de recrutement" });
+    await expect(intro.getByRole("button", { name: termNamed(fr.helpTerms.words.masterCv) })).toHaveCount(1);
     await expect(section.locator("p").filter({ hasText: fr.atsScore.notYet }).getByRole("button")).toHaveCount(0);
 
     // Another page starts afresh: its own first mention is a button.
     await page.goto(`/profils/${profileId}/cv-de-reference`);
-    await expect(termButton(page, fr.profile.masterCv)).toHaveCount(1);
+    await expect(termButton(page, fr.helpTerms.words.masterCv)).toHaveCount(1);
   });
 
   test("HelpTerms are keyboard reachable, have a visible focus, and contrast at least 4.5:1 for text and 3:1 for the underline", async ({ page }) => {

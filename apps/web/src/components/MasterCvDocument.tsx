@@ -7,7 +7,7 @@ import { useEffect, useReducer, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { isDirty, nextDraft, saveRequest, startDraft, type CvDocumentFields } from "@/profiles/master-cv-draft";
 import { routes } from "@/routes";
-import { HelpTerm } from "./HelpTerm";
+import { HelpText } from "./HelpTerm";
 import { GrowingTextarea } from "./InlineEdit";
 
 /**
@@ -59,9 +59,7 @@ export function MasterCvDocument(props: { profileId: string; version: number; sa
   return (
     <section className="section" aria-labelledby="master-cv-title">
       <div className="section-head">
-        <h2 id="master-cv-title">
-          <HelpTerm term="masterCv">{t("profile.masterCv")}</HelpTerm>
-        </h2>
+        <h2 id="master-cv-title">{t("profile.masterCv")}</h2>
         <p>
           {props.savedOn ? t("profilePage.cvVersion", { version: props.version, date: props.savedOn }) : t("profile.version", { version: props.version })}
         </p>
@@ -108,7 +106,9 @@ export function MasterCvDocument(props: { profileId: string; version: number; sa
           <GrowingTextarea id="cv-skills" className="inline-edit" rows={6} value={fields.skills} onChange={(e) => edit({ skills: e.target.value })} />
         </div>
         <div className="doc-block">
-          <p>{t("profilePage.fullEditorHint")}</p>
+          <p>
+            <HelpText terms={{ masterCv: t("helpTerms.words.masterCv") }}>{t("profilePage.fullEditorHint")}</HelpText>
+          </p>
           <div className="btn-row">
             <Link className="button" href={routes.editMasterCv(props.profileId)}>
               {t("profile.editMasterCv")}

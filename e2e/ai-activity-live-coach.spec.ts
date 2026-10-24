@@ -77,7 +77,7 @@ test.describe("AI Activity live: an AI Coach reply (#333)", () => {
 
     // The closed button: the glyph and the step under way, a stop icon beside it.
     const button = aiActivityButton(page);
-    await expect(button).toContainText(fr.aiActivity.steps.think_write);
+    await expect(button).toHaveAccessibleName(new RegExp(fr.aiActivity.steps.think_write));
     const glyph = button.locator("svg.activity-glyph");
     await expect(glyph).toBeVisible();
     // Think then write: it moves, its strokes drawn anew frame after frame.
@@ -99,7 +99,7 @@ test.describe("AI Activity live: an AI Coach reply (#333)", () => {
     // Another page: the reply is « En cours ailleurs », with a link back to where it was asked.
     await page.getByRole("navigation", { name: fr.sidebar.label }).getByRole("link", { name: fr.sidebar.agenda }).click();
     await expect(page).toHaveURL(/\/agenda/);
-    await expect(aiActivityButton(page)).toContainText(fr.aiActivity.steps.think_write);
+    await expect(aiActivityButton(page)).toHaveAccessibleName(new RegExp(fr.aiActivity.steps.think_write));
     await aiActivityButton(page).click();
     const elsewhere = paneOf(page).locator(".ai-activity-elsewhere");
     await expect(elsewhere.getByRole("heading", { name: fr.aiActivity.live.elsewhere })).toBeVisible();

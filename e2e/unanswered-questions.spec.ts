@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
+import pg from "pg";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
@@ -103,6 +104,41 @@ test.describe("Unanswered Questions: recorded redacted, « Questions sans répon
     // Nothing on the page names the Candidate.
     await expect(office.getByRole("main")).not.toContainText("unanswered-candidate");
     await office.context().close();
+  });
+
+  test("the table holds no link to a Candidate, and the Candidate's Data export does not carry the question", async ({ page }) => {
+    const ref = tag();
+    const question = `Pourquoi suis-je bloqué à cinq analyses ? ${ref}`;
+    const email = newAddress("unanswered-export");
+    await signInWithMagicLink(page, email);
+    await page.goto("/candidatures");
+    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await ask(page, question);
+
+    // The stored table: no column or foreign key reaches a Candidate, an account or a Coach Conversation.
+    const db = new pg.Pool({ connectionString: process.env.E2E_DATABASE_URL });
+    try {
+      const columns = await db.query<{ column_name: string }>(
+        "SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'unanswered_question'",
+      );
+      const names = columns.rows.map((row) => row.column_name);
+      expect(names).toContain("question");
+      expect(names.filter((name) => /candidate|conversation|user|account|session|email/.test(name))).toEqual([]);
+      const keys = await db.query(
+        "SELECT 1 FROM information_schema.table_constraints WHERE table_schema = current_schema() AND table_name = 'unanswered_question' AND constraint_type = 'FOREIGN KEY'",
+      );
+      expect(keys.rowCount).toBe(0);
+    } finally {
+      await db.end();
+    }
+
+    // The Data export is unchanged: it lists no Unanswered Question, though the Coach Conversation holds the words.
+    await page.goto("/compte/donnees");
+    const section = page.getByRole("region", { name: fr.accountData.title });
+    const [file] = await Promise.all([page.waitForEvent("download"), section.getByRole("link", { name: fr.accountData.export }).click()]);
+    const exported = JSON.parse(readFileSync((await file.path())!, "utf8"));
+    expect(Object.keys(exported).filter((key) => /unanswered|question/i.test(key))).toEqual([]);
+    expect(exported.coachConversations).toHaveLength(1);
   });
 
   test("a Help editor marks one « Article écrit », recorded in the Journal; Support reads without acting; a Playbook editor never sees it", async ({ page, browser }) => {

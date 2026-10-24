@@ -6,6 +6,7 @@ import type { CoachMessageCost, CoachReply, CoachReplyOptions } from "../coach";
 import { createApplications, migrateApplications } from "../applications";
 import { createJobOffers, migrateJobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles } from "../profiles";
+import type { NoticedReply } from "../unanswered-questions";
 import { coachCostPerDay, coachCostPerPlaybookAgent, createCoachConversations, migrateCoachConversations, purgeStaleCoachConversations, type CoachConversations, type CoachEvent } from "./index";
 
 const masterCv = {
@@ -710,6 +711,77 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
       await conversations.send(marie, { conversationId: first.conversation.id, message: "Et ensuite ?" });
 
       expect(asked[2]!.input.messages.map(({ text }) => text)).toEqual(["Bonjour", "Réponse 1", "Et ensuite ?"]);
+    });
+  });
+
+  describe("what the help missed: each reply told to Unanswered Questions (#344, ADR-0035)", () => {
+    let noticed: { candidateId: string; asked: NoticedReply }[];
+    let noticing: CoachConversations;
+
+    beforeEach(() => {
+      noticed = [];
+      const coach = { reply: async (candidateId: string, input: unknown, options?: CoachReplyOptions) => coachReply(asked.push({ candidateId, input: input as Asked["input"] }), options) };
+      noticing = createCoachConversations(database, {
+        coach,
+        profiles: createProfiles(database),
+        now: () => now,
+        unansweredQuestions: {
+          notice: async (candidateId, asked) => {
+            noticed.push({ candidateId, asked });
+            return true;
+          },
+        },
+      });
+    });
+
+    it("tells each reply with its question, how it went, whether it is about using Jobbbox, the page and the Interface Language", async () => {
+      coachReply = () => ({ ok: true, reply: "Votre quota se renouvelle lundi.", outcome: "replied", aboutJobbbox: true, cost: cost(0.01), provenance: PROVENANCE, playbooks: [], consultations: [] });
+
+      const sent = await noticing.send(marie, { message: "Pourquoi suis-je bloqué ?", route: "/candidatures/0b6c2f1e-1111-4111-8111-111111111111" }, { language: "en" });
+
+      expect(sent.ok).toBe(true);
+      expect(noticed).toEqual([
+        {
+          candidateId: marie,
+          asked: {
+            question: "Pourquoi suis-je bloqué ?",
+            reply: { text: "Votre quota se renouvelle lundi.", outcome: "replied", aboutJobbbox: true },
+            route: "/candidatures/0b6c2f1e-1111-4111-8111-111111111111",
+            language: "en",
+          },
+        },
+      ]);
+    });
+
+    it("tells nothing when the AI Coach could not answer, or the Candidate stopped it", async () => {
+      coachReply = () => ({ ok: false, error: "unavailable", reason: "provider_unavailable" });
+      await noticing.send(marie, { message: "Pourquoi suis-je bloqué ?" });
+      coachReply = () => ({ ok: false, error: "stopped", messagePassed: true });
+      await noticing.send(marie, { message: "Pourquoi suis-je bloqué ?" });
+
+      expect(noticed).toEqual([]);
+    });
+
+    it("still gives the reply when it could not be told", async () => {
+      const failing = createCoachConversations(database, {
+        coach: { reply: async () => coachReply(1) },
+        profiles: createProfiles(database),
+        unansweredQuestions: {
+          notice: async () => {
+            throw new Error("database down");
+          },
+        },
+      });
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      expect(await failing.send(marie, { message: "Pourquoi suis-je bloqué ?" })).toMatchObject({ ok: true, reply: "Réponse 1" });
+      expect(warn).toHaveBeenCalled();
+      warn.mockRestore();
+    });
+
+    it("refuses a page address that is not text, or overlong", async () => {
+      expect(await noticing.send(marie, { message: "Bonjour", route: 42 })).toEqual({ ok: false, error: "invalid" });
+      expect(await noticing.send(marie, { message: "Bonjour", route: `/${"a".repeat(400)}` })).toEqual({ ok: false, error: "invalid" });
     });
   });
 });

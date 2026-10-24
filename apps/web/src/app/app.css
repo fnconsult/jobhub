@@ -3757,8 +3757,8 @@ textarea.title-edit {
 
 /* ---------- AI Activity (#314, #332): the Top Bar's button and the « Cette page » pane ----------
    Everything in rem, so it follows the Text Size. The button sits left of « Mon coach », as high;
-   at rest its words are the page's summary, metadata (#317), or its label on a page with no AI content
-   (never an icon alone, ADR-0009); open, its label and a close icon. */
+   at rest its words are the page's summary, metadata (#317), or its icon alone on a page with no AI content;
+   open, a close icon. Its label « Activité IA » is for screen readers and the tooltip only. */
 .topbar .ai-activity-toggle {
   display: inline-flex;
   flex: 0 1 auto;
@@ -3769,8 +3769,8 @@ textarea.title-edit {
   padding-inline: var(--space-3);
 }
 
-/* Beside a summary, its name is for screen readers; the summary says what the eye needs. */
-.ai-activity-toggle-summarised .ai-activity-label {
+/* Its name is for screen readers and the tooltip; the icon and the summary say what the eye needs. */
+.ai-activity-label {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -3789,16 +3789,8 @@ textarea.title-edit {
   white-space: nowrap;
 }
 
-/* On a phone: the short label, no summary. */
+/* On a phone: the icon alone, no summary. */
 @media (width < 40rem) {
-  .ai-activity-toggle-summarised .ai-activity-label {
-    position: static;
-    width: auto;
-    height: auto;
-    overflow: visible;
-    clip-path: none;
-  }
-
   .ai-activity-summary {
     display: none;
   }

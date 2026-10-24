@@ -34,3 +34,11 @@ One more exception, asked by the user after #316 closed (« dans les tâches, re
 - Stopping asks for no confirmation. It is disabled once asked (« Arrêt en cours… »), and the stopped action stays in the pane, in words and in very light red.
 
 The exception covers this icon only. Every other function still needs a visible label.
+
+## Amendment: the AI Activity button (2026-10-24)
+
+One more exception, asked by the user (« retire le libellé AI activity du bouton des tâches IA »):
+- **The AI Activity button never shows its label « Activité IA ».** At rest it shows the tasks icon and the page's summary, or the icon alone on a page with no AI content and on a phone; open, a close icon; while an action runs, the step in words.
+- Its label stays its accessible name and its tooltip.
+
+The exception covers this button only. Every other function still needs a visible label.

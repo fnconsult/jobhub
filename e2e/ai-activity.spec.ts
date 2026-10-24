@@ -155,18 +155,16 @@ test.describe("AI Activity (#332)", () => {
     await expect(button).toHaveAttribute("aria-expanded", "false");
   });
 
-  test("a page with no AI content: no summary, the button shows its label « Activité IA », and the pane says so", async ({ page }) => {
+  test("a page with no AI content: no summary, the button shows its icon alone, named « Activité IA », and the pane says so", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("ai-activity-none"));
     await page.goto("/candidatures");
     const button = aiActivityButton(page);
     await expect(button).toHaveAttribute("aria-expanded", "false");
     await expect(button.locator(".ai-activity-summary")).toHaveCount(0);
-    // ADR-0009: never an icon alone. With no summary to read, the label is on screen at rest, not only in the name.
+    // ADR-0009's amendment: the label is never on screen, only in the button's name and its tooltip.
+    await expect(button).toHaveAttribute("title", fr.aiActivity.label);
     const label = button.getByText(fr.aiActivity.label, { exact: true });
-    await expect(label).toBeVisible();
-    const box = (await label.boundingBox())!;
-    expect(box.width).toBeGreaterThan(box.height);
-    expect(await label.evaluate((element) => getComputedStyle(element).clipPath)).toBe("none");
+    expect(await label.evaluate((element) => getComputedStyle(element).clipPath)).not.toBe("none");
 
     await button.click();
     await expect(paneOf(page)).toContainText(fr.aiActivity.noAi);
@@ -194,12 +192,12 @@ test.describe("AI Activity (#332)", () => {
     await expect(button).toBeFocused();
   });
 
-  test("on a phone: a short visible label, and a sheet with its visible title and a labelled Close", async ({ page }) => {
+  test("on a phone: the icon alone, and a sheet with its visible title and a labelled Close", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 740 });
     await signInWithMagicLink(page, newAddress("ai-activity-phone"));
     await page.goto(`/offres/${await storedJobOffer("DAF Lyon")}`);
     const button = aiActivityButton(page);
-    await expect(button.getByText(fr.aiActivity.label, { exact: true })).toBeVisible();
+    expect(await button.getByText(fr.aiActivity.label, { exact: true }).evaluate((element) => getComputedStyle(element).clipPath)).not.toBe("none");
     await expect(button.locator(".ai-activity-summary")).toBeHidden();
 
     await button.click();

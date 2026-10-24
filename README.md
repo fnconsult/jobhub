@@ -12,6 +12,7 @@ Coaching platform for job seekers aged 40+ in France. Vocabulary: [`CONTEXT.md`]
 | `packages/shared` | Domain types, translations (`@jobhub/shared/i18n`) and design tokens (`@jobhub/shared/design`) |
 | `packages/ai` | Provider-agnostic AI layer (`@jobhub/ai`, server-side only): Anthropic, Mistral, OpenAI; web search: Perplexity, Brave, Tavily, Linkup; fake provider in `@jobhub/ai/testing` (`pending` waits for the request's `signal`); every result carries call facts, and a request's `signal` stops the call (Failure Reason `stopped`) |
 | `packages/coach-knowledge` | The coaching knowledge files the one-off import reads (`@jobhub/coach-knowledge`, server-side only): `readCoachKnowledgeFiles()`, and the `[Sn]` / Sources table Markdown helpers |
+| `packages/help` | The Help Articles (`@jobhub/help`, no AI call, browser and server): `articles/{fr,en}/<id>.md` (page, glossary and FAQ, with `kind`, `title`, `synonyms` and, for a page, `route`) bundled into `src/articles.generated.ts` by `npm run build -w @jobhub/help` (run it after editing an article; a test fails when it is stale). `articles`, `article`, `articleFor(route)` and `search(query, locale)`; `readHelpContent()` (Node only) checks the files. `apps/web/src/help/candidate-pages.test.ts` fails when a Candidate page has no page article |
 
 ## Getting started
 

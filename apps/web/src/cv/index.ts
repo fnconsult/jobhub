@@ -76,12 +76,12 @@ export async function draftFromCv(file: CvFile, deps: DraftDeps): Promise<CvDraf
   delete content.photo;
   const masterCv: MasterCvContent = photo ? { ...content, photo } : content;
   return {
-    ...(reading && read?.provenance ? { provenance: read.provenance } : {}),
     masterCv,
     searchCriteria: {
       // It names the Profile, so it is shortened to fit a Profile name.
       targetRole: fitProfileName(reading?.searchCriteria.targetRole || masterCv.headline || masterCv.experience[0]?.title || ""),
       locations: reading?.searchCriteria.locations.length ? reading.searchCriteria.locations : distinctLocations([masterCv.location]),
     },
+    ...(read ? { provenance: read.provenance } : {}),
   };
 }

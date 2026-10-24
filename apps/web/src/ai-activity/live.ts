@@ -8,12 +8,23 @@
  *                                 or the Job Searches the page's poll brought
  *   liveView(actions, pathname)   what AI Activity shows: the action under way for the closed button, those of this page,
  *                                 and those « En cours ailleurs »
+ *   failedReason(body)            a failed action's Failure Reason, from its route's `failed` event or error body
  *
  * Pure: the provider (components/AiActivity) keeps the state and the Stops.
  */
-import { describeModel, stepLabel, toolById, type Activity, type ProvenanceEvent, type ProvenanceStep, type StepLabel, type StepOutcome } from "@jobhub/shared";
+import { describeModel, isFailureReason, stepLabel, toolById, type Activity, type ProvenanceEvent, type ProvenanceStep, type StepLabel, type StepOutcome } from "@jobhub/shared";
 import type { JobSearchNotification, RunningJobSearch } from "../job-searches";
 import { routes } from "../routes";
+
+/**
+ * The Failure Reason a failed action's route gave (its body's `reason`, #367), as the i18n key AI Activity words it with
+ * (`failureReasons.<code>`). Null for none, for `other` or for anything that is not a Failure Reason (a network cut, an
+ * unknown failure): AI Activity then says « Elle n'a pas pu aboutir. ».
+ */
+export function failedReason(body: unknown): string | null {
+  const reason = typeof body === "object" && body !== null ? (body as { reason?: unknown }).reason : undefined;
+  return isFailureReason(reason) && reason !== "other" ? `failureReasons.${reason}` : null;
+}
 
 export type LiveKind = "job_search" | RequestKind;
 

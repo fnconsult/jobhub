@@ -165,7 +165,7 @@ function StopButton({ action, stop }: { action: LiveAction; stop: (key: string) 
   const { t } = useTranslation();
   const name = t(`aiActivity.live.stop.${action.kind}`);
   return (
-    <button className="button button-quiet ai-activity-stop" type="button" aria-label={name} title={name} disabled={action.status === "stopping"} onClick={() => stop(action.key)}>
+    <button className="button ai-activity-stop" type="button" aria-label={name} title={name} disabled={action.status === "stopping"} onClick={() => stop(action.key)}>
       <Icons.stop />
     </button>
   );
@@ -222,7 +222,7 @@ function LiveSection({ action, elsewhere, stop, now }: { action: LiveAction; els
                   ? t("aiActivity.live.failedStep", { time: at, step: t(`aiActivity.steps.${action.failure.step}`) })
                   : t("aiActivity.live.failed", { time: at })}
         </span>
-        <Measure tokens={action.tokens} ms={running ? null : Math.max(0, ms)} />
+        <Measure tokens={action.tokens} ms={running ? null : Math.max(0, ms)} withUnit />
       </p>
       {action.status === "failed" ? <p className="ai-activity-live-reason">{action.failure?.reason ? t(action.failure.reason as ParseKeys) : t("aiActivity.live.unknownReason")}</p> : null}
       {action.steps.length > 0 ? (

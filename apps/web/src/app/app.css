@@ -4008,6 +4008,16 @@ textarea.title-edit {
   padding: 0;
 }
 
+/* A filled square: Stop, as media players draw it. */
+.ai-activity-stop .icon path {
+  fill: currentColor;
+}
+
+.ai-activity-live .ai-activity-stop {
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+}
+
 .ai-activity-live {
   display: flex;
   flex-direction: column;

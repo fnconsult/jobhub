@@ -88,14 +88,6 @@ _Avoid_: Deleted coach
 The side panel, available from every page, where the Candidate asks for help and talks with the AI Coach; its Top Bar button reads « Aide et coach » (« Aide » on phones). On wide screens it sits beside the page as a card, like AI Activity's pane, and the Candidate can widen it into a drawer over the page; on phones it takes the whole screen. Its one menu, the conversation's title, holds a new conversation, the saved Coach Conversations and the Coach Memory. Its one box takes the Candidate's question: while they type, matching Help Articles are suggested above it, without AI; sending it asks the AI Coach. With no message yet, it shows the Help Article of the page in view and a few frequent questions. Its foot leads to a Signalement (« Signaler un problème », « Proposer une idée », « Poser une question »).
 _Avoid_: Chat, chatbot, sidebar, help menu
 
-**Help Article**:
-A short text written by the Jobbbox team, never by an AI, that explains one page (« Sur cette page »), one term of the glossary, or answers one frequent question, in French and in English (both required). It carries synonyms that help a Candidate's words find it. Found by a search that calls no AI model and counts against nothing, so it works when the AI is down. Shown in the Coach Panel as a card labelled « Aide · écrit par l'équipe Jobbbox »: displayed only, never saved with the Coach Conversation nor sent to the AI Coach, except its title as context when the Candidate then asks the coach about it. A page's first mention of a glossary term, and its empty states, open the matching Help Article. Kept in the code for now, changed with a release.
-_Avoid_: FAQ entry, help page, doc, tooltip
-
-**Unanswered Question**:
-A Candidate's question to the AI Coach that matched no Help Article and that the AI Coach's reply marked as being about using Jobbbox. Kept redacted, with the page it was asked from, how often a similar question came up and the AI Coach's answer, never linked to the Candidate (not in the Data export), until a Help editor marks it written or dismissed, and 12 months at most. Not recorded when the AI Coach could not answer. What Help editors turn into Help Articles or synonyms.
-_Avoid_: Missed search, help gap, ticket
-
 **Coach context**:
 What the AI Coach is told before each reply: always the Candidate summary and the Coach Memory, plus the item In view, plus summaries of the rest (onboarding answers, latest Applications, top Job Offers, the next three Agenda Items from now on, none of them cancelled), within a size cap. Summaries are trimmed before the item In view.
 

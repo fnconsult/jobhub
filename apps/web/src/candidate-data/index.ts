@@ -138,6 +138,8 @@ export interface ExportedCompanyDossier {
   /** Null until it is built. */
   dossier: CompanyDossier | null;
   updatedAt: Date;
+  /** What served its last build (ADR-0034, #335), when it was kept. */
+  provenance?: Provenance;
 }
 
 /** A person found at the employer: contact details once the Candidate revealed them, empty before. */
@@ -288,7 +290,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   appointment_reminder_setting: "appointmentReminders.enabled and changedAt",
   appointment_reminder: "appointmentReminders.sent",
   profile: "profiles",
-  master_cv_version: "profiles[].masterCvVersions",
+  master_cv_version: "profiles[].masterCvVersions (a version read from a file with what read it)",
   ats_score: "profiles[].atsScore",
   job_search: "profiles[].jobSearches (each one's Provenance, not its live steps)",
   job_digest_subscription: "profiles[].jobDigest (no unsubscribe token)",
@@ -301,7 +303,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   follow_up_sent: "applications[].followUps",
   coach_review: "applications[].coachReviews",
   enriched_contact: "applications[].enrichedContacts (no provider identifiers)",
-  company_dossier: "applications[].companyDossier",
+  company_dossier: "applications[].companyDossier (with what served its last build)",
   coach_conversation: "coachConversations",
   coach_message: "coachConversations[].messages (blocked ones marked, a Job Offer card's Job Offer named, each reply's Provenance and focus; no AI costs)",
   coach_access: "coachAccess",
@@ -342,6 +344,14 @@ export interface CandidateDataDeps {
   tailoredDocuments: Pick<TailoredDocuments, "get">;
   /** Ends the Candidate's paid Plan, if any, before the account goes. Without it, there is nothing to close. */
   billing?: { closeAccount(candidateId: string): Promise<void> };
+}
+
+/** A Company Dossier as exported: its Provenance only when one was kept. */
+function exportedDossier(row: (Omit<ExportedCompanyDossier, "provenance"> & { provenance: unknown }) | undefined): ExportedCompanyDossier | null {
+  if (!row) return null;
+  const { provenance, ...dossier } = row;
+  const kept = readProvenance(provenance);
+  return { ...dossier, ...(kept && { provenance: kept }) };
 }
 
 export function createCandidateData(database: Pool, deps: CandidateDataDeps): CandidateData {
@@ -421,9 +431,9 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
          FROM enriched_contact e JOIN application a ON a.id = e.application_id WHERE a.candidate_id = $1 ORDER BY e.found_at, e.id`,
         candidateId,
       ),
-      grouped<ExportedCompanyDossier>(
+      grouped<Omit<ExportedCompanyDossier, "provenance"> & { provenance: unknown }>(
       `SELECT d.application_id AS key, d.presumed_employer AS "presumedEmployer", d.presumed_employer_description AS "presumedEmployerDescription",
-              d.agency, d.confirmed_employer AS "confirmedEmployer", d.dossier, d.updated_at AS "updatedAt"
+              d.agency, d.confirmed_employer AS "confirmedEmployer", d.dossier, d.updated_at AS "updatedAt", d.provenance
          FROM company_dossier d JOIN application a ON a.id = d.application_id WHERE a.candidate_id = $1`,
         candidateId,
       ),
@@ -448,7 +458,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           followUps: followUpsOf(id),
           coachReviews: coachReviewsOf(id),
           enrichedContacts: enrichedContactsOf(id),
-          companyDossier: companyDossiersOf(id)[0] ?? null,
+          companyDossier: exportedDossier(companyDossiersOf(id)[0]),
         };
       }),
     );

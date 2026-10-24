@@ -125,7 +125,8 @@ export function CvReview(props: { draft: CvDraft; intro: string; startOverLabel:
       const response = await fetch("/api/profiles", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ masterCv, searchCriteria }),
+        // What read the CV, when the AI Coach did (#335): kept with the Master CV's first version.
+        body: JSON.stringify({ masterCv, searchCriteria, ...(props.draft.provenance ? { provenance: props.draft.provenance } : {}) }),
       });
       const body = await response.json().catch(() => ({}));
       if (response.status === 201) {

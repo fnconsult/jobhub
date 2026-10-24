@@ -85,8 +85,8 @@ A Human Coach no longer listed to Candidates and who can no longer read anything
 _Avoid_: Deleted coach
 
 **Coach Panel**:
-The side panel, available from every page, where the Candidate talks with the AI Coach. On wide screens it sits beside the page as a card, like AI Activity's pane, and the Candidate can widen it into a drawer over the page; on phones it takes the whole screen. Its one menu, the conversation's title, holds a new conversation, the saved Coach Conversations and the Coach Memory.
-_Avoid_: Chat, chatbot, sidebar
+The side panel, available from every page, where the Candidate asks for help and talks with the AI Coach; its Top Bar button reads « Aide et coach » (« Aide » on phones). On wide screens it sits beside the page as a card, like AI Activity's pane, and the Candidate can widen it into a drawer over the page; on phones it takes the whole screen. Its one menu, the conversation's title, holds a new conversation, the saved Coach Conversations and the Coach Memory. Its one box takes the Candidate's question: while they type, matching Help Articles are suggested above it, without AI; sending it asks the AI Coach. With no message yet, it shows the Help Article of the page in view and a few frequent questions. Its foot leads to a Signalement (« Signaler un problème », « Proposer une idée », « Poser une question »).
+_Avoid_: Chat, chatbot, sidebar, help menu
 
 **Coach context**:
 What the AI Coach is told before each reply: always the Candidate summary and the Coach Memory, plus the item In view, plus summaries of the rest (onboarding answers, latest Applications, top Job Offers, the next three Agenda Items from now on, none of them cancelled), within a size cap. Summaries are trimmed before the item In view.
@@ -529,7 +529,7 @@ The menu down the side of the Candidate's pages: Profile switcher, links to thei
 _Avoid_: Navigation bar, workspace header
 
 **Top Bar**:
-The bar above every page beside the Sidebar: the page's title, the Menu button when the Sidebar is hidden, and the Coach Panel's button while the panel is closed.
+The bar above every page beside the Sidebar: the page's title, the Menu button when the Sidebar is hidden, and the Coach Panel's button, « Aide et coach », while the panel is closed. Nothing else for help or Signalements goes there.
 _Avoid_: Header, navbar
 
 **Section**:

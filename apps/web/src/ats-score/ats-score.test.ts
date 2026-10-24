@@ -92,6 +92,26 @@ describe.skipIf(!connectionString)("ATS Scoring (needs Postgres: DATABASE_URL)",
     expect(cards[1]!.body).toMatch(/facultatif/);
   });
 
+  it("keeps the ATS Score's and each ATS Fix's Provenance: Jobbbox's rules on the Master CV, no AI (#336)", async () => {
+    const result = await scoring.analyse(marie, profileId, "fr");
+    if (!result.ok) throw new Error("not analysed");
+    const masterCvPage = `/profils/${profileId}/cv-de-reference`;
+
+    expect(result.atsScore.provenance).toEqual({
+      v: 1,
+      steps: [{ kind: "rules", activity: "compute", rule: "ats_score", ms: 0, at: result.atsScore.computedAt.toISOString(), outcome: "ok", count: 1 }],
+      sites: [{ kind: "candidate", links: [masterCvPage] }],
+      startedAt: result.atsScore.computedAt.toISOString(),
+      wallMs: 0,
+    });
+    const cards = await actionCards.pending(marie, page());
+    expect(cards).toHaveLength(2);
+    for (const card of cards) {
+      expect(card.provenance).toMatchObject({ steps: [{ kind: "rules", activity: "compute", rule: "ats_fixes" }], sites: [{ kind: "candidate", links: [masterCvPage] }] });
+      expect(card.provenance!.steps.some((step) => step.kind === "ai")).toBe(false);
+    }
+  });
+
   it("writes the cards in the Candidate's Interface Language", async () => {
     await scoring.analyse(marie, profileId, "en");
 

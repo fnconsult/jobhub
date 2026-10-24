@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server";
+import { STOPPED, type ActionOutcome } from "@/ndjson";
 import type { TailoredDocumentsResult } from "./index";
 
 /**
  * The HTTP response for drafting or editing a Tailored Document:
- * 200 ApplicationDrafts · 400 { errors } · 404 · 503 { error: "unavailable" }
+ * 200 ApplicationDrafts · 400 { errors } · 404 · 499 { error: "stopped" } · 503 { error: "unavailable" }
  */
+export function tailoredDocumentsOutcome(result: TailoredDocumentsResult): ActionOutcome {
+  if (result.ok) return { status: 200, body: result.drafts };
+  if ("errors" in result) return { status: 400, body: { errors: result.errors } };
+  return { status: { not_found: 404, unavailable: 503, stopped: STOPPED }[result.error], body: { error: result.error } };
+}
+
+/** The same, as a JSON response. */
 export function tailoredDocumentsResponse(result: TailoredDocumentsResult): NextResponse {
-  if (result.ok) return NextResponse.json(result.drafts);
-  if ("errors" in result) return NextResponse.json({ errors: result.errors }, { status: 400 });
-  return NextResponse.json({ error: result.error }, { status: result.error === "not_found" ? 404 : 503 });
+  const { status, body } = tailoredDocumentsOutcome(result);
+  return NextResponse.json(body, { status });
 }

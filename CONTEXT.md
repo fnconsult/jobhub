@@ -364,7 +364,7 @@ A recurring email and in-app summary of new Job Offers matching a Profile's Sear
 _Avoid_: Alert, newsletter, feed
 
 **Company Dossier**:
-The research compiled about the employer behind a Job Offer from public data only: legal identity, address, financials and Suggested Contact Roles. Built from the French company register for a French employer; for a foreign one, from the web and marked less reliable. Never names a private person. Built only for a confirmed employer, and refused when the employer is not a company (e.g. a sole trader), in which case the Candidate is asked to name the hiring company. Holds the employer's Company News.
+The research compiled about the employer behind a Job Offer from public data only: legal identity, address, financials and Suggested Contact Roles. Built from the French company register for a French employer; for a foreign one, from the web and marked less reliable. Never names a private person. Built only for a confirmed employer, and refused when the employer is not a company (e.g. a sole trader), in which case the Candidate is asked to name the hiring company. Holds the employer's Company News. Keeps the Provenance of every step of its build (the offer read, the register, the web and news searches); a dossier built after the Candidate confirms a Presumed Employer joins the reading that presumed it.
 _Avoid_: Company info, company profile
 
 **Company News**:
@@ -599,7 +599,7 @@ _Avoid_: Dunning banner, billing alert
 ### Operations
 
 **Back Office**:
-The internal pages where Administrators manage Plans, Plan Quotas, Coupons, Human Coaches, Coaching Playbooks, Core Digest and Sources, Guardrails, Provider Secrets, Platform Settings, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites and the team's Back Office Roles, and follow AI Usage, Guardrail Triggers and the state of the Tools.
+The internal pages where Administrators manage Plans, Plan Quotas, Coupons, Human Coaches, Coaching Playbooks, Core Digest and Sources, Guardrails, Provider Secrets, Platform Settings, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites, the Unanswered Questions and the team's Back Office Roles, and follow AI Usage, Guardrail Triggers and the state of the Tools.
 _Avoid_: Admin panel, dashboard, console
 
 **Back Office Role**:
@@ -627,7 +627,7 @@ A super-admin setting, off by default: the Back Office asks an Administrator sig
 _Avoid_: Enforced SSO, mandatory SSO
 
 **Back Office Audit**:
-The record of every change an Administrator makes in the Back Office (roles, Plans, Plan Quotas, Coupons, Human Coaches, Coaching Playbooks, their Eval Cases, Core Digest and Sources, including validated, archived and restored, Guardrails, Provider Secrets, Platform Settings (changed or restored to default, with the value and its source, Back Office, environment or code default, before and after), Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites): who, when, what and the values before and after; and of every AI Message Log a super-admin opens. Secret values are never recorded, only that they were replaced (possibly despite a failed connection test) or cleared. It also records every attempt that failed or was refused, with its Outcome and Failure Reason: a connection or sign-in test that failed, a save or validation refused by a business rule (a Playbook not validated, a Guardrail setting refused by its Eval Run, the last super-admin, Stripe refusing a Plan or Coupon, a Platform Setting value out of its bounds or of the wrong type), and an Administrator opening a section outside their Back Office Roles (action « Accès refusé », Failure Reason `role_missing`, target the page tried, at most once per Administrator, section and minute, in UTC; those sections can hold only such entries: Eval Runs, Coût coach, Consommation IA, Sites de recherche, Pages Outils, Paramètres, Journal; a visitor with no role is not recorded); a form field left empty or too long is only shown on the page. A refused attempt never keeps the values entered, only what was tried, on which target, and the field at fault. Kept for 3 years, then purged. Jobbbox's own record, so it survives the Administrator's account deletion (their id is cleared, their email at the time stays) and is not part of their data export.
+The record of every change an Administrator makes in the Back Office (roles, Plans, Plan Quotas, Coupons, Human Coaches, Coaching Playbooks, their Eval Cases, Core Digest and Sources, including validated, archived and restored, Guardrails, Provider Secrets, Platform Settings (changed or restored to default, with the value and its source, Back Office, environment or code default, before and after), Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites, and an Unanswered Question marked written or dismissed, named by its id, never its words): who, when, what and the values before and after; and of every AI Message Log a super-admin opens. Secret values are never recorded, only that they were replaced (possibly despite a failed connection test) or cleared. It also records every attempt that failed or was refused, with its Outcome and Failure Reason: a connection or sign-in test that failed, a save or validation refused by a business rule (a Playbook not validated, a Guardrail setting refused by its Eval Run, the last super-admin, Stripe refusing a Plan or Coupon, a Platform Setting value out of its bounds or of the wrong type), and an Administrator opening a section outside their Back Office Roles (action « Accès refusé », Failure Reason `role_missing`, target the page tried, at most once per Administrator, section and minute, in UTC; those sections can hold only such entries: Eval Runs, Coût coach, Consommation IA, Sites de recherche, Pages Outils, Paramètres, Journal; a visitor with no role is not recorded); a form field left empty or too long is only shown on the page. A refused attempt never keeps the values entered, only what was tried, on which target, and the field at fault. Kept for 3 years, then purged. Jobbbox's own record, so it survives the Administrator's account deletion (their id is cleared, their email at the time stays) and is not part of their data export.
 _Avoid_: Audit log, history, activity feed
 
 **Outcome**:
@@ -659,7 +659,7 @@ What every AI call result carries about the call itself: the endpoint with its r
 _Avoid_: Metadata, usage
 
 **Provenance**:
-What served one piece of content a Candidate sees (a Job Search, a Job Offer's reading and summary, a Tailored CV or Tailored Document, a Company Dossier, a Master CV Version read from a file, an Action Card, a Job Digest, an AI Coach reply), fixed when it is made and kept with it: its steps, each with its Activity, its AI task or Tool, for an AI step the provider, where it ran (endpoint and region) and the model that actually served, tokens in and out, and its duration, start time and Outcome (stopped included); its Provenance sites; and its start time and wall-clock duration. No Candidate, no cost, no text. Lives and is deleted with its content, so it is in the Data export with it. Content made before it existed, or whose Provenance was not kept, shows « modèle non enregistré » and counts in no total; nothing is estimated. Not AI Usage, which counts calls for Jobbbox and names no one, and never linked to it.
+What served one piece of content a Candidate sees (a Job Search, a Job Offer's reading and summary, a Tailored CV or Tailored Document, a Company Dossier, a Master CV Version read from a file, an Action Card, a Job Digest, an AI Coach reply), fixed when it is made and kept with it: its steps, each with its Activity, its AI task or Tool, for an AI step the provider, where it ran (endpoint and region) and the model that actually served, tokens in and out, and its duration, start time and Outcome (stopped included); its Provenance sites; and its start time and wall-clock duration. No Candidate, no cost, no text. Lives and is deleted with its content, so it is in the Data export with it. A Tailored CV's lives in its proposal and is copied when the Candidate saves it; a Tailored Document's survives the Candidate's edits. Content made before it existed, or whose Provenance was not kept, shows « modèle non enregistré » and counts in no total; nothing is estimated. Not AI Usage, which counts calls for Jobbbox and names no one, and never linked to it.
 _Avoid_: Metadata, trace, lineage, usage
 
 **Provenance line**:
@@ -675,7 +675,7 @@ The one Provenance of a content made by two actions (an offer found by a Job Sea
 _Avoid_: Merged trace
 
 **Provenance site**:
-A site whose pages a piece of content was built from, kept in its Provenance with the links read: an offer page, a job board, the company register, the Candidate's own Master CV and Profile. Shown to the Candidate under « Sources »; a link never points to a LinkedIn profile, a page naming a person, an Enriched Contact, an address inside Jobbbox other than the Candidate's own pages, a signed or tokenised address or a query string. Not a coaching Source (`[S12]`). Either a website (by domain, `www.` removed) or the Candidate's own pages, kept as relative paths (Profils, Candidatures, Recherches, Offres, Job Digests). Steps that ran the same Activity, task or Tool, provider, endpoint, model and Outcome are shown folded into one, with a count.
+A site whose pages a piece of content was built from, kept in its Provenance with the links read: an offer page, a job board, the company register (its page for the company), the news articles and web pages a Company Dossier's facts come from, the Candidate's own Master CV (a site with no link) and Profile. Shown to the Candidate under « Sources »; a link never points to a LinkedIn profile, a page naming a person, an Enriched Contact, an address inside Jobbbox other than the Candidate's own pages, a signed or tokenised address or a query string. Not a coaching Source (`[S12]`). Either a website (by domain, `www.` removed) or the Candidate's own pages, kept as relative paths (Profils, Candidatures, Recherches, Offres, Job Digests). Steps that ran the same Activity, task or Tool, provider, endpoint, model and Outcome are shown folded into one, with a count.
 _Avoid_: Source (alone), citation, reference
 
 **Activity**:
@@ -686,8 +686,12 @@ _Avoid_: Status, phase, stage
 What AI Activity calls a running step: its Activity, or « check » for a Guardrail's check. Worded in French and English.
 _Avoid_: Step name, status
 
+**Live action**:
+An AI action of the Candidate running now, or stopped or failed lately, as AI Activity shows it: running, stopping, stopped or failed. A finished action leaves, its result counting with the page. A stopped or failed action stays in the pane until the next Coach reply replaces it or, for a Job Search, until its notification is dismissed; only a Job Search this browser saw running is shown so. Only an action this browser saw start is announced as starting (a Job Search found running after a page reload is not). Its start and its end are announced once, by one polite live region above every Candidate page, so a page change neither loses nor repeats them; the Coach Panel and a Job Search's notification announce their own end.
+_Avoid_: Task, job, process
+
 **Stop**:
-The Candidate ends an AI Coach reply on its way with « Arrêter » (the « Envoyer » button, no confirmation). Every AI call of the reply is aborted (AI Usage `stopped`). The question is kept in the Coach Conversation, no reply is saved, and « Réponse arrêtée » shows the tokens and time spent. A stopped reply counts against no Plan Quota.
+The Candidate ends an AI Coach reply on its way with « Arrêter » (the « Envoyer » button, no confirmation). Every AI call of the reply is aborted (AI Usage `stopped`). The question is kept in the Coach Conversation, no reply is saved, and « Réponse arrêtée » shows the tokens and time spent. A stopped reply counts against no Plan Quota. It also ends a Tailored CV proposal and the drafting of a Cover Letter or Outreach Message from the Candidate's documents page: the request is aborted (AI Usage `stopped`), nothing is kept (the saved Tailored CV, the proposal under review or the stored draft stays as it was), and the page says « Arrêtée à HH:MM » in light red with the tokens and time spent. No Plan Quota is involved in these actions. Stop also ends a Company Dossier being built (the facts found are kept, the news is marked not searched; stopped earlier, nothing changes) and the reading of an uploaded CV (nothing is drafted, not even the rule-based outline, so no Master CV Version is created). Neither counts against a Plan Quota.
 _Avoid_: Cancel, abort
 
 **Run progress**:
@@ -701,12 +705,15 @@ _Avoid_: Sub-search, task
 **Provenance rule**:A step of Provenance with no AI call and no Tool, done by the code's own rules: Match Score (one step of a Job Search's Provenance, scoring every Job Offer found), ATS Score, ATS fixes, offer freshness and offer deduplication. Its Activity is compute. A Guardrail check is not one: it is an AI call (think).
 _Avoid_: Computation, script, algorithm
 
+**Rules Provenance**:
+The Provenance of content made by Jobbbox's rules alone: one compute step, no model, naming the Candidate's own pages it read. ATS Score, an ATS Fix card and a Job Digest's Match Scores have one; AI Activity shows it as « Calcul » where a model would be named. An ATS Score's is not stored: it is read from when the score was computed, with its time unknown, so an ATS Score from before Provenance still shows « Calcul », not « modèle non enregistré ». A Job Digest's Provenance is its Match Scores step, joined with the run of Job discovery that topped it up, if one did and did not fail.
+
 **AI Activity**:
-The button in the Candidate's top bar, left of « Mon coach », and the pane it opens, « Cette page »: which models (with tokens and time), Provenance sites and Tools produced what the page shows, summed for the page and listed per element, read from each element's Provenance; the AI Coach replies given while the page's object was in view count with the page. While an AI action of the Candidate runs (on this page or « En cours ailleurs »), it shows each step live with its Activity's glyph and a stop icon; a stopped or failed action is shown in light red, in words, with its finished steps. Never in the Back Office, never cost, prompts, the Playbook Agent, Back Office settings or internal identifiers; tokens are labelled a technical measure, not counted against Plan Quotas, and never appear in the Usage Meter. Models are named for people (« Claude Opus 5 »), with where they ran (« AWS Bedrock · UE ») and the EU AI Consent or outside-the-EU route when that served the call; providers are named in text, with a logo only where its owner allowed it in writing.
+The button in the Candidate's top bar, left of « Aide et coach », and the pane it opens, « Cette page »: which models (with tokens and time), Provenance sites and Tools produced what the page shows, summed for the page and listed per element, read from each element's Provenance; the AI Coach replies given while the page's object was in view count with the page. While an AI action of the Candidate runs (on this page or « En cours ailleurs »), it shows each step live with its Activity's glyph and a stop icon; a stopped or failed action is shown in light red, in words, with its finished steps. Never in the Back Office, never cost, prompts, the Playbook Agent, Back Office settings or internal identifiers; tokens are labelled a technical measure, not counted against Plan Quotas, and never appear in the Usage Meter. Models are named for people (« Claude Opus 5 »), with where they ran (« AWS Bedrock · UE ») and the EU AI Consent or outside-the-EU route when that served the call; providers are named in text, with a logo only where its owner allowed it in writing.
 _Avoid_: Session pane, sources bar, tasks panel
 
 **AI Activity element**:
-One item AI Activity lists under « Par élément » with its own Provenance: a Job Offer, an AI Coach reply, a Job Search, and so on. One without a recorded Provenance shows « modèle non enregistré » and counts in no total. Each Provenance site appears once in the page's Sources, however many elements read it.
+One item AI Activity lists under « Par élément » with its own Provenance: a Job Offer, an AI Coach reply, a Job Search, a Company Dossier, a Master CV Version read from a file (« CV de référence, lu dans votre fichier »), and so on. An Abandonnée suggestion is not one: Jobbbox writes its text, with no AI. One without a recorded Provenance shows « modèle non enregistré » and counts in no total. It still shows the sites its source names. Each Provenance site appears once in the page's Sources, however many elements read it.
 _Avoid_: Row, entry
 
 **Guardrail Trigger**:
@@ -716,3 +723,24 @@ _Avoid_: Guardrail log, incident, alert
 **Back Office Assistant**:
 The AI Coach panel shown to Administrators in the Back Office. Answers questions about Back Office data and settings within the asking Administrator's Back Office Roles; read-only, never sees Provider Secrets nor email addresses. Its conversations are the Administrator's own, kept apart from Coach Conversations and counted against no Plan Quota: kept 12 months after their last message, deleted with the account, in their Data export.
 _Avoid_: Admin bot, admin copilot
+
+**Help Article**:
+One short text in French and in English that explains the product without an AI call: a page article (one per Candidate page), a glossary entry or a FAQ answer, with synonyms the Candidate's words are matched against. Written as Markdown, reviewed by a person, searched by rules. The page article of a page is also shown for the pages under it (the Sections of an Application or of a Profile).
+_Avoid_: Help page, KB article, doc
+
+**Article card**:
+A Help Article shown in the Coach panel's conversation, from the box's suggestions « Dans l'aide, sans IA », the page in view or « Souvent demandé ». Kept only in the browser: gone after a reload, never in a Coach Conversation nor in the Data export. When the Candidate asks the AI Coach next, it is told only the article's title, as the help gives it, never its text.
+
+**Souvent demandé**:
+The three FAQ Help Articles an empty Coach Conversation offers, beside « Sur cette page », the page's article.
+
+**HelpTerm**:
+The first mention of a glossary term (Match Score, ATS Score, Propositions, CV de référence, CV adapté, Relance, Plan Quota) in a visible sentence of a page, shown with a dotted underline; it opens that term's Help Article in the Coach panel. Later mentions on the same page are plain text. Never in a Section's heading, which is visually hidden, and absent where there is no Coach panel with help (the Back Office Assistant).
+_Avoid_: Tooltip, glossary link
+
+**Empty state help link**:
+The link that follows the line of an empty state (no Propositions, no Relances, no Applications, no Job Search, nothing on the Agenda, no Profile data) and opens the Help Article that explains what fills it.
+
+**Unanswered Question**:
+A question about using Jobbbox that a Candidate asked the AI Coach, that no Help Article answered, kept so the team can write the missing article. The AI Coach itself says whether a question is about using Jobbbox (not about the Candidate's job search). Question and answer are kept with identity removed, with the page's route pattern (never its address) and the Interface Language, and no link to the Candidate or the Coach Conversation. Asked again, the same question (same search words, page and language) counts once more; asked again after it was marked, it opens a new one. Help editors mark it written (« Article écrit ») or dismissed (« Écarter »). Purged 12 months after it was last asked, 30 days after it was marked; not in the Data export.
+_Avoid_: FAQ gap, feedback, ticket

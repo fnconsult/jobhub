@@ -39,9 +39,16 @@
  * when the Job Digest last ran, so opting in again does not make it due sooner.
  * Opt-ins and Job Digests belong to their Profile and are deleted with it
  * (ADR-0010); the Job Offers they list are kept.
+ * A Job Digest keeps its Provenance (#336): its Match Scores, Jobbbox's rules
+ * (« Calcul »), then the run of Job discovery that topped it up, if one did;
+ * one sent before shows « modèle non enregistré ». A failed run's Job Offers
+ * are not in it, so neither is its run.
  */
 import {
   JOB_DIGEST_FREQUENCIES,
+  joinProvenance,
+  readProvenance,
+  rulesProvenance,
   MAX_POSTING_AGE_DAYS,
   matchScoreReliability,
   rankByMatchScore,
@@ -50,6 +57,7 @@ import {
   type JobOffer,
   type MatchScore,
   type Plan,
+  type Provenance,
 } from "@jobhub/shared";
 import { createI18n, type Locale } from "@jobhub/shared/i18n";
 import { randomBytes } from "node:crypto";
@@ -83,6 +91,8 @@ export interface JobDigest {
   sentAt: Date;
   /** Best Match Score first. */
   results: JobDigestResult[];
+  /** What made it: its Match Scores, and the run that topped it up; null: « modèle non enregistré ». */
+  provenance: Provenance | null;
 }
 
 /** A Job Digest as the Profile page lists it. */
@@ -135,8 +145,8 @@ export interface DueJobDigest {
   profileId: string;
 }
 
-/** Runs Job discovery for the Profile's Search Criteria: the ids of the Job Offers it found (and stored). */
-export type JobDigestDiscovery = () => Promise<string[]>;
+/** Runs Job discovery for the Profile's Search Criteria: the ids of the Job Offers it found (and stored), and its run's Provenance. */
+export type JobDigestDiscovery = () => Promise<{ jobOfferIds: string[]; provenance: Provenance | null }>;
 
 export interface JobDigestDelivery {
   /** The Job Digest kept and emailed; null when nothing qualified (or none is due: not opted in, no Plan, archived). */
@@ -254,6 +264,8 @@ export async function migrateJobDigests(database: Pool): Promise<void> {
       sent_at timestamptz NOT NULL
     );
     CREATE INDEX IF NOT EXISTS job_digest_profile_idx ON job_digest (profile_id, sent_at DESC);
+    -- What made it (#336); null: « modèle non enregistré ».
+    ALTER TABLE job_digest ADD COLUMN IF NOT EXISTS provenance jsonb;
     -- The pool of a Job Digest: Job Offers by when they were stored.
     CREATE INDEX IF NOT EXISTS job_offer_created_at_idx ON job_offer (created_at);
     -- When a Job Offer was found no longer published at its source (Expired Job Offers, #16, which owns
@@ -290,6 +302,7 @@ interface DigestRow {
   profile_id: string;
   job_offer_ids: string[];
   sent_at: Date;
+  provenance: unknown;
 }
 
 interface SubscriptionRow {
@@ -501,7 +514,7 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
     async get(candidateId, jobDigestId) {
       if (!UUID.test(jobDigestId)) return null;
       const { rows } = await database.query<DigestRow>(
-        "SELECT id, profile_id, job_offer_ids, sent_at FROM job_digest WHERE id = $1 AND candidate_id = $2",
+        "SELECT id, profile_id, job_offer_ids, sent_at, provenance FROM job_digest WHERE id = $1 AND candidate_id = $2",
         [jobDigestId, candidateId],
       );
       const row = rows[0];
@@ -513,6 +526,7 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
         profile: { id: profile.id, name: profile.name },
         sentAt: row.sent_at,
         results: await withApplications(candidateId, await scored(profile, row.job_offer_ids)),
+        provenance: readProvenance(row.provenance),
       };
     },
 
@@ -553,14 +567,24 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
       const at = now();
       const { minMatchScore, targetCount, firstLookBackDays } = config();
       const shown = await shownTo(candidateId, profile.id);
-      let picked = await qualifying(profile, await poolOf(candidateId, profile.id, at, firstLookBackDays), shown, at, minMatchScore);
+      // The Match Scores' time, Jobbbox's rules: the stored Job Offers', then those the run found.
+      let scoringMs = 0;
+      const timedQualifying = async (...args: Parameters<typeof qualifying>) => {
+        const start = now().getTime();
+        const kept = await qualifying(...args);
+        scoringMs += now().getTime() - start;
+        return kept;
+      };
+      let picked = await timedQualifying(profile, await poolOf(candidateId, profile.id, at, firstLookBackDays), shown, at, minMatchScore);
       let discovery: JobDigestDelivery["discovery"] = "not_run";
+      let run: Provenance | null = null;
       if (picked.length < targetCount) {
         try {
           const found = await discover();
           discovery = "ran";
+          run = found.provenance;
           const taken = new Set([...shown, ...picked.map(({ jobOffer }) => jobOffer.id)]);
-          picked = rankByMatchScore([...picked, ...(await qualifying(profile, found, taken, at, minMatchScore))]);
+          picked = rankByMatchScore([...picked, ...(await timedQualifying(profile, found.jobOfferIds, taken, at, minMatchScore))]);
         } catch (error) {
           // Not retried: the next scheduled Job Digest runs Job discovery again.
           discovery = "failed";
@@ -570,15 +594,17 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
       picked = picked.slice(0, targetCount);
       if (picked.length === 0) return { digest: null, discovery };
 
+      const provenance = joinProvenance(rulesProvenance("match_score", { at, ms: scoringMs }), run);
       const inserted = await database.query<{ id: string }>(
-        "INSERT INTO job_digest (profile_id, candidate_id, job_offer_ids, sent_at) VALUES ($1, $2, $3, $4) RETURNING id",
-        [profile.id, candidateId, picked.map((result) => result.jobOffer.id), at],
+        "INSERT INTO job_digest (profile_id, candidate_id, job_offer_ids, sent_at, provenance) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        [profile.id, candidateId, picked.map((result) => result.jobOffer.id), at, JSON.stringify(provenance)],
       );
       const digest: JobDigest = {
         id: inserted.rows[0]!.id,
         profile: { id: profile.id, name: profile.name },
         sentAt: at,
         results: await withApplications(candidateId, picked),
+        provenance,
       };
       try {
         await email(candidateId, digest, subscription.unsubscribe_token);

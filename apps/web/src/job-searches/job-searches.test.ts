@@ -420,7 +420,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       await sourceChecks.record(expired, "gone", new Date(Date.now() + 3 * 86_400_000));
       await sourceChecks.record(expired, "gone", new Date(Date.now() + 6 * 86_400_000));
 
-      expect((await jobSearches.notifications(candidateId)).notifications[0]?.outcome).toEqual({ status: "done", found: 1 });
+      expect((await jobSearches.notifications(candidateId)).notifications[0]?.outcome).toEqual({ status: "done", at: expect.any(String), found: 1, steps: [] });
     });
 
     it("stops telling the Candidate once they dismiss it, and only they can", async () => {
@@ -470,7 +470,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       expect((await jobSearches.notifications(candidateId)).notifications.map((notification) => notification.outcome)).toMatchObject([{ status: "failed", failure: "other" }]);
     });
 
-    it("tells the Candidate a Job Search is done, with the number of Job Offers found", async () => {
+    it("tells the Candidate a Job Search is done, when, with the number of Job Offers found", async () => {
       const daf = await capture("DAF H/F", { location: "Lyon" });
       const controleur = await capture("Contrôleur de gestion", { location: "Lyon" });
       const jobSearch = await started();
@@ -480,10 +480,11 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
         running: [{ jobSearchId: jobSearch.id, profile: { id: profileId, name: "DAF" }, startedAt: jobSearch.startedAt.toISOString(), steps: [] }],
       });
 
+      clock.now = new Date("2026-10-15T10:00:16+02:00");
       await jobSearches.record(jobSearch.id, { jobOfferIds: [daf, controleur] });
 
       expect(await jobSearches.notifications(candidateId)).toEqual({
-        notifications: [{ jobSearchId: jobSearch.id, profile: { id: profileId, name: "DAF" }, outcome: { status: "done", found: 2 } }],
+        notifications: [{ jobSearchId: jobSearch.id, profile: { id: profileId, name: "DAF" }, outcome: { status: "done", at: "2026-10-15T08:00:16.000Z", found: 2, steps: [] } }],
         searching: false,
         running: [],
       });

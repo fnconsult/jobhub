@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { NDJSON_TYPE, ndjsonResponse, readNdjson } from "./index";
+import type { ProvenanceEvent } from "@jobhub/shared";
+import { actionResponse, NDJSON_TYPE, ndjsonResponse, readNdjson, STOPPED, type ActionOutcome } from "./index";
 
 const stream = (...chunks: string[]) =>
   new ReadableStream<Uint8Array>({
@@ -82,5 +83,63 @@ describe("reading a streamed response", () => {
     await readNdjson(stream('{"a":', '1}\n{"b"', ':2}\n\n{"c":3}'), (event) => events.push(event));
 
     expect(events).toEqual([{ a: 1 }, { b: 2 }, { c: 3 }]);
+  });
+});
+
+describe("an AI action's route, streamed when asked for (#334)", () => {
+  const at = new Date().toISOString();
+  const started: ProvenanceEvent = { type: "step_started", id: 1, step: { kind: "ai", activity: "write", task: "writing", at } };
+  const ended: ProvenanceEvent = { type: "step_ended", id: 1, step: { kind: "ai", activity: "write", task: "writing", at, ms: 12, outcome: "ok", count: 1 } };
+  const post = (accept?: string) => new Request("http://localhost/api/action", { method: "POST", ...(accept ? { headers: { accept } } : {}) });
+
+  /** An action that tells one step, then ends with `outcome`. */
+  const action = (outcome: ActionOutcome) => async ({ onEvent }: { signal: AbortSignal; onEvent?: (event: ProvenanceEvent) => void }) => {
+    onEvent?.(started);
+    onEvent?.(ended);
+    return outcome;
+  };
+
+  async function eventsOf(response: Response) {
+    const events: unknown[] = [];
+    await readNdjson(response.body!, (event) => events.push(event));
+    return events;
+  }
+
+  it("answers JSON with the outcome's status when the client does not ask for NDJSON", async () => {
+    const response = await actionResponse(post(), action({ status: 503, body: { error: "unavailable" } }));
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "unavailable" });
+  });
+
+  it("streams each step as it starts, with its label, and ends, then what it made", async () => {
+    const response = await actionResponse(post("application/x-ndjson"), action({ status: 200, body: { drafts: 1 } }));
+
+    expect(response.headers.get("content-type")).toBe(NDJSON_TYPE);
+    expect(await eventsOf(response)).toEqual([{ ...started, label: "write" }, ended, { type: "done", drafts: 1 }]);
+  });
+
+  it("ends with its stop, or its failure and status", async () => {
+    const stopped = await actionResponse(post("application/x-ndjson"), action({ status: STOPPED, body: { error: "stopped" } }));
+    const failed = await actionResponse(post("application/x-ndjson"), action({ status: 503, body: { error: "unavailable" } }));
+
+    expect((await eventsOf(stopped)).at(-1)).toEqual({ type: "stopped", error: "stopped" });
+    expect((await eventsOf(failed)).at(-1)).toEqual({ type: "failed", status: 503, error: "unavailable" });
+  });
+
+  it("hands the action the request's abort: the Stop", async () => {
+    const controller = new AbortController();
+    let signal: AbortSignal | undefined;
+    const request = new Request("http://localhost/api/action", { method: "POST", headers: { accept: "application/x-ndjson" }, signal: controller.signal });
+    const response = await actionResponse(request, (live) => {
+      signal = live.signal;
+      return new Promise((resolve) => live.signal.addEventListener("abort", () => resolve({ status: STOPPED, body: { error: "stopped" } })));
+    });
+    const reading = eventsOf(response);
+
+    controller.abort();
+    await reading;
+
+    expect(signal?.aborted).toBe(true);
   });
 });

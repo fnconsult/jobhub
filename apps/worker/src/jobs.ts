@@ -8,6 +8,7 @@ import { purgeExpiredBackOfficeAudit, RETENTION_YEARS as BACK_OFFICE_AUDIT_RETEN
 import { purgeStaleAssistantConversations, RETENTION_MONTHS as ASSISTANT_RETENTION_MONTHS } from "@jobhub/web/back-office-assistant";
 import { purgeStaleCoachConversations, RETENTION_MONTHS } from "@jobhub/web/coach-conversations";
 import { purgeExpiredGuardrailTriggers, TRIGGER_RETENTION_MONTHS as GUARDRAIL_TRIGGER_RETENTION_MONTHS } from "@jobhub/web/guardrails";
+import { purgeUnansweredQuestions } from "@jobhub/web/unanswered-questions";
 import { DIGEST_HOUR, DIGEST_TIME_ZONE, type JobDigests } from "@jobhub/web/job-digests";
 import { createSourceChecks, forgetExpiredGuestCaptures } from "@jobhub/web/job-offers";
 import { JOB_DISCOVERY_QUEUE, type JobSearchReports } from "@jobhub/web/job-searches";
@@ -46,7 +47,8 @@ export const JOB_DIGEST_SCHEDULE = "job-digest.schedule";
  * Queue name: make one Profile's Job Digest. Data: { candidateId, profileId }.
  * The Job Digests module selects its Job Offers from those already stored, and
  * runs Job discovery on the Profile's current Search Criteria only when they
- * are too few. A failed Job discovery is not retried before the next Job Digest.
+ * are too few, handing it the run's Provenance to keep (#336). A failed Job
+ * discovery is not retried before the next Job Digest.
  */
 export const JOB_DIGEST_RUN = "job-digest.run";
 
@@ -61,6 +63,12 @@ export const SOURCE_RECHECK = "job-offers.recheck-sources";
 
 /** Queue name: delete the Coach Conversations whose last message is RETENTION_MONTHS old. Runs nightly. */
 export const COACH_CONVERSATIONS_PURGE = "coach-conversations.purge";
+
+/**
+ * Queue name: delete the Unanswered Questions last asked 12 months ago (RETENTION_MONTHS), and those a Help editor
+ * marked written or dismissed 30 days ago (MARKED_RETENTION_DAYS, #344). Runs nightly.
+ */
+export const UNANSWERED_QUESTIONS_PURGE = "unanswered-questions.purge";
 
 /** Queue name: delete the Back Office Audit entries made BACK_OFFICE_AUDIT_RETENTION_YEARS ago or more. Runs nightly. */
 export const BACK_OFFICE_AUDIT_PURGE = "back-office-audit.purge";
@@ -372,8 +380,10 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           if ("unavailable" in discovery) throw new Error(`Job discovery is unavailable (${discovery.unavailable})`);
           try {
             const report = await discovery.discover({ candidateId: target.candidateId, criteria: profile.searchCriteria });
+            // The run's Provenance, kept with the Job Digest (#336); the Job Digest scores what it keeps itself.
+            const provenance = report.run.provenance();
             metrics = metricsOf(report, profile);
-            return report.jobOffers.map((jobOffer) => jobOffer.id);
+            return { jobOfferIds: report.jobOffers.map((jobOffer) => jobOffer.id), provenance };
           } catch (error) {
             if (error instanceof JobDiscoveryError) metrics = metricsOf(error.partial, profile);
             throw error;
@@ -491,6 +501,16 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         onceTablesExist(async () => {
           const purged = await purgeExpiredGuardrailTriggers(deps.database, now());
           if (purged) log(`[guardrails] ${purged} Guardrail Trigger(s) purged, ${GUARDRAIL_TRIGGER_RETENTION_MONTHS} months after they were recorded`);
+        }),
+    },
+
+    // Unanswered Questions are kept 12 months after they were last asked, 30 days once marked (#344). Safe to run again.
+    [UNANSWERED_QUESTIONS_PURGE]: {
+      cron: "50 3 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const purged = await purgeUnansweredQuestions(deps.database, now());
+          if (purged) log(`[unanswered-questions] ${purged} Unanswered Question(s) purged`);
         }),
     },
 

@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import type { Made } from "@/ai-activity";
+import { tailoredDocumentsMade, type Made } from "@/ai-activity";
 import { loadAiActivity } from "@/ai-activity/server";
 import { INTERVIEW_TIME_ZONE } from "@/applications";
+import { dossierSites } from "@/company-dossiers";
+import { ABANDON_CARD } from "@/follow-ups";
 import { ApplicationProfileSelect, ApplicationStatusSelect, ReportUnavailableButton } from "@/components/ApplicationControls";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { CoachInView } from "@/components/CoachPanel";
@@ -35,13 +37,25 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  * a contact-data provider is on) and the full Job Offer.
  */
 export default async function ApplicationLayout({ params, children }: Params & { children: ReactNode }) {
-  const { candidateId, application, t, locale, inView, profiles, sections, cards, companyDossier, tailoredCv, drafts } = await loadApplicationPage((await params).id);
-  // What AI made for the Application, its slices keeping no Provenance yet: « modèle non enregistré » in AI Activity.
+  const { candidateId, application, t, locale, inView, profiles, sections, shownCards, companyDossier, tailoredCv, drafts } = await loadApplicationPage((await params).id);
+  // What AI made for the Application: the Tailored CV and Documents (#334), the Action Cards (#336) and the Company Dossier
+  // (#335; one built before shows « modèle non enregistré » with the sites its source names) with their Provenance. An
+  // « Abandonnée » suggestion is worded by Jobbbox, no AI: not listed.
   const made: Made[] = [
-    ...(tailoredCv && (tailoredCv.proposal || tailoredCv.saved) ? [{ kind: "tailored_cv" as const }] : []),
-    ...(drafts && (drafts.coverLetter || drafts.outreachMessage) ? [{ kind: "tailored_documents" as const }] : []),
-    ...(companyDossier?.status === "built" ? [{ kind: "company_dossier" as const, at: companyDossier.dossier.builtAt }] : []),
-    ...cards.map(() => ({ kind: "action_card" as const })),
+    ...tailoredDocumentsMade(tailoredCv, drafts),
+    ...(companyDossier?.status === "built"
+      ? [
+          {
+            kind: "company_dossier" as const,
+            at: companyDossier.dossier.builtAt,
+            provenance: companyDossier.provenance ?? null,
+            ...(companyDossier.provenance ? {} : { sites: dossierSites(companyDossier.dossier) }),
+          },
+        ]
+      : []),
+    ...shownCards
+      .filter((card) => card.kind !== ABANDON_CARD)
+      .map((card) => ({ kind: "action_card" as const, name: card.title, at: card.createdAt, provenance: card.provenance })),
   ];
   const aiActivity = await loadAiActivity.application(candidateId, { id: application.id, jobOffer: { id: application.jobOffer.id, title: application.jobOffer.title } }, made);
   // Active Profiles to pick from, and the one in use even if it was archived since.

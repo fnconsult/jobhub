@@ -16,14 +16,18 @@
  *    longer applies to the Master CV.
  *  - `migrateAtsScores(database)` — creates / upgrades the table. Run after Profiles.
  * Problems come back as results, never exceptions (but for `acceptFix`).
+ * Both are Jobbbox's rules on the Master CV, no AI (#336): an ATS Score's Provenance
+ * is a fixed rules step, read from when it was computed (its time not measured), and
+ * each ATS Fix card keeps the timed rules step that proposed it.
  */
-import { applyAtsFix, proposeAtsFixes, scoreAts, type AtsFix, type AtsScore } from "@jobhub/shared";
+import { byRules, applyAtsFix, proposeAtsFixes, rulesProvenance, scoreAts, type AtsFix, type AtsScore, type Provenance } from "@jobhub/shared";
 import type { Locale } from "@jobhub/shared/i18n";
 import type { Pool } from "pg";
 import type { ActionCard, ActionCards } from "../action-cards";
 import type { QuotaDecision } from "../billing";
 import type { QuotaRefusal } from "../billing/upgrade-prompt";
 import type { Profile, Profiles } from "../profiles";
+import { routes } from "../routes";
 import { cardText } from "./card-text";
 
 /** The kind of Action Card an ATS Fix is proposed as. */
@@ -39,6 +43,8 @@ export interface KeptAtsScore {
   version: number;
   score: AtsScore;
   computedAt: Date;
+  /** Jobbbox's rules on the Master CV: « Calcul », no model. */
+  provenance: Provenance;
 }
 
 export type AnalyseResult =
@@ -82,6 +88,12 @@ function canonicalJson(value: unknown): string {
   );
 }
 
+/** The Candidate's page the ATS Score and Fixes are worked out from: the Profile's Master CV. */
+const masterCvPage = (profileId: string) => routes.profileSection(profileId, "cv-de-reference");
+
+/** An ATS Score's Provenance: a fixed rules step on the Master CV, when it was computed. */
+const scoreProvenance = (profileId: string, computedAt: Date): Provenance => rulesProvenance("ats_score", { at: computedAt, links: [masterCvPage(profileId)] });
+
 /** A save that lost the race to another one is tried again on top of it, this many times. */
 const SAVE_ATTEMPTS = 3;
 
@@ -99,10 +111,12 @@ export function createAtsScoring({
   now?: () => Date;
 }): AtsScoring {
   async function keep(profile: Profile): Promise<KeptAtsScore> {
+    const computedAt = now();
     const kept: KeptAtsScore = {
       version: profile.masterCv.version,
       score: scoreAts({ cv: profile.masterCv.content, targetRole: profile.searchCriteria.targetRole }),
-      computedAt: now(),
+      computedAt,
+      provenance: scoreProvenance(profile.id, computedAt),
     };
     await database.query(
       `INSERT INTO ats_score (profile_id, version, score, computed_at) VALUES ($1, $2, $3, $4)
@@ -115,7 +129,10 @@ export function createAtsScoring({
   async function propose(candidateId: string, profile: Profile, locale: Locale) {
     const focus = { kind: "profile", id: profile.id } as const;
     const cv = profile.masterCv.content;
-    const fixes = proposeAtsFixes({ cv, targetRole: profile.searchCriteria.targetRole, today: now() });
+    const { value: fixes, provenance } = await byRules("ats_fixes", () => proposeAtsFixes({ cv, targetRole: profile.searchCriteria.targetRole, today: now() }), {
+      now,
+      links: [masterCvPage(profile.id)],
+    });
     const proposed = new Set(fixes.map(sameFix));
     // A pending fix the new score no longer calls for, or calls for differently, is taken back.
     const pending: string[] = [];
@@ -130,7 +147,7 @@ export function createAtsScoring({
     for (const fix of fixes) {
       if (known.has(fix.id)) continue;
       const payload: AtsFixPayload = { fix };
-      await actionCards.propose(candidateId, { kind: ATS_FIX_CARD, focus, payload, ...cardText(fix, cv, locale) });
+      await actionCards.propose(candidateId, { kind: ATS_FIX_CARD, focus, payload, provenance, ...cardText(fix, cv, locale) });
     }
   }
 
@@ -152,7 +169,7 @@ export function createAtsScoring({
         [profileId],
       );
       const row = rows[0];
-      return row ? { version: row.version, score: row.score, computedAt: row.computed_at } : null;
+      return row ? { version: row.version, score: row.score, computedAt: row.computed_at, provenance: scoreProvenance(profileId, row.computed_at) } : null;
     },
 
     async acceptFix(card, candidateId) {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
-import { tailoredCvResponse } from "@/tailored-cv/http";
+import { actionResponse } from "@/ndjson";
+import { tailoredCvOutcome, tailoredCvResponse } from "@/tailored-cv/http";
 import { getTailoredCvs } from "@/tailored-cv/server";
 
 type Context = RouteContext<"/api/applications/[id]/tailored-cv">;
@@ -14,15 +15,20 @@ export async function GET(_request: Request, { params }: Context) {
 }
 
 /**
- * The AI Coach proposes (again) a Tailored CV, replacing the proposal under review.
- * Body: { language?: "fr" | "en" }. 200 · 400 { errors } · 401 · 403 · 404 · 503 { error: "unavailable" }
+ * The AI Coach proposes (again) a Tailored CV, replacing the proposal under review, with its Provenance.
+ * Body: { language?: "fr" | "en" }. 200 · 400 { errors } · 401 · 403 · 404 · 499 { error: "stopped" } · 503 { error: "unavailable" }
+ *
+ * Live (#334), with `Accept: application/x-ndjson`: each step as it starts and ends, then { type: "done", ...tailoredCv }
+ * · { type: "stopped", error } · { type: "failed", status, ... } (see actionResponse). Aborting the request is the Stop:
+ * every AI call is aborted and the half-written proposal discarded.
  */
 export async function POST(request: Request, { params }: Context) {
   if (!isFromTrustedOrigin(request)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const candidate = await getCurrentCandidate();
   if (!candidate) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body: unknown = await request.json().catch(() => ({}));
-  return tailoredCvResponse(await getTailoredCvs().propose(candidate.id, (await params).id, body));
+  const { id } = await params;
+  return actionResponse(request, async (live) => tailoredCvOutcome(await getTailoredCvs().propose(candidate.id, id, body, live)));
 }
 
 /**

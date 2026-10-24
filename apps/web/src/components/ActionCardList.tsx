@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { EmptyStateHelp, HelpText } from "@/components/HelpTerm";
 
 /** What the page needs to show one Action Card. */
 export interface ActionCardView {
@@ -43,9 +44,10 @@ type Outcome = { kind: "accepted" | "dismissed" } | { kind: "error"; cardId: str
  * The AI Coach's pending Action Cards for what this page shows. The Candidate
  * accepts or dismisses each one; a decided card leaves the page. Accepting one
  * changes what the page shows, so the page is then refreshed (new cards the
- * page receives appear).
+ * page receives appear). `alone`: the list is its page's Propositions Section, which says
+ * so when it has none, with a link to the help (#343); elsewhere a list without cards shows nothing.
  */
-export function ActionCardList({ cards: shown }: { cards: ActionCardView[] }) {
+export function ActionCardList({ cards: shown, alone = false }: { cards: ActionCardView[]; alone?: boolean }) {
   const { t } = useTranslation();
   const router = useRouter();
   const [decided, setDecided] = useState<ReadonlySet<string>>(new Set());
@@ -87,15 +89,25 @@ export function ActionCardList({ cards: shown }: { cards: ActionCardView[] }) {
     }
   }
 
-  if (cards.length === 0 && !outcome) return null;
+  if (cards.length === 0 && !outcome && !alone) return null;
   return (
     <section className="action-cards stack" aria-labelledby={TITLE_ID}>
       <h2 id={TITLE_ID} tabIndex={-1}>
         {t("actionCards.title")}
       </h2>
+      {cards.length > 0 ? (
+        <p className="hint">
+          <HelpText terms={{ proposals: t("helpTerms.words.proposals") }}>{t("actionCards.intro")}</HelpText>
+        </p>
+      ) : null}
       {outcome && outcome.kind !== "error" ? (
         <p className="notice" role="status">
           {t(`actionCards.${outcome.kind}`)}
+        </p>
+      ) : null}
+      {alone && cards.length === 0 ? (
+        <p>
+          {t("actionCards.none")} <EmptyStateHelp of="proposals" />
         </p>
       ) : null}
       {cards.map((card) => (

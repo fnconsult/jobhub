@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import type { Made } from "@/ai-activity";
 import { loadAiActivity } from "@/ai-activity/server";
+import { getAtsScoring } from "@/ats-score/server";
+import { getProfiles } from "@/profiles/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { CoachInView } from "@/components/CoachPanel";
 import { ProfileTitle, SearchCriteriaProperties } from "@/components/ProfileInlineEdits";
@@ -31,7 +34,16 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  */
 export default async function ProfileLayout({ params, children }: Params & { children: ReactNode }) {
   const { candidateId, profile, inView, locale, sections, cards } = await loadProfilePage((await params).id);
-  const [t, aiActivity] = await Promise.all([getServerT(), loadAiActivity.profile(candidateId, { id: profile.id }, cards.map((card) => ({ kind: "action_card", at: card.createdAt })))]);
+  const [atsScore, versions] = await Promise.all([getAtsScoring().latest(candidateId, profile.id), getProfiles().masterCvVersions(candidateId, profile.id)]);
+  // The Master CV, when the AI Coach read it from the Candidate's file (#335), then the ATS Score and the Action Cards
+  // (ATS Fixes among them), each with what made it (#336).
+  const read = versions?.find((version) => version.provenance);
+  const made: Made[] = [
+    ...(read ? [{ kind: "master_cv" as const, at: read.savedAt, provenance: read.provenance }] : []),
+    ...(atsScore ? [{ kind: "ats_score" as const, at: atsScore.computedAt, provenance: atsScore.provenance }] : []),
+    ...cards.map((card) => ({ kind: "action_card" as const, name: card.title, at: card.createdAt, provenance: card.provenance })),
+  ];
+  const [t, aiActivity] = await Promise.all([getServerT(), loadAiActivity.profile(candidateId, { id: profile.id }, made)]);
   const criteria = profile.searchCriteria;
   // An archived Profile's Sectors and Domains are read by their labels (#236); an active one's inputs fetch them.
   const industries = profile.archived ? await readIndustryReference() : null;

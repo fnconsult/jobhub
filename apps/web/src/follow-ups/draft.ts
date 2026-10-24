@@ -3,10 +3,11 @@
  * to Follow-ups. Written by the AI Coach when an AI layer is given and answers;
  * otherwise, from a plain template, so a Follow-up is always proposed. The AI Coach's
  * instructions and the AI writing it are the "follow-up" task Playbook's (ADR-0026).
- * Drafts only (ADR-0005): nothing here sends anything.
+ * Drafts only (ADR-0005): nothing here sends anything. A draft the AI Coach wrote
+ * comes with its Provenance (#336); a template's has none (no model wrote it).
  */
-import type { AiLayer } from "@jobhub/ai";
-import type { DocumentLanguage } from "@jobhub/shared";
+import { createProvenanceRecorder, type AiLayer } from "@jobhub/ai";
+import type { DocumentLanguage, Provenance } from "@jobhub/shared";
 import * as z from "zod";
 import { taskRun, type TaskPlaybookReader, type TaskRun } from "../task-playbooks";
 
@@ -66,14 +67,18 @@ function parsed(answer: string): FollowUpDraft | null {
   }
 }
 
-/** The Follow-up draft: the AI Coach's, or the template's when there is no AI layer or it fails. */
-export async function followUpDraft(request: FollowUpDraftRequest): Promise<FollowUpDraft> {
+/**
+ * The Follow-up draft: the AI Coach's, with the Provenance of its writing, or the template's (Provenance null)
+ * when there is no AI layer or it fails.
+ */
+export async function followUpDraft(request: FollowUpDraftRequest): Promise<{ draft: FollowUpDraft; provenance: Provenance | null }> {
   const { ai, candidateId, language, jobOffer, followUpNumber, taskPlaybooks } = request;
-  const fallback = template(language, jobOffer.title, jobOffer.employer, followUpNumber);
+  const fallback = { draft: template(language, jobOffer.title, jobOffer.employer, followUpNumber), provenance: null };
   if (!ai) return fallback;
   try {
     const run = await taskRun(taskPlaybooks, "follow-up", ai);
-    const { text } = await ai.generate({
+    const recorder = createProvenanceRecorder(ai);
+    const { text } = await recorder.ai.generate({
       task: "writing",
       candidateId,
       system: systemPrompt(run, language, followUpNumber),
@@ -81,7 +86,7 @@ export async function followUpDraft(request: FollowUpDraftRequest): Promise<Foll
       prompt: JSON.stringify({ title: jobOffer.title, employer: jobOffer.employer, content: jobOffer.content }),
     });
     const written = parsed(text);
-    return written ? { subject: written.subject || fallback.subject, text: written.text } : fallback;
+    return written ? { draft: { subject: written.subject || fallback.draft.subject, text: written.text }, provenance: recorder.provenance() } : fallback;
   } catch (error) {
     console.warn("[follow-ups] the AI Coach could not write the Follow-up:", error instanceof Error ? error.message : error);
     return fallback;

@@ -4,13 +4,45 @@
  * reads with the same module.
  *
  *   return ndjsonResponse(request.signal, async (send, signal) => { ... send(event) ... });   // a route
+ *   return actionResponse(request, ({ signal, onEvent }) => run(...));                        // an AI action's route
  *   await readNdjson(response.body, (event) => ...);                                           // the page
  *
  * The action's `signal` aborts when the request is aborted or the reader stops reading; nothing it sends after
  * that goes out. An action that throws ends the stream after what it sent, logged without its content.
  */
+import { stepLabel, type ProvenanceEvent } from "@jobhub/shared";
 
 export const NDJSON_TYPE = "application/x-ndjson; charset=utf-8";
+
+/** 499: the person stopped the action, as proxies log a request its client closed. */
+export const STOPPED = 499;
+
+/** How an AI action ended, as its route answers: its HTTP status (`STOPPED` for a Stop) and JSON body. */
+export interface ActionOutcome {
+  status: number;
+  body: object;
+}
+
+/**
+ * An AI action's route (#334, ADR-0034): with `Accept: application/x-ndjson`, 200 and one event per line as it runs,
+ *   { type: "step_started", id, step, label }   a step starts: its Activity and what AI Activity calls it (`stepLabel`)
+ *   { type: "step_ended", id, step }            it ends: its model, tokens, time and Outcome
+ * then { type: "done", ...body } · { type: "stopped", ...body } · { type: "failed", status, ...body }; otherwise its body as
+ * JSON with its status. Either way the request's abort is the Stop, handed to `run` as `signal`.
+ */
+export async function actionResponse(
+  request: Request,
+  run: (live: { signal: AbortSignal; onEvent?: (event: ProvenanceEvent) => void }) => Promise<ActionOutcome>,
+): Promise<Response> {
+  if (!request.headers.get("accept")?.includes("application/x-ndjson")) {
+    const { status, body } = await run({ signal: request.signal });
+    return Response.json(body, { status });
+  }
+  return ndjsonResponse(request.signal, async (send, signal) => {
+    const { status, body } = await run({ signal, onEvent: (event) => send(event.type === "step_started" ? { ...event, label: stepLabel(event.step) } : event) });
+    send(status < 300 ? { type: "done", ...body } : status === STOPPED ? { type: "stopped", ...body } : { type: "failed", status, ...body });
+  });
+}
 
 export function ndjsonResponse(requestSignal: AbortSignal, run: (send: (event: unknown) => void, signal: AbortSignal) => Promise<void>): Response {
   const cancelled = new AbortController();

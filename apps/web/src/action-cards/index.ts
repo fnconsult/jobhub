@@ -16,7 +16,11 @@
  *  - `migrateActionCards(database)` — creates / upgrades the table.
  * Every read and decision is scoped to the Candidate. Cards are deleted with the
  * account (ADR-0010). Each kind (ATS Fix, Follow-up…) brings its own handler.
+ * Each card keeps its Provenance (#336), what made it: the Follow-up draft's
+ * writing, an ATS Fix's rules; null (« modèle non enregistré ») for a card
+ * proposed before, or whose kind keeps none.
  */
+import { readProvenance, type Provenance } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type { CoachFocus } from "../coach";
 
@@ -35,9 +39,11 @@ export interface ActionCard {
   payload: unknown;
   status: ActionCardStatus;
   createdAt: Date;
+  /** What made it; null: « modèle non enregistré ». */
+  provenance: Provenance | null;
 }
 
-export type ActionCardProposal = Pick<ActionCard, "kind" | "title" | "body" | "focus" | "payload">;
+export type ActionCardProposal = Pick<ActionCard, "kind" | "title" | "body" | "focus" | "payload"> & { provenance?: Provenance | null };
 export type ActionCardDecision = "accept" | "dismiss";
 export type DecideResult = { ok: true; card: ActionCard } | { ok: false; error: "not_found" | "already_decided" | "failed" };
 
@@ -66,9 +72,10 @@ interface CardRow {
   payload: unknown;
   status: ActionCardStatus;
   created_at: Date;
+  provenance: unknown;
 }
 
-const COLUMNS = "id, kind, title, body, focus_kind, focus_id, payload, status, created_at";
+const COLUMNS = "id, kind, title, body, focus_kind, focus_id, payload, status, created_at, provenance";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function cardFrom(row: CardRow): ActionCard {
@@ -81,6 +88,7 @@ function cardFrom(row: CardRow): ActionCard {
     payload: row.payload,
     status: row.status,
     createdAt: row.created_at,
+    provenance: readProvenance(row.provenance),
   };
 }
 
@@ -99,9 +107,18 @@ export function createActionCards(database: Pool, options: { onAccept?: Record<s
   return {
     async propose(candidateId, proposal) {
       const { rows } = await database.query<CardRow>(
-        `INSERT INTO action_card (candidate_id, kind, title, body, focus_kind, focus_id, payload)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING ${COLUMNS}`,
-        [candidateId, proposal.kind, proposal.title, proposal.body, proposal.focus.kind, proposal.focus.id, JSON.stringify(proposal.payload ?? null)],
+        `INSERT INTO action_card (candidate_id, kind, title, body, focus_kind, focus_id, payload, provenance)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING ${COLUMNS}`,
+        [
+          candidateId,
+          proposal.kind,
+          proposal.title,
+          proposal.body,
+          proposal.focus.kind,
+          proposal.focus.id,
+          JSON.stringify(proposal.payload ?? null),
+          proposal.provenance ? JSON.stringify(proposal.provenance) : null,
+        ],
       );
       return cardFrom(rows[0]!);
     },
@@ -179,6 +196,8 @@ export async function migrateActionCards(database: Pool): Promise<void> {
       created_at timestamptz NOT NULL DEFAULT now(),
       decided_at timestamptz
     );
+    -- What made the card (#336); null: « modèle non enregistré ».
+    ALTER TABLE action_card ADD COLUMN IF NOT EXISTS provenance jsonb;
     CREATE INDEX IF NOT EXISTS action_card_page_idx ON action_card (candidate_id, focus_kind, focus_id) WHERE status = 'pending';
   `);
 }

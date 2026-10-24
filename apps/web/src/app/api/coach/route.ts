@@ -12,7 +12,9 @@ const STATUS = { invalid: 400, not_found: 404, unavailable: 503, stopped: 499 } 
 
 /**
  * The Candidate's next message in a Coach Conversation, and the AI Coach's reply, both saved.
- * Body: { conversationId?, message, focus?: { kind: "profile" | "application" | "job_offer" | "job_search" | "job_digest", id, profileId? } };
+ * Body: { conversationId?, message, focus?: { kind: "profile" | "application" | "job_offer" | "job_search" | "job_digest", id, profileId? }, helpArticle?: { id, title }, route? };
+ * `route`: the address of the page in view (#344); a question the help missed is kept with its route pattern alone, never linked to the Candidate.
+ * `helpArticle`: the Help Article the Candidate read just before asking (#342); the AI Coach is told its title alone, and it is never saved.
  * without `conversationId` a new Coach Conversation starts, attached to the Profile in view (or `profileId`, the one the page shows).
  * A Guardrail message answers in the Candidate's Interface Language; `blocked` says whether the message and the reply are Blocked messages (#228).
  * A link in the message is read as a Job Offer: `jobOffer` is then the reply's Job Offer card { id, title, employer?, followed }.

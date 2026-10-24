@@ -27,6 +27,8 @@
  *    when the Candidate accepts a card.
  *  - Drafts only (ADR-0005): the Follow-up is never sent to the employer.
  *    The only email is the notice to the Candidate.
+ * A Follow-up card keeps the Provenance of its draft's writing (#336); an "Abandonnée"
+ * suggestion, worded by Jobbbox, keeps none.
  * Every read and change is scoped to the Candidate; inputs are untrusted and
  * problems come back as results (but for `onAccept`, which throws so the card stays pending).
  */
@@ -178,9 +180,9 @@ export function createFollowUps(database: Pool, deps: FollowUpsDeps): FollowUps 
     const payload: FollowUpPayload = { since: since.toISOString(), jobTitle: row.title };
     if (kind === FOLLOW_UP_CARD) {
       const language = row.document_language ?? jobOfferLanguage({ title: row.title, content: row.content });
-      const draft = await followUpDraft({ ai: deps.ai, candidateId: row.candidate_id, language, jobOffer: row, followUpNumber: sent + 1, taskPlaybooks: deps.taskPlaybooks });
+      const { draft, provenance } = await followUpDraft({ ai: deps.ai, candidateId: row.candidate_id, language, jobOffer: row, followUpNumber: sent + 1, taskPlaybooks: deps.taskPlaybooks });
       Object.assign(payload, draft);
-      await deps.actionCards.propose(row.candidate_id, { kind, focus, payload, title: t("followUps.cardTitle", { title: row.title }), body: draft.text });
+      await deps.actionCards.propose(row.candidate_id, { kind, focus, payload, provenance, title: t("followUps.cardTitle", { title: row.title }), body: draft.text });
     } else {
       await deps.actionCards.propose(row.candidate_id, {
         kind,

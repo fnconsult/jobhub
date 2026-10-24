@@ -11,6 +11,7 @@ COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/
 COPY packages/ai/package.json packages/ai/
 COPY packages/coach-knowledge/package.json packages/coach-knowledge/
+COPY packages/help/package.json packages/help/
 COPY apps/web/package.json apps/web/
 COPY apps/worker/package.json apps/worker/
 RUN npm ci --workspace @jobhub/web --include-workspace-root --ignore-scripts

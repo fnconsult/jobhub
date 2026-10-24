@@ -30,7 +30,8 @@
 // Coach would: the CV's first line as the name, its second as the title, and
 // fixed Search Criteria the rule-based fallback could never produce, so tests
 // can tell the AI reading was used. A CV containing "E2E_AI_DOWN" gets a 503,
-// so tests can watch the fallback to the rule-based reading.
+// so tests can watch the fallback to the rule-based reading; one containing
+// "E2E_CV_SLOW" takes 30 s, so tests can stop the reading (#335).
 //
 // For the AI Coach in the Coach Panel (task coaching), it says which Profile
 // the system prompt put in view, if any, and how many messages it was sent, so
@@ -44,6 +45,10 @@
 // items it was told ("Mémoire : 2 éléments."), so tests can check it goes with
 // every message. Asked what to remember from a conversation ("Tu relis une
 // conversation"), it proposes each Candidate message as a goal, in order.
+//
+// Asked to mark whether the Candidate's message asks how to use Jobbbox (#344, "Classement de la question"), the AI
+// Coach ends its reply with "[jobbbox:oui]" when the message speaks of being blocked or of quotas (a real model reads
+// the whole message), "[jobbbox:non]" otherwise; the app takes that line out before anyone sees it.
 //
 // For the Back Office Assistant (#205, "assistant du Back Office"), it says how many
 // messages it was sent; "E2E_SHOW_CONTEXT#<tag>" prints the whole system prompt to the
@@ -129,6 +134,13 @@ globalThis.fetch = async (input, init) => {
     content = `Avis du Playbook Agent ${playbook[1]} (version ${playbook[2]}, modèle ${body.model}, effort ${body.reasoning_effort ?? "aucun"}) : préparez trois exemples [S24].`;
     if (prompt.includes("E2E_AGENT_LEAK")) content += " Contact : agent.tiers@exemple.fr";
   }
+  // "E2E_WRITING_SLOW=<ms>" in a Job Offer has its Tailored CV proposed, or its Cover Letter or Outreach Message drafted,
+  // take that long (#334), so the page shows the step live; aborted meanwhile (the Candidate's Stop), it rejects with the
+  // signal's reason, as fetch does.
+  const slowWriting = /E2E_WRITING_SLOW=(\d+)/.exec(prompt)?.[1];
+  if (slowWriting && /^(?:Tu es le coach Jobbbox\. Tu (?:rédiges|adaptes)|You are the Jobbbox coach\. You (?:write|adapt))/.test(system)) {
+    await answerAfter(Number(slowWriting), input instanceof Request ? input.signal : init?.signal);
+  }
   const slow = /E2E_COACH_SLOW=(\d+)/.exec(prompt)?.[1];
   if (slow && system.includes("coach Jobbbox")) await answerAfter(Number(slow), input instanceof Request ? input.signal : init?.signal);
   if (system.includes("coach Jobbbox")) {
@@ -151,6 +163,9 @@ globalThis.fetch = async (input, init) => {
       const remembered = system.match(/^- (?:Objectif|Contrainte|Décision) : /gm)?.length ?? 0;
       if (remembered) content += ` Mémoire : ${remembered} élément${remembered > 1 ? "s" : ""}.`;
     }
+  }
+  if (system.includes("coach Jobbbox") && system.includes("Classement de la question")) {
+    content += /bloqu|quota/i.test(prompt) ? "\n[jobbbox:oui]" : "\n[jobbbox:non]";
   }
   if (system.includes("assistant du Back Office")) {
     const turns = body.messages.filter((message) => message.role !== "system").length;
@@ -232,6 +247,8 @@ globalThis.fetch = async (input, init) => {
     }
   }
   if (prompt.startsWith("CV :\n")) {
+    // A CV holding "E2E_CV_SLOW" takes 30 s to read, or rejects at once when the Candidate stops it (#335).
+    if (prompt.includes("E2E_CV_SLOW")) await answerAfter(30_000, input instanceof Request ? input.signal : init?.signal);
     const [fullName = "", headline = ""] = prompt.slice("CV :\n".length).split("\n");
     content = JSON.stringify({
       masterCv: {

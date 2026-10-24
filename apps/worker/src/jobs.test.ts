@@ -1,5 +1,5 @@
 import { createProvenanceRecorder, type AiLayer } from "@jobhub/ai";
-import type { MasterCvContent, ProvenanceEvent, SearchCriteria } from "@jobhub/shared";
+import type { MasterCvContent, Provenance, ProvenanceEvent, SearchCriteria } from "@jobhub/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createJobOffers, migrateJobOffers } from "@jobhub/web/job-offers";
 import { createProfiles, migrateProfiles } from "@jobhub/web/profiles";
@@ -12,10 +12,11 @@ import { createPostgresUsageLog, migrateAiUsage } from "@jobhub/web/ai-usage";
 import { signInWithMagicLink, startTestAuth } from "../../web/src/auth/test-support";
 import { createThrowawayDatabase } from "../../web/src/test-support/throwaway-database";
 import { createGuardrailStore, migrateGuardrails } from "@jobhub/web/guardrails";
+import { createUnansweredQuestions, migrateUnansweredQuestions } from "@jobhub/web/unanswered-questions";
 import { JobDiscoveryError, type DiscoverRequest, type DiscoveryReport } from "./job-discovery";
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
 import type { DueJobDigest, JobDigestResult } from "@jobhub/web/job-digests";
-import { AI_USAGE_PURGE, APPOINTMENT_REMINDERS, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { AI_USAGE_PURGE, APPOINTMENT_REMINDERS, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -120,6 +121,8 @@ function setup(
   const enqueued: { name: string; data: object }[] = [];
   /** Per delivery: the Candidate, the Profile, and what Job discovery gave the Job Digest (or how it failed). */
   const delivered: [string, string, string[] | string | null][] = [];
+  /** Per delivery that ran Job discovery: the run's Provenance handed to the Job Digest (#336). */
+  const handed: (Provenance | null)[] = [];
   const jobs = createJobs({
     database: noDatabase,
     discovery: {
@@ -153,14 +156,15 @@ function setup(
       claimDue: async () => due.splice(0),
       async deliver(candidateId, profileId, discoverForDigest) {
         // One stored Job Offer qualified.
-        const digest = { id: "digest-1", profile: { id: profileId, name: "DAF" }, sentAt: new Date(), results: [{} as JobDigestResult] };
+        const digest = { id: "digest-1", profile: { id: profileId, name: "DAF" }, sentAt: new Date(), results: [{} as JobDigestResult], provenance: null };
         if (!digestPlan.runsDiscovery) {
           delivered.push([candidateId, profileId, null]);
           return { digest, discovery: "not_run" };
         }
         try {
           const found = await discoverForDigest();
-          delivered.push([candidateId, profileId, found]);
+          delivered.push([candidateId, profileId, found.jobOfferIds]);
+          handed.push(found.provenance);
           return { digest, discovery: "ran" };
         } catch (error) {
           delivered.push([candidateId, profileId, (error as Error).message]);
@@ -172,7 +176,7 @@ function setup(
     log: (line) => logs.push(line),
     now,
   });
-  return { jobs, run: jobs[JOB_DISCOVERY]!.handler, runs, logs, recorded, written, progressed, enqueued, delivered };
+  return { jobs, run: jobs[JOB_DISCOVERY]!.handler, runs, logs, recorded, written, progressed, enqueued, delivered, handed };
 }
 
 describe("the Job discovery job", () => {
@@ -432,6 +436,19 @@ describe("the Job Digest jobs", () => {
     expect(enough.logs[0]).toBe("[job-digest] profile profile-1: Job Digest sent (1 Job Offer(s)), Job discovery not needed");
   });
 
+  it("hand the Job Digest its top-up run's Provenance, to keep with it (#336)", async () => {
+    const { jobs, handed } = setup(async () => {
+      const report = discoveryReport({ jobOffers: found });
+      await report.run.step({ tool: "france-travail" }, () => undefined);
+      return report;
+    });
+
+    await jobs[JOB_DIGEST_RUN]!.handler({ candidateId: "candidate-1", profileId: "profile-1" });
+
+    expect(handed).toHaveLength(1);
+    expect(handed[0]?.steps).toEqual([expect.objectContaining({ kind: "tool", activity: "search", tool: "france-travail", outcome: "ok" })]);
+  });
+
   it("let a failed Job discovery fail without retrying: the Job Digest sends what it has", async () => {
     const { jobs, delivered, logs } = setup(async () => Promise.reject(new Error("Perplexity answered 503")));
 
@@ -493,7 +510,7 @@ describe("the worker without an AI layer", () => {
         claimDue: async () => [],
         async deliver(_candidateId, _profileId, discover) {
           await expect(discover()).rejects.toThrow("Job discovery is unavailable (Missing environment variable PERPLEXITY_API_KEY)");
-          return { digest: { id: "digest-1", profile: { id: "profile-1", name: "DAF" }, sentAt: new Date(), results: [{} as JobDigestResult] }, discovery: "failed" };
+          return { digest: { id: "digest-1", profile: { id: "profile-1", name: "DAF" }, sentAt: new Date(), results: [{} as JobDigestResult], provenance: null }, discovery: "failed" };
         },
       },
       enqueue: async () => {},
@@ -894,6 +911,33 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       await expect(createJobs({ ...otherDeps, database: empty.pool })[AI_USAGE_PURGE]!.handler({})).resolves.toBeUndefined();
     } finally {
       await empty.drop();
+    }
+  });
+
+  it("purges, every night, the Unanswered Questions last asked 12 months ago (#344)", async () => {
+    const throwaway = await createThrowawayDatabase("test_worker_jobs_unanswered");
+    try {
+      const database = throwaway.pool;
+      await migrateUnansweredQuestions(database);
+      await createUnansweredQuestions(database, { identityOf: async () => null }).notice("marie", {
+        question: "Où est passé le bouton vert ?",
+        reply: { text: "En haut à droite.", outcome: "replied", aboutJobbbox: true },
+        language: "fr",
+      });
+      const logs: string[] = [];
+      const jobAt = (days: number) =>
+        createJobs({ ...otherDeps, database, now: () => new Date(Date.now() + days * 86_400_000), log: (line) => logs.push(line) })[UNANSWERED_QUESTIONS_PURGE]!;
+      const counted = async () => (await database.query<{ n: number }>("SELECT count(*)::int AS n FROM unanswered_question")).rows[0]!.n;
+
+      expect(jobAt(0).cron).toBe("50 3 * * *");
+      await jobAt(300).handler({});
+      expect(await counted()).toBe(1);
+      await jobAt(367).handler({});
+      expect(await counted()).toBe(0);
+      expect(logs).toEqual(["[unanswered-questions] 1 Unanswered Question(s) purged"]);
+      await expect(createJobs({ ...otherDeps, database: (await createThrowawayDatabase("test_worker_jobs_empty")).pool })[UNANSWERED_QUESTIONS_PURGE]!.handler({})).resolves.toBeUndefined();
+    } finally {
+      await throwaway.drop();
     }
   });
 

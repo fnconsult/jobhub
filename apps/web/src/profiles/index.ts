@@ -8,7 +8,8 @@
  *    `get` one; edit the Master CV (`saveMasterCv`, each change a new version),
  *    list its versions and restore one (`restoreMasterCv`); change the Search
  *    Criteria of an active Profile (`changeSearchCriteria`). Every read and change is scoped to the Candidate.
- *    The number of active Profiles respects the Plan Quota (`profileQuota`).
+ *    The number of active Profiles respects the Plan Quota (`profileQuota`). A Master CV read from a file
+ *    keeps the reading's Provenance with its version 1 (ADR-0034, #335); the versions saved after keep none.
  *  - `migrateProfiles(database)` — creates / upgrades the tables.
  * Profiles belong to their Candidate and are deleted with the account (ADR-0010).
  */
@@ -20,8 +21,10 @@ import {
   isSector,
   isSubsector,
   MAX_SEARCH_LOCATIONS,
+  readProvenance,
   REMOTE_WORK_OPTIONS,
   type MasterCvContent,
+  type Provenance,
   type SearchCriteria,
 } from "@jobhub/shared";
 import { isDeepStrictEqual } from "node:util";
@@ -63,6 +66,8 @@ export interface MasterCvVersion {
   /** The earlier version this one restored, or null for an edit (or the first version). */
   restoredFrom: number | null;
   content: MasterCvContent;
+  /** What read it from the Candidate's file (ADR-0034, #335): version 1 of a Profile created from an uploaded CV, else absent. */
+  provenance?: Provenance;
 }
 
 export type SaveMasterCvResult =
@@ -88,7 +93,11 @@ export type ChangeSearchCriteriaResult = SavedProfile | { ok: false; error: "not
 export type ProfileQuota = (candidateId: string) => Promise<number | null>;
 
 export interface Profiles {
-  /** Saves a reviewed CV draft as a new Profile. `input` is untrusted (it comes from the browser). */
+  /**
+   * Saves a reviewed CV draft as a new Profile. `input` is untrusted (it comes from the browser): { masterCv, searchCriteria,
+   * provenance? }, `provenance` the draft's when the AI Coach read it from a file, kept with version 1 only when it is a CV
+   * reading's (one `cv_parsing` step) this version can read.
+   */
   create(candidateId: string, input: unknown): Promise<CreateProfileResult>;
   /**
    * A new Profile under the name in `input` ({ name }, untrusted), with a copy of the
@@ -244,6 +253,13 @@ const ARCHIVED: ProfileArchived = { ok: false, error: "archived" };
 
 const QUOTA_REACHED: PlanQuotaReached = { ok: false, error: "plan_quota_reached" };
 
+/** The draft's Provenance, when it is a CV reading's this version can read (its AI steps all `cv_parsing`); else none. */
+function cvReading(stored: unknown): Provenance | null {
+  const provenance = readProvenance(stored);
+  if (!provenance || provenance.steps.length === 0) return null;
+  return provenance.steps.every((step) => step.kind === "ai" && step.task === "cv_parsing") ? provenance : null;
+}
+
 export function createProfiles(database: Pool, { profileQuota = async () => null }: { profileQuota?: ProfileQuota } = {}): Profiles {
   async function transaction<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
     const client = await database.connect();
@@ -302,7 +318,7 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
   /** Stores a new Profile with version 1 of its Master CV, if the Plan Quota leaves room for it. */
   function insert(
     candidateId: string,
-    { name, searchCriteria, masterCv }: { name: string; searchCriteria: SearchCriteria; masterCv: MasterCvContent },
+    { name, searchCriteria, masterCv, provenance = null }: { name: string; searchCriteria: SearchCriteria; masterCv: MasterCvContent; provenance?: Provenance | null },
   ): Promise<CreateProfileResult> {
     return transaction(async (client) => {
       if (!(await roomForOneMore(candidateId, client))) return QUOTA_REACHED;
@@ -323,7 +339,11 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
         ],
       );
       const id = rows[0]!.id;
-      await client.query(`INSERT INTO master_cv_version (profile_id, version, content) VALUES ($1, 1, $2)`, [id, masterCv]);
+      await client.query(`INSERT INTO master_cv_version (profile_id, version, content, provenance) VALUES ($1, 1, $2, $3)`, [
+        id,
+        masterCv,
+        provenance ? JSON.stringify(provenance) : null,
+      ]);
       return { ok: true, profile: { id, name, archived: false, searchCriteria, masterCv: { version: 1, content: masterCv } } };
     });
   }
@@ -366,11 +386,14 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
 
     async masterCvVersions(candidateId, profileId) {
       if (!(await get(candidateId, profileId))) return null;
-      const { rows } = await database.query<{ version: number; created_at: Date; restored_from: number | null; content: MasterCvContent }>(
-        `SELECT version, created_at, restored_from, content FROM master_cv_version WHERE profile_id = $1 ORDER BY version DESC`,
+      const { rows } = await database.query<{ version: number; created_at: Date; restored_from: number | null; content: MasterCvContent; provenance: unknown }>(
+        `SELECT version, created_at, restored_from, content, provenance FROM master_cv_version WHERE profile_id = $1 ORDER BY version DESC`,
         [profileId],
       );
-      return rows.map((row) => ({ version: row.version, savedAt: row.created_at, restoredFrom: row.restored_from, content: row.content }));
+      return rows.map((row) => {
+        const provenance = readProvenance(row.provenance);
+        return { version: row.version, savedAt: row.created_at, restoredFrom: row.restored_from, content: row.content, ...(provenance ? { provenance } : {}) };
+      });
     },
 
     async restoreMasterCv(candidateId, profileId, version) {
@@ -398,7 +421,7 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       const { masterCv, searchCriteria } = parsed.data;
 
-      return insert(candidateId, { name: searchCriteria.targetRole, searchCriteria, masterCv });
+      return insert(candidateId, { name: searchCriteria.targetRole, searchCriteria, masterCv, provenance: cvReading((input as { provenance?: unknown }).provenance) });
     },
 
     async duplicate(candidateId, profileId, input) {
@@ -527,5 +550,7 @@ export async function migrateProfiles(database: Pool): Promise<void> {
       PRIMARY KEY (profile_id, version)
     );
     ALTER TABLE master_cv_version ADD COLUMN IF NOT EXISTS restored_from integer;
+    -- What read a version from the Candidate's file (ADR-0034, #335): version 1 of a Profile created from an uploaded CV.
+    ALTER TABLE master_cv_version ADD COLUMN IF NOT EXISTS provenance jsonb;
   `);
 }

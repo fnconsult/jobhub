@@ -1,4 +1,4 @@
-import type { MasterCvContent, SearchCriteria } from "@jobhub/shared";
+import type { MasterCvContent, Provenance, SearchCriteria } from "@jobhub/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createProfiles, migrateProfiles, type Profiles } from "./index";
@@ -310,6 +310,40 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
         { version: 2, savedAt: expect.any(Date), restoredFrom: null, content: v2 },
         { version: 1, savedAt: expect.any(Date), restoredFrom: null, content: masterCv },
       ]);
+    });
+
+    describe("a Master CV read from a file (ADR-0034, #335)", () => {
+      const at = "2026-10-24T08:00:00.000Z";
+      const reading: Provenance = {
+        v: 1,
+        steps: [{ kind: "ai", activity: "read", task: "cv_parsing", provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-medium-3", tokens: { input: 1200, output: 600 }, ms: 4200, at, outcome: "ok", count: 1 }],
+        sites: [{ kind: "candidate", links: [] }],
+        startedAt: at,
+        wallMs: 4300,
+      };
+
+      it("keeps the reading's Provenance with version 1, and none with the versions the Candidate saves after", async () => {
+        const created = await profiles.create(candidateId, { masterCv, searchCriteria: criteria, provenance: reading });
+        if (!created.ok) throw new Error("refused");
+        await profiles.saveMasterCv(candidateId, created.profile.id, { basedOnVersion: 1, content: { ...masterCv, headline: "DAF" } });
+
+        const versions = await profiles.masterCvVersions(candidateId, created.profile.id);
+
+        expect(versions?.map(({ version, provenance }) => [version, provenance])).toEqual([
+          [2, undefined],
+          [1, reading],
+        ]);
+      });
+
+      it("keeps no Provenance that is not a CV reading's, nor one this version cannot read", async () => {
+        const writing = { ...reading, steps: [{ ...reading.steps[0]!, task: "writing", activity: "write" }] };
+        for (const provenance of [writing, { v: 1, steps: "nothing" }, "a text"]) {
+          const created = await profiles.create(candidateId, { masterCv, searchCriteria: criteria, provenance });
+          if (!created.ok) throw new Error("refused");
+
+          expect((await profiles.masterCvVersions(candidateId, created.profile.id))?.[0]?.provenance).toBeUndefined();
+        }
+      });
     });
 
     it("restores a previous version as a new version, keeping the history", async () => {

@@ -446,6 +446,21 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   }
 }
 
+/* « Aide et coach », « Aide » below 48rem (#342, ADR-0035): a visible label at every width (ADR-0009). */
+.coach-panel-toggle-short {
+  display: none;
+}
+
+@media (width < 48rem) {
+  .coach-panel-toggle-long {
+    display: none;
+  }
+
+  .coach-panel-toggle-short {
+    display: inline;
+  }
+}
+
 .coach-panel-scrim {
   position: fixed;
   inset: 0;
@@ -602,19 +617,7 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   stroke-linejoin: round;
 }
 
-/* It breathes while the step runs; it holds still for those who asked for less motion. */
-@media (prefers-reduced-motion: no-preference) {
-  .coach-panel-step .activity-glyph {
-    animation: activity-breathe 1.2s ease-in-out infinite alternate;
-  }
-}
-
-@keyframes activity-breathe {
-  from {
-    opacity: 0.45;
-    transform: scale(0.92);
-  }
-}
+/* While its step runs, its strokes move and morph, drawn from JavaScript (ActivityGlyph); still under reduced motion. */
 
 /* « Réponse arrêtée » (#328) and a failed reply's Failure Reason: very light red, said in words too. */
 .coach-panel .chat-stopped {
@@ -623,6 +626,30 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   border-radius: var(--radius-md);
 }
 
+/* A Tailored CV or Tailored Document on its way (#334): its step live beside « Arrêter ». */
+.live-action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+}
+
+.live-action-step {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+/* « Arrêtée à 10:42 » (#334): very light red, said in words too. */
+.live-action-stopped {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-danger-surface);
+  border-radius: var(--radius-md);
+}
+
+.live-action-spent,
 .chat-stopped-spent {
   color: var(--color-text-meta);
   font-size: var(--font-size-meta);
@@ -631,6 +658,27 @@ body:has(.app-shell) .coach-panel-toggle-floating {
 .notice-failed {
   background: var(--color-danger-surface);
   border-color: var(--color-danger);
+}
+
+/* An action stopped by the Candidate (#335), on its own page: very light red, said in words. */
+.notice-stopped {
+  background: var(--color-danger-surface);
+}
+
+/* An AI action run in its page's request (#335): the step under way beside « Arrêter ». */
+.streamed-action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.streamed-action-step {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: 0;
+  color: var(--color-text-secondary);
 }
 
 /* The quiet line under a reply (#327): metadata, 0.8125rem in #6b6a67, on one line that wraps. */
@@ -1129,6 +1177,12 @@ th[aria-sort] .sort-mark {
 
 .journal-filter [aria-current="page"] {
   font-weight: 700;
+}
+
+/* « Questions sans réponse » (#344): the AI Coach's answer, on demand, as it was written. */
+.unanswered-answer {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .journal-changes {
@@ -1990,6 +2044,27 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   cursor: pointer;
   background: none;
   border: none;
+}
+
+/* A glossary term's first mention on a page (#343): text with a dotted accent underline, opening its Help Article in the
+   Coach Panel. The text keeps its own colour (4.5:1); the accent underline reaches 3:1 on every surface. */
+.help-term {
+  display: inline;
+  padding: 0;
+  font: inherit;
+  line-height: inherit;
+  color: inherit;
+  text-align: inherit;
+  text-decoration: underline dotted var(--color-accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.help-term:hover {
+  color: var(--color-accent);
 }
 
 @media (width < 64rem) {
@@ -3723,7 +3798,7 @@ textarea.title-edit {
 }
 
 /* ---------- AI Activity (#314, #332): the Top Bar's button and the « Cette page » pane ----------
-   Everything in rem, so it follows the Text Size. The button sits left of « Mon coach », as high;
+   Everything in rem, so it follows the Text Size. The button sits left of « Aide et coach », as high;
    at rest its words are the page's summary, metadata (#317), or its label on a page with no AI content
    (never an icon alone, ADR-0009); open, its label and a close icon. */
 .topbar .ai-activity-toggle {
@@ -3986,6 +4061,109 @@ textarea.title-edit {
   overflow-wrap: anywhere;
 }
 
+/* AI Activity live (#333): the closed button shows the step under way, its glyph and its words, a stop icon beside it;
+   the pane, a section per action, stopped or failed ones in very light red, said in words too. */
+.topbar .ai-activity-stop {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  padding: 0;
+}
+
+.ai-activity-stop {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+}
+
+/* A filled square: Stop, as media players draw it. */
+.ai-activity-stop .icon path {
+  fill: currentColor;
+}
+
+.ai-activity-live .ai-activity-stop {
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+}
+
+.ai-activity-live {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.ai-activity-live[data-status="stopped"],
+.ai-activity-live[data-status="failed"] {
+  background: var(--color-danger-surface);
+  border-color: var(--color-danger);
+}
+
+.ai-activity-live .ai-activity-row {
+  align-items: center;
+}
+
+.ai-activity-live-title {
+  margin: 0;
+  font-size: inherit;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ai-activity-live-status,
+.ai-activity-live-reason {
+  margin: 0;
+}
+
+.ai-activity-live-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ai-activity-live-step {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.ai-activity-live-step-words {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ai-activity-live-step-at {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-activity-live-step:not([data-running]) .activity-glyph {
+  stroke: var(--color-text-meta);
+}
+
+.ai-activity-live-link {
+  align-self: flex-start;
+}
+
+.ai-activity-elsewhere > h3 {
+  margin: var(--space-3) 0 0;
+  font-size: inherit;
+}
+
 /* From 64rem the pane is a card on the right of the page's column, the page making room for it. */
 @media (width >= 64rem) {
   .workspace:has(> .ai-activity-pane) {
@@ -4058,4 +4236,133 @@ textarea.title-edit {
     border-radius: var(--radius-md) var(--radius-md) 0 0;
     box-shadow: var(--shadow-overlay);
   }
+}
+
+/* The help in the Coach Panel's single box (#342, ADR-0035): Help Articles, found without AI. */
+.coach-help-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.coach-help-suggestions-title {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.coach-help-suggestions ul,
+.help-chips {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.coach-help-suggestion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-3);
+  align-items: baseline;
+  justify-content: space-between;
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.coach-help-suggestion:hover {
+  border-color: var(--color-text-secondary);
+}
+
+.coach-help-kind {
+  color: var(--color-text-secondary);
+}
+
+.help-chips {
+  flex-flow: row wrap;
+  gap: var(--space-2);
+}
+
+.help-chip {
+  text-align: left;
+}
+
+.help-intro,
+.help-unanswered {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.help-intro p,
+.help-unanswered p {
+  margin: 0;
+}
+
+.help-intro-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.help-intro-section h3 {
+  margin: 0;
+  font-size: var(--font-size-body);
+}
+
+/* A Help Article opened in the conversation: a card, said to be written by the team, never by the AI. */
+.coach-panel .chat-help {
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+}
+
+.help-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-text-secondary);
+  border-radius: var(--radius-md);
+}
+
+.help-card p,
+.help-card ul,
+.help-card ol {
+  margin: 0;
+}
+
+.help-card-label {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.help-card-title {
+  margin: 0;
+  font-size: var(--font-size-h3);
+}
+
+.help-card-feedback {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  margin-top: var(--space-1);
+}
+
+.help-card-feedback p {
+  flex-basis: 100%;
 }

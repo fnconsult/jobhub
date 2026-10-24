@@ -7,18 +7,30 @@ export type RenderedText = {
   color: string;
   background: string;
   contrast: number;
+  /**
+   * Metadata (ADR-0009 amendment, #317): a Provenance line, or the tokens and time an action spent. It may be smaller,
+   * down to `--font-size-meta` (13 px at the standard text size), never under 4.5:1.
+   */
+  metadata: boolean;
 };
+
+/** Where metadata text sits (see RenderedText.metadata). */
+const METADATA = ".provenance-line, .live-action-spent, .chat-stopped-spent";
+
+/** The smallest font size a rendered text may have (ADR-0009): 16 px, or 13 px for metadata. */
+export const fontFloorOf = (text: RenderedText): number => (text.metadata ? 13 : 16);
 
 /**
  * Collects every visible piece of text on the page as the browser rendered it:
  * computed font size, text colour, the effective background behind it, and the
  * WCAG 2.1 contrast ratio between the two (computed from the spec formula).
+ * A sentence whose glossary term is a HelpTerm button (#343) is one text, as the catalogue has it, not three pieces.
  * Metadata text is left out: the ADR-0009 amendment (#317) lets it be smaller than body text,
  * at least 13px in #6b6a67 (5.4:1), e.g. AI Activity's summary and the Provenance line. Smaller
  * text in that colour is still collected, and so held to the body-text floor.
  */
 export async function renderedTexts(page: Page): Promise<RenderedText[]> {
-  return page.evaluate(() => {
+  return page.evaluate((metadata: string) => {
     // Metadata text (ADR-0009 amendment): #6b6a67, at least 13px.
     const META_COLOR = "rgb(107, 106, 103)";
     const MIN_META_PX = 13;
@@ -44,10 +56,17 @@ export async function renderedTexts(page: Page): Promise<RenderedText[]> {
     };
 
     const results: RenderedText[] = [];
+    // The element holding a sentence cut by HelpTerms: read once, whole.
+    const sentences = new Set<Element>();
+    const sentenceOf = (el: Element | null): Element | null =>
+      !el ? null : el.classList.contains("help-term") ? el.parentElement : el.querySelector(":scope > .help-term") ? el : null;
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-      const text = node.textContent?.trim();
-      const el = node.parentElement;
+      const sentence = sentenceOf(node.parentElement);
+      if (sentence && sentences.has(sentence)) continue;
+      if (sentence) sentences.add(sentence);
+      const text = (sentence ? sentence.textContent : node.textContent)?.replace(/\s+/g, " ").trim();
+      const el = sentence ?? node.parentElement;
       if (!text || !el || el.closest("script, style, option, noscript")) continue;
       const style = getComputedStyle(el);
       const rect = el.getBoundingClientRect();
@@ -63,6 +82,7 @@ export async function renderedTexts(page: Page): Promise<RenderedText[]> {
         color,
         background,
         contrast: (l1! + 0.05) / (l2! + 0.05),
+        metadata: el.closest(metadata) !== null,
       });
     }
     // The selected value of a <select> is rendered text too.
@@ -78,10 +98,11 @@ export async function renderedTexts(page: Page): Promise<RenderedText[]> {
         color,
         background,
         contrast: (l1! + 0.05) / (l2! + 0.05),
+        metadata: false,
       });
     }
     return results;
-  });
+  }, METADATA);
 }
 
 /** Every user-facing string in a nested i18next catalogue. */

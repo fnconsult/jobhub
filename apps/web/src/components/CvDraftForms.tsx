@@ -1,6 +1,6 @@
 "use client";
 
-import type { MasterCvContent } from "@jobhub/shared";
+import { formatTimeOfDay, type MasterCvContent } from "@jobhub/shared";
 import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -9,6 +9,7 @@ import type { CvDraft, CvFileErrorCode } from "@/cv";
 import type { ProfileFieldError } from "@/profiles";
 import { routes } from "@/routes";
 import { MasterCvFields } from "./MasterCvFields";
+import { StreamedActionStatus, useStreamedAction } from "./StreamedAction";
 import { criteriaFieldsOf, SearchCriteriaFields, searchCriteriaInput, useSearchCriteriaLabels, type CriteriaFields } from "./SearchCriteriaFields";
 import { UpgradePrompt, upgradePromptIn } from "./UpgradePrompt";
 
@@ -30,27 +31,25 @@ export const BLANK_DRAFT: CvDraft = { masterCv: BLANK_MASTER_CV, searchCriteria:
 
 const FILE_ERRORS = new Set<string>(["unsupported_format", "too_large", "unreadable", "empty"]);
 
-/** Uploading a PDF or Word CV and reading it into a draft. Saves nothing. */
+/**
+ * Uploading a PDF or Word CV and reading it into a draft. Saves nothing. The AI Coach's reading shows live, here and in AI
+ * Activity, and the Candidate can stop it (#335): nothing is then drafted.
+ */
 export function CvUpload({ onDraft }: { onDraft: (draft: CvDraft) => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const fileId = useId();
-  const [state, setState] = useState<{ reading: boolean; error?: CvFileErrorCode | "unknown" }>({ reading: false });
+  const action = useStreamedAction("cv_reading");
+  const [state, setState] = useState<{ error?: CvFileErrorCode | "unknown"; stoppedAt?: Date }>({});
+  const reading = action.running;
 
   async function readCv(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    setState({ reading: true });
-    try {
-      const response = await fetch("/api/cv/draft", { method: "POST", body: form });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        setState({ reading: false, error: FILE_ERRORS.has(body.error) ? body.error : "unknown" });
-        return;
-      }
-      onDraft(body as CvDraft);
-    } catch {
-      setState({ reading: false, error: "unknown" });
-    }
+    setState({});
+    const outcome = await action.run("/api/cv/draft", { method: "POST", body: form });
+    if (outcome.ok) onDraft(outcome.body as unknown as CvDraft);
+    else if (outcome.stopped) setState({ stoppedAt: outcome.at });
+    else setState({ error: FILE_ERRORS.has(String(outcome.body.error)) ? (outcome.body.error as CvFileErrorCode) : "unknown" });
   }
 
   return (
@@ -68,12 +67,18 @@ export function CvUpload({ onDraft }: { onDraft: (draft: CvDraft) => void }) {
         aria-describedby={`${fileId}-hint`}
         accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
       />
-      <button className="button button-primary" type="submit" disabled={state.reading}>
-        {state.reading ? t("cvUpload.reading") : t("cvUpload.submit")}
+      <button className="button button-primary" type="submit" disabled={reading}>
+        {reading ? t("cvUpload.reading") : t("cvUpload.submit")}
       </button>
-      {state.reading ? (
+      {reading ? (
         <p className="notice" role="status">
           {t("cvUpload.reading")}
+        </p>
+      ) : null}
+      <StreamedActionStatus action={action} stopLabel={t("aiActivity.live.stop.cv_reading")} />
+      {state.stoppedAt ? (
+        <p className="notice notice-stopped" role="status">
+          {t("cvUpload.stopped", { time: formatTimeOfDay(state.stoppedAt, new Date(), i18n.language === "en" ? "en" : "fr") })}
         </p>
       ) : null}
       {state.error ? (
@@ -125,7 +130,8 @@ export function CvReview(props: { draft: CvDraft; intro: string; startOverLabel:
       const response = await fetch("/api/profiles", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ masterCv, searchCriteria }),
+        // What read the CV, when the AI Coach did (#335): kept with the Master CV's first version.
+        body: JSON.stringify({ masterCv, searchCriteria, ...(props.draft.provenance ? { provenance: props.draft.provenance } : {}) }),
       });
       const body = await response.json().catch(() => ({}));
       if (response.status === 201) {

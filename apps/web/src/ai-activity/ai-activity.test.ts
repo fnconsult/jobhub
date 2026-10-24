@@ -1,7 +1,7 @@
-import type { Provenance } from "@jobhub/shared";
+import { rulesProvenance, type Provenance } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { applicationPage, jobDigestPage, jobOfferPage, jobSearchPage, profilePage, type PageSources } from "./index";
-import { aiActivityPane } from "./pane";
+import { applicationPage, tailoredDocumentsMade, jobDigestPage, jobOfferPage, jobSearchPage, profilePage, type PageSources } from "./index";
+import { aiActivityPane, byRulesOnly } from "./pane";
 
 /** The Job Offer: found by a web search, its page read, then read by Claude Haiku. */
 const read: Provenance = {
@@ -117,6 +117,17 @@ describe("AI Activity's page loaders (#332)", () => {
     ]);
   });
 
+  it("shows a new Job Digest from its Provenance (#336): its Match Scores, « Calcul » with no model, then its top-up run", async () => {
+    const scoring = rulesProvenance("match_score", { at: new Date("2026-10-21T06:00:00Z"), ms: 8 });
+    const [alone] = await jobDigestPage(sources(), { sentAt: new Date("2026-10-21T06:00:00Z"), provenance: scoring, results: [] });
+    const [toppedUp] = await jobDigestPage(sources(), { sentAt: new Date("2026-10-21T06:00:00Z"), provenance: { ...read, steps: [...scoring.steps, ...read.steps] }, results: [] });
+
+    expect(alone).toMatchObject({ kind: "job_digest", at: "2026-10-21T06:00:00.000Z", served: { models: [], tools: [{ name: null, ms: 8 }] } });
+    expect(byRulesOnly(alone!.served!)).toBe(true);
+    expect(toppedUp!.served!.models.map((model) => model.name)).toEqual(["Perplexity", "Claude Haiku 4.5"]);
+    expect(byRulesOnly(toppedUp!.served!)).toBe(false);
+  });
+
   it("shows `/candidatures/[id]/*`'s Job Offer, what was made for it (« non enregistré » until their slices land) and the Coach replies about the Application", async () => {
     const elements = await applicationPage(sources(), CANDIDATE, { id: APPLICATION, jobOffer: { id: OFFER, title: "DAF Lyon" } }, [
       { kind: "tailored_cv", at: new Date("2026-10-22T09:00:00Z") },
@@ -131,6 +142,42 @@ describe("AI Activity's page loaders (#332)", () => {
     ]);
   });
 
+  it("shows `/profils/[id]/*`'s ATS Score and ATS Fix cards as « Calcul » with no model, and an Action Card proposed before as « non enregistré » (#336)", async () => {
+    const at = new Date("2026-10-24T09:00:00Z");
+    const elements = await profilePage(sources({ replies: [] }), CANDIDATE, { id: PROFILE }, [
+      { kind: "ats_score", provenance: rulesProvenance("ats_score", { at }) },
+      { kind: "action_card", name: "Ajoutez « IFRS » à vos compétences", provenance: rulesProvenance("ats_fixes", { at, ms: 2 }) },
+      { kind: "action_card", name: "Ajoutez « SAP » à vos compétences", at, provenance: null },
+    ]);
+    const pane = aiActivityPane(elements);
+
+    expect(elements.map(({ kind, name, served }) => ({ kind, name, byRules: served ? byRulesOnly(served) : null }))).toEqual([
+      { kind: "ats_score", name: undefined, byRules: true },
+      { kind: "action_card", name: "Ajoutez « IFRS » à vos compétences", byRules: true },
+      { kind: "action_card", name: "Ajoutez « SAP » à vos compétences", byRules: null },
+    ]);
+    expect(pane.models).toEqual([]);
+    expect(pane.tools).toEqual([{ name: null, ms: 2, usedBy: [0, 1] }]);
+    // No model served the page: the closed button shows its label, not « 0 modèle ».
+    expect(pane.summary).toBeNull();
+  });
+
+  it("shows `/candidatures/[id]/*`'s Follow-up card with the model that wrote it (#336)", async () => {
+    const wrote: Provenance = {
+      v: 1,
+      steps: [{ kind: "ai", activity: "write", task: "writing", provider: "anthropic", endpoint: "bedrock eu-north-1", model: "anthropic.claude-sonnet-5", tokens: { input: 900, output: 120 }, ms: 2100, at: "2026-11-12T06:00:00.000Z", outcome: "ok", count: 1 }],
+      sites: [],
+      startedAt: "2026-11-12T06:00:00.000Z",
+      wallMs: 2100,
+    };
+    const elements = await applicationPage(sources({ replies: [] }), CANDIDATE, { id: APPLICATION, jobOffer: { id: OFFER, title: "DAF Lyon" } }, [
+      { kind: "action_card", name: "Relancer : DAF Lyon", provenance: wrote },
+    ]);
+
+    expect(elements[1]).toMatchObject({ kind: "action_card", name: "Relancer : DAF Lyon", at: "2026-11-12T06:00:00.000Z", served: { models: [{ name: "Claude Sonnet 5", tokens: 1020 }] } });
+    expect(aiActivityPane(elements).summary).toMatchObject({ models: 3 });
+  });
+
   it("shows `/profils/[id]/*`'s Action Cards, « non enregistré », and the Coach replies about the Profile", async () => {
     const elements = await profilePage(sources(), CANDIDATE, { id: PROFILE }, [{ kind: "action_card", at: new Date("2026-10-19T09:00:00Z") }]);
 
@@ -140,9 +187,82 @@ describe("AI Activity's page loaders (#332)", () => {
     ]);
   });
 
+  describe("Company Dossier and a Master CV read from a file (#335)", () => {
+    const REGISTER = { kind: "web" as const, domain: "annuaire-entreprises.data.gouv.fr", links: ["https://annuaire-entreprises.data.gouv.fr/entreprise/552100554"] };
+    const at = "2026-10-24T08:00:00.000Z";
+
+    it("shows `/candidatures/[id]/dossier`'s Company Dossier with what built it and its sites, and one built before as « non enregistré » with the sites its source names", async () => {
+      const built: Provenance = {
+        v: 1,
+        steps: [{ kind: "tool", activity: "search", tool: "recherche-entreprises", ms: 300, at, outcome: "ok", count: 1 }],
+        sites: [REGISTER],
+        startedAt: at,
+        wallMs: 400,
+      };
+      const [, fresh] = await applicationPage(sources({ replies: [] }), CANDIDATE, { id: APPLICATION, jobOffer: { id: OFFER, title: "DAF Lyon" } }, [{ kind: "company_dossier", provenance: built }]);
+      const old = await applicationPage(sources({ offers: {}, replies: [] }), CANDIDATE, { id: APPLICATION, jobOffer: { id: OFFER, title: "DAF Lyon" } }, [
+        { kind: "company_dossier", at: new Date("2026-01-01T09:00:00Z"), provenance: null, sites: [REGISTER] },
+      ]);
+      const pane = aiActivityPane(old);
+
+      expect(fresh).toMatchObject({ kind: "company_dossier", at, served: { sites: [REGISTER], tools: [{ name: "recherche-entreprises.api.gouv.fr" }] } });
+      expect(old[1]).toEqual({ kind: "company_dossier", at: "2026-01-01T09:00:00.000Z", served: null, sites: [REGISTER] });
+      // Its sites are the page's Sources; no total counts it.
+      expect(pane.sites).toEqual([REGISTER]);
+      expect(pane.total).toEqual({ tokens: null, ms: null });
+    });
+
+    it("shows `/profils/[id]/*`'s Master CV, read from the Candidate's file, with the model that read it", async () => {
+      const read: Provenance = {
+        v: 1,
+        steps: [{ kind: "ai", activity: "read", task: "cv_parsing", provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-medium-2508", tokens: { input: 1200, output: 600 }, ms: 4200, at, outcome: "ok", count: 1 }],
+        sites: [{ kind: "candidate", links: [] }],
+        startedAt: at,
+        wallMs: 4300,
+      };
+      const [masterCv] = await profilePage(sources({ replies: [] }), CANDIDATE, { id: PROFILE }, [{ kind: "master_cv", provenance: read }]);
+
+      expect(masterCv).toMatchObject({ kind: "master_cv", at, served: { models: [{ ids: ["mistral-medium-2508"], tokens: 1800 }], sites: [{ kind: "candidate", links: [] }], ms: 4300 } });
+    });
+  });
+
   it("lists a Coach reply saved with nothing kept as « modèle non enregistré »", async () => {
     const elements = await jobOfferPage(sources({ replies: [{ at: "2026-09-01T08:00:00.000Z", provenance: null }] }), CANDIDATE, { id: OFFER, title: "DAF Lyon" });
 
     expect(elements[1]).toEqual({ kind: "coach_reply", at: "2026-09-01T08:00:00.000Z", served: null });
+  });
+});
+
+describe("the Application's Tailored Documents, as AI Activity reads them on its pages (#334)", () => {
+  const written = (model: string): Provenance => ({
+    v: 1,
+    steps: [{ kind: "ai", activity: "write", task: "writing", provider: "mistral", endpoint: "api.mistral.ai", model, tokens: { input: 4000, output: 900 }, ms: 8200, at: "2026-10-23T10:40:00.000Z", outcome: "ok", count: 1 }],
+    sites: [],
+    startedAt: "2026-10-23T10:40:00.000Z",
+    wallMs: 8200,
+  });
+  const day = (hour: number) => new Date(Date.UTC(2026, 9, 23, hour));
+
+  it("is the saved Tailored CV, the proposal under review, the Cover Letter and the Outreach Message, each with its Provenance and when it was written", async () => {
+    const made = tailoredDocumentsMade(
+      { saved: { savedAt: day(9), provenance: written("mistral-large-latest") }, proposal: { proposedAt: day(10), provenance: written("mistral-medium-latest") } },
+      { coverLetter: { draftedAt: day(11), provenance: written("mistral-large-latest") }, outreachMessage: { draftedAt: day(12), provenance: null } },
+    );
+    expect(made.map(({ kind, at, provenance }) => ({ kind, at, model: provenance?.steps[0]?.kind === "ai" ? provenance.steps[0].model : null }))).toEqual([
+      { kind: "tailored_cv", at: day(9), model: "mistral-large-latest" },
+      { kind: "tailored_cv", at: day(10), model: "mistral-medium-latest" },
+      { kind: "tailored_documents", at: day(11), model: "mistral-large-latest" },
+      { kind: "tailored_documents", at: day(12), model: null },
+    ]);
+
+    // As the pane shows them: the models that wrote them, their tokens and time; one written before #334, « modèle non enregistré ».
+    const elements = await applicationPage(sources({ offers: {}, replies: [] }), "candidate-1", { id: "application-1", jobOffer: { id: "offer-1", title: "DAF" } }, made);
+    expect(elements.slice(1).map((element) => element.served?.models.map((model) => model.name) ?? null)).toEqual([["Mistral Large"], ["Mistral Medium"], ["Mistral Large"], null]);
+    expect(aiActivityPane(elements).total).toEqual({ tokens: 3 * 4900, ms: 3 * 8200 });
+  });
+
+  it("is nothing when none was written yet", () => {
+    expect(tailoredDocumentsMade(null, null)).toEqual([]);
+    expect(tailoredDocumentsMade({ saved: null, proposal: null }, { coverLetter: null, outreachMessage: null })).toEqual([]);
   });
 });

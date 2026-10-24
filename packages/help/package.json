@@ -1,0 +1,13 @@
+{
+  "name": "@jobhub/help",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsx scripts/build-articles.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

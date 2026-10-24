@@ -1,13 +1,14 @@
 import { sharedPool } from "@/database/pool";
 import { getCoach } from "@/coach/server";
 import { getProfiles } from "@/profiles/server";
+import { getUnansweredQuestions } from "@/unanswered-questions/server";
 import { coachCostPerDay, coachCostPerPlaybookAgent, createCoachConversations, type CoachConversations, type CoachCostDay, type PlaybookAgentCost } from "./index";
 
 let instance: CoachConversations | undefined;
 
-/** The app's Coach Conversations, on the database named by DATABASE_URL and the app's AI Coach. */
+/** The app's Coach Conversations, on the database named by DATABASE_URL and the app's AI Coach; the questions the help missed go to Unanswered Questions. */
 export function getCoachConversations(): CoachConversations {
-  instance ??= createCoachConversations(sharedPool(), { coach: getCoach(), profiles: getProfiles() });
+  instance ??= createCoachConversations(sharedPool(), { coach: getCoach(), profiles: getProfiles(), unansweredQuestions: getUnansweredQuestions() });
   return instance;
 }
 

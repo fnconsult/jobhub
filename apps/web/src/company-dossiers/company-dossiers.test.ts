@@ -1,6 +1,6 @@
 import { createAiLayer, type AiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
-import type { MasterCvContent } from "@jobhub/shared";
+import type { MasterCvContent, ProvenanceEvent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApplications, migrateApplications, type Applications } from "../applications";
@@ -9,7 +9,7 @@ import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers
 import { createProfiles, migrateProfiles } from "../profiles";
 import { servedTasks } from "../task-playbooks/test-support";
 import { CompanyRegisterUnavailable, type CompanyRegister, type RegisteredCompany } from "./french-register";
-import { createCompanyDossiers, migrateCompanyDossiers, type CompanyDossiers } from "./index";
+import { createCompanyDossiers, dossierSites, migrateCompanyDossiers, type CompanyDossiers } from "./index";
 
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -376,6 +376,7 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
             news: [],
             newsSearched: true,
           },
+          provenance: expect.objectContaining({ v: 1 }),
         },
       });
       expect(perplexity.queries[0]).toContain("« Acme Robotics GmbH »");
@@ -740,6 +741,165 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
     expect(tavily.queries).toEqual([expect.stringMatching(/^Fiche courte de « Globex Ltd »/)]);
     expect(perplexity.queries).toEqual([]);
     expect(newsQueries).toEqual([expect.stringMatching(/^Articles de presse sur « Globex Ltd »/)]);
+  });
+
+  describe("Provenance (ADR-0034, #335)", () => {
+    const REGISTER_PAGE = "https://annuaire-entreprises.data.gouv.fr/entreprise/552100554";
+
+    it("keeps what served a new dossier: the offer read, the register searched, the news searched, with the register's page and the articles as its sites", async () => {
+      newsAnswer = JSON.stringify({
+        articles: [{ title: "Acme Industrie ouvre une usine", outlet: "Les Echos", date: new Date().toISOString().slice(0, 10), url: "https://news.example/usine?utm_source=feed", namesPerson: false }],
+      });
+      const applicationId = await applicationFor({ employer: "Acme Industrie" });
+
+      const result = await dossiers.build(candidateId, applicationId);
+
+      const provenance = {
+        v: 1,
+        steps: [
+          { kind: "ai", activity: "think", task: "offer_analysis", provider: "mistral", outcome: "ok", count: 1 },
+          { kind: "tool", activity: "search", tool: "recherche-entreprises", outcome: "ok", count: 1 },
+          { kind: "ai", activity: "web_search", task: "web_search", provider: "perplexity", outcome: "ok", count: 1 },
+        ],
+        sites: [
+          { kind: "web", domain: "annuaire-entreprises.data.gouv.fr", links: [REGISTER_PAGE] },
+          { kind: "web", domain: "news.example", links: ["https://news.example/usine"] },
+        ],
+      };
+      expect(result).toMatchObject({ ok: true, state: { status: "built", provenance } });
+      expect(await dossiers.get(candidateId, applicationId)).toMatchObject({ status: "built", provenance });
+    });
+
+    it("keeps the web pages a dossier from the web was built from as its sites, never a person's profile", async () => {
+      register.companies = [];
+      webSources = ["https://globex.example/about?ref=search", "https://www.linkedin.com/in/jean-dupont"];
+      const applicationId = await applicationFor({ employer: "Globex Corp" });
+
+      const result = await dossiers.build(candidateId, applicationId);
+
+      expect(result).toMatchObject({
+        ok: true,
+        state: {
+          provenance: {
+            steps: [
+              { kind: "ai", task: "offer_analysis" },
+              { kind: "tool", tool: "recherche-entreprises" },
+              { kind: "ai", activity: "web_search", task: "web_search", provider: "perplexity", count: 2 },
+            ],
+            sites: [{ kind: "web", domain: "globex.example", links: ["https://globex.example/about"] }],
+          },
+        },
+      });
+    });
+
+    it("joins the offer's reading that presumed the employer with the dossier built once the Candidate confirms it", async () => {
+      analysis = { recruitingAgency: true, presumedEmployer: "Acme Industrie" };
+      const applicationId = await applicationFor({ employer: "Cabinet Recrutement Conseil" });
+      await dossiers.build(candidateId, applicationId);
+
+      const confirmed = await dossiers.confirmEmployer(candidateId, applicationId, { employer: "Acme Industrie" });
+
+      expect(confirmed).toMatchObject({
+        ok: true,
+        state: { provenance: { steps: [{ task: "offer_analysis" }, { tool: "recherche-entreprises" }, { task: "web_search" }], sites: [{ links: [REGISTER_PAGE] }] } },
+      });
+    });
+
+    it("tells each step as it starts and ends", async () => {
+      const events: ProvenanceEvent[] = [];
+      const applicationId = await applicationFor({ employer: "Acme Industrie" });
+
+      await dossiers.build(candidateId, applicationId, { onEvent: (event) => events.push(event) });
+
+      expect(events.map((event) => [event.type, event.step.activity])).toEqual([
+        ["step_started", "think"],
+        ["step_ended", "think"],
+        ["step_started", "search"],
+        ["step_ended", "search"],
+        ["step_started", "web_search"],
+        ["step_ended", "web_search"],
+      ]);
+    });
+
+    it("shows a dossier built before Provenance was kept as none, and the sites its own source names", async () => {
+      const applicationId = await applicationFor({ employer: "Acme Industrie" });
+      const other = await applicationFor({ employer: "Globex Corp" });
+      const database = testAuth.auth.options.database as Pool;
+      const built = { reliability: "official", employer: "Acme", builtAt: "2026-01-01T09:00:00.000Z", suggestedContactRoles: [] };
+      await database.query(`INSERT INTO company_dossier (application_id, dossier) VALUES ($1, $2), ($3, $4)`, [
+        applicationId,
+        { ...built, source: "french_register", siren: "552100554", name: "ACME INDUSTRIE", financials: [], executiveRoles: [], news: [{ title: "Acme", outlet: "Les Echos", publishedAt: "2025-12-01", url: "https://news.example/a" }] },
+        other,
+        { ...built, source: "web", reliability: "less_reliable", sources: ["https://globex.example/about", "https://www.linkedin.com/in/jean-dupont"] },
+      ]);
+
+      const fromRegister = await dossiers.get(candidateId, applicationId);
+      const fromWeb = await dossiers.get(candidateId, other);
+
+      expect(fromRegister).toMatchObject({ status: "built", provenance: null });
+      if (fromRegister?.status !== "built" || fromWeb?.status !== "built") throw new Error("not built");
+      expect(dossierSites(fromRegister.dossier)).toEqual([
+        { kind: "web", domain: "annuaire-entreprises.data.gouv.fr", links: [REGISTER_PAGE] },
+        { kind: "web", domain: "news.example", links: ["https://news.example/a"] },
+      ]);
+      expect(dossierSites(fromWeb.dossier)).toEqual([{ kind: "web", domain: "globex.example", links: ["https://globex.example/about"] }]);
+    });
+
+    describe("Stop", () => {
+      /** The web search stops the build when it is asked `what` (the news, or any search). */
+      function stoppedBy(stop: AbortController, what: "news" | "any") {
+        const search = perplexity.search!;
+        perplexity.search = async (query, options) => {
+          if (what === "news" && !query.startsWith("Articles de presse")) return search(query, options);
+          stop.abort();
+          throw stop.signal.reason;
+        };
+      }
+
+      it("keeps the finished parts when stopped during the news search: the dossier's facts, its news not searched", async () => {
+        const stop = new AbortController();
+        const applicationId = await applicationFor({ employer: "Acme Industrie" });
+        stoppedBy(stop, "news");
+
+        const result = await dossiers.build(candidateId, applicationId, { signal: stop.signal });
+
+        const state = {
+          status: "built",
+          dossier: { siren: "552100554", news: [], newsSearched: false },
+          provenance: { steps: [{ task: "offer_analysis", outcome: "ok" }, { tool: "recherche-entreprises", outcome: "ok" }, { task: "web_search", outcome: "stopped" }] },
+        };
+        expect(result).toMatchObject({ ok: false, error: "stopped", state });
+        expect(await dossiers.get(candidateId, applicationId)).toMatchObject(state);
+      });
+
+      it("keeps nothing new when stopped before the dossier's facts were found: the dossier stays as it was", async () => {
+        register.companies = [];
+        const applicationId = await applicationFor({ employer: "Globex Corp" });
+        await dossiers.build(candidateId, applicationId);
+        const before = await dossiers.get(candidateId, applicationId);
+        const stop = new AbortController();
+        stoppedBy(stop, "any");
+
+        const result = await dossiers.build(candidateId, applicationId, { signal: stop.signal });
+
+        expect(result).toEqual({ ok: false, error: "stopped", state: before });
+        expect(await dossiers.get(candidateId, applicationId)).toEqual(before);
+      });
+
+      it("keeps nothing when stopped while the offer is read", async () => {
+        const stop = new AbortController();
+        mistral.generate = async () => {
+          stop.abort();
+          throw stop.signal.reason;
+        };
+        const applicationId = await applicationFor({ employer: "Acme Industrie" });
+
+        const result = await dossiers.build(candidateId, applicationId, { signal: stop.signal });
+
+        expect(result).toEqual({ ok: false, error: "stopped", state: { status: "not_built" } });
+        expect(register.queries).toEqual([]);
+      });
+    });
   });
 
   it("shows and builds a dossier only for the Candidate's own Application", async () => {

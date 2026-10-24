@@ -57,6 +57,7 @@ export const BACK_OFFICE_SECTIONS = [
   "coaching_playbooks",
   "eval_cases",
   "guardrails",
+  "unanswered_questions",
   // Sections only an Administrator denied entry is in (#264): the pages that change nothing.
   "eval_runs",
   "coach_message_cost",
@@ -221,6 +222,7 @@ const DENIED_SECTIONS = {
   guardrails: "guardrails",
   tools: "tool_pages",
   evalRuns: "eval_runs",
+  unansweredQuestions: "unanswered_questions",
 } as const satisfies Record<BackOfficeResource, BackOfficeSection>;
 
 /** The page an Administrator was denied `resource` on: the Back Office page it covers; Eval Runs are played from the Coaching Playbooks. */

@@ -1,7 +1,7 @@
 /**
  * Line icons from the Notion-like prototype (#132). Decoration only: each one
- * sits beside its label in words (ADR-0009: no icon-only function), so it is
- * hidden from screen readers.
+ * sits beside its label in words (ADR-0009: no icon-only function, but AI
+ * Activity's stop icon, named by its aria-label), so it is hidden from screen readers.
  */
 const PATHS = {
   menu: ["M4 7h16M4 12h16M4 17h16"],
@@ -26,6 +26,10 @@ const PATHS = {
   coach: ["M4 5h16v11H9l-5 4z", "M8 9h8M8 12h5"],
   // A list of ticked tasks: AI Activity (#332).
   aiActivity: ["M10 6h10M10 12h10M10 18h10", "M4 6l1.2 1.2L7.5 5", "M4 12l1.2 1.2 2.3-2.2", "M4 18l1.2 1.2 2.3-2.2"],
+  // Stop an AI action under way (#333): a square.
+  stop: ["M7 7h10v10H7z"],
+  // A tick: an AI action done (#333), « ✓ Dernière recherche · 16 s ».
+  done: ["M5 12.5l4.5 4.5L19 7.5"],
   add: ["M12 5v14M5 12h14"],
   conversations: ["M4 6h16M4 12h16M4 18h10"],
   searchAgain: ["M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3M18 3v4h-4M6 21v-4h4"],
@@ -40,6 +44,8 @@ const PATHS = {
   coachingPlaybooks: ["M3 5c3-1 6-1 9 1v14c-3-2-6-2-9-1z", "M21 5c-3-1-6-1-9 1v14c3-2 6-2 9-1z"],
   // A railing, two posts and two rails: the Guardrails (#228).
   guardrails: ["M5 4v16M19 4v16", "M5 8h14M5 14h14"],
+  // A question mark in a speech bubble: the Unanswered Questions (#344).
+  unansweredQuestions: ["M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-9l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z", "M10 9.5a2 2 0 1 1 2.8 1.8c-.5.2-.8.7-.8 1.2v.5M12 15h.01"],
   searchSites: ["M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z", "M3 12h18M12 3c2.5 2.5 3.8 5.5 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.5-3.8-9S9.5 5.5 12 3z"],
   // A key: Provider Secrets (#208).
   providerSecrets: ["M8 9a4 4 0 1 0 0 8 4 4 0 0 0 0-8z", "M11 11l9-9M16 6l3 3M14 8l2 2"],

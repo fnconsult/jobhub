@@ -10,6 +10,7 @@ import { FOLLOW_UP_CARD, type FollowUpNotice } from "@/follow-ups";
 import { getFollowUps } from "@/follow-ups/server";
 import { ApplicationStatusSelect } from "@/components/ApplicationControls";
 import { CandidateLayout } from "@/components/CandidateLayout";
+import { EmptyStateHelp, HelpTerm } from "@/components/HelpTerm";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getProfiles } from "@/profiles/server";
 import { routes } from "@/routes";
@@ -60,9 +61,11 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: INTERVIEW_TIME_ZONE });
   return (
     <CandidateLayout candidateId={candidate.id} wide={board} title={t("applications.title")}>
-      <FollowUpNotices notices={notices} t={t} />
+      <FollowUpNotices notices={notices} waiting={applications.some(isWaitingForNews)} t={t} />
       {applications.length === 0 ? (
-        <p className="notice">{t("applications.none")}</p>
+        <p className="notice">
+          {t("applications.none")} <EmptyStateHelp of="applications" />
+        </p>
       ) : (
         <>
           {/* One row: the filters, then the List and Board switch at its far end. */}
@@ -91,12 +94,26 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
   );
 }
 
-/** The in-app notice: Applications with a Follow-up or an "Abandonnée" suggestion waiting for the Candidate. */
-function FollowUpNotices({ notices, t }: { notices: FollowUpNotice[]; t: T }) {
-  if (notices.length === 0) return null;
+/** At « Postulée » or « Relancée », an Application waits for the employer's news: a Relance may come. */
+const isWaitingForNews = (application: ApplicationSummary) => application.status === "applied" || application.status === "followed_up";
+
+/**
+ * The in-app notice: Applications with a Follow-up or an "Abandonnée" suggestion waiting for the Candidate. With none,
+ * while some Application `waiting` for news may get one, the empty state says so, with its link to the help (#343).
+ */
+function FollowUpNotices({ notices, waiting, t }: { notices: FollowUpNotice[]; waiting: boolean; t: T }) {
+  if (notices.length === 0) {
+    return waiting ? (
+      <p className="hint">
+        {t("followUps.noneWaiting")} <EmptyStateHelp of="followUps" />
+      </p>
+    ) : null;
+  }
   return (
     <section className="notice stack" aria-labelledby="follow-up-notices-title">
-      <h2 id="follow-up-notices-title">{t("followUps.noticesTitle")}</h2>
+      <h2 id="follow-up-notices-title">
+        <HelpTerm term="followUp">{t("followUps.noticesTitle")}</HelpTerm>
+      </h2>
       <ul>
         {notices.map((notice) => (
           <li key={notice.applicationId}>

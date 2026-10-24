@@ -36,12 +36,24 @@
  * The AI Coach's instructions and the AI writing the proposal are the "tailored-cv" task
  * Playbook's (ADR-0026); the reply's shape stays here.
  */
-import type { AiLayer } from "@jobhub/ai";
-import { DOCUMENT_LANGUAGES, jobOfferLanguage, normalise, scoreMatch, withoutIdentity, type CvContent, type DocumentLanguage } from "@jobhub/shared";
+import { createProvenanceRecorder, type AiLayer } from "@jobhub/ai";
+import {
+  DOCUMENT_LANGUAGES,
+  jobOfferLanguage,
+  normalise,
+  readProvenance,
+  scoreMatch,
+  withoutIdentity,
+  type CvContent,
+  type DocumentLanguage,
+  type Provenance,
+  type ProvenanceEvent,
+} from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { Application, Applications } from "../applications";
 import type { Profiles } from "../profiles";
+import { routes } from "../routes";
 import { taskRun, type TaskPlaybookReader, type TaskRun } from "../task-playbooks";
 import { documentLanguageOf, keepDocumentLanguage } from "../tailored-documents/document-language";
 import { fieldErrors, type FieldError } from "../validation";
@@ -79,6 +91,8 @@ export interface TailoredCvProposal {
   /** Match Scores against the Job Offer, with the Profile's Search Criteria: that Master CV's, and this content's. */
   matchScore: { master: number; tailored: number };
   proposedAt: Date;
+  /** What served it (ADR-0034, #334): the models, their tokens and time, the pages it drew on; null for one proposed before it was kept. */
+  provenance: Provenance | null;
 }
 
 /** The Tailored CV the Candidate saved on the Application, once reviewed. */
@@ -90,6 +104,8 @@ export interface SavedTailoredCv {
   /** As for the proposal it was. */
   matchScore: { master: number; tailored: number };
   savedAt: Date;
+  /** The proposal's, copied when it was saved (#334); null for one saved before it was kept. */
+  provenance: Provenance | null;
 }
 
 export interface ApplicationTailoredCv {
@@ -110,13 +126,27 @@ export type TailoredCvResult =
   /** The Master CV (or the Application's Profile) changed since the proposal: it must be proposed again. */
   | { ok: false; error: "master_cv_changed" }
   /** The proposal was proposed again or answered since the Candidate reviewed it: nothing was saved. */
-  | { ok: false; error: "proposal_changed" };
+  | { ok: false; error: "proposal_changed" }
+  /** The Candidate stopped the proposal (#334): the half-written one is discarded, nothing was changed. */
+  | { ok: false; error: "stopped" };
+
+/**
+ * How a proposal runs (#334): `signal`, the Candidate's Stop, aborts its AI calls; `onEvent` hears each step start and end,
+ * as AI Activity shows them live.
+ */
+export interface ProposeOptions {
+  signal?: AbortSignal;
+  onEvent?: (event: ProvenanceEvent) => void;
+}
 
 export interface TailoredCvs {
   /** The Application's Tailored CV, or null if it does not exist or belongs to someone else. */
   get(candidateId: string, applicationId: string): Promise<ApplicationTailoredCv | null>;
-  /** Has the AI Coach propose a Tailored CV, replacing the proposal under review. `input`: { language? }. */
-  propose(candidateId: string, applicationId: string, input: unknown): Promise<TailoredCvResult>;
+  /**
+   * Has the AI Coach propose a Tailored CV, replacing the proposal under review. `input`: { language? }.
+   * Kept with its Provenance. Once `options.signal` aborts, "stopped": nothing is kept, the proposal under review stays.
+   */
+  propose(candidateId: string, applicationId: string, input: unknown, options?: ProposeOptions): Promise<TailoredCvResult>;
   /**
    * The Candidate's answer to one question of the proposal: `input` { requirement, confirmed }.
    * Can be changed until the proposal is saved. "not_found" also when the proposal asks no such question.
@@ -280,6 +310,8 @@ interface ProposalRow {
   offerWording?: string[];
   offerWordingTranslated?: boolean;
   proposedAt: string;
+  /** Absent from proposals made before it was kept. */
+  provenance?: unknown;
 }
 
 interface SavedRow {
@@ -288,6 +320,8 @@ interface SavedRow {
   master: CvContent;
   content: CvContent;
   savedAt: string;
+  /** The proposal's; absent from Tailored CVs saved before it was kept. */
+  provenance?: unknown;
 }
 
 /** The Job Offer's requirements the Master CV does not show: its skills, then what the AI Coach found in its text. */
@@ -379,6 +413,7 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
         offerWordingTranslated: row.offerWordingTranslated ?? false,
         matchScore: { master: score(row.master), tailored: score(content) },
         proposedAt: new Date(row.proposedAt),
+        provenance: readProvenance(row.provenance),
       };
     }
     const kept = rows[0]?.saved ?? null;
@@ -389,6 +424,7 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
           content: kept.content,
           matchScore: { master: score(kept.master), tailored: score(kept.content) },
           savedAt: new Date(kept.savedAt),
+          provenance: readProvenance(kept.provenance),
         }
       : null;
     return { documentLanguage, proposal, saved };
@@ -400,7 +436,7 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
       return application ? stateOf(candidateId, application) : null;
     },
 
-    async propose(candidateId, applicationId, input) {
+    async propose(candidateId, applicationId, input, options = {}) {
       const parsed = proposeSchema.safeParse(input ?? {}, { reportInput: true });
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       const application = await deps.applications.get(candidateId, applicationId);
@@ -415,10 +451,16 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
         // Adapting needs the career, not the person: the identity block stays out of the prompt (ADR-0007).
         `${language === "fr" ? "CV de référence" : "Reference CV"} : ${JSON.stringify(referenceCv(withoutIdentity(master)))}`,
       ].join("\n\n");
+      const { signal, onEvent } = options;
+      const recorder = createProvenanceRecorder(deps.ai, { ...(signal ? { signal } : {}), ...(onEvent ? { onEvent } : {}) });
+      // The pages it draws on: the Job Offer's and the Master CV.
+      if (jobOffer.source.url) recorder.site(jobOffer.source.url);
+      recorder.site(routes.editMasterCv(profile.id));
+      const stopped = { ok: false, error: "stopped" } as const;
       const run = await taskRun(deps.taskPlaybooks, "tailored-cv", deps.ai);
-      const reply = await askForTailoredCv(deps.ai, { task: "writing", candidateId, system: systemPrompt(run, language), prompt, ...run.agent });
+      const reply = await askForTailoredCv(recorder.ai, { task: "writing", candidateId, system: systemPrompt(run, language), prompt, ...run.agent });
+      if (signal?.aborted) return stopped;
       if (!reply) return { ok: false, error: "unavailable" };
-      if (parsed.data.language) await keepDocumentLanguage(database, application.id, language);
       const { content: adapted, origins } = fromMasterCv(master, reply, jobOffer.skills ?? [], language);
       const proposal: ProposalRow = {
         language,
@@ -428,9 +470,13 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
         adapted,
         origins,
         questions: questionsFor(master, application, reply),
-        ...(await offerWording(deps.ai, candidateId, master, adapted, application, language)),
+        ...(await offerWording(recorder.aiFor("tailored_cv_translation"), candidateId, master, adapted, application, language)),
         proposedAt: new Date().toISOString(),
       };
+      // A Stop discards the half-written proposal (#334), even once it is written: its words were not all checked.
+      if (signal?.aborted) return stopped;
+      proposal.provenance = recorder.provenance();
+      if (parsed.data.language) await keepDocumentLanguage(database, application.id, language);
       await database.query(
         `INSERT INTO tailored_cv (application_id, proposal) VALUES ($1, $2) ON CONFLICT (application_id) DO UPDATE SET proposal = $2`,
         [application.id, proposal],
@@ -477,6 +523,7 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
         master: proposal.master,
         content: withChanges(proposal.master, withConfirmed(proposal.adapted, proposal.questions), accepted, proposal.origins),
         savedAt: new Date().toISOString(),
+        ...(proposal.provenance !== undefined ? { provenance: proposal.provenance } : {}),
       };
       // Only the revision the Candidate reviewed: one proposed or answered since, even a moment ago, is not saved unseen.
       const { rowCount } = await database.query(`UPDATE tailored_cv SET saved = $2, proposal = NULL WHERE application_id = $1 AND md5(proposal::text) = $3`, [application.id, saved, revision]);

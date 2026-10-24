@@ -45,7 +45,7 @@ async function openAssistant(page: Page) {
 
 async function ask(page: Page, text: string) {
   await assistant(page).getByLabel(fr.coachPanel.messageLabel).fill(text);
-  await assistant(page).getByRole("button", { name: fr.coachPanel.send }).click();
+  await assistant(page).getByRole("button", { name: fr.backOfficeAssistant.send, exact: true }).click();
 }
 
 /** The last message of the conversation (a reply holds lists of its own: only the messages count). */

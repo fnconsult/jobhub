@@ -1,12 +1,14 @@
-import { NextResponse } from "next/server";
+import { STOPPED, type ActionOutcome } from "../ndjson";
 import type { CompanyDossierResult } from "./index";
 
 /**
- * The HTTP response for the outcome of building a Company Dossier:
- * 200 CompanyDossierState · 400 { errors } · 404 · 503 { error: "unavailable" }
+ * How building a Company Dossier ended, as its route answers:
+ * 200 CompanyDossierState · 400 { errors } · 404 · 499 { error: "stopped", state } (the dossier as now kept, #335) · 503 { error: "unavailable" }
  */
-export function companyDossierResponse(result: CompanyDossierResult): NextResponse {
-  if (result.ok) return NextResponse.json(result.state);
-  if ("errors" in result) return NextResponse.json({ errors: result.errors }, { status: 400 });
-  return NextResponse.json({ error: result.error }, { status: result.error === "not_found" ? 404 : 503 });
+export function companyDossierOutcome(result: CompanyDossierResult): ActionOutcome {
+  if (result.ok) return { status: 200, body: result.state };
+  if ("errors" in result) return { status: 400, body: { errors: result.errors } };
+  if (result.error === "stopped") return { status: STOPPED, body: { error: result.error, state: result.state } };
+  return { status: result.error === "not_found" ? 404 : 503, body: { error: result.error } };
 }
+

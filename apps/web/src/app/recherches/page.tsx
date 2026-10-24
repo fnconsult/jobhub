@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentCandidate } from "@/auth/server";
 import { loadAiActivity } from "@/ai-activity/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
+import { EmptyStateHelp } from "@/components/HelpTerm";
 import { CoachInView } from "@/components/CoachPanel";
 import { Icons } from "@/components/icons";
 import { JobOfferResults } from "@/components/JobOfferResults";
@@ -229,7 +230,9 @@ function ProfileStanding({ standing: { profile, searching, latest }, t, locale, 
           )}
         </section>
       ) : searching ? null : (
-        <p className="notice">{t("jobSearchesPage.never")}</p>
+        <p className="notice">
+          {t("jobSearchesPage.never")} <EmptyStateHelp of="jobSearches" />
+        </p>
       )}
     </>
   );
@@ -285,7 +288,9 @@ function ProfileGroup({ standing, lanes, t, locale, date }: { standing: Standing
           )}
         </>
       ) : searching ? null : (
-        <p className="notice">{t("jobSearchesPage.never")}</p>
+        <p className="notice">
+          {t("jobSearchesPage.never")} <EmptyStateHelp of="jobSearches" />
+        </p>
       )}
     </section>
   );

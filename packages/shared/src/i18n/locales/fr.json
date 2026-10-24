@@ -149,6 +149,24 @@
     "valueText": "{{used}} sur {{allowed}} utilisés ({{percent}} %)",
     "subscription": "Voir mon abonnement"
   },
+  "helpTerms": {
+    "suffix": "(aide)",
+    "words": {
+      "followUp": "relance",
+      "planQuota": "quota",
+      "masterCv": "CV de référence",
+      "tailoredCv": "CV adapté",
+      "proposals": "proposition"
+    }
+  },
+  "emptyStateHelp": {
+    "proposals": "D'où viennent les propositions ?",
+    "followUps": "Comment marchent les relances ?",
+    "applications": "Comment suivre une candidature ?",
+    "jobSearches": "Comment marche une recherche d'offres ?",
+    "agenda": "Comment noter un entretien ?",
+    "profiles": "Comment créer un profil ?"
+  },
   "signIn": {
     "title": "Se connecter à Jobbbox",
     "intro": "Pas de mot de passe à retenir : recevez un lien de connexion par e-mail, ou utilisez votre compte {{providers}}. Si vous n'avez pas encore de compte, il sera créé.",
@@ -279,7 +297,8 @@
       "unknown": "Une erreur est survenue. Veuillez réessayer."
     },
     "fromScratchHint": "Pas de CV sous la main ? Remplissez vous-même votre CV de référence et vos critères de recherche.",
-    "fromScratch": "Partir de zéro"
+    "fromScratch": "Partir de zéro",
+    "stopped": "Lecture arrêtée à {{time}} : rien n'a été lu ni enregistré."
   },
   "cvReview": {
     "title": "Vérifiez votre CV et vos critères de recherche",
@@ -420,7 +439,7 @@
     "cvVersion": "Version {{version}} · enregistrée le {{date}}",
     "skills": "Compétences, une par ligne",
     "jobDescription": "Missions et réalisations : {{job}}",
-    "fullEditorHint": "Vos coordonnées, vos postes, vos formations et vos langues se modifient dans l'éditeur complet.",
+    "fullEditorHint": "Vos coordonnées, vos postes, vos formations et vos langues se modifient dans l'éditeur complet du CV de référence.",
     "unsaved": "Modifications non enregistrées",
     "savebarLabel": "Modifications du CV de référence",
     "cancel": "Annuler",
@@ -508,7 +527,8 @@
     "startOver": "Recommencer"
   },
   "coachPanel": {
-    "open": "Mon coach",
+    "open": "Aide et coach",
+    "openShort": "Aide",
     "title": "Coach IA",
     "badge": "Coach IA",
     "close": "Fermer",
@@ -523,7 +543,7 @@
     "welcome": "Bonjour, je suis votre coach. Comment puis-je vous aider ?",
     "aiDisclosure": "Je suis un coach IA, pas une personne : un programme d'intelligence artificielle de Jobbbox. Pour parler à une personne, vous pouvez réserver une séance avec un coach humain. Comment puis-je vous aider ?",
     "messageLabel": "Votre message",
-    "send": "Envoyer",
+    "send": "Envoyer au coach",
     "stop": "Arrêter",
     "stopped": "Réponse arrêtée",
     "failed": "Votre coach n'a pas pu répondre : {{reason}}. Réessayez dans quelques instants.",
@@ -569,6 +589,30 @@
       "toProcess": "À traiter",
       "followed": "Suivie",
       "open": "Ouvrir l'offre"
+    },
+    "help": {
+      "greeting": "Posez votre question : je cherche d'abord dans l'aide de Jobbbox, sans IA, et votre coach IA répond si l'aide n'a pas la réponse.",
+      "onThisPage": "Sur cette page",
+      "readMore": "Lire la suite",
+      "readMoreAbout": "Lire la suite : {{title}}",
+      "oftenAsked": "Souvent demandé",
+      "suggestions": "Dans l'aide, sans IA",
+      "found_one": "{{count}} article dans l'aide",
+      "found_other": "{{count}} articles dans l'aide",
+      "cardLabel": "Aide · écrit par l'équipe Jobbbox",
+      "answered": "Cela répond à votre question ?",
+      "yes": "Oui",
+      "no": "Non, demander au coach",
+      "thanks": "Merci ! Posez une autre question quand vous voulez.",
+      "askAbout": "À propos de « {{title}} » : ",
+      "unavailableHelp": "Voici ce que l'aide propose :",
+      "noHelp": "L'aide n'a pas d'article sur cette question. Pour joindre l'équipe Jobbbox, faites un signalement.",
+      "signalement": "Faire un signalement",
+      "kinds": {
+        "page": "Page",
+        "glossary": "Mot à connaître",
+        "faq": "Question fréquente"
+      }
     }
   },
   "provenanceLine": {
@@ -628,7 +672,9 @@
     "error": "Cette proposition n'a pas pu être appliquée. Réessayez ou rechargez la page.",
     "copyDraft": "Copier le brouillon",
     "copied": "Brouillon copié.",
-    "copyFailed": "La copie a échoué : sélectionnez le texte du brouillon et copiez-le vous-même."
+    "copyFailed": "La copie a échoué : sélectionnez le texte du brouillon et copiez-le vous-même.",
+    "none": "Aucune proposition pour l'instant.",
+    "intro": "Acceptez ou ignorez chaque proposition de votre coach : rien ne change sans votre accord."
   },
   "billing": {
     "plans": {
@@ -752,7 +798,8 @@
       "plans-manager": "Responsable des offres",
       "coach-manager": "Responsable coaching",
       "support": "Support",
-      "playbook-editor": "Rédacteur de playbooks"
+      "playbook-editor": "Rédacteur de playbooks",
+      "help-editor": "Rédacteur de l'aide"
     },
     "nav": {
       "label": "Navigation du back office",
@@ -760,6 +807,7 @@
       "groups": {
         "offer": "Offre",
         "coaching": "Coaching",
+        "content": "Contenu",
         "platform": "Plateforme",
         "team": "Équipe"
       }
@@ -780,7 +828,8 @@
       "aiMessages": "Journaux IA",
       "coachingPlaybooks": "Playbooks",
       "guardrails": "Garde-fous",
-      "tools": "Outils"
+      "tools": "Outils",
+      "unansweredQuestions": "Questions sans réponse"
     },
     "signInProviders": {
       "title": "Connexion",
@@ -1320,7 +1369,8 @@
         "plans-manager": "Les offres et leurs quotas.",
         "coach-manager": "Les coachs humains ; consulte le coût de l'AI Coach.",
         "support": "Consulte tout, sauf les secrets des fournisseurs, sans rien modifier.",
-        "playbook-editor": "Écrit, versionne, valide et archive les playbooks de coaching, le socle et la liste des sources."
+        "playbook-editor": "Écrit, versionne, valide et archive les playbooks de coaching, le socle et la liste des sources.",
+        "help-editor": "Lit les questions sans réponse et les marque « Article écrit » ou les écarte."
       },
       "errors": {
         "unknown_account": "Aucun compte Jobbbox n'utilise cette adresse e-mail. La personne doit d'abord créer son compte.",
@@ -1358,7 +1408,8 @@
         "ai_usage": "Consommation IA",
         "search_sites": "Sites de recherche",
         "tool_pages": "Pages Outils",
-        "journal": "Journal"
+        "journal": "Journal",
+        "unanswered_questions": "Questions sans réponse"
       },
       "actions": {
         "added": "Ajout",
@@ -1817,6 +1868,46 @@
         "played": "Voir l'évaluation jouée sur ce réglage"
       }
     },
+    "unansweredQuestions": {
+      "title": "Questions sans réponse",
+      "intro": "Les questions posées au coach IA sur l'utilisation de Jobbbox auxquelles aucun article d'aide n'a répondu. Écrivez l'article ou ajoutez un synonyme dans l'aide, puis marquez la question « Article écrit » ; écartez celles qui ne sont pas des manques de l'aide. Une réponse de l'IA ne devient jamais de l'aide d'elle-même.",
+      "privacy": "Chaque question est gardée masquée, sans lien avec le candidat qui l'a posée, 12 mois au plus après la dernière fois qu'elle a été posée, et 30 jours après avoir été marquée.",
+      "routeFilter": "Filtrer par page",
+      "allRoutes": "Toutes les pages",
+      "unknownRoute": "Page inconnue",
+      "languageFilter": "Filtrer par langue",
+      "allLanguages": "Toutes les langues",
+      "languages": {
+        "fr": "Français",
+        "en": "Anglais"
+      },
+      "caption": "Questions sans réponse, les plus posées d'abord",
+      "question": "Question",
+      "route": "Page",
+      "count": "Nombre",
+      "firstAskedAt": "Première fois",
+      "lastAskedAt": "Dernière fois",
+      "answer": "Réponse du coach IA",
+      "actions": "Actions",
+      "markWritten": "Article écrit",
+      "markWrittenLabel": "Article écrit : {{question}}",
+      "dismiss": "Écarter",
+      "dismissLabel": "Écarter : {{question}}",
+      "marked": {
+        "written": "Question marquée « Article écrit ».",
+        "dismissed": "Question écartée."
+      },
+      "notMarked": "Cette question a déjà été marquée.",
+      "none": "Aucune question sans réponse.",
+      "statuses": {
+        "open": "Ouverte",
+        "written": "Article écrit",
+        "dismissed": "Écartée"
+      },
+      "journalFields": {
+        "status": "Statut"
+      }
+    },
     "evals": {
       "title": "Évaluation",
       "back": "Retour",
@@ -2028,7 +2119,8 @@
     "messagesLabel": "Vos échanges avec l'assistant",
     "author": "Assistant",
     "retention": "Vos conversations avec l'assistant sont conservées 12 mois après leur dernier message, puis supprimées. Personne d'autre ne les voit.",
-    "noConversations": "Vous n'avez pas encore de conversation avec l'assistant."
+    "noConversations": "Vous n'avez pas encore de conversation avec l'assistant.",
+    "send": "Envoyer"
   },
   "applicationStatuses": {
     "to_apply": "À postuler",
@@ -2221,7 +2313,7 @@
     "partialHint_one": "Score partiel : seul {{count}} critère sur 5 a pu être comparé. Il ne dit pas à lui seul si l'offre vous correspond.",
     "partialHint_other": "Score partiel : seuls {{count}} critères sur 5 ont pu être comparés. Il ne dit pas à lui seul si l'offre vous correspond.",
     "notComputableHint": "Aucun critère n'a pu être comparé : l'offre ne précise rien que l'on puisse rapprocher de votre CV ou de vos critères de recherche.",
-    "intro": "Le CV de référence du profil « {{profile}} » comparé à cette offre et à vos critères de recherche.",
+    "intro": "Le score de correspondance compare le CV de référence du profil « {{profile}} » à cette offre et à vos critères de recherche.",
     "unknownHint": "Les critères non comparables (l'offre ou vos critères n'en disent rien) ne comptent pas dans le score.",
     "criteria": {
       "skills": "Compétences",
@@ -2404,7 +2496,8 @@
     "newsMeta": "{{outlet}}, {{date}}",
     "newsSearchedOn": "Articles trouvés le {{date}}.",
     "newsNotSearched": "Mettez le dossier à jour pour y ajouter les actualités de l'employeur.",
-    "noNews": "Aucun article récent trouvé."
+    "noNews": "Aucun article récent trouvé.",
+    "stopped": "Arrêté à {{time}} : ce qui était terminé est gardé."
   },
   "enrichedContacts": {
     "title": "Contacts enrichis",
@@ -2437,7 +2530,7 @@
   },
   "atsScore": {
     "title": "ATS Score",
-    "intro": "Comment les logiciels de recrutement (ATS) lisent votre CV de référence pour le poste « {{role}} ».",
+    "intro": "L'ATS Score mesure comment les logiciels de recrutement (ATS) lisent votre CV de référence pour le poste « {{role}} ».",
     "score": "{{score}}/100",
     "scoreLabel": "ATS Score : {{score}} sur 100",
     "readability": "Lisibilité",
@@ -2693,7 +2786,9 @@
     "saveDelays": "Enregistrer les délais",
     "delaysSaved": "Délais enregistrés.",
     "delaysInvalid": "Indiquez un nombre entier de jours ouvrés, de 1 à {{max}}.",
-    "delaysError": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez."
+    "delaysError": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez.",
+    "noneWaiting": "Aucune relance à faire pour l'instant.",
+    "delaysIntro": "Votre coach propose une relance quand une candidature reste sans nouvelles après ces délais."
   },
   "humanCoaches": {
     "title": "Mes coachs humains",
@@ -2973,6 +3068,8 @@
   },
   "aiActivity": {
     "modelNotRecorded": "modèle non enregistré",
+    "stop": "Arrêter",
+    "stoppedAt": "Arrêtée à {{time}}",
     "steps": {
       "think": "Réflexion",
       "think_write": "Réflexion puis rédaction",
@@ -3011,7 +3108,102 @@
       "tailored_cv": "CV adapté",
       "tailored_documents": "Documents adaptés",
       "company_dossier": "Dossier entreprise",
-      "action_card": "Proposition du coach"
+      "action_card": "Proposition du coach",
+      "ats_score": "ATS Score",
+      "master_cv": "CV de référence, lu dans votre fichier",
+      "cv_reading": "Lecture du CV"
+    },
+    "live": {
+      "starting": "Démarrage",
+      "elsewhere": "En cours ailleurs",
+      "running": "En cours · {{time}}",
+      "stopping": "Arrêt en cours…",
+      "stopped": "Arrêtée à {{time}}",
+      "failed": "Échec à {{time}}",
+      "failedStep": "Échec à {{time}}, pendant l'étape « {{step}} »",
+      "unknownReason": "Elle n'a pas pu aboutir.",
+      "stepStopped": "arrêtée",
+      "stepFailed": "échouée",
+      "stepWarning": "avec un avertissement",
+      "done": {
+        "job_search": "Dernière recherche · {{time}}",
+        "coach_reply": "Dernière réponse · {{time}}",
+        "company_dossier": "Dernier dossier · {{time}}",
+        "cv_reading": "Dernière lecture · {{time}}",
+        "tailored_cv": "CV adapté proposé · {{time}}",
+        "tailored_documents": "Document rédigé · {{time}}"
+      },
+      "result": {
+        "think_one": "{{count}} analyse",
+        "think_other": "{{count}} analyses",
+        "think_write_one": "{{count}} texte rédigé",
+        "think_write_other": "{{count}} textes rédigés",
+        "write_one": "{{count}} document rédigé",
+        "write_other": "{{count}} documents rédigés",
+        "search_one": "{{count}} recherche",
+        "search_other": "{{count}} recherches",
+        "web_search_one": "{{count}} requête",
+        "web_search_other": "{{count}} requêtes",
+        "read_one": "{{count}} page lue",
+        "read_other": "{{count}} pages lues",
+        "compute_one": "{{count}} calcul",
+        "compute_other": "{{count}} calculs",
+        "check_one": "{{count}} vérification",
+        "check_other": "{{count}} vérifications"
+      },
+      "earlierSteps_one": "{{count}} étape terminée plus tôt",
+      "earlierSteps_other": "{{count}} étapes terminées plus tôt",
+      "steps": "Étapes",
+      "stop": {
+        "job_search": "Arrêter la recherche d'offres",
+        "coach_reply": "Arrêter la réponse du coach",
+        "company_dossier": "Arrêter le dossier entreprise",
+        "cv_reading": "Arrêter la lecture du CV",
+        "tailored_cv": "Arrêter la proposition du CV adapté",
+        "tailored_documents": "Arrêter la rédaction du document"
+      },
+      "open": {
+        "job_search": "Ouvrir la recherche",
+        "coach_reply": "Ouvrir la page",
+        "company_dossier": "Ouvrir le dossier",
+        "cv_reading": "Ouvrir la page",
+        "tailored_cv": "Ouvrir les documents",
+        "tailored_documents": "Ouvrir les documents"
+      },
+      "announce": {
+        "started": {
+          "job_search": "Recherche d'offres démarrée",
+          "coach_reply": "Réponse du coach en cours",
+          "company_dossier": "Dossier entreprise en cours",
+          "cv_reading": "Lecture du CV en cours",
+          "tailored_cv": "Proposition du CV adapté en cours",
+          "tailored_documents": "Rédaction du document en cours"
+        },
+        "done": {
+          "job_search": "Recherche d'offres terminée",
+          "coach_reply": "Réponse du coach reçue",
+          "company_dossier": "Dossier entreprise terminé",
+          "cv_reading": "Lecture du CV terminée",
+          "tailored_cv": "CV adapté proposé",
+          "tailored_documents": "Document rédigé"
+        },
+        "stopped": {
+          "job_search": "Recherche d'offres arrêtée",
+          "coach_reply": "Réponse du coach arrêtée",
+          "company_dossier": "Dossier entreprise arrêté",
+          "cv_reading": "Lecture du CV arrêtée",
+          "tailored_cv": "Proposition du CV adapté arrêtée",
+          "tailored_documents": "Rédaction du document arrêtée"
+        },
+        "failed": {
+          "job_search": "Recherche d'offres échouée",
+          "coach_reply": "Réponse du coach échouée",
+          "company_dossier": "Dossier entreprise échoué",
+          "cv_reading": "Lecture du CV échouée",
+          "tailored_cv": "Proposition du CV adapté échouée",
+          "tailored_documents": "Rédaction du document échouée"
+        }
+      }
     }
   }
 }

@@ -36,6 +36,7 @@ import { migrateSearchSites } from "./search-sites/index";
 import { migrateSignInProviders } from "./sign-in-providers/index";
 import { migrateTailoredCvs } from "./tailored-cv/index";
 import { migrateTailoredDocuments } from "./tailored-documents/index";
+import { migrateUnansweredQuestions } from "./unanswered-questions/index";
 
 /**
  * Migrates every table; `onMigrated` hears what is up to date after each step ("Profiles are up to date").
@@ -81,6 +82,7 @@ export async function migrateDatabase(
     ["Guardrails are up to date", () => migrateGuardrails(database)],
     ["Eval Cases and Eval Runs are up to date", () => migrateEvals(database)],
     ["Reference data is up to date", () => migrateReferenceData(database)],
+    ["Unanswered Questions are up to date", () => migrateUnansweredQuestions(database)],
   ];
   for (const [done, migrate] of steps) {
     await migrate();

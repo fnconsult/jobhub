@@ -115,6 +115,18 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
     expect(candidateDataTables()).toContain("ai_message_log");
   });
 
+  it("Unanswered Questions name no Candidate and no Coach Conversation, so the Data export is unchanged and they outlive the account (#344)", async () => {
+    const { rows } = await throwaway.pool.query<{ column: string }>(
+      `SELECT column_name AS column FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'unanswered_question'`,
+    );
+
+    expect(rows.map((row) => row.column)).toContain("question");
+    expect(rows.map((row) => row.column).filter((column) => /candidate|conversation|user|account|session/.test(column))).toEqual([]);
+    expect(foreignKeys.filter((key) => key.table === "unanswered_question")).toEqual([]);
+    expect([...tablesTiedToCandidate()]).not.toContain("unanswered_question");
+    expect(EXPORTED_TABLES).not.toHaveProperty("unanswered_question");
+  });
+
   it("shared Job Offers and Plan Quotas are not tied to any Candidate, so they are kept", () => {
     expect([...tablesTiedToCandidate()].filter((table) => KEPT.includes(table))).toEqual([]);
   });

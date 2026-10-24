@@ -14,10 +14,11 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icons } from "@/components/icons";
 import { StartJobSearchButton } from "@/components/JobSearchControls";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
+import { AiActivityLiveProvider, useAiActivityLive, type CoachReplyLive } from "@/components/AiActivityLive";
 import { ProvenanceLine } from "@/components/ProvenanceLine";
 import { readNdjson } from "@/ndjson";
 import { routes } from "@/routes";
-import { formatDuration, formatTokens, isFailureReason, type Activity, type FailureReason, type Provenance, type ProvenanceStep, type StepLabel } from "@jobhub/shared";
+import { formatDuration, formatTokens, isFailureReason, type Activity, type FailureReason, type Provenance, type ProvenanceStep, type StartedStep, type StepLabel } from "@jobhub/shared";
 
 /**
  * What a page shows, as the Coach Panel tells the Candidate and the AI Coach.
@@ -57,6 +58,7 @@ const focusKey = (inView: InView) => `${inView.kind}:${inView.id}`;
 export function useCoachRepliesInView(): readonly ReplyInView[] {
   return useContext(CoachPanelControl)?.repliesInView ?? NO_REPLIES;
 }
+
 
 /** The menu opens under the conversation's title, from its start. */
 const MENU_ALIGN = "start";
@@ -130,8 +132,8 @@ type Live = { step: { activity: Activity; label: StepLabel } | null; tokens: num
 /** What POST /api/coach streams (see its route). */
 type LiveEvent =
   | { type: "conversation"; conversation: ConversationSummary }
-  | { type: "step_started"; step: { activity: Activity }; label: StepLabel }
-  | { type: "step_ended"; step: ProvenanceStep }
+  | { type: "step_started"; id: number; step: StartedStep; label: StepLabel }
+  | { type: "step_ended"; id: number; step: ProvenanceStep }
   | ({ type: "reply" } & ReplyBody)
   | { type: "stopped"; conversation: ConversationSummary }
   | { type: "failed"; error: string; reason?: string };
@@ -367,6 +369,9 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   const panel = PANELS[kind];
   const texts = panel.texts;
   const id = useId();
+  const pathname = usePathname();
+  // AI Activity shows the reply on its way too, with its steps and a stop icon (#333): on the Candidate's pages only.
+  const aiActivity = useAiActivityLive();
   const [open, setOpen] = useState(false);
   const [inView, setInViewState] = useState<InView | null>(null);
   const [conversation, setConversation] = useState<ConversationSummary | null>(null);
@@ -402,6 +407,12 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   useEffect(() => {
     if (open) input.current?.focus();
   }, [open, focusInput]);
+
+  // Open, the Coach Panel announces its replies itself: AI Activity leaves them to it (#333).
+  const tellAiActivity = aiActivity?.coachPanel;
+  useEffect(() => {
+    tellAiActivity?.(open);
+  }, [tellAiActivity, open]);
 
   function openPanel() {
     setOpen(true);
@@ -521,6 +532,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     // The conversation the message goes to, once the server says (a new one is named already): where a Stop keeps it.
     let asked: ConversationSummary | null = conversation;
     if (panel.features.live) setLive({ step: null, tokens: 0 });
+    const shownLive: CoachReplyLive | null = panel.features.live && aiActivity ? aiActivity.coachReply(pathname, () => stop.abort()) : null;
 
     const giveBack = (error: Status, reason?: unknown) => {
       // Give the Candidate their message back to retry or shorten it.
@@ -528,6 +540,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
       setDraft(text);
       setStatus(error);
       setFailure(isFailureReason(reason) ? reason : null);
+      shownLive?.end("failed", isFailureReason(reason) ? `failureReasons.${reason}` : null);
     };
     const answered = (body: ReplyBody) => {
       setConversation(body.conversation);
@@ -548,6 +561,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
       const at = body.at;
       if (about && typeof at === "string") setRepliesGiven((given) => [...given, { focus: about, provenance: body.provenance ?? null, at }]);
       setStatus("idle");
+      shownLive?.end("done");
     };
     const gone = () => {
       // Deleted meanwhile (another tab, or kept past its 12 months): the message starts a new one.
@@ -557,6 +571,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
       setMessages([]);
       setDraft(text);
       setStatus("unavailable");
+      shownLive?.end("failed");
     };
     // Stopped (#316 answer 11): the question stays, saved in its conversation; « Réponse arrêtée » stands in for the reply.
     const stopped = (where: ConversationSummary | null) => {
@@ -566,6 +581,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
       }
       setMessages([...shown, { from: "stopped", tokens: spent, ms: Date.now() - startedAt }]);
       setStatus("idle");
+      shownLive?.end("stopped");
     };
 
     try {
@@ -585,8 +601,11 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
         await readNdjson(response.body, (received) => {
           const event = received as LiveEvent;
           if (event.type === "conversation") asked = event.conversation;
-          else if (event.type === "step_started") setLive({ step: { activity: event.step.activity, label: event.label }, tokens: spent });
-          else if (event.type === "step_ended") {
+          else if (event.type === "step_started") {
+            setLive({ step: { activity: event.step.activity, label: event.label }, tokens: spent });
+            shownLive?.event({ type: "step_started", id: event.id, step: event.step });
+          } else if (event.type === "step_ended") {
+            shownLive?.event({ type: "step_ended", id: event.id, step: event.step });
             spent += tokensOf(event.step);
             setLive((was) => (was ? { ...was, tokens: spent } : was));
           } else {
@@ -764,7 +783,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                       </p>
                       {live.step ? (
                         <p className="coach-panel-step">
-                          <ActivityGlyph activity={live.step.activity} />
+                          <ActivityGlyph activity={live.step.activity} live />
                           {t(`aiActivity.steps.${live.step.label}`)}
                         </p>
                       ) : null}
@@ -857,5 +876,11 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
 export function CandidateCoachPanel({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const inBackOffice = pathname === routes.admin || pathname.startsWith(`${routes.admin}/`);
-  return inBackOffice ? children : <CoachPanel>{children}</CoachPanel>;
+  return inBackOffice ? (
+    children
+  ) : (
+    <AiActivityLiveProvider>
+      <CoachPanel>{children}</CoachPanel>
+    </AiActivityLiveProvider>
+  );
 }

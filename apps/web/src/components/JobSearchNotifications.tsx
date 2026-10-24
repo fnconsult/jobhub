@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatTimeOfDay } from "@jobhub/shared";
+import { useAiActivityLive } from "@/components/AiActivityLive";
 import type { JobSearchNotification, RunningJobSearch } from "@/job-searches";
 import { routes } from "@/routes";
 
@@ -30,6 +31,7 @@ export interface JobSearchNotificationsState {
  * steps so far (#330); it stops once none is searching (done, failed or stopped). One polite live region, present
  * from the start, so a screen reader announces each new notification. Left out
  * on the page of the Job Search it is about, which shows the outcome itself.
+ * What each poll brings also feeds AI Activity's live actions (#333): each search searching, with its steps, on any page.
  */
 export function JobSearchNotifications({ initial, everyMs = JOB_SEARCH_POLL_MS }: { initial: JobSearchNotificationsState; everyMs?: number }) {
   const { t } = useTranslation();
@@ -43,6 +45,11 @@ export function JobSearchNotifications({ initial, everyMs = JOB_SEARCH_POLL_MS }
   }
   const region = useRef<HTMLDivElement>(null);
   const shownPath = useRef(pathname);
+  const feedAiActivity = useAiActivityLive()?.jobSearches;
+
+  useEffect(() => {
+    feedAiActivity?.(state.running ?? [], state.notifications);
+  }, [feedAiActivity, state]);
 
   const refresh = useCallback(async () => {
     const response = await fetch("/api/job-searches/notifications", { cache: "no-store" }).catch(() => null);

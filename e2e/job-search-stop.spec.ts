@@ -134,8 +134,8 @@ async function untilAPostingIsRead(page: Page, jobSearchId: string) {
 
 /** Clicks « Arrêter la recherche » on the Job Search's page, and waits until the stop is asked of the worker. */
 async function stopFromItsPage(page: Page, jobSearchId: string) {
-  await page.getByRole("button", { name: "Arrêter la recherche" }).click();
-  await expect(page.getByRole("button", { name: "Arrêt en cours…" })).toBeVisible();
+  await page.getByRole("button", { name: "Arrêter la recherche", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Arrêt en cours…", exact: true })).toBeVisible();
   await expect.poll(async () => (await rowOf(jobSearchId)).stop_requested_at).not.toBeNull();
 }
 
@@ -208,7 +208,7 @@ test.describe("Stopping a Job Search, and the Job Offers a stopped or failed one
     await expect(page.getByText("Arrêtée", { exact: true })).toBeVisible();
     await expect(page.getByText(new RegExp(`Vous avez arrêté cette recherche : (l'offre trouvée jusque-là est gardée|les ${row.job_offer_ids.length} offres trouvées jusque-là sont gardées)\\.`))).toBeVisible();
     await expect(page.getByRole("link", { name: "Lire l'offre" })).toHaveCount(row.job_offer_ids.length);
-    await expect(page.getByRole("button", { name: "Arrêter la recherche" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Arrêter la recherche", exact: true })).toHaveCount(0);
 
     // It counts in the week's Job Searches.
     const [usedBefore, of] = before.split(" sur ");

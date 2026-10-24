@@ -602,19 +602,7 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   stroke-linejoin: round;
 }
 
-/* It breathes while the step runs; it holds still for those who asked for less motion. */
-@media (prefers-reduced-motion: no-preference) {
-  .coach-panel-step .activity-glyph {
-    animation: activity-breathe 1.2s ease-in-out infinite alternate;
-  }
-}
-
-@keyframes activity-breathe {
-  from {
-    opacity: 0.45;
-    transform: scale(0.92);
-  }
-}
+/* While its step runs, its strokes move and morph, drawn from JavaScript (ActivityGlyph); still under reduced motion. */
 
 /* « Réponse arrêtée » (#328) and a failed reply's Failure Reason: very light red, said in words too. */
 .coach-panel .chat-stopped {
@@ -3984,6 +3972,109 @@ textarea.title-edit {
   gap: var(--space-2);
   align-items: center;
   overflow-wrap: anywhere;
+}
+
+/* AI Activity live (#333): the closed button shows the step under way, its glyph and its words, a stop icon beside it;
+   the pane, a section per action, stopped or failed ones in very light red, said in words too. */
+.topbar .ai-activity-stop {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  padding: 0;
+}
+
+.ai-activity-stop {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+}
+
+/* A filled square: Stop, as media players draw it. */
+.ai-activity-stop .icon path {
+  fill: currentColor;
+}
+
+.ai-activity-live .ai-activity-stop {
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+}
+
+.ai-activity-live {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.ai-activity-live[data-status="stopped"],
+.ai-activity-live[data-status="failed"] {
+  background: var(--color-danger-surface);
+  border-color: var(--color-danger);
+}
+
+.ai-activity-live .ai-activity-row {
+  align-items: center;
+}
+
+.ai-activity-live-title {
+  margin: 0;
+  font-size: inherit;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ai-activity-live-status,
+.ai-activity-live-reason {
+  margin: 0;
+}
+
+.ai-activity-live-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ai-activity-live-step {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.ai-activity-live-step-words {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ai-activity-live-step-at {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-activity-live-step:not([data-running]) .activity-glyph {
+  stroke: var(--color-text-meta);
+}
+
+.ai-activity-live-link {
+  align-self: flex-start;
+}
+
+.ai-activity-elsewhere > h3 {
+  margin: var(--space-3) 0 0;
+  font-size: inherit;
 }
 
 /* From 64rem the pane is a card on the right of the page's column, the page making room for it. */

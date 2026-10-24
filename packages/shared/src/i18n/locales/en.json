@@ -509,7 +509,8 @@
     "startOver": "Start again"
   },
   "coachPanel": {
-    "open": "My coach",
+    "open": "Help and coach",
+    "openShort": "Help",
     "title": "AI Coach",
     "badge": "AI Coach",
     "close": "Close",
@@ -524,7 +525,7 @@
     "welcome": "Hello, I'm your coach. How can I help you?",
     "aiDisclosure": "I am an AI coach, not a person: an artificial intelligence program from Jobbbox. To talk to a person, you can book a session with a human coach. How can I help you?",
     "messageLabel": "Your message",
-    "send": "Send",
+    "send": "Send to the coach",
     "stop": "Stop",
     "stopped": "Reply stopped",
     "failed": "Your coach could not reply: {{reason}}. Try again in a moment.",
@@ -570,6 +571,30 @@
       "toProcess": "To process",
       "followed": "Followed",
       "open": "Open the job offer"
+    },
+    "help": {
+      "greeting": "Ask your question: I look in Jobbbox's help first, without AI, and your AI coach answers when the help has no answer.",
+      "onThisPage": "On this page",
+      "readMore": "Read more",
+      "readMoreAbout": "Read more: {{title}}",
+      "oftenAsked": "Often asked",
+      "suggestions": "In the help, without AI",
+      "found_one": "{{count}} article in the help",
+      "found_other": "{{count}} articles in the help",
+      "cardLabel": "Help · written by the Jobbbox team",
+      "answered": "Does this answer your question?",
+      "yes": "Yes",
+      "no": "No, ask the coach",
+      "thanks": "Thank you! Ask another question whenever you like.",
+      "askAbout": "About “{{title}}”: ",
+      "unavailableHelp": "Here is what the help suggests:",
+      "noHelp": "The help has no article on this question. To reach the Jobbbox team, send feedback.",
+      "signalement": "Send feedback",
+      "kinds": {
+        "page": "Page",
+        "glossary": "Word to know",
+        "faq": "Frequent question"
+      }
     }
   },
   "provenanceLine": {
@@ -2029,7 +2054,8 @@
     "messagesLabel": "Your conversation with the assistant",
     "author": "Assistant",
     "retention": "Your conversations with the assistant are kept for 12 months after their last message, then deleted. Nobody else sees them.",
-    "noConversations": "You have no conversation with the assistant yet."
+    "noConversations": "You have no conversation with the assistant yet.",
+    "send": "Send"
   },
   "applicationStatuses": {
     "to_apply": "To apply",

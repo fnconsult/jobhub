@@ -6,10 +6,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import type { CoachFocus } from "@/coach";
-import { coachReplyBlocks, type Inline } from "@/coach/reply-text";
 import type { CoachMessage, JobOfferCard as JobOfferCardData } from "@/coach/conversation";
 import { CoachConversationList, type ConversationSummary } from "@/components/CoachConversationList";
 import { CoachMemoryProposals, CoachMemoryView } from "@/components/CoachMemory";
+import { CoachReplyText } from "@/components/CoachReplyText";
+import { focusFirstSuggestion, HelpArticleCard, HelpForUnanswered, HelpIntro, HelpSuggestions } from "@/components/CoachHelp";
+import { helpArticle, helpLocale, helpSuggestions, MIN_SUGGESTION_LENGTH, type HelpArticle } from "@/coach-help";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icons } from "@/components/icons";
 import { StartJobSearchButton } from "@/components/JobSearchControls";
@@ -36,8 +38,11 @@ type Control = {
   toggle: () => void;
   /** Each button registers itself, so closing the panel gives focus back to the one on screen. */
   register: (button: HTMLButtonElement | null) => (() => void) | undefined;
-  /** The button's words. */
+  /** The button's words, and its shorter words below 48rem when it has them (« Aide », #342). */
   label: ParseKeys;
+  shortLabel?: ParseKeys;
+  /** Opens the panel on a Help Article (#342), shown as a card in the conversation; nothing for an unknown id. */
+  openHelp: (articleId: string) => void;
   /** The AI Coach replies given here about the object of the page in view (#332). */
   repliesInView: readonly ReplyInView[];
 };
@@ -53,6 +58,15 @@ const NO_REPLIES: readonly ReplyInView[] = [];
 /** The page objects a reply is kept with as its focus (coach-conversations), so counted with their page. */
 const FOCUS_KINDS: ReadonlySet<string> = new Set(["application", "job_offer", "profile"]);
 const focusKey = (inView: InView) => `${inView.kind}:${inView.id}`;
+
+/**
+ * Opens the Coach Panel on a Help Article (#342, ADR-0035), shown as a card in the conversation: `openHelp("glossary-ats-score")`.
+ * Does nothing outside a Coach Panel (signed-out pages) or in one without help (the Back Office Assistant).
+ */
+export function useOpenHelp(): (articleId: string) => void {
+  return useContext(CoachPanelControl)?.openHelp ?? NO_HELP;
+}
+const NO_HELP = () => {};
 
 /** The AI Coach replies given in this browser about the object of the page in view; none outside a Coach Panel. */
 export function useCoachRepliesInView(): readonly ReplyInView[] {
@@ -74,7 +88,7 @@ export function CoachPanelToggle({ floating = false }: { floating?: boolean }) {
   const { t } = useTranslation();
   const control = useContext(CoachPanelControl);
   if (!control) return null;
-  const { open, panelId, toggle, register, label } = control;
+  const { open, panelId, toggle, register, label, shortLabel } = control;
   // While the panel is open its Fermer button closes it: the toggle steps aside (ADR-0024).
   if (open) return null;
   return (
@@ -87,7 +101,14 @@ export function CoachPanelToggle({ floating = false }: { floating?: boolean }) {
       onClick={toggle}
     >
       <Icons.coach />
-      {t(label)}
+      {shortLabel ? (
+        <>
+          <span className="coach-panel-toggle-long">{t(label)}</span>
+          <span className="coach-panel-toggle-short">{t(shortLabel)}</span>
+        </>
+      ) : (
+        t(label)
+      )}
     </button>
   );
 }
@@ -123,8 +144,19 @@ type Status = "idle" | "sending" | "unavailable" | "invalid";
 /** A reply the Candidate stopped (#328): shown in its place until the conversation reopens, with what it had spent. */
 type StoppedReply = { from: "stopped"; tokens: number; ms: number };
 
-/** What the panel lists: the saved messages, and the replies stopped since it opened. */
-type PanelMessage = CoachMessage | StoppedReply;
+/**
+ * A Help Article opened in the conversation (#342): a card in this browser only, never saved, gone when the conversation
+ * reopens. `answered`: the Candidate said it answered their question.
+ */
+type HelpCard = { from: "help"; key: number; article: HelpArticle; answered: boolean };
+
+/** What the panel lists: the saved messages, the replies stopped and the Help Articles opened since it opened. */
+type PanelMessage = CoachMessage | StoppedReply | HelpCard;
+
+const isHelpCard = (message: PanelMessage): message is HelpCard => message.from === "help";
+
+/** How long the box waits for the Candidate to stop typing before it looks in the help. */
+const SUGGEST_DELAY_MS = 150;
 
 /** A reply on its way, live (#328): the step under way, with its Activity and label, and the tokens spent so far. */
 type Live = { step: { activity: Activity; label: StepLabel } | null; tokens: number };
@@ -173,6 +205,8 @@ type ServerMessage = {
 /** Everything that differs between the two panels. */
 interface PanelConfig {
   send: string;
+  /** The send button's words. */
+  sendLabel: ParseKeys;
   conversations: string;
   /** This browser remembers which conversation was open, to reopen it after a reload. */
   storageKey: string;
@@ -183,6 +217,8 @@ interface PanelConfig {
     live: boolean;
     /** What the page has in view goes with each message, and the Job Search it allows. */
     inView: boolean;
+    /** Help Articles first (#342, ADR-0035): suggested while the Candidate types, opened as cards, offered when the AI cannot answer. */
+    help: boolean;
   };
   /**
    * `title`, the panel's visible title, and `badge`, by the message box, say the AI is an AI (AI Act art. 50(1), #324),
@@ -191,6 +227,8 @@ interface PanelConfig {
   texts: Record<"open" | "title" | "badge" | "welcome" | "thinking" | "unavailable" | "messagesLabel" | "author" | "retention" | "noConversations", ParseKeys> & {
     /** Shown where the Coach Panel says what is in view, for a panel that follows nothing in view. */
     context?: ParseKeys;
+    /** The button's shorter words below 48rem. */
+    openShort?: ParseKeys;
     /**
      * The fixed first message of every new conversation, saying the AI is an AI, not a person (#324): never an AI
      * reply. It replaces the welcome; a conversation saved before it existed keeps the welcome.
@@ -202,11 +240,13 @@ interface PanelConfig {
 const PANELS: Record<PanelKind, PanelConfig> = {
   coach: {
     send: "/api/coach",
+    sendLabel: "coachPanel.send",
     conversations: "/api/coach/conversations",
     storageKey: "jobhub.coachConversation",
-    features: { memory: true, inView: true, live: true },
+    features: { memory: true, inView: true, live: true, help: true },
     texts: {
       open: "coachPanel.open",
+      openShort: "coachPanel.openShort",
       title: "coachPanel.title",
       badge: "coachPanel.badge",
       welcome: "coachPanel.welcome",
@@ -221,9 +261,10 @@ const PANELS: Record<PanelKind, PanelConfig> = {
   },
   backOfficeAssistant: {
     send: "/api/admin/assistant",
+    sendLabel: "backOfficeAssistant.send",
     conversations: "/api/admin/assistant/conversations",
     storageKey: "jobhub.backOfficeAssistantConversation",
-    features: { memory: false, inView: false, live: false },
+    features: { memory: false, inView: false, live: false, help: false },
     texts: {
       open: "backOfficeAssistant.open",
       title: "backOfficeAssistant.title",
@@ -264,45 +305,6 @@ function remembered(storageKey: string): string | null {
   } catch {
     return null;
   }
-}
-
-/** An AI Coach reply set as paragraphs, lists and bold or italic text, never raw Markdown (#164). */
-function CoachReplyText({ text }: { text: string }) {
-  const line = (inlines: Inline[]) =>
-    inlines.map((part, i) => {
-      let node: ReactNode = part.text;
-      if (part.emphasis) node = <em>{node}</em>;
-      if (part.strong) node = <strong>{node}</strong>;
-      return <span key={i}>{node}</span>;
-    });
-  const lines = (list: Inline[][]) =>
-    list.map((inlines, i) => (
-      <span key={i}>
-        {i > 0 ? <br /> : null}
-        {line(inlines)}
-      </span>
-    ));
-  return (
-    <>
-      {coachReplyBlocks(text).map((block, index) =>
-        block.kind === "paragraph" ? (
-          <p key={index}>{lines(block.lines)}</p>
-        ) : block.ordered ? (
-          <ol key={index} start={block.start}>
-            {block.items.map((item, i) => (
-              <li key={i}>{lines(item)}</li>
-            ))}
-          </ol>
-        ) : (
-          <ul key={index}>
-            {block.items.map((item, i) => (
-              <li key={i}>{lines(item)}</li>
-            ))}
-          </ul>
-        ),
-      )}
-    </>
-  );
 }
 
 /** « Réponse arrêtée » (#328), in light red, with the tokens and time the stopped reply had spent: no confirmation, no reply saved. */
@@ -365,7 +367,7 @@ async function fetchConversation(
  * Administrator in the Back Office (see PanelKind).
  */
 export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; children: ReactNode }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const panel = PANELS[kind];
   const texts = panel.texts;
   const id = useId();
@@ -403,10 +405,35 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   const [repliesGiven, setRepliesGiven] = useState<readonly (ReplyInView & { focus: string })[]>([]);
   const inViewKey = inView ? focusKey(inView) : null;
   const repliesInView = useMemo(() => repliesGiven.filter((reply) => reply.focus === inViewKey), [repliesGiven, inViewKey]);
+  // The help (#342): the Help Articles matching the draft, once the Candidate pauses; the one read last, whose title goes
+  // with the next message; the question the AI Coach could not answer, for the help to answer instead.
+  const help = panel.features.help;
+  const locale = helpLocale(i18n.language);
+  const [query, setQuery] = useState("");
+  const [readArticle, setReadArticle] = useState<{ id: string; title: string } | null>(null);
+  const [unanswered, setUnanswered] = useState<string | null>(null);
+  const helpCards = useRef(0);
+  const [focusCard, setFocusCard] = useState<string | null>(null);
+  useEffect(() => {
+    if (!help) return;
+    const timer = setTimeout(() => setQuery(draft), SUGGEST_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [help, draft]);
+  const found = useMemo(() => (help ? helpSuggestions(query, locale) : []), [help, query, locale]);
+  // A draft cleared (sent) or cut short hides them at once.
+  const suggestions = draft.trim().length >= MIN_SUGGESTION_LENGTH ? found : [];
 
   useEffect(() => {
-    if (open) input.current?.focus();
+    const box = input.current;
+    if (!open || !box) return;
+    box.focus();
+    box.setSelectionRange(box.value.length, box.value.length);
   }, [open, focusInput]);
+
+  // An article opened takes the focus, so it is read out and Escape brings the Candidate back to the box.
+  useEffect(() => {
+    if (focusCard) document.getElementById(focusCard)?.focus();
+  }, [focusCard]);
 
   // Open, the Coach Panel announces its replies itself: AI Activity leaves them to it (#333).
   const tellAiActivity = aiActivity?.coachPanel;
@@ -427,7 +454,8 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
         const { messages: saved, aiDisclosure: disclosed, ...summary } = found.conversation;
         setConversation(summary);
         setAiDisclosure(disclosed);
-        setMessages(saved);
+        // A Help Article opened meanwhile (the panel opened on it) stays after the saved messages.
+        setMessages((shown) => [...saved, ...shown.filter(isHelpCard)]);
       } else if (found.gone) remember(panel.storageKey, null);
       setRestoring(false);
     });
@@ -449,10 +477,14 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     };
   }, []);
 
-  // Escape brings a widened panel back beside the page first, then closes it.
+  // Escape in the help brings the Candidate back to the message box (#342); elsewhere it brings a widened panel back
+  // beside the page first, then closes it.
   function onKeyDown(event: KeyboardEvent) {
     if (event.key !== "Escape") return;
-    if (wide) setWide(false);
+    if (event.target instanceof Element && event.target.closest("[data-help]")) {
+      event.preventDefault();
+      input.current?.focus();
+    } else if (wide) setWide(false);
     else close();
   }
 
@@ -471,10 +503,35 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     setFocusInput((n) => n + 1);
   }
 
+  /** Shows a Help Article as a card at the end of the conversation (#342), and gives it the focus. */
+  function showArticle(article: HelpArticle) {
+    const key = (helpCards.current += 1);
+    setMessages((shown) => [...shown, { from: "help", key, article, answered: false }]);
+    setReadArticle({ id: article.id, title: article.title });
+    setView("chat");
+    setFocusCard(`${id}-help-${key}`);
+  }
+
+  function openHelp(articleId: string) {
+    const article = help ? helpArticle(articleId, locale) : null;
+    if (!article) return;
+    if (!open) openPanel();
+    showArticle(article);
+  }
+
+  /** « Non, demander au coach »: the box starts a question about the article, to finish and send. */
+  function askAbout(article: HelpArticle) {
+    setDraft(t("coachPanel.help.askAbout", { title: article.title }));
+    setReadArticle({ id: article.id, title: article.title });
+    setFocusInput((n) => n + 1);
+  }
+
   function startNewConversation() {
     setConversation(null);
     setAiDisclosure(true);
     setMessages([]);
+    setReadArticle(null);
+    setUnanswered(null);
     setStatus("idle");
     remember(panel.storageKey, null);
     showChat();
@@ -525,6 +582,9 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     setDraft("");
     setStatus("sending");
     setFailure(null);
+    setUnanswered(null);
+    // The Help Article read last goes with this message only: the AI Coach is told its title (#342).
+    const read = help ? readArticle : null;
     const stop = new AbortController();
     stopper.current = stop;
     const startedAt = Date.now();
@@ -540,6 +600,8 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
       setDraft(text);
       setStatus(error);
       setFailure(isFailureReason(reason) ? reason : null);
+      // The help still answers when the AI Coach cannot (ADR-0035).
+      if (help && error === "unavailable") setUnanswered(text);
       shownLive?.end("failed", isFailureReason(reason) ? `failureReasons.${reason}` : null);
     };
     const answered = (body: ReplyBody) => {
@@ -560,6 +622,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
       ]);
       const at = body.at;
       if (about && typeof at === "string") setRepliesGiven((given) => [...given, { focus: about, provenance: body.provenance ?? null, at }]);
+      setReadArticle(null);
       setStatus("idle");
       shownLive?.end("done");
     };
@@ -580,6 +643,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
         remember(panel.storageKey, where.id);
       }
       setMessages([...shown, { from: "stopped", tokens: spent, ms: Date.now() - startedAt }]);
+      setReadArticle(null);
       setStatus("idle");
       shownLive?.end("stopped");
     };
@@ -593,6 +657,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
           ...(conversation ? { conversationId: conversation.id } : {}),
           message: text,
           ...(inView && panel.features.inView ? { focus: { kind: inView.kind, id: inView.id, ...(inView.profileId ? { profileId: inView.profileId } : {}) } } : {}),
+          ...(read ? { helpArticle: read } : {}),
         }),
         signal: stop.signal,
       });
@@ -643,7 +708,18 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   // The conversation's first message: the AI disclosure, or the welcome of a panel without one or of a conversation saved before it.
   const opening = texts.aiDisclosure && aiDisclosure ? texts.aiDisclosure : texts.welcome;
 
-  const control: Control = { open, panelId: `${id}-panel`, toggle: () => (open ? close() : openPanel()), register, label: texts.open, repliesInView };
+  const control: Control = {
+    open,
+    panelId: `${id}-panel`,
+    toggle: () => (open ? close() : openPanel()),
+    register,
+    label: texts.open,
+    ...(texts.openShort ? { shortLabel: texts.openShort } : {}),
+    openHelp,
+    repliesInView,
+  };
+  // An empty conversation opens on the help (#342): only Help Articles opened so far, nothing sent.
+  const showIntro = help && !restoring && messages.every(isHelpCard);
 
   return (
     <SetInView.Provider value={setInView}>
@@ -756,10 +832,21 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                         {/* No visible author (#317, #327): screen readers still hear who speaks. */}
                         <span className="visually-hidden">{t(texts.author)}</span>
                         <p>{t(opening)}</p>
+                        {showIntro ? <HelpIntro pathname={pathname} locale={locale} onOpen={showArticle} /> : null}
                       </li>
                     )}
                     {messages.map((message, index) =>
-                      message.from === "stopped" ? (
+                      message.from === "help" ? (
+                        <li key={`help-${message.key}`} className="chat-message chat-help">
+                          <HelpArticleCard
+                            article={message.article}
+                            headingId={`${id}-help-${message.key}`}
+                            answered={message.answered}
+                            onAnswered={() => setMessages((shown) => shown.map((each) => (isHelpCard(each) && each.key === message.key ? { ...each, answered: true } : each)))}
+                            onAskCoach={() => askAbout(message.article)}
+                          />
+                        </li>
+                      ) : message.from === "stopped" ? (
                         <li key={index} className="chat-message chat-coach chat-stopped">
                           <span className="visually-hidden">{t(texts.author)}</span>
                           <StoppedReplyLine reply={message} />
@@ -802,10 +889,20 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                           : t(texts.unavailable)}
                     </p>
                   ) : null}
+                  {status === "unavailable" && unanswered !== null ? <HelpForUnanswered question={unanswered} locale={locale} onOpen={showArticle} /> : null}
                   <div ref={messagesEnd} aria-hidden="true" />
                   {conversation && panel.features.memory ? <CoachMemoryProposals key={conversation.id} conversationId={conversation.id} /> : null}
                 </div>
                 <form className="coach-panel-form" onSubmit={send}>
+                  {help ? (
+                    <>
+                      <HelpSuggestions articles={suggestions} onOpen={showArticle} onBack={() => input.current?.focus()} />
+                      {/* « 2 articles dans l'aide »: heard as they change, never moving the focus. */}
+                      <p className="visually-hidden" role="status">
+                        {suggestions.length > 0 ? t("coachPanel.help.found", { count: suggestions.length }) : ""}
+                      </p>
+                    </>
+                  ) : null}
                   <label className="visually-hidden" htmlFor={`${id}-message`}>
                     {t("coachPanel.messageLabel")}
                   </label>
@@ -819,6 +916,12 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                       value={draft}
                       onChange={(event) => setDraft(event.target.value)}
                       onKeyDown={(event) => {
+                        // ↓ at the end of the draft goes to the help's suggestions (#342).
+                        const box = event.currentTarget;
+                        if (event.key === "ArrowDown" && suggestions.length > 0 && box.selectionStart === box.value.length && focusFirstSuggestion(box)) {
+                          event.preventDefault();
+                          return;
+                        }
                         if (event.key === "Enter" && !event.shiftKey) {
                           event.preventDefault();
                           event.currentTarget.form?.requestSubmit();
@@ -837,7 +940,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                         </button>
                       ) : (
                         <button key="send" className="button button-primary" type="submit" disabled={status === "sending" || restoring}>
-                          {t("coachPanel.send")}
+                          {t(panel.sendLabel)}
                         </button>
                       )}
                     </div>

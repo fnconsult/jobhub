@@ -5,7 +5,7 @@ import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
-// Issue #332: AI Activity, the Candidate's top-bar button left of « Mon coach », and the « Cette page » pane it opens,
+// Issue #332: AI Activity, the Candidate's top-bar button left of « Aide et coach », and the « Cette page » pane it opens,
 // read from each element's stored Provenance: the page's content and the AI Coach replies about its object. The AI is
 // faked inside the server (fake-mistral.mjs): every Coach reply runs on Mistral Large (api.mistral.ai, in the EU).
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
@@ -74,7 +74,7 @@ test.describe("AI Activity (#332)", () => {
     const offerId = await storedJobOffer("DAF Lyon");
     await page.goto(`/offres/${offerId}`);
 
-    // At rest: the tasks icon and the page's summary, left of « Mon coach », as high.
+    // At rest: the tasks icon and the page's summary, left of « Aide et coach », as high.
     const button = aiActivityButton(page);
     await expect(button).toHaveAttribute("aria-expanded", "false");
     await expect(button).toContainText("2 modèles · 7,8k tokens · 9,1 s");

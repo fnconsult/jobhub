@@ -37,7 +37,8 @@ async function createProfile(page: Page, targetRole: string): Promise<string> {
 const sidebarNav = (page: Page) => page.getByRole("navigation", { name: fr.sidebar.label });
 const menuButton = (page: Page) => page.getByRole("button", { name: fr.sidebar.menu, exact: true });
 const collapseButton = (page: Page) => page.getByRole("button", { name: fr.sidebar.collapse });
-const coachButton = (page: Page) => page.getByRole("button", { name: fr.coachPanel.open, exact: true });
+// « Aide et coach », « Aide » below 48rem (#342).
+const coachButton = (page: Page) => page.getByRole("button", { name: new RegExp(`^(${fr.coachPanel.open}|${fr.coachPanel.openShort})$`) });
 const coachPanel = (page: Page) => page.getByRole("complementary", { name: fr.coachPanel.title });
 const drawer = (page: Page) => page.getByRole("dialog", { name: fr.sidebar.menu });
 

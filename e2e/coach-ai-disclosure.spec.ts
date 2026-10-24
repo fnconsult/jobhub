@@ -91,7 +91,8 @@ test.describe("the AI Coach says it is an AI", () => {
     ]) {
       await page.setViewportSize(viewport);
       await page.goto("/compte");
-      await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+      // « Aide et coach », « Aide » below 48rem (#342).
+      await page.getByRole("button", { name: viewport.width < 768 ? fr.coachPanel.openShort : fr.coachPanel.open, exact: true }).click();
       await expect(panelOf(page, fr).getByRole("heading", { level: 2, name: fr.coachPanel.title }), `title at ${viewport.width}px`).toBeInViewport({ ratio: 1 });
       await expect(badgeOf(page, fr), `badge at ${viewport.width}px`).toBeInViewport({ ratio: 1 });
       await expect(messagesOf(page, fr).first(), `message at ${viewport.width}px`).toContainText(fr.coachPanel.aiDisclosure);

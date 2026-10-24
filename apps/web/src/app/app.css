@@ -446,6 +446,21 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   }
 }
 
+/* « Aide et coach », « Aide » below 48rem (#342, ADR-0035): a visible label at every width (ADR-0009). */
+.coach-panel-toggle-short {
+  display: none;
+}
+
+@media (width < 48rem) {
+  .coach-panel-toggle-long {
+    display: none;
+  }
+
+  .coach-panel-toggle-short {
+    display: inline;
+  }
+}
+
 .coach-panel-scrim {
   position: fixed;
   inset: 0;
@@ -3756,7 +3771,7 @@ textarea.title-edit {
 }
 
 /* ---------- AI Activity (#314, #332): the Top Bar's button and the « Cette page » pane ----------
-   Everything in rem, so it follows the Text Size. The button sits left of « Mon coach », as high;
+   Everything in rem, so it follows the Text Size. The button sits left of « Aide et coach », as high;
    at rest its words are the page's summary, metadata (#317), or its label on a page with no AI content
    (never an icon alone, ADR-0009); open, its label and a close icon. */
 .topbar .ai-activity-toggle {
@@ -4194,4 +4209,133 @@ textarea.title-edit {
     border-radius: var(--radius-md) var(--radius-md) 0 0;
     box-shadow: var(--shadow-overlay);
   }
+}
+
+/* The help in the Coach Panel's single box (#342, ADR-0035): Help Articles, found without AI. */
+.coach-help-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.coach-help-suggestions-title {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.coach-help-suggestions ul,
+.help-chips {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.coach-help-suggestion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-3);
+  align-items: baseline;
+  justify-content: space-between;
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.coach-help-suggestion:hover {
+  border-color: var(--color-text-secondary);
+}
+
+.coach-help-kind {
+  color: var(--color-text-secondary);
+}
+
+.help-chips {
+  flex-flow: row wrap;
+  gap: var(--space-2);
+}
+
+.help-chip {
+  text-align: left;
+}
+
+.help-intro,
+.help-unanswered {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.help-intro p,
+.help-unanswered p {
+  margin: 0;
+}
+
+.help-intro-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.help-intro-section h3 {
+  margin: 0;
+  font-size: var(--font-size-body);
+}
+
+/* A Help Article opened in the conversation: a card, said to be written by the team, never by the AI. */
+.coach-panel .chat-help {
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+}
+
+.help-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-text-secondary);
+  border-radius: var(--radius-md);
+}
+
+.help-card p,
+.help-card ul,
+.help-card ol {
+  margin: 0;
+}
+
+.help-card-label {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.help-card-title {
+  margin: 0;
+  font-size: var(--font-size-h3);
+}
+
+.help-card-feedback {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  margin-top: var(--space-1);
+}
+
+.help-card-feedback p {
+  flex-basis: 100%;
 }

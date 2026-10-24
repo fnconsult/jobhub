@@ -149,6 +149,21 @@
     "valueText": "{{used}} of {{allowed}} used ({{percent}}%)",
     "subscription": "See my subscription"
   },
+  "helpTerms": {
+    "suffix": "(help)",
+    "words": {
+      "followUp": "follow-up",
+      "planQuota": "quota"
+    }
+  },
+  "emptyStateHelp": {
+    "proposals": "Where do proposals come from?",
+    "followUps": "How do follow-ups work?",
+    "applications": "How do I follow an application?",
+    "jobSearches": "How does a job search work?",
+    "agenda": "How do I add an interview?",
+    "profiles": "How do I create a profile?"
+  },
   "signIn": {
     "title": "Sign in to Jobbbox",
     "intro": "No password to remember: get a sign-in link by email, or use your {{providers}} account. If you don't have an account yet, one will be created.",
@@ -654,7 +669,8 @@
     "error": "This proposal couldn't be applied. Try again or reload the page.",
     "copyDraft": "Copy the draft",
     "copied": "Draft copied.",
-    "copyFailed": "Copying failed: select the draft's text and copy it yourself."
+    "copyFailed": "Copying failed: select the draft's text and copy it yourself.",
+    "none": "No proposals yet."
   },
   "billing": {
     "plans": {
@@ -2721,7 +2737,8 @@
     "saveDelays": "Save delays",
     "delaysSaved": "Delays saved.",
     "delaysInvalid": "Enter a whole number of working days, from 1 to {{max}}.",
-    "delaysError": "Saving failed. Check your connection and try again."
+    "delaysError": "Saving failed. Check your connection and try again.",
+    "noneWaiting": "No follow-up to do yet."
   },
   "humanCoaches": {
     "title": "My human coaches",

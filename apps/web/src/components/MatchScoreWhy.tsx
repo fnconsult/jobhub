@@ -1,5 +1,6 @@
 import type { CriterionStatus } from "@jobhub/shared";
 import type { TFunction } from "i18next";
+import { HelpTerm } from "@/components/HelpTerm";
 import { matchScoreInWords, matchScoreReliabilityHint, matchScoreWhyInWords, type MatchScoreFigure, type MatchScoreReason } from "@/components/job-search-words";
 
 /** A verdict is said in words; the colour only reinforces a clear match or mismatch. */
@@ -51,7 +52,10 @@ export function ProfileMatchScore({
   return (
     <div className="profile-match">
       <p aria-live={live ? "polite" : undefined}>
-        {t("jobOffer.matchScore", { profile: profileName })} <strong className="score">{matchScoreInWords(figure, t)}</strong>
+        <HelpTerm term="matchScore" words={t("matchScore.title")}>
+          {t("jobOffer.matchScore", { profile: profileName })}
+        </HelpTerm>{" "}
+        <strong className="score">{matchScoreInWords(figure, t)}</strong>
       </p>
       {hint ? <p className="hint">{hint}</p> : null}
       <MatchScoreWhy summary={matchScoreWhyInWords(figure, t)} reasons={reasons} />

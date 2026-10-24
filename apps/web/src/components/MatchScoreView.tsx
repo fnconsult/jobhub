@@ -1,6 +1,7 @@
 import { wantedValues, type CriterionStatus, type MatchScore, type SalaryRange } from "@jobhub/shared";
 import { anyOfInWords, matchScoreFigure, matchScoreInWords, matchScoreReliabilityHint } from "@/components/job-search-words";
 import type { getServerT } from "@/i18n/server";
+import { HelpTerm } from "@/components/HelpTerm";
 import { SkillTags } from "@/components/SkillTags";
 
 type T = Awaited<ReturnType<typeof getServerT>>;
@@ -24,11 +25,15 @@ export function MatchScoreView({ matchScore, profileName, t, locale }: { matchSc
     <section className="section match-score" aria-labelledby="match-score-title">
       <div className="section-head">
         <h2 id="match-score-title" tabIndex={-1}>
-          {t("matchScore.title")}
+          <HelpTerm term="matchScore">{t("matchScore.title")}</HelpTerm>
         </h2>
         <p className="score">{matchScoreInWords(figure, t)}</p>
       </div>
-      <p>{t("matchScore.intro", { profile: profileName })}</p>
+      <p>
+        <HelpTerm term="masterCv" words={t("profile.masterCv")}>
+          {t("matchScore.intro", { profile: profileName })}
+        </HelpTerm>
+      </p>
       {reliabilityHint ? <p className="notice">{reliabilityHint}</p> : null}
       <ul className="breakdown">
         <Criterion name={t("matchScore.criteria.skills")} status={skills.status} t={t}>

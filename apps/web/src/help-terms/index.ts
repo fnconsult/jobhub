@@ -63,10 +63,10 @@ export function createMentions(): Mentions {
 
 /**
  * `text` split around the first occurrence of `words`, whatever their case: [before, the words as `text` has them,
- * after]. The whole text is the words when they are not in it (a language that words the sentence otherwise).
+ * after]. Null when they are not in it (a language that words the sentence otherwise): then it names no term.
  */
-export function wordsWithin(text: string, words: string): [string, string, string] {
+export function wordsWithin(text: string, words: string): [string, string, string] | null {
   const at = text.toLocaleLowerCase().indexOf(words.toLocaleLowerCase());
-  if (at < 0 || words.length === 0) return ["", text, ""];
+  if (at < 0 || words.length === 0) return null;
   return [text.slice(0, at), text.slice(at, at + words.length), text.slice(at + words.length)];
 }

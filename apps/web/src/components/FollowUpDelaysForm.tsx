@@ -2,6 +2,7 @@
 
 import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { HelpTerm } from "@/components/HelpTerm";
 import type { FollowUpDelays } from "@/follow-ups";
 
 /** The Candidate's Follow-up Delays: how many working days before the AI Coach proposes a Follow-up. */
@@ -56,7 +57,11 @@ export function FollowUpDelaysForm({ initial, max }: { initial: FollowUpDelays; 
 
   return (
     <section className="stack" aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`}>{t("followUps.delaysTitle")}</h2>
+      <h2 id={`${id}-title`}>
+        <HelpTerm term="followUp" words={t("helpTerms.words.followUp")}>
+          {t("followUps.delaysTitle")}
+        </HelpTerm>
+      </h2>
       <form className="stack" onSubmit={save} noValidate>
         <p id={`${id}-hint`} className="hint">
           {t("followUps.delaysHint", { max })}

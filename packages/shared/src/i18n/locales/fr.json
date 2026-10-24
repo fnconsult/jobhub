@@ -149,6 +149,21 @@
     "valueText": "{{used}} sur {{allowed}} utilisés ({{percent}} %)",
     "subscription": "Voir mon abonnement"
   },
+  "helpTerms": {
+    "suffix": "(aide)",
+    "words": {
+      "followUp": "relance",
+      "planQuota": "quota"
+    }
+  },
+  "emptyStateHelp": {
+    "proposals": "D'où viennent les propositions ?",
+    "followUps": "Comment marchent les relances ?",
+    "applications": "Comment suivre une candidature ?",
+    "jobSearches": "Comment marche une recherche d'offres ?",
+    "agenda": "Comment noter un entretien ?",
+    "profiles": "Comment créer un profil ?"
+  },
   "signIn": {
     "title": "Se connecter à Jobbbox",
     "intro": "Pas de mot de passe à retenir : recevez un lien de connexion par e-mail, ou utilisez votre compte {{providers}}. Si vous n'avez pas encore de compte, il sera créé.",
@@ -654,7 +669,8 @@
     "error": "Cette proposition n'a pas pu être appliquée. Réessayez ou rechargez la page.",
     "copyDraft": "Copier le brouillon",
     "copied": "Brouillon copié.",
-    "copyFailed": "La copie a échoué : sélectionnez le texte du brouillon et copiez-le vous-même."
+    "copyFailed": "La copie a échoué : sélectionnez le texte du brouillon et copiez-le vous-même.",
+    "none": "Aucune proposition pour l'instant."
   },
   "billing": {
     "plans": {
@@ -2721,7 +2737,8 @@
     "saveDelays": "Enregistrer les délais",
     "delaysSaved": "Délais enregistrés.",
     "delaysInvalid": "Indiquez un nombre entier de jours ouvrés, de 1 à {{max}}.",
-    "delaysError": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez."
+    "delaysError": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez.",
+    "noneWaiting": "Aucune relance à faire pour l'instant."
   },
   "humanCoaches": {
     "title": "Mes coachs humains",

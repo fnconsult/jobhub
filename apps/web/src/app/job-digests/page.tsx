@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentCandidate } from "@/auth/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
+import { EmptyStateHelp } from "@/components/HelpTerm";
 import { JobDigestSettings } from "@/components/JobDigestSettings";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getJobDigests } from "@/job-digests/server";
@@ -30,8 +31,7 @@ export default async function JobDigestsPage() {
       <p className="lead">{t("jobDigest.hint")}</p>
       {active.length === 0 ? (
         <p className="notice">
-          {t("profiles.none")}{" "}
-          <Link href={routes.newProfile}>{t("profiles.create")}</Link>
+          {t("profiles.none")} <Link href={routes.newProfile}>{t("profiles.create")}</Link> <EmptyStateHelp of="profiles" />
         </p>
       ) : (
         digests.map(({ profile, jobDigest }) => (jobDigest ? <JobDigestSettings key={profile.id} profile={profile} jobDigest={jobDigest} locale={locale} t={t} /> : null))

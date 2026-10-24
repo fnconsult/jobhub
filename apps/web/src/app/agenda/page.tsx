@@ -14,6 +14,7 @@ import { AgendaDayButton, AgendaViewMemory } from "@/components/AgendaControls";
 import { AddInterviewDialog, type InterviewableApplication } from "@/components/AddInterviewDialog";
 import { CancelAgendaItemButton } from "@/components/CancelAgendaItemButton";
 import { CandidateLayout } from "@/components/CandidateLayout";
+import { EmptyStateHelp } from "@/components/HelpTerm";
 import { CoachInView } from "@/components/CoachPanel";
 import { CoachingSessionDialog } from "@/components/CoachingSessionDialog";
 import { InterviewFacts, InterviewTimes } from "@/components/InterviewDetails";
@@ -190,7 +191,15 @@ function AgendaList({ days, past, formats, t }: { days: AgendaDay[]; past: boole
         <Link href={routes.agendaList(!past)}>{t(past ? "agenda.showUpcoming" : "agenda.showPast")}</Link>
       </div>
       {days.length === 0 ? (
-        <p className="notice">{t(past ? "agenda.nonePast" : "agenda.none")}</p>
+        <p className="notice">
+          {t(past ? "agenda.nonePast" : "agenda.none")}
+          {past ? null : (
+            <>
+              {" "}
+              <EmptyStateHelp of="agenda" />
+            </>
+          )}
+        </p>
       ) : (
         days.map((day) => {
           const titleId = `agenda-day-${day.day}`;

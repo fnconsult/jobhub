@@ -12,6 +12,7 @@ import { CoachMemoryProposals, CoachMemoryView } from "@/components/CoachMemory"
 import { CoachReplyText } from "@/components/CoachReplyText";
 import { focusFirstSuggestion, HelpArticleCard, HelpForUnanswered, HelpIntro, HelpSuggestions } from "@/components/CoachHelp";
 import { helpArticle, helpLocale, helpSuggestions, MIN_SUGGESTION_LENGTH, type HelpArticle } from "@/coach-help";
+import { createMentions, type Mentions } from "@/help-terms";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icons } from "@/components/icons";
 import { StartJobSearchButton } from "@/components/JobSearchControls";
@@ -43,6 +44,8 @@ type Control = {
   shortLabel?: ParseKeys;
   /** Opens the panel on a Help Article (#342), shown as a card in the conversation; nothing for an unknown id. */
   openHelp: (articleId: string) => void;
+  /** Which mention of a glossary term is the page's first (#343); null in a panel without help. */
+  mentions: Mentions | null;
   /** The AI Coach replies given here about the object of the page in view (#332). */
   repliesInView: readonly ReplyInView[];
 };
@@ -67,6 +70,15 @@ export function useOpenHelp(): (articleId: string) => void {
   return useContext(CoachPanelControl)?.openHelp ?? NO_HELP;
 }
 const NO_HELP = () => {};
+
+/**
+ * What help in pages needs (#343): opening a Help Article in the Coach Panel, and which mention of a glossary term is
+ * the page's first. Null outside a Coach Panel (signed-out pages) or in one without help (the Back Office Assistant).
+ */
+export function usePageHelp(): { openHelp: (articleId: string) => void; mentions: Mentions } | null {
+  const control = useContext(CoachPanelControl);
+  return control?.mentions ? { openHelp: control.openHelp, mentions: control.mentions } : null;
+}
 
 /** The AI Coach replies given in this browser about the object of the page in view; none outside a Coach Panel. */
 export function useCoachRepliesInView(): readonly ReplyInView[] {
@@ -414,6 +426,8 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   const [unanswered, setUnanswered] = useState<string | null>(null);
   const helpCards = useRef(0);
   const [focusCard, setFocusCard] = useState<string | null>(null);
+  // Kept for as long as the panel is: a new page starts afresh by itself (#343).
+  const [mentions] = useState(createMentions);
   useEffect(() => {
     if (!help) return;
     const timer = setTimeout(() => setQuery(draft), SUGGEST_DELAY_MS);
@@ -716,6 +730,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     label: texts.open,
     ...(texts.openShort ? { shortLabel: texts.openShort } : {}),
     openHelp,
+    mentions: help ? mentions : null,
     repliesInView,
   };
   // An empty conversation opens on the help (#342): only Help Articles opened so far, nothing sent.

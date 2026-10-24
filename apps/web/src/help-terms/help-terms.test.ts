@@ -54,8 +54,9 @@ describe("the words of a sentence that name the term", () => {
     expect(wordsWithin("Aucun CV adapté pour l'instant. Le CV adapté…", "CV adapté")).toEqual(["Aucun ", "CV adapté", " pour l'instant. Le CV adapté…"]);
   });
 
-  it("is the whole sentence when the words are not in it (a language that words it otherwise)", () => {
-    expect(wordsWithin("CV tailored to the offer", "Tailored CV")).toEqual(["", "CV tailored to the offer", ""]);
+  it("finds nothing when the words are not in it (a language that words it otherwise): the sentence names no term", () => {
+    expect(wordsWithin("CV tailored to the offer", "Tailored CV")).toBeNull();
+    expect(wordsWithin("Le CV enregistré reste en place.", "")).toBeNull();
   });
 });
 

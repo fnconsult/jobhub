@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import pg from "pg";
-import { applicationDocumentsPage, modelsInWords } from "../apps/web/src/ai-activity";
+import { applicationDocumentsPage } from "../apps/web/src/ai-activity";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
@@ -80,8 +80,6 @@ const dangerSurface = (element: Locator) =>
     return color;
   });
 
-const t = ((key: string) => key.split(".").reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], fr)) as never;
-
 test.describe("Tailored CV and Tailored Documents: Provenance, live steps and Stop (#334)", () => {
   test("a new Tailored CV and Cover Letter show their model, tokens and time, and the documents page gives each to AI Activity", async ({ page }) => {
     const id = await openApplication(page, "Acme Industrie recrute son DAF. Vous pilotez la clôture des comptes. E2E_WRITING_SLOW=1500");
@@ -113,13 +111,14 @@ test.describe("Tailored CV and Tailored Documents: Provenance, live steps and St
 
     // The pane's loader: each document with the model that wrote it, its tokens and time; no internal id.
     const elements = await loadedPage(page, id);
-    expect(elements.map((element) => element.kind)).toEqual(["tailored_cv_proposal", "cover_letter"]);
+    expect(elements.map((element) => element.kind)).toEqual(["tailored_cv", "tailored_documents"]);
     for (const element of elements) {
-      const [written] = element.provenance!.steps;
-      expect(written).toMatchObject({ kind: "ai", activity: "write", task: "writing", provider: "mistral", outcome: "ok" });
-      expect(written!.kind === "ai" && written!.tokens!.output).toBeGreaterThan(0);
-      expect(element.provenance!.wallMs).toBeGreaterThanOrEqual(1500);
-      expect(modelsInWords(element, t)[0]).toMatch(/^Mistral/);
+      expect(element.served).not.toBeNull();
+      const { models, tokens, ms } = element.served!;
+      expect(models[0]!.name).toMatch(/^Mistral/);
+      expect(models[0]!.tokens).toBeGreaterThan(0);
+      expect(tokens).toBeGreaterThan(0);
+      expect(ms).toBeGreaterThanOrEqual(1500);
     }
     expect(JSON.stringify(elements)).not.toContain(id);
 
@@ -128,8 +127,8 @@ test.describe("Tailored CV and Tailored Documents: Provenance, live steps and St
     await cv.getByRole("button", { name: tc.save, exact: true }).click();
     await expect(cv.getByRole("status")).toHaveText(tc.saved);
     const saved = await loadedPage(page, id);
-    expect(saved.map((element) => element.kind)).toEqual(["tailored_cv", "cover_letter"]);
-    expect(saved[0]!.provenance).toEqual(elements[0]!.provenance);
+    expect(saved.map((element) => element.kind)).toEqual(["tailored_cv", "tailored_documents"]);
+    expect(saved[0]!.served).toEqual(elements[0]!.served);
   });
 
   test("Stop mid-writing: no document is kept, AI Usage records it stopped, and the action says « Arrêtée à » in light red", async ({ page }) => {
@@ -142,7 +141,7 @@ test.describe("Tailored CV and Tailored Documents: Provenance, live steps and St
     await letter.getByRole("button", { name: fr.aiActivity.stop, exact: true }).click();
 
     const stopped = letter.locator(".live-action-stopped");
-    await expect(stopped).toHaveText(new RegExp(`^${fr.aiActivity.stoppedAt.replace("{{time}}", "\\d{2}:\\d{2}")} · \\d+ .*· \\d+(,\\d)? s$`));
+    await expect(stopped).toHaveText(new RegExp(`^${fr.aiActivity.stoppedAt.replace("{{time}}", "\\d{2}:\\d{2}")} · \\d+ .*· \\d+(,\\d)? m?s$`));
     await expect(stopped).toHaveAttribute("role", "status");
     expect(await stopped.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(await dangerSurface(stopped));
     // Nothing kept: the Cover Letter is still to draft, and there is no Tailored Document row.

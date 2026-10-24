@@ -113,8 +113,10 @@ test.describe("AI Activity: stopped or failed elements in « Par élément » (#
     const created = await page.request.post("/api/profiles", { headers: { origin }, data: { masterCv, searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] } } });
     const profileId: string = (await created.json()).id;
     const [search] = await query<{ id: string }>(
-      `INSERT INTO job_search (candidate_id, profile_id, status, failure, started_at, finished_at) VALUES ($1, $2, 'failed', 'discovery_failed', now() - interval '5 minutes', now()) RETURNING id`,
-      [candidate!.id, profileId],
+      // A failed row carries metrics like the worker's own (job-search-metrics.spec.ts checks every one does).
+      `INSERT INTO job_search (candidate_id, profile_id, status, failure, started_at, finished_at, metrics)
+       VALUES ($1, $2, 'failed', 'discovery_failed', now() - interval '5 minutes', now(), $3) RETURNING id`,
+      [candidate!.id, profileId, JSON.stringify({ funnel: { providerUrls: 0, fetched: 0, extracted: 0, alreadyStored: 0, afterDedup: 0, matched: 0 }, skipped: {}, costEur: 0, durationMs: 300000 })],
     );
 
     await page.goto(`/recherches/${search!.id}`);

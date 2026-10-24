@@ -150,3 +150,22 @@ async function expectRenewalOnOneLineUnderTheBar(page: Page, sentence: string) {
   // One line: no taller than a line of its own type.
   expect(box.height).toBeLessThanOrEqual(Math.ceil(style.lineHeight) + 1);
 }
+
+test("the Usage Meter's i18n keys are identical in French and English (#321)", () => {
+  expect(Object.keys(fr.usageMeter).sort()).toEqual(Object.keys(en.usageMeter).sort());
+  for (const key of Object.keys(fr.usageMeter)) expect(typeof fr.usageMeter[key], key).toBe(typeof en.usageMeter[key]);
+  expect(fr.usageMeter.title).toBe("Hebdomadaire");
+  expect(en.usageMeter.title).toBe("Weekly");
+});
+
+test("a renewal sentence wider than its room is cut with an ellipsis, not wrapped (#321)", async ({ page }) => {
+  await signInWithMagicLink(page, newAddress("usage-meter-321-cut"));
+  await page.goto("/candidatures");
+  const renews = page.locator(".usage-meter-renews").locator("visible=true");
+  await expect(renews).toBeVisible();
+  // Squeeze the room the sentence has; it must stay on one line and overflow into its ellipsis.
+  await renews.evaluate((el) => { (el as HTMLElement).style.width = "60px"; (el as HTMLElement).style.display = "block"; });
+  const cut = await renews.evaluate((el) => ({ overflowing: el.scrollWidth > el.clientWidth, height: el.getBoundingClientRect().height, line: parseFloat(getComputedStyle(el).lineHeight) || parseFloat(getComputedStyle(el).fontSize) * 1.6 }));
+  expect(cut.overflowing).toBe(true);
+  expect(cut.height).toBeLessThanOrEqual(Math.ceil(cut.line) + 1);
+});

@@ -356,7 +356,7 @@ A recurring email and in-app summary of new Job Offers matching a Profile's Sear
 _Avoid_: Alert, newsletter, feed
 
 **Company Dossier**:
-The research compiled about the employer behind a Job Offer from public data only: legal identity, address, financials and Suggested Contact Roles. Built from the French company register for a French employer; for a foreign one, from the web and marked less reliable. Never names a private person. Built only for a confirmed employer, and refused when the employer is not a company (e.g. a sole trader), in which case the Candidate is asked to name the hiring company. Holds the employer's Company News.
+The research compiled about the employer behind a Job Offer from public data only: legal identity, address, financials and Suggested Contact Roles. Built from the French company register for a French employer; for a foreign one, from the web and marked less reliable. Never names a private person. Built only for a confirmed employer, and refused when the employer is not a company (e.g. a sole trader), in which case the Candidate is asked to name the hiring company. Holds the employer's Company News. Keeps the Provenance of every step of its build (the offer read, the register, the web and news searches); a dossier built after the Candidate confirms a Presumed Employer joins the reading that presumed it.
 _Avoid_: Company info, company profile
 
 **Company News**:
@@ -667,7 +667,7 @@ The one Provenance of a content made by two actions (an offer found by a Job Sea
 _Avoid_: Merged trace
 
 **Provenance site**:
-A site whose pages a piece of content was built from, kept in its Provenance with the links read: an offer page, a job board, the company register, the Candidate's own Master CV and Profile. Shown to the Candidate under « Sources »; a link never points to a LinkedIn profile, a page naming a person, an Enriched Contact, an address inside Jobbbox other than the Candidate's own pages, a signed or tokenised address or a query string. Not a coaching Source (`[S12]`). Either a website (by domain, `www.` removed) or the Candidate's own pages, kept as relative paths (Profils, Candidatures, Recherches, Offres, Job Digests). Steps that ran the same Activity, task or Tool, provider, endpoint, model and Outcome are shown folded into one, with a count.
+A site whose pages a piece of content was built from, kept in its Provenance with the links read: an offer page, a job board, the company register (its page for the company), the news articles and web pages a Company Dossier's facts come from, the Candidate's own Master CV (a site with no link) and Profile. Shown to the Candidate under « Sources »; a link never points to a LinkedIn profile, a page naming a person, an Enriched Contact, an address inside Jobbbox other than the Candidate's own pages, a signed or tokenised address or a query string. Not a coaching Source (`[S12]`). Either a website (by domain, `www.` removed) or the Candidate's own pages, kept as relative paths (Profils, Candidatures, Recherches, Offres, Job Digests). Steps that ran the same Activity, task or Tool, provider, endpoint, model and Outcome are shown folded into one, with a count.
 _Avoid_: Source (alone), citation, reference
 
 **Activity**:
@@ -683,7 +683,7 @@ An AI action of the Candidate running now, or stopped or failed lately, as AI Ac
 _Avoid_: Task, job, process
 
 **Stop**:
-The Candidate ends an AI Coach reply on its way with « Arrêter » (the « Envoyer » button, no confirmation). Every AI call of the reply is aborted (AI Usage `stopped`). The question is kept in the Coach Conversation, no reply is saved, and « Réponse arrêtée » shows the tokens and time spent. A stopped reply counts against no Plan Quota.
+The Candidate ends an AI Coach reply on its way with « Arrêter » (the « Envoyer » button, no confirmation). Every AI call of the reply is aborted (AI Usage `stopped`). The question is kept in the Coach Conversation, no reply is saved, and « Réponse arrêtée » shows the tokens and time spent. A stopped reply counts against no Plan Quota. Stop also ends a Company Dossier being built (the facts found are kept, the news is marked not searched; stopped earlier, nothing changes) and the reading of an uploaded CV (nothing is drafted, not even the rule-based outline, so no Master CV Version is created). Neither counts against a Plan Quota.
 _Avoid_: Cancel, abort
 
 **Run progress**:
@@ -705,7 +705,7 @@ The button in the Candidate's top bar, left of « Mon coach », and the pane it 
 _Avoid_: Session pane, sources bar, tasks panel
 
 **AI Activity element**:
-One item AI Activity lists under « Par élément » with its own Provenance: a Job Offer, an AI Coach reply, a Job Search, and so on. An Abandonnée suggestion is not one: Jobbbox writes its text, with no AI. One without a recorded Provenance shows « modèle non enregistré » and counts in no total. Each Provenance site appears once in the page's Sources, however many elements read it.
+One item AI Activity lists under « Par élément » with its own Provenance: a Job Offer, an AI Coach reply, a Job Search, a Company Dossier, a Master CV Version read from a file (« CV de référence, lu dans votre fichier »), and so on. An Abandonnée suggestion is not one: Jobbbox writes its text, with no AI. One without a recorded Provenance shows « modèle non enregistré » and counts in no total. It still shows the sites its source names. Each Provenance site appears once in the page's Sources, however many elements read it.
 _Avoid_: Row, entry
 
 **Guardrail Trigger**:

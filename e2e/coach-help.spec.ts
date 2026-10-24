@@ -96,11 +96,12 @@ test.describe("the Coach Panel's single box: help first, the AI Coach for the re
     const body = (await sent).postDataJSON();
     expect(body.helpArticle).toEqual({ id: "faq-quota-renewal", title: QUOTA_FAQ });
     expect(JSON.stringify(body)).not.toContain(bodyOf("faq-quota-renewal").slice(0, 40));
+    // The disclosure, the card, the question and the reply. Wait for the reply before reading the system prompt: the
+    // choice of Playbook Agents prints its own prompt first, and the log's latest line must be the reply's.
+    await expect(messagesOf(page)).toHaveCount(4);
     const system = await systemPromptShown(show);
     expect(system).toContain(`« ${QUOTA_FAQ} »`);
     expect(system).not.toContain(bodyOf("faq-quota-renewal").slice(0, 40));
-    // The disclosure, the card, the question and the reply.
-    await expect(messagesOf(page)).toHaveCount(4);
 
     await page.reload();
     await openPanel(page);

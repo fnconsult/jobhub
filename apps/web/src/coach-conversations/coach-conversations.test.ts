@@ -121,6 +121,23 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     ]);
   });
 
+  it("gives the AI Coach the Help Article the Candidate read before asking, by its id, and never saves it (#342)", async () => {
+    const sent = await conversations.send(marie, { message: "Et si je dépasse ?", helpArticle: { id: "faq-quota-renewal", title: "Quand mon quota se renouvelle-t-il ?" } });
+    if (!sent.ok) throw new Error("refused");
+
+    expect(asked[0]!.input).toMatchObject({ helpArticle: { id: "faq-quota-renewal" } });
+    const saved = await conversations.open(marie, sent.conversation.id);
+    expect(saved?.messages.map(({ from, text }) => ({ from, text }))).toEqual([
+      { from: "candidate", text: "Et si je dépasse ?" },
+      { from: "coach", text: "Réponse 1" },
+    ]);
+    expect(JSON.stringify(saved)).not.toContain("faq-quota-renewal");
+
+    // The next message, without one, says nothing of it.
+    await conversations.send(marie, { conversationId: sent.conversation.id, message: "Merci" });
+    expect(asked[1]!.input).not.toHaveProperty("helpArticle");
+  });
+
   it("opens every new conversation with the AI Coach saying it is an AI (#324), without asking the AI Coach for it", async () => {
     const sent = await conversations.send(marie, { message: "Bonjour" });
     if (!sent.ok) throw new Error("refused");

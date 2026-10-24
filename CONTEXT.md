@@ -725,3 +725,10 @@ A Help Article shown in the Coach panel's conversation, from the box's suggestio
 
 **Souvent demandé**:
 The three FAQ Help Articles an empty Coach Conversation offers, beside « Sur cette page », the page's article.
+
+**HelpTerm**:
+The first mention of a glossary term (Match Score, ATS Score, Propositions, CV de référence, CV adapté, Relance, Plan Quota) in a visible sentence of a page, shown with a dotted underline; it opens that term's Help Article in the Coach panel. Later mentions on the same page are plain text. Never in a Section's heading, which is visually hidden, and absent where there is no Coach panel with help (the Back Office Assistant).
+_Avoid_: Tooltip, glossary link
+
+**Empty state help link**:
+The link that follows the line of an empty state (no Propositions, no Relances, no Applications, no Job Search, nothing on the Agenda, no Profile data) and opens the Help Article that explains what fills it.

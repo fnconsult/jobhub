@@ -12,7 +12,7 @@ import { newAddress } from "./support/mailbox";
 // sites its own source names. Stopped mid-dossier, what was finished is kept (the facts, the news not searched); stopped
 // mid-reading, no Master CV Version is made. The register, the web search and the AI are faked inside the server
 // (fake-company-sources.mjs: "E2E_SLOW_NEWS" makes the news search take 30 s; fake-mistral.mjs: "E2E_CV_SLOW" makes the
-// CV reading take 30 s).
+// CV reading take 30 s; "E2E_AI_DOWN" in the Job Offer makes Mistral answer 503, #367).
 const expect = baseExpect.configure({ timeout: 15_000 });
 
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
@@ -173,6 +173,36 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     await expect(elementOf(page, "company_dossier")).not.toContainText(fr.aiActivity.modelNotRecorded);
     await expect(paneOf(page).getByRole("button", { name: "globex-robotics.example" })).toBeVisible();
     await expectNoAxeViolations(page, "aside.ai-activity-pane");
+  });
+
+  test("a dossier whose provider fails shows its Failure Reason in AI Activity, in light red; a network cut, that it could not finish (#367)", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("ai-activity-dossier-fail"));
+    // Its offer analysis goes to Mistral, which answers 503 for "E2E_AI_DOWN".
+    const dossier = await openDossier(page, await newApplication(page, "Globex E2E_AI_DOWN"));
+
+    await dossier.getByRole("button", { name: fr.companyDossier.build }).click();
+    await expect(dossier.getByRole("alert")).toHaveText(fr.companyDossier.unavailable);
+
+    await aiActivityButton(page).click();
+    const failed = paneOf(page).locator(".ai-activity-live");
+    await expect(failed).toContainText(fr.aiActivity.kinds.company_dossier);
+    await expect(failed).toContainText(/Échec à \d{2}:\d{2}/);
+    await expect(failed.locator(".ai-activity-live-reason")).toHaveText(fr.failureReasons.provider_unavailable);
+    expect(await failed.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(await dangerSurface(failed));
+    // Never the provider's words nor its status.
+    await expect(failed).not.toContainText("upstream");
+    await expect(failed).not.toContainText("503");
+    await expectNoAxeViolations(page, "aside.ai-activity-pane");
+    await paneOf(page).getByRole("button", { name: fr.aiActivity.close }).click();
+
+    // The network cut: no reason to give, « Elle n'a pas pu aboutir. ».
+    await page.route("**/company-dossier", (route) => route.abort("internetdisconnected"));
+    await dossier.getByRole("button", { name: fr.companyDossier.build }).click();
+    await expect(dossier.getByRole("alert")).toBeVisible();
+    await aiActivityButton(page).click();
+    const cut = paneOf(page).locator(".ai-activity-live");
+    await expect(cut).toHaveCount(1);
+    await expect(cut.locator(".ai-activity-live-reason")).toHaveText(fr.aiActivity.live.unknownReason);
   });
 
   test("stopped mid-reading from the closed AI Activity button, an uploaded CV makes no Master CV Version", async ({ page }) => {

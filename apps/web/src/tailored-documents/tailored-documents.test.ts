@@ -1,4 +1,4 @@
-import { createAiLayer } from "@jobhub/ai";
+import { AiProviderError, createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import type { MasterCvContent, ProvenanceEvent } from "@jobhub/shared";
 import type { Pool } from "pg";
@@ -360,11 +360,18 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
     await documents.draft(candidateId, applicationId, { document: "cover_letter" });
     await documents.edit(candidateId, applicationId, { document: "cover_letter", text: "Ma version" });
     provider.generate = async () => {
-      throw new Error("provider down");
+      throw new AiProviderError("mistral", "upstream timed out for Marie Dupont", 504);
     };
 
-    expect(await documents.draft(candidateId, applicationId, { document: "cover_letter", language: "en" })).toEqual({ ok: false, error: "unavailable" });
+    // Why, as its Failure Reason (#367): never the provider's words.
+    expect(await documents.draft(candidateId, applicationId, { document: "cover_letter", language: "en" })).toEqual({ ok: false, error: "unavailable", reason: "provider_unavailable" });
     expect(await documents.get(candidateId, applicationId)).toMatchObject({ documentLanguage: "fr", coverLetter: { text: "Ma version" } });
+  });
+
+  it("an empty draft is no draft: unavailable, its reply unreadable (#367)", async () => {
+    provider.generate = async (input) => ({ text: "   ", model: input.model ?? "fake-mistral", usage: { inputTokens: 1, outputTokens: 1 } });
+
+    expect(await documents.draft(candidateId, applicationId, { document: "outreach_message" })).toEqual({ ok: false, error: "unavailable", reason: "invalid_reply" });
   });
 
   it("a Cover Letter keeps its Provenance (#334): the model that wrote it, its tokens and time, the Job Offer's page and the Master CV", async () => {

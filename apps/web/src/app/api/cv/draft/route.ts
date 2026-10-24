@@ -10,12 +10,13 @@ import { getTaskPlaybooks } from "@/task-playbooks/server";
  * CV and Search Criteria for the Candidate to review. Needs no account: a
  * Guest's CV is read the same way for their Match Score. Saves nothing.
  * 200 { masterCv, searchCriteria, provenance? } · 400 { error: CvFileErrorCode } · 403 · 499 { error: "stopped" }
+ * · 500 { error: "failed", reason } (its Failure Reason, #367: see actionResponse)
  * `searchCriteria.location` repeats the first of `searchCriteria.locations` for one release
  * (ADR-0025): earlier versions of the browser extension read that one place.
  * `provenance`: what read it, when the AI Coach did (#335); the Profile saved from the draft keeps it.
  *
  * Live (#335), with `Accept: application/x-ndjson`: the reading's step as it starts and ends, then { type: "done", ...draft }
- * · { type: "stopped", error } · { type: "failed", status, error } (see actionResponse). Aborting the request is the
+ * · { type: "stopped", error } · { type: "failed", status, error, reason? } (see actionResponse). Aborting the request is the
  * Stop: the reading is aborted and nothing is drafted.
  */
 export async function POST(request: Request) {

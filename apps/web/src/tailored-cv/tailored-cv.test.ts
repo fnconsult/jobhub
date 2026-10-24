@@ -425,7 +425,7 @@ Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experi
 
     await tailoredCvs.propose(candidateId, applicationId, {});
     reply = "Désolé, je ne peux pas.";
-    expect(await tailoredCvs.propose(candidateId, applicationId, { language: "en" })).toEqual({ ok: false, error: "unavailable" });
+    expect(await tailoredCvs.propose(candidateId, applicationId, { language: "en" })).toEqual({ ok: false, error: "unavailable", reason: "tailored_cv_refused" });
     expect(await tailoredCvs.get(candidateId, applicationId)).toMatchObject({ documentLanguage: "fr", proposal: { content: { headline: PROPOSAL.headline } } });
   });
   it("only the proposal the Candidate reviewed is saved: not one proposed or answered since, in another tab", async () => {
@@ -521,7 +521,7 @@ Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experi
 
     for (const empty of [{}, { missing: ["Power BI"] }, { cv: PROPOSAL }]) {
       reply = empty;
-      expect(await tailoredCvs.propose(candidateId, applicationId, { language: "en" })).toEqual({ ok: false, error: "unavailable" });
+      expect(await tailoredCvs.propose(candidateId, applicationId, { language: "en" })).toEqual({ ok: false, error: "unavailable", reason: "tailored_cv_refused" });
     }
     expect(await tailoredCvs.get(candidateId, applicationId)).toMatchObject({ documentLanguage: "fr", proposal: { content: { headline: PROPOSAL.headline, experience: masterCv.experience } } });
   });

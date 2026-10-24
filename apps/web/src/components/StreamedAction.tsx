@@ -4,7 +4,7 @@ import type { Activity, ProvenanceEvent, ProvenanceStep, StartedStep, StepLabel 
 import { usePathname } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { RequestKind } from "@/ai-activity/live";
+import { failedReason, type RequestKind } from "@/ai-activity/live";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
 import { useAiActivityLive, type RequestActionLive } from "@/components/AiActivityLive";
 import { readNdjson } from "@/ndjson";
@@ -72,8 +72,10 @@ export function useStreamedAction(kind: Extract<RequestKind, "company_dossier" |
           signal: stop.signal,
         });
         if (!response.ok || !response.body || !response.headers.get("content-type")?.startsWith("application/x-ndjson")) {
-          live?.end("failed");
-          return { ok: false, status: response.status, body: await response.json().catch(() => ({})) };
+          const body: Record<string, unknown> = await response.json().catch(() => ({}));
+          // With the Failure Reason its route gave (#367), else « Elle n'a pas pu aboutir. ».
+          live?.end("failed", failedReason(body));
+          return { ok: false, status: response.status, body };
         }
         let outcome: StreamedOutcome | null = null;
         await readNdjson(response.body, (received) => {
@@ -89,7 +91,7 @@ export function useStreamedAction(kind: Extract<RequestKind, "company_dossier" |
           } else if (event.type === "stopped") {
             outcome = stopped(fieldsOf(event));
           } else {
-            live?.end("failed");
+            live?.end("failed", failedReason(event));
             outcome = { ok: false, status: Number(event.status), body: fieldsOf(event) };
           }
         });

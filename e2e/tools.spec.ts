@@ -48,7 +48,7 @@ test.describe("Tools (Outils)", () => {
     await page.getByRole("button", { name: assistantTexts.open, exact: true }).click();
     const assistant = page.getByRole("complementary", { name: assistantTexts.title });
     await assistant.getByLabel(fr.coachPanel.messageLabel).fill(question);
-    await assistant.getByRole("button", { name: fr.coachPanel.send }).click();
+    await assistant.getByRole("button", { name: fr.backOfficeAssistant.send, exact: true }).click();
     await expect(assistant.getByRole("list", { name: assistantTexts.messagesLabel }).locator("> li")).toHaveCount(2);
 
     await page.goto("/admin/outils");

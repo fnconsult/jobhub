@@ -3,7 +3,8 @@
  * aware of what the Candidate has in view.
  *
  * One deep module. Callers get `createCoach({ ai, playbooks, ...sources }).reply(candidateId, input)`
- * where `input` is untrusted (it comes from the browser): `{ messages, focus? }`.
+ * where `input` is untrusted (it comes from the browser): `{ messages, focus?, helpArticle? }`; `helpArticle`, the Help Article
+ * the Candidate read just before asking (#342), is told by its title alone, never its text (ADR-0035).
  * It never throws for a bad conversation or a failing provider: it answers
  * `{ ok: false, error: "invalid" | "unavailable" }`. What the AI Coach is told
  * (the Candidate summary, the Coach Memory, the item In view, the summaries,
@@ -44,6 +45,7 @@
  * Coaching Playbook whose Playbook Agent the reply always consults first, besides those chosen.
  */
 import { costInEur, createProvenanceRecorder, type AiLayer, type AiWarning, type GenerateResult, type ProviderId } from "@jobhub/ai";
+import { article } from "@jobhub/help";
 import { createI18n } from "@jobhub/shared/i18n";
 import { failureOf, type FailureReason, type JobOffer, type Provenance, type ProvenanceEvent } from "@jobhub/shared";
 import { findJobOfferLink, type JobOfferLinkResult, type JobOfferLinks } from "../job-offer-links";
@@ -165,7 +167,18 @@ const inputSchema = z.object({
     .max(MAX_MESSAGES_ACCEPTED)
     .refine((messages) => messages.at(-1)?.from === "candidate"),
   focus: z.object({ kind: z.enum(COACH_FOCUS_KINDS), id: z.string().max(100) }).optional(),
+  /** The Help Article the Candidate read just before asking (#342): only its id counts, its title is the help's own. */
+  helpArticle: z.object({ id: z.string().max(100) }).loose().optional(),
 });
+
+/**
+ * What the AI Coach is told of the Help Article the Candidate read before asking (ADR-0035): its title alone, in the
+ * Candidate's language, never its text. Nothing for an article the help does not have.
+ */
+function helpArticleText(helpArticle: { id: string } | undefined, language: GuardrailLanguage): string {
+  const read = helpArticle ? article(helpArticle.id, language) : null;
+  return read ? `Le candidat vient de lire l'article d'aide de Jobbbox « ${read.title} » : il n'y a pas trouvé toute sa réponse.` : "";
+}
 
 const PERSONA = `Tu es le coach Jobbbox : un coach emploi bienveillant et concret pour des cadres et professionnels de plus de 40 ans qui cherchent un poste en France.
 Règles :
@@ -278,7 +291,7 @@ export function createCoach(deps: CoachDeps): Coach {
             choice,
             advice,
             skipped,
-            system: [instructions, ...knowledge, context].join("\n\n"),
+            system: [instructions, ...knowledge, context, helpArticleText(parsed.data.helpArticle, options.language ?? "fr")].filter(Boolean).join("\n\n"),
             // What a reply must never copy: the AI Coach's rules and the coaching knowledge it was given.
             secrets: [PERSONA, GROUNDING_RULES, served.coreDigest?.content ?? "", ...choice.chosen.map((playbook) => playbook.content)],
           };

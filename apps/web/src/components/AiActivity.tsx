@@ -34,7 +34,7 @@ const NO_ACTIONS: readonly LiveAction[] = [];
 const AiActivityControl = createContext<Control | null>(null);
 
 /**
- * AI Activity (CONTEXT.md, #314, #332): the Candidate's top-bar button, left of « Mon coach », and the « Cette page »
+ * AI Activity (CONTEXT.md, #314, #332): the Candidate's top-bar button, left of « Aide et coach », and the « Cette page »
  * pane it opens, of the page's `elements` (one loader per page type, ai-activity/index.ts) and of the AI Coach replies
  * given here about the page's object since it loaded; and, live, the Candidate's AI actions as they run, here or « En cours
  * ailleurs » (AiActivityLive, #333). Candidate pages only: the Back Office mounts no provider, so neither the button nor the

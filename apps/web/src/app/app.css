@@ -1691,8 +1691,10 @@ html[data-sidebar="closed"] .sidebar-docked {
   border-top: 1px solid var(--color-border);
 }
 
-/* The Usage Meter (ADR-0032): the week's Plan Quotas as one bar, its detail under the button. */
+/* The Usage Meter (ADR-0032): the week's Plan Quotas as one bar, when they renew under it, its detail
+   a small card opened above it (#321), so the sidebar's foot never moves. */
 .usage-meter {
+  position: relative;
   padding-inline: var(--space-2);
 }
 
@@ -1743,14 +1745,37 @@ html[data-sidebar="closed"] .sidebar-docked {
   background: var(--color-accent);
 }
 
+/* « Votre quota se renouvelle lundi minuit »: metadata (ADR-0009 amendment), on one line, cut rather than wrapped.
+   It starts under the title and runs to the sidebar's edge, past the bar, so the French fits at 13 px. */
+.usage-meter-renews {
+  margin: calc(-1 * var(--space-1)) calc(-1 * var(--space-2)) 0 0;
+  padding-inline: var(--space-3) 0;
+  overflow: hidden;
+  color: var(--color-text-meta);
+  font-size: var(--font-size-meta);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .usage-meter-detail {
-  padding: 0 var(--space-3) var(--space-2);
+  position: absolute;
+  right: var(--space-2);
+  bottom: calc(100% + var(--space-1));
+  left: var(--space-2);
+  z-index: 5;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-meta);
+  line-height: 1.4;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-menu);
 }
 
 .usage-meter-detail dl {
   display: grid;
-  gap: var(--space-1);
-  margin: 0 0 var(--space-2);
+  gap: 2px;
+  margin: 0 0 var(--space-1);
 }
 
 .usage-meter-detail dl > div {
@@ -1767,10 +1792,6 @@ html[data-sidebar="closed"] .sidebar-docked {
 .usage-meter-detail dd {
   margin: 0;
   font-weight: 600;
-}
-
-.usage-meter-detail .hint {
-  margin: 0 0 var(--space-2);
 }
 
 .sidebar-collapse,

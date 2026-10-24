@@ -573,7 +573,7 @@ A configurable usage limit attached to a Plan: Profiles held at once, Match Scor
 _Avoid_: Limit, allowance, credits, monthly quota
 
 **Usage Meter**:
-The bar at the foot of the Sidebar showing how much of the week's Plan Quotas the Candidate has used: every use over every use the Plan grants, so each quota weighs what the Plan grants of it; unlimited and not-included quotas weigh nothing. Its button shows each quota's use and the Job Digest frequency, and leads to the subscription page.
+The bar at the foot of the Sidebar showing how much of the week's Plan Quotas the Candidate has used: every use over every use the Plan grants, so each quota weighs what the Plan grants of it; unlimited and not-included quotas weigh nothing. Titled « Hebdomadaire » ("Weekly"), with a line under the bar saying the quota renews Monday at midnight. Its button opens a card above the meter (Escape closes it) showing each quota's use and the Job Digest frequency, and leading to the subscription page.
 _Avoid_: Credits bar, usage gauge
 
 **Coupon**:

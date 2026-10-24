@@ -63,7 +63,7 @@ test.describe("the Coach Panel's single box: help first, the AI Coach for the re
     await expect(panelOf(page).getByText(help.suggestions, { exact: true })).toBeVisible();
     await expect(suggestionsOf(page).getByRole("button")).toHaveCount(2);
     // Screen readers hear how many, politely.
-    await expect(panelOf(page).getByRole("status").filter({ hasText: "2 articles dans l'aide" })).toHaveCount(1);
+    await expect(panelOf(page).locator('[aria-live="polite"]').filter({ hasText: "2 articles dans l'aide" })).toHaveCount(1);
     expect(calls()).toEqual([]);
 
     // Under 3 characters, nothing is suggested.

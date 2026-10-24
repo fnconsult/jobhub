@@ -121,15 +121,14 @@ export function HelpIntro({ pathname, locale, onOpen }: { pathname: string; loca
       ) : null}
       <section className="help-intro-section">
         <h3>{t("coachPanel.help.oftenAsked")}</h3>
-        <ul className="help-chips">
+        {/* Buttons, not a list: inside the conversation's first message, a list would read as more messages. */}
+        <div className="help-chips">
           {oftenAsked(locale).map((article) => (
-            <li key={article.id}>
-              <button type="button" className="button help-chip" onClick={() => onOpen(article)}>
-                {article.title}
-              </button>
-            </li>
+            <button key={article.id} type="button" className="button help-chip" onClick={() => onOpen(article)}>
+              {article.title}
+            </button>
           ))}
-        </ul>
+        </div>
       </section>
     </div>
   );

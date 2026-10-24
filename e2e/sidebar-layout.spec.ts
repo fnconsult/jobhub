@@ -215,7 +215,7 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     }
 
     // Agrandir: a modal drawer over the page, which keeps its place beneath; Escape brings it back.
-    await panel.getByRole("button", { name: fr.coachPanel.widen }).click();
+    await panel.getByRole("button", { name: fr.coachPanel.widen, exact: true }).click();
     const drawerPanel = page.getByRole("dialog", { name: fr.coachPanel.title });
     expect((await drawerPanel.boundingBox())!.width).toBeCloseTo(64 * 17, 0); // 64rem at the standard text size (17px)
     expect((await page.locator("main").boundingBox())!.width).toBeCloseTo(main.width, 0);
@@ -337,7 +337,7 @@ test.describe("below 64rem", () => {
     const box = (await coachPanel(page).boundingBox())!;
     expect(box.x).toBeCloseTo(0, 0);
     expect(box.width).toBeCloseTo(1000, 0);
-    await expect(coachPanel(page).getByRole("button", { name: fr.coachPanel.widen })).toBeHidden();
+    await expect(coachPanel(page).getByRole("button", { name: fr.coachPanel.widen, exact: true })).toBeHidden();
   });
 });
 

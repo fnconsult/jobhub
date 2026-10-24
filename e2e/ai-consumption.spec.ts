@@ -41,7 +41,7 @@ const assistant = (page: Page) => page.getByRole("complementary", { name: assist
 async function askAssistant(page: Page, text: string) {
   await page.getByRole("button", { name: assistantTexts.open, exact: true }).click();
   await assistant(page).getByLabel(fr.coachPanel.messageLabel).fill(text);
-  await assistant(page).getByRole("button", { name: fr.coachPanel.send }).click();
+  await assistant(page).getByRole("button", { name: fr.backOfficeAssistant.send, exact: true }).click();
   // Its reply: an item after the question, once « thinking » is gone. Not a count: a failed Guardrail check
   // (E2E_GUARDRAIL_*) may add a notice of its own beside the reply.
   const items = assistant(page).getByRole("list", { name: assistantTexts.messagesLabel }).locator("> li");

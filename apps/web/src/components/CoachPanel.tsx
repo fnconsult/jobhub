@@ -898,7 +898,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                     <>
                       <HelpSuggestions articles={suggestions} onOpen={showArticle} onBack={() => input.current?.focus()} />
                       {/* « 2 articles dans l'aide »: heard as they change, never moving the focus. */}
-                      <p className="visually-hidden" role="status">
+                      <p className="visually-hidden" aria-live="polite">
                         {suggestions.length > 0 ? t("coachPanel.help.found", { count: suggestions.length }) : ""}
                       </p>
                     </>
